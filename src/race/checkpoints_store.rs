@@ -2,9 +2,9 @@
 //! checkpoint of the stage (up to 5146) its face, its face count, its angle, its distance, its map
 //! place and its nearest replay cameras, then the two replay camera lists.
 
-#[cfg(test)]
-use crate::race::owner::race;
 use crate::session::PlainDword;
+#[cfg(test)]
+use crate::test_support::own::race;
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
@@ -43,7 +43,7 @@ pub struct Checkpoints {
     pub replay_cameras_2: [PlainDword; 1024],
 }
 
-/// The piece, a field of `crate::race::owner::race().shared.buffers`.
+/// The piece, a field of `crate::test_support::own::race().shared.buffers`.
 #[cfg(test)]
 pub struct InBuffers;
 

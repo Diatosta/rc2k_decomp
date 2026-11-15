@@ -187,7 +187,7 @@ mod reference_vectors {
                             set,
                             &bx.revs_input,
                             EnginePlace::Ahead,
-                            crate::sound::owner::sound().race.surface.get(),
+                            crate::test_support::own::sound().race.surface.get(),
                             request,
                         );
                     });

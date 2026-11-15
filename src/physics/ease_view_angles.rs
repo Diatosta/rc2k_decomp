@@ -53,7 +53,7 @@ fn x87_1(numbers: &Numbers, tables: &RaceTables, rate: u32, scene: &crate::scene
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::race::owner::race;
+    use crate::test_support::own::race;
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
@@ -75,7 +75,7 @@ mod reference_vectors {
                     race().course.numbers.get(),
                     race().shared.tables(),
                     crate::scene::x87_mem::Base::dword(a[0], 0),
-                    crate::scene::owner::scene(),
+                    crate::test_support::own::scene(),
                 );
             },
         }]

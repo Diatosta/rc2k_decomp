@@ -669,7 +669,7 @@ mod tests {
 
     #[test]
     fn a_pieces_item_is_kept_as_a_handle() {
-        let install = crate::install::owner::install();
+        let install = crate::test_support::own::install();
         let _lock = crate::test_support::test_lock();
         let title = ListItem::of_title(install);
         assert_eq!(
@@ -693,7 +693,7 @@ mod tests {
 
     #[test]
     fn a_handle_that_names_no_item_is_refused() {
-        let install = crate::install::owner::install();
+        let install = crate::test_support::own::install();
         let _lock = crate::test_support::test_lock();
         assert!(ListItem::from_handle(install, 0).is_err());
         assert!(ListItem::from_handle(install, u32::MAX).is_err());
@@ -708,7 +708,7 @@ mod tests {
     /// are set by `list_drives` (the drives and two more, at most 24 drives: `drives::kept`).
     #[test]
     fn the_counts_stay_within_the_items() {
-        let install = crate::install::owner::install();
+        let install = crate::test_support::own::install();
         let _lock = crate::test_support::test_lock();
         for list in ListId::ALL {
             let menu = ListMenu::installer(install, list);
@@ -728,7 +728,7 @@ mod tests {
     /// table a choice link could name either: only the typed folder's link is a place.
     #[test]
     fn the_lists_hold_no_choice_items() {
-        let install = crate::install::owner::install();
+        let install = crate::test_support::own::install();
         let _lock = crate::test_support::test_lock();
         for list in ListId::ALL {
             let menu = ListMenu::installer(install, list);
@@ -749,9 +749,9 @@ mod tests {
 
     #[test]
     fn a_choice_link_names_a_place_or_is_refused() {
-        let install = crate::install::owner::install();
+        let install = crate::test_support::own::install();
         let _lock = crate::test_support::test_lock();
-        let room = &crate::install::owner::install().pages.room_menu.items[0];
+        let room = &crate::test_support::own::install().pages.room_menu.items[0];
         let saved = (room.first.get(), room.data.get());
         room.first.set(2);
         for link in [
@@ -779,7 +779,7 @@ mod tests {
 
     #[test]
     fn an_installer_item_past_the_list_is_refused() {
-        let install = crate::install::owner::install();
+        let install = crate::test_support::own::install();
         let _lock = crate::test_support::test_lock();
         let past = std::panic::catch_unwind(AssertUnwindSafe(|| {
             ListMenu::installer(install, ListId::Room).item(3)

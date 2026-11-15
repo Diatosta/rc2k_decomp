@@ -3,9 +3,9 @@
 //! the two file handles of `race::save_viewed_replay`.
 
 use crate::errors::BadInput;
-#[cfg(test)]
-use crate::race::owner::race;
 use crate::session::{PlainBytes, PlainDword};
+#[cfg(test)]
+use crate::test_support::own::race;
 
 #[derive(rc2k_derive::Cells)]
 pub struct ViewerBuffers {
@@ -44,7 +44,7 @@ pub struct ViewerBuffers {
     pub to_file: PlainDword,
 }
 
-/// The buffers as held by `crate::race::owner::race().shared`.
+/// The buffers as held by `crate::test_support::own::race().shared`.
 #[cfg(test)]
 pub struct InBuffers;
 

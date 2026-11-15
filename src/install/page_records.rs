@@ -253,7 +253,7 @@ mod tests {
 
     #[test]
     fn every_page_resolves_its_links() {
-        let install = crate::install::owner::install();
+        let install = crate::test_support::own::install();
         let mut seen = 0;
         for first in [PageEntry::normal_run(), PageEntry::update_run()] {
             let mut entries = vec![first];
@@ -326,7 +326,7 @@ mod tests {
     /// bytes are the pages' data: nothing writes them while an installer runs.
     #[test]
     fn answers_stay_inside_their_entry() {
-        let install = crate::install::owner::install();
+        let install = crate::test_support::own::install();
         let mut checked = 0;
         for index in 0..crate::install::page_links::TABLE_LEN {
             let link = PageLink::table(index);

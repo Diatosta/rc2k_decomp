@@ -71,7 +71,7 @@ fn x87_2(c: &CameraInputs<'_>) {
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::race::owner::race;
+    use crate::test_support::own::race;
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
@@ -101,8 +101,10 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |_| {
                     x87_2(
-                        &crate::physics::step_inputs::StepInputs::of(crate::race::owner::race())
-                            .camera(),
+                        &crate::physics::step_inputs::StepInputs::of(
+                            crate::test_support::own::race(),
+                        )
+                        .camera(),
                     );
                 },
             },

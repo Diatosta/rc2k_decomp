@@ -1,5 +1,5 @@
-//! Module system's owner: the program-wide state in one struct, reached through `system()` by
-//! code that has no reference to it.
+//! Module system's owner: the program-wide state in one struct, handed by reference to the code
+//! that uses it.
 
 use crate::files::scratch::Scratch as FileScratch;
 use crate::logfile::numeric::SCRATCH_LEN;
@@ -157,11 +157,4 @@ impl System {
             main: GameThread::new(SystemMain::new()),
         }
     }
-}
-
-pub static SYSTEM: System = System::new();
-
-/// The program-wide state; pass it down where a function reaches it more than once.
-pub fn system() -> &'static System {
-    &SYSTEM
 }

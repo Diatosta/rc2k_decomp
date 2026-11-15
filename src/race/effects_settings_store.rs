@@ -8,9 +8,9 @@ use crate::cells::ZeroCells;
 use crate::errors::BadInput;
 use crate::race::blocks_store::CarBlocks;
 use crate::race::first_cells::plain_dwords;
-#[cfg(test)]
-use crate::race::owner::race;
 use crate::session::{PlainDword, PlainFloat, PlainInt};
+#[cfg(test)]
+use crate::test_support::own::race;
 
 /// A car's record in the settings (0x4C8 bytes; `effects::blocks`, `effects::cars_particles`,
 /// `effects::morph_object_points`, `effects::tidy_marks` work on it). Names are readings from what

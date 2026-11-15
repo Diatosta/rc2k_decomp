@@ -1,5 +1,5 @@
-//! The network's variables in one struct, reached through `net()` by code that has no
-//! reference to it. The receiving thread reads and writes `vars` concurrently (its cells stay
+//! The network's variables in one struct, handed by reference to the code that uses them. The
+//! receiving thread reads and writes `vars` concurrently (its cells stay
 //! atomic); the players' inboxes sit behind their own lock; `main` (this machine's settings, the
 //! address being built, the session joined and each network screen's state) and the button
 //! belong to the game thread.
@@ -100,12 +100,4 @@ impl Net {
     pub fn joined(&self) -> &JoinedVars {
         &self.main.get().joined
     }
-}
-
-/// The one instance. Reached through `net()`; `moved` registers its stores' places.
-pub static NET_OWNER: Net = Net::new();
-
-/// The network's state; pass it down where a function reaches it more than once.
-pub fn net() -> &'static Net {
-    &NET_OWNER
 }

@@ -254,7 +254,11 @@ mod reference_vectors {
                             .read_unaligned()
                     });
                     super::turn_x87(
-                        &crate::race::owner::race().frame.matrices.get().view_matrix,
+                        &crate::test_support::own::race()
+                            .frame
+                            .matrices
+                            .get()
+                            .view_matrix,
                         &place,
                         w,
                         dw,

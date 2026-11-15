@@ -108,7 +108,7 @@ fn x87_1(
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::race::owner::race;
+    use crate::test_support::own::race;
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
@@ -137,7 +137,7 @@ mod reference_vectors {
                     race().shared.physics_tables.get(),
                     race().shared.car(),
                     race().gear(),
-                    crate::scene::owner::scene(),
+                    crate::test_support::own::scene(),
                 );
             },
         }]

@@ -96,7 +96,7 @@ mod reference_vectors {
                             set,
                             &bx.throttle_input,
                             EnginePlace::Behind,
-                            crate::sound::owner::sound().race.surface.get(),
+                            crate::test_support::own::sound().race.surface.get(),
                             request,
                         );
                     });

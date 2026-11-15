@@ -902,7 +902,7 @@ pub mod block_vectors {
     }
 
     /// `sparse` for blocks whose Rust version reads a static beside its operands (an owner's
-    /// store, `sound::owner::sound()`): run under `test_support::test_lock`.
+    /// store): run under `test_support::test_lock`.
     pub fn sparse_locked(name: &str, blocks: &[Block], cases: u32, seed: u64) {
         run(
             Recorder::replay(name),

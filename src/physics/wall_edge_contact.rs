@@ -150,8 +150,8 @@ fn x87_1(numbers: &Numbers, d: [u32; 2], scene: &crate::scene::owner::Scene) {
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::race::owner::race;
     use crate::scene::x87_mem::view;
+    use crate::test_support::own::race;
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
@@ -172,7 +172,7 @@ mod reference_vectors {
                 x87_1(
                     race().course.numbers.get(),
                     *view(a[0], 0),
-                    crate::scene::owner::scene(),
+                    crate::test_support::own::scene(),
                 );
             },
         }]

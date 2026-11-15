@@ -170,11 +170,11 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     distance(
-                        crate::race::owner::race().shared.physics_tables.get(),
-                        crate::race::owner::race().course.numbers.get(),
-                        crate::race::owner::race().physics.ground(),
+                        crate::test_support::own::race().shared.physics_tables.get(),
+                        crate::test_support::own::race().course.numbers.get(),
+                        crate::test_support::own::race().physics.ground(),
                         point_at(a[1]),
-                        crate::scene::owner::scene(),
+                        crate::test_support::own::scene(),
                     );
                 },
             },
@@ -198,10 +198,10 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     angle(
-                        crate::race::owner::race().course.numbers.get(),
-                        crate::race::owner::race().physics.ground(),
+                        crate::test_support::own::race().course.numbers.get(),
+                        crate::test_support::own::race().physics.ground(),
                         point_at(a[1]),
-                        crate::scene::owner::scene(),
+                        crate::test_support::own::scene(),
                     );
                 },
             },

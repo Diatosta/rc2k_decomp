@@ -7,13 +7,13 @@ use crate::race::trap::Trap;
 use crate::race::view_scratch::DrawCtx;
 
 /// Sets the cars' light modes: the shown car (`shown_car`) is the drawn view's car
-/// (`crate::race::owner::race().shared.view.view_cars[drawn_view]`); every car block's +0x6FC is
+/// (`crate::test_support::own::race().shared.view.view_cars[drawn_view]`); every car block's +0x6FC is
 /// set to 0; then for each race car with lights (+0x25C) that is drawn (any car in modes 0 and 2,
 /// else the shown car only; the shown car not with +0x69C and +0x684 both 0, nor in the mirror,
 /// `mirrored`) +0x6FC's nibbles are set step by step: 0x21; for the shown car with
 /// `view_car_flag_b`, 0x12, then 0x14 unless `view_car_stage` is 1, then 0x11 unless it is 2 or 3;
 /// then 0x100 in the third nibble, 0x200 with
-/// `crate::race::owner::race().shared.vars.settings_words[3]` (1: the shown car only). Refused
+/// `crate::test_support::own::race().shared.vars.settings_words[3]` (1: the shown car only). Refused
 /// (before anything): a null block among the eight, or more than eight cars. The camera flag and
 /// stage (`view_car_flag_b`, `view_car_stage`) are the shown car's own (`camera_mode_is_2_or_3`,
 /// +0x684 `camera_view`), not what the view drawn before had set from them (which was one frame

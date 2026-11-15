@@ -164,8 +164,8 @@ fn add_push(car: &Car, contact: &ContactWork, d: &[impl FloatLike; 3]) {
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::race::owner::race;
     use crate::scene::x87_mem::view;
+    use crate::test_support::own::race;
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
@@ -239,9 +239,9 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     push_apart(
-                        crate::race::owner::race().shared.car(),
-                        crate::race::owner::race().physics.contact.get(),
-                        crate::race::owner::race().course.numbers.get(),
+                        crate::test_support::own::race().shared.car(),
+                        crate::test_support::own::race().physics.contact.get(),
+                        crate::test_support::own::race().course.numbers.get(),
                         view::<[crate::session::Dword; 3]>(a[1], 0x134),
                     );
                 },

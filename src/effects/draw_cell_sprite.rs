@@ -358,7 +358,11 @@ mod reference_vectors {
             with_laid::<RingWork, _>(b[1], |w| {
                 with_laid::<DrawWork, _>(b[1], |dw| {
                     super::turn_x87(
-                        &crate::race::owner::race().frame.matrices.get().view_matrix,
+                        &crate::test_support::own::race()
+                            .frame
+                            .matrices
+                            .get()
+                            .view_matrix,
                         &values(b[2]),
                         w,
                         dw,
@@ -460,7 +464,7 @@ mod reference_vectors {
                     let mut cells = vertices;
                     cells.push((
                         sine(
-                            &crate::race::owner::race()
+                            &crate::test_support::own::race()
                                 .shared
                                 .buffers
                                 .reads
@@ -472,7 +476,7 @@ mod reference_vectors {
                     ));
                     cells.push((
                         cosine(
-                            &crate::race::owner::race()
+                            &crate::test_support::own::race()
                                 .shared
                                 .buffers
                                 .reads
@@ -484,7 +488,7 @@ mod reference_vectors {
                     ));
                     staged(&cells, || {
                         super::square_x87(
-                            &crate::race::owner::race()
+                            &crate::test_support::own::race()
                                 .shared
                                 .buffers
                                 .reads

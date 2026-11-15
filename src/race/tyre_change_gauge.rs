@@ -148,8 +148,8 @@ pub fn tyre_change_gauge(o: Owners<'static>, start: bool, player: u32) -> Result
 mod reference_vectors {
     use super::*;
     use crate::race::asm_test::{Rng, at_each_control_word, lock};
-    use crate::race::owner::race;
     use crate::race::viewer_screen_store::VIEWER_PANEL;
+    use crate::test_support::own::race;
     use crate::test_support::vectors::{Recorder, word};
 
     /// The five constants.

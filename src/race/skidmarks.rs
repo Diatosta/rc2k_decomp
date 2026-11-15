@@ -296,16 +296,16 @@ mod reference_vectors {
 mod vector_tests {
     use super::*;
     use crate::race::asm_test::{Rng, at_each_control_word, lock, same};
-    use crate::race::owner::race;
-    use crate::scene::owner::scene;
+    use crate::test_support::own::race;
+    use crate::test_support::own::scene;
     use crate::test_support::race_vectors::{Kind, Vectors};
     use crate::test_support::state::Snapshot;
 
     /// The stores the test writes.
     const STORES: [&str; 3] = [
-        "scene.owner.SCENE.drawing.scene",
-        "race.owner.RACE.course.course",
-        "race.owner.RACE.course.stage_prefs",
+        "owners.scene.drawing.scene",
+        "owners.race.course.course",
+        "owners.race.course.stage_prefs",
     ];
 
     #[test]

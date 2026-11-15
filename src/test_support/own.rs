@@ -8,22 +8,9 @@ use crate::owners::Owners;
 /// Builds an owner on a thread with room for it (`Race` is 1.5 MB, a test thread has 2 MB) and
 /// keeps it for the rest of the run.
 fn build<T: 'static>(make: fn() -> T) -> &'static T {
-    /// An owner built on a thread that has ended.
-    struct Built<T>(Box<T>);
-    // SAFETY: the box is the builder thread's only handle on the value, which it made fresh and
-    // gives up when it ends; the value's cells are reached only from the thread that joins it
-    // (the `!Send` parts are `&'static` references to statics, which the value does not share
-    // with the builder thread any more).
-    unsafe impl<T> Send for Built<T> {}
-
-    let stack = size_of::<T>() * 3 + (1 << 20);
-    let built = std::thread::Builder::new()
-        .stack_size(stack)
-        .spawn(move || Built(Box::new(make())))
-        .expect("a thread to build an owner on")
-        .join()
-        .expect("the owner is built");
-    Box::leak(built.0)
+    crate::owners::on_big_stack(size_of::<T>() * 3 + (1 << 20), move || {
+        Box::leak(Box::new(make()))
+    })
 }
 
 macro_rules! own {

@@ -1006,7 +1006,7 @@ mod reference_vectors {
 mod vector_tests {
     use super::*;
     use crate::race::asm_test::{Rng, at_each_control_word, lock, same, within_ulps};
-    use crate::race::owner::race;
+    use crate::test_support::own::race;
     use crate::test_support::race_vectors::{Kind, Vectors};
     use crate::test_support::state::Snapshot;
 
@@ -1023,9 +1023,9 @@ mod vector_tests {
     fn inside_edge_is_the_originals() {
         let _l = lock();
         let kept = Snapshot::of(&[
-            "race.owner.RACE.physics.ground",
-            "race.owner.RACE.frame.frame_work",
-            "race.owner.RACE.course.course",
+            "owners.race.physics.ground",
+            "owners.race.frame.frame_work",
+            "owners.race.course.course",
         ]);
         let mut vectors = Vectors::open("race.car_shadow.inside_edge", Kind::Exact, 3);
         let mut r = Rng(24);
@@ -1069,9 +1069,9 @@ mod vector_tests {
     fn crossing_block_is_the_originals() {
         let _l = lock();
         let kept = Snapshot::of(&[
-            "scene.owner.SCENE.drawing.scene",
-            "race.owner.RACE.frame.frame_work",
-            "race.owner.RACE.physics.ground",
+            "owners.scene.drawing.scene",
+            "owners.race.frame.frame_work",
+            "owners.race.physics.ground",
         ]);
         let mut vectors = Vectors::open("race.car_shadow.crossing_block", Kind::Exact, 13);
         let mut r = Rng(25);
@@ -1141,8 +1141,8 @@ mod vector_tests {
     fn sun_slant_and_angle_are_the_originals() {
         let _l = lock();
         let kept = Snapshot::of(&[
-            "scene.owner.SCENE.drawing.scene",
-            "race.owner.RACE.frame.shadow_skids",
+            "owners.scene.drawing.scene",
+            "owners.race.frame.shadow_skids",
         ]);
         let mut vectors = Vectors::open("race.car_shadow.sun_slant_and_angle", Kind::Close, 3);
         let mut r = Rng(26);

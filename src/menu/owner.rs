@@ -1,6 +1,5 @@
 //! The menu module's owner: the menus' typed stores in one struct, grouped by what they are for.
-//! The game's root makes one (`Menus::boxed`) and hands it down in `Owners`; the tests share a
-//! static one (`menus()`).
+//! `Owners::build` makes one and hands it down in `Owners`; each test thread has its own.
 
 use crate::menu::arcade_store::Arcade;
 use crate::menu::build_notice::BuildNotice;
@@ -29,8 +28,6 @@ use crate::menu::screen_items_store::ScreenItems;
 use crate::menu::state_store::MenuState;
 use crate::screens::controls_store::ControlsScreen;
 use crate::service::owner::Service;
-#[cfg(test)]
-use crate::session::GameThread;
 
 /// The cars, their numbers and the drivers.
 pub struct Cars {
@@ -166,16 +163,7 @@ impl Keys {
     }
 }
 
-/// The tests' shared instance, reached through `menus()` and the test registry.
-#[cfg(test)]
-pub static MENU_OWNER: GameThread<Menus> = GameThread::new(Menus::new());
-
 impl Menus {
-    /// The menus' state at start-up, on the heap and for the rest of the run.
-    pub fn boxed() -> &'static Menus {
-        Box::leak(Box::new(Menus::new()))
-    }
-
     /// The menus' state at start-up.
     pub const fn new() -> Menus {
         Menus {
@@ -192,15 +180,9 @@ impl Menus {
     }
 }
 
-/// The tests' shared menus.
-#[cfg(test)]
-pub fn menus() -> &'static Menus {
-    MENU_OWNER.get()
-}
-
 #[cfg(test)]
 mod tests {
-    /// `Menus::boxed` builds the owner on the stack before boxing it: it must stay small.
+    /// `Owners::build` builds the owner on the stack before boxing it: it must stay small.
     #[test]
     fn menus_are_small_enough_to_build_on_the_stack() {
         let size = std::mem::size_of::<super::Menus>();

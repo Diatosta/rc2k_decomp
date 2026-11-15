@@ -1,5 +1,5 @@
-//! Module input's owner: the input stores in one struct, reached through `input()` by the code
-//! that does not take it as a parameter.
+//! Module input's owner: the input stores in one struct, handed by reference to the code that
+//! uses them.
 
 use crate::input::guids::InputGuids;
 use crate::input::store::{Devices, ForceFeedback, Keyboard, Mouse};
@@ -51,12 +51,4 @@ impl Input {
             }),
         }
     }
-}
-
-/// The one instance. Reached through `input()`; `moved` registers its stores' places.
-pub static INPUT: Input = Input::new();
-
-/// The input's state, for a caller that does not take it as a parameter yet.
-pub fn input() -> &'static Input {
-    &INPUT
 }

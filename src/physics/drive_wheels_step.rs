@@ -789,8 +789,8 @@ fn slip_lengths(car: &Car, scene: &crate::scene::owner::Scene) {
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::race::owner::race;
     use crate::scene::x87_mem::{Base, view};
+    use crate::test_support::own::race;
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
@@ -814,7 +814,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     one_less_abs(
-                        &crate::race::owner::race().course,
+                        &crate::test_support::own::race().course,
                         view::<PlainFloat>(a[0], 0),
                         view::<PlainFloat>(a[2], 0),
                     );
@@ -974,13 +974,13 @@ mod reference_vectors {
                         race().shared.car(),
                         race().shared.physics_tables.get(),
                         if a[1] == 0 {
-                            &crate::race::owner::race()
+                            &crate::test_support::own::race()
                                 .shared
                                 .physics_tables
                                 .get()
                                 .wheel_grips
                         } else {
-                            &crate::race::owner::race()
+                            &crate::test_support::own::race()
                                 .shared
                                 .physics_tables
                                 .get()
@@ -1021,13 +1021,13 @@ mod reference_vectors {
                         race().shared.car(),
                         race().shared.physics_tables.get(),
                         if a[1] == 0 {
-                            &crate::race::owner::race()
+                            &crate::test_support::own::race()
                                 .shared
                                 .physics_tables
                                 .get()
                                 .wheel_grips
                         } else {
-                            &crate::race::owner::race()
+                            &crate::test_support::own::race()
                                 .shared
                                 .physics_tables
                                 .get()
@@ -1056,7 +1056,7 @@ mod reference_vectors {
                         race().shared.car(),
                         race().shared.physics_tables.get(),
                         race().course.numbers.get(),
-                        crate::scene::owner::scene(),
+                        crate::test_support::own::scene(),
                     );
                 },
             },
@@ -1231,7 +1231,7 @@ mod reference_vectors {
                         race().shared.car(),
                         race().shared.physics_tables.get(),
                         race().course.numbers.get(),
-                        crate::scene::owner::scene(),
+                        crate::test_support::own::scene(),
                     );
                 },
             },
@@ -1278,7 +1278,7 @@ mod reference_vectors {
                         speed_over_ground(
                             race().shared.car(),
                             race().shared.physics_tables.get(),
-                            crate::scene::owner::scene(),
+                            crate::test_support::own::scene(),
                         ),
                     );
                 },
@@ -1299,7 +1299,7 @@ mod reference_vectors {
                     rolling_drag_forces(
                         race().shared.car(),
                         race().shared.physics_tables.get(),
-                        crate::scene::owner::scene(),
+                        crate::test_support::own::scene(),
                     );
                 },
             },
@@ -1341,7 +1341,7 @@ mod reference_vectors {
                     slip_figure_a(
                         race().shared.car(),
                         race().shared.physics_tables.get(),
-                        crate::scene::owner::scene(),
+                        crate::test_support::own::scene(),
                     );
                 },
             },
@@ -1356,7 +1356,7 @@ mod reference_vectors {
                     slip_figure_b(
                         race().shared.car(),
                         race().shared.physics_tables.get(),
-                        crate::scene::owner::scene(),
+                        crate::test_support::own::scene(),
                     );
                 },
             },
@@ -1380,7 +1380,7 @@ mod reference_vectors {
                     ],
                 }],
                 ulps: 0,
-                plain: |_| slip_lengths(race().shared.car(), crate::scene::owner::scene()),
+                plain: |_| slip_lengths(race().shared.car(), crate::test_support::own::scene()),
             },
         ]
     }

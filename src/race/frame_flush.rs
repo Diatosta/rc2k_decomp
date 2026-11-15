@@ -197,7 +197,7 @@ pub fn draw_view_backdrop(
 mod reference_vectors {
     use super::*;
     use crate::race::asm_test::{Rng, at_each_control_word, lock, same};
-    use crate::race::owner::race;
+    use crate::test_support::own::race;
     use crate::test_support::vectors::{Recorder, word};
 
     /// `numbers.one` as it was, put back when dropped.

@@ -249,7 +249,7 @@ mod reference_vectors {
 
     use crate::effects::asm_test::{Op, Spec, recorded_writes};
     use crate::effects::snow::SnowLight;
-    use crate::race::owner::race;
+    use crate::test_support::own::race;
 
     #[test]
     fn turn_light_x87_matches() {

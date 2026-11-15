@@ -23,7 +23,7 @@ fn switches(race: &Race) -> [&PlainDword; 9] {
     ]
 }
 /// The settings words copied to the race's variables
-/// (`crate::race::owner::race().shared.vars.settings_words`).
+/// (`crate::test_support::own::race().shared.vars.settings_words`).
 fn copied_words(race: &Race) -> [&PlainDword; 5] {
     [
         &race.shared.state.settings.lens_flare,

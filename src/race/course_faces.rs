@@ -1143,7 +1143,7 @@ mod reference_vectors {
 mod vector_tests {
     use super::*;
     use crate::race::asm_test::{Rng, at_each_control_word, lock, same};
-    use crate::race::owner::race;
+    use crate::test_support::own::race;
     use crate::test_support::race_vectors::{Kind, Vectors};
     use crate::test_support::state::Snapshot;
 
@@ -1152,9 +1152,9 @@ mod vector_tests {
         let race = race();
         let _l = lock();
         let kept = Snapshot::of(&[
-            "race.owner.RACE.shared.switches",
-            "race.owner.RACE.course.course",
-            "race.owner.RACE.frame.view_and_records",
+            "owners.race.shared.switches",
+            "owners.race.course.course",
+            "owners.race.frame.view_and_records",
         ]);
         let mut vectors = Vectors::open("race.course_faces.face_turned_to_view", Kind::Exact, 1);
         let mut r = Rng(11);
@@ -1195,14 +1195,14 @@ mod vector_tests {
 
     #[test]
     fn halfway_vertex_is_the_originals() {
-        let drawing = &crate::scene::owner::scene().drawing;
+        let drawing = &crate::test_support::own::scene().drawing;
         let course = &race().course;
         let _l = lock();
         let kept = Snapshot::of(&[
-            "scene.owner.SCENE.drawing.scene",
-            "race.owner.RACE.course.course",
-            "race.owner.RACE.course.stage_prefs",
-            "race.owner.RACE.course.numbers",
+            "owners.scene.drawing.scene",
+            "owners.race.course.course",
+            "owners.race.course.stage_prefs",
+            "owners.race.course.numbers",
         ]);
         let mut vectors = Vectors::open("race.course_faces.halfway_vertex", Kind::Exact, 8);
         let mut r = Rng(13);
@@ -1248,7 +1248,7 @@ mod vector_tests {
     fn halfway_entry_is_the_originals() {
         let course = &race().course;
         let _l = lock();
-        let kept = Snapshot::of(&["race.owner.RACE.course.numbers"]);
+        let kept = Snapshot::of(&["owners.race.course.numbers"]);
         let mut vectors = Vectors::open("race.course_faces.halfway_entry", Kind::Exact, 10);
         let mut r = Rng(14);
         at_each_control_word(|| {

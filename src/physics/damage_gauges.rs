@@ -561,8 +561,8 @@ fn gauge_totals(car: &Car, m: &DamageModel) {
 mod reference_vectors {
     use super::*;
     use crate::physics::store::laid;
-    use crate::race::owner::race;
     use crate::scene::x87_mem::view;
+    use crate::test_support::own::race;
 
     /// The damage model as the test's buffer holds it.
     fn dm(base: usize) -> &'static DamageModel {
@@ -589,8 +589,8 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).gauge_rates[0],
                         &dm(a[0]).gauge_step,
-                        &crate::race::owner::race().shared.car().engine_damage,
-                        &crate::race::owner::race().shared.car().engine_damage,
+                        &crate::test_support::own::race().shared.car().engine_damage,
+                        &crate::test_support::own::race().shared.car().engine_damage,
                     );
                 },
             },
@@ -611,8 +611,8 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).gauge_rates[1],
                         &dm(a[0]).gauge_step,
-                        &crate::race::owner::race().shared.car().exhaust_damage,
-                        &crate::race::owner::race().shared.car().exhaust_damage,
+                        &crate::test_support::own::race().shared.car().exhaust_damage,
+                        &crate::test_support::own::race().shared.car().exhaust_damage,
                     );
                 },
             },
@@ -633,8 +633,8 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).gauge_rates[2],
                         &dm(a[0]).gauge_step,
-                        &crate::race::owner::race().shared.car().cooling_damage,
-                        &crate::race::owner::race().shared.car().cooling_damage,
+                        &crate::test_support::own::race().shared.car().cooling_damage,
+                        &crate::test_support::own::race().shared.car().cooling_damage,
                     );
                 },
             },
@@ -655,8 +655,8 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).gauge_rates[3],
                         &dm(a[0]).gauge_step,
-                        &crate::race::owner::race().shared.car().clutch_damage,
-                        &crate::race::owner::race().shared.car().clutch_damage,
+                        &crate::test_support::own::race().shared.car().clutch_damage,
+                        &crate::test_support::own::race().shared.car().clutch_damage,
                     );
                 },
             },
@@ -677,8 +677,14 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).gauge_rates[4],
                         &dm(a[0]).gauge_step,
-                        &crate::race::owner::race().shared.car().differential_damage,
-                        &crate::race::owner::race().shared.car().differential_damage,
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .differential_damage,
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .differential_damage,
                     );
                 },
             },
@@ -699,8 +705,14 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).gauge_rates[5],
                         &dm(a[0]).gauge_step,
-                        &crate::race::owner::race().shared.car().electrics_damage,
-                        &crate::race::owner::race().shared.car().electrics_damage,
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .electrics_damage,
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .electrics_damage,
                     );
                 },
             },
@@ -721,8 +733,8 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).gauge_rates[6],
                         &dm(a[0]).gauge_step,
-                        &crate::race::owner::race().shared.car().light_damage[0],
-                        &crate::race::owner::race().shared.car().light_damage[0],
+                        &crate::test_support::own::race().shared.car().light_damage[0],
+                        &crate::test_support::own::race().shared.car().light_damage[0],
                     );
                 },
             },
@@ -743,8 +755,8 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).gauge_rates[6],
                         &dm(a[0]).gauge_step,
-                        &crate::race::owner::race().shared.car().light_damage[1],
-                        &crate::race::owner::race().shared.car().light_damage[1],
+                        &crate::test_support::own::race().shared.car().light_damage[1],
+                        &crate::test_support::own::race().shared.car().light_damage[1],
                     );
                 },
             },
@@ -765,8 +777,8 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).gauge_rates[6],
                         &dm(a[0]).gauge_step,
-                        &crate::race::owner::race().shared.car().light_damage[2],
-                        &crate::race::owner::race().shared.car().light_damage[2],
+                        &crate::test_support::own::race().shared.car().light_damage[2],
+                        &crate::test_support::own::race().shared.car().light_damage[2],
                     );
                 },
             },
@@ -787,8 +799,8 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).gauge_rates[6],
                         &dm(a[0]).gauge_step,
-                        &crate::race::owner::race().shared.car().light_damage[3],
-                        &crate::race::owner::race().shared.car().light_damage[3],
+                        &crate::test_support::own::race().shared.car().light_damage[3],
+                        &crate::test_support::own::race().shared.car().light_damage[3],
                     );
                 },
             },
@@ -809,8 +821,8 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).gauge_rates[6],
                         &dm(a[0]).gauge_step,
-                        &crate::race::owner::race().shared.car().light_damage[4],
-                        &crate::race::owner::race().shared.car().light_damage[4],
+                        &crate::test_support::own::race().shared.car().light_damage[4],
+                        &crate::test_support::own::race().shared.car().light_damage[4],
                     );
                 },
             },
@@ -831,8 +843,8 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).gauge_rates[6],
                         &dm(a[0]).gauge_step,
-                        &crate::race::owner::race().shared.car().light_damage[5],
-                        &crate::race::owner::race().shared.car().light_damage[5],
+                        &crate::test_support::own::race().shared.car().light_damage[5],
+                        &crate::test_support::own::race().shared.car().light_damage[5],
                     );
                 },
             },
@@ -853,8 +865,14 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).gauge_rates[7],
                         &dm(a[0]).gauge_step,
-                        &crate::race::owner::race().shared.car().steering_damage,
-                        &crate::race::owner::race().shared.car().steering_damage,
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .steering_damage,
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .steering_damage,
                     );
                 },
             },
@@ -875,8 +893,14 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).gauge_rates[8],
                         &dm(a[0]).gauge_step,
-                        &crate::race::owner::race().shared.car().suspension_damage[0],
-                        &crate::race::owner::race().shared.car().suspension_damage[0],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .suspension_damage[0],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .suspension_damage[0],
                     );
                 },
             },
@@ -897,8 +921,14 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).gauge_rates[8],
                         &dm(a[0]).gauge_step,
-                        &crate::race::owner::race().shared.car().suspension_damage[1],
-                        &crate::race::owner::race().shared.car().suspension_damage[1],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .suspension_damage[1],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .suspension_damage[1],
                     );
                 },
             },
@@ -919,8 +949,14 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).gauge_rates[8],
                         &dm(a[0]).gauge_step,
-                        &crate::race::owner::race().shared.car().suspension_damage[2],
-                        &crate::race::owner::race().shared.car().suspension_damage[2],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .suspension_damage[2],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .suspension_damage[2],
                     );
                 },
             },
@@ -941,8 +977,14 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).gauge_rates[8],
                         &dm(a[0]).gauge_step,
-                        &crate::race::owner::race().shared.car().suspension_damage[3],
-                        &crate::race::owner::race().shared.car().suspension_damage[3],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .suspension_damage[3],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .suspension_damage[3],
                     );
                 },
             },
@@ -970,8 +1012,8 @@ mod reference_vectors {
                         &dm(a[0]).wear_rates[11],
                         &dm(a[0]).engine_over_limit,
                         &dm(a[0]).engine_speed_share,
-                        &crate::race::owner::race().shared.car().turbo_damage,
-                        &crate::race::owner::race().shared.car().turbo_damage,
+                        &crate::test_support::own::race().shared.car().turbo_damage,
+                        &crate::test_support::own::race().shared.car().turbo_damage,
                     );
                 },
             },
@@ -1048,8 +1090,8 @@ mod reference_vectors {
                         &dm(a[0]).gauge_rates[9],
                         &dm(a[0]).brake_balance_complement,
                         &dm(a[0]).brake_share,
-                        &crate::race::owner::race().shared.car().brake_wear_b,
-                        &crate::race::owner::race().shared.car().brake_wear_b,
+                        &crate::test_support::own::race().shared.car().brake_wear_b,
+                        &crate::test_support::own::race().shared.car().brake_wear_b,
                     );
                 },
             },
@@ -1075,8 +1117,14 @@ mod reference_vectors {
                         &dm(a[0]).gauge_rates[10],
                         &dm(a[0]).on_surface_5,
                         &dm(a[0]).gauge_step,
-                        &crate::race::owner::race().shared.car().electrics_damage,
-                        &crate::race::owner::race().shared.car().electrics_damage,
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .electrics_damage,
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .electrics_damage,
                     );
                 },
             },
@@ -1102,8 +1150,8 @@ mod reference_vectors {
                         &dm(a[0]).gauge_rates[11],
                         &dm(a[0]).on_surface_5,
                         &dm(a[0]).gauge_step,
-                        &crate::race::owner::race().shared.car().light_damage[0],
-                        &crate::race::owner::race().shared.car().light_damage[0],
+                        &crate::test_support::own::race().shared.car().light_damage[0],
+                        &crate::test_support::own::race().shared.car().light_damage[0],
                     );
                 },
             },
@@ -1129,8 +1177,8 @@ mod reference_vectors {
                         &dm(a[0]).gauge_rates[11],
                         &dm(a[0]).on_surface_5,
                         &dm(a[0]).gauge_step,
-                        &crate::race::owner::race().shared.car().light_damage[1],
-                        &crate::race::owner::race().shared.car().light_damage[1],
+                        &crate::test_support::own::race().shared.car().light_damage[1],
+                        &crate::test_support::own::race().shared.car().light_damage[1],
                     );
                 },
             },
@@ -1156,8 +1204,8 @@ mod reference_vectors {
                         &dm(a[0]).gauge_rates[11],
                         &dm(a[0]).on_surface_5,
                         &dm(a[0]).gauge_step,
-                        &crate::race::owner::race().shared.car().light_damage[2],
-                        &crate::race::owner::race().shared.car().light_damage[2],
+                        &crate::test_support::own::race().shared.car().light_damage[2],
+                        &crate::test_support::own::race().shared.car().light_damage[2],
                     );
                 },
             },
@@ -1183,8 +1231,8 @@ mod reference_vectors {
                         &dm(a[0]).gauge_rates[11],
                         &dm(a[0]).on_surface_5,
                         &dm(a[0]).gauge_step,
-                        &crate::race::owner::race().shared.car().light_damage[3],
-                        &crate::race::owner::race().shared.car().light_damage[3],
+                        &crate::test_support::own::race().shared.car().light_damage[3],
+                        &crate::test_support::own::race().shared.car().light_damage[3],
                     );
                 },
             },
@@ -1210,8 +1258,8 @@ mod reference_vectors {
                         &dm(a[0]).gauge_rates[11],
                         &dm(a[0]).on_surface_5,
                         &dm(a[0]).gauge_step,
-                        &crate::race::owner::race().shared.car().light_damage[4],
-                        &crate::race::owner::race().shared.car().light_damage[4],
+                        &crate::test_support::own::race().shared.car().light_damage[4],
+                        &crate::test_support::own::race().shared.car().light_damage[4],
                     );
                 },
             },
@@ -1237,8 +1285,8 @@ mod reference_vectors {
                         &dm(a[0]).gauge_rates[11],
                         &dm(a[0]).on_surface_5,
                         &dm(a[0]).gauge_step,
-                        &crate::race::owner::race().shared.car().light_damage[5],
-                        &crate::race::owner::race().shared.car().light_damage[5],
+                        &crate::test_support::own::race().shared.car().light_damage[5],
+                        &crate::test_support::own::race().shared.car().light_damage[5],
                     );
                 },
             },
@@ -1304,8 +1352,8 @@ mod reference_vectors {
                         &dm(a[0]).front_slip_wear_factor,
                         &dm(a[0]).front_tyre_wear_rate,
                         &dm(a[0]).hundredth,
-                        &crate::race::owner::race().shared.car().tyre_wears[0],
-                        &crate::race::owner::race().shared.car().tyre_wears[0],
+                        &crate::test_support::own::race().shared.car().tyre_wears[0],
+                        &crate::test_support::own::race().shared.car().tyre_wears[0],
                     );
                 },
             },
@@ -1331,8 +1379,8 @@ mod reference_vectors {
                         &dm(a[0]).front_slip_wear_factor,
                         &dm(a[0]).front_tyre_wear_rate,
                         &dm(a[0]).hundredth,
-                        &crate::race::owner::race().shared.car().tyre_wears[1],
-                        &crate::race::owner::race().shared.car().tyre_wears[1],
+                        &crate::test_support::own::race().shared.car().tyre_wears[1],
+                        &crate::test_support::own::race().shared.car().tyre_wears[1],
                     );
                 },
             },
@@ -1358,8 +1406,8 @@ mod reference_vectors {
                         &dm(a[0]).rear_slip_wear_factor,
                         &dm(a[0]).rear_tyre_wear_rate,
                         &dm(a[0]).hundredth,
-                        &crate::race::owner::race().shared.car().tyre_wears[2],
-                        &crate::race::owner::race().shared.car().tyre_wears[2],
+                        &crate::test_support::own::race().shared.car().tyre_wears[2],
+                        &crate::test_support::own::race().shared.car().tyre_wears[2],
                     );
                 },
             },
@@ -1385,8 +1433,8 @@ mod reference_vectors {
                         &dm(a[0]).rear_slip_wear_factor,
                         &dm(a[0]).rear_tyre_wear_rate,
                         &dm(a[0]).hundredth,
-                        &crate::race::owner::race().shared.car().tyre_wears[3],
-                        &crate::race::owner::race().shared.car().tyre_wears[3],
+                        &crate::test_support::own::race().shared.car().tyre_wears[3],
+                        &crate::test_support::own::race().shared.car().tyre_wears[3],
                     );
                 },
             },
@@ -1412,8 +1460,8 @@ mod reference_vectors {
                         &dm(a[0]).engine_speed_wear_factor,
                         &dm(a[0]).gauge_rates[13],
                         &dm(a[0]).hundredth,
-                        &crate::race::owner::race().shared.car().engine_damage,
-                        &crate::race::owner::race().shared.car().engine_damage,
+                        &crate::test_support::own::race().shared.car().engine_damage,
+                        &crate::test_support::own::race().shared.car().engine_damage,
                     );
                 },
             },
@@ -1439,8 +1487,8 @@ mod reference_vectors {
                         &dm(a[0]).engine_speed_wear_factor,
                         &dm(a[0]).gauge_rates[12],
                         &dm(a[0]).hundredth,
-                        &crate::race::owner::race().shared.car().cooling_damage,
-                        &crate::race::owner::race().shared.car().cooling_damage,
+                        &crate::test_support::own::race().shared.car().cooling_damage,
+                        &crate::test_support::own::race().shared.car().cooling_damage,
                     );
                 },
             },
@@ -1481,8 +1529,8 @@ mod reference_vectors {
                         &dm(a[0]).overheat_excess,
                         &dm(a[0]).gauge_rates[15],
                         &dm(a[0]).hundredth,
-                        &crate::race::owner::race().shared.car().cooling_damage,
-                        &crate::race::owner::race().shared.car().cooling_damage,
+                        &crate::test_support::own::race().shared.car().cooling_damage,
+                        &crate::test_support::own::race().shared.car().cooling_damage,
                     );
                 },
             },
@@ -1572,8 +1620,14 @@ mod reference_vectors {
                         &dm(a[0]).roughness_wear_base,
                         &dm(a[0]).wheel_roughness_rate,
                         &dm(a[0]).hundredth,
-                        &crate::race::owner::race().shared.car().wheel_hit_damage[0],
-                        &crate::race::owner::race().shared.car().wheel_hit_damage[0],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .wheel_hit_damage[0],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .wheel_hit_damage[0],
                     );
                 },
             },
@@ -1599,8 +1653,14 @@ mod reference_vectors {
                         &dm(a[0]).roughness_wear_base,
                         &dm(a[0]).wheel_roughness_rate,
                         &dm(a[0]).hundredth,
-                        &crate::race::owner::race().shared.car().wheel_hit_damage[1],
-                        &crate::race::owner::race().shared.car().wheel_hit_damage[1],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .wheel_hit_damage[1],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .wheel_hit_damage[1],
                     );
                 },
             },
@@ -1626,8 +1686,14 @@ mod reference_vectors {
                         &dm(a[0]).roughness_wear_base,
                         &dm(a[0]).wheel_roughness_rate,
                         &dm(a[0]).hundredth,
-                        &crate::race::owner::race().shared.car().wheel_hit_damage[2],
-                        &crate::race::owner::race().shared.car().wheel_hit_damage[2],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .wheel_hit_damage[2],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .wheel_hit_damage[2],
                     );
                 },
             },
@@ -1653,8 +1719,14 @@ mod reference_vectors {
                         &dm(a[0]).roughness_wear_base,
                         &dm(a[0]).wheel_roughness_rate,
                         &dm(a[0]).hundredth,
-                        &crate::race::owner::race().shared.car().wheel_hit_damage[3],
-                        &crate::race::owner::race().shared.car().wheel_hit_damage[3],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .wheel_hit_damage[3],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .wheel_hit_damage[3],
                     );
                 },
             },
@@ -1680,8 +1752,14 @@ mod reference_vectors {
                         &dm(a[0]).suspension_roughness_wear,
                         &dm(a[0]).figures[0],
                         &dm(a[0]).hundredth,
-                        &crate::race::owner::race().shared.car().suspension_damage[0],
-                        &crate::race::owner::race().shared.car().suspension_damage[0],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .suspension_damage[0],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .suspension_damage[0],
                     );
                 },
             },
@@ -1707,8 +1785,14 @@ mod reference_vectors {
                         &dm(a[0]).suspension_roughness_wear,
                         &dm(a[0]).figures[0],
                         &dm(a[0]).hundredth,
-                        &crate::race::owner::race().shared.car().suspension_damage[1],
-                        &crate::race::owner::race().shared.car().suspension_damage[1],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .suspension_damage[1],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .suspension_damage[1],
                     );
                 },
             },
@@ -1734,8 +1818,14 @@ mod reference_vectors {
                         &dm(a[0]).suspension_roughness_wear,
                         &dm(a[0]).figures[0],
                         &dm(a[0]).hundredth,
-                        &crate::race::owner::race().shared.car().suspension_damage[2],
-                        &crate::race::owner::race().shared.car().suspension_damage[2],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .suspension_damage[2],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .suspension_damage[2],
                     );
                 },
             },
@@ -1761,8 +1851,14 @@ mod reference_vectors {
                         &dm(a[0]).suspension_roughness_wear,
                         &dm(a[0]).figures[0],
                         &dm(a[0]).hundredth,
-                        &crate::race::owner::race().shared.car().suspension_damage[3],
-                        &crate::race::owner::race().shared.car().suspension_damage[3],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .suspension_damage[3],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .suspension_damage[3],
                     );
                 },
             },
@@ -1788,8 +1884,14 @@ mod reference_vectors {
                         &dm(a[0]).body_roughness_wear,
                         &dm(a[0]).figures[1],
                         &dm(a[0]).hundredth,
-                        &crate::race::owner::race().shared.car().body_hit_damage,
-                        &crate::race::owner::race().shared.car().body_hit_damage,
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .body_hit_damage,
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .body_hit_damage,
                     );
                 },
             },
@@ -1815,8 +1917,14 @@ mod reference_vectors {
                         &dm(a[0]).body_roughness_wear,
                         &dm(a[0]).figures[2],
                         &dm(a[0]).hundredth,
-                        &crate::race::owner::race().shared.car().steering_damage,
-                        &crate::race::owner::race().shared.car().steering_damage,
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .steering_damage,
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .steering_damage,
                     );
                 },
             },
@@ -1842,8 +1950,8 @@ mod reference_vectors {
                         &dm(a[0]).body_roughness_wear,
                         &dm(a[0]).figures[3],
                         &dm(a[0]).hundredth,
-                        &crate::race::owner::race().shared.car().engine_damage,
-                        &crate::race::owner::race().shared.car().engine_damage,
+                        &crate::test_support::own::race().shared.car().engine_damage,
+                        &crate::test_support::own::race().shared.car().engine_damage,
                     );
                 },
             },
@@ -1869,8 +1977,8 @@ mod reference_vectors {
                         &dm(a[0]).body_roughness_wear,
                         &dm(a[0]).figures[4],
                         &dm(a[0]).hundredth,
-                        &crate::race::owner::race().shared.car().exhaust_damage,
-                        &crate::race::owner::race().shared.car().exhaust_damage,
+                        &crate::test_support::own::race().shared.car().exhaust_damage,
+                        &crate::test_support::own::race().shared.car().exhaust_damage,
                     );
                 },
             },
@@ -1896,8 +2004,8 @@ mod reference_vectors {
                         &dm(a[0]).body_roughness_wear,
                         &dm(a[0]).figures[5],
                         &dm(a[0]).hundredth,
-                        &crate::race::owner::race().shared.car().gear_wear[0],
-                        &crate::race::owner::race().shared.car().gear_wear[0],
+                        &crate::test_support::own::race().shared.car().gear_wear[0],
+                        &crate::test_support::own::race().shared.car().gear_wear[0],
                     );
                 },
             },
@@ -1923,8 +2031,8 @@ mod reference_vectors {
                         &dm(a[0]).body_roughness_wear,
                         &dm(a[0]).figures[5],
                         &dm(a[0]).hundredth,
-                        &crate::race::owner::race().shared.car().gear_wear[2],
-                        &crate::race::owner::race().shared.car().gear_wear[2],
+                        &crate::test_support::own::race().shared.car().gear_wear[2],
+                        &crate::test_support::own::race().shared.car().gear_wear[2],
                     );
                 },
             },
@@ -1950,8 +2058,8 @@ mod reference_vectors {
                         &dm(a[0]).body_roughness_wear,
                         &dm(a[0]).figures[5],
                         &dm(a[0]).hundredth,
-                        &crate::race::owner::race().shared.car().gear_wear[3],
-                        &crate::race::owner::race().shared.car().gear_wear[3],
+                        &crate::test_support::own::race().shared.car().gear_wear[3],
+                        &crate::test_support::own::race().shared.car().gear_wear[3],
                     );
                 },
             },
@@ -1977,8 +2085,8 @@ mod reference_vectors {
                         &dm(a[0]).body_roughness_wear,
                         &dm(a[0]).figures[5],
                         &dm(a[0]).hundredth,
-                        &crate::race::owner::race().shared.car().gear_wear[4],
-                        &crate::race::owner::race().shared.car().gear_wear[4],
+                        &crate::test_support::own::race().shared.car().gear_wear[4],
+                        &crate::test_support::own::race().shared.car().gear_wear[4],
                     );
                 },
             },
@@ -2004,8 +2112,8 @@ mod reference_vectors {
                         &dm(a[0]).body_roughness_wear,
                         &dm(a[0]).figures[5],
                         &dm(a[0]).hundredth,
-                        &crate::race::owner::race().shared.car().gear_wear[5],
-                        &crate::race::owner::race().shared.car().gear_wear[5],
+                        &crate::test_support::own::race().shared.car().gear_wear[5],
+                        &crate::test_support::own::race().shared.car().gear_wear[5],
                     );
                 },
             },
@@ -2031,8 +2139,8 @@ mod reference_vectors {
                         &dm(a[0]).body_roughness_wear,
                         &dm(a[0]).figures[5],
                         &dm(a[0]).hundredth,
-                        &crate::race::owner::race().shared.car().gear_wear[6],
-                        &crate::race::owner::race().shared.car().gear_wear[6],
+                        &crate::test_support::own::race().shared.car().gear_wear[6],
+                        &crate::test_support::own::race().shared.car().gear_wear[6],
                     );
                 },
             },
@@ -2058,8 +2166,8 @@ mod reference_vectors {
                         &dm(a[0]).body_roughness_wear,
                         &dm(a[0]).figures[5],
                         &dm(a[0]).hundredth,
-                        &crate::race::owner::race().shared.car().gear_wear[7],
-                        &crate::race::owner::race().shared.car().gear_wear[7],
+                        &crate::test_support::own::race().shared.car().gear_wear[7],
+                        &crate::test_support::own::race().shared.car().gear_wear[7],
                     );
                 },
             },
@@ -2085,8 +2193,8 @@ mod reference_vectors {
                         &dm(a[0]).body_roughness_wear,
                         &dm(a[0]).figures[5],
                         &dm(a[0]).hundredth,
-                        &crate::race::owner::race().shared.car().gear_wear[8],
-                        &crate::race::owner::race().shared.car().gear_wear[8],
+                        &crate::test_support::own::race().shared.car().gear_wear[8],
+                        &crate::test_support::own::race().shared.car().gear_wear[8],
                     );
                 },
             },
@@ -2112,8 +2220,14 @@ mod reference_vectors {
                         &dm(a[0]).body_roughness_wear,
                         &dm(a[0]).figures[6],
                         &dm(a[0]).hundredth,
-                        &crate::race::owner::race().shared.car().differential_damage,
-                        &crate::race::owner::race().shared.car().differential_damage,
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .differential_damage,
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .differential_damage,
                     );
                 },
             },
@@ -2134,8 +2248,14 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).hit_size,
                         &dm(a[0]).figures[13],
-                        &crate::race::owner::race().shared.car().body_hit_damage,
-                        &crate::race::owner::race().shared.car().body_hit_damage,
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .body_hit_damage,
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .body_hit_damage,
                     );
                 },
             },
@@ -2171,8 +2291,8 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).hit_size,
                         &dm(a[0]).figures[24],
-                        &crate::race::owner::race().shared.car().light_damage[0],
-                        &crate::race::owner::race().shared.car().light_damage[0],
+                        &crate::test_support::own::race().shared.car().light_damage[0],
+                        &crate::test_support::own::race().shared.car().light_damage[0],
                     );
                 },
             },
@@ -2193,8 +2313,8 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).hit_size,
                         &dm(a[0]).figures[24],
-                        &crate::race::owner::race().shared.car().light_damage[1],
-                        &crate::race::owner::race().shared.car().light_damage[1],
+                        &crate::test_support::own::race().shared.car().light_damage[1],
+                        &crate::test_support::own::race().shared.car().light_damage[1],
                     );
                 },
             },
@@ -2215,8 +2335,8 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).hit_size,
                         &dm(a[0]).figures[24],
-                        &crate::race::owner::race().shared.car().light_damage[2],
-                        &crate::race::owner::race().shared.car().light_damage[2],
+                        &crate::test_support::own::race().shared.car().light_damage[2],
+                        &crate::test_support::own::race().shared.car().light_damage[2],
                     );
                 },
             },
@@ -2237,8 +2357,8 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).hit_size,
                         &dm(a[0]).figures[24],
-                        &crate::race::owner::race().shared.car().light_damage[3],
-                        &crate::race::owner::race().shared.car().light_damage[3],
+                        &crate::test_support::own::race().shared.car().light_damage[3],
+                        &crate::test_support::own::race().shared.car().light_damage[3],
                     );
                 },
             },
@@ -2259,8 +2379,8 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).hit_size,
                         &dm(a[0]).figures[25],
-                        &crate::race::owner::race().shared.car().light_damage[4],
-                        &crate::race::owner::race().shared.car().light_damage[4],
+                        &crate::test_support::own::race().shared.car().light_damage[4],
+                        &crate::test_support::own::race().shared.car().light_damage[4],
                     );
                 },
             },
@@ -2281,8 +2401,8 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).hit_size,
                         &dm(a[0]).figures[25],
-                        &crate::race::owner::race().shared.car().light_damage[4],
-                        &crate::race::owner::race().shared.car().light_damage[4],
+                        &crate::test_support::own::race().shared.car().light_damage[4],
+                        &crate::test_support::own::race().shared.car().light_damage[4],
                     );
                 },
             },
@@ -2303,8 +2423,8 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).hit_size,
                         &dm(a[0]).figures[25],
-                        &crate::race::owner::race().shared.car().light_damage[5],
-                        &crate::race::owner::race().shared.car().light_damage[5],
+                        &crate::test_support::own::race().shared.car().light_damage[5],
+                        &crate::test_support::own::race().shared.car().light_damage[5],
                     );
                 },
             },
@@ -2325,8 +2445,8 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).hit_size,
                         &dm(a[0]).figures[25],
-                        &crate::race::owner::race().shared.car().light_damage[5],
-                        &crate::race::owner::race().shared.car().light_damage[5],
+                        &crate::test_support::own::race().shared.car().light_damage[5],
+                        &crate::test_support::own::race().shared.car().light_damage[5],
                     );
                 },
             },
@@ -2347,8 +2467,14 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).hit_size,
                         &dm(a[0]).figures[23],
-                        &crate::race::owner::race().shared.car().steering_damage,
-                        &crate::race::owner::race().shared.car().steering_damage,
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .steering_damage,
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .steering_damage,
                     );
                 },
             },
@@ -2369,8 +2495,14 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).hit_size,
                         &dm(a[0]).figures[22],
-                        &crate::race::owner::race().shared.car().electrics_damage,
-                        &crate::race::owner::race().shared.car().electrics_damage,
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .electrics_damage,
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .electrics_damage,
                     );
                 },
             },
@@ -2391,8 +2523,8 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).hit_size,
                         &dm(a[0]).figures[17],
-                        &crate::race::owner::race().shared.car().turbo_damage,
-                        &crate::race::owner::race().shared.car().turbo_damage,
+                        &crate::test_support::own::race().shared.car().turbo_damage,
+                        &crate::test_support::own::race().shared.car().turbo_damage,
                     );
                 },
             },
@@ -2413,8 +2545,8 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).hit_size,
                         &dm(a[0]).figures[18],
-                        &crate::race::owner::race().shared.car().clutch_damage,
-                        &crate::race::owner::race().shared.car().clutch_damage,
+                        &crate::test_support::own::race().shared.car().clutch_damage,
+                        &crate::test_support::own::race().shared.car().clutch_damage,
                     );
                 },
             },
@@ -2435,8 +2567,14 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).hit_size,
                         &dm(a[0]).figures[19],
-                        &crate::race::owner::race().shared.car().differential_damage,
-                        &crate::race::owner::race().shared.car().differential_damage,
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .differential_damage,
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .differential_damage,
                     );
                 },
             },
@@ -2457,8 +2595,8 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).hit_size,
                         &dm(a[0]).figures[20],
-                        &crate::race::owner::race().shared.car().gear_wear[0],
-                        &crate::race::owner::race().shared.car().gear_wear[0],
+                        &crate::test_support::own::race().shared.car().gear_wear[0],
+                        &crate::test_support::own::race().shared.car().gear_wear[0],
                     );
                 },
             },
@@ -2479,8 +2617,8 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).hit_size,
                         &dm(a[0]).figures[20],
-                        &crate::race::owner::race().shared.car().gear_wear[1],
-                        &crate::race::owner::race().shared.car().gear_wear[1],
+                        &crate::test_support::own::race().shared.car().gear_wear[1],
+                        &crate::test_support::own::race().shared.car().gear_wear[1],
                     );
                 },
             },
@@ -2501,8 +2639,8 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).hit_size,
                         &dm(a[0]).figures[20],
-                        &crate::race::owner::race().shared.car().gear_wear[2],
-                        &crate::race::owner::race().shared.car().gear_wear[2],
+                        &crate::test_support::own::race().shared.car().gear_wear[2],
+                        &crate::test_support::own::race().shared.car().gear_wear[2],
                     );
                 },
             },
@@ -2523,8 +2661,8 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).hit_size,
                         &dm(a[0]).figures[20],
-                        &crate::race::owner::race().shared.car().gear_wear[3],
-                        &crate::race::owner::race().shared.car().gear_wear[3],
+                        &crate::test_support::own::race().shared.car().gear_wear[3],
+                        &crate::test_support::own::race().shared.car().gear_wear[3],
                     );
                 },
             },
@@ -2545,8 +2683,8 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).hit_size,
                         &dm(a[0]).figures[20],
-                        &crate::race::owner::race().shared.car().gear_wear[4],
-                        &crate::race::owner::race().shared.car().gear_wear[4],
+                        &crate::test_support::own::race().shared.car().gear_wear[4],
+                        &crate::test_support::own::race().shared.car().gear_wear[4],
                     );
                 },
             },
@@ -2567,8 +2705,8 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).hit_size,
                         &dm(a[0]).figures[20],
-                        &crate::race::owner::race().shared.car().gear_wear[5],
-                        &crate::race::owner::race().shared.car().gear_wear[5],
+                        &crate::test_support::own::race().shared.car().gear_wear[5],
+                        &crate::test_support::own::race().shared.car().gear_wear[5],
                     );
                 },
             },
@@ -2589,8 +2727,8 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).hit_size,
                         &dm(a[0]).figures[20],
-                        &crate::race::owner::race().shared.car().gear_wear[6],
-                        &crate::race::owner::race().shared.car().gear_wear[6],
+                        &crate::test_support::own::race().shared.car().gear_wear[6],
+                        &crate::test_support::own::race().shared.car().gear_wear[6],
                     );
                 },
             },
@@ -2611,8 +2749,8 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).hit_size,
                         &dm(a[0]).figures[20],
-                        &crate::race::owner::race().shared.car().gear_wear[7],
-                        &crate::race::owner::race().shared.car().gear_wear[7],
+                        &crate::test_support::own::race().shared.car().gear_wear[7],
+                        &crate::test_support::own::race().shared.car().gear_wear[7],
                     );
                 },
             },
@@ -2633,8 +2771,8 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).hit_size,
                         &dm(a[0]).figures[20],
-                        &crate::race::owner::race().shared.car().gear_wear[8],
-                        &crate::race::owner::race().shared.car().gear_wear[8],
+                        &crate::test_support::own::race().shared.car().gear_wear[8],
+                        &crate::test_support::own::race().shared.car().gear_wear[8],
                     );
                 },
             },
@@ -2670,8 +2808,14 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).hit_size,
                         &dm(a[0]).figures[28],
-                        &crate::race::owner::race().shared.car().wheel_hit_damage[0],
-                        &crate::race::owner::race().shared.car().wheel_hit_damage[0],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .wheel_hit_damage[0],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .wheel_hit_damage[0],
                     );
                 },
             },
@@ -2692,8 +2836,14 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).hit_size,
                         &dm(a[0]).figures[28],
-                        &crate::race::owner::race().shared.car().wheel_hit_damage[1],
-                        &crate::race::owner::race().shared.car().wheel_hit_damage[1],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .wheel_hit_damage[1],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .wheel_hit_damage[1],
                     );
                 },
             },
@@ -2714,8 +2864,14 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).hit_size,
                         &dm(a[0]).figures[28],
-                        &crate::race::owner::race().shared.car().wheel_hit_damage[2],
-                        &crate::race::owner::race().shared.car().wheel_hit_damage[2],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .wheel_hit_damage[2],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .wheel_hit_damage[2],
                     );
                 },
             },
@@ -2736,8 +2892,14 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).hit_size,
                         &dm(a[0]).figures[28],
-                        &crate::race::owner::race().shared.car().wheel_hit_damage[3],
-                        &crate::race::owner::race().shared.car().wheel_hit_damage[3],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .wheel_hit_damage[3],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .wheel_hit_damage[3],
                     );
                 },
             },
@@ -2758,8 +2920,14 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).hit_size,
                         &dm(a[0]).figures[30],
-                        &crate::race::owner::race().shared.car().suspension_damage[0],
-                        &crate::race::owner::race().shared.car().suspension_damage[0],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .suspension_damage[0],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .suspension_damage[0],
                     );
                 },
             },
@@ -2780,8 +2948,14 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).hit_size,
                         &dm(a[0]).figures[30],
-                        &crate::race::owner::race().shared.car().suspension_damage[1],
-                        &crate::race::owner::race().shared.car().suspension_damage[1],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .suspension_damage[1],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .suspension_damage[1],
                     );
                 },
             },
@@ -2802,8 +2976,14 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).hit_size,
                         &dm(a[0]).figures[30],
-                        &crate::race::owner::race().shared.car().suspension_damage[2],
-                        &crate::race::owner::race().shared.car().suspension_damage[2],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .suspension_damage[2],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .suspension_damage[2],
                     );
                 },
             },
@@ -2824,8 +3004,14 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).hit_size,
                         &dm(a[0]).figures[30],
-                        &crate::race::owner::race().shared.car().suspension_damage[3],
-                        &crate::race::owner::race().shared.car().suspension_damage[3],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .suspension_damage[3],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .suspension_damage[3],
                     );
                 },
             },
@@ -2846,8 +3032,8 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).hit_size,
                         &dm(a[0]).figures[27],
-                        &crate::race::owner::race().shared.car().cooling_damage,
-                        &crate::race::owner::race().shared.car().cooling_damage,
+                        &crate::test_support::own::race().shared.car().cooling_damage,
+                        &crate::test_support::own::race().shared.car().cooling_damage,
                     );
                 },
             },
@@ -2868,8 +3054,8 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).hit_size,
                         &dm(a[0]).figures[27],
-                        &crate::race::owner::race().shared.car().cooling_damage,
-                        &crate::race::owner::race().shared.car().cooling_damage,
+                        &crate::test_support::own::race().shared.car().cooling_damage,
+                        &crate::test_support::own::race().shared.car().cooling_damage,
                     );
                 },
             },
@@ -2890,8 +3076,8 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).hit_size,
                         &dm(a[0]).figures[26],
-                        &crate::race::owner::race().shared.car().engine_damage,
-                        &crate::race::owner::race().shared.car().engine_damage,
+                        &crate::test_support::own::race().shared.car().engine_damage,
+                        &crate::test_support::own::race().shared.car().engine_damage,
                     );
                 },
             },
@@ -2912,8 +3098,8 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).hit_size,
                         &dm(a[0]).figures[26],
-                        &crate::race::owner::race().shared.car().engine_damage,
-                        &crate::race::owner::race().shared.car().engine_damage,
+                        &crate::test_support::own::race().shared.car().engine_damage,
+                        &crate::test_support::own::race().shared.car().engine_damage,
                     );
                 },
             },
@@ -2934,8 +3120,8 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).hit_size,
                         &dm(a[0]).figures[29],
-                        &crate::race::owner::race().shared.car().brake_wear_a,
-                        &crate::race::owner::race().shared.car().brake_wear_a,
+                        &crate::test_support::own::race().shared.car().brake_wear_a,
+                        &crate::test_support::own::race().shared.car().brake_wear_a,
                     );
                 },
             },
@@ -2956,8 +3142,8 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).hit_size,
                         &dm(a[0]).figures[29],
-                        &crate::race::owner::race().shared.car().brake_wear_a,
-                        &crate::race::owner::race().shared.car().brake_wear_a,
+                        &crate::test_support::own::race().shared.car().brake_wear_a,
+                        &crate::test_support::own::race().shared.car().brake_wear_a,
                     );
                 },
             },
@@ -2978,8 +3164,8 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).hit_size,
                         &dm(a[0]).figures[29],
-                        &crate::race::owner::race().shared.car().brake_wear_b,
-                        &crate::race::owner::race().shared.car().brake_wear_b,
+                        &crate::test_support::own::race().shared.car().brake_wear_b,
+                        &crate::test_support::own::race().shared.car().brake_wear_b,
                     );
                 },
             },
@@ -3000,8 +3186,8 @@ mod reference_vectors {
                     add_product(
                         &dm(a[0]).hit_size,
                         &dm(a[0]).figures[29],
-                        &crate::race::owner::race().shared.car().brake_wear_b,
-                        &crate::race::owner::race().shared.car().brake_wear_b,
+                        &crate::test_support::own::race().shared.car().brake_wear_b,
+                        &crate::test_support::own::race().shared.car().brake_wear_b,
                     );
                 },
             },
@@ -3027,8 +3213,14 @@ mod reference_vectors {
                         &dm(a[0]).wheel_loads[0],
                         &dm(a[0]).figures[14],
                         &dm(a[0]).hundredth,
-                        &crate::race::owner::race().shared.car().suspension_damage[0],
-                        &crate::race::owner::race().shared.car().suspension_damage[0],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .suspension_damage[0],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .suspension_damage[0],
                     );
                 },
             },
@@ -3054,8 +3246,14 @@ mod reference_vectors {
                         &dm(a[0]).wheel_loads[1],
                         &dm(a[0]).figures[14],
                         &dm(a[0]).hundredth,
-                        &crate::race::owner::race().shared.car().suspension_damage[1],
-                        &crate::race::owner::race().shared.car().suspension_damage[1],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .suspension_damage[1],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .suspension_damage[1],
                     );
                 },
             },
@@ -3081,8 +3279,14 @@ mod reference_vectors {
                         &dm(a[0]).wheel_loads[2],
                         &dm(a[0]).figures[14],
                         &dm(a[0]).hundredth,
-                        &crate::race::owner::race().shared.car().suspension_damage[2],
-                        &crate::race::owner::race().shared.car().suspension_damage[2],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .suspension_damage[2],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .suspension_damage[2],
                     );
                 },
             },
@@ -3108,8 +3312,14 @@ mod reference_vectors {
                         &dm(a[0]).wheel_loads[3],
                         &dm(a[0]).figures[14],
                         &dm(a[0]).hundredth,
-                        &crate::race::owner::race().shared.car().suspension_damage[3],
-                        &crate::race::owner::race().shared.car().suspension_damage[3],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .suspension_damage[3],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .suspension_damage[3],
                     );
                 },
             },
@@ -3135,8 +3345,8 @@ mod reference_vectors {
                         &dm(a[0]).wheel_load_mean,
                         &dm(a[0]).figures[15],
                         &dm(a[0]).hundredth,
-                        &crate::race::owner::race().shared.car().exhaust_damage,
-                        &crate::race::owner::race().shared.car().exhaust_damage,
+                        &crate::test_support::own::race().shared.car().exhaust_damage,
+                        &crate::test_support::own::race().shared.car().exhaust_damage,
                     );
                 },
             },
@@ -3162,8 +3372,14 @@ mod reference_vectors {
                         &dm(a[0]).wheel_load_mean,
                         &dm(a[0]).figures[16],
                         &dm(a[0]).hundredth,
-                        &crate::race::owner::race().shared.car().steering_damage,
-                        &crate::race::owner::race().shared.car().steering_damage,
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .steering_damage,
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .steering_damage,
                     );
                 },
             },

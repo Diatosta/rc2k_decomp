@@ -457,8 +457,8 @@ fn x87_7(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) {
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::race::owner::race;
     use crate::scene::x87_mem::view;
+    use crate::test_support::own::race;
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     /// The dwords of a test buffer a run with index `k` reads (`k + 8` of them).
@@ -491,10 +491,10 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     x87_1(
-                        &crate::race::owner::race().course,
+                        &crate::test_support::own::race().course,
                         view(a[0], 0),
                         a[1],
-                        crate::scene::owner::scene(),
+                        crate::test_support::own::scene(),
                     );
                 },
             },
@@ -514,10 +514,10 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     x87_1(
-                        &crate::race::owner::race().course,
+                        &crate::test_support::own::race().course,
                         view(a[0], 0),
                         a[1],
-                        crate::scene::owner::scene(),
+                        crate::test_support::own::scene(),
                     );
                 },
             },
@@ -537,10 +537,10 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     x87_1(
-                        &crate::race::owner::race().course,
+                        &crate::test_support::own::race().course,
                         view(a[0], 0),
                         a[1],
-                        crate::scene::owner::scene(),
+                        crate::test_support::own::scene(),
                     );
                 },
             },
@@ -563,11 +563,11 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     x87_2(
-                        crate::race::owner::race().physics.contact.get(),
-                        crate::race::owner::race().course.numbers.get(),
-                        crate::race::owner::race().shared.car(),
+                        crate::test_support::own::race().physics.contact.get(),
+                        crate::test_support::own::race().course.numbers.get(),
+                        crate::test_support::own::race().shared.car(),
                         a[1],
-                        crate::scene::owner::scene(),
+                        crate::test_support::own::scene(),
                     );
                 },
             },
@@ -590,11 +590,11 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     x87_2(
-                        crate::race::owner::race().physics.contact.get(),
-                        crate::race::owner::race().course.numbers.get(),
-                        crate::race::owner::race().shared.car(),
+                        crate::test_support::own::race().physics.contact.get(),
+                        crate::test_support::own::race().course.numbers.get(),
+                        crate::test_support::own::race().shared.car(),
                         a[1],
-                        crate::scene::owner::scene(),
+                        crate::test_support::own::scene(),
                     );
                 },
             },
@@ -617,11 +617,11 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     x87_2(
-                        crate::race::owner::race().physics.contact.get(),
-                        crate::race::owner::race().course.numbers.get(),
-                        crate::race::owner::race().shared.car(),
+                        crate::test_support::own::race().physics.contact.get(),
+                        crate::test_support::own::race().course.numbers.get(),
+                        crate::test_support::own::race().shared.car(),
                         a[1],
-                        crate::scene::owner::scene(),
+                        crate::test_support::own::scene(),
                     );
                 },
             },
@@ -972,7 +972,7 @@ mod reference_vectors {
                 plain: |_| {
                     x87_7(
                         &crate::physics::step_inputs::StepInputs::of(race()).wheels(),
-                        crate::scene::owner::scene(),
+                        crate::test_support::own::scene(),
                     );
                 },
             },

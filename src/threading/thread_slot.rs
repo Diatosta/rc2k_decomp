@@ -53,8 +53,8 @@ pub static SLOTS: [ThreadSlot; SLOT_COUNT] = [
     ThreadSlot::new(0x410C17),
 ];
 
-/// The owners the slot threads work with. Every one is a plain static whose state the other
-/// threads may read (atomic cells); none holds a `GameThread` state, which only the game's
+/// The owners the slot threads work with. Every one is built at the start and kept for the run; its state the
+/// other threads may read (atomic cells); none holds a `GameThread` state, which only the game's
 /// thread may reach.
 #[derive(Clone, Copy)]
 pub struct SlotOwners<'a> {

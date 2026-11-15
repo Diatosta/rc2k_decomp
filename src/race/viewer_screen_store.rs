@@ -5,9 +5,9 @@
 
 use crate::cells::ZeroCells;
 use crate::race::first_cells::{plain_dwords, plain_dwords_of_text};
-#[cfg(test)]
-use crate::race::owner::race;
 use crate::session::{PlainDword, PlainFloat};
+#[cfg(test)]
+use crate::test_support::own::race;
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells, rc2k_derive::ByteView)]

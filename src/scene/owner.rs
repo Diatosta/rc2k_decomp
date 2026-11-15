@@ -1,9 +1,6 @@
 //! Module scene's owner: the scene's state in one struct, handed by reference to the code that runs
 //! it in place of global stores. The file numbers of the object loaders, the draw switches, the
 //! light tables and the car icon upload join it first; the other stores follow one by one.
-//!
-//! `scene()` is the boundary: the callers outside the module that do not take the owner fetch it
-//! there.
 
 use crate::scene::draw_store::SceneDraw;
 use crate::scene::draw_switches_store::DrawSwitches;
@@ -124,12 +121,4 @@ impl Scene {
             }),
         }
     }
-}
-
-/// The one instance. Reached through `scene()`; `moved` registers its stores' places.
-pub static SCENE: Scene = Scene::new();
-
-/// The scene's state, for a caller that does not take it as a parameter yet.
-pub fn scene() -> &'static Scene {
-    &SCENE
 }

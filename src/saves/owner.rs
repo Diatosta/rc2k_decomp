@@ -1,10 +1,10 @@
-//! The saves' owner: the saved games' and best times' stores in one struct, reached through
-//! `saves()` by the code that does not take it as a parameter.
+//! The saves' owner: the saved games' and best times' stores in one struct, handed by reference
+//! to the code that uses them.
 
 use crate::saves::best_times_store::{BestTimes, RallyTimes};
 use crate::saves::preview_store::SavegamePreview;
 use crate::saves::write_savegame_slot::SaveGames;
-use crate::session::{GameThread, PlainBytes, PlainDword};
+use crate::session::{PlainBytes, PlainDword};
 
 /// The file names and kept values that belong to no larger store.
 pub struct Files {
@@ -54,12 +54,4 @@ impl Saves {
             files: Files::new(),
         }
     }
-}
-
-/// The one instance, reached through `saves()`.
-pub static SAVES: GameThread<Saves> = GameThread::new(Saves::new());
-
-/// The saves' state, for a caller that does not take it as a parameter yet.
-pub fn saves() -> &'static Saves {
-    SAVES.get()
 }

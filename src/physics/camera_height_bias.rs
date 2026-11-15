@@ -90,8 +90,11 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |_| {
                     x87_1(
-                        crate::race::owner::race().frame.view_and_records.get(),
-                        crate::scene::owner::scene(),
+                        crate::test_support::own::race()
+                            .frame
+                            .view_and_records
+                            .get(),
+                        crate::test_support::own::scene(),
                     );
                 },
             },
@@ -102,7 +105,7 @@ mod reference_vectors {
                     writes: &[(0x22400C, Out::F)],
                 }],
                 ulps: 0,
-                plain: |_| x87_2(crate::scene::owner::scene()),
+                plain: |_| x87_2(crate::test_support::own::scene()),
             },
             Block {
                 name: "camera_height_bias line 40",
@@ -113,9 +116,12 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |_| {
                     x87_3(
-                        crate::race::owner::race().course.numbers.get(),
-                        crate::race::owner::race().frame.view_and_records.get(),
-                        crate::scene::owner::scene(),
+                        crate::test_support::own::race().course.numbers.get(),
+                        crate::test_support::own::race()
+                            .frame
+                            .view_and_records
+                            .get(),
+                        crate::test_support::own::scene(),
                     );
                 },
             },

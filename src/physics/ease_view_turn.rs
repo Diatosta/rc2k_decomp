@@ -92,7 +92,7 @@ mod reference_vectors {
                 },
             ],
             ulps: 0,
-            plain: |a| x87_1(&HostCell(a[1]), crate::scene::owner::scene()),
+            plain: |a| x87_1(&HostCell(a[1]), crate::test_support::own::scene()),
         }]
     }
 

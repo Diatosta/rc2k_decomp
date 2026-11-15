@@ -520,7 +520,7 @@ fn run_recorded<R: std::fmt::Debug>(
 /// Rust versions read), by the place's offset in the race block.
 fn race_cell(off: usize) -> &'static dyn crate::session::Cell32 {
     let w = &crate::scene::polygon_work::front_end().window;
-    let m = &crate::race::owner::race().frame.matrices.get();
+    let m = &crate::test_support::own::race().frame.matrices.get();
     match off {
         0x224088 => &w.view_scale,
         0x22409C => &w.view_centre[0],

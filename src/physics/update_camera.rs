@@ -482,8 +482,8 @@ fn x87_9(camera: &CameraWork, course_work: &CourseWork) {
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::race::owner::race;
     use crate::scene::x87_mem::view;
+    use crate::test_support::own::race;
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
@@ -524,8 +524,11 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     x87_2(
-                        crate::race::owner::race().course.numbers.get(),
-                        crate::race::owner::race().frame.view_and_records.get(),
+                        crate::test_support::own::race().course.numbers.get(),
+                        crate::test_support::own::race()
+                            .frame
+                            .view_and_records
+                            .get(),
                         *view(a[0], 0),
                     );
                 },
@@ -538,12 +541,15 @@ mod reference_vectors {
                 }],
                 ulps: 0,
                 plain: |_| {
-                    let car = crate::race::owner::race().shared.car();
+                    let car = crate::test_support::own::race().shared.car();
                     // The block reads the zoom as a whole number (the 384 the step puts there).
                     x87_3(
                         car,
-                        crate::race::owner::race().course.numbers.get(),
-                        crate::race::owner::race().frame.view_and_records.get(),
+                        crate::test_support::own::race().course.numbers.get(),
+                        crate::test_support::own::race()
+                            .frame
+                            .view_and_records
+                            .get(),
                         car.camera_zoom.get().to_bits() as i32,
                     );
                 },
@@ -669,8 +675,8 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |_| {
                     x87_9(
-                        crate::race::owner::race().physics.camera(),
-                        crate::race::owner::race().course.course.get(),
+                        crate::test_support::own::race().physics.camera(),
+                        crate::test_support::own::race().course.course.get(),
                     );
                 },
             },

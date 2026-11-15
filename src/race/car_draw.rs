@@ -538,18 +538,18 @@ pub fn draw_car_entry(
 mod vector_tests {
     use super::*;
     use crate::race::asm_test::{Rng, at_each_control_word, lock};
-    use crate::race::owner::race;
-    use crate::scene::owner::scene;
+    use crate::test_support::own::race;
+    use crate::test_support::own::scene;
     use crate::test_support::race_vectors::{Kind, Vectors};
     use crate::test_support::state::Snapshot;
 
     /// The stores the test writes.
     const STORES: [&str; 5] = [
-        "scene.owner.SCENE.drawing.scene",
-        "race.owner.RACE.frame.frame_work",
-        "race.owner.RACE.shared.work",
-        "race.owner.RACE.course.course",
-        "race.owner.RACE.course.numbers",
+        "owners.scene.drawing.scene",
+        "owners.race.frame.frame_work",
+        "owners.race.shared.work",
+        "owners.race.course.course",
+        "owners.race.course.numbers",
     ];
 
     /// The values the blocks read and write, without `scratch` (the assembly's spill dword) and

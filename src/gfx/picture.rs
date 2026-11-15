@@ -194,14 +194,14 @@ mod tests {
         let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
         let kept = crate::test_support::state::Snapshot::of(&[
-            "gfx.owner.GFX.pictures.decoder",
-            "gfx.owner.GFX.pictures.pcx",
-            "gfx.owner.GFX.pictures.picture",
-            "gfx.owner.GFX.pictures.planes",
-            "gfx.owner.GFX.pictures.showing",
-            "gfx.owner.GFX.png.file",
-            "gfx.owner.GFX.png.header",
-            "gfx.owner.GFX.png.setting",
+            "owners.gfx.pictures.decoder",
+            "owners.gfx.pictures.pcx",
+            "owners.gfx.pictures.picture",
+            "owners.gfx.pictures.planes",
+            "owners.gfx.pictures.showing",
+            "owners.gfx.png.file",
+            "owners.gfx.png.header",
+            "owners.gfx.png.setting",
         ]);
         let memory = crate::memory::ListCells::empty();
         let list = &memory;
@@ -313,14 +313,14 @@ mod tests {
         let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
         let kept = crate::test_support::state::Snapshot::of(&[
-            "gfx.owner.GFX.pictures.decoder",
-            "gfx.owner.GFX.pictures.pcx",
-            "gfx.owner.GFX.pictures.picture",
-            "gfx.owner.GFX.pictures.planes",
-            "gfx.owner.GFX.pictures.showing",
-            "gfx.owner.GFX.png.file",
-            "gfx.owner.GFX.png.header",
-            "gfx.owner.GFX.png.setting",
+            "owners.gfx.pictures.decoder",
+            "owners.gfx.pictures.pcx",
+            "owners.gfx.pictures.picture",
+            "owners.gfx.pictures.planes",
+            "owners.gfx.pictures.showing",
+            "owners.gfx.png.file",
+            "owners.gfx.png.header",
+            "owners.gfx.png.setting",
         ]);
         let memory = crate::memory::ListCells::empty();
         let list = &memory;
@@ -353,8 +353,8 @@ mod tests {
         let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
         let kept = crate::test_support::state::Snapshot::of(&[
-            "gfx.owner.GFX.pictures.picture",
-            "gfx.owner.GFX.png.header",
+            "owners.gfx.pictures.picture",
+            "owners.gfx.png.header",
         ]);
         let memory = crate::memory::ListCells::empty();
         let list = &memory;

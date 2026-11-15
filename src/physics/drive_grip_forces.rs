@@ -458,10 +458,10 @@ fn ease_yaw_twist(
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::race::owner::race;
-    use crate::scene::owner::scene;
     use crate::scene::x87_mem::{HostCell, view};
     use crate::session::Cell32;
+    use crate::test_support::own::race;
+    use crate::test_support::own::scene;
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
@@ -547,7 +547,7 @@ mod reference_vectors {
                         race().shared.car(),
                         race().shared.physics_tables.get(),
                         race().course.numbers.get(),
-                        crate::scene::owner::scene(),
+                        crate::test_support::own::scene(),
                     );
                 },
             },
@@ -586,9 +586,9 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |_| {
                     divide_into_scratch(
-                        &crate::race::owner::race().shared.car().grip_forces[0],
+                        &crate::test_support::own::race().shared.car().grip_forces[0],
                         &scene().drawing.scene.get().scratch,
-                        crate::scene::owner::scene(),
+                        crate::test_support::own::scene(),
                     );
                 },
             },
@@ -599,7 +599,7 @@ mod reference_vectors {
                     writes: &[(0x31A61C, Out::I)],
                 }],
                 ulps: 0,
-                plain: |_| scale_steering(race().shared.car(), crate::scene::owner::scene()),
+                plain: |_| scale_steering(race().shared.car(), crate::test_support::own::scene()),
             },
             Block {
                 name: "drive_grip_forces line 122",
@@ -609,7 +609,10 @@ mod reference_vectors {
                 }],
                 ulps: 0,
                 plain: |_| {
-                    ground_speed_into_scratch(race().shared.car(), crate::scene::owner::scene());
+                    ground_speed_into_scratch(
+                        race().shared.car(),
+                        crate::test_support::own::scene(),
+                    );
                 },
             },
             Block {
@@ -641,7 +644,7 @@ mod reference_vectors {
                         race().course.numbers.get(),
                         race().engine_tables(),
                         a[2],
-                        crate::scene::owner::scene(),
+                        crate::test_support::own::scene(),
                     );
                 },
             },
@@ -674,7 +677,7 @@ mod reference_vectors {
                         race().course.numbers.get(),
                         race().engine_tables(),
                         a[2],
-                        crate::scene::owner::scene(),
+                        crate::test_support::own::scene(),
                     );
                 },
             },
@@ -707,7 +710,7 @@ mod reference_vectors {
                         race().course.numbers.get(),
                         race().engine_tables(),
                         a[2],
-                        crate::scene::owner::scene(),
+                        crate::test_support::own::scene(),
                     );
                 },
             },
@@ -723,7 +726,7 @@ mod reference_vectors {
                         race().shared.car(),
                         race().shared.physics_tables.get(),
                         race().course.numbers.get(),
-                        crate::scene::owner::scene(),
+                        crate::test_support::own::scene(),
                     );
                 },
             },
@@ -738,7 +741,7 @@ mod reference_vectors {
                     braking_count_neutral(
                         race().shared.car(),
                         race().shared.physics_tables.get(),
-                        crate::scene::owner::scene(),
+                        crate::test_support::own::scene(),
                     );
                 },
             },
@@ -770,7 +773,9 @@ mod reference_vectors {
                     writes: &[(0x22401C, Out::F)],
                 }],
                 ulps: 0,
-                plain: |_| abs_speed_into_work(race().shared.car(), crate::scene::owner::scene()),
+                plain: |_| {
+                    abs_speed_into_work(race().shared.car(), crate::test_support::own::scene());
+                },
             },
             Block {
                 name: "drive_grip_forces line 202",
@@ -782,7 +787,7 @@ mod reference_vectors {
                 plain: |_| {
                     yaw_share_from_limit(
                         race().shared.physics_tables.get(),
-                        crate::scene::owner::scene(),
+                        crate::test_support::own::scene(),
                     );
                 },
             },
@@ -796,12 +801,12 @@ mod reference_vectors {
                 plain: |_| {
                     divide_into_scratch(
                         &scene().drawing.scene.get().scratch,
-                        &crate::race::owner::race()
+                        &crate::test_support::own::race()
                             .shared
                             .physics_tables
                             .get()
                             .grip_force_limit,
-                        crate::scene::owner::scene(),
+                        crate::test_support::own::scene(),
                     );
                 },
             },
@@ -833,7 +838,7 @@ mod reference_vectors {
                         race().course.numbers.get(),
                         race().engine_tables(),
                         a[1],
-                        crate::scene::owner::scene(),
+                        crate::test_support::own::scene(),
                     );
                 },
             },
@@ -865,7 +870,7 @@ mod reference_vectors {
                         race().course.numbers.get(),
                         race().engine_tables(),
                         a[1],
-                        crate::scene::owner::scene(),
+                        crate::test_support::own::scene(),
                     );
                 },
             },
@@ -897,7 +902,7 @@ mod reference_vectors {
                         race().course.numbers.get(),
                         race().engine_tables(),
                         a[1],
-                        crate::scene::owner::scene(),
+                        crate::test_support::own::scene(),
                     );
                 },
             },
@@ -955,7 +960,7 @@ mod reference_vectors {
                         race().shared.physics_tables.get(),
                         race().course.numbers.get(),
                         HostCell(a[1]).bits(),
-                        crate::scene::owner::scene(),
+                        crate::test_support::own::scene(),
                     );
                 },
             },

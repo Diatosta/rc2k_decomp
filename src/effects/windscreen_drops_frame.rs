@@ -751,11 +751,14 @@ mod reference_vectors {
                                 b[2],
                                 0,
                                 0xC0,
-                                &crate::gfx::owner::gfx().card.windscreen_drop_batch.records,
+                                &crate::test_support::own::gfx()
+                                    .card
+                                    .windscreen_drop_batch
+                                    .records,
                                 || {
                                     super::sprite_project_x87(
                                         &crate::test_support::own::effects().windscreen_drops,
-                                        crate::gfx::owner::gfx(),
+                                        crate::test_support::own::gfx(),
                                         crate::test_support::own::effects(),
                                         0,
                                         super::bh::ld(b[3].number() as u32),

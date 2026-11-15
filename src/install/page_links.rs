@@ -226,8 +226,8 @@ mod tests {
 
     #[test]
     fn the_handles_resolve_as_their_own_kind() {
-        let install = crate::install::owner::install();
-        let pages = &crate::install::owner::install().pages;
+        let install = crate::test_support::own::install();
+        let pages = &crate::test_support::own::install().pages;
         assert!(core::ptr::eq(
             PageLink::box_at(1).box_rect(install).unwrap(),
             &raw const pages.boxes[1]
@@ -248,7 +248,7 @@ mod tests {
             crate::place::BytePlace::In(buffer, at) => {
                 assert!(std::ptr::addr_eq(
                     buffer,
-                    &raw const crate::install::owner::install().paths.typed
+                    &raw const crate::test_support::own::install().paths.typed
                 ));
                 assert_eq!(at, 2);
             }
@@ -258,7 +258,7 @@ mod tests {
 
     #[test]
     fn a_link_is_resolved_only_as_its_own_kind() {
-        let install = crate::install::owner::install();
+        let install = crate::test_support::own::install();
         assert!(PageLink::from_raw(0).box_rect(install).is_err());
         assert!(PageLink::from_raw(0).place(install).is_err());
         assert!(

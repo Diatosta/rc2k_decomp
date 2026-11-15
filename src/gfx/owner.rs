@@ -34,7 +34,7 @@ use crate::gfx::texture_upload::Textures;
 use crate::gfx::typefaces::FontObjects;
 use crate::gfx::upload::Upload;
 use crate::gfx::windscreen_drop_batch::WindscreenDrops;
-use crate::session::{GameThread, PlainBytes, PlainDword};
+use crate::session::{PlainBytes, PlainDword};
 
 /// The PNG reader's state: the file being decoded, its header and the setting that turns PNG files
 /// off.
@@ -230,12 +230,4 @@ impl Gfx {
             d3d: D3d::new(),
         }
     }
-}
-
-/// The one instance. Reached through `gfx()`; `moved` registers its stores' places.
-pub static GFX: GameThread<Gfx> = GameThread::new(Gfx::new());
-
-/// The module's state; pass it down where a function reaches it more than once.
-pub fn gfx() -> &'static Gfx {
-    GFX.get()
 }

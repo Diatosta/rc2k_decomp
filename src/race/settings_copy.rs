@@ -596,7 +596,7 @@ const OPTION_BITS: [(SettingWord, u32); 9] = [
 mod tests {
     use super::old_machine::{self, Step};
     use super::*;
-    use crate::race::owner::race;
+    use crate::test_support::own::race;
 
     /// A log and routine calls captured as text (floats by their bits).
     #[derive(Default, PartialEq, Debug)]
@@ -729,7 +729,7 @@ mod tests {
                 restore(&cells, &start);
                 let mut new_log = Capture::default();
                 let new_result = if copy_in {
-                    super::copy_in(race, crate::gfx::owner::gfx(), &mut new_log)
+                    super::copy_in(race, crate::test_support::own::gfx(), &mut new_log)
                 } else {
                     super::copy_out(race, &mut new_log)
                 };

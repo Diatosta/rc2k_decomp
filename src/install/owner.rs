@@ -1,5 +1,4 @@
 //! The installer's owner: its state in one struct, handed by reference to the code that runs it.
-//! `install()` is the boundary: a caller outside the module fetches the owner there.
 
 use crate::install::installer::InstallTexts;
 use crate::install::name_tables::NameTable;
@@ -10,7 +9,6 @@ use crate::install::vars::{
     InstallerNames, InstallerPages, InstallerPalette, InstallerPaths, InstallerRun,
 };
 use crate::memory::owned::Owned;
-use crate::session::GameThread;
 
 /// The installation's state.
 pub struct Install {
@@ -51,12 +49,4 @@ impl Install {
             files: Owned::new("no installer files table"),
         }
     }
-}
-
-/// The one instance, reached through `install()`.
-static INSTALL: GameThread<Install> = GameThread::new(Install::new());
-
-/// The installation's state; pass it down where a function reaches it more than once.
-pub fn install() -> &'static Install {
-    INSTALL.get()
 }

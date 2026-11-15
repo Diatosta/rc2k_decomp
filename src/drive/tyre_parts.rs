@@ -91,7 +91,7 @@ fn quad_tail_math_in(
 #[cfg(test)]
 fn quad_tail_math(rect: [u32; 4], vertices: &[Vertex], screen: [u32; 2], scratch: &PlainDword) {
     quad_tail_math_in(
-        crate::race::owner::race().viewer_panel(),
+        crate::test_support::own::race().viewer_panel(),
         rect,
         vertices,
         screen,

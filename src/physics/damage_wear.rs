@@ -246,8 +246,8 @@ mod reference_vectors {
                         dm(a[0]),
                         &dm(a[0]).wear_rates[3],
                         &dm(a[0]).brake_share,
-                        &crate::race::owner::race().shared.car().brake_heat[0],
-                        &crate::race::owner::race().shared.car().brake_heat[0],
+                        &crate::test_support::own::race().shared.car().brake_heat[0],
+                        &crate::test_support::own::race().shared.car().brake_heat[0],
                     );
                 },
             },
@@ -273,8 +273,8 @@ mod reference_vectors {
                         dm(a[0]),
                         &dm(a[0]).wear_rates[3],
                         &dm(a[0]).brake_share,
-                        &crate::race::owner::race().shared.car().brake_heat[1],
-                        &crate::race::owner::race().shared.car().brake_heat[1],
+                        &crate::test_support::own::race().shared.car().brake_heat[1],
+                        &crate::test_support::own::race().shared.car().brake_heat[1],
                     );
                 },
             },
@@ -295,8 +295,8 @@ mod reference_vectors {
                     subtract_rate(
                         dm(a[0]),
                         &dm(a[0]).wear_rates[4],
-                        &crate::race::owner::race().shared.car().brake_heat[0],
-                        &crate::race::owner::race().shared.car().brake_heat[0],
+                        &crate::test_support::own::race().shared.car().brake_heat[0],
+                        &crate::test_support::own::race().shared.car().brake_heat[0],
                     );
                 },
             },
@@ -317,8 +317,8 @@ mod reference_vectors {
                     subtract_rate(
                         dm(a[0]),
                         &dm(a[0]).wear_rates[4],
-                        &crate::race::owner::race().shared.car().brake_heat[1],
-                        &crate::race::owner::race().shared.car().brake_heat[1],
+                        &crate::test_support::own::race().shared.car().brake_heat[1],
+                        &crate::test_support::own::race().shared.car().brake_heat[1],
                     );
                 },
             },
@@ -344,8 +344,8 @@ mod reference_vectors {
                         dm(a[0]),
                         &dm(a[0]).wear_rates[5],
                         &dm(a[0]).drive_a_extrapolated_share,
-                        &crate::race::owner::race().shared.car().damper_wear[0],
-                        &crate::race::owner::race().shared.car().damper_wear[0],
+                        &crate::test_support::own::race().shared.car().damper_wear[0],
+                        &crate::test_support::own::race().shared.car().damper_wear[0],
                     );
                 },
             },
@@ -371,8 +371,8 @@ mod reference_vectors {
                         dm(a[0]),
                         &dm(a[0]).wear_rates[5],
                         &dm(a[0]).drive_b_extrapolated_share,
-                        &crate::race::owner::race().shared.car().damper_wear[1],
-                        &crate::race::owner::race().shared.car().damper_wear[1],
+                        &crate::test_support::own::race().shared.car().damper_wear[1],
+                        &crate::test_support::own::race().shared.car().damper_wear[1],
                     );
                 },
             },
@@ -393,8 +393,8 @@ mod reference_vectors {
                     subtract_rate(
                         dm(a[0]),
                         &dm(a[0]).wear_rates[6],
-                        &crate::race::owner::race().shared.car().damper_wear[0],
-                        &crate::race::owner::race().shared.car().damper_wear[0],
+                        &crate::test_support::own::race().shared.car().damper_wear[0],
+                        &crate::test_support::own::race().shared.car().damper_wear[0],
                     );
                 },
             },
@@ -415,8 +415,8 @@ mod reference_vectors {
                     subtract_rate(
                         dm(a[0]),
                         &dm(a[0]).wear_rates[6],
-                        &crate::race::owner::race().shared.car().damper_wear[1],
-                        &crate::race::owner::race().shared.car().damper_wear[1],
+                        &crate::test_support::own::race().shared.car().damper_wear[1],
+                        &crate::test_support::own::race().shared.car().damper_wear[1],
                     );
                 },
             },
@@ -442,8 +442,8 @@ mod reference_vectors {
                         dm(a[0]),
                         &dm(a[0]).wear_rates[7],
                         &dm(a[0]).on_surface_5,
-                        &crate::race::owner::race().shared.car().brake_fade,
-                        &crate::race::owner::race().shared.car().brake_fade,
+                        &crate::test_support::own::race().shared.car().brake_fade,
+                        &crate::test_support::own::race().shared.car().brake_fade,
                     );
                 },
             },
@@ -464,8 +464,8 @@ mod reference_vectors {
                     subtract_rate(
                         dm(a[0]),
                         &dm(a[0]).wear_rates[8],
-                        &crate::race::owner::race().shared.car().brake_fade,
-                        &crate::race::owner::race().shared.car().brake_fade,
+                        &crate::test_support::own::race().shared.car().brake_fade,
+                        &crate::test_support::own::race().shared.car().brake_fade,
                     );
                 },
             },
@@ -491,8 +491,8 @@ mod reference_vectors {
                         dm(a[0]),
                         &dm(a[0]).wear_rates[9],
                         &dm(a[0]).brake_share,
-                        &crate::race::owner::race().shared.car().brake_fade,
-                        &crate::race::owner::race().shared.car().brake_fade,
+                        &crate::test_support::own::race().shared.car().brake_fade,
+                        &crate::test_support::own::race().shared.car().brake_fade,
                     );
                 },
             },
@@ -527,8 +527,8 @@ mod reference_vectors {
                         dm(a[0]),
                         &dm(a[0]).wear_rates[0],
                         &dm(a[0]).overheat_excess,
-                        &crate::race::owner::race().shared.car().engine_heat,
-                        &crate::race::owner::race().shared.car().engine_heat,
+                        &crate::test_support::own::race().shared.car().engine_heat,
+                        &crate::test_support::own::race().shared.car().engine_heat,
                     );
                 },
             },
@@ -549,8 +549,8 @@ mod reference_vectors {
                     subtract_rate(
                         dm(a[0]),
                         &dm(a[0]).wear_rates[1],
-                        &crate::race::owner::race().shared.car().engine_heat,
-                        &crate::race::owner::race().shared.car().engine_heat,
+                        &crate::test_support::own::race().shared.car().engine_heat,
+                        &crate::test_support::own::race().shared.car().engine_heat,
                     );
                 },
             },
@@ -576,8 +576,8 @@ mod reference_vectors {
                         dm(a[0]),
                         &dm(a[0]).wear_rates[2],
                         &dm(a[0]).speed_share,
-                        &crate::race::owner::race().shared.car().engine_heat,
-                        &crate::race::owner::race().shared.car().engine_heat,
+                        &crate::test_support::own::race().shared.car().engine_heat,
+                        &crate::test_support::own::race().shared.car().engine_heat,
                     );
                 },
             },

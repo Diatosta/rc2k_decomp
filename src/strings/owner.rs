@@ -1,7 +1,7 @@
 //! The strings' owned state: the text buffer, the keyboard tables, the language and the lexicon in
-//! one struct, reached through `strings()` by the code that does not take it as a parameter.
+//! one struct, handed by reference to the code that uses them.
 
-use crate::session::{GameThread, PlainBytes, PlainDword};
+use crate::session::{PlainBytes, PlainDword};
 use crate::settings::read_driver_names::NAMES_SIZE;
 use crate::strings::compile_lexicon::{EMPTY_MESSAGE_LEN, LexiconMemory, WORK_LEN};
 use crate::strings::keyboard_tables::KeyboardTables;
@@ -96,12 +96,4 @@ impl Strings {
             drivers: Drivers::new(),
         }
     }
-}
-
-/// The one instance. Reached through `strings()`; `moved` registers its stores' places.
-pub static STRINGS: GameThread<Strings> = GameThread::new(Strings::new());
-
-/// The strings' state, for a caller that does not take it as a parameter yet.
-pub fn strings() -> &'static Strings {
-    STRINGS.get()
 }

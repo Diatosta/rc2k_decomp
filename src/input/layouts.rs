@@ -56,7 +56,7 @@ pub fn layouts() -> MutexGuard<'static, Layouts> {
 /// The NEC layout block; its tables follow at +0x14 (plain), +0x94 (shifted) and +0x114 (key
 /// names, 0x100 bytes).
 const NEC_TABLES: (usize, usize, usize, usize) = (0x14, 0x94, 0x114, 0x214);
-/// `crate::strings::owner::strings().language.keyboard.nec_head`'s layout mode byte (+0xA).
+/// `crate::test_support::own::strings().language.keyboard.nec_head`'s layout mode byte (+0xA).
 const NEC_MODE_AT: usize = 0xA;
 
 impl Layouts {

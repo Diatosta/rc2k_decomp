@@ -255,8 +255,8 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |_| {
                     x87_1(
-                        crate::race::owner::race().physics.contact.get(),
-                        crate::race::owner::race().course.numbers.get(),
+                        crate::test_support::own::race().physics.contact.get(),
+                        crate::test_support::own::race().course.numbers.get(),
                     );
                 },
             },
@@ -282,9 +282,9 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |_| {
                     x87_2(
-                        crate::race::owner::race().physics.contact.get(),
-                        crate::race::owner::race().shared.car(),
-                        crate::race::owner::race().course.numbers.get(),
+                        crate::test_support::own::race().physics.contact.get(),
+                        crate::test_support::own::race().shared.car(),
+                        crate::test_support::own::race().course.numbers.get(),
                     );
                 },
             },

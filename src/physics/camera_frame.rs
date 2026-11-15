@@ -86,7 +86,7 @@ fn x87_2(numbers: &Numbers, scene: &crate::scene::owner::Scene) {
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::race::owner::race;
+    use crate::test_support::own::race;
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
@@ -98,7 +98,7 @@ mod reference_vectors {
                     writes: &[(0x23763C, Out::F)],
                 }],
                 ulps: 0,
-                plain: |_| x87_1(&race().shared, crate::scene::owner::scene()),
+                plain: |_| x87_1(&race().shared, crate::test_support::own::scene()),
             },
             Block {
                 name: "camera_frame line 37",
@@ -115,8 +115,8 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |_| {
                     x87_2(
-                        crate::race::owner::race().course.numbers.get(),
-                        crate::scene::owner::scene(),
+                        crate::test_support::own::race().course.numbers.get(),
+                        crate::test_support::own::scene(),
                     );
                 },
             },

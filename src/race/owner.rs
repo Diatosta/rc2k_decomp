@@ -1,6 +1,5 @@
 //! The race's owner: the race's state in one struct, in groups by part, handed by reference to the
-//! code that runs a race. `race()` is the boundary: code that does not take the owner yet fetches
-//! it there; the climb from `drive::play_race` down passes `&Race` instead.
+//! code that runs a race.
 
 use crate::effects::owner::Effects;
 use crate::hud::owner::Hud;
@@ -40,14 +39,6 @@ impl Race {
     }
 }
 
-/// The one instance. Reached through `race()`.
-pub static RACE: Race = Race::new();
-
-/// The race's state, for a caller that does not take it as a parameter yet.
-pub fn race() -> &'static Race {
-    &RACE
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -55,27 +46,22 @@ mod tests {
     #[test]
     fn a_second_race_holds_its_own_car_blocks() {
         // The value is large: it is built and kept on the heap by a thread with room for it.
-        let size = std::mem::size_of::<Race>();
-        let built = std::thread::Builder::new()
-            .stack_size(size * 3 + (1 << 20))
-            .spawn(|| {
-                let second = Box::new(Race::new());
-                let first_car = &second.shared.car_blocks().cars[0];
-                assert!(!std::ptr::eq(
-                    first_car,
-                    core::ptr::from_ref(&RACE.shared.car_blocks().cars[0])
-                ));
-                first_car.step_clock.set(0x5EC0_4D01);
-                assert_ne!(
-                    RACE.shared.car_blocks().cars[0].step_clock.get(),
-                    0x5EC0_4D01
-                );
-                assert!(std::ptr::eq(
-                    second.car_blocks(),
-                    second.shared.car_blocks()
-                ));
-            })
-            .unwrap();
-        built.join().unwrap();
+        let first = crate::test_support::own::race();
+        let first_car = core::ptr::from_ref(&first.shared.car_blocks().cars[0]).addr();
+        let second =
+            crate::owners::on_big_stack(3 * size_of::<Race>() + (1 << 20), || -> &'static Race {
+                Box::leak(Box::new(Race::new()))
+            });
+        let second_car = &second.shared.car_blocks().cars[0];
+        assert_ne!(core::ptr::from_ref(second_car).addr(), first_car);
+        second_car.step_clock.set(0x5EC0_4D01);
+        assert_ne!(
+            first.shared.car_blocks().cars[0].step_clock.get(),
+            0x5EC0_4D01
+        );
+        assert!(std::ptr::eq(
+            second.car_blocks(),
+            second.shared.car_blocks()
+        ));
     }
 }

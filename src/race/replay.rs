@@ -7,18 +7,18 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
-#[cfg(test)]
-use crate::menu::owner::menus;
 use crate::race::owner::Race;
 use crate::race::owner_replay::Replay;
 use crate::session::{PlainBytes, PlainDword};
 use crate::system::owner::System;
+#[cfg(test)]
+use crate::test_support::own::menus;
 
 /// The race record's seal key (the replay header's checksum, `race::seal_replay_header`;
 /// `race::seal_stage_time` turns the first car's time by it). It is what makes a stage time in the
 /// saved results depend on the replay it came from, so a time cannot be edited alone. Kept apart
 /// from the sound dwords around it.
-// The index (`crate::race::owner::race().shared.replay_file().index.dwords()`) is 0x3850 bytes.
+// The index (`crate::test_support::own::race().shared.replay_file().index.dwords()`) is 0x3850 bytes.
 const _: () = assert!(crate::race::replay_file_store::INDEX_DWORDS * 4 == 0x3850);
 pub const MOST_BLOCKS: u32 = rc2k_core::race::replay::MOST_BLOCKS;
 pub const BLOCK_LEN: u32 = 0x2810;
@@ -120,9 +120,9 @@ fn put_header(sealed: &[PlainDword; 64], at: usize, bytes: &[u8]) -> Result<(), 
 #[cfg(test)]
 fn copy_header_settings(sealed: &[PlainDword; 64]) -> Result<(), BadInput> {
     copy_header_settings_of(
-        crate::race::owner::race(),
+        crate::test_support::own::race(),
         menus(),
-        crate::strings::owner::strings(),
+        crate::test_support::own::strings(),
         sealed,
     )
 }
@@ -471,7 +471,7 @@ pub fn open_replay(race: &Race, o: crate::owners::Owners<'static>) -> Result<(),
 
 #[cfg(test)]
 mod seal_key_tests {
-    use crate::race::owner::race;
+    use crate::test_support::own::race;
 
     #[test]
     fn seal_key_starts_at_zero() {
@@ -482,15 +482,15 @@ mod seal_key_tests {
 #[cfg(test)]
 mod header_tests {
     use super::*;
-    use crate::race::owner::race;
     use crate::session::DwordLike;
+    use crate::test_support::own::race;
 
-    const LOCALE: &str = "strings.owner.STRINGS.language.locale";
-    const REPLAYS: &str = "race.owner.RACE.shared.replays";
-    const REPLAY_FILE: &str = "race.owner.RACE.shared.replay_file";
-    const WORK: &str = "race.owner.RACE.shared.work";
-    const STATE: &str = "race.owner.RACE.shared.state";
-    const CHEATS: &str = "menu.owner.MENU_OWNER.play.cheats";
+    const LOCALE: &str = "owners.strings.language.locale";
+    const REPLAYS: &str = "owners.race.shared.replays";
+    const REPLAY_FILE: &str = "owners.race.shared.replay_file";
+    const WORK: &str = "owners.race.shared.work";
+    const STATE: &str = "owners.race.shared.state";
+    const CHEATS: &str = "owners.menus.play.cheats";
     #[derive(Clone, Copy)]
     enum Dest {
         /// At a byte of the sealed header part.
@@ -639,10 +639,10 @@ mod header_tests {
                 .iter()
                 .map(|c| c as &dyn DwordLike),
         );
-        let locale = &crate::strings::owner::strings().language.locale;
+        let locale = &crate::test_support::own::strings().language.locale;
         let header = &shared.replays().header;
-        let sealed = &crate::race::owner::race().replay_work().sealed_header;
-        let door = &crate::race::owner::race().replay_work().unknown_7d0[0];
+        let sealed = &crate::test_support::own::race().replay_work().sealed_header;
+        let door = &crate::test_support::own::race().replay_work().unknown_7d0[0];
         let kept_cells: Vec<u32> = cells.iter().map(|c| c.get()).collect();
         let kept_locale = locale.get(8);
         let kept_header: Vec<u8> = (0..16).map(|i| header.get(i)).collect();

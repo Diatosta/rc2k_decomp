@@ -28,9 +28,9 @@ const COUNTS: [(&std::ffi::CStr, Count); 11] = [
     (c"[shauncarnum8]", Count::Kind(7)),
 ];
 
-/// A count logged: `crate::race::owner::race().shared.view`'s car and player counts, this machine's
-/// player (`crate::net::owner::net().vars.player`), or a car's kind
-/// (`crate::race::owner::race().shared.vars.race_car_kinds`).
+/// A count logged: `crate::test_support::own::race().shared.view`'s car and player counts, this machine's
+/// player (`crate::test_support::own::net().vars.player`), or a car's kind
+/// (`crate::test_support::own::race().shared.vars.race_car_kinds`).
 #[derive(Clone, Copy)]
 enum Count {
     RaceCars,

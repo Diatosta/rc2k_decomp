@@ -62,7 +62,7 @@ fn x87_1(camera: &CameraWork, offset: [u32; 3], scene: &crate::scene::owner::Sce
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::race::owner::race;
+    use crate::test_support::own::race;
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
@@ -83,7 +83,7 @@ mod reference_vectors {
                 x87_1(
                     race().physics.camera(),
                     [4, 8, 0xC].map(|o| crate::scene::x87_mem::Base::dword(a[0], o)),
-                    crate::scene::owner::scene(),
+                    crate::test_support::own::scene(),
                 );
             },
         }]

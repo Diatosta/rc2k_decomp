@@ -5,8 +5,8 @@
 //! over randomised states.
 
 use super::*;
-use crate::race::owner::race;
 use crate::session::{Dword, DwordLike};
+use crate::test_support::own::race;
 use Step::*;
 use std::ffi::{CStr, CString};
 

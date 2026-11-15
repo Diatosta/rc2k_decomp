@@ -91,7 +91,7 @@ pub fn finish_timing(race: &Race, scene: &crate::scene::owner::Scene) {
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::race::owner::race;
+    use crate::test_support::own::race;
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
@@ -103,7 +103,7 @@ mod reference_vectors {
                     writes: &[(0x24BB64, Out::F)],
                 }],
                 ulps: 0,
-                plain: |_| time(race(), crate::scene::owner::scene()),
+                plain: |_| time(race(), crate::test_support::own::scene()),
             },
             Block {
                 name: "finish_timing middle",

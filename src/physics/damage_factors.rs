@@ -312,7 +312,7 @@ mod reference_vectors {
     use crate::effects::cell_x87::CellX87;
     use crate::math::x87_float::compare;
     use crate::physics::store::laid;
-    use crate::race::owner::race;
+    use crate::test_support::own::race;
 
     /// The status word of the engine's speed against its limit times the factor.
     fn over_limit_status(car: &Car, m: &DamageModel) -> u16 {
@@ -371,7 +371,10 @@ mod reference_vectors {
                     wheel_stiffness_from_share(
                         dm(a[0]),
                         &dm(a[0]).wheel_stiffness_lerp[0],
-                        &crate::race::owner::race().shared.car().wheel_stiffness[0],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .wheel_stiffness[0],
                     );
                 },
             },
@@ -391,7 +394,10 @@ mod reference_vectors {
                 plain: |a| {
                     wheel_ride_height_from_share(
                         dm(a[0]),
-                        &crate::race::owner::race().shared.car().wheel_ride_height[0],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .wheel_ride_height[0],
                     );
                 },
             },
@@ -411,8 +417,14 @@ mod reference_vectors {
                 plain: |a| {
                     fail_wheel(
                         dm(a[0]),
-                        &crate::race::owner::race().shared.car().wheel_stiffness[0],
-                        &crate::race::owner::race().shared.car().wheel_ride_height[0],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .wheel_stiffness[0],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .wheel_ride_height[0],
                     );
                 },
             },
@@ -437,7 +449,10 @@ mod reference_vectors {
                     wheel_stiffness_from_share(
                         dm(a[0]),
                         &dm(a[0]).wheel_stiffness_lerp[1],
-                        &crate::race::owner::race().shared.car().wheel_stiffness[1],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .wheel_stiffness[1],
                     );
                 },
             },
@@ -457,7 +472,10 @@ mod reference_vectors {
                 plain: |a| {
                     wheel_ride_height_from_share(
                         dm(a[0]),
-                        &crate::race::owner::race().shared.car().wheel_ride_height[1],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .wheel_ride_height[1],
                     );
                 },
             },
@@ -477,8 +495,14 @@ mod reference_vectors {
                 plain: |a| {
                     fail_wheel(
                         dm(a[0]),
-                        &crate::race::owner::race().shared.car().wheel_stiffness[1],
-                        &crate::race::owner::race().shared.car().wheel_ride_height[1],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .wheel_stiffness[1],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .wheel_ride_height[1],
                     );
                 },
             },
@@ -503,7 +527,10 @@ mod reference_vectors {
                     wheel_stiffness_from_share(
                         dm(a[0]),
                         &dm(a[0]).wheel_stiffness_lerp[2],
-                        &crate::race::owner::race().shared.car().wheel_stiffness[2],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .wheel_stiffness[2],
                     );
                 },
             },
@@ -523,7 +550,10 @@ mod reference_vectors {
                 plain: |a| {
                     wheel_ride_height_from_share(
                         dm(a[0]),
-                        &crate::race::owner::race().shared.car().wheel_ride_height[2],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .wheel_ride_height[2],
                     );
                 },
             },
@@ -543,8 +573,14 @@ mod reference_vectors {
                 plain: |a| {
                     fail_wheel(
                         dm(a[0]),
-                        &crate::race::owner::race().shared.car().wheel_stiffness[2],
-                        &crate::race::owner::race().shared.car().wheel_ride_height[2],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .wheel_stiffness[2],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .wheel_ride_height[2],
                     );
                 },
             },
@@ -569,7 +605,10 @@ mod reference_vectors {
                     wheel_stiffness_from_share(
                         dm(a[0]),
                         &dm(a[0]).wheel_stiffness_lerp[3],
-                        &crate::race::owner::race().shared.car().wheel_stiffness[3],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .wheel_stiffness[3],
                     );
                 },
             },
@@ -589,7 +628,10 @@ mod reference_vectors {
                 plain: |a| {
                     wheel_ride_height_from_share(
                         dm(a[0]),
-                        &crate::race::owner::race().shared.car().wheel_ride_height[3],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .wheel_ride_height[3],
                     );
                 },
             },
@@ -609,8 +651,14 @@ mod reference_vectors {
                 plain: |a| {
                     fail_wheel(
                         dm(a[0]),
-                        &crate::race::owner::race().shared.car().wheel_stiffness[3],
-                        &crate::race::owner::race().shared.car().wheel_ride_height[3],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .wheel_stiffness[3],
+                        &crate::test_support::own::race()
+                            .shared
+                            .car()
+                            .wheel_ride_height[3],
                     );
                 },
             },
@@ -715,8 +763,8 @@ mod reference_vectors {
                         race().shared.car(),
                         dm(a[0]),
                         &dm(a[0]).drive_b_slip_share,
-                        &crate::race::owner::race().shared.car().drive_speed_a,
-                        &crate::race::owner::race().shared.car().drive_speed_a,
+                        &crate::test_support::own::race().shared.car().drive_speed_a,
+                        &crate::test_support::own::race().shared.car().drive_speed_a,
                     );
                 },
             },
@@ -742,8 +790,8 @@ mod reference_vectors {
                         race().shared.car(),
                         dm(a[0]),
                         &dm(a[0]).drive_a_extrapolated_share,
-                        &crate::race::owner::race().shared.car().drive_speed_b,
-                        &crate::race::owner::race().shared.car().drive_speed_b,
+                        &crate::test_support::own::race().shared.car().drive_speed_b,
+                        &crate::test_support::own::race().shared.car().drive_speed_b,
                     );
                 },
             },

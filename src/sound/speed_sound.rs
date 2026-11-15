@@ -87,7 +87,11 @@ mod reference_vectors {
                         let set = view::<SoundSet>(a[1], 0);
                         bx.view_flag.set(1);
                         let request = view::<SoundRequest>(a[2], 0);
-                        let gain = &&crate::sound::owner::sound().race.surface.get().speed_gain;
+                        let gain = &&crate::test_support::own::sound()
+                            .race
+                            .surface
+                            .get()
+                            .speed_gain;
                         fill_pitch_and_volume(
                             bx,
                             set,

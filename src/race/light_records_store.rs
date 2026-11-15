@@ -6,9 +6,9 @@
 
 use crate::cells::ZeroCells;
 use crate::race::first_cells::plain_dwords;
-#[cfg(test)]
-use crate::race::owner::race;
 use crate::session::PlainDword;
+#[cfg(test)]
+use crate::test_support::own::race;
 
 /// One model's record.
 #[repr(C)]
