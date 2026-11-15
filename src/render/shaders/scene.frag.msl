@@ -3,7 +3,7 @@
 
 using namespace metal;
 
-struct _15
+struct _20
 {
     float4 _m0;
     float _m1;
@@ -14,140 +14,176 @@ struct _15
 
 struct main0_out
 {
-    float4 m_192 [[color(0)]];
+    float4 m_96 [[color(0)]];
 };
 
 struct main0_in
 {
-    float4 m_72 [[user(locn0), center_no_perspective]];
-    float m_165 [[user(locn1), center_no_perspective]];
-    float2 m_90 [[user(locn2)]];
+    float4 m_88 [[user(locn0), center_no_perspective]];
+    float m_215 [[user(locn1), center_no_perspective]];
+    float2 m_125 [[user(locn2)]];
 };
 
-fragment main0_out main0(main0_in in [[stage_in]], constant _15& _17 [[buffer(0)]], texture2d<float> _86 [[texture(0)]], sampler _86Smplr [[sampler(0)]])
+fragment main0_out main0(main0_in in [[stage_in]], constant _20& _22 [[buffer(0)]], texture2d<float> _117 [[texture(0)]], sampler _117Smplr [[sampler(0)]])
 {
     main0_out out = {};
-    float4 _255;
-    if ((_17._m4 & 1) != 0)
+    do
     {
-        float4 _92 = _86.sample(_86Smplr, in.m_90);
-        bool _96 = _17._m3 == 1;
-        bool _104;
-        if (!_96)
+        if ((_22._m4 & 8192) != 0)
         {
-            _104 = _17._m3 == 7;
+            out.m_96 = in.m_88;
+            break;
         }
-        else
+        float4 _348;
+        if ((_22._m4 & 1) != 0)
         {
-            _104 = _96;
-        }
-        float4 _256;
-        if (_104)
-        {
-            _256 = _92;
-        }
-        else
-        {
-            float4 _257;
-            if (_17._m3 == 4)
+            float4 _345;
+            if ((_22._m4 & 1024) != 0)
             {
-                _257 = _92 * in.m_72;
+                _345 = float4(0.5);
             }
             else
             {
-                float _254;
-                if ((_17._m4 & 2) != 0)
+                _345 = _117.sample(_117Smplr, select(in.m_125, float2(0.5), bool2((_22._m4 & 2048) != 0)));
+            }
+            bool _134 = _22._m3 == 1;
+            bool _142;
+            if (!_134)
+            {
+                _142 = _22._m3 == 7;
+            }
+            else
+            {
+                _142 = _134;
+            }
+            float4 _349;
+            if (_142)
+            {
+                _349 = _345;
+            }
+            else
+            {
+                float4 _350;
+                if (_22._m3 == 4)
                 {
-                    _254 = _92.w;
+                    _350 = _345 * in.m_88;
                 }
                 else
                 {
-                    _254 = in.m_72.w;
+                    float _346;
+                    if ((_22._m4 & 2) != 0)
+                    {
+                        _346 = _345.w;
+                    }
+                    else
+                    {
+                        _346 = in.m_88.w;
+                    }
+                    _350 = float4(_345.xyz * in.m_88.xyz, _346);
                 }
-                _257 = float4(_92.xyz * in.m_72.xyz, _254);
+                _349 = _350;
             }
-            _256 = _257;
+            _348 = _349;
         }
-        _255 = _256;
-    }
-    else
-    {
-        _255 = in.m_72;
-    }
-    bool _146 = _17._m2 != 0;
-    bool _154;
-    if (_146)
-    {
-        bool _260;
-        switch (_17._m2)
+        else
         {
-            case 1:
-            {
-                _260 = false;
-                break;
-            }
-            case 2:
-            {
-                _260 = _255.w < _17._m1;
-                break;
-            }
-            case 3:
-            {
-                _260 = _255.w == _17._m1;
-                break;
-            }
-            case 4:
-            {
-                _260 = _255.w <= _17._m1;
-                break;
-            }
-            case 5:
-            {
-                _260 = _255.w > _17._m1;
-                break;
-            }
-            case 6:
-            {
-                _260 = _255.w != _17._m1;
-                break;
-            }
-            case 7:
-            {
-                _260 = _255.w >= _17._m1;
-                break;
-            }
-            default:
-            {
-                _260 = true;
-                break;
-            }
+            _348 = in.m_88;
         }
-        _154 = !_260;
-    }
-    else
-    {
-        _154 = _146;
-    }
-    if (_154)
-    {
-        discard_fragment();
-    }
-    float4 _264;
-    if ((_17._m4 & 4) != 0)
-    {
-        float _169 = fast::clamp(in.m_165, 0.0, 1.0);
-        float3 _181 = (_255.xyz * _169) + (_17._m0.xyz * (1.0 - _169));
-        float4 _249 = _255;
-        _249.x = _181.x;
-        _249.y = _181.y;
-        _249.z = _181.z;
-        _264 = _249;
-    }
-    else
-    {
-        _264 = _255;
-    }
-    out.m_192 = _264;
+        bool _184 = _22._m2 != 0;
+        bool _190;
+        if (_184)
+        {
+            _190 = (_22._m4 & 512) == 0;
+        }
+        else
+        {
+            _190 = _184;
+        }
+        bool _198;
+        if (_190)
+        {
+            bool _353;
+            switch (_22._m2)
+            {
+                case 1:
+                {
+                    _353 = false;
+                    break;
+                }
+                case 2:
+                {
+                    _353 = _348.w < _22._m1;
+                    break;
+                }
+                case 3:
+                {
+                    _353 = _348.w == _22._m1;
+                    break;
+                }
+                case 4:
+                {
+                    _353 = _348.w <= _22._m1;
+                    break;
+                }
+                case 5:
+                {
+                    _353 = _348.w > _22._m1;
+                    break;
+                }
+                case 6:
+                {
+                    _353 = _348.w != _22._m1;
+                    break;
+                }
+                case 7:
+                {
+                    _353 = _348.w >= _22._m1;
+                    break;
+                }
+                default:
+                {
+                    _353 = true;
+                    break;
+                }
+            }
+            _198 = !_353;
+        }
+        else
+        {
+            _198 = _190;
+        }
+        if (_198)
+        {
+            discard_fragment();
+        }
+        bool _205 = (_22._m4 & 4) != 0;
+        bool _211;
+        if (_205)
+        {
+            _211 = (_22._m4 & 256) == 0;
+        }
+        else
+        {
+            _211 = _205;
+        }
+        float4 _358;
+        if (_211)
+        {
+            float _219 = fast::clamp(in.m_215, 0.0, 1.0);
+            float3 _231 = (_348.xyz * _219) + (_22._m0.xyz * (1.0 - _219));
+            float4 _340 = _348;
+            _340.x = _231.x;
+            _340.y = _231.y;
+            _340.z = _231.z;
+            _358 = _340;
+        }
+        else
+        {
+            _358 = _348;
+        }
+        out.m_96 = _358;
+        break;
+    } while(false);
     return out;
 }
 
