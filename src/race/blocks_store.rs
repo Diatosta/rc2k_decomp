@@ -32,7 +32,7 @@ impl core::ops::Deref for InGroup {
     type Target = CarBlocks;
     #[inline]
     fn deref(&self) -> &CarBlocks {
-        race().replay.car_blocks.get()
+        race().shared.car_blocks.get()
     }
 }
 

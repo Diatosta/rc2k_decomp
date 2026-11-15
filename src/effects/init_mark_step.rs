@@ -49,7 +49,7 @@ pub fn init_mark_step(
             race.shared.view.get().players.get()
         };
         crate::race::load_times::mark("car fields");
-        let records = race.shared.car_records()?;
+        let records = race.car_records()?;
         // `check_cars` holds the count to 8 before `record` is asked.
         let record = |n: u32| records[n as usize];
         race::check_cars(count, |n| race.shared.work.get().has_car_block(n as usize))?;

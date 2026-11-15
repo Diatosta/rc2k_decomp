@@ -936,8 +936,8 @@ fn listed_stores() -> Vec<Listed> {
             on_game(crate::race::owner::RACE.frame.lights_and_gear.get()),
         ),
         listed!(
-            "race.owner.RACE.replay.car_blocks",
-            on_game(crate::race::owner::RACE.replay.car_blocks.get()),
+            "race.owner.RACE.shared.car_blocks",
+            on_game(crate::race::owner::RACE.shared.car_blocks.get()),
         ),
         listed!(
             "race.owner.RACE.replay.replay_work",

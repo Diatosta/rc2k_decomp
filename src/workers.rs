@@ -304,7 +304,7 @@ impl<'s> Lent<'s> {
             frame_work: PhaseRead::lend(&race.frame.frame_work, scope),
             panel_and_overlay: PhaseRead::lend(&race.frame.panel_and_overlay, scope),
             // The cars' blocks and the view variables.
-            car_blocks: PhaseRead::lend(&race.replay.car_blocks, scope),
+            car_blocks: PhaseRead::lend(&race.shared.car_blocks, scope),
             view_and_records: PhaseRead::lend(&race.frame.view_and_records, scope),
             // The system's screen and the processor's MMX flag.
             screen: PhaseRead::lend(&system.session.screen, scope),
@@ -522,7 +522,7 @@ impl<'a> DrawReads<'a> {
             frame_work: race.frame.frame_work.get(),
             panel_and_overlay: race.frame.panel_and_overlay.get(),
             // The cars' blocks and the view variables.
-            car_blocks: race.replay.car_blocks.get(),
+            car_blocks: race.shared.car_blocks.get(),
             view_and_records: race.frame.view_and_records.get(),
             // The system's screen and the processor's MMX flag.
             screen: system.session.screen.get(),

@@ -18,19 +18,55 @@ pub struct Race {
     pub shared: RaceShared,
 }
 
+impl Race {
+    /// A race with every store in its start-up state.
+    pub const fn new() -> Self {
+        Race {
+            physics: Physics::new(),
+            course: Course::new(),
+            frame: Frame::new(),
+            replay: Replay::new(),
+            shared: RaceShared::new(),
+        }
+    }
+}
+
 /// The one instance. Reached through `race()`.
-pub static RACE: Race = Race {
-    physics: Physics::new(),
-    course: Course::new(),
-    frame: Frame::new(),
-    replay: Replay::new(),
-    shared: RaceShared::new(
-        &RACE.replay.car_blocks,
-        &RACE.replay.viewer_and_kinds.marks_settings,
-    ),
-};
+pub static RACE: Race = Race::new();
 
 /// The race's state, for a caller that does not take it as a parameter yet.
 pub fn race() -> &'static Race {
     &RACE
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_second_race_holds_its_own_car_blocks() {
+        // The value is large: it is built and kept on the heap by a thread with room for it.
+        let size = std::mem::size_of::<Race>();
+        let built = std::thread::Builder::new()
+            .stack_size(size * 3 + (1 << 20))
+            .spawn(|| {
+                let second = Box::new(Race::new());
+                let first_car = &second.shared.car_blocks().cars[0];
+                assert!(!std::ptr::eq(
+                    first_car,
+                    core::ptr::from_ref(&RACE.shared.car_blocks().cars[0])
+                ));
+                first_car.step_clock.set(0x5EC0_4D01);
+                assert_ne!(
+                    RACE.shared.car_blocks().cars[0].step_clock.get(),
+                    0x5EC0_4D01
+                );
+                assert!(std::ptr::eq(
+                    second.car_blocks(),
+                    second.shared.car_blocks()
+                ));
+            })
+            .unwrap();
+        built.join().unwrap();
+    }
 }

@@ -1,9 +1,10 @@
 //! The race's stores that sit inside its groups, as views from the owner.
 
+use crate::errors::BadInput;
 use crate::physics::gear_store::GearFigures;
 use crate::race::blocks_store::CarBlocks;
 use crate::race::checkpoints_store::Checkpoints;
-use crate::race::effects_settings_store::EffectsSettings;
+use crate::race::effects_settings_store::{CarEffects, EffectsSettings};
 use crate::race::kind_store::KindTables;
 use crate::race::light_records_store::LightRecords;
 use crate::race::owner::Race;
@@ -18,7 +19,27 @@ use crate::scene::polygon_store::PolygonTables;
 impl Race {
     /// The ten cars' blocks.
     pub fn car_blocks(&self) -> &CarBlocks {
-        self.replay.car_blocks.get()
+        self.shared.car_blocks.get()
+    }
+
+    /// Car record `n` (`car_records[n]`, the name of one of the effects' car records).
+    /// Refused past the eight and for a name that is not a record's start.
+    pub fn car_record(&self, n: usize) -> Result<&CarEffects, BadInput> {
+        self.shared
+            .work
+            .get()
+            .car_record_number(n)
+            .map(|k| &self.effects_settings().cars[k])
+    }
+
+    /// The eight car records.
+    pub fn car_records(&self) -> Result<[&CarEffects; 8], BadInput> {
+        let first = self.car_record(0)?;
+        let mut out = [first; 8];
+        for (n, record) in out.iter_mut().enumerate() {
+            *record = self.car_record(n)?;
+        }
+        Ok(out)
     }
 
     /// The viewer's panel.

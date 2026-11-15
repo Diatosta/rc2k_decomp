@@ -16,7 +16,7 @@ use crate::session::PlainDword;
 /// The car blocks `car_blocks` lists (all eight, whatever the race's count).
 pub const BLOCKS: u32 = 8;
 /// Car block n (`car_blocks`[n]).
-pub fn block(shared: &RaceShared, n: u32) -> Result<&'static Car, BadInput> {
+pub fn block(shared: &RaceShared, n: u32) -> Result<&Car, BadInput> {
     shared.race_car(n as usize)
 }
 

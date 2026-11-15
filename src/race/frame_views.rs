@@ -570,7 +570,7 @@ pub fn run_view_marks(
         return Ok(());
     }
     let view = ctx.view.drawn_view(race);
-    let records = race.shared.car_records()?;
+    let records = race.car_records()?;
     check_view_marks(
         u32::from(race.shared.view_car(view as usize).is_some()),
         |b| u32::from(records.get(b as usize).is_some()),
@@ -599,9 +599,9 @@ pub fn run_view_marks(
     )?;
     let first = first_word(ctx.reads.vars.run_kind.get());
     for b in 0..CAR_RECORDS {
-        race.shared.car_record(b as usize)?.streaks_on.set(first);
+        race.car_record(b as usize)?.streaks_on.set(first);
     }
-    race.shared.car_record(view as usize)?.streaks_on.set(1);
+    race.car_record(view as usize)?.streaks_on.set(1);
     let centre = (
         ctx.view.polygon.window.view_centre[0].get(),
         ctx.view.polygon.window.view_centre[1].get(),

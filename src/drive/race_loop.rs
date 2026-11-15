@@ -24,7 +24,7 @@ fn view_bit(shared: &RaceShared, view: &crate::session::PlainDword) -> Result<bo
 fn net_player_car(
     net_race: NetRace,
     shared: &RaceShared,
-) -> Result<&'static crate::physics::car_store::Car, BadInput> {
+) -> Result<&crate::physics::car_store::Car, BadInput> {
     let handle = shared
         .work
         .get()

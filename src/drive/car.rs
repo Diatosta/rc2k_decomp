@@ -6,7 +6,7 @@ use crate::physics::car_store::Car;
 use crate::race::owner_shared::RaceShared;
 
 /// The current car's block (by its handle), refused when null.
-pub fn current_block(shared: &RaceShared) -> Result<&'static Car, Refused> {
+pub fn current_block(shared: &RaceShared) -> Result<&Car, Refused> {
     use rc2k_core::drive::work_car::{car_block, car_slot};
     let slot = car_slot(shared.work.get().current_car.get());
     car_block(u32::from(shared.work.get().has_car_block(slot as usize)))?;

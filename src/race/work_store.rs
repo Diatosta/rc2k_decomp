@@ -483,14 +483,13 @@ mod tests {
 
     #[test]
     fn car_records_resolve_to_their_places() {
-        let shared = &race().shared;
         for k in 0..8 {
             assert!(std::ptr::eq(
-                shared.car_records().unwrap()[k],
-                shared.car_record(k).unwrap()
+                race().car_records().unwrap()[k],
+                race().car_record(k).unwrap()
             ));
         }
-        assert!(shared.car_record(8).is_err());
+        assert!(race().car_record(8).is_err());
     }
 
     /// `car_block` past the eight reads the variables that follow the table, in their order.

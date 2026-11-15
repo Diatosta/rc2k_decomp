@@ -6,7 +6,6 @@ use crate::physics::car_store::Car;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::blocks_store::CarBlocks;
 use crate::race::buffers_store::Buffers;
-use crate::race::effects_settings_store::{CarEffects, EffectsSettings};
 use crate::race::replay::Replays;
 use crate::race::replay_file_store::ReplayFileBlock;
 use crate::race::replay_path::Templates;
@@ -38,11 +37,9 @@ pub struct RaceShared {
     /// The work car. One copy: the drawing does not read it, so the drawing threads need none of
     /// their own.
     car: GameThread<Car>,
-    /// The cars' blocks (`Race::replay`'s), for the code that holds only this group
-    /// (`car_blocks`).
-    car_blocks: &'static DrawShared<CarBlocks>,
-    /// The effects' settings with the cars' records (`Race::replay`'s), as `car_blocks`.
-    pub effects_settings: &'static GameThread<EffectsSettings>,
+    /// The cars' blocks. One copy: no drawing part writes them (each view draws its own copy of
+    /// its car, `ViewScratch::car`).
+    pub car_blocks: DrawShared<CarBlocks>,
     /// The replay files' names.
     pub replay_templates: Templates,
     /// The network game on, if any (set and cleared by the network).
@@ -62,12 +59,7 @@ struct SharedMain {
 }
 
 impl RaceShared {
-    /// The group, reaching the cars' blocks and the effects' settings at `car_blocks` and
-    /// `effects_settings`.
-    pub const fn new(
-        car_blocks: &'static DrawShared<CarBlocks>,
-        effects_settings: &'static GameThread<EffectsSettings>,
-    ) -> Self {
+    pub const fn new() -> Self {
         RaceShared {
             work: DrawShared::new(RaceWork::new()),
             state: RaceState::new(),
@@ -77,8 +69,7 @@ impl RaceShared {
             switches: DrawShared::new(FrameSwitches::new()),
             physics_tables: DrawShared::new(PhysicsTables::new()),
             car: GameThread::new(Car::new()),
-            car_blocks,
-            effects_settings,
+            car_blocks: DrawShared::new(CarBlocks::new()),
             replay_templates: Templates::new(),
             net_race: rc2k_core::net::net_race::NetRaceSlot::new(),
             main: GameThread::new(SharedMain {
@@ -98,7 +89,7 @@ impl RaceShared {
 
     /// The cars' blocks, on the game's thread outside a drawing scope (a drawing part
     /// reads them through its `workers::DrawReads`).
-    pub fn car_blocks(&self) -> &'static CarBlocks {
+    pub fn car_blocks(&self) -> &CarBlocks {
         self.car_blocks.get()
     }
 
@@ -124,7 +115,7 @@ impl RaceShared {
 
     /// Car `n`'s block (`car_blocks[n]`), refused for a value that names no block (see
     /// `RaceWork::car_block` for the read past the eight).
-    pub fn race_car(&self, n: usize) -> Result<&'static Car, BadInput> {
+    pub fn race_car(&self, n: usize) -> Result<&Car, BadInput> {
         Self::race_car_in(self.work.get(), self.car_blocks(), n)
     }
 
@@ -146,7 +137,7 @@ impl RaceShared {
 
     /// Car `n`'s block, or the refusal `what` for none. A handle that names no block ends the
     /// program, as `RaceWork::car_block`.
-    pub fn race_car_or(&self, n: usize, what: &'static str) -> Result<&'static Car, BadInput> {
+    pub fn race_car_or(&self, n: usize, what: &'static str) -> Result<&Car, BadInput> {
         Self::race_car_or_in(self.work.get(), self.car_blocks(), n, what)
     }
 
@@ -165,7 +156,7 @@ impl RaceShared {
     }
 
     /// Car `n`'s block; a null block or one that is none of the eight ends the program.
-    pub fn race_car_or_end(&self, n: usize) -> &'static Car {
+    pub fn race_car_or_end(&self, n: usize) -> &Car {
         Self::race_car_or_end_in(self.work.get(), self.car_blocks(), n)
     }
 
@@ -179,33 +170,13 @@ impl RaceShared {
         .unwrap_or_else(|e| crate::fatal::raise::end("physics::Car::at", e))
     }
 
-    /// Car record `n` (`car_records[n]`, the name of one of the effects' car records).
-    /// Refused past the eight and for a name
-    /// that is not a record's start.
-    pub fn car_record(&self, n: usize) -> Result<&'static CarEffects, BadInput> {
-        self.work
-            .get()
-            .car_record_number(n)
-            .map(|k| &self.effects_settings.cars[k])
-    }
-
-    /// The eight car records.
-    pub fn car_records(&self) -> Result<[&'static CarEffects; 8], BadInput> {
-        let first = self.car_record(0)?;
-        let mut out = [first; 8];
-        for (n, record) in out.iter_mut().enumerate() {
-            *record = self.car_record(n)?;
-        }
-        Ok(out)
-    }
-
     /// View `n`'s car block (None for none).
-    pub fn view_car(&self, n: usize) -> Option<&'static Car> {
+    pub fn view_car(&self, n: usize) -> Option<&Car> {
         self.car_blocks().of(self.view.get().view_blocks[n].get())
     }
 
     /// View `n`'s car block, or the end of the program for none (as `Car::at` on its address).
-    pub fn view_car_or_end(&self, n: usize) -> &'static Car {
+    pub fn view_car_or_end(&self, n: usize) -> &Car {
         self.view_car(n).unwrap_or_else(|| {
             crate::fatal::raise::end(
                 "physics::Car::at",
@@ -226,7 +197,7 @@ impl RaceShared {
     }
 
     /// `own_car_number`'s block.
-    pub fn own_car(&self, net_race: Option<NetRace>) -> &'static Car {
+    pub fn own_car(&self, net_race: Option<NetRace>) -> &Car {
         &self.car_blocks().cars[self.own_car_number(net_race)]
     }
 }

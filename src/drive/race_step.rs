@@ -39,7 +39,7 @@ fn hash_if_asked(race: &Race) {
     if !*ON.get_or_init(|| std::env::var_os("RC2K_SIM_HASH").is_some()) {
         return;
     }
-    let mut groups = crate::drive::sim_hash::car_blocks_groups(race.replay.car_blocks.get());
+    let mut groups = crate::drive::sim_hash::car_blocks_groups(race.shared.car_blocks.get());
     let staging = race.replay.staging();
     let mut bytes = vec![0; core::mem::size_of_val(staging)];
     if crate::cells::load_cells(staging, 0, &mut bytes).is_err() {

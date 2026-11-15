@@ -3,7 +3,6 @@
 
 use crate::drive::finish_store::Finish;
 use crate::drive::replay_frames_store::ReplayFrames;
-use crate::race::blocks_store::CarBlocks;
 use crate::race::groups_store::ViewerAndKinds;
 use crate::race::replay_path::LAST_RACE_LEN;
 use crate::race::replay_staging_store::ReplayStaging;
@@ -19,10 +18,6 @@ pub struct Replay {
     pub finish: DrawShared<Finish>,
     /// The last race's replay file's name (`race::replay_path`).
     pub last_race: [u8; LAST_RACE_LEN],
-    /// The cars' blocks (`race::blocks_store`); lent to the drawing parts
-    /// (`workers::DrawReads`): no part writes them (each view draws its own copy of its car,
-    /// `ViewScratch::car`).
-    pub car_blocks: DrawShared<CarBlocks>,
     /// The viewer's panel through the kinds' tables (`race::groups_store`).
     pub viewer_and_kinds: ViewerAndKinds,
     main: GameThread<ReplayMain>,
@@ -44,7 +39,6 @@ impl Replay {
         Replay {
             finish: DrawShared::new(Finish::new()),
             last_race: with_runs(&[(0, b"var\\tmprpl\0")]),
-            car_blocks: DrawShared::new(CarBlocks::new()),
             viewer_and_kinds: ViewerAndKinds::new(),
             main: GameThread::new(ReplayMain {
                 replay_frames: ReplayFrames::new(),

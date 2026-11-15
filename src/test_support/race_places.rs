@@ -320,7 +320,7 @@ const FIELDS: &[(usize, &str, &str)] = &[
     (0x2D3CD8, "race.owner.RACE.physics.contact", ".bump_relative_speed[0]"),
     (0x2D3CDC, "race.owner.RACE.physics.contact", ".bump_relative_speed[1]"),
     (0x2D3CE0, "race.owner.RACE.physics.contact", ".bump_relative_speed[2]"),
-    (0x30F524, "race.owner.RACE.replay.car_blocks", ".cars[0].position[1]"),
+    (0x30F524, "race.owner.RACE.shared.car_blocks", ".cars[0].position[1]"),
     (0x319FE0, "race.owner.RACE.shared.car", ".step_clock"),
     (0x319FF8, "race.owner.RACE.shared.car", ".brake_balance"),
     (0x31A008, "race.owner.RACE.shared.car", ".ride_height"),

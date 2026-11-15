@@ -14,22 +14,21 @@ use crate::errors::{BadInput, Refused};
 use crate::race::effects_settings_store::CarEffects;
 use crate::race::mud::car_file_number;
 use crate::race::owner::Race;
-use crate::race::owner_shared::RaceShared;
 use crate::sound::owner::Sound;
 use rc2k_core::drive::sharing;
 
-fn cars(
-    shared: &RaceShared,
+fn cars<'a>(
+    race: &'a Race,
     sound: &'static Sound,
 ) -> Result<
     [(
         usize,
-        &'static CarEffects,
+        &'a CarEffects,
         &'static crate::sound::store::SoundObject,
     ); 8],
     BadInput,
 > {
-    let records = shared.car_records()?;
+    let records = race.car_records()?;
     Ok(std::array::from_fn(|n| {
         (n, records[n], &sound.race.sounds.get().objects[n])
     }))
@@ -37,7 +36,7 @@ fn cars(
 
 fn refusal(race: &Race, sound: &'static Sound) -> Result<Option<&'static str>, BadInput> {
     let shared = &race.shared;
-    for (block, _, _) in cars(shared, sound)? {
+    for (block, _, _) in cars(race, sound)? {
         if !shared.work.get().has_car_block(block) {
             return Ok(Some("a null car block or record"));
         }
@@ -65,13 +64,11 @@ pub fn share_all_cars(
     // values, which are kept again.
     set_listener(race, scene, view)?;
     keep_lead_car_values(race.shared.own_car(race.shared.net_race.get()), &race.frame);
-    for (n, (block, record, sound)) in cars(&race.shared, sound)?.into_iter().enumerate() {
+    for (n, (block, record, sound)) in cars(race, sound)?.into_iter().enumerate() {
         race.shared.work.get().current_car.set(n as u32);
         share_car_state(race, race.shared.race_car_or_end(block), record, sound)?;
     }
-    let first_record = race
-        .shared
-        .car_record(race.shared.own_car_number(race.shared.net_race.get()))?;
+    let first_record = race.car_record(race.shared.own_car_number(race.shared.net_race.get()))?;
     race.effects_settings().sound_objects_shown.set(0u32);
     let reading = crate::scene::reading::Reading::new();
     let (shown, _) = sharing::cars_shown(
