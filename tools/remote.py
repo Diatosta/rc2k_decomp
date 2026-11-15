@@ -43,6 +43,9 @@ SHOTS = HOME + '/shots'
 # /Volumes/SystemRoot. Its game folder needs its own files (a symlink's target would be
 # Darling's).
 DARLING = os.environ.get('RC2K_REMOTE_DARLING')
+# The Windows build under Wine (RC2K_REMOTE_WINE=the Wine prefix): the game folder holds rc2k.exe
+# and its DLLs, and the game reads the remote folder by its Z: path.
+WINE = os.environ.get('RC2K_REMOTE_WINE')
 # A device over SSH: the handheld by default; RC2K_REMOTE_GAME / RC2K_REMOTE_KEY for another
 # (the Steam Deck: the game started from Steam by its run.sh, which sets RC2K_REMOTE).
 DEVICE_GAME = os.environ.get('RC2K_REMOTE_GAME', '/mnt/mmc/Roms/APPS/rally')
@@ -241,6 +244,10 @@ def start(software, fresh, profile=False):
         if os.environ.get('RC2K_FAIL_RENDERER'):
             env['RC2K_FAIL_RENDERER'] = os.environ['RC2K_FAIL_RENDERER']
         command = ['./rc2k']
+        if WINE:
+            env.update(WINEPREFIX=os.path.expanduser(WINE), WINEDEBUG='-all',
+                       RC2K_REMOTE='Z:' + FOLDER.replace('/', '\\'))
+            command = ['wine', 'rc2k.exe']
         if DARLING:
             env['DPREFIX'] = DARLING
             # SDL's controller back ends lean on frameworks Darling only stubs.
@@ -273,6 +280,8 @@ def stop():
             found = process(pid)
             if found and found[1] == 'rc2k':
                 os.kill(pid, 15)
+            elif found and WINE:  # Wine's own processes for the game: its session, started apart
+                os.killpg(pid, 15)
         except (OSError, ValueError):
             pass
         if DARLING and (pid := darling_game()):
