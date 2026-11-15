@@ -458,7 +458,7 @@ pub fn note_glyph(
     let key = Key {
         table: call.table,
         glyph: call.glyph,
-        generation: glyph_store::table_generation(call.table)?,
+        generation: glyph_store::table_generation(fonts, call.table)?,
     };
     let mut guard = state();
     let state = &mut *guard;
@@ -859,7 +859,7 @@ mod tests {
         let key = Key {
             table,
             glyph: 0,
-            generation: glyph_store::table_generation(table).unwrap(),
+            generation: glyph_store::table_generation(fonts, table).unwrap(),
         };
         let Ok(Slot::Held(found)) = atlas.glyph(key, &at) else {
             panic!("a decoded glyph")
@@ -880,28 +880,28 @@ mod tests {
             remaining: 0,
         });
         let mut atlas = Atlas::new();
-        let table = glyph_store::new_table(&list).unwrap();
+        let table = glyph_store::new_table(fonts, &list).unwrap();
         glyph_store::write_bytes(fonts, table, 0, &one_glyph_table(7), "a table").unwrap();
-        let first = glyph_store::table_generation(table).unwrap();
+        let first = glyph_store::table_generation(fonts, table).unwrap();
         assert_eq!(texel_of(&mut atlas, table), [0, 0, 7, 255]);
         // Written to: another state.
         glyph_store::write_bytes(fonts, table, 0, &one_glyph_table(9), "a table").unwrap();
-        let second = glyph_store::table_generation(table).unwrap();
+        let second = glyph_store::table_generation(fonts, table).unwrap();
         assert_ne!(first, second);
         assert_eq!(texel_of(&mut atlas, table), [0, 0, 9, 255]);
         // Given back and made again, at the same place with other bytes.
-        glyph_store::give_back(glyph_store::key(&list));
-        assert_eq!(glyph_store::table_generation(table), None);
-        let again = glyph_store::new_table(&list).unwrap();
+        glyph_store::give_back(fonts, glyph_store::key(&list));
+        assert_eq!(glyph_store::table_generation(fonts, table), None);
+        let again = glyph_store::new_table(fonts, &list).unwrap();
         assert_eq!(again, table);
         glyph_store::write_bytes(fonts, again, 0, &one_glyph_table(3), "a table").unwrap();
-        let third = glyph_store::table_generation(again).unwrap();
+        let third = glyph_store::table_generation(fonts, again).unwrap();
         assert!(third != first && third != second);
         assert_eq!(texel_of(&mut atlas, again), [0, 0, 3, 255]);
         // The old states are still held under their own keys, so each stays right until the
         // atlas is cleared; none was handed out for the new state.
         assert_eq!(atlas.glyphs.len(), 3);
-        glyph_store::give_back(glyph_store::key(&list));
+        glyph_store::give_back(fonts, glyph_store::key(&list));
     }
 
     /// Quads drawn on the canvas (what a canvas write does with the quads noted before it) are

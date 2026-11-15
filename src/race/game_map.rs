@@ -216,9 +216,9 @@ fn put_pixels(block: &mut [u8], at: usize, bytes: &[u8]) -> Result<(), BadInput>
 }
 
 /// Frees both map lists and zeroes the sheet, tiles and pixels.
-pub fn free_game_map(race: &Race) -> Result<(), Refused> {
+pub fn free_game_map(race: &Race, gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
     let frame = &race.frame;
-    crate::gfx::picture::give_back(crate::gfx::picture::Buffer::Key);
+    crate::gfx::picture::give_back(&gfx.pictures.buffers, crate::gfx::picture::Buffer::Key);
     crate::memory::free_list::free_list(&frame.map().key_list)?;
     crate::memory::free_list::free_list(&frame.map().list)?;
     GAME_MAP.give_back();
@@ -341,7 +341,9 @@ pub fn load_game_map(
     {
         // The packed path: "files\" at the start, the picture's path after 3 bytes with its last
         // four bytes made ".sq" and a NUL.
-        let path = &crate::files::state::PACKED_PATH;
+        let path = &crate::session::Bytes::<{ crate::files::state::PACKED_PATH_LEN }>::new(
+            [0; crate::files::state::PACKED_PATH_LEN],
+        );
         let text = picture.text("a text to append")?;
         let len = text.len() as u32;
         path.write_at(3, &text, "a text to append")?;
@@ -365,6 +367,7 @@ pub fn load_game_map(
     // The key sheet is a picture buffer (Rust's, `gfx::picture`), counted on its list; `key_pixels`
     // holds its number.
     let key = crate::gfx::picture::take(
+        &gfx.pictures.buffers,
         crate::gfx::picture::Buffer::Key,
         &frame.map().key_list,
         0x100_0000,
@@ -397,35 +400,39 @@ pub fn load_game_map(
                 .ok_or(BadInput("a map key read past its sheet"))
         };
         let table = &mut loaded.map.tiles;
-        crate::gfx::picture::with_buffer(key, |sheet| -> Result<(), BadInput> {
-            for ty in 0..SIDE {
-                for tx in 0..SIDE {
-                    let mut used = 0;
-                    let block = (ty * 16 * row).wrapping_add(tx * 16);
-                    for y in 0..16 {
-                        for k in 0..4 {
-                            used |= dword(sheet, block.wrapping_add(y * row) + 4 * k)?;
+        crate::gfx::picture::with_buffer(
+            &gfx.pictures.buffers,
+            key,
+            |sheet| -> Result<(), BadInput> {
+                for ty in 0..SIDE {
+                    for tx in 0..SIDE {
+                        let mut used = 0;
+                        let block = (ty * 16 * row).wrapping_add(tx * 16);
+                        for y in 0..16 {
+                            for k in 0..4 {
+                                used |= dword(sheet, block.wrapping_add(y * row) + 4 * k)?;
+                            }
                         }
-                    }
-                    if used == 0 {
-                        continue;
-                    }
-                    for dy in -3i32..=3 {
-                        let y = (dy + ty as i32) as u32;
-                        if y >= SIDE {
+                        if used == 0 {
                             continue;
                         }
-                        for dx in -3i32..=3 {
-                            let x = (dx + tx as i32) as u32;
-                            if x < SIDE {
-                                table[(y * SIDE + x) as usize] = Tile::Marked;
+                        for dy in -3i32..=3 {
+                            let y = (dy + ty as i32) as u32;
+                            if y >= SIDE {
+                                continue;
+                            }
+                            for dx in -3i32..=3 {
+                                let x = (dx + tx as i32) as u32;
+                                if x < SIDE {
+                                    table[(y * SIDE + x) as usize] = Tile::Marked;
+                                }
                             }
                         }
                     }
                 }
-            }
-            Ok(())
-        })??;
+                Ok(())
+            },
+        )??;
         let marked = table.iter().filter(|&&v| v != Tile::None).count() as u32;
         loaded.map.pixels = vec![0; (marked << 8).wrapping_mul(bytes) as usize];
         if !crate::gfx::read_picture_file::read_picture_file(picture, gfx, system)? {
@@ -435,8 +442,10 @@ pub fn load_game_map(
         let mut tile_count = 0u32;
         // The marked tiles' pixels made from the picture (read into the key's buffer), then put in
         // the map's pixels in one go.
-        let pixels =
-            crate::gfx::picture::with_buffer(key, |sheet| -> Result<Vec<u8>, BadInput> {
+        let pixels = crate::gfx::picture::with_buffer(
+            &gfx.pictures.buffers,
+            key,
+            |sheet| -> Result<Vec<u8>, BadInput> {
                 let mut pixels = Vec::new();
                 for ty in 0..SIDE {
                     for tx in 0..SIDE {
@@ -462,7 +471,8 @@ pub fn load_game_map(
                     }
                 }
                 Ok(pixels)
-            })??;
+            },
+        )??;
         put_pixels(&mut loaded.map.pixels, 0, &pixels)?;
         loaded.tile_count = tile_count;
         loaded.black = Some(crate::gfx::components_to_pixel::components_to_pixel(
@@ -475,7 +485,7 @@ pub fn load_game_map(
     pictures.picture.buffer.set(kept[2]);
     pictures.pcx.height_limit.set(kept[1]);
     pictures.pcx.width_limit.set(kept[0]);
-    crate::gfx::picture::give_back(crate::gfx::picture::Buffer::Key);
+    crate::gfx::picture::give_back(&gfx.pictures.buffers, crate::gfx::picture::Buffer::Key);
     crate::memory::free_list::free_list(&frame.map().key_list)?;
     frame.map().key_pixels.set(0u32);
     Ok(loaded)

@@ -522,7 +522,7 @@ fn read_command_line_and_install_state(o: Owners<'static>, r: &Context) {
         refused("install::check_at_start", e, r);
     }
     rust("system::check_developer_machine");
-    crate::system::check_developer_machine::check_developer_machine(o.strings);
+    crate::system::check_developer_machine::check_developer_machine(o.strings, o.system);
     rust("install::read_languages");
     if let Err(e) = crate::install::read_languages::load_languages(
         o.install,

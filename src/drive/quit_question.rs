@@ -68,7 +68,7 @@ pub fn quit_question(race: &Race, o: crate::owners::Owners<'static>) -> Result<u
         }
     }
     shared.vars.get().scene_switch.set(0);
-    wake_car_sounds(race, o.sound, o.audio)?;
+    wake_car_sounds(race, o.sound, o.audio, o.system)?;
     for c in 0..8 {
         race.car_blocks().cars[c as usize].input_keys.set(0);
     }

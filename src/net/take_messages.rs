@@ -34,6 +34,7 @@ pub fn joined(net: &Net) {
 pub fn take_messages(
     net: &Net,
     lines: &crate::race::viewer_screen_store::NetTexts,
+    clock: &crate::system::tick_count::PictureClock,
 ) -> Result<(), Refused> {
     if net.race_slot.players() > MOST_PLAYERS {
         return Err(BadInput("take_messages: more than 8 players").into());
@@ -133,7 +134,7 @@ pub fn take_messages(
                 net.vars.set_synced(player as usize, true)?;
             }
             Message::Race { sequence, payload } => {
-                let time = crate::system::tick_count::tick_count();
+                let time = crate::system::tick_count::tick_count(clock);
                 let mut inboxes = net.lock_received();
                 store_received(
                     sequence,

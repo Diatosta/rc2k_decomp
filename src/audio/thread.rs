@@ -60,10 +60,13 @@ pub fn audio_thread(inputs: AudioInputs<'_>) -> Result<(), Refused> {
         a3d::splash(&audio.state)?;
         set_mode::set_mode(audio, system, audio.state.menu_sound_mode.get())?;
         set_priority(0xF);
-        audio.state.audio_turn_tick.set(tick_count());
+        audio
+            .state
+            .audio_turn_tick
+            .set(tick_count(&system.session.picture_clock));
         loop {
             let last = audio.state.audio_turn_tick.get();
-            let now = tick_count();
+            let now = tick_count(&system.session.picture_clock);
             audio.state.audio_turn_tick.set(now);
             crate::system::sleep::sleep(rc2k_core::audio::device::turn_sleep(last, now));
             let begun = crate::debug::timing::start();

@@ -35,7 +35,7 @@ pub struct GameDriver {
 
 impl Driver for GameDriver {
     fn clock(&mut self) -> u32 {
-        tick_count()
+        tick_count(&self.o.system.session.picture_clock)
     }
     /// `screens::run_frame` with the service area's frame (`screens::service_area_frame`).
     fn frame(&mut self) {

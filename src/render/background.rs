@@ -38,12 +38,12 @@ static RECORDED: AtomicBool = AtomicBool::new(false);
 /// False when the caller must copy it onto the canvas as before: no GPU backend, a canvas that is
 /// not 32-bit rows of exactly the screen's width, or a buffer too small for it.
 #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-pub fn defer(target: &Target, handle: u32) -> bool {
+pub fn defer(buffers: &crate::gfx::picture::PictureBuffers, target: &Target, handle: u32) -> bool {
     use crate::gfx::picture;
     defer_with(target, || {
         let (Some(generation), Ok(len)) = (
-            picture::generation(handle),
-            picture::with_buffer_unchanged(handle, <[u8]>::len),
+            picture::generation(buffers, handle),
+            picture::with_buffer_unchanged(buffers, handle, <[u8]>::len),
         ) else {
             return None;
         };
@@ -100,7 +100,11 @@ fn defer_with(target: &Target, source: impl FnOnce() -> Option<Pending>) -> bool
 
 /// The handheld's GPU path draws the background from the canvas, as before.
 #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-pub fn defer(_target: &Target, _handle: u32) -> bool {
+pub fn defer(
+    _buffers: &crate::gfx::picture::PictureBuffers,
+    _target: &Target,
+    _handle: u32,
+) -> bool {
     false
 }
 

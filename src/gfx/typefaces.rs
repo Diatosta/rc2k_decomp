@@ -116,6 +116,8 @@ impl FontObject {
 #[derive(rc2k_derive::Cells)]
 pub struct FontObjects {
     pub objects: [FontObject; COUNT],
+    /// The font a highlighted menu item is drawn with (`text::blend_font`).
+    pub blended: FontObject,
 }
 
 impl FontObjects {
@@ -188,6 +190,19 @@ impl FontObjects {
                 FontObject::new(0, 21, 0),
                 FontObject::new(2, 21, 0),
             ],
+            blended: FontObject::from_font(Font {
+                first_char: 0x20,
+                last_char: 0xFF,
+                mode: 0,
+                flags: 4,
+                spacing: 1,
+                line_height: 0x1B,
+                y_offset: 0,
+                extended_spacing: 6,
+                palette: 0,
+                glyph_table: 0,
+                box_width: 0,
+            }),
         }
     }
 }
@@ -228,7 +243,7 @@ impl FontId {
 pub const BLENDED_NUMBER: u32 = COUNT as u32;
 
 /// A font the text functions draw and measure with: one of the block's, or the menus' blended font
-/// (`text::blend_font::BLENDED_FONT`). Resolved to the object's cells in one place (`object`).
+/// (`FontObjects::blended`). Resolved to the object's cells in one place (`object`).
 #[derive(Clone, Copy)]
 pub enum FontRef {
     Typeface(FontId),
@@ -255,7 +270,7 @@ impl FontRef {
     pub fn object(self, typefaces: &'static FontObjects) -> &'static FontObject {
         match self {
             FontRef::Typeface(id) => id.object(typefaces),
-            FontRef::Blended => crate::text::blend_font::BLENDED_FONT.get(),
+            FontRef::Blended => &typefaces.blended,
             FontRef::Stored(object) => object,
         }
     }

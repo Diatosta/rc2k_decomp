@@ -9,7 +9,7 @@ use crate::errors::Refused;
 use crate::race::owner::Race;
 
 pub fn race_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refused> {
-    crate::drive::race_clock_tick::race_clock_tick(&race.shared);
+    crate::drive::race_clock_tick::race_clock_tick(&race.shared, &o.system.session.picture_clock);
     if race.shared.physics_tables.get().debug[1].get() == 0 {
         rc2k_core::drive::race_ticks::run_ticks(
             race.shared.physics_tables.get().race_tenths.get(),

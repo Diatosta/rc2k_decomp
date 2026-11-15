@@ -56,7 +56,7 @@ pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Res
     }
     race.replay.replay_frames().last_kept.set(u32::MAX);
     crate::race::load_times::mark("wake car sounds");
-    crate::race::sounds::wake_car_sounds(race, o.sound, o.audio)?;
+    crate::race::sounds::wake_car_sounds(race, o.sound, o.audio, o.system)?;
     indent(-3);
     log();
     indent(3);
@@ -102,7 +102,7 @@ pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Res
     crate::race::load_times::phase("load_stage: starting values");
     crate::scene::restart_clock::restart_clock(
         &race.shared,
-        crate::system::tick_count::tick_count(),
+        crate::system::tick_count::tick_count(&o.system.session.picture_clock),
     );
     let clock: u32 = race.shared.physics_tables.get().scene_clock.get();
     race.frame.clock_ticks().clock_b.set(clock);

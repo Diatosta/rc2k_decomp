@@ -167,7 +167,7 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn, c: &table_calls::ItemCall) -> Resu
             Ok(())
         }
         ItemFn::LearnBinding(button) => {
-            learn_bindings::learn_binding(&menus.screens.controls, u32::from(button));
+            learn_bindings::learn_binding(&menus.screens.controls, o.system, u32::from(button));
             Ok(())
         }
         ItemFn::PlayerCarSpecs(n) => {

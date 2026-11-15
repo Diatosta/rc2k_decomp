@@ -10,10 +10,14 @@
 use crate::screens::controls_store::ControlsScreen;
 
 /// Control `control` learns from now.
-pub fn learn_binding(controls: &ControlsScreen, control: u32) {
+pub fn learn_binding(
+    controls: &ControlsScreen,
+    system: &crate::system::owner::System,
+    control: u32,
+) {
     let l = rc2k_core::input::devices::Learning::start(
         control,
-        crate::system::tick_count::tick_count(),
+        crate::system::tick_count::tick_count(&system.session.picture_clock),
     );
     controls.learning.set(l.on);
     controls.learn_start.set(l.started);

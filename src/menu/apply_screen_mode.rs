@@ -53,6 +53,7 @@ pub fn apply_screen_mode(o: Owners<'static>) -> Result<(), Refused> {
         o.sound,
         o.audio,
         o.menus,
+        o.system,
         applied.sound,
     );
     Ok(())

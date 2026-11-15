@@ -17,6 +17,8 @@ fn find_name() -> Vec<u8> {
 fn find_attributes() -> u32 {
     crate::files::search::found_attributes()
 }
+/// The attributes the walk passes over: none, folders are what it lists.
+const WALK_SKIPS: u32 = 0;
 const DIRS_ROOM: u32 = 0x10000;
 const FILES_ROOM: u32 = 0x40000;
 
@@ -66,7 +68,7 @@ fn walk(
         kept.push(0);
         // The numbered paths' buffer.
         crate::files::state::PATHS.write_at(0, &kept, "the search path")?;
-        if find_first(&search_text) {
+        if find_first(&search_text, WALK_SKIPS) {
             loop {
                 if find_attributes() & 0x10 != 0 {
                     // "." and ".." passed over
@@ -99,7 +101,7 @@ fn walk(
                         return Err(fatal(0x80AF_2202));
                     }
                 }
-                if !find_next() {
+                if !find_next(WALK_SKIPS) {
                     break;
                 }
             }
@@ -129,12 +131,7 @@ pub fn list_folder_tree(
     folder: impl Into<crate::place::BytePlace>,
 ) -> Result<(), Refused> {
     let folder = folder.into();
-    use crate::files::state::SKIPPED_ATTRIBUTES;
-    let saved_skip = SKIPPED_ATTRIBUTES.get();
-    SKIPPED_ATTRIBUTES.set(0);
-    let result = walk(install, folder);
-    SKIPPED_ATTRIBUTES.set(saved_skip);
-    result
+    walk(install, folder)
 }
 
 #[cfg(test)]

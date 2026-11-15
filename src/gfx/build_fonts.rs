@@ -220,8 +220,8 @@ fn tables(gfx: &Gfx, system: &System, strings: &Strings) -> Result<(), Refused> 
     rewind_list(list)?;
     begin_glyph_tables(vars, gfx, system, strings)?;
     gfx.pictures.decoder.builder_flags.set(RUN_LENGTHS);
-    palettes.set(palette_place(list)?);
-    begin_glyph_table(vars, list)?;
+    palettes.set(palette_place(&gfx.fonts, list)?);
+    begin_glyph_table(&gfx.fonts, vars, list)?;
     build_glyphs(vars, &crate::gfx::texts::PAL_00, list, gfx, system, strings)?;
     gfx.fonts.font_block.font27_glyphs.set(vars.table.get());
     palette_to_pixels(palettes.get(), gfx, system)?;
@@ -230,7 +230,7 @@ fn tables(gfx: &Gfx, system: &System, strings: &Strings) -> Result<(), Refused> 
     gfx.pictures.decoder.palette.load(0, &mut palette)?;
     gfx.fonts.font_block.palette_sheet.store(0, &palette)?;
     for (sheet, kept) in font_sheets(gfx) {
-        begin_glyph_table(vars, list)?;
+        begin_glyph_table(&gfx.fonts, vars, list)?;
         build_glyphs(vars, sheet, list, gfx, system, strings)?;
         kept.set(vars.table.get());
     }
@@ -240,9 +240,12 @@ fn tables(gfx: &Gfx, system: &System, strings: &Strings) -> Result<(), Refused> 
 
 /// 0x400 bytes carved off `list` for a palette: its place in `gfx::glyph_store`, or 0 when the list
 /// has no room.
-pub fn palette_place(list: &crate::memory::ListCells) -> Result<u32, Refused> {
+pub fn palette_place(
+    fonts: &crate::gfx::owner::FontStores,
+    list: &crate::memory::ListCells,
+) -> Result<u32, Refused> {
     Ok(match take_from_list(list, 0x400)? {
-        Some(_) => crate::gfx::glyph_store::new_palette(list)?,
+        Some(_) => crate::gfx::glyph_store::new_palette(fonts, list)?,
         None => 0,
     })
 }

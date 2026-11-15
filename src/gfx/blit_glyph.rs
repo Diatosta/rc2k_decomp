@@ -255,7 +255,12 @@ pub fn blit_glyph_on_surface(
                 }
             }
             Target::Picture(n) => {
-                if let Err(e) = crate::gfx::picture::write_bytes(n, offset as usize, bytes) {
+                if let Err(e) = crate::gfx::picture::write_bytes(
+                    &gfx.pictures.buffers,
+                    n,
+                    offset as usize,
+                    bytes,
+                ) {
                     crate::fatal::raise::end("the surface", e)
                 }
             }

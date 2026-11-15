@@ -135,7 +135,7 @@ pub fn upload_car_icon(
     if !halvable(width, height, across) {
         return Err(BadInput("a picture that halves to nothing").into());
     }
-    let (_, height) = halve_texture(pixels, width, height, across)?;
+    let (_, height) = halve_texture(&gfx.pictures.buffers, pixels, width, height, across)?;
     let mut stored: IconUpload = upload.get();
     let shift = across & 31;
     stored.target_x >>= shift;

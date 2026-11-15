@@ -3,8 +3,11 @@
 
 use crate::errors::Refused;
 
-pub fn close_installer(install: &crate::install::owner::Install) -> Result<(), Refused> {
-    { crate::memory::free_list::free_list(&install.run.buffers) }?;
+pub fn close_installer(
+    install: &crate::install::owner::Install,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<(), Refused> {
+    { crate::gfx::glyph_store::free_list(&gfx.fonts, &install.run.buffers) }?;
     install.run.dirs.set(0);
     install.run.files.set(0);
     install.folders.give_back();

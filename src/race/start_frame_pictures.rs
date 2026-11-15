@@ -12,7 +12,11 @@ use crate::errors::Refused;
 use crate::race::owner::Race;
 
 /// Starts the picture series; `eax` is the ms a picture takes, or 0 for the rate's.
-pub fn start_frame_pictures(race: &Race, eax: u32) -> Result<(), Refused> {
+pub fn start_frame_pictures(
+    race: &Race,
+    clock: &crate::system::tick_count::PictureClock,
+    eax: u32,
+) -> Result<(), Refused> {
     use rc2k_core::race::viewer::{picture_rate, picture_time};
     let panel = race.viewer_panel();
     let rate = picture_rate(panel.picture_rate());
@@ -26,7 +30,7 @@ pub fn start_frame_pictures(race: &Race, eax: u32) -> Result<(), Refused> {
         "the pictures folder",
     )?);
     panel.replay_recording.set(1);
-    crate::system::tick_count::PICTURE_CLOCK.started.set(0);
-    crate::system::tick_count::PICTURE_CLOCK.clock.set(0);
+    clock.started.set(0);
+    clock.clock.set(0);
     Ok(())
 }

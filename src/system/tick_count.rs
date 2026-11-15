@@ -8,27 +8,30 @@ use crate::session::Dword;
 
 /// The picture clock: while the replay viewer saves its frames as pictures
 /// (`race::replay_screenshot`) the game's clock is `clock` (ms) instead of the host's.
-/// They were `ViewerAndKinds.viewer_panel.pictures_started` / `picture_clock` (the panel's
-/// bytes at +0x3b8 / +0x3b4 stay, unused).
+#[derive(rc2k_derive::Cells)]
 pub struct PictureClock {
     /// 1 when the override is on.
     pub started: Dword,
     pub clock: Dword,
 }
 
-pub static PICTURE_CLOCK: PictureClock = PictureClock {
-    started: Dword::new(0),
-    clock: Dword::new(0),
-};
+impl PictureClock {
+    pub const fn new() -> Self {
+        PictureClock {
+            started: Dword::new(0),
+            clock: Dword::new(0),
+        }
+    }
+}
 
-pub fn tick_count() -> u32 {
+pub fn tick_count(picture_clock: &PictureClock) -> u32 {
     #[cfg(feature = "remote")]
     if let Some(held) = crate::remote::held_clock() {
         return held;
     }
     // The original asks Windows first in both cases.
     let now = crate::os::ticks();
-    rc2k_core::system::time::clock(now, PICTURE_CLOCK.started.get(), || {
-        PICTURE_CLOCK.clock.get()
+    rc2k_core::system::time::clock(now, picture_clock.started.get(), || {
+        picture_clock.clock.get()
     })
 }

@@ -37,6 +37,7 @@ fn read_rows(stream: &mut Stream, gfx: &crate::gfx::owner::Gfx) -> Result<bool, 
     // The byte a run repeats, and how much of the run is left.
     let (mut byte, mut run) = (0u8, 0u32);
     with_buffer(
+        &pictures.buffers,
         pictures.decoder.pixels.get(),
         |pixels| -> Result<(), BadInput> {
             for _ in 0..height {

@@ -67,7 +67,7 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
     race.shared.vars.get().scene_switch.set(0);
     #[cfg(feature = "remote")]
     crate::remote::race_loop_begins();
-    restart_clock(race);
+    restart_clock(race, system);
     race.frame
         .clock_ticks()
         .clock_a
@@ -81,7 +81,7 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
     }
     race.replay.replay_view().play_end.set(u32::MAX);
     loop {
-        restart_clock(race);
+        restart_clock(race, system);
         race.shared
             .physics_tables
             .get()

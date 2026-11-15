@@ -85,7 +85,7 @@ pub fn free_game_fonts(gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
     if list.head != 0 {
         return Err(BadInput("a memory list holding a block").into());
     }
-    crate::memory::free_list::free_list(l)?;
+    crate::gfx::glyph_store::free_list(&gfx.fonts, l)?;
     // game_font_glyphs
     gfx.fonts.font_block.game_fonts[0].update(|f| f.glyph_table = 0);
     Ok(())

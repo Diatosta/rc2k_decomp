@@ -4,7 +4,7 @@
 //! - a palette (0x400 bytes, 256 pixels): `id << 10 | offset`, ids 1 .. 15, so a place in it (the
 //!   fonts' `palettes + 0x180`) is the palette's number plus the offset;
 //! - the blended font's palette (`BLENDED_PLACE`, id 16): the bytes of
-//!   `text::blend_font::BLENDED_PALETTE`, which the installer's bar shares;
+//!   `FontStores::blended_palette`, which the installer's bar shares;
 //! - the replay viewer's panel fonts' palette (`VIEWER_PALETTE`, id 17), the store's own, zeroed
 //!   on first use and never given back;
 //! - the loading font's palette (`SHEET_PLACE`, id 18, font 56): the bytes of
@@ -60,25 +60,39 @@ struct Held {
     generation: u64,
 }
 
-/// The states handed out so far (`Held::generation`).
-static GENERATIONS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
-
-fn next_generation() -> u64 {
-    GENERATIONS.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-}
-
 struct Store {
     palettes: [Option<Held>; PALETTE_IDS],
     tables: Vec<Option<Held>>,
+    /// The number the next table state gets (`Held::generation`).
+    next_generation: u64,
 }
 
-static STORE: Mutex<Store> = Mutex::new(Store {
-    palettes: [const { None }; PALETTE_IDS],
-    tables: Vec::new(),
-});
+impl Store {
+    fn next_generation(&mut self) -> u64 {
+        let generation = self.next_generation;
+        self.next_generation += 1;
+        generation
+    }
+}
 
-fn store() -> std::sync::MutexGuard<'static, Store> {
-    STORE
+/// The palettes and glyph tables held, behind a lock because the drawing threads read the bytes
+/// they were handed (`Glyphs::Held`).
+pub struct GlyphStore(Mutex<Store>);
+
+impl GlyphStore {
+    pub const fn new() -> Self {
+        GlyphStore(Mutex::new(Store {
+            palettes: [const { None }; PALETTE_IDS],
+            tables: Vec::new(),
+            next_generation: 1,
+        }))
+    }
+}
+
+fn store(fonts: &FontStores) -> std::sync::MutexGuard<'_, Store> {
+    fonts
+        .glyph_store
+        .0
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
@@ -91,12 +105,14 @@ fn slot(s: &mut Store, place: u32) -> Option<(&mut Held, usize)> {
         Some((held, 0))
     } else {
         let id = (place >> 10) as usize;
+        let generation = s.next_generation;
         let cell = s.palettes.get_mut(id)?;
         if cell.is_none() && id >= FIRST_OWN_PALETTE {
+            s.next_generation += 1;
             *cell = Some(Held {
                 list: None,
                 bytes: Arc::new(vec![0; PALETTE_BYTES]),
-                generation: next_generation(),
+                generation,
             });
         }
         Some((cell.as_mut()?, (place & 0x3FF) as usize))
@@ -107,34 +123,36 @@ fn slot(s: &mut Store, place: u32) -> Option<(&mut Held, usize)> {
 /// write to the table and with the table's being given back and another made at its place. A
 /// cache of what a table decodes to is good while this is the number it was made at. `None`
 /// for a place that is not a held glyph table (a palette, the jade font).
-pub fn table_generation(place: u32) -> Option<u64> {
+pub fn table_generation(fonts: &FontStores, place: u32) -> Option<u64> {
     (TABLE_FIRST..JADE).contains(&place).then_some(())?;
-    let mut s = store();
+    let mut s = store(fonts);
     slot(&mut s, place).map(|(held, _)| held.generation)
 }
 
 /// A new palette, zeroed, counted on nothing (the caller has carved its bytes off `list`): its
 /// place. Refused when all fifteen are held.
-pub fn new_palette(list: &crate::memory::ListCells) -> Result<u32, BadInput> {
-    let mut s = store();
+pub fn new_palette(fonts: &FontStores, list: &crate::memory::ListCells) -> Result<u32, BadInput> {
+    let mut s = store(fonts);
     let id = (1..FIRST_FIXED_PALETTE)
         .find(|&id| s.palettes[id].is_none())
         .ok_or(BadInput("more than fifteen palettes held"))?;
+    let generation = s.next_generation();
     s.palettes[id] = Some(Held {
         list: Some(key(list)),
         bytes: Arc::new(vec![0; PALETTE_BYTES]),
-        generation: next_generation(),
+        generation,
     });
     Ok((id as u32) << 10)
 }
 
 /// A new glyph table, empty: its place. Refused past the places there are.
-pub fn new_table(list: &crate::memory::ListCells) -> Result<u32, BadInput> {
-    let mut s = store();
+pub fn new_table(fonts: &FontStores, list: &crate::memory::ListCells) -> Result<u32, BadInput> {
+    let mut s = store(fonts);
+    let generation = s.next_generation();
     let held = Some(Held {
         list: Some(key(list)),
         bytes: Arc::new(Vec::new()),
-        generation: next_generation(),
+        generation,
     });
     let id = match s.tables.iter().position(Option::is_none) {
         Some(id) => {
@@ -160,14 +178,22 @@ pub fn key(list: &impl crate::memory::HeldList) -> usize {
 }
 
 /// Everything held on the list `list` (its `key`) given back (`memory::free_list`).
-pub fn give_back(list: usize) {
-    let mut s = store();
-    let Store { palettes, tables } = &mut *s;
+pub fn give_back(fonts: &FontStores, list: usize) {
+    let mut s = store(fonts);
+    let Store {
+        palettes, tables, ..
+    } = &mut *s;
     for slot in palettes.iter_mut().chain(tables.iter_mut()) {
         if slot.as_ref().is_some_and(|h| h.list == Some(list)) {
             *slot = None;
         }
     }
+}
+
+/// `list` freed (`memory::free_list`) with the palettes and glyph tables carved off it.
+pub fn free_list(fonts: &FontStores, list: &impl crate::memory::HeldList) -> Result<(), BadInput> {
+    give_back(fonts, key(list));
+    crate::memory::free_list::free_list(list)
 }
 
 /// Where in the jade font's fields `place` is, if it names a byte of it.
@@ -180,7 +206,7 @@ fn jade_offset(place: u32) -> Option<usize> {
 /// A palette held in cells of another store.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CellPalette {
-    /// `text::blend_font::BLENDED_PALETTE` (`BLENDED_PLACE`).
+    /// `FontStores::blended_palette` (`BLENDED_PLACE`).
     Blended,
     /// `FontBlock.palette_sheet` (`SHEET_PLACE`).
     Sheet,
@@ -189,7 +215,7 @@ pub enum CellPalette {
 impl CellPalette {
     fn cells(self, fonts: &FontStores) -> &[crate::session::PlainDword; 256] {
         match self {
-            CellPalette::Blended => crate::text::blend_font::BLENDED_PALETTE.get(),
+            CellPalette::Blended => &fonts.blended_palette,
             CellPalette::Sheet => &fonts.font_block.palette_sheet,
         }
     }
@@ -281,7 +307,7 @@ pub fn bytes<'a>(fonts: &'a FontStores, place: u32, _what: &str) -> Result<Glyph
     if let Some((which, from)) = cell_palette_offset(place) {
         return Ok(Glyphs::Cells(which, which.cells(fonts), from));
     }
-    let mut s = store();
+    let mut s = store(fonts);
     let (held, from) = slot(&mut s, place).ok_or(BadInput("no palette or glyph table there"))?;
     Ok(Glyphs::Held(Arc::clone(&held.bytes), from))
 }
@@ -306,7 +332,7 @@ pub fn read_bytes(
             .ok_or(BadInput(refusal))?;
         return Ok(out);
     }
-    let mut s = store();
+    let mut s = store(fonts);
     let (held, from) = slot(&mut s, place).ok_or(BadInput("no palette or glyph table there"))?;
     let b = &held.bytes;
     let start = from + at as usize;
@@ -343,11 +369,12 @@ pub fn write_bytes(
         return Ok(());
     }
     let table = place >= TABLE_FIRST;
-    let mut s = store();
+    let mut s = store(fonts);
+    let generation = s.next_generation();
     let (held, from) = slot(&mut s, place).ok_or(BadInput("no palette or glyph table there"))?;
     let start = from + at as usize;
     let end = start + bytes.len();
-    held.generation = next_generation();
+    held.generation = generation;
     let b = Arc::make_mut(&mut held.bytes);
     if end > b.len() {
         if !table {
@@ -412,8 +439,8 @@ mod tests {
             remaining: 0,
         });
         let key = key(&list);
-        let p = new_palette(&list).unwrap();
-        let t = new_table(&list).unwrap();
+        let p = new_palette(fonts, &list).unwrap();
+        let t = new_table(fonts, &list).unwrap();
         assert!(p < TABLE_FIRST && t >= TABLE_FIRST);
         write_bytes(fonts, p + 0x180, 4, &[1, 2], "a palette").unwrap();
         assert_eq!(bytes(fonts, p, "a palette").unwrap().byte(0x184), Some(1));
@@ -426,7 +453,7 @@ mod tests {
         write_bytes(fonts, t, 8, &[7; 4], "a table").unwrap();
         let held = bytes(fonts, t, "a table").unwrap();
         assert_eq!((held.byte(11), held.byte(12)), (Some(7), None));
-        give_back(key);
+        give_back(fonts, key);
         assert!(bytes(fonts, p, "a palette").is_err());
         assert!(bytes(fonts, t, "a table").is_err());
     }

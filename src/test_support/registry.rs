@@ -288,29 +288,13 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             &crate::threading::thread_slot::SLOTS,
         ),
         listed!(
-            "text.blend_font.BLENDED_PALETTE",
-            on_game(crate::text::blend_font::BLENDED_PALETTE.get()),
+            "owners.gfx.fonts.blended_palette",
+            on_game(&o.gfx.fonts.blended_palette),
         ),
         listed!(
             "owners.strings.text.blend_mode",
             on_game(&o.strings.text.blend_mode),
         ),
-        listed!(
-            "text.blend_font.BLENDED_FONT",
-            on_game(crate::text::blend_font::BLENDED_FONT.get()),
-        ),
-        listed!("files.state.FIND_HANDLE", &crate::files::state::FIND_HANDLE),
-        listed!(
-            "files.state.FIND_DATA",
-            &crate::files::state::FIND_DATA,
-            0x13e,
-        ),
-        listed!(
-            "files.state.SKIPPED_ATTRIBUTES",
-            &crate::files::state::SKIPPED_ATTRIBUTES,
-        ),
-        listed!("files.state.PACKED_PATH", &crate::files::state::PACKED_PATH),
-        listed!("files.state.BYTES_READ", &crate::files::state::BYTES_READ),
         listed!("files.state.PATHS", &crate::files::state::PATHS),
         listed!("fatal.state.W32", &crate::fatal::state::W32),
         listed!("fatal.state.CODE", &crate::fatal::state::CODE),
@@ -431,12 +415,7 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         ),
         listed!("owners.menus.panels.films", on_game(&o.menus.panels.films),),
         listed!("owners.race.frame.credits", on_game(o.race.frame.credits()),),
-        listed!(
-            "system.check_developer_machine.DEVELOPER",
-            on_game(crate::system::check_developer_machine::DEVELOPER.get()),
-        ),
         listed!("owners.gfx.card.texture_tables", &o.gfx.card.texture_tables,),
-        listed!("film.NO_FMV", on_game(crate::film::NO_FMV.get())),
         listed!(
             "owners.gfx.fonts.game_fonts_memory",
             on_game(&o.gfx.fonts.game_fonts_memory),
@@ -461,6 +440,10 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!(
             "owners.system.session.key_clock",
             &o.system.session.key_clock,
+        ),
+        listed!(
+            "owners.system.session.picture_clock",
+            &o.system.session.picture_clock,
         ),
         listed!("owners.system.window_loop", on_game(o.system.window_loop()),),
         listed!("owners.system.machine", on_game(o.system.machine()),),

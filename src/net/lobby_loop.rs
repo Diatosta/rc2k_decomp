@@ -26,14 +26,18 @@ pub fn all_states(vars: &NetShared, bits: State, count: u32) -> State {
 /// player answered), once a second the host's call (`ready`: everyone ready, else everyone
 /// done) with the sync counter sent to each player that has not answered; true when all have.
 /// Shared with `net::race_wait`.
-pub fn sync(net: &Net, ready: bool) -> Result<bool, Refused> {
+pub fn sync(
+    net: &Net,
+    clock: &crate::system::tick_count::PictureClock,
+    ready: bool,
+) -> Result<bool, Refused> {
     let first = net.vars.sync_first.get();
     net.vars.sync_first.set(0);
     if first != 0 {
         net.vars.clear_synced();
         net.vars.set_synced(net.race_slot.player() as usize, true)?;
     }
-    let now = crate::system::tick_count::tick_count();
+    let now = crate::system::tick_count::tick_count(clock);
     if (now
         .wrapping_sub(net.lobby().sync_clock.get())
         .wrapping_sub(1000) as i32)
@@ -108,7 +112,7 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
     list_state.key_clock.set(now);
     net.lobby().edit.edited.set(u32::MAX);
     list_state.choice.set(3);
-    let tick = crate::system::tick_count::tick_count();
+    let tick = crate::system::tick_count::tick_count(&system.session.picture_clock);
     net.lobby().listed_at.set(tick);
     net.lobby().sync_clock.set(tick);
     net.vars.sync_first.set(1);
@@ -123,7 +127,7 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
     }
     loop {
         run_frame(o, || crate::net::lobby_frame::lobby_frame(o))?;
-        let tick = crate::system::tick_count::tick_count();
+        let tick = crate::system::tick_count::tick_count(&system.session.picture_clock);
         if (tick
             .wrapping_sub(net.lobby().listed_at.get())
             .wrapping_sub(1000) as i32)
@@ -196,7 +200,7 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
         if net.vars.own.state().is_host()
             && net.race_slot.players() >= 2
             && all_states(&net.vars, State::READY, net.race_slot.players()) == State::READY
-            && sync(net, true)?
+            && sync(net, &system.session.picture_clock, true)?
         {
             net.vars.all_raced.set(1);
         }

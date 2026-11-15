@@ -67,7 +67,12 @@ pub fn blit_components(
     let size = if words { 2 } else { 4 };
     let mut out = vec![0u8; width as usize * size];
     for n in 0..height {
-        let row = crate::gfx::picture::read_bytes(p.pixels, source, width as usize * 4)?;
+        let row = crate::gfx::picture::read_bytes(
+            &gfx.pictures.buffers,
+            p.pixels,
+            source,
+            width as usize * 4,
+        )?;
         let scratch =
             rc2k_core::gfx::pixels::pack_row(&row, &mut out, width as usize, &format, words)?;
         // Row y + n at x's bytes: y x pitch + x x bytes.

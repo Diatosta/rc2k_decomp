@@ -199,14 +199,15 @@ pub fn resolve_path(path: impl Into<BytePlace>) -> Result<Vec<u8>, Refused> {
     )?)
 }
 
-/// Starts a file search on `pattern`; whether a file was found.
-pub fn find_first(pattern: &[u8]) -> bool {
-    crate::race::find_snapshot_number::find_first(pattern)
+/// Starts a file search on `pattern`, passing over the `skipped` attributes; whether a file was
+/// found.
+pub fn find_first(pattern: &[u8], skipped: u32) -> bool {
+    crate::race::find_snapshot_number::find_first(pattern, skipped)
 }
 
-/// The search's next wanted file; whether one was found.
-pub fn find_next() -> bool {
-    crate::race::find_snapshot_number::find_next_wanted()
+/// The search's next file not of the `skipped` attributes; whether one was found.
+pub fn find_next(skipped: u32) -> bool {
+    crate::race::find_snapshot_number::find_next_wanted(skipped)
 }
 
 pub fn close_search() {

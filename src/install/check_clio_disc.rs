@@ -32,7 +32,7 @@ pub fn check_clio_disc(
         return Ok(());
     }
     // The second base directory is an empty text.
-    let base_b = crate::files::cstring(&crate::files::state::SECOND_BASE, "the installer's base")?;
+    let base_b: Vec<u8> = Vec::new();
     let Some(a) = outside.normalise_path(&base_b)? else {
         return Ok(());
     };

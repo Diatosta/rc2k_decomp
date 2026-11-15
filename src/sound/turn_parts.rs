@@ -33,6 +33,9 @@ pub fn placed(request: &SoundRequest, sound: &Sound, audio: &Audio) -> Result<()
 }
 
 /// `sound::step_race_clock`: true when a turn is due.
-pub fn step_clock(sound: &Sound) -> bool {
-    crate::sound::race_clock::step_race_clock(crate::system::tick_count::tick_count(), sound)
+pub fn step_clock(sound: &Sound, system: &crate::system::owner::System) -> bool {
+    crate::sound::race_clock::step_race_clock(
+        crate::system::tick_count::tick_count(&system.session.picture_clock),
+        sound,
+    )
 }

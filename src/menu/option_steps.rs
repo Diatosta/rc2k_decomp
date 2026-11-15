@@ -56,7 +56,7 @@ pub fn volume_step(o: Owners<'static>, v: Volume<'_>) {
         Then::Sound(sound) => {
             screens.flow.menu_sounds_volume.set(value as u32);
             crate::sound::play_menu_sound::play_menu_sound_in_game(
-                o.sound, o.audio, o.menus, sound,
+                o.sound, o.audio, o.menus, o.system, sound,
             );
         }
     }

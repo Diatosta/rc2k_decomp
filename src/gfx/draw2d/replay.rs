@@ -50,6 +50,7 @@ impl Writer<'_> {
 pub fn replay(
     frame: &Frame,
     fonts: &crate::gfx::owner::FontStores,
+    buffers: &crate::gfx::picture::PictureBuffers,
     canvas: &mut [u8],
 ) -> Result<(), (usize, Problem)> {
     let mut writer = Writer {
@@ -60,7 +61,7 @@ pub fn replay(
         let done = match command {
             Command::Glyph(glyph) => draw_glyph(glyph, frame, fonts, &mut writer),
             Command::Rect(rect) => draw_rect(rect, &mut writer),
-            Command::Background(background) => draw_background(background, &mut writer),
+            Command::Background(background) => draw_background(background, buffers, &mut writer),
             Command::Image(image) => draw_image(image, &mut writer),
             Command::Clear(clear) => draw_clear(clear, &mut writer),
         };
@@ -147,11 +148,17 @@ fn draw_rect(rect: &Rect, writer: &mut Writer<'_>) -> Result<(), Problem> {
     Ok(())
 }
 
-fn draw_background(background: &Background, writer: &mut Writer<'_>) -> Result<(), Problem> {
-    if crate::gfx::draw2d::picture_generation(background.buffer) != Some(background.generation) {
+fn draw_background(
+    background: &Background,
+    buffers: &crate::gfx::picture::PictureBuffers,
+    writer: &mut Writer<'_>,
+) -> Result<(), Problem> {
+    if crate::gfx::draw2d::picture_generation(buffers, background.buffer)
+        != Some(background.generation)
+    {
         return Err(Problem::PictureChanged);
     }
-    crate::gfx::picture::with_buffer_unchanged(background.buffer, |from| {
+    crate::gfx::picture::with_buffer_unchanged(buffers, background.buffer, |from| {
         for y in 0..background.rows {
             let at = y as usize * background.row_bytes;
             let row = from
@@ -226,8 +233,8 @@ mod tests {
             remaining: 0,
         });
         let key = crate::gfx::glyph_store::key(&list);
-        let palette = crate::gfx::glyph_store::new_palette(&list).unwrap();
-        let table = crate::gfx::glyph_store::new_table(&list).unwrap();
+        let palette = crate::gfx::glyph_store::new_palette(fonts, &list).unwrap();
+        let table = crate::gfx::glyph_store::new_table(fonts, &list).unwrap();
         let mut bytes = vec![8, 0, 0, 0, 8 + GLYPH.len() as u8, 0, 0, 0];
         bytes.extend_from_slice(&GLYPH);
         bytes.extend_from_slice(&GLYPH);
@@ -307,7 +314,15 @@ mod tests {
             }
         }
         let mut replayed = vec![0xAAu8; direct.len()];
-        assert_eq!(replay(&frame, fonts, &mut replayed), Ok(()));
+        assert_eq!(
+            replay(
+                &frame,
+                fonts,
+                &crate::test_support::own::gfx().pictures.buffers,
+                &mut replayed
+            ),
+            Ok(())
+        );
         assert_eq!(replayed, direct);
         // A recorded work variable that is not what the blit leaves is a difference.
         let Some(Command::Glyph(last)) = frame.commands.last_mut() else {
@@ -315,10 +330,15 @@ mod tests {
         };
         last.after.rows_left += 1;
         assert_eq!(
-            replay(&frame, fonts, &mut vec![0; direct.len()]),
+            replay(
+                &frame,
+                fonts,
+                &crate::test_support::own::gfx().pictures.buffers,
+                &mut vec![0; direct.len()]
+            ),
             Err((frame.commands.len() - 1, Problem::ScratchDiffers))
         );
-        crate::gfx::glyph_store::give_back(key);
+        crate::gfx::glyph_store::give_back(fonts, key);
     }
 
     #[test]
@@ -370,7 +390,15 @@ mod tests {
             rows: 2,
         }));
         let mut canvas = vec![0xAAu8; 80 * 30];
-        assert_eq!(replay(&frame, fonts, &mut canvas), Ok(()));
+        assert_eq!(
+            replay(
+                &frame,
+                fonts,
+                &crate::test_support::own::gfx().pictures.buffers,
+                &mut canvas
+            ),
+            Ok(())
+        );
         // The line's pixel 2 in row 3; its 13th pixel is past the 12 asked for.
         assert_eq!(canvas[80 * 3 + 4..][..2], pixel[..]);
         assert_eq!(canvas[80 * 3 + 24..][..2], [0xAA; 2]);
@@ -381,7 +409,12 @@ mod tests {
         assert_eq!(canvas[80..][..4], [0; 4]);
         // A write past the canvas is a problem.
         assert_eq!(
-            replay(&frame, fonts, &mut vec![0; 80 * 10]),
+            replay(
+                &frame,
+                fonts,
+                &crate::test_support::own::gfx().pictures.buffers,
+                &mut vec![0; 80 * 10]
+            ),
             Err((1, Problem::PastCanvas))
         );
     }

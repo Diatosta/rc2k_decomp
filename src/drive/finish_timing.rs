@@ -80,10 +80,14 @@ pub fn timing_from(race: &Race, now: u32, scene: &crate::scene::owner::Scene) {
 }
 
 /// (the exact one, for `drive::finish_run`).
-pub fn finish_timing(race: &Race, scene: &crate::scene::owner::Scene) {
+pub fn finish_timing(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    system: &crate::system::owner::System,
+) {
     let now = crate::scene::restart_clock::restart_clock(
         &race.shared,
-        crate::system::tick_count::tick_count(),
+        crate::system::tick_count::tick_count(&system.session.picture_clock),
     );
     timing_from(race, now, scene);
 }

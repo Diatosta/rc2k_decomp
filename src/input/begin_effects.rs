@@ -10,6 +10,7 @@ use crate::input::owner::Input;
 pub fn begin_effects(
     input: &Input,
     sound: &crate::sound::store::SoundShared,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     if sound.count.is_set() {
         crate::input::start_effects::start_effects(input)?;
@@ -17,6 +18,8 @@ pub fn begin_effects(
     input
         .force_feedback
         .last_time
-        .set(crate::system::tick_count::tick_count());
+        .set(crate::system::tick_count::tick_count(
+            &system.session.picture_clock,
+        ));
     Ok(())
 }

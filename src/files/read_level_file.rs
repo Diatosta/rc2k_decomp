@@ -12,7 +12,6 @@ pub fn read_level_file(path: &[u8], buffer: &mut [u8]) -> Result<Outcome, Refuse
         return Ok(Outcome::of_read(&read(path, buffer)?));
     }
     let packed = rc2k_core::files::io::packed_level_path(path)?;
-    crate::files::state::PACKED_PATH.write_at(0, &packed, "the packed path")?;
     // The packed path as built (without its NUL).
     let text = &packed[..packed.iter().position(|&b| b == 0).unwrap_or(packed.len())];
     read_packed_file(text, buffer)

@@ -27,7 +27,7 @@ fn lift_car(race: &Race) {
 pub fn finish_run(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (scene, sound, input) = (o.scene, o.sound, o.input);
     lift_car(race);
-    restart_clock(race);
+    restart_clock(race, o.system);
     race.frame
         .clock_ticks()
         .clock_a
@@ -40,7 +40,7 @@ pub fn finish_run(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), 
         mark.set(u32::MAX);
     }
     race.replay.replay_view().play_end.set(u32::MAX);
-    restart_clock(race);
+    restart_clock(race, o.system);
     race.replay
         .finish
         .get()
@@ -49,7 +49,7 @@ pub fn finish_run(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), 
     loop {
         sound.race.sounds.get().objects[0].revs.set(0);
         input_update(o);
-        crate::drive::finish_timing::finish_timing(race, scene);
+        crate::drive::finish_timing::finish_timing(race, scene, o.system);
         let n = race.shared.state.results.finished.get();
         if n > 1 {
             return Err(BadInput("a finish length past the table's two").into());

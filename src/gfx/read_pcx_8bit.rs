@@ -48,7 +48,7 @@ fn read_rows(stream: &mut Stream, gfx: &crate::gfx::owner::Gfx) -> Result<bool, 
     pictures.picture.flags.set(0x800u32);
     let layout = lay_out_pcx(gfx)?;
     let palette: [u32; 256] = pictures.decoder.palette();
-    with_buffer(pictures.decoder.pixels.get(), |pixels| {
+    with_buffer(&pictures.buffers, pictures.decoder.pixels.get(), |pixels| {
         rc2k_core::gfx::pcx::decode_8bit(
             &layout,
             &palette,

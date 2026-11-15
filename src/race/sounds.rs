@@ -20,8 +20,12 @@ fn wake(sound: &crate::sound::owner::Sound, n: u32) -> Result<(), BadInput> {
 pub fn start_race_sounds(
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
-    crate::sound::race_clock::start_race_clock(crate::system::tick_count::tick_count(), sound);
+    crate::sound::race_clock::start_race_clock(
+        crate::system::tick_count::tick_count(&system.session.picture_clock),
+        sound,
+    );
     let count: u32 = sound.threads.shared.count.get();
     if count != 0 {
         let count = count.clamp(1, OBJECTS);
@@ -42,6 +46,7 @@ pub fn wake_car_sounds(
     race: &Race,
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let shared = &race.shared;
     if shared.work.get().in_credits.is_set() {
@@ -54,5 +59,5 @@ pub fn wake_car_sounds(
     for n in 0..cars {
         wake(sound, n)?;
     }
-    start_race_sounds(sound, audio)
+    start_race_sounds(sound, audio, system)
 }

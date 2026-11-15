@@ -10,8 +10,13 @@ use crate::gfx::pixels_to_dwords::pixel_count;
 pub fn rgb_pixels_to_dwords(gfx: &crate::gfx::owner::Gfx) -> Result<(), BadInput> {
     let pictures = &gfx.pictures;
     let count = pixel_count(gfx)?;
-    let mut buffer = read_bytes(pictures.picture.buffer.get(), 0, count * 4)?;
+    let mut buffer = read_bytes(
+        &pictures.buffers,
+        pictures.picture.buffer.get(),
+        0,
+        count * 4,
+    )?;
     rc2k_core::gfx::pixels::rgb_to_dwords(&mut buffer, count)
         .ok_or(BadInput("a picture buffer shorter than its dwords"))?;
-    write_bytes(pictures.picture.buffer.get(), 0, &buffer)
+    write_bytes(&pictures.buffers, pictures.picture.buffer.get(), 0, &buffer)
 }

@@ -24,11 +24,10 @@ pub fn replay_screenshot(
     if panel.replay_recording.get() != 1 {
         return Ok(());
     }
-    if crate::system::tick_count::PICTURE_CLOCK.started.get() != 1 {
-        crate::system::tick_count::PICTURE_CLOCK.started.set(1u32);
-        crate::system::tick_count::PICTURE_CLOCK
-            .clock
-            .set(crate::os::ticks());
+    let clock = &system.session.picture_clock;
+    if clock.started.get() != 1 {
+        clock.started.set(1u32);
+        clock.clock.set(crate::os::ticks());
     }
     let name = &panel.picture_name;
     // Logic in `rc2k_core::race::viewer::count_up` (the name's six digits from +4).
@@ -44,11 +43,8 @@ pub fn replay_screenshot(
         crate::gfx::write_screen_pcx::write_screen_pcx(&gfx.shots, Some(&name), gfx, system)?;
         crate::platform::unlock_surface(gfx);
     }
-    crate::system::tick_count::PICTURE_CLOCK.clock.set(
-        crate::system::tick_count::PICTURE_CLOCK
-            .clock
-            .get()
-            .wrapping_add(panel.picture_time()),
-    );
+    clock
+        .clock
+        .set(clock.clock.get().wrapping_add(panel.picture_time()));
     Ok(())
 }

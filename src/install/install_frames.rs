@@ -37,7 +37,7 @@ pub fn progress_frame(o: crate::owners::Owners<'static>) -> Result<bool, Refused
         crate::gfx::rect::fill_rect(
             crate::gfx::rect::rect_in(&install.pages.bar),
             0,
-            crate::gfx::rect::Palette::Of(crate::text::blend_font::BLENDED_PALETTE.get()),
+            crate::gfx::rect::Palette::Of(&gfx.fonts.blended_palette),
             gfx,
         )?;
         let x = install.pages.bar.get_u32(0);
@@ -98,7 +98,7 @@ pub fn copying_frame(o: crate::owners::Owners<'static>) -> Result<bool, Refused>
             0,
             0,
             0x2A,
-            crate::gfx::rect::Palette::Of(crate::text::blend_font::BLENDED_PALETTE.get()),
+            crate::gfx::rect::Palette::Of(&gfx.fonts.blended_palette),
             gfx,
         );
         unlock(gfx);

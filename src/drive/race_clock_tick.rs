@@ -16,8 +16,10 @@ pub fn tick_from(shared: &RaceShared, now: u32) {
     shared.physics_tables.get().race_clock_base.set(c.counted);
 }
 
-pub fn race_clock_tick(shared: &RaceShared) {
-    let now =
-        crate::scene::restart_clock::restart_clock(shared, crate::system::tick_count::tick_count());
+pub fn race_clock_tick(shared: &RaceShared, clock: &crate::system::tick_count::PictureClock) {
+    let now = crate::scene::restart_clock::restart_clock(
+        shared,
+        crate::system::tick_count::tick_count(clock),
+    );
     tick_from(shared, now);
 }

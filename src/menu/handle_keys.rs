@@ -76,6 +76,7 @@ pub fn handle_keys(o: Owners<'static>, eax: u32) -> Result<Pressed, Refused> {
             o.sound,
             o.audio,
             o.menus,
+            o.system,
             keys::ENTER_CLICK,
         );
         return Ok(Pressed::Enter);

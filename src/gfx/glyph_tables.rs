@@ -69,13 +69,15 @@ pub fn begin_glyph_tables(
 /// A new table starts where the list stands, after the padding that brings the table before it to
 /// whole dwords.
 pub fn begin_glyph_table(
+    fonts: &crate::gfx::owner::FontStores,
     vars: &SheetVars,
     list: &crate::memory::ListCells,
 ) -> Result<(), BadInput> {
     let padding = vars.table_size.get().wrapping_neg() & 3;
     take_from_list(list, padding)?;
     take_from_list(list, 0)?;
-    vars.table.set(crate::gfx::glyph_store::new_table(list)?);
+    vars.table
+        .set(crate::gfx::glyph_store::new_table(fonts, list)?);
     vars.table_size.set(0u32);
     Ok(())
 }

@@ -85,13 +85,21 @@ pub fn rescale_to_surface(
     let stride = row_len as u32 + surface.row_gap.get();
     let recording = crate::gfx::draw2d::enabled()
         && surface.pixels.get() == crate::gfx::locked_pixels::SCREEN
-        && crate::gfx::surface::ON_PICTURE.load(std::sync::atomic::Ordering::Relaxed) == 0;
+        && gfx
+            .drawing
+            .on_picture
+            .load(std::sync::atomic::Ordering::Relaxed)
+            == 0;
     // On the screen the GPU keeps the picture as the frame's background when it can: the canvas
     // is not written.
     let by_background = size == 4
         && surface.row_gap.get() == 0
         && surface.pixels.get() == crate::gfx::locked_pixels::SCREEN
-        && crate::gfx::surface::ON_PICTURE.load(std::sync::atomic::Ordering::Relaxed) == 0
+        && gfx
+            .drawing
+            .on_picture
+            .load(std::sync::atomic::Ordering::Relaxed)
+            == 0
         && crate::platform_3d::screen(system.session.screen.get()).is_some_and(|screen| {
             screen.width == width as usize
                 && screen.height == height as usize
@@ -154,7 +162,7 @@ fn rescale_pixels(
     let mut last_parts = None;
     let mut last_scratch = None;
     let mut pixels = Vec::with_capacity(width as usize * height as usize * size as usize);
-    let work = crate::gfx::picture::with_buffer(from, |decoded| {
+    let work = crate::gfx::picture::with_buffer(&gfx.pictures.buffers, from, |decoded| {
         rc2k_core::gfx::picture::rescale(
             &rc2k_core::gfx::picture::Sizes {
                 from_width,

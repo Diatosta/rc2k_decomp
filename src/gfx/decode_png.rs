@@ -26,6 +26,7 @@ use crate::gfx::png::PngInfo;
 /// buffer (`gfx::picture`, 0 none); `info` is the record the decoder fills (`gfx::png::PngInfo`).
 pub fn decode_png(
     png: &Png,
+    buffers: &crate::gfx::picture::PictureBuffers,
     file: &[u8],
     pixels: u32,
     info: &mut PngInfo,
@@ -60,13 +61,13 @@ pub fn decode_png(
     if let Some((start, length)) = found.data {
         let (row_bytes, step) = png::row_layout(&header);
         // The area as it is now, worked on as a copy and put back.
-        let mut buffer = crate::gfx::picture::read_bytes(pixels, 0, area)?;
+        let mut buffer = crate::gfx::picture::read_bytes(buffers, pixels, 0, area)?;
         png::inflate(&file[start..start + length], &mut buffer)?;
         // Fixed ("A PNG picture's first row read against stray memory", `wiki/Fixed-bugs.md`):
         // the row above the first is zeros, as PNG has it (the game read the memory before the
         // picture buffer there, which a first row filtered Up, Average or Paeth adds in).
         png::unfilter(&mut buffer, row_bytes, header.height, step, &|_| 0)?;
-        crate::gfx::picture::write_bytes(pixels, 0, &buffer)?;
+        crate::gfx::picture::write_bytes(buffers, pixels, 0, &buffer)?;
     }
     info.has_palette = false;
     info.width = header.width;

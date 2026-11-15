@@ -2,6 +2,6 @@
 
 use crate::errors::Refused;
 pub fn free_glyph_tables(gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
-    { crate::memory::free_list::free_list(&gfx.fonts.glyph_tables.memory) }?;
+    { crate::gfx::glyph_store::free_list(&gfx.fonts, &gfx.fonts.glyph_tables.memory) }?;
     Ok(())
 }

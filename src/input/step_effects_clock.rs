@@ -18,7 +18,8 @@ pub fn step_effects_clock(
 ) -> Result<(), Refused> {
     let effects = &input.force_feedback;
     let last = effects.last_time.get();
-    let gap = crate::system::tick_count::tick_count().wrapping_sub(last);
+    let gap =
+        crate::system::tick_count::tick_count(&system.session.picture_clock).wrapping_sub(last);
     if (gap.wrapping_sub(0x28) as i32) < 0 {
         return Ok(());
     }

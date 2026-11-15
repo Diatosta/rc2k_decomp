@@ -6,7 +6,7 @@
 use crate::errors::BadInput;
 use crate::files::read_file::{ReadResult, read_file_into};
 use crate::files::resolve_path::resolve;
-use crate::files::state::{SKIPPED_ATTRIBUTES, set_last_file_path};
+use crate::files::state::set_last_file_path;
 use crate::system::owner::System;
 
 /// None if nothing matched, else what the reading of the file found came to: `pattern`
@@ -20,7 +20,7 @@ pub fn first_match_read(
 ) -> Result<Option<ReadResult>, BadInput> {
     let resolved = resolve(pattern)?;
     set_last_file_path(Some(&resolved));
-    let found = crate::files::search::first(&resolved, SKIPPED_ATTRIBUTES.get());
+    let found = crate::files::search::first(&resolved, crate::files::search::DIRECTORY);
     let read = if found {
         let name = crate::files::search::found_name();
         let joined = rc2k_core::files::io::match_path(pattern, &name);

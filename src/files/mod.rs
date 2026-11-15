@@ -198,31 +198,19 @@ pub mod state {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone()
     }
-    /// 1 while a search is open (`files::search`), `u32::MAX` for none.
-    pub static FIND_HANDLE: crate::session::Dword = crate::session::Dword::new(u32::MAX);
-    /// The search's record (`WIN32_FIND_DATAA`, 0x13E bytes; 0x140 here): `files::search` fills
-    /// its attributes and name.
-    pub static FIND_DATA: crate::session::Bytes<0x140> = crate::session::Bytes::new([0; 0x140]);
-    /// The attributes a search passes over: the directory bit; the installer clears it for its
-    /// walk of folders.
-    pub static SKIPPED_ATTRIBUTES: crate::session::Dword = crate::session::Dword::new(0x10);
-    /// The bytes `read_whole_file` read.
-    pub static BYTES_READ: crate::session::Dword = crate::session::Dword::new(0);
     /// How the game is installed (0 .. 3), as the installer's record says; `resolve_path` looks at
     /// it.
     pub static MEDIA_MODE: crate::session::Dword = crate::session::Dword::new(0);
-    /// The second base directory: an empty text, never written. Any thread's file calls read it
-    /// (`resolve_path`), so it lives here and not in the installer's state.
-    pub static SECOND_BASE: crate::session::Bytes<1> = crate::session::Bytes::new(*b"\0");
     /// The base directory (0x100 bytes) and, after it, the locale directory (0x100 bytes):
     /// strings, empty at the start.
     pub const DIRECTORIES_LEN: usize = 0x200;
     pub static DIRECTORIES: crate::session::Bytes<DIRECTORIES_LEN> =
         crate::session::Bytes::new([0; DIRECTORIES_LEN]);
-    /// The packed copy's path is built here.
+    /// The second base directory: an empty text, never written (the installer's calls borrow it
+    /// for as long as they run).
+    pub static SECOND_BASE: crate::session::Bytes<1> = crate::session::Bytes::new(*b"\0");
+    /// The room of the packed copy's path.
     pub const PACKED_PATH_LEN: usize = 0x103;
-    pub static PACKED_PATH: crate::session::Bytes<PACKED_PATH_LEN> =
-        crate::session::Bytes::new([0; PACKED_PATH_LEN]);
     /// The numbered paths (0x100 bytes) and, after them, the resolved paths of a thread without a
     /// slot (0x100 bytes).
     pub const PATHS_LEN: usize = 0x200;

@@ -52,7 +52,7 @@ pub fn open_installer(
     // The progress glyphs: a glyph table in `gfx::glyph_store`, counted on the list (fatal
     // error 0x80AF7022, for no memory, cannot come).
     let mut bytes = crate::memory::owned::counted(list, 0x3000)?;
-    let glyphs = crate::gfx::glyph_store::new_table(list)?;
+    let glyphs = crate::gfx::glyph_store::new_table(&gfx.fonts, list)?;
     install.run.bar_glyphs.set(glyphs);
     let path = install.names.installer_data.text();
     if !crate::files::read_file::read_file_into(&path[..], &mut bytes[..0x3000], 0)?.ok {
@@ -68,11 +68,11 @@ pub fn open_installer(
     crate::gfx::palette_to_dwords::palette_to_dwords(
         &install.palette.palette,
         0,
-        crate::text::blend_font::BLENDED_PALETTE.get(),
+        &gfx.fonts.blended_palette,
     )?;
     components_to_pixels(
-        crate::text::blend_font::BLENDED_PALETTE.get(),
-        crate::text::blend_font::BLENDED_PALETTE.get(),
+        &gfx.fonts.blended_palette,
+        &gfx.fonts.blended_palette,
         gfx,
         system,
     );

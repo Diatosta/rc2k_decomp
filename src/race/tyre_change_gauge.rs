@@ -72,7 +72,9 @@ impl GameIo {
 impl Io for GameIo {
     type Error = Refused;
     fn tick(&mut self) -> Result<u32, Refused> {
-        Ok(crate::system::tick_count::tick_count())
+        Ok(crate::system::tick_count::tick_count(
+            &self.o.system.session.picture_clock,
+        ))
     }
     fn pressed(&mut self) -> Result<bool, Refused> {
         // The button is the low byte of the device's `bits`.
@@ -96,10 +98,7 @@ impl Io for GameIo {
         press_time(self.race, s as i32) as u32
     }
     fn developer(&mut self) -> bool {
-        crate::system::check_developer_machine::DEVELOPER
-            .get()
-            .get()
-            == 1
+        self.o.system.machine().developer.get() == 1
     }
     fn record(&mut self) -> u32 {
         self.race.shared.tyre_change().record.get()

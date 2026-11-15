@@ -16,8 +16,6 @@ use crate::memory::{HeldList, with_figures};
 pub fn free_list(list: &impl HeldList) -> Result<(), BadInput> {
     // Rust's own tables counted on it (`memory::owned`) are given back by their owners
     // (`saves::free_best_times`); its total counts them like the others.
-    // The palettes and glyph tables carved off it (`gfx::glyph_store`) go with it.
-    crate::gfx::glyph_store::give_back(crate::gfx::glyph_store::key(list));
     let mut l = list.get();
     // No block of the system's is put on a list any more (every user's memory is Rust's;
     // the original gave each back with `VirtualFree`, or to its own heap): a list

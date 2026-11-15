@@ -298,7 +298,7 @@ fn run(o: &Owners<'static>, line: &str) {
     // When a key or button is let go: its hold in the game's clock, which a held race counts in
     // frames and `RC2K_SPEED` runs fast, so a hold lasts the same number of game ticks at any speed.
     let due = |w: Option<&&str>| {
-        crate::system::tick_count::tick_count()
+        crate::system::tick_count::tick_count(&o.system.session.picture_clock)
             .wrapping_add(w.and_then(|m| m.parse().ok()).unwrap_or(100))
     };
     let answer = match (*command, rest) {
@@ -389,7 +389,7 @@ pub fn poll(o: &Owners<'static>, course: &Course) {
     note_screen(o.menus, o.gfx, course);
     let now = Instant::now();
     note_slow_frame(o.race, o.gfx, course, now);
-    let clock = crate::system::tick_count::tick_count();
+    let clock = crate::system::tick_count::tick_count(&o.system.session.picture_clock);
     pending().releases.retain(|(when, release)| {
         if (clock.wrapping_sub(*when) as i32) < 0 {
             return true;
@@ -465,12 +465,16 @@ pub fn shots_on() -> bool {
 /// replay's cameras, some sounds) from one state: the menus before took a number of them
 /// that depends on the timing (the effects' generator builds the snow's tables at load).
 /// The viewer then plays at once (`shots_on`): no frame waits for a key.
-pub fn shots_loading(race: &Race, effects: &crate::effects::owner::Effects) {
+pub fn shots_loading(
+    race: &Race,
+    effects: &crate::effects::owner::Effects,
+    clock: &crate::system::tick_count::PictureClock,
+) {
     if !shots_on() {
         return;
     }
-    crate::system::tick_count::PICTURE_CLOCK.started.set(1);
-    crate::system::tick_count::PICTURE_CLOCK.clock.set(0x10000);
+    clock.started.set(1);
+    clock.clock.set(0x10000);
     reseed(effects);
     // The scene's clock as the menus left it (their time on screen) is the snow's first
     // step's start: the held clock's from here.
@@ -553,7 +557,7 @@ fn reseed(effects: &crate::effects::owner::Effects) {
 
 /// A race frame drawn (`drive::race_frame`): the held clock 10 ms on, unless the game is
 /// recording pictures itself (`race::replay_screenshot` moves it then).
-pub fn shot_frame_drawn(race: &Race) {
+pub fn shot_frame_drawn(race: &Race, picture_clock: &crate::system::tick_count::PictureClock) {
     if held_race() && race.course.numbers.get().in_race.is_set() {
         use std::sync::atomic::Ordering::Relaxed;
         let held = HELD_CLOCK.load(Relaxed);
@@ -568,15 +572,10 @@ pub fn shot_frame_drawn(race: &Race) {
         return;
     }
     let panel = race.viewer_panel();
-    if crate::system::tick_count::PICTURE_CLOCK.started.get() == 1
-        && panel.replay_recording.get() != 1
-    {
-        crate::system::tick_count::PICTURE_CLOCK.clock.set(
-            crate::system::tick_count::PICTURE_CLOCK
-                .clock
-                .get()
-                .wrapping_add(10),
-        );
+    if picture_clock.started.get() == 1 && panel.replay_recording.get() != 1 {
+        picture_clock
+            .clock
+            .set(picture_clock.clock.get().wrapping_add(10));
     }
 }
 

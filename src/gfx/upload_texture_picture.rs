@@ -105,7 +105,7 @@ pub fn upload_texture_picture(
         if times != 0 {
             let _halving =
                 crate::race::load_times::scope(crate::race::load_times::Category::TextureHalve);
-            (width, height) = halve_texture(pixels, width, height, times)?;
+            (width, height) = halve_texture(&gfx.pictures.buffers, pixels, width, height, times)?;
         }
         let surface = record.get().surfaces[level as usize];
         let (target, pitch) = {
@@ -116,8 +116,12 @@ pub fn upload_texture_picture(
                 .map_err(|_| direct_draw_failed(0x8021_8772, gfx))?
         };
         // The level's pixels read once; the surface is the platform's.
-        let picture =
-            crate::gfx::picture::read_bytes(pixels, 0, width as usize * height as usize * 4)?;
+        let picture = crate::gfx::picture::read_bytes(
+            &gfx.pictures.buffers,
+            pixels,
+            0,
+            width as usize * height as usize * 4,
+        )?;
         if !matches!(bytes, 2 | 4) {
             return Err(fatal(0x80A1_8775));
         }

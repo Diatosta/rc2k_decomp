@@ -10,7 +10,7 @@ use rc2k_core::system::time::{time_up, wait_end};
 pub fn wait_or_key(o: crate::owners::Owners<'static>, milliseconds: u32) -> u8 {
     let (system, input) = (o.system, o.input);
     use crate::system::tick_count::tick_count;
-    let end = wait_end(tick_count(), milliseconds);
+    let end = wait_end(tick_count(&system.session.picture_clock), milliseconds);
     loop {
         crate::system::sleep::sleep(10);
         // The window's events are pumped here: the window waits on this thread.
@@ -19,7 +19,9 @@ pub fn wait_or_key(o: crate::owners::Owners<'static>, milliseconds: u32) -> u8 {
         if key != 0 {
             return key;
         }
-        if system.session.flags.quitting.is_set() || time_up(tick_count(), end) {
+        if system.session.flags.quitting.is_set()
+            || time_up(tick_count(&system.session.picture_clock), end)
+        {
             return 0;
         }
     }

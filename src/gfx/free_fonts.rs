@@ -4,20 +4,16 @@
 //! refuses.
 
 use crate::errors::BadInput;
-use crate::memory::free_list::free_list;
+use crate::gfx::glyph_store::free_list;
+use crate::gfx::owner::FontStores;
 
-pub fn free_fonts(
-    list: &crate::memory::ListCells,
-    palettes: &crate::session::PlainDword,
-) -> Result<(), BadInput> {
-    free_list(list)?;
-    palettes.set(0);
+pub fn free_fonts(fonts: &FontStores) -> Result<(), BadInput> {
+    free_list(fonts, &fonts.glyph_tables.memory)?;
+    fonts.font_block.palettes.set(0);
     Ok(())
 }
 
 /// With the game's list and palettes' place.
 pub fn free_fonts_in_game(gfx: &crate::gfx::owner::Gfx) -> Result<(), BadInput> {
-    let fonts = &gfx.fonts;
-    let list = &fonts.glyph_tables.memory;
-    free_fonts(list, &fonts.font_block.palettes)
+    free_fonts(&gfx.fonts)
 }

@@ -6,10 +6,10 @@ pub fn race_frame(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), 
     Ok(())
 }
 
-pub fn restart_clock(race: &Race) {
+pub fn restart_clock(race: &Race, system: &crate::system::owner::System) {
     crate::scene::restart_clock::restart_clock(
         &race.shared,
-        crate::system::tick_count::tick_count(),
+        crate::system::tick_count::tick_count(&system.session.picture_clock),
     );
 }
 
@@ -46,8 +46,9 @@ pub fn wake_car_sounds(
     race: &Race,
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
-    crate::race::sounds::wake_car_sounds(race, sound, audio)?;
+    crate::race::sounds::wake_car_sounds(race, sound, audio, system)?;
     Ok(())
 }
 

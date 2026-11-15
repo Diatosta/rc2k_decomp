@@ -28,10 +28,10 @@ pub fn load_picture_with_overlay_in(
     // The overlay's buffer is Rust's (`gfx::picture`), counted on the list as the game's block was,
     // given back with it.
     let free = || -> Result<(), Refused> {
-        crate::gfx::picture::give_back(Buffer::Overlay);
+        crate::gfx::picture::give_back(&gfx.pictures.buffers, Buffer::Overlay);
         Ok(free_list(list)?)
     };
-    let overlay = take(Buffer::Overlay, list, MEMORY)?;
+    let overlay = take(&gfx.pictures.buffers, Buffer::Overlay, list, MEMORY)?;
     let kept: [u32; 4] = [
         pictures.picture.width.get(),
         pictures.picture.height.get(),
@@ -58,8 +58,8 @@ pub fn load_picture_with_overlay_in(
             pictures.decoder.stride.get(),
             pictures.picture.row_bytes.get(),
         );
-        let laid = with_buffer(overlay, |from| {
-            with_buffer(kept[3], |to| {
+        let laid = with_buffer(&gfx.pictures.buffers, overlay, |from| {
+            with_buffer(&gfx.pictures.buffers, kept[3], |to| {
                 match (to.get_mut(..MEMORY as usize), from.get(..MEMORY as usize)) {
                     (Some(to), Some(from)) => rc2k_core::gfx::loading::lay_over(
                         to,

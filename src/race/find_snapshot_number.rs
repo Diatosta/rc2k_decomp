@@ -6,7 +6,8 @@
 //! `race::replay_viewer`.
 
 use crate::errors::BadInput;
-use crate::files::state::{SKIPPED_ATTRIBUTES, set_last_file_path};
+use crate::files::search::DIRECTORY;
+use crate::files::state::set_last_file_path;
 use crate::race::owner_replay::Replay;
 
 /// The three digits' place in the name.
@@ -14,15 +15,15 @@ pub const DIGITS_AT: usize = 0x12;
 
 /// `files::find_next_wanted`: the next name not of the skipped attributes; false when
 /// there is none.
-pub fn find_next_wanted() -> bool {
-    crate::files::search::next(SKIPPED_ATTRIBUTES.get())
+pub fn find_next_wanted(skipped: u32) -> bool {
+    crate::files::search::next(skipped)
 }
 
 /// `files::find_first`: the first name matching `pattern` (without its NUL; not
 /// resolved; it becomes `last_file_path`) not of the skipped attributes; false when none.
-pub fn find_first(pattern: &[u8]) -> bool {
+pub fn find_first(pattern: &[u8], skipped: u32) -> bool {
     set_last_file_path(Some(pattern));
-    crate::files::search::first(pattern, SKIPPED_ATTRIBUTES.get())
+    crate::files::search::first(pattern, skipped)
 }
 
 pub fn find_snapshot_number(replay: &Replay) -> Result<(), BadInput> {
@@ -33,7 +34,7 @@ pub fn find_snapshot_number(replay: &Replay) -> Result<(), BadInput> {
     let mut highest = 0u32;
     // The pattern: the snapshot name's text, read where it is named.
     let found = match crate::files::cstring(replay.snapshot(), "a search pattern") {
-        Ok(pattern) => find_first(&pattern),
+        Ok(pattern) => find_first(&pattern, DIRECTORY),
         Err(_) => {
             set_last_file_path(None);
             crate::files::search::close();
@@ -49,7 +50,7 @@ pub fn find_snapshot_number(replay: &Replay) -> Result<(), BadInput> {
             {
                 highest = number;
             }
-            if !find_next_wanted() {
+            if !find_next_wanted(DIRECTORY) {
                 break;
             }
         }

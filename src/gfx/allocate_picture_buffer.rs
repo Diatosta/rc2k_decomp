@@ -13,6 +13,7 @@ pub fn allocate_picture_buffer(gfx: &crate::gfx::owner::Gfx) -> Result<(), Refus
     pictures.picture.size.set(BUFFER_LEN);
     // Rust's (`gfx::picture`), counted on the list as the game's block was.
     pictures.picture.buffer.set(take(
+        &pictures.buffers,
         Buffer::Main,
         &pictures.picture.list,
         BUFFER_LEN + SPARE,

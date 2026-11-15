@@ -16,10 +16,8 @@ fn globals() -> Result<Globals, BadInput> {
     Ok(Globals {
         mode: crate::files::state::MEDIA_MODE.get(),
         a: crate::files::state::directory_text(0, "the base directory")?,
-        b: crate::files::cstring(
-            &crate::files::state::SECOND_BASE,
-            "the second base directory",
-        )?,
+        // The second base directory: an empty text.
+        b: Vec::new(),
         // The locale directory: replaces each '%'
         pct: crate::files::state::directory_text(1, "the locale directory")?,
     })

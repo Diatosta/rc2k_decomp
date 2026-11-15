@@ -120,7 +120,7 @@ impl Game {
 
 impl films::Films for Game {
     fn no_fmv(&mut self) -> bool {
-        crate::film::NO_FMV.get().get() != 0
+        self.owners.system.machine().no_fmv.get() != 0
     }
 
     fn screen_bits(&mut self) -> u32 {

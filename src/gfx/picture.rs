@@ -34,29 +34,44 @@ pub enum Buffer {
     Key = 3,
 }
 
-static BUFFERS: [Owned<Vec<u8>>; 3] = [const { Owned::new("no picture buffer") }; 3];
+/// The three picture buffers and their change counters.
+pub struct PictureBuffers {
+    buffers: [Owned<Vec<u8>>; 3],
+    /// Each buffer's change counter: it moves on every access that may write the buffer, so equal
+    /// counters mean equal bytes (`generation`).
+    generations: [AtomicU64; 3],
+}
 
-/// Each buffer's change counter: it moves on every access that may write the buffer, so equal
-/// counters mean equal bytes (`generation`).
-static GENERATIONS: [AtomicU64; 3] = [const { AtomicU64::new(0) }; 3];
+impl PictureBuffers {
+    pub const fn new() -> Self {
+        PictureBuffers {
+            buffers: [const { Owned::new("no picture buffer") }; 3],
+            generations: [const { AtomicU64::new(0) }; 3],
+        }
+    }
+}
 
 /// The change counter of buffer `handle`: the bytes are the same as when it last had this value.
 #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-pub fn generation(handle: u32) -> Option<u64> {
-    let counter = GENERATIONS.get((handle as usize).checked_sub(1)?)?;
+pub fn generation(buffers: &PictureBuffers, handle: u32) -> Option<u64> {
+    let counter = buffers.generations.get((handle as usize).checked_sub(1)?)?;
     Some(counter.load(Relaxed))
 }
 
 /// The bytes of buffer `handle` as they are now, held for `f`: no write, so no change counted.
-pub fn with_buffer_unchanged<R>(handle: u32, f: impl FnOnce(&[u8]) -> R) -> Result<R, BadInput> {
-    owned(handle)?.with(|b| f(b))
+pub fn with_buffer_unchanged<R>(
+    buffers: &PictureBuffers,
+    handle: u32,
+    f: impl FnOnce(&[u8]) -> R,
+) -> Result<R, BadInput> {
+    owned(buffers, handle)?.with(|b| f(b))
 }
 
 /// Buffer `handle` is about to be written (or taken, or given back): counted as changed, after
 /// the retained background has taken the bytes it still needs (`render::background`).
-fn changing(handle: u32, bytes: Option<&[u8]>) {
+fn changing(buffers: &PictureBuffers, handle: u32, bytes: Option<&[u8]>) {
     if let Some(n) = (handle as usize).checked_sub(1)
-        && let Some(counter) = GENERATIONS.get(n)
+        && let Some(counter) = buffers.generations.get(n)
     {
         if let Some(bytes) = bytes {
             crate::render::background::before_change(handle, bytes);
@@ -65,44 +80,53 @@ fn changing(handle: u32, bytes: Option<&[u8]>) {
     }
 }
 
-fn owned(handle: u32) -> Result<&'static Owned<Vec<u8>>, BadInput> {
+fn owned(buffers: &PictureBuffers, handle: u32) -> Result<&Owned<Vec<u8>>, BadInput> {
     (handle as usize)
         .checked_sub(1)
-        .and_then(|n| BUFFERS.get(n))
+        .and_then(|n| buffers.buffers.get(n))
         .ok_or(BadInput("no picture buffer"))
 }
 
 /// Buffer `which` taken, zeroed, `bytes` counted on `list` (sized as the game's block was: whole
 /// pages less its header). Its number.
-pub fn take(which: Buffer, list: &crate::memory::ListCells, bytes: u32) -> Result<u32, Refused> {
+pub fn take(
+    buffers: &PictureBuffers,
+    which: Buffer,
+    list: &crate::memory::ListCells,
+    bytes: u32,
+) -> Result<u32, Refused> {
     let memory = vec![0u8; crate::memory::owned::block_len(bytes)];
-    changing(which as u32, None);
-    BUFFERS[which as usize - 1].take(list, bytes, memory)?;
+    changing(buffers, which as u32, None);
+    buffers.buffers[which as usize - 1].take(list, bytes, memory)?;
     Ok(which as u32)
 }
 
 /// Buffer `which` given back (its list's `free_list` counts it down).
-pub fn give_back(which: Buffer) {
+pub fn give_back(buffers: &PictureBuffers, which: Buffer) {
     // A retained background still drawing from it keeps a copy first.
-    let _ = with_buffer_unchanged(which as u32, |b| {
+    let _ = with_buffer_unchanged(buffers, which as u32, |b| {
         crate::render::background::before_change(which as u32, b);
     });
-    changing(which as u32, None);
-    BUFFERS[which as usize - 1].give_back();
+    changing(buffers, which as u32, None);
+    buffers.buffers[which as usize - 1].give_back();
 }
 
 /// `f` on the bytes of the buffer `handle` names; refused for none or one not held. Counted as a
 /// change of the buffer.
-pub fn with_buffer<R>(handle: u32, f: impl FnOnce(&mut [u8]) -> R) -> Result<R, BadInput> {
-    owned(handle)?.with(|b| {
-        changing(handle, Some(b));
+pub fn with_buffer<R>(
+    buffers: &PictureBuffers,
+    handle: u32,
+    f: impl FnOnce(&mut [u8]) -> R,
+) -> Result<R, BadInput> {
+    owned(buffers, handle)?.with(|b| {
+        changing(buffers, handle, Some(b));
         f(b)
     })
 }
 
 /// `f` on the picture buffer's bytes (`PICTURE.buffer`).
 pub fn with_picture<R>(pictures: &Pictures, f: impl FnOnce(&mut [u8]) -> R) -> Result<R, BadInput> {
-    with_buffer(pictures.picture.buffer.get(), f)
+    with_buffer(&pictures.buffers, pictures.picture.buffer.get(), f)
 }
 
 /// Whether a picture buffer is set (`PICTURE.buffer` not 0).
@@ -111,16 +135,26 @@ pub fn has_picture(pictures: &Pictures) -> bool {
 }
 
 /// `len` bytes of buffer `handle` from byte `at`; refused past its end.
-pub fn read_bytes(handle: u32, at: usize, len: usize) -> Result<Vec<u8>, BadInput> {
-    with_buffer_unchanged(handle, |b| {
+pub fn read_bytes(
+    buffers: &PictureBuffers,
+    handle: u32,
+    at: usize,
+    len: usize,
+) -> Result<Vec<u8>, BadInput> {
+    with_buffer_unchanged(buffers, handle, |b| {
         b.get(at..at.checked_add(len)?).map(<[u8]>::to_vec)
     })?
     .ok_or(BadInput("a read past the picture buffer"))
 }
 
 /// `bytes` into buffer `handle` at byte `at`; refused past its end.
-pub fn write_bytes(handle: u32, at: usize, bytes: &[u8]) -> Result<(), BadInput> {
-    with_buffer(handle, |b| {
+pub fn write_bytes(
+    buffers: &PictureBuffers,
+    handle: u32,
+    at: usize,
+    bytes: &[u8],
+) -> Result<(), BadInput> {
+    with_buffer(buffers, handle, |b| {
         b.get_mut(at..at.checked_add(bytes.len())?)
             .map(|to| to.copy_from_slice(bytes))
     })?
@@ -151,16 +185,17 @@ mod tests {
         let figures = crate::memory::figures();
         let memory = crate::memory::ListCells::empty();
         let list = &memory;
-        let n = take(Buffer::Key, list, 0x100).unwrap();
+        let buffers = &PictureBuffers::new();
+        let n = take(buffers, Buffer::Key, list, 0x100).unwrap();
         assert_eq!(n, 3);
         assert_eq!(memory.get().total, 0x100);
-        write_bytes(n, 4, &[1, 2, 3]).unwrap();
-        assert_eq!(read_bytes(n, 3, 5).unwrap(), [0, 1, 2, 3, 0]);
+        write_bytes(buffers, n, 4, &[1, 2, 3]).unwrap();
+        assert_eq!(read_bytes(buffers, n, 3, 5).unwrap(), [0, 1, 2, 3, 0]);
         let len = 0x1000 - crate::memory::HEADER_LEN as usize;
-        assert!(read_bytes(n, len - 1, 2).is_err());
-        assert!(read_bytes(0, 0, 1).is_err());
-        give_back(Buffer::Key);
-        assert!(read_bytes(n, 0, 1).is_err());
+        assert!(read_bytes(buffers, n, len - 1, 2).is_err());
+        assert!(read_bytes(buffers, 0, 0, 1).is_err());
+        give_back(buffers, Buffer::Key);
+        assert!(read_bytes(buffers, n, 0, 1).is_err());
         crate::memory::with_figures(|f| *f = figures);
     }
 
@@ -170,21 +205,22 @@ mod tests {
         let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
         let memory = crate::memory::ListCells::empty();
-        let n = take(Buffer::Key, &memory, 0x100).unwrap();
-        let before = generation(n).unwrap();
-        read_bytes(n, 0, 4).unwrap();
-        with_buffer_unchanged(n, <[u8]>::len).unwrap();
-        assert_eq!(generation(n), Some(before), "reads leave it");
-        write_bytes(n, 0, &[1]).unwrap();
-        let written = generation(n).unwrap();
+        let buffers = &PictureBuffers::new();
+        let n = take(buffers, Buffer::Key, &memory, 0x100).unwrap();
+        let before = generation(buffers, n).unwrap();
+        read_bytes(buffers, n, 0, 4).unwrap();
+        with_buffer_unchanged(buffers, n, <[u8]>::len).unwrap();
+        assert_eq!(generation(buffers, n), Some(before), "reads leave it");
+        write_bytes(buffers, n, 0, &[1]).unwrap();
+        let written = generation(buffers, n).unwrap();
         assert!(written > before, "a write moves it");
-        with_buffer(n, |_| ()).unwrap();
+        with_buffer(buffers, n, |_| ()).unwrap();
         assert!(
-            generation(n).unwrap() > written,
+            generation(buffers, n).unwrap() > written,
             "a mutable access moves it"
         );
-        give_back(Buffer::Key);
-        assert_eq!(generation(0), None);
+        give_back(buffers, Buffer::Key);
+        assert_eq!(generation(buffers, 0), None);
         crate::memory::with_figures(|f| *f = figures);
     }
 
@@ -208,7 +244,7 @@ mod tests {
         pictures
             .picture
             .buffer
-            .set(take(Buffer::Main, list, 0x1D_4C00 + 0xC80).unwrap());
+            .set(take(&pictures.buffers, Buffer::Main, list, 0x1D_4C00 + 0xC80).unwrap());
         set_size(
             &crate::test_support::own::gfx().pictures,
             rc2k_core::gfx::picture_size::READ,
@@ -246,7 +282,8 @@ mod tests {
         assert_eq!(width, 4);
         for (n, number) in (1..=8usize).enumerate() {
             let at = (n / 4) * stride + (n % 4) * 4;
-            let pixel = read_bytes(pictures.picture.buffer.get(), at, 4).unwrap();
+            let pixel =
+                read_bytes(&pictures.buffers, pictures.picture.buffer.get(), at, 4).unwrap();
             assert_eq!(
                 u32::from_le_bytes(pixel.try_into().unwrap()),
                 palette[number],
@@ -254,7 +291,7 @@ mod tests {
             );
         }
         assert_ne!(palette[1], palette[2]);
-        give_back(Buffer::Main);
+        give_back(&pictures.buffers, Buffer::Main);
         kept.restore();
         crate::memory::with_figures(|f| *f = figures);
     }
@@ -304,7 +341,13 @@ mod tests {
         );
         std::fs::remove_file(&name).unwrap();
         assert!(read.unwrap(), "the picture was read");
-        read_bytes(gfx.pictures.picture.buffer.get(), 0, 6 * 4).unwrap()
+        read_bytes(
+            &gfx.pictures.buffers,
+            gfx.pictures.picture.buffer.get(),
+            0,
+            6 * 4,
+        )
+        .unwrap()
     }
 
     #[test]
@@ -327,7 +370,7 @@ mod tests {
         pictures
             .picture
             .buffer
-            .set(take(Buffer::Main, list, 0x1D_4C00 + 0xC80).unwrap());
+            .set(take(&pictures.buffers, Buffer::Main, list, 0x1D_4C00 + 0xC80).unwrap());
         set_size(
             &crate::test_support::own::gfx().pictures,
             rc2k_core::gfx::picture_size::READ,
@@ -341,7 +384,7 @@ mod tests {
         );
         let up = read_png_file(&png(2));
         assert_eq!(plain, up, "Up against the zero row is the row itself");
-        give_back(Buffer::Main);
+        give_back(&pictures.buffers, Buffer::Main);
         kept.restore();
         crate::memory::with_figures(|f| *f = figures);
     }
@@ -361,7 +404,7 @@ mod tests {
         pictures
             .picture
             .buffer
-            .set(take(Buffer::Main, list, 0x1D_4C00 + 0xC80).unwrap());
+            .set(take(&pictures.buffers, Buffer::Main, list, 0x1D_4C00 + 0xC80).unwrap());
         set_size(
             &crate::test_support::own::gfx().pictures,
             rc2k_core::gfx::picture_size::READ,
@@ -376,6 +419,7 @@ mod tests {
         let file = png(0);
         let code = crate::gfx::decode_png::decode_png(
             &crate::test_support::own::gfx().png,
+            &pictures.buffers,
             &file,
             pictures.picture.buffer.get(),
             &mut plain,
@@ -400,6 +444,7 @@ mod tests {
         let mut info = leftover();
         let code = crate::gfx::decode_png::decode_png(
             &crate::test_support::own::gfx().png,
+            &pictures.buffers,
             &with,
             pictures.picture.buffer.get(),
             &mut info,
@@ -408,7 +453,7 @@ mod tests {
         assert!(info.has_palette);
         assert_eq!((info.width, info.height), (3, 2));
         assert_eq!(info.palette.as_slice(), colours.as_slice());
-        give_back(Buffer::Main);
+        give_back(&pictures.buffers, Buffer::Main);
         kept.restore();
         crate::memory::with_figures(|f| *f = figures);
     }

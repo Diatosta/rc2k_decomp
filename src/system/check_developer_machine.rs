@@ -5,10 +5,6 @@
 //! six characters are "andrew" in any case, `DEVELOPER` = 1. (`race::tyre_change_gauge` reads
 //! it.) One caller, `start`, which calls it directly.
 
-/// 1 on a computer called "andrew".
-pub static DEVELOPER: crate::session::GameThread<crate::session::PlainDword> =
-    crate::session::GameThread::new(crate::session::PlainDword::new(0));
-
 const NAME_ROOM: u32 = 0x40;
 
 /// The computer's name with its NUL (room for 0x40 bytes), if it can be had.
@@ -17,8 +13,12 @@ pub fn computer_name() -> Option<Vec<u8>> {
     name.push(0);
     Some(name)
 }
-pub fn check_developer_machine(strings: &crate::strings::owner::Strings) {
-    DEVELOPER.get().set(0);
+pub fn check_developer_machine(
+    strings: &crate::strings::owner::Strings,
+    system: &crate::system::owner::System,
+) {
+    let developer = &system.machine().developer;
+    developer.set(0);
     let text = &strings.text.buffer.text;
     if let Some(name) = computer_name() {
         text.write_at(0, &name, "the computer's name")
@@ -26,6 +26,6 @@ pub fn check_developer_machine(strings: &crate::strings::owner::Strings) {
     }
     let (yes, _) = rc2k_core::system::machine::developer(core::array::from_fn(|n| text.get(n)));
     if yes {
-        DEVELOPER.get().set(1);
+        developer.set(1);
     }
 }

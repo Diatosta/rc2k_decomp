@@ -75,7 +75,11 @@ impl PictureSurface for GameSurface<'_> {
         self.pixels() == target.pixels
             && self.rows() as usize == target.height
             && whole_rows
-            && crate::render::background::defer(&target, self.0.pictures.picture.buffer.get())
+            && crate::render::background::defer(
+                &self.0.pictures.buffers,
+                &target,
+                self.0.pictures.picture.buffer.get(),
+            )
     }
 }
 
@@ -111,16 +115,20 @@ pub fn copy_picture_to_surface(surface: &mut dyn PictureSurface) -> Result<(), B
     let to_pixels = to;
     let to = crate::gfx::rows::Rows::new(to, row_bytes as u32 + surface.row_gap(), rows);
     // The picture's rows from its buffer (`gfx::picture`), onto the surface's.
-    let copied = with_buffer_unchanged(surface.pictures().picture.buffer.get(), |from| {
-        for y in 0..rows {
-            let at = y as usize * row_bytes;
-            let row = from
-                .get(at..at + row_bytes)
-                .ok_or(BadInput("a picture's row past its buffer"))?;
-            to.write(y, 0, row, "a picture's row onto the surface")?;
-        }
-        Ok::<(), BadInput>(())
-    })
+    let copied = with_buffer_unchanged(
+        &surface.pictures().buffers,
+        surface.pictures().picture.buffer.get(),
+        |from| {
+            for y in 0..rows {
+                let at = y as usize * row_bytes;
+                let row = from
+                    .get(at..at + row_bytes)
+                    .ok_or(BadInput("a picture's row past its buffer"))?;
+                to.write(y, 0, row, "a picture's row onto the surface")?;
+            }
+            Ok::<(), BadInput>(())
+        },
+    )
     .and_then(|r| r);
     if let Err(why) = copied {
         if !was_locked {
@@ -142,11 +150,13 @@ fn note_background(surface: &dyn PictureSurface, to: u32, rows: u32, row_bytes: 
         return;
     }
     let buffer = surface.pictures().picture.buffer.get();
-    let Some(generation) = crate::gfx::draw2d::picture_generation(buffer) else {
+    let Some(generation) =
+        crate::gfx::draw2d::picture_generation(&surface.pictures().buffers, buffer)
+    else {
         return;
     };
     let pitch = row_bytes as u32 + surface.row_gap();
-    let _ = with_buffer_unchanged(buffer, |from| {
+    let _ = with_buffer_unchanged(&surface.pictures().buffers, buffer, |from| {
         for y in 0..rows {
             if let Some(row) = from.get(y as usize * row_bytes..(y as usize + 1) * row_bytes) {
                 mirror(y * pitch, row);

@@ -11,6 +11,6 @@ pub fn free_picture_buffer(gfx: &crate::gfx::owner::Gfx) -> Result<(), BadInput>
     }
     pictures.picture.flags.set(0u32);
     pictures.picture.buffer.set(0u32);
-    crate::gfx::picture::give_back(crate::gfx::picture::Buffer::Main);
+    crate::gfx::picture::give_back(&pictures.buffers, crate::gfx::picture::Buffer::Main);
     crate::memory::free_list::free_list(&pictures.picture.list)
 }

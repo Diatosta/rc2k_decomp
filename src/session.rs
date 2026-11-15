@@ -1530,6 +1530,10 @@ pub struct Machine {
     pub version: [PlainDword; 37], // OSVERSIONINFOA, 148 bytes
     pub exception_resume: PlainDword,
     pub instance: PlainDword,
+    /// 1 on a computer called "andrew" (`system::check_developer_machine`).
+    pub developer: PlainDword,
+    /// The setting `nofmv`: 1 = no films.
+    pub no_fmv: PlainDword,
 }
 
 impl Machine {
@@ -1559,6 +1563,8 @@ impl Machine {
             version: [const { PlainDword::new(0) }; 37],
             exception_resume: PlainDword::new(0),
             instance: PlainDword::new(0),
+            developer: PlainDword::new(0),
+            no_fmv: PlainDword::new(0),
         }
     }
 }

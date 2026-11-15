@@ -55,7 +55,7 @@ pub fn picture_as_surface(gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
     s.format.set(block[6]);
     s.pitch.set(block[7]);
     s.pixels.set(block[8]);
-    crate::gfx::surface::ON_PICTURE.store(
+    gfx.drawing.on_picture.store(
         gfx.pictures.picture.buffer.get(),
         std::sync::atomic::Ordering::Relaxed,
     );

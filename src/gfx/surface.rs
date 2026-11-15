@@ -2,14 +2,11 @@
 //! `Target`. The screen's and a locked texture's pixels are reached by a handle
 //! (`gfx::locked_pixels`; `draw_surface.pixels`, set by the platform's lock and
 //! `d3d::texture_surface_info`); the picture buffer, the menus' surface after
-//! `gfx::picture_as_surface`, by its number (`ON_PICTURE`, `draw_surface.pixels` 0 then).
+//! `gfx::picture_as_surface`, by its number (`Drawing::on_picture`, `draw_surface.pixels` 0 then).
 
 use crate::errors::BadInput;
 use crate::gfx::owner::Gfx;
-use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
-
-/// The picture buffer's number while it is the surface (`gfx::picture_as_surface`), else 0.
-pub static ON_PICTURE: AtomicU32 = AtomicU32::new(0);
+use std::sync::atomic::Ordering::Relaxed;
 
 /// The surface's pixels.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -23,7 +20,7 @@ pub enum Target {
 /// The surface now; `None` for none (no pixels).
 pub fn target(gfx: &Gfx) -> Option<Target> {
     match (
-        ON_PICTURE.load(Relaxed),
+        gfx.drawing.on_picture.load(Relaxed),
         gfx.drawing.draw_surface.pixels.get(),
     ) {
         (0, 0) => None,
@@ -45,8 +42,8 @@ pub fn handle(gfx: &Gfx) -> Result<u32, BadInput> {
 }
 
 /// The surface made an address one (the platform's lock, a texture's).
-pub fn on_address() {
-    ON_PICTURE.store(0, Relaxed);
+pub fn on_address(gfx: &Gfx) {
+    gfx.drawing.on_picture.store(0, Relaxed);
 }
 
 /// `bytes` written at `offset` from the target's start; refused past its rows (pitch x height) or
@@ -61,7 +58,9 @@ pub fn write(target: Target, offset: u32, bytes: &[u8], gfx: &Gfx) -> Result<(),
         )
         .byte(offset)
         .write_bytes(bytes, "the surface"),
-        Target::Picture(n) => crate::gfx::picture::write_bytes(n, offset as usize, bytes),
+        Target::Picture(n) => {
+            crate::gfx::picture::write_bytes(&gfx.pictures.buffers, n, offset as usize, bytes)
+        }
     }
 }
 
@@ -113,22 +112,26 @@ mod target_tests {
     fn the_picture_is_a_target_by_number() {
         let gfx = crate::test_support::own::gfx();
         let drawing = &gfx.drawing;
+        let buffers = &gfx.pictures.buffers;
         let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
-        let kept = (ON_PICTURE.load(Relaxed), drawing.draw_surface.pixels.get());
+        let kept = (
+            drawing.on_picture.load(Relaxed),
+            drawing.draw_surface.pixels.get(),
+        );
         let memory = crate::memory::ListCells::empty();
         let list = &memory;
-        let n = take(Buffer::Overlay, list, 0x100).unwrap();
-        ON_PICTURE.store(n, Relaxed);
+        let n = take(buffers, Buffer::Overlay, list, 0x100).unwrap();
+        drawing.on_picture.store(n, Relaxed);
         drawing.draw_surface.pixels.set(0);
         assert_eq!(target(gfx), Some(Target::Picture(n)));
         assert!(handle(gfx).is_err(), "screen-only code refuses the picture");
         write(target(gfx).unwrap(), 8, &[9, 8, 7], gfx).unwrap();
-        assert_eq!(read_bytes(n, 8, 3).unwrap(), [9, 8, 7]);
-        on_address();
+        assert_eq!(read_bytes(buffers, n, 8, 3).unwrap(), [9, 8, 7]);
+        on_address(gfx);
         assert_eq!(target(gfx), None);
-        give_back(Buffer::Overlay);
-        ON_PICTURE.store(kept.0, Relaxed);
+        give_back(buffers, Buffer::Overlay);
+        drawing.on_picture.store(kept.0, Relaxed);
         drawing.draw_surface.pixels.set(kept.1);
         crate::memory::with_figures(|f| *f = figures);
     }

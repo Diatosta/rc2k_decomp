@@ -38,7 +38,7 @@ pub fn run_front_end(o: Owners<'static>) -> Result<(), Refused> {
     crate::menu::store_player_names::store_player_names(menus, play, &mut |line| {
         crate::logfile::log_write::log_nul(line, true, 1);
     })?;
-    crate::gfx::free_fonts::free_fonts(&fonts.glyph_tables.memory, &fonts.font_block.palettes)?;
+    crate::gfx::free_fonts::free_fonts(fonts)?;
     crate::saves::list_car_numbers::list_car_numbers_in(menus)?;
     log("menu::run_front_end: done");
     Ok(())

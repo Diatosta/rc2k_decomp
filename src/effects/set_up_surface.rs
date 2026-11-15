@@ -79,6 +79,7 @@ pub fn set_up_surface(
         return unlock_refusing("surfmask.pcx was not read", scene, gfx);
     }
     mask[..4 * PIXELS as usize].copy_from_slice(&crate::gfx::picture::read_bytes(
+        &gfx.pictures.buffers,
         gfx.pictures.picture.buffer.get(),
         0,
         4 * PIXELS as usize,
@@ -86,8 +87,12 @@ pub fn set_up_surface(
     if !read(&ring.names.surfdata, gfx, system)? {
         return unlock_refusing("surfdata.pcx was not read", scene, gfx);
     }
-    let picture =
-        crate::gfx::picture::read_bytes(gfx.pictures.picture.buffer.get(), 0, 4 * PIXELS as usize)?;
+    let picture = crate::gfx::picture::read_bytes(
+        &gfx.pictures.buffers,
+        gfx.pictures.picture.buffer.get(),
+        0,
+        4 * PIXELS as usize,
+    )?;
     for n in 0..PIXELS {
         let at = 4 * n as usize;
         let data = u32::from_le_bytes(picture[at..at + 4].try_into().expect("four bytes"));

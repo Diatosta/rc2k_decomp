@@ -204,7 +204,9 @@ fn view(race: &'static Race, o: Owners<'static>, mode: Mode) -> Result<(), Refus
         // The menu sound asked for.
         let sound = race.shared.replay_file().viewer_sound.get();
         race.shared.replay_file().viewer_sound.set(0);
-        crate::sound::play_menu_sound::play_menu_sound_in_game(o.sound, o.audio, o.menus, sound);
+        crate::sound::play_menu_sound::play_menu_sound_in_game(
+            o.sound, o.audio, o.menus, o.system, sound,
+        );
         if list_state.list_leave.get() == 1 {
             return Ok(());
         }

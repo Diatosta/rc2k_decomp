@@ -63,6 +63,7 @@ pub fn new_simulation_if_unlocked(o: crate::owners::Owners<'static>) -> Result<(
             o.sound,
             o.audio,
             o.menus,
+            o.system,
             REFUSED_SOUND,
         );
         crate::system::sleep::sleep(REFUSED_SLEEP);

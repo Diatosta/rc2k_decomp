@@ -145,7 +145,10 @@ pub fn reset_race_sounds(
     crate::sound::queue::send_with_eax_in(audio, Command::EndOfTurn, Some(7));
     wait_for_commands(o);
     crate::sound::hold_sounds_back::hold_sounds_back(audio);
-    crate::sound::race_clock::start_race_clock(crate::system::tick_count::tick_count(), sound);
+    crate::sound::race_clock::start_race_clock(
+        crate::system::tick_count::tick_count(&o.system.session.picture_clock),
+        sound,
+    );
     for o in &sound.race.sounds.get().objects {
         reset_object(o);
     }
@@ -259,7 +262,7 @@ pub fn tidy_stage(
     s.indent(-3);
     s.step(STAGE_WORDS[3], || free_game_fonts(gfx))?;
     s.step(STAGE_WORDS[4], || {
-        crate::race::game_map::free_game_map(race)
+        crate::race::game_map::free_game_map(race, gfx)
     })?;
     s.step(STAGE_WORDS[5], || {
         crate::race::race_shell::release_stage_textures(gfx);

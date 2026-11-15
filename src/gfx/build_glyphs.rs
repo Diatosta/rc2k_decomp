@@ -228,7 +228,7 @@ fn read_alpha_sheet(
             gfx,
         )?;
         let mut convert = |components: u32| components;
-        let backdrop = with_buffer(pictures.decoder.pixels.get(), |pixels| {
+        let backdrop = with_buffer(&pictures.buffers, pictures.decoder.pixels.get(), |pixels| {
             let sheet = Sheet {
                 flags,
                 pixel_size: 1,
@@ -329,7 +329,7 @@ pub fn build_glyphs(
         }
         let soften = flags & WITH_ALPHA != 0 && vars.alpha_loaded.get() != 1;
         // The sheet, its pixels the decoded buffer's bytes, lent for one step at a time.
-        let backdrop = with_buffer(pictures.decoder.pixels.get(), |pixels| {
+        let backdrop = with_buffer(&pictures.buffers, pictures.decoder.pixels.get(), |pixels| {
             backdrop_of(&Sheet {
                 flags,
                 pixel_size,
@@ -364,8 +364,8 @@ pub fn build_glyphs(
             }
             let half = 4 * HALF_PICTURE_DWORDS;
             let buffer = pictures.picture.buffer.get();
-            let alphas = read_bytes(buffer, half, half)?;
-            let mut kept = read_bytes(buffer, 0, half)?;
+            let alphas = read_bytes(&gfx.pictures.buffers, buffer, half, half)?;
+            let mut kept = read_bytes(&gfx.pictures.buffers, buffer, 0, half)?;
             for (pixel, alpha) in kept
                 .as_chunks_mut::<4>()
                 .0
@@ -375,11 +375,11 @@ pub fn build_glyphs(
                 let alpha = u32::from_le_bytes(*alpha);
                 *pixel = (u32::from_le_bytes(*pixel) | (alpha & 0x0F0F_0F0F) << 4).to_le_bytes();
             }
-            write_bytes(buffer, 0, &kept)?;
+            write_bytes(&gfx.pictures.buffers, buffer, 0, &kept)?;
         }
 
         rewind_list(work)?;
-        let glyphs = with_buffer(pictures.decoder.pixels.get(), |pixels| {
+        let glyphs = with_buffer(&pictures.buffers, pictures.decoder.pixels.get(), |pixels| {
             Sheet {
                 flags,
                 pixel_size,

@@ -91,6 +91,7 @@ pub fn load_edges(
     }
     crate::race::load_times::mark("edges: mask");
     let pixels = crate::gfx::picture::read_bytes(
+        &gfx.pictures.buffers,
         gfx.pictures.picture.buffer.get(),
         0,
         4 * EDGE_LEN as usize,

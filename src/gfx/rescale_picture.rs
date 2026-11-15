@@ -89,7 +89,12 @@ pub fn rescale_picture(rescaler: &Rescaler, gfx: &crate::gfx::owner::Gfx) -> Res
         .chunks_exact_mut(row_bytes as usize)
         .take(from_height as usize)
     {
-        row.copy_from_slice(&read_bytes(from, source, row_bytes as usize)?);
+        row.copy_from_slice(&read_bytes(
+            &gfx.pictures.buffers,
+            from,
+            source,
+            row_bytes as usize,
+        )?);
         source = source
             .wrapping_add(row_bytes as usize)
             .wrapping_add(gap as usize);

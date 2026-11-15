@@ -380,7 +380,7 @@ pub fn lock_surface(gfx: &crate::gfx::owner::Gfx, system: &crate::system::owner:
         s.format.set(crate::gfx::pixel_format::SCREEN_FORMAT);
         s.pitch.set(pitch);
         s.pixels.set(gfx.drawing.draw_surface.present_pixels.get());
-        crate::gfx::surface::on_address();
+        crate::gfx::surface::on_address(gfx);
         s.row_gap.set(pitch.wrapping_sub(row_bytes));
         set_clip([s.x.get(), s.y.get(), s.width.get(), s.height.get()], gfx);
     }
@@ -557,7 +557,7 @@ pub fn show_frame_now(o: crate::owners::Owners<'static>) -> bool {
     let drawing = &o.gfx.drawing;
     // The 3D drawing noted so far, before the screen is shown, written or changed.
     crate::platform_3d::flush();
-    crate::gfx::draw2d::check::end_frame(&o.gfx.fonts, o.menus.screens.loop_flags.menu.get().ok());
+    crate::gfx::draw2d::check::end_frame(o.gfx, o.menus.screens.loop_flags.menu.get().ok());
     {
         if o.system.session.flags.quitting.is_set() {
             return false;

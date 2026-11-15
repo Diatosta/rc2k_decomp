@@ -15,12 +15,14 @@ use crate::gfx::fill_thirds_table::TABLE_LEN;
 use crate::gfx::fonts_store::FontBlock;
 use crate::gfx::formats::Formats;
 use crate::gfx::front::Surfaces;
+use crate::gfx::glyph_store::GlyphStore;
 use crate::gfx::glyph_tables::GlyphTables;
 use crate::gfx::jade_store::JadeFont;
 use crate::gfx::locked::Locked;
 use crate::gfx::modes::Modes;
 use crate::gfx::pcx::Pcx;
 use crate::gfx::pcx_planes::LEN as PLANES_LEN;
+use crate::gfx::picture::PictureBuffers;
 use crate::gfx::picture_store::Picture;
 use crate::gfx::png_file::PngFile;
 use crate::gfx::png_header::PngHeader;
@@ -100,6 +102,8 @@ pub struct Pictures {
     pub planes: PlainBytes<PLANES_LEN>,
     /// 1 while a picture is being shown.
     pub showing: PlainDword,
+    /// The picture buffers (`gfx::picture`).
+    pub buffers: PictureBuffers,
 }
 
 impl Pictures {
@@ -110,6 +114,7 @@ impl Pictures {
             pcx: Pcx::new(),
             planes: PlainBytes::new([0; PLANES_LEN]),
             showing: PlainDword::new(0),
+            buffers: PictureBuffers::new(),
         }
     }
 }
@@ -122,6 +127,13 @@ pub struct FontStores {
     pub jade: JadeFont,
     pub game_fonts_memory: GameFontsMemory,
     pub glyph_tables: GlyphTables,
+    /// The palettes and glyph tables the fonts and sprites draw with.
+    pub glyph_store: GlyphStore,
+    /// The blended font's palette (`BLENDED_PLACE`), 1024 bytes of which 15 entries are made; the
+    /// installer's bar draws with it too.
+    pub blended_palette: [PlainDword; 256],
+    /// The kerning row table the text drawer keeps between glyphs: 0 at the start.
+    pub kerning: std::sync::Mutex<crate::text::glyph_kerning::State>,
 }
 
 impl FontStores {
@@ -132,6 +144,9 @@ impl FontStores {
             jade: JadeFont::new(),
             game_fonts_memory: GameFontsMemory::new(),
             glyph_tables: GlyphTables::new(),
+            glyph_store: GlyphStore::new(),
+            blended_palette: [const { PlainDword::new(0) }; 256],
+            kerning: std::sync::Mutex::new([0; rc2k_core::text::KERNING_ROWS * 2]),
         }
     }
 }
@@ -149,6 +164,8 @@ pub struct Drawing {
     pub row_table: [PlainDword; ROW_TABLE_ROOM as usize],
     /// `byte_4F4B30`: n / 3 for the sums of three components (zero until filled).
     pub thirds: PlainBytes<TABLE_LEN>,
+    /// The picture buffer's number while it is the surface (`gfx::picture_as_surface`), else 0.
+    pub on_picture: std::sync::atomic::AtomicU32,
 }
 
 impl Drawing {
@@ -160,6 +177,7 @@ impl Drawing {
             surfaces: Surfaces::new(),
             row_table: [const { PlainDword::new(0) }; ROW_TABLE_ROOM as usize],
             thirds: PlainBytes::new([0; TABLE_LEN]),
+            on_picture: std::sync::atomic::AtomicU32::new(0),
         }
     }
 }

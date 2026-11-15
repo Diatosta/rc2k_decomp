@@ -55,7 +55,13 @@ fn read_held(
     // The info record starts as the scratch left it: a file the decoder leaves unfinished is laid
     // out from that.
     let mut info = PngInfo::leftover(&system.work().files.buffer)?;
-    decode_png(png, file, pictures.picture.buffer.get(), &mut info)?;
+    decode_png(
+        png,
+        &pictures.buffers,
+        file,
+        pictures.picture.buffer.get(),
+        &mut info,
+    )?;
     pictures.picture.flags.set(0x802u32);
     lay_out_png(gfx, &info)?;
     pictures.picture.width.set(pictures.decoder.width.get());

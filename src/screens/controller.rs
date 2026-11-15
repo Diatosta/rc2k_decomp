@@ -53,7 +53,8 @@ pub fn learn_axis(
     // The logic is in `rc2k_core::screens::learning` (`timed_out`, `by_axis`, `pedal`,
     // `CANCEL_KEY`, `binding`).
     use rc2k_core::screens::learning as l;
-    let since = crate::system::tick_count::tick_count().wrapping_sub(controls.learn_start.get());
+    let since = crate::system::tick_count::tick_count(&o.system.session.picture_clock)
+        .wrapping_sub(controls.learn_start.get());
     if l::timed_out(since) {
         controls.learned.set(l::TIMED_OUT);
         controls.learning.set(0);

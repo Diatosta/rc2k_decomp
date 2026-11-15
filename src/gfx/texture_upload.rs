@@ -464,9 +464,9 @@ pub fn ready_picture(
     {
         let key = least_colour(&record.format()?);
         if record.keeps_alpha() {
-            alpha_from_kept(pixels, count)?;
+            alpha_from_kept(&gfx.pictures.buffers, pixels, count)?;
         } else {
-            key_texture_colours(pixels, count, key)?;
+            key_texture_colours(&gfx.pictures.buffers, pixels, count, key)?;
         }
         let (reading, scale, saturation) = (
             gfx_grading.reading.get(),
@@ -475,7 +475,15 @@ pub fn ready_picture(
         );
         if grading(reading, scale, saturation) {
             let mut table = [0u8; 0x100];
-            grade_texture(pixels, count, key, scale, saturation, &mut table)?;
+            grade_texture(
+                &gfx.pictures.buffers,
+                pixels,
+                count,
+                key,
+                scale,
+                saturation,
+                &mut table,
+            )?;
             gfx_grading.grades.write(&table);
         }
     }
@@ -538,7 +546,7 @@ pub fn keep_second_picture(
         Some((pixels, width, height, _)) => {
             // The texture size keeps the two apart (`KEPT` is 256 x 256 dwords).
             let len = width.wrapping_mul(height) as usize * 4;
-            crate::gfx::picture::with_buffer(pixels, |b| {
+            crate::gfx::picture::with_buffer(&gfx.pictures.buffers, pixels, |b| {
                 (KEPT.checked_add(len)? <= b.len()).then(|| b.copy_within(..len, KEPT))
             })?
             .ok_or(BadInput("a second texture picture past the picture buffer"))?;

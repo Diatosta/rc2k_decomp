@@ -7,7 +7,6 @@
 
 use crate::errors::Refused;
 use crate::files::read_whole_file::read_whole_file_cells;
-use crate::files::state::BYTES_READ;
 use crate::race::course_data::set_cdat_number;
 use crate::race::level_init::set_course_number;
 use crate::race::owner::Race;
@@ -33,14 +32,13 @@ pub fn find_present_courses(
         set_cdat_number(course, 0);
         shared.switches.get().course_present[n as usize].set(0);
         let present = course_present(paths(course).len() as u32, |file| {
-            BYTES_READ.set(0);
             let path = paths(course)[file as usize];
             debug_assert_eq!(PROBE_BYTES, 4);
-            read_whole_file_cells(
+            let bytes_read = read_whole_file_cells(
                 &crate::files::cstring(path, "a course file's path")?,
                 std::slice::from_ref(&scene.drawing.scene.get().work_dword),
             )?;
-            Ok::<u32, Refused>(BYTES_READ.get())
+            Ok::<u32, Refused>(bytes_read)
         })?;
         if present {
             shared.switches.get().course_present[n as usize].set(1);

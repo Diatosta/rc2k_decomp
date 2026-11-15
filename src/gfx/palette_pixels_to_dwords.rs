@@ -9,9 +9,14 @@ use crate::gfx::pixels_to_dwords::pixel_count;
 pub fn palette_pixels_to_dwords(gfx: &crate::gfx::owner::Gfx) -> Result<(), BadInput> {
     let pictures = &gfx.pictures;
     let count = pixel_count(gfx)?;
-    let mut buffer = read_bytes(pictures.picture.buffer.get(), 0, count * 4)?;
+    let mut buffer = read_bytes(
+        &pictures.buffers,
+        pictures.picture.buffer.get(),
+        0,
+        count * 4,
+    )?;
     let palette: [u32; 256] = pictures.decoder.palette();
     rc2k_core::gfx::pixels::palette_to_dwords(&mut buffer, count, &palette)
         .ok_or(BadInput("a picture buffer shorter than its dwords"))?;
-    write_bytes(pictures.picture.buffer.get(), 0, &buffer)
+    write_bytes(&pictures.buffers, pictures.picture.buffer.get(), 0, &buffer)
 }

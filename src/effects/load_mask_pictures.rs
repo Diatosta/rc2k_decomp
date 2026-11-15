@@ -89,6 +89,7 @@ fn mask(
         // A file path (text up to its NUL) at a byte offset in the paths.
         read(&masks.picture_copy.paths.text_from(path), gfx, system)?;
         copy[..4 * COPIED as usize].copy_from_slice(&crate::gfx::picture::read_bytes(
+            &gfx.pictures.buffers,
             gfx.pictures.picture.buffer.get(),
             0,
             4 * COPIED as usize,

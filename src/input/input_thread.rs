@@ -48,14 +48,15 @@ pub fn input_thread(
         }
         crate::input::list_joysticks::list_joysticks(input, system);
         set_priority(2);
-        let mut last = crate::system::tick_count::tick_count();
+        let mut last = crate::system::tick_count::tick_count(&system.session.picture_clock);
         input.devices.last_tick.set(last);
         loop {
             let mut gone;
             loop {
                 crate::system::sleep::sleep(5);
                 last = input.devices.last_tick.get();
-                gone = crate::system::tick_count::tick_count().wrapping_sub(last);
+                gone = crate::system::tick_count::tick_count(&system.session.picture_clock)
+                    .wrapping_sub(last);
                 if gone >= TICK_MS {
                     break;
                 }

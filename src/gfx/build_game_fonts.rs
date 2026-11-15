@@ -83,11 +83,11 @@ pub fn build_game_fonts(
         .decoder
         .format
         .set(crate::gfx::pixel_format::texture_kind_format(3, gfx));
-    let palette_a = crate::gfx::build_fonts::palette_place(list)?;
+    let palette_a = crate::gfx::build_fonts::palette_place(&gfx.fonts, list)?;
     gfx.fonts.font_block.game_fonts[0].update(|f| f.palette = palette_a);
-    let palette_b = crate::gfx::build_fonts::palette_place(list)?;
+    let palette_b = crate::gfx::build_fonts::palette_place(&gfx.fonts, list)?;
     gfx.fonts.font_block.game_fonts[3].update(|f| f.palette = palette_b);
-    begin_glyph_table(vars, list)?;
+    begin_glyph_table(&gfx.fonts, vars, list)?;
     crate::race::load_times::mark("build_glyphs fnt22");
     build_glyphs(vars, &crate::gfx::texts::FNT22, list, gfx, system, strings)?;
     let table = vars.table.get();

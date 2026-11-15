@@ -259,7 +259,7 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
         0x4E0098,
         dword!(_o => crate::logfile::write_line::state::LEVEL),
     ),
-    (b"nofmv", 0x5BE870, dword!(_o => *crate::film::NO_FMV.get())),
+    (b"nofmv", 0x5BE870, dword!(o => o.system.machine().no_fmv)),
     (
         b"key",
         0x4E052C,
@@ -504,7 +504,7 @@ mod tests {
             ".viewer_editing",
         ),
         ("logfile", "logfile.write_line.state.LEVEL", ""),
-        ("nofmv", "film.NO_FMV", ""),
+        ("nofmv", "owners.system.machine", ".no_fmv"),
         ("key", "owners.race.replay.seal_work", ".key[0]"),
         (
             "allsecretcars",

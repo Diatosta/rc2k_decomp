@@ -152,9 +152,16 @@ pub fn viewer_action(
         }
         Action::EndEdit => race.viewer_buffers().camera_edit.set(0),
         Action::Pictures { time } => {
-            crate::race::start_frame_pictures::start_frame_pictures(race, time)?;
+            crate::race::start_frame_pictures::start_frame_pictures(
+                race,
+                &o.system.session.picture_clock,
+                time,
+            )?;
             crate::race::play_marked::play_marked(race, o)?;
-            crate::race::stop_frame_pictures::stop_frame_pictures(race);
+            crate::race::stop_frame_pictures::stop_frame_pictures(
+                race,
+                &o.system.session.picture_clock,
+            );
         }
     }
     Ok(true)

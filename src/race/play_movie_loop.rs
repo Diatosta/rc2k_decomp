@@ -36,7 +36,7 @@ pub fn play_movie_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result
     log_text(TEXTS[2], false);
     log_number(race.replay.replay_view().play_end.get());
     race.course.numbers.get().replay_mode.set(2);
-    race_parts::restart_clock(race);
+    race_parts::restart_clock(race, o.system);
     race.shared
         .physics_tables
         .get()

@@ -20,7 +20,7 @@ pub fn build_menu_sprites(
     let list = &gfx.fonts.glyph_tables.memory;
     begin_glyph_tables(vars, gfx, system, strings)?;
     gfx.pictures.decoder.builder_flags.set(RUN_LENGTHS);
-    begin_glyph_table(vars, list)?;
+    begin_glyph_table(&gfx.fonts, vars, list)?;
     build_glyphs(vars, &crate::gfx::texts::MBUTS, list, gfx, system, strings)?;
     sprite_table.set(vars.table.get());
     end_glyph_tables(strings)?;

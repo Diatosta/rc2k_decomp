@@ -24,7 +24,6 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::files::read_whole_file::read_whole_file_plain_bytes;
-use crate::files::state::BYTES_READ;
 use crate::scene::add_object_shape::add_object_shape;
 use crate::scene::list_object_textures::list_object_textures;
 use crate::scene::measure_object::measure_object;
@@ -101,15 +100,14 @@ pub fn load_object(
         .file_numbers()
         .text_at(name as usize + 7)
         .write_text_at(0, b"3", "an object's file name")?;
-    BYTES_READ.set(0);
-    read_whole_file_plain_bytes(
+    let bytes_read = read_whole_file_plain_bytes(
         &scene
             .file_numbers()
             .text_at(scene.file_numbers().object_ro3_path.get() as usize)
             .text("an object's file path")?,
         crate::scene::objects::file(race),
     )?;
-    if BYTES_READ.get() == 0 {
+    if bytes_read == 0 {
         return Ok(());
     }
     scene

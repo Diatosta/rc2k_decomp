@@ -29,7 +29,11 @@ pub fn receive_thread(net: &Net, system: &System) -> Result<(), Refused> {
                 if !zero {
                     vars.receiver.receiving.set(1);
                     if net.race_slot.is_on() {
-                        crate::net::take_messages::take_messages(net, lines)?;
+                        crate::net::take_messages::take_messages(
+                            net,
+                            lines,
+                            &system.session.picture_clock,
+                        )?;
                     }
                 }
                 vars.receiver.receiving.set(0);

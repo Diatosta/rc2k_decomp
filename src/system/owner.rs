@@ -25,6 +25,9 @@ pub struct Session {
     pub host: HostShared,
     /// The key thread's count of turns.
     pub key_clock: KeyClock,
+    /// The clock override of the replay viewer's picture saving (`system::tick_count`): the
+    /// input and audio threads read the clock too.
+    pub picture_clock: crate::system::tick_count::PictureClock,
 }
 
 impl Session {
@@ -34,6 +37,7 @@ impl Session {
             flags: WindowShared::new(),
             host: HostShared::new(),
             key_clock: KeyClock::new(),
+            picture_clock: crate::system::tick_count::PictureClock::new(),
         }
     }
 }

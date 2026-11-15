@@ -16,7 +16,7 @@ use crate::gfx::blit_glyph::{BlitCall, blit_glyph_on_surface};
 use crate::gfx::glyph_store;
 use crate::gfx::typefaces::FontRef;
 use crate::text::font::Font;
-use crate::text::glyph_kerning::{STATE, State};
+use crate::text::glyph_kerning::State;
 use rc2k_core::strings::bytes::Bytes;
 
 /// What drawing text needs from outside: the kerning row table and the blitter.
@@ -56,12 +56,18 @@ impl Canvas for GameCanvas {
         true
     }
     fn kerning(&self) -> State {
-        *STATE
+        *self
+            .gfx
+            .fonts
+            .kerning
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
     fn set_kerning(&mut self, kerning: State) {
-        *STATE
+        *self
+            .gfx
+            .fonts
+            .kerning
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = kerning;
     }

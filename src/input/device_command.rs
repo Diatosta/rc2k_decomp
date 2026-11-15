@@ -67,7 +67,7 @@ pub fn device_command(
                     }
                 }
                 Sleep(ms) => crate::system::sleep::sleep(ms),
-                BeginEffects => crate::input::begin_effects::begin_effects(input, sound)?,
+                BeginEffects => crate::input::begin_effects::begin_effects(input, sound, system)?,
             }
         }
     }

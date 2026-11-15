@@ -17,7 +17,7 @@ pub fn play_replay_range(race: &Race, o: crate::owners::Owners<'static>) -> Resu
     use crate::race::race_end;
     crate::drive::replay_frame_marks::replay_frame_marks(race)?;
     if race.viewer_panel().replay_recording.get() != 1 {
-        crate::race::sounds::start_race_sounds(sound, o.audio)?;
+        crate::race::sounds::start_race_sounds(sound, o.audio, o.system)?;
     }
     crate::race::play_movie::play_movie(race, o)?;
     race_end::reset_race_sounds(&race_end::SoundVars::game(sound), o)?;

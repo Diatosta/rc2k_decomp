@@ -145,12 +145,10 @@ pub fn load_level(race: &Race) -> Result<(), Refused> {
     let course = &race.course;
     use crate::files::read_level_file;
     set_cdat_number(course, 0);
-    crate::files::state::BYTES_READ.set(0);
     load_log(0);
     let mut data = vec![0u8; FIRST_PART];
     crate::race::load_times::mark("read_level_file");
     let out = read_level_file::read_level_file(&course.level_paths().cdat_src.text(), &mut data)?;
-    crate::files::state::BYTES_READ.set(out.eax);
     if out.carry {
         // The path named, for the reports.
         crate::framework::log(&format!(

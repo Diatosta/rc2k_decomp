@@ -43,6 +43,18 @@ pub fn play_menu_sound(
 }
 
 /// With the game's clock: what other Rust code calls.
-pub fn play_menu_sound_in_game(sounds: &Sound, audio: &Audio, menus: &Menus, sound: u32) {
-    play_menu_sound(sound, &mut tick_count, sounds, audio, menus);
+pub fn play_menu_sound_in_game(
+    sounds: &Sound,
+    audio: &Audio,
+    menus: &Menus,
+    system: &crate::system::owner::System,
+    sound: u32,
+) {
+    play_menu_sound(
+        sound,
+        &mut || tick_count(&system.session.picture_clock),
+        sounds,
+        audio,
+        menus,
+    );
 }

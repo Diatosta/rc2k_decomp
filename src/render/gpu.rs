@@ -496,10 +496,11 @@ impl Gpu {
             return Ok((false, false));
         };
         let bytes = self.width as usize * self.height as usize * 4;
+        let buffers = crate::platform_3d::handles().pictures;
         if check::wanted() {
             *picture_copy = match &pending {
                 Pending::Buffer { handle, .. } => {
-                    crate::gfx::picture::with_buffer_unchanged(*handle, |b| {
+                    crate::gfx::picture::with_buffer_unchanged(buffers, *handle, |b| {
                         b.get(..bytes).map(<[u8]>::to_vec)
                     })
                     .ok()
@@ -514,7 +515,7 @@ impl Gpu {
                 if self.background_holds == Some(BackgroundHeld::Buffer { handle, generation }) {
                     false
                 } else {
-                    crate::gfx::picture::with_buffer_unchanged(handle, |picture| {
+                    crate::gfx::picture::with_buffer_unchanged(buffers, handle, |picture| {
                         let picture = picture
                             .get(..bytes)
                             .ok_or("the background's picture is smaller than the screen")?;

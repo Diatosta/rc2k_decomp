@@ -42,13 +42,15 @@ const NOT_THERE: i32 = 0x8876_0000u32 as i32 | 0x1C2;
 
 // ---- the draw surface's and the texture tables' handles ----
 
-/// The graphics owner's draw surface and texture tables, as the drawing threads and the platform's
-/// callbacks reach them: they have no owner to ask. Atomic cells, read while the game's thread
-/// waits.
+/// The graphics owner's draw surface, texture tables and picture buffers, as the drawing threads
+/// and the platform's callbacks reach them: they have no owner to ask. Atomic cells, read while
+/// the game's thread waits.
 #[derive(Clone, Copy)]
 pub struct Handles {
     pub surface: &'static crate::gfx::screen_state::DrawSurface,
     pub textures: &'static crate::gfx::texture_upload::Textures,
+    /// The picture buffers the GPU draws a menu background from.
+    pub pictures: &'static crate::gfx::picture::PictureBuffers,
 }
 
 impl Handles {
@@ -57,6 +59,7 @@ impl Handles {
         Handles {
             surface: &gfx.drawing.draw_surface,
             textures: &gfx.card.texture_tables,
+            pictures: &gfx.pictures.buffers,
         }
     }
 }
@@ -82,7 +85,7 @@ pub fn use_in_this_test(gfx: &'static crate::gfx::owner::Gfx) {
 }
 
 /// The handles; the game has set them before anything draws.
-fn handles() -> Handles {
+pub(crate) fn handles() -> Handles {
     #[cfg(test)]
     if let Some(own) = TEST_HANDLES.with(std::cell::Cell::get) {
         return own;

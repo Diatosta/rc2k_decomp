@@ -53,7 +53,8 @@ static TOTALS: Mutex<Option<Totals>> = Mutex::new(None);
 const LOG_LINES: u32 = 600;
 
 /// Ends the frame: replays what was recorded and compares. `menu` labels the log.
-pub fn end_frame(fonts: &crate::gfx::owner::FontStores, menu: Option<MenuId>) {
+pub fn end_frame(gfx: &crate::gfx::owner::Gfx, menu: Option<MenuId>) {
+    let fonts = &gfx.fonts;
     if !super::enabled() {
         return;
     }
@@ -85,7 +86,7 @@ pub fn end_frame(fonts: &crate::gfx::owner::FontStores, menu: Option<MenuId>) {
         );
     }
     let mut canvas = vec![UNWRITTEN; written.len()];
-    let replayed = replay(&frame, fonts, &mut canvas);
+    let replayed = replay(&frame, fonts, &gfx.pictures.buffers, &mut canvas);
     if let Err((n, problem)) = &replayed {
         totals.problems += 1;
         say(

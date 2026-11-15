@@ -3,7 +3,6 @@
 //! Each name found is put in the search record (`FindFileData`): the attributes at +0, the name
 //! at +0x2C. `.` and `..` are not listed.
 
-use crate::files::state::{FIND_DATA, FIND_HANDLE};
 use std::sync::Mutex;
 
 /// `FILE_ATTRIBUTE_DIRECTORY`, `_READONLY`, `_ARCHIVE`: what the record's attributes hold.
@@ -17,15 +16,27 @@ const NAME_ROOM: usize = 260;
 /// The record's length (`WIN32_FIND_DATAA`).
 const RECORD_LEN: usize = 0x13E;
 
-const NO_SEARCH: u32 = u32::MAX;
-const OPEN: u32 = 1;
-
 struct Search {
     found: Vec<(Vec<u8>, u32)>,
     next: usize,
 }
 
-static SEARCH: Mutex<Option<Search>> = Mutex::new(None);
+/// The one search and the record of the name found last, which stays after the search is closed.
+struct State {
+    search: Option<Search>,
+    record: [u8; RECORD_LEN],
+}
+
+static SEARCH: Mutex<State> = Mutex::new(State {
+    search: None,
+    record: [0; RECORD_LEN],
+});
+
+fn state() -> std::sync::MutexGuard<'static, State> {
+    SEARCH
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
 
 /// The names in the folder of `pattern` (the game's bytes) that match its last part, with
 /// their attributes, in NTFS's order; None when the folder cannot be listed or nothing
@@ -67,28 +78,29 @@ fn list(pattern: &[u8]) -> Option<Vec<(Vec<u8>, u32)>> {
     (!found.is_empty()).then_some(found)
 }
 
-fn put((name, attributes): &(Vec<u8>, u32)) {
+/// The record of `found`: its attributes, then its name.
+fn record_of((name, attributes): &(Vec<u8>, u32)) -> [u8; RECORD_LEN] {
     let mut record = [0u8; RECORD_LEN];
     record[..4].copy_from_slice(&attributes.to_le_bytes());
     let len = name.len().min(NAME_ROOM - 1);
     record[NAME_AT..NAME_AT + len].copy_from_slice(&name[..len]);
-    for (n, &b) in record.iter().enumerate() {
-        FIND_DATA.set(n, b);
-    }
+    record
 }
 
 /// The search's next name not of the `skipped` attributes, put in the record; false when
 /// there is none (the search stays open, as the game closes it).
 pub fn next(skipped: u32) -> bool {
-    let mut search = SEARCH
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    next_in(&mut state(), skipped)
+}
+
+fn next_in(state: &mut State, skipped: u32) -> bool {
+    let State { search, record } = state;
     let Some(s) = search.as_mut() else {
         return false;
     };
     while let Some(found) = s.found.get(s.next) {
         s.next += 1;
-        put(found);
+        *record = record_of(found);
         if found.1 & skipped == 0 {
             return true;
         }
@@ -101,31 +113,25 @@ pub fn next(skipped: u32) -> bool {
 pub fn first(pattern: &[u8], skipped: u32) -> bool {
     let found = list(pattern);
     let open = found.is_some();
-    *SEARCH
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner) =
-        found.map(|found| Search { found, next: 0 });
-    FIND_HANDLE.set(if open { OPEN } else { NO_SEARCH });
-    open && next(skipped)
+    let mut state = state();
+    state.search = found.map(|found| Search { found, next: 0 });
+    open && next_in(&mut state, skipped)
 }
 
 pub fn close() {
-    *SEARCH
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
-    FIND_HANDLE.set(NO_SEARCH);
+    state().search = None;
 }
 
 /// The record's name (up to its NUL).
 pub fn found_name() -> Vec<u8> {
-    let name: Vec<u8> = (NAME_AT..NAME_AT + NAME_ROOM)
-        .map(|n| FIND_DATA.get(n))
-        .collect();
+    let state = state();
+    let name = &state.record[NAME_AT..NAME_AT + NAME_ROOM];
     name[..name.iter().position(|&b| b == 0).unwrap_or(NAME_ROOM)].to_vec()
 }
 
 pub fn found_attributes() -> u32 {
-    FIND_DATA.get_u32(0)
+    let record = state().record;
+    u32::from_le_bytes([record[0], record[1], record[2], record[3]])
 }
 
 #[cfg(test)]
@@ -133,8 +139,8 @@ mod tests {
     #[test]
     fn a_folder_is_searched_in_order_with_folders_passed_over() {
         let _lock = crate::test_support::test_lock();
-        // The record's place, put back at the end.
-        let kept: [u8; 0x140] = std::array::from_fn(|n| super::FIND_DATA.get(n));
+        // The record, put back at the end.
+        let kept = super::state().record;
         let dir = std::env::temp_dir().join(format!("rc2k_search_{}", std::process::id()));
         std::fs::create_dir_all(dir.join("sub.pcx")).unwrap();
         for name in ["b.PCX", "a.pcx", "c.txt", "7.pcx"] {
@@ -157,9 +163,7 @@ mod tests {
         none.extend(b"x");
         assert!(!super::first(&none, 0));
         super::close();
-        for (n, &b) in kept.iter().enumerate() {
-            super::FIND_DATA.set(n, b);
-        }
+        super::state().record = kept;
         std::fs::remove_dir_all(dir).unwrap();
     }
 }

@@ -198,7 +198,6 @@ pub fn read_stage_car_numbers(race: &Race) -> Result<(), Refused> {
         len,
         race.shared.vars.get().stage_number.get(),
     )?;
-    crate::files::state::BYTES_READ.set(len);
     let mut total = 0u32;
     for (k, &n) in found.numbers.iter().enumerate() {
         physics.split_tables().stage_numbers[k].set(n);

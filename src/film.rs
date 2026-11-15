@@ -30,10 +30,6 @@ use crate::gfx::owner::Gfx;
 use crate::system::owner::System;
 use std::ffi::CStr;
 
-/// 1 = no films.
-pub static NO_FMV: crate::session::GameThread<crate::session::PlainDword> =
-    crate::session::GameThread::new(crate::session::PlainDword::new(0));
-
 // ---- the AVI ----
 
 /// What the player needs of an AVI: the picture's size, the time a frame (microseconds),
@@ -638,7 +634,7 @@ pub fn play_film_now(
     o: crate::owners::Owners<'static>,
     path: &dyn crate::session::TextPlace,
 ) -> bool {
-    if NO_FMV.get().get() != 0 {
+    if o.system.machine().no_fmv.get() != 0 {
         return false;
     }
     play_film(o, path)

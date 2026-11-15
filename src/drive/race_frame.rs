@@ -32,7 +32,7 @@ pub fn race_frame(
         { crate::race::replay_screenshot::replay_screenshot(race, o.gfx, o.system) }?;
         crate::race::load_times::first_frame();
         #[cfg(feature = "remote")]
-        crate::remote::shot_frame_drawn(race);
+        crate::remote::shot_frame_drawn(race, &o.system.session.picture_clock);
         let shown = { crate::race::show_frame::show_frame(race, o) }?;
         eax = shown.eax;
     }
