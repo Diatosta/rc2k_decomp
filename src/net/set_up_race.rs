@@ -5,7 +5,6 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::{log_bytes, log_int_nl};
-use crate::net::owner::net_race;
 use crate::net::store::NetShared;
 use crate::race::owner::Race;
 use rc2k_core::net::record;
@@ -45,8 +44,12 @@ pub fn set_up_race(
     o: crate::owners::Owners<'static>,
 ) -> Result<(), Refused> {
     // The logic is in `rc2k_core::net::record` (`race_players`, `seat`).
-    let players = record::race_players(net_race().players())?;
-    race.shared.view.get().local_car.set(net_race().player());
+    let players = record::race_players(o.net.race_slot.players())?;
+    race.shared
+        .view
+        .get()
+        .local_car
+        .set(o.net.race_slot.player());
     for n in 0..players {
         let record = &vars.player_block(n)?.record;
         let seat = record::seat(|n| record.head.get(n));
@@ -65,7 +68,7 @@ pub fn set_up_race(
     race.shared.switches.get().editor_mode.set(0);
     crate::net::reset_cars::reset_cars(race)?;
     crate::race::race_cars::set_up_arcade_cars(race)?;
-    crate::race::race_shell::set_start_states(race)?;
+    crate::race::race_shell::set_start_states(race, &o.net.race_slot)?;
     // Each stored block's gearbox kind and start slot value, from the race's tables.
     for (car, colours) in race.car_blocks().cars[..8]
         .iter()
@@ -86,7 +89,7 @@ pub fn set_up_race(
         let value = match value {
             Count::RaceCars => race.shared.view.get().race_cars.get(),
             Count::Players => race.shared.view.get().players.get(),
-            Count::LocalPlayer => net_race().player(),
+            Count::LocalPlayer => o.net.race_slot.player(),
             Count::Kind(n) => race.shared.vars.get().race_car_kinds[n].get(),
         };
         log_int_nl(value, 1);

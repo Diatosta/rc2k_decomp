@@ -6,7 +6,6 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::{log_bytes, run_frame};
-use crate::net::owner::net_race;
 use crate::owners::Owners;
 use crate::race::viewer_screen_store::texts;
 use rc2k_core::net::record;
@@ -21,7 +20,7 @@ pub fn lets_rally(o: Owners<'static>) -> Result<bool, Refused> {
         2,
     );
     net.lobby().racing.set(1);
-    let own = &net.vars.player_block(net_race().player())?.record;
+    let own = &net.vars.player_block(net.race_slot.player())?.record;
     race.shared.state.settings.race_mode.set(1);
     race.shared.state.settings.run_kind.set(0);
     // The logic is in `rc2k_core::net::record` (`CAR`, `COLOURS`, `first_not_host`).
@@ -35,7 +34,7 @@ pub fn lets_rally(o: Owners<'static>) -> Result<bool, Refused> {
         .gearing
         .set(own.head.get(record::COLOURS) as u32);
     let state = |n: u32| net.vars.player_block_or_end(n).record.state();
-    let Some(first) = record::first_not_host(net_race().players(), state) else {
+    let Some(first) = record::first_not_host(net.race_slot.players(), state) else {
         return Ok(true);
     };
     net.lobby().first_host.set(first);
@@ -58,7 +57,7 @@ pub fn lets_rally(o: Owners<'static>) -> Result<bool, Refused> {
         }
         if crate::net::race_wait::race_wait(net)? != 0 {
             crate::gfx::clear_front_surface::clear_front_surface(o.gfx, o.system)?;
-            crate::net::copy_received::copy_received(&net.vars, &mut net.lock_received())?;
+            crate::net::copy_received::copy_received(net, &mut net.lock_received())?;
             break crate::net::lets_race::lets_race(o)?;
         }
     };

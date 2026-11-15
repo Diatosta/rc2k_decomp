@@ -4,8 +4,7 @@
 
 use crate::cells::Store;
 use crate::errors::{BadInput, Refused};
-use crate::net::owner::net_race;
-use crate::net::store::NetShared;
+use crate::net::owner::Net;
 use crate::net::store::PlayerBlock;
 use rc2k_core::net::players::{self, Standing};
 
@@ -51,8 +50,9 @@ pub fn bubble_blocks(
 }
 
 /// The players' blocks sorted for the lobby's table (the first `players` of them).
-pub fn sort_players(vars: &NetShared) -> Result<[PlayerBlock; 8], Refused> {
-    let players = net_race().players();
+pub fn sort_players(net: &Net) -> Result<[PlayerBlock; 8], Refused> {
+    let vars = &net.vars;
+    let players = net.race_slot.players();
     if players > players::MOST {
         return Err(BadInput("more than eight players").into());
     }
@@ -84,14 +84,15 @@ mod tests {
     #[test]
     fn sorts_a_copy_and_leaves_the_received_blocks() {
         let _lock = crate::test_support::test_lock();
-        let vars = Box::new(NetShared::new());
-        let _players = crate::net::owner::PlayersSetForTest::to(3);
+        let net = Box::new(Net::new());
+        let vars = &net.vars;
+        net.race_slot.set_players(3);
         for (n, (total, id)) in [(30u32, 7u32), (10, 9), (20, 8)].into_iter().enumerate() {
             vars.received[n].record.total.set(total);
             vars.received[n].record.race_time.set(5);
             vars.received[n].id.set(id);
         }
-        let sorted = sort_players(&vars).unwrap();
+        let sorted = sort_players(&net).unwrap();
         let ids: Vec<u32> = sorted.iter().take(3).map(|b| b.id.get()).collect();
         assert_eq!(ids, [9, 8, 7]);
         let received: Vec<u32> = vars.received.iter().take(3).map(|b| b.id.get()).collect();

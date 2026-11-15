@@ -89,11 +89,7 @@ pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refus
         o.input,
         scratch,
         crate::workers::game_scratch(),
-        crate::workers::DrawReads::on_game_thread(crate::workers::LentOwners {
-            race,
-            scene,
-            system,
-        }),
+        crate::workers::DrawReads::on_game_thread(crate::workers::LentOwners::of(o)),
     );
     let _held = ctx.view.matrices.hold(ctx.reads.matrices, ctx.part);
     draw_highlighted(

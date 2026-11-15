@@ -3,7 +3,6 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::{copy_picture, draw_string};
-use crate::net::owner::net_race;
 
 pub const TITLE_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HEAD;
 pub fn show_background(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
@@ -15,7 +14,7 @@ pub fn show_background(o: crate::owners::Owners<'static>) -> Result<(), Refused>
         .flags
         .set(gfx.display.mode.mode_flags.get() & 0xFFF);
     crate::gfx::picture_as_surface::picture_as_surface(gfx)?;
-    let title = if net_race().is_on() {
+    let title = if net.race_slot.is_on() {
         0x15A
     } else {
         match net.lobby().mode.get() {

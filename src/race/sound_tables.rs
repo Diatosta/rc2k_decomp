@@ -185,7 +185,7 @@ pub fn set_up_race_sound_objects(
     let (race, sound, system) = (o.race, o.sound, o.system);
     let shared = &race.shared;
     {
-        let net_race = shared.net_race.get();
+        let net_race = o.net.race_slot.get();
         if net_race.is_some_and(|n| n.player > 7) {
             return Err(crate::errors::BadInput("a chosen car past the eight").into());
         }

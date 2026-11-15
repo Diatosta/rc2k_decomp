@@ -168,7 +168,7 @@ fn test_course(o: Owners<'static>) -> Result<(), Refused> {
         crate::race::settings_copy::copy_settings_in(race, o.gfx)?;
         set_up_race(race)?;
         crate::race::race_cars::set_up_arcade_cars(race)?;
-        race_shell::set_start_states(race)?;
+        race_shell::set_start_states(race, &o.net.race_slot)?;
         stage_loading::load_stage(race, o)?;
         race_end::record_replay_header(race);
         replay::open_replay(race, o)?;

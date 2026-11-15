@@ -19,6 +19,7 @@ use rc2k_core::physics::start::CarStart;
 pub fn false_start(
     inputs: &ResetInputs<'_>,
     scene: &crate::scene::owner::Scene,
+    net_race: &rc2k_core::net::net_race::NetRaceSlot,
 ) -> Result<(), Refused> {
     let c = inputs.car;
     let was = CarStart {
@@ -56,7 +57,7 @@ pub fn false_start(
         }
     }
     if done.put_back {
-        { crate::race::car_starts::start_car(inputs, scene) }?;
+        { crate::race::car_starts::start_car(inputs, scene, net_race) }?;
     }
     Ok(())
 }

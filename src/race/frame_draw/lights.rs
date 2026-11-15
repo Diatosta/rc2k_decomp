@@ -339,7 +339,7 @@ pub fn view_light(ctx: &DrawCtx<'_>, mmx: bool) -> Result<(), Refused> {
     );
     light_colour_at(
         ctx.reads,
-        ctx.race.shared.net_race.get(),
+        ctx.reads.net_race.get(),
         &ctx.part.points,
         lamps,
         object_light,

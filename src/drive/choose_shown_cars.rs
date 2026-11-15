@@ -74,8 +74,8 @@ fn game<'a>(race: &'a Race, network: &'a PlainDword) -> Vec<&'a dyn DwordLike> {
 }
 
 /// Chooses the shown cars from the race's players, replay layout and network game.
-pub fn choose_shown_cars_in(race: &Race) -> Result<(), Refused> {
-    let network = PlainDword::new(u32::from(race.shared.net_race.is_on()));
+pub fn choose_shown_cars_in(race: &Race, net: &crate::net::owner::Net) -> Result<(), Refused> {
+    let network = PlainDword::new(u32::from(net.race_slot.is_on()));
     choose_at(
         &game(race, &network),
         &race.frame.frame_work.get().listed_car_sounds,

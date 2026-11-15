@@ -16,7 +16,6 @@ use crate::errors::{BadInput, Refused};
 use crate::net::chat_line_locked::chat_line_locked;
 use crate::net::dplay_send::dplay_send;
 use crate::net::owner::Net;
-use crate::net::owner::net_race;
 use crate::net::receive_message::ROOM;
 use crate::net::receive_message::receive_message;
 use crate::net::store::inbox_of;
@@ -38,7 +37,7 @@ pub fn take_messages(
     gfx: &'static crate::gfx::owner::Gfx,
     lines: &crate::race::viewer_screen_store::NetTexts,
 ) -> Result<(), Refused> {
-    if net_race().players() > MOST_PLAYERS {
+    if net.race_slot.players() > MOST_PLAYERS {
         return Err(BadInput("take_messages: more than 8 players").into());
     }
     while net.link.has_dplay() {
@@ -61,7 +60,7 @@ pub fn take_messages(
                 break true;
             }
             player += 1;
-            if player >= net_race().players() {
+            if player >= net.race_slot.players() {
                 break false;
             }
         };

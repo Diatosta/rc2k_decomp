@@ -9,6 +9,7 @@ pub fn loading_bar_quad(
     race: &Race,
     system: &crate::system::owner::System,
     scene: &crate::scene::owner::Scene,
+    net: &crate::net::owner::Net,
     share: u32,
 ) -> Result<(), Refused> {
     let session = &system.session;
@@ -36,6 +37,7 @@ pub fn loading_bar_quad(
             race,
             scene,
             system,
+            net,
         }),
         session.screen.get(),
         scratch,

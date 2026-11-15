@@ -148,6 +148,7 @@ pub fn init_mud(
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
+    net_race: &rc2k_core::net::net_race::NetRaceSlot,
 ) -> Result<(), Refused> {
     let course = &race.course;
     course.lists.get().course_bytes_total.set(
@@ -158,7 +159,7 @@ pub fn init_mud(
             .get()
             .wrapping_add(MUD_LEN),
     );
-    let mud = load_mud(race.kind_tables(), &race.shared, race.shared.net_race.get())?;
+    let mud = load_mud(race.kind_tables(), &race.shared, net_race.get())?;
     MUD.take(&course.lists.get().mud_list, MUD_LEN, mud)?;
     clear_mud_state(&race.shared);
     sample_mud_colours(&race.shared, scene, gfx, system)

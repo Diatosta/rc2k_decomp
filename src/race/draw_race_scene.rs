@@ -49,6 +49,7 @@ struct Owners<'a> {
     race: &'a Race,
     scene: &'a crate::scene::owner::Scene,
     system: &'a crate::system::owner::System,
+    net: &'a crate::net::owner::Net,
     sound: &'static crate::sound::owner::Sound,
     audio: &'static crate::audio::owner::Audio,
     input: &'static crate::input::owner::Input,
@@ -61,6 +62,7 @@ impl<'a> Owners<'a> {
             race: self.race,
             scene: self.scene,
             system: self.system,
+            net: self.net,
         }
     }
 }
@@ -375,6 +377,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         race,
         scene,
         system,
+        net: o.net,
         sound: o.sound,
         audio: o.audio,
         input,
@@ -402,7 +405,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
             return Err(BadInput("a wanted texture's slot past g_slotWantedTextures").into());
         }
     }
-    crate::drive::choose_shown_cars::choose_shown_cars_in(race)?;
+    crate::drive::choose_shown_cars::choose_shown_cars_in(race, o.net)?;
     crate::session::write_bits(&race.shared.view.get().view_cleared, [0u32; 0x20]);
     for (flags, block) in race
         .frame
@@ -512,7 +515,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     // only read them.
     crate::race::frame_draw::draw_distance_settings(&race.course);
     crate::race::car_parts::ready_car_parts(race, scene)?;
-    crate::race::map_scroll::scroll_maps(race, scene, o.gfx)?;
+    crate::race::map_scroll::scroll_maps(race, scene, o.gfx, &o.net.race_slot)?;
     race.frame
         .panel_and_overlay
         .get()
@@ -635,7 +638,14 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         set_render_state(part, 2, state);
     }
     if !race.shared.work.get().in_credits.is_set() && race.replay.finish.get().no_place.get() == 0 {
-        crate::hud::overlay_pass::overlay_pass(race.hud.get(), race, o.system, o.scene, o.gfx)?;
+        crate::hud::overlay_pass::overlay_pass(
+            race.hud.get(),
+            race,
+            o.system,
+            o.scene,
+            o.gfx,
+            o.net,
+        )?;
     }
     crate::race::skid_laying::lay_skidmarks_if_on(race)?;
     crate::race::name_plates::update_name_plates(

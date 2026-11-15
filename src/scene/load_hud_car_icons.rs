@@ -36,6 +36,7 @@ pub fn load_hud_car_icons(
     race: &crate::race::owner::Race,
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
+    net_race: &rc2k_core::net::net_race::NetRaceSlot,
 ) -> Result<(), Refused> {
     let shared = &race.shared;
     use rc2k_core::scene::car_icons;
@@ -43,7 +44,7 @@ pub fn load_hud_car_icons(
     if texture == u32::MAX {
         return Ok(());
     }
-    let player = if let Some(net_race) = race.shared.net_race.get() {
+    let player = if let Some(net_race) = net_race.get() {
         let car = car_icons::one_car(net_race.player)?;
         shared
             .race_car_or(car, "a car without its block")?

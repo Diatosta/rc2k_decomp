@@ -109,7 +109,7 @@ pub fn send_fields(race: &Race, net: &Net, m: &Message) -> Result<(), Refused> {
     let shared = &race.shared;
     let car = shared.car();
     let message = &shared.work.get().net_message;
-    log_send(race, m.text);
+    log_send(race, net, m.text);
     let values: Vec<u32> = fields(m.kind)
         .iter()
         .map(|(field, _)| field(car).bits())

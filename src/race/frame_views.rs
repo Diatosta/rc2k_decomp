@@ -596,6 +596,7 @@ pub fn run_view_marks(
         sound,
         scene,
         crate::drive::set_listener::ListenerView::of(ctx.view, race),
+        ctx.reads.net_race,
     )?;
     let first = first_word(ctx.reads.vars.run_kind.get());
     for b in 0..CAR_RECORDS {

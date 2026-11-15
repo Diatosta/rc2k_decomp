@@ -133,6 +133,7 @@ const POSITION_HASH: u64 = 10_747_184_649_910_218_868;
 fn a_received_message_is_put_into_the_senders_car() {
     let _lock = crate::test_support::test_lock();
     let r = crate::test_support::own::race();
+    let net = crate::test_support::own::net();
     let Ok(car) = r.shared.race_car(2) else {
         crate::framework::log("SKIPPED a_received_message_is_put_into_the_senders_car: no car 2");
         return;
@@ -157,12 +158,12 @@ fn a_received_message_is_put_into_the_senders_car() {
         |kind: Kind| -> Vec<u32> { fields(kind).iter().map(|(f, _)| f(own).bits()).collect() };
 
     let inputs = dwords(&[0x4D53_474A, 11, 12, 13, 14]);
-    assert!(apply_message(r, 2, &[vec![0x81], inputs.clone()].concat()[1..]).is_ok());
+    assert!(apply_message(r, net, 2, &[vec![0x81], inputs.clone()].concat()[1..]).is_ok());
     assert_eq!(bits(Kind::Inputs), [11, 12, 13, 14]);
 
     let extras: Vec<u32> = (0..9).map(|n| 0x3F00_0000 + n).collect();
     let message = [dwords(&[0x4D53_4758]), dwords(&extras)].concat();
-    assert!(apply_message(r, 2, &message).is_ok());
+    assert!(apply_message(r, net, 2, &message).is_ok());
     assert_eq!(bits(Kind::Extra), extras);
 
     // A place 3 metres off (units of 1/65536 metre), the steps past 1000: glided to.
@@ -187,12 +188,12 @@ fn a_received_message_is_put_into_the_senders_car() {
         [dwords(&[0x4D53_4750]), dwords(&values)].concat()
     };
     let near = [1000 * metre + 3 * metre, 0, 1000 * metre];
-    assert!(apply_message(r, 2, &position(near)).is_ok());
+    assert!(apply_message(r, net, 2, &position(near)).is_ok());
     assert_eq!(glide_steps(own).get(), 0x20);
     assert_eq!(three(wanted(own)), [(3 * metre) >> 5, 0, 0]);
     // A place 11 metres off: jumped to, the glide ended.
     let far = [1000 * metre + 11 * metre, 0, 1000 * metre];
-    assert!(apply_message(r, 2, &position(far)).is_ok());
+    assert!(apply_message(r, net, 2, &position(far)).is_ok());
     assert_eq!(three(place(own)), far);
     assert_eq!(glide_steps(own).get(), 0);
     // Gear 9 is no gear: nothing is applied.
@@ -200,12 +201,12 @@ fn a_received_message_is_put_into_the_senders_car() {
     bad[4 + 4 * 26..][..4].copy_from_slice(&9u32.to_le_bytes());
     own.step_clock.set(5000);
     glide_steps(own).set(0);
-    assert!(apply_message(r, 2, &bad).is_ok());
+    assert!(apply_message(r, net, 2, &bad).is_ok());
     assert_eq!(glide_steps(own).get(), 0);
     // An unknown tag and a player past the eighth change nothing.
     let before = bits(Kind::Inputs);
-    assert!(apply_message(r, 2, &dwords(&[0x4D53_474B, 1, 2, 3, 4])).is_ok());
-    assert!(apply_message(r, 8, &inputs).is_ok());
+    assert!(apply_message(r, net, 2, &dwords(&[0x4D53_474B, 1, 2, 3, 4])).is_ok());
+    assert!(apply_message(r, net, 8, &inputs).is_ok());
     assert_eq!(bits(Kind::Inputs), before);
     restore(&saved);
     restore(&extra);

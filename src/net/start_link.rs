@@ -90,7 +90,7 @@ pub fn start_link(o: crate::owners::Owners<'static>, mode: u32) -> Result<(), Re
         Way::Message(n) => show_message::show_message(o, n)?,
         Way::End => {}
         Way::On => {
-            net_race().begin();
+            net.race_slot.begin();
             if mode == 2 {
                 take_messages::joined(net);
             }

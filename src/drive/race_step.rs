@@ -17,7 +17,7 @@ pub fn race_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), R
                 crate::debug::timing::note_tick();
                 { crate::drive::race_tick::race_tick(o, race) }?;
                 hash_if_asked(race);
-                let out = crate::race::frame::players_all_out(race)?;
+                let out = crate::race::frame::players_all_out(race, &o.net.race_slot)?;
                 Ok::<_, Refused>((out, ecx))
             },
         )?;

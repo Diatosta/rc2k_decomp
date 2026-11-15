@@ -29,6 +29,7 @@ pub fn overlay_pass(
     system: &crate::system::owner::System,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
+    net: &crate::net::owner::Net,
 ) -> Result<(), Refused> {
     use crate::scene::depth_buffer_on::depth_buffer;
     race.frame
@@ -82,6 +83,7 @@ pub fn overlay_pass(
         system,
         scene,
         strips: &gfx.strips,
+        net,
     })?;
     depth_buffer(part, false);
     crate::scene::set_filters::set_filters(race, part);

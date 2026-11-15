@@ -390,7 +390,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
         scene,
     );
     ph::share_engine_sound::share_engine_sound(race.shared.car(), sound, race.shared.work.get())?;
-    ph::false_start::false_start(&inputs.reset(), scene)?;
+    ph::false_start::false_start(&inputs.reset(), scene, &o.net.race_slot)?;
     ph::value_notice::value_notice(race.shared.car());
     Ok(())
 }

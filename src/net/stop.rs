@@ -5,11 +5,10 @@
 
 use crate::errors::Refused;
 use crate::net::owner::Net;
-use crate::net::owner::net_race;
 use crate::race::viewer_screen_store::NetTexts;
 pub fn stop(o: crate::owners::Owners<'static>, net: &Net, lines: &NetTexts) -> Result<(), Refused> {
     let vars = &net.vars;
-    net_race().end();
+    net.race_slot.end();
     while vars.receiver.receiving.get() != 0 {
         crate::system::sleep::sleep(1);
         crate::platform::pump_messages_now(o);

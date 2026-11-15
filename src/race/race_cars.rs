@@ -278,11 +278,14 @@ fn brake_value(race: &Race, n: usize) -> u32 {
 /// `RaceState.settings.cars[1].steering_sensitivity` (`brake_value`); else `auto_set_up_car` of
 /// every car of the race, then `set_player_car_kinds`. Refuses, in a network game, no cars or more
 /// than 8, before anything.
-pub fn set_up_mode_0_cars(race: &Race) -> Result<(), Refused> {
+pub fn set_up_mode_0_cars(
+    race: &Race,
+    net_race: &rc2k_core::net::net_race::NetRaceSlot,
+) -> Result<(), Refused> {
     {
         // Logic in `rc2k_core::race::cars::{every_car_set_up, held_brake}`.
         let cars: u32 = race.shared.view.get().race_cars.get();
-        let all = rc2k_core::race::cars::every_car_set_up(race.shared.net_race.is_on(), cars)?;
+        let all = rc2k_core::race::cars::every_car_set_up(net_race.is_on(), cars)?;
         reset_car_blocks(race)?;
         if !all {
             drop_absent_player(race);
@@ -626,7 +629,11 @@ const PLAYER_RESETS: [(Field, u32); 6] = [
 /// `split_gaps` to -1; then by the mode: 2 the numbers, the times, the arcade set-up and
 /// `kept_times` (0x40 dwords) 0; 1, 3, 0 (with the numbers first), 4 their set-ups; others
 /// nothing.
-pub fn set_up_cars(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn set_up_cars(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    net_race: &rc2k_core::net::net_race::NetRaceSlot,
+) -> Result<(), Refused> {
     text(c"gamemode", false);
     number(race.shared.vars.get().run_kind.get(), true);
     // Logic in `rc2k_core::race::cars::cars_steps`.
@@ -640,7 +647,7 @@ pub fn set_up_cars(race: &Race, scene: &crate::scene::owner::Scene) -> Result<()
         match step {
             CarsStep::Numbers => read_stage_car_numbers(race)?,
             CarsStep::Times => set_car_times(race, scene)?,
-            CarsStep::SetUp(0) => set_up_mode_0_cars(race)?,
+            CarsStep::SetUp(0) => set_up_mode_0_cars(race, net_race)?,
             CarsStep::SetUp(1) => set_up_mode_1_cars(race)?,
             CarsStep::SetUp(2) => set_up_mode_2_cars(race)?,
             CarsStep::SetUp(3) => set_up_race_cars(race)?,

@@ -49,13 +49,15 @@ pub fn race_init(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), R
     indent_by(race_steps::LOG_INDENT.wrapping_neg());
     crate::race::load_times::mark("initcarpositions");
     log(c"RACEINIT : initcarpositions");
-    indented(&mut || crate::race::car_starts::start_cars(race, scene))?;
+    indented(&mut || crate::race::car_starts::start_cars(race, scene, &o.net.race_slot))?;
     crate::race::load_times::mark("initobjectsoncourse");
     log(c"RACEINIT : initobjectsoncourse");
     indented(&mut || crate::race::course_data::reset_face_lights(race))?;
     crate::race::load_times::mark("gamemodestuff_init");
     log(c"RACEINIT : gamemodestuff_init");
-    indented(&mut || { crate::race::race_cars::set_up_cars(race, scene) }.map(drop))?;
+    indented(&mut || {
+        { crate::race::race_cars::set_up_cars(race, scene, &o.net.race_slot) }.map(drop)
+    })?;
     crate::race::load_times::mark("messagesystem_init");
     log(c"RACEINIT : messagesystem_init");
     indented(&mut || {
@@ -85,7 +87,7 @@ pub fn race_init(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), R
         race.effects_settings().other_marks_shown.set(1);
         {
             let view = crate::drive::set_listener::ListenerView::before_any_view(race);
-            crate::drive::share_all_cars::share_all_cars(race, sound, scene, view)
+            crate::drive::share_all_cars::share_all_cars(race, sound, scene, view, &o.net.race_slot)
         }?;
         race.effects_settings().other_marks_shown.set(0);
         crate::effects::frame_marks::frame_marks(race, scene, effects)?;

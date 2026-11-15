@@ -213,6 +213,7 @@ pub struct LentOwners<'a> {
     pub race: &'a crate::race::owner::Race,
     pub scene: &'a crate::scene::owner::Scene,
     pub system: &'a crate::system::owner::System,
+    pub net: &'a crate::net::owner::Net,
 }
 
 impl<'a> LentOwners<'a> {
@@ -222,6 +223,7 @@ impl<'a> LentOwners<'a> {
             race: o.race,
             scene: o.scene,
             system: o.system,
+            net: o.net,
         }
     }
 }
@@ -257,6 +259,7 @@ pub struct Lent<'s> {
     // The system's screen and the processor's MMX flag.
     screen: crate::session::PhaseRead<'s, crate::session::Screen>,
     has_mmx: bool,
+    net_race: &'s rc2k_core::net::net_race::NetRaceSlot,
     // The course's groups.
     course_lists: crate::session::PhaseRead<'s, crate::race::course_lists_store::CourseLists>,
     stage_prefs: crate::session::PhaseRead<'s, crate::race::prefs_store::StagePrefs>,
@@ -289,6 +292,7 @@ impl<'s> Lent<'s> {
             race,
             scene,
             system,
+            net,
         } = owners;
         Self {
             light_tables: PhaseRead::lend(&scene.light_tables, scope),
@@ -317,6 +321,7 @@ impl<'s> Lent<'s> {
             // The system's screen and the processor's MMX flag.
             screen: PhaseRead::lend(&system.session.screen, scope),
             has_mmx: has_mmx(system),
+            net_race: &net.race_slot,
             // The course's groups.
             course_lists: PhaseRead::lend(&race.course.lists, scope),
             stage_prefs: PhaseRead::lend(&race.course.stage_prefs, scope),
@@ -366,6 +371,7 @@ impl<'s> Lent<'s> {
             // The system's screen and the processor's MMX flag.
             screen: &self.screen,
             has_mmx: self.has_mmx,
+            net_race: self.net_race,
             // The course's groups.
             course_lists: &self.course_lists,
             stage_prefs: &self.stage_prefs,
@@ -442,6 +448,9 @@ pub struct DrawReads<'a> {
     /// Whether the processor has MMX and the game uses it (`Machine::has_mmx`, set once at
     /// start-up before any drawing): the lighting's colour paths.
     pub has_mmx: bool,
+    /// The network game's slot: whether one is on, this machine's car and the players' count
+    /// (`net::owner::Net::race_slot`), read live: the receiving thread can end the game.
+    pub net_race: &'a rc2k_core::net::net_race::NetRaceSlot,
     // The course's groups.
     /// The course's lists and work tables: the face-key factors, the root tables, the object
     /// points and point records (`race::owner_course::Course::lists`).
@@ -507,6 +516,7 @@ impl<'a> DrawReads<'a> {
             race,
             scene,
             system,
+            net,
         } = owners;
         Self {
             light_tables: scene.light_tables.get(),
@@ -535,6 +545,7 @@ impl<'a> DrawReads<'a> {
             // The system's screen and the processor's MMX flag.
             screen: system.session.screen.get(),
             has_mmx: has_mmx(system),
+            net_race: &net.race_slot,
             // The course's groups.
             course_lists: race.course.lists.get(),
             stage_prefs: race.course.stage_prefs.get(),

@@ -6,7 +6,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::net::owner::Net;
-use crate::net::owner::net_race;
 use crate::net::sort_players::{bubble_blocks, swap_blocks};
 use rc2k_core::net::players;
 pub fn list_players(net: &Net) -> Result<bool, Refused> {
@@ -16,11 +15,11 @@ pub fn list_players(net: &Net) -> Result<bool, Refused> {
     }
     crate::net::dp_objects::set_player_data(link.dplay(), link.player_id(), &vars.own.bytes());
     if net.lobby().racing.get() != 1 {
-        net_race().set_players(0);
+        net.race_slot.set_players(0);
         let result = crate::net::dp_objects::enum_players(
             link.dplay(),
             &|id, _kind, short, _flags, _context| {
-                crate::net::player_found::callback(vars, id, short)
+                crate::net::player_found::callback(net, id, short)
             },
             0,
         );
@@ -28,7 +27,7 @@ pub fn list_players(net: &Net) -> Result<bool, Refused> {
             return Ok(false);
         }
     }
-    let players = net_race().players();
+    let players = net.race_slot.players();
     if players > players::MOST {
         return Err(BadInput("more than eight players").into());
     }
@@ -50,11 +49,11 @@ pub fn list_players(net: &Net) -> Result<bool, Refused> {
         |k| id(k) > id(k + 1),
         |k| swap_blocks(vars.player_block(k)?, vars.player_block(k + 1)?),
     )?;
-    match players::find_own(link.player_id(), net_race().players(), |n| {
+    match players::find_own(link.player_id(), net.race_slot.players(), |n| {
         vars.player_block_or_end(n).id.get()
     }) {
         Ok(n) => {
-            net_race().set_player(n);
+            net.race_slot.set_player(n);
             Ok(true)
         }
         Err(_) => Ok(false),

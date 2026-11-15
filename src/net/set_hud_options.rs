@@ -3,7 +3,6 @@
 //! flare, reflection, shadow, car detail and headlight settings.
 
 use crate::gfx::owner::Gfx;
-use crate::net::owner::net_race;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use crate::session::PlainDword;
@@ -38,16 +37,21 @@ fn copied_words(race: &Race) -> [&PlainDword; 5] {
 /// This machine's car's block.
 pub fn own_block(
     shared: &RaceShared,
+    player: u32,
 ) -> Result<&crate::physics::car_store::Car, crate::errors::BadInput> {
-    shared.race_car(net_race().player() as usize)
+    shared.race_car(player as usize)
 }
-pub fn set_hud_options(race: &Race, gfx: &Gfx) -> Result<(), crate::errors::BadInput> {
+pub fn set_hud_options(
+    race: &Race,
+    net: &crate::net::owner::Net,
+    gfx: &Gfx,
+) -> Result<(), crate::errors::BadInput> {
     let mut bits = race.shared.state.results.hud_bits_current.get();
     // The logic is in `rc2k_core::net::cars::hud_bits`.
     if bits == cars::NOT_KEPT {
         bits = cars::hud_bits(switches(race).map(PlainDword::get));
     }
-    let block = own_block(&race.shared)?;
+    let block = own_block(&race.shared, net.race_slot.player())?;
     block.option_bits.set(bits);
     block
         .camera_view

@@ -7,7 +7,11 @@
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
-pub fn car_input_words(race: &Race, input: &crate::input::owner::Input) -> Result<(), Refused> {
+pub fn car_input_words(
+    race: &Race,
+    input: &crate::input::owner::Input,
+    net: &crate::net::owner::Net,
+) -> Result<(), Refused> {
     let race_owner = race;
     let frame = &race.frame;
     use rc2k_core::drive::inputs::{NO_DEVICE, ReplayWords, check_car, device_words, replay_words};
@@ -23,7 +27,7 @@ pub fn car_input_words(race: &Race, input: &crate::input::owner::Input) -> Resul
     for (k, v) in words.iter().enumerate() {
         race_owner.shared.physics_tables.get().input_words[k].set(*v);
     }
-    if let Some(net_race) = race.shared.net_race.get() {
+    if let Some(net_race) = net.race_slot.get() {
         let block = race_owner
             .shared
             .race_car_or(car as usize, "a car's block")?;

@@ -87,9 +87,10 @@ pub fn set_listener(
     race: &Race,
     scene: &crate::scene::owner::Scene,
     view: ListenerView<'_>,
+    net_race: &rc2k_core::net::net_race::NetRaceSlot,
 ) -> Result<(), Refused> {
     let physics = &race.physics;
-    let net_race = race.shared.net_race.get();
+    let net_race = net_race.get();
     let f = figures(race, net_race, view.drawn_view)?;
     let car = race.shared.own_car(net_race);
     let s = race

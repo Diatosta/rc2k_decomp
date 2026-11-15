@@ -7,7 +7,10 @@ use crate::race::owner::Race;
 
 /// Carry when every player is out (+0xB0 not 0): the chosen car's with `session` 1, else each of
 /// the `players` players'. Refused, before anything: a chosen car past 7 or more than 8 players.
-pub fn players_all_out(race: &Race) -> Result<bool, Refused> {
+pub fn players_all_out(
+    race: &Race,
+    net_race: &rc2k_core::net::net_race::NetRaceSlot,
+) -> Result<bool, Refused> {
     let shared = &race.shared;
     use rc2k_core::race::cars::{Players, players_all_out};
     {
@@ -15,7 +18,7 @@ pub fn players_all_out(race: &Race) -> Result<bool, Refused> {
         let out = |n: u32| {
             trap.keep_read(shared.race_car(n as usize).map(|car| car.stop_state.get())) != 0
         };
-        let players = if let Some(net_race) = shared.net_race.get() {
+        let players = if let Some(net_race) = net_race.get() {
             Players::Chosen(net_race.player)
         } else {
             Players::First(shared.view.get().players.get())
@@ -95,7 +98,7 @@ pub fn race_keys(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
     let devices = &o.input.devices;
     let state = &audio.state;
     let shared = &race.shared;
-    crate::drive::choose_shown_cars::choose_shown_cars_in(race)?;
+    crate::drive::choose_shown_cars::choose_shown_cars_in(race, o.net)?;
     let second = devices.keys_now.get(VIEW_MODE_KEY) != 0;
     let view = shared.view_car_or_end(usize::from(second));
     use rc2k_core::race::keys::{

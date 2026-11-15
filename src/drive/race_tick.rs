@@ -15,7 +15,7 @@ pub fn race_tick(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), R
         .into());
     }
     if race.shared.switches.get().levers_on.get() == 0 {
-        return crate::drive::simple_car_step::simple_car_step(race, o.input, o.scene);
+        return crate::drive::simple_car_step::simple_car_step(race, o.input, o.scene, o.net);
     }
     race.shared
         .vars

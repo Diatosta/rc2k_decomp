@@ -242,7 +242,7 @@ fn point_light(ctx: &DrawCtx<'_>, n: u32) -> Result<u32, Refused> {
     ctx.view.light.lit_place[2].set(z);
     crate::race::frame_draw::light_colour_at(
         ctx.reads,
-        ctx.race.shared.net_race.get(),
+        ctx.reads.net_race.get(),
         &ctx.part.points,
         &ctx.view.lamps,
         &ctx.view.light,
@@ -917,7 +917,7 @@ pub fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         );
         crate::race::frame_draw::light_colour_at(
             ctx.reads,
-            ctx.race.shared.net_race.get(),
+            ctx.reads.net_race.get(),
             &ctx.part.points,
             &ctx.view.lamps,
             &ctx.view.light,

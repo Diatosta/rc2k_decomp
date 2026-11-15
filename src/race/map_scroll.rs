@@ -15,11 +15,12 @@ pub fn map_tiles(
     car_number: u32,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
+    net_race: &rc2k_core::net::net_race::NetRaceSlot,
 ) -> Result<(), Refused> {
     let frame = &race.frame;
     // Logic in `rc2k_core::race::map::{first_tile, picture_slot}`.
     use rc2k_core::race::map::{first_tile, picture_slot};
-    let one_view = race.shared.net_race.is_on();
+    let one_view = net_race.is_on();
     // The car is read only for both views.
     let slot = picture_slot(
         scene.textures.kinds.get().kind_first_textures[198].get(),
@@ -57,6 +58,7 @@ pub fn scroll_map(
     car_number: u32,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
+    net_race: &rc2k_core::net::net_race::NetRaceSlot,
 ) -> Result<(), Refused> {
     // Logic in `rc2k_core::race::map::{on_map, pixel, well_inside, centred_corner,
     // picture_place}`.
@@ -102,7 +104,7 @@ pub fn scroll_map(
     if !(well_inside(dx) && well_inside(dy)) {
         corner_x.set(centred_corner(x));
         corner_y.set(centred_corner(y));
-        map_tiles(race, car, car_number, scene, gfx)?;
+        map_tiles(race, car, car_number, scene, gfx, net_race)?;
         car.map_redrawn.set(1);
     }
     car.map_picture_place[0].set(picture_place(corner_x.get(), map_x.get()));
@@ -117,10 +119,11 @@ pub fn scroll_maps(
     race: &Race,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
+    net_race: &rc2k_core::net::net_race::NetRaceSlot,
 ) -> Result<(), Refused> {
     // Logic in `rc2k_core::race::map::scrolled_views`.
     use crate::race::frame::view_car;
-    let third_only = race.shared.net_race.is_on();
+    let third_only = net_race.is_on();
     // The player count is read only without the third view.
     let views = rc2k_core::race::map::scrolled_views(
         third_only,
@@ -142,7 +145,7 @@ pub fn scroll_maps(
         let car = race
             .shared
             .race_car_or((n & 7) as usize, "a view car's block")?;
-        scroll_map(race, car, n, scene, gfx)?;
+        scroll_map(race, car, n, scene, gfx, net_race)?;
     }
     Ok(())
 }

@@ -42,8 +42,6 @@ pub struct RaceShared {
     pub car_blocks: DrawShared<CarBlocks>,
     /// The replay files' names.
     pub replay_templates: Templates,
-    /// The network game on, if any (set and cleared by the network).
-    pub net_race: rc2k_core::net::net_race::NetRaceSlot,
     main: GameThread<SharedMain>,
 }
 
@@ -71,7 +69,6 @@ impl RaceShared {
             car: GameThread::new(Car::new()),
             car_blocks: DrawShared::new(CarBlocks::new()),
             replay_templates: Templates::new(),
-            net_race: rc2k_core::net::net_race::NetRaceSlot::new(),
             main: GameThread::new(SharedMain {
                 tables: RaceTables::new(),
                 tyre_change: TyreChange::new(),

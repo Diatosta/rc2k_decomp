@@ -48,7 +48,7 @@ pub const SCREEN: Screen = Screen {
     after_first_frame: &[Step::DoTablesFlow(after_first_frame)],
     after: &[Step::Sound(MenuSound::None)],
     asking: Some(Asking {
-        unless: Some(|owners| u32::from(owners.race.shared.net_race.is_on())),
+        unless: Some(|owners| u32::from(owners.net.race_slot.is_on())),
         unasked_skips_save: true,
         ..Asking::DEFAULT
     }),

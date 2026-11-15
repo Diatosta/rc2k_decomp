@@ -37,9 +37,9 @@ fn net_player_car(
         .ok_or(BadInput("the network player's car"))
 }
 
-fn put_answer(race: &Race, answer: u32) -> Result<(), BadInput> {
+fn put_answer(race: &Race, net: &crate::net::owner::Net, answer: u32) -> Result<(), BadInput> {
     let shared = &race.shared;
-    if let Some(net_race) = shared.net_race.get() {
+    if let Some(net_race) = net.race_slot.get() {
         net_player_car(net_race, shared)?.stop_state.set(answer);
         return Ok(());
     }
@@ -134,7 +134,7 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
                         race.shared.physics_tables.get().scene_clock.get()
                     ));
                 }
-                put_answer(race, answer)?;
+                put_answer(race, o.net, answer)?;
                 return Ok(());
             }
             if race.shared.vars.get().hold_count.get() == 0 {
@@ -155,7 +155,7 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
             { crate::drive::race_step::race_step(o, race) }?;
             crate::debug::timing::stop(crate::debug::timing::Stage::Physics, begun);
             tyre_change(o)?;
-            if players_all_out(race)? {
+            if players_all_out(race, &o.net.race_slot)? {
                 if race.shared.work.get().in_credits.is_set() {
                     crate::framework::log(&format!(
                         "drive::race_loop: the credits race ends: every player out, frame {}",
@@ -169,7 +169,7 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
         if !paused {
             continue;
         }
-        if let Some(net_race) = race.shared.net_race.get() {
+        if let Some(net_race) = o.net.race_slot.get() {
             net_player_car(net_race, &race.shared)?.input_keys.set(0);
         } else {
             { crate::drive::pause_until_key::pause_until_key(race, o) }?;

@@ -15,7 +15,7 @@ use rc2k_core::drive::race_steps;
 /// One car's step.
 fn car_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refused> {
     let (scene, input, net) = (o.scene, o.input, o.net);
-    crate::drive::car_input_words::car_input_words(race, input)?;
+    crate::drive::car_input_words::car_input_words(race, input, net)?;
     crate::drive::record_inputs_if::record_inputs_if(race)?;
     crate::drive::play_inputs_if::play_inputs_if(race)?;
     let slot = race_steps::block_slot(race.shared.work.get().current_car.get());
@@ -26,7 +26,7 @@ fn car_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refuse
         .set(race.shared.work.get().car_block(slot as usize));
     crate::drive::load_car::load_car(&race.shared)?;
     if race.shared.car().driver_kind.get() != 0 {
-        crate::drive::read_car_controls::read_car_controls(race, scene)?;
+        crate::drive::read_car_controls::read_car_controls(race, scene, net)?;
         crate::physics::gear_input_rules::gear_input_rules(
             race.shared.car(),
             race.shared.physics_tables.get(),
@@ -54,7 +54,7 @@ pub fn replay_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(),
     let (sound, scene) = (o.sound, o.scene);
     let shared = &race.shared;
     race_steps::check_cars(shared.view.get().race_cars.get())?;
-    crate::drive::choose_shown_cars::choose_shown_cars_in(race)?;
+    crate::drive::choose_shown_cars::choose_shown_cars_in(race, o.net)?;
     crate::drive::keep_replay_frame::keep_replay_frame(race)?;
     crate::drive::play_replay_frame::play_replay_frame(race, o.system)?;
     if race_steps::skids_restart(

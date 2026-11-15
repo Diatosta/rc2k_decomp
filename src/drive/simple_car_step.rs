@@ -16,9 +16,10 @@ pub fn simple_car_step(
     race: &Race,
     input: &crate::input::owner::Input,
     scene: &crate::scene::owner::Scene,
+    net: &crate::net::owner::Net,
 ) -> Result<(), Refused> {
-    crate::drive::car_input_words::car_input_words(race, input)?;
-    crate::drive::read_car_controls::read_car_controls(race, scene)?;
+    crate::drive::car_input_words::car_input_words(race, input, net)?;
+    crate::drive::read_car_controls::read_car_controls(race, scene, net)?;
     crate::drive::steer_inputs::steer_inputs(race, scene);
     crate::drive::pedal_inputs::pedal_inputs(race);
     // The keys `drive::pedal_inputs` leaves (`reset_request` loads the same again

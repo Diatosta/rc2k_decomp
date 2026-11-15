@@ -1,7 +1,7 @@
 //! Network play (DirectPlay), the game's side: set-up at the start, the receiving thread, the
-//! race's messages and the way out. The race side's `NetRaceSlot` (`owner::net_race`) says whether a link is open,
-//! this machine's player (its car's number) and the players' count. Each race step of the player's own
-//! car (`net::race_step`) sends its inputs ('JGSM', every fourth step), its place and motion
+//! race's messages and the way out. The network's `NetRaceSlot` (`Net::race_slot`) says whether a
+//! link is open, this machine's player (its car's number) and the players' count. Each race step
+//! of the player's own car (`net::race_step`) sends its inputs ('JGSM', every fourth step), its place and motion
 //! ('PGSM', step 2 of 32) and nine more dwords ('XGSM', step 1 of 256), and applies what the
 //! other players sent; a remote car's steps glide its place to the one received.
 //!
@@ -10,7 +10,6 @@
 //! each player's messages in its inbox (`Net::inboxes`); `net::copy_received` copies them under
 //! the lock for `net::apply_received`. `net::shut_down` ends the network at the game's end.
 
-use crate::net::owner::net_race;
 use crate::race::owner::Race;
 
 pub mod add_address_element;
@@ -124,9 +123,9 @@ pub mod take_player_settings;
 pub mod types;
 
 /// Logs as the send functions do: "send x", the player, the step.
-pub fn log_send(race: &Race, text: &std::ffi::CStr) {
+pub fn log_send(race: &Race, net: &owner::Net, text: &std::ffi::CStr) {
     use crate::logfile::log_int::log_int;
     crate::logfile::log_write::log_nul(&text, false, 1);
-    log_int(net_race().player() as i32, false, 1);
+    log_int(net.race_slot.player() as i32, false, 1);
     log_int(race.shared.view.get().local_car.get() as i32, true, 1);
 }

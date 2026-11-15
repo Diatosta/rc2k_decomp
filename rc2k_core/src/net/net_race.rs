@@ -1,6 +1,6 @@
 //! What the race code knows of a network game: that one is on, this machine's car and the number
-//! of players. The race side holds it (`NetRaceSlot`); the network sets it when a link opens and
-//! clears it when the link ends; the race code takes the value (`NetRace`) from its caller.
+//! of players. The network owner holds it (`NetRaceSlot`) and sets it when a link opens and
+//! clears it when the link ends; the race code reads the slot it is handed (or the `NetRace` value).
 
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering::Relaxed};
 

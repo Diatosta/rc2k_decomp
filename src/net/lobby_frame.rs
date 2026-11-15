@@ -4,7 +4,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::net::lobby::{FONT, blit, copy_picture, lock_surface, push_id, store_text};
-use crate::net::owner::net_race;
 use crate::text::draw_text::GameCanvas;
 use rc2k_core::net::players;
 use rc2k_core::net::screens;
@@ -36,7 +35,7 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     if !lock_surface(o.gfx, o.system) {
         return Ok(());
     }
-    if net_race().players() > 8 {
+    if net.race_slot.players() > 8 {
         return Err(BadInput("more than eight players").into());
     }
     copy_picture(o.gfx, o.system)?;
@@ -53,14 +52,14 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
         )?;
     }
     y += 0x1D;
-    if net_race().players() != 0 {
-        let sorted = crate::net::sort_players::sort_players(&net.vars)?;
+    if net.race_slot.players() != 0 {
+        let sorted = crate::net::sort_players::sort_players(net)?;
         let gaps = net.lobby().show_gaps.get() == 1;
         let (first_time, first_total) = (
             sorted[0].record.race_time.get(),
             sorted[0].record.total.get(),
         );
-        for n in 0..net_race().players() {
+        for n in 0..net.race_slot.players() {
             let block = &sorted[n as usize];
             let mut x = 0x18;
             blit(

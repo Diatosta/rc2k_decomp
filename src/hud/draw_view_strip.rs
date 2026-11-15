@@ -33,6 +33,7 @@ pub struct Overlay<'a> {
     pub system: &'a System,
     pub scene: &'a Scene,
     pub strips: &'a Strips,
+    pub net: &'a crate::net::owner::Net,
 }
 
 /// The strip's sizes into `strips.sizes` (`strips::sizes`).
@@ -63,6 +64,7 @@ fn quad(
         system,
         scene,
         strips: strips_store,
+        net,
     } = *overlay;
     let screen = system.session.screen.get();
     let polygon = &scratch.polygon;
@@ -87,6 +89,7 @@ fn quad(
             race,
             scene,
             system,
+            net,
         }),
         screen,
         scratch,

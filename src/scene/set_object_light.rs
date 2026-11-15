@@ -78,7 +78,7 @@ pub fn set_object_light_in_game(
         &mut || {
             add_car_lights(
                 ctx.reads,
-                ctx.race.shared.net_race.get(),
+                ctx.reads.net_race.get(),
                 ctx.view.light.drawn_car_light.get(),
                 ctx.view.drawn_view(race),
                 &mut |car, marks| {

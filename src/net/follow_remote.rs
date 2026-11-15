@@ -2,13 +2,13 @@
 //! of the way to the position received is added to its position. Calls nothing.
 
 use crate::net::apply_message::{glide_steps, place, three, wanted};
-use crate::net::owner::net_race;
+use crate::net::owner::Net;
 use crate::race::owner::Race;
 use rc2k_core::net::race;
-pub fn follow_remote(race: &Race) -> Result<(), crate::errors::BadInput> {
+pub fn follow_remote(race: &Race, net: &Net) -> Result<(), crate::errors::BadInput> {
     let car = race.shared.car();
     // The logic is in `rc2k_core::net::race::glide` (the block read only with the race on).
-    if !net_race().is_on() {
+    if !net.race_slot.is_on() {
         return Ok(());
     }
     let steps = glide_steps(car).get();

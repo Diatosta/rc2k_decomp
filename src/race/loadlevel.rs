@@ -255,7 +255,14 @@ pub fn loadlevel_init(
     let enabled = crate::logfile::write_line::state::ENABLED
         .atomic()
         .swap(0, std::sync::atomic::Ordering::Relaxed);
-    crate::effects::init_mark_step::init_mark_step(race, o.race.effects.get(), scene, gfx, system)?;
+    crate::effects::init_mark_step::init_mark_step(
+        race,
+        o.race.effects.get(),
+        scene,
+        gfx,
+        system,
+        o.net,
+    )?;
     crate::logfile::write_line::state::ENABLED.set(enabled);
     s.mark(0x5E)?;
     s.indent(-3);
@@ -308,7 +315,7 @@ pub fn loadlevel_init(
     // initmud: mark 0x64 twice, then the callback put away.
     s.log(Word::Render3dInitMud);
     s.indent(3);
-    crate::race::mud::init_mud(race, scene, gfx, system)?;
+    crate::race::mud::init_mud(race, scene, gfx, system, &o.net.race_slot)?;
     s.mark(0x64)?;
     s.mark(0x64)?;
     s.indent(-3);

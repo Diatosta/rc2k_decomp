@@ -135,14 +135,17 @@ fn settle_state(view: &PlainDword) {
 /// (one player) or held to 1 .. 2 (two), and, when the first car's kind is not flagged or there
 /// are two players, the first two blocks' camera view 2 or 3 made 4. Refuses, with `session` 1, a
 /// chosen car past 7, before anything.
-pub fn set_start_states(race: &Race) -> Result<(), Refused> {
+pub fn set_start_states(
+    race: &Race,
+    net_race: &rc2k_core::net::net_race::NetRaceSlot,
+) -> Result<(), Refused> {
     let shared = &race.shared;
     let frame = &race.frame;
     let physics = &race.physics;
     // Logic in `rc2k_core::race::cars::{start_record, start_state_value, held_split,
     // settled_state}`.
     {
-        let net_race = shared.net_race.get();
+        let net_race = net_race.get();
         let one = net_race.is_some();
         let chosen: u32 = net_race.map_or(0, |n| n.player);
         if one && chosen > 7 {

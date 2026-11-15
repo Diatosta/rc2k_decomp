@@ -17,8 +17,9 @@
 //!   (`destroy_connection`) the `Link`'s objects and lists.
 //! - The game thread writes, it reads: `receiver.posting`, `receiver.posted_call`, `event`; and
 //!   the `Link`'s `host_name`, `session_desc`, `send_to`, `dplay`.
-//! - The network game's on / off, this machine's player and the players' count are the race
-//!   side's (`rc2k_core::net::net_race`), read by the drawing threads too (lights, HUD icons).
+//! - The network game's on / off, this machine's player and the players' count are
+//!   `Net::race_slot` (`rc2k_core::net::net_race`), read by the drawing threads too (lights, HUD
+//!   icons).
 //! - Game thread only (`LobbyVars`): `mode`, `sequence`, `first_host`, `send_buffer`,
 //!   `show_gaps`, `data_size`, `racing`, `after_race`, `sync_clock`.
 

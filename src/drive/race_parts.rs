@@ -31,8 +31,11 @@ pub fn tyre_change(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     Ok(())
 }
 
-pub fn players_all_out(race: &Race) -> Result<bool, Refused> {
-    crate::race::frame::players_all_out(race)
+pub fn players_all_out(
+    race: &Race,
+    net_race: &rc2k_core::net::net_race::NetRaceSlot,
+) -> Result<bool, Refused> {
+    crate::race::frame::players_all_out(race, net_race)
 }
 
 pub fn stop_race_sounds(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
