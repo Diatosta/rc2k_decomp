@@ -108,17 +108,27 @@ const WAYS: [Way; 10] = [
     },
 ];
 
-/// Whether this part (of `batches` batches) is to be measured.
-pub(super) fn due(batches: usize) -> bool {
+/// Every how many parts the bench measures one (`RC2K_GL_BENCH`), if it is on.
+fn every() -> Option<u32> {
     static EVERY: std::sync::OnceLock<Option<u32>> = std::sync::OnceLock::new();
-    static SEEN: AtomicU32 = AtomicU32::new(0);
-    static DONE: AtomicU32 = AtomicU32::new(0);
-    let Some(every) = *EVERY.get_or_init(|| {
+    *EVERY.get_or_init(|| {
         std::env::var("RC2K_GL_BENCH")
             .ok()
             .and_then(|v| v.trim().parse().ok())
             .filter(|&n| n > 0)
-    }) else {
+    })
+}
+
+/// Whether the bench is on: it reads the parts' commands at the GL, which are kept for it.
+pub(super) fn enabled() -> bool {
+    every().is_some()
+}
+
+/// Whether this part (of `batches` batches) is to be measured.
+pub(super) fn due(batches: usize) -> bool {
+    static SEEN: AtomicU32 = AtomicU32::new(0);
+    static DONE: AtomicU32 = AtomicU32::new(0);
+    let Some(every) = every() else {
         return false;
     };
     if batches < LEAST || DONE.load(Relaxed) >= TIMES {
@@ -252,7 +262,7 @@ impl Gpu {
         let Some(first) = batches.batches.first() else {
             return;
         };
-        self.set_pipeline(&first.pipeline);
+        self.set_pipeline(&first.pipeline, None);
         if way.one_draw {
             gl.draw_arrays(TRIANGLES, 0, batches.vertices.len() as i32);
             return;
@@ -267,12 +277,12 @@ impl Gpu {
             match way.pipeline {
                 Pipeline::Whole => {
                     if last.is_none_or(|l| l.pipeline != *key) {
-                        self.set_pipeline(key);
+                        self.set_pipeline(key, None);
                     }
                 }
                 Pipeline::Changed => {
                     if changed(&|b| b.pipeline.cull != 1) || changed(&|b| b.pipeline.cull == 2) {
-                        self.set_pipeline(key);
+                        self.set_pipeline(key, None);
                     } else {
                         if changed(&|b| b.pipeline.depth_function != 0)
                             && last.is_some_and(|l| l.pipeline.depth_function != key.depth_function)

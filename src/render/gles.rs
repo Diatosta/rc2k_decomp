@@ -692,7 +692,7 @@ impl Gpu {
             let mut scissored = false;
             for batch in &batches.batches {
                 if last_pipeline != Some(batch.pipeline) {
-                    self.set_pipeline(&batch.pipeline);
+                    self.set_pipeline(&batch.pipeline, last_pipeline.as_ref());
                     last_pipeline = Some(batch.pipeline);
                 }
                 self.set_values(&self.locations.first, last_values.as_ref(), &batch.values);
@@ -750,6 +750,7 @@ impl Gpu {
             self.bench(&commands, &batches, &opaque, height);
         }
         super::give_back(commands);
+        super::batches::give_back_batches(batches);
     }
 
     /// Each vertex's passes' arrays and layers (`unit_of`, the texture's layer), two
@@ -799,32 +800,41 @@ impl Gpu {
         }
     }
 
-    fn set_pipeline(&self, key: &PipelineKey) {
+    /// The key's states that differ from `was`'s (all of them without one).
+    fn set_pipeline(&self, key: &PipelineKey, was: Option<&PipelineKey>) {
         let gl = &self.gl;
-        match key.cull {
-            3 => {
-                gl.enable(CULL_FACE);
-                gl.cull_face(0x0405);
+        let change = key.changes_from(was);
+        if change.cull {
+            match key.cull_face() {
+                Some(face) => {
+                    if was.is_none_or(|w| w.cull_face().is_none()) {
+                        gl.enable(CULL_FACE);
+                    }
+                    gl.cull_face(face);
+                }
+                None => gl.disable(CULL_FACE),
             }
-            2 => {
-                gl.enable(CULL_FACE);
-                gl.cull_face(0x0404);
-            }
-            _ => gl.disable(CULL_FACE),
         }
-        gl.depth_func(match key.depth_function {
-            f @ 1..=7 => 0x0200 + f - 1,
-            _ => 0x0207, // as the rasteriser's `compare`: anything else passes
-        });
-        gl.depth_mask(key.depth_write);
-        match key.blend {
-            Some((source, target)) => {
-                gl.enable(BLEND);
-                gl.blend_func(blend_factor(source), blend_factor(target));
-            }
-            None => gl.disable(BLEND),
+        if change.depth_function {
+            gl.depth_func(key.depth_func());
         }
-        gl.colour_mask(key.colour);
+        if change.depth_write {
+            gl.depth_mask(key.depth_write);
+        }
+        if change.blend {
+            match key.blend {
+                Some((source, target)) => {
+                    if was.is_none_or(|w| w.blend.is_none()) {
+                        gl.enable(BLEND);
+                    }
+                    gl.blend_func(blend_factor(source), blend_factor(target));
+                }
+                None => gl.disable(BLEND),
+            }
+        }
+        if change.colour {
+            gl.colour_mask(key.colour);
+        }
     }
 
     fn bring_texture_up(&mut self, note: &TextureNote, bytes: &[u8]) {
@@ -876,14 +886,23 @@ impl Gpu {
     }
 
     /// The target on the panel.
-    fn show_target(&mut self) {
+    ///
+    /// With `wait`, the GPU is waited for before the frame goes to the panel (the GPU-time
+    /// diagnostic, `gpu_time`); the wait's time comes back.
+    fn show_target(&mut self, wait: bool) -> Option<std::time::Duration> {
         self.plain_state();
         self.panel_viewport(self.width, self.height);
         let gl = &self.gl;
         gl.bind_sampler(0, 0);
         gl.bind_texture(TEXTURE_2D, self.colour);
         self.draw_quad(&self.target_quad, true);
+        let waited = wait.then(|| {
+            let start = std::time::Instant::now();
+            gl.finish();
+            start.elapsed()
+        });
         gl.swap_buffers();
+        waited
     }
 
     /// A picture of the game's bytes (`width` x `height`, blue first) on the panel: the frames the
@@ -923,13 +942,28 @@ impl Gpu {
     }
 
     fn run(mut self, jobs: Receiver<Job<Batched>>) {
+        let mut sampler = super::gpu_time::Sampler::from_env();
         for job in jobs {
             let start = std::time::Instant::now();
             match job {
                 Job::Forget(gone) => self.forget(&gone),
-                Job::Draw(part) => self.draw(part),
+                Job::Draw(part) => {
+                    if let Some(sampler) = &mut sampler {
+                        sampler.part_begins();
+                    }
+                    self.draw(part);
+                }
                 Job::ShowTarget => {
-                    self.show_target();
+                    let wait = sampler
+                        .as_mut()
+                        .is_some_and(super::gpu_time::Sampler::frame_ends);
+                    let waited = self.show_target(wait);
+                    if let Some(sampler) = &mut sampler {
+                        match waited {
+                            Some(waited) => sampler.counted(waited),
+                            None => sampler.skipped(),
+                        }
+                    }
                     super::GL_SHOW_MICROS.fetch_add(
                         start.elapsed().as_micros() as u64,
                         std::sync::atomic::Ordering::Relaxed,
@@ -1179,7 +1213,7 @@ pub fn start_if_wanted() {
     let outcome = outcome.and_then(|()| {
         std::thread::Builder::new()
             .name("GL batches".into())
-            .spawn(move || super::gl_batching::run(to_batch, batched, same_array))
+            .spawn(move || super::gl_batching::run(to_batch, batched, same_array, bench::enabled()))
             .map(drop)
             .map_err(|why| why.to_string())
     });

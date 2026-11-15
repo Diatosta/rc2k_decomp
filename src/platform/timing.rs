@@ -229,6 +229,24 @@ pub fn report_timing(system: &System) {
                 crate::render::GL_SHOW_MICROS.load(Relaxed) / 1000,
                 crate::render::GL_WAIT_MICROS.load(Relaxed) / 1000,
             ));
+            #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+            {
+                use crate::render::gpu_time as g;
+                let frames = g::FRAMES.swap(0, Relaxed);
+                let (issue, wait) = (
+                    g::ISSUE_MICROS.swap(0, Relaxed),
+                    g::WAIT_MICROS.swap(0, Relaxed),
+                );
+                let longest = g::LONGEST_WAIT_MICROS.swap(0, Relaxed);
+                if frames > 0 {
+                    log(&format!(
+                        "platform: GPU time (RC2K_GPU_TIME): {frames} frames waited for in the last 5 s: {:.2} ms to issue a frame's draws, then {:.2} ms (longest {:.2} ms) for the GPU to finish them",
+                        issue as f64 / 1000.0 / frames as f64,
+                        wait as f64 / 1000.0 / frames as f64,
+                        longest as f64 / 1000.0,
+                    ));
+                }
+            }
             {
                 use crate::gfx::draw2d::quads;
                 log(&format!(

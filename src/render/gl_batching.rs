@@ -102,14 +102,17 @@ impl Opacity {
 }
 
 /// The game's job as the GL's: a part's textures noted as brought up, then its batches made;
-/// the textures gone noted as let go of; the rest as they are.
+/// the textures gone noted as let go of; the rest as they are. The part's commands are of no
+/// use to the GL once batched unless `keep_commands`: they are emptied here, so that the
+/// render states they share are let go of on this thread and not on the GL's.
 pub fn batched(
     opacity: &mut Opacity,
     job: Job<Part>,
     same_array: fn(&TextureNote, &TextureNote) -> bool,
+    keep_commands: bool,
 ) -> Job<Batched> {
     match job {
-        Job::Draw(part) => {
+        Job::Draw(mut part) => {
             for (note, bytes) in &part.uploads {
                 opacity.brought_up(note, bytes);
             }
@@ -128,6 +131,9 @@ pub fn batched(
                 .map(|note| opacity.of(note))
                 .collect();
             let quad_vertices = quads::vertices(&part.quads.rects);
+            if !keep_commands {
+                part.commands.clear();
+            }
             Job::Draw(Batched {
                 part,
                 batches,
@@ -160,11 +166,12 @@ pub fn run(
     jobs: std::sync::mpsc::Receiver<Job<Part>>,
     gl: std::sync::mpsc::SyncSender<Job<Batched>>,
     same_array: fn(&TextureNote, &TextureNote) -> bool,
+    keep_commands: bool,
 ) {
     let mut opacity = Opacity::default();
     for job in jobs {
         let start = std::time::Instant::now();
-        let job = batched(&mut opacity, job, same_array);
+        let job = batched(&mut opacity, job, same_array, keep_commands);
         super::GL_BATCHING_MICROS.fetch_add(
             start.elapsed().as_micros() as u64,
             std::sync::atomic::Ordering::Relaxed,
@@ -402,6 +409,26 @@ mod tests {
     }
 
     #[test]
+    fn emptied_commands_and_reused_batches_change_no_batch() {
+        for seed in 1..=6 {
+            let made_before = as_the_gl_made_them(&stream(seed));
+            let mut opacity = Opacity::default();
+            let mut n = 0;
+            for job in stream(seed) {
+                let Job::Draw(b) = batched(&mut opacity, job, same_size, false) else {
+                    continue;
+                };
+                assert!(b.part.commands.is_empty(), "part {n}: commands kept");
+                assert_same(&made_before[n], &b.batches, n);
+                // Handed back and made again over the same room, as the GL does.
+                super::super::batches::give_back_batches(b.batches);
+                n += 1;
+            }
+            assert_eq!(n, made_before.len());
+        }
+    }
+
+    #[test]
     fn batches_made_beside_the_gl_are_the_ones_it_made() {
         let (mut parts, mut seconds, mut layered) = (0, 0, 0);
         for seed in 1..=12 {
@@ -409,7 +436,7 @@ mod tests {
             let mut opacity = Opacity::default();
             let made_now: Vec<Batched> = stream(seed)
                 .into_iter()
-                .filter_map(|job| match batched(&mut opacity, job, same_size) {
+                .filter_map(|job| match batched(&mut opacity, job, same_size, true) {
                     Job::Draw(b) => Some(b),
                     _ => None,
                 })
@@ -457,7 +484,7 @@ mod tests {
             background: Some(Background::Held),
             size: (4, 8),
         };
-        let Job::Draw(b) = batched(&mut opacity, Job::Draw(part), same_size) else {
+        let Job::Draw(b) = batched(&mut opacity, Job::Draw(part), same_size, true) else {
             panic!("a part not drawn");
         };
         assert!(b.quad_vertices.is_empty() && matches!(b.part.background, Some(Background::Held)));
@@ -474,20 +501,21 @@ mod tests {
             frame,
             width,
             height,
-        } = batched(&mut opacity, job, same_size)
+        } = batched(&mut opacity, job, same_size, true)
         else {
             panic!("a picture not shown");
         };
         assert_eq!((frame, width, height), (vec![1, 2], 1, 2));
         let (answer, picture) = std::sync::mpsc::channel();
-        let Job::ReadTarget(answer) = batched(&mut opacity, Job::ReadTarget(answer), same_size)
+        let Job::ReadTarget(answer) =
+            batched(&mut opacity, Job::ReadTarget(answer), same_size, true)
         else {
             panic!("a read lost");
         };
         answer.send(vec![9]).unwrap();
         assert_eq!(picture.recv().unwrap(), vec![9]);
         assert!(matches!(
-            batched(&mut opacity, Job::ShowTarget, same_size),
+            batched(&mut opacity, Job::ShowTarget, same_size, true),
             Job::ShowTarget
         ));
     }
@@ -516,7 +544,8 @@ mod tests {
             background: Some(Background::Upload(vec![9; 4])),
             size: (8, 8),
         };
-        let Job::Draw(b) = batched(&mut Opacity::default(), Job::Draw(part), same_size) else {
+        let Job::Draw(b) = batched(&mut Opacity::default(), Job::Draw(part), same_size, true)
+        else {
             panic!("a part not drawn");
         };
         assert_eq!(b.quad_vertices, quads::vertices(&[rect, rect]));

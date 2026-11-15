@@ -21,6 +21,59 @@ pub struct PipelineKey {
     pub colour: bool,
 }
 
+/// Which of a pipeline's states a key sets differently from the key before it.
+#[cfg(any(test, all(target_os = "linux", target_arch = "aarch64")))]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct PipelineChange {
+    pub cull: bool,
+    pub depth_function: bool,
+    pub depth_write: bool,
+    pub blend: bool,
+    pub colour: bool,
+}
+
+#[cfg(any(test, all(target_os = "linux", target_arch = "aarch64")))]
+impl PipelineKey {
+    /// The face a GL culling mode drops (`GL_FRONT` 0x0404 or `GL_BACK` 0x0405), `None` when
+    /// culling is off.
+    pub fn cull_face(&self) -> Option<u32> {
+        match self.cull {
+            3 => Some(0x0405),
+            2 => Some(0x0404),
+            _ => None,
+        }
+    }
+
+    /// The GL depth comparison (`GL_NEVER` .. `GL_ALWAYS`) of the key's number.
+    pub fn depth_func(&self) -> u32 {
+        match self.depth_function {
+            f @ 1..=7 => 0x0200 + f - 1,
+            _ => 0x0207, // as the rasteriser's `compare`: anything else passes
+        }
+    }
+
+    /// The states that must be set after `was` (all of them when nothing was set yet). A
+    /// state whose GL value is the same stays out, even when the key's number differs.
+    pub fn changes_from(&self, was: Option<&PipelineKey>) -> PipelineChange {
+        match was {
+            None => PipelineChange {
+                cull: true,
+                depth_function: true,
+                depth_write: true,
+                blend: true,
+                colour: true,
+            },
+            Some(was) => PipelineChange {
+                cull: self.cull_face() != was.cull_face(),
+                depth_function: self.depth_func() != was.depth_func(),
+                depth_write: self.depth_write != was.depth_write,
+                blend: self.blend != was.blend,
+                colour: self.colour != was.colour,
+            },
+        }
+    }
+}
+
 /// The pixel shader's values (`scene.frag`'s `Pixel`).
 #[repr(C)]
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -109,6 +162,63 @@ pub struct Batches {
 
 /// A pass without a texture, in `Batches::vertex_textures`.
 pub const NO_TEXTURE: u16 = u16::MAX;
+
+impl Batches {
+    /// Everything taken out, the vectors' room kept.
+    #[cfg(any(test, all(target_os = "linux", target_arch = "aarch64")))]
+    fn clear(&mut self) {
+        let Batches {
+            vertices,
+            batches,
+            textures,
+            seconds,
+            vertex_textures,
+            layered,
+            size,
+            areas,
+            last_fan,
+            texture_numbers,
+            last_texture,
+        } = self;
+        vertices.clear();
+        batches.clear();
+        textures.clear();
+        seconds.clear();
+        vertex_textures.clear();
+        *layered = None;
+        *size = (0.0, 0.0);
+        areas.clear();
+        *last_fan = None;
+        texture_numbers.clear();
+        *last_texture = None;
+    }
+}
+
+/// Batches drawn and handed back (`give_back_batches`), their room kept for the next flushes:
+/// the vectors grown to a frame's fans are most of the batching's time.
+#[cfg(any(test, all(target_os = "linux", target_arch = "aarch64")))]
+static SPARE_BATCHES: std::sync::Mutex<Vec<Batches>> = std::sync::Mutex::new(Vec::new());
+
+/// Batches kept at most: the ones in flight between the batching thread and the GL's, and the
+/// one being drawn.
+#[cfg(any(test, all(target_os = "linux", target_arch = "aarch64")))]
+const SPARE_BATCHES_KEPT: usize = 4;
+
+/// Empty batches: drawn ones handed back, else new.
+#[cfg(any(test, all(target_os = "linux", target_arch = "aarch64")))]
+fn spare_batches() -> Batches {
+    SPARE_BATCHES.lock().unwrap().pop().unwrap_or_default()
+}
+
+/// Batches drawn: emptied and kept for the next flushes.
+#[cfg(any(test, all(target_os = "linux", target_arch = "aarch64")))]
+pub fn give_back_batches(mut batches: Batches) {
+    batches.clear();
+    let mut spare = SPARE_BATCHES.lock().unwrap();
+    if spare.len() < SPARE_BATCHES_KEPT {
+        spare.push(batches);
+    }
+}
 
 /// A fan that can take a second pass.
 struct LastFan {
@@ -367,7 +477,7 @@ impl Batches {
     ) -> Batches {
         let start = Batches {
             layered: Some(same_array),
-            ..Batches::default()
+            ..spare_batches()
         };
         Batches::of_in(start, commands, width, height, Some(opaque))
     }
@@ -1260,5 +1370,68 @@ mod tests {
         ]);
         let layered = Batches::of_layered(&commands, 640, 480, &|_| false, same);
         assert_eq!(layered.batches.len(), 4);
+    }
+}
+
+#[cfg(test)]
+mod pipeline_change_tests {
+    use super::*;
+
+    fn key() -> PipelineKey {
+        PipelineKey {
+            cull: 1,
+            depth_function: 4,
+            depth_write: true,
+            blend: None,
+            colour: true,
+        }
+    }
+
+    #[test]
+    fn first_key_sets_everything() {
+        let c = key().changes_from(None);
+        assert!(c.cull && c.depth_function && c.depth_write && c.blend && c.colour);
+    }
+
+    #[test]
+    fn same_key_sets_nothing() {
+        let c = key().changes_from(Some(&key()));
+        assert!(!(c.cull || c.depth_function || c.depth_write || c.blend || c.colour));
+    }
+
+    #[test]
+    fn only_the_differing_state_is_set() {
+        let mut k = key();
+        k.blend = Some((5, 6));
+        let c = k.changes_from(Some(&key()));
+        assert_eq!(
+            c,
+            PipelineChange {
+                cull: false,
+                depth_function: false,
+                depth_write: false,
+                blend: true,
+                colour: false
+            }
+        );
+        k.depth_write = false;
+        k.colour = false;
+        let c = k.changes_from(Some(&key()));
+        assert!(c.depth_write && c.colour && c.blend && !c.cull && !c.depth_function);
+    }
+
+    #[test]
+    fn numbers_with_one_gl_value_do_not_count() {
+        let mut k = key();
+        k.cull = 7; // off, like 1
+        k.depth_function = 9; // always, like 8
+        let mut was = key();
+        was.depth_function = 8;
+        let c = k.changes_from(Some(&was));
+        assert!(!c.cull && !c.depth_function);
+        k.cull = 2;
+        assert!(k.changes_from(Some(&was)).cull);
+        assert_eq!(k.cull_face(), Some(0x0404));
+        assert_eq!(key().depth_func(), 0x0203);
     }
 }
