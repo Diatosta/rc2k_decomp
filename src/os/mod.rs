@@ -30,7 +30,11 @@ fn clock_start() -> &'static (Instant, u32) {
 /// Milliseconds on a steady clock, wrapping as `GetTickCount` did.
 pub fn ticks() -> u32 {
     let (start, base) = *clock_start();
-    base.wrapping_add(start.elapsed().as_millis() as u32)
+    #[cfg(feature = "remote")]
+    let elapsed = start.elapsed().as_micros() * u128::from(crate::remote::speed()) / 1000;
+    #[cfg(not(feature = "remote"))]
+    let elapsed = start.elapsed().as_millis();
+    base.wrapping_add(elapsed as u32)
 }
 
 /// The local date and time, as `GetLocalTime` gave them (SDL's calendar).

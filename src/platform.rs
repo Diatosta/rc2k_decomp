@@ -617,7 +617,13 @@ pub fn show_frame_now(o: crate::owners::Owners<'static>) -> bool {
         let now = sdl::ticks() as usize;
         let since = now.wrapping_sub(LAST_SHOWN.load(Ordering::SeqCst));
         if since < 16 {
-            sdl::delay((16 - since) as u32);
+            #[cfg(feature = "remote")]
+            let wait = (crate::remote::wall_micros((16 - since) as u32) / 1000) as u32;
+            #[cfg(not(feature = "remote"))]
+            let wait = (16 - since) as u32;
+            if wait > 0 {
+                sdl::delay(wait);
+            }
         }
         LAST_SHOWN.store(sdl::ticks() as usize, Ordering::SeqCst);
     }

@@ -32,7 +32,7 @@ use sdl3_sys::everything::*;
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 fn folder() -> Option<&'static PathBuf> {
     static FOLDER: OnceLock<Option<PathBuf>> = OnceLock::new();
@@ -48,7 +48,8 @@ enum Release {
 
 #[derive(Default)]
 struct Pending {
-    releases: Vec<(Instant, Release)>,
+    /// The keys and buttons to let go, with the game's clock value (`tick_count`) they are due at.
+    releases: Vec<(u32, Release)>,
     shot: Option<(String, String)>,
 }
 
@@ -282,8 +283,12 @@ fn run(o: &Owners<'static>, line: &str) {
     let [id, command, rest @ ..] = &words[..] else {
         return;
     };
-    let ms =
-        |w: Option<&&str>| Duration::from_millis(w.and_then(|m| m.parse().ok()).unwrap_or(100));
+    // When a key or button is let go: its hold in the game's clock, which a held race counts in
+    // frames and `RC2K_SPEED` runs fast, so a hold lasts the same number of game ticks at any speed.
+    let due = |w: Option<&&str>| {
+        crate::system::tick_count::tick_count()
+            .wrapping_add(w.and_then(|m| m.parse().ok()).unwrap_or(100))
+    };
     let answer = match (*command, rest) {
         // The arcade's countdown, so a test can reach a level's end whatever the pilot's pace.
         ("time", [n]) => n.parse().ok().map(|n: u32| {
@@ -294,7 +299,7 @@ fn run(o: &Owners<'static>, line: &str) {
             key(code, true);
             pending()
                 .releases
-                .push((Instant::now() + ms(tail.first()), Release::Key(code)));
+                .push((due(tail.first()), Release::Key(code)));
             "ok".to_string()
         }),
         ("down" | "up", [name]) => scancode(name).map(|code| {
@@ -305,7 +310,7 @@ fn run(o: &Owners<'static>, line: &str) {
             pad(code, true);
             pending()
                 .releases
-                .push((Instant::now() + ms(tail.first()), Release::Pad(code)));
+                .push((due(tail.first()), Release::Pad(code)));
             "ok".to_string()
         }),
         ("joy", words) => stick(words),
@@ -370,8 +375,9 @@ pub fn poll(o: &Owners<'static>, course: &Course) {
     note_screen(o.menus, o.gfx, course);
     let now = Instant::now();
     note_slow_frame(o.race, o.gfx, course, now);
+    let clock = crate::system::tick_count::tick_count();
     pending().releases.retain(|(when, release)| {
-        if *when > now {
+        if (clock.wrapping_sub(*when) as i32) < 0 {
             return true;
         }
         match release {
@@ -457,6 +463,27 @@ pub fn shots_loading(race: &Race, effects: &crate::effects::owner::Effects) {
     race.shared.physics_tables.get().scene_clock.set(0x10000u32);
     // The frame rate's text measures the host: not drawn.
     race.frame.counter().show.set(0);
+}
+
+/// The speed asked for with `RC2K_SPEED=N` (1 when unset or not a number from 2 to 100000):
+/// the game's clock runs N times the wall clock and its sleeps and frame waits are N times
+/// shorter, so scripted runs take a fraction of the wall time. Races that must be exactly
+/// repeatable are also held (`RC2K_HELD_RACE`): the simulation then reads the held clock
+/// and does not see the speed.
+pub fn speed() -> u32 {
+    static SPEED: OnceLock<u32> = OnceLock::new();
+    *SPEED.get_or_init(|| {
+        std::env::var("RC2K_SPEED")
+            .ok()
+            .and_then(|s| s.parse::<u32>().ok())
+            .filter(|n| (2..=100_000).contains(n))
+            .unwrap_or(1)
+    })
+}
+
+/// A wait of `milliseconds` of the game's time, in wall microseconds at the asked speed.
+pub fn wall_micros(milliseconds: u32) -> u64 {
+    u64::from(milliseconds) * 1000 / u64::from(speed())
 }
 
 /// With `RC2K_HELD_RACE` (a check: two runs of a driven race the same tick for tick,
