@@ -10,7 +10,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::owners::Owners;
-use crate::service::owner::service;
 use crate::service::pages::{GEAR_RATIO, RIDE_HEIGHT, SUSPENSION_STIFFNESS, TYRE};
 use crate::service::reset_tyre_wear::reset_tyre_wear;
 use crate::service::state::{current_player, repair_flag_in, set_repair_flag};
@@ -19,7 +18,7 @@ use crate::system::sleep::sleep;
 use crate::system::tick_count::tick_count;
 use rc2k_core::fatal::Context;
 
-use crate::menu::owner::{Menus, Screens};
+use crate::menu::owner::Menus;
 use rc2k_core::service::workshop::{Setting, Timer, Workshop};
 
 /// Where time, frames and sleep come from.
@@ -66,10 +65,10 @@ struct Game<'a> {
 impl Workshop for Game<'_> {
     type Error = Refused;
     fn flag(&mut self, item: u32) -> u32 {
-        repair_flag_in(item)
+        repair_flag_in(&self.menus.service, item)
     }
     fn set_flag(&mut self, item: u32, value: u32) {
-        set_repair_flag(item, value);
+        set_repair_flag(&self.menus.service, item, value);
     }
     fn car(&mut self) -> rc2k_core::menu::player::Player {
         self.player.get()
@@ -81,10 +80,10 @@ impl Workshop for Game<'_> {
         self.menus.screens.state.menus.service_flag.set(true);
     }
     fn timer(&mut self, t: Timer) -> u32 {
-        timer(&self.menus.screens, t).get()
+        timer(self.menus, t).get()
     }
     fn set_timer(&mut self, t: Timer, value: u32) {
-        timer(&self.menus.screens, t).set(value);
+        timer(self.menus, t).set(value);
     }
     fn reset_tyre_wear(&mut self) -> Result<(), Refused> {
         Ok({ reset_tyre_wear(self.menus) }?)
@@ -96,8 +95,8 @@ impl Workshop for Game<'_> {
             Setting::RideHeight => RIDE_HEIGHT,
             Setting::Stiffness => SUSPENSION_STIFFNESS,
         };
-        let value = page.change.chosen().get();
-        page.change.installed().set(value);
+        let value = page.change.chosen(&self.menus.service).get();
+        page.change.installed(&self.menus.service).set(value);
         value
     }
     fn clock(&mut self) -> u32 {
@@ -111,11 +110,12 @@ impl Workshop for Game<'_> {
     }
 }
 
-fn timer(screens: &Screens, t: Timer) -> &dyn DwordLike {
+fn timer(menus: &Menus, t: Timer) -> &dyn DwordLike {
+    let screens = &menus.screens;
     match t {
         Timer::Start => &screens.state.menus.fade_start,
         Timer::Elapsed => &screens.state.menus.fade_gone,
-        Timer::LastStep => &service().repair_last_step,
+        Timer::LastStep => &menus.service.repair_last_step,
     }
 }
 

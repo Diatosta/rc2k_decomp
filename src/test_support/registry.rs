@@ -332,8 +332,8 @@ fn listed_stores() -> Vec<Listed> {
         listed!("files.state.MEDIA_MODE", &crate::files::state::MEDIA_MODE),
         listed!("files.state.DIRECTORIES", &crate::files::state::DIRECTORIES),
         listed!(
-            "hud.owner.HUD.block",
-            on_game(&crate::hud::owner::HUD.get().block),
+            "race.owner.RACE.hud.block",
+            on_game(&crate::race::owner::RACE.hud.get().block),
         ),
         listed!(
             "gfx.owner.GFX.pictures.decoder",
@@ -493,8 +493,8 @@ fn listed_stores() -> Vec<Listed> {
             on_game(&crate::saves::owner::SAVES.get().save_games),
         ),
         listed!(
-            "service.owner.SERVICE.set_ups",
-            on_game(&crate::service::owner::SERVICE.get().set_ups),
+            "menu.owner.MENU_OWNER.service.set_ups",
+            on_game(&crate::menu::owner::MENU_OWNER.get().service.set_ups),
         ),
         listed!(
             "race.owner.RACE.shared.replays",
@@ -513,8 +513,8 @@ fn listed_stores() -> Vec<Listed> {
             on_game(&crate::saves::owner::SAVES.get().files.savegame_template),
         ),
         listed!(
-            "service.owner.SERVICE.template",
-            on_game(&crate::service::owner::SERVICE.get().template),
+            "menu.owner.MENU_OWNER.service.template",
+            on_game(&crate::menu::owner::MENU_OWNER.get().service.template),
         ),
         listed!(
             "race.owner.RACE.replay.snapshot",
@@ -686,8 +686,8 @@ fn listed_stores() -> Vec<Listed> {
             on_game(&crate::saves::owner::SAVES.get().savegame_preview),
         ),
         listed!(
-            "screens.owner.SCREENS_OWNER.controls",
-            on_game(&crate::screens::owner::SCREENS_OWNER.get().controls),
+            "menu.owner.MENU_OWNER.screens.controls",
+            on_game(&crate::menu::owner::MENU_OWNER.get().screens.controls),
         ),
         listed!(
             "menu.owner.MENU_OWNER.play.slots",

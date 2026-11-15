@@ -256,7 +256,7 @@ impl MenuLists {
         &'a self,
         menus: &'a crate::menu::owner::Menus,
     ) -> [&'a dyn crate::session::Run; 41] {
-        let service = crate::service::owner::service();
+        let service = &menus.service;
         let cars = &menus.cars.lists;
         let carousel = &menus.screens.carousel;
         [

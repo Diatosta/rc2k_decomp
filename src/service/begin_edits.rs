@@ -8,7 +8,6 @@
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
-use crate::service::owner::service;
 use crate::service::setup_values::setup_item;
 use crate::service::state::{flagged_item, repair_flag_in};
 
@@ -28,12 +27,12 @@ pub fn begin_edit(menus: &Menus, e: Edit) -> Result<(), Refused> {
     let item = flagged_item(screens)?;
 
     if rc2k_core::service::repairs::may_edit(
-        repair_flag_in(item),
-        service().repair_time.get() as i32,
-        service().repair_times[12 + e.setup].get() as i32,
+        repair_flag_in(&menus.service, item),
+        menus.service.repair_time.get() as i32,
+        menus.service.repair_times[12 + e.setup].get() as i32,
         screens.event.service.minutes.get() as i32,
     ) {
-        let item = &setup_item(e.setup);
+        let item = &setup_item(&menus.service, e.setup);
         item.start.set(item.chosen.get());
         screens
             .state

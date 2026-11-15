@@ -8,7 +8,6 @@ use crate::audio::owner::Audio;
 use crate::d3d::owner::D3d;
 use crate::effects::owner::Effects;
 use crate::gfx::owner::Gfx;
-use crate::hud::owner::Hud;
 use crate::input::owner::Input;
 use crate::install::owner::Install;
 use crate::menu::owner::Menus;
@@ -16,8 +15,6 @@ use crate::net::owner::Net;
 use crate::race::owner::Race;
 use crate::saves::owner::Saves;
 use crate::scene::owner::Scene;
-use crate::screens::owner::ScreensOwner;
-use crate::service::owner::Service;
 use crate::sound::owner::Sound;
 use crate::strings::owner::Strings;
 use crate::system::owner::System;
@@ -38,10 +35,7 @@ pub struct Owners<'a> {
     pub effects: &'a Effects,
     pub install: &'a Install,
     pub saves: &'a Saves,
-    pub service: &'a Service,
     pub strings: &'a Strings,
-    pub screens: &'a ScreensOwner,
-    pub hud: &'a Hud,
 }
 
 impl Owners<'static> {
@@ -68,10 +62,7 @@ impl Owners<'static> {
             effects: crate::effects::owner::effects(),
             install: crate::install::owner::install(),
             saves: crate::saves::owner::saves(),
-            service: crate::service::owner::service(),
             strings: crate::strings::owner::strings(),
-            screens: crate::screens::owner::screens(),
-            hud: crate::hud::owner::hud(),
         }
     }
 }

@@ -156,7 +156,7 @@ impl SlotNames {
         match self {
             SlotNames::SavedGames => (&o.saves.save_games.names, 0x20),
             SlotNames::Setups => (
-                &o.service.set_ups.names,
+                &o.menus.service.set_ups.names,
                 crate::service::read_setup_slot::NAME_LEN,
             ),
             SlotNames::Replays => (

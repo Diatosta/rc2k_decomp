@@ -4,14 +4,13 @@
 use crate::errors::Refused;
 use crate::owners::Owners;
 use crate::screens::service_boxes::chosen_frame;
-use crate::service::owner::service;
 
 pub fn service_box_frame_2(o: Owners<'static>) -> Result<(), Refused> {
     chosen_frame(
         o,
         0xE,
-        &service().setups[0],
-        &service().repair_flags[0xE],
+        &o.menus.service.setups[0],
+        &o.menus.service.repair_flags[0xE],
         0x44,
         0x42,
         5,

@@ -15,7 +15,6 @@ use crate::menu::owner::Menus;
 use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::menu::standings::*;
-use crate::service::owner::service;
 // service::service_area_loop
 pub fn service_pass(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
     let screens = &menus.screens;
@@ -50,11 +49,11 @@ pub fn service_pass(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
             crate::system::sleep::sleep(passes::SCREEN_PAUSE);
             crate::menu::fade_in::fade_in(entry.owners)?;
             crate::system::sleep::sleep(passes::FADE_PAUSE);
-            service().repair_time.set(0);
+            menus.service.repair_time.set(0);
             crate::menu::driver_stats::driver_stats(menus, screens)?;
             menus.screens.state.menus.service_flag.set(false);
             crate::menu::reset_driver_condition::reset_driver_condition(menus)?;
-            crate::service::clear_repair_flags::clear_repair_flags()?;
+            crate::service::clear_repair_flags::clear_repair_flags(&menus.service)?;
             for _ in 0..passes::DROPPED_KEYS {
                 crate::input::take_key::take_key(entry.owners.input);
             }

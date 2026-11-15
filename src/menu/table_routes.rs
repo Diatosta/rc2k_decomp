@@ -167,7 +167,7 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn, c: &table_calls::ItemCall) -> Resu
             Ok(())
         }
         ItemFn::LearnBinding(button) => {
-            learn_bindings::learn_binding(o.screens, u32::from(button));
+            learn_bindings::learn_binding(&menus.screens.controls, u32::from(button));
             Ok(())
         }
         ItemFn::PlayerCarSpecs(n) => {
@@ -269,9 +269,9 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn, c: &table_calls::ItemCall) -> Resu
         ItemFn::LoadSavegame => load_savegame::load_savegame(o),
         ItemFn::LoadChampionshipTableLoop => load_championship_table_loop::run(o),
         ItemFn::SaveSetupLoop => save_setup_loop::run(o),
-        ItemFn::BeginSetupName => Ok(begin_setup_name::begin_setup_name(menus, o.service)?),
+        ItemFn::BeginSetupName => Ok(begin_setup_name::begin_setup_name(menus, &menus.service)?),
         ItemFn::LoadSetupSlot => {
-            load_setup_slot::load_setup_slot(menus, o.service, o.system, o.input).map(|_| ())
+            load_setup_slot::load_setup_slot(menus, &menus.service, o.system, o.input).map(|_| ())
         }
         ItemFn::NextSetupPage => {
             next_setup_page::next_setup_page(menus);
@@ -507,13 +507,10 @@ pub fn screen_fn(o: Owners<'static>, f: ScreenFn) -> Result<(), Refused> {
         ScreenFn::DrawControllerPage => {
             controller::draw_controller_page(o, o.input, &mut GameCanvas::new(o.gfx)).map(|_| ())
         }
-        ScreenFn::DrawControlBindings => draw_control_bindings::draw_control_bindings(
-            o,
-            o.screens,
-            &mut GameCanvas::new(o.gfx),
-            o.gfx,
-        )
-        .map(|_| ()),
+        ScreenFn::DrawControlBindings => {
+            draw_control_bindings::draw_control_bindings(o, &mut GameCanvas::new(o.gfx), o.gfx)
+                .map(|_| ())
+        }
         ScreenFn::PickPlayer1 => page_settings::pick_player(menus, 0).map(|_| ()),
         ScreenFn::PickPlayer2 => page_settings::pick_player(menus, 1).map(|_| ()),
         ScreenFn::PickPlayer3 => page_settings::pick_player(menus, 2).map(|_| ()),

@@ -754,7 +754,7 @@ impl Callee {
                     entry.owners.input,
                     crate::strings::append_string_by_id::StringOwners::of(entry.owners),
                     menus,
-                    entry.owners.service,
+                    &menus.service,
                     &mut GameCanvas::new(entry.owners.gfx),
                 )?;
             }

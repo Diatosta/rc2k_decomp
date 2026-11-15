@@ -1,8 +1,7 @@
-//! The service's owner: the car set-ups' stores in one struct, reached through `service()` by
-//! the code that does not take it as a parameter.
+//! The service's owner: the car set-ups' stores in one struct, a field of the menus.
 
 use crate::service::read_setup_slot::{SetUps, template};
-use crate::session::{GameThread, PlainBytes, PlainDword};
+use crate::session::{PlainBytes, PlainDword};
 
 /// One of the service area's four setup items (gear ratio, tyre, ride height, suspension
 /// stiffness).
@@ -145,12 +144,4 @@ impl Service {
             ],
         }
     }
-}
-
-/// The one instance, reached through `service()`.
-pub static SERVICE: GameThread<Service> = GameThread::new(Service::new());
-
-/// The service's state, for a caller that does not take it as a parameter yet.
-pub fn service() -> &'static Service {
-    SERVICE.get()
 }

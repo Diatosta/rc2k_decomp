@@ -22,6 +22,7 @@ use crate::system::packed_local_time::packed_local_time;
 /// The set-up file's bytes: the chosen tyre, ride height, suspension stiffness and gear ratio
 /// from the service's items, the brake balance and steering sensitivity from the car's player.
 fn setup_file_bytes(
+    service: &Service,
     time: u32,
     name: &[u8; NAME_LEN],
     player: rc2k_core::menu::player::Player,
@@ -31,12 +32,12 @@ fn setup_file_bytes(
         time,
         name,
         [
-            TYRE.change.chosen().get(),
+            TYRE.change.chosen(service).get(),
             in_car(BRAKE_BALANCE.in_car),
-            RIDE_HEIGHT.change.chosen().get(),
-            SUSPENSION_STIFFNESS.change.chosen().get(),
+            RIDE_HEIGHT.change.chosen(service).get(),
+            SUSPENSION_STIFFNESS.change.chosen(service).get(),
             in_car(STEERING_SENSITIVITY.in_car),
-            GEAR_RATIO.change.chosen().get(),
+            GEAR_RATIO.change.chosen(service).get(),
         ],
     )
 }
@@ -56,6 +57,7 @@ pub fn write_setup_slot(
     {
         let file = &service.set_ups.file;
         let bytes = setup_file_bytes(
+            service,
             packed_local_time(),
             &slot_name(service, slot).read_array::<NAME_LEN>("a setup's name")?,
             player.get(),
@@ -78,7 +80,7 @@ mod tests {
     #[test]
     fn the_setup_file_round_trips_byte_for_byte() {
         let _lock = crate::test_support::test_lock();
-        let items = &crate::service::owner::service().setups;
+        let items = &crate::test_support::own::menus().service.setups;
         let kept: Vec<u32> = items.iter().map(|item| item.chosen.get()).collect();
         for (n, item) in items.iter().enumerate() {
             item.chosen.set(0x11 * (n as u32 + 1));
@@ -87,7 +89,12 @@ mod tests {
         player.brake_balance = 0x31;
         player.steering_sensitivity = 0x47;
         let name = [b's'; NAME_LEN];
-        let bytes = setup_file_bytes(0x1234_5678, &name, player);
+        let bytes = setup_file_bytes(
+            &crate::test_support::own::menus().service,
+            0x1234_5678,
+            &name,
+            player,
+        );
         for (item, value) in items.iter().zip(kept) {
             item.chosen.set(value);
         }

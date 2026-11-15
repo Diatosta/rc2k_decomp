@@ -32,7 +32,7 @@ pub fn handle_keys(o: Owners<'static>, eax: u32) -> Result<Pressed, Refused> {
     let menus = o.menus;
     let nothing = Pressed::Nothing;
     if keys::keys_off(menus.screens.state.service_ui.box_shown.is_set(), || {
-        o.screens.controls.learning.get()
+        menus.screens.controls.learning.get()
     }) {
         return Ok(nothing);
     }

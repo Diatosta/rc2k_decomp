@@ -11,26 +11,25 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
-use crate::service::owner::service;
 use crate::service::state::flagged_item;
 use crate::service::state::{flags, marks, store_flags, store_marks, time_of};
 
 pub fn toggle_repair_choice(menus: &Menus) -> Result<(), Refused> {
     let screens = &menus.screens;
     let item = flagged_item(screens)?;
-    let (mut f, mut m) = (flags(), marks());
+    let (mut f, mut m) = (flags(&menus.service), marks(&menus.service));
     let budget = screens.event.service.minutes.get() as i32;
     let (total, status) =
         rc2k_core::service::repairs::toggle_choice(&mut f, &mut m, item as usize, budget, |item| {
-            time_of(item)
+            time_of(&menus.service, item)
         })
         .map_err(|e| BadInput(e.0))?;
-    store_flags(&f);
-    store_marks(&m);
+    store_flags(&menus.service, &f);
+    store_marks(&menus.service, &m);
     {
         screens.state.service_ui.status.set(status);
         screens.state.service_ui.box_shown.set(false);
-        service().repair_time.set(total as u32);
+        menus.service.repair_time.set(total as u32);
     }
     Ok(())
 }

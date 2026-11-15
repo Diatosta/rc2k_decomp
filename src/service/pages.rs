@@ -13,7 +13,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::input::take_key::take_key;
 use crate::menu::owner::Menus;
-use crate::service::owner::service;
 use crate::service::setup_values::{Change, Stepper, step};
 use crate::service::state::{
     chosen_repairs_time, current_player, flagged_item, has_repair_time, leave_edit_mode,
@@ -157,11 +156,11 @@ pub fn change_page(
     // Everything the steps below could refuse is checked first, so that an error never
     // leaves half of the work done.
     let item = flagged_item(screens)?;
-    if !has_repair_time(item) {
+    if !has_repair_time(&menus.service, item) {
         return Err(BadInput("the highlighted item has no repair time").into());
     }
-    chosen_repairs_time()?;
-    if !marks_ended() {
+    chosen_repairs_time(&menus.service)?;
+    if !marks_ended(&menus.service) {
         return Err(BadInput("the second flag table has lost its end mark").into());
     }
     let installed_in_car = match page.in_car {
@@ -174,11 +173,11 @@ pub fn change_page(
     }
 
     use crate::service::state::{flags, marks, store_flags, store_marks, time_of};
-    let (mut f, mut m) = (flags(), marks());
+    let (mut f, mut m) = (flags(&menus.service), marks(&menus.service));
     let v = rc2k_core::service::repairs::Value {
-        chosen: page.change.chosen().get(),
-        installed: page.change.installed().get(),
-        entry: page.change.start().get(),
+        chosen: page.change.chosen(&menus.service).get(),
+        installed: page.change.installed(&menus.service).get(),
+        entry: page.change.start(&menus.service).get(),
         in_car: installed_in_car.map(|(p, field)| field.get(p.get())),
     };
     let c = rc2k_core::service::repairs::confirm_change(
@@ -187,16 +186,16 @@ pub fn change_page(
         item as usize,
         screens.event.service.minutes.get() as i32,
         v,
-        time_of,
+        |item| time_of(&menus.service, item),
     )
     .map_err(|e| BadInput(e.0))?;
-    store_flags(&f);
-    store_marks(&m);
-    page.change.chosen().set(c.chosen);
+    store_flags(&menus.service, &f);
+    store_marks(&menus.service, &m);
+    page.change.chosen(&menus.service).set(c.chosen);
     if let Some(status) = c.status {
         screens.state.service_ui.status.set(status);
     }
-    service().repair_time.set(c.total as u32);
+    menus.service.repair_time.set(c.total as u32);
     leave_edit_mode(screens);
     Ok(())
 }

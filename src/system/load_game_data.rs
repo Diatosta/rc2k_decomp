@@ -204,7 +204,7 @@ pub fn load_game_data(o: Owners<'static>, outside: Outside) -> Result<(), Refuse
     for slot in 0..SLOTS {
         outside(Call::ReadSetupSlot(slot))?;
     }
-    number_empty_names(o, &o.service.set_ups.names, SETUP_NAME_ID)?;
+    number_empty_names(o, &o.menus.service.set_ups.names, SETUP_NAME_ID)?;
     Ok(())
 }
 
@@ -275,7 +275,7 @@ fn in_game(o: Owners<'static>, call: Call) -> Result<u32, Refused> {
             crate::saves::read_replay_slot::read_replay_slot(slot, race)?;
         }
         Call::ReadSetupSlot(slot) => {
-            crate::service::read_setup_slot::read_setup_slot(o.service, slot)?;
+            crate::service::read_setup_slot::read_setup_slot(&o.menus.service, slot)?;
         }
     }
     Ok(0)

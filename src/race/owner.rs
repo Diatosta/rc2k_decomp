@@ -2,11 +2,13 @@
 //! code that runs a race. `race()` is the boundary: code that does not take the owner yet fetches
 //! it there; the climb from `drive::play_race` down passes `&Race` instead.
 
+use crate::hud::owner::Hud;
 use crate::race::owner_course::Course;
 use crate::race::owner_frame::Frame;
 use crate::race::owner_physics::Physics;
 use crate::race::owner_replay::Replay;
 use crate::race::owner_shared::RaceShared;
+use crate::session::GameThread;
 
 /// The race's state.
 pub struct Race {
@@ -16,6 +18,8 @@ pub struct Race {
     pub replay: Replay,
     /// The stores the menus, the network and the audio side read too.
     pub shared: RaceShared,
+    /// The HUD's variables, drawn over the race.
+    pub hud: GameThread<Hud>,
 }
 
 impl Race {
@@ -27,6 +31,7 @@ impl Race {
             frame: Frame::new(),
             replay: Replay::new(),
             shared: RaceShared::new(),
+            hud: GameThread::new(Hud::new()),
         }
     }
 }

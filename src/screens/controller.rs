@@ -39,7 +39,7 @@ pub fn learn_axis(
     gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     let menus = o.menus;
-    let controls = &o.screens.controls;
+    let controls = &menus.screens.controls;
     let screens = &menus.screens;
     if controls.learning.get() != 1 {
         return Ok(());

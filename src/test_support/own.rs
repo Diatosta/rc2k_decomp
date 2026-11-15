@@ -51,14 +51,11 @@ own! {
     input: crate::input::owner::Input = crate::input::owner::Input::new();
     audio: crate::audio::owner::Audio = crate::audio::owner::Audio::new();
     sound: crate::sound::owner::Sound = crate::sound::owner::Sound::new();
-    service: crate::service::owner::Service = crate::service::owner::Service::new();
-    screens: crate::screens::owner::ScreensOwner = crate::screens::owner::ScreensOwner::new();
-    hud: crate::hud::owner::Hud = crate::hud::owner::Hud::new();
     effects: crate::effects::owner::Effects = crate::effects::owner::Effects::new();
     d3d: crate::d3d::owner::D3d = crate::d3d::owner::D3d::new();
 }
 
-/// This test thread's own owners, all seventeen (building those the test has not asked for yet).
+/// This test thread's own owners, all fourteen (building those the test has not asked for yet).
 pub fn owners() -> Owners<'static> {
     Owners {
         race: race(),
@@ -74,9 +71,6 @@ pub fn owners() -> Owners<'static> {
         effects: effects(),
         install: install(),
         saves: saves(),
-        service: service(),
         strings: strings(),
-        screens: screens(),
-        hud: hud(),
     }
 }

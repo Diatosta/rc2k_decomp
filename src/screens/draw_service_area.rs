@@ -28,7 +28,6 @@ use crate::screens::{
     draw_steering_sensitivity_marker, draw_suspension_stiffness_installed_marker,
     draw_suspension_stiffness_marker,
 };
-use crate::service::owner::service;
 use crate::service::state::current_player;
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::text_from_ids::{TEXT_LEN, text_at};
@@ -145,7 +144,7 @@ pub fn draw_service_area(
         }
     }
 
-    let setting = service().setups[1]
+    let setting = menus.service.setups[1]
         .chosen
         .get()
         .wrapping_add(SETTING_FIRST_STRING);

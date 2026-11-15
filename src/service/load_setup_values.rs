@@ -5,7 +5,6 @@
 
 use crate::errors::BadInput;
 use crate::menu::owner::Menus;
-use crate::service::owner::service;
 use crate::service::state::current_player;
 
 /// Refuses a missing player.
@@ -21,15 +20,15 @@ pub fn load_setup_values(menus: &Menus) -> Result<(), BadInput> {
             ));
         };
         let values = player.get().setup_edit_values();
-        let setups = &service().setups;
+        let setups = &menus.service.setups;
         for (value, item) in values.into_iter().zip([&setups[1], &setups[0], &setups[3]]) {
             item.installed.set(value);
             item.chosen.set(value);
         }
         // The fourth pair: its chosen value becomes its installed one (kept as is: the car's
         // fourth value is not loaded).
-        let kept: u32 = service().setups[2].installed.get();
-        service().setups[2].chosen.set(kept);
+        let kept: u32 = menus.service.setups[2].installed.get();
+        menus.service.setups[2].chosen.set(kept);
         Ok(())
     }
 }

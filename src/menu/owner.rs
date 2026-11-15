@@ -27,6 +27,8 @@ use crate::menu::players_store::PlayerSlots;
 use crate::menu::results_store::Results;
 use crate::menu::screen_items_store::ScreenItems;
 use crate::menu::state_store::MenuState;
+use crate::screens::controls_store::ControlsScreen;
+use crate::service::owner::Service;
 #[cfg(test)]
 use crate::session::GameThread;
 
@@ -76,6 +78,8 @@ pub struct Screens {
     pub event: EventState,
     pub entry: EntryState,
     pub draw_work: DrawWork,
+    /// The controls page's variables (history, learning).
+    pub controls: ControlsScreen,
 }
 
 impl Screens {
@@ -89,6 +93,7 @@ impl Screens {
             event: EventState::new(),
             entry: EntryState::new(),
             draw_work: DrawWork::new(),
+            controls: ControlsScreen::new(),
         }
     }
 }
@@ -144,6 +149,8 @@ pub struct Menus {
     pub play: Play,
     /// The state every list menu shares.
     pub list: ListState,
+    /// The service area's set-ups, repair flags and times.
+    pub service: Service,
 }
 
 /// The keyboard tables.
@@ -180,6 +187,7 @@ impl Menus {
             tables: Tables::new(),
             play: Play::new(),
             list: ListState::new(),
+            service: Service::new(),
         }
     }
 }

@@ -5,7 +5,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::screens::game_screen::ControlsScreen;
-use crate::screens::owner::ScreensOwner;
 use crate::text::draw_text::Canvas;
 
 /// The directions' names (`ControlsScreen.stick_names[0]`).
@@ -48,12 +47,11 @@ pub fn binding_text(
 /// Returns whether the last text drawn was too wide for its box.
 pub fn draw_control_bindings(
     o: crate::owners::Owners<'static>,
-    screens: &ScreensOwner,
     canvas: &mut dyn Canvas,
     gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<bool, Refused> {
     let menus = o.menus;
-    let controls = &screens.controls;
+    let controls = &menus.screens.controls;
     let Some(player) = crate::menu::player::player(menus, menus.screens.event.current_player.get())
     else {
         return Err(BadInput("no current player").into());

@@ -53,34 +53,34 @@ pub fn load_setup_slot(
     if slot >= SLOT_COUNT {
         return Err(BadInput("slot past the name table").into());
     }
-    if repair_flag_in(ITEM_COUNT) != u32::MAX || !marks_ended() {
+    if repair_flag_in(service, ITEM_COUNT) != u32::MAX || !marks_ended(service) {
         return Err(BadInput("a flag table has lost its end mark").into());
     }
 
     if !read_setup_slot(service, slot)? {
         return Ok(());
     }
-    clear_repair_flags()?;
+    clear_repair_flags(service)?;
 
     use rc2k_core::service::setups::{CONFIRM_ORDER, EditPage, SetupValues};
     let v = SetupValues::from_file(&service.set_ups.file.read());
     let in_car = |field: rc2k_core::menu::player::SetupField, v: u32| {
         player.update(|q| *field.of(q) = v);
     };
-    TYRE.change.chosen().set(v.tyre);
+    TYRE.change.chosen(service).set(v.tyre);
     in_car(BRAKE_BALANCE.in_car, v.brake_balance);
-    RIDE_HEIGHT.change.chosen().set(v.ride_height);
+    RIDE_HEIGHT.change.chosen(service).set(v.ride_height);
     SUSPENSION_STIFFNESS
         .change
-        .chosen()
+        .chosen(service)
         .set(v.suspension_stiffness);
     in_car(STEERING_SENSITIVITY.in_car, v.steering_sensitivity);
-    GEAR_RATIO.change.chosen().set(v.gear_ratio);
+    GEAR_RATIO.change.chosen(service).set(v.gear_ratio);
 
     // Both tables are cleared again; with the end marks in place the flags' second clear
     // changes nothing.
-    clear_repair_flags()?;
-    clear_repair_marks()?;
+    clear_repair_flags(service)?;
+    clear_repair_marks(service)?;
 
     let highlighted = screens.loop_flags.item.get();
     for page in CONFIRM_ORDER {
@@ -90,7 +90,7 @@ pub fn load_setup_slot(
             EditPage::RideHeight => (RIDE_HEIGHT, edit_ride_height),
             _ => (SUSPENSION_STIFFNESS, edit_suspension_stiffness),
         };
-        if change.change.chosen().get() != change.change.installed().get() {
+        if change.change.chosen(service).get() != change.change.installed(service).get() {
             screens.loop_flags.item.set(change.item);
             edit(menus, system, input, true)?;
         }

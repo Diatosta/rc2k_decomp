@@ -5,16 +5,18 @@
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
-use crate::service::owner::service;
 use crate::service::state::{flags, marks, store_marks, time_of};
 
 pub fn update_repair_total(menus: &Menus) -> Result<(), Refused> {
     let screens = &menus.screens;
-    let mut m = marks();
+    let mut m = marks(&menus.service);
     let budget = screens.event.service.minutes.get() as i32;
-    let total = rc2k_core::service::repairs::update_total(&flags(), &mut m, budget, time_of)
+    let total =
+        rc2k_core::service::repairs::update_total(&flags(&menus.service), &mut m, budget, |item| {
+            time_of(&menus.service, item)
+        })
         .map_err(|e| crate::errors::BadInput(e.0))?;
-    store_marks(&m);
-    service().repair_time.set(total as u32);
+    store_marks(&menus.service, &m);
+    menus.service.repair_time.set(total as u32);
     Ok(())
 }

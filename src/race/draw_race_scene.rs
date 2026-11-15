@@ -620,7 +620,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         set_render_state(part, 2, state);
     }
     if !race.shared.work.get().in_credits.is_set() && race.replay.finish.get().no_place.get() == 0 {
-        crate::hud::overlay_pass::overlay_pass(o.hud, race, o.system, o.scene, o.gfx)?;
+        crate::hud::overlay_pass::overlay_pass(race.hud.get(), race, o.system, o.scene, o.gfx)?;
     }
     crate::race::skid_laying::lay_skidmarks_if_on(race)?;
     crate::race::name_plates::update_name_plates(

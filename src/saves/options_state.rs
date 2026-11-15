@@ -247,7 +247,7 @@ fn pieces_of(o: Owners<'static>) -> [Field<'static>; 69] {
         text(&net.setup().saved_connection, 0x10),                     // the saved connection's GUID
         Field::Dword(&saves.save_games.kept_a),                         // a saved-games word kept in the file and read by no other code
         Field::Dword(&saves.save_games.kept_b),                         // a saved-games word kept in the file and read by no other code
-        Field::Dword(&o.service.set_ups.kept),                              // a car set-ups word kept in the file and read by no other code
+        Field::Dword(&o.menus.service.set_ups.kept),                              // a car set-ups word kept in the file and read by no other code
         text(&race.shared.tyre_change().record_name, 0x20),                  // the tyre change record holder's name
         Field::Dword(&race.shared.tyre_change().record),                        // the tyre change record time
         Field::Dword(&saves.files.options_kept[0]),                                   // four dwords nothing else reads

@@ -22,6 +22,7 @@ use crate::text::draw_text::Canvas;
 /// `rc2k_core::screens::inspection::status`.
 pub fn inspection_status(
     screens: &Screens,
+    service: &crate::service::owner::Service,
     player: crate::menu::standings::PlayerCell,
 ) -> Result<(i32, Option<u32>), crate::errors::BadInput> {
     use rc2k_core::screens::inspection::{PARTS, Part, status};
@@ -31,7 +32,7 @@ pub fn inspection_status(
             damage: player.get().damage[item as usize - 2] as i32,
             threshold: screens.state.driver_stats.limits[item as usize - 2].get() as i32,
             weight: screens.state.driver_stats.penalties[item as usize - 2].get() as i32,
-            repairing: repair_flag(item) != 0,
+            repairing: repair_flag(service, item) != 0,
         }
     });
     let (condition, last) = status(&parts);
@@ -49,7 +50,7 @@ pub fn draw_inspection_status(
     let Some(player) = current_player(menus) else {
         return Err(BadInput("no current player object: the original reads through null").into());
     };
-    let (condition, _) = inspection_status(screens, player)?;
+    let (condition, _) = inspection_status(screens, &menus.service, player)?;
     // The logic is in `rc2k_core::screens::inspection::inspection_status`.
     let out = rc2k_core::screens::inspection::inspection_status(
         &mut crate::screens::game_screen::GameScreen::<

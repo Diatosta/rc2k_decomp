@@ -16,28 +16,28 @@ use crate::gfx::blit_bar::Bar;
 use crate::gfx::blit_bar_marker::blit_bar_marker;
 use crate::gfx::owner::Gfx;
 use crate::menu::owner::Menus;
-use crate::service::owner::service;
+use crate::service::owner::Service;
 use crate::service::state::{blink_on, edit_mode, repair_flag};
 use crate::session::PlainDword;
 use crate::text::draw_text::Canvas;
 
 pub use rc2k_core::screens::setup_markers::{BAR_WIDTH, LEFT_X, RIGHT_X};
 
-pub fn lower_left_chosen() -> &'static PlainDword {
-    &service().setups[2].chosen
+pub fn lower_left_chosen(service: &Service) -> &PlainDword {
+    &service.setups[2].chosen
 }
-pub fn lower_left_installed() -> &'static PlainDword {
-    &service().setups[2].installed
+pub fn lower_left_installed(service: &Service) -> &PlainDword {
+    &service.setups[2].installed
 }
-pub fn lower_right_chosen() -> &'static PlainDword {
-    &service().setups[3].chosen
+pub fn lower_right_chosen(service: &Service) -> &PlainDword {
+    &service.setups[3].chosen
 }
-pub fn lower_right_installed() -> &'static PlainDword {
-    &service().setups[3].installed
+pub fn lower_right_installed(service: &Service) -> &PlainDword {
+    &service.setups[3].installed
 }
 
 /// A setup value the markers read.
-pub type Setting = fn() -> &'static PlainDword;
+pub type Setting = for<'a> fn(&'a Service) -> &'a PlainDword;
 
 /// One of the six functions.
 #[derive(Clone, Copy)]
@@ -100,7 +100,7 @@ pub fn draw_marker(
         item: menus.screens.loop_flags.item.get(),
         blink_on: blink_on(menus),
     };
-    let read = |cell: Setting| -> Result<i32, Refused> { Ok(cell().get() as i32) };
+    let read = |cell: Setting| -> Result<i32, Refused> { Ok(cell(&menus.service).get() as i32) };
     let (core, item): (M, u32) = match marker {
         Marker::Always { x, .. } => (M::Always { x }, 0),
         Marker::Lower { item, x, .. } => (M::Lower { item, x }, item),
@@ -114,12 +114,12 @@ pub fn draw_marker(
         }
     };
     let installed = || match marker {
-        Marker::Lower { installed, .. } => installed().get() as i32,
+        Marker::Lower { installed, .. } => installed(&menus.service).get() as i32,
         _ => 0,
     };
     let (plan, _) =
         rc2k_core::screens::setup_markers::plan(core, menu, &percent, &installed, &|| {
-            repair_flag(item)
+            repair_flag(&menus.service, item)
         })?;
     match plan {
         Plan::Hidden { .. } => Ok(()),

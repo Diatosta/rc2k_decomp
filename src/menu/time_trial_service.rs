@@ -18,7 +18,6 @@ use crate::menu::event_flow::*;
 use crate::menu::owner::Menus;
 use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_loop::{Entry, run_screen};
-use crate::service::owner::service;
 
 pub fn time_trial_service(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
     let screens = &menus.screens;
@@ -37,7 +36,7 @@ pub fn time_trial_service(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
             crate::system::sleep::sleep(passes::SCREEN_PAUSE);
             crate::menu::fade_in::fade_in(entry.owners)?;
             crate::system::sleep::sleep(passes::FADE_PAUSE);
-            service().repair_time.set(0);
+            menus.service.repair_time.set(0);
             { crate::menu::driver_stats::driver_stats(menus, screens) }?;
             screens.state.menus.service_flag.set(false);
             { run_screen(ScreenId::ServiceArea, entry) }?;

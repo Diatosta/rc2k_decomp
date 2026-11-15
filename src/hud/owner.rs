@@ -1,8 +1,4 @@
-//! Module hud's owner: the HUD's variables block in one struct, handed by reference to the code
-//! that draws the HUD in place of a global store.
-//!
-//! `hud()` is the boundary: the callers that do not take the owner yet fetch it there and pass
-//! it down.
+//! The HUD's variables block in one struct, a field of the race.
 
 use crate::hud::store;
 
@@ -17,14 +13,6 @@ impl Hud {
             block: store::HudBlock::new(),
         }
     }
-}
-
-/// The one instance. Reached through `hud()`.
-pub static HUD: crate::session::GameThread<Hud> = crate::session::GameThread::new(Hud::new());
-
-/// The HUD's state, for a caller that does not take it as a parameter yet.
-pub fn hud() -> &'static Hud {
-    HUD.get()
 }
 
 /// What the HUD's polygons are added through: the polygon work of the slot the HUD draws on

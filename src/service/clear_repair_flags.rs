@@ -5,11 +5,12 @@
 //! mark is not where it belongs.
 
 use crate::errors::BadInput;
+use crate::service::owner::Service;
 use crate::service::state::{flags, store_flags};
 
-pub fn clear_repair_flags() -> Result<(), BadInput> {
-    let mut t = flags();
+pub fn clear_repair_flags(service: &Service) -> Result<(), BadInput> {
+    let mut t = flags(service);
     rc2k_core::service::repairs::clear(&mut t)?;
-    store_flags(&t);
+    store_flags(service, &t);
     Ok(())
 }
