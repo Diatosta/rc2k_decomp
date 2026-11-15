@@ -289,61 +289,46 @@ const IMPACT_MARKS: [CarFloat; 8] = [
 
 /// The race's settings that are logged after the copy: the log text and the variable.
 const SHAUN_LOGS: [(&CStr, StepOperand); 14] = [
-    (
-        c"[shaunnumplayers]",
-        var!(crate::race::owner::RACE.shared.view.get().players),
-    ),
-    (
-        c"[shaunsplitmode]",
-        var!(crate::race::owner::RACE.shared.vars.get().split),
-    ),
+    (c"[shaunnumplayers]", var!(@race shared.view.get().players)),
+    (c"[shaunsplitmode]", var!(@race shared.vars.get().split)),
     (
         c"[shauntracknum]",
-        var!(crate::race::owner::RACE.shared.vars.get().stage_number),
+        var!(@race shared.vars.get().stage_number),
     ),
-    (
-        c"[shauncrsdirec]",
-        var!(crate::race::owner::RACE.shared.vars.get().direction),
-    ),
+    (c"[shauncrsdirec]", var!(@race shared.vars.get().direction)),
     (
         c"[shaunrallynumber]",
-        var!(crate::race::owner::RACE.shared.vars.get().race_level),
+        var!(@race shared.vars.get().race_level),
     ),
     (
         c"[shaunstagenumber]",
-        var!(crate::race::owner::RACE.shared.vars.get().race_stage),
+        var!(@race shared.vars.get().race_stage),
     ),
-    (
-        c"[shaungmode]",
-        var!(crate::race::owner::RACE.shared.vars.get().run_kind),
-    ),
-    (
-        c"[shaunnumcars]",
-        var!(crate::race::owner::RACE.shared.view.get().race_cars),
-    ),
+    (c"[shaungmode]", var!(@race shared.vars.get().run_kind)),
+    (c"[shaunnumcars]", var!(@race shared.view.get().race_cars)),
     (
         c"[shaunmipmapping]",
-        var!(crate::race::owner::RACE.shared.vars.get().mip_setting),
+        var!(@race shared.vars.get().mip_setting),
     ),
     (
         c"[shaunlensflare]",
-        var!(crate::race::owner::RACE.shared.vars.get().settings_words[0]),
+        var!(@race shared.vars.get().settings_words[0]),
     ),
     (
         c"[shaunreflections]",
-        var!(crate::race::owner::RACE.shared.vars.get().settings_words[1]),
+        var!(@race shared.vars.get().settings_words[1]),
     ),
     (
         c"[shauncarshadow]",
-        var!(crate::race::owner::RACE.shared.vars.get().settings_words[2]),
+        var!(@race shared.vars.get().settings_words[2]),
     ),
     (
         c"[shauncardetail]",
-        var!(crate::race::owner::RACE.shared.vars.get().settings_words[3]),
+        var!(@race shared.vars.get().settings_words[3]),
     ),
     (
         c"[shaunheadlights]",
-        var!(crate::race::owner::RACE.shared.vars.get().settings_words[4]),
+        var!(@race shared.vars.get().settings_words[4]),
     ),
 ];
 
@@ -390,19 +375,11 @@ impl Builder {
             }
             if car == 0 {
                 skip = Some(self.here());
-                self.push(JumpIfNot(
-                    var!(crate::race::owner::RACE.shared.view.get().players),
-                    0x2,
-                    0,
-                ));
+                self.push(JumpIfNot(var!(@race shared.view.get().players), 0x2, 0));
             }
         }
         if let Some(at) = skip {
-            self.0[at] = JumpIfNot(
-                var!(crate::race::owner::RACE.shared.view.get().players),
-                0x2,
-                self.here(),
-            );
+            self.0[at] = JumpIfNot(var!(@race shared.view.get().players), 0x2, self.here());
         }
     }
 }
@@ -439,7 +416,7 @@ pub fn graham_to_shaun() -> Vec<Step<StepOperand>> {
         b.push(Load(Cell(
             &shared.state.settings.cars[car].controls.gearing,
         )));
-        b.push(Store(Var(colour)));
+        b.push(Store(RaceVar(colour)));
     }
     for car in 0..2 {
         b.push(Copy(
@@ -471,7 +448,7 @@ pub fn graham_to_shaun() -> Vec<Step<StepOperand>> {
         }
         b.0[jump] = JumpIfEaxNot(0xFFFF_FFFF, b.here());
         b.push(Store(CarCell(car, |c| &c.option_bits)));
-        b.push(Store(Var(PLAYER_OPTIONS[car])));
+        b.push(Store(RaceVar(PLAYER_OPTIONS[car])));
     }
     for car in 0..2 {
         for (field, setting) in GAUGES {
@@ -494,84 +471,84 @@ pub fn graham_to_shaun() -> Vec<Step<StepOperand>> {
 /// The front end's settings that the race's variables overwrite first (`graham_to_shaun`).
 static HEAD_IN: [Step<StepOperand>; 21] = [
     Copy(
-        var!(crate::race::owner::RACE.shared.vars.get().no_replay),
+        var!(@race shared.vars.get().no_replay),
         var!(@race shared.state.settings.no_replay),
     ),
     Copy(
-        var!(crate::race::owner::RACE.shared.vars.get().rivals),
+        var!(@race shared.vars.get().rivals),
         var!(@race shared.state.settings.rivals),
     ),
     Copy(
-        var!(crate::race::owner::RACE.shared.vars.get().race_car_kinds[0]),
+        var!(@race shared.vars.get().race_car_kinds[0]),
         var!(@race shared.state.settings.car_kind_current),
     ),
     Copy(
-        var!(crate::race::owner::RACE.shared.vars.get().race_car_kinds[1]),
+        var!(@race shared.vars.get().race_car_kinds[1]),
         var!(@race shared.state.settings.car_kind_first),
     ),
     Copy(
-        var!(crate::race::owner::RACE.shared.view.get().players),
+        var!(@race shared.view.get().players),
         var!(@race shared.state.settings.race_mode),
     ),
     Copy(
-        var!(crate::race::owner::RACE.shared.vars.get().split),
+        var!(@race shared.vars.get().split),
         var!(@race shared.state.settings.kept),
     ),
     Copy(
-        var!(crate::race::owner::RACE.shared.vars.get().stage_number),
+        var!(@race shared.vars.get().stage_number),
         var!(@race shared.state.settings.stage),
     ),
     Copy(
-        var!(crate::race::owner::RACE.shared.vars.get().direction),
+        var!(@race shared.vars.get().direction),
         var!(@race shared.state.settings.direction),
     ),
     Copy(
-        var!(crate::race::owner::RACE.shared.vars.get().race_level),
+        var!(@race shared.vars.get().race_level),
         var!(@race shared.state.results.race_level),
     ),
     Copy(
-        var!(crate::race::owner::RACE.shared.vars.get().race_stage),
+        var!(@race shared.vars.get().race_stage),
         var!(@race shared.state.results.race_stage),
     ),
-    Dec(var!(crate::race::owner::RACE.shared.vars.get().race_stage)),
+    Dec(var!(@race shared.vars.get().race_stage)),
     Copy(
-        var!(crate::race::owner::RACE.shared.vars.get().run_kind),
+        var!(@race shared.vars.get().run_kind),
         var!(@race shared.state.settings.run_kind),
     ),
     Copy(
-        var!(crate::race::owner::RACE.shared.view.get().race_cars),
-        var!(crate::race::owner::RACE.shared.view.get().players),
+        var!(@race shared.view.get().race_cars),
+        var!(@race shared.view.get().players),
     ),
     Copy(
-        var!(crate::race::owner::RACE.shared.vars.get().car_tyres[0]),
-        var!(crate::race::owner::RACE.shared.state.settings.cars[0].tyre),
+        var!(@race shared.vars.get().car_tyres[0]),
+        var!(@race shared.state.settings.cars[0].tyre),
     ),
     Copy(
-        var!(crate::race::owner::RACE.shared.vars.get().car_tyres[1]),
-        var!(crate::race::owner::RACE.shared.state.settings.cars[1].tyre),
+        var!(@race shared.vars.get().car_tyres[1]),
+        var!(@race shared.state.settings.cars[1].tyre),
     ),
     Copy(
-        var!(crate::race::owner::RACE.shared.vars.get().mip_setting),
+        var!(@race shared.vars.get().mip_setting),
         var!(@gfx display.choices.mipmapping),
     ),
     Copy(
-        var!(crate::race::owner::RACE.shared.vars.get().settings_words[0]),
+        var!(@race shared.vars.get().settings_words[0]),
         var!(@race shared.state.settings.lens_flare),
     ),
     Copy(
-        var!(crate::race::owner::RACE.shared.vars.get().settings_words[1]),
+        var!(@race shared.vars.get().settings_words[1]),
         var!(@race shared.state.settings.reflections),
     ),
     Copy(
-        var!(crate::race::owner::RACE.shared.vars.get().settings_words[2]),
+        var!(@race shared.vars.get().settings_words[2]),
         var!(@race shared.state.settings.car_shadows),
     ),
     Copy(
-        var!(crate::race::owner::RACE.shared.vars.get().settings_words[3]),
+        var!(@race shared.vars.get().settings_words[3]),
         var!(@race shared.state.settings.car_detail),
     ),
     Copy(
-        var!(crate::race::owner::RACE.shared.vars.get().settings_words[4]),
+        var!(@race shared.vars.get().settings_words[4]),
         var!(@race shared.state.settings.headlights),
     ),
 ];
@@ -587,7 +564,7 @@ static FLAGS_IN: [Step<StepOperand>; 4] = [
         var!(@race shared.state.results.flags_first),
     ),
     Copy(
-        var!(crate::race::owner::RACE.shared.tables().start_place),
+        var!(@race shared.tables().start_place),
         var!(@race shared.state.results.figure_000),
     ),
     Copy(
@@ -605,10 +582,7 @@ static TAIL_IN: [Step<StepOperand>; 15] = [
     Load(var!(@race shared.state.results.results[1].result)),
     Store(car!(1, stop_state)),
     Text(c"[arcadestartposition]", false),
-    Value(
-        var!(crate::race::owner::RACE.shared.tables().start_place),
-        Kind::Int,
-    ),
+    Value(var!(@race shared.tables().start_place), Kind::Int),
     Text(c"[car1.arcadeposition]", false),
     Value(car!(0, mode2_place), Kind::Int),
     Text(c"[onerace.car1arcadeposition]", false),
@@ -622,10 +596,7 @@ static TAIL_IN: [Step<StepOperand>; 15] = [
 /// The arcade positions logged at the end of the copy back.
 static TAIL_OUT: [Step<StepOperand>; 6] = [
     Text(c"[arcadestartposition]", false),
-    Value(
-        var!(crate::race::owner::RACE.shared.tables().start_place),
-        Kind::Int,
-    ),
+    Value(var!(@race shared.tables().start_place), Kind::Int),
     Text(c"[car1.arcadeposition]", false),
     Value(car!(0, mode2_place), Kind::Int),
     Text(c"[onerace.car1arcadeposition]", false),
@@ -640,7 +611,7 @@ pub fn shaun_to_graham() -> Vec<Step<StepOperand>> {
     b.push(Text(c"COPY SHAUN TO GRAHAM", true));
     let skip = b.here();
     b.push(JumpIfNot(
-        var!(crate::race::owner::RACE.shared.replay_file().hold_car_revs),
+        var!(@race shared.replay_file().hold_car_revs),
         0x0,
         0,
     ));
@@ -687,7 +658,7 @@ pub fn shaun_to_graham() -> Vec<Step<StepOperand>> {
     let over = b.here();
     b.push(Jump(0));
     b.0[skip] = JumpIfNot(
-        var!(crate::race::owner::RACE.shared.replay_file().hold_car_revs),
+        var!(@race shared.replay_file().hold_car_revs),
         0x0,
         b.here(),
     );
@@ -700,11 +671,11 @@ pub fn shaun_to_graham() -> Vec<Step<StepOperand>> {
 }
 
 /// The race variable of each of the two cars' colours, and of each player's options.
-const CAR_COLOURS: [fn() -> &'static dyn DwordLike; 2] = [
-    || &crate::race::owner::RACE.shared.vars.get().car_colours[0],
-    || &crate::race::owner::RACE.shared.vars.get().car_colours[1],
+const CAR_COLOURS: [fn(&Race) -> &dyn DwordLike; 2] = [
+    |race| &race.shared.vars.get().car_colours[0],
+    |race| &race.shared.vars.get().car_colours[1],
 ];
-const PLAYER_OPTIONS: [fn() -> &'static dyn DwordLike; 2] = [
-    || &crate::race::owner::RACE.shared.view.get().player_options[0],
-    || &crate::race::owner::RACE.shared.view.get().player_options[1],
+const PLAYER_OPTIONS: [fn(&Race) -> &dyn DwordLike; 2] = [
+    |race| &race.shared.view.get().player_options[0],
+    |race| &race.shared.view.get().player_options[1],
 ];

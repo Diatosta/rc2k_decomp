@@ -9,14 +9,14 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::owner::Menus;
+#[cfg(test)]
+use crate::owners::Owners;
 use crate::race::owner::Race;
 use crate::race::state_store::{PlayerControls, RaceCar, RaceResult};
 use crate::session::Bytes;
 use crate::session::DwordLike;
 #[cfg(test)]
 use crate::session::PlainDword;
-#[cfg(test)]
-use crate::system::owner::system;
 use rc2k_core::menu::player::{Player, TAKES_PART};
 
 /// A player's record.
@@ -43,64 +43,44 @@ type Record<'a> = crate::menu::standings::PlayerCell<'a>;
 // - settings.cars[0].view: the second set's word that mode 2 takes from the record's
 //   `second_view`.
 #[cfg(test)]
-fn summary() -> &'static PlainDword {
-    &crate::menu::owner::MENU_OWNER.get().play.champ_view.summary
+fn summary(o: Owners<'static>) -> &'static PlainDword {
+    &o.menus.play.champ_view.summary
 }
 #[cfg(test)]
-fn after_loading() -> &'static PlainDword {
-    &crate::menu::owner::MENU_OWNER
-        .get()
-        .screens
-        .event
-        .sparks_mode
+fn after_loading(o: Owners<'static>) -> &'static PlainDword {
+    &o.menus.screens.event.sparks_mode
 }
 #[cfg(test)]
-fn player_count() -> &'static PlainDword {
-    &crate::menu::owner::MENU_OWNER
-        .get()
-        .screens
-        .event
-        .player_count
+fn player_count(o: Owners<'static>) -> &'static PlainDword {
+    &o.menus.screens.event.player_count
 }
 #[cfg(test)]
-fn event_mode() -> &'static PlainDword {
-    &crate::menu::owner::MENU_OWNER
-        .get()
-        .screens
-        .event
-        .event_kind
+fn event_mode(o: Owners<'static>) -> &'static PlainDword {
+    &o.menus.screens.event.event_kind
 }
 #[cfg(test)]
-fn current() -> &'static PlainDword {
-    &crate::menu::owner::MENU_OWNER
-        .get()
-        .screens
-        .event
-        .current_player
+fn current(o: Owners<'static>) -> &'static PlainDword {
+    &o.menus.screens.event.current_player
 }
 #[cfg(test)]
-fn switch() -> &'static PlainDword {
-    &crate::menu::owner::MENU_OWNER
-        .get()
-        .play
-        .arcade
-        .scene_let_go
+fn switch(o: Owners<'static>) -> &'static PlainDword {
+    &o.menus.play.arcade.scene_let_go
 }
 #[cfg(test)]
-fn stage() -> &'static PlainDword {
-    &crate::race::owner::RACE.shared.state.settings.stage
+fn stage(o: Owners<'static>) -> &'static PlainDword {
+    &o.race.shared.state.settings.stage
 }
 #[cfg(test)]
-fn race_kept() -> &'static PlainDword {
-    &crate::race::owner::RACE.shared.state.settings.kept
+fn race_kept(o: Owners<'static>) -> &'static PlainDword {
+    &o.race.shared.state.settings.kept
 }
 #[cfg(test)]
-fn result() -> &'static PlainDword {
-    &crate::race::owner::RACE.shared.state.results.results[0].result
+fn result(o: Owners<'static>) -> &'static PlainDword {
+    &o.race.shared.state.results.results[0].result
 }
 #[cfg(test)]
-fn result_2() -> &'static PlainDword {
-    &crate::race::owner::RACE.shared.state.results.results[1].result
+fn result_2(o: Owners<'static>) -> &'static PlainDword {
+    &o.race.shared.state.results.results[1].result
 }
 /// One player's side of the race variables: the car's settings and the results it leaves.
 /// `first_side` is player 1's, `current_side` the current player's.
@@ -144,17 +124,20 @@ fn current_side(race: &Race) -> Side<'_> {
 
 /// Car `car`'s four rally-time words and the word after them.
 #[cfg(test)]
-fn rally_time_words(car: usize) -> ([&'static PlainDword; 4], &'static PlainDword) {
-    let wear = &crate::race::owner::RACE.shared.state.settings.cars[car].wear;
+fn rally_time_words(
+    o: Owners<'static>,
+    car: usize,
+) -> ([&'static PlainDword; 4], &'static PlainDword) {
+    let wear = &o.race.shared.state.settings.cars[car].wear;
     ([&wear[10], &wear[11], &wear[12], &wear[13]], &wear[14])
 }
 #[cfg(test)]
-fn outcome_first() -> &'static RaceResult {
-    &crate::race::owner::RACE.shared.state.results.results[1]
+fn outcome_first(o: Owners<'static>) -> &'static RaceResult {
+    &o.race.shared.state.results.results[1]
 }
 #[cfg(test)]
-fn outcome_current() -> &'static RaceResult {
-    &crate::race::owner::RACE.shared.state.results.results[0]
+fn outcome_current(o: Owners<'static>) -> &'static RaceResult {
+    &o.race.shared.state.results.results[0]
 }
 
 /// The fatal error of a track number not in the list.
@@ -563,7 +546,7 @@ pub fn step(o: crate::owners::Owners<'static>, call: Call) -> Result<(), Refused
 #[cfg(test)]
 mod vector_tests {
     use super::*;
-    use crate::menu::owner::menus;
+    use crate::owners::Owners;
     use crate::test_support::race_vectors::{Kind, Vectors};
     use crate::test_support::state::{Snapshot, walk};
 
@@ -880,6 +863,7 @@ mod vector_tests {
     /// The calls' stand-ins: they log (place, the memory then), may fail, and write what the real
     /// calls would change that the function reads after.
     struct Calls<'a> {
+        o: Owners<'static>,
         case: &'a Case,
         log: Vec<(u32, u64)>,
         rng: Rng,
@@ -920,25 +904,26 @@ mod vector_tests {
     impl Calls<'_> {
         fn call(&mut self, place: u32) -> Result<(), Refused> {
             let c = self.case;
+            let o = self.o;
             self.log.push((place, digest()));
             if c.fail_at == Some(place) {
                 return Err(BadInput("injected").into());
             }
             match place {
-                1 => summary().set(self.rng.next()),
-                3 => stage().set(c.stage),
-                4 => after_loading().set(self.rng.next()),
+                1 => summary(o).set(self.rng.next()),
+                3 => stage(o).set(c.stage),
+                4 => after_loading(o).set(self.rng.next()),
                 7 => {
                     // The race changes everything the results are copied from.
-                    let (kept, kept_2) = (result().get(), result_2().get());
+                    let (kept, kept_2) = (result(o).get(), result_2(o).get());
                     // The state's dwords from the lens flare setting to the results' stage.
                     let words: Vec<u8> = (0..(0x430 - 0x34) / 4)
                         .flat_map(|_| self.rng.next().to_le_bytes())
                         .collect();
                     write_range(STATE, ".settings.lens_flare", 0, &words);
                     for ((times, extra), sums, e) in [
-                        (rally_time_words(1), c.sums, c.extra),
-                        (rally_time_words(0), c.sums_2, c.extra_2),
+                        (rally_time_words(o, 1), c.sums, c.extra),
+                        (rally_time_words(o, 0), c.sums_2, c.extra_2),
                     ] {
                         let v: [u32; 4] = match sums {
                             1 => [0; 4],
@@ -951,17 +936,17 @@ mod vector_tests {
                         }
                         extra.set(e);
                     }
-                    result().set(c.result.unwrap_or(kept));
-                    result_2().set(c.result_2.unwrap_or(kept_2));
-                    outcome_current().secs.set(f32::from_bits(c.secs));
-                    outcome_first().secs.set(f32::from_bits(c.secs_2));
+                    result(o).set(c.result.unwrap_or(kept));
+                    result_2(o).set(c.result_2.unwrap_or(kept_2));
+                    outcome_current(o).secs.set(f32::from_bits(c.secs));
+                    outcome_first(o).secs.set(f32::from_bits(c.secs_2));
                 }
                 9 => {
                     if let Some(s) = c.switch_after {
-                        switch().set(s);
+                        switch(o).set(s);
                     }
                 }
-                13 => race_kept().set(self.rng.next()),
+                13 => race_kept(o).set(self.rng.next()),
                 _ => {}
             }
             Ok(())
@@ -969,8 +954,8 @@ mod vector_tests {
     }
 
     /// Puts the case's memory in place: the ranges' bytes random, then what the case says.
-    fn setup(c: &Case) {
-        let play = &menus().play;
+    fn setup(o: Owners<'static>, c: &Case) {
+        let play = &o.menus.play;
         let mut rng = Rng(c.seed | 1);
         for (name, path, skip, len) in RANGES {
             let bytes: Vec<u8> = (0..len).map(|_| rng.next() as u8).collect();
@@ -980,12 +965,12 @@ mod vector_tests {
             play.slots.pointers[k].set(k as u32);
             set_field(r, 0xD0, c.d0[k]).expect("the record is there");
         }
-        event_mode().set(c.mode);
-        player_count().set(c.count);
-        current().set(c.current);
+        event_mode(o).set(c.mode);
+        player_count(o).set(c.count);
+        current(o).set(c.current);
         // The track list: the stage's number in its entry; -1 at the start of the entry the list
         // ends at.
-        let tracks = &system().records().stage_tables.trak_pak.tracks;
+        let tracks = &o.system.records().stage_tables.trak_pak.tracks;
         for (k, track) in tracks.iter().take(6).enumerate() {
             let mut id = rng.next();
             if id == c.stage {
@@ -1039,15 +1024,14 @@ mod vector_tests {
         ]
     }
 
-    fn run_new(c: &Case) -> (Result<(), Refused>, Vec<(u32, u64)>) {
+    fn run_new(o: Owners<'static>, c: &Case) -> (Result<(), Refused>, Vec<(u32, u64)>) {
         let mut calls = Calls {
+            o,
             case: c,
             log: Vec::new(),
             rng: Rng(c.seed ^ 0x55AA),
         };
-        let result = guarded(crate::owners::Owners::the(), c.start, c.kind, &mut |call| {
-            calls.call(call as u32)
-        });
+        let result = guarded(o, c.start, c.kind, &mut |call| calls.call(call as u32));
         (result, calls.log)
     }
 
@@ -1138,9 +1122,10 @@ mod vector_tests {
         let mut vectors = Vectors::open("race.single_rally.cases", Kind::Bits, 8);
         let (mut done, mut fatal, mut failed, mut engine, mut early, mut results) =
             (0, 0, 0, 0, 0, 0);
+        let o = Owners::the();
         for (n, c) in cases().iter().enumerate() {
-            setup(c);
-            let (result, log) = run_new(c);
+            setup(o, c);
+            let (result, log) = run_new(o, c);
             let got = outcome(&result, &log);
             vectors.check(&got, |a, b| a == b, || format!("case {n}: {c:?}"));
             match result {

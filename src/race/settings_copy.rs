@@ -41,17 +41,12 @@ pub enum StepOperand {
     CarCell(usize, fn(&Car) -> &PlainDword),
     /// A float of car block n, by its bits (`car_bits!`).
     CarBits(usize, fn(&Car) -> &PlainFloat),
-    /// A dword of a race store, reached by `var!`.
-    #[cfg(test)]
-    Var(fn() -> &'static dyn DwordLike),
     /// A dword of one of the owners (`var!(@o menus.options.lens_flare)`).
     Owned(for<'a> fn(&'a Owners<'a>) -> &'a dyn DwordLike),
     /// A dword of the race's (`var!(@race shared.vars.direction)`).
     RaceVar(fn(&Race) -> &dyn DwordLike),
 }
 use crate::session::{PlainDword, PlainFloat};
-#[cfg(test)]
-use StepOperand::Var;
 use StepOperand::{CarBits, CarCell, Owned, RaceVar};
 #[cfg(test)]
 use StepOperand::{Cell, ResultMark, ResultSecs, Setting};
@@ -82,8 +77,6 @@ impl StepOperand {
             ResultMark(n, k) => o.race.shared.state.results.results[n].impact_marks[k].get(),
             CarCell(n, f) => f(&o.race.car_blocks().cars[n]).get(),
             CarBits(n, f) => f(&o.race.car_blocks().cars[n]).bits(),
-            #[cfg(test)]
-            Var(f) => f().get(),
             Owned(f) => f(o).get(),
             RaceVar(f) => f(o.race).get(),
         }
@@ -102,8 +95,6 @@ impl StepOperand {
             ResultMark(n, k) => o.race.shared.state.results.results[n].impact_marks[k].set(v),
             CarCell(n, f) => f(&o.race.car_blocks().cars[n]).set(v),
             CarBits(n, f) => f(&o.race.car_blocks().cars[n]).set_bits(v),
-            #[cfg(test)]
-            Var(f) => f().set(v),
             Owned(f) => f(o).set(v),
             RaceVar(f) => f(o.race).set(v),
         }
@@ -135,7 +126,7 @@ macro_rules! car_bits {
     };
 }
 
-/// `var!(STATIC.field)`: a dword of an overlay store as a `StepOperand` (a `fn` item, as `car!`);
+/// `var!(@o field ..)`: a dword of one of the owners as a `StepOperand` (a `fn` item, as `car!`);
 /// `var!(@gfx field ..)` one of the graphics owner's, `var!(@race field ..)` one of the race's.
 macro_rules! var {
     (@o $($f:tt)+) => {
@@ -158,14 +149,6 @@ macro_rules! var {
         $crate::race::settings_copy::StepOperand::Owned({
             fn f<'a>(o: &'a $crate::owners::Owners<'a>) -> &'a dyn $crate::session::DwordLike {
                 &o.gfx.$($f)+
-            }
-            f
-        })
-    };
-    ($($s:ident)::+ . $($f:tt)+) => {
-        $crate::race::settings_copy::StepOperand::Var({
-            fn f() -> &'static dyn $crate::session::DwordLike {
-                &$($s)::+.$($f)+
             }
             f
         })
