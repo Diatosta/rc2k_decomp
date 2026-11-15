@@ -43,21 +43,24 @@ impl Owners<'static> {
 
     /// Builds every owner once, for the rest of the run: they live on the heap and are never
     /// freed (the slot threads and the fatal reporter outlive the game thread's frames). They
-    /// are made on a thread with room for them (`Race` alone is 1.5 MB).
+    /// are made on a thread with room for them (`Race` alone is 1.5 MB). An unoptimised build
+    /// keeps every temporary copy of a value on the stack, so it gets four times the room.
     pub fn build() -> Self {
+        let copies = if cfg!(debug_assertions) { 12 } else { 3 };
         on_big_stack(
-            3 * (size_of::<Race>()
-                + size_of::<System>()
-                + size_of::<Scene>()
-                + size_of::<Net>()
-                + size_of::<Audio>()
-                + size_of::<Gfx>()
-                + size_of::<Menus>()
-                + size_of::<Saves>()
-                + size_of::<Strings>()
-                + size_of::<Install>()
-                + size_of::<Sound>()
-                + size_of::<Input>())
+            copies
+                * (size_of::<Race>()
+                    + size_of::<System>()
+                    + size_of::<Scene>()
+                    + size_of::<Net>()
+                    + size_of::<Audio>()
+                    + size_of::<Gfx>()
+                    + size_of::<Menus>()
+                    + size_of::<Saves>()
+                    + size_of::<Strings>()
+                    + size_of::<Install>()
+                    + size_of::<Sound>()
+                    + size_of::<Input>())
                 + (1 << 20),
             || Owners {
                 race: leak(Race::new()),
