@@ -56,6 +56,8 @@ pub fn take_commands(
         }
         crate::sound::queue::locked(audio).pop();
         if command == Command::EndOfTurn {
+            #[cfg(feature = "remote")]
+            crate::audio::mix_hash::turn_end_taken();
             return Ok(());
         }
     }

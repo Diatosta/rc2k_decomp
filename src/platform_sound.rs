@@ -641,6 +641,11 @@ fn feed(wanted: i32) -> Option<Vec<i16>> {
     if frames == 0 {
         return None;
     }
+    // The mix-hash check mixes on the audio thread instead (`audio::mix_hash`).
+    #[cfg(feature = "remote")]
+    if crate::audio::mix_hash::deterministic() {
+        return Some(vec![0i16; frames * 2]);
+    }
     // A panic must not unwind into SDL (it would end the program, unreported).
     let mixed = if FEED_PANICKED.load(Relaxed) {
         None
@@ -658,7 +663,7 @@ fn feed(wanted: i32) -> Option<Vec<i16>> {
 }
 
 /// The playing buffers mixed into `frames` stereo frames for the device.
-fn mixed_frames(frames: usize) -> Vec<i16> {
+pub(crate) fn mixed_frames(frames: usize) -> Vec<i16> {
     let mut out = vec![0f32; frames * 2];
     // DirectSound's focus: while the window is not in front, a buffer made without
     // `DSBCAPS_GLOBALFOCUS` or `DSBCAPS_STICKYFOCUS` plays on unheard (the game asks for

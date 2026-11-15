@@ -16,6 +16,8 @@ pub mod load_sounds;
 pub mod make_buffer;
 pub mod mix;
 pub mod mix_channels;
+#[cfg(feature = "remote")]
+pub mod mix_hash;
 pub mod mixer;
 pub mod mixer_set_up;
 pub mod names_store;

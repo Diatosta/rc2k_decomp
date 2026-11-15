@@ -26,6 +26,8 @@ pub fn send_command_in(audio: &Audio, command: Command) {
 /// `send_command`, for a sender whose first word the audio thread does not read: only the
 /// sound hash records it (a held race's commands are compared turn by turn through it).
 pub fn send_with_eax_in(audio: &Audio, command: Command, first_word: Option<u32>) {
+    #[cfg(feature = "remote")]
+    crate::audio::mix_hash::set_racing(audio.racing.is_set());
     let (number, mut registers) = command.record_words();
     if let Some(word) = first_word {
         registers[0] = word;
