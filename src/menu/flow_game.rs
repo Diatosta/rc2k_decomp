@@ -75,6 +75,8 @@ enum Place<'a> {
     Player(u32, PlayerField),
     /// The found record's field.
     Record(u32),
+    /// A variable that names nothing.
+    Refused(&'static str),
 }
 
 fn place<'a>(menus: &'a Menus, race: &'a Race, v: Var) -> Place<'a> {
@@ -93,7 +95,10 @@ fn place<'a>(menus: &'a Menus, race: &'a Race, v: Var) -> Place<'a> {
         Var::RaceResult2 => Cell(&race.shared.state.results.results[1].result),
         Var::CarListKind => Cell(&menus.screens.flow.car_list_kind),
         Var::Cheats => Cell(&menus.play.cheats.cheats),
-        Var::Cleared(k) => Cell(&menus.play.results.players[k as usize].before),
+        // The eight cleared figures are the four totals before the stage, then the four totals.
+        Var::Cleared(k @ 0..4) => Cell(&menus.play.results.players[k as usize].before),
+        Var::Cleared(k @ 4..8) => Cell(&menus.play.results.players[k as usize - 4].total),
+        Var::Cleared(_) => Place::Refused("a cleared figure past the eight"),
         Var::PlayerTime(n) => Place::Player(n, PlayerField::Time),
         Var::PlayerEntry(n) => Place::Player(n, PlayerField::Entry),
         Var::Continuing => Cell(&menus.screens.event.continuing_save),
@@ -140,6 +145,10 @@ impl flow::Game for Game<'_> {
         match place(self.menus, self.owners.race, v) {
             Place::Cell(cell) => cell.get(),
             Place::Player(n, field) => *field.of(&mut player(self.menus, n).get()),
+            Place::Refused(why) => {
+                self.fault.ok::<()>(Err(BadInput(why)));
+                0
+            }
             Place::Record(offset) => self.fault.ok(self
                 .record
                 .ok_or(BadInput("a record field read before a record was found"))
@@ -151,6 +160,9 @@ impl flow::Game for Game<'_> {
         match place(self.menus, self.owners.race, v) {
             Place::Cell(cell) => cell.set(value),
             Place::Player(n, field) => player(self.menus, n).update(|q| *field.of(q) = value),
+            Place::Refused(why) => {
+                self.fault.ok::<()>(Err(BadInput(why)));
+            }
             // The flows only read the record.
             Place::Record(_) => {
                 self.fault
@@ -408,5 +420,49 @@ impl flow::Game for Game<'_> {
 
     fn fatal(&mut self, code: u32, message: &'static str) -> Refused {
         FatalError { code, message }.into()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_cleared_figures_are_the_totals_before_the_stage_then_the_totals() {
+        let _lock = crate::test_support::test_lock();
+        let menus = crate::menu::owner::menus();
+        let race = crate::race::owner::race();
+        let players = &menus.play.results.players;
+        let kept: Vec<(u32, u32)> = players
+            .iter()
+            .map(|p| (p.before.get(), p.total.get()))
+            .collect();
+        for k in 0..8u32 {
+            match place(menus, race, Var::Cleared(k)) {
+                Place::Cell(cell) => cell.set(0x100 + k),
+                _ => panic!("cleared figure {k} is not a cell"),
+            }
+        }
+        let read: Vec<(u32, u32)> = players
+            .iter()
+            .map(|p| (p.before.get(), p.total.get()))
+            .collect();
+        for (p, (before, total)) in players.iter().zip(kept) {
+            p.before.set(before);
+            p.total.set(total);
+        }
+        assert_eq!(
+            read,
+            vec![
+                (0x100, 0x104),
+                (0x101, 0x105),
+                (0x102, 0x106),
+                (0x103, 0x107)
+            ]
+        );
+        assert!(matches!(
+            place(menus, race, Var::Cleared(8)),
+            Place::Refused(_)
+        ));
     }
 }
