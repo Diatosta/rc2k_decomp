@@ -1,5 +1,5 @@
 //! The sound module's owner: the sound stores in one struct, grouped by what they serve, handed by
-//! reference to the code that runs them; only the roots (`Owners::the`, `SlotOwners::fetch`) call
+//! reference to the code that runs them; only the roots (`Owners::the`, `SlotOwners::of`) call
 //! `sound()`.
 
 use crate::session::{GameThread, PlainDword};

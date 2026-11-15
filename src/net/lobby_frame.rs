@@ -32,6 +32,7 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let vars = &net.vars;
     // The logic is in `rc2k_core::net::screens` (`shown_time`, `flag_sprite`, `car_sprite`,
     // `NO_TIME`, `lobby_buttons`), the ready bit and no time of `rc2k_core::net::players`.
+    crate::net::drain_chat::drain_chat(net, gfx)?;
     if !lock_surface(o.gfx, o.system) {
         return Ok(());
     }

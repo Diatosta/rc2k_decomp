@@ -21,6 +21,7 @@ use crate::install::outside::Game as Outside;
 use crate::menu::owner::Menus;
 use crate::owners::Owners;
 use crate::system::owner::System;
+use crate::threading::thread_slot::SlotOwners;
 use rc2k_core::fatal::Context;
 use std::path::Path;
 use std::sync::atomic::Ordering;
@@ -288,7 +289,7 @@ pub fn leave_on_close(o: Owners<'static>) -> ! {
             "standalone: the game's data was not saved on closing: {e:?}"
         ));
     }
-    if let Err(e) = crate::threading::request_quit::request_quit_in(o.system) {
+    if let Err(e) = crate::threading::request_quit::request_quit_in(SlotOwners::of(o)) {
         log(&format!(
             "standalone: the shutdown thread did not start ({:#x})",
             e.code
@@ -387,6 +388,8 @@ fn stand_in(what: &str, variable: &crate::session::Dword, value: u32) {
 /// any thread of the game's runs.
 fn start(o: Owners<'static>) {
     let r = Context::default();
+    // The fatal-error reporter finds the owners here from any thread.
+    crate::threading::thread_slot::publish(SlotOwners::of(o));
     crate::platform_3d::set_handles(o.gfx);
     set_up_fixed_objects(o.gfx, o.menus);
     seed_clock_and_random(o.system);
@@ -583,7 +586,7 @@ fn start_workers(o: Owners<'static>, r: &Context) {
     rust("system::set_priority_class");
     crate::system::set_priority_class::set_priority_class(o.system, 0x80);
     rust("threading::start_threads");
-    if let Err(e) = crate::threading::start_threads::start_threads_in_game() {
+    if let Err(e) = crate::threading::start_threads::start_threads_in_game(SlotOwners::of(o)) {
         refused("threading::start_threads", e, r);
     }
     rust("sound::wait_for_commands");

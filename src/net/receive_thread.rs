@@ -4,7 +4,6 @@
 //! with "NETRXTDB:QUIT".
 
 use crate::errors::Refused;
-use crate::gfx::owner::Gfx;
 use crate::net::owner::Net;
 use crate::system::owner::System;
 
@@ -14,7 +13,7 @@ const QUIT_TEXT: &std::ffi::CStr = c"NETRXTDB:QUIT"; // "NETRXTDB:QUIT"
 const WAIT: u32 = 1000;
 
 /// Runs to the `ExitThread`, which does not come back.
-pub fn receive_thread(net: &Net, gfx: &'static Gfx, system: &System) -> Result<(), Refused> {
+pub fn receive_thread(net: &Net, system: &System) -> Result<(), Refused> {
     let lines = &crate::race::viewer_screen_store::NET_TEXTS;
     let vars = &net.vars;
     let running =
@@ -30,7 +29,7 @@ pub fn receive_thread(net: &Net, gfx: &'static Gfx, system: &System) -> Result<(
                 if !zero {
                     vars.receiver.receiving.set(1);
                     if net.race_slot.is_on() {
-                        crate::net::take_messages::take_messages(net, gfx, lines)?;
+                        crate::net::take_messages::take_messages(net, lines)?;
                     }
                 }
                 vars.receiver.receiving.set(0);

@@ -10,6 +10,7 @@
 use crate::errors::Refused;
 use crate::framework::log;
 use crate::owners::Owners;
+use crate::threading::thread_slot::SlotOwners;
 
 /// `InstallerPages.script_set_up` when the installer's script is set up.
 const INSTALLER_MARK: u16 = 0xBD;
@@ -25,8 +26,8 @@ fn log_line(text: &std::ffi::CStr) {
 }
 
 /// The way out: the program asked to quit, "Leaving main loop...".
-fn quit_and_leave(system: &crate::system::owner::System) -> Result<(), Refused> {
-    crate::threading::request_quit::request_quit_logged(system)?;
+fn quit_and_leave(owners: SlotOwners<'static>) -> Result<(), Refused> {
+    crate::threading::request_quit::request_quit_logged(owners)?;
     log_line(c"Leaving main loop...");
     Ok(())
 }
@@ -63,7 +64,7 @@ pub fn main_loop(o: Owners<'static>) -> Result<(), Refused> {
         || install.flags.updating.get()
     {
         crate::install::run_installer::run_installer(install, o)?;
-        return quit_and_leave(o.system);
+        return quit_and_leave(SlotOwners::of(o));
     }
     if !install.flags.installing.get() {
         crate::install::runs_from_source::source_against_directory(
@@ -89,7 +90,7 @@ pub fn main_loop(o: Owners<'static>) -> Result<(), Refused> {
     }
     crate::saves::save_game_data::save_in_game(o, saves)?;
     crate::saves::free_best_times::free_in_game(saves)?;
-    quit_and_leave(o.system)
+    quit_and_leave(SlotOwners::of(o))
 }
 
 /// The main loop, logged on the way in and out.

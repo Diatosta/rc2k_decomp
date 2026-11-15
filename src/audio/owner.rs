@@ -1,5 +1,5 @@
 //! The audio stores in one struct, handed by reference to the code that uses them; only the roots
-//! (`Owners::the`, `SlotOwners::fetch`) call `audio()`. The audio thread reads them beside the game thread (atomic cells); what only the
+//! (`Owners::the`, `SlotOwners::of`) call `audio()`. The audio thread reads them beside the game thread (atomic cells); what only the
 //! audio thread touches is in its own record (`audio::own`).
 
 use crate::audio::levels::Levels;

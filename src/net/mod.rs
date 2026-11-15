@@ -47,6 +47,7 @@ pub mod dp_objects;
 pub mod dp_session;
 pub mod dplay;
 pub mod dplay_send;
+pub mod drain_chat;
 pub mod draw_button;
 pub mod draw_centred_item;
 pub mod draw_number_value;

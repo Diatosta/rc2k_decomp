@@ -13,7 +13,6 @@
 //! Refuses more than 16 players (the blocks' room).
 
 use crate::errors::{BadInput, Refused};
-use crate::net::chat_line_locked::chat_line_locked;
 use crate::net::dplay_send::dplay_send;
 use crate::net::owner::Net;
 use crate::net::receive_message::ROOM;
@@ -34,7 +33,6 @@ pub fn joined(net: &Net) {
 
 pub fn take_messages(
     net: &Net,
-    gfx: &'static crate::gfx::owner::Gfx,
     lines: &crate::race::viewer_screen_store::NetTexts,
 ) -> Result<(), Refused> {
     if net.race_slot.players() > MOST_PLAYERS {
@@ -86,7 +84,8 @@ pub fn take_messages(
                     .set((m.size as usize).min(ROOM as usize - 1), 0);
                 text.truncate(ROOM as usize - 2);
                 text.push(0);
-                chat_line_locked(net, gfx, player, &text)?;
+                // Added to the chat by the game's thread (`net::drain_chat`), which owns the fonts.
+                net.queue_chat(player, text);
             }
             Message::Call { ready, round } => {
                 if !own_state.is_host()

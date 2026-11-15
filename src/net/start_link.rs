@@ -97,6 +97,7 @@ pub fn start_link(o: crate::owners::Owners<'static>, mode: u32) -> Result<(), Re
             {
                 let _received = net.lock_received();
                 clear_chat::clear_chat(vars);
+                net.take_waiting_chat();
             }
             vars.receiver.sync.set(0);
             net.lobby().sequence.set(0x80);

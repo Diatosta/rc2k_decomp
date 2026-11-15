@@ -58,34 +58,45 @@ pub static SLOTS: [ThreadSlot; SLOT_COUNT] = [
 /// thread may reach.
 #[derive(Clone, Copy)]
 pub struct SlotOwners<'a> {
-    pub audio: &'static crate::audio::owner::Audio,
+    pub audio: &'a crate::audio::owner::Audio,
     pub input: &'a crate::input::owner::Input,
     pub sound: &'a crate::sound::owner::Sound,
-    pub system: &'static crate::system::owner::System,
+    pub system: &'a crate::system::owner::System,
     pub race: &'a crate::race::owner::Race,
     pub net: &'a crate::net::owner::Net,
-    /// Only for the receiving thread's chat lines, which measure text with its fonts.
-    pub gfx: &'static crate::gfx::owner::Gfx,
 }
 
-impl SlotOwners<'static> {
-    /// The owners as the accessors give them. A slot's thread has no caller to hand it owners, so
-    /// this is the one root for the input, net-receive and audio threads.
-    pub fn fetch() -> Self {
+impl<'a> SlotOwners<'a> {
+    /// The slot threads' share of the owners, taken on the game's thread.
+    pub fn of(o: crate::owners::Owners<'a>) -> Self {
         SlotOwners {
-            audio: crate::audio::owner::audio(),         // m6-root
-            input: crate::input::owner::input(),         // m6-root
-            sound: crate::sound::owner::sound(),         // m6-root
-            system: crate::system::owner::system(),      // m6-root
-            race: crate::race::owner::race(),            // m6-root
-            net: crate::net::owner::net(),               // m6-root
-            gfx: crate::gfx::owner::GFX.on_any_thread(), // m6-root
+            audio: o.audio,
+            input: o.input,
+            sound: o.sound,
+            system: o.system,
+            race: o.race,
+            net: o.net,
         }
     }
 }
 
+/// The owners published for the fatal-error reporter, which runs on any thread with no caller to
+/// hand it owners, even from a fault before most state exists. The only global handle to owners
+/// that stays by design; `publish` fills it once at the start.
+static PUBLISHED: std::sync::OnceLock<SlotOwners<'static>> = std::sync::OnceLock::new();
+
+/// Publishes the owners for `published`; the first call counts.
+pub fn publish(owners: SlotOwners<'static>) {
+    let _ = PUBLISHED.set(owners);
+}
+
+/// The published owners, or `None` before `publish` ran.
+pub fn published() -> Option<SlotOwners<'static>> {
+    PUBLISHED.get().copied()
+}
+
 /// A slot's routine run by its Rust function; None for an address that is none of the four.
-pub fn run_routine(routine: u32, o: SlotOwners<'_>) -> Option<Result<(), Refused>> {
+pub fn run_routine(routine: u32, o: SlotOwners<'static>) -> Option<Result<(), Refused>> {
     match routine {
         0x4078DA => Some(crate::input::input_thread::input_thread(
             o.input,
@@ -101,10 +112,26 @@ pub fn run_routine(routine: u32, o: SlotOwners<'_>) -> Option<Result<(), Refused
                 menu_sounds: &o.sound.threads.menu_sounds,
             },
         )),
-        0x4183C3 => Some(crate::net::receive_thread::receive_thread(
-            o.net, o.gfx, o.system,
-        )),
+        0x4183C3 => Some(crate::net::receive_thread::receive_thread(o.net, o.system)),
         0x410C17 => Some(crate::threading::shutdown_thread::shutdown_thread()),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_published_owners_are_the_ones_given_to_the_slot_threads() {
+        let o = crate::owners::Owners::the();
+        let owners = SlotOwners::of(o);
+        publish(owners);
+        let got = published().expect("published");
+        assert!(std::ptr::eq(got.system, o.system));
+        assert!(std::ptr::eq(got.net, o.net));
+        // The first publish counts: a second one changes nothing.
+        publish(SlotOwners::of(o));
+        assert!(std::ptr::eq(published().unwrap().race, o.race));
     }
 }

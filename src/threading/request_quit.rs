@@ -5,8 +5,8 @@
 
 use crate::errors::FatalError;
 use crate::framework::log;
-use crate::system::owner::System;
 use crate::threading::start_slot_thread::start_slot_thread;
+use crate::threading::thread_slot::SlotOwners;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 /// `requested` is the shutdown switch; `start` starts the thread of the slot of the number
@@ -22,11 +22,11 @@ pub fn request_quit_with(
     start(crate::threading::thread_slot::SHUTDOWN)
 }
 
-/// `request_quit` on the system the caller holds.
-pub fn request_quit_in(system: &System) -> Result<(), FatalError> {
-    let requested = system.session.flags.quitting.atomic();
+/// `request_quit` on the system of `owners`, the owners the shutdown thread gets.
+pub fn request_quit_in(owners: SlotOwners<'static>) -> Result<(), FatalError> {
+    let requested = owners.system.session.flags.quitting.atomic();
     let before = requested.load(Ordering::SeqCst);
-    let result = request_quit_with(requested, &mut start_slot_thread);
+    let result = request_quit_with(requested, &mut |slot| start_slot_thread(slot, owners));
     if result.is_err() {
         // Left as it was, so that a later request tries the thread again.
         requested.store(before, Ordering::SeqCst);
@@ -35,10 +35,10 @@ pub fn request_quit_in(system: &System) -> Result<(), FatalError> {
 }
 
 /// `request_quit`, saying in the log that it ran.
-pub fn request_quit_logged(system: &System) -> Result<(), FatalError> {
+pub fn request_quit_logged(owners: SlotOwners<'static>) -> Result<(), FatalError> {
     // It happens once, while the game is closing: say in the log that it ran.
-    let was = u32::from(system.session.flags.quitting.is_set());
-    let result = request_quit_in(system);
+    let was = u32::from(owners.system.session.flags.quitting.is_set());
+    let result = request_quit_in(owners);
     log(&format!(
         "threading::request_quit: ran (quitting was {was}): {result:?}"
     ));

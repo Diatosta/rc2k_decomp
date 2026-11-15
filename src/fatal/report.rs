@@ -102,14 +102,17 @@ pub fn report_now(context: Option<&Context>) {
         "fatal::report: thread {}",
         crate::sync::thread_id()
     ));
-    // The reporter runs on any thread with no owners in hand: it is a root.
-    let owners = crate::threading::thread_slot::SlotOwners::fetch();
+    // The reporter runs on any thread with no owners in hand, even before the start has
+    // published them: it reads the one published handle, the only global of owners that stays.
+    let owners = crate::threading::thread_slot::published();
     let mut outside = Outside {
         log: &mut |text| crate::logfile::log_write::log_nul(text, true, 1),
         // If no shutdown thread can be created there is nothing more to report: a report
         // is being made already, and the way out below ends the game anyway.
         quit: &mut || {
-            let _ = request_quit_in(owners.system);
+            if let Some(owners) = owners {
+                let _ = request_quit_in(owners);
+            }
         },
         thread_slot: &find_thread_slot,
     };
@@ -124,7 +127,9 @@ pub fn report_now(context: Option<&Context>) {
             log(&format!(
                 "fatal::report: fatal error {code:#x} on the thread of slot {slot:#x}: its routine {routine:#x} again"
             ));
-            match crate::threading::thread_slot::run_routine(routine, owners) {
+            let ran = owners
+                .and_then(|owners| crate::threading::thread_slot::run_routine(routine, owners));
+            match ran {
                 Some(_) => crate::sync::exit_thread(),
                 None => crate::standalone::finish(
                     &format!("not ported: the thread routine {routine:#x} (fatal error {code:#x})"),

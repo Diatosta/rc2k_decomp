@@ -28,6 +28,10 @@ pub struct Net {
     /// Whether a network game is on, this machine's car and the players' count: the race side
     /// and the drawing threads read it too.
     pub race_slot: rc2k_core::net::net_race::NetRaceSlot,
+    /// Chat messages the receiving thread took, as (player, text with its NUL), until the game's
+    /// thread adds them to the chat (`net::drain_chat`): measuring a line needs the fonts, which
+    /// only the game's thread reaches.
+    chat_waiting: std::sync::Mutex<Vec<(u32, Vec<u8>)>>,
 }
 
 impl Net {
@@ -39,7 +43,26 @@ impl Net {
             main: GameThread::new(NetMain::new()),
             button: GameThread::new(Button::new()),
             race_slot: rc2k_core::net::net_race::NetRaceSlot::new(),
+            chat_waiting: std::sync::Mutex::new(Vec::new()),
         }
+    }
+
+    /// A chat message from `player`, waiting for the game's thread.
+    pub fn queue_chat(&self, player: u32, text: Vec<u8>) {
+        self.chat_waiting
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .push((player, text));
+    }
+
+    /// The waiting chat messages in the order they came, none left waiting.
+    pub fn take_waiting_chat(&self) -> Vec<(u32, Vec<u8>)> {
+        std::mem::take(
+            &mut *self
+                .chat_waiting
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        )
     }
 
     /// Takes the received messages' lock: the players' inboxes and the chat's texts are read and

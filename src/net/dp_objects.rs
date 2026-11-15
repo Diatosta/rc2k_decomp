@@ -850,10 +850,9 @@ mod tests {
         net.race_slot.set_players(1);
         vars.receiver.sync.set(7);
         vars.received[0].id.set(0xDEAD);
-        let gfx = crate::test_support::own::gfx();
         let lines = &crate::race::viewer_screen_store::NET_TEXTS;
         let take = || {
-            assert!(crate::net::take_messages::take_messages(&net, gfx, lines).is_ok());
+            assert!(crate::net::take_messages::take_messages(&net, lines).is_ok());
         };
         // Takes messages until `done` or ten seconds.
         let until = |done: &dyn Fn() -> bool| {

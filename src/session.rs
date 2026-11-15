@@ -1146,14 +1146,6 @@ impl<T> GameThread<T> {
         assert_game_thread();
         &self.0
     }
-
-    /// The state from a thread other than the game's, for the one reader there: the network's
-    /// receiving thread measures a chat line with the graphics owner's fonts
-    /// (`net::add_chat_line`: read only). Nothing else may use it: no other thread reaches a
-    /// `GameThread`.
-    pub(crate) fn on_any_thread(&self) -> &T {
-        &self.0
-    }
 }
 
 // ---- the drawing phase's stores ----

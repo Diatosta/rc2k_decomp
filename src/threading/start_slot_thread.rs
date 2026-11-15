@@ -1,12 +1,13 @@
 //! Starts the thread of a thread slot: the slot's flag byte (+0xC) cleared, a thread made
 //! running the routine at +0 (no parameter), which stores its id at +4, and the handle stored at
-//! +8. A thread that cannot be made is fatal error 0x80108601.
+//! +8. The thread works with the owners it is given. A thread that cannot be made is fatal error 0x80108601.
 
 use crate::errors::FatalError;
 use crate::framework::log;
+use crate::threading::thread_slot::SlotOwners;
 
 /// The thread of slot number `slot` started.
-pub fn start_slot_thread(slot: usize) -> Result<(), FatalError> {
+pub fn start_slot_thread(slot: usize, owners: SlotOwners<'static>) -> Result<(), FatalError> {
     let what = "a thread slot";
     let slot = crate::threading::thread_slot::slot_ref(slot)
         .unwrap_or_else(|e| crate::fatal::raise::end(what, e));
@@ -18,7 +19,7 @@ pub fn start_slot_thread(slot: usize) -> Result<(), FatalError> {
     let id = crate::sync::new_thread_id();
     slot.thread_id.set(id);
     let Some(handle) = crate::sync::spawn(&format!("slot {routine:#x}"), id, move || {
-        run_routine(routine as u32);
+        run_routine(routine as u32, owners);
     }) else {
         return Err(FatalError {
             code: 0x8010_8601,
@@ -31,12 +32,8 @@ pub fn start_slot_thread(slot: usize) -> Result<(), FatalError> {
 
 /// A slot's thread: its routine run by its Rust function (`thread_slot::run_routine`). A
 /// routine with none, or one that refuses, ends the program.
-fn run_routine(routine: u32) {
-    match crate::threading::thread_slot::run_routine(
-        routine,
-        // The thread's root: the owners it works with are fetched here.
-        crate::threading::thread_slot::SlotOwners::fetch(),
-    ) {
+fn run_routine(routine: u32, owners: SlotOwners<'static>) {
+    match crate::threading::thread_slot::run_routine(routine, owners) {
         Some(Ok(())) => {}
         Some(Err(crate::errors::Refused::Fatal(error))) => {
             log(&format!(

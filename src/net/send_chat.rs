@@ -8,6 +8,7 @@ use crate::net::dplay_send::dplay_send;
 use crate::net::owner::Net;
 use rc2k_core::net::message::Message;
 pub fn send_chat(net: &Net, gfx: &'static Gfx, player: u32, message: &[u8]) -> Result<(), Refused> {
+    crate::net::drain_chat::drain_chat(net, gfx)?;
     {
         let _received = net.lock_received();
         add_chat_line(net, gfx, player, message)?;
