@@ -224,8 +224,12 @@ def start(software, fresh, profile=False):
     if os.environ.get('RC2K_LOAD_TIMES'):  # a stage load's step times in the log (src/race/load_times.rs)
         renderer += 'RC2K_LOAD_TIMES=1 '
     if HOST:
-        ssh(f'rm -rf {FOLDER}; mkdir -p {FOLDER}; cd {DEVICE_GAME}; '
-            '[ -d .remote_kept ] || { mkdir .remote_kept; cp -r var savedata .remote_kept/; }; '
+        # the player's var and savedata kept whole before the run (copied aside, then renamed in
+        # one step), so a failed copy never passes for a kept one
+        ssh(f'rm -rf {FOLDER}; mkdir -p {FOLDER}; cd {DEVICE_GAME} || exit 1; '
+            'if [ ! -d .remote_kept ]; then rm -rf .remote_kept.new; mkdir .remote_kept.new && '
+            'cp -r var savedata .remote_kept.new/ && mv .remote_kept.new .remote_kept || '
+            '{ echo "could not keep var and savedata: not started"; exit 1; }; fi; '
             # the front end paused while the game runs: Knulli's EmulationStation (it holds the
             # screen and the pad), or the stock OS's launcher
             # (the patterns in brackets do not match this shell's own command line)
@@ -273,9 +277,15 @@ def stop():
             put_cmd('0 quit')
         finally:
             time.sleep(3)
-            ssh(f'pkill rc2k_remote; sleep 1; cd {DEVICE_GAME}; [ -d .remote_kept ] && '
-                '{ rm -rf var savedata; mv .remote_kept/var .remote_kept/savedata .; rmdir .remote_kept; }; '
-                'kill -CONT $(cat /tmp/rc2k_paused) 2>/dev/null')
+            # the kept copies put back only when both are there; the run's own are moved aside
+            # first and dropped only once the kept ones are in place, so nothing is lost on a
+            # failed step
+            ssh(f'pkill rc2k_remote; sleep 1; kill -CONT $(cat /tmp/rc2k_paused) 2>/dev/null; '
+                f'cd {DEVICE_GAME} || exit 1; '
+                'if [ -d .remote_kept/var ] && [ -d .remote_kept/savedata ]; then '
+                'rm -rf .remote_run; mkdir .remote_run; mv var savedata .remote_run/ 2>/dev/null; '
+                'mv .remote_kept/var .remote_kept/savedata . && rmdir .remote_kept && rm -rf .remote_run; '
+                'elif [ -d .remote_kept ]; then echo "kept copy incomplete: var and savedata left as they are"; fi')
     else:
         put_cmd('0 quit')
         end = time.time() + 3  # up to 3 s for it to quit by itself
