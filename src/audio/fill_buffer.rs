@@ -36,7 +36,7 @@ pub fn fill_buffer(state: &AudioOwn, v: &Voice) -> Result<bool, Refused> {
         let copies: Vec<Vec<u8>> = std::iter::once(first)
             .chain(second)
             .map(|(from, _, bytes)| {
-                crate::audio::sample_data::with_data(v.data, |data| {
+                state.sample_data.with_data(v.data, |data| {
                     data.get(from as usize..(from + bytes) as usize)
                         .map(<[u8]>::to_vec)
                         .ok_or(crate::errors::BadInput("a voice's sound past its memory"))

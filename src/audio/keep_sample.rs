@@ -10,6 +10,8 @@ pub fn keep_sample(state: &AudioOwn, v: &mut Voice) -> Result<(), Refused> {
     if !rc2k_core::audio::buffers::keeps_sample(v) {
         return Ok(());
     }
-    v.data = crate::audio::sample_data::keep(v.data, v.length, &state.sample_memory)?;
+    v.data = state
+        .sample_data
+        .keep(v.data, v.length, &state.sample_memory)?;
     Ok(())
 }

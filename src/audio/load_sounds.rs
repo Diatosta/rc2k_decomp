@@ -93,7 +93,7 @@ impl rc2k_core::audio::load::Loader for GameLoader<'_> {
             self.audio.state.sound_mode.get(),
             voice_of(state, voice_at).sound,
         )?;
-        update_voice(state, voice_at, |v| samples::prepare_sample(v, mode))?;
+        update_voice(state, voice_at, |v| samples::prepare_sample(state, v, mode))?;
         update_voice(state, voice_at, |v| keep_sample::keep_sample(state, v))?;
         make_buffer::make_buffer(state, voice_at, record)?;
         fill_buffer::fill_buffer(state, &voice_of(state, voice_at))?;

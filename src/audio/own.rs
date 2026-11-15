@@ -9,7 +9,9 @@
 
 use crate::audio::describe_wave_format::WaveFormat;
 use crate::audio::make_buffer::BufferDescription;
+use crate::audio::mixer::MIX_BUFFER_LEN;
 use crate::audio::owner::Audio;
+use crate::audio::sample_data::SampleData;
 use crate::audio::samples::SampleFile;
 use crate::audio::store::{AudioShared, CHANNEL_IDLE};
 use crate::memory::{ListCells, MemoryList};
@@ -124,6 +126,10 @@ pub struct AudioOwn {
     pub a3d2_clsid: PlainBytes<16>,
     /// A3D2's interface id.
     pub a3d2_iid: PlainBytes<16>,
+    /// The sounds' sample bytes: the work buffer, the stream's header and the kept samples.
+    pub sample_data: SampleData,
+    /// The mixing buffer: a turn's left and right dwords, from `mix_channels` to `write_mix`.
+    pub mix: std::sync::Mutex<[i32; MIX_BUFFER_LEN as usize / 4]>,
 }
 
 impl AudioOwn {
@@ -321,6 +327,8 @@ impl AudioOwn {
                 0x80, 0x2, 0xc4, 0xe4, 0xba, 0xcc, 0xd2, 0x11, 0x9d, 0xcf, 0, 0x50, 0x4, 0x11,
                 0x58, 0x2f,
             ]),
+            sample_data: SampleData::new(),
+            mix: std::sync::Mutex::new([0; MIX_BUFFER_LEN as usize / 4]),
         }
     }
 }

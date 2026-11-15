@@ -1,5 +1,5 @@
 //! The game's own mixer (the Dolby mode's way): the voices' channels mixed into a work buffer of
-//! left and right dwords (`MIX`), then clipped into the primary buffer's format.
+//! left and right dwords (`AudioOwn::mix`), then clipped into the primary buffer's format.
 
 use crate::audio::own::AudioOwn;
 use crate::audio::voices::*;
@@ -7,12 +7,8 @@ use crate::errors::{BadInput, Refused};
 
 pub const MIX_BUFFER_LEN: u32 = 0x3C00;
 
-/// The mixing buffer: a turn's left and right dwords, from `mix_channels` to `write_mix`.
-static MIX: std::sync::Mutex<[i32; MIX_BUFFER_LEN as usize / 4]> =
-    std::sync::Mutex::new([0; MIX_BUFFER_LEN as usize / 4]);
-
 /// `bytes` of the primary buffer's worth, `>> shift` frames, of every used channel added into
-/// `MIX` (zeroed first, two dwords a frame: the sample times the channel's left and its right
+/// the mix buffer (zeroed first, two dwords a frame: the sample times the channel's left and its right
 /// volume). A channel's 32.32 position steps by its step after each frame; at its length a looping
 /// channel (kind 1) goes back to 0 (the fraction kept), any other is no longer used and stops.
 /// Refuses no channels, no frames with a channel used, and more frames than the buffer holds.
@@ -52,7 +48,7 @@ pub fn mix_channels(
     // A channel's sample data (an id: `audio::sample_data`) found when the channel is first read,
     // all of it readable while the mix runs.
     let failed = std::cell::Cell::new(None);
-    let mixed = crate::audio::sample_data::with_view(|view| {
+    let mixed = state.sample_data.with_view(|view| {
         let samples: Vec<std::cell::OnceCell<Result<&[u8], BadInput>>> =
             data.iter().map(|_| std::cell::OnceCell::new()).collect();
         let byte = |n: usize, offset: u32| {
@@ -81,7 +77,9 @@ pub fn mix_channels(
         return Err(e.into());
     }
     mixed?;
-    MIX.lock()
+    state
+        .mix
+        .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
         .copy_from_slice(&buffer);
     for (n, core) in cores.iter().enumerate() {
@@ -101,9 +99,15 @@ pub fn mix_channels(
 /// Eight bits mono (left + right `>> 15`, held to -0x80 .. 0x7F, + 0x80), eight bits stereo (each
 /// `>> 14`, the same), else sixteen bits stereo (each `>> 14`, held to -0x8000 .. 0x7FFF).
 /// Refuses sixteen bits with a right sample that clips.
-pub fn write_mix(mode: u32, primary: u32, parts: [u32; 4]) -> Result<(), Refused> {
+pub fn write_mix(
+    state: &AudioOwn,
+    mode: u32,
+    primary: u32,
+    parts: [u32; 4],
+) -> Result<(), Refused> {
     let size = rc2k_core::audio::mixer::frame_bytes(mode);
-    let mix = *MIX
+    let mix = *state
+        .mix
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     let written = crate::platform_sound::with_parts(primary, parts, |first, second| {

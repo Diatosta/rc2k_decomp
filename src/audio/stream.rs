@@ -99,13 +99,14 @@ pub fn start_stream(
     }
     // The header's buffer: Rust's (`audio::sample_data`), taken once and counted as the game's
     // block was.
-    use crate::audio::sample_data::{self as data, Buffer};
+    use crate::audio::sample_data::Buffer;
+    let data = &state.sample_data;
     if state.stream_header.get() == 0 {
-        data::take(Buffer::Header, HEADER_LEN);
+        data.take(Buffer::Header, HEADER_LEN);
         crate::memory::count_owned(&state.stream_header_memory, HEADER_LEN);
         state.stream_header.set(1);
     }
-    data::with_buffer(Buffer::Header, |b| b[..HEADER_LEN as usize].fill(0));
+    data.with_buffer(Buffer::Header, |b| b[..HEADER_LEN as usize].fill(0));
     let path_text = path()?;
     if !crate::audio::samples::read_sample(
         state,
@@ -122,7 +123,7 @@ pub fn start_stream(
     s.file = h;
     s.open = 1;
     let f = state.sample_file.get();
-    crate::files::handle::seek(h, data::offset(f.data)? as i32, 0);
+    crate::files::handle::seek(h, data.offset(f.data)? as i32, 0);
     describe_wave_format(state, f.format, f.rate)?;
     state.buffer_description.set(BufferDescription {
         size: 0x14,

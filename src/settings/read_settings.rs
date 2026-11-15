@@ -19,6 +19,8 @@ enum Target {
     /// A dword that straddles two cells of its store's untyped tail: the store's own
     /// setter writes the four bytes (`race::viewer_screen_store`'s).
     Unaligned(fn(Owners<'static>, u32)),
+    /// A key that is read and has no variable (the own-heap settings of the 1999 game).
+    Ignored,
 }
 
 impl Target {
@@ -27,6 +29,7 @@ impl Target {
         match self {
             Target::Dword(cell) => cell(o).set(number),
             Target::Unaligned(set) => set(o, number),
+            Target::Ignored => {}
         }
     }
 }
@@ -84,16 +87,8 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
         0x5183BC,
         dword!(o => o.system.machine().ignore_3dnow),
     ),
-    (
-        b"altmemenable",
-        0x4E0584,
-        dword!(_o => *crate::memory::state::OWN_HEAP.get()),
-    ),
-    (
-        b"altmemheapsize",
-        0x4E0588,
-        dword!(_o => *crate::memory::state::OWN_HEAP_KB.get()),
-    ),
+    (b"altmemenable", 0x4E0584, Target::Ignored),
+    (b"altmemheapsize", 0x4E0588, Target::Ignored),
     (b"noaudio", 0x4F82B4, dword!(o => o.audio.state.no_audio)),
     (b"nosound", 0x4F82B4, dword!(o => o.audio.state.no_audio)),
     (
@@ -425,7 +420,7 @@ mod tests {
 
     /// Where each setting's variable is: its store (a registry name) and the field in it, by
     /// path. The game's table holds the variables' addresses; these are the places of them.
-    const PLACES: [(&str, &str, &str); 77] = [
+    const PLACES: [(&str, &str, &str); 75] = [
         (
             "notaskswitch",
             "owners.system.window_loop",
@@ -435,9 +430,7 @@ mod tests {
         ("ignoremmx", "owners.system.machine", ".ignore_mmx"),
         ("ignorekatmai", "owners.system.machine", ".ignore_katmai"),
         ("ignoreamdk3d", "owners.system.machine", ".ignore_3dnow"),
-        ("altmemenable", "memory.state.OWN_HEAP", ""),
-        ("altmemheapsize", "memory.state.OWN_HEAP_KB", ""),
-        ("noaudio", "owners.audio.state", ".no_audio"),
+                        ("noaudio", "owners.audio.state", ".no_audio"),
         ("nosound", "owners.audio.state", ".no_audio"),
         ("nocdaudio", "owners.sound.menu.cd_audio", ".no_cd_audio"),
         ("nomusic", "owners.audio.state", ".no_music"),
@@ -592,7 +585,7 @@ mod tests {
             let cell: *const () = match target {
                 Target::Dword(cell) => std::ptr::from_ref(cell(Owners::the())).cast(),
                 // Their cells are bytes of a tail: checked by writing, in the test below.
-                Target::Unaligned(_) => continue,
+                Target::Unaligned(_) | Target::Ignored => continue,
             };
             let (_, store, path) = PLACES
                 .iter()
@@ -652,6 +645,7 @@ mod tests {
             let kind = match target {
                 Target::Dword(_) => Kind::Dword,
                 Target::Unaligned(_) => Kind::Unaligned,
+                Target::Ignored => Kind::Dword,
             };
             assert_eq!(setting.kind(), kind, "{}", String::from_utf8_lossy(key));
         }
@@ -663,7 +657,7 @@ mod tests {
             .iter()
             .map(|(_, _, target)| match target {
                 Target::Dword(cell) => Some(cell(o).get()),
-                Target::Unaligned(_) => None,
+                Target::Unaligned(_) | Target::Ignored => None,
             })
             .collect()
     }
@@ -716,6 +710,10 @@ mod tests {
                     Target::Unaligned(_) => {
                         assert!(changed.is_empty(), "{name} moved {changed:?}");
                         assert_ne!(now_unaligned, start_unaligned, "{name}");
+                    }
+                    Target::Ignored => {
+                        assert!(changed.is_empty(), "{name} moved {changed:?}");
+                        assert_eq!(now_unaligned, start_unaligned, "{name}");
                     }
                 }
                 // Each of the two keys sharing a variable moves the other's.

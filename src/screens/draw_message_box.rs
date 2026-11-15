@@ -4,12 +4,8 @@
 //! of neither 16 nor 32 bits).
 
 use crate::errors::{BadInput, Refused};
-use crate::session::{GameThread, PlainDword};
 use crate::text::draw_text::Canvas;
 use rc2k_core::screens::message_box::{FILL, FRAME, STRING, layout};
-
-/// The box's rectangle (left, top, width, height).
-pub static BOX: GameThread<[PlainDword; 4]> = GameThread::new([const { PlainDword::new(0) }; 4]);
 
 pub fn draw_message_box(
     o: crate::owners::Owners<'static>,
@@ -47,12 +43,7 @@ pub fn draw_message_box(
             .line_height
             .get(),
     );
-    let cells = BOX.get();
-    cells[2].set(b.rect[2]);
-    cells[3].set(b.rect[3]);
-    cells[0].set(b.rect[0]);
-    cells[1].set(b.rect[1]);
-    let rect = cells.each_ref().map(|c| c.get() as i32);
+    let rect = b.rect.map(|side| side as i32);
     let palettes = Palette::Held(gfx.fonts.font_block.palettes.get());
     fill_rect(rect, FILL, palettes, gfx)?;
     frame_rect(rect, 0, 0, FRAME, palettes, gfx);

@@ -32,6 +32,6 @@ pub fn free_voices(audio: &AudioThread) -> Result<(), Refused> {
     audio.state.stopping_voices.set(0);
     crate::memory::free_list::free_list(&audio.state.sample_memory)?;
     // The kept samples with it (and every data id: no voice is left).
-    crate::audio::sample_data::forget_all();
+    audio.state.sample_data.forget_all();
     Ok(())
 }

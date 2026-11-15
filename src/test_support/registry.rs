@@ -276,14 +276,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!("memory.state.HELD", &crate::memory::state::HELD),
         listed!("memory.state.TURNOVER", &crate::memory::state::TURNOVER),
         listed!(
-            "memory.state.OWN_HEAP",
-            on_game(crate::memory::state::OWN_HEAP.get())
-        ),
-        listed!(
-            "memory.state.OWN_HEAP_KB",
-            on_game(crate::memory::state::OWN_HEAP_KB.get()),
-        ),
-        listed!(
             "owners.strings.drivers.key",
             on_game(&o.strings.drivers.key),
         ),
@@ -438,10 +430,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(o.race.replay.snapshot()),
         ),
         listed!("owners.menus.panels.films", on_game(&o.menus.panels.films),),
-        listed!(
-            "screens.draw_message_box.BOX",
-            on_game(crate::screens::draw_message_box::BOX.get()),
-        ),
         listed!("owners.race.frame.credits", on_game(o.race.frame.credits()),),
         listed!(
             "system.check_developer_machine.DEVELOPER",
@@ -483,10 +471,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!(
             "owners.saves.files.options_kept",
             on_game(&o.saves.files.options_kept),
-        ),
-        listed!(
-            "sound.store.WHEEL_SURFACES",
-            on_game(crate::sound::store::WHEEL_SURFACES.get()),
         ),
         listed!(
             "owners.race.replay.seal_key",

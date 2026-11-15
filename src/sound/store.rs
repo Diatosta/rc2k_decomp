@@ -2,7 +2,6 @@
 //! values (`tests::*_start_as_the_games`), one static a piece. The race sounds' objects and the
 //! surface sounds hold their fields with nothing between them, as `sound::asm_layout` lays them out
 //! for the kept assembly's tests.
-//! - `WHEEL_SURFACES`: the two wheel surfaces the sound reads;
 //! - `RaceClock`: the race sounds' clock and constants;
 //! - `RaceSounds`: the eight sound objects (`SoundObject`) and the cars the sound follows;
 //! - `SurfaceSounds`: the factors the engine, speed, revs and throttle sounds scale by, the
@@ -16,14 +15,7 @@
 //! The sound commands go to the audio thread through `audio::store`'s queue; these are the
 //! game thread's.
 
-use crate::session::{Dword, GameThread, PlainDword, PlainFloat, PlainWord};
-
-/// The surfaces of the wheels the first and the second of a car's two sounds follow
-/// (`sound::surface_sounds`). Kept apart from the dwords around them: the save file's four
-/// before (`saves::owner::Files::options_kept`), the race record's seal key after
-/// (`race::replay::SEAL_KEY`).
-pub static WHEEL_SURFACES: GameThread<[PlainDword; 2]> =
-    GameThread::new([PlainDword::new(0), PlainDword::new(0)]);
+use crate::session::{Dword, PlainDword, PlainFloat, PlainWord};
 
 /// One cue of a car's queue: eight dwords.
 #[derive(rc2k_derive::Cells)]

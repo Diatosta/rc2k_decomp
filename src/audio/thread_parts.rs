@@ -9,14 +9,18 @@ pub fn take_sample_buffer(state: &AudioOwn) {
     let size = rc2k_core::audio::levels::sample_buffer_size(state.sample_buffer_kb.get());
     state.sample_buffer_size.set(size);
     // Rust's memory (`audio::sample_data`), counted as the game's block was.
-    crate::audio::sample_data::take(crate::audio::sample_data::Buffer::Work, size);
+    state
+        .sample_data
+        .take(crate::audio::sample_data::Buffer::Work, size);
     crate::memory::count_owned(&state.sample_buffer_memory, size);
 }
 
 /// Its list freed, size and buffer 0.
 pub fn free_sample_buffer(state: &AudioOwn) -> Result<(), Refused> {
     crate::memory::free_list::free_list(&state.sample_buffer_memory)?;
-    crate::audio::sample_data::free(crate::audio::sample_data::Buffer::Work);
+    state
+        .sample_data
+        .free(crate::audio::sample_data::Buffer::Work);
     state.sample_buffer_size.set(0);
     state.sample_buffer.set(0);
     Ok(())

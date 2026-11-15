@@ -100,29 +100,16 @@ impl HeldList for [crate::session::Dword; 4] {
 /// asked for; the rest is not used.
 pub const HEADER_LEN: u32 = rc2k_core::memory::HEADER_LEN;
 
-/// The allocator's variables, out of the image since 2026-10-24 (they were
-/// `dword_4E0578` .. `dword_4E0588`, 5 dwords). Atomics: any thread allocates. `OWN_HEAP` and
-/// `OWN_HEAP_KB` are `var\ral.cfg` settings (`altmemenable`, `altmemsize`) only the game
-/// thread reaches: plain cells.
+/// The allocator's counters. Atomics: any thread allocates.
 pub mod state {
 
-    /// dword_4E0578: the most bytes held at once.
+    /// The most bytes held at once.
     pub static MOST_HELD: crate::session::Dword = crate::session::Dword::new(0);
-    /// dword_4E057C: the bytes held now.
+    /// The bytes held now.
     pub static HELD: crate::session::Dword = crate::session::Dword::new(0);
-    /// dword_4E0580: all bytes ever asked for ("MEM: memory turnover= .. maximum load= .."
+    /// All bytes ever asked for ("MEM: memory turnover= .. maximum load= .."
     /// in the game's log).
     pub static TURNOVER: crate::session::Dword = crate::session::Dword::new(0);
-    /// dword_4E0584, the setting `altmemenable`: in the original, 1 = blocks come from a heap
-    /// of the game's own and not from `VirtualAlloc`. Read and not used: the own heap was
-    /// removed (2026-11-07; every block is Rust's memory, nothing the player sees changes).
-    pub static OWN_HEAP: crate::session::GameThread<crate::session::PlainDword> =
-        crate::session::GameThread::new(crate::session::PlainDword::new(0));
-    /// dword_4E0588: the heap's Kb (the setting `altmemsize`), 0x10000 in the image. Read and
-    /// not used (see `OWN_HEAP`). (`dword_4E058C` / `dword_4E0590`, the heap's memory, went
-    /// with it.)
-    pub static OWN_HEAP_KB: crate::session::GameThread<crate::session::PlainDword> =
-        crate::session::GameThread::new(crate::session::PlainDword::new(0x10000));
 }
 
 /// `bytes` of Rust's memory counted on `list` as `allocate` counts a block it takes (the

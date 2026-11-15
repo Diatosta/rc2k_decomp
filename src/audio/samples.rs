@@ -36,14 +36,14 @@ pub fn read_sample(
     size: u32,
     out: &Plain<SampleFile>,
 ) -> Result<bool, Refused> {
-    use crate::audio::sample_data as data;
+    let data = &state.sample_data;
     let mut file = out.get();
     let f = &mut file;
     let answer = (|| {
         f.channels = 1;
         f.rate = 0x5622;
         f.bits = 16;
-        let read = data::with_buffer(buffer, |b| {
+        let read = data.with_buffer(buffer, |b| {
             let into = b.get_mut(..size as usize).ok_or(crate::errors::BadInput(
                 "a sample buffer smaller than its size",
             ))?;
@@ -53,7 +53,7 @@ pub fn read_sample(
             return Ok(false);
         }
         let mut core = rc2k_core::audio::samples::SampleFile {
-            data: data::offset(f.data).unwrap_or(0),
+            data: data.offset(f.data).unwrap_or(0),
             length: f.length,
             format: f.format,
             channels: f.channels,
@@ -62,7 +62,7 @@ pub fn read_sample(
             frame_bytes: f.frame_bytes,
             frames: f.frames,
         };
-        let found = data::with_buffer(buffer, |file| {
+        let found = data.with_buffer(buffer, |file| {
             rc2k_core::audio::samples::parse(
                 &&*file,
                 read.bytes_read.unwrap_or(0),
@@ -73,7 +73,7 @@ pub fn read_sample(
         });
         let found = found?;
         *f = SampleFile {
-            data: data::in_buffer(buffer, core.data),
+            data: data.in_buffer(buffer, core.data),
             length: core.length,
             format: core.format,
             channels: core.channels,
@@ -165,7 +165,7 @@ pub fn sample_mode(mode: u32, record: Option<&SampleRecord>) -> u32 {
 
 /// `audio::prepare_sample`: the voice's data, in place, scaled by `scale` / 64, halved until its
 /// shift is the mode's, and made eight bits if the mode asks.
-pub fn prepare_sample(v: &mut Voice, mode: u32) -> Result<(), Refused> {
+pub fn prepare_sample(state: &AudioOwn, v: &mut Voice, mode: u32) -> Result<(), Refused> {
     if v.data == 0 || v.length == 0 || v.data_key == 0 {
         return Ok(());
     }
@@ -177,7 +177,7 @@ pub fn prepare_sample(v: &mut Voice, mode: u32) -> Result<(), Refused> {
         own_frequency: v.own_frequency,
     };
     // The data's `length` bytes worked on in place (the loops stay inside them).
-    crate::audio::sample_data::with_data(v.data, |bytes| {
+    state.sample_data.with_data(v.data, |bytes| {
         let mut data = bytes
             .get_mut(..v.length as usize)
             .ok_or(crate::errors::BadInput("a sample longer than its memory"))?;
