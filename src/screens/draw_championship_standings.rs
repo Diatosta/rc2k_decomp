@@ -15,6 +15,7 @@ pub fn draw_championship_standings(
     o: crate::owners::Owners<'static>,
     system: &crate::system::owner::System,
     canvas: &mut dyn Canvas,
+    tables: &crate::saves::best_times::BestTables,
 ) -> Result<(), Refused> {
     let menus = o.menus;
     let play = &menus.play;
@@ -26,7 +27,7 @@ pub fn draw_championship_standings(
     let mut rows = Vec::new();
     let mut row = first_row;
     loop {
-        rows.push(find_champ_position(row)?);
+        rows.push(find_champ_position(row, tables)?);
         row = row.wrapping_add(1);
         if row == end || rows.len() > 0x400 {
             break;

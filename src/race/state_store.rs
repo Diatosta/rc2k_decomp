@@ -157,7 +157,7 @@ pub struct SettingsHead {
     /// 1 in the A8 game, the new simulation unlocked (`menu::apply_cheats`).
     pub a8_game: PlainDword,
     /// A copy of the standings summary (`ChampView.summary`): 1 while the summary
-    /// (`saves::best_times::SUMMARY`) is taken, or 0.
+    /// (`BestTables::summary`) is taken, or 0.
     pub rivals: PlainDword,
     /// The stage chosen.
     pub stage: PlainDword,

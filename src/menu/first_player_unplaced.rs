@@ -9,14 +9,17 @@ use crate::errors::Refused;
 use crate::menu::standings::*;
 
 /// The first player of any group in table B; its `computers` is the player's number.
-pub fn first_player_unplaced() -> Result<Found, Refused> {
+pub fn first_player_unplaced(
+    tables: &crate::saves::best_times::BestTables,
+) -> Result<Found, Refused> {
     let found = first_player(
+        tables,
         Which::B,
         rc2k_core::menu::standings::ANY_GROUP,
         0x8070A0AE,
         "Unable to locate player (find1stplayerinochamp)",
     )?;
-    let player = with_b(|t| t.entries[found.entry].player)?;
+    let player = with_b(tables, |t| t.entries[found.entry].player)?;
     Ok(Found {
         computers: player,
         ..found

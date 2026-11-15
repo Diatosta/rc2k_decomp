@@ -426,10 +426,13 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn, c: &table_calls::ItemCall) -> Resu
             &menus.play,
             &menus.tables.pages,
             &Entry::new(o),
+            &o.saves.best_tables,
         ),
-        ItemFn::ChampionshipStandings => {
-            championship_standings::championship_standings(menus, &Entry::new(o))
-        }
+        ItemFn::ChampionshipStandings => championship_standings::championship_standings(
+            menus,
+            &Entry::new(o),
+            &o.saves.best_tables,
+        ),
         ItemFn::NewSimulationIfUnlocked => item_actions::new_simulation_if_unlocked(o),
         ItemFn::NewSimulationLoop => new_simulation_loop::run(o),
         ItemFn::NetworkSettingsItem => settings_loop::settings_loop(o),
@@ -601,9 +604,12 @@ pub fn screen_fn(o: Owners<'static>, f: ScreenFn) -> Result<(), Refused> {
             draw_visual_preferences::draw_visual_preferences(o, &mut GameCanvas::new(o.gfx))
                 .map(|_| ())
         }
-        ScreenFn::DrawClassRanking => {
-            draw_class_ranking::draw_class_ranking(o, &mut GameCanvas::new(o.gfx)).map(|_| ())
-        }
+        ScreenFn::DrawClassRanking => draw_class_ranking::draw_class_ranking(
+            o,
+            &mut GameCanvas::new(o.gfx),
+            &o.saves.best_tables,
+        )
+        .map(|_| ()),
         ScreenFn::DrawCarFigures => {
             draw_car_figures::draw_car_figures(o, &mut GameCanvas::new(o.gfx)).map(|_| ())
         }
@@ -734,14 +740,18 @@ pub fn screen_fn(o: Owners<'static>, f: ScreenFn) -> Result<(), Refused> {
         ScreenFn::DrawRecordTimes => {
             best_scores::draw_record_times(o, o.system, &mut GameCanvas::new(o.gfx)).map(|_| ())
         }
-        ScreenFn::DrawChampionshipTable => {
-            championship_table::draw_championship_table(o, &mut GameCanvas::new(o.gfx)).map(|_| ())
-        }
+        ScreenFn::DrawChampionshipTable => championship_table::draw_championship_table(
+            o,
+            &mut GameCanvas::new(o.gfx),
+            &o.saves.best_tables,
+        )
+        .map(|_| ()),
         ScreenFn::DrawChampionshipStandings => {
             draw_championship_standings::draw_championship_standings(
                 o,
                 o.system,
                 &mut GameCanvas::new(o.gfx),
+                &o.saves.best_tables,
             )
             .map(|_| ())
         }

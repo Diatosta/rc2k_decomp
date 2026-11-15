@@ -212,14 +212,14 @@ pub fn draw_records_for_group(
     record: RecordRef,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
-    use crate::saves::best_times::{COURSE_TIMES, STAGE_TIMES};
-    if !COURSE_TIMES.is_taken() {
+    let tables = &o.saves.best_tables;
+    if !tables.course_times.is_taken() {
         return Ok(false);
     }
     let table = if group != 1 {
-        &STAGE_TIMES
+        &tables.stage_times
     } else {
-        &COURSE_TIMES
+        &tables.course_times
     };
     if !table.is_taken() {
         return Ok(false);

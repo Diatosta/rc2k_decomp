@@ -14,13 +14,14 @@ use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::menu::standings::*;
 
-pub fn best_class_scores(menus: &crate::menu::owner::Menus, entry: &Entry) -> Result<(), Refused> {
+pub fn best_class_scores(
+    menus: &crate::menu::owner::Menus,
+    tables: &crate::saves::best_times::BestTables,
+    entry: &Entry,
+) -> Result<(), Refused> {
     let players = counted_players(&menus.screens, &menus.play)?;
     let classes: u32 = menus.screens.event.shown.classes.get();
-    let (true, true) = (
-        classes != 0 && classes <= 5,
-        crate::saves::best_times::SCORES.is_taken(),
-    ) else {
+    let (true, true) = (classes != 0 && classes <= 5, tables.scores.is_taken()) else {
         return Err(BadInput("no classes, more than five, or no best-score table").into());
     };
     for class in 0..classes {
@@ -29,9 +30,11 @@ pub fn best_class_scores(menus: &crate::menu::owner::Menus, entry: &Entry) -> Re
             menus.screens.event.current_player.set(n as u32);
             let player_score = p.get().stage_points[6];
             if p.get().class == class {
-                let tenth = tenth_best_score(class)?;
+                let tenth = tenth_best_score(tables, class)?;
                 if rc2k_core::menu::bests::makes_score(player_score, tenth) {
-                    enter_best(&menus.screens, &menus.play, None, |p| p.stage_points[6])?;
+                    enter_best(&menus.screens, &menus.play, tables, None, |p| {
+                        p.stage_points[6]
+                    })?;
                     menus.screens.event.trial.any_qualified.set(true);
                 }
             }

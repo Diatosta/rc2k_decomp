@@ -13,7 +13,7 @@
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
 use crate::race::owner::Race;
-use crate::saves::best_times::SCORES;
+use crate::saves::best_times::BestTables;
 use crate::saves::default_times::{GameSource, to_nowhere};
 use rc2k_core::saves::defaults::best_scores;
 
@@ -21,8 +21,9 @@ pub fn default_best_scores(
     so: crate::strings::append_string_by_id::StringOwners<'_>,
     menus: &Menus,
     race: &Race,
+    tables: &BestTables,
 ) -> Result<(), Refused> {
-    if !SCORES.is_taken() {
+    if !tables.scores.is_taken() {
         return Err(crate::errors::BadInput("no table of best scores").into());
     }
     let counts = rc2k_core::saves::defaults::CLASS_DRIVER_COUNTS;
@@ -37,6 +38,8 @@ pub fn default_best_scores(
         counts,
         firsts,
     )?;
-    SCORES.with(|t| rc2k_core::saves::scores::fill_made_up(t, &entries))?;
+    tables
+        .scores
+        .with(|t| rc2k_core::saves::scores::fill_made_up(t, &entries))?;
     Ok(())
 }

@@ -112,7 +112,7 @@ pub fn read_record(
 /// (a rally's table, `RALLY_TIMES`).
 #[derive(Clone, Copy)]
 pub enum Target<'a> {
-    Stages(&'static crate::memory::owned::Owned<rc2k_core::saves::entries::StageTimes>),
+    Stages(&'a crate::memory::owned::Owned<rc2k_core::saves::entries::StageTimes>),
     Rally(&'a [crate::saves::best_times_store::TimeEntry; 20]),
 }
 

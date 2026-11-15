@@ -9,10 +9,12 @@ use crate::errors::Refused;
 pub fn clear_time_trial_marks(
     menus: &crate::menu::owner::Menus,
     system: &crate::system::owner::System,
+    tables: &crate::saves::best_times::BestTables,
 ) -> Result<(), Refused> {
     Ok(crate::menu::event_flow::with_stage_times(
         menus,
         system,
+        tables,
         rc2k_core::saves::entries::clear_marks,
     )?)
 }

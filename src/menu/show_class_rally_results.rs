@@ -19,9 +19,10 @@ pub fn show_class_rally_results(
     event: &EventState,
     class: u32,
     entry: &Entry,
+    tables: &crate::saves::best_times::BestTables,
 ) -> Result<(), Refused> {
     event.shown.class.set(class);
-    let found = crate::menu::first_player_a::first_player_a(class)?;
+    let found = crate::menu::first_player_a::first_player_a(class, tables)?;
     let a8 = champ.event_mode.get() == rc2k_core::menu::results_pages::A8;
     let count = held_figure(Page::ClassRally { a8 }, found.figure);
     champ.rows.count.set(count);

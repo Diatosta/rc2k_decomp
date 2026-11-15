@@ -180,6 +180,7 @@ impl flow::Game for Game<'_> {
         self.fault.check()?;
         let menus = self.menus;
         let entry = &Entry::new(self.owners);
+        let tables = &self.owners.saves.best_tables;
         use crate::menu as m;
         use flow::Call as C;
         match c {
@@ -221,25 +222,33 @@ impl flow::Game for Game<'_> {
             C::StandingsBFromAll => m::standings_b_from_all::standings_b_from_all(
                 crate::strings::append_string_by_id::StringOwners::of(entry.owners),
                 menus,
+                tables,
             )?,
-            C::SortBByFigure => m::sort_standings_b_by_figure::sort_standings_b_by_figure(menus)?,
-            C::AwardStagePoints => m::award_stage_points::award_stage_points(menus)?,
-            C::SortBByPoints => m::sort_standings_b_by_points::sort_standings_b_by_points(menus)?,
+            C::SortBByFigure => {
+                m::sort_standings_b_by_figure::sort_standings_b_by_figure(menus, tables)?;
+            }
+            C::AwardStagePoints => m::award_stage_points::award_stage_points(menus, tables)?,
+            C::SortBByPoints => {
+                m::sort_standings_b_by_points::sort_standings_b_by_points(menus, tables)?;
+            }
             C::ClassChampionshipPass => {
-                m::class_championship_pass::class_championship_pass(menus, entry)?;
+                m::class_championship_pass::class_championship_pass(menus, entry, tables)?;
             }
             C::AwardOverallPoints => {
-                m::award_overall_points::award_overall_points(menus)?;
+                m::award_overall_points::award_overall_points(menus, tables)?;
             }
-            C::ClearStandingsB => m::standings_steps::clear_standings(Which::B)?,
-            C::SortBByScore => m::sort_standings_b_by_score::sort_standings_b_by_score(menus)?,
+            C::ClearStandingsB => m::standings_steps::clear_standings(Which::B, tables)?,
+            C::SortBByScore => {
+                m::sort_standings_b_by_score::sort_standings_b_by_score(menus, tables)?;
+            }
             C::NumberAllB => {
-                m::standings_steps::number_all(&menus.screens, &menus.play, Which::B)?;
+                m::standings_steps::number_all(&menus.screens, &menus.play, Which::B, tables)?;
             }
             C::ShowChampionshipStandings => {
                 m::show_championship_standings::show_championship_standings(
                     &menus.play.champ_view,
                     entry,
+                    tables,
                 )?;
             }
             C::SectionFinish => m::section_finish::section_finish(self.owners)?,
@@ -250,12 +259,14 @@ impl flow::Game for Game<'_> {
                 menus,
                 self.owners.system,
                 self.owners.race,
+                tables,
             )?,
             C::StandingsAFromAll => m::standings_a_from_all::standings_a_from_all(
                 crate::strings::append_string_by_id::StringOwners::of(entry.owners),
                 &menus.cars,
                 &menus.screens,
                 &menus.play,
+                tables,
             )?,
             C::ClassRallyResultsPass => {
                 m::class_rally_results_pass::class_rally_results_pass(
@@ -263,16 +274,18 @@ impl flow::Game for Game<'_> {
                     &menus.play,
                     &menus.tables.pages,
                     entry,
+                    tables,
                 )?;
             }
-            C::ClearStandingsA => m::standings_steps::clear_standings(Which::A)?,
+            C::ClearStandingsA => m::standings_steps::clear_standings(Which::A, tables)?,
             C::NumberAllA => {
-                m::standings_steps::number_all(&menus.screens, &menus.play, Which::A)?;
+                m::standings_steps::number_all(&menus.screens, &menus.play, Which::A, tables)?;
             }
             C::ShowOverallRallyResults => {
                 m::show_overall_rally_results::show_overall_rally_results(
                     &menus.play.champ_view,
                     entry,
+                    tables,
                 )?;
             }
             C::RunEventRaces => m::run_event_races::run_event_races(self.owners)?,
@@ -283,12 +296,14 @@ impl flow::Game for Game<'_> {
                     &menus.play,
                     &menus.tables.pages,
                     entry,
+                    tables,
                 )?;
             }
             C::ShowOverallStageResults => {
                 m::show_overall_stage_results::show_overall_stage_results(
                     &menus.play.champ_view,
                     entry,
+                    tables,
                 )?;
             }
             C::KeepRecordBest => m::keep_record_best::keep_record_best(menus, self.owners.system)?,
@@ -296,6 +311,7 @@ impl flow::Game for Game<'_> {
                 menus,
                 self.owners.system,
                 self.owners.race,
+                tables,
             )?,
             C::BestTimesLoop => self.screen(ScreenId::BestTimes)?,
             C::InspectionPass => m::inspection_pass::inspection_pass(menus, entry)?,
@@ -306,9 +322,15 @@ impl flow::Game for Game<'_> {
                 self.screen(ScreenId::ChampionshipRacesReview)?;
             }
             C::ChampionshipFinish => m::championship_finish::championship_finish(self.owners)?,
-            C::ClearScoreMarks => m::clear_score_marks::clear_score_marks()?,
-            C::BestClassScores => m::best_class_scores::best_class_scores(menus, entry)?,
-            C::BestOverallScores => m::best_overall_scores::best_overall_scores(menus, entry)?,
+            C::ClearScoreMarks => m::clear_score_marks::clear_score_marks(tables)?,
+            C::BestClassScores => m::best_class_scores::best_class_scores(
+                menus,
+                &self.owners.saves.best_tables,
+                entry,
+            )?,
+            C::BestOverallScores => {
+                m::best_overall_scores::best_overall_scores(menus, entry, tables)?;
+            }
             C::ChampionshipEndReview => self.screen(ScreenId::ChampionshipEndReview)?,
             C::ShowInGameOptions => m::in_game_options_items::show_in_game_options(menus)?,
             C::HideInGameOptions { players } => {
@@ -347,16 +369,21 @@ impl flow::Game for Game<'_> {
             }
             C::KeepStageBest => m::keep_stage_best::keep_stage_best(menus, self.owners.system)?,
             C::TimeTrialQualifies => {
-                m::time_trial_qualifies::time_trial_qualifies(menus, self.owners.system)?;
+                m::time_trial_qualifies::time_trial_qualifies(menus, self.owners.system, tables)?;
             }
             C::ClearTimeTrialMarks => {
-                m::clear_time_trial_marks::clear_time_trial_marks(menus, self.owners.system)?;
+                m::clear_time_trial_marks::clear_time_trial_marks(
+                    menus,
+                    self.owners.system,
+                    tables,
+                )?;
             }
             C::EnterTimeTrialBest => {
                 m::enter_time_trial_best::enter_time_trial_best(
                     self.owners.race,
                     menus,
                     self.owners.system,
+                    tables,
                 )?;
             }
             C::TimeTrialBestTimesLoop => self.screen(ScreenId::TimeTrialBestTimes)?,

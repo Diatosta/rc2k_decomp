@@ -28,7 +28,6 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::files::read_first_match::read_first_match;
-use crate::input::layouts::layouts;
 use crate::session::{GameThread, PlainBytes};
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::owner::Text;
@@ -134,7 +133,7 @@ pub fn load_language(
 ) -> Result<(), Refused> {
     let (strings, install) = (o.strings, o.install);
     compile()?;
-    layouts().use_built_in(o.input);
+    o.input.layouts().use_built_in(o.input);
 
     let mut locale = strings.language.locale.read();
     let found = read_first_match(o.system, LOCALE_FILES, &mut locale, 0)?;
@@ -153,7 +152,7 @@ pub fn load_language(
     }
 
     // Read over the block the last load left (a shorter file leaves its tail).
-    KEYBOARD_BUFFER.get().write(&layouts().file_bytes());
+    KEYBOARD_BUFFER.get().write(&o.input.layouts().file_bytes());
     let mut keyboard = KEYBOARD_BUFFER.get().read();
     let found = read_first_match(o.system, KEYBOARD_FILES, &mut keyboard, 0)?;
     KEYBOARD_BUFFER.get().write(&keyboard);
@@ -162,14 +161,16 @@ pub fn load_language(
         if &keyboard[..4] != b"KEYB" {
             return Err(fatal(0x80E3_83A2, ""));
         }
-        layouts().use_file(rc2k_core::input::layouts::parse(&keyboard)?);
+        o.input
+            .layouts()
+            .use_file(rc2k_core::input::layouts::parse(&keyboard)?);
     }
 
     make_case_tables(o)?;
 
     // The NEC keyboard's head (its layout mode) and layout.
     if o.system.machine().keyboard_type.get() == 2 {
-        layouts().use_nec(strings);
+        o.input.layouts().use_nec(strings);
         install.flags.first_drive.set(b'a');
     }
 

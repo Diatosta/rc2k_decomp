@@ -10,6 +10,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
 use crate::race::owner::Race;
+use crate::saves::best_times::BestTables;
 use crate::saves::default_times::*;
 use crate::system::owner::System;
 use rc2k_core::saves::defaults::stage_times;
@@ -20,13 +21,14 @@ pub fn default_stage_times(
     so: crate::strings::append_string_by_id::StringOwners<'_>,
     menus: &Menus,
     race: &Race,
+    best_tables: &BestTables,
     system: &System,
     ebp: u32,
     log: Log,
 ) -> Result<(), Refused> {
     let screens = &menus.screens;
     {
-        let table = &crate::saves::best_times::COURSE_TIMES;
+        let table = &best_tables.course_times;
         if !table.is_taken() {
             return Err(BadInput("no table for the times").into());
         }

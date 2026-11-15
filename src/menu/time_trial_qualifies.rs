@@ -13,13 +13,14 @@ use crate::menu::owner::Menus;
 pub fn time_trial_qualifies(
     menus: &Menus,
     system: &crate::system::owner::System,
+    tables: &crate::saves::best_times::BestTables,
 ) -> Result<(), Refused> {
-    stage_times(menus, system)?;
+    stage_times(menus, system, tables)?;
     let p = current_player(menus)?;
     let event = &menus.screens.event;
     set(&event.trial.qualifies, 0);
     let time = p.get().time;
-    let best = with_stage_times(menus, system, |ten| ten[9].head.key)?;
+    let best = with_stage_times(menus, system, tables, |ten| ten[9].head.key)?;
     if rc2k_core::menu::bests::makes_time(time, best) {
         set(&event.trial.qualifies, 1);
         event.trial.any_qualified.set(true);

@@ -11,7 +11,6 @@
 use crate::input::owner::Input;
 use crate::strings::owner::Strings;
 use rc2k_core::input::layouts::{FILE_LEN, File, Layout, Picked};
-use std::sync::{Mutex, MutexGuard, PoisonError};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Current {
@@ -39,20 +38,6 @@ pub struct Layouts {
     file_bytes: [u8; FILE_LEN],
 }
 
-static LAYOUTS: Mutex<Layouts> = Mutex::new(Layouts {
-    mode: 0,
-    current: Current::None,
-    built_in: Layout::EMPTY,
-    nec: Layout::EMPTY,
-    file: [Layout::EMPTY, Layout::EMPTY],
-    file_picked: Layout::EMPTY,
-    file_bytes: [0; FILE_LEN],
-});
-
-pub fn layouts() -> MutexGuard<'static, Layouts> {
-    LAYOUTS.lock().unwrap_or_else(PoisonError::into_inner)
-}
-
 /// The NEC layout block; its tables follow at +0x14 (plain), +0x94 (shifted) and +0x114 (key
 /// names, 0x100 bytes).
 const NEC_TABLES: (usize, usize, usize, usize) = (0x14, 0x94, 0x114, 0x214);
@@ -60,6 +45,19 @@ const NEC_TABLES: (usize, usize, usize, usize) = (0x14, 0x94, 0x114, 0x214);
 const NEC_MODE_AT: usize = 0xA;
 
 impl Layouts {
+    /// No layout yet: `load_language` fills it in.
+    pub const fn new() -> Self {
+        Self {
+            mode: 0,
+            current: Current::None,
+            built_in: Layout::EMPTY,
+            nec: Layout::EMPTY,
+            file: [Layout::EMPTY, Layout::EMPTY],
+            file_picked: Layout::EMPTY,
+            file_bytes: [0; FILE_LEN],
+        }
+    }
+
     pub fn mode(&self) -> u8 {
         self.mode
     }

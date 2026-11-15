@@ -36,7 +36,7 @@ pub fn handle_keys(o: Owners<'static>, eax: u32) -> Result<Pressed, Refused> {
     }) {
         return Ok(nothing);
     }
-    if menus.screens.flow.asking.is_set() && !has_layout() {
+    if menus.screens.flow.asking.is_set() && !has_layout(o.input) {
         return Err(BadInput("no keyboard layout").into());
     }
     menus.screens.entry.set_sound(keys::MenuSound::None);

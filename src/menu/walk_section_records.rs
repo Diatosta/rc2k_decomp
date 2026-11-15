@@ -35,9 +35,14 @@ fn record_at(
 }
 
 /// The records the walk visits from `index`, with their steps, checked.
-fn walk(menus: &Menus, system: &System, race: &Race) -> Result<Vec<(u32, Step)>, Refused> {
+fn walk(
+    menus: &Menus,
+    system: &System,
+    race: &Race,
+    tables: &crate::saves::best_times::BestTables,
+) -> Result<Vec<(u32, Step)>, Refused> {
     let screens = &menus.screens;
-    current_event(screens, system)?;
+    current_event(screens, system, tables)?;
     counted_players(&menus.screens, &menus.play)?;
     drivers(menus)?;
     let index: u32 = menus.screens.event.stage_in_section.get();
@@ -60,10 +65,15 @@ fn walk(menus: &Menus, system: &System, race: &Race) -> Result<Vec<(u32, Step)>,
     walked
 }
 
-pub fn walk_section_records(menus: &Menus, system: &System, race: &Race) -> Result<(), Refused> {
+pub fn walk_section_records(
+    menus: &Menus,
+    system: &System,
+    race: &Race,
+    tables: &crate::saves::best_times::BestTables,
+) -> Result<(), Refused> {
     let screens = &menus.screens;
     use crate::menu::{reset_driver_condition as rdc, reset_player_totals as rpt};
-    let records = walk(menus, system, race)?;
+    let records = walk(menus, system, race, tables)?;
     for (_, step) in records {
         if !step.goes_on() {
             if step == Step::Ended {
@@ -73,7 +83,13 @@ pub fn walk_section_records(menus: &Menus, system: &System, race: &Race) -> Resu
         }
         match step {
             Step::CpuTimes => {
-                crate::menu::calc_cpu_times::calc_cpu_times(&menus.cars, screens, system, race)?;
+                crate::menu::calc_cpu_times::calc_cpu_times(
+                    &menus.cars,
+                    screens,
+                    system,
+                    race,
+                    tables,
+                )?;
             }
             Step::Condition => {
                 rdc::reset_driver_condition(menus)?;

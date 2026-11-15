@@ -77,7 +77,10 @@ pub fn seal_stage_time(race: &Race) -> Result<(), BadInput> {
 
 /// Copies the league table: with a source (`RaceState.settings.rivals`), its ten records' dword at
 /// +8 into `names` and their sixteen dwords from +0x10 into column n of the sixteen rows.
-pub fn copy_league_table(race: &Race) -> Result<(), BadInput> {
+pub fn copy_league_table(
+    race: &Race,
+    tables: &crate::saves::best_times::BestTables,
+) -> Result<(), BadInput> {
     let course = &race.course;
     // Logic in `rc2k_core::race::results::league`.
     use rc2k_core::race::results::league;
@@ -86,7 +89,7 @@ pub fn copy_league_table(race: &Race) -> Result<(), BadInput> {
         if race.shared.state.settings.rivals.get() == 0 {
             return Ok(());
         }
-        let rows = crate::saves::best_times::SUMMARY.with(|t| t.rows.map(|r| r.dwords()))?;
+        let rows = tables.summary.with(|t| t.rows.map(|r| r.dwords()))?;
         // The core reads a row's dwords by offset (0x50 a row).
         let failed = std::cell::Cell::new(false);
         let l = league(|n, off| {

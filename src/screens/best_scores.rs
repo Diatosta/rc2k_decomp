@@ -47,19 +47,23 @@ fn arcade_stage(menus: &Menus) -> &dyn DwordLike {
 
 /// Which typed table a page shows.
 pub enum Source {
-    /// The best scores (`saves::best_times::SCORES`): the name, the score, the
+    /// The best scores (`BestTables::scores`): the name, the score, the
     /// highlight `new`.
     Scores,
-    /// The levels' best scores (`saves::best_times::LEVEL_SCORES`): the name, the key,
+    /// The levels' best scores (`BestTables::level_scores`): the name, the key,
     /// the highlight `mark`.
     LevelScores,
 }
 
 impl Source {
-    fn need(&self, what: &'static str) -> Result<(), BadInput> {
+    fn need(
+        &self,
+        tables: &crate::saves::best_times::BestTables,
+        what: &'static str,
+    ) -> Result<(), BadInput> {
         let there = match self {
-            Source::Scores => crate::saves::best_times::SCORES.is_taken(),
-            Source::LevelScores => crate::saves::best_times::LEVEL_SCORES.is_taken(),
+            Source::Scores => tables.scores.is_taken(),
+            Source::LevelScores => tables.level_scores.is_taken(),
         };
         if there { Ok(()) } else { Err(BadInput(what)) }
     }
@@ -128,14 +132,17 @@ pub fn draw_scores(
     let menus = o.menus;
     // The logic is in `rc2k_core::screens::best_scores::scores`.
     {
-        t.at.need("no best scores table")?;
+        t.at.need(&o.saves.best_tables, "no best scores table")?;
         let group = match (t.group_fixed, t.group_at) {
             (Some(g), _) => g,
             (None, Some(a)) => a(menus).get(),
             (None, None) => page_title(&lists().page_titles_b, &menus.tables.pages)?,
         };
         let ten = match t.at {
-            Source::Scores => crate::saves::best_times::SCORES
+            Source::Scores => o
+                .saves
+                .best_tables
+                .scores
                 .with(|s| s.groups.get(group as usize).copied())?
                 .ok_or(BadInput("a group past the best scores' five"))?
                 .map(|e| HeldRow {
@@ -146,7 +153,10 @@ pub fn draw_scores(
                     marked: e.new == 1,
                     ends: e.name_ref == u32::MAX,
                 }),
-            Source::LevelScores => crate::saves::best_times::LEVEL_SCORES
+            Source::LevelScores => o
+                .saves
+                .best_tables
+                .level_scores
                 .with(|s| s.levels.get(group as usize).copied())?
                 .ok_or(BadInput("a group past the levels' seven"))?
                 .map(|e| HeldRow {
@@ -257,7 +267,7 @@ pub struct StageTimes {
     pub records: fn(&Menus, &System) -> Result<RecordTable, BadInput>,
     pub record: fn(&Menus) -> &dyn DwordLike,
     /// The times' table (ten for each stage; the record's +0x3C the stage).
-    pub table: fn(&Menus) -> &StageTable,
+    pub table: for<'t> fn(&Menus, &'t crate::saves::best_times::BestTables) -> &'t StageTable,
     /// The rally page leaves the sprites' y (+4) in `DrawWork.button_x` and the flag's glyph in
     /// `DrawWork.button_y`.
     pub rally: bool,
@@ -271,11 +281,14 @@ fn champ_records(menus: &Menus, system: &System) -> Result<RecordTable, BadInput
     )
 }
 
-fn champ_table(menus: &Menus) -> &'static StageTable {
+fn champ_table<'t>(
+    menus: &Menus,
+    tables: &'t crate::saves::best_times::BestTables,
+) -> &'t StageTable {
     if menus.screens.event.stage.group.get() == 1 {
-        &crate::saves::best_times::STAGE_TIMES_ALT
+        &tables.stage_times_alt
     } else {
-        &crate::saves::best_times::TIME_TRIAL_TIMES
+        &tables.time_trial_times
     }
 }
 
@@ -286,8 +299,8 @@ fn rally_records(menus: &Menus, system: &System) -> Result<RecordTable, BadInput
         .level_table(menus.play.arcade.level.get())
 }
 
-fn rally_table(_: &Menus) -> &'static StageTable {
-    &crate::saves::best_times::COURSE_TIMES
+fn rally_table<'t>(_: &Menus, tables: &'t crate::saves::best_times::BestTables) -> &'t StageTable {
+    &tables.course_times
 }
 
 /// `screens::draw_stage_times`'.
@@ -359,7 +372,7 @@ pub fn draw_stage_times(
 ) -> Result<(), Refused> {
     let menus = o.menus;
     let base = (p.records)(menus, system)?;
-    let table = (p.table)(menus);
+    let table = (p.table)(menus, &o.saves.best_tables);
     if !table.is_taken() {
         return Err(BadInput("no times table").into());
     }
@@ -493,7 +506,7 @@ pub fn draw_record_times(
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
     let menus = o.menus;
-    let times = &crate::saves::best_times::STAGE_TIMES;
+    let times = &o.saves.best_tables.stage_times;
     let (true, true) = (section_there(menus, system)?, times.is_taken()) else {
         return Err(BadInput("a section past the record table, or no times table").into());
     };
@@ -551,7 +564,7 @@ pub fn draw_scores_with_heading(
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
     let menus = o.menus;
-    t.at.need("no best scores table")?;
+    t.at.need(&o.saves.best_tables, "no best scores table")?;
     // The logic is in `rc2k_core::screens::best_scores::scores_heading`, `heading`.
     let section = (menus.play.champ_view.event_mode.get() == 0x13)
         .then(|| {

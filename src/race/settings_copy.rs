@@ -176,9 +176,9 @@ trait Effects {
 }
 
 /// The log and routines of the running game.
-struct GameEffects;
+struct GameEffects<'a>(&'a crate::saves::best_times::BestTables);
 
-impl Effects for GameEffects {
+impl Effects for GameEffects<'_> {
     fn text(&mut self, text: &str, newline: bool) {
         crate::logfile::log_write::log_nul(text.as_bytes(), newline, 1);
     }
@@ -195,7 +195,7 @@ impl Effects for GameEffects {
         crate::race::race_shell::clear_player_absences(race);
     }
     fn copy_league_table(&mut self, race: &Race) -> Result<(), Refused> {
-        Ok(crate::race::race_shell::copy_league_table(race)?)
+        Ok(crate::race::race_shell::copy_league_table(race, self.0)?)
     }
     fn store_results_by_mode(&mut self, race: &Race) {
         crate::race::race_shell::store_results_by_mode(race);
@@ -203,14 +203,21 @@ impl Effects for GameEffects {
 }
 
 /// `race::copy_settings_in`: "COPY GRAHAM TO SHAUN".
-pub fn copy_settings_in(race: &Race, gfx: &Gfx) -> Result<(), Refused> {
-    copy_in(race, gfx, &mut GameEffects)
+pub fn copy_settings_in(
+    race: &Race,
+    gfx: &Gfx,
+    tables: &crate::saves::best_times::BestTables,
+) -> Result<(), Refused> {
+    copy_in(race, gfx, &mut GameEffects(tables))
 }
 
 /// `race::copy_settings_out`: "COPY SHAUN TO GRAHAM"; skipped (and logged so)
 /// while a replay is shown.
-pub fn copy_settings_out(race: &Race) -> Result<(), Refused> {
-    copy_out(race, &mut GameEffects)
+pub fn copy_settings_out(
+    race: &Race,
+    tables: &crate::saves::best_times::BestTables,
+) -> Result<(), Refused> {
+    copy_out(race, &mut GameEffects(tables))
 }
 
 const RULE: &str = "-------------------------------------";

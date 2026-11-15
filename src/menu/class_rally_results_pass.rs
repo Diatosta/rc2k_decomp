@@ -28,11 +28,12 @@ pub fn class_rally_results_pass(
     play: &Play,
     pages: &MenuPages,
     entry: &Entry,
+    tables: &crate::saves::best_times::BestTables,
 ) -> Result<(), Refused> {
-    crate::menu::sort_standings_by_total::sort_standings_by_total(screens, play)?;
+    crate::menu::sort_standings_by_total::sort_standings_by_total(screens, play, tables)?;
     let first = first_class();
     let classes = class_pages::classes(first, screens.event.shown.classes.get())?;
-    let all: Vec<(u32, u32)> = walked_entries_a()?
+    let all: Vec<(u32, u32)> = walked_entries_a(tables)?
         .iter()
         .map(|e| (e.head.group, e.head.player))
         .collect();
@@ -43,13 +44,14 @@ pub fn class_rally_results_pass(
             continue;
         }
         screens.loop_flags.left_with_carry.set(true);
-        let numbered = number_standings(play, Which::A, class)?;
+        let numbered = number_standings(play, Which::A, class, tables)?;
         screens.event.standings_count.set(numbered.last_number);
         crate::menu::show_class_rally_results::show_class_rally_results(
             &play.champ_view,
             &screens.event,
             class,
             entry,
+            tables,
         )?;
         if pages.yes_no_answer.get() == 1 {
             break;

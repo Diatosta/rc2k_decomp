@@ -55,8 +55,12 @@ fn search<T: Walked + Copy + Default>(
 }
 
 /// Table A's entry of `class` at `position`.
-pub fn find_ranked_entry(position: u32, class: u32) -> Result<BestTime, Refused> {
-    with_a(|t| {
+pub fn find_ranked_entry(
+    position: u32,
+    class: u32,
+    tables: &crate::saves::best_times::BestTables,
+) -> Result<BestTime, Refused> {
+    with_a(tables, |t| {
         search(
             t,
             |e| e.head.group == class && e.head.figure == position,
@@ -66,21 +70,35 @@ pub fn find_ranked_entry(position: u32, class: u32) -> Result<BestTime, Refused>
 }
 
 /// Table A's entry at `position`.
-pub fn find_ranked_position(position: u32) -> Result<BestTime, Refused> {
-    with_a(|t| search(t, |e| e.head.figure == position, NOT_FOUND))?
+pub fn find_ranked_position(
+    position: u32,
+    tables: &crate::saves::best_times::BestTables,
+) -> Result<BestTime, Refused> {
+    with_a(tables, |t| {
+        search(t, |e| e.head.figure == position, NOT_FOUND)
+    })?
 }
 
 /// The history's entry at `position`.
-pub fn find_champ_position(position: u32) -> Result<HistoryEntry, Refused> {
-    with_b(|t| search(t, |e| e.position == position, NOT_IN_CHAMP))?
+pub fn find_champ_position(
+    position: u32,
+    tables: &crate::saves::best_times::BestTables,
+) -> Result<HistoryEntry, Refused> {
+    with_b(tables, |t| {
+        search(t, |e| e.position == position, NOT_IN_CHAMP)
+    })?
 }
 
 /// Table A's time (`rally` the total, else the time).
-pub fn first_overall_time(kind: u32, rally: bool) -> Result<u32, Refused> {
+pub fn first_overall_time(
+    kind: u32,
+    rally: bool,
+    tables: &crate::saves::best_times::BestTables,
+) -> Result<u32, Refused> {
     let e = if kind == 2 {
-        with_a(|t| search(t, |e| e.head.group != 0, NO_CLASS))??
+        with_a(tables, |t| search(t, |e| e.head.group != 0, NO_CLASS))??
     } else {
-        with_a(|t| t.entries[0])?
+        with_a(tables, |t| t.entries[0])?
     };
     Ok(if rally { e.head.rally_time } else { e.head.key })
 }

@@ -12,6 +12,7 @@ use crate::menu::standings::*;
 pub fn standings_from_drivers(
     so: crate::strings::append_string_by_id::StringOwners<'_>,
     cars: &Cars,
+    tables: &crate::saves::best_times::BestTables,
 ) -> Result<(), Refused> {
     let drivers = walked_drivers(cars)?;
     if drivers.len() > 200 {
@@ -28,8 +29,8 @@ pub fn standings_from_drivers(
         }
         texts.push((id, text));
     }
-    crate::menu::init_standings_a::init_standings_a()?;
-    with_a(|t| {
+    crate::menu::init_standings_a::init_standings_a(tables)?;
+    with_a(tables, |t| {
         for ((d, (id, text)), e) in drivers.iter().zip(&texts).zip(&mut t.entries) {
             rc2k_core::saves::rankings::fill_a_from_driver(e, d, *id, text)
                 .expect("the name's length checked");

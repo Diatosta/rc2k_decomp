@@ -31,6 +31,7 @@ pub fn load_game_best_times(saves: &Saves, system: &System) -> Result<bool, Refu
     let best_times = &saves.best_times;
     allocate_best_times(
         best_times,
+        &saves.best_tables,
         &system.records().stage_tables,
         system.records().stage_tables.championship(), // g_recordTable
     )?;
@@ -48,7 +49,7 @@ pub fn load_game_best_times(saves: &Saves, system: &System) -> Result<bool, Refu
         return Ok(false);
     }
     for table in READ {
-        let typed = crate::saves::best_times::typed(table);
+        let typed = saves.best_tables.typed(table);
         // Read over the table's bytes (a short read leaves the rest as it was).
         let mut bytes = typed.bytes()?;
         let (got, ok) = crate::files::handle::read_slice(file, &mut bytes);

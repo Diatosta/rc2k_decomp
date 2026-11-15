@@ -37,7 +37,7 @@ pub fn edit_player_name(
     if !(0..TEXT_LEN as i32).contains(&len) {
         return Err(BadInput("an entry length outside 0 .. 0x1F").into());
     }
-    if !has_layout() {
+    if !has_layout(input) {
         return Err(BadInput("no keyboard layout").into());
     }
 

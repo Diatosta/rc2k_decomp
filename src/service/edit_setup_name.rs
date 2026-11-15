@@ -68,7 +68,7 @@ pub fn edit_setup_name(
     if current_player(menus).is_none() {
         return Err(BadInput("no current player object").into());
     }
-    if !has_layout() {
+    if !has_layout(input) {
         return Err(BadInput("no keyboard layout").into());
     }
 

@@ -27,11 +27,12 @@ const WORDS: [&std::ffi::CStr; 14] = [
 /// `EventState.stage.group`'s table, the rally `EventState.stage.sub`, the stage
 /// `EventState.stage.number` x 0xA4, its dword at +0x3C the stage in `stage_best_times_alt` when
 /// `EventState.stage.group` is 1, else in `ChampView.time_trial_best_times`). None when a table or
-/// the summary they go to (`saves::best_times::SUMMARY`) is not taken.
-pub fn rally_times_places(
+/// the summary they go to (`BestTables::summary`) is not taken.
+pub fn rally_times_places<'t>(
     system: &crate::system::owner::System,
     menus: &crate::menu::owner::Menus,
-) -> Result<Option<(&'static StageTable, usize)>, BadInput> {
+    best: &'t crate::saves::best_times::BestTables,
+) -> Result<Option<(&'t StageTable, usize)>, BadInput> {
     let screens = &menus.screens;
     {
         let kind = screens.event.stage.group.get();
@@ -44,14 +45,11 @@ pub fn rally_times_places(
             crate::records::stages_store::row(tables, stages, screens.event.stage.number.get())?;
         let n = stage.record(tables)?.event_slot() as usize;
         let table = if kind == 1 {
-            &crate::saves::best_times::STAGE_TIMES_ALT
+            &best.stage_times_alt
         } else {
-            &crate::saves::best_times::TIME_TRIAL_TIMES
+            &best.time_trial_times
         };
-        let (true, true) = (
-            table.is_taken(),
-            crate::saves::best_times::SUMMARY.is_taken(),
-        ) else {
+        let (true, true) = (table.is_taken(), best.summary.is_taken()) else {
             return Ok(None);
         };
         Ok(Some((table, n)))
@@ -59,16 +57,17 @@ pub fn rally_times_places(
 }
 
 /// Copies the stage's ten best times into the summary's first ten rows
-/// (`saves::best_times::SUMMARY`): the time, nationality, car and name id from the key,
+/// (`BestTables::summary`): the time, nationality, car and name id from the key,
 /// nationality, car and name id, and the sixteen checkpoints; each is logged (the count,
 /// "GB_Timed", the sixteen "CTs", "GB_Shaun", the name, the sixteen again, rules). Refuses, before
 /// anything, a missing table on the way and a stage past its table.
 pub fn copy_rally_times(
     system: &crate::system::owner::System,
     menus: &crate::menu::owner::Menus,
+    best: &crate::saves::best_times::BestTables,
 ) -> Result<(), Refused> {
     use crate::logfile::{log_int::log_int, write_line::log_text};
-    let Some((table, stage)) = rally_times_places(system, menus)? else {
+    let Some((table, stage)) = rally_times_places(system, menus, best)? else {
         return Err(BadInput("a null pointer to the rally's times").into());
     };
     // The ten as their bytes, as `race_time` reads a record.
@@ -84,7 +83,7 @@ pub fn copy_rally_times(
     let word = |n: usize| WORDS[n].to_bytes();
     let int = |v: u32, line: bool| log_int(v as i32, line, 1);
     use rc2k_core::saves::rankings::Rival;
-    let summary = &crate::saves::best_times::SUMMARY;
+    let summary = &best.summary;
     for (row, (esi, ecx)) in ten.iter().zip((1..=10u32).rev()).enumerate() {
         let from = |off: u32| u32::from_le_bytes(esi[off as usize..][..4].try_into().unwrap());
         // Logic in `rc2k_core::race::results::race_time`.

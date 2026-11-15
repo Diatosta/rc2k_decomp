@@ -9,8 +9,12 @@ use crate::errors::Refused;
 use crate::menu::standings::*;
 
 /// The first player of `group` in table B.
-pub fn first_player_b(group: u32) -> Result<Found, Refused> {
+pub fn first_player_b(
+    group: u32,
+    tables: &crate::saves::best_times::BestTables,
+) -> Result<Found, Refused> {
     first_player(
+        tables,
         Which::B,
         group,
         0x8070A0AF,

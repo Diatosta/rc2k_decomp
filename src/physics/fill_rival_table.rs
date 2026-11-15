@@ -10,7 +10,11 @@ use crate::race::vars_store::RaceVars;
 use rc2k_core::physics::splits::{RIVALS, default_rival};
 
 // Core: `rc2k_core::physics::splits::default_rival`.
-pub fn fill_rival_table(split_tables: &SplitTables, vars: &RaceVars) -> Result<(), Refused> {
+pub fn fill_rival_table(
+    split_tables: &SplitTables,
+    vars: &RaceVars,
+    tables: &crate::saves::best_times::BestTables,
+) -> Result<(), Refused> {
     for c in 0..RIVALS as u32 {
         let (time, car, name) = default_rival(c);
         split_tables.rival_times[c as usize].set(time);
@@ -21,7 +25,7 @@ pub fn fill_rival_table(split_tables: &SplitTables, vars: &RaceVars) -> Result<(
     if vars.rivals.get() == 0 {
         return Ok(());
     }
-    let rows = crate::saves::best_times::SUMMARY.with(|t| t.rows)?;
+    let rows = tables.summary.with(|t| t.rows)?;
     for (c, r) in rows.iter().take(RIVALS).enumerate() {
         split_tables.rival_names[c].set(r.name_id);
         split_tables.rival_cars[c].set(r.car);

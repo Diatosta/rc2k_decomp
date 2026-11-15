@@ -22,7 +22,7 @@ pub fn quit_question(race: &Race, o: crate::owners::Owners<'static>) -> Result<u
     let replay = &race.replay;
     stop_race_sounds(o)?;
     // A button from before the question answers nothing.
-    crate::input::menu_pad::take_answer();
+    crate::input::menu_pad::take_answer(input);
     shared.vars.get().scene_switch.set(1);
     // The carried value: the best frame, then each key's answer, then what the frame leaves; it goes
     // into `input::yes_no_key` (the key given, when one is).
@@ -42,7 +42,7 @@ pub fn quit_question(race: &Race, o: crate::owners::Owners<'static>) -> Result<u
     }
     let answer = loop {
         // A gamepad's button answers directly: this question has no items on screen to choose from.
-        eax = match crate::input::menu_pad::take_answer() {
+        eax = match crate::input::menu_pad::take_answer(input) {
             Some(answer) => answer,
             None => {
                 crate::input::yes_no_key::yes_no_key(

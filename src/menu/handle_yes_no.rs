@@ -21,7 +21,7 @@ pub fn handle_yes_no(
     // A gamepad's button, taken with the key it sent. Only Back answers:
     // this screen does not leave on Escape. Enter is a key like the keyboard's, and chooses
     // the item that is lit, yes or no.
-    let pad = crate::input::menu_pad::take_answer();
+    let pad = crate::input::menu_pad::take_answer(input);
     if !question(
         &menus.screens.flow,
         &menus.tables.pages,

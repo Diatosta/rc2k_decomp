@@ -18,9 +18,10 @@ pub fn show_class_stage_results(
     event: &EventState,
     class: u32,
     entry: &Entry,
+    tables: &crate::saves::best_times::BestTables,
 ) -> Result<(), Refused> {
     event.shown.class.set(class);
-    let found = crate::menu::first_player_a::first_player_a(class)?;
+    let found = crate::menu::first_player_a::first_player_a(class, tables)?;
     let count = held_figure(Page::ClassStage, found.figure);
     champ.rows.count.set(count);
     crate::menu::first_page_stage::first_page_stage(champ);

@@ -51,8 +51,12 @@ fn any_in_class(drivers: &[Driver], c: u32) -> bool {
 }
 
 /// The current record (see `standings::current_event`'s checks).
-pub fn record(screens: &Screens, system: &System) -> Result<RecordRef, BadInput> {
-    current_event(screens, system)?;
+pub fn record(
+    screens: &Screens,
+    system: &System,
+    tables: &crate::saves::best_times::BestTables,
+) -> Result<RecordRef, BadInput> {
+    current_event(screens, system, tables)?;
     let table = system.records().stage_tables.championship();
     let (section, index): (u32, u32) = (
         screens.event.section.get(),
@@ -112,8 +116,9 @@ pub fn calc_cpu_times(
     screens: &Screens,
     system: &System,
     race: &Race,
+    tables: &crate::saves::best_times::BestTables,
 ) -> Result<(), Refused> {
-    let rec = record(screens, system)?;
+    let rec = record(screens, system, tables)?;
     let (classes, drivers, length) = check(cars, screens, system, race, rec)?;
     crate::logfile::log_write::log_nul(&TEXTS_RVA[0], true, 1);
     for (k, t) in rec

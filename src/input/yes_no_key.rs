@@ -53,7 +53,7 @@ pub fn yes_no_key(
     given: u32,
     input: &crate::input::owner::Input,
 ) -> Result<u32, BadInput> {
-    if !has_layout() {
+    if !has_layout(input) {
         return Err(BadInput("no keyboard layout"));
     }
     let eax = if input.keyboard().yes_no_key_given.get() == 1 {

@@ -5,10 +5,14 @@
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
 use crate::menu::standings::*;
-pub fn sort_standings_b_by_points(menus: &Menus) -> Result<(), Refused> {
+pub fn sort_standings_b_by_points(
+    menus: &Menus,
+    tables: &crate::saves::best_times::BestTables,
+) -> Result<(), Refused> {
     sort_table_b(
         &menus.screens,
         &menus.play,
+        tables,
         rc2k_core::saves::rankings::BKey::StageTotal,
         true,
     )?;

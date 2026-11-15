@@ -165,7 +165,7 @@ fn test_course(o: Owners<'static>) -> Result<(), Refused> {
             !crate::debug::screens::raced() || race.shared.vars.get().stage_number.get() != course,
         );
         // The player's settings, as a race from the menus; then this tab's.
-        crate::race::settings_copy::copy_settings_in(race, o.gfx)?;
+        crate::race::settings_copy::copy_settings_in(race, o.gfx, &o.saves.best_tables)?;
         set_up_race(race)?;
         crate::race::race_cars::set_up_arcade_cars(race)?;
         race_shell::set_start_states(race, &o.net.race_slot)?;

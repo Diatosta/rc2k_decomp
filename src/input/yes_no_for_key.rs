@@ -9,7 +9,7 @@ pub fn yes_no_for_key(
     input: &crate::input::owner::Input,
     eax: u32,
 ) -> Result<u32, crate::errors::BadInput> {
-    if !has_layout() {
+    if !has_layout(input) {
         return Err(crate::errors::BadInput("no keyboard layout"));
     }
     answer_for_key(so, input, eax)

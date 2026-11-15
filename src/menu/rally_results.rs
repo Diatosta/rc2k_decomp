@@ -15,6 +15,7 @@ pub fn rally_results(
     play: &Play,
     pages: &MenuPages,
     entry: &Entry,
+    tables: &crate::saves::best_times::BestTables,
 ) -> Result<(), Refused> {
     screens.state.menus.which_title.set(true);
     crate::menu::standings_a_from_all::standings_a_from_all(
@@ -22,18 +23,20 @@ pub fn rally_results(
         cars,
         screens,
         play,
+        tables,
     )?;
     if !rc2k_core::menu::results_pages::class_pages_only(play.champ_view.event_mode.get()) {
-        crate::menu::sort_standings_by_total::sort_standings_by_total(screens, play)?;
-        clear_standings(Which::A)?;
-        number_all(screens, play, Which::A)?;
+        crate::menu::sort_standings_by_total::sort_standings_by_total(screens, play, tables)?;
+        clear_standings(Which::A, tables)?;
+        number_all(screens, play, Which::A, tables)?;
         crate::menu::show_overall_rally_results::show_overall_rally_results(
             &play.champ_view,
             entry,
+            tables,
         )?;
     } else {
         crate::menu::class_rally_results_pass::class_rally_results_pass(
-            screens, play, pages, entry,
+            screens, play, pages, entry, tables,
         )?;
     }
     screens.state.menus.which_title.set(false);

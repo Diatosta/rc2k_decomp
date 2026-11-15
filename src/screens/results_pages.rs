@@ -85,6 +85,7 @@ pub fn draw_results_page(
     system: &crate::system::owner::System,
     page: &Page,
     canvas: &mut dyn Canvas,
+    tables: &crate::saves::best_times::BestTables,
 ) -> Result<(), Refused> {
     let menus = o.menus;
     let class = menus.screens.event.shown.class.get();
@@ -93,9 +94,9 @@ pub fn draw_results_page(
     }
     let rally = page.time == 0x18;
     let first = if page.by_class {
-        crate::menu::find_class_time::find_class_time(class, rally)?
+        crate::menu::find_class_time::find_class_time(class, rally, tables)?
     } else {
-        first_overall_time(2, rally)?
+        first_overall_time(2, rally, tables)?
     };
     let first_row = menus.play.champ_view.rows.first_row.get();
     let end = first_row.wrapping_add(10);
@@ -104,9 +105,9 @@ pub fn draw_results_page(
     let mut row = first_row;
     loop {
         rows.push(if page.by_class {
-            find_ranked_entry(row, class)?
+            find_ranked_entry(row, class, tables)?
         } else {
-            find_ranked_position(row)?
+            find_ranked_position(row, tables)?
         });
         row = row.wrapping_add(1);
         if row == end || rows.len() > 0x400 {
@@ -196,6 +197,7 @@ macro_rules! results_page_entry {
                     system,
                     &$page,
                     &mut crate::text::draw_text::GameCanvas::new(gfx),
+                    &o.saves.best_tables,
                 )
             }
         }

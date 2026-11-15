@@ -11,10 +11,6 @@ use crate::screens::draw_stage_records::{TIME_TRIAL_ROWS, draw_records_rows};
 use crate::screens::stage_panel::{build_second_heading, draw_stage_body, menu_item_id};
 use crate::text::draw_text::Canvas;
 
-use crate::menu::event_flow::StageTable;
-const GROUP_1_TIMES: &StageTable = &crate::saves::best_times::STAGE_TIMES_ALT;
-const TIMES: &StageTable = &crate::saves::best_times::TIME_TRIAL_TIMES;
-
 /// Returns whether the record rows' last text was too wide for its box. Refuses a missing selection
 /// or menu.
 pub fn draw_time_trial_stage_select(
@@ -43,7 +39,11 @@ pub fn draw_time_trial_stage_select(
     race.shared.state.settings.direction.set(sel.group);
     item_1.set(table_title);
 
-    let table = if sel.group == 1 { GROUP_1_TIMES } else { TIMES };
+    let table = if sel.group == 1 {
+        &o.saves.best_tables.stage_times_alt
+    } else {
+        &o.saves.best_tables.time_trial_times
+    };
     if !table.is_taken() {
         return Err(BadInput("no time trial best-times table: the original reads near 0").into());
     }

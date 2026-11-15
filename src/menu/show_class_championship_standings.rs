@@ -18,9 +18,10 @@ pub fn show_class_championship_standings(
     event: &EventState,
     class: u32,
     entry: &Entry,
+    tables: &crate::saves::best_times::BestTables,
 ) -> Result<(), Refused> {
     event.shown.class.set(class);
-    let found = crate::menu::first_player_b::first_player_b(class)?;
+    let found = crate::menu::first_player_b::first_player_b(class, tables)?;
     let count = held_figure(Page::ClassChampionship, found.figure);
     champ.rows.count.set(count);
     crate::menu::first_page_stage::first_page_stage(champ);

@@ -14,8 +14,9 @@ use crate::menu::event_flow::*;
 pub fn rank_time_trial_best(
     menus: &crate::menu::owner::Menus,
     system: &crate::system::owner::System,
+    tables: &crate::saves::best_times::BestTables,
 ) -> Result<(), Refused> {
-    Ok(with_stage_times(menus, system, |list| {
+    Ok(with_stage_times(menus, system, tables, |list| {
         crate::menu::standings::with_kept_name(&menus.play, |kept| {
             rc2k_core::saves::entries::rank_time_trial(list, kept);
         });

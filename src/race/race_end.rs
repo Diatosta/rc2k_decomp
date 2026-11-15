@@ -343,7 +343,7 @@ pub fn run_race(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     }
     race.shared.switches.get().editor_mode.set(0u32);
     race.course.numbers.get().replay_mode.set(1u32);
-    crate::race::settings_copy::copy_settings_in(race, o.gfx)?;
+    crate::race::settings_copy::copy_settings_in(race, o.gfx, &o.saves.best_tables)?;
     crate::race::race_cars::set_up_arcade_cars(race)?;
     race.shared.vars.get().settings_words[1].set(1u32);
     crate::race::race_shell::set_start_states(race, &o.net.race_slot)?;
@@ -354,7 +354,7 @@ pub fn run_race(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     crate::drive::play_race::play_race(race, o)?;
     crate::race::replay::close_replay(race, o.system)?;
     tidy_everything(race, o)?;
-    crate::race::settings_copy::copy_settings_out(race)?;
+    crate::race::settings_copy::copy_settings_out(race, &o.saves.best_tables)?;
     Ok(())
 }
 

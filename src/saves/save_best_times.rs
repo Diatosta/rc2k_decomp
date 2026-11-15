@@ -33,7 +33,7 @@ pub fn in_game(saves: &Saves) -> Result<bool, Refused> {
     };
     crate::files::handle::write_slice(file, &head);
     for table in WRITTEN {
-        let bytes = crate::saves::best_times::typed(table).bytes()?;
+        let bytes = saves.best_tables.typed(table).bytes()?;
         crate::files::handle::write_slice(file, &bytes);
     }
     close(file);

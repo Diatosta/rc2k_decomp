@@ -40,11 +40,5 @@ pub fn draw_service_stage_info(
         record,
     )?;
     draw_stage_body(o, gfx, record, false, canvas)?;
-    draw_records_from(
-        o,
-        system,
-        &crate::saves::best_times::STAGE_TIMES,
-        record,
-        canvas,
-    )
+    draw_records_from(o, system, &o.saves.best_tables.stage_times, record, canvas)
 }

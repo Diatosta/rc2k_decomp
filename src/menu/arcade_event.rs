@@ -92,6 +92,7 @@ impl arcade::Arcade for Game<'_> {
         let sound = self.owners.sound;
         let menus = self.menus;
         let play = &menus.play;
+        let tables = &self.owners.saves.best_tables;
         use crate::menu as m;
         use crate::menu::arcade_steps as a;
         match s {
@@ -107,7 +108,7 @@ impl arcade::Arcade for Game<'_> {
             Step::TakeShownCar => m::take_shown_car::take_shown_car(menus, self.cars)?,
             Step::NextStageLoop => self.screen(ScreenId::ArcadeNextStage)?,
             Step::TakeStageBest => {
-                a::take_arcade_stage_best(play, self.owners.system, self.owners.race)?;
+                a::take_arcade_stage_best(play, self.owners.system, self.owners.race, tables)?;
             }
             Step::RepairCar => crate::service::repair_parts::repair_car_in(menus)?,
             // The repair's result is not used: the race starts from 0.
@@ -124,15 +125,15 @@ impl arcade::Arcade for Game<'_> {
                     level.row(stages, play.arcade.stage.get())?,
                 )?;
             }
-            Step::CheckStageTime => a::check_arcade_stage_time(menus, self.owners.system)?,
-            Step::ClearTimeMarks => a::clear_arcade_time_marks(play, self.owners.system)?,
+            Step::CheckStageTime => a::check_arcade_stage_time(menus, self.owners.system, tables)?,
+            Step::ClearTimeMarks => a::clear_arcade_time_marks(play, self.owners.system, tables)?,
             Step::EnterStageTime => {
-                a::enter_arcade_stage_time(menus, self.owners.system, self.owners.race)?;
+                a::enter_arcade_stage_time(menus, self.owners.system, self.owners.race, tables)?;
             }
             Step::BestTimesLoop => self.screen(ScreenId::ArcadeBestTimes)?,
-            Step::CheckLevelScore => a::check_arcade_level_score(menus)?,
-            Step::ClearScoreMarks => a::clear_arcade_score_marks(play)?,
-            Step::EnterLevelScore => a::enter_arcade_level_score(menus)?,
+            Step::CheckLevelScore => a::check_arcade_level_score(menus, tables)?,
+            Step::ClearScoreMarks => a::clear_arcade_score_marks(play, tables)?,
+            Step::EnterLevelScore => a::enter_arcade_level_score(menus, tables)?,
             Step::BestScoresLoop => self.screen(ScreenId::ArcadeBestScores)?,
             Step::LevelEnd => {
                 m::arcade_level_end::arcade_level_end(menus, sound, &Entry::new(self.owners))?;

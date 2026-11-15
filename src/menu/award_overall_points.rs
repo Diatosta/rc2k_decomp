@@ -34,14 +34,17 @@ fn owner<'a>(
     }
 }
 
-pub fn award_overall_points(menus: &Menus) -> Result<(), Refused> {
+pub fn award_overall_points(
+    menus: &Menus,
+    tables: &crate::saves::best_times::BestTables,
+) -> Result<(), Refused> {
     let screens = &menus.screens;
     {
         let section: u32 = screens.event.section.get();
         if section > 5 {
             return Err(BadInput("a section past 5").into());
         }
-        let mut all = walked_entries_b()?;
+        let mut all = walked_entries_b(tables)?;
         let mut owners = Vec::with_capacity(all.len());
         for e in &all {
             owners.push(owner(menus, e)?);
@@ -67,7 +70,7 @@ pub fn award_overall_points(menus: &Menus) -> Result<(), Refused> {
                 Owner::Player(p) => p.update(|q| q.overall_points[6] = total),
             }
         }
-        with_b(|t| t.entries[..all.len()].copy_from_slice(&all))?;
+        with_b(tables, |t| t.entries[..all.len()].copy_from_slice(&all))?;
         Ok(())
     }
 }

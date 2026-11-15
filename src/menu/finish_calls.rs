@@ -118,10 +118,11 @@ impl finish::Finish for Game<'_> {
     }
 
     fn find_leader(&mut self, group_b: bool) -> Result<Option<u32>, Refused> {
+        let tables = &self.owners.saves.best_tables;
         let found = if group_b {
-            crate::menu::first_player_b::first_player_b(0)?
+            crate::menu::first_player_b::first_player_b(0, tables)?
         } else {
-            crate::menu::first_player_unplaced::first_player_unplaced()?
+            crate::menu::first_player_unplaced::first_player_unplaced(tables)?
         };
         self.racer = RacerAt::None;
         Ok((found.figure == 1).then_some(found.computers))

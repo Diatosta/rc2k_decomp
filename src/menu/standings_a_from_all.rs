@@ -12,11 +12,20 @@ use crate::menu::standings::*;
 
 /// Each group's (0 .. 3) players, in order, into the table's entries from the group's slot
 /// down (`copy_standing_entry`).
-fn players_by_group(screens: &Screens, play: &Play, firsts: [usize; 4]) -> Result<(), Refused> {
+fn players_by_group(
+    screens: &Screens,
+    play: &Play,
+    firsts: [usize; 4],
+    tables: &crate::saves::best_times::BestTables,
+) -> Result<(), Refused> {
     let players = counted_players(screens, play)?;
     let groups: Vec<u32> = players.iter().map(|p| p.get().class).collect();
     for (n, e) in rc2k_core::menu::standings::by_group(&groups, firsts) {
-        { crate::menu::copy_standing_entry::copy_standing_entry(play, e, players[n], n as u32) }?;
+        {
+            crate::menu::copy_standing_entry::copy_standing_entry(
+                play, e, players[n], n as u32, tables,
+            )
+        }?;
     }
     Ok(())
 }
@@ -26,13 +35,14 @@ pub fn standings_a_from_all(
     cars: &Cars,
     screens: &Screens,
     play: &Play,
+    tables: &crate::saves::best_times::BestTables,
 ) -> Result<(), Refused> {
     let players = counted_players(screens, play)?;
     if any_unnamed(&players)? {
         return Err(BadInput("a player without a name").into());
     }
-    crate::menu::standings_from_drivers::standings_from_drivers(so, cars)?;
+    crate::menu::standings_from_drivers::standings_from_drivers(so, cars, tables)?;
     use rc2k_core::menu::standings::A_GROUP_FIRSTS;
-    players_by_group(screens, play, A_GROUP_FIRSTS)?;
+    players_by_group(screens, play, A_GROUP_FIRSTS, tables)?;
     Ok(())
 }

@@ -5,18 +5,18 @@
 //! layout without its table of names.
 
 use crate::errors::{BadInput, Refused};
-use crate::input::layouts::layouts;
 use crate::strings::append_string_by_id::append_string_by_id;
 use crate::strings::hex_append::hex_append;
 
 /// The name's bytes and the value the caller reads back.
 pub fn append_key_name(
     so: crate::strings::append_string_by_id::StringOwners<'_>,
+    input: &crate::input::owner::Input,
     key: u32,
 ) -> Result<(Vec<u8>, u32), Refused> {
     let key = key & 0x7F;
     let id = {
-        let layouts = layouts();
+        let layouts = input.layouts();
         let layout = layouts
             .layout(layouts.current())
             .ok_or(BadInput("no keyboard layout"))?;

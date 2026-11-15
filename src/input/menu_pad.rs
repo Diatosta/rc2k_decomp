@@ -4,7 +4,8 @@
 //! held-key table is left alone, so driving with the pad steers nothing through the keyboard's
 //! controls.
 
-use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
+use crate::input::owner::Input;
+use std::sync::atomic::Ordering::Relaxed;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum MenuAction {
@@ -25,20 +26,21 @@ pub enum MenuAction {
 // ---- answers to the game's yes / no questions ----
 
 /// Not an answer yet.
-const NONE: u32 = 0;
-/// The answer the last button gave (`input::yes_no_key`'s values), for a question to take. The
-/// race's (`drive::quit_question`) reads a typed character, the first of the language's word,
-/// and shows nothing to choose from: the pad's buttons answer it directly, in any language.
-/// The menus' question has items to choose from: there only Back answers (`handle_yes_no`).
-static ANSWER: AtomicU32 = AtomicU32::new(NONE);
+pub const NO_ANSWER: u32 = 0;
 
-pub fn note_answer(answer: u32) {
-    ANSWER.store(answer, Relaxed);
+/// Notes the answer the last button gave (`input::yes_no_key`'s values), for a question to
+/// take. The race's question (`drive::quit_question`) reads a typed character, the first of the
+/// language's word, and shows nothing to choose from: the pad's buttons answer it directly, in
+/// any language. The menus' question has items to choose from: there only Back answers
+/// (`handle_yes_no`).
+pub fn note_answer(input: &Input, answer: u32) {
+    input.menu_answer.store(answer, Relaxed);
 }
 
-pub fn take_answer() -> Option<u32> {
-    match ANSWER.swap(NONE, Relaxed) {
-        NONE => None,
+/// The noted answer, once.
+pub fn take_answer(input: &Input) -> Option<u32> {
+    match input.menu_answer.swap(NO_ANSWER, Relaxed) {
+        NO_ANSWER => None,
         answer => Some(answer),
     }
 }
@@ -165,9 +167,10 @@ mod tests {
 
     #[test]
     fn an_answer_is_taken_once() {
-        note_answer(7);
-        assert_eq!(take_answer(), Some(7));
-        assert_eq!(take_answer(), None);
+        let input = Input::new();
+        note_answer(&input, 7);
+        assert_eq!(take_answer(&input), Some(7));
+        assert_eq!(take_answer(&input), None);
     }
 
     #[test]

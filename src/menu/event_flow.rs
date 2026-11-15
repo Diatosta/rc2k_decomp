@@ -8,6 +8,7 @@ use crate::errors::BadInput;
 use crate::menu::owner::Menus;
 use crate::menu::pages_store::MenuPages;
 use crate::records::stages_store::RecordRef;
+use crate::saves::best_times::BestTables;
 use crate::session::FlagLike;
 use crate::session::PlainDword;
 use crate::system::owner::System;
@@ -98,8 +99,6 @@ const KINDS: u32 = 4;
 /// The stages' best times: the second stage best times (kind 1) or
 /// `ChampView.time_trial_best_times`, ten for each stage (the record's +0x3C).
 pub type StageTable = crate::memory::owned::Owned<rc2k_core::saves::entries::StageTimes>;
-pub const TIMES_ONE: &StageTable = &crate::saves::best_times::STAGE_TIMES_ALT;
-pub const TIMES_OTHER: &StageTable = &crate::saves::best_times::TIME_TRIAL_TIMES;
 
 /// The chosen stage's record; refused for a kind past the table's four or a null pointer
 /// on the way.
@@ -122,15 +121,16 @@ pub fn stage_record(menus: &Menus, system: &System) -> Result<RecordRef, BadInpu
 
 /// The chosen stage's best times: its table and its place there; refused as
 /// `stage_record`, or with no table or a stage past it.
-pub fn stage_times(
+pub fn stage_times<'t>(
     menus: &Menus,
     system: &System,
-) -> Result<(&'static StageTable, usize), BadInput> {
+    tables: &'t BestTables,
+) -> Result<(&'t StageTable, usize), BadInput> {
     let record = stage_record(menus, system)?;
     let table = if menus.screens.event.stage.group.get() == 1 {
-        TIMES_ONE
+        &tables.stage_times_alt
     } else {
-        TIMES_OTHER
+        &tables.time_trial_times
     };
     let stage = record.record(&system.records().stage_tables)?.event_slot() as usize;
     if !table.with(|t| stage < t.stages.len())? {
@@ -143,8 +143,9 @@ pub fn stage_times(
 pub fn with_stage_times<R>(
     menus: &Menus,
     system: &System,
+    tables: &BestTables,
     f: impl FnOnce(&mut rc2k_core::saves::entries::Times) -> R,
 ) -> Result<R, BadInput> {
-    let (table, stage) = stage_times(menus, system)?;
+    let (table, stage) = stage_times(menus, system, tables)?;
     table.with(|t| f(&mut t.stages[stage]))
 }

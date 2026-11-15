@@ -2,8 +2,11 @@
 //! uses them.
 
 use crate::input::guids::InputGuids;
+use crate::input::layouts::Layouts;
 use crate::input::store::{Devices, ForceFeedback, Keyboard, Mouse};
 use crate::session::GameThread;
+use std::sync::atomic::AtomicU32;
+use std::sync::{Mutex, MutexGuard, PoisonError};
 
 /// The input's state.
 pub struct Input {
@@ -13,6 +16,11 @@ pub struct Input {
     pub force_feedback: ForceFeedback,
     /// The device and axis GUIDs.
     pub guids: InputGuids,
+    /// The keyboard layouts the game types with.
+    layouts: Mutex<Layouts>,
+    /// The answer a gamepad button gave to a yes / no question, for the question to take
+    /// (`input::menu_pad::note_answer`).
+    pub menu_answer: AtomicU32,
     /// The keyboard and the mouse: only the game's thread reaches them (the input thread
     /// polls the devices, the keys and the mouse come from the window's events).
     main: GameThread<InputMain>,
@@ -27,6 +35,11 @@ pub struct InputMain {
 }
 
 impl Input {
+    /// The keyboard layouts.
+    pub fn layouts(&self) -> MutexGuard<'_, Layouts> {
+        self.layouts.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
     /// The keyboard layout and the typed-key state.
     pub fn keyboard(&self) -> &Keyboard {
         &self.main.get().keyboard
@@ -45,6 +58,8 @@ impl Input {
             devices: Devices::new(),
             force_feedback: ForceFeedback::new(),
             guids: InputGuids::new(),
+            layouts: Mutex::new(Layouts::new()),
+            menu_answer: AtomicU32::new(crate::input::menu_pad::NO_ANSWER),
             main: GameThread::new(InputMain {
                 keyboard: Keyboard::new(),
                 mouse: Mouse::new(),

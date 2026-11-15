@@ -11,6 +11,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::records::stages_store::{RecordTable, StageTables};
+use crate::saves::best_times::BestTables;
 use crate::saves::best_times_store::BestTimes;
 use rc2k_core::saves::tables::TABLES;
 
@@ -33,6 +34,7 @@ pub fn sizes(stages: u32) -> [u32; TABLES] {
 /// typed table's own end).
 pub fn allocate_best_times(
     best_times: &BestTimes,
+    tables: &BestTables,
     stages: &StageTables,
     records: RecordTable,
 ) -> Result<(), Refused> {
@@ -45,7 +47,7 @@ pub fn allocate_best_times(
     for (n, size) in sizes.into_iter().enumerate() {
         let place = &best_times.tables[n];
         place.size.set(size);
-        crate::saves::best_times::typed(n).take(list, size)?;
+        tables.typed(n).take(list, size)?;
     }
     Ok(())
 }

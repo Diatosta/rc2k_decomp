@@ -430,7 +430,7 @@ mod tests {
         ("ignoremmx", "owners.system.machine", ".ignore_mmx"),
         ("ignorekatmai", "owners.system.machine", ".ignore_katmai"),
         ("ignoreamdk3d", "owners.system.machine", ".ignore_3dnow"),
-                        ("noaudio", "owners.audio.state", ".no_audio"),
+        ("noaudio", "owners.audio.state", ".no_audio"),
         ("nosound", "owners.audio.state", ".no_audio"),
         ("nocdaudio", "owners.sound.menu.cd_audio", ".no_cd_audio"),
         ("nomusic", "owners.audio.state", ".no_music"),

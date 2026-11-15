@@ -63,6 +63,7 @@ pub fn set_up_front_end(o: crate::owners::Owners<'static>) -> Result<(), Refused
         .set(menus.options.snapshot().race_music_level);
     allocate_best_times::allocate_best_times(
         best_times,
+        &saves.best_tables,
         &system.records().stage_tables,
         system.records().stage_tables.championship(),
     )?;
@@ -72,12 +73,13 @@ pub fn set_up_front_end(o: crate::owners::Owners<'static>) -> Result<(), Refused
         .play
         .champ_view
         .summary
-        .set(u32::from(crate::saves::best_times::SUMMARY.is_taken()));
+        .set(u32::from(saves.best_tables.summary.is_taken()));
     if best_times.loaded.get() != 1 {
         default_best_scores::default_best_scores(
             crate::strings::append_string_by_id::StringOwners::of(o),
             menus,
             race,
+            &saves.best_tables,
         )?;
         default_championship_times::default_championship_times(
             crate::strings::append_string_by_id::StringOwners::of(o),
@@ -92,6 +94,7 @@ pub fn set_up_front_end(o: crate::owners::Owners<'static>) -> Result<(), Refused
             crate::strings::append_string_by_id::StringOwners::of(o),
             menus,
             race,
+            &saves.best_tables,
             system,
             stage,
             &mut to_the_log,
@@ -100,11 +103,13 @@ pub fn set_up_front_end(o: crate::owners::Owners<'static>) -> Result<(), Refused
             crate::strings::append_string_by_id::StringOwners::of(o),
             menus,
             race,
+            &saves.best_tables,
         )?;
         default_stage_times::default_stage_times(
             crate::strings::append_string_by_id::StringOwners::of(o),
             menus,
             race,
+            &saves.best_tables,
             system,
             stage,
             &mut to_the_log,
@@ -113,6 +118,7 @@ pub fn set_up_front_end(o: crate::owners::Owners<'static>) -> Result<(), Refused
             crate::strings::append_string_by_id::StringOwners::of(o),
             menus,
             race,
+            &saves.best_tables,
             system,
             stage,
             &mut to_the_log,

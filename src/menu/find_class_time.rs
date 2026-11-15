@@ -12,9 +12,12 @@ use rc2k_core::saves::entries::BestTime;
 const LIMIT: u32 = 0x400;
 
 /// The entry of table A the search stops at (a copy).
-pub fn class_entry(class: u32) -> Result<BestTime, BadInput> {
+pub fn class_entry(
+    class: u32,
+    tables: &crate::saves::best_times::BestTables,
+) -> Result<BestTime, BadInput> {
     use rc2k_core::menu::standings::{Found, search};
-    with_a(|t| {
+    with_a(tables, |t| {
         let mut last = 0;
         let found = search(
             |n| {
@@ -41,8 +44,12 @@ pub fn class_entry(class: u32) -> Result<BestTime, BadInput> {
 }
 
 /// Table A's.
-pub fn find_class_time(class: u32, second: bool) -> Result<u32, BadInput> {
-    let e = class_entry(class)?;
+pub fn find_class_time(
+    class: u32,
+    second: bool,
+    tables: &crate::saves::best_times::BestTables,
+) -> Result<u32, BadInput> {
+    let e = class_entry(class, tables)?;
     Ok(if second {
         e.head.rally_time
     } else {

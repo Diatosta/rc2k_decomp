@@ -12,6 +12,7 @@ pub fn copy_standing_entry(
     e: usize,
     p: PlayerCell,
     index: u32,
+    tables: &crate::saves::best_times::BestTables,
 ) -> Result<(), Refused> {
     name_player(&p.get())?;
     use rc2k_core::menu::standings::PlayerA;
@@ -27,6 +28,8 @@ pub fn copy_standing_entry(
         car: p.get().car_number,
         entered: p.get().entry,
     };
-    with_a(|t| rc2k_core::saves::rankings::fill_a(&mut t.entries[e], &source))?;
+    with_a(tables, |t| {
+        rc2k_core::saves::rankings::fill_a(&mut t.entries[e], &source);
+    })?;
     Ok(())
 }

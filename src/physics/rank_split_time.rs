@@ -59,7 +59,7 @@ pub fn rank_split_time(
     if split > 0x40 || count > 0x40 {
         return Err(BadInput("a split or a split count past 0x40").into());
     }
-    fill_rival_table(split_tables, shared.vars.get())?;
+    fill_rival_table(split_tables, shared.vars.get(), &o.saves.best_tables)?;
     for k in 0..5 {
         shared.car().split_gaps[k].set(u32::MAX);
     }

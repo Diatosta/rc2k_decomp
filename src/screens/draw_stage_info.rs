@@ -77,13 +77,7 @@ pub fn draw_stage_info(
     let (record, _) = event_stage(screens, system)?;
     draw_stage_heading(o, record, canvas)?;
     draw_stage_body(o, gfx, record, false, canvas)?;
-    draw_records_from(
-        o,
-        system,
-        &crate::saves::best_times::STAGE_TIMES,
-        record,
-        canvas,
-    )
+    draw_records_from(o, system, &o.saves.best_tables.stage_times, record, canvas)
 }
 
 // One case: the event's current stage, with the game's own fonts, strings and records. It

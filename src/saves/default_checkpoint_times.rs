@@ -10,6 +10,7 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
 use crate::race::owner::Race;
 use crate::saves::allocate_best_times::count_stages;
+use crate::saves::best_times::BestTables;
 use crate::saves::default_times::*;
 use crate::system::owner::System;
 use rc2k_core::saves::defaults::{Championship, RALLIES, championship_times};
@@ -19,6 +20,7 @@ pub fn default_checkpoint_times(
     so: crate::strings::append_string_by_id::StringOwners<'_>,
     menus: &Menus,
     race: &Race,
+    best_tables: &BestTables,
     system: &System,
     _ebp: u32,
     log: Log,
@@ -29,7 +31,7 @@ pub fn default_checkpoint_times(
         let records_at = tables.championship();
         let stages = count_stages(tables, records_at)?;
         let count = records(tables, records_at)?;
-        let table = &crate::saves::best_times::TIME_TRIAL_TIMES;
+        let table = &best_tables.time_trial_times;
         let (true, true) = (stages != 0, table.is_taken()) else {
             return Err(BadInput("no stages, or no table for their times").into());
         };

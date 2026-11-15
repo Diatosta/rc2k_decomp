@@ -15,12 +15,18 @@ use crate::menu::standings::*;
 
 /// Each group's (0 .. 3) players, in order, into the table's entries from the group's slot
 /// down (`player_to_standing_b`).
-fn players_by_group(menus: &Menus, firsts: [usize; 4]) -> Result<(), Refused> {
+fn players_by_group(
+    menus: &Menus,
+    firsts: [usize; 4],
+    tables: &crate::saves::best_times::BestTables,
+) -> Result<(), Refused> {
     let players = counted_players(&menus.screens, &menus.play)?;
     let groups: Vec<u32> = players.iter().map(|p| p.get().class).collect();
     for (n, e) in rc2k_core::menu::standings::by_group(&groups, firsts) {
         {
-            crate::menu::player_to_standing_b::player_to_standing_b(menus, e, players[n], n as u32)
+            crate::menu::player_to_standing_b::player_to_standing_b(
+                menus, e, players[n], n as u32, tables,
+            )
         }?;
     }
     Ok(())
@@ -29,6 +35,7 @@ fn players_by_group(menus: &Menus, firsts: [usize; 4]) -> Result<(), Refused> {
 pub fn standings_b_from_all(
     so: crate::strings::append_string_by_id::StringOwners<'_>,
     menus: &Menus,
+    tables: &crate::saves::best_times::BestTables,
 ) -> Result<(), Refused> {
     let drivers = walked_drivers(&menus.cars)?;
     if drivers.len() > 200 {
@@ -49,14 +56,14 @@ pub fn standings_b_from_all(
         }
         texts.push(text);
     }
-    crate::menu::init_standings_b::init_standings_b()?;
-    with_b(|t| {
+    crate::menu::init_standings_b::init_standings_b(tables)?;
+    with_b(tables, |t| {
         for ((d, text), e) in drivers.iter().zip(&texts).zip(&mut t.entries) {
             rc2k_core::saves::rankings::fill_b_from_driver(e, d, text)
                 .expect("the name's length checked");
         }
     })?;
     use rc2k_core::menu::standings::B_GROUP_FIRSTS;
-    players_by_group(menus, B_GROUP_FIRSTS)?;
+    players_by_group(menus, B_GROUP_FIRSTS, tables)?;
     Ok(())
 }

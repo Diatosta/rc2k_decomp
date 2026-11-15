@@ -23,7 +23,7 @@ use rc2k_core::menu::player::{Player, TAKES_PART};
 type Record<'a> = crate::menu::standings::PlayerCell<'a>;
 
 // The front end's words the race reads and writes (`Menus`):
-// - ChampView.summary: whether the standings summary is taken (1, `saves::best_times::SUMMARY`),
+// - ChampView.summary: whether the standings summary is taken (1, `BestTables::summary`),
 //   copied to `RaceState.settings.rivals`.
 // - Event.sparks_mode, copied to `after_loading_copy` after the loading picture.
 // - ScreenFlow.kept: kept over the race (`RaceState.settings.kept`).
@@ -510,7 +510,9 @@ pub enum Call {
 pub fn step(o: crate::owners::Owners<'static>, call: Call) -> Result<(), Refused> {
     let (sound, race) = (o.sound, o.race);
     match call {
-        Call::CopyRallyTimes => crate::race::rally::copy_rally_times(o.system, o.menus)?,
+        Call::CopyRallyTimes => {
+            crate::race::rally::copy_rally_times(o.system, o.menus, &o.saves.best_tables)?;
+        }
         Call::StopMusic => crate::sound::stop_music::stop_music(o),
         Call::SetRaceScreenMode => crate::race::race_shell::set_race_screen_mode(o.gfx, o.system),
         Call::ShowLoadingPicture => {

@@ -14,33 +14,39 @@ use crate::menu::screen_loop::Entry;
 use crate::menu::standings::Which;
 use crate::menu::standings_steps::number_all;
 
-pub fn championship_standings(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
+pub fn championship_standings(
+    menus: &Menus,
+    entry: &Entry,
+    tables: &crate::saves::best_times::BestTables,
+) -> Result<(), Refused> {
     use crate::menu::{sort_standings_b_by_figure as fig, sort_standings_b_by_points as pts};
     use rc2k_core::menu::results_pages::{Sort, class_pages_only, standings_sorts};
     crate::menu::standings_b_from_all::standings_b_from_all(
         crate::strings::append_string_by_id::StringOwners::of(entry.owners),
         menus,
+        tables,
     )?;
     let a8 = class_pages_only(menus.play.champ_view.event_mode.get());
     for sort in standings_sorts(a8) {
         match sort {
-            Sort::ByFigure => fig::sort_standings_b_by_figure(menus)?,
+            Sort::ByFigure => fig::sort_standings_b_by_figure(menus, tables)?,
             Sort::ByScore => {
-                crate::menu::sort_standings_b_by_score::sort_standings_b_by_score(menus)?;
+                crate::menu::sort_standings_b_by_score::sort_standings_b_by_score(menus, tables)?;
             }
-            Sort::ByPoints => pts::sort_standings_b_by_points(menus)?,
+            Sort::ByPoints => pts::sort_standings_b_by_points(menus, tables)?,
         }
     }
     if !a8 {
-        number_all(&menus.screens, &menus.play, Which::B)?;
+        number_all(&menus.screens, &menus.play, Which::B, tables)?;
     }
     menus.screens.state.menus.standings_shown.set(true);
     if a8 {
-        crate::menu::class_championship_pass::class_championship_pass(menus, entry)?;
+        crate::menu::class_championship_pass::class_championship_pass(menus, entry, tables)?;
     } else {
         crate::menu::show_championship_standings::show_championship_standings(
             &menus.play.champ_view,
             entry,
+            tables,
         )?;
     }
     menus.screens.state.menus.standings_shown.set(false);

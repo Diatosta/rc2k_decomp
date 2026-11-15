@@ -28,22 +28,22 @@ fn records(
 /// The times table: `ChampView.switches.records_set` (+ 2 when `ChampView.switches.records_alt`
 /// is 1) names which of the four holds it (the stage, course, time trial and alternate best
 /// times; see
-/// `saves::best_times`), or None. Refuses a list entry that names none of them.
-fn times_table(
+/// `saves::best_times::BestTables`), or None. Refuses a list entry that names none of them.
+fn times_table<'t>(
     champ: &ChampView,
     stages: &crate::records::stages_store::StageTables,
-) -> Result<Option<&'static StageTable>, BadInput> {
+    tables: &'t crate::saves::best_times::BestTables,
+) -> Result<Option<&'t StageTable>, BadInput> {
     let mut n = champ.switches.records_set.get();
     if champ.switches.records_alt.get() == 1 {
         n += 2;
     }
     use crate::menu::champ_store::TimesVariable;
-    use crate::saves::best_times as b;
     let table = match stages.result_table(n)? {
-        TimesVariable::StageTimes => &b::STAGE_TIMES,
-        TimesVariable::CourseTimes => &b::COURSE_TIMES,
-        TimesVariable::TimeTrialTimes => &b::TIME_TRIAL_TIMES,
-        TimesVariable::StageTimesAlt => &b::STAGE_TIMES_ALT,
+        TimesVariable::StageTimes => &tables.stage_times,
+        TimesVariable::CourseTimes => &tables.course_times,
+        TimesVariable::TimeTrialTimes => &tables.time_trial_times,
+        TimesVariable::StageTimesAlt => &tables.stage_times_alt,
     };
     Ok(table.is_taken().then_some(table))
 }
@@ -84,7 +84,7 @@ pub fn draw_stage_results(o: Owners<'static>, canvas: &mut dyn Canvas) -> Result
     let menu = menus.screens.loop_flags.menu.get().ok();
     let stages = &o.system.records().stage_tables;
     let (base, record) = records(champ, stages)?;
-    let table = times_table(champ, stages)?;
+    let table = times_table(champ, stages, &o.saves.best_tables)?;
     let (Some(table), Some(menu)) = (table, menu) else {
         return Err(BadInput("no current menu, stage records or times table").into());
     };

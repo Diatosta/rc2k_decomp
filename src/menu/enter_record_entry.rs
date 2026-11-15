@@ -15,8 +15,9 @@ pub fn enter_record_entry(
     menus: &Menus,
     system: &System,
     race: &crate::race::owner::Race,
+    tables: &crate::saves::best_times::BestTables,
 ) -> Result<(), Refused> {
-    let event = current_event(&menus.screens, system)?;
+    let event = current_event(&menus.screens, system, tables)?;
     let n: u32 = menus.screens.event.current_player.get();
     if n >= 4 || player(menus, n).get().name_player().is_none() {
         return Err(BadInput("a current player past 3, missing or without a name").into());
@@ -41,7 +42,7 @@ pub fn enter_record_entry(
         seal: Some(bests::Seal { cheats, sealed }),
         line: None,
     };
-    with_event(event, |list| list[9].enter(&best))?;
-    crate::menu::rank_record_entry::rank_entries(&menus.play, event)?;
+    with_event(tables, event, |list| list[9].enter(&best))?;
+    crate::menu::rank_record_entry::rank_entries(&menus.play, event, tables)?;
     Ok(())
 }

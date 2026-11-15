@@ -54,7 +54,7 @@ pub fn edit_replay_name(
     if !(0..NAME_LEN as i32).contains(&length(menus)) {
         return Err(BadInput("text length outside the name").into());
     }
-    if !has_layout() {
+    if !has_layout(input) {
         return Err(BadInput("no keyboard layout").into());
     }
 

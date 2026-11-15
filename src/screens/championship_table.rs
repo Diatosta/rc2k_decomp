@@ -40,9 +40,10 @@ pub fn find_history_entry(
 pub fn draw_championship_table(
     o: crate::owners::Owners<'static>,
     canvas: &mut dyn Canvas,
+    tables: &crate::saves::best_times::BestTables,
 ) -> Result<(), Refused> {
     let menus = o.menus;
-    let walked = crate::menu::standings::walked_entries_b()?;
+    let walked = crate::menu::standings::walked_entries_b(tables)?;
     // The logic is in `rc2k_core::screens::championship_table`; the ten entries are looked up
     // first (a position not in the history is a fatal error, raised before the rows rather than
     // after those before it).

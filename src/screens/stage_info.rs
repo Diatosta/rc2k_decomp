@@ -97,7 +97,7 @@ pub fn draw_rally_stage_info(
     let play = &menus.play;
     use crate::screens::best_scores::{RALLY_STAGE_TIMES, draw_times_heading};
     let record = stage_record_in(system, play)?;
-    let course_times = &crate::saves::best_times::COURSE_TIMES;
+    let course_times = &o.saves.best_tables.course_times;
     if !course_times.is_taken() {
         return Err(BadInput("no stage record or times table").into());
     }

@@ -19,10 +19,11 @@ pub fn enter_time_trial_best(
     race: &crate::race::owner::Race,
     menus: &Menus,
     system: &crate::system::owner::System,
+    tables: &crate::saves::best_times::BestTables,
 ) -> Result<(), Refused> {
     use rc2k_core::menu::bests;
     let record = stage_record(menus, system)?;
-    stage_times(menus, system)?; // a stage the tables do not give: refused
+    stage_times(menus, system, tables)?; // a stage the tables do not give: refused
     let p = current_player(menus)?;
     let name = name_address_of(&p.get())?;
     let slot = record.record(&system.records().stage_tables)?.event_slot();
@@ -42,6 +43,6 @@ pub fn enter_time_trial_best(
         seal: Some(bests::Seal { cheats, sealed }),
         line: Some(p.get().best_line),
     };
-    with_stage_times(menus, system, |list| list[9].enter(&best))?;
-    crate::menu::rank_time_trial_best::rank_time_trial_best(menus, system)
+    with_stage_times(menus, system, tables, |list| list[9].enter(&best))?;
+    crate::menu::rank_time_trial_best::rank_time_trial_best(menus, system, tables)
 }

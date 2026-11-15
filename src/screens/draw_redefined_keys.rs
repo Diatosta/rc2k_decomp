@@ -32,6 +32,7 @@ pub fn draw_redefined_keys(
         if row != Some(n) {
             *name = append_key_name(
                 crate::strings::append_string_by_id::StringOwners::of(o),
+                o.input,
                 keys[KEY_PLACES[n]] as u32,
             )?
             .0;

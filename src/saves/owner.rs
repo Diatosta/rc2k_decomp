@@ -1,6 +1,7 @@
 //! The saves' owner: the saved games' and best times' stores in one struct, handed by reference
 //! to the code that uses them.
 
+use crate::saves::best_times::BestTables;
 use crate::saves::best_times_store::{BestTimes, RallyTimes};
 use crate::saves::preview_store::SavegamePreview;
 use crate::saves::write_savegame_slot::SaveGames;
@@ -37,6 +38,8 @@ impl Files {
 /// The saves' state.
 pub struct Saves {
     pub best_times: BestTimes,
+    /// The nine typed best-times tables.
+    pub best_tables: BestTables,
     pub rally_times: RallyTimes,
     pub savegame_preview: SavegamePreview,
     pub save_games: SaveGames,
@@ -48,6 +51,7 @@ impl Saves {
     pub const fn new() -> Self {
         Self {
             best_times: BestTimes::new(),
+            best_tables: BestTables::new(),
             rally_times: RallyTimes::new(),
             savegame_preview: SavegamePreview::new(),
             save_games: SaveGames::new(),

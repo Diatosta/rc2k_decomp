@@ -80,6 +80,7 @@ impl races::EventRaces for Game<'_> {
     fn step(&mut self, s: Step) -> Result<(), Refused> {
         let race = self.owners.race;
         let (screens, play) = (self.screens, self.play);
+        let tables = &self.owners.saves.best_tables;
         self.fault.check()?;
         match s {
             Step::CpuTimes => crate::menu::calc_cpu_times::calc_cpu_times(
@@ -87,6 +88,7 @@ impl races::EventRaces for Game<'_> {
                 screens,
                 self.owners.system,
                 self.owners.race,
+                tables,
             )?,
             Step::ResetPlayerTimes => {
                 crate::menu::reset_player_times::reset_player_times(screens, play)?;
@@ -95,13 +97,14 @@ impl races::EventRaces for Game<'_> {
                 crate::menu::standings_from_drivers::standings_from_drivers(
                     crate::strings::append_string_by_id::StringOwners::of(self.owners),
                     self.cars,
+                    tables,
                 )?;
             }
             Step::SortByTime => {
-                crate::menu::sort_standings_by_time::sort_standings_by_time(screens, play)?;
+                crate::menu::sort_standings_by_time::sort_standings_by_time(screens, play, tables)?;
             }
             Step::CopySummary => {
-                crate::menu::copy_standings_summary::copy_standings_summary(screens)?;
+                crate::menu::copy_standings_summary::copy_standings_summary(screens, tables)?;
             }
             Step::RaceInfo => {
                 // The summary's variable: 1 while it is there (the race reads it:
@@ -184,7 +187,7 @@ pub fn run_event_races(o: Owners<'static>) -> Result<(), Refused> {
         return Err(BadInput("a player of the event's mode missing").into());
     }
     let reset_only = { play.champ_view.reset_times.get() } == 1;
-    let rec = crate::menu::calc_cpu_times::record(screens, o.system)?;
+    let rec = crate::menu::calc_cpu_times::record(screens, o.system, &o.saves.best_tables)?;
     crate::menu::calc_cpu_times::check(cars, screens, o.system, o.race, rec)?;
     let pack = crate::records::trakpak_entry::track_of(&o.system.records().stage_tables, rec)?;
     let mut game = Game {

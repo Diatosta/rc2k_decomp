@@ -31,7 +31,7 @@ pub fn default_championship_times(
         let records_at = tables.championship();
         let stages = count_stages(tables, records_at)?;
         let count = records(tables, records_at)?;
-        let table = &crate::saves::best_times::STAGE_TIMES;
+        let table = &saves.best_tables.stage_times;
         let (true, true) = (stages != 0, table.is_taken()) else {
             return Err(BadInput("no stages, or no table for their times").into());
         };

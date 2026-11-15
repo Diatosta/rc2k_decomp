@@ -1,6 +1,6 @@
 //! The championship's standings tables as the event code walks them: table A
-//! (`saves::best_times::RANKED_TIMES`, best times: `player` 1 .. 4 or 0 for a computer
-//! driver, `group`, `figure` the position) and table B (`saves::best_times::CHAMP_HISTORY`,
+//! (`BestTables::ranked_times`, best times: `player` 1 .. 4 or 0 for a computer
+//! driver, `group`, `figure` the position) and table B (`BestTables::champ_history`,
 //! `rankings::HistoryEntry`); both end with an entry whose first dword is -1.
 //! Also the drivers (-1 at the end) and the players.
 
@@ -13,7 +13,7 @@ use crate::session::PlainDword;
 pub use crate::system::owner::System;
 use rc2k_core::menu::standings::{self, NAME_LEN};
 
-pub use crate::saves::best_times::{CHAMP_HISTORY as TABLE_B, RANKED_TIMES as TABLE_A};
+use crate::saves::best_times::BestTables;
 use rc2k_core::saves::rankings::{BKey, ChampHistory, HistoryEntry, RankedTimes};
 /// "Any group" for the first-player searches.
 pub const ANY_GROUP: u32 = standings::ANY_GROUP;
@@ -57,36 +57,44 @@ pub fn drivers_of(cars: &Cars) -> Result<&[Driver], BadInput> {
 }
 
 /// `f` on table A; refused without it.
-pub fn with_a<R>(f: impl FnOnce(&mut RankedTimes) -> R) -> Result<R, BadInput> {
-    TABLE_A.with(f)
+pub fn with_a<R>(
+    tables: &BestTables,
+    f: impl FnOnce(&mut RankedTimes) -> R,
+) -> Result<R, BadInput> {
+    tables.ranked_times.with(f)
 }
 
 /// `f` on table B; refused without it.
-pub fn with_b<R>(f: impl FnOnce(&mut ChampHistory) -> R) -> Result<R, BadInput> {
-    TABLE_B.with(f)
+pub fn with_b<R>(
+    tables: &BestTables,
+    f: impl FnOnce(&mut ChampHistory) -> R,
+) -> Result<R, BadInput> {
+    tables.champ_history.with(f)
 }
 
 /// How many of table A's entries are walked; refused without the table or with no end entry
 /// within the core's `MOST_WALKED`.
-pub fn walked_a() -> Result<usize, BadInput> {
-    with_a(|t| t.walked())?.ok_or(BadInput("a standings table without its end entry"))
+pub fn walked_a(tables: &BestTables) -> Result<usize, BadInput> {
+    with_a(tables, |t| t.walked())?.ok_or(BadInput("a standings table without its end entry"))
 }
 
 /// As `walked_a`, of table B.
-pub fn walked_b() -> Result<usize, BadInput> {
-    with_b(|t| t.walked())?.ok_or(BadInput("a standings table without its end entry"))
+pub fn walked_b(tables: &BestTables) -> Result<usize, BadInput> {
+    with_b(tables, |t| t.walked())?.ok_or(BadInput("a standings table without its end entry"))
 }
 
 /// The walked entries of table A, copied out.
-pub fn walked_entries_a() -> Result<Vec<rc2k_core::saves::entries::BestTime>, BadInput> {
-    let n = walked_a()?;
-    with_a(|t| t.entries[..n].to_vec())
+pub fn walked_entries_a(
+    tables: &BestTables,
+) -> Result<Vec<rc2k_core::saves::entries::BestTime>, BadInput> {
+    let n = walked_a(tables)?;
+    with_a(tables, |t| t.entries[..n].to_vec())
 }
 
 /// The walked entries of table B, copied out.
-pub fn walked_entries_b() -> Result<Vec<HistoryEntry>, BadInput> {
-    let n = walked_b()?;
-    with_b(|t| t.entries[..n].to_vec())
+pub fn walked_entries_b(tables: &BestTables) -> Result<Vec<HistoryEntry>, BadInput> {
+    let n = walked_b(tables)?;
+    with_b(tables, |t| t.entries[..n].to_vec())
 }
 
 /// Which standings table a search walks.
@@ -101,6 +109,7 @@ pub enum Which {
 /// group's computer drivers before it, its figure (the position) and the entry. None: the
 /// fatal error `code` with `message`.
 pub fn first_player(
+    tables: &BestTables,
     which: Which,
     group: u32,
     code: u32,
@@ -109,10 +118,10 @@ pub fn first_player(
     // The logic is in `rc2k_core::saves::rankings::first_player`, over the entries walked.
     use rc2k_core::saves::rankings::first_player as find;
     let found = match which {
-        Which::A => find(&walked_entries_a()?, group, |e| {
+        Which::A => find(&walked_entries_a(tables)?, group, |e| {
             (e.head.group, e.head.player, e.head.figure)
         }),
-        Which::B => find(&walked_entries_b()?, group, |e| {
+        Which::B => find(&walked_entries_b(tables)?, group, |e| {
             (e.group, e.player, e.position)
         }),
     };
@@ -218,9 +227,13 @@ pub fn counted_players<'a>(
 }
 
 /// The current record's event (the record table, `section`, `index`; its +0x3C): its place
-/// in the stages' best times (`saves::best_times::STAGE_TIMES`); refused past the table's
+/// in the stages' best times (`BestTables::stage_times`); refused past the table's
 /// sections, with no table, or past it.
-pub fn current_event(screens: &Screens, system: &System) -> Result<usize, BadInput> {
+pub fn current_event(
+    screens: &Screens,
+    system: &System,
+    tables: &BestTables,
+) -> Result<usize, BadInput> {
     let table = system.records().stage_tables.championship();
     let section: u32 = screens.event.section.get();
     let index: u32 = screens.event.stage_in_section.get();
@@ -242,7 +255,7 @@ pub fn current_event(screens: &Screens, system: &System) -> Result<usize, BadInp
         section,
     )?;
     let event = record.record(&system.records().stage_tables)?.event_slot() as usize;
-    if !crate::saves::best_times::STAGE_TIMES.with(|t| event < t.stages.len())? {
+    if !tables.stage_times.with(|t| event < t.stages.len())? {
         return Err(BadInput("an event past the stages' best times"));
     }
     Ok(event)
@@ -250,18 +263,21 @@ pub fn current_event(screens: &Screens, system: &System) -> Result<usize, BadInp
 
 /// `f` on event `event`'s ten record entries (`current_event`'s place).
 pub fn with_event<R>(
+    tables: &BestTables,
     event: usize,
     f: impl FnOnce(&mut rc2k_core::saves::entries::Times) -> R,
 ) -> Result<R, BadInput> {
-    crate::saves::best_times::STAGE_TIMES
+    tables
+        .stage_times
         .with(|t| t.stages.get_mut(event).map(f))?
         .ok_or(BadInput("an event past the stages' best times"))
 }
 
-/// Group `group`'s tenth best score (`saves::best_times::SCORES`); refused with no table or
+/// Group `group`'s tenth best score (`BestTables::scores`); refused with no table or
 /// a group past the five.
-pub fn tenth_best_score(group: u32) -> Result<u32, BadInput> {
-    crate::saves::best_times::SCORES
+pub fn tenth_best_score(tables: &BestTables, group: u32) -> Result<u32, BadInput> {
+    tables
+        .scores
         .with(|t| t.groups.get(group as usize).map(|g| g[9].score))?
         .ok_or(BadInput("a group past the best scores' five"))
 }
@@ -273,9 +289,10 @@ const SORTED: u32 = standings::SORTED as u32;
 pub fn sort_table_a(
     screens: &Screens,
     play: &Play,
+    tables: &BestTables,
     key: rc2k_core::saves::entries::Field,
 ) -> Result<(), BadInput> {
-    with_a(|t| {
+    with_a(tables, |t| {
         with_kept_name(play, |kept| {
             rc2k_core::saves::rankings::sort_a(t, SORTED as usize, key, kept);
         });
@@ -287,13 +304,14 @@ pub fn sort_table_a(
 }
 
 /// The current player's (`Event.current_player`) best score entered at the bottom of `group`'s ten
-/// (`saves::best_times::SCORES`, entry 9): its score (`score` of its record), its number
+/// (`BestTables::scores`, entry 9): its score (`score` of its record), its number
 /// plus 1, `new` 1, the nationality and car, its class, its name pointer and the name's 0x1F
 /// bytes; then moved up its group. Refused for a current player past 3 or missing, no name,
 /// no table or a group past 4.
 pub fn enter_best(
     screens: &Screens,
     play: &Play,
+    tables: &BestTables,
     group: Option<u32>,
     score: fn(&rc2k_core::menu::player::Player) -> u32,
 ) -> Result<(), BadInput> {
@@ -303,7 +321,7 @@ pub fn enter_best(
     }
     let p = player_in(play, n);
     let group = group.unwrap_or(p.get().class);
-    let scores = &crate::saves::best_times::SCORES;
+    let scores = &tables.scores;
     let (true, true, false) = (
         scores.is_taken(),
         group < 5,
@@ -333,8 +351,14 @@ pub fn enter_best(
 /// Standings table B's first 0xB4 entries sorted by `key`, as `sort_table_a`: going up (a
 /// later entry not above an earlier one moves up) or, with `down`, going down (a later
 /// entry not below one moves up). Refused without a table.
-pub fn sort_table_b(screens: &Screens, play: &Play, key: BKey, down: bool) -> Result<(), BadInput> {
-    with_b(|t| {
+pub fn sort_table_b(
+    screens: &Screens,
+    play: &Play,
+    tables: &BestTables,
+    key: BKey,
+    down: bool,
+) -> Result<(), BadInput> {
+    with_b(tables, |t| {
         with_kept_name(play, |kept| {
             rc2k_core::saves::rankings::sort_b(t, SORTED as usize, key, down, kept);
         });
@@ -364,16 +388,17 @@ pub struct Numbered {
 /// not there.
 pub fn number_table(
     play: &Play,
+    tables: &BestTables,
     table: Which,
     which: rc2k_core::menu::standings::Numbering,
     number: fn(&mut rc2k_core::menu::player::Player) -> &mut u32,
 ) -> Result<Numbered, Refused> {
     let walked: Vec<(u32, u32)> = match table {
-        Which::A => walked_entries_a()?
+        Which::A => walked_entries_a(tables)?
             .iter()
             .map(|e| (e.head.group, e.head.player))
             .collect(),
-        Which::B => walked_entries_b()?
+        Which::B => walked_entries_b(tables)?
             .iter()
             .map(|e| (e.group, e.player))
             .collect(),
@@ -398,14 +423,14 @@ pub fn number_table(
     }
     let set = |n: usize| numbers[n];
     match table {
-        Which::A => with_a(|t| {
+        Which::A => with_a(tables, |t| {
             for (n, e) in t.entries[..walked.len()].iter_mut().enumerate() {
                 if let Some(v) = set(n) {
                     e.head.figure = v;
                 }
             }
         })?,
-        Which::B => with_b(|t| {
+        Which::B => with_b(tables, |t| {
             for (n, e) in t.entries[..walked.len()].iter_mut().enumerate() {
                 if let Some(v) = set(n) {
                     e.position = v;

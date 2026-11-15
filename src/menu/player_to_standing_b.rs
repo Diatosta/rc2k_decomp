@@ -13,6 +13,7 @@ pub fn player_to_standing_b(
     e: usize,
     p: PlayerCell,
     index: u32,
+    tables: &crate::saves::best_times::BestTables,
 ) -> Result<(), Refused> {
     name_player(&p.get())?;
     use rc2k_core::menu::standings::PlayerB;
@@ -26,6 +27,8 @@ pub fn player_to_standing_b(
         b4: std::array::from_fn(|k| p.get().overall_points[k]),
         slots: std::array::from_fn(|k| p.get().stage_points[k]),
     };
-    with_b(|t| rc2k_core::saves::rankings::fill_b(&mut t.entries[e], &source))?;
+    with_b(tables, |t| {
+        rc2k_core::saves::rankings::fill_b(&mut t.entries[e], &source);
+    })?;
     Ok(())
 }

@@ -24,10 +24,14 @@ fn first_class(state: &MenuState, champ: &ChampView) -> u32 {
     class_pages::first_championship_class(state.menus.class_mode.get(), || champ.event_mode.get())
 }
 
-pub fn class_championship_pass(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
+pub fn class_championship_pass(
+    menus: &Menus,
+    entry: &Entry,
+    tables: &crate::saves::best_times::BestTables,
+) -> Result<(), Refused> {
     let first = first_class(&menus.screens.state, &menus.play.champ_view);
     let classes = class_pages::classes(first, menus.screens.event.shown.classes.get())?;
-    let all: Vec<(u32, u32)> = walked_entries_b()?
+    let all: Vec<(u32, u32)> = walked_entries_b(tables)?
         .iter()
         .map(|e| (e.group, e.player))
         .collect();
@@ -38,7 +42,7 @@ pub fn class_championship_pass(menus: &Menus, entry: &Entry) -> Result<(), Refus
             continue;
         }
         menus.screens.loop_flags.left_with_carry.set(true);
-        let numbered = number_standings(&menus.play, Which::B, class)?;
+        let numbered = number_standings(&menus.play, Which::B, class, tables)?;
         menus
             .screens
             .event
@@ -49,6 +53,7 @@ pub fn class_championship_pass(menus: &Menus, entry: &Entry) -> Result<(), Refus
             &menus.screens.event,
             class,
             entry,
+            tables,
         )?;
         if menus.tables.pages.yes_no_answer.get() == 1 {
             break;

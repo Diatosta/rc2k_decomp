@@ -12,7 +12,7 @@
 //! entries.
 
 use crate::errors::BadInput;
-use crate::input::layouts::{Current, layouts};
+use crate::input::layouts::Current;
 use crate::input::owner::Input;
 use crate::input::store::Devices;
 
@@ -28,8 +28,8 @@ fn down(devices: &Devices, key: usize) -> bool {
 }
 
 /// True if a keyboard layout is set.
-pub fn has_layout() -> bool {
-    layouts().current() != Current::None
+pub fn has_layout(input: &Input) -> bool {
+    input.layouts().current() != Current::None
 }
 
 /// The character is the low byte of the result.
@@ -50,7 +50,7 @@ fn typed(input: &Input, eax: u32, for_text: bool) -> Result<u32, BadInput> {
     if key & 0x80 != 0 {
         return Ok(eax & !0xFF);
     }
-    let mut layouts = layouts();
+    let mut layouts = input.layouts();
     let switched = keyboard::switch(
         layouts.mode(),
         down(ALT),

@@ -247,15 +247,15 @@ fn menu_action(input: &crate::input::owner::Input, action: crate::input::menu_pa
         A::Left => SDL_SCANCODE_LEFT,
         A::Right => SDL_SCANCODE_RIGHT,
         A::Enter => {
-            note_answer(YES);
+            note_answer(input, YES);
             SDL_SCANCODE_RETURN
         }
         A::Back => {
-            note_answer(NO);
+            note_answer(input, NO);
             SDL_SCANCODE_ESCAPE
         }
         A::Third => {
-            note_answer(THIRD);
+            note_answer(input, THIRD);
             return;
         }
         A::LeaveRace | A::LeaveRaceEnd => {
