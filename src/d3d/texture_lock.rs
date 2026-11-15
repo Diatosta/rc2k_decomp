@@ -8,11 +8,8 @@ use crate::errors::FatalError;
 use crate::gfx::texture_upload::RecordCell;
 
 /// Record `slot`, if it is in the pool.
-pub fn record(slot: u32) -> Option<&'static RecordCell> {
-    crate::gfx::owner::textures()
-        .system
-        .records
-        .get(slot as usize)
+pub fn record(gfx: &crate::gfx::owner::Gfx, slot: u32) -> Option<&RecordCell> {
+    gfx.card.texture_tables.system.records.get(slot as usize)
 }
 
 pub const fn fatal(code: u32) -> FatalError {

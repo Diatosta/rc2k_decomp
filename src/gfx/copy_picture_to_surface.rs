@@ -13,7 +13,7 @@ use crate::gfx::owner::Pictures;
 use crate::gfx::picture::{has_picture, with_buffer_unchanged};
 
 // The surface's height (rows), `row_dwords` and `row_gap` (surface bytes after a row's pixels) are
-// `DRAW_SURFACE`'s.
+// the draw surface's (`Gfx.drawing.draw_surface`).
 
 /// The surface the picture goes to, and the picture.
 pub trait PictureSurface {

@@ -148,7 +148,7 @@ pub fn update_mud_texture(
             }
         }
     }
-    crate::d3d::unlock_texture::unlock_texture(race.shared.vars.get().mud_locked.get())?;
+    crate::d3d::unlock_texture::unlock_texture(gfx, race.shared.vars.get().mud_locked.get())?;
     Ok(())
 }
 

@@ -2,7 +2,7 @@
 //! the place of the address DirectDraw's `Lock` gave, and a place in them reached through the
 //! handle's bytes.
 //! The platform registers its bytes under a handle (`SCREEN`, `level`), and the game's data
-//! (`DRAW_SURFACE.pixels`, `present_pixels`, a lock's description) keeps the handle where an
+//! (`draw_surface.pixels`, `present_pixels`, a lock's description) keeps the handle where an
 //! address was once kept. A `Place` is a byte of those bytes; a read or write past the bytes' end,
 //! or past the extent a drawer limited it to, is refused. Bytes that are gone (the screen of an
 //! earlier mode, a level let go) are refused too.

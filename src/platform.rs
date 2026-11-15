@@ -163,7 +163,7 @@ fn set_screen_mode(
     }
     format[4].set(0);
     describe_format(&gfx.pixel.formats, format);
-    // The screen's own texture description (`TEXTURE_TABLES.descriptions[4]`).
+    // The screen's own texture description (`texture_tables.descriptions[4]`).
     gfx.card.texture_tables.descriptions[4].update(|d| {
         d.found = 1;
         d.bytes_per_pixel = bytes;

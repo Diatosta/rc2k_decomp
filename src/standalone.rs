@@ -387,6 +387,7 @@ fn stand_in(what: &str, variable: &crate::session::Dword, value: u32) {
 /// any thread of the game's runs.
 fn start(o: Owners<'static>) {
     let r = Context::default();
+    crate::platform_3d::set_handles(o.gfx);
     set_up_fixed_objects(o.gfx, o.menus);
     seed_clock_and_random(o.system);
     check_machine(o.system, &r);

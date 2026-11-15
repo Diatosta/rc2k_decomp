@@ -34,7 +34,7 @@ pub fn blit_map_tiles(
     );
     let tiles = u32::from(GAME_MAP.is_taken());
     if let Err(e) = check_tiles(pixels, tiles, any_inside(first_x, first_y)) {
-        { unlock_texture(texture) }?;
+        { unlock_texture(gfx, texture) }?;
         return Err(e.into());
     }
     frame.map().row_gap.set(row_gap(pitch, bytes));
@@ -63,7 +63,7 @@ pub fn blit_map_tiles(
             let source = match source.and_then(|s| s) {
                 Ok(s) => s,
                 Err(e) => {
-                    { unlock_texture(texture) }?;
+                    { unlock_texture(gfx, texture) }?;
                     return Err(e.into());
                 }
             };
@@ -105,6 +105,6 @@ pub fn blit_map_tiles(
         }
     }
     // The unlock takes the texture as the lock left it.
-    { unlock_texture(texture) }?;
+    { unlock_texture(gfx, texture) }?;
     Ok(())
 }

@@ -40,6 +40,66 @@ const NO_TEXTURE: u32 = 0xFFFF_FC43;
 /// A `DDERR`, for a surface that is not there.
 const NOT_THERE: i32 = 0x8876_0000u32 as i32 | 0x1C2;
 
+// ---- the draw surface's and the texture tables' handles ----
+
+/// The graphics owner's draw surface and texture tables, as the drawing threads and the platform's
+/// callbacks reach them: they have no owner to ask. Atomic cells, read while the game's thread
+/// waits.
+#[derive(Clone, Copy)]
+pub struct Handles {
+    pub surface: &'static crate::gfx::screen_state::DrawSurface,
+    pub textures: &'static crate::gfx::texture_upload::Textures,
+}
+
+impl Handles {
+    /// The handles into `gfx`.
+    pub fn of(gfx: &'static crate::gfx::owner::Gfx) -> Self {
+        Handles {
+            surface: &gfx.drawing.draw_surface,
+            textures: &gfx.card.texture_tables,
+        }
+    }
+}
+
+static HANDLES: std::sync::OnceLock<Handles> = std::sync::OnceLock::new();
+
+#[cfg(test)]
+thread_local! {
+    /// The handles of this test thread's own graphics owner.
+    static TEST_HANDLES: std::cell::Cell<Option<Handles>> = const { std::cell::Cell::new(None) };
+}
+
+/// Hands the platform the graphics owner's tables, once, where the game starts.
+pub fn set_handles(gfx: &'static crate::gfx::owner::Gfx) {
+    let _ = HANDLES.set(Handles::of(gfx));
+}
+
+/// A test thread's graphics owner is the one its platform calls reach.
+#[cfg(test)]
+pub fn use_in_this_test(gfx: &'static crate::gfx::owner::Gfx) {
+    TEST_HANDLES.with(|h| h.set(Some(Handles::of(gfx))));
+    let _ = HANDLES.set(Handles::of(gfx));
+}
+
+/// The handles; the game has set them before anything draws.
+fn handles() -> Handles {
+    #[cfg(test)]
+    if let Some(own) = TEST_HANDLES.with(std::cell::Cell::get) {
+        return own;
+    }
+    *HANDLES
+        .get()
+        .expect("the platform's handles are set where the game starts")
+}
+
+fn draw_surface() -> &'static crate::gfx::screen_state::DrawSurface {
+    handles().surface
+}
+
+fn textures() -> &'static crate::gfx::texture_upload::Textures {
+    handles().textures
+}
+
 // ---- the texture formats ----
 
 /// `d3d::find_texture_formats`, for a screen of `bits`.
@@ -89,7 +149,7 @@ pub fn describe_texture_formats(bits: u32, gfx: &crate::gfx::owner::Gfx) {
 
 /// A record of a pool (0 system, 1 video).
 fn record_at(pool: usize, number: u32) -> &'static crate::gfx::texture_upload::RecordCell {
-    &crate::gfx::owner::textures().pool(pool).records[number as usize]
+    &textures().pool(pool).records[number as usize]
 }
 
 struct Level {
@@ -325,7 +385,7 @@ fn figures_of(screen: &crate::session::Screen) -> (u32, u32, u32) {
 /// The screen as the game has it now, with the figures of `screen` (the game's thread, outside
 /// a drawing scope).
 pub fn screen(screen: &crate::session::Screen) -> Option<Target> {
-    let pixels = crate::gfx::owner::draw_surface().present_pixels.get();
+    let pixels = draw_surface().present_pixels.get();
     crate::gfx::locked_pixels::bytes_of(pixels)?;
     Some(screen_of(pixels, figures_of(screen)))
 }
@@ -333,7 +393,7 @@ pub fn screen(screen: &crate::session::Screen) -> Option<Target> {
 /// The screen whose pixels are `pixels`, a handle that names bytes.
 fn screen_of(pixels: u32, (width, height, bits): (u32, u32, u32)) -> Target {
     // The renderers draw on the bytes where they lie.
-    let surface = crate::gfx::owner::draw_surface();
+    let surface = draw_surface();
     Target {
         pixels,
         pitch: surface.present_pitch.get() as usize,
@@ -349,7 +409,7 @@ fn note(part: &crate::workers::PartScratch, what: impl FnOnce(&mut Pending)) {
     {
         let pending = &mut *part.noted.lock();
         // A fan asks every time: the pixels' bytes are looked up only when they may differ.
-        let pixels = crate::gfx::owner::draw_surface().present_pixels.get();
+        let pixels = draw_surface().present_pixels.get();
         if !pending.screen_pixels.has_bytes(pixels) {
             return;
         }
@@ -530,7 +590,7 @@ fn level_of(pending: &mut Pending, surface: usize) -> Option<(TextureId, usize, 
 /// (`describe_texture_formats`, the first values), and a record's format is one of those or 0,
 /// which the fans and the screen's copy test first. One that names none ends the program.
 fn format_at(format: u32) -> TextureFormat {
-    match crate::gfx::owner::textures().description(format) {
+    match textures().description(format) {
         Some(d) => d.get(),
         None => crate::fatal::raise::end(
             "a texture format",
@@ -579,7 +639,7 @@ pub fn copy_screen_to_system_texture(number: u32, figures: &crate::session::Scre
         ((c * most + 127) / 255) << shift
     };
     let rows = crate::gfx::rows::Rows::new(
-        crate::gfx::owner::draw_surface().present_pixels.get(),
+        draw_surface().present_pixels.get(),
         screen.pitch as u32,
         screen.height as u32,
     );
@@ -695,7 +755,7 @@ fn fatal(code: u32) -> FatalError {
 
 /// A size by its number in the card's sizes table (five pairs of a number and the size).
 fn size_of(code: u32) -> Option<u32> {
-    let sizes = &crate::gfx::owner::textures().sizes;
+    let sizes = &textures().sizes;
     (0..sizes.len() / 2)
         .find(|&n| sizes[2 * n].get() == code)
         .map(|n| sizes[2 * n + 1].get())
@@ -710,7 +770,7 @@ fn make_texture(
     levels: u32,
 ) -> Result<u32, FatalError> {
     let full = if pool == 0 { 0x80D1_8501 } else { 0x80D1_8601 };
-    let pool_vars = crate::gfx::owner::textures().pool(pool);
+    let pool_vars = textures().pool(pool);
     let number: u32 = pool_vars.count.get();
     if number >= MOST {
         return Err(fatal(full));

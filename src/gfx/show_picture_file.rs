@@ -73,7 +73,7 @@ pub fn show_picture_file(
                 }
                 crate::gfx::rescale_to_surface::rescale_to_surface(
                     &gfx.rescale,
-                    gfx.drawing.draw_surface,
+                    &gfx.drawing.draw_surface,
                     gfx,
                     system,
                     &mut rescaled,

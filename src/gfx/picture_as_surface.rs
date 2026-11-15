@@ -11,7 +11,7 @@ use crate::errors::{FatalError, Refused};
 use crate::gfx::modes::Modes;
 use crate::gfx::set_clip::set_clip;
 
-// `DRAW_SURFACE` is the surface block, twelve dwords: x, y, width, height, bits a pixel, bytes a
+// `Gfx.drawing.draw_surface` is the surface block, twelve dwords: x, y, width, height, bits a pixel, bytes a
 // pixel, bytes of a row's pixels, dwords of a row, the pixel format, the pitch, the pixels, the gap
 // after a row.
 pub const SURFACE_DWORDS: usize = 12;

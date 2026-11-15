@@ -127,7 +127,10 @@ pub fn draw_viewer_panel(
     }
     string(0x560, FONT_E, 0x75, 0)?;
     string(0x561, FONT_E, 0x75, 0xF)?;
-    crate::d3d::unlock_texture::unlock_texture(shared.replay_file().viewer_panel_texture.get())?;
+    crate::d3d::unlock_texture::unlock_texture(
+        gfx,
+        shared.replay_file().viewer_panel_texture.get(),
+    )?;
     crate::d3d::copy_to_device_texture::copy_to_device_texture(
         shared.replay_file().viewer_panel_texture.get(),
         shared.replay_file().viewer_device_texture.get(),

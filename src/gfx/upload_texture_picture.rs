@@ -74,7 +74,7 @@ pub fn upload_texture_picture(
         return Ok(());
     }
     let _timed = crate::race::load_times::scope(crate::race::load_times::Category::TextureConvert);
-    let record = Record::of(texture)?;
+    let record = Record::of(texture, gfx)?;
     let levels = uploads::levels(record.get().levels).map_err(BadInput::from)?;
     {
         let _preparing =

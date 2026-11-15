@@ -109,7 +109,7 @@ pub fn upload_car_icon(
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let texture = icon.texture;
-    let record = Record::of(texture)?;
+    let record = Record::of(texture, gfx)?;
     upload.set(IconUpload {
         texture,
         target_x: icon.target_x,
@@ -153,7 +153,7 @@ pub fn upload_car_icon(
             row_bytes: height.wrapping_mul(4),
         };
         let blitted = blit_components(&gfx.pixel.formats, &piece, &game_target(gfx)?, gfx, system);
-        crate::d3d::unlock_texture::unlock_texture(texture)?;
+        crate::d3d::unlock_texture::unlock_texture(gfx, texture)?;
         blitted?;
     }
     Ok(())

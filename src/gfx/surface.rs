@@ -1,8 +1,8 @@
 //! The global drawing surface and clip rectangle that the game's blitters read. The surface is a
 //! `Target`. The screen's and a locked texture's pixels are reached by a handle
-//! (`gfx::locked_pixels`; `DRAW_SURFACE.pixels`, set by the platform's lock and
+//! (`gfx::locked_pixels`; `draw_surface.pixels`, set by the platform's lock and
 //! `d3d::texture_surface_info`); the picture buffer, the menus' surface after
-//! `gfx::picture_as_surface`, by its number (`ON_PICTURE`, `DRAW_SURFACE.pixels` 0 then).
+//! `gfx::picture_as_surface`, by its number (`ON_PICTURE`, `draw_surface.pixels` 0 then).
 
 use crate::errors::BadInput;
 use crate::gfx::owner::Gfx;

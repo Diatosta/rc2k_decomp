@@ -10,10 +10,13 @@ use crate::framework::CarryZeroFlags;
 use crate::gfx::texture_upload::RecordCell;
 
 /// Texture `texture` unlocked.
-pub fn unlock_texture(texture: u32) -> Result<CarryZeroFlags, Refused> {
+pub fn unlock_texture(
+    gfx: &crate::gfx::owner::Gfx,
+    texture: u32,
+) -> Result<CarryZeroFlags, Refused> {
     use rc2k_core::d3d::textures::{UNLOCK_FAILED, Unlock, unlock};
     // Logic: `rc2k_core::d3d::textures::unlock`.
-    let r = record(texture);
+    let r = record(gfx, texture);
     let surface = r.map_or(0, RecordCell::first_surface);
     let (carry, zero) = match unlock(texture, surface, || r.map_or(0, RecordCell::locked))
         .map_err(BadInput::from)?

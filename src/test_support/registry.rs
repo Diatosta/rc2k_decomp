@@ -538,7 +538,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "gfx.owner.GFX.card.texture_tables",
-            &crate::gfx::owner::TEXTURE_TABLES,
+            &crate::gfx::owner::GFX.get().card.texture_tables,
         ),
         listed!("film.NO_FMV", on_game(crate::film::NO_FMV.get())),
         listed!(
@@ -880,7 +880,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "gfx.owner.GFX.drawing.draw_surface",
-            on_game(&crate::gfx::owner::DRAW_SURFACE),
+            on_game(&crate::gfx::owner::GFX.get().drawing.draw_surface),
         ),
         listed!(
             "d3d.owner.D3D.cards",

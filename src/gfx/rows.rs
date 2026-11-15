@@ -27,7 +27,7 @@ impl Rows {
         }
     }
 
-    /// The drawing surface's (`DRAW_SURFACE`: its pixels, pitch and height); refused while the
+    /// The drawing surface's (`draw_surface`: its pixels, pitch and height); refused while the
     /// picture buffer is the surface (`gfx::surface::handle`).
     pub fn surface(gfx: &crate::gfx::owner::Gfx) -> Result<Self, BadInput> {
         let drawing = &gfx.drawing;

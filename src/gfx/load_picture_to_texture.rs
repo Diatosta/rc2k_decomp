@@ -29,7 +29,7 @@ pub fn read_picture_for_texture(
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<TexturePicture, Refused> {
-    let record = Record::of(texture)?;
+    let record = Record::of(texture, gfx)?;
     keep_second_picture(&record, second, gfx, system)?;
     let (pixels, width, height, _) = read_texture_picture(path, gfx, system)?;
     Ok(TexturePicture {

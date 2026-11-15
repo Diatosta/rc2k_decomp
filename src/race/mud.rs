@@ -131,6 +131,7 @@ pub fn sample_mud_colours(
         shared.vars.get().mud_colours[n as usize].set(mud_pixel(x, y, gfx, system)?);
     }
     crate::d3d::unlock_texture::unlock_texture(
+        gfx,
         textures.kinds.get().kind_first_textures[193].get(),
     )?;
     Ok(())

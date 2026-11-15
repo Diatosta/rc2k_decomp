@@ -18,7 +18,7 @@ pub fn lock_texture_in(
 ) -> Result<CarryZeroFlags, Refused> {
     use rc2k_core::d3d::textures::{LOCK_FAILED, LOCKED_TWICE, Lock, lock};
     // Logic: `rc2k_core::d3d::textures::lock`.
-    let r = record(texture);
+    let r = record(gfx, texture);
     let surface = r.map_or(0, RecordCell::first_surface);
     match lock(texture, surface, || r.map_or(0, RecordCell::locked)).map_err(BadInput::from)? {
         Lock::Nothing => {}

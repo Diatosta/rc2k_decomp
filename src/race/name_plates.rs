@@ -32,7 +32,7 @@ pub fn draw_name_plate(
     for (x, y) in name_places(line) {
         draw_text_in_game(&fonts.font_block.game_fonts[2], text, x, y, gfx)?;
     }
-    unlock_texture(slot)?;
+    unlock_texture(gfx, slot)?;
     Ok(())
 }
 
@@ -89,7 +89,7 @@ pub fn draw_time_plate(frame: &Frame, slot: u32, gfx: &'static Gfx) -> Result<()
         gfx.fonts.font_block.game_fonts[3].update(|f| f.box_width = TIME_BOX);
         draw_bytes_in_game(&gfx.fonts.font_block.game_fonts[3], &text, x, y, gfx)?;
     }
-    unlock_texture(slot)?;
+    unlock_texture(gfx, slot)?;
     Ok(())
 }
 

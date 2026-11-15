@@ -41,7 +41,6 @@ macro_rules! own {
 own! {
     race: crate::race::owner::Race = crate::race::owner::Race::new();
     menus: crate::menu::owner::Menus = crate::menu::owner::Menus::new();
-    gfx: crate::gfx::owner::Gfx = crate::gfx::owner::Gfx::new();
     strings: crate::strings::owner::Strings = crate::strings::owner::Strings::new();
     system: crate::system::owner::System = crate::system::owner::System::new();
     scene: crate::scene::owner::Scene = crate::scene::owner::Scene::new();
@@ -53,6 +52,19 @@ own! {
     sound: crate::sound::owner::Sound = crate::sound::owner::Sound::new();
     effects: crate::effects::owner::Effects = crate::effects::owner::Effects::new();
     d3d: crate::d3d::owner::D3d = crate::d3d::owner::D3d::new();
+}
+
+/// This test thread's own graphics owner; the platform's calls (`platform_3d`) reach its draw
+/// surface and texture tables.
+pub fn gfx() -> &'static crate::gfx::owner::Gfx {
+    thread_local! {
+        static OWNER: &'static crate::gfx::owner::Gfx = {
+            let gfx = build(crate::gfx::owner::Gfx::new);
+            crate::platform_3d::use_in_this_test(gfx);
+            gfx
+        };
+    }
+    OWNER.with(|owner| *owner)
 }
 
 /// This test thread's own owners, all fourteen (building those the test has not asked for yet).

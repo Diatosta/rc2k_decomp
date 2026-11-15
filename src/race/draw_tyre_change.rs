@@ -189,7 +189,7 @@ pub fn draw_tyre_change(
             { build_text(so, strings, 0x12C, None) }?;
         }
         three_times(gfx, strings, x.wrapping_add(4), 0xB2)?;
-        { crate::d3d::unlock_texture::unlock_texture(shared.tyre_change().texture.get()) }?;
+        { crate::d3d::unlock_texture::unlock_texture(gfx, shared.tyre_change().texture.get()) }?;
         // The platform's (Direct3D).
         crate::d3d::copy_to_device_texture::copy_to_device_texture(
             shared.tyre_change().texture.get(),

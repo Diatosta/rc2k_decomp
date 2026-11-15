@@ -69,7 +69,7 @@ pub fn lock(gfx: &crate::gfx::owner::Gfx, slot: u32, lock: bool) -> Result<(), R
     if lock {
         crate::d3d::lock_texture::lock_texture_in(gfx, slot)?;
     } else {
-        crate::d3d::unlock_texture::unlock_texture(slot)?;
+        crate::d3d::unlock_texture::unlock_texture(gfx, slot)?;
     }
     Ok(())
 }

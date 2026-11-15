@@ -253,9 +253,9 @@ pub fn copy_mirror_picture(
         // What the first pixel's high half is under: the destination's slot, as the lock was given
         // it. The pixels are places in each surface's bytes, from offset 0.
         copy_picture(&copy, 0, 0, to, &mut surfaces);
-        unlock_texture(to)?;
+        unlock_texture(gfx, to)?;
     }
-    unlock_texture(from)?;
+    unlock_texture(gfx, from)?;
     Ok(())
 }
 

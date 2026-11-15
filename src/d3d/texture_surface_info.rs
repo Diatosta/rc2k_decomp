@@ -14,7 +14,7 @@ pub fn texture_surface_info(record: &RecordCell, gfx: &Gfx) -> Result<(), crate:
     let f = rc2k_core::d3d::textures::surface_info(
         record.width(),
         record.height(),
-        bytes_per_pixel(kind)?,
+        bytes_per_pixel(kind, gfx)?,
         crate::gfx::pixel_format::texture_description_format(kind, gfx),
         description.pitch.get(),
         description.pixels.get(),
@@ -44,8 +44,9 @@ pub fn texture_surface_info(record: &RecordCell, gfx: &Gfx) -> Result<(), crate:
 }
 
 /// The bytes a pixel of the description a record's kind field names.
-fn bytes_per_pixel(kind: u32) -> Result<u32, crate::errors::BadInput> {
-    crate::gfx::owner::textures()
+fn bytes_per_pixel(kind: u32, gfx: &Gfx) -> Result<u32, crate::errors::BadInput> {
+    gfx.card
+        .texture_tables
         .description(kind)
         .map(|d| d.get().bytes_per_pixel)
         .ok_or(crate::errors::BadInput(
