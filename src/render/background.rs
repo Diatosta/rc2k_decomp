@@ -17,8 +17,15 @@ pub enum Pending {
     /// generation`).
     Buffer { handle: u32, generation: u64 },
     /// Pixels kept as they were when the background was noted: a picture buffer that changed
-    /// before the flush, or the loading picture rescaled to the screen.
+    /// before the flush.
     Copy(Vec<u8>),
+    /// The loading picture rescaled to the screen (`gfx::rescale_to_surface`): the pixels are
+    /// shared with the rescale's result, and `generation` names that result, so the GPU uploads
+    /// them only when a new rescale has made other pixels.
+    Rescaled {
+        generation: u64,
+        pixels: std::sync::Arc<Vec<u8>>,
+    },
 }
 
 #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
@@ -46,10 +53,15 @@ pub fn defer(target: &Target, handle: u32) -> bool {
 
 /// Notes `pixels` (the screen's rows, `height` of them, 32-bit and without gaps) as the frame's
 /// background, as `defer` does for a picture buffer: the loading picture, drawn once rescaled.
+/// `generation` is the rescale's number (`gfx::rescale_to_surface::Rescaled::generation`): the
+/// same number means the same pixels.
 #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-pub fn defer_pixels(target: &Target, pixels: &[u8]) -> bool {
+pub fn defer_pixels(target: &Target, generation: u64, pixels: &std::sync::Arc<Vec<u8>>) -> bool {
     defer_with(target, || {
-        (pixels.len() >= target.width * target.height * 4).then(|| Pending::Copy(pixels.to_vec()))
+        (pixels.len() >= target.width * target.height * 4).then(|| Pending::Rescaled {
+            generation,
+            pixels: std::sync::Arc::clone(pixels),
+        })
     })
 }
 
@@ -94,7 +106,7 @@ pub fn defer(_target: &Target, _handle: u32) -> bool {
 
 /// The handheld's GPU path draws the loading picture from the canvas, as before.
 #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-pub fn defer_pixels(_target: &Target, _pixels: &[u8]) -> bool {
+pub fn defer_pixels(_target: &Target, _generation: u64, _pixels: &std::sync::Arc<Vec<u8>>) -> bool {
     false
 }
 
@@ -156,5 +168,22 @@ mod tests {
         before_change(2, &[1, 2]);
         assert!(matches!(take(), Some(Pending::Copy(bytes)) if bytes == [1, 2]));
         assert!(take().is_none());
+    }
+
+    #[test]
+    fn a_rescaled_background_shares_its_pixels_and_keeps_its_generation() {
+        clear();
+        let pixels = std::sync::Arc::new(vec![3u8; 4]);
+        *PENDING.lock().unwrap() = Some(Pending::Rescaled {
+            generation: 5,
+            pixels: std::sync::Arc::clone(&pixels),
+        });
+        // A buffer's change does not touch it.
+        before_change(2, &[1, 2]);
+        assert!(matches!(
+            take(),
+            Some(Pending::Rescaled { generation: 5, pixels: shared })
+                if std::sync::Arc::ptr_eq(&shared, &pixels)
+        ));
     }
 }

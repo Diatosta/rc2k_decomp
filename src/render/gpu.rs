@@ -78,6 +78,16 @@ impl Default for Targets {
     }
 }
 
+/// What the retained background texture holds, so the next frame's background that is the same
+/// is not uploaded again.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum BackgroundHeld {
+    /// A picture buffer at a change counter.
+    Buffer { handle: u32, generation: u64 },
+    /// The loading picture's rescale, by its generation.
+    Rescaled { generation: u64 },
+}
+
 pub struct Gpu {
     device: Device,
     colour: Texture,
@@ -87,8 +97,8 @@ pub struct Gpu {
     /// The retained background (`background`) and its upload buffer.
     background: Texture,
     background_transfer: Transfer,
-    /// What `background` holds: the picture buffer and its change counter.
-    background_holds: Option<(u32, u64)>,
+    /// What `background` holds.
+    background_holds: Option<BackgroundHeld>,
     /// With `RC2K_BACKGROUND_CHECK`: the frame drawn a second time as the canvas carried the
     /// background (`check`).
     check: Option<check::Check>,
@@ -498,11 +508,12 @@ impl Gpu {
                     .flatten()
                 }
                 Pending::Copy(picture) => picture.get(..bytes).map(<[u8]>::to_vec),
+                Pending::Rescaled { pixels, .. } => pixels.get(..bytes).map(<[u8]>::to_vec),
             };
         }
         let upload = match pending {
             Pending::Buffer { handle, generation } => {
-                if self.background_holds == Some((handle, generation)) {
+                if self.background_holds == Some(BackgroundHeld::Buffer { handle, generation }) {
                     false
                 } else {
                     crate::gfx::picture::with_buffer_unchanged(handle, |picture| {
@@ -513,7 +524,7 @@ impl Gpu {
                             .fill_transfer(self.background_transfer, 0, picture, true)
                     })
                     .map_err(|e| e.0.to_string())??;
-                    self.background_holds = Some((handle, generation));
+                    self.background_holds = Some(BackgroundHeld::Buffer { handle, generation });
                     true
                 }
             }
@@ -525,6 +536,19 @@ impl Gpu {
                     .fill_transfer(self.background_transfer, 0, picture, true)?;
                 self.background_holds = None;
                 true
+            }
+            Pending::Rescaled { generation, pixels } => {
+                if self.background_holds == Some(BackgroundHeld::Rescaled { generation }) {
+                    false
+                } else {
+                    let pixels = pixels
+                        .get(..bytes)
+                        .ok_or("the background's picture is smaller than the screen")?;
+                    self.device
+                        .fill_transfer(self.background_transfer, 0, pixels, true)?;
+                    self.background_holds = Some(BackgroundHeld::Rescaled { generation });
+                    true
+                }
             }
         };
         if upload {

@@ -17,8 +17,11 @@ pub struct Rescaled {
     /// The rescale's inputs: the picture's and the surface's sizes, the surface's format and
     /// pixel width, and the components' fourth byte.
     key: [u32; 7],
-    /// The surface's pixels, row after row without the gaps.
-    pixels: Vec<u8>,
+    /// The surface's pixels, row after row without the gaps. Shared with the GPU's retained
+    /// background, which is why they are never changed after the rescale.
+    pixels: std::sync::Arc<Vec<u8>>,
+    /// This rescale's number among all made: the GPU uploads the pixels again only for another.
+    generation: u64,
     last_parts: Option<[u8; 3]>,
     last_scratch: Option<[u8; 4]>,
     #[cfg(feature = "remote")]
@@ -92,7 +95,7 @@ pub fn rescale_to_surface(
         && crate::platform_3d::screen(system.session.screen.get()).is_some_and(|screen| {
             screen.width == width as usize
                 && screen.height == height as usize
-                && crate::render::background::defer_pixels(&screen, &made.pixels)
+                && crate::render::background::defer_pixels(&screen, made.generation, &made.pixels)
         });
     for (n, row) in made.pixels.chunks_exact(row_len).enumerate() {
         if !by_background {
@@ -107,7 +110,7 @@ pub fn rescale_to_surface(
             crate::gfx::draw2d::Image {
                 row_len,
                 pitch: stride,
-                pixels: made.pixels.clone(),
+                pixels: made.pixels.to_vec(),
             },
         ));
     }
@@ -184,9 +187,11 @@ fn rescale_pixels(
         )
         .expect("the sizes were checked")
     })?;
+    static GENERATIONS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
     Ok(Rescaled {
         key,
-        pixels,
+        pixels: std::sync::Arc::new(pixels),
+        generation: GENERATIONS.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
         last_parts,
         last_scratch,
         #[cfg(feature = "remote")]
