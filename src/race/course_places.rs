@@ -311,6 +311,19 @@ pub fn records_table(
     )
 }
 
+/// Whether the first `count` records are held, refused as `records_table` refuses: their
+/// fields can then be read one at a time (`record_field`) with no copy of the table.
+pub fn records_held(
+    course: crate::race::owner_course::CourseReads<'_>,
+    count: u32,
+) -> Result<(), BadInput> {
+    let end = record_index(count, 0)?;
+    if end > course.stage.course.records.len()? {
+        return Err(BadInput("a read outside the course faces or records"));
+    }
+    Ok(())
+}
+
 /// The records from record 0 set to `bytes`.
 pub fn write_records_table(course: &Course, bytes: &[u8]) -> Result<(), BadInput> {
     let data = &course.stage.course;

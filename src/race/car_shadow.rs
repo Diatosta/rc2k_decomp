@@ -162,11 +162,12 @@ pub fn shadow_angles(
     }
     if count >= 2 {
         // The sort is `rc2k_core::race::quick_sort::quick_sort`.
-        crate::race::sorting::sort_records::<8>(
+        crate::race::sorting::sort_records(
             &work.points,
             count,
             3,
             rc2k_core::race::quick_sort::Order::Up,
+            ShadowPoint::words,
         )?;
     }
     Ok(())
@@ -701,16 +702,15 @@ pub fn shadow_faces(
         return Ok(());
     }
     use rc2k_core::race::shadow::{cell_near_car, record_cell};
-    // Every record of the course is looked at each frame: the run is resolved once.
-    let all = crate::race::course_places::records_table(ctx.reads.course(), count)?;
+    // Every record of the course is looked at each frame: each one's first dword is read in
+    // place, after a check that the whole run is held.
+    crate::race::course_places::records_held(ctx.reads.course(), count)?;
     for n in 0..count {
-        let o = (n as usize) << 5;
-        let Some((x, z)) = record_cell(u32::from_le_bytes([
-            all[o],
-            all[o + 1],
-            all[o + 2],
-            all[o + 3],
-        ])) else {
+        let Some((x, z)) = record_cell(crate::race::course_places::record_field::<u32>(
+            ctx.reads.course(),
+            n,
+            0,
+        )?) else {
             continue;
         };
         if cell_near_car((car.position[0].get(), car.position[2].get()), (x, z)) {
