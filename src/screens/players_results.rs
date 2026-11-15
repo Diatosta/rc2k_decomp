@@ -5,11 +5,11 @@
 //! and puts the third row's time at 0x1B2.
 
 use crate::errors::{BadInput, Refused};
+use crate::memory::session::PlainDword;
 use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
 use crate::menu::results_store::Results;
 use crate::records::stages_store::{RecordRef, RecordTable};
-use crate::session::PlainDword;
 use crate::text::draw_text::Canvas;
 
 pub use rc2k_core::screens::players_results::{Layout, WITH_POINTS, WITHOUT_POINTS};

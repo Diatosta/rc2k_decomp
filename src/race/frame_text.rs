@@ -2,10 +2,10 @@
 //! also used by the credits' screen.
 
 use crate::errors::Refused;
+use crate::memory::session::{PlainDword, PlainWord};
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
 use crate::race::trap::Trap;
-use crate::session::{PlainDword, PlainWord};
 use crate::text::draw_string_by_id::draw_string_by_id_at;
 use crate::text::draw_text::{Canvas, draw_text_at};
 

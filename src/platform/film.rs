@@ -24,9 +24,9 @@
 //! frame is converted from YUV (4:1:0 or 4:2:0, BT.601) to the back surface's format and stretched
 //! over it (nearest). Anything else counts as a film that did not open, and says so in the log.
 
-use crate::ffi::ffmpeg::{Decoder, Frame, MP2, MPEG1VIDEO};
-use crate::framework::log;
 use crate::gfx::owner::Gfx;
+use crate::logfile::program_log::log;
+use crate::platform::ffi::ffmpeg::{Decoder, Frame, MP2, MPEG1VIDEO};
 use crate::system::owner::System;
 use std::ffi::CStr;
 
@@ -444,7 +444,10 @@ fn decoded_sound(audio: &[u8], channels: usize) -> Result<Vec<i16>, String> {
 
 /// Plays the film at `path` (see the header): true at the film's end, false for a key or a film
 /// that does not play.
-pub fn play_film(o: crate::owners::Owners<'static>, path: &dyn crate::session::TextPlace) -> bool {
+pub fn play_film(
+    o: crate::owners::Owners<'static>,
+    path: &dyn crate::memory::session::TextPlace,
+) -> bool {
     let gfx_reports = &o.gfx.reports;
     let reports: u32 = gfx_reports.on.get();
     gfx_reports.on.set(0);
@@ -496,7 +499,7 @@ const SOUND_START_WAIT: std::time::Duration = std::time::Duration::from_secs(1);
 /// a slow first decode delays both); then the sound's position once the device plays it (so
 /// pictures follow what is heard), else the wall clock.
 struct Clock<'a> {
-    sound: Option<&'a crate::ffi::sdl::PlayedSound>,
+    sound: Option<&'a crate::platform::ffi::sdl::PlayedSound>,
     /// When the first picture was shown.
     start: std::cell::Cell<Option<std::time::Instant>>,
 }
@@ -539,7 +542,7 @@ fn run(film: &mut Film, o: crate::owners::Owners<'static>) -> u8 {
     let sound = film
         .sound
         .as_ref()
-        .and_then(|(pcm, hz, ch)| crate::ffi::sdl::PlayedSound::start(pcm, *hz, *ch));
+        .and_then(|(pcm, hz, ch)| crate::platform::ffi::sdl::PlayedSound::start(pcm, *hz, *ch));
     let clock = Clock {
         sound: sound.as_ref(),
         start: std::cell::Cell::new(None),
@@ -632,7 +635,7 @@ fn run(film: &mut Film, o: crate::owners::Owners<'static>) -> u8 {
 /// film at `path`, true at its end.
 pub fn play_film_now(
     o: crate::owners::Owners<'static>,
-    path: &dyn crate::session::TextPlace,
+    path: &dyn crate::memory::session::TextPlace,
 ) -> bool {
     if o.system.machine().no_fmv.get() != 0 {
         return false;

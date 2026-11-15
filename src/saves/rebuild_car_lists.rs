@@ -9,8 +9,8 @@
 //! more.
 
 use crate::errors::BadInput;
+use crate::memory::session::PlainDword;
 use crate::menu::owner::Menus;
-use crate::session::PlainDword;
 use crate::system::checked_reads::CheckedReads;
 
 /// (the numbers, the pointers, how many entries each has)

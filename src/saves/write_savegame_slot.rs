@@ -9,11 +9,11 @@
 use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::numbered_path_bytes;
 use crate::files::write_file::write_file_from;
+use crate::memory::session::{PlainBytes, PlainDword};
 use crate::menu::name_lists::NAME_LEN;
 use crate::menu::owner::Menus;
 use crate::saves::gather_savegame::gather_savegame;
 use crate::saves::owner::Saves;
-use crate::session::{PlainBytes, PlainDword};
 use crate::system::packed_local_time::packed_local_time;
 
 pub const FILE_LEN: usize = 0x8000;
@@ -47,8 +47,8 @@ impl SaveGames {
     }
 }
 
-pub fn slot_name(saves: &'static Saves, slot: u32) -> crate::place::BytePlace {
-    crate::place::BytePlace::In(&saves.save_games.names, slot as usize * NAME_LEN)
+pub fn slot_name(saves: &'static Saves, slot: u32) -> crate::memory::place::BytePlace {
+    crate::memory::place::BytePlace::In(&saves.save_games.names, slot as usize * NAME_LEN)
 }
 
 /// True if the file was written.

@@ -4,5 +4,5 @@
 pub use rc2k_core::threading::Waited;
 
 pub fn wait_for_object(handle: u32, milliseconds: u32) -> Waited {
-    Waited::of(crate::sync::wait(handle, milliseconds))
+    Waited::of(crate::platform::sync::wait(handle, milliseconds))
 }

@@ -34,8 +34,8 @@ pub fn draw_mirror_view(
     scene: &crate::scene::owner::Scene,
     input: &crate::input::owner::Input,
     view: &crate::race::view_scratch::ViewScratch,
-    part: &crate::workers::PartScratch,
-    reads: crate::workers::DrawReads<'_>,
+    part: &crate::scene::workers::PartScratch,
+    reads: crate::scene::workers::DrawReads<'_>,
 ) -> Result<Option<crate::race::draw_view_scene::ViewOutput>, Refused> {
     view.take_vars(reads);
     if reads.finish.no_place.get() != 0

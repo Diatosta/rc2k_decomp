@@ -10,7 +10,7 @@ use crate::physics::car_store::Car;
 pub fn turn_by_heading(
     engine_tables: &crate::scene::engine_tables_store::EngineTables,
     car: &Car,
-    point: &[impl crate::session::FloatLike; 3],
+    point: &[impl crate::memory::session::FloatLike; 3],
     ebx: u32,
 ) {
     let angle = car.car_heading.get().wrapping_neg();

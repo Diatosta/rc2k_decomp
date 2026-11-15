@@ -1,8 +1,8 @@
 //! The draw switches, second part: the far clip switch, the group table word, the loading group
 //! mask, the SSE and 3DNow switches, and a marks source word.
 
-use crate::cells::ZeroCells;
-use crate::session::{PlainDword, PlainFlag};
+use crate::memory::cells::ZeroCells;
+use crate::memory::session::{PlainDword, PlainFlag};
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct DrawSwitches {

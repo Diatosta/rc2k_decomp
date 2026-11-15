@@ -6,7 +6,7 @@ use crate::race::owner_frame::Frame;
 use crate::scene::owner::Scene;
 
 pub fn set_batch_texture(
-    part: &crate::workers::PartScratch,
+    part: &crate::scene::workers::PartScratch,
     frame: &Frame,
     scene: &Scene,
 ) -> Result<(), Refused> {

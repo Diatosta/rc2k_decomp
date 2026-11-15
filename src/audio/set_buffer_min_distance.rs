@@ -9,7 +9,7 @@ pub fn set_buffer_min_distance(v: &Voice) -> Result<i32, Refused> {
         return Err(BadInput("a voice without its 3D buffer").into());
     }
     // The platform takes it at once.
-    Ok(crate::platform_sound::set_min_distance(
+    Ok(crate::platform::sound::set_min_distance(
         v.buffer_3d,
         f32::from_bits(v.min_distance),
     ))

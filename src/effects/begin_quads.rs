@@ -6,7 +6,7 @@
 //! d); the polygon's vertex count 4, the depth scale 1 / the farthest depth, the quad's last cell
 //! 0.
 
-use crate::session::PlainFloat;
+use crate::memory::session::PlainFloat;
 
 /// The render states set (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];

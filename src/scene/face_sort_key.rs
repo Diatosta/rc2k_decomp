@@ -17,7 +17,7 @@ const FACTORS: u32 = 0x100;
 
 pub fn face_sort_key(
     poly: &crate::scene::polygon_work::PolygonWork,
-    part: &crate::workers::PartScratch,
+    part: &crate::scene::workers::PartScratch,
     lists: &crate::race::course_lists_store::CourseLists,
     face: usize,
     count: u32,

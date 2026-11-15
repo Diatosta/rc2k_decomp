@@ -7,11 +7,11 @@
 use crate::errors::Refused;
 use crate::math::cells::load;
 use crate::math::x87;
+use crate::memory::session::PlainFloat;
 use crate::race::owner_frame::Frame;
 use crate::scene::matrix3::{extended, rounded_value};
 use crate::scene::rotate_point::rotate_point;
 use crate::scene::vector3::{dot_product3, normalise};
-use crate::session::PlainFloat;
 
 pub fn view_motion(frame: &Frame, effects: &crate::effects::owner::Effects) -> Result<(), Refused> {
     let m = &frame.matrices.get().view_place;

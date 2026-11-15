@@ -5,12 +5,12 @@
 //! (the callees, the screens through `menu::screen_loop`).
 
 use crate::errors::BadInput;
+use crate::memory::session::FlagLike;
+use crate::memory::session::PlainDword;
 use crate::menu::owner::Menus;
 use crate::menu::pages_store::MenuPages;
 use crate::records::stages_store::RecordRef;
 use crate::saves::best_times::BestTables;
-use crate::session::FlagLike;
-use crate::session::PlainDword;
 use crate::system::owner::System;
 use rc2k_core::menu::leaving::Switch;
 

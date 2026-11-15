@@ -1,7 +1,7 @@
 //! The DirectDraw front and back surface handles. The platform layer sets both to 1 ("there are
 //! surfaces"); the clear functions test the front one.
 
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 
 /// The surface handles.
 #[derive(rc2k_derive::Cells)]

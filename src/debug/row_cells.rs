@@ -1,7 +1,7 @@
 //! Rows of the debug pages read through the field they show; the row's address is only its
 //! label and identity.
 
-use crate::session::{Dword, Float, PlainDword, PlainFloat};
+use crate::memory::session::{Dword, Float, PlainDword, PlainFloat};
 
 /// A cell of the game's state as the pages read it.
 pub trait Raw {
@@ -27,7 +27,7 @@ impl Raw for PlainDword {
     }
 }
 
-impl Raw for crate::session::PlainInt {
+impl Raw for crate::memory::session::PlainInt {
     fn raw(&self) -> u32 {
         self.get() as u32
     }

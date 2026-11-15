@@ -22,7 +22,7 @@
 //! sends the audio thread wait in a locked queue (`sound::queue`). The race's EAX environment
 //! (`Audio::environment`) is written by the game's thread and read by the audio thread.
 
-use crate::session::{Bytes, Dword, Shared};
+use crate::memory::session::{Bytes, Dword, Shared};
 use rc2k_core::audio::modes::AudioOptions;
 use rc2k_core::audio::streams::AudioStream;
 use rc2k_core::audio::voices::{MixerChannel, SampleRecord, Voice};

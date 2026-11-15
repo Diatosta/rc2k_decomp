@@ -5,7 +5,7 @@
 //! Callers: `physics::matrix_angles` (twice).
 
 use crate::math::x87::clamped_asin_80;
-use crate::session::PlainFloat;
+use crate::memory::session::PlainFloat;
 
 // `scratch`
 // `one`, 1.0
@@ -13,7 +13,7 @@ use crate::session::PlainFloat;
 /// The scratch float and the limit in `scratch`, `limit` (both written, in that order).
 pub fn clamped_asin_at(
     x: [u8; 10],
-    scratch: &crate::session::PlainDword,
+    scratch: &crate::memory::session::PlainDword,
     limit: &PlainFloat,
 ) -> [u8; 10] {
     let mut s = scratch.get();

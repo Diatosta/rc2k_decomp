@@ -8,7 +8,7 @@ use crate::race::owner_course::Course;
 
 /// The mud's colour, as its three dwords (red, green, blue).
 pub fn mud_colour(course: &Course) -> [u32; 3] {
-    crate::session::read_bits(&course.stage_prefs.get().mud_colour)
+    crate::memory::session::read_bits(&course.stage_prefs.get().mud_colour)
 }
 
 /// `colour` brought toward the mud's by `amount`.

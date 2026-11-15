@@ -11,7 +11,7 @@
 //! copied to the block by the same `copy_cells` as any other store.
 
 use crate::errors::BadInput;
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 use rc2k_core::drive::replay_frames::{
     FRAME_BYTES, ReplayFrame, START_DWORDS, TAPE_CARS, TENTHS, tape_slot,
 };
@@ -41,19 +41,19 @@ const _: () = assert!(core::mem::size_of::<ReplayStaging>() == FRAME_BYTES);
 impl ReplayStaging {
     /// All zero, as the game's memory starts.
     pub const fn new() -> Self {
-        crate::cells::zeroed_cells()
+        crate::memory::cells::zeroed_cells()
     }
 
     /// The starting state put in (the tape is left).
     pub fn set_start(&self, frame: &ReplayFrame) {
-        crate::cells::store_cells(&self.start, 0, &frame.start_bytes())
+        crate::memory::cells::store_cells(&self.start, 0, &frame.start_bytes())
             .expect("the starting state inside the staging");
     }
 
     /// The starting state, the tape zero.
     pub fn start_frame(&self) -> ReplayFrame {
         let mut bytes = vec![0u8; 4 * START_DWORDS];
-        crate::cells::load_cells(&self.start, 0, &mut bytes)
+        crate::memory::cells::load_cells(&self.start, 0, &mut bytes)
             .expect("the starting state inside the staging");
         ReplayFrame::from_start_bytes(&bytes).expect("the starting state's size")
     }
@@ -91,7 +91,7 @@ mod tests {
         let staging = ReplayStaging::new();
         staging.entry(3, 1).unwrap().packed.set(7);
         let mut bytes = vec![0u8; FRAME_BYTES];
-        crate::cells::load_cells(&staging, 0, &mut bytes).unwrap();
+        crate::memory::cells::load_cells(&staging, 0, &mut bytes).unwrap();
         let frame = ReplayFrame::from_bytes(&bytes).unwrap();
         // Tenth 3, car 1, second word: dword 3 * 4 + 1 * 2 + 1 of the tape.
         assert_eq!(frame.tape[15], 7);

@@ -21,7 +21,10 @@ pub fn match_spot_voices(sound: &crate::sound::owner::Sound) -> Result<(), Refus
         .iter()
         .map(|spot| Spot {
             id: spot.id.get(),
-            place: spot.place.each_ref().map(crate::session::PlainFloat::bits),
+            place: spot
+                .place
+                .each_ref()
+                .map(crate::memory::session::PlainFloat::bits),
             kind: spot.kind.get(),
         })
         .collect();
@@ -31,7 +34,7 @@ pub fn match_spot_voices(sound: &crate::sound::owner::Sound) -> Result<(), Refus
         .get()
         .kind_sounds
         .each_ref()
-        .map(crate::session::PlainDword::get);
+        .map(crate::memory::session::PlainDword::get);
     let mut voices = load_voices(sound);
     rc2k_core::sound::spot_voices::match_spots(&spots, &mut voices, &kinds)?;
     store_voices(sound, &voices);

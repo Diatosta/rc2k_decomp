@@ -22,7 +22,7 @@ const WALK_SKIPS: u32 = 0;
 const DIRS_ROOM: u32 = 0x10000;
 const FILES_ROOM: u32 = 0x40000;
 
-fn same_name(a1: impl Into<crate::place::BytePlace>, name: &[u8]) -> bool {
+fn same_name(a1: impl Into<crate::memory::place::BytePlace>, name: &[u8]) -> bool {
     let mut b = name.to_vec();
     b.push(0);
     crate::menu::event_flow::refuse_here(
@@ -40,7 +40,7 @@ fn found_path(search: &[u8]) -> Result<Vec<u8>, Refused> {
 
 fn walk(
     install: &'static crate::install::owner::Install,
-    folder: crate::place::BytePlace,
+    folder: crate::memory::place::BytePlace,
 ) -> Result<(), Refused> {
     let mut folder = resolve_path(folder)?;
     if !folder.is_empty() {
@@ -128,7 +128,7 @@ fn walk(
 /// the files'.
 pub fn list_folder_tree(
     install: &'static crate::install::owner::Install,
-    folder: impl Into<crate::place::BytePlace>,
+    folder: impl Into<crate::memory::place::BytePlace>,
 ) -> Result<(), Refused> {
     let folder = folder.into();
     walk(install, folder)
@@ -179,8 +179,8 @@ mod tests {
         ] {
             d.set(0);
         }
-        let path_buffer: &'static crate::session::Bytes<1024> =
-            Box::leak(Box::new(crate::session::Bytes::new([0; 1024])));
+        let path_buffer: &'static crate::memory::session::Bytes<1024> =
+            Box::leak(Box::new(crate::memory::session::Bytes::new([0; 1024])));
         for (n, &b) in path.iter().enumerate() {
             path_buffer.set(n, b);
         }

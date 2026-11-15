@@ -13,10 +13,10 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
+use crate::memory::session::PlainDword;
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
-use crate::session::PlainDword;
 use rc2k_core::drive::pace_cars::{
     ahead_of_lead, ease_jump, ease_step, first_starts, gap_start, gaps, passed, push_apart,
     wanted_gap,

@@ -5,7 +5,7 @@ use crate::effects::cell_x87::CellX87;
 use crate::math::x87;
 use crate::math::x87::compare_full;
 use crate::math::x87_float::{compare, ld, stf};
-use crate::session::{Dword, Float, PlainDword, PlainFloat};
+use crate::memory::session::{Dword, Float, PlainDword, PlainFloat};
 
 /// The bits of 0.0. The game keeps one such constant in `race.course.numbers.zero`
 /// (`numbers.zero`, 0.0); nothing in the program writes that cell, so the
@@ -66,22 +66,22 @@ impl<T: FloatView + ?Sized> FloatView for &T {
 }
 
 /// The game's dword in the cell `x`.
-pub fn g(x: &impl crate::session::Cell32) -> u32 {
+pub fn g(x: &impl crate::memory::session::Cell32) -> u32 {
     x.bits()
 }
 
 /// Writes the dword `v` into the cell `x`.
-pub fn p(x: &impl crate::session::Cell32, v: u32) {
+pub fn p(x: &impl crate::memory::session::Cell32, v: u32) {
     x.set_bits(v);
 }
 
 /// The whole number held in the cell `x` (a float variable that holds a count).
-pub fn whole(x: &impl crate::session::Cell32) -> i32 {
+pub fn whole(x: &impl crate::memory::session::Cell32) -> i32 {
     x.bits() as i32
 }
 
 /// Stores the whole number `v` into the cell `x`.
-pub fn set_whole(x: &impl crate::session::Cell32, v: i32) {
+pub fn set_whole(x: &impl crate::memory::session::Cell32, v: i32) {
     x.set_bits(v as u32);
 }
 

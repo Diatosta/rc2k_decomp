@@ -9,8 +9,8 @@
 //! The fields' meanings are readings (`nationality`, `car` and `flag` at +8, +0x14 and +0x18:
 //! the time entries and the section screen say class, nationality and car).
 
+use crate::memory::session::PlainDword;
 use crate::menu::owner::Cars;
-use crate::session::PlainDword;
 
 /// A driver's record (0x94 bytes).
 #[derive(rc2k_derive::Cells)]
@@ -95,7 +95,10 @@ const _: () = assert!(core::mem::size_of::<Driver>() == DRIVER_LEN);
 /// The bytes of `records` as the savegame holds them: each record's dwords in the file's order
 /// (the fields' declaration order; `the_records_are_the_files_bytes` holds it to the offsets).
 pub fn records_to_bytes(records: &[Driver]) -> Vec<u8> {
-    records.iter().flat_map(crate::cells::flatten).collect()
+    records
+        .iter()
+        .flat_map(crate::memory::cells::flatten)
+        .collect()
 }
 
 /// `records_to_bytes`' inverse: `bytes` (a whole number of records for `records`, else refused,
@@ -107,12 +110,12 @@ pub fn records_from_bytes(records: &[Driver], bytes: &[u8]) -> Result<(), crate:
         ));
     }
     struct Writer<'a>(&'a [u8]);
-    impl crate::cells::CellVisitor for Writer<'_> {
+    impl crate::memory::cells::CellVisitor for Writer<'_> {
         fn enter(&mut self, _: &'static str) {}
         fn index(&mut self, _: usize) {}
         fn leave(&mut self) {}
         fn leaf(&mut self, _: &[u8]) {}
-        fn run(&mut self, run: crate::cells::CellRun<'_>) {
+        fn run(&mut self, run: crate::memory::cells::CellRun<'_>) {
             let (now, rest) = self.0.split_at(run.len());
             run.store(0, now);
             self.0 = rest;
@@ -120,7 +123,7 @@ pub fn records_from_bytes(records: &[Driver], bytes: &[u8]) -> Result<(), crate:
     }
     let (chunks, _) = bytes.as_chunks::<DRIVER_LEN>();
     for (record, bytes) in records.iter().zip(chunks) {
-        crate::cells::Cells::visit(record, &mut Writer(&bytes[..]));
+        crate::memory::cells::Cells::visit(record, &mut Writer(&bytes[..]));
     }
     Ok(())
 }

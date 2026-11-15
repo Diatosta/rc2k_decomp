@@ -1,6 +1,6 @@
 //! The strings' text buffer (`strings::text_from_ids` and the screens that build a line there).
 
-use crate::session::PlainBytes;
+use crate::memory::session::PlainBytes;
 
 /// The strings' text buffer.
 #[repr(align(16))]

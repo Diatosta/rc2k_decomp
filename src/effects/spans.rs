@@ -7,7 +7,7 @@ use crate::effects::mask_store::Masks;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_float as bh;
-use crate::session::{PlainFloat, read_bits, write_bits};
+use crate::memory::session::{PlainFloat, read_bits, write_bits};
 
 /// The edge pair `span_edges` works from (`MASKS.edge`): y0, y1, the left and right x at y0, at y1.
 /// The control words (`MASKS.control_word`, `MASKS.status_word`): the one the triangle came

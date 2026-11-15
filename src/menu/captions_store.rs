@@ -1,7 +1,7 @@
 //! The screens' string-id tables and the "screen left" flag: the nationalities, the duel's
 //! labels, the places' points, the player views and the lists of captions' string ids.
 
-use crate::session::{PlainDword, PlainFlag};
+use crate::memory::session::{PlainDword, PlainFlag};
 
 /// The string-id tables.
 #[derive(rc2k_derive::Cells)]

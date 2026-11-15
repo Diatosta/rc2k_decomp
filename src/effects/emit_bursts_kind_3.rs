@@ -10,8 +10,8 @@ use crate::effects::emit_wheel_grit_bursts::BurstTuning;
 use crate::effects::emit_wheel_grit_bursts::{BurstSet, emit_bursts_with, halves};
 use crate::effects::owner::Effects;
 use crate::errors::Refused;
+use crate::memory::session::{PlainDword, PlainFloat};
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
-use crate::session::{PlainDword, PlainFloat};
 
 /// `emit_bursts_kind_3`'s: `emit_wheel_grit_bursts`' with its own factors and randoms.
 fn second(effects: &Effects) -> BurstSet<'_> {

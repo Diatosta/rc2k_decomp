@@ -11,8 +11,8 @@ use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 
 use crate::errors::Refused;
 use crate::math::x87;
+use crate::memory::session::PlainFloat;
 use crate::scene::matrix3::extended;
-use crate::session::PlainFloat;
 
 const LIFE: i32 = 0xFA0;
 

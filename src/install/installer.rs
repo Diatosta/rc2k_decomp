@@ -13,33 +13,33 @@
 //! `draw_action`.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::list_handle::ListMenu;
-use crate::place::BytePlace;
+use crate::memory::list_handle::ListMenu;
+use crate::memory::place::BytePlace;
 
 /// The installer's constant texts.
 #[derive(rc2k_derive::Cells)]
 pub struct InstallTexts {
     /// The other directory, "\".
-    pub other_dir: crate::session::Bytes<2>,
+    pub other_dir: crate::memory::session::Bytes<2>,
     /// ".".
-    pub dot: crate::session::Bytes<2>,
+    pub dot: crate::memory::session::Bytes<2>,
     /// "..".
-    pub dotdot: crate::session::Bytes<3>,
+    pub dotdot: crate::memory::session::Bytes<3>,
     /// "*.*".
-    pub star: crate::session::Bytes<4>,
+    pub star: crate::memory::session::Bytes<4>,
     /// The installation's record.
-    pub record_path: crate::session::Bytes<12>,
+    pub record_path: crate::memory::session::Bytes<12>,
 }
 
 /// The installer's texts.
 impl InstallTexts {
     pub const fn new() -> Self {
         InstallTexts {
-            other_dir: crate::session::Bytes::new(*b"\\\0"),
-            dot: crate::session::Bytes::new(*b".\0"),
-            dotdot: crate::session::Bytes::new(*b"..\0"),
-            star: crate::session::Bytes::new(*b"*.*\0"),
-            record_path: crate::session::Bytes::new(*b"var\\ral.zog\0"),
+            other_dir: crate::memory::session::Bytes::new(*b"\\\0"),
+            dot: crate::memory::session::Bytes::new(*b".\0"),
+            dotdot: crate::memory::session::Bytes::new(*b"..\0"),
+            star: crate::memory::session::Bytes::new(*b"*.*\0"),
+            record_path: crate::memory::session::Bytes::new(*b"var\\ral.zog\0"),
         }
     }
 }
@@ -351,8 +351,8 @@ pub fn measure_string(
 
 /// 0x100 colours of `from` made pixels of the surface's format into `to`.
 pub fn components_to_pixels(
-    from: &[crate::session::PlainDword; 256],
-    to: &[crate::session::PlainDword; 256],
+    from: &[crate::memory::session::PlainDword; 256],
+    to: &[crate::memory::session::PlainDword; 256],
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) {
@@ -384,7 +384,7 @@ pub fn list_take_key(
 pub fn list_step(
     list_state: &crate::menu::list_state::ListState,
     key: u32,
-    table: Option<crate::place::BytePlace>,
+    table: Option<crate::memory::place::BytePlace>,
     list: ListMenu,
 ) -> Result<bool, crate::errors::BadInput> {
     crate::menu::list_step::list_step(list_state, key as u8, table, list)
@@ -401,7 +401,7 @@ pub fn list_item_unusable(list_state: &crate::menu::list_state::ListState, list:
 
 /// Whether the standalone's install or uninstall ended, logged.
 pub fn logged(what: &str, done: Result<(), Refused>) -> Result<(), Refused> {
-    crate::framework::log(&format!(
+    crate::logfile::program_log::log(&format!(
         "install: the {what} ended: {:?}",
         done.as_ref().map(|_| ())
     ));

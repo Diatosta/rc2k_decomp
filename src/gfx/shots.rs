@@ -1,6 +1,6 @@
 //! The screenshot switch, its lock and the file name's template.
 
-use crate::session::{PlainBytes, PlainDword};
+use crate::memory::session::{PlainBytes, PlainDword};
 
 #[derive(rc2k_derive::Cells)]
 pub struct Shots {

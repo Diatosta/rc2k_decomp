@@ -6,7 +6,7 @@ use crate::menu::text_entry::{field, with_entry};
 
 pub fn backup_text(
     menus: &Menus,
-    at: impl Into<crate::place::BytePlace>,
+    at: impl Into<crate::memory::place::BytePlace>,
 ) -> Result<(), crate::errors::BadInput> {
     let text = field(at)?;
     with_entry(menus, |e| e.back_up(&text));

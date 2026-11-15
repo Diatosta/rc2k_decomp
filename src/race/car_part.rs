@@ -2,7 +2,7 @@
 //! after F7: the player's car was over a third of the handheld's game thread while two cores
 //! stood idle). The car's drawing reads what the view's set-up has made by the time its lamps
 //! are gathered (its camera, matrices, fog, light, lamps and the cars' state bits), so from
-//! there it is drawn on a drawing thread (`workers::draw_aside`) on a copy of the view's state
+//! there it is drawn on a drawing thread (`scene::workers::draw_aside`) on a copy of the view's state
 //! while the view's thread draws the course's faces, the race's slots, the shadows, the skid
 //! marks, the cars' lights and the depth entries before the car. At the car's depth entry the
 //! view's thread takes the car's drawing (`CarAside::draw`): its noted drawing put there, its
@@ -18,7 +18,7 @@
 //! three at 0, only when the view's sort list (drawn before every depth entry) holds such a
 //! face (`filter_cleared`); otherwise it is drawn in the list as before.
 //!
-//! `RC2K_CAR_PART=0` (`workers::car_part`) draws the car in the list as before.
+//! `RC2K_CAR_PART=0` (`scene::workers::car_part`) draws the car in the list as before.
 
 use crate::errors::Refused;
 use crate::race::view_scratch::{DrawCtx, ViewScratch};
@@ -49,7 +49,7 @@ pub fn own_car(ctx: &DrawCtx<'_>) -> Option<u32> {
 /// face whose kind cannot be read answers no (the list's drawing refuses it, as before).
 pub fn filter_cleared(
     ctx: &DrawCtx<'_>,
-    entries: &[crate::session::PlainDword],
+    entries: &[crate::memory::session::PlainDword],
     count: u32,
 ) -> bool {
     for entry in entries.as_chunks::<2>().0.iter().take(count as usize) {
@@ -68,7 +68,7 @@ pub fn filter_cleared(
 
 /// The car being drawn aside, for the view's depth list (`draw_entries_around`).
 pub struct CarAside<'a, 'b> {
-    aside: &'b crate::workers::Aside<'a>,
+    aside: &'b crate::scene::workers::Aside<'a>,
     number: u32,
 }
 
@@ -76,7 +76,7 @@ pub struct CarAside<'a, 'b> {
 /// texture filter's switches at 0 (`filter_cleared`), while `rest` draws on; `rest` puts the
 /// car's drawing at its entry (`CarAside`).
 pub fn draw_with_car_aside<'a, R>(
-    helper: crate::workers::Helper<'a>,
+    helper: crate::scene::workers::Helper<'a>,
     ctx: &DrawCtx<'a>,
     number: u32,
     rest: impl FnOnce(&CarAside<'a, '_>) -> Result<R, Refused>,
@@ -97,7 +97,7 @@ pub fn draw_with_car_aside<'a, R>(
         far_clip,
         ..
     } = *ctx;
-    let piece: crate::workers::Piece<'a> = Box::new(move |part, reads| {
+    let piece: crate::scene::workers::Piece<'a> = Box::new(move |part, reads| {
         let view = scene.scratch.car_view();
         let ctx = DrawCtx {
             race,
@@ -113,13 +113,13 @@ pub fn draw_with_car_aside<'a, R>(
         draw_car(&ctx, number)
     });
     let point_count = ctx.reads.course_work.scene_point_count.get();
-    crate::workers::draw_aside(helper, ctx.part, point_count, piece, |aside| {
+    crate::scene::workers::draw_aside(helper, ctx.part, point_count, piece, |aside| {
         rest(&CarAside { aside, number })
     })
 }
 
 /// The texture filter's switches (`scene::choose_texture`).
-fn filter_switches(view: &ViewScratch) -> [&crate::session::PlainDword; 3] {
+fn filter_switches(view: &ViewScratch) -> [&crate::memory::session::PlainDword; 3] {
     [
         &view.polygon.smooth,
         &view.polygon.plain_first,
@@ -129,7 +129,7 @@ fn filter_switches(view: &ViewScratch) -> [&crate::session::PlainDword; 3] {
 
 /// The counts the car adds to (cars drawn, polygons drawn whole and split): its own added to
 /// what the view counted meanwhile, where the other cells take the car's value.
-fn counts(view: &ViewScratch) -> [&crate::session::PlainDword; 3] {
+fn counts(view: &ViewScratch) -> [&crate::memory::session::PlainDword; 3] {
     [
         &view.cars.cars_drawn,
         &view.object.whole_polygon_count,

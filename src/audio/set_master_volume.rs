@@ -14,5 +14,5 @@ pub fn set_master_volume(state: &AudioOwn, volume: u32) {
     let level = rc2k_core::audio::levels::master_volume(volume, |n| {
         crate::audio::buffer_settings::volumes(state, n)
     });
-    crate::platform_sound::set_volume(buffer, level as i32);
+    crate::platform::sound::set_volume(buffer, level as i32);
 }

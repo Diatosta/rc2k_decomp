@@ -7,8 +7,8 @@ use crate::effects::owner::Effects;
 use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::math::x87;
+use crate::memory::session::{PlainDword, PlainFloat, PlainInt};
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
-use crate::session::{PlainDword, PlainFloat, PlainInt};
 
 pub use crate::effects::ring_store::Ring;
 
@@ -67,7 +67,10 @@ pub fn take_entry(
 
 /// The dword at byte `offset` of a car's matrix (16 cells) or matrices; refused past the
 /// cells.
-pub fn matrix_cell<C: crate::session::Cell32>(matrix: &[C], offset: u32) -> Result<u32, Refused> {
+pub fn matrix_cell<C: crate::memory::session::Cell32>(
+    matrix: &[C],
+    offset: u32,
+) -> Result<u32, Refused> {
     matrix
         .get(offset as usize / 4)
         .map(C::bits)
@@ -75,7 +78,10 @@ pub fn matrix_cell<C: crate::session::Cell32>(matrix: &[C], offset: u32) -> Resu
 }
 
 /// As `matrix_cell`, the cell read as the float it holds.
-pub fn matrix_float<C: crate::session::Cell32>(matrix: &[C], offset: u32) -> Result<f32, Refused> {
+pub fn matrix_float<C: crate::memory::session::Cell32>(
+    matrix: &[C],
+    offset: u32,
+) -> Result<f32, Refused> {
     matrix_cell(matrix, offset).map(f32::from_bits)
 }
 
@@ -114,12 +120,12 @@ pub fn gate(
     effects: &Effects,
     wheel: &MarkRecord,
     object: &CarEffects,
-    a: &impl crate::session::Cell32,
-    b: &impl crate::session::Cell32,
-    k: &[crate::session::PlainFloat; 4],
+    a: &impl crate::memory::session::Cell32,
+    b: &impl crate::memory::session::Cell32,
+    k: &[crate::memory::session::PlainFloat; 4],
 ) -> Result<Gate, Refused> {
     Ok({
-        let [k1, k2, k3, k4] = k.each_ref().map(super::super::session::PlainFloat::get);
+        let [k1, k2, k3, k4] = k.each_ref().map(crate::memory::session::PlainFloat::get);
         let rate = x87::rate_to_int(a, b, k1, k2, k3, &effects.setup.floats.one, k4);
         gate_with(wheel, object, rate)?
     })

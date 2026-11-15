@@ -25,7 +25,7 @@ use crate::memory::take_from_list::rewind_list;
 pub struct GameFontsMemory {
     /// The memory's size in units of 0x400 bytes times `Screen.bytes` (`gamegfxheapsize`, a
     /// `var\ral.cfg` setting).
-    pub units: crate::session::PlainDword,
+    pub units: crate::memory::session::PlainDword,
     /// `GameFontsMemory.memory.head`: the list the fonts' tables lie on (16 bytes).
     pub memory: crate::memory::ListCells,
 }
@@ -34,7 +34,7 @@ impl GameFontsMemory {
     /// The game fonts' memory.
     pub const fn new() -> Self {
         GameFontsMemory {
-            units: crate::session::PlainDword::new(0x20),
+            units: crate::memory::session::PlainDword::new(0x20),
             memory: crate::memory::ListCells::new(MemoryList {
                 head: 0,
                 total: 0,
@@ -57,7 +57,7 @@ fn fatal(code: u32) -> Refused {
 /// failed allocation cannot come: the allocator reports its own error.)
 pub fn build_game_fonts(
     vars: &SheetVars,
-    pixels_b: &crate::session::PlainDword,
+    pixels_b: &crate::memory::session::PlainDword,
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
     strings: &crate::strings::owner::Strings,

@@ -2,8 +2,8 @@
 //! then DirectPlay id (smaller first; a player with no time goes after one with a time). More
 //! than eight players are refused.
 
-use crate::cells::Store;
 use crate::errors::{BadInput, Refused};
+use crate::memory::cells::Store;
 use crate::net::owner::Net;
 use crate::net::store::PlayerBlock;
 use rc2k_core::net::players::{self, Standing};

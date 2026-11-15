@@ -94,7 +94,7 @@ pub fn dump_if_asked(list: &CommandList, into: &Target) {
         }
     }
     let written = std::fs::write("rc2k_frame_dump.bin", &out);
-    crate::framework::log(&format!(
+    crate::logfile::program_log::log(&format!(
         "platform_3d: flush {wanted} of {fans} fans dumped to rc2k_frame_dump.bin ({} bytes, {} textures): {written:?}",
         out.len(),
         textures.len()
@@ -113,7 +113,7 @@ pub fn hash_if_asked(list: &CommandList, in_race: bool) {
     if !*ON.get_or_init(|| std::env::var_os("RC2K_FAN_HASH").is_some()) || !in_race {
         return;
     }
-    let mut h = crate::check_hash::CheckHasher::default();
+    let mut h = crate::debug::check_hash::CheckHasher::default();
     // A texture by its pixels, not by where they are: that differs from run to run.
     let mut seen: Vec<(super::TextureId, u64)> = Vec::new();
     let mut texture_hash = |t: &super::TextureNote| {
@@ -121,10 +121,10 @@ pub fn hash_if_asked(list: &CommandList, in_race: bool) {
         if let Some(&(_, v)) = seen.iter().find(|s| s.0 == at) {
             return v;
         }
-        let mut th = crate::check_hash::CheckHasher::default();
+        let mut th = crate::debug::check_hash::CheckHasher::default();
         // SAFETY: as `noted_bytes`': the dump is made inside the noted drawing, before any write
         // to or letting go of a level it reads (each flushes it first).
-        unsafe { crate::platform_3d::level_bytes(t.pixels) }
+        unsafe { crate::platform::direct3d::level_bytes(t.pixels) }
             .map(|b| &b[..t.len.min(b.len())])
             .hash(&mut th);
         let v = th.finish();
@@ -153,7 +153,7 @@ pub fn hash_if_asked(list: &CommandList, in_race: bool) {
         }
     }
     let n = FLUSHES.fetch_add(1, Relaxed);
-    crate::framework::log(&format!(
+    crate::logfile::program_log::log(&format!(
         "fan hash {n}: {} commands, {:016x}",
         list.len(),
         h.finish()

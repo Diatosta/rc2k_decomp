@@ -10,7 +10,7 @@
 //! unwritten: the last such face's, now the same view's last (none drawn: zeros). Nothing reads
 //! them on such a face, so the fans' hashes are the same.
 
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 
 #[derive(rc2k_derive::Cells)]
 pub struct FaceWork {
@@ -118,7 +118,7 @@ impl FaceWork {
 /// slip kept as is); before any face was drawn it is the image's first value.
 pub fn last_fourth_corner(
     shared: &crate::race::owner_shared::RaceShared,
-    scratch: &crate::workers::DrawingScratch,
+    scratch: &crate::scene::workers::DrawingScratch,
 ) -> u32 {
     match scratch.last_face_view() {
         None => shared.view.get().corners[3].get(),

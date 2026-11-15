@@ -3,12 +3,12 @@
 
 use crate::effects::owner::Effects;
 use crate::hud::owner::Hud;
+use crate::memory::session::GameThread;
 use crate::race::owner_course::Course;
 use crate::race::owner_frame::Frame;
 use crate::race::owner_physics::Physics;
 use crate::race::owner_replay::Replay;
 use crate::race::owner_shared::RaceShared;
-use crate::session::GameThread;
 
 /// The race's state.
 pub struct Race {

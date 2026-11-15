@@ -20,13 +20,13 @@
 use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
 use crate::math::x87_float::{int, to_int};
+use crate::memory::session::{PlainDword, PlainFloat};
 use crate::physics::flow::c0;
 use crate::race::muddy_texel::texture_and_mud;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::splash_mud::{LAST_SPLASHED, splash_mud};
 use crate::race::throw_mud_texel::{LAST_THROWN, throw_mud_texel};
-use crate::session::{PlainDword, PlainFloat};
 
 /// `f` rounded to a whole number into `t`.
 fn round_units(f: &PlainFloat, t: &PlainDword) {

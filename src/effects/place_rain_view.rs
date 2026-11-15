@@ -9,7 +9,7 @@ use crate::effects::rain::Weather;
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::math::x87_float as bh;
-use crate::session::{PlainDword, PlainFloat};
+use crate::memory::session::{PlainDword, PlainFloat};
 
 /// One of the two near-copies' variables (`place_rain_view`'s and `place_snow_view`'s), as
 /// addresses.

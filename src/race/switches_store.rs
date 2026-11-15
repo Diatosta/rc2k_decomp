@@ -2,9 +2,9 @@
 //! (number, material, fade, face flags, group mask), the frame-rate clock, the courses found, and a
 //! few race flags. `#[repr(C)]`, laid over the race block bytes.
 
-use crate::cells::ZeroCells;
+use crate::memory::cells::ZeroCells;
 
-use crate::session::{PlainDword, PlainFloat};
+use crate::memory::session::{PlainDword, PlainFloat};
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct FrameSwitches {

@@ -39,8 +39,8 @@ use crate::race::numbers_store::Numbers;
 use crate::race::view_vars_store::ViewVars;
 use crate::scene::matrix3::rounded_value;
 
-use crate::session::DwordLike;
-use crate::session::PlainFloat;
+use crate::memory::session::DwordLike;
+use crate::memory::session::PlainFloat;
 use rc2k_core::physics::camera_view;
 
 /// The fixed camera: `second` picks the second tables.
@@ -141,7 +141,7 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
         ))?
         .head
         .each_ref()
-        .map(crate::session::PlainDword::get);
+        .map(crate::memory::session::PlainDword::get);
     x87_4(c.tables, c.numbers, c.view_records, &head);
     ViewVars::record(c.view_records, 3).angles[0].set(head[3]);
     ViewVars::record(c.view_records, 3).angles[0].set(head[7]);
@@ -653,7 +653,7 @@ mod reference_vectors {
                         race().course.numbers.get(),
                         view(a[0], 0),
                         view(a[1], 0),
-                        view::<crate::session::Dword>(a[3], 0),
+                        view::<crate::memory::session::Dword>(a[3], 0),
                     );
                 },
             },

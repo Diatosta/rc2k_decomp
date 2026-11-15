@@ -15,7 +15,7 @@
 //! (`other_light`) and the light's direction are each view's own too. The sky sets
 //! the other light 0 and, by placing its object, the direction, at every view's start.
 
-use crate::session::{PlainDword, PlainFloat};
+use crate::memory::session::{PlainDword, PlainFloat};
 
 #[derive(rc2k_derive::Cells)]
 pub struct ObjectLight {

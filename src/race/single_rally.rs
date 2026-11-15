@@ -8,15 +8,15 @@
 //! The test at the end of the file compares it with recorded results (`cfg(test)` only).
 
 use crate::errors::{BadInput, FatalError, Refused};
+use crate::memory::session::Bytes;
+use crate::memory::session::DwordLike;
+#[cfg(test)]
+use crate::memory::session::PlainDword;
 use crate::menu::owner::Menus;
 #[cfg(test)]
 use crate::owners::Owners;
 use crate::race::owner::Race;
 use crate::race::state_store::{PlayerControls, RaceCar, RaceResult};
-use crate::session::Bytes;
-use crate::session::DwordLike;
-#[cfg(test)]
-use crate::session::PlainDword;
 use rc2k_core::menu::player::{Player, TAKES_PART};
 
 /// A player's record.

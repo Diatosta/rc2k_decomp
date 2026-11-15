@@ -9,7 +9,7 @@ const NAME_ROOM: u32 = 0x40;
 
 /// The computer's name with its NUL (room for 0x40 bytes), if it can be had.
 pub fn computer_name() -> Option<Vec<u8>> {
-    let mut name = crate::os::computer_name(NAME_ROOM)?;
+    let mut name = crate::platform::os::computer_name(NAME_ROOM)?;
     name.push(0);
     Some(name)
 }

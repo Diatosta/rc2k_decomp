@@ -1,7 +1,7 @@
 //! The replay's frame variables: the first step, the cameras' words, the frame and tenth kept,
 //! the step's block and frame, and the last frame `quit_question` keeps.
 
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ReplayFrames {
@@ -30,7 +30,7 @@ pub struct ReplayFrames {
 
 impl ReplayFrames {
     pub const fn new() -> Self {
-        use crate::cells::ZeroCells;
+        use crate::memory::cells::ZeroCells;
         ZeroCells::ZERO
     }
 }

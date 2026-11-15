@@ -5,8 +5,8 @@
 
 use crate::errors::Refused;
 use crate::hud::owner::{Hud, Pen};
+use crate::memory::session::PlainDword;
 use crate::race::owner_frame::Frame;
-use crate::session::PlainDword;
 
 pub fn set(hud: &Hud, n: usize, v: u32) {
     hud.block.quad.word(n).set(v);
@@ -64,7 +64,7 @@ pub fn bars(
             .map(|&k| {
                 let kind: u32 = k[n as usize].get();
                 let mut bytes = [0; 4];
-                crate::session::read_run_bytes(
+                crate::memory::session::read_run_bytes(
                     &[&hud.block.stage_colours],
                     kind as usize,
                     &mut bytes,
@@ -119,10 +119,16 @@ mod tests {
             cell.set((0x0101_0101 * (k as u32 + 1)) ^ 0x00A0_0C00);
         }
         for kind in 0..=rc2k_core::hud::stage_bars::LAST_KIND {
-            let old: Result<u32, _> = crate::cells::load_value(&hud.stage_colours, kind as usize);
+            let old: Result<u32, _> =
+                crate::memory::cells::load_value(&hud.stage_colours, kind as usize);
             let mut bytes = [0; 4];
-            crate::session::read_run_bytes(&[&hud.stage_colours], kind as usize, &mut bytes, "t")
-                .unwrap();
+            crate::memory::session::read_run_bytes(
+                &[&hud.stage_colours],
+                kind as usize,
+                &mut bytes,
+                "t",
+            )
+            .unwrap();
             assert_eq!(Ok(u32::from_le_bytes(bytes)), old, "{kind}");
         }
     }

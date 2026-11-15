@@ -8,7 +8,7 @@
 //! Structs of atomic cells with the game's starting values (`tests`). The race's sets are named
 //! lists; the read-on order of `RaceField` is what the sound hash's list words rely on.
 
-use crate::session::{Bytes, Cell32, Dword, PlainBytes, PlainDword, PlainFloat, with_runs};
+use crate::memory::session::{Bytes, Cell32, Dword, PlainBytes, PlainDword, PlainFloat, with_runs};
 use rc2k_core::audio::commands::RaceField;
 
 /// Handle of the race's sets: in place of a list's address the table holds
@@ -889,7 +889,7 @@ impl SoundSets {
 
     /// The stored fields in the read-on order, each a run of dwords (`RaceField::Tail` holds
     /// nothing: it reads as 0).
-    fn runs(&self) -> [&dyn crate::session::Run; 10] {
+    fn runs(&self) -> [&dyn crate::memory::session::Run; 10] {
         [
             &self.kind_sets_first,
             &self.first_set_a,

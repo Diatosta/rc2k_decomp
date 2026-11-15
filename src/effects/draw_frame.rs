@@ -13,10 +13,10 @@
 use crate::effects::owner::Effects;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
+use crate::memory::session::{PlainFloat, read_bits};
 use crate::race::owner::Race;
 use crate::scene::matrix3::{extended, rounded_value};
 use crate::scene::rotate_point::rotate_point;
-use crate::session::{PlainFloat, read_bits};
 const CORNERS_FROM: u32 = 0x1C_2000;
 const CORNERS_LEN: u32 = 0x8000;
 /// The two (time kept, where it goes) pairs.
@@ -34,7 +34,7 @@ fn times(effects: &Effects) -> [(&PlainFloat, &PlainFloat); 2] {
 }
 
 fn rdtsc() -> u32 {
-    crate::arch::rdtsc() as u32
+    crate::platform::arch::rdtsc() as u32
 }
 
 /// Draws the frame: `cars_particles`, `view_heading`, `view_motion`, `begin_quads`,

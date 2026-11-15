@@ -18,9 +18,9 @@ use crate::effects::jitter_point::jitter_point;
 use crate::effects::owner::Effects;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
+use crate::memory::session::{PlainDword, PlainFloat};
 use crate::race::effects_settings_store::CarEffects;
 use crate::scene::matrix3::{extended, rounded_value};
-use crate::session::{PlainDword, PlainFloat};
 
 const LEVELS: u32 = 9;
 
@@ -96,8 +96,8 @@ pub fn emit_twin(effects: &Effects, set: &TwinSet<'_>, object: &CarEffects) -> R
         return Ok(());
     }
     masks.surface.wheel_flags.set(set.flags);
-    let motion: [u32; 3] = crate::session::read_bits(&object.motion);
-    crate::session::write_bits(&particles.twin_state.motion, motion);
+    let motion: [u32; 3] = crate::memory::session::read_bits(&object.motion);
+    crate::memory::session::write_bits(&particles.twin_state.motion, motion);
     if next_entry(ring)?.is_none() {
         return Ok(());
     }
@@ -110,7 +110,7 @@ pub fn emit_twin(effects: &Effects, set: &TwinSet<'_>, object: &CarEffects) -> R
             .twin_state
             .point
             .each_ref()
-            .map(crate::session::PlainFloat::get),
+            .map(crate::memory::session::PlainFloat::get),
         &set.tuning.lift,
         car.whole(effects.car_blocks()?)?,
     );

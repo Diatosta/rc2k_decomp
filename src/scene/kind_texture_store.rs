@@ -2,8 +2,8 @@
 //! allocating, then the kinds' first textures and first slots, 0x400 dwords each, indexed by kind
 //! slot.
 
-use crate::cells::ZeroCells;
-use crate::session::PlainDword;
+use crate::memory::cells::ZeroCells;
+use crate::memory::session::PlainDword;
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct KindTextureTables {

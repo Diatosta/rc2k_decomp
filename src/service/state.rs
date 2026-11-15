@@ -1,10 +1,10 @@
 //! Game variables the service area's functions share.
 
 use crate::errors::BadInput;
+use crate::memory::session::{PlainDword, read_all, write_all};
 use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
 use crate::service::owner::Service;
-use crate::session::{PlainDword, read_all, write_all};
 use crate::system::checked_reads::refuse;
 
 /// The current player (`Player`), or None if the index is past the four.
@@ -85,7 +85,7 @@ pub fn time_of(service: &Service, item: usize) -> Option<i32> {
     let key: u32 = service
         .repair_time_handles
         .get(item)
-        .map(crate::session::DwordLike::get)
+        .map(crate::memory::session::DwordLike::get)
         .unwrap_or_else(|| refuse(BadInput("an item past the repair times' pointers")));
     repair_time_at(service, key)
         .unwrap_or_else(|e| refuse(e))

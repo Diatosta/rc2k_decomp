@@ -6,5 +6,5 @@ pub fn pack(t: &rc2k_core::system::time::LocalTime) -> u32 {
 }
 
 pub fn packed_local_time() -> u32 {
-    pack(&crate::os::local_time())
+    pack(&crate::platform::os::local_time())
 }

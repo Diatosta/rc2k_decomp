@@ -15,6 +15,7 @@
 //!   variables overrunning onto the first records' fields, the third chase view read half of
 //!   record 6 from the wrong memory.
 
+use crate::memory::session::{GameThread, PlainBytes, PlainCells, PlainDword};
 use crate::physics::gear_store::GearFigures;
 use crate::race::effects_settings_store::EffectsSettings;
 use crate::race::kind_store::KindTables;
@@ -23,7 +24,6 @@ use crate::race::overlay_store::OverlayBlock;
 use crate::race::panel_store::Panel;
 use crate::race::view_vars_store::{ViewRecord, ViewVars};
 use crate::race::viewer_screen_store::ViewerPanelBlock;
-use crate::session::{GameThread, PlainBytes, PlainCells, PlainDword};
 
 /// The viewer's panel, the bytes after it and the kinds' tables.
 #[derive(rc2k_derive::Cells)]

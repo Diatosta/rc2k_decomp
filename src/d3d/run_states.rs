@@ -1,4 +1,4 @@
-//! The render states across the drawing threads' parts (`workers::draw_parts`). The game sets a
+//! The render states across the drawing threads' parts (`scene::workers::draw_parts`). The game sets a
 //! state only when it changes and draws on with whatever the last object left: run n (n > 0)
 //! starts from the states as the list began, not as run n - 1 ends, so its fans up to its own
 //! first setting of a state would carry a value the game in one run would not have drawn with
@@ -12,7 +12,7 @@ use std::cell::Cell;
 use std::sync::Arc;
 
 use crate::render::{Command, STATES};
-use crate::workers::PartScratch;
+use crate::scene::workers::PartScratch;
 
 type States = [u32; STATES];
 
@@ -26,9 +26,9 @@ pub struct RunStates {
     left: crate::d3d::render_cache::Cache,
 }
 
-/// A drawing part's run under way (`workers::PartScratch::run`): where it first set each
+/// A drawing part's run under way (`scene::workers::PartScratch::run`): where it first set each
 /// state. Only a part other than the first has one; only the thread drawing it reaches it
-/// (plain cells, `part_cell::PartCell`).
+/// (plain cells, `memory::part_cell::PartCell`).
 pub struct OwnRun {
     on: Cell<bool>,
     /// The noted commands' count as the run began.
@@ -58,7 +58,7 @@ impl Default for OwnRun {
 pub fn begin_run(part: &PartScratch, start: &crate::d3d::render_cache::Cache) {
     crate::d3d::render_cache::begin(part, start);
     let run = &part.run;
-    run.base.set(crate::platform_3d::noted_len(part));
+    run.base.set(crate::platform::direct3d::noted_len(part));
     for f in &run.first_set {
         f.set(usize::MAX);
     }
@@ -90,7 +90,7 @@ pub fn note_set(part: &PartScratch, state: usize) {
     let run = &part.run;
     if run.on.get() && state < STATES && run.first_set[state].get() == usize::MAX {
         run.first_set[state]
-            .set(crate::platform_3d::noted_len(part).saturating_sub(run.base.get()));
+            .set(crate::platform::direct3d::noted_len(part).saturating_sub(run.base.get()));
     }
 }
 
@@ -99,7 +99,7 @@ pub fn note_texture_set(part: &PartScratch) {
     let run = &part.run;
     if run.on.get() && run.texture_set.get() == usize::MAX {
         run.texture_set
-            .set(crate::platform_3d::noted_len(part).saturating_sub(run.base.get()));
+            .set(crate::platform::direct3d::noted_len(part).saturating_sub(run.base.get()));
     }
 }
 
@@ -164,7 +164,7 @@ pub fn carry(
     crate::d3d::render_cache::merge_texture(first, &run.left, start);
 }
 
-/// The states and the texture a piece drawn aside set (`workers::draw_aside`), as it left
+/// The states and the texture a piece drawn aside set (`scene::workers::draw_aside`), as it left
 /// them, into its part's cache `first`: each it set, whatever its value (the piece was drawn
 /// after everything in the part so far).
 pub fn carry_set(first: &crate::d3d::render_cache::OwnCache, run: &RunStates) {

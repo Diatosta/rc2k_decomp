@@ -1,9 +1,9 @@
 //! The overlay and countdown part of the race block: the stage-bar parts (distances, two colour
 //! tables), the start lights, the countdown sounds and the position labels with their kept copies.
 
-use crate::cells::ZeroCells;
+use crate::memory::cells::ZeroCells;
+use crate::memory::session::{PlainDword, PlainFloat};
 use crate::race::first_cells::{plain_dwords, plain_dwords_of_text};
-use crate::session::{PlainDword, PlainFloat};
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct OverlayBlock {

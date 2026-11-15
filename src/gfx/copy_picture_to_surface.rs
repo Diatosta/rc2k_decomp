@@ -68,7 +68,7 @@ impl PictureSurface for GameSurface<'_> {
         &self.0.pictures
     }
     fn defer_background(&mut self) -> bool {
-        let Some(target) = crate::platform_3d::screen(self.1.session.screen.get()) else {
+        let Some(target) = crate::platform::direct3d::screen(self.1.session.screen.get()) else {
             return false;
         };
         let whole_rows = self.row_gap() == 0 && self.row_dwords() as usize * 4 == target.pitch;

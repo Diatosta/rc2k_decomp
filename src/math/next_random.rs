@@ -8,7 +8,7 @@
 /// sounds and the drawing. Held by the race (`RaceShared::random`) and handed to what draws.
 pub struct Randoms {
     /// The main generator's state, starting at the game's first value until `seed_random`.
-    pub state: crate::session::Dword,
+    pub state: crate::memory::session::Dword,
     /// The race sounds' numbers: drawn only on the game's thread (the sound turn, the race's sound
     /// levels), so which sounds played no longer changes what the race and the drawing draw.
     pub sounds: Stream,
@@ -21,7 +21,7 @@ pub struct Randoms {
 impl Randoms {
     pub const fn new() -> Self {
         Randoms {
-            state: crate::session::Dword::new(0x9570_1114),
+            state: crate::memory::session::Dword::new(0x9570_1114),
             sounds: Stream::new(),
             drawing: Stream::new(),
         }
@@ -40,7 +40,7 @@ impl Randoms {
     /// The next number. On a drawing thread it comes after the runs before its own, so the
     /// numbers follow the list's order.
     pub fn next_random(&self) -> u32 {
-        crate::workers::wait_for_earlier_runs();
+        crate::scene::workers::wait_for_earlier_runs();
         self.with_random(rc2k_core::math::random::Random::draw)
     }
 
@@ -57,7 +57,7 @@ impl Randoms {
 
     /// A number for the drawing, after the runs before this thread's.
     pub fn next_drawing(&self) -> u32 {
-        crate::workers::wait_for_earlier_runs();
+        crate::scene::workers::wait_for_earlier_runs();
         self.drawing.next()
     }
 
@@ -74,13 +74,13 @@ impl Randoms {
 /// random numbers", "The pictures steer the race's random numbers"). The same generator
 /// as the main one, started from the game's state (`Randoms::seed_streams`).
 pub struct Stream {
-    state: crate::session::Dword,
+    state: crate::memory::session::Dword,
 }
 
 impl Stream {
     const fn new() -> Self {
         Stream {
-            state: crate::session::Dword::new(0x9570_1114),
+            state: crate::memory::session::Dword::new(0x9570_1114),
         }
     }
 

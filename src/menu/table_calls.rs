@@ -8,7 +8,7 @@
 //! fatal error is raised from Rust.
 
 use crate::errors::Refused;
-use crate::framework::log;
+use crate::logfile::program_log::log;
 use crate::menu::menus_store::{MenuId, MenuItem};
 use crate::menu::table_routes::item_fn;
 use crate::owners::Owners;

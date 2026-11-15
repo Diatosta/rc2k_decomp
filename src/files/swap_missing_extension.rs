@@ -5,7 +5,7 @@
 
 use crate::errors::BadInput;
 use crate::files::file_exists::file_exists;
-use crate::session::TextPlace;
+use crate::memory::session::TextPlace;
 
 /// The path at `at`, its ending swapped there when the file is missing: the text as it is
 /// afterwards.

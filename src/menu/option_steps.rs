@@ -15,13 +15,13 @@
 
 use crate::errors::Refused;
 use crate::gfx::owner::Gfx;
+use crate::memory::session::{DwordLike, PlainDword};
 use crate::menu::captions_store::CaptionTables;
 use crate::menu::flow_store::ScreenFlow;
 use crate::menu::options_store::MenuOptions;
 use crate::menu::owner::Menus;
 use crate::menu::owner::Tables;
 use crate::owners::Owners;
-use crate::session::{DwordLike, PlainDword};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Then {
@@ -116,7 +116,7 @@ pub fn step_start_pick(tables: &Tables, c: StartPick<'_>, up: bool) {
         .captions
         .caption_lists
         .get(c.table_at.wrapping_add(n as usize))
-        .map(crate::session::PlainDword::get)
+        .map(crate::memory::session::PlainDword::get)
         .unwrap_or_else(|| {
             crate::fatal::raise::end(
                 "a caption list",

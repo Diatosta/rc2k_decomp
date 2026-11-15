@@ -12,13 +12,13 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87::int_lerp;
+use crate::memory::session::{PlainDword, PlainFloat};
 use crate::physics::car_store::Car;
 use crate::physics::grade_or_reset::grade_or_reset;
 use crate::physics::store::DamageModel;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
-use crate::session::{PlainDword, PlainFloat};
 
 /// (out, setting, hi, lo) for each figure, except the drive kind's.
 fn before<'a>(

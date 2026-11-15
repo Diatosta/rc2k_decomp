@@ -9,8 +9,8 @@
 //! ends. Refuses (before anything) a missing fourth player or name, a list without its end in 64 entries, a bit past
 //! 31 (past the cheats' 32 bits), and what the coding refuses.
 
-use crate::cells::Store;
 use crate::errors::Refused;
+use crate::memory::cells::Store;
 use crate::menu::owner::Play;
 use crate::strings::rot13_into_text::rot13_into_text;
 

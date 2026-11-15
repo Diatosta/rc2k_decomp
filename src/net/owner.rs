@@ -4,12 +4,12 @@
 //! address being built, the session joined and each network screen's state) and the button
 //! belong to the game thread.
 
+use crate::memory::session::GameThread;
 use crate::net::link::Link;
 use crate::net::store::{
     AddressVars, Button, Inboxes, JoinedVars, LobbyScreen, NetMain, NetShared, SessionsScreen,
     SettingsScreen, SetupVars,
 };
-use crate::session::GameThread;
 
 /// The network's state.
 pub struct Net {

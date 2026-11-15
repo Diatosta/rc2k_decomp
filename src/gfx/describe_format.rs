@@ -25,7 +25,7 @@ pub fn describe_masks(formats: &Formats, masks: [u32; 4]) -> (u32, u32) {
 }
 
 /// On a format record (+0 layout, +4 four masks, +0x14 number).
-pub fn describe_format<C: crate::session::DwordLike>(formats: &Formats, format: &[C; 6]) {
+pub fn describe_format<C: crate::memory::session::DwordLike>(formats: &Formats, format: &[C; 6]) {
     let (layout, number) = describe_masks(formats, std::array::from_fn(|n| format[1 + n].get()));
     format[0].set(layout);
     format[5].set(number);

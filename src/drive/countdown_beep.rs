@@ -4,9 +4,9 @@
 //! Refuses what `countdown_cue` refuses.
 
 use crate::errors::Refused;
+use crate::memory::session::PlainDword;
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
-use crate::session::PlainDword;
 use rc2k_core::drive::countdown::{self, Beep};
 
 /// The car block `block`, the second into `to`.

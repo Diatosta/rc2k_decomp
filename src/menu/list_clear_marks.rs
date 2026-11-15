@@ -7,7 +7,7 @@
 //! (its items have no choices, which are refused).
 //! Callers: `race::mark_viewer_items`, `install::run_page`.
 
-use crate::list_handle::ListMenu;
+use crate::memory::list_handle::ListMenu;
 use rc2k_core::menu::list_menu::{has_choices, rounds, unmarked};
 
 pub fn list_clear_marks(install: Option<&'static crate::install::owner::Install>, list: ListMenu) {

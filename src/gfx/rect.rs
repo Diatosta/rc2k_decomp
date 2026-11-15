@@ -7,7 +7,7 @@ use crate::errors::Refused;
 use crate::gfx::owner::Gfx;
 use crate::gfx::surface::{clip, surface};
 
-fn set(a: &crate::session::PlainDword, v: i32) {
+fn set(a: &crate::memory::session::PlainDword, v: i32) {
     a.set(v as u32);
 }
 
@@ -36,7 +36,7 @@ pub enum Palette<'a> {
     /// A font's palette as the game's data keeps it: a place of `gfx::glyph_store`.
     Held(u32),
     /// A palette of Rust's game state: a store, bounded by it.
-    Of(&'a dyn crate::cells::Store),
+    Of(&'a dyn crate::memory::cells::Store),
 }
 
 impl Palette<'_> {
@@ -151,7 +151,7 @@ fn pixel(
 }
 
 /// A rectangle (x, y, width, height) kept in the first 16 bytes of a buffer.
-pub fn rect_in(bytes: &impl crate::session::ByteBuffer) -> [i32; 4] {
+pub fn rect_in(bytes: &impl crate::memory::session::ByteBuffer) -> [i32; 4] {
     std::array::from_fn(|n| bytes.get_u32_at(4 * n) as i32)
 }
 

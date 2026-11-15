@@ -6,8 +6,8 @@
 use crate::effects::mask_store::Masks;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
+use crate::memory::session::PlainDword;
 use crate::race::owner_course::Course;
-use crate::session::PlainDword;
 use rc2k_core::effects::masks::{ShapeRows, Span};
 
 pub const MASK_LEN: u32 = rc2k_core::effects::masks::MASK_LEN as u32;

@@ -53,9 +53,9 @@ pub fn draw_view_scene(
     input: &crate::input::owner::Input,
     view: &ViewScratch,
     filter: [u32; 3],
-    part: &crate::workers::PartScratch,
-    reads: crate::workers::DrawReads<'_>,
-    helper: Option<crate::workers::Helper<'_>>,
+    part: &crate::scene::workers::PartScratch,
+    reads: crate::scene::workers::DrawReads<'_>,
+    helper: Option<crate::scene::workers::Helper<'_>>,
 ) -> Result<ViewOutput, Refused> {
     use crate::race::frame_draw::*;
     view.begin();

@@ -10,13 +10,13 @@
 //!
 //! Caller: `physics::damage_step`.
 
+use crate::memory::session::PlainFloat;
 use crate::physics::car_store::Car;
 use crate::physics::damage_model::{is_set, store, value, whole};
 use crate::physics::flow::{
     abs_below_or_unordered, below_or_unordered, equal_or_unordered, hold_high, hold_low, table_lerp,
 };
 use crate::physics::store::DamageModel;
-use crate::session::PlainFloat;
 use core::cmp::Ordering;
 
 /// The damage model's figures for this step.

@@ -78,7 +78,7 @@ pub fn car_light_modes(
 pub(super) fn own_lamp(
     lamps: &crate::race::lamp_work::LampWork,
     n: u32,
-) -> Result<&[crate::session::PlainDword], BadInput> {
+) -> Result<&[crate::memory::session::PlainDword], BadInput> {
     let n = n as usize;
     lamps
         .lamps
@@ -99,7 +99,7 @@ pub(super) fn add_lamp_entry(ctx: &DrawCtx, lamp: u32) -> Result<(), BadInput> {
     for (cell, &v) in turned.iter().zip(&place) {
         cell.set(v);
     }
-    let matrix: [u32; 16] = crate::session::read_bits(&view.matrices.view_matrix);
+    let matrix: [u32; 16] = crate::memory::session::read_bits(&view.matrices.view_matrix);
     let out = crate::math::x87::rotate_rounding_z(place.map(|v| v as i32), &matrix);
     turned[0].set(out[0]);
     turned[1].set(out[1]);
@@ -176,9 +176,9 @@ pub(super) fn car_light_on_point(
     ];
     let t = rotate_rounding(
         d.map(|v| v as i32),
-        &crate::session::read_bits(&car.car_inverse_matrix),
+        &crate::memory::session::read_bits(&car.car_inverse_matrix),
     );
-    crate::session::write_bits(&object_light.turned_light, t);
+    crate::memory::session::write_bits(&object_light.turned_light, t);
     let k = course.numbers.one_over_65536.get();
     let s1 = int_square_sum_scaled_to_int(
         t[2].wrapping_sub(0x20_0000) as i32,
@@ -204,7 +204,7 @@ pub(super) fn car_light_on_point(
     reason = "the drawing's stores the part reads, as they are lent"
 )]
 pub(super) fn car_lights_on_point(
-    reads: crate::workers::DrawReads<'_>,
+    reads: crate::scene::workers::DrawReads<'_>,
     net_race: Option<rc2k_core::net::net_race::NetRace>,
     object_light: &crate::scene::object_light::ObjectLight,
     drawn_view: u32,
@@ -308,7 +308,7 @@ pub fn check_light_colour(
 /// (`lit_place`, `lit_place[1]`, `lit_place[2]`). Refused as
 /// `check_light_colour`. `reads`: the drawing's light tables and cars' blocks.
 pub fn light_colour_at(
-    reads: crate::workers::DrawReads<'_>,
+    reads: crate::scene::workers::DrawReads<'_>,
     net_race: Option<rc2k_core::net::net_race::NetRace>,
     points: &crate::race::scene_points::OwnPoints,
     lamps: &crate::race::lamp_work::LampWork,
@@ -334,9 +334,9 @@ pub fn view_light(ctx: &DrawCtx<'_>, mmx: bool) -> Result<(), Refused> {
     let (lamps, object_light, car) = (&view.lamps, &view.light, &view.car);
     let drawn_view = view.drawn_view(race);
     check_light_colour(ctx.reads.work, ctx.reads.view, lamps)?;
-    crate::session::write_bits(
+    crate::memory::session::write_bits(
         &object_light.lit_place,
-        crate::session::read_bits(&car.position),
+        crate::memory::session::read_bits(&car.position),
     );
     light_colour_at(
         ctx.reads,

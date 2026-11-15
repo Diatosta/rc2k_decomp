@@ -2,7 +2,7 @@
 //! and gives the list back on every way out.
 
 use crate::memory::MemoryList;
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 
 /// The file being decoded.
 #[cfg_attr(test, repr(C))]

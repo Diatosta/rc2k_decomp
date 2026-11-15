@@ -8,7 +8,7 @@ use crate::errors::Refused;
 use crate::input::devices::records;
 use crate::input::owner::Input;
 use crate::input::types::InputDevice;
-use crate::session::Dword;
+use crate::memory::session::Dword;
 
 /// A tick of the devices (see the header). `sound` is the only sound state the input thread
 /// reaches: the player count and the sound objects in use.

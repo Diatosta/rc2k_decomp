@@ -2,6 +2,7 @@
 //! it in place of global stores. The file numbers of the object loaders, the draw switches, the
 //! light tables and the car icon upload join it first; the other stores follow one by one.
 
+use crate::memory::session::{DrawShared, GameThread};
 use crate::scene::draw_store::SceneDraw;
 use crate::scene::draw_switches_store::DrawSwitches;
 use crate::scene::file_numbers_store::ObjectFileNumbers;
@@ -14,19 +15,18 @@ use crate::scene::object_store::ObjectWork;
 use crate::scene::object_tables_store::ObjectTables;
 use crate::scene::texture_places_store::TexturePlaces;
 use crate::scene::upload_car_icon::IconUploadCell;
-use crate::session::{DrawShared, GameThread};
 
 /// The scene's state.
 pub struct Scene {
     /// Written between frames, read by the drawing parts through their reads
-    /// (`workers::DrawReads`).
+    /// (`scene::workers::DrawReads`).
     pub draw_switches: DrawShared<DrawSwitches>,
     /// Written between frames, read by the drawing parts through their reads
-    /// (`workers::DrawReads`).
+    /// (`scene::workers::DrawReads`).
     pub light_tables: DrawShared<LightTables>,
     pub drawing: Drawing,
-    /// The scratch every drawing part and view works on (`workers::DrawingScratch`).
-    pub scratch: crate::workers::DrawingScratch,
+    /// The scratch every drawing part and view works on (`scene::workers::DrawingScratch`).
+    pub scratch: crate::scene::workers::DrawingScratch,
     pub lights: Lights,
     pub objects: Objects,
     pub textures: Textures,
@@ -61,37 +61,37 @@ impl Scene {
 pub struct Drawing {
     /// The scene's draw variables (`DRAW`).
     /// Written between frames (mostly the physics' work dwords), read by the drawing parts
-    /// through their reads (`workers::DrawReads`).
+    /// through their reads (`scene::workers::DrawReads`).
     pub scene: DrawShared<SceneDraw>,
 }
 
 /// The light state and the lights' work variables.
 pub struct Lights {
     /// The light state (`LIGHT_STATE`): written between frames, read by the drawing parts
-    /// through their reads (`workers::DrawReads`).
+    /// through their reads (`scene::workers::DrawReads`).
     pub state: DrawShared<LightState>,
     /// The lights' work variables (`LIGHT_WORK`): written between frames, read by the drawing
-    /// parts through their reads (`workers::DrawReads`).
+    /// parts through their reads (`scene::workers::DrawReads`).
     pub work: DrawShared<LightWork>,
 }
 
 /// The object tables: the slots and the kinds' tables.
 pub struct Objects {
     /// The object slots (`OBJECT_SLOTS`): written between frames, read by the drawing parts
-    /// through their reads (`workers::DrawReads`).
+    /// through their reads (`scene::workers::DrawReads`).
     pub slots: DrawShared<ObjectSlots>,
     /// The object tables (`OBJECT_TABLES`): written between frames, read by the drawing parts
-    /// through their reads (`workers::DrawReads`).
+    /// through their reads (`scene::workers::DrawReads`).
     pub tables: DrawShared<ObjectTables>,
 }
 
 /// The texture places and the kinds' texture tables.
 pub struct Textures {
     /// The texture places (`TEXTURE_PLACES`): written between frames, read by the drawing parts
-    /// through their reads (`workers::DrawReads`).
+    /// through their reads (`scene::workers::DrawReads`).
     pub places: DrawShared<TexturePlaces>,
     /// The kinds' texture tables: written between frames, read by the drawing
-    /// parts through their reads (`workers::DrawReads`).
+    /// parts through their reads (`scene::workers::DrawReads`).
     pub kinds: DrawShared<KindTextureTables>,
 }
 
@@ -101,7 +101,7 @@ impl Scene {
         Self {
             draw_switches: DrawShared::new(DrawSwitches::new()),
             light_tables: DrawShared::new(LightTables::new()),
-            scratch: crate::workers::DrawingScratch::new(),
+            scratch: crate::scene::workers::DrawingScratch::new(),
             drawing: Drawing {
                 scene: DrawShared::new(SceneDraw::new()),
             },

@@ -1,7 +1,7 @@
 //! The service's owner: the car set-ups' stores in one struct, a field of the menus.
 
+use crate::memory::session::{PlainBytes, PlainDword};
 use crate::service::read_setup_slot::{SetUps, template};
-use crate::session::{PlainBytes, PlainDword};
 
 /// One of the service area's four setup items (gear ratio, tyre, ride height, suspension
 /// stiffness).

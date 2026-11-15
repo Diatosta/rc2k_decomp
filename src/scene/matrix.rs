@@ -8,10 +8,10 @@
 use crate::math::cells::Cells;
 use crate::math::x87;
 use crate::math::x87_float as bh;
+use crate::memory::session::FloatLike;
 use crate::scene::engine_tables_store::EngineTables;
 use crate::scene::project_point::rotate_at;
 use crate::scene::view_matrices::ViewMatrices;
-use crate::session::FloatLike;
 
 /// An angle's sine and cosine from the game's tables `tables`: sixteen bits a turn, the low
 /// four dropped.
@@ -74,7 +74,7 @@ pub fn set_turn_z_16(
 
 /// `scene::set_place`, on the placed matrix.
 pub fn set_place(placed: &[impl FloatLike; 16], place: [u32; 3]) {
-    crate::session::write_first(
+    crate::memory::session::write_first(
         &placed[12..15],
         &place.map(|part| x87::from_int(part as i32).to_bits()),
     );
@@ -152,7 +152,7 @@ pub fn set_light_direction(
         [0, 0, 1],
         &v.lit_matrix
             .each_ref()
-            .map(super::super::session::PlainFloat::get),
+            .map(crate::memory::session::PlainFloat::get),
     );
     for (cell, value) in direction.iter().zip(ahead) {
         cell.set(value);
@@ -180,7 +180,7 @@ pub fn make_object_matrix(
         &v.turn_x_work,
         object.angles[0].get().wrapping_neg(),
     );
-    let place: [u32; 3] = crate::session::read_bits(&object.place);
+    let place: [u32; 3] = crate::memory::session::read_bits(&object.place);
     set_place(&v.placed_matrix, place);
     multiply_matrices(&v.turn_y_matrix, &v.turn_x_matrix, &v.turned_matrix);
     let size: u32 = object.size.get();

@@ -17,10 +17,10 @@ use crate::effects::owner::Effects;
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::math::x87_float as bh;
+use crate::memory::session::{read_bits, write_bits};
 use crate::race::effects_settings_store::CarEffects;
 use crate::scene::matrix3::{extended, rounded_value};
 use crate::scene::rotate_point::rotate_point;
-use crate::session::{read_bits, write_bits};
 
 /// `o` is the car's object.
 pub fn emit_car_particles(effects: &Effects, o: &CarEffects) -> Result<(), Refused> {

@@ -1,7 +1,16 @@
-//! The game's memory allocator: blocks on lists, and the figures it keeps about them.
+//! The game's memory: the allocator's blocks on lists and the figures it keeps about them, and the
+//! typed cells the game's data lives in (`cells`, `session`, `place`, `part_cell`, `pool`,
+//! `list_handle`, `shared_memory`).
 
+pub mod cells;
 pub mod free_list;
+pub mod list_handle;
 pub mod owned;
+pub mod part_cell;
+pub mod place;
+pub mod pool;
+pub mod session;
+pub mod shared_memory;
 pub mod shared_table;
 pub mod take_from_list;
 
@@ -15,15 +24,15 @@ pub type MemoryList = rc2k_core::memory::List;
 #[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ListCells {
-    pub head: crate::session::PlainDword,
-    pub total: crate::session::PlainDword,
-    cursor: crate::session::PlainDword,
-    remaining: crate::session::PlainDword,
+    pub head: crate::memory::session::PlainDword,
+    pub total: crate::memory::session::PlainDword,
+    cursor: crate::memory::session::PlainDword,
+    remaining: crate::memory::session::PlainDword,
 }
 
 impl ListCells {
     pub const fn new(list: MemoryList) -> Self {
-        use crate::session::PlainDword;
+        use crate::memory::session::PlainDword;
         Self {
             head: PlainDword::new(list.head),
             total: PlainDword::new(list.total),
@@ -79,7 +88,7 @@ impl HeldList for ListCells {
 }
 
 /// A list kept in a thread-shared record's four atomic dwords (head, total, cursor, remaining).
-impl HeldList for [crate::session::Dword; 4] {
+impl HeldList for [crate::memory::session::Dword; 4] {
     fn get(&self) -> MemoryList {
         MemoryList {
             head: self[0].get(),
@@ -104,12 +113,12 @@ pub const HEADER_LEN: u32 = rc2k_core::memory::HEADER_LEN;
 pub mod state {
 
     /// The most bytes held at once.
-    pub static MOST_HELD: crate::session::Dword = crate::session::Dword::new(0);
+    pub static MOST_HELD: crate::memory::session::Dword = crate::memory::session::Dword::new(0);
     /// The bytes held now.
-    pub static HELD: crate::session::Dword = crate::session::Dword::new(0);
+    pub static HELD: crate::memory::session::Dword = crate::memory::session::Dword::new(0);
     /// All bytes ever asked for ("MEM: memory turnover= .. maximum load= .."
     /// in the game's log).
-    pub static TURNOVER: crate::session::Dword = crate::session::Dword::new(0);
+    pub static TURNOVER: crate::memory::session::Dword = crate::memory::session::Dword::new(0);
 }
 
 /// `bytes` of Rust's memory counted on `list` as `allocate` counts a block it takes (the

@@ -11,11 +11,11 @@
 //! Refuses a current player past 3 or missing, a car past 0xFF or without its table, before
 //! anything.
 use crate::errors::{BadInput, Refused};
+use crate::memory::session::write_all;
 use crate::menu::event_flow::Fault;
 use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
 use crate::menu::standings::*;
-use crate::session::write_all;
 
 /// The parts' names in the log, by inspected part.
 const NAMES_RVA: [&std::ffi::CStr; 13] = [

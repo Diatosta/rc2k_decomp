@@ -25,7 +25,7 @@ const LOADING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts
 /// Shows the picture at `path`.
 pub fn show_picture_file(
     o: crate::owners::Owners<'static>,
-    path: &dyn crate::session::TextPlace,
+    path: &dyn crate::memory::session::TextPlace,
 ) -> Result<(), Refused> {
     let (gfx, system) = (o.gfx, o.system);
     pump_messages_now(o);

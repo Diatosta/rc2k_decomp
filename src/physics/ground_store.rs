@@ -5,7 +5,7 @@
 //! with its first kept table (normals; the point and coordinate tables follow at 0x1000 each).
 //! Names are readings unless taken from the game's own.
 
-use crate::session::{PlainDword, PlainFloat};
+use crate::memory::session::{PlainDword, PlainFloat};
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct GroundWork {
@@ -133,8 +133,8 @@ pub struct GroundWork {
 /// The piece, with the image's first values.
 impl GroundWork {
     pub const fn new() -> Self {
-        use crate::cells::ZeroCells;
-        use crate::session::PlainDword;
+        use crate::memory::cells::ZeroCells;
+        use crate::memory::session::PlainDword;
         Self {
             drawn_car_light: PlainDword::new(0xFFFFFFFF),
             ..ZeroCells::ZERO

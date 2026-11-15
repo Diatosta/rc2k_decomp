@@ -6,10 +6,10 @@
 use crate::errors::Refused;
 use crate::hud::owner::{Hud, Pen};
 use crate::hud::store::HudBlock;
+use crate::memory::session::PlainDword;
+use crate::memory::session::PlainFloat;
 use crate::race::owner_frame::Frame;
 use crate::race::panel_store::Panel;
-use crate::session::PlainDword;
-use crate::session::PlainFloat;
 
 /// A layout's own variables of a dial, in the order its set-up copies them.
 type Vars = fn(&HudBlock) -> &[PlainFloat];

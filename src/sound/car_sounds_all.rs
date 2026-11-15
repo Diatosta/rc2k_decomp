@@ -74,7 +74,7 @@ pub fn car_sounds_all(
 /// An x87-precision run in plain Rust over `X`, written as the expressions it computes
 /// (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `nearest_distance = (place[0] * place[0]) + ((place[1] * place[1]) + (place[2] * place[2]))`
-fn x87_1(si: &SoundObject, nearest_distance: &crate::session::PlainFloat) {
+fn x87_1(si: &SoundObject, nearest_distance: &crate::memory::session::PlainFloat) {
     let t0 = ld(si.place[0].get());
     let t1 = ld(si.place[0].get());
     let t2 = t0 * t1;
@@ -115,7 +115,9 @@ mod reference_vectors {
                 with_laid::<SoundObject, _>(a[0], |so| {
                     x87_1(
                         so,
-                        crate::scene::x87_mem::view::<crate::session::PlainFloat>(a[1], 0x2578),
+                        crate::scene::x87_mem::view::<crate::memory::session::PlainFloat>(
+                            a[1], 0x2578,
+                        ),
                     );
                 });
             },

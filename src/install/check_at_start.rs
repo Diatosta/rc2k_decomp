@@ -10,7 +10,7 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::install::outside::Outside;
 use crate::install::runs_from_source::{scratch_bytes, scratch_put, scratch_text};
-use crate::session::Dword;
+use crate::memory::session::Dword;
 use crate::system::owner::System;
 
 const PATH_ROOM: usize = 0x100;

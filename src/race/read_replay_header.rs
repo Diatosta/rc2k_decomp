@@ -6,9 +6,9 @@
 //!
 //! Callers: `race::viewer_load_stage`.
 
+use crate::memory::session::DwordLike;
 use crate::race::owner::Race;
 use crate::race::race_end::{header_cell, setting_cell};
-use crate::session::DwordLike;
 use rc2k_core::race::replay::{HEADER_SETTINGS, Setting, read_logged};
 
 /// The race's places a header setting goes back to, in order (a kind into its block and into

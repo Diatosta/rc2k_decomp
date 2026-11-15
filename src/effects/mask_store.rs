@@ -3,7 +3,7 @@
 //! number of the picture of each kind. Four statics, so that each struct starts at its first
 //! cell and its offsets stay as listed.
 
-use crate::session::{PlainBytes, PlainDword};
+use crate::memory::session::{PlainBytes, PlainDword};
 
 /// The ground picture's name. The offsets are from its start.
 #[derive(rc2k_derive::Cells)]

@@ -25,7 +25,7 @@ pub fn shown_car(menus: &Menus) -> Result<u32, Refused> {
 /// as the frame sprite's palette, which the sprite never looks at.)
 pub fn load_car_background(
     menus: &'static Menus,
-    load: &mut dyn FnMut(crate::place::BytePlace) -> Result<bool, Refused>,
+    load: &mut dyn FnMut(crate::memory::place::BytePlace) -> Result<bool, Refused>,
 ) -> Result<(), Refused> {
     let page = rc2k_core::menu::slides::background_page(menus.screens.event.shown.car_page.get())?;
     let car = shown_car(menus)?;

@@ -3,8 +3,8 @@
 //! the views (which are on, their cars and blocks, the drawn view), the race's cars and players,
 //! the frame clock, the depth and sort counts. `#[repr(C)]`, laid over the race block bytes.
 
-use crate::cells::ZeroCells;
-use crate::session::{PlainDword, PlainFloat};
+use crate::memory::cells::ZeroCells;
+use crate::memory::session::{PlainDword, PlainFloat};
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct RaceView {
@@ -215,7 +215,7 @@ impl RaceView {
         if let Some(kind) = self.surface_kinds.get(n) {
             return Ok(kind.get());
         }
-        crate::session::read_runs(
+        crate::memory::session::read_runs(
             &[
                 &self.surface_kinds,
                 &self.depth_test,

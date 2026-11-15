@@ -1,7 +1,7 @@
 //! The main menu's notice flag, the car specification screen's kept car and the cheats, out of
 //! RAL.EXE's image. One static.
 
-use crate::session::{PlainBytes, PlainDword, with_runs};
+use crate::memory::session::{PlainBytes, PlainDword, with_runs};
 
 /// The notice flag, the kept car and the cheats.
 #[derive(rc2k_derive::Cells)]

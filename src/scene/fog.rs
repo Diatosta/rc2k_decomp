@@ -6,7 +6,7 @@
 //! read that view's own. A length of 0 (no fog set up since the start) makes
 //! `scene::fog_polygon` read the byte before the table, which nothing in the game writes: 0.
 
-use crate::session::{PlainBytes, PlainDword};
+use crate::memory::session::{PlainBytes, PlainDword};
 
 /// The table's room in bytes.
 pub const TABLE_LEN: usize = 0x1000;

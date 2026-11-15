@@ -10,9 +10,9 @@
 //! its place; then the place becomes 999, the copy goes to the player and the redefining ends.
 //! Place 8 has no item on the pages.
 
-use crate::cells::Store;
 use crate::errors::{BadInput, Refused};
 use crate::input::take_key::take_key;
+use crate::memory::cells::Store;
 use crate::menu::owner::Keys;
 use crate::menu::owner::Menus;
 

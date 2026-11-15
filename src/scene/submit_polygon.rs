@@ -15,7 +15,7 @@ use crate::d3d::draw_fan_unclipped::polygon;
 use crate::d3d::vertices_store::PolygonVertices;
 use crate::d3d::{NO_TEXTURE, Vertex};
 use crate::logfile::log_hex8::log_hex8;
-use crate::session::Screen;
+use crate::memory::session::Screen;
 
 // ---- game data ----
 const TEXTURES: u32 = 0x400;
@@ -84,7 +84,7 @@ pub fn submit_polygon(
 /// The game's Direct3D layer and log, for drawing part `.0` and its view `.1` (a bad polygon's
 /// log names the view's object and face).
 pub struct Game<'a>(
-    pub &'a crate::workers::PartScratch,
+    pub &'a crate::scene::workers::PartScratch,
     pub &'a crate::race::view_scratch::ViewScratch,
 );
 
@@ -97,7 +97,7 @@ impl Outside for Game<'_> {
     }
     fn draw_fan(&mut self, vertices: &[Vertex]) -> u32 {
         // `d3d::draw_fan_unclipped`: its result is always 0.
-        crate::platform_3d::draw_fan(self.0, vertices);
+        crate::platform::direct3d::draw_fan(self.0, vertices);
         0
     }
     fn bad_vertex(&mut self, buffer: &PolygonVertices, screen: &Screen) {

@@ -37,7 +37,7 @@ use crate::text::measure_text::measure_text_at;
 const CURSOR_STRING: u32 = 4;
 const MEASURING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::MEASURE;
 
-fn end_name(menus: &Menus, name: crate::place::BytePlace) -> Result<(), BadInput> {
+fn end_name(menus: &Menus, name: crate::memory::place::BytePlace) -> Result<(), BadInput> {
     name.add(length(menus) as u32)
         .write(&[0], "a saved game's name")
 }
@@ -56,7 +56,7 @@ fn highlighted_slot(pages: &MenuPages, loop_flags: &LoopFlags) -> u32 {
 /// refuses ends the program with the reason.
 pub fn save_game(menus: &Menus, saves: &'static Saves, slot: u32) {
     if let Err(why) = write_savegame_slot(menus, saves, slot) {
-        crate::framework::log(&format!("saves::write_savegame_slot: slot {slot}"));
+        crate::logfile::program_log::log(&format!("saves::write_savegame_slot: slot {slot}"));
         crate::fatal::raise::end("saves::write_savegame_slot", why);
     }
 }

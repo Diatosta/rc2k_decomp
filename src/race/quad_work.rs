@@ -2,7 +2,7 @@
 //! the corners (`quad_corners`: [0] left, [1] right, [4] top, [5] bottom), each view's own. One
 //! per view slot (`race::view_scratch::ViewScratch::quad`).
 
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 
 #[derive(rc2k_derive::Cells)]
 pub struct QuadWork {

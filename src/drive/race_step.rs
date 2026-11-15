@@ -42,12 +42,12 @@ fn hash_if_asked(race: &Race) {
     let mut groups = crate::drive::sim_hash::car_blocks_groups(race.shared.car_blocks.get());
     let staging = race.replay.staging();
     let mut bytes = vec![0; core::mem::size_of_val(staging)];
-    if crate::cells::load_cells(staging, 0, &mut bytes).is_err() {
+    if crate::memory::cells::load_cells(staging, 0, &mut bytes).is_err() {
         return;
     }
     groups.push(crate::drive::sim_hash::staging_group(&bytes));
     let tick = TICKS.fetch_add(1, Relaxed);
-    crate::framework::log(&format!(
+    crate::logfile::program_log::log(&format!(
         "sim hash {tick}: {:016x}, random {:08x}",
         crate::drive::sim_hash::total(&groups),
         race.shared.random.state.get()
@@ -59,7 +59,7 @@ fn hash_if_asked(race: &Race) {
             .iter()
             .map(|(name, hash)| format!("{name}={:04x}", hash & 0xFFFF))
             .collect();
-        crate::framework::log(&format!("sim chunks {tick}: {}", chunks.join(" ")));
+        crate::logfile::program_log::log(&format!("sim chunks {tick}: {}", chunks.join(" ")));
     }
 }
 

@@ -90,7 +90,7 @@ mod active {
 
     fn close_sub(state: &mut State, now: Instant) {
         if let Some((name, begun)) = state.sub.take() {
-            crate::framework::log(&format!(
+            crate::logfile::program_log::log(&format!(
                 "load time {} / {name}: {:.1} ms",
                 state.phase_name,
                 now.duration_since(begun).as_secs_f64() * 1000.0
@@ -130,7 +130,7 @@ mod active {
         if !parts.is_empty() {
             line += &format!(" ({})", parts.join(", "));
         }
-        crate::framework::log(&line);
+        crate::logfile::program_log::log(&line);
         state.totals = [Duration::ZERO; 9];
         state.counts = [0; 9];
     }
@@ -151,7 +151,7 @@ mod active {
             if let Some(mut state) = s.borrow_mut().take() {
                 let now = Instant::now();
                 close_phase(&mut state, now);
-                crate::framework::log(&format!(
+                crate::logfile::program_log::log(&format!(
                     "load time total: {:.1} ms",
                     now.duration_since(state.begun).as_secs_f64() * 1000.0
                 ));
@@ -163,7 +163,7 @@ mod active {
     pub fn first_frame() {
         FIRST.with(|f| {
             if let Some(begun) = f.borrow_mut().take() {
-                crate::framework::log(&format!(
+                crate::logfile::program_log::log(&format!(
                     "load time to the first race frame: {:.1} ms",
                     begun.elapsed().as_secs_f64() * 1000.0
                 ));

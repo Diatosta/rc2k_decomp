@@ -4,7 +4,7 @@
 //!
 //! Callers: `race::replay_viewer` (three).
 
-use crate::list_handle::ListMenu;
+use crate::memory::list_handle::ListMenu;
 
 pub fn list_item_unusable(list_state: &crate::menu::list_state::ListState, list: ListMenu) -> bool {
     rc2k_core::menu::list_menu::unusable(list.item(list_state.choice.get()).first())

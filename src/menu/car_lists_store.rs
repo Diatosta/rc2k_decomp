@@ -3,8 +3,8 @@
 //! handles ended by -1. The saves and the menus write them; `MenuLists::car_entry` reads a list
 //! on past its end into the lists that follow, in the order of the fields.
 
+use crate::memory::session::PlainDword;
 use crate::menu::cars_store::car_cell;
-use crate::session::PlainDword;
 
 /// The lists of cars.
 pub struct CarLists {

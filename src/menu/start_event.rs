@@ -11,11 +11,11 @@
 //! cleared, and for both `event_over` is set. The one-player ones differ (see `Starter::first`).
 
 use crate::errors::Refused;
+use crate::memory::session::PlainDword;
 use crate::menu::event_flow::*;
 use crate::menu::lists_store::CarList;
 use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_loop::{Entry, run_screen};
-use crate::session::PlainDword;
 use rc2k_core::menu::leaving::Switch;
 use rc2k_core::menu::starters;
 

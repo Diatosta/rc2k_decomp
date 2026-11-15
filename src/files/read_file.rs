@@ -22,7 +22,7 @@ pub fn read_file_into(path: &[u8], into: &mut [u8], offset: u32) -> Result<ReadR
 #[track_caller]
 pub fn read_file_to_store(
     path: &[u8],
-    to: &dyn crate::cells::Store,
+    to: &dyn crate::memory::cells::Store,
     count: u32,
     offset: u32,
 ) -> Result<ReadResult, BadInput> {

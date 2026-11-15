@@ -23,8 +23,9 @@
 //! A refusal goes back to the loop's caller; a failed `Step::CallOrFatal` is the fatal error.
 
 use crate::errors::{FatalError, Refused};
-use crate::framework::log;
 use crate::input::take_key::take_key;
+use crate::logfile::program_log::log;
+use crate::memory::session::{DwordLike, FlagLike, PlainFloat};
 use crate::menu::handle_keys::handle_keys;
 use crate::menu::lists_store::{CarList, CarListParts};
 use crate::menu::menus_store::MenuId;
@@ -35,7 +36,6 @@ use crate::menu::run_list::run_list;
 use crate::menu::screen_id::ScreenId;
 use crate::menu::update_blink::update_blink;
 use crate::owners::Owners;
-use crate::session::{DwordLike, FlagLike, PlainFloat};
 use crate::system::owner::System;
 pub use rc2k_core::menu::keys::MenuSound;
 use rc2k_core::menu::keys::Pressed;
@@ -193,7 +193,7 @@ pub enum SceneVar {
 
 impl SceneVar {
     /// The variable in the front end's scene.
-    pub fn cell(self, scratch: &crate::workers::DrawingScratch) -> &dyn DwordLike {
+    pub fn cell(self, scratch: &crate::scene::workers::DrawingScratch) -> &dyn DwordLike {
         let window = &scratch.front_end_polygon().window;
         let light = &scratch.front_end().light;
         match self {
@@ -223,7 +223,7 @@ pub enum SceneFloat {
 
 impl SceneFloat {
     /// The variable in the front end's scene.
-    pub fn cell(self, scratch: &crate::workers::DrawingScratch) -> &PlainFloat {
+    pub fn cell(self, scratch: &crate::scene::workers::DrawingScratch) -> &PlainFloat {
         let window = &scratch.front_end_polygon().window;
         match self {
             SceneFloat::ClipLeft => &window.clip_screen[2],
@@ -234,7 +234,7 @@ impl SceneFloat {
 
 /// A text of the game that a screen's description names (a picture's path), found when
 /// asked.
-pub type Text = fn(&Menus) -> &dyn crate::session::TextPlace;
+pub type Text = fn(&Menus) -> &dyn crate::memory::session::TextPlace;
 
 /// Something a screen does at one of the loop's fixed places.
 #[derive(Clone, Copy, Debug)]
@@ -281,7 +281,7 @@ pub enum Step {
 impl Step {
     /// Runs the step if it only writes a variable (to `menus`, or the front end's scene):
     /// whether it did.
-    pub fn write(&self, menus: &Menus, scratch: &crate::workers::DrawingScratch) -> bool {
+    pub fn write(&self, menus: &Menus, scratch: &crate::scene::workers::DrawingScratch) -> bool {
         match *self {
             Step::Write(variable, value) => variable.cell(menus).set(value),
             Step::WriteFlag(flag, on) => flag.cell(menus).set(on),

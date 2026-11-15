@@ -3,8 +3,8 @@
 //! (`physics::test_drive_run`, `physics::test_drive`). Names are readings unless taken from the
 //! game's own.
 
-use crate::cells::ZeroCells;
-use crate::session::{PlainDword, PlainFloat, PlainInt};
+use crate::memory::cells::ZeroCells;
+use crate::memory::session::{PlainDword, PlainFloat, PlainInt};
 
 #[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]

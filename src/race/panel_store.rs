@@ -3,8 +3,8 @@
 //! motion), the overlay's miles and parts, the start lights, the marks, the HUD flags and the
 //! texture counter.
 
-use crate::cells::ZeroCells;
-use crate::session::{PlainBytes, PlainDword};
+use crate::memory::cells::ZeroCells;
+use crate::memory::session::{PlainBytes, PlainDword};
 
 /// The first view's values for the panel (0x30 bytes; `panel_values_plain`,
 /// `panel_motion_plain`).

@@ -9,7 +9,7 @@
 //! work half done. Rust callers run its `entry` (`routes.rs`).
 
 use crate::errors::Refused;
-use crate::framework::log;
+use crate::logfile::program_log::log;
 use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::owners::Owners;

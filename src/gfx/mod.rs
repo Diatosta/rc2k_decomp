@@ -105,11 +105,11 @@ pub mod upload;
 pub mod windscreen_drop_batch;
 
 /// An array of dwords with these first values (the blocks' tables).
-pub(crate) const fn dwords<const N: usize>(values: [u32; N]) -> [crate::session::Dword; N] {
-    let mut out = [const { crate::session::Dword::new(0) }; N];
+pub(crate) const fn dwords<const N: usize>(values: [u32; N]) -> [crate::memory::session::Dword; N] {
+    let mut out = [const { crate::memory::session::Dword::new(0) }; N];
     let mut i = 0;
     while i < N {
-        out[i] = crate::session::Dword::new(values[i]);
+        out[i] = crate::memory::session::Dword::new(values[i]);
         i += 1;
     }
     out
@@ -118,11 +118,11 @@ pub(crate) const fn dwords<const N: usize>(values: [u32; N]) -> [crate::session:
 /// `dwords` for the tables only the game's thread reaches.
 pub(crate) const fn plain_dwords<const N: usize>(
     values: [u32; N],
-) -> [crate::session::PlainDword; N] {
-    let mut out = [const { crate::session::PlainDword::new(0) }; N];
+) -> [crate::memory::session::PlainDword; N] {
+    let mut out = [const { crate::memory::session::PlainDword::new(0) }; N];
     let mut i = 0;
     while i < N {
-        out[i] = crate::session::PlainDword::new(values[i]);
+        out[i] = crate::memory::session::PlainDword::new(values[i]);
         i += 1;
     }
     out

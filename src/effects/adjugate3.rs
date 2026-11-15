@@ -4,7 +4,7 @@
 //!
 //! The arithmetic is plain Rust on the x87 model (`math::x87_float`).
 
-use crate::session::PlainFloat;
+use crate::memory::session::PlainFloat;
 
 /// `s` the matrix, `d` the result (another array).
 pub fn adjugate3(s: &[PlainFloat; 9], d: &[PlainFloat; 9]) {
@@ -76,7 +76,7 @@ fn adjugate3_x87(s: &[PlainFloat; 9], d: &[PlainFloat; 9]) {
 mod reference_vectors {
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::{Op, Spec, recorded};
-    use crate::session::PlainFloat;
+    use crate::memory::session::PlainFloat;
 
     /// Nine floats holding the test buffer's (at `at`) dwords.
     fn staged(at: crate::effects::asm_test::Operand) -> [PlainFloat; 9] {

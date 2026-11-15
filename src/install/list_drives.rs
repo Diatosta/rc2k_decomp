@@ -35,7 +35,7 @@ pub fn list_drives(
         }
     }
     install.run.drive_count.set(0);
-    let mut ebx = crate::place::BytePlace::from(&install.drive_rows.drive_rows);
+    let mut ebx = crate::memory::place::BytePlace::from(&install.drive_rows.drive_rows);
     // 'a' .. 'y': the loop's bound leaves 'z' out (the game's slip, section 16)
     let found: Vec<u8> = drives::LISTED
         .filter(|letter| drives[2 * (letter - b'a') as usize].get() != 0)
@@ -75,5 +75,5 @@ pub fn list_drives(
     };
     // The drive page's entry links to the menu (`page_links::PageLink`).
     install.pages.page_table[DRIVE_ENTRY].set(PageLink::list(list).raw());
-    crate::list_handle::ListMenu::installer(install, list).set_count(drives::items(count));
+    crate::memory::list_handle::ListMenu::installer(install, list).set_count(drives::items(count));
 }

@@ -110,7 +110,7 @@ pub fn draw_object_face(
     for (entry, vertex) in vertices.clone() {
         let point = fw(vertex);
         entry.point.set(point.wrapping_neg());
-        crate::session::write_bits(&light.point_place, table.place(point)?);
+        crate::memory::session::write_bits(&light.point_place, table.place(point)?);
         entry.u.set(fw(vertex + 4));
         entry.v.set(fw(vertex + 8));
         let light = if lit {
@@ -154,7 +154,8 @@ pub fn draw_object_face(
                 &ctx.view.matrices,
                 ctx.view,
             )?;
-            let coordinates: [u32; 2] = crate::session::read_bits(&object.reflection_coordinates);
+            let coordinates: [u32; 2] =
+                crate::memory::session::read_bits(&object.reflection_coordinates);
             entry.u2.set(coordinates[0]);
             entry.v2.set(coordinates[1]);
             let amount = (face_shine.wrapping_mul(shine).wrapping_mul(first_fog) >> 12).min(0xFF);

@@ -10,9 +10,9 @@
 //! at all (the count would run through all 32 bits).
 
 use crate::errors::BadInput;
+use crate::memory::session::PlainDword;
 use crate::menu::car_lists_store::CarLists;
 use crate::menu::owner::Menus;
-use crate::session::PlainDword;
 use rc2k_core::menu::car_lists;
 
 /// A list of dwords ended by -1: its cells and how many dwords it has room for.

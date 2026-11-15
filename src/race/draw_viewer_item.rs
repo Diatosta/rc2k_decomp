@@ -6,7 +6,7 @@
 
 use crate::errors::BadInput;
 use crate::errors::Refused;
-use crate::list_handle::Item;
+use crate::memory::list_handle::Item;
 use crate::race::owner::Race;
 use crate::race::owner_replay::Replay;
 use crate::race::viewer_state_store::{ReplayViewBlock, ViewerPicture};

@@ -12,7 +12,7 @@
 use crate::effects::cell_x87::CellX87;
 use crate::effects::tuning::MarksKindFloats;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
-use crate::session::PlainFloat;
+use crate::memory::session::PlainFloat;
 
 const FAR_ENOUGH: f32 = 4096.0;
 

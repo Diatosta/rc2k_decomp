@@ -11,9 +11,9 @@
 
 #![allow(unsafe_code)]
 
-use crate::cells::Plain;
 use crate::errors::BadInput;
-use crate::framework::log;
+use crate::logfile::program_log::log;
+use crate::memory::cells::Plain;
 use std::cell::UnsafeCell;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering::Relaxed};
@@ -25,7 +25,7 @@ pub struct PoolBlock {
     bytes: &'static [UnsafeCell<u8>],
 }
 
-// SAFETY: the bytes are reached only as shared memory (`shared_memory`'s word copies, one
+// SAFETY: the bytes are reached only as shared memory (`memory::shared_memory`'s word copies, one
 // width per byte), or through the platform's slices under their promises.
 unsafe impl Sync for PoolBlock {}
 // SAFETY: as above.
@@ -53,7 +53,7 @@ impl PoolBlock {
 
 // SAFETY: `first` and `size` are the block's own pages; every read and write takes `load` and
 // `store`, which reach them inside its length.
-unsafe impl crate::cells::Store for PoolBlock {
+unsafe impl crate::memory::cells::Store for PoolBlock {
     fn size(&self) -> usize {
         self.len()
     }
@@ -66,14 +66,16 @@ unsafe impl crate::cells::Store for PoolBlock {
         self.check(offset, to.len())?;
         // SAFETY: inside the block (checked), whole pages so 4-aligned, reached only by word
         // copies; `to` is Rust's.
-        unsafe { crate::shared_memory::load_words(self.as_ptr(), self.len(), offset, to) };
+        unsafe { crate::memory::shared_memory::load_words(self.as_ptr(), self.len(), offset, to) };
         Ok(())
     }
 
     fn store(&self, offset: usize, from: &[u8]) -> Result<(), BadInput> {
         self.check(offset, from.len())?;
         // SAFETY: as `load`'s.
-        unsafe { crate::shared_memory::store_words(self.as_ptr(), self.len(), offset, from) };
+        unsafe {
+            crate::memory::shared_memory::store_words(self.as_ptr(), self.len(), offset, from);
+        }
         Ok(())
     }
 }
@@ -103,12 +105,12 @@ pub fn take(len: usize) -> &'static PoolBlock {
     if let Some((block, zeroed)) = reused {
         if !zeroed {
             for at in (0..block.len()).step_by(PAGE) {
-                let _ = crate::cells::Store::store(block, at, &[0; PAGE]);
+                let _ = crate::memory::cells::Store::store(block, at, &[0; PAGE]);
             }
         }
         return block;
     }
-    let first = crate::os::map_pages(need).unwrap_or_else(|| {
+    let first = crate::platform::os::map_pages(need).unwrap_or_else(|| {
         crate::fatal::raise::end("pool", BadInput("no memory for a lent block"))
     });
     // SAFETY: `need` zeroed bytes mapped at `first`, never unmapped (the block lives for the
@@ -129,7 +131,7 @@ pub fn take(len: usize) -> &'static PoolBlock {
 /// first.
 pub fn give_back(block: &'static PoolBlock) {
     // SAFETY: the block is one `map_pages` mapping of whole pages.
-    let zeroed = unsafe { crate::os::discard_pages(block.as_ptr(), block.len()) };
+    let zeroed = unsafe { crate::platform::os::discard_pages(block.as_ptr(), block.len()) };
     FREE.lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
         .push((block, zeroed));
@@ -172,7 +174,7 @@ impl WrittenRows {
 impl PoolBytes {
     pub fn from_vec(bytes: Vec<u8>) -> Self {
         let block = take(bytes.len());
-        crate::cells::Store::store(block, 0, &bytes)
+        crate::memory::cells::Store::store(block, 0, &bytes)
             .unwrap_or_else(|e| crate::fatal::raise::end("pool::PoolBytes", e));
         Self {
             block,
@@ -240,7 +242,7 @@ impl PoolBytes {
             return Err(BadInput("past the end of a field"));
         }
         let mut bytes = vec![0; len];
-        crate::cells::Store::load(self.block, offset as usize, &mut bytes)?;
+        crate::memory::cells::Store::load(self.block, offset as usize, &mut bytes)?;
         Ok(bytes)
     }
 
@@ -263,17 +265,17 @@ impl PoolBytes {
         if let Some(rows) = &self.rows {
             rows.note(offset as usize, data.len());
         }
-        crate::cells::Store::store(self.block, offset as usize, data)
+        crate::memory::cells::Store::store(self.block, offset as usize, data)
     }
 
     /// The `T` at byte `offset`; a read past the bytes' end is refused.
     pub fn read_value<T: Plain>(&self, offset: u32, what: &str) -> Result<T, BadInput> {
         self.within(offset, size_of::<T>(), what)?;
-        let mut value = crate::cells::zeroed::<T>();
-        crate::cells::Store::load(
+        let mut value = crate::memory::cells::zeroed::<T>();
+        crate::memory::cells::Store::load(
             self.block,
             offset as usize,
-            crate::cells::bytes_mut(&mut value),
+            crate::memory::cells::bytes_mut(&mut value),
         )?;
         Ok(value)
     }
@@ -287,7 +289,11 @@ impl PoolBytes {
         if let Some(rows) = &self.rows {
             rows.note(offset as usize, size_of::<T>());
         }
-        crate::cells::Store::store(self.block, offset as usize, crate::cells::bytes_of(&value))
+        crate::memory::cells::Store::store(
+            self.block,
+            offset as usize,
+            crate::memory::cells::bytes_of(&value),
+        )
     }
 
     /// Whether `len` bytes from `offset` lie inside the bytes.
@@ -308,7 +314,7 @@ impl PoolBytes {
     /// A copy of the bytes.
     pub fn to_vec(&self) -> Vec<u8> {
         let mut bytes = vec![0; self.len];
-        crate::cells::Store::load(self.block, 0, &mut bytes)
+        crate::memory::cells::Store::load(self.block, 0, &mut bytes)
             .unwrap_or_else(|e| crate::fatal::raise::end("pool::PoolBytes", e));
         bytes
     }
@@ -337,7 +343,7 @@ impl Drop for PoolBytes {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cells::Store;
+    use crate::memory::cells::Store;
 
     #[test]
     fn blocks_are_zeroed_reused_and_bounded() {

@@ -21,11 +21,11 @@ use crate::effects::mask_store::Masks;
 use crate::effects::owner::Effects;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
+use crate::memory::session::PlainFloat;
 use crate::scene::cross_product3::cross;
 use crate::scene::matrix3::{Axis, extended, rounded_value, turn_matrix3, turnable};
 use crate::scene::rotate_point::rotate_point;
 use crate::scene::vector3::normalise;
-use crate::session::PlainFloat;
 
 /// A shadow's variables (the typed statics of `effects::kind_store`: the second shadow's,
 /// `effects::draw_overlays`'s, are set 1's, the first's set 2's) and its x87 blocks.
@@ -480,7 +480,7 @@ mod reference_vectors {
     use crate::effects::asm_test::START;
     use crate::effects::asm_test::{Operand, floats_at, with_copy};
     use crate::effects::kind_store::{KindConsts, QuadWork};
-    use crate::session::PlainFloat;
+    use crate::memory::session::PlainFloat;
 
     /// A shadow's variables: where the quad, the constants and the up start in the marks' block.
     #[derive(Clone, Copy)]

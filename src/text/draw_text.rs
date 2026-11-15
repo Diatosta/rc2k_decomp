@@ -122,7 +122,7 @@ impl From<rc2k_core::Invalid> for AdaptError {
     }
 }
 
-impl rc2k_core::text::Canvas for Adapt<'_> {
+impl rc2k_core::strings::text::Canvas for Adapt<'_> {
     type Error = AdaptError;
     fn kerning(&mut self) -> &mut State {
         &mut self.kerning
@@ -162,7 +162,7 @@ pub fn draw_text(
     canvas: &mut dyn Canvas,
 ) -> Result<Outcome, Refused> {
     let glyphs = glyph_store::bytes(canvas.fonts(), font.glyph_table, "a font's glyph table")?;
-    let out = refusal(rc2k_core::text::draw(
+    let out = refusal(rc2k_core::strings::text::draw(
         font,
         text,
         &glyphs,

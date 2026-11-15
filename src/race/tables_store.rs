@@ -3,8 +3,8 @@
 //! start and pace cars' values, the car kind order, and the camera's share and ground-turn
 //! variables. `#[repr(C)]`, laid over the race block bytes.
 
-use crate::cells::ZeroCells;
-use crate::session::{PlainDword, PlainFloat};
+use crate::memory::cells::ZeroCells;
+use crate::memory::session::{PlainDword, PlainFloat};
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct RaceTables {
@@ -125,7 +125,7 @@ impl RaceTables {
     /// Dword `n` of the table `from`. `n` is not held to the table's end: reading goes on through
     /// the fields after the table in order, to the end of the record (`n` past that is refused).
     pub fn dword_from(&self, from: Listed, n: usize) -> Result<u32, crate::errors::BadInput> {
-        let fields: [&dyn crate::session::Run; 34] = [
+        let fields: [&dyn crate::memory::session::Run; 34] = [
             &self.arcade_cars_by_rally,
             &self.arcade_best_place_by_stage,
             &self.start_share_last_by_rally,
@@ -161,7 +161,7 @@ impl RaceTables {
             &self.camera_turn_step,
             &self.camera_ground_flag,
         ];
-        crate::session::read_runs(&fields[from as usize..], n, "the race tables")
+        crate::memory::session::read_runs(&fields[from as usize..], n, "the race tables")
     }
 }
 

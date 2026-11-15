@@ -51,11 +51,11 @@ pub fn set_race_screen_mode(gfx: &crate::gfx::owner::Gfx, system: &crate::system
 }
 
 use crate::errors::{BadInput, Refused};
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 
 /// Releases the stage's textures (`gfx::release_all_textures`).
 pub fn release_stage_textures(gfx: &crate::gfx::owner::Gfx) {
-    crate::platform_3d::release_all_textures(gfx);
+    crate::platform::direct3d::release_all_textures(gfx);
 }
 
 /// Seals the stage time: the first block's time (`stage_time`, held to 0x22550FF unsigned; its
@@ -104,9 +104,9 @@ pub fn copy_league_table(
         if failed.get() {
             return Err(BadInput("a league record past the summary"));
         }
-        crate::session::write_bits(&course.league().names, l.firsts);
+        crate::memory::session::write_bits(&course.league().names, l.firsts);
         for (k, row) in l.rows.iter().enumerate() {
-            crate::session::write_first(&course.league().rows[10 * k..10 * k + 10], row);
+            crate::memory::session::write_first(&course.league().rows[10 * k..10 * k + 10], row);
         }
     }
     Ok(())

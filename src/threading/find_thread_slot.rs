@@ -6,7 +6,7 @@ use crate::threading::thread_slot::ThreadSlot;
 
 /// The number of the current thread's slot, None if it has none.
 fn current_slot_number() -> Result<Option<usize>, crate::errors::BadInput> {
-    let tid = crate::sync::thread_id();
+    let tid = crate::platform::sync::thread_id();
     let failed = std::cell::Cell::new(None);
     let found = rc2k_core::threading::slot_of(
         |n| match crate::threading::thread_slot::slot_ref(n) {

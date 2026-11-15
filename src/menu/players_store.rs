@@ -2,8 +2,8 @@
 //! records' addresses (nothing reads it) and the players' names, the one value the front end owns
 //! of the players and lends to the net, save and race code. (The cars are in `CarTable`.)
 
+use crate::memory::session::{PlainDword, Shared, with_runs};
 use crate::menu::names_store::Names;
-use crate::session::{PlainDword, Shared, with_runs};
 use rc2k_core::menu::player::Player;
 
 /// The four players: records, their table and names.

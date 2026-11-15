@@ -10,11 +10,11 @@
 
 use crate::errors::BadInput;
 use crate::logfile::log_int::log_int;
+use crate::memory::session::PlainDword;
 use crate::net::owner::Net;
 use crate::net::send_inputs::fields;
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
-use crate::session::PlainDword;
 use rc2k_core::net::message::Payload;
 use rc2k_core::net::race::{self, Arrival, Kind};
 
@@ -45,7 +45,7 @@ pub fn three(cells: &[PlainDword]) -> [u32; 3] {
 fn note_unbelievable(player: u32) {
     static TOLD: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
     if !TOLD.swap(true, std::sync::atomic::Ordering::Relaxed) {
-        crate::framework::log(&format!(
+        crate::logfile::program_log::log(&format!(
             "net: player {player}'s message has values no car could hold: not applied"
         ));
     }

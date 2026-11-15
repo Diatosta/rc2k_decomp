@@ -3,7 +3,7 @@
 
 use crate::errors::Refused;
 use crate::install::key_up::item_key;
-use crate::list_handle::ListItem;
+use crate::memory::list_handle::ListItem;
 use rc2k_core::install::items::ItemKey;
 
 /// Whether the key was taken.

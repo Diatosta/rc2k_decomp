@@ -7,7 +7,7 @@ use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::session::{PlainBytes, PlainDword, PlainFloat, PlainInt};
+use crate::memory::session::{PlainBytes, PlainDword, PlainFloat, PlainInt};
 
 /// One kind's tables.
 pub struct Shapes<'a> {

@@ -5,10 +5,10 @@
 //! `e:\rally5\bin` file.
 
 use crate::errors::Refused;
+use crate::memory::session::DwordLike;
 use crate::owners::Owners;
 use crate::race::owner::Race;
 use crate::scene::owner::Scene;
-use crate::session::DwordLike;
 use core::sync::atomic::{AtomicU32, Ordering::Relaxed};
 
 /// The settings' numbers.
@@ -274,7 +274,7 @@ mod tab {
         if ui.button("Find the courses")
             && let Err(e) = crate::race::find_present_courses::find_present_courses(race, scene)
         {
-            crate::framework::log(&format!("debug: find the courses: {e:?}"));
+            crate::logfile::program_log::log(&format!("debug: find the courses: {e:?}"));
         }
         ui.same_line();
         ui.text_disabled(if present {

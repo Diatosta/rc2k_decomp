@@ -73,7 +73,7 @@ fn load(o: &crate::sound::store::SoundObject) -> Engine {
 
 /// The dwords `now` has changed from `before` put back in the object (the others are left alone).
 fn store(o: &crate::sound::store::SoundObject, before: &Engine, now: &Engine) {
-    use crate::session::PlainDword;
+    use crate::memory::session::PlainDword;
     let put = |cell: &PlainDword, was: u32, is: u32| {
         if was != is {
             cell.set(is);
@@ -241,8 +241,8 @@ fn volume_factor_by_distance(so: &SoundObject) {
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
+    use crate::memory::session::Cell32;
     use crate::scene::x87_mem::{HostCell, view};
-    use crate::session::Cell32;
     use crate::sound::asm_layout::{Laid, with_laid};
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 

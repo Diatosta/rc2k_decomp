@@ -164,7 +164,7 @@ impl Int {
 /// store or record holding the table; beyond that the next thing in memory is another static, so
 /// that is refused.
 #[cfg(test)]
-pub fn read_on_in<H: crate::cells::ByteView, C: Cell32>(
+pub fn read_on_in<H: crate::memory::cells::ByteView, C: Cell32>(
     holder: &H,
     cells: &[C],
     n: usize,
@@ -175,7 +175,7 @@ pub fn read_on_in<H: crate::cells::ByteView, C: Cell32>(
         None => {
             let mut bytes = [0; 4];
             on_in(holder, cells, n, what, |at| {
-                crate::cells::load_cells(holder, at, &mut bytes)
+                crate::memory::cells::load_cells(holder, at, &mut bytes)
             })?;
             Ok(u32::from_le_bytes(bytes))
         }
@@ -184,7 +184,7 @@ pub fn read_on_in<H: crate::cells::ByteView, C: Cell32>(
 
 /// `read_on_in`'s write.
 #[cfg(test)]
-pub fn write_on_in<H: crate::cells::ByteView, C: Cell32>(
+pub fn write_on_in<H: crate::memory::cells::ByteView, C: Cell32>(
     holder: &H,
     cells: &[C],
     n: usize,
@@ -197,7 +197,7 @@ pub fn write_on_in<H: crate::cells::ByteView, C: Cell32>(
             Ok(())
         }
         None => on_in(holder, cells, n, what, |at| {
-            crate::cells::store_cells(holder, at, &v.to_le_bytes())
+            crate::memory::cells::store_cells(holder, at, &v.to_le_bytes())
         }),
     }
 }
@@ -216,7 +216,7 @@ fn on_in<H, C>(
         .wrapping_sub(std::ptr::from_ref(holder) as usize)
         .wrapping_add(n.wrapping_mul(4));
     access(at).inspect_err(|_| {
-        crate::framework::log(&format!(
+        crate::logfile::program_log::log(&format!(
             "pointers: {what}: dword {n} at +{at:#x}, outside its holder of {:#x} bytes",
             size_of::<H>()
         ));
@@ -299,7 +299,7 @@ fn locate<'a>(
         }
         rest -= run.count();
     }
-    crate::framework::log(&format!(
+    crate::logfile::program_log::log(&format!(
         "pointers: {what}: dword {n}, past the {} dwords listed",
         n - rest
     ));
@@ -456,7 +456,7 @@ impl Byte {
 
 /// A buffer of the game's bytes (a table, a record handed on by address), shared between the game's
 /// threads as plain bytes are: each byte an atomic of its own, reached at that width only
-/// (`shared_memory` copies byte by byte too), so no access mixes sizes.
+/// (`memory::shared_memory` copies byte by byte too), so no access mixes sizes.
 #[repr(transparent)]
 pub struct Bytes<const N: usize>([AtomicU8; N]);
 
@@ -553,7 +553,7 @@ impl<const N: usize> Bytes<N> {
         match offset.checked_add(len) {
             Some(end) if end <= N => Ok(()),
             _ => {
-                crate::framework::log(&format!(
+                crate::logfile::program_log::log(&format!(
                     "session: {what}: {len} bytes at {offset:#x} of a {N:#x}-byte buffer"
                 ));
                 Err(crate::errors::BadInput("past the end of a buffer"))
@@ -941,7 +941,7 @@ impl<const N: usize> PlainBytes<N> {
         match offset.checked_add(len) {
             Some(end) if end <= N => Ok(()),
             _ => {
-                crate::framework::log(&format!(
+                crate::logfile::program_log::log(&format!(
                     "session: {what}: {len} bytes at {offset:#x} of a {N:#x}-byte buffer"
                 ));
                 Err(crate::errors::BadInput("past the end of a buffer"))
@@ -1072,10 +1072,10 @@ impl FloatLike for PlainFloat {
 /// the records are written over a kind `K` (as `Car<K>`, `Vertex<K>`) from the time a view's
 /// copy of its car was atomic, and could be written over plain cells alone.
 pub trait CellKind {
-    type Dword: crate::cells::Cells + DwordLike + Cell32;
-    type Float: crate::cells::Cells + FloatLike;
-    type Int: crate::cells::Cells + IntLike;
-    type Bytes<const N: usize>: crate::cells::Cells;
+    type Dword: crate::memory::cells::Cells + DwordLike + Cell32;
+    type Float: crate::memory::cells::Cells + FloatLike;
+    type Int: crate::memory::cells::Cells + IntLike;
+    type Bytes<const N: usize>: crate::memory::cells::Cells;
 }
 
 /// The game thread's cells (`PlainDword`, `PlainFloat`, `PlainBytes`).
@@ -1151,12 +1151,12 @@ impl<T> GameThread<T> {
 // ---- the drawing phase's stores ----
 
 /// A store of plain cells the game's thread writes between frames and every drawing part reads
-/// while a frame's parts are drawn beside each other (`workers::draw_parts`): the light tables, the
+/// while a frame's parts are drawn beside each other (`scene::workers::draw_parts`): the light tables, the
 /// course's and the frame's read groups, ..
 ///
 /// Outside a drawing scope it is a `GameThread` store: `get`, on the game's thread, is where
 /// every write starts from. Inside one the parts (part 0 on the game's thread among them)
-/// read it through the scope's `PhaseRead` only, handed to them by `workers::draw_parts`;
+/// read it through the scope's `PhaseRead` only, handed to them by `scene::workers::draw_parts`;
 /// `get` there is a slip, and a debug build stops at it.
 pub struct DrawShared<T>(GameThread<T>);
 
@@ -1168,7 +1168,7 @@ impl<T> DrawShared<T> {
     /// The store, on the game's thread outside a drawing scope (debug builds check both).
     pub fn get(&self) -> &T {
         debug_assert!(
-            !crate::workers::in_scope(),
+            !crate::scene::workers::in_scope(),
             "a drawing store reached by its owner while the parts read it (take the part's reads)"
         );
         self.0.get()
@@ -1182,14 +1182,17 @@ impl<T> DrawShared<T> {
 }
 
 /// A `DrawShared` store lent, read only, to the parts of one drawing scope (`'s`): made only
-/// by `workers::draw_parts` (`lend` takes the scope, which only it opens), it is shared by
-/// reference with every part (`workers::Lent`) and reads the store as `&T`.
+/// by `scene::workers::draw_parts` (`lend` takes the scope, which only it opens), it is shared by
+/// reference with every part (`scene::workers::Lent`) and reads the store as `&T`.
 pub struct PhaseRead<'s, T>(&'s T);
 
-impl<'s, T: crate::cells::Cells> PhaseRead<'s, T> {
+impl<'s, T: crate::memory::cells::Cells> PhaseRead<'s, T> {
     /// `store` lent to the parts while `scope` is open; debug builds note its bytes as lent
     /// (`plain_written` then stops at a write into them) until the scope ends.
-    pub(crate) fn lend(store: &'s DrawShared<T>, scope: &'s crate::workers::DrawScope) -> Self {
+    pub(crate) fn lend(
+        store: &'s DrawShared<T>,
+        scope: &'s crate::scene::workers::DrawScope,
+    ) -> Self {
         let _ = scope;
         #[cfg(debug_assertions)]
         {
@@ -1213,8 +1216,8 @@ impl<T> std::ops::Deref for PhaseRead<'_, T> {
 // !Sync`), which is sound when no thread writes the store while any thread may read it through the
 // token. That holds for these reasons:
 //
-// 1. No writer inside the scope. A token exists only between `workers::DrawScope::open` and the
-//    scope's end, both in `workers::draw_parts`: the parts' runs are spawned and joined (rayon's
+// 1. No writer inside the scope. A token exists only between `scene::workers::DrawScope::open` and the
+//    scope's end, both in `scene::workers::draw_parts`: the parts' runs are spawned and joined (rayon's
 //    `in_place_scope`, or one after another on the game's thread) within it, and nothing else runs
 //    on the game's thread meanwhile, which is drawing part 0, a part like the others. The parts
 //    write only their own state (`PartScratch`, their view's `ViewScratch`, their own render
@@ -1227,11 +1230,11 @@ impl<T> std::ops::Deref for PhaseRead<'_, T> {
 //    sees the writes before it and none overlaps a later one.
 // 2. The token cannot outlive the scope. It borrows the `DrawScope` (`'s`), which `draw_parts`
 //    drops before anything runs after the parts (`after(0)`); and the parts are handed only
-//    `&`-references made from it for the length of their call (`workers::DrawReads`, a
+//    `&`-references made from it for the length of their call (`scene::workers::DrawReads`, a
 //    higher-ranked lifetime in `draw_parts`' part type), so a part can keep none past its run.
 //    `PhaseRead` is neither `Clone` nor `Send`: it stays in the `Lent` `draw_parts` holds. The one
-//    part handed the `Lent` itself (part 0's `workers::Helper`, for a piece of its drawing on
-//    another thread, `workers::draw_aside`) uses it only inside `draw_aside`, which joins the
+//    part handed the `Lent` itself (part 0's `scene::workers::Helper`, for a piece of its drawing on
+//    another thread, `scene::workers::draw_aside`) uses it only inside `draw_aside`, which joins the
 //    piece (rayon's `in_place_scope`) before it returns, inside the part's call.
 // 3. `T: Cells` (records of the crate's cells): reading one is a plain load of each cell read,
 //    never a write (no borrow counts, no lazy set-up), so the parts' reads at once do not race
@@ -1248,7 +1251,7 @@ impl<T> std::ops::Deref for PhaseRead<'_, T> {
 // with a field another thread reads outside the scope made `DrawShared`; a part spawning work that
 // outlives its run; a `get` taken before the scope and held into it (it is a plain `&T`: the
 // scope's code takes none).
-unsafe impl<T: crate::cells::Cells> Sync for PhaseRead<'_, T> {}
+unsafe impl<T: crate::memory::cells::Cells> Sync for PhaseRead<'_, T> {}
 
 /// Debug builds: the byte ranges lent to the open drawing scope (`PhaseRead::lend`). One
 /// writer (the game's thread, before the parts start and after they have all ended), many
@@ -1292,7 +1295,7 @@ mod lent {
     }
 }
 
-/// The drawing scope's end (`workers::DrawScope`): no store is lent any more.
+/// The drawing scope's end (`scene::workers::DrawScope`): no store is lent any more.
 pub(crate) fn end_lending() {
     #[cfg(debug_assertions)]
     lent::clear();
@@ -1316,12 +1319,12 @@ pub struct Shared<T>(UnsafeCell<T>);
 
 // SAFETY: the record's bytes are reached only by `get`, `set` and `cell_run` (`as_ptr` is the
 // tests'), each through relaxed atomics at the one width `WORDS` picks for each byte
-// (`shared_memory::load_words` / `store_words`, or byte by byte), so threads sharing it meet in
+// (`memory::shared_memory::load_words` / `store_words`, or byte by byte), so threads sharing it meet in
 // atomic accesses only, never a data race or a mixed-size one; `T: Plain` (their bound), so a
 // record read half written by another thread is still a valid `T`.
 unsafe impl<T> Sync for Shared<T> {}
 
-impl<T: crate::cells::Plain> Shared<T> {
+impl<T: crate::memory::cells::Plain> Shared<T> {
     pub const fn new(value: T) -> Self {
         Self(UnsafeCell::new(value))
     }
@@ -1343,9 +1346,9 @@ impl<T: crate::cells::Plain> Shared<T> {
                 std::slice::from_raw_parts_mut(value.as_mut_ptr().cast::<u8>(), size_of::<T>());
             let base = self.0.get().cast::<u8>();
             if Self::WORDS {
-                crate::shared_memory::load_words(base, size_of::<T>(), 0, to);
+                crate::memory::shared_memory::load_words(base, size_of::<T>(), 0, to);
             } else {
-                crate::shared_memory::load(base, to.as_mut_ptr(), to.len());
+                crate::memory::shared_memory::load(base, to.as_mut_ptr(), to.len());
             }
             value.assume_init()
         }
@@ -1354,8 +1357,8 @@ impl<T: crate::cells::Plain> Shared<T> {
     /// The run of cells holding byte `offset`, at the width `WORDS` picks, and the byte it
     /// starts at: a 4-aligned record's whole dwords, or the bytes past them; a packed
     /// record's bytes.
-    pub fn cell_run(&self, offset: usize) -> (usize, crate::cells::CellRun<'_>) {
-        use crate::cells::CellRun;
+    pub fn cell_run(&self, offset: usize) -> (usize, crate::memory::cells::CellRun<'_>) {
+        use crate::memory::cells::CellRun;
         let size = size_of::<T>();
         let words = if Self::WORDS { size & !3 } else { 0 };
         let base = self.0.get().cast::<u8>();
@@ -1382,9 +1385,9 @@ impl<T: crate::cells::Plain> Shared<T> {
             let from = std::slice::from_raw_parts((&raw const value).cast::<u8>(), size_of::<T>());
             let base = self.0.get().cast::<u8>();
             if Self::WORDS {
-                crate::shared_memory::store_words(base, size_of::<T>(), 0, from);
+                crate::memory::shared_memory::store_words(base, size_of::<T>(), 0, from);
             } else {
-                crate::shared_memory::store(base, from.as_ptr(), from.len());
+                crate::memory::shared_memory::store(base, from.as_ptr(), from.len());
             }
         }
     }
@@ -1813,7 +1816,7 @@ mod tests {
         cells[0].set(3);
         let hit = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| cells[1].set(4)));
         let copied = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            crate::cells::Cells::copy_from(&cells[1], &cells[0]);
+            crate::memory::cells::Cells::copy_from(&cells[1], &cells[0]);
         }));
         end_lending();
         assert!(hit.is_err() && copied.is_err());

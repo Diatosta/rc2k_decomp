@@ -18,6 +18,7 @@ use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
 use crate::math::x87::neg_rounded;
 use crate::math::x87::{loaded, mul};
+use crate::memory::session::FloatLike;
 use crate::physics::car_store::Car;
 use crate::physics::contact_force::contact_force;
 use crate::physics::contact_store::ContactWork;
@@ -33,7 +34,6 @@ use crate::race::numbers_store::Numbers;
 use crate::race::owner_course::Course;
 use crate::scene::matrix3::{extended, rounded_value};
 use crate::scene::rotate_point::rotate_point;
-use crate::session::FloatLike;
 use rc2k_core::physics::contacts;
 
 /// Three floats copied as bits, in order.

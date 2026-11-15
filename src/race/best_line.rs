@@ -7,10 +7,10 @@ use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_float as bh;
+use crate::memory::session::{PlainDword, PlainFloat};
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use crate::race::trap::Trap;
-use crate::session::{PlainDword, PlainFloat};
 use std::cell::RefCell;
 
 /// The number of entries `checkpoint_faces` and the lists after it have room for.

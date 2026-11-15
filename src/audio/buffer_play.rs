@@ -23,13 +23,13 @@ fn buffer(state: &AudioOwn, v: &Voice, a3d_name: &'static str) -> Result<u32, Re
 pub fn is_playing(state: &AudioOwn, v: &Voice) -> Result<u32, Refused> {
     let b = buffer(state, v, "A3D (0x40CE81)")?;
     // A failed call leaves the status 0.
-    Ok(crate::platform_sound::status(b).unwrap_or(0))
+    Ok(crate::platform::sound::status(b).unwrap_or(0))
 }
 
 /// `SetCurrentPosition` with 0.
 pub fn rewind_buffer(state: &AudioOwn, v: &Voice) -> Result<i32, Refused> {
     let b = buffer(state, v, "A3D (0x40CE96)")?;
-    Ok(crate::platform_sound::set_current_position(b, 0))
+    Ok(crate::platform::sound::set_current_position(b, 0))
 }
 
 /// `Play` with 0, 0 and the looping flag for a looping voice (kind 1). A lost buffer sets the lost
@@ -37,7 +37,7 @@ pub fn rewind_buffer(state: &AudioOwn, v: &Voice) -> Result<i32, Refused> {
 pub fn play_buffer(state: &AudioOwn, v: &Voice) -> Result<(i32, bool), Refused> {
     let b = buffer(state, v, "A3D (0x40CEA0)")?;
     let flags = rc2k_core::audio::buffers::play_flags(v);
-    let r = crate::platform_sound::play(b, flags);
+    let r = crate::platform::sound::play(b, flags);
     if r != 0 && rc2k_core::audio::buffers::lost(r) {
         state.sound_buffer_lost.set(1);
     }
@@ -47,7 +47,7 @@ pub fn play_buffer(state: &AudioOwn, v: &Voice) -> Result<(i32, bool), Refused> 
 /// `Stop`.
 pub fn stop_buffer(state: &AudioOwn, v: &Voice) -> Result<i32, Refused> {
     let b = buffer(state, v, "A3D (0x40CEBB)")?;
-    Ok(crate::platform_sound::stop(b))
+    Ok(crate::platform::sound::stop(b))
 }
 
 /// The 3D listener's `CommitDeferredSettings`.
@@ -56,5 +56,5 @@ pub fn commit_3d(state: &AudioOwn) -> Result<i32, Refused> {
     if object == 0 {
         return Err(BadInput("no 3D listener").into());
     }
-    Ok(crate::platform_sound::commit_deferred(object))
+    Ok(crate::platform::sound::commit_deferred(object))
 }

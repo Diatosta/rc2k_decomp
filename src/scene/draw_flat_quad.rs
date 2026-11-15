@@ -22,11 +22,11 @@ use crate::race::owner_course::CourseReads;
 )]
 pub fn draw_flat_quad(
     poly: &crate::scene::polygon_work::PolygonWork,
-    part: &crate::workers::PartScratch,
+    part: &crate::scene::workers::PartScratch,
     face: &crate::race::face_work::FaceWork,
     course: CourseReads<'_>,
-    reads: crate::workers::DrawReads<'_>,
-    screen: &crate::session::Screen,
+    reads: crate::scene::workers::DrawReads<'_>,
+    screen: &crate::memory::session::Screen,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
     poly.polygon_drawn.set(0);
@@ -37,7 +37,7 @@ pub fn draw_flat_quad(
         rec.u.set(view.quad.uv[n].get());
         rec.v.set(view.quad.uv[4 + n].get());
     }
-    let float = |cell: &crate::session::PlainDword| x87::from_int(cell.get() as i32);
+    let float = |cell: &crate::memory::session::PlainDword| x87::from_int(cell.get() as i32);
     let [left, right, top, bottom] = [
         &view.quad.corners[0],
         &view.quad.corners[1],

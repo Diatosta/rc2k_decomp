@@ -64,7 +64,7 @@ fn struct_fields(
     Ok((types, names))
 }
 
-/// `#[derive(Cells)]` for `crate::cells::Cells`: a record is made of cells when each of its
+/// `#[derive(Cells)]` for `crate::memory::cells::Cells`: a record is made of cells when each of its
 /// fields is, in any layout. The derived `copy_from` copies field by field, in the fields'
 /// order, `merge_changes` merges field by field, and `visit` goes through the fields by name.
 /// A field named `inline` adds nothing to the debug pages' field paths: its own fields read as
@@ -89,13 +89,13 @@ pub fn derive_cells(input: TokenStream) -> TokenStream {
         for ty in &types {
             clause
                 .predicates
-                .push(syn::parse_quote!(#ty: crate::cells::Cells));
+                .push(syn::parse_quote!(#ty: crate::memory::cells::Cells));
         }
         (quote! {}, Some(clause))
     } else {
         let checks = quote! {
             const _: () = {
-                const fn is_cells<T: crate::cells::Cells + ?Sized>() {}
+                const fn is_cells<T: crate::memory::cells::Cells + ?Sized>() {}
                 #( is_cells::<#types>(); )*
             };
         };
@@ -107,11 +107,11 @@ pub fn derive_cells(input: TokenStream) -> TokenStream {
         .map(|n| {
             let text = n.to_string();
             if text == "inline" {
-                quote! { crate::cells::Cells::visit(&self.#n, visitor); }
+                quote! { crate::memory::cells::Cells::visit(&self.#n, visitor); }
             } else {
                 quote! {
                     visitor.enter(#text);
-                    crate::cells::Cells::visit(&self.#n, visitor);
+                    crate::memory::cells::Cells::visit(&self.#n, visitor);
                     visitor.leave();
                 }
             }
@@ -129,19 +129,19 @@ pub fn derive_cells(input: TokenStream) -> TokenStream {
                 let other = rename(quote!(#ty), k, &k2);
                 clause2
                     .predicates
-                    .push(syn::parse_quote!(#ty: crate::cells::SameShape<#other>));
+                    .push(syn::parse_quote!(#ty: crate::memory::cells::SameShape<#other>));
             }
             let mut params = input.generics.clone();
             params.params.push(syn::parse_quote!(#k2: #bounds));
             let (with2, _, _) = params.split_for_impl();
             quote! {
-                impl #with2 crate::cells::SameShape<#name<#k2>> for #name<#k> #clause2 {
+                impl #with2 crate::memory::cells::SameShape<#name<#k2>> for #name<#k> #clause2 {
                     fn copy_cells_to(&self, to: &#name<#k2>) {
-                        #( crate::cells::SameShape::copy_cells_to(&self.#names, &to.#names); )*
+                        #( crate::memory::cells::SameShape::copy_cells_to(&self.#names, &to.#names); )*
                     }
 
                     fn merge_cells_to(&self, start: &Self, to: &#name<#k2>) {
-                        #( crate::cells::SameShape::merge_cells_to(&self.#names, &start.#names, &to.#names); )*
+                        #( crate::memory::cells::SameShape::merge_cells_to(&self.#names, &start.#names, &to.#names); )*
                     }
                 }
             }
@@ -163,16 +163,16 @@ pub fn derive_cells(input: TokenStream) -> TokenStream {
         #byte_view
         // SAFETY: every field is `Cells`, so every byte of the record is in a cell and all
         // zero bytes are a valid value.
-        unsafe impl #with crate::cells::Cells for #name #of #clause {
+        unsafe impl #with crate::memory::cells::Cells for #name #of #clause {
             fn copy_from(&self, other: &Self) {
-                #( crate::cells::Cells::copy_from(&self.#names, &other.#names); )*
+                #( crate::memory::cells::Cells::copy_from(&self.#names, &other.#names); )*
             }
 
             fn merge_changes(&self, now: &Self, start: &Self) {
-                #( crate::cells::Cells::merge_changes(&self.#names, &now.#names, &start.#names); )*
+                #( crate::memory::cells::Cells::merge_changes(&self.#names, &now.#names, &start.#names); )*
             }
 
-            fn visit(&self, visitor: &mut dyn crate::cells::CellVisitor) {
+            fn visit(&self, visitor: &mut dyn crate::memory::cells::CellVisitor) {
                 #( #visits )*
             }
         }
@@ -188,7 +188,7 @@ fn is_repr_c(input: &DeriveInput) -> bool {
     })
 }
 
-/// `#[derive(ByteView)]` for `crate::cells::ByteView`: a `#[repr(C)]` or `#[repr(transparent)]`
+/// `#[derive(ByteView)]` for `crate::memory::cells::ByteView`: a `#[repr(C)]` or `#[repr(transparent)]`
 /// record of `ByteView` fields with no byte outside them. Both are checked at compile time, so
 /// the promise the trait asks for rests on the primitive cells alone. The derived `cell_run`
 /// finds a byte's field by its offset and asks the field's type, down to a run of primitive
@@ -255,7 +255,7 @@ fn byte_view_impl(
         for ty in &types {
             clause
                 .predicates
-                .push(syn::parse_quote!(#ty: crate::cells::ByteView));
+                .push(syn::parse_quote!(#ty: crate::memory::cells::ByteView));
         }
         let checks = quote! {
             #cfg
@@ -275,7 +275,7 @@ fn byte_view_impl(
         let checks = quote! {
             #cfg
             const _: () = {
-                const fn is_byte_view<T: crate::cells::ByteView + ?Sized>() {}
+                const fn is_byte_view<T: crate::memory::cells::ByteView + ?Sized>() {}
                 #( is_byte_view::<#types>(); )*
                 assert!(
                     ::core::mem::size_of::<#name #of>() == 0 #( + ::core::mem::size_of::<#types>() )*,
@@ -290,7 +290,7 @@ fn byte_view_impl(
         #cfg
         // SAFETY: `#[repr(C)]` over `ByteView` fields and no byte outside them (checked
         // above), so any bytes make a value and every byte is in a cell.
-        unsafe impl #with crate::cells::ByteView for #name #of #clause {
+        unsafe impl #with crate::memory::cells::ByteView for #name #of #clause {
             #[cfg(any(test, feature = "remote"))]
             fn field_path(&self, offset: usize, path: &mut String) -> &'static str {
                 #starts
@@ -298,19 +298,19 @@ fn byte_view_impl(
                 match field {
                     #( #indices => {
                         path.push_str(#path_names);
-                        crate::cells::ByteView::field_path(&self.#names, offset - starts[#indices], path)
+                        crate::memory::cells::ByteView::field_path(&self.#names, offset - starts[#indices], path)
                     } )*
                     _ => panic!("ByteView: byte {offset} outside the record"),
                 }
             }
 
-            fn cell_run(&self, offset: usize) -> (usize, crate::cells::CellRun<'_>) {
+            fn cell_run(&self, offset: usize) -> (usize, crate::memory::cells::CellRun<'_>) {
                 #checked
                 #starts
                 let field = starts.partition_point(|&start| start <= offset).wrapping_sub(1);
                 match field {
                     #( #indices => {
-                        let (start, run) = crate::cells::ByteView::cell_run(
+                        let (start, run) = crate::memory::cells::ByteView::cell_run(
                             &self.#names,
                             offset - starts[#indices],
                         );
@@ -323,7 +323,7 @@ fn byte_view_impl(
     })
 }
 
-/// `#[derive(ZeroCells)]` for `crate::cells::ZeroCells`: the record whose every field is
+/// `#[derive(ZeroCells)]` for `crate::memory::cells::ZeroCells`: the record whose every field is
 /// zero, as a constant, so a store's `new()` can name only the fields that start non-zero
 /// (`Record { count: Dword::new(3), ..ZeroCells::ZERO }`). Every field's type is `ZeroCells`.
 #[proc_macro_derive(ZeroCells)]
@@ -344,16 +344,16 @@ pub fn derive_zero_cells(input: TokenStream) -> TokenStream {
         Fields::Named(f) => {
             let names = f.named.iter().map(|f| &f.ident);
             let types = f.named.iter().map(|f| &f.ty);
-            quote! { #name { #( #names: <#types as crate::cells::ZeroCells>::ZERO ),* } }
+            quote! { #name { #( #names: <#types as crate::memory::cells::ZeroCells>::ZERO ),* } }
         }
         Fields::Unnamed(f) => {
             let types = f.unnamed.iter().map(|f| &f.ty);
-            quote! { #name( #( <#types as crate::cells::ZeroCells>::ZERO ),* ) }
+            quote! { #name( #( <#types as crate::memory::cells::ZeroCells>::ZERO ),* ) }
         }
         Fields::Unit => quote! { #name },
     };
     quote! {
-        impl crate::cells::ZeroCells for #name {
+        impl crate::memory::cells::ZeroCells for #name {
             const ZERO: Self = #init;
         }
     }

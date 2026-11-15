@@ -4,7 +4,7 @@
 
 use crate::errors::Refused;
 use crate::install::installer::item_action_at;
-use crate::list_handle::ListItem;
+use crate::memory::list_handle::ListItem;
 use rc2k_core::install::items::{self, LinkWay};
 
 /// Enter on a link; whether it was taken.

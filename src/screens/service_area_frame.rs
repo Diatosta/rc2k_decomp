@@ -4,8 +4,8 @@
 //! show is reported by the carry of the flags returned. Callers: the frame callbacks of
 //! `service::apply_repairs` and its kind.
 
+use crate::errors::CarryZeroFlags;
 use crate::errors::Refused;
-use crate::framework::CarryZeroFlags;
 use crate::owners::Owners;
 use crate::platform::{lock_surface, show_frame_now, unlock_surface};
 

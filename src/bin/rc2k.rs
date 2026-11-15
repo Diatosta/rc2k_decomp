@@ -1,5 +1,5 @@
 //! The game without the game: runs the ported code on `RAL.EXE`'s data (`standalone.rs`),
-//! on SDL (`platform.rs`).
+//! on SDL (`platform/mod.rs`).
 //!
 //! Started in the game's folder: `rc2k.exe [log] [switches]`; the log is `rc2k.log` there
 //! unless another is named. The game's data built into `RAL.EXE` is the program's own (its

@@ -1,7 +1,7 @@
 //! The arcade game's state: the level and stage being played, the retry count and the levels
 //! won. One static, owned by the menus.
 
-use crate::session::{PlainBytes, PlainDword};
+use crate::memory::session::{PlainBytes, PlainDword};
 
 /// The arcade game's state.
 #[derive(rc2k_derive::Cells)]

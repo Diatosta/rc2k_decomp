@@ -37,7 +37,8 @@ pub fn texture_surface_info(record: &RecordCell, gfx: &Gfx) -> Result<(), crate:
     crate::gfx::surface::on_address(gfx);
     // The clip rectangle is the surface's first four dwords (x, y, width, height).
     crate::gfx::set_clip::set_clip(
-        [&surface.x, &surface.y, &surface.width, &surface.height].map(crate::session::Dword::get),
+        [&surface.x, &surface.y, &surface.width, &surface.height]
+            .map(crate::memory::session::Dword::get),
         gfx,
     );
     Ok(())

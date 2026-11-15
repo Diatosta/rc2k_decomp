@@ -13,18 +13,21 @@ use crate::math::x87;
 use crate::math::x87::{
     compare_full, float_hypot_to_int, int_toward_to_int, mul2_to_int, times_fist_compare,
 };
+use crate::memory::session::{PlainDword, PlainFloat};
 use crate::race::norms::normalise_work_vector;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::owner_shared::RaceShared;
 use crate::scene::view_matrix::cross_product;
-use crate::session::{PlainDword, PlainFloat};
 use rc2k_core::drive::computer_driver as driver;
 
 /// `table[n + k]`, the index held to the count less one (unsigned).
 fn held(
     shared: &RaceShared,
-    table: fn(&crate::race::checkpoints_store::Checkpoints, usize) -> &crate::session::PlainDword,
+    table: fn(
+        &crate::race::checkpoints_store::Checkpoints,
+        usize,
+    ) -> &crate::memory::session::PlainDword,
     n: u32,
     k: u32,
 ) -> u32 {

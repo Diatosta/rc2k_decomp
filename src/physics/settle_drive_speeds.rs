@@ -9,12 +9,12 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
+use crate::memory::session::PlainDword;
 use crate::physics::flow::FloatView;
 use crate::physics::gearing::{GearPlaces, revs_from_wheels_at};
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
-use crate::session::PlainDword;
 
 /// The switches and the scratch: the game's or a test's.
 #[derive(Clone, Copy)]
@@ -26,7 +26,7 @@ pub struct SettlePlaces<'a> {
     /// `brake`: the big step.
     pub fast: &'a PlainDword,
     /// `scratch`: the step is stored there (a dword holding the float's bits).
-    pub scratch: &'a crate::session::PlainDword,
+    pub scratch: &'a crate::memory::session::PlainDword,
 }
 
 impl<'a> SettlePlaces<'a> {

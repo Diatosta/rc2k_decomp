@@ -3,12 +3,12 @@
 //! list (header and 26 items of 16 bytes). `#[repr(C)]`, laid over the race block's bytes. The
 //! list's names are image addresses into the untyped rectangles and key table.
 
-use crate::cells::ZeroCells;
+use crate::memory::cells::ZeroCells;
 
-use crate::list_handle::{Item, ListData26, ListHeader};
-use crate::place::BytePlace;
+use crate::memory::list_handle::{Item, ListData26, ListHeader};
+use crate::memory::place::BytePlace;
+use crate::memory::session::{PlainDword, PlainFlag};
 use crate::race::owner_replay::Replay;
-use crate::session::{PlainDword, PlainFlag};
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells, rc2k_derive::ByteView)]
@@ -109,7 +109,7 @@ impl ReplayViewBlock {
 
 /// The viewer list's key table and place rectangles: the list's names point into them, and
 /// nothing writes them.
-pub static RECTANGLES: crate::session::Bytes<0x208> = crate::session::Bytes::new([
+pub static RECTANGLES: crate::memory::session::Bytes<0x208> = crate::memory::session::Bytes::new([
     0xFF, 0x0D, 0xFF, 1, 0xFF, 0x0E, 0, 2, 0xFF, 0x0F, 1, 3, 0xFF, 0x10, 2, 4, 0xFF, 0x11, 3, 5,
     0xFF, 0x12, 4, 6, 0xFF, 0x13, 5, 7, 0xFF, 0x14, 6, 8, 0xFF, 0x15, 7, 9, 0xFF, 0x16, 8, 0x0A,
     0xFF, 0x17, 9, 0x0B, 0xFF, 0x18, 0x0A, 0x0C, 0xFF, 0x19, 0x0B, 0xFF, 0, 0xFF, 0xFF, 0x0E, 1,

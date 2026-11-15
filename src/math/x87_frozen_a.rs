@@ -399,7 +399,7 @@ fn pointer_functions() {
         let mut p = vec![0xAAAA_AAAAu32];
         let cells = |v: &[u32]| {
             v.iter()
-                .map(|&x| crate::session::Dword::new(x))
+                .map(|&x| crate::memory::session::Dword::new(x))
                 .collect::<Vec<_>>()
         };
         p[0] = crate::scene::matrix3::row_times_column_3(&cells(&a)[..], &cells(&m)[..]);
@@ -454,10 +454,11 @@ fn pointer_functions_to_int() {
         let mut p = vec![0x5555_5555i32; 3];
         let cells = |v: &[u32]| {
             v.iter()
-                .map(|&x| crate::session::Dword::new(x))
+                .map(|&x| crate::memory::session::Dword::new(x))
                 .collect::<Vec<_>>()
         };
-        let turn = |from: &[crate::session::Dword], to: &[crate::session::Dword]| {
+        let turn = |from: &[crate::memory::session::Dword],
+                    to: &[crate::memory::session::Dword]| {
             crate::scene::matrix3::turn_int_point(from, &cells(&mat)[..], to, 0);
         };
         let (from, to) = (cells(&pt.map(|x| x as u32)), cells(&[0x5555_5555; 3]));

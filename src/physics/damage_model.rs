@@ -8,7 +8,7 @@
 //!
 //! This file holds the regions and the shared test.
 
-use crate::session::{PlainDword, PlainFloat};
+use crate::memory::session::{PlainDword, PlainFloat};
 
 /// The value of a float cell as the model's arithmetic holds it: a float loaded and worked at
 /// double precision.

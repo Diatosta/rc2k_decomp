@@ -18,7 +18,7 @@ pub fn draw_time_text(
     let font = font.into().object(&gfx.fonts.typefaces);
     let mut x = x;
     let chars = text;
-    let widths = rc2k_core::text::time_text_widths(chars)
+    let widths = rc2k_core::strings::text::time_text_widths(chars)
         .map_err(|_| crate::errors::BadInput("a time text past its block"))?;
     for (i, width) in widths.into_iter().enumerate() {
         font.box_width.set(width);

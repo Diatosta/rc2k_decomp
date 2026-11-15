@@ -24,12 +24,12 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::files::read_whole_file::read_whole_file_plain_bytes;
+use crate::memory::session::TextPlace;
 use crate::scene::add_object_shape::add_object_shape;
 use crate::scene::list_object_textures::list_object_textures;
 use crate::scene::measure_object::measure_object;
 use crate::scene::objects::{FACES, FILE_ROOM, SLOTS};
 use crate::scene::set_object_file_names::set_object_file_names;
-use crate::session::TextPlace;
 use rc2k_core::scene::object_shape::{
     PART_CELLS, PARTS, Parsed, REST_CELL, ShapeRequest, car_masks, first_part_slots, parse_shape,
 };
@@ -151,7 +151,7 @@ pub fn load_object(
         (slot - FIRST_CAR_SLOT) % 0x14,
     );
     let first = car * 0x14 + FIRST_CAR_SLOT;
-    crate::session::write_all(&scene.object_work().loading_car, [car, part, first]);
+    crate::memory::session::write_all(&scene.object_work().loading_car, [car, part, first]);
     match part {
         0 => {
             for car_slot in first_part_slots(&masks) {
@@ -214,7 +214,7 @@ fn store(
         return Ok(());
     }
     match &planned.measures {
-        Some(m) => crate::session::write_first(
+        Some(m) => crate::memory::session::write_first(
             &scene.objects.slots.get().measures,
             &[m.middle, m.half, m.lowest, m.highest].concat(),
         ),
@@ -222,7 +222,8 @@ fn store(
         // leaves the half extents as they were.
         None => measure_object(&race.course, scene)?,
     }
-    let measures: [u32; 6] = crate::session::read_first(&scene.objects.slots.get().measures);
+    let measures: [u32; 6] =
+        crate::memory::session::read_first(&scene.objects.slots.get().measures);
     for (table, &value) in measures.iter().enumerate() {
         scene.objects.slots.get().part_extents[table][planned.slot as usize].set(value);
     }

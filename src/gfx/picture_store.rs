@@ -2,7 +2,7 @@
 //! its memory is on). The texture grades are `gfx::texture_pixels::GRADING`.
 
 use crate::memory::MemoryList;
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 
 /// The picture buffer: where a picture file is decoded to, as 32-bit pixels of four 8-bit
 /// components, before it is converted to the surface's format and drawn.

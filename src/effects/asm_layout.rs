@@ -6,9 +6,9 @@
 //! the marks' block, runs the Rust version on them, and copies them back. The bytes between
 //! the runs stay as the buffer had them: nothing typed reads them. Test code only.
 
-use crate::cells::Cells;
 use crate::effects::asm_test::Operand;
 use crate::effects::asm_test::START as BLOCK;
+use crate::memory::cells::Cells;
 use crate::test_support::paths::{field_range, field_start, set_field_range};
 
 /// A run of fields that were next to each other in the recorded layout.
@@ -51,7 +51,7 @@ use crate::effects::windscreen_flakes_store::{
 /// A store with every cell 0.
 fn zeroed<T: Cells>() -> Box<T> {
     // On the heap: some stores are near 100 KB, and a test thread's stack is small.
-    crate::cells::boxed_zeroed_cells()
+    crate::memory::cells::boxed_zeroed_cells()
 }
 
 /// Runs `f` on a copy of the store `T` made from the bytes the test buffer `mk` (standing

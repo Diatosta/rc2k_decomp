@@ -12,9 +12,9 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::gfx::pixel_format::PixelFormat;
+use crate::memory::session::{PlainBytes, PlainDword};
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
-use crate::session::{PlainBytes, PlainDword};
 
 const MAGIC: u32 = 0x4D53_5153; // "SQSM"
 const VERSION: u32 = 0x5_0000;
@@ -326,8 +326,8 @@ pub fn load_packed_game_map(
 /// buffer are put back.
 pub fn load_game_map(
     frame: &Frame,
-    picture: &dyn crate::session::TextPlace,
-    key_path: &dyn crate::session::TextPlace,
+    picture: &dyn crate::memory::session::TextPlace,
+    key_path: &dyn crate::memory::session::TextPlace,
     system: &crate::system::owner::System,
     gfx: &crate::gfx::owner::Gfx,
 ) -> Result<LoadedMap, Refused> {
@@ -337,7 +337,7 @@ pub fn load_game_map(
     {
         // The packed path: "files\" at the start, the picture's path after 3 bytes with its last
         // four bytes made ".sq" and a NUL.
-        let path = &crate::session::Bytes::<{ crate::files::state::PACKED_PATH_LEN }>::new(
+        let path = &crate::memory::session::Bytes::<{ crate::files::state::PACKED_PATH_LEN }>::new(
             [0; crate::files::state::PACKED_PATH_LEN],
         );
         let text = picture.text("a text to append")?;

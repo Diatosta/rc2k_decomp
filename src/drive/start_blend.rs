@@ -13,8 +13,8 @@
 use crate::math::x87;
 use crate::math::x87::compare_full;
 use crate::math::x87_float as bh;
+use crate::memory::session::{PlainDword, PlainFloat};
 use crate::race::owner::Race;
-use crate::session::{PlainDword, PlainFloat};
 
 /// The cells the blend reads and writes.
 pub struct BlendCells<'a> {
@@ -23,7 +23,7 @@ pub struct BlendCells<'a> {
     /// The lead car's checkpoint.
     pub lead_checkpoint: &'a PlainDword,
     /// The held count.
-    pub scratch: &'a crate::session::PlainDword,
+    pub scratch: &'a crate::memory::session::PlainDword,
     /// `start_blend_share`: the count times `start_blend_step`.
     pub step_share: &'a PlainFloat,
     pub start_share: &'a PlainFloat,

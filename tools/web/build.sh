@@ -9,7 +9,7 @@ source ~/emsdk/emsdk_env.sh >/dev/null 2>&1
 link=(
   -pthread
   -sUSE_SDL=3
-  # Files on the origin's private storage (`src/web.rs`).
+  # Files on the origin's private storage (`src/platform/web.rs`).
   -sWASMFS
   # The game blocks in its own loops: it runs on a worker, not the page's thread.
   -sPROXY_TO_PTHREAD

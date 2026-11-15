@@ -27,6 +27,7 @@
 //! of its parts comes with the work half done.
 
 use crate::errors::Refused;
+use crate::memory::session::PlainDword;
 use crate::scene::allocate_point_records::allocate_point_records_in_game;
 use crate::scene::clear_slot_kinds::clear_slot_kinds;
 use crate::scene::fill_light_tables::fill_light_tables;
@@ -39,7 +40,6 @@ use crate::scene::reset_texture_places::reset_texture_places;
 use crate::scene::reset_texture_tables::reset_texture_tables;
 use crate::scene::set_up_object_memory::set_up_object_memory;
 use crate::scene::view_matrix::set_view_matrices;
-use crate::session::PlainDword;
 
 // ---- game data ----
 fn system_levels(scene: &Scene) -> &[PlainDword; 1024] {
@@ -72,8 +72,11 @@ fn picture_places() -> impl Iterator<Item = u32> {
 
 fn colours(course: &crate::race::owner_course::Course, dark_third: u32) {
     {
-        crate::session::write_bits(&course.stage_prefs.get().lit_colour, [0xFFu32; 3]);
-        crate::session::write_bits(&course.stage_prefs.get().dark_colour, [0u32, 0, dark_third]);
+        crate::memory::session::write_bits(&course.stage_prefs.get().lit_colour, [0xFFu32; 3]);
+        crate::memory::session::write_bits(
+            &course.stage_prefs.get().dark_colour,
+            [0u32, 0, dark_third],
+        );
     }
 }
 

@@ -196,7 +196,7 @@ fn give(data: &[u8], out: &mut [u8]) -> (u32, u32) {
 fn signal() -> Signal {
     Arc::new(|event: u32| {
         if event != 0 {
-            crate::sync::set_event(event);
+            crate::platform::sync::set_event(event);
         }
     })
 }
@@ -332,7 +332,7 @@ pub fn enum_players(this: u32, callback: EnumPlayersCallback<'_>, context: u32) 
 
 /// A DPSESSIONDESC2's fields (its name's text as `name`).
 pub fn desc(d: &crate::net::store::SessionDesc, name: &[u8]) -> Desc {
-    let guid = |c: &[crate::session::Dword; 4]| -> Guid {
+    let guid = |c: &[crate::memory::session::Dword; 4]| -> Guid {
         let mut g = [0u8; 16];
         for (k, cell) in c.iter().enumerate() {
             g[4 * k..4 * k + 4].copy_from_slice(&cell.get().to_le_bytes());
@@ -346,7 +346,7 @@ pub fn desc(d: &crate::net::store::SessionDesc, name: &[u8]) -> Desc {
         max_players: d.max_players.get(),
         current_players: d.current_players.get(),
         name: name_text(name),
-        user: crate::session::read_all(&d.user),
+        user: crate::memory::session::read_all(&d.user),
     }
 }
 
@@ -560,7 +560,7 @@ fn initialize(s: &mut State, parts: Vec<(Guid, Vec<u8>)>) -> u32 {
         }
     }
     s.initialized = true;
-    crate::framework::log(&format!(
+    crate::logfile::program_log::log(&format!(
         "net: TCP/IP connection, host \"{}\", port {}",
         s.host, s.port
     ));

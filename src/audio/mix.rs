@@ -5,13 +5,13 @@
 
 use crate::audio::own::AudioOwn;
 use crate::errors::Refused;
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 
 const BUFFER_LOST: i32 = 0x8878_0096u32 as i32;
 
 /// True for no failure.
 pub fn mix(state: &AudioOwn) -> Result<bool, Refused> {
-    use crate::platform_sound as ds;
+    use crate::platform::sound as ds;
     {
         let primary = state.primary_buffer.get();
         let failed = |r: i32| {

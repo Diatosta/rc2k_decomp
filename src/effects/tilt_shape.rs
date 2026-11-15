@@ -5,7 +5,7 @@
 
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::math::x87;
-use crate::session::{PlainFloat, read_bits, write_bits};
+use crate::memory::session::{PlainFloat, read_bits, write_bits};
 
 pub fn tilt_shape(drops: &WindscreenDrops) {
     let t = &drops.tilt;

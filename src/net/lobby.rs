@@ -9,7 +9,7 @@
 //! number, a random number, the race's time and the total.
 
 use crate::errors::Refused;
-use crate::session::Dword;
+use crate::memory::session::Dword;
 use rc2k_core::fatal::Context;
 
 // ---- game data ----
@@ -23,8 +23,8 @@ pub const FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HE
 
 /// `rep movsb` of `n` bytes, forwards (the places do not overlap).
 pub fn movsb(
-    to: impl Into<crate::place::BytePlace>,
-    from: impl Into<crate::place::BytePlace>,
+    to: impl Into<crate::memory::place::BytePlace>,
+    from: impl Into<crate::memory::place::BytePlace>,
     n: u32,
 ) -> Result<(), Refused> {
     let bytes = from.into().read(n as usize, "a network record's bytes")?;
@@ -93,7 +93,7 @@ pub fn log_int_nl(value: u32, level: u8) {
 }
 
 /// `system::zero_memory`.
-pub fn zero(at: impl Into<crate::place::BytePlace>, length: u32) -> Result<(), Refused> {
+pub fn zero(at: impl Into<crate::memory::place::BytePlace>, length: u32) -> Result<(), Refused> {
     at.into()
         .write(&vec![0; length as usize], "memory to zero")?;
     Ok(())
@@ -197,7 +197,7 @@ pub fn callback_entry(name: &str, ral: u32, rust: impl FnOnce() -> Result<u32, R
             crate::standalone::finish(&format!("{name} ({ral:#x}) refused: {}", why.0), 1)
         }
         Err(Refused::Fatal(error)) => {
-            crate::framework::log(&format!(
+            crate::logfile::program_log::log(&format!(
                 "{name}: raises fatal error {:#x} {:?}",
                 error.code, error.message
             ));

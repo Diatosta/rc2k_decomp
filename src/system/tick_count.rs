@@ -4,7 +4,7 @@
 //! What sets the override has not been read.
 //!
 
-use crate::session::Dword;
+use crate::memory::session::Dword;
 
 /// The picture clock: while the replay viewer saves its frames as pictures
 /// (`race::replay_screenshot`) the game's clock is `clock` (ms) instead of the host's.
@@ -30,7 +30,7 @@ pub fn tick_count(picture_clock: &PictureClock) -> u32 {
         return held;
     }
     // The original asks Windows first in both cases.
-    let now = crate::os::ticks();
+    let now = crate::platform::os::ticks();
     rc2k_core::system::time::clock(now, picture_clock.started.get(), || {
         picture_clock.clock.get()
     })

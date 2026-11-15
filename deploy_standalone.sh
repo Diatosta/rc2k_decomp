@@ -71,7 +71,7 @@ fi
 DEST="${STANDALONE_DIR:-$GAME_DIR/..}"
 
 if [ "${1:-}" = anbernic ]; then
-    # The Anbernic RG34XXSP (`src/handheld.rs`), built in its own system's container and
+    # The Anbernic RG34XXSP (`src/platform/handheld.rs`), built in its own system's container and
     # copied over SSH: ANBERNIC_HOST in deploy.local (root@address), the key in
     # ANBERNIC_KEY. The game's files go there once, by hand: see tools/anbernic/README.md.
     : "${ANBERNIC_HOST:?Set ANBERNIC_HOST in deploy.local}"

@@ -17,7 +17,7 @@ pub fn current_block(shared: &RaceShared) -> Result<&Car, Refused> {
 /// Copies the car record, dword by dword upwards (the two never overlap in the game; the order
 /// is kept anyway).
 pub fn copy_car(from: &Car, to: &Car) {
-    use crate::cells::Cells;
+    use crate::memory::cells::Cells;
     to.copy_from(from);
 }
 

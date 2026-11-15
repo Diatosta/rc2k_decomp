@@ -2,7 +2,7 @@
 //! of the mode chosen, `platform` presents, the race's drawing code writes pixels through).
 //! `#[repr(C)]` structs of atomic cells.
 
-use crate::session::{Dword, PlainDword};
+use crate::memory::session::{Dword, PlainDword};
 
 /// The screen mode chosen.
 #[derive(rc2k_derive::Cells)]

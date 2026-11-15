@@ -18,8 +18,8 @@ pub fn show_report_at_exit() {
         // MB_ICONEXCLAMATION | MB_TASKMODAL.
         let (caption, text) = (CAPTION.read(), TEXT.read());
         let until_nul = |b: &[u8]| b.split(|&c| c == 0).next().unwrap_or_default().to_vec();
-        crate::os::message_box(
-            crate::os::Icon::Warning,
+        crate::platform::os::message_box(
+            crate::platform::os::Icon::Warning,
             &until_nul(&caption),
             &until_nul(&text),
         );

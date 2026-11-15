@@ -1,7 +1,7 @@
 //! Where the time goes: the frames' counts and timings in the log, and on Windows the main
 //! thread and the rasteriser's sampled (with `RC2K_PROFILE` set).
 
-use crate::framework::log;
+use crate::logfile::program_log::log;
 use crate::platform::SHOWN;
 use crate::system::owner::System;
 use std::sync::atomic::Ordering;
@@ -65,7 +65,7 @@ pub fn start_threads() {
             SAMPLED
                 .lock()
                 .unwrap()
-                .push(crate::ffi::win32::current_thread_id());
+                .push(crate::platform::ffi::win32::current_thread_id());
         })
         .build_global();
 }
@@ -85,7 +85,7 @@ fn hot_places() -> String {
 /// go on. `rc2k_profile.txt` is emptied as it starts.
 #[cfg(windows)]
 pub fn start_sampler() {
-    use crate::ffi::win32::SampledThread;
+    use crate::platform::ffi::win32::SampledThread;
     use std::sync::Once;
     static STARTED: Once = Once::new();
     STARTED.call_once(|| {
@@ -98,7 +98,7 @@ pub fn start_sampler() {
         SAMPLED
             .lock()
             .unwrap()
-            .insert(0, crate::ffi::win32::current_thread_id());
+            .insert(0, crate::platform::ffi::win32::current_thread_id());
         *SAMPLES.lock().unwrap() = Some(Default::default());
         std::thread::spawn(move || {
             let mut threads: Vec<(u32, SampledThread)> = Vec::new();
@@ -142,12 +142,12 @@ fn hot_places() -> String {
         return String::new();
     }
     // Host addresses throughout (sampled instruction pointers, modules).
-    let program = crate::ffi::win32::program_base();
+    let program = crate::platform::ffi::win32::program_base();
     // by function-sized buckets would need symbols: by address, the top 24
     let mut places: Vec<(usize, u32)> = samples.into_iter().collect();
     places.sort_by_key(|p| std::cmp::Reverse(p.1));
     let name = |at: usize| -> String {
-        let Some((path, base)) = crate::ffi::win32::module_of_address_ansi(at) else {
+        let Some((path, base)) = crate::platform::ffi::win32::module_of_address_ansi(at) else {
             return format!("{at:#x}");
         };
         if base == program {
@@ -277,7 +277,7 @@ pub fn report_timing(system: &System) {
                     ));
                     *was = (nanos, runs, ticks);
                 }
-                crate::handheld::write_profile();
+                crate::platform::handheld::write_profile();
             }
             {
                 use crate::render::{PARALLEL_MICROS, TILE_MICROS};
@@ -289,7 +289,7 @@ pub fn report_timing(system: &System) {
                 static LAST_N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
                 let sh = SHOW_MICROS.load(Relaxed);
                 let ds = sh - LAST_S.swap(sh, Relaxed);
-                let no = crate::platform_3d::NOTE_MICROS.load(Relaxed);
+                let no = crate::platform::direct3d::NOTE_MICROS.load(Relaxed);
                 let dn = no - LAST_N.swap(no, Relaxed);
                 log(&format!(
                     "platform: the rasteriser's parallel part {:.0} ms, the threads in its tiles {:.0} ms ({:.1} threads busy on average); showing the frames {:.0} ms; noting the fans {:.0} ms",

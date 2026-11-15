@@ -15,9 +15,9 @@ use crate::effects::emitters::*;
 use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
+use crate::memory::session::{PlainDword, PlainFloat};
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
 use crate::scene::matrix3::rounded_value;
-use crate::session::{PlainDword, PlainFloat};
 
 const LOOK: u32 = 0x34;
 const LIFE: u32 = 0x3E8;
@@ -33,7 +33,7 @@ fn rate(
             .kind21_set
             .rate_k
             .each_ref()
-            .map(super::super::session::PlainFloat::get);
+            .map(crate::memory::session::PlainFloat::get);
         x87::speed_rate_to_int(
             &wheel.driven_speed,
             k1,

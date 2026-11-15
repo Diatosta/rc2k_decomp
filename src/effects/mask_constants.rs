@@ -1,7 +1,7 @@
 //! The constants and randoms of `make_masks` and the shapes' runs: the spans' and rings'
 //! constants, the eased steps', the corners', the pixels' and the rows'.
 
-use crate::session::{PlainDword, PlainFloat};
+use crate::memory::session::{PlainDword, PlainFloat};
 
 /// The constants and randoms of `make_masks` and the shapes' runs.
 #[derive(rc2k_derive::Cells)]

@@ -1,6 +1,6 @@
 //! The object faces and the two sort lists (in the image's zeroed tail `race::buffers_store`).
 
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 
 #[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells)]

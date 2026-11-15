@@ -23,7 +23,7 @@ pub fn expand_entry(
         Ok(()) => emit(&out),
         Err(why) => {
             if !WARNED.swap(true, std::sync::atomic::Ordering::Relaxed) {
-                crate::framework::log(&format!(
+                crate::logfile::program_log::log(&format!(
                     "strings::expand_entry: id={id}: {why}; nothing written"
                 ));
             }

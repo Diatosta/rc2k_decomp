@@ -7,7 +7,7 @@
 //! The race's own copy is unused (plain cells, the game's thread's): each view draws its flares in
 //! its own (`race::lamp_work::LampWork::flares`, `ViewFlares`).
 
-use crate::session::{CellKind, PlainCells};
+use crate::memory::session::{CellKind, PlainCells};
 
 #[derive(rc2k_derive::Cells)]
 pub struct FlareTables<K: CellKind = PlainCells> {
@@ -30,9 +30,9 @@ pub type ViewFlares = FlareTables<PlainCells>;
 /// The piece (a field of `race::owner::Race::course`), with the image's first values.
 impl<K: CellKind> FlareTables<K>
 where
-    Self: crate::cells::Cells,
+    Self: crate::memory::cells::Cells,
 {
     pub const fn new() -> Self {
-        crate::cells::zeroed_cells()
+        crate::memory::cells::zeroed_cells()
     }
 }

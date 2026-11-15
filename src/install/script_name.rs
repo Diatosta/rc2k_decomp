@@ -8,9 +8,15 @@ use rc2k_core::install::script;
 /// The name at the script's `cursor` written at `to`, NUL-ended. Returns the
 /// cursor at the stop byte (not past it) and where the NUL went.
 pub fn script_name(
-    cursor: crate::place::BytePlace,
-    to: impl Into<crate::place::BytePlace>,
-) -> Result<(crate::place::BytePlace, crate::place::BytePlace), Refused> {
+    cursor: crate::memory::place::BytePlace,
+    to: impl Into<crate::memory::place::BytePlace>,
+) -> Result<
+    (
+        crate::memory::place::BytePlace,
+        crate::memory::place::BytePlace,
+    ),
+    Refused,
+> {
     // Read whole, then written; a name with no end is refused before anything is written.
     let words = cursor.bytes("the installer's script")?;
     let (name, _) = script::script_name(&words)?;

@@ -6,9 +6,9 @@
 //! (everything written put back).
 
 use crate::errors::{BadInput, Refused};
+use crate::memory::session::PlainDword;
 use crate::race::owner::Race;
 use crate::race::replay_work_store::ReplayWork;
-use crate::session::PlainDword;
 use rc2k_core::drive::replay_views::{WishStep, wish_step};
 
 /// Byte `k` of the frame's head (the first car block's start). Asked only for bytes 0 .. 5
@@ -118,7 +118,7 @@ mod tests {
         head[0].set(0x0403_0201);
         head[1].set(0x0807_0605);
         for k in 0..8 {
-            let old = crate::cells::load_value::<u8>(head, k).map(u32::from);
+            let old = crate::memory::cells::load_value::<u8>(head, k).map(u32::from);
             assert_eq!(Ok(head_byte(race, k)), old, "byte {k}");
         }
     }

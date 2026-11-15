@@ -3,7 +3,7 @@
 //! store, split by what each part is for; the saved game's dwords are read through
 //! `EventState::save`.
 
-use crate::session::{PlainDword, PlainFlag};
+use crate::memory::session::{PlainDword, PlainFlag};
 
 /// The stage chosen on the stage pages and the pages' own position.
 #[derive(rc2k_derive::Cells)]

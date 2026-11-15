@@ -8,7 +8,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 /// `LEVEL` is set from `var\ral.cfg` (`logfile=`); the race's steps change `INDENT` and
 /// `ENABLED` directly.
 pub mod state {
-    use crate::session::Dword;
+    use crate::memory::session::Dword;
     /// On while above 0 (signed).
     pub static ENABLED: Dword = Dword::new(1);
     /// The highest level logged; 0 logs nothing.

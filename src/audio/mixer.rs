@@ -110,7 +110,7 @@ pub fn write_mix(
         .mix
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    let written = crate::platform_sound::with_parts(primary, parts, |first, second| {
+    let written = crate::platform::sound::with_parts(primary, parts, |first, second| {
         let whole = |p: &mut [u8]| p.len() / size * size;
         let n = whole(first);
         let mut slices: Vec<&mut [u8]> = vec![&mut first[..n]];

@@ -8,7 +8,7 @@
 //! no lobbies (the network protocol is our own), so the "launched from a lobby" flag stays 0.
 
 use crate::errors::Refused;
-use crate::framework::log;
+use crate::logfile::program_log::log;
 use crate::owners::Owners;
 use crate::threading::thread_slot::SlotOwners;
 

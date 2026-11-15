@@ -30,7 +30,7 @@ pub fn set_buffer_volume(state: &AudioOwn, v: &Voice) -> Result<i32, Refused> {
     let level =
         rc2k_core::audio::levels::buffer_volume(v.volume, v.volume_factor, |n| volumes(state, n))?;
     let b = buffer(v)?;
-    Ok(crate::platform_sound::set_volume(b, level as i32))
+    Ok(crate::platform::sound::set_volume(b, level as i32))
 }
 
 /// `SetPan`, nothing in 3D: a pan below 0 is the volume table's `pan + 0x40`, else minus its
@@ -44,7 +44,7 @@ pub fn set_buffer_pan(state: &AudioOwn, v: &Voice) -> Result<Option<i32>, Refuse
     }
     let value = rc2k_core::audio::levels::pan(v.pan, |n| volumes(state, n))?;
     let b = buffer(v)?;
-    Ok(Some(crate::platform_sound::set_pan(b, value as i32)))
+    Ok(Some(crate::platform::sound::set_pan(b, value as i32)))
 }
 
 /// `SetFrequency` with the frequency shifted right by the format's halvings.
@@ -54,7 +54,7 @@ pub fn set_buffer_frequency(state: &AudioOwn, v: &Voice) -> Result<i32, Refused>
     }
     let b = buffer(v)?;
     let frequency = rc2k_core::audio::levels::buffer_frequency(v.frequency, v.format);
-    Ok(crate::platform_sound::set_frequency(b, frequency))
+    Ok(crate::platform::sound::set_frequency(b, frequency))
 }
 
 /// The 3D buffer's `SetPosition` with the place, deferred (1) while the voice sounds (state 2),
@@ -65,7 +65,7 @@ pub fn set_buffer_place(v: &Voice) -> Result<i32, Refused> {
     }
     // The platform takes it at once, deferred or not.
     let _deferred = rc2k_core::audio::buffers::place_deferral(v);
-    Ok(crate::platform_sound::set_place(
+    Ok(crate::platform::sound::set_place(
         v.buffer_3d,
         v.place.map(f32::from_bits),
     ))

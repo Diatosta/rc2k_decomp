@@ -3,12 +3,12 @@
 //! error 0x8021A172.
 //!
 //! Callers: the name and time plates, the mud, the mirror, the marks' masks, ... The lock is the
-//! surface's own method (`d3d::texture_lock`, `platform_3d`'s). Refuses a texture past the
+//! surface's own method (`d3d::texture_lock`, `platform::direct3d`'s). Refuses a texture past the
 //! pool's 0x140, before anything.
 
 use crate::d3d::texture_lock::*;
+use crate::errors::CarryZeroFlags;
 use crate::errors::{BadInput, Refused};
-use crate::framework::CarryZeroFlags;
 use crate::gfx::texture_upload::RecordCell;
 
 /// Texture `texture` locked.
@@ -24,7 +24,7 @@ pub fn lock_texture_in(
         Lock::Nothing => {}
         Lock::Twice => return Err(fatal(LOCKED_TWICE).into()),
         Lock::Lock => {
-            if crate::platform_3d::lock_surface(surface, &gfx.card.upload.description) != 0 {
+            if crate::platform::direct3d::lock_surface(surface, &gfx.card.upload.description) != 0 {
                 return Err(fatal(LOCK_FAILED).into());
             }
             // Only a texture in the pool gets here.

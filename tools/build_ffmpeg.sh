@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # tools/build_ffmpeg.sh
-# Builds FFmpeg's decoder library for the standalone program's films (`src/film.rs`):
+# Builds FFmpeg's decoder library for the standalone program's films (`src/platform/film.rs`):
 # the version pinned here, from its signed source, for 32-bit Windows with clang-cl and
 # the Windows SDK that cargo-xwin keeps (~/.cache/cargo-xwin/xwin), only the decoders the
 # films need (ALLOGO.AVI: Indeo 4; MFLOGO.MPG, INTRO.MPG: MPEG-1 video and MPEG audio

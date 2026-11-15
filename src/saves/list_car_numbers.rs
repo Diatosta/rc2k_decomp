@@ -9,8 +9,8 @@
 //! Refuses a list of pointers without its -1 within the numbers' room, and a null entry.
 
 use crate::errors::BadInput;
+use crate::memory::session::PlainDword;
 use crate::menu::owner::Menus;
-use crate::session::PlainDword;
 use crate::system::checked_reads::CheckedReads;
 
 /// How many dwords of each list of numbers are filled.

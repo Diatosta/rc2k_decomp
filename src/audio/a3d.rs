@@ -3,7 +3,7 @@
 
 use crate::audio::own::AudioOwn;
 use crate::errors::{BadInput, Refused};
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 
 /// What `CoCreateInstance` says of a class no driver registered.
 const CLASS_NOT_REGISTERED: i32 = 0x8004_0154u32 as i32;
@@ -17,7 +17,7 @@ fn game_create<C: ?Sized, I: ?Sized>(_class: &C, _interface: &I) -> i32 {
 fn release(cell: &PlainDword) {
     let o = cell.get();
     if o != 0 {
-        crate::platform_sound::release(o);
+        crate::platform::sound::release(o);
         cell.set(0);
     }
 }

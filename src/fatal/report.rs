@@ -22,7 +22,7 @@
 
 use crate::errors::BadInput;
 use crate::fatal::state::{CAPTION, CODE, EXTRA, REPORTED, TEMPLATE, TEXT, W32};
-use crate::framework::log;
+use crate::logfile::program_log::log;
 use crate::threading::find_thread_slot::find_thread_slot;
 use crate::threading::request_quit::request_quit_in;
 use std::sync::atomic::Ordering;
@@ -100,7 +100,7 @@ pub fn report(context: Option<&Context>, outside: &mut Outside) -> Result<Leave,
 pub fn report_now(context: Option<&Context>) {
     log(&format!(
         "fatal::report: thread {}",
-        crate::sync::thread_id()
+        crate::platform::sync::thread_id()
     ));
     // The reporter runs on any thread with no owners in hand, even before the start has
     // published them: it reads the one published handle, the only global of owners that stays.
@@ -130,7 +130,7 @@ pub fn report_now(context: Option<&Context>) {
             let ran = owners
                 .and_then(|owners| crate::threading::thread_slot::run_routine(routine, owners));
             match ran {
-                Some(_) => crate::sync::exit_thread(),
+                Some(_) => crate::platform::sync::exit_thread(),
                 None => crate::standalone::finish(
                     &format!("not ported: the thread routine {routine:#x} (fatal error {code:#x})"),
                     1,

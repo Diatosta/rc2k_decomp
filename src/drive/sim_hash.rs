@@ -10,7 +10,7 @@
 //! the 1999 layout kept in car blocks 8 and 9, the tail and the replay tape) is hashed as one
 //! group of its bytes, `.staging`, so that it hashes the same wherever it is kept.
 
-use crate::cells::{CellVisitor, Cells};
+use crate::memory::cells::{CellVisitor, Cells};
 use crate::race::blocks_store::CarBlocks;
 
 const GAP_PREFIXES: [&str; 4] = ["_gap_", "_lead", "_pad", "_tail"];
@@ -148,7 +148,7 @@ mod tests {
             fn index(&mut self, _: usize) {}
             fn leave(&mut self) {}
             fn leaf(&mut self, _: &[u8]) {}
-            fn run(&mut self, run: crate::cells::CellRun<'_>) {
+            fn run(&mut self, run: crate::memory::cells::CellRun<'_>) {
                 let bytes: Vec<u8> = (0..run.len())
                     .map(|_| {
                         self.0 = self.0.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);

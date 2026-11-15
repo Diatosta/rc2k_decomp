@@ -2,7 +2,7 @@
 //! circles and frame (`WindscreenFlakeTables`), the 0x800 items (`WindscreenFlakeItems`), and the
 //! once-only mark, constants and randoms (`WindscreenFlakeState`).
 
-use crate::session::{PlainDword, PlainFloat};
+use crate::memory::session::{PlainDword, PlainFloat};
 
 /// The windscreen flakes' frame count and rates.
 #[derive(rc2k_derive::Cells)]

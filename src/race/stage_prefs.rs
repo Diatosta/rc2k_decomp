@@ -2,9 +2,9 @@
 //! which hold `texture_kinds` at +0x100 and the picture lists), "skidmarks init", "render3d
 //! loadlightsdat" and "getmatcrash".
 
-use crate::cells::Store;
 use crate::errors::BadInput;
 use crate::errors::Refused;
+use crate::memory::cells::Store;
 use crate::physics::car_store::Car;
 use crate::race::matrices_store::SceneMatrices;
 use crate::race::owner::Race;
@@ -24,7 +24,7 @@ pub fn load_prefs(race: &Race) -> Result<(), Refused> {
     use rc2k_core::race::stage_files::{PREFS_SIZE, StagePrefsFile};
     let course = &race.course;
     let held = course.stage_prefs.get();
-    let mut prefs = StagePrefsFile::from_held(&crate::cells::flatten(held))?;
+    let mut prefs = StagePrefsFile::from_held(&crate::memory::cells::flatten(held))?;
     for path in prefs_paths(course) {
         let mut file = vec![0u8; PREFS_SIZE];
         let read = crate::files::read_whole_file::read_whole_file_len(
@@ -37,7 +37,7 @@ pub fn load_prefs(race: &Race) -> Result<(), Refused> {
     prefs.swap_stage_texture(stage);
     prefs.tweak_stage(stage);
     prefs.clear_blit_cleared(race.shared.work.get().no_precipitation.get() != 0);
-    crate::cells::store_cells(held, 0, prefs.bytes())?;
+    crate::memory::cells::store_cells(held, 0, prefs.bytes())?;
     Ok(())
 }
 
@@ -104,7 +104,7 @@ pub fn get_mat_crash(
         car.car_pitch.get(),
         car.car_roll.get(),
     ]);
-    crate::session::write_bits(&scene.object_work().angles, turns);
+    crate::memory::session::write_bits(&scene.object_work().angles, turns);
     matrix::set_turn_x(
         engine_tables,
         &matrices.turn_x_matrix,

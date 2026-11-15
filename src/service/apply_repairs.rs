@@ -9,11 +9,11 @@
 //! and sleep come in through `Driver`. Refuses a missing player.
 
 use crate::errors::{BadInput, Refused};
+use crate::memory::session::DwordLike;
 use crate::owners::Owners;
 use crate::service::pages::{GEAR_RATIO, RIDE_HEIGHT, SUSPENSION_STIFFNESS, TYRE};
 use crate::service::reset_tyre_wear::reset_tyre_wear;
 use crate::service::state::{current_player, repair_flag_in, set_repair_flag};
-use crate::session::DwordLike;
 use crate::system::sleep::sleep;
 use crate::system::tick_count::tick_count;
 use rc2k_core::fatal::Context;

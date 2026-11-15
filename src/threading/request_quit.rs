@@ -4,7 +4,7 @@
 //! cannot be run twice or undone.
 
 use crate::errors::FatalError;
-use crate::framework::log;
+use crate::logfile::program_log::log;
 use crate::threading::start_slot_thread::start_slot_thread;
 use crate::threading::thread_slot::SlotOwners;
 use std::sync::atomic::{AtomicU32, Ordering};

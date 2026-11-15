@@ -41,7 +41,7 @@ const LISTS: core::ops::Range<usize> = 0x747998..0x747AD8;
 /// A menu item's +0x20 (a handle).
 #[repr(transparent)]
 #[derive(rc2k_derive::Cells)]
-pub struct SpriteCell(crate::session::PlainDword);
+pub struct SpriteCell(crate::memory::session::PlainDword);
 
 impl SpriteCell {
     /// From the table's value (`ida`: a number, or the address of a list; an address inside
@@ -55,7 +55,7 @@ impl SpriteCell {
             assert!(ida & !0xF != LIST_TAG);
             ida
         };
-        Self(crate::session::PlainDword::new(value))
+        Self(crate::memory::session::PlainDword::new(value))
     }
 
     pub fn get(&self) -> ItemSprite {

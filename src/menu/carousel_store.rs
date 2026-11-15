@@ -1,8 +1,8 @@
 //! The menu carousel: the front end sets it up and turns it, the scene draws it and chooses its
 //! pictures and textures. One struct of atomic cells, owned by `Screens`.
 
+use crate::memory::session::PlainDword;
 use crate::menu::lists_store::CarList;
-use crate::session::PlainDword;
 
 /// The menu carousel the front end keeps and the scene draws: the entry shown, the list, the
 /// turn, the place of its entries, their kinds, and the menu's own numbers.

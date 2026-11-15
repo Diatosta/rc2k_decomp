@@ -8,8 +8,8 @@
 
 use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
+use crate::memory::session::PlainDword;
 use crate::race::owner::Race;
-use crate::session::PlainDword;
 use rc2k_core::drive::tyre_screen::{layout, wheel_place};
 
 const STATES: [(u32, u32); 11] = [

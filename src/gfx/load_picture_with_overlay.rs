@@ -14,8 +14,8 @@ const MEMORY: u32 = 0x1D4C00 + 0xC80;
 
 /// Returns whether the picture could not be read.
 pub fn load_picture_with_overlay_in(
-    path: &dyn crate::session::TextPlace,
-    overlay_path: &dyn crate::session::TextPlace,
+    path: &dyn crate::memory::session::TextPlace,
+    overlay_path: &dyn crate::memory::session::TextPlace,
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
     strings: &crate::strings::owner::Strings,

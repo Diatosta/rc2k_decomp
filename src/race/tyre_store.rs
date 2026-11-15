@@ -2,7 +2,7 @@
 //! `drive::tyre_screen` and its parts): the timing's constants, the screen's layouts and the work
 //! the screen leaves for the next frame.
 
-use crate::session::{PlainBytes, PlainDword, PlainFloat};
+use crate::memory::session::{PlainBytes, PlainDword, PlainFloat};
 
 /// The tyre change's constants, layouts and work.
 #[cfg_attr(test, repr(C))]

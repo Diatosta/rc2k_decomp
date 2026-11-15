@@ -2,8 +2,8 @@
 //! the per-slot tables the objects' shapes are loaded into (first point, point count, normal count,
 //! first face, face count, the parts' middles and half extents, the radii).
 
-use crate::cells::ZeroCells;
-use crate::session::PlainDword;
+use crate::memory::cells::ZeroCells;
+use crate::memory::session::PlainDword;
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ObjectTables {
@@ -62,7 +62,7 @@ impl ObjectTables {
         if let Some(cell) = own.get(slot) {
             return cell.get();
         }
-        let tables: [&dyn crate::session::Run; 8] = [
+        let tables: [&dyn crate::memory::session::Run; 8] = [
             &self.first_point,
             &self.point_counts,
             &self.normal_counts,
@@ -72,7 +72,7 @@ impl ObjectTables {
             &self.measures,
             &self.radii,
         ];
-        crate::session::read_runs(&tables[table as usize..], slot, "an object slot")
+        crate::memory::session::read_runs(&tables[table as usize..], slot, "an object slot")
             .unwrap_or_else(|e| crate::fatal::raise::end("an object slot", e))
     }
 }

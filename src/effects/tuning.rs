@@ -1,7 +1,7 @@
 //! The effects' frame timing, constants and kind floats: `MarksFrame`, `MarksFloats` and
 //! `MarksKindFloats`.
 
-use crate::session::{PlainDword, PlainFloat, PlainInt};
+use crate::memory::session::{PlainDword, PlainFloat, PlainInt};
 
 /// The marks' frame timing and counters (`effects::frame_marks`, `effects::run_frame`,
 /// `effects::draw_frame`).

@@ -14,8 +14,8 @@ use crate::install::installer::{
     measure_text, push_string_by_id, rb, store_text, text_with_nul, wb,
 };
 use crate::install::vars::InstallerPages;
-use crate::list_handle::{EditField, ListItem};
-use crate::place::BytePlace;
+use crate::memory::list_handle::{EditField, ListItem};
+use crate::memory::place::BytePlace;
 use rc2k_core::install::edits::{self, EDITING, EditKey};
 
 /// The font of an edit record's kind.

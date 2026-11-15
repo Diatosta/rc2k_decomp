@@ -15,7 +15,7 @@ fn prefs_dwords<const N: usize>(
     offset: usize,
 ) -> Result<[u32; N], crate::errors::BadInput> {
     let mut bytes = vec![0; 4 * N];
-    crate::cells::load_cells(course.stage_prefs.get(), offset, &mut bytes)?;
+    crate::memory::cells::load_cells(course.stage_prefs.get(), offset, &mut bytes)?;
     let mut d = [0; N];
     for (v, b) in d.iter_mut().zip(bytes.as_chunks::<4>().0) {
         *v = u32::from_le_bytes(*b);

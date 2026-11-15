@@ -24,7 +24,7 @@ use rc2k_core::scene::shown::OBJECTS;
 struct Game<'a>(
     &'a crate::race::car_draw_state::CarDrawState,
     &'a crate::scene::object_place::ObjectPlace,
-    crate::workers::DrawReads<'a>,
+    crate::scene::workers::DrawReads<'a>,
 );
 
 impl rc2k_core::scene::shown::RaceObject for Game<'_> {
@@ -60,7 +60,7 @@ impl rc2k_core::scene::shown::RaceObject for Game<'_> {
 /// `draw` stands for `scene::draw_object`.
 // Logic: `rc2k_core::scene::shown::race_shown`
 pub fn draw_shown_object(
-    reads: crate::workers::DrawReads<'_>,
+    reads: crate::scene::workers::DrawReads<'_>,
     draw: &mut dyn FnMut() -> Result<(), Refused>,
     cars: &crate::race::car_draw_state::CarDrawState,
     object: &crate::scene::object_place::ObjectPlace,

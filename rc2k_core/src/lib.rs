@@ -27,7 +27,6 @@ pub mod service;
 pub mod sound;
 pub mod strings;
 pub mod system;
-pub mod text;
 pub mod threading;
 
 /// An input the core does not take (a read past a table, a division that traps) or whose

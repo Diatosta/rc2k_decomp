@@ -54,10 +54,10 @@ pub fn draw_distance_settings(course: &Course) {
 /// result shifted left 8 is returned.
 pub fn sample_noise(
     tables: &crate::scene::engine_tables_store::EngineTables,
-    car: &crate::physics::car_store::Car<impl crate::session::CellKind>,
+    car: &crate::physics::car_store::Car<impl crate::memory::session::CellKind>,
     map: usize,
 ) -> Result<u32, BadInput> {
-    use crate::session::DwordLike;
+    use crate::memory::session::DwordLike;
     let (px, pz) = (car.camera_position[0].get(), car.camera_position[2].get());
     let refused = std::cell::Cell::new(None);
     let noise = &tables.noise_bytes;
@@ -133,7 +133,7 @@ pub fn set_up_fog(
     fog: &crate::scene::fog::Fog,
     poly: &crate::scene::polygon_work::PolygonWork,
     car: &crate::physics::car_store::ViewCar,
-    part: &crate::workers::PartScratch,
+    part: &crate::scene::workers::PartScratch,
 ) -> Result<(), Refused> {
     let length = poly.window.view_depth[1].get().wrapping_shl(3);
     if length == 0 || length > 0x1000 {
@@ -269,7 +269,7 @@ fn view_place_tail(
     state: &ViewState,
 ) -> Result<(), BadInput> {
     use crate::scene::{matrix, view_matrix};
-    let p = crate::session::read_bits(&state.view_place).map(u32::wrapping_neg);
+    let p = crate::memory::session::read_bits(&state.view_place).map(u32::wrapping_neg);
     matrix::set_place(&m.placed_matrix, p);
     crate::math::cells::copy_cells(&m.placed_matrix, &m.view_place_matrix, 16);
     matrix::multiply_matrices(&m.placed_matrix, &m.view_turn_matrix, &m.view_matrix);
@@ -421,7 +421,7 @@ fn rolled_angle(
 /// written as whole numbers and floats (also to `car` +0x734 ..), and `scene::set_view_window`;
 /// then `view_matrices`.
 pub fn camera_view(
-    reads: crate::workers::DrawReads<'_>,
+    reads: crate::scene::workers::DrawReads<'_>,
     m: &ViewMatrices,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), BadInput> {
@@ -459,7 +459,7 @@ pub fn camera_view(
             view.vars.view_angles[to].set(from.get());
             own.view_angles[to].set(from.get());
         }
-        crate::session::read_bits(&view.car.camera_position)
+        crate::memory::session::read_bits(&view.car.camera_position)
     } else {
         crate::scene::matrix::multiply_matrices(
             &reads.matrices.view_work,
@@ -605,7 +605,7 @@ fn place_sun(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused
         window.view_scale.get(),
         [window.view_centre[1].get(), window.view_centre[0].get()],
         flat,
-        &crate::session::Dword::new(0),
+        &crate::memory::session::Dword::new(0),
     );
     let (ix, iy) = (ix as u32, iy as u32);
     sun.place[0].set(fx.to_bits());

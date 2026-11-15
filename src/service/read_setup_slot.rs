@@ -10,8 +10,8 @@
 use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::numbered_path_bytes;
 use crate::files::read_file::read_file_into;
+use crate::memory::session::{PlainBytes, PlainDword};
 use crate::service::owner::Service;
-use crate::session::{PlainBytes, PlainDword};
 
 pub const SETUP_FILE_LEN: usize = 0x48;
 pub const SLOT_COUNT: u32 = 100;
@@ -44,8 +44,8 @@ pub const fn template() -> PlainBytes<27> {
     PlainBytes::new(*b"savedata\\carsetup\\carset00\0")
 }
 
-pub fn slot_name(service: &'static Service, slot: u32) -> crate::place::BytePlace {
-    crate::place::BytePlace::In(&service.set_ups.names, slot as usize * NAME_LEN)
+pub fn slot_name(service: &'static Service, slot: u32) -> crate::memory::place::BytePlace {
+    crate::memory::place::BytePlace::In(&service.set_ups.names, slot as usize * NAME_LEN)
 }
 
 /// True if the slot's file was read and accepted.

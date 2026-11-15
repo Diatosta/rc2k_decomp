@@ -24,6 +24,7 @@ use crate::math::x87::{compare_80, neg_rounded};
 use crate::math::x87_float::compare;
 use crate::math::x87_float::int;
 use crate::math::x87_float::{X, f80};
+use crate::memory::session::{FloatLike, PlainFloat};
 use crate::physics::car_store::Car;
 use crate::physics::contact_store::ContactWork;
 use crate::physics::dot_product::dot_product;
@@ -38,7 +39,6 @@ use crate::physics::vector_length::vector_length;
 use crate::race::numbers_store::Numbers;
 use crate::scene::matrix3::{extended, rounded, rounded_value};
 use crate::scene::view_matrix::cross_product;
-use crate::session::{FloatLike, PlainFloat};
 
 /// Three floats copied as bits, in order.
 fn copy3(to: &[impl FloatLike], from: &[impl FloatLike]) {

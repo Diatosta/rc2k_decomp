@@ -24,7 +24,7 @@ pub fn set_primary_format(state: &AudioOwn, mode: u32, rate: u32) -> Result<bool
         }
         crate::audio::describe_wave_format::describe_wave_format(state, mode, rate)?;
         let format = crate::audio::describe_wave_format::platform_format(state);
-        Ok(crate::platform_sound::set_format(p, format) == 0)
+        Ok(crate::platform::sound::set_format(p, format) == 0)
     }
 }
 
@@ -37,7 +37,7 @@ pub fn open_listener(state: &AudioOwn, has_fpu: u32) -> Result<bool, Refused> {
         Some(code) => code,
         None => {
             let p = state.primary_buffer.get();
-            match crate::platform_sound::query_interface(p, state.iid_listener.get_u32(0)) {
+            match crate::platform::sound::query_interface(p, state.iid_listener.get_u32(0)) {
                 Ok(listener) => {
                     state.sound_listener.set(listener);
                     return Ok(true);
@@ -82,12 +82,12 @@ pub fn make_primary(
     // (Its format is 0: the device's own.)
     state
         .primary_buffer
-        .set(crate::platform_sound::create_sound_buffer(
+        .set(crate::platform::sound::create_sound_buffer(
             description.flags,
             description.bytes,
             None,
         ));
-    if let Ok(volume) = crate::platform_sound::volume(state.primary_buffer.get()) {
+    if let Ok(volume) = crate::platform::sound::volume(state.primary_buffer.get()) {
         state.primary_volume_kept.set(volume as u32);
     }
     crate::audio::sound_device::set_primary_format(state, state.sound_mode.get())?;

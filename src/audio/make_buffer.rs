@@ -53,7 +53,7 @@ pub fn make_buffer(state: &AudioOwn, at: u32, holder: Holder) -> Result<bool, Re
         let mut holder = holder;
         let mut made = false;
         if v.source != 0 {
-            match crate::platform_sound::duplicate_sound_buffer(voice_of(state, v.source).buffer) {
+            match crate::platform::sound::duplicate_sound_buffer(voice_of(state, v.source).buffer) {
                 Ok(b) => {
                     v.buffer = b;
                     made = true;
@@ -72,7 +72,7 @@ pub fn make_buffer(state: &AudioOwn, at: u32, holder: Holder) -> Result<bool, Re
                 reserved: 0,
                 format: 0,
             });
-            v.buffer = crate::platform_sound::create_sound_buffer(
+            v.buffer = crate::platform::sound::create_sound_buffer(
                 flags,
                 v.length,
                 Some(crate::audio::describe_wave_format::platform_format(state)),
@@ -82,7 +82,7 @@ pub fn make_buffer(state: &AudioOwn, at: u32, holder: Holder) -> Result<bool, Re
         set_buffer_pan(state, v)?;
         set_buffer_frequency(state, v)?;
         if mode & MODE_3D != 0 {
-            match crate::platform_sound::query_interface(
+            match crate::platform::sound::query_interface(
                 v.buffer,
                 state.iid_sound_3d_buffer.get_u32(0),
             ) {

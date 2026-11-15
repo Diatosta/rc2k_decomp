@@ -6,17 +6,17 @@
 use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87_float as bh;
+use crate::memory::session::{PlainDword, PlainFloat};
 use crate::physics::car_store::Car;
 #[cfg(test)]
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use crate::race::tables_store::Listed;
-use crate::session::{PlainDword, PlainFloat};
 
 /// The eight car blocks (fixed; `car_blocks` lists them), 0xFE0 apart. Player n's (0, 1) kind, tyre
 /// and colours word: `car_kinds[n]`, `car_tyres[n]`, `car_colours[n]`.
-fn player_kinds(shared: &RaceShared, n: usize) -> [&dyn crate::session::DwordLike; 3] {
+fn player_kinds(shared: &RaceShared, n: usize) -> [&dyn crate::memory::session::DwordLike; 3] {
     let v = shared.vars.get();
     [&v.race_car_kinds[n], &v.car_tyres[n], &v.car_colours[n]]
 }
@@ -134,8 +134,8 @@ pub fn set_player_car_kinds(race: &Race) {
 }
 
 /// The cars' data text from its start (read on past the buffer's end too).
-fn text_data(shared: &RaceShared) -> crate::cells::StoreBytes<'_> {
-    crate::cells::StoreBytes(&shared.tables().car_data_text)
+fn text_data(shared: &RaceShared) -> crate::memory::cells::StoreBytes<'_> {
+    crate::memory::cells::StoreBytes(&shared.tables().car_data_text)
 }
 
 /// Runs `reset_car_blocks`, `drop_absent_player` and `set_player_car_kinds`.
@@ -238,7 +238,7 @@ pub fn auto_set_up_car(race: &Race, car: &Car) -> Result<(), Refused> {
             (pick.index as usize)
                 .checked_mul(4)
                 .and_then(|first| course.league().auto_setups.get(first + k))
-                .map(crate::session::PlainDword::get)
+                .map(crate::memory::session::PlainDword::get)
                 .ok_or(BadInput("the auto set-ups"))
         };
         for (value, field, words) in [
@@ -426,11 +426,11 @@ pub fn set_car_times(race: &Race, scene: &crate::scene::owner::Scene) -> Result<
             None => tables
                 .time_percentages
                 .get(level as usize)
-                .map(crate::session::PlainDword::get),
+                .map(crate::memory::session::PlainDword::get),
             Some(k) => tables
                 .kind_time_factors
                 .get(k as usize)
-                .map(crate::session::PlainFloat::bits),
+                .map(crate::memory::session::PlainFloat::bits),
         };
         let percentage = percentage.filter(|_| level <= 37).ok_or(BadInput(
             "a difficulty index past the time percentages and the factors after them",

@@ -1,7 +1,7 @@
 //! The packed string table and the two string-pointer tables the string functions read.
 
 use crate::errors::BadInput;
-use crate::place::Run;
+use crate::memory::place::Run;
 use rc2k_core::strings::table::StringTable;
 
 // The string table pointer is not kept: the table is always read from `Lexicon::published`.

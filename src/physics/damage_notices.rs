@@ -11,10 +11,10 @@
 
 use crate::errors::Refused;
 use crate::math::x87::from_int;
+use crate::memory::session::PlainFloat;
 use crate::physics::car_store::Car;
 use crate::physics::queue_notice::queue_notice;
 use crate::physics::store::DamageModel;
-use crate::session::PlainFloat;
 use rc2k_core::physics::damage_notices::{LEVELS, damage_notices as damage_notices_core};
 
 /// `brake_heat` .. `tyre_wear`: the gauges, 47 dwords in a row in the car's record.

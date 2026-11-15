@@ -2,7 +2,7 @@
 //! switches the page's items copy. Struct of atomic cells.
 
 use crate::errors::BadInput;
-use crate::session::{PlainBytes, PlainDword, Run};
+use crate::memory::session::{PlainBytes, PlainDword, Run};
 
 /// The graphics page's choices (the rows' texts are in the language file: `tokAVPPrimary` /
 /// `tokAVPSecondary`, `tokAVPDoubleBuffer` / `tokAVPTripleBuffer`, `tokOff` / `tokOn`).
@@ -75,7 +75,7 @@ impl ModeList {
     /// (`what` names it in the log).
     pub fn dword(&self, place: u32, index: usize, what: &'static str) -> Result<u32, BadInput> {
         let n = 4 * place as usize + index;
-        crate::session::read_runs(&[&self.modes, &self.spare], n, what)
+        crate::memory::session::read_runs(&[&self.modes, &self.spare], n, what)
     }
 }
 

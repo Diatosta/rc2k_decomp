@@ -3,11 +3,11 @@
 //! float matrices (64 bytes) passed to the matrix functions in place. One item is 1092 bytes,
 //! taken whole; only its first 64 bytes are used. Plain cells: a drawing store
 //! (`session::DrawShared`), written on the game's thread between frames and read by the drawing
-//! parts through their `workers::DrawReads`.
+//! parts through their `scene::workers::DrawReads`.
 //!
 
-use crate::cells::ZeroCells;
-use crate::session::{PlainDword, PlainFloat};
+use crate::memory::cells::ZeroCells;
+use crate::memory::session::{PlainDword, PlainFloat};
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct SceneMatrices {

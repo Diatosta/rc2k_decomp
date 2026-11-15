@@ -1,7 +1,7 @@
 //! The rain's variables: `RainState` (the drift, the view, the drops' noise, the streak being
 //! drawn) and `RainRules` (its constants).
 
-use crate::session::{PlainDword, PlainFloat};
+use crate::memory::session::{PlainDword, PlainFloat};
 
 /// The rain's variables.
 #[derive(rc2k_derive::Cells)]

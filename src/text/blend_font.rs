@@ -28,7 +28,7 @@ pub fn blend_font(
 ) -> Result<(), BadInput> {
     let (a, b) = (a.into(), b.into());
     let mode: u32 = strings.text.blend_mode.get();
-    let (from_a, t) = rc2k_core::text::pulse(time, half_pulse, mode == 2);
+    let (from_a, t) = rc2k_core::strings::text::pulse(time, half_pulse, mode == 2);
     let (from, to) = if from_a { (a, b) } else { (b, a) };
     // The palettes are read after the copy, so if the second font is the blended font itself, its
     // palette is by then the first one's: kept.

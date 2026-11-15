@@ -31,7 +31,7 @@ fn record_at(lists: &crate::race::course_lists_store::CourseLists, place: u32) -
 /// None for an object's number past the tables.
 fn words(
     tables: &crate::scene::polygon_store::PolygonTables,
-    reads: crate::workers::DrawReads<'_>,
+    reads: crate::scene::workers::DrawReads<'_>,
     cars: &crate::race::car_draw_state::CarDrawState,
     place: u32,
 ) -> Result<Option<(u32, u32, bool)>, BadInput> {
@@ -73,7 +73,7 @@ pub fn set_object_fade(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(
             record
         }
     };
-    crate::session::write_bits(&ctx.view.cars.fade_words, [other_kind, distance]);
+    crate::memory::session::write_bits(&ctx.view.cars.fade_words, [other_kind, distance]);
     ctx.view.object.position[0].set(0u32);
     ctx.view.object.position[2].set(0u32);
     ctx.view.object.fading.set(0u32);
@@ -92,10 +92,11 @@ pub fn set_object_fade(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(
         return Ok(());
     }
     let fade = (near.wrapping_add(0x10_0000).max(0) as u32) >> 12;
-    crate::session::write_bits(&ctx.view.object.fade, [fade, fade]);
+    crate::memory::session::write_bits(&ctx.view.object.fade, [fade, fade]);
     ctx.view.object.fading.set(1u32);
     if other_kind != 0 {
-        let kinds: [u32; 0x100] = crate::session::read_bits(&ctx.reads.object_tables.object_kinds);
+        let kinds: [u32; 0x100] =
+            crate::memory::session::read_bits(&ctx.reads.object_tables.object_kinds);
         if let Some(other) = (1..0x100).find(|&n| kinds[n] == other_kind) {
             ctx.view.cars.object_number.set(other as u32);
         }

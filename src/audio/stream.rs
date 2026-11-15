@@ -60,8 +60,8 @@ pub fn stop_stream(state: &AudioOwn, s: &mut AudioStream) -> Result<(), Refused>
     not_a3d(state, "A3D (0x40D1D0)")?;
     let (buffer, file) = s.stop();
     if let Some(b) = buffer {
-        crate::platform_sound::stop(b);
-        crate::platform_sound::release(b);
+        crate::platform::sound::stop(b);
+        crate::platform::sound::release(b);
     }
     if let Some(f) = file {
         crate::files::handle::close(f);
@@ -76,7 +76,7 @@ pub fn set_stream_volume(state: &AudioOwn, s: &AudioStream) -> Result<(), Refuse
         return Err(BadInput("a stream without its buffer").into());
     }
     let v = volume_of(state, s.volume)?;
-    crate::platform_sound::set_volume(s.buffer, v as i32);
+    crate::platform::sound::set_volume(s.buffer, v as i32);
     Ok(())
 }
 
@@ -132,14 +132,14 @@ pub fn start_stream(
         reserved: 0,
         format: 0,
     });
-    s.buffer = crate::platform_sound::create_sound_buffer(
+    s.buffer = crate::platform::sound::create_sound_buffer(
         0x80,
         s.bytes,
         Some(crate::audio::describe_wave_format::platform_format(state)),
     );
-    crate::platform_sound::set_volume(s.buffer, volume as i32);
+    crate::platform::sound::set_volume(s.buffer, volume as i32);
     s.start_ring(f.format);
-    if crate::platform_sound::play(s.buffer, 1) != 0 {
+    if crate::platform::sound::play(s.buffer, 1) != 0 {
         return failed(s);
     }
     s.playing = 1;
@@ -155,13 +155,13 @@ pub fn feed_stream(state: &AudioOwn, s: &mut AudioStream) -> Result<bool, Refuse
         return failed(s);
     }
     let b = s.buffer;
-    let Ok((cursor, _)) = crate::platform_sound::current_position(b) else {
+    let Ok((cursor, _)) = crate::platform::sound::current_position(b) else {
         return failed(s);
     };
     let Some(moved) = s.moved(cursor) else {
         return Ok(true);
     };
-    let Ok(parts) = crate::platform_sound::lock(b, s.write_at, moved, 0) else {
+    let Ok(parts) = crate::platform::sound::lock(b, s.write_at, moved, 0) else {
         return failed(s);
     };
     for (cell, part) in state.locked_parts.iter().zip(parts) {
@@ -175,11 +175,11 @@ pub fn feed_stream(state: &AudioOwn, s: &mut AudioStream) -> Result<bool, Refuse
     let mut second = vec![0; if p2 != 0 { n2 as usize } else { 0 }];
     let first_written = written(fill_stream_part(s, &mut first), first.len());
     let second_written = written(fill_stream_part(s, &mut second), second.len());
-    let copied = crate::platform_sound::with_parts(b, parts, |a, c| {
+    let copied = crate::platform::sound::with_parts(b, parts, |a, c| {
         a[..first_written].copy_from_slice(&first[..first_written]);
         c[..second_written].copy_from_slice(&second[..second_written]);
     });
-    if copied.is_err() || crate::platform_sound::unlock(b, parts) != 0 {
+    if copied.is_err() || crate::platform::sound::unlock(b, parts) != 0 {
         return failed(s);
     }
     Ok(true)

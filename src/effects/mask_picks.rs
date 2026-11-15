@@ -1,6 +1,6 @@
 //! The masks' picks and pixel tables.
 
-use crate::session::{PlainBytes, PlainDword};
+use crate::memory::session::{PlainBytes, PlainDword};
 
 /// The masks' shape picks and pixel tables.
 #[derive(rc2k_derive::Cells)]

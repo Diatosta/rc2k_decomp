@@ -9,8 +9,8 @@
 
 use crate::errors::Refused;
 use crate::input::types::InputDevice;
+use crate::memory::session::Dword;
 use crate::race::state_store::PlayerControls;
-use crate::session::Dword;
 #[cfg(test)]
 use std::mem::offset_of;
 

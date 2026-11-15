@@ -6,7 +6,7 @@
 //! `PongState.digit_at[0]` / `PongState.digit_at[1]`, the digits' 4 x 5 patterns
 //! `PongState.digit_patterns` (0x14 each).
 
-use crate::session::{PlainByte, PlainDword, PlainFloat};
+use crate::memory::session::{PlainByte, PlainDword, PlainFloat};
 
 /// The pong game over the race: the box scratch, the ball, the bat, the score.
 #[derive(rc2k_derive::Cells)]

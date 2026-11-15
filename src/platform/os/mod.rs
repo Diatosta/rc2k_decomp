@@ -39,7 +39,7 @@ pub fn ticks() -> u32 {
 
 /// The local date and time, as `GetLocalTime` gave them (SDL's calendar).
 pub fn local_time() -> rc2k_core::system::time::LocalTime {
-    let Some(dt) = crate::ffi::sdl::local_date_time() else {
+    let Some(dt) = crate::platform::ffi::sdl::local_date_time() else {
         crate::fatal::raise::end(
             "os::local_time",
             crate::errors::BadInput("the system gave no local time"),
@@ -99,7 +99,7 @@ pub fn message_box(icon: Icon, caption: &[u8], text: &[u8]) {
         Icon::Information => SDL_MESSAGEBOX_INFORMATION,
         Icon::Warning => SDL_MESSAGEBOX_WARNING,
     };
-    crate::ffi::sdl::show_message_box(flags, &caption, &text);
+    crate::platform::ffi::sdl::show_message_box(flags, &caption, &text);
 }
 
 #[cfg(test)]

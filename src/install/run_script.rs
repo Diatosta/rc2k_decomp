@@ -11,7 +11,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::{fatal, media_mode, rb, wb};
-use crate::place::BytePlace;
+use crate::memory::place::BytePlace;
 use rc2k_core::install::script::{self, Op};
 
 /// The script at `script` (a place in the installer's names or variables) run.

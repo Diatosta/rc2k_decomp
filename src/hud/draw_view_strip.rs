@@ -16,7 +16,7 @@ use rc2k_core::hud::strips;
 
 /// The quad's input at byte offset `o` from `quad_colour`: its colour and see-through,
 /// texture coordinates, then corners (three consecutive fields).
-fn quad_input(scratch: &ViewScratch, o: usize) -> &crate::session::PlainDword {
+fn quad_input(scratch: &ViewScratch, o: usize) -> &crate::memory::session::PlainDword {
     match o {
         0..0x8 => &scratch.quad.colour[o / 4],
         0x8..0x28 => &scratch.quad.uv[(o - 8) / 4],
@@ -29,7 +29,7 @@ pub struct Overlay<'a> {
     pub race: &'a Race,
     pub scratch: &'a ViewScratch,
     /// The drawing part's scratch (the game's thread's: the overlays draw after the parts).
-    pub part: &'a crate::workers::PartScratch,
+    pub part: &'a crate::scene::workers::PartScratch,
     pub system: &'a System,
     pub scene: &'a Scene,
     pub strips: &'a Strips,
@@ -85,7 +85,7 @@ fn quad(
         part,
         &scratch.face,
         course.reads(),
-        crate::workers::DrawReads::on_game_thread(crate::workers::LentOwners {
+        crate::scene::workers::DrawReads::on_game_thread(crate::scene::workers::LentOwners {
             race,
             scene,
             system,

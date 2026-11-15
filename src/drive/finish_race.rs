@@ -6,9 +6,9 @@
 
 use crate::drive::race_parts::log_line;
 use crate::errors::Refused;
+use crate::memory::session::Cell32;
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
-use crate::session::Cell32;
 use rc2k_core::drive::finish_routine::{self, Lead, Set, Var};
 
 fn log_text(text: &std::ffi::CStr) {
@@ -22,8 +22,8 @@ fn log_number(v: u32) {
 /// A variable's place: a cell of the race's shared state, or a drawing store's plain cell (the
 /// finish routine's own variables, the view records).
 enum Place<'a> {
-    Shared(&'a dyn crate::session::DwordLike),
-    Plain(&'a crate::session::PlainDword),
+    Shared(&'a dyn crate::memory::session::DwordLike),
+    Plain(&'a crate::memory::session::PlainDword),
 }
 
 impl Place<'_> {

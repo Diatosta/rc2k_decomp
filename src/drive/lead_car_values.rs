@@ -1,8 +1,8 @@
 //! The eight fields of car block 0 that `drive::share_all_cars` keeps around its work:
 //! (block field, keeping place) pairs.
+use crate::memory::session::PlainDword;
 use crate::physics::car_store::Car;
 use crate::race::owner_frame::Frame;
-use crate::session::PlainDword;
 
 /// (the lead car's field, its keeping place): the camera's view, place and turns, and the
 /// 2-or-3 mode flag. `lead` is the car this machine plays (`RaceShared::own_car`).

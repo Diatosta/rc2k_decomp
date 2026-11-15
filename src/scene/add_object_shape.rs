@@ -63,7 +63,7 @@ pub fn add_object_shape(
     let course = &race.course;
     scene.object_work().loading_slot.set(slot);
     scene.draw_switches.get().loading_group_mask.set(group_mask);
-    crate::session::write_first(&scene.object_work().shape_counts[5..7], &[u32::MAX, 0]);
+    crate::memory::session::write_first(&scene.object_work().shape_counts[5..7], &[u32::MAX, 0]);
     let shape = match parsed {
         Parsed::Shape(shape) => shape,
         Parsed::Empty { points } => {
@@ -86,7 +86,7 @@ pub fn add_object_shape(
 
     // The points.
     let (first_point, first_face) = (room.point_count, room.face_count);
-    crate::session::write_prefix(
+    crate::memory::session::write_prefix(
         &scene.object_work().shape_firsts,
         &[first_point, first_face],
     );
@@ -118,7 +118,7 @@ pub fn add_object_shape(
         out += bytes.len();
         face_number += 1;
     }
-    crate::session::write_first(
+    crate::memory::session::write_first(
         &scene.object_work().shape_counts[5..7],
         &[shape.lowest_texture, shape.highest_texture],
     );

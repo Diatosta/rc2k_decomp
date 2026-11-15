@@ -3,8 +3,8 @@
 //! character; any other key becomes a character appended (up to 0x3F) and taken off again if the
 //! text is then wider than allowed. Returns whether no text is being edited (any more).
 
-use crate::cells::{StoreBytes, copy_between, store_value};
 use crate::errors::Refused;
+use crate::memory::cells::{StoreBytes, copy_between, store_value};
 use crate::net::owner::Net;
 use crate::net::store::Editing;
 use crate::text::draw_text::GameCanvas;

@@ -9,8 +9,8 @@
 //! `physics::place_sound_object` .. `physics::place_sound_e5` drive the sound objects).
 
 use crate::math::x87;
+use crate::memory::session::PlainDword;
 use crate::physics::step_families::SoundInputs;
-use crate::session::PlainDword;
 use rc2k_core::physics::sound_bands::sound_band;
 
 /// One twin: (address, value, factor, step).

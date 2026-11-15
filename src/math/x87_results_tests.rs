@@ -6,7 +6,7 @@
 use super::x87;
 use super::x87_merged_tests::{Rng, assert_same};
 use super::x87_old as old;
-use crate::session::Dword;
+use crate::memory::session::Dword;
 
 const CASES: usize = 20_000;
 

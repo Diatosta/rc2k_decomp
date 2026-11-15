@@ -5,7 +5,7 @@
 //! whose quotient does not fit in 32 bits.
 
 use crate::errors::{BadInput, Refused};
-use crate::session::{Machine, PlainDword};
+use crate::memory::session::{Machine, PlainDword};
 use rc2k_core::system::processor::{Var, test};
 
 /// Whether toggling `bit` in the flags changes them: yes on every processor these builds can
@@ -40,7 +40,7 @@ fn cpuid(leaf: u32) -> (u32, u32, u32, u32) {
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 fn machine_cpuid(leaf: u32) -> (u32, u32, u32, u32) {
-    let r = crate::arch::__cpuid(leaf);
+    let r = crate::platform::arch::__cpuid(leaf);
     (r.eax, r.ebx, r.ecx, r.edx)
 }
 
@@ -75,10 +75,10 @@ impl Processor for Real {
         fpu_words()
     }
     fn ticks(&self) -> u32 {
-        crate::os::ticks()
+        crate::platform::os::ticks()
     }
     fn cycles(&self) -> u64 {
-        crate::arch::rdtsc()
+        crate::platform::arch::rdtsc()
     }
 }
 

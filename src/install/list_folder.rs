@@ -9,7 +9,7 @@ use rc2k_core::install::script;
 /// The folder `path` added to the folders' table.
 pub fn list_folder(
     install: &crate::install::owner::Install,
-    path: impl Into<crate::place::BytePlace>,
+    path: impl Into<crate::memory::place::BytePlace>,
 ) -> Result<(), Refused> {
     let path = resolve_path(path)?;
     let (used, scan) = install

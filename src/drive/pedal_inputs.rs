@@ -4,9 +4,9 @@
 //! 0x2000 and `input_brake`. The handbrake `handbrake` = `input_handbrake`, 0 when that is 0x100
 //! or less and `handbrake_failed` is set.
 
+use crate::memory::session::DwordLike;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
-use crate::session::DwordLike;
 use rc2k_core::drive::controls::{BRAKE_KEY, THROTTLE_KEY, handbrake, pedal};
 
 /// One pedal: by the keys' `bit`, stepped from `input`, or set to it.

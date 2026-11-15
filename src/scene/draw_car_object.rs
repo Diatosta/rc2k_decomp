@@ -14,6 +14,7 @@
 //! run its `run` (`menu::table_routes`).
 
 use crate::errors::{BadInput, Refused};
+use crate::memory::session::write_all;
 use crate::menu::owner::{Menus, Screens};
 use crate::race::owner_shared::RaceShared;
 use crate::scene::assign_kind_textures::assign_kind_textures;
@@ -23,7 +24,6 @@ use crate::scene::draw_carousel_entry::{ENTRIES, find_object_of_kind};
 use crate::scene::draw_menu_object::draw_menu_object_in_game;
 use crate::scene::load_slot_textures::load_slot_textures_in_game;
 use crate::scene::map_texture_places::map_texture_places;
-use crate::session::write_all;
 
 // ---- game data ----
 
@@ -101,7 +101,7 @@ pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refus
         o.input,
         scratch,
         o.scene.scratch.game_scratch(),
-        crate::workers::DrawReads::on_game_thread(crate::workers::LentOwners::of(o)),
+        crate::scene::workers::DrawReads::on_game_thread(crate::scene::workers::LentOwners::of(o)),
     );
     let _held = ctx.view.matrices.hold(ctx.reads.matrices, ctx.part);
     draw_shown_car(

@@ -8,8 +8,8 @@
 //!
 //! Called by `race::viewer_frame`. Refuses (before anything) a cars' count of 0 or past 8.
 
-use crate::cells::copy_cells;
 use crate::errors::{BadInput, Refused};
+use crate::memory::cells::copy_cells;
 use crate::physics::flow::g;
 use crate::race::owner::Race;
 use rc2k_core::drive::replay_frames::FRAME_BYTES;

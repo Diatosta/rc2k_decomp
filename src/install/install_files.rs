@@ -13,7 +13,7 @@ use crate::install::installer::{
 };
 
 use crate::install::vars::StringRecord;
-use crate::place::BytePlace;
+use crate::memory::place::BytePlace;
 
 fn game_dir(install: &'static crate::install::owner::Install) -> BytePlace {
     BytePlace::from(&install.paths.game_dir)
@@ -59,7 +59,7 @@ fn message(
     y: u32,
 ) -> Result<(), Refused> {
     let (system, gfx, input) = (o.system, o.gfx, o.input);
-    crate::platform_events::hold_quit(system, false);
+    crate::platform::events::hold_quit(system, false);
     run_frame(o, None)?;
     if lock(gfx, system) {
         crate::install::draw_string_list::draw_string_list(
@@ -98,13 +98,13 @@ pub fn install_files(
     normalise(&install.paths.game_dir, &install.paths.game_dir)?;
     i::run_script::run_script(
         install,
-        crate::place::BytePlace::from(&install.names.script_count),
+        crate::memory::place::BytePlace::from(&install.names.script_count),
     )?;
     install.run.files_copied.set(0);
     install.run.copy_spare.set(0);
     install.run.files_to_copy.set(install.run.file_count.get());
     let room = crate::install::installer::rd(
-        crate::place::BytePlace::from(&install.names.room_by_mode)
+        crate::memory::place::BytePlace::from(&install.names.room_by_mode)
             .add(4 * crate::install::installer::media_mode()),
     );
     install.run.room_needed.set(room);
@@ -140,7 +140,7 @@ pub fn install_files(
     // (owner).
     crate::files::is_cd_drive::is_cd_drive(rb(&install.paths.game_dir));
     // A close during the copy waits for its end (the progress still shown).
-    crate::platform_events::hold_quit(o.system, true);
+    crate::platform::events::hold_quit(o.system, true);
     run_frame(
         o,
         Some(&|| crate::install::install_frames::copying_frame(o)),
@@ -214,7 +214,7 @@ pub fn install_files(
             i::copy_counted::copy_counted(install, o.system, &install.paths.path_a, base)?;
         }
     }
-    crate::platform_events::hold_quit(o.system, false);
+    crate::platform::events::hold_quit(o.system, false);
     list_state.list_answer.set(2);
     sleep(1000);
     install.names.status.set(1);

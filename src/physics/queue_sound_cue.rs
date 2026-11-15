@@ -9,7 +9,7 @@
 //! lists.
 
 use crate::errors::{BadInput, Refused};
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 use crate::sound::store::{CueQueue, SoundObject};
 use rc2k_core::physics::sound_queue::{CuePlacement, ENTRY_DWORDS, check_cue, place, sounds};
 

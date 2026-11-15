@@ -3,7 +3,7 @@
 //! steps `effects::turn_kept_xz` and `effects::turn_kept_zy`.
 
 use crate::math::x87;
-use crate::session::PlainFloat;
+use crate::memory::session::PlainFloat;
 
 /// The kept vectors.
 fn vectors(effects: &crate::effects::owner::Effects) -> [&[PlainFloat; 3]; 3] {

@@ -3,8 +3,8 @@
 //! One per view slot (`race::view_scratch::ViewScratch::course`), so views drawn side by side do
 //! not share them.
 
-use crate::cells::ZeroCells;
-use crate::session::{PlainBytes, PlainDword};
+use crate::memory::cells::ZeroCells;
+use crate::memory::session::{PlainBytes, PlainDword};
 
 #[derive(rc2k_derive::Cells)]
 pub struct ViewCourse {

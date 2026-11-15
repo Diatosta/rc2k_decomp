@@ -4,9 +4,9 @@
 
 use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
+use crate::memory::session::PlainDword;
 use crate::race::owner_course::CourseReads;
 use crate::race::owner_frame::Frame;
-use crate::session::PlainDword;
 
 /// The render states both batches set: (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (1, 0x1C), (5, 0x13), (2, 0x14), (1, 0x1B)];
@@ -17,7 +17,7 @@ pub struct Batch<'a> {
     pub count: &'a PlainDword,
     pub word: &'a PlainDword,
     /// The platform's draw on the batch's vertices and indices (its result), given their counts.
-    pub draw: fn(&crate::workers::PartScratch, &Frame, u32, u32) -> u32,
+    pub draw: fn(&crate::scene::workers::PartScratch, &Frame, u32, u32) -> u32,
     pub kept: &'a PlainDword,
     pub blend: u32,
     pub text: &'static std::ffi::CStr,
@@ -29,7 +29,7 @@ pub fn plain(frame: &Frame) -> Batch<'_> {
         count: &frame.draw_batches().plain_count,
         word: &frame.draw_batches().plain_word,
         draw: |part, frame, vertices, indices| {
-            crate::platform_3d::draw_indexed(
+            crate::platform::direct3d::draw_indexed(
                 part,
                 &frame.draw_batches().plain_vertices,
                 vertices,
@@ -49,7 +49,7 @@ pub fn textured(frame: &Frame) -> Batch<'_> {
         count: &frame.draw_batches().textured_count,
         word: &frame.draw_batches().textured_word,
         draw: |part, frame, vertices, indices| {
-            crate::platform_3d::draw_indexed(
+            crate::platform::direct3d::draw_indexed(
                 part,
                 &frame.draw_batches().textured_vertices,
                 vertices,
@@ -70,7 +70,7 @@ pub fn textured(frame: &Frame) -> Batch<'_> {
 /// (level 1); the count and word 0. In drawing part `part`'s render states.
 pub fn flush_batch(
     scene: &crate::scene::owner::Scene,
-    part: &crate::workers::PartScratch,
+    part: &crate::scene::workers::PartScratch,
     frame: &Frame,
     b: &Batch,
     textured: bool,
@@ -136,9 +136,9 @@ fn int_over_two(
 /// (`scene::set_texture`), the device's unclipped fan (`d3d::draw_fan_unclipped`), then the depth
 /// buffer on.
 pub fn draw_view_backdrop(
-    reads: crate::workers::DrawReads<'_>,
+    reads: crate::scene::workers::DrawReads<'_>,
     view: &crate::race::view_scratch::ViewScratch,
-    part: &crate::workers::PartScratch,
+    part: &crate::scene::workers::PartScratch,
 ) {
     let buffer = &part.vertices;
     view.quad.uv[0].set(0xF8_0000);

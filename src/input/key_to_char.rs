@@ -71,7 +71,7 @@ fn typed(input: &Input, eax: u32, for_text: bool) -> Result<u32, BadInput> {
     let layout = layouts
         .layout(which)
         .ok_or(BadInput("no keyboard layout"))?;
-    let silent_keys: Vec<u8> = crate::session::read_all(&input.keyboard().silent_keys)
+    let silent_keys: Vec<u8> = crate::memory::session::read_all(&input.keyboard().silent_keys)
         .iter()
         .flat_map(|dword| dword.to_le_bytes())
         .collect();

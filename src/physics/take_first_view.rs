@@ -8,12 +8,12 @@
 
 use crate::effects::cell_x87::CellX87;
 use crate::math::x87_float::ld;
+use crate::memory::session::{PlainDword, PlainFloat};
 use crate::physics::camera_store::CameraWork;
 use crate::physics::camera_view::record;
 use crate::physics::car_store::Car;
 use crate::race::groups_store::ViewAndRecords;
 use crate::race::view_vars_store::ViewRecord;
-use crate::session::{PlainDword, PlainFloat};
 
 /// The exact version, for `physics::update_camera`: `s` the view's record.
 pub fn take_first_view(

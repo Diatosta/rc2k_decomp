@@ -8,7 +8,7 @@
 /// (major, minor, build), platform 2 (NT's), and "<system> <release>" as its text ("Linux
 /// 6.17.1", "Darwin 25.0.0"). Only the log's head reads it.
 pub fn version_record() -> [u8; 0x94] {
-    let (system, release) = crate::ffi::unix::system_release().unwrap_or_default();
+    let (system, release) = crate::platform::ffi::unix::system_release().unwrap_or_default();
     let release = release.trim();
     let mut numbers = release
         .split(|c: char| !c.is_ascii_digit())
@@ -49,7 +49,7 @@ fn cut(name: &str, room: u32) -> Option<Vec<u8>> {
 
 /// The computer's name (the host name), in at most `room` bytes with its NUL.
 pub fn computer_name(room: u32) -> Option<Vec<u8>> {
-    cut(&crate::ffi::unix::host_name()?, room)
+    cut(&crate::platform::ffi::unix::host_name()?, room)
 }
 
 /// The user's name (`$USER`), in at most `room` bytes with its NUL.
@@ -98,7 +98,7 @@ pub fn disk_free(root: Option<&[u8]>) -> Option<[u32; 4]> {
     if root.is_some_and(|r| r.get(1) == Some(&b':')) {
         return None;
     }
-    let stats = crate::ffi::unix::file_system_stats(c".")?;
+    let stats = crate::platform::ffi::unix::file_system_stats(c".")?;
     let clusters =
         |blocks: u64| (blocks.saturating_mul(stats.block_size) / 4096).min(u32::MAX as u64) as u32;
     Some([
@@ -113,7 +113,7 @@ pub fn disk_free(root: Option<&[u8]>) -> Option<[u32; 4]> {
 pub fn free_kb_at(at: &std::path::Path) -> Option<u32> {
     use std::os::unix::ffi::OsStrExt;
     let path = std::ffi::CString::new(at.as_os_str().as_bytes()).ok()?;
-    let stats = crate::ffi::unix::file_system_stats(&path)?;
+    let stats = crate::platform::ffi::unix::file_system_stats(&path)?;
     let kb = stats.blocks_available.saturating_mul(stats.block_size) / 1024;
     Some(kb.min(u32::MAX as u64) as u32)
 }
@@ -121,7 +121,7 @@ pub fn free_kb_at(at: &std::path::Path) -> Option<u32> {
 /// Available and total physical memory, available and total swap (bytes, at most 32
 /// bits' worth, as `GlobalMemoryStatus` caps them).
 pub fn memory() -> [u32; 4] {
-    let Some(info) = crate::ffi::unix::memory_stats() else {
+    let Some(info) = crate::platform::ffi::unix::memory_stats() else {
         return [0; 4];
     };
     let capped = |n: u64| n.min(u32::MAX as u64) as u32;
@@ -141,7 +141,7 @@ pub fn set_error_mode(_mode: u32) -> u32 {
 /// No priority classes on Unix: the process runs as it was started.
 pub fn set_priority_class(_class: u32) {}
 
-pub use crate::ffi::unix::{discard_pages, map_pages, own_stack_word};
+pub use crate::platform::ffi::unix::{discard_pages, map_pages, own_stack_word};
 
 /// On macOS a program started from its `.app` bundle (from Finder, or `open`) runs in `/`:
 /// a program inside a bundle (`<folder>/<name>.app/Contents/MacOS/rc2k`) makes the folder
@@ -166,5 +166,5 @@ pub fn enter_bundle_folder() -> std::io::Result<Option<std::path::PathBuf>> {
 
 /// The process ended at once with `code` (no library's leave-taking).
 pub fn terminate(code: u32) -> ! {
-    crate::ffi::unix::exit_now(code)
+    crate::platform::ffi::unix::exit_now(code)
 }

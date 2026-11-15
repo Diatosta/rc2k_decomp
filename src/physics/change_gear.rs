@@ -8,11 +8,11 @@
 //! -1 ..= 7 where the gearing reads its ratio, and what `gear_bit` refuses.
 
 use crate::errors::{BadInput, Refused};
+use crate::memory::session::{PlainDword, PlainInt};
 use crate::physics::gear_bit::gear_bit_at;
 use crate::physics::gearing::{GearPlaces, revs_from_wheels_at, wheels_from_revs_at};
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
-use crate::session::{PlainDword, PlainInt};
 use rc2k_core::physics::gear_shifts::Change;
 
 /// The other places: the asked gear, the gear bits, the two words set.

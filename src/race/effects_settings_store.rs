@@ -4,11 +4,11 @@
 //! and a tail of the listener's figures and switches. One record, between the replay viewer's panel
 //! and the kind tables.
 
-use crate::cells::ZeroCells;
 use crate::errors::BadInput;
+use crate::memory::cells::ZeroCells;
+use crate::memory::session::{PlainDword, PlainFloat, PlainInt};
 use crate::race::blocks_store::CarBlocks;
 use crate::race::first_cells::plain_dwords;
-use crate::session::{PlainDword, PlainFloat, PlainInt};
 #[cfg(test)]
 use crate::test_support::own::race;
 

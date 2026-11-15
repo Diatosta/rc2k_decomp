@@ -235,7 +235,7 @@ impl PartialEq for Buf {
 /// buffer `mk` (the buffer stands for the marks' block): the record's cells are made from the
 /// bytes there, one after another in field order (no gaps in the recorded layout), and put back
 /// afterwards. The buffer must hold the whole record.
-pub fn with_copy<T: crate::cells::Cells, R>(
+pub fn with_copy<T: crate::memory::cells::Cells, R>(
     mk: Operand,
     start: usize,
     f: impl FnOnce(&T) -> R,
@@ -244,7 +244,7 @@ pub fn with_copy<T: crate::cells::Cells, R>(
     let at = start.wrapping_sub(START);
     // The copy on the heap: some blocks are near 2 MB, a test thread's whole stack (copied
     // by value there they overflowed it, and Wine hung on the fault).
-    let local = crate::cells::boxed_zeroed_cells::<T>();
+    let local = crate::memory::cells::boxed_zeroed_cells::<T>();
     let len = field_bytes(&*local, "").len();
     assert!(set_field_range(&*local, "", &mk.read(at, len)));
     let out = f(&local);
@@ -518,7 +518,7 @@ fn run_recorded<R: std::fmt::Debug>(
 
 /// Race-block places the blocks read or write, as the typed cells that hold them (what the
 /// Rust versions read), by the place's offset in the race block.
-fn race_cell(off: usize) -> &'static dyn crate::session::Cell32 {
+fn race_cell(off: usize) -> &'static dyn crate::memory::session::Cell32 {
     let w = &crate::owners::Owners::the()
         .scene
         .scratch
@@ -774,7 +774,7 @@ fn run_writes<R: std::fmt::Debug>(
 
 /// The vertex float at byte `off` of the vertices (x, y, z, u or v of a vertex).
 #[cfg(test)]
-pub fn vertex_cell(off: usize) -> &'static crate::session::PlainFloat {
+pub fn vertex_cell(off: usize) -> &'static crate::memory::session::PlainFloat {
     let v = &crate::d3d::vertices_store::VERTICES.vertices[off / 32];
     match off % 32 {
         0x0 => &v.x,

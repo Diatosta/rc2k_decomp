@@ -2,10 +2,10 @@
 //! and places), the ground face being probed, the faces' light, the camera's and start place's
 //! place and heading, a shape's radius, the car model's part groups' masks, the shine. The fields
 //! are in the image's order. Plain cells: a drawing store (`session::DrawShared`), written on the
-//! game's thread between frames and read by the drawing parts through their `workers::DrawReads`.
+//! game's thread between frames and read by the drawing parts through their `scene::workers::DrawReads`.
 
-use crate::cells::ZeroCells;
-use crate::session::PlainDword;
+use crate::memory::cells::ZeroCells;
+use crate::memory::session::PlainDword;
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct CourseWork {

@@ -2,11 +2,11 @@
 //! one up or down, and the four that select or deselect a change.
 
 use crate::errors::{BadInput, Refused};
+use crate::memory::session::PlainDword;
 use crate::menu::owner::Menus;
 use crate::service::owner::Service;
 use crate::service::owner::SetupItem;
 use crate::service::state::current_player;
-use crate::session::PlainDword;
 
 #[derive(Clone, Copy)]
 pub enum Target {

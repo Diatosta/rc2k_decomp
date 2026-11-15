@@ -3,8 +3,8 @@
 //! lighting keeps, the plain light colours, the material phases' lengths and clock, and the count
 //! of listed faces.
 
-use crate::cells::ZeroCells;
-use crate::session::{PlainDword, PlainFloat};
+use crate::memory::cells::ZeroCells;
+use crate::memory::session::{PlainDword, PlainFloat};
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct LightWork {

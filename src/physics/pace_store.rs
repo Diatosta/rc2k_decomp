@@ -2,7 +2,7 @@
 //! groups' checkpoints and texts, and the texts' codes. Names are readings unless taken from the
 //! game's own.
 
-use crate::session::{PlainBytes, PlainDword};
+use crate::memory::session::{PlainBytes, PlainDword};
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct PaceNotes {
@@ -37,8 +37,8 @@ pub struct PaceNotes {
 /// The piece, with the image's first values.
 impl PaceNotes {
     pub const fn new() -> Self {
-        use crate::cells::ZeroCells;
-        use crate::session::{PlainBytes, PlainDword, with_runs};
+        use crate::memory::cells::ZeroCells;
+        use crate::memory::session::{PlainBytes, PlainDword, with_runs};
         Self {
             distance_words: PlainBytes::new(with_runs::<4148>(&[(
                 1,

@@ -6,12 +6,12 @@
 
 use crate::errors::BadInput;
 use crate::errors::Refused;
+use crate::memory::session::PlainDword;
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::owner_shared::RaceShared;
 use crate::race::trap::Trap;
-use crate::session::PlainDword;
 
 /// The car blocks `car_blocks` lists (all eight, whatever the race's count).
 pub const BLOCKS: u32 = 8;

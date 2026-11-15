@@ -6,9 +6,9 @@
 //! merged stores hold what the last part left there, and a part that set a value back to
 //! the frame's first is not merged at all.
 
+use crate::memory::session::{PlainDword, PlainFloat};
 use crate::race::draw_view_scene::ViewOutput;
 use crate::race::owner::Race;
-use crate::session::{PlainDword, PlainFloat};
 
 #[derive(rc2k_derive::Cells)]
 pub struct SceneHandOff {
@@ -75,7 +75,7 @@ impl SceneHandOff {
     pub fn keep(
         &self,
         m: &crate::race::matrices_store::SceneMatrices,
-        part: &crate::workers::PartScratch,
+        part: &crate::scene::workers::PartScratch,
     ) {
         for (kept, n) in [(&self.lit, 1), (&self.made, 2)] {
             let now = crate::scene::view_matrices::current_matrix(m, part, n);

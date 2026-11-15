@@ -2,10 +2,10 @@
 //! light table, a third lamp table), the view window's mode and the words around it
 //! (`scene::owner::Scene::light_tables`). Plain cells: a drawing store (`session::DrawShared`),
 //! written on the game's thread between frames and read by the drawing parts through their
-//! `workers::DrawReads`.
+//! `scene::workers::DrawReads`.
 
-use crate::cells::ZeroCells;
-use crate::session::{PlainBytes, PlainDword, PlainWord};
+use crate::memory::cells::ZeroCells;
+use crate::memory::session::{PlainBytes, PlainDword, PlainWord};
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct LightTables {

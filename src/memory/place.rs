@@ -2,9 +2,9 @@
 //! bytes in a store. Helpers take `impl Into<BytePlace>`, so a typed buffer goes in as itself
 //! (`&INSTALLER_PATHS.installed`, `&TEXT_BUFFER.text`).
 
-use crate::cells::Store;
 use crate::errors::BadInput;
-use crate::session::{Bytes, PlainBytes, PlainDword};
+use crate::memory::cells::Store;
+use crate::memory::session::{Bytes, PlainBytes, PlainDword};
 
 /// A run of bytes read and written in place.
 pub trait Run {
@@ -82,7 +82,7 @@ impl core::fmt::Debug for BytePlace {
     }
 }
 
-impl crate::session::TextPlace for BytePlace {
+impl crate::memory::session::TextPlace for BytePlace {
     fn text(&self, what: &str) -> Result<Vec<u8>, BadInput> {
         BytePlace::text(*self, what)
     }
@@ -140,7 +140,7 @@ impl BytePlace {
         match at.checked_add(len) {
             Some(end) if end <= b.len() => Ok(()),
             _ => {
-                crate::framework::log(&format!(
+                crate::logfile::program_log::log(&format!(
                     "place: {len} bytes at {at} of a buffer of {}, from {}",
                     b.len(),
                     std::panic::Location::caller()

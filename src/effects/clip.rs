@@ -2,7 +2,7 @@
 //! `ClipScreen` and `GlowState`.
 
 use crate::d3d::vertices_store::Vertex;
-use crate::session::{PlainDword, PlainFloat};
+use crate::memory::session::{PlainDword, PlainFloat};
 
 /// The clip's screen edges and work vertices.
 #[derive(rc2k_derive::Cells)]

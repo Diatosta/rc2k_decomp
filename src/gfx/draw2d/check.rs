@@ -72,7 +72,7 @@ pub fn end_frame(gfx: &crate::gfx::owner::Gfx, menu: Option<MenuId>) {
     let say = |totals: &mut Totals, line: String| {
         if totals.logged < LOG_LINES {
             totals.logged += 1;
-            crate::framework::log(&line);
+            crate::logfile::program_log::log(&line);
         }
     };
     if totals.last_screen != Some((menu, counts)) {
@@ -126,6 +126,6 @@ pub fn end_frame(gfx: &crate::gfx::owner::Gfx, menu: Option<MenuId>) {
             "2d check: {} frames, {} commands, {} frames differ, {} problems",
             totals.frames, totals.commands, totals.differing, totals.problems
         );
-        crate::framework::log(&line);
+        crate::logfile::program_log::log(&line);
     }
 }

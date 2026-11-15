@@ -4,7 +4,7 @@
 use super::{Command, CommandList, STATES, TextureNote};
 
 /// A vertex as the game makes it: x, y, z, 1/w, colour, specular, u, v.
-pub type Vertex = crate::rasteriser::Vertex;
+pub type Vertex = crate::render::rasteriser::Vertex;
 
 /// What makes up a pipeline. The comparisons and factors are Direct3D's numbers.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

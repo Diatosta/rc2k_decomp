@@ -2,7 +2,7 @@
 //! event's mode, the stage shown on the stage pages and the switches the championship's flow
 //! sets. One value, owned by the play state.
 
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 
 /// The rows the results and standings pages show.
 #[derive(rc2k_derive::Cells)]

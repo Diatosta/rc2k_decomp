@@ -3,8 +3,8 @@
 //! the noise samples, the camera frame values and the polygon hit work. Stops before the error list
 //! (0x2000 bytes, `race::level_init`) and leaves out one lone word after the fog.
 
-use crate::cells::ZeroCells;
-use crate::session::{PlainDword, PlainFloat};
+use crate::memory::cells::ZeroCells;
+use crate::memory::session::{PlainDword, PlainFloat};
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct LightState {

@@ -1,7 +1,7 @@
 //! A float cell read and written as the x87 does: loaded and stored as a dword float.
 
 use crate::math::x87_float::{self as bh, X};
-use crate::session::Cell32;
+use crate::memory::session::Cell32;
 
 /// Loads and stores for the cells (`Float`, `Dword`) the float code works on.
 pub trait CellX87 {

@@ -6,10 +6,10 @@
 
 use crate::errors::Refused;
 use crate::memory::owned::Owned;
+use crate::memory::session::{Bytes, Dword};
 use crate::net::dp_objects::Element;
 use crate::net::store::{SessionDesc, zeros};
 use crate::net::tables::NetTables;
-use crate::session::{Bytes, Dword};
 use std::sync::Mutex;
 
 /// The link's cells, shared with the receiving thread.

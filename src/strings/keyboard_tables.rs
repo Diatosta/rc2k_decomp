@@ -2,7 +2,7 @@
 //! tables the layout's pointers name. Plain immutable bytes (`input::layouts` reads the layout's
 //! tables by offset).
 
-use crate::session::with_runs;
+use crate::memory::session::with_runs;
 
 /// The built-in NEC keyboard's file head, layout and tables.
 pub struct KeyboardTables {

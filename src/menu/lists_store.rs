@@ -5,9 +5,9 @@
 //! the struct is padded to a multiple of 4.
 
 use crate::audio::names_store::NameList;
+use crate::memory::session::{PlainBytes, PlainDword};
 use crate::menu::cars_store::car_cell;
 use crate::menu::texts_store::{MenuText, SpeechRow};
-use crate::session::{PlainBytes, PlainDword};
 pub use rc2k_core::menu::car_lists::CarList;
 
 /// What the lists of cars are read through: the repair flags and the carousel's textures sit after
@@ -163,7 +163,7 @@ impl MenuLists {
         if let Some(picture) = own.get(car) {
             return Ok(picture.get());
         }
-        let lists: [&dyn crate::session::Run; 10] = [
+        let lists: [&dyn crate::memory::session::Run; 10] = [
             &self.page_pictures_a,
             &self.page_pictures_b,
             &self.page_pictures_c,
@@ -181,7 +181,7 @@ impl MenuLists {
             1 => 2,
             _ => 3,
         };
-        crate::session::read_runs(&lists[first..], car, "a car page's picture")
+        crate::memory::session::read_runs(&lists[first..], car, "a car page's picture")
     }
 
     /// The map overlay of event slot `slot` (0 ..= 35 in the image's tables; the records can
@@ -191,7 +191,7 @@ impl MenuLists {
         menus: &crate::menu::owner::Menus,
         slot: usize,
     ) -> Result<u32, crate::errors::BadInput> {
-        crate::session::read_runs(
+        crate::memory::session::read_runs(
             &self.runs_from_map_overlays(CarListParts::of(menus)),
             slot,
             "a map overlay",
@@ -204,7 +204,7 @@ impl MenuLists {
         if let Some(speech) = self.rally_speeches.get(section) {
             return Ok(speech.get());
         }
-        crate::session::read_runs(
+        crate::memory::session::read_runs(
             &[
                 &self.rally_speeches,
                 &self._gap_75a31a,
@@ -222,7 +222,7 @@ impl MenuLists {
         if let Some(entry) = self.stage_speeches.get(speech) {
             return Ok(entry.get());
         }
-        crate::session::read_runs(
+        crate::memory::session::read_runs(
             &[
                 &self.stage_speeches,
                 &self._gap_75a40e,
@@ -249,13 +249,13 @@ impl MenuLists {
         if let Some(picture) = own.get(section) {
             return Ok(picture.get());
         }
-        let lists: [&dyn crate::session::Run; 3] = [
+        let lists: [&dyn crate::memory::session::Run; 3] = [
             &self.welcome_championship,
             &self.welcome_other,
             &self.map_overlays,
         ];
         let first = if championship { 0 } else { 1 };
-        crate::session::read_runs(&lists[first..], section, "a welcome picture")
+        crate::memory::session::read_runs(&lists[first..], section, "a welcome picture")
     }
 }
 
@@ -270,7 +270,7 @@ impl MenuLists {
     fn runs_from_map_overlays<'a>(
         &'a self,
         parts: CarListParts<'a>,
-    ) -> [&'a dyn crate::session::Run; 41] {
+    ) -> [&'a dyn crate::memory::session::Run; 41] {
         let service = parts.service;
         let cars = &parts.cars.lists;
         let carousel = parts.carousel;
@@ -331,7 +331,7 @@ impl MenuLists {
         n: u32,
     ) -> Result<u32, crate::errors::BadInput> {
         let all = self.runs_from_map_overlays(parts);
-        crate::session::read_runs(
+        crate::memory::session::read_runs(
             &all[Self::car_list_start(list)..],
             n as usize,
             "an entry of a list of cars",
@@ -347,7 +347,7 @@ impl MenuLists {
         value: u32,
     ) -> Result<(), crate::errors::BadInput> {
         let all = self.runs_from_map_overlays(parts);
-        crate::session::write_runs(
+        crate::memory::session::write_runs(
             &all[Self::car_list_start(list)..],
             n as usize,
             value,
@@ -1264,7 +1264,7 @@ mod run_on_tests {
             - core::mem::offset_of!(MenuLists, welcome_championship))
             / 4;
         for n in 0..room {
-            crate::session::write_on_in(
+            crate::memory::session::write_on_in(
                 &*lists,
                 &lists.welcome_championship,
                 n,
@@ -1282,10 +1282,11 @@ mod run_on_tests {
     fn list_readers_run_on_as_the_old_read() {
         let l = numbered();
         let old = |table: &[PlainDword], n: usize| {
-            crate::session::read_on_in(&*l, table, n, "t").unwrap()
+            crate::memory::session::read_on_in(&*l, table, n, "t").unwrap()
         };
-        let old_result =
-            |table: &[PlainDword], n: usize| crate::session::read_on_in(&*l, table, n, "t").ok();
+        let old_result = |table: &[PlainDword], n: usize| {
+            crate::memory::session::read_on_in(&*l, table, n, "t").ok()
+        };
         for n in 0..0x21 {
             assert_eq!(
                 l.rally_speech(n).unwrap(),

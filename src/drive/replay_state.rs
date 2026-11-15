@@ -4,7 +4,7 @@
 //! names the fields of the live record (`Car`, `RaceSlot`, `RaceWork`) at the file's offsets, so
 //! the file does not depend on how those records lie in memory.
 
-use crate::cells::{ByteView, load_cells, store_cells};
+use crate::memory::cells::{ByteView, load_cells, store_cells};
 use crate::physics::car_store::Car;
 use crate::race::work_store::{RaceSlot, RaceWork};
 use core::mem::size_of;
@@ -367,7 +367,7 @@ pub fn scatter(frame: &ReplayFrame, cars: &[Car], work: &RaceWork) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cells::cells_of_bytes;
+    use crate::memory::cells::cells_of_bytes;
     use rc2k_core::drive::replay_frames::FRAME_BYTES;
 
     const SLOTS_AT: usize = core::mem::offset_of!(RaceWork, race_slots);

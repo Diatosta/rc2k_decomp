@@ -12,7 +12,7 @@
 //!   (`always_asks`); the quit switch leads to the question too.
 
 use crate::errors::Refused;
-use crate::framework::log;
+use crate::logfile::program_log::log;
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::owner::Menus;
 use crate::menu::screen_items_store::slot;

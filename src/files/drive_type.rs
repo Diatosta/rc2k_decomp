@@ -8,5 +8,5 @@ pub fn drive_root(letter: u8) -> Option<[u8; 4]> {
 }
 
 pub fn drive_type(letter: u8) -> u32 {
-    crate::os::drive_type(drive_root(letter))
+    crate::platform::os::drive_type(drive_root(letter))
 }

@@ -87,7 +87,7 @@ pub fn steps(
     c.contact.face_object.set(object);
     let kind = scene.objects.tables.get().object_kind(object);
     if let Err(e) = contacts::check_material(kind) {
-        crate::framework::log(&format!(
+        crate::logfile::program_log::log(&format!(
             "physics::face_contact: face {}: object {object}, kind {kind:#x}, car {} at {:?}",
             face,
             c.work.current_car.get(),

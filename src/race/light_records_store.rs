@@ -4,9 +4,9 @@
 //! (`race::groups_store::LightsAndGear`), written on the game's thread at a stage's load and read
 //! by the drawing parts.
 
-use crate::cells::ZeroCells;
+use crate::memory::cells::ZeroCells;
+use crate::memory::session::PlainDword;
 use crate::race::first_cells::plain_dwords;
-use crate::session::PlainDword;
 #[cfg(test)]
 use crate::test_support::own::race;
 
@@ -525,7 +525,7 @@ impl LightRecords {
             None => self.records[index as usize]
                 .groups
                 .get(group)
-                .map(crate::session::PlainDword::get)
+                .map(crate::memory::session::PlainDword::get)
                 .ok_or(crate::errors::BadInput(PAST)),
             Some(0) => {
                 // The groups start 0x58 into the record; the one dword between the records and
@@ -535,7 +535,7 @@ impl LightRecords {
                     .ok_or(crate::errors::BadInput(PAST))?;
                 gear.test_speeds
                     .get((sample / 4) as usize)
-                    .map(crate::session::PlainFloat::bits)
+                    .map(crate::memory::session::PlainFloat::bits)
                     .ok_or(crate::errors::BadInput(PAST))
             }
             Some(_) => Err(crate::errors::BadInput(PAST)),

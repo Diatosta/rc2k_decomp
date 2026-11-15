@@ -30,6 +30,7 @@
 use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::loaded;
+use crate::memory::session::DwordLike;
 use crate::physics as ph;
 use crate::physics::car_store::Car;
 use crate::physics::flow::{hold_high, hold_low, negate};
@@ -39,7 +40,6 @@ use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::switches_store::FrameSwitches;
 use crate::scene::matrix3::rounded_value;
-use crate::session::DwordLike;
 
 /// The motion: moved, spun, levered, the inverse matrix, the angles.
 fn motion(

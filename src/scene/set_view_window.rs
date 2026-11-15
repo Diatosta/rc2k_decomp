@@ -21,10 +21,10 @@
 
 use crate::math::x87;
 use crate::math::x87_float as bh;
+use crate::memory::session::{CellKind, FloatLike};
 use crate::race::view_vars_store::ViewVars;
 use crate::scene::draw_store::SceneDraw;
 use crate::scene::view_window::ViewWindow;
-use crate::session::{CellKind, FloatLike};
 
 /// `vars`: the view variables the window's scale is read from (`view_scale`: a view's own,
 /// `ViewScratch::vars`, or the shared ones); `draw`: the scene's draw variables (the fade and
@@ -33,10 +33,10 @@ use crate::session::{CellKind, FloatLike};
 pub fn set_view_window(
     course: crate::race::owner_course::CourseReads<'_>,
     draw: &SceneDraw,
-    screen: &crate::session::Screen,
+    screen: &crate::memory::session::Screen,
     window: &ViewWindow,
     vars: &ViewVars<impl CellKind>,
-    scale_factor: &crate::session::PlainFloat,
+    scale_factor: &crate::memory::session::PlainFloat,
 ) {
     set_view_window_reaching(
         course,
@@ -54,18 +54,18 @@ pub fn set_view_window(
 pub fn set_view_window_reaching(
     course: crate::race::owner_course::CourseReads<'_>,
     draw: &SceneDraw,
-    screen: &crate::session::Screen,
+    screen: &crate::memory::session::Screen,
     window: &ViewWindow,
     vars: &ViewVars<impl CellKind>,
-    scale_factor: &crate::session::PlainFloat,
+    scale_factor: &crate::memory::session::PlainFloat,
     reach: u32,
 ) {
     let depth = reach.wrapping_mul(0x20);
-    crate::session::write_bits(&window.view_depth, [depth, depth]);
-    let [width, height]: [u32; 2] = crate::session::read_bits(&window.view_size);
+    crate::memory::session::write_bits(&window.view_depth, [depth, depth]);
+    let [width, height]: [u32; 2] = crate::memory::session::read_bits(&window.view_size);
     let middle = [width >> 1, height >> 1];
-    crate::session::write_bits(&window.view_middle, middle);
-    let offsets: [u32; 2] = crate::session::read_bits(&window.view_offset);
+    crate::memory::session::write_bits(&window.view_middle, middle);
+    let offsets: [u32; 2] = crate::memory::session::read_bits(&window.view_offset);
     // top, bottom, left, right
     let edges = if course.numbers.in_race.is_set() {
         [0, height, 0, width]
@@ -77,7 +77,7 @@ pub fn set_view_window_reaching(
             width.wrapping_sub(offsets[0]),
         ]
     };
-    crate::session::write_bits(&window.clip_edges, edges);
+    crate::memory::session::write_bits(&window.clip_edges, edges);
     window.view_scale.set(bh::stf(
         bh::int(screen.width.get() as i32)
             * bh::ld(vars.view_scale.get())
@@ -109,12 +109,12 @@ pub fn set_view_window_reaching(
         .clip_farthest
         .set(x87::mul_to_int(farthest, &draw.clip_factor) as u32);
     let float = |value: u32| x87::from_int(value as i32);
-    crate::session::write_bits(
+    crate::memory::session::write_bits(
         &window.view_offset_float,
         offsets.map(float).map(f32::to_bits),
     );
-    crate::session::write_bits(&window.clip_screen, edges.map(float).map(f32::to_bits));
-    crate::session::write_bits(&window.view_centre, middle.map(float).map(f32::to_bits));
+    crate::memory::session::write_bits(&window.clip_screen, edges.map(float).map(f32::to_bits));
+    crate::memory::session::write_bits(&window.view_centre, middle.map(float).map(f32::to_bits));
 }
 
 /// `set_view_window` in plain floats. The x87 version above stays for the callers that have not
@@ -123,16 +123,16 @@ pub fn set_view_window_reaching(
 pub fn set_view_window_plain(
     course: crate::race::owner_course::CourseReads<'_>,
     draw: &SceneDraw,
-    screen: &crate::session::Screen,
+    screen: &crate::memory::session::Screen,
     window: &ViewWindow,
     vars: &ViewVars<impl CellKind>,
-    scale_factor: &crate::session::PlainFloat,
+    scale_factor: &crate::memory::session::PlainFloat,
 ) {
     use rc2k_core::scene::view_window::{WindowInputs, window_settings};
     let i = WindowInputs {
         reach: course.stage_prefs.grid_reach.get(),
-        size: crate::session::read_bits(&window.view_size),
-        offsets: crate::session::read_bits(&window.view_offset),
+        size: crate::memory::session::read_bits(&window.view_size),
+        offsets: crate::memory::session::read_bits(&window.view_offset),
         in_race: course.numbers.in_race.is_set(),
         screen_width: screen.width.get(),
         scale: (
@@ -148,16 +148,16 @@ pub fn set_view_window_plain(
         one: course.numbers.one.get(),
     };
     let w = window_settings(&i);
-    crate::session::write_bits(&window.view_depth, [w.depth, w.depth]);
-    crate::session::write_bits(&window.view_middle, w.middle);
-    crate::session::write_bits(&window.clip_edges, w.edges);
+    crate::memory::session::write_bits(&window.view_depth, [w.depth, w.depth]);
+    crate::memory::session::write_bits(&window.view_middle, w.middle);
+    crate::memory::session::write_bits(&window.clip_edges, w.edges);
     window.view_scale.set(w.scale);
     window.depth_divisor.set(w.divisor);
     window.farthest.set(w.farthest);
     window.one_over_farthest.set(w.reciprocal);
     window.farthest_scaled.set(w.fade_depth as u32);
     window.clip_farthest.set(w.clip_farthest as u32);
-    let set = |cells: &[crate::session::PlainFloat], v: &[f32]| {
+    let set = |cells: &[crate::memory::session::PlainFloat], v: &[f32]| {
         for (cell, &x) in cells.iter().zip(v) {
             cell.set(x);
         }

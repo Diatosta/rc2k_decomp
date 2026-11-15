@@ -3,10 +3,10 @@
 //! them); the other a car block's state, of "car1" and "car2", which were both the first block
 //! (a slip in the dump; here every car). The button writes the same to the log.
 
+use crate::memory::session::PlainDword;
 use crate::menu::owner::Menus;
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
-use crate::session::PlainDword;
 use dear_imgui_rs::{TableFlags, Ui};
 
 /// The player dump's labels and offsets, in its order.
@@ -107,7 +107,7 @@ fn name(menus: &Menus, player: usize) -> String {
 
 /// Both dumps to the log.
 fn write_log(menus: &Menus, race: &Race) {
-    use crate::framework::log;
+    use crate::logfile::program_log::log;
     for player in 0..4 {
         log(&format!("DATA DUMP OF PLAYER {}", player + 1));
         for (label, offset) in PLAYER_ROWS {

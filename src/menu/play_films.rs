@@ -14,7 +14,7 @@
 //! intro item (`menu::show_intro`). Rust callers run its `entry` (`routes.rs`).
 
 use crate::errors::Refused;
-use crate::framework::log;
+use crate::logfile::program_log::log;
 use crate::menu::owner::Panels;
 use crate::owners::Owners;
 use rc2k_core::menu::films::{self, Film, Step, StepAnswer};
@@ -23,20 +23,20 @@ use rc2k_core::menu::films::{self, Film, Step, StepAnswer};
 #[derive(rc2k_derive::Cells)]
 pub struct Films {
     /// The intro film's path.
-    pub intro: crate::session::PlainBytes<22>,
+    pub intro: crate::memory::session::PlainBytes<22>,
     /// The `mflogo` film's path.
-    pub mflogo: crate::session::PlainBytes<23>,
+    pub mflogo: crate::memory::session::PlainBytes<23>,
     /// The `allogo` film's path.
-    pub allogo: crate::session::PlainBytes<23>,
+    pub allogo: crate::memory::session::PlainBytes<23>,
 }
 
 /// The films' names (the leading `;3` is the game's own marker for the file functions).
 impl Films {
     pub const fn new() -> Self {
         Films {
-            intro: crate::session::PlainBytes::new(*b";3files\\fmv\\intro.mpg\0"),
-            mflogo: crate::session::PlainBytes::new(*b";3files\\fmv\\mflogo.mpg\0"),
-            allogo: crate::session::PlainBytes::new(*b";3files\\fmv\\allogo.avi\0"),
+            intro: crate::memory::session::PlainBytes::new(*b";3files\\fmv\\intro.mpg\0"),
+            mflogo: crate::memory::session::PlainBytes::new(*b";3files\\fmv\\mflogo.mpg\0"),
+            allogo: crate::memory::session::PlainBytes::new(*b";3files\\fmv\\allogo.avi\0"),
         }
     }
 }
@@ -49,7 +49,7 @@ struct Game {
     owners: Owners<'static>,
 }
 
-fn film(panels: &Panels, f: Film) -> &dyn crate::session::TextPlace {
+fn film(panels: &Panels, f: Film) -> &dyn crate::memory::session::TextPlace {
     match f {
         Film::AlLogo => &panels.films.allogo,
         Film::MfLogo => &panels.films.mflogo,
@@ -59,8 +59,8 @@ fn film(panels: &Panels, f: Film) -> &dyn crate::session::TextPlace {
 
 /// The film player (`gfx::play_film`, the platform's) for the file at `path`: the zero
 /// flag it leaves (the film's end).
-fn play(o: Owners<'static>, path: &dyn crate::session::TextPlace) -> bool {
-    crate::film::play_film_now(o, path)
+fn play(o: Owners<'static>, path: &dyn crate::memory::session::TextPlace) -> bool {
+    crate::platform::film::play_film_now(o, path)
 }
 
 impl Game {

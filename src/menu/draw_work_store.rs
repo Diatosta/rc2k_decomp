@@ -2,7 +2,7 @@
 //! item action's outcome, the Escape flag, and three carries (the plain buttons' last place and
 //! the leaving value). One static per `Screens`.
 
-use crate::session::{PlainDword, PlainFlag};
+use crate::memory::session::{PlainDword, PlainFlag};
 
 /// The drawing work variables.
 #[derive(rc2k_derive::Cells)]

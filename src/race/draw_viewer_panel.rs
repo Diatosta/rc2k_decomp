@@ -11,8 +11,8 @@
 //! (0: the second, 1: the first). Called by `viewer_frame`.
 
 use crate::errors::Refused;
+use crate::memory::session::PlainDword;
 use crate::race::owner::Race;
-use crate::session::PlainDword;
 use crate::text::draw_text::GameCanvas;
 const FONT_A: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::PANEL_A;
 const FONT_B: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::PANEL_B;
@@ -65,7 +65,7 @@ pub fn draw_viewer_panel(
         let mut copy = font.get();
         crate::text::draw_text_keep_regs::draw_text_keep_regs(
             &mut copy,
-            &crate::cells::StoreBytes(&text_stores.buffer.text),
+            &crate::memory::cells::StoreBytes(&text_stores.buffer.text),
             x,
             y,
             &mut GameCanvas::new(gfx),
@@ -152,7 +152,7 @@ pub fn draw_viewer_panel(
             race.viewer_panel()
                 .texture_rect
                 .each_ref()
-                .map(crate::session::PlainDword::get),
+                .map(crate::memory::session::PlainDword::get),
             &race.viewer_panel().screen_rect,
             colour,
             race.viewer_panel(),

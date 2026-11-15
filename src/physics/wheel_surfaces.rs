@@ -30,6 +30,7 @@ use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87_float::int;
 use crate::math::x87_float::to_int;
+use crate::memory::session::{PlainDword, PlainFloat};
 use crate::physics::car_store::Car;
 use crate::physics::contact_store::ContactWork;
 use crate::physics::flip_cell_index::flip_cell_index;
@@ -38,7 +39,6 @@ use crate::physics::tables_store::Surface;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_course::Course;
 use crate::race::owner_shared::RaceShared;
-use crate::session::{PlainDword, PlainFloat};
 use std::cmp::Ordering;
 
 /// Byte `offset` of texture info `n`.

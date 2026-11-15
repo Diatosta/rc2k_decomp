@@ -53,8 +53,8 @@ fn negated_at(a: impl Base, o: impl Base) {
 }
 
 pub fn reflection_coordinates(
-    part: &crate::workers::PartScratch,
-    reads: crate::workers::DrawReads<'_>,
+    part: &crate::scene::workers::PartScratch,
+    reads: crate::scene::workers::DrawReads<'_>,
     object: &crate::scene::object_place::ObjectPlace,
     m: &crate::scene::view_matrices::ViewMatrices,
 ) -> Result<(), BadInput> {
@@ -64,14 +64,14 @@ pub fn reflection_coordinates(
     let table = crate::scene::reading::PointRecords::new(reads.course_lists, part)?;
     let normal = table.place(object.reflection_normal_number.get())?;
     let point = table.place(object.reflection_point_number.get().wrapping_neg())?;
-    crate::session::write_bits(&m.reflect_vector, normal);
-    crate::session::write_first(&m.work_vector, &point.map(negated));
+    crate::memory::session::write_bits(&m.reflect_vector, normal);
+    crate::memory::session::write_first(&m.work_vector, &point.map(negated));
     normalise_vector(reads.course_lists, reads.draw_switches, &m.work_vector)?;
-    let to_eye: [u32; 3] = crate::session::read_first(&m.work_vector);
-    crate::session::write_bits(&m.reflect_normal, to_eye);
+    let to_eye: [u32; 3] = crate::memory::session::read_first(&m.work_vector);
+    crate::memory::session::write_bits(&m.reflect_normal, to_eye);
     reflect_vector(m, &m.view_back_matrix);
-    let mirrored: [u32; 3] = crate::session::read_bits(&m.reflect_vector);
-    crate::session::write_first(
+    let mirrored: [u32; 3] = crate::memory::session::read_bits(&m.reflect_vector);
+    crate::memory::session::write_first(
         &m.work_vector,
         &[
             x87::loaded(mirrored[0]).to_bits(),
@@ -80,10 +80,10 @@ pub fn reflection_coordinates(
         ],
     );
     normalise_vector(reads.course_lists, reads.draw_switches, &m.work_vector)?;
-    let looks: [u32; 3] = crate::session::read_first(&m.work_vector);
+    let looks: [u32; 3] = crate::memory::session::read_first(&m.work_vector);
     let half = reads.numbers.half.get();
     let scales = [reads.numbers.k65536.get(), reads.numbers.k256.get()];
-    crate::session::write_bits(
+    crate::memory::session::write_bits(
         &object.reflection_coordinates,
         [
             coordinate(looks[0], half, scales) as u32,

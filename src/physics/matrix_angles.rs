@@ -8,11 +8,11 @@
 
 use crate::math::cells::Cells;
 use crate::math::x87::{neg_rounded, over_cos_80, patan};
+use crate::memory::session::PlainFloat;
 use crate::physics::clamped_asin::clamped_asin_at;
 use crate::race::owner_course::Course;
 use crate::scene::matrix3::{extended, rounded_value};
 use crate::scene::rotate_point::rotate_point;
-use crate::session::PlainFloat;
 
 /// `rotate_point` of the unit vector `unit` by `m`, stored as floats in the turned vector.
 fn turn_unit(m: &(impl Cells + ?Sized), turned: &[&PlainFloat; 3], unit: [f32; 3]) {

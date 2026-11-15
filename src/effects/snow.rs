@@ -3,7 +3,7 @@
 //! `SnowCurveVars` (the walk's variables and the curve records) and `SnowLight` (the light, the
 //! fade colours and the constants).
 
-use crate::session::{PlainDword, PlainFloat, PlainInt};
+use crate::memory::session::{PlainDword, PlainFloat, PlainInt};
 
 /// The snow's random tables (0x800 flakes).
 #[derive(rc2k_derive::Cells)]

@@ -68,7 +68,7 @@ fn update_car_effects_with(
     view: &crate::physics::car_store::Car,
     o: &crate::sound::store::SoundObject,
     device: &InputDevice,
-    scratch: &crate::session::PlainDword,
+    scratch: &crate::memory::session::PlainDword,
 ) -> Result<(), Refused> {
     let surface = o.surface.get();
     if surface >= KIND_COUNT {

@@ -2,7 +2,7 @@
 //! (towards 0). Called by `install::key_number` (the number is the key less 2: 0 .. 8).
 
 use crate::errors::Refused;
-use crate::list_handle::ListItem;
+use crate::memory::list_handle::ListItem;
 
 /// `number` the eighths.
 pub fn value_by_number(

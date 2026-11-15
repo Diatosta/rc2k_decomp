@@ -3,9 +3,9 @@
 //! switches and the co-driver's door kept in the header, and the replay cameras' wishes and last
 //! draw frames. The fields keep a fixed layout.
 
-use crate::cells::ZeroCells;
+use crate::memory::cells::ZeroCells;
 
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ReplayWork {

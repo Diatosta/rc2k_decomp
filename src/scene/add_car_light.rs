@@ -116,14 +116,14 @@ pub fn add_car_light(
     if car.lights_on.get() == 0 {
         return;
     }
-    let place: [u32; 3] = crate::session::read_bits(&light.lit_place);
+    let place: [u32; 3] = crate::memory::session::read_bits(&light.lit_place);
     let mut from = [0u32; 3];
     for k in 0..3 {
         from[k] = place[k].wrapping_sub(car.position[k].get());
     }
-    let matrix = crate::session::read_bits(&car.car_inverse_matrix);
+    let matrix = crate::memory::session::read_bits(&car.car_inverse_matrix);
     let seen = turned(from, &matrix);
-    crate::session::write_bits(&light.turned_light, seen);
+    crate::memory::session::write_bits(&light.turned_light, seen);
     let [x, y, z] = seen;
     let factor = course.numbers.one_over_65536.get();
     let ahead = squares(z.wrapping_sub(0x20_0000), x.wrapping_add(x), factor, true);

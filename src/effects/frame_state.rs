@@ -2,7 +2,7 @@
 //! step and ribbon work (`ViewVars`), the frame's turned points, view and quads (`DrawFrame`), and
 //! the lens flare's tables (`FlareParts`, `FlareScales`).
 
-use crate::session::{PlainDword, PlainFloat};
+use crate::memory::session::{PlainDword, PlainFloat};
 
 /// The marks' sprites' and profiles' work places.
 #[derive(rc2k_derive::Cells)]

@@ -16,7 +16,7 @@ pub enum EditedText {
 
 impl EditedText {
     /// The text's buffer.
-    pub fn text(self, net: &Net) -> &dyn crate::cells::Store {
+    pub fn text(self, net: &Net) -> &dyn crate::memory::cells::Store {
         match self {
             EditedText::MachineName => &net.setup().machine_name,
             EditedText::HostAddress => &net.setup().host_address,
@@ -49,7 +49,7 @@ pub fn begin_edit(
     edit.edit_text.set(text as u32);
     edit.edit_width.set(width);
     edit.edit_font.set(font);
-    Ok(crate::cells::copy_between(
+    Ok(crate::memory::cells::copy_between(
         text.text(net),
         0,
         &edit.text_before_edit,

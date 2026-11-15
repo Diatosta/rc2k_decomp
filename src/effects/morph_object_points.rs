@@ -15,12 +15,12 @@ use crate::effects::blend_corner::blend_corner;
 use crate::effects::lines::measure_lines;
 use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
+use crate::memory::session::{PlainDword, PlainFloat};
 use crate::race::effects_settings_store::CarEffects;
 use crate::race::owner_course::Course;
 use crate::scene::object_slots_store::SlotTable;
 use crate::scene::objects::SLOTS;
 use crate::scene::owner::Scene;
-use crate::session::{PlainDword, PlainFloat};
 
 const MOST_CARS: i32 = 8;
 

@@ -3,18 +3,18 @@
 
 use crate::drive::finish_store::Finish;
 use crate::drive::replay_frames_store::ReplayFrames;
+use crate::memory::session::{DrawShared, GameThread, PlainBytes, PlainDword, with_runs};
 use crate::race::groups_store::ViewerAndKinds;
 use crate::race::replay_path::LAST_RACE_LEN;
 use crate::race::replay_staging_store::ReplayStaging;
 use crate::race::replay_work_store::ReplayWork;
 use crate::race::seal_store::SealWork;
 use crate::race::viewer_state_store::ReplayViewBlock;
-use crate::session::{DrawShared, GameThread, PlainBytes, PlainDword, with_runs};
 
 /// The race's replay state.
 pub struct Replay {
     /// The finish state (`drive::finish_store`); lent to the drawing parts
-    /// (`workers::DrawReads`): no part writes it.
+    /// (`scene::workers::DrawReads`): no part writes it.
     pub finish: DrawShared<Finish>,
     /// The last race's replay file's name (`race::replay_path`).
     pub last_race: [u8; LAST_RACE_LEN],

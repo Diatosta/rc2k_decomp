@@ -4,7 +4,7 @@
 
 use crate::audio::own::AudioOwn;
 use crate::audio::voices::*;
-use crate::platform_sound as ds;
+use crate::platform::sound as ds;
 
 pub fn release_voice(state: &AudioOwn, at: u32, a3d: bool) {
     update_voice(state, at, |v| {

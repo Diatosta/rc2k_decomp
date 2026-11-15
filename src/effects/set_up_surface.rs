@@ -12,7 +12,7 @@ use crate::effects::mask_store::Masks;
 use crate::effects::ring_store::Ring;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::session::PlainBytes;
+use crate::memory::session::PlainBytes;
 
 const MASK_BYTES: u32 = 0x4_0000;
 const PIXELS: u32 = 0x1_0000;

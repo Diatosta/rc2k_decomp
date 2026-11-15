@@ -57,7 +57,7 @@ pub fn with_depth<R>(width: usize, height: usize, f: impl FnOnce(&mut Depth) -> 
 
 /// The small frame draw_noted draws into: only the handheld has one.
 #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-use crate::handheld::Small;
+use crate::platform::handheld::Small;
 #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
 enum Small {}
 #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
@@ -70,8 +70,8 @@ impl Small {
 /// The noted things' screen places for the handheld's small frame.
 #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
 fn scale_noted(noted: &mut CommandList) {
-    const BY: f32 = crate::handheld::SMALLER as f32;
-    let by = crate::handheld::SMALLER;
+    const BY: f32 = crate::platform::handheld::SMALLER as f32;
+    let by = crate::platform::handheld::SMALLER;
     // Every vertex is a fan's (the list holds no others).
     for v in noted.vertices.iter_mut() {
         v[0] = (f32::from_bits(v[0]) / BY).to_bits();
@@ -102,7 +102,7 @@ fn draw(
     )]
     racing: bool,
 ) {
-    use crate::rasteriser::{Frame, Pixels, States, Texture};
+    use crate::render::rasteriser::{Frame, Pixels, States, Texture};
     use rayon::prelude::*;
     FLUSHES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let started = std::time::Instant::now();
@@ -114,15 +114,16 @@ fn draw(
     // The handheld draws a race's 3D smaller (`handheld`): the noted things made to fit a small
     // frame, which takes the screen's picture so far and gives it back enlarged.
     #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-    let mut small =
-        (into.bits == 32 && crate::handheld::draws_small(racing) && !crate::render::gpu_running())
-            .then(|| {
-                scale_noted(noted);
-                // SAFETY: not kept: the screen's rows, checked by `slice`, nothing else writes them
-                // while the game's code waits here.
-                let screen = unsafe { into.bytes() };
-                crate::handheld::Small::from_screen(screen, into.pitch, into.width, into.height)
-            });
+    let mut small = (into.bits == 32
+        && crate::platform::handheld::draws_small(racing)
+        && !crate::render::gpu_running())
+    .then(|| {
+        scale_noted(noted);
+        // SAFETY: not kept: the screen's rows, checked by `slice`, nothing else writes them
+        // while the game's code waits here.
+        let screen = unsafe { into.bytes() };
+        crate::platform::handheld::Small::from_screen(screen, into.pitch, into.width, into.height)
+    });
     #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
     let mut small: Option<Small> = None;
     with_depth(screen.0, screen.1, |depth| {
@@ -166,7 +167,7 @@ fn draw(
             .map(|t| (t.pixels, super::noted_bytes(t)))
             .collect();
         let levels = &levels;
-        let draw_tile = move |tile: &mut crate::rasteriser::Tile| {
+        let draw_tile = move |tile: &mut crate::render::rasteriser::Tile| {
             let tile_started = std::time::Instant::now();
             let clip = *tile.clip();
             let mut written = 0u64;

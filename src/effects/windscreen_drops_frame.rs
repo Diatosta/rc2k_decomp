@@ -366,7 +366,7 @@ mod reference_vectors {
         at: crate::effects::asm_test::Operand,
         from: usize,
         len: usize,
-        bytes: &impl crate::session::ByteBuffer,
+        bytes: &impl crate::memory::session::ByteBuffer,
         f: impl FnOnce() -> R,
     ) -> R {
         let host = (at + from).at(0, len);

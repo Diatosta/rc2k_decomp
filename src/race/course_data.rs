@@ -26,7 +26,7 @@ pub fn set_cdat_number(course: &Course, number: u32) {
 /// order: the counts, the start place and the fields nothing reads.
 fn store_course_header(course: &Course, header: &[u32; HEADER_WORDS]) {
     let c = course.course.get();
-    let fields: [&[crate::session::PlainDword]; 18] = [
+    let fields: [&[crate::memory::session::PlainDword]; 18] = [
         std::slice::from_ref(&c.course_header),
         std::slice::from_ref(&c.course_record_count),
         std::slice::from_ref(&c.course_face_count),
@@ -151,7 +151,7 @@ pub fn load_level(race: &Race) -> Result<(), Refused> {
     let out = read_level_file::read_level_file(&course.level_paths().cdat_src.text(), &mut data)?;
     if out.carry {
         // The path named, for the reports.
-        crate::framework::log(&format!(
+        crate::logfile::program_log::log(&format!(
             "race::load_level: the course data \"{}\" could not be read",
             String::from_utf8_lossy(&course.level_paths().cdat_src.text())
         ));

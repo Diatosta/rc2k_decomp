@@ -164,7 +164,7 @@ fn put_image(physics: &Physics, image: &[u8]) {
 /// The six dword tables in the image's order.
 fn tables(
     pace: &crate::physics::pace_store::PaceNotes,
-) -> [&[crate::session::PlainDword; 1024]; 6] {
+) -> [&[crate::memory::session::PlainDword; 1024]; 6] {
     [
         &pace.note_starts,
         &pace.note_ends,

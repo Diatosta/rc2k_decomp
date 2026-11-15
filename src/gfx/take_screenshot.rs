@@ -33,7 +33,7 @@ impl rc2k_core::gfx::screenshot::Shooting for Shot<'_> {
         Ok(crate::platform::lock_surface(self.gfx, self.system) < 1)
     }
     fn write(&mut self) -> Result<(), Refused> {
-        if let Some(screen) = crate::platform_3d::screen(self.system.session.screen.get()) {
+        if let Some(screen) = crate::platform::direct3d::screen(self.system.session.screen.get()) {
             crate::render::bring_back(&screen);
         }
         crate::gfx::write_screen_pcx::write_screen_pcx(

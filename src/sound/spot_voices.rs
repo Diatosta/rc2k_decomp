@@ -4,7 +4,7 @@
 //!
 //! A voice's fields are named in `SpotVoice`.
 
-use crate::session::{Cell32, PlainDword, PlainFloat};
+use crate::memory::session::{Cell32, PlainDword, PlainFloat};
 
 pub const VOICE_COUNT: u32 = 0x48;
 pub const MOST_SPOTS: u32 = 36;

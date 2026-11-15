@@ -3,9 +3,9 @@
 //! flare, reflection, shadow, car detail and headlight settings.
 
 use crate::gfx::owner::Gfx;
+use crate::memory::session::PlainDword;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
-use crate::session::PlainDword;
 use rc2k_core::net::cars;
 
 /// The switches, in order (their bits: `rc2k_core::net::cars::HUD_SWITCH_BITS`).

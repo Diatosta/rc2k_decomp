@@ -9,7 +9,8 @@ use std::cmp::Ordering;
 
 /// The language's lower-case table. Until `strings::load_language` sets it up every character is
 /// itself, but A .. Z and 0xC0 .. 0xDE (not 0xD7) in lower case.
-pub static LOWER: crate::session::Bytes<256> = crate::session::Bytes::new(first_lower());
+pub static LOWER: crate::memory::session::Bytes<256> =
+    crate::memory::session::Bytes::new(first_lower());
 
 const fn first_lower() -> [u8; 256] {
     let mut table = [0u8; 256];

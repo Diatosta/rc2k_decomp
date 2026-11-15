@@ -1,9 +1,9 @@
 //! The ground probe's marks: the edge test's product (a qword) and the mark that tells the ground
 //! search how it was called. Plain cells: a drawing store (`session::DrawShared`), written on the
 //! game's thread between frames and read by the drawing parts (the shadow's search reads the mark)
-//! through their `workers::DrawReads`. Names are readings unless taken from the game's own.
+//! through their `scene::workers::DrawReads`. Names are readings unless taken from the game's own.
 
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct GroundProbe {
@@ -27,8 +27,8 @@ pub struct GroundProbe {
 /// The piece, with the image's first values.
 impl GroundProbe {
     pub const fn new() -> Self {
-        use crate::cells::ZeroCells;
-        use crate::session::PlainDword;
+        use crate::memory::cells::ZeroCells;
+        use crate::memory::session::PlainDword;
         Self {
             settle_mark: PlainDword::new(128),
             ..ZeroCells::ZERO

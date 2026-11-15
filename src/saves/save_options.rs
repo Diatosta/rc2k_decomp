@@ -18,7 +18,10 @@ pub fn file_len() -> usize {
 }
 
 /// True if the file was written.
-pub fn save_options(o: Owners<'static>, path: &dyn crate::cells::Store) -> Result<bool, Refused> {
+pub fn save_options(
+    o: Owners<'static>,
+    path: &dyn crate::memory::cells::Store,
+) -> Result<bool, Refused> {
     let file = &o.system.work().files.buffer;
     let owned = capture(o)?.to_pieces();
     let pieces: Vec<&[u8]> = owned.iter().map(std::vec::Vec::as_slice).collect();

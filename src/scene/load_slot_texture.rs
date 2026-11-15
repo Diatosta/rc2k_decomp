@@ -43,5 +43,10 @@ pub fn load_slot_texture_in_game(
     slot: u32,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), BadInput> {
-    load_slot_texture(frame, slot, &mut crate::platform_3d::load_texture, scene)
+    load_slot_texture(
+        frame,
+        slot,
+        &mut crate::platform::direct3d::load_texture,
+        scene,
+    )
 }

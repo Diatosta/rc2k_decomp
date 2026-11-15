@@ -12,10 +12,10 @@
 //! +0x124, so that the saved copy carries them.
 //! Refuses, before anything is written: a missing player or a car without that pointer.
 
-use crate::cells::Store;
 use crate::errors::BadInput;
+use crate::memory::cells::Store;
+use crate::memory::session::DwordLike;
 use crate::menu::owner::{Menus, Play};
-use crate::session::DwordLike;
 
 /// The seven variables at the start, in the order they are saved.
 pub fn head(menus: &Menus) -> [&dyn DwordLike; 7] {
@@ -36,7 +36,7 @@ pub use rc2k_core::saves::savegame::{CAR_LEN, CARS, RECORDS_LEN};
 /// The four players, if every one has its pointer at +0x18.
 pub fn cars(
     play: &Play,
-) -> Result<&[crate::session::Shared<crate::menu::player::Player>; CARS], BadInput> {
+) -> Result<&[crate::memory::session::Shared<crate::menu::player::Player>; CARS], BadInput> {
     if play
         .slots
         .records
@@ -98,7 +98,7 @@ mod tests {
             .slots
             .records
             .each_ref()
-            .map(crate::session::Shared::get);
+            .map(crate::memory::session::Shared::get);
         let original_names = std::array::from_fn::<_, 4, _>(|i| {
             crate::menu::player_names::name_bytes(crate::test_support::own::menus(), i)
         });
@@ -161,7 +161,7 @@ mod tests {
             .slots
             .records
             .each_ref()
-            .map(crate::session::Shared::get);
+            .map(crate::memory::session::Shared::get);
         let names_before: [_; 4] =
             std::array::from_fn(|i| crate::menu::player_names::name_bytes(menus, i));
         let records_before =

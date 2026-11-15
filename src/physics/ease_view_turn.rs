@@ -11,9 +11,9 @@ use crate::drive::replay_frames_store::ReplayFrames;
 use crate::effects::cell_x87::CellX87;
 use crate::math::x87_float::int;
 use crate::math::x87_float::to_int;
+use crate::memory::session::Cell32;
 use crate::physics::camera_store::CameraWork;
 use crate::physics::car_store::Car;
-use crate::session::Cell32;
 
 /// The exact version, for `physics::camera_avoid_ground`.
 pub fn ease_view_turn(

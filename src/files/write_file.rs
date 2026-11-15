@@ -19,7 +19,7 @@ pub fn write_file_from(path: &[u8], data: &[u8]) -> Result<WriteResult, BadInput
 /// `write_file` from the first `count` bytes of a store's field.
 pub fn write_file_from_store(
     path: &[u8],
-    from: &dyn crate::cells::Store,
+    from: &dyn crate::memory::cells::Store,
     count: u32,
 ) -> Result<WriteResult, BadInput> {
     let mut data = vec![0u8; count as usize];

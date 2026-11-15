@@ -4,9 +4,9 @@
 //! state, and the flat quads' corners, colours and vertices. `#[repr(C)]`, laid over the race
 //! block bytes.
 
-use crate::cells::ZeroCells;
+use crate::memory::cells::ZeroCells;
 
-use crate::session::{PlainDword, PlainFloat};
+use crate::memory::session::{PlainDword, PlainFloat};
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct RaceVars {
@@ -90,7 +90,7 @@ pub struct RaceVars {
     /// +0x2ec: the cars' start numbers (`net::set_up_race`).
     pub start_numbers: [PlainDword; 8],
     /// +0x30c: the mud file's path, "files\b\mudfile.0xx" (`race::mud`; the digits at +0x11).
-    pub mud_path: crate::session::PlainBytes<20>,
+    pub mud_path: crate::memory::session::PlainBytes<20>,
     /// +0x320: unused; it only keeps the layout.
     pub unused_320: PlainDword,
     /// +0x324: [0] turned into [1] (`race::mud_texture_turn`).
@@ -250,7 +250,7 @@ impl RaceVars {
                 PlainDword::new(1),
                 PlainDword::new(1),
             ],
-            mud_path: crate::session::PlainBytes::new([
+            mud_path: crate::memory::session::PlainBytes::new([
                 0x66, 0x69, 0x6C, 0x65, 0x73, 0x5C, 0x62, 0x5C, 0x6D, 0x75, 0x64, 0x66, 0x69, 0x6C,
                 0x65, 0x2E, 0x30, 0x78, 0x78, 0,
             ]),

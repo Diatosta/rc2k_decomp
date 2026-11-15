@@ -41,7 +41,11 @@ const NATIONALITIES: u32 = 40;
 const VIEWS: u32 = 7;
 const SECOND_VIEWS: u32 = 6;
 
-fn string(table: &[crate::session::PlainDword], index: u32, count: u32) -> Result<u32, Refused> {
+fn string(
+    table: &[crate::memory::session::PlainDword],
+    index: u32,
+    count: u32,
+) -> Result<u32, Refused> {
     if index >= count {
         return Err(BadInput("an index past its string table").into());
     }

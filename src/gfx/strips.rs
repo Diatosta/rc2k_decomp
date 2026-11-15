@@ -1,7 +1,7 @@
 //! The HUD's view strips' places (sizes, tops, lefts), used by `hud::draw_view_strip` only.
 
 use crate::gfx::plain_dwords;
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 
 /// The view strips' places.
 #[derive(rc2k_derive::Cells)]

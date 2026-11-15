@@ -16,8 +16,8 @@
 use crate::install::installer::refuse;
 use crate::install::installer::{rb, rw, wb};
 use crate::install::page_links::{ListId, PageLink};
-use crate::place::BytePlace;
-use crate::session::{PlainByte, PlainDword, PlainWord};
+use crate::memory::place::BytePlace;
+use crate::memory::session::{PlainByte, PlainDword, PlainWord};
 
 /// The header's bytes.
 const HEADER: u32 = 0x18;

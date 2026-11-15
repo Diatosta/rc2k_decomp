@@ -46,7 +46,7 @@ pub fn place_sound_object(
         contact
             .object_point_offset
             .each_ref()
-            .map(super::super::session::PlainDword::bits),
+            .map(crate::memory::session::PlainDword::bits),
     );
     cue_plain(c, object(c), FIRST, sound, b, offset)?;
     Ok(())

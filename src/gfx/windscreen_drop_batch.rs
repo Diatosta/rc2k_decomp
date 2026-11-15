@@ -3,7 +3,7 @@
 //! `effects::windscreen_drops_top` / `windscreen_drops_frame` fill the records and ask
 //! `d3d::draw_marks_windscreen_drops` to draw.
 
-use crate::session::{PlainBytes, PlainDword};
+use crate::memory::session::{PlainBytes, PlainDword};
 
 /// The fans' room: 0x40 fans of 4 triangles of 3 indices (words).
 pub const FANS_LEN: usize = 0x1800;

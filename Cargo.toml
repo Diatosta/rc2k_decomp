@@ -47,7 +47,7 @@ smallvec = { version = "1", features = ["const_generics"] }
 dear-imgui-rs = { version = "0.21", default-features = false }
 dear-imgui-sys = { version = "0.21", default-features = false, features = ["build-from-source"] }
 
-# The system's own facts on Unix (`src/os/unix.rs`): free space, memory, the stack, `_exit`.
+# The system's own facts on Unix (`src/platform/os/unix.rs`): free space, memory, the stack, `_exit`.
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
 
@@ -71,7 +71,7 @@ sdl3-sys = { version = "0.7", features = ["build-from-source-static", "sdl-unix-
 [target.'cfg(target_os = "emscripten")'.dependencies]
 sdl3-sys = { version = "0.7", features = ["no-link"] }
 
-# Windows' own (`src/os/windows.rs`, the fault handler, the profiler, the shortcuts).
+# Windows' own (`src/platform/os/windows.rs`, the fault handler, the profiler, the shortcuts).
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_System_LibraryLoader", "Win32_System_SystemServices", "Win32_UI_Input_KeyboardAndMouse", "Win32_System_Console", "Win32_System_Threading", "Win32_System_Diagnostics_Debug", "Win32_Storage", "Win32_Storage_FileSystem", "Win32_Security", "Win32_System_IO", "Win32_System_SystemInformation", "Win32_Globalization", "Win32_System_Environment", "Win32_UI_WindowsAndMessaging", "Win32_System_Registry", "Win32_System_WindowsProgramming", "Win32_System_Memory", "Win32_System_Kernel", "Win32_System_Com", "Win32_UI_Shell"] }
 

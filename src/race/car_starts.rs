@@ -5,6 +5,8 @@
 //! Uses `physics::set_handling` and `physics::probe_ground`.
 
 use crate::errors::{BadInput, Refused};
+use crate::memory::session::DwordLike;
+use crate::memory::session::PlainDword;
 use crate::physics::contact_store::ContactWork;
 use crate::physics::step_families::{GroundInputs, ResetInputs};
 use crate::race::best_line::MOST_CHECKS;
@@ -12,8 +14,6 @@ use crate::race::matrices_store::SceneMatrices;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::owner_shared::RaceShared;
-use crate::session::DwordLike;
-use crate::session::PlainDword;
 
 /// The most cars `car_blocks` has.
 pub const MOST_CARS: u32 = 8;
@@ -29,7 +29,7 @@ fn zero(cells: &[&PlainDword]) {
 }
 
 fn wheels(contact: &ContactWork) -> [u32; 4] {
-    crate::session::read_first(&contact.probe_height)
+    crate::memory::session::read_first(&contact.probe_height)
 }
 
 /// One bisection step of `settle_car`: `angle` moved by `step` towards the higher pair (down when

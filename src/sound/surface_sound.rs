@@ -13,7 +13,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::from_int;
 use crate::math::x87_float::{ld, st};
-use crate::session::Cell32;
+use crate::memory::session::Cell32;
 use crate::sound::sample_settings::{OWN, record, sample_settings};
 use crate::sound::sets_store::{ListIn, SoundRequest};
 use rc2k_core::sound::surfaces;

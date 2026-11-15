@@ -19,9 +19,9 @@ use crate::effects::{emit_exhaust_smoke, emit_twin_particle_first, emit_twin_par
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_float as bh;
+use crate::memory::session::{read_bits, write_bits};
 use crate::race::effects_settings_store::car_handle;
 use crate::scene::adjugate_matrix::adjugate_matrix;
-use crate::session::{read_bits, write_bits};
 
 const MOST_CARS: u32 = 8;
 // The looks by the car's model are `SplineHead.looks` (33 pairs of dwords, 8 bytes

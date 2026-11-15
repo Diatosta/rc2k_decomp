@@ -37,7 +37,7 @@ pub struct GameSurfaces<'a>(pub &'a Gfx);
 impl Surfaces for GameSurfaces<'_> {
     fn lock(&mut self, surface: u32) -> Result<(u32, u32), i32> {
         let card = &self.0.card;
-        match crate::platform_3d::lock_surface(surface, &card.upload.description) {
+        match crate::platform::direct3d::lock_surface(surface, &card.upload.description) {
             0 => Ok((
                 card.upload.description.pixels.get(),
                 card.upload.description.pitch.get(),
@@ -47,7 +47,7 @@ impl Surfaces for GameSurfaces<'_> {
     }
 
     fn unlock(&mut self, surface: u32) -> Result<(), i32> {
-        match crate::platform_3d::unlock_surface(surface) {
+        match crate::platform::direct3d::unlock_surface(surface) {
             0 => Ok(()),
             e => Err(e),
         }

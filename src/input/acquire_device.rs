@@ -13,7 +13,7 @@ use crate::input::di_harness::{entry_of, fatal};
 use crate::input::owner::Input;
 use crate::input::store::Devices;
 use crate::input::types::{DiPropDword as W, DiPropHeader, DiPropRange as R, InputDevice as D};
-use crate::session::Dword;
+use crate::memory::session::Dword;
 use crate::system::owner::System;
 use rc2k_core::input::acquire::{
     Acquire, HAS_DEVICE, acquire, axis_offset, dead_zone_value, saturation, two_axes,

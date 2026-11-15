@@ -7,10 +7,10 @@ use crate::effects::mask_vars::Shape;
 use crate::effects::spans::{span_quad, spans_fit, triangle_rows};
 use crate::errors::{BadInput, Refused};
 use crate::math::x87_float as bh;
-use crate::session::PlainBytes;
+use crate::memory::session::PlainBytes;
 
 use crate::math::x87;
-use crate::session::{read_bits, write_bits};
+use crate::memory::session::{read_bits, write_bits};
 
 /// The ring's floats are `MASKS.ring_*` (from the two angles' ends to the step).
 pub const MOST_QUADS: u32 = 0x80;

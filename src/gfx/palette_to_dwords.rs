@@ -2,8 +2,8 @@
 //! 16, its second shifted up 8, and its third; the top byte is 0. Entry 255 is done first. A
 //! palette or dwords field too short is refused.
 
-use crate::cells::Store;
 use crate::errors::BadInput;
+use crate::memory::cells::Store;
 
 pub const ENTRIES: usize = 256;
 

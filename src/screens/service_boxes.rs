@@ -2,8 +2,8 @@
 //! see-through quads (`scene::draw_tinted_quad`), and the outlines and frames built from them.
 
 use crate::errors::Refused;
+use crate::memory::session::DwordLike;
 use crate::owners::Owners;
-use crate::session::DwordLike;
 
 /// One quad: x .. x + w, y .. y + h, the colour and see-through, then `draw_tinted_quad`.
 pub fn quad(
@@ -28,7 +28,7 @@ pub fn quad(
         o.input,
         scratch,
         o.scene.scratch.game_scratch(),
-        crate::workers::DrawReads::on_game_thread(crate::workers::LentOwners::of(o)),
+        crate::scene::workers::DrawReads::on_game_thread(crate::scene::workers::LentOwners::of(o)),
     ))
 }
 

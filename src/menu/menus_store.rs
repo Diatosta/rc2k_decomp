@@ -12,8 +12,8 @@
 //! handle in `MenuTables`.
 
 use crate::gfx::typefaces::{FontCell, FontId, fonts};
+use crate::memory::session::PlainDword;
 use crate::menu::item_sprites_store::SpriteCell;
-use crate::session::PlainDword;
 use rc2k_core::menu::tables::{MENUS, MenuFont, MenuItem as Fixed};
 
 /// A label: x, y, the font, the string id.

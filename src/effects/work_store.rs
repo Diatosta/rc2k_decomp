@@ -2,7 +2,7 @@
 //! pixel shake, the edge scratch, the marks' random seed, the sound pair, the cosine search's
 //! constants.
 
-use crate::session::{PlainDword, PlainFloat};
+use crate::memory::session::{PlainDword, PlainFloat};
 
 #[derive(rc2k_derive::Cells)]
 pub struct MarksWork {

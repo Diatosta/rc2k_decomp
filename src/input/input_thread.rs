@@ -7,7 +7,7 @@
 //! released, "INPUTTDB:QUIT" logged, the priority back, the flag 0.
 //!
 //! Started by `threading::start_threads`. DirectInput is Rust's here (`input::di_objects`, on
-//! SDL's joysticks, `platform_input.rs`); the keyboard and the mouse are SDL's events (they fill
+//! SDL's joysticks, `platform::input`); the keyboard and the mouse are SDL's events (they fill
 //! the key table), so nothing is made, read or released for them. Refuses what its steps refuse.
 
 use crate::errors::Refused;

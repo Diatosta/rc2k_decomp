@@ -7,7 +7,7 @@
 //! are set sees none: a face of the kinds that read the menus' 999 in entries 6, 7 and 9 is kept
 //! if its byte is 0 (a face's byte cannot be 999).
 
-use crate::session::Dword;
+use crate::memory::session::Dword;
 
 /// The marks a car's faces can pick.
 pub const MARKS: usize = 0x40;

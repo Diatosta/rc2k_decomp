@@ -29,7 +29,7 @@
 //! is in `KEYS` twice (0x1D, then 0x14 never reached; a slip kept as is).
 
 use crate::errors::Refused;
-use crate::list_handle::ListMenu;
+use crate::memory::list_handle::ListMenu;
 use crate::owners::Owners;
 use crate::race::owner::Race;
 use crate::race::viewer::LAST_RACE;

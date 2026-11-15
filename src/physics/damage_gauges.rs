@@ -10,12 +10,12 @@
 //! Caller: `physics::damage_step`.
 
 use crate::errors::BadInput;
+use crate::memory::session::PlainFloat;
 use crate::physics::car_store::Car;
 use crate::physics::damage_model::{store, value};
 use crate::physics::flow::{below_or_unordered, c0};
 use crate::physics::store::DamageModel;
 use crate::race::work_store::RaceWork;
-use crate::session::PlainFloat;
 
 /// `Car.gear_wear[1][gear]` (the gear is -1 .. 7; `gear_wear` is indexed by gear + 1).
 fn gear_gauge(car: &Car, gear: i32) -> &PlainFloat {

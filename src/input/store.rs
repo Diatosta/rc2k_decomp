@@ -19,11 +19,11 @@
 //! Threads: the input thread polls and the game's thread reads (atomic cells and volatile
 //! bytes).
 
-use crate::cells::ZeroCells;
 use crate::errors::BadInput;
 use crate::input::guids::EffectGuid;
 use crate::input::types::{Controller, ForceEffect, InputDevice};
-use crate::session::{Byte, Bytes, Dword, Float, PlainBytes, PlainDword};
+use crate::memory::cells::ZeroCells;
+use crate::memory::session::{Byte, Bytes, Dword, Float, PlainBytes, PlainDword};
 
 // ---- the devices ----
 
@@ -288,8 +288,8 @@ pub struct Keyboard {
 
 impl Keyboard {
     pub const fn new() -> Self {
-        use crate::cells::ZeroCells;
-        use crate::session::{PlainBytes, PlainDword, with_runs};
+        use crate::memory::cells::ZeroCells;
+        use crate::memory::session::{PlainBytes, PlainDword, with_runs};
         Self {
 _built_in_layout: {
 let mut v: [PlainDword; 5] = ZeroCells::ZERO;

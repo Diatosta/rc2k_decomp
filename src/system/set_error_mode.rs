@@ -1,14 +1,14 @@
 //! `SetErrorMode(SEM_FAILCRITICALERRORS)` (no "insert a disc" boxes from Windows), the mode
 //! before it kept in `mode`, and `changed` 1. Called by `start`.
 
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 use crate::system::owner::System;
 
 /// SEM_FAILCRITICALERRORS.
 const FAIL_CRITICAL_ERRORS: u32 = 1;
 
 pub fn set_error_mode(system: &System) {
-    let was = crate::os::set_error_mode(FAIL_CRITICAL_ERRORS);
+    let was = crate::platform::os::set_error_mode(FAIL_CRITICAL_ERRORS);
     system.start().error_mode.mode.set(was);
     system.start().error_mode.changed.set(1);
 }

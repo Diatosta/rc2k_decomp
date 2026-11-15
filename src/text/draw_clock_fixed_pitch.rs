@@ -6,7 +6,7 @@ use crate::errors::Refused;
 use crate::text::draw_text::Canvas;
 use crate::text::draw_text_keep_regs::draw_text_keep_regs;
 use crate::text::font::Font;
-use rc2k_core::text::{CLOCK_STEPS, columns};
+use rc2k_core::strings::text::{CLOCK_STEPS, columns};
 
 /// Returns (carry, zero) of the last addition, which callers read.
 pub fn draw_clock_fixed_pitch(

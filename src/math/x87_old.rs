@@ -29,9 +29,9 @@ impl Flt for f32 {
     }
 }
 
-impl<C: crate::session::Cell32 + ?Sized> Flt for C {
+impl<C: crate::memory::session::Cell32 + ?Sized> Flt for C {
     fn bits(&self) -> u32 {
-        crate::session::Cell32::bits(self)
+        crate::memory::session::Cell32::bits(self)
     }
 }
 
@@ -98,7 +98,7 @@ pub fn int_ratio(a: i32, b: i32) -> u32 {
 /// `rcpss` of `a` times `b`: `rcpss` is an SSE approximation taken from the tables of
 /// `arch::rcpss`, as the processors' own results differ.
 pub fn rcpss_times(a: u32, b: u32) -> u32 {
-    (crate::arch::rcpss(f32::from_bits(a)) * f32::from_bits(b)).to_bits()
+    (crate::platform::arch::rcpss(f32::from_bits(a)) * f32::from_bits(b)).to_bits()
 }
 
 /// A whole number over sixteen (one doubled four times).

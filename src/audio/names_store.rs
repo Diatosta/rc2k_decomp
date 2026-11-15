@@ -1,7 +1,7 @@
 //! The sound samples' file names: the text pool the sample records' keys point into and the
 //! speech lists `sound::load_race_sounds` names.
 
-use crate::session::{Bytes, with_runs};
+use crate::memory::session::{Bytes, with_runs};
 
 /// The effects', engine, surface and ambience samples' names.
 const EFFECTS_LEN: usize = 3502;

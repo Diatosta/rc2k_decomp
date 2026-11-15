@@ -5,13 +5,13 @@
 //! players' names and much else) are the old file's layout, kept as the frozen reference the
 //! model is read through.
 
-use crate::cells::Store;
 use crate::errors::{BadInput, Refused};
+use crate::memory::cells::Store;
+use crate::memory::session::{DwordLike, Run, Shared};
 use crate::menu::player::Player;
 use crate::owners::Owners;
 use crate::records::stages_store::{RECORD_LEN, Record};
 use crate::saves::best_times_store::TimeEntry;
-use crate::session::{DwordLike, Run, Shared};
 use rc2k_core::options::Options;
 
 /// The options as the game's stores hold them now.

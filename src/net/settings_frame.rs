@@ -22,7 +22,7 @@ pub fn settings_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> 
     let mut y = 0x92;
     /// A setting's value: a text kept in the network's state, or a number.
     enum Value {
-        Text(crate::place::BytePlace),
+        Text(crate::memory::place::BytePlace),
         Number(u32),
     }
     for (item, (label, value)) in [

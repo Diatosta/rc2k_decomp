@@ -2,4 +2,4 @@
 //! amount to subtract from x).
 
 /// The kerning row table: for each of 64 rows, trailing blank pixels and gap.
-pub type State = rc2k_core::text::Kerning;
+pub type State = rc2k_core::strings::text::Kerning;

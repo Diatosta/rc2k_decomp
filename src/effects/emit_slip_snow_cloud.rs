@@ -10,8 +10,8 @@
 use crate::effects::emit_slip_spray::{JitterSet, emit_slip_spray_with};
 use crate::effects::owner::Effects;
 use crate::errors::Refused;
+use crate::memory::session::{PlainDword, PlainFloat};
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
-use crate::session::{PlainDword, PlainFloat};
 
 /// Kind 0xB's variables.
 pub fn eleventh(effects: &Effects) -> JitterSet<'_> {

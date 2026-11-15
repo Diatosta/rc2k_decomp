@@ -2,7 +2,7 @@
 //! in two lists (`saves::rebuild_car_lists` makes the car pointers of `menu::lists_store` from
 //! them) and the two scratch tables `menu::shuffle_drivers` works in. One static.
 
-use crate::session::{PlainBytes, PlainDword, with_runs};
+use crate::memory::session::{PlainBytes, PlainDword, with_runs};
 
 /// The lists of car numbers.
 #[derive(rc2k_derive::Cells)]

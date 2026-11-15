@@ -4,12 +4,12 @@
 //! switches, steering) with the HUD bits -1. Stage 0 becomes 0x29 with direction 0.
 
 use crate::errors::Refused;
+use crate::memory::session::DwordLike;
 use crate::menu::options_store::OptionsSnapshot;
 use crate::menu::player::Player;
 use crate::menu::players_store::PlayerSlots;
 use crate::net::owner::Net;
 use crate::race::owner::Race;
-use crate::session::DwordLike;
 use rc2k_core::net::record;
 
 /// A setting copied: (to, from player 1's record).

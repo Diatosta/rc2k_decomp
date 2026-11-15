@@ -5,12 +5,12 @@
 //! `savedata\replay\replayNN` into them.
 
 use crate::errors::BadInput;
+use crate::memory::place::BytePlace;
+use crate::memory::session::PlainDword;
 use crate::menu::owner::Menus;
-use crate::place::BytePlace;
 use crate::race::owner::Race;
 use crate::saves::owner::Saves;
 use crate::service::state::menu_item;
-use crate::session::PlainDword;
 
 pub const NAME_LEN: usize = 0x20;
 const NAMES: u32 = 100;
@@ -21,7 +21,7 @@ const REPLAYS_PER_PAGE: u32 = 20;
 
 fn highlighted(
     menus: &Menus,
-    names: &'static dyn crate::place::Run,
+    names: &'static dyn crate::memory::place::Run,
     page: &PlainDword,
     per_page: u32,
 ) -> Result<BytePlace, BadInput> {

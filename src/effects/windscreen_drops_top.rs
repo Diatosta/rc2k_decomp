@@ -21,11 +21,11 @@ use crate::effects::setup::MarksClock;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::Refused;
 use crate::math::x87;
+use crate::memory::session::PlainFloat;
 use crate::race::effects_settings_store::EffectsSettings;
 use crate::race::owner_frame::Frame;
 use crate::scene::cross_product3::cross;
 use crate::scene::vector3::normalise;
-use crate::session::PlainFloat;
 
 const POINTS: u32 = 0x30;
 
@@ -89,7 +89,7 @@ pub fn windscreen_drops_top(
         .work
         .shares
         .each_ref()
-        .map(super::super::session::PlainFloat::get);
+        .map(crate::memory::session::PlainFloat::get);
     for n in 0..POINTS as usize {
         let (p, o) = (3 * n, 3 * n);
         drops.work.scaled[o].set(x87::mul(&drops.work.points[p], kx));
@@ -245,7 +245,7 @@ mod reference_vectors {
     use crate::effects::asm_test::{Op, Spec, recorded_writes};
     use crate::effects::typed_sync::{overlay_laid, with_overlays};
 
-    use crate::session::PlainFloat;
+    use crate::memory::session::PlainFloat;
 
     #[test]
     fn frame_axes_x87_matches() {

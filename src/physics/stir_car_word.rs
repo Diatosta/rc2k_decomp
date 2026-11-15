@@ -4,9 +4,9 @@
 //!
 //! Caller: `physics::car_physics_step`, first: every physics step.
 
+use crate::memory::session::PlainDword;
 use crate::physics::car_store::Car;
 use crate::scene::next_noise::noise_step;
-use crate::session::PlainDword;
 
 /// On the word at `at`: the new word.
 pub fn stir_word_at(at: &PlainDword) -> u32 {

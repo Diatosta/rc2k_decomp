@@ -11,7 +11,7 @@ use crate::math::x87;
 /// `colour` is the vertices' colour, `size` the half side.
 pub fn draw_particle(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
-    view_matrix: &[crate::session::PlainFloat; 16],
+    view_matrix: &[crate::memory::session::PlainFloat; 16],
     place: [[u8; 10]; 3],
     colour: u32,
     size: u32,

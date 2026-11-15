@@ -55,9 +55,9 @@ pub fn describe_wave_format(state: &AudioOwn, format: u32, frequency: u32) -> Re
 }
 
 /// The wave format as the platform's format (what `CreateSoundBuffer` and `SetFormat` read of it).
-pub fn platform_format(state: &AudioOwn) -> crate::platform_sound::Format {
+pub fn platform_format(state: &AudioOwn) -> crate::platform::sound::Format {
     let w = state.wave_format.get();
-    crate::platform_sound::Format {
+    crate::platform::sound::Format {
         channels: w.channels as u32,
         bits: w.bits as u32,
         rate: w.samples_per_second,

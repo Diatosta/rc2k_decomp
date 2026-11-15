@@ -15,7 +15,7 @@ use crate::strings::owner::Strings;
 /// wrapped over the plate's three rows).
 pub fn draw_name_plate(
     slot: u32,
-    text: impl Into<crate::place::BytePlace>,
+    text: impl Into<crate::memory::place::BytePlace>,
     gfx: &'static Gfx,
 ) -> Result<(), Refused> {
     let fonts = &gfx.fonts;
@@ -196,7 +196,7 @@ pub fn update_name_plates(
 /// returns whether it was too wide.
 pub fn draw_text_in_game(
     font: &crate::gfx::typefaces::FontObject,
-    text: impl Into<crate::place::BytePlace>,
+    text: impl Into<crate::memory::place::BytePlace>,
     x: u32,
     y: u32,
     gfx: &'static crate::gfx::owner::Gfx,

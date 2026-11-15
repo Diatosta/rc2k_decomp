@@ -3,16 +3,16 @@
 //! `WindscreenDrops.records`, their number in `WindscreenDrops.vertex_count`, the indices (16
 //! bits) in the drops' fan table, their number in `WindscreenDrops.index_count`. Callers:
 //! `effects::windscreen_drops_top`, `effects::windscreen_drops_frame`. The rasteriser draws
-//! each triangle (`platform_3d::draw_triangles`); the result is 0.
+//! each triangle (`platform::direct3d::draw_triangles`); the result is 0.
 
 /// The windscreen drops drawn: Direct3D's result, always 0 here.
 pub fn draw_marks_windscreen_drops(
-    part: &crate::workers::PartScratch,
+    part: &crate::scene::workers::PartScratch,
     gfx: &crate::gfx::owner::Gfx,
 ) -> u32 {
     let card = &gfx.card;
     use crate::gfx::windscreen_drop_batch::{FANS_LEN, RECORDS_LEN};
-    crate::platform_3d::draw_indexed_bytes(
+    crate::platform::direct3d::draw_indexed_bytes(
         part,
         &card.windscreen_drop_batch.records,
         RECORDS_LEN,

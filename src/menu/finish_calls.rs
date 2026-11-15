@@ -1,11 +1,11 @@
 use crate::errors::{BadInput, Refused};
+use crate::memory::session::DwordLike;
 use crate::menu::champ_store::ChampView;
 use crate::menu::event_flow::Fault;
 use crate::menu::event_store::EventState;
 use crate::menu::owner::Menus;
 use crate::owners::Owners;
 use crate::race::owner::Race;
-use crate::session::DwordLike;
 use rc2k_core::menu::finish::{self, Racer, Step, Var};
 
 /// The game for `rc2k_core::menu::finish`: the variables, the finders and the steps. `racer` is

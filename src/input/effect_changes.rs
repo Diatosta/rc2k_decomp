@@ -38,7 +38,7 @@ pub fn effect_change(
         |n| {
             devices.effect_rows[n as usize]
                 .each_ref()
-                .map(crate::session::Dword::get)
+                .map(crate::memory::session::Dword::get)
         },
     )
     .map_err(BadInput::from)?;

@@ -1,6 +1,6 @@
 //! The masks' variables.
 
-use crate::session::{PlainBytes, PlainDword, PlainFloat, PlainWord};
+use crate::memory::session::{PlainBytes, PlainDword, PlainFloat, PlainWord};
 
 /// One of the masks' shapes (0x24 bytes).
 #[derive(rc2k_derive::Cells)]

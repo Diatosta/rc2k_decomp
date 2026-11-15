@@ -7,13 +7,13 @@
 const STATES: u32 = 0x40;
 
 /// Render state `state` set to `value` in drawing part `part`'s cache.
-pub fn set_render_state(part: &crate::workers::PartScratch, value: u32, state: u32) {
+pub fn set_render_state(part: &crate::scene::workers::PartScratch, value: u32, state: u32) {
     if state < STATES {
         // Noted for the drawing threads' runs whether or not it changes (`run_states`).
         crate::d3d::run_states::note_set(part, state as usize);
         if crate::d3d::render_cache::kept(part, state as usize) != value {
             crate::d3d::render_cache::set_kept(part, state as usize, value);
-            crate::platform_3d::forget_states(part);
+            crate::platform::direct3d::forget_states(part);
         }
     }
 }

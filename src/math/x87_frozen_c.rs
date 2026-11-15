@@ -417,7 +417,7 @@ mod tests {
                 )
             },
             |&(v, flat)| {
-                let scratch = crate::session::Dword::new(0xAAAA_AAAA);
+                let scratch = crate::memory::session::Dword::new(0xAAAA_AAAA);
                 let point = [v[0] as i32, v[1] as i32, v[2] as i32, v[3] as i32];
                 let (place, hit) = x87::sun_on_screen(point, v[4], [v[5], v[6]], flat, &scratch);
                 let o = [

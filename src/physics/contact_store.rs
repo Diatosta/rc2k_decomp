@@ -6,7 +6,7 @@
 //! (`DrawBatches.scene_vertices`, 0x4000 bytes). Names are readings unless taken from the game's
 //! own.
 
-use crate::session::{PlainDword, PlainFloat};
+use crate::memory::session::{PlainDword, PlainFloat};
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ContactWork {
@@ -262,8 +262,8 @@ pub struct ContactWork {
 /// The piece, with the image's first values.
 impl ContactWork {
     pub const fn new() -> Self {
-        use crate::cells::ZeroCells;
-        use crate::session::{PlainDword, PlainFloat};
+        use crate::memory::cells::ZeroCells;
+        use crate::memory::session::{PlainDword, PlainFloat};
         Self {
             contact_share_numerator: PlainFloat::new(1.1),
             contact_normal_factor: PlainFloat::new(0.1),

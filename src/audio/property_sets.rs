@@ -5,7 +5,7 @@
 
 use crate::audio::own::AudioOwn;
 use crate::errors::{BadInput, Refused};
-use crate::session::{Dword, PlainDword};
+use crate::memory::session::{Dword, PlainDword};
 
 /// What a property set the platform made would need (it makes none).
 const NO_SETS: &str = "a DirectSound property set (the platform offers none)";
@@ -76,7 +76,7 @@ pub fn open_property_set(state: &AudioOwn, o: &Opening, holder: Holder) -> Resul
     if buffer == 0 {
         return Ok(false);
     }
-    match crate::platform_sound::query_interface(buffer, state.iid_property_set.get_u32(0)) {
+    match crate::platform::sound::query_interface(buffer, state.iid_property_set.get_u32(0)) {
         Err(_) => {
             o.object.set(0);
             Ok(false)

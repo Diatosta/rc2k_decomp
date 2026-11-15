@@ -198,7 +198,7 @@ fn same(a: f32, b: f32) {
 /// The typed operands: a float, a cell and bits give the same bits.
 #[test]
 fn operands_as_bits_floats_and_cells_agree() {
-    use crate::session::Float;
+    use crate::memory::session::Float;
     each(12, |r| {
         let (a, b, c, d) = (r.float(), r.float(), r.float(), r.float());
         let (fa, fb, fc, fd) = (

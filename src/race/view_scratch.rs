@@ -4,16 +4,16 @@
 //! values between the menus' draws), passed down the drawing in a `DrawCtx`. Never read by
 //! another step.
 //!
-//! The slots are held by `workers::DrawingScratch`. The race's four (views 0 and 1, mirrors 0
-//! and 1) are `PartCell`s: the parts of a drawing scope get theirs from `workers::draw_parts`
-//! (`workers::PartRun::view`), the main thread reaches them by `main_view`, `mirror` and `slot`
+//! The slots are held by `scene::workers::DrawingScratch`. The race's four (views 0 and 1, mirrors 0
+//! and 1) are `PartCell`s: the parts of a drawing scope get theirs from `scene::workers::draw_parts`
+//! (`scene::workers::PartRun::view`), the main thread reaches them by `main_view`, `mirror` and `slot`
 //! outside the parts. The front end's slot belongs to the main thread alone (`front_end`).
 //!
 //! Every cell in a `ViewScratch` is a plain one (the sort lists, the view's car, the matrices
 //! the effects and the listener read included): the scratch is reached by one thread at a time
 //! and handed from one to the next, so it is `Send` (asserted below) and not `Sync`. What
 //! stays atomic beside it is `DrawingScratch`'s last-drawn-view slot and the mutex of a part's
-//! noted drawing (`workers::PartScratch::noted`).
+//! noted drawing (`scene::workers::PartScratch::noted`).
 //!
 //! Holds the two sort lists the view's drawing fills, sorts and draws and their counts, the
 //! view's fog (`scene::fog`), its object's placing (`scene::object_place`) and its object lighting
@@ -22,7 +22,7 @@
 //! (`scene::polygon_work`).
 
 use crate::errors::BadInput;
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 
 /// The most entries in either list.
 pub const ENTRIES: usize = 0x1000;
@@ -92,7 +92,7 @@ impl SortLists {
 /// lists (`copy_drawing_from`, `merge_drawing`).
 macro_rules! for_each_part {
     ($f:ident, $to:expr, $from:expr $(, $start:expr)?) => {{
-        use crate::cells::Cells;
+        use crate::memory::cells::Cells;
         let (to, from) = ($to, $from);
         to.fog.$f(&from.fog $(, &$start.fog)?);
         to.object.$f(&from.object $(, &$start.object)?);
@@ -182,9 +182,9 @@ impl ViewScratch {
 
     /// The shared view variables (`reads.view_and_records`) into the view's (`vars`), as its
     /// drawing begins.
-    pub fn take_vars(&self, reads: crate::workers::DrawReads<'_>) {
+    pub fn take_vars(&self, reads: crate::scene::workers::DrawReads<'_>) {
         let shared = &reads.view_and_records.view_vars;
-        use crate::cells::Cells;
+        use crate::memory::cells::Cells;
         self.vars.copy_from(shared);
         self.vars_taken.copy_from(shared);
     }
@@ -192,7 +192,7 @@ impl ViewScratch {
     /// Hands what the view's drawing changed in its view variables into the shared ones (on the
     /// main thread, once it is drawn).
     pub fn hand_on_vars(&self, race: &crate::race::owner::Race) {
-        use crate::cells::Cells;
+        use crate::memory::cells::Cells;
         race.frame
             .view_and_records
             .get()
@@ -206,7 +206,7 @@ impl ViewScratch {
     /// keep what its last drawing left (its light and sky read them before `race::reset_lamps`);
     /// the sort lists' counts are set at each view's start (`race::reset_lamps`).
     pub fn begin(&self) {
-        use crate::cells::Cells;
+        use crate::memory::cells::Cells;
         self.fog.copy_from(&crate::scene::fog::Fog::new());
         self.object
             .copy_from(&crate::scene::object_place::ObjectPlace::new());
@@ -311,12 +311,12 @@ pub struct DrawCtx<'a> {
     /// The marks the faces' kinds pick: the car's while one is drawn (`race::draw_car`), none
     /// between cars, the menus' outside a race (`scene::car_marks`).
     pub marks: &'a crate::scene::car_marks::CarMarks,
-    /// The drawing part's scratch (`workers::PartScratch`): the vertex buffer, the polygon
+    /// The drawing part's scratch (`scene::workers::PartScratch`): the vertex buffer, the polygon
     /// work and the point records it draws with.
-    pub part: &'a crate::workers::PartScratch,
-    /// The stores every drawing part reads (`workers::DrawReads`): the part's own inside a
+    pub part: &'a crate::scene::workers::PartScratch,
+    /// The stores every drawing part reads (`scene::workers::DrawReads`): the part's own inside a
     /// drawing scope, the owners' on the game's thread outside one.
-    pub reads: crate::workers::DrawReads<'a>,
+    pub reads: crate::scene::workers::DrawReads<'a>,
 }
 
 impl<'a> DrawCtx<'a> {
@@ -331,8 +331,8 @@ impl<'a> DrawCtx<'a> {
         scene: &'a crate::scene::owner::Scene,
         input: &'a crate::input::owner::Input,
         view: &'a ViewScratch,
-        part: &'a crate::workers::PartScratch,
-        reads: crate::workers::DrawReads<'a>,
+        part: &'a crate::scene::workers::PartScratch,
+        reads: crate::scene::workers::DrawReads<'a>,
     ) -> Self {
         Self {
             race,
@@ -355,7 +355,7 @@ impl<'a> DrawCtx<'a> {
 /// entry left). The first view's sky is drawn smooth, the others' not. Taken on the main thread,
 /// before the parts (the front end's slot is not a part's); the view's drawing is handed the
 /// values.
-pub fn filter_input(scratch: &crate::workers::DrawingScratch, slot: usize) -> [u32; 3] {
+pub fn filter_input(scratch: &crate::scene::workers::DrawingScratch, slot: usize) -> [u32; 3] {
     if slot == 0 {
         let from = &scratch.front_end().polygon;
         [

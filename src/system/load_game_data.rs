@@ -10,9 +10,9 @@
 //! Refuses a default name that does not fit its place, and what its parts refuse.
 
 use crate::errors::{BadInput, Refused};
+use crate::memory::session::PlainDword;
 use crate::menu::name_lists::NAME_LEN;
 use crate::owners::Owners;
-use crate::session::PlainDword;
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::copy_printable::printable_from;
 
@@ -54,7 +54,7 @@ pub type Outside<'a> = &'a mut dyn FnMut(Call) -> Result<u32, Refused>;
 /// The string and what follows it, with a NUL, at `to`.
 fn default_name(
     o: Owners<'static>,
-    to: &impl crate::session::ByteBuffer,
+    to: &impl crate::memory::session::ByteBuffer,
     at: usize,
     room: usize,
     id: u32,
@@ -75,7 +75,7 @@ fn default_name(
 /// A list of 100 names: every empty one becomes the string and the slot's number.
 fn number_empty_names(
     o: Owners<'static>,
-    names: &impl crate::session::ByteBuffer,
+    names: &impl crate::memory::session::ByteBuffer,
     id: u32,
 ) -> Result<(), BadInput> {
     for slot in 0..SLOTS {
@@ -249,7 +249,7 @@ fn in_game(o: Owners<'static>, call: Call) -> Result<u32, Refused> {
             race,
         )?,
         Call::UserName => {
-            if let Some(mut name) = crate::os::user_name(USER_NAME_ROOM) {
+            if let Some(mut name) = crate::platform::os::user_name(USER_NAME_ROOM) {
                 name.push(0);
                 menus
                     .play

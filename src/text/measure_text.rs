@@ -27,7 +27,7 @@ pub fn measure_text(
     canvas: &mut dyn Canvas,
 ) -> Result<Measured, Refused> {
     let glyphs = glyph_store::bytes(canvas.fonts(), font.glyph_table, "a font's glyph table")?;
-    let m = refusal(rc2k_core::text::measure(
+    let m = refusal(rc2k_core::strings::text::measure(
         font,
         text,
         &glyphs,
@@ -52,7 +52,7 @@ pub fn only_measures(
     font: crate::gfx::typefaces::FontId,
     typefaces: &'static crate::gfx::typefaces::FontObjects,
 ) -> Result<FontRef, crate::errors::BadInput> {
-    if font.object(typefaces).mode.get() != rc2k_core::text::MODE_MEASURE {
+    if font.object(typefaces).mode.get() != rc2k_core::strings::text::MODE_MEASURE {
         return Err(crate::errors::BadInput("a measuring font that draws"));
     }
     Ok(font.into())

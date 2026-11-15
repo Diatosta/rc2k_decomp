@@ -10,7 +10,7 @@ pub fn shut_down(
     crate::net::stop::stop(o, o.net, lines)?;
     let handle = vars.event.atomic().swap(0, Ordering::SeqCst);
     if handle != 0 {
-        crate::sync::close(handle);
+        crate::platform::sync::close(handle);
     }
     Ok(())
 }

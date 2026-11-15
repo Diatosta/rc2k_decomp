@@ -2,10 +2,10 @@
 //! lists and pointers, the object and point-record pointers, the matrix work areas (squaring, turn,
 //! inversion, angles), the two root tables and the spin variables. It stops before the car records
 //! (`race::car_specs_store`). Plain cells: a drawing store (`session::DrawShared`), written on the
-//! game's thread between frames and read by the drawing parts through their `workers::DrawReads`.
+//! game's thread between frames and read by the drawing parts through their `scene::workers::DrawReads`.
 
-use crate::cells::ZeroCells;
-use crate::session::{PlainDword, PlainFloat};
+use crate::memory::cells::ZeroCells;
+use crate::memory::session::{PlainDword, PlainFloat};
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct CourseLists {

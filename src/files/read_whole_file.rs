@@ -7,7 +7,7 @@ use crate::errors::BadInput;
 /// `read_whole_file` into `cells` (a typed store's dwords, their bytes in order: `4 *
 /// cells.len()` bytes at most; what the file does not reach is kept). Gives the bytes read (0
 /// when the file could not be opened or closed).
-pub fn read_whole_file_cells<C: crate::session::DwordLike>(
+pub fn read_whole_file_cells<C: crate::memory::session::DwordLike>(
     path: &[u8],
     cells: &[C],
 ) -> Result<u32, BadInput> {
@@ -23,7 +23,7 @@ pub fn read_whole_file_cells<C: crate::session::DwordLike>(
 /// reach is kept). Gives the bytes read (0 when the file could not be opened or closed).
 pub fn read_whole_file_plain_bytes<const N: usize>(
     path: &[u8],
-    bytes: &crate::session::PlainBytes<N>,
+    bytes: &crate::memory::session::PlainBytes<N>,
 ) -> Result<u32, BadInput> {
     let mut into = bytes.read();
     let (_, bytes_read) = read_whole_file_counted(path, &mut into)?;

@@ -2,22 +2,22 @@
 //! is counted as 0x1300000 bytes on `CourseLists.course_memory_list`: the course file's room
 //! and, as `course_info`, 0x400000 bytes where the texture and mark info files are read.
 
-use crate::cells::Store;
 use crate::errors::{BadInput, Refused};
+use crate::memory::cells::Store;
+use crate::memory::session::TextPlace;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::owner_frame::Frame;
 use crate::race::trap::Trap;
 use crate::scene::file_numbers_store::texts;
-use crate::session::TextPlace;
 
 const FIRST_PART: u32 = rc2k_core::race::loading::FIRST_PART as u32;
 const INFO_PART: u32 = 0x40_0000;
 /// The path strings the course's number is written into: the tens' and the units' places.
 pub fn number_places(
     p: &'static crate::race::level_paths_store::LevelPaths,
-) -> [crate::place::BytePlace; 6] {
-    use crate::place::BytePlace;
+) -> [crate::memory::place::BytePlace; 6] {
+    use crate::memory::place::BytePlace;
     [
         BytePlace::from(&p.edit_path).add(0xD),
         BytePlace::from(&p.cdat_src).add(0xD),
@@ -161,7 +161,7 @@ pub fn build_texture_infos(race: &Race) -> Result<(), Refused> {
 
 /// Resets `grid_x` and `grid_z`, the course grid's corner (each view keeps its own,
 /// `race::view_grid`), so every view makes its grid again.
-pub fn reset_refresh(scratch: &crate::workers::DrawingScratch) {
+pub fn reset_refresh(scratch: &crate::scene::workers::DrawingScratch) {
     crate::race::view_grid::reset_corners(scratch);
 }
 
@@ -183,7 +183,7 @@ pub fn listed_checkpoints(race: &Race) -> Result<Option<Vec<u32>>, Refused> {
         let face = trap.keep_read(
             table
                 .get(n as usize)
-                .map(crate::session::PlainDword::get)
+                .map(crate::memory::session::PlainDword::get)
                 .ok_or(BadInput("a checkpoint past the checkpoint table")),
         );
         trap.keep_read(crate::race::course_places::face_field::<u8>(

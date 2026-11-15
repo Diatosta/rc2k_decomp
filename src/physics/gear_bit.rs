@@ -7,9 +7,9 @@
 //! the dword).
 
 use crate::errors::Refused;
+use crate::memory::session::PlainDword;
 use crate::physics::car_store::Car;
 use crate::physics::flag_result::FlagResult;
-use crate::session::PlainDword;
 use rc2k_core::physics::gearbox::GearBits;
 
 /// The gear bits in the dword at `bits`.

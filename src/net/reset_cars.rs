@@ -1,10 +1,10 @@
 //! Makes the eight cars' blocks ready for a network race (car number, view, a few settings),
 //! clearing each with `net::clear_car_state`.
 
+use crate::memory::session::PlainDword;
 use crate::net::clear_car_state::clear_car_state;
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
-use crate::session::PlainDword;
 use rc2k_core::net::cars;
 
 /// A field of a car's block and the value it is set to.

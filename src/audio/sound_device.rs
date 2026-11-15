@@ -5,7 +5,7 @@
 use crate::audio::a3d::{open_a3d, open_a3d2};
 use crate::audio::own::AudioOwn;
 use crate::errors::{BadInput, Refused};
-use crate::session::Dword;
+use crate::memory::session::Dword;
 use crate::system::owner::System;
 
 const CAPS_TEXT: &std::ffi::CStr = c"AUD: sound caps: flgs/pri/min/max:\t"; // "AUD: sound caps: flgs/pri/min/max:\t"
@@ -76,11 +76,11 @@ pub fn release_primary(state: &AudioOwn) {
         stop_primary(state);
         use rc2k_core::audio::device::{NO_KEPT_VOLUME, kept_volume};
         if let Some(volume) = kept_volume(state.primary_volume_kept.get()) {
-            crate::platform_sound::set_volume(state.primary_buffer.get(), volume as i32);
+            crate::platform::sound::set_volume(state.primary_buffer.get(), volume as i32);
             state.primary_volume_kept.set(NO_KEPT_VOLUME);
         }
         release_listener(state);
-        crate::platform_sound::release(state.primary_buffer.get());
+        crate::platform::sound::release(state.primary_buffer.get());
         state.primary_buffer.set(0);
     }
 }
@@ -99,7 +99,7 @@ pub fn read_caps(state: &AudioOwn) -> Result<bool, Refused> {
             caps.set_u32(n, 0);
         }
         caps.set_u32(0, rc2k_core::audio::device::CAPS_SIZE);
-        let got = crate::platform_sound::device_caps();
+        let got = crate::platform::sound::device_caps();
         for (n, value) in [
             (4, got.flags),
             (8, got.min_rate),
@@ -133,7 +133,7 @@ pub fn read_caps(state: &AudioOwn) -> Result<bool, Refused> {
 pub fn release_a3d(state: &AudioOwn) {
     let o = state.a3d_object.get();
     if o != 0 {
-        crate::platform_sound::release(o);
+        crate::platform::sound::release(o);
         state.a3d_object.set(0);
     }
     state.a3d_ready.set(0);
@@ -149,8 +149,8 @@ pub fn close_sound(state: &AudioOwn, system: &System) -> Result<(), Refused> {
         let ds = state.direct_sound.get();
         if ds != 0 {
             log_text(CLOSE_TEXT, true);
-            crate::platform_sound::set_cooperative_level(ds, system.session.host.window.get(), 1);
-            crate::platform_sound::release(state.direct_sound.get());
+            crate::platform::sound::set_cooperative_level(ds, system.session.host.window.get(), 1);
+            crate::platform::sound::release(state.direct_sound.get());
             state.direct_sound.set(0);
         }
     }
@@ -164,9 +164,9 @@ const OPEN_FAILED_TEXT: &std::ffi::CStr = c"AUD: open failed rc=";
 /// `DirectSoundCreate` for the device's GUID: the device, or the failure's result.
 pub type CreateSound<'a> = &'a mut dyn FnMut(u32) -> Result<u32, i32>;
 
-/// The standalone program's DirectSound on SDL (`platform_sound`), whatever the GUID.
+/// The standalone program's DirectSound on SDL (`platform::sound`), whatever the GUID.
 pub fn game_direct_sound_create(_guid: u32, focus: &'static Dword) -> Result<u32, i32> {
-    crate::platform_sound::create_device(focus)
+    crate::platform::sound::create_device(focus)
 }
 
 struct Open<'a> {
@@ -205,14 +205,14 @@ impl rc2k_core::audio::device::Opening for Open<'_> {
         match (self.create)(guid) {
             Ok(device) => {
                 self.state.direct_sound.set(device);
-                crate::platform_sound::OK
+                crate::platform::sound::OK
             }
             Err(r) => r,
         }
     }
     fn cooperate(&mut self) -> i32 {
         let ds = self.state.direct_sound.get();
-        crate::platform_sound::set_cooperative_level(ds, self.system.session.host.window.get(), 3)
+        crate::platform::sound::set_cooperative_level(ds, self.system.session.host.window.get(), 3)
     }
 }
 

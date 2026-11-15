@@ -180,7 +180,7 @@ pub fn put_t80<const N: usize>(m: &mut [u32; N], at: usize, bits: u32) {
 }
 
 /// A dword of a test's block as a game variable's cell (what the Rust codes' `Cells` take).
-impl crate::session::Cell32 for Cell<u32> {
+impl crate::memory::session::Cell32 for Cell<u32> {
     fn bits(&self) -> u32 {
         self.get()
     }

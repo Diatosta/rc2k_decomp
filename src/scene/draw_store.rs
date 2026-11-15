@@ -3,11 +3,11 @@
 //! sines, the light, and the x87 code's shared work dword (`scratch`), held by
 //! `scene::owner::Drawing::scene`. Plain cells: a drawing store (`session::DrawShared`),
 //! written on the game's thread between frames (mostly the physics' work dwords) and read by
-//! the drawing parts through their `workers::DrawReads` (the polygons' alpha, the fade and clip
+//! the drawing parts through their `scene::workers::DrawReads` (the polygons' alpha, the fade and clip
 //! factors, `v3_driver_fix`).
 
-use crate::cells::ZeroCells;
-use crate::session::{PlainDword, PlainFloat};
+use crate::memory::cells::ZeroCells;
+use crate::memory::session::{PlainDword, PlainFloat};
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct SceneDraw {

@@ -21,11 +21,11 @@ use crate::race::numbers_store::Numbers;
 
 use crate::math::x87::loaded;
 use crate::math::x87_float::int;
+use crate::memory::session::{DwordLike, FloatLike};
 use crate::physics::scale_vector::scale_vector;
 use crate::physics::vector_length::vector_length;
 use crate::scene::matrix3::{extended, rounded, rounded_value};
 use crate::scene::rotate_point::rotate_point;
-use crate::session::{DwordLike, FloatLike};
 
 /// The block's speed turned by its matrix into its car-frame speed.
 fn turn_speed(block: &Car) {
@@ -187,7 +187,7 @@ mod reference_vectors {
                     relative_speed(
                         race().shared.car(),
                         race().physics.contact.get(),
-                        view::<[crate::session::Float; 3]>(a[1], 0x198),
+                        view::<[crate::memory::session::Float; 3]>(a[1], 0x198),
                     );
                 },
             },
@@ -214,7 +214,7 @@ mod reference_vectors {
                     share_out_speeds(
                         race().shared.car(),
                         race().physics.contact.get(),
-                        view::<[crate::session::Float; 3]>(a[1], 0x198),
+                        view::<[crate::memory::session::Float; 3]>(a[1], 0x198),
                     );
                 },
             },
@@ -242,7 +242,7 @@ mod reference_vectors {
                         crate::test_support::own::race().shared.car(),
                         crate::test_support::own::race().physics.contact.get(),
                         crate::test_support::own::race().course.numbers.get(),
-                        view::<[crate::session::Dword; 3]>(a[1], 0x134),
+                        view::<[crate::memory::session::Dword; 3]>(a[1], 0x134),
                     );
                 },
             },
@@ -270,7 +270,7 @@ mod reference_vectors {
                     add_push(
                         race().shared.car(),
                         race().physics.contact.get(),
-                        view::<[crate::session::Float; 3]>(a[1], 0x198),
+                        view::<[crate::memory::session::Float; 3]>(a[1], 0x198),
                     );
                 },
             },

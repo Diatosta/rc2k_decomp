@@ -4,8 +4,8 @@
 //! textures (the font atlas) as SDL textures, through the crate's managed-texture requests.
 //! Everything here runs on the window's thread (`platform`'s pump and frame).
 
-use crate::ffi::imgui::{self as sdl_ui, Texture as SdlTexture, UiEvent};
-use crate::ffi::sdl::{Renderer, Window};
+use crate::platform::ffi::imgui::{self as sdl_ui, Texture as SdlTexture, UiEvent};
+use crate::platform::ffi::sdl::{Renderer, Window};
 use crate::race::owner_frame::Frame;
 use dear_imgui_rs::render::{DrawCmd, PendingFrame, SnapshotTextureId, TextureOp};
 use dear_imgui_rs::texture::TextureFormat;
@@ -72,7 +72,9 @@ fn with_gui<T>(f: impl FnOnce(&mut Gui) -> T) -> Option<T> {
             let consumer = match context.create_synchronous_renderer_consumer() {
                 Ok(consumer) => consumer,
                 Err(why) => {
-                    crate::framework::log(&format!("debug: ImGui has no renderer: {why}"));
+                    crate::logfile::program_log::log(&format!(
+                        "debug: ImGui has no renderer: {why}"
+                    ));
                     return None;
                 }
             };
@@ -207,7 +209,7 @@ pub fn draw(owners: &crate::owners::Owners<'static>, renderer: Renderer, window:
         crate::debug::ui::build(owners, frame.ui());
         let pending = frame.render(&gui.consumer);
         if let Err(why) = render(&mut gui.textures, renderer, pending) {
-            crate::framework::log(&format!("debug: the UI not drawn: {why}"));
+            crate::logfile::program_log::log(&format!("debug: the UI not drawn: {why}"));
         }
     });
 }

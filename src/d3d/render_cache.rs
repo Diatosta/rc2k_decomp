@@ -1,6 +1,6 @@
 //! The render states' and the current texture's cache as the drawing sees it: each part of a
-//! frame drawn beside the others (`workers::draw_parts`) keeps its own (`OwnCache`,
-//! `workers::PartScratch::cache`). The first part's is the game's own (the game's thread
+//! frame drawn beside the others (`scene::workers::draw_parts`) keeps its own (`OwnCache`,
+//! `scene::workers::PartScratch::cache`). The first part's is the game's own (the game's thread
 //! draws part 0 and everything outside the parts, so it is always in use); a part other than
 //! the first starts from the cache as the list began, and what it leaves is put back into the
 //! first's by `run_states` (the states it set) and `merge_texture`.
@@ -8,7 +8,7 @@
 use std::cell::Cell;
 
 use crate::render::STATES;
-use crate::workers::PartScratch;
+use crate::scene::workers::PartScratch;
 
 /// The cache: each state's last value, the texture set last.
 #[derive(Clone)]
@@ -22,7 +22,7 @@ const UNSET: u32 = 0xFFFF_FC43;
 
 /// A drawing part's own cache: a part other than the first sets it from the list's cache as its
 /// run begins. Plain cells: only the thread that draws the part reaches it
-/// (`part_cell::PartCell`), the game's thread the first's.
+/// (`memory::part_cell::PartCell`), the game's thread the first's.
 pub struct OwnCache {
     kept: [Cell<u32>; STATES],
     texture: Cell<u32>,

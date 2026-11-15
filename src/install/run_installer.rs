@@ -11,7 +11,7 @@ use crate::install::installer::{
     copy_picture, draw_string, fatal, load_language, lock, normalise, push_string_by_id, rb,
     set_cd, show, sleep, store_text, unlock, wb,
 };
-use crate::place::BytePlace;
+use crate::memory::place::BytePlace;
 
 const FONT_BE: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BOX_TEXT;
 
@@ -21,7 +21,7 @@ pub fn run_installer(
 ) -> Result<(), Refused> {
     let (gfx, system) = (o.gfx, o.system);
     use crate::install as i;
-    crate::platform_events::keep_running_after_close();
+    crate::platform::events::keep_running_after_close();
     // The folder page's edit item shows the folder from its third byte, past the drive's `c:`;
     // a Unix path has no drive, so the item shows it whole.
     #[cfg(unix)]

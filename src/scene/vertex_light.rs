@@ -53,7 +53,7 @@ fn held(value: i32, low: i32, high: i32) -> i32 {
 /// The normal's place in the view to the light's work variables, the colour set to 0.
 fn set_normal(
     lists: &crate::race::course_lists_store::CourseLists,
-    part: &crate::workers::PartScratch,
+    part: &crate::scene::workers::PartScratch,
     number: u32,
     light: &crate::scene::object_light::ObjectLight,
 ) -> Result<(), BadInput> {
@@ -62,7 +62,7 @@ fn set_normal(
     }
     let place = crate::scene::reading::PointRecords::new(lists, part)?.place(number)?;
     light.light_colour.set(0u32);
-    crate::session::write_bits(&light.light_dot_point, place);
+    crate::memory::session::write_bits(&light.light_dot_point, place);
     Ok(())
 }
 
@@ -75,9 +75,9 @@ fn light_number(
     if strength == 0 {
         return 0;
     }
-    crate::session::write_bits(
+    crate::memory::session::write_bits(
         &light.light_dot_light,
-        crate::session::read_bits::<_, 3>(&light.light_direction),
+        crate::memory::session::read_bits::<_, 3>(&light.light_direction),
     );
     light.light_dot_factor.set(x87::from_int(strength));
     light_dot(light)
@@ -101,8 +101,8 @@ fn table_place(
 
 /// The lit colour, also left in `light_colour`.
 fn lit(
-    reads: crate::workers::DrawReads<'_>,
-    part: &crate::workers::PartScratch,
+    reads: crate::scene::workers::DrawReads<'_>,
+    part: &crate::scene::workers::PartScratch,
     number: u32,
     mmx: bool,
     light: &crate::scene::object_light::ObjectLight,
@@ -133,7 +133,7 @@ fn blend(
     } else {
         (amount, &course.stage_prefs.lit_colour)
     };
-    let towards = crate::session::read_bits::<_, 3>(towards).map(|bits| bits as i32);
+    let towards = crate::memory::session::read_bits::<_, 3>(towards).map(|bits| bits as i32);
     let mut colour: u32 = light.light_colour.get();
     // The third byte first, towards the first of the three.
     for (n, to) in towards.into_iter().enumerate() {
@@ -150,9 +150,9 @@ fn blend(
     reason = "the drawing's stores the part reads, as they are lent"
 )]
 pub fn vertex_light(
-    part: &crate::workers::PartScratch,
+    part: &crate::scene::workers::PartScratch,
     number: u32,
-    reads: crate::workers::DrawReads<'_>,
+    reads: crate::scene::workers::DrawReads<'_>,
     light: &crate::scene::object_light::ObjectLight,
     object: &crate::scene::object_place::ObjectPlace,
     mmx: bool,

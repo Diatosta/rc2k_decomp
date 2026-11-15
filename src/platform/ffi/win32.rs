@@ -418,7 +418,7 @@ pub fn with_com<T>(f: impl FnOnce() -> T) -> T {
     value
 }
 
-// ---- the fault reporter and the profiler's sampler (`platform_timing`) ----
+// ---- the fault reporter and the profiler's sampler (`platform::timing`) ----
 
 /// A manual-reset event, made by `create_event` and never closed: valid for the program's
 /// life, so a copy may be signalled or waited on from any thread.
@@ -566,10 +566,10 @@ impl SampledThread {
                 return None;
             }
             let mut context: CONTEXT = std::mem::zeroed();
-            context.ContextFlags = crate::arch::CONTEXT_CONTROL;
+            context.ContextFlags = crate::platform::arch::CONTEXT_CONTROL;
             let got = GetThreadContext(thread, &raw mut context) != 0;
             ResumeThread(thread);
-            got.then(|| crate::arch::ip(&context))
+            got.then(|| crate::platform::arch::ip(&context))
         }
     }
 }
@@ -596,7 +596,7 @@ unsafe extern "system" fn on_exception(
             record.ExceptionAddress.expose_provenance(),
             record.ExceptionInformation[1],
             record.ExceptionInformation[0] != 0,
-            crate::arch::sp(context),
+            crate::platform::arch::sp(context),
         )
     }
 }

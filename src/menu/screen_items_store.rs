@@ -4,7 +4,7 @@
 //! screens name their slot by `slot::*`; the 20 slots no ported screen names keep their
 //! starting values.
 
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 
 /// The screens' slots (an index into both arrays), by the screen that uses it.
 pub mod slot {

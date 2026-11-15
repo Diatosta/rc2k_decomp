@@ -2,7 +2,7 @@
 
 Knulli (Batocera-based; since 2026-11-15): Anbernic's kernel 4.9 with libmali, no DRM, glibc 2.40.
 The build is made for the stock OS's Ubuntu 22.04 (glibc 2.35) and needs only the C library, so it
-runs on either. `src/handheld.rs` shows the frames on `/dev/fb0`; SDL does the sound and the pad.
+runs on either. `src/platform/handheld.rs` shows the frames on `/dev/fb0`; SDL does the sound and the pad.
 
 - Container: `docker build -t rc2k-anbernic tools/anbernic` (`run.sh` runs a command in it).
 - Deploy: `./deploy_standalone.sh anbernic`; `ANBERNIC_HOST=root@address` in `deploy.local`,

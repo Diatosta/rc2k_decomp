@@ -138,10 +138,10 @@ pub fn draw_race_slots(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(
 /// Refuses what the clip refuses (after the entries are set: never seen with four vertices).
 pub fn draw_screen_quad(
     poly: &crate::scene::polygon_work::PolygonWork,
-    part: &crate::workers::PartScratch,
+    part: &crate::scene::workers::PartScratch,
     face: &crate::race::face_work::FaceWork,
-    reads: crate::workers::DrawReads<'_>,
-    screen: &crate::session::Screen,
+    reads: crate::scene::workers::DrawReads<'_>,
+    screen: &crate::memory::session::Screen,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
     poly.polygon_drawn.set(0u32);
@@ -197,10 +197,10 @@ pub fn draw_screen_quad(
 /// screen quad in 0x204080 (`quad_colour`), switches -1, 1, 0, by `draw_screen_quad`.
 pub fn draw_view_tint(
     poly: &crate::scene::polygon_work::PolygonWork,
-    part: &crate::workers::PartScratch,
+    part: &crate::scene::workers::PartScratch,
     face: &crate::race::face_work::FaceWork,
-    reads: crate::workers::DrawReads<'_>,
-    screen: &crate::session::Screen,
+    reads: crate::scene::workers::DrawReads<'_>,
+    screen: &crate::memory::session::Screen,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
     view.quad.corners[0].set(0u32);
@@ -225,11 +225,11 @@ pub fn add_car_depth_entry(ctx: &DrawCtx, car: usize, number: u32) -> Result<(),
     if n >= SORT_MAX {
         return Err(BadInput("a depth entry past the 0x1000").into());
     }
-    let place = crate::session::read_bits(&ctx.reads.frame_cars.car(car)?.position);
+    let place = crate::memory::session::read_bits(&ctx.reads.frame_cars.car(car)?.position);
     for (k, &p) in place.iter().enumerate() {
         ctx.view.object.place[k].set(p);
     }
-    let matrix: [u32; 16] = crate::session::read_bits(&view.matrices.view_matrix);
+    let matrix: [u32; 16] = crate::memory::session::read_bits(&view.matrices.view_matrix);
     let t = crate::math::x87::rotate_rounding(place.map(|v| v as i32), &matrix);
     for (k, &v) in t.iter().enumerate() {
         view.object.turned_place[k].set(v);
@@ -283,7 +283,7 @@ pub(super) fn add_flare(ctx: &DrawCtx) -> Result<(), BadInput> {
     }
     let out = crate::math::x87::rotate_rounding_z(
         place.map(|v| v as i32),
-        &crate::session::read_bits(&view.matrices.view_matrix),
+        &crate::memory::session::read_bits(&view.matrices.view_matrix),
     );
     ctx.view.object.place[0].set(out[0]);
     ctx.view.object.place[1].set(out[1]);
@@ -303,7 +303,7 @@ pub(super) fn add_flare(ctx: &DrawCtx) -> Result<(), BadInput> {
 pub(super) fn place_flare(ctx: &DrawCtx, car: usize, point: [u32; 3]) -> Result<(), BadInput> {
     let t = crate::math::x87::rotate_rounding(
         point.map(|v| v as i32),
-        &crate::session::read_bits(&ctx.reads.frame_cars.car(car)?.crash_matrix),
+        &crate::memory::session::read_bits(&ctx.reads.frame_cars.car(car)?.crash_matrix),
     );
     for (k, v) in t.iter().enumerate() {
         ctx.view.object.place[k]
@@ -683,9 +683,9 @@ pub fn draw_flare(
 ) -> Result<(), Refused> {
     /// Flare `flare`'s value of `table` into `to`.
     fn copy_value(
-        table: &[impl crate::session::DwordLike],
+        table: &[impl crate::memory::session::DwordLike],
         flare: u32,
-        to: &dyn crate::session::DwordLike,
+        to: &dyn crate::memory::session::DwordLike,
     ) -> Result<(), BadInput> {
         to.set(
             table
@@ -791,8 +791,8 @@ pub fn draw_list_entry(
 /// past its own 8 bytes).
 pub fn draw_entries<'a>(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
-    count: &crate::session::PlainDword,
-    from: impl Fn(usize) -> &'a [crate::session::PlainDword],
+    count: &crate::memory::session::PlainDword,
+    from: impl Fn(usize) -> &'a [crate::memory::session::PlainDword],
 ) -> Result<(), Refused> {
     draw_entries_around(ctx, count, from, None)
 }
@@ -801,8 +801,8 @@ pub fn draw_entries<'a>(
 /// `race::car_part::CarAside::entry_word`) taken from `car`, which drew it aside.
 pub fn draw_entries_around<'a>(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
-    count: &crate::session::PlainDword,
-    from: impl Fn(usize) -> &'a [crate::session::PlainDword],
+    count: &crate::memory::session::PlainDword,
+    from: impl Fn(usize) -> &'a [crate::memory::session::PlainDword],
     car: Option<&crate::race::car_part::CarAside<'_, '_>>,
 ) -> Result<(), Refused> {
     let entries = from(0)

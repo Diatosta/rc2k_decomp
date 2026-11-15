@@ -18,8 +18,8 @@
 use crate::errors::BadInput;
 use crate::gfx::typefaces::FontId;
 use crate::install::owner::Install;
-use crate::list_handle::{BoxRect, EditRecord};
-use crate::place::BytePlace;
+use crate::memory::list_handle::{BoxRect, EditRecord};
+use crate::memory::place::BytePlace;
 
 const KIND_SHIFT: u32 = 24;
 const NUMBER: u32 = (1 << KIND_SHIFT) - 1;
@@ -208,11 +208,11 @@ impl PageLink {
 /// the link's raw dword is its value.
 #[repr(transparent)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
-pub struct LinkCell(crate::session::PlainDword);
+pub struct LinkCell(crate::memory::session::PlainDword);
 
 impl LinkCell {
     pub const fn new(link: PageLink) -> Self {
-        Self(crate::session::PlainDword::new(link.raw()))
+        Self(crate::memory::session::PlainDword::new(link.raw()))
     }
 
     pub fn get(&self) -> PageLink {
@@ -245,7 +245,7 @@ mod tests {
         );
         assert!(PageLink::blended_palette().is_blended_palette());
         match PageLink::typed(2).place(install).unwrap() {
-            crate::place::BytePlace::In(buffer, at) => {
+            crate::memory::place::BytePlace::In(buffer, at) => {
                 assert!(std::ptr::addr_eq(
                     buffer,
                     &raw const crate::test_support::own::install().paths.typed

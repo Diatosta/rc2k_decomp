@@ -33,9 +33,9 @@ pub enum Description<'a> {
     /// The material record of an object kind (and what follows it in the tables).
     Material(u32),
     /// The view's own cells (the object matrix slots, or a sort list from a flare's entry on).
-    PlainCells(&'a [crate::session::PlainDword]),
+    PlainCells(&'a [crate::memory::session::PlainDword]),
     /// A matrix's floats, read as the bytes they are.
-    Floats(&'a [crate::session::PlainFloat]),
+    Floats(&'a [crate::memory::session::PlainFloat]),
 }
 
 impl Description<'_> {
@@ -65,12 +65,12 @@ impl Description<'_> {
                 Ok(bytes)
             }
             Description::PlainCells(cells) => Self::from_words(
-                cells.iter().map(crate::session::PlainDword::get),
+                cells.iter().map(crate::memory::session::PlainDword::get),
                 len,
                 "a described object past its cells",
             ),
             Description::Floats(cells) => Self::from_words(
-                cells.iter().map(crate::session::PlainFloat::bits),
+                cells.iter().map(crate::memory::session::PlainFloat::bits),
                 len,
                 "a described object past its matrix",
             ),

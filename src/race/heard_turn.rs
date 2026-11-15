@@ -2,8 +2,8 @@
 //! 0's view), kept after that view is drawn, so the sounds are not turned by the mirror's backwards
 //! camera. Until the first view of a stage is drawn, the current matrix is used.
 
+use crate::memory::session::{PlainFlag, PlainFloat};
 use crate::race::matrices_store::SceneMatrices;
-use crate::session::{PlainFlag, PlainFloat};
 
 /// The kept turn of the first view of this stage, held by `RaceShared`.
 pub struct HeardTurn {

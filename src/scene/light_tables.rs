@@ -1,7 +1,7 @@
 //! The tables of 0x100 colours the lighting picks from, and the two functions that fill one:
 //! shared by their three functions.
 
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 
 fn store(table: &[PlainDword; 0x100], entries: &[u32; 0x100]) {
     for (cell, &e) in table.iter().zip(entries) {

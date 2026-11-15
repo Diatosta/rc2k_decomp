@@ -1,26 +1,26 @@
-//! The fonts, 63 font objects of 0x20 bytes (`rc2k_core::text::Font`). Their palettes (+0x14) and
+//! The fonts, 63 font objects of 0x20 bytes (`rc2k_core::strings::text::Font`). Their palettes (+0x14) and
 //! glyph tables (+0x18) are hung on by `gfx::build_fonts`; the drawing functions take a font by its
 //! place (`FontId::addr`). The game's own fonts (the credits' and the race's ..) are a block of
 //! `rest`'s. Which font is which is a reading of the callers: a font's mode (+2) says how it draws
 //! (0 at x as given, 2 centred, 3 right-aligned or fixed pitch, 4 measuring), its line height (+8)
 //! the size of the sheet it was built from (10, 21, 23, 27, 13).
 
-use crate::session::{PlainByte, PlainDword};
-use rc2k_core::text::Font;
+use crate::memory::session::{PlainByte, PlainDword};
+use rc2k_core::strings::text::Font;
 
 #[cfg(test)]
 pub const START: usize = 0x51E3A4;
 /// The font objects' number.
 pub const COUNT: usize = 63;
 
-/// A font object (0x20 bytes, `rc2k_core::text::Font`), its fields as cells.
+/// A font object (0x20 bytes, `rc2k_core::strings::text::Font`), its fields as cells.
 #[derive(rc2k_derive::Cells)]
 pub struct FontObject {
     /// +0x00: the character drawn with glyph 0.
     pub first_char: PlainByte,
     /// +0x01: the last character with a glyph.
     pub last_char: PlainByte,
-    /// +0x02: how it draws (`rc2k_core::text::MODE_*`).
+    /// +0x02: how it draws (`rc2k_core::strings::text::MODE_*`).
     pub mode: PlainByte,
     /// +0x03: `FLAG_*` bits.
     pub flags: PlainByte,
@@ -283,11 +283,11 @@ impl FontRef {
 /// A font a table of the game's keeps (a menu item's): the object by number.
 #[repr(transparent)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
-pub struct FontCell(crate::session::Dword);
+pub struct FontCell(crate::memory::session::Dword);
 
 impl FontCell {
     pub const fn new(font: FontId) -> Self {
-        Self(crate::session::Dword::new(font.0 as u32))
+        Self(crate::memory::session::Dword::new(font.0 as u32))
     }
 
     pub fn get(&self) -> FontId {

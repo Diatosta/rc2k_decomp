@@ -2,6 +2,7 @@
 //! data and lists, level grid and paths, kind and light records, flares, marks settings, stage
 //! preferences, numbers, league.
 
+use crate::memory::session::{DrawShared, GameThread};
 use crate::race::course_lists_store::CourseLists;
 use crate::race::course_store::CourseWork;
 use crate::race::flares_store::FlareTables;
@@ -13,23 +14,22 @@ use crate::race::lights_store::LightsData;
 use crate::race::numbers_store::Numbers;
 use crate::race::prefs_store::StagePrefs;
 use crate::race::stage_data::StageData;
-use crate::session::{DrawShared, GameThread};
 
 /// The race's course state.
 pub struct Course {
-    /// One copy, lent to the drawing parts (`workers::DrawReads`): no part writes it.
+    /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): no part writes it.
     pub course: DrawShared<CourseWork>,
-    /// One copy, lent to the drawing parts (`workers::DrawReads`): no part writes it.
+    /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): no part writes it.
     pub lists: DrawShared<CourseLists>,
-    /// One copy, lent to the drawing parts (`workers::DrawReads`): no part writes it.
+    /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): no part writes it.
     pub level_grid: DrawShared<LevelGrid>,
-    /// One copy, lent to the drawing parts (`workers::DrawReads`): no part writes it (the fog
+    /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): no part writes it (the fog
     /// settings the draw distance picks are set once a frame before the views,
     /// `race::draw_distance_settings`).
     pub stage_prefs: DrawShared<StagePrefs>,
-    /// One copy, lent to the drawing parts (`workers::DrawReads`): no part writes it.
+    /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): no part writes it.
     pub numbers: DrawShared<Numbers>,
-    /// One copy, lent to the drawing parts (`workers::DrawReads`): the ground search under a
+    /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): the ground search under a
     /// car's shadow reads it; no part writes it.
     kind_records: DrawShared<KindRecords>,
     /// The loaded stage's tables (course, map, mud, objects, best line).
@@ -40,7 +40,7 @@ pub struct Course {
 /// The course's drawing stores as one value, named as in `Course`: what code reached
 /// both from the game's thread and from the drawing parts reads (the ground search under a
 /// car's shadow, the course places, the scene points). `Course::reads` on the game's thread,
-/// `workers::DrawReads::course` in a part.
+/// `scene::workers::DrawReads::course` in a part.
 #[derive(Clone, Copy)]
 pub struct CourseReads<'a> {
     pub course: &'a CourseWork,
@@ -95,12 +95,12 @@ impl Course {
     }
 
     /// The kinds' first and last records, on the game's thread outside a drawing scope (a
-    /// part reads them through its `workers::DrawReads`).
+    /// part reads them through its `scene::workers::DrawReads`).
     pub fn kind_records(&self) -> &KindRecords {
         self.kind_records.get()
     }
 
-    /// The kinds' records as lent to a drawing scope (`workers::Lent`).
+    /// The kinds' records as lent to a drawing scope (`scene::workers::Lent`).
     pub(crate) fn kind_records_store(&self) -> &DrawShared<KindRecords> {
         &self.kind_records
     }

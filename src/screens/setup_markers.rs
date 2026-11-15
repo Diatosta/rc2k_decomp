@@ -15,10 +15,10 @@ use crate::errors::Refused;
 use crate::gfx::blit_bar::Bar;
 use crate::gfx::blit_bar_marker::blit_bar_marker;
 use crate::gfx::owner::Gfx;
+use crate::memory::session::PlainDword;
 use crate::menu::owner::Menus;
 use crate::service::owner::Service;
 use crate::service::state::{blink_on, edit_mode, repair_flag};
-use crate::session::PlainDword;
 use crate::text::draw_text::Canvas;
 
 pub use rc2k_core::screens::setup_markers::{BAR_WIDTH, LEFT_X, RIGHT_X};

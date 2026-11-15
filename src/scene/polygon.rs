@@ -2,9 +2,9 @@
 //! picked through the list (`draw_polygon.rs` has an entry's layout).
 
 use crate::errors::BadInput;
+use crate::memory::session::PlainDword;
 pub use crate::scene::draw_polygon::{ENTRIES, ENTRY_LEN, MOST};
 use crate::scene::polygon_store::{PolygonEntry, PolygonWork};
-use crate::session::PlainDword;
 
 /// The work table's entry `n` (the 64 of the polygon, then the 64 kept for the fan) in the
 /// drawing part's work. A number past the table is refused.
@@ -58,7 +58,7 @@ pub fn material_run(
     let at = (size_of_val(&tables.texture_infos) as u32)
         .wrapping_add(kind.wrapping_mul(0x80))
         .wrapping_add(offset);
-    crate::session::read_run_bytes(
+    crate::memory::session::read_run_bytes(
         &[&tables.texture_infos, &tables.object_materials],
         at as usize,
         bytes,
@@ -92,12 +92,12 @@ pub fn material_run_word(
 /// The byte `offset` into the run `field` (one of the polygon tables' arrays of records); the
 /// field's end is the limit, a read on into the next record inside it.
 fn field_byte(
-    field: &dyn crate::session::Run,
+    field: &dyn crate::memory::session::Run,
     offset: u32,
     what: &'static str,
 ) -> Result<u8, BadInput> {
     let mut byte = [0u8];
-    crate::session::read_run_bytes(&[field], offset as usize, &mut byte, what)
+    crate::memory::session::read_run_bytes(&[field], offset as usize, &mut byte, what)
         .map_err(|_| BadInput(what))?;
     Ok(byte[0])
 }
@@ -146,10 +146,14 @@ mod tests {
     use core::mem::{offset_of, size_of};
 
     fn filled() -> Box<PolygonTables> {
-        let t: Box<PolygonTables> = Box::new(crate::cells::zeroed_cells());
+        let t: Box<PolygonTables> = Box::new(crate::memory::cells::zeroed_cells());
         for k in 0..size_of::<PolygonTables>() / 4 {
-            crate::cells::store_value::<u32>(&*t, 4 * k, (k as u32).wrapping_mul(0x9E37_79B1))
-                .unwrap();
+            crate::memory::cells::store_value::<u32>(
+                &*t,
+                4 * k,
+                (k as u32).wrapping_mul(0x9E37_79B1),
+            )
+            .unwrap();
         }
         t
     }
@@ -166,7 +170,7 @@ mod tests {
             return Err(BadInput(""));
         }
         let mut byte = [0u8];
-        crate::cells::load_cells(t, field + offset, &mut byte)?;
+        crate::memory::cells::load_cells(t, field + offset, &mut byte)?;
         Ok(byte[0])
     }
 
@@ -213,7 +217,7 @@ mod tests {
                         .wrapping_add(kind.wrapping_mul(0x80))
                         .wrapping_add(offset);
                     let (mut old, mut new) = ([0u8; 8], [0u8; 8]);
-                    let o = crate::cells::load_cells(&*t, at as usize, &mut old[..len]);
+                    let o = crate::memory::cells::load_cells(&*t, at as usize, &mut old[..len]);
                     let n = material_run(&t, kind, offset, &mut new[..len]);
                     assert_eq!(
                         o.is_ok(),

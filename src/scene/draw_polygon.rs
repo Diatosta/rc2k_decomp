@@ -204,15 +204,15 @@ fn entries(
 
 /// The sun's hit test.
 fn hit_test(
-    part: &crate::workers::PartScratch,
-    quad: &[crate::session::PlainDword; 32],
+    part: &crate::scene::workers::PartScratch,
+    quad: &[crate::memory::session::PlainDword; 32],
     sun: &crate::scene::polygon_work::ViewSun,
     entries: &[Listed],
 ) {
     if sun.on_screen.get() == 0 {
         return;
     }
-    let point = crate::session::read_bits(&sun.hit).map(|v| v as i32);
+    let point = crate::memory::session::read_bits(&sun.hit).map(|v| v as i32);
     if entries.len() < 3 {
         return;
     }
@@ -241,9 +241,9 @@ fn hit_test(
 
 /// The positions into the vertex buffer, mirrored for a mirrored view.
 fn place(
-    part: &crate::workers::PartScratch,
-    quad: &[crate::session::PlainDword; 32],
-    reads: crate::workers::DrawReads<'_>,
+    part: &crate::scene::workers::PartScratch,
+    quad: &[crate::memory::session::PlainDword; 32],
+    reads: crate::scene::workers::DrawReads<'_>,
     entries: &[Listed],
     mirrored: bool,
     window: &crate::scene::view_window::ViewWindow,
@@ -254,9 +254,9 @@ fn place(
 /// `place` at the rounding `r`.
 fn place_with<R: x87_float::Rounds>(
     r: R,
-    part: &crate::workers::PartScratch,
-    quad: &[crate::session::PlainDword; 32],
-    reads: crate::workers::DrawReads<'_>,
+    part: &crate::scene::workers::PartScratch,
+    quad: &[crate::memory::session::PlainDword; 32],
+    reads: crate::scene::workers::DrawReads<'_>,
     entries: &[Listed],
     mirrored: bool,
     window: &crate::scene::view_window::ViewWindow,
@@ -309,7 +309,7 @@ fn copy_set(buffer: &PolygonVertices, entries: &[Listed], set: Set) {
 fn choose_texture(
     poly: &crate::scene::polygon_work::PolygonWork,
     outside: &mut dyn Outside,
-    reads: crate::workers::DrawReads<'_>,
+    reads: crate::scene::workers::DrawReads<'_>,
 ) {
     let smooth = poly.smooth.get() == 1;
     outside.state(3, if smooth { 3 } else { 1 });
@@ -396,11 +396,11 @@ fn shade(
 
 pub fn draw_polygon(
     poly: &crate::scene::polygon_work::PolygonWork,
-    part: &crate::workers::PartScratch,
+    part: &crate::scene::workers::PartScratch,
     face: &crate::race::face_work::FaceWork,
     outside: &mut dyn Outside,
-    reads: crate::workers::DrawReads<'_>,
-    screen: &crate::session::Screen,
+    reads: crate::scene::workers::DrawReads<'_>,
+    screen: &crate::memory::session::Screen,
 ) -> Result<(), BadInput> {
     let count: u32 = poly.polygon_vertex_count.get();
     if count == 0 || count > MOST {
@@ -420,7 +420,7 @@ pub fn draw_polygon(
         poly.polygon_sides[1].get(),
         face.polygon_mode.get(),
     ];
-    crate::session::write_bits(&poly.polygon_kept, kept);
+    crate::memory::session::write_bits(&poly.polygon_kept, kept);
     let mirrored = poly.view_mirrored.get() != 0;
     if mirrored && count > 2 {
         // The list's entries after the first, turned round.
@@ -442,7 +442,7 @@ pub fn draw_polygon(
         let (mode, texture): (u32, u32) = (face.polygon_mode.get(), poly.texture_page.get());
         // The faded first pass: each vertex fades by its own fog byte.
         let (from, alpha): (u32, u32) = (poly.fade_from.get(), face.fade_alpha.get());
-        let uv = crate::session::read_bits(&reads.vars.fade_uv);
+        let uv = crate::memory::session::read_bits(&reads.vars.fade_uv);
         for (n, &(_, entry)) in entries.iter().enumerate() {
             let out = out(buffer, n);
             let by = entry.fog.get() as u32;
@@ -534,7 +534,7 @@ pub fn draw_polygon(
 
 /// The game's Direct3D layer and log, for drawing part `.0` and its view `.1`.
 pub struct Game<'a>(
-    pub &'a crate::workers::PartScratch,
+    pub &'a crate::scene::workers::PartScratch,
     pub &'a crate::race::view_scratch::ViewScratch,
 );
 
@@ -548,7 +548,7 @@ impl submit_polygon::Outside for Game<'_> {
     fn draw_fan(&mut self, vertices: &[crate::d3d::Vertex]) -> u32 {
         submit_polygon::Game(self.0, self.1).draw_fan(vertices)
     }
-    fn bad_vertex(&mut self, buffer: &PolygonVertices, screen: &crate::session::Screen) {
+    fn bad_vertex(&mut self, buffer: &PolygonVertices, screen: &crate::memory::session::Screen) {
         submit_polygon::Game(self.0, self.1).bad_vertex(buffer, screen);
     }
     fn not_drawn(&mut self, result: u32) {
@@ -566,9 +566,9 @@ impl Outside for Game<'_> {
 /// callers.
 pub fn draw_polygon_in_game(
     view: &crate::race::view_scratch::ViewScratch,
-    part: &crate::workers::PartScratch,
-    reads: crate::workers::DrawReads<'_>,
-    screen: &crate::session::Screen,
+    part: &crate::scene::workers::PartScratch,
+    reads: crate::scene::workers::DrawReads<'_>,
+    screen: &crate::memory::session::Screen,
 ) -> Result<(), BadInput> {
     draw_polygon(
         &view.polygon,

@@ -1,5 +1,5 @@
 //! SDL3's joysticks, gamepads, haptics and event injection (`sdl3-sys`), for
-//! `platform_input` (the game's DirectInput devices) and `remote` (test events).
+//! `platform::input` (the game's DirectInput devices) and `remote` (test events).
 //!
 //! The handles are opaque newtypes over SDL's pointers: they are made only by the `open`
 //! functions here and used only by the methods here, which pass them back to SDL. A handle is

@@ -3,7 +3,7 @@
 //! `install::run_page`.
 
 use crate::install::installer::rb;
-use crate::list_handle::ListMenu;
+use crate::memory::list_handle::ListMenu;
 use rc2k_core::install::pages;
 
 /// `state`: which call of the list action this is (0 the start, negative the end).
@@ -13,7 +13,7 @@ pub fn drive_page(
     state: u32,
     list: ListMenu,
 ) {
-    let letters = crate::place::BytePlace::from(&install.drive_rows.drive_rows);
+    let letters = crate::memory::place::BytePlace::from(&install.drive_rows.drive_rows);
     if state == 0 {
         let letter = crate::strings::same_text::lower(install.paths.typed.get(0)); // g_lowerCase
         let at = |n: u32| letters.add(pages::DRIVE_TEXT * n);

@@ -46,12 +46,12 @@ pub fn restore_buffer(state: &AudioOwn, b: u32) -> Result<Restored, Refused> {
             return Ok(left);
         }
         // A failed call leaves the status 0.
-        let status = crate::platform_sound::status(b).unwrap_or(0);
+        let status = crate::platform::sound::status(b).unwrap_or(0);
         left.status = Some(status);
         if !rc2k_core::audio::buffers::needs_restore(status) {
             return Ok(left);
         }
-        let r = crate::platform_sound::restore(b);
+        let r = crate::platform::sound::restore(b);
         left.result = Some(r as u32);
         // After `Restore` the status is no longer known (as after any COM call).
         left.status = None;
@@ -117,6 +117,6 @@ pub fn close_primary_mixer(audio: &AudioThread, system: &System) -> Result<bool,
     }
     crate::audio::sound_device::release_primary(state);
     let ds = state.direct_sound.get();
-    crate::platform_sound::set_cooperative_level(ds, system.session.host.window.get(), 3);
+    crate::platform::sound::set_cooperative_level(ds, system.session.host.window.get(), 3);
     make_primary_failed(audio, system)
 }

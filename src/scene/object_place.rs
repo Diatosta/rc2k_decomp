@@ -23,7 +23,7 @@
 //! the physics' own (`physics::face_contact`, `race::get_mat_crash`,
 //! `physics::object_turn_matrix`).
 
-use crate::session::{PlainDword, PlainFloat};
+use crate::memory::session::{PlainDword, PlainFloat};
 
 /// The kept reflections' room: four caches of 1024 by point number.
 pub const KEPT_REFLECTIONS: usize = 4096;
@@ -142,7 +142,7 @@ mod tests {
         let o = ObjectPlace::new();
         let work = crate::scene::object_store::ObjectWork::new();
         let ground = crate::physics::ground_store::GroundWork::new();
-        fn bits<D: crate::session::DwordLike>(c: &[D]) -> Vec<u32> {
+        fn bits<D: crate::memory::session::DwordLike>(c: &[D]) -> Vec<u32> {
             c.iter().map(D::get).collect()
         }
         assert_eq!(bits(&o.position), bits(&work.object_position));

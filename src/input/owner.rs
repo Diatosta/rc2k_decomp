@@ -4,7 +4,7 @@
 use crate::input::guids::InputGuids;
 use crate::input::layouts::Layouts;
 use crate::input::store::{Devices, ForceFeedback, Keyboard, Mouse};
-use crate::session::GameThread;
+use crate::memory::session::GameThread;
 use std::sync::atomic::AtomicU32;
 use std::sync::{Mutex, MutexGuard, PoisonError};
 

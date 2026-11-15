@@ -8,10 +8,10 @@
 //!   out: the kept switches go back and are applied again.
 
 use crate::errors::Refused;
+use crate::memory::session::DwordLike;
+use crate::memory::session::PlainDword;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
-use crate::session::DwordLike;
-use crate::session::PlainDword;
 
 /// `patch_switch` and the twelve settings after it (13 dwords).
 pub fn switches(shared: &RaceShared) -> impl Iterator<Item = &PlainDword> {

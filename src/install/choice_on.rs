@@ -5,7 +5,7 @@
 
 use crate::errors::Refused;
 use crate::install::choice_back::{choice_places, store_choice};
-use crate::list_handle::ListItem;
+use crate::memory::list_handle::ListItem;
 
 pub fn choice_on(
     install: &'static crate::install::owner::Install,

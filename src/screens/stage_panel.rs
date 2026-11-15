@@ -6,6 +6,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::gfx::blit_marker_pair::marker_calls;
 use crate::gfx::owner::Gfx;
+use crate::memory::session::{DwordLike, PlainDword};
 use crate::menu::owner::Screens;
 use crate::records::stages_store::RecordRef;
 use crate::records::stages_store::TrackField;
@@ -13,7 +14,6 @@ use crate::records::trakpak_entry::track_of;
 use crate::screens::draw_stage_heading::heading_text;
 use crate::screens::draw_stage_records::draw_stage_records;
 use crate::screens::game_screen::GameScreen;
-use crate::session::{DwordLike, PlainDword};
 use crate::strings::units::units;
 use crate::text::draw_string_by_id::draw_string_by_id_at;
 use crate::text::draw_text::Canvas;

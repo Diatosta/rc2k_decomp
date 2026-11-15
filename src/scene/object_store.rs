@@ -2,8 +2,8 @@
 //! shape's counts and firsts), the object being drawn (its place, position, size, angles, faces)
 //! and the light levels.
 
-use crate::cells::ZeroCells;
-use crate::session::PlainDword;
+use crate::memory::cells::ZeroCells;
+use crate::memory::session::PlainDword;
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ObjectWork {

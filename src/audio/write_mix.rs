@@ -5,7 +5,7 @@
 use crate::audio::mixer::*;
 use crate::audio::own::AudioOwn;
 use crate::errors::Refused;
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 
 pub fn write_mix_in_game(state: &AudioOwn) -> Result<(), Refused> {
     let parts = state.locked_parts.each_ref().map(PlainDword::get);

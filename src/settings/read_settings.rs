@@ -3,8 +3,8 @@
 //! Callers: start-up and `system::load_game_data`.
 
 use crate::errors::BadInput;
+use crate::memory::session::DwordLike;
 use crate::owners::Owners;
-use crate::session::DwordLike;
 use crate::settings::read_text::read_text;
 use crate::strings::same_text::case_table;
 

@@ -2,7 +2,7 @@
 //! being enciphered, its result and the sixteen subkeys. The cipher's tables are constants in
 //! `race::seal_tables`.
 
-use crate::session::{PlainBytes, PlainDword};
+use crate::memory::session::{PlainBytes, PlainDword};
 
 /// The seal cipher's subkeys, key, block and result.
 #[derive(rc2k_derive::Cells)]

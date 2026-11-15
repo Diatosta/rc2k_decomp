@@ -5,7 +5,7 @@
 //! palette, 0x300 bytes, is the end of the file.
 
 use crate::files::stream::Stream;
-use crate::session::{PlainBytes, PlainDword, with_runs};
+use crate::memory::session::{PlainBytes, PlainDword, with_runs};
 
 pub const HEADER_LEN: usize = 0x80;
 pub const HEADER_PLANES: usize = 0x41;

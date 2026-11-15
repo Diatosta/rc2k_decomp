@@ -9,10 +9,10 @@
 //! above 0x7C (unsigned: the list would run past the work copy's end).
 
 use crate::errors::Refused;
+use crate::memory::session::{Run, read_runs, write_runs};
 use crate::physics::car_store::Car;
 use crate::physics::contact_store::ContactWork;
 use crate::physics::tables_store::PhysicsTables;
-use crate::session::{Run, read_runs, write_runs};
 use rc2k_core::physics::saved_car::{restore_count, restored};
 
 /// The car's last-face list and the fields after it in the record, in order, to its end.

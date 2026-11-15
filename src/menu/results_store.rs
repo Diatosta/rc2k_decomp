@@ -2,7 +2,7 @@
 //! player's place, points and totals. One static, owned by the menus.
 
 use crate::errors::BadInput;
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 
 /// The title string ids of the two stage groups.
 const GROUP_TITLES: [u32; 2] = [0x340, 0x341];

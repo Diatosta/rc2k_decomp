@@ -8,7 +8,7 @@
 use crate::effects::pong::{self, Pong};
 use crate::effects::pong_ball_hits::pong_ball_hits;
 use crate::math::x87;
-use crate::session::PlainFloat;
+use crate::memory::session::PlainFloat;
 
 /// The court's limits (`PongRules::walls`).
 fn limit(pong: &Pong, n: usize) -> f32 {

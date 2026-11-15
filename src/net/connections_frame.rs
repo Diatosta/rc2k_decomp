@@ -14,7 +14,7 @@ const LIT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BUTTON_
 pub fn list_frame(
     o: crate::owners::Owners<'static>,
     title: u32,
-    count: &crate::session::Dword,
+    count: &crate::memory::session::Dword,
     name: impl Fn(u32) -> Result<[u8; 0x40], Refused>,
 ) -> Result<(), Refused> {
     let (gfx, system) = (o.gfx, o.system);

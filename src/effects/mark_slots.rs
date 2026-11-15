@@ -1,8 +1,8 @@
 //! The mark slots' variables: `MarkSlots` (the 0x20 slots and the work places) and
 //! `SlotTuning` (constants and randoms).
 
+use crate::memory::session::{PlainDword, PlainFloat};
 use crate::race::owner_frame::Frame;
-use crate::session::{PlainDword, PlainFloat};
 
 /// One mark slot: a sprite that lives a number of ticks.
 #[derive(rc2k_derive::Cells)]
@@ -27,7 +27,7 @@ pub const VIEW_PLACE_MATRIX: u32 = 0xCD00_0001;
 pub fn slot_matrix(
     frame: &Frame,
     handle: u32,
-) -> Result<&[crate::session::PlainFloat; 16], crate::errors::BadInput> {
+) -> Result<&[crate::memory::session::PlainFloat; 16], crate::errors::BadInput> {
     match handle {
         VIEW_PLACE_MATRIX => Ok(&frame.matrices.get().view_place),
         _ => Err(crate::errors::BadInput(

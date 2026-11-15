@@ -6,9 +6,9 @@
 //! dword: from gear 0 or above 32 the search would run there), nothing written.
 
 use crate::errors::Refused;
+use crate::memory::session::PlainDword;
 use crate::physics::car_store::Car;
 use crate::physics::gear_bit::bits_at;
-use crate::session::PlainDword;
 
 /// On the bits at `bits`: the free lower gear (None when neutral is reached first).
 // Core: `rc2k_core::physics::gearbox::GearBits::lower_free`.

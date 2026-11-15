@@ -50,7 +50,7 @@ impl Colours257 {
 
 /// A new streak's place turned into its last (+0x1C ..), and a first move.
 fn first_frame(
-    view_matrix: &[crate::session::PlainFloat; 16],
+    view_matrix: &[crate::memory::session::PlainFloat; 16],
     ring: &Ring,
     e: u32,
     effects: &crate::effects::owner::Effects,
@@ -71,7 +71,7 @@ fn move_(ring: &Ring, e: u32, effects: &crate::effects::owner::Effects) {
 
 /// The place turned by the view into `DrawWork.turned[0]` ...
 fn turn_place(
-    view_matrix: &[crate::session::PlainFloat; 16],
+    view_matrix: &[crate::memory::session::PlainFloat; 16],
     ring: &Ring,
     e: u32,
     effects: &crate::effects::owner::Effects,
@@ -150,7 +150,7 @@ fn refusal(
 /// The streak step at e (see the header): whether the entry dies.
 fn streak(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
-    view_matrix: &[crate::session::PlainFloat; 16],
+    view_matrix: &[crate::memory::session::PlainFloat; 16],
     ring: &Ring,
     e: u32,
     scene: &crate::scene::owner::Scene,
@@ -234,7 +234,11 @@ use crate::math::x87_float::int;
 
 /// The entry's place turned by the view matrix (its rows' x, y, z columns plus the translation
 /// in cells 12 .. 14), in the x87's order: the three results unrounded to a stored float.
-fn view_turned(view_matrix: &[crate::session::PlainFloat; 16], ring: &Ring, e: u32) -> [bh::X; 3] {
+fn view_turned(
+    view_matrix: &[crate::memory::session::PlainFloat; 16],
+    ring: &Ring,
+    e: u32,
+) -> [bh::X; 3] {
     let t0 = ld(ring, e, |en| en.place[2]);
     let t1 = ld(ring, e, |en| en.place[1]);
     let t2 = ld(ring, e, |en| en.place[0]);
@@ -270,7 +274,7 @@ fn view_turned(view_matrix: &[crate::session::PlainFloat; 16], ring: &Ring, e: u
 
 /// `first_frame`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn first_frame_x87(
-    view_matrix: &[crate::session::PlainFloat; 16],
+    view_matrix: &[crate::memory::session::PlainFloat; 16],
     ring: &Ring,
     e: u32,
     c: &MarksClock,
@@ -306,7 +310,7 @@ fn move_x87(ring: &Ring, e: u32, c: &MarksClock, y_gain: f32) {
 
 /// `turn_place`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn turn_place_x87(
-    view_matrix: &[crate::session::PlainFloat; 16],
+    view_matrix: &[crate::memory::session::PlainFloat; 16],
     ring: &Ring,
     e: u32,
     dw: &DrawWork,
@@ -327,7 +331,7 @@ mod old {
     /// The previous version of `first_frame`'s arithmetic as plain Rust on the x87 model, in the
     /// same order.
     pub(super) fn first_frame_x87(
-        view_matrix: &[crate::session::PlainFloat; 16],
+        view_matrix: &[crate::memory::session::PlainFloat; 16],
         ring: &Ring,
         e: u32,
         c: &MarksClock,
@@ -408,7 +412,7 @@ mod old {
     /// The previous version of `turn_place`'s arithmetic as plain Rust on the x87 model, in the
     /// same order.
     pub(super) fn turn_place_x87(
-        view_matrix: &[crate::session::PlainFloat; 16],
+        view_matrix: &[crate::memory::session::PlainFloat; 16],
         ring: &Ring,
         e: u32,
         dw: &DrawWork,
@@ -487,7 +491,7 @@ mod same_as_old {
         let clock = &MarksClock::new();
         let kept_matrix: Vec<u32> = view_matrix
             .iter()
-            .map(crate::session::Cell32::bits)
+            .map(crate::memory::session::Cell32::bits)
             .collect();
         let figures = crate::memory::figures();
         let memory = crate::memory::ListCells::empty();
@@ -497,7 +501,7 @@ mod same_as_old {
             .draw_work
             .turned
             .iter()
-            .map(crate::session::Cell32::bits)
+            .map(crate::memory::session::Cell32::bits)
             .collect();
         let mut state = 0x9E37_79B9_7F4A_7C15u64;
         for case in 0..12_000 {
@@ -526,7 +530,7 @@ mod same_as_old {
                     (_, _) => turn_place_x87(view_matrix, ring, 1, &effects().frame.draw_work),
                 }
                 let mut bytes = ring.entries.with(|r| r[0].words().to_vec()).unwrap();
-                bytes.extend(turned.iter().map(crate::session::Cell32::bits));
+                bytes.extend(turned.iter().map(crate::memory::session::Cell32::bits));
                 results.push(bytes);
             }
             let same_but_for_nan_payloads = results[0].len() == results[1].len()

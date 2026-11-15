@@ -57,7 +57,7 @@ pub fn face_shares(i: &[u32; 7], o: &mut [u32; 8], sse: bool) {
         o[5] = st(q2);
         o[6] = to_int(q2 * scale) as u32;
     } else {
-        let rcp = crate::arch::rcpss(f32::from_bits(o[0]));
+        let rcp = crate::platform::arch::rcpss(f32::from_bits(o[0]));
         o[7] = rcp.to_bits();
         // The cross products times 1 over f764, unrounded until stored.
         o[1] = st(x1);

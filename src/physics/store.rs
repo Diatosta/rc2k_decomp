@@ -4,7 +4,7 @@
 //! `rate_damage` use it (`physics/damage_model.rs`); the doc of each says what.
 
 use crate::errors::BadInput;
-use crate::session::{PlainDword, PlainFloat, PlainInt};
+use crate::memory::session::{PlainDword, PlainFloat, PlainInt};
 
 /// The damage model's figures.
 #[cfg_attr(test, repr(C))]

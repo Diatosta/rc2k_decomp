@@ -19,8 +19,8 @@
 
 use crate::audio::names_store::{NameList, SampleNames};
 use crate::errors::BadInput;
+use crate::memory::session::PlainDword;
 use crate::race::owner::Race;
-use crate::session::PlainDword;
 use crate::sound::sets_store::NamedSet;
 use rc2k_core::audio::commands::{Command, SoundList};
 

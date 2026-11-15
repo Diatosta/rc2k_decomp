@@ -3,5 +3,5 @@
 //! next pump).
 
 pub fn restore_window() {
-    crate::platform_events::restore_window();
+    crate::platform::events::restore_window();
 }

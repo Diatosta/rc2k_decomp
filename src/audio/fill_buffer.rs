@@ -9,7 +9,7 @@ use crate::errors::{BadInput, Refused};
 
 /// Fills the voice's buffer. True when it worked.
 pub fn fill_buffer(state: &AudioOwn, v: &Voice) -> Result<bool, Refused> {
-    use crate::platform_sound as ds;
+    use crate::platform::sound as ds;
     if a3d(state) {
         return Err(BadInput("A3D (the chunk at 0x40CDE8)").into());
     }

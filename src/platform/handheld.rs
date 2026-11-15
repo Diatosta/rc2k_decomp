@@ -1,8 +1,8 @@
 //! The Anbernic RG34XXSP: its stock OS has no display system SDL3
 //! knows (no DRM, X11 or Wayland), so the frames go straight to `/dev/fb0`. SDL stays for
-//! sound and the pad (`platform_input`, `input::menu_pad`), on its `dummy` video driver.
+//! sound and the pad (`platform::input`, `input::menu_pad`), on its `dummy` video driver.
 
-use crate::ffi::linux_handheld::{self, Framebuffer, Sample};
+use crate::platform::ffi::linux_handheld::{self, Framebuffer, Sample};
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
 /// The panel.
@@ -40,7 +40,7 @@ pub fn open_screen() -> Result<(), &'static str> {
                 start_profile();
             }
             Err(e) => {
-                crate::framework::log(&format!("handheld: {e}"));
+                crate::logfile::program_log::log(&format!("handheld: {e}"));
                 return Err("no framebuffer");
             }
         }
@@ -243,7 +243,7 @@ pub fn start_profile() {
         return;
     }
     linux_handheld::start_profile_timer(on_profile);
-    crate::framework::log(&format!(
+    crate::logfile::program_log::log(&format!(
         "handheld: profiling; the code's base {:#x}",
         start_profile as *const () as usize
     ));

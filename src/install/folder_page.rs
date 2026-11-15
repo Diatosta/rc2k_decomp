@@ -2,7 +2,7 @@
 //! the end `path_problem` is 0; then the items that do not match `path_problem` are hidden.
 //! Called by `install::run_page`.
 
-use crate::list_handle::ListMenu;
+use crate::memory::list_handle::ListMenu;
 use rc2k_core::install::pages;
 
 /// `state`: which call of the list action this is (0 the start, negative the end).

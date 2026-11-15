@@ -6,8 +6,8 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::owner::Gfx;
+use crate::memory::session::Bytes;
 use crate::net::owner::Net;
-use crate::session::Bytes;
 use crate::text::draw_text::GameCanvas;
 use crate::text::measure_text::measure_text_at;
 

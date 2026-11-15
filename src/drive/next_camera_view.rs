@@ -5,10 +5,10 @@
 
 use crate::drive::set_camera_view::set_view_at;
 use crate::errors::BadInput;
+use crate::memory::session::PlainDword;
 use crate::physics::car_store::Car;
 use crate::race::kind_store::KindTables;
 use crate::race::owner::Race;
-use crate::session::PlainDword;
 use rc2k_core::drive::camera_views::next_view;
 
 pub fn next_view_at(

@@ -2,8 +2,8 @@
 //! the lists a screen puts in place (the unread, draw, overlay and scene lists) and a few switches
 //! of the item keys. One static. The list pointers hold the lists by handle (`menu::fn_list`).
 
+use crate::memory::session::{PlainDword, PlainFlag};
 use crate::menu::fn_list::ListCell;
-use crate::session::{PlainDword, PlainFlag};
 
 /// The screens' flow variables.
 #[derive(rc2k_derive::Cells)]

@@ -12,12 +12,12 @@
 //! Caller: `physics::damage_step`.
 
 use crate::errors::BadInput;
+use crate::memory::session::PlainFloat;
 use crate::physics::car_store::Car;
 use crate::physics::damage_gauges::raise;
 use crate::physics::damage_model::{store, value};
 use crate::physics::flow::{hold_low, table_lerp};
 use crate::physics::store::DamageModel;
-use crate::session::PlainFloat;
 
 /// The wear of this step: the gauges raised or lowered by their rates times the shares,
 /// the lerps of the speed shares, and the hit figures.

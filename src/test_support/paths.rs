@@ -6,7 +6,7 @@
 //! path names a whole run of like cells (a scalar's one cell, a byte array in one piece). A
 //! cell is read and written as little-endian bytes, a float by its bits.
 
-use crate::cells::{CellRun, CellVisitor, Cells};
+use crate::memory::cells::{CellRun, CellVisitor, Cells};
 
 /// What the walk does at the run it finds.
 enum Task<'a> {
@@ -467,8 +467,8 @@ pub fn field_start<T: Cells>(record: &T, prefix: &str) -> Option<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cells::ByteView;
-    use crate::session::{Byte, Dword, Float, Word};
+    use crate::memory::cells::ByteView;
+    use crate::memory::session::{Byte, Dword, Float, Word};
 
     /// A record of fixed layout with arrays and a nested record, for the byte view's paths.
     #[repr(C)]

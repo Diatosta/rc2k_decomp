@@ -10,12 +10,13 @@ pub fn write_record(
     install: &'static crate::install::owner::Install,
     strings: &'static crate::strings::owner::Strings,
 ) -> Result<bool, Refused> {
-    let start = crate::place::BytePlace::from(&strings.text.buffer.text);
+    let start = crate::memory::place::BytePlace::from(&strings.text.buffer.text);
     let locale = (crate::files::state::directory_byte(1) != 0)
         .then(|| crate::files::state::directory_text(1, "the locale directory"))
         .transpose()?;
     let text = rc2k_core::install::config::record_text(
-        &crate::place::BytePlace::from(&install.paths.game_dir).text("the game's folder")?,
+        &crate::memory::place::BytePlace::from(&install.paths.game_dir)
+            .text("the game's folder")?,
         locale.as_deref(),
         media_mode(),
     );

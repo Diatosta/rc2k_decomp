@@ -7,7 +7,7 @@
 //! Another key does not move it. Callers: `race::replay_viewer` (two), which read whether it
 //! moved.
 
-use crate::place::BytePlace;
+use crate::memory::place::BytePlace;
 use rc2k_core::menu::list_menu::{MOVES, Step, step};
 
 /// `key` moving the highlight of the list menu `list` by the neighbours table `table` (None
@@ -16,7 +16,7 @@ pub fn list_step(
     list_state: &crate::menu::list_state::ListState,
     key: u8,
     table: Option<BytePlace>,
-    list: crate::list_handle::ListMenu,
+    list: crate::memory::list_handle::ListMenu,
 ) -> Result<bool, crate::errors::BadInput> {
     let count = list.count();
     if !MOVES.contains(&key) {

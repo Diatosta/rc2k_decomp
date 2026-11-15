@@ -12,8 +12,8 @@
 //!
 //! Caller: `drive::race_frame` (each frame drawn).
 
-use crate::cells::Store;
 use crate::errors::Refused;
+use crate::memory::cells::Store;
 
 pub fn replay_screenshot(
     race: &crate::race::owner::Race,
@@ -27,7 +27,7 @@ pub fn replay_screenshot(
     let clock = &system.session.picture_clock;
     if clock.started.get() != 1 {
         clock.started.set(1u32);
-        clock.clock.set(crate::os::ticks());
+        clock.clock.set(crate::platform::os::ticks());
     }
     let name = &panel.picture_name;
     // Logic in `rc2k_core::race::viewer::count_up` (the name's six digits from +4).

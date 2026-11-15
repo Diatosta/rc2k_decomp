@@ -8,7 +8,7 @@
 //! `ByteView`): the recorded-assembly tests of the disc and quad code (`disc_vertex`) read it by
 //! byte offset.
 
-use crate::session::{PlainDword, PlainFloat, PlainWord};
+use crate::memory::session::{PlainDword, PlainFloat, PlainWord};
 
 /// The HUD's quad record (14 dwords): what `add_quad` makes four vertices of.
 #[cfg_attr(test, repr(C))]

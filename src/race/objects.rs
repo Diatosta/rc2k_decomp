@@ -4,8 +4,8 @@
 //! compared unsigned), turned to floats (/ 65536) into the car's block, two points put in at 4.
 
 use crate::errors::{BadInput, Refused};
+use crate::memory::session::Dword;
 use crate::race::owner::Race;
-use crate::session::Dword;
 
 const LIFT: u32 = 0x5_0000;
 const MOST_SORTED: u32 = 0x3D;
@@ -147,10 +147,10 @@ pub fn set_up_car_points(
                 }
             }
             race.physics.contact.get().car_point_count.set(count);
-            let mut points = lists.map(crate::session::read_bits);
+            let mut points = lists.map(crate::memory::session::read_bits);
             rc2k_core::race::cars::open_two_points(&mut points);
             for (l, p) in lists.into_iter().zip(points) {
-                crate::session::write_bits(l, p);
+                crate::memory::session::write_bits(l, p);
             }
             race.physics.contact.get().car_point_count.set(count + 2);
         }
@@ -180,7 +180,7 @@ pub fn set_object_kinds(race: &Race, scene: &crate::scene::owner::Scene) -> Resu
         check_object_cars,
     };
     crate::scene::clear_slot_kinds::clear_slot_kinds(scene);
-    crate::session::write_bits(&course.stage_prefs.get().fixed_kinds, FIXED_KINDS);
+    crate::memory::session::write_bits(&course.stage_prefs.get().fixed_kinds, FIXED_KINDS);
     for n in DEFAULT_SLOTS {
         // Slots 56 .. 62 take `fixed_kinds`, just set above: the defaults table runs on into it (a
         // slip kept as is).

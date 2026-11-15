@@ -15,10 +15,10 @@ use crate::effects::mark_slots::slot_matrix;
 use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
+use crate::memory::session::PlainFloat;
 use crate::race::owner::Race;
 use crate::scene::matrix3::{extended, rounded_value};
 use crate::scene::rotate_point::rotate_point;
-use crate::session::PlainFloat;
 /// Each vertex's texture place: the corner entry's word offsets (u, v).
 const UV_WORDS: [(u32, u32); 4] = [(0xC, 0xE), (8, 0xA), (0, 2), (4, 6)];
 
@@ -89,7 +89,7 @@ pub fn draw_mark_slots(
             .slot_tuning
             .place_k
             .each_ref()
-            .map(crate::session::PlainFloat::get);
+            .map(crate::memory::session::PlainFloat::get);
         let z = x87::mul(c, k4[0]);
         let y = x87::sub_mul(b, k4[1], k4[2]);
         let x = x87::mul(a, k4[3]);

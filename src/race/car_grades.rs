@@ -3,9 +3,9 @@
 //! `grade_all_cars` for the eight.
 
 use crate::errors::BadInput;
+use crate::memory::session::{PlainDword, PlainFloat};
 use crate::physics::car_store::Car;
 use crate::race::owner_shared::RaceShared;
-use crate::session::{PlainDword, PlainFloat};
 
 /// A car's grade: the block's value (a float), where its grade goes, and the thresholds, in the
 /// order `grade_car_values` tries them.

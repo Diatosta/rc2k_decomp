@@ -3,7 +3,7 @@
 //! typed and Rust's own (`saves::best_times`): each pair keeps only the size. `TimeEntry` keeps
 //! its `#[repr(C)]` (`ByteView`: entries are copied in runs).
 
-use crate::session::{PlainBytes, PlainDword};
+use crate::memory::session::{PlainBytes, PlainDword};
 
 /// Where one table is: its address (0, since the tables are typed) and its size in bytes.
 #[derive(rc2k_derive::Cells)]
@@ -1358,7 +1358,7 @@ mod table_named_tests {
 #[cfg(test)]
 mod fill_made_up_tests {
     use super::*;
-    use crate::cells::load_cells;
+    use crate::memory::cells::load_cells;
 
     /// A made-up time written by fields is the entry the core writes by offsets, in a stage's
     /// table (+0x14) and a rally's (+0x18); a name longer than the field and another place for

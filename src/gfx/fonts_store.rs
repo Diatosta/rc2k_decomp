@@ -1,13 +1,13 @@
 //! The game's font objects, their palettes and glyph tables (`gfx::build_fonts`,
 //! `gfx::build_game_fonts`, the screens that draw text) typed: the menus' four fonts and their
 //! palette and glyph-table pointers, the palette sheet, and the race's six fonts. A font is the
-//! 0x20-byte object `rc2k_core::text::Font` describes, held in a `Shared` cell. `#[repr(C)]`
+//! 0x20-byte object `rc2k_core::strings::text::Font` describes, held in a `Shared` cell. `#[repr(C)]`
 //! structs; the four menu fonts' palette and glyph table are the jade font's places in
 //! `gfx::glyph_store` (`JADE_COLOUR`, `JADE`), converted once when the block is built.
 
 use crate::gfx::typefaces::FontObject;
-use crate::session::PlainDword;
-use rc2k_core::text::Font;
+use crate::memory::session::PlainDword;
+use rc2k_core::strings::text::Font;
 
 /// The fonts, their palettes and glyph tables.
 #[derive(rc2k_derive::Cells)]

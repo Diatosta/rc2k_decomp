@@ -1,6 +1,6 @@
 //! A gamepad in the menus (the game's menus otherwise take only the keyboard): any pad SDL knows,
 //! on every system. The menus read one pending key (`input::take_key`), so a button gives them the
-//! key of what it means; the race's own controls are the game's devices (`platform_input`), and the
+//! key of what it means; the race's own controls are the game's devices (`platform::input`), and the
 //! held-key table is left alone, so driving with the pad steers nothing through the keyboard's
 //! controls.
 

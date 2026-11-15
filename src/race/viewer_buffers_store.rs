@@ -3,7 +3,7 @@
 //! the two file handles of `race::save_viewed_replay`.
 
 use crate::errors::BadInput;
-use crate::session::{PlainBytes, PlainDword};
+use crate::memory::session::{PlainBytes, PlainDword};
 #[cfg(test)]
 use crate::test_support::own::race;
 
@@ -65,7 +65,7 @@ pub const BLOCK_BYTES: usize = 4 * 0xA04;
 impl ViewerBuffers {
     /// All bytes zero.
     pub const fn new() -> Self {
-        crate::cells::zeroed_cells()
+        crate::memory::cells::zeroed_cells()
     }
 
     /// The replay block's bytes.
@@ -82,7 +82,7 @@ impl ViewerBuffers {
         match offset.checked_add(data.len()) {
             Some(end) if end <= BLOCK_BYTES => {}
             _ => {
-                crate::framework::log(&format!(
+                crate::logfile::program_log::log(&format!(
                     "replay block: {what}: {:#x} bytes at {offset:#x} of {BLOCK_BYTES:#x}",
                     data.len()
                 ));

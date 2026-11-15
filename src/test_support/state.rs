@@ -22,21 +22,21 @@ impl Snapshot {
 
 /// A record's cells copied out whole, to be copied back: the typed counterpart of `Snapshot`
 /// for a test that writes one record it holds.
-pub struct RecordSnapshot<'a, T: crate::cells::Cells> {
+pub struct RecordSnapshot<'a, T: crate::memory::cells::Cells> {
     record: &'a T,
     copy: T,
 }
 
 impl Snapshot {
     /// A copy of every cell of `record` (a zeroed record filled by `copy_from`).
-    pub fn of_record<T: crate::cells::Cells>(record: &T) -> RecordSnapshot<'_, T> {
-        let copy = crate::cells::zeroed_cells::<T>();
+    pub fn of_record<T: crate::memory::cells::Cells>(record: &T) -> RecordSnapshot<'_, T> {
+        let copy = crate::memory::cells::zeroed_cells::<T>();
         copy.copy_from(record);
         RecordSnapshot { record, copy }
     }
 }
 
-impl<T: crate::cells::Cells> RecordSnapshot<'_, T> {
+impl<T: crate::memory::cells::Cells> RecordSnapshot<'_, T> {
     /// The cells put back into the record.
     pub fn restore(&self) {
         self.record.copy_from(&self.copy);
@@ -80,7 +80,7 @@ mod tests {
 
     #[test]
     fn a_record_snapshot_puts_a_record_back() {
-        use crate::session::{Byte, Dword};
+        use crate::memory::session::{Byte, Dword};
         #[derive(rc2k_derive::Cells)]
         struct Free {
             a: Byte,

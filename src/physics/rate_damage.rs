@@ -26,10 +26,10 @@ use crate::effects::cell_x87::CellX87;
 use crate::math::x87;
 use crate::math::x87::{compare_full, ext_times, one_less_products, ramp};
 use crate::math::x87_float as bh;
+use crate::memory::session::{PlainDword, PlainFloat};
 use crate::physics::car_store::Car;
 use crate::physics::store::DamageModel;
 use crate::scene::matrix3::rounded_value;
-use crate::session::{PlainDword, PlainFloat};
 
 /// The ramps in order: (destination, figure, table).
 fn ramps_a<'a>(

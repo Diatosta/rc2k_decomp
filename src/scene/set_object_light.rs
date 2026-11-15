@@ -52,9 +52,9 @@ pub fn set_object_light(
     if clear_strength {
         object.light_strength.set(0u32);
     }
-    crate::session::write_bits(
+    crate::memory::session::write_bits(
         &light.lit_place,
-        crate::session::read_bits::<_, 3>(&object.place),
+        crate::memory::session::read_bits::<_, 3>(&object.place),
     );
     if own_car {
         light.drawn_car_light.set(vars.drawn_car.get());

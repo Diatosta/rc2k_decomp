@@ -1,7 +1,7 @@
 //! The PNG header's fields: `decode_png` writes them from the file's header chunk and, without one
 //! in the file, reads what the last file left.
 
-use crate::session::{PlainByte, PlainBytes, PlainDword};
+use crate::memory::session::{PlainByte, PlainBytes, PlainDword};
 
 /// The header of the PNG being decoded.
 #[cfg_attr(test, repr(C))]

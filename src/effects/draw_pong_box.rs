@@ -50,7 +50,7 @@ pub fn draw_pong_box(
         .rules
         .box_places
         .each_ref()
-        .map(crate::session::PlainFloat::get);
+        .map(crate::memory::session::PlainFloat::get);
     for (n, (u, w)) in [(pa, pb), (pc, pb), (pc, pd), (pa, pd)]
         .into_iter()
         .enumerate()

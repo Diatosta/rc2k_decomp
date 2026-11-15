@@ -5,5 +5,5 @@ pub fn restore_error_mode(system: &crate::system::owner::System) {
         return;
     }
     system.start().error_mode.changed.set(0);
-    crate::os::set_error_mode(system.start().error_mode.mode.get());
+    crate::platform::os::set_error_mode(system.start().error_mode.mode.get());
 }

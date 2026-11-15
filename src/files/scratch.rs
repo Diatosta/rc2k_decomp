@@ -2,7 +2,7 @@
 //! packing, the map's read buffer, the installer's pages, the PNG decoder's info), out of
 //! RAL.EXE's image. Struct of a byte buffer.
 
-use crate::session::PlainBytes;
+use crate::memory::session::PlainBytes;
 
 /// The shared 64 KB scratch.
 #[repr(align(16))]
@@ -33,7 +33,7 @@ impl Scratch {
         what: &str,
     ) -> Result<(u32, bool), crate::errors::BadInput> {
         if count as usize > Self::LEN {
-            crate::framework::log(&format!("scratch: {what}: {count:#x} bytes"));
+            crate::logfile::program_log::log(&format!("scratch: {what}: {count:#x} bytes"));
             return Err(crate::errors::BadInput("a read past the scratch"));
         }
         let mut bytes = vec![0u8; count as usize];

@@ -163,4 +163,5 @@ pub mod vertex_light;
 pub mod view_matrices;
 pub mod view_matrix;
 pub mod view_window;
+pub mod workers;
 pub(crate) mod x87_mem;

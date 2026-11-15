@@ -2,8 +2,8 @@
 //! shadow's points) through `rc2k_core::race::quick_sort`: the records from the first to the last
 //! (both included) are read, sorted, and the changed ones written back.
 
-use crate::cells::Store;
 use crate::errors::Refused;
+use crate::memory::cells::Store;
 use rc2k_core::race::quick_sort::{Order, quick_sort};
 
 /// The `count` records of `N` dwords from `first` (a store) sorted by dword `key` in `order`
@@ -59,7 +59,7 @@ pub fn sort_records<const N: usize>(
 /// on the cells themselves (the changed records written back). Refuses (before anything)
 /// more records than `cells` holds.
 pub fn sort_cells<const N: usize>(
-    cells: &[crate::session::PlainDword],
+    cells: &[crate::memory::session::PlainDword],
     count: u32,
     key: usize,
     order: Order,

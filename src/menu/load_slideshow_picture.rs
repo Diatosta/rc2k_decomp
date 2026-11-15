@@ -28,9 +28,9 @@ use crate::owners::Owners;
 pub enum Step<'a> {
     /// `gfx::load_picture_with_overlay` with the path (its text, without the NUL) and the
     /// title bar: whether it failed.
-    Overlay(Vec<u8>, &'a dyn crate::session::TextPlace),
+    Overlay(Vec<u8>, &'a dyn crate::memory::session::TextPlace),
     /// `gfx::load_picture` of the title bar.
-    Load(&'a dyn crate::session::TextPlace),
+    Load(&'a dyn crate::memory::session::TextPlace),
     Convert,
 }
 
@@ -101,7 +101,7 @@ impl MirroredPath {
     }
 }
 
-impl crate::session::TextPlace for MirroredPath {
+impl crate::memory::session::TextPlace for MirroredPath {
     fn text(&self, _what: &str) -> Result<Vec<u8>, crate::errors::BadInput> {
         Ok(self.0.borrow().clone())
     }

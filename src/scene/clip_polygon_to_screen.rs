@@ -10,14 +10,14 @@
 //! clipping that runs out of entries (what it had written is put back first).
 
 use crate::errors::BadInput;
+use crate::memory::session::PlainFloat;
 use crate::scene::clip::{Edge, below, clip_pass, listed_with_records, or_undone};
-use crate::session::PlainFloat;
 
 // ---- game data ----
 
 /// The polygon's entries and the mask of the edges some vertex is past.
 fn outside_mask<'p>(
-    part: &'p crate::workers::PartScratch,
+    part: &'p crate::scene::workers::PartScratch,
     poly: &crate::scene::polygon_work::PolygonWork,
 ) -> Result<(crate::scene::polygon::Listed<'p>, u32), BadInput> {
     let polygon_work = &part.polygon;
@@ -59,7 +59,7 @@ fn outside_mask<'p>(
 }
 
 pub fn clip_polygon_to_screen(
-    part: &crate::workers::PartScratch,
+    part: &crate::scene::workers::PartScratch,
     poly: &crate::scene::polygon_work::PolygonWork,
     course: crate::race::owner_course::CourseReads<'_>,
 ) -> Result<(), BadInput> {

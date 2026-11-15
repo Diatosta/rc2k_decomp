@@ -58,7 +58,7 @@ impl SheetPixels for RowTable<'_> {
 pub fn transparent_of(
     flags: u32,
     backdrop: u32,
-    palette: &[crate::session::PlainDword; 256],
+    palette: &[crate::memory::session::PlainDword; 256],
 ) -> u32 {
     rc2k_core::gfx::glyphs::transparent_of(
         flags,

@@ -4,7 +4,7 @@
 //! points and the car draw flags. The stage prefs buffer (`race::prefs_store::StagePrefs`) is a
 //! separate piece. Names are readings unless taken from the game's own.
 
-use crate::session::{PlainDword, PlainFloat, PlainInt};
+use crate::memory::session::{PlainDword, PlainFloat, PlainInt};
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct CameraWork {
@@ -140,8 +140,8 @@ pub struct CameraWork {
 /// The piece, with the image's first values.
 impl CameraWork {
     pub const fn new() -> Self {
-        use crate::cells::ZeroCells;
-        use crate::session::{PlainDword, PlainFloat};
+        use crate::memory::cells::ZeroCells;
+        use crate::memory::session::{PlainDword, PlainFloat};
         Self {
             lights_path: {
                 let mut v: [PlainDword; 5] = ZeroCells::ZERO;

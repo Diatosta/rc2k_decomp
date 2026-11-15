@@ -2,7 +2,7 @@
 //! the binding being learnt and the names the bindings are drawn with. A struct of plain cells,
 //! one static.
 
-use crate::session::{PlainDword, PlainWord};
+use crate::memory::session::{PlainDword, PlainWord};
 
 /// The controller screen's variables.
 #[derive(rc2k_derive::Cells)]

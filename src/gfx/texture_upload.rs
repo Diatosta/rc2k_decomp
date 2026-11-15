@@ -8,7 +8,7 @@ use crate::gfx::read_texture_picture::read_texture_picture;
 use crate::gfx::texture_pixels::{
     KEPT, alpha_from_kept, grade_texture, grading, key_texture_colours, least_colour,
 };
-use crate::session::{Dword, Run};
+use crate::memory::session::{Dword, Run};
 
 pub const TEXTURES: u32 = 0x140;
 
@@ -123,11 +123,11 @@ impl RecordCell {
 
     /// A copy of the record (its fields may be read half changed).
     pub fn get(&self) -> TextureRecord {
-        TextureRecord::from_words(crate::session::read_all(&self.0))
+        TextureRecord::from_words(crate::memory::session::read_all(&self.0))
     }
 
     pub fn set(&self, record: TextureRecord) {
-        crate::session::write_all(&self.0, record.words());
+        crate::memory::session::write_all(&self.0, record.words());
     }
 
     /// The width, read alone.
@@ -225,11 +225,11 @@ impl FormatCell {
     }
 
     pub fn get(&self) -> TextureFormat {
-        TextureFormat::from_words(crate::session::read_all(&self.0))
+        TextureFormat::from_words(crate::memory::session::read_all(&self.0))
     }
 
     pub fn set(&self, format: TextureFormat) {
-        crate::session::write_all(&self.0, format.words());
+        crate::memory::session::write_all(&self.0, format.words());
     }
 
     pub fn update(&self, change: impl FnOnce(&mut TextureFormat)) {
@@ -392,7 +392,7 @@ impl Textures {
             &system.count,
             &system.records,
         ];
-        crate::session::read_runs(&runs, n, "gfx::texture_upload::kind_entry")
+        crate::memory::session::read_runs(&runs, n, "gfx::texture_upload::kind_entry")
     }
 }
 
@@ -528,7 +528,7 @@ pub fn halvings_apart(
 /// bytes on, or, if there is none or it cannot be read, +0x5C made 0.
 pub fn keep_second_picture(
     record: &Record,
-    path: Option<&dyn crate::session::TextPlace>,
+    path: Option<&dyn crate::memory::session::TextPlace>,
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {

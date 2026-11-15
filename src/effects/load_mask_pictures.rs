@@ -28,7 +28,7 @@ const ROWS: u32 = 0x7E;
 /// `gfx::read_picture_file` at 256 x 128 (the picture's sizes kept round it); refused when
 /// not read.
 fn read(
-    path: &dyn crate::session::TextPlace,
+    path: &dyn crate::memory::session::TextPlace,
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {

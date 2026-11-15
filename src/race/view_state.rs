@@ -3,7 +3,7 @@
 //! (`race::view_scratch::ViewScratch::state`). The shared fields are still written beside them
 //! for what reads them outside the drawing (the effects, the front end).
 
-use crate::session::{PlainDword, PlainFloat};
+use crate::memory::session::{PlainDword, PlainFloat};
 
 #[derive(rc2k_derive::Cells)]
 pub struct ViewState {

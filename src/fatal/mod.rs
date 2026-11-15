@@ -6,7 +6,7 @@ pub mod show_report_at_exit;
 
 /// The reporter's variables.
 pub mod state {
-    use crate::session::{Byte, Bytes, Dword};
+    use crate::memory::session::{Byte, Bytes, Dword};
 
     /// g_fatalCode (0x4F52A4): the code of the error being reported.
     pub static CODE: Dword = Dword::new(0);

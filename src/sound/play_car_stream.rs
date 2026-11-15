@@ -6,9 +6,9 @@
 //! call sites, next to `load_car_background`'s. Refuses what the record's lookup refuses.
 
 use crate::errors::{BadInput, Refused};
+use crate::memory::session::PlainDword;
 use crate::menu::load_car_background::shown_car;
 use crate::menu::owner::Menus;
-use crate::session::PlainDword;
 
 // ---- game data ----
 

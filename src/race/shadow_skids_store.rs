@@ -4,12 +4,12 @@
 //! laid, the next point, the cars' bit and the ring of points (0xC bytes each). `#[repr(C)]`,
 //! laid over the race block's bytes. Plain cells: a drawing store (`session::DrawShared`),
 //! written on the game's thread between frames and read by the drawing parts (the skid marks)
-//! through their `workers::DrawReads`. The shadow now keeps its own work
+//! through their `scene::workers::DrawReads`. The shadow now keeps its own work
 //! (`race::car_shadow::ShadowWork`), so the shadow fields here are unused and only keep the layout.
 
-use crate::cells::ZeroCells;
+use crate::memory::cells::ZeroCells;
 
-use crate::session::{PlainBytes, PlainDword, PlainFloat};
+use crate::memory::session::{PlainBytes, PlainDword, PlainFloat};
 
 /// One shadow point (0x20 bytes): the corner of the car's shadow, first as floats, then
 /// as whole numbers (`race::car_shadow`).

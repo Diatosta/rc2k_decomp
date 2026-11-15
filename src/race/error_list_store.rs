@@ -2,9 +2,9 @@
 //! (`race::level_init::load_error_list`) and the seven dwords after them. The fields are in the
 //! image's order.
 
-use crate::cells::ZeroCells;
+use crate::memory::cells::ZeroCells;
 
-use crate::session::{PlainBytes, PlainDword};
+use crate::memory::session::{PlainBytes, PlainDword};
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ErrorList {

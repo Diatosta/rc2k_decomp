@@ -18,14 +18,14 @@
 //! and `race::choose_save_slot`.
 
 use crate::errors::Refused;
+use crate::memory::session::DwordLike;
 use crate::owners::Owners;
 use crate::race::owner::Race;
-use crate::session::DwordLike;
 
 const DOOR_TEXT: &std::ffi::CStr = c"doornr=";
 
 /// The header's settings as (to, from).
-fn settings(race: &Race) -> [(&dyn DwordLike, &crate::session::PlainDword); 5] {
+fn settings(race: &Race) -> [(&dyn DwordLike, &crate::memory::session::PlainDword); 5] {
     let shared = &race.shared;
     let work = race.replay_work();
     [

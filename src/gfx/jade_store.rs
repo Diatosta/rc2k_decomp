@@ -1,6 +1,6 @@
 //! The "jade" font's glyph table and colour (`gfx::load_jade`) typed, by field.
 
-use crate::session::{PlainBytes, PlainDword, with_runs};
+use crate::memory::session::{PlainBytes, PlainDword, with_runs};
 
 /// The jade font's glyphs, colour and file name.
 #[derive(rc2k_derive::Cells)]

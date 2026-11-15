@@ -7,9 +7,9 @@
 //! scratch block held decides. One caller, `system::load_game_data`; `saves::save_options`
 //! writes the same pieces the other way.
 
-use crate::cells::Store;
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::files::read_file::read_file_to_store;
+use crate::memory::cells::Store;
 use crate::owners::Owners;
 use crate::saves::options_state;
 use crate::saves::rebuild_car_lists::rebuild_car_lists;
@@ -19,8 +19,8 @@ use rc2k_core::options::Options;
 /// Where the function works: the game's own places, or a test's.
 pub struct Places<'a> {
     /// The buffer the file is read into.
-    pub file: &'a crate::session::PlainBytes<65536>,
-    pub loaded: &'a dyn crate::session::FlagLike,
+    pub file: &'a crate::memory::session::PlainBytes<65536>,
+    pub loaded: &'a dyn crate::memory::session::FlagLike,
     /// Puts the options read into the game's state.
     pub apply: &'a mut dyn FnMut(&Options) -> Result<(), Refused>,
     pub rebuild_car_lists: &'a mut dyn FnMut() -> Result<(), BadInput>,

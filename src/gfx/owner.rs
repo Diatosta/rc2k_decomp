@@ -36,7 +36,7 @@ use crate::gfx::texture_upload::Textures;
 use crate::gfx::typefaces::FontObjects;
 use crate::gfx::upload::Upload;
 use crate::gfx::windscreen_drop_batch::WindscreenDrops;
-use crate::session::{PlainBytes, PlainDword};
+use crate::memory::session::{PlainBytes, PlainDword};
 
 /// The PNG reader's state: the file being decoded, its header and the setting that turns PNG files
 /// off.
@@ -146,7 +146,7 @@ impl FontStores {
             glyph_tables: GlyphTables::new(),
             glyph_store: GlyphStore::new(),
             blended_palette: [const { PlainDword::new(0) }; 256],
-            kerning: std::sync::Mutex::new([0; rc2k_core::text::KERNING_ROWS * 2]),
+            kerning: std::sync::Mutex::new([0; rc2k_core::strings::text::KERNING_ROWS * 2]),
         }
     }
 }
@@ -157,7 +157,7 @@ pub struct Drawing {
     pub blit: Blitter,
     pub bar: BarVars,
     /// The surface the screen is drawn on: atomic cells, which the drawing threads read through
-    /// `platform_3d::Handles` while the game's thread waits.
+    /// `platform::direct3d::Handles` while the game's thread waits.
     pub draw_surface: DrawSurface,
     pub surfaces: Surfaces,
     /// Each row of a picture (602 of them), zero at the start: its offset in the decoded buffer.
@@ -187,7 +187,7 @@ impl Drawing {
 pub struct Card3d {
     pub upload: Upload,
     /// The card's tables: atomic cells, which the drawing threads read through
-    /// `platform_3d::Handles` while the game's thread waits.
+    /// `platform::direct3d::Handles` while the game's thread waits.
     pub texture_tables: Textures,
     pub windscreen_drop_batch: WindscreenDrops,
 }

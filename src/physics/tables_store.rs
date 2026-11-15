@@ -3,7 +3,7 @@
 //! and the spec's figures. Most names are readings from the code's uses; `unknown_*` runs are
 //! places no ported code names.
 
-use crate::session::{PlainDword, PlainFlag, PlainFloat, PlainInt};
+use crate::memory::session::{PlainDword, PlainFlag, PlainFloat, PlainInt};
 
 /// A kind of ground (0x30 bytes, `PhysicsTables.surfaces[0].table`): what `physics::wheel_surfaces`
 /// blends between for each point, and `physics::apply_patches` patches (readings).
@@ -531,8 +531,8 @@ pub struct PhysicsTables {
 impl PhysicsTables {
     /// The piece, with the image's first values.
     pub const fn new() -> Self {
-        use crate::cells::ZeroCells;
-        use crate::session::{PlainDword, PlainFloat};
+        use crate::memory::cells::ZeroCells;
+        use crate::memory::session::{PlainDword, PlainFloat};
         Self {
             reset_speed_limit: PlainFloat::new(5.0),
             step_time: PlainFloat::new(0.01),

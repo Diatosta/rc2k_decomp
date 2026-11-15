@@ -1,5 +1,5 @@
 //! FFmpeg (libavcodec 61 / libavutil 59, built by `tools/build_ffmpeg.sh` with the Indeo 4
-//! decoder only) behind a safe interface, for the film player (`film.rs`).
+//! decoder only) behind a safe interface, for the film player (`platform/film.rs`).
 //!
 //! `Decoder` owns a codec context, a packet, a frame and optionally a parser, all made by
 //! `open` and freed once in `drop`; every pointer FFmpeg hands back is checked for null

@@ -2,8 +2,8 @@
 //! picture number and texture. The path strings between them stay unknown_* bytes, reached by
 //! address.
 
-use crate::cells::ZeroCells;
-use crate::session::PlainDword;
+use crate::memory::cells::ZeroCells;
+use crate::memory::session::PlainDword;
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ObjectFileNumbers {
@@ -116,12 +116,12 @@ impl ObjectFileNumbers {
     }
 }
 
-impl crate::session::TextPlace for PathText<'_> {
+impl crate::memory::session::TextPlace for PathText<'_> {
     fn text(&self, _what: &str) -> Result<Vec<u8>, crate::errors::BadInput> {
         let table = &self.numbers.path_texts;
         let mut text = Vec::new();
         for n in self.from..TEXTS_LEN {
-            match crate::session::byte_of(table, n) {
+            match crate::memory::session::byte_of(table, n) {
                 Some(0) => return Ok(text),
                 Some(c) => text.push(c),
                 None => break,

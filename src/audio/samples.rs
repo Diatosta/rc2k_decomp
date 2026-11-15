@@ -9,7 +9,7 @@
 use crate::audio::own::{AudioOwn, AudioThread};
 use crate::audio::voices::*;
 use crate::errors::Refused;
-use crate::session::{Plain, PlainDword};
+use crate::memory::session::{Plain, PlainDword};
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

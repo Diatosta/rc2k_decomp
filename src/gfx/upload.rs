@@ -2,7 +2,7 @@
 //! `Lock` fills the description; `d3d::texture_lock` and `upload_texture_picture` hand its address
 //! on and read the pitch and the pixels.
 
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 
 /// A DirectDraw surface description (DDSURFACEDESC, 0x6C bytes), filled by a surface's `Lock`; the
 /// game's code reads its fields by their DirectDraw offsets.

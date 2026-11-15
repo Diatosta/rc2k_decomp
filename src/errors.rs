@@ -46,3 +46,10 @@ impl From<rc2k_core::Invalid> for Refused {
         Refused::BadInput(e.into())
     }
 }
+
+/// The carry and zero results a function returns for callers that test them.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct CarryZeroFlags {
+    pub carry: bool,
+    pub zero: bool,
+}

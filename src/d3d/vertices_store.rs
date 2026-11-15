@@ -1,8 +1,8 @@
 //! The polygon vertex buffer: 64 transformed and lit vertices (`Vertex`, 0x20 bytes), one
-//! buffer for each drawing part (`workers::PartScratch::vertices`). The polygon about to be
+//! buffer for each drawing part (`scene::workers::PartScratch::vertices`). The polygon about to be
 //! drawn stands in its first vertices (`polygon_vertex_count` says how many).
 
-use crate::session::{CellKind, PlainCells};
+use crate::memory::session::{CellKind, PlainCells};
 
 /// One vertex: a Direct3D transformed and lit vertex.
 #[repr(C)]
@@ -26,7 +26,7 @@ pub struct Vertex<K: CellKind = PlainCells> {
     pub v: K::Float,
 }
 
-/// The vertices of the polygon being drawn: a drawing part's own (`workers::PartScratch`), on
+/// The vertices of the polygon being drawn: a drawing part's own (`scene::workers::PartScratch`), on
 /// plain cells, reached by the one thread that draws the part.
 #[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells)]
@@ -39,7 +39,7 @@ pub struct PolygonVertices {
 impl PolygonVertices {
     /// The buffer, zeroed as in the image.
     pub const fn new() -> Self {
-        crate::cells::zeroed_cells()
+        crate::memory::cells::zeroed_cells()
     }
 }
 

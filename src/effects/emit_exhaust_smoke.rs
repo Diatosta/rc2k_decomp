@@ -20,8 +20,8 @@ use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_float as bh;
+use crate::memory::session::{PlainDword, PlainFloat, read_first};
 use crate::race::effects_settings_store::CarEffects;
-use crate::session::{PlainDword, PlainFloat, read_first};
 
 const MODELS: u32 = 34;
 const LOOK: u32 = 0x3F;

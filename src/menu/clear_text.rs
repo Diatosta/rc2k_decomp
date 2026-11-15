@@ -6,7 +6,7 @@ use crate::menu::text_entry::{Text, put_field, with_entry};
 
 pub fn clear_text(
     menus: &Menus,
-    at: impl Into<crate::place::BytePlace>,
+    at: impl Into<crate::memory::place::BytePlace>,
 ) -> Result<(), crate::errors::BadInput> {
     let mut text = Text::default();
     with_entry(menus, |e| e.clear(&mut text));

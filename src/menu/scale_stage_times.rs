@@ -6,10 +6,10 @@
 //!
 //! Caller: `menu::calc_cpu_times`. Logs through `logfile::` (level 1).
 use crate::errors::Refused;
+use crate::memory::session::{read_all, write_all};
 use crate::menu::owner::Screens;
 use crate::race::owner::Race;
 use crate::records::stages_store::RecordRef;
-use crate::session::{read_all, write_all};
 
 const TEXTS_RVA: [&std::ffi::CStr; 4] = [c"stage times info", c"a7x", c"a8x", c"times a8-a5"];
 /// The section held to 0 .. 5.

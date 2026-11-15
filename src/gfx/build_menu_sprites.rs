@@ -12,7 +12,7 @@ use crate::gfx::glyph_tables::{begin_glyph_table, begin_glyph_tables, end_glyph_
 /// The table's address goes to `sprite_table`.
 pub fn build_menu_sprites(
     vars: &SheetVars,
-    sprite_table: &crate::session::PlainDword,
+    sprite_table: &crate::memory::session::PlainDword,
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
     strings: &crate::strings::owner::Strings,

@@ -3,9 +3,9 @@
 //! replay index read and written in place ("RCIB", the seal, the block and frame counts, the
 //! (offset, size) per block). `#[repr(C)]` with a fixed layout.
 
-use crate::cells::ZeroCells;
+use crate::memory::cells::ZeroCells;
 
-use crate::session::{PlainDword, PlainFlag};
+use crate::memory::session::{PlainDword, PlainFlag};
 
 #[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
@@ -104,7 +104,7 @@ impl ReplayIndex {
     /// The index ("RCIB", the seal, the counts, the places) as its dwords in order, read and
     /// written in place.
     pub fn dwords(&self) -> &[PlainDword; INDEX_DWORDS] {
-        crate::cells::plain_dwords_in(self, 0)
+        crate::memory::cells::plain_dwords_in(self, 0)
     }
 }
 

@@ -8,12 +8,12 @@
 //! With `RC2K_FRAME_VIEW_CHECK` the snapshot is compared with the blocks at the end of the
 //! drawing: a field the drawing changed is logged (it would not belong here).
 
-use crate::cells::Cells;
 use crate::errors::BadInput;
+use crate::memory::cells::Cells;
+use crate::memory::session::{Dword, Float};
 use crate::physics::car_store::Car;
 use crate::race::blocks_store::BLOCK_COUNT;
 use crate::race::owner::Race;
-use crate::session::{Dword, Float};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 macro_rules! car_view {
@@ -28,12 +28,12 @@ macro_rules! car_view {
         impl CarView {
             const fn new() -> Self {
                 // Every field a cell or an array of cells: zero bits.
-                crate::cells::zeroed_cells()
+                crate::memory::cells::zeroed_cells()
             }
 
             /// Every field from `car`.
             fn take(&self, car: &Car) {
-                $(crate::cells::SameShape::copy_cells_to(&car.$field, &self.$field);)*
+                $(crate::memory::cells::SameShape::copy_cells_to(&car.$field, &self.$field);)*
             }
 
             /// The fields that differ from `car`'s.
@@ -103,11 +103,11 @@ car_view! {
 
 /// Two cells (or arrays of them, of either kind) with the same bits.
 fn same<A: Cells, B: Cells>(a: &A, b: &B) -> bool {
-    crate::cells::flatten(a) == crate::cells::flatten(b)
+    crate::memory::cells::flatten(a) == crate::memory::cells::flatten(b)
 }
 
 /// The snapshot of every car and whether one is held, kept by the frame owner
-/// (`Frame::cars`) and read by the drawing parts through `workers::DrawReads::frame_cars`.
+/// (`Frame::cars`) and read by the drawing parts through `scene::workers::DrawReads::frame_cars`.
 pub struct FrameCars {
     cars: [CarView; BLOCK_COUNT],
     /// A snapshot is held (between `take` and `release`).
@@ -172,7 +172,7 @@ fn release(race: &Race) {
     for (n, (view, car)) in frame.cars.iter().zip(blocks).enumerate() {
         let changed = view.changed(car);
         if !changed.is_empty() {
-            crate::framework::log(&format!(
+            crate::logfile::program_log::log(&format!(
                 "frame_view: the drawing changed car {n}'s {}",
                 changed.join(", ")
             ));

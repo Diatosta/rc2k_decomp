@@ -1,7 +1,7 @@
 //! The 3D cards' store in one struct, held by the graphics owner (`Gfx::d3d`).
 
 use crate::d3d::cards_store::Cards3d;
-use crate::session::GameThread;
+use crate::memory::session::GameThread;
 
 /// The d3d module's state.
 pub struct D3d {

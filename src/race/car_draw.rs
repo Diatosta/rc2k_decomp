@@ -6,6 +6,7 @@
 use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
 use crate::math::cells::Cells;
+use crate::memory::session::PlainFloat;
 use crate::race::car_draw_state::CarDrawState;
 use crate::race::light_records_store::LightRecords;
 use crate::race::owner_course::CourseReads;
@@ -14,7 +15,6 @@ use crate::race::work_store::RaceWork;
 use crate::scene::draw_described_object::Description;
 use crate::scene::matrix::multiply_matrices;
 use crate::scene::view_matrices::ViewMatrices;
-use crate::session::PlainFloat;
 
 /// The drawn car's turn (`placed_matrices`: its +0x880), the view's own.
 fn car_turn(cars: &CarDrawState) -> &'_ [PlainFloat] {
@@ -74,7 +74,7 @@ fn number_name_byte(work: &RaceWork, offset: u32) -> Result<u8, BadInput> {
 /// +0xAC0 .. go into the places `car_decal_places` names (marks 0xA .. 0x1B; one past the marks is
 /// refused).
 pub fn car_number_textures(
-    reads: crate::workers::DrawReads<'_>,
+    reads: crate::scene::workers::DrawReads<'_>,
     car: usize,
     marks: &crate::scene::car_marks::CarMarks,
 ) -> Result<(), BadInput> {
@@ -86,7 +86,7 @@ pub fn car_number_textures(
         decals_shown, lamp_side, letter_number, letter_place, number_digits, stage_plate,
     };
     let block = cars.car(car)?;
-    let float = |c: &crate::session::Float| c.get();
+    let float = |c: &crate::memory::session::Float| c.get();
     {
         let limit = frame_work.decal_limit.get();
         let side = lamp_side(float(&block.drive_speed_a), limit);
@@ -128,7 +128,7 @@ fn model_field(lights: &LightRecords, model: u32, offset: u32) -> Result<u32, Ba
         .records
         .get(model as usize)
         .and_then(|record| record.groups.get((offset / 4) as usize))
-        .map(crate::session::PlainDword::get)
+        .map(crate::memory::session::PlainDword::get)
         .ok_or(BadInput("a model's record"))
 }
 
@@ -176,7 +176,7 @@ const PART_SWITCHES: [(u32, usize); 7] = [
 /// The course's group masks from the model's part groups (an unknown model is refused).
 fn set_group_masks(
     lights: &LightRecords,
-    masks: &[crate::session::PlainDword; 18],
+    masks: &[crate::memory::session::PlainDword; 18],
     model: u32,
 ) -> Result<(), BadInput> {
     for (to, group) in BODY_GROUPS {
@@ -199,7 +199,7 @@ fn set_group_masks(
 }
 
 /// The groups of the parts still on the car: all but those of the parts whose switch is off.
-fn shown_groups(masks: &[crate::session::PlainDword; 18], switches: u32) -> u32 {
+fn shown_groups(masks: &[crate::memory::session::PlainDword; 18], switches: u32) -> u32 {
     let mut shown = u32::MAX;
     for (bit, slot) in PART_SWITCHES {
         if switches & (1 << bit) == 0 {

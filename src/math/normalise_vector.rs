@@ -18,9 +18,9 @@
 
 use crate::errors::BadInput;
 use crate::math::x87_float::{ONE, compare, ld, st};
+use crate::memory::session::PlainDword;
 use crate::race::course_lists_store::CourseLists;
 use crate::scene::draw_switches_store::DrawSwitches;
-use crate::session::PlainDword;
 
 // The work vector and the SSE switch (the race's) and the root tables
 // (`scene::fill_engine_tables` makes them) are the game's; the squares and the length are
@@ -67,7 +67,7 @@ pub fn normalise_vector(
 fn sse_normalise(v: [u32; 4]) -> [u32; 4] {
     let v = v.map(f32::from_bits);
     let sum = (v[0] * v[0] + v[1] * v[1]) + v[2] * v[2];
-    let root = crate::arch::rsqrtss(sum);
+    let root = crate::platform::arch::rsqrtss(sum);
     v.map(|k| (root * k).to_bits())
 }
 
@@ -78,9 +78,9 @@ pub fn normalise(
     work: &[PlainDword; 4],
     sse: bool,
 ) -> Result<Option<u32>, BadInput> {
-    let v: [u32; 4] = crate::session::read_bits(work);
+    let v: [u32; 4] = crate::memory::session::read_bits(work);
     if sse {
-        crate::session::write_bits(work, sse_normalise(v));
+        crate::memory::session::write_bits(work, sse_normalise(v));
         return Ok(None);
     }
     let sum = squares_sum([v[0], v[1], v[2]]);
@@ -94,7 +94,7 @@ pub fn normalise(
     let (scaled, inverse) = scaled_by_inverse([v[0], v[1], v[2]], root, exponent_root);
     let unsigned_zero = |bits: u32| if bits == 0x8000_0000 { 0 } else { bits };
     let _ = inverse;
-    crate::session::write_first(work, &scaled.map(unsigned_zero));
+    crate::memory::session::write_first(work, &scaled.map(unsigned_zero));
     Ok(Some(sum))
 }
 

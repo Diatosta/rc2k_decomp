@@ -16,7 +16,7 @@
 
 use crate::errors::BadInput;
 use crate::gfx::picture::{PictureBuffers, read_bytes, write_bytes};
-use crate::session::{PlainBytes, PlainDword};
+use crate::memory::session::{PlainBytes, PlainDword};
 
 /// The texture pictures' grading (`gfx::texture_upload` grades a texture's colours when the
 /// settings ask for it).

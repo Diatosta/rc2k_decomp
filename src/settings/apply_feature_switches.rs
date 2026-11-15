@@ -7,7 +7,7 @@
 //! `has_3dnow` from `found_3dnow` and `ignoreamdk3d`. One caller, `start`, right after the settings are
 //! read.
 
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 use crate::system::owner::System;
 
 // ---- game data ----

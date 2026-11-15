@@ -108,8 +108,8 @@ fn inverse(distance: f32) -> f32 {
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
+    use crate::memory::session::Cell32;
     use crate::scene::x87_mem::{HostCell, view};
-    use crate::session::Cell32;
     use crate::sound::asm_layout::{Laid, with_laid};
     use crate::sound::store::SurfaceSounds;
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};

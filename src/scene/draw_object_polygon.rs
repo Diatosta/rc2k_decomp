@@ -28,7 +28,7 @@ pub enum Step {
 
 /// `scene::needs_clipping` on the work table's records.
 fn needs_clipping(
-    part: &crate::workers::PartScratch,
+    part: &crate::scene::workers::PartScratch,
     poly: &crate::scene::polygon_work::PolygonWork,
     course: crate::race::owner_course::CourseReads<'_>,
     count: u32,
@@ -66,7 +66,7 @@ fn needs_clipping(
 
 // Logic: `rc2k_core::scene::polygons`
 pub fn draw_object_polygon(
-    part: &crate::workers::PartScratch,
+    part: &crate::scene::workers::PartScratch,
     poly: &crate::scene::polygon_work::PolygonWork,
     course: crate::race::owner_course::CourseReads<'_>,
     object: &crate::scene::object_place::ObjectPlace,

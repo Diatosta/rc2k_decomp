@@ -6,8 +6,8 @@
 //! Called by `saves::load_savegame` (when `use_savegame_keys` is 0). Refuses (before anything) a
 //! missing player or a null buffer.
 
-use crate::cells::Store;
 use crate::errors::Refused;
+use crate::memory::cells::Store;
 use crate::menu::owner::Menus;
 use crate::menu::player::PLAYERS;
 

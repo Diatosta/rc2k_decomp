@@ -14,7 +14,7 @@ use crate::race::owner::Race;
 
 pub fn mark_viewer_items(
     race: &Race,
-    list: crate::list_handle::ListMenu,
+    list: crate::memory::list_handle::ListMenu,
 ) -> Result<(), crate::errors::BadInput> {
     let replay = &race.replay;
     // Logic in `rc2k_core::race::viewer::item_marks`.

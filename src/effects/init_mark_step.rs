@@ -27,7 +27,7 @@ fn kind_row_word(records: &LightRecords, kind: i32, offset: usize) -> Result<u32
     record
         .groups
         .get(SIXTH_GROUP + offset / 4)
-        .map(crate::session::PlainDword::get)
+        .map(crate::memory::session::PlainDword::get)
         .ok_or(BadInput("a kind's row field past the groups"))
 }
 
@@ -108,7 +108,7 @@ mod tests {
         for kind in -3..40 {
             let row = (0x6C + race::kind_row(kind)) as u32 as usize;
             for offset in SLOT_KIND_ROWS {
-                let old = crate::cells::load_value::<u32>(&records.records, row + offset);
+                let old = crate::memory::cells::load_value::<u32>(&records.records, row + offset);
                 assert_eq!(
                     kind_row_word(&records, kind, offset),
                     old,

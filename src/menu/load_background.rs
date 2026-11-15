@@ -18,7 +18,7 @@ use crate::text::draw_text::Canvas;
 const FRAME_SPRITE: u32 = 0xA0;
 
 pub fn load_background_in(
-    path: &dyn crate::session::TextPlace,
+    path: &dyn crate::memory::session::TextPlace,
     canvas: &mut dyn Canvas,
     menus: &crate::menu::owner::Menus,
     gfx: &Gfx,

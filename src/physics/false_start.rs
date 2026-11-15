@@ -9,8 +9,8 @@
 //! Caller: `physics::car_physics_step`, every physics step. Refuses what `start_car` refuses.
 
 use crate::errors::Refused;
+use crate::memory::session::PlainDword;
 use crate::physics::step_families::ResetInputs;
-use crate::session::PlainDword;
 use rc2k_core::physics::notices::Notice;
 use rc2k_core::physics::start::CarStart;
 

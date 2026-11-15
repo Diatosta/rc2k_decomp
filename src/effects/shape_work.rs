@@ -1,6 +1,6 @@
 //! The shape sets' work.
 
-use crate::session::{PlainBytes, PlainDword, PlainFloat};
+use crate::memory::session::{PlainBytes, PlainDword, PlainFloat};
 
 /// A shape set (0xAB8 bytes): the working block and each set copied from it.
 #[derive(rc2k_derive::Cells)]
@@ -43,7 +43,7 @@ impl MarkShapes {
     /// bytes).
     pub fn copy_from(&self, other: &MarkShapes) {
         // Bit-exact copy of 32-bit cells, whatever float or whole number they hold.
-        fn cells<C: crate::session::Cell32>(to: &[C], from: &[C]) {
+        fn cells<C: crate::memory::session::Cell32>(to: &[C], from: &[C]) {
             for (t, f) in to.iter().zip(from) {
                 t.set_bits(f.bits());
             }

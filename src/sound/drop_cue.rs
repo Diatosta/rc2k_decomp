@@ -29,7 +29,7 @@ pub fn read_words(
     let mut words = head
         .into_iter()
         .chain(cues)
-        .map(crate::session::PlainDword::get);
+        .map(crate::memory::session::PlainDword::get);
     Ok(std::array::from_fn(|_| words.next().unwrap_or(0)))
 }
 

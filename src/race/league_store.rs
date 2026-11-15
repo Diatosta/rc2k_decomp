@@ -2,8 +2,8 @@
 //! of ten kept times, the car's time at a split in race mode 3, the 36 set-ups of 0x10 bytes. The
 //! fields keep a fixed layout.
 
-use crate::cells::ZeroCells;
-use crate::session::PlainDword;
+use crate::memory::cells::ZeroCells;
+use crate::memory::session::PlainDword;
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct League {
@@ -32,7 +32,7 @@ impl League {
         if let Some(time) = self.rows.get(n) {
             return Ok(time.get());
         }
-        crate::session::read_runs(
+        crate::memory::session::read_runs(
             &[
                 &self.rows,
                 &self.unused_2a8,

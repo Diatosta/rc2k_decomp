@@ -12,7 +12,7 @@ pub fn drive_free_space_kb(system: &System, letter: u32) -> Option<u32> {
         &r[..n]
     });
     // Sectors a cluster, bytes a sector, free clusters, total clusters.
-    let [sectors, bytes, free, total] = crate::os::disk_free(text)?;
+    let [sectors, bytes, free, total] = crate::platform::os::disk_free(text)?;
     for (k, v) in [total, free, bytes, sectors].into_iter().enumerate() {
         system.work().files.buffer.set_u32(4 * k, v);
     }

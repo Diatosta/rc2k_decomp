@@ -10,7 +10,7 @@
 //!   `extra` out and, for set 1, the `divisor` copy) and `KindConsts` (the constants and the
 //!   light), once for each set. Set 1 is `kind_values::first`, set 2 `kind_values::second`.
 
-use crate::session::{PlainDword, PlainFloat};
+use crate::memory::session::{PlainDword, PlainFloat};
 
 /// A quad's work area (0xF8 bytes, three copies: `overlay_quad`, `shadow_quad`, `plane_quad`). The
 /// offsets are from its start.

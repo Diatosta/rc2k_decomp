@@ -1,7 +1,7 @@
 //! The front end's list pages and its yes / no answer: the pages the save, scores, set-up and
 //! replay lists are on and the answer the yes / no screens leave.
 
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 
 /// The list pages and the answer.
 #[derive(rc2k_derive::Cells)]

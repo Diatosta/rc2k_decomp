@@ -140,7 +140,10 @@ fn screen_plain_with<R: Rounds>(r: R, view: [f32; 3], s: Screen) -> [u32; 2] {
 
 /// The offset of a point's record, or the fatal error for a number too high.
 // Logic: `rc2k_core::scene::projection::record_offset`
-pub fn record_offset(point: u32, reads: crate::workers::DrawReads<'_>) -> Result<u32, FatalError> {
+pub fn record_offset(
+    point: u32,
+    reads: crate::scene::workers::DrawReads<'_>,
+) -> Result<u32, FatalError> {
     use rc2k_core::scene::projection::TooHigh;
     rc2k_core::scene::projection::record_offset(
         point,
@@ -162,10 +165,10 @@ pub struct Projected {
 
 /// A scene point's record made anew: the point through the view's matrix and onto the screen.
 pub(crate) fn make_scene_record(
-    part: &crate::workers::PartScratch,
+    part: &crate::scene::workers::PartScratch,
     point: u32,
     record: u32,
-    reads: crate::workers::DrawReads<'_>,
+    reads: crate::scene::workers::DrawReads<'_>,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), BadInput> {
     if !crate::race::scene_points::held(&reads.stage.course) {
@@ -181,7 +184,7 @@ pub(crate) fn make_scene_record(
             .matrices
             .view_matrix
             .each_ref()
-            .map(crate::session::PlainFloat::get),
+            .map(crate::memory::session::PlainFloat::get),
         &mut r,
     );
     r[3] = 0;
@@ -194,7 +197,7 @@ pub(crate) fn make_scene_record(
             &view.polygon.window,
             reads.course_work.flat_depth.get(),
             flat,
-            &crate::session::Dword::new(0),
+            &crate::memory::session::Dword::new(0),
         );
     }
     if reads.light_state.draw_mode.get() == 1 {
@@ -205,9 +208,9 @@ pub(crate) fn make_scene_record(
 }
 
 pub fn project_point(
-    part: &crate::workers::PartScratch,
+    part: &crate::scene::workers::PartScratch,
     point: u32,
-    reads: crate::workers::DrawReads<'_>,
+    reads: crate::scene::workers::DrawReads<'_>,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<Projected, Refused> {
     let offset = record_offset(point, reads)?;

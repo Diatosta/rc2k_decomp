@@ -5,10 +5,10 @@
 //! Caller: `physics::take_asked_gear`. Refuses a gear whose bit is past 31 (as `gear_bit`).
 
 use crate::errors::Refused;
+use crate::memory::session::{PlainDword, PlainFloat};
 use crate::physics::car_store::Car;
 use crate::physics::gear_bit::bits_at;
 use crate::race::numbers_store::Numbers;
-use crate::session::{PlainDword, PlainFloat};
 
 /// On the engine damage word, the engine power factor and the gear bits at these places.
 // Core: `rc2k_core::physics::gearbox::allowed_gear`.

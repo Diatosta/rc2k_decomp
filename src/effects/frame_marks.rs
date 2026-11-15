@@ -13,9 +13,9 @@ use crate::effects::run_frame::FRAME_K;
 use crate::effects::{morph_object_points, scale_vectors_by, view_frame};
 use crate::errors::Refused;
 use crate::math::x87;
+use crate::memory::session::PlainDword;
 use crate::race::effects_settings_store::EffectsSettings;
 use crate::race::owner::Race;
-use crate::session::PlainDword;
 /// (the settings' field, the copy): +0x50, +0x4C and +0x10.
 fn copies<'a>(
     effects: &'a Effects,
@@ -30,7 +30,7 @@ fn copies<'a>(
 }
 
 fn rdtsc() -> (u32, u32) {
-    let t = crate::arch::rdtsc();
+    let t = crate::platform::arch::rdtsc();
     (t as u32, (t >> 32) as u32)
 }
 

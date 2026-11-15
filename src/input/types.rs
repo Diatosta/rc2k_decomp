@@ -2,7 +2,7 @@
 //! `InputDevice`) and DirectInput's that the game fills (`DIJOYSTATE`, `DIEFFECT`,
 //! `DIENVELOPE`); the DirectInput ones keep their layouts, checked at compile time.
 
-use crate::session::{Bytes, Dword};
+use crate::memory::session::{Bytes, Dword};
 use std::mem::{offset_of, size_of};
 
 pub type Guid = [u8; 16];

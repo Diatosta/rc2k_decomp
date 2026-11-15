@@ -21,6 +21,6 @@ pub fn kept(t: &rc2k_core::system::time::LocalTime) -> [u8; KEPT_LEN] {
 
 pub fn keep_start_time(system: &crate::system::owner::System) {
     // The game's `SystemTime`, a local here: nothing else read it.
-    let time = crate::os::local_time();
+    let time = crate::platform::os::local_time();
     system.start().kept.write(&kept(&time));
 }

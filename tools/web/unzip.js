@@ -1,6 +1,6 @@
 // The web build's importer (a worker): the game folder's zip files unpacked into the origin's
 // private storage (OPFS) under `source/`, where the game finds them as `/opfs/source`
-// (`src/web.rs`). Takes {files: [File, ..]} (picked by the player) or {url} (fetched into the
+// (`src/platform/web.rs`). Takes {files: [File, ..]} (picked by the player) or {url} (fetched into the
 // storage first, then read from there: a zip's index is at its end). Posts {progress, text}
 // as it goes, then {done} or {error}. Zips without ZIP64 (under 4 GB, under 65,536 entries),
 // entries stored or deflated; several zips unpack into the one folder.

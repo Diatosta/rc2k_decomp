@@ -2,10 +2,10 @@
 //! with three variables among them (the replay's mode, `in_race`, the grip change). Read-only but
 //! for those three and `physics::clamped_asin`'s turn of `one`. The fields keep a fixed layout.
 //! Plain cells: a drawing store (`session::DrawShared`), written on the game's thread
-//! between frames and read by the drawing parts through their `workers::DrawReads`.
+//! between frames and read by the drawing parts through their `scene::workers::DrawReads`.
 
-use crate::cells::ZeroCells;
-use crate::session::{PlainDword, PlainFlag, PlainFloat};
+use crate::memory::cells::ZeroCells;
+use crate::memory::session::{PlainDword, PlainFlag, PlainFloat};
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct Numbers {

@@ -10,10 +10,10 @@ use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_float as bh;
+use crate::memory::session::{PlainDword, PlainFloat, PlainInt};
 use crate::physics::car_store::Car;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
-use crate::session::{PlainDword, PlainFloat, PlainInt};
 
 /// The variables: the car's work copy's and the ratio table (gear -1 first).
 #[derive(Clone, Copy)]

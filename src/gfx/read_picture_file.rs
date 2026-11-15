@@ -14,7 +14,7 @@ use crate::gfx::read_png::read_png;
 
 /// Returns whether a picture was read.
 pub fn read_picture_file(
-    path: &dyn crate::session::TextPlace,
+    path: &dyn crate::memory::session::TextPlace,
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<bool, Refused> {

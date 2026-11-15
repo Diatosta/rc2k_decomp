@@ -7,10 +7,10 @@
 use crate::math::cells::{Cells, Off};
 use crate::math::x87;
 use crate::math::x87_float as bh;
+use crate::memory::session::PlainFloat;
 use crate::race::owner_course::CourseReads;
 use crate::scene::matrix;
 use crate::scene::view_matrices::ViewMatrices;
-use crate::session::PlainFloat;
 
 /// Which of the three turnings.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -149,12 +149,12 @@ pub fn set_view_matrices(
     frame: &crate::race::owner_frame::Frame,
     scratch: &ViewMatrices,
 ) {
-    crate::session::write_bits(
+    crate::memory::session::write_bits(
         &frame.matrices.get().view_turn_matrix,
-        crate::session::read_bits(&frame.matrices.get().identity_matrix),
+        crate::memory::session::read_bits(&frame.matrices.get().identity_matrix),
     );
     let angles: [u32; 3] =
-        crate::session::read_first(&frame.view_and_records.get().view_vars.view_angles);
+        crate::memory::session::read_first(&frame.view_and_records.get().view_vars.view_angles);
     set_fine_turn(course, scratch, Axis::Y, angles[0].wrapping_neg());
     set_fine_turn(course, scratch, Axis::X, angles[1].wrapping_neg());
     set_fine_turn(course, scratch, Axis::Z, angles[2].wrapping_neg());
@@ -168,13 +168,14 @@ pub fn set_view_matrices(
         &scratch.turn_z_matrix,
         &frame.matrices.get().view_turn_matrix,
     );
-    let place =
-        crate::session::read_bits::<_, 3>(&frame.view_and_records.get().view_vars.view_place)
-            .map(u32::wrapping_neg);
+    let place = crate::memory::session::read_bits::<_, 3>(
+        &frame.view_and_records.get().view_vars.view_place,
+    )
+    .map(u32::wrapping_neg);
     matrix::set_place(&scratch.placed_matrix, place);
-    crate::session::write_bits(
+    crate::memory::session::write_bits(
         &frame.matrices.get().view_place_matrix,
-        crate::session::read_bits(&scratch.placed_matrix),
+        crate::memory::session::read_bits(&scratch.placed_matrix),
     );
     matrix::multiply_matrices(
         &scratch.placed_matrix,

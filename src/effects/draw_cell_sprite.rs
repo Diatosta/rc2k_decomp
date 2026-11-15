@@ -23,7 +23,7 @@ const ANGLES: u32 = 0x1000;
 
 /// The place turned by the view.
 fn turn(
-    view_matrix: &[crate::session::PlainFloat; 16],
+    view_matrix: &[crate::memory::session::PlainFloat; 16],
     ring: &Ring,
     p: &[[u8; 10]; 3],
     effects: &crate::effects::owner::Effects,
@@ -134,12 +134,12 @@ use crate::effects::blocks::CornerSlopes;
 use crate::effects::frame_state::DrawWork;
 use crate::effects::plain::{ld_cell, st_cell};
 use crate::math::x87_float as bh;
+use crate::memory::session::PlainFloat;
 use crate::scene::engine_tables_store::{cosine, sine};
-use crate::session::PlainFloat;
 
 /// `turn`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn turn_x87(
-    view_matrix: &[crate::session::PlainFloat; 16],
+    view_matrix: &[crate::memory::session::PlainFloat; 16],
     p: &[[u8; 10]; 3],
     w: &RingWork,
     dw: &DrawWork,
@@ -283,7 +283,7 @@ mod reference_vectors {
     /// leaves goes back to the buffer, the cells as they were.
     fn staged<R>(
         cells: &[(
-            &dyn crate::session::Cell32,
+            &dyn crate::memory::session::Cell32,
             crate::effects::asm_test::Operand,
         )],
         f: impl FnOnce() -> R,
@@ -448,7 +448,7 @@ mod reference_vectors {
             with_laid::<DrawWork, _>(b[2], |dw| {
                 with_laid::<CornerSlopes, _>(b[2], |cs| {
                     let vertices: Vec<(
-                        &dyn crate::session::Cell32,
+                        &dyn crate::memory::session::Cell32,
                         crate::effects::asm_test::Operand,
                     )> = [
                         0x0, 0x4, 0x8, 0x20, 0x24, 0x28, 0x40, 0x44, 0x48, 0x60, 0x64, 0x68,
@@ -456,7 +456,7 @@ mod reference_vectors {
                     .into_iter()
                     .map(|o| {
                         (
-                            vertex_cell(o) as &dyn crate::session::Cell32,
+                            vertex_cell(o) as &dyn crate::memory::session::Cell32,
                             b[1].wrapping_add(o),
                         )
                     })

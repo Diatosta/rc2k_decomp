@@ -1,7 +1,7 @@
 //! The marks' view vectors: `ViewSources` and `KeptView`. A reading: the vectors the car view hands
 //! the marks, kept from frame to frame and turned.
 
-use crate::session::PlainFloat;
+use crate::memory::session::PlainFloat;
 
 /// A factor, a vector, and the vector scaled by the factor (0x1C bytes).
 #[derive(rc2k_derive::Cells)]

@@ -1,7 +1,7 @@
 //! The key-entry state of the screens: whether a text is being typed, whether a key is being
 //! redefined, and the sound the last key asks for.
 
-use crate::session::{PlainDword, PlainFlag};
+use crate::memory::session::{PlainDword, PlainFlag};
 
 /// What the screens' text and key entry are doing.
 #[derive(rc2k_derive::Cells)]

@@ -3,7 +3,7 @@
 //! options file read them through `MenuOptions::snapshot`. The key-entry state of the pages is
 //! `menu::entry_store`.
 
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 
 /// The options as the pages edit and the options file keeps them.
 #[derive(rc2k_derive::Cells)]

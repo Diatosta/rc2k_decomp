@@ -21,7 +21,7 @@ use rc2k_core::physics::progress::{
 use rc2k_core::physics::x87::below as x87_below;
 
 /// The counters: off, turned, their times.
-fn counters(car: &Car) -> [&crate::session::PlainDword; 4] {
+fn counters(car: &Car) -> [&crate::memory::session::PlainDword; 4] {
     [
         &car.off_line_steps,
         &car.turned_steps,
@@ -31,7 +31,8 @@ fn counters(car: &Car) -> [&crate::session::PlainDword; 4] {
 }
 
 fn load(car: &Car) -> Warnings {
-    let [off, turned, off_time, turned_time] = counters(car).map(crate::session::PlainDword::get);
+    let [off, turned, off_time, turned_time] =
+        counters(car).map(crate::memory::session::PlainDword::get);
     Warnings {
         off,
         turned,

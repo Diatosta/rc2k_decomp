@@ -8,6 +8,7 @@
 
 use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
+use crate::memory::session::{PlainByte, PlainDword, PlainFloat};
 use crate::physics::car_store::Car;
 use crate::physics::ground_probe_store::GroundProbe;
 use crate::physics::ground_query::{GroundCells, GroundQuery};
@@ -17,7 +18,6 @@ use crate::race::shadow_skids_store::ShadowPoint;
 use crate::race::trap::Trap;
 use crate::scene::polygon::{list_cell, old_list_cell};
 use crate::scene::polygon_store::PolygonEntry;
-use crate::session::{PlainByte, PlainDword, PlainFloat};
 
 /// The shadow's working state: what `cast_car_shadows` writes and reads within itself, one for each
 /// call, given down to its parts. Every value is written before it is read, so nothing carries over
@@ -186,13 +186,13 @@ pub fn shadow_hull(work: &ShadowWork) -> Result<(), Refused> {
     let at = |n: usize| point_at(work, n as u32);
     let mut records: Vec<Record> = Vec::new();
     for n in 0..hull_records(count) {
-        records.push(crate::cells::load_value::<Record>(at(n)?, 0)?);
+        records.push(crate::memory::cells::load_value::<Record>(at(n)?, 0)?);
     }
     let before = records.clone();
     let h = hull(&mut records, count)?;
     for (n, (now, was)) in records.iter().zip(&before).enumerate() {
         if now != was {
-            crate::cells::store_value(at(n)?, 0, *now)?;
+            crate::memory::cells::store_value(at(n)?, 0, *now)?;
         }
     }
     work.search.product()[0].set(h.product as u32);
@@ -223,7 +223,7 @@ pub fn shadow_polygon(
     polygon_work: &crate::scene::polygon_store::PolygonWork,
     points: &OwnPoints,
     work: &ShadowWork,
-    reads: crate::workers::DrawReads<'_>,
+    reads: crate::scene::workers::DrawReads<'_>,
 ) -> Result<(), Refused> {
     let n: u32 = work.hull_count.get();
     if n == 0 || n > 0x40 {
@@ -274,7 +274,7 @@ fn inside_edge(
     q.x.set(x);
     q.z.set(z);
     use crate::math::x87_float::{X, compare, int};
-    let word = |d: &dyn crate::session::DwordLike| int(d.get() as i32);
+    let word = |d: &dyn crate::memory::session::DwordLike| int(d.get() as i32);
     let (x, z) = (q.x, q.z);
     let c = &work.edge;
     let first = (word(x) - word(&c[0])) * (word(&c[3]) - word(&c[1]));
@@ -319,7 +319,8 @@ fn crossing_block(
     };
     poly.clip_work[2].set_bits(whole(0)? as u32);
     poly.clip_work[4].set_bits(whole(2)? as u32);
-    let float = |a: &dyn crate::session::DwordLike, b: &dyn crate::session::DwordLike| {
+    let float = |a: &dyn crate::memory::session::DwordLike,
+                 b: &dyn crate::memory::session::DwordLike| {
         stf(ld(a.get()) + (ld(b.get()) - ld(a.get())) * share)
     };
     poly.clip_work[10].set(float(&ea.u2, &eb.u2));
@@ -347,7 +348,7 @@ fn edge_crossing(
     let (pa, pb) = (ea.point.get(), eb.point.get());
     let c = &work.edge;
     let w = &work.crossing;
-    let rd = |d: &dyn crate::session::DwordLike| d.get();
+    let rd = |d: &dyn crate::memory::session::DwordLike| d.get();
     let points = &ctx.part.points;
     let ((bx, bz), (ax, az)) = (
         point_xz(ctx.reads.course(), points, pb)?,
@@ -524,7 +525,7 @@ pub fn clip_shadow_to_face(
 fn raise_onto_face(
     polygon_work: &crate::scene::polygon_store::PolygonWork,
     points: &OwnPoints,
-    reads: crate::workers::DrawReads<'_>,
+    reads: crate::scene::workers::DrawReads<'_>,
     work: &ShadowWork,
     index: u32,
 ) -> Result<(), Refused> {
@@ -755,7 +756,7 @@ fn angle_of(at: &ShadowPoint) -> u32 {
     reason = "the drawing's stores the part reads, as they are lent"
 )]
 pub fn shadow_points(
-    reads: crate::workers::DrawReads<'_>,
+    reads: crate::scene::workers::DrawReads<'_>,
     points: &OwnPoints,
     work: &ShadowWork,
     car: &Car,
@@ -979,7 +980,7 @@ mod reference_vectors {
                         .collect::<Vec<u8>>(),
                 );
                 let entry = super::vector_tests::entry_of([0xAAAA_AAAA; 17]);
-                let cells = crate::cells::dwords_in::<_, 17>(&entry, 0);
+                let cells = crate::memory::cells::dwords_in::<_, 17>(&entry, 0);
                 // Only the entry's dwords 4 and 5 are written.
                 let a: [u32; 2] = words(&mut file);
                 circle_place(&entry, k, n, radius, unit);
@@ -1016,7 +1017,7 @@ mod vector_tests {
         for (b, w) in bytes.as_chunks_mut::<4>().0.iter_mut().zip(words) {
             b.copy_from_slice(&w.to_le_bytes());
         }
-        crate::cells::cells_of_bytes(bytes)
+        crate::memory::cells::cells_of_bytes(bytes)
     }
 
     #[test]

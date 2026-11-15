@@ -35,7 +35,7 @@ pub fn pong_cell(
                 .rules
                 .cell_step
                 .each_ref()
-                .map(super::super::session::PlainFloat::get);
+                .map(crate::memory::session::PlainFloat::get);
             let at = pong.state.digit_at.each_ref().map(|d| d.get() as i32);
             let [x, y] = rc2k_core::effects::pong::cell_place(column as i32, row as i32, step, at);
             let values = [

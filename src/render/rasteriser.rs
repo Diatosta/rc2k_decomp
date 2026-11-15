@@ -1030,7 +1030,7 @@ const SSE2_IN_THE_BUILD: () = assert!(cfg!(target_feature = "sse2"), "an x86 bui
 const _: () = SSE2_IN_THE_BUILD;
 
 #[cfg(target_arch = "aarch64")]
-use crate::rasteriser_neon::*;
+use crate::render::rasteriser_neon::*;
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]

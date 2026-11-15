@@ -6,7 +6,7 @@ use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_float as bh;
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 
 pub const RESUME: u32 = 0x4C3EA6; // loc_4C3EA6
 pub const COURSE_CORNERS: u32 = 0x1C_2000;
@@ -123,7 +123,7 @@ pub fn make_profiles(
             COURSE_CORNERS,
             CORNERS_LEN,
         )?;
-        crate::cells::Store::store(&effects.blocks.corners, 0, &corners)?;
+        crate::memory::cells::Store::store(&effects.blocks.corners, 0, &corners)?;
         crate::effects::blocks::allocate_links(scene, effects)?;
         crate::effects::blocks::reset_settings_blocks(effects)?;
     }

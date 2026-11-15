@@ -1,11 +1,11 @@
 //! The race panel: the HUD values, the start lights and the sound spots shared with the audio side.
 
 use crate::errors::{BadInput, Refused};
+use crate::memory::session::PlainDword;
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
 use crate::race::owner_shared::RaceShared;
 use crate::race::tables_store::Listed;
-use crate::session::PlainDword;
 
 /// The panel's seven-byte label " CAR nn" for the neighbouring car: `car_number`'s two digits (tens
 /// and units, each + '0' as a byte), or seven spaces when `neighbour` is -1 (no car there). The
@@ -43,7 +43,7 @@ pub fn split_colours(
     }
     let splits: Vec<u32> = block.split_times[..n as usize]
         .iter()
-        .map(crate::session::Dword::get)
+        .map(crate::memory::session::Dword::get)
         .collect();
     let wanted = split_colours(&splits);
     for (cell, &c) in colours.iter().zip(wanted.iter()) {
@@ -221,11 +221,11 @@ pub fn share_sound_spots(race: &Race, sound: &crate::sound::owner::Sound) -> Res
 /// `sse_fill`; `part` is the drawing part clearing them
 /// (`scene::point_records::first_records_everywhere`).
 pub fn clear_point_records(
-    scratch: &crate::workers::DrawingScratch,
-    reads: crate::workers::DrawReads<'_>,
-    part: &crate::workers::PartScratch,
+    scratch: &crate::scene::workers::DrawingScratch,
+    reads: crate::scene::workers::DrawReads<'_>,
+    part: &crate::scene::workers::PartScratch,
 ) -> Result<(), BadInput> {
-    let pattern: [u32; 4] = crate::session::read_bits(&reads.light_work.sse_fill);
+    let pattern: [u32; 4] = crate::memory::session::read_bits(&reads.light_work.sse_fill);
     let sse = reads.draw_switches.use_sse.is_set();
     for record in crate::scene::point_records::first_records_everywhere(scratch, part, 0x1000)? {
         if sse {
@@ -246,7 +246,7 @@ pub fn clear_point_records(
 /// first face's +4 word. Outputs: the view's four face tables (`race::view_course`;
 /// `face_table_a` ...)
 pub fn object_bytes(
-    reads: crate::workers::DrawReads<'_>,
+    reads: crate::scene::workers::DrawReads<'_>,
     mine: &crate::race::view_course::ViewCourse,
 ) -> Result<(), BadInput> {
     let kind = |n: u32| -> Result<u32, BadInput> {
@@ -254,7 +254,7 @@ pub fn object_bytes(
             .texture_places
             .place_slot
             .get(n as usize)
-            .map(crate::session::PlainDword::get)
+            .map(crate::memory::session::PlainDword::get)
             .ok_or(BadInput("an object kind past the kinds' table"))
     };
     for n in 0..0x100usize {
@@ -365,7 +365,7 @@ pub fn wake_part_sounds(race: &Race, sound: &crate::sound::owner::Sound) -> Resu
     }
     let current: u32 = shared.work.get().current_car.get();
     // The plan: (block slot to set, whether to wake the object) by car.
-    let mut plan: Vec<&dyn crate::session::DwordLike> = Vec::new();
+    let mut plan: Vec<&dyn crate::memory::session::DwordLike> = Vec::new();
     for car in 0..cars {
         let object = crate::sound::store::SoundObject::of(sound, car & 7)?;
         let mut wake = false;
@@ -531,7 +531,7 @@ pub fn panel_marks(race: &Race) -> Result<(), BadInput> {
                         past.set(true);
                         0
                     },
-                    crate::session::Dword::get,
+                    crate::memory::session::Dword::get,
                 )
             });
             if past.get() {

@@ -3,7 +3,7 @@
 //! cross per option.
 
 use crate::errors::Refused;
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 use crate::text::draw_text::Canvas;
 
 /// (id, x, y, font) of the page's lines.

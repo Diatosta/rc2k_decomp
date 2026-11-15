@@ -20,13 +20,13 @@
 //! list.
 
 use crate::errors::{BadInput, Refused};
+use crate::memory::session::{PlainDword, read_all, write_all};
 use crate::menu::owner::Menus;
 use crate::menu::owner::Play;
 use crate::menu::standings::{name_address_of, name_of, name_player, with_kept_name};
 use crate::race::owner::Race;
 use crate::records::stages_store::{Holder, RecordRef};
 use crate::saves::best_times::BestTables;
-use crate::session::{PlainDword, read_all, write_all};
 use crate::system::owner::System;
 use rc2k_core::menu::{bests, standings};
 

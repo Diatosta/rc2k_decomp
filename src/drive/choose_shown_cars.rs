@@ -11,8 +11,8 @@
 //! eight slots).
 
 use crate::errors::Refused;
+use crate::memory::session::{DwordLike, PlainDword};
 use crate::race::owner::Race;
-use crate::session::{DwordLike, PlainDword};
 use rc2k_core::drive::shown_cars::{ShownCars, ShownSetup};
 
 fn get(v: &[&dyn DwordLike], k: usize) -> u32 {

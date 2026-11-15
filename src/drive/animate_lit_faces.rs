@@ -52,7 +52,7 @@ fn store(course: &Course, f: u32, b: &FaceBytes) -> Result<(), BadInput> {
 }
 
 /// The lit face list's entry `k` (0x100 of them; the count is checked below).
-fn list(physics: &Physics, k: u32) -> &crate::session::PlainDword {
+fn list(physics: &Physics, k: u32) -> &crate::memory::session::PlainDword {
     &physics.contact.get().lit_faces[k as usize]
 }
 

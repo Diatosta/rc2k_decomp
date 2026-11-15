@@ -21,7 +21,7 @@ enum Prefs {
 }
 
 impl Prefs {
-    fn list(self, course: &Course) -> &[crate::session::PlainDword] {
+    fn list(self, course: &Course) -> &[crate::memory::session::PlainDword] {
         match self {
             Prefs::A => &course.stage_prefs.get().picture_lists_a,
             Prefs::B => &course.stage_prefs.get().picture_lists_b,

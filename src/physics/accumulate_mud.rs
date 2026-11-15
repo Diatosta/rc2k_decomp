@@ -9,11 +9,11 @@
 //! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::math::x87;
+use crate::memory::session::PlainFloat;
 use crate::physics::car_store::Car;
 use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::race::kind_store::KindTables;
 use crate::race::vars_store::RaceVars;
-use crate::session::PlainFloat;
 use std::cmp::Ordering;
 
 /// Whether `s` is below zero or unordered.

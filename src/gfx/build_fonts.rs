@@ -11,7 +11,6 @@
 //! refusal from one of the steps leaves the work half done; none can come with the game's own
 //! files.
 
-use crate::cells::Store;
 use crate::errors::{FatalError, Refused};
 use crate::gfx::build_glyphs::build_glyphs;
 use crate::gfx::glyph_builder::RUN_LENGTHS;
@@ -19,8 +18,9 @@ use crate::gfx::glyph_tables::{
     begin_glyph_table, begin_glyph_tables, end_glyph_tables, palette_to_pixels,
 };
 use crate::gfx::owner::Gfx;
+use crate::memory::cells::Store;
+use crate::memory::session::PlainDword;
 use crate::memory::take_from_list::{rewind_list, take_from_list};
-use crate::session::PlainDword;
 use crate::strings::owner::Strings;
 use crate::system::owner::System;
 

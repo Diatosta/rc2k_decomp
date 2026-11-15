@@ -5,7 +5,7 @@
 
 use crate::errors::BadInput;
 use crate::gfx::plain_dwords;
-use crate::session::{PlainDword, Run};
+use crate::memory::session::{PlainDword, Run};
 
 /// The modes the table holds (32 of 8 bytes).
 pub const TABLE_ROOM: usize = 0x20;
@@ -80,7 +80,7 @@ impl Modes {
     /// Dword `n` of the record. A table that is walked to the key it does not hold (`kinds`) goes
     /// on into the field after it; past the last field is refused.
     pub fn dword(&self, n: usize) -> Result<u32, BadInput> {
-        crate::session::read_runs(&self.runs(), n, "a screen mode table's dword")
+        crate::memory::session::read_runs(&self.runs(), n, "a screen mode table's dword")
     }
 
     /// The `count` entries of two dwords from dword `at` of the record (the tables are walked past

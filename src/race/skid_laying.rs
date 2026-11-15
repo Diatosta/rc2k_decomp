@@ -4,9 +4,9 @@
 //! (`skid_links`, 8 bytes: +0 the next, +2 the previous, +4 the angle, +6 the car's bit).
 
 use crate::errors::{BadInput, Refused};
+use crate::memory::session::PlainDword;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
-use crate::session::PlainDword;
 
 /// The edges' offset for an angle (`math::rotate_point_about_y` of (0x1555, y, 0) by angle << 16).
 fn offsets(
@@ -59,7 +59,7 @@ pub fn add_skid_point(race: &Race, slot: &PlainDword) -> Result<(), Refused> {
         })
         .collect();
     let (points_before, links_before) = (points.clone(), links.clone());
-    let place = crate::session::read_bits(&skids.skid_place);
+    let place = crate::memory::session::read_bits(&skids.skid_place);
     let a = add_skid_point(
         Ring {
             points: &mut points,

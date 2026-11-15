@@ -19,6 +19,8 @@ use crate::math::x87_float::X;
 use crate::math::x87_float::compare;
 use crate::math::x87_float::int;
 use crate::math::x87_float::ld;
+use crate::memory::session::FloatLike;
+use crate::memory::session::PlainFloat;
 use crate::physics::car_store::Car;
 use crate::physics::flow::FloatView;
 use crate::physics::flow::{ZERO_BITS as ZERO, c0, ease_zero, hold_high, hold_low, hold_low_bits};
@@ -28,8 +30,6 @@ use crate::race::numbers_store::Numbers;
 use crate::race::owner_course::Course;
 use crate::race::vars_store::RaceVars;
 use crate::scene::matrix3::extended;
-use crate::session::FloatLike;
-use crate::session::PlainFloat;
 
 /// |a| below |b|, or one of them not a number.
 fn abs_below(x: impl x87::Flt, y: impl x87::Flt) -> bool {

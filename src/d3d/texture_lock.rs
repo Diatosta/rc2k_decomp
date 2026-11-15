@@ -2,7 +2,7 @@
 //! `d3d::texture_surface_info`): what they share, and their test. A system texture's record
 //! (`Textures.system.records`, `TextureRecord`): +4 width, +8 height, +0xC its pixel kind's
 //! description (+4 bytes a pixel, +8 the format), +0x14 its first level's surface
-//! (`platform_3d::lock_surface` / `unlock_surface`), +0x60 locked.
+//! (`platform::direct3d::lock_surface` / `unlock_surface`), +0x60 locked.
 
 use crate::errors::FatalError;
 use crate::gfx::texture_upload::RecordCell;

@@ -12,16 +12,16 @@ mod unix;
 /// Whether an edit field's text is the folder typed on the page.
 pub fn is_folder_field(
     install: &'static crate::install::owner::Install,
-    text: crate::place::BytePlace,
+    text: crate::memory::place::BytePlace,
 ) -> bool {
-    text.same_place(crate::place::BytePlace::from(&install.paths.typed))
+    text.same_place(crate::memory::place::BytePlace::from(&install.paths.typed))
 }
 
 /// An edit field's most bytes: the folder field's by the system's rules, any other's its
 /// record's (`record_most`).
 pub fn field_most(
     install: &'static crate::install::owner::Install,
-    text: crate::place::BytePlace,
+    text: crate::memory::place::BytePlace,
     record_most: u8,
 ) -> u8 {
     if is_folder_field(install, text) {
@@ -64,7 +64,7 @@ pub trait Folders {
 
     /// The folder at `at` (that form) and those above it made; whether it
     /// worked.
-    fn make(at: crate::place::BytePlace) -> Result<bool, Refused>;
+    fn make(at: crate::memory::place::BytePlace) -> Result<bool, Refused>;
 
     /// The room where the folder (that form) would go.
     fn room(folder: &[u8], system: &crate::system::owner::System) -> Room;
@@ -84,7 +84,7 @@ pub trait Folders {
 /// record's (`record_width`). `text` is the field's text.
 pub fn field_width(
     install: &'static crate::install::owner::Install,
-    text: crate::place::BytePlace,
+    text: crate::memory::place::BytePlace,
     record_width: u16,
 ) -> u16 {
     if is_folder_field(install, text) {

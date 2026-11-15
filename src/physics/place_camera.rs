@@ -218,7 +218,7 @@ mod reference_vectors {
                 a[2].set_tbyte(
                     0,
                     view_turn_part(
-                        view::<crate::session::Dword>(a[0], 0).get() as i32,
+                        view::<crate::memory::session::Dword>(a[0], 0).get() as i32,
                         crate::test_support::own::race().course.numbers.get(),
                     ),
                 );

@@ -16,7 +16,7 @@ use crate::gfx::fill_row_table::ROW_TABLE_ROOM;
 use crate::gfx::picture::{has_picture, read_bytes, with_picture};
 use crate::memory::MemoryList;
 use crate::memory::free_list::free_list;
-use crate::session::{PlainBytes, PlainDword};
+use crate::memory::session::{PlainBytes, PlainDword};
 
 /// The rescaler's variables (`gfx::rescale_picture`, `gfx::rescale_to_surface`).
 #[derive(rc2k_derive::Cells)]

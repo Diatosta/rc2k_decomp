@@ -24,9 +24,9 @@ use crate::effects::owner::Effects;
 use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
+use crate::memory::session::{PlainDword, PlainFloat};
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
 use crate::scene::matrix3::{extended, rounded_value};
-use crate::session::{PlainDword, PlainFloat};
 
 /// The strength's two factors and its least.
 fn strength_k(effects: &Effects) -> [&PlainFloat; 3] {
@@ -68,7 +68,7 @@ fn pace(effects: &Effects, wheel: &MarkRecord) -> Result<Pace, Refused> {
                 strength: None,
             });
         }
-        let [k1, k2, least] = strength_k(effects).map(super::super::session::PlainFloat::get);
+        let [k1, k2, least] = strength_k(effects).map(crate::memory::session::PlainFloat::get);
         let (kept, status) = x87::abs_blend_compare(
             &wheel.local_velocity_x,
             k1,

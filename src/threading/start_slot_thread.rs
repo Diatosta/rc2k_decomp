@@ -3,7 +3,7 @@
 //! +8. The thread works with the owners it is given. A thread that cannot be made is fatal error 0x80108601.
 
 use crate::errors::FatalError;
-use crate::framework::log;
+use crate::logfile::program_log::log;
 use crate::threading::thread_slot::SlotOwners;
 
 /// The thread of slot number `slot` started.
@@ -16,9 +16,9 @@ pub fn start_slot_thread(slot: usize, owners: SlotOwners<'static>) -> Result<(),
     // finds its Rust function by it.
     let routine = slot.routine.get() as usize;
     // The thread's id goes into the slot before the thread can look for its slot.
-    let id = crate::sync::new_thread_id();
+    let id = crate::platform::sync::new_thread_id();
     slot.thread_id.set(id);
-    let Some(handle) = crate::sync::spawn(&format!("slot {routine:#x}"), id, move || {
+    let Some(handle) = crate::platform::sync::spawn(&format!("slot {routine:#x}"), id, move || {
         run_routine(routine as u32, owners);
     }) else {
         return Err(FatalError {

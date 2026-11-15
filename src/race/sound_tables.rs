@@ -3,7 +3,7 @@
 //! table) and the race's sounds are restarted or silenced.
 
 use crate::errors::{BadInput, Refused};
-use crate::session::{PlainDword, PlainFloat};
+use crate::memory::session::{PlainDword, PlainFloat};
 use crate::sound::sets_store::SoundSet;
 
 /// `race::whole_to_float`: makes the dword a float when it looks like a whole number (its top

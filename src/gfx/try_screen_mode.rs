@@ -6,8 +6,8 @@
 //! `gfx::screen_mode_choices`, `gfx::keep_race_screen_mode`, and two in the race's set-up. Its
 //! three calls (set the mode, allocate, release: the platform's) are direct.
 
+use crate::errors::CarryZeroFlags;
 use crate::errors::Refused;
-use crate::framework::CarryZeroFlags;
 use crate::gfx::owner::Gfx;
 
 /// Tries `mode`: the carry and zero flags it leaves (carry: it does not work).
@@ -44,8 +44,9 @@ pub fn try_screen_mode(
         if display.mode.mode_flags.get() & 0x10_0000 == 0 {
             return Ok(Ok(mode));
         }
-        let (video, _) = crate::platform_3d::allocate_textures_now(0x40, 0x40, 1, 2, 0, gfx, d3d)?;
-        crate::platform_3d::release_all_textures(gfx);
+        let (video, _) =
+            crate::platform::direct3d::allocate_textures_now(0x40, 0x40, 1, 2, 0, gfx, d3d)?;
+        crate::platform::direct3d::release_all_textures(gfx);
         Ok(Ok(video))
     })()?;
     gfx.card.upload.trying.set(0);

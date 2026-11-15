@@ -24,7 +24,7 @@ pub struct Pen<'a> {
     /// The vertex buffer (the game's thread's part's: the HUD draws after the parts).
     pub vertices: &'a crate::d3d::vertices_store::PolygonVertices,
     /// That part, whose render states the HUD's batches set and draw with.
-    pub part: &'a crate::workers::PartScratch,
+    pub part: &'a crate::scene::workers::PartScratch,
     pub system: &'a crate::system::owner::System,
     pub scene: &'a crate::scene::owner::Scene,
     /// The sine tables the dials turn by (`scene::engine_tables_store`).

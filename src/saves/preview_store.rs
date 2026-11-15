@@ -2,7 +2,7 @@
 //! saved game's figures the preview and details screens draw. A struct of plain cells (only
 //! the game thread reaches it), one static.
 
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 
 /// The savegame preview.
 #[derive(rc2k_derive::Cells)]

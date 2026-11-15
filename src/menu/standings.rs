@@ -5,11 +5,11 @@
 //! Also the drivers (-1 at the end) and the players.
 
 use crate::errors::{BadInput, FatalError, Refused};
+use crate::memory::session::PlainDword;
 use crate::menu::drivers_store::Driver;
 use crate::menu::owner::Play;
 use crate::menu::owner::Screens;
 use crate::menu::owner::{Cars, Menus};
-use crate::session::PlainDword;
 pub use crate::system::owner::System;
 use rc2k_core::menu::standings::{self, NAME_LEN};
 
@@ -19,7 +19,7 @@ use rc2k_core::saves::rankings::{BKey, ChampHistory, HistoryEntry, RankedTimes};
 pub const ANY_GROUP: u32 = standings::ANY_GROUP;
 
 /// A player's record, typed.
-pub type PlayerCell<'a> = &'a crate::session::Shared<rc2k_core::menu::player::Player>;
+pub type PlayerCell<'a> = &'a crate::memory::session::Shared<rc2k_core::menu::player::Player>;
 
 /// Whether any of the players has no name (a null name place).
 pub fn any_unnamed(players: &[PlayerCell]) -> Result<bool, crate::errors::BadInput> {

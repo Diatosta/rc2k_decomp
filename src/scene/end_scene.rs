@@ -3,5 +3,5 @@
 
 /// The 3D part of a frame ended: true when a scene was open.
 pub fn end_scene(d3d: &crate::d3d::owner::D3d) -> bool {
-    crate::platform_3d::end_layer(d3d)
+    crate::platform::direct3d::end_layer(d3d)
 }

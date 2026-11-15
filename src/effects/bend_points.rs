@@ -12,7 +12,7 @@ use crate::effects::paths::Paths;
 use crate::effects::splines::{MOST_POINTS, Spline};
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::ext_to_int;
-use crate::session::write_first;
+use crate::memory::session::write_first;
 
 pub fn bend_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
     {

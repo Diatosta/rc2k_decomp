@@ -28,10 +28,10 @@ pub fn car_gear_sounds(
     let place = place_behind(
         so.place
             .each_ref()
-            .map(super::super::session::PlainFloat::get),
+            .map(crate::memory::session::PlainFloat::get),
         so.motion
             .each_ref()
-            .map(super::super::session::PlainFloat::get),
+            .map(crate::memory::session::PlainFloat::get),
     );
     for (cell, v) in request.place.iter().zip(place) {
         cell.set(v);

@@ -6,7 +6,7 @@
 use crate::effects::pong::Pong;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::Refused;
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 
 /// A number of the score as three digits.
 fn number(

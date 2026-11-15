@@ -4,8 +4,8 @@
 //! half by `player`).
 
 use crate::errors::Refused;
+use crate::memory::session::PlainDword;
 use crate::race::owner::Race;
-use crate::session::PlainDword;
 use rc2k_core::drive::tyre_screen::fixed_parts;
 
 fn set(cells: &[PlainDword; 4], v: [u32; 4]) {
@@ -31,7 +31,7 @@ pub fn tyre_screen_parts(
                 race.viewer_panel()
                     .texture_rect
                     .each_ref()
-                    .map(crate::session::PlainDword::get),
+                    .map(crate::memory::session::PlainDword::get),
                 &race.viewer_panel().screen_rect,
                 0xFF_FFFF,
                 race.viewer_panel(),

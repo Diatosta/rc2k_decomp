@@ -2,9 +2,9 @@
 //! floats, the work vector and its squares (`math::normalise_vector`), and the locked surface's
 //! kept pitch and pixels. The fields keep a fixed layout.
 
-use crate::cells::ZeroCells;
+use crate::memory::cells::ZeroCells;
 
-use crate::session::{PlainDword, PlainFloat};
+use crate::memory::session::{PlainDword, PlainFloat};
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct FrameScratch {

@@ -2,7 +2,7 @@
 //! checkpoint of the stage (up to 5146) its face, its face count, its angle, its distance, its map
 //! place and its nearest replay cameras, then the two replay camera lists.
 
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 #[cfg(test)]
 use crate::test_support::own::race;
 
@@ -188,11 +188,11 @@ pub fn check_count_run_on(table: &Checkpoints, n: usize) -> &PlainDword {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cells::CellRun;
+    use crate::memory::cells::CellRun;
 
     /// The earlier way: the cell found by byte offset in the record's cell runs.
     fn oracle(table: &Checkpoints, field: usize, n: usize) -> Option<*const PlainDword> {
-        use crate::cells::ByteView;
+        use crate::memory::cells::ByteView;
         let offset = field.wrapping_add(((n as u32).wrapping_mul(4)) as usize);
         (offset < core::mem::size_of::<Checkpoints>())
             .then(|| table.cell_run(offset))

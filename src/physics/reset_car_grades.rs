@@ -9,9 +9,9 @@
 
 use core::slice::from_ref;
 
+use crate::memory::session::{Cell32, PlainDword};
 use crate::physics::car_store::Car;
 use crate::race::numbers_store::Numbers;
-use crate::session::{Cell32, PlainDword};
 use rc2k_core::physics::grades::{Field, percentage, reset_writes};
 
 /// The damage gauges in the order they lie in the block, `damage_failed` first and `tyre_wear`

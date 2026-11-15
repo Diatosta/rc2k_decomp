@@ -7,7 +7,7 @@
 //! views until their first face resets them) and `polygon_alpha` (set by the HUD's strips only,
 //! read by every view's drawing).
 
-use crate::session::{PlainDword, PlainFloat};
+use crate::memory::session::{PlainDword, PlainFloat};
 
 #[derive(rc2k_derive::Cells)]
 pub struct PolygonWork {

@@ -3,10 +3,10 @@
 //! drawing the map again.
 
 use crate::errors::{FatalError, Refused};
+use crate::memory::session::PlainDword;
 use crate::menu::owner::Menus;
 use crate::owners::Owners;
 use crate::screens::draw_stage_records::selection_in;
-use crate::session::PlainDword;
 
 const MAP_SPRITE: u32 = 0xA0;
 /// The map that cannot be loaded: no message.

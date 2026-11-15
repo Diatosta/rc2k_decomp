@@ -6,8 +6,8 @@ use crate::effects::rain::Weather;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_float as bh;
+use crate::memory::session::{PlainDword, PlainFloat};
 use crate::race::owner_shared::RaceShared;
-use crate::session::{PlainDword, PlainFloat};
 
 /// The marks' clock (`effects::tick_clock`).
 #[derive(rc2k_derive::Cells)]
@@ -222,7 +222,7 @@ pub fn make_noise_curve(
         .snow_light
         .smooth_weights
         .each_ref()
-        .map(super::super::session::PlainFloat::get);
+        .map(crate::memory::session::PlainFloat::get);
     for _ in 0..core::SMOOTHINGS {
         core::smooth(&mut curve, &mut copy, |a, b, c| {
             x87::weighted3_to_int(a, b, c, weights[0], weights[1], weights[2])
@@ -277,7 +277,7 @@ pub fn make_noise_curve(
         .snow_light
         .record_values
         .each_ref()
-        .map(super::super::session::PlainFloat::bits);
+        .map(crate::memory::session::PlainFloat::bits);
     let layout = core::record_values(values);
     for record in weather
         .snow_vars

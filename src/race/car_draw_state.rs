@@ -6,7 +6,7 @@
 //! group masks), `CourseWork` and `ViewVars` (`group_mask`), and each car block's state bits
 //! (+0x6FC). The old fields stay in the stores, unused.
 
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 
 #[derive(rc2k_derive::Cells)]
 pub struct CarDrawState {
@@ -25,15 +25,15 @@ pub struct CarDrawState {
     /// The car's drawing word (0x60 plus its nearness size).
     pub car_draw_word: PlainDword,
     /// The drawn car's nearness, 0 .. 1 (`car_nearness`).
-    pub car_nearness: crate::session::PlainFloat,
+    pub car_nearness: crate::memory::session::PlainFloat,
     /// The drawn car's mode (`groups_which`: its block's `mode_on`), read by the face tests
     /// (`list_object_face`).
     pub groups_which: PlainDword,
     /// The drawn car's four parts' matrices (`FrameWork.part_matrices`: copied from its block's
     /// +0x740 by `draw_car`).
-    pub part_matrices: [crate::session::PlainFloat; 64],
+    pub part_matrices: [crate::memory::session::PlainFloat; 64],
     /// The drawn car's turn (`FrameWork.placed_matrices`' first: its block's +0x880).
-    pub car_turn: [crate::session::PlainFloat; 16],
+    pub car_turn: [crate::memory::session::PlainFloat; 16],
     /// The material way of the object being drawn (`other_way_kind`).
     pub other_way_kind: PlainDword,
     /// The other kind and the distance of the object's fade (`fade_words`).
@@ -65,10 +65,10 @@ impl CarDrawState {
             car_depth: PlainDword::new(0),
             car_draw_kept: PlainDword::new(0),
             car_draw_word: PlainDword::new(0),
-            car_nearness: crate::session::PlainFloat::new(0.0),
+            car_nearness: crate::memory::session::PlainFloat::new(0.0),
             groups_which: PlainDword::new(0),
-            part_matrices: [const { crate::session::PlainFloat::new(0.0) }; 64],
-            car_turn: [const { crate::session::PlainFloat::new(0.0) }; 16],
+            part_matrices: [const { crate::memory::session::PlainFloat::new(0.0) }; 64],
+            car_turn: [const { crate::memory::session::PlainFloat::new(0.0) }; 16],
             other_way_kind: PlainDword::new(0),
             fade_words: [const { PlainDword::new(0) }; 2],
             object_number: PlainDword::new(0),

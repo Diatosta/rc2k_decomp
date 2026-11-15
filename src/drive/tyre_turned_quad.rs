@@ -8,9 +8,9 @@ use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
 use crate::input::types::InputDevice;
 use crate::math::x87_float::{int, ld, stf};
+use crate::memory::session::{PlainDword, PlainFloat};
 use crate::race::owner_shared::RaceShared;
 use crate::race::tyre_store::TyreChange;
-use crate::session::{PlainDword, PlainFloat};
 
 /// The turn's arithmetic: `ty` the tyre change's variables (the constants and results), `e`
 /// the input device, `d` the rectangle (floats), `v` the vertices, `t` the scratch float
@@ -57,7 +57,7 @@ pub fn tyre_turned_quad(
     device: &InputDevice,
     system: &crate::system::owner::System,
     panel: &crate::race::viewer_screen_store::ViewerPanelBlock,
-    part: &crate::workers::PartScratch,
+    part: &crate::scene::workers::PartScratch,
 ) -> Result<(), Refused> {
     let buffer = &part.vertices;
     system.machine().scratch.set(0x40C9_0FDB);

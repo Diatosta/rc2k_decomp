@@ -1,6 +1,6 @@
 //! The surface's texture places and the emitters' lives and colours.
 
-use crate::session::{PlainBytes, PlainDword};
+use crate::memory::session::{PlainBytes, PlainDword};
 
 /// The surface's texture places and the emitters' lives and colours.
 #[derive(rc2k_derive::Cells)]

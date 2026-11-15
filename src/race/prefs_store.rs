@@ -4,11 +4,11 @@
 //! tints, the draw-distance tables, the mud colour and the surface noise figures. `#[repr(C)]`
 //! with a fixed layout. Plain cells: a drawing store
 //! (`session::DrawShared`), written on the game's thread between frames and read by the drawing
-//! parts through their `workers::DrawReads`.
+//! parts through their `scene::workers::DrawReads`.
 //!
 
-use crate::cells::ZeroCells;
-use crate::session::PlainDword;
+use crate::memory::cells::ZeroCells;
+use crate::memory::session::PlainDword;
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells, rc2k_derive::ByteView)]
@@ -228,13 +228,13 @@ mod tests {
     fn fields_in_order_are_the_dwords() {
         let prefs = StagePrefs::new();
         for (k, cell) in
-            crate::cells::plain_dwords_in::<_, { size_of::<StagePrefs>() / 4 }>(&prefs, 0)
+            crate::memory::cells::plain_dwords_in::<_, { size_of::<StagePrefs>() / 4 }>(&prefs, 0)
                 .iter()
                 .enumerate()
         {
             cell.set(0x1000 + k as u32);
         }
-        let flat = crate::cells::flatten(&prefs);
+        let flat = crate::memory::cells::flatten(&prefs);
         assert_eq!(flat.len(), size_of::<StagePrefs>());
         for (k, b) in flat.as_chunks::<4>().0.iter().enumerate() {
             assert_eq!(u32::from_le_bytes(*b), 0x1000 + k as u32);

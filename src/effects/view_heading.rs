@@ -7,10 +7,10 @@
 //! One caller, `effects::draw_frame`.
 
 use crate::math::x87;
+use crate::memory::session::write_bits;
 use crate::race::owner_frame::Frame;
 use crate::scene::matrix3::rounded_value;
 use crate::scene::vector3::angle_between_vectors;
-use crate::session::write_bits;
 
 pub fn view_heading(frame: &Frame, effects: &crate::effects::owner::Effects) {
     let effects_frame = &effects.frame;

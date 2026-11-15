@@ -200,7 +200,7 @@ pub fn sun_on_screen(
     scale: impl Flt,
     centre: [impl Flt; 2],
     flat: bool,
-    scratch: &impl crate::session::Cell32,
+    scratch: &impl crate::memory::session::Cell32,
 ) -> ([f32; 2], [i32; 2]) {
     let scale = scale.value();
     let [cy, cx] = centre.map(|c| c.value());

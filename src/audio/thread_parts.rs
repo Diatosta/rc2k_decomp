@@ -32,7 +32,7 @@ pub fn play_primary(state: &AudioOwn) {
     if crate::audio::buffer_settings::a3d(state) || p == 0 {
         return;
     }
-    if crate::platform_sound::play(p, 1) != 0 {
+    if crate::platform::sound::play(p, 1) != 0 {
         state.sound_buffer_lost.set(1);
     }
 }
@@ -41,7 +41,7 @@ pub fn play_primary(state: &AudioOwn) {
 pub fn stop_primary(state: &AudioOwn) {
     let p = state.primary_buffer.get();
     if !crate::audio::buffer_settings::a3d(state) && p != 0 {
-        crate::platform_sound::stop(p);
+        crate::platform::sound::stop(p);
     }
 }
 
@@ -49,7 +49,7 @@ pub fn stop_primary(state: &AudioOwn) {
 pub fn release_sound_listener(state: &AudioOwn) {
     let l = state.sound_listener.get();
     if l != 0 {
-        crate::platform_sound::release(l);
+        crate::platform::sound::release(l);
         state.sound_listener.set(0);
     }
 }

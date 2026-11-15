@@ -4,8 +4,8 @@
 //!
 //! Refuses what `read_replay_frame` refuses.
 
-use crate::cells::copy_cells;
 use crate::errors::Refused;
+use crate::memory::cells::copy_cells;
 use crate::race::owner::Race;
 use crate::system::owner::System;
 use rc2k_core::drive::replay_frames::FRAME_BYTES;

@@ -9,7 +9,7 @@
 
 use crate::audio::own::{AudioOwn, AudioThread};
 use crate::audio::store::{AudioShared, SampleRecords};
-use crate::session::{Plain, Shared};
+use crate::memory::session::{Plain, Shared};
 
 pub use rc2k_core::audio::voices::{SAMPLES, VOICES};
 

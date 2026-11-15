@@ -15,9 +15,9 @@
 
 use crate::d3d::owner::D3d;
 use crate::errors::Refused;
-use crate::framework::{LOG_PATH, log};
 use crate::gfx::owner::Gfx;
 use crate::install::outside::Game as Outside;
+use crate::logfile::program_log::{LOG_PATH, log};
 use crate::menu::owner::Menus;
 use crate::owners::Owners;
 use crate::system::owner::System;
@@ -52,7 +52,8 @@ const LONE_RETN: [usize; 119] = [
 #[cfg(windows)]
 /// The event that starts the fault reporter's time limit (`arm_time_limit`); set once the
 /// watchdog thread runs.
-static TIME_LIMIT_EVENT: std::sync::OnceLock<crate::ffi::win32::Event> = std::sync::OnceLock::new();
+static TIME_LIMIT_EVENT: std::sync::OnceLock<crate::platform::ffi::win32::Event> =
+    std::sync::OnceLock::new();
 
 /// How long a fault's report may take before the process is ended without it (a fault
 /// inside the allocator or the loader leaves their locks held, and the report needs both).
@@ -62,7 +63,7 @@ const REPORT_TIME_LIMIT_SECONDS: u32 = 2;
 /// The fault reporter's time limit started: SIGALRM, whose default action ends the
 /// process, comes after `REPORT_TIME_LIMIT_SECONDS`.
 fn arm_time_limit() {
-    crate::ffi::unix::alarm(REPORT_TIME_LIMIT_SECONDS);
+    crate::platform::ffi::unix::alarm(REPORT_TIME_LIMIT_SECONDS);
 }
 
 #[cfg(windows)]
@@ -78,7 +79,7 @@ fn arm_time_limit() {
 /// The watchdog of the fault reporter's time limit, started before any fault: a thread made
 /// inside the handler could wait for the loader lock the faulting thread holds.
 fn start_watchdog() {
-    let Some(event) = crate::ffi::win32::create_event() else {
+    let Some(event) = crate::platform::ffi::win32::create_event() else {
         log("standalone: the fault reporter has no time limit (no event)");
         return;
     };
@@ -89,7 +90,7 @@ fn start_watchdog() {
             std::thread::sleep(std::time::Duration::from_secs(u64::from(
                 REPORT_TIME_LIMIT_SECONDS,
             )));
-            crate::os::terminate(1)
+            crate::platform::os::terminate(1)
         });
     if started.is_err() {
         log("standalone: the fault reporter has no time limit (no thread)");
@@ -135,7 +136,7 @@ static FAULT_LOG: std::sync::OnceLock<FaultLog> = std::sync::OnceLock::new();
 /// the module's base; None when it is in none.
 #[cfg(unix)]
 fn with_module<T>(address: usize, f: impl FnOnce(&[NameUnit], usize) -> T) -> Option<T> {
-    crate::ffi::unix::with_module_of_address(address, |path, base| {
+    crate::platform::ffi::unix::with_module_of_address(address, |path, base| {
         f(path.rsplit(|&c| c == b'/').next().unwrap_or(path), base)
     })
 }
@@ -143,7 +144,7 @@ fn with_module<T>(address: usize, f: impl FnOnce(&[NameUnit], usize) -> T) -> Op
 #[cfg(windows)]
 fn with_module<T>(address: usize, f: impl FnOnce(&[NameUnit], usize) -> T) -> Option<T> {
     let separator = |&c: &u16| c == u16::from(b'\\') || c == u16::from(b'/');
-    crate::ffi::win32::with_module_of_address_wide(address, |path, base| {
+    crate::platform::ffi::win32::with_module_of_address_wide(address, |path, base| {
         f(path.rsplit(separator).next().unwrap_or(path), base)
     })
 }
@@ -252,7 +253,7 @@ fn stack_returns(line: &mut FaultLine, own_module: Option<&[NameUnit]>, esp: usi
         // The walk ends at the stack's end (`os::own_stack_word`).
         let Some(value) = esp
             .checked_add(WORD * k)
-            .and_then(crate::os::own_stack_word)
+            .and_then(crate::platform::os::own_stack_word)
         else {
             break;
         };
@@ -314,11 +315,11 @@ pub fn finish(why: &str, code: u32) -> ! {
 fn end(code: u32) -> ! {
     #[cfg(rc2k_pgo)]
     {
-        crate::ffi::pgo::write_profile();
+        crate::platform::ffi::pgo::write_profile();
     }
     // Not `std::process::exit`: this may be an exception's handler, where the libraries'
     // leave-taking can hang.
-    crate::os::terminate(code)
+    crate::platform::os::terminate(code)
 }
 
 /// The platform's functions `start` calls that SDL stands for: (the function, what it is).
@@ -376,7 +377,7 @@ fn refused(name: &str, e: Refused, r: &Context) {
     crate::fatal::raise::refused_in(name, e, r);
 }
 
-fn stand_in(what: &str, variable: &crate::session::Dword, value: u32) {
+fn stand_in(what: &str, variable: &crate::memory::session::Dword, value: u32) {
     log(&format!("standalone: stand-in: {what} (= {value})"));
     variable.set(value);
 }
@@ -390,7 +391,7 @@ fn start(o: Owners<'static>) {
     let r = Context::default();
     // The fatal-error reporter finds the owners here from any thread.
     crate::threading::thread_slot::publish(SlotOwners::of(o));
-    crate::platform_3d::set_handles(o.gfx);
+    crate::platform::direct3d::set_handles(o.gfx);
     set_up_fixed_objects(o.gfx, o.menus);
     seed_clock_and_random(o.system, &o.race.shared.random);
     check_machine(o.system, &r);
@@ -621,7 +622,7 @@ fn choose_screen_modes(gfx: &'static Gfx, d3d: &'static D3d, system: &'static Sy
 }
 
 /// What the window's procedure and the key thread tell the main loop (the films play from
-/// `film.rs`).
+/// `platform/film.rs`).
 fn stand_in_window_state(system: &'static System) {
     let flags = &system.session.flags;
     stand_in("the window is the active one", &flags.window_active, 1);
@@ -672,13 +673,13 @@ fn shut_down(o: Owners<'static>, r: &Context) {
 /// directory has to be the game's. Does not come back.
 /// `frames`, if not 0: the program ends itself after that many frames were shown.
 pub fn run(log_file: &Path, frames: u32) -> ! {
-    crate::session::set_game_thread();
+    crate::memory::session::set_game_thread();
     crate::platform::FRAMES_TO_SHOW.store(frames, Ordering::SeqCst);
-    crate::platform_timing::start_threads();
-    crate::platform_input::SdlBackend::start();
+    crate::platform::timing::start_threads();
+    crate::platform::input::SdlBackend::start();
     // Before any path is read: a program in a macOS bundle runs in the bundle's folder.
     #[cfg(target_os = "macos")]
-    let bundle_folder = crate::os::enter_bundle_folder();
+    let bundle_folder = crate::platform::os::enter_bundle_folder();
     // Absolute: the installer changes the current folder (`install::make_folders`).
     let log_file = &std::path::absolute(log_file).unwrap_or_else(|_| log_file.to_path_buf());
     let _ = std::fs::File::create(log_file);
@@ -714,17 +715,17 @@ pub fn run(log_file: &Path, frames: u32) -> ! {
     }));
     open_fault_log();
     #[cfg(unix)]
-    crate::ffi::unix::install_fault_reporter();
+    crate::platform::ffi::unix::install_fault_reporter();
     #[cfg(windows)]
     {
         start_watchdog();
-        crate::ffi::win32::install_fault_reporter();
+        crate::platform::ffi::win32::install_fault_reporter();
     }
     // The audio thread runs on DirectSound over SDL
-    // (`platform_sound`).
+    // (`platform::sound`).
     // SAFETY: once, here, on the main thread.
     let owners = Owners::build();
-    crate::platform_3d::register_game_scratch(&owners.scene.scratch);
+    crate::platform::direct3d::register_game_scratch(&owners.scene.scratch);
     start(owners);
     finish("start came to its end", 0)
 }

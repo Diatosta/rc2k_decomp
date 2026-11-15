@@ -2,7 +2,7 @@
 //! axes and the force-feedback effects), as a `#[repr(C)]` struct of byte buffers. The effect
 //! templates (`input::store::Devices`) name the effects' GUIDs by handle (`EffectGuid`).
 
-use crate::session::{Bytes, with_runs};
+use crate::memory::session::{Bytes, with_runs};
 
 /// The DirectInput GUIDs.
 #[repr(C, align(16))]

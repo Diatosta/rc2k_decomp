@@ -7,7 +7,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::{make_dir, rb, rw, set_cd, wb};
-use crate::place::BytePlace;
+use crate::memory::place::BytePlace;
 
 const LIMIT: u32 = 0x400;
 

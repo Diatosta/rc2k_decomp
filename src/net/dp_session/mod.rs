@@ -129,7 +129,7 @@ impl Shared {
             self.queue.push_back(m);
         } else if !self.dropped {
             self.dropped = true;
-            crate::framework::log(&format!(
+            crate::logfile::program_log::log(&format!(
                 "net: dropping messages from another machine ({} bytes, {} waiting)",
                 m.data.len(),
                 self.queue.len()

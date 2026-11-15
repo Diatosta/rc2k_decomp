@@ -4,7 +4,7 @@
 //! a third byte. What is not there keeps its value.
 
 use crate::errors::BadInput;
-use crate::session::{PlainByte, PlainBytes, PlainDword, with_runs};
+use crate::memory::session::{PlainByte, PlainBytes, PlainDword, with_runs};
 use crate::settings::read_text::read_text;
 use crate::strings::same_text::case_table;
 use rc2k_core::install::config;

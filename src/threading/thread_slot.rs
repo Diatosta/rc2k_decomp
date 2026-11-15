@@ -3,7 +3,7 @@
 //! path buffer `files::resolve_path` uses for the thread.
 
 use crate::errors::{BadInput, Refused};
-use crate::session::{Byte, Bytes, Dword};
+use crate::memory::session::{Byte, Bytes, Dword};
 
 #[derive(rc2k_derive::Cells)]
 pub struct ThreadSlot {

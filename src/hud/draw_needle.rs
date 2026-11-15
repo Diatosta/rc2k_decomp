@@ -38,7 +38,7 @@ pub fn draw_needle(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
         hud.block
             .needle_corners
             .each_ref()
-            .map(crate::session::PlainFloat::bits),
+            .map(crate::memory::session::PlainFloat::bits),
     )
     .into_iter()
     .enumerate()

@@ -37,5 +37,5 @@ pub fn enable_new_players(net: &Net) {
     let desc =
         crate::net::dp_objects::desc(net.link.session_desc(), &net.setup().machine_name.read());
     let result = crate::net::dp_objects::set_session_desc(net.link.dplay(), &desc);
-    crate::framework::log(&format!("net: new players let in again ({result:#x})"));
+    crate::logfile::program_log::log(&format!("net: new players let in again ({result:#x})"));
 }

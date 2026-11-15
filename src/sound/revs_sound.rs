@@ -8,7 +8,7 @@
 
 use crate::errors::Refused;
 use crate::math::x87_float::{X, ld, st, stf};
-use crate::session::{PlainDword, PlainFloat};
+use crate::memory::session::{PlainDword, PlainFloat};
 use crate::sound::sets_store::{SoundRequest, SoundSet};
 use crate::sound::store::{SoundObject, SurfaceSounds};
 use rc2k_core::sound::engine::{computers, revs_sound_number, revs_stopped};

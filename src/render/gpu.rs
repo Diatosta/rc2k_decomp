@@ -14,10 +14,10 @@ mod quads;
 
 use super::batches::{Batch, Batches, PipelineKey};
 use super::{CommandList, Target, TextureNote};
-use crate::ffi::sdl_gpu::{
+use crate::logfile::program_log::log;
+use crate::platform::ffi::sdl_gpu::{
     self, Buffer, Device, Pipeline, PipelineSpec, Sampler, Shader, ShaderCode, Texture, Transfer,
 };
-use crate::framework::log;
 use sdl3_sys::everything::*;
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -496,7 +496,7 @@ impl Gpu {
             return Ok((false, false));
         };
         let bytes = self.width as usize * self.height as usize * 4;
-        let buffers = crate::platform_3d::handles().pictures;
+        let buffers = crate::platform::direct3d::handles().pictures;
         if check::wanted() {
             *picture_copy = match &pending {
                 Pending::Buffer { handle, .. } => {
@@ -943,7 +943,7 @@ mod comparison {
         }
         let levels: Vec<_> = bytes
             .iter()
-            .map(|b| crate::platform_3d::test_level(b.clone()))
+            .map(|b| crate::platform::direct3d::test_level(b.clone()))
             .collect();
         let note = |n: usize| {
             let (width, height, pitch, bytes, masks, len) = notes[n];
@@ -987,11 +987,11 @@ mod comparison {
         system.session.screen.get().width.set(width as u32);
         system.session.screen.get().height.set(height as u32);
         system.session.screen.get().bits.set(bits);
-        let soft_held =
-            std::sync::Arc::new(crate::pool::PoolBytes::from_vec(vec![
-                0u8;
-                width * height * 4
-            ]));
+        let soft_held = std::sync::Arc::new(crate::memory::pool::PoolBytes::from_vec(vec![
+            0u8;
+            width * height
+                * 4
+        ]));
         let soft_handle = 0x7000_0000;
         crate::gfx::locked_pixels::register(soft_handle, &soft_held);
         let target = Target {

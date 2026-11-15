@@ -14,10 +14,10 @@ use crate::effects::cell_x87::CellX87;
 use crate::effects::setup::MarksClock;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::Refused;
+use crate::memory::session::{PlainBytes, PlainFloat};
 use crate::race::effects_settings_store::EffectsSettings;
 use crate::race::owner_frame::Frame;
 use crate::scene::matrix3::{Axis, extended, turn_matrix3};
-use crate::session::{PlainBytes, PlainFloat};
 
 /// The view's move (the settings' +0x26AC .. less the kept place, times the clock constant),
 /// less the last move, plus the last move times the drift's decay.
@@ -224,7 +224,7 @@ mod reference_vectors {
 
     use crate::effects::typed_sync::{overlay_laid, with_overlays};
 
-    use crate::session::{PlainBytes, PlainFloat};
+    use crate::memory::session::{PlainBytes, PlainFloat};
 
     /// Runs `f` with `HEX` holding the buffer's bytes (`typed_sync`).
     fn hex<R>(mk: crate::effects::asm_test::Operand, f: impl FnOnce() -> R) -> R {

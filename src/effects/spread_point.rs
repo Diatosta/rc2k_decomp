@@ -7,8 +7,8 @@
 
 use crate::effects::paths::Paths;
 use crate::math::x87;
+use crate::memory::session::PlainDword;
 use crate::scene::matrix3::{extended, rounded};
-use crate::session::PlainDword;
 
 /// The three results.
 pub fn spread_point(

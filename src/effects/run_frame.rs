@@ -9,8 +9,8 @@
 use crate::effects::owner::Effects;
 use crate::errors::Refused;
 use crate::math::x87;
+use crate::memory::session::PlainFloat;
 use crate::race::owner::Race;
-use crate::session::PlainFloat;
 /// Where the share goes (its factor is `FRAME_K.times`): the draw, the ring, the whole.
 fn shares(effects: &Effects) -> [&PlainFloat; 3] {
     [
@@ -29,7 +29,7 @@ const STATES: [(u32, u32); 6] = [
 ];
 
 fn rdtsc() -> u32 {
-    crate::arch::rdtsc() as u32
+    crate::platform::arch::rdtsc() as u32
 }
 
 fn share(at: usize, start: u32, effects: &crate::effects::owner::Effects) {
@@ -47,7 +47,7 @@ fn share(at: usize, start: u32, effects: &crate::effects::owner::Effects) {
 #[derive(Clone, Copy)]
 pub struct EffectsView<'a> {
     pub fog: &'a crate::scene::fog::Fog,
-    pub view_matrix: &'a [crate::session::PlainFloat; 16],
+    pub view_matrix: &'a [crate::memory::session::PlainFloat; 16],
     pub light: u32,
     pub engine_tables: &'a crate::scene::engine_tables_store::EngineTables,
 }

@@ -14,7 +14,7 @@ use crate::scene::clip::{Edge, clip_pass, listed_with_records, or_undone};
 const NEAREST: i32 = 0x1000;
 
 pub fn clip_polygon_by_depth(
-    part: &crate::workers::PartScratch,
+    part: &crate::scene::workers::PartScratch,
     poly: &crate::scene::polygon_work::PolygonWork,
     course: crate::race::owner_course::CourseReads<'_>,
     switches: &crate::scene::draw_switches_store::DrawSwitches,

@@ -2,7 +2,7 @@
 //! page and the three levels a sample record's `volume_factor` can name. The menus change them and
 //! save them in the options file; the audio thread reads them with every voice it starts.
 
-use crate::session::Dword;
+use crate::memory::session::Dword;
 
 /// The levels, each 0 .. 0x40 (`menu::option_steps`).
 pub struct Levels {

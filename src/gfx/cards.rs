@@ -1,6 +1,6 @@
 //! The 3D primary and secondary card switches.
 
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 
 /// Whether a 3D card was found.
 #[derive(rc2k_derive::Cells)]

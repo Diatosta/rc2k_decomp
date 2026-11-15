@@ -3,8 +3,8 @@
 //! car's listed sound, the car parts' matrices and decal places, and the car shadow's work. The
 //! fields keep a fixed layout.
 
-use crate::cells::ZeroCells;
-use crate::session::{PlainDword, PlainFlag, PlainFloat};
+use crate::memory::cells::ZeroCells;
+use crate::memory::session::{PlainDword, PlainFlag, PlainFloat};
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct FrameWork {

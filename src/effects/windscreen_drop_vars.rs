@@ -1,7 +1,7 @@
 //! The windscreen drops' variables: the item table, the view's moves kept and the drift, the shape
 //! constants.
 
-use crate::session::{PlainBytes, PlainDword, PlainFloat, PlainInt};
+use crate::memory::session::{PlainBytes, PlainDword, PlainFloat, PlainInt};
 
 /// The windscreen drops' variables.
 #[derive(rc2k_derive::Cells)]

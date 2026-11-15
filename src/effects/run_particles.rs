@@ -37,9 +37,9 @@ use crate::effects::ring_store::Ring;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_float as bh;
+use crate::memory::session::{PlainBytes, PlainFloat};
 use crate::race::owner_frame::Frame;
 use crate::scene::matrix3::extended;
-use crate::session::{PlainBytes, PlainFloat};
 use crate::sound::owner::Sound;
 const TRAIL_COLOURS: i32 = 298;
 const BURST_COLOURS_LEN: i32 = 0x2000;
@@ -116,7 +116,7 @@ fn step(
     engine_tables: &crate::scene::engine_tables_store::EngineTables,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     frame: &Frame,
-    view_matrix: &[crate::session::PlainFloat; 16],
+    view_matrix: &[crate::memory::session::PlainFloat; 16],
     particles: &Particles,
     ring: &Ring,
     e: u32,
@@ -168,7 +168,7 @@ fn step(
             Ok(())
         };
         // The tuning cell holds a whole number, so its bits are read as one.
-        let gain_int = |k: &crate::session::PlainFloat| -> Result<_, Refused> {
+        let gain_int = |k: &crate::memory::session::PlainFloat| -> Result<_, Refused> {
             let v = x87::int_times_int_plus_int(
                 k.bits() as i32,
                 t,
@@ -421,7 +421,7 @@ pub fn run_particles(
         let r = seed();
         let view = |o: usize| frame.matrices.get().view_place[o / 4].get();
         let uv_k: f32 = effects.frame.draw_work.uv_k.get();
-        let wave = |k: &[crate::session::PlainFloat; 3], add: f32, cosine: bool| {
+        let wave = |k: &[crate::memory::session::PlainFloat; 3], add: f32, cosine: bool| {
             x87::int_times3_wave_plus(r as i32, [uv_k, k[0].get(), k[1].get()], &k[2], add, cosine)
         };
         let x = wave(&effects.kinds.particle_tuning.puff_x, view(0x30), false);

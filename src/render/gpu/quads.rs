@@ -3,11 +3,11 @@
 //! after the canvas' pixels and before the flush's 3D, over the colour target, opaque.
 
 use super::{COLOUR_FORMAT, Gpu, ShaderCode};
-use crate::ffi::sdl_gpu::{
+use crate::gfx::draw2d::quads::{ATLAS_SIDE, Taken};
+use crate::logfile::program_log::log;
+use crate::platform::ffi::sdl_gpu::{
     self, Buffer, CommandBuffer, CopyPass, Pipeline, PipelineSpec, RenderPass, Texture, Transfer,
 };
-use crate::framework::log;
-use crate::gfx::draw2d::quads::{ATLAS_SIDE, Taken};
 use sdl3_sys::everything::*;
 
 #[cfg(not(target_os = "macos"))]

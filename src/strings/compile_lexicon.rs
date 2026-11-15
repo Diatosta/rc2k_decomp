@@ -14,7 +14,7 @@ use crate::logfile::log_int::log_int;
 use crate::logfile::write_line::level;
 use crate::memory::MemoryList;
 use crate::memory::free_list::free_list;
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 use crate::strings::owner::Lexicon;
 use rc2k_core::strings::lexicon::{Compiled, compile};
 

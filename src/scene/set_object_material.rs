@@ -50,7 +50,7 @@ fn step_shape(
     random: &crate::math::next_random::Randoms,
     clock: u32,
     face: u32,
-    fraction_out: &crate::session::PlainFloat,
+    fraction_out: &crate::memory::session::PlainFloat,
 ) -> Result<(), BadInput> {
     use crate::race::course_places::{face_field, write_face_field};
     let read = || -> Result<[u32; 4], BadInput> {
@@ -64,7 +64,7 @@ fn step_shape(
         // The phase advances: in the list's order, after the views before this one have
         // stepped the face (the mirror then finds the view's new state and does not advance
         // it again, as when one thread draws them in turn).
-        crate::workers::wait_for_earlier_runs();
+        crate::scene::workers::wait_for_earlier_runs();
         [last, time, length, phase] = read()?;
     }
     time = time.wrapping_add(clock.wrapping_sub(last).min(100));

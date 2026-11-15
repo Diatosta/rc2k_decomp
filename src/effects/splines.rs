@@ -7,8 +7,8 @@
 use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
+use crate::memory::session::{PlainBytes, PlainDword, PlainFloat, read_bits};
 use crate::race::owner_course::Course;
-use crate::session::{PlainBytes, PlainDword, PlainFloat, read_bits};
 
 pub const SPLINE_LEN: u32 = 0xE90;
 /// The most points a record holds.
@@ -371,7 +371,7 @@ pub fn turn_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
     )?;
     let turned: Vec<u32> = points
         .iter()
-        .map(super::super::session::PlainDword::get)
+        .map(crate::memory::session::PlainDword::get)
         .collect();
     s.put_words(paths, COORDS, &turned)?;
     Ok(())
@@ -499,7 +499,7 @@ pub fn order_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
         // they were.
         let mut ordered_ids: Vec<u32> = ids[..n_us]
             .iter()
-            .map(super::super::session::PlainDword::get)
+            .map(crate::memory::session::PlainDword::get)
             .collect();
         let mut ordered_coords: Vec<[u32; 3]> = coords[..3 * n_us]
             .chunks(3)
@@ -1002,7 +1002,7 @@ impl SplineTables {
     /// The values the game starts with.
     pub const fn new() -> Self {
         SplineTables {
-            a: PlainBytes::new(crate::session::with_runs::<29824>(&[
+            a: PlainBytes::new(crate::memory::session::with_runs::<29824>(&[
                 (
                     0x38,
                     &[
@@ -1060,7 +1060,7 @@ impl SplineTables {
                     ],
                 ),
             ])),
-            b: PlainBytes::new(crate::session::with_runs::<29824>(&[
+            b: PlainBytes::new(crate::memory::session::with_runs::<29824>(&[
                 (
                     0x38,
                     &[
@@ -1118,7 +1118,7 @@ impl SplineTables {
                     ],
                 ),
             ])),
-            c: PlainBytes::new(crate::session::with_runs::<29824>(&[
+            c: PlainBytes::new(crate::memory::session::with_runs::<29824>(&[
                 (
                     0x38,
                     &[
@@ -1176,7 +1176,7 @@ impl SplineTables {
                     ],
                 ),
             ])),
-            d: PlainBytes::new(crate::session::with_runs::<29824>(&[
+            d: PlainBytes::new(crate::memory::session::with_runs::<29824>(&[
                 (
                     0x38,
                     &[

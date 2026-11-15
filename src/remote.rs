@@ -22,10 +22,10 @@
 //! (`shots_loading`, `shot_frame_drawn`), and the random numbers start from one state, so the
 //! picture is the same from run to run (the picture check, `scratchpad/shots.sh`).
 
-use crate::ffi::sdl_input;
 use crate::gfx::owner::Gfx;
 use crate::menu::owner::Menus;
 use crate::owners::Owners;
+use crate::platform::ffi::sdl_input;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use sdl3_sys::everything::*;
@@ -88,7 +88,7 @@ static STICK: Mutex<Option<(SDL_JoystickID, sdl_input::Joystick)>> = Mutex::new(
 pub fn stick_at_start() {
     if std::env::var_os("RC2K_REMOTE_STICK").is_some() && folder().is_some() {
         let answer = stick(&["attach"]);
-        crate::framework::log(&format!(
+        crate::logfile::program_log::log(&format!(
             "remote: the stand-in stick plugged in at the start: {}",
             answer.unwrap_or_else(|| "failed".to_string())
         ));
@@ -192,7 +192,7 @@ fn state(o: &Owners<'static>, course: &Course) -> String {
         race.checkpoints().map_x[near].get() as i32,
         race.checkpoints().map_y[near].get() as i32,
         o.audio.state.channels_used.get(),
-        crate::platform_sound::LAST_PEAK.swap(0, std::sync::atomic::Ordering::Relaxed),
+        crate::platform::sound::LAST_PEAK.swap(0, std::sync::atomic::Ordering::Relaxed),
         CAR.car_heading.get() as i32,
         CAR.gear.get(),
         CAR.gearbox_kind.get(),
@@ -267,7 +267,7 @@ pub fn autodrive_keys(race: &Race, checkpoint: u32) -> u32 {
     if *held > 0 {
         *held -= 1;
         if *held == 0 {
-            crate::framework::log(&format!(
+            crate::logfile::program_log::log(&format!(
                 "remote: the reset key let go at checkpoint {checkpoint} (stage time {})",
                 race.shared.car().stage_time.get()
             ));
@@ -275,7 +275,7 @@ pub fn autodrive_keys(race: &Race, checkpoint: u32) -> u32 {
         return rc2k_core::drive::controls::RESET_KEY;
     }
     if *since >= STALLED_STEPS {
-        crate::framework::log(&format!(
+        crate::logfile::program_log::log(&format!(
             "remote: stalled at checkpoint {checkpoint}: the reset key held"
         ));
         (*since, *held) = (0, RESET_HELD_STEPS);
@@ -428,7 +428,7 @@ fn note_slow_frame(race: &Race, gfx: &Gfx, course: &Course, now: Instant) {
     let ms = now.duration_since(before).as_millis();
     if ms > limit && course.numbers.get().in_race.is_set() {
         let car = driven_car(race, course);
-        crate::framework::log(&format!(
+        crate::logfile::program_log::log(&format!(
             "remote: slow frame {ms} ms at checkpoint {} (frame {})",
             car.checkpoint.get(),
             gfx.drawing.draw_surface.frames.get()

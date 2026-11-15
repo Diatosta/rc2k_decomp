@@ -1,10 +1,10 @@
 //! `ByteView::cell_run` and the copies on it (`load_cells`, `store_cells`) against every store:
 //! the runs tile each record, each atomic on its own width's boundary, and the copies give
-//! the bytes `shared_memory`'s raw copies give. A store with no byte view is checked on what
+//! the bytes `memory::shared_memory`'s raw copies give. A store with no byte view is checked on what
 //! `Cells` alone promises.
 
 use super::*;
-use crate::shared_memory;
+use crate::memory::shared_memory;
 
 /// The runs of `record`, checked to tile it: each starts where the last ended, lies inside,
 /// starts on a multiple of its width, and is the run every byte in it names (sampled in a
@@ -71,7 +71,7 @@ fn check_load<T: ByteView>(record: &T, name: &str) {
     );
 }
 
-/// `store_cells` into a zeroed twin of `T` against `shared_memory::store` into another, a
+/// `store_cells` into a zeroed twin of `T` against `memory::shared_memory::store` into another, a
 /// pattern written first and the two compared whole after the writes.
 fn check_store<T: ByteView>(name: &str) {
     let size = size_of::<T>();
@@ -319,7 +319,7 @@ fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
 
 #[test]
 fn a_byte_written_into_a_dword_keeps_its_other_bytes() {
-    use crate::session::{Byte, Dword, Word};
+    use crate::memory::session::{Byte, Dword, Word};
     #[repr(C)]
     #[derive(rc2k_derive::Cells)]
     struct Mixed {
@@ -388,10 +388,10 @@ fn timing_of_a_deep_read() {
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 #[repr(C)]
 struct ZeroRecord {
-    count: crate::session::Dword,
-    scale: crate::session::PlainFloat,
-    flags: [crate::session::Word; 2],
-    gap: crate::session::Bytes<4>,
+    count: crate::memory::session::Dword,
+    scale: crate::memory::session::PlainFloat,
+    flags: [crate::memory::session::Word; 2],
+    gap: crate::memory::session::Bytes<4>,
 }
 
 #[test]
@@ -401,7 +401,7 @@ fn a_zero_record_is_all_zero_and_can_be_built_on() {
     load_cells(&zero, 0, &mut bytes).unwrap();
     assert_eq!(bytes, [0; size_of::<ZeroRecord>()]);
     let built = ZeroRecord {
-        count: crate::session::Dword::new(3),
+        count: crate::memory::session::Dword::new(3),
         ..ZeroCells::ZERO
     };
     load_cells(&built, 0, &mut bytes).unwrap();
@@ -421,7 +421,7 @@ fn bytes_of<T: Cells>(record: &T) -> Vec<u8> {
 /// `SameShape` between plain and atomic arrays gives what the byte-run copies give.
 #[test]
 fn same_shape_arrays_match_the_run_copies() {
-    use crate::session::{Dword, Float, PlainDword, PlainFloat};
+    use crate::memory::session::{Dword, Float, PlainDword, PlainFloat};
     for seed in 1..6 {
         let from: [PlainDword; 9] = std::array::from_fn(|_| PlainDword::new(0));
         let start: [PlainDword; 9] = std::array::from_fn(|_| PlainDword::new(0));
@@ -459,9 +459,10 @@ fn same_shape_arrays_match_the_run_copies() {
 /// The atomic copy of a plain array's values (the merge's "now" and "start" are atomic in the
 /// frame views).
 fn new_start<const N: usize>(
-    plain: &[crate::session::PlainDword; N],
-) -> [crate::session::Dword; N] {
-    let out: [crate::session::Dword; N] = std::array::from_fn(|_| crate::session::Dword::new(0));
+    plain: &[crate::memory::session::PlainDword; N],
+) -> [crate::memory::session::Dword; N] {
+    let out: [crate::memory::session::Dword; N] =
+        std::array::from_fn(|_| crate::memory::session::Dword::new(0));
     plain.copy_cells_to(&out);
     out
 }
@@ -470,8 +471,8 @@ fn new_start<const N: usize>(
 /// derived `Cells` copy and merge do.
 #[test]
 fn same_shape_records_match_the_run_copies() {
+    use crate::memory::session::PlainCells;
     use crate::race::view_vars_store::ViewVars;
-    use crate::session::PlainCells;
     for seed in 1..6 {
         let make = || ViewVars::<PlainCells>::new();
         let (from, start, a, b) = (make(), make(), make(), make());
@@ -491,7 +492,7 @@ fn same_shape_records_match_the_run_copies() {
 
 #[test]
 fn a_record_without_a_fixed_layout_is_copied_merged_and_visited_by_field() {
-    use crate::session::{Byte, Dword, Word};
+    use crate::memory::session::{Byte, Dword, Word};
     // No `repr(C)`: only `Cells`, no byte view.
     #[derive(rc2k_derive::Cells)]
     struct Free {

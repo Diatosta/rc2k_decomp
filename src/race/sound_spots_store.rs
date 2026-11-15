@@ -1,9 +1,9 @@
 //! The face-drawing, sound-band and sound-spot part of the race block: the face kind flags,
 //! view-window limits, sound tables and scratch, and the 36 sound spots with their count.
 
-use crate::cells::ZeroCells;
+use crate::memory::cells::ZeroCells;
 
-use crate::session::{PlainDword, PlainFloat};
+use crate::memory::session::{PlainDword, PlainFloat};
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct SoundSpotBlock {

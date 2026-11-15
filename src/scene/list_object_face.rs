@@ -50,7 +50,7 @@ struct GameFace<'a>(
     &'a crate::race::car_draw_state::CarDrawState,
     &'a crate::physics::car_store::ViewCar,
     &'a crate::race::view_vars_store::ViewVarsCopy,
-    crate::workers::DrawReads<'a>,
+    crate::scene::workers::DrawReads<'a>,
 );
 
 impl FaceWorld for GameFace<'_> {
@@ -78,10 +78,10 @@ impl FaceWorld for GameFace<'_> {
         )
     }
     fn hidden_groups(&self) -> [u32; 2] {
-        crate::session::read_first(&self.4.group_masks[13..15])
+        crate::memory::session::read_first(&self.4.group_masks[13..15])
     }
     fn set_hidden_groups(&mut self, groups: [u32; 2]) {
-        crate::session::write_first(&self.4.group_masks[13..15], &groups);
+        crate::memory::session::write_first(&self.4.group_masks[13..15], &groups);
     }
     fn other_groups(&self) -> [u32; 2] {
         [15, 16].map(|k| self.4.group_masks[k].get())
@@ -100,12 +100,13 @@ impl FaceWorld for GameFace<'_> {
             None => Some(&draw_switches.group_table),
             Some(k) => draw_switches.unknown_38.get(k as usize),
         };
-        self.1.keep(
-            cell.map(crate::session::PlainDword::get)
-                .ok_or(crate::errors::BadInput(
-                    "a face's group past the groups' table",
-                )),
-        )
+        self.1
+            .keep(
+                cell.map(crate::memory::session::PlainDword::get)
+                    .ok_or(crate::errors::BadInput(
+                        "a face's group past the groups' table",
+                    )),
+            )
     }
     fn no_second_mask(&self) -> u32 {
         self.5.camera_switch_active.get()
@@ -145,7 +146,7 @@ impl FaceWorld for GameFace<'_> {
             )
             .part_wake_counts
             .get((extra as usize).wrapping_sub(1))
-            .map(crate::session::PlainDword::get)
+            .map(crate::memory::session::PlainDword::get)
             .ok_or(rc2k_core::Invalid("a wake count past the six"))
         }
     }

@@ -2,6 +2,7 @@
 //! network and the audio side read too.
 
 use crate::errors::BadInput;
+use crate::memory::session::{DrawShared, GameThread};
 use crate::physics::car_store::Car;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::blocks_store::CarBlocks;
@@ -17,7 +18,6 @@ use crate::race::vars_store::RaceVars;
 use crate::race::view_store::RaceView;
 use crate::race::viewer_buffers_store::ViewerBuffers;
 use crate::race::work_store::RaceWork;
-use crate::session::{DrawShared, GameThread};
 use rc2k_core::net::net_race::NetRace;
 
 /// The race's stores the menus, the network and the audio side read too.
@@ -92,7 +92,7 @@ impl RaceShared {
     }
 
     /// The cars' blocks, on the game's thread outside a drawing scope (a drawing part
-    /// reads them through its `workers::DrawReads`).
+    /// reads them through its `scene::workers::DrawReads`).
     pub fn car_blocks(&self) -> &CarBlocks {
         self.car_blocks.get()
     }
@@ -123,7 +123,7 @@ impl RaceShared {
         Self::race_car_in(self.work.get(), self.car_blocks(), n)
     }
 
-    /// `race_car` in the blocks `blocks` (a drawing part's, `workers::DrawReads`).
+    /// `race_car` in the blocks `blocks` (a drawing part's, `scene::workers::DrawReads`).
     pub fn race_car_in<'b>(
         work: &RaceWork,
         blocks: &'b CarBlocks,
@@ -145,7 +145,7 @@ impl RaceShared {
         Self::race_car_or_in(self.work.get(), self.car_blocks(), n, what)
     }
 
-    /// `race_car_or` in the blocks `blocks` (a drawing part's, `workers::DrawReads`).
+    /// `race_car_or` in the blocks `blocks` (a drawing part's, `scene::workers::DrawReads`).
     pub fn race_car_or_in<'b>(
         work: &RaceWork,
         blocks: &'b CarBlocks,
@@ -164,7 +164,7 @@ impl RaceShared {
         Self::race_car_or_end_in(self.work.get(), self.car_blocks(), n)
     }
 
-    /// `race_car_or_end` in the blocks `blocks` (a drawing part's, `workers::DrawReads`).
+    /// `race_car_or_end` in the blocks `blocks` (a drawing part's, `scene::workers::DrawReads`).
     pub fn race_car_or_end_in<'b>(work: &RaceWork, blocks: &'b CarBlocks, n: usize) -> &'b Car {
         let block = work.car_block(n);
         match work.car_blocks.get(n) {

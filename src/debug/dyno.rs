@@ -7,13 +7,13 @@
 
 use crate::debug::ui_plot::Plot;
 use crate::math::x87::{mul_div2, sum_times_int_over_minus};
+use crate::memory::session::Cell32;
 use crate::physics::drive_torque_share::drive_torque_share;
 use crate::physics::engine_torque::engine_torque;
 use crate::physics::revs_from_wheels::revs_from_wheels;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use crate::scene::owner::Scene;
-use crate::session::Cell32;
 use dear_imgui_rs::Ui;
 use std::sync::Mutex;
 
@@ -94,7 +94,7 @@ fn places<'a>(shared: &'a RaceShared, scene: &'a Scene) -> [&'a dyn Cell32; 15] 
 /// `f` run, the variables put back after it.
 fn kept<T>(shared: &RaceShared, scene: &Scene, f: impl FnOnce() -> T) -> T {
     let places = places(shared, scene);
-    let saved = places.map(super::super::session::Cell32::bits);
+    let saved = places.map(crate::memory::session::Cell32::bits);
     let result = f();
     for (place, bits) in places.iter().zip(saved) {
         place.set_bits(bits);
@@ -164,7 +164,7 @@ fn measure(race: &Race, scene: &Scene) -> Option<Measured> {
     if limit.is_nan() || limit <= 0.0 || count == 0 {
         return None;
     }
-    let figure = |f: &dyn crate::session::FloatLike| f.get();
+    let figure = |f: &dyn crate::memory::session::FloatLike| f.get();
     let up = figure(&race.gear().shift_up_point);
     let clutch = figure(&race.gear().shift_down_clutch_point);
     let down = figure(&race.gear().shift_down_point);
@@ -344,15 +344,16 @@ mod tests {
         shared.car().engine_speed_limit.set(7000.0_f32);
         shared.physics_tables.get().gear_count.set(1);
         shared.physics_tables.get().gear_ratios[2].set(0.01_f32);
-        let before =
-            places(shared, crate::test_support::own::scene()).map(crate::session::Cell32::bits);
+        let before = places(shared, crate::test_support::own::scene())
+            .map(crate::memory::session::Cell32::bits);
         let m = measure(
             crate::test_support::own::race(),
             crate::test_support::own::scene(),
         )
         .expect("a car");
         assert_eq!(
-            places(shared, crate::test_support::own::scene()).map(crate::session::Cell32::bits),
+            places(shared, crate::test_support::own::scene())
+                .map(crate::memory::session::Cell32::bits),
             before
         );
         assert_eq!(m.gears.len(), 1);

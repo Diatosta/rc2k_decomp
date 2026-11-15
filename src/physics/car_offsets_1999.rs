@@ -317,7 +317,7 @@ pub fn store_1999(car: &Car, offset: usize, value: u32) {
 /// The 1999 offset of cell `n` of the table `cells` of `car`, running on past the table's end
 /// into what followed it, as the record's fields do now: the places no code read (not in
 /// `FIELDS`) are stepped over, as the closed-up record has no bytes there.
-fn run_on(car: &Car, cells: &[impl crate::session::Cell32], n: usize) -> usize {
+fn run_on(car: &Car, cells: &[impl crate::memory::session::Cell32], n: usize) -> usize {
     let covered = |offset: usize| {
         FIELDS
             .iter()
@@ -335,12 +335,17 @@ fn run_on(car: &Car, cells: &[impl crate::session::Cell32], n: usize) -> usize {
 
 /// Cell `n` of the table `cells` of `car` as the 1999 layout reads it, running on past the
 /// table's end into the fields that follow it (`run_on`).
-pub fn read_on_1999<C: crate::session::Cell32>(car: &Car, cells: &[C], n: usize) -> u32 {
+pub fn read_on_1999<C: crate::memory::session::Cell32>(car: &Car, cells: &[C], n: usize) -> u32 {
     load_1999(car, run_on(car, cells, n))
 }
 
 /// `read_on_1999`'s write.
-pub fn write_on_1999<C: crate::session::Cell32>(car: &Car, cells: &[C], n: usize, value: u32) {
+pub fn write_on_1999<C: crate::memory::session::Cell32>(
+    car: &Car,
+    cells: &[C],
+    n: usize,
+    value: u32,
+) {
     store_1999(car, run_on(car, cells, n), value);
 }
 

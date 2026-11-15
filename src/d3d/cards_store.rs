@@ -1,9 +1,9 @@
-//! The 3D cards' and the Direct3D device's state (`gfx::find_3d_cards`, `platform_3d`,
+//! The 3D cards' and the Direct3D device's state (`gfx::find_3d_cards`, `platform::direct3d`,
 //! `d3d::set_render_state`, `d3d::set_texture`, the 3D switches of `var\ral.cfg`). A `#[repr(C)]`
 //! struct of plain cells (the game's thread alone reaches it: `D3d::cards`), first values the
 //! image's (`tests`).
 
-use crate::session::{PlainBytes, PlainDword};
+use crate::memory::session::{PlainBytes, PlainDword};
 
 /// The 3D cards, the device's render states and the 3D switches.
 #[derive(rc2k_derive::Cells)]

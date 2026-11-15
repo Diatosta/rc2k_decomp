@@ -9,8 +9,8 @@ use crate::effects::turns::{clamp_pair, smooth_pair, smooth_steps};
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
+use crate::memory::session::{PlainBytes, PlainDword, read_bits, read_first, write_bits};
 use crate::scene::matrix3::{extended, rounded};
-use crate::session::{PlainBytes, PlainDword, read_bits, read_first, write_bits};
 
 /// The two corner tables.
 pub fn tables(masks: &Masks) -> [&PlainBytes<3096>; 2] {

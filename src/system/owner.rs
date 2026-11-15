@@ -3,11 +3,11 @@
 
 use crate::files::scratch::Scratch as FileScratch;
 use crate::logfile::numeric::SCRATCH_LEN;
-use crate::records::stages_store::StageTables;
-use crate::session::{
+use crate::memory::session::{
     Clocks, DrawShared, GameThread, HostShared, KeyClock, Machine, PlainBytes, Screen,
     WindowLoopState, WindowShared,
 };
+use crate::records::stages_store::StageTables;
 use crate::system::keep_start_time::KEPT_LEN;
 use crate::system::load_game_data::RunCount;
 use crate::system::read_command_line::CommandLine;
@@ -16,7 +16,7 @@ use crate::system::start_texts::StartTexts;
 
 /// The screen's figures and what other threads read of the window, the machine and the clocks.
 pub struct Session {
-    /// Lent to the drawing parts (`workers::Lent`): the game's thread sets the mode between
+    /// Lent to the drawing parts (`scene::workers::Lent`): the game's thread sets the mode between
     /// frames.
     pub screen: DrawShared<Screen>,
     /// The window's flags the audio, key and network threads read (`quitting`, focus, active).

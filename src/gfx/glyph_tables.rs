@@ -7,8 +7,8 @@ use crate::gfx::components_to_pixel::components_to_pixel;
 use crate::gfx::glyph_builder::DIRECT_COLOUR;
 use crate::memory::MemoryList;
 use crate::memory::free_list::free_list;
+use crate::memory::session::PlainDword;
 use crate::memory::take_from_list::take_from_list;
-use crate::session::PlainDword;
 
 /// The fonts' and the sprites' tables.
 #[derive(rc2k_derive::Cells)]

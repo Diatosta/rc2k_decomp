@@ -6,7 +6,7 @@
 //! version on them, and copies them back. The bytes between the runs stay as the buffer had them:
 //! nothing typed reads them. Test code only; it goes with the recorded vectors.
 
-use crate::cells::Cells;
+use crate::memory::cells::Cells;
 use crate::sound::store::{SoundObject, SurfaceSounds};
 use crate::test_support::paths::{field_range, field_start, set_field_range};
 

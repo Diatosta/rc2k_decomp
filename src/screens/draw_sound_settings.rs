@@ -4,10 +4,10 @@
 //! menu).
 
 use crate::errors::Refused;
+use crate::memory::session::DwordLike;
 use crate::menu::disable_item::disable_item;
 use crate::menu::enable_item::enable_item;
 use crate::menu::owner::Menus;
-use crate::session::DwordLike;
 use crate::text::draw_text::Canvas;
 
 /// (the setting, its first string).

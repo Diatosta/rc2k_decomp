@@ -6,8 +6,8 @@
 //! (`KindTextureTables.kind_first_textures[600]`). Two callers. Refuses a slot past the table.
 
 use crate::errors::BadInput;
+use crate::memory::session::read_all;
 use crate::menu::carousel_store::Carousel;
-use crate::session::read_all;
 
 // ---- game data ----
 const KIND: usize = 0x258;

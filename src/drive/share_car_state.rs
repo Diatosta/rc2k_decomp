@@ -17,8 +17,8 @@ use crate::race::owner::Race;
 use crate::sound::store::SoundObject;
 use rc2k_core::drive::sharing;
 
+use crate::memory::session::{PlainDword, PlainFloat};
 use crate::race::light_records_store::LightRecord;
-use crate::session::{PlainDword, PlainFloat};
 
 /// A whole-number field of the effects' car record.
 type RecordWord = fn(&CarEffects) -> &PlainDword;

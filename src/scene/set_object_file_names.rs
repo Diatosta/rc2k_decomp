@@ -9,8 +9,8 @@
 //! The number's four decimal digits are written over the `????` of both (the thousands digit as
 //! one byte: anything above 9999 gives another character). One caller, `scene::load_object`.
 
+use crate::memory::session::TextPlace;
 use crate::scene::file_numbers_store::texts;
-use crate::session::TextPlace;
 
 // ---- game data ----
 

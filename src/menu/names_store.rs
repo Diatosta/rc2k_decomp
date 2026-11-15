@@ -2,7 +2,7 @@
 //! what follows them, the name `menu::standings` keeps, and the text as it was before an entry
 //! started. One static.
 
-use crate::session::PlainBytes;
+use crate::memory::session::PlainBytes;
 
 /// The names and the text backup.
 #[derive(rc2k_derive::Cells)]
@@ -19,7 +19,7 @@ pub struct Names {
 
 /// The whole area as one run of bytes: the four names, the rest of the names, the kept name and
 /// the text backup (a name that lacks its end runs on into what follows it).
-impl crate::place::Run for Names {
+impl crate::memory::place::Run for Names {
     fn len(&self) -> usize {
         size_of::<Names>()
     }

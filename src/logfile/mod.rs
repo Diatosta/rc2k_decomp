@@ -8,5 +8,6 @@ pub mod log_int;
 pub mod log_int_fmt;
 pub mod log_write;
 pub mod numeric;
+pub mod program_log;
 pub mod start_log;
 pub mod write_line;

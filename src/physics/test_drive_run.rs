@@ -15,6 +15,7 @@
 use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87_float::int;
+use crate::memory::session::PlainFloat;
 use crate::physics::car_store::Car;
 use crate::physics::flow::c0;
 use crate::physics::gear_store::GearFigures;
@@ -22,7 +23,6 @@ use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_course::Course;
 use crate::race::owner_shared::RaceShared;
-use crate::session::PlainFloat;
 
 pub const STEPS: u32 = 0x1388;
 

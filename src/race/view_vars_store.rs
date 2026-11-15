@@ -3,9 +3,9 @@
 //! hide table; then the 52 view records (`ViewRecord`). Gaps are unknown bytes. The record fields'
 //! short names are the ones on the kstar camera page: `xoff`, `xfoc`, `xang`, `mspx`, `fish`.
 
-use crate::cells::ZeroCells;
+use crate::memory::cells::ZeroCells;
+use crate::memory::session::{CellKind, PlainCells, PlainDword, PlainFloat};
 use crate::race::groups_store::ViewAndRecords;
-use crate::session::{CellKind, PlainCells, PlainDword, PlainFloat};
 
 /// The view variables, on the cells of kind `K`: plain for the shared ones
 /// (`ViewAndRecords::view_vars`, which only the main thread writes) and for a view's copy

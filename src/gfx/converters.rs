@@ -1,6 +1,6 @@
 //! The MMX converters' masks and the converters table.
 
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 
 /// How many masks (qwords) there are.
 pub const MASKS: usize = 19;

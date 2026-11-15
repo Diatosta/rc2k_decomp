@@ -2,6 +2,7 @@
 //! contact, gear, ground, pace, split tables, damage, car specs, checkpoints. The gear figures and
 //! the checkpoints stay views over their group statics (`groups_store::LightsAndGear`, `BUFFERS`).
 
+use crate::memory::session::{DrawShared, GameThread};
 use crate::physics::camera_store::CameraWork;
 use crate::physics::contact_store::ContactWork;
 use crate::physics::ground_probe_store::GroundProbe;
@@ -10,7 +11,6 @@ use crate::physics::pace_store::PaceNotes;
 use crate::physics::split_tables_store::SplitTables;
 use crate::physics::store::DamageModel;
 use crate::race::car_specs_store::CarSpecs;
-use crate::session::{DrawShared, GameThread};
 
 /// What only the game's thread reaches: the camera, the ground, the pace notes, the split
 /// tables, the damage model and the car specs (no drawing part, audio, key or network thread
@@ -39,10 +39,10 @@ impl PhysicsMain {
 
 /// The race's physics state.
 pub struct Physics {
-    /// One copy, lent to the drawing parts (`workers::DrawReads`): the drawing's searches have
+    /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): the drawing's searches have
     /// their own and read only the lit faces.
     pub contact: DrawShared<ContactWork>,
-    /// One copy, lent to the drawing parts (`workers::DrawReads`): the drawing's searches
+    /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): the drawing's searches
     /// have their own fields and read only its mark.
     pub ground_probe: DrawShared<GroundProbe>,
     main: GameThread<PhysicsMain>,

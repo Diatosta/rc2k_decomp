@@ -1,6 +1,6 @@
 //! The surface-locked switch.
 
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 
 /// The surface-locked switch.
 #[derive(rc2k_derive::Cells)]

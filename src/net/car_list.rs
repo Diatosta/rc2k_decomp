@@ -15,14 +15,14 @@ use crate::menu::lists_store::CarList;
 /// with a -1 inside them, and the entries from 0x28 on keep their -1. An entry past the
 /// field is refused.
 pub fn any_won(
-    secret: &[impl crate::session::Cell32],
-    won: &[impl crate::session::Cell32],
+    secret: &[impl crate::memory::session::Cell32],
+    won: &[impl crate::memory::session::Cell32],
 ) -> Result<bool, Refused> {
     // The logic is in `rc2k_core::net::cars::any_won`, the lists' dwords by index.
     // The core asks infallibly: the first refusal is kept and raised after.
     let refused = std::cell::Cell::new(None);
     fn reader<'a>(
-        list: &'a [impl crate::session::Cell32],
+        list: &'a [impl crate::memory::session::Cell32],
         refused: &'a std::cell::Cell<Option<crate::errors::BadInput>>,
     ) -> impl Fn(u32) -> u32 + 'a {
         move |n: u32| match list.get(n as usize) {

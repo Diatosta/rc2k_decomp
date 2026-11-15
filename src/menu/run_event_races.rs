@@ -13,13 +13,13 @@
 //! steps refuse, before anything.
 
 use crate::errors::{BadInput, Refused};
+use crate::memory::session::DwordLike;
 use crate::menu::drivers_store::{Driver, IN_EVENT};
 use crate::menu::event_flow::Fault;
 use crate::menu::owner::{Cars, Play, Screens};
 use crate::menu::standings::*;
 use crate::owners::Owners;
 use crate::race::owner::Race;
-use crate::session::DwordLike;
 use rc2k_core::menu::event_races::{self as races, PICKED, Step, Var};
 
 /// The game for `rc2k_core::menu::event_races`: the variables at their addresses, the

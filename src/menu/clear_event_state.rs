@@ -1,7 +1,7 @@
 //! An event's state cleared at its start: the stages done, the round and every player's results
 //! figures (the order of the places is kept).
 
-use crate::cells::Store;
+use crate::memory::cells::Store;
 use crate::menu::owner::Menus;
 
 pub fn clear_event_state(menus: &Menus) -> Result<(), crate::errors::BadInput> {

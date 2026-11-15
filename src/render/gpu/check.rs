@@ -4,8 +4,8 @@
 //! the differing pixels counted in the log. A check only: it costs about twice the drawing.
 
 use super::{Gpu, UNWRITTEN};
-use crate::ffi::sdl_gpu::{Texture, Transfer};
-use crate::framework::log;
+use crate::logfile::program_log::log;
+use crate::platform::ffi::sdl_gpu::{Texture, Transfer};
 use sdl3_sys::everything::*;
 
 /// Whether the check is asked for.

@@ -8,7 +8,7 @@ use crate::errors::Refused;
 use crate::text::draw_text::Canvas;
 use crate::text::draw_text_keep_regs::draw_text_keep_regs;
 use crate::text::font::Font;
-use rc2k_core::text::{TIME_STEPS, columns};
+use rc2k_core::strings::text::{TIME_STEPS, columns};
 
 /// Where the one-character text is built, relative to the text.
 pub const CELL_OFFSET: usize = 0x40;

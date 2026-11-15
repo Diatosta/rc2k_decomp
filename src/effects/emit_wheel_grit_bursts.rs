@@ -17,9 +17,9 @@ use crate::effects::emitters::*;
 use crate::effects::owner::Effects;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
+use crate::memory::session::{PlainDword, PlainFloat, read_bits, write_bits};
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
 use crate::scene::matrix3::{extended, rounded_value};
-use crate::session::{PlainDword, PlainFloat, read_bits, write_bits};
 
 const LIFE: u32 = 0x7D0;
 

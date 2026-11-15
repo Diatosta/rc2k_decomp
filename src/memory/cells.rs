@@ -10,7 +10,7 @@
 #![allow(unsafe_code)]
 
 use crate::errors::BadInput;
-use crate::framework::log;
+use crate::logfile::program_log::log;
 use std::sync::atomic::{AtomicU8, AtomicU16, AtomicU32, Ordering::Relaxed};
 
 /// A type made of atomics and cells only (`session::{Dword, Float, Word, Byte, Bytes<N>}`, their
@@ -190,7 +190,7 @@ pub trait SameShape<To: ?Sized> {
     fn merge_cells_to(&self, start: &Self, to: &To);
 }
 
-impl<A: crate::session::Cell32, B: crate::session::Cell32> SameShape<B> for A {
+impl<A: crate::memory::session::Cell32, B: crate::memory::session::Cell32> SameShape<B> for A {
     fn copy_cells_to(&self, to: &B) {
         to.set_bits(self.bits());
     }
@@ -349,20 +349,20 @@ enum CellRef<'a> {
 #[derive(Clone, Copy)]
 pub enum CellRun<'a> {
     Bytes(&'a [AtomicU8]),
-    Byte(&'a [crate::session::Byte]),
-    Word(&'a [crate::session::Word]),
-    Dword(&'a [crate::session::Dword]),
-    Float(&'a [crate::session::Float]),
-    Int(&'a [crate::session::Int]),
-    Flag(&'a [crate::session::Flag]),
+    Byte(&'a [crate::memory::session::Byte]),
+    Word(&'a [crate::memory::session::Word]),
+    Dword(&'a [crate::memory::session::Dword]),
+    Float(&'a [crate::memory::session::Float]),
+    Int(&'a [crate::memory::session::Int]),
+    Flag(&'a [crate::memory::session::Flag]),
     Words(&'a [AtomicU32]),
-    PlainDword(&'a [crate::session::PlainDword]),
-    PlainFloat(&'a [crate::session::PlainFloat]),
-    PlainFlag(&'a [crate::session::PlainFlag]),
-    PlainInt(&'a [crate::session::PlainInt]),
+    PlainDword(&'a [crate::memory::session::PlainDword]),
+    PlainFloat(&'a [crate::memory::session::PlainFloat]),
+    PlainFlag(&'a [crate::memory::session::PlainFlag]),
+    PlainInt(&'a [crate::memory::session::PlainInt]),
     PlainBytes(&'a [std::cell::Cell<u8>]),
-    PlainByte(&'a [crate::session::PlainByte]),
-    PlainWord(&'a [crate::session::PlainWord]),
+    PlainByte(&'a [crate::memory::session::PlainByte]),
+    PlainWord(&'a [crate::memory::session::PlainWord]),
 }
 
 impl<'a> CellRun<'a> {
@@ -505,7 +505,7 @@ impl<'a> CellRun<'a> {
         }
         if let CellRun::PlainBytes(r) = self {
             for (c, &b) in r[offset..].iter().zip(from) {
-                crate::session::plain_written(c);
+                crate::memory::session::plain_written(c);
                 c.set(b);
             }
             return;
@@ -527,7 +527,7 @@ impl<'a> CellRun<'a> {
 
 // SAFETY: `repr(transparent)` over one `AtomicU32`: every byte is inside it, and zero is a
 // valid value.
-unsafe impl Cells for crate::session::Dword {
+unsafe impl Cells for crate::memory::session::Dword {
     fn copy_from(&self, other: &Self) {
         self.atomic().store(other.atomic().load(Relaxed), Relaxed);
     }
@@ -553,7 +553,7 @@ unsafe impl Cells for crate::session::Dword {
 }
 // SAFETY: `repr(transparent)` over one cell of an integer: no padding, any bits a value; the
 // one run is the cell itself.
-unsafe impl ByteView for crate::session::Dword {
+unsafe impl ByteView for crate::memory::session::Dword {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::Dword(std::slice::from_ref(self)))
     }
@@ -564,7 +564,7 @@ unsafe impl ByteView for crate::session::Dword {
 }
 // SAFETY: `repr(transparent)` over one `AtomicU32`: every byte is inside it, and zero is a
 // valid value.
-unsafe impl Cells for crate::session::Float {
+unsafe impl Cells for crate::memory::session::Float {
     fn copy_from(&self, other: &Self) {
         self.atomic().store(other.atomic().load(Relaxed), Relaxed);
     }
@@ -590,7 +590,7 @@ unsafe impl Cells for crate::session::Float {
 }
 // SAFETY: `repr(transparent)` over one cell of an integer: no padding, any bits a value; the
 // one run is the cell itself.
-unsafe impl ByteView for crate::session::Float {
+unsafe impl ByteView for crate::memory::session::Float {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::Float(std::slice::from_ref(self)))
     }
@@ -601,7 +601,7 @@ unsafe impl ByteView for crate::session::Float {
 }
 // SAFETY: `repr(transparent)` over one `AtomicU32`: every byte is inside it, and zero is a
 // valid value.
-unsafe impl Cells for crate::session::Int {
+unsafe impl Cells for crate::memory::session::Int {
     fn copy_from(&self, other: &Self) {
         self.atomic().store(other.atomic().load(Relaxed), Relaxed);
     }
@@ -627,7 +627,7 @@ unsafe impl Cells for crate::session::Int {
 }
 // SAFETY: `repr(transparent)` over one cell of an integer: no padding, any bits a value; the
 // one run is the cell itself.
-unsafe impl ByteView for crate::session::Int {
+unsafe impl ByteView for crate::memory::session::Int {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::Int(std::slice::from_ref(self)))
     }
@@ -638,7 +638,7 @@ unsafe impl ByteView for crate::session::Int {
 }
 // SAFETY: `repr(transparent)` over one `AtomicU32`: every byte is inside it, and zero is a
 // valid value.
-unsafe impl Cells for crate::session::Flag {
+unsafe impl Cells for crate::memory::session::Flag {
     fn copy_from(&self, other: &Self) {
         self.atomic().store(other.atomic().load(Relaxed), Relaxed);
     }
@@ -664,7 +664,7 @@ unsafe impl Cells for crate::session::Flag {
 }
 // SAFETY: `repr(transparent)` over one cell of an integer: no padding, any bits a value; the
 // one run is the cell itself.
-unsafe impl ByteView for crate::session::Flag {
+unsafe impl ByteView for crate::memory::session::Flag {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::Flag(std::slice::from_ref(self)))
     }
@@ -675,15 +675,15 @@ unsafe impl ByteView for crate::session::Flag {
 }
 // SAFETY: `repr(transparent)` over one `Cell<u32>`: every byte is inside it, and zero is a
 // valid value.
-unsafe impl Cells for crate::session::PlainDword {
+unsafe impl Cells for crate::memory::session::PlainDword {
     fn copy_from(&self, other: &Self) {
-        crate::session::plain_written(self.cell());
+        crate::memory::session::plain_written(self.cell());
         self.cell().set(other.cell().get());
     }
 
     fn merge_changes(&self, now: &Self, start: &Self) {
         if let Some(v) = merged!(u32, now.cell().get(), start.cell().get()) {
-            crate::session::plain_written(self.cell());
+            crate::memory::session::plain_written(self.cell());
             self.cell().set(v);
         }
     }
@@ -698,7 +698,7 @@ unsafe impl Cells for crate::session::PlainDword {
 }
 // SAFETY: `repr(transparent)` over one cell of an integer: no padding, any bits a value; the
 // one run is the cell itself.
-unsafe impl ByteView for crate::session::PlainDword {
+unsafe impl ByteView for crate::memory::session::PlainDword {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::PlainDword(std::slice::from_ref(self)))
     }
@@ -709,15 +709,15 @@ unsafe impl ByteView for crate::session::PlainDword {
 }
 // SAFETY: `repr(transparent)` over one `Cell<u32>`: every byte is inside it, and zero is a
 // valid value.
-unsafe impl Cells for crate::session::PlainFloat {
+unsafe impl Cells for crate::memory::session::PlainFloat {
     fn copy_from(&self, other: &Self) {
-        crate::session::plain_written(self.cell());
+        crate::memory::session::plain_written(self.cell());
         self.cell().set(other.cell().get());
     }
 
     fn merge_changes(&self, now: &Self, start: &Self) {
         if let Some(v) = merged!(u32, now.cell().get(), start.cell().get()) {
-            crate::session::plain_written(self.cell());
+            crate::memory::session::plain_written(self.cell());
             self.cell().set(v);
         }
     }
@@ -732,7 +732,7 @@ unsafe impl Cells for crate::session::PlainFloat {
 }
 // SAFETY: `repr(transparent)` over one cell of an integer: no padding, any bits a value; the
 // one run is the cell itself.
-unsafe impl ByteView for crate::session::PlainFloat {
+unsafe impl ByteView for crate::memory::session::PlainFloat {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::PlainFloat(std::slice::from_ref(self)))
     }
@@ -743,15 +743,15 @@ unsafe impl ByteView for crate::session::PlainFloat {
 }
 // SAFETY: `repr(transparent)` over one `Cell<u32>`: every byte is inside it, and zero is a
 // valid value.
-unsafe impl Cells for crate::session::PlainFlag {
+unsafe impl Cells for crate::memory::session::PlainFlag {
     fn copy_from(&self, other: &Self) {
-        crate::session::plain_written(self.cell());
+        crate::memory::session::plain_written(self.cell());
         self.cell().set(other.cell().get());
     }
 
     fn merge_changes(&self, now: &Self, start: &Self) {
         if let Some(v) = merged!(u32, now.cell().get(), start.cell().get()) {
-            crate::session::plain_written(self.cell());
+            crate::memory::session::plain_written(self.cell());
             self.cell().set(v);
         }
     }
@@ -766,7 +766,7 @@ unsafe impl Cells for crate::session::PlainFlag {
 }
 // SAFETY: `repr(transparent)` over one cell of an integer: no padding, any bits a value; the
 // one run is the cell itself.
-unsafe impl ByteView for crate::session::PlainFlag {
+unsafe impl ByteView for crate::memory::session::PlainFlag {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::PlainFlag(std::slice::from_ref(self)))
     }
@@ -778,15 +778,15 @@ unsafe impl ByteView for crate::session::PlainFlag {
 
 // SAFETY: `repr(transparent)` over one `Cell<u32>`: every byte is inside it, and zero is a
 // valid value.
-unsafe impl Cells for crate::session::PlainInt {
+unsafe impl Cells for crate::memory::session::PlainInt {
     fn copy_from(&self, other: &Self) {
-        crate::session::plain_written(self.cell());
+        crate::memory::session::plain_written(self.cell());
         self.cell().set(other.cell().get());
     }
 
     fn merge_changes(&self, now: &Self, start: &Self) {
         if let Some(v) = merged!(u32, now.cell().get(), start.cell().get()) {
-            crate::session::plain_written(self.cell());
+            crate::memory::session::plain_written(self.cell());
             self.cell().set(v);
         }
     }
@@ -801,7 +801,7 @@ unsafe impl Cells for crate::session::PlainInt {
 }
 // SAFETY: `repr(transparent)` over one cell of an integer: no padding, any bits a value; the
 // one run is the cell itself.
-unsafe impl ByteView for crate::session::PlainInt {
+unsafe impl ByteView for crate::memory::session::PlainInt {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::PlainInt(std::slice::from_ref(self)))
     }
@@ -813,7 +813,7 @@ unsafe impl ByteView for crate::session::PlainInt {
 
 // SAFETY: `repr(transparent)` over one `AtomicU16`: every byte is inside it, and zero is a
 // valid value.
-unsafe impl Cells for crate::session::Word {
+unsafe impl Cells for crate::memory::session::Word {
     fn copy_from(&self, other: &Self) {
         self.atomic().store(other.atomic().load(Relaxed), Relaxed);
     }
@@ -839,7 +839,7 @@ unsafe impl Cells for crate::session::Word {
 }
 // SAFETY: `repr(transparent)` over one cell of an integer: no padding, any bits a value; the
 // one run is the cell itself.
-unsafe impl ByteView for crate::session::Word {
+unsafe impl ByteView for crate::memory::session::Word {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::Word(std::slice::from_ref(self)))
     }
@@ -850,7 +850,7 @@ unsafe impl ByteView for crate::session::Word {
 }
 // SAFETY: `repr(transparent)` over one `AtomicU8`: every byte is inside it, and zero is a
 // valid value.
-unsafe impl Cells for crate::session::Byte {
+unsafe impl Cells for crate::memory::session::Byte {
     fn copy_from(&self, other: &Self) {
         self.atomic().store(other.atomic().load(Relaxed), Relaxed);
     }
@@ -872,7 +872,7 @@ unsafe impl Cells for crate::session::Byte {
 }
 // SAFETY: `repr(transparent)` over one cell of an integer: no padding, any bits a value; the
 // one run is the cell itself.
-unsafe impl ByteView for crate::session::Byte {
+unsafe impl ByteView for crate::memory::session::Byte {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::Byte(std::slice::from_ref(self)))
     }
@@ -883,7 +883,7 @@ unsafe impl ByteView for crate::session::Byte {
 }
 // SAFETY: `repr(transparent)` over `[AtomicU8; N]`: every byte is an atomic, and zero is a
 // valid value.
-unsafe impl<const N: usize> Cells for crate::session::Bytes<N> {
+unsafe impl<const N: usize> Cells for crate::memory::session::Bytes<N> {
     fn copy_from(&self, other: &Self) {
         for (to, from) in self.atomics().iter().zip(other.atomics()) {
             to.store(from.load(Relaxed), Relaxed);
@@ -910,7 +910,7 @@ unsafe impl<const N: usize> Cells for crate::session::Bytes<N> {
 }
 // SAFETY: `repr(transparent)` over `[AtomicU8; N]`: no padding, any bits a value; all of it
 // one run of byte atomics.
-unsafe impl<const N: usize> ByteView for crate::session::Bytes<N> {
+unsafe impl<const N: usize> ByteView for crate::memory::session::Bytes<N> {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::Bytes(self.atomics()))
     }
@@ -919,7 +919,7 @@ unsafe impl<const N: usize> ByteView for crate::session::Bytes<N> {
 // cell, and zero is a valid value (any bytes make a `Plain`). Its runs take the widths its
 // `get` / `set` take (`Shared::WORDS`): a 4-aligned record's whole dwords one run of
 // `AtomicU32`s, the bytes past them `AtomicU8`s; a packed record one run of shared bytes.
-unsafe impl<T: Plain> Cells for crate::session::Shared<T> {
+unsafe impl<T: Plain> Cells for crate::memory::session::Shared<T> {
     fn copy_from(&self, other: &Self) {
         copy_by_runs(self, other);
     }
@@ -934,14 +934,14 @@ unsafe impl<T: Plain> Cells for crate::session::Shared<T> {
 }
 // SAFETY: `repr(transparent)` over an `UnsafeCell<T>`, `T: Plain`: no padding, any bits a value;
 // the runs are the ones `Shared::cell_run` hands out.
-unsafe impl<T: Plain> ByteView for crate::session::Shared<T> {
+unsafe impl<T: Plain> ByteView for crate::memory::session::Shared<T> {
     fn cell_run(&self, offset: usize) -> (usize, CellRun<'_>) {
-        crate::session::Shared::cell_run(self, offset)
+        crate::memory::session::Shared::cell_run(self, offset)
     }
 }
 // SAFETY: `repr(transparent)` over `[AtomicU8; 4]`: every byte is an atomic, and zero is a
 // valid value.
-unsafe impl Cells for crate::session::Loose {
+unsafe impl Cells for crate::memory::session::Loose {
     fn copy_from(&self, other: &Self) {
         copy_by_runs(self, other);
     }
@@ -956,22 +956,22 @@ unsafe impl Cells for crate::session::Loose {
 }
 // SAFETY: `repr(transparent)` over `[AtomicU8; 4]`: no padding, any bits a value; all of it
 // one run of byte atomics.
-unsafe impl ByteView for crate::session::Loose {
+unsafe impl ByteView for crate::memory::session::Loose {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::Bytes(self.atomics()))
     }
 }
 // SAFETY: `repr(transparent)` over one `Cell<u16>`: every byte is inside it, and zero is a
 // valid value.
-unsafe impl Cells for crate::session::PlainWord {
+unsafe impl Cells for crate::memory::session::PlainWord {
     fn copy_from(&self, other: &Self) {
-        crate::session::plain_written(self.cell());
+        crate::memory::session::plain_written(self.cell());
         self.cell().set(other.cell().get());
     }
 
     fn merge_changes(&self, now: &Self, start: &Self) {
         if let Some(v) = merged!(u16, now.cell().get(), start.cell().get()) {
-            crate::session::plain_written(self.cell());
+            crate::memory::session::plain_written(self.cell());
             self.cell().set(v);
         }
     }
@@ -986,7 +986,7 @@ unsafe impl Cells for crate::session::PlainWord {
 }
 // SAFETY: `repr(transparent)` over one cell of an integer: no padding, any bits a value; the
 // one run is the cell itself.
-unsafe impl ByteView for crate::session::PlainWord {
+unsafe impl ByteView for crate::memory::session::PlainWord {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::PlainWord(std::slice::from_ref(self)))
     }
@@ -997,15 +997,15 @@ unsafe impl ByteView for crate::session::PlainWord {
 }
 // SAFETY: `repr(transparent)` over one `Cell<u8>`: every byte is inside it, and zero is a
 // valid value.
-unsafe impl Cells for crate::session::PlainByte {
+unsafe impl Cells for crate::memory::session::PlainByte {
     fn copy_from(&self, other: &Self) {
-        crate::session::plain_written(self.cell());
+        crate::memory::session::plain_written(self.cell());
         self.cell().set(other.cell().get());
     }
 
     fn merge_changes(&self, now: &Self, start: &Self) {
         if let Some(v) = merged!(u8, now.cell().get(), start.cell().get()) {
-            crate::session::plain_written(self.cell());
+            crate::memory::session::plain_written(self.cell());
             self.cell().set(v);
         }
     }
@@ -1020,7 +1020,7 @@ unsafe impl Cells for crate::session::PlainByte {
 }
 // SAFETY: `repr(transparent)` over one cell of an integer: no padding, any bits a value; the
 // one run is the cell itself.
-unsafe impl ByteView for crate::session::PlainByte {
+unsafe impl ByteView for crate::memory::session::PlainByte {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::PlainByte(std::slice::from_ref(self)))
     }
@@ -1031,10 +1031,10 @@ unsafe impl ByteView for crate::session::PlainByte {
 }
 // SAFETY: `repr(transparent)` over `[Cell<u8>; N]`: every byte is inside a cell, and zero is a
 // valid value.
-unsafe impl<const N: usize> Cells for crate::session::PlainBytes<N> {
+unsafe impl<const N: usize> Cells for crate::memory::session::PlainBytes<N> {
     fn copy_from(&self, other: &Self) {
         for (to, from) in self.cells().iter().zip(other.cells()) {
-            crate::session::plain_written(to);
+            crate::memory::session::plain_written(to);
             to.set(from.get());
         }
     }
@@ -1043,7 +1043,7 @@ unsafe impl<const N: usize> Cells for crate::session::PlainBytes<N> {
         for ((to, now), start) in self.cells().iter().zip(now.cells()).zip(start.cells()) {
             let v = now.get();
             if v != start.get() {
-                crate::session::plain_written(to);
+                crate::memory::session::plain_written(to);
                 to.set(v);
             }
         }
@@ -1055,7 +1055,7 @@ unsafe impl<const N: usize> Cells for crate::session::PlainBytes<N> {
 }
 // SAFETY: `repr(transparent)` over `[Cell<u8>; N]`: no padding, any bits a value; all of it
 // one run of byte cells.
-unsafe impl<const N: usize> ByteView for crate::session::PlainBytes<N> {
+unsafe impl<const N: usize> ByteView for crate::memory::session::PlainBytes<N> {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::PlainBytes(self.cells()))
     }
@@ -1109,7 +1109,7 @@ unsafe impl<T: ByteView, const N: usize> ByteView for [T; N] {
 
 // SAFETY: one `T` (`repr(transparent)`), whose cells are handed out only on the game's thread
 // (`GameThread::get` asserts it in debug builds).
-unsafe impl<T: Cells> Cells for crate::session::GameThread<T> {
+unsafe impl<T: Cells> Cells for crate::memory::session::GameThread<T> {
     fn copy_from(&self, other: &Self) {
         self.get().copy_from(other.get());
     }
@@ -1123,7 +1123,7 @@ unsafe impl<T: Cells> Cells for crate::session::GameThread<T> {
     }
 }
 // SAFETY: one `T` (`repr(transparent)`), whose cells are handed out only on the game's thread.
-unsafe impl<T: ByteView> ByteView for crate::session::GameThread<T> {
+unsafe impl<T: ByteView> ByteView for crate::memory::session::GameThread<T> {
     #[cfg(any(test, feature = "remote"))]
     fn field_path(&self, offset: usize, path: &mut String) -> &'static str {
         self.get().field_path(offset, path)
@@ -1134,8 +1134,8 @@ unsafe impl<T: ByteView> ByteView for crate::session::GameThread<T> {
     }
 }
 
-impl<T: ZeroCells> ZeroCells for crate::session::GameThread<T> {
-    const ZERO: Self = crate::session::GameThread::new(T::ZERO);
+impl<T: ZeroCells> ZeroCells for crate::memory::session::GameThread<T> {
+    const ZERO: Self = crate::memory::session::GameThread::new(T::ZERO);
 }
 
 /// A cell or record of cells whose every byte is zero, as a constant: `#[derive(ZeroCells)]`
@@ -1157,25 +1157,25 @@ macro_rules! zero_cells {
     )* };
 }
 zero_cells!(
-    crate::session::Dword = crate::session::Dword::new(0),
-    crate::session::Float = crate::session::Float::new(0.0),
-    crate::session::Int = crate::session::Int::new(0),
-    crate::session::Flag = crate::session::Flag::new(false),
-    crate::session::Word = crate::session::Word::new(0),
-    crate::session::Byte = crate::session::Byte::new(0),
-    crate::session::Loose = crate::session::Loose::new(0),
-    crate::session::PlainDword = crate::session::PlainDword::new(0),
-    crate::session::PlainFloat = crate::session::PlainFloat::new(0.0),
-    crate::session::PlainFlag = crate::session::PlainFlag::new(false),
-    crate::session::PlainInt = crate::session::PlainInt::new(0),
-    crate::session::PlainWord = crate::session::PlainWord::new(0),
-    crate::session::PlainByte = crate::session::PlainByte::new(0),
+    crate::memory::session::Dword = crate::memory::session::Dword::new(0),
+    crate::memory::session::Float = crate::memory::session::Float::new(0.0),
+    crate::memory::session::Int = crate::memory::session::Int::new(0),
+    crate::memory::session::Flag = crate::memory::session::Flag::new(false),
+    crate::memory::session::Word = crate::memory::session::Word::new(0),
+    crate::memory::session::Byte = crate::memory::session::Byte::new(0),
+    crate::memory::session::Loose = crate::memory::session::Loose::new(0),
+    crate::memory::session::PlainDword = crate::memory::session::PlainDword::new(0),
+    crate::memory::session::PlainFloat = crate::memory::session::PlainFloat::new(0.0),
+    crate::memory::session::PlainFlag = crate::memory::session::PlainFlag::new(false),
+    crate::memory::session::PlainInt = crate::memory::session::PlainInt::new(0),
+    crate::memory::session::PlainWord = crate::memory::session::PlainWord::new(0),
+    crate::memory::session::PlainByte = crate::memory::session::PlainByte::new(0),
 );
-impl<const N: usize> ZeroCells for crate::session::Bytes<N> {
-    const ZERO: Self = crate::session::Bytes::new([0; N]);
+impl<const N: usize> ZeroCells for crate::memory::session::Bytes<N> {
+    const ZERO: Self = crate::memory::session::Bytes::new([0; N]);
 }
-impl<const N: usize> ZeroCells for crate::session::PlainBytes<N> {
-    const ZERO: Self = crate::session::PlainBytes::new([0; N]);
+impl<const N: usize> ZeroCells for crate::memory::session::PlainBytes<N> {
+    const ZERO: Self = crate::memory::session::PlainBytes::new([0; N]);
 }
 impl<T: ZeroCells, const N: usize> ZeroCells for [T; N] {
     const ZERO: Self = [const { T::ZERO }; N];
@@ -1226,7 +1226,7 @@ macro_rules! plain_record {
     )* };
 }
 plain_record!(
-    rc2k_core::text::Font = 4 + 7 * 4,
+    rc2k_core::strings::text::Font = 4 + 7 * 4,
     rc2k_core::memory::List = 4 * 4,
     rc2k_core::gfx::pixels::PixelFormat = 5 * 4,
     crate::gfx::texture_upload::TextureFormat = 3 * 4 + 5 * 4 + 8 * 4,
@@ -1313,15 +1313,15 @@ fn set_cell_bytes(cell: CellRef, from: usize, new: &[u8]) {
             });
         }
         CellRef::Plain32(c) => {
-            crate::session::plain_written(c);
+            crate::memory::session::plain_written(c);
             c.set(u32::from_ne_bytes(merge(c.get().to_ne_bytes())));
         }
         CellRef::Plain8(c) => {
-            crate::session::plain_written(c);
+            crate::memory::session::plain_written(c);
             c.set(new[0]);
         }
         CellRef::Plain16(c) => {
-            crate::session::plain_written(c);
+            crate::memory::session::plain_written(c);
             let [a, b, ..] = c.get().to_ne_bytes();
             let [a, b, ..] = merge([a, b, 0, 0]);
             c.set(u16::from_ne_bytes([a, b]));
@@ -1339,7 +1339,7 @@ fn set_cell_bytes(cell: CellRef, from: usize, new: &[u8]) {
 }
 
 /// `to.len()` bytes of `record` from byte `offset` on, each cell read whole at its own
-/// width (a run of `Bytes` as `shared_memory` reads it).
+/// width (a run of `Bytes` as `memory::shared_memory` reads it).
 pub fn load_cells<T: ByteView>(record: &T, offset: usize, to: &mut [u8]) -> Result<(), BadInput> {
     let end = record_end::<T>(offset, to.len())?;
     let mut at = offset;
@@ -1423,7 +1423,10 @@ pub const fn cells_of_bytes<T: ByteView, const N: usize>(bytes: [u8; N]) -> T {
 
 /// `N` dwords of a record of cells from byte `at` on, for a record read as a run of dwords.
 #[cfg(test)]
-pub fn dwords_in<T: ByteView, const N: usize>(cells: &T, at: usize) -> &[crate::session::Dword; N] {
+pub fn dwords_in<T: ByteView, const N: usize>(
+    cells: &T,
+    at: usize,
+) -> &[crate::memory::session::Dword; N] {
     dwords_as(cells, at)
 }
 
@@ -1431,7 +1434,7 @@ pub fn dwords_in<T: ByteView, const N: usize>(cells: &T, at: usize) -> &[crate::
 pub fn plain_dwords_in<T: PlainCellsOnly, const N: usize>(
     cells: &T,
     at: usize,
-) -> &[crate::session::PlainDword; N] {
+) -> &[crate::memory::session::PlainDword; N] {
     dwords_as(cells, at)
 }
 
@@ -1452,8 +1455,8 @@ unsafe impl PlainCellsOnly for crate::race::prefs_store::StagePrefs {}
 
 /// A cell over one dword, any bits valid: `Dword` and `PlainDword` (`dwords_as`'s kinds).
 trait DwordCell {}
-impl DwordCell for crate::session::Dword {}
-impl DwordCell for crate::session::PlainDword {}
+impl DwordCell for crate::memory::session::Dword {}
+impl DwordCell for crate::memory::session::PlainDword {}
 
 fn dwords_as<D: DwordCell, T: ByteView, const N: usize>(cells: &T, at: usize) -> &[D; N] {
     assert!(

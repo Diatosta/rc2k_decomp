@@ -13,12 +13,12 @@
 
 use crate::errors::Refused;
 use crate::math::x87::mul;
+use crate::memory::session::FloatLike;
 use crate::physics::contact_force::contact_force;
 use crate::physics::contact_store::ContactWork;
 use crate::physics::ground_probe_store::GroundProbe;
 use crate::physics::step_families::ContactInputs;
 use crate::physics::wall_edge_contact::edge_normal;
-use crate::session::FloatLike;
 use rc2k_core::physics::walls;
 
 /// Three floats copied as bits, in order.

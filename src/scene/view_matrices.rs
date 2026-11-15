@@ -11,8 +11,8 @@
 //! from view to view: the view matrix, the view turn and its copy, the view's place, the view back
 //! matrix, the identity, the frame draw's two work matrices, and the listener's matrix.
 
+use crate::memory::session::{Cell32, PlainDword, PlainFloat};
 use crate::race::matrices_store::SceneMatrices;
-use crate::session::{Cell32, PlainDword, PlainFloat};
 
 #[derive(rc2k_derive::Cells)]
 pub struct ViewMatrices {
@@ -74,13 +74,13 @@ pub struct ViewMatrices {
 /// `physics::move_slot` into a slot's, `drive::set_listener` into the listener's), and the
 /// descriptions the drawing reads (0x3C bytes) take what the physics left. The other columns are
 /// written before they are read on both sides. Exact while the views are drawn one after another. A
-/// drawing part other than the first (`workers::draw_parts`) holds from and puts back into its own
+/// drawing part other than the first (`scene::workers::draw_parts`) holds from and puts back into its own
 /// columns (`Columns`), started as the list began; what it changed goes into the store in the
 /// parts' order (`merge_columns`).
 pub struct Held<'a> {
     view: &'a ViewMatrices,
     store: &'a SceneMatrices,
-    part: &'a crate::workers::PartScratch,
+    part: &'a crate::scene::workers::PartScratch,
 }
 
 /// The fourth columns of the turned, lit and made-object matrices, in that order, as their
@@ -109,9 +109,9 @@ fn write_columns<C: Cell32>(c: &Columns, to: [&[C; 16]; 3]) {
     }
 }
 
-/// A drawing part's own columns (`workers::PartScratch::columns`): set while a part other
+/// A drawing part's own columns (`scene::workers::PartScratch::columns`): set while a part other
 /// than the first is drawn, none otherwise. A plain cell: only the thread that draws the part
-/// reaches it (`part_cell::PartCell`).
+/// reaches it (`memory::part_cell::PartCell`).
 pub struct OwnColumns(std::cell::Cell<Option<Columns>>);
 
 impl OwnColumns {
@@ -138,7 +138,7 @@ impl Default for OwnColumns {
 /// columns, the fourth the part's own in a part other than the first.
 pub fn current_matrix(
     store: &SceneMatrices,
-    part: &crate::workers::PartScratch,
+    part: &crate::scene::workers::PartScratch,
     m: usize,
 ) -> [u32; 16] {
     let c = part.columns.get();
@@ -154,23 +154,23 @@ pub fn columns(store: &SceneMatrices) -> Columns {
 }
 
 /// Part `part` (not the first) begins, its columns `start`.
-pub fn begin_part(part: &crate::workers::PartScratch, start: Columns) {
+pub fn begin_part(part: &crate::scene::workers::PartScratch, start: Columns) {
     part.columns.set(Some(start));
 }
 
 /// The columns `part` holds of its own, if any (a part being drawn).
-pub fn part_columns(part: &crate::workers::PartScratch) -> Option<Columns> {
+pub fn part_columns(part: &crate::scene::workers::PartScratch) -> Option<Columns> {
     part.columns.get()
 }
 
 /// `part`'s own columns made `columns` (a piece drawn aside starts from its part's,
-/// `workers::draw_aside`).
-pub fn set_part_columns(part: &crate::workers::PartScratch, columns: Option<Columns>) {
+/// `scene::workers::draw_aside`).
+pub fn set_part_columns(part: &crate::scene::workers::PartScratch, columns: Option<Columns>) {
     part.columns.set(columns);
 }
 
 /// Part `part` is over: the columns it leaves.
-pub fn end_part(part: &crate::workers::PartScratch) -> Option<Columns> {
+pub fn end_part(part: &crate::scene::workers::PartScratch) -> Option<Columns> {
     part.columns.set(None)
 }
 
@@ -190,7 +190,7 @@ impl ViewMatrices {
     pub fn hold<'a>(
         &'a self,
         store: &'a SceneMatrices,
-        part: &'a crate::workers::PartScratch,
+        part: &'a crate::scene::workers::PartScratch,
     ) -> Held<'a> {
         let c = part.columns.get().unwrap_or_else(|| columns(store));
         write_columns(&c, view_held(self));

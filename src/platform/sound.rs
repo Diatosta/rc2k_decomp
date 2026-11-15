@@ -166,7 +166,7 @@ struct State {
     /// The listener's roll-off factor (DirectSound's default; the game leaves it).
     rolloff: f32,
     /// The window's focus flag (1: in front), set when the device is created.
-    window_focused: Option<&'static crate::session::Dword>,
+    window_focused: Option<&'static crate::memory::session::Dword>,
 }
 
 static STATE: Mutex<Option<State>> = Mutex::new(None);
@@ -494,7 +494,7 @@ pub fn set_format(id: u32, f: Format) -> i32 {
             b.format = f;
             b.bytes = primary_bytes(&f);
             b.position = 0.0;
-            crate::framework::log(&format!(
+            crate::logfile::program_log::log(&format!(
                 "platform_sound: the primary buffer's format: {} Hz, {} bits, {} channels",
                 f.rate, f.bits, f.channels
             ));
@@ -654,7 +654,7 @@ fn feed(wanted: i32) -> Option<Vec<i16>> {
     };
     Some(mixed.unwrap_or_else(|| {
         if !FEED_PANICKED.swap(true, Relaxed) {
-            crate::framework::log(
+            crate::logfile::program_log::log(
                 "platform_sound: the audio callback panicked: silence from now on",
             );
         }
@@ -717,18 +717,18 @@ static OPENED: Mutex<bool> = Mutex::new(false);
 
 /// `DirectSoundCreate` for the standalone: the device, SDL's audio opened the first time.
 /// Fails (as `DirectSoundCreate` can, with `DSERR_NODRIVER`) when SDL cannot.
-pub fn create_device(window_focused: &'static crate::session::Dword) -> Result<u32, i32> {
+pub fn create_device(window_focused: &'static crate::memory::session::Dword) -> Result<u32, i32> {
     with(|s| s.window_focused = Some(window_focused));
     let mut opened = OPENED.lock().unwrap();
     if !*opened {
-        match crate::ffi::sdl::start_audio_output(OUT_RATE, feed) {
+        match crate::platform::ffi::sdl::start_audio_output(OUT_RATE, feed) {
             Ok(()) => {}
-            Err(crate::ffi::sdl::AudioError::Init) => {
-                crate::framework::log("platform_sound: SDL audio cannot be started");
+            Err(crate::platform::ffi::sdl::AudioError::Init) => {
+                crate::logfile::program_log::log("platform_sound: SDL audio cannot be started");
                 return Err(NO_DRIVER);
             }
-            Err(crate::ffi::sdl::AudioError::NoDevice) => {
-                crate::framework::log("platform_sound: no SDL audio device");
+            Err(crate::platform::ffi::sdl::AudioError::NoDevice) => {
+                crate::logfile::program_log::log("platform_sound: no SDL audio device");
                 return Err(NO_DRIVER);
             }
         }
@@ -918,7 +918,7 @@ mod tests {
     /// with `GLOBAL_FOCUS` is heard either way.
     #[test]
     fn a_buffer_without_the_focus_flags_is_silent_while_the_window_is_not_in_front() {
-        static FOCUS: crate::session::Dword = crate::session::Dword::new(0);
+        static FOCUS: crate::memory::session::Dword = crate::memory::session::Dword::new(0);
         let _held = PLAYING
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);

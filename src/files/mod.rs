@@ -70,7 +70,7 @@ pub fn cstring_in(bytes: &[u8]) -> Result<Vec<u8>, crate::errors::BadInput> {
 
 /// The text at byte `offset` of the store, read within its next `len` bytes.
 pub fn cstring_from(
-    store: &dyn crate::cells::Store,
+    store: &dyn crate::memory::cells::Store,
     offset: usize,
     len: usize,
 ) -> Result<Vec<u8>, crate::errors::BadInput> {
@@ -80,7 +80,7 @@ pub fn cstring_from(
 }
 
 pub fn cstring(
-    at: &dyn crate::cells::Store,
+    at: &dyn crate::memory::cells::Store,
     _what: &str,
 ) -> Result<Vec<u8>, crate::errors::BadInput> {
     cstring_from(at, 0, at.size())
@@ -200,21 +200,23 @@ pub mod state {
     }
     /// How the game is installed (0 .. 3), as the installer's record says; `resolve_path` looks at
     /// it.
-    pub static MEDIA_MODE: crate::session::Dword = crate::session::Dword::new(0);
+    pub static MEDIA_MODE: crate::memory::session::Dword = crate::memory::session::Dword::new(0);
     /// The base directory (0x100 bytes) and, after it, the locale directory (0x100 bytes):
     /// strings, empty at the start.
     pub const DIRECTORIES_LEN: usize = 0x200;
-    pub static DIRECTORIES: crate::session::Bytes<DIRECTORIES_LEN> =
-        crate::session::Bytes::new([0; DIRECTORIES_LEN]);
+    pub static DIRECTORIES: crate::memory::session::Bytes<DIRECTORIES_LEN> =
+        crate::memory::session::Bytes::new([0; DIRECTORIES_LEN]);
     /// The second base directory: an empty text, never written (the installer's calls borrow it
     /// for as long as they run).
-    pub static SECOND_BASE: crate::session::Bytes<1> = crate::session::Bytes::new(*b"\0");
+    pub static SECOND_BASE: crate::memory::session::Bytes<1> =
+        crate::memory::session::Bytes::new(*b"\0");
     /// The room of the packed copy's path.
     pub const PACKED_PATH_LEN: usize = 0x103;
     /// The numbered paths (0x100 bytes) and, after them, the resolved paths of a thread without a
     /// slot (0x100 bytes).
     pub const PATHS_LEN: usize = 0x200;
-    pub static PATHS: crate::session::Bytes<PATHS_LEN> = crate::session::Bytes::new([0; PATHS_LEN]);
+    pub static PATHS: crate::memory::session::Bytes<PATHS_LEN> =
+        crate::memory::session::Bytes::new([0; PATHS_LEN]);
 
     /// A directory's room (`DIRECTORIES` holds the two).
     pub const DIRECTORY_LEN: u32 = 0x100;

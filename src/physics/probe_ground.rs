@@ -33,6 +33,7 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87::less_plus_less_product_80;
 use crate::math::x87_float as bh;
+use crate::memory::session::{CellKind, DwordLike, FloatLike};
 use crate::physics::car_store::Car;
 use crate::physics::contact_store::ContactWork;
 use crate::physics::flow::ZERO_BITS as ZERO;
@@ -41,7 +42,6 @@ use crate::physics::ground_query::GroundQuery;
 use crate::physics::step_families::GroundInputs;
 use crate::scene::matrix3::{extended, rounded_value};
 use crate::scene::rotate_point::rotate_point;
-use crate::session::{CellKind, DwordLike, FloatLike};
 use rc2k_core::physics::ground;
 
 pub const MOST_POINTS: u32 = 0x40;
@@ -77,7 +77,7 @@ pub fn probe_ground_at(
     switches: &crate::scene::draw_switches_store::DrawSwitches,
     q: &GroundQuery<'_>,
     contact: &ContactWork,
-    scratch: &crate::session::PlainDword,
+    scratch: &crate::memory::session::PlainDword,
 ) -> Result<(), Refused> {
     let n = car.probe_count.get();
     if n < 1 {
@@ -97,7 +97,7 @@ fn probe_points(
     switches: &crate::scene::draw_switches_store::DrawSwitches,
     q: &GroundQuery<'_>,
     contact: &ContactWork,
-    scratch: &crate::session::PlainDword,
+    scratch: &crate::memory::session::PlainDword,
 ) -> Result<(), Refused> {
     let k65536 = c.numbers.k65536.get();
     contact.crossed_probe.set(u32::MAX);
@@ -244,6 +244,6 @@ pub fn probe_ground_in_view(
         switches,
         &ground.query(points),
         &ContactWork::new(),
-        &crate::session::PlainDword::new(0),
+        &crate::memory::session::PlainDword::new(0),
     )
 }

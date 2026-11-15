@@ -166,7 +166,7 @@ pub fn load_language(
     }
 
     let kind = file.notice_kind;
-    if crate::os::language_id() & 0x3FF == 0x11 && kind != 7 {
+    if crate::platform::os::language_id() & 0x3FF == 0x11 && kind != 7 {
         return Err(fatal(
             0x9000_6044,
             "You cannot run this version of RC in Japan\t",

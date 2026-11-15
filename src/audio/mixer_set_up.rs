@@ -20,7 +20,7 @@ pub fn set_up_primary_mixer(audio: &AudioThread, system: &System) -> Result<bool
     let failed = || crate::audio::restore::close_primary_mixer(audio, system).map(|_| false);
     crate::audio::sound_device::release_primary(&audio.state);
     let ds = audio.state.direct_sound.get();
-    if crate::platform_sound::set_cooperative_level(
+    if crate::platform::sound::set_cooperative_level(
         ds,
         system.session.host.window.get(),
         WRITE_PRIMARY,
@@ -51,7 +51,7 @@ pub fn set_up_primary_mixer(audio: &AudioThread, system: &System) -> Result<bool
     audio.state.write_cursor.set(most);
     let caps = &audio.state.primary_caps;
     caps.set_u32(0, 0x14);
-    match crate::platform_sound::buffer_caps(audio.state.primary_buffer.get()) {
+    match crate::platform::sound::buffer_caps(audio.state.primary_buffer.get()) {
         Ok((flags, bytes)) => {
             for (n, value) in [(4, flags), (8, bytes), (0xC, 0), (0x10, 0)] {
                 caps.set_u32(n, value);

@@ -9,8 +9,8 @@ use crate::effects::turns::{scale_rows3, set_line_turn, turn_pair, turn_pair_wit
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
+use crate::memory::session::{PlainBytes, PlainDword, PlainFloat, read_bits, write_bits};
 use crate::scene::matrix3::{extended, rounded_value};
-use crate::session::{PlainBytes, PlainDword, PlainFloat, read_bits, write_bits};
 
 /// The pixel table `n` (0 or 1, the shape's: `MaskPicks.pixel_table_a`, `_b`).
 fn pixel_table(drops: &WindscreenDrops, n: u32) -> Result<&PlainBytes<0x2_0000>, BadInput> {

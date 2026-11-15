@@ -7,8 +7,8 @@
 //! This file holds the shared steps.
 
 use crate::errors::Refused;
+use crate::memory::session::PlainDword;
 use crate::physics::step_families::CameraGroundInputs;
-use crate::session::PlainDword;
 
 /// One probe at (x, z) from the face kept at `slot`; true when found (the face found
 /// kept there).

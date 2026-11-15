@@ -13,18 +13,20 @@ use crate::scene::x87_mem::{Base, cells, fld_with, fstp_with};
 
 pub fn reflect_vector(
     m: &crate::scene::view_matrices::ViewMatrices,
-    view_back: &[crate::session::PlainFloat; 16],
+    view_back: &[crate::memory::session::PlainFloat; 16],
 ) {
     let (v, n): ([u32; 3], [u32; 3]) = (
-        crate::session::read_bits(&m.reflect_vector),
-        crate::session::read_bits(&m.reflect_normal),
+        crate::memory::session::read_bits(&m.reflect_vector),
+        crate::memory::session::read_bits(&m.reflect_normal),
     );
     // The vector, the normal, d.
     let mut w = [v[0], v[1], v[2], n[0], n[1], n[2], 0];
     // The matrix is only read: a copy of its cells.
-    let back = view_back.each_ref().map(crate::session::PlainFloat::bits);
+    let back = view_back
+        .each_ref()
+        .map(crate::memory::session::PlainFloat::bits);
     reflect(cells(&mut w), &back[..]);
-    crate::session::write_bits(&m.reflect_vector, [w[0], w[1], w[2]]);
+    crate::memory::session::write_bits(&m.reflect_vector, [w[0], w[1], w[2]]);
 }
 
 /// The block's arithmetic: `w` the vector, the normal, d; `m` the matrix.

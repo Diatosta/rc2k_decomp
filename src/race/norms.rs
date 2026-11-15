@@ -28,9 +28,9 @@ pub fn normalise_work_vector(
     scratch: &FrameScratch,
     scene: &crate::scene::owner::Scene,
 ) {
-    let v = crate::session::read_first(&scratch.work_vector);
+    let v = crate::memory::session::read_first(&scratch.work_vector);
     let (v, length) = normalised(numbers, v);
-    crate::session::write_first(&scratch.work_vector, &v);
+    crate::memory::session::write_first(&scratch.work_vector, &v);
     scene.drawing.scene.get().scratch.set(length);
 }
 
@@ -112,7 +112,7 @@ pub struct Normals {
 /// course and writes nothing. Refused: no faces, 0x100000 or more, or a read past a table.
 pub fn face_normals(
     race: &Race,
-    scratch: &crate::workers::DrawingScratch,
+    scratch: &crate::scene::workers::DrawingScratch,
     work_vector: [u32; 3],
 ) -> Result<Normals, Refused> {
     use rc2k_core::race::faces::{
@@ -163,7 +163,7 @@ pub fn face_normals(
 pub fn store_norms(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let count: u32 = race.course.course.get().course_face_count.get();
     rc2k_core::race::faces::check_face_count(count)?;
-    let work_vector = crate::session::read_first(&race.frame.scratch().work_vector);
+    let work_vector = crate::memory::session::read_first(&race.frame.scratch().work_vector);
     let normals = face_normals(race, &scene.scratch, work_vector)?;
     for made in &normals.faces {
         crate::race::course_places::update_face_number(&race.course, made.face, |f| {
@@ -184,9 +184,9 @@ pub fn store_norms(race: &Race, scene: &crate::scene::owner::Scene) -> Result<()
         }
     }
     if let Some(plane_work) = normals.plane_work {
-        crate::session::write_bits(&race.physics.ground().normal_work, plane_work);
+        crate::memory::session::write_bits(&race.physics.ground().normal_work, plane_work);
     }
-    crate::session::write_first(&race.frame.scratch().work_vector, &normals.work_vector);
+    crate::memory::session::write_first(&race.frame.scratch().work_vector, &normals.work_vector);
     if let Some(length) = normals.scratch {
         scene.drawing.scene.get().scratch.set(length);
     }

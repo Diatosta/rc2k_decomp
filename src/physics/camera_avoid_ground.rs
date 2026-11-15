@@ -14,6 +14,7 @@
 //! changes to chase 1 for a while so the camera does not clip into the ground.
 
 use crate::errors::Refused;
+use crate::memory::session::PlainDword;
 use crate::physics::camera_clear_of_ground::camera_clear_of_ground;
 use crate::physics::camera_over_ground::camera_over_ground;
 use crate::physics::camera_store::CameraWork;
@@ -26,7 +27,6 @@ use crate::race::lights_store::LightsData;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_course::Course;
 use crate::race::owner_shared::RaceShared;
-use crate::session::PlainDword;
 use rc2k_core::physics::camera_ground;
 
 fn place(

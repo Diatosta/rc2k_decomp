@@ -5,8 +5,8 @@
 
 use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
+use crate::memory::session::PlainDword;
 use crate::race::viewer_screen_store::ViewerPanelBlock;
-use crate::session::PlainDword;
 use rc2k_core::drive::tyre_screen::quad_corners;
 
 /// The texture rectangle at `uv`, the screen rectangle `rect`, the colour `colour`; For the
@@ -17,7 +17,7 @@ pub fn tyre_quad(
     colour: u32,
     panel: &ViewerPanelBlock,
     system: &crate::system::owner::System,
-    part: &crate::workers::PartScratch,
+    part: &crate::scene::workers::PartScratch,
 ) -> Result<(), Refused> {
     quad_of(
         uv,
@@ -36,7 +36,7 @@ pub fn quad_of(
     colour: u32,
     panel: &ViewerPanelBlock,
     system: &crate::system::owner::System,
-    part: &crate::workers::PartScratch,
+    part: &crate::scene::workers::PartScratch,
 ) -> Result<(), Refused> {
     let buffer = &part.vertices;
     let corners = quad_corners(rect);

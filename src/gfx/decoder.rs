@@ -3,7 +3,7 @@
 //! the sheet table's (`gfx::build_glyphs::SHEET`) and the glyph tables' (`TABLES`) are separate;
 //! the glyph builder reads and writes this block too, as the sheets of glyphs are PCX pictures.
 
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 
 /// What the PCX and PNG readers lay out and the glyph builder works with.
 #[derive(rc2k_derive::Cells)]

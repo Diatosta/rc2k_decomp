@@ -15,7 +15,7 @@
 use crate::d3d::vertices_store::Vertex;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::session::{CellKind, DwordLike, FloatLike};
+use crate::memory::session::{CellKind, DwordLike, FloatLike};
 
 /// A vertex's coordinate the edge is tested on.
 #[derive(Clone, Copy)]

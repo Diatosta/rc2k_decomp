@@ -1,7 +1,7 @@
 //! The marks' wave tables: `MarksSines`, `WaveLevels` (the lens flare's parts' levels) and
 //! `WaveState` (the made-once flag and constants).
 
-use crate::session::{PlainDword, PlainFloat};
+use crate::memory::session::{PlainDword, PlainFloat};
 
 /// The marks' sine table.
 #[derive(rc2k_derive::Cells)]

@@ -15,8 +15,8 @@ pub fn set_length(menus: &Menus, length: i32) {
 }
 
 /// Where the backup copy of the text is.
-pub fn backup(menus: &'static Menus) -> crate::place::BytePlace {
-    crate::place::BytePlace::from(&menus.play.slots.names.text_backup)
+pub fn backup(menus: &'static Menus) -> crate::memory::place::BytePlace {
+    crate::memory::place::BytePlace::from(&menus.play.slots.names.text_backup)
 }
 
 /// The entry's state, as the game holds it.
@@ -46,13 +46,15 @@ pub fn with_entry<R>(menus: &Menus, f: impl FnOnce(&mut Entry) -> R) -> R {
 }
 
 /// A text field's text.
-pub fn field(at: impl Into<crate::place::BytePlace>) -> Result<Text, crate::errors::BadInput> {
+pub fn field(
+    at: impl Into<crate::memory::place::BytePlace>,
+) -> Result<Text, crate::errors::BadInput> {
     let bytes = at.into().read(TEXT_LEN, "a text field")?;
     Ok(std::array::from_fn(|i| bytes[i]))
 }
 
 pub fn put_field(
-    at: impl Into<crate::place::BytePlace>,
+    at: impl Into<crate::memory::place::BytePlace>,
     text: &Text,
 ) -> Result<(), crate::errors::BadInput> {
     at.into().write(text, "a text field")
@@ -65,7 +67,7 @@ const BACKED_UP_RVA: &std::ffi::CStr = c"Backed up name="; // aBackedUpName: "Ba
 /// set, the field is cleared, the length is 0 and an entry is going on.
 pub fn begin_logged(
     menus: &'static Menus,
-    at: impl Into<crate::place::BytePlace>,
+    at: impl Into<crate::memory::place::BytePlace>,
     log: bool,
 ) -> Result<(), crate::errors::BadInput> {
     let at = at.into();

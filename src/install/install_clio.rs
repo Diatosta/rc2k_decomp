@@ -14,8 +14,8 @@ const FONT_BE: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BOX
 
 /// `to` = `base` + name `index` of `table`, NUL-ended.
 fn append_both(
-    base: &'static crate::session::PlainBytes<256>,
-    to: &'static crate::session::PlainBytes<256>,
+    base: &'static crate::memory::session::PlainBytes<256>,
+    to: &'static crate::memory::session::PlainBytes<256>,
     table: &crate::memory::owned::Owned<crate::install::name_tables::NameTable>,
     index: u32,
 ) -> Result<(), Refused> {
@@ -46,7 +46,7 @@ fn work(
     }
     i::run_script::run_script(
         install,
-        crate::place::BytePlace::from(&install.vars.clio_script),
+        crate::memory::place::BytePlace::from(&install.vars.clio_script),
     )?;
     if install.run.dir_count.get() != 0 {
         let mut n = 0;

@@ -1,8 +1,8 @@
 //! Makes a car's block ready for a network race: 51 of its dwords are cleared and one is set
 //! to -1.
 
+use crate::memory::session::Cell32;
 use crate::physics::car_store::Car;
-use crate::session::Cell32;
 
 /// A car block's dwords cleared (`clear_car_state`) and what goes in them: 51 of them 0,
 /// `parts_present` (+0x298) -1.

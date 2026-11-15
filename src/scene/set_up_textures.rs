@@ -26,7 +26,7 @@ pub fn set_up_textures(
     build_texture_catalogue_in_game(shared, scene, gfx, d3d)?;
     drawing.scene.get().mirror_picture.set(0u32);
     crate::race::load_times::mark("allocate_textures_for");
-    let (_, system) = crate::platform_3d::allocate_textures_for(0, 1, 3, 4, 0, gfx, d3d);
+    let (_, system) = crate::platform::direct3d::allocate_textures_for(0, 1, 3, 4, 0, gfx, d3d);
     drawing.scene.get().mirror_picture.set(system);
     Ok(())
 }

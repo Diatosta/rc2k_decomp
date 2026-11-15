@@ -150,7 +150,7 @@ pub fn place_object_points(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
                 &ctx.view.polygon.window,
                 ctx.reads.course_work.flat_depth.get(),
                 flat,
-                &crate::session::Dword::new(0),
+                &crate::memory::session::Dword::new(0),
             );
         }
         point_records::set(ctx.part, record, r)?;
@@ -212,7 +212,7 @@ pub fn place_object_points_sse(
                 &ctx.view.polygon.window,
                 ctx.reads.course_work.flat_depth.get(),
                 flat,
-                &crate::session::Dword::new(0),
+                &crate::memory::session::Dword::new(0),
             );
         }
         point_records::set(ctx.part, record, r)?;

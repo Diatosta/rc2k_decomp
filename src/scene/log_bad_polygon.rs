@@ -10,8 +10,8 @@
 //! line's end; and a last line's end. Caller: `scene::show_bad_polygon`. Refuses (before
 //! anything) more than 64 vertices.
 
-use crate::cells::Store;
 use crate::errors::BadInput;
+use crate::memory::cells::Store;
 
 /// A value as the dump shows it.
 #[derive(Clone, Copy)]
@@ -29,7 +29,7 @@ enum Shown {
 }
 
 /// The value column: what the line shows.
-type Value = fn(&crate::race::view_scratch::ViewScratch, &crate::session::Screen) -> Shown;
+type Value = fn(&crate::race::view_scratch::ViewScratch, &crate::memory::session::Screen) -> Shown;
 const MOST: u32 = 64;
 
 /// (label, value): the head's lines before the mask's clearing, and after.
@@ -103,7 +103,7 @@ const PT: &std::ffi::CStr = c"pt"; // "pt"
 /// vertex buffer: the longest read is the last vertex's 0x20 bytes of its 0x800).
 pub fn log_bad_polygon(
     view: &crate::race::view_scratch::ViewScratch,
-    screen: &crate::session::Screen,
+    screen: &crate::memory::session::Screen,
     vertices: &dyn Store,
 ) -> Result<(), BadInput> {
     let count: u32 = view.polygon.polygon_vertex_count.get();

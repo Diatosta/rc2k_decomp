@@ -2,8 +2,8 @@
 //! its size bits and the menus' other bits (`gfx::try_screen_mode`): if that works it becomes the
 //! menus' mode.
 
+use crate::errors::CarryZeroFlags;
 use crate::errors::Refused;
-use crate::framework::CarryZeroFlags;
 use crate::gfx::owner::Gfx;
 
 /// Keeps the race's mode `mode`: the flags it leaves (`try_screen_mode`'s).

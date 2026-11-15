@@ -3,8 +3,8 @@
 //! bytes each) and the texts they point at. One static.
 
 use crate::errors::BadInput;
+use crate::memory::session::{PlainBytes, PlainDword, Shared, with_runs};
 use crate::menu::owner::Menus;
-use crate::session::{PlainBytes, PlainDword, Shared, with_runs};
 use rc2k_core::screens::car_pages::CarDescription;
 
 /// The car table.

@@ -40,7 +40,7 @@ pub fn measure_frame_rate(
     if !due {
         return None;
     }
-    let whole = crate::arch::rdtsc();
+    let whole = crate::platform::arch::rdtsc();
     let now = whole as u32;
     shared.switches.get().frame_now.set(now);
     if let Some(cycles) = cycles_since(whole, LAST.swap(whole, Relaxed)) {

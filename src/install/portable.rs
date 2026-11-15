@@ -170,7 +170,7 @@ fn write_record(status: u8, folder: Option<Vec<u8>>) {
     } else {
         "not written: no var folder there".to_string()
     };
-    crate::framework::log(&format!(
+    crate::logfile::program_log::log(&format!(
         "install: the installation's record (status {status}) in \"{folder}\": {what}"
     ));
 }

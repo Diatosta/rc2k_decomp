@@ -6,10 +6,10 @@
 //! count of 31 or more lets the search run there), nothing written.
 
 use crate::errors::Refused;
+use crate::memory::session::PlainDword;
 use crate::physics::car_store::Car;
 use crate::physics::gear_bit::bits_at;
 use crate::physics::tables_store::PhysicsTables;
-use crate::session::PlainDword;
 
 /// On the bits at `bits` and the count `count`.
 // Core: `rc2k_core::physics::gearbox::GearBits::higher_free`.

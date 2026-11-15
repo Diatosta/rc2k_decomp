@@ -11,7 +11,7 @@ pub const KINDS: u32 = 0x400;
 /// Typed tables (`KIND_TEXTURES.kind_first_slots`, ...) as slices for the core: each read
 /// out, `f` run on the copies, each written back (also after a refusal: the core's writes
 /// up to it are kept, as when it worked on the tables in place).
-pub fn with_cells<const N: usize, R, C: crate::session::Cell32>(
+pub fn with_cells<const N: usize, R, C: crate::memory::session::Cell32>(
     cells: [&[C]; N],
     f: impl FnOnce(&mut [Vec<u32>; N]) -> R,
 ) -> R {

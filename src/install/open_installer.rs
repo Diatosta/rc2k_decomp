@@ -16,7 +16,7 @@ const FONT_1002: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::L
 /// read.
 fn read<const N: usize>(
     path: &[u8],
-    buffer: &crate::session::PlainBytes<N>,
+    buffer: &crate::memory::session::PlainBytes<N>,
     count: usize,
     code: u32,
 ) -> Result<(), Refused> {

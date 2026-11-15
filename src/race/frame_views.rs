@@ -47,8 +47,8 @@ const MIRROR_REACH: u32 = 2;
 pub fn mirror_view_window(
     race: &Race,
     view: &crate::race::view_scratch::ViewScratch,
-    part: &crate::workers::PartScratch,
-    reads: crate::workers::DrawReads<'_>,
+    part: &crate::scene::workers::PartScratch,
+    reads: crate::scene::workers::DrawReads<'_>,
 ) -> Result<(), Refused> {
     let draw = reads.scene_draw;
     let (fog, poly, car, vars) = (&view.fog, &view.polygon, &view.car, &view.vars);
@@ -72,7 +72,7 @@ pub fn mirror_view_window(
                 trap.keep(BadInput("a mirror place past the twelve"));
                 0
             },
-            super::super::session::PlainDword::get,
+            crate::memory::session::PlainDword::get,
         )
     };
     let Some(MirrorRect {
@@ -122,7 +122,10 @@ pub fn mirror_view_window(
 
 /// Draws a flat triangle of three vertices at (1, 1, 0) with texture 0 and colour 0
 /// (`scene::draw_fan`, `polygon_vertex_count` 3).
-pub fn draw_flat_triangle(part: &crate::workers::PartScratch, scene: &crate::scene::owner::Scene) {
+pub fn draw_flat_triangle(
+    part: &crate::scene::workers::PartScratch,
+    scene: &crate::scene::owner::Scene,
+) {
     let buffer = &part.vertices;
     // 1.0 at x, y of each of the three vertices; 0.0 at the rest of their floats (z, rhw, u, v) and
     // the specular.
@@ -466,7 +469,7 @@ pub fn draw_screen_tint(
 pub fn clear_view_depth(
     scene: &crate::scene::owner::Scene,
     system: &crate::system::owner::System,
-    part: &crate::workers::PartScratch,
+    part: &crate::scene::workers::PartScratch,
     poly: &crate::scene::polygon_work::PolygonWork,
 ) {
     let session = &system.session;
@@ -648,11 +651,11 @@ pub fn run_view_marks(
 /// `v3_driver_fix` is not 0.
 pub fn clear_viewport_unless_held(
     draw: &crate::scene::draw_store::SceneDraw,
-    part: &crate::workers::PartScratch,
-    own: &[crate::session::PlainDword; 4],
+    part: &crate::scene::workers::PartScratch,
+    own: &[crate::memory::session::PlainDword; 4],
 ) {
     if draw.v3_driver_fix.get() == 0 {
-        crate::platform_3d::clear_viewport(part, own);
+        crate::platform::direct3d::clear_viewport(part, own);
     }
 }
 

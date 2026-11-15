@@ -3,6 +3,7 @@
 //! pages; `display_rows`: the display page's figures named and grouped; `imgui_sdl`: ImGui on
 //! SDL; `wear_page`: the display page's surface names and reads.
 
+pub mod check_hash;
 #[cfg(debug_ui)]
 pub mod imgui_sdl;
 /// No debug UI in the 32-bit build (Dear ImGui's crate has no such Windows target).
@@ -10,7 +11,7 @@ pub mod imgui_sdl;
 pub mod imgui_sdl {
     /// The key does nothing but say so.
     pub fn toggle() -> bool {
-        crate::framework::log("debug: no debug UI in the 32-bit build");
+        crate::logfile::program_log::log("debug: no debug UI in the 32-bit build");
         false
     }
 
@@ -36,8 +37,8 @@ pub mod imgui_sdl {
     #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // the handheld has neither
     pub fn draw(
         _owners: &crate::owners::Owners<'static>,
-        _renderer: crate::ffi::sdl::Renderer,
-        _window: crate::ffi::sdl::Window,
+        _renderer: crate::platform::ffi::sdl::Renderer,
+        _window: crate::platform::ffi::sdl::Window,
     ) {
     }
 }

@@ -41,11 +41,11 @@ pub fn date_text(system: &crate::system::owner::System) -> Result<Vec<u8>, BadIn
 /// text with the CR and LF (what a read up to the first NUL finds there).
 pub fn write_date_text(
     system: &crate::system::owner::System,
-    at: &dyn crate::cells::Store,
+    at: &dyn crate::memory::cells::Store,
 ) -> Result<Vec<u8>, BadInput> {
     let text = date_text(system)?;
     at.store(0, &text)?;
-    crate::cells::store_value(at, text.len(), 0x0A0Du32)?;
+    crate::memory::cells::store_value(at, text.len(), 0x0A0Du32)?;
     let mut line = text;
     line.extend_from_slice(b"\r\n");
     Ok(line)

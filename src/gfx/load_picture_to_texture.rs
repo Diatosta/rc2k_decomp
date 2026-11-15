@@ -10,7 +10,7 @@ use crate::errors::Refused;
 use crate::gfx::read_texture_picture::read_texture_picture;
 use crate::gfx::texture_upload::{Record, keep_second_picture};
 use crate::gfx::upload_texture_picture::{GameSurfaces, upload_texture_picture};
-use crate::session::TextPlace;
+use crate::memory::session::TextPlace;
 
 /// A texture's picture, read: the picture buffer's handle and the picture's size.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

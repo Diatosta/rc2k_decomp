@@ -7,7 +7,7 @@
 //! the only writes are the picture loaders', which may swap a path's extension in place
 //! (`files::swap_missing_extension`).
 
-use crate::session::{PlainBytes, PlainDword, with_runs};
+use crate::memory::session::{PlainBytes, PlainDword, with_runs};
 
 #[cfg_attr(test, repr(C, align(4)))]
 #[derive(rc2k_derive::Cells)]
@@ -1893,9 +1893,9 @@ macro_rules! menu_texts {
             const ALL: &[MenuText] = &[$(MenuText::$field,)*];
 
             /// The text's bytes: its field.
-            fn place(self, texts: &'static MenuTexts) -> crate::place::BytePlace {
+            fn place(self, texts: &'static MenuTexts) -> crate::memory::place::BytePlace {
                 match self {
-                    $(MenuText::$field => crate::place::BytePlace::from(&texts.$field),)*
+                    $(MenuText::$field => crate::memory::place::BytePlace::from(&texts.$field),)*
                 }
             }
         }
@@ -2190,7 +2190,7 @@ pub fn speech_entry(
 pub fn text_at(
     texts: &'static MenuTexts,
     key: u32,
-) -> Result<crate::place::BytePlace, crate::errors::BadInput> {
+) -> Result<crate::memory::place::BytePlace, crate::errors::BadInput> {
     let text = key
         .checked_sub(1)
         .and_then(|n| MenuText::ALL.get(n as usize))

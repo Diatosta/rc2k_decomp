@@ -6,7 +6,7 @@
 //! the last row the 1:20 under "ride height" and "suspension stiffness".
 
 use crate::errors::Refused;
-use crate::session::read_all;
+use crate::memory::session::read_all;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----

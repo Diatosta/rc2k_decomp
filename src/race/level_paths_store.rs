@@ -2,7 +2,7 @@
 //! of the texture pictures (a name and a second name for each of six folders), then the course's
 //! `editpref`, `cdat00c` and `localdat` paths. The fields keep a fixed layout.
 
-use crate::session::PlainBytes;
+use crate::memory::session::PlainBytes;
 
 #[derive(rc2k_derive::Cells)]
 pub struct LevelPaths {

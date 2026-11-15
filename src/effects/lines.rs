@@ -7,12 +7,12 @@ use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::memory::owned::Owned;
+use crate::memory::session::{PlainDword, PlainFloat};
 use crate::race::effects_settings_store::{CarEffects, EffectsSettings};
 use crate::race::owner_course::Course;
 use crate::scene::object_slots_store::SlotTable;
 use crate::scene::objects::FACES;
 use crate::scene::owner::Scene;
-use crate::session::{PlainDword, PlainFloat};
 use rc2k_core::effects::lines as core;
 
 /// A settings block is a car record's part (`core::BLOCKS_AT` from the settings).

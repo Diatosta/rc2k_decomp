@@ -18,11 +18,11 @@
 //! (`rc2k_core::physics::patches`): each figure is one correctly rounded quotient or product at
 //! the game's double and extended precision.
 
+use crate::memory::session::PlainFloat;
 use crate::physics::tables_store::PhysicsTables;
 use crate::physics::tables_store::Surface;
 use crate::race::numbers_store::Numbers;
 use crate::race::work_store::RaceWork;
-use crate::session::PlainFloat;
 use rc2k_core::physics::patches::{Patches, apply_patches as apply_patches_core};
 
 /// The twelve ground records patched: `PHYSICS.surfaces[1 ..= 12]`.
@@ -65,7 +65,7 @@ fn store(tables: &PhysicsTables, work: &RaceWork, before: &Patches, after: &Patc
             w.patch_settings()[n].set(after.settings[n]);
         }
     }
-    let put = |f: &dyn crate::session::Cell32, old: u32, new: u32| {
+    let put = |f: &dyn crate::memory::session::Cell32, old: u32, new: u32| {
         if old != new {
             f.set_bits(new);
         }

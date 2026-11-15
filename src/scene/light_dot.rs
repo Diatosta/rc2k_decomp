@@ -15,11 +15,11 @@ pub fn light_dot(light: &crate::scene::object_light::ObjectLight) -> i32 {
     let [p0, p1, p2] = light
         .light_dot_point
         .each_ref()
-        .map(crate::session::PlainFloat::get);
+        .map(crate::memory::session::PlainFloat::get);
     let [l0, l1, l2] = light
         .light_dot_light
         .each_ref()
-        .map(crate::session::PlainFloat::get);
+        .map(crate::memory::session::PlainFloat::get);
     dot([p0, p1, p2], [l0, l1, l2], light.light_dot_factor.get())
 }
 

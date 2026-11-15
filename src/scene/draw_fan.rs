@@ -3,7 +3,7 @@ const DRAWTRI_RVA: &std::ffi::CStr = c"drawtri"; // aDrawtri_0
 
 /// The device's result is read by none of its callers.
 pub fn draw_fan(
-    part: &crate::workers::PartScratch,
+    part: &crate::scene::workers::PartScratch,
     scene: &Scene,
     poly: &crate::scene::polygon_work::PolygonWork,
     buffer: &crate::d3d::vertices_store::PolygonVertices,

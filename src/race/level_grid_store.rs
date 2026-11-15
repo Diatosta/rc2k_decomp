@@ -3,10 +3,10 @@
 //! cell limit, the turned view position and depth shift, and the flares' place-x table. Used by
 //! `race::frame_draw`, `scene::add_point_lights`, `scene::draw_polygon`, `race::course_faces`,
 //! `hud::overlay_pass`. Plain cells: a drawing store (`session::DrawShared`), written on the game's
-//! thread between frames and read by the drawing parts through their `workers::DrawReads`.
+//! thread between frames and read by the drawing parts through their `scene::workers::DrawReads`.
 
-use crate::cells::ZeroCells;
-use crate::session::{PlainBytes, PlainDword, PlainFloat};
+use crate::memory::cells::ZeroCells;
+use crate::memory::session::{PlainBytes, PlainDword, PlainFloat};
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct LevelGrid {

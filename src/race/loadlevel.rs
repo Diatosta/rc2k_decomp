@@ -152,7 +152,7 @@ pub fn loadlevel_init(
     }
     race.shared.work.get().stage_direction.set(direction);
     race.course.numbers.get().in_race.set(true);
-    crate::workers::set_game_part_racing(&scene.scratch, true);
+    crate::scene::workers::set_game_part_racing(&scene.scratch, true);
     o.audio.racing.set(true);
     s.mark(0)?;
     s.indent(-3);

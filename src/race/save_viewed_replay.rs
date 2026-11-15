@@ -144,7 +144,7 @@ fn save(race: &Race, system: &System, slot: u32) -> Result<bool, Refused> {
 fn undo_place(
     buffers: &ViewerBuffers,
     n: usize,
-) -> Result<&crate::session::PlainDword, crate::errors::BadInput> {
+) -> Result<&crate::memory::session::PlainDword, crate::errors::BadInput> {
     buffers
         .undo_places
         .get(n)

@@ -8,7 +8,7 @@
 
 use crate::errors::BadInput;
 use crate::install::run_flags::{Command, GivenInstall};
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 use crate::system::owner::Start;
 
 const EXIT_PATH: usize = 0x401116;
@@ -19,7 +19,7 @@ pub fn show_version_and_leave(start: &Start) -> ! {
     let caption = &crate::fatal::state::CAPTION;
     // The `:` of the caption text is cut (the title is "Rally" alone).
     caption.set(5, 0);
-    let c_text = |at: &dyn crate::cells::Store, what| {
+    let c_text = |at: &dyn crate::memory::cells::Store, what| {
         crate::files::cstring(at, what).unwrap_or_else(|e| leave(e))
     };
     // The text from its seventh byte up to its NUL.
@@ -37,7 +37,7 @@ pub fn show_version_and_leave(start: &Start) -> ! {
         .write_at(0, &kept, "the version's text")
         .unwrap_or_else(|e| leave(e));
     let caption = c_text(caption, "the caption");
-    crate::os::message_box(crate::os::Icon::Information, &caption, &text);
+    crate::platform::os::message_box(crate::platform::os::Icon::Information, &caption, &text);
     crate::standalone::finish(&format!("the game's way out {EXIT_PATH:#x} was reached"), 0)
 }
 
@@ -90,7 +90,7 @@ pub fn read_command_line(
 /// `GetCommandLineA`; kept as a region); `-v` shows the version and leaves through
 /// `start`'s exit path.
 pub fn read_own_command_line(o: crate::owners::Owners<'static>) -> Result<(), BadInput> {
-    let mut line = crate::os::command_line();
+    let mut line = crate::platform::os::command_line();
     line.push(0);
     let start = o.system.start();
     let command = read_command_line(start, o.install, &o.gfx.d3d, o.audio, &line)?;

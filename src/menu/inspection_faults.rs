@@ -4,9 +4,9 @@
 //!
 //! Refuses a current player past 3 or missing, before anything.
 use crate::errors::{BadInput, Refused};
+use crate::memory::session::write_prefix;
 use crate::menu::owner::Menus;
 use crate::menu::standings::*;
-use crate::session::write_prefix;
 
 pub fn inspection_faults(menus: &Menus) -> Result<(), Refused> {
     let n: u32 = menus.screens.event.current_player.get();

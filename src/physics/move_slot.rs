@@ -25,13 +25,13 @@ use crate::errors::Refused;
 use crate::math::x87;
 use crate::math::x87::{abs_compare, abs_of, mul, mul2_to_int, negated};
 use crate::math::x87_float as bh;
+use crate::memory::session::{FloatLike, PlainDword, PlainFloat};
 use crate::physics::axis_turn_matrix::axis_turn_matrix;
 use crate::physics::step_families::SlotInputs;
 use crate::race::work_store::{RaceSlot, RaceWork};
 use crate::scene::matrix::multiply_matrices;
 use crate::scene::matrix3::rounded_value;
 use crate::scene::view_matrix::{square_matrix, unit_vector};
-use crate::session::{FloatLike, PlainDword, PlainFloat};
 
 /// A place (three whole numbers) copied.
 fn copy_place(from: &[PlainDword; 3], to: &[PlainDword; 3]) {

@@ -2,7 +2,7 @@
 //! class figures, the fade, the inspection's figures and the four setup items. Structs of
 //! atomic cells, one static.
 
-use crate::session::{PlainDword, PlainFlag, PlainFloat};
+use crate::memory::session::{PlainDword, PlainFlag, PlainFloat};
 
 /// The service area's boxes and the inspection's fade.
 #[derive(rc2k_derive::Cells)]

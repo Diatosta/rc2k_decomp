@@ -6,9 +6,9 @@
 //!
 //! Caller: `physics::race_timers`.
 
+use crate::memory::session::PlainDword;
 use crate::physics::car_store::Car;
 use crate::race::numbers_store::Numbers;
-use crate::session::PlainDword;
 use rc2k_core::physics::motion::stop_timers;
 
 /// The stand timers and the finish flag counted on while the car stands (a compare of

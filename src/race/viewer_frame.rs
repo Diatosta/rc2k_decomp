@@ -14,9 +14,9 @@
 //! `race::replay_viewer`).
 
 use crate::errors::{BadInput, Refused};
+use crate::memory::session::PlainDword;
 use crate::owners::Owners;
 use crate::race::owner::Race;
-use crate::session::PlainDword;
 
 /// Draws one viewer frame; returns whether the frame was lost.
 pub fn viewer_frame(o: Owners<'static>) -> Result<bool, Refused> {
@@ -26,7 +26,7 @@ pub fn viewer_frame(o: Owners<'static>) -> Result<bool, Refused> {
         crate::gfx::clear_back_surface::clear_back_surface(gfx, system)?;
     }
     // Beginning the scene cannot fail.
-    crate::platform_3d::begin_layer(&o.gfx.d3d, o.scene.scratch.game_scratch());
+    crate::platform::direct3d::begin_layer(&o.gfx.d3d, o.scene.scratch.game_scratch());
     if !race.shared.replay_file().replay_at_end.is_set() {
         crate::drive::replay_frame_marks::replay_frame_marks(race)?;
         crate::race::show_replay_still::show_replay_still(race, o)?;
@@ -34,13 +34,13 @@ pub fn viewer_frame(o: Owners<'static>) -> Result<bool, Refused> {
     if replay.replay_view().snapshot_asked.get() == 1 {
         replay.replay_view().snapshot_asked.set(0);
         // Nor can ending it.
-        crate::platform_3d::end_layer(&o.gfx.d3d);
+        crate::platform::direct3d::end_layer(&o.gfx.d3d);
         crate::race::viewer_snapshot::viewer_snapshot(replay, gfx, o.system)?;
     } else {
         if race.shared.replay_file().viewer_stopped.is_set() {
             stopped(race, o)?;
         }
-        crate::platform_3d::end_layer(&o.gfx.d3d);
+        crate::platform::direct3d::end_layer(&o.gfx.d3d);
     }
     // Not shown: the frame is lost.
     Ok(!crate::platform::show_frame_now(o))

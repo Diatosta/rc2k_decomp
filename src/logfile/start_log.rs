@@ -10,7 +10,7 @@ use crate::logfile::date_text::write_date_text;
 use crate::logfile::log_hex8::log_hex8;
 use crate::logfile::log_int::log_int;
 use crate::logfile::write_line::{LOG_PATH, level};
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 use crate::system::owner::System;
 
 /// The version's text.
@@ -18,13 +18,14 @@ pub const VERSION: &[u8] = b"$VER: Rally 5.30 (4.8.2000)\0";
 /// `StartTexts.second_text`: a second text, logged when not empty (it is empty).
 pub const SECOND_TEXT: &[u8] = b"\0";
 /// What the log's head says of the current drive. Nothing reads it.
-pub static FREE_SPACE_KB: crate::session::GameThread<crate::session::PlainDword> =
-    crate::session::GameThread::new(crate::session::PlainDword::new(0));
+pub static FREE_SPACE_KB: crate::memory::session::GameThread<crate::memory::session::PlainDword> =
+    crate::memory::session::GameThread::new(crate::memory::session::PlainDword::new(0));
 
 /// The free space of the current drive in Kb, or 0xFFFFFFFF if it cannot be asked or is 2^42
 /// bytes or more.
 pub fn free_space_kb() -> u32 {
-    let Some([cluster_sectors, sector_bytes, free, _]) = crate::os::disk_free(None) else {
+    let Some([cluster_sectors, sector_bytes, free, _]) = crate::platform::os::disk_free(None)
+    else {
         return u32::MAX;
     };
     // The cluster's bytes as 32 bits, times the free clusters as 64.
@@ -68,7 +69,7 @@ pub fn start_log(system: &System) -> Result<(), BadInput> {
     // The date in the numbers' scratch buffer (the log's lock is not held: no thread logs yet).
     let date = write_date_text(system, &system.work().numbers)?;
     // `Buffer`, written and read here only: a local.
-    let memory = crate::os::memory();
+    let memory = crate::platform::os::memory();
     let free = free_space_kb();
     FREE_SPACE_KB.get().set(free);
     let m = Machine {

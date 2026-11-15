@@ -18,9 +18,9 @@ use crate::scene::project_point::{NEAR, project_point};
 // ---- game data ----
 
 pub fn project_polygon(
-    part: &crate::workers::PartScratch,
+    part: &crate::scene::workers::PartScratch,
     poly: &crate::scene::polygon_work::PolygonWork,
-    reads: crate::workers::DrawReads<'_>,
+    reads: crate::scene::workers::DrawReads<'_>,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
     let polygon_work = &part.polygon;
@@ -29,10 +29,10 @@ pub fn project_polygon(
 
 /// `project_polygon` on the polygon's entries as listed.
 pub fn project_entries(
-    part: &crate::workers::PartScratch,
+    part: &crate::scene::workers::PartScratch,
     poly: &crate::scene::polygon_work::PolygonWork,
     entries: &Listed,
-    reads: crate::workers::DrawReads<'_>,
+    reads: crate::scene::workers::DrawReads<'_>,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
     if entries.is_empty() {

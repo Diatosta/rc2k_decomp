@@ -3,10 +3,10 @@
 //! course work) or a drawing's cells (`GroundCells`: the shadow's and the course view's searches do
 //! not write the physics' work, since nothing in the physics reads what they leave there).
 
+use crate::memory::session::{PlainDword, PlainFloat};
 use crate::physics::ground_probe_store::GroundProbe;
 use crate::physics::ground_store::GroundWork;
 use crate::race::course_store::CourseWork;
-use crate::session::{PlainDword, PlainFloat};
 
 /// The search's fields (the physics' names in brackets).
 #[derive(Clone, Copy)]

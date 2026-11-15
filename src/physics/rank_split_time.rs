@@ -10,11 +10,11 @@
 //! Caller: `physics::split_by_mode`. Refuses a split or a split count past 0x40, a divisor of 0 or
 //! a quotient past a dword; what was written is put back.
 use crate::errors::{BadInput, Refused};
+use crate::memory::session::PlainDword;
 use crate::physics::fill_rival_table::fill_rival_table;
 use crate::physics::split_tables_store::SplitTables;
 use crate::race::groups_store::PanelAndOverlay;
 use crate::race::owner_shared::RaceShared;
-use crate::session::PlainDword;
 use crate::strings::append_string_by_id::append_string_by_id;
 use rc2k_core::physics::splits::{RIVALS, gap, rank, scaled_time, split_scale};
 
@@ -34,7 +34,7 @@ fn name(
         crate::strings::append_string_by_id::StringOwners::of(o),
         id,
         &mut |bytes| {
-            if let Err(e) = crate::cells::Store::store(text, written as usize, bytes) {
+            if let Err(e) = crate::memory::cells::Store::store(text, written as usize, bytes) {
                 refused.get_or_insert(e);
             }
             written += bytes.len() as u32;

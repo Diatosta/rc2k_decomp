@@ -2,7 +2,7 @@
 //! bytes and kept in `script_path` (for Escape, `install::edit_key`). Called by
 //! `install::item_enter`, `install::next_edit`.
 
-use crate::list_handle::ListItem;
+use crate::memory::list_handle::ListItem;
 
 pub fn start_edit(install: &'static crate::install::owner::Install, item: ListItem) {
     let record = item.edit_field(install);
@@ -15,7 +15,7 @@ pub fn start_edit(install: &'static crate::install::owner::Install, item: ListIt
     text.write(&words, "an edited text")
         .unwrap_or_else(|e| crate::install::installer::refuse(e));
     record.set_flags(flags);
-    crate::place::BytePlace::from(&install.paths.script_path)
+    crate::memory::place::BytePlace::from(&install.paths.script_path)
         .write(&words, "the edit's backup")
         .unwrap_or_else(|e| crate::install::installer::refuse(e));
 }

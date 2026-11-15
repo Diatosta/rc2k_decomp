@@ -7,12 +7,12 @@
 //! lists nothing writes; 0x10 has only 8's keys. What this tab writes is the game's memory until
 //! the stage reloads, as the developers' keys did.
 
+use crate::memory::session::PlainDword;
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use crate::race::view_vars_store::{ViewRecord, ViewVars};
 use crate::scene::owner::Scene;
-use crate::session::PlainDword;
 use dear_imgui_rs::{TreeNodeFlags, Ui};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering::Relaxed};
@@ -126,7 +126,7 @@ static KEPT: Mutex<usize> = Mutex::new(0);
 
 /// The game's own cell of group `g`'s entry in the car's face table (the first of a table the
 /// face code indexes by group, on past its one named cell).
-fn group_cell(scene: &Scene, g: usize) -> &crate::session::PlainDword {
+fn group_cell(scene: &Scene, g: usize) -> &crate::memory::session::PlainDword {
     let switches = scene.draw_switches.get();
     match g.checked_sub(1) {
         None => &switches.group_table,

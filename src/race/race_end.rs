@@ -10,7 +10,7 @@ use rc2k_core::audio::commands::Command;
 pub fn setting_cell(
     race: &Race,
     s: rc2k_core::race::replay::Setting,
-) -> &dyn crate::session::DwordLike {
+) -> &dyn crate::memory::session::DwordLike {
     let shared = &race.shared;
     use rc2k_core::race::replay::Setting::*;
     match s {
@@ -30,7 +30,7 @@ pub fn setting_cell(
 pub fn header_cell(
     race: &Race,
     s: rc2k_core::race::replay::Setting,
-) -> &crate::session::PlainDword {
+) -> &crate::memory::session::PlainDword {
     let work = race.replay_work();
     use rc2k_core::race::replay::Setting::*;
     match s {
@@ -105,7 +105,7 @@ fn reset_object(o: &crate::sound::store::SoundObject) {
 }
 /// The race sound stage's flags (the run of dwords in the stage block): all set to 0.
 fn clear_stage_flags(sound: &crate::sound::owner::Sound) {
-    use crate::session::DwordLike;
+    use crate::memory::session::DwordLike;
     let s = sound.race.stage.get();
     let flags: [&dyn DwordLike; 11] = [
         &s.once[0],
@@ -277,7 +277,7 @@ pub fn tidy_stage(
     s.indent(3);
     free(race, &scene.scratch, &OBJECT_POINTS)?;
     race.course.numbers.get().in_race.set(false);
-    crate::workers::set_game_part_racing(&scene.scratch, false);
+    crate::scene::workers::set_game_part_racing(&scene.scratch, false);
     audio.racing.set(false);
     race.frame
         .view_and_records

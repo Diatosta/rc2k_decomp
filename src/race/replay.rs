@@ -6,10 +6,10 @@
 //! primitives are `files::handle`'s.
 
 use crate::errors::{BadInput, Refused};
+use crate::memory::session::{PlainBytes, PlainDword};
 use crate::menu::owner::Menus;
 use crate::race::owner::Race;
 use crate::race::owner_replay::Replay;
-use crate::session::{PlainBytes, PlainDword};
 use crate::system::owner::System;
 #[cfg(test)]
 use crate::test_support::own::menus;
@@ -244,7 +244,7 @@ pub fn block_place(race: &Race, k: usize) -> Result<u32, BadInput> {
         .index
         .block_places
         .get(k)
-        .map(crate::session::PlainDword::get)
+        .map(crate::memory::session::PlainDword::get)
         .ok_or(BadInput("the replay index: a block past the 1800"))
 }
 
@@ -482,7 +482,7 @@ mod seal_key_tests {
 #[cfg(test)]
 mod header_tests {
     use super::*;
-    use crate::session::DwordLike;
+    use crate::memory::session::DwordLike;
     use crate::test_support::own::race;
 
     const LOCALE: &str = "owners.strings.language.locale";
@@ -592,8 +592,8 @@ mod header_tests {
             let bytes = cells[skip..skip + size].to_vec();
             let work = race().replay_work();
             match to {
-                Sealed(at) => crate::cells::Store::store(&work.sealed_header, at, &bytes)?,
-                Door => crate::cells::Store::store(&work.unknown_7d0[0], 0, &bytes)?,
+                Sealed(at) => crate::memory::cells::Store::store(&work.sealed_header, at, &bytes)?,
+                Door => crate::memory::cells::Store::store(&work.unknown_7d0[0], 0, &bytes)?,
             }
         }
         Ok(())

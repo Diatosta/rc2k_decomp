@@ -3,7 +3,7 @@
 //! are the same table 0x400 places on), the arctangents, the noise bytes, the room the object
 //! files are read into and the shuffled words.
 
-use crate::session::{PlainBytes, PlainFloat, PlainWord};
+use crate::memory::session::{PlainBytes, PlainFloat, PlainWord};
 
 #[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells)]

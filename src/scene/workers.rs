@@ -19,9 +19,9 @@
 //! at its place in the part's order, as `draw_parts` puts a part's after the earlier ones.
 
 use crate::errors::{BadInput, Refused};
-use crate::part_cell::{PartCell, PartTurn};
+use crate::memory::part_cell::{PartCell, PartTurn};
+use crate::memory::session::GameThread;
 use crate::race::view_scratch::{PART_SLOTS, ViewScratch};
-use crate::session::GameThread;
 use std::cell::Cell;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Condvar, Mutex, OnceLock};
@@ -56,7 +56,7 @@ pub struct PartScratch {
     pub records_written: crate::scene::point_records::Written,
     /// Whether the point records are taken (`scene::point_records::take`), set for every part
     /// on the game's thread between scopes.
-    pub records_taken: crate::session::PlainFlag,
+    pub records_taken: crate::memory::session::PlainFlag,
     /// The held matrix columns while a part other than the first is drawn
     /// (`scene::view_matrices::Held`), from the list's start.
     pub columns: crate::scene::view_matrices::OwnColumns,
@@ -68,18 +68,18 @@ pub struct PartScratch {
     pub cache: crate::d3d::render_cache::OwnCache,
     /// Where such a part first set each state (`d3d::run_states::OwnRun`).
     pub run: crate::d3d::run_states::OwnRun,
-    /// The drawing it has noted (`platform_3d::Noted`): the first part's what the game's
+    /// The drawing it has noted (`platform::direct3d::Noted`): the first part's what the game's
     /// thread flushes, the others' put after it at their runs' ends. Behind a mutex: it is
-    /// reached by the game's thread (`platform_3d::game_part`) as well as by the part's own.
-    pub noted: crate::platform_3d::Noted,
+    /// reached by the game's thread (`platform::direct3d::game_part`) as well as by the part's own.
+    pub noted: crate::platform::direct3d::Noted,
     /// Whether a race is on (`race::numbers_store::Numbers::in_race`) as the parts of a
     /// drawing scope read it, set from the store before the scope opens (`draw_parts`): the
     /// GPU draws only then. Read through `in_race`.
-    pub in_race: crate::session::PlainFlag,
+    pub in_race: crate::memory::session::PlainFlag,
     /// The screen's width, height and bits per pixel (`session::Screen`) as the parts of a
     /// drawing scope read them for the noted drawing, set from the store before the scope
-    /// opens (`draw_parts`), as `in_race` is. Read by `platform_3d`.
-    pub screen_size: [crate::session::PlainDword; 3],
+    /// opens (`draw_parts`), as `in_race` is. Read by `platform::direct3d`.
+    pub screen_size: [crate::memory::session::PlainDword; 3],
 }
 
 impl PartScratch {
@@ -91,7 +91,7 @@ impl PartScratch {
             polygon: crate::scene::polygon_store::PolygonWork::new(),
             records: crate::scene::point_records::new_records(),
             records_written: crate::scene::point_records::new_written(),
-            records_taken: crate::session::PlainFlag::new(false),
+            records_taken: crate::memory::session::PlainFlag::new(false),
             columns: crate::scene::view_matrices::OwnColumns::new(),
             points: crate::race::scene_points::OwnPoints::new(),
             cache: if first {
@@ -100,9 +100,9 @@ impl PartScratch {
                 crate::d3d::render_cache::OwnCache::new()
             },
             run: crate::d3d::run_states::OwnRun::new(),
-            noted: crate::platform_3d::Noted::new(),
-            in_race: crate::session::PlainFlag::new(false),
-            screen_size: [const { crate::session::PlainDword::new(0) }; 3],
+            noted: crate::platform::direct3d::Noted::new(),
+            in_race: crate::memory::session::PlainFlag::new(false),
+            screen_size: [const { crate::memory::session::PlainDword::new(0) }; 3],
         }
     }
 }
@@ -321,7 +321,7 @@ pub struct DrawScope<'o> {
 
 impl<'o> DrawScope<'o> {
     fn open(scratch: &'o DrawingScratch) -> Self {
-        crate::session::assert_game_thread();
+        crate::memory::session::assert_game_thread();
         let was = IN_SCOPE.swap(true, std::sync::atomic::Ordering::Relaxed);
         debug_assert!(!was, "a drawing scope opened inside another");
         Self { scratch }
@@ -330,7 +330,7 @@ impl<'o> DrawScope<'o> {
 
 impl Drop for DrawScope<'_> {
     fn drop(&mut self) {
-        crate::session::end_lending();
+        crate::memory::session::end_lending();
         self.scratch.end_claims(self);
         IN_SCOPE.store(false, std::sync::atomic::Ordering::Relaxed);
     }
@@ -363,54 +363,66 @@ impl<'a> LentOwners<'a> {
 pub struct Lent<'s> {
     /// The scratch the drawing works on (`Scene::scratch`).
     scratch: &'s DrawingScratch,
-    light_tables: crate::session::PhaseRead<'s, crate::scene::light_tables_store::LightTables>,
+    light_tables:
+        crate::memory::session::PhaseRead<'s, crate::scene::light_tables_store::LightTables>,
     // The scene's other drawing stores.
-    light_work: crate::session::PhaseRead<'s, crate::scene::light_work_store::LightWork>,
-    draw_switches: crate::session::PhaseRead<'s, crate::scene::draw_switches_store::DrawSwitches>,
-    object_tables: crate::session::PhaseRead<'s, crate::scene::object_tables_store::ObjectTables>,
-    object_slots: crate::session::PhaseRead<'s, crate::scene::object_slots_store::ObjectTables>,
+    light_work: crate::memory::session::PhaseRead<'s, crate::scene::light_work_store::LightWork>,
+    draw_switches:
+        crate::memory::session::PhaseRead<'s, crate::scene::draw_switches_store::DrawSwitches>,
+    object_tables:
+        crate::memory::session::PhaseRead<'s, crate::scene::object_tables_store::ObjectTables>,
+    object_slots:
+        crate::memory::session::PhaseRead<'s, crate::scene::object_slots_store::ObjectTables>,
     kind_textures:
-        crate::session::PhaseRead<'s, crate::scene::kind_texture_store::KindTextureTables>,
+        crate::memory::session::PhaseRead<'s, crate::scene::kind_texture_store::KindTextureTables>,
     texture_places:
-        crate::session::PhaseRead<'s, crate::scene::texture_places_store::TexturePlaces>,
-    light_state: crate::session::PhaseRead<'s, crate::scene::light_store::LightState>,
+        crate::memory::session::PhaseRead<'s, crate::scene::texture_places_store::TexturePlaces>,
+    light_state: crate::memory::session::PhaseRead<'s, crate::scene::light_store::LightState>,
     // The scene's draw variables.
-    scene_draw: crate::session::PhaseRead<'s, crate::scene::draw_store::SceneDraw>,
+    scene_draw: crate::memory::session::PhaseRead<'s, crate::scene::draw_store::SceneDraw>,
     // The race's stores.
-    level_grid: crate::session::PhaseRead<'s, crate::race::level_grid_store::LevelGrid>,
-    ground_probe: crate::session::PhaseRead<'s, crate::physics::ground_probe_store::GroundProbe>,
-    shadow_skids: crate::session::PhaseRead<'s, crate::race::shadow_skids_store::ShadowSkids>,
-    lights_and_gear: crate::session::PhaseRead<'s, crate::race::groups_store::LightsAndGear>,
-    finish: crate::session::PhaseRead<'s, crate::drive::finish_store::Finish>,
+    level_grid: crate::memory::session::PhaseRead<'s, crate::race::level_grid_store::LevelGrid>,
+    ground_probe:
+        crate::memory::session::PhaseRead<'s, crate::physics::ground_probe_store::GroundProbe>,
+    shadow_skids:
+        crate::memory::session::PhaseRead<'s, crate::race::shadow_skids_store::ShadowSkids>,
+    lights_and_gear:
+        crate::memory::session::PhaseRead<'s, crate::race::groups_store::LightsAndGear>,
+    finish: crate::memory::session::PhaseRead<'s, crate::drive::finish_store::Finish>,
     // The frame's work and the panel and overlay.
-    frame_work: crate::session::PhaseRead<'s, crate::race::frame_store::FrameWork>,
+    frame_work: crate::memory::session::PhaseRead<'s, crate::race::frame_store::FrameWork>,
     frame_cars: &'s crate::race::frame_view::FrameCars,
-    panel_and_overlay: crate::session::PhaseRead<'s, crate::race::groups_store::PanelAndOverlay>,
+    panel_and_overlay:
+        crate::memory::session::PhaseRead<'s, crate::race::groups_store::PanelAndOverlay>,
     // The cars' blocks and the view variables.
-    car_blocks: crate::session::PhaseRead<'s, crate::race::blocks_store::CarBlocks>,
-    view_and_records: crate::session::PhaseRead<'s, crate::race::groups_store::ViewAndRecords>,
+    car_blocks: crate::memory::session::PhaseRead<'s, crate::race::blocks_store::CarBlocks>,
+    view_and_records:
+        crate::memory::session::PhaseRead<'s, crate::race::groups_store::ViewAndRecords>,
     // The system's screen and the processor's MMX flag.
-    screen: crate::session::PhaseRead<'s, crate::session::Screen>,
+    screen: crate::memory::session::PhaseRead<'s, crate::memory::session::Screen>,
     has_mmx: bool,
     net_race: &'s rc2k_core::net::net_race::NetRaceSlot,
     // The course's groups.
-    course_lists: crate::session::PhaseRead<'s, crate::race::course_lists_store::CourseLists>,
-    stage_prefs: crate::session::PhaseRead<'s, crate::race::prefs_store::StagePrefs>,
-    course_work: crate::session::PhaseRead<'s, crate::race::course_store::CourseWork>,
+    course_lists:
+        crate::memory::session::PhaseRead<'s, crate::race::course_lists_store::CourseLists>,
+    stage_prefs: crate::memory::session::PhaseRead<'s, crate::race::prefs_store::StagePrefs>,
+    course_work: crate::memory::session::PhaseRead<'s, crate::race::course_store::CourseWork>,
     stage: &'s crate::race::stage_data::StageData,
-    kind_records: crate::session::PhaseRead<'s, crate::race::kind_records_store::KindRecords>,
-    numbers: crate::session::PhaseRead<'s, crate::race::numbers_store::Numbers>,
+    kind_records:
+        crate::memory::session::PhaseRead<'s, crate::race::kind_records_store::KindRecords>,
+    numbers: crate::memory::session::PhaseRead<'s, crate::race::numbers_store::Numbers>,
     // The race owner's shared group (lane r41shared).
-    switches: crate::session::PhaseRead<'s, crate::race::switches_store::FrameSwitches>,
-    vars: crate::session::PhaseRead<'s, crate::race::vars_store::RaceVars>,
-    view: crate::session::PhaseRead<'s, crate::race::view_store::RaceView>,
-    work: crate::session::PhaseRead<'s, crate::race::work_store::RaceWork>,
-    physics_tables: crate::session::PhaseRead<'s, crate::physics::tables_store::PhysicsTables>,
+    switches: crate::memory::session::PhaseRead<'s, crate::race::switches_store::FrameSwitches>,
+    vars: crate::memory::session::PhaseRead<'s, crate::race::vars_store::RaceVars>,
+    view: crate::memory::session::PhaseRead<'s, crate::race::view_store::RaceView>,
+    work: crate::memory::session::PhaseRead<'s, crate::race::work_store::RaceWork>,
+    physics_tables:
+        crate::memory::session::PhaseRead<'s, crate::physics::tables_store::PhysicsTables>,
     // The frame's matrices and the physics' contact work.
-    matrices: crate::session::PhaseRead<'s, crate::race::matrices_store::SceneMatrices>,
-    contact: crate::session::PhaseRead<'s, crate::physics::contact_store::ContactWork>,
+    matrices: crate::memory::session::PhaseRead<'s, crate::race::matrices_store::SceneMatrices>,
+    contact: crate::memory::session::PhaseRead<'s, crate::physics::contact_store::ContactWork>,
     // The race's buffers the parts read.
-    buffers: crate::session::PhaseRead<'s, crate::race::buffers_store::BufferReads>,
+    buffers: crate::memory::session::PhaseRead<'s, crate::race::buffers_store::BufferReads>,
 }
 
 /// Whether the processor has MMX and the game uses it: fixed at start-up, so one value for
@@ -421,7 +433,7 @@ fn has_mmx(system: &crate::system::owner::System) -> bool {
 
 impl<'s> Lent<'s> {
     fn new(scope: &'s DrawScope<'_>, owners: LentOwners<'s>) -> Self {
-        use crate::session::PhaseRead;
+        use crate::memory::session::PhaseRead;
         let LentOwners {
             race,
             scene,
@@ -585,7 +597,7 @@ pub struct DrawReads<'a> {
     pub view_and_records: &'a crate::race::groups_store::ViewAndRecords,
     // The system's screen and the processor's MMX flag.
     /// The screen's figures (`system::owner::Session::screen`).
-    pub screen: &'a crate::session::Screen,
+    pub screen: &'a crate::memory::session::Screen,
     /// Whether the processor has MMX and the game uses it (`Machine::has_mmx`, set once at
     /// start-up before any drawing): the lighting's colour paths.
     pub has_mmx: bool,
@@ -956,7 +968,7 @@ fn draw_parts(
         let columns = crate::scene::view_matrices::end_part(scratch).unwrap_or(columns_start);
         ended(n);
         scratch.points.end_run();
-        let noted = crate::platform_3d::take_noted(scratch);
+        let noted = crate::platform::direct3d::take_noted(scratch);
         INDEX.set(0);
         OtherRun {
             result,
@@ -1031,17 +1043,17 @@ fn draw_parts(
         // Its fans before it set a state draw with what the earlier runs left.
         let carried = crate::d3d::run_states::carried(first_cache);
         crate::d3d::run_states::patch(&mut run.noted.commands, &run.states, &carried);
-        crate::platform_3d::put_noted(scratch_owner.game_scratch(), run.noted);
+        crate::platform::direct3d::put_noted(scratch_owner.game_scratch(), run.noted);
         crate::d3d::run_states::carry(first_cache, &run.states, &cache_start);
         crate::scene::view_matrices::merge_columns(matrices.get(), &columns_start, &run.columns);
         if result.is_ok() {
             // What it draws takes the merged states.
-            crate::platform_3d::forget_states(scratch_owner.game_scratch());
+            crate::platform::direct3d::forget_states(scratch_owner.game_scratch());
             result = after(n + 1);
         }
     }
     // The game's thread drew run 0 with its own states: the next fan takes the merged ones.
-    crate::platform_3d::forget_states(scratch_owner.game_scratch());
+    crate::platform::direct3d::forget_states(scratch_owner.game_scratch());
     result
 }
 
@@ -1171,7 +1183,7 @@ fn run_aside(
     let states = crate::d3d::run_states::end_run(scratch);
     crate::scene::view_matrices::end_part(scratch);
     scratch.points.end_run();
-    let noted = crate::platform_3d::take_noted(scratch);
+    let noted = crate::platform::direct3d::take_noted(scratch);
     AsideRun {
         result,
         noted,
@@ -1226,7 +1238,7 @@ impl Aside<'_> {
         if crate::d3d::run_states::drew_before_texture(&run.noted.commands, &run.states)
             && !crate::d3d::render_cache::same_texture(&now, &self.start.cache)
         {
-            crate::framework::log(
+            crate::logfile::program_log::log(
                 "workers: a piece drawn aside drew before setting its texture (not as one thread)",
             );
         }
@@ -1240,7 +1252,7 @@ impl Aside<'_> {
             std::ptr::eq(self.part, self.scratch.game_scratch()),
             "a piece drawn aside of a part other than the first"
         );
-        crate::platform_3d::put_noted(self.part, run.noted);
+        crate::platform::direct3d::put_noted(self.part, run.noted);
         crate::d3d::run_states::carry_set(&self.part.cache, &run.states);
         // The point records it wrote, as the part would have them after it; the piece's own
         // set back to 0 for the next piece.
@@ -1249,7 +1261,7 @@ impl Aside<'_> {
             crate::scene::point_records::put_written(&scratch, self.part);
             crate::scene::point_records::clear_written(&scratch);
         }
-        crate::platform_3d::forget_states(self.part);
+        crate::platform::direct3d::forget_states(self.part);
         run.result
     }
 
@@ -1302,7 +1314,7 @@ pub fn draw_aside<'a, R>(
         screen_size: part
             .screen_size
             .each_ref()
-            .map(crate::session::PlainDword::get),
+            .map(crate::memory::session::PlainDword::get),
     };
     set_aside_turn(false);
     let Some(pool) = helper.pool else {

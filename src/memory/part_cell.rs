@@ -1,8 +1,8 @@
 //! The cells of the drawing's per-part state: `PartCell<T>`, an element of the parts (one
 //! `PartScratch` per drawing thread) or of the view slots (one `ViewScratch` per drawn piece) of
-//! `workers::DrawingScratch`, reached by exactly one thread at a time.
+//! `scene::workers::DrawingScratch`, reached by exactly one thread at a time.
 //!
-//! Two doors lead in. `claim` is the parts' own: `workers::draw_parts` makes a `PartTurn` for
+//! Two doors lead in. `claim` is the parts' own: `scene::workers::draw_parts` makes a `PartTurn` for
 //! each run it starts (on the thread that runs it) and the run claims its part's scratch and its
 //! piece's view with it; the reference lives as long as the drawing scope. `on_game_thread` is
 //! the game's thread's, for everything drawn outside the parts (the overlays, the HUD, the menus)
@@ -32,7 +32,7 @@ pub struct PartCell<T> {
 // time, so a `T` that is not `Sync` (plain cells) is never shared, only handed from one thread to
 // the next, which `T: Send` allows.
 //
-// 1. `claim` needs a `PartTurn`, which only `workers::draw_parts` can make (the constructor is
+// 1. `claim` needs a `PartTurn`, which only `scene::workers::draw_parts` can make (the constructor is
 //    `pub(crate)` and takes a `DrawScope`, which only `draw_parts` opens). It makes one per run,
 //    on the thread that runs it, and each run is started once per scope; it claims part `n` of
 //    one `DrawingScratch` for run `n` and its view slot `slots[n]` with `slots` checked pairwise distinct before any run starts (a
@@ -44,7 +44,7 @@ pub struct PartCell<T> {
 //    else reaches it. Inside a scope the game's thread is run 0, so it reaches the elements run 0
 //    claimed (`PARTS[0]` and run 0's view) as itself; an element a run other than 0 holds is on
 //    another thread, and `on_game_thread` stops at it in debug builds (`claimed` above 1). The
-//    callers of the accessors outside the parts (`workers::DrawingScratch::{game_scratch,
+//    callers of the accessors outside the parts (`scene::workers::DrawingScratch::{game_scratch,
 //    all_parts_on_game_thread, main_view, mirror, slot, front_end}`) are the game's thread's own
 //    code, and the parts are handed what they draw on (`PartRun`): a drawing thread holds the
 //    scratch too (through the context's scene) and could call an accessor, which the debug check
@@ -61,7 +61,7 @@ pub struct PartCell<T> {
 unsafe impl<T: Send> Sync for PartCell<T> {}
 
 /// The right of one run of a drawing scope to claim elements (`PartCell::claim`): made by
-/// `workers::draw_parts` on the thread that runs it, not `Send`.
+/// `scene::workers::draw_parts` on the thread that runs it, not `Send`.
 pub struct PartTurn<'s> {
     run: usize,
     /// The scope it lasts (`'s`); the raw pointer keeps it on its thread.
@@ -69,8 +69,8 @@ pub struct PartTurn<'s> {
 }
 
 impl<'s> PartTurn<'s> {
-    /// Run `run`'s turn in `scope` (only `workers::draw_parts` opens one).
-    pub(crate) fn new(_scope: &'s crate::workers::DrawScope, run: usize) -> Self {
+    /// Run `run`'s turn in `scope` (only `scene::workers::draw_parts` opens one).
+    pub(crate) fn new(_scope: &'s crate::scene::workers::DrawScope, run: usize) -> Self {
         Self {
             run,
             _scope: PhantomData,
@@ -112,7 +112,7 @@ impl<T> PartCell<T> {
     /// run 0 (the game's thread) holds or none does. Debug builds check the thread and that no
     /// other run holds it.
     pub fn on_game_thread(&self) -> &T {
-        crate::session::assert_game_thread();
+        crate::memory::session::assert_game_thread();
         debug_assert!(
             self.claimed.load(Relaxed) <= 1,
             "the game's thread reached a per-part element another run holds"
@@ -121,8 +121,8 @@ impl<T> PartCell<T> {
         unsafe { &*self.value.get() }
     }
 
-    /// The scope ending (`workers::DrawScope`'s drop): the element is free again.
-    pub(crate) fn end_claim(&self, _ending: &crate::workers::DrawScope) {
+    /// The scope ending (`scene::workers::DrawScope`'s drop): the element is free again.
+    pub(crate) fn end_claim(&self, _ending: &crate::scene::workers::DrawScope) {
         self.claimed.store(0, Relaxed);
     }
 

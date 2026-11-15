@@ -1,7 +1,7 @@
 //! An item of a value (kind 3) lowered by the key's repeats, not below its least (signed
 //! compare). Called by `install::key_left`.
 
-use crate::list_handle::ListItem;
+use crate::memory::list_handle::ListItem;
 
 pub fn value_down(
     install: &'static crate::install::owner::Install,

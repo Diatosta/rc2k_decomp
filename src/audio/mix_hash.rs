@@ -8,7 +8,7 @@
 //! buffers' positions then advance only by those mixes, so the hash depends on the commands
 //! alone.
 
-use crate::check_hash::CheckHasher;
+use crate::debug::check_hash::CheckHasher;
 use std::hash::{Hash, Hasher};
 use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
 use std::sync::{Mutex, OnceLock};
@@ -56,12 +56,12 @@ pub fn audio_turn_done() {
     if !deterministic() || !TURN_TAKEN.swap(false, Relaxed) {
         return;
     }
-    let pcm = crate::platform_sound::mixed_frames(TURN_FRAMES);
+    let pcm = crate::platform::sound::mixed_frames(TURN_FRAMES);
     let mut hasher = CheckHasher::default();
     pcm.hash(&mut hasher);
     let Ok(mut turns) = TURNS.lock() else {
         return;
     };
-    crate::framework::log(&format!("mix hash {turns}: {:016x}", hasher.finish()));
+    crate::logfile::program_log::log(&format!("mix hash {turns}: {:016x}", hasher.finish()));
     *turns += 1;
 }

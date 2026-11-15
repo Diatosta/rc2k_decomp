@@ -1,11 +1,11 @@
 //! The saves' owner: the saved games' and best times' stores in one struct, handed by reference
 //! to the code that uses them.
 
+use crate::memory::session::{PlainBytes, PlainDword};
 use crate::saves::best_times::BestTables;
 use crate::saves::best_times_store::{BestTimes, RallyTimes};
 use crate::saves::preview_store::SavegamePreview;
 use crate::saves::write_savegame_slot::SaveGames;
-use crate::session::{PlainBytes, PlainDword};
 
 /// The file names and kept values that belong to no larger store.
 pub struct Files {

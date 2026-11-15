@@ -18,8 +18,8 @@ const TABLE_CELLS: usize = 0x400;
 
 // Logic: `rc2k_core::scene::reflection::{cache_place, cached}`
 pub fn cached_reflection_coordinates(
-    part: &crate::workers::PartScratch,
-    reads: crate::workers::DrawReads<'_>,
+    part: &crate::scene::workers::PartScratch,
+    reads: crate::scene::workers::DrawReads<'_>,
     object: &crate::scene::object_place::ObjectPlace,
     m: &crate::scene::view_matrices::ViewMatrices,
     view: &crate::race::view_scratch::ViewScratch,
@@ -37,11 +37,11 @@ pub fn cached_reflection_coordinates(
     if let Some(coordinates) = cached(asked, [slot(0).get(), slot(1).get()], || {
         [slot(2).get(), slot(3).get()]
     }) {
-        crate::session::write_bits(&object.reflection_coordinates, coordinates);
+        crate::memory::session::write_bits(&object.reflection_coordinates, coordinates);
         return Ok(());
     }
     reflection_coordinates(part, reads, object, m)?;
-    let coordinates: [u32; 2] = crate::session::read_bits(&object.reflection_coordinates);
+    let coordinates: [u32; 2] = crate::memory::session::read_bits(&object.reflection_coordinates);
     for (table, value) in [asked[0], asked[1], coordinates[0], coordinates[1]]
         .into_iter()
         .enumerate()

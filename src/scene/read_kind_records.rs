@@ -6,12 +6,12 @@
 //! order a, g, b, s. A file that is missing or short leaves its range as the records held it.
 //! The caller stores the result (`scene::set_up_object_memory`).
 
-use crate::cells::Store;
 use crate::errors::Refused;
 use crate::files::read_whole_file::read_whole_file_len;
+use crate::memory::cells::Store;
+use crate::memory::session::TextPlace;
 use crate::scene::file_numbers_store::texts;
 use crate::scene::polygon_store::PolygonTables;
-use crate::session::TextPlace;
 use rc2k_core::scene::kind_records::{KINDS, KindRecords, RANGES, RECORD_LEN};
 
 /// The files' path texts, in the order of `RANGES`.

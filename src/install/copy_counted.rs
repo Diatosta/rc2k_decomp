@@ -8,8 +8,8 @@ use crate::install::installer::copy_file;
 pub fn copy_counted(
     install: &crate::install::owner::Install,
     system: &crate::system::owner::System,
-    from: impl Into<crate::place::BytePlace>,
-    to: impl Into<crate::place::BytePlace>,
+    from: impl Into<crate::memory::place::BytePlace>,
+    to: impl Into<crate::memory::place::BytePlace>,
 ) -> Result<bool, Refused> {
     install
         .run

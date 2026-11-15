@@ -3,10 +3,10 @@
 //! `update`.
 
 use crate::errors::BadInput;
+use crate::memory::session::{read_all, write_all};
 use crate::menu::lists_store::CarListParts;
 use crate::menu::owner::Menus;
 use crate::scene::textures::SLOTS;
-use crate::session::{read_all, write_all};
 
 const KIND: usize = 0x2BC;
 const ENTRIES: u32 = 0x100;

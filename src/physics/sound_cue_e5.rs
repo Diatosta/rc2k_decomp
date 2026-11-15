@@ -6,9 +6,9 @@
 //! sound object when written.
 
 use crate::errors::Refused;
+use crate::memory::session::PlainDword;
 use crate::race::frame_store::FrameWork;
 use crate::race::work_store::RaceWork;
-use crate::session::PlainDword;
 use crate::sound::store::SoundObject;
 use rc2k_core::physics::listed_cars::{CUE_E5, cue_e5_object};
 
@@ -16,7 +16,7 @@ use rc2k_core::physics::listed_cars::{CUE_E5, cue_e5_object};
 /// number & 7).
 // Core: `rc2k_core::physics::listed_cars::{cue_e5_object, CUE_E5}`.
 pub fn sound_cue_e5_at(
-    current: &impl crate::session::DwordLike,
+    current: &impl crate::memory::session::DwordLike,
     listed: &[PlainDword; 8],
     sound: &crate::sound::owner::Sound,
 ) -> Result<(), Refused> {

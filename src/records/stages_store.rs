@@ -12,9 +12,9 @@
 //! addresses are kept only in the tests, as the oracle of the chain's order.
 
 use crate::errors::BadInput;
+use crate::memory::session::{PlainBytes, PlainDword, PlainInt, Run};
 use crate::menu::champ_store::TimesVariable;
 use crate::screens::game_screen::Held;
-use crate::session::{PlainBytes, PlainDword, PlainInt, Run};
 
 /// A record (0xA4 bytes in the options file): a stage, a service area, a rally's end or a
 /// welcome (`tag`), with its two record holders.

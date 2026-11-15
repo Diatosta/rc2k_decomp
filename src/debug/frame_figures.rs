@@ -64,7 +64,7 @@ pub fn note_first_view(scene: &crate::scene::owner::Scene) {
     ];
     let turned = crate::math::x87::rotate_rounding_z(
         place.map(|v| v as i32),
-        &crate::session::read_bits(&view.matrices.view_matrix),
+        &crate::memory::session::read_bits(&view.matrices.view_matrix),
     );
     for (figure, value) in FIGURES.light_turned.iter().zip(turned) {
         figure.store(value, Relaxed);

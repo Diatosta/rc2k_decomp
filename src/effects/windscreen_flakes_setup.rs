@@ -7,7 +7,7 @@
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 
 use crate::math::x87;
-use crate::session::PlainFloat;
+use crate::memory::session::PlainFloat;
 const STATES: [(u32, u32); 7] = [
     (2, 0x11),
     (2, 0x12),

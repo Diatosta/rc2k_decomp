@@ -3,6 +3,6 @@
 //! is kept in the part's render cache (`d3d::render_cache`) and nothing more.
 
 /// The texture drawing part `part`'s polygons are drawn with from now on.
-pub fn set_texture(part: &crate::workers::PartScratch, texture: u32) {
+pub fn set_texture(part: &crate::scene::workers::PartScratch, texture: u32) {
     crate::d3d::render_cache::set_texture(part, texture);
 }

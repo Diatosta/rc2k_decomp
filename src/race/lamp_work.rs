@@ -3,8 +3,8 @@
 //! view keeps its own lamps from frame to frame: the lamps it starts a drawing from are the ones
 //! its own last drawing left (`ViewScratch::begin` leaves them alone), not the previous view's.
 
-use crate::cells::ZeroCells;
-use crate::session::PlainDword;
+use crate::memory::cells::ZeroCells;
+use crate::memory::session::PlainDword;
 
 #[derive(rc2k_derive::Cells)]
 pub struct LampWork {

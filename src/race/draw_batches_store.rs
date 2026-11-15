@@ -4,9 +4,9 @@
 //! counts kept. The buffers' lengths are the spans up to the next item: no code checks a capacity.
 //! It stops before the replay's variables (`drive::replay_frames_store`).
 
-use crate::cells::ZeroCells;
+use crate::memory::cells::ZeroCells;
 
-use crate::session::{PlainBytes, PlainDword};
+use crate::memory::session::{PlainBytes, PlainDword};
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct DrawBatches {

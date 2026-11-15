@@ -104,7 +104,7 @@ impl Base for &[u32] {
 }
 
 /// A game variable as the one dword of an operand.
-impl Base for &crate::session::Dword {
+impl Base for &crate::memory::session::Dword {
     #[inline(always)]
     fn dword(self, off: usize) -> u32 {
         assert!(off == 0);
@@ -127,7 +127,7 @@ impl Base for &crate::session::Dword {
 }
 
 /// A game-thread variable as the one dword of an operand.
-impl Base for &crate::session::PlainDword {
+impl Base for &crate::memory::session::PlainDword {
     #[inline(always)]
     fn dword(self, off: usize) -> u32 {
         assert!(off == 0);
@@ -205,7 +205,7 @@ mod by_address {
 
     /// The `T` at the operand.
     #[track_caller]
-    pub(super) fn load<T: crate::cells::Plain>(address: usize, off: usize) -> T {
+    pub(super) fn load<T: crate::memory::cells::Plain>(address: usize, off: usize) -> T {
         let at = address.wrapping_add(off);
         // SAFETY: the tests hand the host address of a buffer of their own that holds the
         // operand (the byte copy needs no alignment).
@@ -214,7 +214,7 @@ mod by_address {
 
     /// `value` written at the operand (as `load`).
     #[track_caller]
-    pub(super) fn store<T: crate::cells::Plain>(address: usize, off: usize, value: T) {
+    pub(super) fn store<T: crate::memory::cells::Plain>(address: usize, off: usize, value: T) {
         let at = address.wrapping_add(off);
         // SAFETY: as `load`'s.
         unsafe { (at as *mut T).write_unaligned(value) };
@@ -266,7 +266,7 @@ pub(crate) fn fld(base: impl Base, off: usize) -> X {
 pub(crate) struct HostCell(pub usize);
 
 #[cfg(test)]
-impl crate::session::Cell32 for HostCell {
+impl crate::memory::session::Cell32 for HostCell {
     fn bits(&self) -> u32 {
         by_address::load(self.0, 0)
     }

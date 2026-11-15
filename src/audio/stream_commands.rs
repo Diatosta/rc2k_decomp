@@ -12,7 +12,7 @@
 use crate::audio::own::{AudioOwn, AudioThread};
 use crate::audio::stream::*;
 use crate::errors::Refused;
-use crate::session::Shared;
+use crate::memory::session::Shared;
 use rc2k_core::audio::commands::StreamAction;
 
 fn playing(player: &Shared<AudioStream>) -> bool {
@@ -30,7 +30,7 @@ struct GamePlayer<'a> {
 #[derive(Clone, Copy)]
 enum StreamPath<'a> {
     /// The music's path buffer.
-    Music(&'a crate::session::PlainBytes<24>),
+    Music(&'a crate::memory::session::PlainBytes<24>),
     /// A sample name in the sound set (its text, read from the names' table).
     Name(&'a [u8]),
 }
@@ -95,7 +95,7 @@ impl rc2k_core::audio::streams::Tunes for GamePlayer<'_> {
         Ok(crate::files::file_exists::file_exists(&path)?)
     }
     fn gave_up(&mut self, tune: u32) {
-        crate::framework::log(&format!(
+        crate::logfile::program_log::log(&format!(
             "audio: tune {tune:#x}: {} plays in a row stopped at their first feed; the music stopped",
             rc2k_core::audio::streams::RETRIES
         ));

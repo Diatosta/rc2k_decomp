@@ -7,7 +7,7 @@
 /// result register after it, which holds the caller's own value from before the call, not
 /// anything of this function's: so it returns nothing.
 pub fn read_volume_serial(system: &crate::system::owner::System) {
-    let Some((serial, name)) = crate::os::volume() else {
+    let Some((serial, name)) = crate::platform::os::volume() else {
         return;
     };
     let mut info = [0u8; 16];

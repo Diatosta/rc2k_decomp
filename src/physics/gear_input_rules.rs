@@ -12,10 +12,10 @@
 //! Callers: race init's loop (`drive::race_cars_step`), `race::step_replay_cars`,
 //! `drive::replay_step` (each calls `physics::car_physics_step` or `drive::steer_inputs` next).
 
+use crate::memory::session::DwordLike;
 use crate::physics::car_store::Car;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::vars_store::RaceVars;
-use crate::session::DwordLike;
 use rc2k_core::physics::gearbox::{GearCar, GearInputs};
 
 /// The rules change what they change; only the words that differ are written back.

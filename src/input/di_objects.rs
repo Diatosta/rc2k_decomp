@@ -277,7 +277,7 @@ fn id_of(this: u32) -> u32 {
 /// A made object's handle put where the game's method call would have put it: `Ok` its
 /// handle into `cell`; a failure but `DIERR_INVALIDPARAM` (which touched nothing) leaves
 /// 0 there, as DirectInput's methods do. The `HRESULT`.
-pub fn store(cell: &crate::session::Dword, made: Result<u32, i32>) -> i32 {
+pub fn store(cell: &crate::memory::session::Dword, made: Result<u32, i32>) -> i32 {
     match made {
         Ok(handle) => {
             cell.set(handle);

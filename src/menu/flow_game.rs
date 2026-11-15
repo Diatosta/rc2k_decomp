@@ -3,6 +3,7 @@
 //! list handed on to the car choice.
 
 use crate::errors::{BadInput, FatalError, Refused};
+use crate::memory::session::DwordLike;
 use crate::menu::event_flow::*;
 use crate::menu::lists_store::CarList;
 use crate::menu::owner::Menus;
@@ -11,7 +12,6 @@ use crate::menu::screen_loop::{Entry, run_screen};
 use crate::menu::standings::Which;
 use crate::race::owner::Race;
 use crate::records::stages_store::RecordRef;
-use crate::session::DwordLike;
 use rc2k_core::menu::flow::{self, Picture, Var};
 use rc2k_core::menu::leaving::Switch;
 
@@ -434,7 +434,7 @@ impl flow::Game for Game<'_> {
     fn load_picture(&mut self, p: Picture) -> Result<bool, Refused> {
         self.fault.check()?;
         let texts = &self.menus.texts;
-        let picture: &dyn crate::session::TextPlace = match p {
+        let picture: &dyn crate::memory::session::TextPlace = match p {
             Picture::Championship => &texts.mob_welc_png,
             Picture::A8 => &texts.a8_welc_png,
         };

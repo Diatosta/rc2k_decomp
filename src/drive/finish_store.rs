@@ -1,9 +1,9 @@
 //! The finish routine's variables: the "no place" switch, the stage numbers of the finish, the
 //! finish lengths and limits, the clock at the finish's start, the time, the eased time and the
 //! share. Plain cells: a drawing store (`session::DrawShared`), written on the game's thread and
-//! read by the drawing parts (the mirror's "no place" test) through their `workers::DrawReads`.
+//! read by the drawing parts (the mirror's "no place" test) through their `scene::workers::DrawReads`.
 
-use crate::session::{PlainDword, PlainFloat};
+use crate::memory::session::{PlainDword, PlainFloat};
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct Finish {
@@ -59,7 +59,7 @@ impl Finish {
         if let Some(stage) = self.finish_stages.get(n) {
             return Ok(stage.get());
         }
-        crate::session::read_runs(
+        crate::memory::session::read_runs(
             &[
                 &self.finish_stages,
                 &self.car_lift,
@@ -87,8 +87,8 @@ impl Finish {
     }
 
     pub const fn new() -> Self {
-        use crate::cells::ZeroCells;
-        use crate::session::{PlainDword, PlainFloat};
+        use crate::memory::cells::ZeroCells;
+        use crate::memory::session::{PlainDword, PlainFloat};
         Self {
             finish_stages: {
                 let mut v: [PlainDword; 7] = ZeroCells::ZERO;
@@ -132,7 +132,7 @@ mod tests {
     #[test]
     fn finish_stage_runs_on_through_the_fields_after() {
         let f = Finish::new();
-        let runs: [&dyn crate::session::Run; 19] = [
+        let runs: [&dyn crate::memory::session::Run; 19] = [
             &f.finish_stages,
             &f.car_lift,
             &f.finish_lengths,
@@ -154,7 +154,7 @@ mod tests {
             &f.unreached_loader_buffers,
         ];
         for n in 0..27 {
-            crate::session::write_runs(&runs, n, 0x1000 + n as u32, "t").unwrap();
+            crate::memory::session::write_runs(&runs, n, 0x1000 + n as u32, "t").unwrap();
         }
         for n in 0..40 {
             let read = f.finish_stage(n);

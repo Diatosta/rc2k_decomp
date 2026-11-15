@@ -4,7 +4,7 @@
 use crate::effects::mask_store::Masks;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::math::x87;
-use crate::session::{PlainDword, PlainFloat};
+use crate::memory::session::{PlainDword, PlainFloat};
 
 /// `effects::set_line_turn` (and with `back`, the turn back):
 /// from the line (+0, +4 to +0xC, +0x10: here `line`'s dwords 0, 1 to 3, 4) dx into
@@ -142,7 +142,7 @@ fn int_over_80_x87(v: i32, k: &PlainFloat) -> [u8; 10] {
 mod reference_vectors {
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::{Op, Spec, recorded};
-    use crate::session::PlainFloat;
+    use crate::memory::session::PlainFloat;
 
     /// The `N` bytes of the test buffer at `at`.
     fn bytes<const N: usize>(at: crate::effects::asm_test::Operand) -> [u8; N] {

@@ -414,8 +414,8 @@ pub fn wanted() -> bool {
     config().quads
         && crate::render::gpu_running()
         && crate::render::frame_on_gpu()
-        && !crate::platform_3d::game_scratch()
-            .is_some_and(|scratch| crate::workers::in_race(scratch.game_scratch()))
+        && !crate::platform::direct3d::game_scratch()
+            .is_some_and(|scratch| crate::scene::workers::in_race(scratch.game_scratch()))
 }
 
 /// One call of the glyph funnel.
@@ -809,7 +809,7 @@ pub fn take() -> Taken {
 pub fn check_scratch(quad: Scratch, blit: Scratch, call: Call) {
     static LOGGED: AtomicU64 = AtomicU64::new(0);
     if quad != blit && LOGGED.fetch_add(1, Relaxed) < 50 {
-        crate::framework::log(&format!(
+        crate::logfile::program_log::log(&format!(
             "2d quads: MISMATCH: the work variables differ: quad {quad:?}, blit {blit:?}, glyph {} of table {:#x} at {},{}",
             call.glyph, call.table, call.x, call.y
         ));
@@ -912,7 +912,7 @@ mod tests {
         use rc2k_core::gfx::raster::{Clip as CoreClip, Surface as CoreSurface};
         let _lock = crate::test_support::test_lock();
         let (width, height) = (20u32, 12u32);
-        let canvas = Arc::new(crate::pool::PoolBytes::from_vec(vec![
+        let canvas = Arc::new(crate::memory::pool::PoolBytes::from_vec(vec![
             0xAA;
             (width * height * 4)
                 as usize
@@ -1016,7 +1016,7 @@ mod tests {
     fn a_solid_rectangle_demoted_fills_its_pixels() {
         let _lock = crate::test_support::test_lock();
         let (width, height) = (6u32, 4u32);
-        let canvas = Arc::new(crate::pool::PoolBytes::from_vec(vec![
+        let canvas = Arc::new(crate::memory::pool::PoolBytes::from_vec(vec![
             0xAA;
             (width * height * 4)
                 as usize

@@ -2,7 +2,7 @@
 //! image. Struct of cells,
 //! first values the image's (`tests`).
 
-use crate::session::{PlainByte, PlainBytes, with_runs};
+use crate::memory::session::{PlainByte, PlainBytes, with_runs};
 
 /// The version, copyright, window and class texts.
 #[derive(rc2k_derive::Cells)]

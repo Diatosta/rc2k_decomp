@@ -5,18 +5,18 @@
 
 use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
+use crate::memory::session::byte_of;
+use crate::memory::session::{PlainDword, PlainFloat};
 use crate::race::face_work::FaceWork;
 use crate::race::owner_course::CourseReads;
 use crate::race::trap::Trap;
 use crate::race::view_scratch::DrawCtx;
 use crate::scene::polygon_store::PolygonEntry;
-use crate::session::byte_of;
-use crate::session::{PlainDword, PlainFloat};
 use rc2k_core::race::faces::Face;
 
 /// The byte `n` of a byte table held as dwords; past it refused.
 fn table_byte(
-    cells: &[crate::session::PlainDword],
+    cells: &[crate::memory::session::PlainDword],
     n: u32,
     what: &'static str,
 ) -> Result<u32, BadInput> {
@@ -27,7 +27,7 @@ fn table_byte(
 
 /// With no texture animation (`texture_a` 0) and `polygon_mode` 4, turns the depth test off and
 /// sets `depth_test` 1.
-pub fn face_depth_test_off(face: &FaceWork, part: &crate::workers::PartScratch) {
+pub fn face_depth_test_off(face: &FaceWork, part: &crate::scene::workers::PartScratch) {
     {
         if !rc2k_core::race::faces::depth_test_off(face.texture_a.get(), face.polygon_mode.get()) {
             return;
@@ -40,7 +40,7 @@ pub fn face_depth_test_off(face: &FaceWork, part: &crate::workers::PartScratch) 
 /// Turns depth writing back on when `face_depth_test_off` turned it off (`depth_test` set), then
 /// sets `depth_test` 0. Fixed: the 1999 test was the wrong way round (on only when it was not
 /// turned off); "Course faces drawn with the last face's depth setting" in `wiki/Fixed-bugs.md`.
-pub fn face_depth_test_on(face: &FaceWork, part: &crate::workers::PartScratch) {
+pub fn face_depth_test_on(face: &FaceWork, part: &crate::scene::workers::PartScratch) {
     {
         if rc2k_core::race::faces::depth_test_on(face.depth_test.get()) {
             crate::scene::depth_test_on::depth_test_on(part);
@@ -57,7 +57,7 @@ pub fn face_corners(
     face: &Face,
 ) -> u32 {
     let corners = rc2k_core::race::faces::corners(std::array::from_fn(|n| face.point(n)));
-    crate::session::write_bits(&view.face.corners, corners);
+    crate::memory::session::write_bits(&view.face.corners, corners);
     // The next stage's start-up (`race::norms`) reads the last face drawn's corners.
     scene.scratch.note_face_drawn(view.number());
     corners[3]
@@ -507,7 +507,7 @@ pub fn face_texture_coordinates(
         set.size.set(c.size);
         set.mapping.set(c.mapping);
         set.plain.set(c.plain);
-        crate::session::write_bits(set.uv, c.uv);
+        crate::memory::session::write_bits(set.uv, c.uv);
     }
     Ok(())
 }
@@ -521,7 +521,7 @@ pub fn face_corners_to_new_points(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     {
         crate::race::frame_draw::points_there(ctx)?;
         let count: u32 = ctx.reads.course_work.scene_point_count.get();
-        let corners: [u32; 4] = crate::session::read_bits(&work.corners);
+        let corners: [u32; 4] = crate::memory::session::read_bits(&work.corners);
         let (marked, copies) = rc2k_core::race::faces::new_points(count, corners);
         for n in marked {
             crate::scene::point_records::put_field(
@@ -764,8 +764,8 @@ pub fn draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
 /// `flat_depth` + 1 when `flat_depth` is set; centre `view_centre`, the next).
 fn halfway_vertex(
     course: CourseReads<'_>,
-    part: &crate::workers::PartScratch,
-    quad: &[crate::session::PlainDword; 32],
+    part: &crate::scene::workers::PartScratch,
+    quad: &[crate::memory::session::PlainDword; 32],
     a: u32,
     b: u32,
     v: u32,
@@ -1265,7 +1265,7 @@ mod vector_tests {
                     f32::from_bits(r.float())
                 });
                 let entry = |r: &mut Rng| {
-                    let e = crate::cells::zeroed_cells::<PolygonEntry>();
+                    let e = crate::memory::cells::zeroed_cells::<PolygonEntry>();
                     for k in 0..10 {
                         e.set_word(
                             4 * k,
@@ -1279,7 +1279,7 @@ mod vector_tests {
                     e
                 };
                 let (f, s) = (entry(&mut r), entry(&mut r));
-                let to = crate::cells::zeroed_cells::<PolygonEntry>();
+                let to = crate::memory::cells::zeroed_cells::<PolygonEntry>();
                 for k in 0..10 {
                     to.set_word(4 * k, 0xAAAA_AAAA);
                 }

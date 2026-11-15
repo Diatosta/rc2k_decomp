@@ -4,7 +4,7 @@
 //!
 //! The list is the stores' own (`listed_stores`); a repeated name is found at its first entry.
 
-use crate::cells::Cells;
+use crate::memory::cells::Cells;
 use crate::owners::Owners;
 
 /// One store of the list: its name, the store, and how many of its first bytes are the
@@ -84,7 +84,7 @@ pub trait Walk {
 /// A copy of every cell of `whole`, and the function that puts it back.
 fn kept<T: Cells>(whole: &T) -> Box<dyn Fn() + '_> {
     // On the heap: a large record off the stack.
-    let copy: Box<T> = crate::cells::boxed_zeroed_cells();
+    let copy: Box<T> = crate::memory::cells::boxed_zeroed_cells();
     copy.copy_from(whole);
     Box::new(move || whole.copy_from(&copy))
 }
@@ -147,32 +147,32 @@ impl<T: Cells + Sync + 'static> Walk for RecordFrom<T> {
 
 impl<S: Cells> Walk for OnGame<S> {
     fn path_bytes(&self, path: &str) -> Option<Vec<u8>> {
-        crate::session::assert_game_thread();
+        crate::memory::session::assert_game_thread();
         super::paths::bytes(self.whole, path)
     }
 
     fn set_path_bytes(&self, path: &str, bytes: &[u8]) -> bool {
-        crate::session::assert_game_thread();
+        crate::memory::session::assert_game_thread();
         super::paths::set_bytes(self.whole, path, bytes)
     }
 
     fn range_bytes(&self, path: &str, length: usize) -> Vec<u8> {
-        crate::session::assert_game_thread();
+        crate::memory::session::assert_game_thread();
         super::paths::field_range(self.whole, path, length)
     }
 
     fn set_range_bytes(&self, path: &str, bytes: &[u8]) -> bool {
-        crate::session::assert_game_thread();
+        crate::memory::session::assert_game_thread();
         super::paths::set_field_range(self.whole, path, bytes)
     }
 
     fn first_addr(&self, path: &str) -> Option<usize> {
-        crate::session::assert_game_thread();
+        crate::memory::session::assert_game_thread();
         super::paths::first_addr(self.whole, path)
     }
 
     fn keep(&self) -> Box<dyn Fn() + '_> {
-        crate::session::assert_game_thread();
+        crate::memory::session::assert_game_thread();
         kept(self.whole)
     }
 

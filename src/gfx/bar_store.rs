@@ -1,7 +1,7 @@
 //! The progress bar's variables, set by the callers of `gfx::blit_bar` / `gfx::blit_bar_marker`
 //! (`blit_bar::Bar` reads and writes the six).
 
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 
 /// The bar being drawn.
 #[derive(rc2k_derive::Cells)]

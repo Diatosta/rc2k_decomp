@@ -4,7 +4,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::read_picture_file::read_picture_file;
-use crate::session::TextPlace;
+use crate::memory::session::TextPlace;
 use rc2k_core::gfx::picture_size as sizes;
 
 /// Returns the pixels (a picture buffer's number, `gfx::picture`), their width and height, and

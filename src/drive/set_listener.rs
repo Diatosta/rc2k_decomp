@@ -10,12 +10,12 @@ use crate::errors::Refused;
 use crate::math::x87;
 use crate::math::x87::{ext_to_int, int_80};
 use crate::math::x87_float as bh;
+use crate::memory::session::DwordLike;
+use crate::memory::session::PlainFloat;
 use crate::race::mud::car_file_number;
 use crate::race::owner::Race;
 use crate::scene::matrix::multiply_matrices;
 use crate::scene::rotate_point::rotate_point;
-use crate::session::DwordLike;
-use crate::session::PlainFloat;
 use rc2k_core::drive::listener;
 use rc2k_core::net::net_race::NetRace;
 
@@ -96,7 +96,7 @@ pub fn set_listener(
     let s = race
         .shared
         .race_car_or(view.drawn_view as usize, "a car's block")?;
-    let place: [u32; 3] = crate::session::read_all(&s.position);
+    let place: [u32; 3] = crate::memory::session::read_all(&s.position);
     let strength: u32 = s.marks_count.get();
     race.effects_settings().listener_car_place[2].set(x87::from_int(place[2] as i32));
     race.effects_settings().listener_car_place[1].set(x87::from_int(place[1] as i32));

@@ -7,7 +7,7 @@ use crate::audio::own::AudioOwn;
 pub fn release_eax(state: &AudioOwn) {
     let object = state.eax_properties.get();
     if object != 0 {
-        crate::platform_sound::release(object);
+        crate::platform::sound::release(object);
         state.eax_properties.set(0);
         state.eax_room.set(6);
         state.eax_room_set.set(6);

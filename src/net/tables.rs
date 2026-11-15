@@ -62,7 +62,7 @@ impl NetTables {
 }
 
 /// The network's list.
-pub fn list(link: &Link) -> &[crate::session::Dword; 4] {
+pub fn list(link: &Link) -> &[crate::memory::session::Dword; 4] {
     link.memory()
 }
 
@@ -155,10 +155,11 @@ mod tests {
             .link
             .memory()
             .iter()
-            .map(crate::session::Dword::get)
+            .map(crate::memory::session::Dword::get)
             .collect();
-        let bytes =
-            |b: &crate::session::PlainBytes<16>| (0..16).map(|k| b.get(k)).collect::<Vec<u8>>();
+        let bytes = |b: &crate::memory::session::PlainBytes<16>| {
+            (0..16).map(|k| b.get(k)).collect::<Vec<u8>>()
+        };
         let kept_saved = bytes(&net.setup().saved_connection);
         let kept_name: Vec<u8> = (0..64).map(|k| net.settings().saved_name.get(k)).collect();
         let kept_count = net.link.connections().get();

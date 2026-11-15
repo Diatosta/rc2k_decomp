@@ -4,8 +4,8 @@
 //! from `read_car_controls`) sets the wanted +0x688 and calls this, `race::race_keys` too.
 
 use crate::errors::BadInput;
+use crate::memory::session::PlainDword;
 use crate::physics::car_store::Car;
-use crate::session::PlainDword;
 use rc2k_core::drive::camera_views::CameraView;
 
 pub fn set_view_at(car: &Car, step: &PlainDword) -> Result<(), BadInput> {

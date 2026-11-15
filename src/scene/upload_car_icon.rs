@@ -49,7 +49,7 @@ const _: () = assert!(STORED_LEN == 0x1C);
 /// multiple of 4): `get` and `set` turn them to and from an `IconUpload`.
 #[repr(transparent)]
 #[derive(rc2k_derive::Cells)]
-pub struct IconUploadCell(crate::session::PlainBytes<STORED_LEN>);
+pub struct IconUploadCell(crate::memory::session::PlainBytes<STORED_LEN>);
 
 impl IconUploadCell {
     pub fn get(&self) -> IconUpload {
@@ -85,7 +85,7 @@ impl IconUploadCell {
 
 impl IconUploadCell {
     pub const fn new() -> Self {
-        IconUploadCell(crate::session::PlainBytes::new([0; STORED_LEN]))
+        IconUploadCell(crate::memory::session::PlainBytes::new([0; STORED_LEN]))
     }
 }
 

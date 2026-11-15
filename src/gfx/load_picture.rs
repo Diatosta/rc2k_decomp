@@ -15,7 +15,7 @@ use rc2k_core::gfx::picture_size as sizes;
 
 /// Returns whether the file was read.
 pub fn load_picture_with(
-    path: &dyn crate::session::TextPlace,
+    path: &dyn crate::memory::session::TextPlace,
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<bool, Refused> {

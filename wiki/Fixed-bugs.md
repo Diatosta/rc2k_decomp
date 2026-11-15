@@ -214,7 +214,7 @@ block's +0xB0.
   the effects are clearly quieter than in the other modes, with a harsh edge.
 - **Seen**: yes, by the owner without the DLL (2026-10-13: no music); the level difference
   heard in the converted game (2026-10-26) and read from the code.
-- **Fix**: the standalone's sound output (`platform_sound`) plays the primary buffer and
+- **Fix**: the standalone's sound output (`platform::sound`) plays the primary buffer and
   the secondary buffers together, so the music is heard in the Dolby mode; the secondary
   buffers play at a quarter (`SECONDARY_GAIN`, -12 dB), the level of the game's own mixer,
   so every mode sounds alike and the music keeps the same balance with the effects. The

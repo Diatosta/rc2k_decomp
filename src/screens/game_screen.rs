@@ -5,10 +5,10 @@
 use crate::errors::{BadInput, Refused};
 use crate::gfx::blit_glyph::BlitCall;
 use crate::gfx::typefaces::FontRef;
+use crate::memory::session::DwordLike;
 use crate::menu::owner::Menus;
 use crate::owners::Owners;
 use crate::race::owner::Race;
-use crate::session::DwordLike;
 use crate::strings::text_buffer::TextBuf;
 use crate::text::draw_text::{Canvas, draw_text_at};
 
@@ -113,7 +113,7 @@ pub fn held_name(text: Option<Vec<u8>>) -> Result<HeldText, crate::errors::BadIn
 
 /// The text from byte `at` of `run` up to and with its NUL, or to the run's end when it has
 /// none (the drawer then refuses it). Nothing past the run.
-fn text_in(run: &dyn crate::place::Run, at: usize) -> Vec<u8> {
+fn text_in(run: &dyn crate::memory::place::Run, at: usize) -> Vec<u8> {
     let mut text = Vec::new();
     for n in at..run.len() {
         let b = run.get(n);
@@ -129,7 +129,9 @@ fn text_in(run: &dyn crate::place::Run, at: usize) -> Vec<u8> {
 /// bytes as they are now; refused without its NUL inside the field or past the held room.
 /// The screens build their rows and draw them in the same call, so nothing changes the
 /// field in between.
-pub fn held_field(field: &dyn crate::place::Run) -> Result<HeldText, crate::errors::BadInput> {
+pub fn held_field(
+    field: &dyn crate::memory::place::Run,
+) -> Result<HeldText, crate::errors::BadInput> {
     let mut text = text_in(field, 0);
     held_name(if text.pop() == Some(0) {
         Some(text)
@@ -151,7 +153,7 @@ pub enum SlotNames {
 
 impl SlotNames {
     /// The table and the length of one name in it.
-    fn table(self, o: &Owners<'static>) -> (&'static dyn crate::place::Run, usize) {
+    fn table(self, o: &Owners<'static>) -> (&'static dyn crate::memory::place::Run, usize) {
         match self {
             SlotNames::SavedGames => (&o.saves.save_games.names, 0x20),
             SlotNames::Setups => (
@@ -322,7 +324,7 @@ fn font_of(f: impl GameFont) -> FontRef {
 fn clip_edge_cell(
     gfx: &'static Gfx,
     edge: rc2k_core::screens::screen::Edge,
-) -> &'static crate::session::PlainDword {
+) -> &'static crate::memory::session::PlainDword {
     let drawing = &gfx.drawing;
     use rc2k_core::screens::screen::Edge;
     match edge {

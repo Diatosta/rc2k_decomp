@@ -19,7 +19,7 @@ pub fn game_facts(state: &AudioShared) -> Facts {
         qualities: state
             .quality_modes
             .each_ref()
-            .map(super::super::session::Dword::get),
+            .map(crate::memory::session::Dword::get),
         has_3d: state.has_3d.get(),
         has_a3d2: state.has_a3d2.get(),
         has_eax: state.has_eax.get(),

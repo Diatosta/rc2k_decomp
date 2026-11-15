@@ -5,7 +5,7 @@ use crate::effects::ring_entries::Entry;
 use crate::effects::run_ribbons::Colours257;
 use crate::effects::run_ring::RingKinds;
 use crate::memory::owned::Owned;
-use crate::session::{PlainBytes, PlainDword, PlainFloat};
+use crate::memory::session::{PlainBytes, PlainDword, PlainFloat};
 
 /// The ring's work: its list, cursor and count, the emitters' and the draws' integers.
 #[derive(rc2k_derive::Cells)]

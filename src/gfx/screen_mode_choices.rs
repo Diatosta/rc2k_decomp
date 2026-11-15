@@ -24,8 +24,8 @@
 //! of 0x1000 or more when made (it would read that far past the list).
 
 use crate::d3d::owner::D3d;
+use crate::errors::CarryZeroFlags;
 use crate::errors::{BadInput, Refused};
-use crate::framework::CarryZeroFlags;
 use crate::gfx::modes::Modes;
 use crate::gfx::owner::{Display, Gfx};
 use rc2k_core::gfx::mode_choices as mc;

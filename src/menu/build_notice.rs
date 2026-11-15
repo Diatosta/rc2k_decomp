@@ -33,8 +33,8 @@ pub fn build_notice(menus: &Menus, strings: &Strings) {
     panels.notice.notice_second.set(0, 0);
 }
 
+use crate::memory::session::{PlainBytes, with_runs};
 use crate::menu::owner::Menus;
-use crate::session::{PlainBytes, with_runs};
 
 /// The build notice's two lines.
 #[derive(rc2k_derive::Cells)]

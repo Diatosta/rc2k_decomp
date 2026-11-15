@@ -5,8 +5,8 @@ use crate::effects::ring_store::Ring;
 use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::session::write_bits;
-use crate::session::{PlainDword, PlainFloat, PlainWord};
+use crate::memory::session::write_bits;
+use crate::memory::session::{PlainDword, PlainFloat, PlainWord};
 
 pub const PLACES_LEN: u32 = 0x7024;
 pub const RING_LEN: u32 = 0x4C000;

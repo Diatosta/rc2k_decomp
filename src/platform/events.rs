@@ -1,8 +1,8 @@
 //! SDL's events under the game: closing the window sets the quit switch, and the keys and
 //! buttons the menus know become the game's pending key.
 
-use crate::ffi::sdl;
-use crate::framework::log;
+use crate::logfile::program_log::log;
+use crate::platform::ffi::sdl;
 use crate::race::owner_course::Course;
 use sdl3_sys::everything::*;
 
@@ -42,10 +42,10 @@ fn next_event() -> Option<Event> {
     } else if kind == SDL_EVENT_WINDOW_FOCUS_LOST {
         Event::Focus(false)
     } else if kind == SDL_EVENT_JOYSTICK_ADDED {
-        crate::platform_input::pad_added(event.joystick_id());
+        crate::platform::input::pad_added(event.joystick_id());
         Event::Other
     } else if kind == SDL_EVENT_JOYSTICK_REMOVED {
-        crate::platform_input::pad_removed(event.joystick_id());
+        crate::platform::input::pad_removed(event.joystick_id());
         Event::Other
     } else if let Some((button, down)) = event.gamepad_button() {
         Event::Pad { button, down }
@@ -173,7 +173,7 @@ pub fn pump(o: crate::owners::Owners<'static>) {
             Event::Other => {}
         }
     }
-    let now = u64::from(crate::os::ticks());
+    let now = u64::from(crate::platform::os::ticks());
     if let Some(action) = lock_menu_pad().tick(now) {
         menu_action(input, action);
     }
@@ -230,7 +230,7 @@ fn pad_button(
         _ => return,
     };
     let in_race = course.numbers.get().in_race.is_set();
-    let now = u64::from(crate::os::ticks());
+    let now = u64::from(crate::platform::os::ticks());
     if let Some(action) = lock_menu_pad().button(button, down, in_race, now) {
         menu_action(input, action);
     }

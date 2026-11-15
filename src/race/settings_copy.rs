@@ -9,14 +9,14 @@
 use crate::errors::Refused;
 use crate::gfx::owner::Gfx;
 use crate::math::x87;
+#[cfg(test)]
+use crate::memory::session::Dword;
+use crate::memory::session::DwordLike;
 use crate::owners::Owners;
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use crate::race::state_store::RaceCar;
-#[cfg(test)]
-use crate::session::Dword;
-use crate::session::DwordLike;
 #[cfg(test)]
 #[cfg(test)]
 mod old_machine;
@@ -46,7 +46,7 @@ pub enum StepOperand {
     /// A dword of the race's (`var!(@race shared.vars.direction)`).
     RaceVar(fn(&Race) -> &dyn DwordLike),
 }
-use crate::session::{PlainDword, PlainFloat};
+use crate::memory::session::{PlainDword, PlainFloat};
 use StepOperand::{CarBits, CarCell, Owned, RaceVar};
 #[cfg(test)]
 use StepOperand::{Cell, ResultMark, ResultSecs, Setting};
@@ -106,7 +106,7 @@ impl StepOperand {
 macro_rules! car {
     ($n:literal, $($f:tt)+) => {
         $crate::race::settings_copy::StepOperand::CarCell($n, {
-            fn f(c: &$crate::physics::car_store::Car) -> &$crate::session::PlainDword {
+            fn f(c: &$crate::physics::car_store::Car) -> &$crate::memory::session::PlainDword {
                 &c.$($f)+
             }
             f
@@ -118,7 +118,7 @@ macro_rules! car {
 macro_rules! car_bits {
     ($n:literal, $($f:tt)+) => {
         $crate::race::settings_copy::StepOperand::CarBits($n, {
-            fn f(c: &$crate::physics::car_store::Car) -> &$crate::session::PlainFloat {
+            fn f(c: &$crate::physics::car_store::Car) -> &$crate::memory::session::PlainFloat {
                 &c.$($f)+
             }
             f
@@ -131,7 +131,7 @@ macro_rules! car_bits {
 macro_rules! var {
     (@o $($f:tt)+) => {
         $crate::race::settings_copy::StepOperand::Owned({
-            fn f<'a>(o: &'a $crate::owners::Owners<'a>) -> &'a dyn $crate::session::DwordLike {
+            fn f<'a>(o: &'a $crate::owners::Owners<'a>) -> &'a dyn $crate::memory::session::DwordLike {
                 &o.$($f)+
             }
             f
@@ -139,7 +139,7 @@ macro_rules! var {
     };
     (@race $($f:tt)+) => {
         $crate::race::settings_copy::StepOperand::RaceVar({
-            fn f(race: &$crate::race::owner::Race) -> &dyn $crate::session::DwordLike {
+            fn f(race: &$crate::race::owner::Race) -> &dyn $crate::memory::session::DwordLike {
                 &race.$($f)+
             }
             f
@@ -147,7 +147,7 @@ macro_rules! var {
     };
     (@gfx $($f:tt)+) => {
         $crate::race::settings_copy::StepOperand::Owned({
-            fn f<'a>(o: &'a $crate::owners::Owners<'a>) -> &'a dyn $crate::session::DwordLike {
+            fn f<'a>(o: &'a $crate::owners::Owners<'a>) -> &'a dyn $crate::memory::session::DwordLike {
                 &o.gfx.$($f)+
             }
             f
@@ -310,7 +310,7 @@ fn copy_in(race: &Race, gfx: &Gfx, fx: &mut impl Effects) -> Result<(), Refused>
     vars.settings_words[3].set(settings.car_detail.get());
     vars.settings_words[4].set(settings.headlights.get());
 
-    let cells: [(&str, &dyn crate::session::DwordLike); 14] = [
+    let cells: [(&str, &dyn crate::memory::session::DwordLike); 14] = [
         ("[shaunnumplayers]", &view.players),
         ("[shaunsplitmode]", &vars.split),
         ("[shauntracknum]", &vars.stage_number),

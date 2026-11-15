@@ -1,3 +1,5 @@
+//! The program's own log (`rc2k.log`), apart from the game's (`var\logfile.txt`, above).
+
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::PathBuf;
@@ -19,13 +21,3 @@ pub fn log(msg: &str) {
     #[cfg(target_os = "emscripten")]
     eprintln!("{msg}");
 }
-
-/// The carry and zero flags a function leaves, for Rust callers that still read them
-/// (a function returns these for callers that read the carry or zero result).
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct CarryZeroFlags {
-    pub carry: bool,
-    pub zero: bool,
-}
-
-impl CarryZeroFlags {}

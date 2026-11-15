@@ -2,7 +2,7 @@
 //! cells, the stage line, the caption, the title and the number text (0x100 bytes each), the stage
 //! result's value and the ten page-number texts.
 
-use crate::session::{PlainBytes, PlainDword};
+use crate::memory::session::{PlainBytes, PlainDword};
 
 #[derive(rc2k_derive::Cells)]
 pub struct TextBuffers {
@@ -32,6 +32,6 @@ pub struct TextBuffers {
 impl TextBuffers {
     /// The bytes, zero as in the image.
     pub const fn new() -> Self {
-        crate::cells::zeroed_cells()
+        crate::memory::cells::zeroed_cells()
     }
 }

@@ -4,7 +4,7 @@
 //! tables (names, times, cars, times scaled to a split). Names are readings unless taken from the
 //! game's own.
 
-use crate::session::{PlainDword, PlainFloat};
+use crate::memory::session::{PlainDword, PlainFloat};
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct SplitTables {
@@ -55,8 +55,8 @@ pub struct SplitTables {
 /// The piece, with the image's first values.
 impl SplitTables {
     pub const fn new() -> Self {
-        use crate::cells::ZeroCells;
-        use crate::session::{PlainDword, PlainFloat};
+        use crate::memory::cells::ZeroCells;
+        use crate::memory::session::{PlainDword, PlainFloat};
         Self {
             timer_factor: PlainFloat::new(2.5),
             unused_818: {

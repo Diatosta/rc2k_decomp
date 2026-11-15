@@ -1,7 +1,7 @@
 //! The blitters' variables (the clip rectangle and the skips of the visible part). The rescaler's
 //! own variables follow (`gfx::rescale_picture::RESCALE`).
 
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 
 /// The clip rectangle (all four edges inclusive).
 #[derive(rc2k_derive::Cells)]

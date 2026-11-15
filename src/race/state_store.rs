@@ -3,7 +3,7 @@
 //! `#[repr(C)]` structs of atomic cells, one static. Ends in unreferenced bytes up to the damage
 //! model.
 
-use crate::session::{Bytes, Dword, GameThread, PlainBytes, PlainDword, PlainFloat};
+use crate::memory::session::{Bytes, Dword, GameThread, PlainBytes, PlainDword, PlainFloat};
 
 /// A gap's first bytes: `runs` are (offset, bytes) of the non-zero ones.
 const fn sparse<const N: usize>(runs: &[(usize, &[u8])]) -> [u8; N] {

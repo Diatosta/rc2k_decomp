@@ -7,7 +7,7 @@ use crate::effects::owner::Effects;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::session::{PlainBytes, PlainDword, PlainFloat, read_bits};
+use crate::memory::session::{PlainBytes, PlainDword, PlainFloat, read_bits};
 
 pub const RESUME: u32 = 0x4C0FFD; // loc_4C0FFD
 const KINDS: u32 = 0x22;
@@ -179,7 +179,7 @@ pub struct KindBoxes {
 impl KindBoxes {
     pub const fn new() -> Self {
         KindBoxes {
-            boxes: PlainBytes::new(crate::session::with_runs::<1632>(&[
+            boxes: PlainBytes::new(crate::memory::session::with_runs::<1632>(&[
                 (
                     0x0,
                     &[

@@ -9,9 +9,9 @@ use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_float as bh;
+use crate::memory::session::{PlainBytes, PlainDword, PlainFloat, read_bits, write_bits};
 use crate::race::owner_course::Course;
 use crate::scene::matrix3::{Axis, extended, turn_matrix3, turnable};
-use crate::session::{PlainBytes, PlainDword, PlainFloat, read_bits, write_bits};
 
 impl MarkShapes {
     /// List `n`'s (0 A, 1 B) count of points.

@@ -36,8 +36,8 @@ use crate::logfile::log_hex8::log_hex8;
 use crate::logfile::log_int::log_int;
 use crate::logfile::log_int_fmt::log_int_fmt;
 use crate::logfile::write_line::level;
+use crate::memory::session::PlainDword;
 use crate::memory::take_from_list::{rewind_list, take_from_list};
-use crate::session::PlainDword;
 
 /// The sheet and table being built.
 #[derive(rc2k_derive::Cells)]

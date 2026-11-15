@@ -2,8 +2,8 @@
 //! `checkpoint` against the lead car's (car block 0's), the difference plus one kept when below the
 //! smallest so far (unsigned).
 
+use crate::memory::session::PlainDword;
 use crate::physics::car_store::Car;
-use crate::session::PlainDword;
 
 /// The gap = (behind: lead - car, else car - lead) + 1; into `best` when below it.
 /// Returns the gap, which `drive::start_cars_behind` reads.

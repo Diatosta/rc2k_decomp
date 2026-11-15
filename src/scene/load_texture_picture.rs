@@ -22,7 +22,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::gfx::load_picture_to_texture::{TexturePicture, read_picture_for_texture};
 use crate::logfile::log_int::log_int;
-use crate::place::BytePlace;
+use crate::memory::place::BytePlace;
 
 // ---- game data ----
 
@@ -97,7 +97,7 @@ pub fn load_texture_picture(
             .get()
             .car_tyres
             .get(car as usize)
-            .map(crate::session::PlainDword::get)
+            .map(crate::memory::session::PlainDword::get)
             .ok_or(BadInput("a car past the eight tyre switches"))?;
         log_int(gravel as i32, false, 1);
         if takes_gravel(gravel)

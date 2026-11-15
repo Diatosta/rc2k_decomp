@@ -81,7 +81,7 @@ fn put_bytes(w: &mut Work, at: usize, bytes: &[u8]) {
 /// what the screen's passes keep as the clip's kept mask. Returns the entry's number; the
 /// caller lists it and counts the next free entry on.
 fn cut(
-    part: &crate::workers::PartScratch,
+    part: &crate::scene::workers::PartScratch,
     poly: &crate::scene::polygon_work::PolygonWork,
     course: crate::race::owner_course::CourseReads<'_>,
     edge: Edge,
@@ -117,8 +117,8 @@ fn cut(
             w[bytes_at / 4 + k] = u32::from(entry.byte(at));
         }
     }
-    let out_1 = crate::session::read_bits(&poly.clip_work);
-    let out_2 = crate::session::read_bits(&poly.clip_out_words);
+    let out_1 = crate::memory::session::read_bits(&poly.clip_work);
+    let out_2 = crate::memory::session::read_bits(&poly.clip_out_words);
     w[OUT_1 / 4..OUT_1 / 4 + 12].copy_from_slice(&out_1);
     w[OUT_2 / 4..OUT_2 / 4 + 5].copy_from_slice(&out_2);
     w[PLANE / 4] = poly.clip_plane.get();
@@ -151,8 +151,8 @@ fn cut(
     }
     let out_1: [u32; 12] = w[OUT_1 / 4..OUT_1 / 4 + 12].try_into().expect("12 dwords");
     let out_2: [u32; 5] = w[OUT_2 / 4..OUT_2 / 4 + 5].try_into().expect("5 dwords");
-    crate::session::write_bits(&poly.clip_work, out_1);
-    crate::session::write_bits(&poly.clip_out_words, out_2);
+    crate::memory::session::write_bits(&poly.clip_work, out_1);
+    crate::memory::session::write_bits(&poly.clip_out_words, out_2);
 
     poly.polygon_next_record.set(record.wrapping_add(1));
     new.record.set(record);
@@ -180,7 +180,7 @@ fn cut(
 /// `listed_with_records` gives them, when the caller has them already. Returns them again
 /// when the pass kept every vertex (the list is as it was), else `None`.
 pub fn clip_pass<'p>(
-    part: &'p crate::workers::PartScratch,
+    part: &'p crate::scene::workers::PartScratch,
     poly: &crate::scene::polygon_work::PolygonWork,
     course: crate::race::owner_course::CourseReads<'_>,
     listed: Option<crate::scene::polygon::Listed<'p>>,

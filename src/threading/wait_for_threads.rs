@@ -25,9 +25,9 @@ pub fn wait_for_threads() -> Result<u32, crate::errors::BadInput> {
     }
     // The stack: the last pushed first.
     let array = wait_order(handles);
-    let rc = crate::sync::wait_all_threads(&array, WAIT_MS);
+    let rc = crate::platform::sync::wait_all_threads(&array, WAIT_MS);
     for handle in array {
-        crate::sync::close(handle);
+        crate::platform::sync::close(handle);
     }
     Ok(rc)
 }

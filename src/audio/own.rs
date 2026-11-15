@@ -14,8 +14,8 @@ use crate::audio::owner::Audio;
 use crate::audio::sample_data::SampleData;
 use crate::audio::samples::SampleFile;
 use crate::audio::store::{AudioShared, CHANNEL_IDLE};
+use crate::memory::session::{Plain, PlainBytes, PlainDword};
 use crate::memory::{ListCells, MemoryList};
-use crate::session::{Plain, PlainBytes, PlainDword};
 use rc2k_core::audio::commands::SoundList;
 use rc2k_core::audio::voices::MixerChannel;
 

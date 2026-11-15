@@ -25,7 +25,7 @@ pub fn add_point_lights(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
         return Err(BadInput("more lamps than the list holds, or no points").into());
     }
     let mmx = ctx.reads.has_mmx;
-    let place: [u32; 3] = crate::session::read_bits(&ctx.view.light.lit_place);
+    let place: [u32; 3] = crate::memory::session::read_bits(&ctx.view.light.lit_place);
     let reading = crate::scene::reading::Reading::new();
     let list = (0..lamps as usize).map(|n| {
         // The list holds 16 lamps, the refusal allows `MOST`; the only write of the count
@@ -36,7 +36,7 @@ pub fn add_point_lights(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
                     .lamps
                     .lamps
                     .get(4 * n + k)
-                    .map(crate::session::PlainDword::get)
+                    .map(crate::memory::session::PlainDword::get)
                     .ok_or(BadInput("more lamps than the 16 of the level")),
             )
         });

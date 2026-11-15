@@ -53,7 +53,7 @@ fn entry_car(
 
 /// The place less the object's (`[p + 0x30]` ..) into `RingWork.away[0]` .., turned by the object's
 /// matrix (`m`), |x| and |z| rounded into `RingWork.extent[0]` / `RingWork.extent[1]`.
-fn box_(ring: &Ring, e: u32, whole: &[crate::session::PlainFloat; 16], car: &CarEffects) {
+fn box_(ring: &Ring, e: u32, whole: &[crate::memory::session::PlainFloat; 16], car: &CarEffects) {
     box_x87(ring, &ring.work, e, whole, car);
 }
 
@@ -61,7 +61,7 @@ fn box_(ring: &Ring, e: u32, whole: &[crate::session::PlainFloat; 16], car: &Car
 fn whole_of(
     car: &CarEffects,
     effects: &crate::effects::owner::Effects,
-) -> Result<&'static [crate::session::PlainFloat; 16], BadInput> {
+) -> Result<&'static [crate::memory::session::PlainFloat; 16], BadInput> {
     effects
         .car_blocks()
         .ok()
@@ -81,7 +81,7 @@ fn facing(ring: &Ring, car: &CarEffects, effects: &crate::effects::owner::Effect
 fn pull_length(
     ring: &Ring,
     e: u32,
-    whole: &[crate::session::PlainFloat; 16],
+    whole: &[crate::memory::session::PlainFloat; 16],
     length: &mut [u8; 10],
 ) {
     pull_length_x87(ring, e, whole, length, &ring.work, &ring.kinds);
@@ -866,7 +866,7 @@ use crate::effects::plain::{ld_cell, ldi_cell};
 use crate::math::x87_float as bh;
 
 /// `fld dword ptr` of a float of a car record in the settings.
-fn car_float(cell: &impl crate::session::Cell32) -> bh::X {
+fn car_float(cell: &impl crate::memory::session::Cell32) -> bh::X {
     cell.ld()
 }
 
@@ -880,7 +880,7 @@ fn box_x87(
     ring: &Ring,
     w: &RingWork,
     e: u32,
-    whole: &[impl crate::session::Cell32; 16],
+    whole: &[impl crate::memory::session::Cell32; 16],
     car: &CarEffects,
 ) {
     let t0 = ld(ring, e, |en| en.place[0]);
@@ -962,7 +962,7 @@ fn facing_x87(car: &CarEffects, f: &MarksFloats, w: &RingWork) {
 fn pull_length_x87(
     ring: &Ring,
     e: u32,
-    whole: &[impl crate::session::Cell32; 16],
+    whole: &[impl crate::memory::session::Cell32; 16],
     l: &mut [u8; 10],
     w: &RingWork,
     rk: &RingKinds,
@@ -1196,7 +1196,7 @@ mod reference_vectors {
     ) -> CarEffects {
         let car = CarEffects::zeroed();
         for &o in offsets {
-            crate::cells::store_value(&car, o, word(at + o - base)).unwrap();
+            crate::memory::cells::store_value(&car, o, word(at + o - base)).unwrap();
         }
         car
     }
@@ -1212,9 +1212,9 @@ mod reference_vectors {
 
     /// A whole matrix whose translation (+0x30 ..) is the buffer's at `at` + 0x30 (`at` the
     /// matrix's place).
-    fn whole_at(at: crate::effects::asm_test::Operand) -> [crate::session::Float; 16] {
+    fn whole_at(at: crate::effects::asm_test::Operand) -> [crate::memory::session::Float; 16] {
         std::array::from_fn(|i| {
-            crate::session::Float::from_bits(if (12..15).contains(&i) {
+            crate::memory::session::Float::from_bits(if (12..15).contains(&i) {
                 word(at + 4 * i)
             } else {
                 0

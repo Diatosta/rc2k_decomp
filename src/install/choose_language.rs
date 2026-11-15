@@ -5,7 +5,7 @@
 //! two texts do not end inside it.
 
 use crate::errors::BadInput;
-use crate::place::BytePlace;
+use crate::memory::place::BytePlace;
 use rc2k_core::install::config;
 
 pub const LANGUAGE_SLOT: usize = config::SLOT;

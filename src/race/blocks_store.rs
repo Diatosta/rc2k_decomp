@@ -97,7 +97,9 @@ impl CarBlocks {
         match known_block(handle) {
             Some(n) => Ok(&self.cars[n]),
             None => {
-                crate::framework::log(&format!("trap: {handle:#x} is no car block's place"));
+                crate::logfile::program_log::log(&format!(
+                    "trap: {handle:#x} is no car block's place"
+                ));
                 Err(crate::errors::BadInput("a car block at no car's place"))
             }
         }

@@ -3,9 +3,9 @@
 //! switches kept, the frame-picture recording state (three unaligned dwords), the NET and display
 //! text strings (left as unknown bytes), the view marks' state and the listener place and turn.
 
-use crate::cells::ZeroCells;
+use crate::memory::cells::ZeroCells;
+use crate::memory::session::{PlainDword, PlainFloat};
 use crate::race::first_cells::{plain_dwords, plain_dwords_of_text};
-use crate::session::{PlainDword, PlainFloat};
 #[cfg(test)]
 use crate::test_support::own::race;
 
@@ -286,7 +286,7 @@ impl ViewerPanelBlock {
     /// The text id of camera `camera` (47 of them; a number past them reads on in the block).
     pub fn camera_name(&self, camera: usize) -> u16 {
         // The names are the block's first bytes.
-        crate::cells::load_value::<u16>(self, 2 * camera)
+        crate::memory::cells::load_value::<u16>(self, 2 * camera)
             .unwrap_or_else(|e| crate::fatal::raise::end("a camera's name", e))
     }
 
@@ -330,7 +330,7 @@ impl ViewerPanelBlock {
                 "a switch picture's name off the panel",
             ));
         }
-        crate::cells::load_value(self, ida - START)
+        crate::memory::cells::load_value(self, ida - START)
     }
 
     /// The dword at the image address `ida` in the tail: unaligned, so made of the two cells it
@@ -381,7 +381,7 @@ mod tests {
         let kept: Vec<u32> = v
             .untyped_tail
             .iter()
-            .map(crate::session::PlainDword::get)
+            .map(crate::memory::session::PlainDword::get)
             .collect();
         for (k, ida) in [TAIL, TAIL + 3, TAIL + 7, TAIL + 11]
             .into_iter()
@@ -392,7 +392,7 @@ mod tests {
             }
             let tail_bytes = || {
                 let mut bytes = vec![0; 24];
-                crate::cells::load_cells(&v.untyped_tail, 0, &mut bytes).unwrap();
+                crate::memory::cells::load_cells(&v.untyped_tail, 0, &mut bytes).unwrap();
                 bytes
             };
             let before = tail_bytes();

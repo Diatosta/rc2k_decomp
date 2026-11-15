@@ -9,7 +9,7 @@
 //! (`strings::string_table`). `InstallVars` keeps a one-byte lead so that every field has the
 //! alignment it had.
 
-use crate::session::{PlainByte, PlainBytes, PlainDword, with_runs};
+use crate::memory::session::{PlainByte, PlainBytes, PlainDword, with_runs};
 
 #[derive(rc2k_derive::Cells)]
 pub struct InstallVars {

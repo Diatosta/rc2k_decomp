@@ -73,9 +73,9 @@ impl Flt for f32 {
     }
 }
 
-impl<C: crate::session::Cell32 + ?Sized> Flt for C {
+impl<C: crate::memory::session::Cell32 + ?Sized> Flt for C {
     fn bits(&self) -> u32 {
-        crate::session::Cell32::bits(self)
+        crate::memory::session::Cell32::bits(self)
     }
 }
 
@@ -171,7 +171,7 @@ pub fn one_less_int_ratio(a: i32, b: i32) -> u32 {
 /// `rcpss` of `a` times `b`: `rcpss` is an SSE approximation taken from the tables of
 /// `arch::rcpss`, as the processors' own results differ.
 pub fn rcpss_times(a: impl Flt, b: impl Flt) -> f32 {
-    crate::arch::rcpss(a.value()) * b.value()
+    crate::platform::arch::rcpss(a.value()) * b.value()
 }
 
 /// A row of one matrix times a column of another: `a[0] b[0] + (a[1] b[4] + a[2] b[8])`,

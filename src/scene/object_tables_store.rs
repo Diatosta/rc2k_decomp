@@ -3,8 +3,8 @@
 //! 0x400-entry tables of texture tags and levels. The kind texture tables follow
 //! (`scene::kind_texture_store`).
 
-use crate::cells::ZeroCells;
-use crate::session::PlainDword;
+use crate::memory::cells::ZeroCells;
+use crate::memory::session::PlainDword;
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ObjectTables {
@@ -60,7 +60,7 @@ impl ObjectTables {
         if let Some(kind) = self.object_kinds.get(object as usize) {
             return kind.get();
         }
-        crate::session::read_runs(
+        crate::memory::session::read_runs(
             &[
                 &self.object_kinds,
                 &self.face_count,

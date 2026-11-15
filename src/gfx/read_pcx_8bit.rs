@@ -30,7 +30,7 @@ pub fn read_file_palette(stream: &Stream, gfx: &crate::gfx::owner::Gfx) -> bool 
 
 /// The palette's bytes read from `file` into `palette` (those the file has): whether the read
 /// worked.
-fn read_palette(file: u32, palette: &crate::session::PlainBytes<FILE_PALETTE_LEN>) -> bool {
+fn read_palette(file: u32, palette: &crate::memory::session::PlainBytes<FILE_PALETTE_LEN>) -> bool {
     let mut bytes = [0u8; FILE_PALETTE_LEN];
     let (got, ok) = read_slice(file, &mut bytes);
     for (k, &b) in bytes[..got as usize].iter().enumerate() {

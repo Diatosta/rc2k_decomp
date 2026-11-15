@@ -22,7 +22,7 @@ struct GameCars<'a>(
     u32,
     u32,
     Option<NetRace>,
-    crate::workers::DrawReads<'a>,
+    crate::scene::workers::DrawReads<'a>,
 );
 
 impl rc2k_core::scene::lamps::CarLights for GameCars<'_> {
@@ -54,7 +54,7 @@ impl rc2k_core::scene::lamps::CarLights for GameCars<'_> {
 // Logic: `rc2k_core::scene::lamps::car_lights`
 /// `drawn`: the car whose lights are skipped, or -1 (`ObjectLight::drawn_car_light`).
 pub fn add_car_lights(
-    reads: crate::workers::DrawReads<'_>,
+    reads: crate::scene::workers::DrawReads<'_>,
     net_race: Option<NetRace>,
     drawn: u32,
     view: u32,

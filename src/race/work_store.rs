@@ -4,9 +4,9 @@
 //! Named from the code's uses; most names are readings, and `unknown_*` runs are places no code
 //! names. `#[repr(C)]`, the unused runs at either end and in the middle left out.
 
-use crate::cells::ZeroCells;
 use crate::errors::BadInput;
-use crate::session::{PlainDword, PlainFlag, PlainFloat};
+use crate::memory::cells::ZeroCells;
+use crate::memory::session::{PlainDword, PlainFlag, PlainFloat};
 
 /// A loose part flying off a car (0x78 bytes, `physics::fill_race_slot`; field names are readings).
 #[cfg_attr(test, repr(C))]

@@ -2,7 +2,7 @@
 //! pages, the network lobby and session lists, the replay viewer): the highlighted item, the key
 //! being repeated, the answer and the clocks that pace the highlight. One static.
 
-use crate::session::{PlainByte, PlainDword};
+use crate::memory::session::{PlainByte, PlainDword};
 
 /// The list menu in use.
 #[derive(rc2k_derive::Cells)]

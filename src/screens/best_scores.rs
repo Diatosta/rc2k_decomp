@@ -5,6 +5,8 @@
 //! `game_screen::GameScreen`.
 
 use crate::errors::{BadInput, Refused};
+use crate::memory::session::DwordLike;
+use crate::memory::session::PlainDword;
 use crate::menu::event_flow::Fault;
 use crate::menu::event_flow::StageTable;
 use crate::menu::owner::Menus;
@@ -12,8 +14,6 @@ use crate::menu::pages_store::MenuPages;
 use crate::records::stages_store::{Holder, RecordRef, RecordTable};
 use crate::screens::game_screen::GameScreen;
 use crate::screens::game_screen::{Held, HeldText};
-use crate::session::DwordLike;
-use crate::session::PlainDword;
 use crate::system::owner::System;
 use crate::text::draw_text::Canvas;
 use rc2k_core::screens::best_scores::{Row, Rows};

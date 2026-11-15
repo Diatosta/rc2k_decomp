@@ -23,7 +23,7 @@
 //! - Game thread only (`LobbyVars`): `mode`, `sequence`, `first_host`, `send_buffer`,
 //!   `show_gaps`, `data_size`, `racing`, `after_race`, `sync_clock`.
 
-use crate::session::{
+use crate::memory::session::{
     Byte, Bytes, Dword, Flag, PlainByte, PlainBytes, PlainDword, Word, with_runs,
 };
 use rc2k_core::net::inbox::Inbox;

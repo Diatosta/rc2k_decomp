@@ -6,8 +6,8 @@
 //!
 //! Callers: one of the game's. The random numbers are `Randoms::random_below`'s. Refuses a count
 //! of 0 (it would divide by 0), before anything.
-use crate::cells::Store;
 use crate::errors::{BadInput, Refused};
+use crate::memory::cells::Store;
 use crate::menu::drivers_store::{DRIVER_LEN, records_from_bytes, records_to_bytes};
 use crate::menu::owner::Menus;
 use rc2k_core::saves::defaults::CLASS_DRIVER_COUNTS;

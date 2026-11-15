@@ -213,7 +213,7 @@ pub enum CellPalette {
 }
 
 impl CellPalette {
-    fn cells(self, fonts: &FontStores) -> &[crate::session::PlainDword; 256] {
+    fn cells(self, fonts: &FontStores) -> &[crate::memory::session::PlainDword; 256] {
         match self {
             CellPalette::Blended => &fonts.blended_palette,
             CellPalette::Sheet => &fonts.font_block.palette_sheet,
@@ -239,7 +239,7 @@ fn cell_palette_offset(place: u32) -> Option<(CellPalette, usize)> {
 }
 
 /// Byte `at` of a cell palette's 256 pixels, read from its cells.
-fn cell_palette_byte(cells: &[crate::session::PlainDword; 256], at: usize) -> Option<u8> {
+fn cell_palette_byte(cells: &[crate::memory::session::PlainDword; 256], at: usize) -> Option<u8> {
     let cell = cells.get(at / 4)?;
     Some(cell.get().to_le_bytes()[at % 4])
 }
@@ -265,7 +265,11 @@ pub enum Glyphs<'a> {
     /// From this offset in the jade font's fields, read from its cells.
     Jade(&'a JadeFont, usize),
     /// From this offset in a palette held in cells.
-    Cells(CellPalette, &'a [crate::session::PlainDword; 256], usize),
+    Cells(
+        CellPalette,
+        &'a [crate::memory::session::PlainDword; 256],
+        usize,
+    ),
 }
 
 impl rc2k_core::strings::bytes::Bytes for Glyphs<'_> {

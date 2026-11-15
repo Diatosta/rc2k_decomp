@@ -4,7 +4,7 @@
 //! code names. Its layout is Rust's own: no code addresses it by byte (the replay file's layout
 //! is `drive::replay_state`'s, field by field).
 
-use crate::session::{CellKind, PlainCells};
+use crate::memory::session::{CellKind, PlainCells};
 
 /// The record, on the cells of kind `K`: plain for the work car and the cars' blocks (`Car`),
 /// which only the game's thread writes, and for a view's copy of its car (`ViewCar`).
@@ -582,8 +582,8 @@ impl Car {
     /// The piece at the start of a race: zero but for the set-up (ride height 0x80,
     /// suspension stiffness 0x40) and the parts present (all bits).
     pub const fn new() -> Self {
-        use crate::session::PlainDword;
-        let mut car: Self = crate::cells::zeroed_cells();
+        use crate::memory::session::PlainDword;
+        let mut car: Self = crate::memory::cells::zeroed_cells();
         car.ride_height = PlainDword::new(0x80);
         car.suspension_stiffness = PlainDword::new(0x40);
         car.parts_present = PlainDword::new(u32::MAX);

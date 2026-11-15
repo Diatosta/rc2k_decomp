@@ -1,7 +1,7 @@
 //! The strings' owned state: the text buffer, the keyboard tables, the language and the lexicon in
 //! one struct, handed by reference to the code that uses them.
 
-use crate::session::{PlainBytes, PlainDword};
+use crate::memory::session::{PlainBytes, PlainDword};
 use crate::settings::read_driver_names::NAMES_SIZE;
 use crate::strings::compile_lexicon::{EMPTY_MESSAGE_LEN, LexiconMemory, WORK_LEN};
 use crate::strings::format_seal_code::SEAL_TEXT_LEN;

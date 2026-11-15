@@ -2,9 +2,9 @@
 //! (`race::frame_draw::panel_motion_plain` reads it; nothing writes it). The fields keep a fixed
 //! layout.
 
-use crate::cells::ZeroCells;
+use crate::memory::cells::ZeroCells;
 
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct PanelClock {

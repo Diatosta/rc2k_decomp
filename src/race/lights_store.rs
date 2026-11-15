@@ -2,8 +2,8 @@
 //! copies for a record mode other than the second and the seven for the second, then
 //! `files\s\data\ldata` (0x1320 bytes).
 
-use crate::cells::ZeroCells;
-use crate::session::{PlainBytes, PlainDword};
+use crate::memory::cells::ZeroCells;
+use crate::memory::session::{PlainBytes, PlainDword};
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct LightsData {

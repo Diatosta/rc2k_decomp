@@ -4,9 +4,9 @@
 //! values). `light_records` follows.
 //!
 
-use crate::cells::ZeroCells;
+use crate::memory::cells::ZeroCells;
 
-use crate::session::{PlainBytes, PlainDword, PlainFloat};
+use crate::memory::session::{PlainBytes, PlainDword, PlainFloat};
 
 /// One car kind's figures.
 #[cfg_attr(test, repr(C))]

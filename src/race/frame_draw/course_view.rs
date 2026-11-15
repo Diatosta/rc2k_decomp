@@ -314,9 +314,9 @@ pub fn gather_visible_faces(ctx: &DrawCtx) -> Result<(), Refused> {
 /// `race().frame.frame_work.face_hide_mask` = its +2 word's bits 1 and 3 flipped when any is set
 /// (0xA), or'd with bits 4 and 5 likewise (0x30).
 pub fn face_hide_mask(
-    reads: crate::workers::DrawReads<'_>,
+    reads: crate::scene::workers::DrawReads<'_>,
     view: &crate::race::view_scratch::ViewScratch,
-    part: &crate::workers::PartScratch,
+    part: &crate::scene::workers::PartScratch,
 ) -> Result<(), Refused> {
     crate::physics::probe_ground::probe_ground_in_view(
         &crate::physics::probe_ground::ProbeInputs {
@@ -377,7 +377,7 @@ fn mark_far_cells_with<R: crate::math::x87_float::Rounds>(
         .matrices
         .view_turn_matrix
         .each_ref()
-        .map(crate::session::PlainFloat::get);
+        .map(crate::memory::session::PlainFloat::get);
     let two = numbers.two.get();
     let zero = numbers.zero.get();
     let point_five = numbers.half.get();
@@ -406,9 +406,9 @@ fn mark_far_cells_with<R: crate::math::x87_float::Rounds>(
 /// `mark_far_cells` with the limit `checkpoint_colours` gives with two checkpoints or more
 /// (`checkpoint_count`), else 0x10. Refused (before anything): what `course_grid` would refuse.
 pub fn prepare_course_view(
-    reads: crate::workers::DrawReads<'_>,
+    reads: crate::scene::workers::DrawReads<'_>,
     view: &crate::race::view_scratch::ViewScratch,
-    part: &crate::workers::PartScratch,
+    part: &crate::scene::workers::PartScratch,
 ) -> Result<(), Refused> {
     check_course_grid(reads.course())?;
     face_hide_mask(reads, view, part)?;
@@ -440,7 +440,7 @@ pub fn visible_records(
 ) -> Result<Vec<u32>, BadInput> {
     let grid = &view.cells;
     let list = rc2k_core::race::view::visible_records(
-        grid.iter().map(crate::session::PlainDword::get),
+        grid.iter().map(crate::memory::session::PlainDword::get),
         course.course.course_record_count.get(),
     )
     .into_iter()
@@ -452,8 +452,8 @@ pub fn visible_records(
 /// twin: 8-byte entries by their first dword, the largest first) from its first entry to its last.
 /// Refused (before anything): a sort that would go past the list. `entries` is the list's cells.
 pub fn sort_entries(
-    count: &crate::session::PlainDword,
-    entries: &[crate::session::PlainDword],
+    count: &crate::memory::session::PlainDword,
+    entries: &[crate::memory::session::PlainDword],
 ) -> Result<(), Refused> {
     use rc2k_core::race::quick_sort::Order;
     let n: u32 = count.get();

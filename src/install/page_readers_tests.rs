@@ -11,7 +11,7 @@
 
 use crate::install::page_links::{ListId, PageLink};
 use crate::install::page_records::{BoxRecord, PageEntry, Piece};
-use crate::list_handle::{ItemPosition, ListItem, ListMenu};
+use crate::memory::list_handle::{ItemPosition, ListItem, ListMenu};
 use std::fmt::Debug;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
@@ -123,7 +123,7 @@ mod legacy {
     }
 
     /// The offset of the box `rect` is, if it is one of the pages' boxes.
-    pub fn box_of(rect: &crate::list_handle::BoxRect) -> usize {
+    pub fn box_of(rect: &crate::memory::list_handle::BoxRect) -> usize {
         let boxes = &crate::test_support::own::install().pages.boxes;
         BOXES + 16 * boxes.iter().position(|b| core::ptr::eq(b, rect)).unwrap()
     }

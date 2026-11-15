@@ -15,7 +15,7 @@
 //! The sound commands go to the audio thread through `audio::store`'s queue; these are the
 //! game thread's.
 
-use crate::session::{Dword, PlainDword, PlainFloat, PlainWord};
+use crate::memory::session::{Dword, PlainDword, PlainFloat, PlainWord};
 
 /// One cue of a car's queue: eight dwords.
 #[derive(rc2k_derive::Cells)]

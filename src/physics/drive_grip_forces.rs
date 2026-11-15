@@ -26,6 +26,7 @@ use crate::math::x87_float::X;
 use crate::math::x87_float::int;
 use crate::math::x87_float::ld;
 use crate::math::x87_float::to_int;
+use crate::memory::session::PlainFloat;
 use crate::physics::car_store::Car;
 use crate::physics::flow::FloatView;
 use crate::physics::flow::{
@@ -35,7 +36,6 @@ use crate::physics::flow::{
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 use crate::scene::engine_tables_store::EngineTables;
-use crate::session::PlainFloat;
 
 /// The steer angle's table index (the angle >> 20).
 fn steer_index(car: &Car) -> u32 {
@@ -458,8 +458,8 @@ fn ease_yaw_twist(
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
+    use crate::memory::session::Cell32;
     use crate::scene::x87_mem::{HostCell, view};
-    use crate::session::Cell32;
     use crate::test_support::own::race;
     use crate::test_support::own::scene;
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};

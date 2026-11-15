@@ -2,12 +2,12 @@
 //! own (a boxed `Net`) or restored after: each case builds from fixed inputs, checks the exact
 //! bytes, and reads them back.
 
+use crate::memory::session::Cell32;
 use crate::net::apply_message::{apply_message, glide_steps, place, three, wanted};
 use crate::net::owner::Net;
 use crate::net::send_inputs::{Message, fields, send_fields};
 use crate::net::send_message::send_message;
 use crate::net::store::PlayerRecord;
-use crate::session::Cell32;
 use rc2k_core::net::race::Kind;
 
 fn dwords(words: &[u32]) -> Vec<u8> {
@@ -135,7 +135,9 @@ fn a_received_message_is_put_into_the_senders_car() {
     let r = crate::test_support::own::race();
     let net = crate::test_support::own::net();
     let Ok(car) = r.shared.race_car(2) else {
-        crate::framework::log("SKIPPED a_received_message_is_put_into_the_senders_car: no car 2");
+        crate::logfile::program_log::log(
+            "SKIPPED a_received_message_is_put_into_the_senders_car: no car 2",
+        );
         return;
     };
     let mut saved = snapshot();

@@ -15,9 +15,9 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::input::types::InputDevice;
+use crate::memory::session::PlainDword;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
-use crate::session::PlainDword;
 
 fn clip(edge: &PlainDword) -> u32 {
     edge.get()
@@ -84,7 +84,7 @@ fn fill(
 /// A text (`text::draw_text_keep_regs` on the game's surface) in `font` at (`x`, `y`).
 fn text(
     font: &crate::gfx::typefaces::FontObject,
-    text: impl Into<crate::place::BytePlace>,
+    text: impl Into<crate::memory::place::BytePlace>,
     x: u32,
     y: u32,
     gfx: &'static crate::gfx::owner::Gfx,

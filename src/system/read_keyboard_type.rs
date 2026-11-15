@@ -7,7 +7,7 @@ pub fn keyboard_type(subtype: u32) -> Option<u32> {
 }
 
 pub fn read_keyboard_type(system: &crate::system::owner::System) {
-    let subtype = crate::os::keyboard_subtype();
+    let subtype = crate::platform::os::keyboard_subtype();
     if let Some(kind) = keyboard_type(subtype) {
         system.machine().keyboard_type.set(kind);
     }

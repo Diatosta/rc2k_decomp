@@ -3,7 +3,7 @@
 //! by entry and the list before a clip), the pool of point records the clip makes, the textures'
 //! records and the objects' materials.
 
-use crate::session::{PlainByte, PlainBytes, PlainDword};
+use crate::memory::session::{PlainByte, PlainBytes, PlainDword};
 
 /// A polygon work entry (0x44 bytes).
 #[cfg_attr(test, repr(C))]
@@ -122,7 +122,7 @@ pub struct TextureInfo {
 }
 
 /// The record's dwords as a run.
-impl crate::session::Run for TextureInfo {
+impl crate::memory::session::Run for TextureInfo {
     fn count(&self) -> usize {
         self.words.len()
     }
@@ -143,7 +143,7 @@ pub struct ObjectMaterial {
 }
 
 /// The record's dwords as a run.
-impl crate::session::Run for ObjectMaterial {
+impl crate::memory::session::Run for ObjectMaterial {
     fn count(&self) -> usize {
         self.words.len()
     }
@@ -188,8 +188,8 @@ pub struct PolygonTables {
 
 impl PolygonWork {
     /// The work area, zeroed as in the image: one for each drawing part
-    /// (`workers::PartScratch::polygon`).
+    /// (`scene::workers::PartScratch::polygon`).
     pub const fn new() -> Self {
-        crate::cells::zeroed_cells()
+        crate::memory::cells::zeroed_cells()
     }
 }

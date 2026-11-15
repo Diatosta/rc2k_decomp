@@ -29,7 +29,7 @@ pub use rc2k_core::scene::shown::Way;
 /// The texture set for the current object; the object's number.
 // Logic: `rc2k_core::scene::shown::texture_set`
 fn texture_set(
-    reads: crate::workers::DrawReads<'_>,
+    reads: crate::scene::workers::DrawReads<'_>,
     cars: &crate::race::car_draw_state::CarDrawState,
 ) -> Result<(u32, u32), Refused> {
     use rc2k_core::scene::shown::SetError;
@@ -65,7 +65,7 @@ fn texture_set(
 // Logic: `rc2k_core::scene::shown::way`
 pub fn draw_scene_object(
     draw: &mut dyn FnMut(Way) -> Result<(), Refused>,
-    reads: crate::workers::DrawReads<'_>,
+    reads: crate::scene::workers::DrawReads<'_>,
     cars: &crate::race::car_draw_state::CarDrawState,
     place: &crate::scene::object_place::ObjectPlace,
 ) -> Result<(), Refused> {

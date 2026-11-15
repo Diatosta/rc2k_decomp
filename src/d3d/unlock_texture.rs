@@ -5,8 +5,8 @@
 //! anything.
 
 use crate::d3d::texture_lock::*;
+use crate::errors::CarryZeroFlags;
 use crate::errors::{BadInput, Refused};
-use crate::framework::CarryZeroFlags;
 use crate::gfx::texture_upload::RecordCell;
 
 /// Texture `texture` unlocked.
@@ -23,7 +23,7 @@ pub fn unlock_texture(
     {
         Unlock::Flags(carry, zero) => (carry, zero),
         Unlock::Unlock => {
-            if crate::platform_3d::unlock_surface(surface) != 0 {
+            if crate::platform::direct3d::unlock_surface(surface) != 0 {
                 return Err(fatal(UNLOCK_FAILED).into());
             }
             // Only a texture in the pool gets here.

@@ -2,7 +2,7 @@
 //! array (a matrix's cells, a car's velocity, a slice of one from a cell on), or
 //! `Off` (a run from its cell `n` on).
 
-use crate::session::Cell32;
+use crate::memory::session::Cell32;
 
 pub trait Cells {
     /// Cell `n`'s bits.
@@ -48,7 +48,7 @@ impl<C: Cell32, const N: usize> Cells for [C; N] {
 }
 
 /// A byte buffer's little-endian dwords.
-impl<const N: usize> Cells for crate::session::Bytes<N> {
+impl<const N: usize> Cells for crate::memory::session::Bytes<N> {
     fn bits(&self, n: usize) -> u32 {
         self.get_u32(4 * n)
     }
@@ -61,7 +61,7 @@ impl<const N: usize> Cells for crate::session::Bytes<N> {
 }
 
 /// A plain byte buffer's little-endian dwords.
-impl<const N: usize> Cells for crate::session::PlainBytes<N> {
+impl<const N: usize> Cells for crate::memory::session::PlainBytes<N> {
     fn bits(&self, n: usize) -> u32 {
         self.get_u32(4 * n)
     }
@@ -112,7 +112,7 @@ impl<T: Cells + ?Sized> Cells for Off<'_, T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::session::Float;
+    use crate::memory::session::Float;
 
     #[test]
     fn cells_by_index_and_from_a_cell() {

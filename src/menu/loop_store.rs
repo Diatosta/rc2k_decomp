@@ -2,7 +2,7 @@
 //! sprite table and the menu shown. The game keeps these dwords at addresses one past a multiple
 //! of four; here they lie at the same distances from the start. One static.
 
-use crate::session::{PlainDword, PlainFlag};
+use crate::memory::session::{PlainDword, PlainFlag};
 
 /// The menu loop's flags.
 #[derive(rc2k_derive::Cells)]

@@ -2,7 +2,7 @@
 //! 1; the film player, the mode trial and the texture allocation clear it around calls that may
 //! fail.
 
-use crate::session::PlainDword;
+use crate::memory::session::PlainDword;
 
 #[derive(rc2k_derive::Cells)]
 pub struct Reports {

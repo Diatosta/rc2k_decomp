@@ -6,9 +6,9 @@
 //! (`listed_car_sounds` holds eight).
 
 use crate::errors::Refused;
+use crate::memory::session::PlainDword;
 use crate::race::frame_store::FrameWork;
 use crate::race::work_store::RaceWork;
-use crate::session::PlainDword;
 use rc2k_core::physics::listed_cars::listed_entry;
 
 /// Sets `flag` to 1 when the current car is listed (`FrameWork.listed_car_sounds`).

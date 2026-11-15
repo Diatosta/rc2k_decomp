@@ -76,7 +76,7 @@ fn place(weather: &Weather, k: u32) -> ([u32; 3], [u32; 2], [u32; 3]) {
             .snow
             .view
             .each_ref()
-            .map(super::super::session::PlainDword::get);
+            .map(crate::memory::session::PlainDword::get);
         let curve = |i: u32| {
             if i < CURVE {
                 weather.snow_curve.curve[i as usize].get()
@@ -143,7 +143,10 @@ pub fn draw_snow(
                     }
                 }
                 square(scene.scratch.front_end_polygon(), buffer, weather, 4 * k);
-                let [top, bottom] = snow_light.v.each_ref().map(crate::session::PlainFloat::get);
+                let [top, bottom] = snow_light
+                    .v
+                    .each_ref()
+                    .map(crate::memory::session::PlainFloat::get);
                 for (n, vertex) in buffer.vertices.iter().enumerate().take(4) {
                     vertex.v.set(if n < 2 { top } else { bottom });
                 }

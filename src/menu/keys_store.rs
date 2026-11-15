@@ -2,7 +2,7 @@
 //! keys the redefine page works on, the copy of a player's controls the controller pages keep, and
 //! the reserved keys. Bytes only, at addresses one past a multiple of four. One static.
 
-use crate::session::{PlainBytes, with_runs};
+use crate::memory::session::{PlainBytes, with_runs};
 
 /// The keys' tables.
 #[derive(rc2k_derive::Cells)]

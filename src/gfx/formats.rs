@@ -1,7 +1,7 @@
 //! The pixel formats' work variables (format numbers, scratch bytes, component format). The row
 //! table follows (`ROW_TABLE`).
 
-use crate::session::{PlainBytes, PlainDword};
+use crate::memory::session::{PlainBytes, PlainDword};
 
 /// A pixel layout's number and its masks' summary (`describe_format` picks the number of the layout
 /// whose bits the masks match).

@@ -22,7 +22,7 @@ pub fn race_turn(
         return Ok(());
     }
     if crate::sound::turn_parts::step_clock(sound, system) {
-        crate::platform_timing::note_sound_turn();
+        crate::platform::timing::note_sound_turn();
         use crate::sound::*;
         mark_car_voices::mark_car_voices(sound, race)?;
         car_sounds_all::car_sounds_all(sound, race, system, audio)?;

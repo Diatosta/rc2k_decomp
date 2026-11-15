@@ -9,8 +9,8 @@ use crate::effects::emit_twin_particle_first::TwinTuning;
 use crate::effects::emit_twin_particle_first::{TwinSet, emit_twin};
 use crate::effects::owner::Effects;
 use crate::errors::Refused;
+use crate::memory::session::{PlainDword, PlainFloat};
 use crate::race::effects_settings_store::CarEffects;
-use crate::session::{PlainDword, PlainFloat};
 
 /// `emit_twin_particle_second`'s variables.
 pub fn twenty_second(effects: &Effects) -> TwinSet<'_> {

@@ -22,9 +22,9 @@
 //! What SDL's haptics cannot do (an effect it does not have) is logged once and skipped:
 //! the game's own effects go on without it.
 
-use crate::ffi::sdl_input::{self, Gamepad, Haptic, Joystick};
-use crate::framework::log;
 use crate::input::di_objects::{Backend, DeviceInfo, Effect, Kind, Reading};
+use crate::logfile::program_log::log;
+use crate::platform::ffi::sdl_input::{self, Gamepad, Haptic, Joystick};
 use sdl3_sys::everything::*;
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -38,9 +38,9 @@ static MENU_PADS: Mutex<Vec<(SDL_JoystickID, Gamepad)>> = Mutex::new(Vec::new())
 pub fn pad_added(id: SDL_JoystickID) {
     let name = sdl_input::joystick_name_for_id(id, "a joystick");
     #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-    if crate::handheld::is_built_in_pad(&name) {
+    if crate::platform::handheld::is_built_in_pad(&name) {
         let guid = sdl_input::joystick_guid_text_for_id(id);
-        sdl_input::add_gamepad_mapping(crate::handheld::pad_mapping(&guid));
+        sdl_input::add_gamepad_mapping(crate::platform::handheld::pad_mapping(&guid));
     }
     // A gamepad opened stays open until it goes (`pad_removed`): SDL counts the opens, so the
     // game's own open of it is another.

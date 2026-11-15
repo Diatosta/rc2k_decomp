@@ -9,8 +9,8 @@
 //! would be written.
 
 use crate::errors::Refused;
+use crate::memory::session::PlainInt;
 use crate::physics::car_store::Car;
-use crate::session::PlainInt;
 use rc2k_core::physics::gearbox::{GearChange, gear_change};
 
 /// On the current car's sound object and the word at this place.

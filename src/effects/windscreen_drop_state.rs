@@ -1,7 +1,7 @@
 //! The windscreen drops' and windscreen flakes' variables: `WindscreenDropState` and
 //! `WindscreenDropWork`.
 
-use crate::session::{PlainDword, PlainFloat};
+use crate::memory::session::{PlainDword, PlainFloat};
 
 /// The windscreen drops' and windscreen flakes' frame variables (`effects::windscreen_drops_*`,
 /// `effects::windscreen_flakes_*`, `effects::draw_plane`).

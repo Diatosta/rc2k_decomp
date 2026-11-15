@@ -4,7 +4,7 @@
 //! `ViewScratch::begin` keeps it, as the window is set before a view's scene begins); the menus and
 //! the front end's 3D use the front end's.
 
-use crate::session::{PlainDword, PlainFloat};
+use crate::memory::session::{PlainDword, PlainFloat};
 
 #[derive(rc2k_derive::Cells)]
 pub struct ViewWindow {

@@ -10,10 +10,10 @@
 use crate::effects::cell_x87::CellX87;
 use crate::math::x87_float::int;
 use crate::math::x87_float::to_int;
+use crate::memory::session::{DwordLike, FloatLike};
 use crate::physics::flow::c0;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
-use crate::session::{DwordLike, FloatLike};
 
 /// `to` = `from` (signed) x `by`, as a whole number rounded as the x87 rounds.
 fn scale(from: &impl DwordLike, by: &impl FloatLike, to: &impl DwordLike) {

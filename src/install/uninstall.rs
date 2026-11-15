@@ -22,12 +22,12 @@ fn build_path(
     install: &'static crate::install::owner::Install,
     table: &crate::memory::owned::Owned<crate::install::name_tables::NameTable>,
     index: u32,
-) -> Result<crate::place::BytePlace, Refused> {
+) -> Result<crate::memory::place::BytePlace, Refused> {
     let mut path = text_at(&install.paths.installed);
     crate::install::name_tables::push_name(table, index, &mut path)?;
     path.push(0);
     store_text(&install.paths.path_b, &path);
-    Ok(crate::place::BytePlace::from(&install.paths.path_b))
+    Ok(crate::memory::place::BytePlace::from(&install.paths.path_b))
 }
 
 /// The installation's folder, when "remove all" was chosen and it is one that may go whole.
@@ -49,7 +49,7 @@ fn whole_folder(install: &crate::install::owner::Install) -> Option<std::path::P
         || home.is_some_and(|h| h == folder)
         || !crate::files::host_path(&record).is_file();
     if kept {
-        crate::framework::log(&format!(
+        crate::logfile::program_log::log(&format!(
             "install: \"{}\" is not removed whole (not an installation's folder)",
             folder.display()
         ));
@@ -67,7 +67,7 @@ fn remove_whole(folder: &std::path::Path) {
     };
     #[cfg(windows)]
     let now = if folder.exists() {
-        let later = crate::os::remove_folder_after_exit(folder);
+        let later = crate::platform::os::remove_folder_after_exit(folder);
         format!(
             "{now}; the rest after the end: {}",
             if later { "asked" } else { "not asked" }
@@ -75,7 +75,7 @@ fn remove_whole(folder: &std::path::Path) {
     } else {
         now
     };
-    crate::framework::log(&format!("install: \"{}\": {now}", folder.display()));
+    crate::logfile::program_log::log(&format!("install: \"{}\": {now}", folder.display()));
 }
 
 pub fn uninstall(
@@ -108,7 +108,7 @@ pub fn uninstall(
     set_cd(&install.paths.installed);
     i::run_script::run_script(
         install,
-        crate::place::BytePlace::from(&install.names.script),
+        crate::memory::place::BytePlace::from(&install.names.script),
     )?;
     if install.run.file_count.get() != 0 {
         let mut n = 0;

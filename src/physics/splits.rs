@@ -16,7 +16,7 @@ pub fn put_split_time(car: &Car, split: usize, v: u32) -> Result<(), crate::erro
         time.set(v);
         return Ok(());
     }
-    crate::session::write_runs(
+    crate::memory::session::write_runs(
         &[
             &car.split_times,
             &car.drive_slip_speed,

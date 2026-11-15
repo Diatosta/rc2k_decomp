@@ -13,7 +13,10 @@ pub fn device_axes(device: u32, input: &crate::input::owner::Input) -> Result<[u
     let Some(d) = input.devices.input_device(device as usize)? else {
         return Err(BadInput("a null input device").into());
     };
-    let [ecx, edx, mut eax] = d.readings.each_ref().map(crate::session::Dword::get);
+    let [ecx, edx, mut eax] = d
+        .readings
+        .each_ref()
+        .map(crate::memory::session::Dword::get);
     let ebx = d.bits.get();
     if input.devices.nonlinear_steering.get() != 0 {
         eax = device_curve(eax);

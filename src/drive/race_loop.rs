@@ -13,7 +13,10 @@ use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use rc2k_core::net::net_race::NetRace;
 
-fn view_bit(shared: &RaceShared, view: &crate::session::PlainDword) -> Result<bool, BadInput> {
+fn view_bit(
+    shared: &RaceShared,
+    view: &crate::memory::session::PlainDword,
+) -> Result<bool, BadInput> {
     let car = shared
         .car_blocks()
         .of(view.get())
@@ -99,21 +102,23 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
             crate::debug::timing::stop(crate::debug::timing::Stage::Input, begun);
             if race.shared.work.get().in_credits.is_set() {
                 if race.frame.credits().done.get() != 0 {
-                    crate::framework::log("drive::race_loop: the credits race ends: rolled off");
+                    crate::logfile::program_log::log(
+                        "drive::race_loop: the credits race ends: rolled off",
+                    );
                     return Ok(());
                 }
                 let or = crate::drive::any_key_down::any_key_down(input);
                 if or != 0 {
                     // Which keys (by scan code), and the window's own state of them, for the
                     // credits race that ends at once after the intro.
-                    let keys = |table: &crate::session::Bytes<0x80>| {
+                    let keys = |table: &crate::memory::session::Bytes<0x80>| {
                         (0..0x80usize)
                             .filter(|&n| table.get(n) != 0)
                             .map(|n| format!("{n:#x}"))
                             .collect::<Vec<_>>()
                             .join(" ")
                     };
-                    crate::framework::log(&format!(
+                    crate::logfile::program_log::log(&format!(
                         "drive::race_loop: the credits race ends: keys pressed [{}], down [{}], \
                          frame {}",
                         keys(&devices.keys_pressed),
@@ -129,7 +134,7 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
                     break false;
                 }
                 if race.shared.work.get().in_credits.is_set() {
-                    crate::framework::log(&format!(
+                    crate::logfile::program_log::log(&format!(
                         "drive::race_loop: the credits race ends: the quit question (Escape latched), answer {answer:#x}, frame {}",
                         race.shared.physics_tables.get().scene_clock.get()
                     ));
@@ -157,7 +162,7 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
             tyre_change(o)?;
             if players_all_out(race, &o.net.race_slot)? {
                 if race.shared.work.get().in_credits.is_set() {
-                    crate::framework::log(&format!(
+                    crate::logfile::program_log::log(&format!(
                         "drive::race_loop: the credits race ends: every player out, frame {}",
                         race.shared.physics_tables.get().scene_clock.get()
                     ));
