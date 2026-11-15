@@ -88,7 +88,7 @@ pub fn draw_view_scene(
         view.polygon.view_mirrored.get() != 0,
         view.drawn_view(race),
     )?;
-    clear_point_records(reads, part)?;
+    clear_point_records(&scene.scratch, reads, part)?;
     set_up_fog(
         &reads.buffers.engine_tables,
         reads.stage_prefs,

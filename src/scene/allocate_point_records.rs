@@ -11,7 +11,10 @@ use crate::scene::point_records::{self, BYTES};
 
 /// The records are Rust's (`scene::point_records`): counted on the list, the point records set
 /// to `point_records::HELD`.
-pub fn allocate_point_records_in_game(course: &Course) -> Result<(), Refused> {
+pub fn allocate_point_records_in_game(
+    scratch: &crate::workers::DrawingScratch,
+    course: &Course,
+) -> Result<(), Refused> {
     course.lists.get().course_bytes_total.set(
         course
             .lists
@@ -20,5 +23,5 @@ pub fn allocate_point_records_in_game(course: &Course) -> Result<(), Refused> {
             .get()
             .wrapping_add(BYTES),
     );
-    point_records::take(course, &course.lists.get().point_records_list)
+    point_records::take(scratch, course, &course.lists.get().point_records_list)
 }

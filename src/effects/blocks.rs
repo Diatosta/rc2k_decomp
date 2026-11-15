@@ -87,10 +87,13 @@ pub fn allocate_ring(particles: &Particles, ring: &Ring) -> Result<(), Refused> 
 /// 0, at +8 and +0x4008 the 0x1000 entries' before and after (round), then
 /// `effects::scale_corners`. Nothing reads the block, so it is only counted on its list
 /// (the memory figures) and not kept.
-pub fn allocate_links(effects: &crate::effects::owner::Effects) -> Result<(), Refused> {
+pub fn allocate_links(
+    scene: &crate::scene::owner::Scene,
+    effects: &crate::effects::owner::Effects,
+) -> Result<(), Refused> {
     crate::memory::owned::count_on(&effects.blocks.links.list, LINKS_LEN)?;
     // Set up on the game's thread, into its buffer.
-    scale_corners(&crate::workers::game_scratch().vertices, effects);
+    scale_corners(&scene.scratch.game_scratch().vertices, effects);
     Ok(())
 }
 

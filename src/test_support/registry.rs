@@ -653,11 +653,11 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!("owners.gfx.fonts.jade", on_game(&o.gfx.fonts.jade), 0x1419,),
         listed!(
             "workers.PARTS[0].vertices",
-            on_game(&crate::workers::game_scratch().vertices),
+            on_game(&o.scene.scratch.game_scratch().vertices),
         ),
         listed!(
             "workers.PARTS[0].polygon",
-            on_game(&crate::workers::game_scratch().polygon),
+            on_game(&o.scene.scratch.game_scratch().polygon),
         ),
         listed!(
             "owners.race.shared.buffers.reads",

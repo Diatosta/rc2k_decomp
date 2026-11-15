@@ -152,7 +152,7 @@ pub fn loadlevel_init(
     }
     race.shared.work.get().stage_direction.set(direction);
     race.course.numbers.get().in_race.set(true);
-    crate::workers::set_game_part_racing(true);
+    crate::workers::set_game_part_racing(&scene.scratch, true);
     o.audio.racing.set(true);
     s.mark(0)?;
     s.indent(-3);
@@ -269,7 +269,7 @@ pub fn loadlevel_init(
     // refresh init and the refresh flags.
     s.log(Word::RefreshInit);
     s.indent(3);
-    level::reset_refresh();
+    level::reset_refresh(&scene.scratch);
     let flags: u32 = race.course.stage_prefs.get().refresh_flags_a.get();
     scene.lights.work.get().marks_mask.set((flags & 2) >> 1);
     for car in &race.car_blocks().cars[..8] {
@@ -294,7 +294,10 @@ pub fn loadlevel_init(
     s.step(
         Word::Render3dInit,
         &mut || {
-            crate::scene::allocate_point_records::allocate_point_records_in_game(&race.course)?;
+            crate::scene::allocate_point_records::allocate_point_records_in_game(
+                &scene.scratch,
+                &race.course,
+            )?;
             Ok(())
         },
         Some(0x60),

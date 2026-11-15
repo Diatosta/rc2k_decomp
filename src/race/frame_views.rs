@@ -135,10 +135,12 @@ pub fn draw_flat_triangle(part: &crate::workers::PartScratch, scene: &crate::sce
         vertex.rhw.set(0.0);
         vertex.specular.set(0);
     }
-    crate::scene::polygon_work::front_end()
+    scene
+        .scratch
+        .front_end_polygon()
         .polygon_vertex_count
         .set(3);
-    crate::scene::draw_fan::draw_fan(part, scene, crate::scene::polygon_work::front_end(), buffer);
+    crate::scene::draw_fan::draw_fan(part, scene, scene.scratch.front_end_polygon(), buffer);
 }
 
 /// The marks' shadow refusals, checked before anything.
@@ -528,7 +530,9 @@ pub fn draw_own_car(
         ctx.reads.kind_textures.kind_first_slots[202].get(),
     );
     crate::scene::set_render_state::set_render_state(ctx.part, 2, 0x14);
-    crate::scene::polygon_work::front_end()
+    ctx.scene
+        .scratch
+        .front_end_polygon()
         .polygon_vertex_count
         .set(4);
     draw_marks_overlays(ctx, gfx, cheats, effects)

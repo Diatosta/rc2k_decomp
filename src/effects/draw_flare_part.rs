@@ -101,7 +101,7 @@ pub fn draw_flare_part(
             .view_vars
             .cleared
             .set(effects.frame.view_vars.cleared.get().wrapping_add(1));
-        if clip_quad(buffer, effects)? {
+        if clip_quad(buffer, scene, effects)? {
             return Ok(());
         }
         draw_fan(buffer, scene);

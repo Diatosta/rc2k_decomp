@@ -27,7 +27,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
-use crate::race::view_scratch::{ViewScratch, filter_input, main_view, mirror as mirror_view};
+use crate::race::view_scratch::{ViewScratch, filter_input};
 use crate::scene::owner::Scene;
 use crate::system::owner::System;
 const SLOTS: u32 = 0x400;
@@ -74,13 +74,17 @@ fn mirrored(race: &Race, flags: usize) -> bool {
 }
 
 /// View `car`'s car loaded into its own state (`frame::load_view_car`).
-fn load_car(race: &Race, car: usize) -> Result<(), Refused> {
+fn load_car(
+    race: &Race,
+    scratch: &crate::workers::DrawingScratch,
+    car: usize,
+) -> Result<(), Refused> {
     crate::race::frame::load_view_car(
         race.shared.work.get(),
         race.shared.car_blocks(),
         race.shared.view.get(),
         car,
-        main_view(car),
+        scratch.main_view(car),
     )
 }
 
@@ -131,17 +135,19 @@ fn view_rest(
     car: usize,
     blit: bool,
 ) -> Result<(), Refused> {
-    let view = main_view(car);
+    let view = o.scene.scratch.main_view(car);
     // The overlays (the effects, the HUD's quads) draw in the front end's window: the view's.
     {
         use crate::cells::Cells;
-        crate::scene::polygon_work::front_end()
+        o.scene
+            .scratch
+            .front_end_polygon()
             .window
             .copy_from(&view.polygon.window);
     }
     // The debug UI's probe points need this view.
     if car == 0 {
-        crate::debug::imgui_sdl::view_drawn(&o.race.frame);
+        crate::debug::imgui_sdl::view_drawn(&o.race.frame, o.scene);
     }
     if blit {
         crate::d3d::copy_screen_to_texture::copy_screen_to_texture(
@@ -155,7 +161,7 @@ fn view_rest(
         o.scene,
         o.input,
         view,
-        crate::workers::game_scratch(),
+        o.scene.scratch.game_scratch(),
         crate::workers::DrawReads::on_game_thread(o.lent()),
     );
     crate::race::draw_view_overlays::draw_view_overlays(
@@ -201,9 +207,9 @@ fn view_drawn(
     mirror: bool,
 ) -> Result<(), Refused> {
     let view = if mirror {
-        mirror_view(car)
+        scene.scratch.mirror(car)
     } else {
-        main_view(car)
+        scene.scratch.main_view(car)
     };
     view.hand_on_vars(race);
     let output = view.hand_off.output();
@@ -217,7 +223,7 @@ fn view_drawn(
             race,
             scene,
             system,
-            &crate::scene::polygon_work::front_end().window,
+            &scene.scratch.front_end_polygon().window,
         );
     }
     output.store_view_value(race)?;
@@ -239,29 +245,42 @@ fn draw_view(
     flags: usize,
     blit: bool,
 ) -> Result<(), Refused> {
-    load_car(o.race, car)?;
-    fetch_value(o.race, o.race.shared.view.get(), main_view(car))?;
-    fetch_value(o.race, o.race.shared.view.get(), mirror_view(car))?;
+    load_car(o.race, &o.scene.scratch, car)?;
+    fetch_value(
+        o.race,
+        o.race.shared.view.get(),
+        o.scene.scratch.main_view(car),
+    )?;
+    fetch_value(
+        o.race,
+        o.race.shared.view.get(),
+        o.scene.scratch.mirror(car),
+    )?;
     // One after another on the game's thread: on its part's scratch, the stores read from their
     // owners.
-    let part = crate::workers::game_scratch();
+    let part = o.scene.scratch.game_scratch();
     let reads = || crate::workers::DrawReads::on_game_thread(o.lent());
-    let run = |view: &'static ViewScratch| crate::workers::PartRun {
+    let run = |view| crate::workers::PartRun {
         n: 0,
         part,
         view,
         helper: None,
     };
     let view = || -> Result<(), Refused> {
-        view_scene(o, run(main_view(car)), filter_input(car), reads())?;
+        view_scene(
+            o,
+            run(o.scene.scratch.main_view(car)),
+            filter_input(&o.scene.scratch, car),
+            reads(),
+        )?;
         view_drawn(o.race, o.scene, o.system, o.audio, car, false)?;
         view_rest(o, gfx, effects, cheats, car, blit)
     };
-    let mirror = || view_mirror(o, car, run(mirror_view(car)), reads());
+    let mirror = || view_mirror(o, car, run(o.scene.scratch.mirror(car)), reads());
     if !mirrored(o.race, flags) {
         if crate::workers::car_part_wanted() {
             // The view as a part of its own, for its car to be drawn aside (`race::car_part`).
-            let filter = filter_input(car);
+            let filter = filter_input(&o.scene.scratch, car);
             return crate::workers::draw_side_by_side(
                 o.lent(),
                 &[car],
@@ -280,7 +299,7 @@ fn draw_view(
     // share put over theirs as when drawn after them.
     if crate::workers::mirror_beside() {
         // (The front end's filter switches are read before the parts, on the game's thread.)
-        let filter = filter_input(car);
+        let filter = filter_input(&o.scene.scratch, car);
         return crate::workers::draw_beside(
             o.lent(),
             [car, 2 + car],
@@ -323,7 +342,7 @@ fn draw_players_beside(
     player: &(dyn Fn(u32, &ViewScratch, Option<crate::workers::DrawReads<'_>>) + Sync),
 ) -> Result<(), Refused> {
     for p in 0..players {
-        load_car(o.race, p)?;
+        load_car(o.race, &o.scene.scratch, p)?;
     }
     let own = |p: usize,
                view: &ViewScratch,
@@ -348,7 +367,10 @@ fn draw_players_beside(
             Piece::Mirror(p) => 2 + p,
         })
         .collect();
-    let filters: Vec<[u32; 3]> = slots.iter().map(|&slot| filter_input(slot)).collect();
+    let filters: Vec<[u32; 3]> = slots
+        .iter()
+        .map(|&slot| filter_input(&o.scene.scratch, slot))
+        .collect();
     let part = |run: crate::workers::PartRun<'_>,
                 reads: crate::workers::DrawReads<'_>|
      -> Result<(), Refused> {
@@ -366,8 +388,13 @@ fn draw_players_beside(
     crate::workers::draw_side_by_side(o.lent(), &slots, part, |n| match pieces[n] {
         Piece::Scene(p) => {
             o.race.shared.view.get().drawn_view.set(p as u32);
-            own(p, main_view(p), None, o.race.shared.view.get())?;
-            main_view(p).hand_off.put(o.race);
+            own(
+                p,
+                o.scene.scratch.main_view(p),
+                None,
+                o.race.shared.view.get(),
+            )?;
+            o.scene.scratch.main_view(p).hand_off.put(o.race);
             view_drawn(o.race, o.scene, o.system, o.audio, p, false)?;
             view_rest(o, gfx, effects, cheats, p, false)
         }
@@ -389,7 +416,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     };
     let frame = &race.frame;
     // Drawn outside the views' parts: on the game's thread's part.
-    let part = crate::workers::game_scratch();
+    let part = o.scene.scratch.game_scratch();
     use crate::scene::set_render_state::set_render_state;
     use crate::sound::race_sound_tick::race_sound_tick;
     let _cars = crate::race::frame_view::Held::take(race);
@@ -437,7 +464,12 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         }
     }
     // The polygon counts of the four views' slots (read by none).
-    for view in [main_view(0), main_view(1), mirror_view(0), mirror_view(1)] {
+    for view in [
+        o.scene.scratch.main_view(0),
+        o.scene.scratch.main_view(1),
+        o.scene.scratch.mirror(0),
+        o.scene.scratch.mirror(1),
+    ] {
         view.object.split_polygon_count.set(0);
         view.object.whole_polygon_count.set(0);
     }
@@ -450,7 +482,12 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         cell.set(0);
     }
     // `cars_drawn`, now counted in each view's own state.
-    for slot in [main_view(0), main_view(1), mirror_view(0), mirror_view(1)] {
+    for slot in [
+        o.scene.scratch.main_view(0),
+        o.scene.scratch.main_view(1),
+        o.scene.scratch.mirror(0),
+        o.scene.scratch.mirror(1),
+    ] {
         slot.cars.cars_drawn.set(0);
     }
     scene
@@ -509,9 +546,9 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     // The window of the whole screen: the front end's (the loading bar, the HUD, the effects) and
     // the views' (a view's own is set again before it is drawn).
     for window in [
-        &crate::scene::polygon_work::front_end().window,
-        &main_view(0).polygon.window,
-        &main_view(1).polygon.window,
+        &o.scene.scratch.front_end_polygon().window,
+        &o.scene.scratch.main_view(0).polygon.window,
+        &o.scene.scratch.main_view(1).polygon.window,
     ] {
         crate::race::frame_views::full_view_window(race, scene, system, window);
     }
@@ -617,7 +654,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
                 race.shared.view.get().drawn_view.set(view);
                 player(
                     view,
-                    main_view(view as usize),
+                    o.scene.scratch.main_view(view as usize),
                     Some(crate::workers::DrawReads::on_game_thread(owners.lent())),
                 );
                 draw_view(
@@ -660,7 +697,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         o.strings,
     )?;
     if race.course.numbers.get().replay_mode.get() != 2 {
-        crate::drive::tyre_change_screen::tyre_change_screen(race, input, system)?;
+        crate::drive::tyre_change_screen::tyre_change_screen(race, input, system, scene)?;
     }
     Ok(())
 }

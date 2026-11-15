@@ -25,6 +25,8 @@ pub struct Scene {
     /// (`workers::DrawReads`).
     pub light_tables: DrawShared<LightTables>,
     pub drawing: Drawing,
+    /// The scratch every drawing part and view works on (`workers::DrawingScratch`).
+    pub scratch: crate::workers::DrawingScratch,
     pub lights: Lights,
     pub objects: Objects,
     pub textures: Textures,
@@ -99,6 +101,7 @@ impl Scene {
         Self {
             draw_switches: DrawShared::new(DrawSwitches::new()),
             light_tables: DrawShared::new(LightTables::new()),
+            scratch: crate::workers::DrawingScratch::new(),
             drawing: Drawing {
                 scene: DrawShared::new(SceneDraw::new()),
             },

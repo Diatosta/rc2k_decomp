@@ -87,9 +87,9 @@ impl Game {
                 crate::scene::set_up_lit_engine::set_up_lit_engine(race, scene)?;
             }
             Step::Render3dTidy => {
-                crate::race::stage_free::render3d_tidy(race)?;
+                crate::race::stage_free::render3d_tidy(race, &scene.scratch)?;
             }
-            Step::ObjectsTidy => crate::race::stage_free::objects_tidy(race)?,
+            Step::ObjectsTidy => crate::race::stage_free::objects_tidy(race, &scene.scratch)?,
             Step::Nothing => {}
             Step::ReleaseTextures => crate::race::race_end::release_textures(scene, o.gfx),
             Step::FileExists(f) => {

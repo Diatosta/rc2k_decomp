@@ -1,6 +1,6 @@
-//! The cells of the drawing's per-part state: `PartCell<T>`, an element of `workers::PARTS`
-//! (one `PartScratch` per drawing thread) or of `race::view_scratch::VIEWS` (one `ViewScratch`
-//! per drawn piece), reached by exactly one thread at a time.
+//! The cells of the drawing's per-part state: `PartCell<T>`, an element of the parts (one
+//! `PartScratch` per drawing thread) or of the view slots (one `ViewScratch` per drawn piece) of
+//! `workers::DrawingScratch`, reached by exactly one thread at a time.
 //!
 //! Two doors lead in. `claim` is the parts' own: `workers::draw_parts` makes a `PartTurn` for
 //! each run it starts (on the thread that runs it) and the run claims its part's scratch and its
@@ -34,8 +34,8 @@ pub struct PartCell<T> {
 //
 // 1. `claim` needs a `PartTurn`, which only `workers::draw_parts` can make (the constructor is
 //    `pub(crate)` and takes a `DrawScope`, which only `draw_parts` opens). It makes one per run,
-//    on the thread that runs it, and each run is started once per scope; it claims `PARTS[n]` for
-//    run `n` and `VIEWS[slots[n]]` with `slots` checked pairwise distinct before any run starts (a
+//    on the thread that runs it, and each run is started once per scope; it claims part `n` of
+//    one `DrawingScratch` for run `n` and its view slot `slots[n]` with `slots` checked pairwise distinct before any run starts (a
 //    refusal, in every build), so no two runs hold the same element. The reference is `&'s T` with
 //    `'s` the turn's, which borrows the scope: it cannot be kept past the scope's end, and
 //    `PartTurn` is `!Send`, so a run cannot pass the right to claim to another thread.
@@ -44,9 +44,11 @@ pub struct PartCell<T> {
 //    else reaches it. Inside a scope the game's thread is run 0, so it reaches the elements run 0
 //    claimed (`PARTS[0]` and run 0's view) as itself; an element a run other than 0 holds is on
 //    another thread, and `on_game_thread` stops at it in debug builds (`claimed` above 1). The
-//    callers of the accessors outside the parts (`workers::part_scratch`, `game_scratch`,
-//    `race::view_scratch::{main_view, mirror, slot, front_end}`) are the game's thread's own code,
-//    and the parts are handed what they draw on (`PartRun`).
+//    callers of the accessors outside the parts (`workers::DrawingScratch::{game_scratch,
+//    all_parts_on_game_thread, main_view, mirror, slot, front_end}`) are the game's thread's own
+//    code, and the parts are handed what they draw on (`PartRun`): a drawing thread holds the
+//    scratch too (through the context's scene) and could call an accessor, which the debug check
+//    stops.
 // 3. Order between scopes: a scope's runs are spawned after everything the game's thread did
 //    before it and joined (rayon's `in_place_scope`, or the same thread) before anything it does
 //    after, so every access of one scope happens before every access of the next.

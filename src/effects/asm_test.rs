@@ -519,7 +519,11 @@ fn run_recorded<R: std::fmt::Debug>(
 /// Race-block places the blocks read or write, as the typed cells that hold them (what the
 /// Rust versions read), by the place's offset in the race block.
 fn race_cell(off: usize) -> &'static dyn crate::session::Cell32 {
-    let w = &crate::scene::polygon_work::front_end().window;
+    let w = &crate::owners::Owners::the()
+        .scene
+        .scratch
+        .front_end_polygon()
+        .window;
     let m = &crate::test_support::own::race().frame.matrices.get();
     match off {
         0x224088 => &w.view_scale,

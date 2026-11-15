@@ -21,7 +21,7 @@ pub fn choose_view_window(
         mode: scene.light_tables.get().view_mode.get(),
     };
     // The front end's window: the menus, the loading bar and the HUD's full view.
-    let view = crate::scene::polygon_work::front_end();
+    let view = scene.scratch.front_end_polygon();
     let window = &view.window;
     let chosen = choose(settings, || {
         [

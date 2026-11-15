@@ -20,7 +20,11 @@ pub mod imgui_sdl {
     }
 
     /// Nothing to note.
-    pub fn view_drawn(_frame: &crate::race::owner_frame::Frame) {}
+    pub fn view_drawn(
+        _frame: &crate::race::owner_frame::Frame,
+        _scene: &crate::scene::owner::Scene,
+    ) {
+    }
 
     /// Never open.
     #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // the handheld has neither

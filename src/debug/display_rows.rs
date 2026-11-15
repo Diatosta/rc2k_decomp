@@ -3282,10 +3282,7 @@ pub static GROUPS: &[Group] = &[
                 "objs",
                 Shown::Whole,
                 0x5EBA54,
-                store_cell!(
-                    |_o| crate::race::view_scratch::main_view(0).lists,
-                    depth_entry_count
-                ),
+                store_cell!(|o| o.scene.scratch.main_view(0).lists, depth_entry_count),
                 false,
                 (468, 352),
             ),

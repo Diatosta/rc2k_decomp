@@ -211,7 +211,13 @@ mod tests {
         let run = RunStates {
             first_set,
             texture_set: usize::MAX,
-            left: crate::d3d::render_cache::current(&crate::workers::part_scratch(0).cache),
+            left: crate::d3d::render_cache::current(
+                &crate::owners::Owners::the()
+                    .scene
+                    .scratch
+                    .game_scratch()
+                    .cache,
+            ),
         };
         let mut carried = [1; STATES];
         carried[14] = 0;
@@ -235,7 +241,13 @@ mod tests {
         let run = |texture_set| RunStates {
             first_set: [usize::MAX; STATES],
             texture_set,
-            left: crate::d3d::render_cache::current(&crate::workers::part_scratch(0).cache),
+            left: crate::d3d::render_cache::current(
+                &crate::owners::Owners::the()
+                    .scene
+                    .scratch
+                    .game_scratch()
+                    .cache,
+            ),
         };
         assert!(drew_before_texture(&noted, &run(usize::MAX)));
         assert!(drew_before_texture(&noted, &run(1)));

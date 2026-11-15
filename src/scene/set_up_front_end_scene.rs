@@ -106,7 +106,7 @@ pub fn set_up_front_end_scene_in(o: crate::owners::Owners<'static>) -> Result<()
     course.stage_prefs.get().fog_near.set(0u32);
     course.stage_prefs.get().fog_start.set(0u32);
     course.stage_prefs.get().fog_end.set(0u32);
-    crate::race::view_scratch::front_end().fog.clear();
+    o.scene.scratch.front_end().fog.clear();
     shared.switches.get().scene_set_up.set(1u32);
     fill_light_tables(scene, race)?;
 
@@ -139,13 +139,13 @@ pub fn set_up_front_end_scene_in(o: crate::owners::Owners<'static>) -> Result<()
         o,
         &mut crate::race::loading_bar_frame::LoadingBar::new(o),
     )?;
-    allocate_point_records_in_game(course)?;
+    allocate_point_records_in_game(&scene.scratch, course)?;
     colours(course, 0);
     fill_scene_light_tables(race, scene)?;
     set_view_matrices(
         race.course.reads(),
         frame,
-        &crate::race::view_scratch::front_end().matrices,
+        &o.scene.scratch.front_end().matrices,
     );
     reload_slot_textures(frame, scene)?;
     colours(course, 0x7F);

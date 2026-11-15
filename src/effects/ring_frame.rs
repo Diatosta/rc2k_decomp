@@ -32,7 +32,7 @@ pub fn ring_frame(
     effects: &crate::effects::owner::Effects,
     view: crate::effects::run_frame::EffectsView<'_>,
 ) -> Result<(), Refused> {
-    let part = crate::workers::game_scratch();
+    let part = scene.scratch.game_scratch();
     use crate::scene::set_render_state::set_render_state;
     {
         let marks = effects.settings()?;

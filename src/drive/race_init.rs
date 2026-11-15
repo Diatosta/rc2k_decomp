@@ -86,15 +86,15 @@ pub fn race_init(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), R
         { crate::drive::race_cars_step::race_cars_step(o, race) }?;
         race.effects_settings().other_marks_shown.set(1);
         {
-            let view = crate::drive::set_listener::ListenerView::before_any_view(race);
+            let view = crate::drive::set_listener::ListenerView::before_any_view(race, scene);
             crate::drive::share_all_cars::share_all_cars(race, sound, scene, view, &o.net.race_slot)
         }?;
         race.effects_settings().other_marks_shown.set(0);
         crate::effects::frame_marks::frame_marks(race, scene, effects)?;
         // No view of the race drawn yet (`EffectsView::before_any_view`).
-        let view = crate::effects::run_frame::EffectsView::before_any_view(race);
+        let view = crate::effects::run_frame::EffectsView::before_any_view(race, scene);
         crate::effects::run_frame::run_frame(
-            &crate::workers::game_scratch().vertices,
+            &o.scene.scratch.game_scratch().vertices,
             race,
             scene,
             effects,

@@ -24,7 +24,7 @@ pub fn race_frame(
         use crate::debug::timing::{Stage, start, stop};
         let begun = start();
         // `scene::begin_scene` never loses the frame here.
-        crate::scene::begin_scene::begin_scene(race, &o.gfx.d3d, crate::workers::game_scratch());
+        crate::scene::begin_scene::begin_scene(race, &o.gfx.d3d, o.scene.scratch.game_scratch());
         { crate::race::draw_race_scene::draw_race_scene(race, o) }?;
         crate::scene::end_scene::end_scene(&o.gfx.d3d);
         stop(Stage::Scene, begun);

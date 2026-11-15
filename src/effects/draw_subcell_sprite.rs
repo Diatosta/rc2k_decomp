@@ -34,10 +34,11 @@ fn turn(
 
 /// The square about the projected place.
 fn square(
+    front: &crate::scene::polygon_work::PolygonWork,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     effects: &crate::effects::owner::Effects,
 ) {
-    square_x87(buffer, &effects.frame.draw_work);
+    square_x87(front, buffer, &effects.frame.draw_work);
 }
 
 /// `subcell` is the subcell's number, `size` a float's bits, `entry` the ring entry.
@@ -92,12 +93,14 @@ pub fn draw_subcell_sprite(
         buffer.vertices[n].u.set(u);
         buffer.vertices[n].v.set(v);
     }
-    square(buffer, effects);
-    if clip_quad(buffer, effects)? {
+    square(scene.scratch.front_end_polygon(), buffer, effects);
+    if clip_quad(buffer, scene, effects)? {
         return Ok(());
     }
     draw_fan(buffer, scene);
-    crate::scene::polygon_work::front_end()
+    scene
+        .scratch
+        .front_end_polygon()
         .polygon_vertex_count
         .set(4);
     Ok(())
@@ -152,11 +155,12 @@ fn turn_x87(
 }
 
 /// `square`'s arithmetic as plain Rust on the x87 model, in the same order.
-fn square_x87(buffer: &crate::d3d::vertices_store::PolygonVertices, dw: &DrawWork) {
-    let t0 = ld(crate::scene::polygon_work::front_end()
-        .window
-        .view_scale
-        .get());
+fn square_x87(
+    front: &crate::scene::polygon_work::PolygonWork,
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
+    dw: &DrawWork,
+) {
+    let t0 = ld(front.window.view_scale.get());
     let t1 = t0 / dw.turned[2].ld();
     let t2 = dw.turned[2].ld();
     let t3 = t2 * dw.z_k.ld();
@@ -171,7 +175,7 @@ fn square_x87(buffer: &crate::d3d::vertices_store::PolygonVertices, dw: &DrawWor
     let t6 = t1 * dw.turned[0].ld();
     let t7 = t1 * dw.turned[1].ld();
     let t8 = -t7;
-    let t9 = t8 + crate::scene::polygon_work::front_end().window.view_centre[1].ld();
+    let t9 = t8 + front.window.view_centre[1].ld();
     let t10 = t9 - dw.half[1].ld();
     st_cell(&buffer.vertices[0].y, t10);
     let t11 = t9 - dw.half[1].ld();
@@ -180,7 +184,7 @@ fn square_x87(buffer: &crate::d3d::vertices_store::PolygonVertices, dw: &DrawWor
     st_cell(&buffer.vertices[2].y, t12);
     let t13 = t9 + dw.half[1].ld();
     st_cell(&buffer.vertices[3].y, t13);
-    let t14 = t6 + crate::scene::polygon_work::front_end().window.view_centre[0].ld();
+    let t14 = t6 + front.window.view_centre[0].ld();
     let t15 = t14 - dw.half[0].ld();
     st_cell(&buffer.vertices[0].x, t15);
     let t16 = t14 + dw.half[0].ld();
@@ -318,7 +322,16 @@ mod reference_vectors {
                     &[
                         0x0, 0x4, 0x8, 0x20, 0x24, 0x28, 0x40, 0x44, 0x48, 0x60, 0x64, 0x68,
                     ],
-                    || super::square_x87(&crate::d3d::vertices_store::VERTICES, dw),
+                    || {
+                        super::square_x87(
+                            crate::owners::Owners::the()
+                                .scene
+                                .scratch
+                                .front_end_polygon(),
+                            &crate::d3d::vertices_store::VERTICES,
+                            dw,
+                        );
+                    },
                 );
             });
         });

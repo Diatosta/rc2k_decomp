@@ -161,8 +161,8 @@ pub fn build_texture_infos(race: &Race) -> Result<(), Refused> {
 
 /// Resets `grid_x` and `grid_z`, the course grid's corner (each view keeps its own,
 /// `race::view_grid`), so every view makes its grid again.
-pub fn reset_refresh() {
-    crate::race::view_grid::reset_corners();
+pub fn reset_refresh(scratch: &crate::workers::DrawingScratch) {
+    crate::race::view_grid::reset_corners(scratch);
 }
 
 /// The checkpoints the split tables list: of the table entries 1 .. `last_checkpoint`, those whose

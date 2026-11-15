@@ -182,6 +182,7 @@ pub const CURVE_RECORDS: u32 = 0x20;
 // Converted: `rc2k_core::effects::noise::{walk, smooth, random_tables, record_values}`
 pub fn make_noise_curve(
     weather: &Weather,
+    scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     use rc2k_core::effects::noise as core;
@@ -293,7 +294,7 @@ pub fn make_noise_curve(
         cell.set(first);
     }
     // The view's centre (`SceneDraw.view_centre[0]`, `SceneDraw.view_centre[1]`).
-    let centre = &crate::scene::polygon_work::front_end().window.view_centre;
+    let centre = &scene.scratch.front_end_polygon().window.view_centre;
     for (quad, from) in [
         (&weather.snow.quad_b, &centre[0]),
         (&weather.snow.quad_c, &centre[1]),

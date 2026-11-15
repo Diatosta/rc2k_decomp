@@ -59,7 +59,7 @@ pub fn draw_mark_slots(
         );
     }
     crate::scene::set_texture::set_texture(
-        crate::workers::game_scratch(),
+        scene.scratch.game_scratch(),
         scene,
         scene.textures.kinds.get().kind_first_slots[202].get(),
     );
@@ -125,15 +125,12 @@ pub fn draw_mark_slots(
             continue;
         }
         let [px, py, half] = x87::slot_project(
-            crate::scene::polygon_work::front_end()
-                .window
-                .view_scale
-                .get(),
+            scene.scratch.front_end_polygon().window.view_scale.get(),
             x,
             z,
-            &crate::scene::polygon_work::front_end().window.view_centre[0],
+            &scene.scratch.front_end_polygon().window.view_centre[0],
             y,
-            &crate::scene::polygon_work::front_end().window.view_centre[1],
+            &scene.scratch.front_end_polygon().window.view_centre[1],
             &effects.blocks.slots.slots[0].size,
         )
         .map(f32::from_bits);

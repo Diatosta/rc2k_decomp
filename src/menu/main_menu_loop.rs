@@ -39,7 +39,7 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
         .set_sound(rc2k_core::menu::keys::MenuSound::None);
     menus.screens.flow.turning.set(1u32);
     menus.screens.carousel.menu.set(0u32);
-    carousel(entry.menus, None)?;
+    carousel(entry, None)?;
     let item = menus.screens.items.current[slot::MAIN_MENU].get();
     menus.screens.loop_flags.item.set(item);
     menus.screens.carousel.front.set(item.wrapping_sub(1));

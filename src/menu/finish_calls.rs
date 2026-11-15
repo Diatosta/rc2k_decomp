@@ -162,9 +162,11 @@ impl finish::Finish for Game<'_> {
                 crate::menu::show_loading_picture::show_loading_picture_in(self.owners)?;
             }
             Step::Render3dTidy => {
-                crate::race::stage_free::render3d_tidy(race)?;
+                crate::race::stage_free::render3d_tidy(race, &self.owners.scene.scratch)?;
             }
-            Step::ObjectsTidy => crate::race::stage_free::objects_tidy(race)?,
+            Step::ObjectsTidy => {
+                crate::race::stage_free::objects_tidy(race, &self.owners.scene.scratch)?;
+            }
             Step::Nothing => {}
             Step::ReleaseTextures => {
                 crate::race::race_end::release_textures(self.owners.scene, self.owners.gfx);

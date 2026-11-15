@@ -6,9 +6,10 @@
 //! no drawing part writes a shared store).
 //!
 //! The scratch stores each part makes for itself before reading (the polygon vertex buffer,
-//! the polygon work, the point records) are a `PartScratch`: one per part (`part_scratch`),
+//! the polygon work, the point records) are a `PartScratch`: one per part (`DrawingScratch`),
 //! handed to the part's drawing and passed down to what reaches them. Part 0's is the game's
-//! own thread's, what everything drawn outside the parts works on too (`game_scratch`).
+//! own thread's, what everything drawn outside the parts works on too
+//! (`DrawingScratch::game_scratch`).
 //! A `PartScratch` is made of plain cells (and the `RefCell` of its noted drawing, which only
 //! the thread that has claimed the part reaches): it is `Send`, asserted below.
 //!
@@ -19,8 +20,10 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::part_cell::{PartCell, PartTurn};
-use crate::race::view_scratch::ViewScratch;
+use crate::race::view_scratch::{PART_SLOTS, ViewScratch};
+use crate::session::GameThread;
 use std::cell::Cell;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Condvar, Mutex, OnceLock};
 
 /// The most drawing threads, the game's own one with them.
@@ -110,39 +113,163 @@ const _: () = {
     assert_send::<PartScratch>();
 };
 
-/// The parts' scratch. Run `n` of a drawing scope claims element `n` (`draw_parts`); the
-/// game's thread reaches element 0 by `part_scratch` and `game_scratch`, the others (all
-/// four, with the scope closed) by `all_parts_on_game_thread`.
-static PARTS: [PartCell<PartScratch>; COUNT] = [
-    PartCell::new(PartScratch::new(true)),
-    PartCell::new(PartScratch::new(false)),
-    PartCell::new(PartScratch::new(false)),
-    PartCell::new(PartScratch::new(false)),
-];
-
-/// Every part's scratch, on the game's thread with no drawing scope open (so no run holds
-/// one): what a clear of the point records reaches.
-pub fn all_parts_on_game_thread() -> impl Iterator<Item = &'static PartScratch> {
-    debug_assert!(
-        !in_scope(),
-        "every part's scratch reached inside a drawing scope"
-    );
-    PARTS.iter().map(PartCell::on_game_thread)
+/// Every scratch the drawing works on, held by the scene (`Scene::scratch`) and reached through
+/// it: the parts' (`PartScratch`), the view slots' (`ViewScratch`), the front end's, and the copies
+/// the car drawn aside works on.
+///
+/// Run `n` of a drawing scope claims part `n` and its view slot (`draw_parts`); the game's thread
+/// reaches part 0, the front end's slot and (with no scope open) the others without a claim.
+pub struct DrawingScratch {
+    parts: [PartCell<PartScratch>; COUNT],
+    /// The scratch a piece drawn aside draws on: one piece at a time, its thread holding the lock
+    /// for its run (`draw_aside`), so it is reached by one thread at a time with no `unsafe`.
+    aside: Mutex<PartScratch>,
+    /// The race's view slots: the two players' views, then their mirrors. Each is claimed by the
+    /// run that draws it, or reached by the game's thread.
+    views: [PartCell<ViewScratch>; PART_SLOTS],
+    /// The front end's 3D (the menus' objects and carousel; the HUD, the loading bar and the
+    /// effects draw on its polygon work): the game's thread's alone, never drawn by a part.
+    front_end: GameThread<ViewScratch>,
+    /// The copy of the view the car drawn aside works on (`race::car_part`): the thread drawing the
+    /// car holds the lock for its run, the view's thread to copy into it and merge from it.
+    car_view: Mutex<ViewScratch>,
+    /// The view as it was when the car's copy was made: what the copy changed since is merged.
+    taken: GameThread<ViewScratch>,
+    /// The slot of the view that last drew a course face (`race::face_work`), `usize::MAX` for
+    /// none yet. Written by every drawing thread.
+    last_face_view: AtomicUsize,
 }
 
-/// The first part's scratch, on the game's thread (inside a drawing scope, run 0 is that
-/// thread): what the platform's flush and the render states' cache reach it by. `n` is 0:
-/// the other parts' are handed to their runs (`PartRun`).
-pub fn part_scratch(n: usize) -> &'static PartScratch {
-    debug_assert_eq!(n, 0, "only the first part's scratch is reached by number");
-    PARTS[n].on_game_thread()
+impl DrawingScratch {
+    /// Every scratch in its first state.
+    pub const fn new() -> Self {
+        Self {
+            parts: [
+                PartCell::new(PartScratch::new(true)),
+                PartCell::new(PartScratch::new(false)),
+                PartCell::new(PartScratch::new(false)),
+                PartCell::new(PartScratch::new(false)),
+            ],
+            aside: Mutex::new(PartScratch::new(false)),
+            views: [
+                PartCell::new(ViewScratch::new(0)),
+                PartCell::new(ViewScratch::new(1)),
+                PartCell::new(ViewScratch::new(2)),
+                PartCell::new(ViewScratch::new(3)),
+            ],
+            front_end: GameThread::new(ViewScratch::new(4)),
+            car_view: Mutex::new(ViewScratch::new(0)),
+            taken: GameThread::new(ViewScratch::new(0)),
+            last_face_view: AtomicUsize::new(usize::MAX),
+        }
+    }
+
+    /// Every part's scratch, on the game's thread with no drawing scope open (so no run holds
+    /// one): what a clear of the point records reaches.
+    pub fn all_parts_on_game_thread(&self) -> impl Iterator<Item = &PartScratch> {
+        debug_assert!(
+            !in_scope(),
+            "every part's scratch reached inside a drawing scope"
+        );
+        self.parts.iter().map(PartCell::on_game_thread)
+    }
+
+    /// The first part's scratch, on the game's thread (inside a drawing scope, run 0 is that
+    /// thread): what everything drawn outside the parts (the overlays, the HUD, the front end)
+    /// works on, and what the platform's flush and the render states' cache reach. The other
+    /// parts' are handed to their runs (`PartRun`).
+    pub fn game_scratch(&self) -> &PartScratch {
+        debug_assert_eq!(index(), 0, "the game's scratch on a drawing part");
+        self.parts[0].on_game_thread()
+    }
+
+    /// Part `n`'s scratch for the run whose `turn` it is, until the scope ends.
+    fn claim_part<'s>(&'s self, n: usize, turn: &PartTurn<'s>) -> &'s PartScratch {
+        self.parts[n].claim(turn)
+    }
+
+    /// View slot `slot` (below `PART_SLOTS`) for the run whose `turn` it is, until the scope
+    /// ends.
+    fn claim_view<'s>(&'s self, slot: usize, turn: &PartTurn<'s>) -> &'s ViewScratch {
+        self.views[slot].claim(turn)
+    }
+
+    /// The scope ending: the parts and the slots are the game's thread's again.
+    fn end_claims(&self, ending: &DrawScope<'_>) {
+        for part in &self.parts {
+            part.end_claim(ending);
+        }
+        for view in &self.views {
+            view.end_claim(ending);
+        }
+    }
+
+    /// Slot `n` (below `SLOT_COUNT`), on the game's thread.
+    pub fn slot(&self, n: usize) -> &ViewScratch {
+        match self.views.get(n) {
+            Some(view) => view.on_game_thread(),
+            None => self.front_end(),
+        }
+    }
+
+    /// Player `car`'s view's working state, on the game's thread (the parts are handed theirs).
+    pub fn main_view(&self, car: usize) -> &ViewScratch {
+        self.views[car].on_game_thread()
+    }
+
+    /// Player `car`'s mirror's working state, on the game's thread.
+    pub fn mirror(&self, car: usize) -> &ViewScratch {
+        self.views[2 + car].on_game_thread()
+    }
+
+    /// The front end's 3D's working state, on the game's thread.
+    pub fn front_end(&self) -> &ViewScratch {
+        self.front_end.get()
+    }
+
+    /// The front end's polygon work: the HUD's, the loading bar's, the frame's set-up and the
+    /// effects', which draw outside any view's pipeline.
+    pub fn front_end_polygon(&self) -> &crate::scene::polygon_work::PolygonWork {
+        &self.front_end().polygon
+    }
+
+    /// The copy of the view the car drawn aside works on, locked.
+    pub fn car_view(&self) -> std::sync::MutexGuard<'_, ViewScratch> {
+        self.car_view
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    /// The view as it was when the car's copy was made (the game's thread's).
+    pub fn taken(&self) -> &ViewScratch {
+        self.taken.get()
+    }
+
+    /// The scratch a piece drawn aside draws on, locked.
+    fn aside(&self) -> std::sync::MutexGuard<'_, PartScratch> {
+        self.aside
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    /// The view in slot `slot` is drawing a face.
+    pub fn note_face_drawn(&self, slot: usize) {
+        self.last_face_view.store(slot, Ordering::Relaxed);
+    }
+
+    /// The slot of the view that last drew a course face, if any has.
+    pub fn last_face_view(&self) -> Option<usize> {
+        match self.last_face_view.load(Ordering::Relaxed) {
+            usize::MAX => None,
+            slot => Some(slot),
+        }
+    }
 }
 
-/// The game's own thread's scratch: part 0's, what everything drawn outside the parts (the
-/// overlays, the HUD, the front end) works on.
-pub fn game_scratch() -> &'static PartScratch {
-    debug_assert_eq!(index(), 0, "the game's scratch on a drawing part");
-    PARTS[0].on_game_thread()
+impl Default for DrawingScratch {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 // ---- the stores the parts read ----
@@ -166,14 +293,15 @@ pub fn in_race(part: &PartScratch) -> bool {
 
 /// The game's part is told a race has begun or ended, on the game's thread, where the race flag
 /// changes; every other part gets it when a drawing scope opens.
-pub fn set_game_part_racing(racing: bool) {
-    part_scratch(0).in_race.set(racing);
+pub fn set_game_part_racing(scratch: &DrawingScratch, racing: bool) {
+    scratch.game_scratch().in_race.set(racing);
 }
 
 /// The game's part is told the screen's figures, on the game's thread, where a screen mode is
 /// set; every other part gets them when a drawing scope opens.
-pub fn set_game_part_screen(width: u32, height: u32, bits: u32) {
-    for (cell, figure) in part_scratch(0)
+pub fn set_game_part_screen(scratch: &DrawingScratch, width: u32, height: u32, bits: u32) {
+    for (cell, figure) in scratch
+        .game_scratch()
         .screen_size
         .iter()
         .zip([width, height, bits])
@@ -186,26 +314,24 @@ pub fn set_game_part_screen(width: u32, height: u32, bits: u32) {
 /// The parts of one drawing being drawn (`draw_parts`): opened on the game's thread before
 /// the first part starts, ended once every part has ended. The stores lent to the parts
 /// (`session::PhaseRead`) borrow it, so none outlives it. Only `draw_parts` opens one.
-pub struct DrawScope {
-    _only_here: (),
+pub struct DrawScope<'o> {
+    /// The scratch whose parts and slots the runs claim, freed when the scope ends.
+    scratch: &'o DrawingScratch,
 }
 
-impl DrawScope {
-    fn open() -> Self {
+impl<'o> DrawScope<'o> {
+    fn open(scratch: &'o DrawingScratch) -> Self {
         crate::session::assert_game_thread();
         let was = IN_SCOPE.swap(true, std::sync::atomic::Ordering::Relaxed);
         debug_assert!(!was, "a drawing scope opened inside another");
-        Self { _only_here: () }
+        Self { scratch }
     }
 }
 
-impl Drop for DrawScope {
+impl Drop for DrawScope<'_> {
     fn drop(&mut self) {
         crate::session::end_lending();
-        for part in &PARTS {
-            part.end_claim(self);
-        }
-        crate::race::view_scratch::end_claims(self);
+        self.scratch.end_claims(self);
         IN_SCOPE.store(false, std::sync::atomic::Ordering::Relaxed);
     }
 }
@@ -235,6 +361,8 @@ impl<'a> LentOwners<'a> {
 /// The stores lent to the parts of one drawing scope: what every part reads and none writes.
 /// Shared by reference with every part's run; a part reads them through `reads`.
 pub struct Lent<'s> {
+    /// The scratch the drawing works on (`Scene::scratch`).
+    scratch: &'s DrawingScratch,
     light_tables: crate::session::PhaseRead<'s, crate::scene::light_tables_store::LightTables>,
     // The scene's other drawing stores.
     light_work: crate::session::PhaseRead<'s, crate::scene::light_work_store::LightWork>,
@@ -292,7 +420,7 @@ fn has_mmx(system: &crate::system::owner::System) -> bool {
 }
 
 impl<'s> Lent<'s> {
-    fn new(scope: &'s DrawScope, owners: LentOwners<'s>) -> Self {
+    fn new(scope: &'s DrawScope<'_>, owners: LentOwners<'s>) -> Self {
         use crate::session::PhaseRead;
         let LentOwners {
             race,
@@ -301,6 +429,7 @@ impl<'s> Lent<'s> {
             net,
         } = owners;
         Self {
+            scratch: &scene.scratch,
             light_tables: PhaseRead::lend(&scene.light_tables, scope),
             // The scene's other drawing stores.
             light_work: PhaseRead::lend(&scene.lights.work, scope),
@@ -635,7 +764,10 @@ fn pool() -> Option<&'static rayon::ThreadPool> {
     .as_ref()
 }
 
-/// The runs of the list being drawn that have ended (by run number).
+/// The runs of the list being drawn that have ended (by run number). A static, with `BESIDE`,
+/// `IN_SCOPE` and the aside turn: they are the drawing threads' own coordination, read by code
+/// that holds no context (`math::next_random`'s wait for the earlier runs, `session::DrawShared`'s
+/// check), and they hold no drawing data.
 static ENDED: Mutex<[bool; COUNT]> = Mutex::new([false; COUNT]);
 static ENDED_CHANGED: Condvar = Condvar::new();
 
@@ -772,7 +904,8 @@ fn draw_parts(
     // One after another on the game's thread without a pool or with `RC2K_DRAW_SERIAL`.
     let pool = pool.filter(|_| !serial());
     // The render states' cache as the list began, what each other part starts from.
-    let first_cache = &part_scratch(0).cache;
+    let scratch_owner = &owners.scene.scratch;
+    let first_cache = &scratch_owner.game_scratch().cache;
     let cache_start = crate::d3d::render_cache::current(first_cache);
     // The held matrix columns likewise (`scene::view_matrices::Held`), in the race's
     // matrices; every part, the first too, holds its own while the scope is open.
@@ -788,8 +921,7 @@ fn draw_parts(
     let racing = owners.race.course.numbers.get().in_race.is_set();
     let screen = owners.system.session.screen.get();
     let screen_size = [screen.width.get(), screen.height.get(), screen.bits.get()];
-    for scratch in &PARTS {
-        let scratch = scratch.on_game_thread();
+    for scratch in scratch_owner.all_parts_on_game_thread() {
         scratch.in_race.set(racing);
         for (cell, figure) in scratch.screen_size.iter().zip(screen_size) {
             cell.set(figure);
@@ -797,7 +929,7 @@ fn draw_parts(
     }
     // end r40course The parts are drawn from here until every one has ended: the draw-shared stores
     // lent.
-    let scope = DrawScope::open();
+    let scope = DrawScope::open(scratch_owner);
     let lent = Lent::new(&scope, owners);
     let lent = &lent;
     let scope_ref = &scope;
@@ -805,8 +937,8 @@ fn draw_parts(
     let other = |n: usize| {
         INDEX.set(n);
         let turn = PartTurn::new(scope_ref, n);
-        let scratch = PARTS[n].claim(&turn);
-        let view = crate::race::view_scratch::claim(slots[n], &turn);
+        let scratch = scratch_owner.claim_part(n, &turn);
+        let view = scratch_owner.claim_view(slots[n], &turn);
         scratch.points.begin_run(point_count);
         crate::math::x87::set_control_word(control);
         crate::d3d::run_states::begin_run(scratch, &cache_start);
@@ -836,8 +968,8 @@ fn draw_parts(
     // Run 0, on the game's thread.
     let first_run = || {
         let turn = PartTurn::new(scope_ref, 0);
-        let scratch = PARTS[0].claim(&turn);
-        let view = crate::race::view_scratch::claim(slots[0], &turn);
+        let scratch = scratch_owner.claim_part(0, &turn);
+        let view = scratch_owner.claim_view(slots[0], &turn);
         scratch.points.begin_run(point_count);
         crate::scene::view_matrices::begin_part(scratch, columns_start);
         let result = part(
@@ -899,17 +1031,17 @@ fn draw_parts(
         // Its fans before it set a state draw with what the earlier runs left.
         let carried = crate::d3d::run_states::carried(first_cache);
         crate::d3d::run_states::patch(&mut run.noted.commands, &run.states, &carried);
-        crate::platform_3d::put_noted(run.noted);
+        crate::platform_3d::put_noted(scratch_owner.game_scratch(), run.noted);
         crate::d3d::run_states::carry(first_cache, &run.states, &cache_start);
         crate::scene::view_matrices::merge_columns(matrices.get(), &columns_start, &run.columns);
         if result.is_ok() {
             // What it draws takes the merged states.
-            crate::platform_3d::forget_states(part_scratch(0));
+            crate::platform_3d::forget_states(scratch_owner.game_scratch());
             result = after(n + 1);
         }
     }
     // The game's thread drew run 0 with its own states: the next fan takes the merged ones.
-    crate::platform_3d::forget_states(part_scratch(0));
+    crate::platform_3d::forget_states(scratch_owner.game_scratch());
     result
 }
 
@@ -974,10 +1106,6 @@ impl<'a> Helper<'a> {
 
 /// The run number of a piece drawn aside (`INDEX` on its thread): past the parts'.
 const ASIDE_INDEX: usize = COUNT;
-
-/// The scratch a piece drawn aside draws on: one piece at a time, its thread holding the lock
-/// for its run (`draw_aside`), so it is reached by one thread at a time with no `unsafe`.
-static ASIDE: Mutex<PartScratch> = Mutex::new(PartScratch::new(false));
 
 /// Whether the part drawing a piece aside has come to the piece's place in its drawing
 /// (`Aside::join`): what the piece must do in the drawing's order (`wait_for_earlier_runs`)
@@ -1060,6 +1188,8 @@ pub type Piece<'a> =
 /// there.
 pub struct Aside<'a> {
     part: &'a PartScratch,
+    /// The scratch the piece draws on lives in.
+    scratch: &'a DrawingScratch,
     start: AsideStart,
     /// The piece's run, sent by its thread.
     ran: Option<std::sync::mpsc::Receiver<AsideRun>>,
@@ -1086,9 +1216,7 @@ impl Aside<'_> {
                     .borrow_mut()
                     .take()
                     .ok_or(BadInput("a piece drawn aside with nothing to draw"))?;
-                let scratch = ASIDE
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                let scratch = self.scratch.aside();
                 run_aside(&scratch, &self.start, lent.reads(), piece)
             }
         };
@@ -1109,17 +1237,15 @@ impl Aside<'_> {
     /// set into the part's cache.
     pub fn put(&self, run: AsideRun) -> Result<(), Refused> {
         debug_assert!(
-            std::ptr::eq(self.part, part_scratch(0)),
+            std::ptr::eq(self.part, self.scratch.game_scratch()),
             "a piece drawn aside of a part other than the first"
         );
-        crate::platform_3d::put_noted(run.noted);
+        crate::platform_3d::put_noted(self.part, run.noted);
         crate::d3d::run_states::carry_set(&self.part.cache, &run.states);
         // The point records it wrote, as the part would have them after it; the piece's own
         // set back to 0 for the next piece.
         {
-            let scratch = ASIDE
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            let scratch = self.scratch.aside();
             crate::scene::point_records::put_written(&scratch, self.part);
             crate::scene::point_records::clear_written(&scratch);
         }
@@ -1136,11 +1262,7 @@ impl Aside<'_> {
         set_aside_turn(true);
         if let Some(ran) = &self.ran {
             let _ = ran.recv();
-            crate::scene::point_records::clear_written(
-                &ASIDE
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner),
-            );
+            crate::scene::point_records::clear_written(&self.scratch.aside());
         }
     }
 }
@@ -1186,6 +1308,7 @@ pub fn draw_aside<'a, R>(
     let Some(pool) = helper.pool else {
         let aside = Aside {
             part,
+            scratch: helper.lent.scratch,
             start,
             ran: None,
             later: std::cell::RefCell::new(Some((piece, helper.lent))),
@@ -1199,6 +1322,7 @@ pub fn draw_aside<'a, R>(
     let (send, ran) = std::sync::mpsc::sync_channel(1);
     let aside = Aside {
         part,
+        scratch: helper.lent.scratch,
         start,
         ran: Some(ran),
         later: std::cell::RefCell::new(None),
@@ -1210,9 +1334,7 @@ pub fn draw_aside<'a, R>(
         s.spawn(move |_| {
             INDEX.set(ASIDE_INDEX);
             let run = {
-                let scratch = ASIDE
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                let scratch = lent.scratch.aside();
                 run_aside(&scratch, begin, lent.reads(), piece)
             };
             INDEX.set(0);

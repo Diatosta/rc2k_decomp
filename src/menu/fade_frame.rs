@@ -21,7 +21,7 @@ pub fn fade_frame(o: Owners<'static>) -> Result<bool, Refused> {
         )
     }?;
     crate::platform::unlock_surface(o.gfx);
-    crate::scene::begin_scene::begin_scene(o.race, &o.gfx.d3d, crate::workers::game_scratch());
+    crate::scene::begin_scene::begin_scene(o.race, &o.gfx.d3d, o.scene.scratch.game_scratch());
     crate::screens::draw_fade_overlay::draw_fade_overlay(o)?;
     crate::scene::end_scene::end_scene(&o.gfx.d3d);
     Ok(crate::platform::show_frame_now(o))

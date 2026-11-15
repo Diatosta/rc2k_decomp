@@ -84,11 +84,12 @@ pub fn clear_written(part: &crate::workers::PartScratch) {
 
 /// The records made, zeroed, counted on `list`.
 pub fn take(
+    scratch: &crate::workers::DrawingScratch,
     course: &crate::race::owner_course::Course,
     list: &crate::memory::ListCells,
 ) -> Result<(), Refused> {
     crate::memory::owned::count_on(list, BYTES)?;
-    for part in crate::workers::all_parts_on_game_thread() {
+    for part in scratch.all_parts_on_game_thread() {
         part.records.iter().flatten().for_each(|cell| cell.set(0));
         part.records_taken.set(true);
     }
@@ -97,8 +98,8 @@ pub fn take(
 }
 
 /// Given back (the list's `free_list` counts them down).
-pub fn give_back() {
-    for part in crate::workers::all_parts_on_game_thread() {
+pub fn give_back(scratch: &crate::workers::DrawingScratch) {
+    for part in scratch.all_parts_on_game_thread() {
         part.records_taken.set(false);
     }
 }
@@ -108,6 +109,7 @@ pub fn give_back() {
 /// views are drawn beside each other (`workers::draw_beside`) only `part`'s copy (the
 /// drawing part clearing them): the other view's are its own, being drawn.
 pub fn first_records_everywhere<'a>(
+    scratch: &'a crate::workers::DrawingScratch,
     part: &'a crate::workers::PartScratch,
     n: usize,
 ) -> Result<impl Iterator<Item = &'a [PlainDword; 8]>, BadInput> {
@@ -123,7 +125,7 @@ pub fn first_records_everywhere<'a>(
         if crate::workers::beside() {
             std::array::from_fn(|k| (k == 0).then_some(part))
         } else {
-            let mut all = crate::workers::all_parts_on_game_thread();
+            let mut all = scratch.all_parts_on_game_thread();
             std::array::from_fn(|_| all.next())
         };
     Ok(copies
@@ -338,12 +340,12 @@ mod tests {
         let figures = crate::memory::figures();
         let kept = course.lists.get().point_records.get();
         let memory = crate::memory::ListCells::empty();
-        take(course, &memory).unwrap();
+        take(&crate::owners::Owners::the().scene.scratch, course, &memory).unwrap();
         assert_eq!(memory.get().total, BYTES);
         assert_eq!(at_offset(0x20 * 5), of_scene_point(0x1005));
         assert_eq!(of_object_point(3), at_offset(0x20 * 0x1003));
         let quad = [const { PlainDword::new(0) }; 32];
-        let part = crate::workers::game_scratch();
+        let part = crate::owners::Owners::the().scene.scratch.game_scratch();
         put_field(part, of_scene_point(7), 0x18, 42).unwrap();
         assert_eq!(vertex(part, &quad, of_scene_point(7), 0x18), 42);
         assert_eq!(get(part, 8).unwrap()[6], 42);
@@ -363,7 +365,7 @@ mod tests {
         assert!(get(part, of_quad(0)).is_err());
         set(part, of_pool(POOL - 1), kept_pool).unwrap();
         assert!(get(part, of_pool(POOL)).is_err() && get(part, 0x1_0000).is_err());
-        give_back();
+        give_back(&crate::owners::Owners::the().scene.scratch);
         course.lists.get().point_records.set(kept);
         crate::memory::with_figures(|f| *f = figures);
     }

@@ -39,8 +39,8 @@ pub fn draw_lens_flare(
         return Err(BadInput("a flare corner past g_marksCorners").into());
     }
     let [cx, cy] = [
-        crate::scene::polygon_work::front_end().window.view_centre[0].get(),
-        crate::scene::polygon_work::front_end().window.view_centre[1].get(),
+        scene.scratch.front_end_polygon().window.view_centre[0].get(),
+        scene.scratch.front_end_polygon().window.view_centre[1].get(),
     ];
     let dx = x87::sub(marks.listener_figures[1].get(), cx);
     let dy = -x87::sub(marks.listener_figures[2].get(), cy);

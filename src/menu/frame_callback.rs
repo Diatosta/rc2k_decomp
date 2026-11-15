@@ -65,7 +65,7 @@ pub fn frame_callback(
     run_listed(o, &o.menus.screens.flow.draw_list)?;
     unlock_surface(o.gfx);
     o.scene.lights.state.get().scene_state.set(4);
-    crate::scene::begin_scene::begin_scene(o.race, &o.gfx.d3d, crate::workers::game_scratch());
+    crate::scene::begin_scene::begin_scene(o.race, &o.gfx.d3d, o.scene.scratch.game_scratch());
     run_listed(o, &o.menus.screens.flow.scene_list)?;
     crate::scene::end_scene::end_scene(&o.gfx.d3d);
     if lock_failed(o.gfx, o.system) {

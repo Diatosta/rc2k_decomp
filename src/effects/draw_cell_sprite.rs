@@ -34,6 +34,7 @@ fn turn(
 /// The square, turned, about the projected place. Gives a value kept in the draw work's
 /// `DrawWork.sprite_half[1]` cell between its two stores.
 fn square(
+    front: &crate::scene::polygon_work::PolygonWork,
     engine_tables: &crate::scene::engine_tables_store::EngineTables,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     k: u32,
@@ -41,6 +42,7 @@ fn square(
     effects: &crate::effects::owner::Effects,
 ) -> u32 {
     square_x87(
+        front,
         engine_tables,
         buffer,
         k as usize,
@@ -108,12 +110,21 @@ pub fn draw_cell_sprite(
         buffer.vertices[n].u.set(u);
         buffer.vertices[n].v.set(v);
     }
-    square(view.engine_tables, buffer, at, angle, effects);
-    if clip_quad(buffer, effects)? {
+    square(
+        scene.scratch.front_end_polygon(),
+        view.engine_tables,
+        buffer,
+        at,
+        angle,
+        effects,
+    );
+    if clip_quad(buffer, scene, effects)? {
         return Ok(());
     }
     draw_fan(buffer, scene);
-    crate::scene::polygon_work::front_end()
+    scene
+        .scratch
+        .front_end_polygon()
         .polygon_vertex_count
         .set(4);
     Ok(())
@@ -184,6 +195,7 @@ fn slope_at(cs: &CornerSlopes, k: usize) -> &PlainFloat {
 /// on; a slip kept as is), so that read goes through `slope_at`. `angle` is the sine
 /// table's cell (the cosine is the cell 0x400 on).
 fn square_x87(
+    front: &crate::scene::polygon_work::PolygonWork,
     engine_tables: &crate::scene::engine_tables_store::EngineTables,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     k: usize,
@@ -191,12 +203,7 @@ fn square_x87(
     dw: &DrawWork,
     cs: &CornerSlopes,
 ) -> u32 {
-    let t0 = crate::math::x87_float::ld(
-        crate::scene::polygon_work::front_end()
-            .window
-            .view_scale
-            .get(),
-    );
+    let t0 = crate::math::x87_float::ld(front.window.view_scale.get());
     let t1 = t0 / dw.turned[2].ld();
     let t2 = dw.turned[2].ld();
     let t3 = t2 * dw.z_k.ld();
@@ -239,10 +246,7 @@ fn square_x87(
     let t28 = t1 * dw.turned[0].ld();
     let t29 = t1 * dw.turned[1].ld();
     let t30 = -t29;
-    let t31 = t30
-        + crate::math::x87_float::ld(
-            crate::scene::polygon_work::front_end().window.view_centre[1].get(),
-        );
+    let t31 = t30 + crate::math::x87_float::ld(front.window.view_centre[1].get());
     let t32 = t31 - dw.sprite_half[1].ld();
     st_cell(&buffer.vertices[0].y, t32);
     let t33 = t31 - dw.sprite_half[3].ld();
@@ -251,10 +255,7 @@ fn square_x87(
     st_cell(&buffer.vertices[2].y, t34);
     let t35 = t31 + dw.sprite_half[3].ld();
     st_cell(&buffer.vertices[3].y, t35);
-    let t36 = t28
-        + crate::math::x87_float::ld(
-            crate::scene::polygon_work::front_end().window.view_centre[0].get(),
-        );
+    let t36 = t28 + crate::math::x87_float::ld(front.window.view_centre[0].get());
     let t37 = t36 - dw.sprite_half[0].ld();
     st_cell(&buffer.vertices[0].x, t37);
     let t38 = t36 - dw.sprite_half[2].ld();
@@ -488,6 +489,10 @@ mod reference_vectors {
                     ));
                     staged(&cells, || {
                         super::square_x87(
+                            crate::owners::Owners::the()
+                                .scene
+                                .scratch
+                                .front_end_polygon(),
                             &crate::test_support::own::race()
                                 .shared
                                 .buffers

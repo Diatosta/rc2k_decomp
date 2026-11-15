@@ -14,7 +14,7 @@ pub struct Freeing {
     /// Each sets one pointer to 0.
     pub cleared: &'static [fn(&Race)],
     /// What Rust owns on the list, given back with it.
-    pub given_back: fn(&Race),
+    pub given_back: fn(&Race, &crate::workers::DrawingScratch),
 }
 
 /// Frees the course memory.
@@ -23,7 +23,7 @@ pub const COURSE: Freeing = Freeing {
     list: |race| &race.course.lists.get().course_memory_list,
     counted: true,
     cleared: &[],
-    given_back: |race| {
+    given_back: |race, _| {
         crate::race::scene_points::give_back(&race.course.stage.course);
         crate::race::course_places::give_back(&race.course.stage.course);
     },
@@ -42,7 +42,7 @@ pub const COURSE_2: Freeing = Freeing {
             race.course.lists.get().second_course_list_b.set(0);
         },
     ],
-    given_back: |_| {},
+    given_back: |_, _| {},
 };
 /// Frees the point records.
 pub const POINT_RECORDS: Freeing = Freeing {
@@ -51,7 +51,7 @@ pub const POINT_RECORDS: Freeing = Freeing {
     counted: true,
     // point_records
     cleared: &[|race| race.course.lists.get().point_records.set(0)],
-    given_back: |_| crate::scene::point_records::give_back(),
+    given_back: |_, scratch| crate::scene::point_records::give_back(scratch),
 };
 /// Frees the object points.
 pub const OBJECT_POINTS: Freeing = Freeing {
@@ -63,7 +63,7 @@ pub const OBJECT_POINTS: Freeing = Freeing {
         |race| race.course.lists.get().object_points.set(0),
         |race| race.course.lists.get().face_memory.set(0),
     ],
-    given_back: |race| {
+    given_back: |race, _| {
         race.course.stage.object_points.give_back();
         race.course.stage.object_faces.give_back();
     },
@@ -75,7 +75,7 @@ pub const MUD: Freeing = Freeing {
     counted: true,
     // mud
     cleared: &[|race| race.shared.vars.get().mud.set(0)],
-    given_back: |race| race.course.stage.mud.give_back(),
+    given_back: |race, _| race.course.stage.mud.give_back(),
 };
 
 /// `race::free_game_fonts`.
@@ -94,7 +94,11 @@ pub fn free_game_fonts(gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
 /// Frees a list: lowers the count by the list's total (`counted`), runs `free_list` and sets the
 /// pointers to 0.
 /// Refuses, before anything, a list with a block (`free_list` refuses it).
-pub fn free(race: &Race, f: &Freeing) -> Result<(), Refused> {
+pub fn free(
+    race: &Race,
+    scratch: &crate::workers::DrawingScratch,
+    f: &Freeing,
+) -> Result<(), Refused> {
     let course = &race.course;
     let l = (f.list)(race);
     let list = l.get();
@@ -116,16 +120,16 @@ pub fn free(race: &Race, f: &Freeing) -> Result<(), Refused> {
     for clear in f.cleared {
         clear(race);
     }
-    (f.given_back)(race);
+    (f.given_back)(race, scratch);
     Ok(())
 }
 
 /// `race::render3d_tidy`: frees the point records (`POINT_RECORDS`).
-pub fn render3d_tidy(race: &Race) -> Result<(), Refused> {
-    free(race, &POINT_RECORDS)
+pub fn render3d_tidy(race: &Race, scratch: &crate::workers::DrawingScratch) -> Result<(), Refused> {
+    free(race, scratch, &POINT_RECORDS)
 }
 
 /// `race::objects_tidy`: frees the object points (`OBJECT_POINTS`).
-pub fn objects_tidy(race: &Race) -> Result<(), Refused> {
-    free(race, &OBJECT_POINTS)
+pub fn objects_tidy(race: &Race, scratch: &crate::workers::DrawingScratch) -> Result<(), Refused> {
+    free(race, scratch, &OBJECT_POINTS)
 }

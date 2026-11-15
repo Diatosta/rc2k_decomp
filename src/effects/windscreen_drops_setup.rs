@@ -30,7 +30,7 @@ pub fn windscreen_drops_setup(
     drops: &WindscreenDrops,
     scene: &crate::scene::owner::Scene,
 ) {
-    let part = crate::workers::game_scratch();
+    let part = scene.scratch.game_scratch();
     use crate::scene::set_render_state::set_render_state;
     {
         axes(drops);
@@ -59,11 +59,13 @@ pub fn windscreen_drops_setup(
             buffer.vertices[n].u.set(u);
             buffer.vertices[n].v.set(v);
         }
-        crate::scene::polygon_work::front_end()
+        scene
+            .scratch
+            .front_end_polygon()
             .polygon_vertex_count
             .set(6);
         drops.work.inverse.set(x87::reciprocal(
-            &crate::scene::polygon_work::front_end().window.farthest,
+            &scene.scratch.front_end_polygon().window.farthest,
         ));
     }
 }

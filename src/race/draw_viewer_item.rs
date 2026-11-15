@@ -25,6 +25,7 @@ pub fn draw_viewer_item(
     item: &Item,
     index: u32,
     system: &crate::system::owner::System,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let replay = &race.replay;
     let panel = race.viewer_panel();
@@ -64,6 +65,6 @@ pub fn draw_viewer_item(
         colour,
         panel,
         system,
-        &crate::workers::game_scratch().vertices,
+        scene.scratch.game_scratch(),
     )
 }

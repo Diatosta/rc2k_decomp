@@ -3,7 +3,6 @@
 //! colour, the texture rectangle (`drive::tyre_parts`' `quad_tail`, scaled to the screen), drawn
 //! (place 5, the device's DrawPrimitive: a call into the game).
 
-use crate::d3d::vertices_store::PolygonVertices;
 use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
 use crate::race::viewer_screen_store::ViewerPanelBlock;
@@ -18,7 +17,7 @@ pub fn tyre_quad(
     colour: u32,
     panel: &ViewerPanelBlock,
     system: &crate::system::owner::System,
-    buffer: &PolygonVertices,
+    part: &crate::workers::PartScratch,
 ) -> Result<(), Refused> {
     quad_of(
         uv,
@@ -26,7 +25,7 @@ pub fn tyre_quad(
         colour,
         panel,
         system,
-        buffer,
+        part,
     )
 }
 
@@ -37,8 +36,9 @@ pub fn quad_of(
     colour: u32,
     panel: &ViewerPanelBlock,
     system: &crate::system::owner::System,
-    buffer: &PolygonVertices,
+    part: &crate::workers::PartScratch,
 ) -> Result<(), Refused> {
+    let buffer = &part.vertices;
     let corners = quad_corners(rect);
     for (k, [x, y]) in corners.into_iter().enumerate() {
         buffer.vertices[k].x.set(x);
@@ -46,5 +46,5 @@ pub fn quad_of(
     }
     quad_words(buffer, colour);
     quad_tail(buffer, uv, panel, system);
-    draw(buffer)
+    draw(part)
 }

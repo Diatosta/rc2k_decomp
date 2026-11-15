@@ -117,7 +117,7 @@ pub fn windscreen_drops_top(
                 .windscreen_drop_batch
                 .vertex_count
                 .set(quads.wrapping_mul(6));
-            crate::effects::windscreen_drops_frame::draw_batch(gfx)?;
+            crate::effects::windscreen_drops_frame::draw_batch(scene, gfx)?;
         }
         let marks = effects.settings()?;
         if marks.windscreen_wet.get() != 0 && effects.setup.kind_floats.running.get() != 0 {
@@ -125,11 +125,13 @@ pub fn windscreen_drops_top(
         }
     }
     crate::scene::set_texture::set_texture(
-        crate::workers::game_scratch(),
+        scene.scratch.game_scratch(),
         scene,
         scene.textures.kinds.get().kind_first_slots[202].get(),
     );
-    crate::scene::polygon_work::front_end()
+    scene
+        .scratch
+        .front_end_polygon()
         .polygon_vertex_count
         .set(4);
     Ok(())

@@ -30,13 +30,25 @@ own! {
     menus: crate::menu::owner::Menus = crate::menu::owner::Menus::new();
     strings: crate::strings::owner::Strings = crate::strings::owner::Strings::new();
     system: crate::system::owner::System = crate::system::owner::System::new();
-    scene: crate::scene::owner::Scene = crate::scene::owner::Scene::new();
     saves: crate::saves::owner::Saves = crate::saves::owner::Saves::new();
     install: crate::install::owner::Install = crate::install::owner::Install::new();
     net: crate::net::owner::Net = crate::net::owner::Net::new();
     input: crate::input::owner::Input = crate::input::owner::Input::new();
     audio: crate::audio::owner::Audio = crate::audio::owner::Audio::new();
     sound: crate::sound::owner::Sound = crate::sound::owner::Sound::new();
+}
+
+/// This test thread's own scene owner; the platform's flush (`platform_3d`) finds its first part's
+/// noted drawing there.
+pub fn scene() -> &'static crate::scene::owner::Scene {
+    thread_local! {
+        static OWNER: &'static crate::scene::owner::Scene = {
+            let scene = build(crate::scene::owner::Scene::new);
+            crate::platform_3d::register_game_scratch(&scene.scratch);
+            scene
+        };
+    }
+    OWNER.with(|owner| *owner)
 }
 
 /// This test thread's own graphics owner; the platform's calls (`platform_3d`) reach its draw

@@ -29,9 +29,9 @@ pub fn toggle() -> bool {
     !OPEN.fetch_xor(true, Ordering::Relaxed)
 }
 
-pub fn view_drawn(frame: &Frame) {
+pub fn view_drawn(frame: &Frame, scene: &crate::scene::owner::Scene) {
     if OPEN.load(Ordering::Relaxed) {
-        crate::debug::ui::note_view(frame);
+        crate::debug::ui::note_view(frame, scene);
     }
 }
 

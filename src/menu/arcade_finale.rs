@@ -42,8 +42,8 @@ pub fn arcade_finale(o: Owners<'static>) -> Result<(), Refused> {
     )?;
     crate::sound::set_up_race_sounds::set_up_race_sounds(o)?;
     crate::menu::show_loading_picture::show_loading_picture_in(o)?;
-    crate::race::stage_free::render3d_tidy(race)?;
-    crate::race::stage_free::objects_tidy(race)?;
+    crate::race::stage_free::render3d_tidy(race, &o.scene.scratch)?;
+    crate::race::stage_free::objects_tidy(race, &o.scene.scratch)?;
     crate::race::race_end::release_textures(o.scene, o.gfx);
     crate::drive::finish_race_0::finish_race_0(race, o)?;
     crate::sound::stop_music::stop_music(o);

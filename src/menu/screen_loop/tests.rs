@@ -182,10 +182,17 @@ fn snapshot(menus: &Menus) -> Snapshot {
             .map(|slot| ScreenVar::SavedItem(slot).cell(menus).get())
             .collect(),
         sound: menus.screens.entry.sound(),
-        scene: SCENE_VARS.iter().map(|v| v.cell().get()).collect(),
+        scene: SCENE_VARS
+            .iter()
+            .map(|v| v.cell(&crate::owners::Owners::the().scene.scratch).get())
+            .collect(),
         floats: SCENE_FLOATS
             .iter()
-            .map(|v| v.cell().get().to_bits())
+            .map(|v| {
+                v.cell(&crate::owners::Owners::the().scene.scratch)
+                    .get()
+                    .to_bits()
+            })
             .collect(),
     }
 }
@@ -201,10 +208,12 @@ fn fill(menus: &Menus) {
             .set(0x6000 + slot as u32);
     }
     for (at, var) in SCENE_VARS.iter().enumerate() {
-        var.cell().set(0x7000 + at as u32);
+        var.cell(&crate::owners::Owners::the().scene.scratch)
+            .set(0x7000 + at as u32);
     }
     for (at, var) in SCENE_FLOATS.iter().enumerate() {
-        var.cell().set(0.5 + at as f32);
+        var.cell(&crate::owners::Owners::the().scene.scratch)
+            .set(0.5 + at as f32);
     }
     for flag in FLAGS {
         flag.cell(menus).set(false);
@@ -245,7 +254,7 @@ fn data_steps_write_what_they_name_and_nothing_else() {
             for step in steps {
                 fill(menus);
                 let before = snapshot(menus);
-                if !step.write(menus) {
+                if !step.write(menus, &crate::owners::Owners::the().scene.scratch) {
                     assert_eq!(snapshot(menus), before, "{id:?} {place:?}: {step:?}");
                     continue;
                 }
@@ -299,10 +308,12 @@ fn data_steps_write_what_they_name_and_nothing_else() {
     assert!(run_steps > 100, "{run_steps} data steps");
     // The scene variables are the game's own statics: put them back.
     for (var, value) in SCENE_VARS.iter().zip(&saved.scene) {
-        var.cell().set(*value);
+        var.cell(&crate::owners::Owners::the().scene.scratch)
+            .set(*value);
     }
     for (var, bits) in SCENE_FLOATS.iter().zip(&saved.floats) {
-        var.cell().set(f32::from_bits(*bits));
+        var.cell(&crate::owners::Owners::the().scene.scratch)
+            .set(f32::from_bits(*bits));
     }
 }
 
@@ -321,7 +332,10 @@ impl ScreenHost for ScriptedHost<'_> {
     fn run(&mut self, place: Place) -> Result<Flow, Refused> {
         self.places.push(place);
         for step in steps_at(self.real.screen, place) {
-            step.write(self.real.entry.menus);
+            step.write(
+                self.real.entry.menus,
+                &crate::owners::Owners::the().scene.scratch,
+            );
         }
         Ok(Flow::On)
     }

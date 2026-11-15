@@ -35,7 +35,7 @@ pub fn run_snow(
     effects: &crate::effects::owner::Effects,
     view: crate::effects::run_frame::EffectsView<'_>,
 ) -> Result<(), Refused> {
-    let part = crate::workers::game_scratch();
+    let part = scene.scratch.game_scratch();
     let frame = &race.frame;
     use crate::scene::set_render_state::set_render_state;
     let (s, l) = (&weather.snow, &weather.snow_light);
@@ -83,10 +83,12 @@ pub fn run_snow(
             at.u.set(u);
             at.v.set(v);
         }
-        crate::scene::polygon_work::front_end()
+        scene
+            .scratch
+            .front_end_polygon()
             .polygon_vertex_count
             .set(4);
-        let inverse = x87::reciprocal(&crate::scene::polygon_work::front_end().window.farthest);
+        let inverse = x87::reciprocal(&scene.scratch.front_end_polygon().window.farthest);
         for r in &s.inverses {
             r.set(inverse);
         }
@@ -111,10 +113,7 @@ pub fn run_snow(
                 item.set(v.get());
             }
         }
-        let focal = crate::scene::polygon_work::front_end()
-            .window
-            .view_scale
-            .get();
+        let focal = scene.scratch.front_end_polygon().window.view_scale.get();
         for item in s.wide_focal.iter().take(4) {
             item.set(focal);
         }

@@ -11,7 +11,6 @@
 //! them on such a face, so the fans' hashes are the same.
 
 use crate::session::PlainDword;
-use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[derive(rc2k_derive::Cells)]
 pub struct FaceWork {
@@ -114,20 +113,15 @@ impl FaceWork {
     }
 }
 
-/// The slot of the view that last drew a course face (`race::face_corners`), none at first.
-static LAST_FACE_VIEW: AtomicUsize = AtomicUsize::new(usize::MAX);
-
-/// The view in slot `slot` is drawing a face.
-pub fn note_face_drawn(slot: usize) {
-    LAST_FACE_VIEW.store(slot, Ordering::Relaxed);
-}
-
 /// The fourth corner of the last face drawn by any view (-1 for a face of three points), read by
 /// `race::norms` at a stage's start-up as `RaceView.corners[3]` was (it should be the face's own: a
 /// slip kept as is); before any face was drawn it is the image's first value.
-pub fn last_fourth_corner(shared: &crate::race::owner_shared::RaceShared) -> u32 {
-    match LAST_FACE_VIEW.load(Ordering::Relaxed) {
-        usize::MAX => shared.view.get().corners[3].get(),
-        slot => crate::race::view_scratch::slot(slot).face.corners[3].get(),
+pub fn last_fourth_corner(
+    shared: &crate::race::owner_shared::RaceShared,
+    scratch: &crate::workers::DrawingScratch,
+) -> u32 {
+    match scratch.last_face_view() {
+        None => shared.view.get().corners[3].get(),
+        Some(slot) => scratch.slot(slot).face.corners[3].get(),
     }
 }

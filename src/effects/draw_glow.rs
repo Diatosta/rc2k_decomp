@@ -17,7 +17,7 @@ pub fn draw_glow(
     scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    let part = crate::workers::game_scratch();
+    let part = scene.scratch.game_scratch();
     let clipping = &effects.clipping;
     {
         if clipping.glow.off.get() == 1 {

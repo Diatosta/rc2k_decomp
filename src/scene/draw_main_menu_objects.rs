@@ -18,11 +18,11 @@ use crate::scene::map_texture_places::map_texture_places;
 /// row place of a lone entry.
 pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
     let (scene, race, menus, system) = (o.scene, o.race, o.menus, o.system);
-    let scratch = crate::race::view_scratch::front_end();
+    let scratch = o.scene.scratch.front_end();
     clear_depth_buffer(
         scene,
         system,
-        crate::workers::game_scratch(),
+        o.scene.scratch.game_scratch(),
         &scratch.polygon,
     );
     assign_kind_textures(scene)?;
@@ -36,7 +36,7 @@ pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refus
         scene,
         o.input,
         scratch,
-        crate::workers::game_scratch(),
+        o.scene.scratch.game_scratch(),
         crate::workers::DrawReads::on_game_thread(crate::workers::LentOwners::of(o)),
     );
     let _held = ctx.view.matrices.hold(ctx.reads.matrices, ctx.part);

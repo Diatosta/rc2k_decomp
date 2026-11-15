@@ -14,7 +14,7 @@
 //! `place`, `size` and `light_strength` are here too: every reading of a view's drawing finds them
 //! written by the same view's drawing first (the sky, the slot objects, the flares, the described
 //! objects and the cars each set them before the matrix and the light read them), and the front
-//! end's menu draws all go through the front end's slot (`view_scratch::front_end()`), so what its
+//! end's menu draws all go through the front end's slot (`DrawingScratch::front_end`), so what its
 //! set-ups leave (`set_up_carousel`, `prepare_menu_scene`, `set_up_lit_engine`, the main menu's
 //! loop) is what its shown car and highlighted object read. The physics' contact tests keep
 //! `ObjectWork.size` as their own (`face_contact` writes it before `object_turn_matrix` reads it);

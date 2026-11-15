@@ -74,7 +74,7 @@ pub enum Op {
     /// A dword of the menus' carousel.
     Set(Field, u32),
     /// A dword of the race block's, found at run time (those statics do not deref in a `const`).
-    Run(fn() -> &'static dyn DwordLike, u32),
+    Run(fn(&crate::workers::DrawingScratch) -> &dyn DwordLike, u32),
     /// The eight textures of the menu set to -1.
     Fill,
 }
@@ -88,24 +88,18 @@ const CARS_TAIL: [Op; 9] = [
     Op::Set(Field::Y, 0xFFFF_4000),
     Op::Set(Field::Z, 0x5F000),
     Op::Set(Field::Forward, 0x20000),
-    Op::Run(
-        || &crate::race::view_scratch::front_end().object.angles[0],
-        0x10FF,
-    ),
-    Op::Run(
-        || &crate::race::view_scratch::front_end().object.place[1],
-        0xFFFE_6000,
-    ),
+    Op::Run(|scratch| &scratch.front_end().object.angles[0], 0x10FF),
+    Op::Run(|scratch| &scratch.front_end().object.place[1], 0xFFFE_6000),
 ];
 
 /// The six kinds of menu 0xC.
 const FIXED_KINDS: [u32; 6] = [0x195, 0x199, 0x19F, 0x1A5, 0x1AD, 0x1BD];
 
 /// A store of the tables (never a `Fill`).
-fn run_op(carousel: &Carousel, op: Op) {
+fn run_op(carousel: &Carousel, scratch: &crate::workers::DrawingScratch, op: Op) {
     match op {
         Op::Set(field, value) => field.cell(carousel).set(value),
-        Op::Run(cell, value) => cell().set(value),
+        Op::Run(cell, value) => cell(scratch).set(value),
         Op::Fill => unreachable!("the cars' tail has no fill"),
     }
 }
@@ -159,7 +153,12 @@ fn check_cars(parts: CarListParts, list: CarList, from_second: bool) -> Result<(
 }
 
 /// The cars' carousels, from the list; `size` the object's size.
-fn cars(parts: CarListParts, list: CarList, size: u32) -> Result<(), BadInput> {
+fn cars(
+    parts: CarListParts,
+    scratch: &crate::workers::DrawingScratch,
+    list: CarList,
+    size: u32,
+) -> Result<(), BadInput> {
     {
         parts.carousel.set_up.set(1);
         parts.carousel.set_list(list);
@@ -186,9 +185,9 @@ fn cars(parts: CarListParts, list: CarList, size: u32) -> Result<(), BadInput> {
         parts.carousel.count.set(n as u32);
         let last = (n as u32).wrapping_sub(1);
         parts.cars.table.last_car.set(last);
-        crate::race::view_scratch::front_end().object.size.set(size);
+        scratch.front_end().object.size.set(size);
         for op in CARS_TAIL {
-            run_op(parts.carousel, op);
+            run_op(parts.carousel, scratch, op);
         }
     }
     Ok(())
@@ -196,7 +195,11 @@ fn cars(parts: CarListParts, list: CarList, size: u32) -> Result<(), BadInput> {
 
 /// `list` is the list of cars for menus 0xD and 0xE (the other menus use their own).
 // Logic: `rc2k_core::scene::carousel::{check_cars, list_end}`
-pub fn set_up_carousel(parts: CarListParts, list: Option<CarList>) -> Result<(), Refused> {
+pub fn set_up_carousel(
+    parts: CarListParts,
+    scratch: &crate::workers::DrawingScratch,
+    list: Option<CarList>,
+) -> Result<(), Refused> {
     let given = || list.ok_or(BadInput("no list of cars"));
     {
         let menu: u32 = parts.carousel.menu.get();
@@ -206,26 +209,23 @@ pub fn set_up_carousel(parts: CarListParts, list: Option<CarList>) -> Result<(),
         match menu {
             0xB => {
                 check_cars(parts, CarList::First, false)?;
-                cars(parts, CarList::First, 0xF)?;
+                cars(parts, scratch, CarList::First, 0xF)?;
             }
             0xC => {
                 parts.carousel.set_up.set(1);
                 parts.carousel.set_list(CarList::A8);
-                crate::race::view_scratch::front_end()
-                    .object
-                    .size
-                    .set(0xCu32);
+                scratch.front_end().object.size.set(0xCu32);
                 write_prefix(&parts.carousel.kinds, &FIXED_KINDS);
                 parts.carousel.count.set(6u32);
                 parts.cars.table.last_car.set(5u32);
                 for op in CARS_TAIL {
-                    run_op(parts.carousel, op);
+                    run_op(parts.carousel, scratch, op);
                 }
             }
             0xD => {
                 let list = given()?;
                 check_cars(parts, list, false)?;
-                cars(parts, list, 0xC)?;
+                cars(parts, scratch, list, 0xC)?;
             }
             0xE => {
                 let list = given()?;
@@ -236,14 +236,14 @@ pub fn set_up_carousel(parts: CarListParts, list: Option<CarList>) -> Result<(),
                     let first = list_entry(parts, list, 0)?;
                     parts.lists.set_car_entry(parts, list, 1, first)?;
                 }
-                cars(parts, list, 0xC)?;
+                cars(parts, scratch, list, 0xC)?;
             }
             _ => {
                 let ops = PLAIN[menu as usize].ok_or(BadInput("a menu without its list"))?;
                 for op in ops {
                     match *op {
                         Op::Set(field, value) => field.cell(parts.carousel).set(value),
-                        Op::Run(cell, value) => cell().set(value),
+                        Op::Run(cell, value) => cell(scratch).set(value),
                         Op::Fill => write_all(&parts.carousel.textures, [u32::MAX; 8]),
                     }
                 }

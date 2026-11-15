@@ -98,6 +98,7 @@ fn make_tables(paths: &Paths, effects: &crate::effects::owner::Effects) -> Resul
 pub fn make_profiles(
     paths: &Paths,
     resume: u32,
+    scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     {
@@ -123,7 +124,7 @@ pub fn make_profiles(
             CORNERS_LEN,
         )?;
         crate::cells::Store::store(&effects.blocks.corners, 0, &corners)?;
-        crate::effects::blocks::allocate_links(effects)?;
+        crate::effects::blocks::allocate_links(scene, effects)?;
         crate::effects::blocks::reset_settings_blocks(effects)?;
     }
     Ok(())

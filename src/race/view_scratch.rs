@@ -1,18 +1,18 @@
 //! A view's own working state: what a view's drawing writes and reads within itself, one
 //! `ViewScratch` per view slot (each player's view and each one's mirror), set back to its first
 //! values as each race view's scene begins (`ViewScratch::begin`; the front end's slot keeps its
-//! values between the menus' draws), passed down the drawing in a `DrawCtx` rather than reached
-//! through statics. Never read by another step.
+//! values between the menus' draws), passed down the drawing in a `DrawCtx`. Never read by
+//! another step.
 //!
-//! The race's four slots (views 0 and 1, mirrors 0 and 1) are `PartCell`s: the parts of a
-//! drawing scope get theirs from `workers::draw_parts` (`workers::PartRun::view`), the main
-//! thread reaches them by `main_view`, `mirror` and `slot` outside the parts. The front end's
-//! slot belongs to the main thread alone (`front_end`, a `GameThread`).
+//! The slots are held by `workers::DrawingScratch`. The race's four (views 0 and 1, mirrors 0
+//! and 1) are `PartCell`s: the parts of a drawing scope get theirs from `workers::draw_parts`
+//! (`workers::PartRun::view`), the main thread reaches them by `main_view`, `mirror` and `slot`
+//! outside the parts. The front end's slot belongs to the main thread alone (`front_end`).
 //!
 //! Every cell in a `ViewScratch` is a plain one (the sort lists, the view's car, the matrices
 //! the effects and the listener read included): the scratch is reached by one thread at a time
 //! and handed from one to the next, so it is `Send` (asserted below) and not `Sync`. What
-//! stays atomic beside it is statics (`face_work::LAST_FACE_VIEW`) and the mutex of a part's
+//! stays atomic beside it is `DrawingScratch`'s last-drawn-view slot and the mutex of a part's
 //! noted drawing (`workers::PartScratch::noted`).
 //!
 //! Holds the two sort lists the view's drawing fills, sorts and draws and their counts, the
@@ -22,8 +22,7 @@
 //! (`scene::polygon_work`).
 
 use crate::errors::BadInput;
-use crate::part_cell::{PartCell, PartTurn};
-use crate::session::{GameThread, PlainDword};
+use crate::session::PlainDword;
 
 /// The most entries in either list.
 pub const ENTRIES: usize = 0x1000;
@@ -276,21 +275,8 @@ const _: () = {
     assert_send::<ViewScratch>();
 };
 
-/// The race's view slots: the two players' views, then their mirrors. Each is claimed by the
-/// run that draws it (`claim`), or reached by the game's thread (`slot`).
-static VIEWS: [PartCell<ViewScratch>; PART_SLOTS] = [
-    PartCell::new(ViewScratch::new(0)),
-    PartCell::new(ViewScratch::new(1)),
-    PartCell::new(ViewScratch::new(2)),
-    PartCell::new(ViewScratch::new(3)),
-]; // m6-root
-
-/// The front end's 3D (the menus' objects and carousel; the HUD, the loading bar and the
-/// effects draw on its polygon work): the game's thread's alone, never drawn by a part.
-static FRONT_END: GameThread<ViewScratch> = GameThread::new(ViewScratch::new(4)); // m6-root
-
 /// The slots the parts of a drawing draw: the views and the mirrors.
-const PART_SLOTS: usize = 4;
+pub(crate) const PART_SLOTS: usize = 4;
 
 /// How many slots there are.
 pub const SLOT_COUNT: usize = 5;
@@ -304,42 +290,6 @@ pub fn drawable_slots(slots: &[usize]) -> bool {
             .iter()
             .enumerate()
             .all(|(n, s)| !slots[..n].contains(s))
-}
-
-/// Slot `slot` (below `PART_SLOTS`) for the run whose `turn` it is, until the scope ends
-/// (`workers::draw_parts`).
-pub(crate) fn claim<'s>(slot: usize, turn: &PartTurn<'s>) -> &'s ViewScratch {
-    VIEWS[slot].claim(turn)
-}
-
-/// The scope ending: the slots are the game's thread's again.
-pub(crate) fn end_claims(ending: &crate::workers::DrawScope) {
-    for view in &VIEWS {
-        view.end_claim(ending);
-    }
-}
-
-/// Slot `n` (below `SLOT_COUNT`), on the game's thread.
-pub fn slot(n: usize) -> &'static ViewScratch {
-    match VIEWS.get(n) {
-        Some(view) => view.on_game_thread(),
-        None => front_end(),
-    }
-}
-
-/// Player `car`'s view's working state, on the game's thread (the parts are handed theirs).
-pub fn main_view(car: usize) -> &'static ViewScratch {
-    VIEWS[car].on_game_thread()
-}
-
-/// Player `car`'s mirror's working state, on the game's thread.
-pub fn mirror(car: usize) -> &'static ViewScratch {
-    VIEWS[2 + car].on_game_thread()
-}
-
-/// The front end's 3D's working state, on the game's thread.
-pub fn front_end() -> &'static ViewScratch {
-    FRONT_END.get()
 }
 
 /// What a view's drawing works with: the race, the scene, the network session and the keys (read
@@ -405,9 +355,9 @@ impl<'a> DrawCtx<'a> {
 /// entry left). The first view's sky is drawn smooth, the others' not. Taken on the main thread,
 /// before the parts (the front end's slot is not a part's); the view's drawing is handed the
 /// values.
-pub fn filter_input(slot: usize) -> [u32; 3] {
+pub fn filter_input(scratch: &crate::workers::DrawingScratch, slot: usize) -> [u32; 3] {
     if slot == 0 {
-        let from = &front_end().polygon;
+        let from = &scratch.front_end().polygon;
         [
             from.smooth.get(),
             from.plain_first.get(),

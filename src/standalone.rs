@@ -723,7 +723,9 @@ pub fn run(log_file: &Path, frames: u32) -> ! {
     // The audio thread runs on DirectSound over SDL
     // (`platform_sound`).
     // SAFETY: once, here, on the main thread.
-    start(Owners::build());
+    let owners = Owners::build();
+    crate::platform_3d::register_game_scratch(&owners.scene.scratch);
+    start(owners);
     finish("start came to its end", 0)
 }
 

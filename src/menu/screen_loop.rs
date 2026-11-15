@@ -193,9 +193,9 @@ pub enum SceneVar {
 
 impl SceneVar {
     /// The variable in the front end's scene.
-    pub fn cell(self) -> &'static dyn DwordLike {
-        let window = &crate::scene::polygon_work::front_end().window;
-        let light = &crate::race::view_scratch::front_end().light;
+    pub fn cell(self, scratch: &crate::workers::DrawingScratch) -> &dyn DwordLike {
+        let window = &scratch.front_end_polygon().window;
+        let light = &scratch.front_end().light;
         match self {
             SceneVar::ViewOffsetX => &window.view_offset[0],
             SceneVar::ViewOffsetY => &window.view_offset[1],
@@ -207,9 +207,7 @@ impl SceneVar {
             SceneVar::LightLevel => &light.light_level,
             SceneVar::LightTurn0 => &light.light_turns[0],
             SceneVar::LightTurn1 => &light.light_turns[1],
-            SceneVar::ObjectLightStrength => {
-                &crate::race::view_scratch::front_end().object.light_strength
-            }
+            SceneVar::ObjectLightStrength => &scratch.front_end().object.light_strength,
         }
     }
 }
@@ -225,8 +223,8 @@ pub enum SceneFloat {
 
 impl SceneFloat {
     /// The variable in the front end's scene.
-    pub fn cell(self) -> &'static PlainFloat {
-        let window = &crate::scene::polygon_work::front_end().window;
+    pub fn cell(self, scratch: &crate::workers::DrawingScratch) -> &PlainFloat {
+        let window = &scratch.front_end_polygon().window;
         match self {
             SceneFloat::ClipLeft => &window.clip_screen[2],
             SceneFloat::ClipRight => &window.clip_screen[3],
@@ -274,13 +272,13 @@ pub enum Step {
 impl Step {
     /// Runs the step if it only writes a variable (to `menus`, or the front end's scene):
     /// whether it did.
-    pub fn write(&self, menus: &Menus) -> bool {
+    pub fn write(&self, menus: &Menus, scratch: &crate::workers::DrawingScratch) -> bool {
         match *self {
             Step::Write(variable, value) => variable.cell(menus).set(value),
             Step::WriteFlag(flag, on) => flag.cell(menus).set(on),
             Step::Sound(sound) => menus.screens.entry.set_sound(sound),
-            Step::WriteScene(variable, value) => variable.cell().set(value),
-            Step::WriteSceneF32(variable, value) => variable.cell().set(value),
+            Step::WriteScene(variable, value) => variable.cell(scratch).set(value),
+            Step::WriteSceneF32(variable, value) => variable.cell(scratch).set(value),
             Step::Call(_)
             | Step::CallOrFatal(..)
             | Step::Do(_)
@@ -556,7 +554,7 @@ impl Entry {
         Entry {
             menus: o.menus,
             cars,
-            front_end: crate::scene::polygon_work::front_end(),
+            front_end: o.scene.scratch.front_end_polygon(),
             owners: o,
         }
     }
@@ -573,14 +571,18 @@ pub fn prepare_scene(owners: &Owners<'static>) {
         owners.race,
         owners.scene,
         owners.system,
-        crate::race::view_scratch::front_end(),
+        owners.scene.scratch.front_end(),
     );
 }
 
 /// `scene::set_up_carousel`, with the list of cars menus 0xD and 0xE show.
 /// (`_scene`: the loops pass it; the carousel's set-up writes the front end's slot.)
-pub fn carousel(menus: &Menus, cars: Option<CarList>) -> Result<(), Refused> {
-    crate::scene::set_up_carousel::set_up_carousel(CarListParts::of(menus), cars)
+pub fn carousel(entry: &Entry, cars: Option<CarList>) -> Result<(), Refused> {
+    crate::scene::set_up_carousel::set_up_carousel(
+        CarListParts::of(entry.menus),
+        &entry.owners.scene.scratch,
+        cars,
+    )
 }
 
 /// A line for the game's log at level 1 with its line break (`logfile::log_write_l1_nl`,
@@ -850,7 +852,7 @@ pub fn call_or_fatal(entry: &Entry, function: Callee, code: u32) -> Result<(), R
 fn run(steps: &[Step], entry: &Entry) -> Result<Flow, Refused> {
     let menus = entry.menus;
     for step in steps {
-        if step.write(menus) {
+        if step.write(menus, &entry.owners.scene.scratch) {
             continue;
         }
         match *step {

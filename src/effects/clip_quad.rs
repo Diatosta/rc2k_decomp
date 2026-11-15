@@ -65,6 +65,7 @@ fn copy_vertex<A: CellKind, B: CellKind>(from: &Vertex<A>, to: &Vertex<B>) {
 /// numbers wrap at 4.
 pub fn clip_quad(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
+    scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
 ) -> Result<bool, Refused> {
     {
@@ -156,7 +157,9 @@ pub fn clip_quad(
             copy_vertex(from, to);
         }
         let count = built as u32;
-        crate::scene::polygon_work::front_end()
+        scene
+            .scratch
+            .front_end_polygon()
             .polygon_vertex_count
             .set(count);
         effects.clipping.glow.clip_count.set(count);
@@ -170,9 +173,9 @@ pub fn draw_fan(
     scene: &crate::scene::owner::Scene,
 ) {
     crate::scene::draw_fan::draw_fan(
-        crate::workers::game_scratch(),
+        scene.scratch.game_scratch(),
         scene,
-        crate::scene::polygon_work::front_end(),
+        scene.scratch.front_end_polygon(),
         buffer,
     );
 }

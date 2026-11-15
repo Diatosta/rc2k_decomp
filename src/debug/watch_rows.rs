@@ -3233,10 +3233,7 @@ pub static GROUPS: &[Group] = &[
                 "lightxs1",
                 Shown::Whole,
                 0x63F18C,
-                indexed_cell!(
-                    |_o| crate::race::view_scratch::main_view(0).lamps,
-                    flare_place_x[0]
-                ),
+                indexed_cell!(|o| o.scene.scratch.main_view(0).lamps, flare_place_x[0]),
                 false,
                 (0, 0),
             ),
@@ -3245,10 +3242,7 @@ pub static GROUPS: &[Group] = &[
                 "lightys1",
                 Shown::Whole,
                 0x63F58C,
-                indexed_cell!(
-                    |_o| crate::race::view_scratch::main_view(0).lamps.flares,
-                    place_y[0]
-                ),
+                indexed_cell!(|o| o.scene.scratch.main_view(0).lamps.flares, place_y[0]),
                 false,
                 (0, 0),
             ),
@@ -3257,10 +3251,7 @@ pub static GROUPS: &[Group] = &[
                 "lightzs1",
                 Shown::Whole,
                 0x63F98C,
-                indexed_cell!(
-                    |_o| crate::race::view_scratch::main_view(0).lamps.flares,
-                    place_z[0]
-                ),
+                indexed_cell!(|o| o.scene.scratch.main_view(0).lamps.flares, place_z[0]),
                 false,
                 (0, 0),
             ),
@@ -3269,10 +3260,7 @@ pub static GROUPS: &[Group] = &[
                 "lightss1",
                 Shown::Whole,
                 0x64018C,
-                indexed_cell!(
-                    |_o| crate::race::view_scratch::main_view(0).lamps.flares,
-                    size[0]
-                ),
+                indexed_cell!(|o| o.scene.scratch.main_view(0).lamps.flares, size[0]),
                 false,
                 (0, 0),
             ),
@@ -3282,7 +3270,7 @@ pub static GROUPS: &[Group] = &[
                 Shown::Whole,
                 0x63FD8C,
                 indexed_cell!(
-                    |_o| crate::race::view_scratch::main_view(0).lamps.flares,
+                    |o| o.scene.scratch.main_view(0).lamps.flares,
                     other_light[0]
                 ),
                 false,
@@ -3294,7 +3282,7 @@ pub static GROUPS: &[Group] = &[
                 Shown::Whole,
                 0x64058C,
                 indexed_cell!(
-                    |_o| crate::race::view_scratch::main_view(0).lamps.flares,
+                    |o| o.scene.scratch.main_view(0).lamps.flares,
                     object_number[0]
                 ),
                 false,

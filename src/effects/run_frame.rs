@@ -67,8 +67,8 @@ impl<'a> EffectsView<'a> {
     /// view drawn left; the front end's fog and light (the snow's fades worked out from the
     /// light are worked out again at every frame before they are drawn).
     /// are drawn).
-    pub fn before_any_view(race: &'a Race) -> Self {
-        let front_end = crate::race::view_scratch::front_end();
+    pub fn before_any_view(race: &'a Race, scene: &'a crate::scene::owner::Scene) -> Self {
+        let front_end = scene.scratch.front_end();
         Self {
             fog: &front_end.fog,
             view_matrix: &race.frame.matrices.get().view_matrix,
@@ -93,7 +93,7 @@ pub fn run_frame(
     sound: &crate::sound::owner::Sound,
     view: EffectsView<'_>,
 ) -> Result<(), Refused> {
-    let part = crate::workers::game_scratch();
+    let part = scene.scratch.game_scratch();
     use crate::effects::*;
     use crate::scene::set_render_state::set_render_state;
     let (weather, particles, ring) = (&effects.weather, &effects.particles, &effects.ring);

@@ -26,6 +26,7 @@ pub fn draw_viewer_panel(
     gfx: &'static crate::gfx::owner::Gfx,
     strings: &crate::strings::owner::Strings,
     system: &crate::system::owner::System,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let replay = &race.replay;
     let text_stores = &strings.text;
@@ -136,7 +137,7 @@ pub fn draw_viewer_panel(
         shared.replay_file().viewer_device_texture.get(),
     );
     crate::d3d::set_texture::set_texture(
-        crate::workers::game_scratch(),
+        scene.scratch.game_scratch(),
         shared.replay_file().viewer_device_texture.get(),
     );
     // The quads.
@@ -156,7 +157,7 @@ pub fn draw_viewer_panel(
             colour,
             race.viewer_panel(),
             system,
-            &crate::workers::game_scratch().vertices,
+            scene.scratch.game_scratch(),
         )
     };
     // `texture_rect`: the texture's rectangle; `screen_rect`: the screen's.

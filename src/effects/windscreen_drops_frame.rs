@@ -58,20 +58,25 @@ fn sprite_depth(drops: &WindscreenDrops) {
 
 /// The six corners (the kind's offsets at `WindscreenDropWork.scaled[0]`[c] ..) into
 /// `WindscreenDropWork.corners[0]` .., the depth's inverse (left on the x87 stack, so returned).
-fn sprite_corners(drops: &WindscreenDrops, c: u32) -> bh::X {
-    sprite_corners_x87(drops, c as usize)
+fn sprite_corners(
+    front: &crate::scene::polygon_work::PolygonWork,
+    drops: &WindscreenDrops,
+    c: u32,
+) -> bh::X {
+    sprite_corners_x87(front, drops, c as usize)
 }
 
 /// The centre and corners projected into the buffer at e (six vertices), drawn in by
 /// `WindscreenDropVars.scale[2]` / `E`, their depth.
 fn sprite_project(
+    front: &crate::scene::polygon_work::PolygonWork,
     drops: &WindscreenDrops,
     gfx: &crate::gfx::owner::Gfx,
     effects: &crate::effects::owner::Effects,
     e: u32,
     inverse_depth: bh::X,
 ) {
-    sprite_project_x87(drops, gfx, effects, e as usize, inverse_depth);
+    sprite_project_x87(front, drops, gfx, effects, e as usize, inverse_depth);
 }
 
 /// Why it refuses, if it does.
@@ -93,9 +98,12 @@ fn refusal(
 }
 
 /// The batch's draw (`d3d::draw_marks_windscreen_drops`; its result unread).
-pub fn draw_batch(gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
+pub fn draw_batch(
+    scene: &crate::scene::owner::Scene,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<(), Refused> {
     crate::d3d::draw_marks_windscreen_drops::draw_marks_windscreen_drops(
-        crate::workers::game_scratch(),
+        scene.scratch.game_scratch(),
         gfx,
     );
     Ok(())
@@ -151,15 +159,26 @@ pub fn windscreen_drops_frame(
             if !crate::math::x87::bits_at_or_below(4096.0, drops.work.cell[2].get()) {
                 continue;
             }
-            let inverse_depth = sprite_corners(drops, shape.wrapping_mul(0x48));
-            sprite_project(drops, gfx, effects, drops.hex.buffer.get(), inverse_depth);
+            let inverse_depth = sprite_corners(
+                scene.scratch.front_end_polygon(),
+                drops,
+                shape.wrapping_mul(0x48),
+            );
+            sprite_project(
+                scene.scratch.front_end_polygon(),
+                drops,
+                gfx,
+                effects,
+                drops.hex.buffer.get(),
+                inverse_depth,
+            );
             let next = drops.hex.buffer.get().wrapping_add(0xC0);
             drops.hex.buffer.set(next);
             if next as usize == BUFFER_BYTES {
                 drops.hex.buffer.set(0);
                 gfx.card.windscreen_drop_batch.index_count.set(0x300);
                 gfx.card.windscreen_drop_batch.vertex_count.set(0x180);
-                draw_batch(gfx)?;
+                draw_batch(scene, gfx)?;
             }
         }
         let marks = effects.settings()?;
@@ -236,14 +255,13 @@ fn sprite_depth_x87(drops: &WindscreenDrops) {
 /// `sprite_corners`: the six corners of the kind's shape (its offsets from `scaled[c / 4]`)
 /// placed around the item's `cell` into `corners`. Returns the inverse depth the projection
 /// takes (`view_scale / cell[2]`).
-fn sprite_corners_x87(drops: &WindscreenDrops, c: usize) -> bh::X {
+fn sprite_corners_x87(
+    front: &crate::scene::polygon_work::PolygonWork,
+    drops: &WindscreenDrops,
+    c: usize,
+) -> bh::X {
     let work = &drops.work;
-    let inverse_depth = bh::ld(
-        crate::scene::polygon_work::front_end()
-            .window
-            .view_scale
-            .get(),
-    ) / work.cell[2].ld();
+    let inverse_depth = bh::ld(front.window.view_scale.get()) / work.cell[2].ld();
     // Axis by axis (x, y, z), each of the six corners.
     for axis in 0..3 {
         for corner in 0..6 {
@@ -259,6 +277,7 @@ fn sprite_corners_x87(drops: &WindscreenDrops, c: usize) -> bh::X {
 /// vertices at `e` of the batch's records (0x20 bytes each; the depth at +8), `inverse_depth`
 /// being `view_scale / depth`. Same order and rounding as the x87.
 fn sprite_project_x87(
+    front: &crate::scene::polygon_work::PolygonWork,
     drops: &WindscreenDrops,
     gfx: &crate::gfx::owner::Gfx,
     effects: &crate::effects::owner::Effects,
@@ -267,8 +286,7 @@ fn sprite_project_x87(
 ) {
     let work = &drops.work;
     let records = &gfx.card.windscreen_drop_batch.records;
-    let centre =
-        |axis: usize| crate::scene::polygon_work::front_end().window.view_centre[axis].ld();
+    let centre = |axis: usize| front.window.view_centre[axis].ld();
     work.cell[2].st(inverse_depth);
     // The centre.
     let up = -(work.cell[1].ld() * work.cell[2].ld());
@@ -631,6 +649,10 @@ mod reference_vectors {
                 canon(
                     windscreen_drops(b[1], || {
                         super::sprite_corners_x87(
+                            crate::owners::Owners::the()
+                                .scene
+                                .scratch
+                                .front_end_polygon(),
                             &crate::test_support::own::effects().windscreen_drops,
                             b[2].number(),
                         )
@@ -757,6 +779,10 @@ mod reference_vectors {
                                     .records,
                                 || {
                                     super::sprite_project_x87(
+                                        crate::owners::Owners::the()
+                                            .scene
+                                            .scratch
+                                            .front_end_polygon(),
                                         &crate::test_support::own::effects().windscreen_drops,
                                         crate::test_support::own::gfx(),
                                         crate::test_support::own::effects(),

@@ -33,6 +33,7 @@ pub fn tyre_screen(
     car: u32,
     input: &crate::input::owner::Input,
     system: &crate::system::owner::System,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let shared = &race.shared;
     if car > 7 {
@@ -61,9 +62,10 @@ pub fn tyre_screen(
     let Some(device) = input.devices.input_device(car as usize)? else {
         return Err(crate::errors::BadInput("a tyre screen car without a device").into());
     };
-    set_texture(shared.tyre_change().device_texture.get());
+    let part = scene.scratch.game_scratch();
+    set_texture(part, shared.tyre_change().device_texture.get());
     for (value, state) in STATES {
-        set_render_state(value, state);
+        set_render_state(part, value, state);
     }
     crate::drive::tyre_quad::quad_of(
         shared
@@ -75,7 +77,7 @@ pub fn tyre_screen(
         0xFF_FFFF,
         race.viewer_panel(),
         system,
-        &crate::workers::game_scratch().vertices,
+        part,
     )?;
     crate::drive::tyre_quad::quad_of(
         shared
@@ -87,7 +89,7 @@ pub fn tyre_screen(
         0xFF_FFFF,
         race.viewer_panel(),
         system,
-        &crate::workers::game_scratch().vertices,
+        part,
     )?;
     crate::drive::tyre_turned_quad::tyre_turned_quad(
         shared,
@@ -101,7 +103,7 @@ pub fn tyre_screen(
         device,
         system,
         race.viewer_panel(),
-        &crate::workers::game_scratch().vertices,
+        part,
     )?;
-    crate::drive::tyre_screen_parts::tyre_screen_parts(race, system)
+    crate::drive::tyre_screen_parts::tyre_screen_parts(race, scene, system)
 }

@@ -88,31 +88,19 @@ type NotedView = ([f32; 16], f32, [f32; 2]);
 /// drawing (the mirror) changes them, so they are noted here (`note_view`).
 static VIEW: std::sync::Mutex<Option<NotedView>> = std::sync::Mutex::new(None);
 
-pub fn note_view(frame: &Frame) {
+pub fn note_view(frame: &Frame, scene: &crate::scene::owner::Scene) {
     let view = (
         std::array::from_fn(|n| frame.matrices.get().view_matrix[n].get()),
-        crate::race::view_scratch::main_view(0)
-            .polygon
-            .window
-            .view_scale
-            .get(),
+        scene.scratch.main_view(0).polygon.window.view_scale.get(),
         [
-            crate::race::view_scratch::main_view(0)
-                .polygon
-                .window
-                .view_centre[0]
-                .get(),
-            crate::race::view_scratch::main_view(0)
-                .polygon
-                .window
-                .view_centre[1]
-                .get(),
+            scene.scratch.main_view(0).polygon.window.view_centre[0].get(),
+            scene.scratch.main_view(0).polygon.window.view_centre[1].get(),
         ],
     );
     *VIEW
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(view);
-    crate::debug::frame_figures::note_first_view();
+    crate::debug::frame_figures::note_first_view(scene);
 }
 
 /// After the developers' mode 0xB, which drew the probe lists as one pixel each: the physics'
@@ -201,7 +189,7 @@ pub fn build(o: &Owners<'static>, ui: &Ui) {
     if PROBES.load(Relaxed) {
         draw_probes(race, o.system, ui);
     }
-    crate::debug::kstar::over_picture(o.system, ui);
+    crate::debug::kstar::over_picture(o.system, o.scene, ui);
     // The window keeps its share of the screen when the mode changes (the menus' 640 x 480,
     // the race's own).
     let screen = ui.io().display_size();

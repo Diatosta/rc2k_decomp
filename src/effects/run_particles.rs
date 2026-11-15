@@ -350,7 +350,7 @@ pub fn run_particles(
         if marks.race_done.get() == 0 {
             return Ok(());
         }
-        crate::effects::set_quad_uvs::set_quad_uvs(buffer, effects);
+        crate::effects::set_quad_uvs::set_quad_uvs(buffer, scene, effects);
         let mut e: u32 = ring.pool.free.get();
         let mut counter = ring.pool.used.get() as i32;
         loop {

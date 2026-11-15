@@ -41,8 +41,8 @@ pub fn apply_screen_mode(o: Owners<'static>) -> Result<(), Refused> {
             BACK_TO_MODE != 0,
         )?;
     }
-    crate::race::stage_free::render3d_tidy(o.race)?;
-    crate::race::stage_free::objects_tidy(o.race)?;
+    crate::race::stage_free::render3d_tidy(o.race, &o.scene.scratch)?;
+    crate::race::stage_free::objects_tidy(o.race, &o.scene.scratch)?;
     crate::race::race_end::release_textures(o.scene, o.gfx);
     crate::scene::set_up_front_end_scene::set_up_front_end_scene_in(o)?;
     crate::sound::play_tune_4::play_tune_4(o);

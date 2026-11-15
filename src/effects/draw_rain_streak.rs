@@ -23,8 +23,12 @@ fn turn(weather: &Weather, p: &[[u8; 10]; 3]) {
 }
 
 /// Both ends projected and the quad's x, y and depth.
-fn project(buffer: &crate::d3d::vertices_store::PolygonVertices, weather: &Weather) {
-    project_x87(buffer, &weather.rain, &weather.rain_rules);
+fn project(
+    front: &crate::scene::polygon_work::PolygonWork,
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
+    weather: &Weather,
+) {
+    project_x87(front, buffer, &weather.rain, &weather.rain_rules);
 }
 
 pub fn draw_rain_streak(
@@ -48,12 +52,14 @@ pub fn draw_rain_streak(
         {
             return Ok(());
         }
-        project(buffer, weather);
-        if clip_quad(buffer, effects)? {
+        project(scene.scratch.front_end_polygon(), buffer, weather);
+        if clip_quad(buffer, scene, effects)? {
             return Ok(());
         }
         draw_fan(buffer, scene);
-        crate::scene::polygon_work::front_end()
+        scene
+            .scratch
+            .front_end_polygon()
             .polygon_vertex_count
             .set(4);
     }
@@ -126,21 +132,16 @@ fn turn_x87(p: &[[u8; 10]; 3], r: &RainState) {
 }
 
 /// `project`'s arithmetic as plain Rust on the x87 model, in the same order.
-fn project_x87(buffer: &crate::d3d::vertices_store::PolygonVertices, r: &RainState, k: &RainRules) {
+fn project_x87(
+    front: &crate::scene::polygon_work::PolygonWork,
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
+    r: &RainState,
+    k: &RainRules,
+) {
     let t0 = r.second[2].ld();
-    let t1 = bh::ld(
-        crate::scene::polygon_work::front_end()
-            .window
-            .view_scale
-            .get(),
-    ) / t0;
+    let t1 = bh::ld(front.window.view_scale.get()) / t0;
     let t2 = r.turned[2].ld();
-    let t3 = bh::ld(
-        crate::scene::polygon_work::front_end()
-            .window
-            .view_scale
-            .get(),
-    ) / t2;
+    let t3 = bh::ld(front.window.view_scale.get()) / t2;
     let t4 = r.second[0].ld();
     let t5 = r.second[1].ld();
     let t6 = r.turned[0].ld();
@@ -151,26 +152,20 @@ fn project_x87(buffer: &crate::d3d::vertices_store::PolygonVertices, r: &RainSta
     let t11 = t7 * t3;
     let t12 = t1 * bh::ld(k.view_scale[0]);
     let t13 = t3 * bh::ld(k.view_scale[1]);
-    let t14 = t8 + crate::scene::polygon_work::front_end().window.view_centre[0].ld();
+    let t14 = t8 + front.window.view_centre[0].ld();
     r.ends[0][0].st(t14);
     let t15 = -t9;
-    let t16 = t15 + crate::scene::polygon_work::front_end().window.view_centre[1].ld();
+    let t16 = t15 + front.window.view_centre[1].ld();
     r.ends[0][1].st(t16);
-    let t17 = t10 + crate::scene::polygon_work::front_end().window.view_centre[0].ld();
+    let t17 = t10 + front.window.view_centre[0].ld();
     r.ends[1][0].st(t17);
     let t18 = -t11;
-    let t19 = t18 + crate::scene::polygon_work::front_end().window.view_centre[1].ld();
+    let t19 = t18 + front.window.view_centre[1].ld();
     r.ends[1][1].st(t19);
     r.ends[0][2].st(t12);
     r.ends[1][2].st(t13);
     let t20 = bh::ONE;
-    let t21 = t20
-        / bh::ld(
-            crate::scene::polygon_work::front_end()
-                .window
-                .farthest
-                .get(),
-        );
+    let t21 = t20 / bh::ld(front.window.farthest.get());
     let t22 = r.ends[1][0].ld();
     let t23 = t22 - r.ends[0][0].ld();
     r.edge_a[1].st(t23);
@@ -367,7 +362,17 @@ mod reference_vectors {
                     &[
                         0x0, 0x4, 0x8, 0x20, 0x24, 0x28, 0x40, 0x44, 0x48, 0x60, 0x64, 0x68,
                     ],
-                    || super::project_x87(&crate::d3d::vertices_store::VERTICES, r, k),
+                    || {
+                        super::project_x87(
+                            crate::owners::Owners::the()
+                                .scene
+                                .scratch
+                                .front_end_polygon(),
+                            &crate::d3d::vertices_store::VERTICES,
+                            r,
+                            k,
+                        );
+                    },
                 );
             });
         });

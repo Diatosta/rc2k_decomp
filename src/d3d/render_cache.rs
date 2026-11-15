@@ -20,46 +20,38 @@ pub struct Cache {
 /// What a render state held before anything was set (a state that is not yet known).
 const UNSET: u32 = 0xFFFF_FC43;
 
-/// A drawing part's own cache: in use while a part other than the first is drawn (begun and
-/// ended on the thread drawing it), always for the first part. A part other than the first
-/// outside its run reads and writes the first's. Plain cells: only the thread that draws the
-/// part reaches it (`part_cell::PartCell`), the game's thread the first's.
+/// A drawing part's own cache: a part other than the first sets it from the list's cache as its
+/// run begins. Plain cells: only the thread that draws the part reaches it
+/// (`part_cell::PartCell`), the game's thread the first's.
 pub struct OwnCache {
-    on: Cell<bool>,
     kept: [Cell<u32>; STATES],
     texture: Cell<u32>,
 }
 
 impl OwnCache {
-    /// The cache of a part other than the first: in use from `begin`.
+    /// The cache of a part other than the first, set by `begin`.
     pub const fn new() -> Self {
         Self {
-            on: Cell::new(false),
             kept: [const { Cell::new(0) }; STATES],
             texture: Cell::new(0),
         }
     }
 
-    /// The first part's: in use, every state and the texture not yet known.
+    /// The first part's: every state and the texture not yet known.
     pub const fn first() -> Self {
         Self {
-            on: Cell::new(true),
             kept: [const { Cell::new(UNSET) }; STATES],
             texture: Cell::new(UNSET),
         }
     }
 }
 
-/// The cache `part` works on: its own while in use, else the first part's.
+/// The cache `part` works on: its own.
 fn active(part: &PartScratch) -> &OwnCache {
-    if part.cache.on.get() {
-        &part.cache
-    } else {
-        &crate::workers::part_scratch(0).cache
-    }
+    &part.cache
 }
 
-/// The first part's cache now (`first`: `part_scratch(0).cache`).
+/// The first part's cache now (`first`: its part's `cache`).
 pub fn current(first: &OwnCache) -> Cache {
     Cache {
         kept: std::array::from_fn(|i| first.kept[i].get()),
@@ -74,15 +66,11 @@ pub fn begin(part: &PartScratch, start: &Cache) {
         cell.set(v);
     }
     own.texture.set(start.texture);
-    own.on.set(true);
 }
 
 /// Part `part` (not the first) is over: the cache it leaves.
 pub fn end(part: &PartScratch) -> Cache {
     let own = &part.cache;
-    if !own.on.replace(false) {
-        return current(&crate::workers::part_scratch(0).cache);
-    }
     current(own)
 }
 

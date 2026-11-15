@@ -18,7 +18,7 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     prepare_scene(&entry.owners);
     screens.flow.turning.set(0x1u32);
     screens.carousel.menu.set(0x5u32);
-    carousel(entry.menus, None)?;
+    carousel(entry, None)?;
     let item = screens.items.current[slot::ARCADE_SELECT_LEVEL].get();
     screens.loop_flags.item.set(item);
     screens.carousel.front.set(item.wrapping_sub(1));

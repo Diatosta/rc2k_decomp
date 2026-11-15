@@ -22,15 +22,6 @@
 
 use crate::errors::Refused;
 use crate::race::view_scratch::{DrawCtx, ViewScratch};
-use crate::session::GameThread;
-use std::sync::Mutex;
-
-/// The copy of the view the car is drawn on: the thread drawing the car holds the lock for its
-/// run (`workers::draw_aside`), the view's thread to copy into it and merge from it.
-static CAR_VIEW: Mutex<ViewScratch> = Mutex::new(ViewScratch::new(0));
-
-/// The view as it was when the car's copy was made: what the copy changed since is merged.
-static TAKEN: GameThread<ViewScratch> = GameThread::new(ViewScratch::new(0));
 
 /// The number of the view's own car (the car `race::draw_car_entry` takes) when its depth
 /// entry will be in the view's list: added by `race::car_lights` with the scene set up and the
@@ -91,15 +82,13 @@ pub fn draw_with_car_aside<'a, R>(
     rest: impl FnOnce(&CarAside<'a, '_>) -> Result<R, Refused>,
 ) -> Result<R, Refused> {
     {
-        let copy = CAR_VIEW
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let copy = ctx.scene.scratch.car_view();
         copy.copy_drawing_from(ctx.view);
         for cell in filter_switches(&copy) {
             cell.set(0);
         }
     }
-    TAKEN.get().copy_drawing_from(ctx.view);
+    ctx.scene.scratch.taken().copy_drawing_from(ctx.view);
     let DrawCtx {
         race,
         scene,
@@ -109,9 +98,7 @@ pub fn draw_with_car_aside<'a, R>(
         ..
     } = *ctx;
     let piece: crate::workers::Piece<'a> = Box::new(move |part, reads| {
-        let view = CAR_VIEW
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let view = scene.scratch.car_view();
         let ctx = DrawCtx {
             race,
             scene,
@@ -166,10 +153,8 @@ impl CarAside<'_, '_> {
     /// The car's drawing taken at its entry in the view `ctx` draws (see the header).
     pub fn draw(&self, ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         let run = self.aside.join()?;
-        let copy = CAR_VIEW
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let taken = TAKEN.get();
+        let copy = ctx.scene.scratch.car_view();
+        let taken = ctx.scene.scratch.taken();
         let counted: [u32; 3] = std::array::from_fn(|k| {
             counts(ctx.view)[k]
                 .get()

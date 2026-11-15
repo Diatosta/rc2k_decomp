@@ -123,7 +123,7 @@ fn frame(o: crate::owners::Owners<'static>, share: u32) -> Result<(), Refused> {
         if active == 0 || !frame_tried(active, system.window_loop().lost.get()) {
             break 'frame;
         }
-        begin_scene::begin_scene(race, d3d, crate::workers::game_scratch());
+        begin_scene::begin_scene(race, d3d, o.scene.scratch.game_scratch());
         let framed: u32 = shared.switches.get().editor_mode.get();
         shared.switches.get().editor_mode.set(0u32);
         choose_view_window::choose_view_window(race, scene, system);

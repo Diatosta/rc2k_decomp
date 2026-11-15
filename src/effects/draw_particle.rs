@@ -26,7 +26,9 @@ pub fn draw_particle(
     if x87::bits_at_or_below(turned[2], effects_frame.draw_work.near.get()) {
         return;
     }
-    let k = effects_frame.draw_work.view_k();
+    let k = effects_frame
+        .draw_work
+        .view_k(scene.scratch.front_end_polygon());
     let sq = x87::particle_square_floats(turned, k, size as i32);
     for n in 0..4 {
         let v = &buffer.vertices[n];

@@ -51,11 +51,15 @@ pub fn face_depth_test_on(face: &FaceWork, part: &crate::workers::PartScratch) {
 
 /// Puts a face's four points into the view scratch's corner list, the fourth -1 when it is the
 /// third (a triangle). Returns the fourth.
-pub fn face_corners(view: &crate::race::view_scratch::ViewScratch, face: &Face) -> u32 {
+pub fn face_corners(
+    scene: &crate::scene::owner::Scene,
+    view: &crate::race::view_scratch::ViewScratch,
+    face: &Face,
+) -> u32 {
     let corners = rc2k_core::race::faces::corners(std::array::from_fn(|n| face.point(n)));
     crate::session::write_bits(&view.face.corners, corners);
     // The next stage's start-up (`race::norms`) reads the last face drawn's corners.
-    crate::race::face_work::note_face_drawn(view.number());
+    scene.scratch.note_face_drawn(view.number());
     corners[3]
 }
 
@@ -1076,7 +1080,7 @@ pub fn draw_course_face(ctx: &DrawCtx<'_>, face: u32) -> Result<(), Refused> {
     // The face is read once for its corners, normals, kinds, objects and colours: drawing it writes
     // no face.
     let face = crate::race::course_places::face_number(ctx.reads.course(), face)?;
-    face_corners(ctx.view, &face);
+    face_corners(ctx.scene, ctx.view, &face);
     if face.switches() & rc2k_core::race::faces::REPEATED != 0 {
         face_corners_to_new_points(ctx)?;
     }

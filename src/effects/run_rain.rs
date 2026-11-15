@@ -53,7 +53,7 @@ pub fn run_rain(
     scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    let part = crate::workers::game_scratch();
+    let part = scene.scratch.game_scratch();
     let setup = &effects.setup;
     use crate::scene::set_render_state::set_render_state;
     let r = &weather.rain;
@@ -96,7 +96,9 @@ pub fn run_rain(
             v.u.set(0.0);
             v.v.set(0.0);
         }
-        crate::scene::polygon_work::front_end()
+        scene
+            .scratch
+            .front_end_polygon()
             .polygon_vertex_count
             .set(4);
         if setup.kind_floats.running.get() != 0 {

@@ -320,7 +320,7 @@ fn draw_noted(part: &crate::workers::PartScratch, pending: &mut Pending) {
         crate::render::give_back(commands);
         return;
     };
-    if !std::ptr::eq(part, crate::workers::part_scratch(0)) {
+    if !game_part().is_some_and(|first| std::ptr::eq(part, first)) {
         // The parts' drawing is put together on the game's thread, after the first part's:
         // drawn here, this part's would go ahead of the earlier parts'.
         crate::framework::log("platform: a drawing part's noted drawing drawn (out of order)");
@@ -359,14 +359,37 @@ impl Noted {
     }
 }
 
-/// The game's thread's noted drawing: the first part's.
-fn game_part() -> &'static crate::workers::PartScratch {
-    crate::workers::part_scratch(0)
+thread_local! {
+    /// The drawing scratch of the thread's owners, where the platform finds the first part's
+    /// noted drawing (the game's thread's): the platform's calls (a surface locked, the frame
+    /// shown) carry no owner to reach it by. Set once on the game's thread
+    /// (`register_game_scratch`); a thread with none has nothing noted.
+    static GAME_SCRATCH: std::cell::Cell<Option<&'static crate::workers::DrawingScratch>> =
+        const { std::cell::Cell::new(None) };
+}
+
+/// The game's thread's owners' drawing scratch is where the platform's flush finds the noted
+/// drawing: called once on the game's thread, as the owners are made.
+pub fn register_game_scratch(scratch: &'static crate::workers::DrawingScratch) {
+    GAME_SCRATCH.set(Some(scratch));
+}
+
+/// The drawing scratch registered on this thread, if any.
+pub fn game_scratch() -> Option<&'static crate::workers::DrawingScratch> {
+    GAME_SCRATCH.get()
+}
+
+/// The game's thread's noted drawing's part: the first one's, none when no scratch is
+/// registered on this thread.
+fn game_part() -> Option<&'static crate::workers::PartScratch> {
+    GAME_SCRATCH
+        .get()
+        .map(super::workers::DrawingScratch::game_scratch)
 }
 
 /// Whether a noted fan reads the texture `pixels`.
 fn reads_texture(pixels: TextureId) -> bool {
-    game_part().noted.lock().textures.contains(&pixels)
+    game_part().is_some_and(|part| part.noted.lock().textures.contains(&pixels))
 }
 
 /// The screen's width, height and bits per pixel as part `part`'s drawing reads them: its own
@@ -444,9 +467,9 @@ pub fn take_noted(part: &crate::workers::PartScratch) -> CommandList {
 
 /// `commands` noted after those the game's thread has so far (`workers`), their textures
 /// with them; the emptied list kept for the next.
-pub fn put_noted(mut commands: CommandList) {
+pub fn put_noted(first: &crate::workers::PartScratch, mut commands: CommandList) {
     {
-        let p = &mut *game_part().noted.lock();
+        let p = &mut *first.noted.lock();
         for c in &commands.commands {
             if let Command::Fan {
                 texture: Some(t), ..
@@ -465,8 +488,9 @@ pub fn put_noted(mut commands: CommandList) {
 
 /// Draws everything the game's thread has noted, the screen in tiles over the threads.
 pub fn flush() {
-    let part = game_part();
-    draw_noted(part, &mut part.noted.lock());
+    if let Some(part) = game_part() {
+        draw_noted(part, &mut part.noted.lock());
+    }
 }
 
 /// A fan into the screen, with the states and the current texture

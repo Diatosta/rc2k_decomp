@@ -16,7 +16,7 @@ pub fn set_up_lit_engine(
     crate::scene::set_up_engine::set_up_engine_in(race, scene)?;
     crate::race::find_present_courses::find_present_courses(race, scene)?;
     // The light's lowest, highest, level and strength, and the light's turns.
-    let scratch = crate::race::view_scratch::front_end();
+    let scratch = scene.scratch.front_end();
     let light = &scratch.light;
     light.light_lowest.set(0x50u32);
     light.light_highest.set(0xFFu32);

@@ -38,7 +38,7 @@ pub fn overlay_pass(
         .panel
         .players
         .set(shown_layout(&race.shared));
-    let part = crate::workers::game_scratch();
+    let part = scene.scratch.game_scratch();
     depth_buffer(part, false);
     crate::hud::overlay_states::overlay_states(part);
     let kept: [u32; 2] = [
@@ -56,7 +56,7 @@ pub fn overlay_pass(
             }
         }
     }
-    let scratch = crate::race::view_scratch::front_end();
+    let scratch = scene.scratch.front_end();
     let polygons = &scratch.polygon;
     let pen = Pen {
         polygons,

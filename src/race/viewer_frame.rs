@@ -26,7 +26,7 @@ pub fn viewer_frame(o: Owners<'static>) -> Result<bool, Refused> {
         crate::gfx::clear_back_surface::clear_back_surface(gfx, system)?;
     }
     // Beginning the scene cannot fail.
-    crate::platform_3d::begin_layer(&o.gfx.d3d, crate::workers::game_scratch());
+    crate::platform_3d::begin_layer(&o.gfx.d3d, o.scene.scratch.game_scratch());
     if !race.shared.replay_file().replay_at_end.is_set() {
         crate::drive::replay_frame_marks::replay_frame_marks(race)?;
         crate::race::show_replay_still::show_replay_still(race, o)?;
@@ -52,7 +52,7 @@ fn stopped(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
     let replay = &race.replay;
     let shared = &race.shared;
     use rc2k_core::race::viewer_flow::{LIST_STATES, bar_places, mark_x, place_x};
-    let part = crate::workers::game_scratch();
+    let part = o.scene.scratch.game_scratch();
     crate::d3d::set_texture::set_texture(part, shared.replay_file().viewer_list_texture.get());
     for (value, state) in LIST_STATES {
         crate::d3d::set_render_state::set_render_state(part, value, state);
@@ -66,7 +66,9 @@ fn stopped(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
             .items
             .get(index as usize)
             .ok_or(BadInput("a viewer item past the 26"))?;
-        crate::race::draw_viewer_item::draw_viewer_item(race, list_state, item, index, system)?;
+        crate::race::draw_viewer_item::draw_viewer_item(
+            race, list_state, item, index, system, o.scene,
+        )?;
     }
     let quad = |uv: &[PlainDword], rect: &[PlainDword; 4], colour: u32| {
         // The texture rectangle's first four dwords (the frame's picture holds five).
@@ -79,7 +81,7 @@ fn stopped(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
             colour,
             race.viewer_panel(),
             system,
-            &crate::workers::game_scratch().vertices,
+            o.scene.scratch.game_scratch(),
         )
     };
     let v = race.viewer_panel();
@@ -117,6 +119,7 @@ fn stopped(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
             o.gfx,
             o.strings,
             o.system,
+            o.scene,
         )?;
     }
     Ok(())

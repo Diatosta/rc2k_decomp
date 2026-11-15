@@ -221,12 +221,13 @@ pub fn share_sound_spots(race: &Race, sound: &crate::sound::owner::Sound) -> Res
 /// `sse_fill`; `part` is the drawing part clearing them
 /// (`scene::point_records::first_records_everywhere`).
 pub fn clear_point_records(
+    scratch: &crate::workers::DrawingScratch,
     reads: crate::workers::DrawReads<'_>,
     part: &crate::workers::PartScratch,
 ) -> Result<(), BadInput> {
     let pattern: [u32; 4] = crate::session::read_bits(&reads.light_work.sse_fill);
     let sse = reads.draw_switches.use_sse.is_set();
-    for record in crate::scene::point_records::first_records_everywhere(part, 0x1000)? {
+    for record in crate::scene::point_records::first_records_everywhere(scratch, part, 0x1000)? {
         if sse {
             for (cell, v) in record.iter().zip(pattern) {
                 cell.set(v);

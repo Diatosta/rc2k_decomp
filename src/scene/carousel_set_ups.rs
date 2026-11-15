@@ -25,7 +25,7 @@ const fn menu_ops<const N: usize>(
         n += 1;
         k += 1;
     }
-    ops[n] = Run(|| &crate::race::view_scratch::front_end().object.size, size);
+    ops[n] = Run(|scratch| &scratch.front_end().object.size, size);
     n += 1;
     k = 0;
     while k < kinds.len() {

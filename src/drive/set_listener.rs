@@ -65,7 +65,7 @@ impl<'a> ListenerView<'a> {
     /// Before any view of the race (`drive::race_init`'s settling steps): what the last view
     /// drawn left; the sun the first player's view's (all 0 before a session's first race
     /// either way).
-    pub fn before_any_view(race: &'a Race) -> Self {
+    pub fn before_any_view(race: &'a Race, scene: &'a crate::scene::owner::Scene) -> Self {
         let frame = &race.frame;
         Self {
             drawn_view: race.shared.view.get().drawn_view.get(),
@@ -78,7 +78,7 @@ impl<'a> ListenerView<'a> {
                 .view_place
                 .each_ref()
                 .map(|c| c as &dyn DwordLike),
-            sun: &crate::race::view_scratch::main_view(0).polygon.sun,
+            sun: &scene.scratch.main_view(0).polygon.sun,
         }
     }
 }

@@ -15,7 +15,7 @@ pub fn quad(
     colour: u32,
     see: u32,
 ) -> Result<(), Refused> {
-    let scratch = crate::race::view_scratch::front_end();
+    let scratch = o.scene.scratch.front_end();
     scratch.quad.corners[0].set(x);
     scratch.quad.corners[4].set(y);
     scratch.quad.corners[1].set(x.wrapping_add(w));
@@ -27,7 +27,7 @@ pub fn quad(
         o.scene,
         o.input,
         scratch,
-        crate::workers::game_scratch(),
+        o.scene.scratch.game_scratch(),
         crate::workers::DrawReads::on_game_thread(crate::workers::LentOwners::of(o)),
     ))
 }

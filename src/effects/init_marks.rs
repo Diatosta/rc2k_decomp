@@ -47,11 +47,11 @@ pub fn init_marks(
         crate::race::load_times::mark("make_wave_tables");
         setup::make_wave_tables(paths)?;
         crate::race::load_times::mark("make_profiles");
-        profiles::make_profiles(paths, profiles::RESUME, effects)?;
+        profiles::make_profiles(paths, profiles::RESUME, scene, effects)?;
         crate::race::load_times::mark("seed_noise");
         setup::seed_noise(weather, effects);
         crate::race::load_times::mark("make_noise_curve");
-        setup::make_noise_curve(weather, effects)?;
+        setup::make_noise_curve(weather, scene, effects)?;
         crate::race::load_times::mark("allocate_places");
         blocks::allocate_places(effects)?;
         crate::race::load_times::mark("set_kind_values");

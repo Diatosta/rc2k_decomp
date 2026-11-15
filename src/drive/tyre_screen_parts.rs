@@ -17,6 +17,7 @@ fn set(cells: &[PlainDword; 4], v: [u32; 4]) {
 /// Its quads (`drive::tyre_quad`).
 pub fn tyre_screen_parts(
     race: &Race,
+    scene: &crate::scene::owner::Scene,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let shared = &race.shared;
@@ -35,7 +36,7 @@ pub fn tyre_screen_parts(
                 0xFF_FFFF,
                 race.viewer_panel(),
                 system,
-                &crate::workers::game_scratch().vertices,
+                scene.scratch.game_scratch(),
             )
         }?;
     }

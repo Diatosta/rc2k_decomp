@@ -188,13 +188,9 @@ pub fn tab(race: &Race, scene: &Scene, ui: &Ui) {
         }
         ui.text(format!(
             "On the screen: {}; at ({}, {})",
-            crate::race::view_scratch::main_view(0)
-                .polygon
-                .sun
-                .on_screen
-                .get(),
-            crate::race::view_scratch::main_view(0).polygon.sun.hit[0].get() as i32,
-            crate::race::view_scratch::main_view(0).polygon.sun.hit[1].get() as i32
+            scene.scratch.main_view(0).polygon.sun.on_screen.get(),
+            scene.scratch.main_view(0).polygon.sun.hit[0].get() as i32,
+            scene.scratch.main_view(0).polygon.sun.hit[1].get() as i32
         ));
     }
 }
@@ -427,23 +423,19 @@ fn course_map(race: &Race, ui: &Ui) {
 }
 
 /// What goes over the picture (once a UI frame).
-pub fn over_picture(system: &crate::system::owner::System, ui: &Ui) {
-    if !SUN.load(Relaxed)
-        || crate::race::view_scratch::main_view(0)
-            .polygon
-            .sun
-            .on_screen
-            .get()
-            == 0
-    {
+pub fn over_picture(
+    system: &crate::system::owner::System,
+    scene: &crate::scene::owner::Scene,
+    ui: &Ui,
+) {
+    if !SUN.load(Relaxed) || scene.scratch.main_view(0).polygon.sun.on_screen.get() == 0 {
         return;
     }
     let [w, h] = ui.io().display_size();
     let (width, height) = crate::platform::screen_size(system);
     let at = [
-        crate::race::view_scratch::main_view(0).polygon.sun.hit[0].get() as i32 as f32 * w
-            / width.max(1) as f32,
-        crate::race::view_scratch::main_view(0).polygon.sun.hit[1].get() as i32 as f32 * h
+        scene.scratch.main_view(0).polygon.sun.hit[0].get() as i32 as f32 * w / width.max(1) as f32,
+        scene.scratch.main_view(0).polygon.sun.hit[1].get() as i32 as f32 * h
             / height.max(1) as f32,
     ];
     let size = ui.current_font_size() / 2.0;

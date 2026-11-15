@@ -156,10 +156,3 @@ impl PolygonWork {
         }
     }
 }
-
-/// The front end's slot: the polygon work of the HUD, the loading bar, the frame's set-up
-/// and the effects, which draw outside any view's pipeline (each writes its own count before
-/// its fan is drawn).
-pub fn front_end() -> &'static PolygonWork {
-    &crate::race::view_scratch::front_end().polygon
-}

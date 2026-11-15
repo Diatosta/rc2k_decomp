@@ -52,8 +52,8 @@ pub fn take() {
 
 /// The first view's scene has been drawn (on the game's thread): its first flare turned by
 /// its view matrix, as `race::add_flare` turned it (a pure reckoning: nothing is written).
-pub fn note_first_view() {
-    let view = crate::race::view_scratch::main_view(0);
+pub fn note_first_view(scene: &crate::scene::owner::Scene) {
+    let view = scene.scratch.main_view(0);
     if view.lamps.flare_count.get() == 0 {
         return;
     }

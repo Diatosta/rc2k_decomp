@@ -15,7 +15,7 @@ pub fn flare_frame(
     scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    let part = crate::workers::game_scratch();
+    let part = scene.scratch.game_scratch();
     {
         if effects.setup.settings.is_set.get() == 0 {
             return Err(BadInput("no marks settings").into());

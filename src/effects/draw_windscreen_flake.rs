@@ -31,11 +31,12 @@ fn corners(fl: &WindscreenFlakes, v: &[[u8; 10]; 2]) {
 
 /// The corners projected, and their depth.
 fn projected(
+    front: &crate::scene::polygon_work::PolygonWork,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     fl: &WindscreenFlakes,
     effects: &crate::effects::owner::Effects,
 ) {
-    projected_x87(buffer, &effects.setup.kind_floats, &fl.tables);
+    projected_x87(front, buffer, &effects.setup.kind_floats, &fl.tables);
 }
 
 /// Draws `item` in `colour`.
@@ -58,7 +59,7 @@ pub fn draw_windscreen_flake(
     if crate::math::x87::bits_at_or_below(fl.tables.corners[0][2].get(), FAR_ENOUGH) {
         return;
     }
-    projected(buffer, fl, effects);
+    projected(scene.scratch.front_end_polygon(), buffer, fl, effects);
     for item in buffer.vertices.iter().take(4) {
         item.colour.set(colour);
     }
@@ -155,93 +156,50 @@ fn corners_x87(v: &[[u8; 10]; 2], sq: &WindscreenFlakeTables) {
 
 /// `projected`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn projected_x87(
+    front: &crate::scene::polygon_work::PolygonWork,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     k: &MarksKindFloats,
     sq: &WindscreenFlakeTables,
 ) {
-    let t0 = crate::math::x87_float::ld(
-        crate::scene::polygon_work::front_end()
-            .window
-            .view_scale
-            .get(),
-    );
+    let t0 = crate::math::x87_float::ld(front.window.view_scale.get());
     let t1 = t0 / sq.corners[3][2].ld();
-    let t2 = crate::math::x87_float::ld(
-        crate::scene::polygon_work::front_end()
-            .window
-            .view_scale
-            .get(),
-    );
+    let t2 = crate::math::x87_float::ld(front.window.view_scale.get());
     let t3 = t2 / sq.corners[2][2].ld();
-    let t4 = crate::math::x87_float::ld(
-        crate::scene::polygon_work::front_end()
-            .window
-            .view_scale
-            .get(),
-    );
+    let t4 = crate::math::x87_float::ld(front.window.view_scale.get());
     let t5 = t4 / sq.corners[1][2].ld();
-    let t6 = crate::math::x87_float::ld(
-        crate::scene::polygon_work::front_end()
-            .window
-            .view_scale
-            .get(),
-    );
+    let t6 = crate::math::x87_float::ld(front.window.view_scale.get());
     let t7 = t6 / sq.corners[0][2].ld();
     let t8 = sq.corners[0][1].ld();
     let t9 = t8 * t7;
     let t10 = t7 * sq.corners[0][0].ld();
     let t11 = -t9;
-    let t12 = t11
-        + crate::math::x87_float::ld(
-            crate::scene::polygon_work::front_end().window.view_centre[1].get(),
-        );
+    let t12 = t11 + crate::math::x87_float::ld(front.window.view_centre[1].get());
     st_cell(&buffer.vertices[0].y, t12);
-    let t13 = t10
-        + crate::math::x87_float::ld(
-            crate::scene::polygon_work::front_end().window.view_centre[0].get(),
-        );
+    let t13 = t10 + crate::math::x87_float::ld(front.window.view_centre[0].get());
     st_cell(&buffer.vertices[0].x, t13);
     let t14 = sq.corners[1][1].ld();
     let t15 = t14 * t5;
     let t16 = t5 * sq.corners[1][0].ld();
     let t17 = -t15;
-    let t18 = t17
-        + crate::math::x87_float::ld(
-            crate::scene::polygon_work::front_end().window.view_centre[1].get(),
-        );
+    let t18 = t17 + crate::math::x87_float::ld(front.window.view_centre[1].get());
     st_cell(&buffer.vertices[1].y, t18);
-    let t19 = t16
-        + crate::math::x87_float::ld(
-            crate::scene::polygon_work::front_end().window.view_centre[0].get(),
-        );
+    let t19 = t16 + crate::math::x87_float::ld(front.window.view_centre[0].get());
     st_cell(&buffer.vertices[1].x, t19);
     let t20 = sq.corners[2][1].ld();
     let t21 = t20 * t3;
     let t22 = t3 * sq.corners[2][0].ld();
     let t23 = -t21;
-    let t24 = t23
-        + crate::math::x87_float::ld(
-            crate::scene::polygon_work::front_end().window.view_centre[1].get(),
-        );
+    let t24 = t23 + crate::math::x87_float::ld(front.window.view_centre[1].get());
     st_cell(&buffer.vertices[2].y, t24);
-    let t25 = t22
-        + crate::math::x87_float::ld(
-            crate::scene::polygon_work::front_end().window.view_centre[0].get(),
-        );
+    let t25 = t22 + crate::math::x87_float::ld(front.window.view_centre[0].get());
     st_cell(&buffer.vertices[2].x, t25);
     let t26 = sq.corners[3][1].ld();
     let t27 = t26 * t1;
     let t28 = t1 * sq.corners[3][0].ld();
     let t29 = -t27;
-    let t30 = t29
-        + crate::math::x87_float::ld(
-            crate::scene::polygon_work::front_end().window.view_centre[1].get(),
-        );
+    let t30 = t29 + crate::math::x87_float::ld(front.window.view_centre[1].get());
     st_cell(&buffer.vertices[3].y, t30);
-    let t31 = t28
-        + crate::math::x87_float::ld(
-            crate::scene::polygon_work::front_end().window.view_centre[0].get(),
-        );
+    let t31 = t28 + crate::math::x87_float::ld(front.window.view_centre[0].get());
     st_cell(&buffer.vertices[3].x, t31);
     let t32 = sq.corners[0][2].ld();
     let t33 = t32 + k.kind_float.ld();
@@ -460,7 +418,15 @@ mod reference_vectors {
                             0x0, 0x4, 0x8, 0x20, 0x24, 0x28, 0x40, 0x44, 0x48, 0x60, 0x64, 0x68,
                         ],
                         || {
-                            super::projected_x87(&crate::d3d::vertices_store::VERTICES, k, sq);
+                            super::projected_x87(
+                                crate::owners::Owners::the()
+                                    .scene
+                                    .scratch
+                                    .front_end_polygon(),
+                                &crate::d3d::vertices_store::VERTICES,
+                                k,
+                                sq,
+                            );
                         },
                     );
                 });

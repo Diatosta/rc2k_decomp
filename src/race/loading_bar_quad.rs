@@ -20,7 +20,7 @@ pub fn loading_bar_quad(
         session.screen.get().height.get(),
     ];
     let bar = loading_bar(w, h, share);
-    let scratch = crate::race::view_scratch::front_end();
+    let scratch = scene.scratch.front_end();
     let polygon = &scratch.polygon;
     // The quad's colour; x at corners 0 / 1, y at 4 / 5.
     scratch.quad.corners[0].set(bar.left);
@@ -31,7 +31,7 @@ pub fn loading_bar_quad(
     polygon.texture_page.set(0xFFFF_FFFFu32);
     crate::race::frame_draw::draw_screen_quad(
         polygon,
-        crate::workers::game_scratch(),
+        scene.scratch.game_scratch(),
         &scratch.face,
         crate::workers::DrawReads::on_game_thread(crate::workers::LentOwners {
             race,

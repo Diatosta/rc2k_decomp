@@ -3,7 +3,7 @@
 //! round its place plus `TyreChange::wheel`'s place, with the given colour and the texture
 //! rectangle (`quad_tail`), drawn (place 5).
 
-use crate::d3d::vertices_store::{PolygonVertices, Vertex};
+use crate::d3d::vertices_store::Vertex;
 use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
 use crate::input::types::InputDevice;
@@ -47,7 +47,7 @@ fn turn(ty: &TyreChange, e: &InputDevice, d: &[PlainFloat; 4], v: &[Vertex], t: 
 /// `device`.
 #[allow(
     clippy::too_many_arguments,
-    reason = "the tyre change, the quad's inputs, the owners and the vertex buffer"
+    reason = "the tyre change, the quad's inputs, the owners and the part drawn on"
 )]
 pub fn tyre_turned_quad(
     shared: &RaceShared,
@@ -57,8 +57,9 @@ pub fn tyre_turned_quad(
     device: &InputDevice,
     system: &crate::system::owner::System,
     panel: &crate::race::viewer_screen_store::ViewerPanelBlock,
-    buffer: &PolygonVertices,
+    part: &crate::workers::PartScratch,
 ) -> Result<(), Refused> {
+    let buffer = &part.vertices;
     system.machine().scratch.set(0x40C9_0FDB);
     turn(
         shared.tyre_change(),
@@ -69,7 +70,7 @@ pub fn tyre_turned_quad(
     );
     quad_words(buffer, colour);
     quad_tail(buffer, uv, panel, system);
-    draw(buffer)
+    draw(part)
 }
 
 #[cfg(test)]

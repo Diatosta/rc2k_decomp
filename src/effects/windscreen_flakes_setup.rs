@@ -40,14 +40,14 @@ pub fn setup_with(
 ) {
     use crate::scene::set_render_state::set_render_state;
     {
-        crate::scene::depth_buffer_on::depth_buffer(crate::workers::game_scratch(), true);
+        crate::scene::depth_buffer_on::depth_buffer(scene.scratch.game_scratch(), true);
         crate::scene::set_texture::set_texture(
-            crate::workers::game_scratch(),
+            scene.scratch.game_scratch(),
             scene,
             scene.textures.kinds.get().kind_first_slots[202].get(),
         );
         for (value, state) in STATES {
-            set_render_state(crate::workers::game_scratch(), value, state);
+            set_render_state(scene.scratch.game_scratch(), value, state);
         }
         for item in buffer.vertices.iter().take(4) {
             item.rhw.set(x87::from_int(0x100));
@@ -61,11 +61,13 @@ pub fn setup_with(
             buffer.vertices[n].u.set(u);
             buffer.vertices[n].v.set(v);
         }
-        crate::scene::polygon_work::front_end()
+        scene
+            .scratch
+            .front_end_polygon()
             .polygon_vertex_count
             .set(4);
         fl.tables.inverse.set(x87::reciprocal(
-            &crate::scene::polygon_work::front_end().window.farthest,
+            &scene.scratch.front_end_polygon().window.farthest,
         ));
     }
 }

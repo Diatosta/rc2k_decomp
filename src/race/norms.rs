@@ -110,7 +110,11 @@ pub struct Normals {
 /// Every face's normals, starting from the work vector `work_vector`: a triangle whose points are
 /// not all below the scene's point count keeps the vector the last one left. Reads the loaded
 /// course and writes nothing. Refused: no faces, 0x100000 or more, or a read past a table.
-pub fn face_normals(race: &Race, work_vector: [u32; 3]) -> Result<Normals, Refused> {
+pub fn face_normals(
+    race: &Race,
+    scratch: &crate::workers::DrawingScratch,
+    work_vector: [u32; 3],
+) -> Result<Normals, Refused> {
     use rc2k_core::race::faces::{
         NORMAL_TRIANGLES, normal_made, repeated_points, takes_normals, with_repeated,
     };
@@ -118,7 +122,8 @@ pub fn face_normals(race: &Race, work_vector: [u32; 3]) -> Result<Normals, Refus
     rc2k_core::race::faces::check_face_count(count)?;
     let points: u32 = race.course.course.get().scene_point_count.get();
     // The fourth corner the last drawn face left is -1 for a face of three points.
-    let fourth_corner_set = crate::race::face_work::last_fourth_corner(&race.shared) != u32::MAX;
+    let fourth_corner_set =
+        crate::race::face_work::last_fourth_corner(&race.shared, scratch) != u32::MAX;
     let mut out = Normals {
         faces: Vec::new(),
         work_vector,
@@ -159,7 +164,7 @@ pub fn store_norms(race: &Race, scene: &crate::scene::owner::Scene) -> Result<()
     let count: u32 = race.course.course.get().course_face_count.get();
     rc2k_core::race::faces::check_face_count(count)?;
     let work_vector = crate::session::read_first(&race.frame.scratch().work_vector);
-    let normals = face_normals(race, work_vector)?;
+    let normals = face_normals(race, &scene.scratch, work_vector)?;
     for made in &normals.faces {
         crate::race::course_places::update_face_number(&race.course, made.face, |f| {
             f.set_switches(made.switches);
@@ -207,7 +212,7 @@ mod tests {
         let faces = [face([0, 1, 2, 3])];
         let points = [[0, 0, 0], [100, 0, 0], [0, 0, 100]];
         let normals = crate::race::best_line::with_course(&faces, &points, |race| {
-            face_normals(race, [7, 8, 9]).unwrap()
+            face_normals(race, &crate::owners::Owners::the().scene.scratch, [7, 8, 9]).unwrap()
         });
         let up = [0, 0xBF80_0000, 0];
         assert_eq!(normals.faces.len(), 1);
@@ -220,7 +225,7 @@ mod tests {
     fn without_a_triangle_the_start_vector_stays() {
         let faces = [face([5, 6, 7, 8])];
         let normals = crate::race::best_line::with_course(&faces, &[[0; 3]], |race| {
-            face_normals(race, [7, 8, 9]).unwrap()
+            face_normals(race, &crate::owners::Owners::the().scene.scratch, [7, 8, 9]).unwrap()
         });
         assert_eq!(normals.faces[0].normals, [[7, 8, 9]; 2]);
         assert_eq!((normals.plane_work, normals.scratch), (None, None));

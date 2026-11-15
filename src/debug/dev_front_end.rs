@@ -129,8 +129,8 @@ fn round_a_race(
     step(o, Call::ShowLoadingPicture)?;
     step(o, Call::SetUpRaceSoundObjects)?;
     step(o, Call::SetUpRaceSounds)?;
-    stage_free::render3d_tidy(race)?;
-    stage_free::objects_tidy(race)?;
+    stage_free::render3d_tidy(race, &o.scene.scratch)?;
+    stage_free::objects_tidy(race, &o.scene.scratch)?;
     race_end::release_textures(o.scene, o.gfx);
     shared.switches.get().mask_kind.set(0);
     race_shell::clear_player_absences(race);

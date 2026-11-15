@@ -91,15 +91,13 @@ pub fn flush_batch(
     if count != 0 {
         if textured {
             crate::scene::look_up_texture::look_up_texture(
-                crate::scene::polygon_work::front_end(),
+                scene.scratch.front_end_polygon(),
                 scene,
             );
             set_texture(
                 part,
                 scene,
-                crate::scene::polygon_work::front_end()
-                    .polygon_texture
-                    .get(),
+                scene.scratch.front_end_polygon().polygon_texture.get(),
             );
         }
         let result = (b.draw)(part, frame, b.word.get(), count);

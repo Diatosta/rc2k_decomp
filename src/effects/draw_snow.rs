@@ -34,9 +34,15 @@ fn fade(weather: &Weather, effects: &crate::effects::owner::Effects) {
 }
 
 /// The projected square, its depth and u.
-fn square(buffer: &crate::d3d::vertices_store::PolygonVertices, weather: &Weather, i: u32) {
+fn square(
+    front: &crate::scene::polygon_work::PolygonWork,
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
+    weather: &Weather,
+    i: u32,
+) {
     let mut w = [0u32; 32];
     square_x87(
+        front,
         crate::scene::x87_mem::cells(&mut w),
         i as usize,
         &weather.snow_tables,
@@ -136,15 +142,17 @@ pub fn draw_snow(
                         item.colour.set(colour);
                     }
                 }
-                square(buffer, weather, 4 * k);
+                square(scene.scratch.front_end_polygon(), buffer, weather, 4 * k);
                 let [top, bottom] = snow_light.v.each_ref().map(crate::session::PlainFloat::get);
                 for (n, vertex) in buffer.vertices.iter().enumerate().take(4) {
                     vertex.v.set(if n < 2 { top } else { bottom });
                 }
-                if !clip_quad(buffer, effects)? {
+                if !clip_quad(buffer, scene, effects)? {
                     draw_fan(buffer, scene);
                     snow.drawn.set(snow.drawn.get().wrapping_add(1));
-                    crate::scene::polygon_work::front_end()
+                    scene
+                        .scratch
+                        .front_end_polygon()
                         .polygon_vertex_count
                         .set(4);
                 }
@@ -224,28 +232,24 @@ fn fade_x87(s: &SnowState, l: &SnowLight, f: &MarksFloats) {
 }
 
 /// `square`'s arithmetic as plain Rust on the x87 model, in the same order.
-fn square_x87(vt: impl Base, i: usize, t: &SnowTables, s: &SnowState, l: &SnowLight) {
+fn square_x87(
+    front: &crate::scene::polygon_work::PolygonWork,
+    vt: impl Base,
+    i: usize,
+    t: &SnowTables,
+    s: &SnowState,
+    l: &SnowLight,
+) {
     let t0 = s.turned[2].ld();
-    let t1 = crate::math::x87_float::ld(
-        crate::scene::polygon_work::front_end()
-            .window
-            .view_scale
-            .get(),
-    ) / t0;
+    let t1 = crate::math::x87_float::ld(front.window.view_scale.get()) / t0;
     s.depth.set(bh::st(t1));
     let t2 = s.turned[1].ld();
     let t3 = t2 * t1;
     let t4 = t1 * s.turned[0].ld();
     let t5 = -t3;
-    let t6 = t5
-        + crate::math::x87_float::ld(
-            crate::scene::polygon_work::front_end().window.view_centre[1].get(),
-        );
+    let t6 = t5 + crate::math::x87_float::ld(front.window.view_centre[1].get());
     st(vt, 0x4, t6);
-    let t7 = t4
-        + crate::math::x87_float::ld(
-            crate::scene::polygon_work::front_end().window.view_centre[0].get(),
-        );
+    let t7 = t4 + crate::math::x87_float::ld(front.window.view_centre[0].get());
     st(vt, 0x0, t7);
     let t8 = l.side.ld();
     let t9 = t8 * bh::ld(s.depth.get());
@@ -427,7 +431,17 @@ mod reference_vectors {
             with_laid::<SnowTables, _>(b[2], |t| {
                 with_laid::<SnowState, _>(b[2], |s| {
                     with_laid::<SnowLight, _>(b[2], |l| {
-                        super::square_x87(b[1], b[3].number(), t, s, l);
+                        super::square_x87(
+                            crate::owners::Owners::the()
+                                .scene
+                                .scratch
+                                .front_end_polygon(),
+                            b[1],
+                            b[3].number(),
+                            t,
+                            s,
+                            l,
+                        );
                     });
                 });
             });

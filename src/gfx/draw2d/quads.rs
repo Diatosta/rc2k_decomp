@@ -414,7 +414,8 @@ pub fn wanted() -> bool {
     config().quads
         && crate::render::gpu_running()
         && crate::render::frame_on_gpu()
-        && !crate::workers::in_race(crate::workers::part_scratch(0))
+        && !crate::platform_3d::game_scratch()
+            .is_some_and(|scratch| crate::workers::in_race(scratch.game_scratch()))
 }
 
 /// One call of the glyph funnel.

@@ -43,7 +43,7 @@ impl PolygonVertices {
     }
 }
 
-/// The tests' way to the game's thread's buffer (part 0's, `workers::game_scratch`).
+/// The tests' way to the game's thread's buffer (part 0's of the test thread's scene).
 #[cfg(test)]
 pub struct GameThreadVertices;
 
@@ -51,7 +51,11 @@ pub struct GameThreadVertices;
 impl core::ops::Deref for GameThreadVertices {
     type Target = PolygonVertices;
     fn deref(&self) -> &PolygonVertices {
-        &crate::workers::game_scratch().vertices
+        &crate::owners::Owners::the()
+            .scene
+            .scratch
+            .game_scratch()
+            .vertices
     }
 }
 

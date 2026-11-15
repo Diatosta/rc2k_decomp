@@ -50,8 +50,8 @@ pub fn viewer_load_stage(race: &'static Race, o: Owners<'static>) -> Result<(), 
     #[cfg(feature = "remote")]
     crate::remote::shots_loading(race, o.race.effects.get(), &o.system.session.picture_clock);
     if shared.replay_file().replay_open.is_set() {
-        stage_free::render3d_tidy(race)?;
-        stage_free::objects_tidy(race)?;
+        stage_free::render3d_tidy(race, &scene.scratch)?;
+        stage_free::objects_tidy(race, &scene.scratch)?;
         race_end::release_textures(o.scene, o.gfx);
         race_shell::set_race_screen_mode(gfx, o.system);
 

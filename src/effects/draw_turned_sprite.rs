@@ -49,7 +49,10 @@ pub fn draw_turned_sprite(
             return Ok(());
         }
         let colour = colour | 0xFF_FFFF;
-        let k = effects.frame.draw_work.view_k();
+        let k = effects
+            .frame
+            .draw_work
+            .view_k(scene.scratch.front_end_polygon());
         let sin = crate::scene::engine_tables_store::sine(engine_tables, angle as usize).get();
         let cos = crate::scene::engine_tables_store::cosine(engine_tables, angle as usize).get();
         let sq = x87::turned_sprite_floats(place, k, size as i32, sin, cos);
@@ -66,11 +69,13 @@ pub fn draw_turned_sprite(
         for (n, v) in sq[2..6].iter().enumerate() {
             effects.frame.draw_work.sprite_half[n].set(v.to_bits());
         }
-        if clip_quad(buffer, effects)? {
+        if clip_quad(buffer, scene, effects)? {
             return Ok(());
         }
         draw_fan(buffer, scene);
-        crate::scene::polygon_work::front_end()
+        scene
+            .scratch
+            .front_end_polygon()
             .polygon_vertex_count
             .set(4);
     }

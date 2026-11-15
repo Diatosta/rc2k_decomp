@@ -242,6 +242,7 @@ impl Tidy {
 /// course's two memories, the objects (then `in_race` 0, `view_scale` `kept_scale`); "finis".
 pub fn tidy_stage(
     race: &Race,
+    scene: &crate::scene::owner::Scene,
     effects: &Effects,
     gfx: &crate::gfx::owner::Gfx,
     audio: &crate::audio::owner::Audio,
@@ -250,8 +251,10 @@ pub fn tidy_stage(
         COURSE, COURSE_2, MUD, OBJECT_POINTS, POINT_RECORDS, free, free_game_fonts,
     };
     let s = Tidy;
-    s.step(STAGE_WORDS[0], || free(race, &MUD))?;
-    s.step(STAGE_WORDS[1], || free(race, &POINT_RECORDS))?;
+    s.step(STAGE_WORDS[0], || free(race, &scene.scratch, &MUD))?;
+    s.step(STAGE_WORDS[1], || {
+        free(race, &scene.scratch, &POINT_RECORDS)
+    })?;
     s.log(STAGE_WORDS[2]);
     s.indent(3);
     let enabled = crate::logfile::write_line::state::ENABLED
@@ -268,13 +271,13 @@ pub fn tidy_stage(
         crate::race::race_shell::release_stage_textures(gfx);
         Ok(())
     })?;
-    s.step(STAGE_WORDS[6], || free(race, &COURSE_2))?;
-    s.step(STAGE_WORDS[7], || free(race, &COURSE))?;
+    s.step(STAGE_WORDS[6], || free(race, &scene.scratch, &COURSE_2))?;
+    s.step(STAGE_WORDS[7], || free(race, &scene.scratch, &COURSE))?;
     s.log(STAGE_WORDS[8]);
     s.indent(3);
-    free(race, &OBJECT_POINTS)?;
+    free(race, &scene.scratch, &OBJECT_POINTS)?;
     race.course.numbers.get().in_race.set(false);
-    crate::workers::set_game_part_racing(false);
+    crate::workers::set_game_part_racing(&scene.scratch, false);
     audio.racing.set(false);
     race.frame
         .view_and_records
@@ -305,7 +308,7 @@ pub fn tidy_everything(race: &Race, o: crate::owners::Owners<'static>) -> Result
     })?;
     s.step(EVERYTHING_WORDS[3], || Ok(()))?;
     s.step(EVERYTHING_WORDS[4], || {
-        tidy_stage(race, o.race.effects.get(), o.gfx, o.audio)
+        tidy_stage(race, o.scene, o.race.effects.get(), o.gfx, o.audio)
     })?;
     #[cfg(feature = "remote")]
     crate::race::course_hash::log_hashes(race, o.scene, "free");
@@ -375,8 +378,8 @@ pub fn start_race(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
 /// Runs `race::render3d_tidy`, `race::objects_tidy`, `race::release_textures` and
 /// `race::start_race`.
 pub fn race_from_menu(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
-    crate::race::stage_free::render3d_tidy(o.race)?;
-    crate::race::stage_free::objects_tidy(o.race)?;
+    crate::race::stage_free::render3d_tidy(o.race, &o.scene.scratch)?;
+    crate::race::stage_free::objects_tidy(o.race, &o.scene.scratch)?;
     release_textures(o.scene, o.gfx);
     start_race(o)
 }

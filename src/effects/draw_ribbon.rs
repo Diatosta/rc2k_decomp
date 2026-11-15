@@ -19,11 +19,12 @@ const CELLS: u32 = 0x41;
 
 /// The two places projected and the ribbon's corners.
 fn ribbon(
+    front: &crate::scene::polygon_work::PolygonWork,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     effects: &crate::effects::owner::Effects,
 ) {
     let frame = &effects.frame;
-    ribbon_x87(buffer, &frame.draw_work, &frame.view_vars);
+    ribbon_x87(front, buffer, &frame.draw_work, &frame.view_vars);
 }
 
 /// Draws a ribbon piece of `colour` and `alpha` and `width`, with the texture places of
@@ -73,12 +74,14 @@ pub fn draw_ribbon(
                 return Ok(());
             }
         }
-        ribbon(buffer, effects);
-        if clip_quad(buffer, effects)? {
+        ribbon(scene.scratch.front_end_polygon(), buffer, effects);
+        if clip_quad(buffer, scene, effects)? {
             return Ok(());
         }
         draw_fan(buffer, scene);
-        crate::scene::polygon_work::front_end()
+        scene
+            .scratch
+            .front_end_polygon()
             .polygon_vertex_count
             .set(4);
     }
@@ -91,31 +94,30 @@ use crate::math::x87_float as bh;
 use crate::math::x87_float::ld;
 
 /// `ribbon`'s arithmetic as plain Rust on the x87 model, in the same order.
-fn ribbon_x87(buffer: &crate::d3d::vertices_store::PolygonVertices, dw: &DrawWork, vv: &ViewVars) {
-    let t0 = ld(crate::scene::polygon_work::front_end()
-        .window
-        .view_scale
-        .get());
+fn ribbon_x87(
+    front: &crate::scene::polygon_work::PolygonWork,
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
+    dw: &DrawWork,
+    vv: &ViewVars,
+) {
+    let t0 = ld(front.window.view_scale.get());
     let t1 = t0 / dw.turned[2].ld();
     let t2 = t1 * dw.turned[0].ld();
     let t3 = t1 * dw.turned[1].ld();
     let t4 = -t3;
-    let t5 = t4 + crate::scene::polygon_work::front_end().window.view_centre[1].ld();
+    let t5 = t4 + front.window.view_centre[1].ld();
     dw.turned[1].st(t5);
-    let t6 = t2 + crate::scene::polygon_work::front_end().window.view_centre[0].ld();
+    let t6 = t2 + front.window.view_centre[0].ld();
     dw.turned[0].st(t6);
     dw.ends_scale[0].st(t1);
-    let t7 = ld(crate::scene::polygon_work::front_end()
-        .window
-        .view_scale
-        .get());
+    let t7 = ld(front.window.view_scale.get());
     let t8 = t7 / dw.second[2].ld();
     let t9 = t8 * dw.second[0].ld();
     let t10 = t8 * dw.second[1].ld();
     let t11 = -t10;
-    let t12 = t11 + crate::scene::polygon_work::front_end().window.view_centre[1].ld();
+    let t12 = t11 + front.window.view_centre[1].ld();
     dw.second[1].st(t12);
-    let t13 = t9 + crate::scene::polygon_work::front_end().window.view_centre[0].ld();
+    let t13 = t9 + front.window.view_centre[0].ld();
     dw.second[0].st(t13);
     dw.ends_scale[1].st(t8);
     let t14 = dw.second[0].ld();
@@ -272,7 +274,17 @@ mod reference_vectors {
                         &[
                             0x0, 0x4, 0x8, 0x20, 0x24, 0x28, 0x40, 0x44, 0x48, 0x60, 0x64, 0x68,
                         ],
-                        || super::ribbon_x87(&crate::d3d::vertices_store::VERTICES, dw, vv),
+                        || {
+                            super::ribbon_x87(
+                                crate::owners::Owners::the()
+                                    .scene
+                                    .scratch
+                                    .front_end_polygon(),
+                                &crate::d3d::vertices_store::VERTICES,
+                                dw,
+                                vv,
+                            );
+                        },
                     );
                 });
             });
