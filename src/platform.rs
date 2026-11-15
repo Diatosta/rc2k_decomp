@@ -137,6 +137,7 @@ fn set_screen_mode(
     system.session.screen.get().width.set(width);
     system.session.screen.get().height.set(height);
     system.session.screen.get().bits.set(bits);
+    crate::workers::set_game_part_screen(width, height, bits);
     system.session.screen.get().bytes.set(bytes);
     system.session.screen.get().row_bytes.set(bytes * width);
     system

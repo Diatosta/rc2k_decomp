@@ -130,11 +130,10 @@ static SMALL: Mutex<SmallBuffers> = Mutex::new(SmallBuffers {
     width: 0,
 });
 
-/// Whether this flush goes through a small frame: in a race, unless `RC2K_FULL_RESOLUTION`.
-pub fn draws_small() -> bool {
+/// Whether this flush goes through a small frame: when `racing`, unless `RC2K_FULL_RESOLUTION`.
+pub fn draws_small(racing: bool) -> bool {
     static FULL: OnceLock<bool> = OnceLock::new();
-    !*FULL.get_or_init(|| std::env::var_os("RC2K_FULL_RESOLUTION").is_some())
-        && race().course.numbers.get().in_race.is_set()
+    !*FULL.get_or_init(|| std::env::var_os("RC2K_FULL_RESOLUTION").is_some()) && racing
 }
 
 /// A small frame while it is drawn: its buffers held until it is enlarged.
@@ -187,7 +186,6 @@ impl Small {
 
 // ---- a sampling profiler for the handheld (the OS has no perf) ----
 
-use crate::race::owner::race;
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering::Relaxed};
 
 const SAMPLES: usize = 1 << 16;

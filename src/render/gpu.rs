@@ -1005,6 +1005,7 @@ mod comparison {
         crate::render::Backend::draw(
             &mut crate::render::software::Software {
                 screen: (width, height),
+                racing: false,
             },
             &target,
             read_commands(&mut Reader(r.0)),

@@ -154,19 +154,27 @@ pub fn in_scope() -> bool {
 
 // r40course
 /// Whether a race is on (`race::numbers_store::Numbers::in_race`), as part `part`'s drawing
-/// reads it: inside a drawing scope its copy taken when the scope opened, outside one the
-/// store (on the game's thread).
+/// reads it: its own copy (`set_game_part_racing` for the game's part, `draw_parts` for every
+/// part when a scope opens).
 pub fn in_race(part: &PartScratch) -> bool {
-    if in_scope() {
-        part.in_race.is_set()
-    } else {
-        // m6-root: read by the drawing workers' platform callback.
-        crate::race::owner::RACE // m6-root
-            .course
-            .numbers
-            .get()
-            .in_race
-            .is_set()
+    part.in_race.is_set()
+}
+
+/// The game's part is told a race has begun or ended, on the game's thread, where the race flag
+/// changes; every other part gets it when a drawing scope opens.
+pub fn set_game_part_racing(racing: bool) {
+    part_scratch(0).in_race.set(racing);
+}
+
+/// The game's part is told the screen's figures, on the game's thread, where a screen mode is
+/// set; every other part gets them when a drawing scope opens.
+pub fn set_game_part_screen(width: u32, height: u32, bits: u32) {
+    for (cell, figure) in part_scratch(0)
+        .screen_size
+        .iter()
+        .zip([width, height, bits])
+    {
+        cell.set(figure);
     }
 }
 // end r40course

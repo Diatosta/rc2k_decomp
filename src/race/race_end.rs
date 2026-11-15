@@ -271,6 +271,7 @@ pub fn tidy_stage(
     s.indent(3);
     free(race, &OBJECT_POINTS)?;
     race.course.numbers.get().in_race.set(false);
+    crate::workers::set_game_part_racing(false);
     audio.racing.set(false);
     race.frame
         .view_and_records

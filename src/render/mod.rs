@@ -282,9 +282,10 @@ static GPU_HOLDS_FRAME: AtomicBool = AtomicBool::new(false);
 static GPU_DREW_THIS_FRAME: AtomicBool = AtomicBool::new(false);
 
 /// Draws the commands on the backend that holds the frame; `screen` is the screen's size (the
-/// rasteriser's depth buffer is kept at it). A menu's 3D goes to the GPU as a race's does: its
-/// 2D before and after the 3D is the canvas's written pixels, put over the target at each flush.
-pub fn draw(screen: (usize, usize), target: &Target, commands: CommandList) {
+/// rasteriser's depth buffer is kept at it), `racing` whether a race is on. A menu's 3D goes to
+/// the GPU as a race's does: its 2D before and after the 3D is the canvas's written pixels, put
+/// over the target at each flush.
+pub fn draw(screen: (usize, usize), racing: bool, target: &Target, commands: CommandList) {
     if target.bits == 32 {
         let mut gpu = gpu::GPU.lock().unwrap();
         if let Some(gpu) = gpu.as_mut() {
@@ -302,7 +303,7 @@ pub fn draw(screen: (usize, usize), target: &Target, commands: CommandList) {
     give_frame_back(target);
     // Whatever was noted for a GPU is on the canvas before the rasteriser draws.
     crate::gfx::draw2d::quads::before_canvas_write();
-    software::Software { screen }.draw(target, commands);
+    software::Software { screen, racing }.draw(target, commands);
 }
 
 /// Whether the GPU holds the frame now (the canvas is then only what the game wrote since the

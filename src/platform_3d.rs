@@ -263,10 +263,11 @@ fn draw_noted(part: &crate::workers::PartScratch, pending: &mut Pending) {
         crate::framework::log("platform: a drawing part's noted drawing drawn (out of order)");
     }
     crate::render::dump::dump_if_asked(&commands, &target);
-    crate::render::dump::hash_if_asked(&commands, crate::workers::in_race(part));
+    let racing = crate::workers::in_race(part);
+    crate::render::dump::hash_if_asked(&commands, racing);
     let (width, height, _) = screen_figures(part);
     let screen = (width as usize, height as usize);
-    crate::render::draw(screen, &target, commands);
+    crate::render::draw(screen, racing, &target, commands);
 }
 
 /// A drawing part's drawing noted since the last flush (`workers::PartScratch`): the
@@ -305,21 +306,15 @@ fn reads_texture(pixels: TextureId) -> bool {
     game_part().noted.lock().textures.contains(&pixels)
 }
 
-/// The screen's width, height and bits per pixel as part `part`'s drawing reads them: inside a
-/// drawing scope the copy `workers::draw_parts` took when the scope opened (the screen's own
-/// store is lent to the parts only as the game's figures), outside one the store (on the
-/// game's thread; a screen mode is set between drawings).
+/// The screen's width, height and bits per pixel as part `part`'s drawing reads them: its own
+/// copy (`workers::set_game_part_screen` for the game's part, `workers::draw_parts` for every
+/// part when a scope opens).
 fn screen_figures(part: &crate::workers::PartScratch) -> (u32, u32, u32) {
-    if crate::workers::in_scope() {
-        let [width, height, bits] = part
-            .screen_size
-            .each_ref()
-            .map(crate::session::PlainDword::get);
-        (width, height, bits)
-    } else {
-        // m6-root: read by the drawing workers' platform callback.
-        figures_of(crate::system::owner::system().session.screen.get())
-    }
+    let [width, height, bits] = part
+        .screen_size
+        .each_ref()
+        .map(crate::session::PlainDword::get);
+    (width, height, bits)
 }
 
 /// `screen`'s width, height and bits per pixel.
