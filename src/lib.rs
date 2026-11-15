@@ -8,6 +8,7 @@
 mod arch;
 mod audio;
 mod cells;
+mod check_hash;
 mod d3d;
 mod debug;
 mod drive;
