@@ -218,6 +218,18 @@ fn state(o: &Owners<'static>, course: &Course) -> String {
     )
 }
 
+/// The lobby chat box's text as the player sees it: its lines joined by `|`.
+fn chat_lines(o: &Owners<'static>) -> String {
+    let _received = o.net.lock_received();
+    let chat = o.net.vars.chat.read();
+    let end = chat.iter().position(|&b| b == 0).unwrap_or(chat.len());
+    String::from_utf8_lossy(&chat[..end])
+        .split('\n')
+        .filter(|line| !line.is_empty())
+        .collect::<Vec<_>>()
+        .join("|")
+}
+
 /// Whether the computer drives the players' cars (`drive on`).
 static AUTODRIVE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
@@ -319,6 +331,8 @@ fn run(o: &Owners<'static>, line: &str) {
             return;
         }
         ("state", []) => Some(state(o, course)),
+        // The lobby chat box's lines, top to bottom, joined by `|` (for the network chat check).
+        ("chat", []) => Some(chat_lines(o)),
         // The game's own computer driver at the player's car's wheel (`tools/remote.py pilot`).
         ("drive", [switch @ ("on" | "off")]) => {
             AUTODRIVE.store(*switch == "on", std::sync::atomic::Ordering::Relaxed);

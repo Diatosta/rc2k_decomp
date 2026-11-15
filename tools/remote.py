@@ -13,6 +13,7 @@
     remote.py shot name                  the next frame to <folder>/shots/name.png
     remote.py time n                     the arcade's countdown set to n
     remote.py state                      frames, race flag, menu, item, speed, time, place, cars
+    remote.py chat                       the lobby chat box's lines, joined by |
     remote.py wait COND.. [secs]         polls state until every COND holds (menu!=Some(MenuId(5)), item=3,
                                          race=1, screen_frames>=20; ops = != >= <= > < ; default 10 s);
                                          exit 0 when met, 1 with the last state on timeout
@@ -406,7 +407,7 @@ def main():
         sys.exit(0 if press(rest[0], float(rest[1]) if len(rest) > 1 else 5.0) else 1)
     elif command == 'log':
         log(int(rest[0]) if rest else 30)
-    elif command in ('key', 'down', 'up', 'pad', 'joy', 'state', 'time'):
+    elif command in ('key', 'down', 'up', 'pad', 'joy', 'state', 'time', 'chat'):
         print(ask(' '.join([command] + rest)))
     else:
         sys.exit(__doc__)
