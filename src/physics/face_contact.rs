@@ -101,7 +101,7 @@ pub fn steps(
     }
     // An unset kind wraps to the record before the first.
     c.contact.contact_kind.set(
-        crate::scene::polygon::material_byte(
+        crate::scene::polygon::material_run_byte(
             &c.shared.buffers.reads.get().polygon_tables,
             kind,
             0x1C,

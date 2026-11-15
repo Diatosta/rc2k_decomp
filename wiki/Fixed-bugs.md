@@ -670,3 +670,13 @@ has the same fixed addresses, but its network mode could not be run here to see 
 **In game:** a garbage item at the end of the drive list, with text that is not a drive. Not seen; found by reading the code (a PC with 25 installable drives is very unlikely).
 
 **Fix:** the page lists at most 24 drives, the first 24 in letter order, so with 25 drives `y` is left out (`drives::kept`, `install::list_drives`).
+
+## A scene object whose kind slot was never filled ended the game
+
+**What it is:** a course's scene objects name an object slot, and the slot's kind is set only when that slot's file is loaded; every other slot holds -1 after the objects are reset. The original indexed its table of 1200 object-material records with that -1 and read the record before the first, which is the last bytes of the texture-info table in front of it (the game's own tables are laid out one after the other). The Rust version refused a kind past the 1200 records and ended the program.
+
+**In game:** the game ended in the middle of a long stage (Ulster Rally stage 2, the last rally's stage 2, arcade level 2: every object with an unloaded slot reached it). Found by the championship and arcade runs; a single stage started directly did not reach it.
+
+**Seen or read:** seen (headless championship and arcade runs); the original reads the same bytes and carries on.
+
+**Fix:** a kind of -1 reads the record before the first (`scene::polygon::material_run_byte`) in the object's matrix, its contact material, its contact sound and the lit faces' animation, as the original does, so nothing ends the game.

@@ -115,19 +115,6 @@ pub fn texture_info_byte(
     )
 }
 
-/// Byte `offset` of object kind `kind`'s material record (kind -1 the record before the first).
-pub fn material_byte(
-    tables: &crate::scene::polygon_store::PolygonTables,
-    kind: u32,
-    offset: u32,
-) -> Result<u8, BadInput> {
-    field_byte(
-        &tables.object_materials,
-        kind.wrapping_mul(0x80).wrapping_add(offset),
-        "an object's material byte past the table",
-    )
-}
-
 /// A polygon's entries: on the stack for all but the largest polygons.
 pub type Listed<'w> = smallvec::SmallVec<[&'w PolygonEntry; 32]>;
 
@@ -211,7 +198,6 @@ mod tests {
             );
         }
         assert!(texture_info_byte(&t, 255, 0x40).is_err());
-        assert!(material_byte(&t, u32::MAX, 0).is_err());
     }
 
     /// A material record's run reads as the old read over the whole tables, kind -1 (the

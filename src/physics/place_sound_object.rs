@@ -29,13 +29,11 @@ pub fn place_sound_object(
         |thing| scene.objects.tables.get().object_kind(thing),
         |kind| {
             // The material's kind byte (the low byte of its tenth word).
-            trap.keep(
-                c.polygon_tables
-                    .object_materials
-                    .get(kind as usize)
-                    .map(|m| m.words[9].get() as u8)
-                    .ok_or(crate::errors::BadInput("an object kind past the materials")),
-            )
+            trap.keep(crate::scene::polygon::material_run_byte(
+                c.polygon_tables,
+                kind,
+                0x24,
+            ))
         },
         |n| c.spots.object_kind_sounds[n as usize].get(),
     )?;

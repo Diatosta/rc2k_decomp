@@ -578,20 +578,9 @@ pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
     }
     let number = ctx.view.cars.object_number.get();
     let kind = ctx.reads.object_tables.object_kind(number);
-    let material = ctx
-        .reads
-        .buffers
-        .polygon_tables
-        .object_materials
-        .get(kind as usize)
-        .ok_or_else(|| {
-            crate::framework::log(&format!(
-                "race::place_object_matrix: object {number:#x} has kind {kind:#x}, past the 1200 materials"
-            ));
-            BadInput("an object kind past the 1200 materials")
-        })?
-        .words[8]
-        .get() as u8; // the record's byte +0x20
+    // An object whose slot holds no kind (-1) takes the material record before the first.
+    let material =
+        crate::scene::polygon::material_run_byte(&ctx.reads.buffers.polygon_tables, kind, 0x20)?;
     match material {
         1 | 2 => {
             crate::math::cells::copy_cells(&ctx.view.matrices.view_back_matrix, &object, 16);

@@ -114,13 +114,8 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
             race.physics.contact.get().lit_face_pace.set(step);
             let kind_of: u32 = scene.objects.tables.get().object_kind(object as u32);
             // The material's byte +0x1C (the low byte of its eighth word).
-            let kind = race
-                .polygon_tables()
-                .object_materials
-                .get(kind_of as usize)
-                .ok_or(crate::errors::BadInput("an object kind past the materials"))?
-                .words[7]
-                .get() as u8;
+            let kind =
+                crate::scene::polygon::material_run_byte(race.polygon_tables(), kind_of, 0x1C)?;
             match kind {
                 1 | 9 => {
                     blink(&mut bytes, |n| {
