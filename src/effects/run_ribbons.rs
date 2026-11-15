@@ -472,6 +472,9 @@ mod same_as_old {
         }
     }
 
+    /// Words are compared bit for bit except that any two NaNs count as equal: when both operands
+    /// of an add or multiply are NaNs, which payload survives depends on the order the compiler
+    /// gave the operands (it differs between profiles), and nothing reads a NaN's payload.
     #[test]
     fn the_ribbon_blocks_match_the_previous_versions() {
         let _lock = crate::test_support::test_lock();
@@ -522,7 +525,15 @@ mod same_as_old {
                 bytes.extend(turned.iter().map(crate::session::Cell32::bits));
                 results.push(bytes);
             }
-            assert_eq!(results[0], results[1], "case {case}");
+            let same_but_for_nan_payloads = results[0].len() == results[1].len()
+                && results[0].iter().zip(&results[1]).all(|(&a, &b)| {
+                    a == b || (f32::from_bits(a).is_nan() && f32::from_bits(b).is_nan())
+                });
+            assert!(
+                same_but_for_nan_payloads,
+                "case {case}: {:?} against {:?}",
+                results[0], results[1]
+            );
         }
         for (c, w) in view_matrix.iter().zip(kept_matrix) {
             c.set_bits(w);
