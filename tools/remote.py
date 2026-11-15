@@ -47,9 +47,9 @@ DARLING = os.environ.get('RC2K_REMOTE_DARLING')
 # The Windows build under Wine (RC2K_REMOTE_WINE=the Wine prefix): the game folder holds rc2k.exe
 # and its DLLs, and the game reads the remote folder by its Z: path.
 WINE = os.environ.get('RC2K_REMOTE_WINE')
-# A device over SSH: the handheld by default; RC2K_REMOTE_GAME / RC2K_REMOTE_KEY for another
+# A device over SSH: the handheld (Knulli) by default; RC2K_REMOTE_GAME / RC2K_REMOTE_KEY for another
 # (the Steam Deck: the game started from Steam by its run.sh, which sets RC2K_REMOTE).
-DEVICE_GAME = os.environ.get('RC2K_REMOTE_GAME', '/mnt/mmc/Roms/APPS/rally')
+DEVICE_GAME = os.environ.get('RC2K_REMOTE_GAME', '/userdata/roms/ports/rally')
 DEVICE_REMOTE = '/tmp/rc2k_remote'
 KEY = os.path.expanduser(os.environ.get('RC2K_REMOTE_KEY', '~/.ssh/rg34xxsp'))
 
@@ -226,8 +226,10 @@ def start(software, fresh, profile=False):
     if HOST:
         ssh(f'rm -rf {FOLDER}; mkdir -p {FOLDER}; cd {DEVICE_GAME}; '
             '[ -d .remote_kept ] || { mkdir .remote_kept; cp -r var savedata .remote_kept/; }; '
-            'pgrep -f loadapp.sh | head -1 > /tmp/rc2k_paused; pgrep -f dmenu_ln | head -1 >> /tmp/rc2k_paused; '
-            'kill -STOP $(cat /tmp/rc2k_paused); pkill dmenu.bin; sleep 1; '
+            # the front end paused while the game runs: Knulli's EmulationStation (it holds the
+            # screen and the pad), or the stock OS's launcher
+            '{ pgrep -x emulationstation; pgrep -f loadapp.sh | head -1; pgrep -f dmenu_ln | head -1; } > /tmp/rc2k_paused; '
+            'kill -STOP $(cat /tmp/rc2k_paused) 2>/dev/null; pkill dmenu.bin; sleep 1; '
             f'RC2K_REMOTE={FOLDER} {renderer} nohup ./rc2k_remote > rc2k.out 2>&1 < /dev/null & echo started')
     else:
         shutil.rmtree(FOLDER, ignore_errors=True)
@@ -270,7 +272,7 @@ def stop():
             time.sleep(3)
             ssh(f'pkill rc2k_remote; sleep 1; cd {DEVICE_GAME}; [ -d .remote_kept ] && '
                 '{ rm -rf var savedata; mv .remote_kept/var .remote_kept/savedata .; rmdir .remote_kept; }; '
-                'kill -CONT $(cat /tmp/rc2k_paused)')
+                'kill -CONT $(cat /tmp/rc2k_paused) 2>/dev/null')
     else:
         put_cmd('0 quit')
         end = time.time() + 3  # up to 3 s for it to quit by itself

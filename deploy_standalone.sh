@@ -91,11 +91,11 @@ if [ "${1:-}" = anbernic ]; then
         BIN=target/a64-linux/aarch64-unknown-linux-gnu/release/rc2k
     fi
     tools/anbernic/run.sh aarch64-linux-gnu-strip -o target/a64-linux/rc2k.stripped "$BIN"
-    "${SSH[@]}" "rm -f /mnt/mmc/Roms/APPS/rally/rc2k"
-    "${SSH[@]}" "cat > /mnt/mmc/Roms/APPS/rally/rc2k; chmod +x /mnt/mmc/Roms/APPS/rally/rc2k" \
-        < target/a64-linux/rc2k.stripped
-    "${SSH[@]}" "cat > /mnt/mmc/Roms/APPS/Rally.sh; chmod +x /mnt/mmc/Roms/APPS/Rally.sh" \
-        < tools/anbernic/Rally.sh
+    # Knulli's ports folder: the game's folder, and beside it the entry EmulationStation lists.
+    GAME="${ANBERNIC_GAME:-/userdata/roms/ports/rally}"
+    "${SSH[@]}" "rm -f $GAME/rc2k"
+    "${SSH[@]}" "cat > $GAME/rc2k; chmod +x $GAME/rc2k" < target/a64-linux/rc2k.stripped
+    "${SSH[@]}" "cat > $GAME/../Rally.sh; chmod +x $GAME/../Rally.sh" < tools/anbernic/Rally.sh
     echo "deployed rc2k to the handheld"
     exit 0
 fi

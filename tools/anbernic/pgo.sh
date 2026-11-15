@@ -14,7 +14,7 @@ cd "$(dirname "$0")/../.."
 [ -f deploy.local ] && source deploy.local
 HOST="${RC2K_REMOTE_HOST:-${ANBERNIC_HOST:?Set ANBERNIC_HOST in deploy.local}}"
 SSH=(ssh -i "${ANBERNIC_KEY:-$HOME/.ssh/rg34xxsp}" -o BatchMode=yes "$HOST")
-GAME=/mnt/mmc/Roms/APPS/rally
+GAME=${ANBERNIC_GAME:-/userdata/roms/ports/rally}
 COUNTS=/tmp/rc2k_pgo
 
 want=$(rustc -vV | sed -n 's/^LLVM version: \([0-9]*\).*/\1/p')
