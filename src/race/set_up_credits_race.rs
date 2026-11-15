@@ -7,8 +7,8 @@
 //! Called by `race::credits_race`. Refuses nothing.
 
 use crate::errors::Refused;
-use crate::math::next_random::next_random;
 use crate::race::owner::Race;
+use crate::race::owner_shared::RaceShared;
 use crate::race::settings_copy::StepOperand;
 use crate::race::settings_copy::{car, car_bits, var};
 
@@ -91,20 +91,20 @@ pub const WRITES: [(StepOperand, u32); 74] = [
 ];
 
 /// A draw (`math::next_random`) as an index among `n`.
-fn drawn_index(n: u32) -> u32 {
-    rc2k_core::race::credits::drawn_place(next_random(), n)
+fn drawn_index(shared: &RaceShared, n: u32) -> u32 {
+    rc2k_core::race::credits::drawn_place(shared.random.next_random(), n)
 }
 
 pub fn set_up_credits_race(race: &Race, o: &crate::owners::Owners<'static>) -> Result<(), Refused> {
     let shared = &race.shared;
     use rc2k_core::race::credits::{RACE_KINDS, RACE_STAGES};
-    let stage = drawn_index(RACE_STAGES);
+    let stage = drawn_index(shared, RACE_STAGES);
     shared
         .vars
         .get()
         .stage_number
         .set(shared.work.get().credit_stages[stage as usize].get());
-    let kind = drawn_index(RACE_KINDS);
+    let kind = drawn_index(shared, RACE_KINDS);
     shared.vars.get().race_car_kinds[0]
         .set(shared.work.get().credit_car_kinds[kind as usize].get());
     for (at, v) in WRITES {

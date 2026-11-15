@@ -12,7 +12,7 @@ pub fn duel_sound_levels(race: &Race, sound: &crate::sound::owner::Sound) {
         .loop_volume_a
         .set(first_level(race.car_blocks().cars[0].surface_noise_a.get()));
     if stage.loop_volume_a.get() >= RARE_FROM {
-        let r = crate::math::next_random::SOUNDS.next();
+        let r = race.shared.random.sounds.next();
         if rare_draw(r) {
             stage.timed_arm.set(1);
         }

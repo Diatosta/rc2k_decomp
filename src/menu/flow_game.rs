@@ -184,7 +184,9 @@ impl flow::Game for Game<'_> {
         use flow::Call as C;
         match c {
             C::BeginEvent => m::begin_event::begin_event(&menus.cars, &menus.play, &menus.screens)?,
-            C::ShuffleDrivers => m::shuffle_drivers::shuffle_drivers(menus)?,
+            C::ShuffleDrivers => {
+                m::shuffle_drivers::shuffle_drivers(menus, &self.owners.race.shared.random)?;
+            }
             C::ClearResultSlots => m::clear_result_slots::clear_result_slots(menus)?,
             C::ResetDrivers => m::reset_drivers::reset_drivers(menus)?,
             C::ResetDriverCondition => m::reset_driver_condition::reset_driver_condition(menus)?,

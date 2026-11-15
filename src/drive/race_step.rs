@@ -50,7 +50,7 @@ fn hash_if_asked(race: &Race) {
     crate::framework::log(&format!(
         "sim hash {tick}: {:016x}, random {:08x}",
         crate::drive::sim_hash::total(&groups),
-        crate::math::next_random::STATE.get()
+        race.shared.random.state.get()
     ));
     // With `RC2K_SIM_CHUNKS` too: each car block's hash, to find which part of the blocks
     // differs between two runs.

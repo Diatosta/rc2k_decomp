@@ -8,7 +8,7 @@
 //! gaps so far into its +0xC,
 //! added to its +0x10.
 //!
-//! The random numbers are `math::random_below`'s. Fatal error 0x80701010 for a hundredfold of 0
+//! The random numbers are `Randoms::random_below`'s. Fatal error 0x80701010 for a hundredfold of 0
 //! or a half time of 0 (before anything); refuses a record past the table, a class count of 0
 //! or past 4, a class's driver count of 0, and a drivers table without its end.
 use crate::errors::{BadInput, FatalError, Refused};
@@ -151,7 +151,7 @@ pub fn calc_cpu_times(
                 first: screens.event.service.spread_first.get(),
                 step: screens.event.service.spread_step.get(),
             };
-            let own = spread.next(crate::math::random_below::random_below)?;
+            let own = spread.next(|limit| race.shared.random.random_below(limit))?;
             screens.event.service.spread_first.set(spread.first);
             screens.event.service.spread_step.set(spread.step);
             if d.in_event.get() == IN_EVENT {

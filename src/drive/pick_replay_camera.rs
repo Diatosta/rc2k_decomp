@@ -33,7 +33,7 @@ pub fn pick_replay_camera(race: &Race, wish: u32) -> Result<Option<u32>, Refused
         return Err(BadInput("no camera mode the wish stops at").into());
     }
     let edx = loop {
-        let (_, edx) = draw(crate::math::next_random::next_random());
+        let (_, edx) = draw(race.shared.random.next_random());
         if fits(edx) {
             break edx;
         }

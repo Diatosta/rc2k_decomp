@@ -6,8 +6,10 @@
 
 // ---- game data ----
 
-pub fn seed_random(system: &crate::system::owner::System) {
-    crate::math::next_random::wait_for_random();
+pub fn seed_random(
+    random: &crate::math::next_random::Randoms,
+    system: &crate::system::owner::System,
+) {
     // The start time kept by `system::keep_start_time`.
     let kept = crate::system::keep_start_time::start_time(system);
     let clock = rc2k_core::math::random::StartClock {
@@ -15,6 +17,6 @@ pub fn seed_random(system: &crate::system::owner::System) {
         date: u32::from_le_bytes([kept[1], kept[2], kept[3], kept[4]]),
         weekday: kept[0],
     };
-    crate::math::next_random::with_random(|r| r.seed(clock));
-    crate::math::next_random::seed_streams();
+    random.with_random(|r| r.seed(clock));
+    random.seed_streams();
 }

@@ -21,7 +21,6 @@
 //! fraction a plain float; the x87 version stays for the callers in unconverted code).
 
 use crate::errors::BadInput;
-use crate::math::next_random::next_drawing_random;
 use crate::math::x87;
 use crate::math::x87_float as bh;
 
@@ -48,6 +47,7 @@ const STATE: u32 = 0x30;
 /// The fraction into `fraction_out` (the view's `ObjectPlace::move_fraction`).
 fn step_shape(
     course: crate::race::owner_course::CourseReads<'_>,
+    random: &crate::math::next_random::Randoms,
     clock: u32,
     face: u32,
     fraction_out: &crate::session::PlainFloat,
@@ -72,7 +72,7 @@ fn step_shape(
         time -= length;
         phase = (phase + 1) & 3;
         let part =
-            ((next_drawing_random() as u64 * LENGTHS[4 + phase as usize] as u64) >> 32) as u32;
+            ((random.next_drawing() as u64 * LENGTHS[4 + phase as usize] as u64) >> 32) as u32;
         length = part.wrapping_add(LENGTHS[phase as usize]);
     }
     let fraction = match phase {
@@ -119,6 +119,7 @@ pub fn set_object_material(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
             .set(points[1].wrapping_sub(points[0]).wrapping_mul(12));
         step_shape(
             ctx.reads.course(),
+            &ctx.race.shared.random,
             ctx.clock,
             state,
             &ctx.view.object.move_fraction,

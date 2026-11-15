@@ -722,7 +722,7 @@ pub fn choose_arcade_opponents(shared: &RaceShared) -> Result<(), Refused> {
             let random = if n == 0 {
                 crate::scene::next_noise::next_noise(shared)
             } else {
-                crate::math::next_random::next_random()
+                shared.random.next_random()
             };
             // Logic in `rc2k_core::race::cars::{drawn_kind, opponent_distance}`.
             let kind = rc2k_core::race::cars::drawn_kind(random);

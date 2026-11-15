@@ -229,7 +229,10 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             "logfile.start_log.FREE_SPACE_KB",
             on_game(crate::logfile::start_log::FREE_SPACE_KB.get()),
         ),
-        listed!("math.next_random.STATE", &crate::math::next_random::STATE),
+        listed!(
+            "owners.race.shared.random.state",
+            &o.race.shared.random.state
+        ),
         listed!("owners.system.start.kept", on_game(&o.system.start().kept),),
         listed!(
             "owners.strings.text.show_hours",

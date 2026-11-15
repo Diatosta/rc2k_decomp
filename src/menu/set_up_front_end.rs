@@ -130,6 +130,7 @@ pub fn set_up_front_end(o: crate::owners::Owners<'static>) -> Result<(), Refused
             crate::records::default_stage_records::default_stage_records(
                 crate::strings::append_string_by_id::StringOwners::of(o),
                 menus,
+                &o.race.shared.random,
                 &system.records().stage_tables,
                 table,
             )?;

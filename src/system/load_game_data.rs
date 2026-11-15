@@ -267,7 +267,7 @@ fn in_game(o: Owners<'static>, call: Call) -> Result<u32, Refused> {
                     .write_at(0, &name, "the computer's name")?;
             }
         }
-        Call::RandomBelow(limit) => return Ok(crate::math::random_below::random_below(limit)?),
+        Call::RandomBelow(limit) => return Ok(o.race.shared.random.random_below(limit)?),
         Call::ReadSavegameSlot(slot) => {
             crate::saves::read_savegame_slot::read_savegame_slot_in(o.saves, slot)?;
         }

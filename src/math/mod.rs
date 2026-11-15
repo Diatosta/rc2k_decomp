@@ -2,7 +2,6 @@ pub mod cells;
 pub mod nearest_on_segment;
 pub mod next_random;
 pub mod normalise_vector;
-pub mod random_below;
 pub mod rotate_float_point_about_y;
 pub mod rotate_point_about_y;
 pub mod rotate_point_about_y_ebx;

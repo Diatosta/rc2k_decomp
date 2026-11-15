@@ -83,8 +83,7 @@ pub fn fill_own_player(
     net.vars
         .own
         .head
-        .set(record::RANDOM, { crate::math::next_random::next_random() }
-            as u8);
+        .set(record::RANDOM, { race.shared.random.next_random() } as u8);
     net.vars.own.race_time.set(0);
     net.vars.own.total.set(0);
     for (to, from) in settings(race) {

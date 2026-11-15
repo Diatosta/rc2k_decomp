@@ -475,7 +475,7 @@ pub fn shots_loading(
     }
     clock.started.set(1);
     clock.clock.set(0x10000);
-    reseed(effects);
+    reseed(&race.shared.random, effects);
     // The scene's clock as the menus left it (their time on screen) is the snow's first
     // step's start: the held clock's from here.
     race.shared.physics_tables.get().scene_clock.set(0x10000u32);
@@ -524,11 +524,11 @@ pub fn held_race() -> bool {
 /// numbers from one state (the menus before took a number of them that depends on the
 /// timing), the computer at the players' wheels (`drive on`), the clock free until the first
 /// frame.
-pub fn race_loading(effects: &crate::effects::owner::Effects) {
+pub fn race_loading(race: &Race, effects: &crate::effects::owner::Effects) {
     if !held_race() {
         return;
     }
-    reseed(effects);
+    reseed(&race.shared.random, effects);
     AUTODRIVE.store(true, std::sync::atomic::Ordering::Relaxed);
     HELD_CLOCK.store(0, std::sync::atomic::Ordering::Relaxed);
 }
@@ -549,9 +549,9 @@ pub fn held_clock() -> Option<u32> {
 }
 
 /// Both random generators (the game's and the effects') from one state.
-fn reseed(effects: &crate::effects::owner::Effects) {
-    crate::math::next_random::with_random(|r| r.state = 0x1234_5678);
-    crate::math::next_random::seed_streams();
+fn reseed(random: &crate::math::next_random::Randoms, effects: &crate::effects::owner::Effects) {
+    random.with_random(|r| r.state = 0x1234_5678);
+    random.seed_streams();
     effects.setup.work.seed.set(0x8765_4321);
 }
 

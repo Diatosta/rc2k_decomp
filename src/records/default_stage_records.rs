@@ -8,7 +8,7 @@
 //! not loaded. Refuses a null table, a table without its end, and a name that does not fit.
 
 use crate::errors::{BadInput, Refused};
-use crate::math::random_below::random_below;
+use crate::math::next_random::Randoms;
 use crate::menu::owner::Menus;
 use crate::records::stages_store::{HOLDER_NAME_LEN, Holder, HolderRow, RecordTable, StageTables};
 use crate::saves::drivers::Driver;
@@ -42,6 +42,7 @@ fn holder(
 pub fn default_stage_records(
     so: crate::strings::append_string_by_id::StringOwners<'_>,
     menus: &Menus,
+    random: &Randoms,
     stages: &StageTables,
     table: RecordTable,
 ) -> Result<(), Refused> {
@@ -59,10 +60,10 @@ pub fn default_stage_records(
         if record.tag() != 0 {
             continue;
         }
-        let first = Driver::of(menus, random_below(0xAA)?)?;
-        let time = random_below(0xAA)?.wrapping_add(1000);
-        let time_trial = Driver::of(menus, random_below(0xAA)?)?;
-        let speed = random_below(0xAA)?.wrapping_add(1000);
+        let first = Driver::of(menus, random.random_below(0xAA)?)?;
+        let time = random.random_below(0xAA)?.wrapping_add(1000);
+        let time_trial = Driver::of(menus, random.random_below(0xAA)?)?;
+        let speed = random.random_below(0xAA)?.wrapping_add(1000);
         let both = [
             holder(so, menus, first, time)?,
             holder(so, menus, time_trial, speed)?,

@@ -18,7 +18,6 @@ use crate::physics::contact_store::ContactWork;
 use crate::physics::step_families::ContactInputs;
 use crate::race::owner_course::Course;
 
-use crate::math::next_random::next_random;
 use crate::physics::flow::c0;
 use crate::physics::place_sound_object::place_sound_object;
 use rc2k_core::drive::lit_faces::{LIST_ROOM, Touch, fall_mark, lucky, touch};
@@ -74,7 +73,7 @@ pub fn touch_face(
                 false,
             )?,
             Touch::Chance => {
-                let (_, lucky) = lucky(next_random());
+                let (_, lucky) = lucky(c.shared.random.next_random());
                 if lucky {
                     crate::race::course_places::update_face_number(c.course, face, |f| {
                         f.set_mark(0xF);

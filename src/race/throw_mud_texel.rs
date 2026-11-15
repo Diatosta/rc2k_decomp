@@ -10,7 +10,6 @@
 //! counts and the random state are put back).
 
 use crate::errors::Refused;
-use crate::math::next_random::next_drawing_random;
 use crate::race::muddy_texel::{muddy_texel, texture_and_mud};
 use crate::race::owner::Race;
 
@@ -37,5 +36,5 @@ pub fn throw_mud_texel(
     if !carried {
         return Ok(());
     }
-    muddy_texel(race, next_drawing_random(), scene, gfx, system)
+    muddy_texel(race, shared.random.next_drawing(), scene, gfx, system)
 }

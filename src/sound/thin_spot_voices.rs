@@ -14,6 +14,7 @@ pub fn thin_spot_voices(
     sound: u32,
     owner: &crate::sound::owner::Sound,
     system: &crate::system::owner::System,
+    random: &crate::math::next_random::Randoms,
 ) {
     use crate::sound::spot_voices::{load_voices, store_picks, store_voices};
     use rc2k_core::sound::spot_voices as core;
@@ -27,7 +28,7 @@ pub fn thin_spot_voices(
     let (Some(_), Some(_)) = (picks.nearest, picks.next) else {
         return;
     };
-    let random = crate::math::next_random::SOUNDS.next();
-    core::thin_choose(&mut voices, &picks, random);
+    let drawn = random.sounds.next();
+    core::thin_choose(&mut voices, &picks, drawn);
     store_voices(owner, &voices);
 }

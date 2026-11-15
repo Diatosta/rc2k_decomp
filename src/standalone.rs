@@ -392,7 +392,7 @@ fn start(o: Owners<'static>) {
     crate::threading::thread_slot::publish(SlotOwners::of(o));
     crate::platform_3d::set_handles(o.gfx);
     set_up_fixed_objects(o.gfx, o.menus);
-    seed_clock_and_random(o.system);
+    seed_clock_and_random(o.system, &o.race.shared.random);
     check_machine(o.system, &r);
     read_settings_and_start_log(o, &r);
     make_save_folders();
@@ -422,16 +422,16 @@ fn set_up_fixed_objects(gfx: &'static Gfx, menus: &'static Menus) {
 }
 
 /// The start time, the random generator's seed and the volume serial that stirs it.
-fn seed_clock_and_random(system: &'static System) {
+fn seed_clock_and_random(system: &'static System, random: &crate::math::next_random::Randoms) {
     rust("system::keep_start_time");
     crate::system::keep_start_time::keep_start_time(system);
     rust("math::seed_random");
-    crate::math::seed_random::seed_random(system);
+    crate::math::seed_random::seed_random(random, system);
     rust("system::read_volume_serial");
     crate::system::read_volume_serial::read_volume_serial(system);
     // The volume serial is lost (a slip kept as is): the random state is stirred with 0.
     rust("math::stir_random");
-    crate::math::stir_random::stir_random(0);
+    crate::math::stir_random::stir_random(random, 0);
 }
 
 /// The processor, keyboard and Windows version tests, and the error mode.

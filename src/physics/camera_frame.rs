@@ -37,7 +37,7 @@ fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(),
             .scene
             .get()
             .scratch
-            .set(crate::math::next_random::next_random());
+            .set(c.shared.random.next_random());
         x87_2(c.numbers, scene);
         if c.split_tables.still.get() != 0 {
             scene.lights.state.get().camera_shake_y.set(0);

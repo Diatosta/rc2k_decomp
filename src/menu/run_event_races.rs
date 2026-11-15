@@ -132,7 +132,7 @@ impl races::EventRaces for Game<'_> {
     }
 
     fn below(&mut self, n: u32) -> Result<u32, Refused> {
-        Ok(crate::math::random_below::random_below(n)?)
+        Ok(self.owners.race.shared.random.random_below(n)?)
     }
 
     fn slow(&mut self, k: u32, added: u32) {

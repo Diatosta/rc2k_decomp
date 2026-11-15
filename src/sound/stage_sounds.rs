@@ -32,6 +32,7 @@ pub fn stage_sounds(
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
     system: &crate::system::owner::System,
+    random: &crate::math::next_random::Randoms,
 ) -> Result<(), Refused> {
     let play = |sound, volume, rate, place| {
         crate::sound::play_sound::play_sound_in(audio, sound, volume, rate, place);
@@ -80,7 +81,7 @@ pub fn stage_sounds(
             continue;
         }
         stage.random[n].set(0);
-        let n = crate::math::next_random::SOUNDS.next();
+        let n = random.sounds.next();
         // The logic is `rc2k_core::sound::stage::random`.
         let r = rc2k_core::sound::stage::random(n, audio.state.mix_rate_setting.get());
         // The scratch dword holds the last float.

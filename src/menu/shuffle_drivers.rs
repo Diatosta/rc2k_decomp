@@ -4,7 +4,7 @@
 //! and the first entry swapped with itself through the first
 //! shuffle table / the second shuffle table (both left holding it). A 1999 slip kept as is.
 //!
-//! Callers: one of the game's. The random numbers are `math::random_below`'s. Refuses a count
+//! Callers: one of the game's. The random numbers are `Randoms::random_below`'s. Refuses a count
 //! of 0 (it would divide by 0), before anything.
 use crate::cells::Store;
 use crate::errors::{BadInput, Refused};
@@ -23,8 +23,10 @@ fn tables() -> [(usize, u32); 4] {
     ]
 }
 
-pub fn shuffle_drivers(menus: &Menus) -> Result<(), Refused> {
-    use crate::math::random_below::random_below;
+pub fn shuffle_drivers(
+    menus: &Menus,
+    random: &crate::math::next_random::Randoms,
+) -> Result<(), Refused> {
     let tables = tables();
     if tables.iter().any(|&(_, c)| c == 0) {
         return Err(BadInput("a driver table count of 0").into());
@@ -35,8 +37,8 @@ pub fn shuffle_drivers(menus: &Menus) -> Result<(), Refused> {
         for _ in 0..n {
             // Two draws nothing uses: they advance the random generator, which later draws
             // (and so replays) depend on.
-            random_below(n)?;
-            random_below(n)?;
+            random.random_below(n)?;
+            random.random_below(n)?;
             // The first entry through both scratch records and back (both left holding it).
             let driver = records_to_bytes(std::slice::from_ref(first));
             debug_assert_eq!(driver.len(), DRIVER_LEN);

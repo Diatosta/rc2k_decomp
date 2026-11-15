@@ -339,7 +339,7 @@ pub fn run_race(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
         race.shared
             .tables()
             .noise_seed
-            .set(crate::math::next_random::next_random());
+            .set(race.shared.random.next_random());
     }
     race.shared.switches.get().editor_mode.set(0u32);
     race.course.numbers.get().replay_mode.set(1u32);

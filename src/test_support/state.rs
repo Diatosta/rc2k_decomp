@@ -69,8 +69,8 @@ mod tests {
     #[test]
     fn a_snapshot_puts_a_store_back() {
         let _g = crate::test_support::test_lock();
-        let snap = Snapshot::of(&["math.next_random.STATE"]);
-        let s = walk("math.next_random.STATE");
+        let snap = Snapshot::of(&["owners.race.shared.random.state"]);
+        let s = walk("owners.race.shared.random.state");
         let before = s.path_bytes("").unwrap();
         assert!(s.set_path_bytes("", &[1, 2, 3, 4]));
         assert_ne!(s.path_bytes("").unwrap(), before);

@@ -10,10 +10,11 @@ use crate::errors::Refused;
 pub fn thin_spot_voices_all(
     owner: &crate::sound::owner::Sound,
     system: &crate::system::owner::System,
+    random: &crate::math::next_random::Randoms,
 ) -> Result<(), Refused> {
     // The logic is `rc2k_core::sound::spot_voices::THINNED_SOUNDS`.
     for sound in rc2k_core::sound::spot_voices::THINNED_SOUNDS {
-        crate::sound::thin_spot_voices::thin_spot_voices(sound, owner, system);
+        crate::sound::thin_spot_voices::thin_spot_voices(sound, owner, system, random);
     }
     Ok(())
 }

@@ -13,7 +13,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::fade_colour::fade_colour;
-use crate::math::next_random::next_drawing_random;
 use crate::race::mud_texel::mud_texel;
 use crate::race::muddy_texel::{strength_at, texture_and_mud};
 use crate::race::owner_shared::RaceShared;
@@ -35,14 +34,14 @@ pub fn splash_mud(
     // `mud_splash_counts` holds each texture's count (the texture is 0 .. 3).
     let count_cell = &shared.vars.get().mud_splash_counts[n as usize];
     count_cell.set(count_cell.get().wrapping_add(1));
-    let (mut x, mut y) = splash_place(next_drawing_random());
+    let (mut x, mut y) = splash_place(shared.random.next_drawing());
     let strength = strength_at(mud, n, x, y)?;
-    if !splash_lands(strength, || next_drawing_random() & 0xFF) {
+    if !splash_lands(strength, || shared.random.next_drawing() & 0xFF) {
         return Ok(());
     }
     // The pattern value carries from texel to texel: `mud_texel` and `put_mud_texel` hand it back
     // when they skip a place.
-    let mut eax = splash_pattern(next_drawing_random());
+    let mut eax = splash_pattern(shared.random.next_drawing());
     let mut colours = (eax >> 2) as usize; // the pattern's place: whole dwords
     shared.vars.get().mud_row.set(0u32);
     for row in 0..SPLASH_SIDE {

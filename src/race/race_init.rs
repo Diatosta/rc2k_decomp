@@ -67,10 +67,7 @@ pub fn reset_car_starts(shared: &RaceShared) -> Result<(), BadInput> {
 /// Gives each car block's dwords at +0x10 and +0xC one `nonzero_random`.
 pub fn seed_car_randoms(shared: &RaceShared) -> Result<(), BadInput> {
     // Logic in `rc2k_core::race::cars::car_seeds`.
-    use crate::math::next_random::{DRAWS, wait_for_random, with_random};
-    wait_for_random();
-    DRAWS.fetch_add(BLOCKS, std::sync::atomic::Ordering::SeqCst);
-    let seeds = with_random(rc2k_core::race::cars::car_seeds);
+    let seeds = shared.random.with_random(rc2k_core::race::cars::car_seeds);
     for (n, &seed) in seeds.iter().enumerate() {
         {
             block(shared, n as u32)?.car_flags.set(seed);
