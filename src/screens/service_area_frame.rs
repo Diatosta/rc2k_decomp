@@ -24,9 +24,9 @@ pub fn service_area_frame(o: Owners<'static>) -> Result<CarryZeroFlags, Refused>
         &mut crate::gfx::copy_picture_to_surface::GameSurface(o.gfx, o.system),
     )?;
     unlock_surface(o.gfx);
-    crate::scene::begin_scene::begin_scene(o.race, o.d3d, crate::workers::game_scratch());
+    crate::scene::begin_scene::begin_scene(o.race, &o.gfx.d3d, crate::workers::game_scratch());
     draw_service_boxes::draw_service_boxes(o)?;
-    crate::scene::end_scene::end_scene(o.d3d);
+    crate::scene::end_scene::end_scene(&o.gfx.d3d);
     if lock_surface(o.gfx, o.system) < 1 {
         return Ok(FAILED);
     }

@@ -526,7 +526,7 @@ fn race_cell(off: usize) -> &'static dyn crate::session::Cell32 {
         0x22409C => &w.view_centre[0],
         0x2240A0 => &w.view_centre[1],
         0x2241C8 => &w.farthest,
-        0x31C814 => &crate::effects::owner::effects().setup.work.fpu_status,
+        0x31C814 => &crate::test_support::own::effects().setup.work.fpu_status,
         0x1EA2CC..0x1EA30C if off.is_multiple_of(4) => &m.view_matrix[(off - 0x1EA2CC) / 4],
         0x1EA3CC..0x1EA40C if off.is_multiple_of(4) => &m.view_place[(off - 0x1EA3CC) / 4],
         _ => panic!("race block place {off:#X} has no typed cell in the effects tests"),

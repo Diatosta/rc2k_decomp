@@ -12,13 +12,13 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from count_unsafe import strip_tests
 
-ACCESSORS = ['race', 'system', 'scene', 'd3d', 'sound', 'audio', 'input', 'net', 'gfx',
-             'menus', 'effects', 'install', 'saves', 'strings']
+ACCESSORS = ['race', 'system', 'scene', 'sound', 'audio', 'input', 'net', 'gfx',
+             'menus', 'install', 'saves', 'strings']
 ZST = ['CAR_BLOCKS', 'VIEWER_PANEL', 'VIEWER_BUFFERS', 'GEAR', 'REPLAY_WORK',
        'EFFECTS_SETTINGS', 'KIND_TABLES', 'CHECKPOINTS', 'TEXT_BUFFERS',
        'LIGHT_RECORDS', 'ENGINE_TABLES', 'POLYGON_TABLES', 'VERTICES', 'POLYGON_WORK']
-STATICS = ['RACE', 'SYSTEM', 'SCENE', 'D3D', 'SOUND', 'AUDIO_OWNER', 'INPUT', 'NET_OWNER',
-           'GFX', 'MENUS', 'EFFECTS', 'INSTALL', 'SAVES', 'STRINGS']
+STATICS = ['RACE', 'SYSTEM', 'SCENE', 'SOUND', 'AUDIO_OWNER', 'INPUT', 'NET_OWNER',
+           'GFX', 'MENUS', 'INSTALL', 'SAVES', 'STRINGS']
 
 KINDS = {
     'accessor': re.compile(r'(?<![\w.])(?:\w+::)*(?:%s)\(\)' % '|'.join(ACCESSORS)),

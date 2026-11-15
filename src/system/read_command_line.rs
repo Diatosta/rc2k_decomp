@@ -93,7 +93,7 @@ pub fn read_own_command_line(o: crate::owners::Owners<'static>) -> Result<(), Ba
     let mut line = crate::os::command_line();
     line.push(0);
     let start = o.system.start();
-    let command = read_command_line(start, o.install, o.d3d, o.audio, &line)?;
+    let command = read_command_line(start, o.install, &o.gfx.d3d, o.audio, &line)?;
     o.install.flags.begin(&command);
     if command.show_version {
         show_version_and_leave(start);

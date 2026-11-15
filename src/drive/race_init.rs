@@ -30,7 +30,7 @@ fn indented(part: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(), Refused
 /// A value handed on to `race::checkpoint_distances` is never read there: that function is
 /// reached only with two checkpoints or more.
 pub fn race_init(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refused> {
-    let (sound, scene, effects) = (o.sound, o.scene, o.effects);
+    let (sound, scene, effects) = (o.sound, o.scene, o.race.effects.get());
     let race_owner = race;
     crate::race::load_times::mark("setbestline");
     log(c"RACEINIT : setbestline");

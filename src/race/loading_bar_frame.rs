@@ -102,7 +102,7 @@ fn loading_bar_frame(o: crate::owners::Owners<'static>, share: u32) -> Result<()
 }
 
 fn frame(o: crate::owners::Owners<'static>, share: u32) -> Result<(), Refused> {
-    let (race, system, scene, gfx, d3d) = (o.race, o.system, o.scene, o.gfx, o.d3d);
+    let (race, system, scene, gfx, d3d) = (o.race, o.system, o.scene, o.gfx, &o.gfx.d3d);
     let session = &system.session;
     let shared = &race.shared;
     // Logic in `rc2k_core::race::loading::{FRAME_MARK, frame_tried}`.

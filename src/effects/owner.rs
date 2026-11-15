@@ -1,9 +1,5 @@
-//! The effects' owner (step 11, owned state): the effects' state in one struct, handed by
-//! reference to the code that runs them in place of global stores.
-//!
-//! `effects()` is the boundary: the callers that do not take the owner yet fetch it there
-//! and pass it down. It rises as their callers take the owner, until the program's top holds
-//! it.
+//! The effects' state in one struct, held by the race (`Race::effects`) and handed down by
+//! reference to the code that draws the effects.
 
 use crate::effects::mask_store::Masks;
 use crate::effects::owner_groups::{Blocks, Clipping, FrameState, Kinds, Setup};
@@ -15,7 +11,6 @@ use crate::effects::run_particles::Particles;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::BadInput;
-use crate::session::GameThread;
 
 /// The effects' state.
 pub struct Effects {
@@ -94,12 +89,4 @@ impl Effects {
             setup: Setup::new(),
         }
     }
-}
-
-/// The one instance. Reached through `effects()`; `moved` registers its stores' places.
-pub static EFFECTS: GameThread<Effects> = GameThread::new(Effects::new());
-
-/// The effects' state, for a caller that does not take it as a parameter yet.
-pub fn effects() -> &'static Effects {
-    EFFECTS.get()
 }

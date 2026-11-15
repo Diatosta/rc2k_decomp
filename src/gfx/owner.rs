@@ -1,6 +1,7 @@
 //! Module gfx's owner: the module's state in one struct, handed by reference to the code that runs
 //! it in place of global stores.
 
+use crate::d3d::owner::D3d;
 use crate::gfx::bar_store::BarVars;
 use crate::gfx::blit::Blitter;
 use crate::gfx::build_game_fonts::GameFontsMemory;
@@ -204,6 +205,8 @@ pub struct Gfx {
     pub fonts: FontStores,
     pub drawing: Drawing,
     pub card: Card3d,
+    /// The 3D cards' settings, scene flag and modes.
+    pub d3d: D3d,
 }
 
 impl Gfx {
@@ -224,6 +227,7 @@ impl Gfx {
             fonts: FontStores::new(),
             drawing: Drawing::new(),
             card: Card3d::new(),
+            d3d: D3d::new(),
         }
     }
 }

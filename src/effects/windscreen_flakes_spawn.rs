@@ -138,15 +138,15 @@ mod reference_vectors {
                         with_overlays(
                             b[1],
                             &[overlay_laid(
-                                &crate::effects::owner::effects().windscreen_drops.tilt,
+                                &crate::test_support::own::effects().windscreen_drops.tilt,
                             )],
                             || {
                                 super::rate_x87(
-                                    &crate::effects::owner::effects().windscreen_drops,
+                                    &crate::test_support::own::effects().windscreen_drops,
                                     kv,
                                     sti,
                                     ss,
-                                    &crate::effects::owner::effects().setup.work,
+                                    &crate::test_support::own::effects().setup.work,
                                 );
                             },
                         );

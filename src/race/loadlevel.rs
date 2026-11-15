@@ -196,7 +196,9 @@ pub fn loadlevel_init(
     )?;
     s.step(
         Word::TexturesAlloc,
-        &mut || crate::scene::set_up_textures::set_up_textures(&race.shared, scene, o.gfx, o.d3d),
+        &mut || {
+            crate::scene::set_up_textures::set_up_textures(&race.shared, scene, o.gfx, &o.gfx.d3d)
+        },
         Some(0xE),
     )?;
     s.step(
@@ -253,7 +255,7 @@ pub fn loadlevel_init(
     let enabled = crate::logfile::write_line::state::ENABLED
         .atomic()
         .swap(0, std::sync::atomic::Ordering::Relaxed);
-    crate::effects::init_mark_step::init_mark_step(race, o.effects, scene, gfx, system)?;
+    crate::effects::init_mark_step::init_mark_step(race, o.race.effects.get(), scene, gfx, system)?;
     crate::logfile::write_line::state::ENABLED.set(enabled);
     s.mark(0x5E)?;
     s.indent(-3);

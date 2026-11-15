@@ -452,7 +452,7 @@ mod old {
 #[cfg(test)]
 mod same_as_old {
     use super::*;
-    use crate::effects::owner::effects;
+    use crate::test_support::own::effects;
 
     fn next(state: &mut u64) -> u32 {
         *state ^= *state << 13;
@@ -553,7 +553,7 @@ mod reference_vectors {
 
     use crate::effects::asm_test::{Op, Spec, recorded_writes};
     use crate::effects::frame_state::DrawWork;
-    use crate::effects::owner::effects;
+    use crate::test_support::own::effects;
 
     fn word(at: crate::effects::asm_test::Operand) -> u32 {
         // SAFETY: `at` checks that the four bytes lie in the operand's test buffer, which the

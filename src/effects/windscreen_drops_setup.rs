@@ -164,10 +164,10 @@ mod reference_vectors {
             with_overlays(
                 b[0],
                 &[
-                    overlay_laid(&crate::effects::owner::effects().windscreen_drops.work),
-                    overlay_laid(&crate::effects::owner::effects().windscreen_drops.hex),
+                    overlay_laid(&crate::test_support::own::effects().windscreen_drops.work),
+                    overlay_laid(&crate::test_support::own::effects().windscreen_drops.hex),
                 ],
-                || super::axes_x87(&crate::effects::owner::effects().windscreen_drops),
+                || super::axes_x87(&crate::test_support::own::effects().windscreen_drops),
             );
         });
     }

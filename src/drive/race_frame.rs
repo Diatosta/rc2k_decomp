@@ -24,9 +24,9 @@ pub fn race_frame(
         use crate::debug::timing::{Stage, start, stop};
         let begun = start();
         // `scene::begin_scene` never loses the frame here.
-        crate::scene::begin_scene::begin_scene(race, o.d3d, crate::workers::game_scratch());
+        crate::scene::begin_scene::begin_scene(race, &o.gfx.d3d, crate::workers::game_scratch());
         { crate::race::draw_race_scene::draw_race_scene(race, o) }?;
-        crate::scene::end_scene::end_scene(o.d3d);
+        crate::scene::end_scene::end_scene(&o.gfx.d3d);
         stop(Stage::Scene, begun);
         // The frame's sound tick is in `draw_race_scene`.
         { crate::race::replay_screenshot::replay_screenshot(race, o.gfx, o.system) }?;

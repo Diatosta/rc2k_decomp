@@ -395,9 +395,9 @@ fn start(o: Owners<'static>) {
     make_save_folders();
     read_command_line_and_install_state(o, &r);
     load_language_and_game_data(o, &r);
-    probe_display(o.gfx, o.d3d, o.system, &r);
+    probe_display(o.gfx, &o.gfx.d3d, o.system, &r);
     start_workers(o, &r);
-    choose_screen_modes(o.gfx, o.d3d, o.system, &r);
+    choose_screen_modes(o.gfx, &o.gfx.d3d, o.system, &r);
     stand_in_window_state(o.system);
     run_main_loop(o, &r);
     shut_down(o, &r);

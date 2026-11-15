@@ -1,5 +1,4 @@
-//! Module d3d's owner: the 3D cards' store in one struct, reached through `d3d()` by the code
-//! that does not take it as a parameter.
+//! The 3D cards' store in one struct, held by the graphics owner (`Gfx::d3d`).
 
 use crate::d3d::cards_store::Cards3d;
 use crate::session::GameThread;
@@ -18,12 +17,4 @@ impl D3d {
             cards: GameThread::new(Cards3d::new()),
         }
     }
-}
-
-/// The one instance. Reached through `d3d()`; `moved` registers its stores' places.
-pub static D3D: D3d = D3d::new();
-
-/// The d3d module's state, for a caller that does not take it as a parameter yet.
-pub fn d3d() -> &'static D3d {
-    &D3D
 }

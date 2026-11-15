@@ -311,7 +311,7 @@ fn sprite_project_x87(
 
 #[cfg(test)]
 mod reference_vectors {
-    use crate::effects::owner::effects;
+    use crate::test_support::own::effects;
 
     use crate::effects::typed_sync::{overlay_laid, with_overlays};
 
@@ -320,9 +320,9 @@ mod reference_vectors {
         with_overlays(
             mk,
             &[
-                overlay_laid(&crate::effects::owner::effects().windscreen_drops.tilt),
-                overlay_laid(&crate::effects::owner::effects().windscreen_drops.state),
-                overlay_laid(&crate::effects::owner::effects().windscreen_drops.work),
+                overlay_laid(&crate::test_support::own::effects().windscreen_drops.tilt),
+                overlay_laid(&crate::test_support::own::effects().windscreen_drops.state),
+                overlay_laid(&crate::test_support::own::effects().windscreen_drops.work),
             ],
             f,
         )
@@ -335,7 +335,7 @@ mod reference_vectors {
         with_overlays(
             mk,
             &[overlay_laid(
-                &crate::effects::owner::effects().windscreen_drops.hex,
+                &crate::test_support::own::effects().windscreen_drops.hex,
             )],
             f,
         )
@@ -399,7 +399,7 @@ mod reference_vectors {
             |b| {
                 windscreen_drops(b[0], || {
                     super::drift_cell_x87(
-                        &crate::effects::owner::effects().windscreen_drops,
+                        &crate::test_support::own::effects().windscreen_drops,
                         b[1].number(),
                     );
                 });
@@ -447,10 +447,13 @@ mod reference_vectors {
                             b[2],
                             0x14,
                             0x10,
-                            &crate::effects::owner::effects().windscreen_drops.hex.items,
+                            &crate::test_support::own::effects()
+                                .windscreen_drops
+                                .hex
+                                .items,
                             || {
                                 super::drift_move_x87(
-                                    &crate::effects::owner::effects().windscreen_drops,
+                                    &crate::test_support::own::effects().windscreen_drops,
                                     b[1].number(),
                                     0,
                                 );
@@ -499,7 +502,9 @@ mod reference_vectors {
             |b| {
                 windscreen_drops(b[0], || {
                     hex(b[0], || {
-                        super::sprite_depth_x87(&crate::effects::owner::effects().windscreen_drops);
+                        super::sprite_depth_x87(
+                            &crate::test_support::own::effects().windscreen_drops,
+                        );
                     });
                 });
             },
@@ -626,7 +631,7 @@ mod reference_vectors {
                 canon(
                     windscreen_drops(b[1], || {
                         super::sprite_corners_x87(
-                            &crate::effects::owner::effects().windscreen_drops,
+                            &crate::test_support::own::effects().windscreen_drops,
                             b[2].number(),
                         )
                     })
@@ -749,9 +754,9 @@ mod reference_vectors {
                                 &crate::gfx::owner::gfx().card.windscreen_drop_batch.records,
                                 || {
                                     super::sprite_project_x87(
-                                        &crate::effects::owner::effects().windscreen_drops,
+                                        &crate::test_support::own::effects().windscreen_drops,
                                         crate::gfx::owner::gfx(),
-                                        crate::effects::owner::effects(),
+                                        crate::test_support::own::effects(),
                                         0,
                                         super::bh::ld(b[3].number() as u32),
                                     );

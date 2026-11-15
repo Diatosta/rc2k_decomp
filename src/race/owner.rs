@@ -2,6 +2,7 @@
 //! code that runs a race. `race()` is the boundary: code that does not take the owner yet fetches
 //! it there; the climb from `drive::play_race` down passes `&Race` instead.
 
+use crate::effects::owner::Effects;
 use crate::hud::owner::Hud;
 use crate::race::owner_course::Course;
 use crate::race::owner_frame::Frame;
@@ -20,6 +21,8 @@ pub struct Race {
     pub shared: RaceShared,
     /// The HUD's variables, drawn over the race.
     pub hud: GameThread<Hud>,
+    /// The effects (marks, rain, snow, windscreen drops, particles) drawn over the race.
+    pub effects: GameThread<Effects>,
 }
 
 impl Race {
@@ -32,6 +35,7 @@ impl Race {
             replay: Replay::new(),
             shared: RaceShared::new(),
             hud: GameThread::new(Hud::new()),
+            effects: GameThread::new(Effects::new()),
         }
     }
 }

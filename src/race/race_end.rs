@@ -302,7 +302,7 @@ pub fn tidy_everything(race: &Race, o: crate::owners::Owners<'static>) -> Result
     })?;
     s.step(EVERYTHING_WORDS[3], || Ok(()))?;
     s.step(EVERYTHING_WORDS[4], || {
-        tidy_stage(race, o.effects, o.gfx, o.audio)
+        tidy_stage(race, o.race.effects.get(), o.gfx, o.audio)
     })?;
     #[cfg(feature = "remote")]
     crate::race::course_hash::log_hashes(race, o.scene, "free");

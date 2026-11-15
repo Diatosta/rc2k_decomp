@@ -294,14 +294,14 @@ mod reference_vectors {
             with_overlays(
                 b[0],
                 &[
-                    overlay_laid(&crate::effects::owner::effects().windscreen_drops.state),
-                    overlay_laid(&crate::effects::owner::effects().windscreen_drops.work),
-                    overlay_laid(&crate::effects::owner::effects().windscreen_drops.hex),
+                    overlay_laid(&crate::test_support::own::effects().windscreen_drops.state),
+                    overlay_laid(&crate::test_support::own::effects().windscreen_drops.work),
+                    overlay_laid(&crate::test_support::own::effects().windscreen_drops.hex),
                 ],
                 || {
                     with_settings(b[1], |m| {
                         super::frame_axes_x87(
-                            &crate::effects::owner::effects().windscreen_drops,
+                            &crate::test_support::own::effects().windscreen_drops,
                             m,
                             crate::effects::asm_layout::copy_of::<crate::effects::setup::MarksClock>(
                                 b[0],
@@ -353,12 +353,15 @@ mod reference_vectors {
             with_overlays(
                 b[0],
                 &[
-                    overlay_laid(&crate::effects::owner::effects().windscreen_drops.work),
-                    overlay_laid(&crate::effects::owner::effects().windscreen_drops.hex),
+                    overlay_laid(&crate::test_support::own::effects().windscreen_drops.work),
+                    overlay_laid(&crate::test_support::own::effects().windscreen_drops.hex),
                 ],
                 || {
                     with_settings(b[1], |m| {
-                        super::frame_up_x87(&crate::effects::owner::effects().windscreen_drops, m);
+                        super::frame_up_x87(
+                            &crate::test_support::own::effects().windscreen_drops,
+                            m,
+                        );
                     });
                 },
             );
@@ -388,12 +391,12 @@ mod reference_vectors {
             with_overlays(
                 b[0],
                 &[overlay_laid(
-                    &crate::effects::owner::effects().windscreen_drops.hex,
+                    &crate::test_support::own::effects().windscreen_drops.hex,
                 )],
                 || {
                     with_settings(b[1], |m| {
                         super::frame_place_x87(
-                            &crate::effects::owner::effects().windscreen_drops,
+                            &crate::test_support::own::effects().windscreen_drops,
                             m,
                         );
                     });
@@ -427,11 +430,15 @@ mod reference_vectors {
                 with_overlays(
                     b[0],
                     &[
-                        overlay_laid(&crate::effects::owner::effects().windscreen_drops.state),
-                        overlay_laid(&crate::effects::owner::effects().windscreen_drops.work),
-                        overlay_laid(&crate::effects::owner::effects().windscreen_drops.hex),
+                        overlay_laid(&crate::test_support::own::effects().windscreen_drops.state),
+                        overlay_laid(&crate::test_support::own::effects().windscreen_drops.work),
+                        overlay_laid(&crate::test_support::own::effects().windscreen_drops.hex),
                     ],
-                    || super::frame_facing_x87(&crate::effects::owner::effects().windscreen_drops),
+                    || {
+                        super::frame_facing_x87(
+                            &crate::test_support::own::effects().windscreen_drops,
+                        );
+                    },
                 );
             },
         );
@@ -470,7 +477,7 @@ mod reference_vectors {
                 with_overlays(
                     b[0],
                     &[overlay_laid(
-                        &crate::effects::owner::effects().windscreen_drops.work,
+                        &crate::test_support::own::effects().windscreen_drops.work,
                     )],
                     || {
                         // The point's three floats, as the buffer holds them at b[1].
@@ -482,7 +489,7 @@ mod reference_vectors {
                             PlainFloat::from_bits(unsafe { host(n).read_unaligned() })
                         });
                         super::point_turned_x87(
-                            &crate::effects::owner::effects().windscreen_drops,
+                            &crate::test_support::own::effects().windscreen_drops,
                             &p,
                         );
                         for (n, cell) in p.iter().enumerate() {

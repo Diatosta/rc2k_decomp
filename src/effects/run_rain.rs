@@ -308,7 +308,7 @@ mod reference_vectors {
         };
         recorded_writes("effects.run_rain.move_length_x87", &SPEC, |b| {
             with_state_at(b[1], |r, k| {
-                super::move_length_x87(r, k, &crate::effects::owner::effects().setup.work);
+                super::move_length_x87(r, k, &crate::test_support::own::effects().setup.work);
             });
         });
     }

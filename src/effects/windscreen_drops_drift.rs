@@ -231,7 +231,7 @@ mod reference_vectors {
         with_overlays(
             mk,
             &[overlay_laid(
-                &crate::effects::owner::effects().windscreen_drops.hex,
+                &crate::test_support::own::effects().windscreen_drops.hex,
             )],
             f,
         )
@@ -328,7 +328,7 @@ mod reference_vectors {
                 hex(b[0], || {
                     with_settings(b[1], |m| {
                         super::view_moved_x87(
-                            &crate::effects::owner::effects().windscreen_drops,
+                            &crate::test_support::own::effects().windscreen_drops,
                             m,
                             crate::effects::asm_layout::copy_of::<crate::effects::setup::MarksClock>(
                                 b[0],
@@ -388,7 +388,7 @@ mod reference_vectors {
                 hex(b[0], || {
                     let (m, temps, l) = (floats::<9>(b[1]), floats::<2>(b[2]), kept(b[3]));
                     super::drift_turned_x87(
-                        &crate::effects::owner::effects().windscreen_drops,
+                        &crate::test_support::own::effects().windscreen_drops,
                         &m,
                         &temps,
                         &l,
@@ -455,13 +455,13 @@ mod reference_vectors {
                 with_overlays(
                     b[0],
                     &[
-                        overlay_laid(&crate::effects::owner::effects().windscreen_drops.tilt),
-                        overlay_laid(&crate::effects::owner::effects().windscreen_drops.hex),
+                        overlay_laid(&crate::test_support::own::effects().windscreen_drops.tilt),
+                        overlay_laid(&crate::test_support::own::effects().windscreen_drops.hex),
                     ],
                     || {
                         let (m, temps, l) = (floats::<9>(b[1]), floats::<2>(b[2]), kept(b[3]));
                         super::drift_back_x87(
-                            &crate::effects::owner::effects().windscreen_drops,
+                            &crate::test_support::own::effects().windscreen_drops,
                             &m,
                             &temps,
                             &l,
@@ -496,7 +496,7 @@ mod reference_vectors {
             hex(b[0], || {
                 with_settings(b[1], |m| {
                     super::move_kept_x87(
-                        &crate::effects::owner::effects().windscreen_drops,
+                        &crate::test_support::own::effects().windscreen_drops,
                         m,
                         crate::effects::asm_layout::copy_of::<crate::effects::setup::MarksClock>(
                             b[0],

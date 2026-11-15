@@ -74,7 +74,7 @@ pub struct PolygonWork {
     /// The amount (alpha) byte of the vertex a clip crossing makes, blended between its two
     /// ends, as a dword (`race::car_shadow`), each view's own.
     pub crossing_amount: PlainDword,
-    /// The colour the faded polygons fade from (`d3d().cards.fade_from`, the fog colour
+    /// The colour the faded polygons fade from (`Gfx::d3d.cards.fade_from`, the fog colour
     /// `scene::set_fog_colour` was given), each view's own.
     pub fade_from: PlainDword,
     /// `GroundWork.view_mirrored`: 1 while the rear-view mirror is drawn (set by

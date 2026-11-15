@@ -274,7 +274,7 @@ pub fn build(o: &Owners<'static>, ui: &Ui) {
                     body(ui, || rivals(crate::strings::append_string_by_id::StringOwners::of(*o), &race.physics, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Effects") {
-                    body(ui, || crate::debug::effects_page::tab(o.effects, o.scene, ui));
+                    body(ui, || crate::debug::effects_page::tab(o.race.effects.get(), o.scene, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Dyno") {
                     body(ui, || crate::debug::dyno::tab(race, o.scene, ui));

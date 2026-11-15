@@ -330,12 +330,12 @@ mod reference_vectors {
                 with_overlays(
                     b[0],
                     &[overlay_laid(
-                        &crate::effects::owner::effects().windscreen_drops.hex,
+                        &crate::test_support::own::effects().windscreen_drops.hex,
                     )],
                     || {
                         with_settings(b[1], |m| {
                             super::frame_place_x87(
-                                &crate::effects::owner::effects().windscreen_drops,
+                                &crate::test_support::own::effects().windscreen_drops,
                                 m,
                             );
                         });
@@ -370,13 +370,13 @@ mod reference_vectors {
                 with_overlays(
                     b[0],
                     &[
-                        overlay_laid(&crate::effects::owner::effects().windscreen_drops.state),
-                        overlay_laid(&crate::effects::owner::effects().windscreen_drops.hex),
+                        overlay_laid(&crate::test_support::own::effects().windscreen_drops.state),
+                        overlay_laid(&crate::test_support::own::effects().windscreen_drops.hex),
                     ],
                     || {
                         with_laid::<WindscreenFlakeTables, _>(b[0], |m| {
                             super::frame_facing_x87(
-                                &crate::effects::owner::effects().windscreen_drops,
+                                &crate::test_support::own::effects().windscreen_drops,
                                 m,
                             );
                         });

@@ -1176,10 +1176,10 @@ mod reference_vectors {
     use crate::effects::asm_layout::with_laid;
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::{Op, Spec, recorded_writes};
-    use crate::effects::owner::effects;
     use crate::effects::ring_store::RingWork;
     use crate::effects::tuning::MarksFloats;
     use crate::race::effects_settings_store::CarEffects;
+    use crate::test_support::own::effects;
 
     fn word(at: crate::effects::asm_test::Operand) -> u32 {
         // SAFETY: `at` checks that the four bytes lie in the operand's test buffer, which the
@@ -1367,7 +1367,7 @@ mod reference_vectors {
                     let mut length = [0xAA; 10];
                     let kinds = super::RingKinds {
                         near_less: f32::from_bits(word(b[4] + 0x4C)),
-                        ..crate::effects::owner::effects().ring.kinds
+                        ..crate::test_support::own::effects().ring.kinds
                     };
                     super::pull_length_x87(ring, e, &whole_at(b[2]), &mut length, w, &kinds);
                     // SAFETY: `at` checks that the ten bytes lie in the operand's test buffer,
@@ -1475,7 +1475,7 @@ mod reference_vectors {
                         let kinds = super::RingKinds {
                             near_scale: f32::from_bits(word(b[3] + 0x50)),
                             near_rate: f32::from_bits(word(b[3] + 0x54)),
-                            ..crate::effects::owner::effects().ring.kinds
+                            ..crate::test_support::own::effects().ring.kinds
                         };
                         super::pull_strength_x87(
                             ring,

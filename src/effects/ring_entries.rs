@@ -4,11 +4,11 @@
 //! `block` and in the entries' links (+0 the one before, +4 the one after). Each field keeps its
 //! offset in the record.
 
-#[cfg(test)]
-use crate::effects::owner::effects;
 use crate::effects::ring_store::Ring;
 use crate::errors::BadInput;
 use crate::math::x87_float::{self as bh, X};
+#[cfg(test)]
+use crate::test_support::own::effects;
 
 /// The entries.
 pub const ENTRIES: u32 = 0x400;

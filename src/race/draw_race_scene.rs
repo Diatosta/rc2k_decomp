@@ -551,7 +551,15 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     }
     if race.shared.view.get().views.get() == 1 {
         race.shared.view.get().drawn_view.set(0);
-        draw_view(owners, o.gfx, o.effects, &o.menus.play.cheats, 0, 0, true)?;
+        draw_view(
+            owners,
+            o.gfx,
+            o.race.effects.get(),
+            &o.menus.play.cheats,
+            0,
+            0,
+            true,
+        )?;
     } else {
         let side_by_side = race.shared.vars.get().split.get() == 1;
         // A player's half of the screen. (The store's drawn view is set on the game thread only:
@@ -589,7 +597,14 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
                 );
             };
         if crate::workers::players_beside() {
-            draw_players_beside(owners, o.gfx, o.effects, &o.menus.play.cheats, 2, &player)?;
+            draw_players_beside(
+                owners,
+                o.gfx,
+                o.race.effects.get(),
+                &o.menus.play.cheats,
+                2,
+                &player,
+            )?;
         } else {
             for view in 0..2u32 {
                 race.shared.view.get().drawn_view.set(view);
@@ -601,7 +616,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
                 draw_view(
                     owners,
                     o.gfx,
-                    o.effects,
+                    o.race.effects.get(),
                     &o.menus.play.cheats,
                     view as usize,
                     view as usize,

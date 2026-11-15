@@ -883,8 +883,8 @@ fn listed_stores() -> Vec<Listed> {
             on_game(&crate::gfx::owner::GFX.get().drawing.draw_surface),
         ),
         listed!(
-            "d3d.owner.D3D.cards",
-            on_game(crate::d3d::owner::D3D.cards.get()),
+            "gfx.owner.GFX.d3d.cards",
+            on_game(crate::gfx::owner::GFX.d3d.cards.get()),
         ),
         listed!(
             "gfx.owner.GFX.fonts.font_block",
@@ -1160,7 +1160,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "effects.owner.EFFECTS.setup.work",
-            on_game(&crate::effects::owner::EFFECTS.get().setup.work),
+            on_game(&crate::race::owner::RACE.effects.get().setup.work),
         ),
         listed!(
             "menu.owner.MENU_OWNER.screens.state",
@@ -1180,112 +1180,137 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "effects.owner.EFFECTS.windscreen_drops.inputs",
-            on_game(&crate::effects::owner::EFFECTS.get().windscreen_drops.inputs),
+            on_game(
+                &crate::race::owner::RACE
+                    .effects
+                    .get()
+                    .windscreen_drops
+                    .inputs
+            ),
         ),
         listed!(
             "effects.owner.EFFECTS.frame.view_sources",
-            on_game(&crate::effects::owner::EFFECTS.get().frame.view_sources),
+            on_game(&crate::race::owner::RACE.effects.get().frame.view_sources),
         ),
         listed!(
             "effects.owner.EFFECTS.setup.clock",
-            on_game(&crate::effects::owner::EFFECTS.get().setup.clock),
+            on_game(&crate::race::owner::RACE.effects.get().setup.clock),
         ),
         listed!(
             "effects.owner.EFFECTS.setup.frame",
-            on_game(&crate::effects::owner::EFFECTS.get().setup.frame),
+            on_game(&crate::race::owner::RACE.effects.get().setup.frame),
         ),
         listed!(
             "effects.owner.EFFECTS.setup.floats",
-            on_game(&crate::effects::owner::EFFECTS.get().setup.floats),
+            on_game(&crate::race::owner::RACE.effects.get().setup.floats),
         ),
         listed!(
             "effects.owner.EFFECTS.setup.kind_floats",
-            on_game(&crate::effects::owner::EFFECTS.get().setup.kind_floats),
+            on_game(&crate::race::owner::RACE.effects.get().setup.kind_floats),
         ),
         listed!(
             "effects.owner.EFFECTS.setup.settings",
-            on_game(&crate::effects::owner::EFFECTS.get().setup.settings),
+            on_game(&crate::race::owner::RACE.effects.get().setup.settings),
         ),
         listed!(
             "effects.owner.EFFECTS.pong.state",
-            on_game(&crate::effects::owner::EFFECTS.get().pong.state),
+            on_game(&crate::race::owner::RACE.effects.get().pong.state),
         ),
         listed!(
             "effects.owner.EFFECTS.clipping.clip",
-            on_game(&crate::effects::owner::EFFECTS.get().clipping.clip),
+            on_game(&crate::race::owner::RACE.effects.get().clipping.clip),
         ),
         listed!(
             "effects.owner.EFFECTS.pong.rules",
-            on_game(&crate::effects::owner::EFFECTS.get().pong.rules),
+            on_game(&crate::race::owner::RACE.effects.get().pong.rules),
         ),
         listed!(
             "effects.owner.EFFECTS.kinds.marks_kind",
-            on_game(&crate::effects::owner::EFFECTS.get().kinds.marks_kind),
+            on_game(&crate::race::owner::RACE.effects.get().kinds.marks_kind),
         ),
         listed!(
             "effects.owner.EFFECTS.frame.kept_view",
-            on_game(&crate::effects::owner::EFFECTS.get().frame.kept_view),
+            on_game(&crate::race::owner::RACE.effects.get().frame.kept_view),
         ),
         listed!(
             "effects.owner.EFFECTS.paths.spline_head",
-            on_game(&crate::effects::owner::EFFECTS.get().paths.spline_head),
+            on_game(&crate::race::owner::RACE.effects.get().paths.spline_head),
         ),
         listed!(
             "effects.owner.EFFECTS.paths.spline_work",
-            on_game(&crate::effects::owner::EFFECTS.get().paths.spline_work),
+            on_game(&crate::race::owner::RACE.effects.get().paths.spline_work),
         ),
         listed!(
             "effects.owner.EFFECTS.paths.spline_tables",
-            on_game(&crate::effects::owner::EFFECTS.get().paths.spline_tables),
+            on_game(&crate::race::owner::RACE.effects.get().paths.spline_tables),
         ),
         listed!(
             "effects.owner.EFFECTS.paths.spline_kinds",
-            on_game(&crate::effects::owner::EFFECTS.get().paths.spline_kinds),
+            on_game(&crate::race::owner::RACE.effects.get().paths.spline_kinds),
         ),
         listed!(
             "effects.owner.EFFECTS.paths.spline_path",
-            on_game(&crate::effects::owner::EFFECTS.get().paths.spline_path),
+            on_game(&crate::race::owner::RACE.effects.get().paths.spline_path),
         ),
         listed!(
             "effects.owner.EFFECTS.paths.spline_constants",
-            on_game(&crate::effects::owner::EFFECTS.get().paths.spline_constants),
+            on_game(
+                &crate::race::owner::RACE
+                    .effects
+                    .get()
+                    .paths
+                    .spline_constants
+            ),
         ),
         listed!(
             "effects.owner.EFFECTS.masks.edge_mask",
-            on_game(&crate::effects::owner::EFFECTS.get().masks.edge_mask),
+            on_game(&crate::race::owner::RACE.effects.get().masks.edge_mask),
         ),
         listed!(
             "effects.owner.EFFECTS.windscreen_drops.tilt",
-            on_game(&crate::effects::owner::EFFECTS.get().windscreen_drops.tilt),
+            on_game(&crate::race::owner::RACE.effects.get().windscreen_drops.tilt),
         ),
         listed!(
             "effects.owner.EFFECTS.masks.kind_boxes",
-            on_game(&crate::effects::owner::EFFECTS.get().masks.kind_boxes),
+            on_game(&crate::race::owner::RACE.effects.get().masks.kind_boxes),
         ),
         listed!(
             "effects.owner.EFFECTS.windscreen_drops.state",
-            on_game(&crate::effects::owner::EFFECTS.get().windscreen_drops.state),
+            on_game(
+                &crate::race::owner::RACE
+                    .effects
+                    .get()
+                    .windscreen_drops
+                    .state
+            ),
         ),
         listed!(
             "effects.owner.EFFECTS.windscreen_drops.work",
-            on_game(&crate::effects::owner::EFFECTS.get().windscreen_drops.work),
+            on_game(&crate::race::owner::RACE.effects.get().windscreen_drops.work),
         ),
         listed!(
             "effects.owner.EFFECTS.windscreen_drops.hex",
-            on_game(&crate::effects::owner::EFFECTS.get().windscreen_drops.hex),
+            on_game(&crate::race::owner::RACE.effects.get().windscreen_drops.hex),
         ),
         listed!(
             "effects.owner.EFFECTS.masks.vars",
-            on_game(&crate::effects::owner::EFFECTS.get().masks.vars),
+            on_game(&crate::race::owner::RACE.effects.get().masks.vars),
         ),
         listed!(
             "effects.owner.EFFECTS.windscreen_drops.picks",
-            on_game(&crate::effects::owner::EFFECTS.get().windscreen_drops.picks),
+            on_game(
+                &crate::race::owner::RACE
+                    .effects
+                    .get()
+                    .windscreen_drops
+                    .picks
+            ),
         ),
         listed!(
             "effects.owner.EFFECTS.windscreen_drops.shape_work",
             on_game(
-                &crate::effects::owner::EFFECTS
+                &crate::race::owner::RACE
+                    .effects
                     .get()
                     .windscreen_drops
                     .shape_work,
@@ -1293,16 +1318,23 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "effects.owner.EFFECTS.windscreen_drops.tuning",
-            on_game(&crate::effects::owner::EFFECTS.get().windscreen_drops.tuning),
+            on_game(
+                &crate::race::owner::RACE
+                    .effects
+                    .get()
+                    .windscreen_drops
+                    .tuning
+            ),
         ),
         listed!(
             "effects.owner.EFFECTS.setup.mask_constants",
-            on_game(&crate::effects::owner::EFFECTS.get().setup.mask_constants),
+            on_game(&crate::race::owner::RACE.effects.get().setup.mask_constants),
         ),
         listed!(
             "effects.owner.EFFECTS.windscreen_flakes.timing",
             on_game(
-                &crate::effects::owner::EFFECTS
+                &crate::race::owner::RACE
+                    .effects
                     .get()
                     .windscreen_flakes
                     .timing,
@@ -1311,7 +1343,8 @@ fn listed_stores() -> Vec<Listed> {
         listed!(
             "effects.owner.EFFECTS.windscreen_flakes.tables",
             on_game(
-                &crate::effects::owner::EFFECTS
+                &crate::race::owner::RACE
+                    .effects
                     .get()
                     .windscreen_flakes
                     .tables,
@@ -1319,205 +1352,236 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "effects.owner.EFFECTS.windscreen_flakes.items",
-            on_game(&crate::effects::owner::EFFECTS.get().windscreen_flakes.items),
+            on_game(
+                &crate::race::owner::RACE
+                    .effects
+                    .get()
+                    .windscreen_flakes
+                    .items
+            ),
         ),
         listed!(
             "effects.owner.EFFECTS.windscreen_flakes.state",
-            on_game(&crate::effects::owner::EFFECTS.get().windscreen_flakes.state),
+            on_game(
+                &crate::race::owner::RACE
+                    .effects
+                    .get()
+                    .windscreen_flakes
+                    .state
+            ),
         ),
         listed!(
             "effects.owner.EFFECTS.masks.edge_settings",
-            on_game(&crate::effects::owner::EFFECTS.get().masks.edge_settings),
+            on_game(&crate::race::owner::RACE.effects.get().masks.edge_settings),
         ),
         listed!(
             "effects.owner.EFFECTS.weather.rain",
-            on_game(&crate::effects::owner::EFFECTS.get().weather.rain),
+            on_game(&crate::race::owner::RACE.effects.get().weather.rain),
         ),
         listed!(
             "effects.owner.EFFECTS.weather.snow_tables",
-            on_game(&crate::effects::owner::EFFECTS.get().weather.snow_tables),
+            on_game(&crate::race::owner::RACE.effects.get().weather.snow_tables),
         ),
         listed!(
             "effects.owner.EFFECTS.weather.snow",
-            on_game(&crate::effects::owner::EFFECTS.get().weather.snow),
+            on_game(&crate::race::owner::RACE.effects.get().weather.snow),
         ),
         listed!(
             "effects.owner.EFFECTS.weather.snow_curve",
-            on_game(&crate::effects::owner::EFFECTS.get().weather.snow_curve),
+            on_game(&crate::race::owner::RACE.effects.get().weather.snow_curve),
         ),
         listed!(
             "effects.owner.EFFECTS.weather.snow_vars",
-            on_game(&crate::effects::owner::EFFECTS.get().weather.snow_vars),
+            on_game(&crate::race::owner::RACE.effects.get().weather.snow_vars),
         ),
         listed!(
             "effects.owner.EFFECTS.weather.snow_light",
-            on_game(&crate::effects::owner::EFFECTS.get().weather.snow_light),
+            on_game(&crate::race::owner::RACE.effects.get().weather.snow_light),
         ),
         listed!(
             "effects.owner.EFFECTS.blocks.places",
-            on_game(&crate::effects::owner::EFFECTS.get().blocks.places),
+            on_game(&crate::race::owner::RACE.effects.get().blocks.places),
         ),
         listed!(
             "effects.owner.EFFECTS.paths.profile_rings",
-            on_game(&crate::effects::owner::EFFECTS.get().paths.profile_rings),
+            on_game(&crate::race::owner::RACE.effects.get().paths.profile_rings),
         ),
         listed!(
             "effects.owner.EFFECTS.paths.profile_tables",
-            on_game(&crate::effects::owner::EFFECTS.get().paths.profile_tables),
+            on_game(&crate::race::owner::RACE.effects.get().paths.profile_tables),
         ),
         listed!(
             "effects.owner.EFFECTS.frame.draw_work",
-            on_game(&crate::effects::owner::EFFECTS.get().frame.draw_work),
+            on_game(&crate::race::owner::RACE.effects.get().frame.draw_work),
         ),
         listed!(
             "effects.owner.EFFECTS.blocks.corners",
-            on_game(&crate::effects::owner::EFFECTS.get().blocks.corners),
+            on_game(&crate::race::owner::RACE.effects.get().blocks.corners),
         ),
         listed!(
             "effects.owner.EFFECTS.frame.view_vars",
-            on_game(&crate::effects::owner::EFFECTS.get().frame.view_vars),
+            on_game(&crate::race::owner::RACE.effects.get().frame.view_vars),
         ),
         listed!(
             "effects.owner.EFFECTS.frame.draw_frame",
-            on_game(&crate::effects::owner::EFFECTS.get().frame.draw_frame),
+            on_game(&crate::race::owner::RACE.effects.get().frame.draw_frame),
         ),
         listed!(
             "effects.owner.EFFECTS.paths.sines",
-            on_game(&crate::effects::owner::EFFECTS.get().paths.sines),
+            on_game(&crate::race::owner::RACE.effects.get().paths.sines),
         ),
         listed!(
             "effects.owner.EFFECTS.frame.flare_parts",
-            on_game(&crate::effects::owner::EFFECTS.get().frame.flare_parts),
+            on_game(&crate::race::owner::RACE.effects.get().frame.flare_parts),
         ),
         listed!(
             "effects.owner.EFFECTS.paths.wave_levels",
-            on_game(&crate::effects::owner::EFFECTS.get().paths.wave_levels),
+            on_game(&crate::race::owner::RACE.effects.get().paths.wave_levels),
         ),
         listed!(
             "effects.owner.EFFECTS.paths.wave",
-            on_game(&crate::effects::owner::EFFECTS.get().paths.wave),
+            on_game(&crate::race::owner::RACE.effects.get().paths.wave),
         ),
         listed!(
             "effects.owner.EFFECTS.frame.flare_scales",
-            on_game(&crate::effects::owner::EFFECTS.get().frame.flare_scales),
+            on_game(&crate::race::owner::RACE.effects.get().frame.flare_scales),
         ),
         listed!(
             "effects.owner.EFFECTS.blocks.links",
-            on_game(&crate::effects::owner::EFFECTS.get().blocks.links),
+            on_game(&crate::race::owner::RACE.effects.get().blocks.links),
         ),
         listed!(
             "effects.owner.EFFECTS.blocks.corner_slopes",
-            on_game(&crate::effects::owner::EFFECTS.get().blocks.corner_slopes),
+            on_game(&crate::race::owner::RACE.effects.get().blocks.corner_slopes),
         ),
         listed!(
             "effects.owner.EFFECTS.paths.spread_random",
-            on_game(&crate::effects::owner::EFFECTS.get().paths.spread_random),
+            on_game(&crate::race::owner::RACE.effects.get().paths.spread_random),
         ),
         listed!(
             "effects.owner.EFFECTS.kinds.overlay_quad",
-            on_game(&crate::effects::owner::EFFECTS.get().kinds.overlay_quad),
+            on_game(&crate::race::owner::RACE.effects.get().kinds.overlay_quad),
         ),
         listed!(
             "effects.owner.EFFECTS.kinds.overlay_extras",
-            on_game(&crate::effects::owner::EFFECTS.get().kinds.overlay_extras),
+            on_game(&crate::race::owner::RACE.effects.get().kinds.overlay_extras),
         ),
         listed!(
             "effects.owner.EFFECTS.kinds.shadow_quad",
-            on_game(&crate::effects::owner::EFFECTS.get().kinds.shadow_quad),
+            on_game(&crate::race::owner::RACE.effects.get().kinds.shadow_quad),
         ),
         listed!(
             "effects.owner.EFFECTS.kinds.shadow_extra",
-            on_game(&crate::effects::owner::EFFECTS.get().kinds.shadow_extra),
+            on_game(&crate::race::owner::RACE.effects.get().kinds.shadow_extra),
         ),
         listed!(
             "effects.owner.EFFECTS.kinds.plane_quad",
-            on_game(&crate::effects::owner::EFFECTS.get().kinds.plane_quad),
+            on_game(&crate::race::owner::RACE.effects.get().kinds.plane_quad),
         ),
         listed!(
             "effects.owner.EFFECTS.masks.ground_names",
-            on_game(&crate::effects::owner::EFFECTS.get().masks.ground_names),
+            on_game(&crate::race::owner::RACE.effects.get().masks.ground_names),
             0xa6,
         ),
         listed!(
             "effects.owner.EFFECTS.masks.blocks",
-            on_game(&crate::effects::owner::EFFECTS.get().masks.blocks),
+            on_game(&crate::race::owner::RACE.effects.get().masks.blocks),
         ),
         listed!(
             "effects.owner.EFFECTS.masks.picture_copy",
-            on_game(&crate::effects::owner::EFFECTS.get().masks.picture_copy),
+            on_game(&crate::race::owner::RACE.effects.get().masks.picture_copy),
         ),
         listed!(
             "effects.owner.EFFECTS.blocks.slots",
-            on_game(&crate::effects::owner::EFFECTS.get().blocks.slots),
+            on_game(&crate::race::owner::RACE.effects.get().blocks.slots),
         ),
         listed!(
             "effects.owner.EFFECTS.blocks.slot_tuning",
-            on_game(&crate::effects::owner::EFFECTS.get().blocks.slot_tuning),
+            on_game(&crate::race::owner::RACE.effects.get().blocks.slot_tuning),
         ),
         listed!(
             "effects.owner.EFFECTS.kinds.emitter",
-            on_game(&crate::effects::owner::EFFECTS.get().kinds.emitter),
+            on_game(&crate::race::owner::RACE.effects.get().kinds.emitter),
         ),
         listed!(
             "effects.owner.EFFECTS.ring.work",
-            on_game(&crate::effects::owner::EFFECTS.get().ring.work),
+            on_game(&crate::race::owner::RACE.effects.get().ring.work),
         ),
         listed!(
             "effects.owner.EFFECTS.ring.names",
-            on_game(&crate::effects::owner::EFFECTS.get().ring.names),
+            on_game(&crate::race::owner::RACE.effects.get().ring.names),
         ),
         listed!(
             "effects.owner.EFFECTS.masks.surface",
-            on_game(&crate::effects::owner::EFFECTS.get().masks.surface),
+            on_game(&crate::race::owner::RACE.effects.get().masks.surface),
         ),
         listed!(
             "effects.owner.EFFECTS.particles.twin_state",
-            on_game(&crate::effects::owner::EFFECTS.get().particles.twin_state),
+            on_game(&crate::race::owner::RACE.effects.get().particles.twin_state),
         ),
         listed!(
             "effects.owner.EFFECTS.particles.kind1_choice",
-            on_game(&crate::effects::owner::EFFECTS.get().particles.kind1_choice),
+            on_game(
+                &crate::race::owner::RACE
+                    .effects
+                    .get()
+                    .particles
+                    .kind1_choice
+            ),
         ),
         listed!(
             "effects.owner.EFFECTS.masks.list",
-            on_game(&crate::effects::owner::EFFECTS.get().masks.list),
+            on_game(&crate::race::owner::RACE.effects.get().masks.list),
         ),
         listed!(
             "effects.owner.EFFECTS.particles.kind5_set",
-            on_game(&crate::effects::owner::EFFECTS.get().particles.kind5_set),
+            on_game(&crate::race::owner::RACE.effects.get().particles.kind5_set),
         ),
         listed!(
             "effects.owner.EFFECTS.particles.kind11_set",
-            on_game(&crate::effects::owner::EFFECTS.get().particles.kind11_set),
+            on_game(&crate::race::owner::RACE.effects.get().particles.kind11_set),
         ),
         listed!(
             "effects.owner.EFFECTS.particles.kind21_set",
-            on_game(&crate::effects::owner::EFFECTS.get().particles.kind21_set),
+            on_game(&crate::race::owner::RACE.effects.get().particles.kind21_set),
         ),
         listed!(
             "effects.owner.EFFECTS.particles.kind1_set",
-            on_game(&crate::effects::owner::EFFECTS.get().particles.kind1_set),
+            on_game(&crate::race::owner::RACE.effects.get().particles.kind1_set),
         ),
         listed!(
             "effects.owner.EFFECTS.particles.first_tuning",
-            on_game(&crate::effects::owner::EFFECTS.get().particles.first_tuning),
+            on_game(
+                &crate::race::owner::RACE
+                    .effects
+                    .get()
+                    .particles
+                    .first_tuning
+            ),
         ),
         listed!(
             "effects.owner.EFFECTS.particles.second_tuning",
-            on_game(&crate::effects::owner::EFFECTS.get().particles.second_tuning),
+            on_game(
+                &crate::race::owner::RACE
+                    .effects
+                    .get()
+                    .particles
+                    .second_tuning
+            ),
         ),
         listed!(
             "effects.owner.EFFECTS.particles.kind6_set",
-            on_game(&crate::effects::owner::EFFECTS.get().particles.kind6_set),
+            on_game(&crate::race::owner::RACE.effects.get().particles.kind6_set),
         ),
         listed!(
             "effects.owner.EFFECTS.particles.kind13_set",
-            on_game(&crate::effects::owner::EFFECTS.get().particles.kind13_set),
+            on_game(&crate::race::owner::RACE.effects.get().particles.kind13_set),
         ),
         listed!(
             "effects.owner.EFFECTS.particles.nineteenth_tuning",
             on_game(
-                &crate::effects::owner::EFFECTS
+                &crate::race::owner::RACE
+                    .effects
                     .get()
                     .particles
                     .nineteenth_tuning,
@@ -1526,7 +1590,8 @@ fn listed_stores() -> Vec<Listed> {
         listed!(
             "effects.owner.EFFECTS.particles.twenty_second_tuning",
             on_game(
-                &crate::effects::owner::EFFECTS
+                &crate::race::owner::RACE
+                    .effects
                     .get()
                     .particles
                     .twenty_second_tuning,
@@ -1534,39 +1599,39 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "effects.owner.EFFECTS.ring.pool",
-            on_game(&crate::effects::owner::EFFECTS.get().ring.pool),
+            on_game(&crate::race::owner::RACE.effects.get().ring.pool),
         ),
         listed!(
             "effects.owner.EFFECTS.particles.puff_work",
-            on_game(&crate::effects::owner::EFFECTS.get().particles.puff_work),
+            on_game(&crate::race::owner::RACE.effects.get().particles.puff_work),
         ),
         listed!(
             "effects.owner.EFFECTS.kinds.burst_colours",
-            on_game(&crate::effects::owner::EFFECTS.get().kinds.burst_colours),
+            on_game(&crate::race::owner::RACE.effects.get().kinds.burst_colours),
         ),
         listed!(
             "effects.owner.EFFECTS.kinds.particle_tuning",
-            on_game(&crate::effects::owner::EFFECTS.get().kinds.particle_tuning),
+            on_game(&crate::race::owner::RACE.effects.get().kinds.particle_tuning),
         ),
         listed!(
             "effects.owner.EFFECTS.clipping.blend_work",
-            on_game(&crate::effects::owner::EFFECTS.get().clipping.blend_work),
+            on_game(&crate::race::owner::RACE.effects.get().clipping.blend_work),
         ),
         listed!(
             "effects.owner.EFFECTS.paths.morph_work",
-            on_game(&crate::effects::owner::EFFECTS.get().paths.morph_work),
+            on_game(&crate::race::owner::RACE.effects.get().paths.morph_work),
         ),
         listed!(
             "effects.owner.EFFECTS.paths.lines_work",
-            on_game(&crate::effects::owner::EFFECTS.get().paths.lines_work),
+            on_game(&crate::race::owner::RACE.effects.get().paths.lines_work),
         ),
         listed!(
             "effects.owner.EFFECTS.setup.clock_k",
-            on_game(&crate::effects::owner::EFFECTS.get().setup.clock_k),
+            on_game(&crate::race::owner::RACE.effects.get().setup.clock_k),
         ),
         listed!(
             "effects.owner.EFFECTS.clipping.glow",
-            on_game(&crate::effects::owner::EFFECTS.get().clipping.glow),
+            on_game(&crate::race::owner::RACE.effects.get().clipping.glow),
         ),
     ]
 }

@@ -50,8 +50,6 @@ own! {
     input: crate::input::owner::Input = crate::input::owner::Input::new();
     audio: crate::audio::owner::Audio = crate::audio::owner::Audio::new();
     sound: crate::sound::owner::Sound = crate::sound::owner::Sound::new();
-    effects: crate::effects::owner::Effects = crate::effects::owner::Effects::new();
-    d3d: crate::d3d::owner::D3d = crate::d3d::owner::D3d::new();
 }
 
 /// This test thread's own graphics owner; the platform's calls (`platform_3d`) reach its draw
@@ -67,20 +65,23 @@ pub fn gfx() -> &'static crate::gfx::owner::Gfx {
     OWNER.with(|owner| *owner)
 }
 
-/// This test thread's own owners, all fourteen (building those the test has not asked for yet).
+/// This test thread's own effects: those of its own `Race`.
+pub fn effects() -> &'static crate::effects::owner::Effects {
+    race().effects.get()
+}
+
+/// This test thread's own owners, all twelve (building those the test has not asked for yet).
 pub fn owners() -> Owners<'static> {
     Owners {
         race: race(),
         system: system(),
         scene: scene(),
-        d3d: d3d(),
         sound: sound(),
         audio: audio(),
         input: input(),
         net: net(),
         gfx: gfx(),
         menus: menus(),
-        effects: effects(),
         install: install(),
         saves: saves(),
         strings: strings(),

@@ -21,7 +21,7 @@ pub fn apply_screen_mode(o: Owners<'static>) -> Result<(), Refused> {
     // `gfx::screen_mode_choices` answers true when the chosen mode was not taken.
     let taken = !crate::gfx::screen_mode_choices::screen_mode_choices(
         gfx,
-        o.d3d,
+        &o.gfx.d3d,
         o.system,
         TRY_CHOSEN_MODE != 0,
     )?
@@ -36,7 +36,7 @@ pub fn apply_screen_mode(o: Owners<'static>) -> Result<(), Refused> {
     } else {
         crate::gfx::screen_mode_choices::screen_mode_choices(
             gfx,
-            o.d3d,
+            &o.gfx.d3d,
             o.system,
             BACK_TO_MODE != 0,
         )?;
