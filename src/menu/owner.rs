@@ -20,11 +20,10 @@ use crate::menu::keys_store::KeyTables;
 use crate::menu::list_state::ListState;
 use crate::menu::loop_store::LoopFlags;
 use crate::menu::menus_store::MenuTables;
-use crate::menu::names_store::Names;
 use crate::menu::options_store::MenuOptions;
 use crate::menu::pages_store::MenuPages;
 use crate::menu::play_films::Films;
-use crate::menu::players_store::PlayerTable;
+use crate::menu::players_store::PlayerSlots;
 use crate::menu::results_store::Results;
 use crate::menu::screen_items_store::ScreenItems;
 use crate::menu::state_store::MenuState;
@@ -117,8 +116,7 @@ pub struct Play {
     pub arcade: Arcade,
     pub champ_view: ChampView,
     pub results: Results,
-    pub players: PlayerTable,
-    pub names: Names,
+    pub slots: PlayerSlots,
     pub cheats: Cheats,
 }
 
@@ -128,8 +126,7 @@ impl Play {
             arcade: Arcade::new(),
             champ_view: ChampView::new(),
             results: Results::new(),
-            players: PlayerTable::new(),
-            names: Names::new(),
+            slots: PlayerSlots::new(),
             cheats: Cheats::new(),
         }
     }

@@ -237,24 +237,32 @@ impl ScreenId {
             ScreenId::Options => &crate::menu::options_loop::SCREEN,
             ScreenId::OverallRallyResults => &crate::menu::overall_rally_results_loop::SCREEN,
             ScreenId::OverallStageResults => &crate::menu::overall_stage_results_loop::SCREEN,
-            ScreenId::Player1Buttons => &crate::menu::player1_buttons_loop::SCREEN,
-            ScreenId::Player1Controller => &crate::menu::player1_controller_loop::SCREEN,
-            ScreenId::Player1Details => &crate::menu::player1_details_loop::SCREEN,
-            ScreenId::Player2Buttons => &crate::menu::player2_buttons_loop::SCREEN,
-            ScreenId::Player2Controller => &crate::menu::player2_controller_loop::SCREEN,
-            ScreenId::Player2Details => &crate::menu::player2_details_loop::SCREEN,
-            ScreenId::Player3Buttons => &crate::menu::player3_buttons_loop::SCREEN,
-            ScreenId::Player3Controller => &crate::menu::player3_controller_loop::SCREEN,
-            ScreenId::Player3Details => &crate::menu::player3_details_loop::SCREEN,
-            ScreenId::Player4Buttons => &crate::menu::player4_buttons_loop::SCREEN,
-            ScreenId::Player4Controller => &crate::menu::player4_controller_loop::SCREEN,
-            ScreenId::Player4Details => &crate::menu::player4_details_loop::SCREEN,
+            ScreenId::Player1Buttons => &crate::menu::player_pages::PlayerPage::<0>::BUTTONS,
+            ScreenId::Player1Controller => &crate::menu::player_pages::PlayerPage::<0>::CONTROLLER,
+            ScreenId::Player1Details => &crate::menu::player_pages::PlayerPage::<0>::DETAILS,
+            ScreenId::Player2Buttons => &crate::menu::player_pages::PlayerPage::<1>::BUTTONS,
+            ScreenId::Player2Controller => &crate::menu::player_pages::PlayerPage::<1>::CONTROLLER,
+            ScreenId::Player2Details => &crate::menu::player_pages::PlayerPage::<1>::DETAILS,
+            ScreenId::Player3Buttons => &crate::menu::player_pages::PlayerPage::<2>::BUTTONS,
+            ScreenId::Player3Controller => &crate::menu::player_pages::PlayerPage::<2>::CONTROLLER,
+            ScreenId::Player3Details => &crate::menu::player_pages::PlayerPage::<2>::DETAILS,
+            ScreenId::Player4Buttons => &crate::menu::player_pages::PlayerPage::<3>::BUTTONS,
+            ScreenId::Player4Controller => &crate::menu::player_pages::PlayerPage::<3>::CONTROLLER,
+            ScreenId::Player4Details => &crate::menu::player_pages::PlayerPage::<3>::DETAILS,
             ScreenId::PlayerDetails => &crate::menu::player_details_loop::SCREEN,
             ScreenId::RallyStages => &crate::menu::rally_stages_loop::SCREEN,
-            ScreenId::RedefineKeysPlayer1 => &crate::menu::redefine_keys_player1_loop::SCREEN,
-            ScreenId::RedefineKeysPlayer2 => &crate::menu::redefine_keys_player2_loop::SCREEN,
-            ScreenId::RedefineKeysPlayer3 => &crate::menu::redefine_keys_player3_loop::SCREEN,
-            ScreenId::RedefineKeysPlayer4 => &crate::menu::redefine_keys_player4_loop::SCREEN,
+            ScreenId::RedefineKeysPlayer1 => {
+                &crate::menu::player_pages::PlayerPage::<0>::REDEFINE_KEYS
+            }
+            ScreenId::RedefineKeysPlayer2 => {
+                &crate::menu::player_pages::PlayerPage::<1>::REDEFINE_KEYS
+            }
+            ScreenId::RedefineKeysPlayer3 => {
+                &crate::menu::player_pages::PlayerPage::<2>::REDEFINE_KEYS
+            }
+            ScreenId::RedefineKeysPlayer4 => {
+                &crate::menu::player_pages::PlayerPage::<3>::REDEFINE_KEYS
+            }
             ScreenId::SaveChampionship => &crate::menu::save_championship_loop::SCREEN,
             ScreenId::SaveReplay => &crate::menu::save_replay_loop::SCREEN,
             ScreenId::SaveSetup => &crate::menu::save_setup_loop::SCREEN,

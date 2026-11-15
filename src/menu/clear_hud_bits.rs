@@ -7,7 +7,7 @@ use crate::errors::Refused;
 use crate::menu::owner::Menus;
 
 pub fn clear_hud_bits(menus: &Menus) -> Result<(), Refused> {
-    for player in &menus.play.players.players {
+    for player in &menus.play.slots.records {
         player.update(|p| p.hud_bits = -1);
     }
     Ok(())

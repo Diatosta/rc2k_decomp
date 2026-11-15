@@ -28,7 +28,7 @@ pub fn any_unnamed(players: &[PlayerCell]) -> Result<bool, crate::errors::BadInp
 
 /// Player `n`'s record (`n` one of the four).
 pub fn player(menus: &Menus, n: u32) -> PlayerCell<'_> {
-    &menus.play.players.players[n as usize]
+    &menus.play.slots.records[n as usize]
 }
 
 /// The drivers as a `do .. while` walks them: the first always, then each while its first
@@ -189,10 +189,10 @@ pub fn name_address_of(p: &rc2k_core::menu::player::Player) -> Result<u32, BadIn
 
 /// Runs `f` on the kept player name, the sorts' swap buffer (a copy of it, put back after).
 pub fn with_kept_name<R>(play: &Play, f: impl FnOnce(&mut [u8; NAME_LEN]) -> R) -> R {
-    let mut all = play.names.kept_name.read();
+    let mut all = play.slots.names.kept_name.read();
     let [kept @ .., _] = &mut all;
     let r = f(kept);
-    play.names.kept_name.write(&all);
+    play.slots.names.kept_name.write(&all);
     r
 }
 

@@ -148,7 +148,7 @@ pub fn load_language(
     let units = file.units as u32;
     crate::strings::units::set_units(units);
     // Each car's copy of the units, at its +0x178.
-    for player in &o.menus.play.players.players {
+    for player in &o.menus.play.slots.records {
         player.update(|p| p.metric_units = units);
     }
 

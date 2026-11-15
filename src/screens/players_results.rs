@@ -32,7 +32,7 @@ fn player<'a>(
     if o >= 16 || !o.is_multiple_of(4) {
         return Err(BadInput("a row's offset past the four players").into());
     }
-    let p = &menus.play.players.players[(o / 4) as usize];
+    let p = &menus.play.slots.records[(o / 4) as usize];
     if p.get().name_player().is_none() {
         return Err(BadInput("a row's player without its name").into());
     }

@@ -690,8 +690,8 @@ fn listed_stores() -> Vec<Listed> {
             on_game(&crate::screens::owner::SCREENS_OWNER.get().controls),
         ),
         listed!(
-            "menu.owner.MENU_OWNER.play.players",
-            on_game(&crate::menu::owner::MENU_OWNER.get().play.players),
+            "menu.owner.MENU_OWNER.play.slots",
+            on_game(&crate::menu::owner::MENU_OWNER.get().play.slots),
         ),
         listed!(
             "menu.owner.MENU_OWNER.cars.table",
@@ -744,10 +744,6 @@ fn listed_stores() -> Vec<Listed> {
         listed!(
             "menu.owner.MENU_OWNER.play.champ_view",
             on_game(&crate::menu::owner::MENU_OWNER.get().play.champ_view),
-        ),
-        listed!(
-            "menu.owner.MENU_OWNER.play.names",
-            on_game(&crate::menu::owner::MENU_OWNER.get().play.names),
         ),
         listed!(
             "menu.owner.MENU_OWNER.screens.event",

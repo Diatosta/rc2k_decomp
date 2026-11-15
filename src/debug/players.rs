@@ -86,7 +86,7 @@ fn figure(word: u32) -> String {
 }
 
 fn player_figure(menus: &Menus, player: usize, offset: usize) -> String {
-    figure(menus.play.players.players[player].get().word(offset))
+    figure(menus.play.slots.records[player].get().word(offset))
 }
 
 fn car_figure(race: &Race, car: usize, field: CarField) -> String {
@@ -95,7 +95,7 @@ fn car_figure(race: &Race, car: usize, field: CarField) -> String {
 
 /// The player's name, to its NUL.
 fn name(menus: &Menus, player: usize) -> String {
-    let record = menus.play.players.players[player].get();
+    let record = menus.play.slots.records[player].get();
     let bytes: Vec<u8> = record
         .name_copy
         .iter()

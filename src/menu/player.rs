@@ -9,5 +9,5 @@ pub use rc2k_core::menu::player::{PLAYERS, Player};
 
 /// Player `index`, none past the four.
 pub fn player(menus: &Menus, index: u32) -> Option<&crate::session::Shared<Player>> {
-    menus.play.players.players.get(index as usize)
+    menus.play.slots.records.get(index as usize)
 }

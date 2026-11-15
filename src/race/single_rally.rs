@@ -583,11 +583,11 @@ mod vector_tests {
         ("menu.owner.MENU_OWNER.options", ".car_shadows", 0, 0x4),
         ("menu.owner.MENU_OWNER.options", ".car_detail", 0, 0x4),
         ("menu.owner.MENU_OWNER.options", ".headlights", 0, 0x4),
-        ("menu.owner.MENU_OWNER.play.players", ".players[0]", 0, 0x28c),
-        ("menu.owner.MENU_OWNER.play.players", ".players[1]", 0, 0x28c),
-        ("menu.owner.MENU_OWNER.play.players", ".players[2]", 0, 0x28c),
-        ("menu.owner.MENU_OWNER.play.players", ".players[3]", 0, 0x28c),
-        ("menu.owner.MENU_OWNER.play.players", ".pointers[0]", 0, 0x10),
+        ("menu.owner.MENU_OWNER.play.slots", ".records[0]", 0, 0x28c),
+        ("menu.owner.MENU_OWNER.play.slots", ".records[1]", 0, 0x28c),
+        ("menu.owner.MENU_OWNER.play.slots", ".records[2]", 0, 0x28c),
+        ("menu.owner.MENU_OWNER.play.slots", ".records[3]", 0, 0x28c),
+        ("menu.owner.MENU_OWNER.play.slots", ".pointers[0]", 0, 0x10),
         ("menu.owner.MENU_OWNER.play.arcade", ".scene_let_go", 0, 0x4),
         ("menu.owner.MENU_OWNER.play.champ_view", ".summary", 0, 0x4),
         ("race.owner.RACE.replay.viewer_and_kinds", ".marks_settings.after_loading_copy", 0, 0x4),
@@ -826,7 +826,7 @@ mod vector_tests {
     const STORES: [&str; 9] = [
         "menu.owner.MENU_OWNER.play.arcade",
         "menu.owner.MENU_OWNER.play.champ_view",
-        "menu.owner.MENU_OWNER.play.players",
+        "menu.owner.MENU_OWNER.play.slots",
         "menu.owner.MENU_OWNER.screens.event",
         "menu.owner.MENU_OWNER.screens.flow",
         "menu.owner.MENU_OWNER.options",
@@ -976,8 +976,8 @@ mod vector_tests {
             let bytes: Vec<u8> = (0..len).map(|_| rng.next() as u8).collect();
             write_range(name, path, skip, &bytes);
         }
-        for (k, r) in play.players.players.iter().enumerate() {
-            play.players.pointers[k].set(k as u32);
+        for (k, r) in play.slots.records.iter().enumerate() {
+            play.slots.pointers[k].set(k as u32);
             set_field(r, 0xD0, c.d0[k]).expect("the record is there");
         }
         event_mode().set(c.mode);

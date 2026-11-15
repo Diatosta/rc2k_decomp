@@ -16,7 +16,7 @@ use crate::owners::Owners;
 pub fn arcade_finale(o: Owners<'static>) -> Result<(), Refused> {
     let (menus, sound, race) = (o.menus, o.sound, o.race);
     let play = &menus.play;
-    let first = play.players.players[0].get();
+    let first = play.slots.records[0].get();
     race.shared
         .state
         .results

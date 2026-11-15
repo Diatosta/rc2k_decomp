@@ -7,6 +7,6 @@ use crate::errors::Refused;
 use crate::menu::owner::Menus;
 
 pub fn take_player1_units(menus: &Menus) -> Result<(), Refused> {
-    crate::strings::units::set_units(menus.play.players.players[0].get().metric_units);
+    crate::strings::units::set_units(menus.play.slots.records[0].get().metric_units);
     Ok(())
 }

@@ -75,7 +75,7 @@ pub fn switch_cell<'a>(menus: &'a Menus, system: &'a System, s: Switch) -> &'a d
 
 /// Player `n`'s record.
 pub fn player(menus: &Menus, n: u32) -> crate::menu::standings::PlayerCell<'_> {
-    &menus.play.players.players[n as usize]
+    &menus.play.slots.records[n as usize]
 }
 
 pub fn yes(menus: &Menus) -> bool {

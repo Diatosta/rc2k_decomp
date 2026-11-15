@@ -1,5 +1,5 @@
-//! The controller set-up pages' item actions and set-ups (`menu::player1_controller_loop` and
-//! the seven after it): what they change of the current player's record: +0x2C the controller
+//! The controller set-up pages' item actions and set-ups (the controller and button
+//! pages of `menu::player_pages`): what they change of the current player's record: +0x2C the controller
 //! (0 none, 1 .. the controller count the listed ones), +0x34 its sensitivity (0 .. 3), +0x38
 //! its mode, +0x40 and +0x44 the two dead zones (their sum held at 90).
 //! - apply / release the controller (`input::request_device_setup` / `_release`).

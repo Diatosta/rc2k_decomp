@@ -25,10 +25,10 @@ pub fn choose_car(o: Owners<'static>, vars: &NetShared) -> Result<(), Refused> {
         crate::menu::take_shown_car::take_shown_car(menus, Some(cars))?;
         vars.own
             .head
-            .set(record::CAR, play.players.players[0].get().car_number as u8);
+            .set(record::CAR, play.slots.records[0].get().car_number as u8);
         vars.own
             .head
-            .set(record::COLOURS, play.players.players[0].get().gearing as u8);
+            .set(record::COLOURS, play.slots.records[0].get().gearing as u8);
     }
     crate::net::show_background::show_background(o)?;
     Ok(())

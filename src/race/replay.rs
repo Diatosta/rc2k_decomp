@@ -64,7 +64,7 @@ pub fn seal_replay_header(
     let replay = &race.replay;
     let sealed = &race.replay_work().sealed_header;
     put_header(sealed, 0x719B58 - 0x719B54, &[SEAL_VERSION])?;
-    let name: [u8; 0x20] = menus.play.names.player_names.read()[..0x20]
+    let name: [u8; 0x20] = menus.play.slots.names.player_names.read()[..0x20]
         .try_into()
         .expect("0x20 bytes");
     let printable = crate::strings::copy_printable::printable(&name, 0x20)?;

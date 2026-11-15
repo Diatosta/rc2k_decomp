@@ -4,8 +4,9 @@
 //! switches, steering) with the HUD bits -1. Stage 0 becomes 0x29 with direction 0.
 
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
+use crate::menu::options_store::OptionsSnapshot;
 use crate::menu::player::Player;
+use crate::menu::players_store::PlayerSlots;
 use crate::net::owner::Net;
 use crate::race::owner::Race;
 use crate::session::DwordLike;
@@ -53,14 +54,21 @@ fn settings(race: &Race) -> [Setting<'_>; 13] {
         ),
     ]
 }
-pub fn fill_own_player(race: &Race, net: &Net, menus: &Menus, name: &[u8]) -> Result<(), Refused> {
+/// Fills the own player's lobby record from the first player's slot and its name.
+pub fn fill_own_player(
+    race: &Race,
+    net: &Net,
+    slots: &PlayerSlots,
+    options: &OptionsSnapshot,
+) -> Result<(), Refused> {
+    let name = slots.names.player_names.read();
     // `strings::copy_printable` with 0x1F room: at most 0x1E characters of `name` looked at.
-    let printable = crate::strings::copy_printable::printable_from(name, 0x1F)?;
+    let printable = crate::strings::copy_printable::printable_from(&name, 0x1F)?;
     net.setup()
         .player_name
         .write_at(0, &printable, "a printable name")?;
     // The logic is in `rc2k_core::net::record::own_record`.
-    let player = menus.play.players.players[0].get();
+    let player = slots.records[0].get();
     let own = record::own_record(
         player.car_number as u8,
         player.gearing as u8,
@@ -83,10 +91,7 @@ pub fn fill_own_player(race: &Race, net: &Net, menus: &Menus, name: &[u8]) -> Re
         to.set(from(&player));
     }
     race.shared.state.results.hud_bits_current.set(u32::MAX);
-    race.shared
-        .state
-        .settings
-        .set_visual_options(&menus.options.snapshot());
+    race.shared.state.settings.set_visual_options(options);
     race.shared.state.results.finished.set(0);
     Ok(())
 }

@@ -114,7 +114,7 @@ impl Io for GameIo {
             shared
                 .tyre_change()
                 .record_name
-                .set(n, self.o.menus.play.names.player_names.get(from + n));
+                .set(n, self.o.menus.play.slots.names.player_names.get(from + n));
         }
     }
 }

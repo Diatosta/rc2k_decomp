@@ -17,17 +17,13 @@ pub fn draw_players_standings(
     };
     let mut totals = [0u32; 4];
     for (row, total) in totals.iter_mut().enumerate().take(rows) {
-        if menus.play.players.players[row]
-            .get()
-            .name_player()
-            .is_none()
-        {
+        if menus.play.slots.records[row].get().name_player().is_none() {
             return Err(BadInput("a standings row without its name").into());
         }
         *total = menus.play.results.player(row)?.total.get();
     }
     // The logic is in `rc2k_core::screens::players_results::standings`.
-    let player = |row: usize| menus.play.players.players[row].get();
+    let player = |row: usize| menus.play.slots.records[row].get();
     let rows: Vec<
         rc2k_core::screens::players_results::Standing<crate::screens::game_screen::HeldText>,
     > = (0..rows)

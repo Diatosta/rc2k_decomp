@@ -46,29 +46,14 @@ use crate::menu::player;
 use crate::menu::player_actions;
 use crate::menu::player_details_loop;
 use crate::menu::player_settings;
-use crate::menu::player1_buttons_loop;
-use crate::menu::player1_controller_loop;
-use crate::menu::player1_details_loop;
-use crate::menu::player2_buttons_loop;
-use crate::menu::player2_controller_loop;
-use crate::menu::player2_details_loop;
-use crate::menu::player3_buttons_loop;
-use crate::menu::player3_controller_loop;
-use crate::menu::player3_details_loop;
-use crate::menu::player4_buttons_loop;
-use crate::menu::player4_controller_loop;
-use crate::menu::player4_details_loop;
 use crate::menu::raise_sensitivity;
 use crate::menu::rally_results;
 use crate::menu::redefine_keys;
-use crate::menu::redefine_keys_player1_loop;
-use crate::menu::redefine_keys_player2_loop;
-use crate::menu::redefine_keys_player3_loop;
-use crate::menu::redefine_keys_player4_loop;
 use crate::menu::replay_items;
 use crate::menu::save_championship_loop;
 use crate::menu::save_setup_loop;
-use crate::menu::screen_loop::Entry;
+use crate::menu::screen_id::ScreenId;
+use crate::menu::screen_loop::{Entry, screen_entry};
 use crate::menu::simple_select_players_loop;
 use crate::menu::slideshow_loop;
 use crate::menu::stage_choice;
@@ -350,22 +335,22 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn, c: &table_calls::ItemCall) -> Resu
         ItemFn::AudioSetupLoop => audio_setup_loop::run(o),
         ItemFn::OptionsLoop => options_loop::run(o),
         ItemFn::PlayerDetailsLoop => player_details_loop::run(o),
-        ItemFn::Player1DetailsLoop => player1_details_loop::run(o),
-        ItemFn::Player2DetailsLoop => player2_details_loop::run(o),
-        ItemFn::Player3DetailsLoop => player3_details_loop::run(o),
-        ItemFn::Player4DetailsLoop => player4_details_loop::run(o),
-        ItemFn::Player1ControllerLoop => player1_controller_loop::run(o),
-        ItemFn::Player1ButtonsLoop => player1_buttons_loop::run(o),
-        ItemFn::Player2ControllerLoop => player2_controller_loop::run(o),
-        ItemFn::Player2ButtonsLoop => player2_buttons_loop::run(o),
-        ItemFn::Player3ControllerLoop => player3_controller_loop::run(o),
-        ItemFn::Player3ButtonsLoop => player3_buttons_loop::run(o),
-        ItemFn::Player4ControllerLoop => player4_controller_loop::run(o),
-        ItemFn::Player4ButtonsLoop => player4_buttons_loop::run(o),
-        ItemFn::RedefineKeysPlayer1Loop => redefine_keys_player1_loop::run(o),
-        ItemFn::RedefineKeysPlayer2Loop => redefine_keys_player2_loop::run(o),
-        ItemFn::RedefineKeysPlayer3Loop => redefine_keys_player3_loop::run(o),
-        ItemFn::RedefineKeysPlayer4Loop => redefine_keys_player4_loop::run(o),
+        ItemFn::Player1DetailsLoop => screen_entry(o, ScreenId::Player1Details),
+        ItemFn::Player2DetailsLoop => screen_entry(o, ScreenId::Player2Details),
+        ItemFn::Player3DetailsLoop => screen_entry(o, ScreenId::Player3Details),
+        ItemFn::Player4DetailsLoop => screen_entry(o, ScreenId::Player4Details),
+        ItemFn::Player1ControllerLoop => screen_entry(o, ScreenId::Player1Controller),
+        ItemFn::Player1ButtonsLoop => screen_entry(o, ScreenId::Player1Buttons),
+        ItemFn::Player2ControllerLoop => screen_entry(o, ScreenId::Player2Controller),
+        ItemFn::Player2ButtonsLoop => screen_entry(o, ScreenId::Player2Buttons),
+        ItemFn::Player3ControllerLoop => screen_entry(o, ScreenId::Player3Controller),
+        ItemFn::Player3ButtonsLoop => screen_entry(o, ScreenId::Player3Buttons),
+        ItemFn::Player4ControllerLoop => screen_entry(o, ScreenId::Player4Controller),
+        ItemFn::Player4ButtonsLoop => screen_entry(o, ScreenId::Player4Buttons),
+        ItemFn::RedefineKeysPlayer1Loop => screen_entry(o, ScreenId::RedefineKeysPlayer1),
+        ItemFn::RedefineKeysPlayer2Loop => screen_entry(o, ScreenId::RedefineKeysPlayer2),
+        ItemFn::RedefineKeysPlayer3Loop => screen_entry(o, ScreenId::RedefineKeysPlayer3),
+        ItemFn::RedefineKeysPlayer4Loop => screen_entry(o, ScreenId::RedefineKeysPlayer4),
         ItemFn::VisualPreferencesLoop => visual_preferences_loop::run(o),
         ItemFn::CarSpecificationLoop => car_specification_loop::run(o),
         ItemFn::SlideshowLoop => slideshow_loop::run(o),

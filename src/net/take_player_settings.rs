@@ -4,14 +4,14 @@
 //! The record's `damage[12]` has no field to go to: the settings' `cars[0].wear[9]` is written
 //! from it and then from `parts_wear[9]`, and only the second stays (kept as is).
 
-use crate::menu::owner::Menus;
+use crate::menu::players_store::PlayerSlots;
 use crate::race::owner::Race;
 use crate::race::state_store::RaceState;
 use rc2k_core::menu::player::{Player, TAKES_PART};
 
 /// Player 1's record into the network game's settings, its entry marked as taking part.
-pub fn take_player_settings(race: &Race, menus: &Menus) {
-    let player = &menus.play.players.players[0];
+pub fn take_player_settings(race: &Race, slots: &PlayerSlots) {
+    let player = &slots.records[0];
     player.update(|p| p.entry = TAKES_PART);
     copy_player_settings(&player.get(), &race.shared.state);
 }

@@ -37,8 +37,8 @@ pub fn cars(
     play: &Play,
 ) -> Result<&[crate::session::Shared<crate::menu::player::Player>; CARS], BadInput> {
     if play
-        .players
-        .players
+        .slots
+        .records
         .iter()
         .any(|p| p.get().name_player().is_none())
     {
@@ -46,7 +46,7 @@ pub fn cars(
             "a car has no pointer at +0x18: the original reads through null",
         ));
     }
-    Ok(&play.players.players)
+    Ok(&play.slots.records)
 }
 
 /// The saved game's bytes put into `file` from byte `base` on.
@@ -96,15 +96,15 @@ mod tests {
         let buffer = &saves().save_games.file;
         let file_before = buffer.read_at(0, LEN, "the file").unwrap();
         let players_before = play
-            .players
-            .players
+            .slots
+            .records
             .each_ref()
             .map(crate::session::Shared::get);
         let original_names = std::array::from_fn::<_, 4, _>(|i| {
             crate::menu::player_names::name_bytes(crate::menu::owner::menus(), i)
         });
         // Distinct names and a distinct byte in every dword of every record.
-        for (n, car) in play.players.players.iter().enumerate() {
+        for (n, car) in play.slots.records.iter().enumerate() {
             let mut bytes = car.get().to_le_bytes();
             for (k, b) in bytes.iter_mut().enumerate().skip(0x28) {
                 *b = (k + 7 * n) as u8;
@@ -123,7 +123,7 @@ mod tests {
         });
         gather_savegame(menus(), buffer, 0).unwrap();
         let file = buffer.read_at(0, LEN, "the file").unwrap();
-        for (n, car) in play.players.players.iter().enumerate() {
+        for (n, car) in play.slots.records.iter().enumerate() {
             // The record, its name address in place of the number.
             let mut expected = car.get();
             expected.name_number = crate::menu::player_names::name_address(n);
@@ -138,7 +138,7 @@ mod tests {
             assert_eq!(&file[at + 0x124..at + 0x144], &names_before[n][..]);
         }
         buffer.write_at(0, &file_before, "the file").unwrap();
-        for (car, before) in play.players.players.iter().zip(players_before) {
+        for (car, before) in play.slots.records.iter().zip(players_before) {
             car.set(before);
         }
         for (n, name) in original_names.iter().enumerate() {
@@ -159,8 +159,8 @@ mod tests {
         let heads_before: Vec<u32> = head(menus).iter().map(|d| d.get()).collect();
         let players_before = menus
             .play
-            .players
-            .players
+            .slots
+            .records
             .each_ref()
             .map(crate::session::Shared::get);
         let names_before: [_; 4] =
@@ -175,7 +175,7 @@ mod tests {
         for (n, d) in head(menus).into_iter().enumerate() {
             d.set(0x11 * (n as u32 + 1));
         }
-        for (n, car) in menus.play.players.players.iter().enumerate() {
+        for (n, car) in menus.play.slots.records.iter().enumerate() {
             let mut bytes = car.get().to_le_bytes();
             for (k, b) in bytes.iter_mut().enumerate().skip(0x28) {
                 *b = (k * 5 + 3 * n) as u8;
@@ -207,7 +207,7 @@ mod tests {
             ));
             cursor += 4;
         }
-        for (n, car) in menus.play.players.players.iter().enumerate() {
+        for (n, car) in menus.play.slots.records.iter().enumerate() {
             let name = car.get().name_number;
             let at = car_at(n);
             let saved: [u8; CAR_LEN] = first[at..at + CAR_LEN].try_into().unwrap();
@@ -232,7 +232,7 @@ mod tests {
         for (d, v) in head(menus).into_iter().zip(heads_before) {
             d.set(v);
         }
-        for (car, before) in menus.play.players.players.iter().zip(players_before) {
+        for (car, before) in menus.play.slots.records.iter().zip(players_before) {
             car.set(before);
         }
         for (n, name) in names_before.iter().enumerate() {

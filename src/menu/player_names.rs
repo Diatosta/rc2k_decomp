@@ -50,7 +50,7 @@ impl NameAt {
 
     /// The bytes from here to the end of the area (none past it).
     pub fn tail(self, menus: &Menus) -> Vec<u8> {
-        let names = &menus.play.names;
+        let names = &menus.play.slots.names;
         (self.0..crate::place::Run::len(names))
             .map(|n| crate::place::Run::get(names, n))
             .collect()
@@ -60,25 +60,37 @@ impl NameAt {
 impl NameAt {
     /// The place in `menus`' names' area.
     pub fn place(self, menus: &'static Menus) -> crate::place::BytePlace {
-        crate::place::BytePlace::In(&menus.play.names, self.0)
+        crate::place::BytePlace::In(&menus.play.slots.names, self.0)
     }
 }
 
 /// Player `player`'s name replaced.
 pub fn set_name_bytes(menus: &Menus, player: usize, name: &[u8; NAME_LEN]) {
     for (i, &b) in name.iter().enumerate() {
-        menus.play.names.player_names.set(player * NAME_LEN + i, b);
+        menus
+            .play
+            .slots
+            .names
+            .player_names
+            .set(player * NAME_LEN + i, b);
     }
 }
 
 /// Player `player`'s name, the whole 0x20 bytes.
 pub fn name_bytes(menus: &Menus, player: usize) -> [u8; NAME_LEN] {
-    std::array::from_fn(|i| menus.play.names.player_names.get(player * NAME_LEN + i))
+    std::array::from_fn(|i| {
+        menus
+            .play
+            .slots
+            .names
+            .player_names
+            .get(player * NAME_LEN + i)
+    })
 }
 
 /// The four players' records.
 pub fn cars(play: &Play) -> &'_ [crate::session::Shared<crate::menu::player::Player>; 4] {
-    &play.players.players
+    &play.slots.records
 }
 
 #[cfg(test)]

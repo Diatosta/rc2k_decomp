@@ -82,9 +82,9 @@ pub fn start_link(o: crate::owners::Owners<'static>, mode: u32) -> Result<(), Re
         2,
     );
     net.lobby().mode.set(mode);
-    take_player_settings::take_player_settings(race, o.menus);
     let menus = o.menus;
-    fill_own_player::fill_own_player(race, net, menus, &menus.play.names.player_names.read())?;
+    take_player_settings::take_player_settings(race, &menus.play.slots);
+    fill_own_player::fill_own_player(race, net, &menus.play.slots, &menus.options.snapshot())?;
     show_background::show_background(o)?;
     match link(o)? {
         Way::Message(n) => show_message::show_message(o, n)?,

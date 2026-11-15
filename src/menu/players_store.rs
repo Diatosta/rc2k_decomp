@@ -1,22 +1,26 @@
-//! The players' records: the four `Player` records of 0x28C bytes and the table of their
-//! addresses (nothing reads them). One static. (The cars follow in `CarTable`.)
+//! The four player slots: each player's `Player` record of 0x28C bytes, the table of the
+//! records' addresses (nothing reads it) and the players' names, the one value the front end owns
+//! of the players and lends to the net, save and race code. (The cars are in `CarTable`.)
 
+use crate::menu::names_store::Names;
 use crate::session::{PlainDword, Shared, with_runs};
 use rc2k_core::menu::player::Player;
 
-/// The four players and their table.
+/// The four players: records, their table and names.
 #[derive(rc2k_derive::Cells)]
-pub struct PlayerTable {
+pub struct PlayerSlots {
     /// The players' records (settings, and the state of each player's car).
-    pub players: [Shared<Player>; 4],
+    pub records: [Shared<Player>; 4],
     /// The records' file addresses, player 1 first; read by nothing.
     pub pointers: [PlainDword; 4],
+    /// The players' names, and the other texts kept with them.
+    pub names: Names,
 }
 
-impl PlayerTable {
+impl PlayerSlots {
     pub const fn new() -> Self {
-        PlayerTable {
-            players: [
+        PlayerSlots {
+            records: [
                 Shared::new(Player::from_le_bytes(with_runs::<652>(&[
                     (
                         0x8,
@@ -244,6 +248,7 @@ impl PlayerTable {
                 PlainDword::new(0x755F64),
                 PlainDword::new(0x7561F0),
             ],
+            names: Names::new(),
         }
     }
 }
@@ -252,7 +257,7 @@ impl PlayerTable {
 /// table of the records' addresses keeps the image's: nothing reads it, the
 /// players are reached by number.
 pub fn point_players(menus: &crate::menu::owner::Menus) {
-    for (n, player) in menus.play.players.players.iter().enumerate() {
+    for (n, player) in menus.play.slots.records.iter().enumerate() {
         player.update(|p| p.set_name_player(n));
     }
 }
@@ -263,7 +268,7 @@ mod tests {
 
     #[test]
     fn a_player_keeps_its_number_where_the_name_pointer_was() {
-        let players = &crate::menu::owner::menus().play.players.players;
+        let players = &crate::menu::owner::menus().play.slots.records;
         for (n, player) in players.iter().enumerate() {
             let at = 0x18;
             let word = |bytes: &[u8]| u32::from_le_bytes(bytes[at..at + 4].try_into().unwrap());

@@ -223,7 +223,7 @@ fn pieces_of(o: Owners<'static>) -> [Field<'static>; 69] {
     let numbers = &menus.cars.numbers;
     let tables = &system.records().stage_tables;
     let names = |n: usize| Field::Text {
-        cells: &menus.play.names.player_names,
+        cells: &menus.play.slots.names.player_names,
         from: 0x20 * n,
         len: 0x20,
     };
@@ -254,10 +254,10 @@ fn pieces_of(o: Owners<'static>) -> [Field<'static>; 69] {
         Field::Dword(&saves.files.options_kept[1]),
         Field::Dword(&saves.files.options_kept[2]),
         Field::Dword(&saves.files.options_kept[3]),
-        Field::Player(&menus.play.players.players[0]),                 // the four players' records
-        Field::Player(&menus.play.players.players[1]),
-        Field::Player(&menus.play.players.players[2]),
-        Field::Player(&menus.play.players.players[3]),
+        Field::Player(&menus.play.slots.records[0]),                 // the four players' records
+        Field::Player(&menus.play.slots.records[1]),
+        Field::Player(&menus.play.slots.records[2]),
+        Field::Player(&menus.play.slots.records[3]),
         Field::Dword(&audio.levels.master_volume_shown),           // the master volume shown
         Field::Dword(&work.music_level),                   // the music level
         Field::Dword(&work.race_music_level),                  // read by the music "up" step

@@ -53,8 +53,8 @@ pub struct OwnPlace {
 #[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct MenuLists {
-    /// The menus' last draw list (25 entries, -1 at start;
-    /// `menu::player4_buttons_loop`'s).
+    /// The menus' last draw list (25 entries, -1 at start; the fourth
+    /// player's button page in `menu::player_pages` is given it).
     pub draw_list: [PlainDword; 25],
     /// `MenuLists.own_places[0].size`: the carousel kinds' own places, 12 bytes each, indexed by a
     /// kind's number (`scene::draw_carousel_entry` checks it against 0x88 records, a slip: the

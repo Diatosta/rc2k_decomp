@@ -408,7 +408,8 @@ impl Frames {
 /// fields that differ; `ScreenId` names it.
 #[derive(Clone, Copy)]
 pub struct Screen {
-    /// The module path of the screen's file (`module_path!()`), the name its log lines carry.
+    /// The module path of the screen's file (`module_path!()`), or the path a shared description
+    /// stands in for, the name its log lines carry.
     pub module_path: &'static str,
     /// The screen's menu.
     pub menu: fn(&Menus) -> MenuId,

@@ -123,21 +123,21 @@ pub fn load_game_data(o: Owners<'static>, outside: Outside) -> Result<(), Refuse
 
     for (player, id) in PLAYER_NAME_IDS.into_iter().enumerate() {
         // The player's name bytes at their slot in the names buffer.
-        if play.names.player_names.get(player * NAME_LEN) != 0 {
+        if play.slots.names.player_names.get(player * NAME_LEN) != 0 {
             continue;
         }
         if player == 0 {
-            let field = &play.names.player_names;
+            let field = &play.slots.names.player_names;
             outside(Call::UserName)?;
             let bytes = printable_from(&field.read(), USER_NAME_ROOM)?;
             field.write_at(0, &bytes, "a printable name")?;
-            if play.names.player_names.get(player * NAME_LEN) != 0 {
+            if play.slots.names.player_names.get(player * NAME_LEN) != 0 {
                 continue;
             }
         }
         default_name(
             o,
-            &play.names.player_names,
+            &play.slots.names.player_names,
             player * NAME_LEN,
             NAME_LEN,
             id,
@@ -253,6 +253,7 @@ fn in_game(o: Owners<'static>, call: Call) -> Result<u32, Refused> {
                 name.push(0);
                 menus
                     .play
+                    .slots
                     .names
                     .player_names
                     .write_at(0, &name, "the user's name")?;

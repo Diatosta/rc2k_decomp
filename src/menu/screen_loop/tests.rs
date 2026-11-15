@@ -64,8 +64,13 @@ fn the_registry_names_every_screen_once() {
             "{id:?} shares its file with another screen"
         );
         let file = path.rsplit("::").next().unwrap();
+        let suffix = if path.contains("::player_pages::") {
+            ""
+        } else {
+            "_loop"
+        };
         assert_eq!(
-            format!("{}_loop", snake(&format!("{id:?}"))),
+            format!("{}{suffix}", snake(&format!("{id:?}"))),
             file,
             "{id:?}"
         );

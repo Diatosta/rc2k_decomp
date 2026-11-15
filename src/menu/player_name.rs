@@ -22,7 +22,7 @@ pub fn name_place(menus: &Menus) -> Result<NameAt, Refused> {
 }
 
 pub fn kept(menus: &'static Menus) -> BytePlace {
-    BytePlace::from(&menus.play.names.kept_name)
+    BytePlace::from(&menus.play.slots.names.kept_name)
 }
 
 /// Whose name the current player has.
