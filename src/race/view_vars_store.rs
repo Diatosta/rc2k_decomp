@@ -5,8 +5,6 @@
 
 use crate::cells::ZeroCells;
 use crate::race::groups_store::ViewAndRecords;
-#[cfg(test)]
-use crate::race::owner::race;
 use crate::session::{CellKind, PlainCells, PlainDword, PlainFloat};
 
 /// The view variables, on the cells of kind `K`: plain for the shared ones
@@ -610,20 +608,51 @@ mod tests {
     fn the_view_table_names_its_records() {
         for n in 0..52usize {
             assert_eq!(
-                race().frame.view_and_records.get().view_vars.view_records[n].get(),
+                crate::test_support::own::race()
+                    .frame
+                    .view_and_records
+                    .get()
+                    .view_vars
+                    .view_records[n]
+                    .get(),
                 VIEW_TAG | n as u32
             );
             assert!(core::ptr::eq(
-                ViewVars::record_of(race().frame.view_and_records.get(), n).unwrap(),
-                ViewVars::record(race().frame.view_and_records.get(), n)
+                ViewVars::record_of(
+                    crate::test_support::own::race()
+                        .frame
+                        .view_and_records
+                        .get(),
+                    n
+                )
+                .unwrap(),
+                ViewVars::record(
+                    crate::test_support::own::race()
+                        .frame
+                        .view_and_records
+                        .get(),
+                    n
+                )
             ));
         }
-        assert!(ViewVars::record_of(race().frame.view_and_records.get(), 52).is_err());
+        assert!(
+            ViewVars::record_of(
+                crate::test_support::own::race()
+                    .frame
+                    .view_and_records
+                    .get(),
+                52
+            )
+            .is_err()
+        );
     }
 
     #[test]
     fn a_record_s_dwords_run_in_its_order() {
-        let places = race().frame.view_and_records.get();
+        let places = crate::test_support::own::race()
+            .frame
+            .view_and_records
+            .get();
         let record = &places.records[0];
         assert_eq!(record.dword(0), Some(record.kind.get()));
         assert_eq!(record.dword(1), Some(record.offset[0].get()));

@@ -1311,7 +1311,8 @@ mod run_on_tests {
         }
         assert!(l.page_picture(4, 0).is_err());
         // Up to the first run that lives outside this record (the service's repair flags).
-        let room: usize = l.runs_from_map_overlays(crate::menu::owner::menus())[..FIRST_MOVED_RUN]
+        let room: usize = l.runs_from_map_overlays(crate::test_support::own::menus())
+            [..FIRST_MOVED_RUN]
             .iter()
             .map(|run| run.count())
             .sum();
@@ -1320,7 +1321,7 @@ mod run_on_tests {
                 continue;
             }
             assert_eq!(
-                l.map_overlay(crate::menu::owner::menus(), n).ok(),
+                l.map_overlay(crate::test_support::own::menus(), n).ok(),
                 old_result(&l.map_overlays, n),
                 "map overlay {n}"
             );
@@ -1332,8 +1333,8 @@ mod run_on_tests {
     #[test]
     fn car_lists_start_at_their_runs() {
         let l = MenuLists::new();
-        let cars = &crate::menu::owner::menus().cars.lists;
-        let all = l.runs_from_map_overlays(crate::menu::owner::menus());
+        let cars = &crate::test_support::own::menus().cars.lists;
+        let all = l.runs_from_map_overlays(crate::test_support::own::menus());
         let total: usize = all.iter().map(|r| r.count()).sum();
         for (list, table) in [
             (CarList::First, &cars.cars_first[..]),
@@ -1350,12 +1351,12 @@ mod run_on_tests {
             let left: usize = all[start..].iter().map(|r| r.count()).sum();
             assert!(left <= total && left > table.len());
             assert!(
-                l.car_entry(crate::menu::owner::menus(), list, (left - 1) as u32)
+                l.car_entry(crate::test_support::own::menus(), list, (left - 1) as u32)
                     .is_ok(),
                 "{list:?}"
             );
             assert!(
-                l.car_entry(crate::menu::owner::menus(), list, left as u32)
+                l.car_entry(crate::test_support::own::menus(), list, left as u32)
                     .is_err(),
                 "{list:?}"
             );

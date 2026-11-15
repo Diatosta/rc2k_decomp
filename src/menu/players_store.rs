@@ -268,7 +268,7 @@ mod tests {
 
     #[test]
     fn a_player_keeps_its_number_where_the_name_pointer_was() {
-        let players = &crate::menu::owner::menus().play.slots.records;
+        let players = &crate::test_support::own::menus().play.slots.records;
         for (n, player) in players.iter().enumerate() {
             let at = 0x18;
             let word = |bytes: &[u8]| u32::from_le_bytes(bytes[at..at + 4].try_into().unwrap());

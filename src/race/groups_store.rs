@@ -20,8 +20,6 @@ use crate::race::effects_settings_store::EffectsSettings;
 use crate::race::kind_store::KindTables;
 use crate::race::light_records_store::LightRecords;
 use crate::race::overlay_store::OverlayBlock;
-#[cfg(test)]
-use crate::race::owner::race;
 use crate::race::panel_store::Panel;
 use crate::race::view_vars_store::{ViewRecord, ViewVars};
 use crate::race::viewer_screen_store::ViewerPanelBlock;
@@ -119,11 +117,10 @@ impl ViewAndRecords {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn groups_have_their_homes() {
-        let race = race();
+        let race = crate::test_support::own::race();
         for home in [
             core::ptr::from_ref(&race.replay.viewer_and_kinds).addr(),
             core::ptr::from_ref(race.frame.lights_and_gear.get()).addr(),

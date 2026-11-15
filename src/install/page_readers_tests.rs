@@ -243,7 +243,7 @@ fn entry_line(entry: PageEntry) -> String {
 /// Every probe, as the golden's lines.
 fn characterise() -> Vec<String> {
     quiet();
-    let install = crate::install::owner::install();
+    let install = crate::test_support::own::install();
     let mut out: Vec<String> = Vec::new();
     let size = legacy::SIZE;
 

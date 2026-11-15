@@ -428,7 +428,7 @@ fn run_scripted(id: ScreenId, keys: Vec<Pressed>) -> (Vec<Place>, Exit, &'static
     let menus = mock_menus();
     let entry = Entry {
         menus,
-        ..Entry::new(crate::owners::Owners::the())
+        ..Entry::new(crate::test_support::own::owners())
     };
     let screen = id.screen();
     let menu = (screen.menu)(menus);

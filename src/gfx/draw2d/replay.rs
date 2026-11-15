@@ -217,7 +217,7 @@ mod tests {
     /// the replay is the direct canvas, the states being what each glyph drew with.
     #[test]
     fn a_replayed_frame_is_the_direct_drawing() {
-        let fonts = &crate::gfx::owner::gfx().fonts;
+        let fonts = &crate::test_support::own::gfx().fonts;
         let _lock = crate::test_support::test_lock();
         let list = crate::memory::ListCells::new(crate::memory::MemoryList {
             head: 0,
@@ -323,7 +323,7 @@ mod tests {
 
     #[test]
     fn solid_shapes_images_and_clears_replay_as_drawn() {
-        let fonts = &crate::gfx::owner::gfx().fonts;
+        let fonts = &crate::test_support::own::gfx().fonts;
         let clip = RasterClip {
             left: 2,
             right: 30,

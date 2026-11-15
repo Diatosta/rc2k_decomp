@@ -835,7 +835,7 @@ impl SoundSets {
     pub fn kind_list_of(
         n: usize,
     ) -> Result<rc2k_core::audio::commands::SoundList, crate::errors::BadInput> {
-        crate::sound::owner::sound().threads.sets.kind_list(n)
+        crate::test_support::own::sound().threads.sets.kind_list(n)
     }
 
     /// The sets of the kind-table entry `n` (two a kind of car), as a handle.
@@ -1680,7 +1680,7 @@ mod tests {
     #[test]
     fn started_lists_keep_their_hash_words_and_end_before_the_kinds() {
         use rc2k_core::audio::commands::{Command, SoundList};
-        let sets = &crate::sound::owner::sound().threads.sets;
+        let sets = &crate::test_support::own::sound().threads.sets;
         let flat = flat(sets);
         let kinds_start = OLD_FIELD_OFFSETS[RaceField::Kinds as usize] as usize / 4;
         let mut lists: Vec<(SoundList, Option<u32>)> = (0..72)
@@ -1722,7 +1722,7 @@ mod tests {
     #[test]
     fn racesoundsets_kind_lists_are_their_handles() {
         for n in 0..72 {
-            let handle = crate::sound::owner::sound().threads.sets.kinds[n].get();
+            let handle = crate::test_support::own::sound().threads.sets.kinds[n].get();
             let at = SoundSets::kind_list_of(n).unwrap();
             let (field, entry) = race_list_of(handle).unwrap();
             assert_eq!(
@@ -1737,7 +1737,7 @@ mod tests {
     fn cuelists_end_in_minus_one() {
         // Every cue's list is one of the lists, and ends.
         for cue in 0..113 {
-            let list = crate::sound::owner::sound()
+            let list = crate::test_support::own::sound()
                 .race
                 .cue_lists
                 .get()
@@ -1747,7 +1747,7 @@ mod tests {
             assert!((0..6).any(|k| list.get(k) == Ok(u32::MAX)), "{cue}");
         }
         assert!(
-            crate::sound::owner::sound()
+            crate::test_support::own::sound()
                 .race
                 .cue_lists
                 .get()
@@ -1759,7 +1759,7 @@ mod tests {
     #[test]
     fn surfacesets_lists_are_inside_the_store() {
         for n in 0..14 {
-            let set = crate::sound::owner::sound()
+            let set = crate::test_support::own::sound()
                 .race
                 .surface_sets
                 .get()
@@ -1769,7 +1769,7 @@ mod tests {
             let dwords = if set.get(0).unwrap() == 1 { 9 } else { 5 };
             assert!(set.get(dwords - 1).is_ok(), "{n}");
         }
-        let kinds = crate::sound::owner::sound().race.kinds.get();
+        let kinds = crate::test_support::own::sound().race.kinds.get();
         for n in 0..36 {
             kinds.record(n).unwrap();
         }

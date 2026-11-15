@@ -75,22 +75,29 @@ impl Effects {
     }
 }
 
+impl Effects {
+    /// The state at start-up: every store in its first state.
+    pub const fn new() -> Self {
+        Self {
+            windscreen_flakes: WindscreenFlakes::new(),
+            pong: Pong::new(),
+            weather: Weather::new(),
+            particles: Particles::new(),
+            ring: Ring::new(),
+            windscreen_drops: WindscreenDrops::new(),
+            paths: Paths::new(),
+            masks: Masks::new(),
+            clipping: Clipping::new(),
+            blocks: Blocks::new(),
+            frame: FrameState::new(),
+            kinds: Kinds::new(),
+            setup: Setup::new(),
+        }
+    }
+}
+
 /// The one instance. Reached through `effects()`; `moved` registers its stores' places.
-pub static EFFECTS: GameThread<Effects> = GameThread::new(Effects {
-    windscreen_flakes: WindscreenFlakes::new(),
-    pong: Pong::new(),
-    weather: Weather::new(),
-    particles: Particles::new(),
-    ring: Ring::new(),
-    windscreen_drops: WindscreenDrops::new(),
-    paths: Paths::new(),
-    masks: Masks::new(),
-    clipping: Clipping::new(),
-    blocks: Blocks::new(),
-    frame: FrameState::new(),
-    kinds: Kinds::new(),
-    setup: Setup::new(),
-});
+pub static EFFECTS: GameThread<Effects> = GameThread::new(Effects::new());
 
 /// The effects' state, for a caller that does not take it as a parameter yet.
 pub fn effects() -> &'static Effects {

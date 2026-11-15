@@ -150,10 +150,10 @@ mod said_tests {
     #[test]
     fn a_line_is_kept_and_a_long_one_cut_to_its_room() {
         assert_eq!(
-            said_text(crate::net::owner::net(), b"Ana", b"hi"),
+            said_text(crate::test_support::own::net(), b"Ana", b"hi"),
             b"Ana> hi\0"
         );
-        let long = said_text(crate::net::owner::net(), &[b'n'; 31], &[b'm'; 255]);
+        let long = said_text(crate::test_support::own::net(), &[b'n'; 31], &[b'm'; 255]);
         assert_eq!(long.len(), 128);
         assert_eq!(long.last(), Some(&0));
     }

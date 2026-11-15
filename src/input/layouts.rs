@@ -132,12 +132,10 @@ impl Layouts {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::input::owner::input;
-    use crate::strings::owner::strings;
 
     #[test]
     fn the_built_in_tables_have_their_lengths() {
-        let input = input();
+        let input = crate::test_support::own::input();
         assert_eq!(input.keyboard().plain.read().len(), 0x80);
         assert_eq!(input.keyboard().shifted.read().len(), 0x80);
         assert_eq!(input.keyboard().key_names.read().len(), 0x100);
@@ -145,7 +143,7 @@ mod tests {
 
     #[test]
     fn the_nec_tables_have_their_lengths() {
-        let strings = strings();
+        let strings = crate::test_support::own::strings();
         let (_, _, names, end) = NEC_TABLES;
         assert_eq!(end - names, 0x100);
         assert!(end <= strings.language.keyboard.nec_layout.len());

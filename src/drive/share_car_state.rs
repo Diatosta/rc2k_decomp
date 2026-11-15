@@ -321,7 +321,7 @@ mod tests {
     #[test]
     fn the_tables_sit_where_the_original_moved_them() {
         let o = &EFFECTS_SETTINGS.cars[0];
-        let car = &crate::race::owner::race().car_blocks().cars[0];
+        let car = &crate::test_support::own::race().car_blocks().cars[0];
         let light = &LIGHT_RECORDS.records[0];
         let lbase = core::ptr::from_ref(light).addr();
         let lights = [(0x14, 0x34), (0x18, 0x38), (0xC, 0x2C), (0x10, 0x30)];

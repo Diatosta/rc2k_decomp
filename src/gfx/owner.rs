@@ -206,23 +206,30 @@ pub struct Gfx {
     pub card: Card3d,
 }
 
+impl Gfx {
+    /// The state at start-up: every store in its first state.
+    pub const fn new() -> Self {
+        Self {
+            display: Display::new(),
+            pixel: Pixel::new(),
+            sheet: SheetVars::new(),
+            shots: Shots::new(),
+            locked: Locked::new(),
+            reports: Reports::new(),
+            strips: Strips::new(),
+            grading: Grading::new(),
+            png: Png::new(),
+            rescale: Rescaler::new(),
+            pictures: Pictures::new(),
+            fonts: FontStores::new(),
+            drawing: Drawing::new(),
+            card: Card3d::new(),
+        }
+    }
+}
+
 /// The one instance. Reached through `gfx()`; `moved` registers its stores' places.
-pub static GFX: GameThread<Gfx> = GameThread::new(Gfx {
-    display: Display::new(),
-    pixel: Pixel::new(),
-    sheet: SheetVars::new(),
-    shots: Shots::new(),
-    locked: Locked::new(),
-    reports: Reports::new(),
-    strips: Strips::new(),
-    grading: Grading::new(),
-    png: Png::new(),
-    rescale: Rescaler::new(),
-    pictures: Pictures::new(),
-    fonts: FontStores::new(),
-    drawing: Drawing::new(),
-    card: Card3d::new(),
-});
+pub static GFX: GameThread<Gfx> = GameThread::new(Gfx::new());
 
 /// The module's state; pass it down where a function reaches it more than once.
 pub fn gfx() -> &'static Gfx {

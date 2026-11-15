@@ -180,7 +180,10 @@ mod tests {
         assert!(Unix::bad_name(b"/opt/a\\b/").unwrap());
         assert!(Unix::bad_name(b"opt/").unwrap());
         assert!(matches!(
-            Unix::room(b"/no/such/folder/at/all/", crate::system::owner::system()),
+            Unix::room(
+                b"/no/such/folder/at/all/",
+                crate::test_support::own::system()
+            ),
             Room::Kb(_)
         ));
     }

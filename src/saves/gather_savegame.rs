@@ -83,8 +83,6 @@ pub fn gather_savegame(menus: &Menus, file: &dyn Store, base: usize) -> Result<(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::menu::owner::menus;
-    use crate::saves::owner::saves;
     use rc2k_core::menu::player::Player;
     use rc2k_core::saves::savegame::{LEN, car_at};
 
@@ -92,9 +90,9 @@ mod tests {
     /// name's buffer at +0x18.
     #[test]
     fn the_saved_cars_carry_the_names_addresses() {
-        let play = &menus().play;
+        let play = &crate::test_support::own::menus().play;
         let _guard = crate::test_support::test_lock();
-        let buffer = &saves().save_games.file;
+        let buffer = &crate::test_support::own::saves().save_games.file;
         let file_before = buffer.read_at(0, LEN, "the file").unwrap();
         let players_before = play
             .slots
@@ -102,7 +100,7 @@ mod tests {
             .each_ref()
             .map(crate::session::Shared::get);
         let original_names = std::array::from_fn::<_, 4, _>(|i| {
-            crate::menu::player_names::name_bytes(crate::menu::owner::menus(), i)
+            crate::menu::player_names::name_bytes(crate::test_support::own::menus(), i)
         });
         // Distinct names and a distinct byte in every dword of every record.
         for (n, car) in play.slots.records.iter().enumerate() {
@@ -114,15 +112,15 @@ mod tests {
             record.set_name_player(n);
             car.set(record);
             crate::menu::player_names::set_name_bytes(
-                crate::menu::owner::menus(),
+                crate::test_support::own::menus(),
                 n,
                 &[b'a' + n as u8; 0x20],
             );
         }
         let names_before = std::array::from_fn::<_, 4, _>(|i| {
-            crate::menu::player_names::name_bytes(crate::menu::owner::menus(), i)
+            crate::menu::player_names::name_bytes(crate::test_support::own::menus(), i)
         });
-        gather_savegame(menus(), buffer, 0).unwrap();
+        gather_savegame(crate::test_support::own::menus(), buffer, 0).unwrap();
         let file = buffer.read_at(0, LEN, "the file").unwrap();
         for (n, car) in play.slots.records.iter().enumerate() {
             // The record, its name address in place of the number.
@@ -143,7 +141,7 @@ mod tests {
             car.set(before);
         }
         for (n, name) in original_names.iter().enumerate() {
-            crate::menu::player_names::set_name_bytes(crate::menu::owner::menus(), n, name);
+            crate::menu::player_names::set_name_bytes(crate::test_support::own::menus(), n, name);
         }
     }
 
@@ -154,8 +152,8 @@ mod tests {
     fn a_savegame_loaded_and_saved_again_is_the_same_bytes() {
         use rc2k_core::saves::savegame::RECORDS_AT;
         let _guard = crate::test_support::test_lock();
-        let menus = menus();
-        let buffer = &saves().save_games.file;
+        let menus = crate::test_support::own::menus();
+        let buffer = &crate::test_support::own::saves().save_games.file;
         let file_before = buffer.read_at(0, LEN, "the file").unwrap();
         let heads_before: Vec<u32> = head(menus).iter().map(|d| d.get()).collect();
         let players_before = menus

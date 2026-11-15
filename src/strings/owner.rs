@@ -86,13 +86,20 @@ pub struct Strings {
     pub drivers: Drivers,
 }
 
+impl Strings {
+    /// The state at start-up: every store in its first state.
+    pub const fn new() -> Self {
+        Self {
+            text: Text::new(),
+            language: Language::new(),
+            lexicon: Lexicon::new(),
+            drivers: Drivers::new(),
+        }
+    }
+}
+
 /// The one instance. Reached through `strings()`; `moved` registers its stores' places.
-pub static STRINGS: GameThread<Strings> = GameThread::new(Strings {
-    text: Text::new(),
-    language: Language::new(),
-    lexicon: Lexicon::new(),
-    drivers: Drivers::new(),
-});
+pub static STRINGS: GameThread<Strings> = GameThread::new(Strings::new());
 
 /// The strings' state, for a caller that does not take it as a parameter yet.
 pub fn strings() -> &'static Strings {

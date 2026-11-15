@@ -1085,7 +1085,7 @@ mod tests {
 
     #[test]
     fn objects_are_by_number_within_the_eight() {
-        assert!(SoundObject::of(crate::sound::owner::sound(), 7).is_ok());
-        assert!(SoundObject::of(crate::sound::owner::sound(), 8).is_err());
+        assert!(SoundObject::of(crate::test_support::own::sound(), 7).is_ok());
+        assert!(SoundObject::of(crate::test_support::own::sound(), 8).is_err());
     }
 }

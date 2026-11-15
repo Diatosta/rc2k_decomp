@@ -1286,18 +1286,18 @@ mod tests {
     fn the_car_table_finds_its_descriptions() {
         for car in 0..34 {
             let found = description_table(
-                &crate::menu::owner::menus().cars.table,
-                car_entry(crate::menu::owner::menus(), car).unwrap(),
+                &crate::test_support::own::menus().cars.table,
+                car_entry(crate::test_support::own::menus(), car).unwrap(),
             )
             .unwrap();
             assert!(
                 found
-                    .dword(&crate::menu::owner::menus().cars.table, 0)
+                    .dword(&crate::test_support::own::menus().cars.table, 0)
                     .is_ok(),
                 "{car}"
             );
         }
-        let menu_cars = &crate::menu::owner::menus().cars;
+        let menu_cars = &crate::test_support::own::menus().cars;
         assert_eq!(car_of(menu_cars.table.cars[33].get()), Ok(33));
         assert!(car_of(0x756568).is_err() && car_of(u32::MAX).is_err());
     }

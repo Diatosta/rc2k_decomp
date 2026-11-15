@@ -118,7 +118,7 @@ mod tests {
     #[test]
     fn capture_and_apply_round_trip() {
         let _lock = crate::test_support::test_lock();
-        let o = Owners::the();
+        let o = crate::test_support::own::owners();
         let loaded = o.menus.screens.loop_flags.options_loaded.is_set();
         let before = capture(o).unwrap();
         let saved: Vec<Vec<u8>> = options_state::pieces()
@@ -154,7 +154,7 @@ mod tests {
     /// Runs `body` with the stores holding `options`, then puts the stores' options back.
     fn with_options_in_stores<T>(options: &Options, body: impl FnOnce(Owners<'static>) -> T) -> T {
         let _lock = crate::test_support::test_lock();
-        let o = Owners::the();
+        let o = crate::test_support::own::owners();
         let loaded = o.menus.screens.loop_flags.options_loaded.is_set();
         let before = capture(o).unwrap();
         apply(o, options).unwrap();
@@ -207,7 +207,7 @@ mod tests {
     fn a_partial_toml_changes_only_what_it_names() {
         use rc2k_core::options::toml_file;
         let _lock = crate::test_support::test_lock();
-        let o = Owners::the();
+        let o = crate::test_support::own::owners();
         let loaded = o.menus.screens.loop_flags.options_loaded.is_set();
         let before = capture(o).unwrap();
         let wanted = toml_file::read("[display]\nmenu_mode = 5\n", &before).unwrap();

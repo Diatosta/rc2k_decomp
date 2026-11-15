@@ -335,7 +335,7 @@ mod tests {
 
     #[test]
     fn records_are_named_by_number() {
-        let course = &crate::race::owner::race().course;
+        let course = &crate::test_support::own::race().course;
         let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
         let kept = course.lists.get().point_records.get();

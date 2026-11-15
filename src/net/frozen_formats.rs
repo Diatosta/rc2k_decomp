@@ -7,7 +7,6 @@ use crate::net::owner::Net;
 use crate::net::send_inputs::{Message, fields, send_fields};
 use crate::net::send_message::send_message;
 use crate::net::store::PlayerRecord;
-use crate::race::owner::race;
 use crate::session::Cell32;
 use rc2k_core::net::race::Kind;
 
@@ -54,7 +53,7 @@ fn a_message_is_sent_as_its_sequence_byte_and_its_bytes() {
 
 /// Every cell a message kind reads or writes, with its bits.
 fn snapshot() -> Vec<(&'static dyn Cell32, u32)> {
-    let car = race().shared.car();
+    let car = crate::test_support::own::race().shared.car();
     let mut all: Vec<(&'static dyn Cell32, u32)> = Vec::new();
     for kind in rc2k_core::net::race::SENT {
         for (field, _) in fields(kind) {
@@ -91,12 +90,12 @@ fn the_race_messages_are_built_from_the_car() {
         (Kind::Position, c"send p"),
         (Kind::Extra, c"send x"),
     ] {
-        let car = race().shared.car();
+        let car = crate::test_support::own::race().shared.car();
         for (n, (field, _)) in fields(kind).iter().enumerate() {
             field(car).set_bits(0x1000 + n as u32);
         }
         let m = Message { text, kind };
-        assert!(send_fields(race(), &net, &m).is_ok());
+        assert!(send_fields(crate::test_support::own::race(), &net, &m).is_ok());
         let len = 1 + 4 * (1 + fields(kind).len());
         built.push(sent(&net, len));
     }
@@ -133,7 +132,7 @@ const POSITION_HASH: u64 = 10_747_184_649_910_218_868;
 #[test]
 fn a_received_message_is_put_into_the_senders_car() {
     let _lock = crate::test_support::test_lock();
-    let r = race();
+    let r = crate::test_support::own::race();
     let Ok(car) = r.shared.race_car(2) else {
         crate::framework::log("SKIPPED a_received_message_is_put_into_the_senders_car: no car 2");
         return;
@@ -255,7 +254,7 @@ fn the_options_network_fields_have_their_bytes() {
     for (piece, bytes) in ours.iter().zip(&wanted) {
         piece.write(bytes).unwrap();
     }
-    let net = crate::net::owner::net();
+    let net = crate::test_support::own::net();
     let read: Vec<Vec<u8>> = ours.iter().map(|p| p.read().unwrap()).collect();
     let (name, players, host, port, guid) = (
         net.setup().machine_name.read(),

@@ -848,7 +848,7 @@ mod tests {
     }
 
     fn texel_of(atlas: &mut Atlas, table: u32) -> [u8; 4] {
-        let fonts = &crate::gfx::owner::gfx().fonts;
+        let fonts = &crate::test_support::own::gfx().fonts;
         let record = glyph_store::bytes(fonts, table, "a table").unwrap();
         // The record of glyph 0 starts where the table's first offset says.
         let offset = rc2k_core::strings::bytes::Bytes::u32_le(&record, 0).unwrap();
@@ -871,7 +871,7 @@ mod tests {
     /// atlas decodes it afresh, never giving the glyph it held for the old one.
     #[test]
     fn a_glyph_table_rebuilt_is_decoded_again() {
-        let fonts = &crate::gfx::owner::gfx().fonts;
+        let fonts = &crate::test_support::own::gfx().fonts;
         let _lock = crate::test_support::test_lock();
         let list = crate::memory::ListCells::new(crate::memory::MemoryList {
             head: 0,

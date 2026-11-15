@@ -4,8 +4,6 @@
 //! centred, turned, graded by height and ordered. These are the leaves; every function takes the
 //! record.
 
-#[cfg(test)]
-use crate::effects::owner::effects;
 use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -132,7 +130,7 @@ mod spline_handle_tests {
 
     #[test]
     fn a_record_reads_on_into_the_next_table_and_not_past_the_last() {
-        let paths = &effects().paths;
+        let paths = &crate::test_support::own::effects().paths;
         let last_of_a = Spline::record(0, 7);
         assert_eq!(
             last_of_a.get(paths, SPLINE_LEN).unwrap(),

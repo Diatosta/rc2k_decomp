@@ -32,22 +32,29 @@ pub struct Install {
     pub files: Owned<NameTable>,
 }
 
+impl Install {
+    /// The state at start-up: every store in its first state.
+    pub const fn new() -> Self {
+        Self {
+            texts: InstallTexts::new(),
+            sku: Sku::new(),
+            vars: InstallVars::new(),
+            drive_rows: DriveRows::new(),
+            run: InstallerRun::new(),
+            flags: RunFlags::new(),
+            names: InstallerNames::new(),
+            pages: InstallerPages::new(),
+            paths: InstallerPaths::new(),
+            palette: InstallerPalette::new(),
+            lobby_keys: LobbyKeys::new(),
+            folders: Owned::new("no installer folders table"),
+            files: Owned::new("no installer files table"),
+        }
+    }
+}
+
 /// The one instance, reached through `install()`.
-static INSTALL: GameThread<Install> = GameThread::new(Install {
-    texts: InstallTexts::new(),
-    sku: Sku::new(),
-    vars: InstallVars::new(),
-    drive_rows: DriveRows::new(),
-    run: InstallerRun::new(),
-    flags: RunFlags::new(),
-    names: InstallerNames::new(),
-    pages: InstallerPages::new(),
-    paths: InstallerPaths::new(),
-    palette: InstallerPalette::new(),
-    lobby_keys: LobbyKeys::new(),
-    folders: Owned::new("no installer folders table"),
-    files: Owned::new("no installer files table"),
-});
+static INSTALL: GameThread<Install> = GameThread::new(Install::new());
 
 /// The installation's state; pass it down where a function reaches it more than once.
 pub fn install() -> &'static Install {

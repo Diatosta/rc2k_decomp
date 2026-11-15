@@ -43,14 +43,21 @@ pub struct Saves {
     pub files: Files,
 }
 
+impl Saves {
+    /// The state at start-up: every store in its first state.
+    pub const fn new() -> Self {
+        Self {
+            best_times: BestTimes::new(),
+            rally_times: RallyTimes::new(),
+            savegame_preview: SavegamePreview::new(),
+            save_games: SaveGames::new(),
+            files: Files::new(),
+        }
+    }
+}
+
 /// The one instance, reached through `saves()`.
-pub static SAVES: GameThread<Saves> = GameThread::new(Saves {
-    best_times: BestTimes::new(),
-    rally_times: RallyTimes::new(),
-    savegame_preview: SavegamePreview::new(),
-    save_games: SaveGames::new(),
-    files: Files::new(),
-});
+pub static SAVES: GameThread<Saves> = GameThread::new(Saves::new());
 
 /// The saves' state, for a caller that does not take it as a parameter yet.
 pub fn saves() -> &'static Saves {

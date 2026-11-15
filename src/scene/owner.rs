@@ -96,31 +96,38 @@ pub struct Textures {
     pub kinds: DrawShared<KindTextureTables>,
 }
 
+impl Scene {
+    /// The state at start-up: every store in its first state.
+    pub const fn new() -> Self {
+        Self {
+            draw_switches: DrawShared::new(DrawSwitches::new()),
+            light_tables: DrawShared::new(LightTables::new()),
+            drawing: Drawing {
+                scene: DrawShared::new(SceneDraw::new()),
+            },
+            lights: Lights {
+                state: DrawShared::new(LightState::new()),
+                work: DrawShared::new(LightWork::new()),
+            },
+            objects: Objects {
+                slots: DrawShared::new(ObjectSlots::new()),
+                tables: DrawShared::new(ObjectTables::new()),
+            },
+            textures: Textures {
+                places: DrawShared::new(TexturePlaces::new()),
+                kinds: DrawShared::new(KindTextureTables::new()),
+            },
+            main: GameThread::new(SceneMain {
+                file_numbers: ObjectFileNumbers::new(),
+                icon_upload: IconUploadCell::new(),
+                object_work: ObjectWork::new(),
+            }),
+        }
+    }
+}
+
 /// The one instance. Reached through `scene()`; `moved` registers its stores' places.
-pub static SCENE: Scene = Scene {
-    draw_switches: DrawShared::new(DrawSwitches::new()),
-    light_tables: DrawShared::new(LightTables::new()),
-    drawing: Drawing {
-        scene: DrawShared::new(SceneDraw::new()),
-    },
-    lights: Lights {
-        state: DrawShared::new(LightState::new()),
-        work: DrawShared::new(LightWork::new()),
-    },
-    objects: Objects {
-        slots: DrawShared::new(ObjectSlots::new()),
-        tables: DrawShared::new(ObjectTables::new()),
-    },
-    textures: Textures {
-        places: DrawShared::new(TexturePlaces::new()),
-        kinds: DrawShared::new(KindTextureTables::new()),
-    },
-    main: GameThread::new(SceneMain {
-        file_numbers: ObjectFileNumbers::new(),
-        icon_upload: IconUploadCell::new(),
-        object_work: ObjectWork::new(),
-    }),
-};
+pub static SCENE: Scene = Scene::new();
 
 /// The scene's state, for a caller that does not take it as a parameter yet.
 pub fn scene() -> &'static Scene {

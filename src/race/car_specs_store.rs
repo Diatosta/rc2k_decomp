@@ -6,8 +6,6 @@
 
 use crate::cells::ZeroCells;
 
-#[cfg(test)]
-use crate::race::owner::race;
 use crate::session::{PlainBytes, PlainDword, PlainFloat};
 
 /// One car kind's figures.
@@ -1832,11 +1830,10 @@ impl CarSpecs {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn the_cars_start_as_the_games() {
-        let physics = &race().physics;
+        let physics = &crate::test_support::own::race().physics;
         let title = |k: usize| {
             (0..9)
                 .map(|i| physics.car_specs().cars[k].name.get(i))

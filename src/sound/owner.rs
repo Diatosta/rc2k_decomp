@@ -106,12 +106,19 @@ pub struct Sound {
     pub menu: MenuSoundState,
 }
 
+impl Sound {
+    /// The state at start-up: every store in its first state.
+    pub const fn new() -> Self {
+        Self {
+            threads: SoundForThreads::new(),
+            race: RaceSoundState::new(),
+            menu: MenuSoundState::new(),
+        }
+    }
+}
+
 /// The one instance, reached through `sound()` by the roots and by tests.
-pub static SOUND: Sound = Sound {
-    threads: SoundForThreads::new(),
-    race: RaceSoundState::new(),
-    menu: MenuSoundState::new(),
-};
+pub static SOUND: Sound = Sound::new();
 
 /// The sound state, for the roots that hand it down and for tests.
 pub fn sound() -> &'static Sound {

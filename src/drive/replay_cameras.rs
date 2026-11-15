@@ -104,16 +104,16 @@ mod tests {
 
     #[test]
     fn a_wish_stays_inside_the_replay_work() {
-        assert!(wish_of(crate::race::owner::race().replay_work(), 46).is_ok());
+        assert!(wish_of(crate::test_support::own::race().replay_work(), 46).is_ok());
         // The two dwords after the table are the replay work's own.
-        assert!(wish_of(crate::race::owner::race().replay_work(), 48).is_ok());
-        assert!(wish_of(crate::race::owner::race().replay_work(), 255).is_err());
+        assert!(wish_of(crate::test_support::own::race().replay_work(), 48).is_ok());
+        assert!(wish_of(crate::test_support::own::race().replay_work(), 255).is_err());
     }
 
     /// Each byte of the head, as the byte-offset read gave it.
     #[test]
     fn head_bytes_as_the_old_read() {
-        let race = crate::race::owner::race();
+        let race = crate::test_support::own::race();
         let head = &race.car_blocks().cars[0].frame_head;
         head[0].set(0x0403_0201);
         head[1].set(0x0807_0605);

@@ -111,7 +111,7 @@ mod target_tests {
 
     #[test]
     fn the_picture_is_a_target_by_number() {
-        let gfx = crate::gfx::owner::gfx();
+        let gfx = crate::test_support::own::gfx();
         let drawing = &gfx.drawing;
         let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();

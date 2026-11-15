@@ -18,8 +18,6 @@ use crate::ffi::sdl_gpu::{
     self, Buffer, Device, Pipeline, PipelineSpec, Sampler, Shader, ShaderCode, Texture, Transfer,
 };
 use crate::framework::log;
-#[cfg(test)]
-use crate::system::owner::system;
 use sdl3_sys::everything::*;
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -921,7 +919,7 @@ mod comparison {
 
     #[test]
     fn a_recorded_frame_looks_the_same() {
-        let system = system();
+        let system = crate::test_support::own::system();
         let Some(path) = std::env::var_os("RC2K_COMPARE_FRAME") else {
             println!("SKIPPED: no RC2K_COMPARE_FRAME");
             return;

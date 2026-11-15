@@ -111,12 +111,11 @@ pub fn apply_message(race: &Race, player: u32, message: &[u8]) -> Result<(), Bad
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::race::owner::race;
 
     /// The places sit where the core's constants put them in the car's block.
     #[test]
     fn the_places_sit_where_the_offsets_were() {
-        let car = race().shared.car();
+        let car = crate::test_support::own::race().shared.car();
         let at = |cell: &PlainDword| {
             crate::physics::car_offsets_1999::offset_1999(car, core::ptr::from_ref(cell).addr())
                 as u32

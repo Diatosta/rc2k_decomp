@@ -292,7 +292,7 @@ mod tests {
     #[test]
     fn a_piece_names_the_item_it_was_made_from() {
         let _lock = crate::test_support::test_lock();
-        let install = crate::install::owner::install();
+        let install = crate::test_support::own::install();
         let saved: Vec<u8> = (0..4096).map(|n| install.pages.layout.get(n)).collect();
         for id in [
             crate::install::page_links::ListId::Main,

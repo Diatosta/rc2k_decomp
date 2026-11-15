@@ -15,8 +15,6 @@ use crate::errors::BadInput;
 use crate::menu::champ_store::TimesVariable;
 use crate::screens::game_screen::Held;
 use crate::session::{PlainBytes, PlainDword, PlainInt, Run};
-#[cfg(test)]
-use crate::system::owner::system;
 
 /// A record (0xA4 bytes in the options file): a stage, a service area, a rally's end or a
 /// welcome (`tag`), with its two record holders.
@@ -2206,7 +2204,7 @@ mod tests {
     #[test]
     fn records_stay_in_their_table() {
         let _g = crate::test_support::test_lock();
-        let t = &system().records().stage_tables;
+        let t = &crate::test_support::own::system().records().stage_tables;
         let champ = RecordTable::Championship;
         assert_eq!(champ.row(t, 66).map(|r| r.index), Ok(66), "the end mark");
         assert!(champ.row(t, 67).is_err());

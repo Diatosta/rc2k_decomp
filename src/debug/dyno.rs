@@ -333,12 +333,10 @@ const NET: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::race::owner::race;
-    use crate::scene::owner::scene;
 
     #[test]
     fn measuring_puts_back_all_it_writes() {
-        let shared = &race().shared;
+        let shared = &crate::test_support::own::race().shared;
         let _lock = crate::test_support::test_lock();
         let was_limit = shared.car().engine_speed_limit.get();
         let was_count = shared.physics_tables.get().gear_count.get();
@@ -346,10 +344,15 @@ mod tests {
         shared.car().engine_speed_limit.set(7000.0_f32);
         shared.physics_tables.get().gear_count.set(1);
         shared.physics_tables.get().gear_ratios[2].set(0.01_f32);
-        let before = places(shared, scene()).map(crate::session::Cell32::bits);
-        let m = measure(race(), scene()).expect("a car");
+        let before =
+            places(shared, crate::test_support::own::scene()).map(crate::session::Cell32::bits);
+        let m = measure(
+            crate::test_support::own::race(),
+            crate::test_support::own::scene(),
+        )
+        .expect("a car");
         assert_eq!(
-            places(shared, scene()).map(crate::session::Cell32::bits),
+            places(shared, crate::test_support::own::scene()).map(crate::session::Cell32::bits),
             before
         );
         assert_eq!(m.gears.len(), 1);
@@ -361,11 +364,17 @@ mod tests {
 
     #[test]
     fn no_limit_no_measuring() {
-        let shared = &race().shared;
+        let shared = &crate::test_support::own::race().shared;
         let _lock = crate::test_support::test_lock();
         let was = shared.car().engine_speed_limit.get();
         shared.car().engine_speed_limit.set(0.0);
-        assert!(measure(race(), scene()).is_none());
+        assert!(
+            measure(
+                crate::test_support::own::race(),
+                crate::test_support::own::scene()
+            )
+            .is_none()
+        );
         shared.car().engine_speed_limit.set(was);
     }
 }

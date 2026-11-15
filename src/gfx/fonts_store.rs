@@ -181,13 +181,12 @@ impl FontBlock {
 
 #[cfg(test)]
 mod tests {
-    use crate::gfx::owner::gfx;
 
     #[test]
     fn menu_fonts_keep_the_images_numbers() {
         // The jade font's places in the glyph store.
         for n in 0..4 {
-            let font = gfx().fonts.font_block.menu_fonts[n].get();
+            let font = crate::test_support::own::gfx().fonts.font_block.menu_fonts[n].get();
             assert_eq!(
                 (font.palette, font.glyph_table),
                 (

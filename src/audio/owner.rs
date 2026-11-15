@@ -29,16 +29,23 @@ pub struct Audio {
     pub environment: crate::session::Dword,
 }
 
+impl Audio {
+    /// The state at start-up: every store in its first state.
+    pub const fn new() -> Self {
+        Self {
+            state: AudioShared::new(),
+            sample_records: SampleRecords::new(),
+            commands: Mutex::new(Queue::new()),
+            sample_names: SampleNames::new(),
+            levels: Levels::new(),
+            racing: crate::session::Flag::new(false),
+            environment: crate::session::Dword::new(0),
+        }
+    }
+}
+
 /// The one instance, reached through `audio()` by the roots and by tests.
-pub static AUDIO_OWNER: Audio = Audio {
-    state: AudioShared::new(),
-    sample_records: SampleRecords::new(),
-    commands: Mutex::new(Queue::new()),
-    sample_names: SampleNames::new(),
-    levels: Levels::new(),
-    racing: crate::session::Flag::new(false),
-    environment: crate::session::Dword::new(0),
-};
+pub static AUDIO_OWNER: Audio = Audio::new();
 
 /// The audio's state, for the roots that hand it down and for tests.
 pub fn audio() -> &'static Audio {

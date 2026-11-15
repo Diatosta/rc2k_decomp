@@ -41,7 +41,9 @@ mod tests {
     #[test]
     fn options_file_bytes_are_unchanged() {
         let _lock = crate::test_support::test_lock();
-        let owned = capture(Owners::the()).unwrap().to_pieces();
+        let owned = capture(crate::test_support::own::owners())
+            .unwrap()
+            .to_pieces();
         let refs: Vec<&[u8]> = owned.iter().map(Vec::as_slice).collect();
         let bytes = rc2k_core::saves::kept::options_file(0, &refs);
         let sum = bytes.iter().fold(0xcbf2_9ce4_8422_2325_u64, |h, &b| {

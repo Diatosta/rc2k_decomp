@@ -596,7 +596,7 @@ mod tests {
 
     #[test]
     fn car_is_aligned() {
-        let shared_store = &crate::race::owner::race().shared;
+        let shared_store = &crate::test_support::own::race().shared;
 
         // other tests write the work car while they run
         let _lock = crate::test_support::test_lock();

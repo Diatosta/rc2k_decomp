@@ -3,8 +3,6 @@
 //! and the spec's figures. Most names are readings from the code's uses; `unknown_*` runs are
 //! places no ported code names.
 
-#[cfg(test)]
-use crate::race::owner::race;
 use crate::session::{PlainDword, PlainFlag, PlainFloat, PlainInt};
 
 /// A kind of ground (0x30 bytes, `PhysicsTables.surfaces[0].table`): what `physics::wheel_surfaces`
@@ -1128,7 +1126,7 @@ mod tests {
 
     #[test]
     fn the_ground_records_name_their_tables_as_the_image_does() {
-        let shared = &race().shared;
+        let shared = &crate::test_support::own::race().shared;
         for n in 0..16u32 {
             // The record keeps a table's name; resolved to that table's place.
             let image = shared.physics_tables.get().surfaces[n as usize].table.get();

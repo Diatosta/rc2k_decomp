@@ -1324,11 +1324,10 @@ impl RallyTimes {
 
 #[cfg(test)]
 mod tests {
-    use crate::saves::owner::saves;
 
     #[test]
     fn rally_times_names_resolve() {
-        let rally_times = &saves().rally_times;
+        let rally_times = &crate::test_support::own::saves().rally_times;
         // The six names are the tables' places and resolve to them.
         let first = rally_times.tables[0].get();
         for n in 0..6 {
@@ -1346,7 +1345,7 @@ mod table_named_tests {
     #[test]
     fn table_named_resolves_the_six_names_and_no_more() {
         let _g = crate::test_support::test_lock();
-        let times = &crate::saves::owner::saves().rally_times;
+        let times = &crate::test_support::own::saves().rally_times;
         for n in 0..8 {
             assert_eq!(times.table_named(n).is_ok(), n < 6, "rally {n}");
             if n < 6 {

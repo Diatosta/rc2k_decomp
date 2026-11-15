@@ -313,7 +313,7 @@ mod tests {
     /// The holder and offset `made_place` gives the made text `id`, in the table's terms (the
     /// offset in the variable: the chain counts from the buffer `first_byte` bytes into it).
     fn place_of(id: u32) -> (char, usize) {
-        let o = crate::owners::Owners::the();
+        let o = crate::test_support::own::owners();
         let place = made_place(id).unwrap();
         let (holder, first_byte) = match place {
             MadeText::Notice(_) => ('N', 0),
@@ -332,7 +332,7 @@ mod tests {
             let id = MADE_TEXT_IDS.start + n as u32;
             assert_eq!(place_of(id), place, "{id:#X}");
         }
-        let o = crate::owners::Owners::the();
+        let o = crate::test_support::own::owners();
         let (menus, install) = (o.menus, o.install);
         assert!(made_text(menus, install, 0x1040).is_err());
         assert!(made_text(menus, install, 0x1FFF).is_err());
@@ -340,7 +340,7 @@ mod tests {
 
     #[test]
     fn caption_is_id_0x1004() {
-        let o = crate::owners::Owners::the();
+        let o = crate::test_support::own::owners();
         let place = made_place(0x1004).unwrap();
         assert_eq!(place, MadeText::StageHeading(1));
         let chain = place.chain(o.menus, o.install);
@@ -357,7 +357,7 @@ mod tests {
     #[test]
     fn the_installers_made_texts_read_as_before() {
         let _lock = crate::test_support::test_lock();
-        let o = crate::owners::Owners::the();
+        let o = crate::test_support::own::owners();
         let mut hash = 0xcbf2_9ce4_8422_2325_u64;
         let mut lines = Vec::new();
         for id in MADE_TEXT_IDS.start + 17..MADE_TEXT_IDS.end {

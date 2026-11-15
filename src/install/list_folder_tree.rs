@@ -146,11 +146,11 @@ mod tests {
         let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
         let kept: Vec<u32> = [
-            &crate::install::owner::install().run.dir_count,
-            &crate::install::owner::install().run.file_count,
-            &crate::install::owner::install().run.dir_scan,
-            &crate::install::owner::install().run.dir_cursor,
-            &crate::install::owner::install().run.file_cursor,
+            &crate::test_support::own::install().run.dir_count,
+            &crate::test_support::own::install().run.file_count,
+            &crate::test_support::own::install().run.dir_scan,
+            &crate::test_support::own::install().run.dir_cursor,
+            &crate::test_support::own::install().run.file_cursor,
         ]
         .iter()
         .map(|d| d.get())
@@ -165,20 +165,20 @@ mod tests {
         path.push(0);
         let memory = crate::memory::ListCells::empty();
         let list = &memory;
-        crate::install::owner::install()
+        crate::test_support::own::install()
             .folders
             .take(list, 0x10100, NameTable::default())
             .unwrap();
-        crate::install::owner::install()
+        crate::test_support::own::install()
             .files
             .take(list, 0x40100, NameTable::default())
             .unwrap();
         for d in [
-            &crate::install::owner::install().run.dir_count,
-            &crate::install::owner::install().run.file_count,
-            &crate::install::owner::install().run.dir_scan,
-            &crate::install::owner::install().run.dir_cursor,
-            &crate::install::owner::install().run.file_cursor,
+            &crate::test_support::own::install().run.dir_count,
+            &crate::test_support::own::install().run.file_count,
+            &crate::test_support::own::install().run.dir_scan,
+            &crate::test_support::own::install().run.dir_cursor,
+            &crate::test_support::own::install().run.file_cursor,
         ] {
             d.set(0);
         }
@@ -187,7 +187,7 @@ mod tests {
         for (n, &b) in path.iter().enumerate() {
             path_buffer.set(n, b);
         }
-        super::list_folder_tree(crate::install::owner::install(), path_buffer).unwrap();
+        super::list_folder_tree(crate::test_support::own::install(), path_buffer).unwrap();
         let joined = |parts: &[&str]| {
             let mut p = root.clone();
             for part in parts {
@@ -196,11 +196,11 @@ mod tests {
             }
             p
         };
-        let (folders, folder_bytes) = crate::install::owner::install()
+        let (folders, folder_bytes) = crate::test_support::own::install()
             .folders
             .with(|t| (t.names.clone(), t.bytes))
             .unwrap();
-        let (mut files, file_bytes) = crate::install::owner::install()
+        let (mut files, file_bytes) = crate::test_support::own::install()
             .files
             .with(|t| (t.names.clone(), t.bytes))
             .unwrap();
@@ -215,21 +215,21 @@ mod tests {
         assert_eq!(files, want);
         let bytes = |names: &[Vec<u8>]| names.iter().map(|n| n.len() as u32 + 1).sum::<u32>();
         assert_eq!((folder_bytes, file_bytes), (bytes(&folders), bytes(&files)));
-        assert_eq!(crate::install::owner::install().run.dir_count.get(), 3);
-        assert_eq!(crate::install::owner::install().run.file_count.get(), 3);
+        assert_eq!(crate::test_support::own::install().run.dir_count.get(), 3);
+        assert_eq!(crate::test_support::own::install().run.file_count.get(), 3);
         assert_eq!(
-            crate::install::owner::install().run.dir_cursor.get(),
+            crate::test_support::own::install().run.dir_cursor.get(),
             folder_bytes
         );
-        crate::install::owner::install().folders.give_back();
-        crate::install::owner::install().files.give_back();
+        crate::test_support::own::install().folders.give_back();
+        crate::test_support::own::install().files.give_back();
         crate::memory::with_figures(|f| *f = figures);
         for (d, v) in [
-            &crate::install::owner::install().run.dir_count,
-            &crate::install::owner::install().run.file_count,
-            &crate::install::owner::install().run.dir_scan,
-            &crate::install::owner::install().run.dir_cursor,
-            &crate::install::owner::install().run.file_cursor,
+            &crate::test_support::own::install().run.dir_count,
+            &crate::test_support::own::install().run.file_count,
+            &crate::test_support::own::install().run.dir_scan,
+            &crate::test_support::own::install().run.dir_cursor,
+            &crate::test_support::own::install().run.file_cursor,
         ]
         .iter()
         .zip(kept)

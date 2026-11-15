@@ -4,12 +4,7 @@
 //! `Cells` alone promises.
 
 use super::*;
-use crate::audio::owner::audio;
-use crate::effects::owner::effects;
 use crate::menu::lists_store::lists;
-use crate::menu::owner::menus;
-use crate::race::owner::race;
-use crate::scene::owner::scene;
 use crate::shared_memory;
 
 /// The runs of `record`, checked to tile it: each starts where the last ended, lies inside,
@@ -239,11 +234,11 @@ macro_rules! cells_stores {
 
 #[test]
 fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
-    let audio = audio();
-    let scene = scene();
-    let effects = effects();
-    let menus = menus();
-    let race = race();
+    let audio = crate::test_support::own::audio();
+    let scene = crate::test_support::own::scene();
+    let effects = crate::test_support::own::effects();
+    let menus = crate::test_support::own::menus();
+    let race = crate::test_support::own::race();
     let _lock = crate::test_support::test_lock();
     byte_view_stores! {
         *lists(),
@@ -310,11 +305,11 @@ fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
         *race.shared.view.get(),
         *race.shared.work.get(),
         *scene.drawing.scene.get(),
-        *crate::scene::owner::SCENE.draw_switches.get(),
+        *crate::test_support::own::scene().draw_switches.get(),
         *scene.file_numbers(),
         *scene.textures.kinds.get(),
         *scene.lights.state.get(),
-        *crate::scene::owner::SCENE.light_tables.get(),
+        *crate::test_support::own::scene().light_tables.get(),
         *scene.lights.work.get(),
         *scene.objects.slots.get(),
         *scene.object_work(),
@@ -363,7 +358,7 @@ fn a_byte_written_into_a_dword_keeps_its_other_bytes() {
 #[test]
 #[ignore = "a timing, run by hand in release"]
 fn timing_of_a_deep_read() {
-    let race = race();
+    let race = crate::test_support::own::race();
     let field = &race.shared.work.get().no_precipitation;
     let n = 2_000_000;
     let t = std::time::Instant::now();

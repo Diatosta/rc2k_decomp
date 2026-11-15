@@ -145,11 +145,10 @@ pub fn name_text(name: &[u8; 0x40]) -> Result<Vec<u8>, BadInput> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::net::owner::net;
 
     #[test]
     fn a_connection_is_found_kept_and_found_again() {
-        let net = net();
+        let net = crate::test_support::own::net();
         let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
         let kept_list: Vec<u32> = net
@@ -172,7 +171,7 @@ mod tests {
         let data = vec![7u8; 5];
         let found = crate::net::connection_found::connection_found(
             &net.link,
-            crate::strings::owner::strings(),
+            crate::test_support::own::strings(),
             &crate::race::viewer_screen_store::NET_TEXTS,
             &guid,
             &data,

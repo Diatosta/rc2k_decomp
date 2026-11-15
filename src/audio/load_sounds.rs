@@ -170,7 +170,7 @@ mod tests {
         for set in crate::sound::sets_store::NamedSet::ALL {
             lists.push(set.list());
         }
-        let sound = crate::sound::owner::sound();
+        let sound = crate::test_support::own::sound();
         for list in lists {
             let entry =
                 list_entries(&sound.threads.sets, &sound.threads.menu_sounds, list).unwrap();

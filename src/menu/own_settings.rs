@@ -57,7 +57,7 @@ mod tests {
     #[test]
     fn a_championship_leaves_the_players_own_settings() {
         let _g = crate::test_support::test_lock();
-        let menus = crate::menu::owner::menus();
+        let menus = crate::test_support::own::menus();
         let before = keep(menus);
         let change = || {
             let player = &cars(&menus.play)[0];

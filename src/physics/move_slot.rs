@@ -162,14 +162,13 @@ pub fn move_slot(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::race::owner::race;
 
     /// The two dwords past a slot's spin length are the next slot's first two; after the last
     /// slot they are `slot_count` and `part_fling` (a float), as the image lays them out.
     #[test]
     fn the_axis_reads_on_into_the_next_fields() {
         let _g = crate::test_support::test_lock();
-        let work = race().shared.work.get();
+        let work = crate::test_support::own::race().shared.work.get();
         let saved = (
             work.race_slots[2].spin_length.get(),
             work.race_slots[3].part.get(),

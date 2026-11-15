@@ -565,12 +565,21 @@ mod tests {
     #[test]
     fn a_record_past_the_last_reads_on_into_the_gear_figures_and_no_further() {
         // The longest read: a group number of the kind past the 34 (`scene::load_object`).
-        let gear = &race().frame.lights_and_gear.get().gear;
+        let gear = &crate::test_support::own::race()
+            .frame
+            .lights_and_gear
+            .get()
+            .gear;
         assert!(LIGHT_RECORDS.group_at(gear, 34, 0x3C).is_ok());
         assert_eq!(
             LIGHT_RECORDS.group_at(gear, 34, 0).ok(),
             Some(
-                race().frame.lights_and_gear.get().gear.test_speeds[7]
+                crate::test_support::own::race()
+                    .frame
+                    .lights_and_gear
+                    .get()
+                    .gear
+                    .test_speeds[7]
                     .get()
                     .to_bits()
             )

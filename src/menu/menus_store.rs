@@ -13,8 +13,6 @@
 
 use crate::gfx::typefaces::{FontCell, FontId, fonts};
 use crate::menu::item_sprites_store::SpriteCell;
-#[cfg(test)]
-use crate::menu::owner::menus;
 use crate::session::PlainDword;
 use rc2k_core::menu::tables::{MENUS, MenuFont, MenuItem as Fixed};
 
@@ -951,7 +949,7 @@ mod tests {
 
     #[test]
     fn menus_by_handle() {
-        let tables = &menus().tables.menus;
+        let tables = &crate::test_support::own::menus().tables.menus;
         let mut total = 0;
         for n in 0..MENU_COUNT {
             let m = MenuId(n);
@@ -987,7 +985,7 @@ mod tests {
     #[test]
     fn handles_follow_the_tables() {
         // Handle fields are in `MENUS`' order: the first and the last.
-        let tables = &menus().tables.menus;
+        let tables = &crate::test_support::own::menus().tables.menus;
         assert_eq!(tables.visual_preferences.id().0, 0);
         assert_eq!(tables.championship_end_review.id().0, MENU_COUNT - 1);
     }

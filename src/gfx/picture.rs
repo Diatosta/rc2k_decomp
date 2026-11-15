@@ -144,7 +144,6 @@ pub fn put_or_end(buffer: &mut [u8], at: usize, bytes: &[u8]) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::gfx::owner::gfx;
 
     #[test]
     fn a_buffer_is_taken_read_and_given_back() {
@@ -191,7 +190,7 @@ mod tests {
 
     #[test]
     fn a_pcx_file_is_decoded_into_the_picture_buffer() {
-        let pictures = &gfx().pictures;
+        let pictures = &crate::test_support::own::gfx().pictures;
         let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
         let kept = crate::test_support::state::Snapshot::of(&[
@@ -210,7 +209,10 @@ mod tests {
             .picture
             .buffer
             .set(take(Buffer::Main, list, 0x1D_4C00 + 0xC80).unwrap());
-        set_size(&gfx().pictures, rc2k_core::gfx::picture_size::READ);
+        set_size(
+            &crate::test_support::own::gfx().pictures,
+            rc2k_core::gfx::picture_size::READ,
+        );
         // A 4 x 2 picture of palette numbers 1 .. 8 (each byte below 0xC0 is itself), the palette
         // after it: number k is (k, 2k, 3k).
         let mut file = vec![0u8; 0x80];
@@ -231,8 +233,8 @@ mod tests {
         path[..name.len()].copy_from_slice(name.as_bytes());
         let read = crate::gfx::read_picture_file::read_picture_file(
             &path,
-            crate::gfx::owner::gfx(),
-            crate::system::owner::system(),
+            crate::test_support::own::gfx(),
+            crate::test_support::own::system(),
         );
         std::fs::remove_file(&name).unwrap();
         assert!(read.unwrap(), "the picture was read");
@@ -291,14 +293,14 @@ mod tests {
 
     /// The picture buffer's first 6 x 4 bytes after `read_png` of `file`.
     fn read_png_file(file: &[u8]) -> Vec<u8> {
-        let gfx = gfx();
+        let gfx = crate::test_support::own::gfx();
         let name = format!("target/rc2k_png_test_{}.png", std::process::id());
         std::fs::write(&name, file).unwrap();
         let read = crate::gfx::read_png::read_png(
             &gfx.png,
             name.as_bytes(),
-            crate::gfx::owner::gfx(),
-            crate::system::owner::system(),
+            crate::test_support::own::gfx(),
+            crate::test_support::own::system(),
         );
         std::fs::remove_file(&name).unwrap();
         assert!(read.unwrap(), "the picture was read");
@@ -307,7 +309,7 @@ mod tests {
 
     #[test]
     fn a_png_file_is_decoded_its_first_row_against_zeros() {
-        let pictures = &gfx().pictures;
+        let pictures = &crate::test_support::own::gfx().pictures;
         let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
         let kept = crate::test_support::state::Snapshot::of(&[
@@ -326,7 +328,10 @@ mod tests {
             .picture
             .buffer
             .set(take(Buffer::Main, list, 0x1D_4C00 + 0xC80).unwrap());
-        set_size(&gfx().pictures, rc2k_core::gfx::picture_size::READ);
+        set_size(
+            &crate::test_support::own::gfx().pictures,
+            rc2k_core::gfx::picture_size::READ,
+        );
         let plain = read_png_file(&png(0));
         assert_eq!(pictures.picture.width.get(), 3);
         assert_eq!(
@@ -344,7 +349,7 @@ mod tests {
     #[test]
     fn the_png_info_holds_the_size_and_the_palette_only_when_there_is_one() {
         use crate::gfx::png::{PALETTE_LEN, PngInfo};
-        let pictures = &gfx().pictures;
+        let pictures = &crate::test_support::own::gfx().pictures;
         let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
         let kept = crate::test_support::state::Snapshot::of(&[
@@ -357,7 +362,10 @@ mod tests {
             .picture
             .buffer
             .set(take(Buffer::Main, list, 0x1D_4C00 + 0xC80).unwrap());
-        set_size(&gfx().pictures, rc2k_core::gfx::picture_size::READ);
+        set_size(
+            &crate::test_support::own::gfx().pictures,
+            rc2k_core::gfx::picture_size::READ,
+        );
         let leftover = || PngInfo {
             has_palette: true,
             width: 77,
@@ -367,7 +375,7 @@ mod tests {
         let mut plain = leftover();
         let file = png(0);
         let code = crate::gfx::decode_png::decode_png(
-            &gfx().png,
+            &crate::test_support::own::gfx().png,
             &file,
             pictures.picture.buffer.get(),
             &mut plain,
@@ -391,7 +399,7 @@ mod tests {
         with.extend(&file[idat..]);
         let mut info = leftover();
         let code = crate::gfx::decode_png::decode_png(
-            &gfx().png,
+            &crate::test_support::own::gfx().png,
             &with,
             pictures.picture.buffer.get(),
             &mut info,

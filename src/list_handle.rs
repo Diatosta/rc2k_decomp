@@ -718,7 +718,12 @@ mod tests {
                 assert_ne!(menu.item(n).kind(), 2, "{list:?} item {n}");
             }
         }
-        let viewer = ListMenu::viewer(&crate::race::owner::race().replay.replay_view().viewer_list);
+        let viewer = ListMenu::viewer(
+            &crate::test_support::own::race()
+                .replay
+                .replay_view()
+                .viewer_list,
+        );
         for n in 0..u32::from(viewer.count()) {
             assert_ne!(viewer.item(n).kind(), 2, "viewer item {n}");
         }

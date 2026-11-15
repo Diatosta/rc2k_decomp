@@ -144,8 +144,11 @@ mod tests {
         for n in 0..BLOCK_COUNT {
             assert_eq!(known_block(BLOCK_TAG | n as u32), Some(n));
             assert!(core::ptr::eq(
-                race().car_blocks().named(BLOCK_TAG | n as u32).unwrap(),
-                &raw const race().car_blocks().cars[n]
+                crate::test_support::own::race()
+                    .car_blocks()
+                    .named(BLOCK_TAG | n as u32)
+                    .unwrap(),
+                &raw const crate::test_support::own::race().car_blocks().cars[n]
             ));
         }
         assert_eq!(known_block(BLOCK_TAG | BLOCK_COUNT as u32), None);

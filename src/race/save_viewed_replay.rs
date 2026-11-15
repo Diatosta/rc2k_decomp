@@ -159,7 +159,7 @@ mod tests {
     /// cell of the table, and the first past the 0xE10 places is refused.
     #[test]
     fn places_cover_the_blocks() {
-        let buffers = crate::race::owner::race().viewer_buffers();
+        let buffers = crate::test_support::own::race().viewer_buffers();
         for n in 0..2 * rc2k_core::race::replay::MOST_BLOCKS as usize {
             let new = undo_place(buffers, n).ok().map(std::ptr::from_ref);
             assert_eq!(

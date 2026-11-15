@@ -133,12 +133,11 @@ pub fn send_inputs(race: &Race, net: &Net) -> Result<(), Refused> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::race::owner::race;
 
     /// Each field sits where the core's table had its offset in the car's block.
     #[test]
     fn the_fields_sit_where_the_offsets_were() {
-        let car = race().shared.car();
+        let car = crate::test_support::own::race().shared.car();
         let offsets = |kind| -> Vec<u32> {
             fields(kind)
                 .iter()
@@ -169,7 +168,7 @@ mod tests {
     /// The limits are the ranges the core's table matched by offset.
     #[test]
     fn the_limits_are_the_old_ranges() {
-        let car = race().shared.car();
+        let car = crate::test_support::own::race().shared.car();
         for kind in [Kind::Inputs, Kind::Position, Kind::Extra] {
             for (field, limit) in fields(kind) {
                 let at = crate::physics::car_offsets_1999::offset_1999(

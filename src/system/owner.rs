@@ -149,10 +149,17 @@ impl System {
     }
 }
 
-pub static SYSTEM: System = System {
-    session: Session::new(),
-    main: GameThread::new(SystemMain::new()),
-};
+impl System {
+    /// The state at start-up: every store in its first state.
+    pub const fn new() -> Self {
+        Self {
+            session: Session::new(),
+            main: GameThread::new(SystemMain::new()),
+        }
+    }
+}
+
+pub static SYSTEM: System = System::new();
 
 /// The program-wide state; pass it down where a function reaches it more than once.
 pub fn system() -> &'static System {

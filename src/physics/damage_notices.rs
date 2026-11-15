@@ -84,7 +84,7 @@ mod gauge_tests {
     /// Each gauge is the dword its number says, from `brake_heat` on.
     #[test]
     fn the_gauges_are_in_a_row() {
-        let shared_store = &crate::race::owner::race().shared;
+        let shared_store = &crate::test_support::own::race().shared;
 
         let car = shared_store.car();
         let at = |cell: *const u8| crate::physics::car_offsets_1999::offset_1999(car, cell.addr());

@@ -308,7 +308,7 @@ fn pieces_of(o: Owners<'static>) -> [Field<'static>; 69] {
 
 #[cfg(test)]
 pub fn pieces() -> [Field<'static>; 69] {
-    pieces_of(Owners::the())
+    pieces_of(crate::test_support::own::owners())
 }
 
 #[cfg(test)]
@@ -388,7 +388,7 @@ mod tests {
     #[test]
     fn capture_then_apply_restores_the_whole_state() {
         let _lock = crate::test_support::test_lock();
-        let o = crate::owners::Owners::the();
+        let o = crate::test_support::own::owners();
         let saved: Vec<Vec<u8>> = super::pieces().iter().map(|p| p.read().unwrap()).collect();
         fill(0);
         let first = super::capture(o).unwrap();

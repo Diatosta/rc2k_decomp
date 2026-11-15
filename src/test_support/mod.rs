@@ -2,6 +2,7 @@
 //! than by address: `state` (a snapshot of every store).
 
 pub mod frozen;
+pub mod own;
 pub mod paths;
 pub mod race_places;
 pub mod race_vectors;

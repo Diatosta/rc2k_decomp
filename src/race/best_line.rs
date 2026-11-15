@@ -701,7 +701,7 @@ pub fn with_course<R>(
     check: impl FnOnce(&Race) -> R,
 ) -> R {
     let _lock = crate::test_support::test_lock();
-    let race = crate::race::owner::race();
+    let race = crate::test_support::own::race();
     let face_bytes: Vec<u8> = faces.concat();
     let point_bytes: Vec<u8> = points
         .iter()

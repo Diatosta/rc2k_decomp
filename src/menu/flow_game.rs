@@ -436,8 +436,8 @@ mod tests {
     #[test]
     fn the_cleared_figures_are_the_totals_before_the_stage_then_the_totals() {
         let _lock = crate::test_support::test_lock();
-        let menus = crate::menu::owner::menus();
-        let race = crate::race::owner::race();
+        let menus = crate::test_support::own::menus();
+        let race = crate::test_support::own::race();
         let players = &menus.play.results.players;
         let kept: Vec<(u32, u32)> = players
             .iter()

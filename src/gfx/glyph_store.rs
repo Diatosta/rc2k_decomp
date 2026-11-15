@@ -365,7 +365,7 @@ mod tests {
 
     #[test]
     fn the_jade_font_is_read_through_its_places() {
-        let fonts = &crate::gfx::owner::gfx().fonts;
+        let fonts = &crate::test_support::own::gfx().fonts;
         let _lock = crate::test_support::test_lock();
         // The glyph table and the palette (the colour), as the menu fonts name them.
         let table = bytes(fonts, JADE, "the jade glyphs").unwrap();
@@ -385,7 +385,7 @@ mod tests {
 
     #[test]
     fn the_stores_own_palettes_start_zeroed() {
-        let fonts = &crate::gfx::owner::gfx().fonts;
+        let fonts = &crate::test_support::own::gfx().fonts;
         let _lock = crate::test_support::test_lock();
         for place in [BLENDED_PLACE, VIEWER_PALETTE] {
             assert_eq!(
@@ -403,7 +403,7 @@ mod tests {
 
     #[test]
     fn places_are_kept_apart_and_given_back_by_list() {
-        let fonts = &crate::gfx::owner::gfx().fonts;
+        let fonts = &crate::test_support::own::gfx().fonts;
         let _lock = crate::test_support::test_lock();
         let list = crate::memory::ListCells::new(crate::memory::MemoryList {
             head: 0,

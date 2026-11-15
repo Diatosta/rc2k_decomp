@@ -7,8 +7,6 @@ use crate::cells::ZeroCells;
 
 use crate::list_handle::{Item, ListData26, ListHeader};
 use crate::place::BytePlace;
-#[cfg(test)]
-use crate::race::owner::race;
 use crate::race::owner_replay::Replay;
 use crate::session::{PlainDword, PlainFlag};
 
@@ -231,7 +229,7 @@ mod tests {
 
     #[test]
     fn the_list_names_resolve() {
-        let replay = &race().replay;
+        let replay = &crate::test_support::own::race().replay;
         assert!(ReplayViewBlock::key_table(replay).is_ok());
         for k in 0..26u32 {
             assert!(ReplayViewBlock::item_place(replay, k).is_ok());
@@ -247,7 +245,7 @@ mod tests {
     /// only ever names items of the list (or 255 for none), so no key reaches past it.
     #[test]
     fn the_viewer_never_reaches_past_its_items() {
-        let replay = &race().replay;
+        let replay = &crate::test_support::own::race().replay;
         let list = &replay.replay_view().viewer_list;
         assert_eq!(usize::from(list.header.count.get()), list.items.len());
         let table = ReplayViewBlock::key_table(replay).unwrap();

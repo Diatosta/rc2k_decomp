@@ -5,8 +5,6 @@
 
 use crate::cells::ZeroCells;
 
-#[cfg(test)]
-use crate::race::owner::race;
 use crate::session::PlainDword;
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
@@ -139,7 +137,7 @@ impl ReplayWork {
 /// The piece's host address (the alignment checks).
 #[cfg(test)]
 pub fn piece_addr() -> usize {
-    core::ptr::from_ref(race().replay.replay_work()).addr()
+    core::ptr::from_ref(crate::test_support::own::race().replay.replay_work()).addr()
 }
 
 #[cfg(test)]

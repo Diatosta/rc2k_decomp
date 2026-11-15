@@ -38,16 +38,23 @@ impl Input {
     }
 }
 
+impl Input {
+    /// The state at start-up: every store in its first state.
+    pub const fn new() -> Self {
+        Self {
+            devices: Devices::new(),
+            force_feedback: ForceFeedback::new(),
+            guids: InputGuids::new(),
+            main: GameThread::new(InputMain {
+                keyboard: Keyboard::new(),
+                mouse: Mouse::new(),
+            }),
+        }
+    }
+}
+
 /// The one instance. Reached through `input()`; `moved` registers its stores' places.
-pub static INPUT: Input = Input {
-    devices: Devices::new(),
-    force_feedback: ForceFeedback::new(),
-    guids: InputGuids::new(),
-    main: GameThread::new(InputMain {
-        keyboard: Keyboard::new(),
-        mouse: Mouse::new(),
-    }),
-};
+pub static INPUT: Input = Input::new();
 
 /// The input's state, for a caller that does not take it as a parameter yet.
 pub fn input() -> &'static Input {

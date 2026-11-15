@@ -6,8 +6,6 @@
 
 use crate::cells::ZeroCells;
 use crate::errors::BadInput;
-#[cfg(test)]
-use crate::race::owner::race;
 use crate::session::{PlainDword, PlainFlag, PlainFloat};
 
 /// A loose part flying off a car (0x78 bytes, `physics::fill_race_slot`; field names are readings).
@@ -479,24 +477,23 @@ const F32_MINUS_ONE: u32 = (-1.0f32).to_bits();
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn car_records_resolve_to_their_places() {
         for k in 0..8 {
             assert!(std::ptr::eq(
-                race().car_records().unwrap()[k],
-                race().car_record(k).unwrap()
+                crate::test_support::own::race().car_records().unwrap()[k],
+                crate::test_support::own::race().car_record(k).unwrap()
             ));
         }
-        assert!(race().car_record(8).is_err());
+        assert!(crate::test_support::own::race().car_record(8).is_err());
     }
 
     /// `car_block` past the eight reads the variables that follow the table, in their order.
     #[test]
     fn the_car_block_past_the_eight_reads_on_by_name() {
         let _g = crate::test_support::test_lock();
-        let work = race().shared.work.get();
+        let work = crate::test_support::own::race().shared.work.get();
         let saved = (
             work.car_records[3].get(),
             work.current_car.get(),
