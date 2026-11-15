@@ -228,8 +228,11 @@ def start(software, fresh, profile=False):
             '[ -d .remote_kept ] || { mkdir .remote_kept; cp -r var savedata .remote_kept/; }; '
             # the front end paused while the game runs: Knulli's EmulationStation (it holds the
             # screen and the pad), or the stock OS's launcher
-            '{ pgrep -x emulationstation; pgrep -f loadapp.sh | head -1; pgrep -f dmenu_ln | head -1; } > /tmp/rc2k_paused; '
+            # (the patterns in brackets do not match this shell's own command line)
+            '{ pgrep -f "^[e]mulationstation"; pgrep -f "[l]oadapp.sh" | head -1; pgrep -f "[d]menu_ln" | head -1; } > /tmp/rc2k_paused; '
             'kill -STOP $(cat /tmp/rc2k_paused) 2>/dev/null; pkill dmenu.bin; sleep 1; '
+            # Knulli's sound server (PipeWire) is found through this; the stock OS has none
+            '[ -S /var/run/pipewire-0 ] && export XDG_RUNTIME_DIR=/var/run; '
             f'RC2K_REMOTE={FOLDER} {renderer} nohup ./rc2k_remote > rc2k.out 2>&1 < /dev/null & echo started')
     else:
         shutil.rmtree(FOLDER, ignore_errors=True)
