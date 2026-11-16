@@ -2,7 +2,7 @@
 //! the right arrow).
 
 use crate::errors::Refused;
-use crate::menu::car_buttons::{Which, call_in_game, press};
+use crate::menu::car_buttons::{Which, make_call, press};
 use crate::menu::option_steps::{StartPick, step_start_pick};
 use crate::menu::owner::Menus;
 use crate::menu::owner::Tables;
@@ -28,7 +28,7 @@ pub fn colour(tables: &Tables, colour: StartPick<'_>, forward: bool) -> Result<(
 
 /// A button of the car specification (the car, its page, the slideshow's car or picture).
 pub fn car_button(o: Owners<'static>, button: Which) -> Result<(), Refused> {
-    press(o.menus, button, &mut |call| call_in_game(o, call))
+    press(o.menus, button, &mut |call| make_call(o, call))
 }
 
 /// The saved games' list one page on (`menu::next_savegame_page`): adds 1 to

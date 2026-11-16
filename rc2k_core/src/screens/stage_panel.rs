@@ -25,10 +25,6 @@ pub enum Font {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Work {
-    /// A work value nothing reads.
-    Scratch,
-    /// The finish time.
-    Finish,
     /// The entry's stage number (two of the panels keep it).
     Entry34,
 }
@@ -90,15 +86,12 @@ pub fn body<S: Screen<Font = Font, Work = Work>>(
 
     s.string(Font::Label, 0x34D, LEFT_LABEL_X, 0xD1)?;
     s.line(Font::Value, &time_of_day(start), LEFT_VALUE_X, 0xD1)?;
-    s.keep(Work::Scratch, start);
 
     let e = entry()?;
     let finish = e.duration.wrapping_add(start);
-    s.keep(Work::Finish, finish);
     s.line(Font::Value, &time_of_day(finish), RIGHT_VALUE_X, 0xD1)?;
     s.string(Font::Label, 0x34E, RIGHT_LABEL_X, 0xD1)?;
 
-    s.keep(Work::Scratch, e.duration);
     s.line(Font::Value, &time_of_day(e.duration), LEFT_VALUE_X, 0xE8)?;
     s.string(Font::Label, 0x356, LEFT_LABEL_X, 0xE8)?;
     if keep_entry_34 {
@@ -169,7 +162,6 @@ pub fn body<S: Screen<Font = Font, Work = Work>>(
     s.draw(Font::Description, Buffer::Text, 0x198, 0x1BD)?;
 
     // The numbered line at the bottom left.
-    s.keep(Work::Scratch, e.number);
     let mut line = s.string_bytes(if e.number_label_one { 0x358 } else { 0x359 });
     line.push(b' ');
     line.extend(decimal(e.number, Pad::None));
@@ -348,7 +340,6 @@ mod tests {
         let mut s = Record::default();
         body(&mut s, 1330, &|| Ok(entry), 0, Font::Heading, true).unwrap();
         assert_eq!(s.0[1], "Value \"13:30\\0\" 0x215 0xd1");
-        assert_eq!(s.0[3], "keep Finish 1420");
         assert!(s.0.contains(&"Value \"12.34<56f>\\0\" 0x2bc 0xe8".to_string()));
         assert!(s.0.contains(&"Value \"3%\\0\" 0x2bc 0x120".to_string()));
         assert_eq!(s.0.last().unwrap(), "Number \"<359> 7\\0\" 0xc0 0x206");

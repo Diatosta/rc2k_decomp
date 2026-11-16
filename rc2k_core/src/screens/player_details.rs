@@ -13,11 +13,7 @@ pub enum Font {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Work {
-    /// The string drawn.
-    Seconds,
-    Kept,
-}
+pub enum Work {}
 
 /// What the page shows, its strings looked up.
 #[derive(Clone, Copy, Debug)]
@@ -73,26 +69,21 @@ pub fn player_details<S: Screen<Font = Font, Work = Work>>(
     if d.typing {
         name_cursor(s, d.name, x, d.blink)?;
     }
-    s.keep(Work::Seconds, d.nationality_id);
     s.string(Font::Value, d.nationality_id, x, 0xEF)?;
     let width = s.measure_string(Font::Measure, d.nationality_id, x)?;
     s.sprite(0x1C + d.nationality, width.wrapping_add(0x1CA) as i32, 0xF3)?;
-    s.keep(Work::Seconds, d.view_id);
     s.string(Font::Value, d.view_id, x, 0x10A)?;
     let mut y = 0x125;
     if let Some(id) = d.second_view_id {
-        s.keep(Work::Seconds, id);
         s.string(Font::Value, id, x, y)?;
         y += 0x1B;
     }
     s.line(Font::Value, &decimal(d.race_number, Pad::None), x, y)?;
     let codriver = d.codriver_sex.wrapping_add(0x18A);
-    s.keep(Work::Kept, codriver);
     s.string(Font::Value, codriver, x, y + 0x1B)?;
     let bar = y + 0x36;
     s.sprite(4, 0x1BA, bar)?;
     let marker = d.sensitivity.wrapping_mul(2).wrapping_add(0x1BA);
-    s.keep(Work::Kept, marker);
     s.sprite(6, marker as i32, bar)?;
     Ok(())
 }

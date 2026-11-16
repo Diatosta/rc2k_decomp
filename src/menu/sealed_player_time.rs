@@ -2,8 +2,7 @@
 //! sealed (`records::seal_time`) with the player's +8, the run kind and a byte given by the
 //! caller.
 //!
-//! Callers: `menu::enter_time_trial_best`, `menu::enter_record_entry`. Refuses a current player
-//! past 3 or missing, before anything.
+//! Refuses a current player past 3 or missing, before anything.
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
 use crate::menu::standings::*;

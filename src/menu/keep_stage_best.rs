@@ -3,10 +3,9 @@
 //! nationality (+4), +0xA0 the car (+8), and the 0x20 bytes of the player's name (at
 //! +0x18) at +0x7C.
 //!
-//! Callers: the time trial's events, after the results. What +0x94 is is not read (a figure of the
-//! stage's; the time trial's stage page may show it). Refuses (before anything) a current player
-//! past the four or missing, a stage the tables do not give (`event_flow::stage_record`), or a name
-//! pointer of 0 when the record is taken.
+//! What +0x94 is is not read (a figure of the stage's; the time trial's stage page may show it).
+//! Refuses (before anything) a current player past the four or missing, a stage the tables do not
+//! give (`event_flow::stage_record`), or a name pointer of 0 when the record is taken.
 
 use crate::errors::Refused;
 use crate::menu::event_flow::*;

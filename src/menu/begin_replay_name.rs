@@ -4,8 +4,7 @@
 //! It first logs `getrepsaveslotname result=<name>`.
 //!
 //! It writes `Backed up name=<the name>` to the game's log (`logfile::log_write`). In six menu
-//! tables. Refuses a name past the list. The menus and draw lists run its `entry`
-//! (`menu::table_calls`).
+//! tables. Refuses a name past the list.
 
 use crate::errors::BadInput;
 use crate::menu::name_lists::replay_name;

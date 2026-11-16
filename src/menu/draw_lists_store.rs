@@ -527,7 +527,8 @@ mod tests {
     #[test]
     fn lists_are_the_tables_lists() {
         let lists = &DRAW_LISTS;
-        assert_eq!(LISTS[lists.unread_draw_list.0 as usize].at, 0x758B72);
+        assert_eq!(lists.unread_draw_list.0, 0);
+        assert!(LISTS[0].functions.is_empty());
         assert_eq!(lists.in_game_options_list.id().functions().len(), 2);
     }
 }

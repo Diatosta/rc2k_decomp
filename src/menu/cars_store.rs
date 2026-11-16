@@ -1,6 +1,5 @@
-//! The car table, out of RAL.EXE's image: the places of the players' names, the carousel's last
-//! index, the table of the 34 car descriptions' addresses, the descriptions (`CarDescription`, 0x78
-//! bytes each) and the texts they point at. One static.
+//! The car table: the carousel's last index, the table of the 34 car descriptions' handles, the
+//! descriptions (`CarDescription`, 0x78 bytes each) and the texts they point at. One static.
 
 use crate::errors::BadInput;
 use crate::memory::session::{PlainBytes, PlainDword, Shared, with_runs};
@@ -10,12 +9,10 @@ use rc2k_core::screens::car_pages::CarDescription;
 /// The car table.
 #[derive(rc2k_derive::Cells)]
 pub struct CarTable {
-    /// The four players' names' places (`Player::name` is one of them); nothing reads them.
-    pub name_places: [PlainDword; 4],
     /// The carousel entries' last index (0xE at start; `menu::start_event` sets 0xF for the repair
     /// set).
     pub last_car: PlainDword,
-    /// The 34 car descriptions by car number (handles, `car_ref`).
+    /// The 34 car descriptions by car number (handles, `car_handle`).
     pub cars: [PlainDword; 34],
     /// The car descriptions (the last is the Clio of the update disc).
     pub descriptions: [Shared<CarDescription>; 34],
@@ -26,48 +23,42 @@ pub struct CarTable {
 impl CarTable {
     pub const fn new() -> Self {
         CarTable {
-            name_places: [
-                PlainDword::new(0x755784),
-                PlainDword::new(0x7557A4),
-                PlainDword::new(0x7557C4),
-                PlainDword::new(0x7557E4),
-            ],
             last_car: PlainDword::new(0xE),
             cars: [
-                car_cell(0x756568),
-                car_cell(0x7565E0),
-                car_cell(0x756658),
-                car_cell(0x7566D0),
-                car_cell(0x756748),
-                car_cell(0x7567C0),
-                car_cell(0x756838),
-                car_cell(0x7568B0),
-                car_cell(0x756928),
-                car_cell(0x7569A0),
-                car_cell(0x756A18),
-                car_cell(0x756A90),
-                car_cell(0x756B08),
-                car_cell(0x756B80),
-                car_cell(0x756BF8),
-                car_cell(0x756C70),
-                car_cell(0x756CE8),
-                car_cell(0x756D60),
-                car_cell(0x756DD8),
-                car_cell(0x756E50),
-                car_cell(0x756EC8),
-                car_cell(0x756F40),
-                car_cell(0x756FB8),
-                car_cell(0x757030),
-                car_cell(0x7570A8),
-                car_cell(0x757120),
-                car_cell(0x757198),
-                car_cell(0x757210),
-                car_cell(0x757288),
-                car_cell(0x757300),
-                car_cell(0x757378),
-                car_cell(0x7573F0),
-                car_cell(0x757468),
-                car_cell(0x7574E0),
+                car_cell(0),
+                car_cell(1),
+                car_cell(2),
+                car_cell(3),
+                car_cell(4),
+                car_cell(5),
+                car_cell(6),
+                car_cell(7),
+                car_cell(8),
+                car_cell(9),
+                car_cell(10),
+                car_cell(11),
+                car_cell(12),
+                car_cell(13),
+                car_cell(14),
+                car_cell(15),
+                car_cell(16),
+                car_cell(17),
+                car_cell(18),
+                car_cell(19),
+                car_cell(20),
+                car_cell(21),
+                car_cell(22),
+                car_cell(23),
+                car_cell(24),
+                car_cell(25),
+                car_cell(26),
+                car_cell(27),
+                car_cell(28),
+                car_cell(29),
+                car_cell(30),
+                car_cell(31),
+                car_cell(32),
+                car_cell(33),
             ],
             descriptions: [
                 Shared::new(CarDescription::from_le_bytes(with_runs::<120>(&[(
@@ -1186,28 +1177,18 @@ impl CarTable {
 /// `CAR_TAG | n` for description `n`; 0 (none) and -1 (a list's end) stay as they are.
 pub const CAR_TAG: u32 = 0xCA00_0000;
 
-/// The game address of the first description, which handles stand for.
-const DESCRIPTIONS_IDA: u32 = 0x756568;
-const DESCRIPTION_LEN: u32 = 0x78;
+/// How many descriptions there are.
 const DESCRIPTION_COUNT: u32 = 34;
 
-/// The handle for the description at game address `ida` (0 and -1 stay; any other address
-/// that is no description fails to compile).
-pub const fn car_ref(ida: u32) -> u32 {
-    if ida == 0 || ida == u32::MAX {
-        return ida;
-    }
-    assert!(
-        DESCRIPTIONS_IDA <= ida
-            && ida < DESCRIPTIONS_IDA + DESCRIPTION_COUNT * DESCRIPTION_LEN
-            && (ida - DESCRIPTIONS_IDA).is_multiple_of(DESCRIPTION_LEN)
-    );
-    CAR_TAG | ((ida - DESCRIPTIONS_IDA) / DESCRIPTION_LEN)
+/// A cell holding description `n`'s handle (one past the descriptions fails to compile).
+pub const fn car_cell(n: usize) -> PlainDword {
+    assert!(n < DESCRIPTION_COUNT as usize);
+    PlainDword::new(car_handle(n))
 }
 
-/// A cell holding `car_ref(ida)`.
-pub const fn car_cell(ida: u32) -> PlainDword {
-    PlainDword::new(car_ref(ida))
+/// A cell holding a car list's end mark.
+pub const fn no_car_cell() -> PlainDword {
+    PlainDword::new(u32::MAX)
 }
 
 /// The handle of description `n`.

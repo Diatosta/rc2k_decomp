@@ -1,8 +1,8 @@
 //! `menu::take_shown_car`: the car shown on the car choice given to the current player.
 //!
-//! The current player (`event.current_player`) gets the entry `event.shown.car` of the list: its
-//! +0 as `car_number` (+8), its +8 as `class` (+0x90). Callers: seven more. Refuses a current
-//! player past the four (it would read past the players) and no list of cars.
+//! The current player (`event.current_player`) gets the entry `event.shown.car` of the list: its +0
+//! as `car_number` (+8), its +8 as `class` (+0x90). Refuses a current player past the four (it
+//! would read past the players) and no list of cars.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::lists_store::{CarList, CarListParts};
@@ -20,7 +20,7 @@ pub fn take_shown_car(menus: &Menus, list: Option<CarList>) -> Result<(), Refuse
         let entry = menus
             .lists
             .car_entry(CarListParts::of(menus), list, shown)?;
-        // The entry is a description's handle (`cars_store::car_ref`).
+        // The entry is a description's handle (`cars_store::car_handle`).
         let description = crate::menu::cars_store::description(&menus.cars.table, entry)?.get();
         let (number, class) = (description.car, description.class);
         player(menus, current)

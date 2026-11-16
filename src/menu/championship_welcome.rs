@@ -10,8 +10,6 @@
 //! ends it there. A key other than Escape stops the speech and ends it; Escape stops it and
 //! asks about leaving (`menu::confirm_leaving`): a yes stops it again and ends, a no starts
 //! over.
-//!
-//! Caller: `menu::run_championship` (event mode 2).
 
 use crate::errors::Refused;
 use crate::menu::flow_game::Game;

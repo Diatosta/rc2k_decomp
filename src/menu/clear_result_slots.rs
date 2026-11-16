@@ -2,8 +2,7 @@
 //! (+0x98 .. +0xCC) and every driver's (+0x5C .. +0x90) emptied: -1, but 0 in the seventh
 //! and the last (two groups of six sections' points and their total).
 //!
-//! Callers: the event drivers. Refuses a missing player or a drivers' table without its end entry,
-//! before anything.
+//! Refuses a missing player or a drivers' table without its end entry, before anything.
 use crate::errors::Refused;
 use crate::menu::drivers_store::Driver;
 use crate::menu::owner::Menus;

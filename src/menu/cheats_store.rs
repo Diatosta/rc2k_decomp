@@ -1,5 +1,5 @@
-//! The main menu's notice flag, the car specification screen's kept car and the cheats, out of
-//! RAL.EXE's image. One static.
+//! The main menu's notice flag, the car specification screen's kept car and the cheats.
+//! One static.
 
 use crate::memory::session::{PlainBytes, PlainDword, with_runs};
 

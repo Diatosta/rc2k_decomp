@@ -12,7 +12,7 @@ pub use rc2k_core::screens::car_pages::CarDescription;
 
 const _: () = assert!(std::mem::size_of::<CarDescription>() == 0x78);
 
-/// The carousels' entries: a table of 0x100 description handles (`cars_store::car_ref`).
+/// The carousels' entries: a table of 0x100 description handles (`cars_store::car_handle`).
 const ENTRIES: u32 = 0x100;
 
 /// The description of the entry shown (`EventState.shown.car` through `Carousel::entries`), by
@@ -32,7 +32,7 @@ pub fn shown_description(menus: &Menus) -> Result<u32, Refused> {
     Ok(record)
 }
 
-/// A description by handle (`cars_store::car_ref`).
+/// A description by handle (`cars_store::car_handle`).
 pub fn read(menus: &Menus, description: u32) -> Result<CarDescription, BadInput> {
     Ok(crate::menu::cars_store::description(&menus.cars.table, description)?.get())
 }

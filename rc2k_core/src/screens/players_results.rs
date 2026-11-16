@@ -17,12 +17,7 @@ pub enum Font {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Work {
-    /// A row's gap, then its points.
-    Gap,
-    /// The first row's time.
-    FirstTime,
-}
+pub enum Work {}
 
 /// A time of 0x36EE80 hundredths (ten hours) or more: no time.
 pub const NO_TIME: u32 = 0x36EE80;
@@ -156,13 +151,11 @@ pub fn players_results<S: Screen<Font = Font, Work = Work>>(
         }
     }
     let first = rows[0].time;
-    s.keep(Work::FirstTime, first);
     for (row, r) in rows.iter().enumerate().skip(1) {
         if r.time == NO_TIME {
             continue;
         }
         let gap = r.time.wrapping_sub(first);
-        s.keep(Work::Gap, gap);
         s.string(Font::Rows, 0x579, 0x1DF + dx, y(row))?;
         s.time_line(Font::Small, &time(gap, page.show_hours), 0x257 + dx, y(row))?;
     }
@@ -171,7 +164,6 @@ pub fn players_results<S: Screen<Font = Font, Work = Work>>(
     }
     if layout.points {
         for (row, r) in rows.iter().enumerate() {
-            s.keep(Work::Gap, r.points);
             s.line(Font::Rows, &decimal(r.points, Pad::None), 0x2BB, y(row))?;
         }
     }
@@ -210,7 +202,6 @@ pub fn standings<S: Screen<Font = Font, Work = Work>>(
         s.string(Font::Rows, 0x4FE + row as u32, 0xEA, y(row))?;
     }
     for (row, r) in rows.iter().enumerate() {
-        s.keep(Work::Gap, r.points);
         s.line(Font::Rows, &decimal(r.points, Pad::None), 0x217, y(row))?;
     }
     Ok(())
@@ -314,7 +305,6 @@ mod tests {
         // The third row's time last: its palette is the line buffer.
         assert!(s.0.contains(&"sprite 0x46 0x15f 0x12c".to_string()));
         assert!(s.0.contains(&"sprite 0x77 0x15f 0x12c".to_string()));
-        assert!(s.0.contains(&"keep Gap 500".to_string()));
         assert!(!s.0.iter().any(|l| l.contains("0x2bb")));
         let mut s = Record::default();
         players_results(&mut s, &WITH_POINTS, &page, &rows).unwrap();

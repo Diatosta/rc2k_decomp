@@ -28,9 +28,9 @@ pub struct Kind {
     /// ends with a second right end; and when the width is a multiple of 32 it falls through
     /// into the centred branch after the left end, drawing a second, centred button.
     slips: bool,
-    /// `ALT` only. Left-aligned, two of its blits still read the plain button's place: the
-    /// whole middle pieces take their y from `DrawWork.button_y`, and the last, shorter one
-    /// takes its x from `DrawWork.button_x`. Its one caller never asks for that alignment.
+    /// `ALT` only. Left-aligned, two of its blits still read the plain button's place: the whole
+    /// middle pieces take their y from `DrawWork.button_y`, and the last, shorter one takes its x
+    /// from `DrawWork.button_x`. Nothing draws it left-aligned.
     borrows: bool,
     bad_align: FatalError,
 }

@@ -1,7 +1,6 @@
 //! `menu::flip_codriver`: the player's co-driver's sex the other.
 //!
-//! `codriver_sex` xor 1. An action of the four players' details pages. The menus and draw lists
-//! run its `entry` (`menu::table_calls`).
+//! `codriver_sex` xor 1. An action of the four players' details pages.
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;

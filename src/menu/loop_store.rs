@@ -39,7 +39,6 @@ pub struct LoopFlags {
     pub sprite_table: PlainDword,
     /// `LoopFlags.menu.0`: The current menu (by handle, `menus_store::MenuId`).
     pub menu: crate::menu::menus_store::MenuCell,
-    pub dword_755591: PlainDword,
 }
 
 impl LoopFlags {
@@ -59,7 +58,6 @@ impl LoopFlags {
             options_loaded: PlainFlag::new(false),
             sprite_table: PlainDword::new(0x0),
             menu: crate::menu::menus_store::MenuCell::new(),
-            dword_755591: PlainDword::new(0x0),
         }
     }
 }

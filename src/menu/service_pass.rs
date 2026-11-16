@@ -7,8 +7,8 @@
 //! takes the money x 100. When every player is out, `event_goes_on` is cleared; `service_due`
 //! is cleared at the end.
 //!
-//! Callers: the event drivers. Refuses a player count of 0 or past 4, a player missing, a
-//! taking-part player's car without its table, before anything.
+//! Refuses a player count of 0 or past 4, a player missing, a taking-part player's car without its
+//! table, before anything.
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;

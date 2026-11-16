@@ -2,8 +2,8 @@
 //!
 //! The file is put together in the scratch block: "R5CI", 0, 0x50004, the time
 //! (`system::packed_local_time`), the 69 pieces of `saves::options_state` in the same order, taken
-//! from the captured options, and "####"; then `files::write_file`. One caller,
-//! `saves::save_game_data`. Refuses what `write_file` refuses.
+//! from the captured options, and "####"; then `files::write_file`. Refuses what `write_file`
+//! refuses.
 
 use crate::errors::Refused;
 use crate::files::write_file::write_file_from_store;

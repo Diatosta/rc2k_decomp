@@ -19,16 +19,10 @@ pub enum Font {
 /// The work variables (its counters are kept in them and read back).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Work {
-    /// The row's y.
-    Y,
     /// The row's number (from 1).
     Row,
     /// The next stage's number (from 1).
     Stage,
-    /// The services so far.
-    Service,
-    /// The last service's string.
-    ServiceString,
 }
 
 /// A record of the section.
@@ -63,10 +57,8 @@ pub fn itinerary<S: Screen<Font = Font, Work = Work>>(
         s.string(Font::Plain, id, x, 0xD1)?;
     }
     let (mut y, mut number, mut stage, mut service) = (0xE8u32, 1u32, 1u32, 0u32);
-    s.keep(Work::Y, y);
     s.keep(Work::Row, number);
     s.keep(Work::Stage, stage);
-    s.keep(Work::Service, service);
     let mut n = 1;
     loop {
         let at = y as i32;
@@ -74,10 +66,8 @@ pub fn itinerary<S: Screen<Font = Font, Work = Work>>(
             Row::End => return Ok(()),
             Row::Service { hhmm } => {
                 let id = 0x478 + service;
-                s.keep(Work::ServiceString, id);
                 s.string(Font::Plain, id, 0x10A, at)?;
                 service = service.wrapping_add(1);
-                s.keep(Work::Service, service);
                 clock_at(s, hhmm, Font::Clock, at)?;
             }
             Row::Stage { name, length, hhmm } => {
@@ -109,7 +99,6 @@ pub fn itinerary<S: Screen<Font = Font, Work = Work>>(
             }
         }
         y = y.wrapping_add(0x19);
-        s.keep(Work::Y, y);
         number = number.wrapping_add(1);
         s.keep(Work::Row, number);
         n += 1;
@@ -225,7 +214,6 @@ mod tests {
         assert!(has("Plain \"12.34<56f>\\0\" 0x1f1 0xe8"));
         assert!(has("Plain \"1\\0\" 0xba 0xe8"));
         assert!(has("clock Clock \"09:05\\0\" 0x2c2 0xe8"));
-        assert!(has("keep ServiceString 1144"));
         assert!(has("Marked s98 0x10a 0x11a"));
         assert!(has("Marked \"\\0\\0\" 0x1f1 0x11a"));
         assert!(has("Marked \"2\\0\" 0xba 0x11a"));

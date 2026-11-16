@@ -1,11 +1,10 @@
 //! Gives every stage of a record table a made-up best time and top speed.
 //!
-//! Nothing if the first record's holder already has a name. Else every record with tag 0, up
-//! to the table's -1, gets two made-up holders from four random numbers under 0xAA: a random
-//! driver (nationality, car and name, without a NUL) as the fastest holder with the second
-//! number + 1000 as its speed, and another driver as the time trial holder with the fourth + 1000.
-//! Called by `menu::set_up_front_end` on each of thirteen record tables when `var\ral.dat` was
-//! not loaded. Refuses a null table, a table without its end, and a name that does not fit.
+//! Nothing if the first record's holder already has a name. Else every record with tag 0, up to the
+//! table's -1, gets two made-up holders from four random numbers under 0xAA: a random driver
+//! (nationality, car and name, without a NUL) as the fastest holder with the second number + 1000
+//! as its speed, and another driver as the time trial holder with the fourth + 1000. Refuses a null
+//! table, a table without its end, and a name that does not fit.
 
 use crate::errors::{BadInput, Refused};
 use crate::math::next_random::Randoms;

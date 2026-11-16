@@ -5,9 +5,8 @@
 //! `gfx::build_fonts`; the films at the start (`menu::play_films`); the log line "BEV: Starting
 //! GB_Front"; `menu::main_menu_loop`; "BEV: Finished GB_Front"; `menu::store_player_names`;
 //! `gfx::free_fonts`; `saves::list_car_numbers`. A race asked for on the command line
-//! (`menu::launch`) skips the films; the main menu's set-up runs it.
-//! Callers: `system::main_loop`. Refuses what its parts refuse; such a refusal comes with the
-//! work half done. Rust callers run its `entry` (`routes.rs`).
+//! (`menu::launch`) skips the films; the main menu's set-up runs it. Refuses what its parts refuse;
+//! such a refusal comes with the work half done.
 
 use crate::errors::Refused;
 use crate::logfile::program_log::log;

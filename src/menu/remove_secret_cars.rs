@@ -1,13 +1,11 @@
 //! `menu::remove_secret_cars`: takes the secret cars out of the two lists of cars that can be
 //! chosen, and clears the cheats.
 //!
-//! For the second car list and then the A8 championship car list: the entries that are not in
-//! the list of secret cars `lists.secret_cars` are copied to the scratch car list and from
-//! there back to the list's start, a -1 put after them, and the cheats' flags set to 0. The
-//! lists hold the handles of car descriptions; each ends with -1.
-//! One caller, `system::load_game_data`, when the setting `allsecretcars` is 0.
-//! Refuses a list without its end within its room, and a list that would be left with no car
-//! at all (the count would run through all 32 bits).
+//! For the second car list and then the A8 championship car list: the entries that are not in the
+//! list of secret cars `lists.secret_cars` are copied to the scratch car list and from there back
+//! to the list's start, a -1 put after them, and the cheats' flags set to 0. The lists hold the
+//! handles of car descriptions; each ends with -1. Refuses a list without its end within its room,
+//! and a list that would be left with no car at all (the count would run through all 32 bits).
 
 use crate::errors::BadInput;
 use crate::memory::session::PlainDword;

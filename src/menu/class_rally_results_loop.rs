@@ -1,9 +1,8 @@
 //! The loop of the third results screen after a stage, the rally's standings so far for the
-//! player's class. Screen-specific part of `menu::screen_loop`: before the loop it sets the
-//! string of the menu's first item to 0x138 if `state.menus.which_title` is 1 and to 0x139
-//! otherwise, as the stage results screen does; its background comes from
-//! `menu::load_background` (a failure is fatal error 0x80712345); leaving is asked about, and a
-//! "no" sets the screen up again. One caller.
+//! player's class. Screen-specific part of `menu::screen_loop`: before the loop it sets the string
+//! of the menu's first item to 0x138 if `state.menus.which_title` is 1 and to 0x139 otherwise, as
+//! the stage results screen does; its background comes from `menu::load_background` (a failure is
+//! fatal error 0x80712345); leaving is asked about, and a "no" sets the screen up again.
 
 use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;

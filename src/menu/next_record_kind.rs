@@ -1,9 +1,7 @@
 //! `menu::next_record_kind`: the kind (first dword) of the record after the
 //! current one (the record table, section `section`, index `index` + 1).
 //!
-//! Callers: `saves::load_savegame`, the event drivers.
-//! Refuses a section or index past 63 or a section the table does not hold, before anything. Rust
-//! callers run its `entry` (`routes.rs`).
+//! Refuses a section or index past 63 or a section the table does not hold, before anything.
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;

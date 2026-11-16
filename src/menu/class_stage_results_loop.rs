@@ -3,8 +3,7 @@
 //! loop it sets the string of the menu's first item, the button at the bottom right, to 0x138
 //! ("voltar", back) if `state.menus.which_title` is 1 and to 0x139 ("continuar") otherwise, as all
 //! four results screens do; its background comes from `menu::load_background` (a failed load is
-//! fatal error 0x80712345); leaving is asked about, and a "no" sets the screen up again. One
-//! caller.
+//! fatal error 0x80712345); leaving is asked about, and a "no" sets the screen up again.
 
 use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;

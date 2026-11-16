@@ -3,8 +3,7 @@
 //! four players, the bytes +0x1C .. +0x27 (the keys), the dwords +0x2C .. +0x78 and +0x178,
 //! into the saved car at the buffer offset + n x 0x28C.
 //!
-//! Called by `saves::load_savegame` (when `use_savegame_keys` is 0). Refuses (before anything) a
-//! missing player or a null buffer.
+//! Refuses (before anything) a missing player or a null buffer.
 
 use crate::errors::Refused;
 use crate::memory::cells::Store;

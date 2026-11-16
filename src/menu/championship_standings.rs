@@ -5,8 +5,7 @@
 //! overall page (`menu::show_championship_standings`); in it: sorted by figure twice and
 //! by points (`_by_points`), the class pages (`menu::class_championship_pass`).
 //!
-//! Refuses what the steps refuse. The
-//! menus and draw lists run its `entry` (`menu::table_calls`).
+//! Refuses what the steps refuse.
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;

@@ -3,8 +3,6 @@
 //! is set; into the block's first dword (the seal's first dword), then its next three bytes,
 //! its eighth byte 0x5A plus the seven before it each inverted (a byte sum); then
 //! `race::seal_block`.
-//!
-//! Called by `menu::sealed_player_time`.
 
 use crate::race::save_seal::seal_block;
 pub fn sealed_value(time: u32, cheats: u32, patch_switch: u32) -> u32 {

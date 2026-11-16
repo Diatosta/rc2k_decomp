@@ -5,8 +5,7 @@
 //! name bytes at +0x20 (through the kept player name, which keeps the last swap's upper
 //! name). The pass does not stop at the first entry in order.
 //!
-//! Caller: `menu::enter_time_trial_best`. Refuses (before anything) what `event_flow::stage_times`
-//! refuses.
+//! Refuses (before anything) what `event_flow::stage_times` refuses.
 
 use crate::errors::Refused;
 use crate::menu::event_flow::*;

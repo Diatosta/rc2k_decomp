@@ -12,7 +12,7 @@ use rc2k_core::files::settings::DriverNames;
 
 // ---- game data ----
 
-/// "var\name.cfg" (0x529D98 in the image), what `system::load_game_data` hands in.
+/// "var\name.cfg", what `system::load_game_data` hands in.
 static PATH: &[u8; 13] = b"var\\name.cfg\0";
 const DRIVERS: usize = 180;
 /// The image's block (0x95ECF8 .. 0x960000, bss): a pointer a driver (`NAMES_LEN`

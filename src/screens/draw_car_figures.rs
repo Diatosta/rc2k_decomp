@@ -45,7 +45,7 @@ pub fn draw_car_page(
         let before = read(o.menus, record)?;
         let mut d = before;
         let notice = crate::strings::load_language::notice_kind(o.strings);
-        let carry = rc2k_core::screens::car_pages::page(
+        let too_wide = rc2k_core::screens::car_pages::page(
             &mut GameScreen::<Font, Work>::new(canvas, o),
             page,
             &mut d,
@@ -55,6 +55,6 @@ pub fn draw_car_page(
         if d != before {
             crate::menu::cars_store::description(&o.menus.cars.table, record)?.set(d);
         }
-        carry
+        too_wide
     }
 }

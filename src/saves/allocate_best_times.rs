@@ -1,13 +1,11 @@
 //! Takes the memory of the best times' tables, once.
 //!
-//! Nothing if the tables are already allocated; else the flag becomes 1 and nine tables are
-//! taken on the memory list, each one's size stored in the pairs of `tables`: 0x1C20, 0xBB8,
-//! stages * 0x618, 0x15E0, 0xDB60, 0x4C2C4, 0x3A984, 0xDB60, stages * 0x618 bytes. The sixth
-//! and the seventh get -1 in their last dword. "Stages" is the number of records of the
-//! championship's table whose tag is 0 (`saves::count_stages`). Six of the nine are what
-//! `saves::load_best_times` reads `var\hst.dat` into.
-//! Called by `saves::load_best_times` and `menu::set_up_front_end`. Refuses a record table
-//! without its end, and what the allocator refuses.
+//! Nothing if the tables are already allocated; else the flag becomes 1 and nine tables are taken
+//! on the memory list, each one's size stored in the pairs of `tables`: 0x1C20, 0xBB8, stages *
+//! 0x618, 0x15E0, 0xDB60, 0x4C2C4, 0x3A984, 0xDB60, stages * 0x618 bytes. The sixth and the seventh
+//! get -1 in their last dword. "Stages" is the number of records of the championship's table whose
+//! tag is 0 (`saves::count_stages`). Six of the nine are what `saves::load_best_times` reads
+//! `var\hst.dat` into. Refuses a record table without its end, and what the allocator refuses.
 
 use crate::errors::{BadInput, Refused};
 use crate::records::stages_store::{RecordTable, StageTables};

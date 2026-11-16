@@ -83,8 +83,7 @@ fn place(
     Ok(())
 }
 
-/// `player` is the player for the upper bars. Its one caller, `screens::draw_service_area`,
-/// reads no result.
+/// `player` is the player for the upper bars.
 pub fn draw_marker(
     menus: &Menus,
     gfx: &Gfx,

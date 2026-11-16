@@ -2,9 +2,8 @@
 //! times: `event.trial.qualifies` is set to 0; when the player's time (+0x88) is not above (signed)
 //! the tenth entry's +0x14, `event.trial.qualifies` and `event.trial.any_qualified` become 1.
 //!
-//! Callers: the time trial's events, after the results. Refuses (before anything) a current player
-//! past the four or missing, a stage kind past the table or a null pointer to the stage's records
-//! or times (`event_flow::stage_times`).
+//! Refuses (before anything) a current player past the four or missing, a stage kind past the table
+//! or a null pointer to the stage's records or times (`event_flow::stage_times`).
 
 use crate::errors::Refused;
 use crate::menu::event_flow::*;

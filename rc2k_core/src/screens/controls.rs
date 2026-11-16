@@ -98,15 +98,15 @@ pub fn control_bindings<S: Screen<Font = Font, Work = Work>>(
     learning: Option<usize>,
 ) -> Result<bool, S::Error> {
     check_room(texts)?;
-    let mut carry = false;
+    let mut too_wide = false;
     for (n, text) in texts.iter().enumerate() {
         if learning == Some(n) {
-            carry = false;
+            too_wide = false;
             continue;
         }
-        carry = draw_cells(s, text, 0x1B8, 0xD5 + 0x1B * n as i32)?;
+        too_wide = draw_cells(s, text, 0x1B8, 0xD5 + 0x1B * n as i32)?;
     }
-    Ok(carry)
+    Ok(too_wide)
 }
 
 /// The keys' places drawn, in order (place 8 is not).
@@ -122,10 +122,10 @@ pub fn redefined_keys<S: Screen<Font = Font, Work = Work>>(
     blink: bool,
 ) -> Result<bool, S::Error> {
     check_room(names)?;
-    let mut carry = false;
+    let mut too_wide = false;
     for (row, name) in names.iter().enumerate() {
         let y = 0xAF + row as i32 * 0x1D;
-        carry = if redefined == Some(row) {
+        too_wide = if redefined == Some(row) {
             if blink {
                 s.string(Font::Value, 4, 0x1CC, y)?.too_wide
             } else {
@@ -135,5 +135,5 @@ pub fn redefined_keys<S: Screen<Font = Font, Work = Work>>(
             draw_cells(s, name, 0x1CC, y)?
         };
     }
-    Ok(carry)
+    Ok(too_wide)
 }

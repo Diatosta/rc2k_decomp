@@ -19,9 +19,6 @@ pub struct SavegamePreview {
     /// takes the title from the table); the others are not read
     /// (`screens::draw_savegame_details`).
     pub saved: [PlainDword; 7],
-    /// The saved cars in the file's buffer. Not used: nothing reads it (the readers take the
-    /// cars by their offset in the file).
-    pub saved_cars: PlainDword,
 }
 
 /// The first values (`tests::savegame_preview_starts_as_the_games`).
@@ -32,7 +29,6 @@ impl SavegamePreview {
             shown_slot: PlainDword::new(0x65),
             nothing_to_show: PlainDword::new(1),
             saved: [const { PlainDword::new(0) }; 7],
-            saved_cars: PlainDword::new(0),
         }
     }
 }

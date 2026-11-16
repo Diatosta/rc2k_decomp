@@ -20,13 +20,7 @@ pub enum Font {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Work {
-    Scratch,
-    Seconds,
-    Glyph,
-    /// The check marks' x.
-    CheckX,
-}
+pub enum Work {}
 
 /// The names: each string `id` kept and drawn at (0x1D1, y). What the last one leaves.
 fn names<S: Screen<Font = Font, Work = Work>>(
@@ -35,7 +29,6 @@ fn names<S: Screen<Font = Font, Work = Work>>(
 ) -> Result<Drawn, S::Error> {
     let mut last = Drawn::default();
     for (id, y) in rows {
-        s.keep(Work::Scratch, id);
         last = s.string(Font::Value, id, 0x1D1, y)?;
     }
     Ok(last)
@@ -108,7 +101,6 @@ pub fn volume<S: Screen<Font = Font, Work = Work>>(
     id: u32,
     volumes: [u32; 8],
 ) -> Result<(), S::Error> {
-    s.keep(Work::Seconds, id);
     s.string(Font::Value, id, 0x1EA, 0x1B3)?;
     for n in 0..8 {
         s.sprite(0x19, 0x222, 0xDA + 0x1C * n)?;
@@ -188,16 +180,12 @@ pub fn options_checklist<S: Screen<Font = Font, Work = Work>>(
     s.sprite(0x88, 0xEC, 0x1E2)?;
     s.string(Font::Small, 0x4AE, 0x10A, 0x1E6)?;
     s.string(Font::Small, 0x4AF, 0x217, 0x1E6)?;
-    s.keep(Work::CheckX, 0x190);
     let mut y = 0x82u32;
     for &t in ticks {
-        s.keep(Work::Scratch, y);
         let v = t ^ 1;
         let glyph = 0x9E_u32.wrapping_add(v);
-        s.keep(Work::Glyph, glyph);
         s.sprite(glyph, 0x190, y as i32)?;
         y += 0x1B;
-        s.keep(Work::Scratch, y);
     }
     Ok(())
 }
@@ -266,8 +254,8 @@ mod tests {
         assert_eq!(sound_items(true, false), [(4, true), (5, true), (5, false)]);
         let mut s = Record::default();
         graphics(&mut s, [1, 2, 3, 4, 5, 6, 7, 8], [640, 480, 16]).unwrap();
-        assert_eq!(s.0[2], "Value \"640x480x16\\0\" 0x1d1 0xf7");
-        assert_eq!(s.0[4], "Value s2 0x1d1 0x112");
+        assert_eq!(s.0[1], "Value \"640x480x16\\0\" 0x1d1 0xf7");
+        assert_eq!(s.0[2], "Value s2 0x1d1 0x112");
         let mut s = Record::default();
         volume(&mut s, 0x56D, [0x40, 0, 0x20, 0, 0, 0, 0, 1]).unwrap();
         assert!(s.0.contains(&"bar 218 100".to_string()));

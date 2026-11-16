@@ -4,8 +4,8 @@
 //! `event.trial.qualifies`) entered (`menu::enter_record_entry`), `event.trial.any_qualified` 1
 //! once one is (0 first).
 //!
-//! Callers: the event drivers. Refuses what the steps refuse and a player count of 0 or past 4
-//! or a player missing, before anything.
+//! Refuses what the steps refuse and a player count of 0 or past 4 or a player missing, before
+//! anything.
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
 use crate::menu::standings::*;

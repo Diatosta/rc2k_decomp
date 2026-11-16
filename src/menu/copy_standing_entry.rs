@@ -2,7 +2,7 @@
 //! index + 1, +0x14 / +0x1C / +0x18 the record's +0x88 / +0x90 / +0x8C, +0xC its name pointer
 //! (+0x18) and +0x20 the name's 0x20 bytes, +8 / +0x10 its +4 / +8, +0x4C its +0xD0.
 //!
-//! Callers: two of the game's. Refuses a null entry, record or name, before anything.
+//! Refuses a null entry, record or name, before anything.
 use crate::errors::Refused;
 use crate::menu::standings::*;
 

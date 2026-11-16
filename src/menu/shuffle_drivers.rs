@@ -4,8 +4,8 @@
 //! and the first entry swapped with itself through the first
 //! shuffle table / the second shuffle table (both left holding it). A 1999 slip kept as is.
 //!
-//! Callers: one of the game's. The random numbers are `Randoms::random_below`'s. Refuses a count
-//! of 0 (it would divide by 0), before anything.
+//! The random numbers are `Randoms::random_below`'s. Refuses a count of 0 (it would divide by 0),
+//! before anything.
 use crate::errors::{BadInput, Refused};
 use crate::memory::cells::Store;
 use crate::menu::drivers_store::{DRIVER_LEN, records_from_bytes, records_to_bytes};

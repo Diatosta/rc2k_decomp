@@ -9,9 +9,9 @@
 //! (`menu::inspection_area_loop`; a yes ends it all) and is counted in `event_out`. When every
 //! player is out, `event_goes_on` is cleared. At the end `service_due` is cleared.
 //!
-//! `menu::service_pass` without its due test, its money and its keys. Callers: the time trial's
-//! events. The calls go through `event_flow::Call`. Refuses a player count of 0 or past 4 or a
-//! player missing before anything, a current player past the four when it is read.
+//! `menu::service_pass` without its due test, its money and its keys. The calls go through
+//! `event_flow::Call`. Refuses a player count of 0 or past 4 or a player missing before anything, a
+//! current player past the four when it is read.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_flow::*;

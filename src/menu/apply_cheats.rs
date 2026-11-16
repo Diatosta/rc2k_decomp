@@ -8,9 +8,6 @@
 //! - bit 10 is cleared and does nothing; bits 17 and 18 (the A8 game, the reversed tracks)
 //!   stay set and store 1 in the leader-found flag.
 //!
-//! Callers: `system::load_game_data` with the bits 0x1FBC (when the setting
-//! `allsecretcars` is 1) and `menu::check_cheat_name` (a cheat's name typed as the fourth
-//! player's name).
 //! Refuses a list without its end, or without room for one more car.
 
 use crate::errors::BadInput;

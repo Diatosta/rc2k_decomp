@@ -2,10 +2,9 @@
 //! scratch block; it is taken if it starts "R5CI" and has 0x50004 at +8. From +0x10 on the 69
 //! pieces (0xB656 bytes) are the options, applied to the game's state (`saves::options_state`).
 //! After the last piece the file must have "####", else fatal error 0x80ACFF01 "ral.dat out of
-//! date" (the options are applied by then). Then `saves::rebuild_car_lists`, and the loaded
-//! flag (0 until then) becomes 1. A file shorter than that is not noticed as such: what the
-//! scratch block held decides. One caller, `system::load_game_data`; `saves::save_options`
-//! writes the same pieces the other way.
+//! date" (the options are applied by then). Then `saves::rebuild_car_lists`, and the loaded flag (0
+//! until then) becomes 1. A file shorter than that is not noticed as such: what the scratch block
+//! held decides. `saves::save_options` writes the same pieces the other way.
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::files::read_file::read_file_to_store;

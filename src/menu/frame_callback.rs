@@ -1,14 +1,13 @@
 //! `menu::frame_callback`: one frame of a menu screen, the callback nearly every screen loop
 //! hands to `screens::run_frame`.
 //!
-//! In this order: lock the surface; `copy_picture_to_surface` (the background); `draw_menu`;
-//! every function of the draw list; unlock; the scene state = 4; begin the 3D scene
-//! (`scene::begin_scene`); every function of the scene list; end the scene
-//! (`scene::end_scene`); lock again; every function of the overlay list; if the window-active
-//! flag is 2 and `cheats.notice_due` is 1, clear that and draw string 0x1000 at (800, 587) in
-//! the notice font; unlock; show the frame. A failed lock, scene beginning or showing ends it
-//! there, with what was locked left locked. A list ends with -1. Rust callers run its `entry`
-//! (`routes.rs`).
+//! In this order: lock the surface; `copy_picture_to_surface` (the background); `draw_menu`; every
+//! function of the draw list; unlock; the scene state = 4; begin the 3D scene
+//! (`scene::begin_scene`); every function of the scene list; end the scene (`scene::end_scene`);
+//! lock again; every function of the overlay list; if the window-active flag is 2 and
+//! `cheats.notice_due` is 1, clear that and draw string 0x1000 at (800, 587) in the notice font;
+//! unlock; show the frame. A failed lock, scene beginning or showing ends it there, with what was
+//! locked left locked. A list ends with -1.
 
 use crate::errors::Refused;
 use crate::menu::fn_list::ListCell;

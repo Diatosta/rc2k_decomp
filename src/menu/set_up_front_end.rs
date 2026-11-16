@@ -9,8 +9,7 @@
 //! - unless the options were loaded: `records::default_stage_records` on each of the thirteen
 //!   record tables.
 //!
-//! One caller, `menu::main_menu_loop`. Refuses what its parts refuse; such a refusal comes with
-//! the work half done. Rust callers run its `entry` (`routes.rs`).
+//! Refuses what its parts refuse; such a refusal comes with the work half done.
 
 use crate::errors::Refused;
 use crate::saves::default_times::to_the_log;
@@ -29,15 +28,12 @@ fn record_tables(system: &System) -> [crate::records::stages_store::RecordTable;
     all
 }
 
-/// The made-up times get a stage and `fit_player_names` an x, neither of which is looked at:
-/// the stage is read only when the checkpoint times are guessed, which
-/// `default_checkpoint_times` does without reading it; the x is where a measuring starts, which
-/// a width does not depend on. The stage passed is 0.
+/// `fit_player_names` gets an x that is not looked at: it is where a measuring starts, which
+/// a width does not depend on.
 pub fn set_up_front_end(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (menus, sound, system, gfx) = (o.menus, o.sound, o.system, o.gfx);
     let (race, saves) = (o.race, o.saves);
     let best_times = &saves.best_times;
-    let stage = 0;
     use crate::saves::{
         allocate_best_times, default_best_scores, default_championship_times,
         default_checkpoint_times, default_class_times, default_stage_times,
@@ -87,7 +83,6 @@ pub fn set_up_front_end(o: crate::owners::Owners<'static>) -> Result<(), Refused
             race,
             system,
             saves,
-            stage,
             &mut to_the_log,
         )?;
         default_checkpoint_times::default_checkpoint_times(
@@ -96,7 +91,6 @@ pub fn set_up_front_end(o: crate::owners::Owners<'static>) -> Result<(), Refused
             race,
             &saves.best_tables,
             system,
-            stage,
             &mut to_the_log,
         )?;
         default_class_times::default_class_times(
@@ -111,7 +105,6 @@ pub fn set_up_front_end(o: crate::owners::Owners<'static>) -> Result<(), Refused
             race,
             &saves.best_tables,
             system,
-            stage,
             &mut to_the_log,
         )?;
         default_stage_times_alt::default_stage_times_alt(
@@ -120,7 +113,6 @@ pub fn set_up_front_end(o: crate::owners::Owners<'static>) -> Result<(), Refused
             race,
             &saves.best_tables,
             system,
-            stage,
             &mut to_the_log,
         )?;
         best_times.loaded.set(1);

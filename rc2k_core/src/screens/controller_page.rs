@@ -11,20 +11,7 @@ pub enum Font {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Work {
-    /// The string drawn.
-    Seconds,
-    /// The device's record (as the game keeps it).
-    Record,
-    /// `DrawWork.slider_a_start` .. `DrawWork.slider_b_end`: the sliders' ends.
-    FirstLeft,
-    FirstRight,
-    SecondLeft,
-    SecondRight,
-    /// The stick's place; `DrawWork.hhmm`: its buttons.
-    Place,
-    Buttons,
-}
+pub enum Work {}
 
 /// The player's controller as the page shows it.
 #[derive(Clone, Copy, Debug)]
@@ -66,10 +53,8 @@ pub fn controller_page<S: Screen<Font = Font, Work = Work>>(
     for n in 3..=8 {
         s.item(n, true)?;
     }
-    s.keep(Work::Record, c.record);
     s.text(Font::Value, c.name, 0x1BC, 0xD5)?;
     let mode = c.mode.wrapping_add(0x56D);
-    s.keep(Work::Seconds, mode);
     s.string(Font::Value, mode, 0x1BC, 0xF0)?;
     s.item(4, c.has_strength)?;
     if !c.has_strength || (c.strength as i32) <= 0 {
@@ -78,24 +63,19 @@ pub fn controller_page<S: Screen<Font = Font, Work = Work>>(
         s.line(Font::Value, &percent(c.strength), 0x1BC, 0x10B)?;
     }
     let sensitivity = c.sensitivity.wrapping_add(0x3A1);
-    s.keep(Work::Seconds, sensitivity);
     s.string(Font::Value, sensitivity, 0x1BC, 0x126)?;
     s.sprite(5, 0x1B8, 0x14C)?;
     let (right, left) = (s.clip_edge(Edge::Right)?, s.clip_edge(Edge::Left)?);
     let a = c.first;
     let first_left = 0x1C0u32.wrapping_add(a).wrapping_sub(4);
     s.set_clip_edge(Edge::Right, 0x281u32.wrapping_sub(a).wrapping_sub(1))?;
-    s.keep(Work::FirstRight, 0x281u32.wrapping_sub(a));
     s.set_clip_edge(Edge::Left, 0x1C0u32.wrapping_add(a))?;
-    s.keep(Work::FirstLeft, first_left);
     let t = 100u32.wrapping_sub(c.second);
     let second_left = 0x1BCu32.wrapping_add(t).wrapping_sub(4);
     let done = (|| {
         s.sprite(3, 0x1BC, 0x14C)?;
         s.set_clip_edge(Edge::Right, 0x285u32.wrapping_sub(t).wrapping_sub(1))?;
-        s.keep(Work::SecondRight, 0x285u32.wrapping_sub(t));
         s.set_clip_edge(Edge::Left, 0x1BCu32.wrapping_add(t))?;
-        s.keep(Work::SecondLeft, second_left);
         s.sprite(4, 0x1BC, 0x14C)
     })();
     s.set_clip_edge(Edge::Left, left)?;
@@ -109,7 +89,6 @@ pub fn controller_page<S: Screen<Font = Font, Work = Work>>(
     ] {
         s.sprite(glyph, x as i32, 0x14C)?;
     }
-    s.keep(Work::Buttons, c.buttons);
     let x = c.stick_x;
     let place = if x == 0 {
         0x21A
@@ -127,7 +106,6 @@ pub fn controller_page<S: Screen<Font = Font, Work = Work>>(
                 .wrapping_add(0x21A)
         }
     };
-    s.keep(Work::Place, place);
     let glyph = if c.buttons != 0 { 9 } else { 8 };
     s.sprite(glyph, place as i32, 0x156)
 }

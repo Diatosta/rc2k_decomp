@@ -25,11 +25,6 @@ pub enum Font {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Work {
-    FirstTime,
-    /// The overall stage page's first time.
-    OverallFirst,
-    /// A row's gap.
-    Gap,
     /// The championship row being drawn.
     Row,
     /// The championship row after the last.
@@ -65,16 +60,14 @@ pub struct Row<T> {
     pub car: u32,
 }
 
-/// One page: `first` the time the gaps are from, `first_row` the list's row the page starts at,
-/// `keep_overall` keeps the first time in `DrawWork.overall_first_time` too. Sprites take the
-/// palette where the last text ended.
+/// One page: `first` the time the gaps are from, `first_row` the list's row the page starts at.
+/// Sprites take the palette where the last text ended.
 #[allow(clippy::too_many_arguments)] // one page's parts
 pub fn results_page<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     heading: Heading,
     first: u32,
     first_row: u32,
-    keep_overall: bool,
     show_hours: bool,
     rows: &[Row<S::Text>],
 ) -> Result<(), S::Error> {
@@ -85,10 +78,6 @@ pub fn results_page<S: Screen<Font = Font, Work = Work>>(
     s.string(Font::Place, 0x484, 0xC8, 0xDC)?;
     s.string(Font::Name, 0x485, 0xFA, 0xDC)?;
     s.string(Font::Name, 0x47F, 0x1F4, 0xDC)?;
-    s.keep(Work::FirstTime, first);
-    if keep_overall {
-        s.keep(Work::OverallFirst, first);
-    }
     s.keep(Work::Row, first_row);
     s.keep(Work::RowEnd, first_row.wrapping_add(10));
     let mut y = 0xF0i32;
@@ -107,7 +96,6 @@ pub fn results_page<S: Screen<Font = Font, Work = Work>>(
             s.time_line(time_font, &time(r.time, show_hours), 0x258, y)?;
             if r.position != 1 {
                 let gap = r.time.wrapping_sub(first);
-                s.keep(Work::Gap, gap);
                 y = s.string(place, 0x579, 0x276, y)?.y;
                 s.time_line(time_font, &time(gap, show_hours), 0x2E4, y)?;
             }
@@ -123,11 +111,6 @@ pub fn results_page<S: Screen<Font = Font, Work = Work>>(
 /// The work variables of the class ranking page.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RankingWork {
-    FirstTime,
-    /// The row's place.
-    Place,
-    /// The row's gap.
-    Gap,
     /// The sprites' y.
     SpriteY,
 }
@@ -151,8 +134,8 @@ pub struct RankedRow<T> {
     pub car: u32,
 }
 
-/// `class_rows`' answer: each row's entry and place, and the place left after the last.
-pub type ClassRows = (Vec<(u32, u32)>, Option<u32>);
+/// `class_rows`' answer: each row's entry and place.
+pub type ClassRows = Vec<(u32, u32)>;
 
 /// The most entries `class_rows` walks before it gives up on the list's end.
 pub const MOST_ENTRIES: u32 = 0x400;
@@ -197,7 +180,7 @@ pub fn class_rows(
     loop {
         while class_of(n) != class {
             if step(&mut n)? {
-                return Ok((out, Some(place)));
+                return Ok(out);
             }
         }
         out.push((n, place));
@@ -208,27 +191,23 @@ pub fn class_rows(
         }
         place = place.wrapping_add(1);
         if place == first.wrapping_add(10) {
-            return Ok((out, None));
+            return Ok(out);
         }
     }
 }
 
-/// A page of one class's times, the rows found by the caller; `after` the place `seconds` is
-/// left at when the list ended while the next row was looked for.
+/// A page of one class's times, the rows found by the caller.
 pub fn class_ranking<S: Screen<Font = Font, Work = RankingWork>>(
     s: &mut S,
     first: u32,
     show_hours: bool,
     rows: &[RankedRow<S::Text>],
-    after: Option<u32>,
 ) -> Result<(), S::Error> {
-    s.keep(RankingWork::FirstTime, first);
     let mut y = 0xF0i32;
     for (k, r) in rows.iter().enumerate() {
         if k > 0 {
             y = y.wrapping_add(0x19);
         }
-        s.keep(RankingWork::Place, r.place);
         let (name, time_font, place) = if r.mine {
             (Font::PlayerName, Font::PlayerTime, Font::PlayerPlace)
         } else {
@@ -243,7 +222,6 @@ pub fn class_ranking<S: Screen<Font = Font, Work = RankingWork>>(
         y = s.line(place, &decimal(r.place, Pad::None), 0xBE, y)?.y;
         if r.place != 1 {
             let gap = r.time.wrapping_sub(first);
-            s.keep(RankingWork::Gap, gap);
             y = s.string(place, 0x579, 0x276, y)?.y;
             s.time_line(time_font, &time(gap, show_hours), 0x2E4, y)?;
         }
@@ -251,9 +229,6 @@ pub fn class_ranking<S: Screen<Font = Font, Work = RankingWork>>(
         s.keep(RankingWork::SpriteY, sprite_y as u32);
         s.sprite(flag_glyph(r.nation), 0xD2, sprite_y)?;
         s.sprite(car_glyph(r.car), 0x1AE, sprite_y)?;
-    }
-    if let Some(place) = after {
-        s.keep(RankingWork::Place, place);
     }
     Ok(())
 }
@@ -411,12 +386,10 @@ mod tests {
             title: 0x4EA,
             name: 0x300,
         };
-        results_page(&mut s, heading, 1000, 3, true, false, &rows).unwrap();
+        results_page(&mut s, heading, 1000, 3, false, &rows).unwrap();
         assert_eq!(s.0[0], "Title s4ea 0x310 0x30");
-        assert!(s.0.contains(&"keep OverallFirst 1000".to_string()));
         assert!(s.0.contains(&"keep RowEnd 13".to_string()));
         assert!(s.0.contains(&"PlayerPlace s579 0x276 0x109".to_string()));
-        assert!(s.0.contains(&"keep Gap 100".to_string()));
         assert!(s.0.contains(&"sprite 0x5d 0x1ae 0xf0".to_string()));
         assert!(s.0.contains(&"Name s4fb 0x1ef 0x122".to_string()));
         assert!(s.0.contains(&"sprite 0x1e 0xd2 0x122".to_string()));
@@ -431,7 +404,7 @@ mod tests {
         let ends = |n: u32| n as usize >= classes.len();
         assert_eq!(
             class_rows(class_of, ends, 1, 2),
-            Ok((vec![(2, 2), (3, 3), (5, 4)], Some(5)))
+            Ok(vec![(2, 2), (3, 3), (5, 4)])
         );
         assert_eq!(
             class_rows(class_of, ends, 2, 1),
@@ -441,7 +414,6 @@ mod tests {
         );
         assert!(class_rows(class_of, ends, 1, 5).is_err());
         let all = |_| 1;
-        let (rows, after) = class_rows(all, |_| false, 1, 1).unwrap();
-        assert_eq!((rows.len(), after), (10, None));
+        assert_eq!(class_rows(all, |_| false, 1, 1).unwrap().len(), 10);
     }
 }

@@ -1,12 +1,10 @@
 //! Two lists of pointers from two lists of numbers.
 //!
-//! The car lists (`cars_second`, 0x28 entries, and `shown_cars`, 0x14) are filled with -1;
-//! then, for each number of `first_numbers` up to its -1, the entry of the car table (`cars`)
-//! with that number goes to the first list, and likewise from `second_numbers` to the second.
-//! One caller, `saves::load_options`, whose file holds the two lists of numbers. What they are
-//! lists of is a reading: cars that can be chosen.
-//! Refuses a list of numbers without its -1 within its own length, and a number of 0x400 or
-//! more.
+//! The car lists (`cars_second`, 0x28 entries, and `shown_cars`, 0x14) are filled with -1; then,
+//! for each number of `first_numbers` up to its -1, the entry of the car table (`cars`) with that
+//! number goes to the first list, and likewise from `second_numbers` to the second (the options file holds the two lists of numbers). What they are
+//! lists of is a reading: cars that can be chosen. Refuses a list of numbers without its -1 within
+//! its own length, and a number of 0x400 or more.
 
 use crate::errors::BadInput;
 use crate::memory::session::PlainDword;

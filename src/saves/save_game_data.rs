@@ -1,6 +1,4 @@
-//! Writes what the game keeps between runs: `saves::save_options`, then
-//! `saves::save_best_times`. Called by the main loop after the front end is left, and
-//! `menu::arcade_level_end`.
+//! Writes what the game keeps between runs: `saves::save_options`, then `saves::save_best_times`.
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;

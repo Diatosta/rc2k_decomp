@@ -4,8 +4,7 @@
 //! entry, unless negative; without one 0x66 and 0x6B go round the list and 0x68 and 0x69 do
 //! nothing. The item goes into the item table.
 //!
-//! Another key does not move it. Callers: `race::replay_viewer` (two), which read whether it
-//! moved.
+//! Another key does not move it.
 
 use crate::memory::place::BytePlace;
 use rc2k_core::menu::list_menu::{MOVES, Step, step};
@@ -22,23 +21,23 @@ pub fn list_step(
     if !MOVES.contains(&key) {
         return Ok(false);
     }
-    let ecx = list_state.choice.get();
+    let choice = list_state.choice.get();
     let fault = crate::menu::event_flow::Fault::default();
     // Asked only with a table (`step` is told whether there is one).
     let entry_of = |k: usize| match table {
         Some(table) => fault.ok(table
-            .add(ecx.wrapping_mul(4))
+            .add(choice.wrapping_mul(4))
             .add(k as u32)
             .read(1, "a neighbours table")
             .map(|bytes| bytes[0])),
         None => 0,
     };
-    let with_cl = |cl: u8| ecx & !0xFF | cl as u32;
-    let stepped = step(key, ecx as u8, count, table.is_some(), entry_of);
+    let stepped = step(key, choice as u8, count, table.is_some(), entry_of);
     fault.check()?;
-    let Step::Moved(cl) = stepped else {
+    let Step::Moved(item) = stepped else {
         return Ok(false);
     };
-    list_state.choice.set(with_cl(cl));
+    // Only the low byte is the item; the rest is kept.
+    list_state.choice.set(choice & !0xFF | item as u32);
     Ok(true)
 }

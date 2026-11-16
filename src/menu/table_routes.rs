@@ -216,7 +216,7 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn, c: &table_calls::ItemCall) -> Resu
             menus,
             o.input,
             c.menu
-                .ok_or(BadInput("no menu (the original reads +0x2C of edi)"))?
+                .ok_or(BadInput("no menu to read the item from"))?
                 .items(&menus.tables.menus)[0]
                 .fixed()
                 .links[1],

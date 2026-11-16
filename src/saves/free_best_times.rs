@@ -1,8 +1,8 @@
 //! Gives back the memory of the best times' tables.
 //!
-//! `memory::free_list` on the best times' list, and the allocated flag = 0. The tables'
-//! addresses stay in their variables (the typed tables, `saves::best_times`, go with the list).
-//! One caller, the main loop, after `saves::save_game_data`. Refuses what `free_list` refuses.
+//! `memory::free_list` on the best times' list, and the allocated flag = 0. The tables' addresses
+//! stay in their variables (the typed tables, `saves::best_times`, go with the list). Refuses what
+//! `free_list` refuses.
 
 use crate::errors::BadInput;
 use crate::memory::free_list::free_list;

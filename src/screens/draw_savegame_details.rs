@@ -1,7 +1,7 @@
-//! The load-game screen's preview of the saved game that was read into the buffer: headings
-//! and row numbers, a title line (the mode's string, the saved section's title and, for the saved
-//! stage's record, `<record>/6` unless 0), and one row per saved car: name, four numbers, a flag
-//! sprite and a car sprite. A negative number is drawn as "-". Called by `draw_savegame_preview`.
+//! The load-game screen's preview of the saved game that was read into the buffer: headings and row
+//! numbers, a title line (the mode's string, the saved section's title and, for the saved stage's
+//! record, `<record>/6` unless 0), and one row per saved car: name, four numbers, a flag sprite and
+//! a car sprite. A negative number is drawn as "-".
 //!
 //! Rows 2 to 4 only show a name and sprites if the first saved dword (the number of players, by
 //! this use; a reading) reaches them; otherwise string 0x578 and two 0x57A stand there, but the

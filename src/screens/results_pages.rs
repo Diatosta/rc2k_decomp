@@ -45,8 +45,6 @@ pub struct Page {
     /// The first time: true the class's (`find_class_time`), false the first classed
     /// entry's (`first_overall_time`).
     by_class: bool,
-    /// The first time also kept as the overall first time.
-    keep_overall: bool,
 }
 
 pub const CLASS_RALLY: Page = Page {
@@ -54,28 +52,24 @@ pub const CLASS_RALLY: Page = Page {
     time: 0x18,
     check: (0x18, 0x18),
     by_class: true,
-    keep_overall: false,
 };
 pub const OVERALL_RALLY: Page = Page {
     heading: Heading::Titles(0x4EB, 0x4EE),
     time: 0x18,
     check: (0x18, 0x14),
     by_class: false,
-    keep_overall: false,
 };
 pub const CLASS_STAGE: Page = Page {
     heading: Heading::Record,
     time: 0x14,
     check: (0x14, 0x14),
     by_class: true,
-    keep_overall: false,
 };
 pub const OVERALL_STAGE: Page = Page {
     heading: Heading::Record,
     time: 0x14,
     check: (0x14, 0x14),
     by_class: false,
-    keep_overall: true,
 };
 
 /// Draws one page.
@@ -172,7 +166,6 @@ pub fn draw_results_page(
             heading,
             first,
             first_row,
-            page.keep_overall,
             show_hours(o.strings),
             &rows,
         )?;
@@ -182,7 +175,7 @@ pub fn draw_results_page(
 
 /// `results_page`: the pages the typed tables run.
 macro_rules! results_page_entry {
-    ($module:ident, $name:literal, $address:expr, $page:expr) => {
+    ($module:ident, $page:expr) => {
         pub mod $module {
             use super::*;
             /// Run by the typed tables (`menu::table_calls`).
@@ -203,27 +196,7 @@ macro_rules! results_page_entry {
     };
 }
 
-results_page_entry!(
-    class_rally,
-    "screens::draw_class_rally_results",
-    0x4A3376,
-    CLASS_RALLY
-);
-results_page_entry!(
-    overall_rally,
-    "screens::draw_overall_rally_results",
-    0x4A37E2,
-    OVERALL_RALLY
-);
-results_page_entry!(
-    class_stage,
-    "screens::draw_class_stage_results",
-    0x4A2111,
-    CLASS_STAGE
-);
-results_page_entry!(
-    overall_stage,
-    "screens::draw_overall_stage_results",
-    0x4A2F46,
-    OVERALL_STAGE
-);
+results_page_entry!(class_rally, CLASS_RALLY);
+results_page_entry!(overall_rally, OVERALL_RALLY);
+results_page_entry!(class_stage, CLASS_STAGE);
+results_page_entry!(overall_stage, OVERALL_STAGE);

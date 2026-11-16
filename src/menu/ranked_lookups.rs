@@ -6,9 +6,8 @@
 //! 0x8070A7FC) and `first_overall_time` (the first entry with a class, else the first entry;
 //! its rally or stage time; 0x8070A982).
 //!
-//! Callers: the results pages (`screens::results_pages`). Every entry is compared before the end
-//! mark is looked at (the first one too). Refuses (before anything) a search that runs 0x400
-//! entries without the end mark.
+//! Every entry is compared before the end mark is looked at (the first one too). Refuses (before
+//! anything) a search that runs 0x400 entries without the end mark.
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::standings::{with_a, with_b};

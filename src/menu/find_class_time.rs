@@ -2,8 +2,7 @@
 //! is the given one, or the end mark's (-1) when none is: its +0x18 when asked for that, else
 //! its +0x14.
 //!
-//! Caller: `screens::draw_class_times` (the first time of the class). Refuses a list without
-//! its end in 0x400 entries.
+//! Refuses a list without its end in 0x400 entries.
 
 use crate::errors::BadInput;
 use crate::menu::standings::with_a;

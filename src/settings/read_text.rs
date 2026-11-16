@@ -1,8 +1,7 @@
-//! `settings::read_text` (0x41155A): reads a settings file into the scratch block.
+//! `settings::read_text`: reads a settings file into the scratch block.
 //!
 //! Takes the path. Returns the text when it was read. `files::read_file` of up to 0xFFFF bytes to
-//! 0x93E8B0, and a NUL after what was read. Five callers: `var\ral.cfg`, `var\ral.zog`, `lang.cfg`,
-//! `files\d\gfx\sku` and one more.
+//! 0x93E8B0, and a NUL after what was read.
 
 use crate::errors::BadInput;
 use crate::files::read_file::read_file_to_store;

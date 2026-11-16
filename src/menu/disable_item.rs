@@ -1,9 +1,8 @@
 //! `menu::disable_item`: an item of the current menu greyed out.
 //!
-//! The item (`menu::item_at`): +0x48 = 0xFFFFFC1C (the moves up and down pass over it) and its
-//! font +0x18 = the grey one. Its twin `menu::enable_item` puts 0xFFFFFC1B and the font back.
-//! Eight callers each (the player details screens: the controller's item when there is no
-//! controller). Refuses item 0.
+//! The item (`menu::item_at`): +0x48 = 0xFFFFFC1C (the moves up and down pass over it) and its font
+//! +0x18 = the grey one. Its twin `menu::enable_item` puts 0xFFFFFC1B and the font back. Refuses
+//! item 0.
 
 use crate::errors::Refused;
 use crate::menu::item_at::item_at;

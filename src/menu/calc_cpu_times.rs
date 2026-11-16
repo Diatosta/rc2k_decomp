@@ -24,8 +24,7 @@ use crate::menu::scale_stage_times::{held_section, scaled};
 
 const TEXTS: [&std::ffi::CStr; 2] = [c"CALCCPUTIMES:STARTED", c"CALCCPUTIMES:FINISHED"];
 
-/// The class time `c`, the class's entry of `class_times`. `event.shown.classes` is only ever the 4
-/// of `EventState::new` (no other writer, no saved copy), so a class is one of the four.
+/// The class time `c`, the class's entry of `class_times`.
 fn class_time_at(screens: &Screens, c: u32) -> Result<u32, BadInput> {
     match screens.state.menus.class_times.get(c as usize) {
         Some(time) => Ok(time.get()),
@@ -79,10 +78,7 @@ pub fn check<'a>(
     race: &Race,
     rec: RecordRef,
 ) -> Result<(u32, &'a [Driver], u32), Refused> {
-    let classes: u32 = screens.event.shown.classes.get();
-    if classes == 0 || classes > 4 {
-        return Err(BadInput("a class count of 0 or past the four").into());
-    }
+    let classes = crate::menu::event_store::CLASSES;
     let drivers = drivers_of(cars)?;
     let times = rec.record(&system.records().stage_tables)?.class_times();
     let (times, _) = scaled(race, times, held_section(screens));

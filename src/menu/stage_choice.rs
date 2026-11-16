@@ -1,5 +1,5 @@
 //! The stage choice's own steps: the UK map with the chosen stage
-//! (`menu::draw_stage_map`, 14 callers), and the choice's three settings stepped, each then
+//! (`menu::draw_stage_map`), and the choice's three settings stepped, each then
 //! drawing the map again.
 
 use crate::errors::{FatalError, Refused};

@@ -579,7 +579,6 @@ pub fn draw_scores_with_heading(
         .transpose()?;
     let mut screen = ScoresScreen::new(canvas, o);
     let id = rc2k_core::screens::best_scores::scores_heading(
-        &mut screen,
         section,
         event.then(|| menus.screens.event.shown.class.get()),
     );

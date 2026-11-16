@@ -655,8 +655,7 @@ pub fn carousel(entry: &Entry, cars: Option<CarList>) -> Result<(), Refused> {
     )
 }
 
-/// A line for the game's log at level 1 with its line break (`logfile::log_write_l1_nl`,
-/// changes no register).
+/// A line for the game's log at level 1 with its line break.
 pub fn log_line(text: &std::ffi::CStr) {
     crate::logfile::log_write::log_nul(&text, true, 1);
 }
@@ -666,8 +665,6 @@ pub fn log_line(text: &std::ffi::CStr) {
 pub enum Callee {
     /// Takes the pending key.
     TakeKey,
-    /// A function that does nothing.
-    NoOp,
     /// Loads the screen's background picture from the given path.
     LoadBackground(Text),
     /// Prepares the menu scene.
@@ -749,7 +746,6 @@ impl Callee {
             Self::TakeKey => {
                 take_key(input);
             }
-            Self::NoOp => {}
             // It never fails.
             Self::LoadBackground(path) => {
                 crate::menu::load_background::load_background_in(
@@ -850,9 +846,8 @@ impl Callee {
             Self::LoadSlideshowPicture => {
                 crate::menu::load_slideshow_picture::load_slideshow_picture_in(entry.owners, 0)?;
             }
-            // It never fails.
             Self::LoadCarBackground => {
-                crate::menu::load_car_background::load_car_background_in_game(
+                crate::menu::load_car_background::load_car_background(
                     menus,
                     entry.owners.gfx,
                     entry.owners.system,
@@ -1258,7 +1253,7 @@ pub fn screen_loop(_screens: &Screens, screen: &Screen, entry: &Entry) -> Result
 }
 
 /// `menu::confirm_leaving`: the question's screen (`menu::leave_question_loop`),
-/// which reads nothing it is entered with; every register comes back as it was.
+/// which reads nothing it is entered with.
 pub fn confirm_leaving(o: Owners<'static>) -> Result<u32, Refused> {
     let mut asked = Ok(());
     let answer = {
@@ -1275,8 +1270,7 @@ pub fn confirm_leaving(o: Owners<'static>) -> Result<u32, Refused> {
     asked.map(|()| answer)
 }
 
-/// Runs a screen from the menus' tables, starting with nothing carried in. Rust callers use
-/// `run_screen`.
+/// Runs a screen from the menus' tables, starting with nothing carried in.
 pub fn screen_entry(o: Owners<'static>, id: ScreenId) -> Result<(), Refused> {
     let screens = &o.menus.screens;
     let screen = id.screen();

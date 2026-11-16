@@ -1,8 +1,7 @@
 //! `menu::flip_yes_no`: the "leave?" question's button turned to the other
 //! answer.
 //!
-//! The answer (`pages.yes_no_answer`) `xor` 1. The left and right action of the question's
-//! button. The menus and draw lists run its `entry` (`menu::table_calls`).
+//! The answer (`pages.yes_no_answer`) `xor` 1. The left and right action of the question's button.
 
 use crate::menu::pages_store::MenuPages;
 

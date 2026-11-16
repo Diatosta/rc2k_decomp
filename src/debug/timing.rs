@@ -1,4 +1,4 @@
-//! The profiler's stages (the debug UI's "Profiler" tab; RAL.EXE's own timers
+//! The profiler's stages (the debug UI's "Profiler" tab; the game.s own timers
 //! were taken out of the shipped game). `start` asks one atomic whether the UI is open and
 //! reads no clock while it is closed: play pays one load and one branch a stage.
 

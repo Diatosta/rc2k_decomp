@@ -1,8 +1,7 @@
 //! `menu::rank_record_entry`: the current record's event's tenth record entry
 //! moved up (`menu::rank_record_entry::rank_entries`).
 //!
-//! Caller: `menu::enter_record_entry`. Refuses a record past the table or no events table, before
-//! anything.
+//! Refuses a record past the table or no events table, before anything.
 
 use crate::menu::owner::Play;
 use crate::menu::standings::*;

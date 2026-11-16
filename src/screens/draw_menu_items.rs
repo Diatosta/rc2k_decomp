@@ -10,10 +10,9 @@
 //! text's x passed to the measuring do not matter.
 //!
 //! The text goes at the item's place (3 further left for the three button kinds, 4 for the
-//! right-aligned one), which is left in the marker position; its font is the item's, blended
-//! with its highlight font by the time since the last key (0 while a key is being redefined) for
-//! the highlighted item. One caller, `menu::draw_menu`. Refuses a menu without an end in its first
-//! 256 items.
+//! right-aligned one), which is left in the marker position; its font is the item's, blended with
+//! its highlight font by the time since the last key (0 while a key is being redefined) for the
+//! highlighted item. Refuses a menu without an end in its first 256 items.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::item_sprites_store::ItemSprite;

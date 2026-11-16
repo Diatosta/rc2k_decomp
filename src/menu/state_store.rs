@@ -31,8 +31,6 @@ pub struct MenuVariables {
     pub which_title: PlainFlag,
     /// 1 = leave the service area's edit variables alone.
     pub skip_edit_values: PlainFlag,
-    /// No code reads or writes it (its first value is 0).
-    pub dword_75aae4: PlainDword,
     /// The class times (`menu::calc_cpu_times`), by class.
     pub class_times: [PlainDword; 4],
     /// The track entry's +0xC and its hundredfold / 0x96A.
@@ -49,8 +47,6 @@ pub struct MenuVariables {
     pub standings_shown: PlainFlag,
     /// Set to 1 by the repairs, 0 by the service pass.
     pub service_flag: PlainFlag,
-    /// No code reads or writes it.
-    pub unk_75ab3c: PlainDword,
     /// 2 in event mode 0x13 (`menu::class_championship_pass`).
     pub class_mode: PlainDword,
     /// The fade's length in milliseconds.
@@ -119,7 +115,6 @@ impl MenuState {
                 review_kind: PlainDword::new(0),
                 which_title: PlainFlag::new(false),
                 skip_edit_values: PlainFlag::new(false),
-                dword_75aae4: PlainDword::new(0),
                 class_times: [const { PlainDword::new(0) }; 4],
                 track_length: [PlainDword::new(0), PlainDword::new(0)],
                 rally_done: PlainFlag::new(false),
@@ -128,7 +123,6 @@ impl MenuState {
                 caption_choice: PlainDword::new(0),
                 standings_shown: PlainFlag::new(false),
                 service_flag: PlainFlag::new(false),
-                unk_75ab3c: PlainDword::new(0),
                 class_mode: PlainDword::new(2),
                 fade_length: PlainDword::new(0x1f4),
                 fade_start: PlainDword::new(0x7d0),

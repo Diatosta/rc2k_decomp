@@ -24,13 +24,12 @@ pub enum Shown {
     Surface,
 }
 
-/// A figure of the display page: its name, the developers' label, how it is shown, its
-/// place, whether the page drew a bar of it, and its place on the page's 800 x 600 screen.
+/// A figure of the display page: its name, the developers' label, how it is shown, the cell
+/// read, whether the page drew a bar of it, and its place on the page's 800 x 600 screen.
 pub struct Row {
     name: &'static str,
     label: &'static str,
     shown: Shown,
-    at: usize,
     cell: for<'a> fn(&Owners<'a>) -> &'a dyn Raw,
     bar: bool,
     place: (u32, u32),
@@ -41,7 +40,6 @@ impl Row {
         name: &'static str,
         label: &'static str,
         shown: Shown,
-        at: usize,
         cell: for<'a> fn(&Owners<'a>) -> &'a dyn Raw,
         bar: bool,
         place: (u32, u32),
@@ -50,7 +48,6 @@ impl Row {
             name,
             label,
             shown,
-            at,
             cell,
             bar,
             place,
@@ -297,7 +294,7 @@ fn screens(saves: &crate::saves::owner::Saves, ui: &Ui) {
         ui.same_line();
     }
     ui.new_line();
-    if ui.button("Car specifications (0x4AA1A3)") {
+    if ui.button("Car specifications") {
         crate::debug::screens::ask_cspecs();
     }
 }
@@ -378,7 +375,12 @@ fn group_table(ui: &Ui, o: &Owners<'static>, group: &Group, wanted: &str) {
     column("Bar", 1.5);
     column("Original", 1.2);
     ui.table_headers_row();
-    for row in group.rows.iter().filter(|r| wanted_row(r, wanted)) {
+    for (number, row) in group
+        .rows
+        .iter()
+        .enumerate()
+        .filter(|(_, r)| wanted_row(r, wanted))
+    {
         let value = row.value(o);
         ui.table_next_row();
         ui.table_next_column();
@@ -388,7 +390,7 @@ fn group_table(ui: &Ui, o: &Owners<'static>, group: &Group, wanted: &str) {
         ui.table_next_column();
         if row.bar {
             let v = f32::from_bits(value);
-            let _id = ui.push_id(row.at);
+            let _id = ui.push_id(number);
             ui.progress_bar(v / 100.0)
                 .size([-1.0, 0.0])
                 .overlay_text("")
@@ -399,11 +401,11 @@ fn group_table(ui: &Ui, o: &Owners<'static>, group: &Group, wanted: &str) {
         if ui.is_item_hovered() {
             let hex = format!("{value:08x}");
             ui.tooltip_text(if row.place == (0, 0) {
-                format!("IDA {:#08x}; {hex}", row.at)
+                hex
             } else {
                 format!(
-                    "IDA {:#08x}; {hex}; at ({}, {}) on the original's page",
-                    row.at, row.place.0, row.place.1
+                    "{hex}; at ({}, {}) on the developers' page",
+                    row.place.0, row.place.1
                 )
             });
         }
@@ -752,14 +754,14 @@ const DUMPS: [(&str, &str, DumpWord, usize, usize); 4] = [
         16,
     ),
     (
-        "Car 1's times at the splits (unk_75B02C)",
+        "Car 1's times at the splits",
         "Noted at each split; kept in the player's +0x20C after the race; hundredths of a second.",
         |race, n| race.shared.state.results.results[0].data.get_u32(4 * n),
         1,
         16,
     ),
     (
-        "Car 2's times at the splits (unk_75B09C)",
+        "Car 2's times at the splits",
         "As car 1's.",
         |race, n| race.shared.state.results.results[1].data.get_u32(4 * n),
         1,

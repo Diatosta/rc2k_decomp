@@ -8,8 +8,7 @@
 //! upwards the object in front is the next one, the first again after the last.
 //! `menu::move_highlight_left` and `_right` start a turn. In 17 lists of the screens with turning
 //! objects (the main menu's among them). Refuses a time kept above 0x71C71C6, with which the
-//! division would trap; it cannot come, the time being held to 100. The menus and draw lists run
-//! its `entry` (`menu::table_calls`).
+//! division would trap; it cannot come, the time being held to 100.
 
 use crate::errors::BadInput;
 use crate::menu::owner::Screens;

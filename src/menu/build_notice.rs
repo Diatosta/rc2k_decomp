@@ -2,14 +2,12 @@
 //! the two.
 //!
 //! Only when the notice kind (the byte from the language's `.loc` file) is 2. The first line
-//! ("Copyright (c) Magnetic Fields (Software Design) Ltd, 1999. All rights reserved.") becomes
-//! "(c) 2000 Actualize Ltd and Magnetic Fields (Software Design) Ltd, " and the second
-//! ("Copyright (c) Actualize Ltd, 1999. ..") is emptied. The text is put together in the shared
-//! text buffer from pieces of the two lines themselves: two characters from the second line's
-//! eleventh on, "2000", fourteen from its twelfth on, " and", 0x26 from the first line's
-//! twelfth on, a space and a NUL; then it is copied over the first line. One caller,
-//! `system::main_loop`. Calling it twice builds from the changed lines. Rust callers run its
-//! `entry` (`routes.rs`).
+//! ("Copyright (c) Magnetic Fields (Software Design) Ltd, 1999. All rights reserved.") becomes "(c)
+//! 2000 Actualize Ltd and Magnetic Fields (Software Design) Ltd, " and the second ("Copyright (c)
+//! Actualize Ltd, 1999. ..") is emptied. The text is put together in the shared text buffer from
+//! pieces of the two lines themselves: two characters from the second line's eleventh on, "2000",
+//! fourteen from its twelfth on, " and", 0x26 from the first line's twelfth on, a space and a NUL;
+//! then it is copied over the first line. Calling it twice builds from the changed lines.
 
 use crate::strings::owner::Strings;
 use rc2k_core::menu::notice::{

@@ -7,10 +7,6 @@ use crate::memory::session::{PlainDword, PlainWord};
 /// The controller screen's variables.
 #[derive(rc2k_derive::Cells)]
 pub struct ControlsScreen {
-    /// Unreferenced: 1 .. 12 and a -1.
-    pub _table_755178: [PlainDword; 13],
-    /// Unreferenced: -1.
-    pub _unused_7551e0: PlainDword,
     /// The left, right, y and z directions' histories of the
     /// last 32 polls (`screens::classify_controller`: a 1 for "under 0x80").
     pub history: [PlainDword; 4],
@@ -38,26 +34,9 @@ impl ControlsScreen {
     }
 }
 
-/// First values the image's (`tests::controls_screen_starts_as_the_games`).
 impl ControlsScreen {
     pub const fn new() -> Self {
         ControlsScreen {
-            _table_755178: [
-                PlainDword::new(1),
-                PlainDword::new(2),
-                PlainDword::new(3),
-                PlainDword::new(4),
-                PlainDword::new(5),
-                PlainDword::new(6),
-                PlainDword::new(7),
-                PlainDword::new(8),
-                PlainDword::new(9),
-                PlainDword::new(10),
-                PlainDword::new(11),
-                PlainDword::new(12),
-                PlainDword::new(0xFFFF_FFFF),
-            ],
-            _unused_7551e0: PlainDword::new(0xFFFF_FFFF),
             history: [const { PlainDword::new(0xFFFF_FFFF) }; 4],
             learning: PlainDword::new(0),
             learn_start: PlainDword::new(0),

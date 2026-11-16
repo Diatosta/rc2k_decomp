@@ -1,8 +1,7 @@
-//! The calls the menus' items (their keys' and actions' functions) make: the item function
-//! of the typed tables (`rc2k_core::menu::tables::ItemFn`), run by the Rust function that
-//! replaces it (`table_routes.rs`). Callers: `menu::run_item_action` (`call_action`: the
-//! item's value and the menu) and `menu::navigation`'s moves (`call_key`). The screens'
-//! draw lists run their typed functions directly (`menu::run_list`).
+//! The calls the menus' items (their keys' and actions' functions) make: the item function of the
+//! typed tables (`rc2k_core::menu::tables::ItemFn`), run by the Rust function that replaces it
+//! (`table_routes.rs`). The screens' draw lists run their typed functions directly
+//! (`menu::run_list`).
 //!
 //! A refused input (`BadInput`) ends the program, saying which function refused and why; a
 //! fatal error is raised from Rust.

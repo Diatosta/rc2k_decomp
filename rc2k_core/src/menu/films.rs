@@ -17,39 +17,38 @@ pub enum Step {
     /// Stops the music (`sound::stop_music`).
     StopMusic,
     /// `gfx::clear_front_surface`.
-    Step4059F4,
-    /// `input::take_key`: `zero` false when a key was taken.
+    ClearFrontSurface,
+    /// `input::take_key`: `key_pressed` when a key was taken.
     TakeKey,
     /// `files::swap_missing_extension` on the film.
     SwapMissingExtension(Film),
-    /// The player on the film, or on the path the step before left (None); `zero` false when a
-    /// key ended it.
-    Player(Option<Film>),
+    /// The player on the film; `key_pressed` when a key ended it.
+    Player(Film),
     /// `scene::set_up_lit_engine`.
     LitEngine,
-    /// `race::render3d_tidy`, `race::objects_tidy`, a step that does nothing, and
-    /// `race::release_textures`.
+    /// `race::render3d_tidy`, `race::objects_tidy` and `race::release_textures`.
     Render3dTidy,
     ObjectsTidy,
-    Nothing,
     ReleaseTextures,
-    /// `files::file_exists`: `carry` true when the film is not there.
+    /// `files::file_exists`: `film_missing` when the film is not there.
     FileExists(Film),
     /// `race::credits_race`, the demonstration.
     Demonstration,
     /// `sound::let_sounds_play`.
-    Step409B76,
+    LetSoundsPlay,
     /// `scene::set_up_engine`, `scene::set_up_front_end_scene`, `sound::play_tune_3`.
     SetUpEngine,
     FrontEndScene,
     Tune3,
 }
 
-/// What a step answered: two flags, read as each step says.
+/// What a step answered, for the steps that answer.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct StepAnswer {
-    pub carry: bool,
-    pub zero: bool,
+    /// The film asked about is not there.
+    pub film_missing: bool,
+    /// A key was taken, or ended the film.
+    pub key_pressed: bool,
 }
 
 pub trait Films {
@@ -61,43 +60,38 @@ pub trait Films {
 /// `menu::play_films`: `idle` from the idle main menu, else at the start (0).
 pub fn play_films<F: Films>(e: &mut F, idle: bool) {
     e.step(Step::StopMusic);
-    e.step(Step::Step4059F4);
+    e.step(Step::ClearFrontSurface);
     e.step(Step::TakeKey);
     if !idle {
         if e.no_fmv() {
             return;
         }
         e.step(Step::SwapMissingExtension(Film::AlLogo));
-        e.step(Step::Player(None));
-        e.step(Step::Player(Some(Film::MfLogo)));
-        e.step(Step::Step4059F4);
+        e.step(Step::Player(Film::AlLogo));
+        e.step(Step::Player(Film::MfLogo));
+        e.step(Step::ClearFrontSurface);
     }
     e.step(Step::LitEngine);
     if idle {
-        for s in [
-            Step::Render3dTidy,
-            Step::ObjectsTidy,
-            Step::Nothing,
-            Step::ReleaseTextures,
-        ] {
+        for s in [Step::Render3dTidy, Step::ObjectsTidy, Step::ReleaseTextures] {
             e.step(s);
         }
     }
     loop {
         if !e.no_fmv()
-            && !e.step(Step::FileExists(Film::Intro)).carry
-            && !e.step(Step::Player(Some(Film::Intro))).zero
+            && !e.step(Step::FileExists(Film::Intro)).film_missing
+            && e.step(Step::Player(Film::Intro)).key_pressed
         {
             break;
         }
         e.step(Step::Demonstration);
         e.step(Step::StopMusic);
-        if !e.step(Step::TakeKey).zero {
+        if e.step(Step::TakeKey).key_pressed {
             break;
         }
     }
-    e.step(Step::Step409B76);
-    e.step(Step::Step4059F4);
+    e.step(Step::LetSoundsPlay);
+    e.step(Step::ClearFrontSurface);
     if idle {
         for s in [
             Step::SetUpEngine,
@@ -130,12 +124,12 @@ mod tests {
             self.steps.push(s);
             match s {
                 Step::FileExists(_) => StepAnswer {
-                    carry: !self.intro,
-                    zero: false,
+                    film_missing: !self.intro,
+                    key_pressed: false,
                 },
-                Step::TakeKey | Step::Player(Some(Film::Intro)) => StepAnswer {
-                    carry: false,
-                    zero: !self.keys.remove(0),
+                Step::TakeKey | Step::Player(Film::Intro) => StepAnswer {
+                    film_missing: false,
+                    key_pressed: self.keys.remove(0),
                 },
                 _ => StepAnswer::default(),
             }
@@ -160,7 +154,7 @@ mod tests {
             intro: true,
         };
         play_films(&mut log, false);
-        assert!(log.steps.contains(&Step::Player(None)));
+        assert!(log.steps.contains(&Step::Player(Film::AlLogo)));
         assert_eq!(
             log.steps
                 .iter()
@@ -176,7 +170,7 @@ mod tests {
             intro: false,
         };
         play_films(&mut log, true);
-        assert!(!log.steps.contains(&Step::Player(Some(Film::Intro))));
+        assert!(!log.steps.contains(&Step::Player(Film::Intro)));
         assert_eq!(
             log.steps
                 .iter()

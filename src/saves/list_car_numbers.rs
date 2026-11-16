@@ -2,11 +2,10 @@
 //! `saves::rebuild_car_lists`.
 //!
 //! 0x28 dwords of -1 in `first_numbers` and 0x28 in `second_numbers` (the second list has 0x14
-//! entries in `var\ral.dat`; the rest of what is filled is whatever lies after it); then for
-//! each entry of `cars_second` up to its -1 the first dword of what it points at goes to the
-//! first, and likewise from `shown_cars` to the second.
-//! Called by `menu::run_front_end` after the main menu is left, and `menu::add_shown_car`.
-//! Refuses a list of pointers without its -1 within the numbers' room, and a null entry.
+//! entries in `var\ral.dat`; the rest of what is filled is whatever lies after it); then for each
+//! entry of `cars_second` up to its -1 the first dword of what it points at goes to the first, and
+//! likewise from `shown_cars` to the second. Refuses a list of pointers without its -1 within the
+//! numbers' room, and a null entry.
 
 use crate::errors::BadInput;
 use crate::memory::session::PlainDword;

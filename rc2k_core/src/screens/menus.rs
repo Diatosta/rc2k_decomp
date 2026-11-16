@@ -5,15 +5,7 @@ use crate::Invalid;
 use crate::screens::screen::{Buffer, Screen};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Work {
-    /// The spaced-out text's font.
-    SpacedFont,
-    /// Where the item's text went (the marker's x and y).
-    MarkerX,
-    MarkerY,
-    /// 1 while the highlighted item is drawn.
-    Highlighted,
-}
+pub enum Work {}
 
 /// A label: x, y, font, string.
 #[derive(Clone, Copy, Debug)]
@@ -36,7 +28,7 @@ pub fn labels<S: Screen>(s: &mut S, labels: &[Label<S::Font>]) -> Result<(), S::
 const LINE_LEN: usize = 0x100;
 
 /// An item's text: one string, or with `spaced` one character at a time 18 pixels apart from
-/// x - 26 through a one-character text, the font kept (`font_value`). The string is read with
+/// x - 26 through a one-character text. The string is read with
 /// its NUL: an empty string's NUL is still drawn, then the loop goes on into what the line
 /// buffer held after it (`after(n)`, n < 0x100; past the buffer, the one-character text).
 /// Refused: a string of 0x100 bytes or more with its NUL.
@@ -45,7 +37,6 @@ pub fn item_text<S: Screen<Work = Work>>(
     s: &mut S,
     id: u32,
     font: S::Font,
-    font_value: u32,
     x: i32,
     y: i32,
     spaced: bool,
@@ -60,7 +51,6 @@ pub fn item_text<S: Screen<Work = Work>>(
     if line.len() > LINE_LEN {
         return Err(Invalid("a string longer than the line buffer").into());
     }
-    s.keep(Work::SpacedFont, font_value);
     s.store(Buffer::Line, &line)?;
     let byte = |n: usize| if n < line.len() { line[n] } else { after(n) };
     let mut x = x.wrapping_sub(0x1A);
@@ -150,8 +140,6 @@ pub trait MenuScreen: Screen<Work = Work> {
     ) -> Result<Self::Font, Self::Error>;
     /// A sprite list drawn where a sprite number is drawn.
     fn list_sprite(&mut self, list: usize, x: i32, y: i32) -> Result<(), Self::Error>;
-    /// A font as the work variable keeps it (its number).
-    fn font_value(&self, f: Self::Font) -> u32;
 }
 
 /// The sprite an item's +0x20 names, at (`x`, `y`).
@@ -181,12 +169,7 @@ pub fn items<S: MenuScreen>(
 ) -> Result<(), S::Error> {
     for (n, it) in items.iter().enumerate() {
         let highlighted = current == it.kind;
-        s.keep(Work::Highlighted, highlighted as u32);
         if !highlighted {
-            if it.behind != NOTHING {
-                s.keep(Work::MarkerX, it.x);
-                s.keep(Work::MarkerY, it.y);
-            }
             match it.behind {
                 NOTHING | NOTHING_EITHER => {}
                 OWN_BUTTON => s.own_button(n)?,
@@ -212,15 +195,12 @@ pub fn items<S: MenuScreen>(
         if it.behind == RIGHT_BUTTON {
             x = x.wrapping_sub(4);
         }
-        s.keep(Work::MarkerX, x);
-        s.keep(Work::MarkerY, y);
         let font = if highlighted {
             s.blended(since_key, it.font, it.pulse_font)?
         } else {
             it.font
         };
-        let value = s.font_value(font);
-        item_text(s, it.id, font, value, x as i32, y as i32, it.spaced, after)?;
+        item_text(s, it.id, font, x as i32, y as i32, it.spaced, after)?;
     }
     Ok(())
 }
@@ -301,25 +281,25 @@ mod tests {
         .unwrap();
         assert_eq!(s.0, ["7 s30 1 2"]);
         let mut s = Record::default();
-        item_text(&mut s, 1, 7, 9, 100, 50, true, &|_| unreachable!()).unwrap();
-        assert_eq!(s.0, ["keep 9", "7 65 74 50", "7 66 92 50"]);
+        item_text(&mut s, 1, 7, 100, 50, true, &|_| unreachable!()).unwrap();
+        assert_eq!(s.0, ["7 65 74 50", "7 66 92 50"]);
         // An empty string: its NUL, then what the buffer held after it until a 0.
         let mut s = Record::default();
-        item_text(&mut s, 2, 7, 9, 100, 50, true, &|n| {
+        item_text(&mut s, 2, 7, 100, 50, true, &|n| {
             if n < 3 { b'q' } else { 0 }
         })
         .unwrap();
-        assert_eq!(s.0, ["keep 9", "7 0 74 50", "7 113 92 50", "7 113 110 50"]);
+        assert_eq!(s.0, ["7 0 74 50", "7 113 92 50", "7 113 110 50"]);
         // A buffer with no 0 after the NUL: on to its end, then the last character again
         // and the cleared one-character text.
         let mut s = Record::default();
-        item_text(&mut s, 2, 7, 9, 100, 50, true, &|_| b'q').unwrap();
-        assert_eq!(s.0.len(), 1 + 0x101);
+        item_text(&mut s, 2, 7, 100, 50, true, &|_| b'q').unwrap();
+        assert_eq!(s.0.len(), 0x101);
         assert_eq!(
             s.0.last().unwrap(),
             &format!("7 0 {} 50", 74 + 0x12 * 0x100)
         );
-        assert!(item_text(&mut Record::default(), 3, 7, 9, 0, 0, true, &|_| 0).is_err());
+        assert!(item_text(&mut Record::default(), 3, 7, 0, 0, true, &|_| 0).is_err());
     }
 
     impl MenuScreen for Record {
@@ -338,9 +318,6 @@ mod tests {
         fn list_sprite(&mut self, list: usize, x: i32, y: i32) -> Result<(), Invalid> {
             self.0.push(format!("list {list} {x:#x} {y:#x}"));
             Ok(())
-        }
-        fn font_value(&self, f: u32) -> u32 {
-            f + 1000
         }
     }
 

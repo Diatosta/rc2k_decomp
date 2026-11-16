@@ -3,8 +3,7 @@
 //!
 //! For each of the four players: the 0x20 bytes of the player's name to its +0x124, and that copy
 //! as a line of the log (`logfile::log_write_l1_nl`). A name that fills its 0x20 bytes is logged
-//! with what follows it in the player. One caller, after the main menu is left.
-//! Refuses a missing player.
+//! with what follows it in the player. Refuses a missing player.
 
 use crate::errors::BadInput;
 use crate::menu::owner::Menus;

@@ -2,8 +2,7 @@
 //! standings table B, counting the computer drivers with a group before it; none: the fatal
 //! error 0x8070A0AE "Unable to locate player (find1stplayerinochamp)".
 //!
-//! Callers: the event code. Refuses a table without its end entry, before anything; raises the
-//! fatal error.
+//! Refuses a table without its end entry, before anything; raises the fatal error.
 
 use crate::errors::Refused;
 use crate::menu::standings::*;

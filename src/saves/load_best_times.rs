@@ -1,15 +1,13 @@
 //! Reads the best times and scores, `var\hst.dat`.
 //!
-//! First `saves::allocate_best_times`; the file is opened (mode 0); its head of 0x10 bytes
-//! must start "R5HS" and have 0x50004 at +8; then six of the tables are read straight from the
-//! file, each with the size its pair of variables holds (tables 1, 2, 3, 4, 7 and 8 of
-//! `allocate_best_times`: 0xBB8 bytes, an entry of 0x618 a stage, 0x15E0, 0xDB60, 0xDB60, an
-//! entry a stage again); the file is closed and `loaded` = 1.
-//! A read that fails or gives fewer bytes than asked for closes the file and ends it there,
-//! with what was read so far left in the tables. A head that is not the right one ends it
-//! without the file being closed (a slip kept as is).
-//! One caller, `system::load_game_data`. Refuses what `resolve_path` and
-//! `allocate_best_times` refuse.
+//! First `saves::allocate_best_times`; the file is opened (mode 0); its head of 0x10 bytes must
+//! start "R5HS" and have 0x50004 at +8; then six of the tables are read straight from the file,
+//! each with the size its pair of variables holds (tables 1, 2, 3, 4, 7 and 8 of
+//! `allocate_best_times`: 0xBB8 bytes, an entry of 0x618 a stage, 0x15E0, 0xDB60, 0xDB60, an entry
+//! a stage again); the file is closed and `loaded` = 1. A read that fails or gives fewer bytes than
+//! asked for closes the file and ends it there, with what was read so far left in the tables. A
+//! head that is not the right one ends it without the file being closed (a slip kept as is).
+//! Refuses what `resolve_path` and `allocate_best_times` refuse.
 
 use crate::errors::Refused;
 use crate::files::handle::{close, open_by_mode};

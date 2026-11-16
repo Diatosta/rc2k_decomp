@@ -8,14 +8,13 @@
 //! - Escape (1): `loop_flags.leave_screen`, `draw_work.escape_pressed` and
 //!   `captions.left_by_key` set; `Pressed::Escape`;
 //! - Enter (0x1C): the Enter menu sound, the last-key time set to the clock, the
-//!   enter-skips-name-entry flag set when bits 8 .. 15 of the caller's value are 4, the Enter
+//!   enter-skips-name-entry flag set when bits 8 .. 15 of the elapsed time are 4, the Enter
 //!   click played; `Pressed::Enter`;
 //! - any other: the last-key time set, then the four `move_highlight_*` (0x66, 0x6B, 0x69,
 //!   0x68), a screenshot (0x52), `loop_flags.toggle` flipped (0x20), 60 added to the service
 //!   time budget when bit 14 of the cheat bits is set (0x14); `Pressed::Nothing`.
 //!
-//! 89 callers: every screen loop. Refuses, on a yes/no screen, a missing keyboard layout
-//! (before the key is taken).
+//! Refuses, on a yes/no screen, a missing keyboard layout (before the key is taken).
 
 use crate::errors::{BadInput, Refused};
 use crate::input::key_to_char::has_layout;
@@ -25,9 +24,8 @@ use crate::menu::navigation::{Direction, move_highlight};
 use crate::owners::Owners;
 use rc2k_core::menu::keys::Pressed;
 
-/// `eax` is the caller's value (the screen loops pass the elapsed time); bits 8 .. 15 are read
-/// on Enter.
-pub fn handle_keys(o: Owners<'static>, eax: u32) -> Result<Pressed, Refused> {
+/// `elapsed` is the time since the screen's set-up; its bits 8 .. 15 are read on Enter.
+pub fn handle_keys(o: Owners<'static>, elapsed: u32) -> Result<Pressed, Refused> {
     use rc2k_core::menu::keys::{self, Action, Move};
     let menus = o.menus;
     let nothing = Pressed::Nothing;
@@ -45,12 +43,12 @@ pub fn handle_keys(o: Owners<'static>, eax: u32) -> Result<Pressed, Refused> {
     if key == 0 {
         return Ok(nothing);
     }
-    let eax = eax & !0xFF | key as u32;
+    let key_over_elapsed = elapsed & !0xFF | key as u32;
     handle_yes_no(
         crate::strings::append_string_by_id::StringOwners::of(o),
         o.input,
         menus,
-        eax,
+        key_over_elapsed,
     )?;
     let action = keys::action(key, || menus.play.cheats.cheats.get());
     match action {
@@ -71,7 +69,7 @@ pub fn handle_keys(o: Owners<'static>, eax: u32) -> Result<Pressed, Refused> {
             .screens
             .flow
             .enter_skips_name_entry
-            .set(keys::enter_skips_name_entry(eax));
+            .set(keys::enter_skips_name_entry(key_over_elapsed));
         crate::sound::play_menu_sound::play_menu_sound_in_game(
             o.sound,
             o.audio,

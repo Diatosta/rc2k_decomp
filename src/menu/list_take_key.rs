@@ -2,8 +2,6 @@
 //! millisecond's sleep (`system::sleep`). A key: the key repeat count is reset unless it is the
 //! last key again and the time since the last key (less 6) is negative, then one more; the key
 //! is kept as the last key.
-//!
-//! Callers: `race::replay_viewer`.
 
 /// The key, 0 for none.
 pub fn list_take_key(

@@ -23,37 +23,30 @@ pub static ITEM_SPRITES: [[u32; 5]; 16] = [
     [0x11, 0x13, 0x11, 0x17, 0x12],
 ];
 
-/// What a menu item's +0x20 holds: a sprite number (the glyph drawn behind an item that is no
-/// button, and its palette), or for a button one of the lists.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum ItemSprite {
-    Sprite(u32),
-    List(usize),
-}
+pub use rc2k_core::menu::tables::ItemSprite;
 
 /// A list kept in a `SpriteCell`: `LIST_TAG | n` (the numbers the game keeps there are
 /// 0 .. 2 and 0xFFFFFFA9; one in the tag's range is refused when set).
 const LIST_TAG: u32 = 0x7FFF_FFF0;
 
-/// Where the sprite lists sit: core's menu table names a button's list by its address there.
-const LISTS: core::ops::Range<usize> = 0x747998..0x747AD8;
-
-/// A menu item's +0x20 (a handle).
+/// What is drawn behind a menu item, as it changes in play.
 #[repr(transparent)]
 #[derive(rc2k_derive::Cells)]
 pub struct SpriteCell(crate::memory::session::PlainDword);
 
 impl SpriteCell {
-    /// From the table's value (`ida`: a number, or the address of a list; an address inside
-    /// the lists that is no list's start, or a number in the tag's range, fails to compile).
-    pub const fn at(ida: u32) -> Self {
-        let ida_at = ida as usize;
-        let value = if LISTS.start <= ida_at && ida_at < LISTS.end {
-            assert!((ida_at - LISTS.start).is_multiple_of(0x14));
-            LIST_TAG | ((ida_at - LISTS.start) / 0x14) as u32
-        } else {
-            assert!(ida & !0xF != LIST_TAG);
-            ida
+    /// From the table's value (a list past the sixteen, or a number in the tag's range, fails
+    /// to compile).
+    pub const fn new(sprite: ItemSprite) -> Self {
+        let value = match sprite {
+            ItemSprite::List(n) => {
+                assert!(n < ITEM_SPRITES.len());
+                LIST_TAG | n as u32
+            }
+            ItemSprite::Sprite(n) => {
+                assert!(n & !0xF != LIST_TAG);
+                n
+            }
         };
         Self(crate::memory::session::PlainDword::new(value))
     }
@@ -88,11 +81,14 @@ mod tests {
     use super::*;
     #[test]
     fn a_sprite_cell_keeps_numbers_and_lists() {
-        let c = SpriteCell::at(LISTS.start as u32 + 0x14);
+        let c = SpriteCell::new(ItemSprite::List(1));
         assert_eq!(c.get(), ItemSprite::List(1));
-        assert_eq!(SpriteCell::at(2).get(), ItemSprite::Sprite(2));
         assert_eq!(
-            SpriteCell::at(0xFFFF_FFA9).get(),
+            SpriteCell::new(ItemSprite::Sprite(2)).get(),
+            ItemSprite::Sprite(2)
+        );
+        assert_eq!(
+            SpriteCell::new(ItemSprite::Sprite(0xFFFF_FFA9)).get(),
             ItemSprite::Sprite(0xFFFF_FFA9)
         );
         c.set(ItemSprite::Sprite(0xFFFF_FFA9)).unwrap();

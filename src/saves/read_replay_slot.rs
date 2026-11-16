@@ -1,10 +1,9 @@
 //! Reads a replay's head, `savedata\replay\replayNN`, and copies its name into the replay list.
 //!
-//! `slot` is 0 .. 99. Up to 0x430 bytes go to the replay header (`header`). Accepted if the
-//! read did not fail, the first dword is "REPL" and the dword at +8 is 0x50400; the 0x20 bytes
-//! at +0x10 then go to the replay names (`names[slot * 0x20]`). A short file is not noticed as
-//! such: what the buffer held before decides (as in `saves::read_savegame_slot`).
-//! One caller, `system::load_game_data`, for all 100 slots at start-up. Refuses a slot past 99.
+//! `slot` is 0 .. 99. Up to 0x430 bytes go to the replay header (`header`). Accepted if the read
+//! did not fail, the first dword is "REPL" and the dword at +8 is 0x50400; the 0x20 bytes at +0x10
+//! then go to the replay names (`names[slot * 0x20]`). A short file is not noticed as such: what
+//! the buffer held before decides (as in `saves::read_savegame_slot`). Refuses a slot past 99.
 
 use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::numbered_path_bytes;

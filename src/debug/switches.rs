@@ -27,9 +27,9 @@ pub fn tab(race: &Race, ui: &Ui) {
         1,
         "Mipmaps' setting",
         &shared.vars.get().mip_setting,
-        "the original's mipmaps; our rasteriser filters alike either way: no change",
+        "the mipmaps; the rasteriser filters alike either way: no change",
     );
-    ui.text_disabled("2: dword_6218E0: nothing reads it");
+    ui.text_disabled("2: a switch nothing reads");
     ui.text_disabled("3: the processor's extensions: one path now, nothing to switch");
     tick(ui, 4, "Car shadows", &words[2], "race::car_shadow");
     tick(

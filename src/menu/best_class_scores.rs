@@ -1,13 +1,12 @@
-//! `menu::best_class_scores`: each class's (0 .. `event.shown.classes`) new best scores. Each
+//! `menu::best_class_scores`: each class's (0 .. `CLASSES`) new best scores. Each
 //! counted
 //! player of the class whose score (+0xB0) is not below the class's tenth is entered
 //! (`menu::enter_best_score`); with one entered, `event.shown.class` is set to the class and its
 //! page
 //! shown (`menu::best_class_scores_loop`), stopping when leaving is answered yes.
 //!
-//! Caller: the event drivers. Refuses a player count of 0 or
-//! past 4, a missing player, no classes or more than five, no table, and what an entry refuses,
-//! before anything.
+//! Refuses a player count of 0 or past 4, a missing player, no table,
+//! and what an entry refuses, before anything.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::screen_id::ScreenId;
@@ -20,10 +19,10 @@ pub fn best_class_scores(
     entry: &Entry,
 ) -> Result<(), Refused> {
     let players = counted_players(&menus.screens, &menus.play)?;
-    let classes: u32 = menus.screens.event.shown.classes.get();
-    let (true, true) = (classes != 0 && classes <= 5, tables.scores.is_taken()) else {
-        return Err(BadInput("no classes, more than five, or no best-score table").into());
-    };
+    let classes = crate::menu::event_store::CLASSES;
+    if !tables.scores.is_taken() {
+        return Err(BadInput("no best-score table").into());
+    }
     for class in 0..classes {
         menus.screens.event.trial.any_qualified.set(false);
         for (n, &p) in players.iter().enumerate() {

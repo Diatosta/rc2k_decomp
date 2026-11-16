@@ -47,7 +47,7 @@ pub const SCREEN: Screen = Screen {
     background: &[Step::Call(Callee::LoadBackground(|m| {
         &m.texts.championship_end_review_picture
     }))],
-    after: &[Step::Call(Callee::NoOp)],
+    after: &[],
     asking: Some(Asking {
         also_if: Some(ScreenFlag::AskLeave),
         confirmed: &[

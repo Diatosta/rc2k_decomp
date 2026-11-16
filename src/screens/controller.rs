@@ -90,8 +90,8 @@ pub fn learn_axis(
             take = false;
         }
     } else {
-        let [ecx, edx, eax, ebx] = crate::input::axes::first_device_state(input)?;
-        figure = classify_controller(controls, eax, ebx, ecx, edx);
+        let [x, y, z, buttons] = crate::input::axes::first_device_state(input)?;
+        figure = classify_controller(controls, z, buttons, x, y);
     }
     if take {
         if crate::input::take_key::take_key(input) == l::CANCEL_KEY {

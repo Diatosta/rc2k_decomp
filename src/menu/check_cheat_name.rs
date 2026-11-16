@@ -5,9 +5,8 @@
 //! in the cheats, the menu's sound 8 plays, `menu::apply_cheats` runs, and the player's name
 //! becomes string 0x18F.
 //!
-//! Called by the fourth player's details page (`menu::player_pages`) once the name's editing
-//! ends. Refuses (before anything) a missing fourth player or name, a list without its end in 64 entries, a bit past
-//! 31 (past the cheats' 32 bits), and what the coding refuses.
+//! Refuses (before anything) a missing fourth player or name, a list without its end in 64 entries,
+//! a bit past 31 (past the cheats' 32 bits), and what the coding refuses.
 
 use crate::errors::Refused;
 use crate::memory::cells::Store;

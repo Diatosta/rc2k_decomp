@@ -1,11 +1,10 @@
 //! Writes the best times and scores, `var\hst.dat`.
 //!
-//! Only when the tables' memory is taken and they are filled (the allocated and loaded flags
-//! both 1). A head of 0x10 bytes is made ("R5HS", 0, 0x50004, the time); the file is opened
-//! (mode 1: made anew); the head and the six tables `saves::load_best_times` reads are
-//! written, each with the size its pair of variables holds; the file is closed. Whether a write
-//! worked is not looked at: only a file that cannot be opened is a failure. One caller,
-//! `saves::save_game_data`. Refuses what `resolve_path` refuses.
+//! Only when the tables' memory is taken and they are filled (the allocated and loaded flags both
+//! 1). A head of 0x10 bytes is made ("R5HS", 0, 0x50004, the time); the file is opened (mode 1:
+//! made anew); the head and the six tables `saves::load_best_times` reads are written, each with
+//! the size its pair of variables holds; the file is closed. Whether a write worked is not looked
+//! at: only a file that cannot be opened is a failure. Refuses what `resolve_path` refuses.
 
 use crate::errors::Refused;
 use crate::files::handle::{close, open_by_mode};

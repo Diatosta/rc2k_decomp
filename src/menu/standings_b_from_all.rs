@@ -5,8 +5,7 @@
 //! then each group's (+0x90, 0 .. 3) counted players into the entries from 89, 119, 169
 //! and 179 down (`menu::player_to_standing_b`).
 //!
-//! Callers: the event drivers. The names come from
-//! `strings::append_string_by_id`. Refuses no table, more drivers than its 200
+//! The names come from `strings::append_string_by_id`. Refuses no table, more drivers than its 200
 //! entries, a name past the entry, a player count of 0 or past 4, a player missing or without a
 //! name, before anything.
 use crate::errors::{BadInput, Refused};

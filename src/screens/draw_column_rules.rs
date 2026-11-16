@@ -1,5 +1,4 @@
-//! The see-through blue rules between a two-column page's sixteen rows
-//! (`scene::draw_tinted_quad`). Caller: `screens::draw_two_column_panel`.
+//! The see-through blue rules between a two-column page's sixteen rows (`scene::draw_tinted_quad`).
 
 use crate::errors::Refused;
 use crate::owners::Owners;

@@ -1935,7 +1935,7 @@ impl StageTables {
     pub fn group_event_table(&self, group: u32, sub: u32) -> Result<RecordTable, BadInput> {
         let list = GROUP_LISTS
             .get(group as usize)
-            .ok_or(BadInput("a stage group past off_735512's four"))?;
+            .ok_or(BadInput("a stage group past the four"))?;
         let entry = list
             .entry_on(sub as usize)
             .ok_or(BadInput("a stage list read past the lists"))?;
@@ -1947,7 +1947,7 @@ impl StageTables {
     pub fn level_table(&self, level: u32) -> Result<RecordTable, BadInput> {
         let entry = LEVEL_TABLES
             .get(level as usize)
-            .ok_or(BadInput("an arcade level past off_73555A's list"))?;
+            .ok_or(BadInput("an arcade level past the list"))?;
         listed_table(*entry)
     }
 
@@ -1956,7 +1956,7 @@ impl StageTables {
     pub fn result_table(&self, n: u32) -> Result<TimesVariable, BadInput> {
         match RESULT_TABLES.get(n as usize) {
             Some(Listed::Entry(variable)) => Ok(*variable),
-            _ => Err(BadInput("a results table past off_7354FE's four")),
+            _ => Err(BadInput("a results table past the four")),
         }
     }
 

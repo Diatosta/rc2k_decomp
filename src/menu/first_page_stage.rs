@@ -2,8 +2,6 @@
 //! for `champ_view.rows.count` stages, ten a page: 1 up to ten, else (n / 10) * 10 + 1, less
 //! ten when n is a multiple of ten; n 0 there: the fatal error 0x80701010 (cannot happen past the
 //! first test).
-//!
-//! Callers: the event pages' code.
 
 /// The first stage of the last page, stored in `ChampView.first_row` (1 for a single page).
 use crate::menu::champ_store::ChampView;

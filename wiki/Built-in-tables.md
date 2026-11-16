@@ -50,7 +50,7 @@ changed in place; where they must outlast the program they are saved in one of t
 
 | Data | Where |
 | --- | --- |
-| Every menu: its items, their places, what each does, their starting values | `rc2k_core/src/menu/tables.rs` and the generated `rc2k_core/src/menu/tables_data.rs` |
+| Every menu: its items, their places, what each does, their starting values | `rc2k_core/src/menu/tables.rs` and `rc2k_core/src/menu/tables_data.rs` |
 | The menus' state while the game runs | `src/menu/menus_store.rs` |
 | Picture paths of each screen, the stage maps' and slides' paths | `src/menu/texts_store.rs`, `src/menu/lists_store.rs` |
 | Lists of message numbers the screens show (nationalities, captions) | `src/menu/captions_store.rs` |
@@ -96,8 +96,9 @@ The texts themselves are not built in: they come from the language's file (see
 
 - Find the store with the table above, read its opening comment, and change the value in its
   `new` function (or in the constant).
-- The menus' tables are generated: `rc2k_core/src/menu/tables_data.rs` should not be edited
-  by hand without reading `tools/menu_tables` first.
+- The menus' tables (`rc2k_core/src/menu/tables_data.rs`) are edited where they are; a test
+  freezes them by a hash (`tables_are_as_frozen` in `tables.rs`), whose two constants change
+  with them.
 - Many tables have a fixed number of entries that other code relies on (34 cars, 36 stages,
   `0x757` messages). Changing a value is safe; adding an entry usually needs more code to
   change with it.

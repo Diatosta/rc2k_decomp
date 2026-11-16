@@ -7,8 +7,8 @@
 //! leaving ends it all), the fade out, a pause of 1250 ms (a key ends it). When every player has failed
 //! (`event.event_out` the player count), `event.event_goes_on` 0 (the event is over).
 //!
-//! Callers: the event drivers. Refuses a player count of 0 or past 4, a player missing, a
-//! taking-part player's car without its table, before anything.
+//! Refuses a player count of 0 or past 4, a player missing, a taking-part player's car without its
+//! table, before anything.
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;

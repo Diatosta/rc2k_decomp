@@ -1,5 +1,5 @@
 //! `menu::award_stage_points`: the stage's championship points. For each class
-//! (`event.shown.class`, 0 .. `event.shown.classes`) the points start at 0x14 (`seconds`); each
+//! (`event.shown.class`, 0 .. `CLASSES`) the points start at 0x14 (`seconds`); each
 //! entry
 //! of standings table B in that class, in the table's order, is logged ("Status of
 //! driver" and its +0x74), gets the points into its +0x54 + 4 * `section` and the points
@@ -9,10 +9,9 @@
 //! Then each entry's total of its six stage points (+0x54 .., the negative ones left out)
 //! into its +0x6C and its driver's +0x90 or player's +0xB0.
 //!
-//! Callers: the event drivers. It logs through `logfile::log_write`
-//! and `log_int` (level 1). Refuses no table, one without its end entry, a class count of 0 or past
-//! 0x100, a section past 5, a player past 4 or missing, before anything; a driver not found is the
-//! search's fatal error, before anything.
+//! It logs through `logfile::log_write` and `log_int` (level 1). Refuses no table, one without its
+//! end entry, a section past 5, a player past 4 or missing,
+//! before anything; a driver not found is the search's fatal error, before anything.
 use crate::errors::{BadInput, Refused};
 use crate::menu::drivers_store::{Driver, IN_EVENT};
 use crate::menu::owner::Menus;
@@ -44,10 +43,10 @@ pub fn award_stage_points(
     tables: &crate::saves::best_times::BestTables,
 ) -> Result<(), Refused> {
     let screens = &menus.screens;
-    let classes: u32 = screens.event.shown.classes.get();
+    let classes = crate::menu::event_store::CLASSES;
     let section: u32 = screens.event.section.get();
-    if classes == 0 || classes > 0x100 || section > 5 {
-        return Err(BadInput("a class count of 0 or past 0x100, or a section past 5").into());
+    if section > 5 {
+        return Err(BadInput("a section past 5").into());
     }
     let mut all = walked_entries_b(tables)?;
     let mut owners = Vec::with_capacity(all.len());

@@ -8,8 +8,7 @@
 //! change), the 3D is tidied, the front end's scene is set up, tune 4 plays, the item and the
 //! screen mode step become 3, and the menu's sound 8 plays.
 //!
-//! An item action of the graphics page. The menus and draw lists run its `entry`
-//! (`menu::table_calls`).
+//! An item action of the graphics page.
 
 use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;

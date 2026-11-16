@@ -1,8 +1,6 @@
 //! `menu::reload_front_end`: when `arcade.scene_let_go` is 1 (the scene was let go for
 //! a race), the front end's scene set up again: `scene::set_up_engine`,
 //! `scene::set_up_front_end_scene`, `scene::set_up_engine`.
-//!
-//! 36 callers (the menus after their races).
 
 use crate::errors::Refused;
 use crate::owners::Owners;

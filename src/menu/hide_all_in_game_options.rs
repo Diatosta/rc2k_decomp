@@ -2,9 +2,8 @@
 //! from +0x118) given +0x14 0, +0x48 -0x3E4 and +0x1C -0x57 (a reading: the cars on the
 //! front end's carousel at their start).
 //!
-//! They are the in-game options menu's items 3 .. 6 (`menu/in_game_options_items.rs`):
-//! this hides all four, as `menu::hide_in_game_options` hides the last ones.
-//! Callers: the event drivers.
+//! They are the in-game options menu's items 3 .. 6 (`menu/in_game_options_items.rs`): this hides
+//! all four, as `menu::hide_in_game_options` hides the last ones.
 use crate::errors::Refused;
 use crate::menu::in_game_options_items::set;
 use crate::menu::owner::Menus;

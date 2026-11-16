@@ -4,8 +4,8 @@
 //! bytes to +0x54); it stops at the first that does not. `event.current_player` the player looked
 //! at last.
 //!
-//! Callers: the event drivers. Refuses a record past the
-//! table, a player count of 0 or past 4, a missing player or name, before anything.
+//! Refuses a record past the table, a player count of 0 or past 4, a missing player or name, before
+//! anything.
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
 use crate::menu::standings::*;

@@ -1,5 +1,5 @@
 //! `menu::unused_cspecs_loop`: a car specification screen with the carousel of
-//! menu 0xC, background `cspecs.png`. Nothing in RAL.EXE reaches it; reached here from the
+//! menu 0xC, background `cspecs.png`. Nothing in the menus reaches it; reached from the
 //! debug UI's "Screens" tab (`debug::screens`). What it was for is not known; a reading.
 
 use crate::errors::Refused;
@@ -8,7 +8,7 @@ use crate::menu::owner::Screens;
 use crate::menu::screen_loop::{Callee, List, Screen, SetUp, Step};
 
 /// `ScreenItems.current[33]`'s slot, the item kept between visits.
-const SLOT: usize = (0x7476E4 - 0x747660) / 4;
+const SLOT: usize = 33;
 
 fn before(screens: &Screens) -> Result<(), Refused> {
     screens.items.current[SLOT].set(screens.items.first[SLOT].get());

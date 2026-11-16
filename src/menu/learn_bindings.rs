@@ -4,8 +4,7 @@
 //! the 3 s start), the control being learnt the control (1 .. 11). The eleventh is in no menu,
 //! and nothing refers to it.
 //!
-//! Callers: the actions of the four controller pages' items. The controller pages' items run
-//! `learn_binding(n)` (`menu::table_routes`).
+//! The controller pages' items run `learn_binding(n)` (`menu::table_routes`).
 
 use crate::screens::controls_store::ControlsScreen;
 

@@ -6,9 +6,8 @@
 //! stage's +0x3C), the 0x40 bytes at the player's +0x20C at +0x5C, the name's first 31 bytes at
 //! +0x20; then `menu::rank_time_trial_best`.
 //!
-//! Callers: the time trial's events, when the player qualifies. Refuses (before anything) a
-//! current player past the four or missing, a stage the tables do not give, or a name pointer
-//! of 0.
+//! Refuses (before anything) a current player past the four or missing, a stage the tables do not
+//! give, or a name pointer of 0.
 
 use crate::errors::Refused;
 use crate::menu::event_flow::*;

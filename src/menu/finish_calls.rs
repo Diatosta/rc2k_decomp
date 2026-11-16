@@ -139,7 +139,7 @@ impl finish::Finish for Game<'_> {
         match r {
             Racer::Leader(n) => {
                 if n >= 4 {
-                    return Err(BadInput("the leader's ecx past the players").into());
+                    return Err(BadInput("a leader past the players").into());
                 }
                 self.racer = RacerAt::Player(player(self.menus, n));
             }

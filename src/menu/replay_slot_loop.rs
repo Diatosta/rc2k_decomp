@@ -1,7 +1,5 @@
 //! `menu::replay_slot_loop`: the replay slots' screen: the loading one (`menu::load_replay_loop`)
 //! or else the saving one (`menu::save_replay_loop`); each leaves the slot chosen, -1 for none.
-//!
-//! Callers: `race::replay_viewer` (modes 2, 3), `race::viewer_action`, `race::choose_save_slot`.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::screen_id::ScreenId;

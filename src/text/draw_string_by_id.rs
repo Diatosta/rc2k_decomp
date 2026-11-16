@@ -38,7 +38,7 @@ pub fn draw_string_by_id(
     draw_text(font, &bytes, x, y, canvas)
 }
 
-/// The same with a font object in game memory and the game's text buffer, for Rust callers.
+/// The same with the font named by its handle and the game's text buffer.
 pub fn draw_string_by_id_at(
     o: StringOwners<'static>,
     id: u32,

@@ -1,9 +1,8 @@
 //! Made-up best times with checkpoint times for the championship's stages: for each stage of the
 //! championship's record table the ten entries of the stage in the stage times table get the
-//! record's first class time + 24,000 and 0x9F more each, and a driver, with the checkpoint
-//! times guessed (some 9,000 pieces go to the game's log). The running sum of the second pass of
-//! `default_championship_times` is added up and cleared but not used. One caller,
-//! `menu::set_up_front_end`, when `var\hst.dat` was not loaded. Refuses a missing table and a
+//! record's first class time + 24,000 and 0x9F more each, and a driver, with the checkpoint times
+//! guessed (some 9,000 pieces go to the game's log). The running sum of the second pass of
+//! `default_championship_times` is added up and cleared but not used. Refuses a missing table and a
 //! record table without stages or without its end; a refusal leaves nothing written.
 
 use crate::errors::{BadInput, Refused};
@@ -15,14 +14,12 @@ use crate::saves::default_times::*;
 use crate::system::owner::System;
 use rc2k_core::saves::defaults::{Championship, RALLIES, championship_times};
 
-/// The first argument is not used: the stage comes from the record.
 pub fn default_checkpoint_times(
     so: crate::strings::append_string_by_id::StringOwners<'_>,
     menus: &Menus,
     race: &Race,
     best_tables: &BestTables,
     system: &System,
-    _ebp: u32,
     log: Log,
 ) -> Result<(), Refused> {
     let screens = &menus.screens;

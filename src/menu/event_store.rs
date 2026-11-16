@@ -49,13 +49,14 @@ pub struct TrialState {
     pub any_qualified: PlainFlag,
 }
 
+/// The number of car classes.
+pub const CLASSES: u32 = 4;
+
 /// What the class and car pages show.
 #[derive(rc2k_derive::Cells)]
 pub struct Showcase {
     /// The class shown on the class pages.
     pub class: PlainDword,
-    /// The number of classes (`menu::calc_cpu_times`).
-    pub classes: PlainDword,
     /// The car shown (an entry of the carousel).
     pub car: PlainDword,
     /// The car page shown.
@@ -153,7 +154,6 @@ impl EventState {
             },
             shown: Showcase {
                 class: PlainDword::new(0x0),
-                classes: PlainDword::new(0x4),
                 car: PlainDword::new(0x0),
                 car_page: PlainDword::new(0x0),
                 picture: PlainDword::new(0x0),

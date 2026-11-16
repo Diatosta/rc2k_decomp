@@ -26,7 +26,7 @@ pub fn measure_string_by_id(
     measure_text(font, &bytes, x, canvas)
 }
 
-/// The same with a font object in game memory and the game's text buffer, for Rust callers. The
+/// The same with the font named by its handle and the game's text buffer. The
 /// font object is only written if the canvas keeps font changes.
 pub fn measure_string_by_id_at(
     so: StringOwners<'static>,

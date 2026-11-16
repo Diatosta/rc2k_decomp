@@ -462,10 +462,6 @@ const LABEL_LIST_DWORDS: usize = 5;
 
 const _: () = assert!(LABEL_LIST_DWORDS * 4 == 0x14);
 
-/// The label lists' first address in the game's layout: core's menu table names a menu's
-/// labels by their address there.
-const LABELS_FIRST_ADDRESS: usize = 0x747AD8;
-
 /// The byte `offset` bytes on from the labels of `menu`, as an offset in the label lists
 /// (`MenuTables::labels`, whose bytes the readers and writers are bounded to); None for a menu
 /// without labels. A game slip kept as is: item 1 is written to the "menu" its labels would
@@ -531,7 +527,7 @@ impl MenuItem {
             string: PlainDword::new(fixed.string),
             font: FontCell::new(font_of(fixed.font)),
             behind: PlainDword::new(fixed.behind),
-            sprites: SpriteCell::at(fixed.sprites),
+            sprites: SpriteCell::new(fixed.sprites),
             skip_mark: PlainDword::new(fixed.skip_mark),
             highlight_font: FontCell::new(font_of(fixed.highlight_font)),
         }
@@ -809,14 +805,12 @@ impl MenuId {
 
     /// The offset of the menu's labels in the label lists; None for a menu without any.
     pub fn labels_place(self) -> Result<Option<u32>, crate::errors::BadInput> {
-        match self.table().labels_at {
-            0 => Ok(None),
-            at if at as usize >= LABELS_FIRST_ADDRESS
-                && ((at as usize - LABELS_FIRST_ADDRESS) < LABEL_LIST_COUNT * LABEL_LIST_LEN) =>
-            {
-                Ok(Some(at - LABELS_FIRST_ADDRESS as u32))
+        match self.table().label_list {
+            None => Ok(None),
+            Some(list) if (list as usize) < LABEL_LIST_COUNT => {
+                Ok(Some((list as usize * LABEL_LIST_LEN) as u32))
             }
-            _ => Err(crate::errors::BadInput(
+            Some(_) => Err(crate::errors::BadInput(
                 "a menu's labels off the label lists",
             )),
         }
@@ -888,13 +882,6 @@ impl Default for MenuCell {
 mod tests {
     use super::*;
 
-    #[test]
-    fn the_menus_fonts_are_the_fonts_at_the_addresses_the_table_names() {
-        for &f in MenuFont::ALL {
-            assert_eq!(font_of(f).ida() as u32, f.ral(), "{f:?}");
-        }
-    }
-
     /// The lists read and written as a run of dwords, five to a list: any alignment, over the
     /// lists' borders, refused past the last list.
     #[test]
@@ -939,7 +926,7 @@ mod tests {
             let m = MenuId(n);
             assert_eq!(
                 m.labels_place().unwrap().is_some(),
-                m.table().labels_at != 0
+                m.table().label_list.is_some()
             );
             if let Some(at) = m.labels_place().unwrap() {
                 assert_eq!(at as usize % LABEL_LIST_LEN, 0, "menu {n}");
@@ -960,11 +947,8 @@ mod tests {
                 assert_eq!(state.string.get(), fixed.string);
                 assert_eq!(state.behind.get(), fixed.behind);
                 assert_eq!(state.skip_mark.get(), fixed.skip_mark);
-                assert_eq!(state.font.get().ida() as u32, fixed.font.ral());
-                assert_eq!(
-                    state.highlight_font.get().ida() as u32,
-                    fixed.highlight_font.ral()
-                );
+                assert_eq!(state.font.get(), font_of(fixed.font));
+                assert_eq!(state.highlight_font.get(), font_of(fixed.highlight_font));
             }
             total += m.items(tables).len();
         }

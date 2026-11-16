@@ -1,7 +1,5 @@
 //! `menu::update_frame_clock`: stores `tick_count` in the window handle, the clock the
 //! menu code measures blinking and idle time against.
-//!
-//! Three callers.
 
 use crate::system::owner::System;
 use crate::system::tick_count::tick_count;

@@ -1,14 +1,12 @@
 //! Fills the table of best scores with made-up entries.
 //!
-//! The level scores table (0xBB8 bytes) is five groups of ten entries of 0x3C bytes. In each
-//! group the entries get 50, 49, .. 41 at +0x38 and a driver each: a random number under 0xB3
-//! is drawn; for the groups 0 .. 3 it is thrown away and the driver is a random number under
+//! The level scores table (0xBB8 bytes) is five groups of ten entries of 0x3C bytes. In each group
+//! the entries get 50, 49, .. 41 at +0x38 and a driver each: a random number under 0xB3 is drawn;
+//! for the groups 0 .. 3 it is thrown away and the driver is a random number under
 //! `CLASS_DRIVER_COUNTS[group]` plus `CLASS_FIRST_DRIVERS[group]`, for group 4 it is the driver.
-//! From the driver's
-//! record: its class to the entry's +0x10, nationality to +8, car to +0xC, and the name
-//! (without a NUL) to +0x18.
-//! One caller, `menu::set_up_front_end`, when `var\hst.dat` was not loaded. Refuses a missing
-//! table, a group without drivers, a driver past the 180, and a name that does not fit.
+//! From the driver's record: its class to the entry's +0x10, nationality to +8, car to +0xC, and
+//! the name (without a NUL) to +0x18. Refuses a missing table, a group without drivers, a driver
+//! past the 180, and a name that does not fit.
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;

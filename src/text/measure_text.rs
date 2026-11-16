@@ -58,7 +58,7 @@ pub fn only_measures(
     Ok(font.into())
 }
 
-/// For Rust callers, with a font object in game memory: the object is only written if the canvas
+/// With the font named by its handle: the object is only written if the canvas
 /// keeps font changes.
 pub fn measure_text_at(
     font: impl Into<FontRef>,

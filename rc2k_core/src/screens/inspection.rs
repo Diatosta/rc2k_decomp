@@ -10,8 +10,6 @@ pub enum Font {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Work {
-    /// The weights lost.
-    Lost,
     /// The status.
     Status,
 }
@@ -51,7 +49,6 @@ pub fn inspection_status<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     status: i32,
 ) -> Result<Drawn, S::Error> {
-    s.keep(Work::Lost, 100i32.wrapping_sub(status) as u32);
     s.keep(Work::Status, status as u32);
     s.bar(Bar {
         x: 0x19D,

@@ -1,4 +1,4 @@
-//! The keyboard pages' tables, out of RAL.EXE's image: the
+//! The keyboard pages' tables: the
 //! keys the redefine page works on, the copy of a player's controls the controller pages keep, and
 //! the reserved keys. Bytes only, at addresses one past a multiple of four. One static.
 

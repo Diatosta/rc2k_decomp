@@ -9,8 +9,6 @@
 //!   `clock - champ_view.key_clock.cursor_time` is clear: 512 ms on, 512 ms off;
 //! - `loop_flags.idle` is 1 once `clock - champ_view.key_clock.last_key_time` has reached
 //!   300000: five minutes without a key.
-//!
-//! 179 callers.
 use crate::menu::champ_store::ChampView;
 use crate::menu::entry_store::EntryState;
 use crate::menu::owner::Menus;

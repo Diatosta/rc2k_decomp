@@ -1,5 +1,5 @@
 //! A see-through quad over the whole 800 x 600 screen, its see-through the fade's
-//! (`scene::draw_tinted_quad`). Caller: `menu::fade_frame`.
+//! (`scene::draw_tinted_quad`).
 
 use crate::errors::Refused;
 use crate::owners::Owners;

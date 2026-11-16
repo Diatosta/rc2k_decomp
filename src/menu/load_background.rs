@@ -1,9 +1,9 @@
 //! `menu::load_background`: loads a menu screen's background picture and draws the frame sprite
 //! onto it.
 //!
-//! The picture's path may be written to (see `files::swap_missing_extension`); the sprite is
-//! drawn at (0, 0) with the palette given; whether the file was read is not looked at. Called
-//! by nearly all the screen loops. Refuses what the functions it calls refuse.
+//! The picture's path may be written to (see `files::swap_missing_extension`); the sprite is drawn
+//! at (0, 0) with the palette given; whether the file was read is not looked at. Refuses what the
+//! functions it calls refuse.
 
 use crate::errors::Refused;
 use crate::gfx::blit_glyph::BlitCall;
