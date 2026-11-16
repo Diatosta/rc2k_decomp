@@ -189,8 +189,13 @@ jobs:
           SHORT="${GITHUB_SHA::7}"
           DAY="$(date -u +%Y-%m-%d)"
           cd builds
-          # The artifacts lose the executable bit: the Linux and Mac programs get it back.
-          chmod +x rc2k-linux-x64-*/rc2k rc2k-macos-*/*.app/Contents/MacOS/rc2k
+          # The artifacts lose the executable bit: the Linux and Mac programs get it back (the Mac
+          # build runs only for main and runs started by hand, so its program may be missing).
+          shopt -s nullglob
+          for program in rc2k-linux-x64-*/rc2k rc2k-macos-*/*.app/Contents/MacOS/rc2k; do
+            chmod +x "$program"
+          done
+          shopt -u nullglob
           for d in */; do
             name="${d%/}"; name="${name%-$GITHUB_SHA}"
             (cd "$d" && zip -q -r "../$name.zip" .)
