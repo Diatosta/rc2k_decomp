@@ -1,9 +1,9 @@
-//! The installation removed, the action of a list item. Only when installed with a source: the
+//! The installation removed. Only when installed with a source: the
 //! status is marked busy and written; a "removing" frame is shown; the source is made current and
 //! the install script run to rebuild the file and folder lists; each listed file is deleted and
 //! each folder removed in reverse; the parent is entered and the install folder removed; after a
 //! second the status and source are cleared and written again, the DirectPlay key removed, the
-//! Start menu removal asked and the installing flag cleared. Called by `install::run_page`.
+//! Start menu removal asked and the installing flag cleared. Called by `install::run_pages`.
 //!
 //! "Remove all" (a decided difference: removing only what the script lists would leave the
 //! files the game made, and so the folder): with every folder chosen (`script_mark` not 5) the

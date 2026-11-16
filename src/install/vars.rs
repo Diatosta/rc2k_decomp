@@ -2,12 +2,13 @@
 //! registry names and scripts, the language list, and the pages' tables.
 //!
 //! Structs of cells, with the old layout's fields in its order and its gaps. The pages' tables
-//! hold handles (`install::page_links`) in place of addresses. The pages' lists,
+//! hold handles (`install::page_links`). The pages' lists,
 //! handler records, edit record and boxes are typed records (`memory::list_handle`), each reached
 //! by the handle that names it.
 
 use crate::gfx::typefaces::{FontId, fonts};
-use crate::install::page_links::{LinkCell, ListId, PageLink};
+use crate::install::installer::{END_TEXT_LINE, GO_ON_ANYWAY};
+use crate::install::page_links::{LinkCell, PageLink};
 use crate::memory::list_handle::{
     BoxRect, EditRecord, Item, ListData3, ListData4, ListData5, ListData6, ListData10, ListData18,
     ListData26, ListHeader,
@@ -25,8 +26,6 @@ pub struct InstallerRun {
     pub add_items: PlainDword,
     /// The shortcuts are removed (`install::uninstall`).
     pub remove_items: PlainDword,
-    /// DirectX's set-up is run at the end.
-    pub run_dxsetup: PlainDword,
     /// The registration program is run at the end.
     pub run_registration: PlainDword,
     /// The registration program's script: a count, "ereg\eregip.exe" from +2
@@ -81,7 +80,6 @@ impl InstallerRun {
             same_version: PlainDword::new(0x0),
             add_items: PlainDword::new(0x0),
             remove_items: PlainDword::new(0x0),
-            run_dxsetup: PlainDword::new(0x0),
             run_registration: PlainDword::new(0x0),
             ereg: PlainBytes::new(with_runs::<20>(&[(0, b";4ereg\\eregip.exe")])),
             path_problem: PlainDword::new(0x0),
@@ -138,8 +136,6 @@ pub struct InstallerNames {
     pub ral_exe: PlainBytes<8>,
     /// A gap of 4 byte(s): nothing reads it.
     pub _gap_51be50: PlainBytes<4>,
-    /// "redist\directx\dxsetup.exe".
-    pub dxsetup: PlainBytes<27>,
     /// "files\%readme\readme.txt".
     pub readme: PlainBytes<25>,
     /// "files\%readme\manual.pdf".
@@ -182,7 +178,6 @@ impl InstallerNames {
     program: PlainBytes::new(with_runs::<8>(&[(0, b"ral.exe")])),
     ral_exe: PlainBytes::new(with_runs::<8>(&[(0, b"ral.exe")])),
     _gap_51be50: PlainBytes::new(with_runs::<4>(&[(0, b" -u")])),
-    dxsetup: PlainBytes::new(with_runs::<27>(&[(0, b"redist\\directx\\dxsetup.exe")])),
     readme: PlainBytes::new(with_runs::<25>(&[(0, b"files\\%readme\\readme.txt")])),
     manual: PlainBytes::new(with_runs::<25>(&[(0, b"files\\%readme\\manual.pdf")])),
     installer_data: PlainBytes::new(with_runs::<24>(&[(0, b"files\\d\\gfx\\install.bun")])),
@@ -258,7 +253,7 @@ impl GlyphRecord {
 }
 
 /// The byte of `InstallerNames::script` that is the mark: 1 goes on into the script's rest (the
-/// save and settings folders removed too), 5 ends the script there (`install::finish_page`).
+/// save and settings folders removed too), 5 ends the script there (`install::removal_page`).
 pub const SCRIPT_MARK: usize = 17;
 
 /// The page: its pieces, the fonts and the pages' tables.
@@ -284,20 +279,14 @@ pub struct InstallerPages {
     pub fonts: [PlainDword; 25],
     /// Font by mark, 8 bytes a kind (`install::lay_out_pieces`, from +4).
     pub kind_fonts: PlainBytes<108>,
-    /// The page entries (dwords): the page's list, then the entries its answers lead on to
-    /// (`page_records::PageEntry`); the normal run's first entry is first, then the update run's
-    /// and the drive page's (`chosen_menu`).
-    pub page_table: [PlainDword; 55],
     /// `language_page`'s list: the nine languages and cancel.
     pub language_menu: ListData10,
     /// `mark_main_page`'s list: play, uninstall, registration and the rest of the main page. The
     /// first item's kind, marks and text and the second item's text are set by
     /// `install::check_at_start::set_script_entry`.
     pub main_menu: ListData5,
-    /// `mode_page`'s list (the installation kind).
-    pub mode_menu: ListData5,
     /// `install::drive_page`'s list when there are 8 or fewer drives (`install::list_drives` sets
-    /// the item count and the page entry's link).
+    /// the item count).
     pub drive_menu_8: ListData10,
     /// The drive page's list when there are 9 to 16 drives.
     pub drive_menu_16: ListData18,
@@ -308,13 +297,8 @@ pub struct InstallerPages {
     pub folder_menu: ListData6,
     /// `room_page`'s list.
     pub room_menu: ListData3,
-    /// `dxsetup_page`'s list.
-    pub dxsetup_menu: ListData4,
-    /// `finish_page`'s list.
-    pub finish_menu: ListData4,
-    /// The pages that are only an action: a list header with no items (flags 0x40), each; the
-    /// third's action is where `check_clio_disc` puts the update step.
-    pub action_pages: [ListHeader; 4],
+    /// `removal_page`'s list.
+    pub removal_menu: ListData4,
     /// The folder item's edit record.
     pub folder_edit: EditRecord,
     /// The title's item.
@@ -365,8 +349,7 @@ impl InstallerPages {
         PlainDword::new(PageLink::of_font(fonts::CAPTION_A).raw()), // IDA 0x51E964
     ],
     kind_fonts: PlainBytes::new(with_runs::<108>(&[(0, b"\x12\x00\t\x0c\x00\x02\x00\x1e\x17\x00\x08\x0b\x01\x02\x00\x1e\n\x00\x07\x10\x02\x02\x00\x1e"), (32, b"\x12\x00\t\x0c\x00\x02\x00\x1e"), (64, b"\x0c\x00\t\x12\x00\x02\x00\x1e\x15\x00\x15\x15\x00\x03\x00,\x0c\x00\x0c\x0c\x00\x02\x00\x1e\x12\x00\x12\x12\x00\x02\x00\x1e\x18\x00\x18\x18\x00\x02\x00\x1e\t")])),
-            page_table: [PlainDword::new(PageLink::list(ListId::Language).raw()), PlainDword::new(0x0), PlainDword::new(PageLink::table(11).raw()), PlainDword::new(PageLink::table(11).raw()), PlainDword::new(PageLink::table(11).raw()), PlainDword::new(PageLink::table(11).raw()), PlainDword::new(PageLink::table(11).raw()), PlainDword::new(PageLink::table(11).raw()), PlainDword::new(PageLink::table(11).raw()), PlainDword::new(PageLink::table(11).raw()), PlainDword::new(PageLink::table(11).raw()), PlainDword::new(PageLink::list(ListId::Main).raw()), PlainDword::new(0x0), PlainDword::new(PageLink::table(20).raw()), PlainDword::new(PageLink::table(48).raw()), PlainDword::new(PageLink::table(31).raw()), PlainDword::new(PageLink::table(51).raw()), PlainDword::new(PageLink::list(ListId::Finish).raw()), PlainDword::new(0x0), PlainDword::new(PageLink::table(45).raw()), PlainDword::new(PageLink::list(ListId::Mode).raw()), PlainDword::new(PageLink::table(11).raw()), PlainDword::new(PageLink::table(25).raw()), PlainDword::new(PageLink::table(25).raw()), PlainDword::new(PageLink::table(25).raw()), PlainDword::new(PageLink::list(ListId::Drives8).raw()), PlainDword::new(PageLink::table(20).raw()), PlainDword::new(PageLink::table(28).raw()), PlainDword::new(PageLink::list(ListId::Folder).raw()), PlainDword::new(PageLink::table(25).raw()), PlainDword::new(PageLink::table(34).raw()), PlainDword::new(PageLink::list(ListId::Finish).raw()), PlainDword::new(PageLink::table(11).raw()), PlainDword::new(PageLink::table(45).raw()), PlainDword::new(PageLink::list(ListId::InstallFiles).raw()), PlainDword::new(PageLink::table(28).raw()), PlainDword::new(0x0), PlainDword::new(0x0), PlainDword::new(PageLink::table(39).raw()), PlainDword::new(PageLink::list(ListId::Room).raw()), PlainDword::new(PageLink::table(25).raw()), PlainDword::new(PageLink::table(34).raw()), PlainDword::new(PageLink::list(ListId::Dxsetup).raw()), PlainDword::new(0x0), PlainDword::new(0x0), PlainDword::new(PageLink::list(ListId::Uninstall).raw()), PlainDword::new(0x0), PlainDword::new(0x0), PlainDword::new(PageLink::list(ListId::OpenInstalled).raw()), PlainDword::new(0x0), PlainDword::new(0x0), PlainDword::new(PageLink::list(ListId::AskRegistration).raw()), PlainDword::new(0x0), PlainDword::new(0x0), PlainDword::new(0x9)],
-            language_menu: ListData10::new(ListHeader::new(0x00, 0x0A, 0x009B, 0x0, 0x414199, 0x0, 0x0, 0x0), [
+            language_menu: ListData10::new(ListHeader::new(0x00, 0x0A, 0x009B, 0x0, 0x0, 0x0, 0x0, 0x0), [
                 Item::new(0x01, 0x01, 0x102B, 0x0, 0x0, 0x0),
                 Item::new(0x01, 0x02, 0x102C, 0x0, 0x0, 0x0),
                 Item::new(0x01, 0x03, 0x102D, 0x0, 0x0, 0x0),
@@ -378,21 +361,14 @@ impl InstallerPages {
                 Item::new(0x01, 0x09, 0x1033, 0x0, 0x0, 0x0),
                 Item::new(0x01, 0x00, 0x0099, 0x0, 0x0, 0x0),
             ]),
-            main_menu: ListData5::new(ListHeader::new(0x00, 0x05, 0x0095, 0x0, 0x4141EF, 0x0, 0x0, 0x0), [
+            main_menu: ListData5::new(ListHeader::new(0x00, 0x05, 0x0095, 0x0, 0x0, 0x0, 0x0, 0x0), [
                 Item::new(0x01, 0x01, 0x0096, 0x0, 0x0, 0x0),
                 Item::new(0x01, 0x02, 0x0097, 0x0, 0x0, 0x0),
                 Item::new(0x01, 0x03, 0x0098, 0x0, 0x0, 0x0),
                 Item::new(0x01, 0x04, 0x057C, 0x0, 0x0, 0x0),
                 Item::new(0x01, 0x00, 0x0099, 0x0, 0x0, 0x0),
             ]),
-            mode_menu: ListData5::new(ListHeader::new(0x00, 0x05, 0x009A, 0x2, 0x41422B, 0x0, 0x0, 0x0), [
-                Item::new(0x05, 0x0C, 0x00A1, 0x0, 0x0, 0x415304),
-                Item::new(0x01, 0x01, 0x00A2, 0x0, 0x0, 0x0),
-                Item::new(0x01, 0x02, 0x00A3, 0x0, 0x0, 0x0),
-                Item::new(0x01, 0x03, 0x00A4, 0x0, 0x0, 0x0),
-                Item::new(0x01, 0x00, 0x00BF, 0x0, 0x0, 0x0),
-            ]),
-            drive_menu_8: ListData10::new(ListHeader::new(0x00, 0x0A, 0x009A, 0x2, 0x41425E, 0x0, 0x0, 0x0), [
+            drive_menu_8: ListData10::new(ListHeader::new(0x00, 0x0A, 0x009A, 0x2, 0x0, 0x0, 0x0, 0x0), [
                 Item::new(0x05, 0x0C, 0x009D, PageLink::box_at(7).raw(), 0x0, 0x0),
                 Item::new(0x01, 0x00, 0x00BF, PageLink::box_at(8).raw(), 0x0, 0x0),
                 Item::new(0x01, 0x01, 0x1011, PageLink::box_at(3).raw(), 0x0, 0x0),
@@ -404,7 +380,7 @@ impl InstallerPages {
                 Item::new(0x01, 0x01, 0x1017, PageLink::box_at(3).raw(), 0x0, 0x0),
                 Item::new(0x01, 0x01, 0x1018, PageLink::box_at(3).raw(), 0x0, 0x0),
             ]),
-            drive_menu_16: ListData18::new(ListHeader::new(0x00, 0x12, 0x009A, 0x2, 0x41425E, 0x0, 0x0, 0x0), [
+            drive_menu_16: ListData18::new(ListHeader::new(0x00, 0x12, 0x009A, 0x2, 0x0, 0x0, 0x0, 0x0), [
                 Item::new(0x05, 0x0C, 0x009D, PageLink::box_at(7).raw(), 0x0, 0x0),
                 Item::new(0x01, 0x00, 0x00BF, PageLink::box_at(8).raw(), 0x0, 0x0),
                 Item::new(0x01, 0x01, 0x1011, PageLink::box_at(5).raw(), 0x0, 0x0),
@@ -424,7 +400,7 @@ impl InstallerPages {
                 Item::new(0x01, 0x01, 0x101F, PageLink::box_at(6).raw(), 0x0, 0x0),
                 Item::new(0x01, 0x01, 0x1020, PageLink::box_at(6).raw(), 0x0, 0x0),
             ]),
-            menu_more: ListData26::new(ListHeader::new(0x00, 0x1A, 0x009A, 0x2, 0x41425E, 0x0, 0x0, 0x0), [
+            menu_more: ListData26::new(ListHeader::new(0x00, 0x1A, 0x009A, 0x2, 0x0, 0x0, 0x0, 0x0), [
                 Item::new(0x05, 0x0C, 0x009D, PageLink::box_at(7).raw(), 0x0, 0x0),
                 Item::new(0x01, 0x00, 0x00BF, PageLink::box_at(8).raw(), 0x0, 0x0),
                 Item::new(0x01, 0x01, 0x1011, PageLink::box_at(2).raw(), 0x0, 0x0),
@@ -452,7 +428,7 @@ impl InstallerPages {
                 Item::new(0x01, 0x01, 0x1027, PageLink::box_at(4).raw(), 0x0, 0x0),
                 Item::new(0x01, 0x01, 0x1028, PageLink::box_at(4).raw(), 0x0, 0x0),
             ]),
-            folder_menu: ListData6::new(ListHeader::new(0x00, 0x06, 0x009A, 0x0, 0x4142F5, 0x0, 0x0, 0x41534E), [
+            folder_menu: ListData6::new(ListHeader::new(0x00, 0x06, 0x009A, 0x0, 0x0, 0x0, 0x0, 0x0), [
                 Item::new(0x05, 0x0C, 0x009E, 0x0, 0x0, 0x0),
                 Item::new(0x24, 0x01, 0x0000, 0x0, PageLink::typed(2).raw(), PageLink::folder_edit().raw()),
                 Item::new(0x05, 0x0A, 0x00AA, 0x0, 0x0, 0x0),
@@ -460,24 +436,17 @@ impl InstallerPages {
                 Item::new(0x05, 0x0A, 0x00AD, 0x0, 0x0, 0x0),
                 Item::new(0x05, 0x0A, 0x00AB, 0x0, 0x0, 0x0),
             ]),
-            room_menu: ListData3::new(ListHeader::new(0x00, 0x03, 0x009A, 0x0, 0x4142C7, 0x0, 0x0, 0x0), [
-                Item::new(0x05, 0x0A, 0x00AD, 0x0, 0x0, 0x415304),
-                Item::new(0x01, 0x01, 0x00AE, 0x0, 0x4142DA, 0x0),
+            room_menu: ListData3::new(ListHeader::new(0x00, 0x03, 0x009A, 0x0, 0x0, 0x0, 0x0, 0x0), [
+                Item::new(0x05, 0x0A, 0x00AD, 0x0, 0x0, END_TEXT_LINE),
+                Item::new(0x01, 0x01, 0x00AE, 0x0, GO_ON_ANYWAY, 0x0),
                 Item::new(0x01, 0x00, 0x00BF, 0x0, 0x0, 0x0),
             ]),
-            dxsetup_menu: ListData4::new(ListHeader::new(0x00, 0x04, 0x009A, 0x0, 0x41432F, 0x0, 0x0, 0x0), [
-                Item::new(0x05, 0x0B, 0x00B2, 0x0, 0x0, 0x415304),
-                Item::new(0x05, 0x0C, 0x00B4, 0x0, 0x0, 0x415304),
-                Item::new(0x01, 0x01, 0x056C, 0x0, 0x0, 0x0),
-                Item::new(0x01, 0x00, 0x056B, 0x0, 0x0, 0x0),
-            ]),
-            finish_menu: ListData4::new(ListHeader::new(0x00, 0x04, 0x00B6, 0x2, 0x414347, 0x0, 0x0, 0x0), [
-                Item::new(0x05, 0x0A, 0x00B7, 0x0, 0x0, 0x415304),
+            removal_menu: ListData4::new(ListHeader::new(0x00, 0x04, 0x00B6, 0x2, 0x0, 0x0, 0x0, 0x0), [
+                Item::new(0x05, 0x0A, 0x00B7, 0x0, 0x0, END_TEXT_LINE),
                 Item::new(0x01, 0x01, 0x00B8, 0x0, 0x0, 0x0),
                 Item::new(0x01, 0x02, 0x00B9, 0x0, 0x0, 0x0),
                 Item::new(0x01, 0x00, 0x00BF, 0x0, 0x0, 0x0),
             ]),
-            action_pages: [ListHeader::new(0x40, 0, 0, 0, 0x4130CD, 0, 0, 0), ListHeader::new(0x40, 0, 0, 0, 0x4134DF, 0, 0, 0), ListHeader::new(0x40, 0, 0, 0, 0x413629, 0, 0, 0), ListHeader::new(0x40, 0, 0, 0, 0x413650, 0, 0, 0)],
             folder_edit: EditRecord::new(0x02, 0x7C, 0x00A0, 0x0B, 0x00, 0x02E9),
             title: Item::new(0x05, 0x09, 0x0000, PageLink::box_at(0).raw(), 0x0, 0x0),
             boxes: [BoxRect::new(50, 150, 750, 44), BoxRect::new(50, 150, 750, 400), BoxRect::new(125, 150, 200, 400), BoxRect::new(325, 150, 200, 400), BoxRect::new(525, 150, 200, 400), BoxRect::new(225, 150, 200, 400), BoxRect::new(425, 150, 200, 400), BoxRect::new(50, 200, 750, 30), BoxRect::new(50, 495, 750, 30)],

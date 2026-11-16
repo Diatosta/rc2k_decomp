@@ -2,9 +2,10 @@
 //! the room needed, the destination checked (bad name, room, folders made, source a CD), then
 //! the folders made and the files copied one by one with a frame after each and Escape watched,
 //! the record written, the readme and manual copied if a language is set, and finally the status
-//! set to installed and the lobby, shortcuts and registration done. Failures set `list_answer`
-//! (0 bad path, 3 no room / not a CD) or show an error / cancel message. Called by
-//! `install::run_page`.
+//! set to installed and the lobby, shortcuts and registration done. How it ended is
+//! returned (`flow::Copied`): a folder that cannot be used, too little room, or the copy stopped
+//! with its error / cancel message shown. Always the full installation. Called by
+//! `install::run_pages` and `install::install_from_command`.
 
 use crate::errors::Refused;
 use crate::install::installer::{
@@ -14,6 +15,7 @@ use crate::install::installer::{
 
 use crate::install::vars::StringRecord;
 use crate::memory::place::BytePlace;
+use rc2k_core::install::flow::Copied;
 
 fn game_dir(install: &'static crate::install::owner::Install) -> BytePlace {
     BytePlace::from(&install.paths.game_dir)
@@ -52,12 +54,13 @@ fn error_messages(install: &'static crate::install::owner::Install) -> [&'static
 }
 
 /// The error (count 2, `InstallerPages.msg_error`, y 0) or cancel (count 1,
-/// `InstallerPages.msg_cancel`, y -0x32) message shown, then a wait for a key.
+/// `InstallerPages.msg_cancel`, y -0x32) message shown, then a wait for a key: the copy
+/// is stopped.
 fn message(
     o: crate::owners::Owners<'static>,
     table: &[&StringRecord],
     y: u32,
-) -> Result<(), Refused> {
+) -> Result<Copied, Refused> {
     let (system, gfx, input) = (o.system, o.gfx, o.input);
     crate::platform::events::hold_quit(system, false);
     run_frame(o, None)?;
@@ -84,15 +87,15 @@ fn message(
             break;
         }
     }
-    Ok(())
+    Ok(Copied::Stopped)
 }
 
 pub fn install_files(
     install: &'static crate::install::owner::Install,
     o: crate::owners::Owners<'static>,
-) -> Result<(), Refused> {
-    let list_state = &o.menus.list;
+) -> Result<Copied, Refused> {
     use crate::install as i;
+    crate::install::installer::set_full_installation();
     install.names.status.set(0x80);
     i::write_registry::write_registry(install, &mut crate::install::portable::Portable::default())?;
     normalise(&install.paths.game_dir, &install.paths.game_dir)?;
@@ -105,14 +108,13 @@ pub fn install_files(
     install.run.files_to_copy.set(install.run.file_count.get());
     let room = crate::install::installer::rd(
         crate::memory::place::BytePlace::from(&install.names.room_by_mode)
-            .add(4 * crate::install::installer::media_mode()),
+            .add(4 * crate::install::installer::FULL_INSTALLATION),
     );
     install.run.room_needed.set(room);
-    // The path is bad (or there is no room, or it is not a CD): the page is told.
+    // The folder cannot be used: the folder page says so.
     let bad_path = || {
         install.run.path_problem.set(1);
-        list_state.list_answer.set(0);
-        Ok(())
+        Ok(Copied::BadFolder)
     };
     if !normalise(&install.paths.typed, &install.paths.installed)? {
         return bad_path();
@@ -128,8 +130,7 @@ pub fn install_files(
             if free < install.run.room_needed.get() && !install.flags.ignore_room.get() =>
         {
             install.run.path_problem.set(2);
-            list_state.list_answer.set(3);
-            return Ok(());
+            return Ok(Copied::NoRoom);
         }
         _ => {}
     }
@@ -212,7 +213,6 @@ pub fn install_files(
         }
     }
     crate::platform::events::hold_quit(o.system, false);
-    list_state.list_answer.set(2);
     pause(o, 1000);
     install.names.status.set(1);
     // The installed folder's path copied to the install source, with its length (NUL included)
@@ -238,5 +238,5 @@ pub fn install_files(
     if install.flags.offer_registration.get() {
         install.run.run_registration.set(1);
     }
-    Ok(())
+    Ok(Copied::Installed)
 }

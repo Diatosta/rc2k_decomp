@@ -18,7 +18,7 @@ pages' records (`page_records.rs`).
 | Item | File | What it does |
 | --- | --- | --- |
 | `run_installer` | `src/install/run_installer.rs` | The installer from start to end. |
-| `run_pages`, `run_page` | `src/install/run_pages.rs`, `src/install/run_page.rs` | Walks the pages; runs one page until it is left. |
+| `run_pages`, `run_page` | `src/install/run_pages.rs`, `src/install/run_page.rs` | Runs the flow's steps (`rc2k_core/src/install/flow.rs` says where each answer leads); runs one page until it is left. |
 | `install_files` | `src/install/install_files.rs` | Copies the game's files, showing progress. |
 | `list_files` | `src/install/list_files.rs` | Builds the list of what to copy. |
 | `uninstall` | `src/install/uninstall.rs` | Removes the game (all of it, or keeping the saved games). |

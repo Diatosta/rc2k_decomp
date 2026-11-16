@@ -77,12 +77,8 @@ pub fn run_installer(
             set_cd(&install.paths.game_dir);
             load_language(o)?;
         }
-        let pages = if install.flags.updating.get() {
-            crate::install::page_records::PageEntry::update_run()
-        } else {
-            crate::install::page_records::PageEntry::normal_run()
-        };
-        i::run_pages::run_pages(install, o, pages)?;
+        let first = rc2k_core::install::flow::first_step(install.flags.updating.get());
+        i::run_pages::run_pages(install, o, first)?;
     }
     if install.flags.installing.get()
         && install.vars.running_from_cd.get() == 1

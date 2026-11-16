@@ -1,6 +1,6 @@
 //! The Clio update: sets the has-Clio flag if `files\b\obj0570.ro3` is there and, for a start
 //! from the update's disc with a "normal" or better installation recorded, sets up the
-//! installer's script so that the third page's action is `install::install_clio`
+//! installer's script so that the main page's second item is `install::install_clio`
 //! (otherwise "CLIO: Requires normal or full installation" and a fatal error). Called once, by
 //! `start`.
 
@@ -10,8 +10,6 @@ use crate::install::outside::Outside;
 use crate::install::runs_from_source::runs_from_source;
 
 const CAR_NAME_LEN: usize = 0x1B;
-
-const CLIO_STEP: u32 = 0x41675B; // `install::install_clio`
 
 pub fn check_clio_disc(
     g: &crate::install::owner::Install,
@@ -64,6 +62,6 @@ pub fn check_clio_disc(
     name[end] = b'\n';
     name[end + 1] = 0;
     install.clio_car_name.write(&name);
-    g.pages.action_pages[2].action.set(CLIO_STEP);
+    g.flags.update_disc.set(true);
     Ok(())
 }

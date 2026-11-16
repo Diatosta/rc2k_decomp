@@ -36,13 +36,13 @@ pub struct ListHeader {
     pub title_text: PlainWord,
     /// +4: the item highlighted.
     pub highlight: PlainDword,
-    /// +8: the list's action.
+    /// +8: nothing reads it (what a page does is `install::run_page`'s to know).
     pub action: PlainDword,
     /// +0xC: nothing reads it.
     pub unused_0c: PlainDword,
     /// +0x10: the link to the neighbours table (0 for none).
     pub neighbours: PlainDword,
-    /// +0x14: the key action.
+    /// +0x14: nothing reads it.
     pub key_action: PlainDword,
 }
 
@@ -221,8 +221,7 @@ impl PartialEq for ListMenu {
 
 impl Eq for ListMenu {}
 
-/// The header and items of one of the installer's lists. The pages that are only an action
-/// have no items.
+/// The header and items of one of the installer's lists.
 fn list_parts(
     install: &'static crate::install::owner::Install,
     list: ListId,
@@ -231,22 +230,16 @@ fn list_parts(
     match list {
         ListId::Language => (&pages.language_menu.header, &pages.language_menu.items),
         ListId::Main => (&pages.main_menu.header, &pages.main_menu.items),
-        ListId::Mode => (&pages.mode_menu.header, &pages.mode_menu.items),
         ListId::Drives8 => (&pages.drive_menu_8.header, &pages.drive_menu_8.items),
         ListId::Drives16 => (&pages.drive_menu_16.header, &pages.drive_menu_16.items),
         ListId::DrivesMore => (&pages.menu_more.header, &pages.menu_more.items),
         ListId::Folder => (&pages.folder_menu.header, &pages.folder_menu.items),
         ListId::Room => (&pages.room_menu.header, &pages.room_menu.items),
-        ListId::Dxsetup => (&pages.dxsetup_menu.header, &pages.dxsetup_menu.items),
-        ListId::Finish => (&pages.finish_menu.header, &pages.finish_menu.items),
-        ListId::InstallFiles => (&pages.action_pages[0], &[]),
-        ListId::Uninstall => (&pages.action_pages[1], &[]),
-        ListId::OpenInstalled => (&pages.action_pages[2], &[]),
-        ListId::AskRegistration => (&pages.action_pages[3], &[]),
+        ListId::Removal => (&pages.removal_menu.header, &pages.removal_menu.items),
     }
 }
 
-/// The typed items of one of the installer's lists (none for the action pages).
+/// The typed items of one of the installer's lists.
 pub(crate) fn list_items(
     install: &'static crate::install::owner::Install,
     list: ListId,
@@ -255,20 +248,6 @@ pub(crate) fn list_items(
 }
 
 impl ListMenu {
-    /// The list a link of the installer's pages names; a link to anything else is refused (the
-    /// page walk takes lists only from the first word of a page entry).
-    pub fn at(
-        install: &'static crate::install::owner::Install,
-        link: PageLink,
-    ) -> Result<Self, crate::errors::BadInput> {
-        match link.list_id() {
-            Some(list) => Ok(Self::installer(install, list)),
-            None => Err(crate::errors::BadInput(
-                "a page link that is no list of the installer's pages",
-            )),
-        }
-    }
-
     /// One of the installer's lists.
     pub fn installer(install: &'static crate::install::owner::Install, list: ListId) -> Self {
         let (header, items) = list_parts(install, list);
@@ -286,10 +265,6 @@ impl ListMenu {
     /// +0: the flags (bit 4 the page stays on Escape, bits 6 and 7 the page hidden).
     pub fn flags(self) -> u8 {
         self.header.flags.get()
-    }
-
-    pub fn set_flags(self, flags: u8) {
-        self.header.flags.set(flags);
     }
 
     /// +1: the number of items.
@@ -315,11 +290,6 @@ impl ListMenu {
         self.header.highlight.set(highlight);
     }
 
-    /// +8: the list's action (`install::installer::page_action`).
-    pub fn action(self) -> u32 {
-        self.header.action.get()
-    }
-
     /// +0x10: the neighbours table for `menu::list_step` (None for none). No list holds one
     /// that a link could name: a list that has one is refused.
     pub fn neighbours(self) -> Option<BytePlace> {
@@ -329,11 +299,6 @@ impl ListMenu {
                 "a list with a neighbours table the pages do not hold",
             ))
         })
-    }
-
-    /// +0x14: the key action (`install::installer::key_action`).
-    pub fn key_action(self) -> u32 {
-        self.header.key_action.get()
     }
 
     /// Item `n`. A list holds the items its record has: an item past them is refused (the
@@ -657,13 +622,12 @@ mod tests {
     fn held(list: ListId) -> u32 {
         match list {
             ListId::Language | ListId::Drives8 => 10,
-            ListId::Main | ListId::Mode => 5,
+            ListId::Main => 5,
             ListId::Drives16 => 18,
             ListId::DrivesMore => 26,
             ListId::Folder => 6,
             ListId::Room => 3,
-            ListId::Dxsetup | ListId::Finish => 4,
-            _ => 0,
+            ListId::Removal => 4,
         }
     }
 
@@ -755,8 +719,6 @@ mod tests {
         let saved = (room.first.get(), room.data.get());
         room.first.set(2);
         for link in [
-            PageLink::table(0),
-            PageLink::list(ListId::Main),
             PageLink::box_at(8),
             PageLink::folder_edit(),
             PageLink::from_raw(0),

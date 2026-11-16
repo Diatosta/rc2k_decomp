@@ -1,11 +1,11 @@
 //! The install driven by the `-i` command line (two paths already in `game_dir` / `installed`
-//! and two digits in `flags.given_mode` / `flags.given_language`): the given media mode (above 0, held to 3)
-//! and then a given language (above 0) are taken, and the files installed
-//! (`install::install_files`). A failing directory change or normalise ends it early. Called by
+//! and two digits in `flags.given_mode` / `flags.given_language`): with the first digit above 0 a
+//! given language (above 0) is taken, and the files installed (`install::install_files`, always
+//! the full installation, whatever kind the first digit named). A failing directory change or normalise ends it early. Called by
 //! `install::run_installer`.
 
 use crate::errors::Refused;
-use crate::install::installer::{load_language, logged, normalise, set_cd, set_media_mode};
+use crate::install::installer::{load_language, logged, normalise, set_cd};
 
 pub fn install_from_command(
     install: &'static crate::install::owner::Install,
@@ -17,11 +17,8 @@ pub fn install_from_command(
         return Ok(());
     }
     normalise(&install.paths.installed, &install.paths.typed)?;
-    // A given media mode (above 0) is taken, held to 3, and only then a given language
-    // (above 0): a mode of 0 or less goes straight to the install.
-    let mode = install.flags.given_mode.get();
-    if mode > 0 {
-        set_media_mode(mode.min(3) as u32);
+    // Only with the first digit above 0 is a given language taken.
+    if install.flags.given_mode.get() > 0 {
         let language = install.flags.given_language.get();
         if language > 0 {
             crate::install::choose_language::choose_language(install, language as u32)?;
@@ -31,5 +28,6 @@ pub fn install_from_command(
     logged(
         "install",
         crate::install::install_files::install_files(install, o),
-    )
+    )?;
+    Ok(())
 }

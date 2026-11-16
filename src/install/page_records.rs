@@ -1,9 +1,5 @@
-//! The installer's page tables by name: the entries that chain the pages, the layout's pieces
-//! and the boxes they are placed in.
+//! The installer's page records by name: the layout's pieces and the boxes they are placed in.
 //!
-//! - A page entry (`PageEntry`): dwords in `InstallerPages::page_table`: +0 the page's list
-//!   (`memory::list_handle::ListMenu`), then the entries the page's answers lead on to
-//!   (`rc2k_core::install::pages::next_entry_at`).
 //! - A piece (`Piece`): the layout `InstallerPages::layout` holds a count (a dword) and 0x30
 //!   bytes a piece, made by `install::lay_out_pieces`: +0 the item's kind and marks, +1 the
 //!   piece's kind, +2 its text, +4 its item, +8 x, +0xC y, +0x10 width, +0x14 height.
@@ -11,100 +7,10 @@
 //!
 //! Reads and writes are checked: a place outside its buffer ends the program.
 
-use crate::errors::BadInput;
 use crate::install::installer::{rb, rd, refuse, rw, wb, wd, ww};
-use crate::install::page_links::{PageLink, TABLE_LEN};
-use crate::memory::list_handle::{BoxRect, ListItem, ListMenu};
+use crate::install::page_links::PageLink;
+use crate::memory::list_handle::{BoxRect, ListItem};
 use crate::memory::place::BytePlace;
-
-/// The page table's index of the update run's first entry.
-const UPDATE_RUN: u32 = 17;
-
-/// A page entry: its index in the pages' table.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct PageEntry(u32);
-
-impl PageEntry {
-    /// The entry's index in the pages' table.
-    #[cfg(test)]
-    pub fn index(self) -> u32 {
-        self.0
-    }
-
-    pub fn normal_run() -> Self {
-        Self(0)
-    }
-
-    pub fn update_run() -> Self {
-        Self(UPDATE_RUN)
-    }
-
-    /// The entry a link from another entry names: a link to a table entry. The links of the
-    /// pages' answers name entry starts (the census test below walks them all), so a link to
-    /// anything else is refused.
-    pub fn at(link: PageLink) -> Self {
-        match link.table_index() {
-            Some(index) => Self(index),
-            None => refuse(BadInput("a page link that is no page entry")),
-        }
-    }
-
-    /// +0 as the link to the page's list (none: no list).
-    fn list_link(self, install: &'static crate::install::owner::Install) -> PageLink {
-        Self::word(install, self.0)
-    }
-
-    pub fn has_list(self, install: &'static crate::install::owner::Install) -> bool {
-        !self.list_link(install).is_none()
-    }
-
-    /// The page's list: the entry's first word is a link to one of the pages' lists.
-    pub fn list(self, install: &'static crate::install::owner::Install) -> ListMenu {
-        let link = self.list_link(install);
-        if link.list_id().is_none() {
-            refuse(BadInput("a page entry whose first word is no list"));
-        }
-        ListMenu::at(install, link).unwrap_or_else(|e| refuse(e))
-    }
-
-    /// How many answers the entry holds: the table words after its list's that link to an
-    /// entry or to none, up to the next entry's list (the table's last word, 9, is no link).
-    /// An answer past them is refused; no page leaves with such an answer
-    /// (`answers_stay_inside_their_entry`).
-    pub fn answers(self, install: &'static crate::install::owner::Install) -> u32 {
-        let first = self.0;
-        let mut end = first + 1;
-        while end < TABLE_LEN
-            && let word = Self::word(install, end)
-            && (word.is_none() || word.table_index().is_some())
-        {
-            end += 1;
-        }
-        end - first - 1
-    }
-
-    /// The entry at byte `offset` of this one (`pages::next_entry_at`: 4 + 4 x answer),
-    /// read as a link; None for none. An offset that is no answer of the entry is refused.
-    pub fn next(
-        self,
-        install: &'static crate::install::owner::Install,
-        offset: u32,
-    ) -> Option<PageEntry> {
-        if offset < 4 || !offset.is_multiple_of(4) || (offset - 4) / 4 >= self.answers(install) {
-            refuse(BadInput("a page answer past the answers its entry holds"));
-        }
-        let link = Self::word(install, self.0 + offset / 4);
-        (!link.is_none()).then(|| PageEntry::at(link))
-    }
-
-    /// Table word `index` as a link; an index off the table is refused.
-    fn word(install: &'static crate::install::owner::Install, index: u32) -> PageLink {
-        match install.pages.page_table.get(index as usize) {
-            Some(word) => PageLink::from_raw(word.get()),
-            None => refuse(BadInput("a page table index past the table")),
-        }
-    }
-}
 
 /// The pieces' number (the layout's first dword).
 pub fn piece_count(install: &'static crate::install::owner::Install) -> u32 {
@@ -249,44 +155,7 @@ impl BoxRecord {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::install::page_links::ListId;
-
-    #[test]
-    fn every_page_resolves_its_links() {
-        let install = crate::test_support::own::install();
-        let mut seen = 0;
-        for first in [PageEntry::normal_run(), PageEntry::update_run()] {
-            let mut entries = vec![first];
-            while let Some(entry) = entries.pop() {
-                if entry.list_link(install).list_id().is_none() || seen > 200 {
-                    continue;
-                }
-                seen += 1;
-                let list = entry.list(install);
-                let _ = list.neighbours();
-                for n in 0..u32::from(list.count()) {
-                    let item = list.item(n);
-                    let _ = item.box_link();
-                    match item.kind() {
-                        2 => {
-                            let _ = item.choices(install).word(0);
-                        }
-                        4 => {
-                            let _ = item.edit_field(install).width();
-                            let _ = item.text(install);
-                        }
-                        _ => {}
-                    }
-                }
-                // (An entry holds as many answers' links as its page takes; the rest of the
-                // words are other data.)
-                entries.extend((0..entry.answers(install)).filter_map(|answer| {
-                    entry.next(install, rc2k_core::install::pages::next_entry_at(answer))
-                }));
-            }
-        }
-        assert!(seen > 5);
-    }
+    use crate::memory::list_handle::ListMenu;
 
     /// A page laid out keeps each piece's item as a handle that names the list's item (or the
     /// title) it was made from.
@@ -317,56 +186,5 @@ mod tests {
         for (n, &byte) in saved.iter().enumerate() {
             install.pages.layout.set(n, byte);
         }
-    }
-
-    /// M4 proof for `PageEntry::next`: every answer a page can leave with is a slot of its
-    /// entry. A page leaves with 1 (the start value, the folder page's Escape, `ignore_room`),
-    /// 0 (Escape, the folder page's Enter) or the next-list byte of a link item without an
-    /// action (`item_link`; the finish page's 2 is made 1 by `finish_page`). The items'
-    /// bytes are the pages' data: nothing writes them while an installer runs.
-    #[test]
-    fn answers_stay_inside_their_entry() {
-        let install = crate::test_support::own::install();
-        let mut checked = 0;
-        for index in 0..crate::install::page_links::TABLE_LEN {
-            let link = PageLink::table(index);
-            let word = PageEntry::word(install, index);
-            if word.list_id().is_none() {
-                continue;
-            }
-            let entry = PageEntry::at(link);
-            let list = entry.list(install);
-            let mut answers = vec![0, 1];
-            for n in 0..u32::from(list.count()) {
-                let item = list.item(n);
-                if item.kind() == 1 && item.target() == 0 && item.count() & 0x80 == 0 {
-                    answers.push(u32::from(item.count()));
-                }
-            }
-            if word.list_id() == Some(ListId::Finish) {
-                answers.retain(|&a| a != 2);
-            }
-            let held = entry.answers(install);
-            for answer in answers {
-                assert!(answer < held, "entry {index}: answer {answer} of {held}");
-                let _ = entry.next(install, rc2k_core::install::pages::next_entry_at(answer));
-            }
-            // Every item the page has is an item of its list.
-            assert!(
-                u32::from(list.count())
-                    <= (match word.list_id() {
-                        Some(ListId::Language | ListId::Drives8) => 10,
-                        Some(ListId::Main | ListId::Mode) => 5,
-                        Some(ListId::Drives16) => 18,
-                        Some(ListId::DrivesMore) => 26,
-                        Some(ListId::Folder) => 6,
-                        Some(ListId::Room) => 3,
-                        Some(ListId::Dxsetup | ListId::Finish) => 4,
-                        _ => 0u32,
-                    })
-            );
-            checked += 1;
-        }
-        assert_eq!(checked, 13);
     }
 }

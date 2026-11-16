@@ -1,5 +1,5 @@
 //! The folder page's key action: with bit 3 of the key's bits set (an edit's key), Enter sets
-//! the answer to 0 and leaves, Escape sets it to 1 and leaves. Any other key does nothing.
+//! the answer to 1 and leaves, Escape (unless the list stays) sets it to 0 and leaves. Any other key does nothing.
 //! Called by `install::run_page`.
 
 use crate::memory::list_handle::ListMenu;

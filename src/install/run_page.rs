@@ -1,41 +1,59 @@
-//! One of the installer's pages (a list menu) run until it is left: the list's action is told the
-//! start (state 0); a list with 0x40 or 0x80 is only that action. Else the items are marked, the
-//! highlight moved past items that cannot be chosen, the backdrop shown; then each frame: the
-//! pieces laid out, measured, placed, the page drawn, a key taken. A key goes to the item
-//! (`install::page_key`); if it did nothing, to the list's key action; if that did nothing
-//! either, it moves the highlight (`menu::list_step`). Leaving tells the action the end
-//! (state -1). The game quitting ends it.
+//! One of the installer's pages (a list menu) run until it is left: the page is told the start
+//! (state 0), the items are marked, the highlight moved past items that cannot be chosen, the
+//! backdrop shown; then each frame: the pieces laid out, measured, placed, the page drawn, a key
+//! taken. A key goes to the item (`install::page_key`); if it did nothing, to the page's own
+//! keys; if that did nothing either, it moves the highlight (`menu::list_step`). Leaving tells
+//! the page the end (state -1). The game quitting ends it.
 //!
 //! Returns the answer (`list_answer`). Refused: a page whose every item cannot be chosen.
 //! Called by `install::run_pages`.
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::{
-    copy_picture, key_action, list_clear_marks, list_item_unusable, list_step, list_take_key, lock,
-    page_action, run_frame, show, unlock,
+    copy_picture, list_clear_marks, list_item_unusable, list_step, list_take_key, lock, run_frame,
+    show, unlock,
 };
 use crate::memory::list_handle::ListMenu;
+use rc2k_core::install::flow::Page;
 
 const NO_CHOICE: BadInput = BadInput("a page whose every item cannot be chosen");
 
-/// The list's action (+8) told where the page is.
+/// The page told where it is: `state` 0 at the start, 1 after a key, -1 at the end.
 fn tell(
     install: &'static crate::install::owner::Install,
     o: crate::owners::Owners<'static>,
+    page: Page,
     list: ListMenu,
     state: u32,
 ) -> Result<(), Refused> {
-    let action = list.action();
-    if action != 0 {
-        page_action(install, o, action, state, list)?;
+    use crate::install as i;
+    let list_state = &o.menus.list;
+    match page {
+        Page::Language => i::language_page::language_page(install, o, state, list)?,
+        Page::Main => i::mark_main_page::mark_main_page(install, list),
+        Page::Drive => i::drive_page::drive_page(install, list_state, state, list),
+        Page::Folder => i::folder_page::folder_page(install, list_state, state, list),
+        Page::NoRoom => i::room_page::room_page(install, state),
+        Page::Removal => i::removal_page::removal_page(install, list_state, state),
     }
     Ok(())
 }
 
-/// The page of `list` run until it is left; its answer.
+/// The page's own keys (only the folder page has some): whether `key` was taken.
+fn page_own_key(
+    list_state: &crate::menu::list_state::ListState,
+    page: Page,
+    key: u32,
+    list: ListMenu,
+) -> bool {
+    page == Page::Folder && crate::install::folder_key::folder_key(list_state, key, list)
+}
+
+/// `page`, shown as `list`, run until it is left; its answer.
 pub fn run_page(
     install: &'static crate::install::owner::Install,
     o: crate::owners::Owners<'static>,
+    page: Page,
     list: ListMenu,
 ) -> Result<u32, Refused> {
     let list_state = &o.menus.list;
@@ -55,11 +73,8 @@ pub fn run_page(
     if count != 0 {
         list_clear_marks(install, list);
     }
-    tell(install, o, list, 0)?;
+    tell(install, o, page, list, 0)?;
     'page: {
-        if list.flags() & 0xC0 != 0 {
-            break 'page;
-        }
         i::mark_page::mark_page(install, list_state, list);
         let mut steps = 0;
         while list_item_unusable(list_state, list) {
@@ -112,17 +127,14 @@ pub fn run_page(
                     let (left, mut took) = i::page_key::page_key(o, install, key, item, list)?;
                     key = left;
                     if !took {
-                        let keys = list.key_action();
-                        if keys != 0 {
-                            took = key_action(list_state, keys, key, list)?;
-                        }
+                        took = page_own_key(list_state, page, key, list);
                     }
                     let moved = took || list_step(list_state, key, list.neighbours(), list)?;
                     if moved {
                         list_state.move_clock.set(list_state.frame_clock.get());
                     }
                     list_clear_marks(install, list);
-                    tell(install, o, list, 1)?;
+                    tell(install, o, page, list, 1)?;
                     i::mark_page::mark_page(install, list_state, list);
                     if !list_item_unusable(list_state, list) {
                         break;
@@ -163,7 +175,7 @@ pub fn run_page(
                 }
             } else {
                 list_clear_marks(install, list);
-                tell(install, o, list, 1)?;
+                tell(install, o, page, list, 1)?;
                 i::mark_page::mark_page(install, list_state, list);
                 if list_item_unusable(list_state, list) {
                     let arrow = matches!(key as u8, 0x66 | 0x6B | 0x68 | 0x69);
@@ -192,7 +204,7 @@ pub fn run_page(
             }
         }
         i::show_backdrop::show_backdrop(o)?;
-        tell(install, o, list, u32::MAX)?;
+        tell(install, o, page, list, u32::MAX)?;
     }
     if count != 0 {
         list_clear_marks(install, list);

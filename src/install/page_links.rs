@@ -1,19 +1,15 @@
-//! The links in the installer pages' data, as handles: a page entry names its list, an item
-//! its box, its edit record, its value or its text, a drawing list's record its font or
-//! palette. Each dword holds a handle, made once where the data is built
+//! The links in the installer pages' data, as handles: an item names its box, its edit
+//! record, its value or its text, a drawing list's record its font or palette. Each dword holds a handle, made once where the data is built
 //! (`vars::InstallerPages::new`) and resolved by its kind, with bounds, by every reader. A
 //! handle is a kind in the high byte and a number below:
 //!
-//! - `TABLE`: a dword of `InstallerPages::page_table` (the page entries), by index;
-//! - `LIST`: one of the pages' lists, by `ListId`;
 //! - `BOX`: one of `InstallerPages::boxes`, by index (0 the title item's, 1 the title's);
 //! - `EDIT`: the folder item's edit record;
 //! - `FONT`: a font of the font block, by number (`gfx::typefaces::FontId`);
 //! - `BLENDED_PALETTE`: the blended palette (the install bar's glyphs);
 //! - `TYPED_PATH`: a byte offset in `InstallerPaths::typed`.
 //!
-//! 0 is no link. A kind resolves only as itself: a box link is no table entry, a list link no
-//! text.
+//! 0 is no link. A kind resolves only as itself: a box link is no text, a font link no box.
 
 use crate::errors::BadInput;
 use crate::gfx::typefaces::FontId;
@@ -23,72 +19,43 @@ use crate::memory::place::BytePlace;
 
 const KIND_SHIFT: u32 = 24;
 const NUMBER: u32 = (1 << KIND_SHIFT) - 1;
-const TABLE: u32 = 1;
 const FONT: u32 = 2;
 const BLENDED_PALETTE: u32 = 3;
 const TYPED_PATH: u32 = 4;
-const LIST: u32 = 5;
 const BOX: u32 = 6;
 const EDIT: u32 = 8;
 /// The bytes of the folder typed a link can name.
 const TYPED_LEN: u32 = 0x100;
 
-/// How many entries `InstallerPages::page_table` holds.
-pub const TABLE_LEN: u32 = 55;
 /// How many `InstallerPages::boxes` there are (16 bytes each).
 const BOXES: u32 = 9;
 
 /// One of the installer pages' lists.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ListId {
-    Language,   // IDA 0x51D670
-    Main,       // IDA 0x51D728
-    Mode,       // IDA 0x51D790
-    Drives8,    // IDA 0x51D7F8
-    Drives16,   // IDA 0x51D8B0
-    DrivesMore, // IDA 0x51D9E8
-    Folder,     // IDA 0x51DBA0
-    Room,       // IDA 0x51DC18
-    Dxsetup,    // IDA 0x51DC60
-    Finish,     // IDA 0x51DCB8
-    /// The pages that are only an action (a header with no items): copying the files,
-    /// uninstalling, opening the installed copy, asking to register.
-    InstallFiles, // IDA 0x51DD10
-    Uninstall,  // IDA 0x51DD28
-    OpenInstalled, // IDA 0x51DD40
-    AskRegistration, // IDA 0x51DD58
+    Language,
+    Main,
+    /// The drive page's list for up to 8 drives, up to 16, and more.
+    Drives8,
+    Drives16,
+    DrivesMore,
+    Folder,
+    Room,
+    Removal,
 }
 
 impl ListId {
     /// The lists, in the order of the enum.
-    pub(crate) const ALL: [ListId; 14] = [
+    pub(crate) const ALL: [ListId; 8] = [
         ListId::Language,
         ListId::Main,
-        ListId::Mode,
         ListId::Drives8,
         ListId::Drives16,
         ListId::DrivesMore,
         ListId::Folder,
         ListId::Room,
-        ListId::Dxsetup,
-        ListId::Finish,
-        ListId::InstallFiles,
-        ListId::Uninstall,
-        ListId::OpenInstalled,
-        ListId::AskRegistration,
+        ListId::Removal,
     ];
-
-    const fn number(self) -> u32 {
-        self as u32
-    }
-
-    const fn from_number(number: u32) -> Option<Self> {
-        if number < Self::ALL.len() as u32 {
-            Some(Self::ALL[number as usize])
-        } else {
-            None
-        }
-    }
 }
 
 /// A link of the installer pages' data (a handle; see the module).
@@ -96,16 +63,6 @@ impl ListId {
 pub struct PageLink(u32);
 
 impl PageLink {
-    /// The link to page entry `index` of the pages' table.
-    pub const fn table(index: u32) -> Self {
-        assert!(index < TABLE_LEN);
-        Self((TABLE << KIND_SHIFT) | index)
-    }
-
-    pub const fn list(list: ListId) -> Self {
-        Self((LIST << KIND_SHIFT) | list.number())
-    }
-
     pub const fn folder_edit() -> Self {
         Self(EDIT << KIND_SHIFT)
     }
@@ -153,23 +110,11 @@ impl PageLink {
         self.0 & NUMBER
     }
 
-    pub fn table_index(self) -> Option<u32> {
-        (self.kind() == TABLE && self.number() < TABLE_LEN).then_some(self.number())
-    }
-
     /// The box a link of the `BOX` kind names.
     pub fn box_rect(self, install: &'static Install) -> Result<&'static BoxRect, BadInput> {
         match (self.kind(), self.number()) {
             (BOX, number) if number < BOXES => Ok(&install.pages.boxes[number as usize]),
             _ => Err(BadInput("a page link that is no box")),
-        }
-    }
-
-    /// The list a link names, if it is a link to one of the pages' lists.
-    pub fn list_id(self) -> Option<ListId> {
-        match self.kind() {
-            LIST => ListId::from_number(self.number()),
-            _ => None,
         }
     }
 
@@ -233,11 +178,6 @@ mod tests {
             &raw const pages.boxes[1]
         ));
         assert_eq!(
-            PageLink::table(25).table_index().unwrap(),
-            25,
-            "the drive page's entry"
-        );
-        assert_eq!(
             PageLink::of_font(crate::gfx::typefaces::fonts::TITLE)
                 .font()
                 .unwrap(),
@@ -267,9 +207,7 @@ mod tests {
                 .is_err()
         );
         assert!(PageLink::folder_edit().font().is_err());
-        assert!(PageLink::table(11).box_rect(install).is_err());
         assert!(PageLink::box_at(3).place(install).is_err());
-        assert!(PageLink::list(ListId::Main).place(install).is_err());
         assert!(
             PageLink::from_raw(BOX << KIND_SHIFT | BOXES)
                 .box_rect(install)
@@ -280,15 +218,6 @@ mod tests {
                 .place(install)
                 .is_err()
         );
-        assert!(
-            PageLink::from_raw(LIST << KIND_SHIFT | 14)
-                .list_id()
-                .is_none()
-        );
         assert!(PageLink::folder_edit().edit_record(install).is_ok());
-        assert_eq!(
-            PageLink::list(ListId::OpenInstalled).list_id(),
-            Some(ListId::OpenInstalled)
-        );
     }
 }

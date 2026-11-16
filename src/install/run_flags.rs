@@ -5,10 +5,11 @@
 
 use std::cell::Cell;
 
-/// The media mode and language digits a `-i` gave.
+/// The two digits a `-i` gave.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct GivenInstall {
-    /// The media mode digit (above 0 selects it, held to 3).
+    /// The first digit: above 0, the language digit is taken (the installation is always the
+    /// full one).
     pub mode: i32,
     /// The language digit (above 0 selects it).
     pub language: i32,
@@ -37,7 +38,7 @@ pub struct RunFlags {
     pub from_command: Cell<bool>,
     /// The lack of room is ignored.
     pub ignore_room: Cell<bool>,
-    /// `-i`'s media mode digit.
+    /// `-i`'s first digit.
     pub given_mode: Cell<i32>,
     /// `-i`'s language digit.
     pub given_language: Cell<i32>,
@@ -45,6 +46,9 @@ pub struct RunFlags {
     pub first_drive: Cell<u8>,
     /// The registration is offered.
     pub offer_registration: Cell<bool>,
+    /// The program was started from an update disc: the main page's second item copies the
+    /// update (`install::install_clio`).
+    pub update_disc: Cell<bool>,
 }
 
 impl RunFlags {
@@ -58,6 +62,7 @@ impl RunFlags {
             given_language: Cell::new(0),
             first_drive: Cell::new(b'c'),
             offer_registration: Cell::new(false),
+            update_disc: Cell::new(false),
         }
     }
 

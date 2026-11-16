@@ -1,8 +1,8 @@
 //! The Clio update copied from its disc: a frame is shown; the two source base directories are
 //! normalised and the first made current; the Clio script is run; each listed folder is made and
 //! each listed file copied (Escape stops the copy). A failed normalise, change or make ends it.
-//! Finally `installing`, `updating` and `from_command` are cleared after a second. The action of
-//! the third page's list item (for the Clio disc). Called by `install::run_page`.
+//! Finally `installing`, `updating` and `from_command` are cleared after a second. The main
+//! page's second item on the Clio disc. Called by `install::run_pages`.
 
 use crate::errors::Refused;
 use crate::install::installer::{

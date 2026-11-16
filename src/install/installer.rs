@@ -4,13 +4,11 @@
 //!
 //! The installer runs only with its script set up (`-i`, `-u`, `-p`, or the update and Clio
 //! discs: `install::check_at_start`, `check_clio_disc`). Its pages are list menus
-//! (`install::run_page`): a list of 0x18 bytes (+0 flags, +1 items, +2 title, +4 the item chosen,
-//! +8 the list's action with the state 0 at the start, 1 after a key, -1 at the end, +0x10 the
-//! neighbours for `menu::list_step`, +0x14 a key action) and its items of 0x10 bytes from +0x18
-//! (+0 kind and marks, +1 the next list or the choices, +2 the text, +8 and +0xC the kind's
-//! pointers). `install::run_pages` goes from list to list by the answer. The functions the
-//! tables hold are run by `page_action`, `key_action`, `item_action_at`, `text_action` and
-//! `draw_action`.
+//! (`install::run_page`): a list of 0x18 bytes (+0 flags, +1 items, +2 title, +4 the item
+//! chosen) and its items of 0x10 bytes from +0x18 (+0 kind and marks, +1 the answer the item
+//! leaves the page with or the choices, +2 the text, +8 and +0xC the kind's links and
+//! actions). `install::run_pages` goes from page to page by the answer. The actions the items
+//! hold are run by `item_action_at`, `text_action` and `draw_action`.
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::memory::list_handle::ListMenu;
@@ -19,8 +17,6 @@ use crate::memory::place::BytePlace;
 /// The installer's constant texts.
 #[derive(rc2k_derive::Cells)]
 pub struct InstallTexts {
-    /// The other directory, "\".
-    pub other_dir: crate::memory::session::Bytes<2>,
     /// ".".
     pub dot: crate::memory::session::Bytes<2>,
     /// "..".
@@ -35,7 +31,6 @@ pub struct InstallTexts {
 impl InstallTexts {
     pub const fn new() -> Self {
         InstallTexts {
-            other_dir: crate::memory::session::Bytes::new(*b"\\\0"),
             dot: crate::memory::session::Bytes::new(*b".\0"),
             dotdot: crate::memory::session::Bytes::new(*b"..\0"),
             star: crate::memory::session::Bytes::new(*b"*.*\0"),
@@ -46,14 +41,27 @@ impl InstallTexts {
 
 // The base and locale directories: `files::state::{base_directory, locale_directory}`.
 
-/// The media mode (`files::state::MEDIA_MODE`).
+/// The media mode the installation was made with, as its record says (an installation the
+/// 1999 installer made may be a smaller kind, with files left on the disc; the uninstall's
+/// script lists by it).
 pub fn media_mode() -> u32 {
     crate::files::state::MEDIA_MODE.get()
 }
 
-pub fn set_media_mode(mode: u32) {
-    crate::files::state::MEDIA_MODE.set(mode);
+/// The media mode of a full installation: every file is in the installed folder.
+pub const FULL_INSTALLATION: u32 = 3;
+
+/// The installation is a full one (the only kind this installer makes): the game reads the
+/// media mode (`files::state::MEDIA_MODE`) to know where its files are.
+pub fn set_full_installation() {
+    crate::files::state::MEDIA_MODE.set(FULL_INSTALLATION);
 }
+
+/// A link item's action (the item's +8): the no-room page's "go on anyway".
+pub const GO_ON_ANYWAY: u32 = 1;
+/// A text item's action (the item's +0xC): the text's line is ended.
+pub const END_TEXT_LINE: u32 = 1;
+
 // The installer's other variables (the update switch, the remove-items switch, the install.bun
 // flag, the room by installation, the list variables, the third page's action, the file
 // search record and its skip mask) are in `install::vars`.
@@ -409,61 +417,13 @@ pub fn list_item_unusable(list_state: &crate::menu::list_state::ListState, list:
     crate::menu::list_item_unusable::list_item_unusable(list_state, list)
 }
 
-/// Whether the standalone's install or uninstall ended, logged.
-pub fn logged(what: &str, done: Result<(), Refused>) -> Result<(), Refused> {
+/// How the install or uninstall ended, logged.
+pub fn logged<T>(what: &str, done: Result<T, Refused>) -> Result<T, Refused> {
     crate::logfile::program_log::log(&format!(
         "install: the {what} ended: {:?}",
         done.as_ref().map(|_| ())
     ));
     done
-}
-
-/// A list's action (+8): the page told where it is (`state` 0 at the start, 1 after a key,
-/// -1 at the end). The game's lists hold the pages' actions and, in lists of nothing else
-/// (flags 0x40), the install, the uninstall, the installed copy's start (or the Clio
-/// disc's install) and the registration.
-pub fn page_action(
-    install: &'static crate::install::owner::Install,
-    o: crate::owners::Owners<'static>,
-    place: u32,
-    state: u32,
-    list: ListMenu,
-) -> Result<(), Refused> {
-    let list_state = &o.menus.list;
-    use crate::install as i;
-    match place {
-        0x414199 => i::language_page::language_page(install, o, state, list)?,
-        0x4141EF => i::mark_main_page::mark_main_page(install, list),
-        0x41422B => i::mode_page::mode_page(install, list_state, state),
-        0x41425E => i::drive_page::drive_page(install, list_state, state, list),
-        0x4142C7 => i::room_page::room_page(install, state),
-        0x4142F5 => i::folder_page::folder_page(install, list_state, state, list),
-        0x41432F => i::dxsetup_page::dxsetup_page(install, list_state, state),
-        0x414347 => i::finish_page::finish_page(install, list_state, state),
-        0x4130CD => logged("install", i::install_files::install_files(install, o))?,
-        0x4134DF => logged("uninstall", i::uninstall::uninstall(install, o))?,
-        0x413629 => i::open_installed::open_installed(install)?,
-        0x413650 => i::ask_registration::ask_registration(install),
-        0x41675B => i::install_clio::install_clio(install, o)?,
-        _ => return Err(BadInput("a list action that is not one of the installer's").into()),
-    }
-    Ok(())
-}
-
-/// A list's key action (+0x14): `key`; whether it took the key. The lists hold only the
-/// folder page's.
-pub fn key_action(
-    list_state: &crate::menu::list_state::ListState,
-    place: u32,
-    key: u32,
-    list: ListMenu,
-) -> Result<bool, Refused> {
-    match place {
-        0x41534E => Ok(crate::install::folder_key::folder_key(
-            list_state, key, list,
-        )),
-        _ => Err(BadInput("a key action that is not one of the installer's").into()),
-    }
 }
 
 /// A link's or an action item's action (+8). The items hold only the not-enough-room page's
@@ -474,7 +434,7 @@ pub fn item_action_at(
     place: u32,
 ) -> Result<bool, Refused> {
     match place {
-        0x4142DA => {
+        GO_ON_ANYWAY => {
             crate::install::ignore_room::ignore_room(install, list_state);
             Ok(true)
         }
@@ -486,7 +446,7 @@ pub fn item_action_at(
 /// game's items hold only `install::end_text_line`.
 pub fn text_action(place: u32, out: &mut Vec<u8>) -> Result<(), Refused> {
     match place {
-        0x415304 => {
+        END_TEXT_LINE => {
             crate::install::end_text_line::end_text_line(out);
             Ok(())
         }

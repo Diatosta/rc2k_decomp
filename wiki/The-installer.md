@@ -43,7 +43,7 @@ install today.
 3. works out a default folder for this system;
 4. checks whether this folder already holds an installation of the same build
    (`src/install/check_installed_version.rs`);
-5. runs the pages (`src/install/run_pages.rs`);
+5. runs the flow of pages and work (`src/install/run_pages.rs`);
 6. closes the installer and frees its fonts.
 
 When it returns, the main loop asks the program to quit. What the pages asked to happen
@@ -52,32 +52,63 @@ When it returns, the main loop asks the program to quit. What the pages asked to
 
 ## Pages
 
-A page is a **list menu**: a title and a column of items, each of which is a link to another
-page, an action, a choice between values, or a line of text to edit. The page tables are typed
-records in `src/install/vars.rs` and `src/install/page_records.rs`; the record layout is
-described in `src/memory/list_handle.rs`.
+A page is a **list menu**: a title and a column of items, each of which leaves the page with an
+answer, does something, is a choice between values, or is a line of text to edit. The pages'
+lists are typed records in `src/install/vars.rs`; the record layout is described in
+`src/memory/list_handle.rs`.
 
 `install::run_page` (`src/install/run_page.rs`) runs one page until it is left. Each frame it
 lays the page out, draws it over the backdrop, and takes a key. The key is offered first to
 the highlighted item (`src/install/page_key.rs`), then to the page, and otherwise moves the
-highlight. Each page can have a small function that runs when the page opens and when it
-closes; those are the `..._page.rs` files.
+highlight. Each page has a small function that runs when the page opens, after each key and
+when it closes; those are the `..._page.rs` files, called by name from `run_page.rs`.
 
 | Page | File | What it does |
 | --- | --- | --- |
-| Language | `language_page.rs` | Choose the game's language. Skipped if the CD has only one. The choice is loaded at once, so the following pages are in that language. |
-| Drive | `drive_page.rs` | Windows only: choose the drive. |
+| Main | `mark_main_page.rs` | Install, play the installed copy (or copy an update from its disc), uninstall. Items that do not apply cannot be chosen. |
+| Language | `language_page.rs` | Choose the game's language. Not shown if the CD has only one, or if this build is installed already. The choice is loaded at once, so the following pages are in that language. |
+| Drive | `drive_page.rs` | Windows only: choose the drive. On systems without drive letters the page is not part of the flow. |
 | Folder | `folder_page.rs` | Type or accept the folder. A bad name shows why (`check_folder_name.rs`). |
 | Not enough room | `room_page.rs` | Shown if the disk is too small; the player may go on anyway (`ignore_room.rs`). |
-| Installing | `install_files.rs`, `install_frames.rs` | The copy, with a progress display. Escape cancels. |
-| Finish | `finish_page.rs` | Done; optionally view the readme. |
+| Removal | `removal_page.rs` | For an uninstall: remove everything, keep the saves and settings, or go back. |
 
-`run_pages.rs` strings them together: each entry names a page and where each answer leads.
+Between pages the installer does work that shows no page of its own: copying the files
+(`install_files.rs`, with the progress display of `install_frames.rs`; Escape cancels),
+removing the installation (`uninstall.rs`), making the installed copy the one that runs
+(`open_installed.rs`), copying an update from its disc (`install_clio.rs`).
+
+### The flow
+
+The order of all this is ordinary code. `rc2k_core/src/install/flow.rs` names the pages
+(`Page`) and the steps (`Step`: a page shown, or a piece of work) and says where each answer
+leads (`after_page`, `after_copy`); `src/install/run_pages.rs` runs the steps one after another
+until one leads nowhere.
+
+| Step | Answer | Next |
+| --- | --- | --- |
+| Language (the first step of an installation) | a language | Main |
+| | back | the installer ends |
+| Main | install | Drive (Windows), Folder (elsewhere) |
+| | play / update | the installed copy opened, or the update copied; the installer ends |
+| | uninstall | Removal |
+| | back | the installer ends |
+| Drive | a drive | Folder |
+| | back | Main |
+| Folder | Enter | the copy |
+| | Escape | Drive (Windows), Main (elsewhere) |
+| The copy | done, failed or cancelled | the installer ends |
+| | the folder cannot be used | Folder, which says why |
+| | too little room | Not enough room |
+| Not enough room | go on anyway | the copy |
+| | back | Drive (Windows), Folder (elsewhere) |
+| Removal (the first step with `-u`) | remove all, or keep the saves | the uninstall; the installer ends |
+| | back | Main, or the installer ends when it began here |
 
 The original also had a page for the kind of installation (how much to copy to the hard disk
-and how much to leave on the CD), a DirectX set-up page and a registration page. Their code is
-still present (`mode_page.rs`, `dxsetup_page.rs`, `ask_registration.rs`) but the pages are not
-shown: the installation is always the full one.
+and how much to leave on the CD), a DirectX set-up page and a registration page. None of them
+exists here: the installation is always the full one. The game itself still reads the kind
+from an installation's record, so an installation the 1999 installer made with files left on
+the CD is still understood ([Install records](Install-records)).
 
 ## Copying the files
 
@@ -175,9 +206,9 @@ environment variable `RC2K_DOWNLOAD`. See [Testing](Testing).
 | To change or understand | Start in |
 | --- | --- |
 | When the installer runs | `src/system/main_loop.rs`, `src/install/portable.rs` |
-| The installer's outline | `src/install/run_installer.rs`, `run_pages.rs` |
+| The installer's outline | `src/install/run_installer.rs`, `run_pages.rs`, `rc2k_core/src/install/flow.rs` |
 | How a page works | `src/install/run_page.rs`, `page_key.rs`, `src/memory/list_handle.rs` |
-| The page tables | `src/install/vars.rs`, `page_records.rs`, `page_links.rs` |
+| The pages' lists, pieces and links | `src/install/vars.rs`, `page_records.rs`, `page_links.rs` |
 | What gets copied | `src/install/run_script.rs`, `install_files.rs` |
 | Per-system folder rules | `src/install/folders/` |
 | Menu entries and copying the program | `src/install/shortcuts.rs` |

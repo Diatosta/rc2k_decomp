@@ -1,15 +1,11 @@
 //! The drives that can be installed to found and their menu built: each letter from `first_drive`
 //! to 'z' that is not a CD-ROM or a RAM disk and whose free space can be read is recorded, then
 //! a text (letter, space, free space as KB, MB or GB) is built in `drive_rows` for 'a' to 'y'
-//! (drive Z is found but never listed, a slip kept as is; at most 24 drives are listed), and the drive menu list that fits the
-//! count is put into the drive page's entry. Called by `install::run_installer`.
+//! (drive Z is found but never listed, a slip kept as is; at most 24 drives are listed), and the drive menu list that fits
+//! the count is given its number of items. Called by `install::run_installer`.
 
 use crate::install::installer::wb;
-use crate::install::page_links::{ListId, PageLink};
-use rc2k_core::install::drives::{self, DriveMenu};
-
-/// The drive page's entry in the pages' table.
-const DRIVE_ENTRY: usize = 25;
+use rc2k_core::install::drives;
 
 pub fn list_drives(
     install: &'static crate::install::owner::Install,
@@ -68,12 +64,16 @@ pub fn list_drives(
         ebx = row.add(0x10);
     }
     let count = install.run.drive_count.get();
-    let list = match drives::menu(count) {
-        DriveMenu::Eight => ListId::Drives8,
-        DriveMenu::Sixteen => ListId::Drives16,
-        DriveMenu::More => ListId::DrivesMore,
-    };
-    // The drive page's entry links to the menu (`page_links::PageLink`).
-    install.pages.page_table[DRIVE_ENTRY].set(PageLink::list(list).raw());
+    let list = drive_list(count);
     crate::memory::list_handle::ListMenu::installer(install, list).set_count(drives::items(count));
+}
+
+/// The drive page's list for `count` drives.
+pub fn drive_list(count: u32) -> crate::install::page_links::ListId {
+    use crate::install::page_links::ListId;
+    match drives::menu(count) {
+        drives::DriveMenu::Eight => ListId::Drives8,
+        drives::DriveMenu::Sixteen => ListId::Drives16,
+        drives::DriveMenu::More => ListId::DrivesMore,
+    }
 }

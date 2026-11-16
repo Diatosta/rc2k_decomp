@@ -1,6 +1,6 @@
 //! The installer's page actions: what a page sets up at its start and takes at its end (a negative
 //! argument), and which items are marked (an item's first byte: 0x40 hidden, 0x80 not to be
-//! chosen). And the pages' walk: an entry is a page's list and the entries its answers go to.
+//! chosen). Where the pages' answers lead: `install::flow`.
 
 /// When a page action is called.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -62,11 +62,6 @@ pub fn main_page_marks(
     marks
 }
 
-/// The installation-kind page's highlight at its start: the kind, 2 for none.
-pub fn mode_highlight(media_mode: u32) -> u32 {
-    if media_mode == 0 { 2 } else { media_mode }
-}
-
 /// The drives' texts: 26 of them, 0x10 bytes each, the first byte the letter.
 pub const DRIVE_TEXTS: u32 = 0x1A;
 pub const DRIVE_TEXT: u32 = 0x10;
@@ -100,7 +95,7 @@ pub fn hidden_notices(problem: u32) -> (bool, bool) {
     (problem != BAD_FOLDER, problem != NO_ROOM)
 }
 
-/// Whether the language page is passed over (its list hidden): this version installed already,
+/// Whether the language page is not shown: this version installed already,
 /// or at most one language (unsigned).
 pub fn language_page_skipped(same_version: bool, languages: u32) -> bool {
     same_version || languages <= 1
@@ -112,35 +107,15 @@ pub fn hidden_languages(languages: u32) -> (u32, u32) {
     (languages.wrapping_mul(0x10), 9u32.wrapping_sub(languages))
 }
 
-/// DirectX's page: answer 1 runs its set-up after the game.
-pub fn runs_dxsetup(answer: u8) -> bool {
-    answer == 1
-}
-
-/// The last page: answer 2 shows the readme (`InstallerNames.script_mark` 5, the answer made 1).
-pub fn shows_readme(answer: u8) -> bool {
+/// The removal page: answer 2 keeps the saves and settings (the answer is then made 1, the
+/// uninstall's).
+pub fn keeps_saves(answer: u8) -> bool {
     answer == 2
-}
-
-/// Whether a page answered `answer` has its highlight put back to 0: answers 0 and 1.
-pub fn resets_highlight(answer: u32) -> bool {
-    answer <= 1
-}
-
-/// The offset in a page's entry of the entry its answer goes to (wrapping).
-pub fn next_entry_at(answer: u32) -> u32 {
-    answer.wrapping_mul(4).wrapping_add(4)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn walk() {
-        assert!(resets_highlight(0) && resets_highlight(1) && !resets_highlight(2));
-        assert_eq!(next_entry_at(2), 0xC);
-    }
 
     #[test]
     fn pages() {
@@ -158,8 +133,6 @@ mod tests {
                 (0x48, 0x40, 0xFF)
             ]
         );
-        assert_eq!(mode_highlight(0), 2);
-        assert_eq!(mode_highlight(3), 3);
         let letters = |n: u32| b"cdf".get(n as usize).copied().unwrap_or(0);
         assert_eq!(drive_highlight(b'd', letters, 10), (1, Some(3)));
         assert_eq!(drive_highlight(b'd', letters, 3), (1, None));
@@ -171,7 +144,6 @@ mod tests {
         assert!(language_page_skipped(false, 1));
         assert!(!language_page_skipped(false, 2));
         assert_eq!(hidden_languages(3), (0x30, 6));
-        assert!(runs_dxsetup(1) && !runs_dxsetup(2));
-        assert!(shows_readme(2) && !shows_readme(1));
+        assert!(keeps_saves(2) && !keeps_saves(1));
     }
 }
