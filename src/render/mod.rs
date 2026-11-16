@@ -718,8 +718,8 @@ pub static BACKGROUND_UPLOAD_BYTES: std::sync::atomic::AtomicU64 =
 /// The GPU's draw calls (a run of triangles drawn alike each): what the handheld's driver
 /// spends its time on.
 pub static GPU_DRAWS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-/// Of them, the draws with the scene's program with no alpha test (`Batch::discard_free`), and
-/// the times the GL thread switched between its two scene programs.
+/// Of them, the draws by a scene program with no alpha test (`Batch::discard_free`), and
+/// the times the GL thread went from one of its scene programs to another within a flush.
 pub static GPU_FREE_DRAWS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 pub static GPU_PROGRAM_SWITCHES: std::sync::atomic::AtomicU64 =
     std::sync::atomic::AtomicU64::new(0);

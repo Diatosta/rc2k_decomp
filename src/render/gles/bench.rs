@@ -153,6 +153,9 @@ impl Gpu {
         height: i32,
     ) {
         self.bench_gathering(commands, batches, opaque);
+        // The ways set the values of the program for every kind themselves.
+        self.gl.use_program(self.programs[0].name);
+        self.programs[0].first = None;
         let changes =
             |f: &dyn Fn(&super::super::batches::Batch, &super::super::batches::Batch) -> bool| {
                 batches
@@ -335,7 +338,7 @@ impl Gpu {
                     | last.is_some_and(|l| l.values != batch.values)
             {
                 let v = &batch.values;
-                let l = &self.locations.first;
+                let l = &self.programs[0].locations.first;
                 gl.uniform_4fv(l.fog_colour, &v.fog_colour);
                 gl.uniform_1f(l.alpha_reference, v.alpha_reference);
                 gl.uniform_1i(l.alpha_function, v.alpha_function);

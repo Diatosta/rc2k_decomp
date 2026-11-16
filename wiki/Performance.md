@@ -70,6 +70,15 @@ drawn with the blend off and by a copy of the shader with no alpha test: no pixe
 and the GPU can reject hidden pixels before it shades them (about a frame and a half a
 second more on the dry stage; `RC2K_FAST_PATH=0` turns it off).
 
+The GPU's program for the 3D is made once for each kind of batch it meets (with or without a
+texture, fog, an alpha test, a second texture layer; about eight kinds in a race), instead
+of one program that reads those choices for every pixel and carries every vertex value
+whether used or not. The arithmetic is the same text, so no pixel changes; the dry stage
+gains about a frame a second and the rain about two (`RC2K_SHADER_KINDS=0` goes back to one
+program for every kind). The programs for the kinds the game draws are built when the renderer
+starts (about 0.3 seconds on the handheld), so no frame waits for one; a kind not foreseen
+is built when first met and named in the log.
+
 ## Start-up
 
 The 1999 program paused for about a second in several places while starting, and timed the

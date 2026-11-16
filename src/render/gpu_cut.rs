@@ -232,15 +232,6 @@ impl Cuts {
         }
     }
 
-    /// `source` with `#define <name>` after its `#version` line (which must stay the first).
-    #[cfg_attr(not(target_arch = "aarch64"), allow(dead_code))]
-    pub fn define(source: &str, name: &str) -> String {
-        match source.split_once('\n') {
-            Some((version, rest)) => format!("{version}\n#define {name}\n{rest}"),
-            None => source.to_string(),
-        }
-    }
-
     /// The GLES scene's fragment shader with the shader cuts defined: the `#define` lines go
     /// after the `#version` line, which must stay the first.
     #[cfg_attr(not(target_arch = "aarch64"), allow(dead_code))]
@@ -310,16 +301,6 @@ mod tests {
         assert_eq!(Cuts::from_bits(cuts.bits()), cuts);
         assert_eq!(cuts.shader_part(), Cuts::parse("fog,flat").0);
         assert_eq!(cuts.flag_bits(), 0b100001 << 8);
-    }
-
-    #[test]
-    fn a_define_goes_after_the_version_line_and_the_cuts_defines() {
-        let (cuts, _) = Cuts::parse("fog");
-        let source = cuts.shader("#version 300 es\nvoid main() {}\n");
-        assert_eq!(
-            Cuts::define(&source, "NO_DISCARD"),
-            "#version 300 es\n#define NO_DISCARD\n#define CUT_FOG\nvoid main() {}\n"
-        );
     }
 
     #[test]

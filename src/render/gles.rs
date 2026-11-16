@@ -10,7 +10,7 @@
 mod bench;
 mod layer2d;
 
-use super::batches::{Batches, NO_TEXTURE, PipelineKey, PixelValues};
+use super::batches::{Batch, Batches, NO_TEXTURE, PassKind, PipelineKey, PixelValues, ShaderKind};
 use super::gl_batching::{Background, Batched, Job, Part, Written};
 use super::gpu_cut::Cuts;
 use super::{CommandList, Target, TextureNote};
@@ -43,9 +43,6 @@ const TRIANGLES: u32 = 4;
 const COLOUR_BIT: u32 = 0x4000;
 const DEPTH_BIT: u32 = 0x0100;
 
-/// `Gpu::scene_programs`' key bit for the program with no alpha test (the cuts' bits are below).
-const FREE_KEY: u32 = 1 << 31;
-
 /// The panel.
 const PANEL: (i32, i32) = (720, 480);
 
@@ -57,29 +54,72 @@ layout(location=2) in vec4 specular; layout(location=3) in vec2 uv;
 layout(location=4) in vec4 colour2; layout(location=5) in vec4 specular2;
 layout(location=6) in vec2 uv2; layout(location=7) in vec4 layers;
 uniform vec2 size;
-out highp vec4 v_colour; out highp float v_fog; out highp float v_w; out highp vec2 v_uv;
-out highp vec4 v_colour2; out highp float v_fog2; out highp vec2 v_uv2;
-flat out lowp int v_unit; flat out highp float v_layer;
-flat out lowp int v_unit2; flat out highp float v_layer2;
+out highp vec4 v_colour; out highp float v_w;
+#ifdef FIRST_TEXTURE
+out highp vec2 v_uv; flat out lowp int v_unit; flat out highp float v_layer;
+#endif
+#ifdef FIRST_FOG
+out highp float v_fog;
+#endif
+#ifdef SECOND
+out highp vec4 v_colour2;
+#ifdef SECOND_TEXTURE
+out highp vec2 v_uv2; flat out lowp int v_unit2; flat out highp float v_layer2;
+#endif
+#ifdef SECOND_FOG
+out highp float v_fog2;
+#endif
+#endif
 void main() {
-    v_unit = int(layers.x); v_layer = layers.y; v_unit2 = int(layers.z); v_layer2 = layers.w;
     float w = place.w > 0.0 ? 1.0 / place.w : 1.0;
     gl_Position = vec4(((place.x + 0.5) / size.x * 2.0 - 1.0) * w,
                        (1.0 - (place.y + 0.5) / size.y * 2.0) * w,
                        (clamp(place.z, 0.0, 1.0) * 2.0 - 1.0) * w, w);
-    v_colour = colour.bgra * w; v_fog = specular.a * w; v_w = w; v_uv = uv;
-    v_colour2 = colour2.bgra * w; v_fog2 = specular2.a * w; v_uv2 = uv2;
+    v_colour = colour.bgra * w; v_w = w;
+#ifdef FIRST_TEXTURE
+    v_uv = uv; v_unit = int(layers.x); v_layer = layers.y;
+#endif
+#ifdef FIRST_FOG
+    v_fog = specular.a * w;
+#endif
+#ifdef SECOND
+    v_colour2 = colour2.bgra * w;
+#ifdef SECOND_TEXTURE
+    v_uv2 = uv2; v_unit2 = int(layers.z); v_layer2 = layers.w;
+#endif
+#ifdef SECOND_FOG
+    v_fog2 = specular2.a * w;
+#endif
+#endif
 }
 ";
 /// A batch's pass; with `SECOND` in `flags`, a second pass blended over it by its alpha as the
 /// target's blend would (`batches::Second`), the first's colour first held in bytes as the
 /// target holds it.
+///
+/// The `#define`s put before it choose what it is made for (`ShaderKind::defines`,
+/// `ShaderKind::defines_for_any`): with `MADE_FOR_KIND` each pass's function, mixing and flags
+/// are constants, so nothing of them is decided per pixel, and the passes and vertex values the
+/// kind does not have (`FIRST_TEXTURE`, `FIRST_FOG`, `SECOND`, `SECOND_TEXTURE`, `SECOND_FOG`)
+/// are left out of both shaders. The arithmetic of what is left is the same text either way.
 const SCENE_FS: &CStr = c"#version 300 es
 precision mediump float;
-in highp vec4 v_colour; in highp float v_fog; in highp float v_w; in highp vec2 v_uv;
-in highp vec4 v_colour2; in highp float v_fog2; in highp vec2 v_uv2;
-flat in lowp int v_unit; flat in highp float v_layer;
-flat in lowp int v_unit2; flat in highp float v_layer2;
+in highp vec4 v_colour; in highp float v_w;
+#ifdef FIRST_TEXTURE
+in highp vec2 v_uv; flat in lowp int v_unit; flat in highp float v_layer;
+#endif
+#ifdef FIRST_FOG
+in highp float v_fog;
+#endif
+#ifdef SECOND
+in highp vec4 v_colour2;
+#ifdef SECOND_TEXTURE
+in highp vec2 v_uv2; flat in lowp int v_unit2; flat in highp float v_layer2;
+#endif
+#ifdef SECOND_FOG
+in highp float v_fog2;
+#endif
+#endif
 out vec4 result;
 // The textures are layers of arrays (`TextureArray`), two bound for each pass: the vertex
 // says which and which layer. One level only and the same filter near and far, so the
@@ -87,10 +127,20 @@ out vec4 result;
 precision lowp sampler2DArray;
 uniform sampler2DArray picture_a; uniform sampler2DArray picture_b;
 uniform vec4 fog_colour; uniform float alpha_reference;
+#ifdef MADE_FOR_KIND
+const int alpha_function = ALPHA_FUNCTION; const int mixing = MIXING; const int flags = FLAGS;
+#else
 uniform int alpha_function; uniform int mixing; uniform int flags;
+#endif
+#ifdef SECOND
 uniform sampler2DArray picture2_a; uniform sampler2DArray picture2_b;
 uniform vec4 fog_colour2; uniform float alpha_reference2;
+#ifdef MADE_FOR_KIND
+const int alpha_function2 = ALPHA_FUNCTION2; const int mixing2 = MIXING2; const int flags2 = FLAGS2;
+#else
 uniform int alpha_function2; uniform int mixing2; uniform int flags2;
+#endif
+#endif
 vec4 fetch(sampler2DArray a, sampler2DArray b, int unit, highp vec3 at) {
 #ifdef CUT_TEX
     return vec4(0.5);
@@ -138,32 +188,42 @@ void main() {
     result = c;
     return;
 #endif
+#ifdef FIRST_TEXTURE
     // uploaded as they are: blue first
     if ((flags & 1) != 0) {
         vec4 texel = fetch(picture_a, picture_b, v_unit, vec3(v_uv, v_layer)).bgra;
         c = mixed(colour, texel, mixing, flags);
     }
+#endif
 #ifndef NO_DISCARD
     // Left out of the program for batches whose test cannot fail (`Batch::discard_free`): a
     // shader with a `discard` cannot have its hidden pixels rejected before it runs.
     if (alpha_function != 0 && !passes(alpha_function, alpha_reference, c.a)) discard;
 #endif
+#ifdef FIRST_FOG
     c = fogged(c, v_fog / v_w, fog_colour, flags);
+#endif
+#ifdef SECOND
     if (SECOND_PASS) {
         vec4 under = floor(c * 255.0 + 0.5) / 255.0;
         vec4 colour2 = v_colour2 / v_w;
         vec4 d = colour2;
+#ifdef SECOND_TEXTURE
         if ((flags2 & 1) != 0) {
             vec4 texel = fetch(picture2_a, picture2_b, v_unit2, vec3(v_uv2, v_layer2)).bgra;
             d = mixed(colour2, texel, mixing2, flags2);
         }
+#endif
         if (alpha_function2 == 0 || passes(alpha_function2, alpha_reference2, d.a)) {
+#ifdef SECOND_FOG
             d = fogged(d, v_fog2 / v_w, fog_colour2, flags2);
+#endif
             c = vec4(d.rgb * d.a + under.rgb * (1.0 - d.a), d.a * d.a + under.a * (1.0 - d.a));
         } else {
             c = under;
         }
     }
+#endif
     result = c;
 }
 ";
@@ -207,11 +267,109 @@ struct Quad {
     flip: i32,
 }
 
-#[derive(Clone)]
 struct Locations {
     size: i32,
     first: ValueLocations,
     second: ValueLocations,
+}
+
+/// What one of the scene's programs is made for.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+enum ProgramKind {
+    /// Every batch, each pass's function, mixing and flags read for every pixel;
+    /// `discard_free`: with no alpha test, for the batches that cannot fail it.
+    Any { discard_free: bool },
+    /// The batches of one kind, with nothing of it decided per pixel.
+    Made(ShaderKind),
+}
+
+impl ProgramKind {
+    /// The program for `batch`: its kind's own, or (`for_any`) one of the two for every kind.
+    fn of(batch: &Batch, for_any: bool) -> ProgramKind {
+        if for_any {
+            ProgramKind::Any {
+                discard_free: batch.discard_free,
+            }
+        } else {
+            ProgramKind::Made(ShaderKind::of(batch))
+        }
+    }
+
+    /// Whether the program has no alpha test.
+    fn discard_free(&self) -> bool {
+        match self {
+            ProgramKind::Any { discard_free } => *discard_free,
+            ProgramKind::Made(kind) => kind.first.alpha_function == 0,
+        }
+    }
+
+    fn defines(&self) -> String {
+        match self {
+            ProgramKind::Any { discard_free } => ShaderKind::defines_for_any(*discard_free),
+            ProgramKind::Made(kind) => kind.defines(),
+        }
+    }
+}
+
+/// One of the scene's programs, and what its uniforms were last given: they are the
+/// program's own and stay with it from flush to flush.
+struct SceneProgram {
+    name: u32,
+    locations: Locations,
+    size: Option<(i32, i32)>,
+    first: Option<PixelValues>,
+    second: Option<PixelValues>,
+}
+
+/// A pass's kind: its alpha test, its mixing, whether it has a texture, takes the texel's
+/// alpha, is fogged.
+const fn pass(
+    alpha_function: u8,
+    mixing: u8,
+    textured: bool,
+    texel_alpha: bool,
+    fog: bool,
+) -> PassKind {
+    PassKind {
+        alpha_function,
+        mixing,
+        textured,
+        texel_alpha,
+        fog,
+    }
+}
+
+/// A kind of one pass.
+const fn alone(first: PassKind) -> ShaderKind {
+    ShaderKind {
+        first,
+        second: None,
+    }
+}
+
+/// The kinds of batch the game draws (menus, stages in every weather, replays), whose
+/// programs are made when the renderer starts. A kind not listed still draws: its program is
+/// made when first met, and the log says which it was.
+const KINDS_AT_START: [ShaderKind; 9] = [
+    alone(pass(0, 0, false, false, false)),
+    alone(pass(5, 0, false, false, false)),
+    alone(pass(0, 0, false, false, true)),
+    alone(pass(0, 4, true, false, false)),
+    alone(pass(0, 4, true, false, true)),
+    alone(pass(5, 4, true, false, false)),
+    alone(pass(5, 4, true, false, true)),
+    alone(pass(5, 0, true, true, false)),
+    ShaderKind {
+        first: pass(0, 4, true, false, true),
+        second: Some(pass(5, 4, true, false, true)),
+    },
+];
+
+/// Whether each batch is drawn by a program made for its kind (`ProgramKind::Made`): unless
+/// `RC2K_SHADER_KINDS=0`, read once.
+fn kinds_wanted() -> bool {
+    static WANTED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *WANTED.get_or_init(|| std::env::var("RC2K_SHADER_KINDS").map_or(true, |v| v != "0"))
 }
 
 /// Where a pass's `PixelValues` go.
@@ -266,14 +424,12 @@ pub struct Gpu {
     /// The diagnostic cuts in force for the flush being drawn (the live set, read once per
     /// flush), none unless asked for.
     cuts: Cuts,
-    scene: u32,
-    locations: Locations,
-    /// The scene's program with no alpha test, for the batches that cannot fail it
-    /// (`Batch::discard_free`); the same cuts as `scene`'s. `None` when it did not build.
-    scene_free: Option<(u32, Locations)>,
-    /// The scene programs made so far, by the shader cuts they were made for (`FREE_KEY`
-    /// set: the one with no alpha test).
-    scene_programs: HashMap<u32, (u32, Locations)>,
+    /// The scene's programs made so far. The first is the one for every batch with no cut,
+    /// which the others fall back to.
+    programs: Vec<SceneProgram>,
+    /// Which of `programs` draws a kind under the shader cuts of the given bits: made on
+    /// first use, or (it did not build) another's.
+    program_numbers: HashMap<(u32, ProgramKind), usize>,
     overlay: Quad,
     canvas_quad: Quad,
     target_quad: Quad,
@@ -301,6 +457,8 @@ pub struct Gpu {
     width: i32,
     height: i32,
     depth_is_new: bool,
+    /// The programs of the start are made: one made from here on holds a frame up.
+    set_up_done: bool,
     textures: super::TextureMap<CachedTexture>,
 }
 
@@ -333,14 +491,8 @@ impl Gpu {
         }
         let mut gpu = Gpu {
             cuts: Cuts::default(),
-            scene_free: None,
-            scene_programs: HashMap::new(),
-            scene: 0,
-            locations: Locations {
-                size: 0,
-                first: ValueLocations::default(),
-                second: ValueLocations::default(),
-            },
+            programs: Vec::new(),
+            program_numbers: HashMap::new(),
             overlay: Quad {
                 program: 0,
                 flip: 0,
@@ -370,10 +522,12 @@ impl Gpu {
             width: 0,
             height: 0,
             depth_is_new: true,
+            set_up_done: false,
             textures: Default::default(),
             gl,
         };
         gpu.set_up()?;
+        gpu.set_up_done = true;
         Ok(gpu)
     }
 
@@ -397,16 +551,17 @@ impl Gpu {
         })
     }
 
-    /// The scene's program with the shader cuts of `cuts` defined, and where its values go;
-    /// its picture units are set.
-    fn scene_program(&self, cuts: Cuts, free: bool) -> Result<(u32, Locations), String> {
-        let mut text = cuts.shader(&SCENE_FS.to_string_lossy());
-        if free {
-            text = Cuts::define(&text, "NO_DISCARD");
-        }
-        let fragment = std::ffi::CString::new(text)
-            .map_err(|_| "the scene's shader holds a NUL".to_string())?;
-        let program = self.program(SCENE_VS, &fragment)?;
+    /// The scene's program for `kind` with the shader cuts of `cuts` defined, and where its
+    /// values go; its picture units are set.
+    fn scene_program(&self, cuts: Cuts, kind: ProgramKind) -> Result<SceneProgram, String> {
+        let defines = kind.defines();
+        let text = |source: &CStr| {
+            let source = super::batches::with_defines(&source.to_string_lossy(), &defines);
+            std::ffi::CString::new(cuts.shader(&source))
+                .map_err(|_| "the scene's shader holds a NUL".to_string())
+        };
+        let program = self.program(&text(SCENE_VS)?, &text(SCENE_FS)?)?;
+        // A value the kind's program does not read has no place (-1), and setting it does nothing.
         let values = |suffix: &str| ValueLocations {
             fog_colour: self.uniform(program, &format!("fog_colour{suffix}")),
             alpha_reference: self.uniform(program, &format!("alpha_reference{suffix}")),
@@ -426,60 +581,74 @@ impl Gpu {
         {
             self.gl.uniform_1i(self.uniform(program, name), unit as i32);
         }
-        Ok((program, locations))
+        Ok(SceneProgram {
+            name: program,
+            locations,
+            size: None,
+            first: None,
+            second: None,
+        })
     }
 
-    /// The scene's program for the shader cuts of `cuts` and its variant with no alpha test,
-    /// made on first use. A cut set whose program does not build gets the plain one's; a
-    /// variant that does not build is `None` (batches then use the program with the test).
-    fn programs_for(&mut self, cuts: Cuts) -> ((u32, Locations), Option<(u32, Locations)>) {
+    /// Which of `programs` draws `kind` under the shader cuts of `cuts`: made on first use. One
+    /// that does not build is logged once and another drawn with from then on: the program for
+    /// every kind (with the alpha test, if the one without is what failed), then the first.
+    /// Making one leaves it the program in use.
+    fn program_number(&mut self, cuts: Cuts, kind: ProgramKind) -> usize {
         let shader_cuts = cuts.shader_part();
-        let key = shader_cuts.bits();
-        if !self.scene_programs.contains_key(&key) {
-            let made = self.scene_program(shader_cuts, false);
-            let entry = made.unwrap_or_else(|why| {
+        let key = (shader_cuts.bits(), kind);
+        if let Some(&number) = self.program_numbers.get(&key) {
+            return number;
+        }
+        let started = std::time::Instant::now();
+        let number = match self.scene_program(shader_cuts, kind) {
+            Ok(program) => {
+                self.programs.push(program);
+                // A kind missing from `KINDS_AT_START` holds a frame up once: the log names it,
+                // so that it can be added there.
+                if self.set_up_done && cuts == Cuts::default() {
+                    log(&format!(
+                        "render: a scene program made while drawing, in {:.1} ms, for {kind:?}",
+                        started.elapsed().as_secs_f64() * 1000.0
+                    ));
+                }
+                self.programs.len() - 1
+            }
+            Err(why) => {
                 log(&format!(
-                    "render: the scene's shader with cuts {} failed: {why}",
+                    "render: the scene's shader for {kind:?} with cuts {} failed: {why}",
                     cuts.names()
                 ));
-                self.scene_programs[&0].clone()
-            });
-            self.scene_programs.insert(key, entry);
-        }
-        let free_key = key | FREE_KEY;
-        if !self.scene_programs.contains_key(&free_key) {
-            // The failed one is kept as the plain program, so that it is not tried again.
-            let plain = self.scene_programs[&key].clone();
-            match self.scene_program(shader_cuts, true) {
-                Ok(entry) => {
-                    self.scene_programs.insert(free_key, entry);
-                }
-                Err(why) => {
-                    log(&format!(
-                        "render: the scene's shader with no alpha test and cuts {} failed: {why}",
-                        cuts.names()
-                    ));
-                    self.scene_programs.insert(free_key, plain);
+                match kind {
+                    ProgramKind::Made(_) => self.program_number(
+                        cuts,
+                        ProgramKind::Any {
+                            discard_free: kind.discard_free(),
+                        },
+                    ),
+                    ProgramKind::Any { discard_free: true } => self.program_number(
+                        cuts,
+                        ProgramKind::Any {
+                            discard_free: false,
+                        },
+                    ),
+                    ProgramKind::Any {
+                        discard_free: false,
+                    } => 0,
                 }
             }
-        }
-        let plain = self.scene_programs[&key].clone();
-        let free = self.scene_programs[&free_key].clone();
-        let free = (free.0 != plain.0).then_some(free);
-        (plain, free)
+        };
+        self.program_numbers.insert(key, number);
+        number
     }
 
-    /// Takes the live cuts for the flush about to be drawn: the scene's programs for its shader
-    /// cuts and the samplers' filters.
+    /// Takes the live cuts for the flush about to be drawn: the samplers' filters (the scene's
+    /// programs are chosen by the cuts batch by batch).
     fn take_cuts(&mut self) {
         let cuts = super::gpu_cut::live();
         if cuts == self.cuts {
             return;
         }
-        let ((scene, locations), free) = self.programs_for(cuts);
-        self.scene = scene;
-        self.locations = locations;
-        self.scene_free = free;
         self.set_filters(cuts.nearest, cuts.linear);
         log(&format!("render: GPU cuts now on: {}", cuts.names()));
         self.cuts = cuts;
@@ -500,13 +669,26 @@ impl Gpu {
     }
 
     fn set_up(&mut self) -> Result<(), String> {
-        let (scene, locations) = self.scene_program(Cuts::default(), false)?;
-        self.scene = scene;
-        self.locations = locations;
-        self.scene_programs
-            .insert(0, (scene, self.locations.clone()));
-        // Made now, so that the first frame that needs it does not wait for the compiler.
-        self.scene_free = self.programs_for(Cuts::default()).1;
+        let for_any = ProgramKind::Any {
+            discard_free: false,
+        };
+        let first = self.scene_program(Cuts::default(), for_any)?;
+        self.programs.push(first);
+        self.program_numbers.insert((0, for_any), 0);
+        // Made now, so that no frame that needs one waits for the compiler.
+        let started = std::time::Instant::now();
+        if kinds_wanted() {
+            for kind in KINDS_AT_START {
+                self.program_number(Cuts::default(), ProgramKind::Made(kind));
+            }
+            log(&format!(
+                "render: {} scene programs made for the kinds of batch in {:.0} ms",
+                KINDS_AT_START.len(),
+                started.elapsed().as_secs_f64() * 1000.0
+            ));
+        } else {
+            self.program_number(Cuts::default(), ProgramKind::Any { discard_free: true });
+        }
         self.overlay = self.quad(OVERLAY_FS)?;
         self.canvas_quad = self.quad(CANVAS_FS)?;
         self.target_quad = self.quad(TARGET_FS)?;
@@ -817,132 +999,143 @@ impl Gpu {
             self.draw_quads(quad_vertices.len(), (width, height));
         }
         if !batches.batches.is_empty() && !self.cuts.scene {
-            // The size is each program's own uniform.
-            if let Some((free, locations)) = &self.scene_free {
-                gl.use_program(*free);
-                gl.uniform_2f(locations.size, width as f32, height as f32);
-            }
-            gl.use_program(self.scene);
-            gl.uniform_2f(self.locations.size, width as f32, height as f32);
-            gl.bind_vertex_array(self.scene_array);
-            gl.bind_buffer(ARRAY_BUFFER, self.vertices);
-            gl.buffer_data(ARRAY_BUFFER, &batches.vertices, 0x88E0);
-            gl.bind_buffer(ARRAY_BUFFER, self.seconds);
-            gl.buffer_data(ARRAY_BUFFER, &batches.seconds, 0x88E0);
-            gl.bind_buffer(ARRAY_BUFFER, self.layers);
-            gl.buffer_data(ARRAY_BUFFER, &self.vertex_layers(&batches), 0x88E0);
-            if !self.cuts.depth {
-                gl.enable(DEPTH_TEST);
-            }
-            let mut last_pipeline = None;
-            // The program in use (the one with no alpha test, or the other); what each has
-            // been given is its own (uniforms belong to a program).
-            let mut free_in_use = false;
-            let mut last_values: [Option<PixelValues>; 2] = [None; 2];
-            let mut last_second_values: [Option<PixelValues>; 2] = [None; 2];
-            let mut last_second: Option<super::batches::Second> = None;
-            let mut free_draws = 0;
-            let mut switches = 0;
-            let mut last_arrays = None;
-            let mut last_sampler = u32::MAX;
-            let size = |n: Option<u32>| {
-                n.map(|n| {
-                    let note = &batches.textures[n as usize];
-                    (note.width, note.height)
-                })
-            };
-            let mut scissored = false;
-            for batch in &batches.batches {
-                if self.cuts.drops(batch.pipeline.blend.is_some()) {
-                    continue;
-                }
-                if last_pipeline != Some(batch.pipeline) {
-                    self.set_pipeline(&batch.pipeline, last_pipeline.as_ref());
-                    last_pipeline = Some(batch.pipeline);
-                }
-                // A depth clear draws nothing a shader decides: it keeps the program in use.
-                if batch.scissor.is_none() {
-                    let want_free = batch.discard_free && self.scene_free.is_some();
-                    if want_free != free_in_use {
-                        gl.use_program(match &self.scene_free {
-                            Some((free, _)) if want_free => *free,
-                            _ => self.scene,
-                        });
-                        free_in_use = want_free;
-                        switches += 1;
-                    }
-                    free_draws += u64::from(want_free);
-                }
-                let side = usize::from(free_in_use);
-                let locations = match &self.scene_free {
-                    Some((_, free)) if free_in_use => free,
-                    _ => &self.locations,
-                };
-                self.set_values(&locations.first, last_values[side].as_ref(), &batch.values);
-                last_values[side] = Some(batch.values);
-                if let Some(second) = &batch.second {
-                    self.set_values(
-                        &locations.second,
-                        last_second_values[side].as_ref(),
-                        &second.values,
-                    );
-                    last_second_values[side] = Some(second.values);
-                }
-                // The second pass's textures are bound whichever program is in use.
-                if let Some(second) = &batch.second
-                    && last_second != Some(*second)
-                {
-                    if let Some(size) = size(second.texture) {
-                        self.bind_arrays(2, size);
-                        gl.active_texture(TEXTURE0);
-                    }
-                    let sampler = self.samplers[second.linear as usize + 2 * second.clamp as usize];
-                    gl.bind_sampler(2, sampler);
-                    gl.bind_sampler(3, sampler);
-                    last_second = Some(*second);
-                }
-                // A batch's textures are all read from the arrays its first one's size names.
-                if let Some(size) = size(batch.texture)
-                    && last_arrays != Some(size)
-                {
-                    self.bind_arrays(0, size);
-                    gl.active_texture(TEXTURE0);
-                    last_arrays = Some(size);
-                }
-                let sampler = self.samplers[batch.linear as usize + 2 * batch.clamp as usize];
-                if sampler != last_sampler {
-                    gl.bind_sampler(0, sampler);
-                    gl.bind_sampler(1, sampler);
-                    last_sampler = sampler;
-                }
-                if let Some([left, top, right, bottom]) = batch.scissor {
-                    gl.enable(SCISSOR_TEST);
-                    // Under `half` the rectangle is scaled with the viewport.
-                    let shrink = |n: i32| if self.cuts.half { n / 2 } else { n };
-                    gl.scissor(
-                        shrink(left as i32),
-                        shrink(height - bottom as i32),
-                        shrink((right - left) as i32),
-                        shrink((bottom - top) as i32),
-                    );
-                    scissored = true;
-                } else if scissored {
-                    gl.disable(SCISSOR_TEST);
-                    scissored = false;
-                }
-                gl.draw_arrays(TRIANGLES, batch.first_vertex as i32, batch.vertices as i32);
-            }
-            for unit in 0..4 {
-                gl.bind_sampler(unit, 0);
-            }
-            super::GPU_FREE_DRAWS.fetch_add(free_draws, std::sync::atomic::Ordering::Relaxed);
-            super::GPU_PROGRAM_SWITCHES.fetch_add(switches, std::sync::atomic::Ordering::Relaxed);
+            self.draw_batches(&batches, width, height);
         }
         if bench::due(batches.batches.len()) {
             self.bench(&commands, &batches, &opaque, height);
         }
         super::give_back(commands);
         super::batches::give_back_batches(batches);
+    }
+
+    /// The part's 3D: its vertices sent up and each batch drawn, by the program for its kind.
+    /// The target is bound and the quads' state set (`plain_state`).
+    fn draw_batches(&mut self, batches: &Batches, width: i32, height: i32) {
+        let gl = &self.gl;
+        gl.bind_vertex_array(self.scene_array);
+        gl.bind_buffer(ARRAY_BUFFER, self.vertices);
+        gl.buffer_data(ARRAY_BUFFER, &batches.vertices, 0x88E0);
+        gl.bind_buffer(ARRAY_BUFFER, self.seconds);
+        gl.buffer_data(ARRAY_BUFFER, &batches.seconds, 0x88E0);
+        gl.bind_buffer(ARRAY_BUFFER, self.layers);
+        gl.buffer_data(ARRAY_BUFFER, &self.vertex_layers(batches), 0x88E0);
+        if !self.cuts.depth {
+            gl.enable(DEPTH_TEST);
+        }
+        let cuts = self.cuts;
+        let for_any = !kinds_wanted();
+        let mut last_pipeline = None;
+        // The program in use and what it is for.
+        let mut in_use: Option<(ProgramKind, usize)> = None;
+        let mut last_second: Option<super::batches::Second> = None;
+        let mut free_draws = 0;
+        let mut switches = 0;
+        let mut last_arrays = None;
+        let mut last_sampler = u32::MAX;
+        let size = |n: Option<u32>| {
+            n.map(|n| {
+                let note = &batches.textures[n as usize];
+                (note.width, note.height)
+            })
+        };
+        let mut scissored = false;
+        for batch in &batches.batches {
+            if cuts.drops(batch.pipeline.blend.is_some()) {
+                continue;
+            }
+            if last_pipeline != Some(batch.pipeline) {
+                self.set_pipeline(&batch.pipeline, last_pipeline.as_ref());
+                last_pipeline = Some(batch.pipeline);
+            }
+            let kind = match in_use {
+                // A depth clear draws nothing a program for every kind decides once its values
+                // are set: it keeps the one in use.
+                Some((kind, _)) if for_any && batch.scissor.is_some() => kind,
+                _ => ProgramKind::of(batch, for_any),
+            };
+            let number = match in_use {
+                Some((was, number)) if was == kind => number,
+                _ => {
+                    let number = self.program_number(cuts, kind);
+                    self.gl.use_program(self.programs[number].name);
+                    switches += u64::from(in_use.is_some());
+                    in_use = Some((kind, number));
+                    number
+                }
+            };
+            let gl = &self.gl;
+            let program = &mut self.programs[number];
+            if program.size != Some((width, height)) {
+                gl.uniform_2f(program.locations.size, width as f32, height as f32);
+                program.size = Some((width, height));
+            }
+            if batch.scissor.is_none() {
+                free_draws += u64::from(kind.discard_free());
+            }
+            set_values(
+                gl,
+                &program.locations.first,
+                &mut program.first,
+                &batch.values,
+            );
+            if let Some(second) = &batch.second {
+                set_values(
+                    gl,
+                    &program.locations.second,
+                    &mut program.second,
+                    &second.values,
+                );
+            }
+            // The second pass's textures are bound whichever program is in use.
+            if let Some(second) = &batch.second
+                && last_second != Some(*second)
+            {
+                if let Some(size) = size(second.texture) {
+                    self.bind_arrays(2, size);
+                    gl.active_texture(TEXTURE0);
+                }
+                let sampler = self.samplers[second.linear as usize + 2 * second.clamp as usize];
+                gl.bind_sampler(2, sampler);
+                gl.bind_sampler(3, sampler);
+                last_second = Some(*second);
+            }
+            // A batch's textures are all read from the arrays its first one's size names.
+            if let Some(size) = size(batch.texture)
+                && last_arrays != Some(size)
+            {
+                self.bind_arrays(0, size);
+                gl.active_texture(TEXTURE0);
+                last_arrays = Some(size);
+            }
+            let sampler = self.samplers[batch.linear as usize + 2 * batch.clamp as usize];
+            if sampler != last_sampler {
+                gl.bind_sampler(0, sampler);
+                gl.bind_sampler(1, sampler);
+                last_sampler = sampler;
+            }
+            if let Some([left, top, right, bottom]) = batch.scissor {
+                gl.enable(SCISSOR_TEST);
+                // Under `half` the rectangle is scaled with the viewport.
+                let shrink = |n: i32| if cuts.half { n / 2 } else { n };
+                gl.scissor(
+                    shrink(left as i32),
+                    shrink(height - bottom as i32),
+                    shrink((right - left) as i32),
+                    shrink((bottom - top) as i32),
+                );
+                scissored = true;
+            } else if scissored {
+                gl.disable(SCISSOR_TEST);
+                scissored = false;
+            }
+            gl.draw_arrays(TRIANGLES, batch.first_vertex as i32, batch.vertices as i32);
+        }
+        let gl = &self.gl;
+        for unit in 0..4 {
+            gl.bind_sampler(unit, 0);
+        }
+        super::GPU_FREE_DRAWS.fetch_add(free_draws, std::sync::atomic::Ordering::Relaxed);
+        super::GPU_PROGRAM_SWITCHES.fetch_add(switches, std::sync::atomic::Ordering::Relaxed);
     }
 
     /// Each vertex's passes' arrays and layers (`unit_of`, the texture's layer), two
@@ -969,27 +1162,6 @@ impl Gpu {
             .iter()
             .map(|&[first, second]| [place(first), place(second)])
             .collect()
-    }
-
-    /// A pass's values into `at`, each only when it differs from `was`'s: the batches differ
-    /// in one or two. The scene's program is in use.
-    fn set_values(&self, at: &ValueLocations, was: Option<&PixelValues>, v: &PixelValues) {
-        let gl = &self.gl;
-        if was.is_none_or(|w| w.fog_colour != v.fog_colour) {
-            gl.uniform_4fv(at.fog_colour, &v.fog_colour);
-        }
-        if was.is_none_or(|w| w.alpha_reference != v.alpha_reference) {
-            gl.uniform_1f(at.alpha_reference, v.alpha_reference);
-        }
-        if was.is_none_or(|w| w.alpha_function != v.alpha_function) {
-            gl.uniform_1i(at.alpha_function, v.alpha_function);
-        }
-        if was.is_none_or(|w| w.mixing != v.mixing) {
-            gl.uniform_1i(at.mixing, v.mixing);
-        }
-        if was.is_none_or(|w| w.flags != v.flags) {
-            gl.uniform_1i(at.flags, v.flags);
-        }
     }
 
     /// The key's states that differ from `was`'s (all of them without one).
@@ -1338,6 +1510,28 @@ impl Front {
             }
         }
     }
+}
+
+/// A pass's values into `at` of the program in use, each only when it differs from what the
+/// program holds (`held`, which then holds them): the batches differ in one or two.
+fn set_values(gl: &Gles, at: &ValueLocations, held: &mut Option<PixelValues>, v: &PixelValues) {
+    let was = held.as_ref();
+    if was.is_none_or(|w| w.fog_colour != v.fog_colour) {
+        gl.uniform_4fv(at.fog_colour, &v.fog_colour);
+    }
+    if was.is_none_or(|w| w.alpha_reference != v.alpha_reference) {
+        gl.uniform_1f(at.alpha_reference, v.alpha_reference);
+    }
+    if was.is_none_or(|w| w.alpha_function != v.alpha_function) {
+        gl.uniform_1i(at.alpha_function, v.alpha_function);
+    }
+    if was.is_none_or(|w| w.mixing != v.mixing) {
+        gl.uniform_1i(at.mixing, v.mixing);
+    }
+    if was.is_none_or(|w| w.flags != v.flags) {
+        gl.uniform_1i(at.flags, v.flags);
+    }
+    *held = Some(*v);
 }
 
 /// Logs a step of the GL thread's that took long (the first 300 times): which, how long and how
