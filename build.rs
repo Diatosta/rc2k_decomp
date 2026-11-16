@@ -4,7 +4,8 @@
 // look for a program's DLLs in its own folder, not on the build's search path. On Linux and
 // macOS SDL is built from its source and linked into the program (`sdl3-sys`'s
 // `build-from-source-static`): one program runs with nothing else installed. The films are
-// decoded by `rc2k_core::film`, in Rust: no media library is linked.
+// decoded by `rc2k_core::film`, in Rust: no media library is linked. The Windows program carries
+// `assets/icon.ico` as its icon (Explorer's, the taskbar's and the window's).
 fn main() {
     // The debug UI: 64-bit builds with a window to draw it over (not 32-bit Windows, whose
     // Dear ImGui crate has no target; not the handheld, whose frames go to the framebuffer).
@@ -36,6 +37,7 @@ fn main() {
         _ => "third_party/sdl3/lib/x86",
     };
     println!("cargo:rustc-link-search=native={dir}/{sdl}");
+    icon_resource(&dir);
     // OUT_DIR is <profile>/build/<crate>-<hash>/out (cargo 1.99) or
     // <profile>/build/<crate>/<hash>/out (cargo 1.100): the profile folder is the parent of
     // the `build` folder.
@@ -59,4 +61,64 @@ fn main() {
             let _ = std::fs::copy(&from, to.join(name));
         }
     }
+}
+
+/// `assets/icon.ico` as the program's icon: a resource file written here (each image of the
+/// `.ico` as an icon resource, and the group that lists them) and handed to the linker, which
+/// takes `.res` files as they are (MSVC's link and LLVM's lld-link alike): no resource compiler
+/// is needed on any host.
+fn icon_resource(dir: &str) {
+    const RT_ICON: u16 = 3;
+    const RT_GROUP_ICON: u16 = 14;
+    let path = std::path::Path::new(dir).join("assets/icon.ico");
+    println!("cargo:rerun-if-changed={}", path.display());
+    let ico = std::fs::read(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+    let word = |at: usize| u16::from_le_bytes([ico[at], ico[at + 1]]);
+    let dword = |at: usize| u32::from_le_bytes([ico[at], ico[at + 1], ico[at + 2], ico[at + 3]]);
+    assert!(
+        ico.len() >= 6 && word(0) == 0 && word(2) == 1,
+        "{} is not an icon file",
+        path.display()
+    );
+    let count = usize::from(word(4));
+
+    // One resource: its header (numeric type and name, so 32 bytes) and its data, padded to
+    // four bytes.
+    fn entry(res: &mut Vec<u8>, kind: u16, name: u16, flags: u16, data: &[u8]) {
+        res.extend_from_slice(&(data.len() as u32).to_le_bytes());
+        res.extend_from_slice(&32u32.to_le_bytes());
+        for v in [0xFFFF, kind, 0xFFFF, name] {
+            res.extend_from_slice(&u16::to_le_bytes(v));
+        }
+        res.extend_from_slice(&0u32.to_le_bytes()); // data version
+        res.extend_from_slice(&flags.to_le_bytes());
+        res.extend_from_slice(&0x0409u16.to_le_bytes()); // US English, as resource compilers give
+        res.extend_from_slice(&0u32.to_le_bytes()); // version
+        res.extend_from_slice(&0u32.to_le_bytes()); // characteristics
+        res.extend_from_slice(data);
+        res.resize(res.len().next_multiple_of(4), 0);
+    }
+
+    // The file starts with an empty resource that says it is a 32-bit resource file.
+    let mut res = vec![0u8; 32];
+    res[4] = 32;
+    res[8..12].copy_from_slice(&[0xFF, 0xFF, 0, 0]);
+    res[12..16].copy_from_slice(&[0xFF, 0xFF, 0, 0]);
+    let mut group = Vec::new();
+    for v in [0u16, 1, count as u16] {
+        group.extend_from_slice(&v.to_le_bytes());
+    }
+    for i in 0..count {
+        let at = 6 + 16 * i;
+        let (size, offset) = (dword(at + 8) as usize, dword(at + 12) as usize);
+        let id = (i + 1) as u16;
+        entry(&mut res, RT_ICON, id, 0x1010, &ico[offset..offset + size]);
+        // The directory entry of the file, with the resource's number in place of the offset.
+        group.extend_from_slice(&ico[at..at + 12]);
+        group.extend_from_slice(&id.to_le_bytes());
+    }
+    entry(&mut res, RT_GROUP_ICON, 1, 0x1030, &group);
+    let out = std::path::PathBuf::from(std::env::var("OUT_DIR").unwrap()).join("icon.res");
+    std::fs::write(&out, res).unwrap();
+    println!("cargo:rustc-link-arg-bin=rc2k={}", out.display());
 }

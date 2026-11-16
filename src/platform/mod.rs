@@ -32,6 +32,7 @@ pub mod ffi;
 pub mod film;
 #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
 pub mod handheld;
+pub mod icon;
 pub mod input;
 pub mod os;
 pub mod pacing;
@@ -209,6 +210,9 @@ fn set_screen_mode(
             // The handheld's frames go to the framebuffer (`handheld`).
             #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
             sdl::use_dummy_video_driver();
+            // The menu entry the installer makes (`install::shortcuts`): the desktop matches
+            // the window to it, and to its icon.
+            sdl::set_app_identifier(c"rally-championship-rally");
             if !sdl::init_video() {
                 return Err("SDL does not start".into());
             }
@@ -217,6 +221,11 @@ fn set_screen_mode(
             else {
                 return Err("SDL opens no window".into());
             };
+            // The window's own icon (128 x 128), where the window system shows one.
+            match icon::pixels(4) {
+                Some(p) if sdl::set_window_icon(window, p.width, p.height, &p.rgb) => {}
+                _ => log("platform: the window's icon was not set"),
+            }
             // The GPU first (`render::choice`): the window's renderer shares the 3D's device.
             // Each step that fails is logged and the next tried: SDL's own 2D renderer, with
             // the software rasteriser drawing the 3D. The handheld's GPU starts with its first

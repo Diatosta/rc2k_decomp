@@ -18,7 +18,7 @@ pub const PROGRAM: &str = "rc2k";
 /// The libraries the program needs next to it (as `deploy_standalone.sh` copies them;
 /// on Unix the system's).
 #[cfg(windows)]
-pub const DLLS: &[&str] = &["SDL3.dll", "avcodec-61.dll", "avutil-59.dll"];
+pub const DLLS: &[&str] = &["SDL3.dll"];
 #[cfg(not(windows))]
 pub const DLLS: &[&str] = &[];
 
@@ -186,16 +186,31 @@ mod start_menu {
     use super::{GROUP, items};
     use std::path::{Path, PathBuf};
 
-    fn applications() -> Option<PathBuf> {
-        let data = std::env::var_os("XDG_DATA_HOME")
+    fn data_home() -> Option<PathBuf> {
+        std::env::var_os("XDG_DATA_HOME")
             .map(PathBuf::from)
-            .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/share")))?;
-        Some(data.join("applications"))
+            .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/share")))
+    }
+
+    fn applications() -> Option<PathBuf> {
+        Some(data_home()?.join("applications"))
+    }
+
+    /// The game's icon in the user's icon theme, named by `ICON`.
+    fn icon_file() -> Option<PathBuf> {
+        Some(data_home()?.join(format!("icons/hicolor/512x512/apps/{ICON}.png")))
+    }
+
+    /// The icon's name in the menu entry.
+    const ICON: &str = "rally-championship";
+
+    /// An item's entry name: "rally-championship-rally" for the game's own.
+    fn entry_id(name: &str) -> String {
+        format!("{GROUP} {name}").to_lowercase().replace(' ', "-")
     }
 
     fn entry_file(folder: &Path, name: &str) -> PathBuf {
-        let id = format!("{GROUP} {name}").to_lowercase().replace(' ', "-");
-        folder.join(format!("{id}.desktop"))
+        folder.join(format!("{}.desktop", entry_id(name)))
     }
 
     pub fn add(installed: &Path) {
@@ -207,6 +222,18 @@ mod start_menu {
             crate::logfile::program_log::log(&format!("install: {}: {e}", folder.display()));
             return;
         }
+        let icon = icon_file().is_some_and(|at| {
+            let done = at
+                .parent()
+                .is_some_and(|f| std::fs::create_dir_all(f).is_ok())
+                && std::fs::write(&at, crate::platform::icon::PNG).is_ok();
+            crate::logfile::program_log::log(&format!(
+                "install: icon {}: {}",
+                at.display(),
+                if done { "written" } else { "failed" }
+            ));
+            done
+        });
         for (name, target, arguments) in items(installed) {
             let at = entry_file(&folder, name);
             let quoted = |p: &Path| format!("\"{}\"", p.display());
@@ -220,8 +247,23 @@ mod start_menu {
                     .trim_end()
                     .to_string()
             };
+            // The game's own entry: its icon, and the identifier the window gives
+            // (`platform::ffi::sdl::set_app_identifier`), so the desktop shows the window under this entry.
+            let game = if name == "Rally" {
+                format!(
+                    "{}StartupWMClass={}\n",
+                    if icon {
+                        format!("Icon={ICON}\n")
+                    } else {
+                        String::new()
+                    },
+                    entry_id(name)
+                )
+            } else {
+                String::new()
+            };
             let text = format!(
-                "[Desktop Entry]\nType=Application\nName={name}\nExec={exec}\nPath={}\nCategories=Game;\n",
+                "[Desktop Entry]\nType=Application\nName={name}\nExec={exec}\nPath={}\nCategories=Game;\n{game}",
                 installed.display()
             );
             let done = std::fs::write(&at, text);
@@ -242,6 +284,13 @@ mod start_menu {
             let gone = std::fs::remove_file(&at);
             crate::logfile::program_log::log(&format!(
                 "install: menu item {} removed: {gone:?}",
+                at.display()
+            ));
+        }
+        if let Some(at) = icon_file() {
+            let gone = std::fs::remove_file(&at);
+            crate::logfile::program_log::log(&format!(
+                "install: icon {} removed: {gone:?}",
                 at.display()
             ));
         }

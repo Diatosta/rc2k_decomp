@@ -21,7 +21,7 @@ files. A replay or a saved game made on one system works on the others.
 
 | Platform | Needs |
 | --- | --- |
-| Windows, 64 or 32 bits | Windows 10 or later. `SDL3.dll`, `avcodec-61.dll` and `avutil-59.dll` beside `rc2k.exe`. |
+| Windows, 64 or 32 bits | Windows 10 or later. `SDL3.dll` beside `rc2k.exe`. |
 | Linux, x86-64 | Only the C library (glibc). Which version depends on the system the program was built on: the project's automatic builds are made on Ubuntu 24.04. |
 | macOS | macOS 11.0 (Big Sur) or later. |
 | Anbernic RG34XXSP | Knulli or the stock system; glibc 2.35 or later. |

@@ -157,6 +157,7 @@ build_handheld() {
     fresh_dist
     tools/anbernic/run.sh aarch64-linux-gnu-strip -o "$DIST/rc2k" "$built"
     cp tools/anbernic/Rally.sh "$DIST/"
+    cp assets/handheld.png "$DIST/rally-image.png"
     chmod +x "$DIST/rc2k" "$DIST/Rally.sh"
 }
 
@@ -170,7 +171,25 @@ deploy_handheld() {
     "${ssh[@]}" "rm -f $game/rc2k"
     "${ssh[@]}" "cat > $game/rc2k; chmod +x $game/rc2k" < "$DIST/rc2k"
     "${ssh[@]}" "cat > $game/../Rally.sh; chmod +x $game/../Rally.sh" < "$DIST/Rally.sh"
-    echo "deployed rc2k and Rally.sh to the handheld ($game)"
+    # The entry's picture in the device's menu: the icon in the ports' images folder, named in
+    # the ports' game list (the line added once; the list made if there is none). The menu
+    # (EmulationStation, through its local API; nothing if it is not up) is told to read its
+    # lists before and after the edit: a reload first saves what it holds (play counts), which
+    # would otherwise be written over the edit.
+    "${ssh[@]}" "mkdir -p $game/../images; cat > $game/../images/rally-image.png" < "$DIST/rally-image.png"
+    "${ssh[@]}" "cd $game/.. && curl -s -m 10 http://127.0.0.1:1234/reloadgames >/dev/null 2>&1; sleep 2
+      if [ ! -f gamelist.xml ]; then
+        printf '<?xml version=\"1.0\"?>\n<gameList>\n\t<game>\n\t\t<path>./Rally.sh</path>\n\t\t<name>Rally</name>\n\t</game>\n</gameList>\n' > gamelist.xml; fi
+      if ! grep -q 'rally-image.png' gamelist.xml; then
+        cp gamelist.xml gamelist.xml.before_rally_image
+        if grep -q '<path>./Rally.sh</path>' gamelist.xml; then
+          sed -i 's|<path>./Rally.sh</path>|&\n\t\t<image>./images/rally-image.png</image>|' gamelist.xml
+        else
+          sed -i 's|</gameList>|\t<game>\n\t\t<path>./Rally.sh</path>\n\t\t<name>Rally</name>\n\t\t<image>./images/rally-image.png</image>\n\t</game>\n</gameList>|' gamelist.xml
+        fi
+      fi
+      curl -s -m 5 http://127.0.0.1:1234/reloadgames >/dev/null 2>&1 || true"
+    echo "deployed rc2k, Rally.sh and the menu's picture to the handheld ($game)"
 }
 
 # macOS, on a Mac: each processor's program (the other one crossed), joined by lipo into
@@ -198,6 +217,8 @@ build_mac() {
     mkdir -p "$app/Contents/MacOS"
     lipo -create -output "$app/Contents/MacOS/rc2k" "${bins[@]}"
     cp tools/mac/Info.plist "$app/Contents/"
+    mkdir -p "$app/Contents/Resources"
+    cp assets/icon.icns "$app/Contents/Resources/"
     codesign --force --sign - "$app"
     echo "Rally Championship.app holds: $(lipo -archs "$app/Contents/MacOS/rc2k")"
 }

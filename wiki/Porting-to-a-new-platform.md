@@ -78,7 +78,7 @@ renderer has to combine that with its 3D; `gpu.rs` and `gles/layer2d.rs` show ho
 | Place | What is chosen |
 | --- | --- |
 | `Cargo.toml` | How SDL is built and linked for the target, and whether the debug window's library is included. |
-| `build.rs` | Where SDL's library is on Windows; whether the debug window is built in. |
+| `build.rs` | Where SDL's library is on Windows, and the Windows program's icon; whether the debug window is built in. |
 | `src/install/folders/` | The installer's rules for naming and checking folders and its default folder. One implementation per system. |
 | `src/install/shortcuts.rs` | The menu entries the installer makes. |
 | `src/files/` | Reading the game's paths (written the Windows way, without regard to case) on a system whose file names are case-sensitive. Already done for Unix. |

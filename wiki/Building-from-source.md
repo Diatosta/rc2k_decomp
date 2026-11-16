@@ -14,8 +14,8 @@ All commands are run from the repository's top folder. The repository and the cr
 | Target | Command | Run it on | Result |
 | --- | --- | --- | --- |
 | Linux, x86-64 | `./build.sh linux` | Linux | `dist/linux/rc2k` |
-| Windows, 64 bits | `./build.sh windows-x64` | Linux | `dist/windows-x64/`: `rc2k.exe`, `SDL3.dll`, `avcodec-61.dll`, `avutil-59.dll` |
-| Windows, 32 bits | `./build.sh windows` | Linux | `dist/windows/`: the same four files |
+| Windows, 64 bits | `./build.sh windows-x64` | Linux | `dist/windows-x64/`: `rc2k.exe`, `SDL3.dll` |
+| Windows, 32 bits | `./build.sh windows` | Linux | `dist/windows/`: the same two files |
 | Windows, 64 or 32 bits | `build.ps1 -Target windows-x64` or `-Target windows` | Windows | the same two folders |
 | macOS | `./build.sh mac` | a Mac, or Linux with a Mac reached over SSH | `dist/mac/Rally Championship.app` |
 | Anbernic RG34XXSP | `./build.sh handheld` | Linux, with Docker | `dist/handheld/`: `rc2k`, `Rally.sh` |
@@ -93,7 +93,8 @@ CARGO_TARGET_DIR=target/x64 cargo xwin build --release --xwin-arch x86_64 --targ
 and for 32 bits the same with `--xwin-arch x86 --target i686-pc-windows-msvc` (cargo's
 folder: `target`).
 
-Then it gathers the two files:
+The program carries `assets/icon.ico` as its icon: `build.rs` writes it as a resource file and
+the linker takes it in, so no resource compiler is needed. Then it gathers the two files:
 
 | Build | Program | DLLs |
 | --- | --- | --- |
@@ -147,7 +148,8 @@ On a Mac with the Command Line Tools, `rustup` with both `apple-darwin` targets 
 ```
 
 This builds the program, joins the two processors' programs with `lipo` into
-`dist/mac/Rally Championship.app` and signs it ad hoc (it is not notarised). With `--deploy`
+`dist/mac/Rally Championship.app` and signs it ad hoc (it is not notarised). The bundle's
+icon is `assets/icon.icns`, made from `assets/icon.png` by `tools/mac/make_icns.py`. With `--deploy`
 the bundle is copied into the game's folder: `~/rally`, or the folder named by `MAC_GAME_DIR`.
 
 On Linux the same command builds on a Mac over SSH: it copies the source to the Mac that

@@ -91,7 +91,7 @@ You need the files of the game's CD, with its `FILES` folder, on your disk.
 1. Get the program for your system: a build from this repository's releases, or one you
    built yourself (below).
 2. Put it into the folder that holds the CD's files:
-   - Windows: `rc2k.exe`, `SDL3.dll`, `avcodec-61.dll` and `avutil-59.dll`;
+   - Windows: `rc2k.exe` and `SDL3.dll`;
    - Linux: `rc2k`;
    - macOS: `Rally Championship.app`.
 3. Start it there. Found among the CD's files with no installation, it opens the game's

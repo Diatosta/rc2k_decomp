@@ -160,7 +160,11 @@ code is the same everywhere.
 
 Menu entries are also per system (`src/install/shortcuts.rs`): shortcut files in the Start
 menu on Windows, desktop entries on Linux, small application bundles on macOS. There are three:
-"Rally", "Uninstall Rally" and "View Readme".
+"Rally", "Uninstall Rally" and "View Readme". On Linux the game's entry has the game's icon,
+which the installer writes into the user's icon theme
+(`~/.local/share/icons/hicolor/512x512/apps/rally-championship.png`, removed with the entries),
+and names the window class the program gives its window, so the desktop shows the running game
+under that entry and its icon.
 
 ## Uninstalling
 

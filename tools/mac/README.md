@@ -35,6 +35,8 @@ bsdtar / bsdcpio, and Rust's target (`rustup target add x86_64-apple-darwin`).
    llvm-lipo -create -output "$APP/Contents/MacOS/rc2k" \
        target/mac/x86_64-apple-darwin/release/rc2k target/mac/aarch64-apple-darwin/release/rc2k
    cp tools/mac/Info.plist "$APP/Contents/"
+   mkdir -p "$APP/Contents/Resources"
+   cp assets/icon.icns "$APP/Contents/Resources/"
    ```
 
    SDL is linked in: the program loads only the system's frameworks and

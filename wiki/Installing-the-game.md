@@ -21,7 +21,7 @@ What each system needs to run the program is on [Platforms](Platforms).
 
    | System | Files to put there |
    | --- | --- |
-   | Windows | `rc2k.exe`, `SDL3.dll`, `avcodec-61.dll`, `avutil-59.dll` |
+   | Windows | `rc2k.exe`, `SDL3.dll` |
    | Linux | `rc2k` |
    | macOS | `Rally Championship.app` |
 
@@ -49,7 +49,7 @@ Three entries are made: "Rally", "Uninstall Rally" and "View Readme".
 | System | Where they are |
 | --- | --- |
 | Windows | shortcuts in the Start menu, in a group named "Rally Championship" |
-| Linux | desktop entries in `~/.local/share/applications` |
+| Linux | desktop entries in `~/.local/share/applications`, the game's with its icon |
 | macOS | small application bundles in `~/Applications/Rally Championship/` |
 
 ## What an installed folder holds

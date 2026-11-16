@@ -250,6 +250,40 @@ pub fn create_window(title: &std::ffi::CStr, width: usize, height: usize) -> Opt
     (!raw.is_null()).then_some(Window(raw))
 }
 
+/// The window's icon (title bar, task bar, window switcher): pixels three bytes each (red,
+/// green, blue), rows without a gap. False when SDL does not take it.
+pub fn set_window_icon(window: Window, width: usize, height: usize, rgb: &[u8]) -> bool {
+    if width == 0 || height == 0 || rgb.len() < width * height * 3 {
+        return false;
+    }
+    // SAFETY: the surface only borrows `rgb`, which outlives it (it is destroyed before this
+    // returns; SDL copies the pixels it keeps for the icon); the sizes match the slice.
+    unsafe {
+        let surface = SDL_CreateSurfaceFrom(
+            width as i32,
+            height as i32,
+            SDL_PIXELFORMAT_RGB24,
+            rgb.as_ptr() as *mut core::ffi::c_void,
+            (width * 3) as i32,
+        );
+        if surface.is_null() {
+            return false;
+        }
+        let done = SDL_SetWindowIcon(window.0, surface);
+        SDL_DestroySurface(surface);
+        done
+    }
+}
+
+/// The program's identifier for the desktop (Wayland's application id, X11's window class):
+/// the name of its menu entry, so the desktop shows that entry's icon for the window.
+pub fn set_app_identifier(id: &std::ffi::CStr) {
+    // SAFETY: SDL's property name and a NUL-ended text, both read during the call.
+    unsafe {
+        SDL_SetAppMetadataProperty(SDL_PROP_APP_METADATA_IDENTIFIER_STRING, id.as_ptr());
+    }
+}
+
 /// The window's own renderer (SDL's choice of driver).
 pub fn create_renderer(window: Window) -> Option<Renderer> {
     // SAFETY: the window SDL made; a null name lets SDL choose.
