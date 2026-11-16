@@ -1,0 +1,168 @@
+//! The players' profiles (`rc2k_core::input::profile`) at run time: one for each controller a
+//! player has used, made the first time the player needs it, and what the race and the
+//! controller pages do with them.
+//!
+//! The race sets a device up from a car's controls; the car's controller number is a place in
+//! the controllers' table, the player the record the race took the controls from
+//! (`Input::race_players`), so the profile is the one of that player for the controller the
+//! place names. The device then reads through a copy of it taken at the set-up.
+
+use crate::input::owner::Input;
+use rc2k_core::input::device_id::id_of;
+use rc2k_core::input::profile::{Profile, RawInput};
+use std::sync::MutexGuard;
+use std::sync::atomic::Ordering;
+
+fn all(input: &Input) -> MutexGuard<'_, [Vec<Profile>; 4]> {
+    input
+        .profiles
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+/// The profiles of the four players, for the options file.
+pub fn kept(input: &Input) -> [Vec<Profile>; 4] {
+    all(input).clone()
+}
+
+/// The profiles from the options file.
+pub fn keep(input: &Input, profiles: [Vec<Profile>; 4]) {
+    *all(input) = profiles;
+}
+
+/// What the profile of `controller` (1 for the table's first, as the player's record has it)
+/// needs to be made: the controller as it is kept, and what kind it is.
+fn identity(
+    input: &Input,
+    controller: u32,
+) -> Option<(
+    rc2k_core::input::device_id::DeviceId,
+    crate::input::di_objects::DeviceInfo,
+)> {
+    let at = controller.checked_sub(1)? as usize;
+    let id = id_of(&crate::input::device_ids::listed(input), at)?;
+    let entry = input.devices.controllers.get(at)?;
+    let info = crate::input::di_objects::device_info(&entry.instance.read())?;
+    Some((id, info))
+}
+
+/// Player `player`'s profile for the controller at place `controller` of the table (the
+/// player's own, made with its defaults if the player has none for it), `f` applied to it; none
+/// when there is no such controller.
+pub fn with_profile<R>(
+    input: &Input,
+    player: u32,
+    controller: u32,
+    f: impl FnOnce(&mut Profile) -> R,
+) -> Option<R> {
+    let (id, info) = identity(input, controller)?;
+    let mut all = all(input);
+    let list = all.get_mut(player as usize)?;
+    let at = match list.iter().position(|p| p.device == id) {
+        Some(at) => at,
+        None => {
+            list.push(Profile::new(id, info.kind));
+            list.len() - 1
+        }
+    };
+    Some(f(&mut list[at]))
+}
+
+/// What a device record reads through in the race: set at the race's start.
+pub fn set_race_profile(input: &Input, device: usize, profile: Option<Profile>) {
+    let mut held = input
+        .race_profiles
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    if let Some(slot) = held.get_mut(device) {
+        *slot = profile;
+    }
+}
+
+/// The player whose controls car `device` took.
+pub fn race_player(input: &Input, device: usize) -> u32 {
+    input
+        .race_players
+        .get(device)
+        .map_or(0, |p| p.load(Ordering::Relaxed))
+}
+
+/// The profile device `device` reads through.
+pub fn race_profile(input: &Input, device: usize) -> Option<Profile> {
+    input
+        .race_profiles
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .get(device)?
+        .clone()
+}
+
+/// What the first device reads now, as the profiles take it.
+pub fn first_reading(input: &Input) -> Option<RawInput> {
+    let record = input.devices.device(0)?;
+    crate::input::di_objects::profile_reading(record.device.get())
+}
+
+/// The controller's bindings page was entered for `player`: their profile for the controller they
+/// have chosen is kept to be put back by `undo`.
+pub fn remember_for_undo(input: &Input, player: u32, controller: u32) {
+    let kept = with_profile(input, player, controller, |p| (player, p.clone()));
+    *input
+        .profile_undo
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = kept;
+}
+
+/// The player's profile for their controller put back as it was on entering the page.
+pub fn undo(input: &Input, player: u32, controller: u32) {
+    let kept = input
+        .profile_undo
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone();
+    if let Some((who, saved)) = kept
+        && who == player
+    {
+        with_profile(input, player, controller, |p| {
+            if p.device == saved.device {
+                *p = saved;
+            }
+        });
+    }
+}
+
+/// How the profiles number a controller's axes, and what kind of controller it is (none when
+/// there is no controller at that place).
+pub fn controller_kind(
+    input: &Input,
+    controller: u32,
+) -> Option<(rc2k_core::input::profile::Kind, usize)> {
+    let (_, info) = identity(input, controller)?;
+    Some((info.kind, info.profile_axes as usize))
+}
+
+/// The controller's reading now, kept as the rest the learning measures from.
+pub fn begin_learning(input: &Input) {
+    *input
+        .learn_rest
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = first_reading(input);
+}
+
+/// The reading the learning measures from (taken now if there is none yet). A button or a hat
+/// held when the learning began counts once it has been let go and pressed again, so the
+/// press that started the learning is not the answer: the rest follows what is released.
+pub fn learning_rest(input: &Input, now: &RawInput) -> RawInput {
+    let mut held = input
+        .learn_rest
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let rest = held.get_or_insert(*now);
+    rest.buttons &= now.buttons;
+    for (rest_hat, &hat) in rest.hats.iter_mut().zip(&now.hats) {
+        if hat >= 36000 {
+            *rest_hat = hat;
+        }
+    }
+    *rest
+}

@@ -24,6 +24,7 @@ pub fn records(devices: &Devices) -> &[InputDevice; 2] {
 pub const STATE_LEN: usize = 0x50;
 
 /// A record's bytes, for the core (`rc2k_core::input::devices`).
+#[cfg(test)]
 pub fn record_bytes(record: &InputDevice) -> rc2k_core::input::devices::Record {
     record.to_bytes()
 }

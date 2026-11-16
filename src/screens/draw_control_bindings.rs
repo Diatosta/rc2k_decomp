@@ -17,7 +17,9 @@ fn direction_names(
     }
 }
 
-/// Row n's text (without its NUL). The logic is in `rc2k_core::screens::controls::binding_text`.
+/// Row n's text (without its NUL): "no binding" (string 0x3BD), a button's name (string 0x3C0)
+/// and number, a hat direction's name, or an axis as its short name, "(+x)" with its side
+/// (none for a centred axis, the steering).
 pub fn binding_text(
     o: crate::owners::Owners<'static>,
     controls: &crate::screens::controls_store::ControlsScreen,
@@ -25,23 +27,61 @@ pub fn binding_text(
     n: u32,
     gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<Vec<u8>, Refused> {
-    let b = rc2k_core::screens::controls::Binding {
-        binding: player.get().binding(n as usize),
-        kind: player.get().sensitivity_level,
-        axis: if n < 2 {
-            player.get().axis_codes[3 - n as usize]
-        } else {
-            0
-        },
+    use rc2k_core::input::profile::{HatDirection, Row, Shown, shown};
+    let current = o.menus.screens.event.current_player.get();
+    let controller = player.get().controller;
+    let row = Row::of_control(n + 1).ok_or(BadInput("a binding row past the controls"))?;
+    let (profile_shown, kind) = if controller == 0 {
+        (Shown::Nothing, rc2k_core::input::profile::Kind::Joystick)
+    } else {
+        crate::input::profiles::with_profile(o.input, current, controller, |p| {
+            let kind = if p.wheel {
+                rc2k_core::input::profile::Kind::Wheel
+            } else {
+                rc2k_core::input::profile::Kind::Joystick
+            };
+            (shown(p, row), kind)
+        })
+        .unwrap_or((Shown::Nothing, rc2k_core::input::profile::Kind::Joystick))
     };
+    let pad =
+        crate::input::profiles::controller_kind(o.input, controller).map_or(kind, |(kind, _)| kind);
     let mut canvas = crate::text::draw_text::GameCanvas::new(gfx);
     let mut s = ControlsScreen::new(&mut canvas, o);
-    Ok(rc2k_core::screens::controls::binding_text(
-        &mut s,
-        &b,
-        n as usize,
-        &direction_names(controls),
-    )?)
+    use rc2k_core::screens::screen::Screen;
+    Ok(match profile_shown {
+        Shown::Nothing => s.string_bytes(0x3BD),
+        Shown::Button(number) => {
+            let mut out = s.string_bytes(0x3C0);
+            out.push(b' ');
+            out.extend(rc2k_core::strings::format::decimal(
+                number,
+                rc2k_core::strings::format::Pad::None,
+            ));
+            out
+        }
+        Shown::Hat(direction) => {
+            let names = direction_names(controls).pad;
+            let code = match direction {
+                HatDirection::Up => 1,
+                HatDirection::Down => 2,
+                HatDirection::Left => 4,
+                HatDirection::Right => 8,
+            };
+            s.string_bytes(names[code] as u32)
+        }
+        Shown::Axis(axis, side) => {
+            let mut out = b"(".to_vec();
+            match side {
+                Some(true) => out.push(b'+'),
+                Some(false) => out.push(b'-'),
+                None => {}
+            }
+            out.extend(rc2k_core::input::profile::axis_label(pad, axis).bytes());
+            out.push(b')');
+            out
+        }
+    })
 }
 
 /// Returns whether the last text drawn was too wide for its box.

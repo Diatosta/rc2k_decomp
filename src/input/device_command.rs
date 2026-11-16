@@ -52,6 +52,7 @@ pub fn device_command(
                 SetUp(n) => crate::input::set_up_device::set_up_device(
                     input,
                     system,
+                    n,
                     device(&input.devices, n)?,
                     &race.shared.state.settings.cars[n].controls,
                 )?,

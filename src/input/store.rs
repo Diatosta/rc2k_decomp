@@ -279,8 +279,6 @@ pub struct Keyboard {
     /// Its key names' table.
     pub key_names: PlainBytes<0x100>,
     pub _unused_826c: PlainDword,
-    /// The axes' rest values (6 dwords, taken by `input::axis_moved`).
-    pub axes_rest: [PlainDword; 6],
 }
 
 impl Keyboard {

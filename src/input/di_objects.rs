@@ -39,23 +39,37 @@ pub struct DeviceInfo {
     pub buttons: u32,
     pub hats: u32,
     pub force: bool,
+    /// How the profiles see the device: a gamepad SDL knows, SDL's wheel type, or other.
+    pub kind: ProfileKind,
+    /// How many axes its profile numbers (`rc2k_core::input::profile::AXES` at most).
+    pub profile_axes: u32,
 }
+
+/// What kind of controller a device is, for its profile.
+pub use rc2k_core::input::profile::Kind as ProfileKind;
 
 /// What a device reads now: the six axes from -32768 to 32767 (x, y, z, rx, ry, rz), the 32
 /// buttons as bits, the four hats in hundredths of degrees or `u32::MAX` (centred).
 #[derive(Clone, Copy, Debug)]
 pub struct Reading {
     pub axes: [i32; 6],
+    /// The axes as the profiles number them (`rc2k_core::input::profile`): a joystick's first
+    /// eight, a gamepad's two sticks and then its triggers, each -32768 (at rest) .. 32767.
+    pub profile_axes: [i32; rc2k_core::input::profile::AXES],
     pub buttons: u32,
     pub hats: [u32; 4],
+    /// Whether the device is there to be read (a device that has gone reads at rest).
+    pub present: bool,
 }
 
 impl Default for Reading {
     fn default() -> Self {
         Self {
             axes: [0; 6],
+            profile_axes: [0; rc2k_core::input::profile::AXES],
             buttons: 0,
             hats: [u32::MAX; 4],
+            present: false,
         }
     }
 }
@@ -610,6 +624,24 @@ fn scaled(raw: i32, a: &Axis) -> i32 {
     let half = (a.max as f64 - a.min as f64) / 2.0;
     let centre = a.min as f64 + half;
     (centre + n.signum() * m * half).round() as i32
+}
+
+/// What an acquired device reads now as the profiles take it (SDL's values: the axes as
+/// `Reading::profile_axes` has them, the buttons and the hats), none when it is not acquired.
+pub fn profile_reading(this: u32) -> Option<rc2k_core::input::profile::RawInput> {
+    let device = with(|s| match s.entries.get(&id_of(this)).map(|e| &e.what) {
+        Some(Kind2::Device(d)) if d.acquired => Some(d.device),
+        _ => None,
+    })?;
+    let reading = backend(|b| b.read(device)).unwrap_or_default();
+    if !reading.present {
+        return None;
+    }
+    Some(rc2k_core::input::profile::RawInput {
+        axes: reading.profile_axes,
+        buttons: reading.buttons,
+        hats: reading.hats,
+    })
 }
 
 /// `GetDeviceState` for a buffer of `size` bytes: the `DIJOYSTATE`.

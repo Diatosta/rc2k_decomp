@@ -27,8 +27,8 @@ pub fn input_tick(
         return crate::input::device_command::device_command(input, command, sound, system, race);
     }
     let records = records(&input.devices);
-    for record in records {
-        crate::input::read_device::read_device(&input.devices, record)?;
+    for (device, record) in records.iter().enumerate() {
+        crate::input::read_device::read_device(input, device, record)?;
         crate::input::device_effects::device_effects(&input.devices, record)?;
     }
     if input.devices.two_devices_one_player.is_set() {

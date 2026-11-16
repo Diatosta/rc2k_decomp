@@ -24,6 +24,20 @@ pub struct Input {
     /// The controller each of the four players chose, by what it is (`input::device_ids`):
     /// kept while it is not plugged in, so the player has it back when it is.
     pub chosen_devices: Mutex<[Option<rc2k_core::input::device_id::DeviceId>; 4]>,
+    /// Each player's profiles, one for every controller the player has used
+    /// (`input::profiles`).
+    pub profiles: Mutex<[Vec<rc2k_core::input::profile::Profile>; 4]>,
+    /// Whose profile each of the race's two device records reads through: the number of the
+    /// player's record, set when the race takes the players' controls.
+    pub race_players: [AtomicU32; 2],
+    /// The profile each device record reads through in the race, taken when the race sets the
+    /// device up (`input::set_up_device`).
+    pub race_profiles: Mutex<[Option<rc2k_core::input::profile::Profile>; 2]>,
+    /// A player's profile as it was when the controller's bindings page was entered, for its
+    /// "cancel changes" item to put back.
+    pub profile_undo: Mutex<Option<(u32, rc2k_core::input::profile::Profile)>>,
+    /// The first device's reading when the controller page began learning a control.
+    pub learn_rest: Mutex<Option<rc2k_core::input::profile::RawInput>>,
     /// Set by the input thread when it has listed controllers, for the game's thread to give
     /// the players theirs (`input::device_ids::give_chosen`).
     pub devices_listed: std::sync::atomic::AtomicBool,
@@ -67,6 +81,11 @@ impl Input {
             layouts: Mutex::new(Layouts::new()),
             menu_answer: AtomicU32::new(crate::input::menu_pad::NO_ANSWER),
             chosen_devices: Mutex::new([const { None }; 4]),
+            profiles: Mutex::new([const { Vec::new() }; 4]),
+            race_players: [AtomicU32::new(0), AtomicU32::new(1)],
+            race_profiles: Mutex::new([const { None }; 2]),
+            profile_undo: Mutex::new(None),
+            learn_rest: Mutex::new(None),
             devices_listed: std::sync::atomic::AtomicBool::new(false),
             main: GameThread::new(InputMain {
                 keyboard: Keyboard::new(),

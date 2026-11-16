@@ -436,6 +436,11 @@ fn single_rally(
     }
     take_keys(&rec, &current_side.car.controls.keys);
 
+    // The profiles the devices read through are those of the players whose controls the cars
+    // took.
+    o.input.race_players[0].store(current.get(), std::sync::atomic::Ordering::Relaxed);
+    o.input.race_players[1].store(1, std::sync::atomic::Ordering::Relaxed);
+
     // The race.
     settings.no_replay.set(0);
     if !one_car && event.player_count.get() != 1 {

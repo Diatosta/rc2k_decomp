@@ -34,6 +34,7 @@ pub mod make_effect;
 pub mod menu_pad;
 pub mod owner;
 pub mod poll_device;
+pub mod profiles;
 pub mod read_device;
 pub mod release_device;
 pub mod request_device_release;

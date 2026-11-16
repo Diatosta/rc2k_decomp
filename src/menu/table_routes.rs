@@ -209,7 +209,14 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn, c: &table_calls::ItemCall) -> Resu
         ItemFn::PreviousController => {
             controller_items::previous_controller(menus, o.input).map(|_| ())
         }
-        ItemFn::KeepPlayerKeys => player_actions::keep_player_keys(menus),
+        ItemFn::KeepPlayerKeys => {
+            player_actions::keep_player_keys(menus)?;
+            let current = menus.screens.event.current_player.get();
+            if let Some(player) = crate::menu::player::player(menus, current) {
+                crate::input::profiles::undo(o.input, current, player.get().controller);
+            }
+            Ok(())
+        }
         ItemFn::LowerEndZone => player_actions::lower_end_zone(menus),
         ItemFn::RaiseEndZone => controller_items::raise_dead_zone(menus, false),
         ItemFn::LowerCentreDeadZone => player_actions::lower_centre_dead_zone(menus),

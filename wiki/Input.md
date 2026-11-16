@@ -115,30 +115,39 @@ There are two device records, for player 1 and player 2 (`src/input/devices.rs`)
 can also use two devices at once, a wheel and separate pedals for instance; the second
 device's readings are then added to the first's.
 
-### Bindings
+### Bindings and profiles
 
 Each player has twelve **controls** (steering left and right, throttle, brake, the gears and
-the rest). A control is bound to a keyboard key, and can also be bound to a
-device's axis (with a direction) or button. The bindings are part of the player's record in
-the options (see [Options files](Options-files)).
+the rest). A control is bound to a keyboard key (`key_scan_codes` in the options), and the
+controller binds it through a **profile**: one for each player and each controller the player
+has used (`rc2k_core::input::profile`, kept by `input::profiles`, in the options file under the
+player). A profile binds steering, throttle and brake to an axis (centred, a pedal, or one side
+of an axis) and every control to a button or a hat direction, and shapes each axis (dead zone,
+range, sensitivity curve, invert; see [Controllers](Controllers)). The record's old binding
+words stay in the record, as saved games carry them, but nothing reads them.
 
-`input::read_device` turns a device's raw state into four **readings** using the bindings:
+In a race the input thread reads the controller as SDL gives it (`input::di_objects::
+profile_reading`: axes -32768 .. 32767, buttons, hats; a gamepad's triggers as pedals) and
+`input::read_device` turns it into four **readings** with `profile::readings`. The profile used
+is the one of the player whose controls the car took (`Input::race_players`), copied when the
+race sets the device up. Keys always win, and a player with no controller reads from keys alone.
 
 | Reading | Range | From |
 | --- | --- | --- |
-| Steering | −256 .. 256 | Left and right: a key (full lock), an axis, or a button. |
-| Throttle | 0 .. 256 | A key (full), an axis, or a button. |
+| Steering | −256 .. 256 | Left and right: a key or a button (full lock), else the steering axis. |
+| Throttle | 0 .. 256 | A key or button (full), else the accelerate axis. |
 | Brake | 0 .. 256 | The same. |
 | Buttons | bits | The other controls, one bit each; the hat. |
 
 A flag for each of steering, throttle and brake says whether it came from a key or button
-("all or nothing") or from an axis. Dead zones at the centre and at the ends, and a sensitivity
-level, are applied per player (`src/input/set_up_device.rs`).
+("all or nothing") or from an axis. Replays and network games carry the car's inputs, not the
+devices, so they do not change.
 
-The controller pages of the options let the player pick a controller, set sensitivity and dead
-zones (`src/menu/controller_items.rs`), **learn** a binding by moving the wanted axis or
-pressing the button within three seconds (`src/menu/learn_bindings.rs`,
-`src/screens/controller.rs`), and redefine keyboard keys (`src/menu/redefine_keys.rs`).
+The controller pages of the options let the player pick a controller, **learn** a binding by
+moving the wanted axis or pressing the button within five seconds
+(`src/menu/learn_bindings.rs`, `src/screens/controller.rs`, `profile::detect` and
+`profile::learn`: only what moves from the controller's rest counts), and redefine keyboard keys
+(`src/menu/redefine_keys.rs`).
 
 ## From readings to the car
 

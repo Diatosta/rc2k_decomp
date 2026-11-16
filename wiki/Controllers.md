@@ -48,7 +48,9 @@ A pad's menu buttons do not drive the car. For driving, the pad is one of the ga
 controllers and is chosen in the game's own controller set-up, as a wheel or joystick was in
 1999 (below).
 
-A gamepad SDL knows is presented to the game the way an Xbox pad looked to games of that time:
+A gamepad SDL knows is presented to the game the way an Xbox pad looked to games of that time
+(the profiles see it differently: its left stick, right stick and each trigger as an axis of
+their own, each trigger from not pressed to pressed like a pedal):
 
 | The game sees | From the pad |
 | --- | --- |
@@ -72,9 +74,43 @@ In the game's options, each player has a controller page and a buttons page:
 - **Buttons and axes**: which axis steers, which is the throttle and the brake, and which
   buttons do the rest.
 
-Learning a button or an axis (the page asks for the control for three seconds) takes what moves
-from where the controller rests when the learning starts, so a pedal that rests at the end of
-its travel, a clutch for one, is not taken for the axis you moved.
+Learning a button, a hat direction or an axis (the page asks for the control for five seconds)
+takes what moves from where the controller rests when the learning starts, so a pedal that rests
+at the end of its travel, a clutch for one, is not taken for the axis you moved. A button held
+when the learning starts (the one that opened it) counts only once it has been let go and
+pressed again. When nothing comes in five seconds, or space is pressed, the control stays as it
+was.
+
+### Profiles
+
+Each player keeps a **profile for every controller** they have used: what its axes, buttons and
+hat directions do, so changing from a pad to a wheel and back needs no new set-up. A profile is
+made the first time a player uses a controller:
+
+- a gamepad: the left stick steers, the right trigger accelerates, the left trigger brakes, the
+  D-pad steers too, and the buttons A, B, X, Y are gear up, gear down, handbrake and camera;
+- a wheel (SDL's type says so): the first axis steers; the pedals are learnt;
+- any other joystick: the first axis steers, the second accelerates up and brakes down, the
+  buttons as above.
+
+Steering, accelerating and braking can be bound to an **axis**: the whole of a centred axis
+(steering), a pedal (from the end it rests at), or one side of a centred axis. Every control can
+be bound to a **button** or a hat direction instead; a button gives all of the control at once.
+The controller's old axis modes, the two dead zones of the controller page and the DirectInput
+properties no longer have an effect on a controller; each axis has its own settings in the
+profile instead:
+
+| Setting | Meaning |
+| --- | --- |
+| dead zone | Per mille of the travel from the rest that reads nothing. |
+| range | Per mille of the travel that gives all of it: 1000 is all of it, 300 gives full lock at 30 % of the way (a wheel's rotation is then 30 % of its full rotation, 270 degrees for 900). |
+| sensitivity | -100 to 100: 0 is linear; above 0 the axis is softer near its rest and sharper at the end, below 0 the other way round. |
+| invert | The axis the other way round. |
+
+A profile has `wheel` (true for a wheel) and `full_rotation_degrees` (900 unless changed), for
+showing a wheel's range in degrees. Profiles are in the options file
+([Options files](Options-files)); the controller pages show the controls' bindings from them
+and "cancel changes" puts the page's profile back as it was when the page was entered.
 
 The choice is kept per player with the options. A player whose controller is not plugged in at
 start goes back to "none" (the keyboard).

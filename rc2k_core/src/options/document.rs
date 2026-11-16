@@ -283,6 +283,11 @@ pub struct PlayerView {
     /// when it is plugged in after being away (`controller` is then 0 meanwhile).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub controller_device: Option<crate::input::device_id::DeviceId>,
+    /// What each controller the player has used does for the player: its bindings and how its
+    /// axes are shaped (`rc2k_core::input::profile`). The record's own binding fields below
+    /// are what saved games carry; the race reads these.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub profiles: Vec<crate::input::profile::Profile>,
     pub gearing: u32,
     pub sensitivity_level: u32,
     /// The learned pedals' axes.
@@ -366,6 +371,7 @@ impl PlayerView {
             race_number: p.race_number,
             controller: p.controller,
             controller_device: None,
+            profiles: Vec::new(),
             gearing: p.gearing,
             sensitivity_level: p.sensitivity_level,
             pedal_axis_codes: p.axis_codes,
@@ -689,6 +695,7 @@ impl From<&Options> for Document {
     fn from(o: &Options) -> Self {
         let player = |n: usize| PlayerView {
             controller_device: o.players.devices[n].clone(),
+            profiles: o.players.profiles[n].clone(),
             ..PlayerView::new(&o.players.records[n].0, &o.players.names[n].0)
         };
         let records = &o.records;
@@ -806,6 +813,7 @@ impl Document {
             o.players.records[n] = Bytes(record);
             o.players.names[n] = Bytes(name);
             o.players.devices[n] = player.controller_device.clone();
+            o.players.profiles[n] = player.profiles.clone();
         }
         let r = self.records;
         o.records.tyre_change_holder = Bytes(buffer_of(

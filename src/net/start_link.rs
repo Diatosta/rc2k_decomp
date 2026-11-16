@@ -94,6 +94,8 @@ fn run(o: crate::owners::Owners<'static>, mode: u32, launched: bool) -> Result<(
     net.lobby().mode.set(mode);
     let menus = o.menus;
     take_player_settings::take_player_settings(race, &menus.play.slots);
+    // The first car took the first player's controls.
+    o.input.race_players[0].store(0, std::sync::atomic::Ordering::Relaxed);
     fill_own_player::fill_own_player(race, net, &menus.play.slots, &menus.options.snapshot())?;
     show_background::show_background(o)?;
     match link(o, launched)? {

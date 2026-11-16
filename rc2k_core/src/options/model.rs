@@ -158,6 +158,9 @@ pub struct Players {
     /// The controller each player chose, by what it is (only in the new file: the old one
     /// has the record's number alone).
     pub devices: [Option<crate::input::device_id::DeviceId>; 4],
+    /// Each player's profile for every controller the player has used (only in the new
+    /// file).
+    pub profiles: [Vec<crate::input::profile::Profile>; 4],
 }
 
 /// The best times and records kept in the options file.

@@ -780,9 +780,17 @@ impl Callee {
                 &audio.sample_names,
             )?,
             Self::AxisMoved(axis) => {
-                crate::input::axes::axis_moved(axis, input)?;
-                // The rest values taken, the page waits a moment before it reads the axes.
+                // The bindings page is entered: the player's profile is kept for its undo, the
+                // page waits a moment before it reads the controller.
                 if axis == 0 {
+                    let current = menus.screens.event.current_player.get();
+                    if let Some(player) = crate::menu::player::player(menus, current) {
+                        crate::input::profiles::remember_for_undo(
+                            input,
+                            current,
+                            player.get().controller,
+                        );
+                    }
                     crate::system::pause::hold(entry.owners, 250);
                 }
             }

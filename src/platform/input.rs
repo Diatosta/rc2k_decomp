@@ -27,7 +27,7 @@
 //! the game's effects are kept here and, on each reading, those running are turned into the
 //! motors' levels (`rc2k_core::input::rumble`).
 
-use crate::input::di_objects::{Backend, DeviceInfo, Effect, Kind, Reading};
+use crate::input::di_objects::{Backend, DeviceInfo, Effect, Kind, ProfileKind, Reading};
 use crate::logfile::program_log::log;
 use crate::platform::ffi::sdl_input::{self, Gamepad, Haptic, Joystick};
 use sdl3_sys::everything::*;
@@ -365,7 +365,22 @@ impl SdlBackend {
         };
         let (haptic, rumble) = haptic_or_rumble(joystick);
         let features = haptic.map_or(0, Haptic::features);
+        let kind = if gamepad.is_some() {
+            ProfileKind::Pad
+        } else if joystick.is_wheel() {
+            ProfileKind::Wheel
+        } else {
+            ProfileKind::Joystick
+        };
         let info = DeviceInfo {
+            kind,
+            profile_axes: if gamepad.is_some() {
+                6
+            } else {
+                joystick
+                    .axis_count()
+                    .clamp(0, rc2k_core::input::profile::AXES as i32) as u32
+            },
             name,
             serial,
             instance,
@@ -443,6 +458,7 @@ fn pad_reading(pad: Gamepad, stick_moved: &mut [bool; 4]) -> Reading {
     if !pad.connected() {
         return r;
     }
+    r.present = true;
     let axis = |a| pad.axis(a) as i32;
     // the triggers 0 .. 32767 each: the left one up, the right one down
     let z = axis(SDL_GAMEPAD_AXIS_LEFT_TRIGGER) - axis(SDL_GAMEPAD_AXIS_RIGHT_TRIGGER);
@@ -455,6 +471,17 @@ fn pad_reading(pad: Gamepad, stick_moved: &mut [bool; 4]) -> Reading {
         stick_axis(axis(SDL_GAMEPAD_AXIS_RIGHTY), &mut moved[3]),
         0,
     ];
+    // The profiles' axes: the sticks, then each trigger as a pedal (0 .. 32767 as SDL has it
+    // made -32768 at rest .. 32767 pressed).
+    let pedal = |a| (axis(a) * 2 - 32768).clamp(-32768, 32767);
+    r.profile_axes[..6].copy_from_slice(&[
+        r.axes[0],
+        r.axes[1],
+        r.axes[3],
+        r.axes[4],
+        pedal(SDL_GAMEPAD_AXIS_LEFT_TRIGGER),
+        pedal(SDL_GAMEPAD_AXIS_RIGHT_TRIGGER),
+    ]);
     for (n, &b) in PAD_BUTTONS.iter().enumerate() {
         if pad.button(b) {
             r.buttons |= 1 << n;
@@ -647,11 +674,20 @@ impl Backend for SdlBackend {
         if let Some(pad) = d.gamepad {
             return pad_reading(pad, &mut d.stick_moved);
         }
+        r.present = true;
         for (n, axis) in r
             .axes
             .iter_mut()
             .enumerate()
             .take(d.info.axes.count_ones() as usize)
+        {
+            *axis = joystick.axis(n as i32) as i32;
+        }
+        for (n, axis) in r
+            .profile_axes
+            .iter_mut()
+            .enumerate()
+            .take(d.info.profile_axes as usize)
         {
             *axis = joystick.axis(n as i32) as i32;
         }

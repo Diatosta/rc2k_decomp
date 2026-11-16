@@ -126,6 +126,28 @@ mod tests {
         }
     }
 
+    /// Each player's profiles are kept, readable, under the player.
+    #[test]
+    fn profiles_are_kept_under_their_player() {
+        use crate::input::device_id::DeviceId;
+        use crate::input::profile::{Kind, Profile};
+        let id = |name: &str| DeviceId {
+            name: name.into(),
+            serial: Some("00:11".into()),
+            nth: 1,
+        };
+        let mut o = sample();
+        o.players.profiles[1] = vec![
+            Profile::new(id("Pad"), Kind::Pad),
+            Profile::new(id("Wheel"), Kind::Wheel),
+        ];
+        let text = write(&o, None).unwrap();
+        assert!(text.contains("[[players.player_2.profiles]]"), "{text}");
+        assert!(text.contains("[players.player_2.profiles.bindings.steering_axis]"));
+        assert!(!text.contains("player_1.profiles"));
+        assert_eq!(read(&text, &Options::default()).unwrap(), Some(o));
+    }
+
     #[test]
     fn texts_guids_and_nones_are_readable() {
         let mut o = Options::default();

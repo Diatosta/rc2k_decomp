@@ -154,6 +154,12 @@ impl Joystick {
         unsafe { SDL_GetNumJoystickAxes(self.0) }
     }
 
+    /// Whether SDL's type for the joystick is a steering wheel.
+    pub fn is_wheel(self) -> bool {
+        // SAFETY: an open joystick.
+        unsafe { SDL_GetJoystickType(self.0) == SDL_JOYSTICK_TYPE_WHEEL }
+    }
+
     pub fn button_count(self) -> i32 {
         // SAFETY: an open joystick.
         unsafe { SDL_GetNumJoystickButtons(self.0) }

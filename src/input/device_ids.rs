@@ -11,7 +11,7 @@ use rc2k_core::input::device_id::{DeviceId, Listed, find, id_of};
 use std::sync::atomic::Ordering;
 
 /// The controllers' table as names and serial numbers, in its order.
-fn listed(input: &Input) -> Vec<Listed> {
+pub(crate) fn listed(input: &Input) -> Vec<Listed> {
     let count = input.devices.controller_count.get() as usize;
     input.devices.controllers[..count.min(input.devices.controllers.len())]
         .iter()
