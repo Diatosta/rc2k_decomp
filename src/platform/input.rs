@@ -320,13 +320,23 @@ impl SdlBackend {
             return;
         };
         let name = joystick.name();
+        let serial = joystick.serial();
         let product = joystick.guid();
-        // The same kind of device plugged back in takes the place it left (the first such),
-        // with its instance: the game's controller entry and the players' choice of it hold.
+        // The same device plugged back in takes the place it left, with its instance: the
+        // game's controller entry and the players' choice of it hold. The same one is the one
+        // of its serial number when it has one (two pads of a model told apart), else the first
+        // of its kind that has gone.
+        let gone_same =
+            |d: &Device| d.joystick.is_none() && d.info.product == product && d.info.name == name;
         let back = self
             .devices
             .iter()
-            .position(|d| d.joystick.is_none() && d.info.product == product && d.info.name == name);
+            .position(|d| gone_same(d) && serial.is_some() && d.info.serial == serial)
+            .or_else(|| {
+                self.devices
+                    .iter()
+                    .position(|d| gone_same(d) && serial.is_none() && d.info.serial.is_none())
+            });
         if let Some(n) = back {
             let (haptic, rumble) = haptic_or_rumble(joystick);
             let d = &mut self.devices[n];
@@ -357,6 +367,7 @@ impl SdlBackend {
         let features = haptic.map_or(0, Haptic::features);
         let info = DeviceInfo {
             name,
+            serial,
             instance,
             product,
             axes: (1 << axes) - 1,
@@ -373,7 +384,7 @@ impl SdlBackend {
             force: haptic.is_some() || rumble,
         };
         log(&format!(
-            "platform: joystick {}: \"{}\"{}, {} axes, {} buttons, {} hats, force feedback {}{} (SDL's effects {features:#x})",
+            "platform: joystick {}: \"{}\"{}, {} axes, {} buttons, {} hats, force feedback {}{} (SDL's effects {features:#x}), serial number {}",
             self.devices.len(),
             info.name,
             if gamepad.is_none() {
@@ -385,7 +396,8 @@ impl SdlBackend {
             info.buttons,
             info.hats,
             info.force,
-            if rumble { " (its rumble motors)" } else { "" }
+            if rumble { " (its rumble motors)" } else { "" },
+            info.serial.as_deref().unwrap_or("none")
         ));
         self.devices.push(Device {
             sdl_id: id,

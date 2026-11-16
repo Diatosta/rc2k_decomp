@@ -193,12 +193,17 @@ mod tests {
         let text = with_options_in_stores(&options, |o| {
             toml_file::write(&capture(o).unwrap(), None).unwrap()
         });
+        // The file holds the texts up to their NULs: what a buffer keeps after its NUL is not
+        // in the options read back.
+        let held = rc2k_core::options::document::Document::from(&options)
+            .into_options()
+            .unwrap();
         assert_eq!(
             toml_file::read(&text, &Options::default()).unwrap(),
-            options
+            Some(held)
         );
         let sum = crate::test_support::hash(text.as_bytes());
-        assert_eq!((text.len(), sum), (94_597, 17_957_818_195_669_191_712));
+        assert_eq!((text.len(), sum), (200_261, 1_686_317_348_582_103_933));
     }
 
     /// Loading the new file through the stores leaves the stores holding what it said, with
@@ -210,7 +215,9 @@ mod tests {
         let o = crate::test_support::own::owners();
         let loaded = o.menus.screens.loop_flags.options_loaded.is_set();
         let before = capture(o).unwrap();
-        let wanted = toml_file::read("[display]\nmenu_mode = 5\n", &before).unwrap();
+        let wanted = toml_file::read("[display]\nmenu_mode = 5\n", &before)
+            .unwrap()
+            .unwrap();
         apply(o, &wanted).unwrap();
         let after = capture(o).unwrap();
         apply(o, &before).unwrap();

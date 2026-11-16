@@ -39,18 +39,24 @@ in place, so a crash while saving cannot leave half a file.
 
 ## `var/rc2k.toml`
 
-A TOML file, in UTF-8. The first key is `version`, then one table for each area:
+A TOML file, in UTF-8. The first key is `version` (now 2), then one table for each area:
 
 ```toml
-version = 1
+version = 2
 
 [display]
 menu_mode = 3282946
 race_mode = 3414144
 mipmapping = 1
 
-[sound]
-master_volume = 64
+[network]
+machine_name = "my-pc"
+saved_connection = "36E95EE0-8577-11CF-960C-0080C7534E82"
+
+[players.player_1]
+name = "Ann"
+nationality = 0
+car_number = 12
 ...
 ```
 
@@ -59,39 +65,82 @@ master_volume = 64
 | `[display]` | `menu_mode`, `race_mode`, `mipmapping`. |
 | `[sound]` | The sound modes, volumes and levels. |
 | `[network]` | `machine_name`, `most_players`, `host_address`, `port`, `saved_connection`. |
-| `[pages]` | The options pages' switches (`switches`, `audio`) and a few counters. |
+| `[pages]` | The options pages' switches (`switches`, `audio`), a few counters and `arcade_levels_won`. |
 | `[cars]` | `first_numbers`, `second_numbers`: the two lists of cars the player can choose from. |
-| `[players]` | `records` (four) and `names` (four). |
-| `[records]` | The tyre-change record, the championship's and the events' record tables, the rallies' best times. |
+| `[players.player_1]` .. `[players.player_4]` | One table for each player: name, nationality, car, views, keys, controller and its bindings, the car's set-up and wear, the results so far. |
+| `[records]` | The tyre-change record, `championship`, `events` and `rallies`. |
 | `[kept]` | Values the old file carries that nothing uses; kept so that the old file can be written back exactly. |
 
-Every key has the name given in the third column of the old file's table below; `display.menu_mode`
-there is the key `menu_mode` in the table `[display]`.
-
-Three kinds of value appear:
+The values are written readably:
 
 | Kind | Written as | Example |
 | --- | --- | --- |
 | A number (u32) | an integer | `port = 0` |
+| A time or other value that can be -1 | a signed integer | `first = -1` |
 | A list of numbers | an array of integers, of a fixed length | `audio = [3, 1, 0, 0, 0, 1]` |
-| A run of bytes (a name, a record, a table) | a string of hexadecimal digits, two for each byte, lower case, of a fixed length | `saved_connection = "00000000000000000000000000000000"` |
+| A text (a name, an address) | a string; the game's Windows-1252 characters are the same characters in the file | `name = "Ann"` |
+| A GUID | the usual text, `XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX` (braces and lower case are read too) | `saved_connection = "36E95EE0-8577-11CF-960C-0080C7534E82"` |
+| A float (the car's impact marks, 0 .. 1) | a number | `impact_marks = [0.0, 0.25, ...]` |
 
-Texts such as the players' names are runs of bytes too: the name "Ann" in a `0x20`-byte field is
-`"416e6e00"` followed by 56 more zeros. The characters are in the Windows-1252 set, as in the
-old file.
+A text ends at its first NUL in the old file's buffers, and what a buffer holds after that
+is not kept (the game never reads it): the file holds the text only. A text that is longer than
+its buffer (`machine_name` and `host_address` 64 characters, the others 32) is an error.
 
-`players.records`, `players.names`, `records.events` and `records.rallies` are arrays of such
-strings (4, 4, 12 and 6 of them). `records.events` is in the events' own order, 0 .. 11, which is
-not the order the old file stores them in (see below).
+The two lists of car numbers leave out their "none" entries at the end (`0xFFFFFFFF` in the old
+file); reading puts them back, so `first_numbers = [13, 21, 18]` is those three cars and 37
+empty places. A "none" between two numbers is written as -1.
+
+### A player
+
+`[players.player_1]` .. `[players.player_4]` each hold the player's record by name. The keys
+are in the order of the record ([Saved games](Saved-games#the-player-record) describes the
+record's bytes): `name`, `nationality`, `car_number`, `view`, `second_view`,
+`saved_start_section`, `name_slot` (whose name buffer is the player's, 0 for none),
+`key_scan_codes` (twelve keys), `race_number`, `controller` (0 the keyboard, n the input device
+n - 1), `gearing`, `sensitivity_level`, `pedal_axis_codes`, `controller_mode`,
+`end_zone_percent`, `centre_dead_zone_percent`, `strength`, `binding_buttons` and
+`binding_directions` (eleven controls each, in the order of the controller page: the button
+number and the direction a control is bound to, 0 for none), the event's `time`, `total`,
+`class`, `figure`, `stage_points`, `overall_points` and `entry`, the car's `damage`, its
+`setup_*` values (tyre, brake balance, ride height, suspension stiffness, steering
+sensitivity, gear ratio), `name_copy`, the standings numbers, the visual preferences
+(`codriver_sex`, `map_area`, `rear_mirror`, `rev_counter`, `car_info`, `message_display`,
+`progress_bar`, `driver_info`, `pace_notes`, `metric_units`), the wear (`parts_wear`,
+`tyre_wear`), `best_line_checkpoint_times`, `impact_marks`, `saved_start_section_a8`,
+`state_flags`, `result_word`, `controller_sensitivity`, `hud_bits` and `service_spent`.
+The last keys, `kept_*`, are bytes of the record that nothing reads. A player who chose a
+controller also has a `[players.player_n.controller_device]` table: its `name`, its `serial`
+number when it reports one, and `nth`, which of the controllers of that name it is (counted in
+the order they are listed). It is not part of the record: the program works `controller` out
+from it at start and whenever a controller is plugged in or out ([Controllers](Controllers)).
+
+### Records
+
+- `records.championship` is a list of 66 tables, the stage records, and `records.events`
+  has the tables `event_00` .. `event_11`, each a list of 7 stage records (in the events' own
+  order, 0 .. 11, which is not the order the old file stores them in; see below). A stage
+  record has `tag` (-1 ends a table), the track, the times and the two record holders
+  (`fastest_name`, `fastest_nation`, `fastest_car`, `time_trial_name`, ...); see
+  [A record of a record table](#a-record-of-a-record-table). `kept_unread_28` is written only
+  when it is not 0.
+- `records.rallies` has the tables `rally_0` .. `rally_5`, each a list of 20 best times
+  (`first` -1 ends a list, `key` and `rally_time` the times, `name`, `cheats`, `sealed_time`,
+  `checkpoint_times`; see [Best times](Best-times#a-best-time)).
 
 Rules for reading:
 
-- A key that is missing keeps the game's built-in value. An empty file is valid.
+- A key that is missing keeps the game's built-in value (in a player's table, too). An empty
+  file is valid. The lists of tables (`championship`, an event's, a rally's) are taken whole:
+  one is read as written, with every key of each entry.
 - A key the program does not know is ignored, and is still there after the program writes the
   file again. A later version can add keys without older builds losing them.
-- A list or byte string of the wrong length, or a file that is not valid TOML, stops the
-  program with a message in `rc2k.log`.
-- A `version` higher than this program knows (1) stops it too: the file is from a newer build.
+- A list of the wrong length, a text too long for its buffer, a GUID that is not one, or a file
+  that is not valid TOML, stops the program with a message in `rc2k.log`.
+- A `version` higher than this program knows (2) stops it too: the file is from a newer build.
+- A file of version 1 (the first, which held the names, records and tables as strings of
+  hexadecimal digits) is not read: it counts as not there, so the options come from
+  `var/ral.dat` if that exists and else from the built-in values, and the next save writes the
+  file anew (nothing of the old file is kept).
 
 ## `var/ral.dat`
 
@@ -117,7 +166,7 @@ One that does, but has no `####` at `0xB666`, stops the game with the error "ral
 date".
 
 The values have no gaps or alignment between them, which is why some offsets are odd. The
-"Key" column is the value's name in `var/rc2k.toml`. A size of `0x4` is one u32.
+"Key" column is the value's name in the program's model of the options; it is the key in `var/rc2k.toml` too, but for the players (`players.records`, `players.names`: see above) and the record tables (`records.*`). A size of `0x4` is one u32.
 
 | Offset | Size | Key | Meaning |
 | --- | --- | --- | --- |
@@ -211,22 +260,17 @@ The smallest useful `var/rc2k.toml`, which changes two things and leaves everyth
 game's own values:
 
 ```toml
-version = 1
+version = 2
 
 [sound]
 race_music_on = 1
 
-[players]
-names = [
-  "416e6e0000000000000000000000000000000000000000000000000000000000",
-  "0000000000000000000000000000000000000000000000000000000000000000",
-  "0000000000000000000000000000000000000000000000000000000000000000",
-  "0000000000000000000000000000000000000000000000000000000000000000",
-]
+[players.player_1]
+name = "Ann"
 ```
 
-The first player is named "Ann" (`41 6E 6E`). When the game next saves its options, it writes
-the file out in full, with every key.
+The first player is named "Ann". When the game next saves its options, it writes the file out
+in full, with every key.
 
 And the first bytes of a `var/ral.dat` written on 3 May 2027 at 14:07 by a game started 17
 times:
@@ -237,6 +281,6 @@ times:
 ```
 
 Code: `rc2k_core/src/options/` (`model.rs`: every value and the old file's order;
-`old_file.rs`, `toml_file.rs`: the two formats; `files.rs`: which file is used when),
+`old_file.rs`, `toml_file.rs`: the two formats, `document.rs`: the new file's readable form of the values; `files.rs`: which file is used when),
 `src/saves/options_files.rs`, `src/saves/options_state.rs` (where each value lives in the
 game), `src/records/stages_store.rs` (the record of a record table).

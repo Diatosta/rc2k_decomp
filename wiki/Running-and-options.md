@@ -259,7 +259,7 @@ the game's own options screens and saved when the program ends properly.
 
 | File | What it is |
 | --- | --- |
-| `var/rc2k.toml` | This program's options file: text, one table per area (`display`, `sound`, `network`, `players` and others). Read at start, written when the options are saved. |
+| `var/rc2k.toml` | This program's options file: text, one table per area (`display`, `sound`, `network`, a table for each player and others), the values readable (names as texts, the saved connection as a GUID). Read at start, written when the options are saved. |
 | `var/ral.dat` | The original program's options file. Read only when `var/rc2k.toml` does not exist yet (its values are brought over and the new file is written at once), or with `--load-old-options`. Written only with `--save-old-options`. |
 | `var/ral.cfg` | Switches as `name=value` lines, read at start and never written by the game: the log level, skipping the films, physics tuning. |
 

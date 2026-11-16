@@ -30,6 +30,8 @@ use std::sync::Mutex;
 #[derive(Clone, Debug, Default)]
 pub struct DeviceInfo {
     pub name: String,
+    /// Its serial number, when it reports one.
+    pub serial: Option<String>,
     pub instance: [u8; 16],
     pub product: [u8; 16],
     /// Its axes as the game's bits: 1 x, 2 y, 4 z, 8 rx, 0x10 ry, 0x20 rz.
@@ -395,6 +397,13 @@ pub fn create_device(this: u32, wanted: &Guid) -> Result<u32, i32> {
             }),
         ))
     })
+}
+
+/// What the backend knows of the device with this instance GUID, if it has one.
+pub fn device_info(instance: &Guid) -> Option<DeviceInfo> {
+    backend(|b| b.devices())?
+        .into_iter()
+        .find(|d| d.instance == *instance)
 }
 
 /// `EnumDevices`' callback: its `DIDEVICEINSTANCEA` -> 0 to stop.

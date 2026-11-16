@@ -152,6 +152,8 @@ fn end_if_not_left() {
 pub fn pump(o: crate::owners::Owners<'static>) {
     let (input, system, course) = (o.input, o.system, &o.race.course);
     restore_if_asked();
+    // Controllers plugged in or out: the players given the ones they chose.
+    crate::input::device_ids::after_listing(o.menus, input);
     #[cfg(feature = "remote")]
     crate::remote::poll(&o, course);
     while let Some(event) = next_event() {

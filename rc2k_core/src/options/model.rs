@@ -2,8 +2,7 @@
 //! after its head) has a field here; `Options::visit` lists them in the file's order, the one
 //! place that order is written.
 
-use serde::de::Error as _;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 
 /// The pieces' lengths together.
 pub const PIECES_LEN: usize = 0xB656;
@@ -32,7 +31,7 @@ impl Field for u32 {
     }
 }
 
-/// A run of bytes (a name, a record, a table), as hex text in the new file.
+/// A run of bytes (a name, a record, a table) as the old file holds it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Bytes<const N: usize>(pub Vec<u8>);
 
@@ -54,35 +53,7 @@ impl<const N: usize> Field for Bytes<N> {
     }
 }
 
-impl<const N: usize> Serialize for Bytes<N> {
-    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-        let mut text = String::with_capacity(2 * N);
-        for b in &self.0 {
-            text.push_str(&format!("{b:02x}"));
-        }
-        s.serialize_str(&text)
-    }
-}
-
-impl<'de, const N: usize> Deserialize<'de> for Bytes<N> {
-    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
-        let text = String::deserialize(d)?;
-        if text.len() != 2 * N || !text.is_ascii() {
-            return Err(D::Error::custom(format!(
-                "expected {N} bytes as {} hex digits",
-                2 * N
-            )));
-        }
-        let mut bytes = vec![0u8; N];
-        for (n, byte) in bytes.iter_mut().enumerate() {
-            *byte = u8::from_str_radix(&text[2 * n..2 * n + 2], 16)
-                .map_err(|_| D::Error::custom("a hex digit expected"))?;
-        }
-        Ok(Self(bytes))
-    }
-}
-
-/// A list of dwords (a page's switches, the car numbers), as a list of numbers.
+/// A list of dwords (a page's switches, the car numbers).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Words<const N: usize>(pub Vec<u32>);
 
@@ -105,22 +76,6 @@ impl<const N: usize> Field for Words<N> {
         for (w, b) in self.0.iter_mut().zip(bytes.as_chunks::<4>().0) {
             *w = u32::from_le_bytes(*b);
         }
-    }
-}
-
-impl<const N: usize> Serialize for Words<N> {
-    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-        self.0.serialize(s)
-    }
-}
-
-impl<'de, const N: usize> Deserialize<'de> for Words<N> {
-    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
-        let list = Vec::<u32>::deserialize(d)?;
-        if list.len() != N {
-            return Err(D::Error::invalid_length(list.len(), &"the list's length"));
-        }
-        Ok(Self(list))
     }
 }
 
@@ -158,7 +113,7 @@ pub struct Sound {
 }
 
 /// The network settings.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Network {
     pub machine_name: Bytes<0x40>,
     /// The most players a hosted session takes.
@@ -170,7 +125,7 @@ pub struct Network {
 }
 
 /// The options pages' own settings and what the front end keeps.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Pages {
     /// The pages' work copies, the first switch up to the headlights.
     pub switches: Words<11>,
@@ -188,7 +143,7 @@ pub struct Pages {
 }
 
 /// The car number lists.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Cars {
     pub first_numbers: Words<40>,
     /// 20 entries.
@@ -196,14 +151,17 @@ pub struct Cars {
 }
 
 /// The four players: their records and names.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Players {
     pub records: [Bytes<0x28C>; 4],
     pub names: [Bytes<0x20>; 4],
+    /// The controller each player chose, by what it is (only in the new file: the old one
+    /// has the record's number alone).
+    pub devices: [Option<crate::input::device_id::DeviceId>; 4],
 }
 
 /// The best times and records kept in the options file.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Records {
     pub tyre_change_holder: Bytes<0x20>,
     pub tyre_change_time: u32,
@@ -225,8 +183,7 @@ pub struct Kept {
 }
 
 /// Everything the old file holds.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Options {
     pub display: Display,
     pub sound: Sound,

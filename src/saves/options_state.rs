@@ -25,6 +25,7 @@ pub fn capture(o: Owners<'static>) -> Result<Options, Refused> {
     if !options.take_pieces(&refs) {
         return Err(BadInput("the options' pieces do not fit the model").into());
     }
+    options.players.devices = crate::input::device_ids::kept(o.input);
     Ok(options)
 }
 
@@ -35,6 +36,7 @@ pub fn apply(o: Owners<'static>, options: &Options) -> Result<(), Refused> {
     for (place, bytes) in pieces_of(o).iter().zip(&pieces) {
         place.write(bytes)?;
     }
+    crate::input::device_ids::keep(o.input, options.players.devices.clone());
     Ok(())
 }
 

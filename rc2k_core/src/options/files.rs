@@ -76,13 +76,14 @@ pub fn load_old(paths: &Paths) -> Result<Option<Options>, OptionsError> {
     }
 }
 
-/// The options from the new file, the values it lacks taken from `base`.
+/// The options from the new file, the values it lacks taken from `base`; `None` when it is not
+/// there or is of an older version.
 pub fn load_new(paths: &Paths, base: &Options) -> Result<Option<Options>, OptionsError> {
     match read_file(&paths.new)? {
         Some(bytes) => {
             let text = String::from_utf8(bytes)
                 .map_err(|_| OptionsError::Text(format!("{} is not UTF-8", paths.new.display())))?;
-            toml_file::read(&text, base).map(Some)
+            toml_file::read(&text, base)
         }
         None => Ok(None),
     }
@@ -251,6 +252,29 @@ mod tests {
         .unwrap()
         .unwrap();
         assert_eq!((o, from), (options(40), Source::New));
+    }
+
+    #[test]
+    fn a_new_file_of_the_first_version_is_passed_over() {
+        let dir = Dir::new("first_version");
+        let p = dir.paths();
+        std::fs::write(&p.new, "version = 1\n[sound]\nmaster_volume = 99\n").unwrap();
+        // With no old file: the defaults, the file left as it is.
+        let none = load(&p, Asked::default(), &Options::default(), &mut || {
+            load_old(&p)
+        })
+        .unwrap();
+        assert_eq!(none, None);
+        // With an old file: its values, brought over into a new file of this version.
+        save_old(&p, &options(40), 9).unwrap();
+        let (o, from) = load(&p, Asked::default(), &Options::default(), &mut || {
+            load_old(&p)
+        })
+        .unwrap()
+        .unwrap();
+        assert_eq!((o, from), (options(40), Source::OldMigrated));
+        let text = std::fs::read_to_string(&p.new).unwrap();
+        assert!(text.starts_with("version = 2\n") && !text.contains("99"));
     }
 
     #[test]

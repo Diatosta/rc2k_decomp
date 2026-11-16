@@ -12,6 +12,7 @@ pub mod begin_force;
 pub mod clear_device_readings;
 pub mod device_command;
 pub mod device_effects;
+pub mod device_ids;
 pub mod devices;
 pub mod di_harness;
 pub mod di_objects;

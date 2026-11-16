@@ -69,9 +69,17 @@ start goes back to "none" (the keyboard).
 
 A controller plugged in while the program runs is added to the list as soon as SDL reports it,
 so it can be chosen on the controller pages and driven with at once, without a restart. One
-unplugged keeps its place and reads as at rest; plugged back in (the same model), it takes that
-place again, so a player who had chosen it has it back. A player's saved controller that was not
-plugged in when the program started has gone back to "none": choose it again once it is in.
+unplugged keeps its place and reads as at rest; plugged back in, it takes that place again, so a
+player who had chosen it has it back.
+
+The program keeps each player's choice by which controller it is, not by its place in the list:
+its name and, when it reports one, its serial number (a DualSense gives its Bluetooth address).
+Two pads of the same model are told apart by their serial numbers, whatever order they are
+plugged in; pads that report none are told apart by order (the first and the second of that
+name). A player whose controller is not plugged in drives with the keyboard meanwhile and keeps
+the choice: when the controller is plugged in, at start or later, the player has it back. A
+player whose pad is away is never given another pad of the same model, which may be another
+player's.
 
 ## Force feedback
 

@@ -61,14 +61,16 @@ fn set_up_device(input: &Input, p: PlayerCell, c: u32) -> Result<(), Refused> {
     Ok(())
 }
 
-/// The release for 0, else the set-up; refused (before anything) as the set-up is.
-fn choose(input: &Input, p: PlayerCell, c: u32) -> Result<(), Refused> {
+/// The release for 0, else the set-up; refused (before anything) as the set-up is. The choice
+/// is kept by what the controller is (`input::device_ids`).
+fn choose(menus: &Menus, input: &Input, p: PlayerCell, c: u32) -> Result<(), Refused> {
     let applies = if c == 0 {
         false
     } else {
         would_apply(input, c)?
     };
     p.update(|q| q.controller = c);
+    crate::input::device_ids::note_choice(input, menus.screens.event.current_player.get(), c);
     if c == 0 {
         release_controller(input);
     } else if applies {
@@ -81,14 +83,14 @@ fn choose(input: &Input, p: PlayerCell, c: u32) -> Result<(), Refused> {
 pub fn next_controller(menus: &Menus, input: &Input) -> Result<(), Refused> {
     let p = player(menus)?;
     let c = rc2k_core::menu::steps::next_controller(p.get().controller, count(input));
-    choose(input, p, c)
+    choose(menus, input, p, c)
 }
 
 /// `menu::previous_controller`.
 pub fn previous_controller(menus: &Menus, input: &Input) -> Result<(), Refused> {
     let p = player(menus)?;
     let c = rc2k_core::menu::steps::previous_controller(p.get().controller, count(input));
-    choose(input, p, c)
+    choose(menus, input, p, c)
 }
 
 /// The sensitivity to `value` and the set-up, refused (before anything) as the set-up is.

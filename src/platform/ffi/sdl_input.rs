@@ -173,6 +173,19 @@ impl Joystick {
     }
 
     /// The haptic device of this joystick, opened, when it has one.
+    /// Its serial number, when it reports one (a DualSense: its Bluetooth address).
+    pub fn serial(self) -> Option<String> {
+        // SAFETY: the text SDL returns (null checked) lives with the joystick; copied.
+        unsafe {
+            let serial = SDL_GetJoystickSerial(self.0);
+            if serial.is_null() {
+                return None;
+            }
+            let text = CStr::from_ptr(serial).to_string_lossy().into_owned();
+            (!text.is_empty()).then_some(text)
+        }
+    }
+
     /// Whether SDL can rumble it (a gamepad's two motors).
     pub fn has_rumble(self) -> bool {
         // SAFETY: an open joystick; its properties' id (0 on failure) is only read here.
