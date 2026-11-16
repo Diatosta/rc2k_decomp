@@ -547,7 +547,12 @@ pub(crate) fn noted_bytes<'a>(note: &TextureNote) -> &'a [u8] {
 
 /// A texture's pixels as bytes of 0xAARRGGBB, its rows without gaps.
 pub(crate) fn texture_as_bgra(note: &TextureNote) -> Vec<u8> {
-    let pixels = noted_bytes(note);
+    pixels_as_bgra(noted_bytes(note), note)
+}
+
+/// `pixels`, laid out as `note` says, as bytes of 0xAARRGGBB, its rows without gaps. A pixel
+/// past the end of `pixels` counts as zero bits.
+fn pixels_as_bgra(pixels: &[u8], note: &TextureNote) -> Vec<u8> {
     let mut out = Vec::with_capacity(note.width * note.height * 4);
     // How a pixel's raw bits become 0xAARRGGBB (`rasteriser::to_argb`), worked out once.
     enum Convert {
@@ -575,19 +580,39 @@ pub(crate) fn texture_as_bgra(note: &TextureNote) -> Vec<u8> {
         Convert::Masks
     };
     for y in 0..note.height {
-        for x in 0..note.width {
-            let at = y * note.pitch + x * note.bytes;
-            let mut raw = [0u8; 4];
-            if let Some(from) = pixels.get(at..at + note.bytes) {
-                raw[..note.bytes].copy_from_slice(from);
+        let start = y * note.pitch;
+        // A whole row inside the pixels, in one of the two usual layouts: converted as a run.
+        let row = pixels.get(start..start + note.width * note.bytes);
+        match (row, &convert) {
+            (Some(row), Convert::Table(table)) => {
+                for pixel in row.as_chunks::<2>().0 {
+                    let argb = table[u16::from_le_bytes(*pixel) as usize & 0xFFFF];
+                    out.extend_from_slice(&argb.to_le_bytes());
+                }
             }
-            let pixel = u32::from_le_bytes(raw);
-            let argb = match &convert {
-                Convert::Table(table) => table[pixel as usize & 0xFFFF],
-                Convert::Same { alpha } => pixel | alpha,
-                Convert::Masks => crate::render::rasteriser::to_argb(pixel, &m),
-            };
-            out.extend(argb.to_le_bytes());
+            (Some(row), Convert::Same { alpha }) => {
+                for pixel in row.as_chunks::<4>().0 {
+                    let argb = u32::from_le_bytes(*pixel) | alpha;
+                    out.extend_from_slice(&argb.to_le_bytes());
+                }
+            }
+            // Any other layout, or a row that runs past the pixels: pixel by pixel.
+            _ => {
+                for x in 0..note.width {
+                    let at = start + x * note.bytes;
+                    let mut raw = [0u8; 4];
+                    if let Some(from) = pixels.get(at..at + note.bytes) {
+                        raw[..note.bytes].copy_from_slice(from);
+                    }
+                    let pixel = u32::from_le_bytes(raw);
+                    let argb = match &convert {
+                        Convert::Table(table) => table[pixel as usize & 0xFFFF],
+                        Convert::Same { alpha } => pixel | alpha,
+                        Convert::Masks => crate::render::rasteriser::to_argb(pixel, &m),
+                    };
+                    out.extend_from_slice(&argb.to_le_bytes());
+                }
+            }
         }
     }
     out
@@ -936,6 +961,60 @@ mod tests {
                     want.to_le_bytes(),
                     "{bytes} {masks:x?} {n}"
                 );
+            }
+        }
+    }
+
+    /// Rows with a gap after them are read at the pitch, and pixels past the end of the bytes
+    /// (a last row cut short) count as zero bits, in every layout.
+    #[test]
+    fn texture_conversion_follows_the_pitch_and_a_short_end() {
+        let layouts: [(usize, [u32; 4]); 4] = [
+            (2, [0x001F, 0x07E0, 0xF800, 0]),
+            (4, [0xFF, 0xFF00, 0xFF_0000, 0xFF00_0000]),
+            (4, [0xFF, 0xFF00, 0xFF_0000, 0]),
+            (4, [0xFF, 0xFF00, 0xFF_0000, 0x8000_0000]),
+        ];
+        for (bytes, masks) in layouts {
+            let (width, height) = (5usize, 4usize);
+            let pitch = width * bytes + 6;
+            let mut state = 0x9E37_79B9u32;
+            // The last row lacks its last pixel and a byte of the one before.
+            let raw: Vec<u8> = (0..pitch * (height - 1) + (width - 1) * bytes - 1)
+                .map(|_| {
+                    state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+                    (state >> 24) as u8
+                })
+                .collect();
+            let note = super::TextureNote {
+                pixels: TextureId {
+                    surface: 0,
+                    serial: 0,
+                },
+                len: raw.len(),
+                width,
+                height,
+                pitch,
+                bytes,
+                masks,
+            };
+            let got = super::pixels_as_bgra(&raw, &note);
+            assert_eq!(got.len(), width * height * 4);
+            for y in 0..height {
+                for x in 0..width {
+                    let at = y * pitch + x * bytes;
+                    let mut word = [0u8; 4];
+                    if let Some(from) = raw.get(at..at + bytes) {
+                        word[..bytes].copy_from_slice(from);
+                    }
+                    let want = crate::render::rasteriser::to_argb(u32::from_le_bytes(word), &masks);
+                    let n = y * width + x;
+                    assert_eq!(
+                        got[n * 4..n * 4 + 4],
+                        want.to_le_bytes(),
+                        "{bytes} {masks:x?} {x} {y}"
+                    );
+                }
             }
         }
     }
