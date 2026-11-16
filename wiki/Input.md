@@ -57,7 +57,11 @@ drive them, by turning a button into the pending key it stands for:
 South and East also answer the race's yes/no question directly, whatever the language. Outside
 a race the left stick counts as the D-pad: leaning it past about half its travel presses that
 direction, bringing it back within a third lets go (the gap keeps it from chattering near the
-line). In a race the sticks and triggers belong to driving only (below).
+line). In a race the sticks and triggers belong to driving only (below). A joystick that is not
+a gamepad (a wheel) sends SDL's joystick events instead: outside a race its hat is the cross, its
+first axis (from the rest SDL saw when it was opened, and left alone when that rest is near an
+end, as a pedal's is) is left and right with a smaller turn than a stick's, its buttons 1 and 2
+are Enter and Back (`joystick_in_menus` in `src/platform/events.rs`).
 
 ## Keys in a race
 

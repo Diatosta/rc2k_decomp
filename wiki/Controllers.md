@@ -30,6 +30,13 @@ Any gamepad SDL recognises works in the menus on every system, with nothing to s
 | West button (X) | the third answer, where a question has three |
 | Start | Enter in a menu; in a race, the same as Escape (asks whether to leave) |
 
+A wheel or another joystick that SDL does not know as a gamepad works the menus too: its hat
+moves the highlight like the D-pad, turning the wheel (its first axis, measured from where it
+rests; a small turn is enough, and held it repeats) moves left and right, its first button
+enters and its second goes back. Each button press in the menus is noted in `rc2k.log` with its
+number, so a wheel whose buttons are numbered otherwise can be told. In a race these inputs are
+the player's controls only.
+
 On a yes / no question the South and East buttons answer yes and no directly, in any
 language.
 

@@ -62,11 +62,11 @@ car_number = 12
 
 | Table | Holds |
 | --- | --- |
-| `[display]` | `menu_mode`, `race_mode`, `mipmapping`. |
-| `[sound]` | The sound modes, volumes and levels. |
-| `[network]` | `machine_name`, `most_players`, `host_address`, `port`, `saved_connection`. |
-| `[pages]` | The options pages' switches (`switches`, `audio`), a few counters and `arcade_levels_won`. |
-| `[cars]` | `first_numbers`, `second_numbers`: the two lists of cars the player can choose from. |
+| `[display]` | The screen modes of the menus and of the races (packed numbers) and the mipmapping switch: [Display](#display). |
+| `[sound]` | The sound modes (packed numbers), the master and music volumes, and the sliders of the sound pages: [Sound](#sound). |
+| `[network]` | This machine's name, the most players, the host's address, the port and the saved connection: [Network](#network). |
+| `[pages]` | The graphics page's eleven switches, the audio page's six, a few counters and the arcade levels won: [Pages](#pages). |
+| `[cars]` | `first_numbers`, `second_numbers`: the cars the player can choose, and the arcade's secret cars still to be won: [Cars](#cars). |
 | `[players.player_1]` .. `[players.player_4]` | One table for each player: name, nationality, car, views, keys, controller and its bindings, the car's set-up and wear, the results so far. |
 | `[records]` | The tyre-change record, `championship`, `events` and `rallies`. |
 | `[kept]` | Values the old file carries that nothing uses; kept so that the old file can be written back exactly. |
@@ -89,6 +89,127 @@ its buffer (`machine_name` and `host_address` 64 characters, the others 32) is a
 The two lists of car numbers leave out their "none" entries at the end (`0xFFFFFFFF` in the old
 file); reading puts them back, so `first_numbers = [13, 21, 18]` is those three cars and 37
 empty places. A "none" between two numbers is written as -1.
+
+### Display
+
+`[display]` holds the screen choices of the graphics page. The two screen modes are one number
+each, written in decimal in the file; to read one, turn it into hexadecimal (`3282946` is
+`0x321802`). The digits of a mode, from the right:
+
+| Digits | Meaning |
+| --- | --- |
+| last two (`0x..__`) | The size, one bit of the game's table of sizes: `0x01` 640 x 480, `0x02` 800 x 600, `0x04` 960 x 720, `0x08` 1024 x 768, `0x10` 1152 x 864, `0x20` 1280 x 1024, `0x40` 1600 x 1200, `0x80` 1920 x 1280. |
+| third from the right (`0x.._.`) | The pixel kind: `0x200` 16 bits a pixel, `0x800` 32 bits. This program always draws at 32 bits: a 16-bit mode is taken as the same size at 32 bits. |
+| `0x1000`, `0x2000` | The display card: `0x1000` the primary card, `0x2000` the secondary one. This program has one card, so the primary one is used. |
+| `0x20000`, `0x40000` | The buffering the mode was tried with: `0x20000` double, `0x40000` triple (the "buffering" row of the graphics page). |
+| `0x100000`, `0x200000` | Marks the game puts on a mode that can draw in 3D; every mode the page tries carries both (`0x300000`). |
+
+| Key | What it does |
+| --- | --- |
+| `menu_mode` | The screen mode of the menus. `3282946` is `0x321802`: size `0x02` (800 x 600), 32 bits (`0x800`), primary card (`0x1000`), double buffering (`0x20000`), the 3D marks (`0x300000`). When a race mode is chosen on the graphics page the menus take the same pixel kind at 800 x 600. `0` means none chosen yet: the first start then picks 800 x 600 at 32 bits for both modes (see `videomodemain` in [Settings files](Settings-files)). |
+| `race_mode` | The screen mode of the races, in the same form. `3414144` is `0x341880`: size `0x80` (1920 x 1280 in the game's table of sizes), 32 bits, primary card, triple buffering (`0x40000`), the 3D marks. |
+| `mipmapping` | The graphics page's mipmapping switch: 0 off, 1 on. Mipmapping draws a texture in smaller pre-reduced copies when it is far away; the choice is held to what the card can do (this program's value is 0 or 1 whatever is written). |
+
+### Sound
+
+`[sound]` holds the sound modes and the volumes. A volume is a number from 0 (silent) to 64
+(`0x40`, full): the sliders of the sound pages move it by one step at a time. Two kinds of
+numbers live here: modes (packed, see below) and levels.
+
+A **sound mode** is one number, written in decimal; turn it into hexadecimal to read it
+(for example `70177` is `0x11221`). Its parts, from the right:
+
+| Digits | Meaning |
+| --- | --- |
+| last three (`0x___`) | The quality, which decides the sample format the sounds are made ready in. Its last digit says how many times the sample rate is halved: the four qualities of the advanced audio page are `0x212` (lowest, a quarter of the rate), `0x222` (a quarter), `0x221` (half) and `0x220` (full rate); the middle digit is the sample size. |
+| `0x1000`, `0x2000` | The sound device. `0x1000` is DirectSound, the only one now. `0x2000` was Aureal's A3D; an options file that names it is read as the same mode with DirectSound's 3D sound in its place. |
+| `0x10000`, `0x20000`, `0x40000` | How the sound is made. `0x10000`: each voice has its own buffer. `0x20000`: static buffers. `0x40000`: the game's own mixer (Dolby). |
+| `0x100000` | 3D sound. |
+| `0x400000` | 16 channels (without it, 8). |
+| `0x800000` | The card's own 3D buffers are used (set with 3D sound when the card has free ones). |
+| `0x1000000` | EAX (3D sound with a reverb room chosen per stage). |
+| `0x2000000` | Dolby (always with the game's own mixer: a Dolby mode is `0x2040000` plus the quality). |
+
+| Key | What it does |
+| --- | --- |
+| `menu_sound_mode` | The sound mode of the menus. The game sets it to `0x11221` (`70177`: DirectSound, own buffers, half the sample rate) whenever the audio options are applied; 0 means not yet chosen. |
+| `race_sound_mode` | The sound mode of the races, built from the advanced audio page (`[pages] audio`) and what the machine has. `0x11221` is the plain mode; with 3D sound it carries `0x100000` (`0x111221`), with the card's own buffers `0x911221`, with EAX also `0x1000000` (`0x1911221`). 0 means not yet chosen. |
+| `master_volume` | The master volume the audio thread holds, 0 .. 64. A fresh game holds 65, which counts as full. It follows the slider `master_volume_shown`. |
+| `master_volume_shown` | The first slider of the sound page, "general" volume, 0 .. 64: it is sent to the audio thread as the master volume, at start and at each step. |
+| `unread_option_f0` | A sound option the old file has room for; nothing reads it (a fresh game holds 1). Kept so the old file can be written back as it was. |
+| `race_music_on` | The race music: 0 off, 1 on. The music of the races (tune 8) plays only while it is 1; the sound page shows it as an off / on row. |
+| `tune_turn` | Which tune the music plays next: a counter the audio thread keeps for the music's order and saves, so the tunes go on from where they stopped. |
+| `music_volume` | The volume the menus' music is started at, 0 .. 64. At the start of the front end it is set from `music_level`. |
+| `race_music_volume` | The volume the races' music is started at, 0 .. 64. At the start of the front end it is set from `other_volume`. |
+| `music_level` | The "music" slider of the volume page, 0 .. 64 (a fresh game 64). Stepping it sets `music_volume` and the music's volume at once. |
+| `other_volume` | The "race music" slider, 0 .. 64: stepping it sets `race_music_volume`. (The name is the code's reading: it is the music slider the race music takes its level from.) |
+| `menu_sounds_c` | The slider for most of the menus' own sounds (clicks, moving between items), 0 .. 64; the sound is played at each step so that it can be heard. |
+| `menu_sounds_a` | The "race sounds" slider, 0 .. 64: the level a group of sound effects takes (those whose sample record names this level), and the one sound the menus play when it is stepped. |
+| `speech_level` | The speech slider, 0 .. 64: the volume of the spoken sounds the menus play (the co-driver's calls, the car's names); a sample is played at each step. |
+| `sounds_a`, `sounds_b` | The last two sliders of the volume page, 0 .. 64. Each is the level a group of sound effects takes (sample records name `sounds_a` or `sounds_b` as their level); which sounds belong to which could not be told from the code alone. |
+
+### Network
+
+`[network]` holds the settings of the network pages. This program plays on TCP/IP only, host
+and guests running the same program, with no lobby service ([Network play](Network-play)).
+
+| Key | What it does |
+| --- | --- |
+| `machine_name` | The name this machine gives itself in a network game: it names the session when hosting, and is the host's name in the lobby. Up to 63 characters. When it is empty at start, the computer's name is put in; if that is empty too, a default name is made. |
+| `most_players` | The most players a hosted session takes (the host's limit; the network page's "most players" row). In one language edition of the game's texts it is held to 4. |
+| `host_address` | The address a joining player connects to: a host name or an IP address, up to 63 characters. Empty: look for games on the local network. |
+| `port` | The port used with the address, on both TCP and UDP. 0 means the default, 47624 (`0xB9E8`). Every machine in a game must use the same one. |
+| `saved_connection` | The connection (a DirectPlay service provider, written as a GUID) used last time. At the start of a network game the program looks for a listed connection with this GUID and takes it without asking; otherwise it asks, then saves the one chosen. This program lists only TCP/IP, whose GUID is `36E95EE0-8577-11CF-960C-0080C7534E82`, so it is always that one; a different value in an old file is not found and is replaced when a connection is chosen. |
+
+### Pages
+
+`[pages]` holds what the options pages and the front end keep: the graphics switches, the
+audio switches, and a few counters. Each of the first two is a list in a fixed order; the
+rows below give each place (`switches[0]` is the first) and its default for a fresh game.
+
+**`switches`**: the graphics page, eleven values.
+
+| Place | Name | What it does |
+| --- | --- | --- |
+| `switches[0]` | mipmapping | Mipmapping, 0 off, 1 on (default 0). A copy of `[display] mipmapping`. |
+| `switches[1]` | buffering | Buffering, 0 double, 1 triple (default 0). The screen mode is tried with the matching buffering bits (`0x20000` or `0x40000`). |
+| `switches[2]` | mode changed | A flag flipped each time the resolution row of the graphics page is stepped (default 0). Nothing the player sees. |
+| `switches[3]` | modes switch | The display card row, 0 primary, 1 secondary (default 1). This program has one card, so the row is not offered and the value changes nothing. |
+| `switches[4]` | lens flare | The sun's lens flare in races, 0 off, 1 on (default 1). |
+| `switches[5]`, `switches[6]` | two unused percents | Two levels from 0 to 100 (default 100 each) that only code no longer reachable steps; nothing reads them. |
+| `switches[7]` | reflections | The shine on shiny faces (the cars' bodies, windows), 0 off, 1 on (default 1). |
+| `switches[8]` | car shadows | The shadow under each car: 0 "reduced" (one pass), 1 "full" (two passes) (default 1). |
+| `switches[9]` | car detail | Which cars are drawn with their see-through windows: 0 none, 1 only your own car, 2 all cars (default 1). |
+| `switches[10]` | headlights | Whether the cars' headlights light the road and scenery: 0 only the players' cars, 1 all cars (default 0). |
+
+**`audio`**: the advanced audio page, six values (a fresh game: `[3, 0, 0, 0, 0, 1]`).
+
+| Place | Name | What it does |
+| --- | --- | --- |
+| `audio[0]` | audio quality | 0 lowest .. 3 highest (default 3): the sample rate and size of the sounds (see the qualities under Sound). |
+| `audio[1]` | DirectSound 3D | 3D sound: 0 off, 1 on. Turning it on turns Dolby off. |
+| `audio[2]` | EAX | The reverb rooms: 0 off, 1 on. Turning it on turns 3D sound on and Dolby off. |
+| `audio[3]` | retired A3D | The original's switch for Aureal's A3D sound. There is no A3D any more: no page shows it, nothing reads it, and a file loaded at start has it set to 0. Kept so that a file is written back as it was read. |
+| `audio[4]` | Dolby | The game's own mixer: 0 off, 1 on. Turning it on turns 3D sound and EAX off. |
+| `audio[5]` | channels | How many sounds can be heard at once: 0 eight, 1 sixteen (default 1). |
+
+| Key | What it does |
+| --- | --- |
+| `services` | How many service-area visits the championship under way has been through, counted up at each service and reset when an event begins. |
+| `event_kept` | A word the front end hands to the event's races and takes back after each race (0 when the event's races begin; a fresh game 1). What it stands for could not be told from the code. |
+| `race_settings` | The first word of the race's settings: 1 once the A8 game's "new simulation" is unlocked (by the "Enable A8 Game" or "Reverse Sim Tracks" cheat), else 0. |
+| `arcade_levels_won` | Six values, one byte for each place of the arcade's level table, 1 when open, 0 when not. The n-th belongs to arcade level n, and winning level n opens place n+1 (the next level) and, the first time, shows the level's secret car and adds it to the cars; so the sixth only records that level 5 was won. The cheat "Unlock Arcade" opens every level whatever these say. |
+
+### Cars
+
+`[cars]` holds the two lists of cars the front end keeps. A number is the game's car number
+(the same one as `car_number` of a player); each list ends at its first empty place, and the
+file leaves the empty places (-1) out (see the values above).
+
+| Key | What it does |
+| --- | --- |
+| `first_numbers` | The cars the player can choose in the single events and arcade (up to 40). It starts with the standard cars; the secret cars win on the arcade, and the cars the cheats give, are added at its end. |
+| `second_numbers` | The secret cars the arcade can still give (up to 20): winning an arcade level for the first time shows its secret car, takes it out of this list and adds it to `first_numbers`. Empty: all won. |
 
 ### A player
 

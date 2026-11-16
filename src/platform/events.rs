@@ -22,6 +22,11 @@ enum Event {
         axis: crate::input::menu_pad::StickAxis,
         value: i32,
     },
+    /// A joystick that is not a gamepad (a wheel): its hat, buttons and first axis.
+    Joystick {
+        id: SDL_JoystickID,
+        input: sdl::JoystickInput,
+    },
     Other,
 }
 
@@ -64,6 +69,12 @@ fn next_event() -> Option<Event> {
             axis,
             value: value.into(),
         }
+    } else if let Some((id, input)) = event.joystick_input() {
+        // A gamepad's joystick sends these beside its gamepad events: only the others count.
+        if crate::platform::ffi::sdl_input::is_gamepad(id) {
+            return Some(Event::Other);
+        }
+        Event::Joystick { id, input }
     } else if let Some((scancode, down)) = event.key() {
         Event::Key { scancode, down }
     } else {
@@ -196,6 +207,11 @@ pub fn pump(o: crate::owners::Owners<'static>) {
                     }
                 }
             }
+            Event::Joystick { id, input: what } => {
+                if !course.numbers.get().in_race.is_set() {
+                    joystick_in_menus(input, id, what);
+                }
+            }
             Event::Other => {}
         }
     }
@@ -258,6 +274,55 @@ fn pad_button(
     let in_race = course.numbers.get().in_race.is_set();
     let now = u64::from(crate::platform::os::ticks());
     if let Some(action) = lock_menu_pad().button(button, down, in_race, now) {
+        menu_action(input, action);
+    }
+}
+
+/// A joystick that is not a gamepad (a wheel) in the menus: its hat is the pad's cross, its first
+/// axis turned from where it rests is left and right (an axis resting at an end, a pedal, is left
+/// alone), its first button enters and its second goes back. Each button press is logged, so a
+/// wheel whose buttons are numbered otherwise can be told.
+fn joystick_in_menus(
+    input: &crate::input::owner::Input,
+    id: SDL_JoystickID,
+    what: sdl::JoystickInput,
+) {
+    use crate::input::menu_pad::{PadButton, StickAxis};
+    use sdl::JoystickInput as J;
+    let now = u64::from(crate::platform::os::ticks());
+    let action = match what {
+        J::Hat(0, bits) => lock_menu_pad().hat(bits, now),
+        J::Hat(..) => None,
+        J::Axis(0, value) => {
+            let rest = crate::platform::ffi::sdl_input::axis_rest_for_id(id, 0).unwrap_or(0);
+            if rest.unsigned_abs() > 16000 {
+                return;
+            }
+            lock_menu_pad().stick(StickAxis::Wheel, i32::from(value) - i32::from(rest), now)
+        }
+        J::Axis(..) => None,
+        J::Button(n, down) => {
+            if down {
+                log(&format!(
+                    "platform: {} button {} in the menus{}",
+                    crate::platform::ffi::sdl_input::joystick_name_for_id(id, "a joystick"),
+                    n + 1,
+                    match n {
+                        0 => " (enter)",
+                        1 => " (back)",
+                        _ => "",
+                    }
+                ));
+            }
+            let button = match n {
+                0 => PadButton::South,
+                1 => PadButton::East,
+                _ => return,
+            };
+            lock_menu_pad().button(button, down, false, now)
+        }
+    };
+    if let Some(action) = action {
         menu_action(input, action);
     }
 }
