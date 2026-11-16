@@ -49,13 +49,13 @@ pub struct MenuOptions {
     /// The channels chosen.
     pub channels: PlainDword,
     /// The music level (`menu::option_steps`).
-    pub music_level: PlainDword,
+    pub menu_music_volume: PlainDword,
     /// The race music's level, read by the music "up" step (`menu::music_volume_up`).
     pub race_music_level: PlainDword,
     /// The menu sounds' third volume (`sound::play_menu_sound`).
-    pub menu_sounds_level: PlainDword,
+    pub menu_effects_volume: PlainDword,
     /// The speech level (`menu::option_steps`, `sound::play_car_stream`).
-    pub speech_level: PlainDword,
+    pub menu_voices_volume: PlainDword,
 }
 
 /// The options other subsystems read: the race's visual settings and the volumes the sound
@@ -67,10 +67,10 @@ pub struct OptionsSnapshot {
     pub car_shadows: u32,
     pub car_detail: u32,
     pub headlights: u32,
-    pub music_level: u32,
+    pub menu_music_volume: u32,
     pub race_music_level: u32,
-    pub menu_sounds_level: u32,
-    pub speech_level: u32,
+    pub menu_effects_volume: u32,
+    pub menu_voices_volume: u32,
 }
 
 impl MenuOptions {
@@ -82,10 +82,10 @@ impl MenuOptions {
             car_shadows: self.car_shadows.get(),
             car_detail: self.car_detail.get(),
             headlights: self.headlights.get(),
-            music_level: self.music_level.get(),
+            menu_music_volume: self.menu_music_volume.get(),
             race_music_level: self.race_music_level.get(),
-            menu_sounds_level: self.menu_sounds_level.get(),
-            speech_level: self.speech_level.get(),
+            menu_effects_volume: self.menu_effects_volume.get(),
+            menu_voices_volume: self.menu_voices_volume.get(),
         }
     }
 
@@ -108,10 +108,10 @@ impl MenuOptions {
             retired_a3d: PlainDword::new(0x0),
             dolby: PlainDword::new(0x0),
             channels: PlainDword::new(0x1),
-            music_level: PlainDword::new(0x40),
+            menu_music_volume: PlainDword::new(0x40),
             race_music_level: PlainDword::new(0x40),
-            menu_sounds_level: PlainDword::new(0x40),
-            speech_level: PlainDword::new(0x40),
+            menu_effects_volume: PlainDword::new(0x40),
+            menu_voices_volume: PlainDword::new(0x40),
         }
     }
 }
@@ -151,20 +151,20 @@ mod tests {
                 car_shadows: 1,
                 car_detail: 1,
                 headlights: 0,
-                music_level: 0x40,
+                menu_music_volume: 0x40,
                 race_music_level: 0x40,
-                menu_sounds_level: 0x40,
-                speech_level: 0x40,
+                menu_effects_volume: 0x40,
+                menu_voices_volume: 0x40,
             }
         );
         options.car_detail.set(2);
-        options.speech_level.set(7);
+        options.menu_voices_volume.set(7);
         let changed = options.snapshot();
-        assert_eq!((changed.car_detail, changed.speech_level), (2, 7));
+        assert_eq!((changed.car_detail, changed.menu_voices_volume), (2, 7));
         assert_eq!(
             OptionsSnapshot {
                 car_detail: 1,
-                speech_level: 0x40,
+                menu_voices_volume: 0x40,
                 ..changed
             },
             fresh

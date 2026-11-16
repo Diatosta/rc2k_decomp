@@ -50,6 +50,25 @@ impl Window {
         }
     }
 
+    /// SDL's text input on or off for the window (typed characters arrive as text events; on
+    /// a device with a screen keyboard, it is shown).
+    pub fn set_text_input(self, on: bool) {
+        // SAFETY: as `restore_if_minimised`.
+        unsafe {
+            if on {
+                SDL_StartTextInput(self.0);
+            } else {
+                SDL_StopTextInput(self.0);
+            }
+        }
+    }
+
+    /// Whether the system has a screen keyboard SDL can show for the window.
+    pub fn has_screen_keyboard(self) -> bool {
+        // SAFETY: as `restore_if_minimised`.
+        unsafe { SDL_HasScreenKeyboardSupport() }
+    }
+
     /// The window's size in the screen's pixels.
     pub fn set_size(self, width: usize, height: usize) {
         // SAFETY: as `restore_if_minimised`.
@@ -382,6 +401,24 @@ impl PolledEvent {
         // SAFETY: the type says the `gbutton` record is the one SDL filled.
         let button = unsafe { self.0.gbutton };
         Some((SDL_GamepadButton(button.button as i32), button.down))
+    }
+
+    /// The text of a text-input event (UTF-8, as SDL gives it), else `None`.
+    pub fn text(&self) -> Option<String> {
+        if self.kind() != SDL_EVENT_TEXT_INPUT {
+            return None;
+        }
+        // SAFETY: the type says the `text` record is the one SDL filled.
+        let text = unsafe { self.0.text.text };
+        if text.is_null() {
+            return None;
+        }
+        // SAFETY: SDL's text is a NUL-ended string that lives until the next poll.
+        Some(
+            unsafe { std::ffi::CStr::from_ptr(text) }
+                .to_string_lossy()
+                .into_owned(),
+        )
     }
 
     /// The axis and the value of a gamepad axis event (else `None`).

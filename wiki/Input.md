@@ -35,14 +35,35 @@ A menu wants one key at a time, so it takes the pending key: `input::take_key`
 (`src/input/take_key.rs`) returns it and clears it in one step. `menu::handle_keys` then acts on
 it (see [The front end](The-front-end)).
 
-Typing a name uses the same pending key, turned into a character by the current keyboard
-layout (`input::key_to_char`, `src/input/layouts.rs`). The layout comes with the language
-(see [Language files](Language-files)) and handles shift, AltGr and dead keys for accents.
+### Text entry
+
+While a text field is being edited (a player's name, a saved game's, replay's or set-up's name,
+the network settings and the lobby's chat line, the installer's folder) SDL's text input is on
+(`input::typed_text`, `src/input/typed_text.rs`). The characters SDL reports go into a queue as
+Windows-1252 bytes (a character the code page lacks is dropped) and each field takes them from
+it, keeping its own rules: its length, its width in its font, the cheats on the fourth player's
+name. Escape, Enter, Delete and Backspace still come as keys; the scan codes of printable keys
+are not read while text input is on, so no letter comes twice. Any keyboard layout or input
+method SDL knows therefore types; the game's own layout tables (`input::key_to_char`,
+`src/input/layouts.rs`, with the language, see [Language files](Language-files)) serve only when
+text input is off. Text input stays on while a field asked for its characters in the last half
+second and goes off after the editing.
+
+A field entered from a controller shows an on-screen keyboard (see below) unless the system has
+a screen keyboard of its own (`SDL_HasScreenKeyboardSupport`: phones, a Steam Deck under Steam),
+which SDL then shows with the text input.
 
 The yes/no questions accept the first letter of "yes" and "no" in the game's language
 (`src/input/yes_no_key.rs`).
 
 ### A pad in the menus
+
+When a text field is entered with a controller's confirm (the last confirm in the menus came
+from a pad, wheel or other controller, not from the keyboard), a grid of keys is drawn over the
+screen with the menus' fonts (`src/input/osk_draw.rs`; the grid and its moves are
+`rc2k_core::input::osk`): digits, letters, a few symbols, a case key, space, delete and ok. The
+cross or stick moves it, South types the key under it, East is backspace, Start is done (Enter)
+and Back (Select) cancels (Escape). Typing on a physical keyboard closes the grid.
 
 The 1999 menus knew only the keyboard. `src/input/menu_pad.rs` lets any gamepad SDL recognises
 drive them, by turning a button into the pending key it stands for:
@@ -53,6 +74,7 @@ drive them, by turning a button into the pending key it stands for:
 | South (A / Cross) | Enter | |
 | East (B / Circle) | Back (Escape) | |
 | Start | Enter | The pause and "leave?" question, as Escape |
+| Left or right shoulder | Tab (the network lobby shows or hides the gaps) | the car's own control |
 
 South and East also answer the race's yes/no question directly, whatever the language. Outside
 a race the left stick counts as the D-pad: leaning it past about half its travel presses that
@@ -61,7 +83,21 @@ line). In a race the sticks and triggers belong to driving only (below). A joyst
 a gamepad (a wheel) sends SDL's joystick events instead: outside a race its hat is the cross, its
 first axis (from the rest SDL saw when it was opened, and left alone when that rest is near an
 end, as a pedal's is) is left and right with a smaller turn than a stick's, its buttons 1 and 2
-are Enter and Back (`joystick_in_menus` in `src/platform/events.rs`).
+are Back and Enter (`joystick_in_menus` in `src/platform/events.rs`). In a race only those two
+buttons go on to the menus' side, so they answer the "leave?" question as a pad's buttons do.
+
+Places that end on "any key" look at the pad too, through a count of presses
+(`Input::pad_pressed_since`): the pad's South, East or Start (a wheel's first two buttons) end
+the credits race of the attract mode, skip the drive after the finish line, stop a replay played
+from the film loop, and end the pause that follows a window losing the focus. In the network
+race's wait for the other players, East (Back) leaves as Escape does and so does Start.
+In the replay viewer a race is loaded but its list is a menu, so the stick, the wheel and the
+shoulders work it as they work the menus (`driving` in `src/platform/events.rs`).
+
+Race keys that have no pad binding: F1 next view, F2 split screen layout, F3 and F4 volume down
+and up (with Left Ctrl held, the music's), F5 the shared-view flag, F6 .. F12 the HUD and view
+option flags (the screenshot key too, with screenshots on), and Left Ctrl itself, which turns
+the view keys to the second player's view. None has a default pad button.
 
 ## Keys in a race
 
@@ -221,6 +257,7 @@ project's automated races are driven this way; see [Testing](Testing).
 | The pending key | `src/input/take_key.rs` |
 | Pressed-this-frame keys | `src/input/keys.rs` |
 | Keyboard layouts and typing | `src/input/layouts.rs`, `key_to_char.rs` |
+| Typed text and the on-screen keyboard | `src/input/typed_text.rs`, `osk_draw.rs`, `rc2k_core/src/input/osk.rs` |
 | A pad in the menus | `src/input/menu_pad.rs` |
 | How SDL's devices are presented | `src/platform/input.rs`, `src/input/di_objects.rs` |
 | The input thread | `src/input/input_thread.rs`, `input_tick.rs` |

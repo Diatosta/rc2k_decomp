@@ -50,9 +50,11 @@ pub fn lets_rally(o: Owners<'static>) -> Result<bool, Refused> {
     net.vars.sync_first.set(1);
     crate::net::list_players::list_players_regs(net)?;
     // The race's time and whether the car did not finish; Escape leaves the second 1.
+    // The pad's Back sends Escape; Start (the race's pause button) leaves too.
+    let pad_at_start = o.input.pad_marker();
     let (time, not_finished) = loop {
         run_frame(o, || Ok::<(), Refused>(()))?;
-        if crate::input::take_key::take_key(o.input) == 1 {
+        if crate::input::take_key::take_key(o.input) == 1 || o.input.pad_start_since(pad_at_start) {
             break (1, 1);
         }
         if crate::net::race_wait::race_wait(net, &o.system.session.picture_clock)? != 0 {

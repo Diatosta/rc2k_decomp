@@ -31,7 +31,7 @@ pub fn apply_settings(o: Owners<'static>) -> Result<(), crate::errors::Refused> 
     let steps = menus(
         o.audio.state.menu_sound_mode.get(),
         SoundList::Menu,
-        o.audio.levels.master_volume_shown.get(),
+        o.audio.levels.general_volume.get(),
     );
     for s in steps {
         run_step(s, o)?;

@@ -2,7 +2,7 @@
 //!
 //! The car (as `menu::load_car_background` finds it, 0x21 counting as 0x17): `CarStream.on` is 1,
 //! `CarStream.stream` is `MenuLists.car_streams[0][car]`, `CarStream.place` is 0, and
-//! `sound::start_stream` is called with the name and the volume `MenuOptions.speech_level`. Five
+//! `sound::start_stream` is called with the name and the volume `MenuOptions.menu_voices_volume`. Five
 //! call sites, next to `load_car_background`'s. Refuses what the record's lookup refuses.
 
 use crate::errors::{BadInput, Refused};
@@ -49,7 +49,7 @@ pub fn play_car_stream(
                 },
             )
         },
-        menus.options.snapshot().speech_level,
+        menus.options.snapshot().menu_voices_volume,
     );
     if let Some(e) = failed.take() {
         return Err(e.into());

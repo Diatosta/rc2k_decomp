@@ -32,9 +32,32 @@ pub fn ansi_bytes(text: &str) -> Vec<u8> {
         .collect()
 }
 
+/// The byte a typed character is in Windows-1252, if it has one (a control character has
+/// none: a text field does not take it).
+pub fn typed_byte(c: char) -> Option<u8> {
+    match c as u32 {
+        0x20..=0x7E | 0xA0..=0xFF => Some(c as u8),
+        _ => CP1252_HIGH
+            .iter()
+            .position(|&h| h == c && !('\u{80}'..='\u{9F}').contains(&h))
+            .map(|n| 0x80 + n as u8),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn typed_bytes() {
+        assert_eq!(typed_byte('a'), Some(b'a'));
+        assert_eq!(typed_byte('ç'), Some(0xE7));
+        assert_eq!(typed_byte('€'), Some(0x80));
+        assert_eq!(typed_byte('\n'), None);
+        assert_eq!(typed_byte('\u{7F}'), None);
+        assert_eq!(typed_byte('\u{81}'), None);
+        assert_eq!(typed_byte('\u{3B1}'), None);
+    }
 
     #[test]
     fn ansi_text_is_windows_1252() {

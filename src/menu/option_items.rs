@@ -166,61 +166,63 @@ pub fn volume(o: Owners<'static>, which: VolumeKind, up: bool) -> Result<(), Ref
     use crate::menu::option_steps::{Then as StepThen, Volume, volume_step};
     let work = &o.menus.options;
     let item = match which {
-        VolumeKind::Master => {
-            volume_item(var!(@o audio.levels.master_volume_shown), up, Then::Send)
-        }
+        VolumeKind::General => volume_item(var!(@o audio.levels.general_volume), up, Then::Send),
         VolumeKind::RaceMusic => volume_item(
             var!(@o menus.options.race_music_level),
             up,
             Then::Store(var!(@o sound.menu.options.race_music_volume)),
         ),
-        VolumeKind::RaceSounds => {
-            volume_item(var!(@o audio.levels.menu_sounds_a), up, Then::Sound(0x80))
-        }
-        VolumeKind::MenuSounds => {
-            volume_item(var!(@o menus.options.menu_sounds_level), up, Then::Sound(1))
-        }
+        VolumeKind::RaceEffects => volume_item(
+            var!(@o audio.levels.race_effects_volume),
+            up,
+            Then::Sound(0x80),
+        ),
+        VolumeKind::MenuEffects => volume_item(
+            var!(@o menus.options.menu_effects_volume),
+            up,
+            Then::Sound(1),
+        ),
         // The volumes the page's own steps handle (`menu::option_steps::volume_step`).
-        VolumeKind::Music => {
+        VolumeKind::MenuMusic => {
             volume_step(
                 o,
                 Volume {
-                    value: &work.music_level,
+                    value: &work.menu_music_volume,
                     up,
                     then: StepThen::Music,
                 },
             );
             return Ok(());
         }
-        VolumeKind::Speech => {
+        VolumeKind::MenuVoices => {
             volume_step(
                 o,
                 Volume {
-                    value: &work.speech_level,
+                    value: &work.menu_voices_volume,
                     up,
                     then: StepThen::Speech,
                 },
             );
             return Ok(());
         }
-        VolumeKind::MenuSoundsA => {
+        VolumeKind::CodriverVoice => {
             // Heard with one sound going down, another going up.
             let sound = if up { 0x20 } else { 0x10 };
             volume_step(
                 o,
                 Volume {
-                    value: &o.audio.levels.sounds_a,
+                    value: &o.audio.levels.codriver_voice_volume,
                     up,
                     then: StepThen::Sound(sound),
                 },
             );
             return Ok(());
         }
-        VolumeKind::MenuSoundsB => {
+        VolumeKind::Engine => {
             volume_step(
                 o,
                 Volume {
-                    value: &o.audio.levels.sounds_b,
+                    value: &o.audio.levels.engine_volume,
                     up,
                     then: StepThen::Sound(0x40),
                 },

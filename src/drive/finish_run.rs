@@ -46,6 +46,7 @@ pub fn finish_run(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), 
         .get()
         .start_clock
         .set(race.shared.physics_tables.get().scene_clock.get());
+    let pad_at_start = input.pad_marker();
     loop {
         sound.race.sounds.get().objects[0].revs.set(0);
         input_update(o);
@@ -61,7 +62,7 @@ pub fn finish_run(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), 
             break;
         }
         let pressed = |key: usize| input.devices.keys_pressed.get(key) != 0;
-        if pressed(1) || pressed(0x1C) {
+        if pressed(1) || pressed(0x1C) || input.pad_pressed_since(pad_at_start) {
             break;
         }
         race.car_blocks().cars[0].camera_view.set(6);

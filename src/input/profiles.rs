@@ -143,6 +143,9 @@ pub fn controller_kind(
 
 /// The controller's reading now, kept as the rest the learning measures from.
 pub fn begin_learning(input: &Input) {
+    input
+        .learn_back_since
+        .store(0, std::sync::atomic::Ordering::Relaxed);
     *input
         .learn_rest
         .lock()

@@ -1,6 +1,6 @@
 //! `menu::championship_welcome`: the championship's welcome. Unless a saved game goes on
 //! (`event.continuing_save` 1), the speech `;3files\%speech\rally\rally0.wav` is started
-//! (`sound::start_stream`, at `options.speech_level`) and the commands waited for;
+//! (`sound::start_stream`, at `options.menu_voices_volume`) and the commands waited for;
 //! `loop_flags.event_left`, `loop_flags.leave_screen` and the yes-no answer are 0. The picture
 //! `mob_welc.png` with the title bar (`gfx::load_picture_with_overlay`; a failed load is fatal
 //! error 0x80712345, no message) is shown: a key is taken (dropped), one frame of it is run

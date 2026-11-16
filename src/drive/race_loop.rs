@@ -122,6 +122,7 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
     }
     race.replay.replay_view().play_end.set(u32::MAX);
     let mut pause_binding = PauseBinding::new();
+    let pad_at_start = input.pad_marker();
     loop {
         restart_clock(race, system);
         race.shared
@@ -147,6 +148,13 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
                     return Ok(());
                 }
                 let or = crate::drive::any_key_down::any_key_down(input);
+                // A pad's A, B or Start ends it as a key does.
+                if input.pad_pressed_since(pad_at_start) {
+                    crate::logfile::program_log::log(
+                        "drive::race_loop: the credits race ends: a pad button",
+                    );
+                    return Ok(());
+                }
                 if or != 0 {
                     // Which keys (by scan code), and the window's own state of them, for the
                     // credits race that ends at once after the intro.

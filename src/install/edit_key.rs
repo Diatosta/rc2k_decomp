@@ -132,6 +132,8 @@ pub fn edit_key(
                 return Ok(plain(key));
             }
             EditKey::Arrow => return Ok(plain(key)),
+            // Typed text is on: the characters come on their own.
+            EditKey::Other if crate::input::typed_text::text_mode() => return Ok(plain(key)),
             EditKey::Other => {
                 let out = crate::input::key_to_char::key_to_char_for_text(input, key);
                 out? as u8

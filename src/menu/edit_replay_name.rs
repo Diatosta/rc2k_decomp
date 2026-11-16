@@ -58,8 +58,26 @@ pub fn edit_replay_name(
         return Err(BadInput("no keyboard layout").into());
     }
 
-    let key = take_key(input);
     use rc2k_core::menu::text_entry::{self as entry, Key};
+    let typed = crate::input::typed_text::take();
+    // A character: appended unless the name is full, and taken off again when too wide.
+    let mut append = |c: u8| -> Result<(), Refused> {
+        let len = length(menus);
+        if entry::appends(c, len, menus.screens.loop_flags.text_max.get() as i32) {
+            name.add(len as u32).write(&[c], "a replay's name")?;
+            set_length(menus, len.wrapping_add(1));
+            let measured =
+                measure_text_at(MEASURING_FONT, &name.bytes("a replay's name")?, len, canvas)?;
+            if entry::too_wide(measured.width as i32) {
+                backspace_savegame_name(menus, saves)?;
+            }
+        }
+        Ok(())
+    };
+    for &c in &typed.chars {
+        append(c)?;
+    }
+    let key = take_key(input);
     match entry::key(key) {
         Key::None => {}
         Key::Escape => {
@@ -81,16 +99,8 @@ pub fn edit_replay_name(
         Key::Clear => clear_text(menus, other_name)?,
         Key::Backspace => backspace_savegame_name(menus, saves)?,
         Key::Other(key) => {
-            let c = key_to_char(input, key as u32)? as u8;
-            let len = length(menus);
-            if entry::appends(c, len, menus.screens.loop_flags.text_max.get() as i32) {
-                name.add(len as u32).write(&[c], "a replay's name")?;
-                set_length(menus, len.wrapping_add(1));
-                let measured =
-                    measure_text_at(MEASURING_FONT, &name.bytes("a replay's name")?, len, canvas)?;
-                if entry::too_wide(measured.width as i32) {
-                    backspace_savegame_name(menus, saves)?;
-                }
+            if !typed.text_mode {
+                append(key_to_char(input, key as u32)? as u8)?;
             }
         }
     }

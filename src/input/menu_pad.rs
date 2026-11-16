@@ -21,6 +21,8 @@ pub enum MenuAction {
     LeaveRaceEnd,
     /// The third answer of a question.
     Third,
+    /// A shoulder button: Tab, which the network lobby takes to show or hide the gaps.
+    Tab,
 }
 
 // ---- answers to the game's yes / no questions ----
@@ -58,6 +60,8 @@ pub enum PadButton {
     East,
     West,
     Start,
+    LeftShoulder,
+    RightShoulder,
 }
 
 /// The time a held direction waits before it repeats, and between repeats (ms).
@@ -114,6 +118,7 @@ impl MenuPad {
             PadButton::South => MenuAction::Enter,
             PadButton::East => MenuAction::Back,
             PadButton::West => MenuAction::Third,
+            PadButton::LeftShoulder | PadButton::RightShoulder => MenuAction::Tab,
             PadButton::Start if in_race => {
                 self.leave_until = Some(now + LEAVE_HOLD);
                 MenuAction::LeaveRace
@@ -229,6 +234,21 @@ mod tests {
             Some(MenuAction::Enter)
         );
         assert_eq!(p.button(PadButton::South, false, false, 0), None);
+    }
+
+    #[test]
+    fn a_shoulder_button_is_tab() {
+        let mut p = MenuPad::default();
+        assert_eq!(
+            p.button(PadButton::LeftShoulder, true, false, 0),
+            Some(MenuAction::Tab)
+        );
+        assert_eq!(
+            p.button(PadButton::RightShoulder, true, false, 0),
+            Some(MenuAction::Tab)
+        );
+        assert_eq!(p.button(PadButton::RightShoulder, false, false, 0), None);
+        assert_eq!(p.tick(5000), None);
     }
 
     #[test]

@@ -40,9 +40,10 @@ pub fn play_movie_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result
         .get()
         .race_clock_base
         .set(race.shared.physics_tables.get().scene_clock.get());
+    let pad_at_start = input.pad_marker();
     loop {
         race_parts::input_update(o);
-        if input.devices.keys_pressed.get(1) != 0 {
+        if input.devices.keys_pressed.get(1) != 0 || input.pad_pressed_since(pad_at_start) {
             break;
         }
         { crate::drive::race_step::race_step(o, race) }?;

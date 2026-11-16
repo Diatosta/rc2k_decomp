@@ -3,7 +3,6 @@
 
 use crate::logfile::program_log::log;
 use crate::platform::ffi::sdl;
-use crate::race::owner_course::Course;
 use sdl3_sys::everything::*;
 
 /// An SDL event the program looks at.
@@ -27,6 +26,8 @@ enum Event {
         id: SDL_JoystickID,
         input: sdl::JoystickInput,
     },
+    /// Typed text (UTF-8).
+    Text(String),
     Other,
 }
 
@@ -75,6 +76,8 @@ fn next_event() -> Option<Event> {
             return Some(Event::Other);
         }
         Event::Joystick { id, input }
+    } else if let Some(text) = event.text() {
+        Event::Text(text)
     } else if let Some((scancode, down)) = event.key() {
         Event::Key { scancode, down }
     } else {
@@ -161,12 +164,12 @@ fn end_if_not_left() {
 
 /// SDL's events: the window's closing, and the keys the menus take.
 pub fn pump(o: crate::owners::Owners<'static>) {
-    let (input, system, course) = (o.input, o.system, &o.race.course);
+    let (input, system) = (o.input, o.system);
     restore_if_asked();
     // Controllers plugged in or out: the players given the ones they chose.
     crate::input::device_ids::after_listing(o.menus, input);
     #[cfg(feature = "remote")]
-    crate::remote::poll(&o, course);
+    crate::remote::poll(&o, &o.race.course);
     while let Some(event) = next_event() {
         match event {
             Event::Quit if HOLD_QUIT.load(std::sync::atomic::Ordering::Relaxed) => {
@@ -181,7 +184,11 @@ pub fn pump(o: crate::owners::Owners<'static>) {
             // As the window's procedure on `WM_ACTIVATE`: the input thread reads the devices
             // (and does not sleep a second a tick) while it is 1.
             Event::Focus(focused) => system.session.flags.window_focused.set(focused as u32),
+            Event::Text(text) => crate::input::typed_text::typed_by_keyboard(&text),
             Event::Key { scancode, down } => {
+                if down && matches!(scancode, 40 | 88) {
+                    crate::input::typed_text::note_confirm(false);
+                }
                 let key = game_key(scancode);
                 if key == 0 {
                     continue;
@@ -197,19 +204,29 @@ pub fn pump(o: crate::owners::Owners<'static>) {
                     input.devices.set_key_state(key, 0);
                 }
             }
-            Event::Pad { button, down } => pad_button(course, input, system, button, down),
-            // In a race the stick steers (the game's own devices): only the menus take it.
+            Event::Pad { button, down } => {
+                pad_button(driving(o.race), input, system, button, down);
+            }
+            // In a race the stick steers (the game's own devices): only the menus and the
+            // replay viewer take it.
             Event::Stick { axis, value } => {
-                if !course.numbers.get().in_race.is_set() {
+                if !driving(o.race) {
                     let now = u64::from(crate::platform::os::ticks());
                     if let Some(action) = lock_menu_pad().stick(axis, value, now) {
                         menu_action(input, action);
                     }
                 }
             }
+            // In a race a joystick's axes and hat drive the car; its menu buttons still answer the
+            // race's questions (leave the stage?), as a gamepad's do.
             Event::Joystick { id, input: what } => {
-                if !course.numbers.get().in_race.is_set() {
-                    joystick_in_menus(input, id, what);
+                // A wheel's first two buttons end what ends on any key, in a race too.
+                if let sdl::JoystickInput::Button(0..=1, true) = what {
+                    input.note_pad_press(false);
+                }
+                let driving = driving(o.race);
+                if !driving || matches!(what, sdl::JoystickInput::Button(..)) {
+                    joystick_in_menus(input, id, what, driving);
                 }
             }
             Event::Other => {}
@@ -219,6 +236,30 @@ pub fn pump(o: crate::owners::Owners<'static>) {
     if let Some(action) = lock_menu_pad().tick(now) {
         menu_action(input, action);
     }
+    sync_text_input();
+}
+
+/// SDL's text input on while a text field is edited and off after (a screen keyboard, where
+/// the system has one, shows with it).
+fn sync_text_input() {
+    let screen = crate::platform::SCREEN.lock();
+    let window = screen
+        .as_ref()
+        .ok()
+        .and_then(|screen| screen.as_ref())
+        .map(|screen| screen.window);
+    let has_keyboard = || window.is_some_and(super::ffi::sdl::Window::has_screen_keyboard);
+    if let Some(on) = crate::input::typed_text::sync(has_keyboard)
+        && let Some(window) = window
+    {
+        window.set_text_input(on);
+    }
+}
+
+/// Whether a race is being driven: the pad and the wheel are then the player's controls. In the
+/// replay viewer a race is loaded, but its list is a menu: the pad works it as it works the menus.
+fn driving(race: &crate::race::owner::Race) -> bool {
+    race.course.numbers.get().in_race.is_set() && race.shared.replay_file().hold_car_revs.get() == 0
 }
 
 /// The menus' side of the gamepads.
@@ -239,7 +280,7 @@ fn lock_menu_pad() -> std::sync::MutexGuard<'static, crate::input::menu_pad::Men
     )
 )]
 fn pad_button(
-    course: &Course,
+    driving: bool,
     input: &crate::input::owner::Input,
     system: &crate::system::owner::System,
     button: SDL_GamepadButton,
@@ -260,6 +301,19 @@ fn pad_button(
             return;
         }
     }
+    // The on-screen keyboard's own buttons: Start is done, Back cancels.
+    if down
+        && (button == SDL_GAMEPAD_BUTTON_START || button == SDL_GAMEPAD_BUTTON_BACK)
+        && crate::input::typed_text::osk().is_some()
+    {
+        let asks = if button == SDL_GAMEPAD_BUTTON_START {
+            crate::input::typed_text::Asks::Done
+        } else {
+            crate::input::typed_text::Asks::Cancel
+        };
+        osk_asks(input, asks);
+        return;
+    }
     let button = match button {
         SDL_GAMEPAD_BUTTON_DPAD_UP => B::DpadUp,
         SDL_GAMEPAD_BUTTON_DPAD_DOWN => B::DpadDown,
@@ -269,9 +323,15 @@ fn pad_button(
         SDL_GAMEPAD_BUTTON_EAST => B::East,
         SDL_GAMEPAD_BUTTON_WEST => B::West,
         SDL_GAMEPAD_BUTTON_START => B::Start,
+        // In a race the shoulders may be bound to the car's controls.
+        SDL_GAMEPAD_BUTTON_LEFT_SHOULDER if !driving => B::LeftShoulder,
+        SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER if !driving => B::RightShoulder,
         _ => return,
     };
-    let in_race = course.numbers.get().in_race.is_set();
+    if down && matches!(button, B::South | B::East | B::Start) {
+        input.note_pad_press(button == B::Start);
+    }
+    let in_race = driving;
     let now = u64::from(crate::platform::os::ticks());
     if let Some(action) = lock_menu_pad().button(button, down, in_race, now) {
         menu_action(input, action);
@@ -286,6 +346,7 @@ fn joystick_in_menus(
     input: &crate::input::owner::Input,
     id: SDL_JoystickID,
     what: sdl::JoystickInput,
+    in_race: bool,
 ) {
     use crate::input::menu_pad::{PadButton, StickAxis};
     use sdl::JoystickInput as J;
@@ -302,24 +363,26 @@ fn joystick_in_menus(
         }
         J::Axis(..) => None,
         J::Button(n, down) => {
-            if down {
+            // Logged so a player can tell which number a button is; not in a race, where the
+            // buttons shift gears and the like.
+            if down && !in_race {
                 log(&format!(
                     "platform: {} button {} in the menus{}",
                     crate::platform::ffi::sdl_input::joystick_name_for_id(id, "a joystick"),
                     n + 1,
                     match n {
-                        0 => " (enter)",
-                        1 => " (back)",
+                        0 => " (back)",
+                        1 => " (enter)",
                         _ => "",
                     }
                 ));
             }
             let button = match n {
-                0 => PadButton::South,
-                1 => PadButton::East,
+                0 => PadButton::East,
+                1 => PadButton::South,
                 _ => return,
             };
-            lock_menu_pad().button(button, down, false, now)
+            lock_menu_pad().button(button, down, in_race, now)
         }
     };
     if let Some(action) = action {
@@ -332,6 +395,37 @@ fn joystick_in_menus(
 fn menu_action(input: &crate::input::owner::Input, action: crate::input::menu_pad::MenuAction) {
     use crate::input::menu_pad::{MenuAction as A, note_answer};
     use crate::input::yes_no_key::{NO, THIRD, YES};
+    // The on-screen keyboard takes the moves, the south button and the east button.
+    if crate::input::typed_text::osk().is_some() {
+        let step = match action {
+            A::Up => Some((0, -1)),
+            A::Down => Some((0, 1)),
+            A::Left => Some((-1, 0)),
+            A::Right => Some((1, 0)),
+            _ => None,
+        };
+        if let Some((dx, dy)) = step {
+            crate::input::typed_text::osk_step(dx, dy);
+            return;
+        }
+        match action {
+            A::Enter => {
+                if let Some(asks) = crate::input::typed_text::osk_press() {
+                    osk_asks(input, asks);
+                }
+                return;
+            }
+            A::Back => {
+                osk_asks(input, crate::input::typed_text::Asks::Backspace);
+                return;
+            }
+            A::Third => return,
+            _ => {}
+        }
+    }
+    if action == A::Enter {
+        crate::input::typed_text::note_confirm(true);
+    }
     let scancode = match action {
         A::Up => SDL_SCANCODE_UP,
         A::Down => SDL_SCANCODE_DOWN,
@@ -349,6 +443,7 @@ fn menu_action(input: &crate::input::owner::Input, action: crate::input::menu_pa
             note_answer(input, THIRD);
             return;
         }
+        A::Tab => SDL_SCANCODE_TAB,
         A::LeaveRace | A::LeaveRaceEnd => {
             let state = if action == A::LeaveRace { 0xFF } else { 0 };
             input
@@ -426,4 +521,19 @@ fn game_key(scancode: i32) -> u8 {
         231 => 0x79, // right windows
         _ => 0,
     }
+}
+
+/// What the on-screen keyboard asks, as the keys the field already takes.
+fn osk_asks(input: &crate::input::owner::Input, asks: crate::input::typed_text::Asks) {
+    use crate::input::typed_text::Asks;
+    let key = match asks {
+        Asks::Nothing => return,
+        Asks::Backspace => 0x0E,
+        Asks::Done => 0x1C,
+        Asks::Cancel => 0x01,
+    };
+    if asks != Asks::Backspace {
+        crate::input::typed_text::osk_close();
+    }
+    crate::input::take_key::pending_key(input).store(key, std::sync::atomic::Ordering::SeqCst);
 }

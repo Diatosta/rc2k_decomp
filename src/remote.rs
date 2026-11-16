@@ -3,7 +3,7 @@
 //! it; each is run at the next pump and answered with a line in `reply`, `<id> <answer>`.
 //! Keys and buttons are SDL events, so they take the path real ones take.
 //!
-//!     <id> key <scancode name> <ms>      a press of ms
+//!     <id> key <scancode name> <ms>      a press of ms (a letter, digit or space also typed into a field being edited)
 //!     <id> down|up <scancode name>       held until told
 //!     <id> pad <button name> <ms>        a gamepad button (the menus' side)
 //!     <id> joy attach                    a plain stand-in stick plugged in (4 axes, 17
@@ -74,6 +74,16 @@ fn reply(id: &str, answer: &str) {
 
 fn key(scancode: SDL_Scancode, down: bool) {
     sdl_input::push_key_event(scancode, down);
+}
+
+/// The character a key named `name` types (letters in lower case, digits, space), if any.
+fn typed_char(name: &str) -> Option<char> {
+    let mut chars = name.chars();
+    match (chars.next(), chars.next()) {
+        (Some(c), None) if c.is_ascii_alphanumeric() => Some(c.to_ascii_lowercase()),
+        _ if name.eq_ignore_ascii_case("space") => Some(' '),
+        _ => None,
+    }
 }
 
 fn pad(button: SDL_GamepadButton, down: bool) {
@@ -313,6 +323,11 @@ fn run(o: &Owners<'static>, line: &str) {
         }),
         ("key", [name, tail @ ..]) => scancode(name).map(|code| {
             key(code, true);
+            // A real keyboard's key also gives SDL's text event, which a pushed key does not: a
+            // field being edited takes its characters from that.
+            if let Some(c) = typed_char(name) {
+                crate::input::typed_text::typed_by_keyboard(&c.to_string());
+            }
             pending()
                 .releases
                 .push((due(tail.first()), Release::Key(code)));

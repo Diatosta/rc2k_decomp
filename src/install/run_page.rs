@@ -119,6 +119,7 @@ pub fn run_page(
             if system.session.flags.quitting.is_set() {
                 break 'page;
             }
+            i::page_key::type_into_edit(o, install, list.item(list_state.choice.get()))?;
             if key as u8 != 0 && key & 0x80 == 0 {
                 let mut again = 0;
                 loop {

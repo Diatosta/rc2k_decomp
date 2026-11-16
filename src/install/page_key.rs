@@ -71,6 +71,33 @@ pub fn page_key(
     Ok((key, took(list_state, plain_edit)))
 }
 
+/// The characters typed since the last frame go into the item if it is an edit being edited
+/// (as keys with the "character itself" bit; the scan codes of printable keys are not read
+/// meanwhile, see `input::typed_text`).
+pub fn type_into_edit(
+    o: crate::owners::Owners<'static>,
+    install: &'static crate::install::owner::Install,
+    item: ListItem,
+) -> Result<(), Refused> {
+    let edited = items::takes_every_key(item.kind(), || item.edit_field(install).flags() & 1 != 0);
+    if !edited {
+        return Ok(());
+    }
+    let queued = crate::input::typed_text::take();
+    for &c in &queued.chars {
+        crate::install::edit_key::edit_key(
+            crate::strings::append_string_by_id::StringOwners::of(o),
+            o.input,
+            install,
+            0x100 | u32::from(c),
+            item,
+            o.gfx,
+        )?;
+        o.menus.list.key_taken.set(1);
+    }
+    Ok(())
+}
+
 /// A plain edit marks the key as taken; whether it did.
 fn took(list_state: &crate::menu::list_state::ListState, plain_edit: bool) -> bool {
     if plain_edit {

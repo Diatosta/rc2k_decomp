@@ -280,12 +280,12 @@ pub fn name_in(
 pub enum VolumeLevel {
     /// `AudioOwn::unit_volume_factor`.
     Unit = 1,
-    /// `Levels::menu_sounds_a`.
-    MenuSounds = 2,
-    /// `Levels::sounds_a`.
-    SoundsA = 3,
-    /// `Levels::sounds_b`.
-    SoundsB = 4,
+    /// `Levels::race_effects_volume`.
+    RaceEffects = 2,
+    /// `Levels::codriver_voice_volume`.
+    CodriverVoice = 3,
+    /// `Levels::engine_volume`.
+    Engine = 4,
 }
 
 /// The level a record's `volume_factor` names, now (a `VolumeLevel`; 0 is no level).
@@ -297,9 +297,9 @@ pub fn volume_level(
     let levels = &audio.levels;
     Ok(match code {
         1 => state.unit_volume_factor.get(),
-        2 => levels.menu_sounds_a.get(),
-        3 => levels.sounds_a.get(),
-        4 => levels.sounds_b.get(),
+        2 => levels.race_effects_volume.get(),
+        3 => levels.codriver_voice_volume.get(),
+        4 => levels.engine_volume.get(),
         _ => {
             return Err(crate::errors::BadInput(
                 "a sample record's volume level unknown",
@@ -314,9 +314,9 @@ pub fn volume_level(
 /// index and the first voice and place are 0.
 const fn first_records() -> [SampleRecord; SAMPLE_COUNT] {
     const UNIT: u32 = VolumeLevel::Unit as u32;
-    const MENU: u32 = VolumeLevel::MenuSounds as u32;
-    const A: u32 = VolumeLevel::SoundsA as u32;
-    const B: u32 = VolumeLevel::SoundsB as u32;
+    const MENU: u32 = VolumeLevel::RaceEffects as u32;
+    const A: u32 = VolumeLevel::CodriverVoice as u32;
+    const B: u32 = VolumeLevel::Engine as u32;
     let rows: [[u32; 11]; SAMPLE_COUNT] = [
         [
             0x1, 1433, 0x11, 0x1, 0x1, 0x40, B, 0x40400000, 0x40, 0x0, 0xac44,

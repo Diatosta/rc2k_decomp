@@ -101,15 +101,22 @@ pub struct Sound {
     pub tune_turn: u32,
     pub music_volume: u32,
     pub race_music_volume: u32,
-    pub master_volume_shown: u32,
-    pub music_level: u32,
-    /// Read by the music "up" step.
-    pub other_volume: u32,
-    pub menu_sounds_c: u32,
-    pub menu_sounds_a: u32,
-    pub speech_level: u32,
-    pub sounds_a: u32,
-    pub sounds_b: u32,
+    /// The sound page's "general volume" slider.
+    pub general_volume: u32,
+    /// The "menu music" slider.
+    pub menu_music_volume: u32,
+    /// The "race music" slider (read by the music "up" step).
+    pub race_music_level: u32,
+    /// The "menu effects" slider.
+    pub menu_effects_volume: u32,
+    /// The "race effects" slider.
+    pub race_effects_volume: u32,
+    /// The "menu voices" slider.
+    pub menu_voices_volume: u32,
+    /// The "co-driver's voice" slider.
+    pub codriver_voice_volume: u32,
+    /// The "car engine" slider.
+    pub engine_volume: u32,
 }
 
 /// The network settings.
@@ -246,14 +253,14 @@ impl Options {
         for item in self.players.records.iter_mut().take(4) {
             f(item);
         }
-        f(&mut self.sound.master_volume_shown);
-        f(&mut self.sound.music_level);
-        f(&mut self.sound.other_volume);
-        f(&mut self.sound.menu_sounds_c);
-        f(&mut self.sound.menu_sounds_a);
-        f(&mut self.sound.speech_level);
-        f(&mut self.sound.sounds_a);
-        f(&mut self.sound.sounds_b);
+        f(&mut self.sound.general_volume);
+        f(&mut self.sound.menu_music_volume);
+        f(&mut self.sound.race_music_level);
+        f(&mut self.sound.menu_effects_volume);
+        f(&mut self.sound.race_effects_volume);
+        f(&mut self.sound.menu_voices_volume);
+        f(&mut self.sound.codriver_voice_volume);
+        f(&mut self.sound.engine_volume);
         f(&mut self.pages.switches);
         f(&mut self.pages.audio);
         f(&mut self.pages.services);

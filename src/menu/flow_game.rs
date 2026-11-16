@@ -121,7 +121,7 @@ fn place<'a>(menus: &'a Menus, race: &'a Race, v: Var) -> Place<'a> {
         Var::Index => Cell(&menus.screens.event.stage_in_section),
         Var::ReviewKind => Cell(&menus.screens.state.menus.review_kind),
         Var::Record(offset) => Place::Record(offset),
-        Var::SpeechChannel => Cell(&menus.options.speech_level),
+        Var::SpeechChannel => Cell(&menus.options.menu_voices_volume),
     }
 }
 

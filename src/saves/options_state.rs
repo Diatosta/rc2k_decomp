@@ -262,14 +262,14 @@ fn pieces_of(o: Owners<'static>) -> [Field<'static>; 69] {
         Field::Player(&menus.play.slots.records[1]),
         Field::Player(&menus.play.slots.records[2]),
         Field::Player(&menus.play.slots.records[3]),
-        Field::Dword(&audio.levels.master_volume_shown),           // the master volume shown
-        Field::Dword(&work.music_level),                   // the music level
-        Field::Dword(&work.race_music_level),                  // read by the music "up" step
-        Field::Dword(&work.menu_sounds_level),                 // the menu sounds' third volume
-        Field::Dword(&audio.levels.menu_sounds_a),                 // the menu sounds' first volume
-        Field::Dword(&work.speech_level),                  // the speech level
-        Field::Dword(&audio.levels.sounds_a),                      // the sounds' first level
-        Field::Dword(&audio.levels.sounds_b),                      // the sounds' second level
+        Field::Dword(&audio.levels.general_volume),           // the "general volume" slider
+        Field::Dword(&work.menu_music_volume),                   // the "menu music" slider
+        Field::Dword(&work.race_music_level),                  // the "race music" slider
+        Field::Dword(&work.menu_effects_volume),                 // the "menu effects" slider
+        Field::Dword(&audio.levels.race_effects_volume),                 // the "race effects" slider
+        Field::Dword(&work.menu_voices_volume),                  // the "menu voices" slider
+        Field::Dword(&audio.levels.codriver_voice_volume),                      // the "co-driver's voice" slider
+        Field::Dword(&audio.levels.engine_volume),                      // the "car engine" slider
         Field::Dwords(vec![                                        // the options pages' work copies, mipmapping .. headlights
             &work.mipmapping, &work.buffering, &work.mode_changed, &work.modes_switch,
             &work.lens_flare, &work.unused_percent_a, &work.unused_percent_b,

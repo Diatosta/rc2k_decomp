@@ -1,7 +1,7 @@
 //! `menu::run_front_end`: the game between its start and its end: the films and the main menu,
 //! with everything that is reached from it.
 //!
-//! `audio.levels.master_volume_shown` = the master volume; `menu::drop_missing_controllers`;
+//! `audio.levels.general_volume` = the master volume; `menu::drop_missing_controllers`;
 //! `gfx::build_fonts`; the films at the start (`menu::play_films`); the log line "BEV: Starting
 //! GB_Front"; `menu::main_menu_loop`; "BEV: Finished GB_Front"; `menu::store_player_names`;
 //! `gfx::free_fonts`; `saves::list_car_numbers`. A race asked for on the command line
@@ -26,7 +26,7 @@ pub fn run_front_end(o: Owners<'static>) -> Result<(), Refused> {
     log("menu::run_front_end: runs");
     audio
         .levels
-        .master_volume_shown
+        .general_volume
         .set(audio.state.master_volume.get());
     crate::menu::drop_missing_controllers::drop_missing_controllers(menus, o.input)?;
     crate::gfx::build_fonts::build_fonts_in(gfx, o.system, o.strings)?;

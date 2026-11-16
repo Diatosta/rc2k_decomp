@@ -13,17 +13,17 @@ pub fn draw_volume_settings(o: Owners<'static>, canvas: &mut dyn Canvas) -> Resu
     // The logic is in `rc2k_core::screens::settings_pages::volume`.
 
     let id = o.sound.menu.options.race_music_on.get().wrapping_add(0x56D);
-    // The volumes: the master volume shown, then `options.music_level` to
-    // `audio.levels.sounds_b`.
+    // The volumes: the general volume, then `options.menu_music_volume` to
+    // `audio.levels.engine_volume`.
     let volumes: [u32; 8] = [
-        levels.master_volume_shown.get(),
-        options.music_level.get(),
+        levels.general_volume.get(),
+        options.menu_music_volume.get(),
         options.race_music_level.get(),
-        options.menu_sounds_level.get(),
-        levels.menu_sounds_a.get(),
-        options.speech_level.get(),
-        levels.sounds_a.get(),
-        levels.sounds_b.get(),
+        options.menu_effects_volume.get(),
+        levels.race_effects_volume.get(),
+        options.menu_voices_volume.get(),
+        levels.codriver_voice_volume.get(),
+        levels.engine_volume.get(),
     ];
     rc2k_core::screens::settings_pages::volume(
         &mut crate::screens::game_screen::SettingsScreen::new(canvas, o),

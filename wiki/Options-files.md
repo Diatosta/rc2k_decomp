@@ -134,20 +134,20 @@ A **sound mode** is one number, written in decimal; turn it into hexadecimal to 
 | --- | --- |
 | `menu_sound_mode` | The sound mode of the menus. The game sets it to `0x11221` (`70177`: DirectSound, own buffers, half the sample rate) whenever the audio options are applied; 0 means not yet chosen. |
 | `race_sound_mode` | The sound mode of the races, built from the advanced audio page (`[pages] audio`) and what the machine has. `0x11221` is the plain mode; with 3D sound it carries `0x100000` (`0x111221`), with the card's own buffers `0x911221`, with EAX also `0x1000000` (`0x1911221`). 0 means not yet chosen. |
-| `master_volume` | The master volume the audio thread holds, 0 .. 64. A fresh game holds 65, which counts as full. It follows the slider `master_volume_shown`. |
-| `master_volume_shown` | The sound page's "general volume" slider, 0 .. 64: it is sent to the audio thread as the master volume, at start and at each step. |
+| `master_volume` | The master volume the audio thread holds, 0 .. 64. A fresh game holds 65, which counts as full. It follows the slider `general_volume`. |
+| `general_volume` | The sound page's "general volume" slider, 0 .. 64: it is sent to the audio thread as the master volume, at start and at each step. |
 | `unread_option_f0` | A sound option the old file has room for; nothing reads it (a fresh game holds 1). Kept so the old file can be written back as it was. |
 | `race_music_on` | The race music: 0 off, 1 on. The music of the races (tune 8) plays only while it is 1; the sound page shows it as an off / on row. |
 | `tune_turn` | Which tune the music plays next: a counter the audio thread keeps for the music's order and saves, so the tunes go on from where they stopped. |
-| `music_volume` | The volume the menus' music is started at, 0 .. 64. At the start of the front end it is set from `music_level`. |
-| `race_music_volume` | The volume the races' music is started at, 0 .. 64. At the start of the front end it is set from `other_volume`. |
-| `music_level` | The "menu music" slider, 0 .. 64 (a fresh game 64). Stepping it sets `music_volume` and the music's volume at once. |
-| `other_volume` | The "race music" slider, 0 .. 64: stepping it sets `race_music_volume`. |
-| `menu_sounds_c` | The "menu effects" slider, 0 .. 64: the menus' own sounds (clicks, moving between items); a sound plays at each step so that it can be heard. |
-| `menu_sounds_a` | The "race effects" slider, 0 .. 64: the level of the race's sound effects (those whose sample record names this level); a race sound plays at each step. |
-| `speech_level` | The "menu voices" slider, 0 .. 64: the spoken sounds of the menus (the announcer, the car's names); a sample plays at each step. |
-| `sounds_a` | The "co-driver's voice" slider, 0 .. 64: the level of the pace notes the co-driver reads in a race. |
-| `sounds_b` | The "car engine" slider, 0 .. 64: the level of the cars' engine sounds. |
+| `music_volume` | The volume the menus' music is started at, 0 .. 64. At the start of the front end it is set from `menu_music_volume`. |
+| `race_music_volume` | The volume the races' music is started at, 0 .. 64. At the start of the front end it is set from `race_music_level`. |
+| `menu_music_volume` | The "menu music" slider, 0 .. 64 (a fresh game 64). Stepping it sets `music_volume` and the music's volume at once. |
+| `race_music_level` | The "race music" slider, 0 .. 64: stepping it sets `race_music_volume`. |
+| `menu_effects_volume` | The "menu effects" slider, 0 .. 64: the menus' own sounds (clicks, moving between items); a sound plays at each step so that it can be heard. |
+| `race_effects_volume` | The "race effects" slider, 0 .. 64: the level of the race's sound effects (those whose sample record names this level); a race sound plays at each step. |
+| `menu_voices_volume` | The "menu voices" slider, 0 .. 64: the spoken sounds of the menus (the announcer, the car's names); a sample plays at each step. |
+| `codriver_voice_volume` | The "co-driver's voice" slider, 0 .. 64: the level of the pace notes the co-driver reads in a race. |
+| `engine_volume` | The "car engine" slider, 0 .. 64: the level of the cars' engine sounds. |
 
 ### Network
 
@@ -433,14 +433,14 @@ The values have no gaps or alignment between them, which is why some offsets are
 | `0x0104` | `0x4` | `records.tyre_change_time` | The tyre-change record. |
 | `0x0108` | `0x10` | `kept.options` | Four u32s, kept, not used. |
 | `0x0118` | 4 × `0x28C` | `players.records` | The four player records. |
-| `0x0B48` | `0x4` | `sound.master_volume_shown` | Master volume as the options page shows it. |
-| `0x0B4C` | `0x4` | `sound.music_level` | Music level. |
-| `0x0B50` | `0x4` | `sound.other_volume` | A second music level. |
-| `0x0B54` | `0x4` | `sound.menu_sounds_c` | A menu sounds level. |
-| `0x0B58` | `0x4` | `sound.menu_sounds_a` | A menu sounds level. |
-| `0x0B5C` | `0x4` | `sound.speech_level` | Speech level. |
-| `0x0B60` | `0x4` | `sound.sounds_a` | An effects level. |
-| `0x0B64` | `0x4` | `sound.sounds_b` | An effects level. |
+| `0x0B48` | `0x4` | `sound.general_volume` | The "general volume" slider. |
+| `0x0B4C` | `0x4` | `sound.menu_music_volume` | The "menu music" slider. |
+| `0x0B50` | `0x4` | `sound.race_music_level` | The "race music" slider. |
+| `0x0B54` | `0x4` | `sound.menu_effects_volume` | The "menu effects" slider. |
+| `0x0B58` | `0x4` | `sound.race_effects_volume` | The "race effects" slider. |
+| `0x0B5C` | `0x4` | `sound.menu_voices_volume` | The "menu voices" slider. |
+| `0x0B60` | `0x4` | `sound.codriver_voice_volume` | The "co-driver's voice" slider. |
+| `0x0B64` | `0x4` | `sound.engine_volume` | The "car engine" slider. |
 | `0x0B68` | `0x2C` | `pages.switches` | Eleven u32s, the graphics options page: mipmapping, buffering, two screen-mode switches, lens flare, two unused percentages, reflections, car shadows, car detail, headlights. |
 | `0x0B94` | `0x18` | `pages.audio` | Six u32s, the audio options page: quality, 3D sound, EAX, the A3D switch of the original (not used: 0 after a load), Dolby, channels. |
 | `0x0BAC` | `0x4` | `pages.services` | Services counted. |

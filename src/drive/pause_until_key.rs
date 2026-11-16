@@ -26,6 +26,7 @@ fn any_ending_key(input: &crate::input::owner::Input) -> u32 {
 pub fn pause_until_key(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (input, system) = (o.input, o.system);
     let shared = &race.shared;
+    let pad_at_start = input.pad_marker();
     for _ in 0..5 {
         take_key(input);
     }
@@ -67,7 +68,7 @@ pub fn pause_until_key(race: &Race, o: crate::owners::Owners<'static>) -> Result
             continue;
         }
         race_keys(race, o)?;
-        if any_ending_key(input) != 0 {
+        if any_ending_key(input) != 0 || input.pad_pressed_since(pad_at_start) {
             break;
         }
     }

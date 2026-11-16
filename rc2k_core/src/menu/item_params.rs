@@ -5,22 +5,22 @@
 /// The volumes of the sound pages that have a "less" and a "more" item.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum VolumeKind {
-    /// The general volume, sent to the audio thread.
-    Master,
-    /// The music's volume (`options.music_level`).
-    Music,
-    /// The race music's volume (`options.race_music_level`), kept for the race.
+    /// The "general volume" slider, sent to the audio thread (`audio::levels::Levels::general_volume`).
+    General,
+    /// The "menu music" slider (`options.menu_music_volume`).
+    MenuMusic,
+    /// The "race music" slider (`options.race_music_level`), kept for the race.
     RaceMusic,
-    /// The race sounds' volume (`audio::levels::Levels::menu_sounds_a`), heard with a race sound.
-    RaceSounds,
-    /// The speech's volume (`options.speech_level`).
-    Speech,
-    /// The first of the other menu sounds' volumes (`audio::levels::Levels::sounds_a`).
-    MenuSoundsA,
-    /// The second of the other menu sounds' volumes (`audio::levels::Levels::sounds_b`).
-    MenuSoundsB,
-    /// The menu sounds' volume (`options.menu_sounds_level`), heard with a menu sound.
-    MenuSounds,
+    /// The "race effects" slider (`audio::levels::Levels::race_effects_volume`), heard with a race sound.
+    RaceEffects,
+    /// The "menu voices" slider (`options.menu_voices_volume`).
+    MenuVoices,
+    /// The "co-driver's voice" slider (`audio::levels::Levels::codriver_voice_volume`).
+    CodriverVoice,
+    /// The "car engine" slider (`audio::levels::Levels::engine_volume`).
+    Engine,
+    /// The "menu effects" slider (`options.menu_effects_volume`), heard with a menu sound.
+    MenuEffects,
 }
 
 /// The switches of the options pages (the items flipped left or right).

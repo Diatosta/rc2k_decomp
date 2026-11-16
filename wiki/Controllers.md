@@ -28,19 +28,31 @@ Any gamepad SDL recognises works in the menus on every system, with nothing to s
 | South button (A on an Xbox pad) | Enter |
 | East button (B) | Escape / back |
 | West button (X) | the third answer, where a question has three |
+| Left or right shoulder | Tab: the network lobby shows or hides the gaps (in a race they stay the car's controls) |
 | Start | Enter in a menu; in a race, the same as Escape (asks whether to leave) |
 
 A wheel or another joystick that SDL does not know as a gamepad works the menus too: its hat
 moves the highlight like the D-pad, turning the wheel (its first axis, measured from where it
 rests; a small turn is enough, and held it repeats) moves left and right, its first button
-enters and its second goes back. Each button press in the menus is noted in `rc2k.log` with its
-number, so a wheel whose buttons are numbered otherwise can be told. In a race these inputs are
-the player's controls only.
+goes back and its second enters. Each button press in the menus is noted in `rc2k.log` with its
+number, so a wheel whose buttons are numbered otherwise can be told. In a race the axes and hat
+are the player's controls only; the two buttons also answer the race's "leave?" question (the
+second leaves, the first stays), as a pad's do.
 
 On a yes / no question the South and East buttons answer yes and no directly, in any
 language.
 
-Typing a name (a player's, a saved game's) still needs a keyboard.
+Typing a name (a player's, a saved game's, the network settings and the chat) with a pad shows
+an on-screen keyboard when the field is entered with the pad's confirm: the cross or stick moves
+over the keys, South types one, East is backspace, Start is done and Back cancels. On a system
+with its own screen keyboard (a phone, a Steam Deck under Steam) that one is shown instead. A
+keyboard typed on closes ours. See [Input](Input).
+
+A pad's South, East or Start (a wheel's first two buttons) also end what ends on any key: the
+credits race of the attract mode, the drive after the finish line, a replay played from the film
+loop and the pause after the window lost the focus. While the network race waits for the other
+players, East or Start leaves, as Escape does. The replay viewer works with the D-pad, the stick
+or the wheel like the menus.
 
 ### In a race
 
@@ -78,8 +90,9 @@ Learning a button, a hat direction or an axis (the page asks for the control for
 takes what moves from where the controller rests when the learning starts, so a pedal that rests
 at the end of its travel, a clutch for one, is not taken for the axis you moved. A button held
 when the learning starts (the one that opened it) counts only once it has been let go and
-pressed again. When nothing comes in five seconds, or space is pressed, the control stays as it
-was.
+pressed again. When nothing comes in five seconds, or space is pressed, or a gamepad's Back
+(Select) is held for a second, the control stays as it was; Back let go sooner is learnt like
+another button.
 
 ### Profiles
 

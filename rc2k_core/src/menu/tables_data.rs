@@ -217,19 +217,19 @@ impl ItemFn {
         ItemFn::Toggle(Setting::MetricUnits),
         ItemFn::OptionSwitch(OptionSwitch::RaceMusicOn),
         ItemFn::Volume {
-            which: VolumeKind::Master,
+            which: VolumeKind::General,
             up: false,
         },
         ItemFn::Volume {
-            which: VolumeKind::Master,
+            which: VolumeKind::General,
             up: true,
         },
         ItemFn::Volume {
-            which: VolumeKind::Music,
+            which: VolumeKind::MenuMusic,
             up: false,
         },
         ItemFn::Volume {
-            which: VolumeKind::Music,
+            which: VolumeKind::MenuMusic,
             up: true,
         },
         ItemFn::Volume {
@@ -241,43 +241,43 @@ impl ItemFn {
             up: true,
         },
         ItemFn::Volume {
-            which: VolumeKind::RaceSounds,
+            which: VolumeKind::RaceEffects,
             up: false,
         },
         ItemFn::Volume {
-            which: VolumeKind::RaceSounds,
+            which: VolumeKind::RaceEffects,
             up: true,
         },
         ItemFn::Volume {
-            which: VolumeKind::Speech,
+            which: VolumeKind::MenuVoices,
             up: false,
         },
         ItemFn::Volume {
-            which: VolumeKind::Speech,
+            which: VolumeKind::MenuVoices,
             up: true,
         },
         ItemFn::Volume {
-            which: VolumeKind::MenuSoundsA,
+            which: VolumeKind::CodriverVoice,
             up: false,
         },
         ItemFn::Volume {
-            which: VolumeKind::MenuSoundsA,
+            which: VolumeKind::CodriverVoice,
             up: true,
         },
         ItemFn::Volume {
-            which: VolumeKind::MenuSoundsB,
+            which: VolumeKind::Engine,
             up: false,
         },
         ItemFn::Volume {
-            which: VolumeKind::MenuSoundsB,
+            which: VolumeKind::Engine,
             up: true,
         },
         ItemFn::Volume {
-            which: VolumeKind::MenuSounds,
+            which: VolumeKind::MenuEffects,
             up: false,
         },
         ItemFn::Volume {
-            which: VolumeKind::MenuSounds,
+            which: VolumeKind::MenuEffects,
             up: true,
         },
         ItemFn::OptionSwitch(OptionSwitch::StageRecordsSet),
@@ -6020,11 +6020,11 @@ pub static MENUS: [Menu; 96] = [
                     ItemFn::Nothing,
                     ItemFn::Nothing,
                     ItemFn::Volume {
-                        which: VolumeKind::Master,
+                        which: VolumeKind::General,
                         up: false,
                     },
                     ItemFn::Volume {
-                        which: VolumeKind::Master,
+                        which: VolumeKind::General,
                         up: true,
                     },
                 ],
@@ -6050,11 +6050,11 @@ pub static MENUS: [Menu; 96] = [
                     ItemFn::Nothing,
                     ItemFn::Nothing,
                     ItemFn::Volume {
-                        which: VolumeKind::Music,
+                        which: VolumeKind::MenuMusic,
                         up: false,
                     },
                     ItemFn::Volume {
-                        which: VolumeKind::Music,
+                        which: VolumeKind::MenuMusic,
                         up: true,
                     },
                 ],
@@ -6110,11 +6110,11 @@ pub static MENUS: [Menu; 96] = [
                     ItemFn::Nothing,
                     ItemFn::Nothing,
                     ItemFn::Volume {
-                        which: VolumeKind::MenuSounds,
+                        which: VolumeKind::MenuEffects,
                         up: false,
                     },
                     ItemFn::Volume {
-                        which: VolumeKind::MenuSounds,
+                        which: VolumeKind::MenuEffects,
                         up: true,
                     },
                 ],
@@ -6140,11 +6140,11 @@ pub static MENUS: [Menu; 96] = [
                     ItemFn::Nothing,
                     ItemFn::Nothing,
                     ItemFn::Volume {
-                        which: VolumeKind::RaceSounds,
+                        which: VolumeKind::RaceEffects,
                         up: false,
                     },
                     ItemFn::Volume {
-                        which: VolumeKind::RaceSounds,
+                        which: VolumeKind::RaceEffects,
                         up: true,
                     },
                 ],
@@ -6170,11 +6170,11 @@ pub static MENUS: [Menu; 96] = [
                     ItemFn::Nothing,
                     ItemFn::Nothing,
                     ItemFn::Volume {
-                        which: VolumeKind::Speech,
+                        which: VolumeKind::MenuVoices,
                         up: false,
                     },
                     ItemFn::Volume {
-                        which: VolumeKind::Speech,
+                        which: VolumeKind::MenuVoices,
                         up: true,
                     },
                 ],
@@ -6200,11 +6200,11 @@ pub static MENUS: [Menu; 96] = [
                     ItemFn::Nothing,
                     ItemFn::Nothing,
                     ItemFn::Volume {
-                        which: VolumeKind::MenuSoundsA,
+                        which: VolumeKind::CodriverVoice,
                         up: false,
                     },
                     ItemFn::Volume {
-                        which: VolumeKind::MenuSoundsA,
+                        which: VolumeKind::CodriverVoice,
                         up: true,
                     },
                 ],
@@ -6230,11 +6230,11 @@ pub static MENUS: [Menu; 96] = [
                     ItemFn::Nothing,
                     ItemFn::Nothing,
                     ItemFn::Volume {
-                        which: VolumeKind::MenuSoundsB,
+                        which: VolumeKind::Engine,
                         up: false,
                     },
                     ItemFn::Volume {
-                        which: VolumeKind::MenuSoundsB,
+                        which: VolumeKind::Engine,
                         up: true,
                     },
                 ],

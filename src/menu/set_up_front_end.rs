@@ -51,7 +51,7 @@ pub fn set_up_front_end(o: crate::owners::Owners<'static>) -> Result<(), Refused
         .menu
         .options
         .music_volume
-        .set(menus.options.snapshot().music_level);
+        .set(menus.options.snapshot().menu_music_volume);
     sound
         .menu
         .options

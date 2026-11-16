@@ -22,6 +22,39 @@ pub fn edit_key(
     if edit.edited.get() != editing::NOT_EDITING {
         let text = crate::net::begin_edit::EditedText::edited(edit)?.text(net);
         let words = StoreBytes(text);
+        let queued = crate::input::typed_text::take();
+        // A character: appended (up to 0x3F) and taken off again when the text is then too wide.
+        let append = |typed: u8| -> Result<(), Refused> {
+            if editing::takes(typed)
+                && let Some(at) = editing::end_for_char(&words)?
+            {
+                // The text up to the character's place and the character, measured as a
+                // value; the character is taken off again (a NUL over it) when the text is
+                // then too wide.
+                let mut shown = vec![0; at];
+                text.load(0, &mut shown)?;
+                shown.extend_from_slice(&[typed, 0]);
+                let width = {
+                    measure_text_at(
+                        edit.edit_font.get(),
+                        &shown,
+                        at as i32,
+                        &mut GameCanvas::new(gfx),
+                    )
+                }?
+                .width;
+                let kept = if editing::too_wide(width, edit.edit_width.get()) {
+                    [0, 0]
+                } else {
+                    [typed, 0]
+                };
+                text.store(at, &kept)?;
+            }
+            Ok(())
+        };
+        for &c in &queued.chars {
+            append(c)?;
+        }
         match EditKey::of(key) {
             EditKey::Escape => {
                 copy_between(
@@ -42,31 +75,8 @@ pub fn edit_key(
                 }
             }
             EditKey::Other => {
-                let typed = crate::input::key_to_char::key_to_char(input, key as u32)? as u8;
-                if editing::takes(typed)
-                    && let Some(at) = editing::end_for_char(&words)?
-                {
-                    // The text up to the character's place and the character, measured as a
-                    // value; the character is taken off again (a NUL over it) when the text is
-                    // then too wide.
-                    let mut shown = vec![0; at];
-                    text.load(0, &mut shown)?;
-                    shown.extend_from_slice(&[typed, 0]);
-                    let width = {
-                        measure_text_at(
-                            edit.edit_font.get(),
-                            &shown,
-                            at as i32,
-                            &mut GameCanvas::new(gfx),
-                        )
-                    }?
-                    .width;
-                    let kept = if editing::too_wide(width, edit.edit_width.get()) {
-                        [0, 0]
-                    } else {
-                        [typed, 0]
-                    };
-                    text.store(at, &kept)?;
+                if !queued.text_mode {
+                    append(crate::input::key_to_char::key_to_char(input, key as u32)? as u8)?;
                 }
             }
         }

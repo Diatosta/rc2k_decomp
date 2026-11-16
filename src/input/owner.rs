@@ -6,6 +6,7 @@ use crate::input::layouts::Layouts;
 use crate::input::store::{Devices, ForceFeedback, Keyboard, Mouse};
 use crate::memory::session::GameThread;
 use std::sync::atomic::AtomicU32;
+use std::sync::atomic::Ordering::Relaxed;
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
 /// The input's state.
@@ -21,6 +22,14 @@ pub struct Input {
     /// The answer a gamepad button gave to a yes / no question, for the question to take
     /// (`input::menu_pad::note_answer`).
     pub menu_answer: AtomicU32,
+    /// How many times the pad's A, B or Start (or a wheel's first two buttons) went down: what a
+    /// loop that ends on any key reads for the pad (`pad_pressed_since`).
+    pad_presses: AtomicU32,
+    /// How many times Start went down (the network wait's way out).
+    pad_starts: AtomicU32,
+    /// While a controller's binding is learnt and the pad's Back is held: when it went down
+    /// (ms, plus one; 0 when it is up).
+    pub learn_back_since: std::sync::atomic::AtomicU64,
     /// The controller each of the four players chose, by what it is (`input::device_ids`):
     /// kept while it is not plugged in, so the player has it back when it is.
     pub chosen_devices: Mutex<[Option<rc2k_core::input::device_id::DeviceId>; 4]>,
@@ -46,6 +55,13 @@ pub struct Input {
     main: GameThread<InputMain>,
 }
 
+/// The pad's presses at one moment (`Input::pad_marker`).
+#[derive(Clone, Copy)]
+pub struct PadMarker {
+    presses: u32,
+    starts: u32,
+}
+
 /// The keyboard and the mouse.
 pub struct InputMain {
     /// The keyboard layout and the typed-key state.
@@ -55,6 +71,32 @@ pub struct InputMain {
 }
 
 impl Input {
+    /// The pad's presses so far: a loop that ends on any key notes this at its start.
+    pub fn pad_marker(&self) -> PadMarker {
+        PadMarker {
+            presses: self.pad_presses.load(Relaxed),
+            starts: self.pad_starts.load(Relaxed),
+        }
+    }
+
+    /// Whether A, B or Start (or a wheel's first two buttons) went down since `marker`.
+    pub fn pad_pressed_since(&self, marker: PadMarker) -> bool {
+        self.pad_presses.load(Relaxed) != marker.presses
+    }
+
+    /// Whether Start went down since `marker`.
+    pub fn pad_start_since(&self, marker: PadMarker) -> bool {
+        self.pad_starts.load(Relaxed) != marker.starts
+    }
+
+    /// A pad's A, B or Start (or a wheel's first two buttons) went down; `start`: it was Start.
+    pub fn note_pad_press(&self, start: bool) {
+        self.pad_presses.fetch_add(1, Relaxed);
+        if start {
+            self.pad_starts.fetch_add(1, Relaxed);
+        }
+    }
+
     /// The keyboard layouts.
     pub fn layouts(&self) -> MutexGuard<'_, Layouts> {
         self.layouts.lock().unwrap_or_else(PoisonError::into_inner)
@@ -80,6 +122,9 @@ impl Input {
             guids: InputGuids::new(),
             layouts: Mutex::new(Layouts::new()),
             menu_answer: AtomicU32::new(crate::input::menu_pad::NO_ANSWER),
+            pad_presses: AtomicU32::new(0),
+            pad_starts: AtomicU32::new(0),
+            learn_back_since: std::sync::atomic::AtomicU64::new(0),
             chosen_devices: Mutex::new([const { None }; 4]),
             profiles: Mutex::new([const { Vec::new() }; 4]),
             race_players: [AtomicU32::new(0), AtomicU32::new(1)],

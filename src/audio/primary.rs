@@ -94,7 +94,7 @@ pub fn make_primary(
     if stored {
         state.master_volume.set(volume);
     }
-    audio.levels.master_volume_shown.set(volume);
+    audio.levels.general_volume.set(volume);
     crate::audio::set_master_volume::set_master_volume(state, volume);
     if state.sound_mode.get() & MODE_3D != 0
         && !crate::audio::sound_device::open_listener(state, system)?
