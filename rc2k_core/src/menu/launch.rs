@@ -7,10 +7,12 @@
 //! lines, `#` starting a comment):
 //! - `--stage <name>` or `--stage <rally>-<stage>` (1-based, the stage screen's order): the
 //!   stage; a launch needs it.
-//! - `--stage-group 1|2`: the stage screen's group (1 unless given).
+//! - `--stage-set <name or number>`: the stage screen's set (its group switch: the simulation's
+//!   or the arcade's, by the game's name for it or 1 / 2); the first unless given.
 //! - `--car <name or number>`, `--car2 <...>` (the second player's; the first's unless given):
 //!   a car of the list the car screen shows, by its name as the game shows it or its place in
-//!   that list (1-based). The player's own car unless given.
+//!   that list (1-based); a car by name not in it is taken from every car's list, as the
+//!   "Unlock Cars" cheat shows it. The player's own car unless given.
 //! - `--gearbox <name or number>`: one of the game's three gearbox choices (1-based).
 //! - `--players 1|2`: one player, or two on a split screen.
 //! - `--seed <n>` (decimal or `0x` hex): the random numbers start from it.
@@ -96,6 +98,100 @@ pub enum Pick {
     None,
 }
 
+/// The launch's names, in English whatever language the game runs in: by the number of the
+/// game's own text for the name (the same in every language). A name not here is matched by
+/// the game's text.
+const ENGLISH: &[(u32, &str)] = &[
+    // The car screen's gearboxes.
+    (0x21F, "Manual"),
+    (0x220, "Semi-automatic"),
+    (0x221, "Automatic"),
+    // The cars.
+    (0x222, "Citroen Saxo (A6)"),
+    (0x223, "Ford Escort RS2000 (A7)"),
+    (0x224, "Honda Civic (A6)"),
+    (0x225, "Hyundai Coupe Evo II (A7)"),
+    (0x226, "Mitsubishi Lancer Evo V (A8)"),
+    (0x227, "Nissan Almera (A7)"),
+    (0x228, "Nissan Micra Maxi (A5)"),
+    (0x229, "Peugeot 106 Maxi (A6)"),
+    (0x22A, "Peugeot 206 WRC (A8)"),
+    (0x22B, "Proton Compact (A6)"),
+    (0x22C, "Proton Wira/Persona (A8)"),
+    (0x22D, "Renault Megane (A7)"),
+    (0x22E, "Seat Ibiza Cupra Sport (A7)"),
+    (0x22F, "Seat Cordoba WRC (A8)"),
+    (0x230, "Skoda Felicia (A6)"),
+    (0x231, "Skoda Octavia (A7)"),
+    (0x232, "Subaru Impreza WRC (A8)"),
+    (0x233, "Vauxhall Astra (A7)"),
+    (0x234, "Volkswagen Golf GTI Mk IV (A7)"),
+    (0x235, "Ford Escort Maxi (A7)"),
+    (0x236, "Ford Puma (A5)"),
+    (0x237, "Mitsubishi Lancer Evo IV (A8)"),
+    (0x238, "Land Rover (A8)"),
+    (0x239, "Tractor (A5)"),
+    (0x23A, "MF Turbo (A8)"),
+    (0x23B, "MF Hothatch (A7)"),
+    (0x23C, "Bernie's Dicemobile (A7)"),
+    (0x23D, "Max Power Car (A8)"),
+    (0x23E, "Skip (A5)"),
+    (0x23F, "Turbotater (A8)"),
+    (0x240, "Moo 1.8bse Turbo (A8)"),
+    (0x241, "Lambaaghini (A6)"),
+    (0x242, "Radio Control Car (A7)"),
+    (0x243, "Welsh Sheep Wagon (A7)"),
+    (0x244, "Local Shop (A6)"),
+    // The stage screen's two sets.
+    (0x340, "Simulation"),
+    (0x341, "Arcade"),
+    // The stages.
+    (0x3E8, "Clocaenog Mid"),
+    (0x3E9, "Penmachno South"),
+    (0x3EA, "Myherin"),
+    (0x3EB, "Hafren"),
+    (0x3EC, "Dyfi"),
+    (0x3ED, "Gartheiniog"),
+    (0x3EE, "Chirdonhead"),
+    (0x3EF, "Falstone"),
+    (0x3F0, "Kershope"),
+    (0x3F1, "Pundershaw"),
+    (0x3F2, "Riccarton"),
+    (0x3F3, "Newcastleton"),
+    (0x3F4, "Twiglees"),
+    (0x3F5, "Yair"),
+    (0x3F6, "Cardrona"),
+    (0x3F7, "Black Loch"),
+    (0x3F8, "Glentrool"),
+    (0x3F9, "Ae"),
+    (0x3FA, "Moon and Star"),
+    (0x3FB, "Bothwell"),
+    (0x3FC, "Whitchester"),
+    (0x3FD, "Eccles"),
+    (0x3FE, "Langton"),
+    (0x3FF, "Fogo"),
+    (0x400, "Hamilton's Folly"),
+    (0x401, "Tyrone's Ditches"),
+    (0x402, "Feeney"),
+    (0x403, "Parkanaur"),
+    (0x404, "Lisnamuck"),
+    (0x405, "Tardree"),
+    (0x406, "Port Soderick"),
+    (0x407, "Ballagyr"),
+    (0x408, "Curraghs"),
+    (0x409, "Tholt-y-Will"),
+    (0x40A, "Injerbreck"),
+    (0x40B, "Cringle"),
+];
+
+/// The English name the launch matches for the game's text number `id`, if it has one.
+pub fn english_name(id: u32) -> Option<&'static str> {
+    ENGLISH
+        .iter()
+        .find(|(text, _)| *text == id)
+        .map(|(_, name)| *name)
+}
+
 /// The stage: by name, or by its rally and stage (1-based).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Stage {
@@ -117,8 +213,8 @@ pub enum Then {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Launch {
     pub stage: Stage,
-    /// The stage screen's group, 0-based.
-    pub group: u32,
+    /// The stage screen's set (its group).
+    pub stage_set: Option<Choice>,
     /// Per player.
     pub cars: [Option<Choice>; 2],
     pub gearbox: Option<Choice>,
@@ -140,7 +236,7 @@ impl std::fmt::Display for LaunchError {
 /// The switches that take a value (the next word, or after `=`).
 const VALUED: [&str; 9] = [
     "stage",
-    "stage-group",
+    "stage-set",
     "car",
     "car2",
     "gearbox",
@@ -295,10 +391,7 @@ impl Launch {
         };
         Ok(Some(Launch {
             stage,
-            group: match all.last("stage-group") {
-                Some(v) => one_of("stage-group", v, 1, 2)? - 1,
-                None => 0,
-            },
+            stage_set: all.last("stage-set").map(Choice::read),
             cars: [car, car2],
             gearbox: all.last("gearbox").map(Choice::read),
             players,
@@ -457,17 +550,23 @@ mod tests {
         assert_eq!(l.stage, Stage::Name("Hamiltons Folly".into()));
         assert_eq!(l.cars, [Some(Choice::Number(3)), Some(Choice::Number(3))]);
         assert_eq!(
-            (l.players, l.seed, l.then, l.group),
-            (2, Some(16), Then::Quit, 0)
+            (l.players, l.seed, l.then, l.stage_set),
+            (2, Some(16), Then::Quit, None)
         );
     }
 
     #[test]
     fn stage_by_place_and_bad_values() {
-        let l = read(&["--stage", "4-5", "--stage-group", "2"])
+        let l = read(&["--stage", "4-5", "--stage-set", "arcade"])
             .unwrap()
             .unwrap();
-        assert_eq!((l.stage, l.group), (Stage::Place { rally: 4, stage: 5 }, 1));
+        assert_eq!(
+            (l.stage, l.stage_set),
+            (
+                Stage::Place { rally: 4, stage: 5 },
+                Some(Choice::Name("arcade".into()))
+            )
+        );
         assert!(read(&["--players", "3", "--stage", "x"]).is_err());
         assert!(read(&["--car", "1"]).is_err(), "no stage");
         assert!(read(&["--stage"]).is_err(), "no value");
@@ -515,6 +614,29 @@ mod tests {
             "no name there, and no name holds a 3"
         );
         assert_eq!(pick("9"), Pick::None);
+    }
+
+    #[test]
+    fn english_names_each_once() {
+        let mut ids: Vec<u32> = ENGLISH.iter().map(|(id, _)| *id).collect();
+        ids.sort_unstable();
+        ids.dedup();
+        assert_eq!(ids.len(), ENGLISH.len());
+        assert_eq!(english_name(0x3FE), Some("Langton"));
+        assert_eq!(english_name(1), None);
+    }
+
+    #[test]
+    fn the_two_lancers_told_apart() {
+        let names: Vec<Option<&[u8]>> = [0x226, 0x237]
+            .iter()
+            .map(|&id| english_name(id).map(str::as_bytes))
+            .collect();
+        let pick = |s: &str| Choice::read(s).pick(&names);
+        assert_eq!(pick("lancer"), Pick::Ambiguous(vec![0, 1]));
+        assert_eq!(pick("lancer evo v"), Pick::Found(0));
+        assert_eq!(pick("evo iv"), Pick::Found(1));
+        assert_eq!(pick("Mitsubishi Lancer Evo IV (A8)"), Pick::Found(1));
     }
 
     #[test]

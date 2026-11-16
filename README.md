@@ -124,18 +124,19 @@ rc2k --launch my_race.txt
 
 | Switch | What it takes |
 | --- | --- |
-| `--stage` | the stage's name as the game shows it, or `rally-stage` (e.g. `5-5`, 1-based) |
-| `--stage-group` | the stage screen's group, `1` or `2` (1 unless given) |
-| `--car`, `--car2` | a car of the car screen's list for player 1 (and 2), by name or by its place in the list; the player's own car unless given |
-| `--gearbox` | one of the car screen's gearbox choices, by name or 1 .. 3 |
+| `--stage` | the stage's name, or `rally-stage` in the stage screen's order (e.g. `4-5`, 1-based) |
+| `--stage-set` | the stage screen's set, `simulation` (the default) or `arcade`, which runs each stage the other way; or `1` / `2` |
+| `--car`, `--car2` | the car for player 1 (and 2), by name; one not unlocked yet is taken as the game's "Unlock Cars" cheat would; the player's own car unless given |
+| `--gearbox` | `manual`, `semi-automatic` or `automatic` (or 1 .. 3) |
 | `--players` | `1`, or `2` on a split screen |
 | `--seed` | a number: the random numbers of the race start from it |
 | `--then` | `menus` (the default) or `quit`: the program ends after the race |
 | `--launch` | a file holding the same settings as `name = value` lines (`#` starts a comment); switches typed as well win |
 
-Names are matched without case, spaces or punctuation, and a part of a name is enough when
-only one name holds it (`--car 106`, `--gearbox manual`). A name or number the game does not
-have stops the program with a message listing what it has.
+Names are in English whatever language the game runs in, matched without case, spaces or
+punctuation. The whole name always wins, and a part of a name is enough when only one name
+holds it: `--car 106`, `--car "evo v"`, `--stage hamiltons`. A name that fits none, or several,
+stops the program with a message listing the names to choose from.
 
 ### The handheld
 

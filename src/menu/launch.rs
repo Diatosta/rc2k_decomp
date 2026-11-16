@@ -4,7 +4,7 @@
 //!
 //! What the answers leave is what the screens leave when a choice is confirmed: the car
 //! screen the shown car (its place in the handed list) and the gearbox; the stage screen the
-//! stage's group, rally and number, the map's mode and the race's stage. A name or number
+//! stage's group, rally and number, the map's mode and the race's stage and direction. A name or number
 //! the game does not have ends the program with a message naming what it has, before the
 //! race loads.
 
@@ -116,7 +116,19 @@ struct Place {
 }
 
 const RALLIES: u32 = 6;
+/// The stage screen's two sets (its groups): the simulation's and the arcade's, which runs each
+/// stage the other way.
+const SETS: u32 = 2;
 const STAGES: u32 = 6;
+
+/// A name the launch matches: its English one by the game's text number, else the game's text,
+/// so that a launch reads the same whatever language the game runs in.
+fn name(o: Owners<'static>, id: u32) -> Result<Vec<u8>, BadInput> {
+    match rc2k_core::menu::launch::english_name(id) {
+        Some(english) => Ok(english.as_bytes().to_vec()),
+        None => text(o, id),
+    }
+}
 
 /// A game string's text.
 fn text(o: Owners<'static>, id: u32) -> Result<Vec<u8>, BadInput> {
@@ -153,10 +165,12 @@ fn not_there(what: &str, names: &[(String, Option<Vec<u8>>)]) -> ! {
 fn listing(names: &[(String, Option<Vec<u8>>)], which: Vec<usize>) -> String {
     let line = |i: usize| {
         let (label, name) = &names[i];
-        format!(
-            "{label} {}",
-            crate::files::ansi_text(name.as_deref().unwrap_or_default())
-        )
+        let name = crate::files::ansi_text(name.as_deref().unwrap_or_default());
+        if label.is_empty() {
+            name.to_string()
+        } else {
+            format!("{label} {name}")
+        }
     };
     which.into_iter().map(line).collect::<Vec<_>>().join("\n")
 }
@@ -164,7 +178,17 @@ fn listing(names: &[(String, Option<Vec<u8>>)], which: Vec<usize>) -> String {
 /// The launch's stage on the screen's group, by name or by place.
 fn find_stage(o: Owners<'static>, launch: &Launch) -> Result<Place, Refused> {
     let stages = &o.system.records().stage_tables;
-    let group = launch.group;
+    let group = match &launch.stage_set {
+        None => 0,
+        Some(choice) => {
+            let mut sets = Vec::new();
+            for set in 0..SETS {
+                let title = crate::screens::stage_panel::group_title(set)?;
+                sets.push(((set + 1).to_string(), Some(name(o, title)?)));
+            }
+            picked(choice, "stage set", &sets) as u32
+        }
+    };
     let mut places = Vec::new();
     let mut names = Vec::new();
     for sub in 0..RALLIES {
@@ -174,7 +198,7 @@ fn find_stage(o: Owners<'static>, launch: &Launch) -> Result<Place, Refused> {
             let name = || -> Result<Vec<u8>, Refused> {
                 let record = crate::records::stages_store::row(stages, table, number)?;
                 let track = crate::records::trakpak_entry::track_of(stages, record)?;
-                Ok(text(o, track.name(stages)?)?)
+                Ok(name(o, track.name(stages)?)?)
             };
             places.push(Place { group, sub, number });
             names.push((format!("{}-{number}", sub + 1), name().ok()));
@@ -188,7 +212,7 @@ fn find_stage(o: Owners<'static>, launch: &Launch) -> Result<Place, Refused> {
             .unwrap_or_else(|| not_there(&format!("stage {rally}-{stage}"), &names)),
         Stage::Name(n) => picked(
             &Choice::Name(n.clone()),
-            &format!("stage (group {})", group + 1),
+            &format!("stage (set {})", group + 1),
             &names,
         ),
     };
@@ -204,37 +228,67 @@ struct GameAnswers<'l> {
 impl GameAnswers<'_> {
     /// The current player's car (by the launch, else the player's own) as its place in the
     /// handed list, and its gearbox.
-    fn choose_car(&self, list: CarList) -> Result<(), Refused> {
+    /// The cars of `list` (number, name), up to its end mark.
+    fn cars_of(&self, list: CarList) -> Result<Vec<(u32, Vec<u8>)>, Refused> {
         let menus = self.o.menus;
-        let current = menus.screens.event.current_player.get();
-        let record = player(menus, current).ok_or(BadInput("a current player past the four"))?;
-        let entry = |n: u32| menus.lists.car_entry(CarListParts::of(menus), list, n);
-        // The list's cars (number, name), up to its end mark.
         let mut cars = Vec::new();
         for n in 0..0x100 {
-            let e = entry(n)?;
+            let e = menus.lists.car_entry(CarListParts::of(menus), list, n)?;
             if e == u32::MAX {
                 break;
             }
             let d = crate::menu::cars_store::description(&menus.cars.table, e)?.get();
-            cars.push((d.car, text(self.o, d.name)?));
+            cars.push((d.car, name(self.o, d.name)?));
         }
         if cars.is_empty() {
-            return Err(BadInput("no cars in the handed list").into());
+            return Err(BadInput("no cars in a list of cars").into());
         }
+        Ok(cars)
+    }
+
+    /// The current player's car (by the launch, else the player's own) as its place in a list,
+    /// and its gearbox; the list it is in: the handed one, or for a car by name not in it, the
+    /// "Unlock Cars" cheat's list (every car), as the car screen shows with the cheat on.
+    fn choose_car(&self, handed: CarList) -> Result<CarList, Refused> {
+        let menus = self.o.menus;
+        let current = menus.screens.event.current_player.get();
+        let record = player(menus, current).ok_or(BadInput("a current player past the four"))?;
+        let cars = self.cars_of(handed)?;
         let seat = (current as usize).min(1);
-        let shown = match &self.launch.cars[seat] {
+        let labelled = |cars: &[(u32, Vec<u8>)]| -> Vec<(String, Option<Vec<u8>>)> {
+            cars.iter()
+                .map(|(_, name)| (String::new(), Some(name.clone())))
+                .collect()
+        };
+        let what = format!("car for player {}", seat + 1);
+        let (list, shown) = match &self.launch.cars[seat] {
             None => {
                 let numbers: Vec<u32> = cars.iter().map(|(car, _)| *car).collect();
-                rc2k_core::menu::cars::find_car(&numbers, record.get().car_number)
+                (
+                    handed,
+                    rc2k_core::menu::cars::find_car(&numbers, record.get().car_number),
+                )
             }
-            Some(choice) => {
-                let names: Vec<(String, Option<Vec<u8>>)> = cars
-                    .iter()
-                    .enumerate()
-                    .map(|(i, (_, name))| ((i + 1).to_string(), Some(name.clone())))
-                    .collect();
-                picked(choice, &format!("car for player {}", seat + 1), &names) as u32
+            Some(given) => {
+                // Cars go by name alone: a number is a part of one ("106"), as a car's place
+                // in a list changes with what is unlocked.
+                let choice = &match given {
+                    Choice::Number(n) => Choice::Name(n.to_string()),
+                    by_name => by_name.clone(),
+                };
+                let names = labelled(&cars);
+                let shown: Vec<Option<&[u8]>> = names.iter().map(|(_, n)| n.as_deref()).collect();
+                match (choice.pick(&shown), choice) {
+                    (Pick::None, Choice::Name(_)) => {
+                        let all = labelled(&self.cars_of(CarList::Cheat)?);
+                        let at = picked(choice, &what, &all) as u32;
+                        crate::logfile::program_log::log(&format!(
+                            "menu::launch: {what}: not in the list shown; taken from every car's (the Unlock Cars list)"
+                        ));
+                        (CarList::Cheat, at)
+                    }
+                    _ => (handed, picked(choice, &what, &names) as u32),
+                }
             }
         };
         menus.screens.carousel.front.set(shown);
@@ -244,7 +298,7 @@ impl GameAnswers<'_> {
             record.update(|p| p.gearing = gearing);
         }
         menus.screens.flow.shown_gearing.set(record.get().gearing);
-        Ok(())
+        Ok(list)
     }
 
     /// The gearbox choice's value, 0 .. 2, by its name as the car screen shows it or its number.
@@ -253,7 +307,7 @@ impl GameAnswers<'_> {
         for value in 0..GEARBOXES {
             names.push((
                 (value + 1).to_string(),
-                Some(text(self.o, GEARBOX_STRINGS + value)?),
+                Some(name(self.o, GEARBOX_STRINGS + value)?),
             ));
         }
         Ok(picked(choice, "gearbox", &names) as u32)
@@ -279,6 +333,15 @@ impl GameAnswers<'_> {
             .settings
             .stage
             .set(track.get(stages, TrackField::Stage)?);
+        // The direction: the arcade's set runs each stage the other way (the screen writes it as
+        // it draws the chosen stage, as it does the stage).
+        self.o
+            .race
+            .shared
+            .state
+            .settings
+            .direction
+            .set(self.stage.group);
         Ok(())
     }
 }
@@ -289,10 +352,14 @@ const GEARBOXES: u32 = 3;
 
 impl Answers<Game<'static>> for GameAnswers<'_> {
     fn car(&mut self, game: &mut Game<'static>) -> Result<(), Refused> {
-        let list = game
+        let handed = game
             .handed_cars()
             .ok_or(BadInput("a car choice with no list handed"))?;
-        self.choose_car(list)
+        let list = self.choose_car(handed)?;
+        if list != handed {
+            rc2k_core::menu::flow::Game::hand_cars(game, list);
+        }
+        Ok(())
     }
 
     fn stage(&mut self, _game: &mut Game<'static>) -> Result<(), Refused> {
