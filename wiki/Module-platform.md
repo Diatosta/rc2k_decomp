@@ -1,0 +1,50 @@
+# Module: platform
+
+*Category: [Module reference](Modules)*
+
+Everything between the game and the computer. The game's own code never calls SDL or the
+operating system directly; it calls this module, which keeps the meaning each service had for
+the original game (what a call leaves behind, what it answers) and does the work with SDL3,
+FFmpeg or the standard library. If you are porting to a new system, this is the folder to read.
+
+## State
+
+Its own statics, not an owner: the window and the screen's pixels (`Screen` in
+`src/platform/mod.rs`), the 3D layer's handles and the list of drawing commands being built
+(`src/platform/direct3d.rs`), the sound device and its buffers (`src/platform/sound.rs`).
+
+## Main entry points
+
+| Item | File | What it does |
+| --- | --- | --- |
+| `choose_screen_modes`, `set_mode_now` | `src/platform/mod.rs` | Screen modes: which exist, and switching to one. |
+| `lock_surface`, `unlock_surface`, `show_frame_now` | `src/platform/mod.rs` | Access to the screen's pixels, and putting the finished picture on the window. |
+| `pump` | `src/platform/events.rs` | Handles the window's and the devices' events. |
+| `draw_fan`, `flush`, `take_noted` | `src/platform/direct3d.rs` | Where the 3D layer's calls become drawing commands for a renderer. |
+| `create_device`, `create_sound_buffer`, `play`, `set_volume` ... | `src/platform/sound.rs` | Sound buffers and their mixing into SDL's output. |
+| `SdlBackend`, `pad_added`, `pad_removed` | `src/platform/input.rs` | Controllers, wheels and force feedback through SDL. |
+| `play_film` | `src/platform/film.rs` | Plays a film: reads the file's container, decodes with FFmpeg, shows the frames and plays the sound. |
+| `spawn`, `create_event`, `wait` | `src/platform/sync.rs` | Threads and the events they wait on. |
+| `ticks`, `local_time`, `message_box` | `src/platform/os/mod.rs` | Operating-system facts, with `os/windows.rs` and `os/unix.rs` behind them. |
+| `open_screen`, `present`, `pad_mapping` | `src/platform/handheld.rs` | The Anbernic handheld's screen and built-in pad. |
+| `report_timing` | `src/platform/timing.rs` | Where a frame's time went, for the log. |
+
+## How it is laid out
+
+One file per service, as in the table. `os/` holds what differs between Windows and the
+Unix-like systems. `ffi/` holds the bindings to C libraries (`sdl.rs`, `sdl_gpu.rs`,
+`sdl_input.rs`, `ffmpeg.rs`, `gl.rs`, `imgui.rs`, `win32.rs`, `unix.rs`); unsafe code that
+talks to them is kept there and in the files above. `web.rs` is the browser build's part,
+`arch.rs` the few processor-specific pieces.
+
+## Calls and callers
+
+It hands drawing to [`render`](Module-render) and takes pixel formats from [`gfx`](Module-gfx).
+It is called by [`audio`](Module-audio), [`system`](Module-system), [`menu`](Module-menu),
+[`scene`](Module-scene), [`d3d`](Module-d3d), [`net`](Module-net), [`input`](Module-input) and
+`threading`.
+
+## Related pages
+
+[Porting to a new platform](Porting-to-a-new-platform), [Drawing a frame](Drawing-a-frame),
+[Films](Films), [Controllers](Controllers), [Building from source](Building-from-source).
