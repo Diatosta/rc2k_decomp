@@ -43,7 +43,8 @@ variables, and these two functions are the only bridge.
 
 `load_stage` (`src/race/stage_loading.rs`) shows the loading picture, wakes the cars' sounds,
 and calls `loadlevel_init` (`src/race/loadlevel.rs`), which does the loading proper as a list
-of named steps. After each step the loading bar moves on (`src/race/loading_bar_frame.rs`).
+of named steps. After each step the loading bar moves on (`src/race/loading_bar_frame.rs`); a frame is drawn
+for it only when the last one is at least 33 ms old.
 In order, roughly:
 
 | Step | What is loaded | Format page |

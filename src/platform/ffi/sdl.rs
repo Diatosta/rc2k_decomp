@@ -55,6 +55,28 @@ impl Window {
         // SAFETY: as `restore_if_minimised`.
         unsafe { SDL_SetWindowSize(self.0, width as i32, height as i32) };
     }
+
+    /// The refreshes a second of the display the window is on, if SDL knows them.
+    pub fn display_refresh(self) -> Option<f64> {
+        // SAFETY: as `restore_if_minimised`; the mode is SDL's own record, read at once and
+        // only when not null.
+        let (rate, numerator, denominator) = unsafe {
+            let mode = SDL_GetCurrentDisplayMode(SDL_GetDisplayForWindow(self.0));
+            if mode.is_null() {
+                return None;
+            }
+            (
+                (*mode).refresh_rate,
+                (*mode).refresh_rate_numerator,
+                (*mode).refresh_rate_denominator,
+            )
+        };
+        if numerator > 0 && denominator > 0 {
+            Some(f64::from(numerator) / f64::from(denominator))
+        } else {
+            (rate > 0.0).then_some(f64::from(rate))
+        }
+    }
 }
 
 impl Renderer {
@@ -78,6 +100,15 @@ impl Renderer {
             SDL_SetRenderDrawColor(self.0, 0, 0, 0, 255);
             SDL_RenderClear(self.0);
         }
+    }
+
+    /// Whether `present` waits for the display's refresh (off unless SDL was asked for it,
+    /// as its `SDL_RENDER_VSYNC` hint does).
+    pub fn present_waits(self) -> bool {
+        let mut interval = 0;
+        // SAFETY: the renderer SDL made, alive while the screen holds it; SDL writes the one
+        // integer.
+        unsafe { SDL_GetRenderVSync(self.0, &raw mut interval) && interval != 0 }
     }
 
     /// What was drawn put on the window.
@@ -306,20 +337,6 @@ impl PolledEvent {
         let key = unsafe { self.0.key };
         Some((key.scancode.0, key.down))
     }
-}
-
-// ---- clock ----
-
-/// Milliseconds since SDL started.
-pub fn ticks() -> u64 {
-    // SAFETY: no arguments that point anywhere.
-    unsafe { SDL_GetTicks() }
-}
-
-/// The calling thread waits `milliseconds`.
-pub fn delay(milliseconds: u32) {
-    // SAFETY: as `ticks`.
-    unsafe { SDL_Delay(milliseconds) };
 }
 
 // ---- audio ----

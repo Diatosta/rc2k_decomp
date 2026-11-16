@@ -1,4 +1,4 @@
-//! Loads a picture and shows it at once, on every page of the screen: the loading picture.
+//! Loads a picture and shows it at once: the loading picture.
 //!
 //! The window's messages are passed on; `showing` = 1; the picture's size is set to 800 x 600 with
 //! row length 0xFFFFFFFD and the file is read (`gfx::read_picture_file`); the size then becomes
@@ -7,11 +7,13 @@
 //! - Read: `showing` is taken (set to 0); if it was not 0 and the fonts are built, the picture's
 //!   flags become 0x802, the picture is made the surface (`gfx::picture_as_surface`) and string
 //!   0xC0 is drawn on it at (790, 47) with the loading font.
-//! - A picture of the screen's width: `gfx::convert_picture`, then twice
-//!   `gfx::copy_picture_to_surface` and `gfx::show_frame`, and a third time if the screen mode
-//!   has bit 0x40000 (three pages).
-//! - Any other width: as many times, `gfx::lock_surface` (failing ends it),
-//!   `gfx::rescale_to_surface`, `gfx::unlock_surface`, `gfx::show_frame`.
+//! - A picture of the screen's width: `gfx::convert_picture`, then
+//!   `gfx::copy_picture_to_surface` and `gfx::show_frame`.
+//! - Any other width: `gfx::lock_surface` (failing ends it), `gfx::rescale_to_surface`,
+//!   `gfx::unlock_surface`, `gfx::show_frame`.
+//!
+//! The picture is shown once: the screen is one picture, with no second page behind it to
+//! fill.
 //!
 //! Callers: `menu::show_loading_picture`, `race::stage_loading`.
 
@@ -43,7 +45,6 @@ pub fn show_picture_file(
         system.session.screen.get().height.get(),
     );
     crate::gfx::picture::set_size(&gfx.pictures, sizes::screen(width, height));
-    let pages = sizes::pages(gfx.display.mode.mode_flags.get());
     crate::race::load_times::mark("picture: set up");
     if !read {
         crate::gfx::clear_picture::clear_picture(&gfx.pictures)?;
@@ -63,35 +64,29 @@ pub fn show_picture_file(
             )?;
         }
         if sizes::rescaled(gfx.pictures.decoder.width.get(), width) {
-            // The picture does not change between the pages: its rescale is made once.
-            let mut rescaled = None;
-            for _ in 0..pages {
-                crate::race::load_times::mark("picture: rescale");
-                // Not locked.
-                if lock_surface(gfx, system) < 1 {
-                    return Ok(());
-                }
-                crate::gfx::rescale_to_surface::rescale_to_surface(
-                    &gfx.rescale,
-                    &gfx.drawing.draw_surface,
-                    gfx,
-                    system,
-                    &mut rescaled,
-                )?;
-                unlock_surface(gfx);
-                crate::race::load_times::mark("picture: show frame");
-                show_frame_now(o);
+            crate::race::load_times::mark("picture: rescale");
+            // Not locked.
+            if lock_surface(gfx, system) < 1 {
+                return Ok(());
             }
+            crate::gfx::rescale_to_surface::rescale_to_surface(
+                &gfx.rescale,
+                &gfx.drawing.draw_surface,
+                gfx,
+                system,
+                &mut None,
+            )?;
+            unlock_surface(gfx);
+            crate::race::load_times::mark("picture: show frame");
+            show_frame_now(o);
             return Ok(());
         }
     }
     crate::race::load_times::mark("picture: convert");
     crate::gfx::convert_picture::convert_picture_now_in(gfx)?;
-    for _ in 0..pages {
-        crate::race::load_times::mark("picture: copy");
-        copy_picture_to_surface(&mut GameSurface(gfx, system))?;
-        crate::race::load_times::mark("picture: show frame");
-        show_frame_now(o);
-    }
+    crate::race::load_times::mark("picture: copy");
+    copy_picture_to_surface(&mut GameSurface(gfx, system))?;
+    crate::race::load_times::mark("picture: show frame");
+    show_frame_now(o);
     Ok(())
 }

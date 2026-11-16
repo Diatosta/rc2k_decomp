@@ -34,6 +34,7 @@ pub mod film;
 pub mod handheld;
 pub mod input;
 pub mod os;
+pub mod pacing;
 pub mod sound;
 pub mod sync;
 pub mod timing;
@@ -45,7 +46,7 @@ use crate::gfx::set_clip::set_clip;
 use crate::logfile::program_log::log;
 use crate::platform::ffi::sdl;
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU32, Ordering};
 
 // ---- game data ----
 
@@ -72,7 +73,6 @@ pub(crate) static SCREEN: Mutex<Option<Screen>> = Mutex::new(None);
 /// without anyone at the keyboard. The last frame is written to `rc2k_frame.raw`.
 pub(crate) static SHOWN: AtomicU32 = AtomicU32::new(0);
 pub static FRAMES_TO_SHOW: AtomicU32 = AtomicU32::new(0);
-static LAST_SHOWN: AtomicUsize = AtomicUsize::new(0);
 
 // ---- gfx::choose_screen_modes ----
 
@@ -255,6 +255,7 @@ fn set_screen_mode(
     // under Wine, a frame's flash before the loading picture).
     renderer.clear_black();
     renderer.present();
+    crate::platform::pacing::set_display(window.display_refresh(), renderer.present_waits());
     #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
     {
         let mut held = crate::render::gpu::GPU.lock().unwrap();
@@ -550,7 +551,7 @@ pub fn screen_pixels(system: &crate::system::owner::System) -> u64 {
         * u64::from(system.session.screen.get().height.get())
 }
 
-/// `gfx::show_frame`: the frame drawn shown (at most some sixty a second); false while
+/// `gfx::show_frame`: the frame drawn shown, at the display's pace (`pacing`); false while
 /// quitting (nothing shown).
 pub fn show_frame_now(o: crate::owners::Owners<'static>) -> bool {
     let drawing = &o.gfx.drawing;
@@ -613,21 +614,8 @@ pub fn show_frame_now(o: crate::owners::Owners<'static>) -> bool {
         }
         crate::platform::timing::start_sampler();
         crate::platform::timing::report_timing(o.system);
-        // A flip waits for the screen: some sixty frames a second at most. The next frame's
-        // gap is counted from the end of this wait (counted from before it, every other
-        // frame skipped the wait: about 95 a second with 5 ms of work a frame).
-        let now = sdl::ticks() as usize;
-        let since = now.wrapping_sub(LAST_SHOWN.load(Ordering::SeqCst));
-        if since < 16 {
-            #[cfg(feature = "remote")]
-            let wait = (crate::remote::wall_micros((16 - since) as u32) / 1000) as u32;
-            #[cfg(not(feature = "remote"))]
-            let wait = (16 - since) as u32;
-            if wait > 0 {
-                sdl::delay(wait);
-            }
-        }
-        LAST_SHOWN.store(sdl::ticks() as usize, Ordering::SeqCst);
+        // The next frame waits for its turn on the display.
+        crate::platform::pacing::frame_shown();
     }
     true
 }

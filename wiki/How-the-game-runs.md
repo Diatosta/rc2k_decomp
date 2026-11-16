@@ -162,7 +162,8 @@ Running the race means:
    checkpoints and times, and records the replay.
 3. **Picture.** `drive::race_frame` draws one picture: `race::draw_race_scene` draws each
    player's view (course, objects, cars, then effects such as rain and dust from
-   `src/effects/`), then the HUD (`src/hud/`), and `race::show_frame` puts it on the screen.
+   `src/effects/`), then the HUD (`src/hud/`), and `race::show_frame` puts it on the screen
+   and waits until the next picture is due on the display (`src/platform/pacing.rs`).
 
 The replay viewer (`race::replay_viewer`) loads a stage the same way and runs the same
 simulation steps, with the inputs coming from the replay file. More in

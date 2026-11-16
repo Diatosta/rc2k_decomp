@@ -36,7 +36,8 @@ Every build held the frame rate. On the GPU renderer this program used between a
 rasteriser used three to four cores at this size.
 
 These figures are from before the later speed work, which mostly served the handheld; they
-were not taken again afterwards. The script is `tools/vanilla_bench.py`.
+were not taken again afterwards. The 62 frames a second were the program's own limit then (a
+wait of 16 ms a frame); it now follows the display's refresh, 60 a second on this display. The script is `tools/vanilla_bench.py`.
 
 ## The handheld
 

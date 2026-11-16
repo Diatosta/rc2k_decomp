@@ -19,6 +19,7 @@ Its own statics, not an owner: the window and the screen's pixels (`Screen` in
 | --- | --- | --- |
 | `choose_screen_modes`, `set_mode_now` | `src/platform/mod.rs` | Screen modes: which exist, and switching to one. |
 | `lock_surface`, `unlock_surface`, `show_frame_now` | `src/platform/mod.rs` | Access to the screen's pixels, and putting the finished picture on the window. |
+| `frame_shown`, `set_display` | `src/platform/pacing.rs` | The frames' pace: after a frame is shown, the wait until the next one is due on the display's refresh. |
 | `pump` | `src/platform/events.rs` | Handles the window's and the devices' events. |
 | `draw_fan`, `flush`, `take_noted` | `src/platform/direct3d.rs` | Where the 3D layer's calls become drawing commands for a renderer. |
 | `create_device`, `create_sound_buffer`, `play`, `set_volume` ... | `src/platform/sound.rs` | Sound buffers and their mixing into SDL's output. |

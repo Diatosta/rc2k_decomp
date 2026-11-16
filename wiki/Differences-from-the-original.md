@@ -62,6 +62,16 @@ More on [Network play](Network-play).
 - Controllers are read from a race's first moment (the original's input thread slept a second
   at each race's start), and at once after coming back to the window.
 - A loading bar is shown while a stage loads.
+- The loading screen does not hold up the load: the loading picture is shown once (the
+  original showed it once for each page of its screen), and a bar frame is drawn only when
+  the last frame of the loading screen is at least 33 ms old, so the bar's last steps may go
+  unseen.
+- The frames follow the display's refresh: one frame for each refresh (60 a second on a 60 Hz
+  display, also when the display's rate is not known), every second or third refresh on
+  displays faster than 100 Hz, as the race moves 100 times a second. The program does this by
+  waiting until each frame is due; with SDL's own switch `SDL_RENDER_VSYNC=1` in the
+  environment the showing itself waits for the display instead, at every refresh. The speed
+  of the race does not depend on it: its steps come from the clock.
 - The developers' debug pages, unreachable in the released game, are a window over the game
   ([The debug window](The-debug-window)). Not in the 32-bit Windows build or on the handheld.
 

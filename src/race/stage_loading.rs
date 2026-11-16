@@ -52,6 +52,7 @@ pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Res
     if !race.shared.work.get().in_credits.is_set() {
         // The same picture as `menu::show_loading_picture` shows.
         crate::gfx::show_picture_file::show_picture_file(o, &o.menus.texts.loading_pcx)?;
+        crate::race::loading_bar_frame::picture_shown();
     }
     race.replay.replay_frames().last_kept.set(u32::MAX);
     crate::race::load_times::mark("wake car sounds");

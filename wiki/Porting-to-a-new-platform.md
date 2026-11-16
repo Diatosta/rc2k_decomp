@@ -38,6 +38,7 @@ audio driver for it, and is there a GPU API SDL's GPU device supports (Vulkan, M
 | `direct3d.rs` | The 3D layer the game's drawing code stands on: textures, the start and end of a scene, and collecting the drawing commands for a renderer. | Nothing. |
 | `sync.rs` | Threads, events and locks, on Rust's standard library. | Nothing. |
 | `timing.rs` | Clocks and the optional profiler. | Nothing, unless you want the profiler. |
+| `pacing.rs` | The frames' pace: one frame for each refresh of the display SDL reports (60 a second when it reports none), by sleeping until the next frame is due. | Nothing. If your way of showing a frame already waits for the display, say so in `set_display` and the pace does not wait as well. |
 | `os/` | Facts about the system the game asks for: the clock, the command line, folders, free space, message boxes. `windows.rs` and `unix.rs` answer the per-system ones. | A Unix-like system uses `unix.rs`; add the calls that differ. |
 | `ffi/` | Thin safe wrappers around the C libraries (SDL, SDL's GPU API, FFmpeg, OpenGL ES, libc, Win32, Dear ImGui). The only place in the platform that may use unsafe code. | A new library gets a new file here. |
 | `arch.rs` | What differs between processors (intrinsics). | A new processor may need entries. |

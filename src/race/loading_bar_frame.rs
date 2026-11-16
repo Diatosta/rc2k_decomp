@@ -21,8 +21,8 @@ pub trait Progress {
     fn textures_done(&mut self, textures: u32, done: u32) -> Result<(), Refused>;
 }
 
-/// The loading bar on the screen: a `Progress` that draws a frame (at most 30 a second) at
-/// each mark.
+/// The loading bar on the screen: a `Progress` that draws a frame at each mark, unless one was
+/// shown under 33 ms before.
 pub struct LoadingBar {
     o: crate::owners::Owners<'static>,
     share: u32,
@@ -66,7 +66,8 @@ pub static STAGE_LOADING: std::sync::atomic::AtomicBool = std::sync::atomic::Ato
 static FRAMES: [std::sync::atomic::AtomicU64; 2] =
     [const { std::sync::atomic::AtomicU64::new(0) }; 2];
 
-/// The time between the bar's frames, and when the last was.
+/// The least time between two frames of the loading screen (the picture's and the bar's), and
+/// when the last was shown.
 const BAR_FRAME: std::time::Duration = std::time::Duration::from_millis(33);
 static LAST_FRAME: std::sync::Mutex<Option<std::time::Instant>> = std::sync::Mutex::new(None);
 
@@ -76,18 +77,30 @@ pub fn shown() -> (u64, u64) {
     (FRAMES[0].swap(0, Relaxed), FRAMES[1].swap(0, Relaxed))
 }
 
-/// Draws a frame showing `share` percent, at most one in 33 ms (every frame from 100 on).
+/// The loading picture was just shown: the bar's first frame waits its 33 ms after it.
+pub fn picture_shown() {
+    *LAST_FRAME
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(std::time::Instant::now());
+}
+
+/// Whether a frame may be shown at `now`, the last one having been shown at `last`.
+fn frame_due(last: Option<std::time::Instant>, now: std::time::Instant) -> bool {
+    last.is_none_or(|last| now.duration_since(last) >= BAR_FRAME)
+}
+
+/// Draws a frame showing `share` percent, unless a frame of the loading screen was shown under
+/// 33 ms ago: the load does not wait for the screen, and the bar's last steps may go unseen
+/// (the race's first frame follows).
 fn loading_bar_frame(o: crate::owners::Owners<'static>, share: u32) -> Result<(), Refused> {
     use std::sync::atomic::Ordering::Relaxed;
-    // At most some 30 frames a second, and the last: drawing every step's frame took 3/4 of a
-    // load (882 ms of 1231).
-
+    // Drawing every step's frame took 3/4 of a load (882 ms of 1231).
     let begun = std::time::Instant::now();
     {
         let mut last = LAST_FRAME
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if share < 100 && last.is_some_and(|last| begun.duration_since(last) < BAR_FRAME) {
+        if !frame_due(*last, begun) {
             return Ok(());
         }
         *last = Some(begun);
@@ -139,4 +152,21 @@ fn frame(o: crate::owners::Owners<'static>, share: u32) -> Result<(), Refused> {
         present_frame::present_frame(o);
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_frame_is_due_33_ms_after_the_last() {
+        let last = std::time::Instant::now();
+        let after = |millis| last + std::time::Duration::from_millis(millis);
+        assert!(frame_due(None, last));
+        assert!(!frame_due(Some(last), last));
+        assert!(!frame_due(Some(last), after(32)));
+        assert!(frame_due(Some(last), after(33)));
+        // A time before the last frame's (two threads' clocks read out of order) is no frame.
+        assert!(!frame_due(Some(after(5)), last));
+    }
 }
