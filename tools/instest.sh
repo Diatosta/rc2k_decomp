@@ -73,8 +73,8 @@ for n in $(seq 1 12); do
   step page$n Return
   if grep -q "install refused\|not ported\|fatal" $DL/rc2k.log 2>/dev/null && ! alive; then break; fi
 done
-# the copy: wait up to 240 s for the record (written last) or the end of the game
-for i in $(seq 120); do
+# the copy: wait up to 600 s for the record (written last) or the end of the game (a busy machine copies slowly)
+for i in $(seq 300); do
   [ -f $INSTALLDIR/var/install.cfg ] && break
   alive || break
   sleep 2

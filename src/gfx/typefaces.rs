@@ -239,9 +239,6 @@ impl FontId {
     }
 }
 
-/// What the screens' core keeps for the menus' blended font: one past the block's numbers.
-pub const BLENDED_NUMBER: u32 = COUNT as u32;
-
 /// A font the text functions draw and measure with: one of the block's, or the menus' blended font
 /// (`FontObjects::blended`). Resolved to the object's cells in one place (`object`).
 #[derive(Clone, Copy)]

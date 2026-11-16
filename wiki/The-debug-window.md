@@ -37,7 +37,7 @@ The window's size, place and open tabs are remembered in `var/imgui.ini`.
 | Profiler | Where a frame's time goes: the developers' own timed items, and this project's timings of the frame's stages. Costs nothing while the window is closed. |
 | GPU | Tick boxes that each remove one kind of GPU work from the next frames (fog, alpha test, texture lookups, blending ...), to see what it costs in frame rate. The picture is wrong while a box is ticked; that is the point. |
 | Kstar modes | The developers' special display modes, one section each: the car's faces by group, the camera's record, a car's light places, the road's height around the car, the sun's place on the screen, the course seen from above. |
-| Switches | The variables the developers cycled with the numeric keypad, as controls, each with a note on what reads it. |
+| Switches | The variables the developers cycled with the numeric keypad, as controls, each with a note on what reads it; also the light switch the developers held the O key for (objects of light kind 2 lit without their strength), which the key no longer does in a race. |
 | Rivals | The table of the other drivers that ended the display page. |
 | Effects | The effects code's own debug page (rain, snow, spray, windscreen). |
 | Dyno | A graph of the current car: drive force by speed for each gear, the drag, the gearbox's shift points and an acceleration test. Measured once per car; the car's state is put back afterwards. |

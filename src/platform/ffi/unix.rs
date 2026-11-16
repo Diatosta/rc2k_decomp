@@ -182,6 +182,16 @@ pub unsafe fn discard_pages(at: *mut u8, len: usize) -> bool {
     mapped == at.cast()
 }
 
+/// Elsewhere (the web build) the pages stay as they are: nothing is handed back, and the
+/// pool clears a block itself before it is used again.
+///
+/// # Safety
+/// `at` and `len` are a mapping of `map_pages` (whole pages).
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
+pub unsafe fn discard_pages(_at: *mut u8, _len: usize) -> bool {
+    false
+}
+
 /// The process ended at once with `code` (no library's leave-taking).
 pub fn exit_now(code: u32) -> ! {
     // SAFETY: ends the process.

@@ -69,4 +69,11 @@ pub fn tab(race: &Race, ui: &Ui) {
         &shared.switches.get().view_marks_on,
         "the effects on the view (race::frame_views); a stage's load sets it on",
     );
+    let clear = &crate::scene::set_object_light::CLEAR_KIND_2_STRENGTH;
+    let mut on = clear.load(std::sync::atomic::Ordering::Relaxed);
+    if ui.checkbox("O: Light kind 2 without its strength", &mut on) {
+        clear.store(on, std::sync::atomic::Ordering::Relaxed);
+    }
+    ui.same_line();
+    ui.text_disabled("scene::set_object_light: those objects lit as kind 1 (the key O held, once)");
 }

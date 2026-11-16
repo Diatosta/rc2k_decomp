@@ -4,7 +4,8 @@
 //! The object's `light_added` (what `scene::vertex_light` adds) = 0, then by the light kind:
 //! - 5: plain white;
 //! - 1: the light strength = 0; the lamps gathered; the light colour plus `other_light`;
-//! - 2: the same, with the strength = 0 only while the key (a debugging key) is down;
+//! - 2: the same, with the strength = 0 only while the debug window's switch
+//!   (`CLEAR_KIND_2_STRENGTH`) is on;
 //! - 3: the same without touching the strength, and with `drawn_car_light` = the drawn car
 //!   while the lamps are gathered (a car is not lit by its own), -1 afterwards;
 //! - anything else: nothing more.
@@ -23,11 +24,16 @@ use crate::scene::vertex_light::plus;
 
 // ---- game data ----
 
+/// The developers' switch for light kind 2: its objects' light strength cleared, as kind 1's
+/// always is. Set from the debug window's switches tab; off otherwise. (It was a key held in
+/// the race.)
+pub static CLEAR_KIND_2_STRENGTH: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
 /// `gather`: what stands for `scene::add_car_lights` and `scene::add_point_lights`.
 // Logic: `rc2k_core::scene::lamps::object_light`
 pub fn set_object_light(
     gather: &mut dyn FnMut() -> Result<(), Refused>,
-    input: &crate::input::owner::Input,
     light: &crate::scene::object_light::ObjectLight,
     object: &crate::scene::object_place::ObjectPlace,
     vars: &crate::race::view_vars_store::ViewVarsCopy,
@@ -35,7 +41,7 @@ pub fn set_object_light(
     use rc2k_core::scene::lamps::{ObjectLight, WHITE, object_light};
     light.light_added.set(0u32);
     let (clear_strength, own_car) = match object_light(light.light_kind.get(), || {
-        input.devices.keys_now.get(0x18) != 0
+        CLEAR_KIND_2_STRENGTH.load(std::sync::atomic::Ordering::Relaxed)
     }) {
         ObjectLight::White => {
             light.light_added.set(WHITE);
@@ -93,7 +99,6 @@ pub fn set_object_light_in_game(
             add_point_lights(ctx)?;
             Ok(())
         },
-        ctx.input,
         &ctx.view.light,
         &ctx.view.object,
         &ctx.view.vars,
