@@ -1,6 +1,5 @@
 //! The audio thread (`audio::thread`): the side that carries out what `sound::` sends.
 
-pub mod a3d;
 pub mod buffer_play;
 pub mod buffer_settings;
 pub mod choose_modes;
@@ -32,7 +31,6 @@ pub mod read_sample_of;
 pub mod release_eax;
 pub mod release_voice;
 pub mod release_voice_manager;
-pub mod restore;
 pub mod sample_data;
 pub mod sample_mode;
 pub mod samples;

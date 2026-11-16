@@ -34,8 +34,12 @@ Everything the game wants from the audio thread is a `Command`
 The game side queues commands under a lock (`src/sound/queue.rs`); the audio thread takes them
 oldest first (`src/audio/take_commands.rs`). When the game must be sure something has
 happened, for instance that a stage's sounds are loaded before the race starts, it calls
-`sound::wait_for_commands`, which waits until the queue is empty while still handling window
-events.
+`sound::wait_for_commands`: it queues an EndOfTurn and sleeps until the audio thread has taken
+every command and finished that turn. The audio thread is told that someone waits and takes the
+queue at once instead of at its next turn, so a wait lasts as long as the commands' work (a
+stage's sounds to load, say) and no longer. Every 10 ms of a long wait the window's events are
+handled. Commands sent without a wait (a race's sounds) are taken at the audio thread's own
+pace.
 
 The simplest sender is `sound::play_sound`: one Start command. `sound::play_menu_sound` picks
 a menu's click or confirm sound and sends it.
@@ -43,12 +47,15 @@ a menu's click or confirm sound and sends it.
 ## The audio thread
 
 `audio_thread` (`src/audio/thread.rs`) is started with the game's other threads. It opens the
-sound device (`audio::start`), then takes a **turn** every 20 ms until the game quits:
+sound device (`audio::start`), then takes a **turn** every 20 ms until the game quits (sooner
+when the game waits for its commands, see above):
 
 1. feed the music streams (`src/audio/stream.rs`);
 2. take the queued commands;
-3. update the voices (`src/audio/update_voices.rs`);
-4. restore any buffers the system took away.
+3. update the voices (`src/audio/update_voices.rs`).
+
+The 1999 game also restored sound buffers that Windows had taken away for another program.
+That cannot happen here; a buffer that cannot be played is noted in `rc2k.log` and stays silent.
 
 ### Samples, voices and channels
 
@@ -159,8 +166,12 @@ number of channels, and which kind of output. The menus and the race each have t
 | Channels | How many sounds can be heard at once. |
 | 3D sound | Sounds are placed in 3D by the output instead of by volume and pan. |
 | EAX | 3D sound with a reverb room chosen per stage. The room is chosen and kept; no reverb is produced. |
-| A3D | A 1999 sound card feature. Never available; choosing it changes nothing. |
 | Dolby | The game mixes all channels itself (`src/audio/mixer.rs`, `mix_channels.rs`) and writes the result to the primary buffer. |
+
+The original's page had a sixth option, A3D (Aureal's 3D sound, for sound cards of 1999). No
+system has it any more, so the option is gone and Dolby stands in its row. An options file that
+still names an A3D mode loads as the same mode with 3D sound in its place (see
+[Options files](Options-files)).
 
 The Dolby mode's faults in the original (no music in races, quieter and harsher effects) are
 fixed; see [Fixed bugs](Fixed-bugs).

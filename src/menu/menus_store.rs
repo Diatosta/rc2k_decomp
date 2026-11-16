@@ -3,7 +3,7 @@
 //! `LabelTables::dword`), and the 96 menus as handles into `rc2k_core::menu::tables::MENUS`,
 //! the one source of the menus' items (their places, links, functions and starting values).
 //!
-//! What the game changes in play is kept here, per item (`MenuItem`, 567 of them in one
+//! What the game changes in play is kept here, per item (`MenuItem`, 566 of them in one
 //! array, the menus' in `MENUS`' order): the string id (+0x14), the font (+0x18), +0x1C, the
 //! sprite (+0x20), the font a highlighted item pulses in (+0x50) and the skip mark (+0x48),
 //! each starting as the table has it. Nothing else of an item is written anywhere (the
@@ -578,7 +578,7 @@ const FIRST_ITEM: [u16; MENUS.len() + 1] = {
     first
 };
 
-const _: () = assert!(ITEM_COUNT == 567 && MENUS.len() == MENU_COUNT as usize);
+const _: () = assert!(ITEM_COUNT == 566 && MENUS.len() == MENU_COUNT as usize);
 
 /// The state of every item, in `MENUS`' order.
 const fn item_states() -> [MenuItem; ITEM_COUNT] {

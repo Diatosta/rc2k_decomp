@@ -700,3 +700,13 @@ has the same fixed addresses, but its network mode could not be run here to see 
 **Seen or read:** read (and seen: the film never played in 32-bit runs).
 
 **Fix:** the screen always has 32 bits a pixel now, and the first logo always plays before the second (`rc2k_core::menu::films::play_films`); `nofmv` still skips every film.
+
+## A sound that could not be started would have slowed the audio thread to one turn a second
+
+**What it is:** the original watched for sound buffers that Windows had taken away for another program: a failed call set a flag, and while the flag was set the audio thread waited a second each turn before it tried to restore every buffer. Buffers are never taken away here, but the flag was also set by any failure to start the primary buffer, and then nothing cleared it unless the restore ran with the window active.
+
+**In game:** after such a failure every audio turn would take a second instead of 20 ms: sounds late by up to a second, and every wait for the audio thread (a stage's start, a race's end) a second or more.
+
+**Seen or read:** read, not seen (the platform's play call fails only for a buffer that is not there).
+
+**Fix:** the lost-buffer flag and its restore are gone (`audio::restore` removed). A play that fails is written to `rc2k.log` and that sound stays silent.

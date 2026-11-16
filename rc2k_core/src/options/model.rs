@@ -174,7 +174,8 @@ pub struct Network {
 pub struct Pages {
     /// The pages' work copies, the first switch up to the headlights.
     pub switches: Words<11>,
-    /// The audio quality, the 3D switches and the channels.
+    /// The audio quality, DirectSound 3D, EAX, a switch no longer used (Aureal's A3D, which
+    /// the files still hold), Dolby and the channels.
     pub audio: Words<6>,
     /// The services counted.
     pub services: u32,
@@ -238,6 +239,22 @@ pub struct Options {
 }
 
 impl Options {
+    /// Options read from a file that names Aureal's A3D, which the game no longer has, become
+    /// the nearest it has: the sound modes on DirectSound with their 3D kept, and the page's
+    /// A3D switch off with DirectSound 3D on in its place.
+    pub fn without_a3d(&mut self) {
+        use crate::audio::device::without_a3d;
+        self.sound.menu_sound_mode = without_a3d(self.sound.menu_sound_mode);
+        self.sound.race_sound_mode = without_a3d(self.sound.race_sound_mode);
+        if let [_, ds3d, _, a3d, dolby, _] = self.pages.audio.0.as_mut_slice()
+            && *a3d != 0
+        {
+            *a3d = 0;
+            *ds3d = 1;
+            *dolby = 0;
+        }
+    }
+
     /// Calls `f` with every value, in the old file's order.
     #[rustfmt::skip]
     pub fn visit(&mut self, f: &mut dyn FnMut(&mut dyn Field)) {

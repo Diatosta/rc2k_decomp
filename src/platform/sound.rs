@@ -524,11 +524,6 @@ pub fn stop(id: u32) -> i32 {
     with_buffer(id, |b| b.playing = false)
 }
 
-/// `Restore`: a buffer here is never lost.
-pub fn restore(_id: u32) -> i32 {
-    OK
-}
-
 // ---- 3D (IDirectSound3DBuffer, IDirectSound3DListener) ----
 
 /// `SetPosition(x, y, z, apply)`: deferred or not, taken at once (the game commits each turn).

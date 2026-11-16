@@ -41,11 +41,11 @@ fn names<S: Screen<Font = Font, Work = Work>>(
     Ok(last)
 }
 
-/// The sound page's menu items in the order they are set (true: choosable): 4 .. 6 on, then
-/// off those the card lacks (3D sound, EAX, A3D 2).
-pub fn sound_items(has_3d: bool, has_eax: bool, has_a3d2: bool) -> Vec<(u32, bool)> {
-    let mut out = vec![(4, true), (5, true), (6, true)];
-    for (has, item) in [(has_3d, 4), (has_eax, 5), (has_a3d2, 6)] {
+/// The sound page's menu items in the order they are set (true: choosable): 4 and 5 on, then
+/// off those the card lacks (3D sound, EAX).
+pub fn sound_items(has_3d: bool, has_eax: bool) -> Vec<(u32, bool)> {
+    let mut out = vec![(4, true), (5, true)];
+    for (has, item) in [(has_3d, 4), (has_eax, 5)] {
         if !has {
             out.push((item, false));
         }
@@ -53,10 +53,10 @@ pub fn sound_items(has_3d: bool, has_eax: bool, has_a3d2: bool) -> Vec<(u32, boo
     out
 }
 
-/// The sound page's six names (each a string id), from y 0x10B every 0x1B.
+/// The sound page's five names (each a string id), from y 0x10B every 0x1B.
 pub fn sound<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
-    ids: [u32; 6],
+    ids: [u32; 5],
 ) -> Result<Drawn, S::Error> {
     names(s, ids.into_iter().zip((0..).map(|n| 0x10B + 0x1B * n)))
 }
@@ -263,10 +263,7 @@ mod tests {
 
     #[test]
     fn pages() {
-        assert_eq!(
-            sound_items(true, false, true),
-            [(4, true), (5, true), (6, true), (5, false)]
-        );
+        assert_eq!(sound_items(true, false), [(4, true), (5, true), (5, false)]);
         let mut s = Record::default();
         graphics(&mut s, [1, 2, 3, 4, 5, 6, 7, 8], [640, 480, 16]).unwrap();
         assert_eq!(s.0[2], "Value \"640x480x16\\0\" 0x1d1 0xf7");

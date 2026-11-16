@@ -52,8 +52,6 @@ pub enum OptionSwitch {
     Ds3d,
     /// EAX.
     Eax,
-    /// A3D.
-    A3d,
     /// Dolby.
     Dolby,
     /// The channels.

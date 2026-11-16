@@ -55,7 +55,7 @@ pub fn open_listener(state: &AudioOwn, has_fpu: u32) -> Result<bool, Refused> {
     Ok(false)
 }
 
-/// Nothing with A3D; no DirectSound or a failed create: false. The buffer description is zeroed,
+/// No DirectSound or a failed create: false. The buffer description is zeroed,
 /// size 0x14, flags 0x81 (+0x10 in 3D); the primary buffer is created, its volume kept; the format
 /// set; a master volume past 0x40 becomes `volume_index` of the kept one; it is shown and set; in
 /// 3D the listener is opened, whose failure takes 3D out of the mode.
@@ -65,9 +65,6 @@ pub fn make_primary(
 ) -> Result<bool, Refused> {
     use crate::audio::make_buffer::BufferDescription;
     let state = &audio.state;
-    if crate::audio::buffer_settings::a3d(state) {
-        return Ok(true);
-    }
     let ds = state.direct_sound.get();
     if ds == 0 {
         return Ok(false);

@@ -74,8 +74,7 @@ impl rc2k_core::audio::streams::Player for GamePlayer<'_> {
         self.with(|s| feed_stream(state, s)).map(|_| ())
     }
     fn stop(&mut self) -> Result<(), Refused> {
-        let state = self.state;
-        self.with(|s| stop_stream(state, s))
+        self.with(stop_stream)
     }
     fn apply_volume(&mut self) -> Result<(), Refused> {
         set_stream_volume(self.state, &self.player.get())

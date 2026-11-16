@@ -40,8 +40,10 @@ pub struct MenuOptions {
     pub ds3d: PlainDword,
     /// The EAX switch.
     pub eax: PlainDword,
-    /// The A3D switch.
-    pub a3d: PlainDword,
+    /// The switch of Aureal's A3D as the options files hold it. The game has no A3D: no page
+    /// shows this and nothing reads it; it is kept so that a file is written back as it was
+    /// read (a file loaded at the start has it 0: `Options::without_a3d`).
+    pub retired_a3d: PlainDword,
     /// The Dolby switch.
     pub dolby: PlainDword,
     /// The channels chosen.
@@ -103,7 +105,7 @@ impl MenuOptions {
             audio_quality: PlainDword::new(0x3),
             ds3d: PlainDword::new(0x0),
             eax: PlainDword::new(0x0),
-            a3d: PlainDword::new(0x0),
+            retired_a3d: PlainDword::new(0x0),
             dolby: PlainDword::new(0x0),
             channels: PlainDword::new(0x1),
             music_level: PlainDword::new(0x40),
@@ -115,14 +117,13 @@ impl MenuOptions {
 }
 
 impl MenuOptions {
-    /// Stores the six values of the sound page, in memory order: the audio quality, DS3D, EAX, A3D,
-    /// Dolby and the channels (`screens::load_audio_settings`).
-    pub fn set_audio_page(&self, values: [u32; 6]) {
+    /// Stores the five values of the sound page: the audio quality, DS3D, EAX, Dolby and the
+    /// channels (`screens::load_audio_settings`).
+    pub fn set_audio_page(&self, values: [u32; 5]) {
         let cells = [
             &self.audio_quality,
             &self.ds3d,
             &self.eax,
-            &self.a3d,
             &self.dolby,
             &self.channels,
         ];

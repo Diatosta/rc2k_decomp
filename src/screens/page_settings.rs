@@ -20,7 +20,7 @@ pub fn pick_player(menus: &Menus, n: u32) -> Result<(), Refused> {
     Ok(())
 }
 
-/// The audio options (quality, channels, Dolby, A3D, EAX, DS3D) into the sound page's work
+/// The audio options (quality, channels, Dolby, EAX, DS3D) into the sound page's work
 /// variables (the options).
 pub fn load_audio_settings(menus: &Menus, audio: &crate::audio::owner::Audio) {
     // The logic is in `rc2k_core::screens::page_values::audio_page`.

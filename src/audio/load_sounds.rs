@@ -2,7 +2,7 @@
 //! above 0, that many voices are made (while fewer than 0x200 are in use): found shared voice or
 //! sample read, new voice, `fill_voice`, sample mode, prepare, keep, make and fill buffer; the
 //! voice's flags get `LOADED`. Quitting ends it after any entry. Refuses, before anything is
-//! done: a list without its -1 within 0x1000 entries, a sound of 0x1CD or more, and A3D.
+//! done: a list without its -1 within 0x1000 entries, and a sound of 0x1CD or more.
 
 use crate::audio::own::AudioThread;
 use crate::audio::voices::*;
@@ -136,9 +136,6 @@ pub fn load_sounds(
     let Some(list) = list else {
         return Ok(());
     };
-    if crate::audio::buffer_settings::a3d(&audio.state) {
-        return Err(BadInput("A3D").into());
-    }
     let entry = list_entries(sets, menu_sounds, list)?;
     let refusal = std::cell::Cell::new(None);
     let entries = rc2k_core::audio::load::entries(|n| {

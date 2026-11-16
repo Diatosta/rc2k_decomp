@@ -14,7 +14,7 @@ pub fn free_voices(audio: &AudioThread) -> Result<(), Refused> {
         crate::audio::release_eax::release_eax(&audio.state);
         crate::audio::release_voice_manager::release_voice_manager(&audio.state);
         for n in 0..count as usize {
-            crate::audio::release_voice::release_voice_in_game(
+            crate::audio::release_voice::release_voice(
                 &audio.state,
                 crate::audio::voices::voice_id(n as u32),
             );
@@ -25,7 +25,6 @@ pub fn free_voices(audio: &AudioThread) -> Result<(), Refused> {
         audio.sample_records.set_first_voice(n, 0);
     }
     crate::audio::clear_channels::clear_channels(audio);
-    audio.state.sound_buffer_lost.set(0);
     audio.state.commit_3d.set(0);
     audio.state.channels_used.set(0);
     audio.state.playing_voices.set(0);

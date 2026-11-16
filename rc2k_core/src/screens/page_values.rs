@@ -4,12 +4,13 @@
 use crate::audio::modes::AudioOptions;
 use crate::menu::player::Player;
 
-/// The advanced audio page's six work values (`MenuOptions.audio_quality` ..
-/// `MenuOptions.channels`: quality, DS3D, EAX, A3D, Dolby, channels) from the options as last
+/// The advanced audio page's five work values (`MenuOptions.audio_quality` ..
+/// `MenuOptions.channels`: quality, DS3D, EAX, Dolby, channels) from the options as last
 /// applied.
-pub fn audio_page(options: &AudioOptions) -> [u32; 6] {
-    let a = options.applied; // quality, channels, DS3D, EAX, A3D, Dolby
-    [a[0], a[2], a[3], a[4], a[5], a[1]]
+pub fn audio_page(options: &AudioOptions) -> [u32; 5] {
+    use crate::audio::modes::{CHANNELS, DOLBY, DS3D, EAX, QUALITY};
+    let a = options.applied;
+    [a[QUALITY], a[DS3D], a[EAX], a[DOLBY], a[CHANNELS]]
 }
 
 /// The stage options page's items 1 and 2: their strings by the two switches (1:
@@ -48,10 +49,10 @@ mod tests {
     #[test]
     fn audio() {
         let o = AudioOptions {
-            applied: [1, 2, 3, 4, 5, 6],
+            applied: [1, 2, 3, 4, 5],
             ..AudioOptions::default()
         };
-        assert_eq!(audio_page(&o), [1, 3, 4, 5, 6, 2]);
+        assert_eq!(audio_page(&o), [1, 3, 4, 5, 2]);
     }
 
     #[test]

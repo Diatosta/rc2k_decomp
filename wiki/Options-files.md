@@ -126,7 +126,7 @@ The values have no gaps or alignment between them, which is why some offsets are
 | `0x0018` | `0x4` | `display.race_mode` | The race's screen mode. A mode saved at 16 bits a pixel (both modes) is taken as the same size at 32 bits: the screen always has 32. |
 | `0x001C` | `0x4` | `display.mipmapping` | Mipmapping, 0 or 1. |
 | `0x0020` | `0x4` | `sound.menu_sound_mode` | The menus' sound mode. |
-| `0x0024` | `0x4` | `sound.race_sound_mode` | The race's sound mode. |
+| `0x0024` | `0x4` | `sound.race_sound_mode` | The race's sound mode. A mode of the original's A3D option (bit `0x2000`) is read as the same mode with 3D sound instead (bit `0x1000`), from either file; with it the A3D switch of `pages.audio` is read as the 3D sound switch. |
 | `0x0028` | `0x4` | `sound.master_volume` | Master volume. |
 | `0x002C` | `0x4` | `sound.unread_option_f0` | Kept, not used. |
 | `0x0030` | `0x4` | `sound.race_music_on` | Music in races, 0 or 1. |
@@ -154,7 +154,7 @@ The values have no gaps or alignment between them, which is why some offsets are
 | `0x0B60` | `0x4` | `sound.sounds_a` | An effects level. |
 | `0x0B64` | `0x4` | `sound.sounds_b` | An effects level. |
 | `0x0B68` | `0x2C` | `pages.switches` | Eleven u32s, the graphics options page: mipmapping, buffering, two screen-mode switches, lens flare, two unused percentages, reflections, car shadows, car detail, headlights. |
-| `0x0B94` | `0x18` | `pages.audio` | Six u32s, the audio options page: quality, three 3D sound switches, Dolby, channels. |
+| `0x0B94` | `0x18` | `pages.audio` | Six u32s, the audio options page: quality, 3D sound, EAX, the A3D switch of the original (not used: 0 after a load), Dolby, channels. |
 | `0x0BAC` | `0x4` | `pages.services` | Services counted. |
 | `0x0BB0` | `0x4` | `pages.event_kept` | A value kept between an event's races. |
 | `0x0BB4` | `0x4` | `pages.race_settings` | The first word of the race settings. |

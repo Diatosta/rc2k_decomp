@@ -4,12 +4,12 @@
 //! The first call fills the options from the race's mode (quality: the first of the three
 //! quality modes whose low byte the mode has, else 3; the others from the mode's bits, set
 //! only) and the three facts, the choices as the applied. Later calls apply the first
-//! choice that changed of quality, channels, DS3D, EAX, A3D, Dolby, in that order and only
-//! one of the four that exclude each other (DS3D on clears A3D and Dolby, off clears EAX;
-//! EAX on sets DS3D and clears A3D and Dolby; A3D on clears the others; Dolby on
-//! likewise), then build the race mode: the quality's mode, 0x400000 channels, DS3D
-//! 0x101000 (+ 0x800000 with free hardware 3D buffers and the voice manager on), A3D
-//! 0x102000, EAX 0x1000000, Dolby 0x2040000; no way bit: 0x10000; no device bit: 0x1000.
+//! choice that changed of quality, channels, DS3D, EAX, Dolby, in that order and only
+//! one of the three that exclude each other (DS3D on clears Dolby, off clears EAX;
+//! EAX on sets DS3D and clears Dolby; Dolby on clears DS3D and EAX), then build the race
+//! mode: the quality's mode, 0x400000 channels, DS3D 0x101000 (+ 0x800000 with free hardware
+//! 3D buffers and the voice manager on), EAX 0x1000000, Dolby 0x2040000; no way bit: 0x10000;
+//! no device bit: 0x1000.
 
 use crate::Invalid;
 
@@ -20,30 +20,29 @@ pub const QUALITIES: u32 = 4;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct AudioOptions {
     pub kept: u32,
-    /// The screen's choices: quality, channels, DS3D, EAX, A3D, Dolby.
-    pub choice: [u32; 6],
+    /// The screen's choices: quality, channels, DS3D, EAX, Dolby.
+    pub choice: [u32; CHOICES],
     /// The same, as last applied.
-    pub applied: [u32; 6],
+    pub applied: [u32; CHOICES],
     pub has_3d: u32,
-    pub has_a3d2: u32,
     pub has_eax: u32,
 }
 
-const _: () = assert!(std::mem::size_of::<AudioOptions>() == 0x40);
+/// How many choices the screen has.
+pub const CHOICES: usize = 5;
 
-const QUALITY: usize = 0;
-const CHANNELS: usize = 1;
-const DS3D: usize = 2;
-const EAX: usize = 3;
-const A3D: usize = 4;
-const DOLBY: usize = 5;
+/// The choices' places in `choice` and `applied`.
+pub const QUALITY: usize = 0;
+pub const CHANNELS: usize = 1;
+pub const DS3D: usize = 2;
+pub const EAX: usize = 3;
+pub const DOLBY: usize = 4;
 
 /// What it reads of the machine.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Facts {
     pub qualities: [u32; 4],
     pub has_3d: u32,
-    pub has_a3d2: u32,
     pub has_eax: u32,
     pub hw_3d_buffers: u32,
     pub voice_manager_on: u32,
@@ -82,10 +81,8 @@ pub fn choose_modes(
         set(CHANNELS, mode & 0x40_0000 != 0);
         set(DS3D, mode & 0x10_1000 == 0x10_1000);
         set(EAX, mode & 0x100_0000 != 0);
-        set(A3D, mode & 0x2000 != 0);
         set(DOLBY, mode & 0x200_0000 != 0);
         o.has_3d = f.has_3d;
-        o.has_a3d2 = f.has_a3d2;
         o.has_eax = f.has_eax;
         o.choice = o.applied;
         return Ok(());
@@ -99,7 +96,6 @@ pub fn choose_modes(
     if c[DS3D] != a[DS3D] {
         a[DS3D] = c[DS3D];
         if c[DS3D] != 0 {
-            a[A3D] = 0;
             a[DOLBY] = 0;
         } else {
             a[EAX] = 0;
@@ -109,21 +105,12 @@ pub fn choose_modes(
         c[EAX] != 0
     } {
         a[DS3D] = 1;
-        a[A3D] = 0;
-        a[DOLBY] = 0;
-    } else if c[A3D] != a[A3D] && {
-        a[A3D] = c[A3D];
-        c[A3D] != 0
-    } {
-        a[DS3D] = 0;
-        a[EAX] = 0;
         a[DOLBY] = 0;
     } else if c[DOLBY] != a[DOLBY] {
         a[DOLBY] = c[DOLBY];
         if c[DOLBY] != 0 {
             a[DS3D] = 0;
             a[EAX] = 0;
-            a[A3D] = 0;
         }
     }
     let mut mode = f.qualities[a[QUALITY] as usize];
@@ -135,9 +122,6 @@ pub fn choose_modes(
         if f.hw_3d_buffers != 0 && f.voice_manager_on == 1 {
             mode |= 0x80_0000;
         }
-    }
-    if a[A3D] != 0 {
-        mode |= 0x10_2000;
     }
     if a[EAX] != 0 {
         mode |= 0x100_0000;
@@ -191,7 +175,6 @@ mod tests {
         let f = Facts {
             qualities: [0x21, 0x22, 0x24, 0x28],
             has_3d: 1,
-            has_a3d2: 0,
             has_eax: 1,
             hw_3d_buffers: 4,
             voice_manager_on: 1,
@@ -216,6 +199,11 @@ mod tests {
                 Logged::Race(race)
             ]
         );
+        // Dolby chosen: DS3D and EAX go.
+        o.choice[DOLBY] = 1;
+        choose_modes(&mut o, &mut race, &mut menu, &f, |_| {}).unwrap();
+        assert_eq!(o.applied, [1, 0, 0, 0, 1]);
+        assert_eq!(race, 0x22 | 0x204_0000 | 0x1000);
         o.choice[QUALITY] = 4;
         assert!(choose_modes(&mut o, &mut race, &mut menu, &f, |_| {}).is_err());
         assert_eq!(channels(0x1_0000, [4, 9], [0, 0]), (6, 4));

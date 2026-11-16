@@ -91,9 +91,9 @@ each key in this table was not tried one by one for this page.
 | `videomodemain`, `videomodegame` | The screen modes of the menus and of the race (the options files hold the same two values). The screen always has 32 bits a pixel: a 16-bit mode is taken as the same size at 32 bits, and a first start picks 800 × 600 at 32 bits. |
 | `lexcontrol`, `sparksmode`, `textflashmode` | Developers' switches for the texts and the menus. |
 | `notaskswitch` | Windows task switching. |
-| `noprichange`, `nocdaudio`, `forceno3dcard`, `ignoreprimary`, `ignoresecondary`, `ignoremmx`, `ignorekatmai`, `ignoreamdk3d` | Read and not used: the process's priority is left alone, there is no CD audio, there is one display card, and the game's arithmetic has one path whatever the processor. |
+| `noprichange`, `nocdaudio`, `forceno3dcard`, `ignoreprimary`, `ignoresecondary`, `ignoremmx`, `ignorekatmai`, `ignoreamdk3d`, `ignorea3d` | Read and not used: the process's priority is left alone, there is no CD audio, there is one display card, and the game's arithmetic has one path whatever the processor; the game has no A3D sound. |
 | `altmemenable`, `altmemheapsize`, `wavheapsize`, `bundleheapsize`, `imageheapsize`, `gamegfxheapsize` | Sizes of the 1999 game's memory pools. |
-| `audiobasefreq`, `ignoreds3d`, `ignoredsv`, `ignoreeax`, `ignorea3d` | Sound hardware: the mixing rate, 3D sound systems. |
+| `audiobasefreq`, `ignoreds3d`, `ignoredsv`, `ignoreeax` | Sound hardware: the mixing rate, 3D sound systems. |
 | `forcedx5`, `agpmode`, `force3dtrans`, `force3dalpha`, `force3dshadow`, `force3dfogging`, `v3driverfix`, `nopngdecode` | Display cards and drawing work-arounds. |
 
 A made-up `var/ral.cfg`:

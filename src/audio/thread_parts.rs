@@ -26,21 +26,22 @@ pub fn free_sample_buffer(state: &AudioOwn) -> Result<(), Refused> {
     Ok(())
 }
 
-/// Unless A3D, the primary buffer played looping; a failure sets the lost flag.
+/// The primary buffer played looping; a failure is logged.
 pub fn play_primary(state: &AudioOwn) {
     let p = state.primary_buffer.get();
-    if crate::audio::buffer_settings::a3d(state) || p == 0 {
+    if p == 0 {
         return;
     }
-    if crate::platform::sound::play(p, 1) != 0 {
-        state.sound_buffer_lost.set(1);
+    let r = crate::platform::sound::play(p, 1);
+    if r != 0 {
+        crate::audio::buffer_play::log_failed_play("the primary buffer", r);
     }
 }
 
-/// Unless A3D, the primary buffer stopped.
+/// The primary buffer stopped.
 pub fn stop_primary(state: &AudioOwn) {
     let p = state.primary_buffer.get();
-    if !crate::audio::buffer_settings::a3d(state) && p != 0 {
+    if p != 0 {
         crate::platform::sound::stop(p);
     }
 }

@@ -88,10 +88,31 @@ mod tests {
     #[test]
     fn counts() {
         assert_eq!(MENUS.len(), 96);
-        assert_eq!(MENUS.iter().map(|m| m.items.len()).sum::<usize>(), 567);
+        assert_eq!(MENUS.iter().map(|m| m.items.len()).sum::<usize>(), 566);
         assert_eq!(MENUS.iter().filter(|m| !m.referenced).count(), 8);
         assert_eq!(LISTS.len(), 301);
         assert_eq!(LISTS.iter().filter(|l| !l.referenced).count(), 10);
+    }
+
+    /// The sound options' menu.
+    const SOUND_MENU: u32 = 0x754934;
+
+    /// The sound options' rows as RAL.EXE has them. Its sixth row switched Aureal's A3D, which
+    /// the game no longer has: the tables leave the row out, Dolby's row stands in its place
+    /// and takes its number, and the rows that led to either lead to Dolby. Here the row is
+    /// put back (the EAX row's look, one row down) and Dolby's moved back down.
+    fn with_a3d_row(rows: &mut Vec<[u32; 23]>) {
+        // A row's dwords: its place, its text's, its number and string, the rows above and
+        // below, and what the left and right keys do.
+        let (y, text_y, id, string, up, down, key_left, key_right) = (1, 3, 4, 5, 9, 10, 15, 16);
+        assert_eq!(rows.len(), 6);
+        rows[0][up] = 7;
+        let mut a3d = rows[4];
+        (a3d[y], a3d[text_y], a3d[id], a3d[string]) = (383, 375, 6, 0x551);
+        (a3d[up], a3d[down], a3d[key_left], a3d[key_right]) = (5, 7, 0x470203, 0x470203);
+        let dolby = &mut rows[5];
+        (dolby[y], dolby[text_y], dolby[id], dolby[up]) = (410, 402, 7, 6);
+        rows.insert(5, a3d);
     }
 
     /// Every dword the tables stand for, as RAL.EXE lays them out: `(address, dword)` for each
@@ -113,36 +134,45 @@ mod tests {
             if m.labels_at != 0 {
                 out.push((m.labels_at + 0x10 * m.labels.len() as u32, u32::MAX));
             }
-            for (n, it) in m.items.iter().enumerate() {
-                let at = m.at + 4 + 0x5C * n as u32;
-                let fields = [
-                    it.x as u32,
-                    it.y as u32,
-                    it.width_or_text_x as u32,
-                    it.alignment_or_text_y as u32,
-                    it.id,
-                    it.string,
-                    it.font.ral(),
-                    it.behind,
-                    it.sprites,
-                    it.links[0],
-                    it.links[1],
-                    it.links[2],
-                    it.links[3],
-                    it.on_key[0].ral(),
-                    it.on_key[1].ral(),
-                    it.on_key[2].ral(),
-                    it.on_key[3].ral(),
-                    it.action.ral(),
-                    it.skip_mark,
-                    it.measuring_font.ral(),
-                    it.highlight_font.ral(),
-                    it.action_value,
-                    it.spaced,
-                ];
-                out.extend((0..).step_by(4).zip(fields).map(|(o, w)| (at + o, w)));
+            let mut rows: Vec<[u32; 23]> = m
+                .items
+                .iter()
+                .map(|it| {
+                    [
+                        it.x as u32,
+                        it.y as u32,
+                        it.width_or_text_x as u32,
+                        it.alignment_or_text_y as u32,
+                        it.id,
+                        it.string,
+                        it.font.ral(),
+                        it.behind,
+                        it.sprites,
+                        it.links[0],
+                        it.links[1],
+                        it.links[2],
+                        it.links[3],
+                        it.on_key[0].ral(),
+                        it.on_key[1].ral(),
+                        it.on_key[2].ral(),
+                        it.on_key[3].ral(),
+                        it.action.ral(),
+                        it.skip_mark,
+                        it.measuring_font.ral(),
+                        it.highlight_font.ral(),
+                        it.action_value,
+                        it.spaced,
+                    ]
+                })
+                .collect();
+            if m.at == SOUND_MENU {
+                with_a3d_row(&mut rows);
             }
-            out.push((m.at + 4 + 0x5C * m.items.len() as u32, u32::MAX));
+            for (n, fields) in rows.iter().enumerate() {
+                let at = m.at + 4 + 0x5C * n as u32;
+                out.extend((0..).step_by(4).zip(*fields).map(|(o, w)| (at + o, w)));
+            }
+            out.push((m.at + 4 + 0x5C * rows.len() as u32, u32::MAX));
         }
         for l in LISTS.iter() {
             for (n, f) in l.functions.iter().enumerate() {
@@ -165,7 +195,8 @@ mod tests {
 
     /// Every dword of every menu, label, item and list, at its RAL.EXE address, equals what RAL.EXE
     /// holds there: checked by count and hash, frozen from a comparison with RAL.EXE's bytes that
-    /// covered every dword. The one difference the enums make: the 194 item functions at 0x471C81
+    /// covered every dword (the sound options' A3D row, which the tables leave out, put back
+    /// for it: `with_a3d_row`). The one difference the enums make: the 194 item functions at 0x471C81
     /// (a second empty function) read as `ItemFn::Nothing`, which stands for 0x471C80.
     #[test]
     fn tables_are_the_games() {

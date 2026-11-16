@@ -8,8 +8,8 @@
 //! - the texture steps cycle `options.car_detail` through 0 .. 2 into the texture setting;
 //!   the colour steps cycle `screen_flow.start_section` (or `start_section_a8`) through 0 .. 6
 //!   and put the entry of the colour list it picks into a caption list slot.
-//! - `menu::apply_audio_choices`: the advanced audio page's six work values into the audio
-//!   options' choices, `audio::choose_modes`, and the six as applied back.
+//! - `menu::apply_audio_choices`: the advanced audio page's five work values into the audio
+//!   options' choices, `audio::choose_modes`, and the five as applied back.
 //!
 //! The names of the texture and colour steps are readings of their variables.
 
@@ -126,16 +126,16 @@ pub fn step_start_pick(tables: &Tables, c: StartPick<'_>, up: bool) {
     c.pick.set(pick);
 }
 
-/// (the work value, its place among the audio options' six choices and six applied).
-fn choices(menus: &Menus) -> [(&PlainDword, usize); 6] {
+/// (the work value, its place among the audio options' choices and applied).
+fn choices(menus: &Menus) -> [(&PlainDword, usize); 5] {
+    use rc2k_core::audio::modes::{CHANNELS, DOLBY, DS3D, EAX, QUALITY};
     let work = &menus.options;
     [
-        (&work.audio_quality, 0), // quality
-        (&work.channels, 1),      // channels
-        (&work.dolby, 5),         // Dolby
-        (&work.a3d, 4),           // A3D
-        (&work.eax, 3),           // EAX
-        (&work.ds3d, 2),          // DS3D
+        (&work.audio_quality, QUALITY),
+        (&work.channels, CHANNELS),
+        (&work.dolby, DOLBY),
+        (&work.eax, EAX),
+        (&work.ds3d, DS3D),
     ]
 }
 /// `menu::apply_audio_choices`.

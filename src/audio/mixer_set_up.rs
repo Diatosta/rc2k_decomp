@@ -1,5 +1,5 @@
 //! The game's mixer set up, and the two ways chosen by the mode: `audio::set_up_primary_mixer`,
-//! `audio::open_way`, `audio::close_way`.
+//! `audio::open_way`, `audio::close_way`, `audio::close_primary_mixer`.
 
 use crate::audio::own::AudioThread;
 use crate::errors::Refused;
@@ -17,7 +17,7 @@ pub fn set_up_primary_mixer(audio: &AudioThread, system: &System) -> Result<bool
     if audio.state.sound_mode.get() & MODE_MIXER == 0 {
         return Ok(true);
     }
-    let failed = || crate::audio::restore::close_primary_mixer(audio, system).map(|_| false);
+    let failed = || close_primary_mixer(audio, system).map(|_| false);
     crate::audio::sound_device::release_primary(&audio.state);
     let ds = audio.state.direct_sound.get();
     if crate::platform::sound::set_cooperative_level(
@@ -92,7 +92,23 @@ pub fn close_way(audio: &AudioThread, system: &System, mode: u32) -> Result<bool
             crate::audio::clear_channels::clear_channels(audio);
             Ok(false)
         }
-        Some(Way::Mixer) => crate::audio::restore::close_primary_mixer(audio, system),
+        Some(Way::Mixer) => close_primary_mixer(audio, system),
         None => Ok(true),
     }
+}
+
+/// The channels cleared; in the mixer's mode with a DirectSound: `release_primary`, cooperative
+/// level 3, `make_primary`. Returns failure of `make_primary`, when that ran.
+pub fn close_primary_mixer(audio: &AudioThread, system: &System) -> Result<bool, Refused> {
+    let state = &audio.state;
+    crate::audio::clear_channels::clear_channels(audio);
+    if !rc2k_core::audio::buffers::remakes_primary(state.sound_mode.get(), || {
+        state.direct_sound.get()
+    }) {
+        return Ok(false);
+    }
+    crate::audio::sound_device::release_primary(state);
+    let ds = state.direct_sound.get();
+    crate::platform::sound::set_cooperative_level(ds, system.session.host.window.get(), 3);
+    Ok(!crate::audio::primary::make_primary(audio, system)?)
 }

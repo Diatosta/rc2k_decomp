@@ -1,9 +1,9 @@
 //! The audio thread's routine, from its start to the thread's end. Already running goes straight
 //! to the end. Else: "AUDIOTDB:START"; unless audio is off, the sample buffer taken, `audio::start`
-//! (failing: the end), the splash read, the menu sound mode set, priority raised; then a turn every
-//! 20 ms: sleep what is left of them, the streams fed, commands taken, voices updated, lost
-//! buffers restored, until the game quits. The end: audio off, everything closed, the splash
-//! written, "AUDIOTDB:QUIT".
+//! (failing: the end), the menu sound mode set, priority raised; then a turn every
+//! 20 ms: a pause of what is left of them (cut short when the game's thread waits for the
+//! commands it queued), the streams fed, commands taken, voices updated, until the game quits. The end: audio off, everything closed,
+//! "AUDIOTDB:QUIT".
 
 use crate::errors::Refused;
 use rc2k_core::audio::commands::StreamAction;
@@ -57,7 +57,6 @@ pub fn audio_thread(inputs: AudioInputs<'_>) -> Result<(), Refused> {
             start::start(audio, system)?
         };
     if started {
-        a3d::splash(&audio.state)?;
         set_mode::set_mode(audio, system, audio.state.menu_sound_mode.get())?;
         set_priority(0xF);
         audio
@@ -68,7 +67,12 @@ pub fn audio_thread(inputs: AudioInputs<'_>) -> Result<(), Refused> {
             let last = audio.state.audio_turn_tick.get();
             let now = tick_count(&system.session.picture_clock);
             audio.state.audio_turn_tick.set(now);
-            crate::system::sleep::sleep(rc2k_core::audio::device::turn_sleep(last, now));
+            // What is left of the turn's length, or less when the game's thread waits for the
+            // commands it queued.
+            crate::sound::queue::pause_between_turns(
+                owner,
+                crate::system::sleep::duration(rc2k_core::audio::device::turn_sleep(last, now)),
+            );
             let begun = crate::debug::timing::start();
             // The turn's feeds (action 1, which reads nothing else).
             stream_commands::stream_command(audio, 0, 0, StreamAction::Turn)?;
@@ -82,9 +86,6 @@ pub fn audio_thread(inputs: AudioInputs<'_>) -> Result<(), Refused> {
                 crate::debug::timing::note_voices(stray_voices::on_lists(&audio.state));
             }
             crate::debug::timing::stop(crate::debug::timing::Stage::AudioTurn, begun);
-            if audio.state.sound_buffer_lost.is_set() {
-                restore::restore_lost(audio, system)?;
-            }
             if system.session.flags.quitting.is_set() {
                 break;
             }
@@ -93,7 +94,6 @@ pub fn audio_thread(inputs: AudioInputs<'_>) -> Result<(), Refused> {
     audio.state.no_audio.set(1);
     close_all::close_all(audio, system)?;
     thread_parts::free_sample_buffer(&audio.state)?;
-    a3d::splash(&audio.state)?;
     sound_device::log_text(QUIT_TEXT, true);
     set_priority(0);
     running.set(0);

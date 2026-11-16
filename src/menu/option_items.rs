@@ -282,7 +282,6 @@ pub fn switch(o: Owners<'static>, which: OptionSwitch) -> Result<(), Refused> {
         ),
         OptionSwitch::Ds3d => (var!(@o menus.options.ds3d), Kind::SwitchAudio),
         OptionSwitch::Eax => (var!(@o menus.options.eax), Kind::SwitchAudio),
-        OptionSwitch::A3d => (var!(@o menus.options.a3d), Kind::SwitchAudio),
         OptionSwitch::Dolby => (var!(@o menus.options.dolby), Kind::SwitchAudio),
         OptionSwitch::Channels => (var!(@o menus.options.channels), Kind::SwitchAudio),
     };

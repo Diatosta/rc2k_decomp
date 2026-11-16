@@ -268,19 +268,6 @@ pub fn new_voice(count: &mut u32) -> Option<u32> {
     Some(*count - 1)
 }
 
-/// The playing voices that were sounding (state 2, the voice's +0x3C) and have a buffer,
-/// in the list's order (`audio::replay_looping` plays each again after a lost buffer).
-/// Refused (before any is played): a list without its end.
-pub fn sounding_to_replay<P: Pool>(pool: &mut P, lists: &Lists) -> Result<Vec<u32>, Invalid> {
-    Ok(list(pool, lists.playing)?
-        .into_iter()
-        .filter(|&at| {
-            let v = pool.voice(at);
-            v.state == 2 && v.buffer != 0
-        })
-        .collect())
-}
-
 /// Where a voice and a command lead.
 enum Plan {
     Nothing,

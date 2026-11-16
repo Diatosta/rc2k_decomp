@@ -1,7 +1,8 @@
 //! DirectSound's device, primary buffer and turn way: what the audio thread decides around them.
 //! The COM calls stay the platform's.
 //!
-//! The sound mode's bits used here: 0xF000 the device (0x1000 DirectSound, 0x2000 A3D2),
+//! The sound mode's bits used here: 0xF000 the device (0x1000 DirectSound; 0x2000 was
+//! Aureal's A3D, which a mode read from an old options file may still name: `without_a3d`),
 //! 0xF0000 the turn's way (0x10000 the voices' own buffers, 0x40000 the software mixer),
 //! 0x100000 3D.
 
@@ -10,7 +11,18 @@ use super::voices::MODE_3D;
 /// The device bits.
 pub const DEVICE_BITS: u32 = 0xF000;
 pub const DIRECT_SOUND: u32 = 0x1000;
-pub const A3D2: u32 = 0x2000;
+/// The device bit of Aureal's A3D, which is no longer a device.
+const A3D2: u32 = 0x2000;
+
+/// A saved sound mode without A3D: one that names A3D becomes the same mode on DirectSound (its
+/// quality, channels and 3D kept, so an A3D mode plays as DirectSound 3D).
+pub fn without_a3d(mode: u32) -> u32 {
+    if mode & A3D2 != 0 {
+        (mode & !A3D2) | DIRECT_SOUND
+    } else {
+        mode
+    }
+}
 /// The way bits.
 pub const OWN_BUFFERS: u32 = 0x1_0000;
 pub const MIXER: u32 = 0x4_0000;
@@ -25,43 +37,28 @@ pub fn needs_reopen(mode: u32, opened: u32) -> bool {
 pub trait Opening {
     type Error;
     fn mode(&mut self) -> u32;
-    fn set_mode(&mut self, mode: u32);
     /// "AUD: open sound" and the GUID logged.
     fn log_open(&mut self, guid: u32) -> Result<(), Self::Error>;
     /// "AUD: open failed rc=" and the code logged.
     fn log_failed(&mut self, code: u32) -> Result<(), Self::Error>;
-    /// `audio::open_a3d2`: true when it failed (not used).
-    fn open_a3d2(&mut self, guid: u32) -> Result<bool, Self::Error>;
-    /// `audio::open_a3d`: true when it failed.
-    fn open_a3d(&mut self, guid: u32) -> Result<bool, Self::Error>;
     /// `DirectSoundCreate`'s result.
     fn create(&mut self, guid: u32) -> i32;
     /// `SetCooperativeLevel` 3 (exclusive) with the window: its result.
     fn cooperate(&mut self) -> i32;
 }
 
-/// `audio::open_sound`: logs the GUID; with A3D2's bit tries `open_a3d2` (done if it opens,
-/// else the mode's 0x3000 bits flipped); then, only with DirectSound's bit, `open_a3d`, failing
-/// which `DirectSoundCreate`, and cooperative level 3. A failure (or no DirectSound bit) logs the
+/// `audio::open_sound`: logs the GUID; then, only with DirectSound's bit,
+/// `DirectSoundCreate` and cooperative level 3. A failure (or no DirectSound bit) logs the
 /// code (the GUID, or the call's result) and gives false.
 pub fn open_sound<O: Opening>(guid: u32, o: &mut O) -> Result<bool, O::Error> {
     let failed = |o: &mut O, code: u32| o.log_failed(code).map(|_| false);
     o.log_open(guid)?;
-    if o.mode() & A3D2 != 0 {
-        if !o.open_a3d2(guid)? {
-            return Ok(true);
-        }
-        let m = o.mode();
-        o.set_mode(m ^ (A3D2 | DIRECT_SOUND));
-    }
     if o.mode() & DIRECT_SOUND == 0 {
         return failed(o, guid);
     }
-    if o.open_a3d(guid)? {
-        let r = o.create(guid);
-        if r != 0 {
-            return failed(o, r as u32);
-        }
+    let r = o.create(guid);
+    if r != 0 {
+        return failed(o, r as u32);
     }
     let r = o.cooperate();
     if r != 0 {
@@ -216,7 +213,6 @@ pub enum Fact {
     FreeHardware,
     /// Whether a 3D primary buffer was made.
     Has3d,
-    HasA3d2,
     VoiceManagerOn,
     /// The free hardware 3D buffers (+0x3C).
     Free3d,
@@ -225,28 +221,24 @@ pub enum Fact {
 
 /// The menus' mode, the probe's first.
 pub const MENU_MODE: u32 = 0x1_1221;
-/// The race mode with A3D2.
-pub const A3D2_MODE: u32 = 0x11_2221;
 /// The caps' flag of hardware mixing, of emulation.
 pub const CAPS_HARDWARE: u32 = 0x100;
 pub const CAPS_EMULATED: u32 = 0x20;
 
 /// `audio::start`'s probe of an opened DirectSound: with hardware mixing, free hardware
-/// buffers and a 3D primary: A3D2's mode, or with the voice manager and six free 3D
-/// buffers the 3D bits (0x900000, and 0x1000000 with EAX); else the menus' mode.
+/// buffers, a 3D primary, the voice manager and six free 3D
+/// buffers: the 3D bits (0x900000, and 0x1000000 with EAX); else the menus' mode.
 pub fn probed_race_mode(fact: impl Fn(Fact) -> u32) -> u32 {
     let mut mode = MENU_MODE;
     if fact(Fact::CapsFlags) & CAPS_HARDWARE != 0
         && fact(Fact::FreeHardware) != 0
         && fact(Fact::Has3d) == 1
+        && fact(Fact::VoiceManagerOn) == 1
+        && fact(Fact::Free3d) >= 6
     {
-        if fact(Fact::HasA3d2) == 1 {
-            mode = A3D2_MODE;
-        } else if fact(Fact::VoiceManagerOn) == 1 && fact(Fact::Free3d) >= 6 {
-            mode |= 0x90_0000;
-            if fact(Fact::HasEax) == 1 {
-                mode |= 0x100_0000;
-            }
+        mode |= 0x90_0000;
+        if fact(Fact::HasEax) == 1 {
+            mode |= 0x100_0000;
         }
     }
     mode
@@ -274,8 +266,6 @@ mod tests {
 
     struct Fake {
         mode: u32,
-        a3d2_fails: bool,
-        a3d_fails: bool,
         create: i32,
         cooperate: i32,
         log: Vec<(char, u32)>,
@@ -286,9 +276,6 @@ mod tests {
         fn mode(&mut self) -> u32 {
             self.mode
         }
-        fn set_mode(&mut self, mode: u32) {
-            self.mode = mode;
-        }
         fn log_open(&mut self, guid: u32) -> Result<(), ()> {
             self.log.push(('o', guid));
             Ok(())
@@ -296,14 +283,6 @@ mod tests {
         fn log_failed(&mut self, code: u32) -> Result<(), ()> {
             self.log.push(('f', code));
             Ok(())
-        }
-        fn open_a3d2(&mut self, guid: u32) -> Result<bool, ()> {
-            self.log.push(('2', guid));
-            Ok(self.a3d2_fails)
-        }
-        fn open_a3d(&mut self, guid: u32) -> Result<bool, ()> {
-            self.log.push(('a', guid));
-            Ok(self.a3d_fails)
         }
         fn create(&mut self, guid: u32) -> i32 {
             self.log.push(('c', guid));
@@ -318,8 +297,6 @@ mod tests {
     fn fake(mode: u32) -> Fake {
         Fake {
             mode,
-            a3d2_fails: true,
-            a3d_fails: true,
             create: 0,
             cooperate: 0,
             log: Vec::new(),
@@ -328,24 +305,21 @@ mod tests {
 
     #[test]
     fn opening() {
-        let mut f = fake(0x2000);
+        let mut f = fake(0x1000);
         assert_eq!(open_sound(7, &mut f), Ok(true));
-        assert_eq!(f.mode, 0x1000);
-        assert_eq!(
-            f.log,
-            [('o', 7), ('2', 7), ('a', 7), ('c', 7), ('l', 0)].to_vec()
-        );
-        let mut f = fake(0x3000);
+        assert_eq!(f.log, [('o', 7), ('c', 7), ('l', 0)].to_vec());
+        // A mode without DirectSound's bit opens nothing.
+        let mut f = fake(0x2000);
         assert_eq!(open_sound(7, &mut f), Ok(false));
-        assert_eq!(f.log.last(), Some(&('f', 7)));
+        assert_eq!(f.log, [('o', 7), ('f', 7)].to_vec());
         let mut f = fake(0x1000);
         f.create = -5;
         assert_eq!(open_sound(0, &mut f), Ok(false));
         assert_eq!(f.log.last(), Some(&('f', 0xFFFF_FFFB)));
-        let mut f = fake(0x2000);
-        f.a3d2_fails = false;
-        assert_eq!(open_sound(0, &mut f), Ok(true));
-        assert_eq!((f.mode, f.log.len()), (0x2000, 2));
+        // An A3D mode of an old options file: the same mode on DirectSound, its 3D kept.
+        assert_eq!(without_a3d(0x11_2221), 0x11_1221);
+        assert_eq!(without_a3d(0x10_3022), 0x10_1022);
+        assert_eq!(without_a3d(0x91_1221), 0x91_1221);
         assert!(needs_reopen(0x1000, 0x2000) && !needs_reopen(0x1_1000, 0x1000));
     }
 
@@ -366,21 +340,20 @@ mod tests {
 
     #[test]
     fn probe() {
-        let facts = |flags, a3d2, eax| {
+        let facts = |flags, manager, eax| {
             move |f| match f {
                 Fact::CapsFlags => flags,
                 Fact::FreeHardware => 4,
                 Fact::Has3d => 1,
-                Fact::HasA3d2 => a3d2,
-                Fact::VoiceManagerOn => 1,
+                Fact::VoiceManagerOn => manager,
                 Fact::Free3d => 6,
                 Fact::HasEax => eax,
             }
         };
         assert_eq!(probed_race_mode(facts(0, 1, 1)), MENU_MODE);
-        assert_eq!(probed_race_mode(facts(0x100, 1, 1)), A3D2_MODE);
-        assert_eq!(probed_race_mode(facts(0x100, 0, 0)), 0x91_1221);
-        assert_eq!(probed_race_mode(facts(0x100, 0, 1)), 0x191_1221);
+        assert_eq!(probed_race_mode(facts(0x100, 0, 1)), MENU_MODE);
+        assert_eq!(probed_race_mode(facts(0x100, 1, 0)), 0x91_1221);
+        assert_eq!(probed_race_mode(facts(0x100, 1, 1)), 0x191_1221);
         assert_eq!((turn_sleep(100, 107), turn_sleep(100, 120)), (13, 1));
         assert_eq!(turn_sleep(100, 90), 30);
         assert!(modes_kept(1, || 1) && !modes_kept(0, || unreachable!()));

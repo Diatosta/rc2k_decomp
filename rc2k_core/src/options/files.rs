@@ -93,17 +93,27 @@ pub type OldWriter<'a> = &'a mut dyn FnMut(&Options) -> Result<(), OptionsError>
 /// The options to start with: the new file if it is there (unless the old is asked for), else
 /// the old file once (the new file is written from it first), else nothing (`base` stays,
 /// the game's own values for what a file lacks). `read_old` reads the old file (`load_old` is
-/// the plain way).
+/// the plain way). A file from when the game had Aureal's A3D loads as the nearest mode it
+/// has now (`Options::without_a3d`).
 pub fn load(
     paths: &Paths,
     asked: Asked,
     base: &Options,
     read_old: OldReader,
 ) -> Result<Option<(Options, Source)>, OptionsError> {
+    let mut read_old = || {
+        read_old().map(|read| {
+            read.map(|mut options| {
+                options.without_a3d();
+                options
+            })
+        })
+    };
     if asked.load_old {
         return Ok(read_old()?.map(|o| (o, Source::OldAsked)));
     }
-    if let Some(options) = load_new(paths, base)? {
+    if let Some(mut options) = load_new(paths, base)? {
+        options.without_a3d();
         return Ok(Some((options, Source::New)));
     }
     match read_old()? {
@@ -175,6 +185,33 @@ mod tests {
         o.sound.master_volume = volume;
         o.players.names[1].0[0] = b'Q';
         o
+    }
+
+    #[test]
+    fn an_a3d_mode_loads_as_directsound_3d() {
+        let dir = Dir::new("a3d");
+        let p = dir.paths();
+        let mut saved = options(40);
+        saved.sound.race_sound_mode = 0x11_2221;
+        saved.pages.audio.0 = vec![1, 0, 0, 1, 0, 1];
+        let mut wanted = saved.clone();
+        wanted.sound.race_sound_mode = 0x11_1221;
+        wanted.pages.audio.0 = vec![1, 1, 0, 0, 0, 1];
+        // From the old file (migrated), then from the new file written with the A3D mode.
+        save_old(&p, &saved, 9).unwrap();
+        let (o, from) = load(&p, Asked::default(), &Options::default(), &mut || {
+            load_old(&p)
+        })
+        .unwrap()
+        .unwrap();
+        assert_eq!((o, from), (wanted.clone(), Source::OldMigrated));
+        save_new(&p, &saved).unwrap();
+        let (o, from) = load(&p, Asked::default(), &Options::default(), &mut || {
+            load_old(&p)
+        })
+        .unwrap()
+        .unwrap();
+        assert_eq!((o, from), (wanted, Source::New));
     }
 
     #[test]

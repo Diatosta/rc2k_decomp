@@ -102,7 +102,7 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"ignorea3d",
         0x506C5C,
-        dword!(o => o.audio.state.no_a3d_setting),
+        dword!(o => o.audio.state.ignore_a3d_setting),
     ),
     (
         b"wavheapsize",
@@ -403,7 +403,7 @@ mod tests {
         ("ignoreds3d", "owners.audio.state", ".no_listener"),
         ("ignoredsv", "owners.audio.state", ".ignore_dsv_setting"),
         ("ignoreeax", "owners.audio.state", ".ignore_eax_setting"),
-        ("ignorea3d", "owners.audio.state", ".no_a3d_setting"),
+        ("ignorea3d", "owners.audio.state", ".ignore_a3d_setting"),
         ("wavheapsize", "owners.audio.state", ".sample_buffer_kb"),
         ("bundleheapsize", "owners.gfx.fonts.glyph_tables", ".units"),
         (

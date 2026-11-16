@@ -50,21 +50,20 @@ pub fn race(mode: u32) -> [Step; 4] {
 pub trait Waiting {
     /// Queues an "end of turn" command.
     fn end_turn(&mut self);
-    /// Whether commands are still waiting.
-    fn pending(&mut self) -> bool;
-    fn sleep_a_millisecond(&mut self);
+    /// Blocks until the audio thread has taken every command and ended the turn it took the
+    /// last in, or until a short while has passed: true when it has taken them all (or
+    /// there is no audio thread to take them).
+    fn wait_a_while(&mut self) -> bool;
     fn pump_messages(&mut self);
     /// Whether the quit switch is set to 1.
     fn quitting(&mut self) -> bool;
 }
 
-/// `sound::wait_for_commands`: two "end of turn" commands, then while commands wait a
-/// millisecond's sleep and the window's messages; quitting ends the wait.
+/// `sound::wait_for_commands`: an "end of turn" command, then the wait for the audio thread,
+/// in short stretches; between them the window's messages, and quitting ends the wait.
 pub fn wait_for_commands(w: &mut dyn Waiting) {
     w.end_turn();
-    w.end_turn();
-    while w.pending() {
-        w.sleep_a_millisecond();
+    while !w.wait_a_while() {
         w.pump_messages();
         if w.quitting() {
             break;
@@ -123,14 +122,11 @@ mod tests {
         fn end_turn(&mut self) {
             self.calls.push('e');
         }
-        fn pending(&mut self) -> bool {
-            self.calls.push('p');
+        fn wait_a_while(&mut self) -> bool {
+            self.calls.push('w');
             let waiting = self.waits > 0;
             self.waits = self.waits.saturating_sub(1);
-            waiting
-        }
-        fn sleep_a_millisecond(&mut self) {
-            self.calls.push('s');
+            !waiting
         }
         fn pump_messages(&mut self) {
             self.calls.push('m');
@@ -149,13 +145,13 @@ mod tests {
             calls: Vec::new(),
         };
         wait_for_commands(&mut s);
-        assert_eq!(s.calls.iter().collect::<String>(), "eepsmpsmp");
+        assert_eq!(s.calls.iter().collect::<String>(), "ewmwmw");
         let mut s = Script {
             waits: 5,
             quit_after: 1,
             calls: Vec::new(),
         };
         wait_for_commands(&mut s);
-        assert_eq!(s.calls.iter().collect::<String>(), "eepsm");
+        assert_eq!(s.calls.iter().collect::<String>(), "ewm");
     }
 }

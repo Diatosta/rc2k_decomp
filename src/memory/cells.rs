@@ -1235,7 +1235,7 @@ plain_record!(
     rc2k_core::audio::streams::AudioStream = 0x2C,
     crate::audio::make_buffer::BufferDescription = 0x14,
     crate::audio::describe_wave_format::WaveFormat = 0x12,
-    rc2k_core::audio::modes::AudioOptions = 0x40,
+    rc2k_core::audio::modes::AudioOptions = 0x34,
     rc2k_core::audio::voices::SampleRecord = 0x40,
     rc2k_core::audio::voices::Voice = 0x70,
     rc2k_core::audio::voices::MixerChannel = 0x58,

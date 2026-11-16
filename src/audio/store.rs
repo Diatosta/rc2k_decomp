@@ -66,8 +66,8 @@ pub struct AudioShared {
     pub ignore_dsv_setting: Dword,
     /// The voice manager is open.
     pub voice_manager_on: Dword,
-    /// `ignorea3d`: 1 no A3D, 2 no A3D2 (1 at start).
-    pub no_a3d_setting: Dword,
+    /// The settings file's `ignorea3d`: still read so that old files load; nothing uses it.
+    pub ignore_a3d_setting: Dword,
     /// The `ignoreeax` setting.
     pub ignore_eax_setting: Dword,
     /// EAX is open.
@@ -76,7 +76,6 @@ pub struct AudioShared {
     pub sounds_held_back: Dword,
     /// The advanced page's choices.
     pub audio_options: Shared<AudioOptions>,
-    pub has_a3d2: Dword,
     /// Which of tunes 10 .. 15 the next tune 0xA is (0 .. 5), kept in `var\ral.dat`; the audio
     /// thread's music command steps it, the game's thread loads and saves it.
     pub tune_turn: Dword,
@@ -183,19 +182,17 @@ impl AudioShared {
             sound_caps: Bytes::new([0; 96]),
             ignore_dsv_setting: Dword::new(0),
             voice_manager_on: Dword::new(0),
-            no_a3d_setting: Dword::new(0x1),
+            ignore_a3d_setting: Dword::new(0x1),
             ignore_eax_setting: Dword::new(0),
             has_eax: Dword::new(0),
             sounds_held_back: Dword::new(0),
             audio_options: Shared::new(AudioOptions {
                 kept: 0x0,
-                choice: [0x2, 0x0, 0x0, 0x0, 0x0, 0x0],
-                applied: [0x2, 0x0, 0x0, 0x0, 0x0, 0x0],
+                choice: [0x2, 0x0, 0x0, 0x0, 0x0],
+                applied: [0x2, 0x0, 0x0, 0x0, 0x0],
                 has_3d: 0x0,
-                has_a3d2: 0x0,
                 has_eax: 0x0,
             }),
-            has_a3d2: Dword::new(0),
             tune_turn: Dword::new(0),
             no_listener: Dword::new(0),
             has_3d: Dword::new(0),

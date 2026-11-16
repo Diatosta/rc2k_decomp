@@ -4,22 +4,14 @@
 //! makes a buffer of `bytes` and plays it looping, with the write place `step` ahead of the play
 //! cursor. `audio::feed_stream` writes into the buffer what the play cursor has moved over since
 //! the last turn (at most `step`), read from the file; after the file's end, silence, `tail`
-//! bytes of it, then the player stops. A3D is refused.
+//! bytes of it, then the player stops.
 
-use crate::audio::buffer_settings::a3d;
 use crate::audio::own::AudioOwn;
 use crate::errors::{BadInput, Refused};
 
 pub const HEADER_LEN: u32 = 0xC00;
 
 pub use rc2k_core::audio::streams::AudioStream;
-
-pub fn not_a3d(state: &AudioOwn, twin: &'static str) -> Result<(), Refused> {
-    if a3d(state) {
-        return Err(BadInput(twin).into());
-    }
-    Ok(())
-}
 
 pub fn volume_of(state: &AudioOwn, index: u32) -> Result<u32, Refused> {
     Ok(rc2k_core::audio::levels::stream_volume(index, |n| {
@@ -56,8 +48,7 @@ fn written(filled: Filled, bytes: usize) -> usize {
 }
 
 /// Not playing; the buffer stopped and released; the file closed.
-pub fn stop_stream(state: &AudioOwn, s: &mut AudioStream) -> Result<(), Refused> {
-    not_a3d(state, "A3D (0x40D1D0)")?;
+pub fn stop_stream(s: &mut AudioStream) -> Result<(), Refused> {
     let (buffer, file) = s.stop();
     if let Some(b) = buffer {
         crate::platform::sound::stop(b);
@@ -71,7 +62,6 @@ pub fn stop_stream(state: &AudioOwn, s: &mut AudioStream) -> Result<(), Refused>
 
 /// `SetVolume` with the player's volume.
 pub fn set_stream_volume(state: &AudioOwn, s: &AudioStream) -> Result<(), Refused> {
-    not_a3d(state, "A3D (0x40D247)")?;
     if s.buffer == 0 {
         return Err(BadInput("a stream without its buffer").into());
     }
@@ -89,10 +79,9 @@ pub fn start_stream(
 ) -> Result<bool, Refused> {
     use crate::audio::describe_wave_format::describe_wave_format;
     use crate::audio::make_buffer::BufferDescription;
-    not_a3d(state, "A3D (0x40CF6B)")?;
     // Checked before anything is done: the volume it sets.
     let volume = volume_of(state, s.volume)?;
-    let failed = |s: &mut AudioStream| stop_stream(state, s).map(|_| false);
+    let failed = |s: &mut AudioStream| stop_stream(s).map(|_| false);
     let ds = state.direct_sound.get();
     if ds == 0 {
         return failed(s);
@@ -149,8 +138,7 @@ pub fn start_stream(
 /// The bytes the play cursor moved over refilled, through the locked parts. False when the player
 /// stopped.
 pub fn feed_stream(state: &AudioOwn, s: &mut AudioStream) -> Result<bool, Refused> {
-    not_a3d(state, "A3D (0x40D0C0)")?;
-    let failed = |s: &mut AudioStream| stop_stream(state, s).map(|_| false);
+    let failed = |s: &mut AudioStream| stop_stream(s).map(|_| false);
     if s.buffer == 0 {
         return failed(s);
     }
