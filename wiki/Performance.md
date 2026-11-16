@@ -45,21 +45,29 @@ renderer, on Knulli, the computer driver driving:
 
 | What | Measured |
 | --- | --- |
-| A night stage, dry | about 54 frames a second |
+| A night stage, dry | about 55 frames a second |
 | A stage in rain | about 46 frames a second |
 | The menus | 47 to 59 frames a second |
 | Loading a stage | about 2 seconds |
 | From the program's start to the main menu | about 4 seconds |
 | Back to the menus after a race | about 3 seconds |
 
-Runs of the same stage differ by about 2 frames a second. The game's own thread is the limit
-on this device now, at about 55 frames a second; the GPU comes next, where the see-through
-layers (smoke, spray, trees' edges, the windscreen's effects) take most of the time.
+Runs of the same stage differ by about a frame a second. The GPU is the limit on this
+device: its frames are shown at the panel's refresh (just under 60 a second), a frame it does
+not finish in time waits for the next refresh, and the see-through layers (smoke, spray,
+trees' edges, the windscreen's effects) take most of its time. With the 3D left out of the
+GPU's work, the rest of the program holds the refresh rate.
 
 The race's 2D (the dials, the clock, the map) is sent to the GPU as the rows of a picture
 that changed. Those rows go into one of four textures in turn: written into a single one, each
 upload waited for the GPU to finish the frame before, which still read it, and the dry stage
 ran at about 47 frames a second, the rain at about 43.
+
+Most of what the game draws goes to the GPU with blending and an alpha test on, whether or
+not a pixel can be see-through. A batch whose texture and corner colours are fully opaque is
+drawn with the blend off and by a copy of the shader with no alpha test: no pixel changes,
+and the GPU can reject hidden pixels before it shades them (about a frame and a half a
+second more on the dry stage; `RC2K_FAST_PATH=0` turns it off).
 
 ## Start-up
 

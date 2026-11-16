@@ -67,6 +67,13 @@ pub enum Job<Draw> {
     ReadTarget(Sender<Vec<u8>>),
 }
 
+/// Whether the batches are told what their draws can leave out (`Batches::of_layered`'s
+/// `fast_path`): unless `RC2K_FAST_PATH=0`, read once.
+pub fn fast_path_wanted() -> bool {
+    static WANTED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *WANTED.get_or_init(|| std::env::var("RC2K_FAST_PATH").map_or(true, |v| v != "0"))
+}
+
 /// Whether every pixel's alpha of a texture's picture (`texture_as_bgra`'s bytes) is full: a
 /// first pass over it can take a second (`Batches::of`).
 pub fn opaque_picture(bytes: &[u8]) -> bool {
@@ -124,6 +131,7 @@ pub fn batched(
                 height as u32,
                 &opaque,
                 same_array,
+                fast_path_wanted(),
             );
             let opaque = batches
                 .textures
@@ -386,6 +394,7 @@ mod tests {
                         part.size.1 as u32,
                         &opaque,
                         same_size,
+                        fast_path_wanted(),
                     ));
                 }
                 _ => {}
@@ -677,11 +686,67 @@ mod dump_breaks {
             print("seconds", &Batches::of(&list, width, height, Some(&opaque)));
             print(
                 "layered",
-                &Batches::of_layered(&list, width, height, &opaque, same_array),
+                &Batches::of_layered(&list, width, height, &opaque, same_array, false),
+            );
+            let fast = Batches::of_layered(&list, width, height, &opaque, same_array, true);
+            let switches = fast
+                .batches
+                .windows(2)
+                .filter(|p| p[0].discard_free != p[1].discard_free)
+                .count();
+            let area = |keep: &dyn Fn(&Batch) -> bool| -> f64 {
+                let size = (f64::from(width), f64::from(height));
+                fast.batches
+                    .iter()
+                    .filter(|b| keep(b))
+                    .map(|b| {
+                        let at = |v: &[u32; 8]| {
+                            (
+                                f64::from(f32::from_bits(v[0])),
+                                f64::from(f32::from_bits(v[1])),
+                            )
+                        };
+                        fast.vertices
+                            [b.first_vertex as usize..(b.first_vertex + b.vertices) as usize]
+                            .as_chunks::<3>()
+                            .0
+                            .iter()
+                            .map(|t| {
+                                super::super::seethru::triangle_pixels(t.each_ref().map(at), size)
+                            })
+                            .sum::<f64>()
+                    })
+                    .sum::<f64>()
+                    / (size.0 * size.1)
+            };
+            println!(
+                "FAST PATH screens: all {:.2}, no alpha test {:.2}, blend off {:.2}, second passes {:.2}, blended still {:.2}",
+                area(&|_| true),
+                area(&|b| b.discard_free),
+                area(&|b| b.pipeline.blend.is_none() && b.second.is_none() && b.scissor.is_none()),
+                area(&|b| b.second.is_some()),
+                area(&|b| b.pipeline.blend.is_some()),
+            );
+            println!(
+                "FAST PATH: {} batches (without: {}), {} with no alpha test, {} of them with the blend off, {} with the blend off in all, {} program switches",
+                fast.batches.len(),
+                Batches::of_layered(&list, width, height, &opaque, same_array, false)
+                    .batches
+                    .len(),
+                fast.batches.iter().filter(|b| b.discard_free).count(),
+                fast.batches
+                    .iter()
+                    .filter(|b| b.discard_free && b.pipeline.blend.is_none())
+                    .count(),
+                fast.batches
+                    .iter()
+                    .filter(|b| b.pipeline.blend.is_none())
+                    .count(),
+                switches,
             );
         }
         let start = std::time::Instant::now();
-        let batches = Batches::of_layered(&list, width, height, &opaque, same_array);
+        let batches = Batches::of_layered(&list, width, height, &opaque, same_array, true);
         let took = start.elapsed();
         let changes = |f: &dyn Fn(&Batch, &Batch) -> bool| {
             batches

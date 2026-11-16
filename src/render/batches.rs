@@ -134,6 +134,10 @@ pub struct Batch {
     /// Scissor rectangle for a depth clear: left, top, right, bottom.
     pub scissor: Option<[u32; 4]>,
     pub second: Option<Second>,
+    /// The fragment shader may leave out its alpha test: it cannot discard a pixel of this
+    /// batch (`fan_fast_path`). A GPU that draws such a batch with a shader with no `discard`
+    /// can reject hidden pixels before running it. Only set by `of_layered` (the handheld's).
+    pub discard_free: bool,
 }
 
 #[derive(Default)]
@@ -149,6 +153,8 @@ pub struct Batches {
     pub vertex_textures: Vec<[u16; 2]>,
     /// Layered: whether two textures can be read in one draw.
     layered: Option<fn(&TextureNote, &TextureNote) -> bool>,
+    /// Fans are given their `fan_fast_path` (`of_layered` with `fast_path`).
+    fast_path: bool,
     /// The target's width and height (`apart`).
     size: (f64, f64),
     /// The pixels each batch can touch, while they are being gathered.
@@ -174,6 +180,7 @@ impl Batches {
             seconds,
             vertex_textures,
             layered,
+            fast_path,
             size,
             areas,
             last_fan,
@@ -186,6 +193,7 @@ impl Batches {
         seconds.clear();
         vertex_textures.clear();
         *layered = None;
+        *fast_path = false;
         *size = (0.0, 0.0);
         areas.clear();
         *last_fan = None;
@@ -406,6 +414,49 @@ fn alpha_passes(values: &PixelValues, value: f32) -> bool {
     }
 }
 
+/// What a fan's draw can leave out without changing a pixel (`fan_fast_path`).
+#[derive(Clone, Copy, Default, PartialEq, Eq, Debug)]
+pub struct FastPath {
+    /// The alpha test cannot discard a pixel of the fan.
+    pub discard_free: bool,
+    /// The blend leaves each pixel as the shader made it, so it can be switched off.
+    pub blend_off: bool,
+}
+
+/// Whether the alpha test keeps every pixel of a fan: always when the test is off or its
+/// comparison is not one the shader knows, and, when `alpha_full` (every pixel's alpha is 1,
+/// up to the few millionths the interpolation may be off), for the comparisons that pass
+/// there whatever the reference is up to 254/255.
+fn alpha_test_keeps_all(values: &PixelValues, alpha_full: bool) -> bool {
+    match values.alpha_function {
+        0 | 8.. => true,
+        5..=7 => alpha_full && values.alpha_reference * 255.0 <= 254.5,
+        _ => false,
+    }
+}
+
+/// Which work a fan's draw can leave out, the picture the same. `texture_clear`: the fan has
+/// no texture, or a texture with no pixel under a full alpha. With that and every corner's
+/// colour at a full alpha, each pixel's alpha is 1 (the fog and the alpha test change none).
+/// - Blend factors source alpha / inverse source alpha keep the source's colour where its alpha
+///   is 1 (`1 * s + 0 * d`), and one / zero do for any alpha: the blend can be off.
+/// - An alpha test that passes (or is off) cannot discard.
+///
+/// A fan that takes a second pass later (`join_second`) keeps what it has here: that pass is
+/// blended in the shader and discards nothing.
+pub fn fan_fast_path(states: &[u32; STATES], vertices: &[Vertex], texture_clear: bool) -> FastPath {
+    let alpha_full = texture_clear && vertices.iter().all(|v| v[4] >> 24 == 0xFF);
+    let values = values_of(states, None);
+    FastPath {
+        discard_free: alpha_test_keeps_all(&values, alpha_full),
+        blend_off: match pipeline_of(states).blend {
+            Some((2, 1)) => true,
+            Some((5, 6)) => alpha_full,
+            _ => false,
+        },
+    }
+}
+
 fn pipeline_of(states: &[u32; STATES]) -> PipelineKey {
     PipelineKey {
         cull: match states[0x16] {
@@ -467,6 +518,7 @@ impl Batches {
     /// which one each vertex's passes take from `vertex_textures`: batches that differ only in
     /// their textures are drawn as one when `same_array` says each pass's textures can be
     /// read in one draw. The order and the gathering's rule are `of`'s, so the picture is.
+    /// With `fast_path`, each fan's batch is told what it can leave out (`fan_fast_path`).
     #[cfg(any(test, all(target_os = "linux", target_arch = "aarch64")))]
     pub fn of_layered(
         commands: &CommandList,
@@ -474,9 +526,11 @@ impl Batches {
         height: u32,
         opaque: &dyn Fn(&TextureNote) -> bool,
         same_array: fn(&TextureNote, &TextureNote) -> bool,
+        fast_path: bool,
     ) -> Batches {
         let start = Batches {
             layered: Some(same_array),
+            fast_path,
             ..spare_batches()
         };
         Batches::of_in(start, commands, width, height, Some(opaque))
@@ -503,13 +557,13 @@ impl Batches {
                         continue;
                     }
                     let Some(opaque) = opaque else {
-                        out.push_fan(vertices, states, texture.as_ref());
+                        out.push_fan(vertices, states, texture.as_ref(), None);
                         continue;
                     };
                     if out.join_second(vertices, states, texture.as_ref()) {
                         continue;
                     }
-                    out.push_fan(vertices, states, texture.as_ref());
+                    out.push_fan(vertices, states, texture.as_ref(), Some(opaque));
                     out.seconds.resize(out.vertices.len(), [0; 4]);
                     out.note_first(vertices, texture.as_ref(), opaque);
                 }
@@ -808,6 +862,7 @@ impl Batches {
         vertices: &[Vertex],
         states: &[u32; STATES],
         texture: Option<&TextureNote>,
+        opaque: Option<&dyn Fn(&TextureNote) -> bool>,
     ) {
         if vertices.len() < 3 {
             return;
@@ -824,16 +879,28 @@ impl Batches {
             self.vertex_textures
                 .resize(self.vertices.len(), [layer, NO_TEXTURE]);
         }
+        let mut pipeline = pipeline_of(states);
+        let mut discard_free = false;
+        if self.fast_path {
+            // A texture whose opacity is not known counts as one with alpha.
+            let clear = texture.is_none_or(|t| opaque.is_some_and(|opaque| opaque(t)));
+            let fast = fan_fast_path(states, vertices, clear);
+            discard_free = fast.discard_free;
+            if fast.blend_off {
+                pipeline.blend = None;
+            }
+        }
         let batch = Batch {
             first_vertex,
             vertices: (vertices.len() as u32 - 2) * 3,
-            pipeline: pipeline_of(states),
+            pipeline,
             values: values_of(states, texture),
             texture: number,
             linear: linear_of(states),
             clamp: clamp_of(states),
             scissor: None,
             second: None,
+            discard_free,
         };
         self.push(batch, area);
     }
@@ -892,6 +959,8 @@ impl Batches {
                 clamp: false,
                 scissor: Some([left, top, right, bottom]),
                 second: None,
+                // Nothing a shader decides is drawn; the program in use stays.
+                discard_free: false,
             },
             // The triangle is the whole target's and more; the scissor is not counted on.
             Area::EVERYWHERE,
@@ -1221,6 +1290,7 @@ mod tests {
             480,
             &|_| false,
             same,
+            false,
         );
         // The 64 x 64 one apart (it overlaps the first two: the last one, apart from it,
         // gathers back into theirs).
@@ -1351,7 +1421,7 @@ mod tests {
             face(two, shine),
         ]);
         let same = |_: &TextureNote, _: &TextureNote| true;
-        let layered = Batches::of_layered(&commands, 640, 480, &|_| false, same);
+        let layered = Batches::of_layered(&commands, 640, 480, &|_| false, same, false);
         assert_eq!(layered.batches.len(), 2);
         assert_eq!(layered.batches[0].pipeline.blend, None);
         assert_eq!(layered.batches[1].pipeline.blend, Some((5, 2)));
@@ -1368,8 +1438,127 @@ mod tests {
             face(over, first),
             face(over, shine),
         ]);
-        let layered = Batches::of_layered(&commands, 640, 480, &|_| false, same);
+        let layered = Batches::of_layered(&commands, 640, 480, &|_| false, same, false);
         assert_eq!(layered.batches.len(), 4);
+    }
+
+    /// States with blending of `source` / `target` on, an alpha test `function` against `reference`
+    /// (a byte; the test on when `function` is not 0).
+    fn fast_states(blend: Option<(u32, u32)>, function: u32, reference: u32) -> [u32; STATES] {
+        let mut states = [0; STATES];
+        if let Some((source, target)) = blend {
+            states[0x1B] = 1;
+            states[0x13] = source;
+            states[0x14] = target;
+        }
+        if function != 0 {
+            states[0x0F] = 1;
+            states[0x19] = function;
+            states[0x18] = reference;
+        }
+        states
+    }
+
+    fn corners(alpha: u32, count: usize) -> Vec<Vertex> {
+        vec![[0, 0, 0, 0, alpha << 24 | 0x00FF_FFFF, 0, 0, 0]; count]
+    }
+
+    #[test]
+    fn the_blend_is_off_where_it_keeps_the_source() {
+        let full = corners(0xFF, 3);
+        let half = corners(0x80, 3);
+        let fast = |blend, vertices: &[Vertex], clear| {
+            fan_fast_path(&fast_states(blend, 0, 0), vertices, clear).blend_off
+        };
+        // Source alpha / inverse source alpha: only where the alpha is 1 everywhere.
+        assert!(fast(Some((5, 6)), &full, true));
+        assert!(!fast(Some((5, 6)), &half, true));
+        assert!(!fast(Some((5, 6)), &full, false));
+        // One / zero: whatever the alpha.
+        assert!(fast(Some((2, 1)), &half, false));
+        // Other factors and no blend: not touched.
+        assert!(!fast(Some((5, 2)), &full, true));
+        assert!(!fast(Some((2, 2)), &full, true));
+        assert!(!fast(None, &full, true));
+        // One corner under a full alpha spoils the fan.
+        let mut mixed = corners(0xFF, 4);
+        mixed[2][4] = 0xFE00_0000;
+        assert!(!fast(Some((5, 6)), &mixed, true));
+    }
+
+    #[test]
+    fn the_alpha_test_is_left_out_where_it_cannot_fail() {
+        let full = corners(0xFF, 3);
+        let half = corners(0x80, 3);
+        let free = |function, reference, vertices: &[Vertex], clear| {
+            fan_fast_path(&fast_states(None, function, reference), vertices, clear).discard_free
+        };
+        // Off: for any alpha.
+        assert!(free(0, 0, &half, false));
+        // Greater, not equal, greater or equal against a reference under 255: where alpha is 1.
+        for function in [5, 6, 7] {
+            assert!(free(function, 0, &full, true));
+            assert!(free(function, 0x80, &full, true));
+            assert!(free(function, 254, &full, true));
+            assert!(!free(function, 255, &full, true));
+            assert!(!free(function, 0x80, &half, true));
+            assert!(!free(function, 0x80, &full, false));
+        }
+        // Never, less, equal, less or equal: can fail at alpha 1.
+        for function in [1, 2, 3, 4] {
+            assert!(!free(function, 0, &full, true));
+        }
+        // Always, and a number the shader does not know: pass.
+        assert!(free(8, 0, &half, false));
+        assert!(free(9, 255, &half, false));
+    }
+
+    #[test]
+    fn fans_of_the_fast_path_say_so_in_their_batches_and_merge_by_it() {
+        let states = fast_states(Some((5, 6)), 7, 0x10);
+        let corners = |colour: u32, x: f32| TestCommand::Fan {
+            vertices: (0..3)
+                .map(|n| {
+                    let (px, py) = (x + n as f32 * 4.0, (n % 2) as f32 * 4.0);
+                    [px.to_bits(), py.to_bits(), 0, 0, colour, 0, 0, 0]
+                })
+                .collect(),
+            states: std::sync::Arc::new(states),
+            texture: None,
+            bounds: (0.0, 0.0, 0.0, 0.0),
+        };
+        let same = |_: &TextureNote, _: &TextureNote| true;
+        let commands = list([
+            corners(0xFF00_0000, 0.0),
+            corners(0xFF00_0000, 100.0),
+            corners(0x8000_0000, 200.0),
+            corners(0xFF00_0000, 300.0),
+        ]);
+        let with = Batches::of_layered(&commands, 640, 480, &|_| false, same, true);
+        // The full alpha fans leave out the alpha test and the blend and are one batch past the
+        // fan between (apart from them); the half alpha one keeps both.
+        let kinds: Vec<_> = with
+            .batches
+            .iter()
+            .map(|b| (b.discard_free, b.pipeline.blend, b.vertices))
+            .collect();
+        assert_eq!(kinds, [(true, None, 9), (false, Some((5, 6)), 3)]);
+        // Off, nothing differs from the game's states.
+        let without = Batches::of_layered(&commands, 640, 480, &|_| false, same, false);
+        assert!(without.batches.iter().all(|b| !b.discard_free));
+        assert!(
+            without
+                .batches
+                .iter()
+                .all(|b| b.pipeline.blend == Some((5, 6)))
+        );
+        // The same triangles in the same places either way.
+        let places = |b: &Batches| {
+            let mut v: Vec<_> = b.vertices.iter().map(|v| v[0]).collect();
+            v.sort_unstable();
+            v
+        };
+        assert_eq!(places(&with), places(&without));
     }
 }
 

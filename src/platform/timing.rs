@@ -217,13 +217,15 @@ pub fn report_timing(system: &System) {
             ));
             *last = Some((now, frames, fans, micros, flushes, pixels));
             log(&format!(
-                "platform: so far {} frames read back from the GPU, {} textures sent up ({} KB), the canvas {} KB and the retained background {} KB; {} GPU draws; the GL thread busy {} ms (batching {} ms, showing {} ms), the game waiting for it {} ms",
+                "platform: so far {} frames read back from the GPU, {} textures sent up ({} KB), the canvas {} KB and the retained background {} KB; {} GPU draws ({} with no alpha test, {} program switches); the GL thread busy {} ms (batching {} ms, showing {} ms), the game waiting for it {} ms",
                 crate::render::READ_BACKS.load(Relaxed),
                 crate::render::UPLOADS.load(Relaxed),
                 crate::render::UPLOAD_BYTES.load(Relaxed) / 1024,
                 crate::render::CANVAS_UPLOAD_BYTES.load(Relaxed) / 1024,
                 crate::render::BACKGROUND_UPLOAD_BYTES.load(Relaxed) / 1024,
                 crate::render::GPU_DRAWS.load(Relaxed),
+                crate::render::GPU_FREE_DRAWS.load(Relaxed),
+                crate::render::GPU_PROGRAM_SWITCHES.load(Relaxed),
                 crate::render::GL_BUSY_MICROS.load(Relaxed) / 1000,
                 crate::render::GL_BATCHING_MICROS.load(Relaxed) / 1000,
                 crate::render::GL_SHOW_MICROS.load(Relaxed) / 1000,

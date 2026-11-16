@@ -43,6 +43,9 @@ const TRIANGLES: u32 = 4;
 const COLOUR_BIT: u32 = 0x4000;
 const DEPTH_BIT: u32 = 0x0100;
 
+/// `Gpu::scene_programs`' key bit for the program with no alpha test (the cuts' bits are below).
+const FREE_KEY: u32 = 1 << 31;
+
 /// The panel.
 const PANEL: (i32, i32) = (720, 480);
 
@@ -140,7 +143,11 @@ void main() {
         vec4 texel = fetch(picture_a, picture_b, v_unit, vec3(v_uv, v_layer)).bgra;
         c = mixed(colour, texel, mixing, flags);
     }
+#ifndef NO_DISCARD
+    // Left out of the program for batches whose test cannot fail (`Batch::discard_free`): a
+    // shader with a `discard` cannot have its hidden pixels rejected before it runs.
     if (alpha_function != 0 && !passes(alpha_function, alpha_reference, c.a)) discard;
+#endif
     c = fogged(c, v_fog / v_w, fog_colour, flags);
     if (SECOND_PASS) {
         vec4 under = floor(c * 255.0 + 0.5) / 255.0;
@@ -261,7 +268,11 @@ pub struct Gpu {
     cuts: Cuts,
     scene: u32,
     locations: Locations,
-    /// The scene programs made so far, by the shader cuts they were made for.
+    /// The scene's program with no alpha test, for the batches that cannot fail it
+    /// (`Batch::discard_free`); the same cuts as `scene`'s. `None` when it did not build.
+    scene_free: Option<(u32, Locations)>,
+    /// The scene programs made so far, by the shader cuts they were made for (`FREE_KEY`
+    /// set: the one with no alpha test).
     scene_programs: HashMap<u32, (u32, Locations)>,
     overlay: Quad,
     canvas_quad: Quad,
@@ -322,6 +333,7 @@ impl Gpu {
         }
         let mut gpu = Gpu {
             cuts: Cuts::default(),
+            scene_free: None,
             scene_programs: HashMap::new(),
             scene: 0,
             locations: Locations {
@@ -387,8 +399,12 @@ impl Gpu {
 
     /// The scene's program with the shader cuts of `cuts` defined, and where its values go;
     /// its picture units are set.
-    fn scene_program(&self, cuts: Cuts) -> Result<(u32, Locations), String> {
-        let fragment = std::ffi::CString::new(cuts.shader(&SCENE_FS.to_string_lossy()))
+    fn scene_program(&self, cuts: Cuts, free: bool) -> Result<(u32, Locations), String> {
+        let mut text = cuts.shader(&SCENE_FS.to_string_lossy());
+        if free {
+            text = Cuts::define(&text, "NO_DISCARD");
+        }
+        let fragment = std::ffi::CString::new(text)
             .map_err(|_| "the scene's shader holds a NUL".to_string())?;
         let program = self.program(SCENE_VS, &fragment)?;
         let values = |suffix: &str| ValueLocations {
@@ -413,16 +429,14 @@ impl Gpu {
         Ok((program, locations))
     }
 
-    /// Takes the live cuts for the flush about to be drawn: the scene's program for its shader
-    /// cuts (made on first use; the plain one if that fails) and the samplers' filters.
-    fn take_cuts(&mut self) {
-        let cuts = super::gpu_cut::live();
-        if cuts == self.cuts {
-            return;
-        }
-        let key = cuts.shader_part().bits();
+    /// The scene's program for the shader cuts of `cuts` and its variant with no alpha test,
+    /// made on first use. A cut set whose program does not build gets the plain one's; a
+    /// variant that does not build is `None` (batches then use the program with the test).
+    fn programs_for(&mut self, cuts: Cuts) -> ((u32, Locations), Option<(u32, Locations)>) {
+        let shader_cuts = cuts.shader_part();
+        let key = shader_cuts.bits();
         if !self.scene_programs.contains_key(&key) {
-            let made = self.scene_program(cuts.shader_part());
+            let made = self.scene_program(shader_cuts, false);
             let entry = made.unwrap_or_else(|why| {
                 log(&format!(
                     "render: the scene's shader with cuts {} failed: {why}",
@@ -432,9 +446,40 @@ impl Gpu {
             });
             self.scene_programs.insert(key, entry);
         }
-        let (scene, locations) = self.scene_programs[&key].clone();
+        let free_key = key | FREE_KEY;
+        if !self.scene_programs.contains_key(&free_key) {
+            // The failed one is kept as the plain program, so that it is not tried again.
+            let plain = self.scene_programs[&key].clone();
+            match self.scene_program(shader_cuts, true) {
+                Ok(entry) => {
+                    self.scene_programs.insert(free_key, entry);
+                }
+                Err(why) => {
+                    log(&format!(
+                        "render: the scene's shader with no alpha test and cuts {} failed: {why}",
+                        cuts.names()
+                    ));
+                    self.scene_programs.insert(free_key, plain);
+                }
+            }
+        }
+        let plain = self.scene_programs[&key].clone();
+        let free = self.scene_programs[&free_key].clone();
+        let free = (free.0 != plain.0).then_some(free);
+        (plain, free)
+    }
+
+    /// Takes the live cuts for the flush about to be drawn: the scene's programs for its shader
+    /// cuts and the samplers' filters.
+    fn take_cuts(&mut self) {
+        let cuts = super::gpu_cut::live();
+        if cuts == self.cuts {
+            return;
+        }
+        let ((scene, locations), free) = self.programs_for(cuts);
         self.scene = scene;
         self.locations = locations;
+        self.scene_free = free;
         self.set_filters(cuts.nearest, cuts.linear);
         log(&format!("render: GPU cuts now on: {}", cuts.names()));
         self.cuts = cuts;
@@ -455,11 +500,13 @@ impl Gpu {
     }
 
     fn set_up(&mut self) -> Result<(), String> {
-        let (scene, locations) = self.scene_program(Cuts::default())?;
+        let (scene, locations) = self.scene_program(Cuts::default(), false)?;
         self.scene = scene;
         self.locations = locations;
         self.scene_programs
             .insert(0, (scene, self.locations.clone()));
+        // Made now, so that the first frame that needs it does not wait for the compiler.
+        self.scene_free = self.programs_for(Cuts::default()).1;
         self.overlay = self.quad(OVERLAY_FS)?;
         self.canvas_quad = self.quad(CANVAS_FS)?;
         self.target_quad = self.quad(TARGET_FS)?;
@@ -770,6 +817,11 @@ impl Gpu {
             self.draw_quads(quad_vertices.len(), (width, height));
         }
         if !batches.batches.is_empty() && !self.cuts.scene {
+            // The size is each program's own uniform.
+            if let Some((free, locations)) = &self.scene_free {
+                gl.use_program(*free);
+                gl.uniform_2f(locations.size, width as f32, height as f32);
+            }
             gl.use_program(self.scene);
             gl.uniform_2f(self.locations.size, width as f32, height as f32);
             gl.bind_vertex_array(self.scene_array);
@@ -783,10 +835,16 @@ impl Gpu {
                 gl.enable(DEPTH_TEST);
             }
             let mut last_pipeline = None;
-            let mut last_values = None;
+            // The program in use (the one with no alpha test, or the other); what each has
+            // been given is its own (uniforms belong to a program).
+            let mut free_in_use = false;
+            let mut last_values: [Option<PixelValues>; 2] = [None; 2];
+            let mut last_second_values: [Option<PixelValues>; 2] = [None; 2];
+            let mut last_second: Option<super::batches::Second> = None;
+            let mut free_draws = 0;
+            let mut switches = 0;
             let mut last_arrays = None;
             let mut last_sampler = u32::MAX;
-            let mut last_second = None;
             let size = |n: Option<u32>| {
                 n.map(|n| {
                     let note = &batches.textures[n as usize];
@@ -802,15 +860,38 @@ impl Gpu {
                     self.set_pipeline(&batch.pipeline, last_pipeline.as_ref());
                     last_pipeline = Some(batch.pipeline);
                 }
-                self.set_values(&self.locations.first, last_values.as_ref(), &batch.values);
-                last_values = Some(batch.values);
+                // A depth clear draws nothing a shader decides: it keeps the program in use.
+                if batch.scissor.is_none() {
+                    let want_free = batch.discard_free && self.scene_free.is_some();
+                    if want_free != free_in_use {
+                        gl.use_program(match &self.scene_free {
+                            Some((free, _)) if want_free => *free,
+                            _ => self.scene,
+                        });
+                        free_in_use = want_free;
+                        switches += 1;
+                    }
+                    free_draws += u64::from(want_free);
+                }
+                let side = usize::from(free_in_use);
+                let locations = match &self.scene_free {
+                    Some((_, free)) if free_in_use => free,
+                    _ => &self.locations,
+                };
+                self.set_values(&locations.first, last_values[side].as_ref(), &batch.values);
+                last_values[side] = Some(batch.values);
+                if let Some(second) = &batch.second {
+                    self.set_values(
+                        &locations.second,
+                        last_second_values[side].as_ref(),
+                        &second.values,
+                    );
+                    last_second_values[side] = Some(second.values);
+                }
+                // The second pass's textures are bound whichever program is in use.
                 if let Some(second) = &batch.second
                     && last_second != Some(*second)
                 {
-                    let was = last_second
-                        .as_ref()
-                        .map(|s: &super::batches::Second| &s.values);
-                    self.set_values(&self.locations.second, was, &second.values);
                     if let Some(size) = size(second.texture) {
                         self.bind_arrays(2, size);
                         gl.active_texture(TEXTURE0);
@@ -854,6 +935,8 @@ impl Gpu {
             for unit in 0..4 {
                 gl.bind_sampler(unit, 0);
             }
+            super::GPU_FREE_DRAWS.fetch_add(free_draws, std::sync::atomic::Ordering::Relaxed);
+            super::GPU_PROGRAM_SWITCHES.fetch_add(switches, std::sync::atomic::Ordering::Relaxed);
         }
         if bench::due(batches.batches.len()) {
             self.bench(&commands, &batches, &opaque, height);

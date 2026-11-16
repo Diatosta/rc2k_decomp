@@ -8,6 +8,11 @@
 //! the GPU is asked for, which is what costs. Every 5 seconds the top 12 see-through textures
 //! are logged with the totals for solid and for all see-through fans.
 //!
+//! Three more lines say how much of every fan's area (solid and see-through) the handheld's
+//! fast path (`batches::fan_fast_path`) takes: drawn with no alpha test, with the blend off,
+//! or either. On the PC they are what the handheld would take; the handheld's own run
+//! counts the draws too (`GPU_FREE_DRAWS` in the platform log).
+//!
 //! `RC2K_SEETHRU_DUMP=<folder>` also saves the 8 biggest see-through textures of the first
 //! report as PNG files (colour, and the alpha channel as grey) the first time a frame reads
 //! them afterwards. With the variable unset nothing is read or counted: the switch is one
@@ -129,6 +134,11 @@ struct State {
     /// which really show what is behind them.
     no_effect: Sum,
     shows_behind: Sum,
+    /// Of every fan (solid or not): those the handheld's fast path (`batches::fan_fast_path`)
+    /// draws with no alpha test, with the blend off, and either.
+    discard_free: Sum,
+    blend_off: Sum,
+    either: Sum,
     /// Whether each texture seen has a full alpha everywhere (looked at once, when first read).
     opaque: HashMap<TextureId, bool>,
     /// By texture (`None`: no texture), with the last note of it for its size and format.
@@ -196,6 +206,22 @@ pub fn note_list(list: &CommandList, width: u32, height: u32) {
             pixels += triangle_pixels([first, place(&fan[n]), place(&fan[n + 1])], size);
         }
         let triangles = fan.len() as u64 - 2;
+        let texture_full = texture.is_none_or(|note| {
+            *state
+                .opaque
+                .entry(note.pixels)
+                .or_insert_with(|| all_opaque(&super::texture_as_bgra(&note)))
+        });
+        let fast = super::batches::fan_fast_path(states, fan, texture_full);
+        if fast.discard_free {
+            state.discard_free.add(1, triangles, pixels);
+        }
+        if fast.blend_off {
+            state.blend_off.add(1, triangles, pixels);
+        }
+        if fast.discard_free || fast.blend_off {
+            state.either.add(1, triangles, pixels);
+        }
         if states[0x1B] == 0 {
             state.solid.add(1, triangles, pixels);
             continue;
@@ -203,12 +229,6 @@ pub fn note_list(list: &CommandList, width: u32, height: u32) {
         state.see_through.add(1, triangles, pixels);
         let keeps_source = matches!((states[0x13], states[0x14]), (5, 6) | (2, 1));
         let full_alpha = fan.iter().all(|v| v[4] >> 24 == 0xFF);
-        let texture_full = texture.is_none_or(|note| {
-            *state
-                .opaque
-                .entry(note.pixels)
-                .or_insert_with(|| all_opaque(&super::texture_as_bgra(&note)))
-        });
         if keeps_source && full_alpha && texture_full {
             state.no_effect.add(1, triangles, pixels);
         } else {
@@ -277,6 +297,9 @@ pub fn frame_end() {
     state.plain = Sum::default();
     state.no_effect = Sum::default();
     state.shows_behind = Sum::default();
+    state.discard_free = Sum::default();
+    state.blend_off = Sum::default();
+    state.either = Sum::default();
     state.textures.clear();
     state.kinds.clear();
 }
@@ -303,6 +326,9 @@ fn report(state: &mut State, elapsed: Duration) {
     ));
     log(row("solid", &state.solid));
     log(row("see-through", &state.see_through));
+    log(row("fast path: no alpha test", &state.discard_free));
+    log(row("fast path: blend off", &state.blend_off));
+    log(row("fast path: either", &state.either));
     log(row("  of it, blend changes nothing", &state.no_effect));
     log(row("  of it, shows what is behind", &state.shows_behind));
     log(row("  of it, texture opaque", &state.opaque_texture));

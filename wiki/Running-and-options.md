@@ -147,6 +147,7 @@ The rest are diagnostics for people working on the code. They change nothing unl
 | `RC2K_DRAW_SERIAL` | Draws the threaded parts one after another on the game's thread, to tell threading problems from merging problems. |
 | `RC2K_MIRROR_ALWAYS` | Draws the rear-view mirror in every view, replays included, whatever the options say. |
 | `RC2K_2D_QUADS` | `0`: the menus' 2D is uploaded as pixels instead of being drawn by the GPU as rectangles. |
+| `RC2K_FAST_PATH` | Handheld: `0` draws every batch with the alpha test and the blend as the game set them, also where they change no pixel. |
 | `RC2K_2D_CHECK`, `RC2K_QUAD_CHECK`, `RC2K_CANVAS_CHECK`, `RC2K_BACKGROUND_CHECK`, `RC2K_CHECK_SAME`, `RC2K_FRAME_VIEW_CHECK` | Self-checks of the drawing: the picture is made two ways and compared, with differences logged. |
 | `RC2K_COMPARE_FRAME`, `RC2K_COMPARE_OUT` | A file of a frame to compare the GPU's picture with, and where to write the result. |
 | `RC2K_DUMP` | Writes a frame's drawing commands to a file. |
