@@ -33,7 +33,8 @@ for f in "$SRC"/*; do
 done
 cp $EXE $DL/; cp $REPO/third_party/sdl3/lib/x64/SDL3.dll $DL/
 timeout 120 wineboot -i >/dev/null 2>&1
-export SDL_AUDIODRIVER=dummy SDL_VIDEODRIVER=offscreen RC2K_REMOTE="Z:${RH//\//\\}\\ctl"
+export SDL_AUDIODRIVER=dummy SDL_VIDEODRIVER=offscreen RC2K_REMOTE="Z:${RH//\//\\}\\ctl" \
+  SDL_JOYSTICK_IGNORE_DEVICES_EXCEPT=0x0000/0x0000 SDL_GAMECONTROLLER_IGNORE_DEVICES_EXCEPT=0x0000/0x0000
 cd $DL; nohup wine rc2k.exe > $RH/rc2k.out 2>&1 < /dev/null &
 printf %s $! > $RH/pid
 sleep 3

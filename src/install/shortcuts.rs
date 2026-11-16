@@ -332,9 +332,14 @@ pub fn copy_program() -> bool {
     all
 }
 
-/// A program started, not waited for.
+/// A program started in its own folder, not waited for: the installed copy runs where it is
+/// installed (its files, its log, and its folder's lock, `single_copy`, not the starting copy's).
 pub fn run_program(command: &Path) -> bool {
-    let started = std::process::Command::new(command).spawn();
+    let mut run = std::process::Command::new(command);
+    if let Some(folder) = command.parent().filter(|f| !f.as_os_str().is_empty()) {
+        run.current_dir(folder);
+    }
+    let started = run.spawn();
     crate::logfile::program_log::log(&format!(
         "install: run {}: {}",
         command.display(),

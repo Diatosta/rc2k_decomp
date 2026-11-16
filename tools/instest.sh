@@ -46,7 +46,9 @@ done
 cp $BIN $DL/rc2k
 INSTALLDIR=$SH/.local/share/rally-championship
 export HOME=$SH XDG_DATA_HOME=$SH/.local/share XDG_CONFIG_HOME=$SH/.config
-export SDL_AUDIODRIVER=dummy SDL_VIDEODRIVER=offscreen RC2K_REMOTE=$RH/ctl
+# the machine's own controllers left out: a pad touched (or plugged in) during the test drives the installer
+export SDL_AUDIODRIVER=dummy SDL_VIDEODRIVER=offscreen RC2K_REMOTE=$RH/ctl \
+  SDL_JOYSTICK_IGNORE_DEVICES_EXCEPT=0x0000/0x0000 SDL_GAMECONTROLLER_IGNORE_DEVICES_EXCEPT=0x0000/0x0000
 mkdir -p $SH/.config
 cd $DL
 nohup ./rc2k >$RH/rc2k.out 2>&1 </dev/null &
