@@ -1,71 +1,63 @@
-//! The arcade event (converted 2026-10-21 from `menu::arcade_event` 0x487E2C): from the car
-//! choice on, a level after another, six stages a level; a failed race retries the level
-//! from its first stage. Its steps in the original's order, on `Arcade`.
+//! The arcade event: from the car choice on, a level after another, six stages a level; a failed
+//! race retries the level from its first stage. Its steps, on `Arcade`.
 
+use super::leaving::Switch;
 use crate::Invalid;
 
 /// The variables.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Var {
-    /// `dword_7587F4`: the stage's race failed (a retry).
+    /// The stage's race failed (a retry).
     Failed,
-    /// `dword_7587A8`, `dword_758798`, `dword_7587B8`: the level's totals.
+    /// The level's three totals.
     TotalA8,
     Total798,
     TotalB8,
-    /// `dword_758768`, `dword_758758`: the stage's figures.
+    /// The stage's two figures.
     Figure768,
     Figure758,
-    /// `dword_755984`, `dword_755988`.
+    /// The number of players and the event mode.
     PlayerCount,
     EventMode,
-    /// `dword_75555D`, `dword_755565`, `dword_755569`.
-    Leave,
-    Ended565,
-    Ended569,
-    /// `dword_7587F0`, `dword_7587EC`: the stage (1 .. 6) and the level (1 .. 5).
+    /// The stage (1 .. 6) and the level (1 .. 5).
     Stage,
     Level,
-    /// `dword_75598C`.
+    /// The current player.
     Current,
-    /// `dword_758806`: the car choice was left.
-    CarLeft,
-    /// `g_yesNoAnswer`.
+    /// The answer to the last yes / no question.
     Answer,
-    /// `dword_75AFF4`, `dword_75AFF8`: the race's stage and level.
+    /// The race's stage and level.
     RaceStage,
     RaceLevel,
-    /// `dword_75ACF0`, `g_cheats`.
+    /// The cheat switch and the cheat bits.
     CheatSwitch,
     Cheats,
-    /// `dword_75B028`: the race's result (-1 none).
+    /// The race's result (-1 none).
     RaceResult,
-    /// `dword_75AFFC`, `dword_75B000`: the race's figures.
+    /// The race's two figures.
     RaceFigureFFC,
     RaceFigure000,
-    /// `dword_755918`: a best was made.
+    /// A best was made.
     Qualifies,
-    /// `dword_755980`: the event is over.
-    Done,
-    /// Player 0's +0xD0 (the original's edi the player).
+    /// Player 0's `entry` field.
     Player0Entry,
 }
 
-/// The steps, by the place the hook crate calls them at.
+/// The steps, by the place they are called at.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u32)]
 pub enum Step {
-    ClearPlayers284 = 0,
-    ResetCars750724 = 1,
-    /// `menu::secret_car_list` on `off_75A042` (esi).
+    ClearHudBits = 0,
+    HideAllInGameOptions = 1,
+    /// `menu::secret_car_list` on the secret car list.
     SecretCarList = 2,
     SelectCarLoop = 3,
     TakeShownCar = 4,
     NextStageLoop = 5,
     TakeStageBest = 6,
-    /// `service::repair_car` (eax 0).
+    /// `service::repair_car`.
     RepairCar = 7,
-    /// `race::single_rally_race` (kind 2, from 0: `RepairCar` clears eax just before).
+    /// `race::single_rally_race` (kind 2, from 0).
     Race = 8,
     ScoreStage = 9,
     ResultsLoop = 10,
@@ -80,12 +72,12 @@ pub enum Step {
     EnterLevelScore = 18,
     BestScoresLoop = 19,
     LevelEnd = 20,
-    /// `review_options_4882e2_loop` (the next level), `review_options_48861d_loop` (a
+    /// `arcade_next_level_review_loop` (the next level), `arcade_retry_review_loop` (a
     /// retry), `arcade_review_options_loop` (the next stage).
     NextLevelReview = 21,
     RetryReview = 22,
     StageReview = 23,
-    /// `menu::show_in_game_options` with the registers the event was entered with.
+    /// `menu::show_in_game_options` with the values the event was entered with.
     ShowInGameOptions = 24,
 }
 
@@ -93,6 +85,8 @@ pub trait Arcade {
     type Error: From<Invalid>;
     fn get(&mut self, v: Var) -> u32;
     fn set(&mut self, v: Var, value: u32);
+    fn flag(&mut self, s: Switch) -> bool;
+    fn set_flag(&mut self, s: Switch, on: bool);
     fn step(&mut self, s: Step) -> Result<(), Self::Error>;
 
     fn yes(&mut self) -> bool {
@@ -117,10 +111,11 @@ enum At {
     Out,
 }
 
-/// A review: true when it ends the event (`dword_755569` 1, or `dword_755565` not 1).
+/// A review: true when it ends the event (the ask-to-leave flag 1, or the left-with-carry flag not
+/// 1).
 fn review_ends<A: Arcade>(e: &mut A, s: Step) -> Result<bool, A::Error> {
     e.step(s)?;
-    Ok(e.get(Var::Ended569) == 1 || e.get(Var::Ended565) != 1)
+    Ok(e.flag(Switch::AskLeave) || !e.flag(Switch::LeftWithCarry))
 }
 
 /// A step, then whether a yes was given.
@@ -129,7 +124,7 @@ fn screen<A: Arcade>(e: &mut A, s: Step) -> Result<bool, A::Error> {
     Ok(e.yes())
 }
 
-/// One stage (from the stage screen): where the event goes next.
+/// One stage: where the event goes next.
 fn stage<A: Arcade>(e: &mut A) -> Result<At, A::Error> {
     e.set(Var::Failed, 0);
     if screen(e, Step::NextStageLoop)? {
@@ -181,7 +176,7 @@ fn stage<A: Arcade>(e: &mut A) -> Result<At, A::Error> {
             return Ok(At::Retry);
         }
         e.step(Step::StageReview)?;
-        if e.get(Var::Ended569) == 1 || e.get(Var::Leave) == 1 {
+        if e.flag(Switch::AskLeave) || e.flag(Switch::EventLeft) {
             return Ok(At::End);
         }
         return Ok(At::Stage);
@@ -199,16 +194,16 @@ fn stage<A: Arcade>(e: &mut A) -> Result<At, A::Error> {
 
 /// `menu::arcade_event` (player 0 there, the caller's check).
 pub fn arcade_event<A: Arcade>(e: &mut A) -> Result<(), A::Error> {
-    e.step(Step::ClearPlayers284)?;
+    e.step(Step::ClearHudBits)?;
     e.set(Var::Player0Entry, 1);
     e.set(Var::Failed, 0);
-    e.step(Step::ResetCars750724)?;
+    e.step(Step::HideAllInGameOptions)?;
     for v in [Var::TotalA8, Var::Total798, Var::TotalB8, Var::Figure768] {
         e.set(v, 0);
     }
     e.set(Var::PlayerCount, 1);
     e.set(Var::EventMode, 0x1D);
-    e.set(Var::Leave, 0);
+    e.set_flag(Switch::EventLeft, false);
     e.set(Var::Stage, 1);
     let mut at = At::Level;
     loop {
@@ -217,7 +212,7 @@ pub fn arcade_event<A: Arcade>(e: &mut A) -> Result<(), A::Error> {
                 e.set(Var::Current, 0);
                 e.step(Step::SecretCarList)?;
                 e.step(Step::SelectCarLoop)?;
-                if e.get(Var::CarLeft) == 1 {
+                if e.flag(Switch::LeftByKey) {
                     At::Out
                 } else {
                     e.step(Step::SecretCarList)?;
@@ -257,14 +252,14 @@ pub fn arcade_event<A: Arcade>(e: &mut A) -> Result<(), A::Error> {
                 }
             }
             At::End => {
-                e.set(Var::Done, 1);
+                e.set_flag(Switch::EventOver, true);
                 At::Out
             }
             At::Out => break,
         };
     }
-    e.set(Var::Ended569, 0);
-    e.set(Var::Ended565, 0);
+    e.set_flag(Switch::AskLeave, false);
+    e.set_flag(Switch::LeftWithCarry, false);
     e.step(Step::ShowInGameOptions)
 }
 
@@ -277,8 +272,10 @@ mod tests {
     #[derive(Default)]
     struct Log {
         vars: HashMap<String, u32>,
+        switches: HashMap<String, bool>,
         steps: Vec<String>,
         script: HashMap<String, Vec<Vec<(Var, u32)>>>,
+        switch_script: HashMap<String, Vec<Vec<(Switch, bool)>>>,
         calls: HashMap<String, usize>,
     }
 
@@ -289,6 +286,12 @@ mod tests {
         }
         fn set(&mut self, v: Var, value: u32) {
             self.vars.insert(format!("{v:?}"), value);
+        }
+        fn flag(&mut self, s: Switch) -> bool {
+            *self.switches.get(&format!("{s:?}")).unwrap_or(&false)
+        }
+        fn set_flag(&mut self, s: Switch, on: bool) {
+            self.switches.insert(format!("{s:?}"), on);
         }
         fn step(&mut self, s: Step) -> Result<(), Invalid> {
             let name = format!("{s:?}");
@@ -311,6 +314,15 @@ mod tests {
             {
                 self.set(v, x);
             }
+            for (s, on) in self
+                .switch_script
+                .get(&name)
+                .and_then(|w| w.get(k))
+                .cloned()
+                .unwrap_or_default()
+            {
+                self.set_flag(s, on);
+            }
             Ok(())
         }
     }
@@ -323,12 +335,12 @@ mod tests {
     fn a_level_through() {
         let mut log = Log::default();
         log.set(Var::Level, LAST_LEVEL);
-        // The stage reviews go on (dword_755565 1 is not looked at there).
+        // The stage reviews go on (the left-with-carry flag 1 is not looked at there).
         arcade_event(&mut log).unwrap();
         assert_eq!(count(&log, "Race"), 6);
         assert_eq!(count(&log, "StageReview"), 5);
         assert_eq!(count(&log, "LevelEnd"), 1);
-        assert_eq!(log.get(Var::Done), 1);
+        assert!(log.flag(Switch::EventOver));
         assert_eq!(log.steps.last().unwrap(), "ShowInGameOptions");
     }
 
@@ -337,8 +349,10 @@ mod tests {
         let mut log = Log::default();
         log.script
             .insert("Race".into(), vec![vec![(Var::RaceResult, NO_RESULT)]]);
-        log.script
-            .insert("RetryReview".into(), vec![vec![(Var::Ended565, 1)]]);
+        log.switch_script.insert(
+            "RetryReview".into(),
+            vec![vec![(Switch::LeftWithCarry, true)]],
+        );
         log.script
             .insert("NextStageLoop".into(), vec![vec![], vec![(Var::Answer, 1)]]);
         arcade_event(&mut log).unwrap();
@@ -346,13 +360,15 @@ mod tests {
         assert_eq!(count(&log, "RetryReview"), 1);
         assert_eq!(count(&log, "ResultsLoop"), 0);
         assert_eq!(log.get(Var::Stage), 1);
-        assert_eq!(log.get(Var::Done), 1);
+        assert!(log.flag(Switch::EventOver));
 
         let mut log = Log::default();
-        log.script
-            .insert("SelectCarLoop".into(), vec![vec![(Var::CarLeft, 1)]]);
+        log.switch_script.insert(
+            "SelectCarLoop".into(),
+            vec![vec![(Switch::LeftByKey, true)]],
+        );
         arcade_event(&mut log).unwrap();
-        assert_eq!(log.get(Var::Done), 0);
+        assert!(!log.flag(Switch::EventOver));
         assert_eq!(count(&log, "SecretCarList"), 1);
     }
 }

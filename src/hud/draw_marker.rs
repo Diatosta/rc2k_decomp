@@ -1,32 +1,26 @@
-//! `hud::draw_marker` (0x4B55AB): a marker sprite (rectangle 0x5C of `dword_75B940`) along
-//! the top at the share +0x6C over +0x68 of the HUD's record, times `flt_75C0A8` plus
-//! `flt_75C0AC` (`fistp` through `dword_75C060`), coloured `dword_75BF50`.
-//!
-//! Takes: the HUD's record
-//!
-//! Caller: layout 0's drawer (`hud::layout_0`, 0x4B1F0C).
+//! A marker sprite (rectangle 0x5C) along the top at the share +0x6C over +0x68 of the HUD's
+//! record, times `HudBlock.marker_k[0]` plus `marker_k[1]` (rounded through `fistp_scratch`),
+//! coloured `HudBlock.marker_colours[0]`.
 
 use crate::errors::Refused;
-use crate::hud::owner::Hud;
-use crate::hud::store::rect_place;
+use crate::hud::owner::{Hud, Pen};
+use crate::hud::store::RectAt;
 use crate::race::owner_frame::Frame;
 use rc2k_core::hud::quads::marker_x;
 
 const RECT: u32 = 0x5C;
 
-/// The Rust version (see the header).
-// Converted: `rc2k_core::hud::quads::marker_x`
-pub fn draw_marker(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
-    hud.block.quad[5].set(hud.block.marker_colours[0].get());
+pub fn draw_marker(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
+    hud.block.quad.colour.set(hud.block.marker_colours[0].get());
     {
         let f = f32::from_bits;
         let x = marker_x(
-            f(frame.panel_and_overlay.panel.distance[0].get()),
-            f(frame.panel_and_overlay.panel.overlay_miles.get()),
+            f(frame.panel_and_overlay.get().panel.distance[0].get()),
+            f(frame.panel_and_overlay.get().panel.overlay_miles.get()),
             hud.block.marker_k[0].get(),
             hud.block.marker_k[1].get(),
         );
-        hud.block.scratch.set(x);
-        crate::hud::add_sprite::add_sprite(frame, hud, x, 0, rect_place(hud, RECT))
+        hud.block.fistp_scratch.set(x);
+        crate::hud::add_sprite::add_sprite(frame, hud, pen, x, 0, RectAt::number(RECT))
     }
 }

@@ -1,91 +1,96 @@
-//! The objects' faces (`dword_5C6FA8`, the faces' part of `scene::allocate_object_memory`'s
-//! block on `stru_5C6DD0`): Rust's since phase 13 (2026-10-27), counted on the list as the
-//! game's bytes were, given back by `race::free_object_points`. The faces are written one
-//! after another by `scene::add_object_shape` (+0 the number of vertices, +4 the texture
-//! word, +6 the kind, +7, +0xB bytes, +0xC the normal, then 0x10 bytes a vertex).
+//! The objects' faces (the faces' part of `scene::allocate_object_memory`'s block), counted on
+//! the list, given back by `give_back`. The faces are written one after another
+//! by `scene::add_object_shape` (+0 the number of vertices, +4 the texture word, +6 the kind,
+//! +7, +0xB bytes, +0xC the normal, then 0x10 bytes a vertex).
 //!
-//! `COURSE_LISTS.face_memory` is `BASE` while the faces are taken (0 otherwise), so a face
-//! is named by `BASE` + its offset, where the original held its address (`g_faces`' cells,
-//! the marks' point lists): the original's arithmetic (`face + 7`, the faces' memory plus
-//! the cursor) is kept, and a place is read here.
+//! `face_memory` is `BASE` while the faces are taken (0 otherwise), so a face is
+//! named by `BASE` + its offset (`face + 7`, the faces' memory plus the cursor), and a place
+//! is read here.
 
 use crate::errors::{BadInput, Refused};
-#[cfg(test)]
-use crate::race::owner::race;
+use crate::memory::shared_table::SharedTable;
 
-/// `COURSE_LISTS.face_memory` while the faces are taken: the first face's place.
+/// `face_memory` while the faces are taken: the first face's place.
 pub const BASE: u32 = 1;
 
-crate::memory::owned::thread_owned!(
-    pub static FACES: Vec<u8> = "no objects' faces";
-);
+/// The objects' faces: at most `scene::allocate_object_memory`'s room for them out of a race.
+pub struct ObjectFaces(SharedTable);
 
-/// `bytes` of faces, zeroed, counted on `list`.
-pub fn take(
-    course: &crate::race::owner_course::Course,
-    list: &dyn crate::pointers::Store,
-    bytes: u32,
-) -> Result<(), Refused> {
-    FACES.take(list, bytes, vec![0; bytes as usize])?;
-    course.lists.face_memory.set(BASE);
-    Ok(())
-}
+impl ObjectFaces {
+    pub const fn new() -> Self {
+        ObjectFaces(SharedTable::new(0x40_0000, "no objects' faces"))
+    }
 
-/// Given back (the list's `free_list` counts them down).
-pub fn give_back() {
-    FACES.give_back();
+    /// `bytes` of faces, zeroed, counted on `list`.
+    pub fn take(
+        &self,
+        course: &crate::race::owner_course::Course,
+        list: &crate::memory::ListCells,
+        bytes: u32,
+    ) -> Result<(), Refused> {
+        crate::memory::owned::count_on(list, bytes)?;
+        self.0.set(&vec![0; bytes as usize])?;
+        course.lists.get().face_memory.set(BASE);
+        Ok(())
+    }
+
+    /// Given back (the list's `free_list` counts them down).
+    pub fn give_back(&self) {
+        self.0.give_back();
+    }
+
+    /// The table, for the stage's hash.
+    #[cfg(feature = "remote")]
+    pub fn table(&self) -> &SharedTable {
+        &self.0
+    }
+
+    /// `len` bytes at place `at`; refused outside the faces.
+    pub fn bytes(&self, at: u32, len: usize) -> Result<Vec<u8>, BadInput> {
+        let range = range(at, len).ok_or(BadInput("a read outside the objects' faces"))?;
+        self.0
+            .bytes(range.start, len)?
+            .ok_or(BadInput("a read outside the objects' faces"))
+    }
+
+    /// The `N` bytes at place `at`; refused outside the faces.
+    pub fn array<const N: usize>(&self, at: u32) -> Result<[u8; N], BadInput> {
+        let range = range(at, N).ok_or(BadInput("a read outside the objects' faces"))?;
+        self.0
+            .array(range.start)?
+            .ok_or(BadInput("a read outside the objects' faces"))
+    }
+
+    /// `into`'s length of bytes at place `at`; refused outside the faces.
+    pub fn read_into(&self, at: u32, into: &mut [u8]) -> Result<(), BadInput> {
+        let range = range(at, into.len()).ok_or(BadInput("a read outside the objects' faces"))?;
+        self.0
+            .read(range.start, into)?
+            .ok_or(BadInput("a read outside the objects' faces"))
+    }
+
+    /// The byte at place `at`.
+    pub fn byte(&self, at: u32) -> Result<u8, BadInput> {
+        Ok(self.array::<1>(at)?[0])
+    }
+
+    /// The dword at place `at`.
+    pub fn word(&self, at: u32) -> Result<u32, BadInput> {
+        Ok(u32::from_le_bytes(self.array(at)?))
+    }
+
+    /// `data` written at place `at`; refused outside the faces.
+    pub fn write(&self, at: u32, data: &[u8]) -> Result<(), BadInput> {
+        let range = range(at, data.len()).ok_or(BadInput("a write outside the objects' faces"))?;
+        self.0
+            .write(range.start, data)?
+            .ok_or(BadInput("a write outside the objects' faces"))
+    }
 }
 
 fn range(at: u32, len: usize) -> Option<std::ops::Range<usize>> {
     let start = at.checked_sub(BASE)? as usize;
     Some(start..start.checked_add(len)?)
-}
-
-/// `len` bytes at place `at`; refused outside the faces.
-pub fn bytes(at: u32, len: usize) -> Result<Vec<u8>, BadInput> {
-    FACES
-        .with(|f| f.get(range(at, len)?).map(<[u8]>::to_vec))?
-        .ok_or(BadInput("a read outside the objects' faces"))
-}
-
-/// The `N` bytes at place `at`; refused outside the faces.
-pub fn array<const N: usize>(at: u32) -> Result<[u8; N], BadInput> {
-    FACES
-        .with(|f| {
-            let run = f.get(range(at, N)?)?;
-            <[u8; N]>::try_from(run).ok()
-        })?
-        .ok_or(BadInput("a read outside the objects' faces"))
-}
-
-/// `into`'s length of bytes at place `at`; refused outside the faces.
-pub fn read_into(at: u32, into: &mut [u8]) -> Result<(), BadInput> {
-    FACES
-        .with(|f| {
-            into.copy_from_slice(f.get(range(at, into.len())?)?);
-            Some(())
-        })?
-        .ok_or(BadInput("a read outside the objects' faces"))
-}
-
-/// The byte at place `at`.
-pub fn byte(at: u32) -> Result<u8, BadInput> {
-    Ok(array::<1>(at)?[0])
-}
-
-/// The dword at place `at`.
-pub fn word(at: u32) -> Result<u32, BadInput> {
-    Ok(u32::from_le_bytes(array(at)?))
-}
-
-/// `data` written at place `at`; refused outside the faces.
-pub fn write(at: u32, data: &[u8]) -> Result<(), BadInput> {
-    FACES
-        .with(|f| {
-            f.get_mut(range(at, data.len())?)
-                .map(|to| to.copy_from_slice(data))
-        })?
-        .ok_or(BadInput("a write outside the objects' faces"))
 }
 
 #[cfg(test)]
@@ -94,18 +99,22 @@ mod tests {
 
     #[test]
     fn faces_are_read_by_place() {
-        let course = &race().course;
-        let _lock = crate::store::test_lock();
+        let course = &crate::test_support::own::race().course;
+        let faces = &course.stage.object_faces;
+        let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
-        let kept = course.lists.face_memory.get();
+        let kept = course.lists.get().face_memory.get();
         let memory = crate::memory::ListCells::empty();
-        take(course, &memory, 0x40).unwrap();
-        let face = course.lists.face_memory.get() + 0x10;
-        write(face, &[3, 0, 0, 0, 9, 9, 0x1C, 5]).unwrap();
-        assert_eq!((word(face).unwrap(), byte(face + 6).unwrap()), (3, 0x1C));
-        assert!(bytes(BASE + 0x3E, 4).is_err() && bytes(0, 1).is_err());
-        give_back();
-        course.lists.face_memory.set(kept);
+        faces.take(course, &memory, 0x40).unwrap();
+        let face = course.lists.get().face_memory.get() + 0x10;
+        faces.write(face, &[3, 0, 0, 0, 9, 9, 0x1C, 5]).unwrap();
+        assert_eq!(
+            (faces.word(face).unwrap(), faces.byte(face + 6).unwrap()),
+            (3, 0x1C)
+        );
+        assert!(faces.bytes(BASE + 0x3E, 4).is_err() && faces.bytes(0, 1).is_err());
+        faces.give_back();
+        course.lists.get().face_memory.set(kept);
         crate::memory::with_figures(|f| *f = figures);
     }
 }

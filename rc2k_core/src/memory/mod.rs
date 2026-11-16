@@ -1,16 +1,13 @@
-//! The game's memory lists and the figures it keeps about them (converted 2026-10-21 from
-//! `memory::allocate` 0x4028A7, `memory::free_list` 0x4028F5, `memory::take_from_list`
-//! 0x402956 and `memory::rewind_list` 0x402941).
+//! The game's memory lists and the figures it keeps about them.
 //!
-//! Every user of the allocator has a list of its own: the blocks taken on it are chained
-//! through a header in front of each (+0 the block taken before on the same list, +4 the
-//! bytes asked for), and are all given back in one go. Some users hand out the newest
-//! block's memory piece by piece (`take`, after `rewind`).
+//! Each user of the allocator has a list: its blocks are chained through a header in front of
+//! each (+0 the block taken before, +4 the bytes asked for) and given back all at once. Some
+//! users hand out the newest block's memory piece by piece (`take`, after `rewind`).
 
-/// The header in front of each block's memory.
+/// The header in front of each block's memory, in bytes.
 pub const HEADER_LEN: u32 = 0x40;
 
-/// A list of blocks, as the game lays it out (16 bytes).
+/// A list of blocks (16 bytes).
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct List {
@@ -24,8 +21,7 @@ pub struct List {
     pub remaining: u32,
 }
 
-/// The bytes a block of `bytes` takes with its header, or None when that wraps to 0 (the
-/// one size the original cannot take).
+/// The bytes a block of `bytes` takes with its header; None when that wraps to 0.
 pub fn block_size(bytes: u32) -> Option<u32> {
     match bytes.wrapping_add(HEADER_LEN) {
         0 => None,
@@ -34,7 +30,7 @@ pub fn block_size(bytes: u32) -> Option<u32> {
 }
 
 impl List {
-    /// `memory::allocate`: the block at `block` (its header) put on the list for `bytes`;
+    /// `memory::allocate`: the block at `block` (its header) put on the list for `bytes`; gives
     /// the header's two dwords to write there.
     pub fn add(&mut self, block: u32, bytes: u32) -> [u32; 2] {
         let header = [self.head, bytes];
@@ -43,16 +39,16 @@ impl List {
         header
     }
 
-    /// `memory::free_list`: the list emptied (all four fields 0); the newest block, whose
-    /// header leads to the others.
+    /// `memory::free_list`: the list emptied (all four fields 0); the newest block, whose header
+    /// leads to the others.
     pub fn emptied(&mut self) -> u32 {
         let head = self.head;
         *self = List::default();
         head
     }
 
-    /// `memory::take_from_list`: the address of the next `bytes` of the newest block, or
-    /// None (nothing changed) if fewer are left.
+    /// `memory::take_from_list`: the address of the next `bytes` of the newest block, or None
+    /// (nothing changed) if fewer are left.
     pub fn take(&mut self, bytes: u32) -> Option<u32> {
         if bytes > self.remaining {
             return None;
@@ -74,8 +70,8 @@ impl List {
     }
 }
 
-/// The three figures of the game's log ("MEM: memory turnover= .. maximum load= .."):
-/// the most bytes held at once, the bytes held now, all bytes ever asked for (wrapping).
+/// The log's "MEM: memory turnover= .. maximum load= .." figures: the most bytes held at once,
+/// the bytes held now, all bytes ever asked for (wrapping).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct Figures {
     pub most_held: u32,
@@ -99,10 +95,9 @@ impl Figures {
     }
 }
 
-/// `memory::move_bytes` (0x46573F) inside one buffer: `count` bytes from `from` to `to`,
-/// forwards, a dword at a time (each read before it is written) and then the last bytes
-/// one by one. With `to` a little past `from` the copy repeats what was there, as the
-/// original's `rep movsd` / `rep movsb` does. Both ranges must lie in `buf`.
+/// `memory::move_bytes` inside one buffer: `count` bytes from `from` to `to`, forwards, a dword at
+/// a time (each read before it is written) and then the last bytes one by one. With `to` a little
+/// past `from` the copy repeats what was there. Both ranges must lie in `buf`.
 pub fn move_forward(buf: &mut [u8], from: usize, to: usize, count: usize) {
     let (mut f, mut t) = (from, to);
     for _ in 0..count / 4 {

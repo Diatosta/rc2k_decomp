@@ -1,6 +1,6 @@
-//! The itinerary page (converted 2026-10-20 from `screens::draw_itinerary` 0x472C8C): a
-//! section's records row by row, a service with its number and time, a stage with its name,
-//! length, number and time, the chosen stage's row in the highlight fonts.
+//! The itinerary page: a section's records row by row, a service with its number and time, a
+//! stage with its name, length, number and time, the chosen stage's row in the highlight
+//! fonts.
 
 use crate::Invalid;
 use crate::math::units::{Units, distance_2dp, hhmm_to_minutes};
@@ -16,7 +16,7 @@ pub enum Font {
     MarkedClock,
 }
 
-/// The work variables (the original keeps its counters in them and reads them back).
+/// The work variables (its counters are kept in them and read back).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Work {
     /// The row's y.
@@ -42,11 +42,9 @@ pub enum Row {
     End,
 }
 
-/// The page: the heading string at (0x2EB, 0x77), the column heads (strings 0x482, 0x47E,
-/// 0x480, 0x47F at y 0xD1), then the records from 1 (`row` reads record n where the
-/// original does, its errors the caller's: another tag is its fatal error), from y 0xE8,
-/// 0x19 apart, until `ends_at(n)` (the next record's first dword -1). `marked` is the
-/// chosen row; `units` the game's setting (0 imperial).
+/// The page: the heading string, the column heads, then the records from 1 from y 0xE8, 0x19
+/// apart, until `ends_at(n)`. `row` reads record n (another tag is its fatal error). `marked` is
+/// the chosen row; `units` the game's setting (0 imperial).
 pub fn itinerary<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     heading: u32,
@@ -87,7 +85,7 @@ pub fn itinerary<S: Screen<Font = Font, Work = Work>>(
                 let font = if mark { Font::Marked } else { Font::Plain };
                 s.string(font, name, 0x10A, at)?;
                 if length == 0 {
-                    // The original's `append_nul` on both ways: two NULs.
+                    // A NUL from each way: two NULs.
                     s.store(Buffer::Line, &[0, 0])?;
                     s.draw(font, Buffer::Line, 0x1F1, at)?;
                 } else {

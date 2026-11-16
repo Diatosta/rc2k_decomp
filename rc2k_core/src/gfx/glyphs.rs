@@ -1,24 +1,20 @@
-//! The sprite and font builder's work on one sheet: `gfx::build_glyphs` is the hook; what
-//! the original's functions under `gfx::build_glyphs` do with a loaded sheet is here, in their
-//! order. A sheet is a picture with glyphs drawn on a backdrop. The builder finds each
-//! glyph's rectangle (0x41226B), codes it (0x41255F), fills the rectangle with the
-//! backdrop and goes on looking; the coded glyphs become a table of offsets followed by
-//! the glyph records (0x412C4D), which is appended to the table built so far
-//! (0x412C92).
+//! The sprite and font builder's work on one loaded sheet, called by `gfx::build_glyphs`. A sheet
+//! is a picture with glyphs drawn on a backdrop. The builder finds each glyph's rectangle, codes
+//! it, fills the rectangle with the backdrop and goes on looking; the coded glyphs become a table
+//! of offsets followed by the glyph records, which is appended to the table built so far.
 //!
-//! The sheet is read through `SheetPixels` (in the game, the row table `g_rowTable`), as
-//! bytes that are palette numbers or as dwords of four components, by bit 1 of the
-//! builder's flags. Converted 2026-10-20 from `gfx/glyph_builder.rs` of the hook crate.
-//! A glyph is coded as the blitter reads it (CLAUDE.md, section 11): a head with the offsets
-//! and the size left after blank edges are cut off, then for every row runs of count, gap
-//! and pixels, a count of 0 ending the row. Blank is the backdrop or the transparent
-//! colour. Without bit 0 of the flags a glyph is its pixels and nothing else.
+//! The sheet is read through `SheetPixels`, as bytes that are palette numbers or as dwords of
+//! four components, by bit 1 of the builder's flags. A glyph is coded as the blitter
+//! (`gfx::blit`) reads it: a head with the offsets and the size left after blank edges are cut
+//! off, then for every row runs of count, gap and pixels, a count of 0 ending the row. Blank is
+//! the backdrop or the transparent colour. Without bit 0 of the flags a glyph is its pixels and
+//! nothing else.
 
 use crate::Invalid;
 use crate::gfx::pixels::PixelFormat;
 
-/// A sheet's pixels by place: bytes (palette numbers) or dwords (components). Places
-/// outside the sheet may be asked for (the original reads wherever its row table leads).
+/// A sheet's pixels by place: bytes (palette numbers) or dwords (components). Places outside the
+/// sheet may be asked for (wherever the row table leads).
 pub trait SheetPixels {
     fn byte(&self, x: u32, y: u32) -> u8;
     fn set_byte(&mut self, x: u32, y: u32, value: u8);
@@ -26,7 +22,7 @@ pub trait SheetPixels {
     fn set_dword(&mut self, x: u32, y: u32, value: u32);
 }
 
-/// The builder's flags (`dword_519118`).
+/// The builder's flags (a game-wide setting).
 pub const RUN_LENGTHS: u32 = 1;
 pub const DIRECT_COLOUR: u32 = 2;
 pub const WIDE_HEAD: u32 = 4;
@@ -40,7 +36,7 @@ pub struct Glyph {
     pub y: u32,
     pub width: u32,
     pub height: u32,
-    /// Bits for what did not fit a byte (the original only logs them).
+    /// Bits for what did not fit a byte (the caller only logs them).
     pub warnings: u32,
     pub data: Vec<u8>,
 }
@@ -48,7 +44,7 @@ pub struct Glyph {
 /// A sheet as loaded, and how its glyphs are to be coded.
 pub struct Sheet<'a> {
     pub flags: u32,
-    /// Bytes of a coded pixel: 1, 2 or 4 (`dword_5195CC`).
+    /// Bytes of a coded pixel: 1, 2 or 4.
     pub pixel_size: u32,
     pub width: u32,
     pub height: u32,
@@ -64,7 +60,7 @@ pub struct Sheet<'a> {
 }
 
 impl Sheet<'_> {
-    /// 0x412912: the pixel at a place, wherever the row table and the place lead.
+    /// The pixel at a place, wherever the row table and the place lead.
     fn get(&self, x: u32, y: u32) -> u32 {
         if self.flags & DIRECT_COLOUR != 0 {
             self.pixels.dword(x, y)
@@ -73,7 +69,7 @@ impl Sheet<'_> {
         }
     }
 
-    /// 0x4128E8: the backdrop put at a place.
+    /// The backdrop put at a place.
     fn erase(&mut self, x: u32, y: u32) {
         if self.flags & DIRECT_COLOUR != 0 {
             self.pixels.set_dword(x, y, self.backdrop);
@@ -82,12 +78,12 @@ impl Sheet<'_> {
         }
     }
 
-    /// 0x4128D3, turned round: whether a place is on the sheet and not backdrop.
+    /// Whether a place is on the sheet and not backdrop.
     fn is_drawn(&self, x: u32, y: u32) -> bool {
         x < self.width && y < self.height && self.get(x, y) != self.backdrop
     }
 
-    /// 0x412360: in a rectangle of a palette sheet, blank pixels become 0, and then
+    /// In a rectangle of a palette sheet, blank pixels become 0, and then
     /// every pixel's top four bits say how much of it and its eight neighbours inside
     /// the rectangle is drawn (a low nibble that is not 0): 3 for itself, 2 for each
     /// beside, above and below, 1 for each diagonal one.
@@ -141,7 +137,7 @@ impl Sheet<'_> {
         pixel == self.transparent || pixel == self.backdrop
     }
 
-    /// 0x412847: from a place in a row with `left` + 1 pixels to go, the blank pixels
+    /// From a place in a row with `left` + 1 pixels to go, the blank pixels
     /// and then the drawn ones; the place and the count move past both.
     fn scan(&self, x: &mut u32, y: u32, left: &mut i32) -> (u32, u32) {
         let (mut blank, mut drawn) = (0u32, 0u32);
@@ -167,12 +163,12 @@ impl Sheet<'_> {
         (blank, drawn)
     }
 
-    /// 0x412976: a count or a gap, as wide as a pixel.
+    /// A count or a gap, as wide as a pixel.
     fn put_unit(&self, data: &mut Vec<u8>, value: u32) {
         data.extend(&value.to_le_bytes()[..self.pixel_size as usize]);
     }
 
-    /// 0x41292F: a pixel, converted unless it is a palette number.
+    /// A pixel, converted unless it is a palette number.
     fn put_pixel(&mut self, data: &mut Vec<u8>, pixel: u32) {
         if self.pixel_size == 1 {
             data.push(pixel as u8);
@@ -182,7 +178,7 @@ impl Sheet<'_> {
         }
     }
 
-    /// 0x41255F: the record of the glyph in a rectangle.
+    /// The record of the glyph in a rectangle.
     fn coded(&mut self, x: u32, y: u32, width: u32, height: u32) -> Result<Glyph, Invalid> {
         let mut glyph = Glyph {
             x,
@@ -202,8 +198,7 @@ impl Sheet<'_> {
             return Ok(glyph);
         }
 
-        // The registers as the original has them: the place, and counts that are one
-        // less than what is left.
+        // The place, and counts that are one less than what is left.
         let (mut left_edge, mut top) = (x, y);
         let mut columns = width.wrapping_sub(1) as i32;
         let mut rows = height.wrapping_sub(1);
@@ -248,8 +243,7 @@ impl Sheet<'_> {
         let (cut_width, cut_height) = (cut.wrapping_add(1), rows.wrapping_add(1));
         columns = cut_width.wrapping_sub(1) as i32;
 
-        // The size of the coded rows; and what the last scan found, which the original
-        // looks at afterwards.
+        // The size of the coded rows, and what the last scan found (looked at afterwards).
         let wide = self.flags & WIDE_HEAD != 0;
         let mut units = 0u32;
         let mut last;
@@ -285,9 +279,9 @@ impl Sheet<'_> {
                 glyph.warnings |= 2;
             }
             if glyph.warnings != 0 {
-                // A glyph of one empty row in its place. When it is the blank end of
-                // the last row that is too long, the original has already counted the
-                // whole glyph's size and leaves the rest of it unwritten.
+                // A glyph of one empty row in its place. When the row that is too long is the
+                // blank end of the last row, the whole glyph's size is already counted and the
+                // rest would be left unwritten: refused.
                 if size != 1 {
                     return Err(Invalid(
                         "a glyph whose last row ends in more than 255 blank pixels",
@@ -302,7 +296,7 @@ impl Sheet<'_> {
                 glyph.warnings |= 4;
             }
             glyph.data.push(top_cut as u8);
-            // The original tests the top cut three times over, not the two sizes.
+            // Kept: the top cut sets all three bits; the two sizes are not tested.
             if top_cut > 0xFF {
                 glyph.warnings |= 8 | 0x10 | 0x20;
             }
@@ -346,7 +340,7 @@ impl Sheet<'_> {
         Ok(glyph)
     }
 
-    /// 0x41226B: every glyph of the sheet, in the order found: by rows, then columns, of
+    /// Every glyph of the sheet, in the order found: by rows, then columns, of
     /// their first pixel met. The sheet is left all backdrop where glyphs were.
     pub fn glyphs(&mut self) -> Result<Vec<Glyph>, Invalid> {
         let mut found = Vec::new();
@@ -424,8 +418,7 @@ impl Sheet<'_> {
                     if self.flags & DIRECT_COLOUR != 0 {
                         return Err(Invalid("an alpha made for a sheet of components"));
                     }
-                    // One pixel more on every side; the original does not ask
-                    // whether the sheet goes that far.
+                    // One pixel more on every side; refused where the sheet does not go that far.
                     if cell_x == 0 || cell_y == 0 || right >= self.width || bottom >= self.height {
                         return Err(Invalid("a glyph at the sheet's edge to be softened"));
                     }
@@ -445,7 +438,7 @@ impl Sheet<'_> {
     }
 }
 
-/// 0x4121F0: the sheet's backdrop is what its four corners hold, if they agree; else 0.
+/// The sheet's backdrop is what its four corners hold, if they agree; else 0.
 pub fn backdrop_of(sheet: &Sheet) -> u32 {
     let corner = sheet.get(0, 0);
     let (right, bottom) = (sheet.width.wrapping_sub(1), sheet.height.wrapping_sub(1));
@@ -459,7 +452,7 @@ pub fn backdrop_of(sheet: &Sheet) -> u32 {
     }
 }
 
-/// 0x412232: the transparent colour: magenta, or in a palette the first entry that is
+/// The transparent colour: magenta, or in a palette the first entry that is
 /// magenta, or the backdrop if none is.
 pub fn transparent_of(flags: u32, backdrop: u32, palette: &[u32; 256]) -> u32 {
     const MAGENTA: u32 = 0xFF_00FF;
@@ -481,7 +474,7 @@ pub fn direct_pixel_size(format: &PixelFormat) -> u32 {
     }
 }
 
-/// 0x412C4D: a sheet's table: an offset for each glyph, then the records.
+/// A sheet's table: an offset for each glyph, then the records.
 pub fn table_of(glyphs: &[Glyph]) -> Vec<u8> {
     let mut table = Vec::new();
     let mut offset = glyphs.len() as u32 * 4;
@@ -495,7 +488,7 @@ pub fn table_of(glyphs: &[Glyph]) -> Vec<u8> {
     table
 }
 
-/// 0x412C92: one table after another as one: the offsets of both, each moved by what
+/// One table after another as one: the offsets of both, each moved by what
 /// now lies before its records, then the records of both.
 pub fn append(table: &mut Vec<u8>, more: &[u8]) -> Result<(), Invalid> {
     if more.is_empty() {

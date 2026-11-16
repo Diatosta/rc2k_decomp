@@ -1,17 +1,12 @@
-//! `install::check_folder_name` (0x413A6C): whether a folder path (from its third byte on,
-//! past a drive letter and colon) holds a character that is not allowed in a folder name
-//! (`unk_51DE18`: `"`, `+`, `*`, `,`, `;`, `=`, `/`, `:`, `<`, `>`, `?`, `\`, `{`, `}`,
-//! `[`, `]`, `|`, 0x7F) or a double backslash.
-//!
-//! Takes the path. Returns true if a bad character or `\\` is found.
-//! Caller `install::install_files`.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
+//! Whether a folder path (from its third byte on, past a drive letter and colon) holds a
+//! character that is not allowed in a folder name (`"`, `+`, `*`, `,`, `;`, `=`, `/`, `:`, `<`,
+//! `>`, `?`, `\`, `{`, `}`, `[`, `]`, `|`, 0x7F) or a double backslash. Used by
+//! `install::install_files`.
 
-/// Whether `path` has a bad character or `\\` (the original's carry).
-pub fn check_folder_name(path: impl Into<crate::place::Place>) -> bool {
+/// Whether `path` has a bad character or `\\`.
+pub fn check_folder_name(path: impl Into<crate::memory::place::BytePlace>) -> bool {
     // The system's rules (`install::folders`; Windows: `rc2k_core::install::paths::
-    // bad_folder_name`, RAL.EXE's `unk_51DE18`).
+    // bad_folder_name`).
     use crate::install::folders::{Folders, Native};
     let answer = path
         .into()

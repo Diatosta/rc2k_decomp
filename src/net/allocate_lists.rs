@@ -1,19 +1,11 @@
-//! `net::allocate_lists` (0x418576): room for 0x100 connections (0x5400 bytes, to
-//! `dword_52AC38`) and 0x100 sessions (0x6800 bytes, to `dword_52ACF8`) on the network's
-//! memory list (`g_netMemory`, `memory::allocate`), and both counts 0.
-//!
-//! `memory::allocate` coming back with carry: fatal error 0x80E68021 for the first, 0x80E68022
-//! for the second. Caller: `net::find_connections`.
+//! Room for 0x100 connections and 0x100 sessions on the network's memory list; both counts
+//! start at 0. An allocation failure would be fatal error 0x80E68021 (connections) or
+//! 0x80E68022 (sessions).
 
 use crate::errors::Refused;
-use crate::net::store::NetVars;
+use crate::net::link::Link;
 
-/// The Rust version (`memory::allocate` refuses rather than come back with the carry, so
-/// the fatal errors 0x80E68021 / 0x80E68022 are not reached).
-pub fn allocate_lists(vars: &NetVars) -> Result<(), Refused> {
-    // Converted: `rc2k_core::net::lists::TABLES` (the tables Rust's, `net::tables`).
-    crate::net::tables::take()?;
-    vars.connections.set(0);
-    vars.sessions.set(0);
-    Ok(())
+/// The fatal errors are not reached: `memory::allocate` refuses rather than fail.
+pub fn allocate_lists(link: &Link) -> Result<(), Refused> {
+    link.take_tables()
 }

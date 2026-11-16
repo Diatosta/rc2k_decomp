@@ -1,8 +1,6 @@
-//! `race::create_controls` (0x40941A): `dword_4F7DE4` 3 (`race::load_stage`'s
-//! "createcontrols"; what the 3 stands for is not read).
-//!
-//! One caller, `race::load_stage`.
+//! Sets `Devices.input_command` to 3 (the "createcontrols" step of `load_stage`, its only caller).
+//! The meaning of the 3 is not read anywhere.
 
 pub fn create_controls(input: &crate::input::owner::Input) {
-    input.devices.input_command.set(3); // g_inputCommand
+    input.devices.input_command.set(3);
 }

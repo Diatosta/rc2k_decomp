@@ -1,23 +1,20 @@
-//! The menu's buttons (converted 2026-10-20 from `screens::draw_button` 0x4688A1,
-//! `draw_button_highlighted` 0x468BBE and `draw_button_alt` 0x468EDD): a left end, a run of
-//! 32-pixel middle pieces and a right end. The pieces are placed here; drawing them is the
-//! caller's (`blit(sprite, x, y)`; the original hands each the button's x as its palette,
-//! which the sprites, direct colour, never look at).
+//! The menu's buttons: a left end, a run of 32-pixel middle pieces and a right end. The pieces
+//! are placed here; drawing them is the caller's (`blit(sprite, x, y)`).
 
-/// Where x is: the button's middle, its left edge, or where its right end piece goes.
+/// Where x is: the button's middle (`ALIGN_CENTRE`), its left edge (`ALIGN_LEFT`) or where its
+/// right end piece goes (`ALIGN_RIGHT`).
 pub const ALIGN_CENTRE: u32 = 1;
 pub const ALIGN_LEFT: u32 = 2;
 pub const ALIGN_RIGHT: u32 = 3;
 
-/// How one of the three functions goes wrong (the original's slips, kept).
+/// How a button draw goes wrong (slips kept as is).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Kind {
-    /// `draw_button`: right-aligned, from the second whole middle piece on it goes on in the
-    /// centred way's loop (rightwards, a second right end); with a width a multiple of 32
-    /// it draws a second, centred button after the left end.
+    /// `draw_button`: right-aligned, past the second whole middle piece it continues as the
+    /// centred way does; a width multiple of 32 draws a second, centred button.
     pub slips: bool,
-    /// `draw_button_alt`: left-aligned, the whole middle pieces take their y, and the last
-    /// shorter one its x, from `draw_button`'s work (`Borrowed`).
+    /// `draw_button_alt`: left-aligned; whole middle pieces take their y, the shorter last one its
+    /// x, from `draw_button`'s work (`Borrowed`).
     pub borrows: bool,
 }
 
@@ -31,11 +28,11 @@ pub struct Borrowed {
 /// Why a button was not finished.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Error<E> {
-    /// A width of 0 (after the first piece): the original's fatal error 0x80701010.
+    /// A width of 0 (after the first piece): fatal error 0x80701010.
     NoLength,
     /// An alignment not 1 ..= 3: its fatal error 0x8070202n.
     BadAlign,
-    /// The drawing's own.
+    /// The drawing's own error.
     Draw(E),
 }
 
@@ -172,8 +169,8 @@ impl<E> Pen<'_, E> {
 }
 
 /// A button `width` wide (its middle pieces) at x, y by `align`, of the sprites (left end,
-/// right end, middle). Returns where the pen ended (the original's work x) and how
-/// drawing went; pieces before an error are drawn.
+/// right end, middle). Returns where the pen ended and how drawing went; pieces before an
+/// error are drawn.
 #[allow(clippy::too_many_arguments)]
 pub fn draw<E>(
     kind: Kind,
@@ -190,7 +187,7 @@ pub fn draw<E>(
     (pen.x, drawn)
 }
 
-/// A text button's width: its text's, measured, and 12.
+/// A text button's width: the measured text's plus 12.
 pub fn text_width(measured: u32) -> u32 {
     measured.wrapping_add(0xC)
 }

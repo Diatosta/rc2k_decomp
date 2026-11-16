@@ -1,21 +1,19 @@
-//! The audio thread's sample files and formats (converted 2026-10-20 from
-//! `audio::read_sample` 0x40B21B, `audio::describe_wave_format` 0x40A6A5 and
-//! `audio::volume_index` 0x40B8D1).
+//! The audio thread's sample files and formats.
 
 use crate::Invalid;
 use crate::strings::bytes::Bytes;
 
 /// A table of two (flag, value) pairs: the format bits for 8 and 16 bits, for one and two
 /// channels.
-pub type Flags = [(u32, u32); 2];
+pub type FormatBitTable = [(u32, u32); 2];
 
 /// The value a table has for `flag`.
-pub fn value_for(table: &Flags, flag: u32) -> Option<u32> {
+pub fn value_for(table: &FormatBitTable, flag: u32) -> Option<u32> {
     table.iter().find(|e| e.0 == flag).map(|e| e.1)
 }
 
 /// The flag a table has for `value`.
-pub fn flag_for(table: &Flags, value: u32) -> Option<u32> {
+pub fn flag_for(table: &FormatBitTable, value: u32) -> Option<u32> {
     table.iter().find(|e| e.1 == value).map(|e| e.0)
 }
 
@@ -34,7 +32,7 @@ pub struct WaveFormat {
     pub bits: u16,
 }
 
-/// What `wave_format` cannot find (the original's fatal errors 0x80A28541, 0x80A28542).
+/// What `wave_format` cannot find (a fatal error).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FormatError {
     Channels,
@@ -46,8 +44,8 @@ pub enum FormatError {
 pub fn wave_format(
     format: u32,
     frequency: u32,
-    bits_table: &Flags,
-    channel_table: &Flags,
+    bits_table: &FormatBitTable,
+    channel_table: &FormatBitTable,
 ) -> Result<WaveFormat, FormatError> {
     let channels = value_for(channel_table, format & 0xF00).ok_or(FormatError::Channels)?;
     let bits = value_for(bits_table, format & 0xF0).ok_or(FormatError::Bits)?;
@@ -62,7 +60,7 @@ pub fn wave_format(
     })
 }
 
-/// A sample as read (`g_sampleFile`); `data` is an offset from the work buffer's start.
+/// A sample as read; `data` is an offset from the work buffer's start.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct SampleFile {
     pub data: u32,
@@ -89,20 +87,19 @@ const WAVE: u32 = 0x4556_4157;
 const FMT: u32 = 0x2074_6D66;
 const DATA: u32 = 0x6174_6164;
 
-/// The `read` bytes of a sample file in `file` (the work buffer: reads go where the
-/// original's do, past what was read too) parsed into `f`, each field written where the
-/// original writes it; true when a sample was found. RIFF / WAVE: chunks walked (no
-/// padding), `fmt ` must be PCM and gives channels, rate and bits (a 12-byte chunk as
-/// words), `data` the data (at most what was read); a walk that runs out finds nothing.
-/// Anything else is raw data, all of it. Then the length rounded down to four and
-/// 4 ..= 0x10000000, bits and channels by their tables, the rate held to 100 ..= 200,000,
-/// bytes a frame not 0. Refused: a read the source cannot answer.
+/// The `read` bytes of a sample file in `file` (the work buffer: reads may go past what was read)
+/// parsed into `f`, each field written as the walk reaches it; true when a sample was found.
+/// RIFF / WAVE: chunks walked (no padding), `fmt ` must be PCM and gives channels, rate and bits
+/// (a 12-byte chunk as words), `data` the data (at most what was read); a walk that runs out
+/// finds nothing. Anything else is raw data, all of it. Then the length rounded
+/// down to four and 4 ..= 0x10000000, bits and channels by their tables, the rate held to 100 ..=
+/// 200,000, bytes a frame not 0. Refused: a read the source cannot answer.
 pub fn parse(
     file: &dyn Bytes,
     read: u32,
     f: &mut SampleFile,
-    bits_table: &Flags,
-    channel_table: &Flags,
+    bits_table: &FormatBitTable,
+    channel_table: &FormatBitTable,
 ) -> Result<bool, Invalid> {
     let past = Invalid("a sample file read past the work buffer");
     let dword = |at: u32| file.u32_le(at as usize).ok_or(past);
@@ -205,9 +202,8 @@ pub fn rate_of(rate: u32, s: &Loaded) -> u32 {
     (rate as i32).clamp(100, 200_000) as u32
 }
 
-/// A sound's volume and rate (`sound::sample_settings` 0x40BA71): for a sample not loaded
-/// (`None`) 0 and 44100; else the volume (`OWN` the record's) held to 0 ..= 0x40
-/// (signed), and `rate_of`.
+/// A sound's volume and rate (`sound::sample_settings`): for a sample not loaded (`None`) 0 and
+/// 44100; else the volume (`OWN` the record's) held to 0 ..= 0x40 (signed), and `rate_of`.
 pub fn settings(volume: u32, rate: u32, sample: Option<&Loaded>) -> (u32, u32) {
     let Some(s) = sample else {
         return (0, 44100);
@@ -216,9 +212,9 @@ pub fn settings(volume: u32, rate: u32, sample: Option<&Loaded>) -> (u32, u32) {
     ((volume as i32).clamp(0, 0x40) as u32, rate_of(rate, s))
 }
 
-/// How long a sample plays at a rate, in ms (`sound::sample_duration` 0x40BA0B): 0 not
-/// loaded, 0x7FFFFFFF looping, else frames x 1000 (the low 32 bits) over the rate shifted
-/// by the voice's shift. Refused: a rate the shift makes 0 (the original's `div` traps).
+/// How long a sample plays at a rate, in ms (`sound::sample_duration`): 0 not loaded, 0x7FFFFFFF
+/// looping, else frames x 1000 (the low 32 bits) over the rate shifted by the voice's shift.
+/// Refused: a rate the shift makes 0 (the division would trap).
 pub fn duration_ms(rate: u32, sample: Option<&Loaded>) -> Result<u32, Invalid> {
     let Some(s) = sample else {
         return Ok(0);
@@ -242,9 +238,9 @@ pub const EIGHT_BITS: u32 = 0x10;
 /// A format bit: one value a frame.
 pub const MONO: u32 = 0x100;
 
-/// The mode a voice's sample is prepared for (`audio::sample_mode` 0x40B0EF): the sound
-/// mode, with a record (its number and group) at least shift 1 for groups 1 and 2, 2 for
-/// group 3, and only the shift for sample 0x1C4.
+/// The mode a voice's sample is prepared for (`audio::sample_mode`): the sound mode, with a record
+/// (its number and group) at least shift 1 for groups 1 and 2, 2 for group 3, and only the shift
+/// for sample 0x1C4.
 pub fn sample_mode(mode: u32, record: Option<(u32, u32)>) -> u32 {
     let Some((number, group)) = record else {
         return mode;
@@ -325,8 +321,8 @@ fn values(frames: u32, format: u32) -> u32 {
     }
 }
 
-/// Whether every loop `prepare` would run has a count (a count of 0 runs the original's
-/// `dec ecx; jnz` through 2^32 steps).
+/// Whether every loop `prepare` would run has a count (a countdown loop with a count of 0 would
+/// run 2^32 steps).
 fn counts_sound(v: &Shape, mode: u32) -> bool {
     if v.scale != 0x40 && values(v.frames, v.format) == 0 {
         return false;
@@ -351,11 +347,11 @@ fn counts_sound(v: &Shape, mode: u32) -> bool {
         && values(frames, format) == 0)
 }
 
-/// A voice's sample made ready for `mode` in place (`audio::prepare_sample` 0x40B13C):
-/// scaled by `scale` / 0x40 (held to its bits' range), halved (each pair of frames
-/// averaged) until its shift is the mode's while it is long enough and its own frequency
-/// at least 200, and made eight bits if the mode asks (the high byte, moved by 0x80).
-/// Refused (before anything): a loop with a count of 0; a read or write past the data.
+/// A voice's sample made ready for `mode` in place (`audio::prepare_sample`): scaled by `scale` /
+/// 0x40 (held to its bits' range), halved (each pair of frames averaged) until its shift is the
+/// mode's while it is long enough and its own frequency at least 200, and made eight bits if the
+/// mode asks (the high byte, moved by 0x80). Refused (before anything): a loop with a count of 0; a
+/// read or write past the data.
 pub fn prepare(v: &mut Shape, mode: u32, data: &mut dyn SampleData) -> Result<(), Invalid> {
     if !counts_sound(v, mode) {
         return Err(Invalid("a count of 0 for one of the sample's loops"));
@@ -465,8 +461,8 @@ pub fn prepare(v: &mut Shape, mode: u32, data: &mut dyn SampleData) -> Result<()
 mod tests {
     use super::*;
 
-    const BITS: Flags = [(0x10, 8), (0, 16)];
-    const CHANNELS: Flags = [(0x100, 1), (0, 2)];
+    const BITS: FormatBitTable = [(0x10, 8), (0, 16)];
+    const CHANNELS: FormatBitTable = [(0x100, 1), (0, 2)];
 
     #[test]
     fn formats_and_files() {

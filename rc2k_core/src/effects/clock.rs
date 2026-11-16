@@ -1,15 +1,14 @@
-//! The marks' clock (converted 2026-10-21 from `effects::tick_clock` 0x4D2BDC): each frame
-//! the scene clock's ticks since the last, a quarter and a sixteenth of them, one over
-//! them and scaled. As in `math::geometry`, what the x87 keeps on its stack is an `f64`,
-//! rounded to `f32` where the original stores it.
+//! The marks' clock: each frame the scene clock's ticks since the last, a quarter and a sixteenth
+//! of them, one over them and scaled. As in `math::geometry`, what the x87 keeps on its stack is an
+//! `f64`, rounded to `f32` where it is stored.
 
-/// The clock's variables (`g_marksClockStarted` .. `g_marksClockBefore`, 0x28 bytes).
+/// The clock's variables.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Clock {
     pub started: u32,
     pub last: u32,
     pub ticks: u32,
-    /// The ticks' bits taken as a float (section 16) times a scale (`flt_764FD4`).
+    /// The ticks' bits taken as a float (a game slip kept as is) times a scale.
     pub ticks_scaled: f32,
     pub sixteenth: u32,
     pub quarter: u32,
@@ -19,8 +18,7 @@ pub struct Clock {
     pub before: u32,
 }
 
-/// The constants it uses: the first reciprocal (`flt_93CC10`), the reciprocal's scale
-/// (`flt_7651BC`), the ticks' (`flt_93CC14`).
+/// The constants it uses: the first reciprocal, the reciprocal's scale, the ticks'.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Scales {
     pub first: f32,

@@ -1,6 +1,8 @@
 //! The game's side of the sound: the commands it sends to the audio thread.
 
 pub mod apply_settings;
+#[cfg(test)]
+pub(crate) mod asm_layout;
 pub mod car_cue_sound;
 pub mod car_engine_state;
 pub mod car_gear_sounds;

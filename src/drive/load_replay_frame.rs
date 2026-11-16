@@ -1,27 +1,24 @@
-//! `drive::load_replay_frame` (0x46020A): the replay's frame `dword_6EF7E0` read
-//! (`drive::read_replay_frame_0`), its marks (`drive::replay_frame_marks`), and the frame
-//! (0xA04 dwords at `dword_9613A4`) copied to the replay's starting state `unk_7172EC`.
+//! The replay's frame `step_block` read
+//! (`drive::read_replay_frame_0`), its marks (`drive::replay_frame_marks`), and the frame (0xA04
+//! dwords at `block`) copied to the replay's staging (`race::replay_staging_store`).
 //!
-//! Caller: `drive::play_replay_frame`. Refuses what `read_replay_frame` refuses.
+//! Refuses what `read_replay_frame` refuses.
 
 use crate::errors::Refused;
-use crate::pointers::copy_cells;
-use crate::race::blocks_store::REPLAY_STATE_OFFSET;
+use crate::memory::cells::copy_cells;
 use crate::race::owner::Race;
-use crate::race::viewer_buffers_store::VIEWER_BUFFERS;
+use crate::system::owner::System;
+use rc2k_core::drive::replay_frames::FRAME_BYTES;
 
-const DWORDS: usize = 0xA04;
-
-/// The Rust version.
-pub fn load_replay_frame(race: &Race) -> Result<(), Refused> {
+pub fn load_replay_frame(race: &Race, system: &System) -> Result<(), Refused> {
     let replay = &race.replay;
-    let frame = replay.replay_frames.step_block.get();
-    { crate::drive::read_replay_frame_0::read_replay_frame_0(race, frame) }?;
+    let frame = replay.replay_frames().step_block.get();
+    { crate::drive::read_replay_frame_0::read_replay_frame_0(race, system, frame) }?;
     crate::drive::replay_frame_marks::replay_frame_marks(race)?;
     copy_cells(
-        (&VIEWER_BUFFERS.block, 0),
-        (&replay.cars_and_replay, REPLAY_STATE_OFFSET),
-        DWORDS * 4,
+        (&race.viewer_buffers().block, 0),
+        (replay.staging(), 0),
+        FRAME_BYTES,
     );
     Ok(())
 }

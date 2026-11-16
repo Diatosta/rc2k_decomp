@@ -1,10 +1,9 @@
-//! Command 3, a list of sounds loaded (converted 2026-10-21 from `audio::load_sounds`
-//! 0x40AEB9): sound numbers, -2 passed over, ended by -1. For each sound whose record has
-//! a file (`data_key`) and `copies` above 0 (signed), that many voices while fewer than
-//! 0x200 are in use: a voice already made from the file shares its data, else the file is
-//! read (failing ends the sound's voices); a new voice (the record's first if it has none),
-//! made ready (filled, its mode, prepared, kept, its buffer made and filled) and marked
-//! loaded. After each entry of the list the quit switch ends it.
+//! Command 3, a list of sounds loaded: sound numbers, -2 passed over, ended by -1. For each sound
+//! whose record has a file (`data_key`) and `copies` above 0 (signed), that many voices while fewer
+//! than 0x200 are in use: a voice already made from the file shares its data, else the file is read
+//! (failing ends the sound's voices); a new voice (the record's first if it has none), made ready
+//! (filled, its mode, prepared, kept, its buffer made and filled) and marked loaded. After each
+//! entry of the list the quit switch ends it.
 
 use super::voices::{SAMPLES, SampleRecord};
 use crate::Invalid;
@@ -54,7 +53,7 @@ pub trait Loader {
     /// The record's file read: false when it failed.
     fn read(&mut self, at: At) -> Result<bool, Self::Error>;
     fn new_voice(&mut self, at: At, shared: u32) -> Result<u32, Self::Error>;
-    /// The voice filled (from the file or `shared`), its mode, prepared, kept, its buffer
+    /// The voice filled (from the file or `shared`), its mode set, prepared, kept, its buffer
     /// made and filled.
     fn make_ready(&mut self, at: At, voice: u32, shared: u32) -> Result<(), Self::Error>;
     fn mark_loaded(&mut self, voice: u32);
@@ -149,8 +148,8 @@ mod tests {
             unreadable: 3,
             ..Test::default()
         };
-        for n in 1..4 {
-            t.records[n] = SampleRecord {
+        for item in t.records.iter_mut().skip(1).take(4 - 1) {
+            *item = SampleRecord {
                 data_key: 7,
                 copies: 2,
                 ..SampleRecord::default()

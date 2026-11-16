@@ -1,48 +1,46 @@
-//! `audio::load_sounds` (0x40AEB9): command 3: a list of sounds loaded.
-//!
-//! For each sound whose record has a file (`data_key`) and `copies` above 0 (signed), that
-//! many voices while fewer than 0x200 are in use: `audio::find_shared_voice`; none:
-//! `audio::read_sample_of` (a carry ends the sound's voices); `audio::new_voice` (the
-//! record's first voice if it has none); `audio::fill_voice` with the shared voice;
-//! `audio::sample_mode` on `g_soundMode`; `audio::prepare_sample`; `audio::keep_sample`;
-//! `audio::make_buffer` and `audio::fill_buffer` (their carries not looked at); the
-//! voice's flags get `LOADED`. After each entry of the list, `g_quitting` 1 ends it. The
-//! callees get the registers the original has at each call (ebx the record, esi the voice,
-//! eax the shared voice or the mode): `make_buffer` hands ebx on to the EAX set-up. One
-//! caller, `audio::take_commands`. Plain since 2026-10-23 (phase 3): each callee gets
-//! what it reads.
-//! Refuses, before anything is done: a list without its -1 within 0x1000 entries, or with
-//! a sound of 0x1CD or more; A3D.
+//! Command 3: loads a list of sounds. For each sound whose record has a file and a copy count
+//! above 0, that many voices are made (while fewer than 0x200 are in use): found shared voice or
+//! sample read, new voice, `fill_voice`, sample mode, prepare, keep, make and fill buffer; the
+//! voice's flags get `LOADED`. Quitting ends it after any entry. Refuses, before anything is
+//! done: a list without its -1 within 0x1000 entries, a sound of 0x1CD or more, and A3D.
 
-use crate::audio::owner::Audio;
+use crate::audio::own::AudioThread;
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
-use crate::pointers::GamePtr;
-use crate::sound::sets_store::{MenuSounds, RaceSoundSets};
-use crate::system::owner::system;
+use crate::sound::sets_store::{MenuSounds, SoundSets};
+use crate::system::owner::System;
 use rc2k_core::audio::commands::SoundList;
 
-/// The core's loader: each step the Rust version of the original's callee, with what it
-/// reads (the record, the voice, the shared voice or the mode; `make_buffer` the record as
-/// its ebx, which the EAX set-up reads through).
 struct GameLoader<'a> {
-    audio: &'a Audio,
+    audio: &'a AudioThread,
+    system: &'a System,
 }
 
-impl GameLoader<'_> {
-    /// The record's place, which the callees take for their ebx.
-    fn record_at(&self, sound: u32) -> u32 {
-        self.audio.sample_records.records[sound as usize].addr()
+impl<'a> GameLoader<'a> {
+    /// The record, which `make_buffer` takes as its holder value.
+    fn record_at(&self, sound: u32) -> crate::audio::property_sets::Holder {
+        crate::audio::property_sets::Holder::Record(
+            self.audio
+                .sample_records
+                .record(sound)
+                .expect("a sound inside the records")
+                .number,
+        )
     }
 }
 
 impl rc2k_core::audio::load::Loader for GameLoader<'_> {
     type Error = Refused;
     fn record(&mut self, sound: u32) -> SampleRecord {
-        self.audio.sample_records.records[sound as usize].get()
+        self.audio
+            .sample_records
+            .record(sound)
+            .expect("a sound inside the records")
     }
     fn set_first_voice(&mut self, sound: u32, voice: u32) {
-        self.audio.sample_records.records[sound as usize].update(|r| r.first_voice = voice);
+        self.audio
+            .sample_records
+            .set_first_voice(sound as usize, voice);
     }
     fn full(&mut self) -> bool {
         self.audio.state.voice_count.get() == VOICES
@@ -53,7 +51,10 @@ impl rc2k_core::audio::load::Loader for GameLoader<'_> {
         Ok({
             crate::audio::samples::find_shared_voice(
                 audio,
-                &audio.sample_records.records[at.sound as usize].get(),
+                &audio
+                    .sample_records
+                    .record(at.sound)
+                    .expect("a sound inside the records"),
                 count.min(VOICES),
             )
         })
@@ -61,20 +62,21 @@ impl rc2k_core::audio::load::Loader for GameLoader<'_> {
     fn read(&mut self, at: rc2k_core::audio::load::At) -> Result<bool, Refused> {
         use crate::audio::{read_sample_of, samples};
         read_sample_of::read_sample_of(
-            &self.audio.sample_records.records[at.sound as usize].get(),
+            &self
+                .audio
+                .sample_records
+                .record(at.sound)
+                .expect("a sound inside the records"),
             &mut |p| {
                 samples::read_sample_in_game(
                     &self.audio.state,
-                    &crate::files::cstring_at(
-                        crate::audio::store::name_in(&self.audio.sample_names, p)?,
-                        "a sample's path",
-                    )?,
+                    &crate::audio::store::name_in(&self.audio.sample_names, p)?,
                 )
             },
         )
     }
     fn new_voice(&mut self, _: rc2k_core::audio::load::At, _: u32) -> Result<u32, Refused> {
-        crate::audio::new_voice::new_voice_in_game(&self.audio.state)
+        crate::audio::new_voice::new_voice(&self.audio.state)
     }
     fn make_ready(
         &mut self,
@@ -91,7 +93,7 @@ impl rc2k_core::audio::load::Loader for GameLoader<'_> {
             self.audio.state.sound_mode.get(),
             voice_of(state, voice_at).sound,
         )?;
-        update_voice(state, voice_at, |v| samples::prepare_sample(v, mode))?;
+        update_voice(state, voice_at, |v| samples::prepare_sample(state, v, mode))?;
         update_voice(state, voice_at, |v| keep_sample::keep_sample(state, v))?;
         make_buffer::make_buffer(state, voice_at, record)?;
         fill_buffer::fill_buffer(state, &voice_of(state, voice_at))?;
@@ -102,45 +104,55 @@ impl rc2k_core::audio::load::Loader for GameLoader<'_> {
         update_voice(&self.audio.state, voice, |v| v.flags |= LOADED);
     }
     fn quitting(&mut self) -> bool {
-        system().session.flags.quitting.get() == 1
+        self.system.session.flags.quitting.is_set()
     }
 }
 
-/// The place of a list. The original reads a list on until its -1, wherever that is; here
-/// the read is bounded to the store holding the list, and a list without its end there is
-/// refused.
-fn list_place(list: SoundList) -> Result<GamePtr, BadInput> {
+/// A list of sounds, read by position up to its -1: a race list may run on through the next fields
+/// of the sets (`SoundSets::list_entry`); a read past the sets is refused.
+fn list_entries<'a>(
+    sets: &'a SoundSets,
+    menu_sounds: &'a MenuSounds,
+    list: SoundList,
+) -> Result<Box<dyn Fn(usize) -> Option<u32> + 'a>, BadInput> {
     match list {
-        SoundList::Menu => Ok(GamePtr::to(&crate::sound::owner::sound().menu.menu_sounds)
-            .offset(core::mem::offset_of!(MenuSounds, list) as u32)),
-        SoundList::Race { offset } => RaceSoundSets::list_place(offset),
+        SoundList::Menu => Ok(Box::new(|n| menu_sounds.sound(n))),
+        SoundList::Race { field, entry } => {
+            sets.list_entry(field, entry, 0)?;
+            Ok(Box::new(move |n| {
+                sets.list_entry(field, entry, n).ok().flatten()
+            }))
+        }
     }
 }
 
-/// Converted: `rc2k_core::audio::load` (`entries`, `load`).
-pub fn load_sounds(audio: &Audio, list: Option<SoundList>) -> Result<(), Refused> {
+pub fn load_sounds(
+    audio: &AudioThread,
+    system: &System,
+    sets: &SoundSets,
+    menu_sounds: &MenuSounds,
+    list: Option<SoundList>,
+) -> Result<(), Refused> {
     let Some(list) = list else {
         return Ok(());
     };
     if crate::audio::buffer_settings::a3d(&audio.state) {
         return Err(BadInput("A3D").into());
     }
-    let place = list_place(list)?;
+    let entry = list_entries(sets, menu_sounds, list)?;
     let refusal = std::cell::Cell::new(None);
     let entries = rc2k_core::audio::load::entries(|n| {
-        // A list of sounds run through past its array, as the original.
-        match place.offset(n as u32 * 4).read::<u32>("a list of sounds") {
-            Ok(entry) => entry,
-            Err(e) => {
-                refusal.set(refusal.get().or(Some(e)));
-                rc2k_core::audio::load::END
-            }
-        }
+        entry(n).unwrap_or_else(|| {
+            refusal.set(Some(BadInput(
+                "a list of sounds without its end in its field",
+            )));
+            rc2k_core::audio::load::END
+        })
     })?;
     if let Some(e) = refusal.get() {
         return Err(e.into());
     }
-    let mut l = GameLoader { audio };
+    let mut l = GameLoader { audio, system };
     rc2k_core::audio::load::load(&mut l, &entries)
 }
 
@@ -153,31 +165,30 @@ mod tests {
     fn lists_end_inside_their_store() {
         let mut lists = vec![SoundList::Menu];
         for n in 0..72 {
-            lists.push(RaceSoundSets::kind_list_of(n).unwrap());
+            lists.push(SoundSets::kind_list_of(n).unwrap());
         }
-        for field in [
-            core::mem::offset_of!(RaceSoundSets, replay_set),
-            core::mem::offset_of!(RaceSoundSets, first_set_a),
-            core::mem::offset_of!(RaceSoundSets, first_set_b),
-            core::mem::offset_of!(RaceSoundSets, first_set_c),
-            core::mem::offset_of!(RaceSoundSets, second_set_a),
-            core::mem::offset_of!(RaceSoundSets, second_set_b),
-            core::mem::offset_of!(RaceSoundSets, last_set),
-        ] {
-            lists.push(SoundList::Race {
-                offset: field as u32,
-            });
+        for set in crate::sound::sets_store::NamedSet::ALL {
+            lists.push(set.list());
         }
+        let sound = crate::test_support::own::sound();
         for list in lists {
-            let place = list_place(list).unwrap();
+            let entry =
+                list_entries(&sound.threads.sets, &sound.threads.menu_sounds, list).unwrap();
             let entries = rc2k_core::audio::load::entries(|n| {
-                place
-                    .offset(n as u32 * 4)
-                    .read::<u32>("a list of sounds")
-                    .expect("a list runs out of its store")
+                entry(n).expect("a list runs out of its field")
             });
             assert!(entries.is_ok(), "{list:?}");
         }
-        assert!(list_place(SoundList::Race { offset: 0x10000 }).is_err());
+        assert!(
+            list_entries(
+                &sound.threads.sets,
+                &sound.threads.menu_sounds,
+                SoundList::Race {
+                    field: rc2k_core::audio::commands::RaceField::Tail,
+                    entry: 1
+                }
+            )
+            .is_err()
+        );
     }
 }

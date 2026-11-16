@@ -1,93 +1,64 @@
 //! The game's leaving switches and yes/no question as `rc2k_core::menu::leaving`'s
 //! `Leaving` and `Question`: read, changed, written back whole.
-use crate::menu::owner::menus;
-use crate::session::Dword;
+use crate::menu::captions_store::CaptionTables;
+use crate::menu::flow_store::ScreenFlow;
+use crate::menu::owner::Menus;
+use crate::menu::pages_store::MenuPages;
 use rc2k_core::menu::leaving::{Leaving, Question};
 
-/// The switches of `Leaving`, in its order: `dword_75555D`, `dword_755561`, `dword_755565`,
-/// `dword_755569` and `dword_755A0C`.
-fn leaving_cells() -> [&'static Dword; 5] {
-    let screens = &menus().screens;
-    [
-        &screens.loop_flags.went_back,
-        &screens.loop_flags.back,
-        &screens.loop_flags.ended_b,
-        &screens.loop_flags.ended_a,
-        &screens.draw_work.work_0c,
-    ]
-}
-
-/// The cells of `Question`, in its order: `dword_7554CC` (1 on a yes / no screen),
-/// `g_yesNoAnswer` (1 = yes, 0 = no) and `dword_758806` (the screen was left).
-fn question_cells() -> [&'static Dword; 3] {
-    let menus = menus();
-    [
-        &menus.screens.flow.asking,
-        &menus.tables.pages.yes_no_answer,
-        &menus.tables.captions.screen_left,
-    ]
-}
-
-fn get<const N: usize>(at: [&'static Dword; N]) -> [u32; N] {
-    at.map(super::super::session::Dword::get)
-}
-
-fn put<const N: usize>(at: [&'static Dword; N], v: [u32; N]) {
-    for (cell, v) in at.into_iter().zip(v) {
-        cell.set(v);
-    }
-}
-
-pub fn leaving() -> Leaving {
-    let [leave_event, leave_screen, leave_too, ask, field_a0c] = get(leaving_cells());
+pub fn leaving(menus: &Menus) -> Leaving {
+    let screens = &menus.screens;
+    let flags = &screens.loop_flags;
     Leaving {
-        leave_event,
-        leave_screen,
-        leave_too,
-        ask,
-        field_a0c,
+        event_left: flags.event_left.is_set(),
+        leave_screen: flags.leave_screen.is_set(),
+        left_with_carry: flags.left_with_carry.is_set(),
+        ask_leave: flags.ask_leave.is_set(),
+        result: screens.draw_work.leave_result.get(),
     }
 }
 
-pub fn put_leaving(l: &Leaving) {
-    put(
-        leaving_cells(),
-        [
-            l.leave_event,
-            l.leave_screen,
-            l.leave_too,
-            l.ask,
-            l.field_a0c,
-        ],
-    );
+pub fn put_leaving(menus: &Menus, l: &Leaving) {
+    let screens = &menus.screens;
+    let flags = &screens.loop_flags;
+    flags.event_left.set(l.event_left);
+    flags.leave_screen.set(l.leave_screen);
+    flags.left_with_carry.set(l.left_with_carry);
+    flags.ask_leave.set(l.ask_leave);
+    screens.draw_work.leave_result.set(l.result);
 }
 
-pub fn question() -> Question {
-    let [asking, answer, answered] = get(question_cells());
+pub fn question(flow: &ScreenFlow, pages: &MenuPages, captions: &CaptionTables) -> Question {
     Question {
-        asking,
-        answer,
-        answered,
+        asking: flow.asking.is_set(),
+        answer: pages.yes_no_answer.get(),
+        answered: captions.left_by_key.is_set(),
     }
 }
 
-pub fn put_question(q: &Question) {
-    put(question_cells(), [q.asking, q.answer, q.answered]);
+pub fn put_question(flow: &ScreenFlow, pages: &MenuPages, captions: &CaptionTables, q: &Question) {
+    flow.asking.set(q.asking);
+    pages.yes_no_answer.set(q.answer);
+    captions.left_by_key.set(q.answered);
 }
 
 /// The switches changed by `f`.
-pub fn with_leaving<R>(f: impl FnOnce(&mut Leaving) -> R) -> R {
-    let mut l = leaving();
+pub fn with_leaving<R>(menus: &Menus, f: impl FnOnce(&mut Leaving) -> R) -> R {
+    let mut l = leaving(menus);
     let r = f(&mut l);
-    put_leaving(&l);
+    put_leaving(menus, &l);
     r
 }
 
 /// The question and the switches changed by `f`.
-pub fn with_question<R>(f: impl FnOnce(&mut Question, &mut Leaving) -> R) -> R {
-    let (mut q, mut l) = (question(), leaving());
+pub fn with_question<R>(menus: &Menus, f: impl FnOnce(&mut Question, &mut Leaving) -> R) -> R {
+    let tables = &menus.tables;
+    let (mut q, mut l) = (
+        question(&menus.screens.flow, &tables.pages, &tables.captions),
+        leaving(menus),
+    );
     let r = f(&mut q, &mut l);
-    put_question(&q);
-    put_leaving(&l);
+    put_question(&menus.screens.flow, &tables.pages, &tables.captions, &q);
+    put_leaving(menus, &l);
     r
 }

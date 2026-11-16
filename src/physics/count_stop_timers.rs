@@ -1,46 +1,34 @@
-//! `physics::count_stop_timers` (0x436978): three counters of the work car (`g_car`
-//! +0xA0, +0xA4, +0xA8: `unk_71A078` .. `unk_71A080`) in turn. One that is not 0: at 300
-//! `unk_71A088` (+0xB0) is set (-1 for the first two, 2 for the third) and it returns;
-//! else while +0x1C4 (`unk_71A19C`) is below `flt_5C5D38` (1.0; unordered counts as
-//! below) it goes up, and on reaching 300 (unsigned) the same. A reading: the car has
-//! stood still too long after a start or a finish.
+//! Counts three counters of the work car (`started_stand_timer` .. `finish_flag`) in turn. One
+//! that is not 0: at 300 `stop_state` is set (-1 for the first two, 2 for the third) and it
+//! returns; otherwise while `speed` is below `one` (1.0; unordered counts as below) it goes up,
+//! and on reaching 300 (unsigned) the same. A reading: the car has stood still too long after a
+//! start or a finish.
 //!
-//! Caller: `physics::race_timers` (four calls).
+//! Caller: `physics::race_timers`.
 
-use crate::race::owner::Race;
-use crate::race::owner_course::Course;
-use crate::race::owner_shared::Shared;
-use crate::session::Cell32;
+use crate::memory::session::PlainDword;
+use crate::physics::car_store::Car;
+use crate::race::numbers_store::Numbers;
 use rc2k_core::physics::motion::stop_timers;
 
-/// The core on the variables' cells (a compare of floats only: the same at any
-/// precision).
-// Converted: `rc2k_core::physics::motion::stop_timers`.
-pub fn count_stop_timers_at(course: &Course, v: &[&dyn Cell32]) {
-    let one = f32::from_bits(course.numbers.one.bits());
-    let mut counters = [v[0].bits(), v[1].bits(), v[2].bits()];
-    let result = stop_timers(&mut counters, f32::from_bits(v[3].bits()), one);
-    for (k, c) in counters.iter().enumerate() {
-        if *c != v[k].bits() {
-            v[k].set_bits(*c);
+/// The stand timers and the finish flag counted on while the car stands (a compare of
+/// floats only: the same at any precision).
+// Core: `rc2k_core::physics::motion::stop_timers`.
+pub fn count_stop_timers(car: &Car, numbers: &Numbers) {
+    let one = numbers.one.get();
+    let cells = [
+        &car.started_stand_timer,
+        &car.go_stand_timer,
+        &car.finish_flag,
+    ];
+    let mut counters = cells.map(PlainDword::get);
+    let result = stop_timers(&mut counters, car.speed.get(), one);
+    for (cell, c) in cells.iter().zip(counters) {
+        if c != cell.get() {
+            cell.set(c);
         }
     }
     if let Some(result) = result {
-        v[4].set_bits(result);
+        car.stop_state.set(result);
     }
-}
-
-fn game(shared: &Shared) -> Vec<&dyn Cell32> {
-    vec![
-        &shared.car.started_stand_timer as &dyn Cell32,
-        &shared.car.go_stand_timer,
-        &shared.car.finish_flag,
-        &shared.car.speed,
-        &shared.car.stop_state,
-    ]
-}
-
-/// The Rust version.
-pub fn count_stop_timers(race: &Race) {
-    count_stop_timers_at(&race.course, &game(&race.shared));
 }

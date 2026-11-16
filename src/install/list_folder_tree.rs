@@ -1,22 +1,13 @@
-//! `install::list_folder_tree` (0x41371C): a folder and everything under it added to the
-//! tables, breadth first. The skip mask (`FindFileData+0x13E`) is set to 0 for the walk
-//! (and put back at the end). The folder (eax) is resolved; if not empty it goes into the
-//! folders table (`dword_51BB54`). Then, starting with that folder and working through every
-//! folder recorded from `dword_51BB50` to `dword_51BB54`, each is searched (`<folder>\*.*`
-//! built in `byte_94E8B0`): a sub-folder (not `.`/`..`) is appended to the folders table
-//! behind its parent, a file to the files table (`dword_51BB58`); the folders table is the
-//! queue. Overflow of either table is fatal error 0x80AF2201 or 0x80AF2202.
-//!
-//! Takes the folder.
-//! Caller `install::run_script` (opcode 4).
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
+//! A folder and everything under it added to the tables, breadth first (the folders table is the
+//! queue): a sub-folder (not `.` / `..`) is appended behind its parent, a file to the files
+//! table. The skip mask is 0 for the walk and put back at the end. Overflow of either table is
+//! fatal error 0x80AF2201 or 0x80AF2202. Called by `install::run_script` (opcode 4).
 
 use crate::errors::Refused;
 use crate::install::installer::{
     close_search, fatal, find_first, find_next, resolve_path, text_at,
 };
-use crate::install::name_tables::{FILES, FOLDERS, found_name};
+use crate::install::name_tables::found_name;
 
 /// FindFileData.cFileName (the search record: `files::search`), up to its NUL.
 fn find_name() -> Vec<u8> {
@@ -26,15 +17,16 @@ fn find_name() -> Vec<u8> {
 fn find_attributes() -> u32 {
     crate::files::search::found_attributes()
 }
+/// The attributes the walk passes over: none, folders are what it lists.
+const WALK_SKIPS: u32 = 0;
 const DIRS_ROOM: u32 = 0x10000;
 const FILES_ROOM: u32 = 0x40000;
 
-fn same_name(a1: impl Into<crate::place::Place>, name: &[u8]) -> bool {
+fn same_name(a1: impl Into<crate::memory::place::BytePlace>, name: &[u8]) -> bool {
     let mut b = name.to_vec();
     b.push(0);
     crate::menu::event_flow::refuse_here(
         a1.into()
-            .game_ptr()
             .bytes("a name")
             .and_then(|a| crate::strings::same_text::same_text(&a, &b)),
         "install::list_folder_tree: a name",
@@ -48,11 +40,13 @@ fn found_path(search: &[u8]) -> Result<Vec<u8>, Refused> {
 
 fn walk(
     install: &'static crate::install::owner::Install,
-    folder: crate::place::Place,
+    folder: crate::memory::place::BytePlace,
 ) -> Result<(), Refused> {
     let mut folder = resolve_path(folder)?;
     if !folder.is_empty() {
-        let (used, scan) = FOLDERS.with(|t| (t.push(folder.clone()), t.names.len() as u32))?;
+        let (used, scan) = install
+            .folders
+            .with(|t| (t.push(folder.clone()), t.names.len() as u32))?;
         install.run.dir_cursor.set(used);
         install.run.dir_scan.set(scan);
         install
@@ -63,8 +57,7 @@ fn walk(
     loop {
         // list the folder
         let mut search_text = folder.clone();
-        // The original tests the byte before its cursor; for an empty folder that is the
-        // byte before the search buffer (not the path's): here an empty folder gets its `\\`.
+        // An empty folder gets its `\` too.
         if folder.last() != Some(&b'\\') {
             search_text.push(b'\\');
         }
@@ -73,9 +66,9 @@ fn walk(
         // it later).
         let mut kept = search_text.clone();
         kept.push(0);
-        // byte_94E8B0
+        // The numbered paths' buffer.
         crate::files::state::PATHS.write_at(0, &kept, "the search path")?;
-        if find_first(&search_text) {
+        if find_first(&search_text, WALK_SKIPS) {
             loop {
                 if find_attributes() & 0x10 != 0 {
                     // "." and ".." passed over
@@ -84,31 +77,31 @@ fn walk(
                         && !same_name(&install.texts.dotdot, &name);
                     if real {
                         let name = found_path(&search_text)?;
-                        let used = FOLDERS.with(|t| t.push(name))?;
+                        let used = install.folders.with(|t| t.push(name))?;
                         install.run.dir_cursor.set(used);
                         install
                             .run
                             .dir_count
                             .set(install.run.dir_count.get().wrapping_add(1));
-                        // `sub ebx, g_dirNames`
+                        // The room used in the folders table.
                         if used >= DIRS_ROOM {
                             return Err(fatal(0x80AF_2201));
                         }
                     }
                 } else {
                     let name = found_path(&search_text)?;
-                    let used = FILES.with(|t| t.push(name))?;
+                    let used = install.files.with(|t| t.push(name))?;
                     install.run.file_cursor.set(used);
                     install
                         .run
                         .file_count
                         .set(install.run.file_count.get().wrapping_add(1));
-                    // `sub ebx, g_fileNames`
+                    // The room used in the files table.
                     if used >= FILES_ROOM {
                         return Err(fatal(0x80AF_2202));
                     }
                 }
-                if !find_next() {
+                if !find_next(WALK_SKIPS) {
                     break;
                 }
             }
@@ -116,7 +109,10 @@ fn walk(
         close_search();
         // the next folder from the scan (its number in the folders' table)
         let scan = install.run.dir_scan.get();
-        let Some(next) = FOLDERS.with(|t| t.names.get(scan as usize).cloned())? else {
+        let Some(next) = install
+            .folders
+            .with(|t| t.names.get(scan as usize).cloned())?
+        else {
             break;
         };
         if next.is_empty() {
@@ -130,31 +126,28 @@ fn walk(
 
 /// `folder` and every folder under it added to the folders' table, their files to
 /// the files'.
-pub fn list_folder_tree(folder: impl Into<crate::place::Place>) -> Result<(), Refused> {
-    let install = crate::install::owner::install();
+pub fn list_folder_tree(
+    install: &'static crate::install::owner::Install,
+    folder: impl Into<crate::memory::place::BytePlace>,
+) -> Result<(), Refused> {
     let folder = folder.into();
-    use crate::files::state::SKIPPED_ATTRIBUTES;
-    let saved_skip = SKIPPED_ATTRIBUTES.get();
-    SKIPPED_ATTRIBUTES.set(0);
-    let result = walk(install, folder);
-    SKIPPED_ATTRIBUTES.set(saved_skip);
-    result
+    walk(install, folder)
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::install::name_tables::{FILES, FOLDERS, NameTable};
+    use crate::install::name_tables::NameTable;
 
     #[test]
     fn a_tree_is_listed_into_the_tables() {
-        let _lock = crate::store::test_lock();
+        let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
         let kept: Vec<u32> = [
-            &crate::install::owner::install().run.dir_count,
-            &crate::install::owner::install().run.file_count,
-            &crate::install::owner::install().run.dir_scan,
-            &crate::install::owner::install().run.dir_cursor,
-            &crate::install::owner::install().run.file_cursor,
+            &crate::test_support::own::install().run.dir_count,
+            &crate::test_support::own::install().run.file_count,
+            &crate::test_support::own::install().run.dir_scan,
+            &crate::test_support::own::install().run.dir_cursor,
+            &crate::test_support::own::install().run.file_cursor,
         ]
         .iter()
         .map(|d| d.get())
@@ -169,20 +162,29 @@ mod tests {
         path.push(0);
         let memory = crate::memory::ListCells::empty();
         let list = &memory;
-        FOLDERS.take(list, 0x10100, NameTable::default()).unwrap();
-        FILES.take(list, 0x40100, NameTable::default()).unwrap();
+        crate::test_support::own::install()
+            .folders
+            .take(list, 0x10100, NameTable::default())
+            .unwrap();
+        crate::test_support::own::install()
+            .files
+            .take(list, 0x40100, NameTable::default())
+            .unwrap();
         for d in [
-            &crate::install::owner::install().run.dir_count,
-            &crate::install::owner::install().run.file_count,
-            &crate::install::owner::install().run.dir_scan,
-            &crate::install::owner::install().run.dir_cursor,
-            &crate::install::owner::install().run.file_cursor,
+            &crate::test_support::own::install().run.dir_count,
+            &crate::test_support::own::install().run.file_count,
+            &crate::test_support::own::install().run.dir_scan,
+            &crate::test_support::own::install().run.dir_cursor,
+            &crate::test_support::own::install().run.file_cursor,
         ] {
             d.set(0);
         }
-        let path_region = crate::pointers::Lent::new(&path);
-        super::list_folder_tree(path_region.addr()).unwrap();
-        drop(path_region);
+        let path_buffer: &'static crate::memory::session::Bytes<1024> =
+            Box::leak(Box::new(crate::memory::session::Bytes::new([0; 1024])));
+        for (n, &b) in path.iter().enumerate() {
+            path_buffer.set(n, b);
+        }
+        super::list_folder_tree(crate::test_support::own::install(), path_buffer).unwrap();
         let joined = |parts: &[&str]| {
             let mut p = root.clone();
             for part in parts {
@@ -191,8 +193,14 @@ mod tests {
             }
             p
         };
-        let (folders, folder_bytes) = FOLDERS.with(|t| (t.names.clone(), t.bytes)).unwrap();
-        let (mut files, file_bytes) = FILES.with(|t| (t.names.clone(), t.bytes)).unwrap();
+        let (folders, folder_bytes) = crate::test_support::own::install()
+            .folders
+            .with(|t| (t.names.clone(), t.bytes))
+            .unwrap();
+        let (mut files, file_bytes) = crate::test_support::own::install()
+            .files
+            .with(|t| (t.names.clone(), t.bytes))
+            .unwrap();
         files.sort();
         assert_eq!(folders, [root.clone(), joined(&["a"]), joined(&["a", "b"])]);
         let mut want = vec![
@@ -204,21 +212,21 @@ mod tests {
         assert_eq!(files, want);
         let bytes = |names: &[Vec<u8>]| names.iter().map(|n| n.len() as u32 + 1).sum::<u32>();
         assert_eq!((folder_bytes, file_bytes), (bytes(&folders), bytes(&files)));
-        assert_eq!(crate::install::owner::install().run.dir_count.get(), 3);
-        assert_eq!(crate::install::owner::install().run.file_count.get(), 3);
+        assert_eq!(crate::test_support::own::install().run.dir_count.get(), 3);
+        assert_eq!(crate::test_support::own::install().run.file_count.get(), 3);
         assert_eq!(
-            crate::install::owner::install().run.dir_cursor.get(),
+            crate::test_support::own::install().run.dir_cursor.get(),
             folder_bytes
         );
-        FOLDERS.give_back();
-        FILES.give_back();
+        crate::test_support::own::install().folders.give_back();
+        crate::test_support::own::install().files.give_back();
         crate::memory::with_figures(|f| *f = figures);
         for (d, v) in [
-            &crate::install::owner::install().run.dir_count,
-            &crate::install::owner::install().run.file_count,
-            &crate::install::owner::install().run.dir_scan,
-            &crate::install::owner::install().run.dir_cursor,
-            &crate::install::owner::install().run.file_cursor,
+            &crate::test_support::own::install().run.dir_count,
+            &crate::test_support::own::install().run.file_count,
+            &crate::test_support::own::install().run.dir_scan,
+            &crate::test_support::own::install().run.dir_cursor,
+            &crate::test_support::own::install().run.file_cursor,
         ]
         .iter()
         .zip(kept)

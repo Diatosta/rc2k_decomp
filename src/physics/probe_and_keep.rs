@@ -1,39 +1,51 @@
-//! `physics::probe_and_keep` (0x45DC12): `physics::probe_ground`, then its three
-//! whole-number lists (x, y, z at 0x6D1E14, 0xC0 dwords) copied to 0x6D2C14 and the probe
-//! points' faces (`dword_71ADC8`, 0x40 dwords) to 0x6D2F14 (`rep movsd`): by the look of
-//! it the step's starting points kept (a reading).
+//! `physics::probe_ground`, then its three whole-number lists (x, y, z; 0xC0 dwords) and the probe
+//! points' faces (`probe_point_face`, 0x40 dwords) are copied: the probe lists as they were before
+//! the step (`saved_probe_x` ..), read by `crossed_edge_contact`.
 //!
-//! Caller: `physics::car_physics_step` (0x43B700), every physics step; next a call (no flags read).
-//! Refuses what `probe_ground` refuses (nothing written).
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
+//! Caller: `physics::car_physics_step`, every physics step. Refuses what `probe_ground` refuses
+//! (nothing written).
 
 use crate::errors::Refused;
 use crate::physics::probe_ground::probe_ground_at;
-use crate::race::owner::Race;
+use crate::physics::step_families::GroundInputs;
 
-/// The Rust core. The registers it leaves (esi, edi past the copies, ecx 0) are read by
-/// none of its callers.
-pub fn probe_and_keep_at(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let physics = &race.physics;
-    probe_ground_at(race, scene)?;
+/// The steps.
+pub fn probe_and_keep_at(
+    c: &GroundInputs<'_>,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    let contact = c.contact;
+    probe_ground_at(
+        &crate::physics::probe_ground::ProbeInputs::of_ground(c),
+        c.car,
+        scene.draw_switches.get(),
+        &crate::physics::ground_query::GroundQuery::of_physics(
+            c.ground,
+            c.probe,
+            c.course.course.get(),
+            &crate::race::scene_points::no_own(),
+        ),
+        c.contact,
+        &scene.drawing.scene.get().scratch,
+    )?;
     for k in 0..64 {
-        physics.contact.saved_probe_x[k].set(physics.contact.probe_x[k].get());
+        contact.saved_probe_x[k].set(contact.probe_x[k].get());
     }
     for k in 0..64 {
-        physics.contact.saved_probe_y[k].set(physics.contact.probe_y[k].get());
+        contact.saved_probe_y[k].set(contact.probe_y[k].get());
     }
     for k in 0..64 {
-        physics.contact.saved_probe_z[k].set(physics.contact.probe_z[k].get());
+        contact.saved_probe_z[k].set(contact.probe_z[k].get());
     }
     for k in 0..0x40 {
-        physics.contact.saved_probe_faces[k].set(race.shared.car.probe_point_face[k].get());
+        contact.saved_probe_faces[k].set(c.car.probe_point_face[k].get());
     }
     Ok(())
 }
 
-/// The Rust version.
-pub fn probe_and_keep(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    probe_and_keep_at(race, scene)
+pub fn probe_and_keep(
+    c: &GroundInputs<'_>,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    probe_and_keep_at(c, scene)
 }

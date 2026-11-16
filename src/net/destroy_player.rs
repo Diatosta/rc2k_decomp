@@ -1,18 +1,12 @@
-//! `net::destroy_player` (0x41916B): DirectPlay's `DestroyPlayer` (`IDirectPlay4A` +0x24)
-//! on `g_netPlayerId` through `g_dplay`, and the id made 0 — but only when it is 0 already
-//! (`cmp g_netPlayerId, 0; jnz` past the call: the game's slip, section 16; this machine's
-//! player is never destroyed, `DestroyPlayer(0)` is called instead).
-//!
-//! Caller: `net::destroy_connection`. `DestroyPlayer` from Rust (`net::dplay`).
-//! Refuses nothing.
+//! Calls DirectPlay's `DestroyPlayer` on the own player id and then clears the id, but only
+//! when the id is 0 already (kept as is): the own player is never destroyed, `DestroyPlayer(0)`
+//! is called instead.
 
-use crate::net::store::NetVars;
-
-/// The Rust version.
-pub fn destroy_player(vars: &NetVars) {
-    let id = vars.player_id.get();
+use crate::net::link::Link;
+pub fn destroy_player(link: &Link) {
+    let id = link.player_id();
     if id == 0 {
-        crate::net::dp_objects::destroy_player(vars.dplay.get(), id);
-        vars.player_id.set(0);
+        crate::net::dp_objects::destroy_player(link.dplay(), id);
+        link.set_player_id(0);
     }
 }

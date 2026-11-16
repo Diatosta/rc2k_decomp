@@ -1,98 +1,78 @@
-//! What the event flows run on (2026-10-21): the game's variables, its callees, what the
+//! What the event flows run on: the game's variables, its callees, what the
 //! callees answer and the car list the flows hand on to the car choice, through `Game`. The flows
 //! themselves are `menu::rounds` (the single rally's and the time trial's events),
 //! `menu::championship` (the two championships' driver) and `menu::welcome` (their
 //! welcomes); the starters keep their own (`menu::starters`).
 
+use super::leaving::Switch;
 use crate::Invalid;
 
 /// The game's variables the flows read and write.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Var {
-    /// `g_yesNoAnswer`.
+    /// The answer to the last yes / no question.
     Answer,
-    /// `dword_755984`.
+    /// The number of players.
     PlayerCount,
-    /// `dword_755988` (9 .. 0x18, `menu::run_event_races`).
+    /// The event mode, 9 .. 0x18 (`menu::run_event_races`).
     EventMode,
-    /// `dword_755954`: 3 the time trial, 4 and 5 the championships.
+    /// The kind of event: 3 the time trial, 4 and 5 the championships.
     EventType,
-    /// `g_eventMode`: 2, 3, 0x13.
+    /// The championship view's event mode: 2, 3, 0x13.
     Mode,
-    /// `dword_75598C`: the current player.
+    /// The current player.
     Current,
-    /// `dword_758806`: the car choice was left.
-    CarLeft,
-    /// `dword_75555D`, `dword_755561`.
-    Leave,
-    Leave561,
-    /// `dword_755565`, `dword_755569`.
-    Ended565,
-    Ended569,
-    /// `dword_755A3C`.
-    LeftA3C,
-    /// `dword_755980`: 1 when an event is over.
-    Done,
-    /// `dword_758714`: the rounds of a multi-player event.
+    /// The rounds of a multi-player event.
     Round,
-    /// `dword_755918`: the time qualifies.
+    /// The time qualifies.
     Qualifies,
-    /// `dword_755920`: one was entered in the best times.
-    Entered,
-    /// `dword_755938`: a service due.
+    /// A service is due.
     ServiceDue,
-    /// `dword_75B028`, `dword_75B098`: the race's results (-1 none, -2 left).
+    /// The race's two results (-1 none, -2 left).
     RaceResult,
     RaceResult2,
-    /// `dword_7554D8`: 1 picks the single rally's first car list.
+    /// 1 picks the single rally's first car list.
     CarListKind,
-    /// `g_cheats`.
+    /// The cheat bits.
     Cheats,
-    /// `dword_7587A8` + 4 x k (k 0 .. 7).
+    /// The two-, three- and four-player events' cleared figure k: 0 .. 3 the players' totals before
+    /// the stage, 4 .. 7 their totals.
     Cleared(u32),
-    /// Player n's time (+0x88; the original's edi the player).
+    /// Player n's time (+0x88).
     PlayerTime(u32),
-    /// Player n's +0xD0 (the original's edi the player).
+    /// Player n's `entry` field (+0xD0).
     PlayerEntry(u32),
-    /// `dword_755970`: 1 when a saved game goes on.
+    /// 1 when a saved game goes on.
     Continuing,
-    /// `dword_755950`: the stages done.
+    /// The stages done.
     StagesDone,
-    /// `dword_755250`: the players' times reset.
+    /// The players' times are reset.
     ResetTimes,
-    /// `dword_755254`: the services.
+    /// The services.
     Services,
-    /// `dword_75AB40`.
+    /// A mode word the review sets.
     ModeAB40,
-    /// `dword_7554C0` (the championship's), `dword_7554C4` (the A8's): the section to start at.
+    /// The section to start at (the championship's, or the A8's).
     StartSection {
         a8: bool,
     },
-    /// `dword_75593C`, `dword_755940`, `dword_755944`, `dword_75594C`: the service's.
+    /// The service's time left.
     ServiceTime,
-    Service940,
-    Service944,
+    CpuSpreadFirst,
     ServiceNext,
-    /// `dword_755928`: the championship's end.
+    /// The championship's end.
     TheEnd,
-    /// `dword_75592C`: the event goes on.
+    /// The event goes on.
     GoesOn,
-    /// `section`, `index`.
+    /// `section`, `stage_in_section`.
     Section,
     Index,
-    /// `dword_75AB20`: the rally's results reached.
-    RallyDone,
-    /// `dword_755924`, `dword_755934`: the welcome's.
-    WelcomeFigure,
-    Welcomed,
-    /// `dword_75AAD8`: the review's kind.
+    /// The review's kind.
     ReviewKind,
     /// A dword of the record `Call::FindRecord` found (its offset).
     Record(u32),
-    /// `dword_755698`: the speech's channel.
+    /// The speech's channel.
     SpeechChannel,
-    /// `g_quitting`.
-    Quitting,
 }
 
 pub use super::car_lists::CarList;
@@ -106,7 +86,7 @@ pub enum Picture {
     A8,
 }
 
-/// The callees, with what the originals give them.
+/// The callees, and what they give back.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Call {
     BeginEvent,
@@ -114,15 +94,15 @@ pub enum Call {
     ClearResultSlots,
     ResetDrivers,
     ResetDriverCondition,
-    ClearPlayers284,
+    ClearHudBits,
     TakePlayer1Units,
-    ResetCars750724,
+    HideAllInGameOptions,
     ClearEventState,
     ReadyPlayers,
     ResetSingleEvent,
     ChampionshipWelcome,
     A8Welcome,
-    /// `records::find_record` on `g_recordTable` (its fields through `Var::Record`).
+    /// `records::find_record` on the record table (its fields through `Var::Record`).
     FindRecord {
         section: u32,
         index: u32,
@@ -142,7 +122,7 @@ pub enum Call {
     NumberAllB,
     ShowChampionshipStandings,
     SectionFinish,
-    Review480D46,
+    ChampionshipStandingsReview,
     WalkSectionRecords,
     StandingsAFromAll,
     ClassRallyResultsPass,
@@ -157,16 +137,16 @@ pub enum Call {
     RecordEntriesPass,
     BestTimesLoop,
     InspectionPass,
-    Review47D5A5,
-    Review48108E,
+    ChampionshipServiceReview,
+    ChampionshipRacesReview,
     ChampionshipFinish,
     ClearScoreMarks,
     BestClassScores,
     BestOverallScores,
-    Review481429,
+    ChampionshipEndReview,
     /// `menu::show_in_game_options`.
     ShowInGameOptions,
-    /// `menu::hide_in_game_options` for `players` (eax).
+    /// `menu::hide_in_game_options` for `players`.
     HideInGameOptions {
         players: u32,
     },
@@ -181,24 +161,23 @@ pub enum Call {
     SelectStageLoop,
     TimeTrialSelectStage,
     TimeTrialService,
-    /// `race::single_rally_race`: `next` (eax) when another player's race follows, `kind`
-    /// (ebx).
+    /// `race::single_rally_race`: `next` when another player's race follows, `kind`.
     Race {
         next: bool,
         kind: u32,
     },
     StageResultLoop,
     TimeTrialResultsLoop,
-    Results48584B,
-    Results482E9B,
-    Screen483163,
+    SingleRallyTwoResults,
+    SingleRallyThreeFourResults,
+    SingleRallyOverallResults,
     KeepStageBest,
     /// `menu::time_trial_qualifies` for the current player.
     TimeTrialQualifies,
     ClearTimeTrialMarks,
     EnterTimeTrialBest,
     TimeTrialBestTimesLoop,
-    Review485F5E,
+    SingleRallyReview,
     /// `sound::start_stream`: the speech `rally0.wav` on `channel`.
     StartStream {
         channel: u32,
@@ -216,6 +195,8 @@ pub trait Game {
     type Error: From<Invalid>;
     fn get(&mut self, v: Var) -> u32;
     fn set(&mut self, v: Var, value: u32);
+    fn flag(&mut self, s: Switch) -> bool;
+    fn set_flag(&mut self, s: Switch, on: bool);
     /// A callee whose answer the flows do not read.
     fn run(&mut self, c: Call) -> Result<(), Self::Error>;
     /// `menu::next_record_kind`: the kind of the record after the found one.
@@ -228,7 +209,7 @@ pub trait Game {
     fn wait_or_key(&mut self, ms: u32) -> Result<Option<u8>, Self::Error>;
     /// `sound::stream_playing`: whether the speech still plays.
     fn stream_playing(&mut self) -> Result<bool, Self::Error>;
-    /// The car list the next car choice shows (the original's esi).
+    /// The car list the next car choice shows.
     fn hand_cars(&mut self, list: CarList);
     /// The fatal error `code` with `message`.
     fn fatal(&mut self, code: u32, message: &'static str) -> Self::Error;
@@ -239,7 +220,7 @@ pub trait Game {
         self.set(v, x);
     }
 
-    /// `g_yesNoAnswer` 1.
+    /// The last yes / no question answered yes (1).
     fn yes(&mut self) -> bool {
         self.get(Var::Answer) == 1
     }
@@ -265,9 +246,12 @@ pub(crate) mod log {
     pub struct Log {
         pub steps: Vec<String>,
         pub vars: HashMap<String, u32>,
+        pub switches: HashMap<String, bool>,
         /// Per callee (its `Debug` text up to a space, brace or parenthesis): the writes of
         /// its calls in turn, and the answers.
         pub writes: HashMap<String, Vec<Vec<(Var, u32)>>>,
+        /// The same for the leaving switches.
+        pub switch_writes: HashMap<String, Vec<Vec<(Switch, bool)>>>,
         pub replies: HashMap<String, Vec<Said>>,
         pub calls: HashMap<String, usize>,
     }
@@ -279,6 +263,11 @@ pub(crate) mod log {
     impl Log {
         pub fn on(mut self, callee: &str, writes: Vec<Vec<(Var, u32)>>) -> Self {
             self.writes.insert(callee.to_string(), writes);
+            self
+        }
+
+        pub fn on_switches(mut self, callee: &str, writes: Vec<Vec<(Switch, bool)>>) -> Self {
+            self.switch_writes.insert(callee.to_string(), writes);
             self
         }
 
@@ -319,6 +308,15 @@ pub(crate) mod log {
             for (v, x) in writes {
                 self.vars.insert(format!("{v:?}"), x);
             }
+            let switch_writes = self
+                .switch_writes
+                .get(&n)
+                .and_then(|w| w.get(k))
+                .cloned()
+                .unwrap_or_default();
+            for (s, on) in switch_writes {
+                self.switches.insert(format!("{s:?}"), on);
+            }
             self.replies.get(&n).and_then(|r| r.get(k)).copied()
         }
 
@@ -341,6 +339,15 @@ pub(crate) mod log {
         fn set(&mut self, v: Var, value: u32) {
             self.steps.push(format!("{v:?}={value}"));
             self.vars.insert(format!("{v:?}"), value);
+        }
+
+        fn flag(&mut self, s: Switch) -> bool {
+            *self.switches.get(&format!("{s:?}")).unwrap_or(&false)
+        }
+
+        fn set_flag(&mut self, s: Switch, on: bool) {
+            self.steps.push(format!("{s:?}={}", u32::from(on)));
+            self.switches.insert(format!("{s:?}"), on);
         }
 
         fn run(&mut self, c: Call) -> Result<(), Invalid> {

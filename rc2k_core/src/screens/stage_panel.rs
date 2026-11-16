@@ -1,8 +1,5 @@
-//! The stage panel's body (converted 2026-10-20 from the hook crate's
-//! `screens::stage_panel::draw_stage_body_in`, the layout `draw_stage_info`,
-//! `draw_service_stage_info`, `draw_time_trial_stage_info`, `draw_selected_stage_menu` and
-//! `draw_rally_stage_info` each carry a copy of): the start, finish and total times, the
-//! length, the road surface, the weather, the description and the numbered line.
+//! The stage panel's body, shared by every page that shows it: the start, finish and total
+//! times, the length, the road surface, the weather, the description and the numbered line.
 
 use crate::Invalid;
 use crate::math::units::{Units, distance_2dp, hhmm_to_minutes, speed, temperature};
@@ -10,31 +7,29 @@ use crate::screens::best_scores::{car_glyph, flag_glyph};
 use crate::screens::screen::{Buffer, Screen};
 use crate::strings::format::{Pad, clock, decimal, fraction, percent, time};
 
-/// The fonts.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Font {
     Label,
     Value,
-    /// The surface and weather headings (`stru_51E5C4`).
+    /// The surface and weather headings.
     Heading,
-    /// The rally stage page's headings (`stru_51E564`).
+    /// The rally stage page's headings.
     RallyHeading,
     Description,
     Number,
-    /// The stage heading's (`stru_51E9A4`).
+    /// The stage heading's.
     Title,
-    /// The record rows' time (`stru_51E564`, the rally headings' record).
+    /// The record rows' time (`FontObjects.objects[14].first_char`, the rally headings' record).
     Time,
 }
 
-/// The work variables.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Work {
-    /// `dword_7559EC`, used all over the game.
+    /// A work value nothing reads.
     Scratch,
     /// The finish time.
     Finish,
-    /// The entry's +0x34 (two of the panels).
+    /// The entry's stage number (two of the panels keep it).
     Entry34,
 }
 
@@ -55,7 +50,9 @@ pub struct Entry {
     pub wind: u32,
     /// The surface percentages, entry +0x24, +0x28, +0x2C, +0x30.
     pub surfaces: [u32; 4],
-    pub entry_34: u32,
+    /// Entry +0x34: the stage's number (what `race::single_rally` looks the entry up by); kept in
+    /// `Work::Entry34` by two of the panels.
+    pub stage_number: u32,
     pub number: u32,
     /// The number's label is string 0x358 (else 0x359).
     pub number_label_one: bool,
@@ -79,9 +76,8 @@ fn time_of_day(hhmm: u32) -> Vec<u8> {
     clock(hhmm_to_minutes(hhmm))
 }
 
-/// The body for a stage starting at `start` (hours * 100 + minutes): `entry` reads the
-/// stage's entry where the original does (after the start line; its errors are the
-/// caller's). `units` is the game's setting (0 imperial).
+/// The body for a stage starting at `start` (hours * 100 + minutes): `entry` reads the stage's
+/// entry when the page needs it. `units` is the game's setting (0 imperial).
 pub fn body<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     start: u32,
@@ -106,11 +102,10 @@ pub fn body<S: Screen<Font = Font, Work = Work>>(
     s.line(Font::Value, &time_of_day(e.duration), LEFT_VALUE_X, 0xE8)?;
     s.string(Font::Label, 0x356, LEFT_LABEL_X, 0xE8)?;
     if keep_entry_34 {
-        s.keep(Work::Entry34, e.entry_34);
+        s.keep(Work::Entry34, e.stage_number);
     }
 
-    // Length and its unit; a length of 0 leaves the line empty (the original writes two
-    // NULs).
+    // Length and its unit; a length of 0 leaves the line empty (two NULs are written).
     if e.length == 0 {
         s.store(Buffer::Line, &[0, 0])?;
         s.draw(Font::Value, Buffer::Line, RIGHT_VALUE_X, 0xE8)?;
@@ -182,9 +177,8 @@ pub fn body<S: Screen<Font = Font, Work = Work>>(
     Ok(())
 }
 
-/// A stage line: string `label`, " ", the stage's number of 6, ": ", the stage's name
-/// (string `name`, which the original looks up in the track pack after the rest), without
-/// a NUL.
+/// A stage line: string `label`, " ", the stage's number of 6, ": ", the stage's name (string
+/// `name`, looked up in the track pack after the rest), without a NUL.
 pub fn stage_line<E>(
     strings: &mut dyn FnMut(u32) -> Vec<u8>,
     label: u32,
@@ -200,8 +194,8 @@ pub fn stage_line<E>(
     Ok(line)
 }
 
-/// The stage heading (`screens::draw_stage_heading` 0x466DF3): the stage line with string
-/// 0x481 at (0x2EB, 0x91). The carry of its text.
+/// The stage heading: the stage line with string 0x481 at (0x2EB, 0x91). Returns its text's
+/// `too_wide`.
 pub fn heading<S: Screen<Font = Font>>(
     s: &mut S,
     number: u32,
@@ -223,18 +217,17 @@ pub struct Holder<T> {
 const ROW_1_Y: i32 = 0x1FC;
 const ROW_2_Y: i32 = 0x213;
 
-/// Where the top speed's car sprite goes: the stage panels' second row, or the first (the
-/// time trial's copy, `screens::draw_time_trial_records`: `notes/bugs.md`).
+/// Where the top speed's car sprite goes: the stage panels' second row, or the first (the time
+/// trial's copy: a slip kept as is).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CarRow {
     Second,
     First,
 }
 
-/// The two record rows (`screens::draw_stage_records` 0x4742BF): "<0x34B>:  <0>" and
-/// "<0x34C>:  <0>" (x 0x188), then the best time (y 0x1FC: flag x 0x18A, name x 0x1A6,
-/// car x 0x266, the time in fixed columns ending at x 0x314) and the top speed (y 0x213,
-/// its figure in tenths of a mile per hour at x 0x2A8). The carry of the last text.
+/// The two record rows: "<0x34B>:  <0>" and "<0x34C>:  <0>" (x 0x188), then the best time
+/// (y 0x1FC) and the top speed (y 0x213, in tenths of a mile per hour at x 0x2A8). Returns the
+/// last text's `too_wide`.
 pub fn records<S, T>(
     s: &mut S,
     best: Holder<T>,

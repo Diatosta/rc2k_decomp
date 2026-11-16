@@ -1,46 +1,41 @@
-//! The players' details pages (converted 2026-10-20 from `screens::draw_player_details`
-//! 0x46F894, the same code as `draw_player2_details` 0x4677B5, and `draw_player34_details`
-//! 0x467975 without the second view): the name (and the typing cursor), the nationality
-//! and its flag, the views, the race number, the co-driver, the sensitivity's bar; and the
-//! typing cursor (`screens::draw_name_cursor` 0x4677EF).
+//! The players' details pages: the name (and the typing cursor), the nationality and its
+//! flag, the views, the race number, the co-driver, the sensitivity's bar; and the typing
+//! cursor.
 
 use crate::screens::screen::Screen;
 use crate::strings::format::{Pad, decimal};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Font {
-    /// `stru_51E8C4`.
     Value,
-    /// `stru_51E824`: the nationality measured for its flag's place.
+    /// The nationality measured for its flag's place.
     Measure,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Work {
-    /// `seconds` (0x7559AC): the string drawn.
+    /// The string drawn.
     Seconds,
-    /// `dword_7559EC`.
     Kept,
 }
 
 /// What the page shows, its strings looked up.
 #[derive(Clone, Copy, Debug)]
 pub struct Details<T> {
-    /// The controller's item of the menu, greyed out without a controller
-    /// (`g_controllerCount` 0).
+    /// The controller's item of the menu, greyed out without a controller.
     pub controller_item: u32,
     pub controllers: bool,
     pub name: T,
-    /// A name is being typed (`dword_7556A8` not 0): the cursor after it.
+    /// A name is being typed (`EntryState.typing` not 0): the cursor after it.
     pub typing: bool,
-    /// The cursor's blink (`dword_7559A8`): drawn while 1.
-    pub blink: u32,
+    /// The cursor's blink: drawn while 1.
+    pub blink: bool,
     pub nationality: u32,
-    /// `dword_758816[nationality]`.
+    /// `CaptionTables.nationalities[0][nationality]`.
     pub nationality_id: u32,
-    /// `dword_7589BA[view]`.
+    /// `CaptionTables.views[0][view]`.
     pub view_id: u32,
-    /// `dword_7589DA[second view]` on the pages that have it.
+    /// `CaptionTables.second_views[0][second view]` on the pages that have it.
     pub second_view_id: Option<u32>,
     pub race_number: u32,
     pub codriver_sex: u32,
@@ -48,26 +43,26 @@ pub struct Details<T> {
 }
 
 /// The typing cursor: the name measured from x, string 4 after it while the blink is 1.
-/// The carry: the cursor's text's, or (not drawn) its `cmp blink, 1`.
+/// Returns the cursor text's `too_wide`.
 pub fn name_cursor<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     name: S::Text,
     x: i32,
-    blink: u32,
+    blink: bool,
 ) -> Result<bool, S::Error> {
     let width = s.measure(Font::Measure, name, x)?;
-    if blink == 1 {
+    if blink {
         Ok(
             s.string(Font::Value, 4, width.wrapping_add(0x1BB) as i32, 0xD4)?
                 .too_wide,
         )
     } else {
-        Ok(blink < 1)
+        Ok(true)
     }
 }
 
-/// The page; the typing cursor after the name measured from the x it was drawn from. The lines below the views are 0x1B lower on a page
-/// with the second view.
+/// The page; the typing cursor after the name measured from the x it was drawn from. The lines
+/// below the views are 0x1B lower on a page with the second view.
 pub fn player_details<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     d: &Details<S::Text>,
@@ -179,7 +174,7 @@ mod tests {
             controllers: true,
             name: 1,
             typing: true,
-            blink: 1,
+            blink: true,
             nationality: 3,
             nationality_id: 0x700,
             view_id: 0x710,

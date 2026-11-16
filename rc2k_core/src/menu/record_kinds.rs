@@ -1,5 +1,4 @@
-//! The kind of the record after the current one (converted 2026-10-21 from
-//! `menu::next_record_kind` 0x470D08): the event drivers look ahead with it.
+//! The kind of the record after the current one: the event drivers look ahead with it.
 
 use crate::Invalid;
 use crate::files::records;

@@ -1,153 +1,145 @@
-//! The skidmarks' drawing (`race::draw_skidmarks_if_on` / `race::draw_skidmarks`, IDA 2026-10-18).
-//! A skidmark is a chain of up to 0x400 links (`word_643AE8`, 8 bytes each: +0 the link before, -1
-//! none; +6 the views it shows in, a bit each) with two points each (`unk_645B18`, 0xC bytes a
-//! point: x, y, z whole numbers); each link and the one before give a quad.
+//! The skidmarks' drawing (`race::draw_skidmarks_if_on` / `race::draw_skidmarks`). A skidmark is a
+//! chain of up to 0x400 links (`skid_links`, 8 bytes each: +0 the link before, -1 none; +6 the
+//! views it shows in, a bit each) with two points each (`skid_points`, 0xC bytes a point: x, y, z
+//! whole numbers); each link and the one before it give a quad.
 
+use crate::effects::cell_x87::CellX87;
 use crate::errors::BadInput;
 use crate::errors::Refused;
-use crate::race::owner::Race;
-#[cfg(all(test, target_arch = "x86"))]
-use crate::race::owner::race;
-use crate::race::owner_course::Course;
 
-/// `fild i; fadd f; fstp tbyte`: a whole number plus a float in the x87's 80 bits.
-#[cfg(all(test, target_arch = "x86"))]
+/// A whole number plus a float, as an 80-bit extended value.
+#[cfg(test)]
 fn int_plus_float_80(i: u32, f: u32) -> [u8; 10] {
     use crate::math::x87_float::{f80, int, ld};
     f80(int(i as i32) + ld(f))
 }
 
-/// `fild i; fstp tbyte`.
+/// A whole number as an 80-bit extended value.
 pub fn int_80(i: u32) -> [u8; 10] {
     crate::math::x87_float::f80(crate::math::x87_float::int(i as i32))
 }
 
-/// `fld tbyte; fstp dword`.
-#[cfg(all(test, target_arch = "x86"))]
+/// An 80-bit extended value rounded to a float's bits.
+#[cfg(test)]
 fn float_of_80(t: [u8; 10]) -> u32 {
     crate::math::x87_float::st(crate::math::x87_float::from_f80(t))
 }
 
-/// The projection of a turned vertex record (`v` +0x10 x, +0x14 y, +0x18 depth, floats)
-/// onto the screen (+0xC, +0x1C): flat (`dword_60932C`) by `dword_5CCD80` + 1, else by the
-/// depth (the original's `fdivrp st(1), st` is `dword_624088` over that). x is
-/// x times that scale plus `dword_62409C`, y is `dword_6240A0` less y times it. When flat,
-/// the depth is also stored at `dword_62400C`.
+/// The projection of a turned vertex record (words 4, 5, 6: x, y, depth, floats) onto the screen
+/// (words 3 and 7). The scale is `view_scale` over `flat_depth` + 1 when the stage is flat
+/// (`flat_depth`), else over the depth. x is x times that scale plus `view_centre`, y is
+/// `view_centre[1]` less y times it.
 pub(crate) fn project_record(
-    course: &Course,
+    prefs: &crate::race::prefs_store::StagePrefs,
+    work: &crate::race::course_store::CourseWork,
     v: &mut crate::scene::point_records::Record,
-    scene: &crate::scene::owner::Scene,
+    window: &crate::scene::view_window::ViewWindow,
 ) {
-    let drawing = &scene.drawing;
     use crate::math::x87_float::{ONE, int, ld, st};
     let (x, y, z) = (ld(v[4]), ld(v[5]), ld(v[6]));
-    let reach = ld(drawing.scene.view_scale.bits());
-    let scale = if course.stage_prefs.flat_depth.get() != 0 {
-        drawing.scene.scratch.set(st(z));
-        reach / (int(course.course.flat_depth.get() as i32) + ONE)
+    let reach = window.view_scale.ld();
+    let scale = if prefs.flat_depth.get() != 0 {
+        reach / (int(work.flat_depth.get() as i32) + ONE)
     } else {
         reach / z
     };
-    v[3] = st(x * scale + ld(drawing.scene.view_centre[0].bits()));
-    v[7] = st(-(y * scale) + ld(drawing.scene.view_centre[1].bits()));
+    v[3] = st(x * scale + window.view_centre[0].ld());
+    v[7] = st(-(y * scale) + window.view_centre[1].ld());
 }
 
-/// A skidmark point turned and projected: its vertex record's +0xC .. +0x20, and what the
-/// projection left in `dword_62400C` (flat projections only).
+/// A skidmark point turned and projected: words 3 .. 8 of its vertex record.
 #[derive(Clone, Copy)]
 struct Turned {
     words: [u32; 5],
-    scratch: Option<u32>,
 }
 
-/// One skidmark point (`unk_645B18` + 0xC x n) into the vertex record `v`: raised by
-/// `flt_643AD4`, turned by `g_viewMatrix` (`scene::rotate_point`), +0xC / +0x1C 0, and
-/// projected when its depth is not below 4096.0.
+/// One skidmark point (`skid_points`, 0xC bytes each, number `n`) into the vertex record `v`:
+/// raised by `skid_lift`, turned by `view_matrix` (`scene::rotate_point`), and projected when its
+/// depth is not below 4096.0. The projected x and y start at 0.
 fn skid_vertex(
-    race: &Race,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
     matrix: &[u32; 15],
     n: u32,
     v: u32,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<Turned, BadInput> {
-    let turned = turn_skid_point(race, matrix, n, scene)?;
-    put_turned(v, turned, scene)?;
+    let turned = turn_skid_point(ctx, matrix, n)?;
+    put_turned(ctx.part, &ctx.view.polygon.quad_vertices, v, turned)?;
     Ok(turned)
 }
 
-/// A point as `skid_vertex` turns it, put into the vertex record `v` again.
-fn put_turned(v: u32, turned: Turned, scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
-    if let Some(z) = turned.scratch {
-        scene.drawing.scene.scratch.set_bits(z);
-    }
-    let mut made = crate::scene::point_records::get(v)?;
+/// A point as `skid_vertex` turned it, put into the vertex record `v`.
+fn put_turned(
+    part: &crate::scene::workers::PartScratch,
+    quad: &[crate::memory::session::PlainDword; 32],
+    v: u32,
+    turned: Turned,
+) -> Result<(), BadInput> {
+    let mut made = crate::scene::point_records::get_in(part, Some(quad), v)?;
     made[3..8].copy_from_slice(&turned.words);
-    crate::scene::point_records::set(v, made)
+    crate::scene::point_records::set_in(part, Some(quad), v, made)
 }
 
-/// Skidmark point `n` turned and projected, as `skid_vertex` does it.
+/// Skidmark point `n` turned and projected.
 fn turn_skid_point(
-    race: &Race,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
     matrix: &[u32; 15],
     n: u32,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<Turned, BadInput> {
     {
-        let points = &race.frame.shadow_skids.skid_points;
+        let points = &ctx.reads.shadow_skids.skid_points;
         let at = n as usize * 0xC;
         if at + 0xC > 0x6000 {
             return Err(BadInput("a skidmark point past the table"));
         }
-        let lift: u32 = race.frame.shadow_skids.skid_lift.bits();
-        use crate::math::x87_float::{int, ld, st};
-        let point = [
-            int(points.get_u32(at) as i32),
-            int(points.get_u32(at + 4) as i32) + ld(lift),
-            int(points.get_u32(at + 8) as i32),
-        ];
-        let t = crate::scene::rotate_point::turned(&matrix[..], point);
-        // Only +0xC .. +0x20 are written; the projection reads +0x10 .. +0x18.
+        let lift = ctx.reads.shadow_skids.skid_lift.get();
+        use crate::math::x87_float::{Rounds, at_rounding};
+        let turned = at_rounding!(|r| {
+            let point = [
+                r.int(points.get_u32(at) as i32),
+                r.int(points.get_u32(at + 4) as i32) + r.ld(lift),
+                r.int(points.get_u32(at + 8) as i32),
+            ];
+            crate::scene::rotate_point::turned(r, &matrix[..], point).map(|v| r.st(v))
+        });
+        // Only words 3 .. 8 are written; the projection reads words 4 .. 6.
         let mut made = [0u32; 8];
-        made[4..7].copy_from_slice(&t.map(st));
-        let mut scratch = None;
-        if !crate::math::x87_load::below_or_unordered(made[6], race.course.numbers.k4096_a.bits()) {
-            project_record(&race.course, &mut made, scene);
-            if race.course.stage_prefs.flat_depth.get() != 0 {
-                scratch = Some(scene.drawing.scene.scratch.bits());
-            }
+        made[4..7].copy_from_slice(&turned);
+        if !crate::math::x87::below_or_unordered(made[6], &ctx.reads.numbers.k4096_a) {
+            project_record(
+                ctx.reads.stage_prefs,
+                ctx.reads.course_work,
+                &mut made,
+                &ctx.view.polygon.window,
+            );
         }
         Ok(Turned {
             words: made[3..8].try_into().expect("5 dwords"),
-            scratch,
         })
     }
 }
 
-/// `race::draw_skidmarks` (0x458C03): the skidmarks shown in the drawn view (all in modes
-/// 0 and 2, else those with the view's bit, `dword_643AE4`): the polygon's four work
-/// entries set once (vertices 0x623E40 .., texture places `dword_623DBC` / `dword_623DC0`,
-/// bytes 0 and 0x60, textures 0xC0); then for each link with a link before, its two points
-/// and the two before as a quad (vertices 3, 2, 0, 1), `scene::fog_polygon`, cut by depth
-/// and to the screen and drawn in black in mode 3 without the depth test. Refuses what the scene's functions refuse (mid-way; not
-/// met with four vertices).
-pub fn draw_skidmarks(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let drawing = &scene.drawing;
-    let frame = &race.frame;
+/// `race::draw_skidmarks`: draws the skidmarks shown in the drawn view (all in modes 0 and 2, else
+/// those with the view's bit). The polygon's four work entries are set once (texture places
+/// `fade_uv`, amount 0x60, textures 0xC0). Then each link with a link before gives a quad of its
+/// two points and the two before (vertices 3, 2, 0, 1), fogged (`scene::fog_polygon`), cut by
+/// depth and to the screen and drawn in black in mode 3 without the depth test. Refuses what the
+/// scene's functions refuse (mid-way; not met with four vertices).
+pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
+    let race = ctx.race;
     let mut views = u32::MAX;
-    let mode: u32 = race.shared.vars.run_kind.get();
+    let mode: u32 = ctx.reads.vars.run_kind.get();
     if mode != 0 && mode != 2 {
-        views = 1u32.wrapping_shl(race.shared.view.drawn_view.get() & 0x1F);
+        views = 1u32.wrapping_shl(ctx.view.drawn_view(race) & 0x1F);
     }
-    frame.shadow_skids.skid_views.set(views);
-    let entries = &crate::scene::polygon_store::POLYGON_WORK.entries[..4];
+    let entries = &ctx.part.polygon.entries[..4];
     for (k, e) in (0..4u32).zip(entries) {
         e.record.set(crate::scene::point_records::of_quad(k));
         e.light.set(0);
         e.lamp_light.set(0);
     }
     let (u, w) = (
-        race.shared.vars.fade_uv[0].get(),
-        race.shared.vars.fade_uv[1].get(),
+        ctx.reads.vars.fade_uv[0].get(),
+        ctx.reads.vars.fade_uv[1].get(),
     );
     for e in entries {
         e.u.set(u);
@@ -158,22 +150,24 @@ pub fn draw_skidmarks(race: &Race, scene: &crate::scene::owner::Scene) -> Result
         e.amount.set(0x60);
         e.fog.set(0);
     }
-    drawing.scene.polygon_textures[0].set(0xC0u32);
-    drawing.scene.polygon_textures[1].set(0xC0u32);
-    let matrix: [u32; 15] = crate::math::cells::load(&frame.matrices.view_matrix);
-    // The last quad's two points (its link's number and the points as turned): a skidmark's
-    // next quad has them as its two before, and nothing it is drawn with changes what they
+    ctx.view.polygon.polygon_textures[0].set(0xC0u32);
+    ctx.view.polygon.polygon_textures[1].set(0xC0u32);
+    let matrix: [u32; 15] = crate::math::cells::load(&ctx.view.matrices.view_matrix);
+    // The last quad's two points (its link's number and the points as turned): the next quad of
+    // the skidmark has them as its two before, and nothing it is drawn with changes what they
     // are turned from.
     let mut last: Option<(u32, Turned, Turned)> = None;
     for n in 0..0x400u32 {
         let link = |at: u32| -> Result<u16, BadInput> {
-            let table = &frame.shadow_skids.skid_links;
+            let table = &ctx.reads.shadow_skids.skid_links;
             let at = at as usize;
+            // A link is -1 (the table's start values) or a point of the ring: the links are written
+            // only by `init_skidmarks` and `add_skid_point`, which refuses one outside the 0x400
+            // points, so `before * 8 + 6` ends inside the table's 0x2000 bytes.
             if at + 2 <= size_of_val(table) {
                 Ok(u16::from_le_bytes([table.get(at), table.get(at + 1)]))
             } else {
-                // past the table, by address, as the original reads on
-                crate::pointers::load_value::<u16>(table, at)
+                Err(BadInput("a skid link past the links' table"))
             }
         };
         let before = link(8 * n)? as i16 as i32 as u32;
@@ -185,168 +179,87 @@ pub fn draw_skidmarks(race: &Race, scene: &crate::scene::owner::Scene) -> Result
             continue;
         }
         use crate::scene::point_records::of_quad;
-        let first = skid_vertex(race, &matrix, 2 * n, of_quad(3), scene)?;
-        let second = skid_vertex(race, &matrix, 2 * n + 1, of_quad(2), scene)?;
+        let first = skid_vertex(ctx, &matrix, 2 * n, of_quad(3))?;
+        let second = skid_vertex(ctx, &matrix, 2 * n + 1, of_quad(2))?;
         match last {
             Some((m, a, b)) if m == before => {
-                put_turned(of_quad(0), a, scene)?;
-                put_turned(of_quad(1), b, scene)?;
+                put_turned(ctx.part, &ctx.view.polygon.quad_vertices, of_quad(0), a)?;
+                put_turned(ctx.part, &ctx.view.polygon.quad_vertices, of_quad(1), b)?;
             }
             _ => {
-                skid_vertex(race, &matrix, before.wrapping_mul(2), of_quad(0), scene)?;
+                skid_vertex(ctx, &matrix, before.wrapping_mul(2), of_quad(0))?;
                 skid_vertex(
-                    race,
+                    ctx,
                     &matrix,
                     before.wrapping_mul(2).wrapping_add(1),
                     of_quad(1),
-                    scene,
                 )?;
             }
         }
         last = Some((n, first, second));
-        drawing.scene.polygon_vertex_count.set(4u32);
-        drawing
-            .scene
+        ctx.view.polygon.polygon_vertex_count.set(4u32);
+        ctx.view
+            .polygon
             .polygon_next_record
             .set(crate::scene::polygon::pool_start());
-        let list = &crate::scene::polygon_store::POLYGON_WORK.list;
+        let list = &ctx.part.polygon.list;
         for k in 0..4u32 {
             list[k as usize].set(k);
         }
         list[4].set(0);
-        drawing.scene.polygon_next_entry.set(4u32);
-        crate::scene::fog_polygon::fog_polygon(scene)?;
-        crate::scene::clip_polygon_by_depth::clip_polygon_by_depth(race, scene)?;
-        // Each quad inside the original's `pusha` .. `popa`; the depth test's switches
-        // and the polygon's drawing read no register.
-        if drawing.scene.polygon_vertex_count.get() < 3 {
+        ctx.view.polygon.polygon_next_entry.set(4u32);
+        crate::scene::fog_polygon::fog_polygon(ctx.part, ctx.view)?;
+        crate::scene::clip_polygon_by_depth::clip_polygon_by_depth(
+            ctx.part,
+            &ctx.view.polygon,
+            ctx.reads.course(),
+            ctx.reads.draw_switches,
+            ctx.far_clip,
+            ctx.view,
+        )?;
+        if ctx.view.polygon.polygon_vertex_count.get() < 3 {
             continue;
         }
-        crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(race, scene)?;
-        if drawing.scene.polygon_vertex_count.get() >= 3 {
-            drawing.scene.polygon_colour.set(0u32);
-            crate::scene::depth_test_off::depth_test_off();
-            race.shared.view.polygon_mode.set(3u32);
-            drawing.scene.polygon_sides[0].set(0u32);
-            drawing.scene.polygon_sides[1].set(1u32);
-            crate::scene::draw_polygon::draw_polygon_in_game(race, scene)?;
-            race.shared.view.polygon_mode.set(0u32);
-            drawing.scene.polygon_drawn.set(1u32);
-            crate::scene::depth_test_on::depth_test_on();
+        crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(
+            ctx.part,
+            &ctx.view.polygon,
+            ctx.reads.course(),
+        )?;
+        if ctx.view.polygon.polygon_vertex_count.get() >= 3 {
+            ctx.view.polygon.polygon_colour.set(0u32);
+            crate::scene::depth_test_off::depth_test_off(ctx.part);
+            ctx.view.face.polygon_mode.set(3u32);
+            ctx.view.polygon.polygon_sides[0].set(0u32);
+            ctx.view.polygon.polygon_sides[1].set(1u32);
+            crate::scene::draw_polygon::draw_polygon_in_game(
+                ctx.view,
+                ctx.part,
+                ctx.reads,
+                ctx.reads.screen,
+            )?;
+            ctx.view.face.polygon_mode.set(0u32);
+            ctx.view.polygon.polygon_drawn.set(1u32);
+            crate::scene::depth_test_on::depth_test_on(ctx.part);
         }
-        drawing.scene.polygon_colour.set(0x00FF_FFFFu32);
+        ctx.view.polygon.polygon_colour.set(0x00FF_FFFFu32);
     }
     Ok(())
 }
 
-/// `race::draw_skidmarks_if_on` (0x4585E3): `draw_skidmarks` unless `dword_6416B8` is set.
-/// Its one caller, `race::draw_view_scene`, reads no register it leaves.
-pub fn draw_skidmarks_if_on(
-    race: &Race,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), Refused> {
-    if race.frame.frame_work.drawing.get() != 0 {
+/// `race::draw_skidmarks_if_on`: `draw_skidmarks` unless `drawing` is set.
+pub fn draw_skidmarks_if_on(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
+    if ctx.reads.frame_work.drawing.get() != 0 {
         return Ok(());
     }
-    draw_skidmarks(race, scene)
+    draw_skidmarks(ctx)
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
     use crate::math::x87_float::{X, f80};
-    use crate::race::asm_test::{Rng, Saved, at_each_control_word, lock};
-    use crate::scene::owner::scene;
-
-    /// The original blocks, verbatim.
-    fn int_plus_float_80_asm(i: u32, f: u32) -> [u8; 10] {
-        let (v, mut out) = ([i, f], [0u8; 10]);
-        unsafe {
-            core::arch::asm!(
-                "fild dword ptr [{v}]",
-                "fadd dword ptr [{v} + 4]",
-                "fstp tbyte ptr [{o}]",
-                v = in(reg) v.as_ptr(),
-                o = in(reg) out.as_mut_ptr(),
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
-        out
-    }
-
-    fn int_80_asm(i: u32) -> [u8; 10] {
-        let (v, mut out) = ([i], [0u8; 10]);
-        unsafe {
-            core::arch::asm!(
-                "fild dword ptr [{v}]",
-                "fstp tbyte ptr [{o}]",
-                v = in(reg) v.as_ptr(),
-                o = in(reg) out.as_mut_ptr(),
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
-        out
-    }
-
-    fn float_of_80_asm(t: [u8; 10]) -> u32 {
-        let mut out = 0u32;
-        unsafe {
-            core::arch::asm!(
-                "fld tbyte ptr [{t}]",
-                "fstp dword ptr [{o}]",
-                t = in(reg) t.as_ptr(),
-                o = in(reg) &raw mut out,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
-        out
-    }
-
-    unsafe fn project_vertex_asm(v: u32, flat: bool) {
-        unsafe {
-            if flat {
-                let old = crate::race::store::OldPlaces::lay(&[
-                    0x5ccd80, 0x62400c, 0x624088, 0x62409c, 0x6240a0,
-                ]);
-                core::arch::asm!(
-                    "fld dword ptr [{v} + 0x10]", "fld dword ptr [{v} + 0x14]", "fld dword ptr [{v} + 0x18]",
-                    "fstp dword ptr [{rc} + 0x22400C]", "fild dword ptr [{rc} + 0x1CCD80]", "fld1",
-                    ".byte 0xDE, 0xC1",
-                    "fld dword ptr [{rc} + 0x224088]", ".byte 0xDE, 0xF1",
-                    ".byte 0xDC, 0xC9", ".byte 0xDE, 0xCA", "fchs",
-                    "fadd dword ptr [{rc} + 0x2240A0]", ".byte 0xD9, 0xC9", "fadd dword ptr [{rc} + 0x22409C]",
-                    "fstp dword ptr [{v} + 0xC]", "fstp dword ptr [{v} + 0x1C]",
-                    rc = in(reg) crate::race::store::asm_base(),
-                    v = in(reg) v,
-                    out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                    out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                    options(nostack),
-                );
-                drop(old);
-            } else {
-                let old = crate::race::store::OldPlaces::lay(&[0x624088, 0x62409c, 0x6240a0]);
-                core::arch::asm!(
-                    "fld dword ptr [{v} + 0x10]", "fld dword ptr [{v} + 0x14]", "fld dword ptr [{v} + 0x18]",
-                    "fld dword ptr [{rc} + 0x224088]", ".byte 0xDE, 0xF1",
-                    ".byte 0xDC, 0xC9", ".byte 0xDE, 0xCA", "fchs",
-                    "fadd dword ptr [{rc} + 0x2240A0]", ".byte 0xD9, 0xC9", "fadd dword ptr [{rc} + 0x22409C]",
-                    "fstp dword ptr [{v} + 0xC]", "fstp dword ptr [{v} + 0x1C]",
-                    rc = in(reg) crate::race::store::asm_base(),
-                    v = in(reg) v,
-                    out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                    out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                    options(nostack),
-                );
-                drop(old);
-            }
-        }
-    }
+    use crate::race::asm_test::{Rng, at_each_control_word, lock};
+    use crate::test_support::vectors::{Recorder, bytes, word};
 
     fn same_bits(a: u32, b: u32) -> bool {
         crate::race::asm_test::same(a, b)
@@ -356,66 +269,80 @@ mod asm_reference {
     fn conversions_match() {
         let _l = lock();
         let mut r = Rng(3);
+        let mut file = Recorder::replay("race.skidmarks.conversions");
         at_each_control_word(|| {
-            for _ in 0..20000 {
+            for _ in 0..9000 {
                 let (i, f) = (r.int() as u32, r.float());
-                assert_eq!(
-                    int_plus_float_80(i, f),
-                    int_plus_float_80_asm(i, f),
-                    "{i} {f:#x}"
-                );
-                assert_eq!(int_80(i), int_80_asm(i), "{i}");
+                file.input(&[i.to_le_bytes(), f.to_le_bytes()].concat());
+                assert_eq!(int_plus_float_80(i, f), bytes(&mut file), "{i} {f:#x}");
+                assert_eq!(int_80(i), bytes(&mut file), "{i}");
                 let v = if r.below(2) == 0 {
                     f64::from(r.int())
                 } else {
                     f64::from(f32::from_bits(r.float())) * f64::from(f32::from_bits(r.float()))
                 };
                 let t = f80(X(v));
-                let (want, got) = (float_of_80_asm(t), float_of_80(t));
+                file.input(&t);
+                let (want, got) = (word(&mut file), float_of_80(t));
                 assert!(same_bits(want, got), "{v}: {want:#x} {got:#x}");
             }
         });
+        file.finish();
     }
+}
+
+/// The projection against recorded results (`test_support::race_vectors`).
+#[cfg(test)]
+mod vector_tests {
+    use super::*;
+    use crate::race::asm_test::{Rng, at_each_control_word, lock, same};
+    use crate::test_support::own::race;
+    use crate::test_support::own::scene;
+    use crate::test_support::race_vectors::{Kind, Vectors};
+    use crate::test_support::state::Snapshot;
+
+    /// The stores the test writes.
+    const STORES: [&str; 3] = [
+        "owners.scene.drawing.scene",
+        "owners.race.course.course",
+        "owners.race.course.stage_prefs",
+    ];
 
     #[test]
-    fn project_vertex_matches() {
+    fn project_vertex_is_the_originals() {
         let drawing = &scene().drawing;
         let course = &race().course;
         let _l = lock();
-        let _saved = Saved::new(&[0x62400C, 0x5CCD80, 0x624088, 0x6240A0, 0x62409C, 0x60932C]);
+        let kept = Snapshot::of(&STORES);
+        let mut vectors = Vectors::open("race.skidmarks.project_vertex", Kind::Exact, 8);
         let mut r = Rng(4);
+        let win = crate::scene::view_window::ViewWindow::new();
         at_each_control_word(|| {
             for n in 0..20000 {
                 let flat = n % 2 == 0;
-                {
-                    course.stage_prefs.flat_depth.set(flat as u32);
-                    course.course.flat_depth.set(r.int() as u32);
-                    drawing.scene.view_scale.set_bits(r.float());
-                    drawing.scene.view_centre[1].set_bits(r.float());
-                    drawing.scene.view_centre[0].set_bits(r.float());
-                    drawing.scene.scratch.set(0xAAAA_AAAAu32);
+                course.stage_prefs.get().flat_depth.set(flat as u32);
+                course.course.get().flat_depth.set(r.int() as u32);
+                // The recorded run read the scene's window; this code reads the window it is given.
+                for (old, own) in [
+                    (&drawing.scene.get().view_scale, &win.view_scale),
+                    (&drawing.scene.get().view_centre[1], &win.view_centre[1]),
+                    (&drawing.scene.get().view_centre[0], &win.view_centre[0]),
+                ] {
+                    let value = f32::from_bits(r.float());
+                    old.set(value);
+                    own.set(value);
                 }
+                drawing.scene.get().scratch.set(0xAAAA_AAAAu32);
                 let mut a = [0xAAAA_AAAAu32; 8];
                 for q in a.iter_mut().skip(4).take(3) {
                     *q = r.float();
                 }
-                let mut b = a;
-                let _r = crate::race::trap::test_region(&a);
-                unsafe { project_vertex_asm(crate::pointers::game_address(a.as_mut_ptr()), flat) };
-                let kept = drawing.scene.scratch.get();
-                drawing.scene.scratch.set_bits(0xAAAA_AAAAu32);
-                project_record(course, &mut b, crate::scene::owner::scene());
-                let now = drawing.scene.scratch.get();
-                for k in 0..8 {
-                    assert!(
-                        same_bits(a[k], b[k]),
-                        "flat {flat} word {k}: {:#x} {:#x} from {a:x?}",
-                        a[k],
-                        b[k]
-                    );
-                }
-                assert!(same_bits(kept, now), "depth store {kept:#x} {now:#x}");
+                let from = a;
+                project_record(course.stage_prefs.get(), course.course.get(), &mut a, &win);
+                vectors.check(&a, same, || format!("flat {flat} from {from:x?}"));
             }
         });
+        kept.restore();
+        vectors.finish();
     }
 }

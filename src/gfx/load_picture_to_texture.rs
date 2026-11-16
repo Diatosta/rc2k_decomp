@@ -1,48 +1,56 @@
-//! `gfx::load_picture_to_texture` (0x405313): a picture file into a system texture.
+//! A picture file for a system texture: read (`read_picture_for_texture`), then put into every
+//! level of the texture (`upload_picture`).
 //!
-//! With the record's +0x5C at 1 the second picture is read and kept 0x40000 bytes on the
-//! picture's start, or +0x5C made 0 if there is none or it cannot be read
-//! (`gfx/texture_upload.rs`); then the picture is read (`gfx::read_texture_picture`, 256 x 256
-//! of -1 if it cannot be) and `gfx::upload_texture_picture` puts it in. Three call sites in
-//! `scene::load_texture_picture`, which calls the Rust version now. Refuses a texture of 0x140
-//! or more, a record without its format, and what its parts refuse.
+//! With the texture's `keeps_alpha` at 1 the second picture is read first and kept 0x40000 bytes
+//! on the picture's start, or `keeps_alpha` is made 0 if there is none or it cannot be read
+//! (`gfx/texture_upload.rs`). The picture is 256 x 256 of -1 if it cannot be read. Refuses a
+//! texture of 0x140 or more, a record without its format, and what the parts refuse.
 
 use crate::errors::Refused;
 use crate::gfx::read_texture_picture::read_texture_picture;
 use crate::gfx::texture_upload::{Record, keep_second_picture};
 use crate::gfx::upload_texture_picture::{GameSurfaces, upload_texture_picture};
+use crate::memory::session::TextPlace;
 
-// ---- Rust version ----
-
-/// `upload` gets the texture and what the reading left: the pixels, the width and the
-/// height.
-pub fn load_picture_to_texture(
-    path: crate::pointers::GamePtr,
-    second: Option<crate::pointers::GamePtr>,
-    texture: u32,
-    upload: &mut dyn FnMut(u32, u32, u32, u32) -> Result<(), Refused>,
-) -> Result<(), Refused> {
-    let record = Record::of(texture)?;
-    keep_second_picture(&record, second)?;
-    let (pixels, width, height, _) = read_texture_picture(path)?;
-    upload(texture, pixels, width, height)
+/// A texture's picture, read: the picture buffer's handle and the picture's size.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TexturePicture {
+    pub texture: u32,
+    pub pixels: u32,
+    pub width: u32,
+    pub height: u32,
 }
 
-/// With the Rust upload into the game's textures.
-pub fn load_picture_to_texture_in_game(
-    path: crate::pointers::GamePtr,
-    second: Option<crate::pointers::GamePtr>,
+/// The picture at `path` read for `texture` (`second` is the alpha picture).
+pub fn read_picture_for_texture(
+    path: Option<&dyn TextPlace>,
+    second: Option<&dyn TextPlace>,
     texture: u32,
     gfx: &crate::gfx::owner::Gfx,
-) -> Result<(), Refused> {
-    load_picture_to_texture(
-        path,
-        second,
+    system: &crate::system::owner::System,
+) -> Result<TexturePicture, Refused> {
+    let record = Record::of(texture, gfx)?;
+    keep_second_picture(&record, second, gfx, system)?;
+    let (pixels, width, height, _) = read_texture_picture(path, gfx, system)?;
+    Ok(TexturePicture {
         texture,
-        &mut |texture, pixels, width, height| {
-            upload_texture_picture(texture, pixels, width, height, &mut GameSurfaces, gfx)
-        },
-    )
+        pixels,
+        width,
+        height,
+    })
 }
 
-// gfx::upload_texture_picture
+/// The picture put into the game's texture.
+pub fn upload_picture(
+    picture: &TexturePicture,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<(), Refused> {
+    upload_texture_picture(
+        picture.texture,
+        picture.pixels,
+        picture.width,
+        picture.height,
+        &mut GameSurfaces(gfx),
+        gfx,
+    )
+}

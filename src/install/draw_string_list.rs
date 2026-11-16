@@ -1,33 +1,27 @@
-//! `install::draw_string_list` (0x402370): a list of `eax` records (16 bytes each: dx, dy,
-//! font, string id) drawn, each at (dx + x, dy + y) with its font (`text::draw_string_by_id`).
-//! The x and y come in ecx and edx (the caller's, read back from the saved slots).
-//!
-//! Takes the count, table, x, y.
-//! Callers `install::install_files` and the copy-progress and page frames. Refuses a count of 0 (the original's loop is a do-while: it would draw
-//! 2^32 records).
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
+//! A list of `count` records (16 bytes each: dx, dy, font, string id) drawn, each at
+//! (dx + x, dy + y) with its font (`text::draw_string_by_id`). Called by `install::install_files`
+//! and the copy-progress and page frames. Refuses a count of 0.
 
 use crate::errors::Refused;
-use crate::install::installer::{draw_string, rd, rl};
+use crate::install::installer::draw_string;
+use crate::install::vars::StringRecord;
 use rc2k_core::install::layout;
 
-/// `count` records of `table` drawn at (x, y) on.
+/// The records of `table` drawn at (x, y) on. An empty table is refused.
 pub fn draw_string_list(
-    count: u32,
-    table: impl Into<crate::place::Place>,
+    so: crate::strings::append_string_by_id::StringOwners<'static>,
+    table: &[&StringRecord],
     x: u32,
     y: u32,
+    gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
-    let table: crate::place::Place = table.into();
-    // Converted: `rc2k_core::install::layout` (`list_records`, `list_place`).
-    for (offset, _) in layout::list_records(count)? {
-        let record = table.add(offset);
-        let (x, y) = layout::list_place(rd(record), rd(record.add(4)), x, y);
-        let font = rl(record.add(8))
+    for (record, _) in table.iter().zip(layout::list_records(table.len() as u32)?) {
+        let (x, y) = layout::list_place(record.dx.get(), record.dy.get(), x, y);
+        let font = record
+            .font_link()
             .font()
             .unwrap_or_else(|e| crate::install::installer::refuse(e));
-        draw_string(rd(record.add(0xC)), font, x, y)?;
+        draw_string(so, record.string.get(), font, x, y, gfx)?;
     }
     Ok(())
 }

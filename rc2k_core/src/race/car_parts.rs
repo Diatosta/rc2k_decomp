@@ -1,47 +1,46 @@
-//! The cars' parts made ready to draw: the switch bytes of a car's marks and lamps from
-//! its state (+0xAB4 .. +0xAD0), their count, the axles' places from the model's record
-//! (converted 2026-10-21 from `race::car_part_matrices` 0x460E7C and `race::ready_car_parts`
-//! 0x460D5C; the matrices stay the x87's).
+//! The cars' parts made ready to draw: the switch bytes of a car's marks and lamps, their count,
+//! and the axles' places.
 
 use crate::Invalid;
 
-/// What the switches are made from: the car block's fields and two switch masks.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct PartState {
-    /// +0x84: the lights on.
+    /// Non-zero when the car's lights are on.
     pub on: u32,
-    /// `dword_62DAD0`: the marks' mask.
+    /// The marks' mask.
     pub marks_mask: u32,
-    /// `dword_62DACC`: the lamps' mask.
+    /// The lamps' mask.
     pub lamps_mask: u32,
-    /// +0x63C.
+    /// Non-zero when the view is inside the car.
     pub inside: u32,
-    /// +0x684 (2 and 3 set +0xAB8).
+    /// The car's mode (2 and 3 set `mode_on`).
     pub mode: u32,
-    /// +0x1D4 (-1 sets the reversing pair).
+    /// -1 (all bits set) sets the reversing pair of switches.
     pub reversing: u32,
-    /// +0x410 .. +0x424: the broken parts.
+    /// The six parts' broken state.
     pub broken: [u32; 6],
-    /// +0x298 (bit 9: the six marks counted).
+    /// Bit 9: the six marks are counted.
     pub flags: u32,
 }
 
-/// The switches made: +0xAB4, +0xAB8, the bytes +0xAC0 ..= +0xAD0, and the marks'
-/// count before it is scaled into +0xABC.
+/// The switches made: the marks' and mode's flags, the switch bytes, and the marks' count
+/// before scaling.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct MarkSwitches {
+    /// Non-zero when the marks are on.
     pub marks_on: u32,
+    /// Non-zero for car modes 2 and 3.
     pub mode_on: u32,
     pub bytes: [u8; SWITCH_BYTES],
+    /// How many marks are counted (before scaling into the byte count).
     pub count: u8,
 }
 
-/// The switch bytes' first offset in the block, and their number.
+/// The switch bytes' first offset in the car block, and their number.
 pub const FIRST_SWITCH: u32 = 0xAC0;
 pub const SWITCH_BYTES: usize = 0x11;
 
-/// The switches of `car_part_matrices` (the original cuts the broken parts' bytes twice,
-/// the same as once).
+/// The switches of the car part matrices (the broken parts' bytes are cut twice: same as once).
 pub fn mark_switches(p: &PartState) -> MarkSwitches {
     let mut b = [0u8; SWITCH_BYTES];
     let at = |o: u32| (o - FIRST_SWITCH) as usize;
@@ -93,8 +92,7 @@ pub fn mark_switches(p: &PartState) -> MarkSwitches {
     }
 }
 
-/// +0xABC: the marks' count x 0x20, 0 when +0x310 is not below 100.0 (`slow` false) or
-/// the lights are off.
+/// The marks' byte count: count x 0x20, 0 when the wear is not below 100.0 or the lights are off.
 pub fn marks_bytes(count: u8, slow: bool, on: u32) -> u32 {
     if !slow || on == 0 {
         0
@@ -103,12 +101,12 @@ pub fn marks_bytes(count: u8, slow: bool, on: u32) -> u32 {
     }
 }
 
-/// +0xAAC: the steering, the top half of +0x650.
+/// The steering: the top half of the car's steering word.
 pub fn steering(word: u32) -> u32 {
     word >> 16
 }
 
-/// An axle value x 0x10000 / 1000 as `imul` / `idiv`: None where the `idiv` would fault.
+/// An axle value x 0x10000 / 1000; None where the division would overflow.
 pub fn per_thousand(v: i64) -> Option<u32> {
     let q = v * 0x1_0000 / 1000;
     (i32::MIN as i64..=i32::MAX as i64)
@@ -116,10 +114,8 @@ pub fn per_thousand(v: i64) -> Option<u32> {
         .then_some(q as u32)
 }
 
-/// The five axle values from the model's record (`dword_5C9098` +0 .. +0x10) and the
-/// lift (`dword_613FC4`): (front x, rear x less the lift, height, front z, rear z less
-/// the lift) as `dword_608C50`, `dword_608C54`, `dword_608C58`, `dword_608C5C`,
-/// `dword_608C48`; None where a scaling would fault.
+/// The five axle values from the model's record and the lift: (front x, rear x less lift,
+/// height, front z, rear z less lift); None where a scaling would overflow.
 pub fn axles(record: [u32; 5], lift: u32) -> Option<[u32; 5]> {
     let rec = |n: usize| record[n] as i32 as i64;
     Some([
@@ -131,8 +127,7 @@ pub fn axles(record: [u32; 5], lift: u32) -> Option<[u32; 5]> {
     ])
 }
 
-/// `ready_car_parts`' cars: 1 ..= 8, each with its block (with none the original's loop,
-/// its test at its end, runs on past the eight).
+/// Refuses a car count outside 1 ..= 8 or a car without its block.
 pub fn check_part_cars(count: u32, block: impl Fn(u32) -> u32) -> Result<(), Invalid> {
     if count == 0 || count > 8 || (0..count).any(|n| block(n) == 0) {
         return Err(Invalid(
@@ -142,13 +137,12 @@ pub fn check_part_cars(count: u32, block: impl Fn(u32) -> u32) -> Result<(), Inv
     Ok(())
 }
 
-/// A car's parts are made ready when they are shown (+0x25C).
+/// A car's parts are made ready only when they are shown.
 pub fn parts_shown(shown: u32) -> bool {
     shown != 0
 }
 
-/// The matrices kept in the block (+0x740 .., 0x40 bytes each): the four wheels', the
-/// car's turn and its place; the body's after them at +0x8C0.
+/// The matrices kept in the block: the four wheels', the car's turn and its place.
 pub const KEPT_MATRICES: u32 = 6;
 
 #[cfg(test)]

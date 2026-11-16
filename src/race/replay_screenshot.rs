@@ -1,30 +1,36 @@
-//! `race::replay_screenshot` (0x41F3DB): while the replay's frames are being recorded
-//! (`dword_5C2CCC` 1, a reading), the frame saved as a picture: the clock started at the
-//! first (`dword_5C2CD4` 1, `dword_5C2CD0` = `GetTickCount`); the six digits of the name
-//! `rpl\000000.pcx` (0x5C2CDC) one more (each past '9' back to '0' and the one before
-//! raised; all six at most); the name as `dword_4F49C8` while the surface is locked
-//! (`gfx::lock_surface`; carry: not saved), written (`gfx::write_screen_pcx`, the PCX writer) and
-//! unlocked (`gfx::unlock_surface`), `dword_4F49C8` put back; the clock on by `dword_5C2CF3`
-//! (the recording's frame time) for the next.
+//! `race::replay_screenshot`: while the replay viewer's frame-picture saving is on
+//! (`replay_recording` 1, set by `race::start_frame_pictures` from the viewer's actions 0x25 ..
+//! 0x28 and cleared by `race::stop_frame_pictures`; the "recording" is of pictures, not of the
+//! replay), saves the frame as a picture. The clock is started at the first
+//! (`PICTURE_CLOCK.started` 1, `PICTURE_CLOCK.clock` the tick count); the six digits of the name
+//! `rpl\000000.pcx` count one more (each past '9' back to '0' and the one before raised; all six
+//! at most); the name is set as
+//! `Picture.name` while the surface is locked, the picture is written (`gfx::write_screen_pcx`)
+//! and the surface unlocked (`gfx::unlock_surface`), then `Picture.name` is put back; the clock
+//! moves on by `ViewerAndKinds.viewer_panel.untyped_tail[2]` (the recording's frame time) for the
+//! next.
 //!
 //! Caller: `drive::race_frame` (each frame drawn).
 
 use crate::errors::Refused;
-use crate::pointers::Store;
-use crate::race::viewer_screen_store::VIEWER_PANEL;
+use crate::memory::cells::Store;
 
-/// The Rust version (see the header). (The original keeps every register.)
-pub fn replay_screenshot() -> Result<(), Refused> {
-    let gfx = crate::gfx::owner::gfx();
-    if VIEWER_PANEL.replay_recording.bits() != 1 {
+pub fn replay_screenshot(
+    race: &crate::race::owner::Race,
+    gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
+    let panel = race.viewer_panel();
+    if panel.replay_recording.get() != 1 {
         return Ok(());
     }
-    if VIEWER_PANEL.pictures_started.bits() != 1 {
-        VIEWER_PANEL.pictures_started.set_bits(1u32);
-        VIEWER_PANEL.picture_clock.set(crate::os::ticks());
+    let clock = &system.session.picture_clock;
+    if clock.started.get() != 1 {
+        clock.started.set(1u32);
+        clock.clock.set(crate::platform::os::ticks());
     }
-    let name = &VIEWER_PANEL.picture_name;
-    // Converted: `rc2k_core::race::viewer::count_up` (the name's six digits from +4).
+    let name = &panel.picture_name;
+    // Logic in `rc2k_core::race::viewer::count_up` (the name's six digits from +4).
     // The name is a text: its digits are bytes inside it.
     let mut digits = [0u8; 6];
     Store::load(name, 4, &mut digits)?;
@@ -33,15 +39,12 @@ pub fn replay_screenshot() -> Result<(), Refused> {
     let name = crate::files::cstring(name, "the picture name")?;
     // The surface locked (the carry says it was not), the picture written, the surface
     // unlocked.
-    if crate::platform::lock_surface() >= 1 {
-        crate::gfx::write_screen_pcx::write_screen_pcx(&gfx.shots, Some(&name), gfx)?;
-        crate::platform::unlock_surface();
+    if crate::platform::lock_surface(gfx, system) >= 1 {
+        crate::gfx::write_screen_pcx::write_screen_pcx(&gfx.shots, Some(&name), gfx, system)?;
+        crate::platform::unlock_surface(gfx);
     }
-    VIEWER_PANEL.picture_clock.set(
-        VIEWER_PANEL
-            .picture_clock
-            .bits()
-            .wrapping_add(VIEWER_PANEL.picture_time()),
-    );
+    clock
+        .clock
+        .set(clock.clock.get().wrapping_add(panel.picture_time()));
     Ok(())
 }

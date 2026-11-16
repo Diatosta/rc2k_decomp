@@ -1,373 +1,226 @@
-//! `physics::damage_wear` (0x4ABEDF): the wear of this step (`physics/damage_model.rs`).
+//! The wear of this step (`physics/damage_model.rs`).
 //!
-//! The clock into `dword_75B4A0`; table lerps of the speed shares into `flt_75B45C` ..; the
-//! heat, damper, brake-fade and engine-heat gauges raised and lowered by their rates times
-//! the shares and `wear_step`, each held 0 ..= `gauge_top`; the hit figures `flt_75B450` ..
-//! `flt_75B458`; and `flt_75B484` from the table `dword_75B73C` (row `dword_75B3E8`, two
-//! columns through `dword_75B8C0` / `75B8C4`, as the original indexes them) blended by
-//! `dword_75B3F0`, times `flt_75B8BC`.
+//! The clock goes into `DamageModel.clock`; table lerps of the speed shares give
+//! `DamageModel.engine_speed_wear_factor` ..; the heat, damper, brake-fade and engine-heat
+//! gauges are raised and lowered by their rates times the shares and `wear_step`, each held 0
+//! ..= `gauge_top`; then the hit figures `DamageModel.roughness_wear_base` ..
+//! `DamageModel.suspension_roughness_wear`; and `DamageModel.wear_figure` from the table
+//! `DamageModel.wear_table[0]` (row `DamageModel.tyre_kind`, two columns through
+//! `DamageModel.wear_columns`) blended by `DamageModel.surface_blend`, times
+//! `DamageModel.wear_figure_scale`.
 //!
 //! Caller: `physics::damage_step`.
 
-use crate::math::x87_float::{X, int, ld, st};
+use crate::errors::BadInput;
+use crate::memory::session::PlainFloat;
+use crate::physics::car_store::Car;
 use crate::physics::damage_gauges::raise;
+use crate::physics::damage_model::{store, value};
 use crate::physics::flow::{hold_low, table_lerp};
 use crate::physics::store::DamageModel;
-use crate::race::owner::Race;
-use crate::session::Cell32;
-use core::mem::offset_of;
 
 /// The wear of this step: the gauges raised or lowered by their rates times the shares,
 /// the lerps of the speed shares, and the hit figures.
-pub fn steps(race: &Race) {
-    race.physics
-        .damage
-        .clock
-        .set_bits(race.shared.car.noise_word.get());
+pub fn steps(car: &Car, damage: &DamageModel) -> Result<(), BadInput> {
+    damage.clock.set(car.noise_word.get());
     table_lerp(
-        &race.physics.damage.engine_speed_share,
-        &race.physics.damage.lerp_tables[0],
-        &race.physics.damage.gauge_low,
-        &race.physics.damage.flt_75b45c,
+        &damage.engine_speed_share,
+        &damage.lerp_tables[0],
+        &damage.gauge_low,
+        &damage.engine_speed_wear_factor,
     );
-    for k in 0..2 {
-        raise(&race.physics, &race.shared.car.brake_heat[k], |g| {
-            add_wear(
-                &race.physics.damage,
-                &race.physics.damage.wear_rates[3],
-                &race.physics.damage.brake_share,
-                g,
-                g,
-            );
+    for item in car.brake_heat.iter().take(2) {
+        raise(damage, item, |g| {
+            add_wear(damage, &damage.wear_rates[3], &damage.brake_share, g, g);
         });
     }
-    for k in 0..2 {
-        raise(&race.physics, &race.shared.car.brake_heat[k], |g| {
-            subtract_rate(
-                &race.physics.damage,
-                &race.physics.damage.wear_rates[4],
-                g,
-                g,
-            );
+    for item in car.brake_heat.iter().take(2) {
+        raise(damage, item, |g| {
+            subtract_rate(damage, &damage.wear_rates[4], g, g);
         });
     }
     let extrapolated = [
-        &race.physics.damage.drive_a_extrapolated_share,
-        &race.physics.damage.drive_b_extrapolated_share,
+        &damage.drive_a_extrapolated_share,
+        &damage.drive_b_extrapolated_share,
     ];
-    for (damper, share) in race.shared.car.damper_wear.iter().zip(extrapolated) {
-        raise(&race.physics, damper, |g| {
-            add_wear(
-                &race.physics.damage,
-                &race.physics.damage.wear_rates[5],
-                share,
-                g,
-                g,
-            );
+    for (damper, share) in car.damper_wear.iter().zip(extrapolated) {
+        raise(damage, damper, |g| {
+            add_wear(damage, &damage.wear_rates[5], share, g, g);
         });
     }
-    for k in 0..2 {
-        raise(&race.physics, &race.shared.car.damper_wear[k], |g| {
-            subtract_rate(
-                &race.physics.damage,
-                &race.physics.damage.wear_rates[6],
-                g,
-                g,
-            );
+    for item in car.damper_wear.iter().take(2) {
+        raise(damage, item, |g| {
+            subtract_rate(damage, &damage.wear_rates[6], g, g);
         });
     }
-    raise(&race.physics, &race.shared.car.brake_fade, |g| {
-        add_wear(
-            &race.physics.damage,
-            &race.physics.damage.wear_rates[7],
-            &race.physics.damage.flt_75b3b4,
-            g,
-            g,
-        );
+    raise(damage, &car.brake_fade, |g| {
+        add_wear(damage, &damage.wear_rates[7], &damage.on_surface_5, g, g);
     });
-    raise(&race.physics, &race.shared.car.brake_fade, |g| {
-        subtract_rate(
-            &race.physics.damage,
-            &race.physics.damage.wear_rates[8],
-            g,
-            g,
-        );
+    raise(damage, &car.brake_fade, |g| {
+        subtract_rate(damage, &damage.wear_rates[8], g, g);
     });
-    raise(&race.physics, &race.shared.car.brake_fade, |g| {
-        subtract_wear(
-            &race.physics.damage,
-            &race.physics.damage.wear_rates[9],
-            &race.physics.damage.brake_share,
-            g,
-            g,
-        );
+    raise(damage, &car.brake_fade, |g| {
+        subtract_wear(damage, &damage.wear_rates[9], &damage.brake_share, g, g);
     });
     table_lerp(
-        &race.shared.car.cooling_damage,
-        &race.physics.damage.lerp_tables[1],
-        &race.physics.damage.gauge_low,
-        &race.physics.damage.flt_75b460,
+        &car.cooling_damage,
+        &damage.lerp_tables[1],
+        &damage.gauge_low,
+        &damage.cooling_capacity,
     );
-    lerp_gap(&race.physics.damage);
-    hold_low(
-        &race.physics.damage.flt_75b464,
-        &race.physics.damage.gauge_low,
-    );
-    raise(&race.physics, &race.shared.car.engine_heat, |g| {
-        add_wear(
-            &race.physics.damage,
-            &race.physics.damage.wear_rates[0],
-            &race.physics.damage.flt_75b464,
-            g,
-            g,
-        );
+    lerp_gap(damage);
+    hold_low(&damage.overheat_excess, &damage.gauge_low);
+    raise(damage, &car.engine_heat, |g| {
+        add_wear(damage, &damage.wear_rates[0], &damage.overheat_excess, g, g);
     });
-    raise(&race.physics, &race.shared.car.engine_heat, |g| {
-        subtract_rate(
-            &race.physics.damage,
-            &race.physics.damage.wear_rates[1],
-            g,
-            g,
-        );
+    raise(damage, &car.engine_heat, |g| {
+        subtract_rate(damage, &damage.wear_rates[1], g, g);
     });
-    raise(&race.physics, &race.shared.car.engine_heat, |g| {
-        subtract_wear(
-            &race.physics.damage,
-            &race.physics.damage.wear_rates[2],
-            &race.physics.damage.speed_share,
-            g,
-            g,
-        );
+    raise(damage, &car.engine_heat, |g| {
+        subtract_wear(damage, &damage.wear_rates[2], &damage.speed_share, g, g);
     });
     table_lerp(
-        &race.shared.car.stiffness_mean,
-        &race.physics.damage.lerp_tables_b[2],
-        &race.physics.damage.gauge_low,
-        &race.physics.damage.flt_75b44c,
+        &car.stiffness_mean,
+        &damage.lerp_tables_b[2],
+        &damage.gauge_low,
+        &damage.stiffness_body_factor,
+    );
+    square_into(&damage.stiffness_body_factor, &damage.stiffness_body_factor);
+    table_lerp(
+        &car.stiffness_mean,
+        &damage.lerp_tables_b[0],
+        &damage.gauge_low,
+        &damage.stiffness_suspension_factor,
     );
     square_into(
-        &race.physics.damage.flt_75b44c,
-        &race.physics.damage.flt_75b44c,
+        &damage.stiffness_suspension_factor,
+        &damage.stiffness_suspension_factor,
     );
     table_lerp(
-        &race.shared.car.stiffness_mean,
-        &race.physics.damage.lerp_tables_b[0],
-        &race.physics.damage.gauge_low,
-        &race.physics.damage.flt_75b448,
+        &car.ride_height_mean,
+        &damage.lerp_tables_b[1],
+        &damage.gauge_low,
+        &damage.ride_height_body_factor,
     );
     square_into(
-        &race.physics.damage.flt_75b448,
-        &race.physics.damage.flt_75b448,
+        &damage.ride_height_body_factor,
+        &damage.ride_height_body_factor,
     );
     table_lerp(
-        &race.shared.car.ride_height_mean,
-        &race.physics.damage.lerp_tables_b[1],
-        &race.physics.damage.gauge_low,
-        &race.physics.damage.flt_75b468,
-    );
-    square_into(
-        &race.physics.damage.flt_75b468,
-        &race.physics.damage.flt_75b468,
+        &damage.drive_a_slip_share,
+        &damage.lerp_tables[3],
+        &damage.gauge_low,
+        &damage.front_slip_wear_factor,
     );
     table_lerp(
-        &race.physics.damage.drive_a_slip_share,
-        &race.physics.damage.lerp_tables[3],
-        &race.physics.damage.gauge_low,
-        &race.physics.damage.flt_75b46c,
+        &damage.drive_b_slip_share,
+        &damage.lerp_tables[3],
+        &damage.gauge_low,
+        &damage.rear_slip_wear_factor,
     );
-    table_lerp(
-        &race.physics.damage.drive_b_slip_share,
-        &race.physics.damage.lerp_tables[3],
-        &race.physics.damage.gauge_low,
-        &race.physics.damage.flt_75b470,
-    );
-    hit_figures(&race.physics.damage);
-    // 0x4AC7C9: two figures of the table `dword_75B73C` (row `dword_75B3E8`, columns
-    // from `dword_75B8C0` by `dword_75B3EC` & 0xF, then from `dword_75B8C4` by that
-    // column, as the original), blended by `dword_75B3F0`, x `flt_75B8BC`.
-    let row = race.physics.damage.dword_75b3e8.bits() << 6;
-    // The original runs on through the store, whatever the columns hold.
-    let at = |field: usize, n: u32| (field as u32).wrapping_add(n);
-    let read = |at: u32| {
-        crate::pointers::load_value::<u32>(&race.physics.damage, at as usize)
-            .unwrap_or_else(|e| crate::fatal::raise::end("a car block's field", e))
-    };
-    let wear = offset_of!(DamageModel, wear_table);
-    let column = read(at(
-        offset_of!(DamageModel, dword_75b8c0),
-        (race.physics.damage.dword_75b3ec.bits() & 0xF).wrapping_mul(8),
-    ));
-    let first = read(at(wear, row.wrapping_add(column.wrapping_mul(4))));
-    let column = read(at(
-        offset_of!(DamageModel, dword_75b8c4),
-        column.wrapping_mul(8),
-    ));
-    let second = read(at(wear, row.wrapping_add(column.wrapping_mul(4))));
-    blend_wear_figures(first, &race.physics.damage, second);
+    hit_figures(damage);
+    // Two figures of the table `DamageModel.wear_table` (row `DamageModel.tyre_kind`), blended by
+    // `DamageModel.surface_blend`, x `DamageModel.wear_figure_scale`. Their columns are the
+    // surface's pair of `DamageModel.wear_columns`: the first column, then the second. The 1999
+    // code read the second at the first column's pair instead of the surface's (fixed: "Tyre
+    // wear on snow, ice, water, dust and grass taken from the wrong surface" in
+    // wiki/Fixed-bugs.md); its weight, `surface_blend`, is 0 on every shipped stage.
+    let tyre_kind = damage.tyre_kind.get();
+    let pair = &damage.wear_columns[(damage.surface.get() & 0xF) as usize];
+    let first = damage.wear_figure_entry(tyre_kind, pair[0].get())?;
+    let second = damage.wear_figure_entry(tyre_kind, pair[1].get())?;
+    blend_wear_figures(first as i32, damage, second as i32);
+    Ok(())
 }
 
-// ---- the arithmetic that was x87 assembly ----
+// ---- the arithmetic ----
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + o4] = (([m + o0] * [m + o1]) * [m + 0x35B390]) + [rc + o3]`
+/// `to = rate * share * wear_step + from`.
 fn add_wear(
     m: &DamageModel,
-    o0: &impl Cell32,
-    o1: &impl Cell32,
-    o3: &impl crate::session::Cell32,
-    o4: &impl crate::session::Cell32,
+    rate: &PlainFloat,
+    share: &PlainFloat,
+    from: &PlainFloat,
+    to: &PlainFloat,
 ) {
-    let t0 = ld(o0.bits());
-    let t1 = ld(o1.bits());
-    let t2 = t0 * t1;
-    let t3 = ld(m.wear_step.bits());
-    let t4 = t2 * t3;
-    let t5 = ld(o3.bits());
-    let t6 = t4 + t5;
-    o4.set_bits(st(t6));
+    store(
+        to,
+        value(rate) * value(share) * value(&m.wear_step) + value(from),
+    );
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + o3] = -([m + o0] * [m + 0x35B390]) + [rc + o2]`
-fn subtract_rate(
-    m: &DamageModel,
-    o0: &impl Cell32,
-    o2: &impl crate::session::Cell32,
-    o3: &impl crate::session::Cell32,
-) {
-    let t0 = ld(o0.bits());
-    let t1 = ld(m.wear_step.bits());
-    let t2 = t0 * t1;
-    let t3 = -t2;
-    let t4 = ld(o2.bits());
-    let t5 = t3 + t4;
-    o3.set_bits(st(t5));
+/// `to = from - rate * wear_step`.
+fn subtract_rate(m: &DamageModel, rate: &PlainFloat, from: &PlainFloat, to: &PlainFloat) {
+    store(to, -(value(rate) * value(&m.wear_step)) + value(from));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + o4] = -(([m + o0] * [m + o1]) * [m + 0x35B390]) + [rc + o3]`
+/// `to = from - rate * share * wear_step`.
 fn subtract_wear(
     m: &DamageModel,
-    o0: &impl Cell32,
-    o1: &impl Cell32,
-    o3: &impl crate::session::Cell32,
-    o4: &impl crate::session::Cell32,
+    rate: &PlainFloat,
+    share: &PlainFloat,
+    from: &PlainFloat,
+    to: &PlainFloat,
 ) {
-    let t0 = ld(o0.bits());
-    let t1 = ld(o1.bits());
-    let t2 = t0 * t1;
-    let t3 = ld(m.wear_step.bits());
-    let t4 = t2 * t3;
-    let t5 = -t4;
-    let t6 = ld(o3.bits());
-    let t7 = t5 + t6;
-    o4.set_bits(st(t7));
+    store(
+        to,
+        -(value(rate) * value(share) * value(&m.wear_step)) + value(from),
+    );
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[m + 0x35B464] = [m + 0x35B398] - [m + 0x35B460]`
+/// How far the engine's speed share is past the cooling capacity.
 fn lerp_gap(m: &DamageModel) {
-    let t0 = ld(m.engine_speed_share.bits());
-    let t1 = ld(m.flt_75b460.bits());
-    let t2 = t0 - t1;
-    m.flt_75b464.set_bits(st(t2));
+    store(
+        &m.overheat_excess,
+        value(&m.engine_speed_share) - value(&m.cooling_capacity),
+    );
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[m + o1] = [m + o0] * [m + o0]`
-fn square_into(o0: &impl Cell32, o1: &impl Cell32) {
-    let t0 = ld(o0.bits());
-    let t1 = t0 * t0;
-    o1.set_bits(st(t1));
+/// `to = from * from`.
+fn square_into(from: &PlainFloat, to: &PlainFloat) {
+    let x = value(from);
+    store(to, x * x);
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[m + 0x35B454] = (((([m + 0x35B3E0] * [m + 0x35B39C]) * [m + 0x35B6F8]) * [m + 0x35B44C]) * [m + 0x35B468]) * [m + 0x35B3F4]`
-/// `[m + 0x35B450] = (([m + 0x35B3E0] * [m + 0x35B39C]) * [m + 0x35B6F8]) * [m + 0x35B3F4]`
-/// `[m + 0x35B458] = ((([m + 0x35B3E0] * [m + 0x35B39C]) * [m + 0x35B6F8]) * [m + 0x35B3F4]) * [m + 0x35B448]`
+/// The three hit figures, each the product of the surface wear, the speed share and the
+/// wheels-down switch with further factors; the third is the second times the suspension's.
 fn hit_figures(m: &DamageModel) {
-    let t0 = ld(m.flt_75b3e0.bits());
-    let t1 = ld(m.speed_share.bits());
-    let t2 = t0 * t1;
-    let t3 = ld(m.figures[32].bits());
-    let t4 = t2 * t3;
-    let t5 = ld(m.flt_75b44c.bits());
-    let t6 = t4 * t5;
-    let t7 = ld(m.flt_75b468.bits());
-    let t8 = t6 * t7;
-    let t9 = ld(m.wheels_down.bits());
-    let t10 = t8 * t9;
-    m.flt_75b454.set_bits(st(t10));
-    let t11 = ld(m.flt_75b3e0.bits());
-    let t12 = ld(m.speed_share.bits());
-    let t13 = t11 * t12;
-    let t14 = ld(m.figures[32].bits());
-    let t15 = t13 * t14;
-    let t16 = ld(m.wheels_down.bits());
-    let t17 = t15 * t16;
-    m.flt_75b450.set_bits(st(t17));
-    let t18 = ld(m.flt_75b448.bits());
-    let t19 = t17 * t18;
-    m.flt_75b458.set_bits(st(t19));
+    let base = value(&m.point_surface_copy) * value(&m.speed_share) * value(&m.figures[32]);
+    store(
+        &m.body_roughness_wear,
+        base * value(&m.stiffness_body_factor)
+            * value(&m.ride_height_body_factor)
+            * value(&m.wheels_down),
+    );
+    let roughness = base * value(&m.wheels_down);
+    store(&m.roughness_wear_base, roughness);
+    store(
+        &m.suspension_roughness_wear,
+        roughness * value(&m.stiffness_suspension_factor),
+    );
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[m + 0x35B484] = ((int [f + 0] * (1 - [m + 0x35B3F0])) + (int [s + 0] * [m + 0x35B3F0])) * [m + 0x35B8BC]`
-fn blend_wear_figures(f: u32, m: &DamageModel, s: u32) {
-    let t0 = int(f as i32);
-    let t1 = X(1.0);
-    let t2 = ld(m.dword_75b3f0.bits());
-    let t3 = t1 - t2;
-    let t4 = t0 * t3;
-    let t5 = int(s as i32);
-    let t6 = ld(m.dword_75b3f0.bits());
-    let t7 = t5 * t6;
-    let t8 = t4 + t7;
-    let t9 = ld(m.flt_75b8bc.bits());
-    let t10 = t8 * t9;
-    m.flt_75b484.set_bits(st(t10));
+/// The wear figure: the two table figures blended by `surface_blend`, times the scale.
+fn blend_wear_figures(first: i32, m: &DamageModel, second: i32) {
+    let blend = value(&m.surface_blend);
+    store(
+        &m.wear_figure,
+        (f64::from(first) * (1.0 - blend) + f64::from(second) * blend)
+            * value(&m.wear_figure_scale),
+    );
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
+    use crate::physics::store::laid;
 
-    /// The damage model as the test's buffer holds it (the buffer's base plus the RVA of
-    /// 0x75B340).
+    /// The damage model as the test's buffer holds it.
     fn dm(base: usize) -> &'static DamageModel {
-        unsafe { &*(crate::pointers::host_at(base + 0x35B340) as *const DamageModel) }
+        crate::physics::store::model_in_test_buffer(base)
     }
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
-    use crate::scene::x87_mem::HostCell;
-
-    // The original's instructions, one function per run.
-    reference!(ref_0(m, rc) "fld dword ptr [{m} + 0x35B584]", "fmul dword ptr [{m} + 0x35B3B0]", "fmul dword ptr [{m} + 0x35B390]", "fadd dword ptr [{rc} + 0x31A284]", "fstp dword ptr [{rc} + 0x31A284]");
-    reference!(ref_1(m, rc) "fld dword ptr [{m} + 0x35B584]", "fmul dword ptr [{m} + 0x35B3B0]", "fmul dword ptr [{m} + 0x35B390]", "fadd dword ptr [{rc} + 0x31A288]", "fstp dword ptr [{rc} + 0x31A288]");
-    reference!(ref_2(m, rc) "fld dword ptr [{m} + 0x35B588]", "fmul dword ptr [{m} + 0x35B390]", ".byte 0xD9, 0xE0", "fadd dword ptr [{rc} + 0x31A284]", "fstp dword ptr [{rc} + 0x31A284]");
-    reference!(ref_3(m, rc) "fld dword ptr [{m} + 0x35B588]", "fmul dword ptr [{m} + 0x35B390]", ".byte 0xD9, 0xE0", "fadd dword ptr [{rc} + 0x31A288]", "fstp dword ptr [{rc} + 0x31A288]");
-    reference!(ref_4(m, rc) "fld dword ptr [{m} + 0x35B58C]", "fmul dword ptr [{m} + 0x35B3A8]", "fmul dword ptr [{m} + 0x35B390]", "fadd dword ptr [{rc} + 0x31A27C]", "fstp dword ptr [{rc} + 0x31A27C]");
-    reference!(ref_5(m, rc) "fld dword ptr [{m} + 0x35B58C]", "fmul dword ptr [{m} + 0x35B3AC]", "fmul dword ptr [{m} + 0x35B390]", "fadd dword ptr [{rc} + 0x31A280]", "fstp dword ptr [{rc} + 0x31A280]");
-    reference!(ref_6(m, rc) "fld dword ptr [{m} + 0x35B590]", "fmul dword ptr [{m} + 0x35B390]", ".byte 0xD9, 0xE0", "fadd dword ptr [{rc} + 0x31A27C]", "fstp dword ptr [{rc} + 0x31A27C]");
-    reference!(ref_7(m, rc) "fld dword ptr [{m} + 0x35B590]", "fmul dword ptr [{m} + 0x35B390]", ".byte 0xD9, 0xE0", "fadd dword ptr [{rc} + 0x31A280]", "fstp dword ptr [{rc} + 0x31A280]");
-    reference!(ref_8(m, rc) "fld dword ptr [{m} + 0x35B594]", "fmul dword ptr [{m} + 0x35B3B4]", "fmul dword ptr [{m} + 0x35B390]", "fadd dword ptr [{rc} + 0x31A278]", "fstp dword ptr [{rc} + 0x31A278]");
-    reference!(ref_9(m, rc) "fld dword ptr [{m} + 0x35B598]", "fmul dword ptr [{m} + 0x35B390]", ".byte 0xD9, 0xE0", "fadd dword ptr [{rc} + 0x31A278]", "fstp dword ptr [{rc} + 0x31A278]");
-    reference!(ref_10(m, rc) "fld dword ptr [{m} + 0x35B59C]", "fmul dword ptr [{m} + 0x35B3B0]", "fmul dword ptr [{m} + 0x35B390]", ".byte 0xD9, 0xE0", "fadd dword ptr [{rc} + 0x31A278]", "fstp dword ptr [{rc} + 0x31A278]");
-    reference!(ref_11(m) "fld dword ptr [{m} + 0x35B398]", "fsub dword ptr [{m} + 0x35B460]", "fstp dword ptr [{m} + 0x35B464]");
-    reference!(ref_12(m, rc) "fld dword ptr [{m} + 0x35B578]", "fmul dword ptr [{m} + 0x35B464]", "fmul dword ptr [{m} + 0x35B390]", "fadd dword ptr [{rc} + 0x31A28C]", "fstp dword ptr [{rc} + 0x31A28C]");
-    reference!(ref_13(m, rc) "fld dword ptr [{m} + 0x35B57C]", "fmul dword ptr [{m} + 0x35B390]", ".byte 0xD9, 0xE0", "fadd dword ptr [{rc} + 0x31A28C]", "fstp dword ptr [{rc} + 0x31A28C]");
-    reference!(ref_14(m, rc) "fld dword ptr [{m} + 0x35B580]", "fmul dword ptr [{m} + 0x35B39C]", "fmul dword ptr [{m} + 0x35B390]", ".byte 0xD9, 0xE0", "fadd dword ptr [{rc} + 0x31A28C]", "fstp dword ptr [{rc} + 0x31A28C]");
-    reference!(ref_15(m) "fld dword ptr [{m} + 0x35B44C]", ".byte 0xD8, 0xC8", "fstp dword ptr [{m} + 0x35B44C]");
-    reference!(ref_16(m) "fld dword ptr [{m} + 0x35B448]", ".byte 0xD8, 0xC8", "fstp dword ptr [{m} + 0x35B448]");
-    reference!(ref_17(m) "fld dword ptr [{m} + 0x35B468]", ".byte 0xD8, 0xC8", "fstp dword ptr [{m} + 0x35B468]");
-    reference!(ref_18(m) "fld dword ptr [{m} + 0x35B3E0]", "fmul dword ptr [{m} + 0x35B39C]", "fmul dword ptr [{m} + 0x35B6F8]", "fmul dword ptr [{m} + 0x35B44C]", "fmul dword ptr [{m} + 0x35B468]", "fmul dword ptr [{m} + 0x35B3F4]", "fstp dword ptr [{m} + 0x35B454]", "fld dword ptr [{m} + 0x35B3E0]", "fmul dword ptr [{m} + 0x35B39C]", "fmul dword ptr [{m} + 0x35B6F8]", "fmul dword ptr [{m} + 0x35B3F4]", "fst dword ptr [{m} + 0x35B450]", "fmul dword ptr [{m} + 0x35B448]", "fstp dword ptr [{m} + 0x35B458]");
-    reference!(ref_19(f, m, s) "fild dword ptr [{f}]", ".byte 0xD9, 0xE8", "fsub dword ptr [{m} + 0x35B3F0]", ".byte 0xDE, 0xC9", "fild dword ptr [{s}]", "fld dword ptr [{m} + 0x35B3F0]", ".byte 0xDE, 0xC9", ".byte 0xDE, 0xC1", "fmul dword ptr [{m} + 0x35B8BC]", "fstp dword ptr [{m} + 0x35B484]");
+    use crate::scene::x87_mem::view;
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse_at};
 
     fn blocks() -> Vec<Block> {
         vec![
@@ -375,7 +228,11 @@ mod asm_reference {
                 name: "damage_wear line 36",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B390, In::F), (0x35B3B0, In::F), (0x35B584, In::F)],
+                        reads: &[
+                            (laid!(0x35B390), In::F),
+                            (laid!(0x35B3B0), In::F),
+                            (laid!(0x35B584), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -384,14 +241,13 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_0(a[0], a[1]) },
                 plain: |a| {
                     add_wear(
                         dm(a[0]),
                         &dm(a[0]).wear_rates[3],
                         &dm(a[0]).brake_share,
-                        &crate::race::owner::race().shared.car.brake_heat[0],
-                        &crate::race::owner::race().shared.car.brake_heat[0],
+                        &crate::test_support::own::race().shared.car().brake_heat[0],
+                        &crate::test_support::own::race().shared.car().brake_heat[0],
                     );
                 },
             },
@@ -399,7 +255,11 @@ mod asm_reference {
                 name: "damage_wear line 47",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B390, In::F), (0x35B3B0, In::F), (0x35B584, In::F)],
+                        reads: &[
+                            (laid!(0x35B390), In::F),
+                            (laid!(0x35B3B0), In::F),
+                            (laid!(0x35B584), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -408,14 +268,13 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_1(a[0], a[1]) },
                 plain: |a| {
                     add_wear(
                         dm(a[0]),
                         &dm(a[0]).wear_rates[3],
                         &dm(a[0]).brake_share,
-                        &crate::race::owner::race().shared.car.brake_heat[1],
-                        &crate::race::owner::race().shared.car.brake_heat[1],
+                        &crate::test_support::own::race().shared.car().brake_heat[1],
+                        &crate::test_support::own::race().shared.car().brake_heat[1],
                     );
                 },
             },
@@ -423,7 +282,7 @@ mod asm_reference {
                 name: "damage_wear line 58",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B390, In::F), (0x35B588, In::F)],
+                        reads: &[(laid!(0x35B390), In::F), (laid!(0x35B588), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -432,13 +291,12 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_2(a[0], a[1]) },
                 plain: |a| {
                     subtract_rate(
                         dm(a[0]),
                         &dm(a[0]).wear_rates[4],
-                        &crate::race::owner::race().shared.car.brake_heat[0],
-                        &crate::race::owner::race().shared.car.brake_heat[0],
+                        &crate::test_support::own::race().shared.car().brake_heat[0],
+                        &crate::test_support::own::race().shared.car().brake_heat[0],
                     );
                 },
             },
@@ -446,7 +304,7 @@ mod asm_reference {
                 name: "damage_wear line 69",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B390, In::F), (0x35B588, In::F)],
+                        reads: &[(laid!(0x35B390), In::F), (laid!(0x35B588), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -455,13 +313,12 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_3(a[0], a[1]) },
                 plain: |a| {
                     subtract_rate(
                         dm(a[0]),
                         &dm(a[0]).wear_rates[4],
-                        &crate::race::owner::race().shared.car.brake_heat[1],
-                        &crate::race::owner::race().shared.car.brake_heat[1],
+                        &crate::test_support::own::race().shared.car().brake_heat[1],
+                        &crate::test_support::own::race().shared.car().brake_heat[1],
                     );
                 },
             },
@@ -469,7 +326,11 @@ mod asm_reference {
                 name: "damage_wear line 80",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B390, In::F), (0x35B3A8, In::F), (0x35B58C, In::F)],
+                        reads: &[
+                            (laid!(0x35B390), In::F),
+                            (laid!(0x35B3A8), In::F),
+                            (laid!(0x35B58C), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -478,14 +339,13 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_4(a[0], a[1]) },
                 plain: |a| {
                     add_wear(
                         dm(a[0]),
                         &dm(a[0]).wear_rates[5],
                         &dm(a[0]).drive_a_extrapolated_share,
-                        &crate::race::owner::race().shared.car.damper_wear[0],
-                        &crate::race::owner::race().shared.car.damper_wear[0],
+                        &crate::test_support::own::race().shared.car().damper_wear[0],
+                        &crate::test_support::own::race().shared.car().damper_wear[0],
                     );
                 },
             },
@@ -493,7 +353,11 @@ mod asm_reference {
                 name: "damage_wear line 91",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B390, In::F), (0x35B3AC, In::F), (0x35B58C, In::F)],
+                        reads: &[
+                            (laid!(0x35B390), In::F),
+                            (laid!(0x35B3AC), In::F),
+                            (laid!(0x35B58C), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -502,14 +366,13 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_5(a[0], a[1]) },
                 plain: |a| {
                     add_wear(
                         dm(a[0]),
                         &dm(a[0]).wear_rates[5],
                         &dm(a[0]).drive_b_extrapolated_share,
-                        &crate::race::owner::race().shared.car.damper_wear[1],
-                        &crate::race::owner::race().shared.car.damper_wear[1],
+                        &crate::test_support::own::race().shared.car().damper_wear[1],
+                        &crate::test_support::own::race().shared.car().damper_wear[1],
                     );
                 },
             },
@@ -517,7 +380,7 @@ mod asm_reference {
                 name: "damage_wear line 102",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B390, In::F), (0x35B590, In::F)],
+                        reads: &[(laid!(0x35B390), In::F), (laid!(0x35B590), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -526,13 +389,12 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_6(a[0], a[1]) },
                 plain: |a| {
                     subtract_rate(
                         dm(a[0]),
                         &dm(a[0]).wear_rates[6],
-                        &crate::race::owner::race().shared.car.damper_wear[0],
-                        &crate::race::owner::race().shared.car.damper_wear[0],
+                        &crate::test_support::own::race().shared.car().damper_wear[0],
+                        &crate::test_support::own::race().shared.car().damper_wear[0],
                     );
                 },
             },
@@ -540,7 +402,7 @@ mod asm_reference {
                 name: "damage_wear line 113",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B390, In::F), (0x35B590, In::F)],
+                        reads: &[(laid!(0x35B390), In::F), (laid!(0x35B590), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -549,13 +411,12 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_7(a[0], a[1]) },
                 plain: |a| {
                     subtract_rate(
                         dm(a[0]),
                         &dm(a[0]).wear_rates[6],
-                        &crate::race::owner::race().shared.car.damper_wear[1],
-                        &crate::race::owner::race().shared.car.damper_wear[1],
+                        &crate::test_support::own::race().shared.car().damper_wear[1],
+                        &crate::test_support::own::race().shared.car().damper_wear[1],
                     );
                 },
             },
@@ -563,7 +424,11 @@ mod asm_reference {
                 name: "damage_wear line 124",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B390, In::F), (0x35B3B4, In::F), (0x35B594, In::F)],
+                        reads: &[
+                            (laid!(0x35B390), In::F),
+                            (laid!(0x35B3B4), In::F),
+                            (laid!(0x35B594), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -572,14 +437,13 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_8(a[0], a[1]) },
                 plain: |a| {
                     add_wear(
                         dm(a[0]),
                         &dm(a[0]).wear_rates[7],
-                        &dm(a[0]).flt_75b3b4,
-                        &crate::race::owner::race().shared.car.brake_fade,
-                        &crate::race::owner::race().shared.car.brake_fade,
+                        &dm(a[0]).on_surface_5,
+                        &crate::test_support::own::race().shared.car().brake_fade,
+                        &crate::test_support::own::race().shared.car().brake_fade,
                     );
                 },
             },
@@ -587,7 +451,7 @@ mod asm_reference {
                 name: "damage_wear line 135",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B390, In::F), (0x35B598, In::F)],
+                        reads: &[(laid!(0x35B390), In::F), (laid!(0x35B598), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -596,13 +460,12 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_9(a[0], a[1]) },
                 plain: |a| {
                     subtract_rate(
                         dm(a[0]),
                         &dm(a[0]).wear_rates[8],
-                        &crate::race::owner::race().shared.car.brake_fade,
-                        &crate::race::owner::race().shared.car.brake_fade,
+                        &crate::test_support::own::race().shared.car().brake_fade,
+                        &crate::test_support::own::race().shared.car().brake_fade,
                     );
                 },
             },
@@ -610,7 +473,11 @@ mod asm_reference {
                 name: "damage_wear line 146",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B390, In::F), (0x35B3B0, In::F), (0x35B59C, In::F)],
+                        reads: &[
+                            (laid!(0x35B390), In::F),
+                            (laid!(0x35B3B0), In::F),
+                            (laid!(0x35B59C), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -619,32 +486,34 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_10(a[0], a[1]) },
                 plain: |a| {
                     subtract_wear(
                         dm(a[0]),
                         &dm(a[0]).wear_rates[9],
                         &dm(a[0]).brake_share,
-                        &crate::race::owner::race().shared.car.brake_fade,
-                        &crate::race::owner::race().shared.car.brake_fade,
+                        &crate::test_support::own::race().shared.car().brake_fade,
+                        &crate::test_support::own::race().shared.car().brake_fade,
                     );
                 },
             },
             Block {
                 name: "damage_wear line 159",
                 operands: vec![Operand::Buffer {
-                    reads: &[(0x35B398, In::F), (0x35B460, In::F)],
-                    writes: &[(0x35B464, Out::F)],
+                    reads: &[(laid!(0x35B398), In::F), (laid!(0x35B460), In::F)],
+                    writes: &[(laid!(0x35B464), Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_11(a[0]) },
                 plain: |a| lerp_gap(dm(a[0])),
             },
             Block {
                 name: "damage_wear line 166",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B390, In::F), (0x35B464, In::F), (0x35B578, In::F)],
+                        reads: &[
+                            (laid!(0x35B390), In::F),
+                            (laid!(0x35B464), In::F),
+                            (laid!(0x35B578), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -653,14 +522,13 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_12(a[0], a[1]) },
                 plain: |a| {
                     add_wear(
                         dm(a[0]),
                         &dm(a[0]).wear_rates[0],
-                        &dm(a[0]).flt_75b464,
-                        &crate::race::owner::race().shared.car.engine_heat,
-                        &crate::race::owner::race().shared.car.engine_heat,
+                        &dm(a[0]).overheat_excess,
+                        &crate::test_support::own::race().shared.car().engine_heat,
+                        &crate::test_support::own::race().shared.car().engine_heat,
                     );
                 },
             },
@@ -668,7 +536,7 @@ mod asm_reference {
                 name: "damage_wear line 177",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B390, In::F), (0x35B57C, In::F)],
+                        reads: &[(laid!(0x35B390), In::F), (laid!(0x35B57C), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -677,13 +545,12 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_13(a[0], a[1]) },
                 plain: |a| {
                     subtract_rate(
                         dm(a[0]),
                         &dm(a[0]).wear_rates[1],
-                        &crate::race::owner::race().shared.car.engine_heat,
-                        &crate::race::owner::race().shared.car.engine_heat,
+                        &crate::test_support::own::race().shared.car().engine_heat,
+                        &crate::test_support::own::race().shared.car().engine_heat,
                     );
                 },
             },
@@ -691,7 +558,11 @@ mod asm_reference {
                 name: "damage_wear line 188",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B390, In::F), (0x35B39C, In::F), (0x35B580, In::F)],
+                        reads: &[
+                            (laid!(0x35B390), In::F),
+                            (laid!(0x35B39C), In::F),
+                            (laid!(0x35B580), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -700,63 +571,77 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_14(a[0], a[1]) },
                 plain: |a| {
                     subtract_wear(
                         dm(a[0]),
                         &dm(a[0]).wear_rates[2],
                         &dm(a[0]).speed_share,
-                        &crate::race::owner::race().shared.car.engine_heat,
-                        &crate::race::owner::race().shared.car.engine_heat,
+                        &crate::test_support::own::race().shared.car().engine_heat,
+                        &crate::test_support::own::race().shared.car().engine_heat,
                     );
                 },
             },
             Block {
                 name: "damage_wear line 201",
                 operands: vec![Operand::Buffer {
-                    reads: &[(0x35B44C, In::F)],
-                    writes: &[(0x35B44C, Out::F)],
+                    reads: &[(laid!(0x35B44C), In::F)],
+                    writes: &[(laid!(0x35B44C), Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_15(a[0]) },
-                plain: |a| square_into(&dm(a[0]).flt_75b44c, &dm(a[0]).flt_75b44c),
+                plain: |a| {
+                    square_into(
+                        &dm(a[0]).stiffness_body_factor,
+                        &dm(a[0]).stiffness_body_factor,
+                    );
+                },
             },
             Block {
                 name: "damage_wear line 208",
                 operands: vec![Operand::Buffer {
-                    reads: &[(0x35B448, In::F)],
-                    writes: &[(0x35B448, Out::F)],
+                    reads: &[(laid!(0x35B448), In::F)],
+                    writes: &[(laid!(0x35B448), Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_16(a[0]) },
-                plain: |a| square_into(&dm(a[0]).flt_75b448, &dm(a[0]).flt_75b448),
+                plain: |a| {
+                    square_into(
+                        &dm(a[0]).stiffness_suspension_factor,
+                        &dm(a[0]).stiffness_suspension_factor,
+                    );
+                },
             },
             Block {
                 name: "damage_wear line 215",
                 operands: vec![Operand::Buffer {
-                    reads: &[(0x35B468, In::F)],
-                    writes: &[(0x35B468, Out::F)],
+                    reads: &[(laid!(0x35B468), In::F)],
+                    writes: &[(laid!(0x35B468), Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_17(a[0]) },
-                plain: |a| square_into(&dm(a[0]).flt_75b468, &dm(a[0]).flt_75b468),
+                plain: |a| {
+                    square_into(
+                        &dm(a[0]).ride_height_body_factor,
+                        &dm(a[0]).ride_height_body_factor,
+                    );
+                },
             },
             Block {
                 name: "damage_wear line 223",
                 operands: vec![Operand::Buffer {
                     reads: &[
-                        (0x35B39C, In::F),
-                        (0x35B3E0, In::F),
-                        (0x35B3F4, In::F),
-                        (0x35B448, In::F),
-                        (0x35B44C, In::F),
-                        (0x35B468, In::F),
-                        (0x35B6F8, In::F),
+                        (laid!(0x35B39C), In::F),
+                        (laid!(0x35B3E0), In::F),
+                        (laid!(0x35B3F4), In::F),
+                        (laid!(0x35B448), In::F),
+                        (laid!(0x35B44C), In::F),
+                        (laid!(0x35B468), In::F),
+                        (laid!(0x35B6F8), In::F),
                     ],
-                    writes: &[(0x35B450, Out::F), (0x35B454, Out::F), (0x35B458, Out::F)],
+                    writes: &[
+                        (laid!(0x35B450), Out::F),
+                        (laid!(0x35B454), Out::F),
+                        (laid!(0x35B458), Out::F),
+                    ],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_18(a[0]) },
                 plain: |a| hit_figures(dm(a[0])),
             },
             Block {
@@ -767,8 +652,8 @@ mod asm_reference {
                         writes: &[],
                     },
                     Operand::Buffer {
-                        reads: &[(0x35B3F0, In::F), (0x35B8BC, In::F)],
-                        writes: &[(0x35B484, Out::F)],
+                        reads: &[(laid!(0x35B3F0), In::F), (laid!(0x35B8BC), In::F)],
+                        writes: &[(laid!(0x35B484), Out::F)],
                     },
                     Operand::Buffer {
                         reads: &[(0, In::I)],
@@ -776,9 +661,8 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_19(a[0], a[1], a[2]) },
                 plain: |a| {
-                    blend_wear_figures(HostCell(a[0]).bits(), dm(a[1]), HostCell(a[2]).bits());
+                    blend_wear_figures(*view::<i32>(a[0], 0), dm(a[1]), *view::<i32>(a[2], 0));
                 },
             },
         ]
@@ -786,6 +670,54 @@ mod asm_reference {
 
     #[test]
     fn x87_blocks_matches_the_assembly() {
-        sparse(&blocks(), 1200, 100);
+        // The plain code rounds to nearest, the mode the damage model always runs in.
+        sparse_at("physics.damage_wear", &blocks(), 1200, 100, &[0x027F]);
+    }
+}
+
+#[cfg(test)]
+mod plain_matches_x87 {
+    use super::*;
+    use crate::physics::damage_model::proof::{State, prove};
+
+    fn d(s: &State) -> &DamageModel {
+        &s.damage
+    }
+
+    #[test]
+    fn wear_additions_and_subtractions() {
+        prove("add_wear", |s| {
+            let (d, g) = (&s.damage, &s.car.brake_heat[0]);
+            add_wear(d, &d.wear_rates[3], &d.brake_share, g, g);
+        });
+        prove("add_wear into another cell", |s| {
+            let d = &s.damage;
+            let from = &s.car.engine_heat;
+            add_wear(d, &d.wear_rates[0], &d.overheat_excess, from, &d.scratch);
+        });
+        prove("subtract_rate", |s| {
+            let (d, g) = (&s.damage, &s.car.engine_heat);
+            subtract_rate(d, &d.wear_rates[1], g, g);
+        });
+        prove("subtract_wear", |s| {
+            let (d, g) = (&s.damage, &s.car.brake_fade);
+            subtract_wear(d, &d.wear_rates[9], &d.brake_share, g, g);
+        });
+    }
+
+    #[test]
+    fn gap_square_and_figures() {
+        prove("lerp_gap", |s| lerp_gap(&s.damage));
+        prove("square_into", |s| {
+            square_into(&d(s).stiffness_body_factor, &d(s).stiffness_body_factor);
+        });
+        prove("square_into another cell", |s| {
+            square_into(&d(s).stiffness_body_factor, &d(s).scratch);
+        });
+        prove("hit_figures", |s| hit_figures(&s.damage));
+        prove("blend_wear_figures", |s| {
+            let (f, g) = (s.damage.figures[1].bits(), s.damage.figures[2].bits());
+            blend_wear_figures(f as i32, &s.damage, g as i32);
+        });
     }
 }

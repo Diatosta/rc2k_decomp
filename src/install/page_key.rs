@@ -1,77 +1,81 @@
-//! `install::page_key` (0x4146E4): a key on the page's highlighted item. Nothing for no key
-//! or one of 0x80 and above (`test al, al; jle`). An edit being edited takes every key
-//! (`install::edit_key`); else 0x66, 0x6B, 0x68, 0x69 (`install::key_up`, `key_down`,
-//! `key_left`, `key_right`), 2 .. 0xA (`install::key_number`), Enter (`install::item_enter`);
-//! Escape leaves the page with answer 0 unless the list's flags have 0x10. After an edit's
-//! key or any other key: 0x52 a screenshot (`gfx::take_screenshot`) with screenshots on.
-//! Then a key that did something (zero set) sets `byte_51D414` and gives zero set.
-//!
-//! Takes the key, item, list.
-//! Caller `install::run_page`, reading zero.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
+//! A key on the page's highlighted item. Nothing for no key or one of 0x80 and above. An edit
+//! being edited takes every key (`install::edit_key`); else the arrows (`install::key_up`,
+//! `key_down`, `key_left`, `key_right`), 2 .. 0xA (`install::key_number`), Enter
+//! (`install::item_enter`); Escape leaves the page with answer 0 unless the list's flags have
+//! 0x10. Key 0x52 takes a screenshot with screenshots on. A key that did something sets
+//! `key_taken`. Called by `install::run_page`.
 
 use crate::errors::Refused;
-use crate::menu::list_handle::{ListItem, ListMenu};
+use crate::memory::list_handle::{ListItem, ListMenu};
 use rc2k_core::install::items::{self, ItemKey, PageKey};
 
-/// `key` as eax (al the key, ah its bits) on `item` of `list`. Returns eax as the callees
-/// leave it (`install::edit_key` changes it) and whether the key did something (the
-/// original's zero).
+/// `key` (the key in its low byte, its bits in the next) on `item` of `list`. Returns the key
+/// as the callees leave it (`install::edit_key` changes it) and whether the key did
+/// something.
 pub fn page_key(
+    o: crate::owners::Owners<'static>,
     install: &'static crate::install::owner::Install,
     key: u32,
     item: ListItem,
     list: ListMenu,
 ) -> Result<(u32, bool), Refused> {
-    let gfx = crate::gfx::owner::gfx();
     use crate::install as i;
-    // Converted: `rc2k_core::install::items` (`page_key`, `takes_every_key`, `STAYS`,
-    // `SCREENSHOT_KEY`).
+    let (gfx, system, list_state) = (o.gfx, o.system, &o.menus.list);
     let Some(way) = items::page_key(key as u8) else {
-        // test al, al
+        // No key, or one of 0x80 and above.
         return Ok((key, key as u8 == 0));
     };
     let kind = item.kind();
-    let edited = items::takes_every_key(kind, || item.edit_field().flags() & 1 != 0);
+    let edited = items::takes_every_key(kind, || item.edit_field(install).flags() & 1 != 0);
     let (key, plain_edit) = if edited {
-        let outcome = i::edit_key::edit_key(install, key, item)?;
+        let outcome = i::edit_key::edit_key(
+            crate::strings::append_string_by_id::StringOwners::of(o),
+            o.input,
+            install,
+            key,
+            item,
+            gfx,
+        )?;
         (outcome.key_word, outcome.plain_edit)
     } else {
         let taken = match way {
-            PageKey::Item(ItemKey::Up) => Some(i::key_up::key_up(install, item)?),
-            PageKey::Item(ItemKey::Down) => Some(i::key_down::key_down(install, item)?),
-            PageKey::Item(ItemKey::Left) => Some(i::key_left::key_left(install, item)?),
-            PageKey::Item(ItemKey::Right) => Some(i::key_right::key_right(install, item)?),
-            PageKey::Item(ItemKey::Number) => Some(i::key_number::key_number(install, key, item)?),
-            PageKey::Enter => Some(i::item_enter::item_enter(install, item)?),
+            PageKey::Item(ItemKey::Up) => Some(i::key_up::key_up(install, list_state, item)?),
+            PageKey::Item(ItemKey::Down) => Some(i::key_down::key_down(install, list_state, item)?),
+            PageKey::Item(ItemKey::Left) => Some(i::key_left::key_left(install, list_state, item)?),
+            PageKey::Item(ItemKey::Right) => {
+                Some(i::key_right::key_right(install, list_state, item)?)
+            }
+            PageKey::Item(ItemKey::Number) => {
+                Some(i::key_number::key_number(install, list_state, key, item)?)
+            }
+            PageKey::Enter => Some(i::item_enter::item_enter(install, list_state, item)?),
             _ => None,
         };
         if let Some(taken) = taken {
-            return Ok((key, took(install, taken)));
+            return Ok((key, took(list_state, taken)));
         }
         if way == PageKey::Escape {
-            // test byte ptr [edi], 10h: the page left unless the list stays
+            // The page is left unless the list stays.
             let stays = list.flags() & items::STAYS != 0;
             if !stays {
-                install.pages.list_answer.set(0);
-                install.pages.list_leave.set(1);
+                list_state.list_answer.set(0);
+                list_state.list_leave.set(1);
             }
             return Ok((key, !stays));
         }
-        // cmp al, 1: another key
+        // Another key.
         (key, false)
     };
     if crate::gfx::shots::on_byte(gfx) != 0 && key as u8 == items::SCREENSHOT_KEY {
-        crate::gfx::take_screenshot::take_screenshot()?;
+        crate::gfx::take_screenshot::take_screenshot(gfx, system)?;
     }
-    Ok((key, took(install, plain_edit)))
+    Ok((key, took(list_state, plain_edit)))
 }
 
 /// `jnz` out, else the key marked as taken (zero set).
-fn took(install: &'static crate::install::owner::Install, zero: bool) -> bool {
+fn took(list_state: &crate::menu::list_state::ListState, zero: bool) -> bool {
     if zero {
-        install.pages.key_taken.set(1);
+        list_state.key_taken.set(1);
     }
     zero
 }

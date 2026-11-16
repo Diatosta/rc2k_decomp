@@ -1,12 +1,11 @@
-//! Dear ImGui on SDL3, ours (2026-10-30; `dear-imgui-sdl3` pulls in an SDL built from its
+//! Dear ImGui on SDL3, ours (`dear-imgui-sdl3` pulls in an SDL built from its
 //! source, which the Windows builds' `SDL3.dll` would clash with): SDL's events into ImGui's
 //! input, and ImGui's frame drawn with the window's renderer (`SDL_RenderGeometryRaw`), its
 //! textures (the font atlas) as SDL textures, through the crate's managed-texture requests.
 //! Everything here runs on the window's thread (`platform`'s pump and frame).
 
-use crate::ffi::imgui::{self as sdl_ui, Texture as SdlTexture, UiEvent};
-use crate::ffi::sdl::{Renderer, Window};
-use crate::race::owner::Race;
+use crate::platform::ffi::imgui::{self as sdl_ui, Texture as SdlTexture, UiEvent};
+use crate::platform::ffi::sdl::{Renderer, Window};
 use crate::race::owner_frame::Frame;
 use dear_imgui_rs::render::{DrawCmd, PendingFrame, SnapshotTextureId, TextureOp};
 use dear_imgui_rs::texture::TextureFormat;
@@ -16,10 +15,8 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-/// The debug UI shown (`debug::overlay`'s key).
 static OPEN: AtomicBool = AtomicBool::new(false);
 
-/// Whether the debug UI is shown.
 #[inline]
 pub fn is_open() -> bool {
     OPEN.load(Ordering::Relaxed)
@@ -28,31 +25,27 @@ pub fn is_open() -> bool {
 /// SDL's text input is on (it goes off with the UI, once).
 static TEXT_INPUT: AtomicBool = AtomicBool::new(false);
 
-/// The debug UI shown or hidden.
 pub fn toggle() -> bool {
     !OPEN.fetch_xor(true, Ordering::Relaxed)
 }
 
-/// The first view's scene has been drawn.
-pub fn view_drawn(frame: &Frame) {
+pub fn view_drawn(frame: &Frame, scene: &crate::scene::owner::Scene) {
     if OPEN.load(Ordering::Relaxed) {
-        crate::debug::ui::note_view(frame);
+        crate::debug::ui::note_view(frame, scene);
     }
 }
 
-/// An SDL texture of ImGui's.
 struct Texture {
     sdl: SdlTexture,
     format: TextureFormat,
 }
 
-/// ImGui and its renderer's state.
 struct Gui {
     context: Context,
     consumer: dear_imgui_rs::render::SynchronousRendererConsumer,
     textures: HashMap<SnapshotTextureId, Texture>,
     last: std::time::Instant,
-    /// The style scaled for this height.
+    /// The height the style is scaled for.
     scaled_for: i32,
 }
 
@@ -60,18 +53,17 @@ thread_local! {
     static GUI: RefCell<Option<Gui>> = const { RefCell::new(None) };
 }
 
-/// ImGui made at the first use.
 fn with_gui<T>(f: impl FnOnce(&mut Gui) -> T) -> Option<T> {
     GUI.with(|gui| {
         let mut gui = gui.borrow_mut();
         if gui.is_none() {
             let mut context = Context::create();
-            // In the game's `var` folder, beside its other saved files (owner, 2026-10-30).
+            // In the game's `var` folder, beside its other saved files.
             let ini = crate::platform::beside_log("var").join("imgui.ini");
             let _ = context.set_ini_filename(Some(ini));
             let io = context.io_mut();
             io.set_config_flags(io.config_flags() | ConfigFlags::DOCKING_ENABLE);
-            // A drag's click without a move types its value (owner, 2026-10-30).
+            // A drag's click without a move types its value.
             io.set_config_drag_click_to_input_text(true);
             let flags = io.backend_flags()
                 | BackendFlags::RENDERER_HAS_TEXTURES
@@ -80,7 +72,9 @@ fn with_gui<T>(f: impl FnOnce(&mut Gui) -> T) -> Option<T> {
             let consumer = match context.create_synchronous_renderer_consumer() {
                 Ok(consumer) => consumer,
                 Err(why) => {
-                    crate::framework::log(&format!("debug: ImGui has no renderer: {why}"));
+                    crate::logfile::program_log::log(&format!(
+                        "debug: ImGui has no renderer: {why}"
+                    ));
                     return None;
                 }
             };
@@ -96,7 +90,6 @@ fn with_gui<T>(f: impl FnOnce(&mut Gui) -> T) -> Option<T> {
     })
 }
 
-/// ImGui's key of SDL's.
 fn key_of(code: SDL_Keycode) -> Option<Key> {
     Some(match code {
         SDLK_TAB => Key::Tab,
@@ -178,7 +171,7 @@ pub fn event(event: &SDL_Event) -> bool {
 }
 
 /// The debug UI drawn on `renderer` (after the game's frame, before the present).
-pub fn draw(race: &Race, renderer: Renderer, window: Window) {
+pub fn draw(owners: &crate::owners::Owners<'static>, renderer: Renderer, window: Window) {
     let open = OPEN.load(Ordering::Relaxed);
     // ImGui's text fields need SDL's text input, started while the UI is shown.
     if open != TEXT_INPUT.swap(open, Ordering::Relaxed) {
@@ -213,10 +206,10 @@ pub fn draw(race: &Race, renderer: Renderer, window: Window) {
         io.set_display_framebuffer_scale([pw as f32 / w as f32, ph as f32 / h as f32]);
         io.set_delta_time(delta);
         let frame = gui.context.begin_frame();
-        crate::debug::ui::build(race, frame.ui());
+        crate::debug::ui::build(owners, frame.ui());
         let pending = frame.render(&gui.consumer);
         if let Err(why) = render(&mut gui.textures, renderer, pending) {
-            crate::framework::log(&format!("debug: the UI not drawn: {why}"));
+            crate::logfile::program_log::log(&format!("debug: the UI not drawn: {why}"));
         }
     });
 }

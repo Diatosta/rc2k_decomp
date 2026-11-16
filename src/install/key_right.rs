@@ -1,21 +1,16 @@
-//! `install::key_right` (0x4147C0): key 0x69 on an item (`[esi] & 0x2F`): kind 2 the
-//! choice after (`install::choice_on`), kind 3 the value up (`install::value_up`).
-//!
-//! Takes the item. Returns the kind.
-//! Caller `install::page_key`, reading zero.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
+//! Key 0x69 on an item: kind 2 the next choice (`install::choice_on`), kind 3 the value up
+//! (`install::value_up`). Called by `install::page_key`.
 
 use crate::errors::Refused;
 use crate::install::key_up::item_key;
-use crate::menu::list_handle::ListItem;
+use crate::memory::list_handle::ListItem;
 use rc2k_core::install::items::ItemKey;
 
-/// Whether the key was taken (the original's zero).
+/// Whether the key was taken.
 pub fn key_right(
     install: &'static crate::install::owner::Install,
+    list_state: &crate::menu::list_state::ListState,
     item: ListItem,
 ) -> Result<bool, Refused> {
-    // Converted: `rc2k_core::install::items::ItemKey::helper`.
-    item_key(install, item, ItemKey::Right, 0)
+    item_key(install, list_state, item, ItemKey::Right, 0)
 }

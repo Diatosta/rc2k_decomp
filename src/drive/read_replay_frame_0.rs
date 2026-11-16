@@ -1,14 +1,9 @@
-//! `drive::read_replay_frame_0` (0x41EBA1): `drive::read_replay_frame` of frame eax at
-//! tenth 0 (ebx kept round it).
-//!
-//! Takes: the frame
-//!
-//! Callers: `drive::load_replay_frame`, 0x41DE81 (six).
+//! `drive::read_replay_frame` of the given frame at tenth 0.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
+use crate::system::owner::System;
 
-/// The Rust version: CF.
-pub fn read_replay_frame_0(race: &Race, frame: u32) -> Result<bool, Refused> {
-    crate::drive::read_replay_frame::read_replay_frame(race, frame, 0)
+pub fn read_replay_frame_0(race: &Race, system: &System, frame: u32) -> Result<bool, Refused> {
+    crate::drive::read_replay_frame::read_replay_frame(race, system, frame, 0)
 }

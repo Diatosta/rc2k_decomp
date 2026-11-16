@@ -1,33 +1,20 @@
-//! `physics::ease_pitch_up` (0x438CBA): half the way from `g_car` +0x6B8 (`unk_71A690`)
-//! up to `dword_608C20` (unsigned halving, `shr`), kept in `dword_608C24` and added to
-//! +0x6B8. `physics::ease_pitch_down` (0x438CD3) is its twin towards `dword_608C1C`.
+//! Half the way from `camera_pitch` up to `pitch_ceiling` (unsigned halving), kept in
+//! `pitch_step` and added to the pitch. `physics::ease_pitch_down` is its twin towards
+//! `pitch_floor`.
 //!
-//! Returns: the step
+//! Returns the step.
 //!
-//! Caller: `physics::camera_avoid_ground` (0x4392CD).
+//! Caller: `physics::camera_avoid_ground`.
 
-use crate::race::owner::Race;
-use crate::session::Cell32;
+use crate::physics::camera_store::CameraWork;
+use crate::physics::car_store::Car;
 use rc2k_core::physics::easing::ease_up;
 
-fn game(race: &Race) -> Vec<&dyn Cell32> {
-    vec![
-        &race.physics.camera.pitch_ceiling as &dyn Cell32,
-        &race.shared.car.camera_pitch,
-        &race.physics.camera.pitch_step,
-    ]
-}
-
-/// The Rust version on the variables' cells.
-// Converted: `rc2k_core::physics::easing::ease_up`.
-fn core(v: &[&dyn Cell32]) {
-    let mut value = v[1].bits();
-    let step = ease_up(&mut value, v[0].bits());
-    v[2].set_bits(step);
-    v[1].set_bits(value);
-}
-
-/// The Rust version.
-pub fn ease_pitch_up(race: &Race) {
-    core(&game(race));
+/// On the variables' cells.
+// Core: `rc2k_core::physics::easing::ease_up`.
+pub fn ease_pitch_up(car: &Car, camera: &CameraWork) {
+    let mut value = car.camera_pitch.get();
+    let step = ease_up(&mut value, camera.pitch_ceiling.get());
+    camera.pitch_step.set(step);
+    car.camera_pitch.set(value);
 }

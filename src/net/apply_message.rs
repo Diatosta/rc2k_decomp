@@ -1,49 +1,43 @@
-//! `net::apply_message` (0x4644EC): one message received from player ebp put into that
-//! player's car block (`g_carBlocks[ebp]`), after logging the own player, the step, the
-//! message's first byte, "rcvd fm plyr" and ebp. Players 8 and up: nothing more.
-//! - 'JGSM': the four input dwords into +0xFD0 .. +0xFDC;
-//! - 'XGSM': nine dwords into +0x64 .. +0x84;
-//! - 'PGSM': the place into +0xFC0 .. +0xFC8 (where the car is to be), the other 37
-//!   dwords where `net::send_position` took them from. Then, after the car's first 1000
-//!   steps (+8; `js` on +8 - 1000) and when the place received is 10 or more away from the
-//!   car's (+0x134 .. +0x13C, whole numbers: `fild` / `fisub`, `fsqrt`, `flt_5C5D54`) the
-//!   car is put there; else +0xFC0 .. +0xFC8 become a 32nd of the way (`sar 5`) and
-//!   +0xFCC 32, for `net::follow_remote` to glide it;
-//! - others: nothing.
-//!
-//! Takes `player`, `message`.
-//!
-//! See `net/mod.rs`. One caller, `net::apply_received`.
+//! Puts one message received from a player into that player's car block, logging the step and
+//! the sender first. Players 8 and up are ignored.
+//! - 'JGSM': the four input dwords.
+//! - 'XGSM': nine extra dwords.
+//! - 'PGSM': the position the car should be at, then the remaining dwords. After the car's first
+//!   1000 steps, if the received position is 10 or more away from the car's, the car jumps there;
+//!   otherwise the target is set to a 32nd of the way and 32 glide steps are armed for
+//!   `net::follow_remote`.
+//! - Anything else: nothing.
 
 use crate::errors::BadInput;
 use crate::logfile::log_int::log_int;
+use crate::memory::session::PlainDword;
+use crate::net::owner::Net;
 use crate::net::send_inputs::fields;
-use crate::net::store::NetVars;
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
-use crate::session::Dword;
+use rc2k_core::net::message::Payload;
 use rc2k_core::net::race::{self, Arrival, Kind};
 
-/// g_carBlocks: the eight cars' blocks.
+/// The log text before the sender's number.
 const TEXT: &std::ffi::CStr = c"rcvd fm plyr"; // "rcvd fm plyr"
 
 /// A car's place (+0x134 .. +0x13C).
-pub fn place(car: &Car) -> &[Dword; 3] {
+pub fn place(car: &Car) -> &[PlainDword; 3] {
     &car.position
 }
 
 /// Where a place received goes, to be glided to (+0xFC0 .. +0xFC8; then the glide's 32nd).
-pub fn wanted(car: &Car) -> &[Dword] {
-    &car.unknown_fc0[..3]
+pub fn wanted(car: &Car) -> &[PlainDword] {
+    &car.glide_target
 }
 
 /// The glide's steps left (+0xFCC).
-pub fn glide_steps(car: &Car) -> &Dword {
-    &car.unknown_fc0[3]
+pub fn glide_steps(car: &Car) -> &PlainDword {
+    &car.glide_steps_left
 }
 
 /// The three dwords' values.
-pub fn three(cells: &[Dword]) -> [u32; 3] {
+pub fn three(cells: &[PlainDword]) -> [u32; 3] {
     [cells[0].get(), cells[1].get(), cells[2].get()]
 }
 
@@ -51,29 +45,15 @@ pub fn three(cells: &[Dword]) -> [u32; 3] {
 fn note_unbelievable(player: u32) {
     static TOLD: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
     if !TOLD.swap(true, std::sync::atomic::Ordering::Relaxed) {
-        crate::framework::log(&format!(
+        crate::logfile::program_log::log(&format!(
             "net: player {player}'s message has values no car could hold: not applied"
         ));
     }
 }
 
-/// The dword at byte `at` of the message.
-fn word_at(message: &[u8], at: usize) -> Result<u32, BadInput> {
-    let word = message
-        .get(at..at + 4)
-        .ok_or(BadInput("a received message"))?;
-    Ok(u32::from_le_bytes([word[0], word[1], word[2], word[3]]))
-}
-
-/// The Rust version.
-pub fn apply_message(
-    race: &Race,
-    vars: &NetVars,
-    player: u32,
-    message: &[u8],
-) -> Result<(), BadInput> {
-    log_int(vars.player.get() as i32, false, 1);
-    log_int(race.shared.view.local_car.get() as i32, false, 1);
+pub fn apply_message(race: &Race, net: &Net, player: u32, message: &[u8]) -> Result<(), BadInput> {
+    log_int(net.race_slot.player() as i32, false, 1);
+    log_int(race.shared.view.get().local_car.get() as i32, false, 1);
     log_int(
         *message.first().ok_or(BadInput("a received message"))? as i32,
         false,
@@ -84,22 +64,19 @@ pub fn apply_message(
     if player >= 8 {
         return Ok(());
     }
-    let block = race.shared.work.car_block(player as usize);
-    // The block is looked up after the message is read and believed: a null one refuses
-    // at the first write, as the original's.
-    let Some(kind) = Kind::of(word_at(message, 0)?) else {
-        return Ok(());
+    // The block is looked up after the message is read and believed: a null one refuses at the
+    // first write.
+    let (kind, values) = match Payload::parse(message) {
+        Payload::Fields { kind, values, .. } => (kind, values),
+        Payload::Unknown(_) => return Ok(()),
+        Payload::Truncated(_) => return Err(BadInput("a received message")),
     };
     let table = fields(kind);
-    let mut values = Vec::with_capacity(table.len());
-    for n in 0..table.len() as u32 {
-        values.push(word_at(message, 4 + 4 * n as usize)?);
-    }
     if !race::believable(table.iter().map(|&(_, limit)| limit), &values) {
         note_unbelievable(player);
         return Ok(());
     }
-    let car = crate::race::trap::car_at(block)?;
+    let car = race.shared.race_car(player as usize)?;
     for (n, (&(field, _), &value)) in table.iter().zip(&values).enumerate() {
         // The place received goes where the car is to be.
         if kind == Kind::Position && n < 3 {
@@ -134,15 +111,15 @@ pub fn apply_message(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::pointers::GamePtr;
-    use crate::race::owner::race;
 
     /// The places sit where the core's constants put them in the car's block.
     #[test]
     fn the_places_sit_where_the_offsets_were() {
-        let car = &race().shared.car;
-        let base = GamePtr::to(car).addr();
-        let at = |cell: &Dword| GamePtr::to(cell).addr() - base;
+        let car = crate::test_support::own::race().shared.car();
+        let at = |cell: &PlainDword| {
+            crate::physics::car_offsets_1999::offset_1999(car, core::ptr::from_ref(cell).addr())
+                as u32
+        };
         assert_eq!(at(&place(car)[0]), 0x134);
         assert_eq!(at(&wanted(car)[0]), 0xFC0);
         assert_eq!(at(glide_steps(car)), 0xFCC);

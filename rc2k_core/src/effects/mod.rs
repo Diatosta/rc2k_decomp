@@ -1,6 +1,5 @@
 //! The race's effects (weather, spray, windscreen drops, lens flare; masks, splines, noise):
-//! the converted logic of the hook crate's `effects` (called "the marks" until 2026-10-29, the
-//! game's "init mark").
+//! the game's "init mark" logic as plain Rust.
 
 pub mod clock;
 pub mod drift;

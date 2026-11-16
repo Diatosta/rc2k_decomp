@@ -1,29 +1,27 @@
-//! `screens::draw_load_setup_list` (0x46F087): draws the text of the "load setup" screen: a
-//! title (string 0x4DD), a label under each column of slots (strings 0x4E3 and 0x4E4) and the
-//! slot names (`draw_setup_slot_names`).
-//!
-//! Its address is in the draw list at 0x75915E. That it is the "load" screen is a reading: by
-//! elimination from `draw_save_setup_list`. IDA had no function here until 2026-10-10. The menus
-//! and draw lists run its `entry` (`menu::table_calls`).
+//! The text of the "load setup" screen: a title, a label under each column of slots and the
+//! slot names (`draw_setup_slot_names`). That it is the "load" screen is a reading, by elimination
+//! from `draw_save_setup_list`.
 
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
-// ---- Rust version ----
-
-pub fn draw_load_setup_list(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    // Converted: `rc2k_core::screens::slot_lists::setup_page`.
+pub fn draw_load_setup_list(
+    o: crate::owners::Owners<'static>,
+    canvas: &mut dyn Canvas,
+) -> Result<(), Refused> {
+    let menus = o.menus;
+    // The logic is in `rc2k_core::screens::slot_lists::setup_page`.
     let page: u32 = menus.tables.pages.setup_slot_page.get();
     rc2k_core::screens::slot_lists::setup_page(
-        &mut crate::screens::game_screen::SlotScreen::new(canvas),
+        &mut crate::screens::game_screen::SlotScreen::new(canvas, o),
         rc2k_core::screens::slot_lists::LOAD_SETUP_TITLE,
         page,
         |slot| {
-            crate::screens::game_screen::HeldText::Place(
-                crate::service::read_setup_slot::slot_name(slot).game_ptr(),
+            crate::screens::game_screen::HeldText::Slot(
+                crate::screens::game_screen::SlotNames::Setups,
+                slot,
             )
         },
     )

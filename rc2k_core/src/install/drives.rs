@@ -1,7 +1,6 @@
-//! The drives the game may be installed to (converted 2026-10-21 from
-//! `install::list_drives` 0x413C27): which are taken, each one's text on the drive page
-//! ("c 512 MB": the letter, a byte not written, a space, the free space) and the page's
-//! menu by how many there are.
+//! The drives the game may be installed to: which are taken, each one's text on the drive page
+//! ("c 512 MB": the letter, a byte left unwritten, a space, the free space) and the page's menu
+//! by drive count.
 
 use crate::strings::format::{Pad, decimal};
 use std::ops::RangeInclusive;
@@ -10,7 +9,7 @@ use std::ops::RangeInclusive;
 pub const CD_ROM: u32 = 5;
 pub const RAM_DISK: u32 = 6;
 
-/// String ids of the units.
+/// String ids of the size units, from KB up.
 pub const KB: u32 = 0xA6;
 pub const MB: u32 = 0xA7;
 pub const GB: u32 = 0xA8;
@@ -20,9 +19,18 @@ pub fn offered(drive_type: u32) -> bool {
     drive_type != CD_ROM && drive_type != RAM_DISK
 }
 
-/// The letters listed on the page: 'a' to 'y' (`cmp ecx, 7Ah; jb`: a drive Z found is never
-/// listed, the game's slip).
+/// The letters listed on the page: 'a' to 'y' (a drive Z is never listed: the game's slip, kept).
 pub const LISTED: RangeInclusive<u8> = b'a'..=b'y';
+
+/// The most drives the page lists: the largest drive menu holds the drives after its two fixed
+/// items in 26 items.
+pub const MOST_LISTED: usize = 24;
+
+/// The drives the page lists out of the `found` letters (in order): the first `MOST_LISTED`; a
+/// 25th drive is left out so that the menu never holds more items than its record.
+pub fn kept(found: &[u8]) -> &[u8] {
+    &found[..found.len().min(MOST_LISTED)]
+}
 
 /// Free space as the page shows it: the number, its unit's string id, and whether ">="
 /// goes before it (in GB).
@@ -57,8 +65,7 @@ pub fn free(kb: u32) -> Free {
     }
 }
 
-/// A drive's text from its third byte on: a space, ">=" for GB, the number, the unit's
-/// text, a NUL.
+/// A drive's text from its third byte on: a space, ">=" for GB, the number, the unit's text, NUL.
 pub fn text(free: Free, unit: &[u8]) -> Vec<u8> {
     let mut out = vec![b' '];
     if free.at_least {
@@ -70,14 +77,14 @@ pub fn text(free: Free, unit: &[u8]) -> Vec<u8> {
     out
 }
 
-/// The drive page's menu by the drives listed.
+/// The drive page's menu, by the drives listed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DriveMenu {
-    /// 8 or fewer (`off_51D7F8`).
+    /// 8 or fewer.
     Eight,
-    /// 16 or fewer (`off_51D8B0`).
+    /// 16 or fewer.
     Sixteen,
-    /// More (`off_51D9E8`).
+    /// More.
     More,
 }
 
@@ -99,6 +106,20 @@ pub fn items(count: u32) -> u8 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_page_lists_no_more_drives_than_its_menu_holds() {
+        let all: Vec<u8> = LISTED.collect();
+        assert_eq!(all.len(), 25);
+        // 25 drives: the last one, y, drops out; 26 (never found: z is not listed) the same.
+        assert_eq!(kept(&all), &all[..24]);
+        let mut more = all.clone();
+        more.push(b'z');
+        assert_eq!(kept(&more), &all[..24]);
+        assert_eq!(kept(&all[..24]), &all[..24]);
+        assert_eq!(kept(&all[..3]), b"abc");
+        assert_eq!(items(kept(&all).len() as u32), 26);
+    }
 
     #[test]
     fn drives() {

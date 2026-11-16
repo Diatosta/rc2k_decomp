@@ -1,56 +1,43 @@
-//! A screen's function list by handle (phase 13, 2026-10-28): the five list pointers
-//! (`g_unreadList` .. `g_sceneList`, `menu::flow_store`) held the lists' addresses; they
-//! hold a `FnList` now, and `menu::run_list` and the frame callbacks walk its entries.
-//! The lists are the image's (`menu::draw_lists_store`, which share tails: a list may start
-//! inside another) and the menus' own (`dword_7594AA`, `menu::lists_store`).
+//! A screen's function list by handle: the five list pointers
+//! (the unread list .. the scene list, `menu::flow_store`) hold a `FnList`, and `menu::run_list`
+//! and the frame callbacks walk its functions. The lists are the typed tables' (`LISTS`,
+//! named by `menu::draw_lists_store`); a screen's list may start inside one (at its end
+//! mark: the in-game options' `in_game_options_list.from(2)`), and the menus' last list
+//! (the menus' last draw list, empty) is `FnList::Menus`.
 
 use crate::errors::BadInput;
-use crate::menu::draw_lists_store::DrawLists;
-use crate::menu::owner::Menus;
-use crate::menu::owner::Tables;
-use crate::menu::owner::menus;
-use crate::session::Dword;
+use rc2k_core::menu::tables::{LISTS, ScreenFn};
 
-/// A function list: its first entry's place.
+/// A function list: its first function's place.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FnList {
-    /// The draw lists' dword `n` on.
-    Draw(u16),
-    /// `dword_7594AA`, the menus' last draw list.
+    /// `LISTS[list]`'s functions from number `from` on.
+    Draw { list: u16, from: u16 },
+    /// `MenuLists.draw_list[0]`, the menus' last draw list (no functions).
     Menus,
 }
 
-/// The draw lists' dwords in a row.
-fn draw_dwords(tables: &Tables) -> &'_ [Dword] {
-    const N: usize = size_of::<DrawLists>() / size_of::<Dword>();
-    const _: () = assert!(size_of::<DrawLists>().is_multiple_of(size_of::<Dword>()));
-    crate::pointers::dwords_in::<_, N>(&tables.draw_lists, 0)
-}
-
 impl FnList {
-    /// The list's entries from its first on, to the end of the table it is in (the -1 that
-    /// ends it is among them).
-    pub fn entries(self) -> &'static [Dword] {
-        let tables = &menus().tables;
-        match self {
-            FnList::Draw(n) => &draw_dwords(tables)[n as usize..],
-            FnList::Menus => &menus().tables.lists.draw_list,
+    /// The list `LISTS[list]` from its function `from` on.
+    pub fn draw(list: u16, from: usize) -> FnList {
+        assert!(from <= LISTS[list as usize].functions.len());
+        FnList::Draw {
+            list,
+            from: from as u16,
         }
     }
 
-    /// The list `entry` starts: an entry of the draw lists' (`DrawList::from`).
-    pub fn starting_at(menus: &Menus, entry: &Dword) -> FnList {
-        let tables = &menus.tables;
-        let all = draw_dwords(tables);
-        let n =
-            (std::ptr::from_ref::<Dword>(entry) as usize).wrapping_sub(all.as_ptr() as usize) / 4;
-        assert!(n < all.len(), "a draw list's entry outside the draw lists");
-        FnList::Draw(n as u16)
+    /// The list's functions from its first on, to the end mark that ends it.
+    pub fn functions(self) -> &'static [ScreenFn] {
+        match self {
+            FnList::Draw { list, from } => &LISTS[list as usize].functions[from as usize..],
+            FnList::Menus => &[],
+        }
     }
 
     fn code(self) -> u32 {
         match self {
-            FnList::Draw(n) => n as u32 + 1,
+            FnList::Draw { list, from } => ((list as u32) << 16 | from as u32) + 1,
             FnList::Menus => u32::MAX,
         }
     }
@@ -59,18 +46,24 @@ impl FnList {
 /// A list pointer: none (0, as the image starts) or a list.
 #[repr(transparent)]
 #[derive(rc2k_derive::Cells)]
-pub struct ListCell(Dword);
+pub struct ListCell(crate::memory::session::PlainDword);
 
 impl ListCell {
     pub const fn new() -> Self {
-        ListCell(Dword::new(0))
+        ListCell(crate::memory::session::PlainDword::new(0))
     }
 
     pub fn get(&self) -> Result<FnList, BadInput> {
         match self.0.get() {
             0 => Err(BadInput("a screen's function list not set")),
             u32::MAX => Ok(FnList::Menus),
-            n => Ok(FnList::Draw((n - 1) as u16)),
+            n => {
+                let n = n - 1;
+                Ok(FnList::Draw {
+                    list: (n >> 16) as u16,
+                    from: n as u16,
+                })
+            }
         }
     }
 
@@ -88,21 +81,19 @@ impl Default for ListCell {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::menu::draw_lists_store::DRAW_LISTS;
 
     #[test]
     fn lists_by_handle() {
-        let tables = &menus().tables;
-        let l = tables.draw_lists.list_758eae.from(2);
-        assert_eq!(
-            l.entries()[0].get(),
-            tables.draw_lists.list_758eae.entries[2].get()
-        );
+        let l = DRAW_LISTS.in_game_options_list.from(2);
+        assert!(l.functions().is_empty());
+        assert_eq!(DRAW_LISTS.in_game_options_list.id().functions().len(), 2);
         let c = ListCell::new();
         assert!(c.get().is_err());
         c.set(l);
         assert_eq!(c.get().unwrap(), l);
         c.set(FnList::Menus);
         assert_eq!(c.get().unwrap(), FnList::Menus);
-        assert_eq!(tables.draw_lists.unread_758b72.id(), FnList::Draw(0));
+        assert!(FnList::Menus.functions().is_empty());
     }
 }

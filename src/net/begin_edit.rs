@@ -1,16 +1,11 @@
-//! `net::begin_edit` (0x416E1A): an item's text starts being edited: the item (`dword_52A4B8`),
-//! the text (`dword_52A4B4`), the widest it may be (`dword_52A4BC`) and the font it is
-//! measured with (`dword_52A4C0`) noted, and the text's 64 bytes kept (`byte_95EAF8`) for
-//! Escape.
-//!
-//! Takes `item`, `text`, `width`, `font`.
-//! Callers: `net::begin_setting_edit`, `net::begin_chat`.
+//! Starts editing an item's text: notes the item, text, the widest it may be and its font, and
+//! keeps the text's 64 bytes so Escape can put them back.
 
-use crate::net::store::NetVars;
+use crate::net::owner::Net;
+use crate::net::store::Editing;
 
-/// The texts an edit works on (`crate::net::owner::net().vars.edit_text`, where the original keeps the address): the
-/// settings' machine name, host address and players' count (written into the installer's
-/// first path), and the chat's input line.
+/// The texts an edit works on: the settings' machine name, host address and players' count,
+/// and the chat's input line.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EditedText {
     MachineName = 1,
@@ -21,22 +16,18 @@ pub enum EditedText {
 
 impl EditedText {
     /// The text's buffer.
-    pub fn text<'a>(
-        self,
-        vars: &'a NetVars,
-        install: &'a crate::install::owner::Install,
-    ) -> &'a dyn crate::pointers::Store {
+    pub fn text(self, net: &Net) -> &dyn crate::memory::cells::Store {
         match self {
-            EditedText::MachineName => &vars.machine_name,
-            EditedText::HostAddress => &vars.host_address,
-            EditedText::MostPlayers => &install.paths.path_a,
-            EditedText::ChatInput => &vars.chat_input,
+            EditedText::MachineName => &net.setup().machine_name,
+            EditedText::HostAddress => &net.setup().host_address,
+            EditedText::MostPlayers => &net.settings().most_players_text,
+            EditedText::ChatInput => &net.lobby().chat_input,
         }
     }
 
-    /// The text `crate::net::owner::net().vars.edit_text` names (refused when none is).
-    pub fn edited(vars: &NetVars) -> Result<Self, crate::errors::BadInput> {
-        Ok(match vars.edit_text.get() {
+    /// The text `edit` names (refused when none is).
+    pub fn edited(edit: &Editing) -> Result<Self, crate::errors::BadInput> {
+        Ok(match edit.edit_text.get() {
             1 => EditedText::MachineName,
             2 => EditedText::HostAddress,
             3 => EditedText::MostPlayers,
@@ -45,26 +36,52 @@ impl EditedText {
         })
     }
 }
-
-/// The Rust version.
+/// Starts the edit `edit` of `text` for item `item`.
 pub fn begin_edit(
-    vars: &NetVars,
+    net: &Net,
+    edit: &Editing,
     item: u32,
     text: EditedText,
     width: u32,
     font: crate::gfx::typefaces::FontId,
 ) -> Result<(), crate::errors::Refused> {
-    let install = crate::install::owner::install();
-    vars.edited.set(item);
-    vars.edit_text.set(text as u32);
-    vars.edit_width.set(width);
-    vars.edit_font.set(font);
-    Ok(crate::pointers::copy_between(
-        text.text(vars, install),
+    edit.edited.set(item);
+    edit.edit_text.set(text as u32);
+    edit.edit_width.set(width);
+    edit.edit_font.set(font);
+    Ok(crate::memory::cells::copy_between(
+        text.text(net),
         0,
-        &install.paths.script_path,
+        &edit.text_before_edit,
         0,
         0x40,
         "an edited text",
     )?)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::net::store::NetMain;
+
+    /// The settings and the lobby each keep their own edit: starting one leaves the other
+    /// untouched, and Escape's copy comes from the text edited.
+    #[test]
+    fn each_screen_edits_apart() {
+        let main = NetMain::new();
+        main.settings.edit.edited.set(u32::MAX);
+        main.lobby.edit.edited.set(u32::MAX);
+        main.setup.machine_name.set(0, b'A');
+        main.settings
+            .edit
+            .edit_text
+            .set(EditedText::MachineName as u32);
+        assert_eq!(
+            EditedText::edited(&main.settings.edit).unwrap(),
+            EditedText::MachineName
+        );
+        assert!(EditedText::edited(&main.lobby.edit).is_err());
+        assert_eq!(main.lobby.edit.edited.get(), u32::MAX);
+        assert_eq!(main.settings.edit.text_before_edit.get(0), 0);
+    }
 }

@@ -1,30 +1,20 @@
-//! `input::joystick_found` (0x408238): DirectInput's `EnumDevices` callback: with fewer than
-//! 16 controllers (`g_controllerCount`) the found joystick is looked at through a device
-//! made for it (`CreateDevice` with its instance GUID into `dword_4F6910`, its
-//! `IDirectInputDevice2A` into `dword_4F6914`, the joystick data format, the cooperative
-//! level 5 (exclusive, background) for `hWnd`, `GetCapabilities` into `dword_4F6A78`, its
-//! axes into the entry's +0x14 bits (`EnumObjects` with `input::axis_found`)), and the next
-//! entry of `g_controllers` (0x50 bytes) filled: +0 the capabilities' flags, +4 the device's
-//! type, +8 its axes, +0xC buttons, +0x10 hats, +0x18 1 if attached, +0x1C 1 if it has force
-//! feedback (only when `dword_4F68F4` is 0: the configuration's switch turns it off), +0x20
-//! its instance GUID, +0x30 its name as "(n) name" (n the count + 1; the name through
-//! `strings::copy_printable`, 0x19 room, `dword_4E0144` 0 meanwhile: lower case), and the
-//! count one more. Any failure leaves the entry and the count. Both objects are given back
-//! in the end, whatever happened. With 16 the listing stops (eax 0), else it goes on (1).
-//!
-//! In:  (stdcall) the `DIDEVICEINSTANCEA`, the context (not read)
-//!
-//! Caller: DirectInput, from `input::list_joysticks`. The methods the objects' own.
+//! DirectInput's `EnumDevices` callback: with fewer than 16 controllers the found joystick is
+//! looked at through a device made for it and the next controller entry (0x50 bytes) filled:
+//! capabilities' flags, device type, axes, buttons, hats, attached and force-feedback flags
+//! (force feedback only when `no_force_feedback` is 0), instance GUID and its name as "(n) name"
+//! in lower case. Any failure leaves the entry and the count. Both objects are given back in the
+//! end. With 16 the listing stops (returns 0), else it goes on (1).
 
 use crate::errors::BadInput;
 use crate::input::di_harness::{CAPS_LEN, CONTROLLERS};
 use crate::input::owner::Input;
 use crate::input::types::{Controller, DiDeviceInstance};
-use crate::system::owner::system;
+use crate::system::owner::System;
 
 /// Looks the joystick over and fills the entry: false at the first failure.
 fn look_over(
     input: &Input,
+    system: &System,
     instance: &DiDeviceInstance,
     entry: &Controller,
 ) -> Result<bool, BadInput> {
@@ -43,7 +33,7 @@ fn look_over(
     if di::set_data_format(device2) != 0 {
         return Ok(false);
     }
-    if di::set_cooperative_level(device2, system().session.machine.window.get(), 5) != 0 {
+    if di::set_cooperative_level(device2, system.session.host.window.get(), 5) != 0 {
         return Ok(false);
     }
     let Ok(caps) = di::get_capabilities(device2, CAPS_LEN as u32) else {
@@ -58,23 +48,18 @@ fn look_over(
     let guid = instance.instance;
     entry.dev_type.set(dev_type);
     entry.instance.write(&guid);
-    // Converted: `rc2k_core::input::joystick::{name_prefix, found}`.
     use rc2k_core::input::joystick::{NAME_ROOM, name_prefix};
     let count = input.devices.controller_count.get();
     let name = name_prefix(count);
     entry.name.write_at(0, &name, "a controller's name")?;
-    use crate::strings::copy_printable::KEEP_CASE; // dword_4E0144
-    use std::sync::atomic::Ordering::Relaxed;
-    let kept = KEEP_CASE.atomic().swap(0, Relaxed);
     // room 0x19 is never refused
     if let Ok(printable) =
-        crate::strings::copy_printable::printable_from(&instance.instance_name, NAME_ROOM)
+        crate::strings::copy_printable::printable_lowered(&instance.instance_name, NAME_ROOM)
     {
         entry
             .name
             .write_at(name.len(), &printable, "a controller's name")?;
     }
-    KEEP_CASE.set(kept);
     let f = rc2k_core::input::joystick::found(
         caps.flags,
         caps.axes,
@@ -94,10 +79,9 @@ fn look_over(
     Ok(true)
 }
 
-/// The Rust version: eax.
 /// `joystick_found` as DirectInput calls it: what Rust callers hand `EnumDevices`.
-pub fn callback(input: &Input, instance: &DiDeviceInstance) -> u32 {
-    match joystick_found(input, instance) {
+pub fn callback(input: &Input, system: &System, instance: &DiDeviceInstance) -> u32 {
+    match joystick_found(input, system, instance) {
         Ok(eax) => eax,
         Err(e) => {
             crate::input::devices::refused_here("input::joystick_found", e);
@@ -106,13 +90,17 @@ pub fn callback(input: &Input, instance: &DiDeviceInstance) -> u32 {
     }
 }
 
-pub fn joystick_found(input: &Input, instance: &DiDeviceInstance) -> Result<u32, BadInput> {
+pub fn joystick_found(
+    input: &Input,
+    system: &System,
+    instance: &DiDeviceInstance,
+) -> Result<u32, BadInput> {
     let count = input.devices.controller_count.get();
     if count >= CONTROLLERS {
         return Ok(0);
     }
     let entry = &input.devices.controllers[count as usize];
-    look_over(input, instance, entry)?;
+    look_over(input, system, instance, entry)?;
     for cell in [&input.devices.new_joystick2, &input.devices.new_joystick] {
         let object = cell.get();
         if object != 0 {

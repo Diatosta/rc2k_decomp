@@ -1,11 +1,8 @@
-//! The controller page's learning of a control (converted 2026-10-21 from
-//! `screens::learn_axis` 0x46B131's rules).
+//! Learning a control on the controller page.
 //!
-//! While a control is being learnt (up to 3 s from its start), a wheel's pedals (a player
-//! whose device kind is 3, controls 1 and 2) are learnt by the axis that moved: its number
-//! into the player's +0x3B (1) or +0x3A (2) and the found code 0x200 or 0x100; any other
-//! control by the controller's reading classified. The space key (0x39) cancels. What was
-//! found goes into the player's bindings (+0x50 on, a dword a control from 1).
+//! A control is learnt for up to 3 s: a wheel's pedals (device kind 3, controls 1 and 2) by the
+//! axis that moved, any other control by the controller's reading. Space (0x39) cancels. The
+//! result goes into the player's bindings.
 
 /// The time a control is learnt for, in ms.
 pub const LEARNING_MS: u32 = 0xBB8;
@@ -16,8 +13,7 @@ pub const TIMED_OUT: u32 = u32::MAX;
 /// A player's device kind that learns its pedals by axis.
 pub const PEDALS_KIND: u32 = 3;
 
-/// Whether the learning's time is up: `since` (the clock less its start) at least 3 s
-/// (a signed difference).
+/// Whether the learning's time is up: `since` (the clock less its start) at least 3 s.
 pub fn timed_out(since: u32) -> bool {
     since.wrapping_sub(LEARNING_MS) as i32 >= 0
 }
@@ -33,8 +29,7 @@ pub fn pedal(control: u32) -> (usize, u32) {
     if control == 1 { (3, 0x200) } else { (2, 0x100) }
 }
 
-/// The player's binding of control 1 .. 11 (+0x50 + 4 (control - 1)). None for another:
-/// the original's wrapping sum writes elsewhere in the record (control 0 at +0x4C).
+/// The player's binding of control 1 .. 11 (+0x50 + 4 (control - 1)). None for another.
 pub fn binding(control: u32) -> Option<usize> {
     (1..=11).contains(&control).then(|| control as usize - 1)
 }

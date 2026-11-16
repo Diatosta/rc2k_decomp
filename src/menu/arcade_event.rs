@@ -1,23 +1,26 @@
 use crate::errors::Refused;
+use crate::memory::session::DwordLike;
+use crate::memory::session::PlainDword;
+use crate::menu::event_flow::switch_cell;
 use crate::menu::lists_store::CarList;
 use crate::menu::owner::Menus;
-use crate::menu::screen_loop::{Entry, Screen, run_screen};
-use crate::race::owner::race;
-use crate::session::Dword;
-use crate::system::owner::system;
+use crate::menu::screen_id::ScreenId;
+use crate::menu::screen_loop::{Entry, run_screen};
+use crate::race::owner::Race;
 use rc2k_core::menu::arcade_event::{self as arcade, Step, Var};
+use rc2k_core::menu::leaving::Switch;
 
 /// The game for `rc2k_core::menu::arcade_event`: the variables at their addresses, the
-/// steps' Rust versions and the car list the car choice was shown.
+/// steps and the car list the car choice was shown.
 struct Game<'a> {
     menus: &'a Menus,
+    owners: crate::owners::Owners<'static>,
     cars: Option<CarList>,
-    player0: crate::menu::standings::PlayerCell,
+    player0: crate::menu::standings::PlayerCell<'a>,
 }
 
 /// The variables that are in the physics block.
-fn cell(v: Var) -> Option<&'static Dword> {
-    let race = race();
+fn cell(race: &Race, v: Var) -> Option<&dyn DwordLike> {
     Some(match v {
         Var::RaceStage => &race.shared.state.results.race_stage,
         Var::RaceLevel => &race.shared.state.results.race_level,
@@ -29,27 +32,22 @@ fn cell(v: Var) -> Option<&'static Dword> {
     })
 }
 
-fn address(menus: &Menus, v: Var) -> &'_ Dword {
+fn address(menus: &Menus, v: Var) -> &'_ PlainDword {
     match v {
         Var::Failed => &menus.play.arcade.retry,
-        Var::TotalA8 => &menus.play.results.before[0],
-        Var::Total798 => &menus.play.results.sums[0],
-        Var::TotalB8 => &menus.play.results.totals[0],
-        Var::Figure768 => &menus.play.results.positions[0],
-        Var::Figure758 => &menus.play.results.time_bonus[0],
+        Var::TotalA8 => &menus.play.results.players[0].before,
+        Var::Total798 => &menus.play.results.players[0].sum,
+        Var::TotalB8 => &menus.play.results.players[0].total,
+        Var::Figure768 => &menus.play.results.players[0].position,
+        Var::Figure758 => &menus.play.results.players[0].time_bonus,
         Var::PlayerCount => &menus.screens.event.player_count,
         Var::EventMode => &menus.screens.event.event_kind,
-        Var::Leave => &menus.screens.loop_flags.went_back,
-        Var::Ended565 => &menus.screens.loop_flags.ended_b,
-        Var::Ended569 => &menus.screens.loop_flags.ended_a,
         Var::Stage => &menus.play.arcade.stage,
         Var::Level => &menus.play.arcade.level,
         Var::Current => &menus.screens.event.current_player,
-        Var::CarLeft => &menus.tables.captions.screen_left,
         Var::Answer => &menus.tables.pages.yes_no_answer,
         Var::Cheats => &menus.play.cheats.cheats,
-        Var::Qualifies => &menus.screens.event.time_qualifies,
-        Var::Done => &menus.screens.event.event_done,
+        Var::Qualifies => &menus.screens.event.trial.qualifies,
         Var::Player0Entry => unreachable!("player 0's field is not at an address"),
         Var::RaceStage
         | Var::RaceLevel
@@ -65,7 +63,7 @@ impl arcade::Arcade for Game<'_> {
 
     fn get(&mut self, v: Var) -> u32 {
         let menus = self.menus;
-        match cell(v) {
+        match cell(self.owners.race, v) {
             Some(cell) => cell.get(),
             None => address(menus, v).get(),
         }
@@ -75,56 +73,74 @@ impl arcade::Arcade for Game<'_> {
         let menus = self.menus;
         match v {
             Var::Player0Entry => self.player0.update(|p| p.entry = value),
-            _ => match cell(v) {
+            _ => match cell(self.owners.race, v) {
                 Some(cell) => cell.set(value),
                 None => address(menus, v).set(value),
             },
         }
     }
 
+    fn flag(&mut self, s: Switch) -> bool {
+        switch_cell(self.owners.menus, self.owners.system, s).is_set()
+    }
+
+    fn set_flag(&mut self, s: Switch, on: bool) {
+        switch_cell(self.owners.menus, self.owners.system, s).set(on);
+    }
+
     fn step(&mut self, s: Step) -> Result<(), Refused> {
-        let sound = crate::sound::owner::sound();
+        let sound = self.owners.sound;
         let menus = self.menus;
         let play = &menus.play;
-        let screens = &menus.screens;
+        let tables = &self.owners.saves.best_tables;
         use crate::menu as m;
         use crate::menu::arcade_steps as a;
         match s {
-            Step::ClearPlayers284 => m::clear_players_284::clear_players_284(menus)?,
-            Step::ResetCars750724 => m::reset_cars_750724::reset_cars_750724(menus)?,
+            Step::ClearHudBits => m::clear_hud_bits::clear_hud_bits(menus)?,
+            Step::HideAllInGameOptions => {
+                m::hide_all_in_game_options::hide_all_in_game_options(menus)?;
+            }
             Step::SecretCarList => {
                 self.cars =
                     Some(m::cheat_car_list::cheat_car_list(menus).unwrap_or(CarList::Second));
             }
-            Step::SelectCarLoop => self.screen(&m::select_car_loop::SCREEN)?,
+            Step::SelectCarLoop => self.screen(ScreenId::SelectCar)?,
             Step::TakeShownCar => m::take_shown_car::take_shown_car(menus, self.cars)?,
-            Step::NextStageLoop => self.screen(&m::arcade_next_stage_loop::SCREEN)?,
-            Step::TakeStageBest => a::take_arcade_stage_best(play)?,
-            Step::RepairCar => crate::service::repair_parts::repair_car()?,
-            // From 0 (the original clears eax for the repair just before).
-            Step::Race => crate::race::single_rally_race::single_rally_race(0, 2)?,
-            Step::ScoreStage => a::score_arcade_stage(play)?,
-            Step::ResultsLoop => self.screen(&m::arcade_results_loop::SCREEN)?,
+            Step::NextStageLoop => self.screen(ScreenId::ArcadeNextStage)?,
+            Step::TakeStageBest => {
+                a::take_arcade_stage_best(play, self.owners.system, self.owners.race, tables)?;
+            }
+            Step::RepairCar => crate::service::repair_parts::repair_car_in(menus)?,
+            // The repair's result is not used: the race starts from 0.
+            Step::Race => crate::race::single_rally_race::single_rally_race(self.owners, 0, 2)?,
+            Step::ScoreStage => a::score_arcade_stage(menus)?,
+            Step::ResultsLoop => self.screen(ScreenId::ArcadeResults)?,
             Step::KeepStageBest => {
                 // The stage's record in the level's table.
-                let level = system()
-                    .records
-                    .stage_tables
-                    .level_table(play.arcade.level.get())?;
-                a::keep_arcade_stage_best(menus, screens, level.row(play.arcade.stage.get())?)?;
+                let stages = &self.owners.system.records().stage_tables;
+                let level = stages.level_table(play.arcade.level.get())?;
+                a::keep_arcade_stage_best(
+                    menus,
+                    stages,
+                    level.row(stages, play.arcade.stage.get())?,
+                )?;
             }
-            Step::CheckStageTime => a::check_arcade_stage_time(menus)?,
-            Step::ClearTimeMarks => a::clear_arcade_time_marks(play)?,
-            Step::EnterStageTime => a::enter_arcade_stage_time(menus)?,
-            Step::BestTimesLoop => self.screen(&m::arcade_best_times_loop::SCREEN)?,
-            Step::CheckLevelScore => a::check_arcade_level_score(menus)?,
-            Step::ClearScoreMarks => a::clear_arcade_score_marks(play)?,
-            Step::EnterLevelScore => a::enter_arcade_level_score(menus)?,
-            Step::BestScoresLoop => self.screen(&m::best_scores_48a69e_loop::SCREEN)?,
-            Step::LevelEnd => m::arcade_level_end::arcade_level_end(menus, sound)?,
-            Step::NextLevelReview => self.screen(&m::review_options_4882e2_loop::SCREEN)?,
-            Step::RetryReview => self.screen(&m::review_options_48861d_loop::SCREEN)?,
-            Step::StageReview => self.screen(&m::arcade_review_options_loop::SCREEN)?,
+            Step::CheckStageTime => a::check_arcade_stage_time(menus, self.owners.system, tables)?,
+            Step::ClearTimeMarks => a::clear_arcade_time_marks(play, self.owners.system, tables)?,
+            Step::EnterStageTime => {
+                a::enter_arcade_stage_time(menus, self.owners.system, self.owners.race, tables)?;
+            }
+            Step::BestTimesLoop => self.screen(ScreenId::ArcadeBestTimes)?,
+            Step::CheckLevelScore => a::check_arcade_level_score(menus, tables)?,
+            Step::ClearScoreMarks => a::clear_arcade_score_marks(play, tables)?,
+            Step::EnterLevelScore => a::enter_arcade_level_score(menus, tables)?,
+            Step::BestScoresLoop => self.screen(ScreenId::ArcadeBestScores)?,
+            Step::LevelEnd => {
+                m::arcade_level_end::arcade_level_end(menus, sound, &Entry::new(self.owners))?;
+            }
+            Step::NextLevelReview => self.screen(ScreenId::ArcadeNextLevelReview)?,
+            Step::RetryReview => self.screen(ScreenId::ArcadeRetryReview)?,
+            Step::StageReview => self.screen(ScreenId::ArcadeReviewOptions)?,
             Step::ShowInGameOptions => m::in_game_options_items::show_in_game_options(menus)?,
         }
         Ok(())
@@ -133,20 +149,20 @@ impl arcade::Arcade for Game<'_> {
 
 impl Game<'_> {
     /// A screen, entered with the car list (the only value a screen reads from its caller).
-    fn screen(&self, screen: &Screen) -> Result<(), Refused> {
-        { run_screen(screen, &Entry::with_cars(self.menus, self.cars)) }?;
+    fn screen(&self, screen: ScreenId) -> Result<(), Refused> {
+        run_screen(screen, &Entry::with_cars(self.owners, self.cars))?;
         Ok(())
     }
 }
 
-/// The Rust version.
-pub fn arcade_event(menus: &Menus) -> Result<(), Refused> {
-    let player0 = crate::menu::standings::player(0);
+pub fn arcade_event(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    let menus = o.menus;
+    let player0 = crate::menu::standings::player(menus, 0);
     let mut game = Game {
         menus,
+        owners: o,
         cars: None,
         player0,
     };
-    // Converted: `rc2k_core::menu::arcade_event::arcade_event`.
     arcade::arcade_event(&mut game)
 }

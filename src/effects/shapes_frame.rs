@@ -1,20 +1,19 @@
-//! `effects::shapes_frame` (0x4C1148): `effects::copy_first_point`, `effects::tilt_shape`,
-//! `effects::scale_setting`, `effects::run_shapes` (then `nullsub_19`).
+//! `effects::shapes_frame`: `effects::copy_first_point`, `effects::tilt_shape`,
+//! `effects::scale_setting`, `effects::run_shapes`.
 //!
-//! Works on `g_marksSettings`.
+//! Works on the effects settings.
 //!
-//! Caller: `effects::view_frame`. Refuses null settings before anything, and its steps' refusals
-//! (all it may write is put back first).
+//! Refuses null settings before anything, and its steps' refusals (all it may write is put back
+//! first).
 
 use crate::effects::mask_store::Masks;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::{copy_first_point, run_shapes, scale_setting, tilt_shape};
 use crate::errors::{BadInput, Refused};
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 
-/// The Rust version (see the header).
 pub fn shapes_frame(
-    shared: &Shared,
+    shared: &RaceShared,
     masks: &Masks,
     drops: &WindscreenDrops,
     effects: &crate::effects::owner::Effects,

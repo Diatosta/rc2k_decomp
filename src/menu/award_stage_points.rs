@@ -1,5 +1,6 @@
-//! `menu::award_stage_points` (0x4A47EA): the stage's championship points. For each class
-//! (`dword_7558F4`, 0 .. `dword_7558F8`) the points start at 0x14 (`seconds`); each entry
+//! `menu::award_stage_points`: the stage's championship points. For each class
+//! (`event.shown.class`, 0 .. `event.shown.classes`) the points start at 0x14 (`seconds`); each
+//! entry
 //! of standings table B in that class, in the table's order, is logged ("Status of
 //! driver" and its +0x74), gets the points into its +0x54 + 4 * `section` and the points
 //! go down by one (not below 0). A computer's driver (+4 0, `menu::find_cpu_team` by its
@@ -8,7 +9,7 @@
 //! Then each entry's total of its six stage points (+0x54 .., the negative ones left out)
 //! into its +0x6C and its driver's +0x90 or player's +0xB0.
 //!
-//! Callers: the event drivers. The search is its Rust version; it logs through `logfile::log_write`
+//! Callers: the event drivers. It logs through `logfile::log_write`
 //! and `log_int` (level 1). Refuses no table, one without its end entry, a class count of 0 or past
 //! 0x100, a section past 5, a player past 4 or missing, before anything; a driver not found is the
 //! search's fatal error, before anything.
@@ -20,48 +21,50 @@ use crate::menu::standings::*;
 const STATUS_TEXT_RVA: &std::ffi::CStr = c"Status of driver"; // aStatusOfDriver
 /// The driver (computer, by `find_cpu_team`) or player of an entry, and the field its
 /// stage points go to, and whether it keeps them.
-enum Owner {
-    Driver(&'static Driver),
-    Player(PlayerCell),
+enum Owner<'a> {
+    Driver(&'a Driver),
+    Player(PlayerCell<'a>),
 }
 
-fn owner(e: &rc2k_core::saves::rankings::HistoryEntry) -> Result<Owner, Refused> {
+fn owner<'a>(
+    menus: &'a Menus,
+    e: &rc2k_core::saves::rankings::HistoryEntry,
+) -> Result<Owner<'a>, Refused> {
     match e.player {
         0 => Ok(Owner::Driver(crate::menu::find_cpu_team::find_cpu_team(
-            e.first,
+            menus, e.first,
         )?)),
-        n if n <= 4 => Ok(Owner::Player(player(n - 1))),
+        n if n <= 4 => Ok(Owner::Player(player(menus, n - 1))),
         _ => Err(BadInput("a player past 4 or missing").into()),
     }
 }
 
-/// The Rust version.
-pub fn award_stage_points(menus: &Menus) -> Result<(), Refused> {
+pub fn award_stage_points(
+    menus: &Menus,
+    tables: &crate::saves::best_times::BestTables,
+) -> Result<(), Refused> {
     let screens = &menus.screens;
-    let classes: u32 = screens.event.classes.get();
-    let section: u32 = SECTION_RVA.get();
+    let classes: u32 = screens.event.shown.classes.get();
+    let section: u32 = screens.event.section.get();
     if classes == 0 || classes > 0x100 || section > 5 {
         return Err(BadInput("a class count of 0 or past 0x100, or a section past 5").into());
     }
-    let mut all = walked_entries_b()?;
+    let mut all = walked_entries_b(tables)?;
     let mut owners = Vec::with_capacity(all.len());
     for e in &all {
-        owners.push(owner(e)?);
+        owners.push(owner(menus, e)?);
     }
-    // Converted: `rc2k_core::menu::points` (`Points`, `kept`, `total`).
     use rc2k_core::menu::points::{Points, kept, total};
     for class in 0..classes {
         let mut points = Points::default();
-        screens.draw_work.seconds.set(points.0);
         for (e, o) in all.iter_mut().zip(&owners) {
-            screens.event.class.set(class);
+            screens.event.shown.class.set(class);
             if e.group != class {
                 continue;
             }
             crate::logfile::log_write::log_nul(&STATUS_TEXT_RVA, false, 1);
             crate::logfile::log_int::log_int(e.status as i32, true, 1);
             let given = points.take();
-            screens.draw_work.seconds.set(points.0);
             let keeps = match *o {
                 Owner::Driver(d) => d.in_event.get() == IN_EVENT,
                 Owner::Player(p) => p.get().entry == 1,
@@ -83,6 +86,6 @@ pub fn award_stage_points(menus: &Menus) -> Result<(), Refused> {
             Owner::Player(p) => p.update(|q| q.stage_points[6] = total),
         }
     }
-    with_b(|t| t.entries[..all.len()].copy_from_slice(&all))?;
+    with_b(tables, |t| t.entries[..all.len()].copy_from_slice(&all))?;
     Ok(())
 }

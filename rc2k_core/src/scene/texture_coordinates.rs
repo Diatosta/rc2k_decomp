@@ -1,12 +1,10 @@
-//! A polygon's texture coordinates from whole numbers to floats (converted 2026-10-21
-//! from `scene::scale_texture_coordinates` 0x44E2FB): a value that is not 0 becomes a
-//! float (`fild`, `fstp`: one rounding to a float, the same at every precision) whose bits
-//! then lose 0x0C000000, the number over 2^24.
+//! A polygon's texture coordinates from whole numbers to floats: a value that is not 0 becomes
+//! a float whose bits then lose 0x0C000000, the number over 2^24.
 
 /// The float's bits less this: its exponent less 24.
 pub const OVER_2_24: u32 = 0x0C00_0000;
 
-/// A coordinate's float (the work variable `flt_5183C4`), `None` for 0 (left as it is).
+/// A coordinate's float, `None` for 0 (left as it is).
 pub fn float_of(v: u32) -> Option<u32> {
     (v != 0).then(|| (v as i32 as f32).to_bits())
 }
@@ -26,7 +24,7 @@ mod tests {
         assert_eq!(f32::from_bits(scaled(0x80_0000)), 0.5);
         assert_eq!(f32::from_bits(scaled(-0x100_0000i32 as u32)), -1.0);
         assert_eq!(float_of(0x0100_0001), Some(16777216f32.to_bits()));
-        // A small number's float less the exponent wraps (as the original's `sub`).
+        // A small number's float less the exponent wraps.
         assert_eq!(scaled(1), 0x3F80_0000 - OVER_2_24);
     }
 }

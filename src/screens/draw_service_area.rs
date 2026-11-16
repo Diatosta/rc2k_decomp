@@ -1,35 +1,24 @@
-//! `screens::draw_service_area` (0x4A5FA2): draws everything on the service area screen that
-//! is text, bars and small sprites, over the picture: a title with the car's number, the
-//! service time readouts, fourteen bars from the car's values at +0xD4 .. +0x108 with their
-//! labels and sprites, the setup bars' labels and markers, the repair times and the car
-//! condition bar.
+//! Everything on the service area screen that is text, bars and small sprites, over the
+//! picture: a title with the car's number, the service time readouts, fourteen damage bars with
+//! their labels and sprites, the setup bars' labels and markers, the repair times and the car
+//! condition bar. The order is fixed (the title, `draw_service_time`, the `STEPS` list,
+//! `draw_repair_times`, the six setup markers, `draw_inspection_status`); the sprites in the list
+//! take the end of the text drawn just before them as their palette (unused). It also sets a
+//! service area work cell to 0.
 //!
-//! The order is the original's: the title ("<string 0x190> <car index + 1> <string 0x486>",
-//! built in the shared text buffer), `draw_service_time`, the `STEPS` list, the string
-//! 0x4B0 + `dword_75AC9C`, `draw_repair_times`, the six setup markers, `draw_inspection_status`.
-//! The sprites in the list are blitted with whatever ebx holds as the palette, which is the
-//! end of the text drawn just before them; reproduced. It also sets `dword_6218AC` to 0.
-//! Its address is in the service area's list at 0x75924A; it is also called from 0x46D001.
-//! What is on it, from the owner's screenshot of 2026-10-10 (Portuguese game): the title
-//! "JOGADOR 1 ÁREA DE SERVIÇO"; a repair section with fourteen parts in two columns (engine,
-//! exhaust, turbo, cooling, clutch, differential, gearbox; body, electronics, lights,
-//! steering, suspension, brakes, tyres), each with an icon, a repair time and a damage bar
-//! (car +0xD4 .. +0x108, in that row order left then right); "n/d" on the turbo's bar when
-//! the car's dword at +0x90 is not 0; five gear ratio pictures (acceleration .. top speed)
-//! and six tyre pictures with the name of the chosen tyre (`dword_75AC9C`); a setup section
-//! with four sliders; and the inspection status bar. The four big buttons at the bottom
-//! (load setup, save setup, view stage, continue) are labels drawn here too.
-//!
-//! Screen: confirmed by the owner on 2026-10-10 with `blank on screens::draw_service_area`: the
-//! service area of a championship. All text and icons disappeared; the boxes that hold them stayed,
-//! so those are drawn by something else (not ported). The menus and draw lists run its `entry`
-//! (`menu::table_calls`).
+//! Seen in a screenshot of a championship's service area: the title "JOGADOR 1 ÁREA DE SERVIÇO";
+//! fourteen parts in two columns (engine, exhaust, turbo, cooling, clutch, differential, gearbox;
+//! body, electronics, lights, steering, suspension, brakes, tyres), each with an icon, a repair
+//! time and a damage bar; "n/d" on the turbo's bar when the car has no turbo; five gear ratio
+//! pictures and six tyre pictures with the name of the chosen tyre; four setup sliders; the
+//! inspection status bar; and the four big buttons at the bottom (load setup, save setup, view
+//! stage, continue), whose labels are drawn here. Switching it off removed all text and icons; the
+//! boxes that hold them are drawn by `draw_service_boxes`.
 
 use crate::errors::{BadInput, Refused};
-use crate::gfx::blit_bar::{Bar, blit_bar};
+use crate::gfx::blit_bar::{Bar, blit_bar_in};
 use crate::gfx::blit_glyph::BlitCall;
-use crate::menu::owner::Menus;
-use crate::race::owner::race;
+use crate::gfx::owner::Gfx;
 use crate::screens::draw_inspection_status::draw_inspection_status;
 use crate::screens::draw_repair_times::draw_repair_times;
 use crate::screens::draw_service_time::draw_service_time;
@@ -64,19 +53,27 @@ fn font_of(font: AreaFont) -> crate::gfx::typefaces::FontId {
     }
 }
 
-// ---- Rust version ----
-
-/// Returns the carry flag of the last text drawn. Refuses a missing player and a title
-/// that does not fit the text buffer.
-pub fn draw_service_area(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+/// Returns whether the last text drawn was too wide for its box. Refuses a missing player and a
+/// title that does not fit the text buffer.
+pub fn draw_service_area(
+    o: crate::owners::Owners<'static>,
+    gfx: &Gfx,
+    race: &crate::race::owner::Race,
+    canvas: &mut dyn Canvas,
+) -> Result<bool, Refused> {
+    let menus = o.menus;
     let screens = &menus.screens;
-    race().shared.switches.service_cleared.set_bits(0u32);
+    race.shared.switches.get().service_cleared.set(0);
 
-    // Converted: `rc2k_core::screens::service` (`area_title`, `AREA_STEPS`).
+    // The logic is in `rc2k_core::screens::service` (`area_title`, `AREA_STEPS`).
     let fault = crate::menu::event_flow::Fault::default();
     let string = |id: u32| {
         let mut bytes = Vec::new();
-        fault.ok(push_string(&mut bytes, id));
+        fault.ok(push_string(
+            crate::strings::append_string_by_id::StringOwners::of(o),
+            &mut bytes,
+            id,
+        ));
         bytes
     };
     let title = area_title(
@@ -88,13 +85,13 @@ pub fn draw_service_area(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool,
     if title.len() > TEXT_LEN {
         return Err(BadInput("the title is longer than the text buffer").into());
     }
-    text_at().write_bytes(&title, "the title")?;
+    text_at(o.strings).write_at(0, &title, "the title")?;
     let (x, y) = AREA_TITLE_AT;
     draw_text_at(font_of(AreaFont::Title), &title, x, y, canvas)?;
 
-    draw_service_time(screens, canvas)?;
+    draw_service_time(o, canvas)?;
 
-    let Some(player) = current_player() else {
+    let Some(player) = current_player(menus) else {
         return Err(BadInput("no current player object: the original reads through null").into());
     };
     let car = player.get();
@@ -102,11 +99,25 @@ pub fn draw_service_area(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool,
     for step in AREA_STEPS {
         match step {
             AreaStep::Label(id, font, x, y) => {
-                draw_string_by_id_at(id, font_of(font), x, y, canvas)?;
+                draw_string_by_id_at(
+                    crate::strings::append_string_by_id::StringOwners::of(o),
+                    id,
+                    font_of(font),
+                    x,
+                    y,
+                    canvas,
+                )?;
             }
             AreaStep::LabelIfClass(id, font, x, y) => {
                 if car.class != 0 {
-                    draw_string_by_id_at(id, font_of(font), x, y, canvas)?;
+                    draw_string_by_id_at(
+                        crate::strings::append_string_by_id::StringOwners::of(o),
+                        id,
+                        font_of(font),
+                        x,
+                        y,
+                        canvas,
+                    )?;
                 }
             }
             AreaStep::DamageBar(x, y, part) => {
@@ -118,25 +129,37 @@ pub fn draw_service_area(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool,
                     end_glyph,
                     percent: car.damage[part] as i32,
                 }
-                .write();
-                blit_bar(&mut |call| canvas.blit_glyph(call))?;
+                .write_in(gfx);
+                blit_bar_in(gfx, menus, &mut |call| canvas.blit_glyph(call))?;
             }
             AreaStep::Sprite(glyph, x, y) => {
-                canvas.blit_glyph(BlitCall::sprite(glyph, x, y))?;
+                canvas.blit_glyph(BlitCall::sprite(
+                    menus,
+                    glyph,
+                    x,
+                    y,
+                    crate::gfx::surface::clip(gfx).right,
+                ))?;
             }
         }
     }
 
-    let setting = screens.state.driver_stats.setups[1]
+    let setting = menus.service.setups[1]
         .chosen
         .get()
         .wrapping_add(SETTING_FIRST_STRING);
-    screens.draw_work.figure.set(setting);
     let (x, y) = TYRE_AT;
-    draw_string_by_id_at(setting, font_of(AreaFont::Small), x, y, canvas)?;
+    draw_string_by_id_at(
+        crate::strings::append_string_by_id::StringOwners::of(o),
+        setting,
+        font_of(AreaFont::Small),
+        x,
+        y,
+        canvas,
+    )?;
 
-    // The markers get the car in edi.
-    draw_repair_times(screens, canvas)?;
+    // The markers get the car.
+    draw_repair_times(o, canvas)?;
     for marker in [
         draw_brake_balance_marker::MARKER,
         draw_steering_sensitivity_marker::MARKER,
@@ -145,7 +168,7 @@ pub fn draw_service_area(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool,
         draw_ride_height_marker::MARKER,
         draw_suspension_stiffness_marker::MARKER,
     ] {
-        draw_marker(menus, marker, player, canvas)?;
+        draw_marker(menus, gfx, marker, player, canvas)?;
     }
-    draw_inspection_status(menus, screens, canvas)
+    draw_inspection_status(o, screens, canvas)
 }

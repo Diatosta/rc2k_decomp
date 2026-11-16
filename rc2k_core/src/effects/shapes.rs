@@ -1,12 +1,10 @@
-//! The shape tables of two kinds of the marks' items, windscreen drops and squares (converted
-//! 2026-10-21 from `effects::set_up_windscreen_drops` 0x4BAA55 and `effects::set_up_windscreen_flakes`
-//! 0x4BF529): a quarter-circle curve of 0x100 floats, 8 circles of points (one a radius),
-//! and for the windscreen drops 0x40 fans of four triangles.
+//! The shape tables of two kinds of the marks' items, windscreen drops and squares: a
+//! quarter-circle curve of 0x100 floats, 8 circles of points (one a radius), and for the windscreen
+//! drops 0x40 fans of four triangles.
 //!
-//! As in `math::geometry`, what the x87 keeps on its stack is an `f64`, rounded to `f32`
-//! where the original stores it. `fldpi`'s 64-bit pi is kept exactly (`pi_over`); the
-//! circles' `fsincos` are the `f64`'s (`scene::trig`): the last bit of a point may differ
-//! at a rounding edge.
+//! As in `math::geometry`, what the x87 keeps on its stack is an `f64`, rounded to `f32` where it
+//! is stored. `fldpi`'s 64-bit pi is kept exactly (`pi_over`); the circles' `fsincos` are the
+//! `f64`'s (`scene::trig`): the last bit of a point may differ at a rounding edge.
 
 use crate::scene::trig::{cosine, sine};
 
@@ -20,8 +18,8 @@ pub const FANS: u32 = 0x40;
 /// The x87's `fldpi` (rounded to the nearest): pi = this x 2^-62.
 const FLDPI: u64 = 0xC90F_DAA2_2168_C235;
 
-/// `fldpi; fidiv c` at the x87's double precision: its 64-bit pi over `c`, rounded once
-/// to 53 bits (to the nearest, ties to even); over 0 an infinity.
+/// The x87's 64-bit pi over `c` at its double precision, rounded once to 53 bits (to the
+/// nearest, ties to even); over 0 an infinity.
 pub fn pi_over(c: i32) -> f64 {
     if c == 0 {
         return f64::INFINITY;
@@ -40,8 +38,8 @@ pub fn pi_over(c: i32) -> f64 {
     if c < 0 { -v } else { v }
 }
 
-/// `fld1; fild i; fsub a; fmul b; fmul st, st; fsubr st, st(1); fsqrt; fsubp`, negated
-/// when `negate`: 1 - sqrt(1 - ((i - a) b)^2), a quarter circle's curve (a NaN past it).
+/// 1 - sqrt(1 - ((i - a) b)^2) in `f64`, negated when `negate`: a quarter circle's curve (a NaN
+/// past it).
 pub fn curve_value(i: i32, a: f32, b: f32, negate: bool) -> f32 {
     let x = (i as f64 - a as f64) * b as f64;
     let v = 1.0 - (1.0 - x * x).sqrt();
@@ -57,8 +55,7 @@ pub fn curve(a: f32, b: f32) -> [f32; CURVE] {
 }
 
 /// A circle of `sides` points of radius `r`: each (sin, cos) of the angle times `r` (x,
-/// y, the third float left), the angle from 0 on by pi / `c` times `d`, kept on the
-/// stack.
+/// y, the third float left), the angle from 0 on by pi / `c` times `d`, kept in `f64`.
 pub fn circle(r: f32, sides: u32, c: i32, d: f32) -> Vec<[f32; 2]> {
     let step = pi_over(c) * d as f64;
     let mut angle = 0.0f64;
@@ -83,7 +80,7 @@ pub fn fan(n: u32) -> [[u16; 3]; 4] {
     })
 }
 
-/// `fld v; fmul a [; fmul b]; fstp`: the windscreen drops' four scaled floats.
+/// The windscreen drops' four scaled floats: `v` times each of `by` in `f64`, stored as `f32`.
 pub fn scaled(v: f32, by: &[f32]) -> f32 {
     by.iter().fold(v as f64, |p, &k| p * k as f64) as f32
 }
@@ -107,7 +104,10 @@ mod tests {
         assert_eq!(p[0], [0.0, 2.0]);
         assert_eq!(
             p[1],
-            [2.0, (std::f64::consts::FRAC_PI_2.cos() * 2.0) as f32]
+            [
+                2.0,
+                (crate::math::portable::cos(std::f64::consts::FRAC_PI_2) * 2.0) as f32
+            ]
         );
         assert_eq!(fan(1), [[6, 7, 8], [6, 8, 9], [6, 9, 10], [6, 10, 11]]);
         assert_eq!(scaled(2.0, &[3.0, 0.5]), 3.0);

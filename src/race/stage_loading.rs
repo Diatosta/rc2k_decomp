@@ -1,11 +1,9 @@
-//! `race::load_stage` (0x444040, IDA 2026-10-17): "SHAUNINITEVERYTHING": the loading
-//! picture (unless `dword_71C3E0`), the cars' sounds woken, `race::loadlevel_init`, the
-//! in-game music, the controls, race init (`drive::race_init`, the game's until ported), the
-//! clock restarted and the race's starting values; each step logged and indented.
+//! `race::load_stage`: "SHAUNINITEVERYTHING": shows the loading picture (unless `in_credits`),
+//! wakes the cars' sounds, runs `race::loadlevel_init`, sets up the in-game music and the
+//! controls, runs race init (`drive::race_init`), restarts the clock and sets the race's starting
+//! values; each step is logged and indented.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
-use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 
 /// "------", "SHAUNINITEVERYTHING - START", ": loading screen / ..", ": loadlevel_init",
@@ -22,20 +20,18 @@ const WORDS: [&std::ffi::CStr; 9] = [
     c"----------------------------",
 ];
 
-/// `race::load_stage` (0x444040): a line break, a rule, "START", "loading screen" (indent
-/// in): the loading picture (`menu::show_loading_picture`) unless `dword_71C3E0`,
-/// `dword_70F3E8` -1, `race::wake_car_sounds`; then each with its word and the indent round
-/// it: `loadlevel_init`, the music (`game_music` with `dword_64BB18`, else
-/// `game_music_8`), `create_controls`, race init (`drive::race_init`) and
-/// `scene::restart_clock`; the starting values (`STARTS` with the clock, the blocks'
-/// +0xFB4 3 and +0xFB0 8, `LAST_STARTS`); "FINIS", a rule, a line break. The registers
-/// and flags it leaves (eax the clock, carry clear) are read by none of its seven callers
-/// (`taint.py` at each site: no read point; conversion phase 3, 2026-10-24).
-pub fn load_stage(race: &Race) -> Result<(), Refused> {
-    let system = crate::system::owner::system();
-    let gfx = crate::gfx::owner::gfx();
-    let input = crate::input::owner::input();
-    let scene = crate::scene::owner::scene();
+/// `race::load_stage`: logs a line break, a rule, "START" and "loading screen" (indenting). Shows
+/// the loading picture (`menu::show_loading_picture`) unless `in_credits`, sets `last_kept` to -1
+/// and wakes the car sounds (`race::wake_car_sounds`). Then, each with its word and the indent
+/// round it: `loadlevel_init`, the music (`game_music` with `Finish.no_place`, else
+/// `game_music_8`), `create_controls`, race init (`drive::race_init`) and `scene::restart_clock`.
+/// Last come the starting values (the clocks, the start lights, and 3 light hold steps for each
+/// of the eight cars), "FINIS", a rule and a line break.
+pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    let input = o.input;
+    #[cfg(feature = "remote")]
+    crate::race::course_hash::reset_texture_hash();
+    crate::race::load_times::begin("load_stage: loading picture, car sounds");
     let indent = |by: i32| {
         crate::logfile::write_line::state::INDENT
             .atomic()
@@ -52,28 +48,33 @@ pub fn load_stage(race: &Race) -> Result<(), Refused> {
     log();
     log();
     indent(3);
-    if race.shared.work.in_credits.get() == 0
-    /* dword_71C3E0 */
-    {
-        // As `menu::show_loading_picture`.
-        crate::gfx::show_picture_file::show_picture_file(
-            &menus().tables.texts.loading_pcx,
-            gfx,
-            system,
-        )?;
+    crate::race::load_times::mark("show loading picture");
+    if !race.shared.work.get().in_credits.is_set() {
+        // The same picture as `menu::show_loading_picture` shows.
+        crate::gfx::show_picture_file::show_picture_file(o, &o.menus.texts.loading_pcx)?;
     }
-    race.replay.replay_frames.last_kept.set(u32::MAX);
-    crate::race::sounds::wake_car_sounds(race)?;
+    race.replay.replay_frames().last_kept.set(u32::MAX);
+    crate::race::load_times::mark("wake car sounds");
+    crate::race::sounds::wake_car_sounds(race, o.sound, o.audio, o.system)?;
     indent(-3);
     log();
     indent(3);
     use crate::race::loading_bar_frame::STAGE_LOADING;
     STAGE_LOADING.store(true, std::sync::atomic::Ordering::Relaxed);
+    o.race.shared.heard_turn.get().forget();
+    #[cfg(feature = "remote")]
+    crate::remote::race_loading(o.race, o.race.effects.get());
     let begun = std::time::Instant::now();
-    crate::race::loadlevel::loadlevel_init(race, scene, system)?;
+    crate::race::loadlevel::loadlevel_init(
+        race,
+        o,
+        &mut crate::race::loading_bar_frame::LoadingBar::new(o),
+    )?;
+    #[cfg(feature = "remote")]
+    crate::race::course_hash::log_hashes(race, o.scene, "load");
     STAGE_LOADING.store(false, std::sync::atomic::Ordering::Relaxed);
     let (shown, micros) = crate::race::loading_bar_frame::shown();
-    crate::framework::log(&format!(
+    crate::logfile::program_log::log(&format!(
         "race::load_stage: loaded in {} ms, {shown} bar frames in {} ms",
         begun.elapsed().as_millis(),
         micros / 1000
@@ -81,49 +82,61 @@ pub fn load_stage(race: &Race) -> Result<(), Refused> {
     indent(-3);
     log();
     indent(3);
-    if race.replay.finish.no_place.get() != 0 {
-        crate::race::music::game_music(&race.shared);
+    crate::race::load_times::phase("load_stage: music");
+    if race.replay.finish.get().no_place.get() != 0 {
+        crate::race::music::game_music(&race.shared, o);
     } else {
-        crate::race::music::game_music_8();
+        crate::race::music::game_music_8(o);
     }
     indent(-3);
     log();
     indent(3);
+    crate::race::load_times::phase("load_stage: create controls");
     crate::race::create_controls::create_controls(input);
     indent(-3);
     log();
     indent(3);
-    crate::drive::race_init::race_init(race, scene)?;
+    crate::race::load_times::phase("load_stage: race init");
+    crate::drive::race_init::race_init(o, race)?;
+    crate::race::load_times::phase("load_stage: starting values");
     crate::scene::restart_clock::restart_clock(
         &race.shared,
-        crate::system::tick_count::tick_count(),
+        crate::system::tick_count::tick_count(&o.system.session.picture_clock),
     );
-    let clock: u32 = race.shared.physics_tables.scene_clock.bits();
-    race.frame.clock_ticks.clock_b.set(clock);
-    race.frame.clock_ticks.sound_ticks.set(0);
-    race.shared.physics_tables.race_clock_now.set(clock);
-    race.shared.physics_tables.race_clock_base.set(clock);
-    race.frame.panel_and_overlay.overlay.start_lights_lit.set(0);
-    race.frame.panel_and_overlay.panel.lights[0]
+    let clock: u32 = race.shared.physics_tables.get().scene_clock.get();
+    race.frame.clock_ticks().clock_b.set(clock);
+    race.frame.clock_ticks().sound_ticks.set(0);
+    race.shared.physics_tables.get().race_clock_now.set(clock);
+    race.shared.physics_tables.get().race_clock_base.set(clock);
+    race.frame
+        .panel_and_overlay
+        .get()
+        .overlay
+        .start_lights_lit
+        .set(0);
+    race.frame.panel_and_overlay.get().panel.lights[0]
         .lit
         .set(u32::MAX);
-    race.frame.panel_and_overlay.panel.lights[1]
+    race.frame.panel_and_overlay.get().panel.lights[1]
         .lit
         .set(u32::MAX);
-    for car in &CAR_BLOCKS.cars[..8] {
+    for car in &race.car_blocks().cars[..8] {
         car.light_hold_steps.set(3);
     }
-    for car in &CAR_BLOCKS.cars[..8] {
+    for car in &race.car_blocks().cars[..8] {
         car.value_jump_steps.set(8);
     }
-    race.shared.switches.other_way.set(1);
-    race.shared.switches.view_marks_on.set(1);
-    race.physics.ground.stage_loading.set(0);
-    race.shared.view.view_on[0].set(1);
-    race.shared.view.view_on[1].set(1);
+    race.shared.switches.get().scene_set_up.set(1);
+    race.shared.switches.get().view_marks_on.set(1);
+    race.physics.ground().stage_loading.set(0);
+    race.shared.view.get().view_on[0].set(1);
+    race.shared.view.get().view_on[1].set(1);
     indent(-3);
     log();
     log();
     newline();
+    #[cfg(feature = "remote")]
+    crate::race::course_hash::log_started_hashes(race);
+    crate::race::load_times::end();
     Ok(())
 }

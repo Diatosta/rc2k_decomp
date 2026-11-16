@@ -1,12 +1,6 @@
-//! The menus' one-line text entry (converted 2026-10-21 from its four editors:
-//! `menu::edit_player_name` 0x467C63, `edit_savegame_name`, `edit_replay_name` and
-//! `service::edit_setup_name` 0x46F1A9): what a pending key does. Each editor does its
-//! own with it (the name brought back, the slot saved, the cursor written). And the
-//! entry's state and its helpers (converted 2026-10-21 from `menu::backup_text` 0x46D5CC,
-//! `restore_text` 0x46D5E3, `clear_text` 0x467DC9, `add_text_length` 0x46F4CE,
-//! `backspace_savegame_name` 0x46D5FD, `begin_player_name` 0x467C34, `begin_savegame_name`
-//! 0x46D571 and `begin_replay_name` 0x46F715); the players' names fitted to their width
-//! (`menu::fit_player_names` 0x411445).
+//! The menus' one-line text entry: what a pending key does (each editor does its own with it: the
+//! name brought back, the slot saved, the cursor written), the entry's state and its helpers, and
+//! the players' names fitted to their width.
 
 use crate::Invalid;
 
@@ -16,13 +10,13 @@ pub const TEXT_LEN: usize = 0x1F;
 /// A text field's text, its NUL left out.
 pub type Text = [u8; TEXT_LEN];
 
-/// The entry's state: the length typed so far (`dword_75556D`), 1 while a text is being
-/// typed (`dword_7556A8`), the text as it was before (`unk_7558A4`, which Escape brings
+/// The entry's state: the length typed so far, 1 while a text is being
+/// typed, the text as it was before (`Names.text_backup`, which Escape brings
 /// back).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Entry {
     pub length: i32,
-    pub entering: u32,
+    pub entering: bool,
     pub backup: Text,
 }
 
@@ -55,18 +49,18 @@ impl Entry {
     pub fn begin(&mut self, field: &mut Text) {
         self.back_up(field);
         self.clear(field);
-        self.entering = 1;
+        self.entering = true;
         self.length = 0;
     }
 
-    /// `menu::begin_player_name`: unless the Enter came with ah 4 (`with_4`), the name
+    /// `menu::begin_player_name`: unless the Enter came with the second byte 4 (`with_4`), the name
     /// kept in `kept` (the players' own copy), cleared and an entry going on; either way
     /// nothing typed.
     pub fn begin_player_name(&mut self, with_4: bool, name: &mut Text, kept: &mut Text) {
         if !with_4 {
             *kept = *name;
             self.clear(name);
-            self.entering = 1;
+            self.entering = true;
         }
         self.length = 0;
     }
@@ -89,10 +83,9 @@ impl Entry {
 /// The widest a player's name may be shown, in pixels (`menu::fit_player_names`).
 pub const WIDEST_NAME: u32 = 0x15E;
 
-/// `menu::fit_name` (0x411474, of `menu::fit_player_names` 0x411445): a name of `len`
-/// characters cut, one character at a time, until it is no wider than `WIDEST_NAME`;
-/// `measure(len)` ends the name at `len` (its NUL written) and measures it. The width it is
-/// left with. Refused: an empty name still too wide.
+/// `menu::fit_name`, of `menu::fit_player_names`: a name of `len` characters cut, one character at
+/// a time, until it is no wider than `WIDEST_NAME`; `measure(len)` ends the name at `len` (its NUL
+/// written) and measures it. The width it is left with. Refused: an empty name still too wide.
 pub fn fit_name<E: From<Invalid>>(
     len: usize,
     mut measure: impl FnMut(usize) -> Result<u32, E>,
@@ -187,14 +180,14 @@ mod tests {
     fn state() {
         let mut e = Entry {
             length: 3,
-            entering: 0,
+            entering: false,
             backup: [0xBB; TEXT_LEN],
         };
         let mut field = [b'x'; TEXT_LEN];
         e.begin(&mut field);
         assert_eq!(
             (e.length, e.entering, e.backup, field),
-            (0, 1, [b'x'; TEXT_LEN], [0; TEXT_LEN])
+            (0, true, [b'x'; TEXT_LEN], [0; TEXT_LEN])
         );
         assert_eq!(e.restored()[..TEXT_LEN], [b'x'; TEXT_LEN]);
         assert_eq!(e.restored()[TEXT_LEN], 0);
@@ -207,13 +200,16 @@ mod tests {
         let (mut name, mut kept) = ([b'n'; TEXT_LEN], [0; TEXT_LEN]);
         e = Entry {
             length: 7,
-            entering: 0,
+            entering: false,
             backup: [0; TEXT_LEN],
         };
         e.begin_player_name(true, &mut name, &mut kept);
-        assert_eq!((e.length, e.entering, name[0], kept[0]), (0, 0, b'n', 0));
+        assert_eq!(
+            (e.length, e.entering, name[0], kept[0]),
+            (0, false, b'n', 0)
+        );
         e.begin_player_name(false, &mut name, &mut kept);
-        assert_eq!((e.entering, name[0], kept[0]), (1, 0, b'n'));
+        assert_eq!((e.entering, name[0], kept[0]), (true, 0, b'n'));
         let text = b"abc\0";
         assert_eq!(text_length(|i| text[i]), Ok(3));
         assert!(text_length(|_| 1).is_err());

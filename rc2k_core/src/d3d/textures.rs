@@ -1,20 +1,17 @@
-//! The system textures' lock (converted 2026-10-21 from `d3d::lock_texture` 0x41AA4B,
-//! `d3d::unlock_texture` 0x41AB02 and `d3d::texture_surface_info` 0x41AA93).
-//!
-//! A system texture's record (0x78 bytes, 0x140 of them): +4 width, +8 height, +0xC its
-//! pixel kind's description (+4 bytes a pixel, +8 the format), +0x14 its first level's
-//! surface, +0x60 locked. Locked, its surface is the one the blitters draw on.
+//! The system textures' lock. A texture's record is 0x78 bytes (0x140 of them): +4 width, +8
+//! height, +0xC its pixel kind's description (+4 bytes a pixel, +8 the format), +0x14 its first
+//! level's surface, +0x60 locked. Locked, its surface is the one the blitters draw on.
 
 use crate::Invalid;
 
-/// The records in the pool.
+/// The number of texture records in the pool.
 pub const POOL: u32 = 0x140;
 /// The fatal errors: locked twice, the lock failed, the unlock failed.
 pub const LOCKED_TWICE: u32 = 0x8021_A171;
 pub const LOCK_FAILED: u32 = 0x8021_A172;
 pub const UNLOCK_FAILED: u32 = 0x8021_A173;
 
-/// The flags of `cmp dword [record + 0x60], 1` (carry, zero).
+/// A texture's locked word compared with 1: (below, equal).
 pub fn compared_with_one(locked: u32) -> (bool, bool) {
     (locked < 1, locked == 1)
 }
@@ -26,7 +23,7 @@ fn in_pool(slot: u32) -> Result<(), Invalid> {
     Ok(())
 }
 
-/// What `d3d::lock_texture` does before its flags.
+/// What `d3d::lock_texture` does for a texture slot.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Lock {
     /// No surface: nothing.
@@ -38,8 +35,8 @@ pub enum Lock {
     Lock,
 }
 
-/// `d3d::lock_texture`'s choice for texture `slot` with its surface (`locked` asked only
-/// with one). Refuses a slot past the pool.
+/// `d3d::lock_texture`'s choice for texture `slot` (`locked` asked only with a surface).
+/// Refuses a slot past the pool.
 pub fn lock(slot: u32, surface: u32, locked: impl FnOnce() -> u32) -> Result<Lock, Invalid> {
     in_pool(slot)?;
     Ok(if surface == 0 {
@@ -51,13 +48,13 @@ pub fn lock(slot: u32, surface: u32, locked: impl FnOnce() -> u32) -> Result<Loc
     })
 }
 
-/// What `d3d::unlock_texture` does.
+/// What `d3d::unlock_texture` does for a texture slot.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Unlock {
-    /// Nothing, these flags (carry, zero) left.
+    /// Nothing done; the comparison's (below, equal) stand.
     Flags(bool, bool),
-    /// The surface's `Unlock` (a failure is `UNLOCK_FAILED`), locked 0, carry clear and
-    /// zero set.
+    /// The surface's `Unlock` (a failure is `UNLOCK_FAILED`), locked 0, below false and
+    /// equal true.
     Unlock,
 }
 
@@ -77,7 +74,7 @@ pub fn unlock(slot: u32, surface: u32, locked: impl FnOnce() -> u32) -> Result<U
     }
 }
 
-/// The surface the blitters draw on (`g_surface`'s dwords from +8), as
+/// The surface the blitters draw on (the drawing surface's dwords from +8), as
 /// `d3d::texture_surface_info` sets it for a locked texture.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Surface {
@@ -95,8 +92,8 @@ pub struct Surface {
     pub gap: u32,
 }
 
-/// The surface of a texture `width` x `height` of `bytes` a pixel, locked at `pixels`
-/// with `pitch` bytes a row (all wrapping, as the original).
+/// The surface of a texture `width` x `height` of `bytes` a pixel, locked at `pixels` with
+/// `pitch` bytes a row (all wrapping).
 pub fn surface_info(
     width: u32,
     height: u32,

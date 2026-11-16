@@ -1,48 +1,23 @@
-//! `net::add_address_element` (0x41896E): one more element of the compound address being
-//! built (`unk_52AC48`, 0x18 bytes each, `dword_52AC3C` of them: a DPCOMPOUNDADDRESSELEMENT,
-//! the data type's GUID, the data's size, the data).
-//!
-//! Takes `data_type`, `size`, `data`.
-//! No limit on the count. Caller: `net::build_address` (five times; three at most in one
-//! go).
-//!
-//! Since 2026-10-29 the elements are Rust's (`elements`, each its type and its data's
-//! bytes, as `net::dp_objects` takes them); the count is kept, the game's table
-//! (`unk_52AC48`, which held pointers to the data) is no longer written.
+//! One more element of the compound DirectPlay address being built: a data type, its size and
+//! its bytes. At most three are added in one go; there is no limit check.
 
 use crate::net::dp_objects::Element;
 use crate::net::owner::Net;
-use crate::net::store::NetVars;
-use crate::session::Bytes;
-use std::sync::Mutex;
-
-/// The elements added since the last `clear`.
-static ELEMENTS: Mutex<Vec<Element>> = Mutex::new(Vec::new());
-
-/// The Rust version: the element of type `data_type` with `data`.
-pub fn add_address_element(net: &Net, data_type: &Bytes<16>, data: &[u8]) {
-    net.vars
+/// The element of type `data_type` with `data`.
+pub fn add_address_element(net: &Net, data_type: &[u8; 16], data: &[u8]) {
+    net.address()
         .elements
-        .set(net.vars.elements.get().wrapping_add(1));
-    ELEMENTS
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
-        .push((data_type.read(), data.to_vec()));
+        .set(net.address().elements.get().wrapping_add(1));
+    net.link.push_element((*data_type, data.to_vec()));
 }
 
 /// No elements (the count 0).
-pub fn clear(vars: &NetVars) {
-    vars.elements.set(0);
-    ELEMENTS
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
-        .clear();
+pub fn clear(net: &Net) {
+    net.address().elements.set(0);
+    net.link.clear_elements();
 }
 
 /// The elements added.
-pub fn elements() -> Vec<Element> {
-    ELEMENTS
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
-        .clone()
+pub fn elements(net: &Net) -> Vec<Element> {
+    net.link.elements()
 }

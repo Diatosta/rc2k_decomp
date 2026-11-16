@@ -1,34 +1,15 @@
-//! `system::test_processor` (0x410883): what the processor is and has, and its clock.
-//!
-//! `dword_5183D0` 3; if the flags' AC bit (0x40000) cannot be changed, the FPU test below. Else 4;
-//! if the ID bit (0x200000) cannot be changed, or `cpuid` 0's highest leaf is 0, the FPU test. Else
-//! the vendor's text (ebx, edx, ecx) to 0x5183D8 .. 0x5183E0; leaf 1's eax to `dword_5183D4` and
-//! its family ((eax >> 8) & 0xF) to `dword_5183D0`; from its edx: bit 0 (FPU) `g_hasFpu` (0x5183EC,
-//! which `start` requires) 1; bit 4 (TSC) `dword_5183F0` 1; bit 15 (CMOV) `dword_5183F4` 1; bit 23
-//! (MMX) `dword_5183F8` 1; bit 25 (SSE) `dword_5183FC` 1; "AuthenticAMD" with an extended leaf
-//! 0x80000001 whose edx has bit 31 (3DNow!) `dword_518400` 1 ("CyrixInstead" is asked the same and
-//! nothing is kept). The FPU test (no `cpuid`): `fninit`, the status word (0x5A5A there before)
-//! and, if its low byte is 0, the control word through the word at 0x93E8B0 (`g_pngInfo`'s, a
-//! scratch place here); `& 0x103F` = 0x3F: `g_hasFpu` 1. Then, if `dword_5183F0` is 1: from the
-//! next change of `GetTickCount` 250 ms are timed by `rdtsc`, and the cycles / 250000 (the clock in
-//! MHz) go to `dword_5183E8`. The original executes `rdtsc`, `emms` and `xorps` once each to see
-//! that they do not fault, with `dword_51849C` the place its exception filter goes on at (0 after
-//! each); the Rust version does not execute them (a processor that says it has them has them) and
-//! leaves `dword_51849C` 0 where the original does. Refuses (with the processor's variables already
-//! written) a clock whose quotient does not fit in 32 bits (the original's `div` traps there). One
-//! caller, `start` (0x40101A), directly since 2026-10-23.
+//! What the processor is and has, and its clock: the family, vendor, signature, and the feature
+//! bits the game uses (FPU, which `start` requires, TSC, CMOV, MMX, SSE, 3DNow!), through
+//! `cpuid`, with a plain FPU test on a processor without it. With a TSC, 250 ms are timed by
+//! `rdtsc` into `cpu_mhz`. Refuses (with the processor's variables already written) a clock
+//! whose quotient does not fit in 32 bits.
 
 use crate::errors::{BadInput, Refused};
-use crate::session::{Dword, Machine};
+use crate::memory::session::{Machine, PlainDword};
 use rc2k_core::system::processor::{Var, test};
 
-// ---- game data ----
-
-// ---- Rust version ----
-
-/// Whether toggling `bit` in the flags changes them (the original's `pushf` .. `popf` test
-/// for the alignment flag and CPUID): yes on every processor these builds can run on, which
-/// all have SSE2.
+/// Whether toggling `bit` in the flags changes them: yes on every processor these builds can
+/// run on, which all have SSE2.
 fn flag_toggles(_bit: u32) -> bool {
     true
 }
@@ -39,16 +20,34 @@ fn fpu_words() -> (u16, u16) {
     (0, 0x037F)
 }
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+/// The features every machine reports (leaf 1's feature bits): an FPU, a counter, `cmov`, MMX and
+/// SSE, as every x86 these builds run on has, and no 3DNow!. The game picks its MMX and
+/// SSE paths by them (lighting, polygon depths, the ground's face shares), which compute
+/// differently: one answer everywhere, so the handheld, the Mac and every PC run the same
+/// arithmetic and replays and network games agree (the estimates themselves are tables,
+/// `arch::rcpss`). The vendor, the signature and the clock stay the machine's (the log and
+/// the frame rate shown).
+const FEATURES: u32 = 1 | 1 << 4 | 1 << 15 | 1 << 23 | 1 << 25;
+
 fn cpuid(leaf: u32) -> (u32, u32, u32, u32) {
-    let r = crate::arch::__cpuid(leaf);
+    let (a, b, c, d) = machine_cpuid(leaf);
+    match leaf {
+        1 => (a, b, c, FEATURES),
+        0x8000_0001 => (a, b, c, d & !0x8000_0000),
+        _ => (a, b, c, d),
+    }
+}
+
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+fn machine_cpuid(leaf: u32) -> (u32, u32, u32, u32) {
+    let r = crate::platform::arch::__cpuid(leaf);
     (r.eax, r.ebx, r.ecx, r.edx)
 }
 
-/// The handheld's answer: a processor with an FPU, a counter and `cmov`, no SIMD of any kind,
-/// so the game takes its plain paths (no x86 there).
+/// The handheld's (and an ARM Mac's) answer: an Intel of family 6 (the features are
+/// `FEATURES`, as everywhere).
 #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
-fn cpuid(leaf: u32) -> (u32, u32, u32, u32) {
+fn machine_cpuid(leaf: u32) -> (u32, u32, u32, u32) {
     match leaf {
         0 => (
             1,
@@ -56,7 +55,7 @@ fn cpuid(leaf: u32) -> (u32, u32, u32, u32) {
             u32::from_le_bytes(*b"ntel"),
             u32::from_le_bytes(*b"ineI"),
         ),
-        1 => (0x680, 0, 0, 1 | 1 << 4 | 1 << 15),
+        1 => (0x680, 0, 0, 0),
         _ => (0, 0, 0, 0),
     }
 }
@@ -76,27 +75,28 @@ impl Processor for Real {
         fpu_words()
     }
     fn ticks(&self) -> u32 {
-        crate::os::ticks()
+        crate::platform::os::ticks()
     }
     fn cycles(&self) -> u64 {
-        crate::arch::rdtsc()
+        crate::platform::arch::rdtsc()
     }
 }
 
-/// Each variable but the FPU's word (the scratch buffer's first bytes).
-fn cell(m: &Machine, v: Var) -> &Dword {
+/// Each variable but the FPU's word (the scratch buffer's first bytes) and the FPU flag
+/// (`HostShared`, read by the audio thread).
+fn cell(m: &Machine, v: Var) -> &PlainDword {
     match v {
         Var::Family => &m.cpu_family,
         Var::Signature => &m.cpu_signature,
         Var::Vendor(n) => &m.cpu_vendor[n],
         Var::Clock => &m.cpu_mhz,
-        Var::HasFpu => &m.has_fpu,
         Var::HasTsc => &m.has_tsc,
         Var::HasCmov => &m.has_cmov,
         Var::HasMmx => &m.found_mmx,
         Var::HasSse => &m.found_sse,
         Var::Has3dNow => &m.found_3dnow,
         Var::Resume => &m.exception_resume,
+        Var::HasFpu => unreachable!("the FPU flag is in `HostShared`"),
         Var::FpuWord => unreachable!("the FPU's word is in the scratch buffer"),
     }
 }
@@ -105,20 +105,27 @@ pub fn test_processor(
     p: &dyn Processor,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
-    // Converted: `rc2k_core::system::processor::test`.
     let mut put = |v: Var, value: u32| {
         if v == Var::FpuWord {
-            system.work.files.buffer.set(0, value as u8);
-            system.work.files.buffer.set(1, (value >> 8) as u8);
+            system.work().files.buffer.set(0, value as u8);
+            system.work().files.buffer.set(1, (value >> 8) as u8);
         } else {
-            cell(&system.session.machine, v).set(value);
+            if v == Var::HasFpu {
+                system.session.host.has_fpu.set(value);
+            } else {
+                cell(system.machine(), v).set(value);
+            }
         }
     };
     let get = |v: Var| {
         if v == Var::FpuWord {
-            system.work.files.buffer.get_u32(0)
+            system.work().files.buffer.get_u32(0)
         } else {
-            cell(&system.session.machine, v).get()
+            if v == Var::HasFpu {
+                system.session.host.has_fpu.get()
+            } else {
+                cell(system.machine(), v).get()
+            }
         }
     };
     let answer = test(p, &mut put, &get);

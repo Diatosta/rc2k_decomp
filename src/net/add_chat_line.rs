@@ -1,21 +1,13 @@
-//! `net::add_chat_line` (0x419428): a message added to the lobby's chat (`byte_52A508`, eight
-//! lines): "name> text" built in `word_52A888` (the player's name from its block of
-//! `g_netReceived`), then cut into lines no wider than 0x30C (`text::measure_text` with
-//! `dword_51E424`, one character more at a time into `byte_52A808`), each line going in at
-//! the bottom and the top one dropped.
-//!
-//! Takes `player` and `message` (nothing if empty). The original also reads a register that
-//! only sets the x of its first `text::measure_text`, which in measure mode changes only the x
-//! the measure leaves, not the width it reads (`rc2k_core::text::draw`); dropped.
-//! A character wider than a line alone leaves the line empty and the text where it was: the
-//! original never ends then (refused, as is a chat with no line end in its 0x300 bytes).
-//! Callers: `net::send_chat` and `net::chat_line_locked` (each with the received messages'
-//! lock held).
+//! Adds a received or own message to the lobby chat (eight lines): "name> text" is cut into
+//! lines no wider than the chat's width, each entering at the bottom while the top one drops.
+//! Does nothing for an empty message. A character wider than a whole line, or a chat text with
+//! no line end, is refused (the cutting would never end). Callers hold the received messages'
+//! lock.
 
 use crate::errors::{BadInput, Refused};
+use crate::gfx::owner::Gfx;
+use crate::memory::session::Bytes;
 use crate::net::owner::Net;
-use crate::net::owner::net;
-use crate::session::Bytes;
 use crate::text::draw_text::GameCanvas;
 use crate::text::measure_text::measure_text_at;
 
@@ -42,11 +34,11 @@ fn put<const N: usize>(b: &Bytes<N>, i: usize, v: u8) -> Result<(), BadInput> {
     }
 }
 
-/// "name> text" and its NUL, cut to `chat_text`'s room (the original runs on over what follows
-/// it, as far as a sender's long message takes it).
-fn said_text(name: &[u8], message: &[u8]) -> Vec<u8> {
+/// "name> text" and its NUL, cut to `chat_text`'s room (fixed: "A long chat message overruns
+/// the chat line" in `wiki/Fixed-bugs.md`).
+fn said_text(net: &Net, name: &[u8], message: &[u8]) -> Vec<u8> {
     let mut text = [name, b"> ", message].concat();
-    text.truncate(net().vars.chat_text.read().len() - 1);
+    text.truncate(net.vars.chat_text.read().len() - 1);
     text.push(0);
     text
 }
@@ -59,22 +51,23 @@ pub fn text_in(bytes: &[u8]) -> Result<&[u8], BadInput> {
         .map(|end| &bytes[..end])
         .ok_or(BadInput("a text without its end in its block"))
 }
-
-/// The Rust version.
-pub fn add_chat_line(net: &Net, player: u32, message: &[u8]) -> Result<(), Refused> {
+pub fn add_chat_line(
+    net: &Net,
+    gfx: &'static Gfx,
+    player: u32,
+    message: &[u8],
+) -> Result<(), Refused> {
     let message = text_in(message)?;
     if message.is_empty() {
         return Ok(());
     }
-    let text = said_text(&net.vars.player_block(player).name.text(), message);
+    let text = said_text(net, &net.vars.player_block(player)?.name.text(), message);
     net.vars.chat_text.write_at(0, &text, "the chat's text")?;
     let (line, chat, said) = (&net.vars.chat_line, &net.vars.chat, &net.vars.chat_text);
     let mut text = 0usize;
     let line_room = line.read().len();
     loop {
         // The next line, built as a value: one character more at a time while it fits.
-        // (The original builds it in `line`, a NUL after each character, and measures the
-        // buffer; the same bytes are stored once the line is cut.)
         let mut built: Vec<u8> = Vec::new();
         let mut cut = false;
         loop {
@@ -90,13 +83,14 @@ pub fn add_chat_line(net: &Net, player: u32, message: &[u8]) -> Result<(), Refus
             }
             text += 1;
             built.push(c);
-            // Measured as the original measures `line`: this line's bytes, its NUL, and the
-            // bytes earlier lines left after it (a control code's argument may be the NUL).
+            // Measured as this line's bytes, its NUL, and the bytes earlier lines left after it
+            // (a control code's argument may be the NUL).
             let mut shown = built.clone();
             shown.push(0);
             let left = line.read();
             shown.extend_from_slice(left.get(shown.len()..).unwrap_or(&[]));
-            let width = { measure_text_at(CHAT_FONT, &shown, 0, &mut GameCanvas) }?.width;
+            let mut canvas = GameCanvas::new(gfx);
+            let width = { measure_text_at(CHAT_FONT, &shown, 0, &mut canvas) }?.width;
             if width > LINE_WIDTH {
                 built.pop();
                 text -= 1;
@@ -104,8 +98,7 @@ pub fn add_chat_line(net: &Net, player: u32, message: &[u8]) -> Result<(), Refus
                 break;
             }
         }
-        // The line as the original leaves it in `line`: its NUL, and a second one where the
-        // character that did not fit was.
+        // The line with its NUL, and a second one where the character that did not fit was.
         built.push(0);
         if cut {
             built.push(0);
@@ -156,8 +149,11 @@ mod said_tests {
 
     #[test]
     fn a_line_is_kept_and_a_long_one_cut_to_its_room() {
-        assert_eq!(said_text(b"Ana", b"hi"), b"Ana> hi\0");
-        let long = said_text(&[b'n'; 31], &[b'm'; 255]);
+        assert_eq!(
+            said_text(crate::test_support::own::net(), b"Ana", b"hi"),
+            b"Ana> hi\0"
+        );
+        let long = said_text(crate::test_support::own::net(), &[b'n'; 31], &[b'm'; 255]);
         assert_eq!(long.len(), 128);
         assert_eq!(long.last(), Some(&0));
     }

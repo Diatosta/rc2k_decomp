@@ -1,126 +1,157 @@
-//! The screen mode tables (the pixel kinds' and thirds' bits, the pixel kinds, the sizes,
-//! the modes listed), out of RAL.EXE's image (phase 5; typed in phase 7,
-//! `notes/conversion.md`): IDA 0x4F4E30 .. 0x4F503C. The thirds table (`byte_4F4B30`) that
-//! came before it in the image is `THIRDS`.
-//!
-//! The tables are walked by address (`system::find_entry`: the entry whose first dword is
-//! a key; a key not there gives the place past the table, as the original reads it), so
-//! the struct keeps the image's layout and the tables' addresses come from it (`*_addr`).
+//! The screen mode tables (the pixel kinds' and thirds' bits, the pixel kinds, the sizes, the modes
+//! listed). The thirds table (`thirds`) is `THIRDS`. The tables are walked by dword
+//! (`Modes::entries`: the entry whose first dword is a key; a key not there gives the place past
+//! the table), through the fields in the record's order (`Modes::dword`).
 
-use crate::gfx::dwords;
-use crate::session::Dword;
-
-/// IDA's address of the block's first byte.
-pub const START: usize = 0x4F4E30;
-/// The block's length.
-pub const LEN: usize = 0x4F503C - START;
+use crate::errors::BadInput;
+use crate::gfx::plain_dwords;
+use crate::memory::session::{PlainDword, Run};
 
 /// The modes the table holds (32 of 8 bytes).
 pub const TABLE_ROOM: usize = 0x20;
 
 /// The screen mode tables.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Modes {
-    /// `dword_4F4E30`: the two pixel kinds' bits (the mode flags' 0x1000, 0x2000: the card).
-    pub kind_bits: [Dword; 2],
-    /// `dword_4F4E38`: the two thirds' bits.
-    pub third_bits: [Dword; 2],
-    /// `g_pixelKinds` (`dword_4F4E40`): two of (key, bits a pixel): (0x200, 16), (0x800, 32).
-    pub pixel_kinds: [Dword; 4],
-    /// `g_screenSizes` (`dword_4F4E50`): eight of (key, width and height as words).
-    pub sizes: [Dword; 16],
-    /// `dword_4F4E90`: three of (key, kind's number): the screen's kind (`g_screenKind`).
-    pub kinds: [Dword; 6],
-    /// `0x4F4EA8` .. `0x4F4F38`: more (key, figure) tables of pairs, a reading; nothing
-    /// ported reads or writes them.
-    pub other_tables: [Dword; 36],
-    /// `g_screenModeCount` (`dword_4F4F38`): the modes in the table.
-    pub count: Dword,
-    /// `g_screenModeTable` (`dword_4F4F3C`): the modes, 8 bytes each (the mode, then its
-    /// flags), room for 32.
-    pub table: [Dword; 2 * TABLE_ROOM],
+    /// The two pixel kinds' bits (the mode flags' 0x1000, 0x2000: the card).
+    pub kind_bits: [PlainDword; 2],
+    /// The two thirds' bits.
+    pub third_bits: [PlainDword; 2],
+    /// Two of (key, bits a pixel): (0x200, 16), (0x800, 32).
+    pub pixel_kinds: [PlainDword; 4],
+    /// Eight of (key, width and height as words).
+    pub sizes: [PlainDword; 16],
+    /// Three of (key, kind's number): the screen's kind.
+    pub kinds: [PlainDword; 6],
+    /// More (key, figure) tables of pairs; nothing ported reads or writes them.
+    pub other_tables: [PlainDword; 36],
+    /// The modes in the table.
+    pub count: PlainDword,
+    /// The modes, 8 bytes each (the mode, then its flags), room for 32.
+    pub table: [PlainDword; 2 * TABLE_ROOM],
 }
 
 impl Modes {
-    /// The tables; the first values are the image's.
+    /// The tables.
     pub const fn new() -> Self {
         Modes {
-            kind_bits: dwords([0x1000, 0x2000]),
-            third_bits: dwords([0x20000, 0x40000]),
-            pixel_kinds: dwords([0x200, 0x10, 0x800, 0x20]),
-            sizes: dwords([
+            kind_bits: plain_dwords([0x1000, 0x2000]),
+            third_bits: plain_dwords([0x20000, 0x40000]),
+            pixel_kinds: plain_dwords([0x200, 0x10, 0x800, 0x20]),
+            sizes: plain_dwords([
                 0x1, 0x1e00280, 0x2, 0x2580320, 0x4, 0x2d003c0, 0x8, 0x3000400, 0x10, 0x3600480,
                 0x20, 0x4000500, 0x40, 0x4b00640, 0x80, 0x5000780,
             ]),
-            kinds: dwords([0x10000, 0x0, 0x20000, 0x1, 0x40000, 0x2]),
-            other_tables: dwords([
+            kinds: plain_dwords([0x10000, 0x0, 0x20000, 0x1, 0x40000, 0x2]),
+            other_tables: plain_dwords([
                 0x200, 0x10, 0x400, 0x18, 0x800, 0x20, 0x100, 0x8, 0x0, 0x0, 0x800, 0x20, 0x400,
                 0x18, 0x200, 0x10, 0x100, 0x8, 0x0, 0x0, 0x400, 0x10, 0x200, 0x18, 0x100, 0x20,
                 0x800, 0x8, 0x4000, 0x1, 0x2000, 0x2, 0x1000, 0x4, 0x0, 0x0,
             ]),
-            count: Dword::new(0),
-            table: [const { Dword::new(0) }; 2 * TABLE_ROOM],
+            count: PlainDword::new(0),
+            table: [const { PlainDword::new(0) }; 2 * TABLE_ROOM],
         }
     }
 }
 
-#[cfg(test)]
-/// Where the block is (`moved::MOVED`'s home for IDA 0x4F4E30).
-pub fn home() -> usize {
-    crate::pointers::game_address(&raw const crate::gfx::owner::GFX.display.modes) as usize
+/// Where the tables start, counted in dwords from the first field.
+impl Modes {
+    pub const PIXEL_KINDS_AT: usize = 4;
+    pub const SIZES_AT: usize = 8;
+    pub const KINDS_AT: usize = 24;
+    pub const TABLE_AT: usize = 67;
 }
 
 impl Modes {
-    /// Where a table is, as a pointer bounded by the whole block (the tables are walked
-    /// past their ends).
-    fn table_ptr(offset: usize) -> crate::pointers::GamePtr {
-        crate::pointers::GamePtr::to(&crate::gfx::owner::GFX.display.modes).offset(offset as u32)
+    /// The fields in the order of the record, each a run of dwords.
+    fn runs(&self) -> [&dyn Run; 8] {
+        [
+            &self.kind_bits,
+            &self.third_bits,
+            &self.pixel_kinds,
+            &self.sizes,
+            &self.kinds,
+            &self.other_tables,
+            &self.count,
+            &self.table,
+        ]
     }
-    pub fn pixel_kinds_ptr() -> crate::pointers::GamePtr {
-        Self::table_ptr(core::mem::offset_of!(Self, pixel_kinds))
+
+    /// Dword `n` of the record. A table that is walked to the key it does not hold (`kinds`) goes
+    /// on into the field after it; past the last field is refused.
+    pub fn dword(&self, n: usize) -> Result<u32, BadInput> {
+        crate::memory::session::read_runs(&self.runs(), n, "a screen mode table's dword")
     }
-    pub fn sizes_ptr() -> crate::pointers::GamePtr {
-        Self::table_ptr(core::mem::offset_of!(Self, sizes))
+
+    /// The `count` entries of two dwords from dword `at` of the record (the tables are walked past
+    /// their ends, inside the record); a read past the record ends the program.
+    pub fn entries(
+        &self,
+        at: usize,
+        count: u32,
+    ) -> impl Iterator<Item = rc2k_core::system::tables::Entry> + '_ {
+        (0..count as usize).map(move |n| {
+            let entry = |k: usize| {
+                self.dword(at.wrapping_add(2 * n + k))
+                    .unwrap_or_else(|e| crate::system::checked_reads::refuse(e))
+            };
+            [entry(0), entry(1)]
+        })
     }
-    pub fn kinds_ptr() -> crate::pointers::GamePtr {
-        Self::table_ptr(core::mem::offset_of!(Self, kinds))
+
+    /// The second dword of the entry whose first dword is `key`, among the `count` entries from
+    /// dword `at`; None when the key is not there.
+    pub fn value_of(&self, key: u32, at: usize, count: u32) -> Option<u32> {
+        let n = rc2k_core::system::tables::by_key(self.entries(at, count), key)?;
+        Some(
+            self.dword(at + 2 * n + 1)
+                .unwrap_or_else(|e| crate::fatal::raise::end("a screen mode table", e)),
+        )
     }
-    /// The mode table (walked past its end like the others).
-    pub fn mode_table_ptr() -> crate::pointers::GamePtr {
-        Self::table_ptr(core::mem::offset_of!(Self, table))
+
+    /// Whether one of the `count` modes listed has all of `bits`.
+    pub fn lists_bits(&self, bits: u32) -> bool {
+        rc2k_core::system::tables::with_bits(self.entries(Self::TABLE_AT, self.count.get()), bits)
+            .is_some()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::offset_of;
 
+    /// The tables' places in dwords are the fields' places in the record.
     #[test]
-    fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
-            &crate::gfx::owner::GFX.display.modes,
-            START,
-            START + LEN,
+    fn places_are_the_fields() {
+        let m = Modes::new();
+        assert_eq!(
+            Modes::PIXEL_KINDS_AT,
+            m.kind_bits.len() + m.third_bits.len()
+        );
+        assert_eq!(Modes::SIZES_AT, Modes::PIXEL_KINDS_AT + m.pixel_kinds.len());
+        assert_eq!(Modes::KINDS_AT, Modes::SIZES_AT + m.sizes.len());
+        assert_eq!(
+            Modes::TABLE_AT,
+            Modes::KINDS_AT + m.kinds.len() + m.other_tables.len() + 1
         );
     }
 
+    /// Every dword to the end of the record reads in the order of the fields; the first past it is
+    /// refused.
     #[test]
-    fn moved_knows_the_block() {
-        assert_eq!(offset_of!(Modes, pixel_kinds), 0x4F4E40 - START);
-        assert_eq!(offset_of!(Modes, sizes), 0x4F4E50 - START);
-        assert_eq!(offset_of!(Modes, kinds), 0x4F4E90 - START);
-        assert_eq!(offset_of!(Modes, count), 0x4F4F38 - START);
-        assert_eq!(offset_of!(Modes, table), 0x4F4F3C - START);
-        assert_eq!(crate::moved::place(START), home());
-        assert_eq!(
-            crate::moved::place(0x4F4E50),
-            Modes::sizes_ptr().addr() as usize
-        );
-        assert_eq!(
-            crate::moved::place(0x4F4F3C),
-            Modes::mode_table_ptr().addr() as usize
-        );
+    fn dwords_read_in_field_order() {
+        let m = Modes::new();
+        for (n, d) in m.table.iter().enumerate() {
+            d.set(0x1000_0001 + n as u32);
+        }
+        m.count.set(7);
+        let mut expected = Vec::new();
+        for run in m.runs() {
+            expected.extend((0..run.count()).map(|i| run.bits(i)));
+        }
+        for (n, want) in expected.iter().enumerate() {
+            assert_eq!(m.dword(n).ok(), Some(*want), "dword {n}");
+        }
+        assert!(m.dword(expected.len()).is_err());
     }
 }

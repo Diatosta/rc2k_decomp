@@ -1,31 +1,44 @@
-//! `menu::rally_results` (0x4A94EC): the rally's results pages, `dword_75AADC` 1 while
-//! they show (the pages' button "voltar"). Outside event mode 0x13: standings table A from
-//! all (`menu::standings_a_from_all`), sorted by total (`menu::sort_standings_by_total`),
-//! cleared and numbered (`clear_standings`, `number_all`), the overall
-//! page (`menu::show_overall_rally_results`); in it: table A from all and the class pages
-//! (`menu::class_rally_results_pass`).
-//!
-//! The steps are their Rust versions. Refuses what the steps refuse. The
-//! menus and draw lists run its `entry` (`menu::table_calls`).
+//! The rally's results pages: the standings table filled from the drivers and players, then the
+//! overall page or, in class mode, one page per class.
 
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
+use crate::menu::owner::{Cars, Play, Screens};
+use crate::menu::pages_store::MenuPages;
+use crate::menu::screen_loop::Entry;
 use crate::menu::standings::Which;
 use crate::menu::standings_steps::{clear_standings, number_all};
 
-/// The Rust version.
-pub fn rally_results(menus: &Menus) -> Result<(), Refused> {
-    menus.screens.state.menus.which_title.set(1u32);
-    crate::menu::standings_a_from_all::standings_a_from_all(menus)?;
-    // Converted: `rc2k_core::menu::results_pages::class_pages_only`.
-    if !rc2k_core::menu::results_pages::class_pages_only(menus.play.champ_view.event_mode.get()) {
-        crate::menu::sort_standings_by_total::sort_standings_by_total(menus)?;
-        clear_standings(Which::A)?;
-        number_all(menus, Which::A)?;
-        crate::menu::show_overall_rally_results::show_overall_rally_results(menus)?;
+/// Shows the rally's results; refuses what its steps refuse.
+pub fn rally_results(
+    cars: &Cars,
+    screens: &Screens,
+    play: &Play,
+    pages: &MenuPages,
+    entry: &Entry,
+    tables: &crate::saves::best_times::BestTables,
+) -> Result<(), Refused> {
+    screens.state.menus.which_title.set(true);
+    crate::menu::standings_a_from_all::standings_a_from_all(
+        crate::strings::append_string_by_id::StringOwners::of(entry.owners),
+        cars,
+        screens,
+        play,
+        tables,
+    )?;
+    if !rc2k_core::menu::results_pages::class_pages_only(play.champ_view.event_mode.get()) {
+        crate::menu::sort_standings_by_total::sort_standings_by_total(screens, play, tables)?;
+        clear_standings(Which::A, tables)?;
+        number_all(screens, play, Which::A, tables)?;
+        crate::menu::show_overall_rally_results::show_overall_rally_results(
+            &play.champ_view,
+            entry,
+            tables,
+        )?;
     } else {
-        crate::menu::class_rally_results_pass::class_rally_results_pass(menus)?;
+        crate::menu::class_rally_results_pass::class_rally_results_pass(
+            screens, play, pages, entry, tables,
+        )?;
     }
-    menus.screens.state.menus.which_title.set(0u32);
+    screens.state.menus.which_title.set(false);
     Ok(())
 }

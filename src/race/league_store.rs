@@ -1,68 +1,218 @@
-//! The league's kept times and the automatic set-ups (IDA 0x60410C .. 0x60463C; phase 7,
-//! typed): the ten first records' ids, the sixteen rows of ten kept times, the car's time at
-//! a split in race mode 3, the 36 set-ups of 0x10 bytes. `#[repr(C)]` with the image's
-//! layout, over the race block's bytes (`LEAGUE`). Names are readings unless IDA's.
+//! The league's kept times and the automatic set-ups: the ten first records' ids, the sixteen rows
+//! of ten kept times, the car's time at a split in race mode 3, the 36 set-ups of 0x10 bytes. The
+//! fields keep a fixed layout.
 
-use crate::session::Dword;
+use crate::memory::cells::ZeroCells;
+use crate::memory::session::PlainDword;
 
-#[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct League {
-    /// +0x0 (0x60410C): `dword_60410C`: the ten records' names (`race::copy_league_table`, `physics::compare_split_times`).
-    pub names: [Dword; 10],
-    /// +0x28 (0x604134): `unk_604134`: sixteen rows of ten kept times, 0x28 bytes each (`race::copy_league_table`; `physics::compare_split_times` reads up to split 27, rows past the sixteenth: a slip, kept).
-    pub rows: [Dword; 160],
-    /// +0x2a8 (0x6043B4): not named.
-    pub unknown_2a8: [Dword; 17],
-    /// +0x2ec (0x6043F8): `dword_6043F8`: the car's time (`physics::compare_split_times`).
-    pub car_time: Dword,
-    /// +0x2f0 (0x6043FC): `g_autoSetups`: the 36 automatic set-ups, 0x10 bytes each (h, s, g5, g4 + 1; `race::auto_set_up_car`).
-    pub auto_setups: [Dword; 144],
+    /// The ten records' names (`race::copy_league_table`, `physics::compare_split_times`).
+    pub names: [PlainDword; 10],
+    /// Sixteen rows of ten kept times, 0x28 bytes each (`race::copy_league_table`;
+    /// `physics::compare_split_times` reads up to split 27, rows past the sixteenth: a slip, kept).
+    pub rows: [PlainDword; 160],
+    /// Unused; it only keeps the layout.
+    pub unused_2a8: [PlainDword; 17],
+    /// The car's time (`physics::compare_split_times`).
+    pub car_time: PlainDword,
+    /// The 36 automatic set-ups, 0x10 bytes each (h, s, g5, g4 + 1;
+    /// `race::auto_set_up_car`).
+    pub auto_setups: [PlainDword; 144],
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
 
-/// The piece: a field of `race::owner::Race::course`, formerly a static of its own since 2026-10-29 (it left the race block, phase 13:
-/// `race::store::LEFT`), with the image's first values.
+/// The piece (a field of `race::owner::Race::course`), with its first values.
 impl League {
-    pub const fn new() -> Self {
-        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+    /// Kept time `n` of the rows. Splits 16 .. 27 read past the sixteen rows into the fields
+    /// after them, in order.
+    pub fn kept_time(&self, n: usize) -> Result<u32, crate::errors::BadInput> {
+        if let Some(time) = self.rows.get(n) {
+            return Ok(time.get());
+        }
+        crate::memory::session::read_runs(
+            &[
+                &self.rows,
+                &self.unused_2a8,
+                &self.car_time,
+                &self.auto_setups,
+            ],
+            n,
+            "a kept split time",
+        )
     }
-}
 
-/// IDA 0x60410C, the first byte of the piece.
-pub const START: usize = 0x60410C;
-/// IDA 0x60463C, the end of the piece.
-pub const END: usize = 0x60463C;
-
-const _: () = assert!(END - START == core::mem::size_of::<League>());
-
-/// Where IDA 0x60410C is now.
-#[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&crate::race::owner::RACE.course.league))
+    pub const fn new() -> Self {
+        Self {
+            auto_setups: [
+                PlainDword::new(0x4C),
+                PlainDword::new(0x80),
+                PlainDword::new(1),
+                PlainDword::new(4),
+                PlainDword::new(0x4C),
+                PlainDword::new(0x80),
+                PlainDword::new(1),
+                PlainDword::new(3),
+                PlainDword::new(0x4C),
+                PlainDword::new(0x80),
+                PlainDword::new(1),
+                PlainDword::new(3),
+                PlainDword::new(0x4C),
+                PlainDword::new(0x80),
+                PlainDword::new(1),
+                PlainDword::new(2),
+                PlainDword::new(0x4C),
+                PlainDword::new(0x80),
+                PlainDword::new(1),
+                PlainDword::new(3),
+                PlainDword::new(0x4C),
+                PlainDword::new(0x80),
+                PlainDword::new(2),
+                PlainDword::new(3),
+                PlainDword::new(0xB4),
+                PlainDword::new(0x4C),
+                PlainDword::new(3),
+                PlainDword::new(1),
+                PlainDword::new(0xB4),
+                PlainDword::new(0x4C),
+                PlainDword::new(3),
+                PlainDword::new(2),
+                PlainDword::new(0xB4),
+                PlainDword::new(0x4C),
+                PlainDword::new(3),
+                PlainDword::new(2),
+                PlainDword::new(0xB4),
+                PlainDword::new(0x4C),
+                PlainDword::new(3),
+                PlainDword::new(2),
+                PlainDword::new(0xB4),
+                PlainDword::new(0x4C),
+                PlainDword::new(3),
+                PlainDword::new(2),
+                PlainDword::new(0xB4),
+                PlainDword::new(0x4C),
+                PlainDword::new(4),
+                PlainDword::new(1),
+                PlainDword::new(0xB4),
+                PlainDword::new(0x4C),
+                PlainDword::new(3),
+                PlainDword::new(1),
+                PlainDword::new(0xB4),
+                PlainDword::new(0x4C),
+                PlainDword::new(3),
+                PlainDword::new(1),
+                PlainDword::new(0xB4),
+                PlainDword::new(0x4C),
+                PlainDword::new(3),
+                PlainDword::new(2),
+                PlainDword::new(0xB4),
+                PlainDword::new(0x4C),
+                PlainDword::new(5),
+                PlainDword::new(1),
+                PlainDword::new(0xB4),
+                PlainDword::new(0x4C),
+                PlainDword::new(5),
+                PlainDword::new(1),
+                PlainDword::new(0xB4),
+                PlainDword::new(0x4C),
+                PlainDword::new(5),
+                PlainDword::new(1),
+                PlainDword::new(0x4C),
+                PlainDword::new(0x80),
+                PlainDword::new(2),
+                PlainDword::new(2),
+                PlainDword::new(0x4C),
+                PlainDword::new(0x80),
+                PlainDword::new(1),
+                PlainDword::new(2),
+                PlainDword::new(0x4C),
+                PlainDword::new(0x80),
+                PlainDword::new(1),
+                PlainDword::new(2),
+                PlainDword::new(0x4C),
+                PlainDword::new(0x80),
+                PlainDword::new(1),
+                PlainDword::new(2),
+                PlainDword::new(0x4C),
+                PlainDword::new(0x80),
+                PlainDword::new(1),
+                PlainDword::new(2),
+                PlainDword::new(0x4C),
+                PlainDword::new(0x80),
+                PlainDword::new(1),
+                PlainDword::new(2),
+                PlainDword::new(0xB4),
+                PlainDword::new(0x4C),
+                PlainDword::new(3),
+                PlainDword::new(1),
+                PlainDword::new(0xB4),
+                PlainDword::new(0x4C),
+                PlainDword::new(3),
+                PlainDword::new(1),
+                PlainDword::new(0xB4),
+                PlainDword::new(0x4C),
+                PlainDword::new(3),
+                PlainDword::new(2),
+                PlainDword::new(0xB4),
+                PlainDword::new(0x4C),
+                PlainDword::new(3),
+                PlainDword::new(1),
+                PlainDword::new(0xB4),
+                PlainDword::new(0x4C),
+                PlainDword::new(4),
+                PlainDword::new(1),
+                PlainDword::new(0xB4),
+                PlainDword::new(0x4C),
+                PlainDword::new(4),
+                PlainDword::new(2),
+                PlainDword::new(0x4C),
+                PlainDword::new(0x80),
+                PlainDword::new(1),
+                PlainDword::new(2),
+                PlainDword::new(0x4C),
+                PlainDword::new(0x80),
+                PlainDword::new(1),
+                PlainDword::new(2),
+                PlainDword::new(0x4C),
+                PlainDword::new(0x80),
+                PlainDword::new(1),
+                PlainDword::new(4),
+                PlainDword::new(0x4C),
+                PlainDword::new(0x80),
+                PlainDword::new(1),
+                PlainDword::new(2),
+                PlainDword::new(0x4C),
+                PlainDword::new(0x80),
+                PlainDword::new(1),
+                PlainDword::new(2),
+                PlainDword::new(0x4C),
+                PlainDword::new(0x80),
+                PlainDword::new(1),
+                PlainDword::new(3),
+            ],
+            ..ZeroCells::ZERO
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::offset_of;
 
+    /// The rows are read by index, and an index far past the record is refused.
     #[test]
-    fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&crate::race::owner::RACE.course.league, START, END);
-    }
-
-    #[test]
-    fn piece_has_its_home() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            crate::moved::place(END - 1),
-            (piece_addr() + (END - START) as u32 - 1) as usize
-        );
-        assert_eq!(offset_of!(League, rows), 0x604134 - START);
-        assert_eq!(offset_of!(League, car_time), 0x6043F8 - START);
-        assert_eq!(offset_of!(League, auto_setups), 0x6043FC - START);
+    fn kept_time_reads_the_rows_and_refuses_far_past_them() {
+        let league = League::new();
+        for (n, row) in league.rows.iter().enumerate() {
+            row.set(0x1000 + n as u32);
+            assert_eq!(
+                league.kept_time(n).ok(),
+                Some(0x1000 + n as u32),
+                "index {n}"
+            );
+        }
+        assert!(league.kept_time(1 << 20).is_err());
     }
 }

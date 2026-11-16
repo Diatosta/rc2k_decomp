@@ -1,17 +1,13 @@
-//! The keyboard layouts of a `.kim` file (`strings::load_language`), as owned tables.
+//! The keyboard layouts of a `.kim` file, as owned tables.
 //!
-//! The original reads the file's 0x400 bytes into one block: "KEYB", +8 a kind, +0xA the
-//! layout mode, +0xB the layout the file picks, +0x30 the layouts, five dwords each (0x14
-//! bytes): offsets, from +0x30, of the dead keys' list, the plain, shifted and AltGr tables
-//! and the key names' table (a word, a string id, a key). It adds the block's address to each
-//! nonzero offset of the first two layouts and points the current layout at the picked one.
-//! A table is then everything from its place to the end of the block (the original reads on
-//! past it into other memory; here a read past the end is refused). A kind 0x0C file has
-//! three entries of the picked layout's key names table patched.
+//! The file's 0x400 bytes: "KEYB", +8 a kind, +0xA the layout mode, +0xB the picked layout,
+//! +0x30 the layouts, five dwords each: offsets, from +0x30, of the dead keys' list, the plain,
+//! shifted and AltGr tables and the key names' table (a word, a string id, a key). A table runs
+//! to the end of the block; a read past it is refused. A kind 0x0C file has three entries of
+//! the picked layout's key names table patched.
 //!
-//! Offsets are signed in effect (the addition wraps): one that lands inside the block, the
-//! head included, is a table; one outside it is `Table::Outside`, refused when the layout is
-//! used (the original would read whatever memory is there).
+//! Offsets are signed in effect (the addition wraps): one landing inside the block, head
+//! included, is a table; one outside it is `Table::Outside`, refused when the layout is used.
 
 use super::keyboard::Layout as Tables;
 use crate::Invalid;
@@ -79,7 +75,7 @@ impl Layout {
     }
 
     /// The four tables `keyboard::key_to_char` reads. Refused if one names memory outside
-    /// the file (the original reads all four before it looks at a key).
+    /// the file.
     pub fn tables(&self) -> Result<Tables<'_>, Invalid> {
         use crate::strings::bytes::Bytes;
         fn view(table: &Table) -> Result<Option<&dyn Bytes>, Invalid> {
@@ -113,20 +109,19 @@ impl Layout {
 pub enum Picked {
     /// The first or the second of the file's layouts (0 or 1).
     Listed(usize),
-    /// The byte named a layout past the two the file lists: its pointers are not made
-    /// addresses by the original, so none of its tables can be read.
+    /// The byte named a layout past the two the file lists: none of its tables can be read.
     Unlisted(Layout),
 }
 
 /// What the file gives.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct File {
-    /// +0xA: the layout mode (2: Alt with a shift key switches the layout).
+    /// The layout mode (2: Alt with a shift key switches the layout).
     pub mode: u8,
     pub layouts: [Layout; 2],
     pub picked: Picked,
-    /// The 0x400 bytes as the original's block holds them after the kind 0x0C patch (kept
-    /// by the caller: a later, shorter file is read over them).
+    /// The 0x400 bytes after the kind 0x0C patch (kept by the caller: a later, shorter file
+    /// is read over them).
     pub bytes: [u8; FILE_LEN],
 }
 
@@ -139,8 +134,8 @@ fn place(offset: u32) -> Option<usize> {
 /// Where a layout's five tables are: `None` a null pointer, `Err` outside the file.
 type Places = [Option<Result<usize, ()>>; 5];
 
-/// The layout block `n` as places; `resolved` is false where the original does not add the
-/// block's address to the offsets. `None` if the block does not fit in the file.
+/// The layout block `n` as places; `resolved` is false for a layout whose offsets are left
+/// unresolved (one past the first two). `None` if the block does not fit in the file.
 fn places(file: &[u8; FILE_LEN], n: usize, resolved: bool) -> Option<Places> {
     let start = LAYOUTS_AT + n * LAYOUT_LEN;
     let words = file.get(start..start + LAYOUT_LEN)?;

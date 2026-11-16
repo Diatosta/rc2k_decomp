@@ -1,14 +1,10 @@
-//! The pong game over the race (converted 2026-10-21 from `effects::pong_score` 0x4B8382 and
-//! `effects::pong_digit` 0x4B8418): the score, the hits and the best each as three digits,
-//! each digit a 4 x 5 pattern of cells (`unk_768704`, 0x14 bytes a digit). The court
-//! (converted 2026-10-21 from `effects::reset_pong` 0x4B7E64, `effects::pong_bat_back`
-//! 0x4B8215, `effects::move_pong_bat` 0x4B82B0, `effects::pong_ball_hits` 0x4B8040,
-//! `effects::move_pong_ball` 0x4B7F4F and `effects::pong_cell` 0x4B8557): the ball and the bat
-//! as floats, their compares as the x87's status bits (C0, C1, C2: `& 0x700`). As in
-//! `math::geometry`, what the x87 keeps on its stack is an `f64`, rounded to `f32` where the
-//! original stores it. The compares are of sums of two or three floats: exact in `f64`
-//! while their exponents are within 29 of each other (the game's places and sizes are),
-//! so they decide as the x87's at either precision.
+//! The pong game over the race: the score, the hits and the best each as three digits, each digit a
+//! 4 x 5 pattern of cells (`PongState.digit_patterns`, 0x14 bytes a digit). The court: the ball and
+//! the bat as floats, their compares as the x87's status bits (C0, C1, C2: `& 0x700`). As in
+//! `math::geometry`, what the x87 keeps on its stack is an `f64`, rounded to `f32` where it is
+//! stored. The compares are of sums of two or three floats: exact in `f64` while their exponents
+//! are within 29 of each other (the game's places and sizes are), so they decide as the x87's at
+//! either precision.
 
 use crate::Invalid;
 use crate::physics::x87::loaded;
@@ -19,10 +15,9 @@ pub const DIGITS: u32 = 10;
 pub const PATTERN_LEN: u32 = 0x14;
 pub const COLUMNS: u32 = 4;
 pub const ROWS: u32 = 5;
-/// How far a digit moves the score's place (`dword_7687D4`) on.
+/// How far a digit moves the score's place on.
 pub const DIGIT_STEP: u32 = 0x40;
-/// Where the score starts (`dword_7687D4`, `dword_7687D8`) and the gap between the hits
-/// and the best.
+/// Where the score starts and the gap between the hits and the best.
 pub const SCORE_AT: [u32; 2] = [0x100, 0x384];
 pub const SCORE_GAP: u32 = 0x20;
 
@@ -65,11 +60,10 @@ pub fn status(a: f64, b: f64) -> u32 {
     }
 }
 
-/// The court's variables (`flt_768688` .. `dword_7687D0`): the ball (x, y), its way, its
-/// size; the bat's place before its move (as bits: moved through registers); the bat and
-/// its size; the work places of a hit (the ball's centre `flt_7686DC`, the bat's
-/// `flt_7686E8`, their difference `flt_7686F4`); the ball's steps a frame (`g_pongSteps`)
-/// and the hits.
+/// The court's variables: the ball (x, y), its way, its size; the bat's place before its move (as
+/// bits); the bat and its size; the work places of a hit (the ball's centre
+/// `PongState.ball_centre[0]`, the bat's `PongState.bat_centre[0]`, their difference
+/// `PongState.difference[0]`); the ball's steps a frame and the hits.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Court {
     pub ball: [f32; 2],
@@ -85,11 +79,9 @@ pub struct Court {
     pub hits: u32,
 }
 
-/// The court's constants: the centres' factors (ball x, y, bat x, y: `flt_7691C6` ..), the
-/// nudge of an across of 0 bits (`flt_7691D6`), the new way's scales (`flt_7691DA`,
-/// `flt_7691DE`), its length (`flt_76516C`), the walls (`flt_7691A6` .. `flt_7691C2`) and
-/// the start (`flt_769182` .., four (x, y) pairs as bits: the ball, its size, the bat, its
-/// size).
+/// The court's constants: the centres' factors (ball x, y, bat x, y), the nudge of an across of 0
+/// bits, the new way's two scales, its length, the walls and the start (four (x, y) pairs as bits:
+/// the ball, its size, the bat, its size).
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Rules {
     pub centre: [f32; 4],
@@ -103,14 +95,14 @@ pub struct Rules {
 /// The ball's steps a frame after a reset.
 pub const START_STEPS: u32 = 5;
 
-/// `fld a; fsub b; fstp`.
+/// `a - b` in `f64`, stored as `f32`.
 fn less(a: f32, b: f32) -> f32 {
     (a as f64 - b as f64) as f32
 }
 
 impl Court {
-    /// `effects::reset_pong`: the four pairs from the start (`fld; fstp`: a signalling NaN made
-    /// quiet), the steps 5, the hits 0.
+    /// `effects::reset_pong`: the four pairs from the start (each loaded and stored as a float:
+    /// a signalling NaN made quiet), the steps 5, the hits 0.
     pub fn reset(&mut self, rules: &Rules) {
         let s = rules
             .start
@@ -123,7 +115,7 @@ impl Court {
         self.hits = 0;
     }
 
-    /// The four compares of the ball against the bat (`fld a; fadd b; fcomp c`): whether
+    /// The four compares of the ball against the bat (`a + b` in `f64` against `c`): whether
     /// they overlap (no compare gave C0 alone) and the last status.
     pub fn overlap(&self) -> (bool, u32) {
         let tests = [
@@ -144,7 +136,7 @@ impl Court {
 
     /// `effects::pong_bat_back`: the bat put back to its place before the move when it
     /// overlaps the ball. Returns the last status, or with the bat put back its place's
-    /// bits (what eax and ebx hold).
+    /// bits.
     pub fn bat_back(&mut self) -> Back {
         let (over, status) = self.overlap();
         if !over {
@@ -154,9 +146,9 @@ impl Court {
         Back::PutBack(self.saved_bat)
     }
 
-    /// `effects::move_pong_bat`: the bat's place kept, then `bat_back` (the keys' moves
-    /// between are jumped over in the original: the bat never moves). Returns the bat's
-    /// place going in (as bits) and what `bat_back` returns.
+    /// `effects::move_pong_bat`: the bat's place kept, then `bat_back` (kept: the keys' moves are
+    /// skipped, so the bat never moves). Returns the bat's place going in (as bits) and what
+    /// `bat_back` returns.
     pub fn move_bat(&mut self) -> ([u32; 2], Back) {
         let place = self.bat.map(f32::to_bits);
         self.saved_bat = place;
@@ -252,7 +244,7 @@ pub enum Hit {
 }
 
 /// `effects::pong_cell`'s box place: column times the step plus the score's place, and row
-/// times its step plus its place (`fild; fmul; fiadd`, kept on the x87's stack).
+/// times its step plus its place (in `f64`, as the x87 keeps it).
 pub fn cell_place(column: i32, row: i32, step: [f32; 2], at: [i32; 2]) -> [f64; 2] {
     [
         column as f64 * step[0] as f64 + at[0] as f64,

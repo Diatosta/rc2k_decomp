@@ -1,125 +1,590 @@
-//! The models' light records, 0x5C906C .. 0x5CB954: `g_lightRecords`, 34 records of 0x134 bytes
-//! (IDA struct `ModelRecord`), one per model (car) kind: its axle figures, the groups'
-//! numbers and the lights' data (`race::copy_lights_data` lays the last in from `ldata`).
-//! Names are readings unless IDA's.
+//! The models' light records: `light_records`, 34 records of 0x134 bytes, one per model (car) kind:
+//! its axle figures, the groups' numbers and the lights' data (`race::copy_lights_data` lays the
+//! last in from `ldata`). Plain cells: part of a drawing store
+//! (`race::groups_store::LightsAndGear`), written on the game's thread at a stage's load and read
+//! by the drawing parts.
 
-use crate::race::owner::race;
-use crate::session::Dword;
+use crate::memory::cells::ZeroCells;
+use crate::memory::session::PlainDword;
+use crate::race::first_cells::plain_dwords;
+#[cfg(test)]
+use crate::test_support::own::race;
 
-/// One model's record (IDA struct `ModelRecord`, 0x134 bytes).
+/// One model's record.
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells, rc2k_derive::ByteView)]
 pub struct LightRecord {
-    /// +0x0: `field_0`: eleven dwords (read at +0xC, +0x10 .. +0x28 by `physics::update_camera`,
-    /// `race::car_draw`, `drive::share_car_state`).
-    pub head: [Dword; 11],
-    /// +0x2C: `axles`: the five axle values (`race::car_parts`) and the six listener figures
-    /// from +0x40 (`drive::set_listener`).
-    pub axles: [Dword; 11],
-    /// +0x58: `groups`: the group numbers of the model's parts (`scene::load_object`,
+    /// +0x0: eleven dwords (read at +0xC, +0x10 ..= +0x28 by `physics::update_camera`,
+    /// `race::car_draw` and `drive::share_car_state`).
+    pub head: [PlainDword; 11],
+    /// +0x2C: the five axle values (`race::car_parts`) and, from +0x40, the six listener figures
+    /// (`drive::set_listener`).
+    pub axles: [PlainDword; 11],
+    /// +0x58: the group numbers of the model's parts (`scene::load_object`,
     /// `scene::list_object_face`, `effects::init_mark_step`, `race::car_draw`).
-    pub groups: [Dword; 19],
-    /// +0xA4: `lights`: 0x90 bytes of the lights' data (`race::copy_lights_data`,
-    /// `race::frame_draw`).
-    pub lights: [Dword; 36],
+    pub groups: [PlainDword; 19],
+    /// +0xA4: 0x90 bytes of the lights' data (`race::copy_lights_data`, `race::frame_draw`).
+    pub lights: [PlainDword; 36],
 }
 
 const _: () = assert!(core::mem::size_of::<LightRecord>() == 0x134);
 
+/// The records at the start: the head, the axle values and the part groups of each model (the
+/// lights' data, which the stage loads, starts at zero).
+const FIRST_RECORDS: [([u32; 11], [u32; 11], [u32; 19]); 34] = [
+    (
+        [
+            0xFFFFA200, 0x11400, 0xFFFFCD00, 0, 0, 0x11600, 0xFFFF8200, 0x200, 0x5B00, 0x3F35C28F,
+            0,
+        ],
+        [
+            0x4CA, 0x58C, 0x26B, 0x12C, 0x1F4, 0x206, 0x4F9, 0xE4, 0x290, 0x373, 0x329,
+        ],
+        [
+            9, 7, 8, 0x1F, 6, 1, 0x10, 0x11, 0x1D, 0x1E, 0xA, 0xF, 0xE, 0xD, 0xB, 0xC, 0x8000FFE6,
+            0xE3F8C01C, 0x404,
+        ],
+    ),
+    (
+        [
+            0xFFFFA600, 0x12500, 0xFFFFE800, 0, 0, 0x12900, 0xFFFFB200, 0x200, 0x5B00, 0x3F35C28F,
+            0,
+        ],
+        [
+            0x4F0, 0x566, 0x28F, 0x12C, 0x1F4, 0x218, 0x4EA, 0xCF, 0x28F, 0x380, 0x363,
+        ],
+        [
+            0x10, 0xE, 0xF, 0xD, 9, 3, 0x1A, 0x17, 0x1E, 0x1D, 0xB, 6, 5, 0xC, 4, 0xA, 0xE481FF7F,
+            0xFFFFFFFF, 0x800,
+        ],
+    ),
+    (
+        [
+            0xFFFFA700, 0x11200, 0xFFFFBF00, 0, 0, 0x11000, 0xFFFF7A00, 0x200, 0x2400, 0x3F35C28F,
+            0,
+        ],
+        [
+            0x48D, 0x4F6, 0x26F, 0x12C, 0x1F4, 0x1D9, 0x4EA, 0x50, 0x2A8, 0x34C, 0x2CD,
+        ],
+        [
+            0x17, 0x15, 0x16, 0x14, 0xB, 0x19, 6, 7, 0x1E, 0x1D, 0x12, 5, 4, 1, 0x10, 0x13,
+            0x62FE0DFF, 0xFE05B334, 0x40404,
+        ],
+    ),
+    (
+        [
+            0xFFFFA900, 0x10A00, 0xFFFFE800, 0, 0, 0x10300, 0xFFFF9A00, 0x200, 0x2900, 0x3F35C28F,
+            0,
+        ],
+        [
+            0x4C6, 0x4E2, 0x26F, 0x12C, 0x1F4, 0x1D5, 0x49F, 0xAC, 0x262, 0x329, 0x2D2,
+        ],
+        [
+            0xF, 0xD, 0xE, 0xC, 0xA, 0x18, 0x15, 0x16, 0x1D, 0x1E, 0xB, 5, 4, 3, 6, 8, 0xE160FF7F,
+            0x6F860AB6, 0x80E,
+        ],
+    ),
+    (
+        [
+            0xFFFFA300, 0x11800, 0xFFFFEE00, 0, 0, 0x10E00, 0xFFFF8100, 0x200, 0x6A00, 0x3F35C28F,
+            0,
+        ],
+        [
+            0x4C4, 0x514, 0x26F, 0x12C, 0x1F4, 0x20E, 0x4E6, 0xA5, 0x2CC, 0x373, 0x2EC,
+        ],
+        [
+            0xF, 0xD, 0xE, 0xC, 0x10, 0x18, 0x11, 0x12, 0x1D, 0x1E, 5, 2, 3, 7, 4, 8, 0x6707F1FF,
+            0xF9380A6E, 0x1000022,
+        ],
+    ),
+    (
+        [
+            0xFFFFA600, 0x12600, 0xFFFFDC00, 0, 0, 0x12500, 0xFFFF9700, 0x200, 0x3300, 0x3F35C28F,
+            0,
+        ],
+        [
+            0x4C6, 0x50F, 0x28E, 0x12C, 0x1F4, 0x1F9, 0x530, 0xC4, 0x2B2, 0x38A, 0x308,
+        ],
+        [
+            0xE, 0xC, 0xD, 0xB, 2, 0x1A, 0x16, 0x17, 0x1D, 0x1E, 1, 7, 6, 5, 4, 0xF, 0xE4C0FEFF,
+            0x772807C2, 2,
+        ],
+    ),
+    (
+        [
+            0xFFFFAA00, 0x11F00, 0xFFFFCF00, 0, 0, 0x12200, 0xFFFF9100, 0x200, 0x3000, 0x3F35C28F,
+            0,
+        ],
+        [
+            0x4C6, 0x50F, 0x28E, 0x12C, 0x1F4, 0x1F9, 0x530, 0xC4, 0x2B2, 0x38A, 0x308,
+        ],
+        [
+            0xD, 0xB, 0xC, 0xA, 0x16, 0x18, 0x15, 0x14, 0x1D, 0x1E, 6, 4, 1, 3, 7, 5, 0xFFFFFFFF,
+            0xFFFFFFFF, 0xFFFFFFFF,
+        ],
+    ),
+    (
+        [
+            0xFFFF9F00, 0x11A00, 0xFFFFB800, 0, 0, 0x12800, 0xFFFF7900, 0x200, 0x7600, 0x3F35C28F,
+            0,
+        ],
+        [
+            0x4D3, 0x51A, 0x26F, 0x12C, 0x1F4, 0x1F7, 0x53F, 0x94, 0x2A7, 0x389, 0x2E3,
+        ],
+        [
+            0xE, 0xC, 0xD, 0xB, 0xF, 0x18, 0x16, 0x17, 0x1D, 0x1E, 7, 5, 4, 1, 6, 9, 0x67C0FBF7,
+            0xF92501BC, 0x84,
+        ],
+    ),
+    (
+        [
+            0xFFFF9B00, 0x11900, 0xFFFFC700, 0, 0, 0x11400, 0xFFFF7A00, 0x200, 0x1F00, 0x3F35C28F,
+            0,
+        ],
+        [
+            0x48D, 0x55C, 0x292, 0x12C, 0x1F4, 0x1FA, 0x4FA, 0x94, 0x2B9, 0x387, 0x29D,
+        ],
+        [
+            0x11, 0xF, 0x10, 0xE, 0xC, 0x1A, 2, 1, 0x1D, 0x1E, 0xD, 0x16, 0x15, 0x12, 0x14, 0x13,
+            0xE47FFD07, 0x67E02E10, 0x2000,
+        ],
+    ),
+    (
+        [
+            0xFFFFA000, 0x10300, 0xFFFFCB00, 0, 0, 0x10D00, 0xFFFF7600, 0x200, 0x4900, 0x3F35C28F,
+            0,
+        ],
+        [
+            0x4AF, 0x538, 0x283, 0x12C, 0x1F4, 0x205, 0x4CA, 0xA5, 0x2D3, 0x36C, 0x2DA,
+        ],
+        [
+            0xD, 0xC, 0xE, 0xB, 4, 0x18, 0x10, 0xF, 0x1D, 0x1E, 6, 8, 9, 5, 0xA, 0x12, 0xE105FF7F,
+            0x7F7803CA, 0x44,
+        ],
+    ),
+    (
+        [
+            0x6100, 0x12700, 0xFFFFD700, 0, 0, 0x12200, 0xFFFF8400, 0x200, 0x8100, 0x3F35C28F, 0,
+        ],
+        [
+            0x4B2, 0x51A, 0x26F, 0x12C, 0x1F4, 0x20B, 0x542, 0xBB, 0x2EF, 0x395, 0x2ED,
+        ],
+        [
+            0xF, 0xD, 0xE, 0xC, 4, 0x17, 0x15, 0x16, 0x1D, 0x1E, 5, 0xA, 9, 3, 8, 0xB, 0xF0E0FFFB,
+            0x639F0FA6, 0x20,
+        ],
+    ),
+    (
+        [
+            0xFFFFAA00, 0x11F00, 0xFFFFCF00, 0, 0, 0x12200, 0xFFFF9100, 0x200, 0x3000, 0x3F35C28F,
+            0,
+        ],
+        [
+            0x4C6, 0x50F, 0x28E, 0x12C, 0x1F4, 0x1F9, 0x530, 0xC4, 0x2B2, 0x38A, 0x308,
+        ],
+        [
+            0xD, 0xB, 0xC, 0xA, 0x16, 0x18, 0x15, 0x14, 0x1D, 0x1E, 6, 4, 1, 3, 7, 5, 0xE1F03EFF,
+            0x6E8A4352, 0x2C4,
+        ],
+    ),
+    (
+        [
+            0x5700, 0x12600, 0xFFFFDF00, 0, 0, 0x12300, 0xFFFF9800, 0x200, 0x7A00, 0x3F35C28F, 0,
+        ],
+        [
+            0x55F, 0x552, 0x262, 0x12C, 0x1F4, 0x243, 0x530, 0xD4, 0x2DE, 0x38B, 0x342,
+        ],
+        [
+            0x11, 0xF, 0x10, 0xE, 7, 0x18, 9, 0xA, 0x1D, 0x1E, 5, 0xD, 0xD, 2, 3, 0x12, 0xE187E7BF,
+            0x7F482970, 0x20,
+        ],
+    ),
+    (
+        [
+            0xFFFFAF00, 0x10D00, 0xA00, 0, 0, 0x11C00, 0xFFFFD400, 0x200, 0x2E00, 0x3F35C28F, 0,
+        ],
+        [
+            0x4C6, 0x480, 0x230, 0x12C, 0x1F4, 0x1F7, 0x4E0, 0x1A1, 0x25A, 0x35F, 0x331,
+        ],
+        [
+            0x10, 0xE, 0xF, 0xD, 9, 0x1A, 0xC, 0xB, 0x1D, 0x1E, 3, 6, 5, 2, 4, 0x16, 0x4741FAFF,
+            0x7C8601EA, 0x8A,
+        ],
+    ),
+    (
+        [
+            0xFFFFA600, 0x11B00, 0xFFFFE600, 0, 0, 0x12400, 0xFFFFAA00, 0x200, 0x5800, 0x3F35C28F,
+            0,
+        ],
+        [
+            0x4C6, 0x4D0, 0x28E, 0x12C, 0x1F4, 0x1EC, 0x4F3, 0xBF, 0x2BC, 0x386, 0x318,
+        ],
+        [
+            0xD, 0xB, 0xC, 0xA, 9, 0x1C, 0xF, 0x10, 0x1D, 0x1E, 0xE, 7, 8, 2, 4, 0x17, 0xFFFFFFFF,
+            0xFFFFFFFF, 0xFFFFFFFF,
+        ],
+    ),
+    (
+        [
+            0xFFFFAA00, 0x11A00, 0xFFFFD300, 0, 0, 0x11D00, 0xFFFF8D00, 0x200, 0x3900, 0x3F35C28F,
+            0,
+        ],
+        [
+            0x4ED, 0x52F, 0x24F, 0x12C, 0x1F4, 0x204, 0x50B, 0xAC, 0x297, 0x37D, 0x2F6,
+        ],
+        [
+            0xF, 0xD, 0xE, 0xC, 0xB, 4, 0x11, 0x12, 0x1D, 0x1E, 0x10, 3, 3, 5, 6, 0xA, 0xF007FFF9,
+            0x6F31031E, 0x10080,
+        ],
+    ),
+    (
+        [
+            0xFFFFA600, 0x12300, 0xFFFFE500, 0, 0, 0x12700, 0xFFFF9900, 0x200, 0x7300, 0x3F35C28F,
+            0,
+        ],
+        [
+            0x4E8, 0x4EE, 0x25B, 0x12C, 0x1F4, 0x1FC, 0x53F, 0x100, 0x290, 0x386, 0x345,
+        ],
+        [
+            0x10, 0xE, 0xF, 0xD, 4, 0x18, 0x17, 0x16, 0x1D, 0x1E, 8, 6, 7, 2, 5, 0xC, 0xE1C1F3FF,
+            0x7F0A0FC2, 0x100,
+        ],
+    ),
+    (
+        [
+            0xFFFFA700, 0x11200, 0xFFFFBF00, 0, 0, 0x11500, 0xFFFF9A00, 0x200, 0x1600, 0x3F35C28F,
+            0,
+        ],
+        [
+            0x48D, 0x4F6, 0x26F, 0x12C, 0x1F4, 0x1D9, 0x4DE, 0x50, 0x2A8, 0x34C, 0x2CD,
+        ],
+        [
+            0x17, 0x19, 0x16, 0x18, 6, 5, 8, 7, 0x1D, 0x1E, 0x15, 3, 4, 0xD, 0xC, 9, 0x6BE03FFB,
+            0x783E483C, 0x200400,
+        ],
+    ),
+    (
+        [
+            0xFFFFA700, 0x13600, 0xFFFFE600, 0, 0, 0x13500, 0xFFFF9B00, 0x200, 0x5F00, 0x3F35C28F,
+            0,
+        ],
+        [
+            0x49A, 0x509, 0x24E, 0x12C, 0x1F4, 0x215, 0x57B, 0x104, 0x2C5, 0x3C6, 0x2BB,
+        ],
+        [
+            0x16, 0x14, 0x10, 0x15, 0x17, 1, 0x13, 0x12, 0x1D, 0x1E, 0x19, 7, 6, 8, 3, 0x18,
+            0xE3FD03FB, 0x7E00E6F4, 0x2000000,
+        ],
+    ),
+    (
+        [
+            0xFFFFA500, 0x12B00, 0xFFFFDA00, 0, 0, 0x12B00, 0xFFFF9800, 0x200, 0x6A00, 0x3F35C28F,
+            0,
+        ],
+        [
+            0x4C6, 0x4BE, 0x246, 0x12C, 0x1F4, 0x216, 0x53B, 0x8E, 0x2ED, 0x393, 0x2E5,
+        ],
+        [
+            0x14, 0x16, 0x13, 0x15, 9, 3, 0x18, 0x17, 0x1D, 0x1E, 6, 0x12, 0x12, 5, 1, 4,
+            0xF1FC03FF, 0x6604CDC8, 0x40,
+        ],
+    ),
+    (
+        [
+            0xFFFFAA00, 0x11A00, 0xFFFFD300, 0, 0, 0x11D00, 0xFFFF8D00, 0x200, 0x4500, 0x3F35C28F,
+            0,
+        ],
+        [
+            0x4ED, 0x527, 0x2A1, 0x12C, 0x1F4, 0x204, 0x50B, 0xAC, 0x297, 0x37D, 0x2F6,
+        ],
+        [
+            0x1C, 0x1A, 0x1B, 0x19, 9, 1, 0xD, 0xE, 0x1D, 0x1E, 0x18, 0xC, 0xA, 2, 5, 6,
+            0xFF00377F, 0x61F31D92, 0x1000018,
+        ],
+    ),
+    (
+        [
+            0xFFFFAA00, 0x11A00, 0xFFFFD300, 0, 0, 0x11D00, 0xFFFF8D00, 0x200, 0x2D00, 0x3F35C28F,
+            0,
+        ],
+        [
+            0x4F3, 0x4A7, 0x279, 0x12C, 0x1F4, 0x1CE, 0x4AF, 0xC4, 0x29F, 0x35B, 0x31E,
+        ],
+        [
+            0xB, 9, 0xA, 8, 0xE, 2, 0x13, 0x14, 0x1E, 0x10, 5, 0x11, 1, 3, 4, 0x1D, 0xE01B7F7F,
+            0x564390E6, 0x2020,
+        ],
+    ),
+    (
+        [
+            0x6100, 0x11A00, 0xFFFFB800, 0, 0, 0x12800, 0xFFFF7900, 0x200, 0x7600, 0x3F35C28F, 0,
+        ],
+        [
+            0x4D3, 0x51A, 0x26F, 0x12C, 0x1F4, 0x1F7, 0x53F, 0x94, 0x2A7, 0x389, 0x2E3,
+        ],
+        [
+            0xE, 0xC, 0xD, 0xB, 0xF, 0x18, 0x16, 0x17, 0x1D, 0x1E, 7, 5, 4, 1, 6, 9, 0x67C0FBF7,
+            0xF92501BC, 0x84,
+        ],
+    ),
+    (
+        [
+            0xFFFFA600, 0x11B00, 0xFFFFC600, 0, 0, 0x12400, 0xFFFF7A00, 0x200, 0x7800, 0x3EDC28F6,
+            0x3F400000,
+        ],
+        [
+            0x486, 0x4B0, 0x29E, 0x12C, 0x1F4, 0x1F0, 0x51D, 0x70, 0x2A7, 0x37D, 0x2CD,
+        ],
+        [
+            0xC, 0xA, 0xB, 9, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+            0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+            0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+        ],
+    ),
+    (
+        [
+            0xFFFFA600, 0x11B00, 0xFFFFC600, 0, 0, 0x12400, 0xFFFF7A00, 0x200, 0x7800, 0x3F35C28F,
+            0x3EF0A3D7,
+        ],
+        [
+            0x4CF, 0x51D, 0x274, 0x12C, 0x1F4, 0x1F0, 0x51D, 0x70, 0x2A7, 0x37D, 0x2CD,
+        ],
+        [
+            0xC, 0xD, 0xB, 0xE, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+            0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+            0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+        ],
+    ),
+    (
+        [
+            0xFFFFA600, 0x11B00, 0xFFFFC600, 0, 0, 0x12400, 0xFFFF7A00, 0x200, 0x7800, 0x3F35C28F,
+            0x3EF0A3D7,
+        ],
+        [
+            0x4A1, 0x507, 0x274, 0x12C, 0x1F4, 0x1F0, 0x51D, 0x70, 0x2A7, 0x37D, 0x2CD,
+        ],
+        [
+            8, 6, 7, 5, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+            0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+            0xFFFFFFFF, 0xFFFFFFFF,
+        ],
+    ),
+    (
+        [
+            0xFFFFA600, 0x11B00, 0xFFFFC600, 0, 0, 0x12400, 0xFFFF7A00, 0x200, 0x7800, 0x3F9D70A4,
+            0x3F266666,
+        ],
+        [
+            0x2F7, 0x2E0, 0x222, 0x12C, 0x1F4, 0x1F0, 0x51D, 0x70, 0x2A7, 0x37D, 0x2CD,
+        ],
+        [
+            4, 2, 3, 1, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+            0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+            0xFFFFFFFF, 0xFFFFFFFF,
+        ],
+    ),
+    (
+        [
+            0xFFFFA600, 0x11B00, 0xFFFFC600, 0, 0, 0x12400, 0xFFFF7A00, 0x200, 0x7800, 0x3F947AE1,
+            0xBE2E147B,
+        ],
+        [
+            0x2D7, 0x2BF, 0x274, 0x12C, 0x1F4, 0x1F0, 0x51D, 0x70, 0x2A7, 0x37D, 0x2CD,
+        ],
+        [
+            4, 2, 3, 1, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+            0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+            0xFFFFFFFF, 0xFFFFFFFF,
+        ],
+    ),
+    (
+        [
+            0xFFFFA600, 0x11B00, 0xFFFFC600, 0, 0, 0x12400, 0xFFFF7A00, 0x200, 0x7800, 0x3F947AE1,
+            0x3EC7AE14,
+        ],
+        [
+            0x219, 0x262, 0x174, 0x12C, 0x1F4, 0x1F0, 0x51D, 0x70, 0x2A7, 0x37D, 0x2CD,
+        ],
+        [
+            6, 4, 5, 3, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+            0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+            0xFFFFFFFF, 0xFFFFFFFF,
+        ],
+    ),
+    (
+        [
+            0xFFFFA600, 0x11B00, 0xFFFFC600, 0, 0, 0x12400, 0xFFFF7A00, 0x200, 0x7800, 0x3F19999A,
+            0xBE6B851F,
+        ],
+        [
+            0x1B7, 0x16F, 0x174, 0x12C, 0x1F4, 0x1F0, 0x51D, 0x70, 0x2A7, 0x37D, 0x2CD,
+        ],
+        [
+            6, 4, 5, 3, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+            0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+            0xFFFFFFFF, 0xFFFFFFFF,
+        ],
+    ),
+    (
+        [
+            0xFFFFA600, 0x11B00, 0xFFFFC600, 0, 0, 0x12400, 0xFFFF7A00, 0x200, 0x7800, 0x3F0A3D71,
+            0x3FC28F5C,
+        ],
+        [
+            0x646, 0x5CE, 0x2EC, 0x12C, 0x1F4, 0x1F0, 0x51D, 0x70, 0x2A7, 0x37D, 0x2CD,
+        ],
+        [
+            5, 7, 4, 6, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+            0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+            0xFFFFFFFF, 0xFFFFFFFF,
+        ],
+    ),
+    (
+        [
+            0xFFFFA600, 0x11B00, 0xFFFFC600, 0, 0, 0x12400, 0xFFFF7A00, 0x200, 0x7800, 0x3F0A3D71,
+            0x3FC28F5C,
+        ],
+        [
+            0x646, 0x5CE, 0x2EC, 0x12C, 0x1F4, 0x1F0, 0x51D, 0x70, 0x2A7, 0x37D, 0x2CD,
+        ],
+        [
+            5, 7, 4, 6, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+            0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+            0xFFFFFFFF, 0xFFFFFFFF,
+        ],
+    ),
+    (
+        [
+            0xFFFFA600, 0x11B00, 0xFFFFC600, 0, 0, 0x12400, 0xFFFF7A00, 0x200, 0x7800, 0x3FECCCCD,
+            0x3F19999A,
+        ],
+        [
+            0x4DE, 0x592, 0x277, 0x12C, 0x1F4, 0x1F0, 0x51D, 0x70, 0x2A7, 0x37D, 0x2CD,
+        ],
+        [
+            4, 2, 3, 1, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+            0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+            0xFFFFFFFF, 0xFFFFFFFF,
+        ],
+    ),
+    (
+        [
+            0xFFFFA200, 0x11400, 0xFFFFCD00, 0, 0, 0x11600, 0xFFFF8200, 0x200, 0x5B00, 0x3F35C28F,
+            0,
+        ],
+        [
+            0x4B1, 0x56E, 0x26B, 0x12C, 0x1F4, 0x21C, 0x534, 0xB4, 0x292, 0x3B1, 0x2F5,
+        ],
+        [
+            9, 7, 8, 0x1F, 6, 1, 0x10, 0x11, 0x1D, 0x1E, 0xA, 0xF, 0xE, 0xD, 0xB, 0xC, 0x8000FFE6,
+            0xE3F8C01C, 0x404,
+        ],
+    ),
+];
+
 /// The models' records.
-#[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[cfg_attr(test, repr(C))]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct LightRecords {
     pub records: [LightRecord; 34],
 }
 
 impl LightRecords {
-    /// Where record `index` is, by wrapping arithmetic on the first record's address (the
-    /// game's code does not bound the index: callers that read an offset of the record, or
-    /// pass it to x87 runs, use this).
-    #[cfg(test)]
-    pub fn record_addr(&self, index: u32) -> u32 {
-        (self.records[0].head[0].addr()).wrapping_add(index.wrapping_mul(0x134))
+    /// The 34 models' records as the game starts.
+    pub const fn new() -> Self {
+        let mut records: [LightRecord; 34] = ZeroCells::ZERO;
+        let mut k = 0;
+        while k < 34 {
+            let (head, axles, groups) = &FIRST_RECORDS[k];
+            records[k] = LightRecord {
+                head: plain_dwords(*head),
+                axles: plain_dwords(*axles),
+                groups: plain_dwords(*groups),
+                ..ZeroCells::ZERO
+            };
+            k += 1;
+        }
+        LightRecords { records }
     }
 }
 
 impl LightRecords {
-    /// Record `index` as a place bounded to the whole group (the light records and the gear
-    /// figures after them): the original does not bound the index and reads on past the 34
-    /// records into the gear figures (`scene::load_object`).
-    pub fn record_ptr(&self, index: u32) -> crate::pointers::GamePtr {
-        use crate::race::groups_store::LightsAndGear;
-        crate::pointers::GamePtr::to(&race().frame.lights_and_gear).offset(
-            (core::mem::offset_of!(LightsAndGear, light_records) as u32)
-                .wrapping_add(index.wrapping_mul(0x134)),
-        )
+    /// The group number at byte `offset` (of the groups, a multiple of 4) of the record of model
+    /// `index`. The index is not bounded: the place after the 34 records (the one a kind none of
+    /// the known ones gets) reads on into the gear figures, where the record's groups fall on the
+    /// test drive's speed samples; anything further is refused.
+    pub fn group_at(
+        &self,
+        gear: &crate::physics::gear_store::GearFigures,
+        index: u32,
+        offset: u32,
+    ) -> Result<u32, crate::errors::BadInput> {
+        const PAST: &str = "a model's record past the light records";
+        let group = (offset / 4) as usize;
+        match index.checked_sub(self.records.len() as u32) {
+            None => self.records[index as usize]
+                .groups
+                .get(group)
+                .map(crate::memory::session::PlainDword::get)
+                .ok_or(crate::errors::BadInput(PAST)),
+            Some(0) => {
+                // The groups start 0x58 into the record; the one dword between the records and
+                // the gear figures is skipped, and the figures' samples start at +0x38.
+                let sample = (0x58 + offset - 4)
+                    .checked_sub(0x38)
+                    .ok_or(crate::errors::BadInput(PAST))?;
+                gear.test_speeds
+                    .get((sample / 4) as usize)
+                    .map(crate::memory::session::PlainFloat::bits)
+                    .ok_or(crate::errors::BadInput(PAST))
+            }
+            Some(_) => Err(crate::errors::BadInput(PAST)),
+        }
     }
 }
 
-/// The piece: a field of `Frame::lights_and_gear` since 2026-10-29 (it left the race
-/// block with its group, phase 13).
+/// The records as a field of `Frame::lights_and_gear` (tests).
+#[cfg(test)]
 pub struct InGroup;
 
+#[cfg(test)]
 impl core::ops::Deref for InGroup {
     type Target = LightRecords;
     fn deref(&self) -> &LightRecords {
-        &race().frame.lights_and_gear.light_records
+        &race().frame.lights_and_gear.get().light_records
     }
 }
 
-pub static LIGHT_RECORDS: InGroup = InGroup;
-
-/// IDA 0x5C906C, the first byte of the piece.
-pub const START: usize = 0x5C906C;
-/// IDA 0x5CB954, the end of the piece.
-pub const END: usize = 0x5CB954;
-
-const _: () = assert!(END - START == core::mem::size_of::<LightRecords>());
-
-/// Where IDA 0x5C906C is now (its group's static).
 #[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(
-        &race().frame.lights_and_gear.light_records,
-    ))
-}
+pub static LIGHT_RECORDS: InGroup = InGroup;
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::offset_of;
 
     #[test]
-    fn piece_sits_on_the_race_block() {
-        assert_eq!(piece_addr() % 4, 0);
+    fn a_record_past_the_last_reads_on_into_the_gear_figures_and_no_further() {
+        // The longest read: a group number of the kind past the 34 (`scene::load_object`).
+        let gear = &crate::test_support::own::race()
+            .frame
+            .lights_and_gear
+            .get()
+            .gear;
+        assert!(LIGHT_RECORDS.group_at(gear, 34, 0x3C).is_ok());
         assert_eq!(
-            piece_addr(),
-            crate::framework::game_addr(crate::framework::rva(START))
+            LIGHT_RECORDS.group_at(gear, 34, 0).ok(),
+            Some(
+                crate::test_support::own::race()
+                    .frame
+                    .lights_and_gear
+                    .get()
+                    .gear
+                    .test_speeds[7]
+                    .get()
+                    .to_bits()
+            )
         );
-        assert_eq!(
-            crate::moved::place(END - 1),
-            (piece_addr() + (END - START) as u32 - 1) as usize
-        );
-        assert_eq!(offset_of!(LightRecord, axles), 0x5C9098 - START);
-        assert_eq!(offset_of!(LightRecord, groups), 0x5C90C4 - START);
-        assert_eq!(offset_of!(LightRecord, lights), 0xA4);
-        assert_eq!(LIGHT_RECORDS.record_addr(1), (piece_addr() + 0x134));
-    }
-
-    #[test]
-    fn a_record_place_reads_on_into_the_group_and_no_further() {
-        // The longest read: a group number of the kind past the 34 (load_object).
-        assert!(
-            LIGHT_RECORDS
-                .record_ptr(34)
-                .offset(0x58 + 0x28)
-                .read::<u32>("t")
-                .is_ok()
-        );
-        assert_eq!(
-            LIGHT_RECORDS.record_ptr(1).addr(),
-            LIGHT_RECORDS.record_addr(1)
-        );
-        assert!(LIGHT_RECORDS.record_ptr(0x1000).read::<u32>("t").is_err());
+        assert!(LIGHT_RECORDS.group_at(gear, 35, 0).is_err());
+        assert!(LIGHT_RECORDS.group_at(gear, 1, 0x1000).is_err());
     }
 }

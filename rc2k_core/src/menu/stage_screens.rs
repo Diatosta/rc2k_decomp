@@ -1,21 +1,18 @@
-//! The stage screens' choices: the speeches, the welcome picture and the items that pick
-//! a page (converted 2026-10-21 from `menu::play_stage_speech` 0x47F437,
-//! `play_rally_speech` 0x47F40F, `load_welcome_picture` 0x4684BD,
-//! `view_stage_details` 0x47037E and `new_simulation_if_unlocked` 0x4A96BF).
+//! The stage screens' choices: the speeches, the welcome picture and the items that pick a page.
 
 use crate::Invalid;
 
-/// `g_eventMode` in the championship.
+/// The event mode in the championship.
 pub const CHAMPIONSHIP: u32 = 2;
 
-/// `g_eventType` of the time trial.
+/// The event type of the time trial.
 pub const TIME_TRIAL: u32 = 3;
 
-/// The stage speeches' table (`off_75A37E`) has this many entries.
+/// The stage speeches' table has this many entries.
 pub const STAGE_SPEECHES: u32 = 0x40;
 
-/// The highest section the rally speeches' and welcome pictures' tables are read at
-/// (the original reads them unchecked).
+/// The highest section the rally speeches' and welcome pictures' tables are read at; a higher
+/// one is refused.
 pub const LAST_SECTION: u32 = 0x20;
 
 /// The speeches play in the championship only.
@@ -56,9 +53,9 @@ pub fn rally_speech(mode: u32, section: impl FnOnce() -> u32) -> Result<Option<u
 /// The welcome pictures' two tables.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Welcome {
-    /// `off_75987E`, the championship's.
+    /// `MenuLists.welcome_championship[0]`, the championship's.
     Championship,
-    /// `off_759896`, the others' (the A8 championship's).
+    /// `MenuLists.welcome_other[0]`, the others' (the A8 championship's).
     Other,
 }
 
@@ -71,13 +68,13 @@ pub fn welcome(mode: u32) -> Welcome {
     }
 }
 
-/// `menu::view_stage_details`: the time trial's stage details page (true) or the stage
-/// view, by `g_eventType`.
+/// `menu::view_stage_details`: the time trial's stage details page (true) or the stage view, by
+/// event type.
 pub fn time_trial_details(event_type: u32) -> bool {
     event_type == TIME_TRIAL
 }
 
-/// `menu::new_simulation_if_unlocked`: a new simulation starts with `dword_75ACCC` 1.
+/// `menu::new_simulation_if_unlocked`: a new simulation starts with `RaceState.settings.a8_game` 1.
 pub fn simulation_unlocked(flag: u32) -> bool {
     flag == 1
 }

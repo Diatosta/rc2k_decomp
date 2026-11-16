@@ -1,12 +1,8 @@
-//! The itinerary pages (`screens::draw_itinerary` and its sisters; stream A, part F1, 2026-10-18):
-//! a section of the record table (`g_recordTable`, records 0xA4 bytes; +0 the tag: 0 a stage,
-//! 1 a service, 3 / 4 the end; +0x10 its time of day as hhmm) listed row by row from y 0xE8
-//! (`seconds`), the rows counted in `dword_7559B0`, the stages in `dword_7559B4`, the
-//! services in `dword_755A0C`.
+//! The itinerary pages (`screens::draw_itinerary` and its sisters): a section of the record
+//! table (records of 0xA4 bytes; a tag: 0 a stage, 1 a service, 3 / 4 the end; the time of day as
+//! hhmm) listed row by row, with the rows, stages and services counted in the draw work.
 
 use crate::errors::{FatalError, Refused};
-use crate::menu::owner::Menus;
-use crate::records::stages_store::RecordRef;
 use crate::screens::best_scores::{record_at, section_there};
 use crate::screens::game_screen::GameScreen;
 use crate::text::draw_text::Canvas;
@@ -16,65 +12,66 @@ const INVALID_STAGE: FatalError = FatalError {
     message: "Invalid Stage ID",
 };
 
-/// `screens::draw_itinerary` (0x472C8C): the section's heading (event mode 0x13
-/// `dword_75A28A[section]`, else its first record's +0x38 string) at (0x2EB, 0x77), the column
-/// heads (strings 0x482, 0x47E, 0x480, 0x47F at y 0xD1), then from record 1: a service its
-/// name (string 0x478 + its number, kept in `dword_755A08`) and time; a stage (the row
-/// `index` in the highlight fonts) its track-pack entry's name, its length (hundredths of a
-/// mile, `strings::append_distance_2dp` and the unit's string 0x56F / 0x570; none for 0), its
-/// number, and its time; tags 3 and 4 end the list, any other is fatal error 0x8070D91A
-/// "Invalid Stage ID". Every register kept. Refuses (before anything) a section past the
-/// table.
-pub fn draw_itinerary(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    // Converted: `rc2k_core::screens::itinerary`.
+/// The section's heading (event mode 0x13: `MenuLists.section_titles[0][section]`, else its
+/// first record's string), the column heads, then from record 1: a service its name and time;
+/// a stage (the row `index` in the highlight fonts) its track-pack entry's name, its length
+/// (hundredths of a mile and the unit's string; none for 0), its number and its time; tags 3 and
+/// 4 end the list, any other is fatal error 0x8070D91A "Invalid Stage ID". Refuses a section
+/// past the table.
+pub fn draw_itinerary(
+    o: crate::owners::Owners<'static>,
+    system: &crate::system::owner::System,
+    canvas: &mut dyn Canvas,
+) -> Result<(), Refused> {
+    let menus = o.menus;
+    // The logic is in `rc2k_core::screens::itinerary`.
     use rc2k_core::screens::itinerary::Row;
     {
-        if !section_there()? {
+        if !section_there(menus, system)? {
             return Err(crate::errors::BadInput("a section past the record table").into());
         }
-        let first = record_at(0)?;
+        let stages = &system.records().stage_tables;
+        let first = record_at(menus, system, 0)?;
         let heading = if menus.play.champ_view.event_mode.get() == 0x13 {
-            crate::session::read_on_in(
-                &menus.tables.lists,
-                &menus.tables.lists.section_titles,
-                menus.screens.event.section.get() as usize,
-                "a section title",
+            crate::screens::stage_panel::section_title(
+                &menus.lists,
+                menus.screens.event.section.get(),
             )?
         } else {
-            first.record()?.name()
+            first.record(stages)?.name()
         };
-        let base = record_at(1)?;
-        let record = move |n: u32| base.offset(n.wrapping_sub(1));
+        let base = record_at(menus, system, 1)?;
+        let record = move |n: u32| base.offset(stages, n.wrapping_sub(1));
         let row = |n: u32| -> Result<Row, Refused> {
             let r = record(n)?;
-            match r.tag() {
+            match r.tag(stages) {
                 1 => Ok(Row::Service {
-                    hhmm: r.record()?.hhmm(),
+                    hhmm: r.record(stages)?.hhmm(),
                 }),
                 3 | 4 => Ok(Row::End),
                 0 => {
-                    let entry = crate::records::trakpak_entry::track_of(r)?;
+                    let entry = crate::records::trakpak_entry::track_of(stages, r)?;
                     Ok(Row::Stage {
-                        name: entry.name()?,
-                        length: entry.length()?,
-                        hhmm: r.record()?.hhmm(),
+                        name: entry.name(stages)?,
+                        length: entry.length(stages)?,
+                        hhmm: r.record(stages)?.hhmm(),
                     })
                 }
                 _ => Err(INVALID_STAGE.into()),
             }
         };
         let fault = crate::menu::event_flow::Fault::default();
-        let ends_at = |n: u32| fault.ok(record(n).map(RecordRef::tag)) == u32::MAX;
+        let ends_at = |n: u32| fault.ok(record(n).map(|r| r.tag(stages))) == u32::MAX;
         let drawn = rc2k_core::screens::itinerary::itinerary(
             &mut GameScreen::<
                 rc2k_core::screens::itinerary::Font,
                 rc2k_core::screens::itinerary::Work,
-            >::new(canvas),
+            >::new(canvas, o),
             heading,
             &row,
             &ends_at,
-            menus.screens.event.index.get(),
-            crate::strings::units::units(),
+            menus.screens.event.stage_in_section.get(),
+            crate::strings::units::units(o.strings),
         );
         fault.check()?;
         drawn

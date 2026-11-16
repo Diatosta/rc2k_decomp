@@ -1,5 +1,4 @@
-//! The graphics options' screen mode choices (converted 2026-10-21 from
-//! `gfx::screen_mode_choices` 0x4045D6).
+//! The graphics options' screen mode choices.
 //!
 //! The choices: a pixel kind (0 or 1), a size (a place in a list of the mode table's modes
 //! of that kind), a third choice (0 or 1) and a texture figure. The list is made again
@@ -7,9 +6,10 @@
 //! A choice is tried as a mode: 0x300000 with the kind's bits, the list's mode and the
 //! third choice's bits.
 
-/// The list's room (up to 0x4F51F0's constants).
+/// The most modes the list holds.
 pub const ROOM: u32 = 16;
-/// A size's place the Rust version takes: the original reads 16 x the place past the list.
+/// The limit on a size's place taken; a place past the list reads 16 x the place beyond it
+/// (kept).
 pub const PLACE_LIMIT: u32 = 0x1000;
 /// What every mode tried has.
 pub const TRIED: u32 = 0x30_0000;
@@ -55,9 +55,8 @@ pub fn third_key(race_mode: u32) -> u32 {
     race_mode & 0xF_0000
 }
 
-/// The size's place of the mode in use (`current`, by its low 12 bits; else 0: the
-/// original's search by width keeps 0, its bound never moves). The original stores it and
-/// then `race_place`'s over it.
+/// The size's place of the mode in use (`current`, by its low 12 bits; 0 when none matches). The
+/// caller stores it and then `race_place`'s result over it.
 pub fn in_use_place(modes: &[u32], current: u32) -> u32 {
     modes
         .iter()

@@ -1,31 +1,25 @@
-//! `menu::show_championship_standings` (0x4A5A47): the championship standings: the first player's entry of a group in standings
-//! table B (`menu::first_player_unplaced`), its figure held to 0xAB into `dword_7556B4`;
-//! `menu::first_page_stage`, `menu::stage_range_caption`; then the page
-//! (`menu::championship_standings_loop`).
+//! `menu::show_championship_standings`: the championship standings: the first player's entry
+//! of a group in standings table B (`menu::first_player_unplaced`), its figure held to 0xAB
+//! into `champ_view.rows.count`; `menu::first_page_stage`, `menu::stage_range_caption`; then the
+//! page (`menu::championship_standings_loop`).
 //!
-//! The steps are their Rust versions. Refuses what the steps
-//! refuse, before anything; raises the search's fatal error as the original.
+//! Refuses what the steps refuse, before anything; raises the search's fatal error.
 
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
+use crate::menu::champ_store::ChampView;
+use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_loop::{Entry, run_screen};
 use rc2k_core::menu::results_pages::{Page, held_figure};
-
-// dword_7558F4
-// g_eventMode
-
-/// The Rust version.
-pub fn show_championship_standings(menus: &Menus) -> Result<(), Refused> {
-    let play = &menus.play;
-    let found = crate::menu::first_player_unplaced::first_player_unplaced()?;
-    // Converted: `rc2k_core::menu::results_pages::held_figure`.
+pub fn show_championship_standings(
+    champ: &ChampView,
+    entry: &Entry,
+    tables: &crate::saves::best_times::BestTables,
+) -> Result<(), Refused> {
+    let found = crate::menu::first_player_unplaced::first_player_unplaced(tables)?;
     let count = held_figure(Page::ChampionshipStandings, found.figure);
-    menus.play.champ_view.count.set(count);
-    crate::menu::first_page_stage::first_page_stage(play);
-    crate::menu::stage_range_caption::stage_range_caption(play)?;
-    run_screen(
-        &crate::menu::championship_standings_loop::SCREEN,
-        &Entry::new(menus),
-    )?;
+    champ.rows.count.set(count);
+    crate::menu::first_page_stage::first_page_stage(champ);
+    crate::menu::stage_range_caption::stage_range_caption(champ, &entry.menus.text_buffers)?;
+    run_screen(ScreenId::ChampionshipStandings, entry)?;
     Ok(())
 }

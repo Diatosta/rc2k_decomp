@@ -1,11 +1,8 @@
-//! Module scene's owner (step 11, owned state): the scene's state in one struct, handed by
-//! reference to the code that runs it in place of global stores. The file numbers of the
-//! object loaders, the draw switches, the light tables and the car icon upload join it first;
-//! the other stores follow one by one.
-//!
-//! `scene()` is the boundary: the callers outside the module that do not take the owner fetch
-//! it there. It rises as their callers take the owner (`notes/memory_layer_plan.md`, step 11).
+//! Module scene's owner: the scene's state in one struct, handed by reference to the code that runs
+//! it in place of global stores. The file numbers of the object loaders, the draw switches, the
+//! light tables and the car icon upload join it first; the other stores follow one by one.
 
+use crate::memory::session::{DrawShared, GameThread};
 use crate::scene::draw_store::SceneDraw;
 use crate::scene::draw_switches_store::DrawSwitches;
 use crate::scene::file_numbers_store::ObjectFileNumbers;
@@ -21,73 +18,110 @@ use crate::scene::upload_car_icon::IconUploadCell;
 
 /// The scene's state.
 pub struct Scene {
-    pub file_numbers: ObjectFileNumbers,
-    pub draw_switches: DrawSwitches,
-    pub light_tables: LightTables,
-    pub icon_upload: IconUploadCell,
+    /// Written between frames, read by the drawing parts through their reads
+    /// (`scene::workers::DrawReads`).
+    pub draw_switches: DrawShared<DrawSwitches>,
+    /// Written between frames, read by the drawing parts through their reads
+    /// (`scene::workers::DrawReads`).
+    pub light_tables: DrawShared<LightTables>,
     pub drawing: Drawing,
+    /// The scratch every drawing part and view works on (`scene::workers::DrawingScratch`).
+    pub scratch: crate::scene::workers::DrawingScratch,
     pub lights: Lights,
     pub objects: Objects,
     pub textures: Textures,
+    main: GameThread<SceneMain>,
+}
+
+/// What the game's thread alone reaches (no drawing part or other thread does): the object
+/// loaders' file numbers and path texts, the car icon upload's work and the scene objects'
+/// work variables.
+struct SceneMain {
+    file_numbers: ObjectFileNumbers,
+    icon_upload: IconUploadCell,
+    /// The scene objects' work variables (`OBJECT_WORK`).
+    object_work: ObjectWork,
+}
+
+impl Scene {
+    pub fn file_numbers(&self) -> &ObjectFileNumbers {
+        &self.main.get().file_numbers
+    }
+
+    pub fn icon_upload(&self) -> &IconUploadCell {
+        &self.main.get().icon_upload
+    }
+
+    pub fn object_work(&self) -> &ObjectWork {
+        &self.main.get().object_work
+    }
 }
 
 /// The drawing state: the draw variables and the scene objects' work.
 pub struct Drawing {
     /// The scene's draw variables (`DRAW`).
-    pub scene: SceneDraw,
-    /// The scene objects' work variables (`OBJECT_WORK`).
-    pub object_work: ObjectWork,
+    /// Written between frames (mostly the physics' work dwords), read by the drawing parts
+    /// through their reads (`scene::workers::DrawReads`).
+    pub scene: DrawShared<SceneDraw>,
 }
 
 /// The light state and the lights' work variables.
 pub struct Lights {
-    /// The light state (`LIGHT_STATE`).
-    pub state: LightState,
-    /// The lights' work variables (`LIGHT_WORK`).
-    pub work: LightWork,
+    /// The light state (`LIGHT_STATE`): written between frames, read by the drawing parts
+    /// through their reads (`scene::workers::DrawReads`).
+    pub state: DrawShared<LightState>,
+    /// The lights' work variables (`LIGHT_WORK`): written between frames, read by the drawing
+    /// parts through their reads (`scene::workers::DrawReads`).
+    pub work: DrawShared<LightWork>,
 }
 
 /// The object tables: the slots and the kinds' tables.
 pub struct Objects {
-    /// The object slots (`OBJECT_SLOTS`).
-    pub slots: ObjectSlots,
-    /// The object tables (`OBJECT_TABLES`).
-    pub tables: ObjectTables,
+    /// The object slots (`OBJECT_SLOTS`): written between frames, read by the drawing parts
+    /// through their reads (`scene::workers::DrawReads`).
+    pub slots: DrawShared<ObjectSlots>,
+    /// The object tables (`OBJECT_TABLES`): written between frames, read by the drawing parts
+    /// through their reads (`scene::workers::DrawReads`).
+    pub tables: DrawShared<ObjectTables>,
 }
 
 /// The texture places and the kinds' texture tables.
 pub struct Textures {
-    /// The texture places (`TEXTURE_PLACES`).
-    pub places: TexturePlaces,
-    /// The kinds' texture tables (`KIND_TEXTURES`).
-    pub kinds: KindTextureTables,
+    /// The texture places (`TEXTURE_PLACES`): written between frames, read by the drawing parts
+    /// through their reads (`scene::workers::DrawReads`).
+    pub places: DrawShared<TexturePlaces>,
+    /// The kinds' texture tables: written between frames, read by the drawing
+    /// parts through their reads (`scene::workers::DrawReads`).
+    pub kinds: DrawShared<KindTextureTables>,
 }
 
-/// The one instance. Reached through `scene()`; `moved` registers its stores' places.
-pub static SCENE: Scene = Scene {
-    file_numbers: ObjectFileNumbers::new(),
-    draw_switches: DrawSwitches::new(),
-    light_tables: LightTables::new(),
-    icon_upload: IconUploadCell::new(),
-    drawing: Drawing {
-        scene: SceneDraw::new(),
-        object_work: ObjectWork::new(),
-    },
-    lights: Lights {
-        state: LightState::new(),
-        work: LightWork::new(),
-    },
-    objects: Objects {
-        slots: ObjectSlots::new(),
-        tables: ObjectTables::new(),
-    },
-    textures: Textures {
-        places: TexturePlaces::new(),
-        kinds: KindTextureTables::new(),
-    },
-};
-
-/// The scene's state, for a caller that does not take it as a parameter yet.
-pub fn scene() -> &'static Scene {
-    &SCENE
+impl Scene {
+    /// The state at start-up: every store in its first state.
+    pub const fn new() -> Self {
+        Self {
+            draw_switches: DrawShared::new(DrawSwitches::new()),
+            light_tables: DrawShared::new(LightTables::new()),
+            scratch: crate::scene::workers::DrawingScratch::new(),
+            drawing: Drawing {
+                scene: DrawShared::new(SceneDraw::new()),
+            },
+            lights: Lights {
+                state: DrawShared::new(LightState::new()),
+                work: DrawShared::new(LightWork::new()),
+            },
+            objects: Objects {
+                slots: DrawShared::new(ObjectSlots::new()),
+                tables: DrawShared::new(ObjectTables::new()),
+            },
+            textures: Textures {
+                places: DrawShared::new(TexturePlaces::new()),
+                kinds: DrawShared::new(KindTextureTables::new()),
+            },
+            main: GameThread::new(SceneMain {
+                file_numbers: ObjectFileNumbers::new(),
+                icon_upload: IconUploadCell::new(),
+                object_work: ObjectWork::new(),
+            }),
+        }
+    }
 }

@@ -1,30 +1,24 @@
-//! `text::draw_time_text` (0x402395): draws a time's text one character at a time, each
-//! with the font's fixed width (+0x1C) set to 6 for ':' and '.', 0x10 for the others, so
-//! that the digits keep their columns; at most 11 characters, up to the NUL.
-//!
-//! Takes: font, text, x, y
-//!
-//! Each character is drawn as a text of its own (the original swapped the dword after it
-//! for 0 around `text::draw_text_keep_regs` and put it back: here the character and a NUL
-//! are drawn as a value and the buffer is not touched); x moves on by the width. The font's +0x1C is 0 at the end. Callers: `net::lobby_frame` (twice).
+//! Draws a time's text one character at a time, each with the font's fixed width (+0x1C) set to 6
+//! for ':' and '.', 0x10 for the others, so that the digits keep their columns; at most 11
+//! characters, up to the NUL.
+//! Each character is drawn as a text of its own (the character and a NUL as a value; the buffer is
+//! not touched); x moves on by the width. The font's +0x1C is 0 at the end.
 
 use crate::errors::Refused;
 
-/// The Rust version (see the header): the time text at `text` in `font` at (`x`, `y`).
-/// The flags the original leaves are read by neither caller (register liveness,
-/// 2026-10-23: after the two calls DF, ebp, ebx/edi, edx, esi, all kept).
+/// The time text at `text` in `font` at (`x`, `y`).
 pub fn draw_time_text(
     font: impl Into<crate::gfx::typefaces::FontRef>,
     text: &(impl rc2k_core::strings::bytes::Bytes + ?Sized),
     x: u32,
     y: u32,
+    gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     use crate::text::draw_text::GameCanvas;
-    let font = font.into().object();
+    let font = font.into().object(&gfx.fonts.typefaces);
     let mut x = x;
-    // Converted: `rc2k_core::text::time_text_widths`.
     let chars = text;
-    let widths = rc2k_core::text::time_text_widths(chars)
+    let widths = rc2k_core::strings::text::time_text_widths(chars)
         .map_err(|_| crate::errors::BadInput("a time text past its block"))?;
     for (i, width) in widths.into_iter().enumerate() {
         font.box_width.set(width);
@@ -35,7 +29,7 @@ pub fn draw_time_text(
             &[chars.byte(i).unwrap_or(0), 0],
             x as i32,
             y as i32,
-            &mut GameCanvas,
+            &mut GameCanvas::new(gfx),
         )?;
         if copy != font.get() {
             font.set(copy);

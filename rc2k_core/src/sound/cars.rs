@@ -1,8 +1,5 @@
-//! The cars' race sounds that are whole-number logic (converted 2026-10-21): the spoken
-//! cue queue (`sound::drop_cue` 0x40EE32, `sound::play_cue_queue` 0x40ED4A), the timed
-//! slots (`sound::play_timed_slot` 0x40E59E), the one-off hit and cue sounds
-//! (`sound::car_hit_sound` 0x40E182, `sound::car_cue_sound` 0x40E1E5) and the voices'
-//! marks (`sound::mark_car_voices` 0x40D75A).
+//! The cars' race sounds that are whole-number logic: the spoken cue queue, the timed slots, the
+//! one-off hit and cue sounds and the voices' marks.
 
 use crate::Invalid;
 
@@ -15,7 +12,7 @@ pub const MOST_CUES: u32 = 16;
 /// The most sounds a cue holds.
 pub const MOST_SOUNDS: u32 = 6;
 
-/// A spoken cue: 0x20 bytes.
+/// A spoken cue (0x20 bytes in the game's layout).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Cue {
     pub first: u32,
@@ -71,7 +68,7 @@ impl CueQueue {
     }
 }
 
-/// What a drop did, for the registers it leaves.
+/// What a drop did.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Dropped {
     /// No cue at the place: the count as it is.
@@ -114,12 +111,11 @@ pub enum CueTurn {
     Play { sound: u32 },
 }
 
-/// A turn of a car's cue queue at `clock`: once the next sound is due (or none begun) the
-/// place moves on; a cue played out is dropped and the next begun, and the place's sound
-/// is due again after its length (`duration`, at the sample's own rate) and 25 ms (sounds
-/// 0x13F and 0x140 0x1000000 later: never). `drop(q, place)` takes the first cue out
-/// (`drop_cue` at 0; the place it was at given). Refused (before anything): more than 16
-/// cues or a cue of more than six sounds; what `duration` and `drop` refuse.
+/// A turn of a car's cue queue at `clock`: once the next sound is due (or none begun) the place
+/// moves on; a played-out cue is dropped and the next begun. A place's sound is due again after its
+/// length (`duration`, at the sample's own rate) and 25 ms (sounds 0x13F and 0x140: never).
+/// `drop(q, place)` takes the first cue out, given the place it was at. Refused before anything:
+/// more than 16 cues, a cue of more than six sounds, or what `duration` and `drop` refuse.
 pub fn cue_turn<E: From<Invalid>>(
     q: &mut CueQueue,
     in_use: bool,
@@ -194,10 +190,10 @@ pub enum SlotTurn {
     },
 }
 
-/// A slot's turn at `clock`: asked to start, it starts unless playing (sound 0xE9 even
-/// then): the volume and rate (`settings`), its end the clock + its length (`duration`),
-/// playing. Else a playing one stops once the clock is at or past its end. What the two
-/// refuse, before anything is written.
+/// A slot's turn at `clock`: asked to start, it starts unless playing (sound 0xE9 even then) with
+/// its volume and rate (`settings`), ending at the clock plus its length (`duration`). Else a
+/// playing one stops once the clock is at or past its end. Refuses what the two refuse, before
+/// anything is written.
 pub fn slot_turn<E>(
     s: &mut TimedSlot,
     clock: u32,
@@ -236,10 +232,9 @@ pub enum OneOff {
     Play { volume: u32, rate: u32 },
 }
 
-/// A car's one-off sound (`waiting`, -2 none) taken, with its volume and the sample's own
-/// rate (`settings`): under `least` (4 for a hit, 1 for a cue) it is not played, and with
-/// `stop_quiet` (the cue) stopped instead. `record` refuses a sound past the samples,
-/// before anything.
+/// A car's one-off sound (`waiting`, -2 none) taken, with its volume and the sample's own rate
+/// (`settings`): under `least` (4 for a hit, 1 for a cue) it is not played, and with `stop_quiet`
+/// (the cue) stopped instead. `record` refuses a sound past the samples, before anything.
 pub fn one_off<E>(
     waiting: &mut u32,
     volume: u32,
@@ -267,7 +262,7 @@ pub fn one_off<E>(
     ))
 }
 
-/// A whole number as the float `fild` / `fstp` makes it.
+/// A whole number as an `f32`.
 pub fn from_int(v: i32) -> u32 {
     (v as f32).to_bits()
 }

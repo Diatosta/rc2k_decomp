@@ -1,20 +1,13 @@
-//! The stage's checkpoints: the line's faces chained in order, the checks along them and
-//! the map's anchors, the car placed on the line (converted 2026-10-21 from
-//! `race::set_line_face_kind` 0x44574A, `sort_checkpoints` 0x4458A7, `count_checks`
-//! 0x445AAB, `next_map_anchor` 0x445FEE, `first_check_checkpoint` 0x446280,
-//! `init_checkpoints` 0x45A98F, `place_car_on_line` 0x44666F and `nearest_checkpoint_in`
-//! 0x4413F8; the measure's range and the nearest's distance in units converted 2026-10-21
-//! from `race::distance_to_checkpoint` 0x44141D and `race::nearest_checkpoint` 0x44134F).
-//! A face is asked about through closures, in the original's order, so nothing
-//! is read that it does not read.
+//! The stage's checkpoints: the line's faces chained in order, the checks along them, the map's
+//! anchors, the car placed on the line and the nearest checkpoint. Faces are asked about through
+//! closures in a fixed order, so nothing is read that is not needed.
 
 use crate::Invalid;
 
-/// The entries `g_checkpointFaces` and the lists after it have room for.
+/// The entries the checkpoint-face table and the lists after it have room for.
 pub const MOST_CHECKS: u32 = 0x1418;
 
-/// `race::set_line_face_kind`: the kind of the line's faces by the stage's direction
-/// (`g_stageDirection`): 0x3E forwards (0), 0x3D backwards (1), else 0.
+/// The kind of the line's faces by direction: 0x3E forwards (0), 0x3D backwards (1), else 0.
 pub fn line_face_kind(direction: u32) -> u32 {
     match direction {
         0 => 0x3E,
@@ -28,16 +21,15 @@ pub fn line_face_kind(direction: u32) -> u32 {
 pub struct Chain {
     /// The checkpoints chained (0: no start face).
     pub length: u32,
-    /// The last face asked about (ebx in the original).
+    /// The last face asked about.
     pub last_face: u32,
-    /// The place the last search stopped at (edx).
+    /// The place the last search stopped at.
     pub stopped: u32,
 }
 
-/// `race::sort_checkpoints`' chain over the line's faces (`list`, two or more): the
-/// first whose byte +0x26 is 1 (`is_start`) put first (none: length 0), then each next
-/// the one the last one names (`next_of`, its +0xC; searched over the whole list,
-/// swapped into place) until none is found or all are chained.
+/// The chain over the line's faces (`list`, two or more): the first face with kind byte 1
+/// (`is_start`) goes first (none: length 0), then each next the one the last names (`next_of`),
+/// until none is found or all are chained.
 pub fn chain(
     list: &mut [u32],
     mut is_start: impl FnMut(u32) -> bool,
@@ -84,8 +76,7 @@ pub fn chain(
     }
 }
 
-/// `race::count_checks`: each checkpoint's count of checks up to it (itself included):
-/// the checkpoints whose face's byte +0x26 (`kind`, asked in order) is neither 0 nor 1.
+/// Each checkpoint's count of checks up to it (itself included): faces whose kind is not 0 or 1.
 pub fn check_counts(count: u32, mut kind: impl FnMut(u32) -> u8) -> Vec<u32> {
     let mut checks = 0u32;
     (0..count)
@@ -98,8 +89,7 @@ pub fn check_counts(count: u32, mut kind: impl FnMut(u32) -> u8) -> Vec<u32> {
         .collect()
 }
 
-/// `race::next_map_anchor`: from checkpoint `from` on, the first below `count` whose
-/// face has a place on the map (`placed`, asked in order); None for none.
+/// From checkpoint `from` on, the first below `count` whose face has a map place; None if none.
 pub fn next_map_anchor(from: u32, count: u32, mut placed: impl FnMut(u32) -> bool) -> Option<u32> {
     (from..count).find(|&n| placed(n))
 }
@@ -109,14 +99,12 @@ pub fn next_map_anchor(from: u32, count: u32, mut placed: impl FnMut(u32) -> boo
 pub struct FirstCheck {
     /// The checkpoint found.
     pub found: Option<u32>,
-    /// The checkpoint it stopped at (edx).
+    /// The checkpoint it stopped at.
     pub stopped: u32,
 }
 
-/// `race::first_check_checkpoint`: the first checkpoint from 1 whose face's byte +0x26
-/// (`kind`, asked in order) is not 0, looked for up to `last` (not included, asked only
-/// for a look). None (no look) when `count` - 2 is negative. Refuses a look that would
-/// run past the list (the original runs on until it finds one: `last` 0 or 1).
+/// The first checkpoint from 1 whose face's kind is not 0, looked for up to `last` (excluded).
+/// None when `count` - 2 is negative. Refuses a look past the list (`last` 0 or 1).
 pub fn first_check_checkpoint(
     count: u32,
     last: impl FnOnce() -> u32,
@@ -147,12 +135,11 @@ pub fn first_check_checkpoint(
     }
 }
 
-/// The checkpoints `init_checkpoints` lists at most (`dword_60102C`).
+/// The checkpoints `listed_checkpoints` lists at most.
 pub const MOST_LISTED: u32 = 0x201;
 
-/// `race::init_checkpoints`: the checkpoints 1 .. `end` (not included) whose face's
-/// byte +0x26 is set (`flagged`, asked in order). Refuses an end below 2 (the original
-/// counts round) and more than `MOST_LISTED` found.
+/// The checkpoints 1 .. `end` whose face is flagged. Refuses an end below 2 and more than
+/// `MOST_LISTED` found.
 pub fn listed_checkpoints(
     end: u32,
     mut flagged: impl FnMut(u32) -> bool,
@@ -169,9 +156,8 @@ pub fn listed_checkpoints(
     Ok(listed)
 }
 
-/// `race::place_car_on_line`: the checkpoint the car is placed after (`dword_6365E4`)
-/// and the next, each held below `count`. Refuses no checkpoints (the original reads
-/// entry -1).
+/// The checkpoint the car is placed after and the next, each held below `count`. Refuses a
+/// line without checkpoints.
 pub fn line_neighbours(place: u32, count: u32) -> Result<(u32, u32), Invalid> {
     if count == 0 {
         return Err(Invalid("no checkpoints to place the car between"));
@@ -180,8 +166,7 @@ pub fn line_neighbours(place: u32, count: u32) -> Result<(u32, u32), Invalid> {
     Ok((c, c.wrapping_add(1).min(count - 1)))
 }
 
-/// `race::place_car_on_line`: a + (b - a) x t / 65536 as `imul` / `shrd 16` / `add` make
-/// it, and the product's high half (edx).
+/// a + (b - a) x t / 65536, with the product's high half.
 pub fn lerp(a: u32, b: u32, t: u32) -> (u32, u32) {
     let product = b.wrapping_sub(a) as i32 as i64 * t as i32 as i64;
     (
@@ -190,7 +175,7 @@ pub fn lerp(a: u32, b: u32, t: u32) -> (u32, u32) {
     )
 }
 
-/// The nearest checkpoint so far (`race::nearest_checkpoint_in`: ebp, edi).
+/// The nearest checkpoint so far.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Nearest {
     pub checkpoint: u32,
@@ -208,8 +193,7 @@ impl Default for Nearest {
 }
 
 impl Nearest {
-    /// Checkpoint `n` at `distance`: kept when as near or nearer (unsigned: the later of
-    /// equals).
+    /// Checkpoint `n` at `distance`: kept when as near or nearer (unsigned; the later of equals).
     pub fn consider(&mut self, n: u32, distance: u32) {
         if distance <= self.distance {
             *self = Self {
@@ -220,15 +204,12 @@ impl Nearest {
     }
 }
 
-/// `race::distance_to_checkpoint`: whether `checkpoint` is one of the line's (0 ..
-/// `count` - 1), by the original's sign tests (`js` on it, `jns` on it less the count).
+/// Whether `checkpoint` is one of the line's (0 ..= `count` - 1), by signed tests.
 pub fn on_line(checkpoint: u32, count: u32) -> bool {
     (checkpoint as i32) >= 0 && (checkpoint.wrapping_sub(count) as i32) < 0
 }
 
-/// `race::nearest_checkpoint`: the nearest's distance (a whole number) over the scale
-/// (`fild` / `fdiv` / `fstp`): one rounding to the float (the game's scale is 65536, so the
-/// quotient is exact before it).
+/// The nearest's distance over the scale: one rounding to the float (the scale is 65536).
 pub fn distance_units(distance: u32, scale: f32) -> f32 {
     (distance as i32 as f64 / scale as f64) as f32
 }

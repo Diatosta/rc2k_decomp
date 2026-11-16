@@ -1,17 +1,19 @@
-//! `physics::apply_wheel_torques` (0x43F694): `physics::apply_torques` on the 0x17
-//! records at `unk_614770` (the ones `physics::apply_wheel_forces` pushes with).
+//! Applies the same 0x17 records as torques (`physics::apply_torques`).
 //!
-//! Returns: the count, the first record
-//!
-//! Caller: `physics::car_physics_step` (0x43B822, after `physics::apply_wheel_forces`, before
-//! `physics::move_car`), every physics step.
+//! Caller: `physics::car_physics_step`, after `physics::apply_wheel_forces` and before
+//! `physics::move_car`, every physics step.
 
 use crate::errors::Refused;
 use crate::physics::apply_torques::apply_torques;
-use crate::race::owner::Race;
+use crate::physics::car_store::Car;
+use crate::physics::contact_store::ContactWork;
+use crate::physics::tables_store::PhysicsTables;
 const COUNT: usize = 0x17;
 
-/// The Rust version.
-pub fn apply_wheel_torques(race: &Race) -> Result<(), Refused> {
-    apply_torques(race, &race.shared.physics_tables.forces[..COUNT])
+pub fn apply_wheel_torques(
+    tables: &PhysicsTables,
+    contact: &ContactWork,
+    car: &Car,
+) -> Result<(), Refused> {
+    apply_torques(tables, contact, car, &tables.forces[..COUNT])
 }

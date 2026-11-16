@@ -1,97 +1,167 @@
-//! The finish routine's variables (IDA 0x64BB18 .. 0x64BB88; phase 7, typed): the
-//! "no place" switch, the stage numbers of the finish, the finish lengths and limits, the
-//! clock at the finish's start, the time, the eased time and the share. `#[repr(C)]` with the
-//! image's layout, over the race block's bytes (`FINISH`). Names are readings unless IDA's.
+//! The finish routine's variables: the "no place" switch, the stage numbers of the finish, the
+//! finish lengths and limits, the clock at the finish's start, the time, the eased time and the
+//! share. Plain cells: a drawing store (`session::DrawShared`), written on the game's thread and
+//! read by the drawing parts (the mirror's "no place" test) through their `scene::workers::DrawReads`.
 
-#[cfg(test)]
-use crate::race::owner::race;
-use crate::session::{Dword, Float};
+use crate::memory::session::{PlainDword, PlainFloat};
 
-#[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct Finish {
-    /// +0x0 (0x64BB18): `dword_64BB18`: set while the race has no place or panel to draw (`race::car_starts`, `race::draw_mirror_view`, `race::draw_race_scene`, `race::loadlevel`, `race::stage_loading`, `physics::passed_split_point`, `drive::finish_race`).
-    pub no_place: Dword,
-    /// +0x4 (0x64BB1C): `dword_64BB1C`: the stage number for each finish stage index (`drive::finish_race`).
-    pub finish_stages: [Dword; 7],
-    /// +0x20 (0x64BB38): `flt_64BB38`: not used by the Rust side as a variable (an x87 run reads it by RVA).
-    pub unknown_20: Float,
-    /// +0x24 (0x64BB3C): `flt_64BB3C`: the time the finish lasts, by `finished` 0 or 1 (`drive::finish_run`).
-    pub finish_lengths: [Float; 2],
-    /// +0x2c (0x64BB44): `flt_64BB44`: the first limit of the eased time (`drive::finish_timing`).
-    pub limit_a: Float,
-    /// +0x30 (0x64BB48): `flt_64BB48`: the second limit.
-    pub limit_b: Float,
-    /// +0x34 (0x64BB4C): `flt_64BB4C` .. `flt_64BB5C`: not worked out.
-    pub unknown_2c: [Float; 5],
-    /// +0x48 (0x64BB60): `dword_64BB60`: the scene clock at the finish's start (`drive::finish_run`, `drive::finish_timing`).
-    pub start_clock: Dword,
-    /// +0x4c (0x64BB64): `flt_64BB64`: the time since the start (`drive::finish_timing`, `drive::finish_run`).
-    pub time: Float,
-    /// +0x50 (0x64BB68): `flt_64BB68`: the eased time.
-    pub eased: Float,
-    /// +0x54 (0x64BB6C): `flt_64BB6C`: the share of the last stretch, 0 to 1.
-    pub share: Float,
-    /// +0x58 (0x64BB70): `flt_64BB70`: the share's first limit.
-    pub limit_c: Float,
-    /// +0x5c (0x64BB74): `flt_64BB74`: the share's second limit.
-    pub limit_d: Float,
-    /// +0x60 (0x64BB78): `flt_64BB78`: not worked out.
-    pub unknown_60: Float,
-    /// +0x64 (0x64BB7C): `flt_64BB7C`: not worked out.
-    pub unknown_64: Float,
-    /// +0x68 (0x64BB80): `dword_64BB80`, `dword_64BB84`: not worked out.
-    pub unknown_68: [Dword; 2],
+    /// Set while the race has no place or panel to draw.
+    pub no_place: PlainDword,
+    /// The stage number for each finish stage index.
+    pub finish_stages: [PlainDword; 7],
+    /// How far the lead car is lifted at the finish's start (x 65536 added to the car's height).
+    pub car_lift: PlainFloat,
+    /// The time the finish lasts, by `finished` 0 or 1.
+    pub finish_lengths: [PlainFloat; 2],
+    /// The first limit of the eased time.
+    pub limit_a: PlainFloat,
+    /// The second limit.
+    pub limit_b: PlainFloat,
+    /// The finish camera's yaw per unit of eased time.
+    pub camera_yaw_rate: PlainFloat,
+    /// The camera's distance offset (z) when the eased time is 0.
+    pub camera_distance_start: PlainFloat,
+    /// The camera's height offset (y) when the eased time is 0.
+    pub camera_height_start: PlainFloat,
+    /// The camera's distance offset (z) added per unit of eased time.
+    pub camera_distance_rate: PlainFloat,
+    /// The camera's height offset (y) added per unit of eased time.
+    pub camera_height_rate: PlainFloat,
+    /// The scene clock at the finish's start.
+    pub start_clock: PlainDword,
+    /// The time since the start.
+    pub time: PlainFloat,
+    pub eased: PlainFloat,
+    /// The share of the last stretch, 0 to 1.
+    pub share: PlainFloat,
+    /// The share's first limit.
+    pub limit_c: PlainFloat,
+    /// The share's second limit.
+    pub limit_d: PlainFloat,
+    /// The camera's pitch added per unit of the share.
+    pub camera_pitch_per_share: PlainFloat,
+    /// The camera's height offset added per unit of the share.
+    pub camera_height_per_share: PlainFloat,
+    /// Two loading-buffer slots (0x3E8000 bytes, and its second half) that nothing reads or
+    /// writes here.
+    pub unreached_loader_buffers: [PlainDword; 2],
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
 
-/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
-/// `race::store::LEFT`), with the image's first values.
 impl Finish {
-    pub const fn new() -> Self {
-        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+    /// The stage number for finish stage `n`. The original does not check `n` against the seven
+    /// stages: past them it reads the fields after the table, in order.
+    pub fn finish_stage(&self, n: usize) -> Result<u32, crate::errors::BadInput> {
+        if let Some(stage) = self.finish_stages.get(n) {
+            return Ok(stage.get());
+        }
+        crate::memory::session::read_runs(
+            &[
+                &self.finish_stages,
+                &self.car_lift,
+                &self.finish_lengths,
+                &self.limit_a,
+                &self.limit_b,
+                &self.camera_yaw_rate,
+                &self.camera_distance_start,
+                &self.camera_height_start,
+                &self.camera_distance_rate,
+                &self.camera_height_rate,
+                &self.start_clock,
+                &self.time,
+                &self.eased,
+                &self.share,
+                &self.limit_c,
+                &self.limit_d,
+                &self.camera_pitch_per_share,
+                &self.camera_height_per_share,
+                &self.unreached_loader_buffers,
+            ],
+            n,
+            "the finish stages",
+        )
     }
-}
 
-/// IDA 0x64BB18, the first byte of the piece.
-pub const START: usize = 0x64BB18;
-/// IDA 0x64BB88, the end of the piece.
-pub const END: usize = 0x64BB88;
-
-const _: () = assert!(END - START == core::mem::size_of::<Finish>());
-
-/// Where IDA 0x64BB18 is now.
-#[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&race().replay.finish))
+    pub const fn new() -> Self {
+        use crate::memory::cells::ZeroCells;
+        use crate::memory::session::{PlainDword, PlainFloat};
+        Self {
+            finish_stages: {
+                let mut v: [PlainDword; 7] = ZeroCells::ZERO;
+                v[0] = PlainDword::new(6);
+                v[1] = PlainDword::new(5);
+                v[2] = PlainDword::new(4);
+                v[3] = PlainDword::new(3);
+                v[4] = PlainDword::new(1);
+                v[5] = PlainDword::new(2);
+                v
+            },
+            car_lift: PlainFloat::new(0.6),
+            finish_lengths: {
+                let mut v: [PlainFloat; 2] = ZeroCells::ZERO;
+                v[0] = PlainFloat::new(52.0);
+                v[1] = PlainFloat::new(99.0);
+                v
+            },
+            limit_a: PlainFloat::new(16.0),
+            limit_b: PlainFloat::new(24.0),
+            camera_yaw_rate: PlainFloat::new(0.125),
+            camera_distance_start: PlainFloat::new(-27.0),
+            camera_height_start: PlainFloat::new(6.0),
+            camera_distance_rate: PlainFloat::new(1.0),
+            camera_height_rate: PlainFloat::new(-0.25),
+            limit_c: PlainFloat::new(32.0),
+            limit_d: PlainFloat::new(40.0),
+            camera_pitch_per_share: PlainFloat::new(-0.125),
+            camera_height_per_share: PlainFloat::new(8.0),
+            ..ZeroCells::ZERO
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::offset_of;
 
+    /// Every index to the end of the fields gives the entry of the fields after the table, and
+    /// the first past them is refused.
     #[test]
-    fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&race().replay.finish, START, END);
-    }
-
-    #[test]
-    fn piece_has_its_home() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            crate::moved::place(END - 1),
-            (piece_addr() + (END - START) as u32 - 1) as usize
-        );
-        assert_eq!(offset_of!(Finish, finish_stages), 0x64BB1C - START);
-        assert_eq!(offset_of!(Finish, finish_lengths), 0x64BB3C - START);
-        assert_eq!(offset_of!(Finish, limit_a), 0x64BB44 - START);
-        assert_eq!(offset_of!(Finish, start_clock), 0x64BB60 - START);
-        assert_eq!(offset_of!(Finish, time), 0x64BB64 - START);
-        assert_eq!(offset_of!(Finish, share), 0x64BB6C - START);
-        assert_eq!(offset_of!(Finish, limit_d), 0x64BB74 - START);
-        assert_eq!(offset_of!(Finish, unknown_68), 0x64BB80 - START);
+    fn finish_stage_runs_on_through_the_fields_after() {
+        let f = Finish::new();
+        let runs: [&dyn crate::memory::session::Run; 19] = [
+            &f.finish_stages,
+            &f.car_lift,
+            &f.finish_lengths,
+            &f.limit_a,
+            &f.limit_b,
+            &f.camera_yaw_rate,
+            &f.camera_distance_start,
+            &f.camera_height_start,
+            &f.camera_distance_rate,
+            &f.camera_height_rate,
+            &f.start_clock,
+            &f.time,
+            &f.eased,
+            &f.share,
+            &f.limit_c,
+            &f.limit_d,
+            &f.camera_pitch_per_share,
+            &f.camera_height_per_share,
+            &f.unreached_loader_buffers,
+        ];
+        for n in 0..27 {
+            crate::memory::session::write_runs(&runs, n, 0x1000 + n as u32, "t").unwrap();
+        }
+        for n in 0..40 {
+            let read = f.finish_stage(n);
+            assert_eq!(read.is_ok(), n < 27, "index {n}");
+            if n < 27 {
+                assert_eq!(read.ok(), Some(0x1000 + n as u32), "index {n}");
+            }
+        }
     }
 }

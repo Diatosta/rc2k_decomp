@@ -1,7 +1,5 @@
-//! The order an object's listed faces are drawn in (converted 2026-10-21 from
-//! `scene::sort_listed_faces` 0x45098C and its quicksort 0x4509BF): the largest key
-//! first. The quicksort is the original's step for step, since which of two equal keys
-//! comes first is its doing.
+//! The order an object's listed faces are drawn in: the largest key first. The quicksort is
+//! kept step for step: the order of equal keys depends on it.
 
 use crate::Invalid;
 
@@ -17,11 +15,10 @@ fn key(list: &[ListedFace], at: usize) -> Result<u32, Invalid> {
         .ok_or(Invalid("the faces' sort went past the list"))
 }
 
-/// 0x4509BF on the entries `low` ..= `high`: the key in the middle is the pivot; the
-/// left place moves on one entry if its key is above the pivot, the right place moves
-/// back while its key is below; if the two places are not the same the entries change
-/// places, and the left one moves on once more if their keys are now equal; when they
-/// meet, the part before and the part after are sorted the same way.
+/// The quicksort on entries `low` ..= `high`, the middle key the pivot: the left place moves
+/// on one entry if its key is above the pivot, the right place moves back while its key is
+/// below; unless the places are the same the entries swap, and the left one moves on once more
+/// if their keys are now equal; then both parts are sorted the same way.
 fn sort(list: &mut [ListedFace], low: usize, high: usize) -> Result<(), Invalid> {
     if low >= high {
         return Ok(());
@@ -57,9 +54,8 @@ fn sort(list: &mut [ListedFace], low: usize, high: usize) -> Result<(), Invalid>
     Ok(())
 }
 
-/// `sort_listed_faces`: the list sorted, the largest key first (nothing with fewer than
-/// two). Refuses a list longer than `MOST`, and a sort that would go past the list (the
-/// original would read and swap outside it), both before anything is changed.
+/// Sorts the list, the largest key first (nothing with fewer than two). Refuses a list
+/// longer than `MOST` and a sort that would go past the list, before anything is changed.
 pub fn sort_listed_faces(list: &mut [ListedFace]) -> Result<(), Invalid> {
     if list.len() > MOST {
         return Err(Invalid("more faces listed than the list holds"));

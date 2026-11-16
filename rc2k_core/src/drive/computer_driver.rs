@@ -1,30 +1,26 @@
-//! The computer's driving of a car (converted 2026-10-21 from `drive::drive_computer_car`
-//! 0x462811; its x87 steps, the speed's root, the aim's normal and the steering's cross
-//! product, stay the hook's): how far along the line it looks by its speed, the bends it
-//! notes, the speed it wants and the pedals for it, the point it aims at, the steering's
-//! sign, and the reverse when it is stuck. Speeds are whole numbers (twice the root of
+//! The computer's driving of a car: how far along the line it looks by its speed, the bends it
+//! notes, the speed it wants and the pedals for it, the point it aims at, the steering's sign, and
+//! the reverse when it is stuck. The float steps (the speed's root, the aim's normal, the
+//! steering's cross product) stay with the caller. Speeds are whole numbers (twice the root of
 //! the motion's x² + z²); what each value means is a reading at best.
 
-/// The step count (`dword_719FEC`) from which the computer drives.
+/// The step count of the race from which the computer drives.
 pub const FIRST_STEP: u32 = 0x320;
 
-/// The index into a checkpoint table (`g_checkpointFaces`, `dword_9ED808`) for n + k,
-/// held to the count less one (unsigned) as the original holds it (`lea`, `sub`,
-/// `shr 2`).
+/// The index into a checkpoint table for n + k, held to the count less one (unsigned).
 pub fn held_index(n: u32, k: u32, count: u32) -> u32 {
     let i = (n.wrapping_add(k).wrapping_mul(4)) >> 2;
     if i >= count { count.wrapping_sub(1) } else { i }
 }
 
-/// The road narrow (`dword_71C0D4` + `dword_71C0D8`, the face's bytes +0xA and +0xB,
-/// below 0x12 by the sign): `dword_71C0BC` set.
+/// Whether the road is narrow: the face's bytes +0xA and +0xB together below 0x12 (by the
+/// sign).
 pub fn narrow(a: u32, b: u32) -> bool {
     (a.wrapping_add(b).wrapping_sub(0x12) as i32) < 0
 }
 
 /// The checkpoints looked at for the turn ahead: (first, second, the bend's
-/// checkpoint's offset), by the switch `dword_71C0D0` (1: `slow`), the level
-/// `dword_71A8F8` and the speed.
+/// checkpoint's offset), by the slow-driver switch (`slow`), the level and the speed.
 pub fn lookahead(slow: bool, level: u32, speed: u32) -> (u32, u32, u32) {
     if slow {
         if level >= 3 {
@@ -45,7 +41,7 @@ pub fn lookahead(slow: bool, level: u32, speed: u32) -> (u32, u32, u32) {
     }
 }
 
-/// The turn between two of the line's headings (`dword_9ED808`): the difference >> 16
+/// The turn between two of the line's headings: the difference >> 16
 /// (arithmetic), made positive.
 pub fn turn(from: u32, to: u32) -> u32 {
     (to.wrapping_sub(from) as i32 >> 16).unsigned_abs()
@@ -58,18 +54,18 @@ pub fn bend_noted(turn: u32, slow: bool) -> bool {
     (turn.wrapping_sub(limit) as i32) >= 0
 }
 
-/// A sharp bend (`dword_71C038[slot]` set).
+/// Whether a bend is sharp (the car's slot then keeps it so).
 pub fn sharp(turn: u32) -> bool {
     (turn.wrapping_sub(0xC00) as i32) >= 0
 }
 
-/// Whether the bend replaces the noted one (`dword_71C088[slot]`): not below it, by the
+/// Whether the bend replaces the noted one (kept per slot): not below it, by the
 /// sign.
 pub fn bigger_bend(turn: u32, noted: u32) -> bool {
     (turn.wrapping_sub(noted) as i32) >= 0
 }
 
-/// Whether the noted bend (its checkpoint `dword_71C010[slot]`) is passed: the
+/// Whether the noted bend (its checkpoint, kept per slot) is passed: the
 /// checkpoint not below it, by the sign.
 pub fn bend_passed(checkpoint: u32, bend: u32) -> bool {
     (checkpoint.wrapping_sub(bend) as i32) >= 0
@@ -82,12 +78,12 @@ pub fn table_entry(from: u32, to: u32) -> u32 {
     e.min(0x18)
 }
 
-/// An entry of 0x10 or more: a tight stretch (`dword_71C0E4`).
+/// An entry of 0x10 or more: a tight stretch.
 pub fn tight(entry: u32) -> bool {
     entry >= 0x10
 }
 
-/// The speed table (`unk_71BF1C`, `71BF38`, `71BF54`): the third with the level 3 or
+/// Which of the three speed tables is used: the third with the level 3 or
 /// more, else the second slow, else the first.
 pub fn speed_table(slow: bool, level: u32) -> usize {
     if level >= 3 {
@@ -113,14 +109,13 @@ pub fn wanted_speed(table: u32, near_bend: bool, sharp: bool, speed: u32) -> u32
     }
 }
 
-/// Whether the wanted speed is eased (`dword_604EC8` toward it by `flt_71BFA4`): 50 or
+/// Whether the wanted speed is eased (the car's wanted speed moves toward it by a step): 50 or
 /// more.
 pub fn eased(want: u32) -> bool {
     want >= 0x32
 }
 
-/// The pedals against the wanted speed: (throttle `dword_71BF8C`, brake `dword_71BF90`,
-/// hard braking `dword_71BF94`), None where not set.
+/// The pedals against the wanted speed: (throttle, brake, hard braking), None where not set.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct Pedals {
     pub throttle: Option<u32>,
@@ -146,7 +141,7 @@ pub fn pedals(speed: u32, want: u32) -> Pedals {
     }
 }
 
-/// The side offset's entry (`flt_71BE9C`, 0x20 of them) for the checkpoint and slot.
+/// The entry of the side-offset table (0x20 of them) for the checkpoint and slot.
 pub fn offset_entry(checkpoint: u32, slot: u32) -> u32 {
     checkpoint.wrapping_add(slot) & 0x1F
 }
@@ -176,7 +171,7 @@ pub fn aim_ahead(sharp: bool, tight: bool, speed: u32) -> u32 {
     k
 }
 
-/// The steering (`dword_71BF88`): the cross product's y x 256 as a whole number made
+/// The steering: the cross product's y x 256 as a whole number made
 /// positive, negated when the product was below 0 (`negative`) and again in reverse.
 pub fn steering(whole: u32, negative: bool, reverse: bool) -> u32 {
     let mut s = if (whole as i32) < 0 {
@@ -193,18 +188,17 @@ pub fn steering(whole: u32, negative: bool, reverse: bool) -> u32 {
     s
 }
 
-/// The reverse count's step (`dword_71BFD0[slot]`, gear -1 the reverse): (the count left,
-/// reversing (`dword_71BF9C` and the brake 0x100), the handbrake `dword_71BF98` (gear
-/// below 1 with no count)).
-pub fn reverse_step(count: u32, gear: u32) -> (Option<u32>, bool, bool) {
+/// The reverse count's step (kept per slot; gear -1 is the reverse): (the count left,
+/// reversing (and the brake 0x100), the handbrake (gear below 1 with no count)).
+pub fn reverse_step(count: u32, gear: i32) -> (Option<u32>, bool, bool) {
     if count != 0 {
-        (Some(count - 1), gear != u32::MAX, false)
+        (Some(count - 1), gear != -1, false)
     } else {
-        (None, false, (gear.wrapping_sub(1) as i32) < 0)
+        (None, false, gear.wrapping_sub(1) < 0)
     }
 }
 
-/// The steps between the stuck checks (`dword_71BFA8[slot]`).
+/// Whether the steps since the last stuck check (kept per slot) make another due.
 pub fn check_due(steps: u32) -> bool {
     (steps.wrapping_sub(0xC8) as i32) >= 0
 }
@@ -231,8 +225,8 @@ pub fn stuck(moved: u32) -> bool {
 /// Stuck while not in reverse: reversing for this many steps.
 pub const REVERSE_STEPS: u32 = 0xFA;
 
-/// Stuck in reverse: the reverse tries (`dword_71C060[slot]`) one up; at 4 back to 0 and
-/// the fourth setting `dword_71BFA0` set. (the tries, the setting).
+/// Stuck in reverse: the reverse tries (kept per slot) one up; at 4 back to 0 and
+/// the fourth setting on: (the tries, the setting).
 pub fn reverse_tries(tries: u32) -> (u32, bool) {
     let t = tries.wrapping_add(1);
     if t >= 4 { (0, true) } else { (t, false) }
@@ -289,7 +283,7 @@ mod tests {
     #[test]
     fn stuck_cars() {
         assert_eq!(reverse_step(3, 1), (Some(2), true, false));
-        assert_eq!(reverse_step(3, u32::MAX), (Some(2), false, false));
+        assert_eq!(reverse_step(3, -1), (Some(2), false, false));
         assert_eq!(reverse_step(0, 0), (None, false, true));
         assert_eq!(reverse_step(0, 1), (None, false, false));
         assert!(check_due(0xC8) && !check_due(0xC7));

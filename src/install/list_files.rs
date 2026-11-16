@@ -1,18 +1,11 @@
-//! `install::list_files` (0x4138B2): the files matching a pattern added to the files-to-copy
-//! table. The pattern (eax) is resolved (`files::resolve_path`) into edx and searched
-//! (`files::find_first` / `files::find_next_wanted`); each found name is appended at
-//! `dword_51BB58` (the cursor) behind its folder (`files::append_directory` of edx) with a
-//! NUL, the cursor advanced and `dword_51BB4C` (the count) raised. More than 0x40000 bytes
-//! of names is fatal error 0x80AF2206. The search is closed at the end.
-//!
-//! Takes the pattern.
-//! Caller `install::run_script` (opcode 3).
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
+//! The files matching a pattern added to the files-to-copy table: each found name is appended
+//! with a NUL behind its folder, the cursor advanced and `file_count` raised. More than 0x40000
+//! bytes of names is fatal error 0x80AF2206. Called by `install::run_script` (opcode 3).
 
 use crate::errors::Refused;
+use crate::files::search::DIRECTORY;
 use crate::install::installer::{close_search, fatal, find_first, find_next, resolve_path};
-use crate::install::name_tables::{FILES, found_name};
+use crate::install::name_tables::found_name;
 use rc2k_core::install::script;
 
 /// FindFileData.cFileName (the search record: `files::search`), up to its NUL.
@@ -22,23 +15,22 @@ fn find_name() -> Vec<u8> {
 
 /// The files of `pattern` added to the files' table.
 pub fn list_files(
-    install: &'static crate::install::owner::Install,
-    pattern: impl Into<crate::place::Place>,
+    install: &crate::install::owner::Install,
+    pattern: impl Into<crate::memory::place::BytePlace>,
 ) -> Result<(), Refused> {
     let pattern = resolve_path(pattern)?;
-    if find_first(&pattern) {
+    if find_first(&pattern, DIRECTORY) {
         loop {
-            // append_directory (edx the pattern's path, ebx the cursor)
+            // `append_directory` of the pattern's path, at the cursor.
             let name = found_name(&pattern, &find_name())?;
-            let used = FILES.with(|t| t.push(name))?;
+            let used = install.files.with(|t| t.push(name))?;
             install.run.file_cursor.set(used);
             install
                 .run
                 .file_count
                 .set(install.run.file_count.get().wrapping_add(1));
-            // Converted: `rc2k_core::install::script::room_left` (`sub ebx, [table]`).
             script::room_left(used, script::FILES_ROOM, script::FILES_FULL).map_err(fatal)?;
-            if !find_next() {
+            if !find_next(DIRECTORY) {
                 break;
             }
         }

@@ -1,33 +1,31 @@
-//! The race's start and its panel (converted 2026-10-21 from `race::countdown_lights`
-//! 0x45B008 and `race::car_label` 0x45B1B7; a car's start place converted 2026-10-21
-//! from `race::start_car` 0x4464AD).
+//! The race's start and panel: countdown lights, car labels and a car's start place.
 
-/// The start lights of one view, from the milliseconds since the countdown began.
+/// The start lights of one view from the milliseconds since the countdown began.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Lights {
-    /// `dword_6D1810`: the hundreds, at most 5.
+    /// The hundreds of milliseconds, at most 5.
     pub shown: u32,
     /// The lights lit: the hundreds, -1 from 6.
     pub lit: u32,
-    /// The icon's width (`hud::draw_icon`).
+    /// The icon's width.
     pub width: u32,
     /// The icon's alpha.
     pub alpha: u32,
     /// How far the icon drops below its row.
     pub drop: u32,
-    /// On a whole hundred (with lights lit).
+    /// Whether the time is on a whole hundred (with lights lit).
     pub whole: bool,
 }
 
-/// The time held to 1500 ms; the hundreds and the rest.
+/// The time held to 1500 ms, split into the hundreds and the rest.
 pub fn steps(since: u32) -> (u32, u32) {
     let t = since.min(0x5DC);
     (t / 100, t % 100)
 }
 
-/// The lights at `since` (None: negative, nothing more is done): the rest x 2 taken from
-/// 0x100 for the width and the alpha (none on a whole hundred); with five shown, the width
-/// 0x80 x that (held 0 .. 0x100) / 0x30 and the drop half what that took away.
+/// The lights at `since` (None when negative): width and alpha are 0x100 less twice the rest
+/// (none on a whole hundred); with five shown, width 0x80 x that (held 0 ..= 0x100) / 0x30 and
+/// the drop half what that took away.
 pub fn lights(since: u32) -> Option<Lights> {
     if (since as i32) < 0 {
         return None;
@@ -54,7 +52,7 @@ pub fn lights(since: u32) -> Option<Lights> {
     })
 }
 
-/// " CAR nn" (each digit + '0' as a byte), or seven spaces for none.
+/// " CAR nn" (digits as bytes), or seven spaces for none.
 pub fn car_label(number: u32, none: bool) -> [u8; 7] {
     if none {
         return [b' '; 7];
@@ -70,8 +68,8 @@ pub fn car_label(number: u32, none: bool) -> [u8; 7] {
     ]
 }
 
-/// `race::start_car`: the car's checkpoint on the line: the first with a check (`first`),
-/// less the car's number / 2 but in modes 1 and 3.
+/// The car's checkpoint on the line: the first with a check, less the car's number / 2 except
+/// in modes 1 and 3.
 pub fn start_checkpoint(first: u32, mode: u32, car: u32) -> u32 {
     if mode != 1 && mode != 3 {
         first.wrapping_sub(car >> 1)
@@ -80,8 +78,8 @@ pub fn start_checkpoint(first: u32, mode: u32, car: u32) -> u32 {
     }
 }
 
-/// `race::start_car`: whether the car starts to the side: with `dword_52A910` set, or in
-/// mode 0 with other than one player (each asked only where the original reads it).
+/// Whether the car starts to the side: `switch` set, or mode 0 with other than one player
+/// (each asked only where needed).
 pub fn starts_aside(
     switch: u32,
     mode: impl FnOnce() -> u32,
@@ -90,15 +88,13 @@ pub fn starts_aside(
     switch != 0 || (mode() == 0 && players() != 1)
 }
 
-/// `race::start_car`: how far to the side: 0x14000 to the right for an odd car, to the
-/// left for an even one.
+/// The side offset: 0x14000 to the right for an odd car, left for an even one.
 pub fn side_offset(car: u32) -> u32 {
     let low = car & 1;
     (low + low).wrapping_sub(1).wrapping_mul(0x14000)
 }
 
-/// `race::start_car`: the checks the car starts with: the checkpoint's check count less
-/// one, held to 0 ..= 100 (signed).
+/// The checks the car starts with: the checkpoint's count less one, held to 0 ..= 100 (signed).
 pub fn start_checks(count: u32) -> u32 {
     (count.wrapping_sub(1) as i32).clamp(0, 100) as u32
 }

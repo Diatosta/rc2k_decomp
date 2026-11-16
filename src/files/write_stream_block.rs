@@ -1,14 +1,10 @@
-//! `files::write_stream_block` (0x402DC9): ecx bytes from ebx into a buffered stream, one
+//! The given bytes into a buffered stream, one
 //! by one (`files::write_stream_byte`), until one fails.
-//!
-//! Takes the stream, the bytes and their count. Returns the bytes written.
-//!
-//! Callers: `gfx::write_screen_pcx`, 0x403D27, 0x403D89, 0x403D9B.
 
 use crate::errors::BadInput;
 use crate::files::stream::Stream;
 
-/// The Rust version: the bytes written, and the original's two flags.
+/// The bytes written, and the two flags.
 pub fn write_stream_block(
     stream: &mut Stream,
     bytes: &[u8],

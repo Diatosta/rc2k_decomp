@@ -1,110 +1,237 @@
-//! The frame and object work, first part (IDA 0x621480 .. 0x6218B0; phase 7, typed): the light and view switches, the object being drawn (number, material, fade, face flags, group mask), the frame-rate clock, the courses found, and a few race flags. `#[repr(C)]` with the image layout over the race block bytes. Names are readings unless IDA's.
+//! The frame and object work, first part: the light and view switches, the object being drawn
+//! (number, material, fade, face flags, group mask), the frame-rate clock, the courses found, and a
+//! few race flags. `#[repr(C)]`, laid over the race block bytes.
 
-#[cfg(test)]
-use crate::race::owner::race;
-use crate::session::{Dword, Float};
+use crate::memory::cells::ZeroCells;
 
-#[repr(C)]
-#[derive(rc2k_derive::Cells)]
+use crate::memory::session::{PlainDword, PlainFloat};
+
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct FrameSwitches {
-    /// +0x0 (0x621480): `dword_621480`: nonzero in a race, 0 in the front end scene; 1 set by `race::stage_loading` (`scene::vertex_light`, `scene::draw_object_face`, `race::course_faces`) (a reading).
-    pub other_way: Dword,
-    /// +0x4 (0x621484): not named.
-    pub unknown_4: [Dword; 22],
-    /// +0x5c (0x6214DC): `dword_6214DC`: set by `scene::set_object_material`, read by `scene::draw_object_face`.
-    pub other_way_kind: Dword,
-    /// +0x60 (0x6214E0): `qword_6214E0`: the other kind and the distance, written as a pair (`scene::set_object_fade`).
-    pub fade_words: [Dword; 2],
-    /// +0x68 (0x6214E8): `dword_6214E8`: the clock now (`race::measure_frame_rate`).
-    pub frame_now: Dword,
-    /// +0x6c (0x6214EC): `dword_6214EC`: the clock at the last frame (`race::measure_frame_rate`).
-    pub frame_last: Dword,
-    /// +0x70 (0x6214F0): `g_frameRate`: the measured frame rate (`race::measure_frame_rate`, `race::frame_text`).
-    pub frame_rate: Float,
-    /// +0x74 (0x6214F4): not named.
-    pub unknown_74: [Dword; 2],
-    /// +0x7c (0x6214FC): `g_objectNumber`: the object being drawn or set up (`scene::draw_object_face`, `race::frame_draw`, `race::car_draw`).
-    pub object_number: Dword,
-    /// +0x80 (0x621500): `g_faceReflects` (`scene::draw_object_face`).
-    pub face_reflects: Dword,
-    /// +0x84 (0x621504): `g_faceAnyShine` (`scene::draw_object_face`).
-    pub face_any_shine: Dword,
-    /// +0x88 (0x621508): `dword_621508`: the marker object (`race::loadlevel`, `race::frame_draw`).
-    pub marker_object: Dword,
-    /// +0x8c (0x62150C): `dword_62150C`: the face groups shown, built per car (`race::car_draw`, `scene::list_object_face`).
-    pub group_mask: Dword,
-    /// +0x90 (0x621510): `dword_621510`: set by `race::frame_draw` for the sky (`scene::clip_polygon_by_depth`).
-    pub no_far_clip: Dword,
-    /// +0x94 (0x621514): `dword_621514`: nonzero in the editor / framed loading (`race::loadlevel`, `race::loading_bar_frame`, `scene::choose_view_window`, `scene::texture_levels`) (a reading).
-    pub editor_mode: Dword,
-    /// +0x98 (0x621518): `g_coursePresent`: one flag per course found (`race::find_present_courses`).
-    pub course_present: [Dword; 100],
-    /// +0x228 (0x6216A8): not named.
-    pub unknown_228: [Dword; 103],
-    /// +0x3c4 (0x621844): `dword_621844`: copied to `dword_5CCF7C` (`race::objects`).
-    pub kept_kind: Dword,
-    /// +0x3c8 (0x621848): not named.
-    pub unknown_3c8: [Dword; 10],
-    /// +0x3f0 (0x621870): `dword_621870`: the mask kind, 8 tested by `race::frame_draw`, cleared by `race::race_end` (`scene::list_object_face`).
-    pub mask_kind: Dword,
-    /// +0x3f4 (0x621874): not named.
-    pub unknown_3f4: [Dword; 4],
-    /// +0x404 (0x621884): `dword_621884`: 1 lets the levers push (`physics::lever_pushes`, `drive::race_tick`) (a reading).
-    pub levers_on: Dword,
-    /// +0x408 (0x621888): not named.
-    pub unknown_408: [Dword; 2],
-    /// +0x410 (0x621890): `dword_621890`: the view marks (`race::frame_views`, `race::stage_loading`, `drive::finish_race`).
-    pub view_marks_on: Dword,
-    /// +0x414 (0x621894): not named.
-    pub unknown_414: [Dword; 6],
-    /// +0x42c (0x6218AC): `dword_6218AC`: set to 0 by `screens::draw_service_area`, read nowhere known.
-    pub service_cleared: Dword,
+    /// +0x0: the 3D scene is set up for drawing through the light tables: written 1 only, by
+    /// `scene::set_up_front_end_scene` (twice), `race::stage_loading` and, for the length of
+    /// `scene::fill_light_tables`, `scene::fill_scene_light_tables`. So it is 1 whenever a scene is
+    /// drawn, front end or race, and its 0 branches (`scene::vertex_light`,
+    /// `scene::draw_object_face`, `scene::choose_view_window`, `race::course_faces`,
+    /// `race::draw_mirror_view`, the plain light ramp of `fill_light_tables`) are never taken in
+    /// play. Not "the mirror on" nor "in a race".
+    pub scene_set_up: PlainDword,
+    /// +0x4: holds the text `files\fmv\intro.avi`; unused.
+    pub intro_film_text: [PlainDword; 22],
+    /// +0x5c: set by `scene::set_object_material`, read by `scene::draw_object_face`; now each
+    /// view's (`ctx.view.cars.other_way_kind`); unused.
+    pub other_way_kind: PlainDword,
+    /// +0x60: the other kind and the distance, written as a pair (`scene::set_object_fade`); now
+    /// each view's (`ctx.view.cars.fade_words`); unused.
+    pub fade_words: [PlainDword; 2],
+    /// +0x68: the clock now (`race::measure_frame_rate`).
+    pub frame_now: PlainDword,
+    /// +0x6c: the clock at the last frame (`race::measure_frame_rate`).
+    pub frame_last: PlainDword,
+    /// +0x70: the measured frame rate (`race::measure_frame_rate`, `race::frame_text`).
+    pub frame_rate: PlainFloat,
+    /// +0x74: unused; it only keeps the layout.
+    pub unused_74: [PlainDword; 2],
+    /// +0x7c: the object being drawn or set up (`scene::draw_object_face`, `race::frame_draw`,
+    /// `race::car_draw`); now each view's (`ctx.view.cars.object_number`; the bad polygon's log
+    /// reads the view's); this one not used.
+    pub object_number: PlainDword,
+    /// +0x80: whether the face reflects (`scene::draw_object_face`); now each view's
+    /// (`race::face_work::FaceWork`); unused.
+    pub face_reflects: PlainDword,
+    /// +0x84: whether any face shines (`scene::draw_object_face`); now each view's
+    /// (`race::face_work::FaceWork`); unused.
+    pub face_any_shine: PlainDword,
+    /// +0x88: the marker object (`race::loadlevel`, `race::frame_draw`).
+    pub marker_object: PlainDword,
+    /// +0x8c: the face groups shown, built per car; the drawing's is the view's
+    /// (`race::car_draw_state`), this one not used.
+    pub group_mask: PlainDword,
+    /// +0x90: set by `race::frame_draw` for the sky (`scene::clip_polygon_by_depth`); now each
+    /// view's (`race::face_work::FaceWork`); unused.
+    pub no_far_clip: PlainDword,
+    /// +0x94: nonzero in the editor / framed loading (`race::loadlevel`, `race::loading_bar_frame`,
+    /// `scene::choose_view_window`, `scene::texture_levels`).
+    pub editor_mode: PlainDword,
+    /// +0x98: one flag per course found (`race::find_present_courses`).
+    pub course_present: [PlainDword; 100],
+    /// +0x228: the developers' front end's table; its values are kept in `debug::dev_front_end`,
+    /// not here.
+    pub dev_front_end_choices: [PlainDword; 103],
+    /// +0x3c4: a word copied on by `race::objects`.
+    pub kept_kind: PlainDword,
+    /// +0x3c8: unused; it only keeps the layout.
+    pub unused_3c8: [PlainDword; 10],
+    /// +0x3f0: the mask kind, 8 tested by `race::frame_draw`, cleared by `race::race_end`
+    /// (`scene::list_object_face`).
+    pub mask_kind: PlainDword,
+    /// +0x3f4: unused; it only keeps the layout.
+    pub unused_3f4: [PlainDword; 4],
+    /// +0x404: 1 lets the levers push the car (`physics::lever_pushes`, `drive::race_tick`).
+    pub levers_on: PlainDword,
+    /// +0x408: unused; it only keeps the layout.
+    pub unused_408: [PlainDword; 2],
+    /// +0x410: the view marks (`race::frame_views`, `race::stage_loading`, `drive::finish_race`).
+    pub view_marks_on: PlainDword,
+    /// +0x414: used by the developers' front end, which keeps it in `debug::dev_front_end`, not
+    /// here.
+    pub unknown_414: [PlainDword; 6],
+    /// +0x42c: set to 0 by `screens::draw_service_area`; never read.
+    pub service_cleared: PlainDword,
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
 
 impl FrameSwitches {
-    /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
-    /// `race::store::LEFT`), with the image's first values.
     pub const fn new() -> Self {
-        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
-    }
-}
-
-/// IDA 0x621480, the first byte of the piece.
-pub const START: usize = 0x621480;
-/// IDA 0x6218B0, the end of the piece.
-pub const END: usize = 0x6218B0;
-
-const _: () = assert!(END - START == core::mem::size_of::<FrameSwitches>());
-
-/// Where IDA 0x621480 is now (the piece's static).
-#[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(std::ptr::from_ref(&race().shared.switches))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use core::mem::offset_of;
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&race().shared.switches, START, END);
-    }
-
-    #[test]
-    fn piece_has_its_home() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            piece_addr(),
-            crate::framework::game_addr(crate::framework::rva(START))
-        );
-        assert_eq!(offset_of!(FrameSwitches, other_way), 0x621480 - START);
-        assert_eq!(offset_of!(FrameSwitches, object_number), 0x6214FC - START);
-        assert_eq!(offset_of!(FrameSwitches, editor_mode), 0x621514 - START);
-        assert_eq!(offset_of!(FrameSwitches, service_cleared), 0x6218AC - START);
+        Self {
+            intro_film_text: {
+                let mut a: [PlainDword; 22] = ZeroCells::ZERO;
+                a[10] = PlainDword::new(0x656C6966);
+                a[11] = PlainDword::new(0x6D665C73);
+                a[12] = PlainDword::new(0x6E695C76);
+                a[13] = PlainDword::new(0x2E6F7274);
+                a[14] = PlainDword::new(0x697661);
+                a
+            },
+            unused_74: [PlainDword::new(0), PlainDword::new(0x445E38D5)],
+            group_mask: PlainDword::new(0xFFFFFFFF),
+            dev_front_end_choices: [
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(0x2A),
+                PlainDword::new(0),
+                PlainDword::new(0),
+            ],
+            unused_3c8: [
+                PlainDword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(2),
+                PlainDword::new(0),
+            ],
+            unused_3f4: [
+                PlainDword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(1),
+                PlainDword::new(0),
+            ],
+            levers_on: PlainDword::new(1),
+            unused_408: [PlainDword::new(1), PlainDword::new(0)],
+            view_marks_on: PlainDword::new(1),
+            unknown_414: [
+                PlainDword::new(1),
+                PlainDword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(1),
+                PlainDword::new(0),
+                PlainDword::new(0),
+            ],
+            ..ZeroCells::ZERO
+        }
     }
 }

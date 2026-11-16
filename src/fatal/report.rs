@@ -8,24 +8,23 @@
 //!   the message, if there is one, with the two characters `\n` turned into a line break;
 //!   the string at 0x4F67BD;
 //!   unless the code has bit 28: "Last file: `path'" if a file is open, "W32=XXXXXXXX" if
-//!   `dword_4E0598` is not 0, and the registers and five flags, which are written into the
+//!   the report's flag is not 0, and the registers and five flags, which are written into the
 //!   template at 0x4F673A first.
 //! Then `g_logEnabled` = 1 and "Guru Meditation" and the text go to the log.
 //! After that, also when it was not the first report, a code with bit 31 asks the game to
-//! quit (`threading::request_quit`, 0x410BF9) and jumps: to the exit path in `start` (0x4010EE) if the current
-//! thread has no thread slot (esi is then 0), else to that slot's start routine, with esi =
-//! the slot.
+//! quit (`threading::request_quit`) and jumps: to the exit path in `start` if the current
+//! thread has no thread slot, else to that slot's start routine, with the slot as its argument.
 //!
-//! Since 2026-10-24 it is called directly (`report_now`, from `fatal::raise`), and its
+//! It is called directly (`report_now`, from `fatal::raise`), and its
 //! two ways out are Rust's: the program ended (`standalone::finish`), or the slot's
-//! routine (its Rust version) run again and the thread ended. A text that does not fit
+//! routine run again and the thread ended. A text that does not fit
 //! `Text` ends the program, saying so.
 
 use crate::errors::BadInput;
 use crate::fatal::state::{CAPTION, CODE, EXTRA, REPORTED, TEMPLATE, TEXT, W32};
-use crate::framework::log;
+use crate::logfile::program_log::log;
 use crate::threading::find_thread_slot::find_thread_slot;
-use crate::threading::request_quit::request_quit;
+use crate::threading::request_quit::request_quit_in;
 use std::sync::atomic::Ordering;
 
 // ---- game data ----
@@ -33,22 +32,20 @@ use std::sync::atomic::Ordering;
 // The variables: `crate::fatal::state`. "Guru Meditation" is the caption from +7.
 // threading::request_quit: asks the game to quit, once
 
-// ---- Rust version ----
-
 pub use rc2k_core::fatal::{Context, Leave, TEXT_ONLY, register_dump, report_text};
 
 /// The report for what the game's variables hold now.
-fn text_from_game(context: &Context) -> Result<Vec<u8>, BadInput> {
+fn text_from_game(context: Option<&Context>) -> Vec<u8> {
     let message = crate::fatal::state::message().map(str::as_bytes);
     let last_file = crate::files::state::last_file_path();
-    Ok(report_text(
+    report_text(
         CODE.get(),
         message,
         &EXTRA.text(),
         last_file.as_deref(),
         W32.get(),
         context,
-    ))
+    )
 }
 
 /// What the reporter needs from code that is not ported, or from a test.
@@ -57,19 +54,19 @@ pub struct Outside<'a> {
     pub log: &'a mut dyn FnMut(&[u8]),
     /// Asks the game to quit.
     pub quit: &'a mut dyn FnMut(),
-    /// The current thread's slot, or 0.
+    /// The current thread's slot (one more than its number), or 0.
     pub thread_slot: &'a dyn Fn() -> u32,
 }
 
-pub fn report(context: &Context, outside: &mut Outside) -> Result<Leave, BadInput> {
+pub fn report(context: Option<&Context>, outside: &mut Outside) -> Result<Leave, BadInput> {
     let code: u32 = CODE.get();
-    let text = text_from_game(context)?;
+    let text = text_from_game(context);
     // Converted: `rc2k_core::fatal` (`report_text`, `fits`, `leave`).
     if !rc2k_core::fatal::fits(text.len()) {
         return Err(BadInput("the report does not fit its buffer"));
     }
     if REPORTED.atomic().swap(1, Ordering::SeqCst) != 1 {
-        if code & TEXT_ONLY == 0 {
+        if let (true, Some(context)) = (code & TEXT_ONLY == 0, context) {
             // The original fills in its template in place, so it keeps the values.
             let dump = register_dump(context);
             TEMPLATE.write_at(0, &dump, "the registers' template")?;
@@ -84,28 +81,38 @@ pub fn report(context: &Context, outside: &mut Outside) -> Result<Leave, BadInpu
         code,
         outside.quit,
         outside.thread_slot,
-        // The slot holds its routine as an IDA address.
-        &|slot| crate::pointers::read_or_end::<u32>(slot, "a thread slot"),
+        // The slot (one more than its number) holds its routine as an IDA address.
+        &|slot| {
+            crate::threading::thread_slot::slot_ref(slot as usize - 1)
+                .unwrap_or_else(|e| crate::fatal::raise::end("fatal::report: a thread slot", e))
+                .routine
+                .get()
+        },
     ))
 }
 
-/// The reporter called directly by `fatal::raise` with the registers of the place that
-/// refused (2026-10-24: no longer by its address through the fault handler). A code
+/// The reporter called directly by `fatal::raise`, with the registers of the place that
+/// refused when they are known (the report has no register lines otherwise). A code
 /// without the fatal bit returns; with it the game is asked to quit and this thread ends
 /// as the original's two ways out end it: with no thread slot the program at `start`'s way
-/// out, on a slot's thread its routine (the Rust version) run again, which finds the game
+/// out, on a slot's thread its routine run again, which finds the game
 /// quitting, and the thread ended.
-pub fn report_now(context: &Context) {
+pub fn report_now(context: Option<&Context>) {
     log(&format!(
         "fatal::report: thread {}",
-        crate::sync::thread_id()
+        crate::platform::sync::thread_id()
     ));
+    // The reporter runs on any thread with no owners in hand, even before the start has
+    // published them: it reads the one published handle, the only global of owners that stays.
+    let owners = crate::threading::thread_slot::published();
     let mut outside = Outside {
         log: &mut |text| crate::logfile::log_write::log_nul(text, true, 1),
         // If no shutdown thread can be created there is nothing more to report: a report
         // is being made already, and the way out below ends the game anyway.
         quit: &mut || {
-            let _ = request_quit();
+            if let Some(owners) = owners {
+                let _ = request_quit_in(owners);
+            }
         },
         thread_slot: &find_thread_slot,
     };
@@ -120,8 +127,10 @@ pub fn report_now(context: &Context) {
             log(&format!(
                 "fatal::report: fatal error {code:#x} on the thread of slot {slot:#x}: its routine {routine:#x} again"
             ));
-            match crate::threading::thread_slot::run_routine(routine) {
-                Some(_) => crate::sync::exit_thread(),
+            let ran = owners
+                .and_then(|owners| crate::threading::thread_slot::run_routine(routine, owners));
+            match ran {
+                Some(_) => crate::platform::sync::exit_thread(),
                 None => crate::standalone::finish(
                     &format!("not ported: the thread routine {routine:#x} (fatal error {code:#x})"),
                     1,
@@ -134,9 +143,3 @@ pub fn report_now(context: &Context) {
         ),
     }
 }
-
-// ---- self-test: a copy of the original that cannot end the game ----
-
-// pusha; pushf; pop edx; mov ebp, esp
-// what the stand-in for find_thread_slot returns
-// a slot: its first dword is the routine

@@ -1,149 +1,158 @@
-//! `physics::wall_edge_contact` (0x45DA14, two chunks): the wall met between two faces,
-//! `dword_6D3170` (the wall, ebp) and `dword_6D3174` (esi). The wall's four edges
-//! ((p1, p2), (p3, p1), (p4, p3), (p2, p4) of its corner words +4 .. +0x10) are looked
-//! for in the other face (`physics::face_has_edge`); none shared: `physics::wall_push_back`.
-//! The first shared, its ends swapped, into `dword_6D3178`, `dword_6D317C`; their scene
-//! points' x, z into `dword_6141AC` .. `6141B8`; the edge's heading (`fpatan` of the
-//! differences, x `flt_5C5DD4` x `flt_5C5D98`, & 0xFFFF) << 16 + 0x40000000 into
-//! `dword_6141C8`; the normal (0, 0, 1) turned by it (`math::turn_float_point_xz`) into
-//! `qword_6D3078` ..; the speeds taken, the point of probe `dword_6D3214` (its y x
-//! `flt_5C5DD0`), no slide limit; `physics::contact_force` into contact record 4,
+//! The wall met between two faces, `wall_face_before` (the wall) and `wall_face_now`. The wall's
+//! four edges ((p1, p2), (p3, p1), (p4, p3), (p2, p4) of its corner words) are looked for in the
+//! other face (`rc2k_core::physics::faces::has_edge`); none shared: `physics::wall_push_back`. The
+//! first shared, its ends swapped, goes into `wall_edge_from`, `wall_edge_to`; their scene points'
+//! x, z into `edge_points`; the edge's heading (arctangent of the differences, x `one_over_two_pi`
+//! x 65536, & 0xFFFF) << 16 + 0x40000000 into `wall_heading`; the normal (0, 0, 1) turned by it
+//! (`math::rotate_float_point_about_y`) into `contact_normal`; the speeds taken, the point of probe
+//! `probe_index` (its y x `tenth`), no slide limit; `physics::contact_force` into contact record 4,
 //! `physics::place_sound_e1`.
 //!
-//! Caller: `physics::wall_contacts`. Refuses a probe point past 0x3F on the edge path (the
-//! tables' room), and what its calls refuse (what was written put back).
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
+//! Caller: `physics::wall_contacts`. Refuses a probe point past 0x3F on the edge path (the tables'
+//! room), and what its calls refuse (what was written is put back).
 
+use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
-use crate::math::turn_float_point_xz::turn_float_point_xz;
+use crate::math::rotate_float_point_about_y::rotate_float_point_about_y;
 use crate::math::x87::mul;
+use crate::math::x87_float::int;
 use crate::math::x87_float::to_int;
-use crate::math::x87_float::{int, ld};
 use crate::physics::contact_force::contact_force;
+use crate::physics::contact_store::ContactWork;
 use crate::physics::flow::copy_cells;
-use crate::race::owner::Race;
+use crate::physics::step_families::ContactInputs;
+use crate::physics::tables_store::PhysicsTables;
+use crate::race::numbers_store::Numbers;
 use crate::race::owner_course::Course;
 use rc2k_core::physics::walls;
 
 /// The four corners (scene point numbers) of face `face`.
-fn corners(face: u32) -> Result<[u32; 4], Refused> {
+fn corners(course: &Course, face: u32) -> Result<[u32; 4], Refused> {
     let corner =
-        |k: u32| crate::race::course_places::face_field::<u32>(face, 4 + 4 * k, "a face's corner");
+        |k: u32| crate::race::course_places::face_field::<u32>(course.reads(), face, 4 + 4 * k);
     Ok([corner(0)?, corner(1)?, corner(2)?, corner(3)?])
 }
 
-/// The normal across the edge from scene point `first` to `second` (0x45DAAA ..
-/// 0x45DB70, and `crossed_edge_contact`'s): their x, z into `dword_6141AC`, `6141B0`
-/// (first) and `6141B4`, `6141B8`; the heading (`fpatan` of the differences, x
-/// `flt_5C5DD4` x `flt_5C5D98`, & 0xFFFF, through `dword_62400C`) << 16 + 0x40000000
-/// into `dword_6141C8`; (0, 0, 1) turned by it (`math::turn_float_point_xz`) into
-/// `qword_6D3078` ... Returns what that leaves in eax, ebx, ecx, edx.
+/// The normal across the edge from scene point `first` to `second` (also used by
+/// `crossed_edge_contact`): their x, z go into `edge_points`; the heading (the arctangent of the
+/// differences, x `one_over_two_pi` x 65536, & 0xFFFF) << 16 + 0x40000000 goes into
+/// `wall_heading`; (0, 0, 1) turned by it (`math::rotate_float_point_about_y`) goes into
+/// `contact_normal`.
 pub fn edge_normal(
-    race: &Race,
+    engine_tables: &crate::scene::engine_tables_store::EngineTables,
+    contact: &ContactWork,
+    course: &Course,
+    physics_tables: &PhysicsTables,
     first: u32,
     second: u32,
     scene: &crate::scene::owner::Scene,
-) -> Result<[u32; 4], Refused> {
+) -> Result<(), Refused> {
     let drawing = &scene.drawing;
-    let race_owner = race;
-    let rd = crate::race::scene_points::point_word;
-    race.shared.physics_tables.edge_points[0].set(rd(first, 0)?);
-    race.shared.physics_tables.edge_points[1].set(rd(first, 2)?);
-    race.shared.physics_tables.edge_points[2].set(rd(second, 0)?);
-    race.shared.physics_tables.edge_points[3].set(rd(second, 2)?);
-    let dx = race.shared.physics_tables.edge_points[2]
-        .get()
-        .wrapping_sub(race.shared.physics_tables.edge_points[0].get());
-    let dz = race.shared.physics_tables.edge_points[3]
-        .get()
-        .wrapping_sub(race.shared.physics_tables.edge_points[1].get());
-    let d = [dx, dz];
-    x87_1(&race.course, d, scene);
-    drawing
-        .scene
-        .scratch
-        .set(drawing.scene.scratch.get() & 0xFFFF);
-    let heading = (drawing.scene.scratch.get() << 16).wrapping_add(0x4000_0000);
-    race.shared.physics_tables.wall_heading.set(heading);
-    let out = {
-        turn_float_point_xz(
-            race_owner.course.numbers.zero.bits(),
-            race_owner.course.numbers.zero.bits(),
-            race_owner.course.numbers.one.bits(),
-            heading,
+    let rd = |n: u32, k: u32| {
+        crate::race::scene_points::point_word(
+            course.reads(),
+            &crate::race::scene_points::no_own(),
+            n,
+            k,
         )
     };
-    race_owner.physics.contact.contact_normal[0].set_bits(out[0]);
-    race_owner.physics.contact.contact_normal[1].set_bits(out[1]);
-    race_owner.physics.contact.contact_normal[2].set_bits(out[2]);
-    Ok(out)
-}
-
-/// The steps, not guarded. The registers the original leaves are read by none of its
-/// callers.
-// Converted: `rc2k_core::physics::walls::shared_edge` (the edge's heading stays x87).
-pub fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let face_corners = corners(race.physics.contact.wall_face_now.get())?;
-    let wall_corners = corners(race.physics.contact.wall_face_before.get())?;
-    let (shared, to, from) = walls::shared_edge(|j| wall_corners[j], face_corners);
-    if !shared {
-        return crate::physics::wall_push_back::steps(race, scene);
-    }
-    // 0x45DA9E: along the edge.
-    let n = race.physics.contact.probe_index.get();
-    walls::check_probe(n)?;
-    race.physics.contact.wall_edge_from.set(from);
-    race.physics.contact.wall_edge_to.set(to);
-    edge_normal(race, to, from, scene)?;
-    copy_cells(
-        &race.physics.contact.contact_car_speed,
-        &race.shared.car.velocity,
+    physics_tables.edge_points[0].set(rd(first, 0)?);
+    physics_tables.edge_points[1].set(rd(first, 2)?);
+    physics_tables.edge_points[2].set(rd(second, 0)?);
+    physics_tables.edge_points[3].set(rd(second, 2)?);
+    let dx = physics_tables.edge_points[2]
+        .get()
+        .wrapping_sub(physics_tables.edge_points[0].get());
+    let dz = physics_tables.edge_points[3]
+        .get()
+        .wrapping_sub(physics_tables.edge_points[1].get());
+    let d = [dx, dz];
+    x87_1(course.numbers.get(), d, scene);
+    drawing
+        .scene
+        .get()
+        .scratch
+        .set(drawing.scene.get().scratch.get() & 0xFFFF);
+    let heading = (drawing.scene.get().scratch.get() << 16).wrapping_add(0x4000_0000);
+    physics_tables.wall_heading.set(heading);
+    let (out, _) = rotate_float_point_about_y(
+        engine_tables,
+        0.0,
+        0.0,
+        course.numbers.get().one.get(),
+        heading,
     );
-    copy_cells(
-        &race.physics.contact.contact_turn_speed,
-        &race.shared.car.spin,
-    );
-    let n = n as usize;
-    race.physics.contact.contact_point[0].set_bits(race.physics.contact.probe_turned_x[n].bits());
-    race.physics.contact.contact_point[1].set_bits(race.physics.contact.probe_turned_y[n].bits());
-    race.physics.contact.contact_point[2].set_bits(race.physics.contact.probe_turned_z[n].bits());
-    race.physics.contact.contact_point[1].set_bits(mul(
-        race.physics.contact.contact_point[1].bits(),
-        race.course.numbers.tenth.bits(),
-    ));
-    race.physics.contact.contact_slide_limit.set_bits(0);
-    contact_force(race, &race.shared.physics_tables.contacts[4], scene);
-    { crate::physics::place_sound_e1::place_sound_e1(race) }?;
+    contact.contact_normal[0].set(out[0]);
+    contact.contact_normal[1].set(out[1]);
+    contact.contact_normal[2].set(out[2]);
     Ok(())
 }
 
-// ---- the arithmetic that was x87 assembly ----
+/// The steps, not guarded.
+// Core: `rc2k_core::physics::walls::shared_edge` (the edge's heading stays x87).
+pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    let face_corners = corners(c.course, c.contact.wall_face_now.get())?;
+    let wall_corners = corners(c.course, c.contact.wall_face_before.get())?;
+    let (shared, to, from) = walls::shared_edge(|j| wall_corners[j], face_corners);
+    if !shared {
+        return crate::physics::wall_push_back::steps(c, scene);
+    }
+    // Along the edge.
+    let n = c.contact.probe_index.get();
+    walls::check_probe(n)?;
+    c.contact.wall_edge_from.set(from);
+    c.contact.wall_edge_to.set(to);
+    edge_normal(
+        &c.shared.buffers.reads.get().engine_tables,
+        c.contact,
+        c.course,
+        c.tables,
+        to,
+        from,
+        scene,
+    )?;
+    copy_cells(&c.contact.contact_car_speed, &c.car.velocity);
+    copy_cells(&c.contact.contact_turn_speed, &c.car.spin);
+    let n = n as usize;
+    c.contact.contact_point[0].set(c.contact.probe_turned_x[n].get());
+    c.contact.contact_point[1].set(c.contact.probe_turned_y[n].get());
+    c.contact.contact_point[2].set(c.contact.probe_turned_z[n].get());
+    c.contact.contact_point[1].set(mul(&c.contact.contact_point[1], &c.numbers.tenth));
+    c.contact.contact_slide_limit.set(0.0);
+    contact_force(
+        c.contact,
+        c.numbers,
+        c.tables,
+        c.car,
+        &c.tables.contacts[4],
+        scene,
+    );
+    { crate::physics::place_sound_e1::place_sound_e1(&c.sound) }?;
+    Ok(())
+}
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `int [rc + 0x22400C] = (atan2(int [d + 0], int [d + 4]) * [rc + 0x1C5DD4]) * [rc + 0x1C5D98]`
-fn x87_1(course: &Course, d: [u32; 2], scene: &crate::scene::owner::Scene) {
+// ---- the x87 arithmetic ----
+
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `int [scratch] = (atan2(int [d + 0], int [d + 4]) * [one_over_two_pi]) * [k65536]`
+fn x87_1(numbers: &Numbers, d: [u32; 2], scene: &crate::scene::owner::Scene) {
     let t0 = int(d[0] as i32);
     let t1 = int(d[1] as i32);
     let t2 = t0.atan2(t1);
-    let t3 = ld(course.numbers.one_over_two_pi.bits());
+    let t3 = numbers.one_over_two_pi.ld();
     let t4 = t2 * t3;
-    let t5 = ld(course.numbers.k65536.bits());
+    let t5 = numbers.k65536.ld();
     let t6 = t4 * t5;
-    scene.drawing.scene.scratch.set_bits(to_int(t6) as u32);
+    scene.drawing.scene.get().scratch.set(to_int(t6) as u32);
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
-    use crate::race::owner::race;
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
     use crate::scene::x87_mem::view;
-
-    // The original's instructions, one function per run.
-    reference!(ref_0(d, rc) "fild dword ptr [{d}]", "fild dword ptr [{d} + 4]", ".byte 0xD9, 0xF3", "fmul dword ptr [{rc} + 0x1C5DD4]", "fmul dword ptr [{rc} + 0x1C5D98]", "fistp dword ptr [{rc} + 0x22400C]");
+    use crate::test_support::own::race;
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
         vec![Block {
@@ -159,13 +168,18 @@ mod asm_reference {
                 },
             ],
             ulps: 0,
-            reference: |a| unsafe { ref_0(a[0], a[1]) },
-            plain: |a| x87_1(&race().course, *view(a[0], 0), crate::scene::owner::scene()),
+            plain: |a| {
+                x87_1(
+                    race().course.numbers.get(),
+                    *view(a[0], 0),
+                    crate::test_support::own::scene(),
+                );
+            },
         }]
     }
 
     #[test]
     fn x87_blocks_matches_the_assembly() {
-        sparse(&blocks(), 1200, 100);
+        sparse("physics.wall_edge_contact", &blocks(), 1200, 100);
     }
 }

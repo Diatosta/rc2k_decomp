@@ -1,13 +1,9 @@
-//! The lamps that light an object (converted 2026-10-21 from `scene::add_point_lights`
-//! 0x44F471, `add_car_lights` 0x44F1FE and `fill_light_tables` 0x44F0AB): the scene's
-//! lamps by their distance, which cars' lamps count, and which colours the light tables
-//! are made from. And the light on an object as a whole (converted 2026-10-21 from
-//! `scene::set_object_light` 0x45143A): what the light's kind asks for.
+//! The lamps that light an object: the scene's lamps by their distance, which cars' lamps
+//! count, which colours the light tables are made from, and the light by the light's kind.
 
 use crate::scene::distance::approximate;
 
-/// Two colours added byte by byte without overflow: all four bytes with MMX, the low
-/// three without (`scene::vertex_light`'s and `add_point_lights`' sum).
+/// Two colours added byte by byte without overflow: all four bytes with MMX, else the low three.
 pub fn brighter(a: u32, b: u32, mmx: bool) -> u32 {
     let bytes = if mmx { 4 } else { 3 };
     (0..bytes).fold(a, |out, n| {
@@ -17,8 +13,7 @@ pub fn brighter(a: u32, b: u32, mmx: bool) -> u32 {
     })
 }
 
-/// A lamp of the scene (0x10 bytes from `dword_63E05C`): a point of the scene, a
-/// strength, a colour.
+/// A lamp of the scene: a point of the scene, a strength, a colour.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Lamp {
     pub point: u32,
@@ -26,8 +21,8 @@ pub struct Lamp {
     pub colour: u32,
 }
 
-/// How much a lamp gives at a distance: (0x200000 less it) times the strength over
-/// 0x20000 (an arithmetic shift), held to 0 .. 255.
+/// What a lamp gives at a distance: (0x20_0000 less it) times the strength over 0x20000,
+/// held to 0 ..= 255.
 pub fn amount(distance: u32, strength: u32) -> u32 {
     let near = 0x20_0000i32.wrapping_sub(distance as i32);
     (near.wrapping_mul(strength as i32) >> 17).clamp(0, 0xFF) as u32
@@ -40,9 +35,8 @@ pub fn tinted(amount: u32, colour: u32) -> u32 {
     })
 }
 
-/// What `add_point_lights` leaves: the last lamp's strength (`dword_639958`), the last
-/// lit lamp's colour (`dword_62DA7C`) and distance (`dword_62400C`), the light
-/// (`g_lightColour`); None where nothing was written.
+/// What `add_point_lights` leaves: the last lamp's strength, the last lit lamp's colour and
+/// distance, and the light; None where nothing was written.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct PointLights {
     pub strength: Option<u32>,
@@ -51,9 +45,8 @@ pub struct PointLights {
     pub light: Option<u32>,
 }
 
-/// `add_point_lights`: each lamp of a strength not 0 adds its tinted amount at its
-/// approximate distance from `place` (its point's place `point(n)`, asked only for those)
-/// to the light, `brighter`.
+/// Each lamp of a strength not 0 adds its tinted amount at its approximate distance from
+/// `place` (its point's place `point(n)`, asked only for those) to the light, `brighter`.
 pub fn add_point_lights(
     lamps: impl IntoIterator<Item = Lamp>,
     place: [u32; 3],
@@ -82,27 +75,27 @@ pub fn add_point_lights(
     out
 }
 
-/// What `add_car_lights` reads to choose, each asked only where the original reads it.
+/// What `add_car_lights` reads, each asked only where needed.
 pub trait CarLights {
-    /// `dword_52A910`: one car's lamps only.
+    /// Whether only one car's lamps are used.
     fn one_car(&self) -> bool;
-    /// `dword_52A920`: that car.
+    /// That one car.
     fn the_car(&self) -> u32;
-    /// `dword_6238B8` is 1: every car.
+    /// Whether every car's lamps are used.
     fn all_cars(&self) -> bool;
-    /// `dword_63DB94`: the cars near.
+    /// The cars near.
     fn near(&self) -> u32;
-    /// `dword_62389C`: the view.
+    /// The view.
     fn view(&self) -> u32;
-    /// `dword_639968`: the car being drawn.
+    /// The car being drawn.
     fn drawn(&self) -> u32;
-    /// `dword_63DBA8[dword_63DB9C]`: the car viewed.
+    /// The car viewed.
     fn viewed(&self) -> u32;
 }
 
-/// Whether a car's lamps light the object: with one car, that car or every car while all
-/// count; else the cars near (every car while all count) but not the one drawn, and of
-/// those all if one is near or the view is 0 or 2, else only the car viewed.
+/// Whether a car's lamps light the object: with one car, that car (or every car while all
+/// count); else the cars near (or all) but not the one drawn, and of those all if one is
+/// near or the view is 0 or 2, else only the car viewed.
 pub fn car_lights(c: &impl CarLights, car: u32) -> bool {
     if c.one_car() {
         return car == c.the_car() || c.all_cars();
@@ -114,20 +107,19 @@ pub fn car_lights(c: &impl CarLights, car: u32) -> bool {
         && (near == 1 || view == 0 || view == 2 || car == c.viewed())
 }
 
-/// `fill_light_tables`' way: the plain colours (both switches 0) or the scene's.
+/// The plain colours (both switches 0) or the scene's.
 pub fn plain_light(switch: u32, other_switch: impl FnOnce() -> u32) -> bool {
     switch == 0 && other_switch() == 0
 }
 
-/// What `scene::set_object_light` does by the light's kind (`g_lightKind`).
+/// What the object's light does by the light's kind.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ObjectLight {
-    /// 5: plain white (0xFFFFFF) added.
+    /// 5: plain white (`WHITE`) added.
     White,
-    /// 1, 2, 3: the lamps gathered and their colour plus the base added; the strength
-    /// (`g_lightStrength`) cleared first (1 always, 2 while the key is down); with
-    /// `own_car` (3) the drawn car (`dword_639968`) set to this one (`dword_60627C`) while
-    /// they are gathered, -1 afterwards.
+    /// 1, 2, 3: the lamps gathered and their colour plus the base added; the strength is
+    /// cleared first (1 always, 2 while the key is down); with `own_car` (3) the drawn car is
+    /// set to this one while they are gathered, -1 afterwards.
     Gathered { clear_strength: bool, own_car: bool },
     /// Anything else: nothing more.
     Nothing,
@@ -136,7 +128,7 @@ pub enum ObjectLight {
 /// The white `ObjectLight::White` adds.
 pub const WHITE: u32 = 0x00FF_FFFF;
 
-/// The light's kind's way; `key_down` (`byte_4F6B74` not 0) is asked for kind 2 only.
+/// The light's kind's way; `key_down` is asked for kind 2 only.
 pub fn object_light(kind: u32, key_down: impl FnOnce() -> bool) -> ObjectLight {
     match kind {
         5 => ObjectLight::White,

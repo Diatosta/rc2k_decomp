@@ -1,33 +1,27 @@
-//! The work car's timed events (converted 2026-10-21 from `physics::queue_car_event`
-//! 0x4419EB, `expire_car_events` 0x44196B and `queue_listed_event` 0x44194D): a queue of
-//! up to 7 under the pace notes (a reading), aged against the scene clock; the events by
-//! number from a table of 0x20 (`dword_614C7C`).
+//! The work car's timed events: the queue of up to 7 pace-note symbols stacked for a view,
+//! aged against the scene clock, and the table of 0x20 listed events.
 
 use crate::Invalid;
 
-/// The queue's room.
 pub const ROOM: u32 = 7;
 /// How long an event stays (3000 of the scene clock).
 pub const LIFE: u32 = 3000;
 
-/// The queue (`g_car` +0xF58 ..: the times and the events have an eighth slot each,
-/// which the shift reads).
+/// The queue; the times and events have an eighth slot each, which the shift reads.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct CarEvents {
-    /// +0xF58: when each is due.
+    /// When each is due.
     pub times: [u32; 8],
-    /// +0xF78: the events.
     pub events: [u32; 8],
-    /// +0xF98: how many.
     pub count: u32,
-    /// +0xF9C: a level the queue's length sets (down 0x20 an entry).
+    /// The scroll target: 0 for the first entry, 0x20 less for each further one, 0x20 more
+    /// for each expired.
     pub level: u32,
-    /// +0xFA0: eased towards `level`.
+    /// The scroll position drawn, eased 4 a step towards `level`.
     pub shown: u32,
 }
 
-/// What `expire` did: whether anything was shifted out, and `shown` after (the
-/// original's eax).
+/// What `expire` did: whether anything was shifted out, and `shown` after.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Expired {
     pub shifted: bool,
@@ -42,9 +36,8 @@ impl CarEvents {
         Ok(())
     }
 
-    /// `physics::queue_car_event`: `event` due `delay` after the scene clock `clock`
-    /// (wrapping), unless the queue is full; the first resets `level` and `shown`, each
-    /// further one takes 0x20 off `level`. The time (the original's eax).
+    /// Queues `event` due `delay` after `clock` unless the queue is full; the first resets
+    /// `level` and `shown`, each further one takes 0x20 off `level`. Returns the time.
     pub fn queue(&mut self, clock: u32, delay: u32, event: u32) -> Result<u32, Invalid> {
         self.check()?;
         let time = clock.wrapping_add(delay);
@@ -64,9 +57,8 @@ impl CarEvents {
         Ok(time)
     }
 
-    /// `physics::expire_car_events`: while the first is 3000 or more behind `clock` (by
-    /// the sign), it goes (the lists shift down one, `level` up 0x20, `shown` up 0x40);
-    /// then `shown` comes 4 towards `level` (not past it; left at or below it).
+    /// Drops each first event 3000 or more behind `clock` (by sign): the lists shift down,
+    /// `level` goes up 0x20 and `shown` 0x40. Then `shown` comes 4 towards `level`, not past it.
     pub fn expire(&mut self, clock: u32) -> Result<Expired, Invalid> {
         self.check()?;
         let mut shifted = false;
@@ -94,13 +86,11 @@ impl CarEvents {
     }
 }
 
-/// The listed events' table (`dword_614C7C`): 0x20 entries, -1 none.
 pub const LISTED_EVENTS: u32 = 0x20;
 /// No event.
 pub const NO_EVENT: u32 = u32::MAX;
 
-/// `physics::queue_listed_event`: for a number in the table, its entry (`entry(n)`) and
-/// whether it is queued (not -1); past the table nothing.
+/// For a number in the table, its entry and whether it is queued (not -1); None past the table.
 pub fn listed_event(n: u32, entry: impl FnOnce(u32) -> u32) -> Option<(u32, bool)> {
     (n < LISTED_EVENTS).then(|| {
         let e = entry(n);

@@ -1,15 +1,16 @@
-//! The finish routine's camera (converted 2026-10-21 from `drive::finish_camera`
-//! 0x45941D): four of the camera's figures, each a line in the eased time and the share.
-//! What the figures are is a reading.
+//! The finish routine's camera: four of the camera's figures, each a line in the eased time and the
+//! share. The figures are the camera's yaw, height, distance and pitch: each is a start value plus
+//! a rate times the eased time (or the share), the constants being `Finish::camera_*`
+//! (`src/drive/finish_store.rs`).
 //!
-//! Floats: what the x87 keeps on its stack is an `f64`, rounded to `f32` where the
-//! original stores: the same bits at the game's double precision.
+//! Floats: sums are `f64` and rounded to `f32` where stored, the same bits as the game's x87 at
+//! double precision.
 
-/// The lines' figures (`flt_64BB4C` .. `flt_64BB7C`), the time (`flt_64BB68`) and the
-/// share (`flt_64BB6C`).
+/// The lines' figures, the time and the share.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct FinishLines {
-    /// `flt_64BB4C`, `flt_64BB50`, `flt_64BB54`, `flt_64BB58`, `flt_64BB5C`.
+    /// `Finish.camera_yaw_rate`, `Finish.camera_distance_start`, `Finish.camera_height_start`,
+    /// `Finish.camera_distance_rate`, `Finish.camera_height_rate`.
     pub k4c: f32,
     pub k50: f32,
     pub k54: f32,
@@ -17,12 +18,12 @@ pub struct FinishLines {
     pub k5c: f32,
     pub time: f32,
     pub share: f32,
-    /// `flt_64BB78`, `flt_64BB7C`.
+    /// `Finish.camera_pitch_per_share`, `Finish.camera_height_per_share`.
     pub k78: f32,
     pub k7c: f32,
 }
 
-/// The four figures: (`dword_606748`, `dword_606730`, `dword_606734`, `dword_606744`).
+/// The four figures: yaw, height, distance and pitch.
 pub fn finish_camera(l: &FinishLines) -> [f32; 4] {
     let (t, s) = (l.time as f64, l.share as f64);
     [

@@ -1,8 +1,8 @@
-//! `menu::show_car_specs` (0x46FD31): the car specifications screen for the kind of event
-//! (`dword_755954`): 1 .. 3 the list `off_75A042`, 4 `off_759CAE`, each through
-//! `menu::secret_car_list` (with cheat bit 1 `off_75A412` instead), then
-//! `menu::car_specs_47af4c_loop` and, unless it was left (`dword_758806` 1),
-//! `take_shown_car`; 5 `off_759D16` and the screen alone. Another kind is the original's
+//! `menu::show_car_specs`: the car specifications screen for the kind of event
+//! (`event.event_type`): 1 .. 3 the second car list, 4 the championship car list, each through
+//! `menu::secret_car_list` (with cheat bit 1 the cheat car list instead), then
+//! `menu::car_specs_display_loop` and, unless it was left (`captions.left_by_key` set),
+//! `take_shown_car`; 5 the A8 championship car list and the screen alone. Another kind is
 //! fatal error 0x80713214, "No GameMode Defined".
 //!
 //! An item action (a reading: the main menu's "car specifications").
@@ -10,11 +10,10 @@
 use crate::errors::{FatalError, Refused};
 use crate::menu::lists_store::CarList;
 use crate::menu::owner::Menus;
+use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_loop::{Entry, run_screen};
 
-/// The Rust version.
-pub fn show_car_specs(menus: &Menus) -> Result<(), Refused> {
-    // Converted: `rc2k_core::menu::cars::specs_list`.
+pub fn show_car_specs(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
     use rc2k_core::menu::cars::{SpecsList, specs_list};
     let kind: u32 = menus.screens.event.event_type.get();
     let Some((list, choice)) = specs_list(kind) else {
@@ -29,16 +28,16 @@ pub fn show_car_specs(menus: &Menus) -> Result<(), Refused> {
         SpecsList::Kind4 => CarList::Championship,
         SpecsList::Kind5 => CarList::A8,
     };
-    let screen = &crate::menu::car_specs_47af4c_loop::SCREEN;
+    let screen = ScreenId::CarSpecsDisplay;
     if !choice {
-        { run_screen(screen, &Entry::with_cars(menus, Some(cars))) }?;
+        { run_screen(screen, &entry.with_list(Some(cars))) }?;
         return Ok(());
     }
     if let Some(cheat) = crate::menu::cheat_car_list::cheat_car_list(menus) {
         cars = cheat;
     }
-    { run_screen(screen, &Entry::with_cars(menus, Some(cars))) }?;
-    if { menus.tables.captions.screen_left.get() } != 1 {
+    { run_screen(screen, &entry.with_list(Some(cars))) }?;
+    if !menus.tables.captions.left_by_key.is_set() {
         crate::menu::take_shown_car::take_shown_car(menus, Some(cars))?;
     }
     Ok(())

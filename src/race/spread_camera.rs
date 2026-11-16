@@ -1,40 +1,38 @@
-//! `race::spread_camera` (0x41E6BD): a block's camera byte changed (ebx, the old value in
-//! dh): the new value (`[ebx]`) also into the next blocks' same byte (8 bytes on each)
-//! while they held the old one, for the blocks after the one shown
-//! (`dword_5BECD0 - dword_5C2530` less one at most).
+//! `race::spread_camera`: after a block's camera byte changes, the new value is also written into
+//! the same byte of the next blocks (8 bytes on each) while they held the old one, for the blocks
+//! after the one shown (`index.block_count` - `replay_block` less one at most).
 //!
-//! Callers: `race::viewer_action` (four), `race::next_camera`, `race::previous_camera`, with
-//! the block shown not the last. The count is not checked: 0 (or less) is limited only by the
-//! bytes met; refused when the walk would pass the 0x708 blocks of the table, before anything
-//! is written.
+//! Called by `race::viewer_action` (the camera byte actions), with the
+//! block shown not the last. The count is not checked: a count of 0 or less is limited only by
+//! the bytes met. Refuses, before anything is written, a walk that would pass the 0x708 blocks of
+//! the table.
 
 use crate::errors::Refused;
-use crate::pointers::GamePtr;
 use crate::race::owner::Race;
 use crate::race::trap::Trap;
+use crate::race::viewer::CameraByte;
 
-/// The Rust version: `byte` the changed camera byte, `old` its old value. What
-/// the original leaves (dl, eax, ecx) its callers do not read: `viewer_action` and the
-/// camera steps end with it, and `viewer_action` keeps every register.
-pub fn spread_camera(race: &Race, byte: GamePtr, old: u8) -> Result<(), Refused> {
+/// Spreads the changed camera byte `byte` (`old` is its old value) over the following blocks.
+pub fn spread_camera(race: &Race, byte: CameraByte, old: u8) -> Result<(), Refused> {
     let replay = &race.replay;
     // The camera bytes of the following blocks, 8 bytes apart (a stride over bytes).
-    let at = |n: u32| byte.offset(n.wrapping_mul(8));
-    let dl = byte.read::<u8>("a replay camera byte")?;
+    let at = |n: u32| byte.blocks_on(n);
+    let dl = byte.read(race, "a replay camera byte")?;
     let count = race
         .shared
-        .replay_file
-        .index_block_count
+        .replay_file()
+        .index
+        .block_count
         .get()
-        .wrapping_sub(replay.replay_view.replay_block.get());
-    // Converted: `rc2k_core::race::viewer::spread` (how far it goes, first).
+        .wrapping_sub(replay.replay_view().replay_block.get());
+    // How far it goes is worked out first.
     let trap = Trap::new();
     let s = rc2k_core::race::viewer::spread(count, old, |n| {
-        trap.read_at::<u8>(at(n), "a replay camera byte")
+        trap.keep_read(at(n).read(race, "a replay camera byte"))
     })?;
     trap.finish()?;
     for n in 1..=s.taken {
-        at(n).write(dl, "a replay camera byte")?;
+        at(n).write(race, dl, "a replay camera byte")?;
     }
     Ok(())
 }

@@ -1,24 +1,19 @@
-//! The race's frame: the panel's fields, the course grid round the view, the sort
-//! entries and the objects' bytes (converted 2026-10-21 from `race::split_colours`
-//! 0x45B16A, `both_split_colours` 0x45B147, `panel_players` 0x45ACDB, `panel_neighbours`
-//! 0x45AD36, `panel_marks` 0x45AEFE, `hold_to_limit` 0x4650A9, `lamps_wanted` 0x4536D7,
-//! `add_sort_entry` 0x454D57, `course_grid` 0x45497E, `checkpoint_colours` 0x4548E3 and
-//! `object_bytes` 0x455263).
+//! The race's frame: the panel's fields, the course grid round the view, the sort entries and
+//! the objects' bytes.
 
 use crate::Invalid;
 
-/// The dwords each view's colour buffer holds (`dword_6D160C`, `dword_6D170C`).
+/// The dwords each view's colour buffer holds.
 pub const COLOUR_BUFFER_DWORDS: u32 = 0x40;
 
-/// The colour of a stretch not reached (`split_colours`' fill).
+/// The colour of a stretch not reached (the split colours' fill).
 pub const SPLIT_UNREACHED: u32 = 0xC;
 /// The colour of a split not above the one before.
 pub const SPLIT_SLOWER: u32 = 8;
 /// The colour of a split above the one before.
 pub const SPLIT_FASTER: u32 = 4;
 
-/// `race::split_colours`' refusal: a fill or a count of splits (when positive) past the
-/// colour buffer.
+/// The split colours' refusal: a fill or a split count past the colour buffer.
 pub fn check_split_colours(fill: u32, count: u32) -> Result<(), Invalid> {
     if fill > COLOUR_BUFFER_DWORDS || (count as i32 > 0 && count > COLOUR_BUFFER_DWORDS) {
         return Err(Invalid("a count past the colour buffer's 0x40 dwords"));
@@ -26,9 +21,8 @@ pub fn check_split_colours(fill: u32, count: u32) -> Result<(), Invalid> {
     Ok(())
 }
 
-/// `race::split_colours`: each split's colour: `SPLIT_SLOWER` when it is not above the one
-/// before (0x63 before the first; the sign of the difference, as `cmp` / `jns`), else
-/// `SPLIT_FASTER`.
+/// Each split's colour: `SPLIT_SLOWER` when not above the one before (0x63 before the first),
+/// else `SPLIT_FASTER`.
 pub fn split_colours(splits: &[u32]) -> Vec<u32> {
     let mut before = 0x63u32;
     splits
@@ -45,18 +39,18 @@ pub fn split_colours(splits: &[u32]) -> Vec<u32> {
         .collect()
 }
 
-/// What `race::panel_players` does to the panel's player fields.
+/// What the panel's player fields are set to.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PanelPlayers {
-    /// Nothing (a race mode set, `dword_62389C`).
+    /// Nothing.
     Kept,
-    /// The two name fields unset (-1): one player.
+    /// Two name fields unset (-1): one player.
     One,
-    /// All four unset, then the two name fields the view blocks' +0xFA4.
+    /// All four unset, then the two name fields the view blocks'.
     Two,
 }
 
-/// `race::panel_players`: by the race's mode and (asked only in mode 0) the players.
+/// By the race's mode and (asked only in mode 0) the players.
 pub fn panel_players(mode: u32, players: impl FnOnce() -> u32) -> PanelPlayers {
     if mode != 0 {
         PanelPlayers::Kept
@@ -67,28 +61,26 @@ pub fn panel_players(mode: u32, players: impl FnOnce() -> u32) -> PanelPlayers {
     }
 }
 
-/// `race::panel_neighbours`: a neighbour's car number on the panel: -1 when there is
-/// none (the view's car at the end it would be past), else its number.
+/// A neighbour's car number on the panel: -1 when none, else its number.
 pub fn neighbour_number(at_end: bool, number: u32) -> u32 {
     if at_end { u32::MAX } else { number }
 }
 
-/// The marks one view shows on the panel (`race::panel_marks`).
+/// The marks one view shows on the panel.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ViewMarks {
-    /// 400 + the block's +0xFA0.
+    /// 400 + the view's panel value.
     pub base: u32,
-    /// The marks shown (the block's +0xF98, at most 4; 0 when none).
+    /// The marks shown (at most 4; 0 when none).
     pub shown: u32,
-    /// The first `shown` marks (+0xF78 ..), each + 1; the rest 0.
+    /// The first `shown` marks, each + 1; the rest 0.
     pub marks: [u32; 4],
 }
 
 /// The most marks a view shows.
 pub const MOST_MARKS: u32 = 4;
 
-/// `race::panel_marks` for one view: from its +0xFA0, its count (+0xF98) and its marks
-/// (asked for the first `shown` only).
+/// The panel marks for one view: its value, count and marks (asked for `shown` only).
 pub fn view_marks(offset: u32, count: u32, mark: impl Fn(u32) -> u32) -> ViewMarks {
     let shown = count.min(MOST_MARKS);
     let mut marks = [0u32; 4];
@@ -102,26 +94,25 @@ pub fn view_marks(offset: u32, count: u32, mark: impl Fn(u32) -> u32) -> ViewMar
     }
 }
 
-/// `race::hold_to_limit`: `value` held to `limit` (`dword_71C6D4`, unsigned).
+/// `value` held to `limit` (unsigned).
 pub fn hold_to_limit(value: u32, limit: u32) -> u32 {
     value.min(limit)
 }
 
-/// `race::lamps_wanted`: the lamp count with bit 0 set when a car's lights are wanted.
+/// The lamp count with bit 0 set when a car's lights are wanted.
 pub fn lamps_wanted(lamps: u32, any_lit: bool) -> u32 {
     if any_lit { lamps | 1 } else { lamps }
 }
 
-/// `race::lamps_wanted`: whether a race car's lights are wanted: its parts shown
-/// (+0x25C) and its lights on (+0x84, asked only with its parts shown).
+/// Whether a race car's lights are wanted: its parts shown and its lights on.
 pub fn car_lit(parts_shown: u32, lights: impl FnOnce() -> u32) -> bool {
     parts_shown != 0 && lights() != 0
 }
 
-/// The keys past which `add_sort_entry` leaves the first dword 0.
+/// The keys past which a sort entry's first dword stays 0.
 pub const SORT_KEY_LIMIT: u32 = 0x100_0000;
 
-/// One sort entry (`race::add_sort_entry`): its first dword and the key (ebx & 0x7FFFFFFF).
+/// One sort entry: its first dword and the key (masked with 0x7FFFFFFF).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SortEntry {
     /// None: left 0 (a key of 0x1000000 or more).
@@ -129,8 +120,7 @@ pub struct SortEntry {
     pub key: u32,
 }
 
-/// `race::add_sort_entry`: the entry for `what` (its second dword) at `depth` (eax):
-/// (depth << 16) | the key's low word, for a key below 0x1000000.
+/// The entry for `what` at `depth`: (depth << 16) | the key's low word, for a key below 0x1000000.
 pub fn sort_entry(depth: u32, what: u32) -> SortEntry {
     let key = what & 0x7FFF_FFFF;
     SortEntry {
@@ -139,13 +129,12 @@ pub fn sort_entry(depth: u32, what: u32) -> SortEntry {
     }
 }
 
-/// The course grid's cells a side (`race::course_grid`).
+/// The course grid's cells a side.
 pub const GRID_SIDE: u32 = 32;
 /// An empty cell.
 pub const GRID_EMPTY: u32 = 0x0FFF_FFFF;
 
-/// `race::course_grid`: the grid's corner: the view's place (`dword_6062B0` /
-/// `dword_6062B4`, >> 21 arithmetic) less the half size.
+/// The grid's corner: the view's place (>> 21) less the half size.
 pub fn grid_corner(view_x: u32, view_z: u32, half: u32) -> (u32, u32) {
     (
         (((view_x as i32) >> 21) as u32).wrapping_sub(half),
@@ -153,13 +142,12 @@ pub fn grid_corner(view_x: u32, view_z: u32, half: u32) -> (u32, u32) {
     )
 }
 
-/// A course record's place (+0: two 11-bit cell numbers, -1 none).
+/// A course record's place (two 11-bit cell numbers, -1 none).
 pub fn record_cell(place: u32) -> Option<(u32, u32)> {
     (place != u32::MAX).then_some((place & 0x7FF, place >> 11 & 0x7FF))
 }
 
-/// `race::course_grid`: the cell a record at (`x`, `z`) goes in, row z column x from the
-/// corner (& 0x7FF), when within the span on both axes.
+/// The cell a record at (`x`, `z`) goes in, from the corner (& 0x7FF); None outside the span.
 pub fn grid_cell(x: u32, z: u32, corner: (u32, u32), span: u32) -> Option<u32> {
     let column = x.wrapping_sub(corner.0) & 0x7FF;
     if column > span {
@@ -172,22 +160,21 @@ pub fn grid_cell(x: u32, z: u32, corner: (u32, u32), span: u32) -> Option<u32> {
     Some(row.wrapping_mul(GRID_SIDE).wrapping_add(column))
 }
 
-/// The colour levels `race::checkpoint_colours` works out.
+/// The colour levels of a checkpoint.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CheckpointColours {
-    /// The face's +0x10 low nibble (0 read as 0x10): `dword_614D08`.
+    /// The face's colour byte's low nibble (0 read as 0x10).
     pub near: u32,
-    /// Its high nibble: `dword_614D0C`.
+    /// Its high nibble.
     pub far: u32,
-    /// The checkpoint's distance less the car's: `dword_614D10`.
+    /// The checkpoint's distance less the car's.
     pub distance: u32,
-    /// The level used (`dword_63F17C`): near when twice the distance (its size) is below
-    /// 0x40000000 (signed), far from 0xC0000000, else the larger.
+    /// The level used: near when twice the distance is below 0x40000000 (signed), far from
+    /// 0xC0000000, else the larger.
     pub level: u32,
 }
 
-/// `race::checkpoint_colours`: from the face's colour byte, the checkpoint's distance
-/// along the line and the car's.
+/// From the face's colour byte, the checkpoint's distance along the line and the car's.
 pub fn checkpoint_colours(byte: u8, checkpoint: u32, car: u32) -> CheckpointColours {
     let nibble = |v: u32| if v == 0 { 0x10 } else { v };
     let near = nibble(byte as u32 & 0xF);
@@ -210,8 +197,8 @@ pub fn checkpoint_colours(byte: u8, checkpoint: u32, car: u32) -> CheckpointColo
     }
 }
 
-/// `race::object_bytes`: an object's four bytes: its record's +0xE bit 0, 1, its kind's
-/// byte (`kind`), and its first face's kind's byte (`face_kind`, with faces) or 0xFF.
+/// An object's four bytes: its record's flag bits 0 and 1, its kind's byte, and its first
+/// face's kind byte (with faces) or 0xFF.
 pub fn object_bytes(flags: u8, kind: u32, face_kind: Option<u32>) -> [u8; 4] {
     [
         flags & 1,

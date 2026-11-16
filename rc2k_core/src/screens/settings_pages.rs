@@ -1,34 +1,30 @@
-//! The settings pages' drawing (converted 2026-10-20): `screens::draw_sound_settings`
-//! 0x47022A, `draw_graphics_settings`, `draw_visual_preferences`, `draw_volume_settings`
-//! and `draw_options_checklist`: each setting's name (a string by the setting's value) in
-//! its place, the volume bars, the options' check marks.
+//! The settings pages' drawing (sound, graphics, visual preferences, volume, options
+//! checklist): each setting's name (a string by the setting's value) in its place, the volume
+//! bars, the options' check marks.
 
 use crate::screens::screen::{BAR_HAS_NO_LENGTH, Bar, Buffer, Drawn, Screen};
 use crate::strings::format::{Pad, decimal};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Font {
-    /// The settings' names (`stru_51E8C4`).
+    /// The settings' names.
     Value,
-    /// The volume page's ends (`stru_51E3C4`).
+    /// The volume page's ends.
     Small,
-    /// The checklist's title (`stru_51E904`).
+    /// The checklist's title.
     Title,
-    /// The checklist's heads (`stru_51E944`).
+    /// The checklist's heads.
     Head,
-    /// The checklist's lines (`stru_51E8E4`).
+    /// The checklist's lines.
     Line,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Work {
-    /// `dword_7559EC`.
     Scratch,
-    /// `seconds` (0x7559AC).
     Seconds,
-    /// `dword_7559F0`.
     Glyph,
-    /// `dword_755A18`: the check marks' x.
+    /// The check marks' x.
     CheckX,
 }
 
@@ -45,8 +41,8 @@ fn names<S: Screen<Font = Font, Work = Work>>(
     Ok(last)
 }
 
-/// The sound page's menu items, in the order the original sets them (true: choosable):
-/// 4 .. 6 on, then off those the card lacks (3D sound, EAX, A3D 2).
+/// The sound page's menu items in the order they are set (true: choosable): 4 .. 6 on, then
+/// off those the card lacks (3D sound, EAX, A3D 2).
 pub fn sound_items(has_3d: bool, has_eax: bool, has_a3d2: bool) -> Vec<(u32, bool)> {
     let mut out = vec![(4, true), (5, true), (6, true)];
     for (has, item) in [(has_3d, 4), (has_eax, 5), (has_a3d2, 6)] {
@@ -94,7 +90,8 @@ pub fn graphics<S: Screen<Font = Font, Work = Work>>(
     Ok(last)
 }
 
-/// The visual preferences page: nine names from y 0xC8 every 0x1D. The carry of the last.
+/// The visual preferences page: nine names from y 0xC8 every 0x1D. Returns the last name's
+/// `too_wide`.
 pub fn visual_preferences<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     ids: [u32; 9],
@@ -102,11 +99,10 @@ pub fn visual_preferences<S: Screen<Font = Font, Work = Work>>(
     Ok(names(s, ids.into_iter().zip((0..).map(|n| 0xC8 + 0x1D * n)))?.too_wide)
 }
 
-/// The volume page: the name `id` (kept in `seconds`) at (0x1EA, 0x1B3); eight bar
-/// backgrounds (sprite 0x19 at x 0x222, y 0xDA every 0x1C); eight bars of the volumes (0 ..
-/// 0x40: v x 100 / 0x40 percent; a v whose v x 100 wraps to 0 is fatal error 0x80701010);
-/// then each row's knob (sprite 0x1B at x 0x1E6) and its two ends (strings 0x547, 0x548).
-/// The sprites' palette is where the last text ended.
+/// The volume page: the name `id` at (0x1EA, 0x1B3); eight bar backgrounds (sprite 0x19 at x
+/// 0x222, y 0xDA every 0x1C); eight bars of the volumes (0 .. 0x40, as percent; a v whose
+/// v x 100 wraps to 0 is fatal error 0x80701010); each row's knob (sprite 0x1B) and its two ends
+/// (strings 0x547, 0x548).
 pub fn volume<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     id: u32,
@@ -163,10 +159,9 @@ pub const CHECKLIST_LINES: [(u32, i32, i32, Font); 14] = [
     (0x531, 0x186, 0x1C6, Font::Line),
 ];
 
-/// The options checklist: the title (string 0x190, " ", the player's number from 1) in
-/// `byte_A8BC54` at (0x190, 0x14), the lines, the progress bar at `percent`, its end
-/// sprite 0x88 and labels (0x4AE, 0x4AF), then a check mark (sprite 0x9E + (v ^ 1)) for
-/// each of `ticks` from y 0x82 every 0x1B, at x 0x190 (kept), its palette v ^ 1.
+/// The options checklist: the title (string 0x190, " ", the player's number from 1) at (0x190,
+/// 0x14), the lines, the progress bar at `percent` with its end sprite 0x88 and labels (0x4AE,
+/// 0x4AF), then a check mark (sprite 0x9E + (v ^ 1)) for each of `ticks` from y 0x82 every 0x1B.
 pub fn options_checklist<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     player: u32,

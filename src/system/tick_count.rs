@@ -1,21 +1,37 @@
-//! `system::tick_count` (0x411024): the game's millisecond clock: `GetTickCount`, unless the
-//! override switch `dword_5C2CD4` is 1, in which case it is `dword_5C2CD0`.
+//! The game's millisecond clock: `GetTickCount`, unless the
+//! override switch (`pictures_started`) is 1, in which case it is `picture_clock`.
 //!
-//! Returns milliseconds.
-//! 110 callers. What sets the override has not been read.
+//! What sets the override has not been read.
 //!
 
-use crate::race::viewer_screen_store::VIEWER_PANEL;
+use crate::memory::session::Dword;
 
-// ---- game data ----
+/// The picture clock: while the replay viewer saves its frames as pictures
+/// (`race::replay_screenshot`) the game's clock is `clock` (ms) instead of the host's.
+#[derive(rc2k_derive::Cells)]
+pub struct PictureClock {
+    /// 1 when the override is on.
+    pub started: Dword,
+    pub clock: Dword,
+}
 
-// ---- Rust version ----
+impl PictureClock {
+    pub const fn new() -> Self {
+        PictureClock {
+            started: Dword::new(0),
+            clock: Dword::new(0),
+        }
+    }
+}
 
-pub fn tick_count() -> u32 {
+pub fn tick_count(picture_clock: &PictureClock) -> u32 {
+    #[cfg(feature = "remote")]
+    if let Some(held) = crate::remote::held_clock() {
+        return held;
+    }
     // The original asks Windows first in both cases.
-    let now = crate::os::ticks();
-    // Converted: `rc2k_core::system::time::clock`.
-    rc2k_core::system::time::clock(now, VIEWER_PANEL.pictures_started.bits(), || {
-        VIEWER_PANEL.picture_clock.bits()
+    let now = crate::platform::os::ticks();
+    rc2k_core::system::time::clock(now, picture_clock.started.get(), || {
+        picture_clock.clock.get()
     })
 }

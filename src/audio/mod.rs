@@ -1,5 +1,4 @@
-//! The audio thread (`audio::thread`, 0x409CCE): the side that carries out what `sound::`
-//! sends. See `voices.rs`.
+//! The audio thread (`audio::thread`): the side that carries out what `sound::` sends.
 
 pub mod a3d;
 pub mod buffer_play;
@@ -12,16 +11,20 @@ pub mod fill_buffer;
 pub mod fill_voice;
 pub mod free_voices;
 pub mod keep_sample;
+pub mod levels;
 pub mod load_sounds;
 pub mod make_buffer;
 pub mod mix;
 pub mod mix_channels;
+#[cfg(feature = "remote")]
+pub mod mix_hash;
 pub mod mixer;
 pub mod mixer_set_up;
 pub mod names_store;
 pub mod new_voice;
 pub mod open_eax;
 pub mod open_voice_manager;
+pub mod own;
 pub mod owner;
 pub mod primary;
 pub mod property_sets;

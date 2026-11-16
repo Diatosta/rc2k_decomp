@@ -1,7 +1,6 @@
-//! The films (converted 2026-10-21 from `menu::play_films` 0x4161CD): at the game's start
-//! the two logos (the first on 16-bit screens only), then the intro over and over with
-//! the game's demonstration between, until a key; from the idle main menu the scene let
-//! go first and set up again after. The setting `nofmv` leaves the films out.
+//! The films: at the game's start the two logos (the first on 16-bit screens only), then the intro
+//! over and over with the game's demonstration between, until a key; from the idle main menu the
+//! scene let go first and set up again after. The setting `nofmv` leaves the films out.
 
 /// The films.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -12,30 +11,31 @@ pub enum Film {
     Intro,
 }
 
-/// The steps, at the game's addresses in the hook crate.
+/// The steps of the film sequence.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Step {
-    /// 0x40F826 (`sound::stop_music`).
+    /// Stops the music (`sound::stop_music`).
     StopMusic,
     /// `gfx::clear_front_surface`.
     Step4059F4,
-    /// `input::take_key`: the zero flag clear with a key.
+    /// `input::take_key`: `zero` false when a key was taken.
     TakeKey,
-    /// `files::swap_missing_extension` on the film (eax).
+    /// `files::swap_missing_extension` on the film.
     SwapMissingExtension(Film),
-    /// The player (0x41AE39, ebx 0) on the film, or on the path the step before left
-    /// (None); the zero flag clear when a key ended it.
+    /// The player on the film, or on the path the step before left (None); `zero` false when a
+    /// key ended it.
     Player(Option<Film>),
     /// `scene::set_up_lit_engine`.
     LitEngine,
-    /// `race::render3d_tidy`, `race::objects_tidy`, `nullsub_6`, `race::release_textures`.
+    /// `race::render3d_tidy`, `race::objects_tidy`, a step that does nothing, and
+    /// `race::release_textures`.
     Render3dTidy,
     ObjectsTidy,
     Nothing,
     ReleaseTextures,
-    /// `files::file_exists`: the carry set when it is not there.
+    /// `files::file_exists`: `carry` true when the film is not there.
     FileExists(Film),
-    /// `race::credits_race`, the demonstration (ebp kept across it).
+    /// `race::credits_race`, the demonstration.
     Demonstration,
     /// `sound::let_sounds_play`.
     Step409B76,
@@ -45,25 +45,25 @@ pub enum Step {
     Tune3,
 }
 
-/// What a step answered.
+/// What a step answered: two flags, read as each step says.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct Flags {
+pub struct StepAnswer {
     pub carry: bool,
     pub zero: bool,
 }
 
 pub trait Films {
-    /// `g_noFmv` not 0.
+    /// The setting `nofmv` is on.
     fn no_fmv(&mut self) -> bool;
-    /// `g_screenBits`.
+    /// The screen's bits a pixel.
     fn screen_bits(&mut self) -> u32;
-    fn step(&mut self, s: Step) -> Flags;
+    fn step(&mut self, s: Step) -> StepAnswer;
 }
 
 /// The screen depth that shows the first logo.
 pub const LOGO_BITS: u32 = 0x10;
 
-/// `menu::play_films`: `idle` (eax 1) from the idle main menu, else at the start (0).
+/// `menu::play_films`: `idle` from the idle main menu, else at the start (0).
 pub fn play_films<F: Films>(e: &mut F, idle: bool) {
     e.step(Step::StopMusic);
     e.step(Step::Step4059F4);
@@ -137,18 +137,18 @@ mod tests {
         fn screen_bits(&mut self) -> u32 {
             self.bits
         }
-        fn step(&mut self, s: Step) -> Flags {
+        fn step(&mut self, s: Step) -> StepAnswer {
             self.steps.push(s);
             match s {
-                Step::FileExists(_) => Flags {
+                Step::FileExists(_) => StepAnswer {
                     carry: !self.intro,
                     zero: false,
                 },
-                Step::TakeKey | Step::Player(Some(Film::Intro)) => Flags {
+                Step::TakeKey | Step::Player(Some(Film::Intro)) => StepAnswer {
                     carry: false,
                     zero: !self.keys.remove(0),
                 },
-                _ => Flags::default(),
+                _ => StepAnswer::default(),
             }
         }
     }

@@ -1,16 +1,15 @@
-//! `effects::keep_vectors` (0x4C1339): twelve dwords kept (`push`/`pop`): `dword_769252` ..
-//! and `dword_76924E` into `dword_76926E` .. and `dword_76926A`; `dword_764FB0` .. and
-//! `dword_764FAC` into `dword_7692C2` .. and `dword_7692BE`; `dword_764F94` .. and
-//! `dword_764F90` into `dword_7692A6` .. and `dword_7692A2`.
-//!
-//! Caller: `effects::view_frame`.
+//! `effects::keep_vectors`: twelve dwords kept: `KeptView.pushed[1]` .. and `KeptView.pushed[0]`
+//! into `KeptView.kept_a.vector[0]` .. and `KeptView.kept_a.factor`;
+//! `ViewSources.sources[1].vector[0]` .. and `ViewSources.sources[1].factor` into
+//! `KeptView.kept_c.vector[0]` .. and `KeptView.kept_c.factor`; `ViewSources.sources[0].vector[0]`
+//! .. and `ViewSources.sources[0].factor` into `KeptView.kept_b.vector[0]` .. and
+//! `KeptView.kept_b.factor`.
 
-/// The Rust version (see the header).
 pub fn keep_vectors(effects: &crate::effects::owner::Effects) {
     let frame = &effects.frame;
     let (k, s) = (&frame.kept_view, &frame.view_sources.sources);
     for (from, to) in [
-        // (from, to), in the original's order
+        // (from, to)
         (&k.pushed[1], &k.kept_a.vector[0]),
         (&k.pushed[2], &k.kept_a.vector[1]),
         (&k.pushed[3], &k.kept_a.vector[2]),

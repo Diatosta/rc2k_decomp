@@ -1,12 +1,9 @@
-//! The championship's working tables (typed 2026-10-27, phase 12): the ranked times
-//! (`g_rankedTimes`, standings table A), the championship's history (`g_champHistory`,
-//! standings table B) and the summary the race takes its rivals from (`dword_7556F4`). Not
-//! in `var\hst.dat`; taken with the best times' tables (`saves::allocate_best_times`, the
-//! nine's first, sixth and seventh).
+//! The championship's working tables: the ranked times (table A), the championship's history
+//! (table B) and the summary the race takes its rivals from. Not in `var\hst.dat`; taken
+//! with the best times' tables (`saves::allocate_best_times`).
 //!
-//! Tables A and B have room for `ROOM` entries and a last dword of -1 (the allocation's
-//! mark); the walks stop at an entry whose first dword is -1, which `init_standings_*`
-//! make of every entry from the 200th down to the first before filling.
+//! Tables A and B have room for `ROOM` entries and a last dword of -1; walks stop at an entry
+//! whose first dword is -1, which `init_standings_*` make of every entry before filling.
 
 use crate::saves::entries::{BestTime, Field, NAME_MOVED, TIME_LEN};
 
@@ -38,7 +35,7 @@ impl Walked for BestTime {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Table<T> {
     pub entries: Vec<T>,
-    /// The dword after them (-1 from the allocation).
+    /// The dword after the entries (-1 from the allocation).
     pub end: u32,
 }
 
@@ -50,7 +47,7 @@ impl<T: Walked + Default + Clone> Table<T> {
         }
     }
 
-    /// Entry `n`'s first dword, the table's last dword after the entries; None past it.
+    /// Entry `n`'s first dword (the table's last dword after the entries); None past it.
     pub fn first_at(&self, n: usize) -> Option<u32> {
         match self.entries.get(n) {
             Some(e) => Some(e.first()),
@@ -58,15 +55,15 @@ impl<T: Walked + Default + Clone> Table<T> {
         }
     }
 
-    /// How many entries the original's `do .. while` walks: the first always, then each
-    /// while its first dword is not -1. None: no end within `MOST_WALKED` (refused).
+    /// How many entries a walk covers: the first always, then each while its first dword is
+    /// not -1. None: no end within `MOST_WALKED` (refused).
     pub fn walked(&self) -> Option<usize> {
         (1..=MOST_WALKED).find(|&n| self.first_at(n) == Some(u32::MAX))
     }
 }
 
-/// Table A: the ranked times, laid out as best times (+0x14 the stage time, +0x18 the
-/// rally's, +0x1C the group, +0x44 the position, +0x4C the taking part).
+/// Table A: the ranked times, laid out as best times (+0x14 the stage time, +0x18 the rally's,
+/// +0x1C the group, +0x44 the position, +0x4C the taking part).
 pub type RankedTimes = Table<BestTime>;
 
 /// A championship history entry (table B, 0x78 bytes).
@@ -133,8 +130,7 @@ impl HistoryEntry {
         put(b, 0x74, self.status);
     }
 
-    /// The text the game draws for the name: from +0x14 to the first NUL. None: no NUL
-    /// before the entry's end.
+    /// The name's text from +0x14 to the first NUL. None: no NUL before the entry's end.
     pub fn name_text(&self) -> Option<Vec<u8>> {
         let mut b = [0; HISTORY_LEN];
         self.write(&mut b);
@@ -153,7 +149,7 @@ impl Walked for HistoryEntry {
 pub type ChampHistory = Table<HistoryEntry>;
 
 /// `bytes` written into an entry from `at` on (a name with its NUL, which may run past its
-/// room as the original's copy does). None: past the entry.
+/// room). None: past the entry.
 pub fn patch_time(e: &mut BestTime, at: usize, bytes: &[u8]) -> Option<()> {
     let mut b = [0; TIME_LEN];
     e.write(&mut b);
@@ -187,7 +183,7 @@ pub struct Rival {
 }
 
 impl Rival {
-    /// Its twenty dwords, as the race reads a row by offset.
+    /// Its twenty dwords, for the race's reads by offset.
     pub fn dwords(&self) -> [u32; 20] {
         let mut d = [0; 20];
         d[..4].copy_from_slice(&[self.name_id, self.nation, self.car, self.time]);
@@ -209,7 +205,7 @@ impl Rival {
 pub const SUMMARY_ROWS: usize = 0x5A;
 pub const SUMMARY_LEN: usize = SUMMARY_ROWS * 0x50;
 
-/// The summary (0x1C20 bytes).
+/// The summary (7,200 bytes).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Summary {
     pub rows: [Rival; SUMMARY_ROWS],
@@ -249,7 +245,7 @@ impl crate::saves::tables::FileTable for Summary {
 
 /// Table A's size: `ROOM` best times and the last dword.
 pub const RANKED_LEN: usize = ROOM * TIME_LEN + 4;
-/// Table B's.
+/// Table B's size.
 pub const HISTORY_TABLE_LEN: usize = ROOM * HISTORY_LEN + 4;
 
 impl crate::saves::tables::FileTable for RankedTimes {
@@ -300,9 +296,8 @@ impl crate::saves::tables::FileTable for ChampHistory {
     }
 }
 
-/// The original's exchange sort over a table's first `count` entries: for each i < j,
-/// entry j and i exchanged (j first) when j's key is at most i's (`down` false) or at
-/// least i's (`down`), signed.
+/// Exchange sort over a table's first `count` entries: for each i < j, entries j and i
+/// exchanged (j first) when j's key is at most i's (`down` false) or at least i's, signed.
 pub fn exchange_sort<T>(
     list: &mut [T],
     count: usize,
@@ -333,8 +328,7 @@ pub const A_FIELDS: [Field; 9] = [
     Field::Entered,
 ];
 
-/// Table A's first `count` entries sorted by `key` (an exchange moves `A_FIELDS` and the
-/// name, through `kept`).
+/// Sorts table A's first `count` entries by `key` (moving `A_FIELDS` and the name via `kept`).
 pub fn sort_a(t: &mut RankedTimes, count: usize, key: Field, kept: &mut [u8; NAME_MOVED]) {
     let key_of = |e: &BestTime| e.head.value(key);
     exchange_sort(&mut t.entries, count, key_of, false, |l, a, b| {
@@ -353,9 +347,8 @@ pub enum BKey {
     StageTotal,
 }
 
-/// Entries `a` and `b` of table B exchanged as the original does it: +0x34, +4, +0, +8,
-/// +0x10, +0xC, +0x38 .. +0x6C and the name's 0x1F bytes (through `kept`, which ends
-/// with `a`'s); the position and the status stay.
+/// Exchanges entries `a` and `b` of table B: +0x34, +4, +0, +8, +0x10, +0xC, +0x38 .. +0x6C and
+/// the name's 0x1F bytes (via `kept`, which ends with `a`'s); position and status stay.
 pub fn exchange_b(list: &mut [HistoryEntry], a: usize, b: usize, kept: &mut [u8; NAME_MOVED]) {
     let (x, y) = (list[a], list[b]);
     for (to, from) in [(a, y), (b, x)] {
@@ -391,8 +384,8 @@ pub fn sort_b(
     });
 }
 
-/// What a first-player search finds: the entry, the computer drivers of the group before
-/// it, its figure.
+/// What a first-player search finds: the entry, the computer drivers of the group before it,
+/// its figure.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct First {
     pub entry: usize,
@@ -400,9 +393,9 @@ pub struct First {
     pub figure: u32,
 }
 
-/// The original's search for the first player (`find1stplayer`) over `walked` entries:
-/// those of `group` (`ANY_GROUP`: any whose group is not 0) whose player is not 0; each
-/// entry's (group, player, figure) from `fields`. None: the game's fatal error.
+/// Searches `walked` entries for the first player: those of `group` (`ANY_GROUP`: any whose
+/// group is not 0) whose player is not 0; each entry's (group, player, figure) from `fields`.
+/// None: the fatal error.
 pub fn first_player<T>(
     list: &[T],
     group: u32,
@@ -479,8 +472,8 @@ pub fn fill_b(e: &mut HistoryEntry, p: &crate::menu::standings::PlayerB) {
     e.stage = p.slots;
 }
 
-/// A driver's fields, as `fill_a_from_driver` / `fill_b_from_driver` take them: its +0,
-/// +8, +0xC, +0x10, +0x14, +0x18, +0x24, and +0x5C .. +0x90 (fourteen dwords).
+/// A driver's fields: its +0, +8, +0xC, +0x10, +0x14, +0x18, +0x24, and +0x5C .. +0x90 (fourteen
+/// dwords).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Driver {
     pub number: u32,
@@ -493,9 +486,8 @@ pub struct Driver {
     pub points: [u32; 14],
 }
 
-/// Table A's entry from a driver (`menu::standings_from_drivers`): its time, the player 0,
-/// group, total, nationality, car, number, taking part, the name's string id, and the
-/// text of the name (with its NUL) at the name. None: the text past the entry.
+/// Table A's entry from a driver (`menu::standings_from_drivers`), with the name's text and
+/// NUL at the name. None: the text past the entry.
 pub fn fill_a_from_driver(e: &mut BestTime, d: &Driver, name_id: u32, text: &[u8]) -> Option<()> {
     let h = &mut e.head;
     h.key = d.time;
@@ -524,9 +516,9 @@ pub fn fill_b_from_driver(e: &mut HistoryEntry, d: &Driver, text: &[u8]) -> Opti
     patch_history(e, 0x14, text)
 }
 
-/// The summary's rows (`menu::copy_standings_summary`) from table A's walked entries with
-/// a group (`grouped`) or without: each its name id, nationality, car and stage time;
-/// None when they run out first (the original walks on past the table's end).
+/// The summary's rows (`menu::copy_standings_summary`) from table A's walked entries with a
+/// group (`grouped`) or without: name id, nationality, car, stage time. None when they run out
+/// first.
 pub fn summary_rows(walked: &[BestTime], grouped: bool) -> Option<Vec<[u32; 4]>> {
     let rows: Vec<[u32; 4]> = walked
         .iter()

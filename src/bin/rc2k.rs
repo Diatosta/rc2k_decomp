@@ -1,9 +1,9 @@
 //! The game without the game: runs the ported code on `RAL.EXE`'s data (`standalone.rs`),
-//! on SDL (`platform.rs`).
+//! on SDL (`platform/mod.rs`).
 //!
 //! Started in the game's folder: `rc2k.exe [log] [switches]`; the log is `rc2k.log` there
-//! unless another is named. The game's data built into `RAL.EXE` is the program's own
-//! (`data/ral_image.bin`): RAL.EXE is not needed. The game's switches (`-a`, `-c`, `-p`, ..)
+//! unless another is named. The game's data built into `RAL.EXE` is the program's own (its
+//! statics' first values): RAL.EXE is not needed. The game's switches (`-a`, `-c`, `-p`, ..)
 //! are read off the command line by the game itself (`system::read_command_line`); a word
 //! naming a `.exe` is passed over (the old `rc2k.exe RAL.EXE [log]`). With the environment
 //! variable `RC2K_FRAMES` set to a number it ends itself after that many frames and leaves
@@ -16,6 +16,8 @@
 use std::path::Path;
 
 fn main() {
+    #[cfg(target_os = "emscripten")]
+    rc2k_decomp::web::enter_game_folder();
     let log = std::env::args()
         .skip(1)
         .find(|a| !a.starts_with('-') && !a.to_ascii_lowercase().ends_with(".exe"))

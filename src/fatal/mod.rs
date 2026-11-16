@@ -4,10 +4,9 @@ pub mod raise;
 pub mod report;
 pub mod show_report_at_exit;
 
-/// The reporter's variables, out of the image since 2026-10-24 (phase 5; each has its own
-/// entry in `moved::MOVED`).
+/// The reporter's variables.
 pub mod state {
-    use crate::session::{Byte, Bytes, Dword};
+    use crate::memory::session::{Byte, Bytes, Dword};
 
     /// g_fatalCode (0x4F52A4): the code of the error being reported.
     pub static CODE: Dword = Dword::new(0);
@@ -48,28 +47,5 @@ pub mod state {
             n += 1;
         }
         out
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::state::*;
-    use crate::moved::image_bytes;
-
-    #[test]
-    fn state_starts_as_the_games() {
-        let word = |ida| u32::from_le_bytes(image_bytes(ida, 4).try_into().unwrap());
-        assert_eq!(word(0x4F52A4), CODE.get());
-        assert_eq!(word(0x4F52A8), 0);
-        assert_eq!(message(), None);
-        assert_eq!(word(0x4E0598), W32.get());
-        assert_eq!(image_bytes(0x4F67BC, 1)[0], REPORTED.get());
-        assert_eq!(EXTRA.read().to_vec(), image_bytes(0x4F67BD, EXTRA_LEN));
-        assert_eq!(
-            TEMPLATE.read().to_vec(),
-            image_bytes(0x4F673A, TEMPLATE_LEN)
-        );
-        assert_eq!(TEXT.read().to_vec(), image_bytes(0x9526F8, TEXT_LEN));
-        assert_eq!(CAPTION.read().to_vec(), image_bytes(0x4F66FD, CAPTION_LEN));
     }
 }

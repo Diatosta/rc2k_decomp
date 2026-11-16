@@ -1,19 +1,6 @@
-//! The best lists of ten and the records' best holders (converted 2026-10-21 from the
-//! arcade's `menu::keep_arcade_stage_best` 0x488213, `check_arcade_level_score` 0x488250,
-//! `check_arcade_stage_time` 0x488280, `enter_arcade_stage_time` 0x489F76,
-//! `enter_arcade_level_score` 0x48A03F, `clear_arcade_score_marks` 0x48AD08,
-//! `clear_arcade_time_marks` 0x48AD30, `take_arcade_stage_best` 0x48ADF8; the records'
-//! `menu::clear_record_entries` 0x47202F, `beat_target_time` 0x4A3C23,
-//! `enter_record_entry` 0x4A3C7F, `rank_record_entry` 0x4A3D75, `keep_record_best`
-//! 0x4A3E8B; the time trial's `menu::time_trial_qualifies` 0x48C7CE,
-//! `clear_time_trial_marks` 0x48C85C, `enter_time_trial_best` 0x48C8B6,
-//! `rank_time_trial_best` 0x48CC51, `keep_stage_best` 0x48E02D; and the qualifying test of
-//! `menu::best_class_scores` 0x4A8608 and `best_overall_scores` 0x4A91BF; the records' pass
-//! `menu::record_entries_pass` 0x4A3BE0: `record_entries`).
-//!
-//! The lists themselves (entering, ranking, clearing the marks) work on the typed entries,
-//! `saves::entries`; this holds the tests of a new figure, the new entry's parts, and the
-//! records' best holders.
+//! The best lists of ten: the tests of a new figure, the new entry's parts, and the records' best
+//! holders. The lists themselves (entering, ranking, clearing the marks) work on the typed
+//! entries, `saves::entries`.
 
 use super::standings::NAME_LEN;
 
@@ -51,7 +38,7 @@ pub struct NewBest {
     pub group: u32,
     /// The name's first bytes (+0x20).
     pub name: [u8; NAME_LEN],
-    /// The records' taking part (+0x4C, the player's +0xD0).
+    /// The records' taking part (+0x4C, the player's `entry`).
     pub entered: Option<u32>,
     /// The best times' seal.
     pub seal: Option<Seal>,
@@ -64,30 +51,30 @@ pub fn takes_record(figure: u32, kept: u32) -> bool {
     (kept as i32) < figure as i32
 }
 
-/// The record entries' pass (`menu::record_entries_pass`) on the game.
+/// The record entries' pass (`menu::record_entries_pass`) on the game's variables.
 pub trait RecordEntries {
     type Error;
     /// `menu::clear_record_entries`.
     fn clear(&mut self) -> Result<(), Self::Error>;
-    /// `dword_755920`: one was entered.
-    fn set_entered(&mut self, on: u32);
-    /// `dword_75598C`: the current player.
+    /// One was entered.
+    fn set_entered(&mut self, on: bool);
+    /// The current player.
     fn set_current(&mut self, n: u32);
-    /// `menu::beat_target_time` for player n (ecx): `dword_755918` 1 after it.
+    /// `menu::beat_target_time` for player n: `EventState.trial.qualifies` 1 after it.
     fn beats(&mut self, n: u32) -> Result<bool, Self::Error>;
     /// `menu::enter_record_entry` for player n.
     fn enter(&mut self, n: u32) -> Result<(), Self::Error>;
 }
 
 /// The current event's entries cleared, then each of the `players` counted players that
-/// beat the target time entered, `dword_755920` 1 once one is (0 first).
+/// beat the target time entered, `EventState.trial.any_qualified` 1 once one is (0 first).
 pub fn record_entries<R: RecordEntries>(players: u32, e: &mut R) -> Result<(), R::Error> {
     e.clear()?;
-    e.set_entered(0);
+    e.set_entered(false);
     for n in 0..players {
         e.set_current(n);
         if e.beats(n)? {
-            e.set_entered(1);
+            e.set_entered(true);
             e.enter(n)?;
         }
     }
@@ -114,8 +101,8 @@ mod tests {
                 self.0.push("clear".into());
                 Ok(())
             }
-            fn set_entered(&mut self, on: u32) {
-                self.0.push(format!("entered {on}"));
+            fn set_entered(&mut self, on: bool) {
+                self.0.push(format!("entered {}", u32::from(on)));
             }
             fn set_current(&mut self, n: u32) {
                 self.0.push(format!("current {n}"));

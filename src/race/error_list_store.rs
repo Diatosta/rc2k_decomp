@@ -1,63 +1,25 @@
-//! The error list loaded from the course's file (IDA 0x637660 .. 0x63967C; phase 7,
-//! typed): the file's 0x2000 bytes (`race::level_init::load_error_list`) and the seven
-//! dwords after them. `#[repr(C)]` with the image's layout, over the race block's bytes
-//! (`ERROR_LIST`). Names are readings unless IDA's.
+//! The error list loaded from the course's file: the file's 0x2000 bytes
+//! (`race::level_init::load_error_list`) and the seven dwords after them. The fields are in the
+//! image's order.
 
-#[cfg(test)]
-use crate::race::owner::race;
-use crate::session::{Bytes, Dword};
+use crate::memory::cells::ZeroCells;
 
-#[repr(C)]
-#[derive(rc2k_derive::Cells)]
+use crate::memory::session::{PlainBytes, PlainDword};
+
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ErrorList {
-    /// +0x0 (0x637660): `unk_637660`: the error list read from the file named at 0x60AE02 (`race::load_error_list`).
-    pub list: Bytes<0x2000>,
-    /// +0x2000 (0x639660): `dword_639660` .. `dword_639678`: not worked out.
-    pub unknown_2000: [Dword; 7],
+    /// +0x0: the error list read from the file named in the course (`race::load_error_list`).
+    pub list: PlainBytes<0x2000>,
+    /// +0x2000: unused.
+    pub unknown_2000: [PlainDword; 7],
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
 
-/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
-/// `race::store::LEFT`), with the image's first values.
+/// The piece, with the image's first values.
 impl ErrorList {
     pub const fn new() -> Self {
-        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
-    }
-}
-
-/// IDA 0x637660, the first byte of the piece.
-pub const START: usize = 0x637660;
-/// IDA 0x63967C, the end of the piece.
-pub const END: usize = 0x63967C;
-
-const _: () = assert!(END - START == core::mem::size_of::<ErrorList>());
-
-/// Where IDA 0x637660 is now.
-#[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&race().frame.error_list))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use core::mem::offset_of;
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&race().frame.error_list, START, END);
-    }
-
-    #[test]
-    fn piece_has_its_home() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            crate::moved::place(END - 1),
-            (piece_addr() + (END - START) as u32 - 1) as usize
-        );
-        assert_eq!(offset_of!(ErrorList, list), 0x637660 - START);
-        assert_eq!(offset_of!(ErrorList, unknown_2000), 0x639660 - START);
+        Self::ZERO
     }
 }

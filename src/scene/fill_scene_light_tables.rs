@@ -1,24 +1,20 @@
-//! `scene::fill_scene_light_tables` (0x4433AD): the light tables from the scene's own
-//! colours, whatever the switch says.
-//!
-//! `dword_621480` is kept, set to 1 for `scene::fill_light_tables` (which then takes the
-//! scene's colours) and put back. Two callers.
+//! `scene::fill_scene_light_tables`: the light tables from the scene's own colours, whatever
+//! the switch says: `FrameSwitches.scene_set_up` is kept, set to 1 for
+//! `scene::fill_light_tables` (which then takes the scene's colours) and put back. Two callers.
 
 use crate::race::owner::Race;
 use crate::scene::fill_light_tables::fill_light_tables;
 
 // ---- game data ----
 
-// ---- Rust version ----
-
 pub fn fill_scene_light_tables(
     race: &Race,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), crate::errors::BadInput> {
     let shared = &race.shared;
-    let kept: u32 = shared.switches.other_way.bits();
-    shared.switches.other_way.set_bits(1u32);
+    let kept: u32 = shared.switches.get().scene_set_up.get();
+    shared.switches.get().scene_set_up.set(1u32);
     let done = fill_light_tables(scene, race);
-    shared.switches.other_way.set_bits(kept);
+    shared.switches.get().scene_set_up.set(kept);
     done
 }

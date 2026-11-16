@@ -1,57 +1,53 @@
-//! `physics::object_hits_car` (0x45E755): whether any point of the object hit
-//! (`dword_6D321C`) lies inside the work car's box. `dword_61410C` + 1;
-//! `physics::object_turn_matrix`; then for each of the object's
-//! points (`g_objectFirstPoint[n]` on, `g_objectPointCount2[n]` of them, in
-//! `g_objectPoints`, three whole numbers each): `fild`ed, turned by `flt_5EA444`
-//! (`scene::rotate_point`) and `fistp`ed into the offset `dword_6D3B40` .., then
-//! `physics::point_hits_car` (esi, ebp the caller's); the first inside ends it.
+//! Whether any point of the object hit (`face_object`) lies inside the work car's box.
+//! `object_hits` is incremented; `physics::object_turn_matrix` runs; then each of the object's
+//! points (in `object_points`, three whole numbers each) is turned by `object_turn_matrix`
+//! (`scene::rotate_point`) and rounded into the offset `object_offset`, then
+//! `physics::point_hits_car` runs with the caller's object; the first inside ends it.
 //!
-//! Caller: `physics::face_contact` (0x45E51B, `jb`). Refuses (before anything) an object past 0xFF
-//! (the tables' room; `object_turn_matrix` refuses it too).
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
+//! Caller: `physics::face_contact`. Refuses (before anything) an object past 0xFF (the tables'
+//! room; `object_turn_matrix` refuses it too).
 
 use crate::errors::Refused;
-use crate::math::x87_run::{ext_to_int, int_80};
+use crate::math::x87::{ext_to_int, int_80};
 use crate::physics::object_turn_matrix::object_turn_matrix;
 use crate::physics::point_hits_car::point_hits_car;
-use crate::race::owner::Race;
+use crate::physics::step_families::ContactInputs;
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::physics::contacts;
 
-/// The Rust version: whether one of the object's points is inside the car (CF); `point`
-/// and `object` what esi and ebp hold at entry (`point_hits_car`'s). The registers it
-/// leaves (eax the point's number, ebx the object, ecx the points left, edx the last
-/// address) are read by none of its callers.
-// Converted: `rc2k_core::physics::contacts::{check_object, walk_points}` (the turns stay
-// x87).
+/// Whether one of the object's points is inside the car ; `point` and `object` are
+/// `point_hits_car`'s arguments.
+// Core: `rc2k_core::physics::contacts::{check_object, walk_points}` (the turns stay x87).
 pub fn object_hits_car(
-    race: &Race,
+    c: &ContactInputs<'_>,
     point: u32,
     face: u32,
     scene: &crate::scene::owner::Scene,
 ) -> Result<bool, Refused> {
     let objects = &scene.objects;
-    let race_owner = race;
-    let number = race_owner.physics.contact.face_object.get();
+    let number = c.contact.face_object.get();
     contacts::check_object(number)?;
-    { object_turn_matrix(race, scene) }?;
-    race.shared
-        .physics_tables
+    {
+        object_turn_matrix(
+            &c.shared.buffers.reads.get().engine_tables,
+            c.contact,
+            c.sound.matrices,
+            scene,
+        )
+    }?;
+    c.tables
         .object_hits
-        .set(race.shared.physics_tables.object_hits.get().wrapping_add(1));
-    let count = objects.slots.point_counts[number as usize].get();
-    // With no points the original skips to `clc` before it sets edx (0x45E779); the
-    // points' table is read only when there are some.
+        .set(c.tables.object_hits.get().wrapping_add(1));
+    let count = objects.slots.get().point_counts[number as usize].get();
+    // The points' table is read only when there are some.
     let points = if count == 0 {
         0
     } else {
-        race_owner.course.lists.object_points.get()
+        c.course.lists.get().object_points.get()
     };
     let refused = std::cell::Cell::new(None::<Refused>);
     let walk = contacts::walk_points(
-        objects.slots.first_point[number as usize].get(),
+        objects.slots.get().first_point[number as usize].get(),
         count,
         points,
         0,
@@ -60,7 +56,10 @@ pub fn object_hits_car(
                 return false;
             }
             let at = |k: u32| {
-                crate::scene::object_points::word(edx + 4 * k)
+                c.course
+                    .stage
+                    .object_points
+                    .word(edx + 4 * k)
                     .map(|v| int_80(v as i32, false))
                     .map_err(Refused::from)
             };
@@ -71,19 +70,23 @@ pub fn object_hits_car(
                     return false;
                 }
             };
-            let turned = rotate_point(&race_owner.frame.matrices.object_turn_matrix, [x, y, z]);
+            let turned = rotate_point(&c.sound.matrices.object_turn_matrix, [x, y, z]);
             for (k, e) in turned.iter().enumerate() {
-                race_owner.physics.contact.object_offset[k].set(ext_to_int(*e) as u32);
+                c.contact.object_offset[k].set(ext_to_int(*e) as u32);
             }
             // `point` is the scene point's number (from `face_contact`).
-            let place = match crate::race::scene_points::point_number(point) {
+            let place = match crate::race::scene_points::point_number(
+                c.course.reads(),
+                &crate::race::scene_points::no_own(),
+                point,
+            ) {
                 Ok(p) => p,
                 Err(e) => {
                     refused.set(Some(e.into()));
                     return false;
                 }
             };
-            match point_hits_car(race, place, face) {
+            match point_hits_car(c, place, face) {
                 Ok(inside) => inside,
                 Err(e) => {
                     refused.set(Some(e));

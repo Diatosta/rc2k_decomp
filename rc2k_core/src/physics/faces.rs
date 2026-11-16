@@ -1,19 +1,16 @@
-//! The ground's faces (converted 2026-10-21 from `physics::face_has_edge` 0x45DA72 and
-//! `physics::edge_side` 0x4425EF).
+//! The ground's faces: which edges a face has and which side of an edge a point lies.
 
-/// `physics::face_has_edge`: whether the edge (`a`, `b`) is one of a face's, by its
-/// corners p1 .. p4 (the face's +4 .. +0x10): (p1, p3), (p2, p1), (p4, p2) or (p3, p4).
+/// Whether the edge (`a`, `b`) is one of a face's, by its corners p1 .. p4: (p1, p3), (p2, p1),
+/// (p4, p2) or (p3, p4).
 pub fn has_edge(a: u32, b: u32, p: [u32; 4]) -> bool {
     [(0, 2), (1, 0), (3, 1), (2, 3)]
         .iter()
         .any(|&(x, y)| a == p[x] && b == p[y])
 }
 
-/// `physics::edge_side`: which side of the edge from (x0, z0) to (x1, z1) the point (x, z)
-/// lies (whole numbers): None when the ends are the same place; else (the second product
-/// (z - z0)(x1 - x0), which the original keeps in `qword_620460`; whether
-/// (x - x0)(z1 - z0) less it is negative). Each difference is a 32-bit `sub` taken as
-/// signed, each product 64 bits (`imul`).
+/// Which side of the edge from (x0, z0) to (x1, z1) the point (x, z) lies (whole numbers): None
+/// when the ends coincide; else (the product (z - z0)(x1 - x0), whether (x - x0)(z1 - z0) less
+/// it is negative). Differences are 32-bit signed, products 64-bit.
 pub fn edge_side(point: (u32, u32), from: (u32, u32), to: (u32, u32)) -> Option<(i64, bool)> {
     let ((x, z), (x0, z0), (x1, z1)) = (point, from, to);
     if (x0 ^ x1) | (z0 ^ z1) == 0 {

@@ -1,39 +1,29 @@
-//! `drive::two_car_order` (0x460CDA): the two cars' places in a two-car race (the car
-//! blocks' +0xFA4, `g_carBlockStore`): -1 for both outside mode 0 (`dword_62389C`) or with
-//! one car (`dword_63DB94` 1); left as they are while either has +0xA8 set; else 1 for the
-//! one ahead (checkpoint +0x94, then +0x624, each by the sign of the `cmp`), 2 for the
-//! other.
-//!
-//! Returns: the last figure compared
-//!
-//! Caller: `drive::replay_step`.
+//! The two cars' places in a two-car race (the car blocks' +0xFA4): -1 for both outside mode 0
+//! (`run_kind`) or with one car; left as they are while either has +0xA8 set; else 1 for the
+//! one ahead (checkpoint +0x94, then +0x624), 2 for the other. Gives the last figure compared.
 
-use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::owner_shared::Shared;
+use crate::race::owner::Race;
 use rc2k_core::drive::places;
 
-/// The Rust version.
-// Converted: `rc2k_core::drive::places::two_car_order`.
-pub fn two_car_order(shared: &Shared) -> Result<(), crate::errors::BadInput> {
-    // g_carBlockStore: the figures of car block `car`.
+pub fn two_car_order(race: &Race) -> Result<(), crate::errors::BadInput> {
+    // The figures of car block `car`.
     let figure = |car: usize, o: u32| {
-        let block = &CAR_BLOCKS.cars[car];
+        let block = &race.car_blocks().cars[car];
         match o {
-            places::FINISHED => block.finish_flag.bits(),
-            places::CHECKPOINT => block.reset_checkpoint.bits(),
-            _ => block.checkpoint_offset[1].bits(), // places::TIE_BREAK
+            places::FINISHED => block.finish_flag.get(),
+            places::CHECKPOINT => block.reset_checkpoint.get(),
+            _ => block.checkpoint_offset[1].get(), // places::TIE_BREAK
         }
     };
-    // The last argument is only handed back as `last` (ebx), which no caller reads.
     let order = places::two_car_order(
-        shared.vars.run_kind.get(),
-        shared.view.players.get(),
+        race.shared.vars.get().run_kind.get(),
+        race.shared.view.get().players.get(),
         figure,
         0,
     );
     if let Some([x, y]) = order.places {
-        CAR_BLOCKS.cars[0].unknown_fa4.set_bits(x);
-        CAR_BLOCKS.cars[1].unknown_fa4.set_bits(y);
+        race.car_blocks().cars[0].two_car_place.set(x);
+        race.car_blocks().cars[1].two_car_place.set(y);
     }
     Ok(())
 }

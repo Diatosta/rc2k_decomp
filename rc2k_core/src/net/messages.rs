@@ -1,12 +1,11 @@
-//! The messages the receiving thread takes (converted 2026-10-21 from `net::take_messages`
-//! 0x4194CC), by their first byte: a chat line, the host's two calls to wait for everyone
-//! (with the round, `g_netSync`) and the other machines' answers to them, and the race's
-//! messages (top bit set) that go into the sender's inbox.
+//! The messages the receiving thread takes, by their first byte: a chat line, the host's two calls
+//! to wait for everyone (with the round) and the other machines' answers to them, and
+//! the race's messages (top bit set) that go into the sender's inbox.
 
 use crate::net::inbox::LONGEST;
-use crate::net::record::is_host;
+use crate::net::players::State;
 
-/// A chat line: the text after the byte.
+/// A chat line: the text follows the byte.
 pub const CHAT: u8 = 0x22;
 /// The host's call: everyone ready for the race (answered `READY_ANSWER`).
 pub const ALL_READY: u8 = 0x40;
@@ -62,13 +61,13 @@ pub fn this_round(length: u32, round_and_sync: impl FnOnce() -> (u8, u8)) -> boo
 
 /// Whether a call is answered: of this round, on a machine not the host (`own_state` its
 /// record's state).
-pub fn answers_call(this_round: bool, own_state: u8) -> bool {
-    this_round && !is_host(own_state)
+pub fn answers_call(this_round: bool, own_state: State) -> bool {
+    this_round && !own_state.is_host()
 }
 
 /// Whether an answer is noted: of this round, on the host.
-pub fn notes_answer(this_round: bool, own_state: u8) -> bool {
-    this_round && is_host(own_state)
+pub fn notes_answer(this_round: bool, own_state: State) -> bool {
+    this_round && own_state.is_host()
 }
 
 /// A call's answer as sent: the reply byte, then the round.
@@ -102,8 +101,8 @@ mod tests {
         assert!(this_round(2, || (5, 5)));
         assert!(!this_round(3, || unreachable!()));
         assert!(!this_round(2, || (4, 5)));
-        assert!(answers_call(true, 0) && !answers_call(true, 0x10));
-        assert!(notes_answer(true, 0x10) && !notes_answer(false, 0x10));
+        assert!(answers_call(true, State::default()) && !answers_call(true, State::HOST));
+        assert!(notes_answer(true, State::HOST) && !notes_answer(false, State::HOST));
         assert_eq!(answer(0x41, 7), 0x0741);
         assert!(race_fits(0xFE) && !race_fits(0xFF) && !race_fits(u32::MAX));
     }

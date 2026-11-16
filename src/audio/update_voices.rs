@@ -1,39 +1,30 @@
-//! `audio::update_voices` (0x40AC77): the turn's update of the voices, every 20 ms.
+//! The turn's update of the voices, every 20 ms. By the mode: with voices' own buffers the
+//! buffers' way, here; with the game's mixer `audio::update_mixer_voices`; else nothing. A3D is
+//! refused.
 //!
-//! By the mode: with A3D (`g_useA3d` 1) the chunk at 0x40CB2A; with voices' own buffers
-//! (`g_soundMode` bit 0x10000) the buffers' way, here; else with the game's mixer (bit
-//! 0x40000) the chunk at 0x40BC05; else nothing. The two chunks are called at the game's
-//! addresses (they begin with `pusha` and end with `popa; retn`). Plain since 2026-10-23
-//! (phase 3): the mixer's way is `audio::update_mixer_voices`; A3D is refused.
 //! The buffers' way, in three passes:
-//! - the stopping list: a voice sounding (state 2) stopped (`audio::stop_buffer`); every
-//!   voice's state 0, its channel freed and 0, and each link of the list 0 (it is emptied);
-//! - the playing list: a voice with dirty bits and a buffer gets, as marked, its
-//!   frequency (4), volume (1), pan (2) and in 3D, with a 3D buffer, its place (8, and
-//!   `g_commit3d` 1); one not sounding, or marked for a restart (0x20), is rewound
-//!   (`audio::rewind_buffer`) and, if not sounding, played (`audio::play_buffer`, state
-//!   2); its dirty bits 0. A voice that does not loop (kind other than 1) and whose buffer
-//!   no longer plays (`audio::is_playing`) has its channel freed and 0, goes to the
-//!   stopping list's front, and `g_channelsUsed` is one less;
+//! - the stopping list: a voice sounding is stopped; every voice's state 0, its channel freed, and
+//!   the list emptied;
+//! - the playing list: a voice with dirty bits and a buffer gets, as marked, its frequency, volume,
+//!   pan and in 3D its place; one not sounding, or marked for a restart, is rewound and, if not
+//!   sounding, played; its dirty bits 0. A voice that does not loop whose buffer no longer plays
+//!   has its channel freed and goes to the stopping list's front;
 //! - the stopping list again (so a voice that just ended is stopped the same turn).
 //!
-//! Then in 3D: with EAX (bit 0x1000000) the room is set (`audio::set_eax_room`) when the
-//! room asked (`g_eaxRoom`) is not the one set, or `dword_6D1DD4` is not the one kept
-//! (`dword_506C80`), each then kept; and with `g_commit3d` 1, `audio::commit_3d` and the flag 0.
-//! Refuses, before anything: a list that does not end within 0x200 voices; a playing voice
-//! that does not loop without its channel or buffer; a voice to stop without its buffer; a
-//! marked voice's volume or pan past the volume table.
+//! Then in 3D: with EAX the room is set when the room asked is not the one set, or the
+//! environment is not the one kept; and the 3D settings are committed when marked.
+//!
+//! Refuses, before anything: a list that does not end within 0x200 voices; a playing voice that
+//! does not loop without its channel or buffer; a voice to stop without its buffer; a marked
+//! voice's volume or pan past the volume table.
 
-use crate::audio::owner::Audio;
-use crate::audio::store::ENVIRONMENT;
+use crate::audio::own::AudioThread;
 use crate::audio::voices::{GamePool, voice_of};
 use crate::errors::{BadInput, Refused};
 
 const MODE_MIXER: u32 = 0x4_0000;
 
-/// Converted: the own-buffers way is `rc2k_core::audio::voices::update_buffers`, each of
-/// its steps a callee here (esi the voice); the A3D and mixer ways stay the game's chunks.
-pub fn update_voices(audio: &Audio) -> Result<(), Refused> {
+pub fn update_voices(audio: &AudioThread) -> Result<(), Refused> {
     use rc2k_core::audio::voices::{Lists, Room, Step, update_buffers};
     if audio.state.use_a3d.get() == 1 {
         return Err(BadInput("A3D (the chunk at 0x40CB2A)").into());
@@ -54,7 +45,7 @@ pub fn update_voices(audio: &Audio) -> Result<(), Refused> {
     let mut room = Room {
         asked: audio.state.eax_room.get(),
         set: audio.state.eax_room_set.get(),
-        environment: ENVIRONMENT.get(),
+        environment: audio.environment.get(),
         kept: audio.state.environment_kept.get(),
         commit: audio.state.commit_3d.get(),
     };
@@ -98,7 +89,7 @@ pub fn update_voices(audio: &Audio) -> Result<(), Refused> {
                 play::rewind_buffer(&audio.state, &voice_of(&audio.state, at))?;
             }
             Step::Play(at) => {
-                play::play_buffer_in_game(&audio.state, &voice_of(&audio.state, at))?;
+                play::play_buffer(&audio.state, &voice_of(&audio.state, at))?;
             }
             Step::Stop(at) => {
                 play::stop_buffer(&audio.state, &voice_of(&audio.state, at))?;

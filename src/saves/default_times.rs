@@ -1,28 +1,25 @@
-//! Both are plain functions here.
+//! The made-up entries of the best times: `default_time_entry` and `guess_checkpoint_times`.
 //!
-//! An entry is 0x9C bytes. `default_time_entry` gives it a random driver (a number under
-//! 0xAA): the driver's +8 to the entry's +0x1C, +0x14 to +8, +0x18 to +0x10, the id of
-//! the name's string to +0xC, the name (without a NUL) to +0x20, and 0xB to +0x50. While
-//! `dword_755A0C` is 1 it first guesses the stage's checkpoint times from the entry's
-//! time (in eax) and the stage (in ebp), writes some twenty-six pieces to the game's log
-//! about it ("guesscheckpointtimes:start" ..), and copies the sixteen times to +0x5C on.
-//! `guess_checkpoint_times`: the sixteen dwords at `dword_71C7C0` = 0; for a stage up to
-//! 0x24, with `dword_71C730[stage]` checkpoints, checkpoint n's time is the time *
-//! (n + 1) / the count.
-//! Converted: `rc2k_core::saves::defaults` (everything worked out before anything is
-//! written; `GameSource` and `apply` here).
+//! An entry is 0x9C bytes. `default_time_entry` gives it a random driver (a number under 0xAA):
+//! the driver's class to the entry's +0x1C, nationality to +8, car to +0x10, the id of the
+//! name's string to +0xC, the name (without a NUL) to +0x20, and 0xB to +0x50. While the
+//! checkpoint switch is 1 it first guesses the stage's checkpoint times from the entry's time
+//! and the stage, writes some twenty-six pieces to the game's log about it
+//! ("guesscheckpointtimes:start" ..), and copies the sixteen times to +0x5C on.
+//! `guess_checkpoint_times`: the sixteen dwords of `guessed_checkpoints` = 0; for a stage up to
+//! 0x24, with `checkpoint_counts[stage]` checkpoints, checkpoint n's time is the time *
+//! (n + 1) / the count. Everything is worked out before anything is written (`GameSource` and
+//! `apply` here).
 
 use crate::errors::BadInput;
-use crate::math::random_below::random_below;
-use crate::menu::owner::Screens;
-use crate::race::owner::race;
+use crate::menu::owner::{Menus, Screens};
+use crate::race::owner::Race;
 use crate::records::stages_store::{RecordRef, RecordTable};
 use crate::saves::drivers::Driver;
 use rc2k_core::Invalid;
 use rc2k_core::saves::defaults::{Filled, Record};
 
-/// A piece written to the game's log: a text of the game's (its address) or a number,
-/// with or without a new line after it.
+/// A piece written to the game's log: a text or a number, with or without a new line after it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Piece {
     Text(&'static std::ffi::CStr, bool),
@@ -49,18 +46,23 @@ pub fn to_nowhere(_: Piece) {}
 /// numbers, its drivers, its checkpoint counts and its log (or none).
 pub struct GameSource<'a> {
     pub log: Log<'a>,
+    pub so: crate::strings::append_string_by_id::StringOwners<'a>,
+    pub menus: &'a Menus,
+    pub race: &'a Race,
 }
 
 impl rc2k_core::saves::defaults::Source for GameSource<'_> {
     fn below(&mut self, limit: u32) -> Result<u32, Invalid> {
-        { random_below(limit) }.map_err(|e| Invalid(e.0))
+        self.race
+            .shared
+            .random
+            .random_below(limit)
+            .map_err(|e| Invalid(e.0))
     }
 
     fn driver(&mut self, number: u32) -> Result<rc2k_core::saves::defaults::Driver, Invalid> {
-        let driver = Driver::number(number).map_err(|e| Invalid(e.0))?;
-        let (name_id, name) = driver
-            .name(crate::menu::owner::menus())
-            .map_err(|e| Invalid(e.0))?;
+        let driver = Driver::of(self.menus, number).map_err(|e| Invalid(e.0))?;
+        let (name_id, name) = driver.name(self.so, self.menus).map_err(|e| Invalid(e.0))?;
         Ok(rc2k_core::saves::defaults::Driver {
             fields: [driver.class(), driver.nation(), driver.car()],
             name_id,
@@ -69,7 +71,7 @@ impl rc2k_core::saves::defaults::Source for GameSource<'_> {
     }
 
     fn checkpoint_count(&mut self, stage: u32) -> u32 {
-        race().shared.work.checkpoint_counts[stage as usize].bits()
+        self.race.shared.work.get().checkpoint_counts[stage as usize].get()
     }
 
     fn log(&mut self, piece: rc2k_core::saves::defaults::Piece) {
@@ -94,8 +96,11 @@ impl rc2k_core::saves::defaults::Source for GameSource<'_> {
 
 /// What the made-up times read of `record`: the first and last classes' times, the event
 /// slot.
-pub fn read_record(record: RecordRef) -> Result<Record, BadInput> {
-    let r = record.record()?;
+pub fn read_record(
+    stages: &crate::records::stages_store::StageTables,
+    record: RecordRef,
+) -> Result<Record, BadInput> {
+    let r = record.record(stages)?;
     let times = r.class_times();
     Ok(Record {
         tag: r.tag(),
@@ -109,15 +114,20 @@ pub fn read_record(record: RecordRef) -> Result<Record, BadInput> {
 /// Where a function of the time tables writes: a typed stage table, or the game's memory
 /// (a rally's table, `RALLY_TIMES`).
 #[derive(Clone, Copy)]
-pub enum Target {
-    Stages(&'static crate::memory::owned::Owned<rc2k_core::saves::entries::StageTimes>),
-    Rally(&'static [crate::saves::best_times_store::TimeEntry; 20]),
+pub enum Target<'a> {
+    Stages(&'a crate::memory::owned::Owned<rc2k_core::saves::entries::StageTimes>),
+    Rally(&'a [crate::saves::best_times_store::TimeEntry; 20]),
 }
 
 /// Writes what a function of the time tables worked out: its blocks into `tables` (the
 /// function's own, then the rallies'), and the work variables. Refuses a block past its
 /// table.
-pub fn apply(screens: &Screens, filled: &Filled, tables: &[Target]) -> Result<(), BadInput> {
+pub fn apply(
+    screens: &Screens,
+    race: &Race,
+    filled: &Filled,
+    tables: &[Target<'_>],
+) -> Result<(), BadInput> {
     {
         for block in &filled.blocks {
             match tables[block.table] {
@@ -131,20 +141,20 @@ pub fn apply(screens: &Screens, filled: &Filled, tables: &[Target]) -> Result<()
                     Ok::<_, BadInput>(())
                 })??,
                 Target::Rally(table) => {
-                    use crate::pointers::Store;
-                    let mut bytes = vec![0; table.size()];
-                    table.load(0, &mut bytes)?;
-                    block.write(&mut bytes);
-                    table.store(0, &bytes)?;
+                    for (n, e) in block.entries.iter().enumerate() {
+                        table
+                            .get(block.first + n)
+                            .ok_or(BadInput("a made-up time past its table"))?
+                            .fill_made_up(e, block.time_at)?;
+                    }
                 }
             }
         }
-        screens.draw_work.seconds.set(filled.seconds);
         if let Some(sum) = filled.sum {
-            screens.draw_work.work_b0.set(sum);
+            screens.draw_work.button_x.set(sum);
         }
         if let Some(c) = filled.checkpoints {
-            for (cell, v) in race().shared.work.guessed_checkpoints.iter().zip(c) {
+            for (cell, v) in race.shared.work.get().guessed_checkpoints.iter().zip(c) {
                 cell.set(v);
             }
         }
@@ -152,15 +162,13 @@ pub fn apply(screens: &Screens, filled: &Filled, tables: &[Target]) -> Result<()
     Ok(())
 }
 
-/// Whether the game's switch for the checkpoint times is on.
-pub fn with_checkpoints(screens: &Screens) -> bool {
-    screens.draw_work.work_0c.get() == 1
-}
-
 /// How many records a table has before its -1 (the first is not looked at for the end).
-pub fn records(table: RecordTable) -> Result<usize, BadInput> {
+pub fn records(
+    stages: &crate::records::stages_store::StageTables,
+    table: RecordTable,
+) -> Result<usize, BadInput> {
     for n in 1..=0x1000u32 {
-        if table.row(n)?.tag() == u32::MAX {
+        if table.row(stages, n)?.tag(stages) == u32::MAX {
             return Ok(n as usize);
         }
     }

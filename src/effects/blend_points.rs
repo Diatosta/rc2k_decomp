@@ -1,18 +1,11 @@
-//! `effects::blend_points` (0x4BA5E2): three points of whole numbers (eax, ebx, ecx) blended
-//! by the weights of entry `dl` of the spline file (`g_marksSplineFile`, 12 bytes each:
-//! c's weight, then b's, then a's): each of x, y, z a ka + (b kb + c kc), left unrounded in
-//! st(2) .. st(0) (x deepest).
-//!
-//! Takes: `a`, `b`, `c` the points, `entry` the entry
-//!
-//! Caller: `effects::bend_points`.
-//!
-//! the x87 version stays for the Rust callers in unconverted code).
+//! `effects::blend_points`: three points of whole numbers blended by the weights of an
+//! entry of the spline file (12 bytes each: c's weight, then b's, then a's): each of x, y,
+//! z a ka + (b kb + c kc), left unrounded (x first).
 
 use crate::effects::paths::Paths;
 use crate::math::x87;
 
-/// The Rust version (see the header): the three values (x, y, z).
+/// The three values (x, y, z).
 pub fn blend_points(
     paths: &Paths,
     a: [u32; 3],

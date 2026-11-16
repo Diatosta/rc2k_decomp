@@ -1,12 +1,10 @@
-//! The squares' and windscreen drops' clock and the shapes they take (converted 2026-10-21 from
-//! `effects::windscreen_flakes_step` 0x4C0654, `windscreen_drops_step` 0x4BCAD0 and `pick_shapes` 0x4BE8C3):
-//! the steps since the shapes were last looked at counted on a clock of 256 (`dword_814714`
-//! the clock, `dword_84460C` the latest step), and each step's shapes picked from a table
-//! of 256 entries.
+//! The squares' and windscreen drops' clock and the shapes they take: the steps since the shapes
+//! were last looked at counted on a clock of 256 (`WindscreenDropState.clock` the clock,
+//! `MaskPicks.index` the latest step), and each step's shapes picked from a table of 256 entries.
 
 use crate::Invalid;
 
-/// The entries of the shapes' table (`dword_844610`).
+/// The entries of the shapes' table.
 pub const SHAPE_ENTRIES: u32 = 0x100;
 
 /// The steps from the clock to the latest step, on a clock of 256.
@@ -19,7 +17,7 @@ pub fn next_step(latest: u32) -> u32 {
     latest.wrapping_add(1) & 0xFF
 }
 
-/// A step's shapes (`pick_shapes`): the entry made positive (`neg`, so 0x80000000 stays as
+/// A step's shapes (`pick_shapes`): the entry made positive (wrapping, so 0x80000000 stays as
 /// it is) and its flag: 2, or 0 for a negative entry.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Shapes {
@@ -30,7 +28,7 @@ pub struct Shapes {
 /// The table's entry for a step; refuses a step past the table (its writer masks it).
 pub fn shape_entry(step: u32) -> Result<usize, Invalid> {
     if step >= SHAPE_ENTRIES {
-        return Err(Invalid("a shape index past dword_844610's 256 entries"));
+        return Err(Invalid("a shape index past the 256 entries"));
     }
     Ok(step as usize)
 }

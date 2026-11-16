@@ -1,28 +1,20 @@
-//! `net::race_step` (0x464133): a car's step in a network race (nothing without one,
-//! `dword_52A910` 0): for the own player's car (`g_currentCar` = `dword_52A920`) its
-//! messages sent (`net::send_turn`) and the others' applied (`net::apply_received`); for
-//! another's, its glide (`net::follow_remote`).
-//!
-//!
-//! See `net/mod.rs`. One caller, `drive::replay_step` (each car's step, after its
-//! physics).
+//! A car's step in a network race (nothing without a session): the own player's car sends its
+//! messages and applies the others'; another car follows its glide. Called from each car's step
+//! after its physics.
 
 use crate::errors::Refused;
-use crate::net::owner::net;
+use crate::net::owner::Net;
 use crate::net::{apply_received, follow_remote, send_turn};
 use crate::race::owner::Race;
-
-/// The Rust version.
-pub fn race_step(race: &Race) -> Result<(), Refused> {
-    let vars = &net().vars;
-    if vars.session.get() == 0 {
+pub fn race_step(race: &Race, net: &Net) -> Result<(), Refused> {
+    if !net.race_slot.is_on() {
         return Ok(());
     }
-    if race.shared.work.current_car.get() == vars.player.get() {
-        send_turn::send_turn(race)?;
-        apply_received::apply_received(race, vars)
+    if race.shared.work.get().current_car.get() == net.race_slot.player() {
+        send_turn::send_turn(race, net)?;
+        apply_received::apply_received(race, net)
     } else {
-        follow_remote::follow_remote(race, vars)?;
+        follow_remote::follow_remote(race, net)?;
         Ok(())
     }
 }

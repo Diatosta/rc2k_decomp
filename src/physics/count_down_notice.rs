@@ -1,27 +1,22 @@
-//! `physics::count_down_notice` (0x440F08): while a notice is shown (`dword_71A700` set)
-//! and its time `dword_71A704` is not 0, the time less 1; at 0 the notice is cleared
-//! (`dword_71A700` 0). `physics::take_notice` sets them.
+//! While a notice is shown (`notice_shown` set) and its time `notice_time` is not 0, the time
+//! counts down by 1; at 0 the notice is cleared. `physics::take_notice` sets them.
 //!
-//! Returns: the time before (when `dword_71A700` is set)
+//! Returns the time before (when `notice_shown` is set).
 //!
-//! Caller: `physics::car_physics_step` (0x43B919), every physics step.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
+//! Caller: `physics::car_physics_step`, every physics step.
 
+use crate::physics::car_store::Car;
 use crate::physics::cells::set_changed;
-use crate::race::owner_shared::Shared;
 use rc2k_core::physics::notices::Notice;
 
-/// The Rust version.
-pub fn count_down_notice(shared: &Shared) {
+pub fn count_down_notice(car: &Car) {
     let was = Notice {
-        shown: shared.car.notice_shown.get(),
-        time: shared.car.notice_time.get(),
+        shown: car.notice_shown.get(),
+        time: car.notice_time.get(),
         ..Notice::default()
     };
     let mut n = was;
     n.count_down();
-    set_changed(&shared.car.notice_time, was.time, n.time);
-    set_changed(&shared.car.notice_shown, was.shown, n.shown);
+    set_changed(&car.notice_time, was.time, n.time);
+    set_changed(&car.notice_shown, was.shown, n.shown);
 }

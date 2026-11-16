@@ -1,17 +1,21 @@
-//! Race init's last step (`race::grade_all_cars`, IDA 2026-10-17): each car block's values (floats,
-//! 0 .. 100 by their use) graded against thresholds into whole numbers: `race::grade_car_values`
-//! for one block, `race::grade_all_cars` for the eight.
+//! Grades each car block's values (floats, 0 .. 100 by their use) against thresholds into whole
+//! numbers, as the last step of race initialisation: `grade_car_values` for one block,
+//! `grade_all_cars` for the eight.
 
 use crate::errors::BadInput;
+use crate::memory::session::{PlainDword, PlainFloat};
 use crate::physics::car_store::Car;
-use crate::race::owner_shared::Shared;
-use crate::session::{Dword, Float};
+use crate::race::owner_shared::RaceShared;
 
-/// A car's grade: the block's value (a float), where its grade goes, the thresholds, in the
-/// original's order (`race::grade_car_values`).
-pub type Grade = (fn(&Car) -> &Float, fn(&Car) -> &Dword, &'static [u32]);
+/// A car's grade: the block's value (a float), where its grade goes, and the thresholds, in the
+/// order `grade_car_values` tries them.
+pub type Grade = (
+    fn(&Car) -> &PlainFloat,
+    fn(&Car) -> &PlainDword,
+    &'static [u32],
+);
 
-/// The grades `race::grade_car_values` works out.
+/// The grades `grade_car_values` works out.
 pub const GRADES: [Grade; 34] = [
     (
         |c| &c.engine_heat,
@@ -105,29 +109,28 @@ pub const GRADES: [Grade; 34] = [
     (|c| &c.gear_wear[8], |c| &c.damage_levels[21], &[100]),
 ];
 
-/// `race::grade_car_values` (0x43FE24): for each of `GRADES`, the grade (+the second
-/// offset) the number of its thresholds, taken in order, that lie below the block's value
-/// (+the first; a NaN passes them all); each threshold tried goes through `dword_62400C`.
-/// The original leaves eax the last grade; its one caller reads nothing of it.
-pub fn grade_car_values(block: u32, scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
-    // Converted: `rc2k_core::race::cars::grade`; `dword_62400C` gets the last threshold
-    // tried (the ones before it are written over at once).
-    let car = crate::race::trap::car_at(block)?;
+/// For each of `GRADES`, stores as the grade the number of its thresholds, taken in order, that lie
+/// below the block's value (a NaN passes them all). Each threshold tried goes through `scratch`;
+/// its one caller reads nothing of it.
+pub fn grade_car_values(car: &Car, scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
+    // `scratch` gets the last threshold tried (the ones before it are written over at once); the
+    // core is `rc2k_core::race::cars::grade`.
     for &(from, to, thresholds) in &GRADES {
-        let x = f32::from_bits(from(car).bits());
+        let x = from(car).get();
         let (grade, tried) = rc2k_core::race::cars::grade(x, thresholds);
-        scene.drawing.scene.scratch.set_bits(tried);
-        to(car).set_bits(grade);
+        scene.drawing.scene.get().scratch.set(tried);
+        to(car).set(grade);
     }
     Ok(())
 }
 
-/// `race::grade_all_cars` (0x43FDFE): `grade_car_values` of the eight blocks
-/// (`g_carBlocks`). The registers it leaves (ebx 8, esi the last block, eax its last
-/// grade) are read by no caller (race init's one call).
-pub fn grade_all_cars(shared: &Shared, scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
+/// Grades the eight blocks (`car_blocks`) with `grade_car_values`.
+pub fn grade_all_cars(
+    shared: &RaceShared,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), BadInput> {
     for n in 0..8usize {
-        grade_car_values(shared.work.car_block(n), scene)?;
+        grade_car_values(shared.race_car(n)?, scene)?;
     }
     Ok(())
 }
@@ -177,10 +180,10 @@ mod tests {
             (0x2F0, 0x3BC),
         ];
         let car = &CAR_BLOCKS.cars[0];
-        let base = core::ptr::from_ref(car) as usize;
         for ((value, grade, _), (from, to)) in GRADES.iter().zip(old) {
-            assert_eq!(core::ptr::from_ref(value(car)) as usize - base, from);
-            assert_eq!(core::ptr::from_ref(grade(car)) as usize - base, to);
+            let now = |p: usize| crate::physics::car_offsets_1999::offset_1999(car, p);
+            assert_eq!(now(core::ptr::from_ref(value(car)) as usize), from);
+            assert_eq!(now(core::ptr::from_ref(grade(car)) as usize), to);
         }
     }
 }

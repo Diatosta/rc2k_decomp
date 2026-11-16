@@ -1,11 +1,9 @@
-//! A player's input device read (converted 2026-10-20 from `input::read_device` 0x408E38,
-//! `hat_reading` 0x408968, `hat_direction` 0x408992, `binding_place` 0x408DD6).
+//! A player's input device read.
 //!
-//! A device record (0x4F8 bytes, the game's `InputDevice`) has twelve bindings of four
-//! dwords, {key, the place of an axis in the record (0 none), the axis's sign, a button's
-//! bit}: steering left and right, throttle, brake, then eight buttons. A reading comes from
-//! the key (down: bit 0x80 of its byte in the key table), else the axis as it is, or with a
-//! button bound too all of it when the axis is above 0x40 and the button down; else the
+//! A device record has twelve bindings of four dwords {key, place of an axis in the record (0
+//! none), the axis's sign, a button's bit}: steering left and right, throttle, brake, then
+//! eight buttons. A reading comes from the key if down (bit 0x80 of its byte in the key table),
+//! else the axis (all of it when a bound button is down and the axis is above 0x40), else the
 //! button alone.
 
 use crate::Invalid;
@@ -26,11 +24,10 @@ pub const BITS: usize = 0x4E8;
 pub const FULL_LEFT: u32 = 0xFFFF_FF00;
 pub const FULL: u32 = 0x100;
 
-/// The bits reading with the hat centred.
+/// The bits a reading has with the hat centred.
 pub const HAT_CENTRED: u32 = 0xE00;
-/// What `input::clear_device_readings` (0x40883C, converted 2026-10-21) writes, in order:
-/// the state copies (+0x2C .. +0x38) and the readings (+0x4DC .. +0x4E4) 0, the bits
-/// reading the hat centred.
+/// What `input::clear_device_readings` writes, in order: the state copies (+0x2C .. +0x38) and
+/// the readings (+0x4DC .. +0x4E4) 0, the bits the hat-centred value.
 pub const CLEARED_READINGS: [(usize, u32); 8] = [
     (0x2C, 0),
     (0x30, 0),
@@ -42,11 +39,10 @@ pub const CLEARED_READINGS: [(usize, u32); 8] = [
     (BITS, HAT_CENTRED),
 ];
 
-/// A device record's bytes.
 pub type Record = [u8; RECORD_LEN];
-/// The key table the bindings' keys index (256 bytes from `g_keysDown`'s place).
+/// The key table the bindings' keys index (256 bytes).
 pub type KeyTable = [u8; 0x100];
-/// The device's state (`g_deviceState`, DirectInput's `DIJOYSTATE`, 0x50 bytes).
+/// The device's state (DirectInput's `DIJOYSTATE`, 0x50 bytes).
 pub type State = [u8; 0x50];
 
 /// The record's dword at an offset; `None` past the record.
@@ -68,9 +64,9 @@ pub struct Readings {
     pub bits: u32,
 }
 
-/// The hat as an angle in 256ths (`hat_reading`): with a device whose hat kind is 0 and a
-/// hat (`state`'s +0x20) not centred (its low word not 0xFFFF), its hundredths of degrees
-/// x 256 / 36000; else 0. Also the `div`'s ecx and edx when it was reached.
+/// The hat as an angle in 256ths: for a device whose hat kind is 0 and a hat not centred, its
+/// hundredths of degrees x 256 / 36000, else 0. Also the divisor and remainder when the
+/// division was reached.
 pub fn hat_reading(record: &Record, state: &State) -> (u32, Option<(u32, u32)>) {
     if field(record, DEVICE) == 0 || field(record, HAT_KIND) != 0 {
         return (0, None);
@@ -105,28 +101,25 @@ pub fn hat_direction(record: &Record, state: &State) -> u32 {
     }
 }
 
-/// Where a binding's word says the record reads it (`binding_place`): for an acquired
-/// device, the axis (bit 0x400: +0x2C negated, 0x800: +0x2C, 0x200: +0x34, 0x100: +0x30,
-/// else none) and the button (the low byte n: bit n - 1; 0 none).
+/// Where a binding's word says the record reads it: for an acquired device, the axis (bit
+/// 0x400: +0x2C negated, 0x800: +0x2C, 0x200: +0x34, 0x100: +0x30, else none) and the button
+/// (low byte n: bit n - 1; 0 none).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Place {
-    /// The axis's place (0 none).
+pub struct BindingSource {
+    /// The axis's place in the state (0: none).
     pub axis: u32,
-    /// Its sign (1, -1; 0 when not acquired).
+    /// Its sign (1 or -1; 0 when not acquired).
     pub sign: u32,
-    /// The button's bit (0 none).
+    /// The button's bit (0: none).
     pub button: u32,
-    /// The low byte (less one when not 0) when acquired: what the original leaves in ecx.
-    pub ecx: Option<u32>,
 }
 
-pub fn binding_place(word: u32, acquired: bool) -> Place {
+pub fn binding_place(word: u32, acquired: bool) -> BindingSource {
     if !acquired {
-        return Place {
+        return BindingSource {
             axis: 0,
             sign: 0,
             button: 0,
-            ecx: None,
         };
     }
     let (axis, sign) = if word & 0x400 != 0 {
@@ -141,17 +134,12 @@ pub fn binding_place(word: u32, acquired: bool) -> Place {
         (0, 1)
     };
     let low = word & 0xFF;
-    let (button, ecx) = if low == 0 {
-        (0, 0)
+    let button = if low == 0 {
+        0
     } else {
-        (1u32.wrapping_shl(low - 1), low - 1)
+        1u32.wrapping_shl(low - 1)
     };
-    Place {
-        axis,
-        sign,
-        button,
-        ecx: Some(ecx),
-    }
+    BindingSource { axis, sign, button }
 }
 
 /// Bound keys past 0xFF and axis places past the record are refused.
@@ -178,7 +166,7 @@ impl Reader<'_> {
         self.keys[field(self.record, g) as usize & 0xFF] & 0x80 != 0
     }
 
-    /// The record's dword at the binding's place times its sign (`imul`).
+    /// The record's dword at the binding's place times its sign.
     fn axis_value(&self, g: usize) -> i32 {
         let place = field(self.record, g + 4) as usize;
         (field(self.record, place) as i32).wrapping_mul(field(self.record, g + 8) as i32)
@@ -211,7 +199,7 @@ impl Reader<'_> {
         (0, false)
     }
 
-    /// One of the eight buttons.
+    /// Whether one of the eight buttons is pressed.
     fn pressed(&self, g: usize) -> bool {
         if self.key_down(g) {
             return true;
@@ -227,7 +215,7 @@ impl Reader<'_> {
     }
 }
 
-/// Not 0 made all of it, by its sign.
+/// A nonzero value made all of it, by its sign.
 fn whole_steering(v: u32) -> u32 {
     match v {
         0 => 0,
@@ -236,10 +224,10 @@ fn whole_steering(v: u32) -> u32 {
     }
 }
 
-/// The four readings of a device (after its poll), or `None` while it is not read. See
-/// the module's header; the steering is left plus right, and with a key or button pressed
-/// held to all of it by its sign; on a digital device (kind 1) bits 0x7000 and every
-/// reading not 0 made all of it. Refused: what `check_bindings` refuses.
+/// The four readings of a device (after its poll), or `None` while it is not read; see the
+/// module header. The steering is left plus right, held to all of it by its sign while a key or
+/// button is pressed. On a digital device (kind 1) bits 0x7000 and every reading not 0 are made all
+/// of it. Refused: what `check_bindings` refuses.
 pub fn read_device(
     record: &Record,
     keys: &KeyTable,
@@ -293,10 +281,9 @@ pub fn read_device(
     }))
 }
 
-/// Which axis moved past 0x80 from rest (`input::axis_moved` 0x40939F): of the six
-/// (`now` less `rest`, signed) the first the controller has (`axes`, a bit an axis), its
-/// number, + 0x10 when it went up. None: the last difference worked out (the original
-/// leaves it in eax).
+/// Which axis moved past 0x80 from rest: of the six (`now` less `rest`, signed) the first the
+/// controller has (`axes`, a bit an axis), its number, + 0x10 when it went up. None: the last
+/// difference worked out.
 pub fn axis_moved(now: &[u32; 6], rest: &[u32; 6], axes: u32) -> Result<u32, u32> {
     let mut last = 0;
     for n in 0..6 {
@@ -315,8 +302,8 @@ pub fn axis_moved(now: &[u32; 6], rest: &[u32; 6], axes: u32) -> Result<u32, u32
     Err(last)
 }
 
-/// One player on two devices (`input::input_tick` 0x408A56): the second's three readings
-/// added to the first's, and of its bits those of 0x70FF.
+/// One player on two devices: the second's three readings added to the first's, and of its bits
+/// those of 0x70FF.
 pub fn merge_readings(first: &mut [u32; 4], second: &[u32; 4]) {
     for n in 0..3 {
         first[n] = first[n].wrapping_add(second[n]);
@@ -324,8 +311,7 @@ pub fn merge_readings(first: &mut [u32; 4], second: &[u32; 4]) {
     first[3] |= second[3] & 0x70FF;
 }
 
-/// The twelve bindings of a device's record (converted 2026-10-21 from
-/// `input::set_up_device` 0x408BCD): each (the player's controls' key byte, the controls'
+/// The twelve bindings of a device's record: each (the player's controls' key byte, the controls'
 /// word, the record's place).
 pub const DEVICE_BINDINGS: [(usize, usize, usize); 12] = [
     (0x54, 0x2C, 0x41C),
@@ -342,23 +328,22 @@ pub const DEVICE_BINDINGS: [(usize, usize, usize); 12] = [
     (0x5F, 0x50, 0x4CC),
 ];
 
-/// The device's kind from the controls' (0: 2).
+/// The device's kind from the controls' kind (0 gives 2).
 pub fn device_kind(kind: u32) -> u32 {
     if kind == 0 { 2 } else { kind }
 }
 
-/// A binding's four dwords in the record: its key, and the place, sign and button of its
-/// word (`binding_place`, `first` the record's +0x24 being 1).
+/// A binding's four dwords: its key, and the place, sign and button of its word (`first`: the
+/// record's first binding).
 pub fn binding(key: u8, word: u32, first: bool) -> [u32; 4] {
     let p = binding_place(word, first);
     [key as u32, p.axis, p.sign, p.button]
 }
 
-/// A step of the input thread's command (converted 2026-10-21 from `input::device_command`
-/// 0x408AE5).
+/// A step of the input thread's device command.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CommandStep {
-    /// `dword_518090`, the effects' switch.
+    /// The force feedback's race-on flag, the effects' switch.
     EffectsOn(bool),
     Release(usize),
     Acquire(usize),
@@ -366,7 +351,7 @@ pub enum CommandStep {
     Tick,
     /// Device `device` set up from player `device`'s controls.
     SetUp(usize),
-    /// The device's +0x414 (read).
+    /// The device's read flag set to the value given.
     Reading(usize, bool),
     /// Player 2's controller made none when it is player 1's.
     SecondApart,
@@ -374,11 +359,11 @@ pub enum CommandStep {
     BeginEffects,
 }
 
-/// The steps of command `command` (al; `device` ah for 1): 1 the device given back and
-/// acquired again; 2 (the race's end) the effects off and ended, a tick, both devices
-/// given back and not read; 3 (the race's start) device 0 set up and read, device 1 too
-/// unless one player on one device (`two_devices` 0 and `one_player` 1), a second's
-/// sleep, the effects begun, a tick, the effects on. Refused: a device past 1 for 1.
+/// The steps of command `command` (`device` too for 1): 1 gives the device back and acquires it
+/// again; 2 (the race's end) turns the effects off and ends them, waits a tick, gives both devices
+/// back and stops reading them; 3 (the race's start) sets up and reads device 0, device 1 too
+/// unless one player is on one device, sleeps a second, begins the effects, waits a tick and
+/// turns them on. Refused: a device past 1 for 1.
 pub fn command_steps(
     command: u8,
     device: u8,
@@ -414,16 +399,8 @@ pub fn command_steps(
     })
 }
 
-/// A control learnt from the controller's four values (converted 2026-10-21 from
-/// `screens::classify_controller` 0x46B27A): the button (its number + 1, when exactly one is
-/// down), and each of left (x below 0), right (x above 0), y and z shifted into its
-/// history (a 1 for "under 0x80"); a direction held over 0x1D of the last 32 polls while
-/// another's history is empty gives 0x400 (left empty) / 0x800 (right) / 0x100 (y) /
-/// 0x200 (z) with the button; none empty, the button alone; else 0. The histories after,
-/// and what was found.
-/// The controller page's learning of a control (`dword_7551F4` .. `dword_7551FC`): on,
-/// when it began (the 3 s start), which control (1 .. 11).
-#[repr(C)]
+/// The controller page's learning of a control: on, when it began (the 3 s start), which control
+/// (1 ..= 11).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Learning {
     pub on: u32,
@@ -442,6 +419,11 @@ impl Learning {
     }
 }
 
+/// A control learnt from the controller's four values: the button (its number + 1, when exactly
+/// one is down), and left (x below 0), right (x above 0), y and z each shifted into a history
+/// (a 1 for "under 0x80"). A direction held over 0x1D of the last 32 polls while the other
+/// histories are empty gives 0x400 (left) / 0x800 (right) / 0x100 (y) / 0x200 (z) with the
+/// button; none empty, the button alone; else 0. The histories after, and what was found.
 pub fn classify(buttons: u32, x: u32, y: u32, z: u32, history: [u32; 4]) -> ([u32; 4], u32) {
     let mut button = 0u32;
     if buttons != 0 {
@@ -529,14 +511,12 @@ mod tests {
         assert!(read_device(&record, &keys, &state).is_err());
         assert_eq!(
             binding_place(0x403, true),
-            Place {
+            BindingSource {
                 axis: 0x2C,
                 sign: u32::MAX,
                 button: 4,
-                ecx: Some(2)
             }
         );
-        assert_eq!(binding_place(0x403, false).ecx, None);
     }
 
     #[test]

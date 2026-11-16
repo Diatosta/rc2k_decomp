@@ -1,73 +1,74 @@
-//! `physics::object_turn_matrix` (0x45E2D2): the turn of the object hit (`dword_6D321C`)
-//! into `flt_5EA444`. `scene::set_turn_y` by minus `dword_63503C`, copied (16 dwords);
-//! with `dword_635040` set also: the turn about y by minus `dword_635044` times it into
-//! `g_litMatrix` (`scene::multiply_matrices`), the turn about x by minus `dword_635040`
-//! times that into `g_turnedMatrix`, the turn about y by `dword_635044` times that into
-//! `flt_5EA444`. Then each of its 16 floats times `dword_635038` / 16 (`fild`, `fld1`
-//! doubled four times, `fdivp`; the share through `dword_62400C`).
+//! The turn of the object hit (`face_object`), into `object_turn_matrix`: `scene::set_turn_y` by
+//! minus `ObjectWork.angles[0]`, copied (16 dwords); with `ObjectWork.angles[1]` set also: the turn
+//! about y by minus `ObjectWork.angles[2]` times it into `lit_matrix` (`scene::multiply_matrices`),
+//! the turn about x by minus `ObjectWork.angles[1]` times that into `turned_matrix`, the turn about
+//! y by `ObjectWork.angles[2]` times that into `object_turn_matrix`. Then each of its 16 floats is
+//! multiplied by `size` / 16 (the share through `scratch`).
 //!
 //! Caller: `physics::object_hits_car`. Refuses (before anything) an object past 0xFF.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::math::x87_run::{ext_div2, int_80};
-use crate::race::owner::Race;
+use crate::math::x87::{ext_div2, int_80};
+use crate::physics::contact_store::ContactWork;
+use crate::race::matrices_store::SceneMatrices;
 use crate::scene::matrix::{multiply_matrices, set_turn_x, set_turn_y};
 
-/// The Rust version. The registers it leaves are read by none of its callers.
-pub fn object_turn_matrix(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let drawing = &scene.drawing;
-    let object = race.physics.contact.face_object.get();
+pub fn object_turn_matrix(
+    engine_tables: &crate::scene::engine_tables_store::EngineTables,
+    contact: &ContactWork,
+    matrices: &SceneMatrices,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    let (drawing, work) = (&scene.drawing, scene.object_work());
+    let object = contact.face_object.get();
     if object > 0xFF {
         return Err(BadInput("an object past 0xFF").into());
     }
     set_turn_y(
-        &race.frame.matrices,
-        drawing.object_work.angles[0].get().wrapping_neg(),
-        scene,
+        engine_tables,
+        &matrices.turn_y_matrix,
+        &scene.drawing.scene.get().turn_y_work,
+        work.angles[0].get().wrapping_neg(),
     );
     let (out, turn_y, turn_x) = (
-        &race.frame.matrices.object_turn_matrix,
-        &race.frame.matrices.turn_y_matrix,
-        &race.frame.matrices.turn_x_matrix,
+        &matrices.object_turn_matrix,
+        &matrices.turn_y_matrix,
+        &matrices.turn_x_matrix,
     );
-    let (lit, turned) = (
-        &race.frame.matrices.lit_matrix,
-        &race.frame.matrices.turned_matrix,
-    );
+    let (lit, turned) = (&matrices.lit_matrix, &matrices.turned_matrix);
     for k in 0..16 {
-        out[k].set_bits(turn_y[k].bits());
+        out[k].set(turn_y[k].get());
     }
-    if drawing.object_work.angles[1].get() != 0 {
+    if work.angles[1].get() != 0 {
         set_turn_y(
-            &race.frame.matrices,
-            drawing.object_work.angles[2].get().wrapping_neg(),
-            scene,
+            engine_tables,
+            &matrices.turn_y_matrix,
+            &scene.drawing.scene.get().turn_y_work,
+            work.angles[2].get().wrapping_neg(),
         );
         multiply_matrices(&out, &turn_y, &lit);
         set_turn_x(
-            &race.frame.matrices,
-            drawing.object_work.angles[1].get().wrapping_neg(),
-            scene,
+            engine_tables,
+            &matrices.turn_x_matrix,
+            &scene.drawing.scene.get().turn_x_work,
+            work.angles[1].get().wrapping_neg(),
         );
         multiply_matrices(&lit, &turn_x, &turned);
         set_turn_y(
-            &race.frame.matrices,
-            drawing.object_work.angles[2].get(),
-            scene,
+            engine_tables,
+            &matrices.turn_y_matrix,
+            &scene.drawing.scene.get().turn_y_work,
+            work.angles[2].get(),
         );
         multiply_matrices(&turned, &turn_y, &out);
     }
-    let figure = drawing.object_work.size.get();
-    drawing.scene.scratch.set(figure);
-    let sixteen = 16.0f32.to_bits();
-    let share = ext_div2(int_80(figure as i32, false), sixteen, 0x3F80_0000);
-    drawing.scene.scratch.set(share);
+    let figure = work.size.get();
+    drawing.scene.get().scratch.set(figure);
+    let share = ext_div2(int_80(figure as i32, false), 16.0f32, 1.0f32);
+    drawing.scene.get().scratch.set(share.to_bits());
     for cell in out {
-        cell.set_bits(x87::mul(cell.bits(), share));
+        cell.set(x87::mul(cell, share));
     }
     Ok(())
 }

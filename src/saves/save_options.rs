@@ -1,34 +1,29 @@
-//! `saves::save_options` (0x4AAE57): writes the game's kept options, `var\ral.dat`.
+//! Writes the game's kept options, `var\ral.dat`.
 //!
-//! The file is put together in the scratch block at 0x93E8B0: "R5CI", 0, 0x50004, the time
-//! (`system::packed_local_time`), the 69 pieces of `saves::load_options` in the same order, each
-//! copied from its place, and "####"; then `files::write_file`. One caller,
+//! The file is put together in the scratch block: "R5CI", 0, 0x50004, the time
+//! (`system::packed_local_time`), the 69 pieces of `saves::options_state` in the same order, taken
+//! from the captured options, and "####"; then `files::write_file`. One caller,
 //! `saves::save_game_data`. Refuses what `write_file` refuses.
 
 use crate::errors::Refused;
 use crate::files::write_file::write_file_from_store;
-use crate::saves::load_options::{PIECES_LEN, pieces};
-use crate::system::owner::system;
+use crate::owners::Owners;
+use crate::saves::options_state::capture;
 use crate::system::packed_local_time::packed_local_time;
 
-// ---- game data ----
-
-// "var\ral.dat"
 const HEAD_LEN: usize = 0x10;
 /// The whole file's length.
 pub fn file_len() -> usize {
-    HEAD_LEN + PIECES_LEN + 4
+    HEAD_LEN + rc2k_core::options::model::PIECES_LEN + 4
 }
 
-// ---- Rust version ----
-
 /// True if the file was written.
-pub fn save_options(path: &dyn crate::pointers::Store) -> Result<bool, Refused> {
-    let file = &system().work.files.buffer;
-    let mut owned = Vec::new();
-    for piece in pieces() {
-        owned.push(piece.read()?);
-    }
+pub fn save_options(
+    o: Owners<'static>,
+    path: &dyn crate::memory::cells::Store,
+) -> Result<bool, Refused> {
+    let file = &o.system.work().files.buffer;
+    let owned = capture(o)?.to_pieces();
     let pieces: Vec<&[u8]> = owned.iter().map(std::vec::Vec::as_slice).collect();
     let bytes = rc2k_core::saves::kept::options_file(packed_local_time(), &pieces);
     file.write_at(0, &bytes, "the scratch buffer")?;
@@ -48,11 +43,10 @@ mod tests {
     /// before the pieces became typed fields.
     #[test]
     fn options_file_bytes_are_unchanged() {
-        let _lock = crate::store::test_lock();
-        let mut owned = Vec::new();
-        for piece in pieces() {
-            owned.push(piece.read().unwrap());
-        }
+        let _lock = crate::test_support::test_lock();
+        let owned = capture(crate::test_support::own::owners())
+            .unwrap()
+            .to_pieces();
         let refs: Vec<&[u8]> = owned.iter().map(Vec::as_slice).collect();
         let bytes = rc2k_core::saves::kept::options_file(0, &refs);
         let sum = bytes.iter().fold(0xcbf2_9ce4_8422_2325_u64, |h, &b| {

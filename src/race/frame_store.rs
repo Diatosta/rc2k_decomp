@@ -1,179 +1,219 @@
-//! The frame's draw work (IDA 0x64158C .. 0x641AA4; phase 7, typed): the counts of a frame
-//! (flares, lamps, cars drawn and culled), the sun's place and size, the mirror, the views'
-//! layouts and scales, the lead car's camera kept, each car's listed sound, the car parts'
-//! matrices and decal places, and the car shadow's work. `#[repr(C)]` with the image's
-//! layout, over the race block's bytes (`FRAME_WORK`), as `CAR`. Names are readings unless IDA's.
+//! The frame's draw work: the counts of a frame (flares, lamps, cars drawn and culled), the sun's
+//! place and size, the mirror, the views' layouts and scales, the lead car's camera kept, each
+//! car's listed sound, the car parts' matrices and decal places, and the car shadow's work. The
+//! fields keep a fixed layout.
 
-#[cfg(test)]
-use crate::race::owner::race;
-use crate::session::{Dword, Float};
+use crate::memory::cells::ZeroCells;
+use crate::memory::session::{PlainDword, PlainFlag, PlainFloat};
 
-#[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct FrameWork {
-    /// +0x0 (0x64158C): `g_flareCount`: the flares this frame.
-    pub flare_count: Dword,
-    /// +0x4 (0x641590): `g_lampEntryCount`.
-    pub lamp_entry_count: Dword,
-    /// +0x8 (0x641594): `g_carsDrawn`.
-    pub cars_drawn: Dword,
-    /// +0xc (0x641598): `g_carsCulled`.
-    pub cars_culled: Dword,
-    /// +0x10 (0x64159C): (`race::car_draw`).
-    pub car_kept: [Dword; 2],
-    /// +0x18 (0x6415A4): the car's depth (0x50000 at first, `race::car_draw`).
-    pub car_depth: Dword,
-    /// +0x1c (0x6415A8): (`race::frame_draw`).
-    pub sun_depth: Float,
-    /// +0x20 (0x6415AC): (`race::frame_draw`).
-    pub sun_floats: [Float; 3],
-    /// +0x2c (0x6415B8): (`race::frame_draw`).
-    pub sun_points: [Dword; 3],
-    /// +0x38 (0x6415C4): `g_sunOnScreen` (`scene::draw_polygon`'s hit test).
-    pub sun_on_screen: Dword,
-    /// +0x3c (0x6415C8): the sun's point on the screen, x and y (`scene::draw_polygon`).
-    pub sun_hit: [Dword; 2],
-    /// +0x44 (0x6415D0): its x and y as floats' bits (`drive::set_listener` reads them).
-    pub sun_place: [Dword; 2],
-    /// +0x4c (0x6415D8): (`race::frame_draw`, `drive::set_listener`).
-    pub view_out: Dword,
-    /// +0x50 (0x6415DC): `g_sunSize`.
-    pub sun_size: Dword,
-    /// +0x54 (0x6415E0): the mirror's picture wanted (`d3d::copy_screen_to_texture`, `race::draw_race_scene`).
-    pub mirror_wanted: Dword,
-    /// +0x58 (0x6415E4): `g_viewLight`.
-    pub view_light: Dword,
-    /// +0x5c (0x6415E8): (`race::frame_views`).
-    pub mirror_switch: Dword,
-    /// +0x60 (0x6415EC): (`race::frame_views`).
-    pub view_kept: [Dword; 2],
-    /// +0x68 (0x6415F4): `g_viewTexturesForgotten`: bits.
-    pub view_textures_forgotten: Dword,
-    /// +0x6c (0x6415F8): (`scene::textures`, `race::draw_race_scene`).
-    pub kind_textures_done: Dword,
-    /// +0x70 (0x6415FC): `g_mirrorPlaces` (and IDA's `dword_641600`): 12 entries of two dwords,
-    /// by `race::mirror_entry`.
-    pub mirror_places: [Dword; 24],
-    /// +0xd0 (0x64165C): the lead car's camera kept (`drive::lead_car_values`); [0] also `effects::stage_record`'s number, [7] `effects::draw_plane`'s switch and `effects::pong`'s shown.
-    pub lead_kept: [Dword; 8],
-    /// +0xf0 (0x64167C): `g_faceHideMask`.
-    pub face_hide_mask: Dword,
-    /// +0xf4 (0x641680): each car's listed sound, -1 none (`physics::cue_listed_car_sound`, `drive::choose_shown_cars`).
-    pub listed_car_sounds: [Dword; 8],
-    /// +0x114 (0x6416A0): (`race::frame_views`).
-    pub view_layouts: [Dword; 6],
-    /// +0x12c (0x6416B8): (`race::show_replay_still`, `race::skidmarks`, `race::frame_views`).
-    pub drawing: Dword,
-    /// +0x130 (0x6416BC): (`race::show_replay_still`, `race::skid_laying`).
-    pub still_2: Dword,
-    /// +0x134 (0x6416C0): by layout (`race::frame_views`).
-    pub view_scale_x: [Float; 5],
-    /// +0x148 (0x6416D4): by layout.
-    pub view_scale_y: [Float; 5],
-    /// +0x15c (0x6416E8): the car's place for the camera (`physics::update_camera`, `physics::place_camera`).
-    pub camera_car: [Dword; 3],
-    /// +0x168 (0x6416F4): not named.
-    pub unknown_168: Dword,
-    /// +0x16c (0x6416F8): `g_carDecalPlaces`.
-    pub car_decal_places: [Dword; 18],
-    /// +0x1b4 (0x641740): (`race::car_draw`).
-    pub decal_limit: Float,
-    /// +0x1b8 (0x641744): (`race::frame_draw`).
-    pub part_place: [Dword; 3],
-    /// +0x1c4 (0x641750): (`race::frame_draw`).
-    pub part_kind: Dword,
-    /// +0x1c8 (0x641754): the car's parts present (`race::frame_draw`).
-    pub parts_present: Dword,
-    /// +0x1cc (0x641758): (`race::frame_draw`).
-    pub light_left: Dword,
-    /// +0x1d0 (0x64175C): (`race::frame_draw`).
-    pub light_right: Dword,
-    /// +0x1d4 (0x641760): the car's placed matrix and the next (`race::car_parts`).
-    pub placed_matrices: [Float; 32],
-    /// +0x254 (0x6417E0): the car parts' four matrices (`race::car_draw::PART_MATRICES`).
-    pub part_matrices: [Float; 64],
-    /// +0x354 (0x6418E0): not named.
-    pub unknown_354: [Dword; 18],
-    /// +0x39c (0x641928): (`race::car_shadow`).
-    pub shadow_strength: Dword,
-    /// +0x3a0 (0x64192C): `g_shadowPointCount`.
-    pub shadow_point_count: Dword,
-    /// +0x3a4 (0x641930): (`race::car_shadow`).
-    pub shadow_texture: Dword,
-    /// +0x3a8 (0x641934): not named.
-    pub unknown_3a8: Dword,
-    /// +0x3ac (0x641938): (`race::car_shadow`).
-    pub shadow_light: [Dword; 3],
-    /// +0x3b8 (0x641944): not named.
-    pub unknown_3b8: Dword,
-    /// +0x3bc (0x641948): the shadow's corners, x and z twice (`race::car_shadow`).
-    pub shadow_corners: [Dword; 4],
-    /// +0x3cc (0x641958): `race::car_shadow`'s work dwords.
-    pub shadow_work: [Dword; 14],
-    /// +0x404 (0x641990): (`race::car_shadow`).
-    pub shadow_scene: Dword,
-    /// +0x408 (0x641994): (`race::car_shadow`).
-    pub shadow_circle: [Float; 2],
-    /// +0x410 (0x64199C): the shadow's list (used by address, `race::car_shadow`).
-    pub shadow_list: [Dword; 64],
-    /// +0x510 (0x641A9C): (`race::car_shadow`).
-    pub shadow_list_count: Dword,
-    /// +0x514 (0x641AA0): the ground's height (`race::car_shadow`).
-    pub shadow_ground: Dword,
+    /// The flares this frame. Unused: each view keeps its own (`race::lamp_work::LampWork`).
+    pub flare_count: PlainDword,
+    /// Unused; nothing reads or writes it.
+    pub lamp_entry_count: PlainDword,
+    /// Unused: each view counts its own (`ctx.view.cars.cars_drawn`).
+    pub cars_drawn: PlainDword,
+    /// Unused; nothing reads or writes it.
+    pub cars_culled: PlainDword,
+    /// Unused: each view keeps its own (`ctx.view.cars.car_kept`).
+    pub car_kept: [PlainDword; 2],
+    /// The car's depth, 0x50000 at first. Unused: each view keeps its own
+    /// (`ctx.view.cars.car_depth`).
+    pub car_depth: PlainDword,
+    /// The sun's depth, used by `race::frame_draw`.
+    pub sun_depth: PlainFloat,
+    /// The sun's direction; nothing reads or writes it now.
+    pub sun_floats: [PlainFloat; 3],
+    /// The sun's turned point; nothing reads or writes it now.
+    pub sun_points: [PlainDword; 3],
+    /// Whether the sun is on the screen, set by the polygon hit test. Unused: each view keeps its
+    /// own (`ViewSun`).
+    pub sun_on_screen: PlainDword,
+    /// The sun's point on the screen, x and y. Unused: each view keeps its own (`ViewSun::hit`).
+    pub sun_hit: [PlainDword; 2],
+    /// The sun's x and y as float bits. Unused: each view keeps its own (`ViewSun::place`).
+    pub sun_place: [PlainDword; 2],
+    /// The view's value read by the listener's placing. Unused: each view keeps its own
+    /// (`ViewSun::view_out`).
+    pub view_out: PlainDword,
+    /// The sun's size. Unused: each view keeps its own (`ViewSun::size`).
+    pub sun_size: PlainDword,
+    /// Whether the mirror's picture is wanted this frame.
+    pub mirror_wanted: PlainFlag,
+    /// Unused: each view keeps its own (`scene::object_light`).
+    pub view_light: PlainDword,
+    /// The mirror's switch, used by `race::frame_views`.
+    pub mirror_switch: PlainDword,
+    /// The views' values kept between steps of `race::frame_views`.
+    pub view_kept: [PlainDword; 2],
+    /// The view textures to load again, one bit each.
+    pub view_textures_forgotten: PlainDword,
+    /// Set when the kinds' textures are done for the frame.
+    pub kind_textures_done: PlainDword,
+    /// 12 entries of two dwords, picked by `race::mirror_entry`.
+    pub mirror_places: [PlainDword; 24],
+    /// The lead car's camera values kept (`drive::lead_car_values`); [0] is also
+    /// `effects::stage_record`'s number, [7] `effects::draw_plane`'s switch and `effects::pong`'s
+    /// shown flag.
+    pub lead_kept: [PlainDword; 8],
+    /// Unused: each view keeps its own (`race::face_work::FaceWork`).
+    pub face_hide_mask: PlainDword,
+    /// Each car's listed sound, -1 for none.
+    pub listed_car_sounds: [PlainDword; 8],
+    /// The views' layouts, used by `race::frame_views`.
+    pub view_layouts: [PlainDword; 6],
+    /// Set while a view is being drawn.
+    pub drawing: PlainDword,
+    /// 1 while the replay's still frame is shown (set and cleared by `race::show_replay_still`);
+    /// `race::lay_skidmarks_if_on` lays no skid marks while it is set.
+    pub replay_still_on: PlainDword,
+    /// The views' horizontal scales, by layout.
+    pub view_scale_x: [PlainFloat; 5],
+    /// The views' vertical scales, by layout.
+    pub view_scale_y: [PlainFloat; 5],
+    /// The car's place for the camera.
+    pub camera_car: [PlainDword; 3],
+    /// Unused; only keeps the layout.
+    pub unused_168: PlainDword,
+    /// The car's decal places.
+    pub car_decal_places: [PlainDword; 18],
+    /// The decal limit used by `race::car_draw`.
+    pub decal_limit: PlainFloat,
+    /// The car part's place used by `race::frame_draw`.
+    pub part_place: [PlainDword; 3],
+    /// Written by nothing now; unused.
+    pub part_kind: PlainDword,
+    /// The car's parts present. Unused: each view keeps its own
+    /// (`race::car_draw_state::CarDrawState`).
+    pub parts_present: PlainDword,
+    /// Unused: each view keeps its own (`race::car_draw_state::CarDrawState`).
+    pub light_left: PlainDword,
+    /// Unused: each view keeps its own (`race::car_draw_state::CarDrawState`).
+    pub light_right: PlainDword,
+    /// The car's placed matrix and the next, used by `race::car_parts`; the drawing's are the
+    /// view's (`CarDrawState::car_turn`).
+    pub placed_matrices: [PlainFloat; 32],
+    /// The car parts' four matrices, used by `race::car_parts`; the drawing's are the view's
+    /// (`CarDrawState::part_matrices`).
+    pub part_matrices: [PlainFloat; 64],
+    /// Unused; only keeps the layout.
+    pub unused_354: [PlainDword; 18],
+    /// Unused: the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
+    pub shadow_strength: PlainDword,
+    /// Unused: the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
+    pub shadow_point_count: PlainDword,
+    /// Unused: the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
+    pub shadow_texture: PlainDword,
+    /// Unused; only keeps the layout.
+    pub unused_3a8: PlainDword,
+    /// Unused: the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
+    pub shadow_light: [PlainDword; 3],
+    /// Unused; only keeps the layout.
+    pub unused_3b8: PlainDword,
+    /// The shadow's corners, x and z twice. Unused: the shadow keeps its own work
+    /// (`race::car_shadow::ShadowWork`); kept for the layout.
+    pub shadow_corners: [PlainDword; 4],
+    /// Unused: the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
+    pub shadow_work: [PlainDword; 14],
+    /// Unused: the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
+    pub shadow_scene: PlainDword,
+    /// The shadow circle's radius and unit, 2^23 and 2^24; never written
+    /// (`race::car_shadow::CIRCLE`).
+    pub shadow_circle: [PlainFloat; 2],
+    /// Unused: the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
+    pub shadow_list: [PlainDword; 64],
+    /// Unused: the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
+    pub shadow_list_count: PlainDword,
+    /// The ground's height. Unused: the shadow keeps its own work (`race::car_shadow::ShadowWork`);
+    /// kept for the layout.
+    pub shadow_ground: PlainDword,
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
 
-/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
-/// `race::store::LEFT`), with the image's first values.
+/// The work with its first values.
 impl FrameWork {
     pub const fn new() -> Self {
-        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
-    }
-}
-
-/// IDA 0x64158C, the first byte of the piece.
-pub const START: usize = 0x64158C;
-/// IDA 0x641AA4, the end of the piece.
-pub const END: usize = 0x641AA4;
-
-const _: () = assert!(END - START == core::mem::size_of::<FrameWork>());
-
-/// Where IDA 0x64158C is now (its own static).
-#[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&race().frame.frame_work))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use core::mem::offset_of;
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&race().frame.frame_work, START, END);
-    }
-
-    #[test]
-    fn piece_has_its_home() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            piece_addr(),
-            crate::framework::game_addr(crate::framework::rva(START))
-        );
-        assert_eq!(offset_of!(FrameWork, flare_count), 0x64158C - START);
-        assert_eq!(offset_of!(FrameWork, sun_depth), 0x6415A8 - START);
-        assert_eq!(offset_of!(FrameWork, view_out), 0x6415D8 - START);
-        assert_eq!(
-            offset_of!(FrameWork, view_textures_forgotten),
-            0x6415F4 - START
-        );
-        assert_eq!(offset_of!(FrameWork, view_layouts), 0x6416A0 - START);
-        assert_eq!(offset_of!(FrameWork, car_decal_places), 0x6416F8 - START);
-        assert_eq!(offset_of!(FrameWork, light_right), 0x64175C - START);
-        assert_eq!(offset_of!(FrameWork, shadow_light), 0x641938 - START);
-        assert_eq!(offset_of!(FrameWork, shadow_list_count), 0x641A9C - START);
+        Self {
+            sun_depth: PlainFloat::new(0.024543693),
+            mirror_places: [
+                PlainDword::new(0x25D),
+                PlainDword::new(0x30),
+                PlainDword::new(0xD6),
+                PlainDword::new(0x24),
+                PlainDword::new(0x25D),
+                PlainDword::new(4),
+                PlainDword::new(0x25D),
+                PlainDword::new(0x30),
+                PlainDword::new(0x268),
+                PlainDword::new(0x24),
+                PlainDword::new(0x25D),
+                PlainDword::new(0x141),
+                PlainDword::new(0x25D),
+                PlainDword::new(0x10),
+                PlainDword::new(0xD6),
+                PlainDword::new(4),
+                PlainDword::new(0x25D),
+                PlainDword::new(4),
+                PlainDword::new(0x25D),
+                PlainDword::new(0x10),
+                PlainDword::new(0x268),
+                PlainDword::new(4),
+                PlainDword::new(0x25D),
+                PlainDword::new(0x131),
+            ],
+            view_layouts: [
+                PlainDword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(3),
+                PlainDword::new(4),
+                PlainDword::new(1),
+                PlainDword::new(2),
+            ],
+            view_scale_x: [
+                PlainFloat::new(400.0),
+                PlainFloat::new(400.0),
+                PlainFloat::new(400.0),
+                PlainFloat::new(200.0),
+                PlainFloat::new(600.0),
+            ],
+            view_scale_y: [
+                PlainFloat::new(300.0),
+                PlainFloat::new(150.0),
+                PlainFloat::new(450.0),
+                PlainFloat::new(300.0),
+                PlainFloat::new(300.0),
+            ],
+            car_decal_places: [
+                PlainDword::new(0xA),
+                PlainDword::new(0xB),
+                PlainDword::new(0x18),
+                PlainDword::new(0x19),
+                PlainDword::new(0xC),
+                PlainDword::new(0xD),
+                PlainDword::new(0x16),
+                PlainDword::new(0x17),
+                PlainDword::new(0x1A),
+                PlainDword::new(0x1B),
+                PlainDword::new(0xE),
+                PlainDword::new(0xF),
+                PlainDword::new(0x10),
+                PlainDword::new(0x11),
+                PlainDword::new(0x13),
+                PlainDword::new(0x14),
+                PlainDword::new(0x12),
+                PlainDword::new(0),
+            ],
+            decal_limit: PlainFloat::new(5.0),
+            part_place: [
+                PlainDword::new(0xFFFFA000),
+                PlainDword::new(0xC000),
+                PlainDword::new(0x20000),
+            ],
+            shadow_circle: [PlainFloat::new(8388608.0), PlainFloat::new(16777216.0)],
+            ..ZeroCells::ZERO
+        }
     }
 }

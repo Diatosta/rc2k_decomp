@@ -1,66 +1,73 @@
-//! The replay viewer's buffers, typed (phase 7): IDA 0x960FA0 .. 0x975510, in the image's
-//! zeroed tail (`race::buffers_store`): the panel fonts' colours, the block read from the
-//! replay file and the write cursor in it, the blocks' cameras, the one undo, the two marks,
-//! the clipboard and the two file handles of `race::save_viewed_replay`.
-//! Names are readings unless IDA's.
+//! The replay viewer's buffers: the panel fonts' colours, the block read from the replay file and
+//! the write cursor in it, the blocks' cameras, the one undo, the two marks, the clipboard and
+//! the two file handles of `race::save_viewed_replay`.
 
 use crate::errors::BadInput;
-use crate::race::owner::race;
-use crate::session::{Bytes, Dword};
+use crate::memory::session::{PlainBytes, PlainDword};
+#[cfg(test)]
+use crate::test_support::own::race;
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ViewerBuffers {
-    /// +0x0 (0x960FA0): `unk_960FA0`: 256 colours the panel fonts' palettes point at (`race::viewer_palettes`).
-    pub colours: [Dword; 256],
-    /// +0x400 (0x9613A0): `g_replayBlockCursor`: the bytes of the block filled, where the next
-    /// frame goes (`race::replay`, `drive::write_replay_frames`, `race::open_viewed_replay`).
-    /// The original holds the address there; an offset since 2026-10-29 (phase 13).
-    pub block_used: Dword,
-    /// +0x404 (0x9613A4): `dword_9613A4`: the block read, 0x2810 bytes (the frame at its head: `drive::read_replay_frame`, `drive::flush_replay`, `drive::replay_frame_marks`, `race::replay`).
-    pub block: [Dword; 0xA04],
-    /// +0x2C14 (0x963BB4): `g_blockCameras`: 8 bytes a block, 0x708 blocks (`drive::replay_frame_marks`, `race::edit_camera`, `race::viewer`).
-    pub block_cameras: Bytes<0x3840>,
-    /// +0x6454 (0x9673F4): `g_undoBlocks`: blocks to undo, 0 = nothing (`race::viewer`).
-    pub undo_blocks: Dword,
-    /// +0x6458 (0x9673F8): `g_undoPlaces`: the block places of the undo, 0x3840 bytes (`race::keep_undo`, `race::undo_edit`).
-    pub undo_places: [Dword; 0xE10],
-    /// +0x9C98 (0x96AC38): `g_undoCameras`: the undo's cameras, 0x3840 bytes.
-    pub undo_cameras: [Dword; 0xE10],
-    /// +0xD4D8 (0x96E478): `g_markIn`: the first block marked.
-    pub mark_in: Dword,
-    /// +0xD4DC (0x96E47C): `g_markOut`: the last block marked.
-    pub mark_out: Dword,
-    /// +0xD4E0 (0x96E480): `g_cameraEdit`: 0, or the camera (1, 2) being edited.
-    pub camera_edit: Dword,
-    /// +0xD4E4 (0x96E484): `g_clipBlocks`: blocks on the clipboard.
-    pub clip_blocks: Dword,
-    /// +0xD4E8 (0x96E488): `g_clipPlaces`: the clipboard's block places, 0x3840 bytes.
-    pub clip_places: [Dword; 0xE10],
-    /// +0x10D28 (0x971CC8): `g_clipCameras`: the clipboard's cameras, 0x3840 bytes.
-    pub clip_cameras: [Dword; 0xE10],
-    /// +0x14568 (0x975508): `dword_975508`: the race's file, opened to read (`race::save_viewed_replay`).
-    pub from_file: Dword,
-    /// +0x1456c (0x97550C): `dword_97550C`: the slot's file, made (`race::save_viewed_replay`).
-    pub to_file: Dword,
+    /// +0x0: 256 colours the panel fonts' palettes point at (`race::viewer_palettes`).
+    pub colours: [PlainDword; 256],
+    /// +0x400: the bytes of the block filled, where the next frame goes (`race::replay`,
+    /// `drive::write_replay_frames`, `race::open_viewed_replay`). An offset into the block.
+    pub block_used: PlainDword,
+    /// +0x404: the block read, 0x2810 bytes (the frame at its head: `drive::read_replay_frame`,
+    /// `drive::flush_replay`, `drive::replay_frame_marks`, `race::replay`).
+    pub block: [PlainDword; 0xA04],
+    /// +0x2C14: 8 bytes a block, 0x708 blocks (`drive::replay_frame_marks`, `race::edit_camera`,
+    /// `race::viewer`).
+    pub block_cameras: PlainBytes<0x3840>,
+    /// +0x6454: blocks to undo, 0 = nothing (`race::viewer`).
+    pub undo_blocks: PlainDword,
+    /// +0x6458: the block places of the undo, 0x3840 bytes (`race::keep_undo`, `race::undo_edit`).
+    pub undo_places: [PlainDword; 0xE10],
+    /// +0x9C98: the undo's cameras, 0x3840 bytes.
+    pub undo_cameras: [PlainDword; 0xE10],
+    /// +0xD4D8: the first block marked.
+    pub mark_in: PlainDword,
+    /// +0xD4DC: the last block marked.
+    pub mark_out: PlainDword,
+    /// +0xD4E0: 0, or the camera (1, 2) being edited.
+    pub camera_edit: PlainDword,
+    /// +0xD4E4: blocks on the clipboard.
+    pub clip_blocks: PlainDword,
+    /// +0xD4E8: the clipboard's block places, 0x3840 bytes.
+    pub clip_places: [PlainDword; 0xE10],
+    /// +0x10D28: the clipboard's cameras, 0x3840 bytes.
+    pub clip_cameras: [PlainDword; 0xE10],
+    /// +0x14568: the race's file, opened to read (`race::save_viewed_replay`).
+    pub from_file: PlainDword,
+    /// +0x1456c: the slot's file, made (`race::save_viewed_replay`).
+    pub to_file: PlainDword,
 }
 
-/// The piece, a field of `crate::race::owner::race().shared.buffers`.
+/// The buffers as held by `crate::test_support::own::race().shared`.
+#[cfg(test)]
 pub struct InBuffers;
 
+#[cfg(test)]
 impl core::ops::Deref for InBuffers {
     type Target = ViewerBuffers;
     fn deref(&self) -> &ViewerBuffers {
-        &race().shared.buffers.viewer
+        race().shared.viewer_buffers()
     }
 }
 
+#[cfg(test)]
 pub static VIEWER_BUFFERS: InBuffers = InBuffers;
 
 /// The replay block's bytes (0x2810).
 pub const BLOCK_BYTES: usize = 4 * 0xA04;
 
 impl ViewerBuffers {
+    /// All bytes zero.
+    pub const fn new() -> Self {
+        crate::memory::cells::zeroed_cells()
+    }
+
     /// The replay block's bytes.
     pub fn block_bytes(&self) -> Vec<u8> {
         self.block
@@ -70,12 +77,12 @@ impl ViewerBuffers {
     }
 
     /// `data` put in the replay block from byte `offset`; bytes past its end are refused
-    /// before anything is written (the original writes on past it).
+    /// before anything is written.
     pub fn put_in_block(&self, offset: usize, data: &[u8], what: &str) -> Result<(), BadInput> {
         match offset.checked_add(data.len()) {
             Some(end) if end <= BLOCK_BYTES => {}
             _ => {
-                crate::framework::log(&format!(
+                crate::logfile::program_log::log(&format!(
                     "replay block: {what}: {:#x} bytes at {offset:#x} of {BLOCK_BYTES:#x}",
                     data.len()
                 ));
@@ -92,45 +99,13 @@ impl ViewerBuffers {
     }
 }
 
-/// IDA 0x960FA0, the first byte of the piece.
-pub const START: usize = 0x960FA0;
-/// IDA 0x975510, the end of the piece.
-pub const END: usize = 0x975510;
-
-const _: () = assert!(END - START == core::mem::size_of::<ViewerBuffers>());
-
-/// Where IDA 0x960FA0 is now.
-#[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::moved::place(START) as u32
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::offset_of;
-
-    #[test]
-    fn piece_sits_on_the_buffers() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            crate::moved::place(END - 1),
-            (piece_addr() + (END - START) as u32 - 1) as usize
-        );
-        assert_eq!(offset_of!(ViewerBuffers, block_used), 0x9613A0 - START);
-        assert_eq!(offset_of!(ViewerBuffers, block), 0x9613A4 - START);
-        assert_eq!(offset_of!(ViewerBuffers, block_cameras), 0x963BB4 - START);
-        assert_eq!(offset_of!(ViewerBuffers, undo_blocks), 0x9673F4 - START);
-        assert_eq!(offset_of!(ViewerBuffers, undo_cameras), 0x96AC38 - START);
-        assert_eq!(offset_of!(ViewerBuffers, mark_in), 0x96E478 - START);
-        assert_eq!(offset_of!(ViewerBuffers, clip_places), 0x96E488 - START);
-        assert_eq!(offset_of!(ViewerBuffers, clip_cameras), 0x971CC8 - START);
-        assert_eq!(offset_of!(ViewerBuffers, to_file), 0x97550C - START);
-    }
 
     #[test]
     fn bytes_go_in_the_block_in_place() {
-        let _lock = crate::store::test_lock();
+        let _lock = crate::test_support::test_lock();
         let kept = VIEWER_BUFFERS.block_bytes();
         let after = VIEWER_BUFFERS.block_cameras.get(0);
         VIEWER_BUFFERS.block[1].set(0xAAAA_AAAA);

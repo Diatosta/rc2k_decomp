@@ -1,23 +1,14 @@
-//! `net::keep_connection` (0x417661): connection eax kept as the one to use next time: its
-//! service provider's GUID (record +0x40, 16 bytes) to `unk_52AC94`, its name (64 bytes)
-//! to `unk_52ACA4`.
-//!
-//! Takes `connection`.
-//! Callers: `net::start_link`, `net::settings_link`, `net::settings_done`. Refuses what
-//! `net::lobby::connection` refuses (its fatal errors).
+//! Keeps the connection as the one to use next time: its service provider GUID and its name.
 
 use crate::errors::Refused;
-use crate::net::owner::net;
+use crate::net::owner::Net;
 use crate::net::tables::with_connection;
-
-/// The Rust version.
-pub fn keep_connection(number: u32) -> Result<(), Refused> {
-    let net = net();
-    let (provider, name) = with_connection(number, |c| (c.provider, c.name))?;
-    net.vars
+pub fn keep_connection(net: &Net, number: u32) -> Result<(), Refused> {
+    let (provider, name) = with_connection(&net.link, number, |c| (c.provider, c.name))?;
+    net.setup()
         .saved_connection
         .write_at(0, &provider, "the saved connection")?;
-    net.vars
+    net.settings()
         .saved_name
         .write_at(0, &name, "the saved connection")?;
     Ok(())

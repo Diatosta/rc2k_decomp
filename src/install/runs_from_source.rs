@@ -1,10 +1,6 @@
-//! `install::runs_from_source` (0x412DA3): whether the game was started from the
-//! directory the registry names as its installation's source.
-//!
-//! `read_registry`; then, only if the status is 1 and a source is named and the current
-//! directory can be had (`files::current_directory` into `byte_94E8B0`), the two are
-//! compared with `strings::same_text`. Everything else is "no" (zero and carry clear).
-//! Callers: the main loop `system::main_loop` on every start, and `install::check_clio_disc`.
+//! Whether the game was started from the directory the registry names as its installation's
+//! source: only if the status is 1, a source is named and the current directory can be had, the
+//! two are compared. Called by `system::main_loop` on every start, and `install::check_clio_disc`.
 
 use crate::errors::BadInput;
 use crate::install::outside::Outside;
@@ -21,7 +17,6 @@ pub fn scratch_put(at: usize, text: &[u8]) -> Result<(), BadInput> {
     crate::files::state::PATHS.write_at(at, text, "the scratch path")
 }
 
-/// The path buffer's bytes.
 pub fn scratch_bytes() -> Result<Vec<u8>, BadInput> {
     crate::files::state::PATHS.read_at(0, SCRATCH_ROOM, "the scratch path")
 }
@@ -36,10 +31,10 @@ pub fn scratch_text() -> Result<Vec<u8>, BadInput> {
     Ok(all[..n].to_vec())
 }
 
-/// The registry's source (`byte_51BB8D`) against the current directory (written into the
-/// path buffer, as the original): None when there is no installed source or no directory.
+/// The registry's source (`InstallerNames.source`) against the current directory (written into the
+/// path buffer): None when there is no installed source or no directory.
 pub fn source_against_directory(
-    install: &'static crate::install::owner::Install,
+    install: &crate::install::owner::Install,
     outside: &mut dyn Outside,
 ) -> Result<Option<Ordering>, BadInput> {
     outside.read_registry();
@@ -57,7 +52,7 @@ pub fn source_against_directory(
 }
 
 pub fn runs_from_source(
-    install: &'static crate::install::owner::Install,
+    install: &crate::install::owner::Install,
     outside: &mut dyn Outside,
 ) -> Result<bool, BadInput> {
     Ok(source_against_directory(install, outside)? == Some(Ordering::Equal))

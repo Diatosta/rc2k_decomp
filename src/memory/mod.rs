@@ -1,7 +1,17 @@
-//! The game's memory allocator: blocks on lists, and the figures it keeps about them.
+//! The game's memory: the allocator's blocks on lists and the figures it keeps about them, and the
+//! typed cells the game's data lives in (`cells`, `session`, `place`, `part_cell`, `pool`,
+//! `list_handle`, `shared_memory`).
 
+pub mod cells;
 pub mod free_list;
+pub mod list_handle;
 pub mod owned;
+pub mod part_cell;
+pub mod place;
+pub mod pool;
+pub mod session;
+pub mod shared_memory;
+pub mod shared_table;
 pub mod take_from_list;
 
 /// A list of blocks: what `allocate` adds to and `free_list` gives back in one go. Every
@@ -11,23 +21,23 @@ pub type MemoryList = rc2k_core::memory::List;
 
 /// A `MemoryList` kept as four cells (a store's field): the list read and written whole as
 /// `Shared<MemoryList>` was, but through its dwords, so that the record is plain cells.
-#[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[cfg_attr(test, repr(C))]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ListCells {
-    head: crate::session::Dword,
-    total: crate::session::Dword,
-    cursor: crate::session::Dword,
-    remaining: crate::session::Dword,
+    pub head: crate::memory::session::PlainDword,
+    pub total: crate::memory::session::PlainDword,
+    cursor: crate::memory::session::PlainDword,
+    remaining: crate::memory::session::PlainDword,
 }
 
 impl ListCells {
     pub const fn new(list: MemoryList) -> Self {
-        use crate::session::Dword;
+        use crate::memory::session::PlainDword;
         Self {
-            head: Dword::new(list.head),
-            total: Dword::new(list.total),
-            cursor: Dword::new(list.cursor),
-            remaining: Dword::new(list.remaining),
+            head: PlainDword::new(list.head),
+            total: PlainDword::new(list.total),
+            cursor: PlainDword::new(list.cursor),
+            remaining: PlainDword::new(list.remaining),
         }
     }
 
@@ -41,8 +51,15 @@ impl ListCells {
         }
     }
 
-    /// An empty list (tests).
-    #[cfg(test)]
+    /// The list put in whole.
+    pub fn set(&self, list: MemoryList) {
+        self.head.set(list.head);
+        self.total.set(list.total);
+        self.cursor.set(list.cursor);
+        self.remaining.set(list.remaining);
+    }
+
+    /// An empty list.
     pub const fn empty() -> Self {
         Self::new(MemoryList {
             head: 0,
@@ -51,10 +68,40 @@ impl ListCells {
             remaining: 0,
         })
     }
+}
 
-    #[cfg(test)]
-    pub fn addr(&self) -> u32 {
-        crate::pointers::game_address(std::ptr::from_ref(self))
+/// A `MemoryList` held in cells: what the allocator's functions take.
+pub trait HeldList {
+    /// A copy of the list.
+    fn get(&self) -> MemoryList;
+    /// The list put in whole.
+    fn set(&self, list: MemoryList);
+}
+
+impl HeldList for ListCells {
+    fn get(&self) -> MemoryList {
+        ListCells::get(self)
+    }
+    fn set(&self, list: MemoryList) {
+        ListCells::set(self, list);
+    }
+}
+
+/// A list kept in a thread-shared record's four atomic dwords (head, total, cursor, remaining).
+impl HeldList for [crate::memory::session::Dword; 4] {
+    fn get(&self) -> MemoryList {
+        MemoryList {
+            head: self[0].get(),
+            total: self[1].get(),
+            cursor: self[2].get(),
+            remaining: self[3].get(),
+        }
+    }
+    fn set(&self, list: MemoryList) {
+        self[0].set(list.head);
+        self[1].set(list.total);
+        self[2].set(list.cursor);
+        self[3].set(list.remaining);
     }
 }
 
@@ -62,34 +109,23 @@ impl ListCells {
 /// asked for; the rest is not used.
 pub const HEADER_LEN: u32 = rc2k_core::memory::HEADER_LEN;
 
-/// The allocator's variables, out of the image since 2026-10-24 (phase 5; they were
-/// `dword_4E0578` .. `dword_4E0588`, 5 dwords). Atomics: any thread allocates. `OWN_HEAP` and
-/// `OWN_HEAP_KB` are `var\ral.cfg` settings (`altmemenable`, `altmemsize`, through
-/// `crate::moved::place`). Each has its own entry in `moved::MOVED`.
+/// The allocator's counters. Atomics: any thread allocates.
 pub mod state {
 
-    /// dword_4E0578: the most bytes held at once.
-    pub static MOST_HELD: crate::session::Dword = crate::session::Dword::new(0);
-    /// dword_4E057C: the bytes held now.
-    pub static HELD: crate::session::Dword = crate::session::Dword::new(0);
-    /// dword_4E0580: all bytes ever asked for ("MEM: memory turnover= .. maximum load= .."
+    /// The most bytes held at once.
+    pub static MOST_HELD: crate::memory::session::Dword = crate::memory::session::Dword::new(0);
+    /// The bytes held now.
+    pub static HELD: crate::memory::session::Dword = crate::memory::session::Dword::new(0);
+    /// All bytes ever asked for ("MEM: memory turnover= .. maximum load= .."
     /// in the game's log).
-    pub static TURNOVER: crate::session::Dword = crate::session::Dword::new(0);
-    /// dword_4E0584, the setting `altmemenable`: in the original, 1 = blocks come from a heap
-    /// of the game's own and not from `VirtualAlloc`. Read and not used: the own heap was
-    /// removed (2026-11-07; every block is Rust's memory, nothing the player sees changes).
-    pub static OWN_HEAP: crate::session::Dword = crate::session::Dword::new(0);
-    /// dword_4E0588: the heap's Kb (the setting `altmemsize`), 0x10000 in the image. Read and
-    /// not used (see `OWN_HEAP`). (`dword_4E058C` / `dword_4E0590`, the heap's memory, went
-    /// with it.)
-    pub static OWN_HEAP_KB: crate::session::Dword = crate::session::Dword::new(0x10000);
+    pub static TURNOVER: crate::memory::session::Dword = crate::memory::session::Dword::new(0);
 }
 
 /// `bytes` of Rust's memory counted on `list` as `allocate` counts a block it takes (the
-/// list's total, the figures), for a user whose blocks are Rust's own (phase 12); the
+/// list's total, the figures), for a user whose blocks are Rust's own; the
 /// list's `free_list` gives them back. The list holds no block of the game's for them.
-pub fn count_owned(list: &crate::session::Shared<MemoryList>, bytes: u32) {
-    list.update(|l| l.total = l.total.wrapping_add(bytes));
+pub fn count_owned(list: &ListCells, bytes: u32) {
+    list.total.set(list.total.get().wrapping_add(bytes));
     with_figures(|f| f.taken(bytes));
 }
 
@@ -122,25 +158,6 @@ pub fn with_figures(f: impl FnOnce(&mut rc2k_core::memory::Figures)) {
     ] {
         if old != new {
             at.set(new);
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::state::*;
-    use crate::moved::image_bytes;
-
-    #[test]
-    fn variables_start_as_the_games() {
-        let _lock = crate::store::test_lock();
-        let d = image_bytes(0x4E0578, 20);
-        let word = |n: usize| u32::from_le_bytes(d[n * 4..n * 4 + 4].try_into().unwrap());
-        for (n, v) in [&MOST_HELD, &HELD, &TURNOVER, &OWN_HEAP, &OWN_HEAP_KB]
-            .iter()
-            .enumerate()
-        {
-            assert_eq!(word(n), v.get(), "dword {n}");
         }
     }
 }

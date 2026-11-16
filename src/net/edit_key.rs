@@ -1,45 +1,40 @@
-//! `net::edit_key` (0x416E43): a key for the text being edited (`net::begin_edit`), if one
-//! is (`dword_52A4B8` not -1): Escape (1) puts the kept text back and ends the editing,
-//! Enter (0x1C) ends it, 0x6E clears the text's 64 bytes, backspace (0x0E) drops its last
-//! character; any other key is made a character (`input::key_to_char`), which, if it is one
-//! (0x20 or more), goes at the text's end (if it has fewer than 0x3F) with a NUL after it,
-//! and is taken off again if the text is then wider (`text::measure_text` with the editing's
-//! font, signed) than allowed.
-//!
-//! Takes `key`. Returns whether no text is edited (any more); the original's callers read this
-//! as the zero flag of `cmp dword_52A4B8, -1` (`lq -s 0x416E43`). `input::key_to_char` and
-//! `text::measure_text` see only the key's byte and the text (the measure's x changes no width
-//! it reads).
-//! Callers: `net::setting_key`, `net::chat_key`.
+//! A key for the text being edited (`net::begin_edit`), if any: Escape puts the kept text back
+//! and ends the editing, Enter ends it, 0x6E clears the text, backspace drops the last
+//! character; any other key becomes a character appended (up to 0x3F) and taken off again if the
+//! text is then wider than allowed. Returns whether no text is being edited (any more).
 
 use crate::errors::Refused;
+use crate::memory::cells::{StoreBytes, copy_between, store_value};
 use crate::net::owner::Net;
-use crate::pointers::{StoreBytes, copy_between, store_value};
+use crate::net::store::Editing;
 use crate::text::draw_text::GameCanvas;
 use crate::text::measure_text::measure_text_at;
 use rc2k_core::net::editing::{self, EditKey};
-
-/// The Rust version.
-pub fn edit_key(net: &Net, key: u8) -> Result<bool, Refused> {
-    let install = crate::install::owner::install();
-    // Converted: `rc2k_core::net::editing` (`EditKey`, `last_char`, `takes`,
+pub fn edit_key(
+    input: &crate::input::owner::Input,
+    net: &Net,
+    edit: &Editing,
+    key: u8,
+    gfx: &'static crate::gfx::owner::Gfx,
+) -> Result<bool, Refused> {
+    // The logic is in `rc2k_core::net::editing` (`EditKey`, `last_char`, `takes`,
     // `end_for_char`, `too_wide`).
-    if net.vars.edited.get() != editing::NOT_EDITING {
-        let text = crate::net::begin_edit::EditedText::edited(&net.vars)?.text(&net.vars, install);
+    if edit.edited.get() != editing::NOT_EDITING {
+        let text = crate::net::begin_edit::EditedText::edited(edit)?.text(net);
         let words = StoreBytes(text);
         match EditKey::of(key) {
             EditKey::Escape => {
                 copy_between(
-                    &install.paths.script_path,
+                    &edit.text_before_edit,
                     0,
                     text,
                     0,
                     editing::TEXT_LEN,
                     "an edited text",
                 )?;
-                net.vars.edited.set(editing::NOT_EDITING);
+                edit.edited.set(editing::NOT_EDITING);
             }
-            EditKey::Enter => net.vars.edited.set(editing::NOT_EDITING),
+            EditKey::Enter => edit.edited.set(editing::NOT_EDITING),
             EditKey::Clear => text.store(0, &[0; editing::TEXT_LEN])?,
             EditKey::Backspace => {
                 if let Some(last) = editing::last_char(&words)? {
@@ -47,26 +42,26 @@ pub fn edit_key(net: &Net, key: u8) -> Result<bool, Refused> {
                 }
             }
             EditKey::Other => {
-                let typed = crate::input::key_to_char::key_to_char(key as u32)? as u8;
+                let typed = crate::input::key_to_char::key_to_char(input, key as u32)? as u8;
                 if editing::takes(typed)
                     && let Some(at) = editing::end_for_char(&words)?
                 {
                     // The text up to the character's place and the character, measured as a
-                    // value; the original writes the character and a NUL, then takes the
-                    // character off again (a NUL over it) when the text is too wide.
+                    // value; the character is taken off again (a NUL over it) when the text is
+                    // then too wide.
                     let mut shown = vec![0; at];
                     text.load(0, &mut shown)?;
                     shown.extend_from_slice(&[typed, 0]);
                     let width = {
                         measure_text_at(
-                            net.vars.edit_font.get(),
+                            edit.edit_font.get(),
                             &shown,
                             at as i32,
-                            &mut GameCanvas,
+                            &mut GameCanvas::new(gfx),
                         )
                     }?
                     .width;
-                    let kept = if editing::too_wide(width, net.vars.edit_width.get()) {
+                    let kept = if editing::too_wide(width, edit.edit_width.get()) {
                         [0, 0]
                     } else {
                         [typed, 0]
@@ -76,5 +71,5 @@ pub fn edit_key(net: &Net, key: u8) -> Result<bool, Refused> {
             }
         }
     }
-    Ok(net.vars.edited.get() == u32::MAX)
+    Ok(edit.edited.get() == u32::MAX)
 }

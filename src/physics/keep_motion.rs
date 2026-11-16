@@ -1,29 +1,13 @@
-//! `physics::keep_motion` (0x440B7C): `dword_71A17C`, `dword_71A180`, `g_carSpeed`
-//! (0x71A184) into `dword_61409C`, `dword_6140A0`, `dword_6140A4` (eax pushed around).
+//! Copies the car's `local_velocity` and car speed (three dwords) into `kept_motion`.
 //!
-//! Caller: `physics::car_physics_step` (0x43B87E), every physics step.
+//! Caller: `physics::car_physics_step`, every physics step.
 
-use crate::race::owner_shared::Shared;
-use crate::session::Cell32;
+use crate::physics::car_store::Car;
+use crate::physics::tables_store::PhysicsTables;
 
-fn core(v: &[&dyn Cell32]) {
-    for k in 0..3 {
-        v[k + 3].set_bits(v[k].bits());
+/// Bit copies of floats into words.
+pub fn keep_motion(car: &Car, tables: &PhysicsTables) {
+    for (kept, v) in tables.kept_motion.iter().zip(&car.local_velocity) {
+        kept.set(v.get());
     }
-}
-
-fn game(shared: &Shared) -> Vec<&dyn Cell32> {
-    vec![
-        &shared.car.local_velocity[0] as &dyn Cell32,
-        &shared.car.local_velocity[1],
-        &shared.car.local_velocity[2],
-        &shared.physics_tables.kept_motion[0],
-        &shared.physics_tables.kept_motion[1],
-        &shared.physics_tables.kept_motion[2],
-    ]
-}
-
-/// The Rust version.
-pub fn keep_motion(shared: &Shared) {
-    core(&game(shared));
 }

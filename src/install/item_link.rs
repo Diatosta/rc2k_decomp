@@ -1,34 +1,28 @@
-//! `install::item_link` (0x414A28): Enter on a link item (kind 1): its action (`[esi+8]`,
-//! edx its `[esi+0Ch]`) if it has one; else, unless its next list (`[esi+1]`) is negative,
-//! that number into `byte_51D415` and the page left (`g_listLeave` 1).
-//!
-//! Takes the item.
-//! Caller `install::item_enter`.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
+//! Enter on a link item (kind 1): its action if it has one; else, unless its next list is
+//! negative, that number goes into `list_answer` and the page is left. Called by
+//! `install::item_enter`.
 
 use crate::errors::Refused;
 use crate::install::installer::item_action_at;
-use crate::menu::list_handle::ListItem;
+use crate::memory::list_handle::ListItem;
 use rc2k_core::install::items::{self, LinkWay};
 
-/// Enter on a link; the original's zero after it (the action's, else that of `test bl, bl`
-/// on the next list).
+/// Enter on a link; whether it was taken.
 pub fn item_link(
-    install: &'static crate::install::owner::Install,
+    install: &crate::install::owner::Install,
+    list_state: &crate::menu::list_state::ListState,
     item: ListItem,
 ) -> Result<bool, Refused> {
     let action = item.target();
     let mut next = 0;
-    // Converted: `rc2k_core::install::items::link`.
     match items::link(action, || {
         next = item.count();
         next
     }) {
-        LinkWay::Action => item_action_at(install, action),
+        LinkWay::Action => item_action_at(install, list_state, action),
         LinkWay::Leave(next) => {
-            install.pages.list_answer.set(next);
-            install.pages.list_leave.set(1);
+            list_state.list_answer.set(next);
+            list_state.list_leave.set(1);
             Ok(next == 0)
         }
         LinkWay::Stay => Ok(next == 0),

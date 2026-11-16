@@ -1,32 +1,25 @@
-//! `threading::start_slot_thread` (0x410C9C): starts the thread of a thread slot.
-//!
-//! Takes: the slot
-//! It clears the slot's flag byte at +0xC, creates a thread running the routine at +0 (no
-//! parameter, default stack), which stores the thread's id at +4, and stores the handle at
-//! +8. If no thread can be created the original reports fatal error 0x80108601.
-//! Four callers: three in `threading::start_threads` and `request_quit`.
+//! Starts the thread of a thread slot: the slot's flag byte (+0xC) cleared, a thread made
+//! running the routine at +0 (no parameter), which stores its id at +4, and the handle stored at
+//! +8. The thread works with the owners it is given. A thread that cannot be made is fatal error 0x80108601.
 
 use crate::errors::FatalError;
-use crate::framework::log;
-use rc2k_core::fatal::Context;
-
-// ---- Rust version ----
+use crate::logfile::program_log::log;
+use crate::threading::thread_slot::SlotOwners;
 
 /// The thread of slot number `slot` started.
-pub fn start_slot_thread(slot: usize) -> Result<(), FatalError> {
+pub fn start_slot_thread(slot: usize, owners: SlotOwners<'static>) -> Result<(), FatalError> {
     let what = "a thread slot";
     let slot = crate::threading::thread_slot::slot_ref(slot)
         .unwrap_or_else(|e| crate::fatal::raise::end(what, e));
     slot.flag.set(0);
-    // The slot holds the routine as the image did, an IDA address: the thread's
-    // parameter, `run_routine` finds its Rust version by it.
+    // The slot holds the routine by its game address: the thread's parameter; `run_routine`
+    // finds its Rust function by it.
     let routine = slot.routine.get() as usize;
-    // The thread's id goes into the slot before the thread can look for its slot, as
-    // the original's `CreateThread` put it there.
-    let id = crate::sync::new_thread_id();
+    // The thread's id goes into the slot before the thread can look for its slot.
+    let id = crate::platform::sync::new_thread_id();
     slot.thread_id.set(id);
-    let Some(handle) = crate::sync::spawn(&format!("slot {routine:#x}"), id, move || {
-        run_routine(routine as u32);
+    let Some(handle) = crate::platform::sync::spawn(&format!("slot {routine:#x}"), id, move || {
+        run_routine(routine as u32, owners);
     }) else {
         return Err(FatalError {
             code: 0x8010_8601,
@@ -37,17 +30,17 @@ pub fn start_slot_thread(slot: usize) -> Result<(), FatalError> {
     Ok(())
 }
 
-/// A slot's thread: its routine (the IDA address the slot holds) run by its Rust version
-/// (`thread_slot::run_routine`). A routine with none, or one that refuses, ends the program.
-fn run_routine(routine: u32) {
-    match crate::threading::thread_slot::run_routine(routine) {
+/// A slot's thread: its routine run by its Rust function (`thread_slot::run_routine`). A
+/// routine with none, or one that refuses, ends the program.
+fn run_routine(routine: u32, owners: SlotOwners<'static>) {
+    match crate::threading::thread_slot::run_routine(routine, owners) {
         Some(Ok(())) => {}
         Some(Err(crate::errors::Refused::Fatal(error))) => {
             log(&format!(
                 "threading::start_slot_thread: the routine {routine:#x} raises fatal error {:#x} {:?}",
                 error.code, error.message
             ));
-            crate::fatal::raise::raise(error, &Context::default());
+            crate::fatal::raise::raise_bare(error);
         }
         Some(Err(crate::errors::Refused::BadInput(why))) => crate::standalone::finish(
             &format!(

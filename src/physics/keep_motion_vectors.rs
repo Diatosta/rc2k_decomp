@@ -1,41 +1,20 @@
-//! `physics::keep_motion_vectors` (0x43BD41): unless `dword_614148` is set, the three
-//! dwords at `dword_71A170` (the vector `physics::store_motion_length` measures) into
-//! `dword_614BCC` .. `D4`, and those at `dword_71A15C` into `dword_614BDC` .. `E4` (eax
-//! pushed around).
+//! Unless `contact_step` is set, the three dwords of the car's `velocity` (the vector
+//! `physics::store_motion_length` measures) go as bits into `kept_vectors`, and those of `spin`
+//! into the following three.
 //!
-//! Caller: `physics::car_physics_step` (0x43B89B), every physics step.
+//! Caller: `physics::car_physics_step`, every physics step.
 
-use crate::race::owner::Race;
-use crate::session::Cell32;
+use crate::physics::car_store::Car;
+use crate::physics::tables_store::PhysicsTables;
 
-fn core(v: &[&dyn Cell32]) {
-    if v[0].bits() != 0 {
+/// Bit copies of floats into words.
+pub fn keep_motion_vectors(car: &Car, tables: &PhysicsTables) {
+    if tables.contact_step.get() != 0 {
         return;
     }
-    for k in 0..6 {
-        v[k + 7].set_bits(v[k + 1].bits());
+    let kept = &tables.kept_vectors;
+    for k in 0..3 {
+        kept[k].set(car.velocity[k].get());
+        kept[4 + k].set(car.spin[k].get());
     }
-}
-
-fn game(race: &Race) -> Vec<&dyn Cell32> {
-    vec![
-        &race.shared.physics_tables.contact_step as &dyn Cell32,
-        &race.shared.car.velocity[0],
-        &race.shared.car.velocity[1],
-        &race.shared.car.velocity[2],
-        &race.shared.car.spin[0],
-        &race.shared.car.spin[1],
-        &race.shared.car.spin[2],
-        &race.shared.physics_tables.kept_vectors[0],
-        &race.shared.physics_tables.kept_vectors[1],
-        &race.shared.physics_tables.kept_vectors[2],
-        &race.shared.physics_tables.kept_vectors[4],
-        &race.shared.physics_tables.kept_vectors[5],
-        &race.shared.physics_tables.kept_vectors[6],
-    ]
-}
-
-/// The Rust version.
-pub fn keep_motion_vectors(race: &Race) {
-    core(&game(race));
 }

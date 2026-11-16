@@ -1,30 +1,30 @@
-//! The work car moved to a place where nothing touches it after a reset (converted
-//! 2026-10-21 from `physics::find_clear_place` 0x43BDD1; its tries' contacts are the
-//! hooks' own): tries n from 0x70 + (the car's clock & 0xF) up to 0xFF, each moving the
-//! place by 2^((n >> 4) + 1) times a direction of sixteen (`dword_614014[n & 0xF]`,
-//! `dword_614054[n & 0xF]`: x, z), until a try restores nothing; none: the car reset.
+//! The work car moved to a place where nothing touches it after a reset: tries n from
+//! 0x70 + (the clock & 0xF) up to 0xFF, each moving the place by 2^((n >> 4) + 1) times one of
+//! sixteen directions, until a try restores nothing; if none does, the car is reset.
 
-/// The tries' last + 1 (none clear: `physics::reset_car`).
+/// One past the last try; none clear: the car is reset.
 pub const TRIES_END: u32 = 0x100;
 
-/// The car's speed scale before the tries' figure (`dword_614C28`).
+/// The car's speed scale before the tries' figure.
 pub const TRY_MARK: u32 = 0x5A;
 
-/// The first try: 0x70 + the car's clock (`g_car` +8) & 0xF.
+/// The first try: 0x70 + (the car's clock & 0xF).
 pub fn first_try(clock: u32) -> u32 {
     (clock & 0xF) + 0x70
 }
 
-/// A try's move: the step 2^((n >> 4) + 1) (eax after), the direction's entry n & 0xF
-/// (ebx), the shift (ecx), and each part's `imul` of the step by the table's entry (the
-/// low dword added to the place; the high one the original's edx).
+/// A try's move: the step 2^((n >> 4) + 1), the direction's entry n & 0xF, and the shift.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Move {
+    /// 2^shift.
     pub step: u32,
+    /// The direction table's index.
     pub entry: u32,
+    /// (n >> 4) + 1.
     pub shift: u32,
 }
 
+/// The move of try `n`.
 pub fn try_move(n: u32) -> Move {
     let shift = (n >> 4) + 1;
     Move {
@@ -40,8 +40,8 @@ pub fn move_part(step: u32, direction: u32) -> (u32, u32) {
     (product as u32, (product >> 32) as u32)
 }
 
-/// The tries from `first`: `attempt(n)` (the move and its contacts; true when nothing
-/// was restored) until one is clear: Some(n), or None after 0xFF.
+/// Runs `attempt(n)` from `first` (true when nothing was restored) until one is clear: Some(n),
+/// or None after 0xFF.
 pub fn tries<E>(
     first: u32,
     mut attempt: impl FnMut(u32) -> Result<bool, E>,
@@ -58,8 +58,8 @@ pub fn tries<E>(
     }
 }
 
-/// The height (`g_car` +0x138) after a clear try: with the body's deepest point below 0
-/// (`dword_6D3068`, by the sign) lifted by it and 0x800 more.
+/// The height after a clear try: with the body's deepest point below 0 (by sign), lifted by
+/// it and 0x800 more.
 pub fn lifted(height: u32, depth: u32) -> Option<u32> {
     ((depth as i32) < 0).then(|| height.wrapping_sub(depth).wrapping_add(0x800))
 }

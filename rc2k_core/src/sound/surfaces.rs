@@ -1,12 +1,11 @@
-//! The sounds of what a car's wheels run on, their choices (converted 2026-10-21 from
-//! `sound::surface_sounds` 0x40DE9B and `sound::surface_sound` 0x40E068; the floats that
-//! pick the wheel and make the volume stay the hook's x87 for now).
+//! The sounds of what a car's wheels run on, their choices (the floats that pick the wheel and
+//! make the volume are the caller's).
 //!
-//! The four wheels are records of five dwords at the object's +0x44, +0x58, +0x6C, +0x80
-//! (+0x10 the surface). The wheel whose surface counts is the front or back pair by the
-//! sign of one difference, then the second of the pair by the other's. A surface's sound
-//! set comes from a table of 16, the set from seven pairs (one for each of the two
-//! sounds); a set is four sounds, or eight (+0 1) for a car whose +0xC picks the half.
+//! The four wheels are records of five dwords at the object's +0x44, +0x58, +0x6C, +0x80 (+0x10 the
+//! surface). The counting wheel is the front or back pair by the sign of one difference, then the
+//! pair's second by the other's. A surface's set comes from a table of 16, the set from seven
+//! pairs (one for each of the two sounds); a set is four sounds, or eight (+0 is 1) for a car
+//! whose +0xC picks the half.
 
 use crate::Invalid;
 
@@ -16,11 +15,15 @@ pub const WHEELS: [u32; 4] = [0x44, 0x58, 0x6C, 0x80];
 pub const SURFACES: u32 = 16;
 pub const SET_PAIRS: u32 = 7;
 
-/// The wheel whose surface counts and the other of its pair (indexes into `WHEELS`), from
-/// the two differences' bits (their signs, as integers).
-pub fn wheel(across: u32, along: u32) -> (usize, usize) {
-    let (mut first, second) = if (across as i32) >= 0 { (1, 3) } else { (0, 2) };
-    if (along as i32) < 0 {
+/// The wheel whose surface counts and the other of its pair (indexes into `WHEELS`), from the two
+/// differences' signs (the float's sign bit read as an integer's).
+pub fn wheel(across: f32, along: f32) -> (usize, usize) {
+    let (mut first, second) = if !across.is_sign_negative() {
+        (1, 3)
+    } else {
+        (0, 2)
+    };
+    if along.is_sign_negative() {
         first = second;
     }
     (first, second)
@@ -31,11 +34,11 @@ pub fn quieter(surface: u32) -> bool {
     surface == 7 || surface == 8
 }
 
-/// The pair of sets of `surface` (`sets_of` the table, asked for a surface inside it).
-/// Refuses a surface past the table and a pair past the seven.
+/// The pair of sets of `surface` (`sets_of` the table, asked for a surface inside it). Refuses a
+/// surface past the table and a pair past the seven.
 pub fn set_pair(surface: u32, sets_of: impl FnOnce(u32) -> u32) -> Result<u32, Invalid> {
     if surface >= SURFACES {
-        return Err(Invalid("a surface past the 16 of dword_51655C"));
+        return Err(Invalid("a surface past the 16 surface sounds"));
     }
     let pair = sets_of(surface);
     if pair >= SET_PAIRS {
@@ -65,10 +68,10 @@ mod tests {
 
     #[test]
     fn choices() {
-        assert_eq!(wheel(0, 0), (1, 3));
-        assert_eq!(wheel(0x8000_0000, 0), (0, 2));
-        assert_eq!(wheel(0x8000_0001, 0xBF80_0000), (2, 2));
-        assert_eq!(wheel(0x3F80_0000, 0x8000_0000), (3, 3));
+        assert_eq!(wheel(0.0, 0.0), (1, 3));
+        assert_eq!(wheel(-0.0, 0.0), (0, 2));
+        assert_eq!(wheel(f32::from_bits(0x8000_0001), -1.0), (2, 2));
+        assert_eq!(wheel(1.0, -0.0), (3, 3));
         assert!(quieter(7) && quieter(8) && !quieter(9));
         assert_eq!(set_pair(15, |s| s - 9), Ok(6));
         assert!(set_pair(16, |_| unreachable!()).is_err());

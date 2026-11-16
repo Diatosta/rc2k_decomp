@@ -1,26 +1,23 @@
-//! What a force-feedback effect's function does with a change (converted 2026-10-21 from
-//! `input::effect_0_change` 0x409708, `effect_1_change` 0x4097FA, `effect_2_change`
-//! 0x409754, `effect_3_change` 0x4097B4, `effect_4_change` 0x409871 and `effect_5_change`
-//! 0x4098BF).
+//! What a force-feedback effect's function does with a change.
 //!
-//! A change is 1 set up, 2 start, 3 values, 4 stop, with two signed values; each of the
-//! six effects of a device record answers with stores into its effect and at most one call
-//! of DirectInput's (start, set its parameters with flags, stop). A value v is stored as
-//! `(v x 10000, as a signed dword) >> 8` (arithmetic).
+//! A change is 1 set up, 2 start, 3 values, 4 stop, with two signed values; each of a record's
+//! six effects answers with stores into its effect and at most one DirectInput call (start, set
+//! parameters with flags, stop). A value v is stored as `(v x 10000) >> 8` (arithmetic, signed
+//! dword).
 
 use crate::Invalid;
 
-/// Rows in effect 1's table (`unk_4F6E08`, four dwords each).
+/// Rows in effect 1's table (four dwords each).
 pub const ROWS: i32 = 14;
 
 /// A place in an effect (`ForceEffect`) a change writes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Field {
-    /// `DIEFFECT`'s duration.
+    /// The effect's duration.
     Duration,
     /// The first axis.
     FirstAxis,
-    /// `DIEFFECT`'s envelope pointer: made to point at the effect's own envelope.
+    /// The effect's envelope pointer: made to point at the effect's own envelope.
     EnvelopePointer,
     /// The envelope's fade time.
     FadeTime,
@@ -30,18 +27,18 @@ pub enum Field {
     Found,
 }
 
-/// DirectInput's call a change ends with.
+/// The DirectInput call a change ends with.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Call {
-    /// Download and Start.
+    /// Download and start.
     Start,
-    /// SetParameters with these flags (eax).
+    /// Set the parameters with these flags.
     Set(u32),
     Stop,
 }
 
-/// What a change does: its stores in order, then its call. For effect 1's values the
-/// divisor and remainder of its `idiv` (what ecx and edx hold at the call).
+/// What a change does: its stores in order, then its call; for effect 1's values also the
+/// division's divisor and remainder.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Plan {
     pub stores: Vec<(Field, u32)>,
@@ -49,7 +46,6 @@ pub struct Plan {
     pub division: Option<(u32, u32)>,
 }
 
-/// A value as stored.
 pub fn value(v: u32) -> u32 {
     ((v as i32).wrapping_mul(10000) >> 8) as u32
 }
@@ -59,15 +55,14 @@ fn blend(a: u32, b: u32, by: u32) -> u32 {
     ((((b.wrapping_sub(a) as i32).wrapping_mul(by as i32)) >> 8) as u32).wrapping_add(a)
 }
 
-/// Effect `number`'s answer to `change` with values `ecx`, `edx`. `sensitivity` is the
-/// record's +0x20 (asked only for effect 5's set-up), `row` effect 1's table row (asked
-/// only for its values, with a row inside the table). Refuses (before anything) for effect
-/// 1's values a row past the table and a blend of 0 (the original's `idiv` traps).
+/// Effect `number`'s answer to `change` with values `arg_a`, `arg_b`. `sensitivity` is asked
+/// only for effect 5's set-up, `row` only for effect 1's values. Refused: for effect 1's
+/// values, a row past the table or a blend of 0 (a division by zero).
 pub fn plan(
     number: u32,
     change: u32,
-    ecx: u32,
-    edx: u32,
+    arg_a: u32,
+    arg_b: u32,
     sensitivity: impl FnOnce() -> u32,
     row: impl FnOnce(u32) -> [u32; 4],
 ) -> Result<Plan, Invalid> {
@@ -99,18 +94,18 @@ pub fn plan(
         }
         (2, 0 | 1 | 4) => p.call = Some(Call::Start),
         (3, 0) => {
-            s.push((Field::Specific(1), value(ecx)));
-            s.push((Field::Specific(2), value(ecx)));
-            s.push((Field::Specific(0), value(edx)));
+            s.push((Field::Specific(1), value(arg_a)));
+            s.push((Field::Specific(2), value(arg_a)));
+            s.push((Field::Specific(0), value(arg_b)));
             p.call = Some(Call::Set(0x100));
         }
         (3, 1) => {
-            if !(0..ROWS).contains(&(ecx as i32)) {
+            if !(0..ROWS).contains(&(arg_a as i32)) {
                 return Err(Invalid("a row past the effect's table"));
             }
-            let r = row(ecx);
-            let first = blend(r[0], r[2], edx);
-            let second = blend(r[1], r[3], edx);
+            let r = row(arg_a);
+            let first = blend(r[0], r[2], arg_b);
+            let second = blend(r[1], r[3], arg_b);
             if second == 0 {
                 return Err(Invalid("a blend of 0 (the original's idiv traps)"));
             }
@@ -123,12 +118,12 @@ pub fn plan(
             p.call = Some(Call::Set(0x100));
         }
         (3, 2 | 3 | 5) => {
-            s.push((Field::Specific(0), value(ecx)));
+            s.push((Field::Specific(0), value(arg_a)));
             p.call = Some(Call::Set(0x2000_0100));
         }
         (3, 4) => {
-            s.push((Field::Specific(1), value(ecx)));
-            s.push((Field::Specific(2), value(ecx)));
+            s.push((Field::Specific(1), value(arg_a)));
+            s.push((Field::Specific(2), value(arg_a)));
             p.call = Some(Call::Set(0x100));
         }
         (4, _) => p.call = Some(Call::Stop),

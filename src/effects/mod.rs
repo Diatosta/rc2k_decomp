@@ -1,17 +1,17 @@
 //! The race's effects: the weather (rain, snow), the wheels' spray, dust and mud, the drops
 //! on the windscreen, the lens flare and the surface textures they need (files\m\: masks,
-//! edges, snow, splines, surface data). `effects::init_marks` (0x4D12F7) sets them up as a
-//! stage loads, `effects::run_frame` (0x4D1549) runs them each frame of the race.
+//! edges, snow, splines, surface data). `effects::init_marks` sets them up as a
+//! stage loads, `effects::run_frame` runs them each frame of the race.
 //!
-//! Called "the marks" until 2026-10-29 (part Q): the game's own name for the step is
-//! "init mark" (its loading log), and its data is `g_marks*` in IDA; the functions'
-//! IDA names are `effects::*` like this module's.
+//! The game's own name for the step is "init mark" (its loading log).
 
 pub mod add_drift_particle;
 pub mod add_mark_slot;
 pub mod adjugate3;
 pub mod aim_vector;
-#[cfg(all(test, target_arch = "x86"))]
+#[cfg(test)]
+mod asm_layout;
+#[cfg(test)]
 mod asm_test;
 pub mod begin_quads;
 pub mod bend_points;
@@ -20,6 +20,7 @@ pub mod blend_points;
 pub mod blocks;
 pub mod burst_particles;
 pub mod cars_particles;
+pub mod cell_x87;
 pub mod clip;
 pub mod clip_quad;
 pub mod copy_first_point;
@@ -43,28 +44,27 @@ pub mod draw_turned_sprite;
 pub mod draw_windscreen_flake;
 pub mod drift_offsets;
 pub mod edges;
+pub mod emit_body_contact_particles;
 pub mod emit_body_particles;
-pub mod emit_bursts;
-pub mod emit_bursts_2;
+pub mod emit_bursts_kind_3;
 pub mod emit_car_particles;
-pub mod emit_kind_1;
-pub mod emit_particle_11;
-pub mod emit_particle_13;
-pub mod emit_particle_18;
-pub mod emit_particle_19;
-pub mod emit_particle_21;
-pub mod emit_particle_22;
-pub mod emit_particle_5;
-pub mod emit_particle_6;
+pub mod emit_exhaust_smoke;
+pub mod emit_rolling_dust;
+pub mod emit_rolling_particles_rated;
+pub mod emit_slip_snow_cloud;
+pub mod emit_slip_spray;
+pub mod emit_twin_particle_first;
+pub mod emit_twin_particle_second;
+pub mod emit_wheel_dust_cloud;
+pub mod emit_wheel_grit_bursts;
 pub mod emit_wheel_particles;
 pub mod emitters;
-pub mod expire_windscreen_drops;
-pub mod expire_windscreen_flakes;
 pub mod flare_frame;
 pub mod frame_marks;
 pub mod frame_state;
 pub mod init_mark_step;
 pub mod init_marks;
+pub mod item_walk;
 pub mod jitter_point;
 pub mod keep_vectors;
 pub mod kept_turns;
@@ -86,13 +86,11 @@ pub mod owner;
 pub mod owner_groups;
 pub mod paths;
 pub mod pick_shapes;
-pub mod pick_windscreen_drop;
-pub mod pick_windscreen_flake;
 pub mod pixels;
 pub mod place_graded_points;
+pub mod place_rain_view;
+pub mod place_snow_view;
 pub mod place_spline;
-pub mod place_view;
-pub mod place_view_2;
 pub mod plain;
 pub mod pong;
 pub mod pong_ball_hits;
@@ -130,13 +128,9 @@ pub mod shapes;
 pub mod shapes_frame;
 pub mod snow;
 pub mod spans;
-pub mod spawn_windscreen_drop;
-pub mod spawn_windscreen_flake;
 pub mod splines;
 pub mod spread_point;
 pub mod stage_record;
-pub mod store;
-pub mod store_data;
 pub mod surface_store;
 pub mod swap_mask;
 pub mod tidy_marks;
@@ -144,7 +138,7 @@ pub mod tilt_shape;
 pub mod trail_particles;
 pub mod tuning;
 pub mod turns;
-#[cfg(all(test, target_arch = "x86"))]
+#[cfg(test)]
 mod typed_sync;
 pub mod view_frame;
 pub mod view_heading;
@@ -154,16 +148,16 @@ pub mod view_vectors;
 pub mod waves;
 pub mod windscreen_drop_state;
 pub mod windscreen_drop_vars;
+pub mod windscreen_drops;
 pub mod windscreen_drops_drift;
 pub mod windscreen_drops_frame;
 pub mod windscreen_drops_setup;
 pub mod windscreen_drops_spawn;
-pub mod windscreen_drops_step;
 pub mod windscreen_drops_top;
+pub mod windscreen_flakes;
 pub mod windscreen_flakes_frame;
 pub mod windscreen_flakes_setup;
 pub mod windscreen_flakes_spawn;
-pub mod windscreen_flakes_step;
 pub mod windscreen_flakes_store;
 pub mod work_store;
 

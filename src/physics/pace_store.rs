@@ -1,84 +1,63 @@
-//! The pace notes' work (IDA 0x614D38 .. 0x61FE18; phase 7, typed): the distance words, the
-//! notes' starts, ends, end codes and gaps, the groups' checkpoints and texts, and the texts'
-//! codes. `#[repr(C)]` with the image's layout, over the race block's bytes (`PACE`). Names
-//! are readings unless IDA's.
+//! The pace notes' work: the distance words, the notes' starts, ends, end codes and gaps, the
+//! groups' checkpoints and texts, and the texts' codes. Names are readings unless taken from the
+//! game's own.
 
-#[cfg(test)]
-use crate::race::owner::race;
-use crate::session::{Bytes, Dword};
+use crate::memory::session::{PlainBytes, PlainDword};
 
-#[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct PaceNotes {
-    /// +0x0 (0X614D38): `g_paceDistanceWords`: the distance's word by tens, the first 41 bytes used (`race::pace_notes`); IDA names its first byte only.
-    pub distance_words: Bytes<0x1034>,
-    /// +0x1034 (0X615D6C): `dword_615D6C`: not worked out.
-    pub unknown_d6c: [Dword; 41],
-    /// +0x10d8 (0X615E10): `g_paceNoteCount`.
-    pub note_count: Dword,
-    /// +0x10dc (0X615E14): `g_paceGroupCount`: the pace note groups (`physics::queue_pace_note`).
-    pub group_count: Dword,
-    /// +0x10e0 (0X615E18): `g_paceNoteStarts`.
-    pub note_starts: [Dword; 1024],
-    /// +0x20e0 (0X616E18): `g_paceNoteEnds`.
-    pub note_ends: [Dword; 1024],
-    /// +0x30e0 (0X617E18): `g_paceNoteEndCodes`.
-    pub note_end_codes: [Dword; 1024],
-    /// +0x40e0 (0X618E18): `g_paceNoteGaps`.
-    pub note_gaps: [Dword; 1024],
-    /// +0x50e0 (0X619E18): `g_paceGroupCheckpoints` (`physics::queue_pace_note`).
-    pub group_checkpoints: [Dword; 1024],
-    /// +0x60e0 (0X61AE18): `g_paceGroupTexts`: each group's place in `text` (`physics::queue_pace_note`; IDA's `int[1023]` stops short of the last).
-    pub group_texts: [Dword; 1024],
-    /// +0x70e0 (0X61BE18): `g_paceText`: the groups' codes (`physics::queue_pace_note`).
-    pub text: Bytes<0x4000>,
+    /// The distance's word by tens, the first 41 bytes used (`race::pace_notes`).
+    pub distance_words: PlainBytes<0x1034>,
+    /// A table indexed by a distance word, read once (`race::pace_notes`) with its result thrown
+    /// away; no other use.
+    pub discarded_distance_table: [PlainDword; 41],
+    /// How many pace notes there are.
+    pub note_count: PlainDword,
+    /// The pace note groups (`physics::queue_pace_note`).
+    pub group_count: PlainDword,
+    /// Each note's start.
+    pub note_starts: [PlainDword; 1024],
+    /// Each note's end.
+    pub note_ends: [PlainDword; 1024],
+    /// Each note's end code.
+    pub note_end_codes: [PlainDword; 1024],
+    /// Each note's gap.
+    pub note_gaps: [PlainDword; 1024],
+    /// Each group's checkpoint (`physics::queue_pace_note`).
+    pub group_checkpoints: [PlainDword; 1024],
+    /// Each group's place in `text` (`physics::queue_pace_note`).
+    pub group_texts: [PlainDword; 1024],
+    /// The groups' codes (`physics::queue_pace_note`).
+    pub text: PlainBytes<0x4000>,
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
 
-/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
-/// `race::store::LEFT`), with the image's first values.
+/// The piece, with the image's first values.
 impl PaceNotes {
     pub const fn new() -> Self {
-        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
-    }
-}
-
-/// IDA 0x614D38, the first byte of the piece.
-pub const START: usize = 0x614D38;
-/// IDA 0x61FE18, the end of the piece.
-pub const END: usize = 0x61FE18;
-
-const _: () = assert!(END - START == core::mem::size_of::<PaceNotes>());
-
-/// Where IDA 0x614D38 is now.
-#[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&race().physics.pace))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use core::mem::offset_of;
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&race().physics.pace, START, END);
-    }
-
-    #[test]
-    fn piece_has_its_home() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            crate::moved::place(END - 1),
-            (piece_addr() + (END - START) as u32 - 1) as usize
-        );
-        assert_eq!(offset_of!(PaceNotes, group_count), 0x615E14 - START);
-        assert_eq!(offset_of!(PaceNotes, note_gaps), 0x618E18 - START);
-        assert_eq!(offset_of!(PaceNotes, group_checkpoints), 0x619E18 - START);
-        assert_eq!(offset_of!(PaceNotes, group_texts), 0x61AE18 - START);
-        assert_eq!(offset_of!(PaceNotes, text), 0x61BE18 - START);
+        use crate::memory::cells::ZeroCells;
+        use crate::memory::session::{PlainBytes, PlainDword, with_runs};
+        Self {
+            distance_words: PlainBytes::new(with_runs::<4148>(&[(
+                1,
+                b"    !!\"\"\"#####$$$$$%%%%%&&&&&''''''''''((((((((((",
+            )])),
+            discarded_distance_table: {
+                let mut v: [PlainDword; 41] = ZeroCells::ZERO;
+                v[32] = PlainDword::new(30);
+                v[33] = PlainDword::new(50);
+                v[34] = PlainDword::new(70);
+                v[35] = PlainDword::new(100);
+                v[36] = PlainDword::new(150);
+                v[37] = PlainDword::new(200);
+                v[38] = PlainDword::new(250);
+                v[39] = PlainDword::new(0x12C);
+                v[40] = PlainDword::new(0x190);
+                v
+            },
+            ..ZeroCells::ZERO
+        }
     }
 }

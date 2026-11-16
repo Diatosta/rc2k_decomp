@@ -1,19 +1,17 @@
-//! `race::loadlevel_init`'s "init ed textures" (`scene::init_texture_levels`, 0x424001,
-//! IDA 2026-10-16): which texture slots are wanted at which level (`g_textureSystemLevels`,
-//! `g_textureVideoLevels`) and tagged how (`g_textureTags`), 0x400 slots each, for the
-//! stage: each car's runs, each kind's slots by the stage prefs, then fixed runs. With
-//! `dword_5CDADC` set every level is another (it is set to 0 here first, and nothing sets
-//! it otherwise).
+//! The texture levels set up at a stage's load (`scene::init_texture_levels`): which texture
+//! slots are wanted at which level and tagged how (the system levels, video levels and tags),
+//! 0x400 slots each, for the stage: each car's runs, each kind's slots by the stage prefs, then
+//! fixed runs. With `ObjectTables.other_levels` set every level is another (it is set to 0
+//! here first, and nothing sets it otherwise).
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
-use crate::session::Dword;
 
-/// A kind's block: its first-texture variable (an index in `kind_first_textures`; only its place in `g_textureWantedPictures`
-/// is worked out, and not used: section 16), its prefs entries, the first slot, how many,
-/// the tag, the level, the other level, and what `dword_5DC978` gets a slot (4, or 1 for
-/// the kinds of slots 0x40 .. 0x6F).
+/// A kind's block: its first-texture variable (an index in `kind_first_textures`; only its
+/// place in the wanted pictures is worked out, and not used), its prefs entries, the first
+/// slot, how many, the tag, the level, the other level, and what `TexturePlaces.kind_slot_bytes`
+/// gets a slot (4, or 1 for the kinds of slots 0x40 .. 0x6F).
 type Block = (usize, Prefs, usize, u32, u32, u32, u32, u32, u32);
 #[derive(Clone, Copy)]
 enum Prefs {
@@ -23,11 +21,11 @@ enum Prefs {
 }
 
 impl Prefs {
-    fn list(self, course: &Course) -> &[Dword] {
+    fn list(self, course: &Course) -> &[crate::memory::session::PlainDword] {
         match self {
-            Prefs::A => &course.stage_prefs.picture_lists_a,
-            Prefs::B => &course.stage_prefs.picture_lists_b,
-            Prefs::C => &course.stage_prefs.picture_lists_c,
+            Prefs::A => &course.stage_prefs.get().picture_lists_a,
+            Prefs::B => &course.stage_prefs.get().picture_lists_b,
+            Prefs::C => &course.stage_prefs.get().picture_lists_c,
         }
     }
 }
@@ -62,33 +60,32 @@ const BLOCKS: [Block; 26] = [
 ];
 
 fn other(scene: &crate::scene::owner::Scene) -> bool {
-    scene.objects.tables.other_levels.get() != 0
+    scene.objects.tables.get().other_levels.get() != 0
 }
 
 const COUNT_TEXT_RVA: &std::ffi::CStr = c"NUM DIFFERENT CARS/OBJECTS/TEXTURE SETS "; // "NUM DIFFERENT CARS/OBJECTS/TEXTURE SETS "
 
-/// `scene::init_texture_levels` (0x424001), see the header: `g_raceCars` held to 1 .. 8
-/// (by the signs of the differences, as the original); the tables reset, the count in the
-/// log; `dword_5CDADC` 0 and `input::update`; the first car's two runs (slots 0x100,
-/// 0x104; the second's level by `dword_63DB94`), each further car's two (0x108 + 8 a car,
-/// tag 0x28 + the car); each kind's slots (its prefs entry not 0 or -1: tag, level, and
-/// `dword_5DC978` + 4, or + 1 for slots 0x40 .. 0x6F); the fixed runs, two loops at slot 0xDC (the system level of six,
-/// the video level of two), and with `dword_621514` three more. What the original
-/// leaves in the registers its one caller reads none of (register liveness, 2026-10-23:
-/// the site in `race::loadlevel_init`, every register followed, no read).
-pub fn init_texture_levels(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+/// `scene::init_texture_levels`, see the header: the number of cars held to 1 ..= 8 (by the
+/// signs of the differences); the tables reset, the count in the log; `ObjectTables.other_levels`
+/// 0 and `input::update`; the first car's two runs (slots 0x100, 0x104), each further car's
+/// two (0x108 + 8 a car, tag 0x28 + the car); each kind's slots (its prefs entry not 0 or -1:
+/// tag, level, and `TexturePlaces.kind_slot_bytes` + 4, or + 1 for slots 0x40 .. 0x6F); the
+/// fixed runs, two loops at slot 0xDC (the system level of six, the video level of two), and
+/// with `FrameSwitches.editor_mode` three more.
+pub fn init_texture_levels(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    let scene = o.scene;
     let shared = &race.shared;
-    // Converted: `rc2k_core::scene::texture_levels::{held_cars, set_levels}`.
+    // Logic: `rc2k_core::scene::texture_levels::{held_cars, set_levels}`.
     use crate::logfile::log_int::log_int;
     use crate::scene::textures::with_cells;
     use rc2k_core::scene::texture_levels::{KindSlots, held_cars, set_levels};
-    let cars = held_cars(shared.view.race_cars.bits());
-    shared.view.race_cars.set_bits(cars);
+    let cars = held_cars(shared.view.get().race_cars.get());
+    shared.view.get().race_cars.set(cars);
     crate::scene::reset_texture_tables::reset_texture_tables(scene);
     crate::logfile::log_write::log_nul(&COUNT_TEXT_RVA, false, 1);
     log_int(cars as i32, true, 1);
-    scene.objects.tables.other_levels.set(0);
-    crate::input::keys::update_input(&mut crate::input::keys::game_screenshot);
+    scene.objects.tables.get().other_levels.set(0);
+    crate::input::keys::update_input(o);
     let kinds: Vec<(KindSlots, Vec<u32>)> = BLOCKS
         .iter()
         .map(
@@ -110,9 +107,9 @@ pub fn init_texture_levels(race: &Race, scene: &crate::scene::owner::Scene) -> R
         .collect();
     let set = with_cells(
         [
-            &scene.objects.tables.texture_tags,
-            &scene.objects.tables.system_levels,
-            &scene.objects.tables.video_levels,
+            &scene.objects.tables.get().texture_tags,
+            &scene.objects.tables.get().system_levels,
+            &scene.objects.tables.get().video_levels,
         ],
         |[tags, system, video]| {
             set_levels(
@@ -122,23 +119,24 @@ pub fn init_texture_levels(race: &Race, scene: &crate::scene::owner::Scene) -> R
                     video,
                 },
                 cars,
-                shared.view.players.bits() == 1,
+                shared.view.get().players.get() == 1,
                 &kinds,
-                shared.switches.editor_mode.bits() != 0,
+                shared.switches.get().editor_mode.get() != 0,
                 other(scene),
                 |car| {
-                    let kinds = &shared.vars.race_car_kinds;
-                    let own = crate::race::blocks_store::own_car_number();
+                    let kinds = &shared.vars.get().race_car_kinds;
+                    let own = shared.own_car_number(o.net.race_slot.get());
                     car as usize == own || kinds[car as usize].get() == kinds[own].get()
                 },
             )
         },
     )?;
-    // `g_kindSlotBytes`: + 4 (or 1) a kind's slot.
-    scene.textures.places.kind_slot_bytes.set(
+    // `kind_slot_bytes`: + 4 (or 1) a kind's slot.
+    scene.textures.places.get().kind_slot_bytes.set(
         scene
             .textures
             .places
+            .get()
             .kind_slot_bytes
             .get()
             .wrapping_add(set.kind_slots_added),

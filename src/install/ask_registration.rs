@@ -1,10 +1,6 @@
-//! `install::ask_registration` (0x413650): `g_runRegistration` set, so the registration
-//! program runs after the game.
-//!
-//! A list action (`off_51DD60`). Caller `install::run_page` through a page's item.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
+//! Sets the flag that runs the registration program after the game: a list item's action, run
+//! by `install::run_page`.
 
-pub fn ask_registration(install: &'static crate::install::owner::Install) {
+pub fn ask_registration(install: &crate::install::owner::Install) {
     install.run.run_registration.set(1);
 }

@@ -5,9 +5,9 @@
 //! For chop, down and up the exact error of the nearest result (an error-free
 //! transformation: two-sum, an fma, the remainder of a division or a root) tells which
 //! way the result steps. `st` is `fstp dword`, `to_int` is `fistp`, `ld` and `int` are
-//! `fld dword` and `fild`. Every helper of `x87.rs`, `x87_run.rs`, `x87_load.rs` and
-//! `normalise_vector.rs` is written with these, so it rounds as the original does under
-//! whatever control word the game has set.
+//! `fld dword` and `fild`. Every helper of `x87.rs`, `x87/run.rs`, `x87/load.rs` and
+//! `normalise_vector.rs` is written with these, so it rounds as the x87 does under
+//! whatever control word is set.
 //!
 //! Limits: the precision bits are not modelled (53, the game's threads' start; after the
 //! game's `finit` the x87 would use 64 bits), the exponent range is the double's, an
@@ -15,6 +15,7 @@
 //! `fsin`, `fcos`, `fpatan` are libm's (within the last bit of the double).
 
 use crate::math::x87::{Rounding, rounding, rounds_to_nearest};
+use rc2k_core::math::portable;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
 /// What the x87 holds in a register: an `f64` whose arithmetic rounds as the (emulated)
@@ -197,14 +198,14 @@ impl X {
         X(crate::math::x87::round_f64(self.0))
     }
 
-    /// `fsin` (libm's: within the last bit of the double).
+    /// `fsin` (libm's: within the last bit of the double, the same on every machine).
     pub(crate) fn sin(self) -> X {
-        X(toward_zero_below_one(self.0.sin(), true))
+        X(toward_zero_below_one(portable::sin(self.0), true))
     }
 
     /// `fcos` (libm's).
     pub(crate) fn cos(self) -> X {
-        X(toward_zero_below_one(self.0.cos(), self.0 != 0.0))
+        X(toward_zero_below_one(portable::cos(self.0), self.0 != 0.0))
     }
 
     /// `fsincos` (libm's): the sine and the cosine.
@@ -214,7 +215,7 @@ impl X {
 
     /// `fpatan` (libm's `atan2`): the angle of (`x`, `self`), `atan2(self, x)`.
     pub(crate) fn atan2(self, x: X) -> X {
-        X(self.0.atan2(x.0))
+        X(portable::atan2(self.0, x.0))
     }
 
     /// `fldpi; fmulp`: `self` times `fldpi`'s 64-bit pi, rounded once.
@@ -319,9 +320,48 @@ impl X {
     }
 }
 
-/// `fld dword`: a float given as its bits.
-pub(crate) fn ld(bits: u32) -> X {
-    X(f64::from(f32::from_bits(bits)))
+/// What `fld dword` can load: a float, or a float given as its bits.
+pub(crate) trait Loadable {
+    fn value(self) -> f32;
+}
+
+impl Loadable for f32 {
+    fn value(self) -> f32 {
+        self
+    }
+}
+
+impl Loadable for u32 {
+    fn value(self) -> f32 {
+        f32::from_bits(self)
+    }
+}
+
+/// What `fstp dword` can store into: a float, or a dword holding the float's bits.
+pub(crate) trait Stored {
+    fn stored(x: X) -> Self;
+}
+
+impl Stored for f32 {
+    fn stored(x: X) -> Self {
+        stf(x)
+    }
+}
+
+impl Stored for u32 {
+    fn stored(x: X) -> Self {
+        st(x)
+    }
+}
+
+/// `fld dword`: a float, or a float given as its bits.
+pub(crate) fn ld(value: impl Loadable) -> X {
+    X(f64::from(value.value()))
+}
+
+/// `fstp dword`, as a float (`st`, as bits, is the same store).
+pub(crate) fn stf(x: X) -> f32 {
+    f32::from_bits(st(x))
 }
 
 /// `fild dword`: a whole number.
@@ -455,5 +495,278 @@ pub(crate) fn compare(x: X, y: X) -> u16 {
         0x0100
     } else {
         0x4000
+    }
+}
+
+// ---- the rounding read once ----
+//
+// Every `X` operation asks this thread's control word how to round (`rounds_to_nearest`, a
+// thread-local read). Where a helper does many operations and nothing in it sets the control
+// word, it can ask once: written over a `Rounds` (`r.ld(..)`, `r.int(..)`, `r.st(..)`, the
+// operators on `R::Reg`), it is run with `at_rounding!`, which reads the control word and
+// runs it at `Nearest` (plain `f64` steps, `Near`) or else at `Ambient` (`X`, every step
+// asking as before). The `Near` steps are what `X`'s give when the control word rounds to
+// nearest, so the results are the same either way.
+
+/// Where a helper's rounding comes from: `Ambient` (the control word, at every step) or
+/// `Nearest` (known to round to nearest). Its register type is what the x87 holds.
+pub(crate) trait Rounds: Copy {
+    type Reg: Copy
+        + PartialOrd
+        + Add<Output = Self::Reg>
+        + Sub<Output = Self::Reg>
+        + Mul<Output = Self::Reg>
+        + Div<Output = Self::Reg>
+        + Neg<Output = Self::Reg>
+        + AddAssign
+        + SubAssign
+        + MulAssign
+        + DivAssign;
+
+    /// A value as the x87 holds it (a constant, `fld1`, `fldz`, ...).
+    fn of(self, value: f64) -> Self::Reg;
+    /// What the register holds.
+    fn value(self, x: Self::Reg) -> f64;
+    /// `fstp dword`, as the float's bits.
+    fn st(self, x: Self::Reg) -> u32;
+    /// `fistp dword`.
+    fn to_int(self, x: Self::Reg) -> i32;
+    /// `fsqrt`.
+    fn sqrt(self, x: Self::Reg) -> Self::Reg;
+
+    /// `fld dword`.
+    #[inline]
+    fn ld(self, value: impl Loadable) -> Self::Reg {
+        self.of(f64::from(value.value()))
+    }
+    /// `fild dword`.
+    #[inline]
+    fn int(self, i: i32) -> Self::Reg {
+        self.of(f64::from(i))
+    }
+    /// `fstp dword`, as a float.
+    #[inline]
+    fn stf(self, x: Self::Reg) -> f32 {
+        f32::from_bits(self.st(x))
+    }
+    /// `fcom`'s condition bits (`compare`).
+    #[inline]
+    fn compare(self, x: Self::Reg, y: Self::Reg) -> u16 {
+        compare(X(self.value(x)), X(self.value(y)))
+    }
+}
+
+/// Rounding as this thread's control word says, asked at every step: `X`.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Ambient;
+
+impl Rounds for Ambient {
+    type Reg = X;
+    #[inline]
+    fn of(self, value: f64) -> X {
+        X(value)
+    }
+    #[inline]
+    fn value(self, x: X) -> f64 {
+        x.0
+    }
+    #[inline]
+    fn st(self, x: X) -> u32 {
+        st(x)
+    }
+    #[inline]
+    fn to_int(self, x: X) -> i32 {
+        to_int(x)
+    }
+    #[inline]
+    fn sqrt(self, x: X) -> X {
+        x.sqrt()
+    }
+}
+
+/// Rounding to nearest, as this thread's control word was seen to say (`Nearest::now`): made
+/// only there, and good for as long as nothing sets the control word.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Nearest(());
+
+impl Nearest {
+    /// `Nearest` when this thread's control word rounds to nearest (bits 10 .. 11 clear, as
+    /// `X`'s operations ask), else `None`.
+    #[inline]
+    pub(crate) fn now() -> Option<Nearest> {
+        rounds_to_nearest().then_some(Nearest(()))
+    }
+}
+
+/// What the x87 holds at rounding to nearest: plain `f64` steps, `X`'s own when the control
+/// word rounds to nearest.
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
+pub(crate) struct Near(f64);
+
+impl Rounds for Nearest {
+    type Reg = Near;
+    #[inline]
+    fn of(self, value: f64) -> Near {
+        Near(value)
+    }
+    #[inline]
+    fn value(self, x: Near) -> f64 {
+        x.0
+    }
+    /// `st` at nearest: the conversion itself.
+    #[inline]
+    fn st(self, x: Near) -> u32 {
+        (x.0 as f32).to_bits()
+    }
+    #[inline]
+    fn to_int(self, x: Near) -> i32 {
+        crate::math::x87::round_to_int_nearest(x.0)
+    }
+    #[inline]
+    fn sqrt(self, x: Near) -> Near {
+        Near(x.0.sqrt())
+    }
+}
+
+impl Add for Near {
+    type Output = Near;
+    #[inline]
+    fn add(self, o: Near) -> Near {
+        Near(self.0 + o.0)
+    }
+}
+impl Sub for Near {
+    type Output = Near;
+    /// `X`'s `a + -b`: the same `f64` difference.
+    #[inline]
+    fn sub(self, o: Near) -> Near {
+        Near(self.0 + -o.0)
+    }
+}
+impl Mul for Near {
+    type Output = Near;
+    #[inline]
+    fn mul(self, o: Near) -> Near {
+        Near(self.0 * o.0)
+    }
+}
+impl Div for Near {
+    type Output = Near;
+    #[inline]
+    fn div(self, o: Near) -> Near {
+        Near(self.0 / o.0)
+    }
+}
+impl Neg for Near {
+    type Output = Near;
+    #[inline]
+    fn neg(self) -> Near {
+        Near(-self.0)
+    }
+}
+impl AddAssign for Near {
+    #[inline]
+    fn add_assign(&mut self, o: Near) {
+        *self = *self + o;
+    }
+}
+impl SubAssign for Near {
+    #[inline]
+    fn sub_assign(&mut self, o: Near) {
+        *self = *self - o;
+    }
+}
+impl MulAssign for Near {
+    #[inline]
+    fn mul_assign(&mut self, o: Near) {
+        *self = *self * o;
+    }
+}
+impl DivAssign for Near {
+    #[inline]
+    fn div_assign(&mut self, o: Near) {
+        *self = *self / o;
+    }
+}
+
+/// `$body` with `$r` this thread's rounding, read once: `Nearest` when the control word
+/// rounds to nearest, else `Ambient`. The body is the helper's whole run, and nothing in it
+/// may set the control word (`set_control_word`, `set_chop`, `finit`).
+macro_rules! at_rounding {
+    (|$r:ident| $body:expr) => {
+        match $crate::math::x87_float::Nearest::now() {
+            Some($r) => $body,
+            None => {
+                let $r = $crate::math::x87_float::Ambient;
+                $body
+            }
+        }
+    };
+}
+pub(crate) use at_rounding;
+
+#[cfg(test)]
+mod rounds_tests {
+    use super::*;
+    use crate::math::x87::{control_word, set_control_word};
+    use crate::test_support::vectors::{CONTROL_WORDS, Rng};
+
+    /// A value as a double: a float's (the edges among them), a whole number, or any bits.
+    fn value(rng: &mut Rng) -> f64 {
+        match rng.below(4) {
+            0 => f64::from(f32::from_bits(rng.fl())),
+            1 => f64::from(f32::from_bits(rng.moderate())),
+            2 => f64::from(rng.small()),
+            _ => f64::from_bits(rng.next()),
+        }
+    }
+
+    /// `Nearest` is had exactly where `X` rounds to nearest, and there its steps, stores and
+    /// whole numbers are `X`'s to the bit; `at_rounding!` runs the other words at `Ambient`.
+    #[test]
+    fn near_steps_are_x_steps_at_nearest() {
+        let _g = crate::test_support::test_lock();
+        let saved = control_word();
+        let mut rng = Rng::new(87);
+        for cw in CONTROL_WORDS.into_iter().chain([0x037F]) {
+            set_control_word(cw);
+            let nearest = rounds_to_nearest();
+            assert_eq!(Nearest::now().is_some(), nearest, "control word {cw:#06X}");
+            let took_nearest =
+                at_rounding!(|r| std::any::type_name_of_val(&r).ends_with("Nearest"));
+            assert_eq!(took_nearest, nearest, "control word {cw:#06X}");
+            let Some(n) = Nearest::now() else { continue };
+            for case in 0..200_000 {
+                let (a, b) = (value(&mut rng), value(&mut rng));
+                let (xa, xb, na, nb) = (X(a), X(b), n.of(a), n.of(b));
+                let pairs = [
+                    ((xa + xb).0, (na + nb).0),
+                    ((xa - xb).0, (na - nb).0),
+                    ((xa * xb).0, (na * nb).0),
+                    ((xa / xb).0, (na / nb).0),
+                    ((-xa).0, (-na).0),
+                    (xa.sqrt().0, n.sqrt(na).0),
+                ];
+                for (k, (x, y)) in pairs.into_iter().enumerate() {
+                    assert_eq!(
+                        x.to_bits(),
+                        y.to_bits(),
+                        "{cw:#06X} case {case} step {k}: {a:e} {b:e}"
+                    );
+                }
+                assert_eq!(st(xa), n.st(na), "{cw:#06X} case {case}: st {a:e}");
+                assert_eq!(
+                    to_int(xa),
+                    n.to_int(na),
+                    "{cw:#06X} case {case}: to_int {a:e}"
+                );
+                assert_eq!(
+                    compare(xa, xb),
+                    n.compare(na, nb),
+                    "{cw:#06X} case {case}: compare"
+                );
+            }
+        }
+        set_control_word(saved);
     }
 }

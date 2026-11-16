@@ -1,15 +1,9 @@
-//! The scene's textures: which are needed at which level, which slot shows which, and
-//! the texture a polygon's word names (converted 2026-10-21 from `scene::no_mips_for`
-//! 0x46512F, `forget_slot_texture` 0x44EB66, `raise_texture_needs` 0x423F97,
-//! `set_texture_levels` 0x422426, `count_texture_needs` 0x423EB1, `map_texture_places`
-//! 0x42570D, `look_up_texture` 0x44E668, `assign_kind_textures` 0x4256D8,
-//! `assign_menu_textures` 0x490DF3, `texture_picture_folder` 0x425A59,
-//! `try_allocate_textures` 0x4224C4, `load_slot_textures` 0x425778 and `load_slot_texture`
-//! 0x425ADE).
+//! The scene's textures: which are needed at which level, which slot shows which, and the
+//! texture a polygon's word names.
 //!
-//! A level is an index into the table of what a texture of each level takes in k; -1 is
-//! "not needed". The tables are 0x400 entries, one a texture (or a slot); a texture's
-//! place is one of 0xFA0.
+//! A level is an index into the table of what a texture of each level takes; -1 is "not
+//! needed". The tables are 0x400 entries, one a texture (or a slot); a texture's place is
+//! one of 0xFA0.
 
 use crate::Invalid;
 
@@ -21,17 +15,16 @@ pub const PLACES: u32 = 0xFA0;
 pub const LEVELS: u32 = 13;
 /// "Not needed", "not loaded", "no place".
 pub const NONE: u32 = u32::MAX;
-/// `g_polygonTexture` for a word that names no loaded texture.
+/// The polygon texture for a word that names no loaded texture.
 pub const NO_TEXTURE: u32 = 0xFFFF_FC43;
 
-/// `no_mips_for`: whether a texture of this size gets no mip levels (0x80 .. 0xFF, and
-/// 0x140 on, unsigned).
+/// Whether a texture of this size gets no mip levels (0x80 ..= 0xFF, and 0x140 on, unsigned).
 pub fn no_mips_for(size: u32) -> bool {
     (0x80..0x100).contains(&size) || size >= 0x140
 }
 
-/// `forget_slot_texture`: the slot's loaded texture forgotten, so that it is loaded again.
-/// Refuses a slot past the table.
+/// The slot's loaded texture forgotten, so that it is loaded again. Refuses a slot past
+/// the table.
 pub fn forget_slot_texture(loaded: &mut [u32], slot: u32) -> Result<(), Invalid> {
     let entry = loaded
         .get_mut(slot as usize)
@@ -40,8 +33,8 @@ pub fn forget_slot_texture(loaded: &mut [u32], slot: u32) -> Result<(), Invalid>
     Ok(())
 }
 
-/// The three tables of what the textures need: each one's tag (which set of kinds it
-/// belongs to) and its level in system and in video memory.
+/// The three tables of what the textures need: each one's tag (which set of kinds it belongs
+/// to) and its level in system and in video memory.
 pub struct Needs<'a> {
     pub tags: &'a [u32],
     pub system: &'a mut [u32],
@@ -49,8 +42,8 @@ pub struct Needs<'a> {
 }
 
 impl Needs<'_> {
-    /// `raise_texture_needs`: every texture of the tag needed at `level` at least (above
-    /// its level, unsigned, so "not needed" is never raised); whether any entry changed.
+    /// Every texture of the tag needed at `level` at least (above its level, unsigned, so "not
+    /// needed" is never raised); whether any entry changed.
     pub fn raise(&mut self, level: u32, tag: u32) -> bool {
         let mut changed = false;
         for (n, &t) in self.tags.iter().enumerate() {
@@ -68,7 +61,7 @@ impl Needs<'_> {
     }
 }
 
-/// `set_texture_levels`' tables: the levels in both memories and the tags, all written.
+/// The levels in both memories and the tags, all written.
 pub struct LevelTables<'a> {
     pub tags: &'a mut [u32],
     pub system: &'a mut [u32],
@@ -76,9 +69,8 @@ pub struct LevelTables<'a> {
 }
 
 impl LevelTables<'_> {
-    /// `set_texture_levels`: `count` slots from `first` get `level` in both tables and the
-    /// tag. Refuses no slots (the original counts round) or slots past the tables, before
-    /// writing.
+    /// `count` slots from `first` get `level` in both tables and the tag. Refuses no slots or
+    /// slots past the tables, before writing.
     pub fn set_run(&mut self, first: u32, count: u32, level: u32, tag: u32) -> Result<(), Invalid> {
         if count == 0 || first >= SLOTS || count > SLOTS - first {
             return Err(Invalid("no texture slots, or past 0x400"));
@@ -91,7 +83,7 @@ impl LevelTables<'_> {
     }
 }
 
-/// `count_texture_needs`' totals: k and textures in each memory.
+/// The totals: k and textures in each memory.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct NeedTotals {
     pub video_k: u32,
@@ -101,7 +93,7 @@ pub struct NeedTotals {
 }
 
 impl NeedTotals {
-    /// In the order of the game's four variables (from `dword_5DC968`).
+    /// In the order video k, system k, video textures, system textures.
     pub fn to_array(self) -> [u32; 4] {
         [
             self.video_k,
@@ -112,10 +104,9 @@ impl NeedTotals {
     }
 }
 
-/// `count_texture_needs`: the needed textures counted and their levels' sizes (`size_of`,
-/// asked per needed level) added, system and video memory taken texture by texture; and
-/// the last number looked at (a level or a size: eax). Refuses a level past the sizes'
-/// table.
+/// The needed textures counted and their levels' sizes (`size_of`, asked per needed level)
+/// added, system and video memory taken texture by texture; and the last number looked at.
+/// Refuses a level past the sizes' table.
 pub fn count_needs(
     system: &[u32],
     video: &[u32],
@@ -145,10 +136,9 @@ pub fn count_needs(
     Ok((t, last))
 }
 
-/// `map_texture_places`: each place's slot (`places`, all -1 first): for the slots from
-/// the last down, the texture it wants, if a texture, has a place, and that place, if
-/// one, gets the slot (so of two slots the lower stays). Gives the last number looked at
-/// (eax).
+/// Each place's slot (`places`, all -1 first): for the slots from the last down, the
+/// texture it wants, if a texture, has a place, and that place, if one, gets the slot (so of
+/// two slots the lower stays). Gives the last number looked at.
 pub fn map_places(wanted: &[u32], texture_place: &[u32], places: &mut [u32]) -> u32 {
     places.fill(NONE);
     let mut last = NONE;
@@ -165,25 +155,25 @@ pub fn map_places(wanted: &[u32], texture_place: &[u32], places: &mut [u32]) -> 
     last
 }
 
-/// What `look_up_texture` gives: `g_polygonTexture` and eax.
+/// What `look_up` gives: the polygon's texture and the number looked at.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct LookUp {
     pub texture: u32,
-    pub eax: u32,
+    pub last_number: u32,
 }
 
-/// `look_up_texture`: the slot a texture word names: -1 none; with the top bit a place
-/// (`place_slot`, below 0xFA0); else a kind's first slot (`first_slot`, below 0x400); a
-/// slot not below the slots loaded (`slot_count`, read only then) none.
+/// The slot a texture word names: -1 none; with the top bit a place (`place_slot`, below
+/// 0xFA0); else a kind's first slot (`first_slot`, below 0x400); a slot not below the slots
+/// loaded (`slot_count`, read only then) none.
 pub fn look_up(
     word: u32,
     place_slot: impl FnOnce(usize) -> u32,
     first_slot: impl FnOnce(usize) -> u32,
     slot_count: impl FnOnce() -> u32,
 ) -> LookUp {
-    let none = |eax| LookUp {
+    let none = |last_number| LookUp {
         texture: NO_TEXTURE,
-        eax,
+        last_number,
     };
     if word == NONE {
         return none(word);
@@ -206,13 +196,13 @@ pub fn look_up(
     }
     LookUp {
         texture: slot,
-        eax: slot,
+        last_number: slot,
     }
 }
 
-/// `assign_kind_textures`: each slot wants the texture of the kind it is the first slot
-/// of (`wanted` all -1 first; the kinds from the last down, so of two kinds with one slot
-/// the lower one's stays). Refuses a first slot past the table, before writing.
+/// Each slot wants the texture of the kind it is the first slot of (`wanted` all -1 first;
+/// the kinds from the last down, so of two kinds with one slot the lower one's stays).
+/// Refuses a first slot past the table, before writing.
 pub fn assign_kind_textures(
     first_slots: &[u32],
     first_textures: &[u32],
@@ -233,9 +223,9 @@ pub fn assign_kind_textures(
     Ok(())
 }
 
-/// `assign_menu_textures`' wants (slot, texture): the menu kind's eight slots from its
-/// first slot, each of its own numbers that is not -1 plus the kind's first texture.
-/// Refuses a slot past the table.
+/// The menu textures' wants (slot, texture): the menu kind's eight slots from its first slot,
+/// each of its own numbers that is not -1 plus the kind's first texture. Refuses a slot
+/// past the table.
 pub fn menu_textures(
     own: [u32; 8],
     first_slot: u32,
@@ -259,19 +249,19 @@ pub fn menu_textures(
 /// The folders textures' pictures are read from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PictureFolder {
-    /// `files\a\`: below 900, and 902 .. 999.
+    /// `files\a\`: below 900, and 902 ..= 999.
     A,
     /// `files\m\`: 900 and 901.
     M,
-    /// `files\b\`: 1000 .. 1999.
+    /// `files\b\`: 1000 ..= 1999.
     B,
-    /// `files\g\frnt\`: 2000 .. 2999.
+    /// `files\g\frnt\`: 2000 ..= 2999.
     Front,
     /// `files\s\extr\`: 3000 on.
     Extra,
 }
 
-/// `texture_picture_folder`: a texture's picture's folder by its number.
+/// A texture's picture's folder by its number.
 pub fn picture_folder(number: u32) -> PictureFolder {
     match number {
         0..900 | 902..1000 => PictureFolder::A,
@@ -282,8 +272,7 @@ pub fn picture_folder(number: u32) -> PictureFolder {
     }
 }
 
-/// `load_slot_textures`: the slots in use (`dword_5DC970`); refuses none (the original
-/// goes through 2^32) and more than the table has.
+/// The slots in use; refuses none and more than the table has.
 pub fn slots_in_use(count: u32) -> Result<u32, Invalid> {
     if count == 0 || count > SLOTS {
         return Err(Invalid("no texture slots, or more than the table has"));
@@ -291,8 +280,8 @@ pub fn slots_in_use(count: u32) -> Result<u32, Invalid> {
     Ok(count)
 }
 
-/// `load_slot_texture`: the texture a slot is to load: the one it wants, unless it wants
-/// none or holds it already. Refuses a slot past the table.
+/// The texture a slot is to load: the one it wants, unless it wants none or holds it
+/// already. Refuses a slot past the table.
 pub fn slot_load(
     slot: u32,
     wanted: impl FnOnce() -> u32,
@@ -305,7 +294,7 @@ pub fn slot_load(
     Ok((w != NONE && w != loaded()).then_some(w))
 }
 
-/// What `try_allocate_textures` asks of `gfx::allocate_textures` for one texture.
+/// What `try_allocate` asks of the texture allocation for one texture.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Ask {
     pub texture: u32,
@@ -315,8 +304,8 @@ pub struct Ask {
     pub mips: u32,
 }
 
-/// What `try_allocate_textures` calls: the log (a text, with a line's end or not; a
-/// number) and the allocation.
+/// What `try_allocate` calls: the log (a text, with a line's end or not; a number) and the
+/// allocation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Call {
     Text(&'static std::ffi::CStr, bool),
@@ -336,32 +325,32 @@ pub fn pixel_kind(texture: u32) -> u32 {
     if three { 3 } else { 2 }
 }
 
-/// The game's tables `try_allocate_textures` reads and writes.
+/// The tables `try_allocate` reads and writes.
 pub trait TextureMemory {
-    /// The level a texture is needed at in video memory (`video`) or system memory;
-    /// `NONE` for not needed.
+    /// The level a texture is needed at in video memory (`video`) or system memory; `NONE` for
+    /// not needed.
     fn level(&self, video: bool, texture: u32) -> u32;
-    /// What a texture of a level takes (`dword_5CDAAC`).
+    /// What a texture of a level takes.
     fn size(&self, level: u32) -> u32;
-    /// The mip levels' setting (`dword_623898`) and a level's entry (`dword_5CDABC`).
+    /// The mip levels' setting, and a level's entry (`level_mips`).
     fn mips(&self) -> u32;
     fn level_mips(&self, level: u32) -> u32;
-    /// Each kind's first slot and first texture -1.
+    /// Each kind's first slot and first texture set to -1.
     fn forget_kinds(&mut self);
-    /// The memory asked for (`dword_5D0AE0` video, `dword_5D0AE4` system).
+    /// The memory asked for: video, then system.
     fn set_asked(&mut self, asked: [u32; 2]);
-    /// A video texture's first slot (`g_kindFirstSlots`).
+    /// A video texture's first slot.
     fn set_first_slot(&mut self, texture: u32, slot: u32);
-    /// A system texture's first texture (`g_kindFirstTextures`) and the texture at that
-    /// number (`dword_5D2AE8`), in that order of the original's: the second first.
-    fn set_first_texture(&mut self, texture: u32, first: u32);
+    /// A system texture's first texture and the texture at that number, the second first (the
+    /// order matters).
+    fn set_first_texture(&mut self, texture: u32, first: u32) -> Result<(), Invalid>;
 }
 
-/// `try_allocate_textures`: the memory asked for summed for the log (refusing a level
-/// past the sizes' table before anything is written); each kind's first slot and texture
-/// forgotten; then each texture needed in video memory (its level held to 0 .. 7 and
-/// added to both sums again, no mip levels for `no_mips_for` sizes but 0x100 .. 0x13F) and
-/// in system memory asked for; the first refusal ends it with "NO -". Whether all was had.
+/// The memory asked for summed for the log (refusing a level past the sizes' table before
+/// anything is written); each kind's first slot and texture forgotten; then each texture
+/// needed in video memory (its level held to 0 ..= 7 and added to both sums again, no mip
+/// levels for `no_mips_for` sizes but 0x100 ..= 0x13F) and in system memory asked for; the
+/// first refusal ends it with "NO -". Whether all was had.
 pub fn try_allocate(
     m: &mut impl TextureMemory,
     call: &mut impl FnMut(Call) -> Option<u32>,
@@ -415,7 +404,7 @@ pub fn try_allocate(
             if video {
                 m.set_first_slot(texture, given);
             } else {
-                m.set_first_texture(texture, given);
+                m.set_first_texture(texture, given)?;
             }
         }
     }
@@ -545,24 +534,30 @@ mod tests {
             l(NONE),
             LookUp {
                 texture: NO_TEXTURE,
-                eax: NONE
+                last_number: NONE
             }
         );
-        assert_eq!(l(0x8000_0003), LookUp { texture: 4, eax: 4 });
-        assert_eq!(l(0x8000_0FA0).eax, 0xFA0);
+        assert_eq!(
+            l(0x8000_0003),
+            LookUp {
+                texture: 4,
+                last_number: 4
+            }
+        );
+        assert_eq!(l(0x8000_0FA0).last_number, 0xFA0);
         assert_eq!(l(0x400).texture, NO_TEXTURE);
         assert_eq!(
             l(7),
             LookUp {
                 texture: 14,
-                eax: 14
+                last_number: 14
             }
         );
         assert_eq!(
             l(8),
             LookUp {
                 texture: NO_TEXTURE,
-                eax: 16
+                last_number: 16
             }
         );
         assert_eq!(look_up(1, |_| 0, |_| 0, || 0).texture, NO_TEXTURE);
@@ -594,8 +589,9 @@ mod tests {
         fn set_first_slot(&mut self, texture: u32, slot: u32) {
             self.slots.push((texture, slot));
         }
-        fn set_first_texture(&mut self, texture: u32, first: u32) {
+        fn set_first_texture(&mut self, texture: u32, first: u32) -> Result<(), Invalid> {
             self.slots.push((texture | 0x8000, first));
+            Ok(())
         }
     }
 

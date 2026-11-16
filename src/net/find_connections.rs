@@ -1,33 +1,34 @@
-//! `net::find_connections` (0x41867C): "NET: Find connections"; unless the receiving thread
-//! has ended (`g_netReceiveDone` 1): the lobby object made (`net::open_lobby`); then (the
-//! original's lobby-launched branch is left out: `net::open_lobby`) DirectPlay's object made
-//! (`net::create_dplay`), the lists' memory taken (`net::allocate_lists`), and the
-//! connections listed (`EnumConnections` for the game's GUID `dword_5AB300` with
-//! `net::connection_found`, flags DPCONNECTION_DIRECTPLAY).
-//!
-//! Returns true when connections were listed; false when the receiving thread ended, something
-//! failed or nothing was listed. The original's callers read only the carry (`lq -s 0x4174BD`).
-//! Caller: `net::find_connections_regs`.
+//! Lists the DirectPlay connections ("NET: Find connections"): unless the receiving thread has
+//! ended, makes the lobby object and DirectPlay's object and the lists' memory, then enumerates
+//! the connections for the game's GUID. Returns true when some were listed. Games launched from a
+//! lobby are not supported.
 
 use crate::errors::Refused;
-use crate::net::lobby::log;
-use crate::net::store::NetVars;
+use crate::net::lobby::log_bytes;
+use crate::net::owner::Net;
 use crate::net::{allocate_lists, create_dplay, open_lobby};
-use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
-
-/// The Rust version.
-pub fn find_connections(vars: &NetVars) -> Result<bool, Refused> {
-    log(VIEWER_PANEL.text_ptr(texts::NET_FIND_CONNECTIONS), true, 2);
-    if vars.receive_done.get() == 1 || !open_lobby::open_lobby(vars)? {
+use crate::race::viewer_screen_store::{NetTexts, texts};
+pub fn find_connections(
+    net: &Net,
+    strings: &crate::strings::owner::Strings,
+    lines: &NetTexts,
+) -> Result<bool, Refused> {
+    let link = &net.link;
+    log_bytes(&lines.text(texts::NET_FIND_CONNECTIONS), true, 2);
+    if net.vars.receive_done.get() == 1 || !open_lobby::open_lobby(link, lines)? {
         return Ok(false);
     }
-    if !create_dplay::create_dplay(vars) {
+    if !create_dplay::create_dplay(link, lines) {
         return Ok(false);
     }
-    allocate_lists::allocate_lists(vars)?;
-    vars.connections.set(0);
-    let result =
-        { crate::net::dp_objects::enum_connections(crate::net::connection_found::callback, 0) };
-    // `cmp dword_52AC34, 1`: the carry when none was listed.
-    Ok(result == 0 && vars.connections.get() >= 1)
+    allocate_lists::allocate_lists(link)?;
+    link.connections().set(0);
+    let result = crate::net::dp_objects::enum_connections(
+        &|guid, data, short, _flags, _context| {
+            crate::net::connection_found::callback(link, strings, lines, guid, data, short)
+        },
+        0,
+    );
+    // False when none was listed.
+    Ok(result == 0 && link.connections().get() >= 1)
 }

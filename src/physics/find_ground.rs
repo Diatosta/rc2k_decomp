@@ -1,21 +1,34 @@
-//! `physics::find_ground` (0x441E29): `call physics::ground_search; retn`.
+//! Searches for the ground under a point (`physics::ground_search`; see `physics/ground.rs`).
 //!
-//! In:  the point (`dword_639824`, `dword_63982C`), the face mask `dword_620470`, the
-//!      last face `dword_5CCC78`
+//! Takes: the point (`ground_x`, `ground_z`), the face mask `settle_mark` and the last face
+//! `ground_face_last`.
 //!
-//! See `physics/ground.rs`. Callers (7): `physics::probe_ground` (the car's ground points),
-//! `physics::move_slot`, `drive::animate_lit_faces`, `race::shadow_points`,
-//! `physics::car_lighting`, `drive::simple_car_step`, `physics::count_ground_probe`. Refuses what
-//! `ground_search` refuses.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
+//! Callers: `physics::probe_ground` (the car's ground points), `physics::move_slot`,
+//! `drive::animate_lit_faces`, `race::shadow_points`, `physics::car_lighting`,
+//! `drive::simple_car_step`, `physics::count_ground_probe`. Refuses what `ground_search`
+//! refuses.
 
 use crate::errors::Refused;
+use crate::physics::ground_probe_store::GroundProbe;
 use crate::physics::ground_search::ground_search;
-use crate::race::owner::Race;
+use crate::physics::ground_store::GroundWork;
+use crate::race::owner_course::Course;
 
-/// The Rust version: the carry (the registers are kept).
-pub fn find_ground(race: &Race, scene: &crate::scene::owner::Scene) -> Result<bool, Refused> {
-    ground_search(race, scene)
+/// Whether the face under the point was found.
+pub fn find_ground(
+    ground_probe: &GroundProbe,
+    ground: &GroundWork,
+    course: &Course,
+    scene: &crate::scene::owner::Scene,
+) -> Result<bool, Refused> {
+    ground_search(ground_probe, ground, course, scene)
+}
+
+/// The same on the fields of `q` (a drawing's own: `race::car_shadow`).
+pub fn find_ground_with(
+    course: crate::race::owner_course::CourseReads<'_>,
+    q: &crate::physics::ground_query::GroundQuery<'_>,
+    switches: &crate::scene::draw_switches_store::DrawSwitches,
+) -> Result<bool, Refused> {
+    crate::physics::ground::ground_search_at(course, q, switches)
 }

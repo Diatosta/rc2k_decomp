@@ -1,109 +1,73 @@
-//! `menu::championship_new_simulation_loop` (0x4764DC): the start screen of the normal
-//! championship, by its title "NOVA SIMULAÇÃO" and its place in the mode menu (a reading)
-//!
-//! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
-//! as extracted from the disassembly: background `sral.png`; leaving is not asked about; the
-//! next frame begins with the steps after the first frame; the steps that are more than a call
-//! or a store are the functions below, generated from the listing.
-//! The name is a reading from the title string of its menu, "NOVA SIMULAÇÃO", not yet a visit.
-//! Callers: none in code: it is reached through a table. The menus and draw lists run its `entry`
-//! (`menu::table_calls`).
+//! The start screen of the normal championship, by its title "NOVA SIMULAÇÃO" and its place in the
+//! mode menu. Screen-specific part of `menu::screen_loop`: background `sral.png`; leaving is not
+//! asked about; the next frame begins with the steps after the first frame.
 
 use crate::errors::Refused;
+use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::owner::Tables;
+use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
-    Callee, Entry, Flow, FrameRoutine, List, Screen, Step, carousel, prepare_scene, screen_entry,
+    Callee, Flow, Frames, List, Screen, ScreenFlag, SetUp, Step, screen_entry,
 };
 
-// ---- Rust version: `menu::screen_loop` with this ----
-
-fn set_up_first(entry: &Entry) -> Result<(), Refused> {
-    let drawing = &entry.scene.drawing;
-    let menus = entry.menus;
-    menus.tables.captions.screen_left.set(0x0u32);
+fn set_up_first(set_up: &SetUp) -> Result<(), Refused> {
+    let menus = set_up.menus;
+    menus.tables.captions.left_by_key.set(false);
     menus.screens.flow.turning.set(0x1u32);
-    menus.screens.state.carousel.menu.set(0x2u32);
-    carousel(None, entry.scene)?;
+    menus.screens.carousel.menu.set(0x2u32);
+    set_up.carousel_with(None)?;
     let item = menus.screens.items.current[slot::CHAMPIONSHIP_NEW_SIMULATION].get();
     menus.screens.loop_flags.item.set(item);
-    menus.screens.state.carousel.front.set(item.wrapping_sub(1));
-    drawing.scene.view_offset[0].set(0x7u32);
-    drawing.scene.view_offset[1].set(0xAu32);
-    drawing.scene.view_zoom.set(0x100u32);
-    prepare_scene(entry.scene);
+    menus.screens.carousel.front.set(item.wrapping_sub(1));
+    set_up.set_view(7, 10, 0x100);
+    set_up.prepare_scene();
     Ok(())
 }
 
-fn after_first_frame(entry: &Entry) -> Result<Flow, Refused> {
-    let tables = &entry.menus.tables;
-    if tables.captions.screen_left.get() == 0x1 {
-        tables.captions.screen_left.set(0x0u32);
+fn after_first_frame(tables: &Tables) -> Result<Flow, Refused> {
+    if tables.captions.left_by_key.is_set() {
+        tables.captions.left_by_key.set(false);
         return Ok(Flow::SetUp);
     }
     Ok(Flow::On)
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: |m| m.tables.menus.championship_new_simulation.id(),
-    saved_item: |m| &m.screens.items.current[slot::CHAMPIONSHIP_NEW_SIMULATION],
     lists: &[
         List {
-            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
-            table: |m| m.tables.draw_lists.championship_new_simulation_scene.id(),
+            pointer: |m| &m.screens.flow.scene_list,
+            table: |_| DRAW_LISTS.championship_new_simulation_scene.id(),
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.draw_list, // g_drawList
-            table: |m| m.tables.draw_lists.championship_new_simulation_draw.id(),
+            pointer: |m| &m.screens.flow.draw_list,
+            table: |_| DRAW_LISTS.championship_new_simulation_draw.id(),
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
-            table: |m| m.tables.draw_lists.championship_new_simulation_overlay.id(),
+            pointer: |m| &m.screens.flow.overlay_list,
+            table: |_| DRAW_LISTS.championship_new_simulation_overlay.id(),
             run: false,
         },
     ],
-    first_frame_lists: None,
-    frame_callback: FrameRoutine::Menu,
-    later_frame_callback: None,
-    before: &[Step::Write(|m| &m.screens.event.event_done, 0x0)],
-    set_up_first: &[Step::Do(set_up_first)],
-    prepare: &[],
-    after_lists: &[],
+    before: &[Step::WriteFlag(ScreenFlag::EventOver, false)],
+    set_up_first: &[Step::DoSetUp(set_up_first)],
     background: &[Step::Call(Callee::LoadBackground(|m| {
-        &m.tables.texts.championship_new_simulation_picture
+        &m.texts.championship_new_simulation_picture
     }))],
-    after_first_frame: &[Step::DoFlow(after_first_frame)],
-    confirm: None,
-    ask_also_if: None,
-    confirmed: &[],
-    unasked_skips_save: false,
-    after: &[],
-    escape_leaves: false,
-    each_frame: &[],
-    short_action_check: false,
-    leave_at_once: None,
-    next_frame_repeats_first: true,
-    action_saved_item: None,
-    action_menu: None,
-    no_quit_check: false,
-    before_asking: &[],
-    ask_unless: None,
-    leaving: &[],
-    leave_saved_item: None,
-    keys_menu: None,
-    after_restored: &[],
-    result: None,
-    late_highlight: false,
-    before_first_frame: &[],
-    before_frame: &[],
-    after_blink: &[],
-    restart_action_check: false,
-    always_asks: false,
+    after_first_frame: &[Step::DoTablesFlow(after_first_frame)],
+    frames: Frames {
+        next_frame_repeats_first: true,
+        ..Frames::DEFAULT
+    },
+    ..Screen::new(
+        module_path!(),
+        |m| m.tables.menus.championship_new_simulation.id(),
+        slot::CHAMPIONSHIP_NEW_SIMULATION,
+    )
 };
 
-/// The Rust version where the typed tables run it (a refusal is the
-/// caller's).
-pub fn run() -> Result<(), crate::errors::Refused> {
-    screen_entry("menu::championship_new_simulation_loop", &SCREEN)
+pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
+    screen_entry(o, ScreenId::ChampionshipNewSimulation)
 }

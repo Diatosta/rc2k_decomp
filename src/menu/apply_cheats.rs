@@ -1,28 +1,24 @@
-//! `menu::apply_cheats` (0x480AC1): acts on the cheats that are switched on.
-//!
-//! The cheats are the bits of `g_cheats` (0x75870C); each that is set writes "Cheat n
-//! (...)" to the game's log (`CHEATS` below, in this order):
+//! `menu::apply_cheats`: acts on the cheats that are switched on. Each set bit of the cheats
+//! writes "Cheat n (...)" to the game's log (`CHEATS` below):
 //! - bits 0, 1, 13 .. 16 stay set and do nothing more here (unlock arcade, unlock cars, no
-//!   damage, damage timer, 16, arcade timer): other code looks at them;
-//! - bits 2 .. 9, 11 and 12 are cleared and each adds one secret car to the list of cars
-//!   at `off_75A042`, unless it is there already (the ten functions 0x470FE9 ..
-//!   0x471332, plain functions here). Bit 6, "Max Power", also adds its car to the
-//!   list at `off_759D16`, but only when it was not in the first. The other nine have
-//!   the same code for the second list, which is never reached;
-//! - bit 10 is cleared and does nothing;
-//! - bits 17 and 18 stay set and store 1 in `dword_75ACCC` (the A8 game; the reversed
-//!   tracks).
+//!   damage, damage timer, 16, arcade timer: other code looks at them);
+//! - bits 2 .. 9, 11 and 12 are cleared and each adds one secret car to the second car list,
+//!   unless it is there already; bit 6, "Max Power", also adds its car to the A8 championship
+//!   car list, but only when it was not in the first;
+//! - bit 10 is cleared and does nothing; bits 17 and 18 (the A8 game, the reversed tracks)
+//!   stay set and store 1 in the leader-found flag.
 //!
-//! Callers: `system::load_game_data` with the bits 0x1FBC (when the setting `allsecretcars` is 1)
-//! and `menu::check_cheat_name`, which finds a cheat's name typed as the fourth player's name.
-//! Refuses a list without its end, or without room for a car more.
+//! Callers: `system::load_game_data` with the bits 0x1FBC (when the setting
+//! `allsecretcars` is 1) and `menu::check_cheat_name` (a cheat's name typed as the fourth
+//! player's name).
+//! Refuses a list without its end, or without room for one more car.
 
 use crate::errors::BadInput;
 use crate::menu::owner::Menus;
-use crate::menu::remove_secret_cars::{FIRST, List, SECOND, read_list, write_list};
+use crate::menu::remove_secret_cars::{
+    List, first as first_list, read_list, second as second_list, write_list,
+};
 use rc2k_core::menu::car_lists;
-
-// ---- game data ----
 
 /// By bit (what each does: `rc2k_core::menu::car_lists::CHEATS`): the log line's text and
 /// the cheat's car (an index into `CarTable.descriptions`), if any.
@@ -48,8 +44,6 @@ const CHEATS: [(&std::ffi::CStr, Option<usize>); 19] = [
     (c"Cheat 19 (Reverse Sim Tracks)", None),
 ];
 
-// ---- Rust version ----
-
 /// `log` gets each line's text.
 pub fn apply_cheats(
     menus: &Menus,
@@ -57,27 +51,29 @@ pub fn apply_cheats(
     race: &crate::race::owner::Race,
 ) -> Result<(), BadInput> {
     let play = &menus.play;
-    // Converted: `rc2k_core::menu::car_lists::apply_cheats`.
     {
         let cheats: u32 = play.cheats.cheats.get();
-        let list = |l: List| -> Result<car_lists::List, BadInput> {
+        let list = |l: List<'_>| -> Result<car_lists::List, BadInput> {
             Ok(car_lists::List {
                 cars: read_list(l)?,
                 room: l.1,
                 changed: false,
             })
         };
-        let (mut first, mut second) = (list(FIRST)?, list(SECOND)?);
+        let (mut first, mut second) = (
+            list(first_list(&menus.cars.lists))?,
+            list(second_list(&menus.cars.lists))?,
+        );
         let a = car_lists::apply_cheats(cheats, &mut first, &mut second, |bit| {
             CHEATS[bit].1.map_or(0, crate::menu::cars_store::car_handle)
         })?;
         // Nothing has been written or logged up to here.
         play.cheats.cheats.set(a.cheats);
         if first.changed {
-            write_list(FIRST, &first.cars);
+            write_list(first_list(&menus.cars.lists), &first.cars);
         }
         if second.changed {
-            write_list(SECOND, &second.cars);
+            write_list(second_list(&menus.cars.lists), &second.cars);
         }
         if a.stores {
             race.shared.state.settings.a8_game.set(1u32);
@@ -88,5 +84,3 @@ pub fn apply_cheats(
         Ok(())
     }
 }
-
-// logfile::log_write_l1_nl

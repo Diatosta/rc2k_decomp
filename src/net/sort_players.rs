@@ -1,16 +1,11 @@
-//! `net::sort_players` (0x418108): the eight players' blocks of `g_netReceived` copied to
-//! `unk_56AFFC` and bubble-sorted there for the lobby's table: by the total (+0x30), then
-//! the race's time (+0x2C), then the DirectPlay id (+0x20), unsigned, the smaller first; a
-//! player whose time is -1 (no time) goes after one who has a time.
-//!
-//! `g_netPlayers` - 1 passes (signed: none for one player or none). More than eight players
-//! would sort past the copy: refused (DirectPlay's listing keeps eight at most). Caller:
-//! `net::lobby_frame`.
+//! Copies and sorts the eight players' blocks for the lobby's table by total, then race time,
+//! then DirectPlay id (smaller first; a player with no time goes after one with a time). More
+//! than eight players are refused.
 
 use crate::errors::{BadInput, Refused};
-use crate::net::store::NetVars;
+use crate::memory::cells::Store;
+use crate::net::owner::Net;
 use crate::net::store::PlayerBlock;
-use crate::pointers::Store;
 use rc2k_core::net::players::{self, Standing};
 
 const BLOCK: u32 = std::mem::size_of::<PlayerBlock>() as u32;
@@ -54,18 +49,19 @@ pub fn bubble_blocks(
     refused.take().map_or(Ok(()), Err)
 }
 
-/// The Rust version (the original keeps every register).
-pub fn sort_players(vars: &NetVars) -> Result<(), Refused> {
-    let players = vars.players.get();
+/// The players' blocks sorted for the lobby's table (the first `players` of them).
+pub fn sort_players(net: &Net) -> Result<[PlayerBlock; 8], Refused> {
+    let vars = &net.vars;
+    let players = net.race_slot.players();
     if players > players::MOST {
         return Err(BadInput("more than eight players").into());
     }
     let mut all = vec![0u8; ALL as usize];
     Store::load(&vars.received, 0, &mut all)?;
-    Store::store(&vars.sorted, 0, &all)?;
-    // Converted: `rc2k_core::net::players` (`bubble`, `goes_after`).
+    let sorted = [const { PlayerBlock::zero() }; 8];
+    Store::store(&sorted, 0, &all)?;
+    // The logic is in `rc2k_core::net::players` (`bubble`, `goes_after`).
     // `k + 1` is at most 7: `players` is at most eight.
-    let sorted = &vars.sorted;
     bubble_blocks(
         players,
         |k| {
@@ -76,5 +72,30 @@ pub fn sort_players(vars: &NetVars) -> Result<(), Refused> {
         },
         |k| swap_blocks(&sorted[k as usize], &sorted[k as usize + 1]),
     )?;
-    Ok(())
+    Ok(sorted)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The sorted copy holds the blocks in the table's order and the received blocks stay as
+    /// they were.
+    #[test]
+    fn sorts_a_copy_and_leaves_the_received_blocks() {
+        let _lock = crate::test_support::test_lock();
+        let net = Box::new(Net::new());
+        let vars = &net.vars;
+        net.race_slot.set_players(3);
+        for (n, (total, id)) in [(30u32, 7u32), (10, 9), (20, 8)].into_iter().enumerate() {
+            vars.received[n].record.total.set(total);
+            vars.received[n].record.race_time.set(5);
+            vars.received[n].id.set(id);
+        }
+        let sorted = sort_players(&net).unwrap();
+        let ids: Vec<u32> = sorted.iter().take(3).map(|b| b.id.get()).collect();
+        assert_eq!(ids, [9, 8, 7]);
+        let received: Vec<u32> = vars.received.iter().take(3).map(|b| b.id.get()).collect();
+        assert_eq!(received, [7, 9, 8]);
+    }
 }

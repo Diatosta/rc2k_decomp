@@ -214,7 +214,7 @@ block's +0xB0.
   the effects are clearly quieter than in the other modes, with a harsh edge.
 - **Seen**: yes, by the owner without the DLL (2026-10-13: no music); the level difference
   heard in the converted game (2026-10-26) and read from the code.
-- **Fix**: the standalone's sound output (`platform_sound`) plays the primary buffer and
+- **Fix**: the standalone's sound output (`platform::sound`) plays the primary buffer and
   the secondary buffers together, so the music is heard in the Dolby mode; the secondary
   buffers play at a quarter (`SECONDARY_GAIN`, -12 dB), the level of the game's own mixer,
   so every mode sounds alike and the music keeps the same balance with the effects. The
@@ -435,3 +435,248 @@ has the same fixed addresses, but its network mode could not be run here to see 
 **Seen or read:** read in `scene::set_up_carousel`, `scene::draw_carousel_entry` / `draw_highlighted_object`, `screens::stage_panel` and the drivers' table (`g_driverNames` 0x741E88); not seen.
 
 **Fix:** an index past its table is refused (the program stops, naming the table) instead of reading the memory after it.
+
+## The installer's folder walk reads past the path
+
+**What it is:** the installer makes each folder it copies into from a path with no closing `\`. Its walk looks for the next `\` after each folder name, and for the last name it runs past the path's end into the buffers stored after it in memory. Its first cut there leaves the path whole, so the last folder is still made; every `\` it meets after that only goes into the same folder again, until one is followed by a NUL.
+
+**In game:** none seen with the original: the bytes after the path happened to hold a `\` soon enough. In the conversion, where the path has a buffer of its own, the walk reached that buffer's end and the Windows installer stopped while copying.
+
+**Seen or read:** read in `install::make_folders` (0x413A97) and seen in the standalone's trace (2026-10-20); the stop seen under Wine (2026-11-07).
+
+**Fix:** the walk treats the path's end as its closing `\`: the last folder is gone into or made there, and the walk ends without reading past the path.
+
+## A championship's settings stay after it
+
+**What it is:** a championship, started or loaded, works on the players' own records: the car chosen, the gearing, the controller and its set-up, the names. Loading a saved championship puts the saved records over the players' whole, and nothing puts the players' own back when the championship is over or left.
+
+**In game:** after playing a championship, a single rally or the arcade starts with the championship's car, gearing and controls; leaving the front end then writes them into `var\ral.dat`, so they stay for good. Settings changed on the player pages before loading a championship are lost the same way.
+
+**Seen or read:** seen in the original (2026-10-24, settings changed in one run were back in the next after loading a save) and read in `saves::load_savegame` (0x46E6E1).
+
+**Fix:** the four player records and names are set aside before a championship starts or is loaded and put back when it ends or is left, on every way out. Inside the championship its own settings are used and saved as before. (Which of the save's or the player's controls and gearing a loaded championship uses is still `usesavegamekeys` in `var\ral.cfg`.)
+
+## Course faces drawn with the last face's depth setting
+
+**What it is:** course faces of mode 4 without texture animation (see-through overlays) are meant to be drawn without writing to the depth buffer, with depth writing back on afterwards. Each side of a face does that with its own texture and mode. But the code that draws a whole course face wraps its sides in the same switch a second time, judged by the previous face's texture and mode, before the face's own are set. And the switch back on is the wrong way round: it turns depth writing on only when it was not turned off.
+
+**In game:** after a mode-4 face, the next face can be drawn without writing depth, and depth writing can stay off for a face longer than meant, so a shape drawn later behind it can show through for a frame. Rare and at most a few pixels; not seen. In the conversion it showed up as the drawing on several threads (each starting part-way through a list, without the previous face's leftovers) differing from the drawing on one.
+
+**Seen or read:** read in `race::draw_course_face` (0x45232A), `race::face_depth_test_off` (0x452358) and `race::face_depth_test_on` (0x45237A); found 2026-11-08 by the multi-threaded drawing's comparison with the single-threaded one (replay 01).
+
+**Fix:** each face's sides are switched by their own texture and mode only (the outer, stale switch dropped), and depth writing goes back on after a side that turned it off.
+
+## The course's sounds placed from the mirror's camera
+
+**What it is:** after the views are drawn, the game finds the course's sound spots (running water, crowds and the like) around the camera and places each one against it. It does this once for the whole frame, after every view, with whatever camera was drawn last. When the rear-view mirror is on, that is the mirror's camera, which looks backwards; with two players it is the second player's view (or its mirror). The race's sounds are heard around the first car.
+
+**In game:** with the mirror on, the course's sounds are placed as seen from behind the car: what is on the left is panned to the right, and the spots chosen are the ones round the mirror's view. Subtle; not reported.
+
+**Seen or read:** read in `race::draw_race_scene` (0x45C605 called after the views) and measured with the conversion's frame census (2026-11-08: the spots read the view matrix and grid the mirror left).
+
+**Fix:** the sound spots are found right after the first view is drawn, from its own camera and grid.
+
+## The race's sounds steer the race's random numbers
+
+**What it is:** the game has one random number generator. The sounds draw from it (which of two nearby sounds is heard, the stage's random noises and their delays, a rare engine sound) in the same stream as the race itself (the cars' handling on some surfaces, the mud, the replay cameras, the camera's shake). So how many numbers the sounds draw changes every number drawn after them.
+
+**In game:** what the sounds do changes, in a way nobody could notice, what the race does next: the mud thrown, the replay's camera choices, and in a race the computer cars' handling on some surfaces. In the conversion it showed up when the sounds were changed on purpose (the fix above): replays drew different mud and cameras although the cars were the same.
+
+**Seen or read:** read in `sound::thin_spot_voices`, `sound::stage_sounds`, `sound::repeat_spot_voices` and `drive::duel_sound_levels`; measured 2026-11-08 (the cars the same tick by tick, the random state different).
+
+**Fix:** the sounds have a generator of their own, started from the same seed. Nothing the sounds do changes the race or the pictures any more. (The race's own random numbers therefore differ from the original's after the first sound draw: the same kind of numbers, but not the same sequence.)
+
+## The pictures steer the race's random numbers
+
+**What it is:** the same single random number generator also serves the drawing: the mud thrown onto the car's textures and the shimmer of some objects draw numbers from it every frame they are drawn. The race draws from it too, for the camera's shake and for the chance of a course face being marked when a car touches it. How many numbers the drawing takes depends on how many frames are drawn, so the race's numbers depend on the frame rate.
+
+**In game:** on a faster or slower machine, or when a frame is slow, the camera shakes a little differently and different faces get marked. Nobody could tell, but it means the same drive is never the same twice.
+
+**Seen or read:** read in `race::throw_mud_texel` (0x44A2A2), `race::splash_mud` (0x44A35F) and `scene::set_object_material` (0x45170E), against `physics::camera_frame` (0x44FF1B) and `physics::touch_face` (0x45E9E0); found 2026-11-08 by the conversion's frame census and a driven race replayed with a held clock.
+
+**Fix:** the drawing has a generator of its own, started from the same seed. The race's numbers no longer depend on what is drawn or how fast.
+
+## The race's sounds placed from the mirror's camera
+
+**What it is:** the sounds the cars make (the engine, knocks and hits) are placed against the camera, turned by the view's matrix. The game uses whatever matrix the last view drawn left behind. With the rear-view mirror on, that is the mirror's, which looks backwards, while the listener faces forwards. With two players it is the second player's view (or its mirror).
+
+**In game:** with the mirror on, the car's sounds are turned half round: what is to the left is placed to the right, and in front is placed behind. Subtle, since the player's own car is close to the listener; not reported.
+
+**Seen or read:** read in `physics::place_car_sound` (0x45CC5C), `physics::car_sound_state` (0x45CACE) and the car's sound places (`physics::car_sounds`), which read `g_viewTurnMatrix` during the race's ticks; found 2026-11-08 by the conversion's frame census.
+
+**Fix:** the first view's matrix is kept once that view is drawn, and the race's sounds are placed by it.
+
+## An object with many faces writes over the object tables
+
+**What it is:** before drawing an object the game lists the faces it will draw, 16 bytes each. The list has room for 1,024 faces, but the check before adding one allows 4,096. From the 1,025th face on, the entries are written over what follows the list in memory: the material's timing, the list of textures, and each object slot's first point and point count.
+
+**In game:** only an object with more than 1,024 faces facing the camera at once would do it; none of the game's own objects came near it in the drives and replays measured. If one did, the objects drawn after it would take their points and textures from the wrong places until the stage was loaded again: broken or missing objects.
+
+**Seen or read:** read in `scene::list_object_face` (0x4504CB), `scene::sort_listed_faces` (0x45098C) and `scene::draw_object_faces` (0x450A4B); found 2026-11-09 by the conversion's survey of the drawing's working state.
+
+**Fix:** each object's drawing has its own list, with room for the 4,096 faces the check allows. Nothing past it is touched.
+
+## Each view lit by what the view before it left
+
+**What it is:** the game draws its views one after another (the main view, the rear-view mirror, the second player's). Three values the drawing of a view reads were left by the view drawn before it: the light added to the view's own car was that of the last car the previous view drew; the sky's extra light was that of the previous view's last object; and the cars' shine started from the previous view's last car's, not from the stage's.
+
+**In game:** barely visible: only the snowflakes' tint, by at most one step in 255, in a few frames with the mirror on. Not reported.
+
+**Seen or read:** read in `race::view_light` (0x455896), `race::draw_sky` (0x455540) and `race::draw_race_scene`, which sets the shine once a frame; found 2026-11-09 by the conversion's survey of what each view leaves to the next.
+
+**Fix:** each view takes its own car's light colour, the sky's extra light is 0, and the shine starts from the stage's at each view. A view now depends only on its own inputs.
+
+## The reverb can be chosen from a half-made sum
+
+**What it is:** the game chooses its reverb (the EAX room) from how much of the course is close to the player's car: each nearby face adds a weight, summed again for every view drawn. The sum is made in place in a variable that the sound thread reads whenever it runs. If the sound thread runs while the sum is being made, it takes a partial value, as low as zero.
+
+**In game:** at most a moment of the wrong reverb, then the right one again on the next turn. Not reported; probably not audible.
+
+**Seen or read:** read in `race::eax_environment` (0x45C7EE) and the sound thread's voice update; found 2026-11-09 by the conversion's work on what each view hands on.
+
+**Fix:** the weight is summed apart and handed to the sound whole, at the end of each view.
+
+## The mirror's backdrop drawn with whatever the last polygon left
+
+**What it is:** before the rear-view mirror's scene, the game draws a dark rectangle behind it. It sets the rectangle's corners, texture place and colour, but not their depth and two other values: those are whatever the polygon drawn before it left in the same memory.
+
+**In game:** nothing visible: fog is off for that rectangle, the leftover depths were close enough to the front to pass, and its colour is the same at every corner, so the other values cannot change a pixel. It would only have mattered had the polygon before left a depth behind what the main view drew there.
+
+**Seen or read:** read in `race::draw_view_backdrop`; found 2026-11-10 when the mirror was first drawn on a thread of its own, where the leftovers were different ones.
+
+**Fix:** the three values are set (to 0) with the rest, so the rectangle no longer depends on what was drawn before it.
+
+## The rain's streaks given an absurd depth value
+
+**What it is:** each raindrop is drawn as a thin four-cornered streak. The game sets its corners' perspective value (1/w) from a constant meant to be 256, but reads the constant's bytes as a whole number instead of as the decimal number they hold, so every streak gets 1,132,462,080.
+
+**In game:** nothing on the original's Direct3D, nor in our PC builds: all four corners share the value and the depth buffer is off for the rain, so it cannot change a pixel. On the handheld's OpenGL ES the value made the streaks vanish entirely: the rain could be heard but not seen.
+
+**Seen or read:** seen on the handheld (2026-11-10); traced to `effects::run_rain` (0x4C16F9), whose `fild` loads the float constant at 0x8C5F91 as an integer, where the windscreen drops and flakes load a true integer 256.
+
+**Fix:** the constant is used as the decimal number it holds (256), as for the drops and flakes. The rain shows on the handheld; nothing changes on the PC.
+
+## A car's lights chosen by the other player's camera
+
+**What it is:** before drawing a view, the game decides which of the shown car's lights to draw from that view's camera (from inside the car some are not drawn). But it reads the camera values before the view has set them, so it takes whatever the view drawn before left there.
+
+**In game:** with one player, after a camera change the car's lights follow the old camera for one frame. In split screen, the first player's view takes its car's lights from the second player's camera, drawn last in the frame before. Not reported.
+
+**Seen or read:** read in `race::car_light_modes` (0x455B70) and `race::camera_view`; found 2026-11-10 when each view was given its own camera values.
+
+**Fix:** the lights follow the shown car's own camera settings, read from the car itself.
+
+## The reverb chosen by the mirror or the other player
+
+**What it is:** the race's reverb (the EAX "room": open road, forest, tunnel...) is worked out while each view is drawn, from the course around that view's camera. Every view drawn sets it, so the rear-view mirror's, or in split screen the second player's view, replaced the first player's; the sound took whichever was set when it ran.
+
+**In game:** with an EAX sound card of the time, the reverb could follow the mirror's view or the other player's surroundings instead of the player's own. Today nothing is heard either way: EAX hardware reverb is not available on Windows since Vista, nor in this port yet.
+
+**Seen or read:** read in `race::eax_environment` (0x45C7EE) and the frame's views; found 2026-11-10 while drawing the views on several threads.
+
+**Fix:** the reverb comes from the first player's main view only.
+
+## Tyre wear on snow, ice, water, dust and grass taken from the wrong surface
+
+**What it is:** the tyres' life comes from a table of figures per tyre type and surface. Each surface has two figure columns, blended by how much of a "surface noise" the ground has there. The game picks the first column by the surface, but looks the second one up as if the first column's number were a surface. Tarmac, gravel, mud and rough ground come out right by chance; on snow, water, ice, thick snow and snow gravel the second figure is the one for dust and grass (half the tyre life), and on dust and grass it is the snow one (double).
+
+**In game:** nothing. The blend comes from each stage's surface noise, and every stage of the game has its noise scale and floor at 0, so the second column always has no weight. It would only show on a stage made with surface noise.
+
+**Seen or read:** read in `physics::damage_wear` (0x4AC7C9: `dword_75B8C4[column * 8]`); checked 2026-11-10 with a build that worked out both figures on six rallies' stages (the blend was 0 everywhere) and by reading every stage's LOCALDAT.
+
+**Fix:** both columns are taken from the surface's own pair.
+
+## The lamps a view starts from taken from whichever view was drawn last
+
+**What it is:** while a view is drawn, the game gathers the lamps (car lights and lit objects) that light the scene. The view's light and the sky read the lamps left from before, which in the original were the previous view's, as the views were drawn one after another. With the views and mirrors drawn side by side in the port, the previous one was whichever had finished last, a matter of timing.
+
+**In game:** nothing seen: the old lamps matter only for a frame's tint on stages with lit objects of one kind (0x3B), and the held races came out identical.
+
+**Seen or read:** read, in `race::draw_view_scene` and `ViewScratch::begin`, 2026-11-12.
+
+**Fix:** each view and mirror keeps its own lamps from frame to frame and starts from them, so the result no longer depends on the order the views finish.
+
+
+## Divisions by zero in the effects that left NaNs ("not a number")
+
+**What it is:** several pieces of the effects' code divide by a length, a height or a count without looking at whether it is 0, and on the x87 a 0 / 0 gives a NaN (an infinity times 0 too). The places found:
+- `effects::view_motion` (0x4C4D40): the view's step since the last frame made length 1 even when the view has not moved (`scene::normalise_vector3` on a zero vector), its "facing" then a NaN; and that step divided by the frame's ticks when there are none (the stage's first frame).
+- `effects::view_heading` (0x4C4CEC): the view's forward direction's level part made length 1 when there is none (its matrix not set yet on the stage's first frame), so `scene::angle_between_vectors` compared NaNs sixteen times and the heading came out of that.
+- `effects::span_edges` (0x4BE315): an edge pair of no height (two corners of a mask's triangle at the same height) given slopes over a height of 0.
+- `effects::scale_corners` (0x4C6420): the slope of a corner record with both sides 0 (the stage's unused records).
+- `effects::set_kind_values_1` / `_2` (0x4C7322, 0x4C7FA4): the slope of the needle / shadow angle's line above its split for the cars whose line has no length (`high` equal to `low`).
+- `effects::measure_lines` (0x4D0EB4): a sum's share of a total of 0, whose NaN `fistp` stores as the integer 0x80000000.
+
+**In game:** nothing. The facing, the heading and the per-tick step are read by nothing in the game (only the port's debug overlay shows them); the spans' slopes are kept and never read, and their rows are none; the corner and needle slopes would only be read on paths none of the test races or replays reached. The 0x80000000 a share of nothing leaves as its sum stays. The NaNs mattered for the port: their exact bits depend on the processor (an x87, an x86-64 and an ARM processor each make a different NaN), so they made the results platform-dependent in principle and kept a costly NaN rule in the x87 emulation under discussion.
+
+**Seen or read:** found 2026-11-13 by counting the NaNs the x87 emulation met in held races (Langton, rain, snow) and the four replays: 3,800 to 14,000 a race, all from these places, at a stage's load and in a replay's first seconds (the camera still).
+
+**Fix:** each degenerate case is handled before the division, keeping what the game did: a view that has not moved faces no way (facing 0) and a frame of no ticks keeps its step whole; a view with no level direction keeps its heading; a half of no height has slopes 0; a corner record of no size has slope 0; a line of no length is flat (slope 0); a share of nothing is 0x80000000 without the division. The same races and replays now meet no NaN, and their results are the same as before to the byte.
+
+## A reflective face's shine scaled by the previous polygon's fog
+
+**What it is:** an object's face with a reflection (the cars' paint and glass, shiny scenery) is drawn twice, the second time with the reflection map, whose strength is the face's shine times the stage's shine times the face's fog. The game took that fog from the first slot of the polygon work table before the face's own points were projected and fogged, so it read the fog the previous polygon drawn had left there.
+
+**In game:** the reflection of the first reflective face of an object (the player's car's first one each frame) was a little stronger or weaker depending on what was drawn just before it: on Langton, the car's own light flares or the scenery behind it, whose fog bytes were 201 to 208 of 255. That is about one step of the reflection's 256 levels of alpha on a few of the car's polygons. The faces after the first one read the face drawn just before them on the same car, close to their own fog, so they were nearly right.
+
+**Seen or read:** found 2026-11-13 while drawing the player's car on a thread of its own: the car drawn alone differed from the car drawn after the scenery in one alpha step of one reflection fan, and the cause was narrowed to the work table's entry 0 fog byte (`scene::draw_object_face`, 0x450BDA, reading it before `scene::fog_polygon`). Read in the port; the disassembly was not checked in this step.
+
+**Fix:** the face's shine is scaled by its own fog, the fog `scene::fog_polygon` gives its first vertex once the face is projected (the same table and depth). Nothing else changes: held races keep every tick and sound turn; only the reflection pass's alpha on reflective faces differs.
+
+## A gear outside the gearbox read past the HUD's sprite table
+
+**What it is:** the HUD draws the gear from its sprite table at entry 0x41 plus the gear. The game did not check the gear, so a gear outside -1 to 7 read a rectangle from the fields after the table.
+
+**In game:** never in ordinary play: the physics keeps the gear between reverse and seventh, and every gear change refuses one outside. Only a replay file damaged or edited by hand can carry such a gear; the game then drew a sprite from whatever bytes followed the table. Before this fix the port ended with "a HUD sprite's rectangle past the rectangle table".
+
+**Seen or read:** read in the port (2026-11-12) while bounding the HUD's tables; not seen in the original.
+
+**Fix:** the gear is clamped to -1 ..= 7 where its rectangle is chosen (`hud::layout_common::gear_rect`), and the game log says once a race which gear was read and which one is shown ("hud: gear 40 outside -1 ..= 7 (a damaged replay?), shown as 7"). Gears in range draw exactly as before.
+
+## A loading-bar frame that could not be drawn ended the game
+
+**What it is:** while a stage loads, the game draws a loading bar frame over the loading picture. When a frame could not be drawn (the window not the active one, its surfaces lost, or the frame's lock refused), the original called its surface restore routine and went on from there. The Rust version had not ported that routine and ended the program ("not ported") instead.
+
+**In game:** switching away from the window or losing the display surfaces during a stage load would have ended the game instead of only pausing the bar.
+
+**Seen or read:** read, not seen. The standalone keeps its window flag active and never marks the surfaces lost, so a headless run could not make the case happen; found 2026-11-14 reading `race::loading_bar_frame`.
+
+**Fix:** the frame is skipped (nothing is drawn or presented that frame), the load goes on, and the next frame tries again (`race::loading_bar_frame`). The platform restores the window and its surfaces by itself.
+
+## A race frame that could not be shown ended the game
+
+**What it is:** as with the loading bar, when a race frame could not be drawn or shown (its lock refused, the present failed), the original called its surface restore routine. The Rust version had not ported that routine and ended the program ("not ported") instead.
+
+**In game:** a display hiccup during a race would have ended the game.
+
+**Seen or read:** read, not seen; the same case as the loading bar's, found 2026-11-14. A test switch in remote builds (`RC2K_LOSE_FRAMES=n`) now loses every n-th frame's lock, so the path can be run.
+
+**Fix:** the frame is skipped and the next one tries again (`drive::race_frame`, `race::show_frame`). The race's results never depend on what was drawn: held races with frames lost match normal ones tick for tick.
+
+## The first intro film's pictures late against its sound on the handheld
+
+**What it is:** the film player timed its pictures by the wall clock, counted from before the first picture was shown, and never caught up when late. On the handheld the GPU renderer's start with the first picture took about a second while the sound was already playing.
+
+**In game:** the first intro film (`MFLOGO.MPG`) ran up to a second behind its sound on the handheld; the second film was in step.
+
+**Seen or read:** seen (reported on the handheld, measured: +1,020 .. +573 ms late).
+
+**Fix:** the film's sound starts once the first picture is on the screen, and from then on the pictures follow the sound's played position (`film::Clock`). Both films stay within about 20 ms of their sound, with no frames skipped.
+
+## The drive page with 25 drives lists an item that is not a drive
+
+**What it is:** the drive page's largest menu holds 26 items: two fixed ones and 24 drives. The page counted every drive from `a` to `y`, so with 25 drives (letter `a` among them) it counted 27 items, one more than the menu holds, and read the 27th item from the bytes that follow the menu.
+
+**In game:** a garbage item at the end of the drive list, with text that is not a drive. Not seen; found by reading the code (a PC with 25 installable drives is very unlikely).
+
+**Fix:** the page lists at most 24 drives, the first 24 in letter order, so with 25 drives `y` is left out (`drives::kept`, `install::list_drives`).
+
+## A scene object whose kind slot was never filled ended the game
+
+**What it is:** a course's scene objects name an object slot, and the slot's kind is set only when that slot's file is loaded; every other slot holds -1 after the objects are reset. The original indexed its table of 1200 object-material records with that -1 and read the record before the first, which is the last bytes of the texture-info table in front of it (the game's own tables are laid out one after the other). The Rust version refused a kind past the 1200 records and ended the program.
+
+**In game:** the game ended in the middle of a long stage (Ulster Rally stage 2, the last rally's stage 2, arcade level 2: every object with an unloaded slot reached it). Found by the championship and arcade runs; a single stage started directly did not reach it.
+
+**Seen or read:** seen (headless championship and arcade runs); the original reads the same bytes and carries on.
+
+**Fix:** a kind of -1 reads the record before the first (`scene::polygon::material_run_byte`) in the object's matrix, its contact material, its contact sound and the lit faces' animation, as the original does, so nothing ends the game.

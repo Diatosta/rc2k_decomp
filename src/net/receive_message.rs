@@ -1,15 +1,6 @@
-//! `net::receive_message` (0x419722): one message taken from DirectPlay: its size
-//! (`dword_5AB280`) set to 0x100, `Receive` (`IDirectPlay4A` +0x64: the sender into
-//! `dword_5AB278`, the addressee into `unk_5AB27C`, flags 1 DPRECEIVE_ALL, the bytes into
-//! `unk_52A968`) through `g_dplay`; the size made 0 if it failed (no message, or one too
-//! big for the buffer).
-//!
-//! Returns `Received`: the sender (0 a system message) and the size (0 none); the bytes
-//! (`unk_52A968`, `crate::net::owner::net().vars.receive_data`) are not in `Received`. The
-//! original leaves the flags of `test eax, eax` on the method's result, which its one caller
-//! does not read (it tests the size next).
-//! Caller: `net::take_messages`. `Receive` from Rust (`net::dplay`). Refuses
-//! nothing (no check of `g_dplay`: its caller makes it).
+//! Takes one message from DirectPlay (room for 0x100 bytes); the size is 0 if there is none
+//! or it is too big. Returns the sender (0 a system message) and the size; the bytes are in
+//! `receive_data`. No check for a missing object: the caller makes it.
 
 use crate::net::owner::Net;
 
@@ -23,21 +14,20 @@ pub struct Received {
     pub from: u32,
     pub size: u32,
 }
-
-/// The Rust version.
 pub fn receive_message(net: &Net) -> Received {
-    net.vars.received_size.set(ROOM);
+    net.vars.receiver.received_size.set(ROOM);
     let mut data = [0u8; ROOM as usize];
-    let r = crate::net::dp_objects::receive(net.vars.dplay.get(), &mut data);
+    let r = crate::net::dp_objects::receive(net.link.dplay(), &mut data);
     if let Some((from, to)) = r.from_to {
-        net.vars.received_from.set(from);
-        net.vars.received_to.set(to);
+        net.vars.receiver.received_from.set(from);
+        net.vars.receiver.received_to.set(to);
     }
     if let Some(size) = r.size {
-        net.vars.received_size.set(size);
+        net.vars.receiver.received_size.set(size);
     }
     if r.result == 0 {
         net.vars
+            .receiver
             .receive_data
             .write_at(
                 0,
@@ -48,10 +38,10 @@ pub fn receive_message(net: &Net) -> Received {
     }
     let result = r.result;
     if result != 0 {
-        net.vars.received_size.set(0);
+        net.vars.receiver.received_size.set(0);
     }
     Received {
-        from: net.vars.received_from.get(),
-        size: net.vars.received_size.get(),
+        from: net.vars.receiver.received_from.get(),
+        size: net.vars.receiver.received_size.get(),
     }
 }

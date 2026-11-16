@@ -1,14 +1,8 @@
-//! The game's file functions over a file system (converted 2026-10-21 from `files::read_file`
-//! 0x402BB6, `write_file` 0x402BFB, `copy_file` 0x402C28, `file_exists` 0x402EBE,
-//! `file_size` 0x402ED4 and the buffered streams: `open_stream` 0x402CDD, `close_stream`
-//! 0x402CFA, `read_stream_byte` 0x402D16, `write_stream_byte` 0x402D53, `read_stream_block`
-//! 0x402DA3, `write_stream_block` 0x402DC9). The file system is the platform's
-//! (`Files`): the game's own primitives in the hooked game, the same Win32 calls in the
-//! standalone.
+//! The game's file functions over a file system. The file system is the platform's (`Files`).
 
 use crate::Invalid;
 
-/// The game's file modes (its table at 0x4E06EA, 16 bytes a mode).
+/// The game's file modes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Mode {
     /// An existing file, to read.
@@ -151,8 +145,8 @@ pub fn file_size<F: Files>(f: &mut F, path: F::Path) -> Result<(u32, bool), Inva
     Ok((size.unwrap_or(u32::MAX), closed && size.is_some()))
 }
 
-/// A file copied through `buffer` (the game's scratch block), its time with it: done when
-/// the whole source was read and the time set. Both paths checked before anything.
+/// A file copied through `buffer`, its time with it: done when the whole source was read and
+/// the time set. Both paths are checked first.
 pub fn copy_file<F: Files>(
     f: &mut F,
     from: F::Path,
@@ -188,8 +182,8 @@ pub fn copy_file<F: Files>(
     Ok(done)
 }
 
-/// What `files::read_whole_file` (0x421B54) comes to: whether the file opened, the bytes
-/// read and whether that read worked, whether it closed.
+/// What `files::read_whole_file` comes to: whether the file opened, the bytes read, whether
+/// that read worked, whether it closed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Whole {
     pub opened: bool,
@@ -222,9 +216,8 @@ pub fn read_whole_file<F: Files>(
     })
 }
 
-/// The path `files::read_first_match` (0x402F82) reads: the pattern up to and with its
-/// last `/`, `\` or `:` (one at its very start does not count), then the name found; with
-/// its NUL.
+/// The path `files::read_first_match` reads: the pattern up to and with its last `/`, `\` or `:`
+/// (one at its very start does not count), then the name found; with its NUL.
 pub fn match_path(pattern: &[u8], name: &[u8]) -> Vec<u8> {
     let directory = (1..pattern.len())
         .rev()
@@ -236,10 +229,9 @@ pub fn match_path(pattern: &[u8], name: &[u8]) -> Vec<u8> {
     out
 }
 
-/// A level file's packed copy (`files::read_level_file` 0x41BA2E): the path put at +5,
-/// ".sq" after it, then "files\\leve" over the first ten bytes, so that `srclvls\\`
-/// becomes `files\\levels\\`; with its NUL. Refused: a path whose copy ends inside the
-/// ten bytes (the original's text then goes on past them).
+/// A level file's packed copy: the path put at +5, ".sq" after it, then "files\\leve" over the
+/// first ten bytes (`srclvls\\` becomes `files\\levels\\`); with its NUL. Refused: a path whose
+/// copy ends inside the ten bytes.
 pub fn packed_level_path(path: &[u8]) -> Result<Vec<u8>, Invalid> {
     let mut out = vec![0u8; 5];
     out.extend_from_slice(path);
@@ -254,20 +246,18 @@ pub fn packed_level_path(path: &[u8]) -> Result<Vec<u8>, Invalid> {
     Ok(out)
 }
 
-/// The kind `GetDriveTypeA` gives a CD-ROM.
+/// The drive kind of a CD-ROM.
 pub const CD_ROM: u32 = 5;
 
-/// `files::is_cd_drive` (0x403310): the flags of comparing a drive's kind with a CD-ROM's
-/// (carry: below, zero: a CD-ROM).
+/// `files::is_cd_drive`: (below, equal) of a drive's kind compared with a CD-ROM's.
 pub fn is_cd(kind: u32) -> (bool, bool) {
     (kind < CD_ROM, kind == CD_ROM)
 }
 
-/// A stream's buffer.
+/// A stream's buffer size.
 pub const BUFFER_LEN: usize = 0x2000;
 
-/// A buffered file, as the game keeps one (the block the stream functions take in esi).
-#[repr(C)]
+/// A buffered file, as the game keeps one.
 pub struct Stream<H> {
     /// The mode it was opened with (1: written to, closing writes the buffer out).
     pub mode: u32,
@@ -327,8 +317,8 @@ pub enum ByteRead {
     Byte(u8),
     /// The end of the file.
     End,
-    /// A read failed. `count_low` is the low byte of the count that read reported: the
-    /// original leaves it where the byte would be, and the picture readers take it as one.
+    /// A read failed. `count_low` is the low byte of the count that read reported; kept because
+    /// the picture readers take it as a byte.
     Failed {
         count_low: u8,
     },
@@ -358,7 +348,7 @@ impl ByteRead {
 }
 
 /// The stream's next byte, the buffer filled again when it is used up. Refused: a position
-/// past the buffer (the original reads past it).
+/// past the buffer.
 pub fn read_stream_byte<F: Files>(
     f: &mut F,
     s: &mut Stream<F::Handle>,
@@ -419,25 +409,25 @@ pub fn write_stream_byte<F: Files>(
     Ok(true)
 }
 
-/// Bytes into a stream: (how many, the carry: a write failed, the zero flag: none to write
-/// or the last eax 0); `eax` that register at entry, its low byte each byte in turn.
+/// Bytes into a stream: (how many, whether a write failed, whether there was none to write
+/// or the last word was 0); `word` is that value at entry, its low byte each byte in turn.
 pub fn write_stream_block<F: Files>(
     f: &mut F,
     s: &mut Stream<F::Handle>,
     bytes: &[u8],
-    eax: u32,
+    word: u32,
 ) -> Result<(u32, bool, bool), Invalid> {
     if bytes.is_empty() {
         return Ok((0, false, true));
     }
-    let mut eax = eax;
+    let mut word = word;
     for (n, &b) in bytes.iter().enumerate() {
-        eax = eax & !0xFF | b as u32;
+        word = word & !0xFF | b as u32;
         if !write_stream_byte(f, s, b)? {
             return Ok((n as u32, true, false));
         }
     }
-    Ok((bytes.len() as u32, false, eax == 0))
+    Ok((bytes.len() as u32, false, word == 0))
 }
 
 #[cfg(test)]

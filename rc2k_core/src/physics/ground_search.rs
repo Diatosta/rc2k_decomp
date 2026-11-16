@@ -1,18 +1,13 @@
-//! The ground's search (converted 2026-10-21 from `physics::face_under_point` 0x442006,
-//! `search_record_faces` 0x441FD9, `search_cell` 0x441FBA, `try_last_face` 0x441E0C and
-//! `ground_search` 0x441E2F): which course face lies under a point (whole-number x, z).
-//! The last face found is tried first, then the nine grid cells about the point, each
-//! cell's course record (`course_records::find_record`) and its faces in turn. A face
-//! (0x40 bytes: kind byte, flags word at +2, corners +4 .. +0x10, a triangle when +0xC =
-//! +0x10) has the point when each of its edges has it on the inner side
-//! (`faces::edge_side`); a quad is split by its edge +8 -> +0xC into two halves.
-//! The contacts walk the same cells and records (converted 2026-10-21 from
-//! `physics::face_contacts_around` 0x45E196, `cell_face_contacts` 0x45E291 and
-//! `record_face_contacts` 0x45E2AA), every face of each record.
+//! The ground's search: which course face lies under a point (whole-number x, z). The last
+//! face found is tried first, then the nine grid cells about the point, each cell's course
+//! record and its faces in turn. A face has the point when each of its edges has it on the
+//! inner side; a quad is split by a diagonal into two halves. A face is 0x40 bytes: a kind
+//! byte, a flags word at +2 and corners at +4 .. +0x10 (a triangle when the corners at +0xC
+//! and +0x10 are equal). The contacts walk the same cells and records, every face of each.
 
 use crate::Invalid;
 
-/// No face (`dword_5CCC74` / `dword_5CCC78` when none was found).
+/// No face.
 pub const NO_FACE: u32 = u32::MAX;
 
 /// How a face's test ended.
@@ -22,25 +17,22 @@ pub enum FaceTest {
     Kind,
     /// Out at its flags: the flags in the mask.
     Flags(u32),
-    /// Out at an edge: its ends the same place, or the point on its other side.
+    /// Out at an edge: its ends are the same place, or the point is on its other side.
     Edge,
-    /// Inside: the half (0 the first, 1 the quad's second) and its three corners (the
-    /// face's offsets, in the order the original copies them).
+    /// Inside: the half (0, or 1 for a quad's second) and its three corners (face offsets).
     Inside { half: u32, corners: [u32; 3] },
 }
 
-/// One edge between two corners (the face's offsets): `side` answers None when its ends
-/// are the same place, else whether the point lies on the outer side (the original's
-/// carry); true when it has the point.
+/// One edge between two corners (face offsets): `side` answers `None` when its ends are the
+/// same place, else whether the point lies on the outer side; true when it has the point.
 fn inner(side: &mut impl FnMut(u32, u32) -> Option<bool>, from: u32, to: u32) -> bool {
     side(from, to) == Some(false)
 }
 
-/// `physics::face_under_point`: the face's kind, then its flags (`flags()`, read only for
-/// a kind below 0x10) against the mask, then its edges; `corner(offset)` reads a corner
-/// word (+0xC and +0x10 for the triangle test). A triangle's edges 4-8, 8-0xC, 0xC-4; a
-/// quad's 8-0xC first: the point on its inner side, 0xC-4 and 4-8 (the first half), else
-/// 0x10-0xC and 8-0x10 (the second); the first edge failing ends it.
+/// The test of one face: its kind, then its flags (read only for a kind below 0x10) against
+/// the mask, then its edges (`corner(offset)` reads a corner word); the first edge failing
+/// ends it. A triangle's edges are 4-8, 8-0xC, 0xC-4; a quad's are 8-0xC first, then 0xC-4
+/// and 4-8 (the first half), else 0x10-0xC and 8-0x10 (the second).
 pub fn face_under_point(
     kind: u8,
     flags: impl FnOnce() -> u16,
@@ -85,7 +77,7 @@ pub fn face_under_point(
     }
 }
 
-/// A face number `face_under_point` may take (the original reads wherever it points).
+/// A face number the data may hold.
 pub fn check_face(face: u32, face_count: u32) -> Result<(), Invalid> {
     if face >= face_count {
         return Err(Invalid("a face at or past g_courseFaceCount"));
@@ -93,7 +85,7 @@ pub fn check_face(face: u32, face_count: u32) -> Result<(), Invalid> {
     Ok(())
 }
 
-/// A course record `search_record_faces` may take: below the count.
+/// A course record below the count.
 pub fn check_record(record: u32, record_count: u32) -> Result<(), Invalid> {
     if record >= record_count {
         return Err(Invalid("a course record at or past g_courseRecordCount"));
@@ -101,8 +93,8 @@ pub fn check_record(record: u32, record_count: u32) -> Result<(), Invalid> {
     Ok(())
 }
 
-/// A record's faces (`first` ..= `last`, +8 and +0xC): when they would be tried, the last
-/// below the face count.
+/// A record's faces `first` ..= `last`: when they would be tried, the last is below the face
+/// count.
 pub fn check_record_faces(first: u32, last: u32, face_count: u32) -> Result<(), Invalid> {
     if first <= last && first != NO_FACE && last >= face_count {
         return Err(Invalid("a record's faces past g_courseFaceCount"));
@@ -110,10 +102,9 @@ pub fn check_record_faces(first: u32, last: u32, face_count: u32) -> Result<(), 
     Ok(())
 }
 
-/// `physics::search_record_faces`: the faces `first` ..= `last` (none when the first is
-/// past the last, unsigned, or -1) tried in order until one has the point. (whether
-/// found, the original's ebx: the face found, one past the last, or the first when none
-/// was tried).
+/// The faces `first` ..= `last` (none when the first is past the last, unsigned, or -1) tried
+/// in order until one has the point; returns whether found, and the face found, one past the
+/// last, or the first when none was tried.
 pub fn search_faces<E>(
     first: u32,
     last: u32,
@@ -134,20 +125,18 @@ pub fn search_faces<E>(
     }
 }
 
-/// `physics::search_cell`'s cell of (x, z): (the key (z >> 21) << 11 + (x >> 21), the
-/// z part the original leaves in ecx).
+/// The cell of (x, z): the key (z >> 21) << 11 + (x >> 21) and the z part left over.
 pub fn cell_key(x: u32, z: u32) -> (u32, u32) {
     let z_part = (z >> 21) << 11;
     ((x >> 21).wrapping_add(z_part), z_part)
 }
 
-/// `physics::try_last_face`: the last face found, when it is one to try (not -1, below
-/// the count).
+/// The last face found, when it is one to try (not -1, below the count).
 pub fn last_face(last: u32, face_count: u32) -> Option<u32> {
     (last != NO_FACE && last < face_count).then_some(last)
 }
 
-/// The nine cells `ground_search` tries after the last face, as (x, z) offsets.
+/// The nine cells tried after the last face, as (x, z) offsets.
 pub const CELLS: [(u32, u32); 9] = [
     (0, 0),
     (0xFFE0_0000, 0xFFE0_0000),
@@ -160,9 +149,8 @@ pub const CELLS: [(u32, u32); 9] = [
     (0xFFE0_0000, 0),
 ];
 
-/// `physics::ground_search`: the last face (`try_last`); else `forget` (the face found
-/// set to none) and `search_cell` on the point (`point()`, read before each) plus each of
-/// `CELLS` until one finds it. Whether found.
+/// The last face (`try_last`); else `forget` and `search_cell` on the point (read before each)
+/// plus each of `CELLS` until one finds it. Whether found.
 pub fn ground_search<E>(
     try_last: impl FnOnce() -> Result<bool, E>,
     forget: impl FnOnce(),
@@ -182,8 +170,7 @@ pub fn ground_search<E>(
     Ok(false)
 }
 
-/// `physics::face_contacts_around`: `cell` on the point (`point()`, read before each)
-/// plus each of `CELLS`, all nine.
+/// `cell` on the point (read before each) plus each of `CELLS`, all nine.
 pub fn cells_around<E>(
     point: impl Fn() -> (u32, u32),
     mut cell: impl FnMut(u32, u32) -> Result<(), E>,
@@ -195,9 +182,7 @@ pub fn cells_around<E>(
     Ok(())
 }
 
-/// `physics::record_face_contacts`' refusal: faces that would be walked (the first not
-/// past the last, not -1) running to -1 or past the face count (the original loops on or
-/// reads past the faces).
+/// Refused: faces that would be walked running to -1 or past the face count.
 pub fn check_contact_faces(first: u32, last: u32, face_count: u32) -> Result<(), Invalid> {
     if first <= last && first != NO_FACE && (last == NO_FACE || last >= face_count) {
         return Err(Invalid(
@@ -207,9 +192,8 @@ pub fn check_contact_faces(first: u32, last: u32, face_count: u32) -> Result<(),
     Ok(())
 }
 
-/// `physics::record_face_contacts`: `contact` on each face `first` ..= `last` (none when
-/// the first is past the last, unsigned, or -1). The original's ebx: one past the last,
-/// or the first when none was walked. Checked first (`check_contact_faces`).
+/// `contact` on each face `first` ..= `last` (none when the first is past the last, unsigned,
+/// or -1); returns one past the last, or the first when none was walked.
 pub fn each_face<E: From<Invalid>>(
     first: u32,
     last: u32,
@@ -250,7 +234,6 @@ mod tests {
                 corners: [4, 8, 0xC]
             }
         );
-        // The triangle's third edge out: its first two tried, then it.
         let mut tried = Vec::new();
         let out = face_under_point(
             1,
@@ -331,11 +314,11 @@ mod tests {
         .unwrap();
         assert_eq!(n, 9);
         let mut walked = Vec::new();
-        let ebx = each_face::<Invalid>(3, 5, 9, |f| {
+        let result = each_face::<Invalid>(3, 5, 9, |f| {
             walked.push(f);
             Ok(())
         });
-        assert_eq!((ebx, walked), (Ok(6), vec![3, 4, 5]));
+        assert_eq!((result, walked), (Ok(6), vec![3, 4, 5]));
         assert_eq!(each_face::<Invalid>(5, 3, 9, |_| Ok(())), Ok(5));
         assert!(each_face::<Invalid>(3, NO_FACE, 9, |_| Ok(())).is_err());
         assert!(each_face::<Invalid>(3, 9, 9, |_| Ok(())).is_err());

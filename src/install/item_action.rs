@@ -1,25 +1,19 @@
-//! `install::item_action` (0x414A4B): Enter on an action item (kind 6): its action
-//! (`[esi+8]`), if it has one.
-//!
-//! Takes the item.
-//! Caller `install::item_enter`.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
+//! Enter on an action item (kind 6): its action, if it has one. Called by `install::item_enter`.
 
 use crate::errors::Refused;
 use crate::install::installer::item_action_at;
-use crate::menu::list_handle::ListItem;
+use crate::memory::list_handle::ListItem;
 
-/// Enter on an action item; the original's zero after it (the action's, else that of
-/// `cmp [esi+8], 1`).
+/// Enter on an action item; whether it was taken.
 pub fn item_action(
-    install: &'static crate::install::owner::Install,
+    install: &crate::install::owner::Install,
+    list_state: &crate::menu::list_state::ListState,
     item: ListItem,
 ) -> Result<bool, Refused> {
     let action = item.target();
-    // Converted: `rc2k_core::install::items::has_action`.
     if rc2k_core::install::items::has_action(action) {
-        return item_action_at(install, action);
+        return item_action_at(install, list_state, action);
     }
-    Ok(action == 1)
+    // No action to run (the item's target is 0): nothing is taken.
+    Ok(false)
 }

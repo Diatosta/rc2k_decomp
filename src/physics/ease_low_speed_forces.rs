@@ -1,58 +1,30 @@
-//! `physics::ease_low_speed_forces` (0x440CF3): `flt_61475C` 1.0; when |`g_carSpeed`| is
-//! below `flt_613E64` (20; an unordered compare counts as below), `flt_61475C` =
-//! (|speed| / `flt_613E64` + `flt_613E68`) x `flt_613E6C` and the two forces
-//! `flt_614248`, `flt_61424C` times it.
+//! `low_speed_share` = 1.0; when |car speed| is below `low_speed_limit` (20; an unordered
+//! compare counts as below), `low_speed_share` = (|speed| / `low_speed_limit` +
+//! `low_speed_add`) x `low_speed_scale` and the two `drive_forces` are multiplied by it.
 //!
-//! Caller: `physics::drive_wheels_step` (0x43E523).
+//! Caller: `physics::drive_wheels_step`.
 
+use crate::effects::cell_x87::CellX87;
 use crate::math::x87;
-use crate::math::x87_run::{abs_compare, abs_div_add_mul};
-use crate::race::owner_shared::Shared;
-use crate::session::Cell32;
+use crate::math::x87::abs_compare;
+use crate::physics::car_store::Car;
+use crate::physics::tables_store::PhysicsTables;
 
-fn at(a: &dyn Cell32) -> u32 {
-    a.bits()
-}
-
-fn put(a: &dyn Cell32, v: u32) {
-    a.set_bits(v);
-}
-
-/// The core: the factor, the speed and the two forces at these places.
-pub fn ease_low_speed_forces_at(
-    shared: &Shared,
-    factor: &dyn Cell32,
-    speed: &dyn Cell32,
-    forces: [&dyn Cell32; 2],
-) {
-    put(factor, 0x3F80_0000);
-    let limit = shared.physics_tables.low_speed_limit.bits();
-    if abs_compare(at(speed), limit) & 0x100 == 0 {
+/// The factor, the speed and the two forces; the exact version, for
+/// `physics::drive_wheels_step`.
+pub fn ease_low_speed_forces(car: &Car, tables: &PhysicsTables) {
+    let factor = &tables.low_speed_share;
+    let speed = &car.local_velocity[2];
+    factor.set(1.0);
+    let limit = &tables.low_speed_limit;
+    if abs_compare(speed, limit) & 0x100 == 0 {
         return;
     }
-    put(
-        factor,
-        abs_div_add_mul(
-            at(speed),
-            limit,
-            shared.physics_tables.low_speed_add.bits(),
-            shared.physics_tables.low_speed_scale.bits(),
-        ),
-    );
-    for f in forces {
-        put(f, x87::mul(at(f), at(factor)));
+    // The product is rounded to a float where it is stored.
+    factor
+        .st((speed.ld().abs() / limit.ld() + tables.low_speed_add.ld())
+            * tables.low_speed_scale.ld());
+    for f in &tables.drive_forces {
+        f.set(x87::mul(f, factor));
     }
-}
-
-/// The Rust version (the exact one, for `physics::drive_wheels_step`).
-pub fn ease_low_speed_forces(shared: &Shared) {
-    ease_low_speed_forces_at(
-        shared,
-        &shared.physics_tables.low_speed_share,
-        &shared.car.local_velocity[2],
-        [
-            &shared.physics_tables.drive_forces[0],
-            &shared.physics_tables.drive_forces[1],
-        ],
-    );
 }

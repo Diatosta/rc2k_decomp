@@ -1,11 +1,6 @@
-//! A player, 0x28C bytes (`Player` in IDA; converted 2026-10-21 with the players' details
-//! pages' settings, `menu::next_nationality` 0x467AFD .. `menu::flip_codriver` 0x467BD6,
-//! `menu::next_car_number` 0x470D7F / `previous_car_number` 0x470DA1,
-//! `menu::raise_sensitivity` 0x470F05 / `lower_sensitivity` 0x470F2D and the nine visual
-//! preferences' toggles 0x467DE2 .. 0x467E92; `menu::take_shown_car` 0x47B29D and
-//! `menu::set_player_entry_kind` 0x4A1922): the player's settings (name, nationality,
-//! views, co-driver, keys, controller) and the state of the player's car (which car,
-//! damage, setup, wear). What is known of it; the rest are gaps.
+//! A player, 0x28C bytes: the player's settings (name, nationality, views, co-driver, keys,
+//! controller) and the state of the player's car (which car, damage, setup, wear). What is known
+//! of it; the rest are gaps.
 
 use crate::menu::event::HOUR;
 
@@ -17,21 +12,21 @@ pub const PLAYERS: u32 = 4;
 pub struct Player {
     /// Record +0x00: nothing reads or writes it (the saved games carry it as it is).
     pub unused_0: u32,
-    /// The player's nationality (0 Great Britain, 1 Argentina, ..; `dword_758816` has
-    /// their strings, the flag is sprite 0x1C + it).
+    /// The player's nationality (0 Great Britain, 1 Argentina, ..; `CaptionTables.nationalities[0]`
+    /// has their strings, the flag is sprite 0x1C + it).
     pub nationality: u32,
     /// The number of the player's car.
     pub car_number: u32,
-    /// The view (`dword_7589BA`: bumper, bonnet, driver, interior, chase 1 .. 3).
+    /// The view (`CaptionTables.views[0]`: bumper, bonnet, driver, interior, chase 1 .. 3).
     pub view: u32,
-    /// The second view (`dword_7589DA`: bonnet, bumper, chase 1 .. 3; 5 is made 0).
+    /// The second view (`CaptionTables.second_views[0]`: bonnet, bumper, chase 1 .. 3); 5 is
+    /// made 0.
     pub second_view: u32,
     /// The section a saved game starts at (`SCREEN_FLOW.start_section`; player 0's, kept
     /// in the saved game).
     pub saved_start_section: u32,
-    /// Whose name in the four name buffers (`g_playerNames`) is the player's: 0 none, n the
-    /// name of player n - 1 (the original kept the name's address; the saved games still
-    /// carry it, `to_file_bytes`).
+    /// Whose name in the four name buffers is the player's: 0 none, n the name of player n - 1.
+    /// The saved games hold the buffer's address here instead (`to_file_bytes`).
     pub name_number: u32,
     pub keys: [u8; 12],
     /// The number on the player's car, 1 .. 90, chosen on the player details page.
@@ -47,16 +42,21 @@ pub struct Player {
     /// The learned pedals' axes (+0x3A the second pedal's, +0x3B the first's;
     /// `screens::learning::pedal`), handed to the device's set-up as one dword.
     pub axis_codes: [u8; 4],
-    /// The controller's mode (bit 0; string 0x56D + it; `menu::toggle_player_3c`).
+    /// The controller's mode (bit 0; string 0x56D + it).
     pub controller_mode: u32,
-    /// The controller page's two sliders, the dead zones: their sum leaves the rest of
-    /// 100 (`menu::lower_player_40`, `menu::lower_player_44`, `raise_dead_zone`).
-    pub dead_zone_1: u32,
-    pub dead_zone_2: u32,
-    /// The device's strength, 0 .. 100 in tens (`menu::raise_player_48`,
-    /// `lower_player_48`; shown for a device that has it).
+    /// +0x40: the stick's end zone in percent of its travel (0 at start): the share at the
+    /// far end that counts as full. The controller page's first slider; with the centre dead
+    /// zone it leaves the rest of 100 (`lower_end_zone`, `raise_dead_zone`).
+    /// `input::set_up_device` copies it to the device's `end_zone` (+0x14). Sure: the
+    /// device fields' names and the defaults (0 here, 10 below).
+    pub end_zone_pct: u32,
+    /// +0x44: the stick's centre dead zone in percent (10 at start): the share around the
+    /// middle that reads as 0. The second slider; copied to the device's `dead_zone` (+0x18).
+    pub centre_dead_zone_pct: u32,
+    /// The device's strength, 0 .. 100 in tens (`step_strength`;
+    /// shown for a device that has it).
     pub strength: u32,
-    /// Record +0x4C: the word between `strength` and the bindings; no page, hook or race
+    /// Record +0x4C: the word between `strength` and the bindings; no page or race
     /// copy reads it (the device set-up reads the car's copy of it as a gap).
     pub unused_4c: u32,
     /// The controller's bindings (`ControlsBlock`), which the controller pages copy out
@@ -65,7 +65,7 @@ pub struct Player {
     /// Record +0x7C .. +0x84: nothing reads or writes it.
     pub unused_7c: [u8; 8],
     /// Zeroed for each player by `menu::begin_event` and `menu::reset_single_event`; nothing
-    /// reads it (IDA: no other access of a player's +0x84).
+    /// reads it.
     pub unread_84: u32,
     /// The stage's time (`HOUR`: none yet; `menu::reset_player_times`).
     pub time: u32,
@@ -133,8 +133,8 @@ pub struct Player {
     pub impact_marks: [u32; 8],
     /// Record +0x26C .. +0x274: nothing reads or writes it.
     pub unused_26c: [u8; 8],
-    /// The other start section (`SCREEN_FLOW.start_section_a8`; player 0's, kept in the
-    /// saved game).
+    /// +0x274: the A8 championship's start section, 0 .. 6 (`SCREEN_FLOW.start_section_a8`;
+    /// player 0's, kept in the saved game).
     pub saved_start_section_a8: u32,
     /// The car's state bits (the tyres' and the body's are set by a repair, `workshop`; -1
     /// after `repair_car`; the race's `flags`).
@@ -144,11 +144,11 @@ pub struct Player {
     /// The controller's steering sensitivity, 0 .. 100 ("sensibilidade da direcção"; the
     /// player details page shows it as a marker at x + 2 * it).
     pub controller_sensitivity: u32,
-    /// The HUD's bits: set to -1 for every player by `menu::clear_players_284` at an event's
-    /// start, taken into the race and given back by `single_rally_race` (`dword_75B010`).
+    /// The HUD's bits: set to -1 for every player by `menu::clear_hud_bits` at an event's
+    /// start, taken into the race and given back by `single_rally_race`.
     pub hud_bits: i32,
     /// The money the service spent (the money times 100, `menu::service_pass`); 0 again
-    /// after an event's races (`menu::clear_players_288`).
+    /// after an event's races (`menu::clear_service_spent`).
     pub service_spent: u32,
 }
 
@@ -339,8 +339,8 @@ layout! {
     0x034 word sensitivity_level,
     0x038 bytes axis_codes,
     0x03C word controller_mode,
-    0x040 word dead_zone_1,
-    0x044 word dead_zone_2,
+    0x040 word end_zone_pct,
+    0x044 word centre_dead_zone_pct,
     0x048 word strength,
     0x04C word unused_4c,
     0x050 controls bindings,
@@ -389,7 +389,7 @@ layout! {
 }
 
 /// A setting the players' pages change.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Setting {
     /// 0 .. 0x27, round.
     Nationality,
@@ -415,21 +415,21 @@ pub enum Setting {
 }
 
 impl Player {
-    /// `menu::lower_player_40`: the first dead zone one less while above 0 (signed).
-    pub fn lower_dead_zone_1(&mut self) {
-        if (self.dead_zone_1 as i32) > 0 {
-            self.dead_zone_1 -= 1;
+    /// The first dead zone one less while above 0 (signed).
+    pub fn lower_end_zone(&mut self) {
+        if (self.end_zone_pct as i32) > 0 {
+            self.end_zone_pct -= 1;
         }
     }
 
-    /// `menu::lower_player_44`: the second dead zone one less unless 0.
-    pub fn lower_dead_zone_2(&mut self) {
-        if self.dead_zone_2 != 0 {
-            self.dead_zone_2 = self.dead_zone_2.wrapping_sub(1);
+    /// The second dead zone one less unless 0.
+    pub fn lower_centre_dead_zone(&mut self) {
+        if self.centre_dead_zone_pct != 0 {
+            self.centre_dead_zone_pct = self.centre_dead_zone_pct.wrapping_sub(1);
         }
     }
 
-    /// `menu::raise_player_48` / `lower_player_48`: the strength ten more unless 100, ten
+    /// The strength ten more unless 100, ten
     /// less unless 0.
     pub fn step_strength(&mut self, up: bool) {
         if up && self.strength != 100 {
@@ -455,7 +455,7 @@ impl Player {
         self.bindings.set_word(k, v);
     }
 
-    /// `menu::toggle_player_3c`: the controller mode's bit 0 turned over.
+    /// The controller mode's bit 0 turned over.
     pub fn toggle_controller_mode(&mut self) {
         self.controller_mode ^= 1;
     }
@@ -584,8 +584,8 @@ impl Player {
     }
 }
 
-/// `menu::set_player_entry_kind`: the current player's +0xD0 for a score
-/// (`dword_75AC80`): 1 at 100 or more (signed), else 2.
+/// `menu::set_player_entry_kind`: the current player's +0xD0 for a score: 1 at 100 or more
+/// (signed), else 2.
 pub fn entry_kind(score: i32) -> u32 {
     if score >= 100 { 1 } else { 2 }
 }
@@ -660,8 +660,7 @@ pub fn place_key(keys: &mut [u8; KEYS], place: usize, key: u8, reserved: &[u8]) 
     true
 }
 
-/// What a frame of redefining (converted 2026-10-21 from `menu::redefine_keys`' pages) does
-/// with the pending key.
+/// What a frame of redefining does with the pending key.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Redefined {
     /// No key, or a reserved one: the page goes on waiting.
@@ -671,17 +670,17 @@ pub enum Redefined {
     Done { keys: [u8; KEYS], placed: bool },
 }
 
-/// The redefine keys page's state (`g_redefiningKey`, `g_redefinedKeyPlace`).
+/// The redefine keys page's state.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Redefining {
-    pub on: u32,
+    pub on: bool,
     pub place: u32,
 }
 
 impl Redefining {
     /// `menu::choose_key_n`: the key at `place` is to be redefined.
     pub fn start(place: u32) -> Self {
-        Redefining { on: 1, place }
+        Redefining { on: true, place }
     }
 }
 
@@ -767,7 +766,7 @@ mod tests {
             let mut p = Player::from_le_bytes(bytes);
             p.set_name_player(k);
             assert_eq!(p.name_player(), Some(k));
-            // The file has what the original wrote: the record with the address at +0x18.
+            // The file has what the game wrote: the record with the address at +0x18.
             let mut expected = bytes;
             expected[0x18..0x1c].copy_from_slice(&address(k).to_le_bytes());
             assert_eq!(p.to_file_bytes(address), expected);
@@ -884,16 +883,16 @@ mod tests {
     #[test]
     fn small_fields() {
         let mut p = Player::from_le_bytes([0; 0x28c]);
-        p.lower_dead_zone_1();
-        assert_eq!(p.dead_zone_1, 0);
-        p.dead_zone_1 = 2;
-        p.lower_dead_zone_1();
-        assert_eq!(p.dead_zone_1, 1);
-        p.dead_zone_1 = u32::MAX;
-        p.lower_dead_zone_1();
-        assert_eq!(p.dead_zone_1, u32::MAX);
-        p.lower_dead_zone_2();
-        assert_eq!(p.dead_zone_2, 0);
+        p.lower_end_zone();
+        assert_eq!(p.end_zone_pct, 0);
+        p.end_zone_pct = 2;
+        p.lower_end_zone();
+        assert_eq!(p.end_zone_pct, 1);
+        p.end_zone_pct = u32::MAX;
+        p.lower_end_zone();
+        assert_eq!(p.end_zone_pct, u32::MAX);
+        p.lower_centre_dead_zone();
+        assert_eq!(p.centre_dead_zone_pct, 0);
         p.step_strength(false);
         assert_eq!(p.strength, 0);
         p.strength = 100;

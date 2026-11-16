@@ -1,12 +1,10 @@
-//! The picture buffer's size as the loaders set it (converted 2026-10-21 from
-//! `gfx::load_picture` 0x411863, `gfx::read_texture_picture` 0x405356,
-//! `gfx::show_picture_file` 0x41172B and `gfx::put_surface_pixel` 0x4065BB's place).
+//! The picture buffer's size as the loaders set it.
 //!
 //! A picture is read at a size the decoder may fill (800 x 600, or 256 x 256 for a
 //! texture) with rows that follow one another, then given the screen's size with rows of
 //! four bytes a pixel; a picture whose decoded width is not the screen's is rescaled.
 
-/// The picture's width, height and row length (`dword_4F49A4` on).
+/// The picture's width, height and row length.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PictureSize {
     pub width: u32,
@@ -37,7 +35,7 @@ pub const TEXTURE: PictureSize = PictureSize {
     row_bytes: ROWS_FOLLOW,
 };
 
-/// The dwords a texture's picture is filled with first (-1, its whole 256 x 256).
+/// The dwords of a texture's picture filled with -1 first (its whole 256 x 256).
 pub const TEXTURE_FILLED: usize = 0x100 * 0x100;
 
 /// The picture at the screen's size.
@@ -58,13 +56,13 @@ pub fn rescaled(decoded_width: u32, screen_width: u32) -> bool {
 /// The screen mode's flag of three pages (a third buffer).
 pub const THREE_PAGES: u32 = 0x4_0000;
 
-/// `gfx::show_picture_file`: the pages the picture is shown on.
+/// The pages a picture file is shown on: 3 with `THREE_PAGES`, else 2.
 pub fn pages(mode_flags: u32) -> u32 {
     if mode_flags & THREE_PAGES != 0 { 3 } else { 2 }
 }
 
-/// `gfx::put_surface_pixel`: a pixel's place in its row and its bytes (2 for a surface of 16
-/// bits a pixel, else 4), wrapping.
+/// A pixel's byte offset in its row and its bytes (2 for a surface of 16 bits a pixel, else 4),
+/// wrapping.
 pub fn pixel_place(bits: u32, x: u32) -> (u32, u32) {
     let wide = if bits == 16 { 2 } else { 4 };
     (x.wrapping_mul(wide), wide)

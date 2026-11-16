@@ -1,13 +1,6 @@
-//! An event's set-ups of the drivers and players and its pages' numbers (converted
-//! 2026-10-21 from `menu::reset_drivers` 0x470399, `clear_result_slots` 0x470DDA,
-//! `ready_players` 0x471F7E, `reset_player_totals` 0x471FB8, `begin_event` 0x472BAA,
-//! `reset_driver_condition` 0x47E7BC, `reset_player_times` 0x4813D6,
-//! `reset_single_event` 0x4AAA2F, `add_player_times` 0x4A25AD, `player_entered` 0x4A95EB,
-//! `mark_stage_choice` 0x486C21, `count_stage_pages` 0x480032, `first_page_stage`
-//! 0x4A2440, `stage_range_caption` 0x4A1FBB; the computer drivers' times of
-//! `calc_cpu_times` 0x470950). The drivers (`g_drivers`, 0x94 each) and the
-//! players' records are written by offset, as far as their fields are worked out: each
-//! step's stores, (offset, value), in the original's order.
+//! An event's set-ups of the drivers and players and its pages' numbers. The drivers and the
+//! players' records are written by offset, as far as their fields are worked out: each step's
+//! stores, (offset, value).
 
 use crate::strings::format::{Pad, decimal};
 
@@ -23,7 +16,7 @@ pub fn empty_result_slot(k: usize) -> u32 {
 /// The event mode that keeps the players' setups (`menu::begin_event`).
 pub const KEEPS_SETUP: u32 = 3;
 
-/// Which stage the stage screens' map shows (`dword_755700`).
+/// Which stage the stage screens' map shows.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MapStage {
     /// The stage choice's (`menu::mark_stage_choice`).
@@ -82,7 +75,7 @@ pub fn stage_range(first: u32) -> Vec<u8> {
 }
 
 /// The computer drivers' spread (`menu::calc_cpu_times`): whether the next is the first
-/// (`dword_755944` 1) and the step (`dword_755948`).
+/// (`EventState.service.spread_first` 1) and the step (`EventState.service.spread_step`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Spread {
     pub first: u32,
@@ -90,9 +83,9 @@ pub struct Spread {
 }
 
 impl Spread {
-    /// The next driver's spread: a random number under 3000, plus (unless the first) one
-    /// under 1000 times the step, which then goes up by one and the first is past; for the
-    /// first the step 0. `random(limit)` draws the numbers, in the original's order.
+    /// The next driver's spread: a random number under 3000, plus (unless the first) one under 1000
+    /// times the step, which then goes up by one and the first is past; for the first the step 0.
+    /// `random(limit)` draws the numbers.
     pub fn next<E>(&mut self, mut random: impl FnMut(u32) -> Result<u32, E>) -> Result<u32, E> {
         let spread = random(3000)?;
         if self.first == 1 {
@@ -107,8 +100,8 @@ impl Spread {
     }
 }
 
-/// The gap between a class's computer drivers: half the class's time over its drivers
-/// (`count` not 0: the original divides by it).
+/// The gap between a class's computer drivers: half the class's time over its drivers (`count`
+/// must not be 0).
 pub fn cpu_gap(class_time: u32, count: u32) -> u32 {
     (class_time >> 1) / count
 }

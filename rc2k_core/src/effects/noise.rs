@@ -1,10 +1,9 @@
-//! The marks' noise tables (converted 2026-10-21 from `effects::seed_noise` 0x4C1697): 0x100
-//! steps of the marks' seed (times 0x9D plus 0x47), each giving an entry, the last first,
-//! of three tables: its low 18 bits, and those of it turned right 10 and 20. And the noise
-//! curve (converted 2026-10-21 from `effects::make_noise_curve` 0x4C2247, `init_marks`' step
-//! 5): a walk of 0x1000 steps, smoothed 0xA0 times, the random tables and the records'
-//! layout. Its roundings (`fistp`, and a float stored) follow the x87's control word: they
-//! come in as closures, the x87's in the game.
+//! The marks' noise tables: 0x100 steps of the marks' seed (times 0x9D plus 0x47), each giving an
+//! entry, the last first, of three tables: its low 18 bits, and those of it turned right 10 and
+//! 20. And the noise curve (step 5 of the marks' set-up): a walk of 0x1000 steps, smoothed 0xA0
+//! times, the random tables and the records' layout. Its roundings (`fistp`, and a float stored)
+//! follow the x87's control word: they come in as closures, which the caller gives the emulated
+//! x87's rounding.
 
 /// The entries of a table.
 pub const ENTRIES: usize = 0x100;
@@ -31,7 +30,7 @@ pub fn seed_noise(mut seed: u32) -> ([[u32; ENTRIES]; 3], u32) {
     (tables, seed)
 }
 
-/// The curve's length (`g_marksCurve`, `g_marksCurveCopy`).
+/// The curve's length.
 pub const CURVE_LEN: usize = 0x1000;
 /// The walk's step: held to -0x1000 .. 0x1000, moved by 2 each time.
 pub const LEAST_STEP: i32 = -0x1000;
@@ -55,9 +54,9 @@ pub struct Walk {
     pub seed: u32,
 }
 
-/// The walk: from `CURVE_SEED`, each entry the value << 4 scaled (`scaled`); the step moved
-/// by 2 up, or down when the running sum of the seeds (from `sum`) carries, held to its
-/// limits; the value plus the step, damped (`damped`).
+/// The walk: from `CURVE_SEED`, each entry the value << 4 scaled (`scaled`); the step moved by 2
+/// up, or down when the running sum of the seeds carries, held to its limits; the value plus the
+/// step, damped (`damped`).
 pub fn walk(
     sum: u32,
     mut scaled: impl FnMut(i32) -> i32,
@@ -94,8 +93,8 @@ pub fn smooth(curve: &mut [i32], copy: &mut [i32], mut weighted: impl FnMut(i32,
     }
 }
 
-/// Whether a remainder's divisor can be divided by (`idiv` traps on 0, and on -1 or 1 it
-/// is pointless; refused).
+/// Whether a remainder's divisor can be divided by (0 would trap the division, and -1 or 1 is
+/// pointless; both refused).
 pub fn divisor_fits(d: i32) -> bool {
     d.unsigned_abs() >= 2
 }

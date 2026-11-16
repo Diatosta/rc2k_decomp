@@ -6,4 +6,5 @@ pub mod format;
 pub mod language;
 pub mod lexicon;
 pub mod table;
+pub mod text;
 pub mod words;

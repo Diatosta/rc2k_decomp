@@ -1,41 +1,31 @@
-//! `net::copy_received` (0x4173A0): under the mutex of the received messages
-//! (`net::lock_received` / `net::unlock_received`, `dword_52AB6C`), each player's
-//! messages as the receiving thread left them (its record in `byte_52AD9C`, 0x804C bytes:
-//! from +0x34, the count and the records, 0x1003 dwords) copied to +0x4040 for
-//! `net::apply_received`, the count made 0 and the byte at +0x4039 copied to +0x4038.
-//! The loop runs at least once (player 0 with no players).
-//!
-//!
-//! See `net/mod.rs`. Two callers: `net::apply_received` and `net::lets_rally`. Refuses
-//! (before anything) more than 16 players (the records' room, up to `dword_5AB270`).
+//! Under the received messages' lock (the guard is passed in), copies each player's received
+//! messages for `net::apply_received`, then resets the count and moves the newest sequence to
+//! the oldest. The loop runs at least once. Refuses more than the 8 players there are blocks for.
 
 use crate::errors::{BadInput, Refused};
-use crate::net::store::NetVars;
-use crate::net::{lock_received, unlock_received};
-use rc2k_core::net::inbox;
+use crate::net::owner::Net;
+use crate::net::store::inbox_of;
+use rc2k_core::net::inbox::{self, Inbox};
 
-/// The records' room: 16 players.
-pub const MOST_PLAYERS: u32 = 16;
-
-/// The Rust version.
-pub fn copy_received(vars: &NetVars) -> Result<(), Refused> {
-    let count = || vars.players.get();
+/// The blocks' room: 8 players.
+pub const MOST_PLAYERS: u32 = rc2k_core::net::players::MOST;
+pub fn copy_received(net: &Net, inboxes: &mut [Inbox; 8]) -> Result<(), Refused> {
+    let count = || net.race_slot.players();
     if count() > MOST_PLAYERS {
-        return Err(BadInput("more than the records' 16 players").into());
+        return Err(BadInput("more than the blocks' 8 players").into());
     }
-    lock_received::lock_received(vars);
     let mut player = 0u32;
     loop {
-        // Converted: `rc2k_core::net::inbox::hand_over`, on the inbox and its copy.
-        let at = vars.player_block(player);
-        let mut both = at.read_inbox(2 * inbox::COPIED)?;
-        inbox::hand_over(&mut both);
-        at.write_inbox(&both)?;
+        // The logic is in `rc2k_core::net::inbox::hand_over`, on the inbox.
+        let at = net.vars.player_block(player)?;
+        let (handed, records) = inbox::hand_over(inbox_of(inboxes, player)?);
+        at.copied_count.set(handed);
+        at.copied
+            .write_at(0, &records, "a player's copied records")?;
         player += 1;
         if player >= count() {
             break;
         }
     }
-    unlock_received::unlock_received(vars);
     Ok(())
 }

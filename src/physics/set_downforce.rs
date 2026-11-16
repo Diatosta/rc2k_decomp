@@ -1,25 +1,25 @@
-//! `physics::set_downforce` (0x43F508): unless `dword_71A224` is set: `flt_614174` =
-//! (`g_carSpeed`² `flt_613FB4` + `dword_61476C`) `flt_613FC8` (gravity, by
-//! `physics::apply_patches`), `flt_6147F4` its negative, `flt_614804` = -1. By the look
-//! of it the car's weight with downforce growing with the speed's square (a reading).
+//! Unless `rear_wheels_off` is set: `downforce` = (car speed² `downforce_factor` +
+//! `downforce_spec`) `gravity` (gravity, by `physics::apply_patches`),
+//! `PhysicsTables.forces[4].force[1]` is its negative, `PhysicsTables.forces[4].point[2]` = -1. The
+//! car's downward force: its weight plus downforce growing with the speed's square.
 //!
-//! Caller: `physics::car_physics_step` (0x43B728), every physics step.
+//! Caller: `physics::car_physics_step`, every physics step.
 
-use crate::math::x87_run::{minus_one, square_times_plus_times};
-use crate::race::owner::Race;
+use crate::math::x87::square_times_plus_times;
+use crate::physics::car_store::Car;
+use crate::physics::tables_store::PhysicsTables;
 
-/// The Rust version.
-pub fn set_downforce(race: &Race) {
-    if race.shared.car.rear_wheels_off.get() != 0 {
+pub fn set_downforce(car: &Car, tables: &PhysicsTables) {
+    if car.rear_wheels_off.get() != 0 {
         return;
     }
     let (load, negative) = square_times_plus_times(
-        race.shared.car.local_velocity[2].bits(),
-        race.shared.physics_tables.downforce_factor.bits(),
-        race.shared.physics_tables.downforce_spec.bits(),
-        race.shared.physics_tables.gravity.bits(),
+        &car.local_velocity[2],
+        &tables.downforce_factor,
+        &tables.downforce_spec,
+        &tables.gravity,
     );
-    race.shared.physics_tables.downforce.set_bits(load);
-    race.shared.physics_tables.forces[4].force[1].set_bits(negative);
-    race.shared.physics_tables.forces[4].point[2].set_bits(minus_one());
+    tables.downforce.set(load);
+    tables.forces[4].force[1].set(negative);
+    tables.forces[4].point[2].set(-1.0f32);
 }

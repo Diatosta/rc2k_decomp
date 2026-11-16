@@ -1,44 +1,25 @@
-//! `screens::draw_column_boxes` (0x4A0078): a two-column page's 32 boxes: in each column (x
-//! 0x43, then 0x192; rows from y 0x45 every 0x1D, numbered by `dword_7559EC` 1 .. 0x20, the
-//! place in `g_markerX` / `g_markerY`) a box 0x14D x 0x1B (0x4FCF, see-through
-//! `dword_75AA90`) and its black border; the chosen row (`dword_755525`, while
-//! `dword_7559A4` is 1) also a yellow (0xFFFF00) border and one a pixel outside it. Each a
-//! `scene::draw_tinted_quad`.
-//!
-//!
-//! Caller: `screens::draw_two_column_panel`.
+//! A two-column page's 32 boxes: in each column a see-through box with a black border; the
+//! chosen row (while `draw_work.blink` is set) also gets a yellow border and one a pixel outside
+//! it. Each is a `scene::draw_tinted_quad`. Caller: `screens::draw_two_column_panel`.
 
 use crate::errors::Refused;
-use crate::menu::owner::Screens;
-use crate::screens::service_boxes::{quad, rd, set};
-use crate::session::Dword;
+use crate::owners::Owners;
+use crate::screens::service_boxes::quad;
 
-const ROW: &Dword = &crate::menu::owner::MENUS.screens.draw_work.figure; // dword_7559EC
-const MARKER_X: &Dword = &crate::menu::owner::MENUS.screens.draw_work.marker_x; // g_markerX
-const MARKER_Y: &Dword = &crate::menu::owner::MENUS.screens.draw_work.marker_y; // g_markerY
-
-/// The Rust version: every register kept.
-pub fn draw_column_boxes(screens: &Screens) -> Result<(), Refused> {
-    // Converted: `rc2k_core::screens::panels::row_box`; the row and marker variables
-    // are left as the original leaves them.
+pub fn draw_column_boxes(o: Owners<'static>) -> Result<(), Refused> {
+    let screens = &o.menus.screens;
+    // The logic is in `rc2k_core::screens::panels::row_box`.
     use rc2k_core::screens::panels::{BOXES_Y, COLUMNS, ROW_STEP, ROWS, row_box};
-    set(ROW, 1);
+    let mut row = 1u32;
     for x in COLUMNS {
-        set(MARKER_X, x);
-        set(MARKER_Y, BOXES_Y);
+        let mut y = BOXES_Y;
         for _ in 0..ROWS {
-            let chosen =
-                screens.loop_flags.item.get() == rd(ROW) && screens.draw_work.blink.get() == 1;
-            for a in row_box(
-                rd(MARKER_X),
-                rd(MARKER_Y),
-                screens.state.service_ui.box_colour_a.get(),
-                chosen,
-            ) {
-                quad(a.x, a.y, a.w, a.h, a.colour, a.see)?;
+            let chosen = screens.loop_flags.item.get() == row && screens.draw_work.blink.is_set();
+            for a in row_box(x, y, screens.state.service_ui.box_colour_a.get(), chosen) {
+                quad(o, a.x, a.y, a.w, a.h, a.colour, a.see)?;
             }
-            set(MARKER_Y, rd(MARKER_Y).wrapping_add(ROW_STEP));
-            set(ROW, rd(ROW).wrapping_add(1));
+            y = y.wrapping_add(ROW_STEP);
+            row = row.wrapping_add(1);
         }
     }
     Ok(())

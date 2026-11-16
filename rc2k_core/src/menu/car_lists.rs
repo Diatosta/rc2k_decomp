@@ -1,8 +1,6 @@
-//! The lists of cars that can be chosen, and what the cheats add to them (converted
-//! 2026-10-21 from `menu::remove_secret_cars` 0x471BC7, `menu::add_clio_car` 0x471C33 and
-//! `menu::apply_cheats` 0x480AC1, and the choice of the cheat's list from
-//! `menu::cheat_car_list` 0x480D35; the arcade's `menu::add_shown_car` 0x486BD2). A list holds the addresses of car descriptions and
-//! ends with -1; each has a room of so many dwords before the next variable.
+//! The lists of cars that can be chosen, and what the cheats add to them. A list holds the
+//! addresses of car descriptions and ends with -1; each has a room of so many dwords before the
+//! next variable.
 
 use crate::Invalid;
 
@@ -19,8 +17,8 @@ pub fn entries(room: usize, word: impl Fn(usize) -> u32) -> Result<Vec<u32>, Inv
     Ok(cars)
 }
 
-/// `menu::add_clio_car`, for one list: where the car goes (over the end mark, with no new
-/// end after it: the original's slip, kept), none when the list has it.
+/// `menu::add_clio_car`, for one list: where the car goes (over the end mark, with no new end after
+/// it: a slip kept as is), none when the list has it.
 pub fn place_if_missing(cars: &[u32], car: u32) -> Option<usize> {
     (!cars.contains(&car)).then_some(cars.len())
 }
@@ -35,9 +33,8 @@ pub fn shown_car(shown_list: &[u32], shown: u32) -> Result<u32, Invalid> {
         .ok_or(Invalid("a shown car past the list"))
 }
 
-/// `menu::remove_secret_cars`: each list without the secret cars. Refused: a list left with
-/// no car (the original copies one entry back and then counts through all 32 bits), more
-/// cars than the scratch list (`scratch`) has room for.
+/// `menu::remove_secret_cars`: each list without the secret cars. Refused: a list left with no car,
+/// more cars than the scratch list (`scratch`) has room for.
 pub fn without_secret(
     lists: &[Vec<u32>],
     secret: &[u32],
@@ -75,24 +72,23 @@ pub fn add_car(cars: &mut Vec<u32>, room: usize, car: u32) -> Result<bool, Inval
     Ok(true)
 }
 
-/// The lists of cars the menus hand to the car screens and the carousels (the original
-/// passes a list by its address, in esi, and keeps the carousel's in `dword_75A65C`).
+/// The lists of cars the menus hand to the car screens and the carousels.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CarList {
-    /// `off_759DCA`: the single rally's first list (by `dword_7554D8`), the network game's
+    /// The single rally's first list (by `ScreenFlow.car_list_kind`), the network game's
     /// without a won car.
     First,
-    /// `off_75A042`: the single rally's second, the time trial's and the arcade's.
+    /// The single rally's second, the time trial's and the arcade's.
     Second,
-    /// `off_759E52`: the network game's with a won car (the Clio and the extra cars).
+    /// The network game's with a won car (the Clio and the extra cars).
     WithClio,
-    /// `off_759CAE`: the championship's.
+    /// The championship's.
     Championship,
-    /// `off_759D16`: the A8 game's (and the six fixed kinds' carousel, menu 0xC).
+    /// The A8 game's (and the six fixed kinds' carousel, menu 0xC).
     A8,
-    /// `off_75A412`: the cheat "Unlock Cars"'s (bit 1).
+    /// The cheat "Unlock Cars"'s (bit 1).
     Cheat,
-    /// `off_75A12E`: the arcade's shown cars.
+    /// The arcade's shown cars.
     Shown,
 }
 
@@ -129,13 +125,13 @@ impl CarList {
     }
 }
 
-/// `menu::cheat_car_list`: whether the cheat's car list (`off_75A412`) is chosen: the
+/// `menu::cheat_car_list`: whether the cheat's car list is chosen: the
 /// cheat "Unlock Cars" (bit 1) on.
 pub fn cheat_cars(cheats: u32) -> bool {
     cheats & 1 << 1 != 0
 }
 
-/// What a cheat (a bit of `g_cheats`) does besides being logged.
+/// What a cheat does besides being logged.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Cheat {
     /// The bit stays set (other code looks at it).
@@ -145,11 +141,11 @@ pub enum Cheat {
     /// The bit is cleared and its car added to the first list; `true`: then, when it was
     /// added there, to the second too.
     Car(bool),
-    /// The bit stays set and `dword_75ACCC` becomes 1.
+    /// The bit stays set and `RaceState.settings.a8_game` becomes 1.
     Stores,
 }
 
-/// By bit (see `menu::apply_cheats`' hook for their names).
+/// What each cheat does, by bit (the cheat's name beside it).
 pub const CHEATS: [Cheat; 19] = [
     Cheat::Stays,      // 1 Unlock Arcade
     Cheat::Stays,      // 2 Unlock Cars
@@ -180,8 +176,8 @@ pub struct List {
     pub changed: bool,
 }
 
-/// What `apply_cheats` leaves: the cheats' bits, whether `dword_75ACCC` becomes 1, and
-/// the bits whose lines are logged, in order.
+/// What `apply_cheats` leaves: the cheats' bits, whether `RaceState.settings.a8_game` becomes 1,
+/// and the bits whose lines are logged, in order.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Applied {
     pub cheats: u32,

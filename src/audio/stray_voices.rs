@@ -1,16 +1,13 @@
-//! A diagnostic (2026-10-20): the owner hears, now and then, a sound stuck over
-//! everything that even a pause does not stop, with the audio thread still turning. A
-//! sound only stops through the playing and stopping lists (`audio::update_voices`,
-//! `audio::stop_all_voices`), so a buffer that plays while its voice is on neither list
-//! can never be stopped. Once a second, after the turn's update (the voices' own buffers'
-//! way only: not A3D, not the game's mixer), every voice of the pool whose buffer plays is
-//! looked for on the two lists; one on neither is logged once ("audio: stray voice"), with
-//! what it holds, until it is quiet again.
+//! A diagnostic: a sound is sometimes heard stuck over everything, one that even a pause does not
+//! stop. A sound only stops through the playing and stopping lists, so a buffer that plays while
+//! its voice is on neither list can never be stopped. Once a second, after the turn's update (the
+//! voices' own buffers' way only), every voice whose buffer plays is looked for on the two
+//! lists; one on neither is logged once ("audio: stray voice") until it is quiet again.
 
-use crate::audio::store::AudioState;
+use crate::audio::own::AudioOwn;
 use crate::audio::voices::{VOICES, voice_of};
-use crate::framework::log;
-use crate::session::Dword;
+use crate::logfile::program_log::log;
+use crate::memory::session::PlainDword;
 use std::collections::HashSet;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -23,7 +20,7 @@ static TURNS: AtomicU32 = AtomicU32::new(0);
 static LOGGED: Mutex<Vec<u32>> = Mutex::new(Vec::new());
 
 /// A list's voices, from the head `head` holds (at most the pool's count).
-fn list(state: &AudioState, head: &Dword) -> HashSet<u32> {
+fn list(state: &AudioOwn, head: &PlainDword) -> HashSet<u32> {
     let mut out = HashSet::new();
     let mut at = head.get();
     while at != 0 && out.len() <= VOICES as usize && out.insert(at) {
@@ -33,7 +30,7 @@ fn list(state: &AudioState, head: &Dword) -> HashSet<u32> {
 }
 
 /// The voices on the playing and stopping lists (the debug UI's, on the audio thread).
-pub fn on_lists(state: &AudioState) -> (u32, u32) {
+pub fn on_lists(state: &AudioOwn) -> (u32, u32) {
     (
         list(state, &state.playing_voices).len() as u32,
         list(state, &state.stopping_voices).len() as u32,
@@ -41,7 +38,7 @@ pub fn on_lists(state: &AudioState) -> (u32, u32) {
 }
 
 /// Called after each turn's update.
-pub fn check(state: &AudioState) {
+pub fn check(state: &AudioOwn) {
     if !TURNS.fetch_add(1, Ordering::Relaxed).is_multiple_of(EVERY) {
         return;
     }

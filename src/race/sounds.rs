@@ -1,5 +1,5 @@
-//! The race's sound objects woken at the loading (IDA, 2026-10-15): `off_512A10`, eight
-//! pointers to the cars' sound objects (`sound::load_race_sounds`), each with a flag at +8.
+//! Wakes the race's sound objects at the loading: `RaceSounds.table[0]` holds eight cars' sound
+//! objects (`sound::load_race_sounds`), each with an in-use flag.
 
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
@@ -7,47 +7,57 @@ use crate::race::owner::Race;
 const OBJECTS: u32 = 8;
 const MOST_CARS: u32 = 0x1_0000;
 
-fn wake(n: u32) -> Result<(), BadInput> {
-    crate::sound::store::SoundObject::number(n & 7)?
+fn wake(sound: &crate::sound::owner::Sound, n: u32) -> Result<(), BadInput> {
+    crate::sound::store::SoundObject::of(sound, n & 7)?
         .in_use
         .set(1);
     Ok(())
 }
 
-/// `race::start_race_sounds` (0x40D592): `sound::start_race_clock`, and unless
-/// `dword_514F7C` is 0 it is held to 1 .. 8 and that many objects woken; then
-/// `sound::let_sounds_play` and `dword_5124E4` 1.
-pub fn start_race_sounds(sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
-    crate::sound::race_clock::start_race_clock(crate::system::tick_count::tick_count(), sound);
-    let count: u32 = sound.race.sounds.count.get();
+/// `race::start_race_sounds`: starts the race clock (`sound::start_race_clock`); unless
+/// `RaceSounds.count` is 0 it is held to 1 .. 8 and that many objects are woken. Then the sounds
+/// are let play (`sound::let_sounds_play`) and `RaceClock.started` is set to 1.
+pub fn start_race_sounds(
+    sound: &crate::sound::owner::Sound,
+    audio: &crate::audio::owner::Audio,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
+    crate::sound::race_clock::start_race_clock(
+        crate::system::tick_count::tick_count(&system.session.picture_clock),
+        sound,
+    );
+    let count: u32 = sound.threads.shared.count.get();
     if count != 0 {
         let count = count.clamp(1, OBJECTS);
-        sound.race.sounds.count.set(count);
+        sound.threads.shared.count.set(count);
         for n in 0..count {
-            wake(n)?;
+            wake(sound, n)?;
         }
     }
-    crate::sound::let_sounds_play::let_sounds_play();
-    sound.race.clock.started.set(1);
+    crate::sound::let_sounds_play::let_sounds_play_in(audio);
+    sound.race.clock.get().started.set(1);
     Ok(())
 }
 
-/// `race::wake_car_sounds` (0x45D255): nothing while `dword_71C3E0` is set; else each car's
-/// object (`dword_63DB90` of them, the table taken round its eight) woken, then
-/// `race::start_race_sounds`. Refuses 0x10000 cars or
-/// more (the original counts on to them).
-pub fn wake_car_sounds(race: &Race) -> Result<(), Refused> {
-    let sound = crate::sound::owner::sound();
+/// `race::wake_car_sounds`: does nothing while `in_credits` is set; else wakes each car's object
+/// (`race_cars` of them, the table taken round its eight), then runs `race::start_race_sounds`.
+/// Refuses 0x10000 cars or more.
+pub fn wake_car_sounds(
+    race: &Race,
+    sound: &crate::sound::owner::Sound,
+    audio: &crate::audio::owner::Audio,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
     let shared = &race.shared;
-    if shared.work.in_credits.bits() != 0 {
+    if shared.work.get().in_credits.is_set() {
         return Ok(());
     }
-    let cars: u32 = shared.view.race_cars.bits();
+    let cars: u32 = shared.view.get().race_cars.get();
     if cars >= MOST_CARS {
         return Err(BadInput("0x10000 cars or more").into());
     }
     for n in 0..cars {
-        wake(n)?;
+        wake(sound, n)?;
     }
-    start_race_sounds(sound)
+    start_race_sounds(sound, audio, system)
 }

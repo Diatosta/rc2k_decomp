@@ -1,58 +1,50 @@
-//! `drive::read_car_controls` (0x43A35A): the work car's controls for this step:
-//! - the keys (`dword_6138C4` .. `D0`) into the car's (`dword_71A43C` .. `48`), the
-//!   held-before into `dword_5C694C` and the newly pressed (`dword_71A44C`, bits not held
-//!   before); steering, throttle and brake into 0x613890 .. 0x613898, and three bits as
-//!   0x61389C (bit 2 times 0x60), 0x6138A0, 0x6138A4;
-//! - for a player's car (or in a replay, `dword_52A910`): bit 3 newly pressed flips
-//!   `dword_71A05C`, bit 5 changes the view (`drive::next_camera_view` on `g_car`);
-//! - for a computer's car (`dword_71C3E0` set, or `dword_62389C` and `dword_71A234` 2):
-//!   `drive::start_blend`, `flt_71BFA4` = `flt_71A658`, `drive::drive_computer_car`, and
-//!   its six controls (0x71BF88 ..) into 0x613890 .. 0x6138A4.
-//!
-//! The bytes after its `retn` (0x43A4E5 ..) are another entry that nothing calls.
-//!
-//! Callers: race init's loop (`drive::race_cars_step`), `race::step_replay_cars`,
-//! `drive::replay_step`, `drive::simple_car_step`. Refuses what `drive_computer_car` refuses
-//! (before anything).
+//! The work car's controls for this step: the keys (`input_words`) into the car's controls and
+//! the newly pressed keys; for a player's car (or any car in a network game) bit 3 flips
+//! `lights_on` and bit 5 changes the view (`drive::next_camera_view`); for a computer's car
+//! (`in_credits` set, or `run_kind` and `driver_kind` 2) `drive::drive_computer_car` supplies
+//! them. Refuses what `drive_computer_car` refuses (before anything).
 
 use crate::drive::drive_computer_car::drive_computer_car;
 use crate::drive::next_camera_view::next_view_at;
 use crate::drive::start_blend::start_blend;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::net::owner::net;
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::race::owner_shared::RaceShared;
 use rc2k_core::drive::controls::{FLIP_BIT, VIEW_BIT, computer_drives, flipped, read_keys};
 
 /// Does a computer drive this step?
-fn computer(shared: &Shared) -> bool {
+fn computer(shared: &RaceShared) -> bool {
     // A test's switch (`tools/remote.py pilot`): the computer at a player's wheel.
     #[cfg(feature = "remote")]
-    if crate::remote::autodrive() && shared.work.current_car.get() < shared.view.players.get() {
+    if crate::remote::autodrive()
+        && shared.work.get().current_car.get() < shared.view.get().players.get()
+    {
         return true;
     }
     computer_drives(
-        shared.work.in_credits.get(),
-        || shared.vars.run_kind.get(),
-        || shared.car.driver_kind.get(),
+        shared.work.get().in_credits.is_set(),
+        || shared.vars.get().run_kind.get(),
+        || shared.car().driver_kind.get(),
     )
 }
 
-/// The Rust version: `r` as the original leaves it.
-// Converted: `rc2k_core::drive::controls::{read_keys, computer_drives, flipped}`.
-pub fn read_car_controls(race: &Race) -> Result<(), Refused> {
+pub fn read_car_controls(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    net: &crate::net::owner::Net,
+) -> Result<(), Refused> {
     let race_owner = race;
 
     let course = &race.course;
     if computer(&race_owner.shared)
-        && race_owner.shared.vars.checkpoint_count.get() == 0
-        && race_owner.shared.car.run_ticks.get() >= 0x320
+        && race_owner.shared.vars.get().checkpoint_count.get() == 0
+        && race_owner.shared.car().run_ticks.get() >= 0x320
     {
         // `drive_computer_car`'s refusal, before anything here is written.
-        let reaches = crate::math::x87_run::compare_full(
-            race_owner.shared.car.crash_matrix[5].bits(),
-            race_owner.shared.work.driver_tilt_limit.bits(),
+        let reaches = crate::math::x87::compare_full(
+            &race_owner.shared.car().crash_matrix[5],
+            &race_owner.shared.work.get().driver_tilt_limit,
         ) & 0x100
             == 0;
         if reaches {
@@ -61,69 +53,93 @@ pub fn read_car_controls(race: &Race) -> Result<(), Refused> {
     }
     course
         .lists
+        .get()
         .input_keys_mask
-        .set(race_owner.shared.car.input_keys.get());
-    race_owner.shared.car.input_keys.set(0);
-    race_owner.shared.car.keys_pressed.set(0);
+        .set(race_owner.shared.car().input_keys.get());
+    race_owner.shared.car().input_keys.set(0);
+    race_owner.shared.car().keys_pressed.set(0);
     // The four input words (recorded or replayed) into the car's inputs.
     let words = [
-        &race_owner.shared.car.input_throttle,
-        &race_owner.shared.car.input_keys,
-        &race_owner.shared.car.input_steering,
-        &race_owner.shared.car.input_brake,
+        &race_owner.shared.car().input_throttle,
+        &race_owner.shared.car().input_keys,
+        &race_owner.shared.car().input_steering,
+        &race_owner.shared.car().input_brake,
     ];
     for (to, from) in words
         .into_iter()
-        .zip(&race_owner.shared.physics_tables.input_words)
+        .zip(&race_owner.shared.physics_tables.get().input_words)
     {
         to.set(from.get());
     }
+    // A held race (`RC2K_HELD_RACE`) takes no key from the players: a key still held from the
+    // menus (the test's Return) would reach the car at a tick that depends on the timing.
+    #[cfg(feature = "remote")]
+    if crate::remote::held_race()
+        && race_owner.shared.work.get().current_car.get()
+            < race_owner.shared.view.get().players.get()
+    {
+        race_owner.shared.car().input_keys.set(0);
+    }
     let keys = read_keys(
-        course.lists.input_keys_mask.get(),
-        race_owner.shared.car.input_keys.get(),
+        course.lists.get().input_keys_mask.get(),
+        race_owner.shared.car().input_keys.get(),
     );
     let pressed = keys.pressed;
-    race_owner.shared.car.keys_pressed.set(pressed);
+    race_owner.shared.car().keys_pressed.set(pressed);
     race_owner
         .shared
         .physics_tables
+        .get()
         .input_throttle
-        .set(race_owner.shared.car.input_throttle.get());
+        .set(race_owner.shared.car().input_throttle.get());
     race_owner
         .shared
         .physics_tables
+        .get()
         .input_steer
-        .set(race_owner.shared.car.input_steering.get());
+        .set(race_owner.shared.car().input_steering.get());
     race_owner
         .shared
         .physics_tables
+        .get()
         .input_brake
-        .set(race_owner.shared.car.input_brake.get());
+        .set(race_owner.shared.car().input_brake.get());
     race_owner
         .shared
         .physics_tables
+        .get()
         .input_handbrake
         .set(keys.hand);
-    race_owner.shared.physics_tables.input_gear_up.set(keys.up);
     race_owner
         .shared
         .physics_tables
+        .get()
+        .input_gear_up
+        .set(keys.up);
+    race_owner
+        .shared
+        .physics_tables
+        .get()
         .input_gear_down
         .set(keys.down);
-    let replay = net().vars.session.get() != 0;
-    if replay || race_owner.shared.work.current_car.get() < race_owner.shared.view.players.get() {
+    let replay = net.race_slot.is_on();
+    if replay
+        || race_owner.shared.work.get().current_car.get()
+            < race_owner.shared.view.get().players.get()
+    {
         if pressed & FLIP_BIT != 0 {
             race_owner
                 .shared
-                .car
+                .car()
                 .lights_on
-                .set(flipped(race_owner.shared.car.lights_on.get()));
+                .set(flipped(race_owner.shared.car().lights_on.get()));
         }
         if pressed & VIEW_BIT != 0 {
             next_view_at(
-                &race_owner.shared.car,
-                &race_owner.shared.view.players,
-                &race_owner.shared.car.step_clock,
+                race_owner.kind_tables(),
+                race_owner.shared.car(),
+                &race_owner.shared.view.get().players,
+                &race_owner.shared.car().step_clock,
             )?;
         }
     }
@@ -133,28 +149,30 @@ pub fn read_car_controls(race: &Race) -> Result<(), Refused> {
     race_owner
         .shared
         .work
+        .get()
         .driver_slot
-        .set(race_owner.shared.work.current_car.get());
-    start_blend(race);
+        .set(race_owner.shared.work.get().current_car.get());
+    start_blend(race, scene);
     race_owner
         .shared
         .work
+        .get()
         .driver_start_blend
-        .set_bits(x87::loaded(race_owner.shared.car.start_blend.bits()));
+        .set(x87::loaded(&race_owner.shared.car().start_blend));
     // A test's switch (`tools/remote.py pilot`): a player's car has no computer's skill
     // (its blend near 0 holds the wanted speed down), so it drives at the full blend.
     #[cfg(feature = "remote")]
     if crate::remote::autodrive()
-        && race_owner.shared.work.current_car.get() < race_owner.shared.view.players.get()
+        && race_owner.shared.work.get().current_car.get()
+            < race_owner.shared.view.get().players.get()
     {
-        race_owner
-            .shared
-            .work
-            .driver_start_blend
-            .set_bits(1.0f32.to_bits());
+        race_owner.shared.work.get().driver_start_blend.set(1.0f32);
     }
-    drive_computer_car(race)?;
-    let (ph, w) = (&race_owner.shared.physics_tables, &race_owner.shared.work);
+    drive_computer_car(race, scene)?;
+    let (ph, w) = (
+        race_owner.shared.physics_tables.get(),
+        race_owner.shared.work.get(),
+    );
     for (to, from) in [
         (&ph.input_steer, &w.driver_steer),
         (&ph.input_throttle, &w.driver_throttle),
@@ -169,21 +187,28 @@ pub fn read_car_controls(race: &Race) -> Result<(), Refused> {
     // with the reset key.
     #[cfg(feature = "remote")]
     if crate::remote::autodrive()
-        && race_owner.shared.work.current_car.get() < race_owner.shared.view.players.get()
+        && race_owner.shared.work.get().current_car.get()
+            < race_owner.shared.view.get().players.get()
     {
-        let keys = crate::remote::autodrive_keys(race_owner.shared.car.checkpoint.get());
+        let keys =
+            crate::remote::autodrive_keys(race_owner, race_owner.shared.car().checkpoint.get());
         if keys != 0 {
             // Off the throttle and on the brake while the key is held, as a player would:
             // the reset needs the car slow throughout.
-            race_owner.shared.physics_tables.input_throttle.set(0);
-            race_owner.shared.physics_tables.input_brake.set(0x100);
-            race_owner.shared.physics_tables.input_steer.set(0);
+            race_owner.shared.physics_tables.get().input_throttle.set(0);
+            race_owner
+                .shared
+                .physics_tables
+                .get()
+                .input_brake
+                .set(0x100);
+            race_owner.shared.physics_tables.get().input_steer.set(0);
         }
         race_owner
             .shared
-            .car
+            .car()
             .input_keys
-            .set(race_owner.shared.car.input_keys.get() | keys);
+            .set(race_owner.shared.car().input_keys.get() | keys);
     }
     Ok(())
 }

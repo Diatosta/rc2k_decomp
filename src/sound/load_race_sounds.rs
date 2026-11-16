@@ -1,71 +1,66 @@
-//! `sound::load_race_sounds` (0x40EED8): names the co-driver's speech files and tells the
-//! audio thread which sets of sounds a race needs.
+//! `sound::load_race_sounds`: names the co-driver's speech files and tells the audio thread which
+//! sets of sounds a race needs.
 //!
-//! The two cars' sound objects are `off_512A10[dword_514F70]` and
-//! `off_512A10[dword_514F74]`. The first's dword +0x298 says whose voice it has: 0 the
-//! list of 95 file names at 0x507C1A (`files\%speech\m\..`), else the list at 0x508914
-//! (`..\f\..`); the second car has the other list, or the same one if its +0x298 is the
-//! first's. The sample records 0xED .. 0x1AA of `unk_50A7A4` (0x40 bytes each) get the
-//! names at their +0xC: the odd ones the first car's, the even ones the second's.
-//! Then the sets, each a command 3 with the set's address in eax: in a replay
-//! (`dword_75B108` not 0) only `unk_512340`; else the first car's kind
-//! (`off_512360[its +4 * 8]`), `unk_511CA8`, `unk_512268`, `unk_511D04`; unless
-//! `dword_514F78` is 1 the second car's kind (`off_512364[its +4 * 8]`), `unk_512014`,
-//! `unk_512070`; and `unk_5121EC` unless `dword_514F78` is `dword_514F7C`.
-//! The commands carry the loop's leftovers in the other registers, reproduced.
-//! What the two counts and "a replay" are is a reading.
-//! One caller, `sound::set_up_race_sounds`. Refuses a car number of 8 or more, a missing
-//! object, a kind of 0x22 or more and a list of names that does not hold 95 of at most 0x100
-//! bytes.
+//! The two cars' sound objects are `RaceSounds.table[0][RaceSounds.player_cars[0]]` and
+//! `RaceSounds.table[0][RaceSounds.player_cars[1]]`. The first car's voice field says whose voice
+//! it has: 0 the list of 95 male file names (`files\%speech\m\..`), else the female list
+//! (`..\f\..`); the second car has the other list, or the same one if its voice field equals the
+//! first's. The sample records 0xED .. 0x1AA of `SampleRecords.records[0]` get the names: the odd
+//! ones the first car's, the even ones the second's. Then the sets, each a command 3 (load a list
+//! of sounds) naming the set: in a replay (`RaceState.results.finished` not 0) only
+//! `SoundSets.replay_set[0]`; else the first car's kind set (`SoundSets.kinds[0]`),
+//! `first_set_a[0]`, `first_set_b[0]` and `first_set_c[0]`; unless `RaceSounds.one_player` is 1 the
+//! second car's kind set (`SoundSets.kinds[1]`), `second_set_a[0]` and `second_set_b[0]`; and
+//! `last_set[0]` unless `RaceSounds.one_player` is `RaceSounds.count`. The commands also carry the
+//! loop's leftover values in their unused words; they are reproduced because the sound hash of a
+//! held race records them. What the two counts and "a replay" are is a reading. One caller,
+//! `sound::set_up_race_sounds`. Refuses a car number of 8 or more, a missing object, a kind of 0x22
+//! or more and a list of names that does not hold 95 of at most 0x100 bytes.
 
-use crate::audio::names_store::SampleNames;
+use crate::audio::names_store::{NameList, SampleNames};
 use crate::errors::BadInput;
-use crate::pointers::GamePtr;
-use crate::race::owner::race;
-use crate::session::Dword;
-use crate::sound::queue::START_3;
-use crate::sound::sets_store::RaceSoundSets;
-use core::mem::offset_of;
-use rc2k_core::audio::commands::SoundList;
+use crate::memory::session::PlainDword;
+use crate::race::owner::Race;
+use crate::sound::sets_store::NamedSet;
+use rc2k_core::audio::commands::{Command, SoundList};
 
 // ---- game data ----
 
 const FIRST_SAMPLE: usize = 0xED;
 const NAMES: usize = 95;
 const OBJECTS: u32 = 8;
-/// The kinds `off_512360` has sets for: 0x22, the cars' kinds (0x20 and 0x21, the Clio's,
-/// share kind 0xD's sets). The original reads it unchecked.
+/// The kinds `SoundSets.kinds[0]` has sets for: 0x22, the cars' kinds (0x20 and 0x21, the
+/// Clio's, share kind 0xD's sets).
 const KINDS: u32 = 0x22;
 
-/// The lengths of a list's 95 names.
-fn lengths(list: GamePtr) -> Result<Vec<u32>, BadInput> {
-    use rc2k_core::strings::bytes::Bytes as _;
-    let bytes = list.bytes("a speech file's names")?;
-    let mut at = 0usize;
+/// The lengths of a list's 95 names, the list starting at the name key `first` (each name
+/// ends in a NUL inside its field).
+fn lengths(names: &SampleNames, first: u32) -> Result<Vec<u32>, BadInput> {
+    let mut key = first;
     let mut lengths = Vec::with_capacity(NAMES);
     for _ in 0..NAMES {
-        let length = (0..0x100usize)
-            .find(|&n| bytes.byte(at + n) == Some(0))
-            .ok_or(BadInput("a speech file's name without its end"))?;
+        let length = crate::audio::store::name_in(names, key)?.len();
+        if length >= 0x100 {
+            return Err(BadInput("a speech file's name without its end"));
+        }
         lengths.push(length as u32);
-        at += length + 1;
+        key += length as u32 + 1;
     }
     Ok(lengths)
 }
 
-// ---- Rust version ----
-
-/// `send` gets each command 3's list (by handle: the audio thread resolves it).
-/// The variables (`sound::owner::Sound::race`'s `sounds`): dword_514F70 and dword_514F74 the
-/// two cars' numbers, dword_514F78, dword_514F7C the counts, off_512A10 the eight sound
-/// objects; dword_75B108 the replay switch.
+/// `send` gets each command 3's list (by handle: the audio thread resolves it). The variables
+/// (`sound::owner::Sound::race`'s `sounds`): `RaceSounds.player_cars` the two cars' numbers,
+/// `RaceSounds.one_player` and `RaceSounds.count` the counts, `RaceSounds.table[0]` the eight sound
+/// objects; `RaceState.results.finished` the replay switch.
 pub fn load_race_sounds(
     send: &mut dyn FnMut(SoundList),
+    race: &Race,
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), BadInput> {
-    let r = &sound.race.sounds;
-    let object = |number: &Dword| -> Result<u32, BadInput> {
+    let r = sound.race.sounds.get();
+    let object = |number: &PlainDword| -> Result<u32, BadInput> {
         let number = number.get();
         if number >= OBJECTS {
             return Err(BadInput("a car's number past the sound objects"));
@@ -73,12 +68,18 @@ pub fn load_race_sounds(
         Ok(number)
     };
     let (first, second) = (object(&r.player_cars[0])?, object(&r.player_cars[1])?);
-    let kind = |object: u32| match crate::sound::store::SoundObject::number(object)?.kind.get() {
+    let kind = |object: u32| match crate::sound::store::SoundObject::of(sound, object)?
+        .kind
+        .get()
+    {
         kind if kind < KINDS => Ok(kind as usize),
         _ => Err(BadInput("a car's kind past the table of sound sets")),
     };
-    let replay = race().shared.state.results.finished.get() != 0;
-    let (count, other_count) = (r.one_player.get(), r.count.get());
+    let replay = race.shared.state.results.finished.is_set();
+    let (count, other_count) = (
+        sound.threads.shared.one_player.get(),
+        sound.threads.shared.count.get(),
+    );
     let kinds = if replay {
         None
     } else {
@@ -89,36 +90,38 @@ pub fn load_race_sounds(
         };
         Some((kind(first)?, second))
     };
-    // Converted: `rc2k_core::sound::race::voices` and `sets`.
+    // The logic is `rc2k_core::sound::race::voices` and `sets`.
     use rc2k_core::sound::race::{Set, Voice, sets, voices};
     // The lists by name key (`audio::store::name_key`: their places in the names).
     let list = |v: Voice| {
-        (match v {
-            Voice::Male => core::mem::offset_of!(SampleNames, male_speech),
-            Voice::Female => core::mem::offset_of!(SampleNames, female_speech),
-        }) as u32
+        match v {
+            Voice::Male => NameList::MaleSpeech,
+            Voice::Female => NameList::FemaleSpeech,
+        }
+        .first_key()
     };
     let (a, b) = voices(
-        crate::sound::store::SoundObject::number(first)?
+        crate::sound::store::SoundObject::of(sound, first)?
             .cue_queue
             .first
             .get(),
-        crate::sound::store::SoundObject::number(second)?
+        crate::sound::store::SoundObject::of(sound, second)?
             .cue_queue
             .first
             .get(),
     );
-    let (mut ebx, mut edx) = (list(a), list(b));
-    // Unbounded: the original reads the names on as far as they go.
-    let name = |key| crate::audio::store::name_at(key).map(GamePtr::unbounded);
-    let (of_first, of_second) = (lengths(name(ebx)?)?, lengths(name(edx)?)?);
+    let (mut first_name, mut second_name) = (list(a), list(b));
+    let (of_first, of_second) = (
+        lengths(&audio.sample_names, first_name)?,
+        lengths(&audio.sample_names, second_name)?,
+    );
     // Nothing has been written or sent up to here.
     for n in 0..NAMES {
-        let records = &audio.sample_records.records;
-        records[FIRST_SAMPLE + n * 2].update(|r| r.data_key = ebx);
-        records[FIRST_SAMPLE + n * 2 + 1].update(|r| r.data_key = edx);
-        ebx += (of_first[n] as usize + 1) as u32;
-        edx += (of_second[n] as usize + 1) as u32;
+        let records = &audio.sample_records;
+        records.set_data_key(FIRST_SAMPLE + n * 2, first_name);
+        records.set_data_key(FIRST_SAMPLE + n * 2 + 1, second_name);
+        first_name += (of_first[n] as usize + 1) as u32;
+        second_name += (of_second[n] as usize + 1) as u32;
     }
     let (first_kind, second_kind) = kinds.unwrap_or((0, None));
     for set in sets(
@@ -128,27 +131,13 @@ pub fn load_race_sounds(
         count,
         other_count,
     ) {
-        let list = |offset: usize| SoundList::Race {
-            offset: offset as u32,
-        };
         send(match set {
-            Set::Replay => list(offset_of!(RaceSoundSets, replay_set)),
-            Set::FirstKind(k) => RaceSoundSets::kind_list_of(2 * k as usize)?,
-            Set::First(n) => list(
-                [
-                    offset_of!(RaceSoundSets, first_set_a),
-                    offset_of!(RaceSoundSets, first_set_b),
-                    offset_of!(RaceSoundSets, first_set_c),
-                ][n],
-            ),
-            Set::SecondKind(k) => RaceSoundSets::kind_list_of(2 * k as usize + 1)?,
-            Set::Second(n) => list(
-                [
-                    offset_of!(RaceSoundSets, second_set_a),
-                    offset_of!(RaceSoundSets, second_set_b),
-                ][n],
-            ),
-            Set::Last => list(offset_of!(RaceSoundSets, last_set)),
+            Set::Replay => NamedSet::Replay.list(),
+            Set::FirstKind(k) => sound.threads.sets.kind_list(2 * k as usize)?,
+            Set::First(n) => [NamedSet::FirstA, NamedSet::FirstB, NamedSet::FirstC][n].list(),
+            Set::SecondKind(k) => sound.threads.sets.kind_list(2 * k as usize + 1)?,
+            Set::Second(n) => [NamedSet::SecondA, NamedSet::SecondB][n].list(),
+            Set::Last => NamedSet::Last.list(),
         });
     }
     Ok(())
@@ -156,11 +145,13 @@ pub fn load_race_sounds(
 
 /// In the game: each list sent as command 3.
 pub fn load_race_sounds_in_game(
+    race: &Race,
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), BadInput> {
     load_race_sounds(
-        &mut |list| crate::sound::senders::send(START_3, [list.word(), 0, 0, 0]),
+        &mut |list| crate::sound::senders::send(audio, Command::Load(Some(list))),
+        race,
         sound,
         audio,
     )

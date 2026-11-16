@@ -1,22 +1,22 @@
-//! The game's side of `rc2k_core::screens::screen::Screen` (2026-10-20, the screens' conversion): a
-//! family's fonts are font records in game memory, its texts places in typed stores or
-//! held names, its work variables game dwords; drawn through the text functions and the canvas.
+//! The game's side of `rc2k_core::screens::screen::Screen`: a family's fonts are font records
+//! in game memory, its texts places in typed stores or held names, its work variables game
+//! dwords; drawn through the text functions and the canvas.
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::blit_glyph::BlitCall;
 use crate::gfx::typefaces::FontRef;
+use crate::memory::session::DwordLike;
 use crate::menu::owner::Menus;
-use crate::pointers::GamePtr;
-use crate::race::owner::race;
-use crate::session::Dword;
+use crate::owners::Owners;
+use crate::race::owner::Race;
+use crate::strings::text_buffer::TextBuf;
 use crate::text::draw_text::{Canvas, draw_text_at};
 
-use crate::gfx::owner::gfx;
-use crate::menu::owner::menus;
+use crate::gfx::owner::Gfx;
 use rc2k_core::screens::screen::{Buffer, Drawn, Screen};
 use std::marker::PhantomData;
 
-/// A family's font: the address of its record (as IDA shows it).
+/// A family's font: the handle of its record.
 pub trait GameFont: Copy {
     /// The font record in the game.
     fn pointer(self) -> FontRef;
@@ -39,9 +39,10 @@ impl GameFont for MenuFont {
     }
 }
 
-/// A family's work variable.
+/// A family's work variable: the game state it reports to, if any.
 pub trait GameWork: Copy {
-    fn cell(self) -> &'static Dword;
+    /// Where the value is kept, `None` for a variable nothing reads.
+    fn cell(self, menus: &'static Menus, race: &'static Race) -> Option<&'static dyn DwordLike>;
 }
 
 /// A text a screen draws (`HeldText`: a place in a typed store, bounded by it, or a name
@@ -49,12 +50,24 @@ pub trait GameWork: Copy {
 /// places (a player's name by `player_name`).
 pub trait GameText: Copy {
     /// Drawn in `font` at x, y.
-    fn draw(self, font: FontRef, x: i32, y: i32, canvas: &mut dyn Canvas)
-    -> Result<Drawn, Refused>;
-    /// A shared buffer of the game's.
-    fn of_buffer(at: GamePtr) -> Self;
+    fn draw(
+        self,
+        o: &Owners<'static>,
+        font: FontRef,
+        x: i32,
+        y: i32,
+        canvas: &mut dyn Canvas,
+    ) -> Result<Drawn, Refused>;
+    /// A shared buffer of the game's, read when drawn.
+    fn of_buffer(buffer: Buffer) -> Self;
     /// Measured in `font` from x: its widest line's width.
-    fn measure(self, font: FontRef, x: i32, canvas: &mut dyn Canvas) -> Result<u32, Refused>;
+    fn measure(
+        self,
+        o: &Owners<'static>,
+        font: FontRef,
+        x: i32,
+        canvas: &mut dyn Canvas,
+    ) -> Result<u32, Refused>;
 }
 
 /// A text held by value (a typed table's name, copied out of it): at most `ROOM` bytes,
@@ -98,16 +111,73 @@ pub fn held_name(text: Option<Vec<u8>>) -> Result<HeldText, crate::errors::BadIn
         .ok_or(crate::errors::BadInput("a name past its entry"))
 }
 
+/// The text from byte `at` of `run` up to and with its NUL, or to the run's end when it has
+/// none (the drawer then refuses it). Nothing past the run.
+fn text_in(run: &dyn crate::memory::place::Run, at: usize) -> Vec<u8> {
+    let mut text = Vec::new();
+    for n in at..run.len() {
+        let b = run.get(n);
+        text.push(b);
+        if b == 0 {
+            break;
+        }
+    }
+    text
+}
+
+/// A name in a field of a typed table (a record's `name`), held for drawing with the table's
+/// bytes as they are now; refused without its NUL inside the field or past the held room.
+/// The screens build their rows and draw them in the same call, so nothing changes the
+/// field in between.
+pub fn held_field(
+    field: &dyn crate::memory::place::Run,
+) -> Result<HeldText, crate::errors::BadInput> {
+    let mut text = text_in(field, 0);
+    held_name(if text.pop() == Some(0) {
+        Some(text)
+    } else {
+        None
+    })
+}
+
+/// A table of slot names the screens list: 0x20-byte names one after the other.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SlotNames {
+    /// The saved games' names (the load and save screens).
+    SavedGames,
+    /// The setups' names.
+    Setups,
+    /// The replays' names.
+    Replays,
+}
+
+impl SlotNames {
+    /// The table and the length of one name in it.
+    fn table(self, o: &Owners<'static>) -> (&'static dyn crate::memory::place::Run, usize) {
+        match self {
+            SlotNames::SavedGames => (&o.saves.save_games.names, 0x20),
+            SlotNames::Setups => (
+                &o.menus.service.set_ups.names,
+                crate::service::read_setup_slot::NAME_LEN,
+            ),
+            SlotNames::Replays => (
+                &o.race.shared.replays().names,
+                crate::menu::name_lists::NAME_LEN,
+            ),
+        }
+    }
+}
+
 /// The name of player `player` (counted from 0), drawn from the names' store.
-pub fn player_name_of(menus: &Menus, player: usize) -> HeldText {
-    HeldText::Place(crate::menu::player_names::name_ptr(menus, player))
+pub fn player_name_of(player: usize) -> HeldText {
+    HeldText::Name(crate::menu::player_names::NameAt::of(player))
 }
 
 /// The name an entry's name address names (`player_names::name_address`), drawn from the
 /// names' store; refused when it names no player's name.
-pub fn player_name(menus: &Menus, name_at: u32) -> Result<HeldText, crate::errors::BadInput> {
+pub fn player_name(name_at: u32) -> Result<HeldText, crate::errors::BadInput> {
     crate::menu::player_names::index_of(name_at)
-        .map(|k| HeldText::Place(crate::menu::player_names::name_ptr(menus, k)))
+        .map(|k| HeldText::Name(crate::menu::player_names::NameAt::of(k)))
         .ok_or(crate::errors::BadInput(
             "a player's name that is no player's name",
         ))
@@ -116,22 +186,56 @@ pub fn player_name(menus: &Menus, name_at: u32) -> Result<HeldText, crate::error
 /// The texts of a screen whose names are held by value: those, or the game's own buffers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum HeldText {
-    /// A text in a field of a typed store (a record's name), bounded by it.
-    Place(GamePtr),
+    /// The name of slot `.1` in a table of slot names, read when drawn and run on to the
+    /// table's end.
+    Slot(SlotNames, u32),
+    /// A shared text buffer, read when drawn.
+    Buffer(Buffer),
+    /// A saved car's name in the read saved-game file (from this offset), run on to the
+    /// file's end.
+    SavedCarName(usize),
+    /// A player's name in the names' area, run on to the area's end.
+    Name(crate::menu::player_names::NameAt),
     Held(Held),
+}
+
+impl HeldText {
+    /// The bytes of a text that stays in its table or buffer, as they are now.
+    fn read_in_place(self, o: &Owners<'static>) -> Vec<u8> {
+        match self {
+            HeldText::Slot(names, slot) => {
+                let (table, len) = names.table(o);
+                text_in(table, (slot as usize).wrapping_mul(len))
+            }
+            HeldText::Buffer(buffer) => match buffer_at(o.strings, &o.menus.text_buffers, buffer) {
+                TextBuf::Text(b) => text_in(b, 0),
+                TextBuf::Line(b) => text_in(b, 0),
+            },
+            HeldText::SavedCarName(at) => text_in(&o.saves.save_games.file, at),
+            HeldText::Name(_) | HeldText::Held(_) => Vec::new(),
+        }
+    }
 }
 
 impl GameText for HeldText {
     fn draw(
         self,
+        o: &Owners<'static>,
         font: FontRef,
         x: i32,
         y: i32,
         canvas: &mut dyn Canvas,
     ) -> Result<Drawn, Refused> {
         match self {
-            HeldText::Place(at) => {
-                let out = draw_text_at(font, &at.bytes("a name")?, x, y, canvas)?;
+            HeldText::Slot(..) | HeldText::Buffer(_) | HeldText::SavedCarName(_) => {
+                let out = draw_text_at(font, &self.read_in_place(o), x, y, canvas)?;
+                Ok(Drawn {
+                    y: out.y,
+                    too_wide: out.too_wide,
+                })
+            }
+            HeldText::Name(at) => {
+                let out = draw_text_at(font, &at.tail(&o.menus.play), x, y, canvas)?;
                 Ok(Drawn {
                     y: out.y,
                     too_wide: out.too_wide,
@@ -149,16 +253,31 @@ impl GameText for HeldText {
         }
     }
 
-    fn of_buffer(at: GamePtr) -> Self {
-        HeldText::Place(at)
+    fn of_buffer(buffer: Buffer) -> Self {
+        HeldText::Buffer(buffer)
     }
 
-    fn measure(self, font: FontRef, x: i32, canvas: &mut dyn Canvas) -> Result<u32, Refused> {
+    fn measure(
+        self,
+        o: &Owners<'static>,
+        font: FontRef,
+        x: i32,
+        canvas: &mut dyn Canvas,
+    ) -> Result<u32, Refused> {
         match self {
-            HeldText::Place(at) => {
+            HeldText::Slot(..) | HeldText::Buffer(_) | HeldText::SavedCarName(_) => {
                 let m = crate::text::measure_text::measure_text_at(
                     font,
-                    &at.bytes("a name")?,
+                    &self.read_in_place(o),
+                    x,
+                    canvas,
+                )?;
+                Ok(m.width)
+            }
+            HeldText::Name(at) => {
+                let m = crate::text::measure_text::measure_text_at(
+                    font,
+                    &at.tail(&o.menus.play),
                     x,
                     canvas,
                 )?;
@@ -177,14 +296,21 @@ pub struct GameScreen<'a, F, W, T = HeldText> {
     pub canvas: &'a mut dyn Canvas,
     /// The menu's first item (the menus' screen: `rc2k_core::screens::menus::MenuScreen`).
     pub menu_items: &'static [crate::menu::menus_store::MenuItem],
+    /// The menus' state the screens read.
+    menus: &'static Menus,
+    /// Every owner, for the texts, buffers and work variables the family names.
+    owners: Owners<'static>,
     family: PhantomData<(F, W, T)>,
 }
 
 impl<'a, F, W, T> GameScreen<'a, F, W, T> {
-    pub fn new(canvas: &'a mut dyn Canvas) -> Self {
+    /// A screen drawing on `canvas`, the game's state being `o`'s.
+    pub fn new(canvas: &'a mut dyn Canvas, o: Owners<'static>) -> Self {
         Self {
             canvas,
             menu_items: &[],
+            menus: o.menus,
+            owners: o,
             family: PhantomData,
         }
     }
@@ -195,8 +321,11 @@ fn font_of(f: impl GameFont) -> FontRef {
 }
 
 /// Where a clip edge is kept.
-fn clip_edge_cell(edge: rc2k_core::screens::screen::Edge) -> &'static crate::session::Dword {
-    let drawing = &gfx().drawing;
+fn clip_edge_cell(
+    gfx: &'static Gfx,
+    edge: rc2k_core::screens::screen::Edge,
+) -> &'static crate::memory::session::PlainDword {
+    let drawing = &gfx.drawing;
     use rc2k_core::screens::screen::Edge;
     match edge {
         Edge::Left => &drawing.blit.clip.left,
@@ -207,18 +336,26 @@ fn clip_edge_cell(edge: rc2k_core::screens::screen::Edge) -> &'static crate::ses
 }
 
 /// Where a shared buffer is.
-pub fn buffer_at(buffer: Buffer) -> GamePtr {
-    use crate::screens::text_buffers_store::TEXT_BUFFERS;
+pub fn buffer_at(
+    strings: &'static crate::strings::owner::Strings,
+    text_buffers: &'static crate::screens::text_buffers_store::TextBuffers,
+    buffer: Buffer,
+) -> TextBuf {
     match buffer {
-        Buffer::Line => GamePtr::to(&TEXT_BUFFERS.line),
-        Buffer::Text => crate::strings::text_from_ids::text_at(),
-        Buffer::Cells => GamePtr::to(&TEXT_BUFFERS.cells),
+        Buffer::Line => TextBuf::Line(&text_buffers.line),
+        Buffer::Text => crate::strings::text_from_ids::text_at(strings),
+        Buffer::Cells => TextBuf::Line(&text_buffers.cells),
     }
 }
 
-/// `bytes` (with their NUL) into a shared buffer; refused past its end (the line buffer
-/// 0x100 bytes: `byte_A8BC54` follows).
-pub fn store_in(buffer: Buffer, bytes: &[u8]) -> Result<(), Refused> {
+/// `bytes` (with their NUL) into a shared buffer; refused past its end (the line buffer is
+/// 0x100 bytes, and the next buffer follows).
+pub fn store_in(
+    strings: &'static crate::strings::owner::Strings,
+    text_buffers: &'static crate::screens::text_buffers_store::TextBuffers,
+    buffer: Buffer,
+    bytes: &[u8],
+) -> Result<(), Refused> {
     let room = match buffer {
         Buffer::Line => 0x100,
         Buffer::Text => crate::strings::text_from_ids::TEXT_LEN,
@@ -227,7 +364,7 @@ pub fn store_in(buffer: Buffer, bytes: &[u8]) -> Result<(), Refused> {
     if bytes.len() > room {
         return Err(BadInput("a text past its buffer").into());
     }
-    buffer_at(buffer).write_bytes(bytes, "a shared text buffer")?;
+    buffer_at(strings, text_buffers, buffer).write_at(0, bytes, "a shared text buffer")?;
     Ok(())
 }
 
@@ -238,32 +375,58 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
     type Error = Refused;
 
     fn text(&mut self, font: F, text: T, x: i32, y: i32) -> Result<Drawn, Refused> {
-        text.draw(font_of(font), x, y, self.canvas)
+        text.draw(&self.owners, font_of(font), x, y, self.canvas)
     }
 
     fn store(&mut self, buffer: Buffer, bytes: &[u8]) -> Result<(), Refused> {
-        store_in(buffer, bytes)
+        store_in(
+            self.owners.strings,
+            &self.owners.menus.text_buffers,
+            buffer,
+            bytes,
+        )
     }
 
     fn draw(&mut self, font: F, buffer: Buffer, x: i32, y: i32) -> Result<Drawn, Refused> {
-        self.text(font, T::of_buffer(buffer_at(buffer)), x, y)
+        self.text(font, T::of_buffer(buffer), x, y)
     }
 
     fn draw_time(&mut self, font: F, buffer: Buffer, right: i32, y: i32) -> Result<(), Refused> {
         use crate::text::draw_time_fixed_pitch::draw_time_fixed_pitch_at;
-        draw_time_fixed_pitch_at(font_of(font), buffer_at(buffer), right, y, self.canvas)?;
+        draw_time_fixed_pitch_at(
+            font_of(font),
+            buffer_at(self.owners.strings, &self.owners.menus.text_buffers, buffer),
+            right,
+            y,
+            self.canvas,
+        )?;
         Ok(())
     }
 
     fn draw_clock(&mut self, font: F, buffer: Buffer, right: i32, y: i32) -> Result<(), Refused> {
         use crate::text::draw_clock_fixed_pitch::draw_clock_fixed_pitch_at;
-        draw_clock_fixed_pitch_at(font_of(font), buffer_at(buffer), right, y, self.canvas)?;
+        draw_clock_fixed_pitch_at(
+            font_of(font),
+            buffer_at(self.owners.strings, &self.owners.menus.text_buffers, buffer),
+            right,
+            y,
+            self.canvas,
+        )?;
         Ok(())
     }
 
     fn string(&mut self, font: F, id: u32, x: i32, y: i32) -> Result<Drawn, Refused> {
         use crate::text::draw_string_by_id::draw_string_by_id_at;
-        let out = { draw_string_by_id_at(id, font_of(font), x, y, self.canvas) }?;
+        let out = {
+            draw_string_by_id_at(
+                crate::strings::append_string_by_id::StringOwners::of(self.owners),
+                id,
+                font_of(font),
+                x,
+                y,
+                self.canvas,
+            )
+        }?;
         Ok(Drawn {
             y: out.y,
             too_wide: out.too_wide,
@@ -273,23 +436,31 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
     fn string_bytes(&mut self, id: u32) -> Vec<u8> {
         let mut out = Vec::new();
         crate::menu::event_flow::refuse_here(
-            crate::strings::append_string_by_id::push_string(&mut out, id),
+            crate::strings::append_string_by_id::push_string(
+                crate::strings::append_string_by_id::StringOwners::of(self.owners),
+                &mut out,
+                id,
+            ),
             "screens::game_screen: a string",
         );
         out
     }
 
     fn strings(&mut self, first: u32, count: u32) -> Result<Vec<u8>, Refused> {
-        Ok(crate::strings::text_from_ids::text_from_ids(first, count)?)
+        Ok(crate::strings::text_from_ids::text_from_ids(
+            crate::strings::append_string_by_id::StringOwners::of(self.owners),
+            first,
+            count,
+        )?)
     }
 
     fn sprite(&mut self, glyph: u32, x: i32, y: i32) -> Result<(), Refused> {
-        let call = BlitCall::sprite(glyph, x, y);
+        let call = BlitCall::sprite(self.menus, glyph, x, y, self.canvas.clip_right());
         self.canvas.blit_glyph(call)
     }
 
     fn bar(&mut self, bar: rc2k_core::screens::screen::Bar) -> Result<(), Refused> {
-        use crate::gfx::blit_bar::{Bar, blit_bar};
+        use crate::gfx::blit_bar::{Bar, blit_bar_in};
         Bar {
             x: bar.x,
             y: bar.y,
@@ -298,18 +469,28 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
             end_glyph: bar.end_glyph,
             percent: bar.percent,
         }
-        .write();
+        .write_in(self.owners.gfx);
         let canvas = &mut *self.canvas;
-        blit_bar(&mut |call| canvas.blit_glyph(call))
+        blit_bar_in(self.owners.gfx, self.owners.menus, &mut |call| {
+            canvas.blit_glyph(call)
+        })
     }
 
     fn blend(&mut self, since_key: u32, a: F, b: F) -> Result<(), Refused> {
-        crate::text::blend_font::blend_font(since_key, 0x100, font_of(a), font_of(b))?;
+        crate::text::blend_font::blend_font(
+            self.owners.strings,
+            self.owners.gfx,
+            self.owners.system,
+            since_key,
+            0x100,
+            font_of(a),
+            font_of(b),
+        )?;
         Ok(())
     }
 
     fn clip_edge(&mut self, edge: rc2k_core::screens::screen::Edge) -> Result<u32, Refused> {
-        Ok(clip_edge_cell(edge).get())
+        Ok(clip_edge_cell(self.owners.gfx, edge).get())
     }
 
     fn set_clip_edge(
@@ -317,21 +498,22 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
         edge: rc2k_core::screens::screen::Edge,
         value: u32,
     ) -> Result<(), Refused> {
-        clip_edge_cell(edge).set(value);
+        clip_edge_cell(self.owners.gfx, edge).set(value);
         Ok(())
     }
 
     fn item(&mut self, n: u32, on: bool) -> Result<(), Refused> {
         if on {
-            crate::menu::enable_item::enable_item(n)
+            crate::menu::enable_item::enable_item(self.menus, n)
         } else {
-            crate::menu::disable_item::disable_item(n)
+            crate::menu::disable_item::disable_item(self.menus, n)
         }
     }
 
     fn measure_string(&mut self, font: F, id: u32, x: i32) -> Result<u32, Refused> {
         let m = {
             crate::text::measure_string_by_id::measure_string_by_id_at(
+                crate::strings::append_string_by_id::StringOwners::of(self.owners),
                 id,
                 font_of(font),
                 x,
@@ -342,16 +524,20 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
     }
 
     fn measure(&mut self, font: F, text: T, x: i32) -> Result<u32, Refused> {
-        text.measure(font_of(font), x, self.canvas)
+        text.measure(&self.owners, font_of(font), x, self.canvas)
     }
 
     fn spaced(&mut self, font: F, bytes: &[u8], x: i32, y: i32) -> Result<(), Refused> {
-        let screens = &menus().screens;
         let mut text = bytes.to_vec();
         text.push(0);
-        store_in(Buffer::Line, &text)?;
+        store_in(
+            self.owners.strings,
+            &self.owners.menus.text_buffers,
+            Buffer::Line,
+            &text,
+        )?;
         crate::screens::draw_spaced_number::draw_spaced_number(
-            screens,
+            &self.owners.menus.text_buffers,
             font_of(font),
             bytes,
             x,
@@ -365,7 +551,9 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
     }
 
     fn keep(&mut self, work: W, value: u32) {
-        work.cell().set(value);
+        if let Some(cell) = work.cell(self.menus, self.owners.race) {
+            cell.set(value);
+        }
     }
 }
 
@@ -386,14 +574,14 @@ impl GameFont for rc2k_core::screens::best_scores::Font {
 }
 
 impl GameWork for rc2k_core::screens::best_scores::Work {
-    fn cell(self) -> &'static Dword {
+    fn cell(self, menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
         use rc2k_core::screens::best_scores::Work as W;
-        let screens = &menus().screens;
+        let screens = &menus.screens;
         match self {
-            W::Rank => &screens.draw_work.seconds,
-            W::RowY => &screens.draw_work.work_b0,
-            W::CarGlyph => &screens.draw_work.work_b4,
-            W::Heading => &screens.draw_work.figure,
+            W::Rank => None,
+            W::RowY => Some(&screens.draw_work.button_x),
+            W::CarGlyph => Some(&screens.draw_work.button_y),
+            W::Heading => None,
         }
     }
 }
@@ -415,13 +603,12 @@ impl GameFont for rc2k_core::screens::stage_panel::Font {
 }
 
 impl GameWork for rc2k_core::screens::stage_panel::Work {
-    fn cell(self) -> &'static Dword {
+    fn cell(self, _menus: &'static Menus, race: &'static Race) -> Option<&'static dyn DwordLike> {
         use rc2k_core::screens::stage_panel::Work as W;
-        let screens = &menus().screens;
         match self {
-            W::Scratch => &screens.draw_work.figure,
-            W::Finish => &screens.draw_work.hhmm,
-            W::Entry34 => &race().shared.state.settings.stage,
+            W::Scratch => None,
+            W::Finish => None,
+            W::Entry34 => Some(&race.shared.state.settings.stage),
         }
     }
 }
@@ -440,15 +627,15 @@ impl GameFont for rc2k_core::screens::itinerary::Font {
 }
 
 impl GameWork for rc2k_core::screens::itinerary::Work {
-    fn cell(self) -> &'static Dword {
+    fn cell(self, menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
         use rc2k_core::screens::itinerary::Work as W;
-        let screens = &menus().screens;
+        let screens = &menus.screens;
         match self {
-            W::Y => &screens.draw_work.seconds,
-            W::Row => &screens.draw_work.work_b0,
-            W::Stage => &screens.draw_work.work_b4,
-            W::Service => &screens.draw_work.work_0c,
-            W::ServiceString => &screens.draw_work.work_08,
+            W::Y => None,
+            W::Row => Some(&screens.draw_work.button_x),
+            W::Stage => Some(&screens.draw_work.button_y),
+            W::Service => None,
+            W::ServiceString => None,
         }
     }
 }
@@ -467,14 +654,13 @@ impl GameFont for rc2k_core::screens::settings_pages::Font {
 }
 
 impl GameWork for rc2k_core::screens::settings_pages::Work {
-    fn cell(self) -> &'static Dword {
+    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
         use rc2k_core::screens::settings_pages::Work as W;
-        let screens = &menus().screens;
         match self {
-            W::Scratch => &screens.draw_work.figure,
-            W::Seconds => &screens.draw_work.seconds,
-            W::Glyph => &screens.draw_work.hhmm,
-            W::CheckX => &screens.draw_work.marker_x,
+            W::Scratch => None,
+            W::Seconds => None,
+            W::Glyph => None,
+            W::CheckX => None,
         }
     }
 }
@@ -500,7 +686,7 @@ impl GameFont for rc2k_core::screens::car_pages::Font {
 }
 
 impl GameWork for rc2k_core::screens::car_pages::Work {
-    fn cell(self) -> &'static Dword {
+    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
         match self {}
     }
 }
@@ -519,12 +705,11 @@ impl GameFont for rc2k_core::screens::slot_lists::Font {
 }
 
 impl GameWork for rc2k_core::screens::slot_lists::Work {
-    fn cell(self) -> &'static Dword {
-        let screens = &menus().screens;
+    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
         match self {
-            rc2k_core::screens::slot_lists::Work::X => &screens.draw_work.marker_x,
-            rc2k_core::screens::slot_lists::Work::Y => &screens.draw_work.marker_y,
-            rc2k_core::screens::slot_lists::Work::Row => &screens.draw_work.figure,
+            rc2k_core::screens::slot_lists::Work::X => None,
+            rc2k_core::screens::slot_lists::Work::Y => None,
+            rc2k_core::screens::slot_lists::Work::Row => None,
         }
     }
 }
@@ -545,7 +730,7 @@ impl GameFont for rc2k_core::screens::savegame_preview::Font {
 }
 
 impl GameWork for rc2k_core::screens::savegame_preview::Work {
-    fn cell(self) -> &'static Dword {
+    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
         match self {}
     }
 }
@@ -569,13 +754,10 @@ impl GameFont for rc2k_core::screens::players_results::Font {
 }
 
 impl GameWork for rc2k_core::screens::players_results::Work {
-    fn cell(self) -> &'static Dword {
-        let screens = &menus().screens;
+    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
         match self {
-            rc2k_core::screens::players_results::Work::Gap => &screens.draw_work.work_b8,
-            rc2k_core::screens::players_results::Work::FirstTime => {
-                &screens.draw_work.first_player_time
-            }
+            rc2k_core::screens::players_results::Work::Gap => None,
+            rc2k_core::screens::players_results::Work::FirstTime => None,
         }
     }
 }
@@ -593,15 +775,15 @@ impl GameFont for rc2k_core::screens::stage_results::Font {
 }
 
 impl GameWork for rc2k_core::screens::stage_results::Work {
-    fn cell(self) -> &'static Dword {
+    fn cell(self, menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
         use rc2k_core::screens::stage_results::Work as W;
-        let screens = &menus().screens;
+        let screens = &menus.screens;
         match self {
-            W::Rank => &screens.draw_work.seconds,
-            W::Scratch => &screens.draw_work.figure,
-            W::FirstTime => &screens.state.menus.first_row_time,
-            W::Gap => &screens.draw_work.hhmm,
-            W::RowY => &screens.draw_work.work_b0,
+            W::Rank => None,
+            W::Scratch => None,
+            W::FirstTime => Some(&screens.state.menus.first_row_time),
+            W::Gap => None,
+            W::RowY => Some(&screens.draw_work.button_x),
         }
     }
 }
@@ -623,28 +805,27 @@ impl GameFont for rc2k_core::screens::results_pages::Font {
 }
 
 impl GameWork for rc2k_core::screens::results_pages::Work {
-    fn cell(self) -> &'static Dword {
+    fn cell(self, menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
         use rc2k_core::screens::results_pages::Work as W;
-        let menus = menus();
         match self {
-            W::FirstTime => &menus.screens.draw_work.first_player_time,
-            W::OverallFirst => &menus.screens.draw_work.overall_first_time,
-            W::Gap => &menus.screens.draw_work.glyph,
-            W::Row => &menus.screens.loop_flags.champ_row,
-            W::RowEnd => &menus.play.champ_view.row_end,
+            W::FirstTime => None,
+            W::OverallFirst => None,
+            W::Gap => None,
+            W::Row => Some(&menus.screens.loop_flags.champ_row),
+            W::RowEnd => Some(&menus.play.champ_view.rows.row_end),
         }
     }
 }
 
 impl GameWork for rc2k_core::screens::results_pages::RankingWork {
-    fn cell(self) -> &'static Dword {
+    fn cell(self, menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
         use rc2k_core::screens::results_pages::RankingWork as W;
-        let screens = &menus().screens;
+        let screens = &menus.screens;
         match self {
-            W::FirstTime => &screens.draw_work.first_player_time,
-            W::Place => &screens.draw_work.seconds,
-            W::Gap => &screens.draw_work.glyph,
-            W::SpriteY => &screens.draw_work.work_b0,
+            W::FirstTime => None,
+            W::Place => None,
+            W::Gap => None,
+            W::SpriteY => Some(&screens.draw_work.button_x),
         }
     }
 }
@@ -662,7 +843,7 @@ impl GameFont for rc2k_core::screens::player_result::Font {
 }
 
 impl GameWork for rc2k_core::screens::player_result::Work {
-    fn cell(self) -> &'static Dword {
+    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
         match self {}
     }
 }
@@ -687,11 +868,11 @@ impl GameFont for rc2k_core::screens::duel_result::Font {
 }
 
 impl GameWork for rc2k_core::screens::duel_result::Work {
-    fn cell(self) -> &'static Dword {
-        let play = &menus().play;
+    fn cell(self, menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
+        let play = &menus.play;
         match self {
-            rc2k_core::screens::duel_result::Work::First => &play.results.order[0],
-            rc2k_core::screens::duel_result::Work::Second => &play.results.order[1],
+            rc2k_core::screens::duel_result::Work::First => Some(&play.results.order[0]),
+            rc2k_core::screens::duel_result::Work::Second => Some(&play.results.order[1]),
         }
     }
 }
@@ -706,19 +887,20 @@ impl GameFont for rc2k_core::screens::notes::Font {
 }
 
 impl GameWork for rc2k_core::screens::notes::Work {
-    fn cell(self) -> &'static Dword {
+    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
         match self {}
     }
 }
 
 /// A one-string screen drawn: what it leaves in the registers.
 pub fn draw_note(
+    o: crate::owners::Owners<'static>,
     canvas: &mut dyn Canvas,
     note: &rc2k_core::screens::notes::Note,
 ) -> Result<rc2k_core::screens::screen::Drawn, Refused> {
     rc2k_core::screens::notes::note(
         &mut GameScreen::<rc2k_core::screens::notes::Font, rc2k_core::screens::notes::Work>::new(
-            canvas,
+            canvas, o,
         ),
         note,
     )
@@ -738,11 +920,10 @@ impl GameFont for rc2k_core::screens::player_details::Font {
 }
 
 impl GameWork for rc2k_core::screens::player_details::Work {
-    fn cell(self) -> &'static Dword {
-        let screens = &menus().screens;
+    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
         match self {
-            rc2k_core::screens::player_details::Work::Seconds => &screens.draw_work.seconds,
-            rc2k_core::screens::player_details::Work::Kept => &screens.draw_work.figure,
+            rc2k_core::screens::player_details::Work::Seconds => None,
+            rc2k_core::screens::player_details::Work::Kept => None,
         }
     }
 }
@@ -755,22 +936,20 @@ pub type DetailsScreen<'a> = GameScreen<
 >;
 
 impl GameWork for rc2k_core::screens::menus::Work {
-    fn cell(self) -> &'static Dword {
+    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
         use rc2k_core::screens::menus::Work;
-        let screens = &menus().screens;
         match self {
-            Work::SpacedFont => &screens.draw_work.figure,
-            Work::MarkerX => &screens.draw_work.marker_x,
-            Work::MarkerY => &screens.draw_work.marker_y,
-            Work::Highlighted => &screens.draw_work.drawing_highlighted_item,
+            Work::SpacedFont => None,
+            Work::MarkerX => None,
+            Work::MarkerY => None,
+            Work::Highlighted => None,
         }
     }
 }
 
 impl rc2k_core::screens::menus::MenuScreen for MenuScreen<'_> {
     fn own_button(&mut self, n: usize) -> Result<(), Refused> {
-        let screens = &menus().screens;
-        crate::screens::buttons::draw_item_button(screens, self.menu_item(n)?, self.canvas)
+        crate::screens::buttons::draw_item_button(self.menus, self.menu_item(n)?, self.canvas)
     }
     fn text_button(
         &mut self,
@@ -785,17 +964,36 @@ impl rc2k_core::screens::menus::MenuScreen for MenuScreen<'_> {
             TextButton::HighlightedRight => (&HIGHLIGHTED, ALIGN_RIGHT),
             TextButton::HighlightedCentred => (&HIGHLIGHTED, ALIGN_CENTRE),
         };
-        crate::screens::buttons::draw_text_button(kind, align, self.menu_item(n)?, self.canvas)
+        crate::screens::buttons::draw_text_button(
+            self.owners,
+            kind,
+            align,
+            self.menu_item(n)?,
+            self.canvas,
+        )
     }
     fn blended(&mut self, since_key: u32, a: MenuFont, b: MenuFont) -> Result<MenuFont, Refused> {
         use crate::text::blend_font::blend_font;
-        blend_font(since_key, 0x100, a.pointer(), b.pointer())?;
+        blend_font(
+            self.owners.strings,
+            self.owners.gfx,
+            self.owners.system,
+            since_key,
+            0x100,
+            a.pointer(),
+            b.pointer(),
+        )?;
         Ok(MenuFont::Blended)
+    }
+    fn list_sprite(&mut self, _list: usize, _x: i32, _y: i32) -> Result<(), Refused> {
+        // The list's address as a sprite number is past every sprite table
+        // (`gfx::blit_glyph::glyph_record` refuses it).
+        Err(crate::errors::BadInput("a sprite list drawn as a sprite").into())
     }
     fn font_value(&self, f: MenuFont) -> u32 {
         match f {
-            MenuFont::Object(id) => FontRef::from(id).addr(),
-            MenuFont::Blended => FontRef::Blended.addr(),
+            MenuFont::Object(id) => id.number(),
+            MenuFont::Blended => crate::gfx::typefaces::BLENDED_NUMBER,
         }
     }
 }
@@ -826,13 +1024,13 @@ impl GameFont for rc2k_core::screens::service::Font {
 }
 
 impl GameWork for rc2k_core::screens::service::Work {
-    fn cell(self) -> &'static Dword {
+    fn cell(self, menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
         use rc2k_core::screens::service::Work;
-        let screens = &menus().screens;
+        let screens = &menus.screens;
         match self {
-            Work::Penalty => &screens.state.driver_stats.money,
-            Work::A => &screens.draw_work.seconds,
-            Work::B => &screens.draw_work.figure,
+            Work::Penalty => Some(&screens.state.driver_stats.money),
+            Work::A => None,
+            Work::B => None,
         }
     }
 }
@@ -848,28 +1046,28 @@ impl GameFont for rc2k_core::screens::highlighted_caption::Font {
             Font::Measure => crate::gfx::typefaces::fonts::MEASURE.into(),
             Font::A => crate::gfx::typefaces::fonts::CAPTION_A.into(),
             Font::B => crate::gfx::typefaces::fonts::CAPTION_B.into(),
-            // g_blendedFont.
+            // The blended font.
             Font::Blended => FontRef::Blended,
         }
     }
 }
 
 impl GameWork for rc2k_core::screens::highlighted_caption::Work {
-    fn cell(self) -> &'static Dword {
+    fn cell(self, menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
         use rc2k_core::screens::highlighted_caption::Work;
-        let screens = &menus().screens;
+        let screens = &menus.screens;
         match self {
-            Work::MarkerX => &screens.draw_work.marker_x,
-            Work::MarkerY => &screens.draw_work.marker_y,
-            Work::Width => &screens.draw_work.seconds,
-            Work::X => &screens.draw_work.work_b0,
-            Work::Y => &screens.draw_work.work_b4,
-            Work::Left => &screens.draw_work.glyph,
-            Work::Right => &screens.draw_work.work_c4,
-            Work::LeftX => &screens.draw_work.marker_end_a,
-            Work::LeftY => &screens.draw_work.marker_end_b,
-            Work::RightX => &screens.draw_work.marker_end_c,
-            Work::RightY => &screens.draw_work.marker_end_d,
+            Work::MarkerX => None,
+            Work::MarkerY => None,
+            Work::Width => None,
+            Work::X => Some(&screens.draw_work.button_x),
+            Work::Y => Some(&screens.draw_work.button_y),
+            Work::Left => None,
+            Work::Right => None,
+            Work::LeftX => None,
+            Work::LeftY => None,
+            Work::RightX => None,
+            Work::RightY => None,
         }
     }
 }
@@ -881,11 +1079,11 @@ impl GameFont for rc2k_core::screens::inspection::Font {
 }
 
 impl GameWork for rc2k_core::screens::inspection::Work {
-    fn cell(self) -> &'static Dword {
-        let screens = &menus().screens;
+    fn cell(self, menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
+        let screens = &menus.screens;
         match self {
-            rc2k_core::screens::inspection::Work::Lost => &screens.draw_work.figure,
-            rc2k_core::screens::inspection::Work::Status => &screens.state.driver_stats.score,
+            rc2k_core::screens::inspection::Work::Lost => None,
+            rc2k_core::screens::inspection::Work::Status => Some(&screens.state.driver_stats.score),
         }
     }
 }
@@ -897,7 +1095,7 @@ impl GameFont for rc2k_core::screens::controls::Font {
 }
 
 impl GameWork for rc2k_core::screens::controls::Work {
-    fn cell(self) -> &'static Dword {
+    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
         match self {}
     }
 }
@@ -919,13 +1117,14 @@ impl GameFont for rc2k_core::screens::championship_table::Font {
 }
 
 impl GameWork for rc2k_core::screens::championship_table::Work {
-    fn cell(self) -> &'static Dword {
-        let menus = menus();
+    fn cell(self, menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
         match self {
             rc2k_core::screens::championship_table::Work::Position => {
-                &menus.screens.loop_flags.champ_row
+                Some(&menus.screens.loop_flags.champ_row)
             }
-            rc2k_core::screens::championship_table::Work::End => &menus.play.champ_view.row_end,
+            rc2k_core::screens::championship_table::Work::End => {
+                Some(&menus.play.champ_view.rows.row_end)
+            }
         }
     }
 }
@@ -937,18 +1136,17 @@ impl GameFont for rc2k_core::screens::controller_page::Font {
 }
 
 impl GameWork for rc2k_core::screens::controller_page::Work {
-    fn cell(self) -> &'static Dword {
+    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
         use rc2k_core::screens::controller_page::Work;
-        let screens = &menus().screens;
         match self {
-            Work::Seconds => &screens.draw_work.seconds,
-            Work::Record => &screens.draw_work.work_0c,
-            Work::FirstLeft => &screens.draw_work.slider_a_start,
-            Work::FirstRight => &screens.draw_work.slider_a_end,
-            Work::SecondLeft => &screens.draw_work.slider_b_start,
-            Work::SecondRight => &screens.draw_work.slider_b_end,
-            Work::Place => &screens.draw_work.figure,
-            Work::Buttons => &screens.draw_work.hhmm,
+            Work::Seconds => None,
+            Work::Record => None,
+            Work::FirstLeft => None,
+            Work::FirstRight => None,
+            Work::SecondLeft => None,
+            Work::SecondRight => None,
+            Work::Place => None,
+            Work::Buttons => None,
         }
     }
 }

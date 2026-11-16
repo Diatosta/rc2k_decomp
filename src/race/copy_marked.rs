@@ -1,42 +1,28 @@
-//! `race::copy_marked` (0x41E2F6): the marked blocks (from `dword_96E478` up to
-//! `dword_96E47C`) onto the clipboard: their count into `dword_96E484`, their places
-//! (`lDistanceToMove`) into `unk_96E488` and their cameras (`unk_963BB4`) into
-//! `unk_971CC8`. Nothing when the marks are not in order (`jle`, signed).
-//!
-//! Callers: `race::viewer_action` (action 0x1B, and in 0x11 before the cut). Refused, before
-//! anything is written: a first mark below 0 or a second past 0x708 (the original copies from
-//! outside the tables).
+//! Copies the marked blocks (from `mark_in` up to `mark_out`) onto the clipboard: their count into
+//! `clip_blocks`, their places into `clip_places` and their cameras (`block_cameras`) into
+//! `clip_cameras`. Nothing happens when the marks are not in order (signed comparison). Refused,
+//! before anything is written: a first mark below 0 or a second past 0x708. Called by the viewer's
+//! actions 0x1B and 0x11 (before the cut).
 
 use crate::errors::Refused;
-use crate::race::owner_shared::Shared;
+use crate::race::owner::Race;
 use crate::race::viewer::move_cells;
 
-/// The Rust version: the count copied (edx), none when the marks are not in order. Of
-/// what the original leaves, its caller `viewer_action` reads only edx, in the cut.
-pub fn copy_marked(shared: &Shared) -> Result<Option<u32>, Refused> {
-    // Converted: `rc2k_core::race::viewer::clip`.
-    let first = crate::race::viewer_buffers_store::VIEWER_BUFFERS
-        .mark_in
-        .get();
-    let Some((_, blocks)) = rc2k_core::race::viewer::clip(
-        first,
-        crate::race::viewer_buffers_store::VIEWER_BUFFERS
-            .mark_out
-            .get(),
-    )?
-    else {
+/// The count copied, none when the marks are not in order.
+pub fn copy_marked(race: &Race) -> Result<Option<u32>, Refused> {
+    let shared = &race.shared;
+    let v = race.viewer_buffers();
+    let first = v.mark_in.get();
+    let Some((_, blocks)) = rc2k_core::race::viewer::clip(first, v.mark_out.get())? else {
         return Ok(None);
     };
-    crate::race::viewer_buffers_store::VIEWER_BUFFERS
-        .clip_blocks
-        .set(blocks);
+    v.clip_blocks.set(blocks);
     let dwords = 2 * blocks as usize;
-    let v = &crate::race::viewer_buffers_store::VIEWER_BUFFERS;
     let first = 2 * first as usize;
     move_cells(
         &v.clip_places,
         0,
-        &shared.replay_file.block_places,
+        &shared.replay_file().index.block_places,
         first,
         dwords,
     )?;

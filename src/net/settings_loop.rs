@@ -1,84 +1,67 @@
-//! `net::settings_loop` (0x4168CF): the network settings screen (its menu's action 0x4AAADB):
-//! `dword_52A908` 0, the background (`net::show_background`), the saved connection checked
-//! (`net::settings_done`); the list's clocks from `dword_518998`, no editing, item 0. Each
-//! frame (`net::settings_frame` through `screens::run_frame`): the frame clock noted, a key
-//! (`menu::list_take_key`); while a setting is edited the key goes to it
-//! (`net::setting_key`); else up (0x66) and down (0x6B) move the highlight within 0 .. 4
-//! (the move clock then noted), Enter (0x1C) on item 4 leaves, on item 0 chooses the
-//! connection (`net::settings_link`, the highlight back to 0), on the others starts the
-//! editing (`net::begin_setting_edit`); Escape (1) leaves; 'R' (0x52) with screenshots on
-//! takes one (`gfx::take_screenshot`); any other key may compile the lexicon again
-//! (`strings::maybe_compile_lexicon`). It ends too when the game is closing; then
-//! `g_listChoice` -1.
-//!
+//! The network settings screen: up and down move the highlight over five items, Enter leaves
+//! (item 4), chooses the connection (item 0) or starts editing the setting; Escape leaves. A
+//! setting being edited gets the keys. Also ends when the game is closing.
 
 use crate::errors::Refused;
 use crate::net::lobby::{list_key, other_key, run_frame};
-use crate::net::owner::net;
-use crate::system::owner::system;
-
-/// The Rust version.
-pub fn settings_loop() -> Result<(), Refused> {
-    let install = crate::install::owner::install();
-    let net = net();
-    let vars = &net.vars;
-    let system = system();
-    vars.mode.set(0);
-    crate::net::show_background::show_background(&net.vars)?;
-    crate::net::settings_done::settings_done(&net.vars)?;
-    let now = system.session.clocks.key_ticks.get();
-    install.pages.move_clock.set(now);
-    install.pages.key_clock.set(now);
-    vars.edited.set(u32::MAX);
-    install.pages.choice.set(0);
+pub fn settings_loop(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    let (net, system) = (o.net, o.system);
+    let list_state = &o.menus.list;
+    net.lobby().mode.set(0);
+    crate::net::show_background::show_background(o)?;
+    crate::net::settings_done::settings_done(o, &crate::race::viewer_screen_store::NET_TEXTS)?;
+    let now = system.session.key_clock.ticks.get();
+    list_state.move_clock.set(now);
+    list_state.key_clock.set(now);
+    net.settings().edit.edited.set(u32::MAX);
+    list_state.choice.set(0);
     loop {
-        run_frame(crate::net::settings_frame::settings_frame)?;
-        install
-            .pages
+        run_frame(o, || crate::net::settings_frame::settings_frame(o))?;
+        list_state
             .frame_clock
-            .set(system.session.clocks.key_ticks.get());
-        let key = list_key()?;
+            .set(system.session.key_clock.ticks.get());
+        let key = list_key(list_state, o.input)?;
         let mut moved = false;
-        if vars.edited.get() != u32::MAX {
-            crate::net::setting_key::setting_key(install, net, key)?;
+        if net.settings().edit.edited.get() != u32::MAX {
+            crate::net::setting_key::setting_key(o.input, o.strings, list_state, net, key, o.gfx)?;
         } else {
             match key {
                 0x66 => {
-                    let c = install.pages.choice.get().wrapping_sub(1);
-                    install.pages.choice.set(if (c as i32) < 0 { 0 } else { c });
+                    let c = list_state.choice.get().wrapping_sub(1);
+                    list_state.choice.set(if (c as i32) < 0 { 0 } else { c });
                     moved = true;
                 }
                 0x6B => {
-                    let c = install.pages.choice.get().wrapping_add(1);
-                    install.pages.choice.set(if (c as i32) > 4 { 4 } else { c });
+                    let c = list_state.choice.get().wrapping_add(1);
+                    list_state.choice.set(if (c as i32) > 4 { 4 } else { c });
                     moved = true;
                 }
                 0x1C => {
-                    if install.pages.choice.get() == 4 {
+                    if list_state.choice.get() == 4 {
                         break;
                     }
-                    if install.pages.choice.get() == 0 {
-                        crate::net::settings_link::settings_link(install, &net.vars)?;
-                        install.pages.choice.set(0);
+                    if list_state.choice.get() == 0 {
+                        crate::net::settings_link::settings_link(
+                            o,
+                            &crate::race::viewer_screen_store::NET_TEXTS,
+                        )?;
+                        list_state.choice.set(0);
                     } else {
-                        crate::net::begin_setting_edit::begin_setting_edit(install, &net.vars)?;
+                        crate::net::begin_setting_edit::begin_setting_edit(net, list_state)?;
                     }
                     moved = true;
                 }
                 1 => break,
-                key => other_key(key)?,
+                key => other_key(o, key)?,
             }
         }
         if moved {
-            install
-                .pages
-                .move_clock
-                .set(install.pages.frame_clock.get());
+            list_state.move_clock.set(list_state.frame_clock.get());
         }
-        if system.session.flags.quitting.get() == 1 {
+        if system.session.flags.quitting.is_set() {
             break;
         }
     }
-    install.pages.choice.set(u32::MAX);
+    list_state.choice.set(u32::MAX);
     Ok(())
 }

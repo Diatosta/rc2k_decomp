@@ -1,44 +1,34 @@
-//! The camera's ground checks (converted 2026-10-21 from `physics::camera_low_switch`
-//! 0x438BF4, `camera_over_ground` 0x438CEC and `camera_clear_of_ground` 0x438DD2): how
-//! high the camera is over the ground found under it, the switch begun when it is low,
-//! and the points across its heading that must have ground. What the camera variables
-//! (`unk_71A65C` ..) are is a reading: the mode, the place, the turns. And the camera
-//! kept out of the ground (converted 2026-10-21 from `physics::camera_avoid_ground`
-//! 0x43907F): turned to face from a checkpoint behind, then back toward its heading in
-//! halving-by-eight steps, then pitched up or down until clear.
+//! The camera's ground checks: its height over the ground, the low-camera switch, the points
+//! across its heading that must have ground, and the turn / pitch steps that keep it out of
+//! the ground.
 
-/// Below this over the ground (signed) the camera is low.
+/// Below this height (signed) the camera is low.
 pub const LOW: u32 = 0x800;
-/// At this over the ground (signed) or more it is clear.
+/// At this height (signed) or more the camera is clear.
 pub const CLEAR: u32 = 0x10000;
-/// The two points across the heading (x, a half unit either way) that must have ground,
-/// in the original's order.
+/// The x offsets across the heading (half a unit either way) that must have ground.
 pub const SIDES: [u32; 2] = [0xFFFF_8000, 0x8000];
 
-/// The camera's height over the ground (`unk_71A680` - `dword_639828`, wrapping).
+/// The camera's height over the ground (wrapping).
 pub fn over(camera_y: u32, ground: u32) -> u32 {
     camera_y.wrapping_sub(ground)
 }
 
-/// Low: below `LOW` by the sign of the `cmp`.
 pub fn is_low(gap: u32) -> bool {
     (gap.wrapping_sub(LOW) as i32) < 0
 }
 
-/// Clear: `CLEAR` or more by the sign of the `cmp`.
 pub fn is_clear(gap: u32) -> bool {
     (gap.wrapping_sub(CLEAR) as i32) >= 0
 }
 
-/// `camera_low_switch` looks: `unk_71A0A0` below 0 (or no number), no switch under way
-/// (`unk_71A66C` 0) and the mode (`unk_71A65C`) 0 or 1.
+/// Whether the low-camera switch looks: below 0, no switch under way, mode 0 or 1.
 pub fn low_switch_looks(below_zero: bool, switching: u32, mode: u32) -> bool {
     below_zero && switching == 0 && matches!(mode, 0 | 1)
 }
 
-/// The switch begun: the mode before (`unk_71A664`, the mode `unk_71A660` + 1), the mode
-/// 4, under way (`unk_71A66C`) 1, `unk_71A674` 0, `unk_71A670` 10, and the clock
-/// (`unk_71A668`), in the original's order.
+/// The state a low-camera switch sets: `before` the mode to return to, mode 4, under way,
+/// `w674` the share 0, `w670` the length 10, and the clock at its start.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct LowSwitch {
     pub before: u32,
@@ -49,7 +39,7 @@ pub struct LowSwitch {
     pub clock: u32,
 }
 
-/// The switch from the mode `mode` at `clock`.
+/// The switch from the mode `mode` at `clock`; `before` is the mode + 1.
 pub fn low_switch(mode: u32, clock: u32) -> LowSwitch {
     LowSwitch {
         before: mode.wrapping_add(1),
@@ -61,14 +51,13 @@ pub fn low_switch(mode: u32, clock: u32) -> LowSwitch {
     }
 }
 
-/// `physics::camera_avoid_ground`: the checkpoint `back` before the car's, when there is
-/// one (not below 0, by the sign).
+/// The checkpoint `back` before the car's, when it is not below 0 (by sign).
 pub fn back_checkpoint(checkpoint: u32, back: u32) -> Option<u32> {
     let n = checkpoint.wrapping_sub(back);
     ((n as i32) >= 0).then_some(n)
 }
 
-/// The turn back's first step (`dword_605264`), and the step at or below which it ends.
+/// The turn back's first step, and the step at or below which it ends.
 pub const FIRST_TURN_STEP: u32 = 0x400_0000;
 pub const LAST_TURN_STEP: u32 = 0x1000;
 
@@ -78,8 +67,8 @@ pub fn turn_gap(kept: u32, heading: u32) -> u32 {
     if (d as i32) < 0 { d.wrapping_neg() } else { d }
 }
 
-/// A turn step toward the kept heading: the step, negated when the kept one is below
-/// (signed); None when the gap is below the step (unsigned).
+/// A turn step toward the kept heading, negated when the kept one is below (signed); None
+/// when the gap is below the step (unsigned).
 pub fn turn_step(kept: u32, heading: u32, step: u32) -> Option<u32> {
     if turn_gap(kept, heading) < step {
         return None;
@@ -91,13 +80,13 @@ pub fn turn_step(kept: u32, heading: u32, step: u32) -> Option<u32> {
     })
 }
 
-/// The next step: an eighth; None when it is then `LAST_TURN_STEP` or less (the end).
+/// The next step (an eighth), and whether it is the last (`LAST_TURN_STEP` or less).
 pub fn next_turn_step(step: u32) -> (u32, bool) {
     let s = step >> 3;
     (s, s <= LAST_TURN_STEP)
 }
 
-/// The pitch's first limit going down (`dword_608C20`).
+/// The pitch's first limit going down.
 pub const PITCH_START: u32 = 0x4000_0000;
 
 #[cfg(test)]

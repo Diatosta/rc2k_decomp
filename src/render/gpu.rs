@@ -1,20 +1,24 @@
-//! The GPU backend, on SDL's GPU API (Vulkan on the PC). The calls into SDL are
+//! The GPU backend, on SDL's GPU API (Vulkan on the PC, Metal on macOS). The calls into SDL are
 //! `ffi::sdl_gpu`'s: each handle here was made by the same device and lives as long as `Gpu`,
 //! or until the line that replaces it.
 //!
 //! A race's frame is 3D in the GPU's colour target and the game's 2D on the screen's memory (the
 //! canvas), which starts each layer holding `UNWRITTEN` in every pixel. When the two meet, the
-//! pixels the game has written go over the target and the canvas is marked again. Something that
+//! rows the game has written (`canvas_rows`) are uploaded and their pixels go over the target,
+//! and the canvas is marked again. A menu's background picture is not on the canvas: it is kept
+//! as a texture of its own (`background`) and drawn under the canvas's pixels. Something that
 //! wants the true picture in the canvas asks `bring_back`, which is slow on a handheld.
 
+mod check;
+mod quads;
+
 use super::batches::{Batch, Batches, PipelineKey};
-use super::{Command, Target, TextureNote};
-use crate::ffi::sdl_gpu::{
-    self, Buffer, Device, Pipeline, PipelineSpec, Sampler, Shader, Texture, Transfer,
+use super::gpu_cut::Cuts;
+use super::{CommandList, Target, TextureNote};
+use crate::logfile::program_log::log;
+use crate::platform::ffi::sdl_gpu::{
+    self, Buffer, Device, Pipeline, PipelineSpec, Sampler, Shader, ShaderCode, Texture, Transfer,
 };
-use crate::framework::log;
-#[cfg(test)]
-use crate::system::owner::system;
 use sdl3_sys::everything::*;
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -23,10 +27,21 @@ use std::sync::Mutex;
 /// not written with (`overlay.frag`).
 pub const UNWRITTEN: u32 = 0xA5FF_00FF;
 
-const SCENE_VERT: &[u8] = include_bytes!("shaders/scene.vert.spv");
-const SCENE_FRAG: &[u8] = include_bytes!("shaders/scene.frag.spv");
-const OVERLAY_VERT: &[u8] = include_bytes!("shaders/overlay.vert.spv");
-const OVERLAY_FRAG: &[u8] = include_bytes!("shaders/overlay.frag.spv");
+/// A shader's code from `shaders/`: its SPIR-V, and on macOS its MSL.
+macro_rules! shader_code {
+    ($name:literal) => {
+        ShaderCode {
+            spirv: include_bytes!(concat!("shaders/", $name, ".spv")),
+            #[cfg(target_os = "macos")]
+            msl: include_bytes!(concat!("shaders/", $name, ".msl")),
+        }
+    };
+}
+
+const SCENE_VERT: ShaderCode = shader_code!("scene.vert");
+const SCENE_FRAG: ShaderCode = shader_code!("scene.frag");
+const OVERLAY_VERT: ShaderCode = shader_code!("overlay.vert");
+const OVERLAY_FRAG: ShaderCode = shader_code!("overlay.frag");
 
 const COLOUR_FORMAT: SDL_GPUTextureFormat = SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM;
 const DEPTH_FORMAT: SDL_GPUTextureFormat = SDL_GPU_TEXTUREFORMAT_D32_FLOAT;
@@ -45,6 +60,8 @@ struct Targets {
     depth: Texture,
     canvas: Texture,
     canvas_transfer: Transfer,
+    background: Texture,
+    background_transfer: Transfer,
 }
 
 impl Default for Targets {
@@ -54,6 +71,8 @@ impl Default for Targets {
             depth: Texture::NONE,
             canvas: Texture::NONE,
             canvas_transfer: Transfer::NONE,
+            background: Texture::NONE,
+            background_transfer: Transfer::NONE,
         }
     }
 }
@@ -64,6 +83,16 @@ pub struct Gpu {
     depth: Texture,
     canvas: Texture,
     canvas_transfer: Transfer,
+    /// The retained background (`background`) and its upload buffer.
+    background: Texture,
+    background_transfer: Transfer,
+    /// What `background` holds.
+    background_holds: Option<super::background::Held>,
+    /// With `RC2K_BACKGROUND_CHECK`: the frame drawn a second time as the canvas carried the
+    /// background (`check`).
+    check: Option<check::Check>,
+    /// The 2D quads' atlas and buffers (`quads`), made when first needed.
+    quads: Option<quads::Quads>,
     width: u32,
     height: u32,
     /// How many times the targets have been made: names the colour target's set.
@@ -77,19 +106,21 @@ pub struct Gpu {
     samplers: [Sampler; 4],
     nearest: Sampler,
     white: Texture,
-    textures: HashMap<crate::pointers::GamePtr, CachedTexture>,
+    textures: super::TextureMap<CachedTexture>,
     vertices: Buffer,
     vertices_room: u32,
     transfer: Transfer,
     transfer_room: u32,
+    /// The diagnostic cuts of the flush last drawn (`gpu_cut`), to log their changes.
+    cuts: Cuts,
 }
 
 /// The GPU, once asked for and made.
 pub static GPU: Mutex<Option<Gpu>> = Mutex::new(None);
 
-/// Whether a device is wanted: `RC2K_RENDERER=gpu`.
+/// Whether a device is to be tried: unless `RC2K_RENDERER=software`.
 pub fn wanted() -> bool {
-    std::env::var("RC2K_RENDERER").is_ok_and(|r| r == "gpu")
+    super::choice::gpu_wanted()
 }
 
 fn sdl_error() -> String {
@@ -98,7 +129,7 @@ fn sdl_error() -> String {
 
 /// A device that takes our shaders; `None` (logged) when the system has none.
 pub fn make_device() -> Option<Device> {
-    let device = Device::create_spirv();
+    let device = Device::create();
     if device.is_none() {
         log(&format!("render: no GPU device: {}", sdl_error()));
     }
@@ -107,13 +138,20 @@ pub fn make_device() -> Option<Device> {
 
 /// Starts the backend on `device`.
 pub fn start(device: Device) {
-    match Gpu::new(device) {
+    let made = if super::choice::forced_failure("backend") {
+        Err("made to fail".to_string())
+    } else {
+        Gpu::new(device)
+    };
+    match made {
         Ok(gpu) => {
             log(&format!("render: the GPU backend on {}", device.driver()));
             *GPU.lock().unwrap() = Some(gpu);
             super::gpu_started();
         }
-        Err(why) => log(&format!("render: the GPU backend does not start: {why}")),
+        Err(why) => log(&format!(
+            "render: the GPU backend does not start ({why}): the software rasteriser draws the 3D"
+        )),
     }
 }
 
@@ -125,6 +163,11 @@ impl Gpu {
             depth: Texture::NONE,
             canvas: Texture::NONE,
             canvas_transfer: Transfer::NONE,
+            background: Texture::NONE,
+            background_transfer: Transfer::NONE,
+            background_holds: None,
+            check: None,
+            quads: None,
             width: 0,
             height: 0,
             targets_made: 0,
@@ -136,12 +179,16 @@ impl Gpu {
             samplers: [Sampler::NONE; 4],
             nearest: Sampler::NONE,
             white: Texture::NONE,
-            textures: HashMap::new(),
+            textures: Default::default(),
             vertices: Buffer::NONE,
             vertices_room: 0,
             transfer: Transfer::NONE,
             transfer_room: 0,
+            cuts: Cuts::default(),
         };
+        if let Some(line) = Cuts::start_from_env() {
+            log(&line);
+        }
         gpu.scene_vert = gpu.shader(SCENE_VERT, SDL_GPU_SHADERSTAGE_VERTEX, 0, 1)?;
         gpu.scene_frag = gpu.shader(SCENE_FRAG, SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 1)?;
         let overlay_vert = gpu.shader(OVERLAY_VERT, SDL_GPU_SHADERSTAGE_VERTEX, 0, 0)?;
@@ -161,7 +208,7 @@ impl Gpu {
 
     fn shader(
         &self,
-        code: &[u8],
+        code: ShaderCode,
         stage: SDL_GPUShaderStage,
         samplers: u32,
         uniforms: u32,
@@ -309,7 +356,13 @@ impl Gpu {
             depth: std::mem::replace(&mut self.depth, made.depth),
             canvas: std::mem::replace(&mut self.canvas, made.canvas),
             canvas_transfer: std::mem::replace(&mut self.canvas_transfer, made.canvas_transfer),
+            background: std::mem::replace(&mut self.background, made.background),
+            background_transfer: std::mem::replace(
+                &mut self.background_transfer,
+                made.background_transfer,
+            ),
         };
+        self.background_holds = None;
         self.release_targets(&old);
         (self.width, self.height) = (width, height);
         self.targets_made += 1;
@@ -333,18 +386,28 @@ impl Gpu {
         made.canvas = self.make_texture(width, height, SDL_GPU_TEXTUREUSAGE_SAMPLER)?;
         made.canvas_transfer =
             self.make_transfer(SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD, width * height * 4)?;
+        made.background = self.make_texture(width, height, SDL_GPU_TEXTUREUSAGE_SAMPLER)?;
+        made.background_transfer =
+            self.make_transfer(SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD, width * height * 4)?;
         Ok(())
     }
 
     /// The targets released, those of them that were made.
     fn release_targets(&self, targets: &Targets) {
-        for texture in [targets.colour, targets.depth, targets.canvas] {
+        for texture in [
+            targets.colour,
+            targets.depth,
+            targets.canvas,
+            targets.background,
+        ] {
             if !texture.is_none() {
                 self.device.release_texture(texture);
             }
         }
-        if !targets.canvas_transfer.is_none() {
-            self.device.release_transfer(targets.canvas_transfer);
+        for transfer in [targets.canvas_transfer, targets.background_transfer] {
+            if !transfer.is_none() {
+                self.device.release_transfer(transfer);
+            }
         }
     }
 
@@ -403,6 +466,14 @@ impl Gpu {
         Ok(())
     }
 
+    /// Logs a change of the live cuts.
+    fn note_cuts(&mut self, cuts: Cuts) {
+        if cuts != self.cuts {
+            log(&format!("render: GPU cuts now on: {}", cuts.names()));
+            self.cuts = cuts;
+        }
+    }
+
     /// Forgets what is known of textures whose memory has changed, and lets go of those whose
     /// memory is gone.
     fn take_changes(&mut self) {
@@ -419,9 +490,83 @@ impl Gpu {
         }
     }
 
-    /// Draws the commands over the target, the canvas's written pixels first.
-    pub fn draw(&mut self, canvas: &mut [u8], commands: &[Command]) -> Result<(), String> {
+    /// The noted background brought up to the GPU if it is not there already: whether the
+    /// background texture is to be drawn under the canvas, and whether its upload is to be sent.
+    fn bring_up_background(
+        &mut self,
+        picture_copy: &mut Option<Vec<u8>>,
+    ) -> Result<(bool, bool), String> {
+        use super::background::Pending;
+        let Some(pending) = super::background::take() else {
+            return Ok((false, false));
+        };
+        let bytes = self.width as usize * self.height as usize * 4;
+        let buffers = crate::platform::direct3d::handles().pictures;
+        if check::wanted() {
+            *picture_copy = match &pending {
+                Pending::Buffer { handle, .. } => {
+                    crate::gfx::picture::with_buffer_unchanged(buffers, *handle, |b| {
+                        b.get(..bytes).map(<[u8]>::to_vec)
+                    })
+                    .ok()
+                    .flatten()
+                }
+                Pending::Copy(picture) => picture.get(..bytes).map(<[u8]>::to_vec),
+                Pending::Rescaled { pixels, .. } => pixels.get(..bytes).map(<[u8]>::to_vec),
+            };
+        }
+        let upload = super::background::bring_up(
+            pending,
+            &mut self.background_holds,
+            bytes,
+            buffers,
+            |picture| {
+                self.device
+                    .fill_transfer(self.background_transfer, 0, picture, true)
+            },
+        )?;
+        if upload {
+            super::BACKGROUND_UPLOAD_BYTES
+                .fetch_add(bytes as u64, std::sync::atomic::Ordering::Relaxed);
+        }
+        Ok((true, upload))
+    }
+
+    /// Draws the commands over the target: the retained background first if one is noted, then
+    /// the canvas's written rows (`rows`, one flag a row; `None` to look at every row).
+    pub fn draw(
+        &mut self,
+        canvas: &mut [u8],
+        rows: Option<Vec<bool>>,
+        commands: &CommandList,
+    ) -> Result<(), String> {
         self.take_changes();
+        let cuts = super::gpu_cut::live();
+        self.note_cuts(cuts);
+        let two_d = self.prepare_2d(crate::gfx::draw2d::quads::take())?;
+        let mut background_bytes = None;
+        let (background, upload_background) = self.bring_up_background(&mut background_bytes)?;
+        self.ensure_check()?;
+        let stride = self.width as usize * 4;
+        let rows = rows.unwrap_or_else(|| super::canvas_rows::rows_holding_written(canvas, stride));
+        let runs = super::canvas_rows::written_runs(&rows);
+        // The check's canvas holds every written pixel, noted rows or not, as it did before.
+        let old_canvas = self.check.is_some().then(|| {
+            if crate::gfx::draw2d::quads::check_wanted() {
+                // The canvas the old way would hold: everything the funnels wrote.
+                return crate::gfx::draw2d::take_interval()
+                    .unwrap_or_else(|| check::canvas_as_before(canvas, &[], stride, None));
+            }
+            let scan = super::canvas_rows::rows_holding_written(canvas, stride);
+            check::note_missed_rows(&scan, &rows);
+            let scanned = super::canvas_rows::written_runs(&scan);
+            check::canvas_as_before(canvas, &scanned, stride, background_bytes.as_deref())
+        });
+        if let (Some(check), Some(old)) = (&self.check, &old_canvas) {
+            self.device
+                .fill_transfer(check.canvas_transfer, 0, old, true)?;
+        }
+        super::seethru::note_list(commands, self.width, self.height);
         let batches = Batches::of(commands, self.width, self.height, None);
         let vertex_bytes = batches.vertices.len() as u32 * VERTEX_BYTES;
         let mut uploads: Vec<(TextureNote, Vec<u8>)> = Vec::new();
@@ -466,7 +611,7 @@ impl Gpu {
         // The pipelines first: making one in the render pass would keep `self` borrowed.
         let mut pipelines = Vec::with_capacity(batches.batches.len());
         for batch in &batches.batches {
-            pipelines.push(self.pipeline(batch.pipeline)?);
+            pipelines.push(self.pipeline(cut_key(batch.pipeline, cuts))?);
         }
         let vertex_data: &[u8] = sdl_gpu::words_as_bytes(&batches.vertices);
         self.fill_transfer(self.transfer, 0, vertex_data)?;
@@ -477,7 +622,18 @@ impl Gpu {
             placed.push((note, at as u32));
             at += bytes.len();
         }
-        self.fill_transfer(self.canvas_transfer, 0, canvas)?;
+        let parts: Vec<(usize, &[u8])> = runs
+            .iter()
+            .map(|&(first, last)| (first * stride, &canvas[first * stride..(last + 1) * stride]))
+            .collect();
+        super::GPU_FLUSHES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        if !parts.is_empty() {
+            super::CANVAS_UPLOADS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            self.device
+                .fill_transfer_parts(self.canvas_transfer, &parts)?;
+            let sent: usize = parts.iter().map(|(_, bytes)| bytes.len()).sum();
+            super::CANVAS_UPLOAD_BYTES.fetch_add(sent as u64, std::sync::atomic::Ordering::Relaxed);
+        }
         // Every handle is ours and alive; the offsets are within the buffers (the sums above);
         // the command buffer is submitted before the end of this block.
         let buffer = self.device.acquire_command_buffer()?;
@@ -496,93 +652,200 @@ impl Gpu {
             );
             texture.stale = false;
         }
-        copy.upload_texture(
-            self.canvas_transfer,
-            0,
-            self.canvas,
-            self.width,
-            self.height,
-        );
+        if upload_background {
+            copy.upload_texture(
+                self.background_transfer,
+                0,
+                self.background,
+                self.width,
+                self.height,
+            );
+        }
+        for &(first, last) in &runs {
+            copy.upload_texture_rows(
+                self.canvas_transfer,
+                (first * stride) as u32,
+                self.canvas,
+                first as u32,
+                self.width,
+                (last + 1 - first) as u32,
+            );
+        }
+        self.copy_2d(&copy, &two_d);
         copy.end();
-        let pass = buffer.begin_render_pass(self.colour, self.depth, self.depth_is_new);
-        self.depth_is_new = false;
-        self.draw_overlay(&pass);
-        buffer.push_vertex_uniform(0, &[self.width as f32, self.height as f32]);
-        pass.bind_vertex_buffer(self.vertices);
-        let mut last_pipeline = None;
-        let mut last_values = None;
-        let mut last_sampling = None;
-        let mut scissored = false;
-        for (batch, &pipeline) in batches.batches.iter().zip(&pipelines) {
-            if last_pipeline != Some(pipeline) {
-                pass.bind_pipeline(pipeline);
-                last_pipeline = Some(pipeline);
+        let clear_depth = std::mem::replace(&mut self.depth_is_new, false);
+        let check_targets = self.check.as_mut().map(|c| {
+            let clear = std::mem::replace(&mut c.depth_is_new, false);
+            (c.colour, c.depth, c.canvas, c.canvas_transfer, clear)
+        });
+        // Under the `half` cut the rectangles are scaled with the viewport.
+        let shrink = |n: i32| if cuts.half { n / 2 } else { n };
+        let draw_batches = |pass: &sdl_gpu::RenderPass| {
+            buffer.push_vertex_uniform(0, &[self.width as f32, self.height as f32]);
+            pass.bind_vertex_buffer(self.vertices);
+            let mut last_pipeline = None;
+            let mut last_values = None;
+            let mut last_sampling = None;
+            let mut scissored = false;
+            for (batch, &pipeline) in batches.batches.iter().zip(&pipelines) {
+                if cuts.drops(batch.pipeline.blend.is_some()) {
+                    continue;
+                }
+                if last_pipeline != Some(pipeline) {
+                    pass.bind_pipeline(pipeline);
+                    last_pipeline = Some(pipeline);
+                }
+                if last_values != Some(batch.values) {
+                    let mut words = batch.values.to_words();
+                    words[7] |= cuts.flag_bits();
+                    buffer.push_fragment_uniform(0, &words);
+                    last_values = Some(batch.values);
+                }
+                let sampling = (batch.texture, batch.linear, batch.clamp);
+                if last_sampling != Some(sampling) {
+                    let texture = batch.texture.map_or(self.white, |n| {
+                        self.textures[&batches.textures[n as usize].pixels].texture
+                    });
+                    pass.bind_fragment_sampler(texture, self.samplers[sampler_number(batch, cuts)]);
+                    last_sampling = Some(sampling);
+                }
+                if let Some([left, top, right, bottom]) = batch.scissor {
+                    pass.set_scissor(
+                        shrink(left as i32),
+                        shrink(top as i32),
+                        shrink((right - left) as i32),
+                        shrink((bottom - top) as i32),
+                    );
+                    scissored = true;
+                } else if scissored {
+                    pass.set_scissor(0, 0, self.width as i32, self.height as i32);
+                    scissored = false;
+                }
+                pass.draw(batch.vertices, batch.first_vertex);
             }
-            if last_values != Some(batch.values) {
-                buffer.push_fragment_uniform(0, &batch.values.to_words());
-                last_values = Some(batch.values);
-            }
-            let sampling = (batch.texture, batch.linear, batch.clamp);
-            if last_sampling != Some(sampling) {
-                let texture = batch.texture.map_or(self.white, |n| {
-                    self.textures[&batches.textures[n as usize].pixels].texture
-                });
-                pass.bind_fragment_sampler(texture, self.samplers[sampler_number(batch)]);
-                last_sampling = Some(sampling);
-            }
-            if let Some([left, top, right, bottom]) = batch.scissor {
+        };
+        let pass = buffer.begin_render_pass(self.colour, self.depth, clear_depth);
+        if cuts.half {
+            pass.set_viewport((self.width / 2) as f32, (self.height / 2) as f32);
+        }
+        if background && !cuts.two_d {
+            self.draw_overlay(&pass, self.background);
+        }
+        if !cuts.two_d {
+            for &(first, last) in &runs {
                 pass.set_scissor(
-                    left as i32,
-                    top as i32,
-                    (right - left) as i32,
-                    (bottom - top) as i32,
+                    0,
+                    shrink(first as i32),
+                    shrink(self.width as i32),
+                    shrink((last + 1 - first) as i32),
                 );
-                scissored = true;
-            } else if scissored {
-                pass.set_scissor(0, 0, self.width as i32, self.height as i32);
-                scissored = false;
+                self.draw_overlay(&pass, self.canvas);
             }
-            pass.draw(batch.vertices, batch.first_vertex);
+            if !runs.is_empty() {
+                pass.set_scissor(0, 0, self.width as i32, self.height as i32);
+            }
+            self.draw_2d(&buffer, &pass, &two_d);
+        }
+        if !cuts.scene && !crate::gfx::draw2d::quads::check_2d_only() {
+            draw_batches(&pass);
         }
         pass.end();
+        if let Some((colour, depth, canvas, transfer, clear)) = check_targets {
+            // The same frame once more, the way the canvas carried the background.
+            let copy = buffer.begin_copy_pass();
+            copy.upload_texture(transfer, 0, canvas, self.width, self.height);
+            copy.end();
+            let pass = buffer.begin_render_pass(colour, depth, clear);
+            if check::same() {
+                // The noise floor: the same overlay as the real pass.
+                if background {
+                    self.draw_overlay(&pass, self.background);
+                }
+                for &(first, last) in &runs {
+                    let rows = (last + 1 - first) as i32;
+                    pass.set_scissor(0, first as i32, self.width as i32, rows);
+                    self.draw_overlay(&pass, self.canvas);
+                }
+                pass.set_scissor(0, 0, self.width as i32, self.height as i32);
+                self.draw_2d(&buffer, &pass, &two_d);
+            } else {
+                self.draw_overlay(&pass, canvas);
+            }
+            if !crate::gfx::draw2d::quads::check_2d_only() {
+                draw_batches(&pass);
+            }
+            pass.end();
+        }
         buffer.submit()?;
-        mark_unwritten(canvas);
+        for &(first, last) in &runs {
+            mark_unwritten(&mut canvas[first * stride..(last + 1) * stride]);
+        }
         Ok(())
     }
 
-    /// The canvas's written pixels over the target (bound in an open pass).
-    fn draw_overlay(&self, pass: &sdl_gpu::RenderPass) {
+    /// The written pixels of `layer` (the canvas, or the background) over the target, in an open
+    /// pass.
+    fn draw_overlay(&self, pass: &sdl_gpu::RenderPass, layer: Texture) {
         pass.bind_pipeline(self.overlay);
-        pass.bind_fragment_sampler(self.canvas, self.nearest);
+        pass.bind_fragment_sampler(layer, self.nearest);
         pass.draw(3, 0);
     }
 
     /// The frame's end: what the canvas has written goes over the target.
-    pub fn finish_frame(&mut self, canvas: &mut [u8]) -> Result<(), String> {
-        self.draw(canvas, &[])
+    pub fn finish_frame(
+        &mut self,
+        rows: Option<Vec<bool>>,
+        canvas: &mut [u8],
+    ) -> Result<(), String> {
+        self.draw(canvas, rows, &CommandList::new())?;
+        super::seethru::frame_end();
+        self.compare_check()
+    }
+
+    /// The colour target's picture (the GPU's end of the frame is waited for).
+    fn read_colour(&mut self) -> Result<Vec<u8>, String> {
+        self.read_texture(self.colour)
+    }
+
+    /// The picture of a texture of the screen's size (the GPU's end of the frame is waited for).
+    fn read_texture(&mut self, texture: Texture) -> Result<Vec<u8>, String> {
+        let bytes = (self.width * self.height * 4) as usize;
+        let transfer = self.make_transfer(SDL_GPU_TRANSFERBUFFERUSAGE_DOWNLOAD, bytes as u32)?;
+        let buffer = self.device.acquire_command_buffer()?;
+        let copy = buffer.begin_copy_pass();
+        copy.download_texture(texture, self.width, self.height, transfer);
+        copy.end();
+        buffer.submit_and_wait(self.device)?;
+        let mut picture = vec![0u8; bytes];
+        self.device.read_transfer(transfer, &mut picture)?;
+        self.device.release_transfer(transfer);
+        Ok(picture)
     }
 
     /// The target's picture, with the canvas's written pixels, into the canvas.
-    pub fn bring_back(&mut self, canvas: &mut [u8]) -> Result<(), String> {
-        self.finish_frame(canvas)?;
-        let bytes = self.width * self.height * 4;
-        let transfer = self.make_transfer(SDL_GPU_TRANSFERBUFFERUSAGE_DOWNLOAD, bytes)?;
-        // The wait ends the GPU's use of the buffer before it is read; the copy is of the
-        // `bytes` the buffer holds, which `canvas` holds too (`Target::bytes`).
-        let buffer = self.device.acquire_command_buffer()?;
-        let copy = buffer.begin_copy_pass();
-        copy.download_texture(self.colour, self.width, self.height, transfer);
-        copy.end();
-        buffer.submit_and_wait(self.device)?;
-        self.device
-            .read_transfer(transfer, &mut canvas[..bytes as usize])?;
-        self.device.release_transfer(transfer);
+    pub fn bring_back(&mut self, rows: Option<Vec<bool>>, canvas: &mut [u8]) -> Result<(), String> {
+        self.finish_frame(rows, canvas)?;
+        let picture = self.read_colour()?;
+        canvas[..picture.len()].copy_from_slice(&picture);
         Ok(())
     }
 }
 
-fn sampler_number(batch: &Batch) -> usize {
-    batch.linear as usize + 2 * batch.clamp as usize
+fn sampler_number(batch: &Batch, cuts: Cuts) -> usize {
+    let linear = (batch.linear || cuts.linear) && !cuts.nearest;
+    linear as usize + 2 * batch.clamp as usize
+}
+
+/// The pipeline `key` asks for, with the state cuts applied: no blending, and no depth test
+/// or writes.
+fn cut_key(key: PipelineKey, cuts: Cuts) -> PipelineKey {
+    PipelineKey {
+        blend: if cuts.blend { None } else { key.blend },
+        // Direct3D's "always" (any number past the comparisons' seven).
+        depth_function: if cuts.depth { 8 } else { key.depth_function },
+        depth_write: key.depth_write && !cuts.depth,
+        ..key
+    }
 }
 
 /// Every pixel of the canvas marked as not written.
@@ -623,11 +886,15 @@ fn compare_op(function: u32) -> SDL_GPUCompareOp {
 }
 
 impl super::Backend for Gpu {
-    fn draw(&mut self, target: &Target, commands: Vec<Command>) {
+    fn draw(&mut self, target: &Target, commands: CommandList) {
         let done = target.with_canvas(|canvas| {
             self.set_size(target.width as u32, target.height as u32)
-                .and_then(|()| Gpu::draw(self, canvas, &commands))
+                .and_then(|()| {
+                    let rows = super::canvas_rows::written_rows(target, canvas);
+                    Gpu::draw(self, canvas, Some(rows), &commands)
+                })
         });
+        super::give_back(commands);
         if let Err(why) = done {
             crate::fatal::raise::end(
                 "render::gpu",
@@ -657,7 +924,7 @@ mod comparison {
 
     #[test]
     fn a_recorded_frame_looks_the_same() {
-        let system = system();
+        let system = crate::test_support::own::system();
         let Some(path) = std::env::var_os("RC2K_COMPARE_FRAME") else {
             println!("SKIPPED: no RC2K_COMPARE_FRAME");
             return;
@@ -678,14 +945,14 @@ mod comparison {
             bytes.push(data.to_vec());
             notes.push((w, h, pitch, each, masks, len));
         }
-        let lent: Vec<_> = bytes
+        let levels: Vec<_> = bytes
             .iter()
-            .map(|b| crate::pointers::Lent::new(b))
+            .map(|b| crate::platform::direct3d::test_level(b.clone()))
             .collect();
         let note = |n: usize| {
             let (width, height, pitch, bytes, masks, len) = notes[n];
             TextureNote {
-                pixels: crate::pointers::GamePtr::new(lent[n].addr()).limited(len as u32),
+                pixels: levels[n],
                 len,
                 width,
                 height,
@@ -695,7 +962,7 @@ mod comparison {
             }
         };
         let read_commands = |r: &mut Reader| {
-            let mut commands = Vec::new();
+            let mut commands = CommandList::new();
             for _ in 0..r.dword() {
                 if r.dword() == 1 {
                     let corners = r.dword() as usize;
@@ -707,37 +974,47 @@ mod comparison {
                         *s = r.dword();
                     }
                     let number = r.dword();
-                    commands.push(Command::Fan {
-                        vertices: vertices.into(),
-                        states: states.into(),
-                        texture: (number != u32::MAX).then(|| note(number as usize)),
-                        bounds: (f32::MIN, f32::MIN, f32::MAX, f32::MAX),
-                    });
+                    commands.push_fan(
+                        &vertices,
+                        states.into(),
+                        (number != u32::MAX).then(|| note(number as usize)),
+                        (f32::MIN, f32::MIN, f32::MAX, f32::MAX),
+                    );
                 } else {
-                    commands.push(Command::Clear([0; 4].map(|_: u8| r.dword() as usize)));
+                    commands.push_clear([0; 4].map(|_: u8| r.dword() as usize));
                 }
             }
             commands
         };
         let commands = read_commands(&mut Reader(r.0));
 
-        system.session.screen.width.set(width as u32);
-        system.session.screen.height.set(height as u32);
-        let soft = vec![0u8; width * height * 4];
-        let soft_lent = crate::pointers::Lent::new(&soft);
+        system.session.screen.get().width.set(width as u32);
+        system.session.screen.get().height.set(height as u32);
+        system.session.screen.get().bits.set(bits);
+        let soft_held = std::sync::Arc::new(crate::memory::pool::PoolBytes::from_vec(vec![
+            0u8;
+            width * height
+                * 4
+        ]));
+        let soft_handle = 0x7000_0000;
+        crate::gfx::locked_pixels::register(soft_handle, &soft_held);
         let target = Target {
-            pixels: soft_lent.addr() as usize,
+            pixels: soft_handle,
             pitch: width * 4,
             width,
             height,
             bits,
         };
         crate::render::Backend::draw(
-            &mut crate::render::software::Software,
+            &mut crate::render::software::Software {
+                screen: (width, height),
+                racing: false,
+            },
             &target,
             read_commands(&mut Reader(r.0)),
         );
 
+        let soft = soft_held.to_vec();
         sdl_gpu::init_video();
         let Some(device) = make_device() else {
             println!("SKIPPED: no GPU device: {}", sdl_error());
@@ -746,8 +1023,8 @@ mod comparison {
         let mut gpu = Gpu::new(device).unwrap();
         gpu.set_size(width as u32, height as u32).unwrap();
         let mut canvas = vec![0u8; width * height * 4];
-        Gpu::draw(&mut gpu, &mut canvas, &commands).unwrap();
-        gpu.bring_back(&mut canvas).unwrap();
+        Gpu::draw(&mut gpu, &mut canvas, None, &commands).unwrap();
+        gpu.bring_back(None, &mut canvas).unwrap();
 
         let (mut far, mut total) = (0usize, 0u64);
         for (a, b) in soft

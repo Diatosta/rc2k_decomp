@@ -1,17 +1,15 @@
-//! `install::show_backdrop` (0x41525D): three frames (`screens::run_frame`) of the
-//! installer's backdrop alone (`install::backdrop_frame`), as a page opens and closes.
-//!
-//! Caller `install::run_page` (twice).
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
+//! Three frames of the installer's backdrop alone (`install::backdrop_frame`), as a page opens
+//! and closes. Called by `install::run_page`.
 
 use crate::errors::Refused;
 use crate::install::installer::run_frame;
 
-/// The backdrop's frame run three times.
-pub fn show_backdrop() -> Result<(), Refused> {
+pub fn show_backdrop(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     for _ in 0..3 {
-        run_frame(Some(crate::install::backdrop_frame::backdrop_frame))?;
+        run_frame(
+            o,
+            Some(&|| crate::install::backdrop_frame::backdrop_frame(o)),
+        )?;
     }
     Ok(())
 }

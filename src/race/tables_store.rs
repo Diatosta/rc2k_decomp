@@ -1,142 +1,815 @@
-//! The start and tables work (IDA 0x60463C .. 0x60526C; phase 7, typed): the stage time factors, the arcade
-//! mode's tables by rally and stage (cars, places, car types and numbers), the cars data text read in
-//! place, the noise seed, the start and pace cars' values, the car kind order, and the camera's share and
-//! ground-turn variables. `#[repr(C)]` with the image's layout, over the race block's bytes. Names are readings unless IDA's.
+//! The start and tables work: the stage time factors, the arcade mode's tables by rally and stage
+//! (cars, places, car types and numbers), the cars data text read in place, the noise seed, the
+//! start and pace cars' values, the car kind order, and the camera's share and ground-turn
+//! variables. `#[repr(C)]`, laid over the race block bytes.
 
-#[cfg(test)]
-use crate::race::owner::race;
-use crate::session::{Dword, Float};
+use crate::memory::cells::ZeroCells;
+use crate::memory::session::{PlainDword, PlainFloat};
 
-#[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct RaceTables {
-    /// +0x0 (0x60463C): `flt_60463C`: the factor by section for the last three record times (`menu::scale_stage_times`).
-    pub stage_time_factors_last: [Float; 6],
-    /// +0x18 (0x604654): `flt_604654`: the factor by section for the first record time (`menu::scale_stage_times`).
-    pub stage_time_factors_first: [Float; 6],
-    /// +0x30 (0x60466C): `dword_60466C`: the arcade cars count by rally (`race::set_up_mode_2_cars`).
-    pub arcade_cars_by_rally: [Dword; 6],
-    /// +0x48 (0x604684): `dword_604684`: the best place by stage (`race::set_up_mode_2_cars`) (a reading).
-    pub arcade_best_place_by_stage: [Dword; 6],
-    /// +0x60 (0x60469C): `dword_60469C`: copied to `arcade_a` (`race::set_up_mode_2_cars`) (a reading).
-    pub arcade_a_by_rally: [Dword; 6],
-    /// +0x78 (0x6046B4): `dword_6046B4`: copied to `arcade_b` (`race::set_up_mode_2_cars`) (a reading).
-    pub arcade_b_by_rally: [Dword; 6],
-    /// +0x90 (0x6046CC): `dword_6046CC`: the time percentage by difficulty (`race::race_cars`); 36 is the IDA item (a reading).
-    pub time_percentages: [Dword; 36],
-    /// +0x120 (0x60475C): `flt_60475C`: 0x17 floats by car kind (`race::race_cars`).
-    pub kind_time_factors: [Float; 23],
-    /// +0x17c (0x6047B8): `g_carDataText` and the two items after it (`byte_6047B9`, `byte_6047BA`): the cars data text, 0x708 bytes, read in place (`race::read_stage_car_numbers`, `parse_3_digits`, `parse_2_digits`; `race::race_cars`).
-    pub car_data_text: [Dword; 450],
-    /// +0x884 (0x604EC0): `flt_604EC0`: the step of the start blend (`drive::start_blend`).
-    pub start_blend_step: Float,
-    /// +0x888 (0x604EC4): `flt_604EC4`: scale of the push apart of the pace cars (`drive::start_cars_behind`).
-    pub pace_push_scale: Float,
-    /// +0x88c (0x604EC8): not named: read as a number by `drive::drive_computer_car`; also the first
-    /// of the cars by place (`dword_604EC8[]`, continued by `arcade_car_kinds`; `race::panel_neighbours`).
-    pub unknown_88c: Dword,
-    /// +0x890 (0x604ECC): `dword_604ECC`: each car's type 1 .. 3, 89 rooms; also the cars by start (`race::set_up_mode_2_cars`, `drive::start_cars_behind`, `race::panel_neighbours`).
-    pub arcade_car_kinds: [Dword; 89],
-    /// +0x9f4 (0x605030): `dword_605030`: read as the number at place -1 by `race::panel_neighbours`; `arcade_car_numbers` follows it.
-    pub number_before_first: Dword,
-    /// +0x9f8 (0x605034): `dword_605034`: each car's number by start (`race::set_up_mode_2_cars`, `drive::start_cars_behind`, `drive::start_car_on_line`, `race::panel_neighbours`).
-    pub arcade_car_numbers: [Dword; 90],
-    /// +0xb60 (0x60519C): `dword_60519C`: the noise seed (`race::set_up_mode_2_cars`, `race::race_end`, `race::credits_race`).
-    pub noise_seed: Dword,
-    /// +0xb64 (0x6051A0): `dword_6051A0`: the start in use (`drive::start_car_on_line`, `drive::start_cars_behind`).
-    pub start_slot: Dword,
-    /// +0xb68 (0x6051A4): `dword_6051A4`: set by `race::set_up_mode_2_cars`, read as a float by `drive::start_car_on_line`.
-    pub arcade_a: Float,
-    /// +0xb6c (0x6051A8): `dword_6051A8`: set by `race::set_up_mode_2_cars`, read as a float by `drive::start_car_on_line`.
-    pub arcade_b: Float,
-    /// +0xb70 (0x6051AC): `flt_6051AC`: the start's share (`drive::start_car_on_line`).
-    pub start_share: Float,
-    /// +0xb74 (0x6051B0): `dword_6051B0`: the start speed, loaded as a float (`drive::start_car_on_line`, `drive::start_cars_behind`).
-    pub start_speed: Float,
-    /// +0xb78 (0x6051B4): `dword_6051B4`: "NUM arcadecars", the starts count (`race::set_up_mode_2_cars`, `race::panel_neighbours`, `drive::start_cars_behind`).
-    pub arcade_cars: Dword,
-    /// +0xb7c (0x6051B8): not named.
-    pub unknown_b7c: Dword,
-    /// +0xb80 (0x6051BC): `dword_6051BC`: "arc start pos (1-n)" (`race::set_up_mode_2_cars`, `race::settings_copy`, `race::race_shell`).
-    pub start_place: Dword,
-    /// +0xb84 (0x6051C0): `dword_6051C0`: "bestpos" (`race::set_up_mode_2_cars`).
-    pub best_place: Dword,
-    /// +0xb88 (0x6051C4): `dword_6051C4`: the first pace car's start (`drive::start_cars_behind`).
-    pub pace_start_a: Dword,
-    /// +0xb8c (0x6051C8): `dword_6051C8`: the second pace car's start (`drive::start_cars_behind`). Written with the three before it as a run.
-    pub pace_start_b: Dword,
-    /// +0xb90 (0x6051CC): `dword_6051CC`: the first pace car's distance (`drive::start_cars_behind`).
-    pub pace_distance_a: Dword,
-    /// +0xb94 (0x6051D0): `dword_6051D0`: the second pace car's distance (`drive::start_cars_behind`).
-    pub pace_distance_b: Dword,
-    /// +0xb98 (0x6051D4): `dword_6051D4`: the gap at which the lead has passed a pace car (`drive::start_cars_behind`).
-    pub pace_pass_gap: Dword,
-    /// +0xb9c (0x6051D8): `dword_6051D8`: the gap a pace car is moved by (`drive::start_cars_behind`).
-    pub pace_back_gap: Dword,
-    /// +0xba0 (0x6051DC): `dword_6051DC`: the sum of the two gaps (`drive::start_cars_behind`).
-    pub pace_gap_sum: Dword,
-    /// +0xba4 (0x6051E0): not named.
-    pub unknown_ba4: [Dword; 32],
-    /// +0xc24 (0x605260): `flt_605260`: the share of a view change done (`physics::ease_view_angles`, `ease_view_blend`, `physics::camera_view`).
-    pub view_share: Float,
-    /// +0xc28 (0x605264): `dword_605264`: the camera's turn step, -1 or 0x4000000 and down (`physics::camera_avoid_ground`).
-    pub camera_turn_step: Dword,
-    /// +0xc2c (0x605268): `dword_605268`: 0 / -1 flag of the ground check (`physics::camera_avoid_ground`) (a reading).
-    pub camera_ground_flag: Dword,
+    /// +0x0: the factor by section for the last three record times (`menu::scale_stage_times`).
+    pub stage_time_factors_last: [PlainFloat; 6],
+    /// +0x18: the factor by section for the first record time (`menu::scale_stage_times`).
+    pub stage_time_factors_first: [PlainFloat; 6],
+    /// +0x30: the arcade cars count by rally (`race::set_up_mode_2_cars`).
+    pub arcade_cars_by_rally: [PlainDword; 6],
+    /// +0x48: the best place wanted by arcade stage (six stages); `race::set_up_mode_2_cars` copies
+    /// the stage's entry to `best_place`.
+    pub arcade_best_place_by_stage: [PlainDword; 6],
+    /// +0x60: the share a car gets on the last start place by arcade rally (six rallies);
+    /// `race::set_up_mode_2_cars` copies the rally's entry to `start_share_last`.
+    pub start_share_last_by_rally: [PlainDword; 6],
+    /// +0x78: the share on the first start place by arcade rally; copied to `start_share_first` by
+    /// `race::set_up_mode_2_cars`.
+    pub start_share_first_by_rally: [PlainDword; 6],
+    /// +0x90: the time percentage by difficulty level (`race::race_cars` prints it); 36 entries.
+    pub time_percentages: [PlainDword; 36],
+    /// +0x120: 0x17 floats by car kind (`race::race_cars`).
+    pub kind_time_factors: [PlainFloat; 23],
+    /// +0x17c: `car_data_text` and the two bytes after it: the cars data text, 0x708 bytes, read
+    /// in place (`race::read_stage_car_numbers`, `race::race_cars`).
+    pub car_data_text: [PlainDword; 450],
+    /// +0x884: the step of the start blend (`drive::start_blend`).
+    pub start_blend_step: PlainFloat,
+    /// +0x888: scale of the push apart of the pace cars (`drive::start_cars_behind`).
+    pub pace_push_scale: PlainFloat,
+    /// +0x88c: the float 30.0, never written: the speed
+    /// `drive::drive_computer_car` eases the computer's wanted speed toward (`int_toward_to_int`).
+    /// It is also slot 0 of the cars-by-place table that runs on into `arcade_car_kinds`
+    /// (`race::panel_neighbours` reads `[place]` and `[place + 1]`): only a place of 0 would read
+    /// the 30.0 as a car (refused there).
+    pub computer_ease_speed: PlainDword,
+    /// +0x890: each car's type 1 .. 3, 89 rooms; also the cars by start
+    /// (`race::set_up_mode_2_cars`, `drive::start_cars_behind`, `race::panel_neighbours`).
+    pub arcade_car_kinds: [PlainDword; 89],
+    /// +0x9f4: read as the number at place -1 by `race::panel_neighbours`; `arcade_car_numbers`
+    /// follows it.
+    pub number_before_first: PlainDword,
+    /// +0x9f8: each car's number by start (`race::set_up_mode_2_cars`, `drive::start_cars_behind`,
+    /// `drive::start_car_on_line`, `race::panel_neighbours`).
+    pub arcade_car_numbers: [PlainDword; 90],
+    /// +0xb60: the noise seed (`race::set_up_mode_2_cars`, `race::race_end`, `race::credits_race`).
+    pub noise_seed: PlainDword,
+    /// +0xb64: the start in use (`drive::start_car_on_line`, `drive::start_cars_behind`).
+    pub start_slot: PlainDword,
+    /// +0xb68: the share of the last start place (`lo` of
+    /// `rc2k_core::drive::start_places::start_share`, which blends it to `start_share_first` by the
+    /// start's place); set by `race::set_up_mode_2_cars`.
+    pub start_share_last: PlainFloat,
+    /// +0xb6c: the share of the first start place (`hi` of `start_share`); set by
+    /// `race::set_up_mode_2_cars`.
+    pub start_share_first: PlainFloat,
+    /// +0xb70: the start's share (`drive::start_car_on_line`).
+    pub start_share: PlainFloat,
+    /// +0xb74: the start speed, loaded as a float (`drive::start_car_on_line`,
+    /// `drive::start_cars_behind`).
+    pub start_speed: PlainFloat,
+    /// +0xb78: "NUM arcadecars", the starts count (`race::set_up_mode_2_cars`,
+    /// `race::panel_neighbours`, `drive::start_cars_behind`).
+    pub arcade_cars: PlainDword,
+    /// +0xb7c: unused; it only keeps the layout.
+    pub unused_b7c: PlainDword,
+    /// +0xb80: "arc start pos (1-n)" (`race::set_up_mode_2_cars`, `race::settings_copy`,
+    /// `race::race_shell`).
+    pub start_place: PlainDword,
+    /// +0xb84: "bestpos" (`race::set_up_mode_2_cars`).
+    pub best_place: PlainDword,
+    /// +0xb88: the first pace car's start (`drive::start_cars_behind`).
+    pub pace_start_a: PlainDword,
+    /// +0xb8c: the second pace car's start (`drive::start_cars_behind`). Written with the three
+    /// before it as a run.
+    pub pace_start_b: PlainDword,
+    /// +0xb90: the first pace car's distance (`drive::start_cars_behind`).
+    pub pace_distance_a: PlainDword,
+    /// +0xb94: the second pace car's distance (`drive::start_cars_behind`).
+    pub pace_distance_b: PlainDword,
+    /// +0xb98: the gap at which the lead has passed a pace car (`drive::start_cars_behind`).
+    pub pace_pass_gap: PlainDword,
+    /// +0xb9c: the gap a pace car is moved by (`drive::start_cars_behind`).
+    pub pace_back_gap: PlainDword,
+    /// +0xba0: the sum of the two gaps (`drive::start_cars_behind`).
+    pub pace_gap_sum: PlainDword,
+    /// +0xba4: the order of the car kinds, 0x22 entries (the last two overlap `view_share` and
+    /// `camera_turn_step`); `race::index_of_kind` searches it.
+    pub kind_order: [PlainDword; 32],
+    /// +0xc24: the share of a view change done (`physics::ease_view_angles`, `ease_view_blend`,
+    /// `physics::camera_view`).
+    pub view_share: PlainFloat,
+    /// +0xc28: the camera's turn step, -1 or 0x4000000 and down (`physics::camera_avoid_ground`).
+    pub camera_turn_step: PlainDword,
+    /// +0xc2c: 0 / -1 flag set by the camera's ground check (`physics::camera_avoid_ground`).
+    pub camera_ground_flag: PlainDword,
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
 
+/// The tables the start set-up and the panel read by an index that may run past the table
+/// (`RaceTables::dword_from`), numbered by their place among the fields from `arcade_cars_by_rally`
+/// on.
+#[derive(Clone, Copy)]
+pub enum Listed {
+    ArcadeCarsByRally = 0,
+    BestPlaceByStage = 1,
+    StartShareLastByRally = 2,
+    StartShareFirstByRally = 3,
+    ComputerEaseSpeed = 9,
+    ArcadeCarKinds = 10,
+    NumberBeforeFirst = 11,
+    ArcadeCarNumbers = 12,
+    KindOrder = 30,
+}
+
 impl RaceTables {
-    /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
-    /// `race::store::LEFT`), with the image's first values.
+    /// Dword `n` of the table `from`. `n` is not held to the table's end: reading goes on through
+    /// the fields after the table in order, to the end of the record (`n` past that is refused).
+    pub fn dword_from(&self, from: Listed, n: usize) -> Result<u32, crate::errors::BadInput> {
+        let fields: [&dyn crate::memory::session::Run; 34] = [
+            &self.arcade_cars_by_rally,
+            &self.arcade_best_place_by_stage,
+            &self.start_share_last_by_rally,
+            &self.start_share_first_by_rally,
+            &self.time_percentages,
+            &self.kind_time_factors,
+            &self.car_data_text,
+            &self.start_blend_step,
+            &self.pace_push_scale,
+            &self.computer_ease_speed,
+            &self.arcade_car_kinds,
+            &self.number_before_first,
+            &self.arcade_car_numbers,
+            &self.noise_seed,
+            &self.start_slot,
+            &self.start_share_last,
+            &self.start_share_first,
+            &self.start_share,
+            &self.start_speed,
+            &self.arcade_cars,
+            &self.unused_b7c,
+            &self.start_place,
+            &self.best_place,
+            &self.pace_start_a,
+            &self.pace_start_b,
+            &self.pace_distance_a,
+            &self.pace_distance_b,
+            &self.pace_pass_gap,
+            &self.pace_back_gap,
+            &self.pace_gap_sum,
+            &self.kind_order,
+            &self.view_share,
+            &self.camera_turn_step,
+            &self.camera_ground_flag,
+        ];
+        crate::memory::session::read_runs(&fields[from as usize..], n, "the race tables")
+    }
+}
+
+impl RaceTables {
     pub const fn new() -> Self {
-        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+        Self {
+            stage_time_factors_last: [
+                PlainFloat::new(1.07),
+                PlainFloat::new(1.03),
+                PlainFloat::new(1.01),
+                PlainFloat::new(0.99),
+                PlainFloat::new(1.0),
+                PlainFloat::new(0.99),
+            ],
+            stage_time_factors_first: [
+                PlainFloat::new(1.05),
+                PlainFloat::new(1.02),
+                PlainFloat::new(0.99),
+                PlainFloat::new(0.98),
+                PlainFloat::new(0.99),
+                PlainFloat::new(0.99),
+            ],
+            arcade_cars_by_rally: [
+                PlainDword::new(0x32),
+                PlainDword::new(0x37),
+                PlainDword::new(0x1E),
+                PlainDword::new(0x46),
+                PlainDword::new(0x55),
+                PlainDword::new(0x55),
+            ],
+            arcade_best_place_by_stage: [
+                PlainDword::new(0xF),
+                PlainDword::new(0xA),
+                PlainDword::new(7),
+                PlainDword::new(5),
+                PlainDword::new(3),
+                PlainDword::new(1),
+            ],
+            start_share_last_by_rally: [
+                PlainDword::new(0x3F19999A),
+                PlainDword::new(0x3F23D70A),
+                PlainDword::new(0x3F2E147B),
+                PlainDword::new(0x3F3851EC),
+                PlainDword::new(0x3F428F5C),
+                PlainDword::new(0x3F4CCCCD),
+            ],
+            start_share_first_by_rally: [
+                PlainDword::new(0x3F4CCCCD),
+                PlainDword::new(0x3F570A3D),
+                PlainDword::new(0x3F6147AE),
+                PlainDword::new(0x3F6B851F),
+                PlainDword::new(0x3F75C28F),
+                PlainDword::new(0x3F800000),
+            ],
+            time_percentages: [
+                PlainDword::new(0x19),
+                PlainDword::new(0x17),
+                PlainDword::new(0x15),
+                PlainDword::new(0x13),
+                PlainDword::new(0x11),
+                PlainDword::new(0xF),
+                PlainDword::new(0x16),
+                PlainDword::new(0x14),
+                PlainDword::new(0x12),
+                PlainDword::new(0x10),
+                PlainDword::new(0xE),
+                PlainDword::new(0xC),
+                PlainDword::new(0x13),
+                PlainDword::new(0x11),
+                PlainDword::new(0xF),
+                PlainDword::new(0xD),
+                PlainDword::new(0xB),
+                PlainDword::new(9),
+                PlainDword::new(0x10),
+                PlainDword::new(0xE),
+                PlainDword::new(0xC),
+                PlainDword::new(0xA),
+                PlainDword::new(8),
+                PlainDword::new(6),
+                PlainDword::new(0xD),
+                PlainDword::new(0xB),
+                PlainDword::new(9),
+                PlainDword::new(7),
+                PlainDword::new(5),
+                PlainDword::new(3),
+                PlainDword::new(0xA),
+                PlainDword::new(8),
+                PlainDword::new(6),
+                PlainDword::new(4),
+                PlainDword::new(2),
+                PlainDword::new(0),
+            ],
+            kind_time_factors: [
+                PlainFloat::new(1.07),
+                PlainFloat::new(1.08),
+                PlainFloat::new(1.04),
+                PlainFloat::new(1.09),
+                PlainFloat::new(1.02),
+                PlainFloat::new(1.13),
+                PlainFloat::new(0.99),
+                PlainFloat::new(1.0),
+                PlainFloat::new(1.09),
+                PlainFloat::new(1.09),
+                PlainFloat::new(1.05),
+                PlainFloat::new(1.12),
+                PlainFloat::new(1.12),
+                PlainFloat::new(1.15),
+                PlainFloat::new(1.01),
+                PlainFloat::new(1.1),
+                PlainFloat::new(1.1),
+                PlainFloat::new(1.09),
+                PlainFloat::new(1.13),
+                PlainFloat::new(1.14),
+                PlainFloat::new(1.1),
+                PlainFloat::new(1.15),
+                PlainFloat::new(1.03),
+            ],
+            car_data_text: [
+                PlainDword::new(0x2031324C),
+                PlainDword::new(0x20323330),
+                PlainDword::new(0x20373230),
+                PlainDword::new(0x20373230),
+                PlainDword::new(0x20323330),
+                PlainDword::new(0x20373330),
+                PlainDword::new(0x20303430),
+                PlainDword::new(0x20363330),
+                PlainDword::new(0x20393230),
+                PlainDword::new(0xD333230),
+                PlainDword::new(0x32324C0A),
+                PlainDword::new(0x31343020),
+                PlainDword::new(0x31343020),
+                PlainDword::new(0x32333020),
+                PlainDword::new(0x35333020),
+                PlainDword::new(0x37333020),
+                PlainDword::new(0x31343020),
+                PlainDword::new(0x36333020),
+                PlainDword::new(0x35333020),
+                PlainDword::new(0x39333020),
+                PlainDword::new(0x35333020),
+                PlainDword::new(0x36333020),
+                PlainDword::new(0x324C0A0D),
+                PlainDword::new(0x34302033),
+                PlainDword::new(0x35302030),
+                PlainDword::new(0x34302037),
+                PlainDword::new(0x35302036),
+                PlainDword::new(0x34302031),
+                PlainDword::new(0x34302031),
+                PlainDword::new(0x35302034),
+                PlainDword::new(0x34302036),
+                PlainDword::new(0x34302039),
+                PlainDword::new(0x34302031),
+                PlainDword::new(0x34302036),
+                PlainDword::new(0x34302030),
+                PlainDword::new(0x4C0A0D34),
+                PlainDword::new(0x30203432),
+                PlainDword::new(0x30203732),
+                PlainDword::new(0x30203632),
+                PlainDword::new(0x30203333),
+                PlainDword::new(0x30203232),
+                PlainDword::new(0x30203731),
+                PlainDword::new(0x30203732),
+                PlainDword::new(0x30203332),
+                PlainDword::new(0xA0D3033),
+                PlainDword::new(0x2035324C),
+                PlainDword::new(0x20333430),
+                PlainDword::new(0x20383430),
+                PlainDword::new(0x20373430),
+                PlainDword::new(0x20353430),
+                PlainDword::new(0x20303530),
+                PlainDword::new(0x20373430),
+                PlainDword::new(0x20353430),
+                PlainDword::new(0x20333430),
+                PlainDword::new(0x20313530),
+                PlainDword::new(0x20353330),
+                PlainDword::new(0x20313430),
+                PlainDword::new(0xD363330),
+                PlainDword::new(0x36324C0A),
+                PlainDword::new(0x38333020),
+                PlainDword::new(0x32343020),
+                PlainDword::new(0x34343020),
+                PlainDword::new(0x34343020),
+                PlainDword::new(0x33343020),
+                PlainDword::new(0x32343020),
+                PlainDword::new(0x31343020),
+                PlainDword::new(0x30353020),
+                PlainDword::new(0x39333020),
+                PlainDword::new(0x38333020),
+                PlainDword::new(0x38333020),
+                PlainDword::new(0x34343020),
+                PlainDword::new(0x33343020),
+                PlainDword::new(0x334C0A0D),
+                PlainDword::new(0x34302031),
+                PlainDword::new(0x34302035),
+                PlainDword::new(0x34302035),
+                PlainDword::new(0x34302035),
+                PlainDword::new(0x34302032),
+                PlainDword::new(0x33302035),
+                PlainDword::new(0x33302036),
+                PlainDword::new(0x34302033),
+                PlainDword::new(0x34302038),
+                PlainDword::new(0x34302034),
+                PlainDword::new(0x33302032),
+                PlainDword::new(0x4C0A0D37),
+                PlainDword::new(0x30203233),
+                PlainDword::new(0x30203533),
+                PlainDword::new(0x30203433),
+                PlainDword::new(0x30203733),
+                PlainDword::new(0x30203433),
+                PlainDword::new(0x30203633),
+                PlainDword::new(0x30203433),
+                PlainDword::new(0x30203533),
+                PlainDword::new(0xA0D3333),
+                PlainDword::new(0x2033334C),
+                PlainDword::new(0x20383330),
+                PlainDword::new(0x20343330),
+                PlainDword::new(0x20363330),
+                PlainDword::new(0x20373330),
+                PlainDword::new(0x20353230),
+                PlainDword::new(0x20333330),
+                PlainDword::new(0x20373330),
+                PlainDword::new(0x20323330),
+                PlainDword::new(0xD323330),
+                PlainDword::new(0x34334C0A),
+                PlainDword::new(0x31343020),
+                PlainDword::new(0x36333020),
+                PlainDword::new(0x34333020),
+                PlainDword::new(0x34333020),
+                PlainDword::new(0x39333020),
+                PlainDword::new(0x33343020),
+                PlainDword::new(0x30333020),
+                PlainDword::new(0x39323020),
+                PlainDword::new(0x36333020),
+                PlainDword::new(0x37333020),
+                PlainDword::new(0x334C0A0D),
+                PlainDword::new(0x36302035),
+                PlainDword::new(0x36302036),
+                PlainDword::new(0x36302035),
+                PlainDword::new(0x36302035),
+                PlainDword::new(0x35302032),
+                PlainDword::new(0x36302035),
+                PlainDword::new(0x36302039),
+                PlainDword::new(0x35302031),
+                PlainDword::new(0x37302039),
+                PlainDword::new(0x36302030),
+                PlainDword::new(0x36302035),
+                PlainDword::new(0x36302036),
+                PlainDword::new(0x36302037),
+                PlainDword::new(0x36302039),
+                PlainDword::new(0x4C0A0D30),
+                PlainDword::new(0x31203633),
+                PlainDword::new(0x30203330),
+                PlainDword::new(0x30203536),
+                PlainDword::new(0x30203336),
+                PlainDword::new(0x30203536),
+                PlainDword::new(0x30203636),
+                PlainDword::new(0x30203137),
+                PlainDword::new(0x30203436),
+                PlainDword::new(0x30203336),
+                PlainDword::new(0x30203836),
+                PlainDword::new(0x30203037),
+                PlainDword::new(0x30203836),
+                PlainDword::new(0x30203936),
+                PlainDword::new(0x30203237),
+                PlainDword::new(0xA0D3836),
+                PlainDword::new(0x2031344C),
+                PlainDword::new(0x20333530),
+                PlainDword::new(0x20373430),
+                PlainDword::new(0x20313530),
+                PlainDword::new(0x20383430),
+                PlainDword::new(0x20313530),
+                PlainDword::new(0x20333530),
+                PlainDword::new(0x20393330),
+                PlainDword::new(0x20303530),
+                PlainDword::new(0x20373430),
+                PlainDword::new(0x20393530),
+                PlainDword::new(0xD393430),
+                PlainDword::new(0x32344C0A),
+                PlainDword::new(0x37343020),
+                PlainDword::new(0x33343020),
+                PlainDword::new(0x39343020),
+                PlainDword::new(0x33343020),
+                PlainDword::new(0x32343020),
+                PlainDword::new(0x37333020),
+                PlainDword::new(0x35343020),
+                PlainDword::new(0x34343020),
+                PlainDword::new(0x34343020),
+                PlainDword::new(0x31343020),
+                PlainDword::new(0x30343020),
+                PlainDword::new(0x344C0A0D),
+                PlainDword::new(0x34302033),
+                PlainDword::new(0x35302035),
+                PlainDword::new(0x35302034),
+                PlainDword::new(0x35302035),
+                PlainDword::new(0x35302034),
+                PlainDword::new(0x35302031),
+                PlainDword::new(0x35302039),
+                PlainDword::new(0x36302035),
+                PlainDword::new(0x35302031),
+                PlainDword::new(0x35302035),
+                PlainDword::new(0x35302037),
+                PlainDword::new(0x35302035),
+                PlainDword::new(0x35302039),
+                PlainDword::new(0x4C0A0D35),
+                PlainDword::new(0x30203434),
+                PlainDword::new(0x30203635),
+                PlainDword::new(0x30203435),
+                PlainDword::new(0x30203335),
+                PlainDword::new(0x30203235),
+                PlainDword::new(0x30203834),
+                PlainDword::new(0x30203335),
+                PlainDword::new(0x30203234),
+                PlainDword::new(0x30203634),
+                PlainDword::new(0x30203334),
+                PlainDword::new(0x30203634),
+                PlainDword::new(0x30203934),
+                PlainDword::new(0x30203535),
+                PlainDword::new(0x30203235),
+                PlainDword::new(0xA0D3234),
+                PlainDword::new(0x2035344C),
+                PlainDword::new(0x20393330),
+                PlainDword::new(0x20363530),
+                PlainDword::new(0x20383530),
+                PlainDword::new(0x20363430),
+                PlainDword::new(0x20393530),
+                PlainDword::new(0x20373630),
+                PlainDword::new(0x20343730),
+                PlainDword::new(0x20343630),
+                PlainDword::new(0x20363530),
+                PlainDword::new(0x20363530),
+                PlainDword::new(0x20383530),
+                PlainDword::new(0x20383630),
+                PlainDword::new(0xD373630),
+                PlainDword::new(0x36344C0A),
+                PlainDword::new(0x31373020),
+                PlainDword::new(0x36353020),
+                PlainDword::new(0x32353020),
+                PlainDword::new(0x33353020),
+                PlainDword::new(0x36353020),
+                PlainDword::new(0x35353020),
+                PlainDword::new(0x30353020),
+                PlainDword::new(0x38343020),
+                PlainDword::new(0x36353020),
+                PlainDword::new(0x34353020),
+                PlainDword::new(0x30363020),
+                PlainDword::new(0x35343020),
+                PlainDword::new(0x354C0A0D),
+                PlainDword::new(0x34302031),
+                PlainDword::new(0x34302037),
+                PlainDword::new(0x33302032),
+                PlainDword::new(0x33302038),
+                PlainDword::new(0x34302037),
+                PlainDword::new(0x33302033),
+                PlainDword::new(0x34302032),
+                PlainDword::new(0x33302034),
+                PlainDword::new(0x34302038),
+                PlainDword::new(0x33302031),
+                PlainDword::new(0x33302039),
+                PlainDword::new(0x33302037),
+                PlainDword::new(0x4C0A0D39),
+                PlainDword::new(0x30203235),
+                PlainDword::new(0x30203834),
+                PlainDword::new(0x30203434),
+                PlainDword::new(0x30203933),
+                PlainDword::new(0x30203235),
+                PlainDword::new(0x30203934),
+                PlainDword::new(0x30203234),
+                PlainDword::new(0x30203534),
+                PlainDword::new(0x30203235),
+                PlainDword::new(0x30203934),
+                PlainDword::new(0x30203235),
+                PlainDword::new(0x30203634),
+                PlainDword::new(0xA0D3734),
+                PlainDword::new(0x2033354C),
+                PlainDword::new(0x20373330),
+                PlainDword::new(0x20373430),
+                PlainDword::new(0x20303530),
+                PlainDword::new(0x20353430),
+                PlainDword::new(0x20393430),
+                PlainDword::new(0x20323530),
+                PlainDword::new(0x20313430),
+                PlainDword::new(0x20323530),
+                PlainDword::new(0x20363430),
+                PlainDword::new(0x20383430),
+                PlainDword::new(0x20373430),
+                PlainDword::new(0xD393430),
+                PlainDword::new(0x34354C0A),
+                PlainDword::new(0x35353020),
+                PlainDword::new(0x30353020),
+                PlainDword::new(0x33353020),
+                PlainDword::new(0x38343020),
+                PlainDword::new(0x33353020),
+                PlainDword::new(0x36343020),
+                PlainDword::new(0x37353020),
+                PlainDword::new(0x39353020),
+                PlainDword::new(0x32343020),
+                PlainDword::new(0x34353020),
+                PlainDword::new(0x32343020),
+                PlainDword::new(0x354C0A0D),
+                PlainDword::new(0x34302035),
+                PlainDword::new(0x33302039),
+                PlainDword::new(0x33302039),
+                PlainDword::new(0x34302037),
+                PlainDword::new(0x34302032),
+                PlainDword::new(0x34302036),
+                PlainDword::new(0x35302030),
+                PlainDword::new(0x34302031),
+                PlainDword::new(0x33302036),
+                PlainDword::new(0x34302039),
+                PlainDword::new(0x4C0A0D31),
+                PlainDword::new(0x30203635),
+                PlainDword::new(0x30203833),
+                PlainDword::new(0x30203833),
+                PlainDword::new(0x30203733),
+                PlainDword::new(0x30203034),
+                PlainDword::new(0x30203234),
+                PlainDword::new(0x30203433),
+                PlainDword::new(0x30203633),
+                PlainDword::new(0x30203633),
+                PlainDword::new(0x30203833),
+                PlainDword::new(0x30203034),
+                PlainDword::new(0xA0D3333),
+                PlainDword::new(0x2031364C),
+                PlainDword::new(0x20303630),
+                PlainDword::new(0x20343630),
+                PlainDword::new(0x20313830),
+                PlainDword::new(0x20343630),
+                PlainDword::new(0x20393530),
+                PlainDword::new(0x20383630),
+                PlainDword::new(0x20333730),
+                PlainDword::new(0x20363630),
+                PlainDword::new(0x20303830),
+                PlainDword::new(0x20353730),
+                PlainDword::new(0x20373730),
+                PlainDword::new(0x20393730),
+                PlainDword::new(0x20303830),
+                PlainDword::new(0x20373630),
+                PlainDword::new(0x20333630),
+                PlainDword::new(0xD393630),
+                PlainDword::new(0x32364C0A),
+                PlainDword::new(0x37363020),
+                PlainDword::new(0x33373020),
+                PlainDword::new(0x37363020),
+                PlainDword::new(0x36353020),
+                PlainDword::new(0x31363020),
+                PlainDword::new(0x32373020),
+                PlainDword::new(0x35363020),
+                PlainDword::new(0x31363020),
+                PlainDword::new(0x36363020),
+                PlainDword::new(0x32363020),
+                PlainDword::new(0x39353020),
+                PlainDword::new(0x32363020),
+                PlainDword::new(0x30363020),
+                PlainDword::new(0x36363020),
+                PlainDword::new(0x364C0A0D),
+                PlainDword::new(0x35302033),
+                PlainDword::new(0x36302038),
+                PlainDword::new(0x36302034),
+                PlainDword::new(0x36302032),
+                PlainDword::new(0x35302031),
+                PlainDword::new(0x35302034),
+                PlainDword::new(0x36302032),
+                PlainDword::new(0x35302037),
+                PlainDword::new(0x35302034),
+                PlainDword::new(0x36302039),
+                PlainDword::new(0x37302032),
+                PlainDword::new(0x34302030),
+                PlainDword::new(0x34302037),
+                PlainDword::new(0x35302038),
+                PlainDword::new(0x4C0A0D35),
+                PlainDword::new(0x30203436),
+                PlainDword::new(0x30203238),
+                PlainDword::new(0x30203335),
+                PlainDword::new(0x30203635),
+                PlainDword::new(0x30203336),
+                PlainDword::new(0x30203936),
+                PlainDword::new(0x30203236),
+                PlainDword::new(0x30203136),
+                PlainDword::new(0x30203936),
+                PlainDword::new(0x30203138),
+                PlainDword::new(0x30203137),
+                PlainDword::new(0x30203436),
+                PlainDword::new(0x30203135),
+                PlainDword::new(0x30203836),
+                PlainDword::new(0x30203637),
+                PlainDword::new(0xA0D3636),
+                PlainDword::new(0x2035364C),
+                PlainDword::new(0x20323430),
+                PlainDword::new(0x20373330),
+                PlainDword::new(0x20303430),
+                PlainDword::new(0x20363330),
+                PlainDword::new(0x20373330),
+                PlainDword::new(0x20313430),
+                PlainDword::new(0x20363430),
+                PlainDword::new(0x20393430),
+                PlainDword::new(0x20323430),
+                PlainDword::new(0xD333330),
+                PlainDword::new(0x36364C0A),
+                PlainDword::new(0x34373020),
+                PlainDword::new(0x36353020),
+                PlainDword::new(0x30363020),
+                PlainDword::new(0x34353020),
+                PlainDword::new(0x30353020),
+                PlainDword::new(0x34343020),
+                PlainDword::new(0x38353020),
+                PlainDword::new(0x36343020),
+                PlainDword::new(0x31353020),
+                PlainDword::new(0x34363020),
+                PlainDword::new(0x30363020),
+                PlainDword::new(0x39353020),
+                PlainDword::new(0x38363020),
+                PlainDword::new(0x38363020),
+                PlainDword::new(0x374C0A0D),
+                PlainDword::new(0x33302031),
+                PlainDword::new(0x32302032),
+                PlainDword::new(0x32302031),
+                PlainDword::new(0x32302033),
+                PlainDword::new(0x32302035),
+                PlainDword::new(0x32302033),
+                PlainDword::new(0x32302039),
+                PlainDword::new(0x32302033),
+                PlainDword::new(0x4C0A0D34),
+                PlainDword::new(0x30203237),
+                PlainDword::new(0x30203034),
+                PlainDword::new(0x30203133),
+                PlainDword::new(0x30203433),
+                PlainDword::new(0x30203233),
+                PlainDword::new(0x30203633),
+                PlainDword::new(0x30203233),
+                PlainDword::new(0x30203134),
+                PlainDword::new(0x30203633),
+                PlainDword::new(0xA0D3433),
+                PlainDword::new(0x2033374C),
+                PlainDword::new(0x20303430),
+                PlainDword::new(0x20393230),
+                PlainDword::new(0x20393230),
+                PlainDword::new(0x20303430),
+                PlainDword::new(0x20363230),
+                PlainDword::new(0x20323330),
+                PlainDword::new(0x20363230),
+                PlainDword::new(0x20303330),
+                PlainDword::new(0xD343330),
+                PlainDword::new(0x34374C0A),
+                PlainDword::new(0x35333020),
+                PlainDword::new(0x32333020),
+                PlainDword::new(0x39333020),
+                PlainDword::new(0x33333020),
+                PlainDword::new(0x36333020),
+                PlainDword::new(0x37323020),
+                PlainDword::new(0x31333020),
+                PlainDword::new(0x35333020),
+                PlainDword::new(0x33333020),
+                PlainDword::new(0x374C0A0D),
+                PlainDword::new(0x33302035),
+                PlainDword::new(0x32302033),
+                PlainDword::new(0x32302033),
+                PlainDword::new(0x31302036),
+                PlainDword::new(0x4C0A0D37),
+                PlainDword::new(0x30203637),
+                PlainDword::new(0x30203933),
+                PlainDword::new(0x30203632),
+                PlainDword::new(0x30203933),
+                PlainDword::new(0x30203632),
+                PlainDword::new(0x30203034),
+                PlainDword::new(0x30203533),
+                PlainDword::new(0x30203132),
+                PlainDword::new(0x30203633),
+                PlainDword::new(0x30203333),
+                PlainDword::new(0xA0D3932),
+            ],
+            start_blend_step: PlainFloat::new(-0.02),
+            pace_push_scale: PlainFloat::new(0.05),
+            computer_ease_speed: PlainDword::new(0x41F00000),
+            kind_order: [
+                PlainDword::new(7),
+                PlainDword::new(0xE),
+                PlainDword::new(6),
+                PlainDword::new(4),
+                PlainDword::new(0x16),
+                PlainDword::new(2),
+                PlainDword::new(0xA),
+                PlainDword::new(0),
+                PlainDword::new(1),
+                PlainDword::new(3),
+                PlainDword::new(8),
+                PlainDword::new(9),
+                PlainDword::new(0x11),
+                PlainDword::new(0x14),
+                PlainDword::new(0x10),
+                PlainDword::new(0xF),
+                PlainDword::new(0xC),
+                PlainDword::new(0xB),
+                PlainDword::new(5),
+                PlainDword::new(0x12),
+                PlainDword::new(0x13),
+                PlainDword::new(0x15),
+                PlainDword::new(0xD),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+                PlainDword::new(0xFFFFFFFF),
+            ],
+            ..ZeroCells::ZERO
+        }
     }
 }
 
-/// IDA 0x60463C, the first byte of the piece.
-pub const START: usize = 0x60463C;
-/// IDA 0x60526C, the end of the piece.
-pub const END: usize = 0x60526C;
-
-const _: () = assert!(END - START == core::mem::size_of::<RaceTables>());
-
-/// Where IDA 0x60463C is now (its own static).
 #[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&race().shared.tables))
-}
-
-#[cfg(test)]
-mod tests {
+mod run_on_tests {
     use super::*;
-    use core::mem::offset_of;
 
+    /// A dword from each listed table is read by index inside the table, and an index far past the
+    /// record is refused.
     #[test]
-    fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&race().shared.tables, START, END);
+    fn dword_from_reads_the_tables_and_refuses_far_past_them() {
+        let t = Box::new(RaceTables::new());
+        let tables: [(Listed, &[PlainDword]); 4] = [
+            (Listed::ArcadeCarsByRally, &t.arcade_cars_by_rally),
+            (Listed::BestPlaceByStage, &t.arcade_best_place_by_stage),
+            (Listed::StartShareLastByRally, &t.start_share_last_by_rally),
+            (
+                Listed::StartShareFirstByRally,
+                &t.start_share_first_by_rally,
+            ),
+        ];
+        for (listed, table) in tables {
+            for (n, cell) in table.iter().enumerate() {
+                cell.set(0x8000 + n as u32);
+                assert_eq!(t.dword_from(listed, n).ok(), Some(0x8000 + n as u32), "{n}");
+            }
+            assert!(t.dword_from(listed, 1 << 20).is_err());
+        }
     }
 
+    /// The kind order is read by index from its first entry.
     #[test]
-    fn piece_has_its_home() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            piece_addr(),
-            crate::framework::game_addr(crate::framework::rva(START))
-        );
-        assert_eq!(
-            offset_of!(RaceTables, stage_time_factors_last),
-            0x60463C - START
-        );
-        assert_eq!(offset_of!(RaceTables, time_percentages), 0x6046CC - START);
-        assert_eq!(
-            offset_of!(RaceTables, number_before_first),
-            0x605030 - START
-        );
-        assert_eq!(offset_of!(RaceTables, start_share), 0x6051AC - START);
-        assert_eq!(offset_of!(RaceTables, pace_start_b), 0x6051C8 - START);
-        assert_eq!(offset_of!(RaceTables, view_share), 0x605260 - START);
+    fn kind_order_reads_the_entries() {
+        let t = Box::new(RaceTables::new());
+        for (k, cell) in t.kind_order.iter().enumerate() {
+            cell.set(0x300 + k as u32);
+            assert_eq!(
+                t.dword_from(Listed::KindOrder, k).ok(),
+                Some(0x300 + k as u32)
+            );
+        }
     }
 }

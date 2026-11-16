@@ -1,51 +1,43 @@
-//! `effects::draw_particle` (0x4CFDD5): one particle of the marks' ring drawn as a square
-//! sprite. Its place (st(0) x, st(1) y, st(2) z) turned by `g_viewMatrix` read by columns
-//! into `flt_8EB8D5` .. `flt_8EB8DD`; unless the turned depth is at or below
-//! `dword_8EB961` (a signed compare of the bits): the four vertices' colour ecx and depth
-//! (times `flt_8EB96D`), half the square (edx times `flt_624088` / depth) in
-//! `dword_8EB8B5` and `dword_8EB8B9`, the corners around the projected place (centre
-//! `flt_62409C`, `flt_6240A0`), and `scene::draw_fan`. The vertices' rhw and texture places
-//! are left as they are (`effects::set_quad_uvs` sets the places once a frame).
-//!
-//! Callers: the ring's update (code at 0x4D03E7, 0x4D04BE, 0x4D05AC).
+//! `effects::draw_particle`: one particle of the effects' ring drawn as a square sprite. Its place
+//! (x, y, z) turned by the view matrix read by columns into the draw work's place; unless the
+//! turned depth is at or below the nearest depth (a signed compare of the bits): the four vertices'
+//! colour and depth (times the depth scale), half the square (the size times the view scale /
+//! depth), the corners around the projected place (centre the view's centre), and
+//! `scene::draw_fan`. The vertices' rhw and texture places are left as they are
+//! (`effects::set_quad_uvs` sets the places once a frame).
 
-use crate::d3d::vertices_store::VERTICES;
 use crate::math::x87;
-use crate::race::owner_frame::Frame;
 
-/// The Rust version (see the header): `colour` (ecx), `size` (edx).
+/// `colour` is the vertices' colour, `size` the half side.
 pub fn draw_particle(
-    frame: &Frame,
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
+    view_matrix: &[crate::memory::session::PlainFloat; 16],
     place: [[u8; 10]; 3],
     colour: u32,
     size: u32,
-    effects: &crate::effects::owner::Effects,
     scene: &crate::scene::owner::Scene,
+    effects: &crate::effects::owner::Effects,
 ) {
     let effects_frame = &effects.frame;
-    let turned = x87::column_turn(&place, &frame.matrices.view_matrix);
+    let turned = x87::column_turn(&place, view_matrix);
     for (n, v) in turned.into_iter().enumerate() {
-        effects_frame.draw_work.turned[n].set_bits(v);
+        effects_frame.draw_work.turned[n].set(v);
     }
-    let [a, b, c] = turned;
-    if (c as i32) <= effects_frame.draw_work.near.bits() as i32 {
+    if x87::bits_at_or_below(turned[2], effects_frame.draw_work.near.get()) {
         return;
     }
-    let k = [
-        scene.drawing.scene.view_scale.bits(),
-        scene.drawing.scene.view_centre[0].bits(),
-        scene.drawing.scene.view_centre[1].bits(),
-        effects_frame.draw_work.z_k.bits(),
-    ];
-    let sq = x87::particle_square(a, b, c, k, size as i32);
+    let k = effects_frame
+        .draw_work
+        .view_k(scene.scratch.front_end_polygon());
+    let sq = x87::particle_square_floats(turned, k, size as i32);
     for n in 0..4 {
-        let v = &VERTICES.vertices[n];
+        let v = &buffer.vertices[n];
         v.colour.set(colour);
-        v.z.set_bits(sq[1]);
-        v.x.set_bits(sq[6 + n]);
-        v.y.set_bits(sq[2 + n]);
+        v.z.set(sq[1]);
+        v.x.set(sq[6 + n]);
+        v.y.set(sq[2 + n]);
     }
-    effects_frame.draw_work.half[0].set_bits(sq[0]);
-    effects_frame.draw_work.half[1].set_bits(sq[0]);
-    crate::effects::clip_quad::draw_fan();
+    effects_frame.draw_work.half[0].set(sq[0]);
+    effects_frame.draw_work.half[1].set(sq[0]);
+    crate::effects::clip_quad::draw_fan(buffer, scene);
 }

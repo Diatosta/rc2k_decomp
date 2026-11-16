@@ -1,15 +1,7 @@
-//! `install::measure_pieces` (0x414DF5): each of a page's pieces measured into its width
-//! (+0x10) and height (+0x14). A piece whose item has 0x20 first has bits 0, 1 of its kind
-//! moved to bits 2, 3. A piece of a plain text kind (no 0x10) is its string measured
-//! (`text::measure_string_by_id`) in the font of its marks and kind (`byte_51D52D`,
-//! `dword_51D4C4`); else by the item's kind: an edit its record's width and its font's
-//! height (`byte_51D52F`); a text its string and the item's appended text (`[item+0xC]`
-//! with eax `[item+8]`, if any) in `text`, measured (`text::measure_text`); an action its
-//! box's size; any other what ecx and edx hold.
-//!
-//! No pieces would go round 2^32 times: refused. Caller `install::run_page`.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
+//! Each of a page's pieces measured into its width and height: a plain text piece as its string
+//! in the font of its marks; else by the item's kind: an edit its record's width and height, a
+//! text its string and appended text, an action its box's size, any other the size of the pieces
+//! before it. Refused: no pieces. Called by `install::run_page`.
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::{
@@ -20,47 +12,61 @@ use crate::install::vars::InstallerPages;
 use crate::strings::owner::Strings;
 use rc2k_core::install::pieces::{self, Way};
 
-fn font_of(index: u32) -> Result<crate::gfx::typefaces::FontId, BadInput> {
-    crate::install::vars::InstallerPages::font_of(index)
+fn font_of(
+    install: &crate::install::owner::Install,
+    index: u32,
+) -> Result<crate::gfx::typefaces::FontId, BadInput> {
+    crate::install::vars::InstallerPages::font_of(install, index)
 }
 
 pub fn measure_pieces(
+    so: crate::strings::append_string_by_id::StringOwners<'static>,
     install: &'static crate::install::owner::Install,
     strings: &'static Strings,
+    gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     let count = piece_count(install);
     if count == 0 {
         return Err(BadInput("a page of no pieces").into());
     }
-    // The size each piece gets is what ecx and edx hold: ecx the pieces left (the measures
-    // get it as their x), edx the last height (a piece measured with neither keeps it).
+    // The size each piece gets is the carried one: the pieces left (the measures get it as
+    // their x) and the last height (a piece measured with neither keeps it).
     let mut height = None;
     for k in 0..count {
         let left = count - k;
-        let piece = Piece::nth(k);
-        // Converted: `rc2k_core::install::pieces` (`measured_kind`, `Way`,
-        // `measure_colour_at`).
+        let piece = Piece::nth(install, k);
         let marks = piece.marks();
         if marks & 0x20 != 0 {
             piece.set_kind(pieces::measured_kind(marks, piece.kind()));
         }
         let (width, high) = match Way::of(marks, piece.kind()) {
             Way::String { font_kind } => {
-                let font = InstallerPages::kind_font(pieces::measure_colour_at(font_kind)) as u32;
-                measure_string(piece.text_id() as u32, font_of(font)?, left)?
+                let font =
+                    InstallerPages::kind_font(install, pieces::measure_colour_at(font_kind)) as u32;
+                measure_string(
+                    so,
+                    piece.text_id() as u32,
+                    font_of(install, font)?,
+                    left,
+                    gfx,
+                )?
             }
             Way::Edit => {
-                let item = piece.item();
-                let record = item.edit_field();
+                let item = piece.item(install);
+                let record = item.edit_field(install);
                 let font_height =
-                    InstallerPages::kind_font(7 + 8 * record.font_kind() as u32) as u32;
-                let width = crate::install::folders::field_width(item.text(), record.width());
+                    InstallerPages::kind_font(install, 7 + 8 * record.font_kind() as u32) as u32;
+                let width = crate::install::folders::field_width(
+                    install,
+                    item.text(install),
+                    record.width(),
+                );
                 (width as u32, font_height)
             }
             Way::Text => {
-                let item = piece.item();
+                let item = piece.item(install);
                 let mut text = Vec::new();
-                push_string_by_id(&mut text, piece.text_id() as u32);
+                push_string_by_id(so, &mut text, piece.text_id() as u32);
                 let action = item.data();
                 if action != 0 {
                     text_action(action, &mut text)?;
@@ -68,11 +74,12 @@ pub fn measure_pieces(
                 text.push(0);
                 store_text(&strings.text.buffer.text, &text);
                 let kind = item.font_kind() as u32;
-                let font = InstallerPages::kind_font(pieces::measure_colour_at(kind)) as u32;
-                measure_text(font_of(font)?, &text, left)?
+                let font =
+                    InstallerPages::kind_font(install, pieces::measure_colour_at(kind)) as u32;
+                measure_text(font_of(install, font)?, &text, left, gfx)?
             }
             Way::Action => {
-                let the_box = BoxRecord::linked(piece.item().box_link());
+                let the_box = BoxRecord::linked(install, piece.item(install).box_link());
                 (the_box.width(), the_box.height())
             }
             Way::Other => {

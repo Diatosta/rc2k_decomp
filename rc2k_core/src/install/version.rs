@@ -1,8 +1,7 @@
-//! Whether the installed `ral.exe` is this same build (converted 2026-10-21 from
-//! `install::check_installed_version` 0x413B0B): the file read in chunks of 0xFF00 bytes,
-//! each scanned (with the last 0x100 bytes of the one before in front of it) for
-//! "$VER: Rally 5"; at the first one, the text after the version's NUL compared with the
-//! game's copyright line up to its first '.'.
+//! Whether the installed `ral.exe` is this same build: the file read in chunks of 0xFF00 bytes,
+//! each scanned (with the last 0x100 bytes of the one before in front) for "$VER: Rally 5"; at
+//! the first one, the text after the version's NUL is compared with the game's copyright line up
+//! to its first '.'.
 
 use crate::Invalid;
 use crate::strings::bytes::Bytes;
@@ -22,7 +21,7 @@ pub enum Scan {
     /// No marker: the next chunk is read.
     Nothing,
     /// The first marker found ends the reading: the same build or not, and where the scan
-    /// stopped (its ebx from the buffer's start, and its ecx).
+    /// stopped (its offset from the buffer's start, and the matched length).
     Stopped { same: bool, at: u32, count: u32 },
 }
 
@@ -52,19 +51,19 @@ pub fn scan(
         if !hit {
             continue;
         }
-        let mut ebx = start;
-        let mut ecx = TO_NUL;
+        let mut position = start;
+        let mut left = TO_NUL;
         loop {
-            ecx -= 1;
-            if ecx == 0 {
+            left -= 1;
+            if left == 0 {
                 return Ok(Scan::Stopped {
                     same: false,
-                    at: ebx,
+                    at: position,
                     count: 0,
                 });
             }
-            let b = at(buffer, ebx)?;
-            ebx += 1;
+            let b = at(buffer, position)?;
+            position += 1;
             if b < 1 {
                 break;
             }
@@ -72,10 +71,10 @@ pub fn scan(
         let mut n = 0u32;
         loop {
             let want = at(copyright, n)?;
-            if want != at(buffer, ebx + n)? {
+            if want != at(buffer, position + n)? {
                 return Ok(Scan::Stopped {
                     same: false,
-                    at: ebx,
+                    at: position,
                     count: n,
                 });
             }
@@ -83,7 +82,7 @@ pub fn scan(
             if want == b'.' {
                 return Ok(Scan::Stopped {
                     same: true,
-                    at: ebx,
+                    at: position,
                     count: n,
                 });
             }

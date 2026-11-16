@@ -1,32 +1,25 @@
-//! `drive::play_inputs` (0x460162): for cars 0 and 1 the input words from the replay's
-//! tape: frame `dword_6EF7E4` (16 bytes; the car's 8) has ebx and the packed word, taken
-//! apart (`drive::unpack_inputs`) into `dword_6138C4` .. (eax, ebx, ecx, edx).
-//!
-//! Callers: `drive::play_inputs_if`, `race::step_replay_cars`.
+//! For cars 0 and 1 the input words from the replay's tape: frame
+//! `step_frame` (16 bytes; the car's 8) has the first word and the packed rest, taken apart
+//! (`drive::unpack_inputs`) into `input_words` ...
 
 use crate::errors::BadInput;
-use crate::pointers::Store;
 use crate::race::owner::Race;
-use crate::race::replay_work_store::REPLAY_WORK;
-use rc2k_core::drive::replay_frames::{on_tape, tape_offset};
+use rc2k_core::drive::replay_frames::on_tape;
 
-/// The Rust version.
-// Converted: `rc2k_core::drive::replay_frames::{on_tape, tape_offset}`.
 pub fn play_inputs(race: &Race) -> Result<(), BadInput> {
     let shared = &race.shared;
     let replay = &race.replay;
-    let car = shared.work.current_car.get();
+    let car = shared.work.get().current_car.get();
     if !on_tape(car) {
         return Ok(());
     }
-    let esi = tape_offset(replay.replay_frames.step_frame.get(), car);
-    let mut words = [0u8; 8];
-    REPLAY_WORK.replay_tape.load(esi as usize, &mut words)?;
-    let ebx = u32::from_le_bytes([words[0], words[1], words[2], words[3]]);
-    let second = u32::from_le_bytes([words[4], words[5], words[6], words[7]]);
+    let entry = replay
+        .staging()
+        .entry(replay.replay_frames().step_frame.get(), car)?;
+    let (ebx, second) = (entry.input.get(), entry.packed.get());
     let [eax, ecx, edx] = crate::drive::unpack_inputs::unpack_inputs(second);
     for (k, v) in [eax, ebx, ecx, edx].iter().enumerate() {
-        shared.physics_tables.input_words[k].set(*v);
+        shared.physics_tables.get().input_words[k].set(*v);
     }
     Ok(())
 }

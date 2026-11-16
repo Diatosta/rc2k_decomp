@@ -1,23 +1,11 @@
-//! `net::receive_thread` (0x4183C3): the network's receiving thread ("NETRXTDB"), the
-//! routine of the third slot `threading::start_threads` starts (`stru_518714`), from its
-//! start to `ExitThread`.
-//!
-//! Its slot's byte +0xC (running) 1 already: straight to the end. Else running;
-//! "NETRXTDB:START" (log level 2); `dword_52A4B0` (done) not 0: the end. Else round and
-//! round: `threading::wait_for_object` on the event `dword_52AB68` (`net::set_up`'s) for
-//! 1000 ms; signalled (zero clear): `dword_52A918` (receiving) 1 and, with `dword_52A910`
-//! (a network session) 1, `net::take_messages`; then `dword_52A918` 0; with
-//! `dword_52ACE4` 1 the call posted in `dword_52ACE8` (taken with an `xchg`) is made and
-//! its eax kept in `dword_52ACEC`, `dword_52ACF0` 1 (`net::post_call` posts them and
-//! waits; what it posts are Rust versions, `net::lobby_calls`); until `g_quitting` is 1.
-//! The end: done 1, "NETRXTDB:QUIT", not running, `ExitThread(0)`.
-//! The original hands the starter's registers on from call to call; the calls' Rust
-//! versions read none of them (`take_messages` and the posted calls take no arguments).
-//! Run by `threading::start_slot_thread` (its slot `stru_518714`, `routes.rs`).
+//! The network's receiving thread ("NETRXTDB"): until the game is quitting, waits up to a
+//! second for the event; when signalled and a network session is on, takes the messages
+//! (`net::take_messages`); a call posted by `net::post_call` is made and its result kept. Ends
+//! with "NETRXTDB:QUIT".
 
 use crate::errors::Refused;
-use crate::net::owner::net;
-use crate::system::owner::system;
+use crate::net::owner::Net;
+use crate::system::owner::System;
 
 const START_TEXT: &std::ffi::CStr = c"NETRXTDB:START"; // "NETRXTDB:START"
 const QUIT_TEXT: &std::ffi::CStr = c"NETRXTDB:QUIT"; // "NETRXTDB:QUIT"
@@ -25,8 +13,8 @@ const QUIT_TEXT: &std::ffi::CStr = c"NETRXTDB:QUIT"; // "NETRXTDB:QUIT"
 const WAIT: u32 = 1000;
 
 /// Runs to the `ExitThread`, which does not come back.
-pub fn receive_thread() -> Result<(), Refused> {
-    let net = net();
+pub fn receive_thread(net: &Net, system: &System) -> Result<(), Refused> {
+    let lines = &crate::race::viewer_screen_store::NET_TEXTS;
     let vars = &net.vars;
     let running =
         &crate::threading::thread_slot::slot_ref(crate::threading::thread_slot::NET)?.flag;
@@ -39,19 +27,23 @@ pub fn receive_thread() -> Result<(), Refused> {
                     crate::threading::wait_for_object::wait_for_object(vars.event.get(), WAIT)
                         .flags();
                 if !zero {
-                    vars.receiving.set(1);
-                    if vars.session.get() == 1 {
-                        crate::net::take_messages::take_messages(net)?;
+                    vars.receiver.receiving.set(1);
+                    if net.race_slot.is_on() {
+                        crate::net::take_messages::take_messages(
+                            net,
+                            lines,
+                            &system.session.picture_clock,
+                        )?;
                     }
                 }
-                vars.receiving.set(0);
-                if vars.posting.get() == 1
+                vars.receiver.receiving.set(0);
+                if vars.receiver.posting.get() == 1
                     && let Some(call) = crate::net::post_call::take_posted(&net.vars)
                 {
-                    vars.posted_result.set(call());
-                    vars.posted_answered.set(1);
+                    vars.receiver.posted_result.set(call(net, lines));
+                    vars.receiver.posted_answered.set(1);
                 }
-                if system().session.flags.quitting.get() == 1 {
+                if system.session.flags.quitting.is_set() {
                     break;
                 }
             }
@@ -60,6 +52,6 @@ pub fn receive_thread() -> Result<(), Refused> {
     vars.receive_done.set(1);
     crate::logfile::log_write::log_nul(&QUIT_TEXT, true, 2);
     running.set(0);
-    // The routine's end ends its thread (the original's `ExitThread`).
+    // The routine's end ends its thread.
     Ok(())
 }

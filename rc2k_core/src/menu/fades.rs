@@ -1,12 +1,11 @@
-//! The inspection's fades: the see-through of the fade's quad by the time gone (converted
-//! 2026-10-21 from `menu::fade_in` 0x4A1CFA and `menu::fade_out` 0x4A1DA5). The length
-//! (`dword_75AB44`, ms) is cut in a hundred steps; the see-through goes from 0 up to the
-//! full one (`dword_75AA94`) in, or from it down out, a hundredth of it a step.
+//! The inspection's fades: the see-through of the fade's quad by the time gone. The length
+//! (`MenuState.menus.fade_length`, ms) is cut in a hundred steps; the see-through goes from 0 up to
+//! the full one in, or from it down out, a hundredth of it a step.
 
 /// The steps of a fade.
 pub const STEPS: u32 = 100;
 
-/// A length of 1 .. 99 ms makes a step of 0 ms, which the original divides by.
+/// A length of 1 .. 99 ms makes a step of 0 ms, which `step` divides by.
 pub fn too_short(length: u32) -> bool {
     (1..STEPS).contains(&length)
 }
@@ -19,10 +18,9 @@ pub fn first_see(out: bool, full: u32) -> u32 {
 /// Why a step cannot be made.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Stop {
-    /// The original's checks before its division (a length of 0, or no time gone on the
-    /// way out): its fatal error 0x80701010.
+    /// A length of 0, or no time gone on the way out: fatal error 0x80701010.
     DivideByZero,
-    /// A step of 0 ms (a length of 1 .. 99 ms): the original's `div` traps.
+    /// A step of 0 ms (a length of 1 .. 99 ms), refused before it is divided by.
     ShortStep,
 }
 

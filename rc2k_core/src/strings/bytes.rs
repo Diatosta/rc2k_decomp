@@ -1,21 +1,19 @@
 //! Reading the game's packed data (texts, glyph tables) a byte at a time. A slice answers
-//! `None` past its end, so the core never reads out of bounds; while the hooked game runs,
-//! the hook crate also answers from game memory, whose extent it does not know.
+//! `None` past its end, so the core never reads out of bounds.
 
 /// Bytes at offsets from a start.
 pub trait Bytes {
     /// The byte at `at`, `None` past the end.
     fn byte(&self, at: usize) -> Option<u8>;
 
-    /// The `len` bytes from `at` in one piece, when they are held that way: a faster way to
-    /// the same bytes, `None` meaning only that the caller goes byte by byte.
+    /// The `len` bytes from `at` in one piece, when held that way; `None` means only that the
+    /// caller goes byte by byte.
     fn run(&self, _at: usize, _len: usize) -> Option<&[u8]> {
         None
     }
 
     /// Fills `out` with the bytes from `at`; `None` (with `out` unspecified) when any lies
-    /// past the end. The same bytes `byte` gives one by one, in one read where the holder
-    /// can.
+    /// past the end. The same bytes `byte` gives one by one, in one read where the holder can.
     fn copy_run(&self, at: usize, out: &mut [u8]) -> Option<()> {
         for (i, place) in out.iter_mut().enumerate() {
             *place = self.byte(at.checked_add(i)?)?;

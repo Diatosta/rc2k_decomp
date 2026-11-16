@@ -1,135 +1,79 @@
-//! `scene::place_object_points` (0x45BE05): an object's points and normals into the
-//! view, the points onto the screen.
+//! `scene::place_object_points`: an object's points and normals into the view, the points onto
+//! the screen.
 //!
-//! Takes: only matter for an object with normals and no points (refused)
+//! The object (the car state's `object_number`) has `point_counts[n]` points and then
+//! `normal_counts[n]` normals, numbered from `first_point[n]`, twelve bytes each in the
+//! course's `object_points` table: a point three whole numbers, a normal three floats. Each
+//! gets the point record 0x1000 + (number & 0xFFF) (its +0 = the number). A point goes through
+//! the object matrix (`made_object_matrix`; the same arithmetic as `scene::rotate_point`) and
+//! onto the screen as `scene::project_point` does it (not if it is nearer than 4096). With the
+//! object's `move_by` not 0 the point is first moved towards the one that many bytes further on
+//! in the table, by `move_fraction` of the way, rounded to whole numbers (the moved point and
+//! the fraction are the drawing's own values). A normal goes through the matrix without its
+//! fourth row. One caller, `scene::place_object_points_any`, which takes this way unless the
+//! 3DNow or the SSE switch is set: `place_object_points_sse` is the SSE way; the 3DNow way is
+//! not ported. Refuses an object's number of 0x100 or more, no records, no points' table, no
+//! matrix, and normals without points.
 //!
-//! The object `g_objectNumber` has `dword_632370[n]` points and then
-//! `dword_632770[n]` normals, numbered from `dword_631F70[n]`, twelve bytes each at
-//! `dword_5C6FA4` + number * 12: a point three whole numbers, a normal three floats.
-//! Each gets the record 0x1000 + (number & 0xFFF) of `g_pointRecords` (its +0 = the
-//! number). A point goes through the matrix `off_5EA40C` points at (0x45C18E, the
-//! same arithmetic as `scene::rotate_point`) and onto the screen as
-//! `scene::project_point` does it (0x45C237: not if it is nearer than 4096). With
-//! `dword_623DD0` not 0 the point is first moved (0x45C29B) towards the one that
-//! many bytes further on in the table, by `flt_623DD4` of the way, rounded to whole
-//! numbers in `unk_5CCE18`; `dword_62400C` = that fraction. A normal goes through
-//! the matrix without its fourth row (0x45C1E7).
-//! One caller, `scene::place_object_points_any`, which takes this way unless `dword_621A5C` (3DNow)
-//! or
-//! `g_useSse` is set: `place_object_points_sse` is the SSE way (0x45C04E); the 3DNow way
-//! (0x45BF89) is not ported.
-//! Refuses an object's number of 0x100 or more, no records, no points' table, no
-//! matrix, and normals without points (the original goes on from whatever eax and
-//! ecx hold).
-//!
-//! The arithmetic (the moved point, the rotation, the normals) is the x87's, in plain Rust
-//! over `X` (`math/x87_float.rs`), rounding as the control word says; the original's
-//! instructions are `asm_reference` in the tests (2026-10-24).
+//! The arithmetic (the moved point, the rotation, the normals) is the x87's, in plain Rust over
+//! `X` (`math/x87_float.rs`), rounding as the control word says.
 
 use crate::errors::{BadInput, Refused};
-use crate::scene::owner::scene;
+use crate::math::x87_float::{Rounds, at_rounding, int, ld, st, to_int};
 use crate::scene::point_records;
 use crate::scene::project_point::{NEAR, rotate, to_screen};
-use crate::scene::x87_mem::{Base, cells, fild, fistp, fld, fstp};
 
 // ---- game data ----
 const OBJECTS: u32 = 0x100;
 
-// ---- Rust version ----
-
-/// 0x45C29B: the point at `from` moved towards the one `by` bytes on, into
-/// `unk_5CCE18`.
-fn moved(race: &crate::race::owner::Race, from: usize, by: u32) -> Result<(), BadInput> {
-    let course = &race.course;
+/// The point at `from` moved towards the one `by` bytes on, as whole numbers.
+fn moved(
+    object_points: &crate::scene::object_points::ObjectPoints,
+    from: usize,
+    by: u32,
+    fraction: f32,
+) -> Result<[u32; 3], BadInput> {
     let other = from.wrapping_add(by as usize);
-    let read = |at: usize| crate::scene::object_points::point(at as u32);
+    let read = |at: usize| object_points.point(at as u32);
     let (a, b) = (read(from)?, read(other)?);
-    // The fraction, the two points, the result, the fraction as it is stored.
-    let mut w = [
-        race.shared.vars.move_fraction.bits(),
-        a[0],
-        a[1],
-        a[2],
-        b[0],
-        b[1],
-        b[2],
-        0,
-        0,
-        0,
-        0,
-    ];
-    moved_at(cells(&mut w));
-    // The original stores the three from `point_moved`, y and z on over the first two
-    // group masks (`notes/bugs.md`).
-    course.course.point_moved.set(w[7]);
-    course.course.group_masks[0].set(w[8]);
-    course.course.group_masks[1].set(w[9]);
-    scene().drawing.scene.scratch.set_bits(w[10]);
-    Ok(())
+    let whole = |p: [u32; 3]| p.map(|v| v as i32);
+    let ([x, y, z], _) = moved_at(fraction, whole(a), whole(b));
+    // The three are stored from `point_moved` on: y and z land over the first two group masks,
+    // which `scene::load_object` writes before it reads them.
+    Ok([x as u32, y as u32, z as u32])
 }
 
-/// The block of `moved`: the fraction, the two points, the result (three whole numbers) and the
-/// fraction as it is stored.
-fn moved_at(w: impl Base) {
-    let t0 = fld(w, 0x0);
-    let t1 = fild(w, 0xC);
-    let t2 = fild(w, 0x18);
-    let t3 = t2 - t1;
-    let t4 = t3 * t0;
-    let t5 = t1 + t4;
-    let t6 = fild(w, 0x8);
-    let t7 = fild(w, 0x14);
-    let t8 = t7 - t6;
-    let t9 = t8 * t0;
-    let t10 = t6 + t9;
-    let t11 = fild(w, 0x4);
-    let t12 = fild(w, 0x10);
-    let t13 = t12 - t11;
-    let t14 = t13 * t0;
-    let t15 = t11 + t14;
-    fistp(w, 0x1C, t15);
-    fistp(w, 0x20, t10);
-    fistp(w, 0x24, t5);
-    fstp(w, 0x28, t0);
+/// The block of `moved`: the two points' whole numbers, each `a + (b - a) fraction` rounded to
+/// a whole number (z worked out first, then y, then x), and the fraction as it is stored.
+fn moved_at(fraction: f32, a: [i32; 3], b: [i32; 3]) -> ([i32; 3], u32) {
+    let t0 = ld(fraction);
+    let along = |k: usize| {
+        let from = int(a[k]);
+        from + (int(b[k]) - from) * t0
+    };
+    let (z, y, x) = (along(2), along(1), along(0));
+    ([to_int(x), to_int(y), to_int(z)], st(t0))
 }
 
-/// 0x45C1E7: a normal's three floats through the matrix's first three rows, into
+/// A normal's three floats through the matrix's first three rows, into
 /// the record's +0x10, +0x14, +0x18.
-fn turn(normal: &[u32], matrix: &[u32], record: &mut [u32]) {
-    turn_normal(normal, matrix, cells(record));
+fn turn(normal: &[u32; 3], matrix: &[f32; 16], record: &mut [u32]) {
+    record[4..7].copy_from_slice(&turn_normal(normal.map(f32::from_bits), matrix));
 }
 
-fn turn_normal(p: impl Base, m: impl Base, o: impl Base) {
-    let t0 = fld(p, 0x8);
-    let t1 = fld(p, 0x4);
-    let t2 = fld(p, 0x0);
-    let t3 = fld(m, 0x0);
-    let t4 = t3 * t2;
-    let t5 = fld(m, 0x10);
-    let t6 = t5 * t1;
-    let t7 = fld(m, 0x20);
-    let t8 = t7 * t0;
-    let t9 = t6 + t8;
-    let t10 = t4 + t9;
-    let t11 = fld(m, 0x4);
-    let t12 = t11 * t2;
-    let t13 = fld(m, 0x14);
-    let t14 = t13 * t1;
-    let t15 = fld(m, 0x24);
-    let t16 = t15 * t0;
-    let t17 = t14 + t16;
-    let t18 = t12 + t17;
-    let t19 = fld(m, 0x8);
-    let t20 = t2 * t19;
-    let t21 = fld(m, 0x18);
-    let t22 = t1 * t21;
-    let t23 = fld(m, 0x28);
-    let t24 = t0 * t23;
-    let t25 = t24 + t22;
-    let t26 = t20 + t25;
-    fstp(o, 0x10, t10);
-    fstp(o, 0x14, t18);
-    fstp(o, 0x18, t26);
+/// `fld` x3, the three rows' sums of products, `fstp dword` x3 (the floats' bits, as the
+/// record holds them).
+fn turn_normal(p: [f32; 3], m: &[f32; 16]) -> [u32; 3] {
+    at_rounding!(|r| turn_normal_with(r, p, m))
+}
+
+/// `turn_normal` at the rounding `r`.
+fn turn_normal_with<R: Rounds>(r: R, p: [f32; 3], m: &[f32; 16]) -> [u32; 3] {
+    let (t0, t1, t2) = (r.ld(p[2]), r.ld(p[1]), r.ld(p[0]));
+    let t10 = r.ld(m[0]) * t2 + (r.ld(m[4]) * t1 + r.ld(m[8]) * t0);
+    let t18 = r.ld(m[1]) * t2 + (r.ld(m[5]) * t1 + r.ld(m[9]) * t0);
+    let t26 = t2 * r.ld(m[2]) + (t0 * r.ld(m[10]) + t1 * r.ld(m[6]));
+    [r.st(t10), r.st(t18), r.st(t26)]
 }
 
 /// What the object is made of, read and checked.
@@ -140,85 +84,86 @@ struct Object {
     table: u32,
 }
 
-fn object(race: &crate::race::owner::Race) -> Result<Object, BadInput> {
-    let objects = &scene().objects;
-    let number: u32 = race.shared.switches.object_number.bits();
+fn object(
+    lists: &crate::race::course_lists_store::CourseLists,
+    object_slots: &crate::scene::object_slots_store::ObjectTables,
+    cars: &crate::race::car_draw_state::CarDrawState,
+) -> Result<Object, BadInput> {
+    let number: u32 = cars.object_number.get();
     if number >= OBJECTS {
         return Err(BadInput("an object's number past the tables"));
     }
     let object = Object {
-        first: objects.slots.first_point[number as usize].get(),
-        points: objects.slots.point_counts[number as usize].get() as i32,
-        normals: objects.slots.normal_counts[number as usize].get() as i32,
-        table: race.course.lists.object_points.bits(),
+        first: object_slots.first_point[number as usize].get(),
+        points: object_slots.point_counts[number as usize].get() as i32,
+        normals: object_slots.normal_counts[number as usize].get() as i32,
+        table: lists.object_points.get(),
     };
     if object.points <= 0 && object.normals > 0 {
         return Err(BadInput("an object of normals and no points"));
     }
-    if object.points > 0 && (object.table == 0 || !point_records::held()) {
+    if object.points > 0 && (object.table == 0 || !point_records::held(lists)) {
         return Err(BadInput("no points' table or no records"));
     }
     Ok(object)
 }
 
-/// The object's points placed and projected, its normals turned. What the original
-/// leaves in the registers its one caller's callers never read (`draw_object`).
-pub fn place_object_points(
-    race: &crate::race::owner::Race,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), Refused> {
-    let drawing = &scene.drawing;
-    let object = object(race)?;
+/// The object's points placed and projected, its normals turned.
+pub fn place_object_points(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
+    let object = object(
+        ctx.reads.course_lists,
+        ctx.reads.object_slots,
+        &ctx.view.cars,
+    )?;
     if object.points <= 0 {
         return Ok(());
     }
-    // A copy: nothing the loop writes is the matrix (`off_5EA40C`'s, the object's own).
-    // (`g_objectMatrix` is only ever `g_madeObjectMatrix`, never written.)
-    let matrix: [u32; 16] =
-        std::array::from_fn(|n| race.frame.matrices.made_object_matrix[n].bits());
-    let move_by: u32 = race.shared.vars.move_by.bits();
+    // A copy: nothing the loop writes is the matrix (it is always the object's own,
+    // `made_object_matrix`, which is never written here).
+    let matrix: [f32; 16] = std::array::from_fn(|n| ctx.view.matrices.made_object_matrix[n].get());
+    let move_by: u32 = ctx.view.object.move_by.get();
+    let fraction = ctx.view.object.move_fraction.get();
     let mut number = object.first;
     let mut from = object.table.wrapping_add(object.first.wrapping_mul(12));
     for _ in 0..object.points {
         // Made on a copy of the record (`scene::point_records`), then stored.
         let record = point_records::of_object_point(number);
-        let mut r = point_records::get(record)?;
+        let mut r = point_records::get(ctx.part, record)?;
         r[0] = number;
         let point = if move_by != 0 {
-            moved(race, from as usize, move_by)?;
-            // x, y, z read on into `group_masks[0]`, `[1]`, as stored.
-            [
-                race.course.course.point_moved.get(),
-                race.course.course.group_masks[0].get(),
-                race.course.course.group_masks[1].get(),
-            ]
+            moved(
+                &ctx.reads.stage.object_points,
+                from as usize,
+                move_by,
+                fraction,
+            )?
         } else {
-            crate::scene::object_points::point(from)?
+            ctx.reads.stage.object_points.point(from)?
         };
         rotate(&point, &matrix, &mut r);
         r[3] = 0;
         r[7] = 0;
         if f32::from_bits(r[6]) >= NEAR {
-            let v = [
-                drawing.scene.view_scale.bits(),
-                drawing.scene.view_centre[0].bits(),
-                drawing.scene.view_centre[1].bits(),
-                race.course.course.flat_depth.bits(),
-            ];
-            let flat = race.course.stage_prefs.flat_depth.bits() != 0;
-            to_screen(&mut r, &v, flat, &drawing.scene.scratch);
+            let flat = ctx.reads.stage_prefs.flat_depth.get() != 0;
+            to_screen(
+                &mut r,
+                &ctx.view.polygon.window,
+                ctx.reads.course_work.flat_depth.get(),
+                flat,
+                &crate::memory::session::Dword::new(0),
+            );
         }
-        point_records::set(record, r)?;
+        point_records::set(ctx.part, record, r)?;
         from = from.wrapping_add(12);
         number = number.wrapping_add(1);
     }
     for _ in 0..object.normals.max(0) {
         let record = point_records::of_object_point(number);
-        let mut r = point_records::get(record)?;
+        let mut r = point_records::get(ctx.part, record)?;
         r[0] = number;
-        let normal = crate::scene::object_points::point(from)?;
+        let normal = ctx.reads.stage.object_points.point(from)?;
         turn(&normal, &matrix, &mut r);
-        point_records::set(record, r)?;
+        point_records::set(ctx.part, record, r)?;
         from = from.wrapping_add(12);
         number = number.wrapping_add(1);
     }
@@ -234,52 +179,54 @@ fn sse_lanes(p: [f32; 3], m: &[f32; 16], place: bool) -> [u32; 4] {
     })
 }
 
-/// 0x45C04E: the SSE way, reached only with the developers' extensions switch (the debug
-/// UI's Switches tab). Not as the x87 way: the matrix is always `g_madeObjectMatrix`, the
+/// The SSE way, reached only with the developers' extensions switch (the debug UI's
+/// Switches tab). Not as the x87 way: the matrix is always `made_object_matrix`, the
 /// points are never moved, a record's +0x1C holds the fourth lane until the screen's two are
-/// worked out (0x45C237), and the table's point 0 ends as a normal in record 0x1000.
+/// worked out, and the table's point 0 ends as a normal in record 0x1000.
 pub fn place_object_points_sse(
-    race: &crate::race::owner::Race,
-    scene: &crate::scene::owner::Scene,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
 ) -> Result<(), Refused> {
-    let drawing = &scene.drawing;
-    let object = object(race)?;
-    let m: [f32; 16] = std::array::from_fn(|n| race.frame.matrices.made_object_matrix[n].get());
+    let object = object(
+        ctx.reads.course_lists,
+        ctx.reads.object_slots,
+        &ctx.view.cars,
+    )?;
+    let m: [f32; 16] = std::array::from_fn(|n| ctx.view.matrices.made_object_matrix[n].get());
     let mut number = object.first;
     let mut from = object.table.wrapping_add(object.first.wrapping_mul(12));
     for _ in 0..object.points.max(0) {
         let record = point_records::of_object_point(number);
-        let mut r = point_records::get(record)?;
+        let mut r = point_records::get(ctx.part, record)?;
         r[0] = number;
-        let point = crate::scene::object_points::point(from)?;
-        // `cvtsi2ss`: the whole numbers rounded to floats.
+        let point = ctx.reads.stage.object_points.point(from)?;
+        // The whole numbers rounded to floats.
         let lanes = sse_lanes(point.map(|v| v as i32 as f32), &m, true);
         r[4..8].copy_from_slice(&lanes);
-        // 0x45C237.
+        // The screen position.
         r[3] = 0;
         r[7] = 0;
         if f32::from_bits(r[6]) >= NEAR {
-            let v = [
-                drawing.scene.view_scale.bits(),
-                drawing.scene.view_centre[0].bits(),
-                drawing.scene.view_centre[1].bits(),
-                race.course.course.flat_depth.bits(),
-            ];
-            let flat = race.course.stage_prefs.flat_depth.bits() != 0;
-            to_screen(&mut r, &v, flat, &drawing.scene.scratch);
+            let flat = ctx.reads.stage_prefs.flat_depth.get() != 0;
+            to_screen(
+                &mut r,
+                &ctx.view.polygon.window,
+                ctx.reads.course_work.flat_depth.get(),
+                flat,
+                &crate::memory::session::Dword::new(0),
+            );
         }
-        point_records::set(record, r)?;
+        point_records::set(ctx.part, record, r)?;
         from = from.wrapping_add(12);
         number = number.wrapping_add(1);
     }
     let normal = |from: u32, number: u32| -> Result<(), Refused> {
         let record = point_records::of_object_point(number);
-        let mut r = point_records::get(record)?;
+        let mut r = point_records::get(ctx.part, record)?;
         r[0] = number;
-        let n = crate::scene::object_points::point(from)?;
+        let n = ctx.reads.stage.object_points.point(from)?;
         let lanes = sse_lanes(n.map(f32::from_bits), &m, false);
         r[4..8].copy_from_slice(&lanes);
-        point_records::set(record, r)?;
+        point_records::set(ctx.part, record, r)?;
         Ok(())
     };
     for _ in 0..object.normals.max(0) {
@@ -298,7 +245,7 @@ mod sse_tests {
     #[cfg(target_arch = "x86_64")]
     use std::arch::x86_64::*;
 
-    /// The lanes as the original's instructions make them.
+    /// The lanes as the SSE instructions make them.
     #[test]
     fn lanes_match_the_instructions() {
         let m: [f32; 16] = std::array::from_fn(|n| (n as f32 * 1.37 - 7.1).powi(3));
@@ -324,100 +271,21 @@ mod sse_tests {
     }
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
-    use crate::scene::asm_test::{Kind, differential};
-
-    /// The original's instructions for `moved`.
-    unsafe fn moved_at_ref(w: *mut u8) {
-        unsafe {
-            core::arch::asm!(
-                "fld dword ptr [{w}]",
-                "fild dword ptr [{w} + 12]",
-                "fild dword ptr [{w} + 24]",
-                ".byte 0xD8, 0xE1", // fsub st, st(1)
-                ".byte 0xD8, 0xCA", // fmul st, st(2)
-                ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fild dword ptr [{w} + 8]",
-                "fild dword ptr [{w} + 20]",
-                ".byte 0xD8, 0xE1", // fsub st, st(1)
-                ".byte 0xD8, 0xCB", // fmul st, st(3)
-                ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fild dword ptr [{w} + 4]",
-                "fild dword ptr [{w} + 16]",
-                ".byte 0xD8, 0xE1", // fsub st, st(1)
-                ".byte 0xD8, 0xCC", // fmul st, st(4)
-                ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fistp dword ptr [{w} + 28]",
-                "fistp dword ptr [{w} + 32]",
-                "fistp dword ptr [{w} + 36]",
-                "fstp dword ptr [{w} + 40]",
-                w = in(reg) w,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
-    }
-
-    /// The original's instructions for `turn`.
-    unsafe fn turn_normal_ref(p: *mut u8, m: *mut u8, o: *mut u8) {
-        unsafe {
-            core::arch::asm!(
-                "fld dword ptr [{p} + 8]",
-                "fld dword ptr [{p} + 4]",
-                "fld dword ptr [{p}]",
-                "fld dword ptr [{m}]",
-                "fmul st(0), st(1)",
-                "fld dword ptr [{m} + 0x10]",
-                "fmul st(0), st(3)",
-                "fld dword ptr [{m} + 0x20]",
-                "fmul st(0), st(5)",
-                "faddp st(1), st(0)",
-                "faddp st(1), st(0)",
-                "fxch st(3)",
-                "fld dword ptr [{m} + 4]",
-                "fmul st(0), st(2)",
-                "fld dword ptr [{m} + 0x14]",
-                "fmul st(0), st(4)",
-                "fld dword ptr [{m} + 0x24]",
-                "fmul st(0), st(3)",
-                "faddp st(1), st(0)",
-                "faddp st(1), st(0)",
-                "fxch st(3)",
-                "fld dword ptr [{m} + 8]",
-                "fmulp st(3), st(0)",
-                "fld dword ptr [{m} + 0x18]",
-                "fmulp st(1), st(0)",
-                "fld dword ptr [{m} + 0x28]",
-                "fmulp st(2), st(0)",
-                "faddp st(1), st(0)",
-                "faddp st(1), st(0)",
-                "fxch st(2)",
-                "fstp dword ptr [{o} + 0x10]",
-                "fstp dword ptr [{o} + 0x14]",
-                "fstp dword ptr [{o} + 0x18]",
-                p = in(reg) p,
-                m = in(reg) m,
-                o = in(reg) o,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
-    }
+    use crate::test_support::vectors::{Differential, Kind, differential};
 
     #[test]
     fn moved_matches_the_assembly() {
         // dword 0 the fraction, 1 .. 4 the point, 4 .. 7 the other, 7 .. 10 the whole numbers,
         // 10 the fraction as stored
-        differential::<11>(
-            "place_object_points moved",
-            8000,
-            18,
-            [Kind::Exact; 11],
-            |rng, m| {
+        let test = Differential {
+            name: "scene.place_object_points.moved",
+            cases: 8000,
+            seed: 18,
+            kinds: [Kind::Exact; 11],
+            fill: &|rng, m| {
                 m.fill(0xAAAA_AAAA);
                 m[0] = match rng.below(3) {
                     0 => rng.unit().to_bits(),
@@ -432,20 +300,27 @@ mod asm_reference {
                     };
                 }
             },
-            |base| unsafe { moved_at_ref(base) },
-            moved_at,
-        );
+            plain: &|c| {
+                let whole = |k: usize| [k, k + 1, k + 2].map(|n| c[n].get() as i32);
+                let (out, stored) = moved_at(f32::from_bits(c[0].get()), whole(1), whole(4));
+                for (k, v) in out.into_iter().enumerate() {
+                    c[7 + k].set(v as u32);
+                }
+                c[10].set(stored);
+            },
+        };
+        differential(test);
     }
 
     #[test]
     fn turn_matches_the_assembly() {
         // dwords 0 .. 3 the normal, 4 .. 19 the matrix, 20 .. 28 the record
-        differential::<28>(
-            "place_object_points turn",
-            8000,
-            19,
-            [Kind::Exact; 28],
-            |rng, m| {
+        let test = Differential {
+            name: "scene.place_object_points.turn",
+            cases: 8000,
+            seed: 19,
+            kinds: [Kind::Exact; 28],
+            fill: &|rng, m| {
                 m.fill(0xAAAA_AAAA);
                 let moderate = rng.below(2) == 0;
                 for d in m.iter_mut().take(3) {
@@ -455,8 +330,15 @@ mod asm_reference {
                     *d = if moderate { rng.moderate() } else { rng.fl() };
                 }
             },
-            |base| unsafe { turn_normal_ref(base, base.add(16), base.add(80)) },
-            |base| unsafe { turn_normal(base, base.add(16), base.add(80)) },
-        );
+            plain: &|c| {
+                let f = |k: usize| f32::from_bits(c[k].get());
+                let m: [f32; 16] = std::array::from_fn(|k| f(4 + k));
+                let out = turn_normal([f(0), f(1), f(2)], &m);
+                for (k, v) in out.into_iter().enumerate() {
+                    c[24 + k].set(v);
+                }
+            },
+        };
+        differential(test);
     }
 }

@@ -1,25 +1,18 @@
-//! The game's quicksort of fixed-size records by one dword, compared unsigned (converted
-//! 2026-10-21 from `race::sort_depth_entries` 0x454ED4 with 0x454EF7,
-//! `race::sort_sort_entries` 0x454F62 with 0x454F85, `race::sort_points_by_y` 0x426BE6,
-//! `sort_points_by_z` 0x426CA2, `sort_points_by_x_down` 0x426D5E and its twin 0x426E16, and
-//! the shadow's 0x4582AC). Every one is the same steps on a record size, a key and a
-//! direction: the key in the middle is the pivot; the left place moves on one record if
-//! its key belongs before the pivot, the right place moves back while its key belongs
-//! after it; unless the two places meet the records change places, and the left one moves
-//! on once more if their keys are now equal; then the part before the meeting place and
-//! the part after it are sorted the same way. Which of two equal keys comes first is the
-//! original's doing, so its steps are kept; its recursion (as deep as the list is long on
-//! equal keys) is a list of returns here, in the same order. The registers the original
-//! leaves are given as places (record numbers from the first, -1 before it) and values.
+//! Quicksort of fixed-size records by one dword (unsigned). The steps are kept exactly
+//! because the order of equal keys depends on them: the middle key is the pivot; the left
+//! place advances while its key belongs before the pivot, the right place retreats while its
+//! key belongs after it; unless they meet the records swap and the left place advances once
+//! more if the keys are now equal; then both parts are sorted the same way. The recursion
+//! (as deep as the list on equal keys) is a list of returns.
 
 use crate::Invalid;
 
 /// The order the records are sorted in.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Order {
-    /// The smallest key first (by y, by z, the shadow's angles).
+    /// The smallest key first.
     Up,
-    /// The largest key first (the depth and sort entries, by x downwards).
+    /// The largest key first.
     Down,
 }
 
@@ -41,28 +34,28 @@ impl Order {
     }
 }
 
-/// What the last partition left in the registers.
+/// What the last partition left: the pivot, the last key read and the two places.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Scan {
-    /// eax: the pivot.
+    /// The pivot.
     pub pivot: u32,
-    /// ebx: the last key read.
+    /// The last key read.
     pub key: u32,
-    /// ecx: the left place.
+    /// The left place.
     pub left: i64,
-    /// edx: the right place.
+    /// The right place.
     pub right: i64,
 }
 
-/// Where the sort leaves the registers.
+/// Where the sort ends: the last part's first and last places.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Ends {
-    /// esi and edi: the last part's first and last places.
+    /// The last part's first place.
     pub first: i64,
+    /// The last part's last place.
     pub last: i64,
-    /// The last partition's registers (none when nothing was partitioned).
     pub scan: Option<Scan>,
-    /// ebp: the last record's last dword before it was swapped (none without a swap).
+    /// The last record's last dword before it was swapped (none without a swap).
     pub swapped: Option<u32>,
 }
 
@@ -76,9 +69,8 @@ fn key_at<const N: usize>(list: &[[u32; N]], at: i64, key: usize) -> Result<u32,
         .ok_or(OUTSIDE)
 }
 
-/// The list sorted by dword `key` of its records in `order`, from its first record to its
-/// last. Refuses a key outside the record and a sort that would go past the list (the
-/// original would read and swap outside it), both before anything is changed.
+/// Sorts the list by dword `key` of its records in `order`. Refuses a key outside the record
+/// and a sort that would go past the list, both before anything changes.
 pub fn quick_sort<const N: usize>(
     list: &mut [[u32; N]],
     key: usize,
@@ -212,15 +204,15 @@ mod tests {
     }
 
     #[test]
-    fn registers_left() {
-        // Two records in order: one partition, no swap; the right part is empty.
+    fn ends_left() {
+        // Two records in order: one partition, no swap, empty right part.
         let mut list = [[1u32, 10], [2, 20]];
         let ends = quick_sort(&mut list, 1, Order::Up).unwrap();
         assert_eq!(list, [[1, 10], [2, 20]]);
         assert_eq!(ends.swapped, None);
         let scan = ends.scan.unwrap();
         assert_eq!(scan.pivot, 10);
-        // Out of order: one swap, the left record's last dword before it.
+        // Out of order: one swap.
         let mut list = [[1u32, 20], [2, 10]];
         let ends = quick_sort(&mut list, 1, Order::Up).unwrap();
         assert_eq!(list, [[2, 10], [1, 20]]);
@@ -232,51 +224,57 @@ mod tests {
         assert!(quick_sort(&mut one, 2, Order::Down).is_err());
     }
 
-    /// The original's steps on registers over a byte memory (records of `n` dwords from
-    /// address 0x1000), recursing as it does: (eax, ebx, ecx, edx, esi, edi, ebp).
     fn reference(mem: &mut [u32], n: u32, key: u32, down: bool, r: &mut [u32; 7]) {
         let size = 4 * n;
         let get = |m: &[u32], a: u32| m[((a - 0x1000) / 4) as usize];
-        let [eax, ebx, ecx, edx, esi, edi, ebp] = r;
-        if *esi >= *edi {
+        let [pivot, value, low, high, first, last, swap] = r;
+        if *first >= *last {
             return;
         }
-        *ecx = *esi;
-        *edx = *edi;
-        *eax = get(mem, (*edx - *ecx) / 2 / size * size + *ecx + 4 * key);
+        *low = *first;
+        *high = *last;
+        *pivot = get(mem, (*high - *low) / 2 / size * size + *low + 4 * key);
         loop {
-            *ebx = get(mem, *ecx + 4 * key);
-            *ecx += size;
-            let stays = if down { *eax < *ebx } else { *eax > *ebx };
+            *value = get(mem, *low + 4 * key);
+            *low += size;
+            let stays = if down {
+                *pivot < *value
+            } else {
+                *pivot > *value
+            };
             if !stays {
-                *ecx -= size;
+                *low -= size;
             }
             loop {
-                *ebx = get(mem, *edx + 4 * key);
-                *edx = edx.wrapping_sub(size);
-                let on = if down { *eax > *ebx } else { *eax < *ebx };
+                *value = get(mem, *high + 4 * key);
+                *high = high.wrapping_sub(size);
+                let on = if down {
+                    *pivot > *value
+                } else {
+                    *pivot < *value
+                };
                 if !on {
                     break;
                 }
             }
-            *edx = edx.wrapping_add(size);
-            if *ecx == *edx {
+            *high = high.wrapping_add(size);
+            if *low == *high {
                 break;
             }
             for k in 0..n {
-                *ebp = get(mem, *ecx + 4 * k);
-                *ebx = get(mem, *edx + 4 * k);
-                mem[((*edx + 4 * k - 0x1000) / 4) as usize] = *ebp;
-                mem[((*ecx + 4 * k - 0x1000) / 4) as usize] = *ebx;
+                *swap = get(mem, *low + 4 * k);
+                *value = get(mem, *high + 4 * k);
+                mem[((*high + 4 * k - 0x1000) / 4) as usize] = *swap;
+                mem[((*low + 4 * k - 0x1000) / 4) as usize] = *value;
             }
-            *ebx = get(mem, *ecx + 4 * key);
-            if *ebx == get(mem, *edx + 4 * key) {
-                *ecx += size;
+            *value = get(mem, *low + 4 * key);
+            if *value == get(mem, *high + 4 * key) {
+                *low += size;
             }
         }
-        let outer = *edi;
-        *edi = ecx.wrapping_sub(size);
-        let mut regs = [*eax, *ebx, *ecx, *edx, *esi, *edi, *ebp];
+        let outer = *last;
+        *last = low.wrapping_sub(size);
+        let mut regs = [*pivot, *value, *low, *high, *first, *last, *swap];
         if regs[4] < regs[5] {
             reference(mem, n, key, down, &mut regs);
         }

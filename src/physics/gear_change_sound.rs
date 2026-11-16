@@ -1,23 +1,23 @@
-//! `physics::gear_change_sound` (0x45C551): the current car's sound object
-//! (`g_raceSoundObjects[g_currentCar & 7]`, in edi) told of `g_car` +0x238: at 1 its
-//! +0x180 and +0x10 set to 1; at -1 its +0x198 and +0x10 set to 1. A reading: a gear
-//! change up or down heard.
+//! Tells the current car's sound object of the car's `gear_changed`:
+//! at 1 two of its flags are set to 1 (the `drive_slip_speed` side and the car flags); at -1
+//! the `velocity` side flag and the car flags are set to 1. A reading: a gear change up or down
+//! heard.
 //!
-//! Returns: the sound object
+//! Returns the sound object.
 //!
-//! Caller: `physics::engine_sound` (its tail). Refuses (before anything) a null sound object when
-//! it would be written (the original writes near address 0).
+//! Caller: `physics::engine_sound`. Refuses (before anything) a null sound object when it
+//! would be written.
 
 use crate::errors::Refused;
-use crate::race::owner_shared::Shared;
-use crate::session::Dword;
+use crate::memory::session::PlainInt;
+use crate::physics::car_store::Car;
 use rc2k_core::physics::gearbox::{GearChange, gear_change};
 
-/// The Rust version on the current car's sound object and the word at this place.
-// Converted: `rc2k_core::physics::gearbox::gear_change`.
+/// On the current car's sound object and the word at this place.
+// Core: `rc2k_core::physics::gearbox::gear_change`.
 pub fn gear_change_sound_at(
     o: &crate::sound::store::SoundObject,
-    word: &Dword,
+    word: &PlainInt,
 ) -> Result<(), Refused> {
     if let Some(change) = gear_change(word.get()) {
         match change {
@@ -29,10 +29,13 @@ pub fn gear_change_sound_at(
     Ok(())
 }
 
-/// The Rust version.
-pub fn gear_change_sound(shared: &Shared) -> Result<(), Refused> {
+pub fn gear_change_sound(
+    car: &Car,
+    sound: &crate::sound::owner::Sound,
+    work: &crate::race::work_store::RaceWork,
+) -> Result<(), Refused> {
     gear_change_sound_at(
-        crate::sound::store::current_object(),
-        &shared.car.gear_changed,
+        crate::sound::store::current_object(sound, work),
+        &car.gear_changed,
     )
 }

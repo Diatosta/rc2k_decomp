@@ -1,6 +1,4 @@
-//! The race's sound turn: when one is due, which cars are heard (converted 2026-10-21
-//! from `sound::race_sound_tick` 0x421BA9, `sound::car_sounds_all` 0x40D7AB's choice and
-//! `sound::play_cue_queues` 0x40ED13's).
+//! The race's sound turn: when one is due, which cars are heard.
 
 /// `sound::race_sound_tick`: a turn is due once 20 ms (0x14) of the scene clock have gone
 /// since the last (unsigned, so a clock gone back counts as far on).
@@ -20,10 +18,10 @@ pub fn cue_cars(first: u32, second: impl FnOnce() -> u32, one_player: u32) -> Ve
 
 /// No car (-1).
 pub const NO_CAR: u32 = u32::MAX;
-/// A float's +infinity, as the original's starting distance.
+/// A float's +infinity: the starting distance.
 pub const FAR: u32 = 0x7F80_0000;
-/// The marks the two computer's cars' objects carry (+0) while their sounds are made: the
-/// nearest -2, the next -1.
+/// The marks the two computer cars' objects carry (+0) while their sounds are made: the nearest -2,
+/// the next -1.
 pub const NEAREST_MARK: u32 = 0xFFFF_FFFE;
 pub const NEXT_MARK: u32 = 0xFFFF_FFFF;
 
@@ -50,8 +48,9 @@ impl Default for Nearest {
 }
 
 impl Nearest {
-    /// Car `n` at squared distance `d` (a float's bits).
-    pub fn consider(&mut self, n: u32, d: u32) {
+    /// Car `n` at squared distance `d` (compared as the float's bits are, as signed integers).
+    pub fn consider(&mut self, n: u32, d: f32) {
+        let d = d.to_bits();
         if self.first_distance as i32 > d as i32 {
             self.second_distance = self.first_distance;
             self.second = self.first;
@@ -90,10 +89,10 @@ mod tests {
     #[test]
     fn nearest() {
         let mut n = Nearest::default();
-        n.consider(4, 0x4000_0000);
-        n.consider(5, 0x3F00_0000);
-        n.consider(6, 0x4100_0000);
-        n.consider(7, 0x3F80_0000);
+        n.consider(4, 2.0);
+        n.consider(5, 0.5);
+        n.consider(6, 8.0);
+        n.consider(7, 1.0);
         assert_eq!((n.first, n.second), (5, 7));
         assert_eq!(n.kept(1, 2), (5, 7));
         assert_eq!(n.kept(7, 2), (7, 5));

@@ -1,12 +1,10 @@
-//! A shiny surface's reflection (converted 2026-10-21 from `scene::reflect_vector`
-//! 0x451A9D). As in `math::vector`, what the x87 keeps on its stack is an `f64`, rounded
-//! to `f32` where the original stores it: the same bits at the game's double precision.
+//! A shiny surface's reflection. Intermediates are `f64`, rounded to `f32` where stored (as in
+//! `math::vector`).
 
 use crate::math::vector;
 
-/// The places of `scene::cached_reflection_coordinates`' tables (converted 2026-10-21 from
-/// 0x451908): four tables of 0x400 dwords (the normal's number, the point's, the two
-/// coordinates) at the normal's number & 0x3FF.
+/// The places of the cached coordinates' tables: four tables of 0x400 dwords (the normal's
+/// number, the point's, the two coordinates) at the normal's number & 0x3FF.
 pub const CACHE_PLACES: u32 = 0x400;
 
 /// A normal's place in the tables.
@@ -14,8 +12,8 @@ pub fn cache_place(normal: u32) -> usize {
     (normal & (CACHE_PLACES - 1)) as usize
 }
 
-/// The coordinates kept for the two numbers asked (normal, point), if both numbers kept
-/// at their place are those; `kept` read only then.
+/// The coordinates kept for the two numbers asked (normal, point), if both numbers kept at
+/// their place are those; `kept` is read only then.
 pub fn cached(
     asked: [u32; 2],
     numbers: [u32; 2],
@@ -24,10 +22,9 @@ pub fn cached(
     (numbers == asked).then(kept)
 }
 
-/// `scene::reflect_vector`: d = v . n (the first two products added first, then the
-/// third; kept unrounded); v times d, each stored; v + v - n, each stored; that through
-/// the matrix `m` (the game's 4 x 4 layout as `vector::rotate_point` takes it), stored.
-/// Returns the vector and d as stored.
+/// d = v . n (the first two products added first, then the third; kept unrounded); v times
+/// d, each stored; v + v - n, each stored; that through the matrix `m` (the 4 x 4 layout
+/// `vector::rotate_point` takes), stored. Returns the vector and d as stored.
 pub fn reflect(v: [f32; 3], n: [f32; 3], m: &[f32; 15]) -> ([f32; 3], f32) {
     let (w, k) = (v.map(f64::from), n.map(f64::from));
     let d = (w[1] * k[1] + w[0] * k[0]) + w[2] * k[2];

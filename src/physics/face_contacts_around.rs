@@ -1,39 +1,27 @@
-//! `physics::face_contacts_around` (0x45E196): the car's place (`unk_71A10C`, `unk_71A114`)
-//! into `dword_639824`, `dword_63982C`, then `physics::cell_face_contacts` for its cell
-//! and the eight about it (± 0x200000 each way, in the original's order; the place read
-//! back from `dword_639824` .. before each).
+//! Puts the car's place into `ground_x`, `ground_z`, then runs `physics::cell_face_contacts`
+//! for its cell and the eight about it (+-0x200000 each way; the place is read back from
+//! `ground_x` before each).
 //!
-//! Caller: `physics::face_contacts` (0x45E190, its only code). Refuses what
-//! `cell_face_contacts` refuses.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
+//! Caller: `physics::face_contacts`. Refuses what `cell_face_contacts` refuses.
 
 use crate::errors::Refused;
-use crate::race::owner::Race;
+use crate::physics::step_families::ContactInputs;
 
-/// The steps, not guarded. The registers left are read by none of the callers.
-// Converted: `rc2k_core::physics::ground_search::cells_around`.
+/// The steps, not guarded.
+// Core: `rc2k_core::physics::ground_search::cells_around`.
 pub fn face_contacts_around(
-    race: &Race,
+    c: &ContactInputs<'_>,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let physics_store = &race.physics;
-    physics_store
-        .ground
-        .ground_x
-        .set(race.shared.car.position[0].get());
-    physics_store
-        .ground
-        .ground_z
-        .set(race.shared.car.position[2].get());
+    c.ground.ground.ground_x.set(c.car.position[0].get());
+    c.ground.ground.ground_z.set(c.car.position[2].get());
     rc2k_core::physics::ground_search::cells_around(
         || {
             (
-                physics_store.ground.ground_x.get(),
-                physics_store.ground.ground_z.get(),
+                c.ground.ground.ground_x.get(),
+                c.ground.ground.ground_z.get(),
             )
         },
-        |x, z| crate::physics::cell_face_contacts::steps(race, x, z, scene),
+        |x, z| crate::physics::cell_face_contacts::steps(c, x, z, scene),
     )
 }

@@ -1,47 +1,21 @@
-//! `system::load_game_data` (0x411239): loads what the game keeps between runs, and gives
-//! every name that is empty a default.
-//!
-//! In this order:
-//! - `saves::load_options`, `saves::load_best_times`, `settings::read_settings` (again:
-//!   the settings file outranks the kept options), `install::read_sku`, `dword_518BB0`
-//!   + 1, `settings::read_driver_names`, `physics::apply_patches`;
-//! - by the setting `allsecretcars` (`g_allSecretCars`): 0 `menu::remove_secret_cars`; 1
-//!   the cheats' bits 0x1FBC set and `menu::apply_cheats`; anything else neither;
-//! - the first player's name (`byte_755784`), if empty: the user's name
-//!   (`system::user_name`, 0x41085A: `GetUserNameA`, 0x1F bytes) cut down by
-//!   `strings::copy_printable` in place, and if that leaves nothing, string 0x18C; the
-//!   other three players' (0x20 bytes apart), if empty: strings 0x18D .. 0x18F;
-//! - the machine's name (`byte_52AB90`), if empty: the computer's name
-//!   (`system::computer_name`, 0x40 bytes) the same way, else string 0x14D;
-//! - the name at `dword_5BEC08`, if empty: a random one of the 180 strings from 0x5A5 on
-//!   (`math::random_below`), drawn again while what is there starts "andr", and
-//!   `g_tyreChangeRecord` = 0x5208 (210.00 s, the tyre change's best time);
-//! - all 100 saved games are read (`saves::read_savegame_slot`) and every slot's name
-//!   that is empty becomes string 0x4E0 and the slot's number in two digits; the same for
-//!   the replays (string 0x4E2) and the car setups (string 0x4E1).
-//!
-//! One caller, `start`. Refuses a default name that does not fit its place, and what its parts
-//! refuse. A refusal comes with the work half done, and the original then starts from the top.
+//! Loads what the game keeps between runs, and gives every name that is empty a default. In
+//! order: the options, the best times and the settings (again: the settings file outranks the
+//! kept options), the SKU, the run count + 1, the driver names and the physics patches; by
+//! `allsecretcars`, 0 removes the secret cars and 1 sets the cheats' bits 0x1FBC; an empty first
+//! player's name becomes the user's name (its printable part, else string 0x18C), the other three
+//! players' strings 0x18D .. 0x18F; an empty machine name the computer's name, else string 0x14D;
+//! an empty tyre-change record name a random one of the 180 strings from 0x5A5 (drawn again while
+//! it starts "andr"), its time 0x5208 (210.00 s); every empty saved game's, replay's and car
+//! setup's name string 0x4E0, 0x4E2 or 0x4E1 and the slot's number in two digits.
+//! Refuses a default name that does not fit its place, and what its parts refuse.
 
 use crate::errors::{BadInput, Refused};
+use crate::memory::session::PlainDword;
 use crate::menu::name_lists::NAME_LEN;
-use crate::net::owner::net;
-use crate::race::owner::race;
-use crate::service::owner::service;
-use crate::session::Bytes;
-use crate::session::Dword;
+use crate::owners::Owners;
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::copy_printable::printable_from;
-use crate::system::owner::Start;
 
-// ---- game data ----
-
-// ---- Rust version ----
-
-// Converted: `rc2k_core::system::game_data` (the choices, the default names, the drawn
-// driver's name).
-use crate::menu::owner::menus;
-use crate::saves::owner::saves;
 use rc2k_core::system::game_data::{
     ALL_CARS_CHEATS, DRIVER_NAME_IDS, MACHINE_NAME_ID, PLAYER_NAME_IDS, REPLAY_NAME_ID,
     SAVEGAME_NAME_ID, SETUP_NAME_ID, SLOTS, TYRE_CHANGE_RECORD, USER_NAME_ROOM, all_secret_cars,
@@ -78,41 +52,55 @@ pub enum Call {
 pub type Outside<'a> = &'a mut dyn FnMut(Call) -> Result<u32, Refused>;
 
 /// The string and what follows it, with a NUL, at `to`.
-fn default_name<const N: usize>(
-    to: &Bytes<N>,
+fn default_name(
+    o: Owners<'static>,
+    to: &impl crate::memory::session::ByteBuffer,
     at: usize,
     room: usize,
     id: u32,
     after: &[u8],
 ) -> Result<(), BadInput> {
     let mut string = Vec::new();
-    push_string(&mut string, id)?;
+    push_string(
+        crate::strings::append_string_by_id::StringOwners::of(o),
+        &mut string,
+        id,
+    )?;
     let name = rc2k_core::system::game_data::default_name(&string, after, room)
         .ok_or(BadInput("a default name longer than its place"))?;
-    to.write_at(at, &name, "a default name")?;
+    to.write_bytes_at(at, &name, "a default name")?;
     Ok(())
 }
 
 /// A list of 100 names: every empty one becomes the string and the slot's number.
-fn number_empty_names<const N: usize>(names: &Bytes<N>, id: u32) -> Result<(), BadInput> {
+fn number_empty_names(
+    o: Owners<'static>,
+    names: &impl crate::memory::session::ByteBuffer,
+    id: u32,
+) -> Result<(), BadInput> {
     for slot in 0..SLOTS {
         let name = slot as usize * NAME_LEN;
-        if names.get(name) == 0 {
+        if names.get_byte(name) == 0 {
             let mut string = Vec::new();
-            push_string(&mut string, id)?;
+            push_string(
+                crate::strings::append_string_by_id::StringOwners::of(o),
+                &mut string,
+                id,
+            )?;
             let bytes = rc2k_core::system::game_data::slot_name(&string, slot, NAME_LEN)
                 .ok_or(BadInput("a default name longer than its place"))?;
             // The name bytes at their slot in the names buffer.
-            names.write_at(name, &bytes, "a default slot name")?;
+            names.write_bytes_at(name, &bytes, "a default slot name")?;
         }
     }
     Ok(())
 }
 
-pub fn load_game_data(start: &Start, outside: Outside) -> Result<(), Refused> {
-    let race = race();
-    let net = net();
-    let play = &menus().play;
+pub fn load_game_data(o: Owners<'static>, outside: Outside) -> Result<(), Refused> {
+    let start = &o.system.start();
+    let race = o.race;
+    let net = o.net;
+    let play = &o.menus.play;
     outside(Call::LoadOptions)?;
     outside(Call::LoadBestTimes)?;
     outside(Call::ReadSettings)?;
@@ -135,20 +123,21 @@ pub fn load_game_data(start: &Start, outside: Outside) -> Result<(), Refused> {
 
     for (player, id) in PLAYER_NAME_IDS.into_iter().enumerate() {
         // The player's name bytes at their slot in the names buffer.
-        if play.names.player_names.get(player * NAME_LEN) != 0 {
+        if play.slots.names.player_names.get(player * NAME_LEN) != 0 {
             continue;
         }
         if player == 0 {
-            let field = &play.names.player_names;
+            let field = &play.slots.names.player_names;
             outside(Call::UserName)?;
             let bytes = printable_from(&field.read(), USER_NAME_ROOM)?;
             field.write_at(0, &bytes, "a printable name")?;
-            if play.names.player_names.get(player * NAME_LEN) != 0 {
+            if play.slots.names.player_names.get(player * NAME_LEN) != 0 {
                 continue;
             }
         }
         default_name(
-            &play.names.player_names,
+            o,
+            &play.slots.names.player_names,
             player * NAME_LEN,
             NAME_LEN,
             id,
@@ -156,14 +145,15 @@ pub fn load_game_data(start: &Start, outside: Outside) -> Result<(), Refused> {
         )?;
     }
 
-    if net.vars.machine_name.get(0) == 0 {
-        let field = &net.vars.machine_name;
+    if net.setup().machine_name.get(0) == 0 {
+        let field = &net.setup().machine_name;
         outside(Call::ComputerName)?;
         let bytes = printable_from(&field.read(), MACHINE_NAME_ROOM as u32)?;
         field.write_at(0, &bytes, "a printable name")?;
-        if net.vars.machine_name.get(0) == 0 {
+        if net.setup().machine_name.get(0) == 0 {
             default_name(
-                &net.vars.machine_name,
+                o,
+                &net.setup().machine_name,
                 0,
                 MACHINE_NAME_ROOM,
                 MACHINE_NAME_ID,
@@ -172,21 +162,25 @@ pub fn load_game_data(start: &Start, outside: Outside) -> Result<(), Refused> {
         }
     }
 
-    if race.shared.tyre_change.record_name.get(0) == 0 {
+    if race.shared.tyre_change().record_name.get(0) == 0 {
         let mut draws = 0;
         let end = loop {
             let drawn = outside(Call::RandomBelow(DRIVER_NAME_IDS.1))?;
             let mut name = Vec::new();
-            push_string(&mut name, DRIVER_NAME_IDS.0.wrapping_add(drawn))?;
+            push_string(
+                crate::strings::append_string_by_id::StringOwners::of(o),
+                &mut name,
+                DRIVER_NAME_IDS.0.wrapping_add(drawn),
+            )?;
             if name.len() >= NAME_LEN {
                 return Err(BadInput("a driver's name longer than its place").into());
             }
             // No NUL yet: a short name leaves what was there after it.
             for (k, &b) in name.iter().enumerate() {
-                race.shared.tyre_change.record_name.set(k, b);
+                race.shared.tyre_change().record_name.set(k, b);
             }
             if !drawn_again(std::array::from_fn(|k| {
-                race.shared.tyre_change.record_name.get(k)
+                race.shared.tyre_change().record_name.get(k)
             })) {
                 break name.len();
             }
@@ -195,48 +189,57 @@ pub fn load_game_data(start: &Start, outside: Outside) -> Result<(), Refused> {
                 return Err(BadInput("no driver's name that can be taken").into());
             }
         };
-        race.shared.tyre_change.record_name.set(end, 0);
-        race.shared.tyre_change.record.set(TYRE_CHANGE_RECORD);
+        race.shared.tyre_change().record_name.set(end, 0);
+        race.shared.tyre_change().record.set(TYRE_CHANGE_RECORD);
     }
 
     for slot in 0..SLOTS {
         outside(Call::ReadSavegameSlot(slot))?;
     }
-    number_empty_names(&saves().save_games.names, SAVEGAME_NAME_ID)?;
+    number_empty_names(o, &o.saves.save_games.names, SAVEGAME_NAME_ID)?;
     for slot in 0..SLOTS {
         outside(Call::ReadReplaySlot(slot))?;
     }
-    number_empty_names(&race.shared.replays.names, REPLAY_NAME_ID)?;
+    number_empty_names(o, &race.shared.replays().names, REPLAY_NAME_ID)?;
     for slot in 0..SLOTS {
         outside(Call::ReadSetupSlot(slot))?;
     }
-    number_empty_names(&service().set_ups.names, SETUP_NAME_ID)?;
+    number_empty_names(o, &o.menus.service.set_ups.names, SETUP_NAME_ID)?;
     Ok(())
 }
 
-/// The calls done by the Rust versions.
-fn in_game(call: Call) -> Result<u32, Refused> {
-    let race = crate::race::owner::race();
-    let menus = menus();
+/// The calls the loading makes, done by the game's Rust functions.
+fn in_game(o: Owners<'static>, call: Call) -> Result<u32, Refused> {
+    let race = o.race;
+    let menus = o.menus;
     match call {
         Call::LoadOptions => {
-            crate::saves::load_options::load_game_options(menus)?;
+            crate::saves::options_files::load(o)?;
         }
         Call::LoadBestTimes => {
-            crate::saves::load_best_times::load_game_best_times(crate::saves::owner::saves())?;
+            crate::saves::load_best_times::load_game_best_times(o.saves, o.system)?;
         }
-        Call::ReadSettings => crate::settings::read_settings::read_settings()?,
+        Call::ReadSettings => crate::settings::read_settings::read_settings(o)?,
         Call::ReadSku => {
-            crate::install::read_sku::read_sku(
-                crate::install::owner::install(),
-                &crate::install::owner::install().sku.path.text(),
-            )?;
+            if let Some(sku) =
+                crate::install::read_sku::read_sku(o.system, &o.install.sku.path.text())?
+            {
+                crate::install::apply_config::apply_sku(o.install, &sku);
+            }
         }
-        Call::ReadDriverNames => crate::settings::read_driver_names::read_driver_names(
-            menus,
-            crate::settings::read_driver_names::path(),
-        )?,
-        Call::ApplyPatches => crate::physics::apply_patches::apply_patches(race),
+        Call::ReadDriverNames => {
+            if let Some(names) = crate::settings::read_driver_names::read_driver_names(
+                o.system,
+                crate::settings::read_driver_names::path(),
+            )? {
+                crate::settings::read_driver_names::apply_driver_names(menus, o.strings, &names)?;
+            }
+        }
+        Call::ApplyPatches => crate::physics::apply_patches::apply_patches(
+            race.shared.physics_tables.get(),
+            race.course.numbers.get(),
+            race.shared.work.get(),
+        ),
         Call::RemoveSecretCars => crate::menu::remove_secret_cars::remove_secret_cars(menus)?,
         Call::ApplyCheats => crate::menu::apply_cheats::apply_cheats(
             menus,
@@ -246,10 +249,11 @@ fn in_game(call: Call) -> Result<u32, Refused> {
             race,
         )?,
         Call::UserName => {
-            if let Some(mut name) = crate::os::user_name(USER_NAME_ROOM) {
+            if let Some(mut name) = crate::platform::os::user_name(USER_NAME_ROOM) {
                 name.push(0);
                 menus
                     .play
+                    .slots
                     .names
                     .player_names
                     .write_at(0, &name, "the user's name")?;
@@ -257,73 +261,42 @@ fn in_game(call: Call) -> Result<u32, Refused> {
         }
         Call::ComputerName => {
             if let Some(name) = crate::system::check_developer_machine::computer_name() {
-                net()
-                    .vars
+                o.net
+                    .setup()
                     .machine_name
                     .write_at(0, &name, "the computer's name")?;
             }
         }
-        Call::RandomBelow(limit) => return Ok(crate::math::random_below::random_below(limit)?),
+        Call::RandomBelow(limit) => return Ok(o.race.shared.random.random_below(limit)?),
         Call::ReadSavegameSlot(slot) => {
-            crate::saves::read_savegame_slot::read_savegame_slot(slot)?;
+            crate::saves::read_savegame_slot::read_savegame_slot_in(o.saves, slot)?;
         }
         Call::ReadReplaySlot(slot) => {
             crate::saves::read_replay_slot::read_replay_slot(slot, race)?;
         }
         Call::ReadSetupSlot(slot) => {
-            crate::service::read_setup_slot::read_setup_slot(service(), slot)?;
+            crate::service::read_setup_slot::read_setup_slot(&o.menus.service, slot)?;
         }
     }
     Ok(0)
 }
 
-/// The Rust version on the game's own calls.
-pub fn load_in_game(system: &crate::system::owner::System) -> Result<(), Refused> {
-    load_game_data(&system.start, &mut in_game)
+/// Loads with the game's own calls.
+pub fn load_in_game(o: Owners<'static>) -> Result<(), Refused> {
+    load_game_data(o, &mut |call| in_game(o, call))
 }
 
-/// How many times the game was run (IDA 0x518BB0 .. 0x518BB4, the image's layout).
-#[repr(C)]
+/// How many times the game was run.
 #[derive(rc2k_derive::Cells)]
 pub struct RunCount {
-    /// 0x518BB0: `g_runCount`: the game's runs counted (`system::load_game_data`; the save file keeps it).
-    pub runs: Dword,
+    /// The game's runs counted (the save file keeps it).
+    pub runs: PlainDword,
 }
 
 impl RunCount {
     pub const fn new() -> Self {
         RunCount {
-            runs: Dword::new(0x0),
+            runs: PlainDword::new(0x0),
         }
-    }
-}
-
-impl RunCount {
-    pub const START: usize = 0x518BB0;
-    pub const LEN: usize = 0x4;
-    #[cfg(test)]
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const crate::system::owner::system().start.run_count)
-            as usize
-    }
-}
-
-#[cfg(test)]
-mod run_count_tests {
-    use super::*;
-
-    #[test]
-    fn runcount_starts_as_the_games() {
-        let size = size_of::<RunCount>();
-        assert!(RunCount::LEN <= size && size <= (RunCount::LEN).next_multiple_of(4));
-        let image = crate::moved::image_bytes(RunCount::START, RunCount::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(RunCount::home()).cast_const(),
-                RunCount::LEN,
-            )
-        };
-        assert_eq!(mine, &image[..]);
     }
 }

@@ -1,18 +1,15 @@
-//! `effects::scale_setting` (0x4C08BB): `flt_8BC25E` = the settings' whole number +0x2750 by
-//! `flt_8BC39E` (`fild; fmul; fstp`).
+//! `effects::scale_setting`: `WindscreenFlakeState.scaled_setting` = the settings' whole number
+//! +0x2750 by `EdgeSettings.factor`.
 //!
-//! Works on `g_marksSettings`.
+//! Works on the effects settings.
 //!
-//! Caller: `effects::shapes_frame`. Refuses null settings (the original reads through 0).
-//!
-//! the x87 version stays for the Rust callers in unconverted code).
+//! Refuses null settings.
 
 use crate::effects::mask_store::Masks;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 
-/// The Rust version (see the header).
 pub fn scale_setting(
     masks: &Masks,
     fl: &WindscreenFlakes,
@@ -23,11 +20,11 @@ pub fn scale_setting(
         if settings == 0 {
             return Err(BadInput("no marks settings").into());
         }
-        let marks = crate::effects::setup::marks()?;
-        let n = marks.unknown_b0.get() as i32;
+        let marks = effects.settings()?;
+        let n = marks.setting_to_scale.get() as i32;
         fl.state
             .scaled_setting
-            .set_bits(x87::int_times(n, masks.edge_settings.factor.bits()));
+            .set(x87::int_times(n, &masks.edge_settings.factor));
     }
     Ok(())
 }

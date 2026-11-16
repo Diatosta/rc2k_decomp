@@ -1,19 +1,19 @@
-//! What the front-end pages copy into their work values before they are drawn (converted
-//! 2026-10-21 from `screens::load_audio_settings` 0x4707E6, `stage_options_texts`
-//! 0x4692A9 and `pick_player_1` .. `_4` 0x46AEC5 ..).
+//! What the front-end pages copy into their work values before they are drawn: the audio
+//! settings, the stage options' texts and the picked player's controller setting.
 
 use crate::audio::modes::AudioOptions;
 use crate::menu::player::Player;
 
-/// The advanced audio page's six work values (`dword_75566C` .. `dword_755680`: quality,
-/// DS3D, EAX, A3D, Dolby, channels) from the options as last applied.
+/// The advanced audio page's six work values (`MenuOptions.audio_quality` ..
+/// `MenuOptions.channels`: quality, DS3D, EAX, A3D, Dolby, channels) from the options as last
+/// applied.
 pub fn audio_page(options: &AudioOptions) -> [u32; 6] {
     let a = options.applied; // quality, channels, DS3D, EAX, A3D, Dolby
     [a[0], a[2], a[3], a[4], a[5], a[1]]
 }
 
-/// The stage options page's items 1 and 2: their strings by the two switches (1: the
-/// first string).
+/// The stage options page's items 1 and 2: their strings by the two switches (1:
+/// the first string).
 pub fn stage_options_items(first: u32, second: u32) -> (u32, u32) {
     (
         if first == 1 { 0x19C } else { 0x19B },
@@ -26,8 +26,8 @@ pub fn stage_options_caption(page: u32) -> u32 {
     0x4FC_u32.wrapping_add(page)
 }
 
-/// The stage pages' line ("<label> <n>/6: <track>") may fill at most this much of its
-/// buffer (`byte_A8BD54`), its NUL with it.
+/// The stage pages' line (`<label> <n>/6: <track>`) may fill at most this much of its
+/// buffer, its NUL with it.
 pub const STAGE_LINE_ROOM: usize = 0x100;
 
 /// The setting the controller pages copy from the player picked: its +0x2C and the 0x2C

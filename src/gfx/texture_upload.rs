@@ -1,22 +1,18 @@
-//! What `gfx::upload_texture_picture` (0x41A68B) and `scene::upload_car_icon` (0x41B2F2)
-//! share: a system texture's record, the picture made ready for it, and how many
-//! halvings apart the two are.
+//! What `gfx::upload_texture_picture` and `scene::upload_car_icon` share: a system texture's
+//! record, the picture made ready for it, and how many halvings apart the two are.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::gfx::owner::gfx;
+use crate::gfx::owner::Gfx;
 use crate::gfx::pixel_format::PixelFormat;
 use crate::gfx::read_texture_picture::read_texture_picture;
 use crate::gfx::texture_pixels::{
     KEPT, alpha_from_kept, grade_texture, grading, key_texture_colours, least_colour,
 };
-use crate::session::Dword;
+use crate::memory::session::{Dword, Run};
 
-pub const RECORD_LEN: usize = 0x78;
 pub const TEXTURES: u32 = 0x140;
 
-/// A pixel kind's description, 0x40 bytes (`TextureFormat` in IDA): five from
-/// `stru_5ABAD4` (555, 1555, 4444, 8888 and one more), pointed at by `off_5ABAC0`, filled
-/// by `d3d::find_texture_formats`.
+/// A pixel kind's description, 0x40 bytes: five (555, 1555, 4444, 8888 and the screen's).
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
 pub struct TextureFormat {
@@ -26,15 +22,11 @@ pub struct TextureFormat {
     pub format: PixelFormat,
     /// The format's number (`gfx::describe_format` writes it after the masks).
     pub number: u32,
-    /// DirectDraw's pixel format: size, flags, four-CC, bits, the masks red, green,
-    /// blue, alpha.
+    /// DirectDraw's pixel format: size, flags, four-CC, bits, the masks red, green, blue, alpha.
     pub dd: [u32; 8],
 }
 
-const _: () = assert!(std::mem::size_of::<TextureFormat>() == 0x40);
-
-/// A texture's record, 0x78 bytes (`TextureRecord` in IDA): the system textures from
-/// `stru_5B521C`, the video textures from `stru_5ABC18`, 0x140 of each.
+/// A texture's record, 0x78 bytes (the system and video textures).
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
 pub struct TextureRecord {
@@ -59,8 +51,6 @@ pub struct TextureRecord {
     pub material: u32,
     pub material_handle: u32,
 }
-
-const _: () = assert!(std::mem::size_of::<TextureRecord>() == RECORD_LEN);
 
 impl TextureRecord {
     /// The record's dwords, in the game's order.
@@ -113,18 +103,60 @@ impl TextureRecord {
 #[derive(rc2k_derive::Cells)]
 pub struct RecordCell([Dword; 30]);
 
+/// A record's dwords as a run.
+impl Run for RecordCell {
+    fn count(&self) -> usize {
+        self.0.len()
+    }
+    fn bits(&self, i: usize) -> u32 {
+        self.0[i].get()
+    }
+    fn set_bits(&self, i: usize, v: u32) {
+        self.0[i].set(v);
+    }
+}
+
 impl RecordCell {
     pub const fn new(record: TextureRecord) -> Self {
         Self(crate::gfx::dwords(record.words()))
     }
 
-    /// A copy of the record (its fields may be read half changed, as the original's).
+    /// A copy of the record (its fields may be read half changed).
     pub fn get(&self) -> TextureRecord {
-        TextureRecord::from_words(crate::session::read_all(&self.0))
+        TextureRecord::from_words(crate::memory::session::read_all(&self.0))
     }
 
     pub fn set(&self, record: TextureRecord) {
-        crate::session::write_all(&self.0, record.words());
+        crate::memory::session::write_all(&self.0, record.words());
+    }
+
+    /// The width, read alone.
+    pub fn width(&self) -> u32 {
+        self.0[1].get()
+    }
+
+    /// The height, read alone.
+    pub fn height(&self) -> u32 {
+        self.0[2].get()
+    }
+
+    /// The pixel kind's description (a handle), read alone.
+    pub fn format(&self) -> u32 {
+        self.0[3].get()
+    }
+
+    /// The first level's surface, read alone.
+    pub fn first_surface(&self) -> u32 {
+        self.0[5].get()
+    }
+
+    /// 1 while the first level's surface is locked, read alone.
+    pub fn locked(&self) -> u32 {
+        self.0[24].get()
+    }
+
+    pub fn set_locked(&self, locked: u32) {
+        self.0[24].set(locked);
     }
 
     pub fn update(&self, change: impl FnOnce(&mut TextureRecord)) {
@@ -174,17 +206,30 @@ impl TextureFormat {
 #[derive(rc2k_derive::Cells)]
 pub struct FormatCell([Dword; 16]);
 
+/// A description's dwords as a run.
+impl Run for FormatCell {
+    fn count(&self) -> usize {
+        self.0.len()
+    }
+    fn bits(&self, i: usize) -> u32 {
+        self.0[i].get()
+    }
+    fn set_bits(&self, i: usize, v: u32) {
+        self.0[i].set(v);
+    }
+}
+
 impl FormatCell {
     pub const fn new(format: TextureFormat) -> Self {
         Self(crate::gfx::dwords(format.words()))
     }
 
     pub fn get(&self) -> TextureFormat {
-        TextureFormat::from_words(crate::session::read_all(&self.0))
+        TextureFormat::from_words(crate::memory::session::read_all(&self.0))
     }
 
     pub fn set(&self, format: TextureFormat) {
-        crate::session::write_all(&self.0, format.words());
+        crate::memory::session::write_all(&self.0, format.words());
     }
 
     pub fn update(&self, change: impl FnOnce(&mut TextureFormat)) {
@@ -194,44 +239,37 @@ impl FormatCell {
     }
 }
 
-/// IDA's address of the 3D card's tables.
-pub const START: usize = 0x5ABA8C;
-/// Their length.
-pub const LEN: usize = 0x5BE81C - START;
-
 /// A pool of texture records (the system's or the video's) and how many are made.
-#[repr(C)]
+#[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells)]
 pub struct Pool {
-    /// The textures made (`dword_5B5218` / `dword_5ABC14`), at most `TEXTURES`.
+    /// The textures made (`Textures.system.count` / `Textures.video.count`), at most `TEXTURES`.
     pub count: Dword,
-    /// The records (`stru_5B521C` / `stru_5ABC18`), 0x140 of 0x78 bytes; free ones hold -1
-    /// in `holds`.
+    /// The records, 0x140 of 0x78 bytes; free ones hold -1 in `holds`.
     pub records: [RecordCell; TEXTURES as usize],
 }
 
 /// The 3D card's tables and the textures' records.
-#[repr(C)]
+#[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells)]
 pub struct Textures {
-    /// `dword_5ABA8C`: 1 while the textures being made are of the alpha kind.
+    /// 1 while the textures being made are of the alpha kind.
     pub alpha_kind: Dword,
-    /// `dword_5ABA90`: the first video texture of the batch being made.
+    /// The first video texture of the batch being made.
     pub first_video: Dword,
-    /// `dword_5ABA94`: the first system texture of the batch being made.
+    /// The first system texture of the batch being made.
     pub first_system: Dword,
-    /// `dword_5ABA98`: five pairs of a size's number and the size (256, 128, 64, 32, 1024).
+    /// Five pairs of a size's number and the size (256, 128, 64, 32, 1024).
     pub sizes: [Dword; 10],
-    /// `off_5ABAC0`: a pixel kind's description (by handle into `descriptions`,
-    /// `format_ref`: the original kept its address; kind 0 none), filled by
-    /// `d3d::find_texture_formats`.
+    /// A pixel kind's description (by handle into `descriptions`, `format_of`; kind 0 none), filled
+    /// by `d3d::find_texture_formats`.
     pub kinds: [Dword; 5],
-    /// `stru_5ABAD4`: five descriptions of 0x40 bytes: 555, 1555, 4444, 8888 and the
-    /// screen's (set by `platform::set_mode`).
+    /// Five descriptions of 0x40 bytes: 555, 1555, 4444, 8888 and
+    /// the screen's (set by `platform::set_mode`).
     pub descriptions: [FormatCell; 5],
-    /// The video textures (`dword_5ABC14`, `stru_5ABC18`).
+    /// The video textures (`Textures.video.count`, `Textures.video.records[0].0[0]`).
     pub video: Pool,
-    /// The system textures (`dword_5B5218`, `stru_5B521C`).
+    /// The system textures (`Textures.system.count`, `Textures.system.records[0].0[0]`).
     pub system: Pool,
 }
 
@@ -270,23 +308,16 @@ const fn pool() -> Pool {
     }
 }
 
-/// A texture format by handle (phase 13): `FORMAT_TAG | n` for `descriptions[n]`, 0 none.
+/// A texture format by handle: `FORMAT_TAG | n` for `descriptions[n]`, 0 none.
 pub const FORMAT_TAG: u32 = 0xCC00_0000;
-/// IDA's address of `descriptions`.
-const DESCRIPTIONS_IDA: u32 = 0x5ABAD4;
-/// The handle for IDA's `ida` (a description's address or 0; anything else fails to
-/// compile).
-pub const fn format_ref(ida: u32) -> u32 {
-    if ida == 0 {
-        return 0;
-    }
-    assert!(ida >= DESCRIPTIONS_IDA && (ida - DESCRIPTIONS_IDA).is_multiple_of(0x40));
-    assert!((ida - DESCRIPTIONS_IDA) / 0x40 < 5);
-    FORMAT_TAG | ((ida - DESCRIPTIONS_IDA) / 0x40)
+/// The handle for `descriptions[index]`.
+pub const fn format_of(index: u32) -> u32 {
+    assert!(index < 5);
+    FORMAT_TAG | index
 }
 
 impl Textures {
-    /// The 3D card's tables; the first values are the image's (the kinds by handle).
+    /// The 3D card's tables.
     pub const fn new() -> Self {
         Textures {
             alpha_kind: Dword::new(0),
@@ -294,11 +325,11 @@ impl Textures {
             first_system: Dword::new(0),
             sizes: crate::gfx::dwords([0, 0x100, 1, 0x80, 2, 0x40, 3, 0x20, 4, 0x400]),
             kinds: crate::gfx::dwords([
-                format_ref(0),
-                format_ref(0x5ABAD4),
-                format_ref(0x5ABB14),
-                format_ref(0x5ABB54),
-                format_ref(0x5ABBD4),
+                0,
+                format_of(0), // 555
+                format_of(1), // 1555
+                format_of(2), // 4444
+                format_of(4), // the screen's
             ]),
             descriptions: [const { FormatCell::new(NO_FORMAT) }; 5],
             video: pool(),
@@ -313,15 +344,15 @@ impl Textures {
         if pool == 0 { &self.system } else { &self.video }
     }
 
-    /// The description a format value names: a handle (`FORMAT_TAG | k`); None for 0 and
-    /// for a number that is no handle (a kind read past the table).
+    /// The description a format value names: a handle (`FORMAT_TAG | k`); None for 0 and for a
+    /// number that is no handle (a kind read past the table).
     pub fn description(&self, format: u32) -> Option<&FormatCell> {
         let k = format.checked_sub(FORMAT_TAG)?;
         self.descriptions.get(k as usize)
     }
 
-    /// Kind `n`'s description's number in `descriptions` (None: none). A value that is no
-    /// handle ends the program, as `kind`.
+    /// Kind `n`'s description's number in `descriptions` (None: none). A value that is no handle
+    /// ends the program, as `kind`.
     pub fn kind_index(&self, n: usize) -> Option<usize> {
         let handle = self.kinds[n].get();
         if handle == 0 {
@@ -337,28 +368,44 @@ impl Textures {
         Some(k)
     }
 
-    /// The kinds table's entry `n`, read where the original reads it (not checked against
-    /// the table: a kind past it reads on into the descriptions' bytes, a raw number that
-    /// is no handle). Inside the table: the description's handle, 0 none.
+    /// The kinds table's entry `n` (not checked against the table: a kind past it reads on into the
+    /// fields after it, a raw number that is no handle). Inside the table: the description's
+    /// handle, 0 none.
     pub fn kind_entry(&self, n: usize) -> u32 {
         if n < self.kinds.len() {
             return self.kind_index(n).map_or(0, |k| FORMAT_TAG | k as u32);
         }
-        // Bounded to the whole table (the kinds are followed by the descriptions).
-        crate::pointers::load_value::<u32>(self, core::mem::offset_of!(Textures, kinds) + 4 * n)
+        self.dword_from_kinds(n)
             .unwrap_or_else(|e| crate::fatal::raise::end("gfx::texture_upload::kind_entry", e))
+    }
+
+    /// Dword `n` counted from the kinds table, on through the fields after it in the record's order
+    /// (the kind comes from a byte of the caller's value, so it can name any of 256). Past the last
+    /// field is refused.
+    fn dword_from_kinds(&self, n: usize) -> Result<u32, BadInput> {
+        let (video, system) = (&self.video, &self.system);
+        let runs: [&dyn Run; 6] = [
+            &self.kinds,
+            &self.descriptions,
+            &video.count,
+            &video.records,
+            &system.count,
+            &system.records,
+        ];
+        crate::memory::session::read_runs(&runs, n, "gfx::texture_upload::kind_entry")
     }
 }
 
 /// A system texture's record where it lies.
-pub struct Record(&'static RecordCell, &'static Textures);
+pub struct Record<'a>(&'a RecordCell, &'a Textures);
 
-impl Record {
-    pub fn of(texture: u32) -> Result<Self, Refused> {
+impl<'a> Record<'a> {
+    /// Texture `texture`'s record in `gfx`'s system pool.
+    pub fn of(texture: u32, gfx: &'a crate::gfx::owner::Gfx) -> Result<Self, Refused> {
         if texture >= TEXTURES {
             return Err(BadInput("a texture past the records").into());
         }
-        let tables = &gfx().card.texture_tables;
+        let tables = &gfx.card.texture_tables;
         let record = Record(&tables.system.records[texture as usize], tables);
         if record.get().format == 0 {
             return Err(BadInput("a texture's record without its format").into());
@@ -398,8 +445,7 @@ pub fn fatal(code: u32) -> Refused {
     FatalError { code, message: "" }.into()
 }
 
-/// The least colour, then the alpha from the kept picture or the colours keyed, then
-/// the grading.
+/// The least colour, then the alpha from the kept picture or the colours keyed, then the grading.
 pub fn ready_picture(
     record: &Record,
     pixels: u32,
@@ -418,9 +464,9 @@ pub fn ready_picture(
     {
         let key = least_colour(&record.format()?);
         if record.keeps_alpha() {
-            alpha_from_kept(pixels, count)?;
+            alpha_from_kept(&gfx.pictures.buffers, pixels, count)?;
         } else {
-            key_texture_colours(pixels, count, key)?;
+            key_texture_colours(&gfx.pictures.buffers, pixels, count, key)?;
         }
         let (reading, scale, saturation) = (
             gfx_grading.reading.get(),
@@ -429,7 +475,15 @@ pub fn ready_picture(
         );
         if grading(reading, scale, saturation) {
             let mut table = [0u8; 0x100];
-            grade_texture(pixels, count, key, scale, saturation, &mut table)?;
+            grade_texture(
+                &gfx.pictures.buffers,
+                pixels,
+                count,
+                key,
+                scale,
+                saturation,
+                &mut table,
+            )?;
             gfx_grading.grades.write(&table);
         }
     }
@@ -437,8 +491,8 @@ pub fn ready_picture(
 }
 
 /// The number of halvings from 256 a size is, by the game's table.
-fn halvings(size: u32) -> Option<u32> {
-    let card = &gfx().card;
+fn halvings(gfx: &Gfx, size: u32) -> Option<u32> {
+    let card = &gfx.card;
     (0..5).find_map(|n| {
         let (number, of) = (
             card.texture_tables.sizes[2 * n].get(),
@@ -448,44 +502,51 @@ fn halvings(size: u32) -> Option<u32> {
     })
 }
 
-/// How many halvings the picture is from the texture, the same across and down, or the
-/// fatal error of the five `codes` (the picture's width, the texture's, the picture's
-/// height, the texture's, the two not the same).
+/// How many halvings the picture is from the texture, the same across and down, or the fatal error
+/// of the five `codes` (the picture's width, the texture's, the picture's height, the texture's,
+/// the two not the same).
 pub fn halvings_apart(
+    gfx: &Gfx,
     record: &Record,
     width: u32,
     height: u32,
     codes: [u32; 5],
 ) -> Result<u32, Refused> {
-    // Converted: `rc2k_core::gfx::uploads::halvings_apart`.
-    rc2k_core::gfx::uploads::halvings_apart(halvings, width, height, || {
-        let r = record.get();
-        (r.width, r.height)
-    })
+    rc2k_core::gfx::uploads::halvings_apart(
+        |size| halvings(gfx, size),
+        width,
+        height,
+        || {
+            let r = record.get();
+            (r.width, r.height)
+        },
+    )
     .map_err(|which| fatal(codes[which as usize]))
 }
 
-/// With the record's +0x5C at 1: the second picture (`path`, 0 for none) read and
-/// copied `KEPT` bytes on, or, if there is none or it cannot be read, +0x5C made 0.
+/// With the record's +0x5C at 1: the second picture (`path`, 0 for none) read and copied `KEPT`
+/// bytes on, or, if there is none or it cannot be read, +0x5C made 0.
 pub fn keep_second_picture(
     record: &Record,
-    path: Option<crate::pointers::GamePtr>,
+    path: Option<&dyn crate::memory::session::TextPlace>,
+    gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     if !record.keeps_alpha() {
         return Ok(());
     }
     let kept = match path {
         None => None,
-        Some(path) => match { read_texture_picture(path) }? {
+        Some(path) => match read_texture_picture(Some(path), gfx, system)? {
             (_, _, _, true) => None,
             found => Some(found),
         },
     };
     match kept {
         Some((pixels, width, height, _)) => {
-            // `rep movsd`; the texture size keeps the two apart (`KEPT` is 256 x 256 dwords).
+            // The texture size keeps the two apart (`KEPT` is 256 x 256 dwords).
             let len = width.wrapping_mul(height) as usize * 4;
-            crate::gfx::picture::with_buffer(pixels, |b| {
+            crate::gfx::picture::with_buffer(&gfx.pictures.buffers, pixels, |b| {
                 (KEPT.checked_add(len)? <= b.len()).then(|| b.copy_within(..len, KEPT))
             })?
             .ok_or(BadInput("a second texture picture past the picture buffer"))?;
@@ -495,47 +556,34 @@ pub fn keep_second_picture(
     Ok(())
 }
 
-/// IDA's `off_5ABAC0`.
 #[cfg(test)]
-const KINDS_IDA: usize = 0x5ABAC0;
-
-#[cfg(test)]
-mod block_tests {
+mod tests {
     use super::*;
-    use core::mem::offset_of;
 
+    /// A kind past the kinds table reads on through the fields after it in the record's order, to
+    /// the end of the last; the first past it is refused.
     #[test]
-    fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games_but(
-            &gfx().card.texture_tables,
-            START,
-            START + LEN,
-            |image| {
-                for k in 0..5 {
-                    let o = KINDS_IDA - START + 4 * k;
-                    let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
-                    image[o..o + 4].copy_from_slice(&format_ref(v).to_le_bytes());
-                }
-            },
-        );
-    }
-
-    #[test]
-    fn moved_knows_the_block() {
-        let card = &gfx().card;
-        assert_eq!(offset_of!(Textures, sizes), 0x5ABA98 - START);
-        assert_eq!(offset_of!(Textures, kinds), 0x5ABAC0 - START);
-        assert_eq!(offset_of!(Textures, descriptions), 0x5ABAD4 - START);
-        assert_eq!(offset_of!(Textures, video), 0x5ABC14 - START);
-        assert_eq!(offset_of!(Textures, system), 0x5B5218 - START);
-        assert_eq!(offset_of!(Pool, records), 4);
-        assert_eq!(
-            crate::moved::place(START),
-            card.texture_tables.alpha_kind.addr() as usize
-        );
-        assert_eq!(
-            crate::moved::place(0x5B521C),
-            (crate::pointers::game_address(card.texture_tables.system.records.as_ptr())) as usize
-        );
+    fn kind_entry_reads_on_through_the_fields() {
+        let t = Box::new(Textures::new());
+        let (video, system) = (&t.video, &t.system);
+        let runs: [&dyn Run; 6] = [
+            &t.kinds,
+            &t.descriptions,
+            &video.count,
+            &video.records,
+            &system.count,
+            &system.records,
+        ];
+        let mut expected = Vec::new();
+        for (r, run) in runs.iter().enumerate() {
+            for i in 0..run.count() {
+                run.set_bits(i, 0x4000_0000 + (r * 0x10000 + i) as u32);
+                expected.push(run.bits(i));
+            }
+        }
+        for (n, want) in expected.iter().enumerate() {
+            assert_eq!(t.dword_from_kinds(n).ok(), Some(*want), "dword {n}");
+        }
+        assert!(t.dword_from_kinds(expected.len()).is_err());
     }
 }

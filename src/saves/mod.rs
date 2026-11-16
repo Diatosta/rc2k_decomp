@@ -16,6 +16,8 @@ pub mod list_car_numbers;
 pub mod load_best_times;
 pub mod load_options;
 pub mod load_savegame;
+pub mod options_files;
+pub mod options_state;
 pub mod owner;
 pub mod preview_store;
 pub mod read_replay_slot;

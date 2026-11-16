@@ -1,5 +1,4 @@
-//! The glyph blitter (converted 2026-10-20 from `gfx::blit_glyph` 0x4069B2): one
-//! run-length coded glyph drawn on a surface, clipped.
+//! The glyph blitter: one run-length coded glyph drawn on a surface, clipped.
 //!
 //! A glyph table starts with one dword offset per glyph (the first offset / 4 is the
 //! count). A normal record is `[x offset][y offset][width][height]` in bytes, then per row
@@ -10,11 +9,11 @@
 //! they are whatever the surface's depth.
 
 use crate::Invalid;
-use crate::gfx::raster::{Clip, Surface};
+use crate::gfx::raster::{Clip, Surface, Work};
 use crate::strings::bytes::Bytes;
 
-/// The four work variables the blitter leaves (`g_blitLeftSkip` ..). Each is written only
-/// once the clipping has got that far.
+/// The four work variables the blitter leaves. Each is written only once the clipping has got that
+/// far.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub struct Scratch {
     pub left_skip: i32,
@@ -24,8 +23,8 @@ pub struct Scratch {
     pub rows_left: i32,
 }
 
-/// The offset of record `glyph` of a table; `None` for a glyph past the table (the
-/// original's fatal error 0x80A7DF32).
+/// The offset of record `glyph` of a table; `None` for a glyph past the table (the caller raises
+/// a fatal error).
 pub fn record_offset(table: &(impl Bytes + ?Sized), glyph: u32) -> Result<Option<usize>, Invalid> {
     let first = table.u32_le(0).ok_or(PAST)?;
     if glyph >= first >> 2 {
@@ -139,17 +138,17 @@ impl<B: Bytes + ?Sized> Runs<'_, B> {
     }
 }
 
-/// `a - b` and whether a `jle` after that `sub` is taken.
+/// `a - b` and whether `a <= b`.
 fn sub_le(a: i32, b: i32) -> (i32, bool) {
     (a.wrapping_sub(b), a <= b)
 }
 
-/// `a + b` and whether a `jle` after that `add` is taken.
+/// `a + b` and whether the exact sum is 0 or less.
 fn add_le(a: i32, b: i32) -> (i32, bool) {
     (a.wrapping_add(b), a as i64 + b as i64 <= 0)
 }
 
-/// Where the walk over a clipped row stands; `bool` carries the original's `jle`.
+/// Where the walk over a clipped row stands; `bool` carries the last `sub_le` / `add_le` test.
 enum Step {
     Skip,
     Next,
@@ -158,9 +157,123 @@ enum Step {
     Rest,
 }
 
+/// What the clip makes of one glyph: the work variables the blit leaves and the visible part.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Plan {
+    /// The work variables written before the blit stops or draws (the later ones keep their value
+    /// when the glyph is clipped away), with `rows` as the clip leaves it.
+    pub work: Work,
+    /// Whether any pixel of the glyph is inside the clip.
+    pub drawn: bool,
+    /// The glyph's top-left corner, its own offsets included.
+    pub x: i32,
+    pub y: i32,
+    /// The record's size and the part inside the clip: the columns `left_skip ..
+    /// left_skip + visible_w` and the rows `top_skip .. top_skip + rows` of the record.
+    pub width: i32,
+    pub height: i32,
+    pub left_skip: i32,
+    pub visible_w: i32,
+    pub top_skip: i32,
+    pub rows: i32,
+}
+
+impl Plan {
+    /// The work variables the blit writes, written into `scratch`.
+    pub fn write_work(&self, scratch: &mut Scratch) {
+        let Work {
+            left_skip,
+            width,
+            top_skip,
+            rows,
+        } = self.work;
+        if let Some(v) = left_skip {
+            scratch.left_skip = v;
+        }
+        if let Some(v) = width {
+            scratch.visible_w = v;
+        }
+        if let Some(v) = top_skip {
+            scratch.top_skip = v;
+        }
+        if let Some(v) = rows {
+            scratch.rows_left = v;
+        }
+    }
+
+    /// The row counter after a drawn glyph: counted down to 0 while rows are clipped
+    /// horizontally, untouched when each row is drawn whole.
+    pub fn rows_left_after(&self) -> i32 {
+        if self.visible_w == self.width {
+            self.rows
+        } else {
+            0
+        }
+    }
+}
+
+/// The clip of a glyph drawn at (`x`, `y`) whose record has `[x offset, y offset, width, height]`.
+pub fn plan(x: i32, y: i32, [x_offset, y_offset, width, height]: [i32; 4], clip: &Clip) -> Plan {
+    let x = x.wrapping_add(x_offset);
+    let y = y.wrapping_add(y_offset);
+    let mut work = Work::default();
+    // Horizontal clip.
+    let mut left_skip = 0;
+    if x < clip.left {
+        left_skip = clip.left.wrapping_sub(x);
+    }
+    work.left_skip = Some(left_skip);
+    let last = x.wrapping_add(width).wrapping_sub(1);
+    let over = last.wrapping_sub(clip.right);
+    let mut visible = width;
+    if last > clip.right {
+        visible = visible.wrapping_sub(over);
+    }
+    let mut plan = Plan {
+        work,
+        drawn: false,
+        x,
+        y,
+        width,
+        height,
+        left_skip,
+        visible_w: 0,
+        top_skip: 0,
+        rows: 0,
+    };
+    if visible <= left_skip {
+        return plan;
+    }
+    visible = visible.wrapping_sub(left_skip);
+    plan.visible_w = visible;
+    plan.work.width = Some(visible);
+
+    // Vertical clip.
+    let mut top_skip = 0;
+    if y < clip.top {
+        top_skip = clip.top.wrapping_sub(y);
+    }
+    plan.top_skip = top_skip;
+    plan.work.top_skip = Some(top_skip);
+    let last = y.wrapping_add(height).wrapping_sub(1);
+    let over = last.wrapping_sub(clip.bottom);
+    let mut rows = height;
+    if last > clip.bottom {
+        rows = rows.wrapping_sub(over);
+    }
+    if rows <= top_skip {
+        return plan;
+    }
+    rows = rows.wrapping_sub(top_skip);
+    plan.rows = rows;
+    plan.work.rows = Some(rows);
+    plan.drawn = true;
+    plan
+}
+
 /// Draws `record` at x, y. `put(offset, bytes)` gets every write, at byte offsets from the
 /// surface's start (wrapping).
-#[allow(clippy::too_many_arguments)] // the original's inputs, the surface, the clip and the sink
+#[allow(clippy::too_many_arguments)] // the record, its place, palette, surface, clip and sink
 pub fn blit_glyph(
     record: &(impl Bytes + ?Sized),
     x: i32,
@@ -189,41 +302,12 @@ pub fn blit_glyph(
         };
         (word(4)?, word(6)?, word(8)?, word(10)?, 12, format)
     };
-    let x = x.wrapping_add(x_offset);
-    let y = y.wrapping_add(y_offset);
-    // Horizontal clip.
-    scratch.left_skip = 0;
-    if x < clip.left {
-        scratch.left_skip = clip.left.wrapping_sub(x);
-    }
-    let last = x.wrapping_add(width).wrapping_sub(1);
-    let over = last.wrapping_sub(clip.right);
-    let mut visible = width;
-    if last > clip.right {
-        visible = visible.wrapping_sub(over);
-    }
-    if visible <= scratch.left_skip {
+    let plan = plan(x, y, [x_offset, y_offset, width, height], clip);
+    plan.write_work(scratch);
+    if !plan.drawn {
         return Ok(());
     }
-    visible = visible.wrapping_sub(scratch.left_skip);
-    scratch.visible_w = visible;
-
-    // Vertical clip.
-    scratch.top_skip = 0;
-    if y < clip.top {
-        scratch.top_skip = clip.top.wrapping_sub(y);
-    }
-    let last = y.wrapping_add(height).wrapping_sub(1);
-    let over = last.wrapping_sub(clip.bottom);
-    let mut rows = height;
-    if last > clip.bottom {
-        rows = rows.wrapping_sub(over);
-    }
-    if rows <= scratch.top_skip {
-        return Ok(());
-    }
-    rows = rows.wrapping_sub(scratch.top_skip);
-    scratch.rows_left = rows;
+    let (x, y, visible, rows) = (plan.x, plan.y, plan.visible_w, plan.rows);
 
     // The glyph's column 0 in the first visible row. The x term uses the surface's bytes
     // per pixel, while the runs advance by the format's own unit.
@@ -282,8 +366,8 @@ pub fn blit_glyph(
     }
 
     loop {
-        // One clipped row. `left` is the original's edx: pixels still to skip while left of
-        // the clip edge, then pixels of room inside it.
+        // One clipped row. `left`: pixels still to skip while left of the clip edge, then pixels
+        // of room inside it.
         let mut dst = row;
         let mut left = scratch.left_skip;
         let mut count = 0u32;
@@ -354,7 +438,7 @@ pub fn blit_glyph(
                         runs.draw(count, dst)?;
                         runs.skip_pixels(left.wrapping_neg());
                         if format.is_direct() {
-                            left = left.wrapping_neg(); // these two paths `neg edx`
+                            left = left.wrapping_neg(); // these two paths negate it
                         }
                         step = Step::Rest;
                     } else {
@@ -462,5 +546,213 @@ mod tests {
         let table = [8u8, 0, 0, 0, 9, 0, 0, 0];
         assert_eq!(record_offset(&table, 1), Ok(Some(9)));
         assert_eq!(record_offset(&table, 2), Ok(None));
+    }
+
+    /// A small deterministic generator for the random tests.
+    struct Lcg(u64);
+
+    impl Lcg {
+        fn next(&mut self) -> u32 {
+            self.0 = self
+                .0
+                .wrapping_mul(6_364_136_223_846_793_005)
+                .wrapping_add(1_442_695_040_888_963_407);
+            (self.0 >> 33) as u32
+        }
+
+        /// A number in `low ..= high`.
+        fn between(&mut self, low: i32, high: i32) -> i32 {
+            low + (self.next() % (high - low + 1) as u32) as i32
+        }
+    }
+
+    /// A glyph as its pixels: (column, row, pixel as drawn: an index or a direct colour).
+    type Pixels = Vec<(i32, i32, u32)>;
+
+    #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+    enum Kind {
+        /// Palette indices, one byte each.
+        Normal,
+        /// Words (marker 0xFFFFFFFE), or dwords (any other marker).
+        Words,
+        Dwords,
+    }
+
+    /// A random record of `kind` with its pixels: rows of runs (a gap, then pixels), the last
+    /// rows possibly empty.
+    fn random_record(lcg: &mut Lcg, kind: Kind) -> (Vec<u8>, [i32; 4], Pixels) {
+        let unit = match kind {
+            Kind::Normal => 1,
+            Kind::Words => 2,
+            Kind::Dwords => 4,
+        };
+        let put = |out: &mut Vec<u8>, v: u32| out.extend_from_slice(&v.to_le_bytes()[..unit]);
+        let width = lcg.between(1, 14);
+        let height = lcg.between(1, 9);
+        let (x_offset, y_offset) = (lcg.between(0, 3), lcg.between(0, 3));
+        let mut out = match kind {
+            Kind::Normal => vec![x_offset as u8, y_offset as u8, width as u8, height as u8],
+            Kind::Words | Kind::Dwords => {
+                let marker: u32 = if kind == Kind::Words {
+                    0xFFFF_FFFE
+                } else {
+                    0xFFFF_FFFF
+                };
+                let mut v = marker.to_le_bytes().to_vec();
+                for n in [x_offset, y_offset, width, height] {
+                    v.extend_from_slice(&(n as u16).to_le_bytes());
+                }
+                v
+            }
+        };
+        let mut pixels = Pixels::new();
+        for row in 0..height {
+            let mut column = 0;
+            while column < width && !lcg.next().is_multiple_of(5) {
+                let gap = lcg.between(0, 3).min(width - column - 1).max(0);
+                let count = lcg.between(1, 6).min(width - column - gap);
+                if count <= 0 {
+                    break;
+                }
+                put(&mut out, count as u32);
+                put(&mut out, gap as u32);
+                column += gap;
+                for _ in 0..count {
+                    let value = match kind {
+                        Kind::Normal => lcg.between(1, 255) as u32,
+                        Kind::Words => lcg.between(1, 0xFFFF) as u32,
+                        Kind::Dwords => lcg.next() | 1,
+                    };
+                    put(&mut out, value);
+                    pixels.push((column, row, value));
+                    column += 1;
+                }
+            }
+            put(&mut out, 0);
+        }
+        (out, [x_offset, y_offset, width, height], pixels)
+    }
+
+    /// Every glyph drawn through the clip equals the pixels the clip leaves, the work variables
+    /// are the plan's, and the plan's visible part holds every pixel.
+    #[test]
+    fn the_plan_and_the_blit_agree_on_random_glyphs() {
+        let mut lcg = Lcg(7);
+        let palette = |index: u8| 0x0101_0101u32.wrapping_mul(index as u32) ^ 0x0040_2010;
+        let (screen_w, screen_h) = (40, 30);
+        let mut clipped_rows = 0;
+        let mut clipped_columns = 0;
+        let mut hidden = 0;
+        for _ in 0..30_000 {
+            let (kind, bits) = match lcg.next() % 5 {
+                0 => (Kind::Normal, 8),
+                1 => (Kind::Normal, 16),
+                2 => (Kind::Normal, 32),
+                3 => (Kind::Words, 16),
+                _ => (Kind::Dwords, 32),
+            };
+            let bpp = bits / 8;
+            let surface = Surface {
+                bits,
+                bytes_per_pixel: bpp as i32,
+                pitch: (screen_w * bpp) as i32 + 4 * lcg.between(0, 2),
+            };
+            let (record, header, pixels) = random_record(&mut lcg, kind);
+            let (x, y) = (lcg.between(-18, screen_w as i32 + 4), lcg.between(-12, 34));
+            let (left, top) = (lcg.between(-2, 30), lcg.between(-2, 22));
+            // Inside the surface, as the game's clip rectangle is.
+            let clip = Clip {
+                left: left.max(0),
+                right: (left + lcg.between(-1, 36)).min(screen_w as i32 - 1),
+                top: top.max(0),
+                bottom: (top + lcg.between(-1, 28)).min(screen_h as i32 - 1),
+            };
+            let size = surface.pitch as usize * screen_h;
+            let mut canvas = vec![0xAAu8; size + 64];
+            let before = canvas.clone();
+            let mut scratch = Scratch {
+                left_skip: -1,
+                visible_w: -2,
+                top_skip: -3,
+                rows_left: -4,
+            };
+            let kept = scratch;
+            let mut writes_outside = false;
+            let drawn = blit_glyph(
+                &record[..],
+                x,
+                y,
+                &palette,
+                &surface,
+                &clip,
+                &mut scratch,
+                &mut |at, bytes| {
+                    let at = at as usize;
+                    if at + bytes.len() > canvas.len() {
+                        writes_outside = true;
+                    } else {
+                        canvas[at..at + bytes.len()].copy_from_slice(bytes);
+                    }
+                },
+            );
+            assert!(
+                drawn.is_ok() && !writes_outside,
+                "{kind:?} {header:?} at {x},{y}"
+            );
+            let plan = plan(x, y, header, &clip);
+            // The work variables.
+            let mut expected = kept;
+            plan.write_work(&mut expected);
+            if plan.drawn {
+                expected.rows_left = plan.rows_left_after();
+            }
+            assert_eq!(
+                scratch, expected,
+                "{kind:?} {header:?} at {x},{y} clip {clip:?}"
+            );
+            // The plan's own arithmetic, from the clip rectangle's edges.
+            let (gx, gy) = (x + header[0], y + header[1]);
+            let (first, last) = (gx.max(clip.left), (gx + header[2] - 1).min(clip.right));
+            let (top_row, bottom_row) = (gy.max(clip.top), (gy + header[3] - 1).min(clip.bottom));
+            assert_eq!(plan.drawn, first <= last && top_row <= bottom_row);
+            if plan.drawn {
+                assert_eq!((plan.x, plan.y), (gx, gy));
+                assert_eq!(plan.left_skip, first - gx);
+                assert_eq!(plan.visible_w, last - first + 1);
+                assert_eq!(plan.top_skip, top_row - gy);
+                assert_eq!(plan.rows, bottom_row - top_row + 1);
+                clipped_rows += i32::from(plan.rows < plan.height);
+                clipped_columns += i32::from(plan.visible_w < plan.width);
+            } else {
+                hidden += 1;
+            }
+            // The pixels the clip leaves, drawn where they belong and nowhere else.
+            let mut reference = before.clone();
+            for &(column, row, value) in &pixels {
+                let (px, py) = (gx + column, gy + row);
+                if px < clip.left || px > clip.right || py < clip.top || py > clip.bottom {
+                    continue;
+                }
+                assert!(plan.drawn);
+                assert!(
+                    (plan.left_skip..plan.left_skip + plan.visible_w).contains(&(px - gx))
+                        && (plan.top_skip..plan.top_skip + plan.rows).contains(&(py - gy))
+                );
+                let at = py as usize * surface.pitch as usize + px as usize * bpp as usize;
+                let colour = if kind == Kind::Normal && bits != 8 {
+                    palette(value as u8)
+                } else {
+                    value
+                };
+                reference[at..at + bpp as usize]
+                    .copy_from_slice(&colour.to_le_bytes()[..bpp as usize]);
+            }
+            assert_eq!(
+                canvas, reference,
+                "{kind:?} {header:?} at {x},{y} clip {clip:?} bits {bits}"
+            );
+        }
+        // The cases the loop is for were reached.
+        assert!(clipped_rows > 1_000 && clipped_columns > 1_000 && hidden > 1_000);
     }
 }

@@ -1,78 +1,87 @@
-//! `physics::pace_notes_step` (0x4417EC): the work car's pace notes, each physics step.
-//! Only with `unk_71A080`, `unk_71A07C`, `unk_71A078`, `g_holdCarRevs`, `dword_71C3E0`,
-//! `unk_719FF4`, `unk_71A22C` all 0, `unk_71A234` 1 and `unk_719FEC` 1000 or more
-//! (unsigned). Then the checkpoints ahead: `g_carSpeed` x `flt_614C78` / `flt_5C5D50`
-//! (`fistp`) into `dword_62400C`; ebx the car's checkpoint (`unk_71A06C`) plus that when
-//! not negative, 0 when at or past the count (by the sign); past the last called
-//! (`unk_71A074`, unsigned): more than 16 past moves it up to ebx first, then every
-//! checkpoint after it up to ebx (at least one) has its group called
-//! (`physics::queue_pace_note`, edx the checkpoint), and
-//! `unk_71A074` = ebx. Then (unless it left at the start) `physics::expire_car_events`.
+//! The work car's pace notes, each physics step. Only with `finish_flag`, `go_stand_timer`,
+//! `started_stand_timer`, `hold_car_revs`, `in_credits`, `false_start_count` and the car's
+//! `all_wheels_off` all 0, `driver_kind` 1 and `run_ticks` 1000 or more (unsigned). Then the
+//! checkpoints ahead: the car speed x `pace_scale` / eight, rounded; the target is the car's
+//! checkpoint (`reset_checkpoint`) plus that when not negative, 0 when at or past the count. Past
+//! the last called (`last_pace_call`, unsigned): more than 16 past moves it up to the target first,
+//! then every checkpoint after it up to the target (at least one) has its group called
+//! (`physics::queue_pace_note`), and `last_pace_call` becomes the target. Then (unless it left at
+//! the start) `physics::expire_car_events`.
 //!
-//! Caller: `physics::car_physics_step`, which calls the Rust version directly. Its calls by
-//! `physics/queue_pace_note.rs`' places (5 the group, 6 the expiry). Refuses what its calls
-//! refuse.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
+//! Caller: `physics::car_physics_step`. Refuses what its calls refuse.
 
 use crate::errors::Refused;
-use crate::race::owner::Race;
+use crate::physics::car_store::Car;
+use crate::physics::step_families::CheckpointInputs;
+use crate::race::replay_file_store::ReplayFileBlock;
+use crate::race::work_store::RaceWork;
 use rc2k_core::physics::pace_calls::{call_target, calling, calls};
 
 /// The gates' variables (each must be 0; the last is "1000 or more").
-fn gates(race: &Race) -> [u32; 7] {
+fn gates(work: &RaceWork, replay_file: &ReplayFileBlock, car: &Car) -> [u32; 7] {
     [
-        race.shared.car.finish_flag.get(),
-        race.shared.car.go_stand_timer.get(),
-        race.shared.car.started_stand_timer.get(),
-        race.shared.replay_file.hold_car_revs.get(),
-        race.shared.work.in_credits.get(),
-        crate::race::owner::RACE.shared.car.false_start_count.get(),
-        crate::race::owner::RACE.shared.car.all_wheels_off.get(),
+        car.finish_flag.get(),
+        car.go_stand_timer.get(),
+        car.started_stand_timer.get(),
+        replay_file.hold_car_revs.get(),
+        u32::from(work.in_credits.is_set()),
+        car.false_start_count.get(),
+        car.all_wheels_off.get(),
     ]
 }
 const ONE_F32: u32 = 0x3F80_0000;
 
-/// The Rust version. The registers the original leaves are read by none of its callers.
-// Converted: `rc2k_core::physics::pace_calls::{calling, call_target, calls}`.
+// Core: `rc2k_core::physics::pace_calls::{calling, call_target, calls}`.
 pub fn pace_notes_step(
-    race: &Race,
+    c: &CheckpointInputs<'_>,
     scene: &crate::scene::owner::Scene,
     sound: &crate::sound::owner::Sound,
+    audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
+    let (physics, numbers, frame_work) = (c.physics, c.numbers, &c.frame_work);
+    let (work, vars, replay_file) = (c.work, c.vars, c.shared.replay_file());
+    let (physics_tables, car) = (c.tables, c.car);
     if !calling(
-        gates(race),
-        race.shared.car.driver_kind.get(),
-        race.shared.car.run_ticks.get(),
+        gates(work, replay_file, car),
+        car.driver_kind.get(),
+        car.run_ticks.get(),
     ) {
         return Ok(());
     }
-    // `fld; fmul; fdiv; fistp` (the extra division by 1.0 is exact).
+    // Multiply, divide, round (the extra division by 1.0 is exact).
     let ahead = crate::math::x87::mul_div_div_to_int(
-        race.shared.car.local_velocity[2].bits(),
-        race.shared.physics_tables.pace_scale.bits(),
-        race.course.numbers.eight.bits(),
+        &car.local_velocity[2],
+        &physics_tables.pace_scale,
+        &numbers.eight,
         ONE_F32,
     );
-    scene.drawing.scene.scratch.set(ahead as u32);
+    scene.drawing.scene.get().scratch.set(ahead as u32);
     let target = call_target(
-        race.shared.car.reset_checkpoint.get(),
+        car.reset_checkpoint.get(),
         ahead,
-        race.shared.vars.checkpoint_count.get(),
+        vars.checkpoint_count.get(),
     );
-    if let Some((last, _)) = calls(target, race.shared.car.last_pace_call.get()) {
-        race.shared.car.last_pace_call.set(last);
+    if let Some((last, _)) = calls(target, car.last_pace_call.get()) {
+        car.last_pace_call.set(last);
         let mut checkpoint = last;
         loop {
             checkpoint = checkpoint.wrapping_add(1);
-            crate::physics::queue_pace_note::queue_pace_note(race, checkpoint, sound)?;
+            crate::physics::queue_pace_note::queue_pace_note(
+                physics,
+                frame_work,
+                work,
+                physics_tables,
+                car,
+                checkpoint,
+                sound,
+                audio,
+            )?;
             if checkpoint >= target {
                 break;
             }
         }
-        race.shared.car.last_pace_call.set(target);
+        car.last_pace_call.set(target);
     }
-    crate::physics::expire_car_events::expire_car_events(race)?;
+    crate::physics::expire_car_events::expire_car_events(car, physics_tables)?;
     Ok(())
 }

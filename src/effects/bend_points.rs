@@ -1,23 +1,19 @@
-//! `effects::bend_points` (0x4BA646): unless `dword_7695CA` is `g_marksSplineChosen`, the
-//! first record ebp +0xC ordered points (`g_marksOrderedCoords`) bent: A the record's point
-//! +0x30 (into `dword_76A1D2` ..), C (+0x44 made 0x2EE0, or -16000 unless `dword_7695CA` is
-//! 1; +0x48, +0x4C) into `dword_76A1EA` .., B (C's x, A's y, C's z) into `dword_76A1DE` ..;
-//! D their blend by `g_marksSplinesMade`'s weights (`effects::blend_points`), rounded
-//! (`fistp`, z first) into `dword_76A1F6` ..; each point less A plus D.
+//! `effects::bend_points`: unless the grade flag is the chosen spline, the first record's
+//! +0xC ordered points bent: A the record's point +0x30 (into `SplineWork.bend[0]` ..), C
+//! (+0x44 made 0x2EE0, or -16000 unless `SplineHead.switch` is 1; +0x48, +0x4C) into
+//! `SplineWork.bend[6]` .., B (C's x, A's y, C's z) into `SplineWork.bend[3]` ..; D their
+//! blend by the splines' weights (`effects::blend_points`), rounded (z first) into
+//! `SplineWork.bend[9]` ..; each point less A plus D.
 //!
-//! Takes: `s` a spline record
-//!
-//! Caller: `effects::place_graded_points`. Refuses (before anything) a point number of 0x80 or more
-//! and a count above 0x80.
+//! Refuses (before anything) a point number of 0x80 or more and a count above 0x80.
 
 use crate::effects::blend_points::blend_points;
 use crate::effects::paths::Paths;
 use crate::effects::splines::{MOST_POINTS, Spline};
 use crate::errors::{BadInput, Refused};
-use crate::math::x87_run::ext_to_int;
-use crate::session::write_first;
+use crate::math::x87::ext_to_int;
+use crate::memory::session::write_first;
 
-/// The Rust version (see the header).
 pub fn bend_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
     {
         let switch: u32 = paths.spline_head.switch.get();

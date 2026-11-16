@@ -1,21 +1,18 @@
-//! `physics::update_car_angles` (0x43BEDC): `physics::car_angles` when `dword_71A6C8` is
-//! set or `dword_71A22C` is 0; else nothing.
+//! `physics::car_angles` when `camera_mode_is_2_or_3` is set or `all_wheels_off` is 0; otherwise
+//! nothing.
 //!
-//! Callers: `physics::car_physics_step` (0x43B83B, 0x43B8B4, after `race::invert_car_matrix`).
+//! Caller: `physics::car_physics_step`, twice, after `race::invert_car_matrix`.
 
 use crate::physics::car_angles::car_angles;
+use crate::physics::car_store::Car;
+use crate::race::owner_course::Course;
 
-use crate::race::owner::Race;
 use rc2k_core::physics::motion::angles_wanted as wanted;
 
-/// The Rust version.
-// Converted: `rc2k_core::physics::motion::angles_wanted`.
-pub fn update_car_angles(race: &Race, scene: &crate::scene::owner::Scene) {
-    let (force, hold) = (
-        race.shared.car.camera_mode_is_2_or_3.get(),
-        race.shared.car.all_wheels_off.get(),
-    );
+// Core: `rc2k_core::physics::motion::angles_wanted`.
+pub fn update_car_angles(course: &Course, car: &Car, scene: &crate::scene::owner::Scene) {
+    let (force, hold) = (car.camera_mode_is_2_or_3.get(), car.all_wheels_off.get());
     if wanted(force, hold) {
-        car_angles(race, scene);
+        car_angles(course, car, scene);
     }
 }

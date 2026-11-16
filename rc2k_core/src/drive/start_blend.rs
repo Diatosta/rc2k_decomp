@@ -1,27 +1,27 @@
-//! The share used at a start (converted 2026-10-21 from `drive::start_blend` 0x43773D):
-//! the checkpoints the work car is past the lead's start, held to 0 ..= 100, times a step,
-//! added to a base and an offset, held to 0 ..= 1. What it blends is a reading.
+//! The share used at a start: the checkpoints the work car is past the lead's start, held to 0 ..=
+//! 100, times a step, added to a base and an offset, held to 0 ..= 1. It is the computer driver's
+//! skill share: 0 holds its wanted speed down to 30, 1 lets it drive the full table speed
+//! (`drive_computer_car`).
 //!
-//! Floats: what the x87 keeps on its stack is an `f64`, rounded to `f32` where the
-//! original stores: the same bits at the game's double precision.
+//! Floats: sums are `f64` and rounded to `f32` where stored, the same bits as the game's x87 at
+//! double precision.
 
 use crate::physics::x87::{below, loaded};
 
 /// What `start_blend` makes.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct StartBlend {
-    /// The held count (kept in `dword_62400C`; the original's eax).
+    /// The held count.
     pub count: u32,
-    /// `flt_71A654`: the count times the step.
+    /// The count times the step.
     pub share: f32,
-    /// `flt_71A658`: base + share + offset, held to `low` ..= `high`.
+    /// Base + share + offset, held to `low` ..= `high`.
     pub blend: f32,
 }
 
-/// `drive::start_blend`: `car` (`dword_71A070`) less `lead` (`dword_70F484`) held to
-/// 0 ..= 100 by the signs; the share times `step` (`flt_604EC0`); the blend of `base`
-/// (`flt_71A650`), the share and `offset` (`flt_71A64C`) held to `low` .. `high`
-/// (`flt_5C5D90`, `flt_5C5D38`: 0, 1; below or no number raised, not below lowered).
+/// `car` less `lead` held to 0 ..= 100 (signed); the share is that times `step`; the blend of
+/// `base`, the share and `offset` is held to `low` ..= `high` (`Numbers.zero`, `Numbers.one`: 0,
+/// 1). A blend below `low` or not a number is raised to it; one not below `high` is lowered.
 pub fn start_blend(
     car: u32,
     lead: u32,

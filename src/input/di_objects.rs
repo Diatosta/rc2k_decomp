@@ -27,7 +27,6 @@ use std::sync::Mutex;
 
 // ---- what a backend gives and takes ----
 
-/// A device a backend has.
 #[derive(Clone, Debug, Default)]
 pub struct DeviceInfo {
     pub name: String,
@@ -74,7 +73,7 @@ pub struct Effect {
 }
 
 /// The standard effects (`GUID_ConstantForce` .. `GUID_Friction`: their GUIDs differ in the
-/// first dword, 0x13541C20 ..).
+/// first dword).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum Kind {
     #[default]
@@ -147,7 +146,6 @@ pub trait Backend: Send {
 
 static BACKEND: Mutex<Option<Box<dyn Backend>>> = Mutex::new(None);
 
-/// The backend from now on.
 pub fn set_backend(backend: Box<dyn Backend>) {
     *BACKEND
         .lock()
@@ -161,7 +159,6 @@ fn backend<R>(f: impl FnOnce(&mut dyn Backend) -> R) -> Option<R> {
     b.as_mut().map(|b| f(b.as_mut()))
 }
 
-/// A GUID's 16 bytes from its parts.
 pub fn guid(d1: u32, d2: u16, d3: u16, d4: [u8; 8]) -> [u8; 16] {
     let mut g = [0u8; 16];
     g[0..4].copy_from_slice(&d1.to_le_bytes());
@@ -207,12 +204,9 @@ const DIERR_NOTACQUIRED: i32 = 0x8007_000Cu32 as i32;
 const DIERR_UNSUPPORTED: i32 = 0x8000_4001u32 as i32;
 const E_NOINTERFACE: i32 = 0x8000_4002u32 as i32;
 
-// ---- the objects ----
-
 /// The most objects at once. An object's handle (what the game holds) is its place in the
 /// pool and 1, the lowest free place taken, so that two runs that make the same objects get
-/// the same handles (phase 11, 2026-10-26: before, a place in a pool of objects whose first
-/// dword was its method table's address).
+/// the same handles (a handle is not an address).
 const POOL: usize = 64;
 
 /// An axis's range, dead zone and saturation (DirectInput's defaults: 0 .. 65535, 0, 10000).
@@ -283,7 +277,7 @@ fn id_of(this: u32) -> u32 {
 /// A made object's handle put where the game's method call would have put it: `Ok` its
 /// handle into `cell`; a failure but `DIERR_INVALIDPARAM` (which touched nothing) leaves
 /// 0 there, as DirectInput's methods do. The `HRESULT`.
-pub fn store(cell: &crate::session::Dword, made: Result<u32, i32>) -> i32 {
+pub fn store(cell: &crate::memory::session::Dword, made: Result<u32, i32>) -> i32 {
     match made {
         Ok(handle) => {
             cell.set(handle);
@@ -312,7 +306,6 @@ pub fn create_input() -> u32 {
     with(|s| make(s, Kind2::Input))
 }
 
-/// The object at `this` still lives.
 fn alive(s: &State, this: u32) -> bool {
     s.entries.contains_key(&id_of(this))
 }
@@ -363,10 +356,6 @@ pub fn release(this: u32) -> u32 {
     }
 }
 
-// IDirectInputA: 0 QueryInterface, 1 AddRef, 2 Release, 3 CreateDevice, 4 EnumDevices,
-// 5 GetDeviceStatus, 6 RunControlPanel, 7 Initialize
-
-/// The `DIDEVICEINSTANCEA` of a device.
 pub fn device_instance(d: &DeviceInfo) -> DiDeviceInstance {
     let mut name = [0u8; 260];
     let bytes = d.name.as_bytes();
@@ -376,7 +365,7 @@ pub fn device_instance(d: &DeviceInfo) -> DiDeviceInstance {
         size: size_of::<DiDeviceInstance>() as u32,
         instance: d.instance,
         product: d.product,
-        // DIDEVTYPE_JOYSTICK, a generic one (subtype 1)
+        // DIDEVTYPE_JOYSTICK, a generic one (subtype 1).
         dev_type: 0x104,
         instance_name: name,
         product_name: name,
@@ -415,7 +404,7 @@ pub fn enum_devices(
     mut callback: impl FnMut(&DiDeviceInstance) -> u32,
     _flags: u32,
 ) -> i32 {
-    // joysticks only (DIDEVTYPE_JOYSTICK, or all)
+    // Joysticks only (DIDEVTYPE_JOYSTICK, or all).
     if !(kind == 0 || kind & 0xFF == 4) {
         return DI_OK;
     }
@@ -428,13 +417,6 @@ pub fn enum_devices(
     }
     DI_OK
 }
-
-// IDirectInputDevice2A: 0 QueryInterface, 1 AddRef, 2 Release, 3 GetCapabilities,
-// 4 EnumObjects, 5 GetProperty, 6 SetProperty, 7 Acquire, 8 Unacquire, 9 GetDeviceState,
-// 10 GetDeviceData, 11 SetDataFormat, 12 SetEventNotification, 13 SetCooperativeLevel,
-// 14 GetObjectInfo, 15 GetDeviceInfo, 16 RunControlPanel, 17 Initialize, 18 CreateEffect,
-// 19 EnumEffects, 20 GetEffectInfo, 21 GetForceFeedbackState, 22 SendForceFeedbackCommand,
-// 23 EnumCreatedEffectObjects, 24 Escape, 25 Poll, 26 SendDeviceData
 
 /// The device's number and its backend's information, for the object at `this`.
 fn device_of(this: u32) -> Option<(usize, DeviceInfo)> {
@@ -483,9 +465,9 @@ pub fn enum_objects(
         let object = DiDeviceObjectInstance {
             size: size_of::<DiDeviceObjectInstance>() as u32,
             guid_type: axis_guid(n),
-            // the axis's place in DIJOYSTATE
+            // The axis's place in DIJOYSTATE.
             offset: 4 * n as u32,
-            // an absolute axis, its number
+            // An absolute axis, its number.
             kind: 2 | (n as u32) << 8,
             flags: 0,
             name: [0; 260],
@@ -651,7 +633,7 @@ pub fn get_device_state(this: u32, size: u32) -> Result<DiJoyState, i32> {
     })
 }
 
-/// `SetDataFormat`: the game asks for `c_dfDIJoystick` (0x4D7220), the state
+/// `SetDataFormat`: the game asks for `c_dfDIJoystick`, the state
 /// `get_device_state` gives, so the format is not passed.
 pub fn set_data_format(_this: u32) -> i32 {
     DI_OK
@@ -679,7 +661,7 @@ pub fn enum_effects(this: u32, mut callback: impl FnMut(&DiEffectInfo) -> u32, k
         return DI_OK;
     }
     for k in KINDS {
-        // DIEFT_ALL (0) or the kind asked
+        // DIEFT_ALL (0) or the kind asked.
         if kind & 0xFF != 0 && kind & 0xFF != k.family() {
             continue;
         }
@@ -690,7 +672,7 @@ pub fn enum_effects(this: u32, mut callback: impl FnMut(&DiEffectInfo) -> u32, k
             size: size_of::<DiEffectInfo>() as u32,
             guid: k.guid(),
             eff_type: k.family(),
-            // every parameter but the trigger's
+            // Every parameter but the trigger's.
             static_params: 0x1E7,
             dynamic_params: 0x1E5,
             name,
@@ -715,10 +697,9 @@ pub struct EffectParameters {
     pub type_specific: Option<Vec<i32>>,
 }
 
-/// The parts of a `DIEFFECT` that `flags` name, into `e`.
+/// The parts of a `DIEFFECT` that `flags` name, into `e`: DIEP_DURATION 1, DIEP_GAIN 4,
+/// DIEP_DIRECTION 0x40, DIEP_ENVELOPE 0x80, DIEP_TYPESPECIFICPARAMS 0x100.
 fn take_parameters(e: &mut Effect, p: &EffectParameters, flags: u32) {
-    // DIEP_DURATION 1, DIEP_GAIN 4, DIEP_DIRECTION 0x40, DIEP_ENVELOPE 0x80,
-    // DIEP_TYPESPECIFICPARAMS 0x100
     if flags & 1 != 0 {
         e.duration = p.duration;
     }
@@ -783,10 +764,6 @@ pub fn create_effect(
     backend(|b| b.effect(device, id, &e, false, false));
     Ok(at)
 }
-
-// IDirectInputEffect: 0 QueryInterface, 1 AddRef, 2 Release, 3 Initialize, 4 GetEffectGuid,
-// 5 GetParameters, 6 SetParameters, 7 Start, 8 Stop, 9 GetEffectStatus, 10 Download,
-// 11 Unload, 12 Escape
 
 /// The effect at `this` changed by `f` (true: it is started, or started again, now), then
 /// handed to the backend.

@@ -1,14 +1,8 @@
-//! The service area's repair choices (converted 2026-10-21 from `service::clear_repair_flags`
-//! 0x470DC3, `clear_repair_marks` 0x46BA15, `choose_repair` 0x46C138,
-//! `choose_repair_marked` 0x46C111, `try_toggle_repair` 0x46BFB9, `update_repair_total`
-//! 0x46BA2C, `toggle_repair_choice` 0x46B7C0, the four `toggle_*_change`, the twelve
-//! `step_*`, the four `begin_*_edit`, `choose_repair` 0x46C138, `choose_repair_marked`
-//! 0x46C111 and the four change pages' confirmation in `service::pages`).
+//! The service area's repair choices.
 //!
-//! Menu items 0 .. 19 each have a flag (`dword_759B6E`, 1 chosen) and a mark
-//! (`dword_759BC2`); both tables end with -1 at entry 20. An item's repair time is read
-//! through a table of pointers (items 0, 1, 0x10 and 0x11 have none). The time budget less
-//! the chosen items' time decides what fits: at least 900 is free service time.
+//! Menu items 0 .. 19 each have a flag (`Service::repair_flags[0]`, 1 chosen) and a
+//! mark; both tables end with -1 at entry 20. Items 0, 1, 0x10 and 0x11 have no repair time.
+//! The time budget less the chosen items' time decides what fits: at least 900 is free.
 
 use crate::Invalid;
 
@@ -19,22 +13,21 @@ pub const FREE_TIME: i32 = 900;
 /// A flag table with its end mark.
 pub type Table = [u32; ITEMS + 1];
 
-/// The end mark's place (looked for from entry 1, as the original's loops do).
+/// The end mark's place (looked for from entry 1).
 pub fn end_of(table: &Table) -> Option<usize> {
     (1..=ITEMS).find(|&n| table[n] == u32::MAX)
 }
 
-/// Every entry before the end mark 0 (entry 0 without looking at it). Refused (before
-/// anything): no end mark.
+/// Sets every entry before the end mark to 0 (entry 0 without looking at it). Refused (nothing
+/// changed): no end mark.
 pub fn clear(table: &mut Table) -> Result<(), Invalid> {
     let end = end_of(table).ok_or(Invalid("a flag table that has lost its end mark"))?;
     table[..end].fill(0);
     Ok(())
 }
 
-/// The time of every chosen item, as the original adds it up: entry 0 looked at without
-/// checking it for the end mark, each time through its pointer (`time`). Refused: a chosen
-/// item without a time (the original reads through null), no end mark.
+/// The summed `time` of every chosen item (entry 0 is not checked for the end mark).
+/// Refused: a chosen item without a time, no end mark.
 pub fn chosen_time(flags: &Table, time: impl Fn(usize) -> Option<i32>) -> Result<i32, Invalid> {
     let mut sum = 0i32;
     let mut item = 0;
@@ -55,7 +48,7 @@ pub fn chosen_time(flags: &Table, time: impl Fn(usize) -> Option<i32>) -> Result
     }
 }
 
-/// What trying an item says (`dword_75AAA4`).
+/// What toggling an item answers: it fits (3), overruns the budget (1) or has no time left (2).
 pub const FITS: u32 = 3;
 pub const OVERRUNS: u32 = 1;
 pub const NO_TIME: u32 = 2;

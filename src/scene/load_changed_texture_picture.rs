@@ -1,27 +1,24 @@
-//! `scene::load_changed_texture_picture` (0x42574B): a system texture gets the picture
-//! it should have, if it has another.
+//! `scene::load_changed_texture_picture`: a system texture gets the picture it should have, if
+//! it has another.
 //!
-//! Takes: the texture
+//! Nothing if the texture wants no picture (`TexturePlaces.wanted_pictures[texture]` is -1 or
+//! 0) or has the one it wants (`TexturePlaces.loaded_pictures[texture]`). Else
+//! `scene::load_texture_picture` and the picture is noted as the one it has. One caller,
+//! `scene::reload_system_textures`. Refuses a texture past the tables.
 //!
-//! Nothing if the texture wants no picture (`dword_5D8968[texture]` is -1 or 0) or has the one
-//! it wants (`dword_5D9968[texture]`). Else `scene::load_texture_picture` and the picture is
-//! noted as the one it has. One caller, `scene::reload_system_textures`. Refuses a texture past
-//! the tables.
-//!
-//! Converted 2026-10-21: the rule through `rc2k_core::scene::pictures::changed_picture`.
+//! The rule is in the core crate: `rc2k_core::scene::pictures::changed_picture`.
 
 use crate::errors::{BadInput, Refused};
-use crate::scene::load_texture_picture::load_texture_picture_in_game;
+use crate::gfx::load_picture_to_texture::upload_picture;
+use crate::scene::load_texture_picture::load_texture_picture;
 
 // ---- game data ----
 
 pub const TEXTURES: u32 = 0x400;
 
-// ---- Rust version ----
-
 /// `load`: what stands for `scene::load_texture_picture`, given the picture and the
 /// texture.
-// Converted: `rc2k_core::scene::pictures::changed_picture`
+// Logic: `rc2k_core::scene::pictures::changed_picture`
 pub fn load_changed_texture_picture(
     texture: u32,
     load: &mut dyn FnMut(u32, u32) -> Result<(), Refused>,
@@ -33,24 +30,29 @@ pub fn load_changed_texture_picture(
     }
     let at = texture as usize;
     let Some(wanted) = rc2k_core::scene::pictures::changed_picture(
-        textures.places.wanted_pictures[at].get(),
-        || textures.places.loaded_pictures[at].get(),
+        textures.places.get().wanted_pictures[at].get(),
+        || textures.places.get().loaded_pictures[at].get(),
     ) else {
         return Ok(());
     };
     load(wanted, texture)?;
-    textures.places.loaded_pictures[at].set(wanted);
+    textures.places.get().loaded_pictures[at].set(wanted);
     Ok(())
 }
 
 pub fn load_changed_texture_picture_in_game(
     race: &'static crate::race::owner::Race,
+    gfx: &crate::gfx::owner::Gfx,
     texture: u32,
     scene: &crate::scene::owner::Scene,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     load_changed_texture_picture(
         texture,
-        &mut |picture, texture| load_texture_picture_in_game(race, picture, texture, scene),
+        &mut |picture, texture| {
+            let loaded = load_texture_picture(race, gfx, picture, texture, scene, system)?;
+            upload_picture(&loaded, gfx)
+        },
         scene,
     )
 }

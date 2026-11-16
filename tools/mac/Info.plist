@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The macOS bundle's property list (`deploy_standalone.sh mac`): `Rally Championship.app`,
+     its program `Contents/MacOS/rc2k`, which runs in the folder that holds the bundle (the
+     game's folder: `os::enter_bundle_folder`). -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>Rally Championship</string>
+    <key>CFBundleDisplayName</key>
+    <string>Rally Championship</string>
+    <key>CFBundleExecutable</key>
+    <string>rc2k</string>
+    <key>CFBundleIdentifier</key>
+    <string>io.github.diatosta.rc2k</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>0.1.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>11.0</string>
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.racing-games</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+</dict>
+</plist>

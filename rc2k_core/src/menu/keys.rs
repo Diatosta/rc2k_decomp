@@ -1,7 +1,6 @@
-//! What a key means on a menu (converted 2026-10-21 from `menu::handle_keys` 0x465FCC).
-//! The keys are the game's scan codes as `input::take_key` gives them.
+//! What a key means on a menu. The keys are the game's scan codes as `input::take_key` gives them.
 
-/// What a key means to the screen loop (`handle_keys`' eax 1, 2, 3).
+/// What a key means to the screen loop (`handle_keys`' answers 1, 2, 3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Pressed {
     /// Nothing for the caller to do.
@@ -10,9 +9,35 @@ pub enum Pressed {
     Enter = 3,
 }
 
-/// `dword_7556A4` on any key looked at, and after Enter.
-pub const NO_SOUND: u32 = 0x6F;
-pub const ENTER_SOUND: u32 = 0x14D;
+/// What the last key looked at was, as the menus' sound variable keeps it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MenuSound {
+    /// Any key looked at that was not Enter.
+    None,
+    /// Enter was pressed: the highlighted item's action runs.
+    Enter,
+}
+
+impl MenuSound {
+    const NONE_CODE: u32 = 0x6F;
+    const ENTER_CODE: u32 = 0x14D;
+
+    /// The value the menus' sound variable holds.
+    pub const fn code(self) -> u32 {
+        match self {
+            MenuSound::None => Self::NONE_CODE,
+            MenuSound::Enter => Self::ENTER_CODE,
+        }
+    }
+
+    pub const fn from_code(code: u32) -> MenuSound {
+        if code == Self::ENTER_CODE {
+            MenuSound::Enter
+        } else {
+            MenuSound::None
+        }
+    }
+}
 
 /// The menu's sound Enter plays.
 pub const ENTER_CLICK: u32 = 2;
@@ -22,8 +47,8 @@ pub const ESCAPE: u8 = 1;
 pub const ENTER: u8 = 0x1C;
 pub const IGNORED: u8 = 0x38;
 
-/// The cheat bit that lets key 0x14 add time (bit 14 of `g_cheats`), and the time it adds
-/// to the service's budget (`dword_75593C`).
+/// The cheats' bit (bit 14) that lets key 0x14 add time, and the time it adds to the service's
+/// budget.
 pub const ADD_TIME_BIT: u32 = 14;
 pub const ADDED_TIME: u32 = 60;
 
@@ -43,15 +68,17 @@ pub enum Action {
     NoKey,
     /// Key 0x38: nothing (after the yes / no handling).
     Ignored,
-    /// Escape: `dword_755561`, `dword_755A3C` and `dword_758806` 1; eax 2.
+    /// Escape: `LoopFlags.leave_screen`, `DrawWork.escape_pressed` and `CaptionTables.left_by_key`
+    /// 1; answer 2.
     Escape,
-    /// Enter: the sound 0x14D, the key's time, `g_enterSkipsNameEntry` by ah, the click; eax 3.
+    /// Enter: the sound 0x14D, the key's time, the skip-name-entry flag from the key code's
+    /// second byte, the click; answer 3.
     Enter,
     /// The key's time, then one of the four highlight moves.
     Move(Move),
     /// The key's time, then a screenshot (key 0x52).
     Screenshot,
-    /// The key's time, then `dword_755575` turned over (key 0x20).
+    /// The key's time, then `LoopFlags.toggle` turned over (key 0x20).
     Toggle,
     /// The key's time, then 60 added to the service's budget (key 0x14 with the cheat).
     AddTime,
@@ -59,10 +86,10 @@ pub enum Action {
     Other,
 }
 
-/// The keys are not looked at while an item is edited (`dword_75AA9C` 1) or with
-/// `dword_7551F4` 1 (`keys_off` asked only when not editing).
-pub fn keys_off(editing: u32, keys_off: impl FnOnce() -> u32) -> bool {
-    editing == 1 || keys_off() == 1
+/// The keys are not looked at while an item is edited (`MenuState.service_ui.box_shown` 1) or with
+/// `ControlsScreen.learning` 1 (`keys_off` asked only when not editing).
+pub fn keys_off(editing: bool, keys_off: impl FnOnce() -> u32) -> bool {
+    editing || keys_off() == 1
 }
 
 /// The action of `key` (`cheats` asked only for key 0x14).
@@ -83,9 +110,9 @@ pub fn action(key: u8, cheats: impl FnOnce() -> u32) -> Action {
     }
 }
 
-/// Enter's `g_enterSkipsNameEntry`: 1 when ah (what the caller had there) is 4.
-pub fn enter_skips_name_entry(eax: u32) -> u32 {
-    (eax >> 8 & 0xFF == 4) as u32
+/// Enter's skip-name-entry flag: 1 when the key code's second byte is 4.
+pub fn enter_skips_name_entry(key_code: u32) -> u32 {
+    (key_code >> 8 & 0xFF == 4) as u32
 }
 
 #[cfg(test)]
@@ -94,9 +121,9 @@ mod tests {
 
     #[test]
     fn actions() {
-        assert!(keys_off(1, || unreachable!()));
-        assert!(keys_off(0, || 1));
-        assert!(!keys_off(2, || 0));
+        assert!(keys_off(true, || unreachable!()));
+        assert!(keys_off(false, || 1));
+        assert!(!keys_off(false, || 0));
         assert_eq!(action(0, || unreachable!()), Action::NoKey);
         assert_eq!(action(0x38, || unreachable!()), Action::Ignored);
         assert_eq!(action(1, || unreachable!()), Action::Escape);

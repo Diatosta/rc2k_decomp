@@ -1,8 +1,5 @@
-//! Tables of 8-byte entries (converted 2026-10-21 from `system::find_entry` 0x40179A,
-//! `find_entry_by_value` 0x4017D3, `find_entry_with_any_bit` 0x4017C2,
-//! `find_entry_with_bits` 0x4017AB, `next_entry` 0x4017E5): the video modes', the screen
-//! modes', DirectDraw's and DirectInput's. The searches take the entries as they come, so
-//! that no more of a table is read than the original reads.
+//! Tables of 8-byte entries: the video modes', the screen modes', DirectDraw's and DirectInput's.
+//! The searches take the entries as they come, so no more of a table is read than needed.
 
 pub type Entry = [u32; 2];
 
@@ -36,7 +33,7 @@ pub fn left(table: u32, count: u32, found: Option<usize>) -> (u32, u32) {
 }
 
 /// One step on (the entry's address, the entries left with it): with none left nothing
-/// changes and the carry is set; else on by 8 and one less, the carry set when none are
+/// changes and the first value is true; else on by 8 and one less, true when none are
 /// left or the address wrapped.
 pub fn next(entry: u32, count: u32) -> (bool, u32, u32) {
     if count == 0 {

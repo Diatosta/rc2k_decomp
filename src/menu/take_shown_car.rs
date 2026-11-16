@@ -1,19 +1,13 @@
-//! `menu::take_shown_car` (0x47B29D): the car shown on the car choice given to the current
-//! player.
+//! `menu::take_shown_car`: the car shown on the car choice given to the current player.
 //!
-//! The current player (`dword_75598C`) gets the entry `dword_755990` of the list: its +0 as
-//! `car_number` (+8), its +8 as `class` (+0x90). Callers: seven more. Refuses a current player
-//! past the four (the original reads past `g_players`) and no list of cars.
+//! The current player (`event.current_player`) gets the entry `event.shown.car` of the list: its
+//! +0 as `car_number` (+8), its +8 as `class` (+0x90). Callers: seven more. Refuses a current
+//! player past the four (it would read past the players) and no list of cars.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::lists_store::CarList;
+use crate::menu::lists_store::{CarList, CarListParts};
 use crate::menu::owner::Menus;
-use crate::menu::player::{PLAYERS, Player, player};
-use crate::session::Dword;
-
-pub const CURRENT_PLAYER_RVA: &Dword = &crate::menu::owner::MENUS.screens.event.current_player; // dword_75598C
-const _: () = assert!(std::mem::offset_of!(Player, car_number) == 8);
-const _: () = assert!(std::mem::offset_of!(Player, class) == 0x90);
+use crate::menu::player::{PLAYERS, player};
 
 pub fn take_shown_car(menus: &Menus, list: Option<CarList>) -> Result<(), Refused> {
     let list = list.ok_or(BadInput("no list of cars"))?;
@@ -21,19 +15,15 @@ pub fn take_shown_car(menus: &Menus, list: Option<CarList>) -> Result<(), Refuse
     if current >= PLAYERS {
         return Err(BadInput("a current player past the four").into());
     }
-    let shown: u32 = menus.screens.event.shown_car.get();
-    // Converted: `rc2k_core::menu::player::Player::take_car`.
+    let shown: u32 = menus.screens.event.shown.car.get();
     {
         let entry = menus
-            .tables
             .lists
-            .cars(list)
-            .offset(shown.wrapping_mul(4))
-            .read::<u32>("take shown car: a game value")?;
+            .car_entry(CarListParts::of(menus), list, shown)?;
         // The entry is a description's handle (`cars_store::car_ref`).
-        let description = crate::menu::cars_store::description(entry)?.get();
+        let description = crate::menu::cars_store::description(&menus.cars.table, entry)?.get();
         let (number, class) = (description.car, description.class);
-        player(current)
+        player(menus, current)
             .ok_or(crate::errors::BadInput("a current player past the four"))?
             .update(|p| p.take_car(number, class));
     }

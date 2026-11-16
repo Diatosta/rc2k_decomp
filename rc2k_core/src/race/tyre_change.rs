@@ -1,10 +1,8 @@
-//! The roadside tyre change's gauge (converted 2026-10-21 from `race::tyre_change_gauge`
-//! 0x41C1D6): a gauge filling over half a second while a button is held, the press
-//! timing the change; the player's device keeps the gauge, the stage and the start's
-//! clock (then the time). The clock, the button, the drawing and the press's time (the
-//! game's float formula) come through `Io`, called in the original's order.
+//! The roadside tyre change's gauge: it fills over half a second while a button is held and the
+//! press times the change. The player's device keeps the gauge, stage and start clock (then the
+//! time). Clock, button, drawing and press time come through `Io`.
 
-/// The gauge's stage (the device's +0x4F0).
+/// The gauge's stage.
 pub mod stage {
     /// Waiting for the button to be let go.
     pub const LET_GO: u32 = u32::MAX;
@@ -16,30 +14,32 @@ pub mod stage {
     pub const DEVELOPER: u32 = 2;
 }
 
-/// The longest a change runs (ms) before it is done with an empty gauge.
+/// Longest a change runs (ms) before it ends with an empty gauge.
 pub const LONGEST: u32 = 60000;
 /// The time (ms) the gauge takes to fill.
 pub const FILL_MS: u32 = 500;
 /// Where a developer's press stops.
 pub const DEVELOPER_TOP: u32 = 0xF618;
 
-/// The gauge's state (the device's +0x4EC, +0x4F0, +0x4F4).
+/// The gauge's state.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Gauge {
+    /// The gauge's fill.
     pub gauge: u32,
+    /// One of the `stage` constants.
     pub stage: u32,
     /// The start's clock, then the time.
     pub clock: u32,
 }
 
-/// The gauge's dealings with the game, in the original's order.
+/// The gauge's dealings with the game, called in a fixed order.
 pub trait Io {
     type Error;
     /// The clock (ms).
     fn tick(&mut self) -> Result<u32, Self::Error>;
-    /// The button's state: whether it is pressed.
+    /// Whether the button is pressed.
     fn pressed(&mut self) -> Result<bool, Self::Error>;
-    /// The gauge drawn, as it now is.
+    /// Draws the gauge as it now is.
     fn draw(&mut self, gauge: &Gauge) -> Result<(), Self::Error>;
     /// The time of a press, from 0x10000 less the gauge.
     fn press_time(&mut self, s: u32) -> u32;
@@ -47,24 +47,22 @@ pub trait Io {
     fn developer(&mut self) -> bool;
     /// The record time (asked once a press is timed).
     fn record(&mut self) -> u32;
-    /// The running gauge worked out: the time since the start, x 0x10000, over
-    /// `FILL_MS`: the gauge (its low 16 bits) and the rest.
+    /// Notes the running gauge: time since the start x 0x10000 over `FILL_MS` gives the gauge (low
+    /// 16 bits) and the rest.
     fn ran(&mut self, _gauge: u32, _rest: u32) {}
-    /// The press timed: the time since the start and s.
+    /// The press timed: the time since the start and `s`.
     fn timed(&mut self, _elapsed: u32, _s: u32) {}
-    /// The gauge ran out: `elapsed`, the time it ran (the original keeps it in a register).
+    /// The gauge ran out after `elapsed` ms.
     fn timed_out(&mut self, _elapsed: u32) {}
-    /// The record beaten by `time` (unsigned): the new record, the player's name to
-    /// copy.
+    /// The record beaten by `time` (unsigned): the new record, the player's name to copy.
     fn beaten(&mut self, time: u32);
 }
 
-/// The gauge's next turn: `start` (eax 0) starts it (the clock, the gauge 0, waiting for
-/// the button to be let go, drawn), then as waiting; waiting, the button let go starts
-/// it running; running, a press ends it (on the developer's machine it runs on to
-/// `DEVELOPER_TOP`), else the gauge follows the clock (`LONGEST` or more: an empty gauge,
-/// done); done, the time from the press (the record beaten when below it, unsigned),
-/// drawn. Gives the result: the time once done, else 0.
+/// The gauge's next turn. `start` (mode 0) starts it (clock, gauge 0, waiting for the button
+/// to be let go, drawn). Waiting: letting go starts it running. Running: a press ends it (on a
+/// developer's machine it runs on to `DEVELOPER_TOP`), else the gauge follows the clock
+/// (`LONGEST` or more: empty gauge, done). Done: the time from the press (record beaten when
+/// below it, unsigned), drawn. Returns the time once done, else 0.
 pub fn turn<I: Io>(start: bool, g: &mut Gauge, io: &mut I) -> Result<u32, I::Error> {
     enum At {
         LetGo,

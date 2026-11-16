@@ -1,5 +1,4 @@
-//! PCX pictures (converted 2026-10-20 from `gfx::lay_out_pcx` 0x411A82, `read_pcx_8bit`
-//! 0x411C6B, `read_pcx_24bit` 0x411D57).
+//! PCX pictures.
 //!
 //! A header of 0x80 bytes (+4 .. +0xA left, top, right, bottom as words; +0x41 the planes,
 //! 1 or 3; +0x42 the bytes of one plane of one row), then the rows, run-length coded: a byte
@@ -12,23 +11,23 @@ pub const HEADER_LEN: usize = 0x80;
 /// A screen's width of pixels, for the stride setting 0xFFFFFFFF.
 const SCREEN_WIDTH: u32 = 800;
 
-/// What the game asks of a decoding.
+/// What a decoding asks of its caller.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Target {
-    /// The picture buffer's size (`g_pictureWidth`, `g_pictureHeight`).
+    /// The picture buffer's size.
     pub width: u32,
     pub height: u32,
     /// The widest and highest picture taken.
     pub width_limit: u32,
     pub height_limit: u32,
-    /// `g_pictureFlags`: bit 8 for 8-bit pixels.
+    /// The picture flags: bit 8 for 8-bit pixels.
     pub flags: u32,
-    /// `g_pictureRowBytes`: 0xFFFFFFFF a screen's width of pixels, 0xFFFFFFFE the buffer's
+    /// The picture's row bytes: 0xFFFFFFFF a screen's width of pixels, 0xFFFFFFFE the buffer's
     /// width, 0xFFFFFFFD the decoded row itself, else that many bytes.
     pub row_bytes: u32,
 }
 
-/// How a picture is decoded (the game's variables at 0x5195D4 .., 0x519124 ..).
+/// How a picture is decoded.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct Layout {
     pub planes: u32,
@@ -52,8 +51,8 @@ fn word(header: &[u8; HEADER_LEN], at: usize) -> u16 {
     u16::from_le_bytes([header[at], header[at + 1]])
 }
 
-/// How a PCX file is decoded, by its header's planes (+0x41; `gfx::read_pcx` 0x411A45,
-/// converted 2026-10-21): 1 a palette's, 3 three planes, else not at all.
+/// How a PCX file is decoded, by its header's planes (+0x41): 1 with a palette, 3 as three
+/// planes, else not at all.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kind {
     Palette,
@@ -68,7 +67,7 @@ pub fn kind(header: &[u8; HEADER_LEN]) -> Option<Kind> {
     }
 }
 
-/// The layout a header makes (`lay_out_pcx`).
+/// The layout a header makes for `target`.
 pub fn lay_out(header: &[u8; HEADER_LEN], target: &Target) -> Layout {
     let planes = header[0x41] as u32;
     let line_bytes = word(header, 0x42) as u32;
@@ -110,10 +109,10 @@ pub fn lay_out(header: &[u8; HEADER_LEN], target: &Target) -> Layout {
     }
 }
 
-/// The rows of a one-plane picture through `palette` (`read_pcx_8bit`). `next` reads the
-/// file's next byte as the game's stream does (`ByteRead::value`: 0 at the end of the
-/// file). `put` takes a pixel at a byte offset from the first row's start (wrapping). A run goes on across the end of a row; a count of 0 is a
-/// run of 2^32. `None` for a picture without rows (the original counts round).
+/// The rows of a one-plane picture through `palette`. `next` reads the file's
+/// next byte as the stream does (`ByteRead::value`: 0 at the end of the file). `put` takes a
+/// pixel at a byte offset from the first row's start (wrapping). A run goes on across the end of a
+/// row; a count of 0 is a run of 2^32. `None` for a picture without rows (its count would wrap).
 pub fn decode_8bit<E>(
     layout: &Layout,
     palette: &[u32; 256],
@@ -153,11 +152,11 @@ pub fn decode_8bit<E>(
     Ok(Some(()))
 }
 
-/// The rows of a picture of planes, 8 bits each (`read_pcx_24bit`): plane n's bytes go to
-/// byte `planes - 1 - n` of the pixels; then every pixel's fourth byte is 0. `put` takes a
-/// byte at an offset from the first row's start (wrapping). A run goes on across the ends
-/// of planes and rows, but the byte it repeats is 0 from the end of a row on. `None` for a
-/// picture without rows or columns (the original counts round).
+/// The rows of a picture of planes, 8 bits each: plane n's bytes go to byte `planes - 1 - n` of
+/// the pixels; then every pixel's fourth byte is 0. `put` takes a byte at an offset from the first
+/// row's start (wrapping). A run goes on across the ends of planes and rows, but the byte it
+/// repeats is 0 from the end of a row on. `None` for a picture without rows or columns (the
+/// counts would wrap).
 pub fn decode_planes<E>(
     layout: &Layout,
     mut next: impl FnMut() -> Result<u8, E>,
@@ -199,7 +198,7 @@ pub fn decode_planes<E>(
                 break;
             }
         }
-        // The slip: a run going on into the next row repeats 0.
+        // A slip kept: a run going on into the next row repeats 0.
         byte = 0;
         for pixel in (1..=layout.width).rev() {
             put(to.wrapping_add(pixel.wrapping_mul(4)).wrapping_sub(1), 0);
@@ -209,9 +208,8 @@ pub fn decode_planes<E>(
     Ok(Some(()))
 }
 
-/// The header of a screenshot (`gfx::write_screen_pcx` 0x411E0C): run coded, 8 bits, 300
-/// dpi both ways, right and bottom the size less one, the 16-colour palette greys 0 .. 15,
-/// three planes of `width` bytes.
+/// The header of a screenshot: run coded, 8 bits, 300 dpi both ways, right and bottom the size
+/// less one, the 16-colour palette greys 0 .. 15, three planes of `width` bytes.
 pub fn screen_header(width: u32, height: u32) -> [u8; HEADER_LEN] {
     let mut h = [0u8; HEADER_LEN];
     h[..4].copy_from_slice(&0x0801_050Au32.to_le_bytes());
@@ -226,23 +224,23 @@ pub fn screen_header(width: u32, height: u32) -> [u8; HEADER_LEN] {
     h
 }
 
-/// A screenshot's row as its three planes, red, green, blue (`width` bytes each). `eax` is
-/// the original's register, carried from pixel to pixel and row to row: `components(x,
-/// eax)` gives the pixel's components (a 16-bit pixel keeps eax's upper half, a pixel of
-/// another size is not read and eax stays).
+/// A screenshot's row as its three planes, red, green, blue (`width` bytes each). `carry` is
+/// a value carried from pixel to pixel and row to row: `components(x, carry)`
+/// gives the pixel's components (a 16-bit pixel keeps the carry's upper half, a pixel of
+/// another size is not read and the carry stays).
 pub fn screen_planes(
     width: u32,
-    eax: &mut u32,
+    carry: &mut u32,
     components: &mut dyn FnMut(u32, u32) -> u32,
 ) -> Vec<u8> {
     let w = width as usize;
     let mut planes = vec![0u8; 3 * w];
     for x in 0..w {
-        *eax = components(x as u32, *eax);
-        planes[x + 2 * w] = *eax as u8;
-        *eax >>= 8;
-        planes[w + x] = *eax as u8;
-        planes[x] = (*eax >> 8) as u8;
+        *carry = components(x as u32, *carry);
+        planes[x + 2 * w] = *carry as u8;
+        *carry >>= 8;
+        planes[w + x] = *carry as u8;
+        planes[x] = (*carry >> 8) as u8;
     }
     planes
 }
@@ -250,43 +248,44 @@ pub fn screen_planes(
 /// One line run coded as the screenshot writer does it: runs up to 63 (the counter is
 /// checked as it reaches 0x3F, so a run that long is written and the counting starts again
 /// from none), a lone byte below 0xC0 as itself. The runs go over the planes' ends. Then
-/// eax's low half as the coding leaves it (al the last byte, ah the line's last byte).
-pub fn encode_line(line: &[u8], eax: &mut u32) -> Vec<u8> {
+/// the carry's low half as the coding leaves it (low byte the last run's byte, next byte
+/// the line's last byte).
+pub fn encode_line(line: &[u8], carry: &mut u32) -> Vec<u8> {
     let mut coded = Vec::new();
     let Some(&first) = line.first() else {
         return coded;
     };
-    let put = |coded: &mut Vec<u8>, count: u32, al: u8| {
+    let put = |coded: &mut Vec<u8>, count: u32, run_byte: u8| {
         if count < 1 {
             return;
         }
-        if count > 1 || al >= 0xC0 {
+        if count > 1 || run_byte >= 0xC0 {
             coded.push((count + 0xC0) as u8);
         }
-        coded.push(al);
+        coded.push(run_byte);
     };
-    let (mut al, mut count) = (first, 1u32);
-    for &ah in &line[1..] {
-        if al == ah {
+    let (mut run_byte, mut count) = (first, 1u32);
+    for &byte in &line[1..] {
+        if run_byte == byte {
             count += 1;
             if count >= 0x3F {
                 coded.push((count + 0xC0) as u8);
-                coded.push(al);
+                coded.push(run_byte);
                 count = 0;
             }
         } else {
-            put(&mut coded, count, al);
-            al = ah;
+            put(&mut coded, count, run_byte);
+            run_byte = byte;
             count = 1;
         }
     }
-    put(&mut coded, count, al);
-    let ah = if line.len() > 1 {
+    put(&mut coded, count, run_byte);
+    let last = if line.len() > 1 {
         line[line.len() - 1]
     } else {
-        (*eax >> 8) as u8
+        (*carry >> 8) as u8
     };
-    *eax = *eax & 0xFFFF_0000 | (ah as u32) << 8 | al as u32;
+    *carry = *carry & 0xFFFF_0000 | (last as u32) << 8 | run_byte as u32;
     coded
 }
 
@@ -402,21 +401,21 @@ mod tests {
 
     #[test]
     fn encodes_screens() {
-        let mut eax = 0;
-        let planes = screen_planes(2, &mut eax, &mut |x, _| 0x0010_2030 + x);
+        let mut carry = 0;
+        let planes = screen_planes(2, &mut carry, &mut |x, _| 0x0010_2030 + x);
         assert_eq!(planes, [0x10, 0x10, 0x20, 0x20, 0x30, 0x31]);
-        let coded = encode_line(&planes, &mut eax);
+        let coded = encode_line(&planes, &mut carry);
         assert_eq!(coded, [0xC2, 0x10, 0xC2, 0x20, 0x30, 0x31]);
-        assert_eq!(eax & 0xFFFF, 0x3131);
+        assert_eq!(carry & 0xFFFF, 0x3131);
         // A run of 64: 63 written at once, then one more.
-        let coded = encode_line(&[7u8; 64], &mut eax);
+        let coded = encode_line(&[7u8; 64], &mut carry);
         assert_eq!(coded, [0xFF, 7, 7]);
         // The screenshot's own reader takes back what is written.
         let header = screen_header(2, 1);
         let layout = lay_out(&header, &TARGET);
         let mut at = 0;
         let mut out = vec![0u8; 8];
-        let file = encode_line(&planes, &mut eax);
+        let file = encode_line(&planes, &mut carry);
         decode_planes(
             &layout,
             || {

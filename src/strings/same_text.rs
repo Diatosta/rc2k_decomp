@@ -1,20 +1,16 @@
-//! `strings::same_text` (0x401EDE): compares two texts without regard to case.
-//!
-//! Takes the texts (NUL-terminated). Returns whether they are the same, and if not whether the
-//! first's differing character is the lower.
-//! Character by character, each through `g_lowerCase`. Five callers.
+//! Compares two NUL-terminated texts without regard to case. Returns whether they are the same, and
+//! if not whether the first's differing character is the lower. Character by character, each
+//! through the lower-case table.
 
 use crate::errors::BadInput;
 use rc2k_core::strings::bytes::Bytes;
 use rc2k_core::strings::case::CaseTable;
 use std::cmp::Ordering;
 
-// ---- Rust version ----
-
-/// The language's lower-case table: out of the image since 2026-10-24 (phase 5; it was
-/// `g_lowerCase`, 0x4F0BC8). Until `strings::load_language` sets it up it is the image's:
-/// every character itself, but A .. Z and 0xC0 .. 0xDE (not 0xD7) in lower case.
-pub static LOWER: crate::session::Bytes<256> = crate::session::Bytes::new(first_lower());
+/// The language's lower-case table. Until `strings::load_language` sets it up every character is
+/// itself, but A .. Z and 0xC0 .. 0xDE (not 0xD7) in lower case.
+pub static LOWER: crate::memory::session::Bytes<256> =
+    crate::memory::session::Bytes::new(first_lower());
 
 const fn first_lower() -> [u8; 256] {
     let mut table = [0u8; 256];
@@ -37,7 +33,7 @@ pub fn case_table() -> CaseTable {
     }
 }
 
-/// A character in lower case (`g_lowerCase[c]`).
+/// A character in lower case.
 pub fn lower(c: u8) -> u8 {
     LOWER.get(c as usize)
 }
@@ -49,8 +45,8 @@ pub fn set_case_table(table: &[u8; 256]) {
     }
 }
 
-/// How the first text's first differing character stands to the second's (converted:
-/// `rc2k_core::strings::case::CaseTable::compare`).
+/// How the first text's first differing character stands to the second's
+/// (`rc2k_core::strings::case::CaseTable::compare`).
 pub fn compare_texts(
     a: &(impl Bytes + ?Sized),
     b: &(impl Bytes + ?Sized),
@@ -78,15 +74,4 @@ pub fn compare_bytes(a: &[u8], b: &[u8]) -> Ordering {
 
 pub fn same_text(a: &(impl Bytes + ?Sized), b: &(impl Bytes + ?Sized)) -> Result<bool, BadInput> {
     Ok(compare_texts(a, b)? == Ordering::Equal)
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn first_table_is_the_games() {
-        assert_eq!(
-            crate::moved::image_bytes(0x4F0BC8, 256),
-            super::case_table().lower
-        );
-    }
 }

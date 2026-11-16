@@ -1,34 +1,31 @@
-//! The game's menus and its screens' draw lists as Rust data (typed tables, 2026-10-22):
-//! what RAL.EXE keeps at 0x747000 .. 0x755200 (menus, their labels) and 0x758B00 ..
-//! 0x7594B0 (draw lists), with the code addresses in them replaced by enums
-//! (`ItemFn`, `ScreenFn`) and the fonts they name by `MenuFont`. The data is generated
-//! (`tables_data.rs`, `tools/menu_tables`).
+//! The game's menus and its screens' draw lists as Rust data: functions are the enums `ItemFn` and
+//! `ScreenFn`, fonts are `MenuFont`. The data is generated (`tables_data.rs`, `tools/menu_tables`).
 //!
-//! In play the game changes four fields of an item: its string id (+0x14), its font
-//! (+0x18), +0x1C and its skip mark (+0x48); the tables hold their starting values. While
-//! the DLL exists, those four are read from the game's memory; everything else, the
-//! function fields included, is constant. Each menu and list keeps its RAL address (`at`)
-//! for the changeover: the screens still store the game's addresses in the game's
-//! variables, and `menu_at` / `list_at` turn such an address into its table.
+//! These tables are the one source of the menus and the lists: the game's crate keeps, per item,
+//! only the fields that change in play (string id, font, `behind`, sprite, skip mark and highlight
+//! font: `menu::menus_store::MenuItem`, starting as the table has them) and names a menu or list by
+//! its number here. Each menu and list keeps the address RAL.EXE stores it at (`at`), for the test
+//! that checks the tables against RAL.EXE's data.
 
+pub use super::item_params::{EventStart, OptionSwitch, StageCounter, VolumeKind};
 pub use super::tables_data::{ItemFn, LISTS, MENUS, MenuFont, ScreenFn};
 
-/// A menu: its labels (texts that are not items) and its items, without the -1 dwords
-/// that end both lists in RAL.EXE.
+/// A menu: its labels (texts that are not items) and its items, without the -1 dwords that end both
+/// lists in RAL.EXE's layout.
 #[derive(Debug)]
 pub struct Menu {
-    /// Where RAL.EXE keeps it.
+    /// The address RAL.EXE stores it at.
     pub at: u32,
-    /// Whether anything in RAL.EXE names it (eight menus follow another's end mark and are
-    /// named by nothing).
+    /// Whether anything names it (eight menus follow another's end mark and nothing refers
+    /// to them).
     pub referenced: bool,
-    /// Where RAL.EXE keeps its labels (0: none).
+    /// The address RAL.EXE stores its labels at (0: none).
     pub labels_at: u32,
     pub labels: &'static [MenuLabel],
     pub items: &'static [MenuItem],
 }
 
-/// A label: 0x10 bytes in RAL.EXE.
+/// A label: 0x10 bytes in RAL.EXE's layout.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MenuLabel {
     pub x: i32,
@@ -37,61 +34,45 @@ pub struct MenuLabel {
     pub string: u32,
 }
 
-/// An item: 0x5C bytes in RAL.EXE (IDA's `MenuItem`).
+/// An item: 0x5C bytes in RAL.EXE's layout.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MenuItem {
     pub x: i32,
     pub y: i32,
     pub width_or_text_x: i32,
     pub alignment_or_text_y: i32,
-    /// IDA's `type`: the number highlights and links name the item by.
+    /// The number that highlights and links name the item by.
     pub id: u32,
-    /// The string id (+0x14), as the game starts; changed in play.
+    /// The string id as the game starts; changed in play.
     pub string: u32,
-    /// +0x18, as the game starts; changed in play (`menu::disable_item` / `enable_item`).
+    /// The font as the game starts; changed in play (`menu::disable_item` / `enable_item`).
     pub font: MenuFont,
-    /// +0x1C, as the game starts; changed in play.
+    /// The item's backdrop (+0x1C in RAL.EXE's layout) as the game starts; changed in play.
     pub behind: u32,
     pub sprites: u32,
     /// The items up, down, left and right of this one, by `id`.
     pub links: [u32; 4],
-    /// What a key does on it: up, down, left, right (+0x34 .. +0x40).
+    /// What a key does on it: up, down, left, right.
     pub on_key: [ItemFn; 4],
-    /// What choosing it does (+0x44).
+    /// What choosing it does.
     pub action: ItemFn,
-    /// +0x48, as the game starts; changed in play.
+    /// The skip mark as the game starts; changed in play.
     pub skip_mark: u32,
     pub measuring_font: MenuFont,
     pub highlight_font: MenuFont,
-    /// What `menu::run_item_action` hands the action (in eax, and in `dword_755A38`).
+    /// What `menu::run_item_action` hands the action (and stores in `DrawWork.action_mode`).
     pub action_value: u32,
     pub spaced: u32,
 }
 
-/// A screen's list of functions, run in order (`menu::run_list`): RAL.EXE's dwords
-/// without the -1 that ends them.
+/// A screen's list of functions, run in order (`menu::run_list`): RAL.EXE's dwords without the -1
+/// that ends them in RAL.EXE.
 #[derive(Debug)]
 pub struct DrawList {
     pub at: u32,
-    /// Whether anything in RAL.EXE names it (ten follow another's end mark).
+    /// Whether anything names it (ten follow another's end mark and nothing refers to them).
     pub referenced: bool,
     pub functions: &'static [ScreenFn],
-}
-
-/// The menu RAL.EXE keeps at `at`.
-pub fn menu_at(at: u32) -> Option<&'static Menu> {
-    MENUS
-        .binary_search_by_key(&at, |m| m.at)
-        .ok()
-        .map(|n| &MENUS[n])
-}
-
-/// The draw list RAL.EXE keeps at `at`.
-pub fn list_at(at: u32) -> Option<&'static DrawList> {
-    LISTS
-        .binary_search_by_key(&at, |l| l.at)
-        .ok()
-        .map(|n| &LISTS[n])
 }
 
 #[cfg(test)]
@@ -102,13 +83,6 @@ mod tests {
     fn sorted_and_found() {
         assert!(MENUS.windows(2).all(|w| w[0].at < w[1].at));
         assert!(LISTS.windows(2).all(|w| w[0].at < w[1].at));
-        for m in MENUS.iter() {
-            assert!(std::ptr::eq(menu_at(m.at).unwrap(), m));
-        }
-        for l in LISTS.iter() {
-            assert!(std::ptr::eq(list_at(l.at).unwrap(), l));
-        }
-        assert!(menu_at(0).is_none() && list_at(0).is_none());
     }
 
     #[test]
@@ -120,134 +94,90 @@ mod tests {
         assert_eq!(LISTS.iter().filter(|l| !l.referenced).count(), 10);
     }
 
-    /// RAL.EXE's image as the standalone builds it (`data/ral_image.bin`), unmoved (its
-    /// addresses as IDA shows them), indexed by RVA.
-    fn image() -> Vec<u8> {
-        // `RC2K_IMAGE` for a test binary run away from the source tree.
-        let path = std::env::var("RC2K_IMAGE").unwrap_or_else(|_| {
-            concat!(env!("CARGO_MANIFEST_DIR"), "/../data/ral_image.bin").to_string()
-        });
-        let d = std::fs::read(path).expect("data/ral_image.bin");
-        let u = |at: usize| u32::from_le_bytes(d[at..at + 4].try_into().unwrap()) as usize;
-        assert_eq!(&d[..8], b"RC2KIMG1");
-        let (size, sections) = (u(8), u(16));
-        let mut image = vec![0u8; size];
-        let mut at = 20;
-        for _ in 0..sections {
-            let (rva, flags) = (u(at), u(at + 8));
-            at += 12;
-            if flags & 4 != 0 {
-                let count = u(at);
-                at += 4;
-                for _ in 0..count {
-                    let (place, n) = (u(at), u(at + 4));
-                    image[place..place + n].copy_from_slice(&d[at + 8..at + 8 + n]);
-                    at += 8 + n;
-                }
-            }
-            if flags & 2 == 0 {
-                continue;
-            }
-            let raw = u(at);
-            at += 4;
-            let mut done = 0;
-            while done < raw {
-                let (zeros, literal) = (u(at), u(at + 4));
-                let to = rva + done + zeros;
-                image[to..to + literal].copy_from_slice(&d[at + 8..at + 8 + literal]);
-                at += 8 + literal;
-                done += zeros + literal;
-            }
-        }
-        image
-    }
-
-    /// Every dword of every menu, label, item and list as RAL.EXE has it: the tables are
-    /// the game's data.
-    #[test]
-    fn tables_are_the_games() {
-        let image = image();
-        let dword = |at: u32| {
-            let at = (at - 0x40_0000) as usize;
-            u32::from_le_bytes(image[at..at + 4].try_into().unwrap())
-        };
-        let font = |at: u32| MenuFont::from_ral(dword(at));
-        let item_fn = |at: u32| ItemFn::from_ral(dword(at));
+    /// Every dword the tables stand for, as RAL.EXE lays them out: `(address, dword)` for each
+    /// menu's label pointer, label, item and end mark, and each list's functions and end mark, the
+    /// enums turned back into the addresses they replace.
+    fn ral_dwords() -> Vec<(u32, u32)> {
+        let mut out = Vec::new();
         for m in MENUS.iter() {
-            assert_eq!(dword(m.at), m.labels_at, "menu {:#x}", m.at);
+            out.push((m.at, m.labels_at));
             for (n, l) in m.labels.iter().enumerate() {
                 let at = m.labels_at + 0x10 * n as u32;
-                assert_eq!(
-                    (
-                        dword(at) as i32,
-                        dword(at + 4) as i32,
-                        font(at + 8),
-                        dword(at + 12)
-                    ),
-                    (l.x, l.y, Some(l.font), l.string),
-                    "label {at:#x}"
-                );
+                out.extend([
+                    (at, l.x as u32),
+                    (at + 4, l.y as u32),
+                    (at + 8, l.font.ral()),
+                    (at + 12, l.string),
+                ]);
             }
             if m.labels_at != 0 {
-                assert_eq!(dword(m.labels_at + 0x10 * m.labels.len() as u32), u32::MAX);
+                out.push((m.labels_at + 0x10 * m.labels.len() as u32, u32::MAX));
             }
             for (n, it) in m.items.iter().enumerate() {
                 let at = m.at + 4 + 0x5C * n as u32;
-                let w = |o: u32| dword(at + o);
-                let i = |o: u32| dword(at + o) as i32;
-                assert_eq!(
-                    (i(0), i(4), i(8), i(0xC)),
-                    (it.x, it.y, it.width_or_text_x, it.alignment_or_text_y),
-                    "item {at:#x}"
-                );
-                assert_eq!(
-                    (w(0x10), w(0x14), font(at + 0x18), w(0x1C), w(0x20)),
-                    (it.id, it.string, Some(it.font), it.behind, it.sprites),
-                    "item {at:#x}"
-                );
-                assert_eq!(
-                    [w(0x24), w(0x28), w(0x2C), w(0x30)],
-                    it.links,
-                    "item {at:#x}"
-                );
-                assert_eq!(
-                    [0x34, 0x38, 0x3C, 0x40, 0x44].map(|o| item_fn(at + o)),
-                    [
-                        it.on_key[0],
-                        it.on_key[1],
-                        it.on_key[2],
-                        it.on_key[3],
-                        it.action
-                    ]
-                    .map(Some),
-                    "item {at:#x}"
-                );
-                assert_eq!(
-                    (w(0x48), font(at + 0x4C), font(at + 0x50), w(0x54), w(0x58)),
-                    (
-                        it.skip_mark,
-                        Some(it.measuring_font),
-                        Some(it.highlight_font),
-                        it.action_value,
-                        it.spaced
-                    ),
-                    "item {at:#x}"
-                );
+                let fields = [
+                    it.x as u32,
+                    it.y as u32,
+                    it.width_or_text_x as u32,
+                    it.alignment_or_text_y as u32,
+                    it.id,
+                    it.string,
+                    it.font.ral(),
+                    it.behind,
+                    it.sprites,
+                    it.links[0],
+                    it.links[1],
+                    it.links[2],
+                    it.links[3],
+                    it.on_key[0].ral(),
+                    it.on_key[1].ral(),
+                    it.on_key[2].ral(),
+                    it.on_key[3].ral(),
+                    it.action.ral(),
+                    it.skip_mark,
+                    it.measuring_font.ral(),
+                    it.highlight_font.ral(),
+                    it.action_value,
+                    it.spaced,
+                ];
+                out.extend((0..).step_by(4).zip(fields).map(|(o, w)| (at + o, w)));
             }
-            assert_eq!(dword(m.at + 4 + 0x5C * m.items.len() as u32), u32::MAX);
+            out.push((m.at + 4 + 0x5C * m.items.len() as u32, u32::MAX));
         }
         for l in LISTS.iter() {
             for (n, f) in l.functions.iter().enumerate() {
-                assert_eq!(
-                    ScreenFn::from_ral(dword(l.at + 4 * n as u32)),
-                    Some(*f),
-                    "list {:#x}",
-                    l.at
-                );
+                out.push((l.at + 4 * n as u32, f.ral()));
             }
-            assert_eq!(dword(l.at + 4 * l.functions.len() as u32), u32::MAX);
+            out.push((l.at + 4 * l.functions.len() as u32, u32::MAX));
         }
+        out
     }
+
+    /// The FNV-1a hash of `(address, dword)` pairs, little-endian.
+    fn digest(dwords: &[(u32, u32)]) -> u64 {
+        dwords
+            .iter()
+            .flat_map(|(at, w)| at.to_le_bytes().into_iter().chain(w.to_le_bytes()))
+            .fold(0xCBF2_9CE4_8422_2325u64, |h, b| {
+                (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01B3)
+            })
+    }
+
+    /// Every dword of every menu, label, item and list, at its RAL.EXE address, equals what RAL.EXE
+    /// holds there: checked by count and hash, frozen from a comparison with RAL.EXE's bytes that
+    /// covered every dword. The one difference the enums make: the 194 item functions at 0x471C81
+    /// (a second empty function) read as `ItemFn::Nothing`, which stands for 0x471C80.
+    #[test]
+    fn tables_are_the_games() {
+        let dwords = ral_dwords();
+        assert_eq!(dwords.len(), FROZEN_DWORDS);
+        assert_eq!(digest(&dwords), FROZEN_DIGEST, "{:#018x}", digest(&dwords));
+    }
+
+    /// The dwords' count (16 addresses come twice, reached from two tables, each time with
+    /// the same dword) and hash.
+    const FROZEN_DWORDS: usize = 14_212;
+    const FROZEN_DIGEST: u64 = 0x5b76_643d_e740_5f28;
 
     #[test]
     fn enums_and_addresses_agree() {

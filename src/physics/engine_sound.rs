@@ -1,130 +1,104 @@
-//! `physics::engine_sound` (0x43DC72): the work car's sound figures. +0xF08
-//! (`unk_71AEE0`) = speed x `flt_5C5D00`, and that (x `flt_5C5E08` with bit 8 of +0x220)
-//! `fistp` into +0xAB0; +0x294 = the motion's length (`fsqrt` of z² + x² + y², as the
-//! original adds them) x `flt_5C5D00`; the revs +0x1E4 eased toward the engine speed (at
-//! least `flt_6140F8`, `fistp`, through `dword_62400C`) by 50/256 of the gap (`imul`,
-//! `sar`), held to 2000 ..= 12000 (by the sign); then `physics::car_sound_state` and
-//! `physics::gear_change_sound`.
+//! The work car's sound figures. `engine_speed_scaled` = speed x `two_and_a_quarter`, and that
+//! (times `kilometres_in_mile` with bit 8 of the car's flags) rounded into its integer figure;
+//! the motion's length (the square root of z² + x² + y², added in that order) times
+//! `two_and_a_quarter`; the revs eased toward the engine speed (at least `idle_engine_speed`,
+//! rounded, through `scratch`) by 50/256 of the gap and held to 2000 ..= 12000; then
+//! `physics::car_sound_state` and `physics::gear_change_sound`.
 //!
-//! The x87 run is the arithmetic of the original's instructions over the game's variables
-//! (from IDA), in plain Rust over `X` (`math/x87_float.rs`); the instructions are
-//! `asm_reference` in the tests.
+//! The x87 run is plain Rust over `X` (`math/x87_float.rs`).
 //!
-//! Returns: the gap's step, the sound object (`gear_change_sound`)
+//! Returns the gap's step, the sound object (`gear_change_sound`).
 //!
-//! Caller: `physics::car_physics_step` (0x43B905), every physics step. Refuses (before anything)
-//! what the two calls refuse.
+//! Caller: `physics::car_physics_step`, every physics step. Refuses (before anything) what the
+//! two calls refuse.
 
+use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
 use crate::math::x87;
-use crate::math::x87_float::ld;
-use crate::math::x87_float::st;
+use crate::math::x87::ext_to_int;
+use crate::math::x87_float::stf;
 use crate::math::x87_float::to_int;
-use crate::math::x87_run::ext_to_int;
 use crate::physics::car_sound_state::car_sound_state;
+use crate::physics::car_store::Car;
 use crate::physics::gear_change_sound::gear_change_sound;
-use crate::race::owner::Race;
+use crate::race::matrices_store::SceneMatrices;
+use crate::race::numbers_store::Numbers;
+use crate::race::owner_shared::RaceShared;
 use crate::scene::matrix3::extended;
 use rc2k_core::physics::engine::ease_revs;
 use rc2k_core::physics::x87::hold_low;
 
-/// 0x43DC72 .. 0x43DCC6: the speed figures (the original's `test` / `jz` is the `if`).
-fn run(race: &Race) {
-    run_at(race);
+/// The speed figures.
+fn run(car: &Car, numbers: &Numbers) {
+    run_at(car, numbers);
 }
 
 /// The run over the work car's figures:
-/// +0x31AEE0 the speed x `flt_5C5D00`; +0x31AA88 that (x `flt_5C5E08` with bit 8 of
-/// +0x31A1F8) as a whole number; +0x31A26C the length of the motion (+0x31A170 ..) x
-/// `flt_5C5D00`, the squares added as the original adds them (z, then x and y).
-fn run_at(race: &Race) {
-    race.shared
-        .car
-        .engine_speed_scaled
-        .set_bits(st(ld(race.shared.car.local_velocity[2].bits())
-            * ld(race.course.numbers.two_and_a_quarter.bits())));
-    let speed = ld(race.shared.car.engine_speed_scaled.bits());
-    let flags = race.shared.car.option_bits.get();
+/// `engine_speed_scaled` = the speed x `two_and_a_quarter`; its whole-number figure = that (x
+/// `kilometres_in_mile` with bit 8 of the car's flags); the length of the motion x
+/// `two_and_a_quarter`, the squares added in the order z, then x and y.
+fn run_at(car: &Car, numbers: &Numbers) {
+    car.engine_speed_scaled
+        .st(car.local_velocity[2].ld() * numbers.two_and_a_quarter.ld());
+    let speed = car.engine_speed_scaled.ld();
+    let flags = car.option_bits.get();
     let scaled = if flags & 0x100 != 0 {
-        speed * ld(race.course.numbers.kilometres_in_mile.bits())
+        speed * numbers.kilometres_in_mile.ld()
     } else {
         speed
     };
-    race.shared
-        .car
-        .engine_sound_speed_int
-        .set_bits(to_int(scaled) as u32);
+    car.engine_sound_speed_int.set(to_int(scaled) as u32);
     let (z, x, y) = (
-        ld(race.shared.car.velocity[2].bits()),
-        ld(race.shared.car.velocity[0].bits()),
-        ld(race.shared.car.velocity[1].bits()),
+        car.velocity[2].ld(),
+        car.velocity[0].ld(),
+        car.velocity[1].ld(),
     );
     let sum = z * z + (x * x + y * y);
-    race.shared.car.sound_speed.set_bits(st(
-        sum.sqrt() * ld(race.course.numbers.two_and_a_quarter.bits())
-    ));
+    car.sound_speed
+        .set(stf(sum.sqrt() * numbers.two_and_a_quarter.ld()));
 }
 
-/// The Rust version.
-// Converted: `rc2k_core::physics::engine::ease_revs` and `x87::hold_low` (the speed figures
+// Core: `rc2k_core::physics::engine::ease_revs` and `x87::hold_low` (the speed figures
 // and the rounding stay x87).
-pub fn engine_sound(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn engine_sound(
+    numbers: &Numbers,
+    matrices: &SceneMatrices,
+    shared: &RaceShared,
+    scene: &crate::scene::owner::Scene,
+    sound: &crate::sound::owner::Sound,
+) -> Result<(), Refused> {
     let drawing = &scene.drawing;
-    if race.shared.view.players.get() == 1 && race.shared.view.view_block(0) == 0 {
+    if shared.view.get().players.get() == 1 && shared.view_car(0).is_none() {
         return Err(crate::errors::BadInput("a null view block").into());
     }
-    run(race);
+    run(shared.car(), numbers);
     drawing
         .scene
+        .get()
         .scratch
-        .set(x87::loaded(race.shared.car.engine_speed.bits()));
-    let floor = race.shared.physics_tables.idle_engine_speed.bits();
-    let held = hold_low(
-        f32::from_bits(drawing.scene.scratch.get()),
-        f32::from_bits(floor),
-    );
-    drawing.scene.scratch.set(held.to_bits());
+        .set(x87::loaded(&shared.car().engine_speed).to_bits());
+    let floor = shared.physics_tables.get().idle_engine_speed.get();
+    let held = hold_low(f32::from_bits(drawing.scene.get().scratch.get()), floor);
+    drawing.scene.get().scratch.set(held.to_bits());
     drawing
         .scene
+        .get()
         .scratch
-        .set(ext_to_int(extended(drawing.scene.scratch.get())) as u32);
+        .set(ext_to_int(extended(drawing.scene.get().scratch.get())) as u32);
     let (revs, _) = ease_revs(
-        race.shared.car.engine_sound_revs.get(),
-        drawing.scene.scratch.get(),
+        shared.car().engine_sound_revs.get(),
+        drawing.scene.get().scratch.get(),
     );
-    race.shared.car.engine_sound_revs.set(revs);
-    { car_sound_state(race) }?;
-    gear_change_sound(&race.shared)
+    shared.car().engine_sound_revs.set(revs);
+    { car_sound_state(numbers, matrices, shared, sound) }?;
+    gear_change_sound(shared.car(), sound, shared.work.get())
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
-    use crate::race::owner::race;
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
-
-    reference!(ref_0(rc)
-        "fld dword ptr [{rc} + 0x31A184]",
-        "fmul dword ptr [{rc} + 0x1C5D00]",
-        "fstp dword ptr [{rc} + 0x31AEE0]",
-        "fld dword ptr [{rc} + 0x31AEE0]",
-        "test dword ptr [{rc} + 0x31A1F8], 0x100",
-        "jz 2f",
-        "fmul dword ptr [{rc} + 0x1C5E08]",
-        "2:",
-        "fistp dword ptr [{rc} + 0x31AA88]",
-        "fld dword ptr [{rc} + 0x31A178]",
-        ".byte 0xD8, 0xC8",
-        "fld dword ptr [{rc} + 0x31A170]",
-        ".byte 0xD8, 0xC8",
-        "fld dword ptr [{rc} + 0x31A174]",
-        ".byte 0xD8, 0xC8",
-        ".byte 0xDE, 0xC1",
-        ".byte 0xDE, 0xC1",
-        ".byte 0xD9, 0xFA",
-        "fmul dword ptr [{rc} + 0x1C5D00]",
-        "fstp dword ptr [{rc} + 0x31A26C]"
-    );
+    use crate::test_support::own::race;
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     #[test]
     fn run_matches_the_assembly() {
@@ -143,9 +117,8 @@ mod asm_reference {
                 writes: &[(0x31AEE0, Out::F), (0x31AA88, Out::I), (0x31A26C, Out::F)],
             }],
             ulps: 0,
-            reference: |a| unsafe { ref_0(a[0]) },
-            plain: |_| run_at(race()),
+            plain: |_| run_at(race().shared.car(), race().course.numbers.get()),
         }];
-        sparse(&blocks, 4000, 200);
+        sparse("physics.engine_sound", &blocks, 4000, 200);
     }
 }

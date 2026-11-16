@@ -1,24 +1,20 @@
-//! `menu::copy_standing_entry` (0x46613F): a standings entry (edi) filled from the player
-//! record esi: +4 ebx + 1, +0x14 / +0x1C / +0x18 the record's +0x88 / +0x90 / +0x8C, +0xC
-//! its name pointer (+0x18) and +0x20 the name's 0x20 bytes, +8 / +0x10 its +4 / +8, +0x4C
-//! its +0xD0.
+//! `menu::copy_standing_entry`: a standings entry filled from a player record: +4 the player's
+//! index + 1, +0x14 / +0x1C / +0x18 the record's +0x88 / +0x90 / +0x8C, +0xC its name pointer
+//! (+0x18) and +0x20 the name's 0x20 bytes, +8 / +0x10 its +4 / +8, +0x4C its +0xD0.
 //!
-//! Callers: two of the game's. Refuses a null entry, record or name, before
-//! anything.
+//! Callers: two of the game's. Refuses a null entry, record or name, before anything.
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 
-/// `e` the entry of table A (edi in the original), `p` the player's record (esi), `index`
-/// the player's index (ebx).
+/// `e` the entry of table A, `p` the player's record, `index` the player's index.
 pub fn copy_standing_entry(
-    menus: &Menus,
+    play: &crate::menu::owner::Play,
     e: usize,
     p: PlayerCell,
     index: u32,
+    tables: &crate::saves::best_times::BestTables,
 ) -> Result<(), Refused> {
     name_player(&p.get())?;
-    // Converted: `rc2k_core::saves::rankings::fill_a`.
     use rc2k_core::menu::standings::PlayerA;
     let name_at = name_address_of(&p.get())?;
     let source = PlayerA {
@@ -27,11 +23,13 @@ pub fn copy_standing_entry(
         group: p.get().class,
         total: p.get().total,
         name_at,
-        name: name_of(menus, &p.get())?,
+        name: name_of(play, &p.get())?,
         nationality: p.get().nationality,
         car: p.get().car_number,
         entered: p.get().entry,
     };
-    with_a(|t| rc2k_core::saves::rankings::fill_a(&mut t.entries[e], &source))?;
+    with_a(tables, |t| {
+        rc2k_core::saves::rankings::fill_a(&mut t.entries[e], &source);
+    })?;
     Ok(())
 }

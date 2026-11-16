@@ -1,10 +1,10 @@
-//! The display page's figures (`debug::draw_wear_bars`' 380, IDA 2026-10-30) named and
-//! grouped for the debug UI (owner, 2026-10-30: "a more meaningful name ... input with other
-//! inputs, damage together"): generated from the page's items (`debug::wear_items`), with
-//! the names IDA gives their places and the developers' labels; a place the page printed
-//! twice is listed once. "Car 1" and "Car 2" are the cars' blocks 0 and 1 (0xFE0 apart);
-//! "Player car" the first block's gauges and its state record (0x75B39C ..).
+//! The display page's figures named and grouped for the debug UI (a more meaningful name, the
+//! input with other inputs, the damage together): generated from the page's items
+//! (`debug::wear_items`), with the developers' labels; a place the page printed twice is listed
+//! once. "Car 1" and "Car 2" are the cars' blocks 0 and 1 (0xFE0 apart); "Player car" the first
+//! block's gauges and its state record.
 
+use super::row_cells::{car_cell, indexed_cell, store_cell};
 use super::ui::{Group, Row, Shown};
 
 /// The groups, in the UI's order.
@@ -12,249 +12,373 @@ pub static GROUPS: &[Group] = &[
     Group {
         name: "Player car: heat",
         rows: &[
-            Row::new(
+            Row::typed(
                 "Brake temperature, front",
                 "btmpf",
                 Shown::Float,
                 0x70F698,
+                car_cell!(0, brake_heat[0]),
                 true,
                 (68, 4),
             ),
-            Row::new(
+            Row::typed(
                 "Brake temperature, rear",
                 "btmpr",
                 Shown::Float,
                 0x70F69C,
+                car_cell!(0, brake_heat[1]),
                 true,
                 (68, 10),
             ),
-            Row::new(
+            Row::typed(
                 "Tyre temperature, front",
                 "ttmpf",
                 Shown::Float,
                 0x70F690,
+                car_cell!(0, damper_wear[0]),
                 true,
                 (68, 16),
             ),
-            Row::new(
+            Row::typed(
                 "Tyre temperature, rear",
                 "ttmpr",
                 Shown::Float,
                 0x70F694,
+                car_cell!(0, damper_wear[1]),
                 true,
                 (68, 22),
             ),
-            Row::new(
+            Row::typed(
                 "Coolant temperature",
                 "ctmp",
                 Shown::Float,
                 0x70F6A0,
+                car_cell!(0, engine_heat),
                 true,
                 (68, 28),
             ),
-            Row::new("Brakes wet", "bwet", Shown::Float, 0x70F68C, true, (68, 34)),
+            Row::typed(
+                "Brakes wet",
+                "bwet",
+                Shown::Float,
+                0x70F68C,
+                car_cell!(0, brake_fade),
+                true,
+                (68, 34),
+            ),
         ],
     },
     Group {
         name: "Player car: damage",
         rows: &[
-            Row::new("Engine", "engine", Shown::Float, 0x70F6A4, true, (68, 40)),
-            Row::new("Exhaust", "exhaust", Shown::Float, 0x70F6A8, true, (68, 46)),
-            Row::new("Turbo", "turbo", Shown::Float, 0x70F6AC, true, (68, 52)),
-            Row::new("Cooling", "cooling", Shown::Float, 0x70F6B0, true, (68, 58)),
-            Row::new("Clutch", "clutch", Shown::Float, 0x70F6B4, true, (68, 64)),
-            Row::new(
+            Row::typed(
+                "Engine",
+                "engine",
+                Shown::Float,
+                0x70F6A4,
+                car_cell!(0, engine_damage),
+                true,
+                (68, 40),
+            ),
+            Row::typed(
+                "Exhaust",
+                "exhaust",
+                Shown::Float,
+                0x70F6A8,
+                car_cell!(0, exhaust_damage),
+                true,
+                (68, 46),
+            ),
+            Row::typed(
+                "Turbo",
+                "turbo",
+                Shown::Float,
+                0x70F6AC,
+                car_cell!(0, turbo_damage),
+                true,
+                (68, 52),
+            ),
+            Row::typed(
+                "Cooling",
+                "cooling",
+                Shown::Float,
+                0x70F6B0,
+                car_cell!(0, cooling_damage),
+                true,
+                (68, 58),
+            ),
+            Row::typed(
+                "Clutch",
+                "clutch",
+                Shown::Float,
+                0x70F6B4,
+                car_cell!(0, clutch_damage),
+                true,
+                (68, 64),
+            ),
+            Row::typed(
                 "Differential",
                 "diff",
                 Shown::Float,
                 0x70F6B8,
+                car_cell!(0, differential_damage),
                 true,
                 (68, 70),
             ),
-            Row::new("Electrics", "elect", Shown::Float, 0x70F6FC, true, (68, 76)),
-            Row::new("Steering", "steer", Shown::Float, 0x70F71C, true, (68, 82)),
-            Row::new(
+            Row::typed(
+                "Electrics",
+                "elect",
+                Shown::Float,
+                0x70F6FC,
+                car_cell!(0, electrics_damage),
+                true,
+                (68, 76),
+            ),
+            Row::typed(
+                "Steering",
+                "steer",
+                Shown::Float,
+                0x70F71C,
+                car_cell!(0, steering_damage),
+                true,
+                (68, 82),
+            ),
+            Row::typed(
                 "Suspension FL",
                 "susp1",
                 Shown::Float,
                 0x70F720,
+                car_cell!(0, suspension_damage[0]),
                 true,
                 (68, 352),
             ),
-            Row::new(
+            Row::typed(
                 "Suspension FR",
                 "susp2",
                 Shown::Float,
                 0x70F724,
+                car_cell!(0, suspension_damage[1]),
                 true,
                 (68, 358),
             ),
-            Row::new(
+            Row::typed(
                 "Suspension RL",
                 "susp3",
                 Shown::Float,
                 0x70F728,
+                car_cell!(0, suspension_damage[2]),
                 true,
                 (68, 364),
             ),
-            Row::new(
+            Row::typed(
                 "Suspension RR",
                 "susp4",
                 Shown::Float,
                 0x70F72C,
+                car_cell!(0, suspension_damage[3]),
                 true,
                 (68, 370),
             ),
-            Row::new(
+            Row::typed(
                 "Wheel hit FL",
                 "whl1",
                 Shown::Float,
                 0x70F6E4,
+                car_cell!(0, wheel_hit_damage[0]),
                 true,
                 (68, 376),
             ),
-            Row::new(
+            Row::typed(
                 "Wheel hit FR",
                 "whl2",
                 Shown::Float,
                 0x70F6E8,
+                car_cell!(0, wheel_hit_damage[1]),
                 true,
                 (68, 382),
             ),
-            Row::new(
+            Row::typed(
                 "Wheel hit RL",
                 "whl3",
                 Shown::Float,
                 0x70F6EC,
+                car_cell!(0, wheel_hit_damage[2]),
                 true,
                 (68, 388),
             ),
-            Row::new(
+            Row::typed(
                 "Wheel hit RR",
                 "whl4",
                 Shown::Float,
                 0x70F6F0,
+                car_cell!(0, wheel_hit_damage[3]),
                 true,
                 (68, 394),
             ),
-            Row::new(
+            Row::typed(
                 "Bodywork hits",
                 "bdywrk",
                 Shown::Float,
                 0x70F6F4,
+                car_cell!(0, body_hit_damage),
                 true,
                 (68, 400),
             ),
-            Row::new(
+            Row::typed(
                 "Gearbox",
                 "gearbox",
                 Shown::Float,
                 0x70F6E0,
+                car_cell!(0, gearbox_damage),
                 true,
                 (68, 406),
             ),
-            Row::new("Body", "body", Shown::Float, 0x70F6F8, true, (68, 412)),
-            Row::new("Lights", "lights", Shown::Float, 0x70F718, true, (68, 418)),
-            Row::new(
+            Row::typed(
+                "Body",
+                "body",
+                Shown::Float,
+                0x70F6F8,
+                car_cell!(0, body_damage),
+                true,
+                (68, 412),
+            ),
+            Row::typed(
+                "Lights",
+                "lights",
+                Shown::Float,
+                0x70F718,
+                car_cell!(0, lights_damage),
+                true,
+                (68, 418),
+            ),
+            Row::typed(
                 "Suspension, overall",
                 "susp",
                 Shown::Float,
                 0x70F730,
+                car_cell!(0, overall_suspension_damage),
                 true,
                 (68, 424),
             ),
-            Row::new("Brakes", "brakes", Shown::Float, 0x70F73C, true, (68, 430)),
-            Row::new("Tyres", "tyres", Shown::Float, 0x70F750, true, (68, 436)),
+            Row::typed(
+                "Brakes",
+                "brakes",
+                Shown::Float,
+                0x70F73C,
+                car_cell!(0, brake_damage),
+                true,
+                (68, 430),
+            ),
+            Row::typed(
+                "Tyres",
+                "tyres",
+                Shown::Float,
+                0x70F750,
+                car_cell!(0, tyre_wear),
+                true,
+                (68, 436),
+            ),
         ],
     },
     Group {
         name: "Player car: tyres",
         rows: &[
-            Row::new(
+            Row::typed(
                 "Tyre 1 (FL) wear",
                 "tyre1",
                 Shown::Float,
                 0x70F740,
+                car_cell!(0, tyre_wears[0]),
                 true,
                 (68, 88),
             ),
-            Row::new(
+            Row::typed(
                 "Tyre 2 (FR) wear",
                 "tyre2",
                 Shown::Float,
                 0x70F744,
+                car_cell!(0, tyre_wears[1]),
                 true,
                 (68, 94),
             ),
-            Row::new(
+            Row::typed(
                 "Tyre 3 (RL) wear",
                 "tyre3",
                 Shown::Float,
                 0x70F748,
+                car_cell!(0, tyre_wears[2]),
                 true,
                 (68, 100),
             ),
-            Row::new(
+            Row::typed(
                 "Tyre 4 (RR) wear",
                 "tyre4",
                 Shown::Float,
                 0x70F74C,
+                car_cell!(0, tyre_wears[3]),
                 true,
                 (68, 106),
             ),
-            Row::new(
+            Row::typed(
                 "Front tyres",
                 "tyref",
                 Shown::Float,
                 0x75B440,
+                store_cell!(|o| o.race.physics.damage(), front_tyre_wear),
                 true,
                 (68, 112),
             ),
-            Row::new(
+            Row::typed(
                 "Rear tyres",
                 "tyrer",
                 Shown::Float,
                 0x75B444,
+                store_cell!(|o| o.race.physics.damage(), rear_tyre_wear),
                 true,
                 (68, 118),
             ),
-            Row::new(
+            Row::typed(
                 "Tyre type",
                 "tyretype",
                 Shown::Whole,
                 0x75B3E8,
+                store_cell!(|o| o.race.physics.damage(), tyre_kind),
                 false,
                 (168, 118),
             ),
-            Row::new(
+            Row::typed(
                 "Tyre contact",
                 "tyrecontact",
                 Shown::Float,
                 0x75B3F4,
+                store_cell!(|o| o.race.physics.damage(), wheels_down),
                 true,
                 (168, 136),
             ),
-            Row::new(
+            Row::typed(
                 "Tyre miles",
                 "tyremiles",
                 Shown::Float,
                 0x75B484,
+                store_cell!(|o| o.race.physics.damage(), wear_figure),
                 true,
                 (168, 226),
             ),
-            Row::new(
+            Row::typed(
                 "Tyre grip, front",
                 "tyregripf",
                 Shown::Float,
                 0x70F7EC,
+                car_cell!(0, drive_efficiency[0]),
                 true,
                 (168, 340),
             ),
-            Row::new(
+            Row::typed(
                 "Tyre grip, rear",
                 "tyregripr",
                 Shown::Float,
                 0x70F7F0,
+                car_cell!(0, drive_efficiency[1]),
                 true,
                 (168, 346),
             ),
@@ -263,128 +387,206 @@ pub static GROUPS: &[Group] = &[
     Group {
         name: "Player car: gear wear",
         rows: &[
-            Row::new(
+            Row::typed(
                 "Reverse",
                 "gearrvs",
                 Shown::Float,
                 0x70F6BC,
+                car_cell!(0, gear_wear[0]),
                 true,
                 (68, 124),
             ),
-            Row::new("Neutral", "gear0", Shown::Float, 0x70F6C0, true, (68, 130)),
-            Row::new("Gear 1", "gear1", Shown::Float, 0x70F6C4, true, (68, 136)),
-            Row::new("Gear 2", "gear2", Shown::Float, 0x70F6C8, true, (68, 142)),
-            Row::new("Gear 3", "gear3", Shown::Float, 0x70F6CC, true, (68, 148)),
-            Row::new("Gear 4", "gear4", Shown::Float, 0x70F6D0, true, (68, 154)),
-            Row::new("Gear 5", "gear5", Shown::Float, 0x70F6D4, true, (68, 160)),
-            Row::new("Gear 6", "gear6", Shown::Float, 0x70F6D8, true, (68, 166)),
-            Row::new("Gear 7", "gear7", Shown::Float, 0x70F6DC, true, (68, 172)),
+            Row::typed(
+                "Neutral",
+                "gear0",
+                Shown::Float,
+                0x70F6C0,
+                car_cell!(0, gear_wear[1]),
+                true,
+                (68, 130),
+            ),
+            Row::typed(
+                "Gear 1",
+                "gear1",
+                Shown::Float,
+                0x70F6C4,
+                car_cell!(0, gear_wear[2]),
+                true,
+                (68, 136),
+            ),
+            Row::typed(
+                "Gear 2",
+                "gear2",
+                Shown::Float,
+                0x70F6C8,
+                car_cell!(0, gear_wear[3]),
+                true,
+                (68, 142),
+            ),
+            Row::typed(
+                "Gear 3",
+                "gear3",
+                Shown::Float,
+                0x70F6CC,
+                car_cell!(0, gear_wear[4]),
+                true,
+                (68, 148),
+            ),
+            Row::typed(
+                "Gear 4",
+                "gear4",
+                Shown::Float,
+                0x70F6D0,
+                car_cell!(0, gear_wear[5]),
+                true,
+                (68, 154),
+            ),
+            Row::typed(
+                "Gear 5",
+                "gear5",
+                Shown::Float,
+                0x70F6D4,
+                car_cell!(0, gear_wear[6]),
+                true,
+                (68, 160),
+            ),
+            Row::typed(
+                "Gear 6",
+                "gear6",
+                Shown::Float,
+                0x70F6D8,
+                car_cell!(0, gear_wear[7]),
+                true,
+                (68, 166),
+            ),
+            Row::typed(
+                "Gear 7",
+                "gear7",
+                Shown::Float,
+                0x70F6DC,
+                car_cell!(0, gear_wear[8]),
+                true,
+                (68, 172),
+            ),
         ],
     },
     Group {
         name: "Player car: lights",
         rows: &[
-            Row::new(
+            Row::typed(
                 "Light FL",
                 "lights1",
                 Shown::Float,
                 0x70F700,
+                car_cell!(0, light_damage[0]),
                 true,
                 (68, 178),
             ),
-            Row::new(
+            Row::typed(
                 "Light FR",
                 "lights2",
                 Shown::Float,
                 0x70F704,
+                car_cell!(0, light_damage[1]),
                 true,
                 (68, 184),
             ),
-            Row::new(
+            Row::typed(
                 "Light RL",
                 "lights3",
                 Shown::Float,
                 0x70F708,
+                car_cell!(0, light_damage[2]),
                 true,
                 (68, 190),
             ),
-            Row::new(
+            Row::typed(
                 "Light RR",
                 "lights4",
                 Shown::Float,
                 0x70F70C,
+                car_cell!(0, light_damage[3]),
                 true,
                 (68, 196),
             ),
-            Row::new(
+            Row::typed(
                 "Spot lights",
                 "lightsf",
                 Shown::Float,
                 0x70F710,
+                car_cell!(0, light_damage[4]),
                 true,
                 (68, 202),
             ),
-            Row::new(
+            Row::typed(
                 "Brake lights",
                 "lightsb",
                 Shown::Float,
                 0x70F714,
+                car_cell!(0, light_damage[5]),
                 true,
                 (68, 208),
             ),
-            Row::new(
+            Row::typed(
                 "Electrics off",
                 "elecoff",
                 Shown::Whole,
                 0x70F7F8,
+                car_cell!(0, electrical_failures[0]),
                 false,
                 (168, 442),
             ),
-            Row::new(
+            Row::typed(
                 "Light FL off",
                 "light1off",
                 Shown::Whole,
                 0x70F7FC,
+                car_cell!(0, electrical_failures[1]),
                 false,
                 (168, 448),
             ),
-            Row::new(
+            Row::typed(
                 "Light FR off",
                 "light2off",
                 Shown::Whole,
                 0x70F800,
+                car_cell!(0, electrical_failures[2]),
                 false,
                 (168, 454),
             ),
-            Row::new(
+            Row::typed(
                 "Light RL off",
                 "light3off",
                 Shown::Whole,
                 0x70F804,
+                car_cell!(0, electrical_failures[3]),
                 false,
                 (168, 460),
             ),
-            Row::new(
+            Row::typed(
                 "Light RR off",
                 "light4off",
                 Shown::Whole,
                 0x70F808,
+                car_cell!(0, electrical_failures[4]),
                 false,
                 (168, 466),
             ),
-            Row::new(
+            Row::typed(
                 "Spots off",
                 "lightfoff",
                 Shown::Whole,
                 0x70F80C,
+                car_cell!(0, electrical_failures[5]),
                 false,
                 (168, 472),
             ),
-            Row::new(
+            Row::typed(
                 "Brake lights off",
                 "lightboff",
                 Shown::Whole,
                 0x70F810,
+                car_cell!(0, electrical_failures[6]),
                 false,
                 (168, 478),
             ),
@@ -393,147 +595,165 @@ pub static GROUPS: &[Group] = &[
     Group {
         name: "Player car: failure chances",
         rows: &[
-            Row::new(
+            Row::typed(
                 "Chance: no electrics",
                 "chncnoel",
                 Shown::Float,
                 0x75B404,
+                store_cell!(|o| o.race.physics.damage(), electrics_fail_chance),
                 true,
                 (168, 238),
             ),
-            Row::new(
+            Row::typed(
                 "Chance: no light FL",
                 "chncnol1",
                 Shown::Float,
                 0x75B408,
+                store_cell!(|o| o.race.physics.damage(), light_fail_chance_0),
                 true,
                 (168, 244),
             ),
-            Row::new(
+            Row::typed(
                 "Chance: no light FR",
                 "chncnol2",
                 Shown::Float,
                 0x75B40C,
+                store_cell!(|o| o.race.physics.damage(), light_fail_chance_1),
                 true,
                 (168, 250),
             ),
-            Row::new(
+            Row::typed(
                 "Chance: no light RL",
                 "chncnol3",
                 Shown::Float,
                 0x75B410,
+                store_cell!(|o| o.race.physics.damage(), light_fail_chance_2),
                 true,
                 (168, 256),
             ),
-            Row::new(
+            Row::typed(
                 "Chance: no light RR",
                 "chncnol4",
                 Shown::Float,
                 0x75B414,
+                store_cell!(|o| o.race.physics.damage(), light_fail_chance_3),
                 true,
                 (168, 262),
             ),
-            Row::new(
+            Row::typed(
                 "Chance: no spots",
                 "chncnolf",
                 Shown::Float,
                 0x75B418,
+                store_cell!(|o| o.race.physics.damage(), light_fail_chance_4),
                 true,
                 (168, 268),
             ),
-            Row::new(
+            Row::typed(
                 "Chance: no brake lights",
                 "chncnolb",
                 Shown::Float,
                 0x75B41C,
+                store_cell!(|o| o.race.physics.damage(), light_fail_chance_5),
                 true,
                 (168, 274),
             ),
-            Row::new(
+            Row::typed(
                 "Chance: electrics fail",
                 "chncyoel",
                 Shown::Float,
                 0x75B420,
+                store_cell!(|o| o.race.physics.damage(), electrics_recover_chance),
                 true,
                 (168, 280),
             ),
-            Row::new(
+            Row::typed(
                 "Chance: light FL fails",
                 "chncyol1",
                 Shown::Float,
                 0x75B424,
+                store_cell!(|o| o.race.physics.damage(), light_recover_chance_0),
                 true,
                 (168, 286),
             ),
-            Row::new(
+            Row::typed(
                 "Chance: light FR fails",
                 "chncyol2",
                 Shown::Float,
                 0x75B428,
+                store_cell!(|o| o.race.physics.damage(), light_recover_chance_1),
                 true,
                 (168, 292),
             ),
-            Row::new(
+            Row::typed(
                 "Chance: light RL fails",
                 "chncyol3",
                 Shown::Float,
                 0x75B42C,
+                store_cell!(|o| o.race.physics.damage(), light_recover_chance_2),
                 true,
                 (168, 298),
             ),
-            Row::new(
+            Row::typed(
                 "Chance: light RR fails",
                 "chncyol4",
                 Shown::Float,
                 0x75B430,
+                store_cell!(|o| o.race.physics.damage(), light_recover_chance_3),
                 true,
                 (168, 304),
             ),
-            Row::new(
+            Row::typed(
                 "Chance: spots fail",
                 "chncyolf",
                 Shown::Float,
                 0x75B434,
+                store_cell!(|o| o.race.physics.damage(), light_recover_chance_4),
                 true,
                 (168, 310),
             ),
-            Row::new(
+            Row::typed(
                 "Chance: brake lights fail",
                 "chncyolb",
                 Shown::Float,
                 0x75B438,
+                store_cell!(|o| o.race.physics.damage(), light_recover_chance_5),
                 true,
                 (168, 316),
             ),
-            Row::new(
+            Row::typed(
                 "Handbrake failed",
                 "handbrake",
                 Shown::Whole,
                 0x70F814,
+                car_cell!(0, handbrake_failed),
                 false,
                 (168, 418),
             ),
-            Row::new(
+            Row::typed(
                 "Gear stuck",
                 "stikgear",
                 Shown::Whole,
                 0x70F818,
+                car_cell!(0, gear_change_blocked),
                 false,
                 (168, 424),
             ),
-            Row::new(
+            Row::typed(
                 "Gear dropped",
                 "dropgear",
                 Shown::Whole,
                 0x70F81C,
+                car_cell!(0, forced_neutral),
                 false,
                 (168, 430),
             ),
-            Row::new(
+            Row::typed(
                 "Gear bits",
                 "gearbits",
                 Shown::Whole,
                 0x70F820,
+                car_cell!(0, lost_gear_bits),
                 false,
                 (168, 436),
             ),
@@ -542,100 +762,120 @@ pub static GROUPS: &[Group] = &[
     Group {
         name: "Player car: engine and drive",
         rows: &[
-            Row::new(
+            Row::typed(
                 "Gear changing",
                 "gearch",
                 Shown::Whole,
                 0x75B3B8,
+                store_cell!(|o| o.race.physics.damage(), gear_changed),
                 false,
                 (168, 52),
             ),
-            Row::new(
+            Row::typed(
                 "Gear in",
                 "gearin",
                 Shown::Whole,
                 0x75B3BC,
+                store_cell!(|o| o.race.physics.damage(), gear),
                 false,
                 (168, 58),
             ),
-            Row::new(
+            Row::typed(
                 "Brake on",
                 "brakeon",
                 Shown::Float,
                 0x75B3B0,
+                store_cell!(|o| o.race.physics.damage(), brake_share),
                 true,
                 (168, 64),
             ),
-            Row::new(
+            Row::typed(
                 "Turbo on",
                 "turboon",
                 Shown::Float,
                 0x75B3C0,
+                store_cell!(|o| o.race.physics.damage(), engine_over_limit),
                 true,
                 (168, 70),
             ),
-            Row::new(
+            Row::typed(
                 "Drive type",
                 "drivetype",
                 Shown::Whole,
                 0x75B3E4,
+                store_cell!(|o| o.race.physics.damage(), drive_kind),
                 false,
                 (168, 112),
             ),
-            Row::new(
+            Row::typed(
                 "Rev limit",
                 "rlim",
                 Shown::Float,
                 0x75B460,
+                store_cell!(|o| o.race.physics.damage(), cooling_capacity),
                 true,
                 (168, 202),
             ),
-            Row::new("Revs", "revs", Shown::Float, 0x75B398, true, (168, 208)),
-            Row::new(
+            Row::typed(
+                "Revs",
+                "revs",
+                Shown::Float,
+                0x75B398,
+                store_cell!(|o| o.race.physics.damage(), engine_speed_share),
+                true,
+                (168, 208),
+            ),
+            Row::typed(
                 "Rev exponent",
                 "rexp",
                 Shown::Float,
                 0x75B45C,
+                store_cell!(|o| o.race.physics.damage(), engine_speed_wear_factor),
                 true,
                 (168, 214),
             ),
-            Row::new(
+            Row::typed(
                 "Rev scale",
                 "rexs",
                 Shown::Float,
                 0x75B464,
+                store_cell!(|o| o.race.physics.damage(), overheat_excess),
                 true,
                 (168, 220),
             ),
-            Row::new(
+            Row::typed(
                 "Engine power",
                 "engpower",
                 Shown::Float,
                 0x70F7E0,
+                car_cell!(0, engine_power_factor),
                 true,
                 (168, 322),
             ),
-            Row::new(
+            Row::typed(
                 "Brake efficiency, front",
                 "brakeefff",
                 Shown::Float,
                 0x70F7E4,
+                car_cell!(0, brake_efficiency[0]),
                 true,
                 (168, 328),
             ),
-            Row::new(
+            Row::typed(
                 "Brake efficiency, rear",
                 "brakeeffr",
                 Shown::Float,
                 0x70F7E8,
+                car_cell!(0, brake_efficiency[1]),
                 true,
                 (168, 334),
             ),
-            Row::new(
+            Row::typed(
                 "Brake balance",
                 "brkbal",
                 Shown::Float,
                 0x75B400,
+                store_cell!(|o| o.race.physics.damage(), brake_balance_share),
                 true,
                 (168, 142),
             ),
@@ -644,85 +884,111 @@ pub static GROUPS: &[Group] = &[
     Group {
         name: "Player car: speed and surface",
         rows: &[
-            Row::new("Speed", "speed", Shown::Float, 0x75B39C, true, (168, 76)),
-            Row::new(
+            Row::typed(
+                "Speed",
+                "speed",
+                Shown::Float,
+                0x75B39C,
+                store_cell!(|o| o.race.physics.damage(), speed_share),
+                true,
+                (168, 76),
+            ),
+            Row::typed(
                 "Front wheels' speed",
                 "fwhlspd",
                 Shown::Float,
                 0x75B3A8,
+                store_cell!(|o| o.race.physics.damage(), drive_a_extrapolated_share),
                 true,
                 (168, 82),
             ),
-            Row::new(
+            Row::typed(
                 "Rear wheels' speed",
                 "rwhlspd",
                 Shown::Float,
                 0x75B3AC,
+                store_cell!(|o| o.race.physics.damage(), drive_b_extrapolated_share),
                 true,
                 (168, 88),
             ),
-            Row::new(
+            Row::typed(
                 "Front wheels' spin",
                 "fwhlspin",
                 Shown::Float,
                 0x75B3A0,
+                store_cell!(|o| o.race.physics.damage(), drive_a_slip_share),
                 true,
                 (168, 94),
             ),
-            Row::new(
+            Row::typed(
                 "Rear wheels' spin",
                 "rwhlspin",
                 Shown::Float,
                 0x75B3A4,
+                store_cell!(|o| o.race.physics.damage(), drive_b_slip_share),
                 true,
                 (168, 100),
             ),
-            Row::new("Water", "water", Shown::Float, 0x75B3B4, true, (168, 106)),
-            Row::new(
+            Row::typed(
+                "Water",
+                "water",
+                Shown::Float,
+                0x75B3B4,
+                store_cell!(|o| o.race.physics.damage(), on_surface_5),
+                true,
+                (168, 106),
+            ),
+            Row::typed(
                 "Surface",
                 "surface",
                 Shown::Whole,
                 0x75B3EC,
+                store_cell!(|o| o.race.physics.damage(), surface),
                 false,
                 (168, 124),
             ),
-            Row::new(
+            Row::typed(
                 "Wetness",
                 "wetness",
                 Shown::Float,
                 0x75B3F0,
+                store_cell!(|o| o.race.physics.damage(), surface_blend),
                 true,
                 (168, 130),
             ),
-            Row::new(
+            Row::typed(
                 "Rough speed",
                 "ruffspd",
                 Shown::Float,
                 0x75B450,
+                store_cell!(|o| o.race.physics.damage(), roughness_wear_base),
                 true,
                 (168, 184),
             ),
-            Row::new(
+            Row::typed(
                 "Rough speed, hard",
                 "ruffhardspd",
                 Shown::Float,
                 0x75B458,
+                store_cell!(|o| o.race.physics.damage(), suspension_roughness_wear),
                 true,
                 (168, 190),
             ),
-            Row::new(
+            Row::typed(
                 "Rough speed, soft",
                 "rufflosoftspd",
                 Shown::Float,
                 0x75B454,
+                store_cell!(|o| o.race.physics.damage(), body_roughness_wear),
                 true,
                 (168, 196),
             ),
-            Row::new(
+            Row::typed(
                 "Low multiplier",
                 "lowmul",
                 Shown::Float,
                 0x75B468,
+                store_cell!(|o| o.race.physics.damage(), ride_height_body_factor),
                 true,
                 (168, 166),
             ),
@@ -731,123 +997,138 @@ pub static GROUPS: &[Group] = &[
     Group {
         name: "Player car: suspension",
         rows: &[
-            Row::new(
+            Row::typed(
                 "Suspension height",
                 "susph",
                 Shown::Float,
                 0x75B3F8,
+                store_cell!(|o| o.race.physics.damage(), ride_height_share),
                 true,
                 (168, 148),
             ),
-            Row::new(
+            Row::typed(
                 "Suspension stiffness",
                 "susps",
                 Shown::Float,
                 0x75B3FC,
+                store_cell!(|o| o.race.physics.damage(), stiffness_share),
                 true,
                 (168, 154),
             ),
-            Row::new(
+            Row::typed(
                 "Hard suspension",
                 "hardsusp",
                 Shown::Float,
                 0x75B448,
+                store_cell!(|o| o.race.physics.damage(), stiffness_suspension_factor),
                 true,
                 (168, 172),
             ),
-            Row::new(
+            Row::typed(
                 "Soft suspension",
                 "softsusp",
                 Shown::Float,
                 0x75B44C,
+                store_cell!(|o| o.race.physics.damage(), stiffness_body_factor),
                 true,
                 (168, 178),
             ),
-            Row::new(
+            Row::typed(
                 "Ride height, mean",
                 "actsh",
                 Shown::Float,
                 0x70F848,
+                car_cell!(0, ride_height_mean),
                 true,
                 (168, 352),
             ),
-            Row::new(
+            Row::typed(
                 "Ride height FL",
                 "actsh1",
                 Shown::Float,
                 0x70F824,
+                car_cell!(0, wheel_ride_height[0]),
                 true,
                 (168, 358),
             ),
-            Row::new(
+            Row::typed(
                 "Ride height FR",
                 "actsh2",
                 Shown::Float,
                 0x70F828,
+                car_cell!(0, wheel_ride_height[1]),
                 true,
                 (168, 364),
             ),
-            Row::new(
+            Row::typed(
                 "Ride height RL",
                 "actsh3",
                 Shown::Float,
                 0x70F82C,
+                car_cell!(0, wheel_ride_height[2]),
                 true,
                 (168, 370),
             ),
-            Row::new(
+            Row::typed(
                 "Ride height RR",
                 "actsh4",
                 Shown::Float,
                 0x70F830,
+                car_cell!(0, wheel_ride_height[3]),
                 true,
                 (168, 376),
             ),
-            Row::new(
+            Row::typed(
                 "Stiffness, mean",
                 "actss",
                 Shown::Float,
                 0x70F844,
+                car_cell!(0, stiffness_mean),
                 true,
                 (168, 382),
             ),
-            Row::new(
+            Row::typed(
                 "Stiffness FL",
                 "actss1",
                 Shown::Float,
                 0x70F834,
+                car_cell!(0, wheel_stiffness[0]),
                 true,
                 (168, 388),
             ),
-            Row::new(
+            Row::typed(
                 "Stiffness FR",
                 "actss2",
                 Shown::Float,
                 0x70F838,
+                car_cell!(0, wheel_stiffness[1]),
                 true,
                 (168, 394),
             ),
-            Row::new(
+            Row::typed(
                 "Stiffness RL",
                 "actss3",
                 Shown::Float,
                 0x70F83C,
+                car_cell!(0, wheel_stiffness[2]),
                 true,
                 (168, 400),
             ),
-            Row::new(
+            Row::typed(
                 "Stiffness RR",
                 "actss4",
                 Shown::Float,
                 0x70F840,
+                car_cell!(0, wheel_stiffness[3]),
                 true,
                 (168, 406),
             ),
-            Row::new(
+            Row::typed(
                 "Steering pull",
                 "steerpull",
                 Shown::Float,
                 0x70F7F4,
+                car_cell!(0, steering_efficiency),
                 true,
                 (168, 412),
             ),
@@ -856,67 +1137,75 @@ pub static GROUPS: &[Group] = &[
     Group {
         name: "Player car: hits",
         rows: &[
-            Row::new(
+            Row::typed(
                 "Frame random",
                 "framernd",
                 Shown::Hex,
                 0x75B4A0,
+                store_cell!(|o| o.race.physics.damage(), clock),
                 false,
                 (168, 4),
             ),
-            Row::new(
+            Row::typed(
                 "Collision corner",
                 "colcrnr",
                 Shown::Whole,
                 0x75B3C4,
+                store_cell!(|o| o.race.physics.damage(), hit_side),
                 false,
                 (168, 10),
             ),
-            Row::new(
+            Row::typed(
                 "Collision amount",
                 "collamt",
                 Shown::Float,
                 0x75B3C8,
+                store_cell!(|o| o.race.physics.damage(), hit_size),
                 true,
                 (168, 16),
             ),
-            Row::new(
+            Row::typed(
                 "Landing FL",
                 "landamt1",
                 Shown::Float,
                 0x75B3CC,
+                indexed_cell!(|o| o.race.physics.damage(), wheel_loads[0]),
                 true,
                 (168, 22),
             ),
-            Row::new(
+            Row::typed(
                 "Landing FR",
                 "landamt2",
                 Shown::Float,
                 0x75B3D0,
+                indexed_cell!(|o| o.race.physics.damage(), wheel_loads[1]),
                 true,
                 (168, 28),
             ),
-            Row::new(
+            Row::typed(
                 "Landing RL",
                 "landamt3",
                 Shown::Float,
                 0x75B3D4,
+                indexed_cell!(|o| o.race.physics.damage(), wheel_loads[2]),
                 true,
                 (168, 34),
             ),
-            Row::new(
+            Row::typed(
                 "Landing RR",
                 "landamt4",
                 Shown::Float,
                 0x75B3D8,
+                indexed_cell!(|o| o.race.physics.damage(), wheel_loads[3]),
                 true,
                 (168, 40),
             ),
-            Row::new(
+            Row::typed(
                 "Landing, overall",
                 "landamt",
                 Shown::Float,
                 0x75B3DC,
+                store_cell!(|o| o.race.physics.damage(), wheel_load_mean),
                 true,
                 (168, 46),
             ),
@@ -925,187 +1214,210 @@ pub static GROUPS: &[Group] = &[
     Group {
         name: "Player car: windows and animation",
         rows: &[
-            Row::new(
+            Row::typed(
                 "Window 1 count",
                 "wind 1",
                 Shown::Whole,
                 0x70FAEC,
+                car_cell!(0, part_wake_counts[0]),
                 false,
                 (68, 214),
             ),
-            Row::new(
+            Row::typed(
                 "Window 2 count",
                 "wind 2",
                 Shown::Whole,
                 0x70FAF0,
+                car_cell!(0, part_wake_counts[1]),
                 false,
                 (68, 220),
             ),
-            Row::new(
+            Row::typed(
                 "Window 3 count",
                 "wind 3",
                 Shown::Whole,
                 0x70FAF4,
+                car_cell!(0, part_wake_counts[2]),
                 false,
                 (68, 226),
             ),
-            Row::new(
+            Row::typed(
                 "Window 4 count",
                 "wind 4",
                 Shown::Whole,
                 0x70FAF8,
+                car_cell!(0, part_wake_counts[3]),
                 false,
                 (68, 232),
             ),
-            Row::new(
+            Row::typed(
                 "Window 5 count",
                 "wind 5",
                 Shown::Whole,
                 0x70FAFC,
+                car_cell!(0, part_wake_counts[4]),
                 false,
                 (68, 238),
             ),
-            Row::new(
+            Row::typed(
                 "Window 6 count",
                 "wind 6",
                 Shown::Whole,
                 0x70FB00,
+                car_cell!(0, part_wake_counts[5]),
                 false,
                 (68, 244),
             ),
-            Row::new(
+            Row::typed(
                 "Animation 00",
                 "anim 00",
                 Shown::Whole,
                 0x70FE48,
+                car_cell!(0, saved_point_figures[1]),
                 false,
                 (68, 250),
             ),
-            Row::new(
+            Row::typed(
                 "Animation 01",
                 "anim 01",
                 Shown::Whole,
                 0x70FE4C,
+                car_cell!(0, saved_point_figures[2]),
                 false,
                 (68, 256),
             ),
-            Row::new(
+            Row::typed(
                 "Animation 02",
                 "anim 02",
                 Shown::Whole,
                 0x70FE50,
+                car_cell!(0, saved_point_figures[3]),
                 false,
                 (68, 262),
             ),
-            Row::new(
+            Row::typed(
                 "Animation 03",
                 "anim 03",
                 Shown::Whole,
                 0x70FE54,
+                car_cell!(0, saved_point_figures[4]),
                 false,
                 (68, 268),
             ),
-            Row::new(
+            Row::typed(
                 "Animation 04",
                 "anim 04",
                 Shown::Whole,
                 0x70FE58,
+                car_cell!(0, saved_point_figures[5]),
                 false,
                 (68, 274),
             ),
-            Row::new(
+            Row::typed(
                 "Animation 05",
                 "anim 05",
                 Shown::Whole,
                 0x70FE5C,
+                car_cell!(0, saved_point_figures[6]),
                 false,
                 (68, 280),
             ),
-            Row::new(
+            Row::typed(
                 "Animation 06",
                 "anim 06",
                 Shown::Whole,
                 0x70FE60,
+                car_cell!(0, saved_point_figures[7]),
                 false,
                 (68, 286),
             ),
-            Row::new(
+            Row::typed(
                 "Animation 07",
                 "anim 07",
                 Shown::Whole,
                 0x70FE64,
+                car_cell!(0, saved_point_figures[8]),
                 false,
                 (68, 292),
             ),
-            Row::new(
+            Row::typed(
                 "Animation 08",
                 "anim 08",
                 Shown::Whole,
                 0x70FE68,
+                car_cell!(0, saved_point_figures[9]),
                 false,
                 (68, 298),
             ),
-            Row::new(
+            Row::typed(
                 "Animation 09",
                 "anim 09",
                 Shown::Whole,
                 0x70FE6C,
+                car_cell!(0, saved_point_figures[10]),
                 false,
                 (68, 304),
             ),
-            Row::new(
+            Row::typed(
                 "Animation 10",
                 "anim 10",
                 Shown::Whole,
                 0x70FE70,
+                car_cell!(0, saved_point_figures[11]),
                 false,
                 (68, 310),
             ),
-            Row::new(
+            Row::typed(
                 "Animation 11",
                 "anim 11",
                 Shown::Whole,
                 0x70FE74,
+                car_cell!(0, saved_point_figures[12]),
                 false,
                 (68, 316),
             ),
-            Row::new(
+            Row::typed(
                 "Animation 12",
                 "anim 12",
                 Shown::Whole,
                 0x70FE78,
+                car_cell!(0, saved_point_figures[13]),
                 false,
                 (68, 322),
             ),
-            Row::new(
+            Row::typed(
                 "Animation 13",
                 "anim 13",
                 Shown::Whole,
                 0x70FE7C,
+                car_cell!(0, saved_point_figures[14]),
                 false,
                 (68, 328),
             ),
-            Row::new(
+            Row::typed(
                 "Animation 14",
                 "anim 14",
                 Shown::Whole,
                 0x70FE80,
+                car_cell!(0, saved_point_figures[15]),
                 false,
                 (68, 334),
             ),
-            Row::new(
+            Row::typed(
                 "Animation 15",
                 "anim 15",
                 Shown::Whole,
                 0x70FE84,
+                car_cell!(0, saved_point_figures[16]),
                 false,
                 (68, 340),
             ),
-            Row::new(
+            Row::typed(
                 "Animation 16",
                 "anim 16",
                 Shown::Whole,
                 0x70FE88,
+                car_cell!(0, saved_point_figures[17]),
                 false,
                 (68, 346),
             ),
@@ -1114,67 +1426,75 @@ pub static GROUPS: &[Group] = &[
     Group {
         name: "Car 1: inputs",
         rows: &[
-            Row::new(
+            Row::typed(
                 "Throttle",
                 "dannyeax",
                 Shown::Hex,
                 0x70F850,
+                car_cell!(0, input_throttle),
                 false,
                 (268, 16),
             ),
-            Row::new(
+            Row::typed(
                 "Keys and buttons",
                 "dannyebx",
                 Shown::Hex,
                 0x70F854,
+                car_cell!(0, input_keys),
                 false,
                 (268, 22),
             ),
-            Row::new(
+            Row::typed(
                 "Steering input",
                 "dannyecx",
                 Shown::Hex,
                 0x70F858,
+                car_cell!(0, input_steering),
                 false,
                 (268, 28),
             ),
-            Row::new(
+            Row::typed(
                 "Brake input",
                 "dannyedx",
                 Shown::Hex,
                 0x70F85C,
+                car_cell!(0, input_brake),
                 false,
                 (268, 34),
             ),
-            Row::new(
+            Row::typed(
                 "Steering angle",
                 "steerangle",
                 Shown::Hex,
                 0x70FA30,
+                car_cell!(0, steering),
                 false,
                 (268, 346),
             ),
-            Row::new(
+            Row::typed(
                 "Steering, unscaled",
                 "steeranglev",
                 Shown::Hex,
                 0x70FA34,
+                car_cell!(0, steering_raw),
                 false,
                 (268, 352),
             ),
-            Row::new(
+            Row::typed(
                 "Steering + trim",
                 "usteerangle",
                 Shown::Hex,
                 0x70FA38,
+                car_cell!(0, steer_angle),
                 false,
                 (268, 358),
             ),
-            Row::new(
+            Row::typed(
                 "Steering pull",
                 "steeringpul",
                 Shown::Hex,
                 0x70F5F4,
+                car_cell!(0, steer_trim),
                 false,
                 (268, 364),
             ),
@@ -1183,59 +1503,66 @@ pub static GROUPS: &[Group] = &[
     Group {
         name: "Car 1: timing",
         rows: &[
-            Row::new(
+            Row::typed(
                 "Checkpoints left",
                 "cpleft",
                 Shown::Hex,
                 0x70F684,
+                car_cell!(0, parts_present),
                 false,
                 (268, 4),
             ),
-            Row::new(
+            Row::typed(
                 "Tyre change time",
                 "tctime",
                 Shown::Whole,
                 0x70F654,
+                car_cell!(0, stopped_steps),
                 false,
                 (268, 10),
             ),
-            Row::new(
+            Row::typed(
                 "Step clock",
                 "alive ti",
                 Shown::Whole,
                 0x70F3F4,
+                car_cell!(0, step_clock),
                 false,
                 (268, 40),
             ),
-            Row::new(
+            Row::typed(
                 "Start timer",
                 "alive tr",
                 Shown::Whole,
                 0x70F400,
+                car_cell!(0, run_ticks),
                 false,
                 (268, 46),
             ),
-            Row::new(
+            Row::typed(
                 "Finished",
                 "race fin",
                 Shown::Whole,
                 0x70F494,
+                car_cell!(0, finish_flag),
                 false,
                 (268, 52),
             ),
-            Row::new(
+            Row::typed(
                 "Standing after go",
                 "outoftim",
                 Shown::Whole,
                 0x70F490,
+                car_cell!(0, go_stand_timer),
                 false,
                 (268, 58),
             ),
-            Row::new(
+            Row::typed(
                 "Standing once going",
                 "outofrac",
                 Shown::Whole,
                 0x70F48C,
+                car_cell!(0, started_stand_timer),
                 false,
                 (268, 64),
             ),
@@ -1244,59 +1571,66 @@ pub static GROUPS: &[Group] = &[
     Group {
         name: "Car 1: course position",
         rows: &[
-            Row::new(
+            Row::typed(
                 "Driver mode",
                 "driver",
                 Shown::Whole,
                 0x70F648,
+                car_cell!(0, driver_kind),
                 false,
                 (268, 70),
             ),
-            Row::new(
+            Row::typed(
                 "Checks passed",
                 "cur seg",
                 Shown::Whole,
                 0x70F47C,
+                car_cell!(0, splits_passed),
                 false,
                 (268, 76),
             ),
-            Row::new(
+            Row::typed(
                 "Checkpoint",
                 "cur blp",
                 Shown::Whole,
                 0x70F480,
+                car_cell!(0, reset_checkpoint),
                 false,
                 (268, 82),
             ),
-            Row::new(
+            Row::typed(
                 "Checkpoint, last played",
                 "l p plyd",
                 Shown::Whole,
                 0x70F488,
+                car_cell!(0, last_pace_call),
                 false,
                 (268, 88),
             ),
-            Row::new(
+            Row::typed(
                 "Checkpoint, nearest",
                 "near blp",
                 Shown::Whole,
                 0x70F484,
+                car_cell!(0, checkpoint),
                 false,
                 (268, 94),
             ),
-            Row::new(
+            Row::typed(
                 "Checkpoint offset x",
                 "bloffstx",
                 Shown::Whole,
                 0x70FA0C,
+                car_cell!(0, checkpoint_offset[0]),
                 false,
                 (268, 100),
             ),
-            Row::new(
+            Row::typed(
                 "Checkpoint offset z",
                 "bloffstz",
                 Shown::Whole,
                 0x70FA10,
+                car_cell!(0, checkpoint_offset[1]),
                 false,
                 (268, 106),
             ),
@@ -1305,67 +1639,75 @@ pub static GROUPS: &[Group] = &[
     Group {
         name: "Car 1: set-up",
         rows: &[
-            Row::new(
+            Row::typed(
                 "Car kind",
                 "carnum1",
                 Shown::Whole,
                 0x70F410,
+                car_cell!(0, car_kind),
                 false,
                 (268, 112),
             ),
-            Row::new(
+            Row::typed(
                 "Brake balance",
                 "b bal 1",
                 Shown::Whole,
                 0x70F40C,
+                car_cell!(0, brake_balance),
                 false,
                 (268, 118),
             ),
-            Row::new(
+            Row::typed(
                 "Ride height",
                 "set h 1",
                 Shown::Whole,
                 0x70F41C,
+                car_cell!(0, ride_height),
                 false,
                 (268, 124),
             ),
-            Row::new(
+            Row::typed(
                 "Suspension stiffness",
                 "set s 1",
                 Shown::Whole,
                 0x70F420,
+                car_cell!(0, suspension_stiffness),
                 false,
                 (268, 130),
             ),
-            Row::new(
+            Row::typed(
                 "Gear ratios",
                 "set g 1",
                 Shown::Whole,
                 0x70F414,
+                car_cell!(0, gear_ratio_setting),
                 false,
                 (268, 136),
             ),
-            Row::new(
+            Row::typed(
                 "Tyres",
                 "tyret 1",
                 Shown::Whole,
                 0x70F418,
+                car_cell!(0, tyre_kind),
                 false,
                 (268, 142),
             ),
-            Row::new(
+            Row::typed(
                 "Steering sensitivity",
                 "ste s 1",
                 Shown::Whole,
                 0x70F428,
+                car_cell!(0, steering_sensitivity),
                 false,
                 (268, 148),
             ),
-            Row::new(
+            Row::typed(
                 "Gearbox (2 automatic)",
                 "autom 1",
                 Shown::Whole,
                 0x70F424,
+                car_cell!(0, gearbox_kind),
                 false,
                 (268, 154),
             ),
@@ -1374,116 +1716,138 @@ pub static GROUPS: &[Group] = &[
     Group {
         name: "Car 1: motion",
         rows: &[
-            Row::new(
+            Row::typed(
                 "Sideways speed",
                 "xspddif",
                 Shown::Float,
                 0x70F590,
+                car_cell!(0, local_velocity[0]),
                 false,
                 (268, 184),
             ),
-            Row::new(
+            Row::typed(
                 "Forward speed difference",
                 "zspddif",
                 Shown::Float,
                 0x70F56C,
+                car_cell!(0, drive_slip_speed),
                 false,
                 (268, 190),
             ),
-            Row::new("Skid", "skidamt", Shown::Float, 0x70F674, false, (268, 196)),
-            Row::new(
+            Row::typed(
+                "Skid",
+                "skidamt",
+                Shown::Float,
+                0x70F674,
+                car_cell!(0, slip_speed),
+                false,
+                (268, 196),
+            ),
+            Row::typed(
                 "Front wheels' speed",
                 "fwhlspd",
                 Shown::Float,
                 0x70F5A4,
+                car_cell!(0, drive_speed_a),
                 false,
                 (268, 202),
             ),
-            Row::new(
+            Row::typed(
                 "Rear wheels' speed",
                 "rwhlspd",
                 Shown::Float,
                 0x70F5A8,
+                car_cell!(0, drive_speed_b),
                 false,
                 (268, 208),
             ),
-            Row::new(
+            Row::typed(
                 "Forward speed",
                 "zcarspd",
                 Shown::Float,
                 0x70F598,
+                car_cell!(0, local_velocity[2]),
                 false,
                 (268, 214),
             ),
-            Row::new(
+            Row::typed(
                 "Spin x",
                 "rotspd x",
                 Shown::Float,
                 0x70F570,
+                car_cell!(0, spin[0]),
                 false,
                 (268, 226),
             ),
-            Row::new(
+            Row::typed(
                 "Spin y (yaw)",
                 "rotspd y",
                 Shown::Float,
                 0x70F574,
+                car_cell!(0, spin[1]),
                 false,
                 (268, 232),
             ),
-            Row::new(
+            Row::typed(
                 "Spin z",
                 "rotspd z",
                 Shown::Float,
                 0x70F578,
+                car_cell!(0, spin[2]),
                 false,
                 (268, 238),
             ),
-            Row::new(
+            Row::typed(
                 "Wetness",
                 "wetns",
                 Shown::Float,
                 0x70F66C,
+                car_cell!(0, surface_blend),
                 false,
                 (268, 268),
             ),
-            Row::new(
+            Row::typed(
                 "Wheel load: spin",
                 "rotspdspin",
                 Shown::Float,
                 0x70F604,
+                car_cell!(0, grip_forces[2]),
                 false,
                 (268, 310),
             ),
-            Row::new(
+            Row::typed(
                 "Wheel load: power",
                 "rotspdpowr",
                 Shown::Float,
                 0x70F600,
+                car_cell!(0, grip_forces[1]),
                 false,
                 (268, 316),
             ),
-            Row::new(
+            Row::typed(
                 "Wheel load: handbrake",
                 "rotspdhbrk",
                 Shown::Float,
                 0x70F608,
+                car_cell!(0, grip_forces[3]),
                 false,
                 (268, 322),
             ),
-            Row::new(
+            Row::typed(
                 "Wanted yaw spin",
                 "wantyrotspd",
                 Shown::Float,
                 0x70F5F0,
+                car_cell!(0, grip_force_sum),
                 false,
                 (268, 328),
             ),
-            Row::new(
+            Row::typed(
                 "Yaw spin",
                 "yrotspd",
                 Shown::Float,
                 0x70F5EC,
+                car_cell!(0, eased_yaw_spin),
                 false,
                 (268, 334),
             ),
@@ -1492,67 +1856,75 @@ pub static GROUPS: &[Group] = &[
     Group {
         name: "Car 1: suspension and wheels",
         rows: &[
-            Row::new(
+            Row::typed(
                 "Squeeze FL",
                 "susp 1",
                 Shown::Float,
                 0x70F9EC,
+                car_cell!(0, wheel_squeeze[0]),
                 false,
                 (268, 160),
             ),
-            Row::new(
+            Row::typed(
                 "Squeeze FR",
                 "susp 2",
                 Shown::Float,
                 0x70F9F0,
+                car_cell!(0, wheel_squeeze[1]),
                 false,
                 (268, 166),
             ),
-            Row::new(
+            Row::typed(
                 "Squeeze RL",
                 "susp 3",
                 Shown::Float,
                 0x70F9F4,
+                car_cell!(0, wheel_squeeze[2]),
                 false,
                 (268, 172),
             ),
-            Row::new(
+            Row::typed(
                 "Squeeze RR",
                 "susp 4",
                 Shown::Float,
                 0x70F9F8,
+                car_cell!(0, wheel_squeeze[3]),
                 false,
                 (268, 178),
             ),
-            Row::new(
+            Row::typed(
                 "Wheel FL height",
                 "fl z pos",
                 Shown::Float,
                 0x7100DC,
+                car_cell!(0, probe_point_z[0]),
                 false,
                 (268, 244),
             ),
-            Row::new(
+            Row::typed(
                 "Wheel FR height",
                 "fr z pos",
                 Shown::Float,
                 0x7100E0,
+                car_cell!(0, probe_point_z[1]),
                 false,
                 (268, 250),
             ),
-            Row::new(
+            Row::typed(
                 "Wheel RL height",
                 "bl z pos",
                 Shown::Float,
                 0x7100E4,
+                car_cell!(0, probe_point_z[2]),
                 false,
                 (268, 256),
             ),
-            Row::new(
+            Row::typed(
                 "Wheel RR height",
                 "br z pos",
                 Shown::Float,
                 0x7100E8,
+                car_cell!(0, probe_point_z[3]),
                 false,
                 (268, 262),
             ),
@@ -1561,67 +1933,75 @@ pub static GROUPS: &[Group] = &[
     Group {
         name: "Car 1: windows and impacts",
         rows: &[
-            Row::new(
+            Row::typed(
                 "Impact, octant 0",
                 "oct 0",
                 Shown::Float,
                 0x70F450,
+                car_cell!(0, impact_octant_marks[0]),
                 false,
                 (268, 406),
             ),
-            Row::new(
+            Row::typed(
                 "Impact, octant 1",
                 "oct 1",
                 Shown::Float,
                 0x70F454,
+                car_cell!(0, impact_octant_marks[1]),
                 false,
                 (268, 412),
             ),
-            Row::new(
+            Row::typed(
                 "Impact, octant 2",
                 "oct 2",
                 Shown::Float,
                 0x70F458,
+                car_cell!(0, impact_octant_marks[2]),
                 false,
                 (268, 418),
             ),
-            Row::new(
+            Row::typed(
                 "Impact, octant 3",
                 "oct 3",
                 Shown::Float,
                 0x70F45C,
+                car_cell!(0, impact_octant_marks[3]),
                 false,
                 (268, 424),
             ),
-            Row::new(
+            Row::typed(
                 "Impact, octant 4",
                 "oct 4",
                 Shown::Float,
                 0x70F460,
+                car_cell!(0, impact_octant_marks[4]),
                 false,
                 (268, 430),
             ),
-            Row::new(
+            Row::typed(
                 "Impact, octant 5",
                 "oct 5",
                 Shown::Float,
                 0x70F464,
+                car_cell!(0, impact_octant_marks[5]),
                 false,
                 (268, 436),
             ),
-            Row::new(
+            Row::typed(
                 "Impact, octant 6",
                 "oct 6",
                 Shown::Float,
                 0x70F468,
+                car_cell!(0, impact_octant_marks[6]),
                 false,
                 (268, 442),
             ),
-            Row::new(
+            Row::typed(
                 "Impact, octant 7",
                 "oct 7",
                 Shown::Float,
                 0x70F46C,
+                car_cell!(0, impact_octant_marks[7]),
                 false,
                 (268, 448),
             ),
@@ -1630,67 +2010,75 @@ pub static GROUPS: &[Group] = &[
     Group {
         name: "Car 2: inputs",
         rows: &[
-            Row::new(
+            Row::typed(
                 "Throttle",
                 "dannyeax",
                 Shown::Hex,
                 0x710830,
+                car_cell!(1, input_throttle),
                 false,
                 (368, 16),
             ),
-            Row::new(
+            Row::typed(
                 "Keys and buttons",
                 "dannyebx",
                 Shown::Hex,
                 0x710834,
+                car_cell!(1, input_keys),
                 false,
                 (368, 22),
             ),
-            Row::new(
+            Row::typed(
                 "Steering input",
                 "dannyecx",
                 Shown::Hex,
                 0x710838,
+                car_cell!(1, input_steering),
                 false,
                 (368, 28),
             ),
-            Row::new(
+            Row::typed(
                 "Brake input",
                 "dannyedx",
                 Shown::Hex,
                 0x71083C,
+                car_cell!(1, input_brake),
                 false,
                 (368, 34),
             ),
-            Row::new(
+            Row::typed(
                 "Steering angle",
                 "steerangle",
                 Shown::Hex,
                 0x710A10,
+                car_cell!(1, steering),
                 false,
                 (368, 346),
             ),
-            Row::new(
+            Row::typed(
                 "Steering, unscaled",
                 "steeranglev",
                 Shown::Hex,
                 0x710A14,
+                car_cell!(1, steering_raw),
                 false,
                 (368, 352),
             ),
-            Row::new(
+            Row::typed(
                 "Steering + trim",
                 "usteerangle",
                 Shown::Hex,
                 0x710A18,
+                car_cell!(1, steer_angle),
                 false,
                 (368, 358),
             ),
-            Row::new(
+            Row::typed(
                 "Steering pull",
                 "steeringpul",
                 Shown::Hex,
                 0x7105D4,
+                car_cell!(1, steer_trim),
                 false,
                 (368, 364),
             ),
@@ -1699,59 +2087,66 @@ pub static GROUPS: &[Group] = &[
     Group {
         name: "Car 2: timing",
         rows: &[
-            Row::new(
+            Row::typed(
                 "Checkpoints left",
                 "cpleft",
                 Shown::Hex,
                 0x710664,
+                car_cell!(1, parts_present),
                 false,
                 (368, 4),
             ),
-            Row::new(
+            Row::typed(
                 "Tyre change time",
                 "tctime",
                 Shown::Whole,
                 0x710634,
+                car_cell!(1, stopped_steps),
                 false,
                 (368, 10),
             ),
-            Row::new(
+            Row::typed(
                 "Step clock",
                 "alive ti",
                 Shown::Whole,
                 0x7103D4,
+                car_cell!(1, step_clock),
                 false,
                 (368, 40),
             ),
-            Row::new(
+            Row::typed(
                 "Start timer",
                 "alive tr",
                 Shown::Whole,
                 0x7103E0,
+                car_cell!(1, run_ticks),
                 false,
                 (368, 46),
             ),
-            Row::new(
+            Row::typed(
                 "Finished",
                 "race fin",
                 Shown::Whole,
                 0x710474,
+                car_cell!(1, finish_flag),
                 false,
                 (368, 52),
             ),
-            Row::new(
+            Row::typed(
                 "Standing after go",
                 "outoftim",
                 Shown::Whole,
                 0x710470,
+                car_cell!(1, go_stand_timer),
                 false,
                 (368, 58),
             ),
-            Row::new(
+            Row::typed(
                 "Standing once going",
                 "outofrac",
                 Shown::Whole,
                 0x71046C,
+                car_cell!(1, started_stand_timer),
                 false,
                 (368, 64),
             ),
@@ -1760,59 +2155,66 @@ pub static GROUPS: &[Group] = &[
     Group {
         name: "Car 2: course position",
         rows: &[
-            Row::new(
+            Row::typed(
                 "Driver mode",
                 "driver",
                 Shown::Whole,
                 0x710628,
+                car_cell!(1, driver_kind),
                 false,
                 (368, 70),
             ),
-            Row::new(
+            Row::typed(
                 "Checks passed",
                 "cur seg",
                 Shown::Whole,
                 0x71045C,
+                car_cell!(1, splits_passed),
                 false,
                 (368, 76),
             ),
-            Row::new(
+            Row::typed(
                 "Checkpoint",
                 "cur blp",
                 Shown::Whole,
                 0x710460,
+                car_cell!(1, reset_checkpoint),
                 false,
                 (368, 82),
             ),
-            Row::new(
+            Row::typed(
                 "Checkpoint, last played",
                 "l p plyd",
                 Shown::Whole,
                 0x710468,
+                car_cell!(1, last_pace_call),
                 false,
                 (368, 88),
             ),
-            Row::new(
+            Row::typed(
                 "Checkpoint, nearest",
                 "near blp",
                 Shown::Whole,
                 0x710464,
+                car_cell!(1, checkpoint),
                 false,
                 (368, 94),
             ),
-            Row::new(
+            Row::typed(
                 "Checkpoint offset x",
                 "bloffstx",
                 Shown::Whole,
                 0x7109EC,
+                car_cell!(1, checkpoint_offset[0]),
                 false,
                 (368, 100),
             ),
-            Row::new(
+            Row::typed(
                 "Checkpoint offset z",
                 "bloffstz",
                 Shown::Whole,
                 0x7109F0,
+                car_cell!(1, checkpoint_offset[1]),
                 false,
                 (368, 106),
             ),
@@ -1821,67 +2223,75 @@ pub static GROUPS: &[Group] = &[
     Group {
         name: "Car 2: set-up",
         rows: &[
-            Row::new(
+            Row::typed(
                 "Car kind",
                 "carnum1",
                 Shown::Whole,
                 0x7103F0,
+                car_cell!(1, car_kind),
                 false,
                 (368, 112),
             ),
-            Row::new(
+            Row::typed(
                 "Brake balance",
                 "b bal 1",
                 Shown::Whole,
                 0x7103EC,
+                car_cell!(1, brake_balance),
                 false,
                 (368, 118),
             ),
-            Row::new(
+            Row::typed(
                 "Ride height",
                 "set h 1",
                 Shown::Whole,
                 0x7103FC,
+                car_cell!(1, ride_height),
                 false,
                 (368, 124),
             ),
-            Row::new(
+            Row::typed(
                 "Suspension stiffness",
                 "set s 1",
                 Shown::Whole,
                 0x710400,
+                car_cell!(1, suspension_stiffness),
                 false,
                 (368, 130),
             ),
-            Row::new(
+            Row::typed(
                 "Gear ratios",
                 "set g 1",
                 Shown::Whole,
                 0x7103F4,
+                car_cell!(1, gear_ratio_setting),
                 false,
                 (368, 136),
             ),
-            Row::new(
+            Row::typed(
                 "Tyres",
                 "tyret 1",
                 Shown::Whole,
                 0x7103F8,
+                car_cell!(1, tyre_kind),
                 false,
                 (368, 142),
             ),
-            Row::new(
+            Row::typed(
                 "Steering sensitivity",
                 "ste s 1",
                 Shown::Whole,
                 0x710408,
+                car_cell!(1, steering_sensitivity),
                 false,
                 (368, 148),
             ),
-            Row::new(
+            Row::typed(
                 "Gearbox (2 automatic)",
                 "autom 1",
                 Shown::Whole,
                 0x710404,
+                car_cell!(1, gearbox_kind),
                 false,
                 (368, 154),
             ),
@@ -1890,116 +2300,138 @@ pub static GROUPS: &[Group] = &[
     Group {
         name: "Car 2: motion",
         rows: &[
-            Row::new(
+            Row::typed(
                 "Sideways speed",
                 "xspddif",
                 Shown::Float,
                 0x710570,
+                car_cell!(1, local_velocity[0]),
                 false,
                 (368, 184),
             ),
-            Row::new(
+            Row::typed(
                 "Forward speed difference",
                 "zspddif",
                 Shown::Float,
                 0x71054C,
+                car_cell!(1, drive_slip_speed),
                 false,
                 (368, 190),
             ),
-            Row::new("Skid", "skidamt", Shown::Float, 0x710654, false, (368, 196)),
-            Row::new(
+            Row::typed(
+                "Skid",
+                "skidamt",
+                Shown::Float,
+                0x710654,
+                car_cell!(1, slip_speed),
+                false,
+                (368, 196),
+            ),
+            Row::typed(
                 "Front wheels' speed",
                 "fwhlspd",
                 Shown::Float,
                 0x710584,
+                car_cell!(1, drive_speed_a),
                 false,
                 (368, 202),
             ),
-            Row::new(
+            Row::typed(
                 "Rear wheels' speed",
                 "rwhlspd",
                 Shown::Float,
                 0x710588,
+                car_cell!(1, drive_speed_b),
                 false,
                 (368, 208),
             ),
-            Row::new(
+            Row::typed(
                 "Forward speed",
                 "zcarspd",
                 Shown::Float,
                 0x710578,
+                car_cell!(1, local_velocity[2]),
                 false,
                 (368, 214),
             ),
-            Row::new(
+            Row::typed(
                 "Spin x",
                 "rotspd x",
                 Shown::Float,
                 0x710550,
+                car_cell!(1, spin[0]),
                 false,
                 (368, 226),
             ),
-            Row::new(
+            Row::typed(
                 "Spin y (yaw)",
                 "rotspd y",
                 Shown::Float,
                 0x710554,
+                car_cell!(1, spin[1]),
                 false,
                 (368, 232),
             ),
-            Row::new(
+            Row::typed(
                 "Spin z",
                 "rotspd z",
                 Shown::Float,
                 0x710558,
+                car_cell!(1, spin[2]),
                 false,
                 (368, 238),
             ),
-            Row::new(
+            Row::typed(
                 "Wetness",
                 "wetns",
                 Shown::Float,
                 0x71064C,
+                car_cell!(1, surface_blend),
                 false,
                 (368, 268),
             ),
-            Row::new(
+            Row::typed(
                 "Wheel load: spin",
                 "rotspdspin",
                 Shown::Float,
                 0x7105E4,
+                car_cell!(1, grip_forces[2]),
                 false,
                 (368, 310),
             ),
-            Row::new(
+            Row::typed(
                 "Wheel load: power",
                 "rotspdpowr",
                 Shown::Float,
                 0x7105E0,
+                car_cell!(1, grip_forces[1]),
                 false,
                 (368, 316),
             ),
-            Row::new(
+            Row::typed(
                 "Wheel load: handbrake",
                 "rotspdhbrk",
                 Shown::Float,
                 0x7105E8,
+                car_cell!(1, grip_forces[3]),
                 false,
                 (368, 322),
             ),
-            Row::new(
+            Row::typed(
                 "Wanted yaw spin",
                 "wantyrotspd",
                 Shown::Float,
                 0x7105D0,
+                car_cell!(1, grip_force_sum),
                 false,
                 (368, 328),
             ),
-            Row::new(
+            Row::typed(
                 "Yaw spin",
                 "yrotspd",
                 Shown::Float,
                 0x7105CC,
+                car_cell!(1, eased_yaw_spin),
                 false,
                 (368, 334),
             ),
@@ -2008,67 +2440,75 @@ pub static GROUPS: &[Group] = &[
     Group {
         name: "Car 2: suspension and wheels",
         rows: &[
-            Row::new(
+            Row::typed(
                 "Squeeze FL",
                 "susp 1",
                 Shown::Float,
                 0x7109CC,
+                car_cell!(1, wheel_squeeze[0]),
                 false,
                 (368, 160),
             ),
-            Row::new(
+            Row::typed(
                 "Squeeze FR",
                 "susp 2",
                 Shown::Float,
                 0x7109D0,
+                car_cell!(1, wheel_squeeze[1]),
                 false,
                 (368, 166),
             ),
-            Row::new(
+            Row::typed(
                 "Squeeze RL",
                 "susp 3",
                 Shown::Float,
                 0x7109D4,
+                car_cell!(1, wheel_squeeze[2]),
                 false,
                 (368, 172),
             ),
-            Row::new(
+            Row::typed(
                 "Squeeze RR",
                 "susp 4",
                 Shown::Float,
                 0x7109D8,
+                car_cell!(1, wheel_squeeze[3]),
                 false,
                 (368, 178),
             ),
-            Row::new(
+            Row::typed(
                 "Wheel FL height",
                 "fl z pos",
                 Shown::Float,
                 0x7110BC,
+                car_cell!(1, probe_point_z[0]),
                 false,
                 (368, 244),
             ),
-            Row::new(
+            Row::typed(
                 "Wheel FR height",
                 "fr z pos",
                 Shown::Float,
                 0x7110C0,
+                car_cell!(1, probe_point_z[1]),
                 false,
                 (368, 250),
             ),
-            Row::new(
+            Row::typed(
                 "Wheel RL height",
                 "bl z pos",
                 Shown::Float,
                 0x7110C4,
+                car_cell!(1, probe_point_z[2]),
                 false,
                 (368, 256),
             ),
-            Row::new(
+            Row::typed(
                 "Wheel RR height",
                 "br z pos",
                 Shown::Float,
                 0x7110C8,
+                car_cell!(1, probe_point_z[3]),
                 false,
                 (368, 262),
             ),
@@ -2077,115 +2517,129 @@ pub static GROUPS: &[Group] = &[
     Group {
         name: "Car 2: windows and impacts",
         rows: &[
-            Row::new(
+            Row::typed(
                 "Window 1 count",
                 "wind 1",
                 Shown::Whole,
                 0x710ACC,
+                car_cell!(1, part_wake_counts[0]),
                 false,
                 (368, 370),
             ),
-            Row::new(
+            Row::typed(
                 "Window 2 count",
                 "wind 2",
                 Shown::Whole,
                 0x710AD0,
+                car_cell!(1, part_wake_counts[1]),
                 false,
                 (368, 376),
             ),
-            Row::new(
+            Row::typed(
                 "Window 3 count",
                 "wind 3",
                 Shown::Whole,
                 0x710AD4,
+                car_cell!(1, part_wake_counts[2]),
                 false,
                 (368, 382),
             ),
-            Row::new(
+            Row::typed(
                 "Window 4 count",
                 "wind 4",
                 Shown::Whole,
                 0x710AD8,
+                car_cell!(1, part_wake_counts[3]),
                 false,
                 (368, 388),
             ),
-            Row::new(
+            Row::typed(
                 "Window 5 count",
                 "wind 5",
                 Shown::Whole,
                 0x710ADC,
+                car_cell!(1, part_wake_counts[4]),
                 false,
                 (368, 394),
             ),
-            Row::new(
+            Row::typed(
                 "Window 6 count",
                 "wind 6",
                 Shown::Whole,
                 0x710AE0,
+                car_cell!(1, part_wake_counts[5]),
                 false,
                 (368, 400),
             ),
-            Row::new(
+            Row::typed(
                 "Impact, octant 0",
                 "oct 0",
                 Shown::Float,
                 0x710430,
+                car_cell!(1, impact_octant_marks[0]),
                 false,
                 (368, 406),
             ),
-            Row::new(
+            Row::typed(
                 "Impact, octant 1",
                 "oct 1",
                 Shown::Float,
                 0x710434,
+                car_cell!(1, impact_octant_marks[1]),
                 false,
                 (368, 412),
             ),
-            Row::new(
+            Row::typed(
                 "Impact, octant 2",
                 "oct 2",
                 Shown::Float,
                 0x710438,
+                car_cell!(1, impact_octant_marks[2]),
                 false,
                 (368, 418),
             ),
-            Row::new(
+            Row::typed(
                 "Impact, octant 3",
                 "oct 3",
                 Shown::Float,
                 0x71043C,
+                car_cell!(1, impact_octant_marks[3]),
                 false,
                 (368, 424),
             ),
-            Row::new(
+            Row::typed(
                 "Impact, octant 4",
                 "oct 4",
                 Shown::Float,
                 0x710440,
+                car_cell!(1, impact_octant_marks[4]),
                 false,
                 (368, 430),
             ),
-            Row::new(
+            Row::typed(
                 "Impact, octant 5",
                 "oct 5",
                 Shown::Float,
                 0x710444,
+                car_cell!(1, impact_octant_marks[5]),
                 false,
                 (368, 436),
             ),
-            Row::new(
+            Row::typed(
                 "Impact, octant 6",
                 "oct 6",
                 Shown::Float,
                 0x710448,
+                car_cell!(1, impact_octant_marks[6]),
                 false,
                 (368, 442),
             ),
-            Row::new(
+            Row::typed(
                 "Impact, octant 7",
                 "oct 7",
                 Shown::Float,
                 0x71044C,
+                car_cell!(1, impact_octant_marks[7]),
                 false,
                 (368, 448),
             ),
@@ -2194,98 +2648,125 @@ pub static GROUPS: &[Group] = &[
     Group {
         name: "Session",
         rows: &[
-            Row::new(
+            Row::typed(
                 "Players (network)",
                 "or.numpl",
                 Shown::Hex,
                 0x75ACE0,
+                store_cell!(|o| o.race.shared.state, settings.race_mode),
                 false,
                 (468, 4),
             ),
-            Row::new(
+            Row::typed(
                 "Local players",
                 "numlocpl",
                 Shown::Hex,
                 0x514F78,
+                indexed_cell!(|o| o.sound.threads.shared, one_player),
                 false,
                 (468, 10),
             ),
-            Row::new(
+            Row::typed(
                 "Players",
                 "shaunnmp",
                 Shown::Hex,
                 0x63DB94,
+                store_cell!(|o| o.race.shared.view.get(), players),
                 false,
                 (468, 16),
             ),
-            Row::new(
+            Row::typed(
                 "Cars in the race",
                 "shaunnca",
                 Shown::Hex,
                 0x63DB90,
+                store_cell!(|o| o.race.shared.view.get(), race_cars),
                 false,
                 (468, 22),
             ),
-            Row::new("Views", "shaunnsc", Shown::Hex, 0x63DB98, false, (468, 28)),
-            Row::new(
+            Row::typed(
+                "Views",
+                "shaunnsc",
+                Shown::Hex,
+                0x63DB98,
+                store_cell!(|o| o.race.shared.view.get(), views),
+                false,
+                (468, 28),
+            ),
+            Row::typed(
                 "View 1's car",
                 "shaunsc1",
                 Shown::Hex,
                 0x63DBB0,
+                indexed_cell!(|o| o.race.shared.view.get(), view_blocks[0]),
                 false,
                 (468, 34),
             ),
-            Row::new(
+            Row::typed(
                 "View 2's car",
                 "shaunsc2",
                 Shown::Hex,
                 0x63DBB4,
+                indexed_cell!(|o| o.race.shared.view.get(), view_blocks[1]),
                 false,
                 (468, 40),
             ),
-            Row::new("Split", "shaunspl", Shown::Hex, 0x6238A4, false, (468, 46)),
+            Row::typed(
+                "Split",
+                "shaunspl",
+                Shown::Hex,
+                0x6238A4,
+                store_cell!(|o| o.race.shared.vars.get(), split),
+                false,
+                (468, 46),
+            ),
         ],
     },
     Group {
         name: "Physics: inputs and steering",
         rows: &[
-            Row::new(
+            Row::typed(
                 "Drive torque",
                 "torqu",
                 Shown::Float,
                 0x614750,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), drive_torque),
                 false,
                 (468, 424),
             ),
-            Row::new(
+            Row::typed(
                 "Steering input",
                 "inputst",
                 Shown::Hex,
                 0x613890,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), input_steer),
                 false,
                 (468, 430),
             ),
-            Row::new(
+            Row::typed(
                 "Joystick x",
                 "joyx",
                 Shown::Whole,
                 0x6138AC,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), wear_page_words[0]),
                 false,
                 (468, 364),
             ),
-            Row::new(
+            Row::typed(
                 "Joystick y",
                 "joyy",
                 Shown::Whole,
                 0x6138B0,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), wear_page_words[1]),
                 false,
                 (468, 370),
             ),
-            Row::new(
+            Row::typed(
                 "Joystick z",
                 "joyz",
                 Shown::Whole,
                 0x6138B4,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), wear_page_words[2]),
                 false,
                 (468, 376),
             ),
@@ -2294,212 +2775,246 @@ pub static GROUPS: &[Group] = &[
     Group {
         name: "Physics: suspension and grip",
         rows: &[
-            Row::new(
+            Row::typed(
                 "Suspension height",
                 "susph",
                 Shown::Float,
                 0x614BF4,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), handling[2]),
                 false,
                 (468, 52),
             ),
-            Row::new(
+            Row::typed(
                 "Suspension travel",
                 "suspt",
                 Shown::Float,
                 0x614BF8,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), handling[3]),
                 false,
                 (468, 58),
             ),
-            Row::new(
+            Row::typed(
                 "Suspension damping",
                 "suspd",
                 Shown::Float,
                 0x614C00,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), handling[5]),
                 false,
                 (468, 64),
             ),
-            Row::new(
+            Row::typed(
                 "Steering k",
                 "ste k",
                 Shown::Float,
                 0x614C0C,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), handling[8]),
                 false,
                 (468, 70),
             ),
-            Row::new(
+            Row::typed(
                 "Steering j",
                 "ste j",
                 Shown::Float,
                 0x614C08,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), handling[7]),
                 false,
                 (468, 76),
             ),
-            Row::new("Bump", "bumpf", Shown::Float, 0x614C04, false, (468, 82)),
-            Row::new(
+            Row::typed(
+                "Bump",
+                "bumpf",
+                Shown::Float,
+                0x614C04,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), handling[6]),
+                false,
+                (468, 82),
+            ),
+            Row::typed(
                 "Surface softness",
                 "gripf",
                 Shown::Float,
                 0x614230,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), surface_softness),
                 false,
                 (468, 88),
             ),
-            Row::new(
+            Row::typed(
                 "Centre of gravity height",
                 "set cgh",
                 Shown::Float,
                 0x614BFC,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), handling[4]),
                 false,
                 (468, 94),
             ),
-            Row::new(
+            Row::typed(
                 "Wheel spin push",
                 "usecghx",
                 Shown::Float,
                 0x6141D4,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), wheel_spin_push[0]),
                 false,
                 (468, 100),
             ),
-            Row::new(
+            Row::typed(
                 "Centre of gravity z",
                 "usecghz",
                 Shown::Float,
                 0x6141D8,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), wheel_spin_push[1]),
                 false,
                 (468, 106),
             ),
-            Row::new(
+            Row::typed(
                 "Contact step",
                 "bodg fac",
                 Shown::Whole,
                 0x614148,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), contact_step),
                 false,
                 (468, 112),
             ),
-            Row::new(
+            Row::typed(
                 "Accelerating grip",
                 "acc grip",
                 Shown::Float,
                 0x614BB4,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), spec_surface[0]),
                 false,
                 (468, 118),
             ),
-            Row::new(
+            Row::typed(
                 "Braking grip",
                 "brk grip",
                 Shown::Float,
                 0x614BB8,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), spec_surface[1]),
                 false,
                 (468, 124),
             ),
-            Row::new(
+            Row::typed(
                 "Side grip",
                 "sidegrip",
                 Shown::Float,
                 0x614BBC,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), spec_surface[2]),
                 false,
                 (468, 130),
             ),
-            Row::new(
+            Row::typed(
                 "Body hit ground",
                 "hitbody",
                 Shown::Whole,
                 0x6D3028,
+                indexed_cell!(|o| o.race.physics.contact.get(), ground_contact_started),
                 false,
                 (468, 136),
             ),
-            Row::new(
+            Row::typed(
                 "Wheel share",
                 "deepbody",
                 Shown::Float,
                 0x6D3070,
+                indexed_cell!(|o| o.race.physics.contact.get(), wheel_share),
                 false,
                 (468, 142),
             ),
-            Row::new(
+            Row::typed(
                 "Drive limit 1",
                 "gripx1",
                 Shown::Float,
                 0x61423C,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), drive_limits[0]),
                 false,
                 (468, 148),
             ),
-            Row::new(
+            Row::typed(
                 "Drive limit 2",
                 "gripx2",
                 Shown::Float,
                 0x614240,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), drive_limits[1]),
                 false,
                 (468, 154),
             ),
-            Row::new(
+            Row::typed(
                 "Drive limit",
                 "gripx",
                 Shown::Float,
                 0x614244,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), drive_limits[2]),
                 false,
                 (468, 160),
             ),
-            Row::new(
+            Row::typed(
                 "Drive slip",
                 "usegripx",
                 Shown::Float,
                 0x614250,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), drive_slip[0]),
                 false,
                 (468, 166),
             ),
-            Row::new(
+            Row::typed(
                 "Slip limit",
                 "maxugrpx",
                 Shown::Float,
                 0x614264,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), slip_limit),
                 false,
                 (468, 172),
             ),
-            Row::new(
+            Row::typed(
                 "Wheel slip, front",
                 "wgripzf",
                 Shown::Float,
                 0x614234,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), wheel_slips[0]),
                 false,
                 (468, 178),
             ),
-            Row::new(
+            Row::typed(
                 "Wheel slip, rear",
                 "wgripzb",
                 Shown::Float,
                 0x614238,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), wheel_slips[1]),
                 false,
                 (468, 184),
             ),
-            Row::new(
+            Row::typed(
                 "Drive force, front",
                 "gripzf",
                 Shown::Float,
                 0x614248,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), drive_forces[0]),
                 false,
                 (468, 190),
             ),
-            Row::new(
+            Row::typed(
                 "Drive force, rear",
                 "gripzb",
                 Shown::Float,
                 0x61424C,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), drive_forces[1]),
                 false,
                 (468, 196),
             ),
-            Row::new(
+            Row::typed(
                 "Axle slip, front",
                 "ugrpzf",
                 Shown::Float,
                 0x614258,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), axle_slips[0]),
                 false,
                 (468, 202),
             ),
-            Row::new(
+            Row::typed(
                 "Axle slip, rear",
                 "ugrpzb",
                 Shown::Float,
                 0x61425C,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), axle_slips[1]),
                 false,
                 (468, 208),
             ),
@@ -2508,75 +3023,84 @@ pub static GROUPS: &[Group] = &[
     Group {
         name: "Physics: forces",
         rows: &[
-            Row::new(
+            Row::typed(
                 "Traction speed",
                 "tracspd",
                 Shown::Float,
                 0x614168,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), drive_speed_figure),
                 false,
                 (468, 214),
             ),
-            Row::new(
+            Row::typed(
                 "Force, front grip",
                 "force fg",
                 Shown::Float,
                 0x6148D0,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), forces[11].force[0]),
                 false,
                 (468, 220),
             ),
-            Row::new(
+            Row::typed(
                 "Force, rear grip",
                 "force rg",
                 Shown::Float,
                 0x614910,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), forces[13].force[0]),
                 false,
                 (468, 226),
             ),
-            Row::new(
+            Row::typed(
                 "Force x",
                 "force x",
                 Shown::Float,
                 0x614C2C,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), force_sums[0]),
                 false,
                 (468, 232),
             ),
-            Row::new(
+            Row::typed(
                 "Force x, used",
                 "forcexu",
                 Shown::Float,
                 0x614C30,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), force_sums[1]),
                 false,
                 (468, 238),
             ),
-            Row::new(
+            Row::typed(
                 "Force z",
                 "force z",
                 Shown::Float,
                 0x614C34,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), force_sums[2]),
                 false,
                 (468, 244),
             ),
-            Row::new(
+            Row::typed(
                 "Force r",
                 "force r",
                 Shown::Float,
                 0x614C38,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), force_sums[3]),
                 false,
                 (468, 250),
             ),
-            Row::new(
+            Row::typed(
                 "Force d",
                 "force d",
                 Shown::Float,
                 0x614C3C,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), force_sums[4]),
                 false,
                 (468, 256),
             ),
-            Row::new(
+            Row::typed(
                 "Grip limit",
                 "grip t",
                 Shown::Float,
                 0x614260,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), grip_limit),
                 false,
                 (468, 262),
             ),
@@ -2585,100 +3109,143 @@ pub static GROUPS: &[Group] = &[
     Group {
         name: "Wheels on the ground",
         rows: &[
-            Row::new(
+            Row::typed(
                 "Surface FL",
                 "",
                 Shown::Surface,
                 0x70FD0C,
+                car_cell!(0, wheel_surface_a[0]),
                 false,
                 (680, 570),
             ),
-            Row::new(
+            Row::typed(
                 "Surface FL, second",
                 "",
                 Shown::Surface,
                 0x70FD20,
+                car_cell!(0, wheel_surface_b[0]),
                 false,
                 (720, 570),
             ),
-            Row::new("Load FL", "", Shown::Float, 0x614284, false, (760, 570)),
-            Row::new(
+            Row::typed(
+                "Load FL",
+                "",
+                Shown::Float,
+                0x614284,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), wheel_loads[0]),
+                false,
+                (760, 570),
+            ),
+            Row::typed(
                 "Surface FR",
                 "",
                 Shown::Surface,
                 0x70FD10,
+                car_cell!(0, wheel_surface_a[1]),
                 false,
                 (680, 576),
             ),
-            Row::new(
+            Row::typed(
                 "Surface FR, second",
                 "",
                 Shown::Surface,
                 0x70FD24,
+                car_cell!(0, wheel_surface_b[1]),
                 false,
                 (720, 576),
             ),
-            Row::new("Load FR", "", Shown::Float, 0x614288, false, (760, 576)),
-            Row::new(
+            Row::typed(
+                "Load FR",
+                "",
+                Shown::Float,
+                0x614288,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), wheel_loads[1]),
+                false,
+                (760, 576),
+            ),
+            Row::typed(
                 "Surface RL",
                 "",
                 Shown::Surface,
                 0x70FD14,
+                car_cell!(0, wheel_surface_a[2]),
                 false,
                 (680, 582),
             ),
-            Row::new(
+            Row::typed(
                 "Surface RL, second",
                 "",
                 Shown::Surface,
                 0x70FD28,
+                car_cell!(0, wheel_surface_b[2]),
                 false,
                 (720, 582),
             ),
-            Row::new("Load RL", "", Shown::Float, 0x61428C, false, (760, 582)),
-            Row::new(
+            Row::typed(
+                "Load RL",
+                "",
+                Shown::Float,
+                0x61428C,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), wheel_loads[2]),
+                false,
+                (760, 582),
+            ),
+            Row::typed(
                 "Surface RR",
                 "",
                 Shown::Surface,
                 0x70FD18,
+                car_cell!(0, wheel_surface_a[3]),
                 false,
                 (680, 588),
             ),
-            Row::new(
+            Row::typed(
                 "Surface RR, second",
                 "",
                 Shown::Surface,
                 0x70FD2C,
+                car_cell!(0, wheel_surface_b[3]),
                 false,
                 (720, 588),
             ),
-            Row::new("Load RR", "", Shown::Float, 0x614290, false, (760, 588)),
+            Row::typed(
+                "Load RR",
+                "",
+                Shown::Float,
+                0x614290,
+                indexed_cell!(|o| o.race.shared.physics_tables.get(), wheel_loads[3]),
+                false,
+                (760, 588),
+            ),
         ],
     },
     Group {
         name: "Test drive",
         rows: &[
-            Row::new(
+            Row::typed(
                 "0-60 time",
                 "0-60",
                 Shown::Float,
                 0x5CB97C,
+                indexed_cell!(|o| o.race.frame.lights_and_gear.get(), gear.test_marks[0]),
                 false,
                 (468, 310),
             ),
-            Row::new(
+            Row::typed(
                 "0-100 time",
                 "-100",
                 Shown::Float,
                 0x5CB980,
+                indexed_cell!(|o| o.race.frame.lights_and_gear.get(), gear.test_marks[1]),
                 false,
                 (468, 316),
             ),
-            Row::new(
+            Row::typed(
                 "Top speed",
                 "maxs",
                 Shown::Float,
                 0x5CB984,
+                indexed_cell!(|o| o.race.frame.lights_and_gear.get(), gear.test_marks[2]),
                 false,
                 (468, 322),
             ),
@@ -2687,67 +3254,56 @@ pub static GROUPS: &[Group] = &[
     Group {
         name: "Scene and ground search",
         rows: &[
-            Row::new(
+            Row::typed(
                 "Texture changes",
                 "amtu",
                 Shown::Whole,
                 0x6D1508,
+                indexed_cell!(
+                    |o| o.race.frame.panel_and_overlay.get().panel,
+                    texture_changes
+                ),
                 false,
                 (468, 328),
             ),
-            Row::new(
-                "Points turned",
-                "pntrots",
-                Shown::Whole,
-                0x5EBA7C,
-                false,
-                (468, 334),
-            ),
-            Row::new(
-                "Polygons",
+            // The counters below were never written by the shipped game; these rows show our
+            // own figures (`debug::frame_figures`).
+            Row::typed(
+                "Polygons (triangle fans drawn, the whole frame)",
                 "pols",
                 Shown::Whole,
                 0x5EBA0C,
+                store_cell!(|_o| crate::debug::frame_figures::FIGURES, polygons),
                 false,
                 (468, 346),
             ),
-            Row::new("Objects", "objs", Shown::Whole, 0x5EBA54, false, (468, 352)),
-            Row::new(
-                "Z-buffer runs",
-                "zubs",
+            Row::typed(
+                "Objects (the first view's depth-sorted entries)",
+                "objs",
                 Shown::Whole,
-                0x5EB9C8,
+                0x5EBA54,
+                store_cell!(|o| o.scene.scratch.main_view(0).lists, depth_entry_count),
                 false,
-                (468, 358),
+                (468, 352),
             ),
-            Row::new(
-                "Ground searches",
+            Row::typed(
+                "Ground searches (the last frame)",
                 "gety",
                 Shown::Whole,
                 0x5EB9A0,
+                store_cell!(|_o| crate::debug::frame_figures::FIGURES, ground_searches),
                 false,
                 (468, 382),
             ),
-            Row::new("Samples", "nsmp", Shown::Whole, 0x5EB9A4, false, (468, 388)),
-            Row::new(
-                "Smoothings",
-                "smz",
+            Row::typed(
+                "Found (ground searches with a face under the point)",
+                "fndz",
                 Shown::Whole,
-                0x5EB9A8,
+                0x5EB9AC,
+                store_cell!(|_o| crate::debug::frame_figures::FIGURES, ground_found),
                 false,
-                (468, 394),
+                (468, 400),
             ),
-            Row::new("Found", "fndz", Shown::Whole, 0x5EB9AC, false, (468, 400)),
-            Row::new(
-                "Point checks",
-                "pchk",
-                Shown::Whole,
-                0x5EB9B0,
-                false,
-                (468, 406),
-            ),
-            Row::new("Checks", "chks", Shown::Whole, 0x5EB9B4, false, (468, 412)),
-            Row::new("Gaps", "gabs", Shown::Whole, 0x5EB9B8, false, (468, 418)),
         ],
     },
 ];

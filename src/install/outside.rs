@@ -3,30 +3,25 @@
 use crate::errors::BadInput;
 use crate::files::drive_type::drive_type;
 use crate::install::normalise_path::{current_directory, normalised_bytes};
-use crate::install::read_record::read_record;
+use crate::install::read_record::load_record;
 use crate::logfile::write_line::log_text;
 
 pub trait Outside {
     fn file_exists(&mut self, path: &[u8]) -> Result<bool, BadInput>;
     fn drive_type(&mut self, letter: u8) -> u32;
-    /// `files::set_current_directory` (0x403105): whether it worked.
+    /// Makes `path` the current directory; whether it worked.
     fn set_directory(&mut self, path: &[u8]) -> bool;
-    /// `install::read_record` on `var\ral.zog`.
+    /// Reads the installation's record `var\ral.zog`.
     fn read_record(&mut self) -> Result<(), BadInput>;
     /// A line for the game's log.
     fn log(&mut self, text: &[u8]);
-    /// `install::read_registry`.
-    fn read_registry(&mut self) {
-        let install = crate::install::owner::install();
-        crate::install::read_registry::read_registry_here(install);
-    }
+    fn read_registry(&mut self);
     // The same for the game and for a test:
     /// `install::normalise_path`: the path as written (with its NUL), None when not taken.
     fn normalise_path(&mut self, path: &[u8]) -> Result<Option<Vec<u8>>, BadInput> {
         normalised_bytes(path, &mut || current_directory())
     }
-    /// `files::current_directory` (0x4030D1): the current directory with a `\` after it
-    /// (and its NUL), if it could be had.
+    /// The current directory with a `\` after it (and its NUL), if it could be had.
     fn current_directory(&mut self) -> Result<Option<Vec<u8>>, BadInput> {
         let Some(mut directory) = current_directory()? else {
             return Ok(None);
@@ -39,9 +34,13 @@ pub trait Outside {
     }
 }
 
-pub struct Game;
+/// The outside world as the game has it: the installer's texts and the system's files.
+pub struct Game<'a> {
+    pub install: &'static crate::install::owner::Install,
+    pub system: &'a crate::system::owner::System,
+}
 
-impl Outside for Game {
+impl Outside for Game<'_> {
     fn file_exists(&mut self, path: &[u8]) -> Result<bool, BadInput> {
         crate::files::file_exists::file_exists(path)
     }
@@ -54,9 +53,12 @@ impl Outside for Game {
         crate::files::directories::set_current_directory(path)
     }
 
+    fn read_registry(&mut self) {
+        crate::install::read_registry::read_registry_here(self.install);
+    }
+
     fn read_record(&mut self) -> Result<(), BadInput> {
-        let install = crate::install::owner::install();
-        read_record(&install.texts.record_path.text()[..])
+        load_record(self.system, &self.install.texts.record_path.text()[..])
     }
 
     fn log(&mut self, text: &[u8]) {

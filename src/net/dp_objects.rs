@@ -1,29 +1,18 @@
-//! DirectPlay's objects made in Rust for the standalone program (`net::dplay::create_instance`
-//! hands them out there; the game keeps Windows' DirectPlay): an `IDirectPlay4A` and an
-//! `IDirectPlayLobby2A`, as far as the game uses them, on the sessions of `net::dp_session`.
+//! DirectPlay's objects made in Rust: an `IDirectPlay4A` and an `IDirectPlayLobby2A`, as far as
+//! the game uses them, on the sessions of `net::dp_session`.
 //!
-//! - The connections listed (`EnumConnections`): TCP/IP alone (IPX, modems and serial
-//!   links are gone); its address (`InitializeConnection`, made by the lobby object's
-//!   `CreateCompoundAddress` as DirectPlay's: `DPAID_TotalSize`, the service provider, the
-//!   host's address `DPAID_INet` and port `DPAID_INetPort`) says where sessions are looked
-//!   for: that host, or with none the network's broadcast and this machine; the port
-//!   DirectPlay's 47624 unless given.
-//! - `EnumSessions`: the sessions heard (asynchronously, as the game asks: each call sends a
-//!   probe and lists what has answered), the full or closed ones left out when asked
-//!   (DPENUMSESSIONS_AVAILABLE), then the time-out (DPESC_TIMEDOUT). `Open`: a session hosted
-//!   (DPOPEN_CREATE, a new instance GUID) or one heard joined (DPOPEN_JOIN, by its instance).
-//! - Players and groups (`CreatePlayer`, its event signalled when a message comes for it;
-//!   `DestroyPlayer`, `CreateGroup`, `AddPlayerToGroup`, `DeletePlayerFromGroup`,
-//!   `EnumPlayers`, `EnumGroups`, `GetPlayerData`, `SetPlayerData`), `SetSessionDesc`, `Send`,
-//!   `Receive` (DPERR_NOMESSAGES, DPERR_BUFFERTOOSMALL as DirectPlay), `Close`.
-//! - The lobby object: `CreateCompoundAddress` (the original never takes a lobby's launch:
-//!   `net::open_lobby`).
+//! - Connections (`EnumConnections`): TCP/IP only. Its address says where sessions are looked
+//!   for: the given host, or the network's broadcast and this machine; the port is 47624 unless
+//!   given.
+//! - `EnumSessions`: asynchronous, as the game asks; each call sends a probe and lists what has
+//!   answered, leaves out full or closed sessions when asked, then reports the time-out.
+//!   `Open` hosts a session (DPOPEN_CREATE) or joins one heard (DPOPEN_JOIN).
+//! - Players and groups (create, destroy, add, delete, enumerate, data), `SetSessionDesc`,
+//!   `Send`, `Receive` and `Close`.
+//! - The lobby object only makes compound addresses.
 //!
-//! The game calls the methods as the functions here (phase 11, 2026-10-26: before, through
-//! COM method tables), on objects held as ids; the enumerations' callbacks are Rust
-//! functions. The methods the game does not call are not here. Since 2026-10-29 they take
-//! and give typed values (GUIDs, names, the session's `Desc`, byte buffers, results
-//! returned) in place of the structures' addresses; the callbacks get them the same way.
+//! The methods take and give typed values (GUIDs, names, the session's `Desc`, byte buffers)
+//! and objects are held as ids; enumeration callbacks are Rust functions.
 
 use crate::net::dp_session::{
     DEFAULT_PORT, DP_OK, Desc, Session, Signal, find_sessions, session_address,
@@ -60,7 +49,7 @@ const fn guid(d1: u32, d2: u16, d3: u16, d4: [u8; 8]) -> Guid {
     ]
 }
 
-// The game's copies are at 0x5AB310 .. 0x5AB3F0.
+// The IIDs and GUIDs the game's objects are asked for.
 const CLSID_DIRECTPLAY: Guid = guid(
     0xD1EB_6D20,
     0x8923,
@@ -207,7 +196,7 @@ fn give(data: &[u8], out: &mut [u8]) -> (u32, u32) {
 fn signal() -> Signal {
     Arc::new(|event: u32| {
         if event != 0 {
-            crate::sync::set_event(event);
+            crate::platform::sync::set_event(event);
         }
     })
 }
@@ -303,10 +292,10 @@ pub fn destroy_player(this: u32, player: u32) -> u32 {
 
 /// `EnumPlayers` / `EnumGroups`' callback: (the id, the kind, its short name, flags, the
 /// context) -> 0 to stop.
-pub type EnumPlayersCallback = fn(u32, u32, &[u8], u32, u32) -> u32;
+type EnumPlayersCallback<'a> = &'a dyn Fn(u32, u32, &[u8], u32, u32) -> u32;
 
 /// The players (kind 1) or the groups (kind 0) to `callback`, each with its name.
-fn enumerate(this: u32, callback: EnumPlayersCallback, context: u32, kind: u32) -> u32 {
+fn enumerate(this: u32, callback: EnumPlayersCallback<'_>, context: u32, kind: u32) -> u32 {
     let Some(s) = session(this) else {
         return DPERR_UNINITIALIZED;
     };
@@ -333,17 +322,17 @@ fn enumerate(this: u32, callback: EnumPlayersCallback, context: u32, kind: u32) 
     DP_OK
 }
 
-pub fn enum_groups(this: u32, callback: EnumPlayersCallback, context: u32) -> u32 {
+pub fn enum_groups(this: u32, callback: EnumPlayersCallback<'_>, context: u32) -> u32 {
     enumerate(this, callback, context, 0)
 }
 
-pub fn enum_players(this: u32, callback: EnumPlayersCallback, context: u32) -> u32 {
+pub fn enum_players(this: u32, callback: EnumPlayersCallback<'_>, context: u32) -> u32 {
     enumerate(this, callback, context, 1)
 }
 
 /// A DPSESSIONDESC2's fields (its name's text as `name`).
 pub fn desc(d: &crate::net::store::SessionDesc, name: &[u8]) -> Desc {
-    let guid = |c: &[crate::session::Dword; 4]| -> Guid {
+    let guid = |c: &[crate::memory::session::Dword; 4]| -> Guid {
         let mut g = [0u8; 16];
         for (k, cell) in c.iter().enumerate() {
             g[4 * k..4 * k + 4].copy_from_slice(&cell.get().to_le_bytes());
@@ -357,19 +346,19 @@ pub fn desc(d: &crate::net::store::SessionDesc, name: &[u8]) -> Desc {
         max_players: d.max_players.get(),
         current_players: d.current_players.get(),
         name: name_text(name),
-        user: crate::session::read_all(&d.user),
+        user: crate::memory::session::read_all(&d.user),
     }
 }
 
 /// `EnumSessions`' callback: (the session, or none at the end, flags, the context) -> 0
 /// to stop.
-pub type EnumSessionsCallback = fn(Option<&Desc>, u32, u32) -> u32;
+type EnumSessionsCallback<'a> = &'a dyn Fn(Option<&Desc>, u32, u32) -> u32;
 
 /// `EnumSessions` for `application`'s sessions.
 pub fn enum_sessions(
     this: u32,
     application: &Guid,
-    callback: EnumSessionsCallback,
+    callback: EnumSessionsCallback<'_>,
     context: u32,
     flags: u32,
 ) -> u32 {
@@ -491,10 +480,10 @@ pub fn set_session_desc(this: u32, desc: &Desc) -> u32 {
 
 /// `EnumConnections`' callback: (the service provider's GUID, the connection's address,
 /// its name, flags, the context) -> 0 to stop.
-pub type EnumConnectionsCallback = fn(&Guid, &[u8], &[u8], u32, u32) -> u32;
+type EnumConnectionsCallback<'a> = &'a dyn Fn(&Guid, &[u8], &[u8], u32, u32) -> u32;
 
 /// `EnumConnections`: TCP/IP alone.
-pub fn enum_connections(callback: EnumConnectionsCallback, context: u32) -> u32 {
+pub fn enum_connections(callback: EnumConnectionsCallback<'_>, context: u32) -> u32 {
     let address = compound(&[(DPAID_SERVICEPROVIDER, DPSPGUID_TCPIP.to_vec())]);
     let name = c"Internet TCP/IP Connection For DirectPlay";
     callback(
@@ -571,7 +560,7 @@ fn initialize(s: &mut State, parts: Vec<(Guid, Vec<u8>)>) -> u32 {
         }
     }
     s.initialized = true;
-    crate::framework::log(&format!(
+    crate::logfile::program_log::log(&format!(
         "net: TCP/IP connection, host \"{}\", port {}",
         s.host, s.port
     ));
@@ -593,6 +582,35 @@ pub fn create_compound_address(parts: &[Element], room: u32) -> (u32, u32) {
     }
 }
 
+/// A DirectPlay object hosting a session on a free loopback port with one player, for the
+/// tests that send through the game's own code: the object, the player, the port. Release
+/// the object with `release`.
+#[cfg(test)]
+pub fn hosted_for_tests() -> (u32, u32, u16) {
+    let first = 48_200 + (std::process::id() % 100) as u16;
+    for port in first..first + 50 {
+        let this = create(&CLSID_DIRECTPLAY, &IID_IDIRECTPLAY4A).expect("the object");
+        let address = compound(&[
+            (DPAID_SERVICEPROVIDER, DPSPGUID_TCPIP.to_vec()),
+            (DPAID_INET, b"127.0.0.1\0".to_vec()),
+            (DPAID_INETPORT, port.to_le_bytes().to_vec()),
+        ]);
+        assert_eq!(initialize_connection_with(this, Some(&address)), DP_OK);
+        let d = Desc {
+            application: [1; 16],
+            max_players: 4,
+            name: "test".into(),
+            ..Desc::default()
+        };
+        if open(this, &d, DPOPEN_CREATE) == DP_OK {
+            let player = create_player(this, b"me\0", 0, &[]).expect("a player");
+            return (this, player, port);
+        }
+        release(this);
+    }
+    panic!("a free port to host on");
+}
+
 /// `CreateCompoundAddress` into Rust's memory: the address's bytes.
 pub fn compound_address(parts: &[Element]) -> Vec<u8> {
     compound(parts)
@@ -604,8 +622,12 @@ mod tests {
 
     static FOUND: Mutex<Vec<Guid>> = Mutex::new(Vec::new());
 
+    /// Only this test's sessions (named "test"): another test's session of the same application
+    /// may still be listed.
     fn session_found(desc: Option<&Desc>, flags: u32, _context: u32) -> u32 {
-        if let (0, Some(d)) = (flags & DPESC_TIMEDOUT, desc) {
+        if let (0, Some(d)) = (flags & DPESC_TIMEDOUT, desc)
+            && d.name == "test"
+        {
             FOUND.lock().unwrap().push(d.instance);
         }
         1
@@ -638,10 +660,19 @@ mod tests {
 
     #[test]
     fn a_session_is_hosted_found_joined_and_talked_to() {
-        let _lock = crate::store::test_lock();
-        let port = 47_700 + (std::process::id() % 200) as u16;
-        let host = play_object(port);
-        assert_eq!(open(host, &desc([0; 16]), DPOPEN_CREATE), DP_OK);
+        let _lock = crate::test_support::test_lock();
+        // A port another program holds (a network game on this machine): the next ones.
+        let first = 47_700 + (std::process::id() % 200) as u16;
+        let (port, host) = (first..first + 20)
+            .find_map(|port| {
+                let host = play_object(port);
+                if open(host, &desc([0; 16]), DPOPEN_CREATE) == DP_OK {
+                    return Some((port, host));
+                }
+                release(host);
+                None
+            })
+            .expect("a free port to host on");
         let host_player = create_player(host, b"host\0", 0, &[]).unwrap();
 
         let guest = play_object(port);
@@ -649,7 +680,7 @@ mod tests {
         // Up to 10 s (it stops when found): a full parallel test run under Wine is slow.
         for _ in 0..500 {
             assert_eq!(
-                enum_sessions(guest, &APPLICATION, session_found, 0, 0),
+                enum_sessions(guest, &APPLICATION, &session_found, 0, 0),
                 DP_OK
             );
             found = FOUND.lock().unwrap().first().copied();
@@ -683,5 +714,231 @@ mod tests {
         assert_eq!(to, host_player);
         assert_eq!(release(guest), 0);
         assert_eq!(release(host), 0);
+    }
+
+    /// Guards the compound address's bytes: the total-size element first (its GUID, 4, the
+    /// total), then each element as its data type's GUID, its size and its data; and that the
+    /// session's host and port are read back from such an address.
+    #[test]
+    fn a_compound_address_has_its_bytes() {
+        let tcp_ip: Vec<u8> = vec![
+            0xE0, 0x5E, 0xE9, 0x36, 0x77, 0x85, 0xCF, 0x11, 0x96, 0x0C, 0x00, 0x80, 0xC7, 0x53,
+            0x4E, 0x82,
+        ];
+        assert_eq!(tcp_ip, DPSPGUID_TCPIP);
+        let address = compound_address(&[
+            (DPAID_SERVICEPROVIDER, DPSPGUID_TCPIP.to_vec()),
+            (DPAID_INET, b"127.0.0.1\0".to_vec()),
+            (DPAID_INETPORT, 47624u16.to_le_bytes().to_vec()),
+        ]);
+        let element = |kind: [u8; 16], data: &[u8]| {
+            [
+                kind.to_vec(),
+                (data.len() as u32).to_le_bytes().to_vec(),
+                data.to_vec(),
+            ]
+            .concat()
+        };
+        let total = 24 + (20 + 16) + (20 + 10) + (20 + 2);
+        let expected = [
+            // DPAID_TotalSize
+            element(
+                [
+                    0x60, 0xF5, 0x18, 0x13, 0x2C, 0x91, 0xD0, 0x11, 0x9D, 0xAA, 0x00, 0xA0, 0xC9,
+                    0x0A, 0x43, 0xCB,
+                ],
+                &(total as u32).to_le_bytes(),
+            ),
+            // DPAID_ServiceProvider
+            element(
+                [
+                    0xC0, 0x16, 0xD9, 0x07, 0xAF, 0xE0, 0xCF, 0x11, 0x9C, 0x4E, 0x00, 0xA0, 0xC9,
+                    0x05, 0x42, 0x5E,
+                ],
+                &tcp_ip,
+            ),
+            // DPAID_INet
+            element(
+                [
+                    0xA0, 0x4D, 0xA5, 0xC4, 0xAF, 0xE0, 0xCF, 0x11, 0x9C, 0x4E, 0x00, 0xA0, 0xC9,
+                    0x05, 0x42, 0x5E,
+                ],
+                b"127.0.0.1\0",
+            ),
+            // DPAID_INetPort
+            element(
+                [
+                    0x41, 0x45, 0x52, 0xE4, 0xA5, 0x8E, 0xD1, 0x11, 0x8A, 0x96, 0x00, 0x60, 0x97,
+                    0xB0, 0x14, 0x11,
+                ],
+                &[0x08, 0xBA],
+            ),
+        ]
+        .concat();
+        assert_eq!(address, expected);
+        let parts = elements(&address);
+        assert_eq!(parts.len(), 4);
+        assert_eq!(parts[2].1, b"127.0.0.1\0");
+    }
+
+    /// The sessions of this test's name (an earlier test's, still listed, are not it).
+    static FOUND_NAMED: Mutex<Vec<Guid>> = Mutex::new(Vec::new());
+
+    fn named(instance: Guid) -> Desc {
+        Desc {
+            name: "frozen".into(),
+            ..desc(instance)
+        }
+    }
+
+    fn named_found(desc: Option<&Desc>, flags: u32, _context: u32) -> u32 {
+        if let (0, Some(d)) = (flags & DPESC_TIMEDOUT, desc)
+            && d.name == "frozen"
+        {
+            FOUND_NAMED.lock().unwrap().push(d.instance);
+        }
+        1
+    }
+
+    /// Guards the game's messages over a real session as the bytes the other machine gets and
+    /// as `net::take_messages` reads them: a host's call (0x40, 0x50: the round) is answered with
+    /// 0x41 / 0x51 and the round, and sets its flag; the answers (0x41) are noted on the host
+    /// only for the round it is in; a race message (top bit) is stored in the sender's inbox with
+    /// its sequence byte doubled; one longer than 0xFE bytes, and one from a stranger, are
+    /// dropped.
+    #[test]
+    fn the_games_messages_cross_a_session_as_the_same_bytes() {
+        use crate::net::owner::Net;
+        let _lock = crate::test_support::test_lock();
+        let first = 47_900 + (std::process::id() % 100) as u16;
+        let (port, host) = (first..first + 20)
+            .find_map(|port| {
+                let host = play_object(port);
+                if open(host, &named([0; 16]), DPOPEN_CREATE) == DP_OK {
+                    return Some((port, host));
+                }
+                release(host);
+                None
+            })
+            .expect("a free port to host on");
+        let host_player = create_player(host, b"host\0", 0, &[]).unwrap();
+        let guest = play_object(port);
+        FOUND_NAMED.lock().unwrap().clear();
+        for _ in 0..500 {
+            enum_sessions(guest, &APPLICATION, &named_found, 0, 0);
+            if !FOUND_NAMED.lock().unwrap().is_empty() {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+        let instance = FOUND_NAMED
+            .lock()
+            .unwrap()
+            .first()
+            .copied()
+            .expect("the session");
+        let joined = open(guest, &named(instance), DPOPEN_JOIN);
+        assert_eq!(joined, DP_OK, "port {port}, instance {instance:?}");
+        let guest_player = create_player(guest, b"guest\0", 0, &[]).unwrap();
+
+        // The program's side: this machine is the host object's player, with the guest as
+        // player 0 of its table (a box: the game's own state stays as it is).
+        let net: Box<Net> = Box::new(Net::new());
+        let vars = &net.vars;
+        net.link.set_dplay(host);
+        net.link.set_player_id(host_player);
+        net.race_slot.set_players(1);
+        vars.receiver.sync.set(7);
+        vars.received[0].id.set(0xDEAD);
+        let lines = &crate::race::viewer_screen_store::NET_TEXTS;
+        let take = || {
+            assert!(
+                crate::net::take_messages::take_messages(
+                    &net,
+                    lines,
+                    &crate::system::tick_count::PictureClock::new()
+                )
+                .is_ok()
+            );
+        };
+        // Takes messages until `done` or ten seconds.
+        let until = |done: &dyn Fn() -> bool| {
+            for _ in 0..1000 {
+                take();
+                if done() {
+                    return true;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+            false
+        };
+        // What the guest is sent by the program, skipping the system messages.
+        let from_host = || {
+            let mut data = [0u8; 256];
+            for _ in 0..1000 {
+                let r = receive(guest, &mut data);
+                if r.result == DP_OK && r.from_to.is_some_and(|(from, _)| from == host_player) {
+                    return data[..r.size.unwrap() as usize].to_vec();
+                }
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+            panic!("a message from the program");
+        };
+        let say = |bytes: &[u8]| assert_eq!(send(guest, guest_player, host_player, bytes), DP_OK);
+
+        // Takes messages for a while: what is not to happen has had its time.
+        let settle = || {
+            for _ in 0..40 {
+                take();
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+        };
+        // A stranger's message is dropped.
+        say(&[0x40, 7]);
+        settle();
+        assert_eq!(vars.all_raced.get(), 0);
+
+        // The guest is a known player now: the call of this round is answered, the flag set.
+        vars.received[0].id.set(guest_player);
+        say(&[0x40, 7]);
+        assert!(until(&|| vars.all_raced.get() == 1));
+        assert_eq!(from_host(), [0x41, 7]);
+        assert_eq!(vars.receiver.sync_answer.get(), 0x0741);
+        // The call of another round is not.
+        say(&[0x50, 8]);
+        settle();
+        assert_eq!(vars.race_over.get(), 0);
+        say(&[0x50, 7]);
+        assert!(until(&|| vars.race_over.get() == 1));
+        assert_eq!(from_host(), [0x51, 7]);
+        assert_eq!(vars.receiver.sync_answer.get(), 0x0751);
+
+        // On the game's host an answer of this round is noted, one of another is not, and a
+        // call is not answered.
+        vars.own.set_state(rc2k_core::net::players::State::HOST);
+        say(&[0x41, 8]);
+        settle();
+        assert!(!vars.synced(0).unwrap());
+        say(&[0x41, 7]);
+        assert!(until(&|| vars.synced(0).unwrap()));
+        vars.all_raced.set(0);
+        say(&[0x40, 7]);
+        settle();
+        assert_eq!(vars.all_raced.get(), 0);
+
+        // A race message: stored with the sequence byte doubled, its length and bytes.
+        say(&[0x85, 1, 2, 3, 4]);
+        assert!(until(&|| net.lock_received()[0].count == 1));
+        let inbox = net.lock_received()[0].clone();
+        assert_eq!(inbox.records[..6], [0x0A, 4, 1, 2, 3, 4]);
+        assert_eq!((inbox.oldest, inbox.newest), (0, 0x0A));
+        // One longer than 0xFE bytes after the first is dropped; the next one is stored.
+        say(&[vec![0x86], vec![0xEE; 0xFF]].concat());
+        say(&[0x87, 9]);
+        assert!(until(&|| net.lock_received()[0].count == 2));
+        let inbox = net.lock_received()[0].clone();
+        assert_eq!(inbox.records[0x100..0x103], [0x0E, 1, 9]);
+        assert_eq!(release(guest), 0);
+        assert_eq!(net.link.release_dplay(), Some(0));
     }
 }

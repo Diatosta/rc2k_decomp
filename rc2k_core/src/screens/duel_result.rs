@@ -1,6 +1,6 @@
-//! The two-player stage result (converted 2026-10-20 from `screens::draw_duel_result`
-//! 0x48647A): the heads, the faster of players 1 and 2 first, the stage, then per row the
-//! time and sprites and name, and by player 1 and 2 (not by order) the figures.
+//! The two-player stage result: the heads, the faster of players 1 and 2 first, the stage,
+//! then per row the time and sprites and name, and by player 1 and 2 (not by order) the
+//! figures.
 
 use crate::screens::best_scores::{car_glyph, flag_glyph};
 use crate::screens::player_result::Player;
@@ -9,40 +9,37 @@ use crate::strings::format::{Pad, decimal, time};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Font {
-    /// `stru_51E584`.
     Big,
-    /// `stru_51E5A4`.
     Small,
-    /// `stru_51E9A4`.
     Stage,
-    /// `stru_51E564`.
     Time,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Work {
-    /// `dword_758720`, `dword_758724`: the rows' byte offsets in `g_players`.
+    /// The rows' byte offsets in the players table.
     First,
     Second,
 }
 
-/// A time of 0x36EE80: none (string 0x4FA).
+/// A time of 0x36EE80 means none (string 0x4FA).
 pub const NO_TIME: u32 = 0x36EE80;
 
 /// What the page shows by player 1 and 2.
 #[derive(Clone, Copy, Debug)]
 pub struct Figures {
-    /// The strings `dword_7588D2[dword_758768 - 1]`, `[dword_75876C - 1]`.
+    /// The strings `CaptionTables.duel_labels[0][Results.positions[0] - 1]`,
+    /// `[Results.positions[1] - 1]`.
     pub labels: [u32; 2],
-    /// `dword_758758`, `dword_75875C`.
+    /// `Results.time_bonus[0]`, `Results.time_bonus[1]`.
     pub best: [u32; 2],
-    /// `dword_758778` .. (x 0x1C4) and `dword_75877C` .. (x 0x2C8), as numbers.
+    /// `Results.points[0]` .. (x 0x1C4) and `Results.points[1]` .. (x 0x2C8), as numbers.
     pub columns: [[u32; 6]; 2],
 }
 
-/// The page: `section` the stage section's name string, `stage` the stage line with its
-/// NUL. The nationalities' sprites take the palette where the second speed ended; the cars'
-/// where the second name ended.
+/// The page: `section` the stage section's name string, `stage` the stage line with its NUL.
+/// The nationalities' sprites take the palette where the second speed ended; the cars' where the
+/// second name ended.
 pub fn duel_result<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     players: &[Player<S::Text>; 2],

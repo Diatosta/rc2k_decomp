@@ -81,14 +81,17 @@ impl FrameState {
     }
 }
 
-/// The kinds' values and quads, the emitters and the particles' colours and tuning.
+/// The kinds' values and quads, the emitters and the particles' colours and tuning. The three quads
+/// are the three kind sets: the overlays' (`effects::draw_overlays`, `kind_values::first`), the
+/// car's ground shadow's (`effects::draw_shadow`) and the plane's (`effects::draw_plane`);
+/// `overlay_extras` / `shadow_extra` hold the lift of the first two along the up vector.
 pub struct Kinds {
     pub marks_kind: MarksKind,
-    pub quad_1: QuadWork,
-    pub quad_2: QuadWork,
-    pub quad_3: QuadWork,
-    pub extras_1: KindExtras1,
-    pub extra_2: KindExtra2,
+    pub overlay_quad: QuadWork,
+    pub shadow_quad: QuadWork,
+    pub plane_quad: QuadWork,
+    pub overlay_extras: KindExtras1,
+    pub shadow_extra: KindExtra2,
     pub emitter: EmitterVars,
     pub burst_colours: BurstColours,
     pub particle_tuning: ParticleTuning,
@@ -98,11 +101,11 @@ impl Kinds {
     pub const fn new() -> Self {
         Kinds {
             marks_kind: MarksKind::new(),
-            quad_1: QuadWork::new_1(),
-            quad_2: QuadWork::new_2(),
-            quad_3: QuadWork::new_3(),
-            extras_1: KindExtras1::new(),
-            extra_2: KindExtra2::new(),
+            overlay_quad: QuadWork::new_1(),
+            shadow_quad: QuadWork::new_2(),
+            plane_quad: QuadWork::new_3(),
+            overlay_extras: KindExtras1::new(),
+            shadow_extra: KindExtra2::new(),
             emitter: EmitterVars::new(),
             burst_colours: BurstColours::new(),
             particle_tuning: ParticleTuning::new(),
@@ -115,6 +118,15 @@ pub struct Setup {
     pub clock: MarksClock,
     pub clock_k: ClockK,
     pub settings: SettingsPointer,
+    /// The race's settings record `init_marks` was handed, what `Effects::settings` gives.
+    pub marks:
+        core::cell::Cell<Option<&'static crate::race::effects_settings_store::EffectsSettings>>,
+    /// The race's car blocks, handed with `marks`: the cars' records name their blocks by
+    /// handle (`CarEffects::whole`).
+    pub car_blocks: core::cell::Cell<Option<&'static crate::race::blocks_store::CarBlocks>>,
+    /// The race's stage tables, handed with `marks`: the objects' faces and points, the course
+    /// info (`Effects::stage`).
+    pub stage: core::cell::Cell<Option<&'static crate::race::stage_data::StageData>>,
     pub frame: MarksFrame,
     pub floats: MarksFloats,
     pub kind_floats: MarksKindFloats,
@@ -128,6 +140,9 @@ impl Setup {
             clock: MarksClock::new(),
             clock_k: ClockK::new(),
             settings: SettingsPointer::new(),
+            marks: core::cell::Cell::new(None),
+            car_blocks: core::cell::Cell::new(None),
+            stage: core::cell::Cell::new(None),
             frame: MarksFrame::new(),
             floats: MarksFloats::new(),
             kind_floats: MarksKindFloats::new(),

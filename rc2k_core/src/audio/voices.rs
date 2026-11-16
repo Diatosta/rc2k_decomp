@@ -1,12 +1,6 @@
-//! The audio thread's sounds (converted 2026-10-21 from `audio::start_voice` 0x40A9D1,
-//! `audio::update_voices` 0x40AC77's own-buffers way, `audio::stop_all_voices` 0x40AFD9,
-//! `audio::clear_channels` 0x40ACA1, `audio::find_shared_voice` 0x40B027,
-//! `audio::new_voice` 0x40B04C, `audio::replay_looping` 0x40A839; 2026-10-21 also
-//! `audio::fill_voice` 0x40B06E, `audio::release_voice` 0x40B767's emptying and
-//! `audio::make_buffer` 0x40B5CF's flags): sample
-//! records, voices
-//! and mixer channels as the game lays them out, reached through a `Pool` by handle (the
-//! game's addresses), and the playing and stopping lists linked by `Voice::next`.
+//! The audio thread's sounds: sample records, voices and mixer channels as the game lays them out,
+//! reached through a `Pool` by handle (the game's addresses), and the playing and stopping lists
+//! linked by `Voice::next`.
 //!
 //! A sound number picks a sample record (0x1CD); a loaded record points at its first voice
 //! (a pool of 0x200); a sound that can sound more than once at a time has more voices,
@@ -15,6 +9,7 @@
 //! What a command changes in a voice is marked in its `dirty` bits for the turn.
 
 use crate::Invalid;
+use crate::audio::commands::{Setting, Start};
 
 pub const SAMPLES: u32 = 0x1CD;
 pub const VOICES: u32 = 0x200;
@@ -27,7 +22,7 @@ pub const DEFAULT: u32 = 0xFFFF_FF91;
 pub const OWN_FREQUENCY: u32 = 0xFFFF_FF90;
 /// "As the sample record says", for a place's float.
 pub const DEFAULT_PLACE: u32 = 0xFF80_0000;
-/// `g_soundMode`: places in 3D.
+/// The sound mode's bit: places in 3D.
 pub const MODE_3D: u32 = 0x10_0000;
 
 pub const DIRTY_VOLUME: u32 = 1;
@@ -71,6 +66,8 @@ pub struct Voice {
     /// Its sample record's number.
     pub sound: u32,
     pub buffer: u32,
+    /// The voice's DirectSound 3D buffer interface; 0 without one (`audio::buffer_settings`,
+    /// `set_buffer_min_distance`).
     pub buffer_3d: u32,
     pub data_key: u32,
     /// The voice whose sample data this one shares.
@@ -122,7 +119,8 @@ pub struct MixerChannel {
     pub step_fraction: u32,
     pub left: i32,
     pub right: i32,
-    pub gap_44: [u32; 5],
+    /// +0x44 .. +0x58: five dwords nothing reads (cleared when the channel is released).
+    pub unused_44: [u32; 5],
 }
 
 const _: () = assert!(std::mem::size_of::<SampleRecord>() == 0x40);
@@ -161,8 +159,7 @@ pub trait Pool {
     }
 }
 
-/// The lists' heads and the channels' counts (`g_playingVoices`, `g_stoppingVoices`,
-/// `g_channelsUsed`, `g_channelCount`).
+/// The lists' heads and the channels' counts.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Lists {
     pub playing: u32,
@@ -242,7 +239,7 @@ pub fn clear_channels<P: Pool>(pool: &mut P) {
         pool.update_channel(at, |c| {
             c.used = 0;
             c.voice = 0;
-            c.gap_44 = [0; 5];
+            c.unused_44 = [0; 5];
         });
     }
 }
@@ -259,11 +256,10 @@ pub fn find_shared<P: Pool>(
         .find(|&at| pool.voice(at).data_key == key)
 }
 
-/// The game's fatal error when the pool is used up.
+/// The fatal error when the pool is used up.
 pub const POOL_USED_UP: u32 = 0x80A2_8501;
 
-/// The next voice of the pool: its place, the count one more. Used up: `None` (the
-/// game's fatal error 0x80A28501).
+/// The next voice of the pool: its place, the count one more. Used up: `None` (a fatal error).
 pub fn new_voice(count: &mut u32) -> Option<u32> {
     if *count >= VOICES {
         return None;
@@ -284,10 +280,6 @@ pub fn sounding_to_replay<P: Pool>(pool: &mut P, lists: &Lists) -> Result<Vec<u3
         })
         .collect())
 }
-
-/// A command 1's record: the number, then the sender's eax, the volume, pan, frequency and
-/// place.
-pub type Command = [u32; 8];
 
 /// Where a voice and a command lead.
 enum Plan {
@@ -363,7 +355,7 @@ fn plan_start<P: Pool>(pool: &mut P, lists: &Lists, mut voice: u32) -> Result<Pl
     Err(Invalid("a playing list without its end"))
 }
 
-fn plan<P: Pool>(pool: &mut P, lists: &Lists, sound: i32, cmd: &Command) -> Result<Plan, Invalid> {
+fn plan<P: Pool>(pool: &mut P, lists: &Lists, sound: i32, cmd: &Start) -> Result<Plan, Invalid> {
     if sound < 0 {
         return Ok(Plan::Nothing);
     }
@@ -374,35 +366,34 @@ fn plan<P: Pool>(pool: &mut P, lists: &Lists, sound: i32, cmd: &Command) -> Resu
     if first == 0 || pool.voice(first).flags & LOADED == 0 {
         return Ok(Plan::Nothing);
     }
-    let volume = cmd[2];
-    if volume != 0 && pool.voice(first).kind == 0 {
+    let silent = cmd.volume == Setting::Value(0);
+    if !silent && pool.voice(first).kind == 0 {
         return plan_start(pool, lists, first);
     }
     match find_playing(pool, lists, first)? {
-        None if volume == 0 || cmd[1] & 0x8000_0000 != 0 => Ok(Plan::Nothing),
+        None if silent || cmd.only_if_playing => Ok(Plan::Nothing),
         None => plan_start(pool, lists, first),
-        Some(link) if volume == 0 => Ok(Plan::Stop { voice: first, link }),
+        Some(link) if silent => Ok(Plan::Stop { voice: first, link }),
         Some(_) => Ok(Plan::Change { voice: first }),
     }
 }
 
 /// The command's settings into the voice, each change marked dirty; kind 3 a restart; the
 /// play bit.
-fn change<P: Pool>(pool: &mut P, at: u32, cmd: &Command, mode: u32) {
+fn change<P: Pool>(pool: &mut P, at: u32, cmd: &Start, mode: u32) {
     let sound = pool.voice(at).sound;
     let record = pool.record(sound);
     pool.update_voice(at, |v| change_voice(v, &record, cmd, mode));
 }
 
-fn change_voice(v: &mut Voice, record: &SampleRecord, cmd: &Command, mode: u32) {
+fn change_voice(v: &mut Voice, record: &SampleRecord, cmd: &Start, mode: u32) {
     let mut dirty = v.dirty;
-    let or = |given: u32, default: u32| if given == DEFAULT { default } else { given };
-    let volume = or(cmd[2], record.volume).min(0x40);
+    let volume = cmd.volume.resolve(record.volume).min(0x40);
     if volume != v.volume {
         dirty |= DIRTY_VOLUME;
         v.volume = volume;
     }
-    let pan = or(cmd[3], record.pan);
+    let pan = cmd.pan.resolve(record.pan);
     let (low, high) = (pan as u8, (pan >> 8) as u8);
     v.pan_sign = if (low ^ high) & 0x80 != 0 { -1 } else { 0 };
     let pan = (low as i8 as i32).clamp(-0x40, 0x40);
@@ -410,7 +401,7 @@ fn change_voice(v: &mut Voice, record: &SampleRecord, cmd: &Command, mode: u32) 
         dirty |= DIRTY_PAN;
         v.pan = pan;
     }
-    let mut frequency = or(cmd[4], record.frequency);
+    let mut frequency = cmd.frequency.resolve(record.frequency);
     if frequency == OWN_FREQUENCY {
         frequency = v.own_frequency;
     }
@@ -421,10 +412,9 @@ fn change_voice(v: &mut Voice, record: &SampleRecord, cmd: &Command, mode: u32) 
     }
     if mode & MODE_3D != 0 {
         for i in 0..3 {
-            let p = if cmd[5 + i] == DEFAULT_PLACE {
-                record.place[i]
-            } else {
-                cmd[5 + i]
+            let p = match cmd.place {
+                Some(place) if place[i] != DEFAULT_PLACE => place[i],
+                _ => record.place[i],
             };
             if p != v.place[i] {
                 dirty |= DIRTY_PLACE;
@@ -447,7 +437,7 @@ fn start<P: Pool>(pool: &mut P, lists: &mut Lists, at: u32) {
 }
 
 /// Command 1: a sound started, changed or stopped. With a volume and a voice of kind 0
-/// (or, another kind or no volume, a voice not playing, unless the sender's eax has bit
+/// (or, another kind or no volume, a voice not playing, unless the command is only_if_playing)
 /// 31) its first free copy gets a channel: a free one while fewer are used than there are
 /// (counted), else the channel of the playing voice of the lowest priority below its own
 /// (none: nothing), which goes to the stopping list; the voice to the playing list's
@@ -460,7 +450,7 @@ pub fn start_voice<P: Pool>(
     lists: &mut Lists,
     mode: u32,
     sound: i32,
-    cmd: &Command,
+    cmd: &Start,
 ) -> Result<(), Invalid> {
     let plan = plan(pool, lists, sound, cmd)?;
     let target = match plan {
@@ -527,8 +517,8 @@ pub enum Step {
     Commit,
 }
 
-/// The EAX room's variables (`g_eaxRoom`, `g_eaxRoomSet`, `dword_6D1DD4` and the one kept,
-/// `dword_506C80`) and the 3D commit flag.
+/// The EAX room's variables (and the kept one, `AudioOwn::environment_kept`) and the 3D commit
+/// flag.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Room {
     pub asked: u32,
@@ -538,7 +528,7 @@ pub struct Room {
     pub commit: u32,
 }
 
-/// `g_soundMode`: with EAX.
+/// The sound mode's bit: with EAX.
 pub const MODE_EAX: u32 = 0x100_0000;
 
 fn stopping_pass<P: Pool, E>(
@@ -674,7 +664,7 @@ pub fn update_buffers<P: Pool, E: From<Invalid>>(
     Ok(())
 }
 
-/// What a voice takes from the sample file read for it (`g_sampleFile`).
+/// What a voice takes from the sample file read for it.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct FileSample {
     pub data: u32,
@@ -777,7 +767,7 @@ fn set_from_record(v: &mut Voice, record: &SampleRecord, own_buffers: bool, volu
     v.next = 0;
 }
 
-/// `g_soundMode`'s bits a voice's own buffer is made by: 3D, 3D in hardware.
+/// The sound mode's bits a voice's own buffer is made by: 3D, 3D in hardware.
 pub const MODE_HARDWARE_3D: u32 = 0x80_0000;
 
 /// `audio::make_buffer`'s buffer description flags for a voice: the frequency, pan and
@@ -887,7 +877,7 @@ mod tests {
             channel_count: 1,
             ..Lists::default()
         };
-        let cmd = |volume| [1, 0, volume, DEFAULT, DEFAULT, DEFAULT, 0, 0];
+        let cmd = |volume| Start::from_words(0, volume, DEFAULT, DEFAULT, [DEFAULT, 0, 0]);
         start_voice(&mut t, &mut lists, 0, 1, &cmd(DEFAULT)).unwrap();
         assert_eq!((lists.playing, lists.channels_used), (v(1), 1));
         assert_eq!(t.voice(v(1)).volume, 0x20);

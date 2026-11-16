@@ -1,42 +1,37 @@
-//! `net::show_background` (0x4173E7): the network screens' background: "files\d\gfx\
-//! chatzone.pcx" loaded (`gfx::load_picture`) and converted (`gfx::convert_picture`), the
-//! picture's flags (`g_pictureFlags`) the screen mode's low twelve bits (`g_screenModeFlags`),
-//! the picture made the surface (`gfx::picture_as_surface`), the screen's title drawn on it
-//! (`text::draw_string_by_id` with `stru_51E944` at 0x316, 0x2F: 0x162 for the settings,
-//! 0x14B hosting, 0x14C joining or launched; 0x15A once the session is on), copied to the
-//! surface (`gfx::copy_picture_to_surface`) and shown (`gfx::show_frame`).
-//!
-//! Callers: `net::settings_loop`, `net::start_link`, `net::stopping`, `net::lobby_loop`,
-//! `net::choose_car`, `net::choose_stage`.
+//! The network screens' background (`chatzone.pcx`) with the screen's title drawn on it,
+//! shown.
 
 use crate::errors::Refused;
-use crate::gfx::owner::gfx;
 use crate::net::lobby::{copy_picture, draw_string};
-use crate::net::store::NetVars;
 
 pub const TITLE_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HEAD;
-
-/// The Rust version.
-pub fn show_background(vars: &NetVars) -> Result<(), Refused> {
-    let gfx = gfx();
-    crate::gfx::load_picture::load_picture(&crate::gfx::texts::CHATZONE)?;
-    crate::gfx::convert_picture::convert_picture_now()?;
+pub fn show_background(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    let (gfx, system, net) = (o.gfx, o.system, o.net);
+    crate::gfx::load_picture::load_picture_with(&crate::gfx::texts::CHATZONE, gfx, system)?;
+    crate::gfx::convert_picture::convert_picture_now_in(gfx, system)?;
     gfx.pictures
         .picture
         .flags
         .set(gfx.display.mode.mode_flags.get() & 0xFFF);
     crate::gfx::picture_as_surface::picture_as_surface(gfx)?;
-    let title = if vars.session.get() == 1 {
+    let title = if net.race_slot.is_on() {
         0x15A
     } else {
-        match vars.mode.get() {
+        match net.lobby().mode.get() {
             0 => 0x162,
             1 => 0x14B,
             _ => 0x14C,
         }
     };
-    draw_string(title, TITLE_FONT, 0x316, 0x2F)?;
-    copy_picture()?;
-    crate::platform::show_frame_now();
+    draw_string(
+        crate::strings::append_string_by_id::StringOwners::of(o),
+        title,
+        TITLE_FONT,
+        0x316,
+        0x2F,
+        gfx,
+    )?;
+    copy_picture(gfx, system)?;
+    crate::platform::show_frame_now(o);
     Ok(())
 }

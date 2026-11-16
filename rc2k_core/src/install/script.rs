@@ -1,11 +1,9 @@
-//! The install script (converted 2026-10-21 from `install::script_name` 0x41370C and
-//! `install::run_script` 0x41365D): a byte program that names the folders and files to
-//! copy, as nested folders. Opcodes: 1 a folder (its name follows) entered, 2 back to the
-//! parent, 3 files matching a pattern, 4 a folder and everything under it, 8 n what follows
-//! up to the matching 9 only for an installation of kind n or more (8 and 9 nest), 6 and 9
-//! nothing; anything else ends it. The folders and files it names go into two tables
-//! (`install::list_folder` 0x413876 and `install::list_files` 0x4138B2, converted the same
-//! day): names with NULs, past whose room is a fatal error.
+//! The install script: a byte program that names the folders and files to copy, as nested folders.
+//! Opcodes: 1 a folder (its name follows) entered, 2 back to the parent, 3 files matching a
+//! pattern, 4 a folder and everything under it, 8 n what follows up to the matching 9 only for an
+//! installation of kind n or more (8 and 9 nest), 6 and 9 nothing; anything else ends it. The names
+//! go into two tables (`install::list_folder`, `install::list_files`) as NUL-ended texts; running
+//! past a table's room is a fatal error.
 
 use crate::Invalid;
 use crate::strings::bytes::Bytes;
@@ -36,17 +34,17 @@ pub fn script_name(script: &(impl Bytes + ?Sized)) -> Result<(Vec<u8>, u8), Inva
 /// What an opcode does.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Op {
-    /// 1: a folder entered.
+    /// Opcode 1: a folder entered.
     Folder,
-    /// 2: back to the parent.
+    /// Opcode 2: back to the parent.
     Up,
-    /// 3: the files matching a pattern.
+    /// Opcode 3: the files matching a pattern.
     Files,
-    /// 4: a folder and everything under it.
+    /// Opcode 4: a folder and everything under it.
     Tree,
-    /// 8 n: up to the matching 9 only for an installation of kind n or more.
+    /// Opcode 8 n: up to the matching 9 only for an installation of kind n or more.
     Media,
-    /// 6, 9: nothing.
+    /// Opcodes 6 and 9: nothing.
     Nothing,
     /// Anything else: the end (with folders still entered: fatal error 0x80AF3011).
     End,
@@ -74,9 +72,8 @@ pub fn skipped(n: u8, media: u8) -> bool {
     n > media
 }
 
-/// From `at` (past the 8 n) to past the matching 9, byte by byte as the original (a name's
-/// bytes 8 and 9 count too); `steps` counts the bytes taken against `LIMIT`. Refused: no
-/// 9 in time.
+/// From `at` (past the 8 n) to past the matching 9 (a name's bytes 8 and 9 count too); `steps`
+/// counts the bytes taken against `LIMIT`. Refused: no 9 in time.
 pub fn skip(
     script: &(impl Bytes + ?Sized),
     at: usize,

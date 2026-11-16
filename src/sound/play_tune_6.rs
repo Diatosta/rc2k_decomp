@@ -1,7 +1,4 @@
-//! Plain since 2026-10-23 (phase 3): its arguments are what the audio thread reads of the
-//! command (`rc2k_core::audio::commands::decode`); the registers above are the original's,
-//! for reference.
-
-pub fn play_tune_6() {
-    crate::sound::senders::play_tune(6);
+/// Asks the audio thread to play tune 6 (a music command).
+pub fn play_tune_6(o: crate::owners::Owners<'static>) {
+    crate::sound::senders::play_tune(o, 6);
 }

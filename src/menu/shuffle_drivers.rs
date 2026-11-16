@@ -1,56 +1,50 @@
-//! `menu::shuffle_drivers` (0x470AB9): meant to shuffle four driver tables
-//! (`unk_73EA7C`, `unk_740764`, `unk_7418BC`, `g_drivers`; 0x94 an entry; counts
-//! `dword_75AB04`, `dword_75AB08`, `dword_75AB0C`, `dword_75AB00`), but it never adds the
-//! two random entries' offsets: for each table, count times, two random numbers under the
-//! count (`dword_7559EC`, `hhmm`) and the first entry swapped with itself through
-//! `unk_755398` / `unk_75542C` (both left holding it). Section 16.
+//! `menu::shuffle_drivers`: meant to shuffle four driver tables (three menu tables and the
+//! drivers; 0x94 an entry; counts `CLASS_DRIVER_COUNTS`), but it never adds the two random
+//! entries' offsets: for each table, count times, two random numbers under the count
+//! and the first entry swapped with itself through the first
+//! shuffle table / the second shuffle table (both left holding it). A 1999 slip kept as is.
 //!
-//! Callers: one of the game's. The random numbers are `math::random_below`'s.
-//! Refuses a count of 0 (the original's `div` traps, its loop runs on), before anything.
+//! Callers: one of the game's. The random numbers are `Randoms::random_below`'s. Refuses a count
+//! of 0 (it would divide by 0), before anything.
 use crate::errors::{BadInput, Refused};
+use crate::memory::cells::Store;
+use crate::menu::drivers_store::{DRIVER_LEN, records_from_bytes, records_to_bytes};
 use crate::menu::owner::Menus;
-use crate::pointers::Store;
-use crate::session::Dword;
+use rc2k_core::saves::defaults::CLASS_DRIVER_COUNTS;
 
-const DRIVER_LEN: usize = 0x94;
+/// The four classes' first drivers (the drivers + 90, + 140, + 170, + 0) and counts.
+fn tables() -> [(usize, u32); 4] {
+    let counts = CLASS_DRIVER_COUNTS;
+    [
+        (90, counts[1]),
+        (140, counts[2]),
+        (170, counts[3]),
+        (0, counts[0]),
+    ]
+}
 
-/// The four classes' first drivers (`g_drivers` + 90, + 140, + 170, + 0) and counts.
-const TABLES: [(usize, &Dword); 4] = [
-    (
-        90,
-        &crate::menu::owner::MENUS.screens.state.menus.class_counts[1],
-    ),
-    (
-        140,
-        &crate::menu::owner::MENUS.screens.state.menus.class_counts[2],
-    ),
-    (
-        170,
-        &crate::menu::owner::MENUS.screens.state.menus.class_counts[3],
-    ),
-    (
-        0,
-        &crate::menu::owner::MENUS.screens.state.menus.class_counts[0],
-    ),
-];
-/// The Rust version.
-pub fn shuffle_drivers(menus: &Menus) -> Result<(), Refused> {
-    use crate::math::random_below::random_below;
-    if TABLES.iter().any(|&(_, c)| c.get() == 0) {
+pub fn shuffle_drivers(
+    menus: &Menus,
+    random: &crate::math::next_random::Randoms,
+) -> Result<(), Refused> {
+    let tables = tables();
+    if tables.iter().any(|&(_, c)| c == 0) {
         return Err(BadInput("a driver table count of 0").into());
     }
-    for &(table, count) in &TABLES {
+    for &(table, count) in &tables {
         let first = &menus.cars.drivers.drivers[table];
-        let n = count.get();
+        let n = count;
         for _ in 0..n {
-            menus.screens.draw_work.figure.set(random_below(n)?);
-            menus.screens.draw_work.hhmm.set(random_below(n)?);
+            // Two draws nothing uses: they advance the random generator, which later draws
+            // (and so replays) depend on.
+            random.random_below(n)?;
+            random.random_below(n)?;
             // The first entry through both scratch records and back (both left holding it).
-            let mut driver = [0; DRIVER_LEN];
-            first.load(0, &mut driver)?;
+            let driver = records_to_bytes(std::slice::from_ref(first));
+            debug_assert_eq!(driver.len(), DRIVER_LEN);
             menus.cars.numbers.shuffle_a.store(0, &driver)?;
             menus.cars.numbers.shuffle_b.store(0, &driver)?;
-            first.store(0, &driver)?;
+            records_from_bytes(std::slice::from_ref(first), &driver)?;
         }
     }
     Ok(())

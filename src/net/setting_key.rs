@@ -1,41 +1,44 @@
-//! `net::setting_key` (0x416C76): a key for the setting being edited (`net::edit_key`); when
-//! that ends the editing: the player's name (item 1) left empty gets its old text back
-//! (`byte_95EAF8`, 64 bytes); the most players (item 2) read from its text
-//! (`settings::parse_number`), held to 2 .. 8 (signed), and to 4 with `g_noticeKind` 2, into
-//! `dword_52ABD0`.
-//!
-//! Takes the key.
-//! Caller: `net::settings_loop`.
+//! A key for the setting being edited. When that ends the editing, an empty player name gets
+//! its old text back and the most players is read from its text, held to 2 ..= 8 (4 with the
+//! notice kind 2).
 
 use crate::errors::Refused;
 use crate::net::lobby::movsb;
 use crate::net::owner::Net;
 use rc2k_core::net::chat;
 
-/// The Rust version: the key `key` for the setting being edited. The registers the
-/// original leaves (the item or the number in eax, the copy's esi, edi and ecx) are read by
-/// no caller (`settings_loop`).
+/// The key `key` for the setting being edited.
 pub fn setting_key(
-    install: &'static crate::install::owner::Install,
+    input: &crate::input::owner::Input,
+    strings: &crate::strings::owner::Strings,
+    list_state: &crate::menu::list_state::ListState,
     net: &'static Net,
     key: u8,
+    gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
-    if !crate::net::edit_key::edit_key(net, key)? {
+    if !crate::net::edit_key::edit_key(input, net, &net.settings().edit, key, gfx)? {
         return Ok(());
     }
-    // Converted: `rc2k_core::net::chat` (`NAME`, `MOST_PLAYERS`, `most_players`).
-    match install.pages.choice.get() {
+    // The logic is in `rc2k_core::net::chat` (`NAME`, `MOST_PLAYERS`, `most_players`).
+    match list_state.choice.get() {
         chat::NAME => {
-            if net.vars.machine_name.get(0) == 0 {
-                movsb(&net.vars.machine_name, &install.paths.script_path, 0x40)?;
+            if net.setup().machine_name.get(0) == 0 {
+                movsb(
+                    &net.setup().machine_name,
+                    &net.settings().edit.text_before_edit,
+                    0x40,
+                )?;
             }
         }
         chat::MOST_PLAYERS => {
-            let number =
-                { crate::settings::parse_number::parse_number(&install.paths.path_a.read()) };
-            net.vars.most_players.set(chat::most_players(
+            let number = {
+                crate::settings::parse_number::parse_number(
+                    &net.settings().most_players_text.read(),
+                )
+            };
+            net.setup().most_players.set(chat::most_players(
                 number,
-                crate::strings::load_language::notice_kind(),
+                crate::strings::load_language::notice_kind(strings),
             ));
         }
         _ => {}

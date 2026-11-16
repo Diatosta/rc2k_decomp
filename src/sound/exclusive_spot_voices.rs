@@ -1,19 +1,14 @@
-//! `sound::exclusive_spot_voices` (0x40EAF3): at most one voice of a kind starts: a kind
-//! already playing, or started by an earlier voice in the table, silences the others.
+//! `sound::exclusive_spot_voices`: at most one voice of a kind starts: a kind already playing, or
+//! started by an earlier voice in the table, silences the others.
 //!
-//! The kinds' bits (+0x1C) of the voices heard and playing gathered; then each voice
-//! heard and not playing whose bit is among them is silenced (+4 0), and its bit added
-//! either way. One caller, `sound::spot_sounds`.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
+//! The kinds' bits of the voices heard and playing are gathered; then each voice heard and not
+//! playing whose bit is among them is silenced, and its bit added either way. One caller,
+//! `sound::spot_sounds`.
 
 use crate::sound::spot_voices::{load_voices, store_voices};
 
-// ---- Rust version ----
-
 pub fn exclusive_spot_voices(sound: &crate::sound::owner::Sound) {
-    // Converted: `rc2k_core::sound::spot_voices::keep_exclusive`.
+    // The logic is `rc2k_core::sound::spot_voices::keep_exclusive`.
     let mut voices = load_voices(sound);
     rc2k_core::sound::spot_voices::keep_exclusive(&mut voices);
     store_voices(sound, &voices);

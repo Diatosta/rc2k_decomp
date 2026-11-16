@@ -1,12 +1,12 @@
-//! The viewer's two plays (IDA 2026-10-19), sharing one tail (0x41E231):
-//! - `race::play_marked` (0x41E224): from the first mark (`dword_96E478`, frame 0) to the
-//!   second (`dword_96E47C`).
-//! - `race::play_from_here` (0x41E1E2): from the block and frame shown (`dword_5C2530`,
-//!   `dword_5C2534`) to the end (`dword_5BECD0`); it jumps into `play_marked`'s tail.
+//! The viewer's two plays, sharing one tail:
+//! - `race::play_marked`: from the first mark (`mark_in`, frame 0) to the
+//!   second (`mark_out`).
+//! - `race::play_from_here`: from the block and frame shown (`replay_block`,
+//!   `replay_frame`) to the end (the index's `block_count`); it jumps into `play_marked`'s tail.
 //!
-//! The tail: the block to stop at into `dword_5C2538`, `dword_5BEC98` 0 (playing), the
-//! start read (`drive::read_replay_frame`, eax the block, ebx the frame; its carry not
-//! looked at), the play (`race::play_replay_range`), `dword_5C253C` 0.
+//! The tail: the block to stop at into `play_end`, `viewer_stopped` 0 (playing), the
+//! start read (`drive::read_replay_frame` with the block and the frame; its failure not
+//! looked at), the play (`race::play_replay_range`), `play_from_here` 0.
 //!
 //! Callers: `race::viewer_action` (0x1A, 0x25 .. 0x28 `play_marked`; 6 and 0x22, 0x23
 //! `play_from_here`).
@@ -15,46 +15,46 @@ use crate::errors::Refused;
 use crate::race::owner::Race;
 use rc2k_core::race::viewer_flow::Play;
 
-/// The shared tail (0x41E231): from block `play.from`, frame `play.frame`, to block
+/// The shared tail: from block `play.from`, frame `play.frame`, to block
 /// `play.end`. The start read's carry is not looked at.
-pub fn play_tail(race: &Race, play: Play) -> Result<(), Refused> {
-    let input = crate::input::owner::input();
-    let sound = crate::sound::owner::sound();
+pub fn play_tail(
+    race: &Race,
+    o: crate::owners::Owners<'static>,
+    play: Play,
+) -> Result<(), Refused> {
     let replay = &race.replay;
-    replay.replay_view.play_end.set(play.end);
-    race.shared.replay_file.viewer_stopped.set(0);
-    { crate::drive::read_replay_frame::read_replay_frame(race, play.from, play.frame) }?;
-    crate::race::play_replay_range::play_replay_range(race, sound, input)?;
-    replay.replay_view.play_from_here.set(0);
+    replay.replay_view().play_end.set(play.end);
+    race.shared.replay_file().viewer_stopped.set(false);
+    { crate::drive::read_replay_frame::read_replay_frame(race, o.system, play.from, play.frame) }?;
+    crate::race::play_replay_range::play_replay_range(race, o)?;
+    replay.replay_view().play_from_here.set(0);
     Ok(())
 }
 
 /// `play_marked`.
-pub fn play_marked(race: &Race) -> Result<(), Refused> {
-    // Converted: `rc2k_core::race::viewer_flow::marked_play`.
+pub fn play_marked(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    // Logic in `rc2k_core::race::viewer_flow::marked_play`.
     play_tail(
         race,
+        o,
         rc2k_core::race::viewer_flow::marked_play(
-            crate::race::viewer_buffers_store::VIEWER_BUFFERS
-                .mark_in
-                .get(),
-            crate::race::viewer_buffers_store::VIEWER_BUFFERS
-                .mark_out
-                .get(),
+            race.viewer_buffers().mark_in.get(),
+            race.viewer_buffers().mark_out.get(),
         ),
     )
 }
 
 /// `play_from_here`.
-pub fn play_from_here(race: &Race) -> Result<(), Refused> {
+pub fn play_from_here(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let replay = &race.replay;
-    // Converted: `rc2k_core::race::viewer_flow::play_from_here`.
+    // Logic in `rc2k_core::race::viewer_flow::play_from_here`.
     play_tail(
         race,
+        o,
         rc2k_core::race::viewer_flow::play_from_here(
-            replay.replay_view.replay_block.get(),
-            replay.replay_view.replay_frame.get(),
-            race.shared.replay_file.index_block_count.get(),
+            replay.replay_view().replay_block.get(),
+            replay.replay_view().replay_frame.get(),
+            race.shared.replay_file().index.block_count.get(),
         ),
     )
 }

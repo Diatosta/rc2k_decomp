@@ -1,14 +1,8 @@
-//! `audio::clear_channels` (0x40ACA1): the first 0x10 mixer channels made free.
-//!
-//! Each channel's `used`, `voice` and the five dwords from +0x44 on are 0. Five callers
-//! (the mode's set-up, `audio::free_voices`, the mixer's start).
+//! Makes the first 0x10 mixer channels free.
 
-use crate::audio::owner::Audio;
+use crate::audio::own::AudioThread;
 use crate::audio::voices::GamePool;
 
-// ---- Rust version ----
-
-pub fn clear_channels(audio: &Audio) {
-    // Converted: `rc2k_core::audio::voices::clear_channels`.
+pub fn clear_channels(audio: &AudioThread) {
     rc2k_core::audio::voices::clear_channels(&mut GamePool::new(audio));
 }

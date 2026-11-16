@@ -1,12 +1,7 @@
-//! `files::resolve_path` (0x403206): turns a game-relative path into a full path under one of
+//! Turns a game-relative path into a full path under one of
 //! the two base directories.
-//!
-//! Takes path. Returns resolved path (a buffer), or the input pointer if the path is used as it is.
-//! The output buffer has no bounds check. A result longer than 0x100 bytes is refused, and the
 
 use crate::errors::BadInput;
-
-// ---- game data ----
 
 const BUF_LEN: usize = 0x100; // ThreadSlot + 0x10 .. + 0x110
 
@@ -20,12 +15,10 @@ struct Globals {
 fn globals() -> Result<Globals, BadInput> {
     Ok(Globals {
         mode: crate::files::state::MEDIA_MODE.get(),
-        a: crate::files::state::directory_text(0, "the base directory")?, // g_baseDirectory
-        b: crate::files::cstring(
-            &crate::install::owner::install().texts.base_b,
-            "the second base directory",
-        )?,
-        // g_localeDirectory: replaces each '%'
+        a: crate::files::state::directory_text(0, "the base directory")?,
+        // The second base directory: an empty text.
+        b: Vec::new(),
+        // The locale directory: replaces each '%'
         pct: crate::files::state::directory_text(1, "the locale directory")?,
     })
 }
@@ -40,10 +33,8 @@ fn write_out(path: &[u8]) -> Result<(), BadInput> {
     }
 }
 
-// ---- Rust version ----
-
-/// Ok(None) = the path is used as it is. `path` excludes the NUL; the result includes one.
-/// A result that does not fit the 0x100-byte buffer is refused: the original writes past it.
+/// Ok(None) = the path is used as it is. `path` excludes the NUL; the result includes one. A
+/// result that does not fit the 0x100-byte buffer is refused.
 pub fn resolve_path(
     path: &[u8],
     media_mode: u32,
@@ -51,7 +42,6 @@ pub fn resolve_path(
     base_b: &[u8],
     pct: &[u8],
 ) -> Result<Option<Vec<u8>>, BadInput> {
-    // Converted: `rc2k_core::files::paths::resolve`.
     let bases = rc2k_core::files::paths::Bases {
         media_mode,
         a: base_a,
@@ -69,9 +59,8 @@ pub fn resolve_path(
     Ok(Some(out))
 }
 
-/// The path as the game would open it, for Rust callers (`path` without its NUL): the path
-/// itself if it is used as it is, else the resolved path, written to this thread's buffer
-/// as the original writes it. Without a NUL.
+/// The path as the game would open it (`path` without its NUL): the path itself if it is used
+/// as it is, else the resolved path, written to this thread's buffer. Without a NUL.
 pub fn resolve(path: &[u8]) -> Result<Vec<u8>, BadInput> {
     let g = globals()?;
     let Some(resolved) = resolve_path(path, g.mode, &g.a, &g.b, &g.pct)? else {
@@ -79,4 +68,25 @@ pub fn resolve(path: &[u8]) -> Result<Vec<u8>, BadInput> {
     };
     write_out(&resolved)?;
     Ok(resolved[..resolved.len() - 1].to_vec())
+}
+
+#[cfg(test)]
+mod tests {
+    /// Another thread (the audio and network loads) resolves the same paths as the game's
+    /// thread: the second base directory is read from the files layer, not the installer.
+    #[test]
+    fn another_thread_resolves_the_same_paths() {
+        let _lock = crate::test_support::test_lock();
+        let paths: [&[u8]; 4] = [b"files\\d\\gfx\\x.bun", b"var\\ral.cfg", b"%x", b"plain"];
+        let here: Vec<_> = paths.iter().map(|p| super::resolve(p)).collect();
+        let there: Vec<_> =
+            std::thread::spawn(move || paths.iter().map(|p| super::resolve(p)).collect::<Vec<_>>())
+                .join()
+                .unwrap();
+        assert_eq!(here.len(), there.len());
+        for (a, b) in here.iter().zip(&there) {
+            assert_eq!(a.as_ref().ok(), b.as_ref().ok());
+        }
+        assert!(here.iter().all(Result::is_ok));
+    }
 }

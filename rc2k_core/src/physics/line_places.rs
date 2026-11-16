@@ -1,47 +1,42 @@
-//! Where a car may be put on the line (converted 2026-10-21 from
-//! `physics::reset_point_blocked` 0x43F0DF, `physics::reset_car` 0x43EFEF (its search),
-//! `drive::checkpoint_taken` 0x4375A5 and `drive::car_near_checkpoint` 0x4375F2): a
-//! checkpoint too near the stage's ends or another car is no place for it. Every
-//! comparison takes the sign of the difference (`js` / `jns`), as the originals.
+//! Where a car may be put on the line: a checkpoint too near the stage's ends or another car is
+//! no place for it. Every comparison takes the sign of the difference.
 
 /// How near the stage's start and end (in checkpoints) no car is put.
 pub const END_MARGIN: u32 = 8;
 
-/// A block's +0x25C when the car is in the stage (a reading) for `reset_point_blocked`.
+/// A block's state when it is a computer car's, for `reset_point_blocked`.
 pub const IN_STAGE: u32 = 2;
 
-/// Whether a checkpoint is less than `END_MARGIN` from the start (by the sign).
+/// Whether a checkpoint is less than `END_MARGIN` from the start (signed).
 pub fn near_start(checkpoint: u32) -> bool {
     (checkpoint.wrapping_sub(END_MARGIN) as i32) < 0
 }
 
-/// The last checkpoint a car may be put at, plus one (`g_checkpointCount` - 8).
+/// The last checkpoint a car may be put at, plus one.
 pub fn end_of(count: u32) -> u32 {
     count.wrapping_sub(END_MARGIN)
 }
 
-/// Whether a checkpoint is at or past `end` (by the sign).
+/// Whether a checkpoint is at or past `end` (signed).
 pub fn near_end(checkpoint: u32, end: u32) -> bool {
     (checkpoint.wrapping_sub(end) as i32) >= 0
 }
 
-/// `reset_point_blocked`'s answer for one block, with what the original leaves in eax
-/// and ebx.
+/// The answer of `reset_point_blocked` for one block, with the values it leaves.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Blocked {
-    /// The block's car is not in the stage: free (eax kept).
+    /// The block's car is not in the stage: free.
     Away,
-    /// Near the start: blocked (eax the candidate).
+    /// Near the start: blocked.
     Start,
-    /// Near the end: blocked (eax the candidate, ebx `end`).
+    /// Near the end: blocked.
     End { end: u32 },
-    /// Else: blocked when the gap to the block's checkpoint (+0x94) is in -8 ..= 7 (eax the
-    /// gap, ebx `end`).
+    /// Blocked when the gap to the block's checkpoint is in -8 ..= 7.
     Gap { end: u32, gap: u32, blocked: bool },
 }
 
 impl Blocked {
-    /// The carry the original returns.
+    /// Whether the candidate is blocked.
     pub fn carry(&self) -> bool {
         match *self {
             Blocked::Away => false,
@@ -51,8 +46,8 @@ impl Blocked {
     }
 }
 
-/// `physics::reset_point_blocked`: the candidate checked against one block (its +0x25C
-/// `state`); `count` and the block's checkpoint asked only where the original reads them.
+/// The candidate checked against one block; `count` and the block's checkpoint are asked only
+/// where needed.
 pub fn reset_point_blocked(
     state: u32,
     candidate: u32,
@@ -75,17 +70,15 @@ pub fn reset_point_blocked(
     Blocked::Gap { end, gap, blocked }
 }
 
-/// `physics::reset_car`'s tries: the offsets from the car's checkpoint in the order
-/// tried, d then -d for d = 0 .. `RESET_TRIES` (0 twice).
+/// `reset_car`'s tries: offsets d then -d for d = 0 .. `RESET_TRIES` (0 twice).
 pub const RESET_TRIES: u32 = 0x40;
 
 pub fn reset_offsets() -> impl Iterator<Item = u32> {
     (0..RESET_TRIES).flat_map(|d| [d, d.wrapping_neg()])
 }
 
-/// `drive::car_near_checkpoint`: for a car in the stage (`in_stage`, its +0x25C not 0),
-/// (the distance from its checkpoint +0x98 to `checkpoint`, made positive; whether that is
-/// below 4 by the sign); None for one not in it (its checkpoint not asked).
+/// For a car in the stage: the distance from its checkpoint to `checkpoint` made positive,
+/// and whether it is below 4; `None` for a car not in it.
 pub fn car_near(
     in_stage: bool,
     car_checkpoint: impl FnOnce() -> u32,
@@ -101,8 +94,7 @@ pub fn car_near(
     Some((d, (d.wrapping_sub(4) as i32) < 0))
 }
 
-/// `drive::checkpoint_taken`: near the start or the end (`count` - 8), or a car near
-/// (`any_car_near` asked only past those).
+/// Near the start or the end, or a car near (`any_car_near` asked only past those).
 pub fn checkpoint_taken(checkpoint: u32, count: u32, any_car_near: impl FnOnce() -> bool) -> bool {
     near_start(checkpoint) || near_end(checkpoint, end_of(count)) || any_car_near()
 }

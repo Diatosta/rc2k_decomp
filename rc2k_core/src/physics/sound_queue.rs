@@ -1,55 +1,55 @@
-//! A sound object's queue of cues (converted 2026-10-21 from `physics::queue_sound_cue`
-//! 0x40EE5C): up to 16 entries of 0x20 bytes (the cue, its sounds' number, up to six
-//! sounds); a cue put first stops the playing sound and moves the others up one.
+//! A sound object's queue of cues: up to 16 entries of 0x20 bytes; a cue put first stops the
+//! playing sound and moves the others up one.
 
 use crate::Invalid;
 
-/// The queue's room, and an entry's size in dwords.
+/// The queue's room.
 pub const ROOM: u32 = 16;
+/// An entry's size in dwords.
 pub const ENTRY_DWORDS: u32 = 8;
 
-/// The highest cue (`off_512508`'s size not worked out).
-pub const LAST_CUE: u32 = 0x5F;
+/// The highest cue: the table holds cues 0 ..= 0x70.
+pub const LAST_CUE: u32 = 0x70;
 
-/// The most sounds a cue lists, and the end of a list.
+/// The most sounds a cue lists.
 pub const MOST_SOUNDS: u32 = 6;
+/// The end of a sound list.
 pub const LIST_END: u32 = u32::MAX;
 
 /// Where a cue goes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Place {
+pub enum CuePlacement {
     /// The queue is full: nothing.
     Full,
-    /// At entry `n` (0 into an empty queue or last).
+    /// At entry `n` (0 into an empty queue, or last).
     At(u32),
-    /// First, ahead of the `count` queued (the playing sound stopped, the entries moved up).
+    /// First, ahead of the `count` queued (the playing sound stopped).
     First { count: u32 },
 }
 
-/// A cue past `LAST_CUE` is refused (before anything is read).
+/// A cue past `LAST_CUE` is refused.
 pub fn check_cue(cue: u32) -> Result<(), Invalid> {
     if cue > LAST_CUE {
-        return Err(Invalid("a sound cue past 0x5F"));
+        return Err(Invalid("a sound cue past 0x70"));
     }
     Ok(())
 }
 
-/// The place of a cue (`first`: eax 0) in a queue of `count`.
-pub fn place(count: u32, first: bool) -> Place {
+/// The place of a cue (`first` set) in a queue of `count`.
+pub fn place(count: u32, first: bool) -> CuePlacement {
     if count == ROOM {
-        Place::Full
+        CuePlacement::Full
     } else if count == 0 {
-        Place::At(0)
+        CuePlacement::At(0)
     } else if first {
-        Place::First { count }
+        CuePlacement::First { count }
     } else {
-        Place::At(count)
+        CuePlacement::At(count)
     }
 }
 
-/// A cue's sounds: the list read in order (`list(k)`) up to a -1 or `MOST_SOUNDS`, each
-/// not below 0 offset by the object's base; (the dwords written, the -1 included; their
-/// number less the -1, the entry's +4).
+/// A cue's sounds: the list read up to a -1 or `MOST_SOUNDS`, each not below 0 offset by
+/// the object's base; returns (the dwords written, their number less the -1).
 pub fn sounds(list: impl Fn(u32) -> u32, base: u32) -> (Vec<u32>, u32) {
     let mut out = Vec::new();
     let mut n = 0;
@@ -76,12 +76,12 @@ mod tests {
 
     #[test]
     fn places() {
-        assert_eq!(place(16, true), Place::Full);
-        assert_eq!(place(0, true), Place::At(0));
-        assert_eq!(place(4, true), Place::First { count: 4 });
-        assert_eq!(place(4, false), Place::At(4));
-        assert!(check_cue(0x5F).is_ok());
-        assert!(check_cue(0x60).is_err());
+        assert_eq!(place(16, true), CuePlacement::Full);
+        assert_eq!(place(0, true), CuePlacement::At(0));
+        assert_eq!(place(4, true), CuePlacement::First { count: 4 });
+        assert_eq!(place(4, false), CuePlacement::At(4));
+        assert!(check_cue(0x70).is_ok());
+        assert!(check_cue(0x71).is_err());
     }
 
     #[test]

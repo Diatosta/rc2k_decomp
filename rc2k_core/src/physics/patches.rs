@@ -1,18 +1,12 @@
-//! The physics' constants with the `patch` settings worked in (converted 2026-10-21 from
-//! `physics::apply_patches` 0x4648BD), once. The settings' keys in `var\ral.cfg` say what
-//! they are, from 0x71C6D0 on: `fizpatch` (the switch), `patchmaxdrawdistance`,
-//! `patchstickygrass`, `patchgravity`, `patchdamages`, `patchbrakegrip`, `patchaccelgrip`,
-//! `patchslidegrip`, `patchgripgrass`, `patchgriptarmac`, `patchgripsnow`, `patchgripmud`,
-//! `patchgripgravel`, the last ten in percent. So the gravity is `flt_613FC8`, and a
-//! record is a kind of ground with its slide, acceleration and brake grip (a reading of
-//! the names, not seen in a race).
-//!
-//! Floats: each figure is one quotient (a whole number over 100) or a product of floats
-//! whose first step is exact: correctly rounded at the game's double and extended
-//! precision, the original's to the bit (not at single precision, which the game never
-//! runs at).
+//! The physics' constants with the `patch` settings worked in, once: gravity, a ground record's
+//! slide, acceleration and brake grip. The settings (keys in `var\ral.cfg`) are `fizpatch` (the
+//! switch), then `patchmaxdrawdistance`, `patchstickygrass`, `patchgravity`, `patchdamages`,
+//! `patchbrakegrip`, `patchaccelgrip`, `patchslidegrip` and the grips of grass, tarmac, snow, mud
+//! and gravel, the last ten in percent. Floats: each figure is one quotient (a whole number over
+//! 100) or a product whose first step is exact, so it is correctly rounded at double and
+//! extended precision.
 
-/// The settings from 0x71C6D4 on: the least and the most each may be (RAL.EXE's).
+/// The least and the most each setting may be.
 pub const RANGES: [(u32, u32); 12] = [
     (4, 0x10),
     (0, 1),
@@ -27,50 +21,49 @@ pub const RANGES: [(u32, u32); 12] = [
     (10, 200),
     (10, 200),
 ];
-/// The ground records (12 of 0x30 bytes from 0x6139AC): their first three floats to
-/// begin with: 1.0, 0.9 (one bit above the nearest float) and 1.7.
+/// The ground records' first three floats to begin with: 1.0, 0.9 (one bit above the nearest
+/// float) and 1.7.
 pub const PLAIN: [u32; 3] = [0x3F80_0000, 0x3F66_6667, 0x3FD9_999A];
 /// The third float of these records: 1.2.
 pub const OTHER_THIRD: ([usize; 2], u32) = ([3, 10], 0x3F99_999A);
 pub const NINE_POINT_EIGHT: u32 = 0x411C_CCCD;
 pub const TEN: u32 = 0x4120_0000;
-/// By record: which of the ten factors its three floats are multiplied by first.
+/// By record: which of the ten factors its three floats are first multiplied by.
 pub const BY_RECORD: [usize; 12] = [6, 9, 8, 7, 5, 8, 5, 5, 7, 5, 7, 9];
 /// The factors the first, second and third float are then multiplied by.
 pub const BY_FLOAT: [usize; 3] = [4, 3, 2];
 
-/// What `apply_patches` reads and writes (as bits: the game's dwords).
+/// What the patches read and write (as bits).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Patches {
-    /// `dword_71C6D0`: the settings' switch.
+    /// The settings' switch.
     pub switch: u32,
-    /// 0x71C6D4 .. 0x71C700.
+    /// The twelve settings, each held to its `RANGES` bounds.
     pub settings: [u32; 12],
-    /// `flt_71C704` ..: the ten percentages as factors.
+    /// The ten percentages as factors.
     pub factors: [u32; 10],
-    /// `g_patchesApplied` (0x71C72C).
+    /// Set once applied.
     pub applied: u32,
-    /// `flt_613FC8`.
+    /// The gravity.
     pub gravity: u32,
-    /// The records' three grips.
+    /// The grip figures of the 12 ground records.
     pub records: [[u32; 3]; 12],
-    /// `dword_613AE8`, `dword_613B18`.
+    /// The drag of surfaces 7 and 8.
     pub tens: [u32; 2],
 }
 
-/// `fild number; fdiv by; fstp`.
 fn percent(number: u32, hundred: f32) -> u32 {
     ((number as i32 as f64 / hundred as f64) as f32).to_bits()
 }
 
-/// `physics::apply_patches` (`hundred` `flt_5C5D14`, 100.0). Nothing if applied already.
+/// Works the settings in (`hundred` is 100.0); nothing if applied already.
 pub fn apply_patches(p: &mut Patches, hundred: f32) {
     if p.applied != 0 {
         return;
     }
     p.applied = 1;
     for (s, (least, most)) in p.settings.iter_mut().zip(RANGES) {
-        // `cmp; jns` and `cmp; js`: the sign of the difference, whatever the overflow.
+        // The sign of the difference, whatever the overflow.
         if (s.wrapping_sub(least) as i32) < 0 {
             *s = least;
         }

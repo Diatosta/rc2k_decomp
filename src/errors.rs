@@ -1,20 +1,18 @@
-//! How a Rust version says "not here". A fatal error is raised from Rust
-//! (`fatal::raise::refused`); a refused input is handed back to the original code, and a
-//! build that runs without the game needs an answer for every one of those.
+//! How the Rust code says "not here". A fatal error or a refused input ends the program with
+//! its report (`fatal::raise::refused`).
 
-/// A condition the original reports through its fatal-error reporter at 0x40763C: it stores
-/// `code` in 0x4F52A4 and a pointer to `message` (or null) in 0x4F52A8, then jumps there.
-/// A hook raises it through `fatal::raise`, which ends the game with the report.
+/// A fatal error of the game: `code` is the number the report shows and `message` the text with
+/// it. It is raised through `fatal::raise`, which ends the game with the report.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct FatalError {
     pub code: u32,
-    /// Empty where the original stores a null pointer.
+    /// Empty where the report has no text.
     pub message: &'static str,
 }
 
-/// An input the Rust version refuses: the original itself goes wrong there (a division that
-/// traps, a write past a buffer, a loop that never ends) or its behaviour there has not been
-/// worked out. A hook hands it to the original, so the game behaves as it always did.
+/// An input the Rust code refuses: the game itself goes wrong there (a division that traps, a
+/// write past a buffer, a loop that never ends) or its behaviour there has not been worked out.
+/// The program ends with the reason.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct BadInput(pub &'static str);
 
@@ -47,4 +45,11 @@ impl From<rc2k_core::Invalid> for Refused {
     fn from(e: rc2k_core::Invalid) -> Self {
         Refused::BadInput(e.into())
     }
+}
+
+/// The carry and zero results a function returns for callers that test them.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct CarryZeroFlags {
+    pub carry: bool,
+    pub zero: bool,
 }

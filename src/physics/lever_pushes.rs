@@ -1,81 +1,74 @@
-//! `physics::lever_pushes` (0x43DDDF): `dword_6140E4` and `dword_6140E8` 0; then, only
-//! with `dword_621884` 1 and `dword_71A22C` 0: the lever `flt_614B44`, `B48` 0 and
-//! `flt_614C44` 0; a share A / (B + A) of A = |+0x210| + |+0x21C| and B = |+0x214| +
-//! |+0x218| (`g_car`, `dword_71A1E8` .. `dword_71A1F4`; a reading: the wheels' loads)
-//! into `flt_614C44`, held to `flt_5C5D90` (0) ..= `flt_5C5D38` (1). If B + A is 0 (or no
-//! number) the share is A itself and it ends there. Else `flt_614B4C` = `flt_71ACD4` and
-//! `flt_614C48` the share, `physics::lever_push`; `flt_614B4C` = `flt_71ACC8` and
-//! `flt_614C48` 1 less it, `physics::lever_push`. It ends through the `retn` at 0x43DFB0.
+//! `lever_pushes` and `PhysicsTables.lever_pushes[1]` = 0; then, only with `levers_on` 1 and
+//! the wheels on the ground: the lever `lever_push_vector` and `lever_share_start` = 0; a share
+//! A / (B + A) of A = |grip_forces[0]| + |grip_forces[3]| and B = |grip_forces[1]| +
+//! |grip_forces[2]| (a reading: the wheels' loads) goes into `lever_share_start`, held to
+//! `zero` (0) ..= `one` (1). If B + A is 0 (or no number) the share is A itself and it ends
+//! there. Otherwise `PhysicsTables.lever_push_vector[2]` = `Car.probe_point_z[3]` and
+//! `lever_share_left` is the share for `physics::lever_push`; then
+//! `PhysicsTables.lever_push_vector[2]` = `probe_point_z` and `lever_share_left` 1 less it for
+//! a second `lever_push`.
 //!
-//! Callers: `physics::car_physics_step` (0x43B831, 0x43B8AA), every physics step.
+//! Caller: `physics::car_physics_step`, twice every physics step.
 
 use crate::math::x87;
-use crate::math::x87_run::{lever_share, one_less};
+use crate::math::x87::{lever_share, one_less};
+use crate::physics::car_store::Car;
 use crate::physics::lever_push::lever_push;
-use crate::race::owner::Race;
+use crate::physics::tables_store::PhysicsTables;
+use crate::race::numbers_store::Numbers;
+use crate::race::switches_store::FrameSwitches;
 use std::cmp::Ordering;
 
-/// `fld limit; fld share; fcompp` and its C0: share below limit, or unordered.
-fn below(share: u32, limit: u32) -> bool {
+/// Whether `share` is below `limit`, or unordered.
+fn below(share: f32, limit: f32) -> bool {
     !matches!(
-        f32::from_bits(share).partial_cmp(&f32::from_bits(limit)),
+        share.partial_cmp(&limit),
         Some(Ordering::Greater | Ordering::Equal)
     )
 }
 
-/// The Rust version.
-pub fn lever_pushes(race: &Race, scene: &crate::scene::owner::Scene) {
-    race.shared.physics_tables.lever_pushes[0].set(0);
-    race.shared.physics_tables.lever_pushes[1].set(0);
-    if race.shared.switches.levers_on.get() != 1 || race.shared.car.all_wheels_off.get() != 0 {
+pub fn lever_pushes(
+    numbers: &Numbers,
+    switches: &FrameSwitches,
+    physics_tables: &PhysicsTables,
+    car: &Car,
+    scene: &crate::scene::owner::Scene,
+) {
+    physics_tables.lever_pushes[0].set(0);
+    physics_tables.lever_pushes[1].set(0);
+    if switches.levers_on.get() != 1 || car.all_wheels_off.get() != 0 {
         return;
     }
-    race.shared.physics_tables.lever_push_vector[0].set(0);
-    race.shared.physics_tables.lever_push_vector[1].set(0);
-    race.shared.physics_tables.lever_share_start.set_bits(0);
+    physics_tables.lever_push_vector[0].set(0);
+    physics_tables.lever_push_vector[1].set(0);
+    physics_tables.lever_share_start.set(0.0);
     let (share, zero) = lever_share(
-        race.shared.car.grip_forces[0].bits(),
-        race.shared.car.grip_forces[3].bits(),
-        race.shared.car.grip_forces[1].bits(),
-        race.shared.car.grip_forces[2].bits(),
-        race.course.numbers.zero.bits(),
+        &car.grip_forces[0],
+        &car.grip_forces[3],
+        &car.grip_forces[1],
+        &car.grip_forces[2],
+        0.0,
     );
-    race.shared.physics_tables.lever_share_start.set_bits(share);
+    physics_tables.lever_share_start.set(share);
     if zero {
         return;
     }
-    if below(
-        race.shared.physics_tables.lever_share_start.bits(),
-        race.course.numbers.zero.bits(),
-    ) {
-        race.shared
-            .physics_tables
-            .lever_share_start
-            .set_bits(x87::loaded(race.course.numbers.zero.bits()));
+    if below(physics_tables.lever_share_start.get(), 0.0) {
+        physics_tables.lever_share_start.set(x87::loaded(0.0f32));
     }
-    if !below(
-        race.shared.physics_tables.lever_share_start.bits(),
-        race.course.numbers.one.bits(),
-    ) {
-        race.shared
-            .physics_tables
+    if !below(physics_tables.lever_share_start.get(), numbers.one.get()) {
+        physics_tables
             .lever_share_start
-            .set_bits(x87::loaded(race.course.numbers.one.bits()));
+            .set(x87::loaded(&numbers.one));
     }
-    race.shared.physics_tables.lever_push_vector[2]
-        .set(x87::loaded(race.shared.car.probe_point_z[3].bits()));
-    race.shared
-        .physics_tables
+    physics_tables.lever_push_vector[2].set(x87::loaded(&car.probe_point_z[3]).to_bits());
+    physics_tables
         .lever_share_left
-        .set_bits(x87::loaded(
-            race.shared.physics_tables.lever_share_start.bits(),
-        ));
-    lever_push(race, scene);
-    race.shared.physics_tables.lever_push_vector[2]
-        .set(x87::loaded(race.shared.car.probe_point_z[0].bits()));
-    race.shared
-        .physics_tables
+        .set(x87::loaded(&physics_tables.lever_share_start));
+    lever_push(car, physics_tables, numbers, scene);
+    physics_tables.lever_push_vector[2].set(x87::loaded(&car.probe_point_z[0]).to_bits());
+    physics_tables
         .lever_share_left
-        .set_bits(one_less(race.shared.physics_tables.lever_share_left.bits()));
-    lever_push(race, scene);
+        .set(one_less(&physics_tables.lever_share_left));
+    lever_push(car, physics_tables, numbers, scene);
 }

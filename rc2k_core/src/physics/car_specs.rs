@@ -1,101 +1,90 @@
-//! The work car's handling figures from its kind's record (converted 2026-10-21 from
-//! `physics::load_car_specs` 0x421482): records of 0xB0 bytes at 0x5C790C ("00 renault
-//! maxi megane" ..), by the kind (`g_car` +0x24, at most 0x21). What each figure is, is a
-//! reading (the hook's header says where each goes).
+//! The work car's handling figures from its kind's record (0xB0 bytes, kinds up to 0x21).
 //!
-//! Floats: what the x87 keeps on its stack is an `f64`, rounded to `f32` where the
-//! original stores (`physics::x87`): the same bits at the game's double precision. The
-//! three whole figures are `fistp`ed from a product and a quotient (an `f64` at double
-//! precision, as the x87's; at extended one may land one off at a rounding edge).
+//! Floats: what the x87 keeps on its stack is an `f64`, rounded to `f32` where it is stored.
+//! The three whole figures are rounded from a product and a quotient; at extended precision
+//! one may land one off at a rounding edge.
 
 use super::x87::{fistp64, hold_low, loaded};
 use crate::Invalid;
 
 /// The highest kind with a record.
 pub const LAST_KIND: u32 = 0x21;
-/// A record's size.
+/// A record's size in bytes.
 pub const RECORD_LEN: u32 = 0xB0;
-/// The kinds below which the whole figures come from the game's constants.
+/// The kinds below which the whole figures come from the constants.
 pub const OWN_FIGURES_FROM: u32 = 0x17;
-/// The drive kinds (`flt_613FB8` has four).
+/// The number of drive kinds.
 pub const DRIVE_KINDS: u32 = 4;
 
-/// The record's index for a kind.
+/// The record's index for a kind (kinds past the last use the last).
 pub fn record_of(kind: u32) -> u32 {
     kind.min(LAST_KIND)
 }
 
-/// The record's figures the function reads (offsets in the record).
+/// The record's figures that are read.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct SpecRecord {
-    /// +0x18: the drive kind.
+    /// The drive kind.
     pub drive: u32,
-    /// +0x64 .. +0x70: four whole figures.
+    /// Four whole figures.
     pub figures: [i32; 4],
-    /// +0x74: the engine's top, a whole number.
+    /// The engine's top, a whole number.
     pub top: i32,
-    /// +0x78: a whole figure over the top.
+    /// A whole figure over the top.
     pub over_top: i32,
-    /// +0xA4, +0xA8, +0xAC: the shift points.
+    /// The shift points.
     pub shifts: [f32; 3],
-    /// +0x40 .. +0x48: three whole figures (x 65536).
+    /// Three whole figures (x 65536).
     pub whole: [i32; 3],
-    /// +0x38, +0x3C: two figures times gravity.
+    /// Two figures times gravity.
     pub weights: [f32; 2],
 }
 
-/// The game's constants the function reads.
+/// The constants the figures are made with.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct SpecConstants {
-    /// `flt_613F10` (copied to +0x1E0).
     pub f613f10: f32,
-    /// `flt_613E88`: the last shift point's factor.
+    /// The last shift point's factor.
     pub f613e88: f32,
-    /// `flt_5C5DDC`: added to the second and third shift points.
+    /// Added to the second and third shift points.
     pub f5c5ddc: f32,
-    /// `flt_613EB8`.
     pub f613eb8: f32,
-    /// `flt_613FE4`.
     pub f613fe4: f32,
-    /// `flt_5C5D18`: the top's floor and the whole figures' divisor.
+    /// The top's floor and the whole figures' divisor.
     pub f5c5d18: f32,
-    /// `flt_5C5D50`: the four figures' floor (8.0).
+    /// The four figures' floor (8.0).
     pub f5c5d50: f32,
-    /// `flt_5C5D98`: 65536.
+    /// 65536.
     pub f5c5d98: f32,
-    /// `flt_613FC8`: gravity.
+    /// Gravity.
     pub gravity: f32,
-    /// `flt_5C5D14`: 100.
+    /// 100.
     pub hundred: f32,
-    /// `dword_613F04` ..: the whole figures of kinds below `OWN_FIGURES_FROM`.
+    /// The whole figures of kinds below `OWN_FIGURES_FROM`.
     pub own: [i32; 3],
 }
 
-/// What the function stores from floats.
+/// The figures stored from floats.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Specs {
-    /// `flt_5CB96C` ..: the four figures (at least the floor).
+    /// The four figures (at least the floor).
     pub figures: [f32; 4],
-    /// +0x1DC: the engine's top (at least `f5c5d18`).
+    /// The engine's top (at least `f5c5d18`).
     pub top: f32,
-    /// +0x1E0: `f613f10` as loaded.
+    /// `f613f10` as loaded.
     pub w1e0: f32,
-    /// `flt_5CB958` .. `flt_5CB964`: the shift points (the last the first times
-    /// `f613e88`).
+    /// The shift points (the last the first times `f613e88`).
     pub shifts: [f32; 4],
-    /// `flt_5CB968`.
     pub f5cb968: f32,
-    /// `flt_614104`.
     pub f614104: f32,
-    /// `dword_614BC0` ..: the whole figures x 65536 / `f5c5d18`, `fistp`ed.
+    /// The whole figures x 65536 / `f5c5d18`, rounded.
     pub whole: [i32; 3],
-    /// `flt_614BAC`, `flt_614BB0`.
     pub weights: [f32; 2],
-    /// `flt_6140F8`: the drive kind's figure; `flt_6140FC` it + 100.
+    /// The drive kind's figure; the second it + 100.
     pub drive: [f32; 2],
 }
 
-/// The drive kind checked (`flt_613FB8`'s size).
+/// The drive kind, checked against the number of kinds.
 pub fn check_drive(drive: u32) -> Result<u32, Invalid> {
     if drive >= DRIVE_KINDS {
         return Err(Invalid("a drive kind past 3"));
@@ -103,7 +92,7 @@ pub fn check_drive(drive: u32) -> Result<u32, Invalid> {
     Ok(drive)
 }
 
-/// The gear count held to 3 ..= 7 (by the sign).
+/// The gear count held to 3 ..= 7 (by sign).
 pub fn gear_count(count: u32) -> u32 {
     let mut c = count;
     if (c.wrapping_sub(3) as i32) < 0 {
@@ -115,8 +104,7 @@ pub fn gear_count(count: u32) -> u32 {
     c
 }
 
-/// The figures from a record, its kind, the constants and the drive kind's figure
-/// (`flt_613FB8[drive]`).
+/// The figures from a record, its kind, the constants and the drive kind's figure.
 pub fn specs(r: &SpecRecord, kind: u32, k: &SpecConstants, drive_figure: f32) -> Specs {
     let f = |x: f32| x as f64;
     let mut s = Specs {

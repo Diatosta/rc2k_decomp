@@ -1,29 +1,25 @@
-//! `physics::move_slots` (0x462206): `dword_71BE88` = the number of the eight
-//! `g_raceSlots` (0x78 bytes each) in use (+0 not 0), each moved by
+//! `slot_count` = the number of the eight `race_slots` (0x78 bytes each) in use, each moved by
 //! `physics::move_slot`.
 //!
-//! Caller: `drive::animate_stage` (0x45E9CF), from race init's loop and `drive::replay_step`.
-//! Refuses (before anything) what `move_slot` refuses for a slot in use.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
+//! Caller: `drive::animate_stage`, from race init's loop and `drive::replay_step`. Refuses (before
+//! anything) what `move_slot` refuses for a slot in use.
 
 use crate::errors::Refused;
 use crate::physics::move_slot::move_slot;
-use crate::race::owner::Race;
+use crate::physics::step_families::SlotInputs;
 
-/// The Rust version: the eight slots, those in use moved, `slot_count` the number done so far.
-pub fn move_slots(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let shared = &race.shared;
-    let slots = &shared.work.race_slots;
+/// The eight slots, those in use moved, `slot_count` the number done so far.
+pub fn move_slots(c: &SlotInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    let work = c.work;
+    let slots = &work.race_slots;
     let mut n = 0u32;
-    for slot in slots {
+    for (number, slot) in slots.iter().enumerate() {
         if slot.part.get() != 0 {
             n += 1;
-            shared.work.slot_count.set(n);
-            move_slot(race, slot, scene)?;
+            work.slot_count.set(n);
+            move_slot(c, slot, number, scene)?;
         }
     }
-    shared.work.slot_count.set(n);
+    work.slot_count.set(n);
     Ok(())
 }

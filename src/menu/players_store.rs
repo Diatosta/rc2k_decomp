@@ -1,29 +1,26 @@
-//! The players' records, out of RAL.EXE's image (IDA 0x755A4C .. 0x75648C; phase 7, typed): the four
-//! `Player` records of 0x28C bytes (`g_player1` .. `g_player4`) and `g_players`, the table of their
-//! addresses. A `#[repr(C)]` struct with the image's layout, one static; `moved::MOVED` points the range
-//! at it. The code that hands a player on by address (`player_at`) reads the table's entries, which
-//! hold the records' real addresses once `moved::point_into_homes` has run. (Split 2026-10-25 from the
-//! front end's block `menu::store`; the cars follow in `CarTable`.)
+//! The four player slots: each player's `Player` record of 0x28C bytes, the table of the
+//! records' addresses (nothing reads it) and the players' names, the one value the front end owns
+//! of the players and lends to the net, save and race code. (The cars are in `CarTable`.)
 
-use crate::session::{Dword, Shared, with_runs};
+use crate::memory::session::{PlainDword, Shared, with_runs};
+use crate::menu::names_store::Names;
 use rc2k_core::menu::player::Player;
 
-/// The four players and their table (IDA 0x755A4C .. 0x75648C).
-#[repr(C)]
+/// The four players: records, their table and names.
 #[derive(rc2k_derive::Cells)]
-pub struct PlayerTable {
-    /// `g_player1 .. g_player4`: The players' records (settings, and the state of each player's car).
-    pub players: [Shared<Player>; 4],
-    /// `g_players`: the records' addresses as the image names them, player 1 first; read by
-    /// nothing (the original's code that follows them is converted to numbers).
-    pub pointers: [Dword; 4],
+pub struct PlayerSlots {
+    /// The players' records (settings, and the state of each player's car).
+    pub records: [Shared<Player>; 4],
+    /// The records' file addresses, player 1 first; read by nothing.
+    pub pointers: [PlainDword; 4],
+    /// The players' names, and the other texts kept with them.
+    pub names: Names,
 }
 
-/// First values the image's (`tests::player_table_starts_as_the_games`).
-impl PlayerTable {
+impl PlayerSlots {
     pub const fn new() -> Self {
-        PlayerTable {
-            players: [
+        PlayerSlots {
+            records: [
                 Shared::new(Player::from_le_bytes(with_runs::<652>(&[
                     (
                         0x8,
@@ -246,31 +243,21 @@ impl PlayerTable {
                 ]))),
             ],
             pointers: [
-                Dword::new(0x755A4C),
-                Dword::new(0x755CD8),
-                Dword::new(0x755F64),
-                Dword::new(0x7561F0),
+                PlainDword::new(0x755A4C),
+                PlainDword::new(0x755CD8),
+                PlainDword::new(0x755F64),
+                PlainDword::new(0x7561F0),
             ],
+            names: Names::new(),
         }
     }
 }
 
-/// IDA 0x755A4C, the first byte of the piece.
-pub const START: usize = 0x755A4C;
-/// IDA 0x75648C, the end of the piece.
-pub const END: usize = 0x75648C;
-
-/// Where IDA 0x755A4C is now (`moved::MOVED`'s home).
-#[cfg(test)]
-pub fn players_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::menu::owner::MENUS.play.players)
-}
-
 /// Links each player's name to its player (the image's records held the old links). The
-/// table of the records' addresses (`g_players`) keeps the image's: nothing reads it, the
+/// table of the records' addresses keeps the image's: nothing reads it, the
 /// players are reached by number.
 pub fn point_players(menus: &crate::menu::owner::Menus) {
-    for (n, player) in menus.play.players.players.iter().enumerate() {
+    for (n, player) in menus.play.slots.records.iter().enumerate() {
         player.update(|p| p.set_name_player(n));
     }
 }
@@ -278,42 +265,20 @@ pub fn point_players(menus: &crate::menu::owner::Menus) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::moved::image_bytes;
-    use core::mem::{offset_of, size_of};
 
     #[test]
-    fn player_table_starts_as_the_games() {
-        assert!(
-            END - START <= size_of::<PlayerTable>()
-                && size_of::<PlayerTable>() <= (END - START).next_multiple_of(4)
-        );
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host(players_addr()).cast_const(),
-                END - START,
-            )
-        };
-        // The name words (+0x18) hold the player's number here, the name's address there.
-        let image = image_bytes(START, END - START);
-        let mut mine = mine.to_vec();
-        for n in 0..4 {
-            let at = n * size_of::<Player>() + 0x18;
+    fn a_player_keeps_its_number_where_the_name_pointer_was() {
+        let players = &crate::test_support::own::menus().play.slots.records;
+        for (n, player) in players.iter().enumerate() {
+            let at = 0x18;
             let word = |bytes: &[u8]| u32::from_le_bytes(bytes[at..at + 4].try_into().unwrap());
-            assert_eq!(word(&mine), n as u32 + 1);
-            assert_eq!(word(&image), 0x0075_5784 + 0x20 * n as u32);
+            assert_eq!(word(&player.get().to_le_bytes()), n as u32 + 1);
             // The best-times entries get the name's address, where the pointer was.
             assert_eq!(
-                crate::menu::standings::name_address_of(
-                    &crate::menu::owner::menus().play.players.players[n].get()
-                ),
+                crate::menu::standings::name_address_of(&player.get()),
                 Ok(crate::menu::player_names::name_address(n))
             );
-            mine[at..at + 4].copy_from_slice(&image[at..at + 4]);
         }
-        assert_eq!(mine, image);
-        let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
-        at(offset_of!(PlayerTable, players), 0x755A4C);
         assert_eq!(size_of::<Player>(), 0x28c);
-        at(offset_of!(PlayerTable, pointers), 0x75647C);
     }
 }

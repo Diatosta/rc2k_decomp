@@ -1,17 +1,11 @@
-//! The drive's forces under the wheels' step (converted 2026-10-21 from
-//! `physics::ease_low_speed_forces` 0x440CF3, `physics::cap_reverse_inputs` 0x46514A,
-//! `physics::add_drive_forces` 0x440C7B, `physics::cap_drive_speed` 0x440DF3,
-//! `physics::drive_torque_share` 0x440D56 and `physics::set_downforce` 0x43F508). What
-//! the figures are is a reading (the hooks' headers say which).
+//! The drive's forces under the wheels' step.
 //!
-//! Floats: what the x87 keeps on its stack is an `f64`, rounded to `f32` where the
-//! original stores (`physics::x87`): the same bits at the game's double precision.
+//! Floats: what the x87 keeps on its stack is an `f64`, rounded to `f32` where it is stored.
 
 use super::x87::{below, loaded};
 
-/// `physics::ease_low_speed_forces`: the factor (`flt_61475C`) 1, or when |`speed`| is
-/// below `limit` (20; or unordered) (|speed| / limit + `add`) x `times`, and the two
-/// forces times it then (None: the forces left).
+/// The low-speed factor: None when |`speed`| is not below `limit` (so the forces are left),
+/// else (|speed| / limit + `add`) x `times`.
 pub fn low_speed_factor(speed: f32, limit: f32, add: f32, times: f32) -> Option<f32> {
     if !below(speed.abs() as f64, limit as f64) {
         return None;
@@ -19,22 +13,21 @@ pub fn low_speed_factor(speed: f32, limit: f32, add: f32, times: f32) -> Option<
     Some(((speed.abs() as f64 / limit as f64 + add as f64) * times as f64) as f32)
 }
 
-/// `physics::ease_low_speed_forces`' forces: each times the factor.
+/// The two forces, each times the factor.
 pub fn eased(forces: [f32; 2], factor: f32) -> [f32; 2] {
     forces.map(|f| (f as f64 * factor as f64) as f32)
 }
 
-/// `physics::cap_reverse_inputs`: in reverse (`gear` -1) while `speed` is not below `zero`
-/// (nor unordered), the two values held to at most `cap` (2.0; below it or unordered
-/// left). None when nothing is looked at.
+/// In reverse (`gear` -1) while `speed` is not below `zero`: the two values held to at most
+/// `cap`. None when not in reverse or the speed is below `zero`.
 pub fn cap_reverse(
-    gear: u32,
+    gear: i32,
     speed: f32,
     zero: f32,
     values: [f32; 2],
     cap: f32,
 ) -> Option<[f32; 2]> {
-    if gear != u32::MAX || below(speed as f64, zero as f64) {
+    if gear != -1 || below(speed as f64, zero as f64) {
         return None;
     }
     Some(values.map(|v| {
@@ -46,20 +39,19 @@ pub fn cap_reverse(
     }))
 }
 
-/// What `physics::add_drive_forces` makes.
+/// What adding the drive forces makes.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct DriveForces {
-    /// The first factor kept in `dword_62400C` with drive kind not 0.
+    /// The first factor, kept aside with drive kind not 0.
     pub kept: Option<f32>,
-    /// `flt_6140F4`: the factor times the four's sum.
+    /// The factor times the four's sum.
     pub drive: f32,
-    /// `flt_614248`, `flt_61424C` with their shares added.
+    /// The forces with their shares added.
     pub forces: [f32; 2],
 }
 
-/// `physics::add_drive_forces`: the factor (`factors[0]`, with drive kind not 0
-/// `factors[1]`) times the sum of the four, then each force plus its input x that x
-/// `scale`.
+/// The drive forces: the factor (`factors[0]`, or `factors[1]` with drive kind not 0) times the
+/// sum of the four; each force plus its input x that x `scale`.
 pub fn add_drive_forces(
     kind: u32,
     factors: [f32; 2],
@@ -84,8 +76,7 @@ pub fn add_drive_forces(
     }
 }
 
-/// What `physics::cap_drive_speed` makes: (the allowance `flt_614168`, the speed plus it
-/// kept in `dword_62400C`, the drive speed).
+/// The allowance, the speed plus it, and the drive speed capped at that.
 pub fn cap_drive_speed(
     over: f32,
     speed: f32,
@@ -107,22 +98,22 @@ pub fn cap_drive_speed(
     (allowance, cap, drive)
 }
 
-/// What `physics::drive_torque_share` makes.
+/// What the drive-torque share makes.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct TorqueShare {
-    /// n (`dword_613EEC` with drive kind 1, else `dword_613EF0`), kept in `dword_62400C`.
+    /// `ns[0]` with drive kind 1, else `ns[1]`.
     pub n: u32,
-    /// |speed| / `dword_613EF4`, held to at most 1 (`flt_62401C`).
+    /// |speed| / `per`, held to at most 1.
     pub speed_share: f32,
-    /// n less the word (the original's eax), then (that) / n (`dword_624020`).
+    /// n less the word, and that / n.
     pub less: u32,
     pub drive_share: f32,
-    /// `flt_614758` = d + (1 - d) s; `flt_614750` times it.
+    /// d + (1 - d) s, and the drive times it.
     pub share: f32,
     pub drive: f32,
 }
 
-/// `physics::drive_torque_share`.
+/// The drive torque's share from the drive kind, the speed and the word.
 pub fn torque_share(
     kind: u32,
     ns: [u32; 2],
@@ -151,9 +142,7 @@ pub fn torque_share(
     }
 }
 
-/// `physics::set_downforce`: (`speed`² `factor` + `offset`) `gravity` (`flt_614174`) and
-/// its negative (`flt_6147F4`): by the look of it the car's weight with downforce
-/// growing with the speed's square (a reading).
+/// Downforce: (`speed`² `factor` + `offset`) `gravity`, and its negative.
 pub fn downforce(speed: f32, factor: f32, offset: f32, gravity: f32) -> (f32, f32) {
     let s = speed as f64;
     let load = ((s * s * factor as f64 + offset as f64) * gravity as f64) as f32;
@@ -173,11 +162,8 @@ mod tests {
             Some(true)
         );
         assert_eq!(eased([2.0, -3.0], 0.5), [1.0, -1.5]);
-        assert_eq!(
-            cap_reverse(u32::MAX, 1.0, 0.0, [3.0, 1.0], 2.0),
-            Some([2.0, 1.0])
-        );
-        assert_eq!(cap_reverse(u32::MAX, -1.0, 0.0, [3.0, 1.0], 2.0), None);
+        assert_eq!(cap_reverse(-1, 1.0, 0.0, [3.0, 1.0], 2.0), Some([2.0, 1.0]));
+        assert_eq!(cap_reverse(-1, -1.0, 0.0, [3.0, 1.0], 2.0), None);
         assert_eq!(cap_reverse(1, 1.0, 0.0, [3.0, 1.0], 2.0), None);
     }
 

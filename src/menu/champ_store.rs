@@ -1,147 +1,167 @@
-//! The championship pages' rows and the event's tables, out of RAL.EXE's image (IDA 0x7556B4 ..
-//! 0x755784; phase 7, typed): the rows shown, the key clock, the event's mode and the addresses of
-//! the best-times and standings tables. A `#[repr(C)]` struct with the image's layout, one static;
-//! `moved::MOVED` points the range at it. The tables' addresses are the game's allocations
-//! (`saves::allocate_best_times`). (Split 2026-10-25 from the front end's block `menu::store`.)
+//! The championship's view: the rows its results and standings pages show, the key clock, the
+//! event's mode, the stage shown on the stage pages and the switches the championship's flow
+//! sets. One value, owned by the play state.
 
-use crate::session::{Bytes, Dword, with_runs};
+use crate::memory::session::PlainDword;
 
-/// The rows, the key clock and the tables' addresses (IDA 0x7556B4 .. 0x755784).
-#[repr(C)]
+/// The rows the results and standings pages show.
 #[derive(rc2k_derive::Cells)]
-pub struct ChampView {
-    /// `dword_7556B4`: The rows (players or drivers) the results and standings pages show.
-    pub count: Dword,
-    /// `g_champFirstRow`: The first row shown (`menu::stage_rows`).
-    pub first_row: Dword,
-    /// `g_champRowEnd`: The end of the rows shown.
-    pub row_end: Dword,
-    /// `dword_7556C0`: The player being ranked (`screens::draw_class_ranking`).
-    pub ranked_player: Dword,
-    /// `dword_7556C4`: The clock at the last key.
-    pub last_key_time: Dword,
-    /// `dword_7556C8`: What the cursor's blink counts from.
-    pub cursor_time: Dword,
-    /// Unreferenced bytes (IDA 0x7556CC .. 0x7556D0).
-    pub _gap_7556cc: Bytes<4>,
-    /// `g_eventMode`: The event's mode: 2, 3 or 0x13.
-    pub event_mode: Dword,
-    /// `g_bestScores`: held the best scores' table; the table is typed now
-    /// (`saves::best_times::SCORES`) and this stays 0.
-    pub best_scores: Dword,
-    /// `g_stageBestTimes`: held the stages' best times; typed now
-    /// (`saves::best_times::STAGE_TIMES`), this stays 0 (`off_7354FE` names it).
-    pub stage_best_times: Dword,
-    /// `g_levelBestScores`: held the arcade levels' best scores; the table is typed now
-    /// (`saves::best_times::LEVEL_SCORES`) and this stays 0.
-    pub level_best_scores: Dword,
-    /// `g_courseBestTimes`: held the courses' best times; typed now
-    /// (`saves::best_times::COURSE_TIMES`), this stays 0 (`off_7354FE` names it).
-    pub course_best_times: Dword,
-    /// `g_stageBestTimesAlt`: held the other group's stage times; typed now
-    /// (`saves::best_times::STAGE_TIMES_ALT`), this stays 0 (`off_7354FE` names it).
-    pub stage_best_times_alt: Dword,
-    /// `g_timeTrialBestTimes`: held the time trial's best times; typed now
-    /// (`saves::best_times::TIME_TRIAL_TIMES`), this stays 0 (`off_7354FE` names it).
-    pub time_trial_best_times: Dword,
-    /// `g_rankedTimes`: held standings table A; typed now (`saves::best_times::RANKED_TIMES`),
-    /// this stays 0.
-    pub ranked_times: Dword,
-    /// `g_champHistory`: held standings table B; typed now
-    /// (`saves::best_times::CHAMP_HISTORY`), this stays 0.
-    pub champ_history: Dword,
-    /// `dword_7556F4`: held the standings summary; typed now (`saves::best_times::SUMMARY`),
-    /// this is 1 while it is taken (`menu::set_up_front_end`): the race's rivals dword
-    /// (`RACE_STATE.settings.rivals`, `RACE_VARS.rivals`) copies it, 1 meaning the summary.
-    pub summary: Dword,
-    /// `dword_7556F8`: A stage page switch (`menu::toggle_7556f8`).
-    pub switch_f8: Dword,
-    /// `dword_7556FC`: A stage page switch (`menu::toggle_7556fc`).
-    pub switch_fc: Dword,
-    /// `dword_755700`: 2 a championship's, 3 a record's (`menu::stage_choice`).
-    pub stage_mode: Dword,
-    /// Unreferenced bytes (IDA 0x755704 .. 0x755784).
-    pub _gap_755704: Bytes<128>,
+pub struct ResultRows {
+    /// The number of rows (players or drivers) to show.
+    pub count: PlainDword,
+    /// The first row shown (`menu::stage_rows`).
+    pub first_row: PlainDword,
+    /// The end of the rows shown.
+    pub row_end: PlainDword,
+    /// The player being ranked (`screens::draw_class_ranking`); stays 1.
+    pub ranked_player: PlainDword,
 }
 
-/// First values the image's (`tests::champ_view_starts_as_the_games`).
+/// The clock values the cursor's blink and the menus' key waits are measured from.
+#[derive(rc2k_derive::Cells)]
+pub struct KeyClock {
+    /// The clock at the last key.
+    pub last_key_time: PlainDword,
+    /// What the cursor's blink counts from; stays 0.
+    pub cursor_time: PlainDword,
+}
+
+/// The stage whose records the stage pages show.
+#[derive(rc2k_derive::Cells)]
+pub struct ShownStage {
+    /// Its group, 0 .. 5 (the record table's index; set by `menu::option_items`).
+    pub group: PlainDword,
+    /// Its number in its group, 1 .. 6 (`screens::stage_results`).
+    pub number: PlainDword,
+}
+
+/// The stage pages' two record switches (`OptionSwitch::StageRecordsSet` and `StageRecordsAlt`).
+#[derive(rc2k_derive::Cells)]
+pub struct RecordSwitches {
+    /// Which set of records the stage pages show.
+    pub records_set: PlainDword,
+    /// Whether they show the alternative group.
+    pub records_alt: PlainDword,
+}
+
+/// The championship's view.
+#[derive(rc2k_derive::Cells)]
+pub struct ChampView {
+    /// The rows shown.
+    pub rows: ResultRows,
+    /// The key clock.
+    pub key_clock: KeyClock,
+    /// The stage the stage pages show.
+    pub shown_stage: ShownStage,
+    /// The stage pages' record switches.
+    pub switches: RecordSwitches,
+    /// The event's mode: 2, 3 or 0x13.
+    pub event_mode: PlainDword,
+    /// 1 while the standings summary is taken (`menu::set_up_front_end`): the race's rivals
+    /// dword (`RACE_STATE.settings.rivals`, `RACE_VARS.rivals`) copies it, 1 meaning the summary.
+    pub summary: PlainDword,
+    /// 2 a championship's stage page, 3 a record's (`menu::stage_choice`).
+    pub stage_mode: PlainDword,
+    /// 1 resets the players' times at the event's start (`menu::run_championship`;
+    /// `saves::load_savegame` clears it).
+    pub reset_times: PlainDword,
+    /// The services counted in the event (`menu::begin_event` clears it, `menu::run_championship`
+    /// counts in it; saved with the options).
+    pub services: PlainDword,
+}
+
 impl ChampView {
     pub const fn new() -> Self {
         ChampView {
-            count: Dword::new(0x0),
-            first_row: Dword::new(0x0),
-            row_end: Dword::new(0x0),
-            ranked_player: Dword::new(0x1),
-            last_key_time: Dword::new(0x0),
-            cursor_time: Dword::new(0x0),
-            _gap_7556cc: Bytes::new(with_runs::<4>(&[(0x0, &[0x01])])),
-            event_mode: Dword::new(0x2),
-            best_scores: Dword::new(0),
-            stage_best_times: Dword::new(0),
-            level_best_scores: Dword::new(0),
-            course_best_times: Dword::new(0),
-            stage_best_times_alt: Dword::new(0),
-            time_trial_best_times: Dword::new(0),
-            ranked_times: Dword::new(0),
-            champ_history: Dword::new(0),
-            summary: Dword::new(0),
-            switch_f8: Dword::new(0x1),
-            switch_fc: Dword::new(0x1),
-            stage_mode: Dword::new(0x1),
-            _gap_755704: Bytes::new([0; 128]),
+            rows: ResultRows {
+                count: PlainDword::new(0x0),
+                first_row: PlainDword::new(0x0),
+                row_end: PlainDword::new(0x0),
+                ranked_player: PlainDword::new(0x1),
+            },
+            key_clock: KeyClock {
+                last_key_time: PlainDword::new(0x0),
+                cursor_time: PlainDword::new(0x0),
+            },
+            shown_stage: ShownStage {
+                group: PlainDword::new(0x0),
+                number: PlainDword::new(0x1),
+            },
+            switches: RecordSwitches {
+                records_set: PlainDword::new(0x1),
+                records_alt: PlainDword::new(0x1),
+            },
+            event_mode: PlainDword::new(0x2),
+            summary: PlainDword::new(0),
+            stage_mode: PlainDword::new(0x1),
+            reset_times: PlainDword::new(0x0),
+            services: PlainDword::new(0x0),
         }
     }
 }
 
-/// IDA 0x7556B4, the first byte of the piece.
-pub const START: usize = 0x7556B4;
-/// IDA 0x755784, the end of the piece.
-pub const END: usize = 0x755784;
+/// The best-times tables the stage pages go through (`records::stages_store::RESULT_TABLES`);
+/// the tables themselves are typed (`saves::best_times`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TimesVariable {
+    /// The stage times.
+    StageTimes,
+    /// The courses' times.
+    CourseTimes,
+    /// The time trial's times.
+    TimeTrialTimes,
+    /// The other group's stage times.
+    StageTimesAlt,
+}
 
-/// Where IDA 0x7556B4 is now (`moved::MOVED`'s home).
-#[cfg(test)]
-pub fn champ_view_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::menu::owner::MENUS.play.champ_view)
+impl TimesVariable {
+    /// The variable the game's name `name` (the variable's address in the game's data, as the
+    /// image's stage tables' list held it) stands for (the tests' oracle of `image_name`).
+    #[cfg(test)]
+    pub const fn named(name: u32) -> Option<TimesVariable> {
+        match name {
+            0x7556D8 => Some(TimesVariable::StageTimes),
+            0x7556E0 => Some(TimesVariable::CourseTimes),
+            0x7556E8 => Some(TimesVariable::TimeTrialTimes),
+            0x7556E4 => Some(TimesVariable::StageTimesAlt),
+            _ => None,
+        }
+    }
+
+    /// Its name in the game's data: the address the image's stage tables' list held for it,
+    /// what a read on through the tables sees (`records::stages_store::Piece`).
+    pub const fn image_name(self) -> u32 {
+        match self {
+            TimesVariable::StageTimes => 0x7556D8,
+            TimesVariable::CourseTimes => 0x7556E0,
+            TimesVariable::TimeTrialTimes => 0x7556E8,
+            TimesVariable::StageTimesAlt => 0x7556E4,
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::moved::image_bytes;
-    use core::mem::{offset_of, size_of};
 
     #[test]
-    fn champ_view_starts_as_the_games() {
-        assert!(
-            END - START <= size_of::<ChampView>()
-                && size_of::<ChampView>() <= (END - START).next_multiple_of(4)
+    fn the_times_variables_are_named_by_address() {
+        assert_eq!(
+            TimesVariable::named(0x7556D8),
+            Some(TimesVariable::StageTimes)
         );
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host(champ_view_addr()).cast_const(),
-                END - START,
-            )
-        };
-        assert_eq!(mine, &image_bytes(START, END - START)[..]);
-        let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
-        at(offset_of!(ChampView, count), 0x7556B4);
-        at(offset_of!(ChampView, first_row), 0x7556B8);
-        at(offset_of!(ChampView, row_end), 0x7556BC);
-        at(offset_of!(ChampView, ranked_player), 0x7556C0);
-        at(offset_of!(ChampView, last_key_time), 0x7556C4);
-        at(offset_of!(ChampView, cursor_time), 0x7556C8);
-        at(offset_of!(ChampView, event_mode), 0x7556D0);
-        at(offset_of!(ChampView, best_scores), 0x7556D4);
-        at(offset_of!(ChampView, stage_best_times), 0x7556D8);
-        at(offset_of!(ChampView, level_best_scores), 0x7556DC);
-        at(offset_of!(ChampView, course_best_times), 0x7556E0);
-        at(offset_of!(ChampView, stage_best_times_alt), 0x7556E4);
-        at(offset_of!(ChampView, time_trial_best_times), 0x7556E8);
-        at(offset_of!(ChampView, ranked_times), 0x7556EC);
-        at(offset_of!(ChampView, champ_history), 0x7556F0);
-        at(offset_of!(ChampView, summary), 0x7556F4);
-        at(offset_of!(ChampView, switch_f8), 0x7556F8);
-        at(offset_of!(ChampView, switch_fc), 0x7556FC);
-        at(offset_of!(ChampView, stage_mode), 0x755700);
+        assert_eq!(
+            TimesVariable::named(0x7556E4),
+            Some(TimesVariable::StageTimesAlt)
+        );
+        assert_eq!(TimesVariable::named(0x7556DC), None);
+        for v in [
+            TimesVariable::StageTimes,
+            TimesVariable::CourseTimes,
+            TimesVariable::TimeTrialTimes,
+            TimesVariable::StageTimesAlt,
+        ] {
+            assert_eq!(TimesVariable::named(v.image_name()), Some(v));
+        }
     }
 }

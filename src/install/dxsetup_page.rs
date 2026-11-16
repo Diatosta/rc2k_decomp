@@ -1,17 +1,13 @@
-//! `install::dxsetup_page` (0x41432F): at the page's end (ebx negative) with the answer
-//! (`byte_51D415`) 1, `g_runDxSetup` is set so DirectX's set-up runs after the game.
-//!
-//! Takes the state.
-//! Caller `install::run_page`.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
+//! At the page's end with the answer 1, sets the flag that runs DirectX's set-up after the
+//! game. Called by `install::run_page`.
 
 /// `state` which call of the list action this is (0 the start, negative the end).
-pub fn dxsetup_page(install: &'static crate::install::owner::Install, state: u32) {
-    // Converted: `rc2k_core::install::pages::runs_dxsetup`.
-    if (state as i32) < 0
-        && rc2k_core::install::pages::runs_dxsetup(install.pages.list_answer.get())
-    {
+pub fn dxsetup_page(
+    install: &crate::install::owner::Install,
+    list_state: &crate::menu::list_state::ListState,
+    state: u32,
+) {
+    if (state as i32) < 0 && rc2k_core::install::pages::runs_dxsetup(list_state.list_answer.get()) {
         install.run.run_dxsetup.set(1);
     }
 }

@@ -1,16 +1,13 @@
-//! `screens::draw_leave_question` (0x46FA75): the "leave?" question's text.
-//!
-//!
-//! String 0x537 at (0x197, 0x122) with the font at 0x51E8A4. In the question screen's draw list
-//! (0x758CA2). The menus and draw lists run its `entry` (`menu::table_calls`).
+//! The "leave?" question's text.
 
 use crate::errors::Refused;
 use crate::text::draw_text::Canvas;
 
-// ---- Rust version ----
-
-pub fn draw_leave_question(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    // Converted: `rc2k_core::screens::notes::LEAVE_QUESTION`.
-    crate::screens::game_screen::draw_note(canvas, &rc2k_core::screens::notes::LEAVE_QUESTION)?;
+pub fn draw_leave_question(
+    o: crate::owners::Owners<'static>,
+    canvas: &mut dyn Canvas,
+) -> Result<(), Refused> {
+    // The logic is in `rc2k_core::screens::notes::LEAVE_QUESTION`.
+    crate::screens::game_screen::draw_note(o, canvas, &rc2k_core::screens::notes::LEAVE_QUESTION)?;
     Ok(())
 }

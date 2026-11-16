@@ -1,27 +1,22 @@
-//! The name lists of the load and save pages (converted 2026-10-20):
-//! `screens::draw_savegame_names` 0x46D45A (saved games), `draw_setup_slot_names` 0x46F0DD
-//! (setups), `draw_replay_slot_names` 0x46F41A (replays), and the setup pages around their
-//! list, `draw_save_setup_list` 0x46F031 and `draw_load_setup_list` 0x46F087. Each list is
-//! a page of names of 0x20 bytes in two columns.
+//! The name lists of the load and save pages (saved games, setups, replays) and the setup
+//! pages around their list. Each list is a page of names of 0x20 bytes in two columns.
 
 use crate::Invalid;
 use crate::screens::screen::Screen;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Font {
-    /// `stru_51E8C4`: the saved games' and replays' names.
+    /// The saved games' and replays' names.
     Names,
-    /// `stru_51E8A4`: the setup pages.
+    /// The setup pages.
     Setups,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Work {
-    /// `g_markerX`.
     X,
-    /// `g_markerY`.
     Y,
-    /// `dword_7559EC`: the row counter.
+    /// The row counter.
     Row,
 }
 
@@ -76,7 +71,7 @@ pub const REPLAYS: Layout = Layout {
     past: "slot page past the name table",
 };
 
-/// Page `page` of a list, `name` giving slot n's text: the carry of the last name drawn.
+/// Page `page` of a list, `name` giving slot n's text: returns the last name's `too_wide`.
 /// Kept, per column: the column's x, then after each row the next y and the rows done.
 pub fn names<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,

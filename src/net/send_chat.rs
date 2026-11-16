@@ -1,28 +1,23 @@
-//! `net::send_chat` (0x4193C8): this player's chat message added to the chat
-//! (`net::add_chat_line`, under the received messages' lock) and sent to everyone
-//! (`g_netSendTo`, DirectPlay's `Send` through `net::dplay_send`) as '"' and the text, no NUL.
-//!
-//! Takes `player` and `message`. The original reads one more register, only for
-//! `net::add_chat_line`'s first measure (see there): dropped. The flags of the send's result
-//! are read by no caller (`lq -s 0x4193C8`).
-//! Caller: `net::chat_key` (the original through `net::send_chat_regs`, 0x41819B).
-//! Refuses what `net::add_chat_line` refuses.
+//! Adds this player's chat message to the chat and sends it to everyone as a chat message (`"` and
+//! the text, no NUL). Refuses what `net::add_chat_line` refuses.
 
 use crate::errors::Refused;
+use crate::gfx::owner::Gfx;
 use crate::net::add_chat_line::add_chat_line;
 use crate::net::dplay_send::dplay_send;
 use crate::net::owner::Net;
-use crate::net::{lock_received::lock_received, unlock_received::unlock_received};
-
-/// The Rust version.
-pub fn send_chat(net: &Net, player: u32, message: &[u8]) -> Result<(), Refused> {
-    lock_received(&net.vars);
-    add_chat_line(net, player, message)?;
-    unlock_received(&net.vars);
+use rc2k_core::net::message::Message;
+pub fn send_chat(net: &Net, gfx: &'static Gfx, player: u32, message: &[u8]) -> Result<(), Refused> {
+    crate::net::drain_chat::drain_chat(net, gfx)?;
+    {
+        let _received = net.lock_received();
+        add_chat_line(net, gfx, player, message)?;
+    }
     let text = crate::net::add_chat_line::text_in(message)?;
-    let mut line = vec![b'"'];
-    line.extend_from_slice(text);
-    net.vars.send_buffer.write_at(0, &line, "the send buffer")?;
-    dplay_send(&net.vars, net.vars.send_to.get(), &line);
+    let line = Message::Chat(text.to_vec()).encode();
+    net.lobby()
+        .send_buffer
+        .write_at(0, &line, "the send buffer")?;
+    dplay_send(&net.link, net.link.send_to(), &line);
     Ok(())
 }

@@ -1,7 +1,5 @@
-//! The load-game screen's preview of the highlighted saved game (converted 2026-10-20):
-//! `screens::draw_empty_savegame` 0x46E2DE and `draw_savegame_details` 0x46D907, and the
-//! frame both start with (`screens::savegame_preview`): three headings, the row numbers
-//! 1 .. 4, a title line and a row per car.
+//! The load-game screen's preview of the highlighted saved game (empty, or its details), and
+//! the frame both start with.
 
 use crate::screens::best_scores::{car_glyph, flag_glyph};
 use crate::screens::screen::{Drawn, Screen};
@@ -9,11 +7,11 @@ use crate::strings::format::{Pad, decimal, fraction};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Font {
-    /// `stru_51E584`: the headings and the rows.
+    /// The headings and the rows.
     Rows,
-    /// `stru_51E5E4`: the title line.
+    /// The title line.
     Title,
-    /// `stru_51E5A4`: the row numbers.
+    /// The row numbers.
     RowNumber,
 }
 
@@ -25,9 +23,9 @@ const HEADINGS: [(u32, i32); 3] = [(0x4E5, 0x8F), (0x4E6, 0x1D0), (0x4E7, 0x271)
 const HEADINGS_Y: i32 = 0x17A;
 const TITLE_Y: i32 = 0x161;
 const LEFT_X: i32 = 0x8F;
-/// The four rows.
+/// The four rows' y.
 const ROWS: [i32; 4] = [0x193, 0x1AC, 0x1C5, 0x1DE];
-/// The four number columns of a row.
+/// The four number columns' x.
 const NUMBER_COLUMNS: [i32; 4] = [0x1D0, 0x215, 0x271, 0x2B6];
 const NAME_X: i32 = 0xD6;
 const FLAG_X: i32 = 0xAF;
@@ -56,8 +54,8 @@ fn frame<S: Screen<Font = Font, Work = Work>>(s: &mut S) -> Result<(), S::Error>
     Ok(())
 }
 
-/// The panel for a slot with no saved game: "n/d" as the title and every row's name, "-"
-/// in the six other places of every row. The carry of the last text.
+/// The panel for a slot with no saved game: "n/d" as the title and every row's name, "-" in
+/// the six other places of every row. Returns the last text's `too_wide`.
 pub fn empty<S: Screen<Font = Font, Work = Work>>(s: &mut S) -> Result<bool, S::Error> {
     frame(s)?;
     let mut last = s.string(Font::Title, NO_ENTRY, LEFT_X, TITLE_Y)?;
@@ -73,11 +71,10 @@ pub fn empty<S: Screen<Font = Font, Work = Work>>(s: &mut S) -> Result<bool, S::
 /// A saved car as the preview shows it.
 #[derive(Clone, Copy, Debug)]
 pub struct Car<T> {
-    /// Its name (car +0x124).
     pub name: T,
     pub nation: u32,
     pub car: u32,
-    /// The four numbers: +0x14C, +0x150, +0x144, +0x148.
+    /// The four numbers shown in a row.
     pub numbers: [u32; 4],
     /// Whether the last two are shown (car +0xB0, +0xCC not 0); "-" in their place if not.
     pub shown: [bool; 2],
@@ -86,8 +83,8 @@ pub struct Car<T> {
 /// The title line's parts.
 #[derive(Clone, Copy, Debug)]
 pub struct Title {
-    /// The saved mode is 0x13 (string 0x1DA, else 0x1D9).
-    pub mode_13: bool,
+    /// The saved event mode is 0x13 (string 0x1DA, else 0x1D9).
+    pub a8_mode: bool,
     /// The saved section's title string.
     pub section: u32,
     /// The saved stage's number (its record's +0x40): "n/6" after the title unless 0.
@@ -109,10 +106,9 @@ fn number<S: Screen<Font = Font, Work = Work>>(
     s.line(Font::Rows, &text, x, y)
 }
 
-/// The panel of a saved game of `players` players: the title line and a row per car. The
-/// first row draws its sprites after its numbers (their palette what the last number left);
-/// the others after the name (its leftover), or "n/d" and "-" for a row past the players.
-/// The carry of the last text.
+/// The panel of a saved game of `players` players: the title line and a row per car; rows past
+/// the players show "n/d" and "-". The first row draws its sprites after its numbers, the
+/// others after the name. Returns the last text's `too_wide`.
 pub fn details<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     title: Title,
@@ -120,7 +116,7 @@ pub fn details<S: Screen<Font = Font, Work = Work>>(
     cars: &[Car<S::Text>; 4],
 ) -> Result<bool, S::Error> {
     frame(s)?;
-    let mut line = s.string_bytes(if title.mode_13 { 0x1DA } else { 0x1D9 });
+    let mut line = s.string_bytes(if title.a8_mode { 0x1DA } else { 0x1D9 });
     line.extend_from_slice(b" - ");
     line.extend(s.string_bytes(title.section));
     line.push(b' ');
@@ -167,9 +163,9 @@ pub fn details<S: Screen<Font = Font, Work = Work>>(
     Ok(last.too_wide)
 }
 
-/// What the load page's preview (`screens::draw_savegame_preview` 0x46D88F) shows for the
-/// highlighted item: above 10 no slot (the empty panel; the slot remembered as 999), else
-/// slot page x 10 + item - 1, read when it is not the one remembered.
+/// What the load page's preview shows for the highlighted item: above 10 no slot (the empty
+/// panel; the slot remembered as 999), else slot page x 10 + item - 1, read when it is not the
+/// one remembered.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Preview {
     NoSlot,
@@ -269,7 +265,7 @@ mod tests {
         let cars = [car(0), car(1), car(2), car(3)];
         let mut s = Record::default();
         let title = Title {
-            mode_13: true,
+            a8_mode: true,
             section: 0x300,
             stage: 2,
         };

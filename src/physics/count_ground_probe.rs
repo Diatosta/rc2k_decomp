@@ -1,42 +1,45 @@
-//! `physics::count_ground_probe` (0x438E22): one ground probe, counted: the face mask
-//! `dword_620470` 0x40, `dword_608C3C` up by one, `physics::find_ground`; when found
-//! `dword_608C40` up by one, and when the face is the last one again (`dword_5CCC78` =
-//! `dword_5CCC74`) `dword_608C44` too. A reading: the camera's (or a test drive's) ground
-//! statistics.
+//! Counts one ground probe: the face mask `settle_mark` is 0x40, `ground_probes` goes up by one
+//! and `physics::find_ground` runs; when found `ground_found` goes up by one, and when the face is
+//! the last one again (`ground_face_last` = `ground_slot`) `ground_same` too. A reading: the
+//! camera's (or a test drive's) ground statistics.
 //!
-//! Takes: the point (`dword_639824`, `dword_63982C`; the callers set it)
+//! Takes: the point (`ground_x`, `ground_z`; the callers set it).
 //!
-//! Callers: `physics::camera_low_switch`, `physics::camera_over_ground` (three). Refuses what
+//! Callers: `physics::camera_low_switch`, `physics::camera_over_ground`. Refuses what
 //! `find_ground` refuses.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::race::owner::Race;
+use crate::physics::camera_store::CameraWork;
+use crate::physics::ground_probe_store::GroundProbe;
+use crate::physics::ground_store::GroundWork;
+use crate::race::owner_course::Course;
 use rc2k_core::physics::walls::ProbeCounts;
 
-/// The Rust version. The eax it leaves (`dword_5CCC78` when found) is read by none of its
-/// callers.
-// Converted: `rc2k_core::physics::walls::ProbeCounts`.
-pub fn count_ground_probe(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+// Core: `rc2k_core::physics::walls::ProbeCounts`.
+pub fn count_ground_probe(
+    camera: &CameraWork,
+    ground_probe: &GroundProbe,
+    ground: &GroundWork,
+    course: &Course,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let mut counts = ProbeCounts {
-        tries: race.physics.camera.ground_probes.get(),
-        found: race.physics.camera.ground_found.get(),
-        same: race.physics.camera.ground_same.get(),
+        tries: camera.ground_probes.get(),
+        found: camera.ground_found.get(),
+        same: camera.ground_same.get(),
     };
-    race.physics.ground_probe.settle_mark.set(0x40);
+    ground_probe.settle_mark.set(0x40);
     counts.tried();
-    race.physics.camera.ground_probes.set(counts.tries);
-    { crate::physics::find_ground::find_ground(race, scene) }?;
-    if race.physics.ground.ground_found.get() != 0 {
+    camera.ground_probes.set(counts.tries);
+    { crate::physics::find_ground::find_ground(ground_probe, ground, course, scene) }?;
+    if ground.ground_found.get() != 0 {
         counts.searched(
             true,
-            race.course.course.ground_face_last.get(),
-            race.course.course.ground_slot.get(),
+            course.course.get().ground_face_last.get(),
+            course.course.get().ground_slot.get(),
         );
-        race.physics.camera.ground_found.set(counts.found);
-        race.physics.camera.ground_same.set(counts.same);
+        camera.ground_found.set(counts.found);
+        camera.ground_same.set(counts.same);
     }
     Ok(())
 }

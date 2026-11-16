@@ -1,10 +1,9 @@
-//! A saved game's state and where the event goes on from (converted 2026-10-21 from
-//! `saves::gather_savegame` 0x4AB427 and `saves::load_savegame` 0x46E6E1's rules).
+//! A saved game's state and where the event goes on from.
 //!
-//! The state a saved game holds, in order: seven dwords (two of the event's, its stage
-//! index and section, three more), the four players' cars (0x28C bytes each, car 0's
-//! +0x14 and +0x274 the game's two dwords then, each car's name at +0x124), and 180
-//! stage records of 0x94 bytes.
+//! The state, in order: seven dwords (two of the event's, its stage index and section, three
+//! more), the four players' cars (0x28C bytes each, the name at +0x124; car 0's +0x14 and +0x274
+//! hold two of the game's dwords) and 180 stage records
+//! of 0x94 bytes.
 
 /// The seven dwords at the start.
 pub const HEAD_DWORDS: usize = 7;

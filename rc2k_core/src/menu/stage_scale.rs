@@ -1,10 +1,9 @@
-//! The stage's record times scaled for the section (converted 2026-10-21 from
-//! `menu::scale_stage_times` 0x46354E, its `fild`, `fmul`, `fistp`).
+//! The stage's record times scaled for the section.
 //!
-//! Exact: a time loaded whole times a float is at most 31 + 24 significant bits; at the
-//! x87's double precision (the game's 0x027F) the product rounds as an `f64` product does,
-//! and at extended precision it is exact on the x87 and in an `f64` alike for a time
-//! below 2^29 (about six days in milliseconds), so `fistp` rounds the same value.
+//! The `f64` product is exact: a whole time times a float has at most 31 + 24 significant bits; at
+//! the x87's double precision it rounds as an `f64` product does, and at extended precision it is
+//! exact in both for a time below 2^29 (about six days in milliseconds), so `fistp64` rounds the
+//! same value.
 
 use crate::math::geometry::fistp64;
 
@@ -22,8 +21,8 @@ pub fn scale_time(time: u32, factor: f32) -> u32 {
     fistp64(time as i32 as f64 * factor as f64) as u32
 }
 
-/// The four record times: the first by `factors[1]` (`flt_604654`), the other three by
-/// `factors[0]` (`flt_60463C`).
+/// The four record times: the first by `factors[1]`, the other three by
+/// `factors[0]`.
 pub fn scale_times(times: [u32; 4], factors: [f32; 2]) -> [u32; 4] {
     std::array::from_fn(|k| scale_time(times[k], factors[usize::from(k == 0)]))
 }

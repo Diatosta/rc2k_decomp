@@ -1,10 +1,7 @@
-//! The marks' kind's values (converted 2026-10-21 from `effects::set_kind_values_1`
-//! 0x4C7322 and `effects::set_kind_values_2` 0x4C7FA4, the same code on two sets of
-//! tables): a kind's row of ten tables of 0x22 floats and of three tables of 0x22
-//! three-float entries, made into the values the marks run on. As in `math::vector`,
-//! what the x87 keeps on its stack is an `f64`, rounded to `f32` where the original
-//! stores it: the same bits at the game's double precision. Values copied as dwords
-//! stay bits.
+//! The marks' kind's values: a kind's row of ten tables of 0x22 floats and of three tables of 0x22
+//! three-float entries, made into the values the marks run on. As in `math::vector`, what the x87
+//! keeps on its stack is an `f64`, rounded to `f32` where it is stored: the same bits at the
+//! game's double precision. Values copied as dwords stay bits.
 
 use crate::Invalid;
 
@@ -34,7 +31,7 @@ pub struct Triples {
     pub copied: [u32; 3],
 }
 
-/// What is made (the set's outs, in the original's order of writing).
+/// What is made (the set's outputs, in the order they are written).
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Values {
     pub count: u32,
@@ -54,7 +51,7 @@ pub struct Values {
     pub differences: [f32; 2],
 }
 
-/// The table entry of a kind (`g_marksKind`); refuses one past the tables.
+/// The table entry of a kind; refuses one past the tables.
 pub fn kind_entry(kind: u32) -> Result<usize, Invalid> {
     if kind >= KINDS {
         return Err(Invalid("the marks' kind is past the tables (0x22)"));

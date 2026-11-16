@@ -1,15 +1,11 @@
-//! `effects::scale_kept_vectors` (0x4C15F4): three kept vectors scaled by their kept factors
-//! (`effects::scale_vectors_by`' pattern): `flt_76927A` .. = `dword_76926E` .. by
-//! `dword_76926A`, `flt_7692CE` .. = `dword_7692C2` .. by `dword_7692BE`, `flt_7692B2` ..
-//! = `dword_7692A6` .. by `dword_7692A2`.
-//!
-//! Caller: `effects::view_frame`.
-//!
-//! the x87 version stays for the Rust callers in unconverted code).
+//! `effects::scale_kept_vectors`: three kept vectors scaled by their kept factors
+//! (`effects::scale_vectors_by`' pattern): `KeptView.kept_a.scaled[0]` .. =
+//! `KeptView.kept_a.vector[0]` .. by `KeptView.kept_a.factor`, `KeptView.kept_c.scaled[0]` .. =
+//! `KeptView.kept_c.vector[0]` .. by `KeptView.kept_c.factor`, `KeptView.kept_b.scaled[0]` .. =
+//! `KeptView.kept_b.vector[0]` .. by `KeptView.kept_b.factor`.
 
 use crate::effects::scale_vectors_by::scale_triples;
 
-/// The Rust version (see the header).
 pub fn scale_kept_vectors(effects: &crate::effects::owner::Effects) {
     let frame = &effects.frame;
     scale_triples(&[

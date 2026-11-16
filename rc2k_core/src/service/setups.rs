@@ -1,15 +1,11 @@
-//! The setup slots' list (converted 2026-10-21 from `service::next_setup_page` 0x46F191 and
-//! `service::backspace_setup_name` 0x46D63C): three pages of slots, and the name being
-//! typed. And the keys of the setup's edit pages (`service::edit_brake_balance` 0x46BCD8,
-//! `edit_steering_sensitivity`, and the four change pages), the pages' numbers
-//! (`service::handle_edit_keys` 0x46B890), the slot lists' highlighted slot and a loaded
-//! setup (`service::load_setup_slot` 0x46EECC), and the car's values the edit pages start
-//! from (`service::load_setup_values` 0x47070C).
+//! The setup slots' list (three pages) and the name being typed; the keys of the setup's edit
+//! pages and their numbers; the highlighted slot; a loaded setup and the car's values the edit
+//! pages start from.
 
 use crate::menu::player::Player;
 use crate::saves::kept::SETUP_LEN;
 
-/// The slot list's next page (0 after 2, signed).
+/// The slot list's next page (0 after 2).
 pub fn next_page(page: i32) -> i32 {
     let next = page.wrapping_add(1);
     if next < 3 { next } else { 0 }
@@ -30,9 +26,9 @@ pub fn backspace(name: &mut [u8], len: usize) -> usize {
 pub enum PageKey {
     /// No key: nothing, not even the clock noted.
     None,
-    /// The down arrow (0x68): the value one step down.
+    /// Down arrow (0x68): one step down.
     Down,
-    /// The up arrow (0x69): one step up.
+    /// Up arrow (0x69): one step up.
     Up,
     /// Return (0x1C): the value taken.
     Confirm,
@@ -67,7 +63,7 @@ pub fn highlighted_slot(page: u32, item: u32) -> u32 {
     }
 }
 
-/// The service area's edit pages, by their number (`dword_75AAA0`).
+/// The service area's edit pages, by their number.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EditPage {
     GearRatio = 1,
@@ -79,7 +75,8 @@ pub enum EditPage {
 }
 
 impl EditPage {
-    /// `None`: the original's fatal error 0x80709A9A, "Incorrect Locked Box".
+    /// `None` for a page number that does not exist (fatal error 0x80709A9A, "Incorrect Locked
+    /// Box", for the caller).
     pub fn from_number(n: u32) -> Option<Self> {
         Some(match n {
             1 => EditPage::GearRatio,

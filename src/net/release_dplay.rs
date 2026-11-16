@@ -1,18 +1,10 @@
-//! `net::release_dplay` (0x41864E): with a DirectPlay object (`g_dplay` not 0), "crate::net::owner::NET_OWNER.vars:
-//! Destroy dplay" logged (level 2, a line), the object released (`IDirectPlay4A` +8) and
-//! `g_dplay` made 0.
-//!
-//! Caller: `net::destroy_connection`. `Release` from Rust (`net::dplay`).
-//! Refuses nothing.
+//! Releases DirectPlay's object, if any ("Destroy dplay" logged).
 
-use crate::net::store::NetVars;
-use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
-
-/// The Rust version.
-pub fn release_dplay(vars: &NetVars) {
-    if vars.dplay.get() != 0 {
-        crate::logfile::log_write::log_at(VIEWER_PANEL.text_ptr(texts::NET_DESTROY_DPLAY), true, 2);
-        crate::net::dp_objects::release(vars.dplay.get());
-        vars.dplay.set(0);
+use crate::net::link::Link;
+use crate::race::viewer_screen_store::{NetTexts, texts};
+pub fn release_dplay(link: &Link, lines: &NetTexts) {
+    if link.has_dplay() {
+        crate::net::lobby::log_bytes(&lines.text(texts::NET_DESTROY_DPLAY), true, 2);
+        let _ = link.release_dplay();
     }
 }

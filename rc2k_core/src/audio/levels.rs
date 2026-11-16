@@ -1,14 +1,9 @@
-//! The audio thread's levels: which entry of the volume table a volume, a pan or the
-//! master volume takes, a buffer's frequency, the kept master volume, the samples' work
-//! buffer's size and the EAX rooms' entries (converted 2026-10-21 from
-//! `audio::set_buffer_volume` 0x40B99D, `audio::set_buffer_pan` 0x40B9C6,
-//! `audio::set_buffer_frequency` 0x40B97A, `audio::set_master_volume` 0x40A740,
-//! `audio::set_stream_volume` 0x40C4B2, `audio::volume_command` 0x40B016,
-//! `audio::take_sample_buffer` 0x40B1D0, `audio::set_eax_room` 0x40D26B).
+//! The audio thread's levels: which entry of the volume table a volume, a pan or the master volume
+//! takes, a buffer's frequency, the kept master volume, the samples' work buffer's size and the EAX
+//! rooms' entries.
 //!
-//! The volume table (`g_volumeTable`) has 0x41 entries, DirectSound's hundredths of a
-//! decibel from silence (index 0) to full (0x40); the table itself is the caller's, asked
-//! for only at the index the original reads.
+//! The volume table has 0x41 entries, DirectSound's hundredths of a decibel from silence (index 0)
+//! to full (0x40); the table itself is the caller's, asked for only at the index it reads.
 
 use crate::Invalid;
 
@@ -53,8 +48,7 @@ pub fn master_volume(volume: u32, table: impl Fn(u32) -> u32) -> u32 {
     table(volume.min(FULL))
 }
 
-/// A stream player's volume: the entry at its volume. Refused: past the table (the
-/// original does not look).
+/// A stream player's volume: the entry at its volume. Refused: past the table.
 pub fn stream_volume(volume: u32, table: impl Fn(u32) -> u32) -> Result<u32, Invalid> {
     if volume > FULL {
         return Err(Invalid("a stream volume past the volume table"));
@@ -67,8 +61,8 @@ pub fn kept_master_volume(volume: u32) -> Option<u32> {
     ((volume as i32) >= 0).then_some(volume)
 }
 
-/// The samples' work buffer: the setting's KB, 1 when that comes to 0 (wrapping as the
-/// original's `shl`).
+/// The samples' work buffer in bytes: the setting's KB times 0x400 (wrapping), 1 KB when that
+/// comes to 0.
 pub fn sample_buffer_size(kb: u32) -> u32 {
     match kb.wrapping_mul(0x400) {
         0 => 0x400,
@@ -76,12 +70,11 @@ pub fn sample_buffer_size(kb: u32) -> u32 {
     }
 }
 
-/// The EAX rooms (`g_eaxRooms`): ten reverbs of 0x10 bytes.
+/// The EAX rooms: ten reverbs of 0x10 bytes.
 pub const EAX_ROOMS: u32 = 10;
 pub const EAX_ROOM_LEN: u32 = 0x10;
 
-/// Where room `room`'s reverb is in the rooms' table. Refused: past the ten (the
-/// original reads past the table).
+/// Where room `room`'s reverb is in the rooms' table. Refused: past the ten.
 pub fn eax_room_offset(room: u32) -> Result<u32, Invalid> {
     if room >= EAX_ROOMS {
         return Err(Invalid("an EAX room past the table"));
@@ -94,7 +87,7 @@ mod tests {
     use super::*;
 
     fn table(n: u32) -> u32 {
-        // -10000 .. 0 in steps, as the game's
+        // -10000 .. 0 in steps, like the game's table
         (n as i32 * 156 - 10000).min(0) as u32
     }
 

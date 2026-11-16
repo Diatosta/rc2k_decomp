@@ -1,38 +1,35 @@
-//! The race frame's texts (`race::show_frame`'s, IDA 2026-10-18): the frame rate and the credits
-//! that roll over the race (`dword_71C3E0`), also used by the credits' screen.
+//! The race frame's texts: the frame rate and the credits that roll over the race (`in_credits`),
+//! also used by the credits' screen.
 
-use crate::audio::owner::audio;
 use crate::errors::Refused;
-use crate::gfx::owner::gfx;
+use crate::memory::session::{PlainDword, PlainWord};
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
 use crate::race::trap::Trap;
-use crate::session::{Dword, Word};
 use crate::text::draw_string_by_id::draw_string_by_id_at;
 use crate::text::draw_text::{Canvas, draw_text_at};
 
-/// `race::draw_frame_rate` (0x4562B2): `dword_5C6604` 2; the frame rate (`flt_6214F0`,
-/// rounded into `dword_62400C`), when not 0 and `dword_5EB100` is set, drawn at (0x190, 4)
-/// in the font at 0x51DE90 as "fps: n" (its size; built in the text buffer).
+/// Draws "fps: n" at (0x190, 4) when the frame rate (`frame_rate`, rounded) is not 0 and `show`
+/// is set; sets `text_mode` 2 either way.
 pub fn draw_frame_rate(
     race: &Race,
+    strings: &'static crate::strings::owner::Strings,
     canvas: &mut dyn Canvas,
-    scene: &crate::scene::owner::Scene,
+    gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     let frame = &race.frame;
-    // Converted: `rc2k_core::race::frame_rate::{shown_rate, fps_text}`.
+    // Logic in `rc2k_core::race::frame_rate::{shown_rate, fps_text}`.
     use rc2k_core::race::frame_rate::{fps_text, shown_rate};
-    frame.text_state.text_mode.set(2);
-    let rate = shown_rate(f32::from_bits(race.shared.switches.frame_rate.bits()));
-    scene.drawing.scene.scratch.set(rate as u32);
-    if rate == 0 || frame.counter.show.get() == 0 {
+    frame.text_state().text_mode.set(2);
+    let rate = shown_rate(race.shared.switches.get().frame_rate.get());
+    if rate == 0 || frame.counter().show.get() == 0 {
         return Ok(());
     }
-    let t = crate::strings::text_from_ids::text_at();
+    let t = crate::strings::text_from_ids::text_at(strings);
     let bytes = fps_text(rate);
-    t.write_bytes(&bytes, "the frame rate's text")?;
+    t.write_at(0, &bytes, "the frame rate's text")?;
     draw_text_at(
-        &gfx().fonts.font_block.menu_fonts[3],
+        &gfx.fonts.font_block.menu_fonts[3],
         &bytes,
         0x190,
         4,
@@ -41,9 +38,10 @@ pub fn draw_frame_rate(
     Ok(())
 }
 
-/// `race::credit_line`: string `id` in `font` at (x, y), unless y is at or above the screen's
-/// bottom (`g_screenHeight`) or at or below -0x1B.
+/// Draws string `id` in `font` at (x, y), unless y is at or below -0x1B or at or past the screen's
+/// bottom (`screen_height`).
 fn credit_line(
+    so: crate::strings::append_string_by_id::StringOwners<'static>,
     id: u32,
     font: crate::gfx::typefaces::FontId,
     x: i32,
@@ -51,34 +49,29 @@ fn credit_line(
     canvas: &mut dyn Canvas,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
-    // Converted: `rc2k_core::race::credits::shown`.
-    if !rc2k_core::race::credits::shown(y, system.session.screen.height.get()) {
+    // Logic in `rc2k_core::race::credits::shown`.
+    if !rc2k_core::race::credits::shown(y, system.session.screen.get().height.get()) {
         return Ok(());
     }
-    draw_string_by_id_at(id, font, x, y, canvas)?;
+    draw_string_by_id_at(so, id, font, x, y, canvas)?;
     Ok(())
 }
 
-/// IDA's address of the credits' variables.
-pub const CREDITS_START: usize = 0x52984C;
-/// Their length.
-pub const CREDITS_LEN: usize = 0x529D94 - CREDITS_START;
 /// The script's words.
 pub const SCRIPT_WORDS: usize = 670;
 
 /// The credits' state and script.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Credits {
-    /// `dword_52984C`: the top of the script on the screen.
-    pub top: Dword,
-    /// `dword_529850`: the clock the top moves by.
-    pub clock: Dword,
-    /// `dword_529854`: 1 when the credits are over.
-    pub done: Dword,
-    /// `0x529858`: the script, words (1, 2, 7, 8 a string in a font, ...; see
+    /// The top of the script on the screen.
+    pub top: PlainDword,
+    /// The clock the top moves by.
+    pub clock: PlainDword,
+    /// 1 when the credits are over.
+    pub done: PlainDword,
+    /// The script, words (1, 2, 7, 8 a string in a font, ...; see
     /// `rc2k_core::race::credits::lay_out`); never written.
-    pub script: [Word; SCRIPT_WORDS],
+    pub script: [PlainWord; SCRIPT_WORDS],
 }
 
 /// The script's first values (the image's words).
@@ -127,11 +120,11 @@ const SCRIPT: [u16; SCRIPT_WORDS] = [
     0x756, 0x6, 0x28, 0x7, 0x1000, 0x6, 0xa, 0x7, 0x1001, 0x6, 0x14, 0x7, 0x1002, 0x0, 0x0,
 ];
 
-const fn script_words() -> [Word; SCRIPT_WORDS] {
-    let mut words = [const { Word::new(0) }; SCRIPT_WORDS];
+const fn script_words() -> [PlainWord; SCRIPT_WORDS] {
+    let mut words = [const { PlainWord::new(0) }; SCRIPT_WORDS];
     let mut i = 0;
     while i < SCRIPT_WORDS {
-        words[i] = Word::new(SCRIPT[i]);
+        words[i] = PlainWord::new(SCRIPT[i]);
         i += 1;
     }
     words
@@ -141,41 +134,39 @@ const fn script_words() -> [Word; SCRIPT_WORDS] {
 impl Credits {
     pub const fn new() -> Self {
         Credits {
-            top: Dword::new(0),
-            clock: Dword::new(0),
-            done: Dword::new(0),
+            top: PlainDword::new(0),
+            clock: PlainDword::new(0),
+            done: PlainDword::new(0),
             script: script_words(),
         }
     }
 }
 
-/// `race::roll_credits` (0x415FC2): eax 0 starts them (the clock `dword_529850`, the top
-/// `dword_52984C` the screen's height + 0x15E, `dword_529854` 0, tune 2 by `sound`); else
-/// draws the script at 0x529858 (words: 1, 2, 7, 8 a string in fonts 0x51E8A4, 0x51E6A4,
-/// 0x51E564 (centred) and 0x51E584 (at a sixteenth), each moving down a line; 3 / 4 a
-/// string left / right of the middle (only 4 moves down); 5 three strings in columns; 6 a
-/// signed move; 9 nothing; any other the end) from the top down, moves the top up a pixel
-/// for each 0x12 ms passed, and when the last line is above -0xAF and the music has
-/// stopped, `dword_529854` 1 (the original also leaves flags no caller reads).
+/// Mode 0 starts the credits (clock, top at the screen's height + 0x15E, tune 2 through
+/// `start_tune`). Otherwise draws the script from the top down, moves the top up a pixel for each
+/// 0x12 ms passed, and sets `Credits.done` once the last line is above -0xAF and the music has
+/// stopped.
 pub fn roll_credits(
+    so: crate::strings::append_string_by_id::StringOwners<'static>,
     frame: &Frame,
     eax: u32,
     canvas: &mut dyn Canvas,
-    sound: &mut dyn FnMut(),
+    start_tune: &mut dyn FnMut(),
     system: &crate::system::owner::System,
+    audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
     let session = &system.session;
-    // Converted: `rc2k_core::race::credits::{start_top, lay_out, catch_up, rolled_off}`.
-    use crate::system::tick_count::tick_count;
+    // Logic in `rc2k_core::race::credits::{start_top, lay_out, catch_up, rolled_off}`.
+    let tick_count = || crate::system::tick_count::tick_count(&session.picture_clock);
     use rc2k_core::race::credits::{Font, catch_up, lay_out, rolled_off, start_top};
-    let width = session.screen.width.get() as i32;
-    let height: u32 = session.screen.height.get();
+    let width = session.screen.get().width.get() as i32;
+    let height: u32 = session.screen.get().height.get();
     if eax == 0 {
-        frame.credits.clock.set(tick_count());
+        frame.credits().clock.set(tick_count());
         let top = start_top(height);
-        frame.credits.top.set(top);
-        frame.credits.done.set(0);
-        sound();
+        frame.credits().top.set(top);
+        frame.credits().done.set(0);
+        start_tune();
         return Ok(());
     }
     let font_of = |f: Font| {
@@ -189,68 +180,47 @@ pub fn roll_credits(
             _ => fonts::NAME,
         }
     };
-    // Unbounded: the script is read on to its end mark, as the original.
-    let mut at = crate::pointers::GamePtr::to(&frame.credits.script).unbounded();
+    // Read on to its end mark (two zero words); a script without one is refused.
+    let mut at = 0usize;
     let trap = Trap::new();
+    let typefaces = canvas.typefaces();
     let (lines, below) = lay_out(
         || {
-            let v = trap.read_at::<u16>(at, "the credits' script");
-            at = at.offset(2);
-            v
+            let v = frame.credits().script.get(at).map(PlainWord::get);
+            at += 1;
+            trap.keep_read(v.ok_or(crate::errors::BadInput("the credits' script past its end")))
         },
         width,
-        frame.credits.top.get() as i32,
-        |f| font_of(f).object().line_height.get() as i32,
+        frame.credits().top.get() as i32,
+        |f| font_of(f).object(typefaces).line_height.get() as i32,
     );
     trap.finish()?;
     for line in lines {
-        credit_line(line.id, font_of(line.font), line.x, line.y, canvas, system)?;
+        credit_line(
+            so,
+            line.id,
+            font_of(line.font),
+            line.x,
+            line.y,
+            canvas,
+            system,
+        )?;
     }
     let (top, clock, _) = catch_up(
-        frame.credits.top.get(),
-        frame.credits.clock.get(),
+        frame.credits().top.get(),
+        frame.credits().clock.get(),
         tick_count,
     );
-    frame.credits.top.set(top);
-    frame.credits.clock.set(clock);
-    if !rolled_off(below, audio().state.music_stream.get().playing) {
+    frame.credits().top.set(top);
+    frame.credits().clock.set(clock);
+    if !rolled_off(below, audio.state.music_stream.get().playing) {
         return Ok(());
     }
-    frame.credits.done.set(1);
+    frame.credits().done.set(1);
     Ok(())
 }
 
-/// `roll_credits`' tune in the game: `sound::play_tune_2`'s command, sent and waited for.
-pub fn credits_tune() {
-    crate::sound::play_tune_2::play_tune_2();
-}
-
-#[cfg(test)]
-mod block_tests {
-    use super::*;
-    use crate::race::owner::race;
-    use core::mem::offset_of;
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
-            &race().frame.credits,
-            CREDITS_START,
-            CREDITS_START + CREDITS_LEN,
-        );
-    }
-
-    #[test]
-    fn moved_knows_the_block() {
-        let frame = &race().frame;
-        assert_eq!(offset_of!(Credits, script), 0x529858 - CREDITS_START);
-        assert_eq!(
-            crate::moved::place(CREDITS_START),
-            frame.credits.top.addr() as usize
-        );
-        assert_eq!(
-            crate::moved::place(0x529858),
-            (crate::pointers::game_address(frame.credits.script.as_ptr())) as usize
-        );
-    }
+/// Starts tune 2 and waits for the command.
+pub fn credits_tune(o: crate::owners::Owners<'static>) {
+    crate::sound::play_tune_2::play_tune_2(o);
 }

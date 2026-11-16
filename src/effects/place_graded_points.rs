@@ -1,15 +1,11 @@
-//! `effects::place_graded_points` (0x4BA16C): a spline record's first two grades of points
-//! placed. For grade 0: the turns by the record's +0x20, +0x24, +0x28
-//! (`splines::turn_record`), its +0xC points from its start (+0) turned into
-//! `g_marksOrderedCoords`, bent (`effects::bend_points`), and each written plus +0xC54 ..
-//! through the record's pointer for it (+0x454); for grade 1 the same with +0x2C for the y
-//! turn, its start +4 and count +0x10, and no bend.
+//! `effects::place_graded_points`: a spline record's first two grades of points placed. For grade
+//! 0: the turns by the record's +0x20, +0x24, +0x28 (`splines::turn_record`), its +0xC points from
+//! its start (+0) turned into the ordered coordinates, bent (`effects::bend_points`), and each
+//! written plus +0xC54 .. through the record's pointer for it (+0x454); for grade 1 the same with
+//! +0x2C for the y turn, its start +4 and count +0x10, and no bend.
 //!
-//! Takes: `s` a spline record (`g_marksSplinesC`)
-//!
-//! Callers: `effects::place_spline` (0x4B99D4), `effects::place_spline` (0x4B9A2C). Refuses (before
-//! anything) a negative count (the loop runs on), points past the record's 0x80, a null pointer
-//! among them, an angle `fsincos` cannot take, and `bend_points`' refusals.
+//! Refuses (before anything) a negative count (the loop runs on), points past the record's 0x80, a
+//! null pointer among them, an angle with no sine and cosine, and `bend_points`' refusals.
 
 use crate::effects::bend_points::bend_points;
 use crate::effects::paths::Paths;
@@ -23,7 +19,7 @@ const POINTERS: u32 = 0x454;
 const GRADES: [(u32, u32, [u32; 3]); 2] =
     [(0, 0xC, [0x20, 0x24, 0x28]), (4, 0x10, [0x20, 0x2C, 0x28])];
 
-/// Why the Rust version refuses, if it does, worked out without writing.
+/// Why the function refuses, if it does, worked out without writing.
 fn refusal(paths: &Paths, s: Spline) -> Result<(), Refused> {
     {
         for (start, count, turns) in GRADES {
@@ -50,8 +46,11 @@ fn refusal(paths: &Paths, s: Spline) -> Result<(), Refused> {
     Ok(())
 }
 
-/// The Rust version (see the header).
-pub fn place_graded_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
+pub fn place_graded_points(
+    object_points: &crate::scene::object_points::ObjectPoints,
+    paths: &Paths,
+    s: Spline,
+) -> Result<(), Refused> {
     {
         refusal(paths, s)?;
         for (n, (start, count, turns)) in GRADES.into_iter().enumerate() {
@@ -62,7 +61,7 @@ pub fn place_graded_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
                 bend_points(paths, s)?;
             }
             for k in 0..points {
-                write_point(paths, s, k, k + first)?;
+                write_point(object_points, paths, s, k, k + first)?;
             }
         }
     }

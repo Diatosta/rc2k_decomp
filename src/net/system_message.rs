@@ -1,44 +1,40 @@
-//! `net::system_message` (0x41976F): a DirectPlay system message (sender 0) handled, by its
-//! first dword: 3 (DPSYS_CREATEPLAYERORGROUP) the sync table to be cleared again
-//! (`dword_52AD8C` 1); 5 (DPSYS_DESTROYPLAYERORGROUP) the same and, for a player (+4 is 1),
-//! that player (+8) taken out of the group (`DeletePlayerFromGroup`, `IDirectPlay4A`
-//! +0x1C, `g_netSendTo`); 0x31 (DPSYS_SESSIONLOST) `net::destroy_connection`; 0x101
-//! (DPSYS_HOST) this machine the host (`g_netOwnRecord` bit 0x10 set, bit 1 ready cleared),
-//! `dword_52AD8C` 1 and the stage item open (`dword_52AC2C` 1). Others: nothing.
-//!
-//! Takes `message`.
-//! Caller: `net::take_messages`. `DeletePlayerFromGroup` from Rust (`net::dplay`, section
-//! 15). Refuses nothing but what `net::destroy_connection` refuses.
+//! Handles a DirectPlay system message by its first dword: a player or group made, the sync
+//! table is to be cleared again; destroyed, the same and the player is removed from the group;
+//! session lost, `net::destroy_connection`; host, this machine becomes the host and the stage item
+//! opens. Others do nothing.
 
 use crate::errors::Refused;
 use crate::net::destroy_connection::destroy_connection;
-use crate::net::store::NetVars;
-use crate::net::store::PlayerRecord;
-use rc2k_core::net::players::{A_PLAYER, System, made_host};
+use crate::net::owner::Net;
+use rc2k_core::net::message::SystemMessage;
+use rc2k_core::net::players::{A_PLAYER, System};
 
-/// The Rust version.
-/// The message is in `crate::net::owner::net().vars.receive_data` (`unk_52A968`).
-pub fn system_message(vars: &NetVars) -> Result<(), Refused> {
-    let get = |at: usize| vars.receive_data.get_u32(at);
-    let kind = get(0);
-    // Converted: `rc2k_core::net::players` (`System`, `made_host`).
-    match System::of(kind) {
+/// The message is in `crate::test_support::own::net().vars.receiver.receive_data`.
+pub fn system_message(
+    net: &Net,
+    lines: &crate::race::viewer_screen_store::NetTexts,
+) -> Result<(), Refused> {
+    let (vars, link) = (&net.vars, &net.link);
+    let bytes = vars
+        .receiver
+        .receive_data
+        .read_at(0, 12, "a system message")?;
+    let message = SystemMessage::parse(&bytes);
+    match message.kind {
         System::Created => vars.sync_first.set(1),
         System::Destroyed => {
             vars.sync_first.set(1);
-            if get(4) == A_PLAYER {
+            if message.player_type == A_PLAYER {
                 crate::net::dp_objects::delete_player_from_group(
-                    vars.dplay.get(),
-                    vars.send_to.get(),
-                    get(8),
+                    link.dplay(),
+                    link.send_to(),
+                    message.id,
                 );
             }
         }
-        System::SessionLost => destroy_connection(vars)?,
+        System::SessionLost => destroy_connection(net, lines)?,
         System::Host => {
-            vars.own
-                .head
-                .set(PlayerRecord::STATE, made_host(vars.own.state()));
+            vars.own.set_state(vars.own.state().made_host());
             vars.sync_first.set(1);
             vars.stage_item.set(1);
         }

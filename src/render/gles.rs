@@ -1,27 +1,36 @@
 //! The GPU backend on the handheld: OpenGL ES 3 through the system's `libmali` (no Vulkan driver
 //! there, and SDL has no display for it), drawing to `/dev/fb0` through its EGL. The same frame
-//! as `gpu`'s: `batches`' lists, the canvas's written pixels over the 3D. The GL's own thread
-//! holds the context and does the driver's work (a quarter of a frame's time on this processor);
-//! the game's thread hands it copies, by channel, and goes on. The calls into the
-//! library are `ffi::gl`'s.
+//! as `gpu`'s: `batches`' lists, and before each part's 3D the retained background, the canvas's
+//! written pixels and the 2D quads (`layer2d`) put over the target. The GL's own thread holds
+//! the context and does the driver's work (a quarter of a frame's time on this processor); the
+//! game's thread hands it copies, by channel, and goes on. They pass a batching thread on the
+//! way (`gl_batching`), which makes each part's batches while the GL draws the part before.
+//! The calls into the library are `ffi::gl`'s.
 
 mod bench;
+mod layer2d;
 
-use super::batches::{Batches, PipelineKey, PixelValues};
-use super::{Command, Target, TextureNote};
-use crate::ffi::gl::Gles;
-use crate::framework::log;
+use super::batches::{Batches, NO_TEXTURE, PipelineKey, PixelValues};
+use super::gl_batching::{Background, Batched, Job, Part, Written};
+use super::gpu_cut::Cuts;
+use super::{CommandList, Target, TextureNote};
+use super::{background, canvas_rows};
+use crate::gfx::draw2d::quads;
+use crate::logfile::program_log::log;
+use crate::platform::ffi::gl::Gles;
 use std::collections::HashMap;
 use std::ffi::CStr;
 use std::sync::Mutex;
-use std::sync::mpsc::{Receiver, Sender, SyncSender, channel, sync_channel};
+use std::sync::mpsc::{Receiver, SyncSender, channel, sync_channel};
 
 /// A canvas pixel the game has not written (`gpu::UNWRITTEN`'s kin).
 pub const UNWRITTEN: u32 = 0xA5FF_00FF;
 
 const TEXTURE_2D: u32 = 0x0DE1;
 const TEXTURE0: u32 = 0x84C0;
-const TEXTURE1: u32 = 0x84C1;
+const TEXTURE_2D_ARRAY: u32 = 0x8C1A;
+const READ_FRAMEBUFFER: u32 = 0x8CA8;
+const UNSIGNED_SHORT: u32 = 0x1403;
 const RGBA: u32 = 0x1908;
 const UNSIGNED_BYTE: u32 = 0x1401;
 const FRAMEBUFFER: u32 = 0x8D40;
@@ -43,11 +52,14 @@ const SCENE_VS: &CStr = c"#version 300 es
 layout(location=0) in vec4 place; layout(location=1) in vec4 colour;
 layout(location=2) in vec4 specular; layout(location=3) in vec2 uv;
 layout(location=4) in vec4 colour2; layout(location=5) in vec4 specular2;
-layout(location=6) in vec2 uv2;
+layout(location=6) in vec2 uv2; layout(location=7) in vec4 layers;
 uniform vec2 size;
 out highp vec4 v_colour; out highp float v_fog; out highp float v_w; out highp vec2 v_uv;
 out highp vec4 v_colour2; out highp float v_fog2; out highp vec2 v_uv2;
+flat out lowp int v_unit; flat out highp float v_layer;
+flat out lowp int v_unit2; flat out highp float v_layer2;
 void main() {
+    v_unit = int(layers.x); v_layer = layers.y; v_unit2 = int(layers.z); v_layer2 = layers.w;
     float w = place.w > 0.0 ? 1.0 / place.w : 1.0;
     gl_Position = vec4(((place.x + 0.5) / size.x * 2.0 - 1.0) * w,
                        (1.0 - (place.y + 0.5) / size.y * 2.0) * w,
@@ -63,12 +75,32 @@ const SCENE_FS: &CStr = c"#version 300 es
 precision mediump float;
 in highp vec4 v_colour; in highp float v_fog; in highp float v_w; in highp vec2 v_uv;
 in highp vec4 v_colour2; in highp float v_fog2; in highp vec2 v_uv2;
+flat in lowp int v_unit; flat in highp float v_layer;
+flat in lowp int v_unit2; flat in highp float v_layer2;
 out vec4 result;
-uniform sampler2D picture; uniform vec4 fog_colour; uniform float alpha_reference;
+// The textures are layers of arrays (`TextureArray`), two bound for each pass: the vertex
+// says which and which layer. One level only and the same filter near and far, so the
+// level of detail `texture` would work out changes nothing.
+precision lowp sampler2DArray;
+uniform sampler2DArray picture_a; uniform sampler2DArray picture_b;
+uniform vec4 fog_colour; uniform float alpha_reference;
 uniform int alpha_function; uniform int mixing; uniform int flags;
-uniform sampler2D picture2; uniform vec4 fog_colour2; uniform float alpha_reference2;
+uniform sampler2DArray picture2_a; uniform sampler2DArray picture2_b;
+uniform vec4 fog_colour2; uniform float alpha_reference2;
 uniform int alpha_function2; uniform int mixing2; uniform int flags2;
+vec4 fetch(sampler2DArray a, sampler2DArray b, int unit, highp vec3 at) {
+#ifdef CUT_TEX
+    return vec4(0.5);
+#endif
+#ifdef CUT_TEXHOT
+    at = vec3(0.5, 0.5, at.z);
+#endif
+    return unit == 0 ? textureLod(a, at, 0.0) : textureLod(b, at, 0.0);
+}
 bool passes(int function, float reference, float value) {
+#ifdef CUT_ALPHA
+    return true;
+#endif
     if (function == 1) return false;
     if (function == 2) return value < reference;
     if (function == 3) return value == reference;
@@ -84,22 +116,40 @@ vec4 mixed(vec4 colour, vec4 texel, int mixing, int flags) {
     return vec4(texel.rgb * colour.rgb, (flags & 2) != 0 ? texel.a : colour.a);
 }
 vec4 fogged(vec4 c, float fog, vec4 fog_colour, int flags) {
+#ifdef CUT_FOG
+    return c;
+#endif
     if ((flags & 4) == 0) return c;
     float kept = clamp(fog, 0.0, 1.0);
     return vec4(c.rgb * kept + fog_colour.rgb * (1.0 - kept), c.a);
 }
+#ifdef CUT_SECOND
+#define SECOND_PASS false
+#else
+#define SECOND_PASS ((flags & 8) != 0)
+#endif
 void main() {
     vec4 colour = v_colour / v_w;
     vec4 c = colour;
+#ifdef CUT_FLAT
+    result = c;
+    return;
+#endif
     // uploaded as they are: blue first
-    if ((flags & 1) != 0) c = mixed(colour, texture(picture, v_uv).bgra, mixing, flags);
+    if ((flags & 1) != 0) {
+        vec4 texel = fetch(picture_a, picture_b, v_unit, vec3(v_uv, v_layer)).bgra;
+        c = mixed(colour, texel, mixing, flags);
+    }
     if (alpha_function != 0 && !passes(alpha_function, alpha_reference, c.a)) discard;
     c = fogged(c, v_fog / v_w, fog_colour, flags);
-    if ((flags & 8) != 0) {
+    if (SECOND_PASS) {
         vec4 under = floor(c * 255.0 + 0.5) / 255.0;
         vec4 colour2 = v_colour2 / v_w;
         vec4 d = colour2;
-        if ((flags2 & 1) != 0) d = mixed(colour2, texture(picture2, v_uv2).bgra, mixing2, flags2);
+        if ((flags2 & 1) != 0) {
+            vec4 texel = fetch(picture2_a, picture2_b, v_unit2, vec3(v_uv2, v_layer2)).bgra;
+            d = mixed(colour2, texel, mixing2, flags2);
+        }
         if (alpha_function2 == 0 || passes(alpha_function2, alpha_reference2, d.a)) {
             d = fogged(d, v_fog2 / v_w, fog_colour2, flags2);
             c = vec4(d.rgb * d.a + under.rgb * (1.0 - d.a), d.a * d.a + under.a * (1.0 - d.a));
@@ -150,6 +200,7 @@ struct Quad {
     flip: i32,
 }
 
+#[derive(Clone)]
 struct Locations {
     size: i32,
     first: ValueLocations,
@@ -157,7 +208,7 @@ struct Locations {
 }
 
 /// Where a pass's `PixelValues` go.
-#[derive(Default)]
+#[derive(Default, Clone)]
 struct ValueLocations {
     fog_colour: i32,
     alpha_reference: i32,
@@ -166,24 +217,63 @@ struct ValueLocations {
     flags: i32,
 }
 
-struct CachedTexture {
+/// The sizes whose textures one draw can read together: a stage's are all one of these.
+/// A texture of another size has an array of its own, drawn alone.
+const MAIN_SIZES: [(usize, usize); 2] = [(128, 128), (256, 256)];
+
+/// Layers a new array has room for; it doubles when full.
+const FIRST_LAYERS: i32 = 16;
+
+/// The textures of one size, each a layer of one GL texture array: batches that differ only
+/// in their textures are then one draw (`Batches::of_layered`), the driver's cost per draw
+/// being most of the GL thread's.
+struct TextureArray {
     name: u32,
+    capacity: i32,
+    /// Layers below it have been handed out.
+    next: i32,
+    /// Layers handed out and given back.
+    free: Vec<i32>,
+}
+
+/// Which bound array of a pass's two a texture of `size` is read from.
+fn unit_of(size: (usize, usize)) -> u16 {
+    u16::from(size == MAIN_SIZES[1])
+}
+
+/// Whether textures `a` and `b` can be read in one draw.
+fn same_array(a: &TextureNote, b: &TextureNote) -> bool {
+    let (a, b) = ((a.width, a.height), (b.width, b.height));
+    a == b || (MAIN_SIZES.contains(&a) && MAIN_SIZES.contains(&b))
+}
+
+struct CachedTexture {
+    /// Its layer of its size's `TextureArray`.
+    layer: i32,
     width: usize,
     height: usize,
-    /// Every pixel's alpha full: a first pass over it can take a second (`Batches::of`).
-    opaque: bool,
 }
 
 pub struct Gpu {
     gl: Gles,
+    /// The diagnostic cuts in force for the flush being drawn (the live set, read once per
+    /// flush), none unless asked for.
+    cuts: Cuts,
     scene: u32,
     locations: Locations,
+    /// The scene programs made so far, by the shader cuts they were made for.
+    scene_programs: HashMap<u32, (u32, Locations)>,
     overlay: Quad,
     canvas_quad: Quad,
     target_quad: Quad,
     vertices: u32,
     /// The vertices' second passes (`Batches::seconds`).
     seconds: u32,
+    /// The vertices' passes' arrays and layers (`Batches::vertex_textures`).
+    layers: u32,
+    /// For copying an array's layers into a bigger one.
+    copy_framebuffer: u32,
+    arrays: HashMap<(usize, usize), TextureArray>,
     empty_array: u32,
     scene_array: u32,
     samplers: [u32; 4],
@@ -192,23 +282,33 @@ pub struct Gpu {
     depth: u32,
     canvas: u32,
     canvas_size: (i32, i32),
+    /// The 2D layer's atlas, program and background (`layer2d`).
+    layer2d: layer2d::Layer2d,
     width: i32,
     height: i32,
     depth_is_new: bool,
-    textures: HashMap<crate::pointers::GamePtr, CachedTexture>,
+    textures: super::TextureMap<CachedTexture>,
 }
 
 pub static GPU: Mutex<Option<Front>> = Mutex::new(None);
 
-/// Whether the GPU is wanted: `RC2K_RENDERER=gpu`.
+/// Whether the GPU is to be tried: unless `RC2K_RENDERER=software`.
 pub fn wanted() -> bool {
-    std::env::var("RC2K_RENDERER").is_ok_and(|r| r == "gpu")
+    super::choice::gpu_wanted()
 }
 
 impl Gpu {
     fn new() -> Result<Gpu, String> {
+        if super::choice::forced_failure("gles") {
+            return Err("made to fail".into());
+        }
         let gl = Gles::open_panel(PANEL.0 as u16, PANEL.1 as u16)?;
+        if let Some(line) = Cuts::start_from_env() {
+            log(&line);
+        }
         let mut gpu = Gpu {
+            cuts: Cuts::default(),
+            scene_programs: HashMap::new(),
             scene: 0,
             locations: Locations {
                 size: 0,
@@ -229,6 +329,9 @@ impl Gpu {
             },
             vertices: 0,
             seconds: 0,
+            layers: 0,
+            copy_framebuffer: 0,
+            arrays: HashMap::new(),
             empty_array: 0,
             scene_array: 0,
             samplers: [0; 4],
@@ -237,10 +340,11 @@ impl Gpu {
             depth: 0,
             canvas: 0,
             canvas_size: (0, 0),
+            layer2d: Default::default(),
             width: 0,
             height: 0,
             depth_is_new: true,
-            textures: HashMap::new(),
+            textures: Default::default(),
             gl,
         };
         gpu.set_up()?;
@@ -267,21 +371,81 @@ impl Gpu {
         })
     }
 
-    fn set_up(&mut self) -> Result<(), String> {
-        self.scene = self.program(SCENE_VS, SCENE_FS)?;
+    /// The scene's program with the shader cuts of `cuts` defined, and where its values go;
+    /// its picture units are set.
+    fn scene_program(&self, cuts: Cuts) -> Result<(u32, Locations), String> {
+        let fragment = std::ffi::CString::new(cuts.shader(&SCENE_FS.to_string_lossy()))
+            .map_err(|_| "the scene's shader holds a NUL".to_string())?;
+        let program = self.program(SCENE_VS, &fragment)?;
         let values = |suffix: &str| ValueLocations {
-            fog_colour: self.uniform(self.scene, &format!("fog_colour{suffix}")),
-            alpha_reference: self.uniform(self.scene, &format!("alpha_reference{suffix}")),
-            alpha_function: self.uniform(self.scene, &format!("alpha_function{suffix}")),
-            mixing: self.uniform(self.scene, &format!("mixing{suffix}")),
-            flags: self.uniform(self.scene, &format!("flags{suffix}")),
+            fog_colour: self.uniform(program, &format!("fog_colour{suffix}")),
+            alpha_reference: self.uniform(program, &format!("alpha_reference{suffix}")),
+            alpha_function: self.uniform(program, &format!("alpha_function{suffix}")),
+            mixing: self.uniform(program, &format!("mixing{suffix}")),
+            flags: self.uniform(program, &format!("flags{suffix}")),
         };
-        self.locations = Locations {
-            size: self.uniform(self.scene, "size"),
+        let locations = Locations {
+            size: self.uniform(program, "size"),
             first: values(""),
             second: values("2"),
         };
-        let second_picture = self.uniform(self.scene, "picture2");
+        self.gl.use_program(program);
+        for (unit, name) in ["picture_a", "picture_b", "picture2_a", "picture2_b"]
+            .into_iter()
+            .enumerate()
+        {
+            self.gl.uniform_1i(self.uniform(program, name), unit as i32);
+        }
+        Ok((program, locations))
+    }
+
+    /// Takes the live cuts for the flush about to be drawn: the scene's program for its shader
+    /// cuts (made on first use; the plain one if that fails) and the samplers' filters.
+    fn take_cuts(&mut self) {
+        let cuts = super::gpu_cut::live();
+        if cuts == self.cuts {
+            return;
+        }
+        let key = cuts.shader_part().bits();
+        if !self.scene_programs.contains_key(&key) {
+            let made = self.scene_program(cuts.shader_part());
+            let entry = made.unwrap_or_else(|why| {
+                log(&format!(
+                    "render: the scene's shader with cuts {} failed: {why}",
+                    cuts.names()
+                ));
+                self.scene_programs[&0].clone()
+            });
+            self.scene_programs.insert(key, entry);
+        }
+        let (scene, locations) = self.scene_programs[&key].clone();
+        self.scene = scene;
+        self.locations = locations;
+        self.set_filters(cuts.nearest, cuts.linear);
+        log(&format!("render: GPU cuts now on: {}", cuts.names()));
+        self.cuts = cuts;
+    }
+
+    /// Every sampler's filter: nearest for the even ones and linear for the odd, unless a cut
+    /// makes all one or the other.
+    fn set_filters(&self, nearest: bool, linear_cut: bool) {
+        for (n, &sampler) in self.samplers.iter().enumerate() {
+            let linear = (n & 1 != 0 || linear_cut) && !nearest;
+            let filter = if linear { 0x2601 } else { 0x2600 };
+            let wrap = if n & 2 != 0 { 0x812F } else { 0x2901 };
+            self.gl.sampler_parameter(sampler, 0x2801, filter);
+            self.gl.sampler_parameter(sampler, 0x2800, filter);
+            self.gl.sampler_parameter(sampler, 0x2802, wrap);
+            self.gl.sampler_parameter(sampler, 0x2803, wrap);
+        }
+    }
+
+    fn set_up(&mut self) -> Result<(), String> {
+        let (scene, locations) = self.scene_program(Cuts::default())?;
+        self.scene = scene;
+        self.locations = locations;
+        self.scene_programs
+            .insert(0, (scene, self.locations.clone()));
         self.overlay = self.quad(OVERLAY_FS)?;
         self.canvas_quad = self.quad(CANVAS_FS)?;
         self.target_quad = self.quad(TARGET_FS)?;
@@ -291,6 +455,7 @@ impl Gpu {
         self.scene_array = gl.gen_vertex_array();
         self.vertices = gl.gen_buffer();
         self.seconds = gl.gen_buffer();
+        self.layers = gl.gen_buffer();
         gl.bind_vertex_array(self.scene_array);
         gl.bind_buffer(ARRAY_BUFFER, self.vertices);
         for (n, count, kind, normal, offset) in [
@@ -310,23 +475,98 @@ impl Gpu {
         ] {
             gl.attribute(n, count, kind, normal, 16, offset);
         }
-        gl.use_program(self.scene);
-        gl.uniform_1i(second_picture, 1);
+        // Each pass's array (of its two) and layer, as four numbers.
+        gl.bind_buffer(ARRAY_BUFFER, self.layers);
+        gl.attribute(7, 4, UNSIGNED_SHORT, false, 8, 0);
         self.samplers = gl.gen_samplers();
-        for (n, &sampler) in self.samplers.iter().enumerate() {
-            let filter = if n & 1 != 0 { 0x2601 } else { 0x2600 };
-            let wrap = if n & 2 != 0 { 0x812F } else { 0x2901 };
-            gl.sampler_parameter(sampler, 0x2801, filter);
-            gl.sampler_parameter(sampler, 0x2800, filter);
-            gl.sampler_parameter(sampler, 0x2802, wrap);
-            gl.sampler_parameter(sampler, 0x2803, wrap);
-        }
+        self.set_filters(false, false);
         self.framebuffer = gl.gen_framebuffer();
         self.colour = gl.gen_texture();
         self.canvas = gl.gen_texture();
         self.depth = gl.gen_renderbuffer();
+        self.copy_framebuffer = gl.gen_framebuffer();
+        self.layer2d = self.make_layer2d()?;
+        let gl = &self.gl;
         gl.front_face(0x0900); // the shown ones are clockwise on the screen
+        // Made now: a draw binds both whichever it reads.
+        for size in MAIN_SIZES {
+            let array = self.make_array(size, FIRST_LAYERS);
+            self.arrays.insert(size, array);
+        }
         Ok(())
+    }
+
+    /// A new array of `capacity` layers of `size`, bound on the active unit.
+    fn make_array(&self, (width, height): (usize, usize), capacity: i32) -> TextureArray {
+        let gl = &self.gl;
+        let name = gl.gen_texture();
+        gl.bind_texture(TEXTURE_2D_ARRAY, name);
+        gl.tex_image_3d_empty(0x8058, width as i32, height as i32, capacity);
+        // No levels: one the sampler objects' filters read alone.
+        gl.tex_parameter(TEXTURE_2D_ARRAY, 0x813D, 0);
+        TextureArray {
+            name,
+            capacity,
+            next: 0,
+            free: Vec::new(),
+        }
+    }
+
+    /// A layer of the array of `size` for a new texture: one given back, a new one, or (the
+    /// array full) one of a new array twice its size, the old one's layers copied into it.
+    fn new_layer(&mut self, size: (usize, usize)) -> i32 {
+        if !self.arrays.contains_key(&size) {
+            let array = self.make_array(size, FIRST_LAYERS);
+            self.arrays.insert(size, array);
+        }
+        let full = self
+            .arrays
+            .get(&size)
+            .is_some_and(|a| a.free.is_empty() && a.next == a.capacity);
+        if full {
+            self.grow(size);
+        }
+        let Some(array) = self.arrays.get_mut(&size) else {
+            unreachable!("made above");
+        };
+        array.free.pop().unwrap_or_else(|| {
+            array.next += 1;
+            array.next - 1
+        })
+    }
+
+    /// The array of `size` twice as big, its layers kept.
+    fn grow(&mut self, size: (usize, usize)) {
+        let Some(old) = self.arrays.remove(&size) else {
+            return;
+        };
+        let mut bigger = self.make_array(size, old.capacity * 2);
+        let gl = &self.gl;
+        gl.bind_framebuffer(READ_FRAMEBUFFER, self.copy_framebuffer);
+        for layer in 0..old.next {
+            gl.framebuffer_texture_layer(READ_FRAMEBUFFER, old.name, layer);
+            gl.copy_into_layer(layer, size.0 as i32, size.1 as i32);
+        }
+        gl.bind_framebuffer(READ_FRAMEBUFFER, 0);
+        gl.delete_texture(old.name);
+        (bigger.next, bigger.free) = (old.next, old.free);
+        self.arrays.insert(size, bigger);
+    }
+
+    /// The two arrays a pass whose textures are of `size` reads, onto units `unit` and
+    /// `unit + 1` (the active unit left at `unit + 1`).
+    fn bind_arrays(&self, unit: u32, size: (usize, usize)) {
+        let name = |size| self.arrays.get(&size).map_or(0, |a| a.name);
+        let (a, b) = if MAIN_SIZES.contains(&size) {
+            (name(MAIN_SIZES[0]), name(MAIN_SIZES[1]))
+        } else {
+            (name(size), 0)
+        };
+        let gl = &self.gl;
+        gl.active_texture(TEXTURE0 + unit);
+        gl.bind_texture(TEXTURE_2D_ARRAY, a);
+        gl.active_texture(TEXTURE0 + unit + 1);
+        gl.bind_texture(TEXTURE_2D_ARRAY, b);
     }
 
     /// The frame buffer object at the screen's size.
@@ -418,35 +658,81 @@ impl Gpu {
 
     /// A frame's part: the textures brought up, the canvas's written rows over the target, then
     /// the batches.
-    fn draw(&mut self, part: Part) {
-        let Part {
-            commands,
-            uploads,
-            written,
-            size: (width, height),
-        } = part;
+    fn draw(&mut self, batched: Batched) {
+        let Batched {
+            part:
+                Part {
+                    commands,
+                    uploads,
+                    written,
+                    quads,
+                    background,
+                    size: (width, height),
+                },
+            batches,
+            quad_vertices,
+            opaque,
+        } = batched;
+        self.take_cuts();
         if let Err(why) = self.set_size(width, height) {
             crate::fatal::raise::end(
                 "render::gles",
                 crate::errors::BadInput(Box::leak(why.into_boxed_str())),
             );
         }
+        let started = std::time::Instant::now();
         for (note, bytes) in &uploads {
             self.bring_texture_up(note, bytes);
         }
-        let opaque = |note: &TextureNote| self.textures.get(&note.pixels).is_some_and(|t| t.opaque);
-        let batches = Batches::of(&commands, width as u32, height as u32, Some(&opaque));
+        note_if_slow(
+            "textures",
+            started,
+            uploads.iter().map(|(_, b)| b.len()).sum(),
+        );
         super::GPU_DRAWS.fetch_add(
             batches.batches.len() as u64,
             std::sync::atomic::Ordering::Relaxed,
         );
+        super::GPU_FLUSHES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        if !written.is_empty() {
+            super::CANVAS_UPLOADS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        }
+        let started = std::time::Instant::now();
         for w in &written {
             self.upload_canvas_rows(&w.bytes, width, height, w.first, w.last);
+            super::CANVAS_UPLOAD_BYTES
+                .fetch_add(w.bytes.len() as u64, std::sync::atomic::Ordering::Relaxed);
         }
+        note_if_slow(
+            "canvas rows",
+            started,
+            written.iter().map(|w| w.bytes.len()).sum(),
+        );
+        let started = std::time::Instant::now();
+        self.send_atlas(&quads.uploads);
+        note_if_slow(
+            "atlas",
+            started,
+            quads.uploads.iter().map(|u| u.texels.len() * 4).sum(),
+        );
+        let started = std::time::Instant::now();
+        if let Some(background) = &background {
+            self.send_background(background, (width, height));
+        }
+        note_if_slow("background", started, 0);
+        let started = std::time::Instant::now();
+        self.send_quad_vertices(&quad_vertices);
+        note_if_slow("quad vertices", started, quad_vertices.len() * 24);
         self.plain_state();
         let gl = &self.gl;
         gl.bind_framebuffer(FRAMEBUFFER, self.framebuffer);
-        gl.viewport(0, 0, width, height);
+        // `half`: a quarter of the target, a quarter of the fragments.
+        let (view_width, view_height) = if self.cuts.half {
+            (width / 2, height / 2)
+        } else {
+            (width, height)
+        };
+        gl.viewport(0, 0, view_width, view_height);
         if self.depth_is_new {
             gl.depth_mask(true);
             gl.clear_depth(1.0);
@@ -455,7 +741,10 @@ impl Gpu {
         }
         // Up in clip space is the picture's top for the 2D as for the 3D; the object's
         // last row is that top, which `show_target` and `bring_back` turn over.
-        if !written.is_empty() {
+        if background.is_some() && !self.cuts.two_d {
+            self.draw_background((width, height));
+        }
+        if !written.is_empty() && !self.cuts.two_d {
             gl.enable(SCISSOR_TEST);
             for w in &written {
                 gl.bind_texture(TEXTURE_2D, self.canvas);
@@ -465,7 +754,10 @@ impl Gpu {
             }
             gl.disable(SCISSOR_TEST);
         }
-        if !batches.batches.is_empty() {
+        if !self.cuts.two_d {
+            self.draw_quads(quad_vertices.len(), (width, height));
+        }
+        if !batches.batches.is_empty() && !self.cuts.scene {
             gl.use_program(self.scene);
             gl.uniform_2f(self.locations.size, width as f32, height as f32);
             gl.bind_vertex_array(self.scene_array);
@@ -473,16 +765,29 @@ impl Gpu {
             gl.buffer_data(ARRAY_BUFFER, &batches.vertices, 0x88E0);
             gl.bind_buffer(ARRAY_BUFFER, self.seconds);
             gl.buffer_data(ARRAY_BUFFER, &batches.seconds, 0x88E0);
-            gl.enable(DEPTH_TEST);
+            gl.bind_buffer(ARRAY_BUFFER, self.layers);
+            gl.buffer_data(ARRAY_BUFFER, &self.vertex_layers(&batches), 0x88E0);
+            if !self.cuts.depth {
+                gl.enable(DEPTH_TEST);
+            }
             let mut last_pipeline = None;
             let mut last_values = None;
-            let mut last_texture = None;
+            let mut last_arrays = None;
             let mut last_sampler = u32::MAX;
             let mut last_second = None;
+            let size = |n: Option<u32>| {
+                n.map(|n| {
+                    let note = &batches.textures[n as usize];
+                    (note.width, note.height)
+                })
+            };
             let mut scissored = false;
             for batch in &batches.batches {
+                if self.cuts.drops(batch.pipeline.blend.is_some()) {
+                    continue;
+                }
                 if last_pipeline != Some(batch.pipeline) {
-                    self.set_pipeline(&batch.pipeline);
+                    self.set_pipeline(&batch.pipeline, last_pipeline.as_ref());
                     last_pipeline = Some(batch.pipeline);
                 }
                 self.set_values(&self.locations.first, last_values.as_ref(), &batch.values);
@@ -494,35 +799,38 @@ impl Gpu {
                         .as_ref()
                         .map(|s: &super::batches::Second| &s.values);
                     self.set_values(&self.locations.second, was, &second.values);
-                    gl.active_texture(TEXTURE1);
-                    if let Some(n) = second.texture {
-                        let name = self.textures[&batches.textures[n as usize].pixels].name;
-                        gl.bind_texture(TEXTURE_2D, name);
+                    if let Some(size) = size(second.texture) {
+                        self.bind_arrays(2, size);
+                        gl.active_texture(TEXTURE0);
                     }
                     let sampler = self.samplers[second.linear as usize + 2 * second.clamp as usize];
-                    gl.bind_sampler(1, sampler);
-                    gl.active_texture(TEXTURE0);
+                    gl.bind_sampler(2, sampler);
+                    gl.bind_sampler(3, sampler);
                     last_second = Some(*second);
                 }
-                if last_texture != Some(batch.texture) {
-                    if let Some(n) = batch.texture {
-                        let name = self.textures[&batches.textures[n as usize].pixels].name;
-                        gl.bind_texture(TEXTURE_2D, name);
-                    }
-                    last_texture = Some(batch.texture);
+                // A batch's textures are all read from the arrays its first one's size names.
+                if let Some(size) = size(batch.texture)
+                    && last_arrays != Some(size)
+                {
+                    self.bind_arrays(0, size);
+                    gl.active_texture(TEXTURE0);
+                    last_arrays = Some(size);
                 }
                 let sampler = self.samplers[batch.linear as usize + 2 * batch.clamp as usize];
                 if sampler != last_sampler {
                     gl.bind_sampler(0, sampler);
+                    gl.bind_sampler(1, sampler);
                     last_sampler = sampler;
                 }
                 if let Some([left, top, right, bottom]) = batch.scissor {
                     gl.enable(SCISSOR_TEST);
+                    // Under `half` the rectangle is scaled with the viewport.
+                    let shrink = |n: i32| if self.cuts.half { n / 2 } else { n };
                     gl.scissor(
-                        left as i32,
-                        height - bottom as i32,
-                        (right - left) as i32,
-                        (bottom - top) as i32,
+                        shrink(left as i32),
+                        shrink(height - bottom as i32),
+                        shrink((right - left) as i32),
+                        shrink((bottom - top) as i32),
                     );
                     scissored = true;
                 } else if scissored {
@@ -531,12 +839,41 @@ impl Gpu {
                 }
                 gl.draw_arrays(TRIANGLES, batch.first_vertex as i32, batch.vertices as i32);
             }
-            gl.bind_sampler(0, 0);
-            gl.bind_sampler(1, 0);
+            for unit in 0..4 {
+                gl.bind_sampler(unit, 0);
+            }
         }
         if bench::due(batches.batches.len()) {
-            self.bench(&batches, height);
+            self.bench(&commands, &batches, &opaque, height);
         }
+        super::give_back(commands);
+        super::batches::give_back_batches(batches);
+    }
+
+    /// Each vertex's passes' arrays and layers (`unit_of`, the texture's layer), two
+    /// sixteen-bit numbers each, as the scene's attribute 7 reads them.
+    fn vertex_layers(&self, batches: &Batches) -> Vec<[u32; 2]> {
+        let places: Vec<u32> = batches
+            .textures
+            .iter()
+            .map(|note| {
+                self.textures.get(&note.pixels).map_or(0, |t| {
+                    u32::from(unit_of((t.width, t.height))) | (t.layer as u32) << 16
+                })
+            })
+            .collect();
+        let place = |n: u16| {
+            if n == NO_TEXTURE {
+                0
+            } else {
+                places.get(n as usize).copied().unwrap_or(0)
+            }
+        };
+        batches
+            .vertex_textures
+            .iter()
+            .map(|&[first, second]| [place(first), place(second)])
+            .collect()
     }
 
     /// A pass's values into `at`, each only when it differs from `was`'s: the batches differ
@@ -560,65 +897,74 @@ impl Gpu {
         }
     }
 
-    fn set_pipeline(&self, key: &PipelineKey) {
+    /// The key's states that differ from `was`'s (all of them without one).
+    fn set_pipeline(&self, key: &PipelineKey, was: Option<&PipelineKey>) {
         let gl = &self.gl;
-        match key.cull {
-            3 => {
-                gl.enable(CULL_FACE);
-                gl.cull_face(0x0405);
+        let change = key.changes_from(was);
+        if change.cull {
+            match key.cull_face() {
+                Some(face) => {
+                    if was.is_none_or(|w| w.cull_face().is_none()) {
+                        gl.enable(CULL_FACE);
+                    }
+                    gl.cull_face(face);
+                }
+                None => gl.disable(CULL_FACE),
             }
-            2 => {
-                gl.enable(CULL_FACE);
-                gl.cull_face(0x0404);
-            }
-            _ => gl.disable(CULL_FACE),
         }
-        gl.depth_func(match key.depth_function {
-            f @ 1..=7 => 0x0200 + f - 1,
-            _ => 0x0207, // as the rasteriser's `compare`: anything else passes
-        });
-        gl.depth_mask(key.depth_write);
-        match key.blend {
-            Some((source, target)) => {
-                gl.enable(BLEND);
-                gl.blend_func(blend_factor(source), blend_factor(target));
-            }
-            None => gl.disable(BLEND),
+        if change.depth_function {
+            gl.depth_func(key.depth_func());
         }
-        gl.colour_mask(key.colour);
+        if change.depth_write {
+            gl.depth_mask(key.depth_write);
+        }
+        if change.blend {
+            match key.blend {
+                // `blend` cut: never on.
+                Some(_) if self.cuts.blend => gl.disable(BLEND),
+                Some((source, target)) => {
+                    if was.is_none_or(|w| w.blend.is_none()) {
+                        gl.enable(BLEND);
+                    }
+                    gl.blend_func(blend_factor(source), blend_factor(target));
+                }
+                None => gl.disable(BLEND),
+            }
+        }
+        if change.colour {
+            gl.colour_mask(key.colour);
+        }
     }
 
     fn bring_texture_up(&mut self, note: &TextureNote, bytes: &[u8]) {
         super::UPLOADS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         super::UPLOAD_BYTES.fetch_add(bytes.len() as u64, std::sync::atomic::Ordering::Relaxed);
-        let known = self.textures.get(&note.pixels);
-        let (width, height) = (note.width as i32, note.height as i32);
+        let size = (note.width, note.height);
+        let known = self
+            .textures
+            .get(&note.pixels)
+            .map(|t| ((t.width, t.height), t.layer));
+        let layer = match known {
+            Some((was, layer)) if was == size => layer,
+            Some((was, layer)) => {
+                self.give_back(was, layer);
+                self.new_layer(size)
+            }
+            None => self.new_layer(size),
+        };
         let gl = &self.gl;
-        let mut name = known.map_or(0, |t| t.name);
-        let new = known.is_none_or(|t| (t.width, t.height) != (note.width, note.height));
-        if name == 0 {
-            name = gl.gen_texture();
-        }
-        gl.bind_texture(TEXTURE_2D, name);
+        gl.bind_texture(
+            TEXTURE_2D_ARRAY,
+            self.arrays.get(&size).map_or(0, |a| a.name),
+        );
         // `bytes` holds the whole picture (`texture_as_bgra`).
-        if new {
-            gl.tex_image_2d(0x8058, width, height, RGBA, UNSIGNED_BYTE, Some(bytes));
-            // No levels: one the sampler objects' filters read alone.
-            gl.tex_parameter(TEXTURE_2D, 0x813D, 0);
-        } else {
-            gl.tex_sub_image_2d((0, 0), (width, height), RGBA, UNSIGNED_BYTE, bytes);
-        }
+        gl.tex_sub_image_layer(layer, note.width as i32, note.height as i32, bytes);
         self.textures.insert(
             note.pixels,
             CachedTexture {
-                name,
+                layer,
                 width: note.width,
                 height: note.height,
-                opaque: bytes
-                    .as_chunks::<4>()
-                    .0
-                    .iter()
-                    .all(|pixel| pixel[3] == 0xFF),
             },
         );
     }
@@ -639,14 +985,23 @@ impl Gpu {
     }
 
     /// The target on the panel.
-    fn show_target(&mut self) {
+    ///
+    /// With `wait`, the GPU is waited for before the frame goes to the panel (the GPU-time
+    /// diagnostic, `gpu_time`); the wait's time comes back.
+    fn show_target(&mut self, wait: bool) -> Option<std::time::Duration> {
         self.plain_state();
         self.panel_viewport(self.width, self.height);
         let gl = &self.gl;
         gl.bind_sampler(0, 0);
         gl.bind_texture(TEXTURE_2D, self.colour);
         self.draw_quad(&self.target_quad, true);
+        let waited = wait.then(|| {
+            let start = std::time::Instant::now();
+            gl.finish();
+            start.elapsed()
+        });
         gl.swap_buffers();
+        waited
     }
 
     /// A picture of the game's bytes (`width` x `height`, blue first) on the panel: the frames the
@@ -670,21 +1025,49 @@ impl Gpu {
     }
 
     /// The textures whose memory is gone let go of.
-    fn forget(&mut self, gone: &[crate::pointers::GamePtr]) {
+    fn forget(&mut self, gone: &[super::TextureId]) {
         for pixels in gone {
             if let Some(texture) = self.textures.remove(pixels) {
-                self.gl.delete_texture(texture.name);
+                self.give_back((texture.width, texture.height), texture.layer);
             }
         }
     }
 
-    fn run(mut self, jobs: Receiver<Job>) {
+    /// A layer of the array of `size` free again.
+    fn give_back(&mut self, size: (usize, usize), layer: i32) {
+        if let Some(array) = self.arrays.get_mut(&size) {
+            array.free.push(layer);
+        }
+    }
+
+    fn run(mut self, jobs: Receiver<Job<Batched>>) {
+        let mut sampler = super::gpu_time::Sampler::from_env();
         for job in jobs {
             let start = std::time::Instant::now();
             match job {
                 Job::Forget(gone) => self.forget(&gone),
-                Job::Draw(part) => self.draw(part),
-                Job::ShowTarget => self.show_target(),
+                Job::Draw(part) => {
+                    if let Some(sampler) = &mut sampler {
+                        sampler.part_begins();
+                    }
+                    self.draw(part);
+                }
+                Job::ShowTarget => {
+                    let wait = sampler
+                        .as_mut()
+                        .is_some_and(super::gpu_time::Sampler::frame_ends);
+                    let waited = self.show_target(wait);
+                    if let Some(sampler) = &mut sampler {
+                        match waited {
+                            Some(waited) => sampler.counted(waited),
+                            None => sampler.skipped(),
+                        }
+                    }
+                    super::GL_SHOW_MICROS.fetch_add(
+                        start.elapsed().as_micros() as u64,
+                        std::sync::atomic::Ordering::Relaxed,
+                    );
+                }
                 Job::ShowPicture {
                     frame,
                     width,
@@ -702,47 +1085,27 @@ impl Gpu {
     }
 }
 
-/// The canvas's written rows, copied.
-struct Written {
-    first: usize,
-    last: usize,
-    bytes: Vec<u8>,
-}
-
-/// What a draw needs, all of it the thread's own: the game goes on with its memory meanwhile.
-struct Part {
-    commands: Vec<Command>,
-    uploads: Vec<(TextureNote, Vec<u8>)>,
-    written: Vec<Written>,
-    size: (i32, i32),
-}
-
-enum Job {
-    /// The textures whose memory is gone, by address.
-    Forget(Vec<crate::pointers::GamePtr>),
-    Draw(Part),
-    ShowTarget,
-    ShowPicture {
-        frame: Vec<u8>,
-        width: i32,
-        height: i32,
-    },
-    ReadTarget(Sender<Vec<u8>>),
-}
-
 /// The game's side of the GL's thread, and what it knows the GPU holds.
 pub struct Front {
-    jobs: SyncSender<Job>,
+    jobs: SyncSender<Job<Part>>,
     /// The textures up to date on the GPU, with their sizes.
-    known: HashMap<crate::pointers::GamePtr, (usize, usize)>,
+    known: super::TextureMap<(usize, usize)>,
     size: (i32, i32),
+    /// What the GL's background texture holds, at the screen's size.
+    background_held: Option<background::Held>,
 }
 
-/// Jobs waiting at most: a frame's part, its end, a little more; then the game waits.
+/// Jobs waiting for the batching thread at most: a frame's part, its end, a little more; then
+/// the game waits. Past them, one being batched and `BATCHED_WAITING` batched wait for the GL:
+/// with fewer (one waiting in all, handed over directly) the game waited for the GL three
+/// times as long and the handheld drew about 8 % fewer frames (2026-11-13).
 const JOBS_WAITING: usize = 2;
 
+/// Parts batched and waiting for the GL's thread at most.
+const BATCHED_WAITING: usize = 1;
+
 impl Front {
-    fn send(&self, job: Job) {
+    fn send(&self, job: Job<Part>) {
         let start = std::time::Instant::now();
         let sent = self.jobs.send(job);
         super::GL_WAIT_MICROS.fetch_add(
@@ -757,10 +1120,20 @@ impl Front {
         }
     }
 
-    /// Hands over the commands and the canvas's written rows, which it marks again.
-    fn draw(&mut self, canvas: &mut [u8], commands: Vec<Command>) {
+    /// Hands over the commands and the canvas's written rows (as `target` noted them), which it
+    /// marks again.
+    fn draw(&mut self, target: &Target, canvas: &mut [u8], commands: CommandList) {
+        // A frame with only 2D in it (a menu's background and quads) has no `Backend::draw` of
+        // its own: the size is the target's here.
+        let size = (target.width as i32, target.height as i32);
+        if size != self.size {
+            // The GL's background texture is remade at the new size.
+            self.background_held = None;
+            self.size = size;
+        }
         super::FANS.fetch_add(commands.len() as u64, std::sync::atomic::Ordering::Relaxed);
         super::FLUSHES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        super::seethru::note_list(&commands, self.size.0 as u32, self.size.1 as u32);
         let changes = super::take_changed_textures();
         for pixels in changes.written.iter().chain(&changes.gone) {
             self.known.remove(pixels);
@@ -770,24 +1143,18 @@ impl Front {
         }
         let (width, _) = self.size;
         let mut uploads = Vec::new();
-        // One texture is usually drawn many times running.
-        let mut last = None;
-        for command in &commands {
-            if let Command::Fan {
-                texture: Some(note),
-                ..
-            } = command
-                && last != Some(note.pixels)
-            {
-                last = Some(note.pixels);
-                if self.known.get(&note.pixels) != Some(&(note.width, note.height)) {
-                    uploads.push((*note, super::texture_as_bgra(note)));
-                    self.known.insert(note.pixels, (note.width, note.height));
-                }
+        // Each texture the fans read once, in the order they first read them.
+        for note in commands.textures() {
+            if self.known.get(&note.pixels) != Some(&(note.width, note.height)) {
+                uploads.push((*note, super::texture_as_bgra(note)));
+                self.known.insert(note.pixels, (note.width, note.height));
             }
         }
+        let quads = quads::take().fitted_to((width as u32, self.size.1 as u32));
+        let background = self.take_background();
         let stride = width as usize * 4;
-        let written = written_runs(canvas, width as usize)
+        let rows = canvas_rows::written_rows(target, canvas);
+        let written = canvas_rows::written_runs(&rows)
             .into_iter()
             .map(|(first, last)| {
                 let rows = &mut canvas[first * stride..(last + 1) * stride];
@@ -800,13 +1167,41 @@ impl Front {
             commands,
             uploads,
             written,
+            quads,
+            background,
             size: self.size,
         }));
     }
 
+    /// The noted background (`background`), if there is one, as the part brings it: its picture
+    /// when the GL's texture does not hold it already.
+    fn take_background(&mut self) -> Option<Background> {
+        let pending = background::take()?;
+        let bytes = self.size.0 as usize * self.size.1 as usize * 4;
+        let mut picture = None;
+        let sent = background::bring_up(
+            pending,
+            &mut self.background_held,
+            bytes,
+            crate::platform::direct3d::handles().pictures,
+            |rows| {
+                picture = Some(rows.to_vec());
+                Ok(())
+            },
+        );
+        if let Err(why) = sent {
+            crate::fatal::raise::end(
+                "render::gles",
+                crate::errors::BadInput(Box::leak(why.into_boxed_str())),
+            );
+        }
+        Some(picture.map_or(Background::Held, Background::Upload))
+    }
+
     /// The frame's end: what the canvas has written over the target, and the target shown.
-    pub fn finish_and_show(&mut self, canvas: &mut [u8]) {
-        self.draw(canvas, Vec::new());
+    pub fn finish_and_show(&mut self, target: &Target, canvas: &mut [u8]) {
+        self.draw(target, canvas, CommandList::new());
+        super::seethru::frame_end();
         self.send(Job::ShowTarget);
     }
 
@@ -821,9 +1216,9 @@ impl Front {
 
     /// The target's picture, with the canvas's written pixels, into the canvas (waits for the
     /// GL: the frame's whole work so far).
-    pub fn bring_back(&mut self, canvas: &mut [u8]) {
+    pub fn bring_back(&mut self, target: &Target, canvas: &mut [u8]) {
         super::READ_BACKS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        self.draw(canvas, Vec::new());
+        self.draw(target, canvas, CommandList::new());
         let (answer, picture) = channel();
         self.send(Job::ReadTarget(answer));
         let Ok(picture) = picture.recv() else {
@@ -850,50 +1245,22 @@ impl Front {
     }
 }
 
-/// Unwritten rows that may lie inside a run: a run costs an upload and a quad.
-const RUN_GAP: usize = 16;
-
-/// The runs of the canvas's rows holding a written pixel, each its first and last row: the
-/// panels at the top and the bottom leave the rows between them to the 3D.
-fn written_runs(canvas: &[u8], width: usize) -> smallvec::SmallVec<[(usize, usize); 4]> {
-    const BLOCK: usize = 256;
-    let unwritten = UNWRITTEN.to_le_bytes();
-    let blank: [u8; BLOCK] = std::array::from_fn(|n| unwritten[n % 4]);
-    // By blocks, as the library compares memory: this looks at the screen's pixels every frame.
-    let row_written = |row: &[u8]| {
-        let (blocks, rest) = row.as_chunks::<BLOCK>();
-        blocks.iter().any(|block| *block != blank) || *rest != blank[..rest.len()]
-    };
-    // Each row looked at once, the screen in two bands side by side on rayon's threads (no
-    // thread made per flush): the scan is the most of what the game's thread spends here.
-    const BANDS: usize = 2;
-    let stride = width * 4;
-    let mut written = vec![false; canvas.len() / stride.max(1)];
-    let band = written.len().div_ceil(BANDS).max(1);
-    let look = |rows: &[u8], into: &mut [bool]| {
-        for (row, seen) in rows.chunks_exact(stride).zip(into) {
-            *seen = row_written(row);
-        }
-    };
-    let (first_rows, last_rows) = canvas.split_at((band * stride).min(canvas.len()));
-    let rows = written.len();
-    let (first_into, last_into) = written.split_at_mut(band.min(rows));
-    rayon::join(
-        || look(first_rows, first_into),
-        || look(last_rows, last_into),
-    );
-    let mut runs = smallvec::SmallVec::<[(usize, usize); 4]>::new();
-    for y in (0..written.len()).filter(|&y| written[y]) {
-        match runs.last_mut() {
-            Some((_, last)) if y - *last <= RUN_GAP => *last = y,
-            _ => runs.push((y, y)),
-        }
+/// Logs a step of the GL thread's that took long (the first 300 times): which, how long and how
+/// many bytes it sent, to find what makes a frame run over.
+fn note_if_slow(what: &str, since: std::time::Instant, bytes: usize) {
+    static LOGGED: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+    let took = since.elapsed();
+    if took.as_micros() > 4000 && LOGGED.fetch_add(1, std::sync::atomic::Ordering::Relaxed) < 300 {
+        log(&format!(
+            "render: GL step slow: {what} took {:.1} ms for {} KB",
+            took.as_secs_f64() * 1000.0,
+            bytes / 1024
+        ));
     }
-    runs
 }
 
 /// Every pixel of the canvas marked as not written.
-fn mark_unwritten(canvas: &mut [u8]) {
+pub fn mark_unwritten(canvas: &mut [u8]) {
     canvas.as_chunks_mut::<4>().0.fill(UNWRITTEN.to_le_bytes());
 }
 
@@ -916,17 +1283,22 @@ fn blend_factor(factor: u32) -> u32 {
 /// Starts the GL's thread if it is wanted.
 pub fn start_if_wanted() {
     let mut held = GPU.lock().unwrap();
-    if held.is_some() || !wanted() || TRIED.swap(true, std::sync::atomic::Ordering::Relaxed) {
+    if held.is_some() || TRIED.swap(true, std::sync::atomic::Ordering::Relaxed) {
         return;
     }
-    let (jobs, waiting) = sync_channel(JOBS_WAITING);
+    if !wanted() {
+        log("render: the software rasteriser draws the 3D (RC2K_RENDERER=software)");
+        return;
+    }
+    let (jobs, to_batch) = sync_channel(JOBS_WAITING);
+    let (batched, to_draw) = sync_channel(BATCHED_WAITING);
     let (answer, started) = channel();
     let thread = std::thread::Builder::new()
         .name("GL".into())
         .spawn(move || match Gpu::new() {
             Ok(gpu) => {
                 let _ = answer.send(Ok(()));
-                gpu.run(waiting);
+                gpu.run(to_draw);
             }
             Err(why) => {
                 let _ = answer.send(Err(why));
@@ -938,17 +1310,28 @@ pub fn start_if_wanted() {
             .unwrap_or_else(|_| Err("the GL's thread ended".into())),
         Err(why) => Err(why.to_string()),
     };
+    // The GL's thread, without its batches' sender, ends when this does not start.
+    let outcome = outcome.and_then(|()| {
+        std::thread::Builder::new()
+            .name("GL batches".into())
+            .spawn(move || super::gl_batching::run(to_batch, batched, same_array, bench::enabled()))
+            .map(drop)
+            .map_err(|why| why.to_string())
+    });
     match outcome {
         Ok(()) => {
             log("render: the GPU backend on libmali's OpenGL ES, on its own thread");
             *held = Some(Front {
                 jobs,
-                known: HashMap::new(),
+                known: Default::default(),
                 size: (0, 0),
+                background_held: None,
             });
             super::gpu_started();
         }
-        Err(why) => log(&format!("render: the GPU backend does not start: {why}")),
+        Err(why) => log(&format!(
+            "render: the GPU backend does not start ({why}): the software rasteriser draws the 3D"
+        )),
     }
 }
 
@@ -956,8 +1339,7 @@ pub fn start_if_wanted() {
 static TRIED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 impl super::Backend for Front {
-    fn draw(&mut self, target: &Target, commands: Vec<Command>) {
-        self.size = (target.width as i32, target.height as i32);
-        target.with_canvas(|canvas| Front::draw(self, canvas, commands));
+    fn draw(&mut self, target: &Target, commands: CommandList) {
+        target.with_canvas(|canvas| Front::draw(self, target, canvas, commands));
     }
 }

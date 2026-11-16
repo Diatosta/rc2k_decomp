@@ -1,27 +1,21 @@
-//! `gfx::blit_glyph` (0x4069B2): draws one run-length-encoded glyph on the global surface,
-//! clipped to the global clip rectangle.
-//!
-//! Takes: glyph index, x, y, palette (256 dwords), glyph table
-//! No surface, a null table and a glyph index past the table are fatal errors in the original:
-//! `glyph_record` returns them as errors.
-//!
+//! Draws one run-length-encoded glyph on the global surface, clipped to the global clip rectangle:
+//! glyph index, x, y, palette (256 dwords), glyph table. No surface, a null table and a glyph index
+//! past the table are fatal errors: `glyph_record` returns them as errors.
 //! A glyph table starts with one dword offset per glyph (so the first offset / 4 is the glyph
-//! count). A normal record is `[x offset][y offset][width][height]` in bytes, then per row
-//! runs of `[count][gap][count pixels]`, a count of 0 ending the row. Its pixels are palette
-//! indices: stored raw on an 8-bit surface, through the palette on 16-bit and 32-bit ones.
-//! An extended record starts with a dword >= 0xFFFFFFFC, then the same four values as words;
-//! its counts, gaps and pixels are words (marker 0xFFFFFFFE) or dwords (any other marker) and
-//! the pixels are copied as they are, whatever the surface depth.
+//! count). A normal record is `[x offset][y offset][width][height]` in bytes, then per row runs of
+//! `[count][gap][count pixels]`, a count of 0 ending the row. Its pixels are palette indices:
+//! stored raw on an 8-bit surface, through the palette on 16-bit and 32-bit ones. An extended
+//! record starts with a dword marker >= 0xFFFFFFFC, then the same four values as words; its counts,
+//! gaps and pixels are words (marker 0xFFFFFFFE) or dwords (any other marker) and the pixels are
+//! copied as they are, whatever the surface depth.
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::gfx::glyph_store::{self, Glyphs};
 use crate::gfx::surface::{Clip, Surface, Target, clip, surface};
 use rc2k_core::strings::bytes::Bytes as _;
 
-// ---- game data ----
-
-/// The four work globals the blitter leaves behind. Each is only written once the clipping
-/// has got that far, so a glyph that is clipped away leaves the later ones as they were.
+/// The four work globals the blitter leaves behind. Each is only written once the clipping has got
+/// that far, so a glyph that is clipped away leaves the later ones as they were.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Scratch {
     /// Pixels clipped off on the left.
@@ -52,7 +46,7 @@ fn write_scratch(s: &Scratch, gfx: &crate::gfx::owner::Gfx) {
     drawing.blit.rows_left.set(s.rows_left as u32);
 }
 
-/// The three conditions the original reports as fatal errors, each with a null message.
+/// The three conditions that are fatal errors, each with a null message.
 pub const NO_SURFACE: FatalError = FatalError {
     code: 0x80A1_9D97,
     message: "",
@@ -66,16 +60,20 @@ pub const GLYPH_OUT_OF_RANGE: FatalError = FatalError {
     message: "",
 };
 
-/// Record number `glyph` of a glyph table (`add esi, [esi+eax*4]`), after the three checks
-/// the original makes first.
-pub fn glyph_record(surface: &Surface, table: u32, glyph: u32) -> Result<Glyphs, Refused> {
+/// Record number `glyph` of a glyph table after the three checks.
+pub fn glyph_record<'a>(
+    fonts: &'a crate::gfx::owner::FontStores,
+    surface: &Surface,
+    table: u32,
+    glyph: u32,
+) -> Result<Glyphs<'a>, Refused> {
     if surface.target.is_none() {
         return Err(NO_SURFACE.into());
     }
     if table == 0 {
         return Err(NO_GLYPH_TABLE.into());
     }
-    let records = glyph_store::bytes(table, "a glyph table")?;
+    let records = glyph_store::bytes(fonts, table, "a glyph table")?;
     let count = records.u32_le(0).ok_or(BadInput("a glyph table"))?;
     if glyph >= count >> 2 {
         return Err(GLYPH_OUT_OF_RANGE.into());
@@ -83,24 +81,61 @@ pub fn glyph_record(surface: &Surface, table: u32, glyph: u32) -> Result<Glyphs,
     let offset = records
         .u32_le(glyph.wrapping_mul(4) as usize)
         .ok_or(BadInput("a glyph table's offset"))?;
+    let offset = offset as usize;
     Ok(match records {
-        Glyphs::Held(b, from) => Glyphs::Held(b, from.wrapping_add(offset as usize)),
-        Glyphs::Game(_) => glyph_store::bytes(table.wrapping_add(offset), "a glyph")?,
+        Glyphs::Held(b, from) => Glyphs::Held(b, from.wrapping_add(offset)),
+        Glyphs::Jade(jade, from) => Glyphs::Jade(jade, from.wrapping_add(offset)),
+        Glyphs::Cells(which, cells, from) => Glyphs::Cells(which, cells, from.wrapping_add(offset)),
     })
 }
 
-// ---- Rust version ----
-// Converted: `rc2k_core::gfx::blit`. Here the record is read as raw game memory; the core's
-// offsets from the surface's start go to its target (`gfx::surface::Target`).
+// The record is read as raw game memory; the core's offsets from the surface's start go to its
+// target (`gfx::surface::Target`).
 
-/// Draws the glyph `record` at (`x`, `y`). `put(offset, bytes)` receives every write, the
-/// offset from the surface's start.
-#[allow(clippy::too_many_arguments)] // the original's five inputs, the surface, the clip and the sink
+/// Draws the glyph `record` at (`x`, `y`). `put(offset, bytes)` receives every write, the offset
+/// from the surface's start.
+#[allow(clippy::too_many_arguments)] // the five inputs, the surface, the clip and the sink
 pub fn blit_glyph(
+    fonts: &crate::gfx::owner::FontStores,
     record: &Glyphs,
     x: i32,
     y: i32,
     palette: Option<u32>,
+    surface: &Surface,
+    clip: &Clip,
+    scratch: &mut Scratch,
+    put: &mut dyn FnMut(u32, &[u8]),
+) -> Result<(), Refused> {
+    // The palette read inside its allocation, and only when a colour is looked up (the sprites have
+    // none: their records are direct colour).
+    let colours = std::cell::OnceCell::new();
+    let colour_at = |n: u8| {
+        let colours = colours
+            .get_or_init(|| glyph_store::bytes(fonts, palette?, "a palette").ok())
+            .as_ref()?;
+        colours.u32_le(4 * n as usize)
+    };
+    blit_glyph_by(
+        record,
+        x,
+        y,
+        (&colour_at, palette.is_some()),
+        surface,
+        clip,
+        scratch,
+        put,
+    )
+}
+
+/// `blit_glyph` with the colours given by `colour_at(index)`: a colour outside the palette is
+/// `None`, and the blit is refused afterwards (the core's colour has no failure). `has_palette`
+/// says which refusal that is.
+#[allow(clippy::too_many_arguments)] // the five inputs, the surface, the clip and the sink
+pub fn blit_glyph_by(
+    record: &Glyphs,
+    x: i32,
+    y: i32,
+    (colour_at, has_palette): (&dyn Fn(u8) -> Option<u32>, bool),
     surface: &Surface,
     clip: &Clip,
     scratch: &mut Scratch,
@@ -113,23 +148,9 @@ pub fn blit_glyph(
         top_skip: scratch.top_skip,
         rows_left: scratch.rows_left,
     };
-    // The palette read inside its allocation, and only when a colour is looked up (the
-    // sprites have none: the original hands them leftover values it never reads, as their
-    // records are direct colour); an entry outside, or a lookup with no palette, answers 0
-    // here and the blit is refused afterwards (the core's colour has no failure).
-    let colours = std::cell::OnceCell::new();
     let past_palette = std::cell::Cell::new(false);
     let colour = |n: u8| {
-        let at = 4 * n as usize;
-        let Some(palette) = palette else {
-            past_palette.set(true);
-            return 0;
-        };
-        let Ok(colours) = colours.get_or_init(|| glyph_store::bytes(palette, "a palette")) else {
-            past_palette.set(true);
-            return 0;
-        };
-        colours.u32_le(at).unwrap_or_else(|| {
+        colour_at(n).unwrap_or_else(|| {
             past_palette.set(true);
             0
         })
@@ -157,7 +178,7 @@ pub fn blit_glyph(
         return Err(BadInput("a read past a glyph's record").into());
     };
     if past_palette.get() {
-        return Err(BadInput(if palette.is_some() {
+        return Err(BadInput(if has_palette {
             "a colour past a palette's allocation"
         } else {
             "a palette-indexed glyph drawn with no palette"
@@ -173,47 +194,132 @@ pub fn blit_glyph(
     Ok(())
 }
 
-/// Draws glyph `glyph` of `table` on the game's surface with the game's clip rectangle, and
-/// updates the blitter's work globals: what a call of the original does.
+/// Draws glyph `glyph` of `table` on the game's surface with the game's clip rectangle, and updates
+/// the blitter's work globals.
 pub fn blit_glyph_on_surface(
     glyph: u32,
     table: u32,
     x: i32,
     y: i32,
     palette: Option<u32>,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
-    let gfx = crate::gfx::owner::gfx();
-    let surface = surface();
-    let record = glyph_record(&surface, table, glyph)?;
-    let mut scratch = read_scratch(gfx);
+    let surface = surface(gfx);
+    let record = glyph_record(&gfx.fonts, &surface, table, glyph)?;
+    let before = read_scratch(gfx);
+    let mut scratch = before;
     let target = surface.target.ok_or(NO_SURFACE)?;
-    let surface_window = crate::pointers::Window::new();
+    let surface_window = match target {
+        Target::Locked(handle) => crate::gfx::locked_pixels::Place::start(handle),
+        Target::Picture(_) => crate::gfx::locked_pixels::Place::start(0),
+    };
+    let recording = crate::gfx::draw2d::enabled() && crate::gfx::draw2d::is_screen(Some(target));
+    let clip = clip(gfx);
+    // On the screen, a glyph the atlas holds is noted as a quad for the GPU to draw: the canvas is
+    // not written (the work variables are what the clip leaves).
+    let call = crate::gfx::draw2d::quads::Call {
+        glyph,
+        table,
+        x,
+        y,
+        palette,
+    };
+    let by_quad = if crate::gfx::draw2d::is_screen(Some(target)) {
+        crate::gfx::draw2d::quads::note_glyph(&gfx.fonts, &record, call, &surface, &clip, before)
+    } else {
+        None
+    };
+    if let Some(after) = by_quad
+        && !recording
     {
-        blit_glyph(
-            &record,
-            x,
-            y,
-            palette,
-            &surface,
-            &clip(),
-            &mut scratch,
-            &mut |offset, bytes| match target {
-                Target::Address(a) => {
-                    surface_window.write_bytes_or_end(a.wrapping_add(offset), bytes, "the surface");
+        write_scratch(&after, gfx);
+        return Ok(());
+    }
+    blit_glyph(
+        &gfx.fonts,
+        &record,
+        x,
+        y,
+        palette,
+        &surface,
+        &clip,
+        &mut scratch,
+        &mut |offset, bytes| match target {
+            Target::Locked(_) => {
+                // With the quad check the canvas is left to the quad.
+                if by_quad.is_none() {
+                    surface_window.must_write_bytes_at(offset, bytes, "the surface");
                 }
-                Target::Picture(n) => {
-                    if let Err(e) = crate::gfx::picture::write_bytes(n, offset as usize, bytes) {
-                        crate::fatal::raise::end("the surface", e)
-                    }
+                if recording {
+                    crate::gfx::draw2d::mirror(offset, bytes);
                 }
-            },
-        )
-    }?;
+            }
+            Target::Picture(n) => {
+                if let Err(e) = crate::gfx::picture::write_bytes(
+                    &gfx.pictures.buffers,
+                    n,
+                    offset as usize,
+                    bytes,
+                ) {
+                    crate::fatal::raise::end("the surface", e)
+                }
+            }
+        },
+    )?;
+    if let Some(after) = by_quad {
+        crate::gfx::draw2d::quads::check_scratch(after, scratch, call);
+    }
     write_scratch(&scratch, gfx);
+    if recording {
+        note_glyph(
+            gfx,
+            (glyph, table, x, y, palette),
+            &surface,
+            &clip,
+            before,
+            scratch,
+        );
+    }
     Ok(())
 }
 
-// ---- a call, as the canvases pass it on ----
+/// Notes a glyph drawn on the screen for the 2D record.
+fn note_glyph(
+    gfx: &crate::gfx::owner::Gfx,
+    (glyph, table, x, y, palette): (u32, u32, i32, i32, Option<u32>),
+    surface: &Surface,
+    clip: &Clip,
+    before: Scratch,
+    after: Scratch,
+) {
+    use crate::gfx::draw2d::{Canvas, Command, Glyph};
+    crate::gfx::draw2d::push(Command::Glyph(Glyph {
+        call: BlitCall {
+            glyph,
+            x,
+            y,
+            palette,
+            table,
+            clip_right: clip.right,
+        },
+        canvas: Canvas {
+            surface: rc2k_core::gfx::raster::Surface {
+                bits: surface.bits_per_pixel,
+                bytes_per_pixel: surface.bytes_per_pixel,
+                pitch: surface.pitch,
+            },
+            clip: rc2k_core::gfx::raster::Clip {
+                left: clip.left,
+                right: clip.right,
+                top: clip.top,
+                bottom: clip.bottom,
+            },
+        },
+        palette: palette.and_then(|p| crate::gfx::draw2d::palette_state(&gfx.fonts, p)),
+        before,
+        after,
+    }));
+}
 
 /// One call of `blit_glyph`, as its caller made it.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -221,37 +327,45 @@ pub struct BlitCall {
     pub glyph: u32,
     pub x: i32,
     pub y: i32,
-    /// A font's palette (a glyph store handle); none for the sprite table's sprites, which
-    /// are direct colour (`gfx::build_menu_sprites` checks).
+    /// A font's palette (a glyph store handle); none for the sprite table's sprites, which are
+    /// direct colour (`gfx::build_menu_sprites` checks).
     pub palette: Option<u32>,
     pub table: u32,
-    /// `g_clipRight` at the time of the call: one caller narrows it around a blit.
+    /// The clip rectangle's right edge at the time of the call: one caller narrows it around a
+    /// blit.
     pub clip_right: i32,
 }
 
 impl BlitCall {
-    /// A call made now, with the clip rectangle as the game has it at this moment: glyph
-    /// `glyph` of a font's table with its palette.
-    pub fn glyph(glyph: u32, x: i32, y: i32, palette: u32, table: u32) -> Self {
+    /// A call made now, with the clip rectangle's right edge as the canvas has it at this moment:
+    /// Glyph `glyph` of a font's table with its palette.
+    pub fn glyph(glyph: u32, x: i32, y: i32, palette: u32, table: u32, clip_right: i32) -> Self {
         Self {
             glyph,
             x,
             y,
             palette: Some(palette),
             table,
-            clip_right: clip().right,
+            clip_right,
         }
     }
 
-    /// Sprite `glyph` of the sprite table (`g_spriteTable`), made now.
-    pub fn sprite(glyph: u32, x: i32, y: i32) -> Self {
+    /// Sprite `glyph` of the sprite table, made now with the clip rectangle's right edge
+    /// `clip_right`.
+    pub fn sprite(
+        menus: &crate::menu::owner::Menus,
+        glyph: u32,
+        x: i32,
+        y: i32,
+        clip_right: i32,
+    ) -> Self {
         Self {
             glyph,
             x,
             y,
             palette: None,
-            table: crate::gfx::blit_marker_pair::sprite_table(),
-            clip_right: clip().right,
+            table: crate::gfx::blit_marker_pair::sprite_table(menus),
+            clip_right,
         }
     }
 }

@@ -1,28 +1,25 @@
-//! `menu::inspection_pass` (0x4A8556): the inspection after a stage. `dword_75592C` 1;
-//! for each counted player (`dword_75598C` 0 .. `dword_755984`, the original's `do ..
-//! while`) taking part (+0xD0 1): its figures (`menu::driver_stats`), the verdict
-//! (`menu::inspection_verdict`) and the faults (`menu::inspection_faults`); one that fails
-//! (+0xD0 now 2) counts in `dword_755978` and is shown the inspection: its screen
-//! (`menu::inspection_screen`), a second's sleep, the fade in, the inspection page
-//! (`menu::inspection_area_loop`; a yes to leaving ends it all), the fade out, 1250 ms'
-//! sleep. When every player has failed (`dword_755978` the player count), `dword_75592C`
-//! 0 (the event is over).
+//! `menu::inspection_pass`: the inspection after a stage. `event.event_goes_on` 1;
+//! for each counted player (`event.current_player` 0 .. `event.player_count`) taking part
+//! (+0xD0 1): its figures (`menu::driver_stats`), the verdict (`menu::inspection_verdict`) and
+//! the faults (`menu::inspection_faults`); one that fails (+0xD0 now 2) counts in
+//! `event.event_out` and is shown the inspection: its screen (`menu::inspection_screen`), a
+//! second's sleep, the fade in, the inspection page (`menu::inspection_area_loop`; a yes to
+//! leaving ends it all), the fade out, 1250 ms' sleep. When every player has failed
+//! (`event.event_out` the player count), `event.event_goes_on` 0 (the event is over).
 //!
-//! Callers: the event drivers. The figures, verdict and faults are their Rust versions. Refuses a
-//! player count of 0 or past 4, a player missing, a taking-part player's car without its table,
-//! before anything.
+//! Callers: the event drivers. Refuses a player count of 0 or past 4, a player missing, a
+//! taking-part player's car without its table, before anything.
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
+use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::menu::standings::*;
 
-/// The Rust version.
-pub fn inspection_pass(menus: &Menus) -> Result<(), Refused> {
+pub fn inspection_pass(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
     let screens = &menus.screens;
-    // Converted: `rc2k_core::menu::passes` (who is looked at, the pauses, `goes_on`).
     use rc2k_core::menu::passes;
-    let players = counted_players(screens)?;
+    let players = counted_players(&menus.screens, &menus.play)?;
     for &p in &players {
         if passes::takes_part(p.get().entry) {
             crate::menu::driver_stats::car_table(menus, p)?;
@@ -45,20 +42,20 @@ pub fn inspection_pass(menus: &Menus) -> Result<(), Refused> {
             .event
             .event_out
             .set(menus.screens.event.event_out.get().wrapping_add(1));
-        crate::menu::inspection_screen::inspection_screen()?;
+        crate::menu::inspection_screen::inspection_screen(entry.owners)?;
         crate::system::sleep::sleep(passes::SCREEN_PAUSE);
-        crate::menu::fade_in::fade_in(screens)?;
-        run_screen(
-            &crate::menu::inspection_area_loop::SCREEN,
-            &Entry::new(menus),
-        )?;
+        crate::menu::fade_in::fade_in(entry.owners)?;
+        run_screen(ScreenId::InspectionArea, entry)?;
         if menus.tables.pages.yes_no_answer.get() == 1 {
             return Ok(());
         }
-        crate::menu::fades::fade(screens, true)?;
+        crate::menu::fades::fade(entry.owners, true)?;
         crate::system::sleep::sleep(passes::INSPECTION_PAUSE);
     }
-    if !passes::goes_on(menus.screens.event.event_out.get(), PLAYER_COUNT_RVA.get()) {
+    if !passes::goes_on(
+        menus.screens.event.event_out.get(),
+        menus.screens.event.player_count.get(),
+    ) {
         menus.screens.event.event_goes_on.set(0u32);
     }
     Ok(())

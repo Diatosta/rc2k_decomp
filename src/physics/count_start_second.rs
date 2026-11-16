@@ -1,43 +1,27 @@
-//! `physics::count_start_second` (0x436AC4): `g_car` +0x88 (`unk_71A060`) up by one when
-//! +0x26C (`unk_71A244`) is -1 or 0, the start count +0x1C is 0, the timer +0x14 less
-//! 0x320 is not below 0 (by its sign) and +0xA8 (`unk_71A080`) is 0. A reading: time
-//! counted once the start is behind (`physics::false_start`'s fields).
+//! Adds one to the car's `stage_time` when `tyre_change_state` is -1 or 0, the start count is 0,
+//! the timer less 0x320 is not below 0 and `finish_flag` is 0. A reading: time counted once the
+//! start is behind (`physics::false_start`'s fields).
 //!
-//! Returns: the timer less 0x320 when it got that far
+//! Returns the timer less 0x320 when it got that far.
 //!
-//! Caller: `physics::race_timers` (four calls).
+//! Caller: `physics::race_timers`.
 
-use crate::race::owner_shared::Shared;
-use crate::session::Cell32;
+use crate::physics::car_store::Car;
 use rc2k_core::physics::start::CarStart;
 
-fn game(shared: &Shared) -> Vec<&dyn Cell32> {
-    vec![
-        &shared.car.tyre_change_state as &dyn Cell32,
-        &shared.car.false_start_count,
-        &shared.car.run_ticks,
-        &shared.car.finish_flag,
-        &shared.car.stage_time,
-    ]
-}
-
-/// The Rust version on the variables' cells.
-// Converted: `rc2k_core::physics::start::CarStart::count_start_second`.
-fn core(v: &[&dyn Cell32]) {
+// Core: `rc2k_core::physics::start::CarStart::count_start_second`.
+pub fn count_start_second(car: &Car) {
     let was = CarStart {
-        state: v[0].bits(),
-        count: v[1].bits(),
-        timer: v[2].bits(),
-        finished: v[3].bits(),
-        time: v[4].bits(),
+        state: car.tyre_change_state.get(),
+        count: car.false_start_count.get(),
+        timer: car.run_ticks.get(),
+        finished: car.finish_flag.get(),
+        time: car.stage_time.get(),
         ..CarStart::default()
     };
     let mut c = was;
     c.count_start_second();
-    crate::physics::cells::set_changed(v[4], was.time, c.time);
-}
-
-/// The Rust version.
-pub fn count_start_second(shared: &Shared) {
-    core(&game(shared));
+    if c.time != was.time {
+        car.stage_time.set(c.time);
+    }
 }

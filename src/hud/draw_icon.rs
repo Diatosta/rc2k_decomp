@@ -1,23 +1,23 @@
-//! `hud::draw_icon` (0x4B587E): a square icon of a view's start lights (`Panel::lights`;
-//! none while `lit` is -1): its width and drop times the icon scale
-//! (`fistp` into `icon_size`), centred on 0x320 / 2 plus the icon shift, its top the row
-//! plus the drop, as tall as wide; texture places 0 / 1; colour white under its alpha;
-//! `hud::add_polygon` on four.
-//!
-//! Callers: `hud::icons`.
+//! A square icon of a view's start lights (`Panel::lights`; none while `lit` is -1): its width
+//! and drop times the icon scale (rounded into `icon_size`), centred on 0x320 / 2 plus the icon
+//! shift, its top the row plus the drop, as tall as wide; texture places 0 / 1; colour white
+//! under its alpha; `hud::add_polygon` on four.
 
-use crate::d3d::vertices_store::VERTICES;
 use crate::errors::Refused;
-use crate::hud::owner::Hud;
+use crate::hud::owner::{Hud, Pen};
 use crate::race::owner_frame::Frame;
 use crate::race::panel_store::Lights;
 
-use crate::scene::owner::scene;
 use rc2k_core::hud::icons;
 
-/// The Rust version (see the header): the icon of `lights`, `bottom` its row.
-// Converted: `rc2k_core::hud::icons`
-pub fn draw_icon(frame: &Frame, hud: &Hud, lights: &Lights, bottom: u32) -> Result<(), Refused> {
+/// The icon of `lights`, `bottom` its row.
+pub fn draw_icon(
+    frame: &Frame,
+    hud: &Hud,
+    pen: Pen,
+    lights: &Lights,
+    bottom: u32,
+) -> Result<(), Refused> {
     if !icons::shown(lights.lit.get()) {
         return Ok(());
     }
@@ -35,16 +35,16 @@ pub fn draw_icon(frame: &Frame, hud: &Hud, lights: &Lights, bottom: u32) -> Resu
         bottom,
     );
     for (n, u, v, x, y) in icons::corners(&i) {
-        let at = &VERTICES.vertices[n];
-        at.u.set_bits((u as i32 as f32).to_bits());
-        at.v.set_bits((v as i32 as f32).to_bits());
-        at.x.set_bits((x as i32 as f32).to_bits());
-        at.y.set_bits((y as i32 as f32).to_bits());
+        let at = &pen.vertices.vertices[n];
+        at.u.set(u as i32 as f32);
+        at.v.set(v as i32 as f32);
+        at.x.set(x as i32 as f32);
+        at.y.set(y as i32 as f32);
         at.colour.set(i.colour);
         at.specular.set(0);
-        // `fild` through `scratch`: it keeps the last.
-        hud.block.scratch.set(y);
+        // The scratch cell keeps the last value stored.
+        hud.block.fistp_scratch.set(y);
     }
-    scene().drawing.scene.polygon_vertex_count.set_bits(4u32);
-    crate::hud::add_polygon::add_polygon(frame, hud)
+    pen.polygons.polygon_vertex_count.set(4u32);
+    crate::hud::add_polygon::add_polygon(frame, hud, pen)
 }

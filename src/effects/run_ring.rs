@@ -1,92 +1,105 @@
-//! `effects::run_ring` (0x4CB64D, with its chunk 0x4CE681 .. 0x4CF85E): the emitters' ring's
-//! frame. Each of `g_marksRingCount` entries from `g_marksRingCursor` along +4 stepped by
-//! its kind (+0xC; others nothing): the life (+0x84) less `g_marksFrameTicks` (dies when
-//! that borrows) and, but for the boxed kinds' own test, death below its ground (+0x28,
-//! `fcomp`). When the settings' entry flag (`g_marksSettings` + the entry's +8 + 0x60) is
-//! set it is drawn: kinds 5, 0xD with their place on the object's (`[[+0x68] + 0x24] +
-//! 0x30` .., the sums unrounded), 6, 0x15, 1, 0x13, 0x16 at their place, by
-//! `effects::draw_cell_sprite` (0xB by its twin `draw_cell_sprite_2`; cell +0x58, angle
-//! +0x50, alpha +0x74, size +0x60 as whole numbers or as they are); 0x10, 0x11 by
-//! `effects::draw_subcell_sprite` (subcell +0x58 plus the life's frame of four). Then the
-//! angle on (+0x54 times `flt_764FD4`, kept to 12 bits), the place moved by the motion, the
-//! kind's gains, dampings (a part that changes sign stops at 0), the size pulled toward
-//! +0x70 (kinds 6, 0x15 only while outside the object's box and not facing it; kind 1 also
-//! its +0x64 pulled toward `flt_7651DC` when near and facing), the alpha faded by +0x78;
-//! kinds 0x10, 0x11 die inside the object's box above `flt_935670`. A dead entry is moved
-//! to just before the cursor (or that moved on past it).
+//! `effects::run_ring`: the emitters' ring's frame. Each entry from the ring's cursor along its
+//! links is stepped by its kind: the life runs down by the frame's ticks (dead when it borrows, or
+//! below the ground), kinds are drawn as cell or subcell sprites when the settings' flag for the
+//! entry's car is set, then the angle, place, motion, dampings, size and alpha are advanced (kinds
+//! differ in their gains and in how the size is pulled toward the object). A dead entry is moved to
+//! just before the cursor.
 //!
-//! In:  nothing (`g_marksSettings`)
-//!
-//! Caller: `effects::run_frame` (0x4D163B, after `run_ribbons`' set-up). The longer x87 runs
-//! are plain Rust on the x87 model (`math::x87_float`), in the original's order, over the entries and the game's variables. Refuses,
-//! before anything, null settings, a null entry or link on the way, a null object where one
-//! is read, and the draws' own refusals for an entry that may be drawn.
+//! The longer x87 runs are plain Rust on the x87 model (`math::x87_float`), over the entries and
+//! the game's variables. Refuses, before anything, null settings, a null entry or link on the way,
+//! a null object where one is read, and the draws' own refusals for an entry that may be drawn.
 
-use crate::effects::emitters::matrix_cell;
+use crate::effects::cell_x87::CellX87;
+use crate::effects::emitters::matrix_float;
 use crate::effects::mask_store::Masks;
-#[cfg(test)]
-use crate::effects::owner::effects;
-use crate::effects::ring_entries::{entry, ld, set, st};
+use crate::effects::ring_entries::{entry, ld, set, st, walk_ring};
 use crate::effects::ring_store::Ring;
 use crate::effects::ring_store::RingWork;
 use crate::effects::setup::MarksClock;
 use crate::effects::tuning::MarksFloats;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::race::marks_settings_store::{MarkCar, MarksSettings, car_or_none};
-use crate::race::owner_frame::Frame;
+use crate::race::effects_settings_store::{CarEffects, EffectsSettings};
 use crate::scene::matrix3::extended;
-use crate::session::Float;
 
-/// The settings' flag for a ring entry's tag (its +8, a car's number times 0x4C8 for the
-/// cars' emitters): the word at the tag + 0x60 in the settings.
-fn entry_flag(marks: &MarksSettings, tag: u32) -> Result<u32, BadInput> {
-    marks.at(tag.wrapping_add(0x60)).read("a mark's field")
+/// The settings' flag for a ring entry's tag (its +8, a car's number times the car record's
+/// length, as `cars_particles` makes it): the first word of that car's record.
+fn entry_flag(marks: &EffectsSettings, tag: u32) -> Result<u32, BadInput> {
+    let record = crate::race::effects_settings_store::CAR_LEN as u32;
+    if !tag.is_multiple_of(record) {
+        return Err(BadInput("a ring entry's tag that is no car's"));
+    }
+    marks
+        .cars
+        .get((tag / record) as usize)
+        .map(|car| car.streaks_on.get())
+        .ok_or(BadInput("a ring entry's tag past the cars"))
 }
 
 fn k(cell: &f32) -> u32 {
     cell.to_bits()
 }
 
-/// The original's 0x4CE9AF .. 0x4CEA40 (and 0x4CEC77 ..): the place less the object's (`[p + 0x30]` ..) into `flt_935718` .., turned by the object's matrix (`m`), |x| and |z| `fistp`ed into `dword_935680` / `dword_935684`.
-/// The car a ring entry is on (its +0x68, a `marks_settings_store::car_handle`).
-fn entry_car(ring: &Ring, e: u32) -> Result<&'static MarkCar, Refused> {
-    car_or_none(entry(ring, e)?.car).ok_or_else(|| BadInput("a ring entry without its car").into())
+/// The car a ring entry is on (its +0x68, a `effects_settings_store::car_handle`).
+fn entry_car(
+    ring: &Ring,
+    e: u32,
+    effects: &crate::effects::owner::Effects,
+) -> Result<&'static CarEffects, Refused> {
+    effects
+        .car_record(entry(ring, e)?.car)
+        .ok_or_else(|| BadInput("a ring entry without its car").into())
 }
 
-fn box_(ring: &Ring, e: u32, whole: &[Float; 16], car: &MarkCar) {
+/// The place less the object's (`[p + 0x30]` ..) into `RingWork.away[0]` .., turned by the object's
+/// matrix (`m`), |x| and |z| rounded into `RingWork.extent[0]` / `RingWork.extent[1]`.
+fn box_(ring: &Ring, e: u32, whole: &[crate::memory::session::PlainFloat; 16], car: &CarEffects) {
     box_x87(ring, &ring.work, e, whole, car);
 }
 
-/// The car's whole matrix (its block's), refused where the original would read address 0.
-fn whole_of(car: &MarkCar) -> Result<&'static [Float; 16], BadInput> {
-    crate::race::blocks_store::car_of(car.whole_block.get())
+/// The car's whole matrix (its block's); refused when there is none.
+fn whole_of(
+    car: &CarEffects,
+    effects: &crate::effects::owner::Effects,
+) -> Result<&'static [crate::memory::session::PlainFloat; 16], BadInput> {
+    effects
+        .car_blocks()
+        .ok()
+        .and_then(|blocks| blocks.of(car.whole_block.get()))
         .map(|b| &b.whole_matrix)
         .ok_or(BadInput("a ring entry without its object"))
 }
 
-/// The original's 0x4CEA5E .. 0x4CEAD4 (and 0x4CED26 ..): that way made one long (`flt_76516C` over its length), dotted with the object's +0x4C .. into `flt_9356B4`.
-fn facing(ring: &Ring, car: &MarkCar, effects: &crate::effects::owner::Effects) {
+/// That way made one long (`MarksFloats.one` over its length), dotted with the object's +0x4C ..
+/// into `RingWork.facing`.
+fn facing(ring: &Ring, car: &CarEffects, effects: &crate::effects::owner::Effects) {
     facing_x87(car, &effects.setup.floats, &ring.work);
 }
 
-/// The original's 0x4CEF8A .. 0x4CEFDA: the place less the object's into `flt_935718` .., its length (kept, 80 bits, at `l`) less `flt_93A526` into `flt_9356BC`.
-fn pull_length(ring: &Ring, e: u32, whole: &[Float; 16], length: &mut [u8; 10]) {
+/// The place less the object's into `RingWork.away[0]` .., its length (kept, 80 bits, at `l`)
+/// less a constant into `RingWork.near`.
+fn pull_length(
+    ring: &Ring,
+    e: u32,
+    whole: &[crate::memory::session::PlainFloat; 16],
+    length: &mut [u8; 10],
+) {
     pull_length_x87(ring, e, whole, length, &ring.work, &ring.kinds);
 }
 
-/// The original's 0x4CEFEC .. 0x4CF07F: the way made one long by the kept length, the object's +0x4C .. over its +0x88, minus their dot into `flt_9356B4`.
+/// The way made one long by the kept length, the object's +0x4C .. over its +0x88, minus their dot
+/// into `RingWork.facing`.
 fn pull_facing(
     ring: &Ring,
-    car: &MarkCar,
+    car: &CarEffects,
     length: &[u8; 10],
     effects: &crate::effects::owner::Effects,
 ) {
     pull_facing_x87(car, length, &effects.setup.floats, &ring.work);
 }
 
-/// The original's 0x4CF08B .. 0x4CF0D8: the entry's +0x64 pulled toward `flt_7651DC` (`fist` into `dword_9356C0`).
-fn pull_strength(ring: &Ring, e: u32, car: &MarkCar, effects: &crate::effects::owner::Effects) {
+/// The entry's +0x64 pulled toward `MarksFloats.fixed_16_scale` (rounded into `RingWork.whole`).
+fn pull_strength(ring: &Ring, e: u32, car: &CarEffects, effects: &crate::effects::owner::Effects) {
     let setup = &effects.setup;
     pull_strength_x87(
         ring,
@@ -99,92 +112,84 @@ fn pull_strength(ring: &Ring, e: u32, car: &MarkCar, effects: &crate::effects::o
     );
 }
 
-/// The original's 0x4CF65C .. 0x4CF6B7 (and 0x4CF7C4 ..): the place turned by the object's matrix (`m`), |x| and |z| into `dword_935680` / `dword_935684`.
-fn box_place(ring: &Ring, e: u32, car: &MarkCar) {
+/// The place turned by the object's matrix (`m`), |x| and |z| into `RingWork.extent[0]` /
+/// `RingWork.extent[1]`.
+fn box_place(ring: &Ring, e: u32, car: &CarEffects) {
     box_place_x87(ring, &ring.work, e, car);
 }
 
 /// The kinds' constants: (the y gain, the three dampings, the size's rate).
-struct Kind {
-    gain: Option<&'static f32>,
-    damp: [&'static f32; 3],
-    pull: Option<&'static f32>,
+struct Kind<'a> {
+    gain: Option<&'a f32>,
+    damp: [&'a f32; 3],
+    pull: Option<&'a f32>,
 }
 
-impl Kind {
-    /// The size's rate (the kinds that pull the size have one; the original would read
-    /// address 0 for one that has none: refused).
-    fn pull(&self) -> Result<&'static f32, BadInput> {
+impl<'a> Kind<'a> {
+    /// The size's rate (the kinds that pull the size have one); refused for one that has none.
+    fn pull(&self) -> Result<&'a f32, BadInput> {
         self.pull
             .ok_or(BadInput("a ring kind that pulls the size without a rate"))
     }
 
     /// The y gain (the kinds that gain have one; as `pull`).
-    fn gain(&self) -> Result<&'static f32, BadInput> {
+    fn gain(&self) -> Result<&'a f32, BadInput> {
         self.gain
             .ok_or(BadInput("a ring kind that gains without a gain"))
     }
 }
 
-static K6: Kind = Kind {
-    gain: None,
-    damp: [
-        &crate::effects::owner::EFFECTS.ring.kinds.k6_damp[0],
-        &crate::effects::owner::EFFECTS.ring.kinds.k6_damp[1],
-        &crate::effects::owner::EFFECTS.ring.kinds.k6_damp[2],
-    ],
-    pull: Some(&crate::effects::owner::EFFECTS.ring.kinds.k6_pull),
-};
-static K15: Kind = Kind {
-    gain: None,
-    damp: [
-        &crate::effects::owner::EFFECTS.ring.kinds.k15_damp[0],
-        &crate::effects::owner::EFFECTS.ring.kinds.k15_damp[1],
-        &crate::effects::owner::EFFECTS.ring.kinds.k15_damp[2],
-    ],
-    pull: Some(&crate::effects::owner::EFFECTS.ring.kinds.k15_pull),
-};
-static K1: Kind = Kind {
-    gain: None,
-    damp: [
-        &crate::effects::owner::EFFECTS.ring.kinds.k1_damp[0],
-        &crate::effects::owner::EFFECTS.ring.kinds.k1_damp[1],
-        &crate::effects::owner::EFFECTS.ring.kinds.k1_damp[2],
-    ],
-    pull: Some(&crate::effects::owner::EFFECTS.ring.kinds.k1_pull),
-};
-static KD: Kind = Kind {
-    gain: Some(&crate::effects::owner::EFFECTS.ring.kinds.kd_gain),
-    damp: [
-        &crate::effects::owner::EFFECTS.ring.kinds.kd_damp[0],
-        &crate::effects::owner::EFFECTS.ring.kinds.kd_damp[1],
-        &crate::effects::owner::EFFECTS.ring.kinds.kd_damp[2],
-    ],
-    pull: Some(&crate::effects::owner::EFFECTS.ring.kinds.kd_pull),
-};
-static K13: Kind = Kind {
-    gain: Some(&crate::effects::owner::EFFECTS.ring.kinds.k13_gain),
-    damp: [
-        &crate::effects::owner::EFFECTS.ring.kinds.k13_damp[0],
-        &crate::effects::owner::EFFECTS.ring.kinds.k13_damp[1],
-        &crate::effects::owner::EFFECTS.ring.kinds.k13_damp[2],
-    ],
-    pull: None,
-};
-static K16: Kind = Kind {
-    gain: Some(&crate::effects::owner::EFFECTS.ring.kinds.k16_gain),
-    damp: [
-        &crate::effects::owner::EFFECTS.ring.kinds.k16_damp[0],
-        &crate::effects::owner::EFFECTS.ring.kinds.k16_damp[1],
-        &crate::effects::owner::EFFECTS.ring.kinds.k16_damp[2],
-    ],
-    pull: None,
-};
+fn k6(rk: &RingKinds) -> Kind<'_> {
+    Kind {
+        gain: None,
+        damp: [&rk.k6_damp[0], &rk.k6_damp[1], &rk.k6_damp[2]],
+        pull: Some(&rk.k6_pull),
+    }
+}
+fn k15(rk: &RingKinds) -> Kind<'_> {
+    Kind {
+        gain: None,
+        damp: [&rk.k15_damp[0], &rk.k15_damp[1], &rk.k15_damp[2]],
+        pull: Some(&rk.k15_pull),
+    }
+}
+fn k1(rk: &RingKinds) -> Kind<'_> {
+    Kind {
+        gain: None,
+        damp: [&rk.k1_damp[0], &rk.k1_damp[1], &rk.k1_damp[2]],
+        pull: Some(&rk.k1_pull),
+    }
+}
+fn kd(rk: &RingKinds) -> Kind<'_> {
+    Kind {
+        gain: Some(&rk.kd_gain),
+        damp: [&rk.kd_damp[0], &rk.kd_damp[1], &rk.kd_damp[2]],
+        pull: Some(&rk.kd_pull),
+    }
+}
+fn k13(rk: &RingKinds) -> Kind<'_> {
+    Kind {
+        gain: Some(&rk.k13_gain),
+        damp: [&rk.k13_damp[0], &rk.k13_damp[1], &rk.k13_damp[2]],
+        pull: None,
+    }
+}
+fn k16(rk: &RingKinds) -> Kind<'_> {
+    Kind {
+        gain: Some(&rk.k16_gain),
+        damp: [&rk.k16_damp[0], &rk.k16_damp[1], &rk.k16_damp[2]],
+        pull: None,
+    }
+}
 
 /// Why it refuses, if it does: the walk's pointers checked, nothing written.
-fn refusal(ring: &Ring) -> Result<Option<&'static str>, Refused> {
+fn refusal(
+    effects: &crate::effects::owner::Effects,
+    ring: &Ring,
+    fog: &crate::scene::fog::Fog,
+) -> Result<Option<&'static str>, Refused> {
     Ok({
-        let Ok(marks) = crate::effects::setup::marks() else {
+        let Ok(marks) = effects.settings() else {
             return Ok(Some("no marks settings"));
         };
         let mut e: u32 = ring.work.cursor.get();
@@ -198,19 +203,19 @@ fn refusal(ring: &Ring) -> Result<Option<&'static str>, Refused> {
             }
             let kind = entry(ring, e)?.kind;
             if [5, 0xB, 6, 0x15, 1, 0xD, 0x13, 0x16, 0x10, 0x11].contains(&kind) {
-                let obj = car_or_none(entry(ring, e)?.car);
+                let obj = effects.car_record(entry(ring, e)?.car);
                 let needs = matches!(kind, 6 | 0x15 | 1 | 0x10 | 0x11)
                     || entry_flag(marks, entry(ring, e)?.emitter_tag)? != 0;
-                if needs && !obj.is_some_and(MarkCar::has_whole) {
+                if needs && !obj.is_some_and(|car| effects.has_whole(car)) {
                     return Ok(Some("a ring entry without its object"));
                 }
                 // The draws' own refusals, for an entry that may be drawn.
                 if entry_flag(marks, entry(ring, e)?.emitter_tag)? != 0 {
-                    if crate::scene::fog_at::fog_at(0).is_err() {
+                    if crate::scene::fog_at::fog_at(fog, 0).is_err() {
                         return Ok(Some("the fog table is not there"));
                     }
                     let bad = if matches!(kind, 0x10 | 0x11) {
-                        entry(ring, e)?.cell.wrapping_add(3) >= 0x410
+                        entry(ring, e)?.cell.wrapping_add(3) >= 0x400
                     } else {
                         entry(ring, e)?.cell > 0x40 || entry(ring, e)?.angle >= 0x1000
                     };
@@ -243,14 +248,18 @@ fn aged(
     })
 }
 
-/// The place on the object's (unrounded sums), st(0) first.
-fn on_object(ring: &Ring, e: u32) -> Result<[[u8; 10]; 3], Refused> {
+/// The place on the object's (unrounded sums).
+fn on_object(
+    ring: &Ring,
+    e: u32,
+    effects: &crate::effects::owner::Effects,
+) -> Result<[[u8; 10]; 3], Refused> {
     Ok({
-        let m = entry_car(ring, e)?.whole()?;
+        let m = entry_car(ring, e, effects)?.whole(effects.car_blocks()?)?;
         [
-            x87::add_80(entry(ring, e)?.place[0], matrix_cell(m, 0x30)?),
-            x87::add_80(entry(ring, e)?.place[1], matrix_cell(m, 0x34)?),
-            x87::add_80(entry(ring, e)?.place[2], matrix_cell(m, 0x38)?),
+            x87::add_80(entry(ring, e)?.place[0], matrix_float(m, 0x30)?),
+            x87::add_80(entry(ring, e)?.place[1], matrix_float(m, 0x34)?),
+            x87::add_80(entry(ring, e)?.place[2], matrix_float(m, 0x38)?),
         ]
     })
 }
@@ -266,11 +275,11 @@ fn at_place(ring: &Ring, e: u32) -> Result<[[u8; 10]; 3], Refused> {
 }
 
 /// The settings' flag for the entry.
-fn shown(ring: &Ring, e: u32) -> Result<bool, Refused> {
-    Ok(entry_flag(crate::effects::setup::marks()?, entry(ring, e)?.emitter_tag)? != 0)
+fn shown(effects: &crate::effects::owner::Effects, ring: &Ring, e: u32) -> Result<bool, Refused> {
+    Ok(entry_flag(effects.settings()?, entry(ring, e)?.emitter_tag)? != 0)
 }
 
-/// The alpha (top byte) as a whole number (`fistp` through `dword_9356C0`).
+/// The alpha (top byte) as a whole number (through `RingWork.whole`).
 fn whole_alpha(ring: &Ring, e: u32) -> Result<u32, Refused> {
     Ok({
         let a = x87::to_int(entry(ring, e)?.alpha);
@@ -279,7 +288,7 @@ fn whole_alpha(ring: &Ring, e: u32) -> Result<u32, Refused> {
     })
 }
 
-/// The size as a whole number (through `dword_9356C0`).
+/// The size as a whole number (through `RingWork.whole`).
 fn whole(ring: &Ring, v: i32) -> u32 {
     ring.work.whole.set(v as u32);
     v as u32
@@ -296,10 +305,9 @@ fn spin_and_move(
     {
         let t: i32 = setup.clock.frame_ticks.get() as i32;
         if spin {
-            let turn = x87::int_times_to_int(
-                entry(ring, e)?.angle_rate as i32,
-                setup.clock.ticks_scaled.bits(),
-            ) as u32;
+            let turn =
+                x87::int_times_to_int(entry(ring, e)?.angle_rate as i32, &setup.clock.ticks_scaled)
+                    as u32;
             set(
                 ring,
                 e,
@@ -349,11 +357,13 @@ fn damp3(
         let t: i32 = effects.setup.clock.frame_ticks.get() as i32;
         for (axis, kk) in ks.into_iter().enumerate() {
             let old = entry(ring, e)?.motion[axis];
-            ring.work.whole.set(old);
-            let new = x87::damp(old, k(kk), t);
+            ring.work.whole.set(old.to_bits());
+            let new = f32::from_bits(bh::st(
+                bh::ld(old) - bh::ld(old) * bh::ld(k(kk)) * bh::int(t),
+            ));
             set(ring, e, new, |en| &mut en.motion[axis])?;
-            if (old ^ new) & 0x8000_0000 != 0 {
-                set(ring, e, 0, |en| &mut en.motion[axis])?;
+            if (old.to_bits() ^ new.to_bits()) & 0x8000_0000 != 0 {
+                set(ring, e, 0.0, |en| &mut en.motion[axis])?;
             }
         }
     }
@@ -376,12 +386,12 @@ fn pull_size(
             t,
         );
         ring.work.whole.set(w as u32);
-        set(ring, e, f, |en| &mut en.size)?;
+        set(ring, e, f.to_bits(), |en| &mut en.size)?;
         if w > entry(ring, e)?.size_goal as i32 {
             set(
                 ring,
                 e,
-                x87::int_to_float(entry(ring, e)?.size_goal as i32),
+                x87::from_int(entry(ring, e)?.size_goal as i32).to_bits(),
                 |en| &mut en.size,
             )?;
         }
@@ -395,7 +405,10 @@ fn fade(ring: &Ring, e: u32, effects: &crate::effects::owner::Effects) -> Result
         set(
             ring,
             e,
-            x87::less_times_int(entry(ring, e)?.alpha, entry(ring, e)?.alpha_fade, t),
+            bh::st(
+                bh::ld(entry(ring, e)?.alpha)
+                    - bh::ld(entry(ring, e)?.alpha_fade.to_bits()) * bh::int(t),
+            ),
             |en| &mut en.alpha,
         )?;
     }
@@ -409,15 +422,15 @@ fn outside_and_away(
     effects: &crate::effects::owner::Effects,
 ) -> Result<bool, Refused> {
     Ok({
-        let car = entry_car(ring, e)?;
-        box_(ring, e, whole_of(car)?, car);
+        let car = entry_car(ring, e, effects)?;
+        box_(ring, e, whole_of(car, effects)?, car);
         let outside = (entry(ring, e)?.box_limit[0] as i32) < (ring.work.extent[0].get() as i32)
             || (entry(ring, e)?.box_limit[1] as i32) < (ring.work.extent[1].get() as i32);
         if !outside {
             return Ok(false);
         }
         facing(ring, car, effects);
-        (ring.work.facing.bits() as i32) <= 0
+        crate::math::x87::bits_at_or_below(ring.work.facing.get(), 0.0)
     })
 }
 
@@ -436,16 +449,17 @@ struct Sprite {
     reason = "the original's registers, the effects' groups and the owners"
 )]
 fn draw(
-    frame: &Frame,
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
     masks: &Masks,
     ring: &Ring,
+    scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
     place: u32,
     sprite: Sprite,
     e: u32,
     p: [[u8; 10]; 3],
+    view: crate::effects::run_frame::EffectsView<'_>,
 ) -> Result<(), Refused> {
-    let scene = crate::scene::owner::scene();
     use crate::effects::{draw_cell_sprite, draw_subcell_sprite};
     let Sprite {
         cell,
@@ -456,31 +470,37 @@ fn draw(
     {
         match place {
             3 => draw_subcell_sprite::draw_subcell_sprite(
-                frame, masks, ring, effects, cell, size, e, p, scene,
+                buffer, masks, ring, scene, effects, cell, size, e, p, view,
             ),
             _ => draw_cell_sprite::draw_cell_sprite(
-                frame, masks, ring, effects, cell, angle, alpha, size, e, p, scene,
+                buffer, masks, ring, scene, effects, cell, angle, alpha, size, e, p, view,
             ),
         }
     }
 }
 
 /// Kinds 5 and 0xB (draw 1 or 2; their y gain, size and alpha gains): whether it dies.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the effects' groups, the owners and the view's fog"
+)]
 fn drift_kind(
-    frame: &Frame,
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
     masks: &Masks,
     ring: &Ring,
     e: u32,
     place: u32,
     ks: [&f32; 3],
+    scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
+    view: crate::effects::run_frame::EffectsView<'_>,
 ) -> Result<bool, Refused> {
     {
         if aged(ring, e, true, effects)? {
             return Ok(true);
         }
-        if shown(ring, e)? {
-            let p = on_object(ring, e)?;
+        if shown(effects, ring, e)? {
+            let p = on_object(ring, e, effects)?;
             let [cell, angle, alpha, size] = [
                 entry(ring, e)?.cell,
                 entry(ring, e)?.angle,
@@ -488,9 +508,10 @@ fn drift_kind(
                 entry(ring, e)?.size,
             ];
             draw(
-                frame,
+                buffer,
                 masks,
                 ring,
+                scene,
                 effects,
                 place,
                 Sprite {
@@ -501,6 +522,7 @@ fn drift_kind(
                 },
                 e,
                 p,
+                view,
             )?;
         }
         spin_and_move(ring, e, true, effects)?;
@@ -509,7 +531,7 @@ fn drift_kind(
         set(
             ring,
             e,
-            x87::times_int_plus_int_to_int(k(ks[1]), t, entry(ring, e)?.size as i32) as u32,
+            bh::to_int(bh::ld(k(ks[1])) * bh::int(t) + bh::int(entry(ring, e)?.size as i32)) as u32,
             |en| &mut en.size,
         )?;
         set(
@@ -523,14 +545,20 @@ fn drift_kind(
 }
 
 /// Kinds 6, 0x15, 1, 0xD, 0x13, 0x16 (draw 1): whether it dies.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the effects' groups, the owners and the view's fog"
+)]
 fn fading_kind(
-    frame: &Frame,
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
     masks: &Masks,
     ring: &Ring,
     e: u32,
     kind: u32,
-    c: &Kind,
+    c: &Kind<'_>,
+    scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
+    view: crate::effects::run_frame::EffectsView<'_>,
 ) -> Result<bool, Refused> {
     {
         if aged(ring, e, true, effects)? {
@@ -539,28 +567,28 @@ fn fading_kind(
         if (entry(ring, e)?.alpha as i32) < 0 {
             set(ring, e, 0, |en| &mut en.alpha)?;
         }
-        if shown(ring, e)? {
+        if shown(effects, ring, e)? {
             let p = if kind == 0xD {
-                on_object(ring, e)?
+                on_object(ring, e, effects)?
             } else {
                 at_place(ring, e)?
             };
             let [cell, angle] = [entry(ring, e)?.cell, entry(ring, e)?.angle];
             let alpha = whole_alpha(ring, e)?;
             let size = if kind == 1 {
-                x87::plus_product_to_int(
-                    entry(ring, e)?.size,
-                    entry(ring, e)?.size_factor,
-                    k(&ring.kinds.k1_size),
+                bh::to_int(
+                    bh::ld(entry(ring, e)?.size)
+                        + bh::ld(entry(ring, e)?.size_factor) * bh::ld(k(&ring.kinds.k1_size)),
                 )
             } else {
                 x87::to_int(entry(ring, e)?.size)
             };
             let size = whole(ring, size);
             draw(
-                frame,
+                buffer,
                 masks,
                 ring,
+                scene,
                 effects,
                 1,
                 Sprite {
@@ -571,6 +599,7 @@ fn fading_kind(
                 },
                 e,
                 p,
+                view,
             )?;
         }
         spin_and_move(ring, e, true, effects)?;
@@ -600,7 +629,7 @@ fn fading_kind(
                 set(
                     ring,
                     e,
-                    x87::plus_times_int(entry(ring, e)?.size, k(c.gain()?), t),
+                    x87::plus_times_int(entry(ring, e)?.size, k(c.gain()?), t).to_bits(),
                     |en| &mut en.size,
                 )?;
             }
@@ -617,19 +646,19 @@ fn pull_toward(
 ) -> Result<(), Refused> {
     let setup = &effects.setup;
     {
-        let car = entry_car(ring, e)?;
+        let car = entry_car(ring, e, effects)?;
         let mut length = [0u8; 10];
-        pull_length(ring, e, whole_of(car)?, &mut length);
-        if (ring.work.near.bits() as i32) < 0 {
+        pull_length(ring, e, whole_of(car, effects)?, &mut length);
+        if ring.work.near.get().is_sign_negative() {
             return Ok(());
         }
         pull_facing(ring, car, &length, effects);
-        if (ring.work.facing.bits() as i32) <= 0 {
+        if crate::math::x87::bits_at_or_below(ring.work.facing.get(), 0.0) {
             return Ok(());
         }
         pull_strength(ring, e, car, effects);
-        if (ring.work.whole.get() as i32) > (setup.floats.pull_limit.bits() as i32) {
-            set(ring, e, x87::loaded(setup.floats.two_pow_16.bits()), |en| {
+        if (ring.work.whole.get() as i32) > (setup.floats.pull_limit.get()) {
+            set(ring, e, x87::loaded(&setup.floats.fixed_16_scale), |en| {
                 &mut en.size_factor
             })?;
         }
@@ -638,34 +667,41 @@ fn pull_toward(
 }
 
 /// Kinds 0x10, 0x11 (draw 3): boxed, no ground test of their own first. Whether it dies.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the effects' groups, the owners and the view's fog"
+)]
 fn boxed_kind(
-    frame: &Frame,
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
     masks: &Masks,
     ring: &Ring,
     e: u32,
     gain: &f32,
     both: bool,
+    scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
+    view: crate::effects::run_frame::EffectsView<'_>,
 ) -> Result<bool, Refused> {
     if aged(ring, e, true, effects)? {
         return Ok(true);
     }
     spin_and_move(ring, e, false, effects)?;
     gain_y(ring, e, gain, effects)?;
-    if shown(ring, e)? {
-        let p = on_object(ring, e)?;
+    if shown(effects, ring, e)? {
+        let p = on_object(ring, e, effects)?;
         let size = entry(ring, e)?.size;
-        let f = x87::int_times_times_to_int(
-            entry(ring, e)?.life as i32,
-            effects.setup.floats.twentieth.bits(),
-            entry(ring, e)?.cell_rate,
+        let f = bh::to_int(
+            bh::int(entry(ring, e)?.life as i32)
+                * bh::ld(effects.setup.floats.twentieth.get())
+                * bh::ld(entry(ring, e)?.cell_rate.to_bits()),
         );
         ring.work.whole.set(f as u32);
         let subcell = ((f as u32) & 3).wrapping_add(entry(ring, e)?.cell);
         draw(
-            frame,
+            buffer,
             masks,
             ring,
+            scene,
             effects,
             3,
             Sprite {
@@ -676,124 +712,189 @@ fn boxed_kind(
             },
             e,
             p,
+            view,
         )?;
     }
-    box_place(ring, e, entry_car(ring, e)?);
+    box_place(ring, e, entry_car(ring, e, effects)?);
     let mut outside = (entry(ring, e)?.box_limit[0] as i32) < (ring.work.extent[0].get() as i32);
     if !outside && both {
         outside = (entry(ring, e)?.box_limit[1] as i32) < (ring.work.extent[1].get() as i32);
     }
-    if !outside && x87::compare_status(entry(ring, e)?.place[1], ring.work.top.bits()) == 0 {
+    if !outside && x87::compare_status(entry(ring, e)?.place[1], &ring.work.top) == 0 {
         return Ok(true);
     }
     Ok(x87::compare_status(entry(ring, e)?.place[1], entry(ring, e)?.ground_y) == 0x100)
 }
 
-/// The Rust version (see the header).
 pub fn run_ring(
-    frame: &Frame,
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
     masks: &Masks,
     ring: &Ring,
+    scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
+    view: crate::effects::run_frame::EffectsView<'_>,
 ) -> Result<(), Refused> {
-    if let Some(why) = refusal(ring)? {
+    if let Some(why) = refusal(effects, ring, view.fog)? {
         return Err(BadInput(why).into());
     }
-    {
-        let mut e: u32 = ring.work.cursor.get();
-        let mut counter = ring.work.count.get() as i32;
-        loop {
-            counter = counter.wrapping_sub(1);
-            if counter < 0 {
-                break;
-            }
-            let next = entry(ring, e)?.next;
-            let dies = match entry(ring, e)?.kind {
-                5 => drift_kind(
-                    frame,
-                    masks,
-                    ring,
-                    e,
-                    1,
-                    [
-                        &ring.kinds.drift5[0],
-                        &ring.kinds.drift5[1],
-                        &ring.kinds.drift5[2],
-                    ],
-                    effects,
-                )?,
-                0xB => drift_kind(
-                    frame,
-                    masks,
-                    ring,
-                    e,
-                    2,
-                    [
-                        &ring.kinds.drift_b[0],
-                        &ring.kinds.drift_b[1],
-                        &ring.kinds.drift_b[2],
-                    ],
-                    effects,
-                )?,
-                6 => fading_kind(frame, masks, ring, e, 6, &K6, effects)?,
-                0x15 => fading_kind(frame, masks, ring, e, 0x15, &K15, effects)?,
-                1 => fading_kind(frame, masks, ring, e, 1, &K1, effects)?,
-                0xD => fading_kind(frame, masks, ring, e, 0xD, &KD, effects)?,
-                0x13 => fading_kind(frame, masks, ring, e, 0x13, &K13, effects)?,
-                0x16 => fading_kind(frame, masks, ring, e, 0x16, &K16, effects)?,
-                0x10 => boxed_kind(frame, masks, ring, e, &ring.kinds.k10_gain, true, effects)?,
-                0x11 => boxed_kind(frame, masks, ring, e, &ring.kinds.k11_gain, false, effects)?,
-                _ => false,
-            };
-            if dies {
-                ring.work.count.set(ring.work.count.get().wrapping_sub(1));
-                if e == ring.work.cursor.get() {
-                    ring.work.cursor.set(entry(ring, e)?.next);
-                } else {
-                    let (before, after) = (entry(ring, e)?.prev, entry(ring, e)?.next);
-                    set(ring, before, after, |en| &mut en.next)?;
-                    set(ring, after, before, |en| &mut en.prev)?;
-                    let cursor: u32 = ring.work.cursor.get();
-                    let last = entry(ring, cursor)?.prev;
-                    set(ring, cursor, e, |en| &mut en.prev)?;
-                    set(ring, last, e, |en| &mut en.next)?;
-                    set(ring, e, last, |en| &mut en.prev)?;
-                    set(ring, e, cursor, |en| &mut en.next)?;
-                }
-            }
-            e = next;
-        }
-    }
-    Ok(())
+    walk_ring(ring, |e| {
+        Ok(match entry(ring, e)?.kind {
+            5 => drift_kind(
+                buffer,
+                masks,
+                ring,
+                e,
+                1,
+                [
+                    &ring.kinds.drift5[0],
+                    &ring.kinds.drift5[1],
+                    &ring.kinds.drift5[2],
+                ],
+                scene,
+                effects,
+                view,
+            )?,
+            0xB => drift_kind(
+                buffer,
+                masks,
+                ring,
+                e,
+                2,
+                [
+                    &ring.kinds.drift_b[0],
+                    &ring.kinds.drift_b[1],
+                    &ring.kinds.drift_b[2],
+                ],
+                scene,
+                effects,
+                view,
+            )?,
+            6 => fading_kind(
+                buffer,
+                masks,
+                ring,
+                e,
+                6,
+                &k6(&ring.kinds),
+                scene,
+                effects,
+                view,
+            )?,
+            0x15 => fading_kind(
+                buffer,
+                masks,
+                ring,
+                e,
+                0x15,
+                &k15(&ring.kinds),
+                scene,
+                effects,
+                view,
+            )?,
+            1 => fading_kind(
+                buffer,
+                masks,
+                ring,
+                e,
+                1,
+                &k1(&ring.kinds),
+                scene,
+                effects,
+                view,
+            )?,
+            0xD => fading_kind(
+                buffer,
+                masks,
+                ring,
+                e,
+                0xD,
+                &kd(&ring.kinds),
+                scene,
+                effects,
+                view,
+            )?,
+            0x13 => fading_kind(
+                buffer,
+                masks,
+                ring,
+                e,
+                0x13,
+                &k13(&ring.kinds),
+                scene,
+                effects,
+                view,
+            )?,
+            0x16 => fading_kind(
+                buffer,
+                masks,
+                ring,
+                e,
+                0x16,
+                &k16(&ring.kinds),
+                scene,
+                effects,
+                view,
+            )?,
+            0x10 => boxed_kind(
+                buffer,
+                masks,
+                ring,
+                e,
+                &ring.kinds.k10_gain,
+                true,
+                scene,
+                effects,
+                view,
+            )?,
+            0x11 => boxed_kind(
+                buffer,
+                masks,
+                ring,
+                e,
+                &ring.kinds.k11_gain,
+                false,
+                scene,
+                effects,
+                view,
+            )?,
+            _ => false,
+        })
+    })
 }
 
 use crate::effects::plain::{ld_cell, ldi_cell};
 use crate::math::x87_float as bh;
 
 /// `fld dword ptr` of a float of a car record in the settings.
-fn car_float(cell: &Float) -> bh::X {
-    bh::ld(cell.bits())
+fn car_float(cell: &impl crate::memory::session::Cell32) -> bh::X {
+    cell.ld()
 }
 
 /// The car's 3 x 3 turning matrix (the record's `matrix`, 4 floats a row): cell `n`.
-fn turn(car: &MarkCar, n: usize) -> bh::X {
+fn turn(car: &CarEffects, n: usize) -> bh::X {
     car_float(&car.matrix[n])
 }
 
-/// `box_`'s x87 block as plain Rust on the x87 model (45 instructions), same order and memory places.
-fn box_x87(ring: &Ring, w: &RingWork, e: u32, whole: &[Float; 16], car: &MarkCar) {
+/// `box_`'s arithmetic as plain Rust on the x87 model, in the same order.
+fn box_x87(
+    ring: &Ring,
+    w: &RingWork,
+    e: u32,
+    whole: &[impl crate::memory::session::Cell32; 16],
+    car: &CarEffects,
+) {
     let t0 = ld(ring, e, |en| en.place[0]);
     let t1 = t0 - ld_cell(&whole[12]);
-    w.away[0].set_bits(bh::st(t1));
+    w.away[0].st(t1);
     let t2 = ld(ring, e, |en| en.place[1]);
     let t3 = t2 - ld_cell(&whole[13]);
-    w.away[1].set_bits(bh::st(t3));
+    w.away[1].st(t3);
     let t4 = ld(ring, e, |en| en.place[2]);
     let t5 = t4 - ld_cell(&whole[14]);
-    w.away[2].set_bits(bh::st(t5));
-    let t6 = bh::ld(w.away[2].bits());
-    let t7 = bh::ld(w.away[1].bits());
-    let t8 = bh::ld(w.away[0].bits());
+    w.away[2].st(t5);
+    let t6 = w.away[2].ld();
+    let t7 = w.away[1].ld();
+    let t8 = w.away[0].ld();
     let t9 = turn(car, 0);
     let t10 = t9 * t8;
     let t11 = turn(car, 4);
@@ -819,142 +920,142 @@ fn box_x87(ring: &Ring, w: &RingWork, e: u32, whole: &[Float; 16], car: &MarkCar
     let t31 = t30 + t28;
     let t32 = t26 + t31;
     let t33 = t16.abs();
-    w.extent[0].set_bits(bh::to_int(t33) as u32);
+    w.extent[0].set(bh::to_int(t33) as u32);
     let t34 = t32.abs();
-    w.extent[1].set_bits(bh::to_int(t34) as u32);
+    w.extent[1].set(bh::to_int(t34) as u32);
 }
 
-/// `facing`'s x87 block as plain Rust on the x87 model (28 instructions), same order and memory places.
-fn facing_x87(car: &MarkCar, f: &MarksFloats, w: &RingWork) {
-    let t0 = bh::ld(w.away[0].bits());
+/// `facing`'s arithmetic as plain Rust on the x87 model, in the same order.
+fn facing_x87(car: &CarEffects, f: &MarksFloats, w: &RingWork) {
+    let t0 = w.away[0].ld();
     let t1 = t0 * t0;
-    let t2 = bh::ld(w.away[1].bits());
+    let t2 = w.away[1].ld();
     let t3 = t2 * t2;
-    let t4 = bh::ld(w.away[2].bits());
+    let t4 = w.away[2].ld();
     let t5 = t4 * t4;
     let t6 = t3 + t5;
     let t7 = t1 + t6;
     let t8 = t7.sqrt();
-    let t9 = bh::ld(f.one.bits()) / t8;
-    let t10 = bh::ld(w.away[0].bits());
+    let t9 = f.one.ld() / t8;
+    let t10 = w.away[0].ld();
     let t11 = t10 * t9;
-    w.away[0].set_bits(bh::st(t11));
-    let t12 = bh::ld(w.away[1].bits());
+    w.away[0].st(t11);
+    let t12 = w.away[1].ld();
     let t13 = t12 * t9;
-    w.away[1].set_bits(bh::st(t13));
-    let t14 = bh::ld(w.away[2].bits());
+    w.away[1].st(t13);
+    let t14 = w.away[2].ld();
     let t15 = t9 * t14;
-    w.away[2].set_bits(bh::st(t15));
-    let t16 = bh::ld(w.away[0].bits());
+    w.away[2].st(t15);
+    let t16 = w.away[0].ld();
     let t17 = t16 * car_float(&car.motion[0]);
-    let t18 = bh::ld(w.away[1].bits());
+    let t18 = w.away[1].ld();
     let t19 = t18 * car_float(&car.motion[1]);
-    let t20 = bh::ld(w.away[2].bits());
+    let t20 = w.away[2].ld();
     let t21 = t20 * car_float(&car.motion[2]);
     let t22 = t19 + t21;
     let t23 = t17 + t22;
-    w.facing.set_bits(bh::st(t23));
+    w.facing.st(t23);
 }
 
-/// `pull_length`'s x87 block as plain Rust on the x87 model (22 instructions), same order and memory places.
+/// `pull_length`'s arithmetic as plain Rust on the x87 model, in the same order.
 /// `rk` the ring kinds' constants (`RingKinds`).
 fn pull_length_x87(
     ring: &Ring,
     e: u32,
-    whole: &[Float; 16],
+    whole: &[impl crate::memory::session::Cell32; 16],
     l: &mut [u8; 10],
     w: &RingWork,
     rk: &RingKinds,
 ) {
     let t0 = ld(ring, e, |en| en.place[0]);
     let t1 = t0 - ld_cell(&whole[12]);
-    w.away[0].set_bits(bh::st(t1));
+    w.away[0].st(t1);
     let t2 = ld(ring, e, |en| en.place[1]);
     let t3 = t2 - ld_cell(&whole[13]);
-    w.away[1].set_bits(bh::st(t3));
+    w.away[1].st(t3);
     let t4 = ld(ring, e, |en| en.place[2]);
     let t5 = t4 - ld_cell(&whole[14]);
-    w.away[2].set_bits(bh::st(t5));
-    let t6 = bh::ld(w.away[0].bits());
+    w.away[2].st(t5);
+    let t6 = w.away[0].ld();
     let t7 = t6 * t6;
-    let t8 = bh::ld(w.away[1].bits());
+    let t8 = w.away[1].ld();
     let t9 = t8 * t8;
-    let t10 = bh::ld(w.away[2].bits());
+    let t10 = w.away[2].ld();
     let t11 = t10 * t10;
     let t12 = t9 + t11;
     let t13 = t7 + t12;
     let t14 = t13.sqrt();
-    let t15 = t14 - bh::ld(rk.near_less.to_bits());
-    w.near.set_bits(bh::st(t15));
+    let t15 = t14 - bh::ld(rk.near_less);
+    w.near.st(t15);
     *l = bh::f80(t14);
 }
 
-/// `pull_facing`'s x87 block as plain Rust on the x87 model (32 instructions), same order and memory places.
-fn pull_facing_x87(car: &MarkCar, l: &[u8; 10], f: &MarksFloats, w: &RingWork) {
+/// `pull_facing`'s arithmetic as plain Rust on the x87 model, in the same order.
+fn pull_facing_x87(car: &CarEffects, l: &[u8; 10], f: &MarksFloats, w: &RingWork) {
     let t0 = bh::from_f80(*l);
-    let t1 = bh::ld(f.one.bits()) / t0;
-    let t2 = bh::ld(w.away[0].bits());
+    let t1 = f.one.ld() / t0;
+    let t2 = w.away[0].ld();
     let t3 = t2 * t1;
-    w.away[0].set_bits(bh::st(t3));
-    let t4 = bh::ld(w.away[1].bits());
+    w.away[0].st(t3);
+    let t4 = w.away[1].ld();
     let t5 = t4 * t1;
-    w.away[1].set_bits(bh::st(t5));
-    let t6 = bh::ld(w.away[2].bits());
+    w.away[1].st(t5);
+    let t6 = w.away[2].ld();
     let t7 = t1 * t6;
-    w.away[2].set_bits(bh::st(t7));
+    w.away[2].st(t7);
     let t8 = ldi_cell(&car.pace);
-    let t9 = bh::ld(f.one.bits()) / t8;
+    let t9 = f.one.ld() / t8;
     let t10 = car_float(&car.motion[0]);
     let t11 = t10 * t9;
-    w.turned[0].set_bits(bh::st(t11));
+    w.turned[0].st(t11);
     let t12 = car_float(&car.motion[1]);
     let t13 = t12 * t9;
-    w.turned[1].set_bits(bh::st(t13));
+    w.turned[1].st(t13);
     let t14 = car_float(&car.motion[2]);
     let t15 = t9 * t14;
-    w.turned[2].set_bits(bh::st(t15));
-    let t16 = bh::ld(w.away[0].bits());
-    let t17 = t16 * bh::ld(w.turned[0].bits());
-    let t18 = bh::ld(w.away[1].bits());
-    let t19 = t18 * bh::ld(w.turned[1].bits());
-    let t20 = bh::ld(w.away[2].bits());
-    let t21 = t20 * bh::ld(w.turned[2].bits());
+    w.turned[2].st(t15);
+    let t16 = w.away[0].ld();
+    let t17 = t16 * w.turned[0].ld();
+    let t18 = w.away[1].ld();
+    let t19 = t18 * w.turned[1].ld();
+    let t20 = w.away[2].ld();
+    let t21 = t20 * w.turned[2].ld();
     let t22 = t19 + t21;
     let t23 = t17 + t22;
     let t24 = -t23;
-    w.facing.set_bits(bh::st(t24));
+    w.facing.st(t24);
 }
 
-/// `pull_strength`'s x87 block as plain Rust on the x87 model (15 instructions), same order and memory places.
+/// `pull_strength`'s arithmetic as plain Rust on the x87 model, in the same order.
 /// `rk` the ring kinds' constants (`RingKinds`).
 fn pull_strength_x87(
     ring: &Ring,
     e: u32,
-    car: &MarkCar,
+    car: &CarEffects,
     c: &MarksClock,
     f: &MarksFloats,
     w: &RingWork,
     rk: &RingKinds,
 ) {
     let t0 = ldi_cell(&car.pace);
-    let t1 = t0 * bh::ld(rk.near_scale.to_bits());
-    let t2 = t1 + bh::ld(f.one.bits());
-    let t3 = bh::ld(f.one.bits()) / t2;
-    let t4 = bh::ld(f.one.bits()) - t3;
-    w.whole.set_bits(bh::st(t4));
-    let t5 = bh::ld(f.two_pow_16.bits());
+    let t1 = t0 * bh::ld(rk.near_scale);
+    let t2 = t1 + f.one.ld();
+    let t3 = f.one.ld() / t2;
+    let t4 = f.one.ld() - t3;
+    w.whole.st(t4);
+    let t5 = f.fixed_16_scale.ld();
     let t6 = t5 - ld(ring, e, |en| en.size_factor);
-    let t7 = bh::ld(rk.near_rate.to_bits());
-    let t8 = t7 * bh::ld(w.whole.bits());
+    let t7 = bh::ld(rk.near_rate);
+    let t8 = t7 * w.whole.ld();
     let t9 = t6 * t8;
     let t10 = t9 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
     let t11 = t10 + ld(ring, e, |en| en.size_factor);
-    w.whole.set_bits(bh::to_int(t11) as u32);
+    w.whole.set(bh::to_int(t11) as u32);
     st(ring, e, t11, |en| &mut en.size_factor);
 }
 
-/// `box_place`'s x87 block as plain Rust on the x87 model (36 instructions), same order and memory places.
-fn box_place_x87(ring: &Ring, w: &RingWork, e: u32, car: &MarkCar) {
+/// `box_place`'s arithmetic as plain Rust on the x87 model, in the same order.
+fn box_place_x87(ring: &Ring, w: &RingWork, e: u32, car: &CarEffects) {
     let t0 = ld(ring, e, |en| en.place[2]);
     let t1 = ld(ring, e, |en| en.place[1]);
     let t2 = ld(ring, e, |en| en.place[0]);
@@ -983,60 +1084,59 @@ fn box_place_x87(ring: &Ring, w: &RingWork, e: u32, car: &MarkCar) {
     let t25 = t24 + t22;
     let t26 = t20 + t25;
     let t27 = t10.abs();
-    w.extent[0].set_bits(bh::to_int(t27) as u32);
+    w.extent[0].set(bh::to_int(t27) as u32);
     let t28 = t26.abs();
-    w.extent[1].set_bits(bh::to_int(t28) as u32);
+    w.extent[1].set(bh::to_int(t28) as u32);
 }
 
-/// The ring kinds' constants (`run_ring`, and the ribbons' two) (IDA 0x93A4DA .. 0x93A576, the image's layout; phase 7, typed state).
-#[repr(C)]
+/// The ring kinds' constants (`run_ring`, and the ribbons' two).
 #[derive(Clone, Copy)]
 pub struct RingKinds {
-    /// 0x93A4DA: `flt_93A4DA`, `flt_93A4DE`, `dword_93A4E2`: kind 5's drift factors
+    /// Kind 5's drift factors
     pub drift5: [f32; 3],
-    /// 0x93A4E6: `flt_93A4E6`, `flt_93A4EA`, `dword_93A4EE`: kind 0xB's drift factors
+    /// Kind 0xB's drift factors
     pub drift_b: [f32; 3],
-    /// 0x93A4F2: `flt_93A4F2` .. `flt_93A4FA`: kind 6's three dampings
+    /// Kind 6's three dampings
     pub k6_damp: [f32; 3],
-    /// 0x93A4FE: `flt_93A4FE`: kind 6's size rate
+    /// Kind 6's size rate
     pub k6_pull: f32,
-    /// 0x93A502: `flt_93A502` .. `flt_93A50A`: kind 0x15's three dampings
+    /// Kind 0x15's three dampings
     pub k15_damp: [f32; 3],
-    /// 0x93A50E: `flt_93A50E`: kind 0x15's size rate
+    /// Kind 0x15's size rate
     pub k15_pull: f32,
-    /// 0x93A512: `flt_93A512`: kind 1's size factor (+0x64 times it)
+    /// Kind 1's size factor (+0x64 times it)
     pub k1_size: f32,
-    /// 0x93A516: `flt_93A516` .. `flt_93A51E`: kind 1's three dampings
+    /// Kind 1's three dampings
     pub k1_damp: [f32; 3],
-    /// 0x93A522: `flt_93A522`: kind 1's size rate
+    /// Kind 1's size rate
     pub k1_pull: f32,
-    /// 0x93A526: `flt_93A526`: less this from the length to the object (`pull_length`)
+    /// Less this from the length to the object (`pull_length`)
     pub near_less: f32,
-    /// 0x93A52A: `flt_93A52A`: the strength's pull scale (`pull_strength`)
+    /// The strength's pull scale (`pull_strength`)
     pub near_scale: f32,
-    /// 0x93A52E: `flt_93A52E`: the strength's pull rate (`pull_strength`)
+    /// The strength's pull rate (`pull_strength`)
     pub near_rate: f32,
-    /// 0x93A532: `flt_93A532`: kind 0xD's y gain
+    /// Kind 0xD's y gain
     pub kd_gain: f32,
-    /// 0x93A536: `flt_93A536` .. `flt_93A53E`: kind 0xD's three dampings
+    /// Kind 0xD's three dampings
     pub kd_damp: [f32; 3],
-    /// 0x93A542: `flt_93A542`: kind 0xD's size rate
+    /// Kind 0xD's size rate
     pub kd_pull: f32,
-    /// 0x93A546: `flt_93A546` .. `flt_93A54E`: kind 0x13's three dampings
+    /// Kind 0x13's three dampings
     pub k13_damp: [f32; 3],
-    /// 0x93A552: `flt_93A552`: kind 0x13's y gain
+    /// Kind 0x13's y gain
     pub k13_gain: f32,
-    /// 0x93A556: `flt_93A556` .. `flt_93A55E`: kind 0x16's three dampings
+    /// Kind 0x16's three dampings
     pub k16_damp: [f32; 3],
-    /// 0x93A562: `flt_93A562`: kind 0x16's y gain
+    /// Kind 0x16's y gain
     pub k16_gain: f32,
-    /// 0x93A566: `flt_93A566`: kind 0x10's y gain
+    /// Kind 0x10's y gain
     pub k10_gain: f32,
-    /// 0x93A56A: `flt_93A56A`: kind 0x11's y gain
+    /// Kind 0x11's y gain
     pub k11_gain: f32,
-    /// 0x93A56E: `flt_93A56E`: a ribbon's y gain (`run_ribbons::first_frame`)
+    /// A ribbon's y gain (`run_ribbons::first_frame`)
     pub ribbon_a: f32,
-    /// 0x93A572: `flt_93A572`: a ribbon's y gain per frame (`run_ribbons::move_`)
+    /// A ribbon's y gain per frame (`run_ribbons::move_`)
     pub ribbon_b: f32,
 }
 
@@ -1044,419 +1144,65 @@ pub struct RingKinds {
 impl RingKinds {
     pub const fn new() -> Self {
         RingKinds {
-            drift5: [
-                f32::from_bits(0xC0000000),
-                f32::from_bits(0x42B80000),
-                f32::from_bits(0xFF800000),
-            ],
-            drift_b: [
-                f32::from_bits(0xC0000000),
-                f32::from_bits(0x42B80000),
-                f32::from_bits(0xFF800000),
-            ],
-            k6_damp: [
-                f32::from_bits(0x3A83126F),
-                f32::from_bits(0x3A83126F),
-                f32::from_bits(0x3A83126F),
-            ],
-            k6_pull: f32::from_bits(0x3C23D70A),
-            k15_damp: [
-                f32::from_bits(0x3A83126F),
-                f32::from_bits(0x3A83126F),
-                f32::from_bits(0x3A83126F),
-            ],
-            k15_pull: f32::from_bits(0x3C23D70A),
-            k1_size: f32::from_bits(0x3F800000),
-            k1_damp: [
-                f32::from_bits(0x3B449BA6),
-                f32::from_bits(0x3B449BA6),
-                f32::from_bits(0x3B449BA6),
-            ],
-            k1_pull: f32::from_bits(0x3AC49BA6),
-            near_less: f32::from_bits(0x47D8F000),
-            near_scale: f32::from_bits(0x3951B717),
-            near_rate: f32::from_bits(0x3BA3D70A),
-            kd_gain: f32::from_bits(0x3C23D70A),
-            kd_damp: [
-                f32::from_bits(0x3B83126F),
-                f32::from_bits(0x3B83126F),
-                f32::from_bits(0x3B83126F),
-            ],
-            kd_pull: f32::from_bits(0x3C23D70A),
-            k13_damp: [
-                f32::from_bits(0x3B449BA6),
-                f32::from_bits(0x3B449BA6),
-                f32::from_bits(0x3B449BA6),
-            ],
-            k13_gain: f32::from_bits(0x41800000),
-            k16_damp: [
-                f32::from_bits(0x3B449BA6),
-                f32::from_bits(0x3B449BA6),
-                f32::from_bits(0x3B449BA6),
-            ],
-            k16_gain: f32::from_bits(0x41800000),
-            k10_gain: f32::from_bits(0xBF000000),
-            k11_gain: f32::from_bits(0xBF000000),
-            ribbon_a: f32::from_bits(0xBF000000),
-            ribbon_b: f32::from_bits(0xBF000000),
+            drift5: [-2.0, 92.0, f32::from_bits(0xFF800000)],
+            drift_b: [-2.0, 92.0, f32::from_bits(0xFF800000)],
+            k6_damp: [0.001, 0.001, 0.001],
+            k6_pull: 0.01_f32,
+            k15_damp: [0.001, 0.001, 0.001],
+            k15_pull: 0.01_f32,
+            k1_size: 1.0_f32,
+            k1_damp: [0.003, 0.003, 0.003],
+            k1_pull: 0.0015_f32,
+            near_less: 111072.0_f32,
+            near_scale: 0.0002_f32,
+            near_rate: 0.005_f32,
+            kd_gain: 0.01_f32,
+            kd_damp: [0.004, 0.004, 0.004],
+            kd_pull: 0.01_f32,
+            k13_damp: [0.003, 0.003, 0.003],
+            k13_gain: 16.0_f32,
+            k16_damp: [0.003, 0.003, 0.003],
+            k16_gain: 16.0_f32,
+            k10_gain: -0.5_f32,
+            k11_gain: -0.5_f32,
+            ribbon_a: -0.5_f32,
+            ribbon_b: -0.5_f32,
         }
     }
 }
 
 #[cfg(test)]
-impl RingKinds {
-    pub const START: usize = 0x93A4DA;
-    pub const LEN: usize = 0x9C;
-}
-
-#[cfg(test)]
-mod ring_kinds_tests {
-    use super::*;
-    use core::mem::offset_of;
-
-    fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
-        (0..size_of::<T>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect()
-    }
-
-    #[test]
-    fn ring_kinds_starts_as_the_games() {
-        assert_eq!(size_of::<RingKinds>(), RingKinds::LEN);
-        assert!(
-            bytes(&effects().ring.kinds)
-                == crate::moved::image_bytes(RingKinds::START, RingKinds::LEN),
-            "RING_KINDS starts differently from the image"
-        );
-        assert_eq!(offset_of!(RingKinds, drift5), 0x93A4DA - RingKinds::START);
-        assert_eq!(offset_of!(RingKinds, drift_b), 0x93A4E6 - RingKinds::START);
-        assert_eq!(offset_of!(RingKinds, k6_damp), 0x93A4F2 - RingKinds::START);
-        assert_eq!(offset_of!(RingKinds, k6_pull), 0x93A4FE - RingKinds::START);
-        assert_eq!(offset_of!(RingKinds, k15_damp), 0x93A502 - RingKinds::START);
-        assert_eq!(offset_of!(RingKinds, k15_pull), 0x93A50E - RingKinds::START);
-        assert_eq!(offset_of!(RingKinds, k1_size), 0x93A512 - RingKinds::START);
-        assert_eq!(offset_of!(RingKinds, k1_damp), 0x93A516 - RingKinds::START);
-        assert_eq!(offset_of!(RingKinds, k1_pull), 0x93A522 - RingKinds::START);
-        assert_eq!(
-            offset_of!(RingKinds, near_less),
-            0x93A526 - RingKinds::START
-        );
-        assert_eq!(
-            offset_of!(RingKinds, near_scale),
-            0x93A52A - RingKinds::START
-        );
-        assert_eq!(
-            offset_of!(RingKinds, near_rate),
-            0x93A52E - RingKinds::START
-        );
-        assert_eq!(offset_of!(RingKinds, kd_gain), 0x93A532 - RingKinds::START);
-        assert_eq!(offset_of!(RingKinds, kd_damp), 0x93A536 - RingKinds::START);
-        assert_eq!(offset_of!(RingKinds, kd_pull), 0x93A542 - RingKinds::START);
-        assert_eq!(offset_of!(RingKinds, k13_damp), 0x93A546 - RingKinds::START);
-        assert_eq!(offset_of!(RingKinds, k13_gain), 0x93A552 - RingKinds::START);
-        assert_eq!(offset_of!(RingKinds, k16_damp), 0x93A556 - RingKinds::START);
-        assert_eq!(offset_of!(RingKinds, k16_gain), 0x93A562 - RingKinds::START);
-        assert_eq!(offset_of!(RingKinds, k10_gain), 0x93A566 - RingKinds::START);
-        assert_eq!(offset_of!(RingKinds, k11_gain), 0x93A56A - RingKinds::START);
-        assert_eq!(offset_of!(RingKinds, ribbon_a), 0x93A56E - RingKinds::START);
-        assert_eq!(offset_of!(RingKinds, ribbon_b), 0x93A572 - RingKinds::START);
-    }
-}
-
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
-    //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
-
-    pub(super) fn box_x87(mk: usize, e: usize, p: usize, m: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{e} + 0x10]",
-            "fsub dword ptr [{p} + 0x30]",
-            "fstp dword ptr [{mk} + 0x1D07D8]",
-            "fld dword ptr [{e} + 0x14]",
-            "fsub dword ptr [{p} + 0x34]",
-            "fstp dword ptr [{mk} + 0x1D07DC]",
-            "fld dword ptr [{e} + 0x18]",
-            "fsub dword ptr [{p} + 0x38]",
-            "fstp dword ptr [{mk} + 0x1D07E0]",
-            "fld dword ptr [{mk} + 0x1D07E0]",
-            "fld dword ptr [{mk} + 0x1D07DC]",
-            "fld dword ptr [{mk} + 0x1D07D8]",
-            "fld dword ptr [{m} + 0x0]",
-            ".byte 0xD8, 0xC9",
-            "fld dword ptr [{m} + 0x10]",
-            ".byte 0xD8, 0xCB",
-            "fld dword ptr [{m} + 0x20]",
-            ".byte 0xD8, 0xCD",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xCB",
-            "fld dword ptr [{m} + 0x4]",
-            ".byte 0xD8, 0xCA",
-            "fld dword ptr [{m} + 0x14]",
-            ".byte 0xD8, 0xCC",
-            "fld dword ptr [{m} + 0x24]",
-            ".byte 0xD8, 0xCB",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xCB",
-            "fld dword ptr [{m} + 0x8]",
-            ".byte 0xDE, 0xCB",
-            "fld dword ptr [{m} + 0x18]",
-            ".byte 0xDE, 0xC9",
-            "fld dword ptr [{m} + 0x28]",
-            ".byte 0xDE, 0xCA",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xCA",
-            ".byte 0xD9, 0xE1",
-            "fistp dword ptr [{mk} + 0x1D0740]",
-            ".byte 0xDD, 0xC0",
-            ".byte 0xD9, 0xF7",
-            ".byte 0xD9, 0xE1",
-            "fistp dword ptr [{mk} + 0x1D0744]",
-            mk = in(reg) mk,
-            e = in(reg) e,
-            p = in(reg) p,
-            m = in(reg) m,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn facing_x87(mk: usize, o: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{mk} + 0x1D07D8]",
-            ".byte 0xD8, 0xC8",
-            "fld dword ptr [{mk} + 0x1D07DC]",
-            ".byte 0xD8, 0xC8",
-            "fld dword ptr [{mk} + 0x1D07E0]",
-            ".byte 0xD8, 0xC8",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xFA",
-            "fdivr dword ptr [{mk} + 0x22C]",
-            "fld dword ptr [{mk} + 0x1D07D8]",
-            ".byte 0xD8, 0xC9",
-            "fstp dword ptr [{mk} + 0x1D07D8]",
-            "fld dword ptr [{mk} + 0x1D07DC]",
-            ".byte 0xD8, 0xC9",
-            "fstp dword ptr [{mk} + 0x1D07DC]",
-            "fld dword ptr [{mk} + 0x1D07E0]",
-            ".byte 0xDE, 0xC9",
-            "fstp dword ptr [{mk} + 0x1D07E0]",
-            "fld dword ptr [{mk} + 0x1D07D8]",
-            "fmul dword ptr [{o} + 0x4C]",
-            "fld dword ptr [{mk} + 0x1D07DC]",
-            "fmul dword ptr [{o} + 0x50]",
-            "fld dword ptr [{mk} + 0x1D07E0]",
-            "fmul dword ptr [{o} + 0x54]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{mk} + 0x1D0774]",
-            mk = in(reg) mk,
-            o = in(reg) o,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn pull_length_x87(mk: usize, e: usize, p: usize, l: usize, rk: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{e} + 0x10]",
-            "fsub dword ptr [{p} + 0x30]",
-            "fstp dword ptr [{mk} + 0x1D07D8]",
-            "fld dword ptr [{e} + 0x14]",
-            "fsub dword ptr [{p} + 0x34]",
-            "fstp dword ptr [{mk} + 0x1D07DC]",
-            "fld dword ptr [{e} + 0x18]",
-            "fsub dword ptr [{p} + 0x38]",
-            "fstp dword ptr [{mk} + 0x1D07E0]",
-            "fld dword ptr [{mk} + 0x1D07D8]",
-            ".byte 0xD8, 0xC8",
-            "fld dword ptr [{mk} + 0x1D07DC]",
-            ".byte 0xD8, 0xC8",
-            "fld dword ptr [{mk} + 0x1D07E0]",
-            ".byte 0xD8, 0xC8",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xFA",
-            ".byte 0xD9, 0xC0",
-            "fsub dword ptr [{rk} + 0x4C]",
-            "fstp dword ptr [{mk} + 0x1D077C]",
-            "fstp tbyte ptr [{l}]",
-            mk = in(reg) mk,
-            e = in(reg) e,
-            p = in(reg) p,
-            l = in(reg) l,
-            rk = in(reg) rk,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn pull_facing_x87(mk: usize, o: usize, l: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld tbyte ptr [{l}]",
-            "fdivr dword ptr [{mk} + 0x22C]",
-            "fld dword ptr [{mk} + 0x1D07D8]",
-            ".byte 0xD8, 0xC9",
-            "fstp dword ptr [{mk} + 0x1D07D8]",
-            "fld dword ptr [{mk} + 0x1D07DC]",
-            ".byte 0xD8, 0xC9",
-            "fstp dword ptr [{mk} + 0x1D07DC]",
-            "fld dword ptr [{mk} + 0x1D07E0]",
-            ".byte 0xDE, 0xC9",
-            "fstp dword ptr [{mk} + 0x1D07E0]",
-            "fild dword ptr [{o} + 0x88]",
-            "fdivr dword ptr [{mk} + 0x22C]",
-            "fld dword ptr [{o} + 0x4C]",
-            ".byte 0xD8, 0xC9",
-            "fstp dword ptr [{mk} + 0x1D07E4]",
-            "fld dword ptr [{o} + 0x50]",
-            ".byte 0xD8, 0xC9",
-            "fstp dword ptr [{mk} + 0x1D07E8]",
-            "fld dword ptr [{o} + 0x54]",
-            ".byte 0xDE, 0xC9",
-            "fstp dword ptr [{mk} + 0x1D07EC]",
-            "fld dword ptr [{mk} + 0x1D07D8]",
-            "fmul dword ptr [{mk} + 0x1D07E4]",
-            "fld dword ptr [{mk} + 0x1D07DC]",
-            "fmul dword ptr [{mk} + 0x1D07E8]",
-            "fld dword ptr [{mk} + 0x1D07E0]",
-            "fmul dword ptr [{mk} + 0x1D07EC]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xE0",
-            "fstp dword ptr [{mk} + 0x1D0774]",
-            mk = in(reg) mk,
-            o = in(reg) o,
-            l = in(reg) l,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn pull_strength_x87(mk: usize, e: usize, o: usize, rk: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fild dword ptr [{o} + 0x88]",
-            "fmul dword ptr [{rk} + 0x50]",
-            "fadd dword ptr [{mk} + 0x22C]",
-            "fdivr dword ptr [{mk} + 0x22C]",
-            "fsubr dword ptr [{mk} + 0x22C]",
-            "fstp dword ptr [{mk} + 0x1D0780]",
-            "fld dword ptr [{mk} + 0x29C]",
-            "fsub dword ptr [{e} + 0x64]",
-            "fld dword ptr [{rk} + 0x54]",
-            "fmul dword ptr [{mk} + 0x1D0780]",
-            ".byte 0xDE, 0xC9",
-            "fimul dword ptr [{mk} + 0x90]",
-            "fadd dword ptr [{e} + 0x64]",
-            "fist dword ptr [{mk} + 0x1D0780]",
-            "fstp dword ptr [{e} + 0x64]",
-            mk = in(reg) mk,
-            e = in(reg) e,
-            o = in(reg) o,
-            rk = in(reg) rk,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-
-    pub(super) fn box_place_x87(mk: usize, e: usize, m: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{e} + 0x18]",
-            "fld dword ptr [{e} + 0x14]",
-            "fld dword ptr [{e} + 0x10]",
-            "fld dword ptr [{m} + 0x0]",
-            ".byte 0xD8, 0xC9",
-            "fld dword ptr [{m} + 0x10]",
-            ".byte 0xD8, 0xCB",
-            "fld dword ptr [{m} + 0x20]",
-            ".byte 0xD8, 0xCD",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xCB",
-            "fld dword ptr [{m} + 0x4]",
-            ".byte 0xD8, 0xCA",
-            "fld dword ptr [{m} + 0x14]",
-            ".byte 0xD8, 0xCC",
-            "fld dword ptr [{m} + 0x24]",
-            ".byte 0xD8, 0xCB",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xCB",
-            "fld dword ptr [{m} + 0x8]",
-            ".byte 0xDE, 0xCB",
-            "fld dword ptr [{m} + 0x18]",
-            ".byte 0xDE, 0xC9",
-            "fld dword ptr [{m} + 0x28]",
-            ".byte 0xDE, 0xCA",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xCA",
-            ".byte 0xD9, 0xE1",
-            "fistp dword ptr [{mk} + 0x1D0740]",
-            ".byte 0xDD, 0xC0",
-            ".byte 0xD9, 0xF7",
-            ".byte 0xD9, 0xE1",
-            "fistp dword ptr [{mk} + 0x1D0744]",
-            mk = in(reg) mk,
-            e = in(reg) e,
-            m = in(reg) m,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-}
-
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_differential {
-    use super::asm_reference as reference;
+mod reference_vectors {
+    use crate::effects::asm_layout::with_laid;
     use crate::effects::asm_test::Kind::*;
-    use crate::effects::asm_test::{Op, Spec, differential, with_copy};
-    use crate::effects::owner::effects;
+    use crate::effects::asm_test::{Op, Spec, recorded_writes};
     use crate::effects::ring_store::RingWork;
     use crate::effects::tuning::MarksFloats;
-    use crate::race::marks_settings_store::MarkCar;
-    use crate::session::Float;
+    use crate::race::effects_settings_store::CarEffects;
+    use crate::test_support::own::effects;
 
-    fn word(at: usize) -> u32 {
-        unsafe { crate::pointers::host_at(at).cast::<u32>().read_unaligned() }
+    fn word(at: crate::effects::asm_test::Operand) -> u32 {
+        // SAFETY: `at` checks that the four bytes lie in the operand's test buffer, which the
+        // recorded run keeps alive and nothing else reaches meanwhile; unaligned, any bits a `u32`.
+        unsafe { at.at(0, 4).cast::<u32>().read_unaligned() }
     }
 
-    /// A car record whose words at the record `offsets` hold the test buffer's dwords at `at + offset - base`.
-    fn car_with(at: usize, base: usize, offsets: &[usize]) -> MarkCar {
-        let car = MarkCar::zeroed();
+    /// A car record whose words at the record `offsets` hold the test buffer's dwords at `at +
+    /// offset - base`.
+    fn car_with(
+        at: crate::effects::asm_test::Operand,
+        base: usize,
+        offsets: &[usize],
+    ) -> CarEffects {
+        let car = CarEffects::zeroed();
         for &o in offsets {
-            crate::pointers::GamePtr::to(&car)
-                .offset(o as u32)
-                .write(word(at + o - base), "a test car record")
-                .unwrap();
+            crate::memory::cells::store_value(&car, o, word(at + o - base)).unwrap();
         }
         car
     }
 
     /// The car's 3 x 3 matrix (the record's +0x94) from the buffer at `at`.
-    fn car_matrix(at: usize) -> MarkCar {
+    fn car_matrix(at: crate::effects::asm_test::Operand) -> CarEffects {
         let offsets: Vec<usize> = [0x0, 0x4, 0x8, 0x10, 0x14, 0x18, 0x20, 0x24, 0x28]
             .iter()
             .map(|o| 0x94 + o)
@@ -1465,10 +1211,10 @@ mod asm_differential {
     }
 
     /// A whole matrix whose translation (+0x30 ..) is the buffer's at `at` + 0x30 (`at` the
-    /// matrix's place, as the original reads it).
-    fn whole_at(at: usize) -> [Float; 16] {
+    /// matrix's place).
+    fn whole_at(at: crate::effects::asm_test::Operand) -> [crate::memory::session::Float; 16] {
         std::array::from_fn(|i| {
-            Float::from_bits(if (12..15).contains(&i) {
+            crate::memory::session::Float::from_bits(if (12..15).contains(&i) {
                 word(at + 4 * i)
             } else {
                 0
@@ -1524,17 +1270,13 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::box_x87(b[0], b[1], b[2], b[3]),
-            |b| {
-                with_copy(b[0], RingWork::START, |w| {
-                    crate::effects::ring_entries::with_entry_at(ring, b[1], 0x10, 0x1C, |e| {
-                        super::box_x87(ring, w, e, &whole_at(b[2]), &car_matrix(b[3]));
-                    });
+        recorded_writes("effects.run_ring.box_x87", &SPEC, |b| {
+            with_laid::<RingWork, _>(b[0], |w| {
+                crate::effects::ring_entries::with_entry_at(ring, b[1], 0x10, 0x1C, |e| {
+                    super::box_x87(ring, w, e, &whole_at(b[2]), &car_matrix(b[3]));
                 });
-            },
-        );
+            });
+        });
     }
 
     #[test]
@@ -1566,18 +1308,14 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::facing_x87(b[0], b[1]),
-            |b| {
-                with_copy(b[0], MarksFloats::START, |f| {
-                    with_copy(b[0], RingWork::START, |w| {
-                        let car = car_with(b[1], 0, &[0x4C, 0x50, 0x54]);
-                        super::facing_x87(&car, f, w);
-                    });
+        recorded_writes("effects.run_ring.facing_x87", &SPEC, |b| {
+            with_laid::<MarksFloats, _>(b[0], |f| {
+                with_laid::<RingWork, _>(b[0], |w| {
+                    let car = car_with(b[1], 0, &[0x4C, 0x50, 0x54]);
+                    super::facing_x87(&car, f, w);
                 });
-            },
-        );
+            });
+        });
     }
 
     #[test]
@@ -1623,26 +1361,23 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::pull_length_x87(b[0], b[1], b[2], b[3], b[4]),
-            |b| {
-                with_copy(b[0], RingWork::START, |w| {
-                    crate::effects::ring_entries::with_entry_at(ring, b[1], 0x10, 0x1C, |e| {
-                        let mut length = [0xAA; 10];
-                        let kinds = super::RingKinds {
-                            near_less: f32::from_bits(word(b[4] + 0x4C)),
-                            ..crate::effects::owner::EFFECTS.ring.kinds
-                        };
-                        super::pull_length_x87(ring, e, &whole_at(b[2]), &mut length, w, &kinds);
-                        unsafe {
-                            crate::pointers::host_at(b[3])
-                                .copy_from_nonoverlapping(length.as_ptr(), 10);
-                        }
-                    });
+        recorded_writes("effects.run_ring.pull_length_x87", &SPEC, |b| {
+            with_laid::<RingWork, _>(b[0], |w| {
+                crate::effects::ring_entries::with_entry_at(ring, b[1], 0x10, 0x1C, |e| {
+                    let mut length = [0xAA; 10];
+                    let kinds = super::RingKinds {
+                        near_less: f32::from_bits(word(b[4] + 0x4C)),
+                        ..crate::test_support::own::effects().ring.kinds
+                    };
+                    super::pull_length_x87(ring, e, &whole_at(b[2]), &mut length, w, &kinds);
+                    // SAFETY: `at` checks that the ten bytes lie in the operand's test buffer,
+                    // which the recorded run keeps alive; `length` is this closure's own.
+                    unsafe {
+                        b[3].at(0, 10).copy_from_nonoverlapping(length.as_ptr(), 10);
+                    }
                 });
-            },
-        );
+            });
+        });
     }
 
     #[test]
@@ -1686,21 +1421,18 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::pull_facing_x87(b[0], b[1], b[2]),
-            |b| {
-                with_copy(b[0], MarksFloats::START, |f| {
-                    with_copy(b[0], RingWork::START, |w| {
-                        let car = car_with(b[1], 0, &[0x4C, 0x50, 0x54, 0x88]);
-                        let length: [u8; 10] = std::array::from_fn(|i| unsafe {
-                            crate::pointers::host_at(b[2] + i).read()
-                        });
-                        super::pull_facing_x87(&car, &length, f, w);
-                    });
+        recorded_writes("effects.run_ring.pull_facing_x87", &SPEC, |b| {
+            with_laid::<MarksFloats, _>(b[0], |f| {
+                with_laid::<RingWork, _>(b[0], |w| {
+                    let car = car_with(b[1], 0, &[0x4C, 0x50, 0x54, 0x88]);
+                    let length: [u8; 10] =
+                        // SAFETY: `host` checks that the byte lies in the operand's test buffer,
+                        // which the recorded run keeps alive and nothing else reaches meanwhile.
+                        std::array::from_fn(|i| unsafe { (b[2] + i).host().read() });
+                    super::pull_facing_x87(&car, &length, f, w);
                 });
-            },
-        );
+            });
+        });
     }
 
     #[test]
@@ -1735,33 +1467,31 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::pull_strength_x87(b[0], b[1], b[2], b[3]),
-            |b| {
-                with_copy(b[0], MarksFloats::START, |f| {
-                    with_copy(b[0], RingWork::START, |w| {
-                        crate::effects::ring_entries::with_entry_at(ring, b[1], 0x64, 0x68, |e| {
-                            let car = car_with(b[2], 0, &[0x88]);
-                            let kinds = super::RingKinds {
-                                near_scale: f32::from_bits(word(b[3] + 0x50)),
-                                near_rate: f32::from_bits(word(b[3] + 0x54)),
-                                ..crate::effects::owner::EFFECTS.ring.kinds
-                            };
-                            super::pull_strength_x87(
-                                ring,
-                                e,
-                                &car,
-                                crate::effects::setup::clock_at(b[0]),
-                                f,
-                                w,
-                                &kinds,
-                            );
-                        });
+        recorded_writes("effects.run_ring.pull_strength_x87", &SPEC, |b| {
+            with_laid::<MarksFloats, _>(b[0], |f| {
+                with_laid::<RingWork, _>(b[0], |w| {
+                    crate::effects::ring_entries::with_entry_at(ring, b[1], 0x64, 0x68, |e| {
+                        let car = car_with(b[2], 0, &[0x88]);
+                        let kinds = super::RingKinds {
+                            near_scale: f32::from_bits(word(b[3] + 0x50)),
+                            near_rate: f32::from_bits(word(b[3] + 0x54)),
+                            ..crate::test_support::own::effects().ring.kinds
+                        };
+                        super::pull_strength_x87(
+                            ring,
+                            e,
+                            &car,
+                            crate::effects::asm_layout::copy_of::<crate::effects::setup::MarksClock>(
+                                b[0],
+                            ),
+                            f,
+                            w,
+                            &kinds,
+                        );
                     });
                 });
-            },
-        );
+            });
+        });
     }
 
     #[test]
@@ -1800,16 +1530,12 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::box_place_x87(b[0], b[1], b[2]),
-            |b| {
-                with_copy(b[0], RingWork::START, |w| {
-                    crate::effects::ring_entries::with_entry_at(ring, b[1], 0x10, 0x1C, |e| {
-                        super::box_place_x87(ring, w, e, &car_matrix(b[2]));
-                    });
+        recorded_writes("effects.run_ring.box_place_x87", &SPEC, |b| {
+            with_laid::<RingWork, _>(b[0], |w| {
+                crate::effects::ring_entries::with_entry_at(ring, b[1], 0x10, 0x1C, |e| {
+                    super::box_place_x87(ring, w, e, &car_matrix(b[2]));
                 });
-            },
-        );
+            });
+        });
     }
 }

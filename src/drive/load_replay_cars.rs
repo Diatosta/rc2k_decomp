@@ -1,17 +1,11 @@
-//! `drive::load_replay_cars` (0x46010D): `drive::save_replay_cars` the other way: the
-//! replay's starting state at `unk_7172EC` copied back into the four car blocks, the race
-//! slots and `unk_71BF84`.
-//!
-//! Callers: `drive::play_replay_frame`, `race::show_replay_still` (twice).
+//! `drive::save_replay_cars` the other way: the replay's
+//! starting state in the replay's staging (`race::replay_staging_store`) put back into the four car
+//! blocks, the race slots and `replay_extra`'s run, field by field (`drive::replay_state`).
 
-use crate::drive::save_replay_cars::copy_piece;
+use crate::drive::replay_state::scatter;
 use crate::race::owner::Race;
-use rc2k_core::drive::replay_frames::start_layout;
 
-/// The Rust version.
-// Converted: `rc2k_core::drive::replay_frames::start_layout`.
 pub fn load_replay_cars(race: &Race) {
-    for (piece, offset, n) in start_layout() {
-        copy_piece(race, piece, offset, n, false);
-    }
+    let frame = race.replay.staging().start_frame();
+    scatter(&frame, &race.car_blocks().cars, race.shared.work.get());
 }

@@ -1,20 +1,16 @@
-//! `service::clear_repair_marks` (0x46BA15): sets every entry of the second flag table
-//! (`dword_759BC2`) to 0, up to its -1 end mark.
+//! Sets every entry of the second flag table (`Service::repair_marks`) to 0, up to its -1 end
+//! mark. What the marks mean has not been worked out: the name is a reading.
 //!
-//! The first entry is cleared without being checked for the end mark, as in the original. Refuses a
-//! table whose end mark is not where it belongs. What the marks mean has not been worked out: the
-//! name is a reading.
+//! The first entry is cleared without being checked for the end mark. Refuses a table whose end
+//! mark is not where it belongs.
 
 use crate::errors::BadInput;
-use crate::menu::owner::Tables;
+use crate::service::owner::Service;
 use crate::service::state::{marks, store_marks};
 
-// ---- Rust version ----
-
-pub fn clear_repair_marks(tables: &Tables) -> Result<(), BadInput> {
-    // Converted: `rc2k_core::service::repairs::clear`.
-    let mut t = marks(tables);
+pub fn clear_repair_marks(service: &Service) -> Result<(), BadInput> {
+    let mut t = marks(service);
     rc2k_core::service::repairs::clear(&mut t)?;
-    store_marks(tables, &t);
+    store_marks(service, &t);
     Ok(())
 }

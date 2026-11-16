@@ -2,7 +2,8 @@
 # Starts the remote build and goes through the menus into a single rally's stage:
 # remote_to_race.sh [rally] [stage], both counts of Right on the stage screen (from Wales, its
 # first stage). 3 4 is Langton, the Jim Clark rally's fifth and the game's shortest; 4 0 is
-# Hamilton's Folly, in rain. Other arguments go to `remote.py start`.
+# Hamilton's Folly, in rain. Other arguments go to `remote.py start`. PLAYERS=2 in the
+# environment: a two-player race (split screen).
 cd "$(dirname "$0")/.." || exit 1
 rally=0 stage=0
 [[ $1 =~ ^[0-9]+$ ]] && rally=$1 && shift
@@ -36,6 +37,11 @@ python3 tools/remote.py start "$@"
 # Through the title, the main menu and the single rally's pages to the stage screen (menu 1,
 # the rally row item 2).
 until_state 'menu=None' '' 1
+# PLAYERS=2: two players (split screen), chosen on the players' screen (menu 4).
+if [ "${PLAYERS:-1}" = 2 ]; then
+    until_state 'menu=Some(MenuId(4))' Return 3
+    press Right 1 1.5
+fi
 until_state 'menu=Some(MenuId(1)) item=2' Return 3
 press Right "$rally" 1.5
 until_state 'item=3' Down 1.5

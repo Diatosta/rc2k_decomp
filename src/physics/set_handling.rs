@@ -1,12 +1,9 @@
-//! `physics::set_handling` (0x43EB5D): `physics::grade_or_reset`, then nine handling
-//! figures from the car's setup (whole numbers in the work copy, 0 .. 256 by the look of
-//! it): each lo + n / 256 (hi - lo) between two constants of 0x613F1C .. 0x613F88:
-//! `flt_614C0C`, `flt_614C08` (by `dword_71A014`), `flt_614BF0` (`dword_719FF8`),
-//! `flt_614BF4`, `flt_614BFC` (`dword_71A008`; the second from the pair for
-//! `g_carDriveKind`, then times `dword_614C18`), `flt_614BEC`, `flt_614BF8`, `flt_614C00`,
-//! `flt_614C04` (`dword_71A00C`). What each is, is a reading.
-//!
-//! Returns: `g_carDriveKind`
+//! After `physics::grade_or_reset`, nine handling figures from the car's setup (whole numbers in
+//! the work copy, 0 .. 256 by the look of it): each lo + n / 256 (hi - lo) between two constants:
+//! `PhysicsTables.handling[8]`, `handling[7]` (by `steering_sensitivity`), `handling[1]`
+//! (`brake_balance`), `handling[2]`, `handling[4]` (`ride_height`; the second from the pair for
+//! `drive_kind`, then times `ride_height_handling_scale`), `handling[0]`, `handling[3]`,
+//! `handling[5]`, `handling[6]` (`suspension_stiffness`). What each is, is a reading.
 //!
 //! Callers: `physics::car_physics_step` (every physics step) and `race::settle_car`. Refuses
 //! (before anything) a drive kind above 1 (the cars' records have 0 and 1; the pair tables hold
@@ -14,96 +11,119 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::math::x87_run::int_lerp;
+use crate::math::x87::int_lerp;
+use crate::memory::session::{PlainDword, PlainFloat};
+use crate::physics::car_store::Car;
 use crate::physics::grade_or_reset::grade_or_reset;
-use crate::race::owner::Race;
-use crate::session::{Dword, Float};
+use crate::physics::store::DamageModel;
+use crate::physics::tables_store::PhysicsTables;
+use crate::race::numbers_store::Numbers;
+use crate::race::owner_shared::RaceShared;
 
-/// (out, setting, hi, lo) in the original's order, but the drive kind's.
-fn before(race: &Race) -> [(&Float, &Dword, &Float, &Float); 4] {
+/// (out, setting, hi, lo) for each figure, except the drive kind's.
+fn before<'a>(
+    car: &'a Car,
+    tables: &'a PhysicsTables,
+) -> [(
+    &'a PlainFloat,
+    &'a PlainDword,
+    &'a PlainFloat,
+    &'a PlainFloat,
+); 4] {
     [
         (
-            &race.shared.physics_tables.handling[8],
-            &race.shared.car.steering_sensitivity,
-            &race.shared.physics_tables.handling_ranges_a[3],
-            &race.shared.physics_tables.handling_ranges_a[2],
+            &tables.handling[8],
+            &car.steering_sensitivity,
+            &tables.handling_ranges_a[3],
+            &tables.handling_ranges_a[2],
         ),
         (
-            &race.shared.physics_tables.handling[7],
-            &race.shared.car.steering_sensitivity,
-            &race.shared.physics_tables.handling_ranges_a[5],
-            &race.shared.physics_tables.handling_ranges_a[4],
+            &tables.handling[7],
+            &car.steering_sensitivity,
+            &tables.handling_ranges_a[5],
+            &tables.handling_ranges_a[4],
         ),
         (
-            &race.shared.physics_tables.handling[1],
-            &race.shared.car.brake_balance,
-            &race.shared.physics_tables.handling_ranges_a[1],
-            &race.shared.physics_tables.handling_ranges_a[0],
+            &tables.handling[1],
+            &car.brake_balance,
+            &tables.handling_ranges_a[1],
+            &tables.handling_ranges_a[0],
         ),
         (
-            &race.shared.physics_tables.handling[2],
-            &race.shared.car.ride_height,
-            &race.shared.physics_tables.handling_ranges_b[1],
-            &race.shared.physics_tables.handling_ranges_b[0],
+            &tables.handling[2],
+            &car.ride_height,
+            &tables.handling_ranges_b[1],
+            &tables.handling_ranges_b[0],
         ),
     ]
 }
-fn after(race: &Race) -> [(&Float, &Dword, &Float, &Float); 4] {
+fn after<'a>(
+    car: &'a Car,
+    tables: &'a PhysicsTables,
+) -> [(
+    &'a PlainFloat,
+    &'a PlainDword,
+    &'a PlainFloat,
+    &'a PlainFloat,
+); 4] {
     [
         (
-            &race.shared.physics_tables.handling[0],
-            &race.shared.car.suspension_stiffness,
-            &race.shared.physics_tables.handling_ranges_c[7],
-            &race.shared.physics_tables.handling_ranges_c[6],
+            &tables.handling[0],
+            &car.suspension_stiffness,
+            &tables.handling_ranges_c[7],
+            &tables.handling_ranges_c[6],
         ),
         (
-            &race.shared.physics_tables.handling[3],
-            &race.shared.car.suspension_stiffness,
-            &race.shared.physics_tables.handling_ranges_c[1],
-            &race.shared.physics_tables.handling_ranges_c[0],
+            &tables.handling[3],
+            &car.suspension_stiffness,
+            &tables.handling_ranges_c[1],
+            &tables.handling_ranges_c[0],
         ),
         (
-            &race.shared.physics_tables.handling[5],
-            &race.shared.car.suspension_stiffness,
-            &race.shared.physics_tables.handling_ranges_c[3],
-            &race.shared.physics_tables.handling_ranges_c[2],
+            &tables.handling[5],
+            &car.suspension_stiffness,
+            &tables.handling_ranges_c[3],
+            &tables.handling_ranges_c[2],
         ),
         (
-            &race.shared.physics_tables.handling[6],
-            &race.shared.car.suspension_stiffness,
-            &race.shared.physics_tables.handling_ranges_c[5],
-            &race.shared.physics_tables.handling_ranges_c[4],
+            &tables.handling[6],
+            &car.suspension_stiffness,
+            &tables.handling_ranges_c[5],
+            &tables.handling_ranges_c[4],
         ),
     ]
 }
 
-/// The Rust version (the exact one, for `race::settle_car` and
-/// `physics::car_physics_step`).
-pub fn set_handling(race: &Race) -> Result<(), Refused> {
-    let kind = race.shared.car.drive_kind.get() as usize;
+/// The exact version, for `race::settle_car` and `physics::car_physics_step`.
+pub fn set_handling(
+    damage: &DamageModel,
+    numbers: &Numbers,
+    shared: &RaceShared,
+) -> Result<(), Refused> {
+    let kind = shared.car().drive_kind.get() as usize;
     if kind > 1 {
         return Err(BadInput("a drive kind above 1 (the pair tables hold two)").into());
     }
-    grade_or_reset(race);
-    let k256: u32 = race.course.numbers.k256.bits();
-    let lerp = |(out, n, hi, lo): (&Float, &Dword, &Float, &Float)| {
-        out.set_bits(int_lerp(n.get() as i32, k256, hi.bits(), lo.bits()));
+    grade_or_reset(damage, numbers, shared);
+    let k256 = numbers.k256.get();
+    let lerp = |(out, n, hi, lo): (&PlainFloat, &PlainDword, &PlainFloat, &PlainFloat)| {
+        out.set(int_lerp(n.get() as i32, k256, hi, lo));
     };
-    for v in before(race) {
+    for v in before(shared.car(), shared.physics_tables.get()) {
         lerp(v);
     }
-    let r = &race.shared.physics_tables.handling_ranges_b;
+    let r = &shared.physics_tables.get().handling_ranges_b;
     lerp((
-        &race.shared.physics_tables.handling[4],
-        &race.shared.car.ride_height,
+        &shared.physics_tables.get().handling[4],
+        &shared.car().ride_height,
         &r[4 + kind],
         &r[2 + kind],
     ));
-    race.shared.physics_tables.handling[4].set_bits(x87::mul(
-        race.shared.physics_tables.handling[4].bits(),
-        race.shared.physics_tables.spec_a0.get(),
+    shared.physics_tables.get().handling[4].set(x87::mul(
+        &shared.physics_tables.get().handling[4],
+        shared.physics_tables.get().ride_height_handling_scale.get(),
     ));
-    for v in after(race) {
+    for v in after(shared.car(), shared.physics_tables.get()) {
         lerp(v);
     }
     Ok(())

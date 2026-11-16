@@ -1,23 +1,17 @@
-//! `sound::race_turn_if` (0x421BCF): `sound::race_turn` while the race's sounds are on.
+//! `sound::race_turn_if`: `sound::race_turn` while the race's sounds are on.
 //!
-//! Only with `dword_6218F0` not 0. One caller, `sound::race_sound_tick`.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
+//! One caller, `sound::race_sound_tick`.
 
 use crate::errors::Refused;
 
-// ---- Rust version ----
-
 /// `sound::race_turn` while the race's sounds are on: true when it ran.
 pub fn race_turn_if(
-    sound: &crate::sound::owner::Sound,
-    input: &crate::input::owner::Input,
+    o: crate::owners::Owners<'static>,
+    race: &crate::race::owner::Race,
 ) -> Result<bool, Refused> {
-    let audio = crate::audio::owner::audio();
-    if sound.race.sounds_on.get() == 0 {
+    if o.sound.race.sounds_on.get().get() == 0 {
         return Ok(false);
     }
-    crate::sound::race_turn::race_turn(sound, input, audio)?;
+    crate::sound::race_turn::race_turn(o, race)?;
     Ok(true)
 }

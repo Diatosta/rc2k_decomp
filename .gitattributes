@@ -1,1 +1,2 @@
 ida_db/RAL.EXE.i64 filter=lfs diff=lfs merge=lfs -text
+data/vectors/** filter=lfs diff=lfs merge=lfs -text

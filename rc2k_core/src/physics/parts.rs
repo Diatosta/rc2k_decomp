@@ -1,10 +1,5 @@
-//! The work car's loose parts (converted 2026-10-21 from `physics::fill_race_slot`
-//! 0x462263 (its choice of slot), `physics::fill_slot_on_bit` 0x462237,
-//! `physics::drop_broken_parts` 0x462386, `physics::drop_hit_parts` 0x4410C8,
-//! `physics::sound_hit_parts` 0x4411EC, `physics::hit_part_checks` 0x441046 and
-//! `physics::sound_on_bit` 0x441324). The car's parts are bits of its +0x298 word; a part
-//! that comes off goes into one of the eight race slots (`g_raceSlots`) and flies with
-//! the car's motion. What the parts are is a reading.
+//! The work car's loose parts: parts are bits of one word; a part that comes off goes into one
+//! of the eight race slots and flies with the car's motion.
 
 use super::car_word::test_car_word;
 use super::x87::below;
@@ -12,31 +7,31 @@ use super::x87::below;
 /// The race slots.
 pub const SLOTS: usize = 8;
 
-/// The highest part number (the parts' middles are tables of 0x100).
+/// The highest part number (the parts' tables hold 0x100).
 pub const LAST_PART: u32 = 0xFF;
 
 /// A damage figure that never breaks its part.
 pub const UNBROKEN: u32 = 0x8000_0000;
 
-/// The slot `fill_race_slot` takes.
+/// The slot chosen for a part that comes off.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SlotChoice {
     /// The slot's number.
     pub slot: usize,
-    /// ecx as the search leaves it: the slot's number, 8 when none was empty.
-    pub ecx: u32,
-    /// With no slot empty: the lowest +0x64 (the slot's age, a clock), edx as left.
+    /// The slot number the search ends at, 8 when none was empty.
+    pub search_end: u32,
+    /// With no slot empty: the lowest age (a clock).
     pub lowest: Option<u32>,
 }
 
-/// The first empty slot (its part 0; asked in order up to the first empty one), else the
-/// one with the lowest age (unsigned, the first of equals; asked only when none is empty). None when every age is
-/// -1 (the original takes a slot it never chose: refused by the callers).
+/// The first empty slot (asked in order), else the one with the lowest age (unsigned, the
+/// first of equals; asked only when none is empty). `None` when every age is -1 (callers
+/// refuse it).
 pub fn choose_slot(part: impl Fn(usize) -> u32, age: impl Fn(usize) -> u32) -> Option<SlotChoice> {
     if let Some(slot) = (0..SLOTS).find(|&c| part(c) == 0) {
         return Some(SlotChoice {
             slot,
-            ecx: slot as u32,
+            search_end: slot as u32,
             lowest: None,
         });
     }
@@ -51,20 +46,19 @@ pub fn choose_slot(part: impl Fn(usize) -> u32, age: impl Fn(usize) -> u32) -> O
     }
     best.map(|slot| SlotChoice {
         slot,
-        ecx: SLOTS as u32,
+        search_end: SLOTS as u32,
         lowest: Some(lowest),
     })
 }
 
-/// A bit of the parts' word taken (`bt` / `btc` on bit `bit` mod 32): (the bit's mask,
-/// the word with it cleared when it was set).
+/// A bit of the parts' word taken (bit mod 32): (the bit's mask, the word with it cleared
+/// when it was set).
 pub fn take_bit(bits: u32, bit: u32) -> (u32, Option<u32>) {
     let mask = 1u32.wrapping_shl(bit & 0x1F);
     (mask, (bits & mask != 0).then_some(bits ^ mask))
 }
 
-/// The part a car's bit names: 0x50 + 0x14 x the car + the bit (the whole register, as
-/// the original adds it); None past `LAST_PART`.
+/// The part a car's bit names: 0x50 + 0x14 x the car + the bit; `None` past `LAST_PART`.
 pub fn part_number(car: u32, bit: u32) -> Option<u32> {
     let part = 0x14u32
         .wrapping_mul(car)
@@ -73,29 +67,27 @@ pub fn part_number(car: u32, bit: u32) -> Option<u32> {
     (part <= LAST_PART).then_some(part)
 }
 
-/// `drop_broken_parts`' bits, by damage figure (+0xA3C + 4k).
+/// The part bits of the broken-part check, by damage figure.
 pub const BROKEN_BITS: [u32; 7] = [9, 0xD, 0xE, 0x10, 0x11, 0xC, 0xF];
 
-/// Whether damage figure `k` is checked: the first only with the switch
-/// (`dword_62DAD0`, asked only for it) set.
+/// Whether damage figure `k` is checked: the first only when `switch` (asked only for it).
 pub fn broken_checked(k: usize, switch: impl FnOnce() -> bool) -> bool {
     k != 0 || switch()
 }
 
-/// Whether a part breaks: its damage not `UNBROKEN` and not below its limit (unsigned);
-/// the limit is asked only past the first test.
+/// Whether a part breaks: its damage not `UNBROKEN` and not below its limit (unsigned); the
+/// limit is asked only past the first test.
 pub fn breaks(damage: u32, limit: impl FnOnce() -> u32) -> bool {
     damage != UNBROKEN && damage >= limit()
 }
 
-/// One of the four hit tests: the word's rotation (`physics::test_car_word`) and the
-/// part's bit.
+/// One of the four hit tests: the word's rotation and the part's bit.
 pub type HitTest = (u8, u32);
 
-/// `drop_hit_parts`' tests (the timers +0x2F8 ..).
+/// The tests for a part that drops when hit.
 pub const DROP_TESTS: [HitTest; 4] = [(5, 5), (9, 6), (0xE, 7), (0x19, 8)];
 
-/// `sound_hit_parts`' tests (the timers +0x354 ..).
+/// The tests for the sound of a part hit.
 pub const SOUND_TESTS: [HitTest; 4] = [(5, 1), (9, 2), (0xE, 3), (0x19, 4)];
 
 /// How the hit tests end.
@@ -103,16 +95,15 @@ pub const SOUND_TESTS: [HitTest; 4] = [(5, 1), (9, 2), (0xE, 3), (0x19, 4)];
 pub enum Hit {
     /// No test passed.
     None,
-    /// Test `k` passed with its part's bit already clear: nothing done.
+    /// Test `k` passed with its part's bit already clear.
     Gone(usize),
     /// Test `k` passed with its part's bit set: the part's step runs and the timer is set.
     Act(usize),
 }
 
 /// The hit tests: (the last test run, how they end). A test passes when the car's word
-/// rotated by its rotation has its low 16 bits 0 (`test_car_word`'s carry) and its timer
-/// is not below the limit (unordered counts as below); `timer(k)`, `limit` and `bits`
-/// are asked only where the original reads them.
+/// rotated by its rotation has its low 16 bits 0 and its timer is not below the limit
+/// (unordered counts as below); the inputs are asked only where needed.
 pub fn hit_tests(
     tests: &[HitTest; 4],
     word: u32,
@@ -135,8 +126,8 @@ pub fn hit_tests(
     (tests.len() - 1, Hit::None)
 }
 
-/// `hit_part_checks`' figure (+0x284): 1, -1 with bits 5, 6, 1, 2 all set, 0 with bits 7,
-/// 8, 3, 4 also set; the hit tests run only at 0.
+/// The hit-check figure: 1, -1 with bits 5, 6, 1, 2 all set, 0 with bits 7, 8, 3, 4 also set;
+/// the hit tests run only at 0.
 pub fn parts_left(bits: u32) -> u32 {
     let all = |b: &[u32]| b.iter().all(|&b| bits >> b & 1 != 0);
     if !all(&[5, 6, 1, 2]) {
@@ -148,11 +139,10 @@ pub fn parts_left(bits: u32) -> u32 {
     }
 }
 
-/// The kinds with a sound table (`dword_5C5BD0`).
+/// The car kinds with a hit-sound table.
 pub const SOUND_KINDS: u32 = 0x22;
 
-/// Whether a car kind has sounds for its hit parts: below `SOUND_KINDS` and its entry
-/// (asked only then) not 0.
+/// Whether a car kind has sounds for its hit parts: below `SOUND_KINDS` and its entry not 0.
 pub fn has_hit_sounds(kind: u32, entry: impl FnOnce(u32) -> u32) -> bool {
     kind < SOUND_KINDS && entry(kind) != 0
 }
@@ -164,10 +154,10 @@ mod tests {
     #[test]
     fn slots() {
         let c = choose_slot(|k| [1, 2, 0, 0, 5, 6, 7, 8][k], |_| unreachable!()).unwrap();
-        assert_eq!((c.slot, c.ecx, c.lowest), (2, 2, None));
+        assert_eq!((c.slot, c.search_end, c.lowest), (2, 2, None));
         let ages = [9u32, 4, 7, 4, 10, 11, 12, 13];
         let c = choose_slot(|_| 1, |k| ages[k]).unwrap();
-        assert_eq!((c.slot, c.ecx, c.lowest), (1, 8, Some(4)));
+        assert_eq!((c.slot, c.search_end, c.lowest), (1, 8, Some(4)));
         assert_eq!(choose_slot(|_| 1, |_| u32::MAX), None);
     }
 

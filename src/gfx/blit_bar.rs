@@ -1,18 +1,14 @@
-//! `gfx::blit_bar` (0x46B574): draws a bar filled to a percentage: the fill sprite with the
-//! clip rectangle's right edge pulled in to where the fill ends, then an end piece there.
-//!
-//! Nothing is drawn at 0 percent. If width * percent is 0 with a non-zero percent the original
-//! reports fatal error 0x80701010. The blitter is given the fill's end x as its palette,
-//! which only works because these sprites do not use one; it is reproduced as is.
-//! Also leaves the fill's end x in `seconds` (0x7559AC), a work variable.
+//! Draws a bar filled to a percentage: the fill sprite with the clip rectangle's right edge pulled
+//! in to where the fill ends, then an end piece there.
+//! Nothing is drawn at 0 percent. If width * percent is 0 with a non-zero percent a fatal error is
+//! reported. The blitter is given the fill's end x as its palette, which only works because these
+//! sprites do not use one: kept as is.
 
 use crate::errors::{FatalError, Refused};
 use crate::gfx::blit_glyph::BlitCall;
-use crate::gfx::owner::gfx;
+use crate::gfx::owner::Gfx;
 use crate::gfx::surface::clip;
-use crate::menu::owner::menus;
-
-// ---- game data ----
+use crate::menu::owner::Menus;
 
 /// The six globals a caller fills in before drawing a bar or its marker.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -28,8 +24,8 @@ pub struct Bar {
 }
 
 impl Bar {
-    pub fn read() -> Self {
-        let drawing = &gfx().drawing;
+    pub fn read(gfx: &Gfx) -> Self {
+        let drawing = &gfx.drawing;
         Self {
             x: drawing.bar.x.get() as i32,
             y: drawing.bar.y.get() as i32,
@@ -40,8 +36,9 @@ impl Bar {
         }
     }
 
-    pub fn write(&self) {
-        let drawing = &gfx().drawing;
+    /// Puts the bar in the bar globals.
+    pub fn write_in(&self, gfx: &Gfx) {
+        let drawing = &gfx.drawing;
         drawing.bar.x.set(self.x as u32);
         drawing.bar.y.set(self.y as u32);
         drawing.bar.width.set(self.width as u32);
@@ -51,40 +48,41 @@ impl Bar {
     }
 }
 
-/// What the original reports when width * percent is 0. Its message pointer is null.
+/// The fatal error for width * percent being 0. Its message pointer is null.
 pub const BAR_HAS_NO_LENGTH: FatalError = FatalError {
     code: 0x8070_1010,
     message: "",
 };
 
-pub fn set_bar_x(x: i32) {
-    gfx().drawing.bar.x.set(x as u32);
-}
-
-// ---- Rust version ----
-
 /// Where a blitter call goes: the game's surface, or a list.
 pub type Blit<'a> = &'a mut dyn FnMut(BlitCall) -> Result<(), Refused>;
 
 /// The game's side of a bar: the blits through `blit`, the clip and the bar's globals.
-pub struct GameBar<'a>(pub Blit<'a>);
+pub struct GameBar<'a> {
+    pub blit: Blit<'a>,
+    pub gfx: &'a Gfx,
+    pub menus: &'a Menus,
+}
 
 impl rc2k_core::gfx::bars::BarCanvas for GameBar<'_> {
     type Error = Refused;
     fn sprite(&mut self, glyph: u32, x: i32, y: i32) -> Result<(), Refused> {
-        (self.0)(BlitCall::sprite(glyph, x, y))
+        (self.blit)(BlitCall::sprite(
+            self.menus,
+            glyph,
+            x,
+            y,
+            clip(self.gfx).right,
+        ))
     }
     fn clip_right(&mut self) -> i32 {
-        clip().right
+        clip(self.gfx).right
     }
     fn set_clip_right(&mut self, x: i32) {
-        gfx().drawing.blit.clip.right.set(x as u32);
-    }
-    fn keep_fill_end(&mut self, x: i32) {
-        menus().screens.draw_work.seconds.set(x as u32);
+        self.gfx.drawing.blit.clip.right.set(x as u32);
     }
     fn set_bar_x(&mut self, x: i32) {
-        set_bar_x(x);
+        self.gfx.drawing.bar.x.set(x as u32);
     }
     fn no_length(&mut self) -> Refused {
         BAR_HAS_NO_LENGTH.into()
@@ -105,7 +103,7 @@ impl Bar {
     }
 }
 
-/// The bar described by the bar globals. Converted: `rc2k_core::gfx::bars::bar`.
-pub fn blit_bar(blit: Blit) -> Result<(), Refused> {
-    rc2k_core::gfx::bars::bar(&mut GameBar(blit), &Bar::read().core())
+/// The bar described by the bar globals.
+pub fn blit_bar_in(gfx: &Gfx, menus: &Menus, blit: Blit) -> Result<(), Refused> {
+    rc2k_core::gfx::bars::bar(&mut GameBar { blit, gfx, menus }, &Bar::read(gfx).core())
 }

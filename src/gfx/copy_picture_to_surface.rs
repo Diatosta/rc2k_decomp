@@ -1,30 +1,19 @@
-//! `gfx::copy_picture_to_surface` (0x4060E3): copies the picture buffer onto the surface, row
-//! by row: the background of a menu frame.
-//!
-//! If the surface is not locked (`dword_4F3870` is 0) it is locked first, and nothing is
-//! copied if that fails; it is then unlocked again afterwards. The copy takes
-//! `dword_4F49A4` rows of `dword_4F49B4` dwords from the buffer, which it reads without
-//! gaps, and after each row moves on `dword_4F49C4` more bytes on the surface. All of these
-//! are read after the lock, which sets them (0x405726).
-//! Callers: `menu::frame_callback`, `menu::draw_frame` and a dozen more.
-//! The lock and the unlock are the game's (`gfx::lock_surface` 0x4058AD,
-//! `gfx::unlock_surface` 0x405949, DirectDraw calls); the Rust version reaches them through
-//! `PictureSurface`, which is where a build without the game puts its own surface.
-//! Refuses a row count of 0 (the original counts through all 32 bits) and null pointers. The
-//! name is a reading.
-//! The registers above are the original's, for reference; a call by address goes through
-//! `routes.rs`.
+//! Copies the picture buffer onto the surface, row by row: the background of a menu frame.
+//! If the surface is not locked (`locked.surface` is 0) it is locked first, and nothing is copied
+//! if that fails; it is then unlocked again afterwards. The copy takes `height` rows of
+//! `row_dwords` dwords from the buffer, which it reads without gaps, and after each row moves on
+//! `row_gap` more bytes on the surface. All of these are read after the lock, which sets them. The
+//! lock and the unlock (`gfx::lock_surface`, `gfx::unlock_surface`) are reached through
+//! `PictureSurface`, which is where a build without a display puts its own surface. Refuses a row
+//! count of 0 and null pointers. When the GPU keeps the background (`PictureSurface::
+//! defer_background`) nothing is copied: the picture buffer is noted as the background instead.
 
 use crate::errors::BadInput;
-use crate::gfx::owner::gfx;
-use crate::gfx::picture::{has_picture, with_picture};
+use crate::gfx::owner::Pictures;
+use crate::gfx::picture::{has_picture, with_buffer_unchanged};
 
-// ---- game data ----
-
-// The surface's height (dword_4F49A4: rows), row_dwords (dword_4F49B4) and row_gap
-// (dword_4F49C4: surface bytes after a row's pixels) are `DRAW_SURFACE`'s.
-
-// ---- Rust version ----
+// The surface's height (rows), `row_dwords` and `row_gap` (surface bytes after a row's pixels) are
+// the draw surface's (`Gfx.drawing.draw_surface`).
 
 /// The surface the picture goes to, and the picture.
 pub trait PictureSurface {
@@ -37,34 +26,60 @@ pub trait PictureSurface {
     fn rows(&self) -> u32;
     fn row_dwords(&self) -> u32;
     fn row_gap(&self) -> u32;
+    fn pictures(&self) -> &Pictures;
+    /// Notes the picture as the frame's background for the GPU to draw under the canvas, if
+    /// this surface is the screen and the GPU keeps it (`render::background`); false: copy it.
+    fn defer_background(&mut self) -> bool {
+        false
+    }
 }
 
 /// The game's own.
-pub struct GameSurface;
+pub struct GameSurface<'a>(
+    pub &'a crate::gfx::owner::Gfx,
+    pub &'a crate::system::owner::System,
+);
 
-impl PictureSurface for GameSurface {
+impl PictureSurface for GameSurface<'_> {
     fn locked(&self) -> bool {
-        gfx().locked.surface.get() != 0
+        self.0.locked.surface.is_set()
     }
     fn lock(&mut self) -> bool {
-        // `cmp g_surfaceLocked, 1`'s carry clear: locked.
-        crate::platform::lock_surface() >= 1
+        // Locked.
+        crate::platform::lock_surface(self.0, self.1) >= 1
     }
     fn unlock(&mut self) {
-        crate::platform::unlock_surface();
+        crate::platform::unlock_surface(self.0);
     }
     fn pixels(&self) -> u32 {
-        crate::gfx::surface::address()
+        crate::gfx::surface::handle(self.0)
             .unwrap_or_else(|e| crate::fatal::raise::end("gfx::copy_picture_to_surface", e))
     }
     fn rows(&self) -> u32 {
-        gfx().drawing.draw_surface.height.get()
+        self.0.drawing.draw_surface.height.get()
     }
     fn row_dwords(&self) -> u32 {
-        gfx().drawing.draw_surface.row_dwords.get()
+        self.0.drawing.draw_surface.row_dwords.get()
     }
     fn row_gap(&self) -> u32 {
-        gfx().drawing.draw_surface.row_gap.get()
+        self.0.drawing.draw_surface.row_gap.get()
+    }
+    fn pictures(&self) -> &Pictures {
+        &self.0.pictures
+    }
+    fn defer_background(&mut self) -> bool {
+        let Some(target) = crate::platform::direct3d::screen(self.1.session.screen.get()) else {
+            return false;
+        };
+        let whole_rows = self.row_gap() == 0 && self.row_dwords() as usize * 4 == target.pitch;
+        self.pixels() == target.pixels
+            && self.rows() as usize == target.height
+            && whole_rows
+            && crate::render::background::defer(
+                &self.0.pictures.buffers,
+                &target,
+                self.0.pictures.picture.buffer.get(),
+            )
     }
 }
 
@@ -75,7 +90,7 @@ pub fn copy_picture_to_surface(surface: &mut dyn PictureSurface) -> Result<(), B
     }
     let to = surface.pixels();
     let (rows, row_bytes) = (surface.rows(), surface.row_dwords() as usize * 4);
-    let refused = if !has_picture() || to == 0 {
+    let refused = if !has_picture(surface.pictures()) || to == 0 {
         Some(BadInput("no picture buffer or no surface"))
     } else if rows == 0 {
         Some(BadInput("a surface without rows"))
@@ -89,19 +104,31 @@ pub fn copy_picture_to_surface(surface: &mut dyn PictureSurface) -> Result<(), B
         }
         return Err(why);
     }
+    if surface.defer_background() {
+        note_background(surface, to, rows, row_bytes);
+        if !was_locked {
+            surface.unlock();
+        }
+        return Ok(());
+    }
     // The surface's rows: their dwords, then the gap to the next.
+    let to_pixels = to;
     let to = crate::gfx::rows::Rows::new(to, row_bytes as u32 + surface.row_gap(), rows);
     // The picture's rows from its buffer (`gfx::picture`), onto the surface's.
-    let copied = with_picture(|from| -> Result<(), BadInput> {
-        for y in 0..rows {
-            let at = y as usize * row_bytes;
-            let row = from
-                .get(at..at + row_bytes)
-                .ok_or(BadInput("a picture's row past its buffer"))?;
-            to.write(y, 0, row, "a picture's row onto the surface")?;
-        }
-        Ok(())
-    })
+    let copied = with_buffer_unchanged(
+        &surface.pictures().buffers,
+        surface.pictures().picture.buffer.get(),
+        |from| {
+            for y in 0..rows {
+                let at = y as usize * row_bytes;
+                let row = from
+                    .get(at..at + row_bytes)
+                    .ok_or(BadInput("a picture's row past its buffer"))?;
+                to.write(y, 0, row, "a picture's row onto the surface")?;
+            }
+            Ok::<(), BadInput>(())
+        },
+    )
     .and_then(|r| r);
     if let Err(why) = copied {
         if !was_locked {
@@ -109,8 +136,38 @@ pub fn copy_picture_to_surface(surface: &mut dyn PictureSurface) -> Result<(), B
         }
         return Err(why);
     }
+    note_background(surface, to_pixels, rows, row_bytes);
     if !was_locked {
         surface.unlock();
     }
     Ok(())
+}
+
+/// Notes the picture drawn on the screen for the 2D record (and what it wrote there).
+fn note_background(surface: &dyn PictureSurface, to: u32, rows: u32, row_bytes: usize) {
+    use crate::gfx::draw2d::{Background, Command, mirror, push};
+    if !crate::gfx::draw2d::enabled() || to != crate::gfx::locked_pixels::SCREEN {
+        return;
+    }
+    let buffer = surface.pictures().picture.buffer.get();
+    let Some(generation) =
+        crate::gfx::draw2d::picture_generation(&surface.pictures().buffers, buffer)
+    else {
+        return;
+    };
+    let pitch = row_bytes as u32 + surface.row_gap();
+    let _ = with_buffer_unchanged(&surface.pictures().buffers, buffer, |from| {
+        for y in 0..rows {
+            if let Some(row) = from.get(y as usize * row_bytes..(y as usize + 1) * row_bytes) {
+                mirror(y * pitch, row);
+            }
+        }
+    });
+    push(Command::Background(Background {
+        buffer,
+        generation,
+        rows,
+        row_bytes,
+        pitch,
+    }));
 }

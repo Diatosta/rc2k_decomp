@@ -1,58 +1,34 @@
-//! The championship's results pages (IDA had them as code outside any function; made
-//! functions 2026-10-19): ten rows of the ranked times (`g_rankedTimes`) from row
-//! `g_champFirstRow`, one page each of four:
-//! - `screens::draw_class_rally_results` (0x4A3376): the title (string 0x4EA, or 0x4ED with
-//!   `dword_75AB20` 1, at (0x310, 0x30), font 0x51E944) and the stage's name (at (0x2EB,
-//!   0x77), font 0x51E9A4: in event mode 0x13 `dword_75A28A`[section], else the section's
-//!   first record's +0x38); the rally's times (+0x18); the first time the class's
-//!   (`menu::find_class_time`, ebx 1); the rows of the class (`dword_7558F4`) by position
-//!   (`menu::find_ranked_entry`);
-//! - `screens::draw_overall_rally_results` (0x4A37E2): the same with the titles 0x4EB /
-//!   0x4EE, the first time the first classed entry's (`menu::first_overall_time`, eax 2,
-//!   ebx 1), the rows by position alone (`menu::find_ranked_position`); a player's row is
-//!   "retired or not finished" by its +0x14 where the others' are by +0x18 (sic);
-//! - `screens::draw_class_stage_results` (0x4A2111): the heading `screens::draw_record_heading`;
-//!   the stage's times (+0x14); the first time the class's (`find_class_time`, ebx 0); the
-//!   class's rows;
-//! - `screens::draw_overall_stage_results` (0x4A2F46): as the last with the first time
-//!   `first_overall_time` (eax 2, ebx 0), kept in `dword_7559D4` too (the gaps' base), the
-//!   rows by position alone.
+//! The championship's results pages: ten rows of the ranked times from the first row,
+//! one page each of four:
+//! - `draw_class_rally_results`: the title (string 0x4EA, or 0x4ED with `state.menus.rally_done`
+//!   set), the stage's name (in event mode 0x13 the section's entry of the heading list, else the
+//!   section's first record), the rally's times, the first time the class's, and the rows of the
+//!   class by position.
+//! - `draw_overall_rally_results`: the same with titles 0x4EB / 0x4EE, the first time the first
+//!   classed entry's and the rows by position alone. A player's row is "retired or not finished"
+//!   by its +0x14 where the others' are by +0x18 (kept as is).
+//! - `draw_class_stage_results`: the heading `screens::draw_record_heading`, the stage's times,
+//!   the class's first time and rows.
+//! - `draw_overall_stage_results`: as the last with the overall first time (the gaps' base) and
+//!   the rows by position alone.
 //!
-//! Then each: the column headings (string 0x484 at (0xC8, 0xDC) in 0x51E5A4, 0x485 at (0xFA,
-//! 0xDC) and 0x47F at (0x1F4, 0xDC) in 0x51E584), the first time to `g_firstPlayerTime`,
-//! `g_champRow` from the first row to `g_champRowEnd` (first + 10), and each row from y 0xF0,
-//! 0x19 apart (a player's, +4 above 0, in the highlight fonts 0x51E544 / 0x51E524 /
-//! 0x51E504, else 0x51E5A4 / 0x51E584 / 0x51E564): its position (+0x44) at 0xBE, its name
-//! (the text at +0x20) at 0xFA; unless it finished (+0x4C 1) string 0x4FA, or 0x4FB for a
-//! time of 0x36EE8A, at 0x1EF; else its time (`text::draw_time_fixed_pitch`) at 0x258 and,
-//! but for position 1, the gap (`hundredths`) after string 0x579 at 0x276 at 0x2E4; then
-//! the nationality's sprite (0x1C + +8) at 0xD2 and the flag's (+0x10, 0x18 and 0x19
-//! swapped, + 0x44) at 0x1AE, each with the palette the last text left (ebx). Each
-//! drawer's y is edx as the text drawers leave it.
-//!
-//!
-//! In the results screens' draw lists (0x758E12 .., 0x758E2A ..). The rows are found before
-//! anything is drawn: a position not there is the look-ups' fatal error, raised then. Refuses
-//! (before anything) no ranked list, a section the record table has not, a name or a line past the
-//! line buffer, and what the look-ups refuse.
+//! Each then draws the column headings and per row the position, name, time (string 0x4FA, or
+//! 0x4FB for a time of 0x36EE8A, when the car did not finish) and, but for position 1, the gap
+//! after string 0x579, then the nationality's and the flag's sprites; a player's own row is in the
+//! highlight fonts. The rows are found before anything is drawn: a position not there is the
+//! look-ups' fatal error. Refuses no ranked list, a section the record table lacks, a name or a
+//! line past the line buffer and what the look-ups refuse.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::owner::Menus;
 use crate::menu::ranked_lookups::{find_ranked_entry, find_ranked_position, first_overall_time};
 use crate::screens::best_scores::{record_at, section_there};
 use crate::screens::game_screen::{HeldText, held_name};
 use crate::strings::append_time::show_hours;
 use crate::text::draw_text::Canvas;
 
-// g_champRow
-// g_champRowEnd
-// g_firstPlayerTime
-// hundredths
-// dword_7559D4
-
 #[derive(Clone, Copy)]
 enum Heading {
-    /// The title (normal, with `dword_75AB20` 1) and the stage's name.
+    /// The title (normal, with `rally_done` set) and the stage's name.
     Titles(u32, u32),
     /// `screens::draw_record_heading`.
     Record,
@@ -69,7 +45,7 @@ pub struct Page {
     /// The first time: true the class's (`find_class_time`), false the first classed
     /// entry's (`first_overall_time`).
     by_class: bool,
-    /// The first time also in `dword_7559D4`.
+    /// The first time also kept as the overall first time.
     keep_overall: bool,
 }
 
@@ -102,39 +78,42 @@ pub const OVERALL_STAGE: Page = Page {
     keep_overall: true,
 };
 
-/// The Rust version of one page.
+/// Draws one page.
 pub fn draw_results_page(
-    menus: &Menus,
+    o: crate::owners::Owners<'static>,
+    system: &crate::system::owner::System,
     page: &Page,
     canvas: &mut dyn Canvas,
+    tables: &crate::saves::best_times::BestTables,
 ) -> Result<(), Refused> {
-    let class = menus.screens.event.class.get();
-    if !section_there()? {
+    let menus = o.menus;
+    let class = menus.screens.event.shown.class.get();
+    if !section_there(menus, system)? {
         return Err(BadInput("a section past the record table").into());
     }
     let rally = page.time == 0x18;
     let first = if page.by_class {
-        crate::menu::find_class_time::find_class_time(class, rally)?
+        crate::menu::find_class_time::find_class_time(class, rally, tables)?
     } else {
-        first_overall_time(2, rally)?
+        first_overall_time(2, rally, tables)?
     };
-    let first_row = menus.play.champ_view.first_row.get();
+    let first_row = menus.play.champ_view.rows.first_row.get();
     let end = first_row.wrapping_add(10);
     // every row found before anything is drawn
     let mut rows = Vec::new();
     let mut row = first_row;
     loop {
         rows.push(if page.by_class {
-            find_ranked_entry(row, class)?
+            find_ranked_entry(row, class, tables)?
         } else {
-            find_ranked_position(row)?
+            find_ranked_position(row, tables)?
         });
         row = row.wrapping_add(1);
         if row == end || rows.len() > 0x400 {
             break;
         }
     }
-    // Converted: `rc2k_core::screens::results_pages` (the rows' entries read here, the record
+    // The logic is in `rc2k_core::screens::results_pages` (the rows' entries read here, the record
     // heading drawn here first).
     use rc2k_core::screens::results_pages::{
         Heading as Drawn, NOT_TIMED as NONE, Row, results_page,
@@ -142,23 +121,24 @@ pub fn draw_results_page(
     {
         let heading = match page.heading {
             Heading::Titles(normal, alternative) => Drawn::Titles {
-                title: if menus.screens.state.menus.rally_done.get() == 1 {
+                title: if menus.screens.state.menus.rally_done.is_set() {
                     alternative
                 } else {
                     normal
                 },
                 name: if menus.play.champ_view.event_mode.get() == 0x13 {
-                    crate::screens::stage_panel::table_dword_at(
-                        &menus.tables.lists,
-                        &menus.tables.lists.section_titles,
+                    crate::screens::stage_panel::section_title(
+                        &menus.lists,
                         menus.screens.event.section.get(),
                     )?
                 } else {
-                    record_at(0)?.record()?.name()
+                    record_at(menus, system, 0)?
+                        .record(&system.records().stage_tables)?
+                        .name()
                 },
             },
             Heading::Record => {
-                crate::screens::best_scores::draw_record_heading(menus, canvas)?;
+                crate::screens::best_scores::draw_record_heading(o, system, canvas)?;
                 Drawn::Drawn
             }
         };
@@ -188,12 +168,12 @@ pub fn draw_results_page(
             })
             .collect::<Result<_, BadInput>>()?;
         results_page(
-            &mut crate::screens::game_screen::GameScreen::<_, _, HeldText>::new(canvas),
+            &mut crate::screens::game_screen::GameScreen::<_, _, HeldText>::new(canvas, o),
             heading,
             first,
             first_row,
             page.keep_overall,
-            show_hours(),
+            show_hours(o.strings),
             &rows,
         )?;
     }
@@ -205,9 +185,19 @@ macro_rules! results_page_entry {
     ($module:ident, $name:literal, $address:expr, $page:expr) => {
         pub mod $module {
             use super::*;
-            /// The Rust version the typed tables run (`menu::table_calls`).
-            pub fn draw(menus: &crate::menu::owner::Menus) -> Result<(), Refused> {
-                draw_results_page(menus, &$page, &mut crate::text::draw_text::GameCanvas)
+            /// Run by the typed tables (`menu::table_calls`).
+            pub fn draw(
+                o: crate::owners::Owners<'static>,
+                system: &crate::system::owner::System,
+                gfx: &'static crate::gfx::owner::Gfx,
+            ) -> Result<(), Refused> {
+                draw_results_page(
+                    o,
+                    system,
+                    &$page,
+                    &mut crate::text::draw_text::GameCanvas::new(gfx),
+                    &o.saves.best_tables,
+                )
             }
         }
     };

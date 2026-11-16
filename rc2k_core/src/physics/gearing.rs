@@ -1,13 +1,8 @@
-//! The gear ratios and the sums between the engine's speed and the driven wheels'
-//! (converted 2026-10-21 from `physics::make_gear_ratios` 0x4219E6,
-//! `physics::revs_from_wheels` 0x43C0C9, `physics::wheels_from_revs` 0x43C124,
-//! `physics::revs_from_speed` 0x43C101, `physics::drop_to_neutral` 0x43FD71 and
-//! `physics::settle_drive_speeds` 0x43BF6F). The ratios are `g_gearRatios` (0x6140C0, by
-//! gear: -1 the reverse at 0x6140BC, 0 neutral, seven forward gears).
+//! The gear ratios (-1 the reverse, 0 neutral, seven forward gears) and the sums between the
+//! engine's speed and the driven wheels'.
 //!
-//! Floats: what the x87 keeps on its stack is an `f64`, rounded to `f32` where the
-//! original stores (`physics::x87`): the same bits at the game's double precision. The
-//! three sums are one product or quotient of floats: correctly rounded at any precision.
+//! Floats: what the x87 keeps on its stack is an `f64`, rounded to `f32` where it is stored.
+//! The three sums are one product or quotient of floats: correctly rounded at any precision.
 
 use super::x87::{below, loaded, negated};
 use crate::Invalid;
@@ -15,20 +10,19 @@ use crate::Invalid;
 /// The ratio table's entries: reverse (-1) ..= gear 7.
 pub const RATIOS: usize = 9;
 
-/// The gear's place in the ratio table (0 for reverse), or None in neutral; refused
-/// outside -1 ..= 7.
-pub fn ratio_index(gear: u32) -> Result<Option<usize>, Invalid> {
+/// The gear's place in the ratio table (gear + 1), or None in neutral; refused outside -1 ..= 7.
+pub fn ratio_index(gear: i32) -> Result<Option<usize>, Invalid> {
     if gear == 0 {
         return Ok(None);
     }
-    if !(-1..=7).contains(&(gear as i32)) {
+    if !(-1..=7).contains(&gear) {
         return Err(Invalid("a gear outside g_gearRatios (-1 ..= 7)"));
     }
-    Ok(Some((gear as i32 + 1) as usize))
+    Ok(Some((gear + 1) as usize))
 }
 
-/// `physics::revs_from_wheels` in gear: the driven speed (with drive kind 1 the two
-/// driven speeds' sum times `half`, 0.5) over the gear's ratio.
+/// The revs from the wheels in gear: the driven speed (with drive kind 1 the two speeds' sum
+/// times `half`) over the gear's ratio.
 pub fn revs_from_wheels(drive: f32, drive_2: f32, both: bool, half: f32, ratio: f32) -> f32 {
     if both {
         ((drive as f64 + drive_2 as f64) * half as f64 / ratio as f64) as f32
@@ -37,22 +31,19 @@ pub fn revs_from_wheels(drive: f32, drive_2: f32, both: bool, half: f32, ratio: 
     }
 }
 
-/// `physics::wheels_from_revs` in gear: (the driven speed, the second's with drive kind 1:
-/// the same, reloaded).
+/// The wheels from the revs in gear: the driven speed, and with drive kind 1 the same again.
 pub fn wheels_from_revs(engine: f32, ratio: f32, both: bool) -> (f32, Option<f32>) {
     let speed = (engine as f64 * ratio as f64) as f32;
     (speed, both.then(|| loaded(speed)))
 }
 
-/// `physics::revs_from_speed` in gear: the car's speed over the gear's ratio.
+/// The revs from the speed in gear: the car's speed over the gear's ratio.
 pub fn revs_from_speed(speed: f32, ratio: f32) -> f32 {
     (speed as f64 / ratio as f64) as f32
 }
 
-/// `physics::settle_drive_speeds`' step: a driven speed brought toward 0 by `step`, never
-/// past it. A speed of 0 (or no number) is left (None); one that reaches or crosses 0
-/// becomes +0 (a no number after the step too). One sum of floats: correctly rounded at
-/// any precision.
+/// A driven speed brought toward 0 by `step`, never past it. A speed of 0 or not a number is
+/// left (None); one that reaches or crosses 0 becomes +0.
 pub fn settle_speed(speed: f32, step: f32) -> Option<f32> {
     if speed == 0.0 || speed.is_nan() {
         return None;
@@ -66,12 +57,11 @@ pub fn settle_speed(speed: f32, step: f32) -> Option<f32> {
     }
 }
 
-/// `physics::drop_to_neutral`'s test: with the switch (`dword_71A20C`) set, in gear, the
-/// engine speed below `limit` (`flt_6140FC`; or unordered) and `block` (`dword_61416C`)
-/// 0: the engine stalls into neutral (the caller sets gear 0 and the change's fields).
+/// Whether the engine stalls into neutral: the switch set, in gear, the engine speed below
+/// `limit` (or unordered) and `block` 0.
 pub fn drops_to_neutral(
     switch: u32,
-    gear: u32,
+    gear: i32,
     engine: f32,
     limit: f32,
     block: impl FnOnce() -> u32,
@@ -79,39 +69,37 @@ pub fn drops_to_neutral(
     switch != 0 && gear != 0 && below(engine as f64, limit as f64) && block() == 0
 }
 
-/// What `physics::make_gear_ratios` makes the ratios from.
+/// What the ratios are made from.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct GearSetup {
-    /// `dword_614C10`: the forward gears.
+    /// The forward gears.
     pub count: u32,
-    /// The top gear's ends (`flt_5CB978`, `flt_5CB970`) and the first's (`flt_5CB974`,
-    /// `flt_5CB96C`).
+    /// The top gear's ends and the first's.
     pub top: [f32; 2],
     pub first: [f32; 2],
-    /// `dword_71A000`: the setup's gearing (a whole number).
+    /// The setup's gearing (a whole number).
     pub gearing: i32,
-    /// `flt_5C5DA4`, `flt_5C5D00`, `flt_71A1B4`: the gearing's factor and two divisors.
+    /// The gearing's factor and two divisors.
     pub factor: f32,
     pub divisor: f32,
-    pub divisor_2: f32,
-    /// `flt_5C5D38` (1.0).
+    pub engine_speed_limit: f32,
+    /// 1.0.
     pub one: f32,
-    /// `flt_613FE8`: neutral's.
+    /// Neutral's ratio.
     pub neutral: f32,
 }
 
-/// `fld a; fsub b; fmul k; fimul i; fadd b; fdiv d; fdiv w; fstp`.
 fn setup_ratio(ends: [f32; 2], s: &GearSetup) -> f32 {
     let (a, b) = (ends[0] as f64, ends[1] as f64);
-    (((a - b) * s.factor as f64 * s.gearing as f64 + b) / s.divisor as f64 / s.divisor_2 as f64)
-        as f32
+    (((a - b) * s.factor as f64 * s.gearing as f64 + b)
+        / s.divisor as f64
+        / s.engine_speed_limit as f64) as f32
 }
 
-/// `physics::make_gear_ratios`: the ratios (reverse ..= gear 7) and the step between
-/// gears (kept in `dword_62400C`). The top gear's and the first's from the setup; the
-/// gears between in even steps added on at 80 bits (gears 2 .. 5 always, 6 and 7 one more
-/// step each only past five and six gears; with four gears the fourth is a step's, as the
-/// original); reverse the first's negative; neutral's copied. A count above 7 refused.
+/// The ratios (reverse ..= gear 7) and the step between gears. The top gear's and the first's
+/// come from the setup; gears 2 ..= 5 follow in even steps, the sixth and seventh one more
+/// step each only past five and six gears (with four gears the fourth is a step's); reverse is
+/// the first's negative and neutral's is copied. A count above 7 is refused.
 pub fn make_ratios(s: &GearSetup, ratios: &mut [f32; RATIOS]) -> Result<f32, Invalid> {
     if s.count > 7 {
         return Err(Invalid("a gear count above 7 (past g_gearRatios)"));
@@ -145,7 +133,7 @@ mod tests {
     #[test]
     fn sums() {
         assert_eq!(ratio_index(0), Ok(None));
-        assert_eq!(ratio_index(u32::MAX), Ok(Some(0)));
+        assert_eq!(ratio_index(-1), Ok(Some(0)));
         assert_eq!(ratio_index(7), Ok(Some(8)));
         assert!(ratio_index(8).is_err());
         assert_eq!(revs_from_wheels(3.0, 5.0, true, 0.5, 2.0), 2.0);
@@ -174,7 +162,7 @@ mod tests {
             gearing: 0,
             factor: 1.0,
             divisor: 1.0,
-            divisor_2: 1.0,
+            engine_speed_limit: 1.0,
             one: 1.0,
             neutral: 0.0,
         };

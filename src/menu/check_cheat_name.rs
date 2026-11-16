@@ -1,17 +1,17 @@
-//! `menu::check_cheat_name` (0x480CBF): the fourth player's name taken as a cheat's: the
-//! name coded by rot13 into the text buffer (`strings::rot13_into_text`) is looked for in
-//! the list at `aNepnqrNpgvba` (0x7585E0: each entry a coded name, its NUL and the cheat's
-//! bit number; a NUL where a name would start ends it), each by `strings::same_text`
-//! (case aside). Found: the bit set in `g_cheats`, the menu's sound 8, `menu::apply_cheats`,
-//! and the player's name made string 0x18F.
+//! `menu::check_cheat_name`: the fourth player's name taken as a cheat's. The name coded by
+//! rot13 into the text buffer (`strings::rot13_into_text`) is looked for in the list of coded
+//! cheat names (each entry a coded name, its NUL and the cheat's bit number; a NUL where a name
+//! would start ends the list), each by `strings::same_text` (case aside). Found: the bit is set
+//! in the cheats, the menu's sound 8 plays, `menu::apply_cheats` runs, and the player's name
+//! becomes string 0x18F.
 //!
-//! Called by `menu::player4_details_loop` once the name's editing ends. Refuses (before anything) a
-//! missing fourth player or name, a list without its end in 64 entries, a bit past 31 (the
-//! original's `bts` would reach past `g_cheats`), and what the coding refuses.
+//! Called by the fourth player's details page (`menu::player_pages`) once the name's editing
+//! ends. Refuses (before anything) a missing fourth player or name, a list without its end in 64 entries, a bit past
+//! 31 (past the cheats' 32 bits), and what the coding refuses.
 
 use crate::errors::Refused;
-use crate::menu::owner::{Menus, Play};
-use crate::pointers::Store;
+use crate::memory::cells::Store;
+use crate::menu::owner::Play;
 use crate::strings::rot13_into_text::rot13_into_text;
 
 const HIDDEN_NAME: u32 = 0x18F;
@@ -23,7 +23,6 @@ fn find(play: &Play, coded: &[u8]) -> Result<Option<(u32, u32)>, Refused> {
     let mut list = vec![0; play.cheats.cheat_names.size()];
     play.cheats.cheat_names.load(0, &mut list)?;
     let coded: Vec<u8> = coded.iter().copied().take_while(|&b| b != 0).collect();
-    // Converted: `rc2k_core::menu::cheat_names::find`.
     let found = rc2k_core::menu::cheat_names::find(
         &list,
         &coded,
@@ -32,25 +31,20 @@ fn find(play: &Play, coded: &[u8]) -> Result<Option<(u32, u32)>, Refused> {
     Ok(found.map(|f| (f.at as u32, f.bit as u32)))
 }
 
-/// The Rust version. The original's calls get their registers as noted, of which only the
-/// sound reads one (eax 8).
-pub fn check_cheat_name(menus: &Menus) -> Result<(), Refused> {
-    let race = crate::race::owner::race();
+pub fn check_cheat_name(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    let (menus, race) = (o.menus, o.race);
     let play = &menus.play;
-    let name = crate::menu::player_names::name_ptr(
-        menus,
-        crate::menu::player_names::name_of(&crate::menu::standings::player(3).get())?,
-    );
-    let coded = rot13_into_text(name)?;
+    let name = crate::menu::player_names::NameAt::of(crate::menu::player_names::name_of(
+        &crate::menu::standings::player(menus, 3).get(),
+    )?);
+    let coded = rot13_into_text(o.strings, &name.tail(&menus.play))?;
     let Some((_found, bit)) = find(play, &coded)? else {
         return Ok(());
     };
-    // Converted: `rc2k_core::menu::cheat_names::with_cheat`.
     let cheats = rc2k_core::menu::cheat_names::with_cheat(play.cheats.cheats.get(), bit as u8)?;
     play.cheats.cheats.set(cheats);
-    // The original's registers at the calls: eax 8, ebx the entry, ecx the bit, edi
-    // the record.
-    crate::sound::play_menu_sound::play_menu_sound_in_game(8);
+    // The sound, the cheat bit and the record are handed on as the callees expect.
+    crate::sound::play_menu_sound::play_menu_sound_in_game(o.sound, o.audio, o.menus, o.system, 8);
     crate::menu::apply_cheats::apply_cheats(
         menus,
         &mut |line| {
@@ -59,8 +53,12 @@ pub fn check_cheat_name(menus: &Menus) -> Result<(), Refused> {
         race,
     )?;
     let mut hidden = Vec::new();
-    crate::strings::append_string_by_id::push_string(&mut hidden, HIDDEN_NAME)?;
+    crate::strings::append_string_by_id::push_string(
+        crate::strings::append_string_by_id::StringOwners::of(o),
+        &mut hidden,
+        HIDDEN_NAME,
+    )?;
     hidden.push(0);
-    name.write_bytes(&hidden, "a player\'s name")?;
+    name.place(menus).write(&hidden, "a player\'s name")?;
     Ok(())
 }

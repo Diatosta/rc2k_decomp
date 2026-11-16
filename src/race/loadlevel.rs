@@ -1,194 +1,218 @@
-//! `race::loadlevel_init` (0x44426F, IDA 2026-10-17): the stage's loading proper, step by step,
-//! each step's word logged ("LOADLEVEL_INIT : ...") with the log indented round it and the
-//! loading bar moved on (`dword_623700` the step's mark, then the callback in `dword_623704`,
-//! `race::loading_bar_frame`, called with esi it). The pace notes are `race::init_pace_notes` since
-//! 2026-10-19. A step's refusal is the function's (2026-10-23: no longer handed to the step's
-//! address).
+//! `race::loadlevel_init`: the stage's loading proper, step by step. Each step's word is logged
+//! ("LOADLEVEL_INIT : ...") with the log indented round it, and the loading bar is moved on by
+//! the step's mark. The pace notes are set up by `race::init_pace_notes`. A step's refusal is the
+//! function's.
 
-use crate::effects::owner::effects;
-use crate::errors::{BadInput, Refused};
-use crate::race::blocks_store::CAR_BLOCKS;
+use crate::errors::Refused;
+use crate::race::loading_bar_frame::Progress;
 use crate::race::owner::Race;
-use crate::race::replay_work_store::REPLAY_WORK;
 use crate::scene::file_numbers_store::texts;
-const BAR: u32 = 0x4467C7; // `race::loading_bar_frame`: the loading bar's 3D frame
-const BAR_DONE: u32 = 0x4467C6; // nullsub_8
 
-/// The step words ("LOADLEVEL_INIT : start" .. "finis"), in order.
-const WORDS: [&std::ffi::CStr; 28] = [
-    c"LOADLEVEL_INIT : start",
-    c"LOADLEVEL_INIT : objects_init",
-    c"LOADLEVEL_INIT : alloc coursemem",
-    c"LOADLEVEL_INIT : load texture info",
-    c"LOADLEVEL_INIT : load prefs",
-    c"LOADLEVEL_INIT : load errorlist",
-    c"LOADLEVEL_INIT : init ed textures",
-    c"LOADLEVEL_INIT : texturesalloc",
-    c"LOADLEVEL_INIT : initgametexinfbuf",
-    c"LOADLEVEL_INIT : locacurrcourse",
-    c"LOADLEVEL_INIT : clearsysplates",
-    c"LOADLEVEL_INIT : reloadobjects",
-    c"LOADLEVEL_INIT : setplatesall",
-    c"LOADLEVEL_INIT : loadgamemap",
-    c"LOADLEVEL_INIT : loadgamefonts",
-    c"LOADLEVEL_INIT : init mark",
-    c"LOADLEVEL_INIT : refresh init",
-    c"LOADLEVEL_INIT : skidmarks init",
-    c"LOADLEVEL_INIT : render3d init",
-    c"LOADLEVEL_INIT : render3d setcolours",
-    c"LOADLEVEL_INIT : render3d loadlightsdata",
-    c"LOADLEVEL_INIT : render3d initmud",
-    c"LOADLEVEL_INIT : getmatcrash",
-    c"SHAUNINITEVERYTHING : store norms",
-    c"LOADLEVEL_INIT : initcheckpoints",
-    c"loadlevel : init pacenotes",
-    c"LOADLEVEL_INIT : initoverlay",
-    c"LOADLEVEL_INIT : finis",
-];
-
-/// Where the variables kept apart are: the log's indent and switch,
-/// `g_inRace`, and the loading bar's callback.
+/// The load's steps, in the order their words are logged.
 #[derive(Clone, Copy)]
-pub struct LoadVars {
-    pub bar: u32,
+enum Word {
+    Start,
+    ObjectsInit,
+    AllocCourseMemory,
+    LoadTextureInfo,
+    LoadPrefs,
+    LoadErrorList,
+    InitEdTextures,
+    TexturesAlloc,
+    InitGameTexInfBuf,
+    LocateCurrentCourse,
+    ClearSystemPlates,
+    ReloadObjects,
+    SetPlatesAll,
+    LoadGameMap,
+    LoadGameFonts,
+    InitMark,
+    RefreshInit,
+    SkidmarksInit,
+    Render3dInit,
+    Render3dSetColours,
+    Render3dLoadLightsData,
+    Render3dInitMud,
+    GetMatCrash,
+    StoreNorms,
+    InitCheckpoints,
+    InitPaceNotes,
+    InitOverlay,
+    Finis,
 }
 
-impl LoadVars {
-    pub fn game() -> Self {
-        Self { bar: BAR }
+impl Word {
+    /// The step's line in the log.
+    fn text(self) -> &'static std::ffi::CStr {
+        match self {
+            Word::Start => c"LOADLEVEL_INIT : start",
+            Word::ObjectsInit => c"LOADLEVEL_INIT : objects_init",
+            Word::AllocCourseMemory => c"LOADLEVEL_INIT : alloc coursemem",
+            Word::LoadTextureInfo => c"LOADLEVEL_INIT : load texture info",
+            Word::LoadPrefs => c"LOADLEVEL_INIT : load prefs",
+            Word::LoadErrorList => c"LOADLEVEL_INIT : load errorlist",
+            Word::InitEdTextures => c"LOADLEVEL_INIT : init ed textures",
+            Word::TexturesAlloc => c"LOADLEVEL_INIT : texturesalloc",
+            Word::InitGameTexInfBuf => c"LOADLEVEL_INIT : initgametexinfbuf",
+            Word::LocateCurrentCourse => c"LOADLEVEL_INIT : locacurrcourse",
+            Word::ClearSystemPlates => c"LOADLEVEL_INIT : clearsysplates",
+            Word::ReloadObjects => c"LOADLEVEL_INIT : reloadobjects",
+            Word::SetPlatesAll => c"LOADLEVEL_INIT : setplatesall",
+            Word::LoadGameMap => c"LOADLEVEL_INIT : loadgamemap",
+            Word::LoadGameFonts => c"LOADLEVEL_INIT : loadgamefonts",
+            Word::InitMark => c"LOADLEVEL_INIT : init mark",
+            Word::RefreshInit => c"LOADLEVEL_INIT : refresh init",
+            Word::SkidmarksInit => c"LOADLEVEL_INIT : skidmarks init",
+            Word::Render3dInit => c"LOADLEVEL_INIT : render3d init",
+            Word::Render3dSetColours => c"LOADLEVEL_INIT : render3d setcolours",
+            Word::Render3dLoadLightsData => c"LOADLEVEL_INIT : render3d loadlightsdata",
+            Word::Render3dInitMud => c"LOADLEVEL_INIT : render3d initmud",
+            Word::GetMatCrash => c"LOADLEVEL_INIT : getmatcrash",
+            Word::StoreNorms => c"SHAUNINITEVERYTHING : store norms",
+            Word::InitCheckpoints => c"LOADLEVEL_INIT : initcheckpoints",
+            Word::InitPaceNotes => c"loadlevel : init pacenotes",
+            Word::InitOverlay => c"LOADLEVEL_INIT : initoverlay",
+            Word::Finis => c"LOADLEVEL_INIT : finis",
+        }
     }
 }
 
-/// The original's `loadlevel_init`, step by step.
+/// The stage's loading, step by step: the log and the loading bar.
 struct Steps<'a> {
-    race: &'a Race,
-    v: LoadVars,
-    word: usize,
+    progress: &'a mut dyn Progress,
 }
 
 impl Steps<'_> {
-    /// `pusha`; eax the next word; the log; `popa`.
-    fn log(&mut self) {
-        crate::logfile::log_write::log_nul(&WORDS[self.word], true, 1);
-        self.word += 1;
+    /// Logs the step's word.
+    fn log(&mut self, word: Word) {
+        crate::race::load_times::phase(word.text().to_str().unwrap_or("?"));
+        crate::logfile::log_write::log_nul(&word.text(), true, 1);
     }
 
-    /// `pushf`; `g_logIndent` +- 3; `popf`.
+    /// Moves the log's indent by `by`.
     fn indent(&mut self, by: i32) {
         crate::logfile::write_line::state::INDENT
             .atomic()
             .fetch_add(by as u32, std::sync::atomic::Ordering::Relaxed);
     }
 
-    /// `pusha`; `dword_623700` the mark; `call [dword_623704]`; `popa`. The callback is the
-    /// loading bar `loadlevel_init` puts there before its first mark (it is put away after
-    /// the last).
-    fn progress(&mut self, mark: u32) -> Result<(), Refused> {
-        let race = self.race;
-        let shared = &race.shared;
-        shared.vars.bar_share.set_bits(mark);
-        if shared.vars.bar_function.bits() != self.v.bar {
-            return Err(BadInput("the loading bar's callback is not the loading bar").into());
-        }
-        crate::race::loading_bar_frame::loading_bar_frame(race)
+    /// Moves the loading bar to `mark` percent and shows a frame.
+    fn mark(&mut self, mark: u32) -> Result<(), Refused> {
+        self.progress.mark(mark)
     }
 
     /// A step's usual frame: the word, the indent in, the call, the mark, the indent out.
     fn step(
         &mut self,
+        word: Word,
         call: &mut dyn FnMut() -> Result<(), Refused>,
         mark: Option<u32>,
     ) -> Result<(), Refused> {
-        self.log();
+        self.log(word);
         self.indent(3);
         call()?;
         if let Some(m) = mark {
-            self.progress(m)?;
+            self.mark(m)?;
         }
         self.indent(-3);
         Ok(())
     }
 }
 
-/// `race::loadlevel_init` (0x44426F): "start"; `g_usePackedMaps` 1, `dword_5BE9B9` 1 but
-/// with `dword_621514`; `g_stageDirection` `dword_623854` (flipped for stages 0x1F, 0x22,
-/// 0x51); `g_inRace` 1; the loading bar's callback `race::loading_bar_frame` (mark 0); then the
-/// steps (`CALLEES` in order, each with its word and mark: objects, course memory (2, 4),
-/// texture info and the course number (6), prefs (7), error list (8), ed textures (0xA),
-/// textures (0xE), texture infos (0xF), the course (0x13), plates cleared (0x14), objects
-/// (0x1E; `dword_623634`/`38` 0x1E/0x50), plates (0x50), the map (0x5A), fonts (0x5C),
-/// init mark with the log off (0x5E), refresh (and the refresh flags from
-/// `dword_609354`/`50` into `dword_62DAD0`, the blocks' +0x84, `dword_62DACC`), skid
-/// marks (0x5F), render3d (0x60), colours (0x62), lights (0x63), mud (0x64 twice); the
-/// callback `nullsub_8`; the crash matrix, the norms; without `dword_64BB18` checkpoints,
-/// pace notes, overlay; `dword_621508` the object of kind 0x7A (else 0x79);
-/// `dword_719FD0`/`D4` 0; "finis". What the original leaves in the registers is read by
-/// no caller (`race::load_stage` calls on; conversion phase 3, 2026-10-24).
+/// Loads the stage: logs "start"; sets `packed_unless_editor` 1
+/// (but 0 with `editor_mode`), `stage_direction` from `direction` (flipped for stages 0x1F, 0x22,
+/// 0x51) and `in_race` 1; marks the loading bar 0;
+/// then runs the steps, each with its word and mark: objects, course memory (2, 4), texture info
+/// and the course number (6), prefs (7), error list (8), ed textures (0xA), textures (0xE),
+/// texture infos (0xF), the course (0x13), plates cleared (0x14), objects (0x1E; the texture marks then run from
+/// 0x1E to 0x50), plates (0x50), the map (0x5A), fonts (0x5C), init mark with the log off (0x5E),
+/// refresh, skid marks (0x5F), render3d (0x60), colours (0x62), lights (0x63), mud (0x64 twice);
+/// the crash matrix, the norms; without `Finish.no_place` checkpoints,
+/// pace notes, overlay; `marker_object` the object of kind 0x7A (else 0x79);
+/// `camera_last_frame` 0; "finis".
 pub fn loadlevel_init(
-    race: &Race,
-    scene: &crate::scene::owner::Scene,
-    system: &crate::system::owner::System,
+    race: &'static Race,
+    o: crate::owners::Owners<'static>,
+    progress: &mut dyn Progress,
 ) -> Result<(), Refused> {
-    let gfx = crate::gfx::owner::gfx();
+    let (scene, system, gfx) = (o.scene, o.system, o.gfx);
     use crate::race::level_init as level;
     use crate::race::stage_prefs;
-    let v = LoadVars::game();
-    let mut s = Steps { race, v, word: 0 };
-    s.log();
+    let mut s = Steps { progress };
+    s.log(Word::Start);
     s.indent(3);
-    race.frame.map.use_packed.set(1u32);
+    race.frame.map().use_packed.set(1u32);
     race.frame
-        .map
-        .packed_2
-        .set((race.shared.switches.editor_mode.bits() == 0) as u32);
-    let mut direction: u32 = race.shared.vars.direction.bits();
-    if [0x1F, 0x22, 0x51].contains(&race.shared.vars.stage_number.bits()) {
+        .map()
+        .packed_unless_editor
+        .set((race.shared.switches.get().editor_mode.get() == 0) as u32);
+    let mut direction: u32 = race.shared.vars.get().direction.get();
+    if [0x1F, 0x22, 0x51].contains(&race.shared.vars.get().stage_number.get()) {
         direction ^= 1;
     }
-    race.shared.work.stage_direction.set(direction);
-    race.course.numbers.in_race.set(1);
-    race.shared.vars.bar_function.set_bits(v.bar);
-    s.progress(0)?;
+    race.shared.work.get().stage_direction.set(direction);
+    race.course.numbers.get().in_race.set(true);
+    crate::scene::workers::set_game_part_racing(&scene.scratch, true);
+    o.audio.racing.set(true);
+    s.mark(0)?;
     s.indent(-3);
     s.step(
+        Word::ObjectsInit,
         &mut || {
-            crate::scene::set_up_object_memory::set_up_object_memory(&race.course, scene)?;
+            crate::scene::set_up_object_memory::set_up_object_memory(race, scene)?;
             Ok(())
         },
         None,
     )?;
-    // alloc coursemem: marks 2 and 4 (the `cmp dword_621514, 0 / jz $+2` between
-    // them changes nothing).
-    s.log();
+    // The course memory: marks 2 and 4.
+    s.log(Word::AllocCourseMemory);
     s.indent(3);
-    // stru_5C6D50: the course's MemoryList.
-    level::allocate_course_memory(&race.course, &race.course.lists.course_memory_list)?;
-    s.progress(2)?;
-    s.progress(4)?;
+    // CourseLists.course_memory_list[0]: the course's MemoryList.
+    level::allocate_course_memory(&race.course, &race.course.lists.get().course_memory_list)?;
+    s.mark(2)?;
+    s.mark(4)?;
     s.indent(-3);
     // load texture info and the course number.
-    s.log();
+    s.log(Word::LoadTextureInfo);
     s.indent(3);
-    level::load_texture_info(&race.course)?;
-    level::set_course_number(race.shared.vars.stage_number.bits(), scene)?;
-    s.progress(6)?;
+    level::load_texture_info(&race.course, scene)?;
+    level::set_course_number(race.shared.vars.get().stage_number.get(), race, scene)?;
+    s.mark(6)?;
     s.indent(-3);
-    s.step(&mut || stage_prefs::load_prefs(race), Some(7))?;
-    s.step(&mut || level::load_error_list(&race.frame), Some(8))?;
     s.step(
-        &mut || crate::scene::texture_levels::init_texture_levels(race, scene),
+        Word::LoadPrefs,
+        &mut || stage_prefs::load_prefs(race),
+        Some(7),
+    )?;
+    s.step(
+        Word::LoadErrorList,
+        &mut || level::load_error_list(&race.frame, scene),
+        Some(8),
+    )?;
+    s.step(
+        Word::InitEdTextures,
+        &mut || crate::scene::texture_levels::init_texture_levels(race, o),
         Some(0xA),
     )?;
     s.step(
-        &mut || crate::scene::set_up_textures::set_up_textures(&race.shared, scene),
+        Word::TexturesAlloc,
+        &mut || {
+            crate::scene::set_up_textures::set_up_textures(&race.shared, scene, o.gfx, &o.gfx.d3d)
+        },
         Some(0xE),
     )?;
-    s.step(&mut || level::build_texture_infos(&race.course), Some(0xF))?;
     s.step(
+        Word::InitGameTexInfBuf,
+        &mut || level::build_texture_infos(race),
+        Some(0xF),
+    )?;
+    s.step(
+        Word::LocateCurrentCourse,
         &mut || crate::race::course_data::locate_current_course(race, scene),
         Some(0x13),
     )?;
     s.step(
+        Word::ClearSystemPlates,
         &mut || {
             crate::scene::reset_texture_places::reset_texture_places(scene);
             Ok(())
@@ -196,59 +220,70 @@ pub fn loadlevel_init(
         Some(0x14),
     )?;
     // reloadobjects.
-    s.log();
+    s.log(Word::ReloadObjects);
     s.indent(3);
     crate::race::objects::reload_objects(race, scene)?;
-    s.progress(0x1E)?;
-    race.shared.vars.bar_span[0].set(0x1E); // dword_623634
-    race.shared.vars.bar_span[1].set(0x50); // dword_623638
+    s.mark(0x1E)?;
+    s.progress.set_span(0x1E, 0x50);
     s.indent(-3);
-    s.step(
-        &mut || crate::race::set_all_plates::set_all_plates(race, scene),
-        Some(0x50),
-    )?;
-    // loadgamemap.
-    s.log();
+    s.log(Word::SetPlatesAll);
     s.indent(3);
-    crate::race::game_map::load_game_map(
+    crate::race::set_all_plates::set_all_plates(o, &mut *s.progress)?;
+    s.mark(0x50)?;
+    s.indent(-3);
+    // loadgamemap.
+    s.log(Word::LoadGameMap);
+    s.indent(3);
+    let game_map = crate::race::game_map::load_game_map(
         &race.frame,
-        scene.file_numbers.text_ptr(texts::MAP_PATH),
-        scene.file_numbers.text_ptr(texts::MAP_KEY),
+        &scene.file_numbers().text_at(texts::MAP_PATH),
+        &scene.file_numbers().text_at(texts::MAP_KEY),
         system,
+        gfx,
     )?;
-    s.progress(0x5A)?;
+    crate::race::game_map::store_game_map(race, game_map)?;
+    s.mark(0x5A)?;
     s.indent(-3);
     s.step(
-        &mut || crate::gfx::build_game_fonts::build_game_fonts_in_game(gfx, system),
+        Word::LoadGameFonts,
+        &mut || crate::gfx::build_game_fonts::build_game_fonts_in_game(gfx, system, o.strings),
         Some(0x5C),
     )?;
     // init mark, with the log off.
-    s.log();
+    s.log(Word::InitMark);
     s.indent(3);
     let enabled = crate::logfile::write_line::state::ENABLED
         .atomic()
         .swap(0, std::sync::atomic::Ordering::Relaxed);
-    let effects = effects();
-    crate::effects::init_mark_step::init_mark_step(race, effects, scene, gfx)?;
+    crate::effects::init_mark_step::init_mark_step(
+        race,
+        o.race.effects.get(),
+        scene,
+        gfx,
+        system,
+        o.net,
+    )?;
     crate::logfile::write_line::state::ENABLED.set(enabled);
-    s.progress(0x5E)?;
+    s.mark(0x5E)?;
     s.indent(-3);
     // refresh init and the refresh flags.
-    s.log();
+    s.log(Word::RefreshInit);
     s.indent(3);
-    level::reset_refresh(&race.course);
-    let flags: u32 = race.course.stage_prefs.refresh_flags_a.bits();
-    scene.lights.work.marks_mask.set_bits((flags & 2) >> 1);
-    for car in &CAR_BLOCKS.cars[..8] {
+    level::reset_refresh(&scene.scratch);
+    let flags: u32 = race.course.stage_prefs.get().refresh_flags_a.get();
+    scene.lights.work.get().marks_mask.set((flags & 2) >> 1);
+    for car in &race.car_blocks().cars[..8] {
         car.lights_on.set(flags & 1);
     }
     scene
         .lights
         .work
+        .get()
         .lamps_mask
-        .set_bits(race.course.stage_prefs.refresh_flags_b.bits() & 1);
+        .set(race.course.stage_prefs.get().refresh_flags_b.get() & 1);
     s.indent(-3);
     s.step(
+        Word::SkidmarksInit,
         &mut || {
             stage_prefs::init_skidmarks(race)?;
             Ok(())
@@ -257,66 +292,81 @@ pub fn loadlevel_init(
     )?;
     // render3d init: `scene::allocate_point_records`.
     s.step(
+        Word::Render3dInit,
         &mut || {
-            crate::scene::allocate_point_records::allocate_point_records_in_game(&race.course)?;
+            crate::scene::allocate_point_records::allocate_point_records_in_game(
+                &scene.scratch,
+                &race.course,
+            )?;
             Ok(())
         },
         Some(0x60),
     )?;
     s.step(
+        Word::Render3dSetColours,
         &mut || {
             crate::scene::fill_scene_light_tables::fill_scene_light_tables(race, scene)?;
             Ok(())
         },
         Some(0x62),
     )?;
-    s.step(&mut || stage_prefs::load_lights_data(race), Some(0x63))?;
+    s.step(
+        Word::Render3dLoadLightsData,
+        &mut || stage_prefs::load_lights_data(race),
+        Some(0x63),
+    )?;
     // initmud: mark 0x64 twice, then the callback put away.
-    s.log();
+    s.log(Word::Render3dInitMud);
     s.indent(3);
-    crate::race::mud::init_mud(race, scene)?;
-    s.progress(0x64)?;
-    s.progress(0x64)?;
-    race.shared.vars.bar_function.set_bits(BAR_DONE);
+    crate::race::mud::init_mud(race, scene, gfx, system, &o.net.race_slot)?;
+    s.mark(0x64)?;
+    s.mark(0x64)?;
     s.indent(-3);
     s.step(
+        Word::GetMatCrash,
         &mut || {
-            stage_prefs::get_mat_crash(race);
+            stage_prefs::get_mat_crash(
+                race.engine_tables(),
+                race.frame.matrices.get(),
+                race.shared.car(),
+                scene,
+            );
             Ok(())
         },
         None,
     )?;
-    // store norms; without `dword_64BB18` the checkpoints, the pace notes, the overlay.
-    s.log();
+    // store norms; without `Finish.no_place` the checkpoints, the pace notes, the overlay.
+    s.log(Word::StoreNorms);
     s.indent(3);
-    crate::race::norms::store_norms(race, &mut |a, b, c| {
-        crate::race::norms::face_normal(race, a, b, c)
-    })?;
-    if race.replay.finish.no_place.get() == 0 {
+    crate::race::norms::store_norms(race, scene)?;
+    if race.replay.finish.get().no_place.get() == 0 {
         s.indent(-3);
-        s.step(&mut || level::init_checkpoints(race), None)?;
         s.step(
+            Word::InitCheckpoints,
+            &mut || level::init_checkpoints(race),
+            None,
+        )?;
+        s.step(
+            Word::InitPaceNotes,
             &mut || crate::race::init_pace_notes::init_pace_notes(race),
             None,
         )?;
-        s.log();
+        s.log(Word::InitOverlay);
         s.indent(3);
         crate::race::init_overlay::init_overlay(race, scene)?;
-    } else {
-        s.word += 3;
     }
     use crate::scene::find_object_of_kind::find_object_of_kind;
     let mut marker = find_object_of_kind(0x7A, scene);
-    race.shared.switches.marker_object.set_bits(marker);
+    race.shared.switches.get().marker_object.set(marker);
     if marker == 0 {
         marker = find_object_of_kind(0x79, scene);
-        race.shared.switches.marker_object.set_bits(marker);
+        race.shared.switches.get().marker_object.set(marker);
     }
-    // dword_719FD0 / D4.
-    for cell in &REPLAY_WORK.camera_last_frame {
+    // `camera_last_frame` cleared.
+    for cell in &race.replay_work().camera_last_frame {
         cell.set(0);
     }
     s.indent(-3);
-    s.log();
+    s.log(Word::Finis);
     Ok(())
 }

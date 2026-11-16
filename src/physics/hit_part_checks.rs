@@ -1,27 +1,32 @@
-//! `physics::hit_part_checks` (0x441046): +0x284 (`unk_71A25C`) 1; with bits 5, 6, 1, 2
-//! of +0x298 all set -1; with bits 7, 8, 3, 4 also set 0 (a reading: which parts are
-//! left); then, with +0x26C 0, `physics::drop_hit_parts` and `physics::sound_hit_parts`.
+//! `parts_state` = 1; with bits 5, 6, 1, 2 of `parts_present` all set, -1; with bits 7, 8, 3, 4
+//! also set, 0 (a reading: which parts are left); then, with `tyre_change_state` 0,
+//! `physics::drop_hit_parts` and `physics::sound_hit_parts`.
 //!
-//! Caller: `physics::car_physics_step` (0x43B957), every physics step. Refuses what the calls
-//! refuse; what was written is put back.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
+//! Caller: `physics::car_physics_step`, every physics step. Refuses what the calls refuse; what was
+//! written is put back.
 
 use crate::errors::Refused;
 use crate::physics::drop_hit_parts::drop_hit_parts;
 use crate::physics::sound_hit_parts::sound_hit_parts;
-use crate::race::owner::Race;
+use crate::race::matrices_store::SceneMatrices;
+use crate::race::numbers_store::Numbers;
+use crate::race::owner_shared::RaceShared;
 use rc2k_core::physics::parts::parts_left;
 
-/// The Rust version. The registers the original leaves are read by none of its callers.
-// Converted: `rc2k_core::physics::parts::parts_left`.
-pub fn hit_part_checks(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let left = parts_left(race.shared.car.parts_present.get());
-    race.shared.car.parts_state.set(left);
-    if left != 0 || race.shared.car.tyre_change_state.get() != 0 {
+// Core: `rc2k_core::physics::parts::parts_left`.
+pub fn hit_part_checks(
+    numbers: &Numbers,
+    matrices: &SceneMatrices,
+    shared: &RaceShared,
+    kind_tables: &crate::race::kind_store::KindTables,
+    scene: &crate::scene::owner::Scene,
+    sound: &crate::sound::owner::Sound,
+) -> Result<(), Refused> {
+    let left = parts_left(shared.car().parts_present.get());
+    shared.car().parts_state.set(left);
+    if left != 0 || shared.car().tyre_change_state.get() != 0 {
         return Ok(());
     }
-    drop_hit_parts(race, scene)?;
-    sound_hit_parts(race)
+    drop_hit_parts(numbers, shared.work.get(), shared.car(), scene)?;
+    sound_hit_parts(numbers, matrices, shared, kind_tables, sound)
 }

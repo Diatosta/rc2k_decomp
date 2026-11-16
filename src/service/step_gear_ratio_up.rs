@@ -1,14 +1,10 @@
-//! `service::step_gear_ratio_up` (0x46BEFA): steps `dword_75AC90`, read as the chosen gear ratio (five pictures on the screen; a reading), one
-//! up, stopping at 4.
-//!
-//! The exact rule at the limits is in `setup_values.rs` (`Stepper`).
+//! Steps the gear ratio one up, stopping at 4. The rule at the limits is in `setup_values.rs`
+//! (`Stepper`).
 
 use crate::service::setup_values::{Stepper, Target};
 
-// ---- Rust version: `setup_values::step` with this ----
-
 pub const STEPPER: Stepper = Stepper {
-    target: Target::Global(&crate::menu::owner::MENUS.screens.state.driver_stats.setups[0].chosen),
+    target: Target::Chosen(0),
     max: 4,
     up: true,
 };

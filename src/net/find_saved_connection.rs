@@ -1,21 +1,15 @@
-//! `net::find_saved_connection` (0x4185DF): the connection listed whose service provider's
-//! GUID (record +0x40) is the one saved (`unk_52AC94`, `system::same_guid`).
-//!
-//! Returns the connection's number; None when none is listed or none matches.
-//! Callers: `net::start_link`, `net::settings_done`.
+//! The listed connection whose service provider GUID is the saved one. Returns its number,
+//! or None when none is listed or none matches.
 
 use crate::errors::Refused;
-use crate::net::owner::net;
+use crate::net::owner::Net;
 use crate::net::tables::with_connection;
 use rc2k_core::net::lists;
-
-/// The Rust version.
-pub fn find_saved_connection() -> Result<Option<u32>, Refused> {
-    let vars = &net().vars;
-    // Converted: `rc2k_core::net::lists::find_listed`.
-    let saved = vars.saved_connection.read();
-    lists::find_listed(vars.connections.get(), |n| -> Result<bool, Refused> {
+pub fn find_saved_connection(net: &Net) -> Result<Option<u32>, Refused> {
+    // The logic is in `rc2k_core::net::lists::find_listed`.
+    let saved = net.setup().saved_connection.read();
+    lists::find_listed(net.link.connections().get(), |n| -> Result<bool, Refused> {
         // `system::same_guid`: the four dwords alike.
-        with_connection(n, |c| c.provider == saved)
+        with_connection(&net.link, n, |c| c.provider == saved)
     })
 }

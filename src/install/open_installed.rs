@@ -1,10 +1,6 @@
-//! `install::open_installed` (0x413629): the installed folder (`g_installSource` normalised
-//! into `byte_95E7F8`) made the current directory and `g_installing` set; if either the
-//! normalise or the change fails, nothing is set.
-//!
-//! A list action (`off_51DD48` for the update script). Caller `install::run_page`.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
+//! The installed folder (the install source normalised into `installed`) made the current
+//! directory and the installing flag set; if the normalise or the change fails, nothing is set.
+//! A list action. Called by `install::run_page`.
 
 use crate::errors::Refused;
 use crate::install::installer::{normalise, set_cd};
@@ -13,7 +9,7 @@ pub fn open_installed(install: &'static crate::install::owner::Install) -> Resul
     if normalise(&install.names.source, &install.paths.installed)?
         && set_cd(&install.paths.installed)
     {
-        install.run.installing.set(1);
+        install.flags.installing.set(true);
     }
     Ok(())
 }

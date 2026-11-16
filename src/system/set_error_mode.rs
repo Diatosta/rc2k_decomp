@@ -1,70 +1,32 @@
-//! `system::set_error_mode` (0x402B7C): `SetErrorMode(SEM_FAILCRITICALERRORS)` (no
-//! "insert a disc" boxes from Windows), the mode before it kept in `uMode` (0x4E05A0), and
-//! `dword_4E059C` 1.
-//!
-//! One caller, `start` (0x401035). The Win32 call is made from Rust.
+//! `SetErrorMode(SEM_FAILCRITICALERRORS)` (no "insert a disc" boxes from Windows), the mode
+//! before it kept in `mode`, and `changed` 1. Called by `start`.
 
-use crate::session::Dword;
-use crate::system::owner::system;
-
-// ---- game data ----
-
-// ---- Rust version ----
+use crate::memory::session::PlainDword;
+use crate::system::owner::System;
 
 /// SEM_FAILCRITICALERRORS.
 const FAIL_CRITICAL_ERRORS: u32 = 1;
 
-pub fn set_error_mode() {
-    let system = system();
-    let was = crate::os::set_error_mode(FAIL_CRITICAL_ERRORS);
-    system.start.error_mode.mode.set(was);
-    system.start.error_mode.changed.set(1);
+pub fn set_error_mode(system: &System) {
+    let was = crate::platform::os::set_error_mode(FAIL_CRITICAL_ERRORS);
+    system.start().error_mode.mode.set(was);
+    system.start().error_mode.changed.set(1);
 }
 
-/// The error mode kept and whether it was set (IDA 0x4E059C .. 0x4E05A4, the image's layout).
-#[repr(C)]
+/// The error mode kept and whether it was set.
 #[derive(rc2k_derive::Cells)]
 pub struct ErrorMode {
-    /// 0x4E059C: `g_errorModeSet`: 1 after `set_error_mode` set the mode.
-    pub changed: Dword,
-    /// 0x4E05A0: `uMode`: the mode before.
-    pub mode: Dword,
+    /// 1 after `set_error_mode` set the mode.
+    pub changed: PlainDword,
+    /// The mode before.
+    pub mode: PlainDword,
 }
 
 impl ErrorMode {
     pub const fn new() -> Self {
         ErrorMode {
-            changed: Dword::new(0x0),
-            mode: Dword::new(0x0),
+            changed: PlainDword::new(0x0),
+            mode: PlainDword::new(0x0),
         }
-    }
-}
-
-impl ErrorMode {
-    pub const START: usize = 0x4E059C;
-    pub const LEN: usize = 0x8;
-    #[cfg(test)]
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const system().start.error_mode) as usize
-    }
-}
-
-#[cfg(test)]
-mod error_mode_tests {
-    use super::*;
-
-    #[test]
-    fn errormode_starts_as_the_games() {
-        let size = size_of::<ErrorMode>();
-        assert!(ErrorMode::LEN <= size && size <= (ErrorMode::LEN).next_multiple_of(4));
-        let image = crate::moved::image_bytes(ErrorMode::START, ErrorMode::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(ErrorMode::home()).cast_const(),
-                ErrorMode::LEN,
-            )
-        };
-        assert_eq!(mine, &image[..]);
     }
 }

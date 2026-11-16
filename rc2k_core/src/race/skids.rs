@@ -1,8 +1,6 @@
-//! The skidmarks' points (converted 2026-10-21 from `race::add_skid_point` 0x45860C): a
-//! ring of `POINTS` points (`g_skidPoints`, each the mark's left and right edges) linked
-//! in strips (`g_skidLinks`: the next, the previous, the angle, the car's bit, words).
-//! The angle between two places and the edges' offset for an angle are the game's turns,
-//! asked for through closures.
+//! The skidmarks' points: a ring of `POINTS` points (each the mark's left and right edges)
+//! linked in strips (next, previous, angle, car's bit, words). The angle between two places
+//! and the edges' offset for an angle are asked through closures.
 
 use crate::Invalid;
 
@@ -10,31 +8,33 @@ use crate::Invalid;
 pub const POINTS: u32 = 0x400;
 /// A link to no point.
 pub const NONE: u16 = 0xFFFF;
-/// Half a mark's width (the edges' offset before it is turned).
+/// Half a mark's width (the edges' offset before turning).
 pub const HALF_WIDTH: i32 = 0x1555;
 
 /// A point: its left edge's x, y, z, then its right edge's.
 pub type Point = [u32; 6];
 
-/// A point's links (`g_skidLinks`, 8 bytes, laid out as the game's).
-#[repr(C)]
+/// A point's links in its strip.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct Link {
     pub next: u16,
+    /// The previous point in the strip (`NONE` for the first).
     pub previous: u16,
+    /// The mark's angle (low word).
     pub angle: u16,
+    /// The car's bit.
     pub car: u16,
 }
 
-/// A point's middle: (left - right) >> 1 (signed) + right, for x, y and z.
+/// A point's middle: (left - right) >> 1 (signed) + right, per axis.
 pub fn middle(p: &Point) -> [u32; 3] {
     std::array::from_fn(|i| {
         ((p[i].wrapping_sub(p[3 + i]) as i32 >> 1) as u32).wrapping_add(p[3 + i])
     })
 }
 
-/// A point's edges across `centre` by `offset` (x, z): the left less it, the right plus
-/// it, y the centre's.
+/// A point's edges across `centre` by `offset` (x, z): left less it, right plus it, y the
+/// centre's.
 pub fn edges(centre: [u32; 3], offset: (u32, u32)) -> Point {
     [
         centre[0].wrapping_sub(offset.0),
@@ -46,8 +46,8 @@ pub fn edges(centre: [u32; 3], offset: (u32, u32)) -> Point {
     ]
 }
 
-/// Halfway from the last point's angle to the new one (its low word, the turn's sign
-/// kept), the new one's high word.
+/// Halfway from the last point's angle to the new one (low word, turn's sign kept), the new
+/// one's high word.
 pub fn between(angle: u32, last: u16) -> u32 {
     let half = ((angle as u16).wrapping_sub(last) as i16 >> 1) as u16;
     (angle & 0xFFFF_0000) | half.wrapping_add(last) as u32
@@ -65,32 +65,30 @@ pub struct Ring<'a> {
     pub links: &'a mut [Link],
 }
 
-/// What `add_skid_point` worked out, for the original's variables and registers.
+/// What adding a point worked out along the way, besides the ring's changes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Added {
-    /// The angle from the last point (`dword_645B00`; 0 without one).
+    /// The angle from the last point (0 without one).
     pub angle: u32,
-    /// The edges' offset last worked out (`dword_645B08`, `dword_645B0C`).
+    /// The edges' offset last worked out.
     pub offset: (u32, u32),
-    /// The last point's middle (`dword_645AF4` ..), with a last point.
+    /// The last point's middle, if there is a last point.
     pub from: Option<[u32; 3]>,
-    /// The halfway angle and the last point's middle (`dword_645B04`, `dword_645AE8` ..),
-    /// when the last point is not the strip's first.
+    /// Halfway angle and the last point's middle, when it is not the strip's first.
     pub turned: Option<(u32, [u32; 3])>,
-    /// Whether the last point was given new edges (the registers then hold them).
+    /// Whether the last point was given new edges.
     pub last_moved: bool,
-    /// The last edges written: the right edge (eax, ebx, ecx in the original).
+    /// The right edge last written.
     pub right: [u32; 3],
-    /// The new point's next link as read (ecx without the last point moved).
+    /// The new point's next link as read, before the last point moved.
     pub next_read: u16,
 }
 
-/// `race::add_skid_point`: point `n` (the ring's next) across the wheel's `place` at the
-/// angle from the `last` point's middle (`angle_of(dx, dz)`; 0 without a last point),
-/// its old links cut, linked after the last, marked with `car`; the last point turned to
-/// the new angle (its own edges moved when it starts its strip, else made again across
-/// its middle halfway between its angle and the new one); `offset_of(angle, y)` the edges'
-/// offset. Refuses (before anything) a point or a link outside the ring.
+/// Adds point `n` across the wheel's `place` at the angle from the `last` point's middle
+/// (`angle_of(dx, dz)`; 0 without one): old links cut, linked after the last, marked with
+/// `car`. The last point turns to the new angle (its edges move when it starts its strip,
+/// else are made again across its middle halfway); `offset_of(angle, y)` is the edges'
+/// offset. Refuses a point or link outside the ring before changing anything.
 pub fn add_skid_point(
     ring: Ring,
     n: u32,
@@ -196,7 +194,7 @@ mod tests {
             };
             POINTS as usize
         ];
-        // A strip's first point: no angle, no offset.
+        // First point of a strip: no angle, no offset.
         let a = add_skid_point(
             Ring {
                 points: &mut points,
@@ -212,7 +210,7 @@ mod tests {
         .unwrap();
         assert_eq!((a.angle, a.last_moved), (0, false));
         assert_eq!(points[0], [100, 5, 100, 100, 5, 100]);
-        // The second: linked after the first, which turns to its angle.
+        // The second links after the first, which turns to its angle.
         let a = add_skid_point(
             Ring {
                 points: &mut points,
@@ -232,7 +230,7 @@ mod tests {
         assert_eq!(links[0].angle, 100);
         assert_eq!(points[0], [100, 5, 93, 100, 5, 107]);
         assert_eq!(a.right, [100, 5, 107]);
-        // The third: the second, not first in its strip, turned halfway.
+        // The third turns the second (not first in its strip) halfway.
         let a = add_skid_point(
             Ring {
                 points: &mut points,

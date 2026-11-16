@@ -3,9 +3,10 @@
 //! screen is entered as from a menu item.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
+use crate::menu::screen_id::ScreenId;
+use crate::owners::Owners;
 #[cfg(debug_ui)]
-use crate::saves::owner::saves;
+use crate::saves::owner::Saves;
 use core::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 
 /// A race has been played this session (`drive::play_race`).
@@ -55,16 +56,16 @@ pub fn ask_cspecs() {
 
 /// Whether the section has its table (the draw refuses one without).
 #[cfg(debug_ui)]
-pub fn section_has_times(section: usize) -> bool {
-    saves().rally_times.table_of(section).is_ok()
+pub fn section_has_times(saves: &Saves, section: usize) -> bool {
+    saves.rally_times.table_named(section).is_ok()
 }
 
 /// A menu's frame: runs what was asked for; true if a screen was run (the menu sets
 /// itself up again, its background having been replaced).
-pub fn serve() -> Result<bool, Refused> {
-    let screens = &menus().screens;
+pub fn serve(o: Owners<'static>) -> Result<bool, Refused> {
+    let screens = &o.menus.screens;
     #[cfg(debug_ui)]
-    if crate::debug::dev_front_end::serve()? {
+    if crate::debug::dev_front_end::serve(o)? {
         return Ok(true);
     }
     let wanted = WANTED.swap(0, Ordering::Relaxed);
@@ -72,18 +73,12 @@ pub fn serve() -> Result<bool, Refused> {
         return Ok(false);
     }
     if wanted == CSPECS {
-        crate::menu::screen_loop::screen_entry(
-            "menu::cspecs_loop",
-            &crate::menu::cspecs_loop::SCREEN,
-        )?;
+        crate::menu::screen_loop::screen_entry(o, ScreenId::Cspecs)?;
         return Ok(true);
     }
     let section = screens.event.section.get();
     screens.event.section.set(wanted - 1);
-    let result = crate::menu::screen_loop::screen_entry(
-        "menu::section_times_loop",
-        &crate::menu::section_times_loop::SCREEN,
-    );
+    let result = crate::menu::screen_loop::screen_entry(o, ScreenId::SectionTimes);
     screens.event.section.set(section);
     result?;
     Ok(true)

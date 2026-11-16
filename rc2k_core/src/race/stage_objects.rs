@@ -1,36 +1,33 @@
-//! The stage's objects, pictures, lights' records and courses as the loading sets them up:
-//! the object slots' kinds, the texture kinds' pictures, which courses are on the disc,
-//! the lights' data laid into their records and the crash matrix's angles (converted
-//! 2026-10-21 from `race::set_object_kinds` 0x425BB4, `set_all_plates` 0x42518B,
-//! `find_present_courses` 0x4394F8, `copy_lights_data` 0x438B03 and `get_mat_crash`
-//! 0x43D43E).
+//! The stage's objects, pictures, light records and courses as loading sets them up: object
+//! slot kinds, texture kind pictures, courses on the disc, lights' data and crash matrix angles.
 
 use crate::Invalid;
 
 // ---- the object slots' kinds ----
 
-/// The eight fixed kinds (`dword_609294` .. `dword_6092B0`).
+/// The eight fixed kinds.
 pub const FIXED_KINDS: [u32; 8] = [0xCF, 0x79, 0xCC, 0xCD, 0xC8, 0xC9, 0xCA, 0xCB];
-/// The slots set from their defaults (`dword_6091B4`): 1 .. 0x3F.
+/// The slots set from their defaults: 1 ..= 0x3F.
 pub const DEFAULT_SLOTS: std::ops::Range<u32> = 1..0x40;
-/// The cars' slots: 0x50 on, 0x14 a car.
+/// The cars' slots start here, `CAR_SLOT_STEP` a car.
 pub const FIRST_CAR_SLOT: u32 = 0x50;
+/// Slots a car takes.
 pub const CAR_SLOT_STEP: u32 = 0x14;
 /// The car blocks there are.
 pub const CAR_BLOCKS: u32 = 8;
 
-/// A car's three kinds, from its block's +0x24.
+/// A car's three kinds.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CarKind {
-    /// `scene::known_kind`.
+    /// The scene's known kind.
     Known,
-    /// `race::car_kind_11`.
+    /// The kind from table 11.
     Table11,
-    /// `race::car_kind_10`.
+    /// The kind from table 10.
     Table10,
 }
 
-/// A car's three kinds in the original's order, each with its slot past the car's first.
+/// A car's kinds in order, each with its slot past the car's first.
 pub const CAR_KINDS: [(CarKind, u32); 3] = [
     (CarKind::Known, 0),
     (CarKind::Table11, 11),
@@ -42,7 +39,7 @@ pub fn car_slot(n: u32) -> u32 {
     FIRST_CAR_SLOT + CAR_SLOT_STEP * n
 }
 
-/// The cars set up: none past the eight blocks.
+/// Refuses more cars than car blocks.
 pub fn check_object_cars(cars: u32) -> Result<(), Invalid> {
     if cars > CAR_BLOCKS {
         Err(Invalid("more cars than the eight blocks"))
@@ -53,12 +50,11 @@ pub fn check_object_cars(cars: u32) -> Result<(), Invalid> {
 
 // ---- the texture kinds' pictures ----
 
-/// The texture kinds' pictures (`g_kindPictures`): 0x258 dwords.
+/// The texture kinds' pictures: 0x258 dwords.
 pub const PICTURE_KINDS: usize = 0x258;
-/// The stage prefs' picture lists copied in, (first kind, dwords): each a piece of the
-/// prefs at the same place (the prefs' lists lie 0x32C14 bytes above).
+/// The stage prefs' picture lists copied in: (first kind, dwords).
 pub const PREF_PIECES: [(usize, usize); 3] = [(0, 0x34), (0x40, 0x30), (0x80, 8)];
-/// The kinds whose pictures are fixed, (kind, picture) in the original's order.
+/// The kinds whose pictures are fixed: (kind, picture).
 pub const FIXED_PICTURES: [(usize, u32); 23] = [
     (0xC3, 0x7A8),
     (0xC8, 0x7CF),
@@ -84,7 +80,7 @@ pub const FIXED_PICTURES: [(usize, u32); 23] = [
     (0xC6, 0x73A),
     (0xC7, 0x73C),
 ];
-/// The cars' pictures: eight kinds a car from 0x100.
+/// The cars' picture kinds start here: eight kinds a car.
 pub const CAR_PICTURE_KINDS: usize = 0x100;
 pub const PICTURES_A_CAR: usize = 8;
 
@@ -93,7 +89,7 @@ pub fn car_pictures(first: u32) -> [u32; PICTURES_A_CAR] {
     std::array::from_fn(|k| first.wrapping_add(k as u32))
 }
 
-/// The cars whose pictures are set: none past eight.
+/// Refuses more cars than car blocks.
 pub fn check_picture_cars(cars: u32) -> Result<(), Invalid> {
     if cars > CAR_BLOCKS {
         Err(Invalid("more than 8 cars"))
@@ -110,8 +106,7 @@ pub const COURSES: u32 = 100;
 pub const PROBE_BYTES: u32 = 4;
 
 /// Whether a course is there: its files tried in order (`srclvls\levelNN\cdat00c`, then
-/// `files\levels\levelNN\cdat00c.sq`), `read` giving the bytes each read gave; the first
-/// that gave all four makes it there and the rest are not tried.
+/// `files\levels\levelNN\cdat00c.sq`); the first read that gives all four bytes wins.
 pub fn course_present<E>(
     files: u32,
     mut read: impl FnMut(u32) -> Result<u32, E>,
@@ -126,14 +121,13 @@ pub fn course_present<E>(
 
 // ---- the lights' data ----
 
-/// The lights' records (`0x5C906C`): 0x22 of 0x134 bytes, each taking 0x90 bytes of the
-/// lights' data at +0xA4.
+/// The lights' records: 0x22 of 0x134 bytes, each taking 0x90 bytes of data at +0xA4.
 pub const LIGHT_RECORDS: usize = 0x22;
 pub const LIGHT_RECORD: usize = 0x134;
 pub const LIGHT_DATA: usize = 0x90;
 pub const LIGHT_DATA_AT: usize = 0xA4;
 
-/// `copy_lights_data`: the data's records laid into the lights' records.
+/// Lays the data's records into the lights' records.
 pub fn lay_lights(data: &[u8], records: &mut [u8]) {
     for n in 0..LIGHT_RECORDS {
         let to = n * LIGHT_RECORD + LIGHT_DATA_AT;
@@ -143,8 +137,8 @@ pub fn lay_lights(data: &[u8], records: &mut [u8]) {
 
 // ---- the crash matrix ----
 
-/// `get_mat_crash`'s turns (x, y, z) from the three angles (`dword_71A998` ..: y, x, z,
-/// each with its whole part in the top half).
+/// The crash matrix's turns (x, y, z) from the three angles (y, x, z; whole part in the top
+/// half).
 pub fn crash_turns(angles: [u32; 3]) -> [u32; 3] {
     [angles[1] >> 16, angles[0] >> 16, angles[2] >> 16]
 }

@@ -1,9 +1,7 @@
-//! `sound::stop_cd_track` (0x40FCC8): with the CD audio open (`dword_518108` 1),
-//! `mciSendCommandA(mciId, MCI_STOP, 0, 0)`.
+//! `sound::stop_cd_track`: stops the CD audio when it is open (`CdAudio.open` 1).
 //!
-//! Called by `sound::stop_cd_audio` (three calls and two more by its `call $+5` into this).
-//! The MCI call is the platform's: in the standalone program nothing (no CD audio; in this build `dword_518108` never becomes
-//! 1: `sound::open_cd_audio`).
+//! Called by `sound::stop_cd_audio`. The MCI call is the platform's: in the standalone program it
+//! does nothing (no CD audio; `CdAudio.open` never becomes 1: `sound::open_cd_audio`).
 
 // ---- game data ----
 
@@ -12,11 +10,9 @@ const MCI_STOP: u32 = 0x808;
 /// `mciSendCommandA(device, message, parameter 1, parameter 2)`.
 pub type SendCommand<'a> = &'a mut dyn FnMut(u32, u32, u32, u32) -> u32;
 
-// ---- Rust version ----
-
 pub fn stop_cd_track(send: SendCommand, sound: &crate::sound::owner::Sound) {
-    if sound.menu.cd_audio.open.get() == 1 {
-        send(sound.menu.cd_audio.mci_id.get(), MCI_STOP, 0, 0);
+    if sound.menu.cd_audio.get().open.get() == 1 {
+        send(sound.menu.cd_audio.get().mci_id.get(), MCI_STOP, 0, 0);
     }
 }
 

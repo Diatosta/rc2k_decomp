@@ -1,5 +1,4 @@
-//! Pictures made another size, smoothly (converted 2026-10-20 from `gfx::rescale_picture`
-//! 0x4061D2 and `gfx::rescale_to_surface` 0x4063B7, which share the arithmetic).
+//! Pictures made another size, smoothly (for a picture buffer and for a surface alike).
 //!
 //! For every pixel of the new size: its place in the old picture as a whole number and a
 //! 32-bit fraction, both stepped by old size / new size; of the fraction the top eight bits
@@ -40,14 +39,13 @@ pub struct Work {
     pub weight_y: u32,
 }
 
-/// The picture rescaled. `at(row, byte)` reads byte `byte` of the old picture's row `row`
-/// (a pixel is four bytes; the right neighbour of a row's last pixel is read as the four
-/// bytes after it). `out` gets each new pixel's three parts, row by row. `None` for a size
-/// of 0 (the original divides by it).
+/// The picture rescaled. `at(row, byte)` reads byte `byte` of the old picture's row `row` (a pixel
+/// is four bytes; the right neighbour of a row's last pixel is read as the four bytes after it).
+/// `out` gets each new pixel's three parts, row by row. `None` for a size of 0 (a division by 0).
 pub fn rescale(
     sizes: &Sizes,
-    at: &dyn Fn(u32, u32) -> u8,
-    out: &mut dyn FnMut([u8; 3]),
+    at: &impl Fn(u32, u32) -> u8,
+    out: &mut impl FnMut([u8; 3]),
 ) -> Option<Work> {
     let Sizes {
         from_width,

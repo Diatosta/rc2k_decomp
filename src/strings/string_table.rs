@@ -1,72 +1,237 @@
 //! The packed string table and the two string-pointer tables the string functions read.
 
 use crate::errors::BadInput;
-use crate::pointers::GamePtr;
+use crate::memory::place::Run;
 use rc2k_core::strings::table::StringTable;
 
-// `g_stringTable` (0x4E07D4), the packed table's address, is not kept: the original sets it
-// to the lexicon only (`compile_lexicon`, `load_language`) and the table is always read from
-// `PUBLISHED`.
-// Still the image's: indexed by the id itself (`base + 4 * id`), they reach other
-// variables' pointers (made texts), set by other modules by address.
-const PTRS_HIGH: usize = 0x525DE8; // dword_525DE8[id], ids with bit 0x1000
-const PTRS_LOW: usize = 0x95D664; // src[id], ids 0x5A5..=0x658
+// The string table pointer is not kept: the table is always read from `Lexicon::published`.
 
-/// Each slot by its own address: slots fall in moved ranges (the driver names' pointers,
-/// 0x95ECF8 .., are `src[0x5A5..]`), which the table's base does not follow.
-fn table_entry(table: usize, id: u32) -> Result<u32, BadInput> {
-    crate::moved::named(table.wrapping_add(4 * id as usize))?.read::<u32>("a string pointer")
-}
-/// The address of the made text of `id` (0 if none).
-pub fn ptr_high(id: u32) -> Result<u32, BadInput> {
-    let entry = table_entry(PTRS_HIGH, id)?;
-    if !(MADE_TEXT_IDS.contains(&id) && entry != 0) {
-        return Ok(entry);
-    }
-    crate::moved::home_of_rva((entry as usize).wrapping_sub(crate::framework::IMAGE_BASE))
-        .map(|home| home as u32)
-        .ok_or(BadInput("a string id's text at no place"))
-}
-
-/// The ids whose slots are `InstallVars::text_pointers` (0x529DE8 is `dword_525DE8[0x1000]`),
-/// which keep IDA's addresses as names.
+/// The ids of the texts the game keeps in its own variables (the pointer table indexed by the id):
+/// The build notice, the screens' text buffers, the drive rows, the installer's languages and the
+/// credits.
 pub const MADE_TEXT_IDS: core::ops::Range<u32> = 0x1000..0x1040;
-/// The address of the text of `id` in the pointer table (0 if none).
-pub fn ptr_low(id: u32) -> Result<u32, BadInput> {
-    table_entry(PTRS_LOW, id)
+
+/// Which made text it is: the variable holding it and the text's number in that variable. The text
+/// runs on to its NUL inside the variable, which may be past the field it starts in.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum MadeText {
+    /// The build notice's first text, its second, and the second's second line.
+    Notice(NoticeLine),
+    /// The stage headings, by number.
+    StageHeading(usize),
+    /// The page numbers, by number.
+    PageNumber(usize),
+    /// The drive rows, by number.
+    DriveRow(usize),
+    /// The installer's languages found, by number.
+    Language(usize),
+    /// The installer's credits, by number.
+    Credit(usize),
 }
 
-/// Where `strings::compile_lexicon` puts the table, and its room: out of the image since
-/// 2026-10-24 (phase 5; it was `g_lexicon`, 0x4E07F8 .. the keyboard file at 0x4F07C8).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum NoticeLine {
+    First,
+    Second,
+    SecondTail,
+}
+
+/// Where the made text of `id` is. An id off `MADE_TEXT_IDS` has no text.
+fn made_place(id: u32) -> Result<MadeText, BadInput> {
+    if !MADE_TEXT_IDS.contains(&id) {
+        return Err(BadInput("a string id's text at no place"));
+    }
+    let n = (id - MADE_TEXT_IDS.start) as usize;
+    Ok(match n {
+        0 => MadeText::Notice(NoticeLine::First),
+        1 => MadeText::Notice(NoticeLine::Second),
+        2 => MadeText::Notice(NoticeLine::SecondTail),
+        3..=6 => MadeText::StageHeading(n - 3),
+        7..=16 => MadeText::PageNumber(n - 7),
+        17..=42 => MadeText::DriveRow(n - 17),
+        43..=51 => MadeText::Language(n - 43),
+        _ => MadeText::Credit(n - 52),
+    })
+}
+
+impl MadeText {
+    /// The text's byte in its variable, counted from the first of the buffers in `chain`.
+    fn offset(self, chain: &[&dyn Run]) -> usize {
+        /// Byte offsets from `credits_a` of the twelve texts in the installer's variables.
+        const CREDITS: [usize; 12] = [
+            0x0, 0x2, 0x9, 0xB, 0x1B, 0x3D, 0x1CF, 0x36, 0x5E, 0x1FB, 0x69, 0x20C,
+        ];
+        // The bytes before the chain's buffer `n`.
+        let before = |n: usize| chain[..n].iter().map(|buffer| buffer.len()).sum::<usize>();
+        match self {
+            MadeText::Notice(NoticeLine::First) => 0,
+            MadeText::Notice(NoticeLine::Second) => before(1),
+            MadeText::Notice(NoticeLine::SecondTail) => before(1) + 0x36,
+            MadeText::StageHeading(i) => before(1) * i,
+            MadeText::PageNumber(i) => before(5) + 4 * i,
+            MadeText::DriveRow(i) => 0x10 * i,
+            MadeText::Language(i) => 0x80 * i,
+            MadeText::Credit(i) => CREDITS[i],
+        }
+    }
+
+    /// The variable's buffers from the one the made texts are counted from, in the order they
+    /// follow one another: a text runs on past its field into the next.
+    fn chain<'a>(
+        self,
+        menus: &'a crate::menu::owner::Menus,
+        install: &'a crate::install::owner::Install,
+    ) -> Vec<&'a dyn Run> {
+        match self {
+            MadeText::Notice(_) => {
+                let notice = &menus.panels.notice;
+                vec![&notice.notice_first, &notice.notice_second]
+            }
+            MadeText::StageHeading(_) | MadeText::PageNumber(_) => {
+                let text = &menus.text_buffers;
+                vec![
+                    &text.stage_heading,
+                    &text.caption,
+                    &text.title,
+                    &text.number_text,
+                    &text.stage_result_value,
+                    &text.page_numbers,
+                ]
+            }
+            MadeText::DriveRow(_) => {
+                vec![
+                    &install.drive_rows.drive_rows,
+                    &install.drive_rows._gap_52a49f,
+                ]
+            }
+            MadeText::Language(_) => {
+                let names = &install.names;
+                vec![
+                    &names.languages,
+                    &names._gap_51c2ee,
+                    &names.lang_cfg,
+                    &names._gap_51c378,
+                    &names.room_by_mode,
+                    &names._tail,
+                ]
+            }
+            MadeText::Credit(_) => {
+                let vars = &install.vars;
+                vec![
+                    &vars.credits_a,
+                    &vars.clio_car_name,
+                    &vars.credits_b,
+                    &vars._tail,
+                ]
+            }
+        }
+    }
+}
+
+/// The text of the made text `id`, up to its NUL (left out).
+pub fn made_text(
+    menus: &crate::menu::owner::Menus,
+    install: &crate::install::owner::Install,
+    id: u32,
+) -> Result<Vec<u8>, BadInput> {
+    let place = made_place(id)?;
+    let chain = place.chain(menus, install);
+    text_across(&chain, place.offset(&chain))
+}
+
+/// The bytes from `offset` into the first of `buffers` to the first NUL (left out); the text runs
+/// on past the field it starts in, so the buffers that follow one another are the limit.
+fn text_across(buffers: &[&dyn Run], offset: usize) -> Result<Vec<u8>, BadInput> {
+    let mut text = Vec::new();
+    let mut skip = offset;
+    for buffer in buffers {
+        let len = buffer.len();
+        if skip >= len {
+            skip -= len;
+            continue;
+        }
+        for at in skip..len {
+            match buffer.get(at) {
+                0 => return Ok(text),
+                byte => text.push(byte),
+            }
+        }
+        skip = 0;
+    }
+    Err(BadInput("a string without its end in its block"))
+}
+
+/// The text in the driver names' block at byte `slot` (a driver name's slot value), up to its NUL
+/// (left out).
+pub fn driver_name_text(
+    strings: &crate::strings::owner::Strings,
+    slot: u32,
+) -> Result<Vec<u8>, BadInput> {
+    use crate::settings::read_driver_names::NAMES_SIZE;
+    let names = &strings.drivers.names;
+    let mut text = Vec::new();
+    for at in slot as usize..NAMES_SIZE {
+        match names.get(at) {
+            0 => return Ok(text),
+            b => text.push(b),
+        }
+    }
+    Err(BadInput("a string without its end in its block"))
+}
+
+/// The offset in `drivers.names` of the name of driver-name id `id` (`POINTER_IDS`), 0 for none:
+/// The pointer slot each id has.
+pub fn driver_name_slot(
+    strings: &crate::strings::owner::Strings,
+    id: u32,
+) -> Result<u32, BadInput> {
+    let ids = rc2k_core::strings::table::POINTER_IDS;
+    if !ids.contains(&id) {
+        return Err(BadInput("a driver name's id off the names"));
+    }
+    let slot = (id - ids.start()) as usize;
+    Ok(strings.drivers.names.get_u32(4 * slot))
+}
+
+/// The lexicon's room: where `strings::compile_lexicon` puts the table.
 pub const LEXICON_ROOM: usize = rc2k_core::strings::lexicon::TABLE_ROOM;
-pub static LEXICON: crate::session::Bytes<LEXICON_ROOM> =
-    crate::session::Bytes::new([0; LEXICON_ROOM]);
 
-/// The lexicon's room as a place bounded by it.
-pub fn lexicon_room() -> GamePtr {
-    GamePtr::to(&LEXICON)
+/// The lexicon's room, all of it.
+pub fn lexicon_bytes(strings: &crate::strings::owner::Strings) -> Result<Vec<u8>, BadInput> {
+    strings
+        .lexicon
+        .room
+        .read_at(0, LEXICON_ROOM, "the lexicon's room")
 }
 
-/// The finished table as the core reads it: a copy of the lexicon's room, made once its bytes
-/// are written (`publish`). Readers never see the room itself, so a text being looked up cannot
-/// meet a language being loaded.
-static PUBLISHED: std::sync::RwLock<Option<&'static [u8]>> = std::sync::RwLock::new(None);
+/// `table` written from the start of the lexicon's room.
+pub fn write_lexicon(
+    strings: &crate::strings::owner::Strings,
+    table: &[u8],
+) -> Result<(), BadInput> {
+    strings
+        .lexicon
+        .room
+        .write_at(0, table, "the lexicon's room")
+}
 
-/// Makes the room's bytes the table the game reads. Called at most twice, while the language
-/// loads (compiled, then corrected), so the copies kept for the program's life stay small.
-pub fn publish() -> Result<(), BadInput> {
-    let room = lexicon_room();
-    let copy = room.read_bytes(LEXICON_ROOM, "the lexicon's room")?;
-    *PUBLISHED
+/// Makes the room's bytes the table the game reads. Called at most twice, while the language loads
+/// (compiled, then corrected), so the copies kept for the program's life stay small.
+pub fn publish(strings: &crate::strings::owner::Strings) -> Result<(), BadInput> {
+    let copy = lexicon_bytes(strings)?;
+    *strings
+        .lexicon
+        .published
         .write()
         .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(Vec::leak(copy));
     Ok(())
 }
 
-/// The table `g_stringTable` points at, as the core reads it: `None` before the language is
-/// loaded.
-pub fn table() -> Option<StringTable<'static>> {
-    PUBLISHED
+/// The table the game reads, as the core reads it: `None` before the language is loaded.
+pub fn table(strings: &crate::strings::owner::Strings) -> Option<StringTable<'static>> {
+    strings
+        .lexicon
+        .published
         .read()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
         .map(StringTable::new)
@@ -76,16 +241,147 @@ pub fn table() -> Option<StringTable<'static>> {
 mod tests {
     use super::*;
 
+    /// How many ids `the_installers_made_texts_read_as_before` resolves, and their hash.
+    const INSTALL_TEXTS_COUNT: usize = 47;
+    const INSTALL_TEXTS_HASH: u64 = 0xa852_4ba6_54d7_42e9;
+
+    /// Where each made text, ids 0x1000 .. 0x103F, lives: the holder (N the notice text, B the
+    /// screens' text buffers, D the drive rows, M the installer's names, V its variables) and the
+    /// text's offset in the holder.
+    const IMAGE_PLACES: [(char, usize); 64] = [
+        ('N', 0x0),
+        ('N', 0x4e),
+        ('N', 0x84),
+        ('B', 0x200),
+        ('B', 0x300),
+        ('B', 0x400),
+        ('B', 0x500),
+        ('B', 0x604),
+        ('B', 0x608),
+        ('B', 0x60c),
+        ('B', 0x610),
+        ('B', 0x614),
+        ('B', 0x618),
+        ('B', 0x61c),
+        ('B', 0x620),
+        ('B', 0x624),
+        ('B', 0x628),
+        ('D', 0x0),
+        ('D', 0x10),
+        ('D', 0x20),
+        ('D', 0x30),
+        ('D', 0x40),
+        ('D', 0x50),
+        ('D', 0x60),
+        ('D', 0x70),
+        ('D', 0x80),
+        ('D', 0x90),
+        ('D', 0xa0),
+        ('D', 0xb0),
+        ('D', 0xc0),
+        ('D', 0xd0),
+        ('D', 0xe0),
+        ('D', 0xf0),
+        ('D', 0x100),
+        ('D', 0x110),
+        ('D', 0x120),
+        ('D', 0x130),
+        ('D', 0x140),
+        ('D', 0x150),
+        ('D', 0x160),
+        ('D', 0x170),
+        ('D', 0x180),
+        ('D', 0x190),
+        ('M', 0x38e),
+        ('M', 0x40e),
+        ('M', 0x48e),
+        ('M', 0x50e),
+        ('M', 0x58e),
+        ('M', 0x60e),
+        ('M', 0x68e),
+        ('M', 0x70e),
+        ('M', 0x78e),
+        ('V', 0x13c),
+        ('V', 0x13e),
+        ('V', 0x145),
+        ('V', 0x147),
+        ('V', 0x157),
+        ('V', 0x179),
+        ('V', 0x30b),
+        ('V', 0x172),
+        ('V', 0x19a),
+        ('V', 0x337),
+        ('V', 0x1a5),
+        ('V', 0x348),
+    ];
+
+    /// The holder and offset `made_place` gives the made text `id`, in the table's terms (the
+    /// offset in the variable: the chain counts from the buffer `first_byte` bytes into it).
+    fn place_of(id: u32) -> (char, usize) {
+        let o = crate::test_support::own::owners();
+        let place = made_place(id).unwrap();
+        let (holder, first_byte) = match place {
+            MadeText::Notice(_) => ('N', 0),
+            MadeText::StageHeading(_) | MadeText::PageNumber(_) => ('B', 0x200),
+            MadeText::DriveRow(_) => ('D', 0),
+            MadeText::Language(_) => ('M', 0x38e),
+            MadeText::Credit(_) => ('V', 0x13c),
+        };
+        let chain = place.chain(o.menus, o.install);
+        (holder, first_byte + place.offset(&chain))
+    }
+
     #[test]
-    fn made_text_ids_find_their_texts() {
-        for id in MADE_TEXT_IDS {
-            assert_ne!(ptr_high(id).unwrap(), 0, "{id:#X}");
+    fn made_texts_are_where_the_images_pointers_named() {
+        for (n, &place) in IMAGE_PLACES.iter().enumerate() {
+            let id = MADE_TEXT_IDS.start + n as u32;
+            assert_eq!(place_of(id), place, "{id:#X}");
+        }
+        let o = crate::test_support::own::owners();
+        let (menus, install) = (o.menus, o.install);
+        assert!(made_text(menus, install, 0x1040).is_err());
+        assert!(made_text(menus, install, 0x1FFF).is_err());
+    }
+
+    #[test]
+    fn caption_is_id_0x1004() {
+        let o = crate::test_support::own::owners();
+        let place = made_place(0x1004).unwrap();
+        assert_eq!(place, MadeText::StageHeading(1));
+        let chain = place.chain(o.menus, o.install);
+        assert_eq!(place.offset(&chain), chain[0].len());
+        assert!(std::ptr::addr_eq(
+            chain[1],
+            &raw const o.menus.text_buffers.caption
+        ));
+    }
+
+    /// Every made text of the installer's stores (the drive rows, the languages, the credits),
+    /// resolved on the stores' starting values: a hash of the ids' texts, held against the
+    /// build before the installer's pages were typed (`RC2K_PRINT=1` prints it).
+    #[test]
+    fn the_installers_made_texts_read_as_before() {
+        let _lock = crate::test_support::test_lock();
+        let o = crate::test_support::own::owners();
+        let mut hash = 0xcbf2_9ce4_8422_2325_u64;
+        let mut lines = Vec::new();
+        for id in MADE_TEXT_IDS.start + 17..MADE_TEXT_IDS.end {
+            let line = match made_text(o.menus, o.install, id) {
+                Ok(text) => format!("{id:#x}: {text:?}"),
+                Err(e) => format!("{id:#x}: refused {e:?}"),
+            };
+            for b in line.bytes().chain(std::iter::once(b'\n')) {
+                hash = (hash ^ u64::from(b)).wrapping_mul(0x100_0000_01b3);
+            }
+            lines.push(line);
+        }
+        if std::env::var_os("RC2K_PRINT").is_some() {
+            eprintln!("INSTALL_TEXTS_HASH {hash:016x} over {} ids", lines.len());
         }
         assert_eq!(
-            ptr_high(0x1004).unwrap(),
-            crate::screens::text_buffers_store::TEXT_BUFFERS
-                .caption
-                .addr()
+            (lines.len(), hash),
+            (INSTALL_TEXTS_COUNT, INSTALL_TEXTS_HASH),
+            "{lines:?}"
         );
     }
 }

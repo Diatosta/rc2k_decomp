@@ -1,25 +1,22 @@
-//! `scene::set_object_light` (0x45143A): the light that falls on the object as a whole,
-//! to be added to each of its vertices.
+//! `scene::set_object_light`: the light that falls on the object as a whole, to be added to
+//! each of its vertices.
 //!
-//! `dword_635068` (what `scene::vertex_light` adds) = 0, then by `g_lightKind`:
+//! The object's `light_added` (what `scene::vertex_light` adds) = 0, then by the light kind:
 //! - 5: plain white;
-//! - 1: `g_lightStrength` = 0; the lamps gathered; `g_lightColour` plus
-//!   `dword_635054`;
-//! - 2: the same, with `g_lightStrength` = 0 only while the key `byte_4F6B74` is down;
-//! - 3: the same without touching the strength, and with `dword_639968` =
-//!   `dword_60627C` while the lamps are gathered (a car is not lit by its own), -1
-//!   afterwards;
+//! - 1: the light strength = 0; the lamps gathered; the light colour plus `other_light`;
+//! - 2: the same, with the strength = 0 only while the key (a debugging key) is down;
+//! - 3: the same without touching the strength, and with `drawn_car_light` = the drawn car
+//!   while the lamps are gathered (a car is not lit by its own), -1 afterwards;
 //! - anything else: nothing more.
 //!
-//! "The lamps gathered" (`scene::gather_lights`, 0x451425, inlined): the object's place
-//! `dword_63501C` .. to `g_litPlace`, `g_lightColour` = 0, `scene::add_car_lights`,
-//! `scene::add_point_lights`. "Plus" is byte by byte without overflow, as in
-//! `scene::vertex_light`. One caller, `scene::draw_object`.
+//! "The lamps gathered" (`scene::gather_lights`, inlined): the object's `place` to the lit
+//! place, the light colour = 0, `scene::add_car_lights`, `scene::add_point_lights`. "Plus" is
+//! byte by byte without overflow, as in `scene::vertex_light`. One caller,
+//! `scene::draw_object`.
 //!
-//! Converted 2026-10-21: the kind's way through `rc2k_core::scene::lamps::object_light`.
+//! The kind's way is in `rc2k_core::scene::lamps::object_light`.
 
 use crate::errors::Refused;
-use crate::input::owner::input;
 use crate::scene::add_car_light::add_car_light;
 use crate::scene::add_car_lights::add_car_lights;
 use crate::scene::add_point_lights::add_point_lights;
@@ -27,23 +24,23 @@ use crate::scene::vertex_light::plus;
 
 // ---- game data ----
 
-// ---- Rust version ----
-
 /// `gather`: what stands for `scene::add_car_lights` and `scene::add_point_lights`.
-// Converted: `rc2k_core::scene::lamps::object_light`
+// Logic: `rc2k_core::scene::lamps::object_light`
 pub fn set_object_light(
-    race: &crate::race::owner::Race,
     gather: &mut dyn FnMut() -> Result<(), Refused>,
-    scene: &crate::scene::owner::Scene,
-    system: &crate::system::owner::System,
+    input: &crate::input::owner::Input,
+    light: &crate::scene::object_light::ObjectLight,
+    object: &crate::scene::object_place::ObjectPlace,
+    mmx: bool,
+    vars: &crate::race::view_vars_store::ViewVarsCopy,
 ) -> Result<(), Refused> {
     use rc2k_core::scene::lamps::{ObjectLight, WHITE, object_light};
-    scene.drawing.object_work.light_added.set_bits(0u32);
-    let (clear_strength, own_car) = match object_light(scene.lights.work.light_kind.bits(), || {
-        input().devices.keys_now.get(0x18) != 0 // byte_4F6B74
+    light.light_added.set(0u32);
+    let (clear_strength, own_car) = match object_light(light.light_kind.get(), || {
+        input.devices.keys_now.get(0x18) != 0 // Devices.keys_now
     }) {
         ObjectLight::White => {
-            scene.drawing.object_work.light_added.set_bits(WHITE);
+            light.light_added.set(WHITE);
             return Ok(());
         }
         ObjectLight::Gathered {
@@ -53,49 +50,56 @@ pub fn set_object_light(
         ObjectLight::Nothing => return Ok(()),
     };
     if clear_strength {
-        scene.drawing.object_work.light_strength.set_bits(0u32);
+        object.light_strength.set(0u32);
     }
-    crate::session::write_bits(
-        &scene.lights.state.lit_place,
-        crate::session::read_bits::<_, 3>(&scene.drawing.object_work.place),
+    crate::memory::session::write_bits(
+        &light.lit_place,
+        crate::memory::session::read_bits::<_, 3>(&object.place),
     );
     if own_car {
-        race.physics
-            .ground
-            .drawn_car_light
-            .set_bits(race.frame.view_and_records.view_vars.drawn_car.bits());
+        light.drawn_car_light.set(vars.drawn_car.get());
     }
-    scene.lights.work.light_colour.set_bits(0u32);
+    light.light_colour.set(0u32);
     gather()?;
     if own_car {
-        race.physics.ground.drawn_car_light.set_bits(u32::MAX);
+        light.drawn_car_light.set(u32::MAX);
     }
-    let mmx = system.session.machine.has_mmx.get() != 0;
-    scene.drawing.object_work.light_added.set_bits(plus(
-        scene.lights.work.light_colour.bits(),
-        scene.drawing.object_work.other_light.bits(),
-        mmx,
-    ));
+    light
+        .light_added
+        .set(plus(light.light_colour.get(), light.other_light.get(), mmx));
     Ok(())
 }
 
-/// With the lamps' Rust versions.
 pub fn set_object_light_in_game(
-    race: &crate::race::owner::Race,
-    scene: &crate::scene::owner::Scene,
-    system: &crate::system::owner::System,
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
 ) -> Result<(), Refused> {
+    let race = ctx.race;
     set_object_light(
-        race,
         &mut || {
-            add_car_lights(race, &mut |car| {
-                add_car_light(&race.course, car, scene, system);
-                Ok(())
-            })?;
-            add_point_lights(race, scene, system)?;
+            add_car_lights(
+                ctx.reads,
+                ctx.reads.net_race.get(),
+                ctx.view.light.drawn_car_light.get(),
+                ctx.view.drawn_view(race),
+                &mut |car, marks| {
+                    add_car_light(
+                        ctx.reads.course(),
+                        car,
+                        marks,
+                        ctx.reads.light_tables,
+                        &ctx.view.light,
+                        ctx.reads.has_mmx,
+                    );
+                    Ok(())
+                },
+            )?;
+            add_point_lights(ctx)?;
             Ok(())
         },
-        scene,
-        system,
+        ctx.input,
+        &ctx.view.light,
+        &ctx.view.object,
+        ctx.reads.has_mmx,
+        &ctx.view.vars,
     )
 }

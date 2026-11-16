@@ -1,42 +1,45 @@
-//! `saves::default_best_scores` (0x47C923): fills the table of best scores with made-up
-//! entries.
+//! Fills the table of best scores with made-up entries.
 //!
-//! The table at `dword_7556D4` (0xBB8 bytes) is five groups of ten entries of 0x3C bytes.
-//! In each group the entries get 50, 49, .. 41 at +0x38 and a driver each
-//! (0x47CDA7, a plain function here): a random number under 0xB3 is drawn; for the
-//! groups 0 .. 3 it is thrown away and the driver is a random number under
-//! `dword_75AB00[group]` plus `dword_75AB10[group]`, for group 4 it is the driver. From
-//! the driver's record: its +8 to the entry's +0x10, +0x14 to +8, +0x18 to +0xC, and the
-//! name (without a NUL) to +0x18.
-//! One caller, `menu::set_up_front_end`, when `var\hst.dat` was not loaded.
-//! Refuses a missing table, a group without drivers (the original divides by 0), a
-//! driver past the 180, and a name that does not fit.
-//! Converted: `rc2k_core::saves::defaults::best_scores`, `rc2k_core::saves::scores::fill_made_up`.
+//! The level scores table (0xBB8 bytes) is five groups of ten entries of 0x3C bytes. In each
+//! group the entries get 50, 49, .. 41 at +0x38 and a driver each: a random number under 0xB3
+//! is drawn; for the groups 0 .. 3 it is thrown away and the driver is a random number under
+//! `CLASS_DRIVER_COUNTS[group]` plus `CLASS_FIRST_DRIVERS[group]`, for group 4 it is the driver.
+//! From the driver's
+//! record: its class to the entry's +0x10, nationality to +8, car to +0xC, and the name
+//! (without a NUL) to +0x18.
+//! One caller, `menu::set_up_front_end`, when `var\hst.dat` was not loaded. Refuses a missing
+//! table, a group without drivers, a driver past the 180, and a name that does not fit.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
-use crate::saves::best_times::SCORES;
+use crate::menu::owner::Menus;
+use crate::race::owner::Race;
+use crate::saves::best_times::BestTables;
 use crate::saves::default_times::{GameSource, to_nowhere};
 use rc2k_core::saves::defaults::best_scores;
 
-// ---- game data ----
-
-// ---- Rust version ----
-
-pub fn default_best_scores() -> Result<(), Refused> {
-    let screens = &menus().screens;
-    if !SCORES.is_taken() {
+pub fn default_best_scores(
+    so: crate::strings::append_string_by_id::StringOwners<'_>,
+    menus: &Menus,
+    race: &Race,
+    tables: &BestTables,
+) -> Result<(), Refused> {
+    if !tables.scores.is_taken() {
         return Err(crate::errors::BadInput("no table of best scores").into());
     }
-    let counts = std::array::from_fn(|g| screens.state.menus.class_counts[g].get());
-    let firsts = std::array::from_fn(|g| screens.state.menus.firsts[g].get());
+    let counts = rc2k_core::saves::defaults::CLASS_DRIVER_COUNTS;
+    let firsts = rc2k_core::saves::defaults::CLASS_FIRST_DRIVERS;
     let entries = best_scores(
         &mut GameSource {
             log: &mut to_nowhere,
+            so,
+            menus,
+            race,
         },
         counts,
         firsts,
     )?;
-    SCORES.with(|t| rc2k_core::saves::scores::fill_made_up(t, &entries))?;
+    tables
+        .scores
+        .with(|t| rc2k_core::saves::scores::fill_made_up(t, &entries))?;
     Ok(())
 }

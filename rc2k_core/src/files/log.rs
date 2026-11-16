@@ -1,6 +1,4 @@
-//! The texts the game's log writes (converted 2026-10-20 from `logfile::log_int` 0x401440,
-//! `log_int_fmt` 0x40148B, `log_float` 0x4014D8, `date_text` 0x401D74; the entry's gate of
-//! `logfile::log_write` 0x4013CB converted 2026-10-21).
+//! The texts the game's log writes.
 
 use crate::strings::format::{Pad, decimal};
 use crate::strings::table::nth_string;
@@ -15,21 +13,19 @@ pub fn signed(value: i32, pad: Pad) -> Vec<u8> {
     text
 }
 
-/// A float's text as the log makes it: the bytes, and where its NUL goes (after
-/// `decimals` digits of the fraction, which may be past the bytes: the original's buffer
-/// then shows what it held before).
+/// A float's text as the log makes it: the bytes, and where its NUL goes (after `decimals`
+/// digits of the fraction, possibly past the bytes: then the buffer's old contents show).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FloatText {
     pub bytes: Vec<u8>,
     pub nul_at: usize,
 }
 
-/// A float (its bits) with `decimals` digits: always a sign, "+" or "-", then the whole
-/// part, a dot and nine digits, cut at `decimals`. Taken apart by hand as the original
-/// does: the mantissa shifted into a 32.32 fixed-point value, the fraction's digits the
-/// sum of 500000000 >> n for each set bit n (each rounded down, so the last digits can be a
-/// little low). Zero of either sign is "=0." and the digits; 2^32 or more the sign and
-/// ">=2^32"; then the sign and "infinity" or "nan".
+/// A float (its bits) with `decimals` digits: a sign, the whole part, a dot and nine digits cut
+/// at `decimals`. The mantissa goes to 32.32 fixed point and the fraction's digits are the sum of
+/// 500000000 >> n over set bits n (each rounded down, so the last digits can be a little low).
+/// Zero of either sign is "=0." and the digits; 2^32 or more the sign and ">=2^32"; then the
+/// sign and "infinity" or "nan".
 pub fn float(bits: u32, decimals: u32) -> FloatText {
     let complete = |bytes: Vec<u8>| FloatText {
         nul_at: bytes.len(),
@@ -73,7 +69,7 @@ pub fn float(bits: u32, decimals: u32) -> FloatText {
     FloatText { bytes, nul_at }
 }
 
-/// Nine decimal digits for a 32-bit binary fraction, as the original adds them up.
+/// Nine decimal digits for a 32-bit binary fraction, summed as `float` describes.
 fn fraction_digits(mut fraction: u32) -> u32 {
     let (mut step, mut sum) = (500_000_000u32, 0u32);
     while fraction != 0 {
@@ -86,7 +82,7 @@ fn fraction_digits(mut fraction: u32) -> u32 {
     sum
 }
 
-/// The moment the game started (`GetLocalTime`'s, as the game keeps it at 0x51839F).
+/// The moment the game started, as the local clock gave it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Started {
     /// 0 = Sunday.
@@ -101,9 +97,8 @@ pub struct Started {
     pub hundredths: u8,
 }
 
-/// RAL.EXE's tables at 0x401E23 .. 0x401EDE, one after another: for each day of the month
-/// which ending it has, the endings, the months' names (from an empty one) and the
-/// weekdays'.
+/// The date texts' tables, one after another: each day's ending, the endings, the months'
+/// names (from an empty one) and the weekdays'.
 const ENDING_OF_DAY: [u8; 32] = [
     3, 0, 1, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0, 1, 2, 3, 3, 3, 3, 3, 3, 3, 0,
 ];
@@ -112,7 +107,7 @@ const MONTHS: &[u8] = b"\0January\0February\0March\0April\0May\0June\0July\0Augu
 const WEEKDAYS: &[u8] = b"Sunday\0Monday\0Tuesday\0Wednesday\0Thursday\0Friday\0Saturday\0";
 
 /// "Monday 12th October 2026 14:49:56.46" (`date_text`); `None` for a weekday past 6, a
-/// day past 31 or a month past 12 (the original reads on into what follows its tables).
+/// day past 31 or a month past 12.
 pub fn date(at: &Started) -> Option<Vec<u8>> {
     if at.weekday > 6 || at.day > 31 || at.month > 12 {
         return None;
@@ -193,20 +188,18 @@ mod tests {
     }
 }
 
-/// What `logfile::log_write` does with a line.
+/// What a log call does with a line.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Entry {
-    /// Logging is off (`g_logEnabled` 0 or less): nothing changes.
+    /// Logging is off (`enabled` 0 or less): nothing changes.
     Off,
-    /// The log level is 0: the original's lock function returns straight to the caller's
-    /// caller (eax left the code address after its call).
+    /// The log level is 0: nothing is written.
     Skipped,
     /// The lock taken and the line written.
     Written,
 }
 
-/// `logfile::log_write`'s gate: `enabled` (signed) first, then the level (asked only
-/// then).
+/// The gate of a log call: `enabled` (signed) first, then the level (asked only then).
 pub fn entry(enabled: i32, level: impl FnOnce() -> u32) -> Entry {
     if enabled <= 0 {
         Entry::Off
@@ -217,13 +210,11 @@ pub fn entry(enabled: i32, level: impl FnOnce() -> u32) -> Entry {
     }
 }
 
-/// The most bytes a log line keeps: bytes are stored while the line is no longer (the line
-/// buffer 0x93E080 .. 0x93E42C).
+/// The most bytes a log line keeps: bytes are stored while the line is no longer than this.
 pub const LINE_LIMIT: usize = 0x93E42C - 0x93E080;
 
-/// The line `logfile::write_line` (0x40132C) builds and the new line-start flag: at a
-/// line's start (flag 1) `indent` spaces (0 .. 80) first, then the message (cut where the
-/// line passes `LINE_LIMIT`), then "\r\n" (a new line starts) or a space.
+/// A line and the new line-start flag: at a line's start (flag 1) `indent` spaces (0 .. 80),
+/// then the message (cut at `LINE_LIMIT`), then "\r\n" (a new line starts) or a space.
 pub fn format_line(msg: &[u8], newline: bool, indent: i32, line_start: u32) -> (Vec<u8>, u32) {
     let mut out = Vec::new();
     let mut flag = line_start;
@@ -246,8 +237,8 @@ pub fn format_line(msg: &[u8], newline: bool, indent: i32, line_start: u32) -> (
     (out, flag)
 }
 
-/// One of the log's calls: a text, a signed number (`log_int`), eight hex digits
-/// (`log_hex8`); each with its newline flag.
+/// One of the log's calls: a text, a signed number or eight hex digits, each with its newline
+/// flag.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Message {
     Text(Vec<u8>),
@@ -255,10 +246,10 @@ pub enum Message {
     Hex8(u32),
 }
 
-/// What `start` has found out by the log's start (`logfile::start_log` 0x401135).
+/// What `start` has found out by the log's start.
 #[derive(Clone, Debug, Default)]
 pub struct Machine {
-    /// `logfile::date_text`'s text, the version (`byte_4E0050`) and a second text if any.
+    /// `logfile::date_text`'s text, the version and a second text if any.
     pub date: Vec<u8>,
     pub version: Vec<u8>,
     pub second: Option<Vec<u8>>,
@@ -269,7 +260,7 @@ pub struct Machine {
     pub clock: i32,
     pub fpu: i32,
     pub mmx: i32,
-    pub amd_3d: i32,
+    pub has_3dnow: i32,
     pub katmai: i32,
     /// The keyboard type.
     pub machine_type: i32,
@@ -282,7 +273,7 @@ pub struct Machine {
     pub free_kb: u32,
 }
 
-/// The log's head, in the original's calls.
+/// The log's head: the start lines with the machine's facts.
 pub fn head(m: &Machine) -> Vec<(Message, bool)> {
     use Message::*;
     let t = |s: &[u8]| Text(s.to_vec());
@@ -305,7 +296,7 @@ pub fn head(m: &Machine) -> Vec<(Message, bool)> {
         (&b"clk="[..], m.clock),
         (b"fpu=", m.fpu),
         (b"mmx=", m.mmx),
-        (b"amdk3d=", m.amd_3d),
+        (b"amdk3d=", m.has_3dnow),
         (b"katmai=", m.katmai),
         (b"machinetype=", m.machine_type),
     ] {
@@ -362,7 +353,7 @@ mod head_tests {
         assert_eq!(head(&second)[3], (Message::Text(b"x".to_vec()), true));
         assert_eq!(free_kb(8, 512, 4), 16);
         assert_eq!(free_kb(0x1000, 0x1000, 0x40000), u32::MAX);
-        // The cluster's bytes wrap in 32 bits, as the original's.
+        // The cluster's bytes wrap in 32 bits.
         assert_eq!(free_kb(0x10000, 0x10000, 0x400), 0);
     }
 
@@ -375,8 +366,7 @@ mod head_tests {
     }
 }
 
-/// The log's state: the game keeps it in `g_logEnabled`, `g_logLevel`, `g_logIndent` and
-/// `g_logAtLineStart` (0x4E0094 .. 0x4E00A4).
+/// The log's state: whether it is on, its level, indent and line-start flag.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct LogState {
     /// On while above 0 (signed).
@@ -392,16 +382,16 @@ pub struct LogState {
 /// What one call of the log does with a text.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Logged {
-    /// Logging is off or its level is 0: the lock not taken, nothing changed.
+    /// Logging is off or its level is 0: nothing changed.
     Off,
-    /// The text's level is above the log's: the lock taken and given back, nothing else.
+    /// The text's level is above the log's: nothing is written.
     Above,
     /// The line to append to the log's file (the state's line-start flag set for the next).
     Line(Vec<u8>),
 }
 
-/// One text logged at `level` (1 or 2; the original adds 1 to `level - 1` as a byte, so 0
-/// is 256), with a line break after it if `newline`: `log_write` and `write_line` together.
+/// One text logged at `level` (1 or 2; 0 counts as 256, above every level), with a line break
+/// after it if `newline`.
 pub fn log_line(state: &mut LogState, text: &[u8], newline: bool, level: u8) -> Logged {
     if entry(state.enabled, || state.level) != Entry::Written {
         return Logged::Off;

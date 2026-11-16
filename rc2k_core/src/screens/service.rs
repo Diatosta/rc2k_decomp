@@ -1,37 +1,34 @@
-//! The service area's readouts (converted 2026-10-20): `screens::draw_repair_times`
-//! 0x4A70D7 (sixteen repair times as clocks) and `screens::draw_service_time` 0x4A5DE7 (the
-//! time available and left, or the overrun and its penalty); 2026-10-21 the layout of
-//! `screens::draw_service_area` 0x4A5FA2 (its title, labels, damage bars and sprites).
+//! The service area's readouts: sixteen repair times as clocks, the time available and left (or
+//! the overrun and its penalty); also the layout of its title, labels, damage bars and sprites.
 
 use crate::screens::screen::Screen;
 use crate::strings::format::clock;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Font {
-    /// `stru_51E3E4`: the repair times.
+    /// The repair times.
     Times,
-    /// `stru_51E584`, `stru_51E5A4`: the time available, the time left.
+    /// The time available and the time left.
     Available,
     Remaining,
-    /// `stru_51E524`, `stru_51E544`: the overrun, the penalty.
+    /// The overrun and the penalty.
     Overrun,
     Penalty,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Work {
-    /// `dword_75ACC0`: the penalty.
+    /// The penalty.
     Penalty,
-    /// `seconds`, `dword_7559EC`: work variables.
     A,
     B,
 }
 
-/// The repair times' columns and rows: left column first in each row.
+/// The repair times' columns: left column first in each row.
 const COLUMNS: [i32; 2] = [0x6A, 0x1B9];
 const ROWS: [i32; 8] = [0x6E, 0x8B, 0xA8, 0xC5, 0xE2, 0xFF, 0x11C, 0x1C4];
 
-/// The sixteen times (`dword_75AB60`).
+/// The sixteen repair times.
 pub fn repair_times<S: Screen<Font = Font>>(s: &mut S, times: &[u32; 16]) -> Result<(), S::Error> {
     for (i, &t) in times.iter().enumerate() {
         let (x, y) = (COLUMNS[i % 2], ROWS[i / 2]);
@@ -46,7 +43,7 @@ const LEFT_X: i32 = 0x42;
 const RIGHT_X: i32 = 0x2DE;
 const Y: i32 = 0x2C;
 
-/// "<label>:  <value as a clock>".
+/// `<label>:  <value as a clock>`.
 fn readout<S: Screen<Font = Font>>(
     s: &mut S,
     (id, font): (u32, Font),
@@ -59,9 +56,8 @@ fn readout<S: Screen<Font = Font>>(
     Ok(s.line(font, &line, x, Y)?.too_wide)
 }
 
-/// The two readouts from the time budget and the repairs' time; the carry of the last
-/// text. An overrun of 0 after its 60 is added (only by a wrap) is the original's fatal
-/// error 0x80701010 (its division's guard).
+/// The two readouts from the time budget and the repairs' time; the last text's `too_wide`. An
+/// overrun of 0 after its 60 is added (only by a wrap) is fatal error 0x80701010.
 pub fn service_time<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     budget: i32,
@@ -91,30 +87,28 @@ pub fn service_time<S: Screen<Font = Font, Work = Work>>(
     readout(s, (0x491, Font::Penalty), penalty as i32, RIGHT_X)
 }
 
-/// The service area's fonts (converted 2026-10-21 from `screens::draw_service_area`
-/// 0x4A5FA2, whose layout follows).
+/// The service area's fonts; the layout that uses them follows.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AreaFont {
-    /// `stru_51E8A4`: the title.
+    /// The title.
     Title,
-    /// `stru_51E6A4`: the headings.
+    /// The headings.
     Heading,
-    /// `stru_51E3E4`: the parts' labels (the repair times' font).
+    /// The parts' labels (the repair times' font).
     Label,
-    /// `stru_51E3C4`: the small labels, the chosen tyre.
+    /// The small labels, the chosen tyre.
     Small,
-    /// `stru_51E404`.
     Wide,
-    /// `stru_51E6E4`: the total.
+    /// The total.
     Total,
 }
 
-/// A piece of the service area's layout, in the original's order.
+/// A piece of the service area's layout, in drawing order.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AreaStep {
     /// (string, font, x, y)
     Label(u32, AreaFont, i32, i32),
-    /// (string, font, x, y): drawn only if the car's class (player +0x90) is not 0.
+    /// (string, font, x, y): drawn only if the car's class is not 0.
     LabelIfClass(u32, AreaFont, i32, i32),
     /// (x, y, the part whose damage is the percentage: `Player::damage`'s index)
     DamageBar(i32, i32, usize),
@@ -127,11 +121,11 @@ pub const AREA_TITLE: (u32, u32) = (0x190, 0x486);
 pub const AREA_TITLE_AT: (i32, i32) = (0x190, 0xE);
 /// The damage bars: width, fill and end glyphs.
 pub const DAMAGE_BAR: (i32, u32, u32) = (0xA0, 0x86, 0x87);
-/// The chosen tyre's name: this string plus the tyre (`dword_75AC9C`), and where.
+/// The chosen tyre's name: this string plus the tyre, and where.
 pub const TYRE_FIRST_STRING: u32 = 0x4B0;
 pub const TYRE_AT: (i32, i32) = (0x238, 0x152);
 
-/// The title: "<before> <the car's index + 1> <after>" with its NUL.
+/// The title: `<before> <the car's index + 1> <after>` with its NUL.
 pub fn area_title(before: &[u8], index: u32, after: &[u8]) -> Vec<u8> {
     use crate::strings::format::{Pad, decimal};
     let mut title = before.to_vec();

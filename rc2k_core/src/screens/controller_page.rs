@@ -1,7 +1,5 @@
-//! The controller page (converted 2026-10-20 from `screens::draw_controller_page`
-//! 0x46A454): the player's device, its mode and strength, the sensitivity, two sliders and
-//! the stick's place now; and `screens::draw_background_band` 0x4698C4, the background's
-//! band drawn again.
+//! The controller page: the player's device, its mode and strength, the sensitivity, two
+//! sliders and the stick's place now; and the background band drawn again.
 
 use crate::screens::notes::{NO_CONTROLLER, Note};
 use crate::screens::screen::{Edge, Screen};
@@ -9,22 +7,21 @@ use crate::strings::format::percent;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Font {
-    /// `stru_51E8C4`.
     Value,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Work {
-    /// `seconds`: the string drawn.
+    /// The string drawn.
     Seconds,
-    /// `dword_755A0C`: the device's record (as the game keeps it).
+    /// The device's record (as the game keeps it).
     Record,
-    /// `dword_7559DC` .. `dword_7559E8`: the sliders' ends.
+    /// `DrawWork.slider_a_start` .. `DrawWork.slider_b_end`: the sliders' ends.
     FirstLeft,
     FirstRight,
     SecondLeft,
     SecondRight,
-    /// `dword_7559EC`: the stick's place; `dword_7559F0`: its buttons.
+    /// The stick's place; `DrawWork.hhmm`: its buttons.
     Place,
     Buttons,
 }
@@ -32,7 +29,7 @@ pub enum Work {
 /// The player's controller as the page shows it.
 #[derive(Clone, Copy, Debug)]
 pub struct Controller<T> {
-    /// The device record's address and its name (+0x30).
+    /// The device record's number among the controllers and its name (+0x30).
     pub record: u32,
     pub name: T,
     /// The record's +0x1C is 1: a strength.
@@ -52,12 +49,10 @@ fn note<S: Screen<Font = Font, Work = Work>>(s: &mut S, n: &Note) -> Result<(), 
     s.string(Font::Value, n.id, n.x, n.y).map(|_| ())
 }
 
-/// The page: with no controller items 3 .. 8 greyed out and "none"; else them choosable,
-/// the device's name, the mode (string 0x56D + mode), item 4 only for a device with a
-/// strength and the strength as a percent (or "none"), the sensitivity (string 0x3A1 + it)
-/// and sprite 5 after it; the sliders' fills clipped in (the clip's left and right put
-/// back) and their ends; the stick's place (x x 100 / 256 from 0x21A; sprite 9 with a
-/// button down, else 8). An x whose x 100 is 0 is the original's fatal error 0x80701010.
+/// The page: with no controller items 3 .. 8 are greyed out and "none" shown; else the device's
+/// name, mode, strength (item 4 only for a device with one), sensitivity, the sliders' fills and
+/// ends, and the stick's place (sprite 9 with a button down, else 8). An x whose x 100 is 0 is
+/// fatal error 0x80701010.
 pub fn controller_page<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     c: Option<&Controller<S::Text>>,
@@ -137,8 +132,8 @@ pub fn controller_page<S: Screen<Font = Font, Work = Work>>(
     s.sprite(glyph, place as i32, 0x156)
 }
 
-/// The band (only while `on`, `dword_7554E4` 1): sprite 0xA0 (the background picture) at
-/// (0, 0) with the clip's top and bottom at 0xCB and 0x1C6 for that one blit, then put back.
+/// The band (only while `on`, `ScreenFlow.left_service` 1): sprite 0xA0 at (0, 0) with the
+/// clip's top and bottom at 0xCB and 0x1C6 for that blit, then put back.
 pub fn background_band<S: Screen>(s: &mut S, on: bool) -> Result<(), S::Error> {
     if !on {
         return Ok(());

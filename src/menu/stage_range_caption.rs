@@ -1,18 +1,16 @@
-//! `menu::stage_range_caption` (0x4A1FBB): "first-last" into `g_captionText`: the first
-//! (`dword_7556B8`) and it plus 9 (a reading: the stages shown on a page).
+//! `menu::stage_range_caption`: "first-last" into the caption text: the first
+//! (`champ_view.rows.first_row`) and it plus 9 (a reading: the stages shown on a page).
 //!
-//! Callers: the event pages' code (`menu::show_class_stage_results`, ..). `strings::append_u32`'s
-//! Rust version; the minus and the NUL written in place. The menus and draw lists run its `entry`
-//! (`menu::table_calls`).
+//! Callers: the event pages' code (`menu::show_class_stage_results`, ..). The numbers go through
+//! `strings::append_u32`; the minus and the NUL are written in place.
+use crate::menu::champ_store::ChampView;
 
-/// The Rust version.
-use crate::menu::owner::Play;
-pub fn stage_range_caption(play: &Play) -> Result<(), crate::errors::BadInput> {
-    let first: u32 = play.champ_view.first_row.get();
-    // Converted: `rc2k_core::menu::event::stage_range`.
+pub fn stage_range_caption(
+    champ: &ChampView,
+    text_buffers: &crate::screens::text_buffers_store::TextBuffers,
+) -> Result<(), crate::errors::BadInput> {
+    let first: u32 = champ.rows.first_row.get();
     let mut text = rc2k_core::menu::event::stage_range(first);
     text.push(0);
-    crate::screens::text_buffers_store::TEXT_BUFFERS
-        .caption
-        .write_at(0, &text, "the caption")
+    text_buffers.caption.write_at(0, &text, "the caption")
 }

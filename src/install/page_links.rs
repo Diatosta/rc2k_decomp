@@ -1,70 +1,134 @@
-//! The links in the installer pages' data, as handles.
+//! The links in the installer pages' data, as handles: a page entry names its list, an item
+//! its box, its edit record, its value or its text, a drawing list's record its font or
+//! palette. Each dword holds a handle, made once where the data is built
+//! (`vars::InstallerPages::new`) and resolved by its kind, with bounds, by every reader. A
+//! handle is a kind in the high byte and a number below:
 //!
-//! The original's pages hold addresses: a page entry names its list, an item its box, its
-//! choices, its edit record, its value or its text, a list its neighbours table, a drawing
-//! list's record its font or palette. The data here holds a handle in each of those dwords,
-//! made once where the data is built (`vars::linked`, from IDA's address), and every reader
-//! resolves it with bounds. A handle is a kind in the high byte and a number below:
-//!
-//! - `PAGES`: a byte offset in `InstallerPages` (the table, list, item, box, text or byte);
+//! - `TABLE`: a dword of `InstallerPages::page_table` (the page entries), by index;
+//! - `LIST`: one of the pages' lists, by `ListId`;
+//! - `BOX`: one of `InstallerPages::boxes`, by index (0 the title item's, 1 the title's);
+//! - `EDIT`: the folder item's edit record;
 //! - `FONT`: a font of the font block, by number (`gfx::typefaces::FontId`);
 //! - `BLENDED_PALETTE`: the blended palette (the install bar's glyphs);
-//! - `TYPED_PATH`: a byte offset in `InstallerPaths::typed` (the folder item's text starts
-//!   past the drive's `c:`).
+//! - `TYPED_PATH`: a byte offset in `InstallerPaths::typed`.
 //!
-//! 0 is no link (a page with no next entry, the title's box).
+//! 0 is no link. A kind resolves only as itself: a box link is no table entry, a list link no
+//! text.
 
 use crate::errors::BadInput;
-use crate::gfx::typefaces::{self, FontId};
-use crate::install::vars::{InstallerPages, InstallerPaths};
-use crate::pointers::GamePtr;
+use crate::gfx::typefaces::FontId;
+use crate::install::owner::Install;
+use crate::memory::list_handle::{BoxRect, EditRecord};
+use crate::memory::place::BytePlace;
 
 const KIND_SHIFT: u32 = 24;
 const NUMBER: u32 = (1 << KIND_SHIFT) - 1;
-const PAGES: u32 = 1;
+const TABLE: u32 = 1;
 const FONT: u32 = 2;
 const BLENDED_PALETTE: u32 = 3;
 const TYPED_PATH: u32 = 4;
+const LIST: u32 = 5;
+const BOX: u32 = 6;
+const EDIT: u32 = 8;
+/// The bytes of the folder typed a link can name.
+const TYPED_LEN: u32 = 0x100;
 
-/// IDA's address of `InstallerPaths::typed` (`byte_95EBF8`): the folder typed on the page. The
-/// folder item's text starts two bytes in (0x95EBFA, past the drive's `c:`), or at its start
-/// on Unix (no drive).
-const TYPED_IDA: u32 = 0x95EBF8;
-/// IDA's address of the blended palette the install bar's glyphs name.
-const PALETTE_IDA: u32 = 0x4F3B74;
-/// The bytes `InstallerPages` holds before IDA's first (`vars::InstallerPages::home`).
-const PAGES_LEAD: u32 = 7;
+/// How many entries `InstallerPages::page_table` holds.
+pub const TABLE_LEN: u32 = 55;
+/// How many `InstallerPages::boxes` there are (16 bytes each).
+const BOXES: u32 = 9;
+
+/// One of the installer pages' lists.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ListId {
+    Language,   // IDA 0x51D670
+    Main,       // IDA 0x51D728
+    Mode,       // IDA 0x51D790
+    Drives8,    // IDA 0x51D7F8
+    Drives16,   // IDA 0x51D8B0
+    DrivesMore, // IDA 0x51D9E8
+    Folder,     // IDA 0x51DBA0
+    Room,       // IDA 0x51DC18
+    Dxsetup,    // IDA 0x51DC60
+    Finish,     // IDA 0x51DCB8
+    /// The pages that are only an action (a header with no items): copying the files,
+    /// uninstalling, opening the installed copy, asking to register.
+    InstallFiles, // IDA 0x51DD10
+    Uninstall,  // IDA 0x51DD28
+    OpenInstalled, // IDA 0x51DD40
+    AskRegistration, // IDA 0x51DD58
+}
+
+impl ListId {
+    /// The lists, in the order of the enum.
+    pub(crate) const ALL: [ListId; 14] = [
+        ListId::Language,
+        ListId::Main,
+        ListId::Mode,
+        ListId::Drives8,
+        ListId::Drives16,
+        ListId::DrivesMore,
+        ListId::Folder,
+        ListId::Room,
+        ListId::Dxsetup,
+        ListId::Finish,
+        ListId::InstallFiles,
+        ListId::Uninstall,
+        ListId::OpenInstalled,
+        ListId::AskRegistration,
+    ];
+
+    const fn number(self) -> u32 {
+        self as u32
+    }
+
+    const fn from_number(number: u32) -> Option<Self> {
+        if number < Self::ALL.len() as u32 {
+            Some(Self::ALL[number as usize])
+        } else {
+            None
+        }
+    }
+}
 
 /// A link of the installer pages' data (a handle; see the module).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PageLink(u32);
 
 impl PageLink {
-    /// The link the original's address `ida` is (where the data is built; an address that
-    /// names none of the kinds fails to compile).
-    pub const fn of_ida(ida: u32) -> Self {
-        let pages = InstallerPages::START as u32;
-        if ida >= pages && ida < pages + InstallerPages::LEN as u32 {
-            return Self((PAGES << KIND_SHIFT) | (ida - pages + PAGES_LEAD));
-        }
-        let fonts = typefaces::START as u32;
-        if ida >= fonts && ida < fonts + typefaces::LEN as u32 && (ida - fonts).is_multiple_of(0x20)
-        {
-            return Self((FONT << KIND_SHIFT) | ((ida - fonts) / 0x20));
-        }
-        if ida == PALETTE_IDA {
-            return Self(BLENDED_PALETTE << KIND_SHIFT);
-        }
-        if ida >= TYPED_IDA && ida < TYPED_IDA + 0x100 {
-            return Self((TYPED_PATH << KIND_SHIFT) | (ida - TYPED_IDA));
-        }
-        panic!("a page link that names nothing known");
+    /// The link to page entry `index` of the pages' table.
+    pub const fn table(index: u32) -> Self {
+        assert!(index < TABLE_LEN);
+        Self((TABLE << KIND_SHIFT) | index)
     }
 
-    /// The link to byte `offset` of `InstallerPages` (a field's `offset_of!`).
-    pub const fn in_pages_at(offset: usize) -> Self {
-        assert!(offset < size_of::<InstallerPages>());
-        Self((PAGES << KIND_SHIFT) | offset as u32)
+    pub const fn list(list: ListId) -> Self {
+        Self((LIST << KIND_SHIFT) | list.number())
+    }
+
+    pub const fn folder_edit() -> Self {
+        Self(EDIT << KIND_SHIFT)
+    }
+
+    pub const fn of_font(font: FontId) -> Self {
+        Self((FONT << KIND_SHIFT) | font.number())
+    }
+
+    pub const fn blended_palette() -> Self {
+        Self(BLENDED_PALETTE << KIND_SHIFT)
+    }
+
+    /// The link to byte `offset` of the folder typed (`InstallerPaths::typed`; the folder
+    /// item's text starts two bytes in, past the drive's `c:`, or at its start on Unix).
+    pub const fn typed(offset: u32) -> Self {
+        assert!(offset < TYPED_LEN);
+        Self((TYPED_PATH << KIND_SHIFT) | offset)
+    }
+
+    /// The link to box `index` of the pages' boxes (0 the title item's, 1 the title's).
+    pub const fn box_at(index: u32) -> Self {
+        assert!(index < BOXES);
+        Self((BOX << KIND_SHIFT) | index)
     }
 
     /// A link as the pages' data holds it.
@@ -89,33 +153,46 @@ impl PageLink {
         self.0 & NUMBER
     }
 
-    /// The place in the installer pages the link names, bounded by the pages (the table or
-    /// text may run on inside them as the original's does).
-    pub fn in_pages(self) -> Result<GamePtr, BadInput> {
-        let install = crate::install::owner::install();
-        if self.kind() != PAGES || self.number() as usize >= size_of::<InstallerPages>() {
-            return Err(BadInput(
-                "a page link that is no place in the installer's pages",
-            ));
-        }
-        Ok(GamePtr::to(&install.pages).offset(self.number()))
+    pub fn table_index(self) -> Option<u32> {
+        (self.kind() == TABLE && self.number() < TABLE_LEN).then_some(self.number())
     }
 
-    /// The place a text or a byte link names: in the pages, or the folder typed (bounded by
-    /// the installer's path buffers).
-    pub fn place(self) -> Result<GamePtr, BadInput> {
-        let install = crate::install::owner::install();
-        if self.kind() == TYPED_PATH && self.number() < 0x100 {
-            let typed = core::mem::offset_of!(InstallerPaths, typed) as u32;
-            return Ok(GamePtr::to(&install.paths).offset(typed + self.number()));
+    /// The box a link of the `BOX` kind names.
+    pub fn box_rect(self, install: &'static Install) -> Result<&'static BoxRect, BadInput> {
+        match (self.kind(), self.number()) {
+            (BOX, number) if number < BOXES => Ok(&install.pages.boxes[number as usize]),
+            _ => Err(BadInput("a page link that is no box")),
         }
-        self.in_pages()
     }
 
-    /// The font the link names.
+    /// The list a link names, if it is a link to one of the pages' lists.
+    pub fn list_id(self) -> Option<ListId> {
+        match self.kind() {
+            LIST => ListId::from_number(self.number()),
+            _ => None,
+        }
+    }
+
+    pub fn edit_record(self, install: &'static Install) -> Result<&'static EditRecord, BadInput> {
+        match self.kind() {
+            EDIT if self.number() == 0 => Ok(&install.pages.folder_edit),
+            _ => Err(BadInput("a page link that is no edit record")),
+        }
+    }
+
+    /// The place a text or a byte link names: the folder typed (bounded by the installer's path
+    /// buffers); the pages hold no other text or byte an item sets.
+    pub fn place(self, install: &'static Install) -> Result<BytePlace, BadInput> {
+        if self.kind() == TYPED_PATH && self.number() < TYPED_LEN {
+            return Ok(BytePlace::In(&install.paths.typed, self.number() as usize));
+        }
+        Err(BadInput(
+            "a page link that is no place in the installer's pages",
+        ))
+    }
+
     pub fn font(self) -> Result<FontId, BadInput> {
-        let at = typefaces::START + 0x20 * self.number() as usize;
-        match FontId::try_at(at) {
+        match FontId::try_numbered(self.number() as usize) {
             Some(font) if self.kind() == FONT => Ok(font),
             _ => Err(BadInput("a page link that is no font")),
         }
@@ -127,50 +204,91 @@ impl PageLink {
     }
 }
 
+/// A dword of the pages' data that holds a link (a drawing list record's font or palette):
+/// the link's raw dword is its value.
+#[repr(transparent)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
+pub struct LinkCell(crate::memory::session::PlainDword);
+
+impl LinkCell {
+    pub const fn new(link: PageLink) -> Self {
+        Self(crate::memory::session::PlainDword::new(link.raw()))
+    }
+
+    pub fn get(&self) -> PageLink {
+        PageLink::from_raw(self.0.get())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn the_original_addresses_become_the_handles_of_their_kind() {
-        let title = PageLink::of_ida(0x51DD78);
+    fn the_handles_resolve_as_their_own_kind() {
+        let install = crate::test_support::own::install();
+        let pages = &crate::test_support::own::install().pages;
+        assert!(core::ptr::eq(
+            PageLink::box_at(1).box_rect(install).unwrap(),
+            &raw const pages.boxes[1]
+        ));
         assert_eq!(
-            title,
-            PageLink::in_pages_at(core::mem::offset_of!(InstallerPages, title))
+            PageLink::table(25).table_index().unwrap(),
+            25,
+            "the drive page's entry"
         );
         assert_eq!(
-            PageLink::of_ida(0x51E8A4).font().unwrap(),
-            FontId::at(0x51E8A4)
+            PageLink::of_font(crate::gfx::typefaces::fonts::TITLE)
+                .font()
+                .unwrap(),
+            crate::gfx::typefaces::fonts::TITLE
         );
-        assert!(PageLink::of_ida(PALETTE_IDA).is_blended_palette());
-        assert_eq!(
-            Some(GamePtr::to(&crate::text::blend_font::BLENDED_PALETTE).addr() as usize),
-            crate::moved::home_of_rva(PALETTE_IDA as usize - crate::framework::IMAGE_BASE)
-        );
-        let typed = PageLink::of_ida(TYPED_IDA + 2).place().unwrap();
-        assert_eq!(
-            typed.addr(),
-            GamePtr::to(&crate::install::owner::install().paths.typed)
-                .addr()
-                .wrapping_add(2)
-        );
+        assert!(PageLink::blended_palette().is_blended_palette());
+        match PageLink::typed(2).place(install).unwrap() {
+            crate::memory::place::BytePlace::In(buffer, at) => {
+                assert!(std::ptr::addr_eq(
+                    buffer,
+                    &raw const crate::test_support::own::install().paths.typed
+                ));
+                assert_eq!(at, 2);
+            }
+            _ => panic!("the typed folder is a place in the paths record's buffer"),
+        }
     }
 
     #[test]
     fn a_link_is_resolved_only_as_its_own_kind() {
-        assert!(PageLink::from_raw(0).in_pages().is_err());
-        assert!(PageLink::of_ida(0x51E8A4).in_pages().is_err());
-        assert!(PageLink::of_ida(0x51DD78).font().is_err());
+        let install = crate::test_support::own::install();
+        assert!(PageLink::from_raw(0).box_rect(install).is_err());
+        assert!(PageLink::from_raw(0).place(install).is_err());
         assert!(
-            PageLink::from_raw(PAGES << KIND_SHIFT | 0xFFFF)
-                .in_pages()
+            PageLink::of_font(crate::gfx::typefaces::fonts::TITLE)
+                .box_rect(install)
                 .is_err()
         );
-        let last = size_of::<InstallerPages>() as u32 - 1;
+        assert!(PageLink::folder_edit().font().is_err());
+        assert!(PageLink::table(11).box_rect(install).is_err());
+        assert!(PageLink::box_at(3).place(install).is_err());
+        assert!(PageLink::list(ListId::Main).place(install).is_err());
         assert!(
-            PageLink::from_raw(PAGES << KIND_SHIFT | last)
-                .in_pages()
-                .is_ok()
+            PageLink::from_raw(BOX << KIND_SHIFT | BOXES)
+                .box_rect(install)
+                .is_err()
+        );
+        assert!(
+            PageLink::from_raw(TYPED_PATH << KIND_SHIFT | TYPED_LEN)
+                .place(install)
+                .is_err()
+        );
+        assert!(
+            PageLink::from_raw(LIST << KIND_SHIFT | 14)
+                .list_id()
+                .is_none()
+        );
+        assert!(PageLink::folder_edit().edit_record(install).is_ok());
+        assert_eq!(
+            PageLink::list(ListId::OpenInstalled).list_id(),
+            Some(ListId::OpenInstalled)
         );
     }
 }

@@ -1,36 +1,25 @@
-//! The standalone program's installation record in place of the registry (owner, 2026-10-19:
-//! the standalone is portable, a folder that needs nothing outside it; a decided difference
-//! from the original).
-//!
-//! What the original keeps under `HKEY_LOCAL_MACHINE\SOFTWARE\Magnetic Fields\RC99`
-//! (`install::write_registry`, `install::read_registry`):
-//! - `status` (one byte: 1 installed) is kept in `var\install.cfg` of the installation's
-//!   folder, a settings text as `var\ral.zog` (`status=1`);
-//! - `source` (the installation's folder) is not kept: read, it is always the folder the
-//!   program runs in (the current directory with a `\`, as `files::current_directory`
-//!   gives it), so that a copied or moved folder is still its own installation. Written, it
-//!   says only where the record goes (the folder being installed to).
-//!
-//! The DirectPlay lobby's key (`install::register_lobby`, `unregister_lobby`) is not
-//! written: the standalone cannot be started by a lobby (its DirectPlay is not lobbied).
-//! Started from somewhere that is no installation (a CD), there is no record to find: the
-//! installer offers a new installation where the original offered an update.
+//! The standalone program's installation record in place of the registry: the standalone is
+//! portable, a folder that needs nothing outside it. `status` (1 installed) is kept in
+//! `var\install.cfg`; `source` is not kept: read, it is always the folder the program runs in,
+//! so that a copied or moved folder is still its own installation; written, it says only where
+//! the record goes. The DirectPlay lobby's key is
+//! not written. Started from somewhere that is no installation (a CD), there is no record to
+//! find: the installer offers a new installation.
 
 use crate::install::read_registry::{Query, Registry};
-use std::sync::Mutex;
 
 /// The record, relative to an installation's folder.
 pub const FILE: &str = "var\\install.cfg";
 
 /// Whether the standalone runs in the game's download folder (the CD's files, as it is
 /// bundled), not an installation: the game's data (`files\d\gfx\jade.bun`) but neither
-/// `var\ral.zog` nor `var\install.cfg`. The main loop then enters the installer (owner,
-/// 2026-10-20: the folder in place of a CD).
+/// `var\ral.zog` nor `var\install.cfg`. The main loop then enters the installer (owner:
+/// the folder in place of a CD).
 pub fn is_source_folder() -> bool {
     let here = |p: &str| crate::files::host_path(p.as_bytes()).exists();
     here("files\\d\\gfx\\jade.bun") && !here("var\\ral.zog") && !here(FILE)
 }
-/// The original's key, the one kept (the lobby's is not).
+/// The key that is kept (the lobby's is not).
 const KEY: &[u8] = b"SOFTWARE\\Magnetic Fields\\RC99";
 /// The handles handed out for the kept key and for any other.
 const KEPT: u32 = 0x5243_3939; // "RC99"
@@ -53,7 +42,6 @@ pub fn parse_status(record: &str) -> Option<u8> {
     })
 }
 
-/// A record's text for `status`.
 pub fn record_text(status: u8) -> String {
     format!(
         "; Rally Championship\r\n; INSTALLATION STATUS (the standalone's, in place of the registry)\r\n\r\nstatus={status}\r\n"
@@ -72,7 +60,14 @@ fn here() -> Option<Vec<u8>> {
 /// The registry's answers, from the record in the current folder; its writes, gathered
 /// for the kept key and written as the record when it is closed (the lobby's key and a
 /// key's removal done without effect, each answering success as the registry would).
-pub struct Portable;
+#[derive(Default)]
+pub struct Portable {
+    /// What the kept key is given until it is closed: its status and the folder it goes to.
+    pending: Pending,
+}
+
+/// A status and the folder of the record it is written to.
+type Pending = (Option<u8>, Option<Vec<u8>>);
 
 impl Registry for Portable {
     fn open(&mut self, name: &[u8]) -> Result<u32, u32> {
@@ -121,11 +116,8 @@ impl Registry for Portable {
     }
 
     fn close(&mut self, key: u32) {
-        let mut pending = PENDING
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if key == KEPT
-            && let (Some(status), folder) = std::mem::take(&mut *pending)
+            && let (Some(status), folder) = std::mem::take(&mut self.pending)
         {
             write_record(status, folder);
         }
@@ -134,18 +126,14 @@ impl Registry for Portable {
     fn create(&mut self, name: &[u8]) -> Result<u32, u32> {
         let kept = name.eq_ignore_ascii_case(KEY);
         if kept {
-            *PENDING
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner) = (None, None);
+            self.pending = (None, None);
         }
         Ok(if kept { KEPT } else { OTHER })
     }
 
     fn set_value(&mut self, key: u32, name: &[u8], _kind: u32, data: &[u8]) -> u32 {
         if key == KEPT {
-            let mut pending = PENDING
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            let pending = &mut self.pending;
             match name {
                 b"status" => pending.0 = data.first().copied(),
                 b"source" => {
@@ -162,9 +150,6 @@ impl Registry for Portable {
         0
     }
 }
-
-/// What the kept key is given until it is closed: its status and the folder it goes to.
-static PENDING: Mutex<(Option<u8>, Option<Vec<u8>>)> = Mutex::new((None, None));
 
 /// The record written for the status given, in the folder given (else the current one), if
 /// that folder has a `var\` (an installation's).
@@ -185,7 +170,7 @@ fn write_record(status: u8, folder: Option<Vec<u8>>) {
     } else {
         "not written: no var folder there".to_string()
     };
-    crate::framework::log(&format!(
+    crate::logfile::program_log::log(&format!(
         "install: the installation's record (status {status}) in \"{folder}\": {what}"
     ));
 }

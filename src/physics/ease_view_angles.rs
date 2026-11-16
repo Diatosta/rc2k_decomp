@@ -1,67 +1,60 @@
-//! `physics::ease_view_angles` (0x43846D): with the mode's record's change time (+0x3C)
-//! not 0: the share done (`physics/camera_view.rs`) times the record's three angle
-//! changes (+0x40 .. +0x48) x `flt_5C5D98` (`fistp`) << 16 added to `unk_71A694`,
-//! `unk_71A698`, `unk_71A69C`.
+//! With the mode record's change time not 0: the share done (`physics/camera_view.rs`) times
+//! the record's three angle changes, times `k65536`, rounded and shifted left 16, is added to
+//! `camera_offset_turns`.
 //!
 //! Caller: `physics::update_camera`.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
+use crate::effects::cell_x87::CellX87;
 use crate::math::x87_float::ld;
 use crate::math::x87_float::to_int;
 use crate::physics::camera_view::{record, share_done};
-use crate::race::owner::Race;
+use crate::race::groups_store::ViewAndRecords;
+use crate::race::numbers_store::Numbers;
+use crate::race::owner_shared::RaceShared;
+use crate::race::tables_store::RaceTables;
 
-/// The Rust version (the exact one, for `physics::update_camera`).
+/// The exact version, for `physics::update_camera`.
 pub fn ease_view_angles(
-    race: &Race,
+    numbers: &Numbers,
+    shared: &RaceShared,
+    view_records: &ViewAndRecords,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), crate::errors::BadInput> {
-    let esi = record(&race.shared)?;
+    let esi = record(view_records, shared.car())?;
     if esi.change_time.get() == 0 {
         return Ok(());
     }
-    share_done(&race.shared, esi, scene);
-    for (to, rate) in race
-        .shared
-        .car
-        .camera_offset_turns
-        .iter()
-        .zip(&esi.turn_rates)
-    {
-        x87_1(race, rate.get(), scene);
+    share_done(shared, esi, scene);
+    for (to, rate) in shared.car().camera_offset_turns.iter().zip(&esi.turn_rates) {
+        x87_1(numbers, shared.tables(), rate.get(), scene);
         to.set(
             to.get()
-                .wrapping_add(scene.drawing.scene.scratch.get() << 16),
+                .wrapping_add(scene.drawing.scene.get().scratch.get() << 16),
         );
     }
     Ok(())
 }
 
-// ---- the arithmetic that was x87 assembly ----
+// ---- the x87 arithmetic ----
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `int [rc + 0x22400C] = ([s + 0] * [rc + 0x205260]) * [rc + 0x1C5D98]` (`[s + 0]` a
-/// record's turn rate, passed by value)
-fn x87_1(race: &Race, rate: u32, scene: &crate::scene::owner::Scene) {
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `int [scratch] = ([s + 0] * [view_share]) * [k65536]` (`[s + 0]` a record's turn rate, passed by
+///  value)
+fn x87_1(numbers: &Numbers, tables: &RaceTables, rate: u32, scene: &crate::scene::owner::Scene) {
     let t0 = ld(rate);
-    let t1 = ld(race.shared.tables.view_share.bits());
+    let t1 = tables.view_share.ld();
     let t2 = t0 * t1;
-    let t3 = ld(race.course.numbers.k65536.bits());
+    let t3 = numbers.k65536.ld();
     let t4 = t2 * t3;
-    scene.drawing.scene.scratch.set_bits(to_int(t4) as u32);
+    scene.drawing.scene.get().scratch.set(to_int(t4) as u32);
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
-    use crate::race::owner::race;
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
-
-    // The original's instructions, one function per run.
-    reference!(ref_0(s, rc) "fld dword ptr [{s}]", "fmul dword ptr [{rc} + 0x205260]", "fmul dword ptr [{rc} + 0x1C5D98]", "fistp dword ptr [{rc} + 0x22400C]");
+    use crate::test_support::own::race;
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
         vec![Block {
@@ -77,12 +70,12 @@ mod asm_reference {
                 },
             ],
             ulps: 0,
-            reference: |a| unsafe { ref_0(a[0], a[1]) },
             plain: |a| {
                 x87_1(
-                    race(),
+                    race().course.numbers.get(),
+                    race().shared.tables(),
                     crate::scene::x87_mem::Base::dword(a[0], 0),
-                    crate::scene::owner::scene(),
+                    crate::test_support::own::scene(),
                 );
             },
         }]
@@ -90,6 +83,6 @@ mod asm_reference {
 
     #[test]
     fn x87_blocks_matches_the_assembly() {
-        sparse(&blocks(), 1200, 100);
+        sparse("physics.ease_view_angles", &blocks(), 1200, 100);
     }
 }

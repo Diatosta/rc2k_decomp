@@ -1,5 +1,6 @@
 //! Pictures, pixels, the blitter.
 
+pub mod atlas;
 pub mod bars;
 pub mod blit;
 pub mod converters;

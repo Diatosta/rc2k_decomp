@@ -1,40 +1,28 @@
-//! `install::read_record` (0x4110C9): reads the installation's record `var\ral.zog`.
-//!
-//! A settings text with three keys, each taken if it is there: `cdrom` becomes base directory A
-//! (`byte_5189A8`), `installation` becomes `g_mediaMode` (0x5189A4), held to 0 .. 3, and `language`
-//! becomes what `%` stands for in a path (`byte_518AA8`). The two texts get a `\` after them unless
-//! they are empty or end in `\` or `/`. Without the file nothing changes. Callers: `start`,
-//! `install::run_installer`, `install::check_clio_disc`. Refuses a text of 0xFE bytes or more (the
-//! original writes past the 0x100 bytes). Conversion phase 3 (2026-10-23): plain Rust with typed
-//! arguments.
+//! Reads the installation's record `var\ral.zog`: a settings text with three keys, each taken if
+//! it is there: `cdrom` becomes base directory A, `installation` the media mode (held to
+//! 0 .. 3) and `language` what `%` stands for in a path. The two texts get a `\` after them
+//! unless they are empty or end in `\` or `/`. Refuses a text of 0xFE bytes or more.
 
 use crate::errors::BadInput;
 use crate::settings::read_text::read_text;
 use crate::strings::same_text::case_table;
 use rc2k_core::install::config;
 
-// ---- game data ----
+/// The record, or `None` without the file; `install::apply_config::apply_record` applies it.
+pub fn read_record(
+    system: &crate::system::owner::System,
+    path: &[u8],
+) -> Result<Option<config::Record>, BadInput> {
+    let Some(text) = read_text(system, path)? else {
+        return Ok(None);
+    };
+    Ok(Some(config::read_record(&text, &case_table())?))
+}
 
-// ---- Rust version ----
-
-pub fn read_record(path: &[u8]) -> Result<(), BadInput> {
-    {
-        let Some((text, _)) = read_text(path)? else {
-            return Ok(());
-        };
-        // Converted: `rc2k_core::install::config::read_record` (the keys as its constants).
-        let record = config::read_record(&text.bytes("the install record")?, &case_table())?;
-        for (place, text) in [
-            (crate::files::state::base_directory_place(), record.base),
-            (crate::files::state::locale_directory_place(), record.locale),
-        ] {
-            if let Some(text) = text {
-                place.write_bytes(&text, "an installer path")?;
-            }
-        }
-        if let Some(mode) = record.mode {
-            crate::files::state::MEDIA_MODE.set(mode);
-        }
-        Ok(())
+/// Reads the record and applies it; nothing changes without the file.
+pub fn load_record(system: &crate::system::owner::System, path: &[u8]) -> Result<(), BadInput> {
+    match read_record(system, path)? {
+        Some(record) => crate::install::apply_config::apply_record(&record),
+        None => Ok(()),
     }
 }

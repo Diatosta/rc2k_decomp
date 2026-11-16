@@ -1,29 +1,20 @@
-//! `d3d::texture_surface_info` (0x41AA93): a locked system texture made the surface the
-//! blitters draw on (`g_surface`): width and height from the record (esi), bytes and
-//! bits a pixel from its pixel kind's description (+0xC), the row's bytes and dwords,
-//! the pixels and pitch from the lock's description (`dword_5ABA18`: +0x24, +0x10), the
-//! row's gap, the format (the kind's description + 8); then the clip (`gfx::set_clip`
-//! on `g_surface`).
-//!
-//! Takes: the record
-//!
-//! Caller: `d3d::lock_texture`.
+//! `d3d::texture_surface_info`: a locked system texture made the surface the blitters draw on:
+//! width and height from the record, bytes and bits a pixel from its pixel kind's description
+//! (+0xC), the row's bytes and dwords, the pixels and pitch from the lock's description, the
+//! row's gap, the format (the kind's description + 8); then the clip (`gfx::set_clip` on the
+//! surface). Takes the record. Caller: `d3d::lock_texture`.
 
-use crate::d3d::texture_lock::field;
-use crate::gfx::owner::gfx;
+use crate::gfx::owner::Gfx;
+use crate::gfx::texture_upload::RecordCell;
 
-/// The Rust version (see the header).
-pub fn texture_surface_info(
-    record: crate::pointers::GamePtr,
-) -> Result<(), crate::errors::BadInput> {
-    let gfx = gfx();
-    // Converted: `rc2k_core::d3d::textures::surface_info`.
+pub fn texture_surface_info(record: &RecordCell, gfx: &Gfx) -> Result<(), crate::errors::BadInput> {
+    // Logic: `rc2k_core::d3d::textures::surface_info`.
     let description = &gfx.card.upload.description;
-    let kind = field(record, 0xC);
+    let kind = record.format();
     let f = rc2k_core::d3d::textures::surface_info(
-        field(record, 4),
-        field(record, 8),
-        bytes_per_pixel(kind),
+        record.width(),
+        record.height(),
+        bytes_per_pixel(kind, gfx)?,
         crate::gfx::pixel_format::texture_description_format(kind, gfx),
         description.pitch.get(),
         description.pixels.get(),
@@ -43,19 +34,23 @@ pub fn texture_surface_info(
     ] {
         field.set(v);
     }
-    crate::gfx::surface::on_address();
+    crate::gfx::surface::on_address(gfx);
     // The clip rectangle is the surface's first four dwords (x, y, width, height).
     crate::gfx::set_clip::set_clip(
-        [&surface.x, &surface.y, &surface.width, &surface.height].map(crate::session::Dword::get),
+        [&surface.x, &surface.y, &surface.width, &surface.height]
+            .map(crate::memory::session::Dword::get),
+        gfx,
     );
     Ok(())
 }
 
-/// The bytes a pixel of the description a record's kind field names: a handle, else (a kind
-/// read past the table) the dword at +4 of that number as an address.
-fn bytes_per_pixel(kind: u32) -> u32 {
-    match gfx().card.texture_tables.description(kind) {
-        Some(d) => d.get().bytes_per_pixel,
-        None => crate::d3d::texture_lock::get(kind.wrapping_add(4)),
-    }
+/// The bytes a pixel of the description a record's kind field names.
+fn bytes_per_pixel(kind: u32, gfx: &Gfx) -> Result<u32, crate::errors::BadInput> {
+    gfx.card
+        .texture_tables
+        .description(kind)
+        .map(|d| d.get().bytes_per_pixel)
+        .ok_or(crate::errors::BadInput(
+            "a texture's kind that names no description",
+        ))
 }

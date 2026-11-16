@@ -6,25 +6,21 @@
 
 use crate::errors::BadInput;
 use crate::files::read_file::read_file_to_store;
-use crate::pointers::GamePtr;
 use crate::settings::TEXT_ROOM;
-use crate::system::owner::system;
+use crate::system::owner::System;
 
-// ---- Rust version ----
-
-/// The text (NUL-terminated) and its length, or None if the file was not read.
-/// Refuses what `read_file` refuses.
-pub fn read_text(path: &[u8]) -> Result<Option<(GamePtr, u32)>, BadInput> {
-    let system = system();
+/// The scratch block with the text (NUL-terminated) at its start, or None if the file was
+/// not read. Refuses what `read_file` refuses.
+pub fn read_text(system: &System, path: &[u8]) -> Result<Option<Vec<u8>>, BadInput> {
     {
-        let text = GamePtr::to(&system.work.files.buffer);
-        let read = read_file_to_store(path, &system.work.files.buffer, TEXT_ROOM, 0)?;
+        let read = read_file_to_store(path, &system.work().files.buffer, TEXT_ROOM, 0)?;
         // Converted: `rc2k_core::files::settings::text_read`.
         let Some(bytes) = rc2k_core::files::settings::text_read(read.ok, read.bytes_read) else {
             return Ok(None);
         };
         // The text up to its NUL.
-        text.offset(bytes).write(0u8, "the settings text's end")?;
-        Ok(Some((text, bytes)))
+        let buffer = &system.work().files.buffer;
+        buffer.write_at(bytes as usize, &[0u8], "the settings text's end")?;
+        Ok(Some(buffer.read().to_vec()))
     }
 }

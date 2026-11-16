@@ -1,7 +1,5 @@
-//! One car's force feedback for one device (converted 2026-10-20 from
-//! `input::update_car_effects` 0x40F347): from the car's physics (its view block) into its
-//! sound object's feedback fields, and six effect requests, all "set" (`input::set_effect`
-//! keeps every register, so each request's numbers are what this plans).
+//! One car's force feedback for one device: from the car's physics (its view block) into its
+//! sound object's feedback fields, and six effect requests, all "set".
 
 use crate::Invalid;
 use crate::math::geometry::fistp64;
@@ -9,31 +7,31 @@ use crate::math::geometry::fistp64;
 /// The sound object's feedback fields (their offsets in the object).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct Feel {
-    /// +0x14: a speed whose square >> 19 is the rumble at low speed.
-    pub speed_14: u32,
-    /// +0xAC: 1 while the car is off the ground, it seems (the view's +0x248).
+    /// The engine revs; their square >> 19 is the rumble when the car is nearly still.
+    pub revs: u32,
+    /// 1 while the car is off the ground.
     pub airborne: u32,
-    /// +0xB0 .. +0xBC: the view's figures times 10, as whole numbers.
+    /// The view's figures times 10, as whole numbers.
     pub figures: [u32; 4],
-    /// +0xC0: the knock.
+    /// The knock.
     pub knock: u32,
-    /// +0xC4 .. +0xD0: a hit's figures (floats' bits), cleared each time.
+    /// A hit's figures (floats' bits), cleared each time.
     pub hit: [u32; 4],
-    /// +0xD8: the strength the effects are set with.
+    /// The strength the effects are set with.
     pub strength: u32,
-    /// +0xDC: counts to 4 after a knock before the next.
+    /// Counts to 4 after a knock before the next.
     pub knock_count: u32,
-    /// +0x278: 1 after a landing.
+    /// 1 after a landing.
     pub landing: u32,
-    /// +0x27C: +0xBC as it was last time.
+    /// `figures[3]` as it was last time.
     pub last_figure: u32,
-    /// +0x284: the speed (signed).
+    /// The speed (signed).
     pub speed: u32,
-    /// +0x294: the surface's number.
+    /// The surface's number.
     pub surface: u32,
 }
 
-/// What is read of the view block: +0x248, and the floats at +0x1A4, +0x1AC, +0x1B8.
+/// What is read of the view block: its airborne flag and three of its floats.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct View {
     pub airborne: u32,
@@ -42,8 +40,8 @@ pub struct View {
     pub b8: f32,
 }
 
-/// The game's constants: 10, the angle's scale (162.97), 256, 0.1, and the effect kind of
-/// each of the 16 surfaces.
+/// Constants: 10, the angle's scale (162.97), 256, 0.1, and the effect kind of each of the 16
+/// surfaces.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Constants {
     pub ten: f32,
@@ -53,8 +51,7 @@ pub struct Constants {
     pub kinds: [u32; 16],
 }
 
-/// A request to set effect `effect` with the two numbers `a` and `b` (the parameters of
-/// `input::set_effect`).
+/// A request to set effect `effect` with the numbers `a` and `b`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Request {
     pub effect: u32,
@@ -62,17 +59,16 @@ pub struct Request {
     pub b: u32,
 }
 
-/// The requests in order, and the knock's angle (the bits `g_soundScratch` gets) if one
-/// was worked out.
+/// The requests in order, and the knock's angle bits if one was worked out.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Plan {
     pub requests: Vec<Request>,
     pub angle: Option<u32>,
 }
 
-/// `fpatan`: the angle of (x, y), as the stack keeps it.
+/// The angle of (x, y), as the x87 stack keeps it.
 fn fpatan(y: f32, x: f32) -> f64 {
-    (y as f64).atan2(x as f64)
+    crate::math::portable::atan2(y as f64, x as f64)
 }
 
 /// The feedback of one call. Refused (before anything): a surface number past the 16.
@@ -81,7 +77,7 @@ pub fn update_car_effects(feel: &mut Feel, view: &View, k: &Constants) -> Result
         return Err(Invalid("a surface number past the effect kinds' 16"));
     }
     feel.airborne = view.airborne;
-    // On the stack throughout: `f64`, rounded by `fistp`.
+    // Held as `f64` throughout, rounded by `fistp64`.
     let (a4, ac, b8, ten) = (view.a4 as f64, view.ac as f64, view.b8 as f64, k.ten as f64);
     feel.figures = [
         fistp64(a4 * ten) as u32,
@@ -94,7 +90,7 @@ pub fn update_car_effects(feel: &mut Feel, view: &View, k: &Constants) -> Result
     // A knock when +0xD0 and +0xC4 are not plus or minus zero.
     if d0 & 0x7FFF_FFFF != 0 && c4 & 0x7FFF_FFFF != 0 {
         let a = fpatan(f32::from_bits(cc), f32::from_bits(c4));
-        // `fst`: the angle stored rounded; the stack goes on with the whole one.
+        // The angle is kept rounded to `f32`; the work goes on with the `f64`.
         angle = Some((a as f32).to_bits());
         let scaled = a.abs() * k.angle_scale as f64;
         let d = f32::from_bits(d0) as f64;
@@ -113,7 +109,7 @@ pub fn update_car_effects(feel: &mut Feel, view: &View, k: &Constants) -> Result
     }
     if rumble <= 5 {
         kind = 0;
-        rumble = feel.speed_14.wrapping_mul(feel.speed_14) >> 19;
+        rumble = feel.revs.wrapping_mul(feel.revs) >> 19;
     }
     rumble = rumble.min(0x100);
 

@@ -1,20 +1,19 @@
-//! The championships' starters: the start menus' items that set a championship up for
-//! one to four players and run it (converted 2026-10-21 from `menu::start_championship_one`
-//! 0x4A25F4, `_split`, `_two` 0x4A27B5, `_three`, `_four`, and `menu::start_a8_one`
-//! 0x4A9C9B, `_split`, `_two`, `_three`, `_four`). Their steps in the original's order, on
-//! the game's variables and callees through `Event`.
+//! The championships' starters: the start menus' items that set a championship up for one to four
+//! players and run it, on the game's variables and callees through `Event`.
+
+use super::leaving::Switch;
 
 /// The two championships.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Championship {
-    /// `g_eventType` 4, `menu::run_championship`.
+    /// Event type 4, `menu::run_championship`.
     First,
-    /// `g_eventType` 5, `menu::run_a8_championship`.
+    /// Event type 5, `menu::run_a8_championship`.
     A8,
 }
 
 /// The seats: how many players, and the split screen.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Seats {
     One,
     Split,
@@ -31,7 +30,7 @@ pub struct Starter {
 }
 
 impl Starter {
-    /// `dword_755954`.
+    /// `Event.event_type`.
     pub fn event_type(self) -> u32 {
         match self.championship {
             Championship::First => 4,
@@ -48,7 +47,7 @@ impl Starter {
         }
     }
 
-    /// `dword_755988`, the event mode (`menu::run_event_races`).
+    /// `Event.event_kind`, the event mode (`menu::run_event_races`).
     pub fn mode(self) -> u32 {
         match self.seats {
             Seats::One => 9,
@@ -59,7 +58,7 @@ impl Starter {
         }
     }
 
-    /// The one-player starters differ (see `start`).
+    /// The one-player starters, whose steps differ (see `start`).
     pub fn first(self) -> bool {
         self.seats == Seats::One
     }
@@ -72,31 +71,23 @@ impl Starter {
 /// The game's variables a starter writes or reads.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Var {
-    /// `dword_755954`.
+    /// `Event.event_type`.
     EventType,
-    /// `dword_758806`: the car choice was left.
-    CarLeft,
-    /// `dword_75649C`.
+    /// `CarTable.last_car`.
     RepairSet,
-    /// `dword_755984`.
+    /// `Event.player_count`.
     PlayerCount,
     /// `index`, `section`.
     Index,
     Section,
-    /// `dword_755950`.
+    /// `Event.stages_done`.
     StagesDone,
-    /// `dword_755970`: 1 when a saved game goes on.
+    /// `Event.continuing_save`: 1 when a saved game goes on.
     Continuing,
-    /// `dword_75598C`: the current player.
+    /// The current player.
     Current,
-    /// `dword_755988`.
+    /// `Event.event_kind`.
     EventMode,
-    /// `dword_75555D`, `dword_755569`, `dword_755565`.
-    Leave,
-    Ended569,
-    Ended565,
-    /// `dword_755980`: 1 when an event is over.
-    Done,
 }
 
 pub use super::car_lists::CarList;
@@ -109,10 +100,10 @@ pub enum Call {
     BeginEvent,
     ResetDrivers,
     ResetDriverCondition,
-    /// `menu::select_car_loop` with the list (esi).
+    /// `menu::select_car_loop` with the list.
     SelectCar(CarList),
     TakeShownCar,
-    ResetCars750724,
+    HideAllInGameOptions,
     RunA8Championship,
     ShowInGameOptions,
     RunChampionship,
@@ -123,10 +114,12 @@ pub trait Event {
     type Error;
     fn get(&mut self, v: Var) -> u32;
     fn set(&mut self, v: Var, value: u32);
+    fn flag(&mut self, s: Switch) -> bool;
+    fn set_flag(&mut self, s: Switch, on: bool);
     fn call(&mut self, c: Call) -> Result<(), Self::Error>;
 }
 
-/// The repairs' set (`dword_75649C`).
+/// The repairs' set.
 pub const ALL_REPAIRS: u32 = 0xF;
 
 /// A starter's steps: the set-up (the one-player ones in their own order; the A8's
@@ -146,7 +139,7 @@ pub fn start<E: Event>(s: Starter, e: &mut E) -> Result<(), E::Error> {
     match (s.first(), s.a8()) {
         (true, false) => {
             e.call(Call::RepairCar)?;
-            e.set(Var::CarLeft, 0);
+            e.set_flag(Switch::LeftByKey, false);
             e.set(Var::EventType, s.event_type());
             e.set(Var::RepairSet, ALL_REPAIRS);
             e.set(Var::PlayerCount, 1);
@@ -154,7 +147,7 @@ pub fn start<E: Event>(s: Starter, e: &mut E) -> Result<(), E::Error> {
         }
         (true, true) => {
             e.set(Var::EventType, s.event_type());
-            e.set(Var::CarLeft, 0);
+            e.set_flag(Switch::LeftByKey, false);
             e.set(Var::PlayerCount, 1);
             if e.get(Var::Continuing) != 1 {
                 e.call(Call::BeginEvent)?;
@@ -166,7 +159,7 @@ pub fn start<E: Event>(s: Starter, e: &mut E) -> Result<(), E::Error> {
         }
         (false, _) => {
             e.set(Var::EventType, s.event_type());
-            e.set(Var::CarLeft, 0);
+            e.set_flag(Switch::LeftByKey, false);
             e.set(Var::RepairSet, ALL_REPAIRS);
             e.call(Call::ResetDriverCondition)?;
             zero_round(e);
@@ -177,7 +170,7 @@ pub fn start<E: Event>(s: Starter, e: &mut E) -> Result<(), E::Error> {
         e.set(Var::Current, k);
         e.call(Call::RepairCar)?;
         e.call(Call::SelectCar(list))?;
-        if e.get(Var::CarLeft) == 1 {
+        if e.flag(Switch::LeftByKey) {
             return Ok(());
         }
         e.call(Call::TakeShownCar)?;
@@ -185,7 +178,7 @@ pub fn start<E: Event>(s: Starter, e: &mut E) -> Result<(), E::Error> {
     e.set(Var::EventMode, s.mode());
     if s.a8() {
         if s.first() {
-            e.call(Call::ResetCars750724)?;
+            e.call(Call::HideAllInGameOptions)?;
         }
         e.call(Call::RunA8Championship)?;
         if s.first() {
@@ -193,11 +186,11 @@ pub fn start<E: Event>(s: Starter, e: &mut E) -> Result<(), E::Error> {
         }
     } else {
         e.call(Call::RunChampionship)?;
-        e.set(Var::Leave, 0);
-        e.set(Var::Ended569, 0);
-        e.set(Var::Ended565, 0);
+        e.set_flag(Switch::EventLeft, false);
+        e.set_flag(Switch::AskLeave, false);
+        e.set_flag(Switch::LeftWithCarry, false);
     }
-    e.set(Var::Done, 1);
+    e.set_flag(Switch::EventOver, true);
     Ok(())
 }
 
@@ -218,12 +211,20 @@ mod tests {
         fn get(&mut self, v: Var) -> u32 {
             match v {
                 Var::Continuing => self.continuing,
-                Var::CarLeft => u32::from(self.leave_at == Some(self.chosen - 1)),
                 _ => unreachable!(),
             }
         }
         fn set(&mut self, v: Var, value: u32) {
             self.steps.push(format!("{v:?}={value}"));
+        }
+        fn flag(&mut self, s: Switch) -> bool {
+            match s {
+                Switch::LeftByKey => self.leave_at == Some(self.chosen - 1),
+                _ => unreachable!(),
+            }
+        }
+        fn set_flag(&mut self, s: Switch, on: bool) {
+            self.steps.push(format!("{s:?}={}", u32::from(on)));
         }
         fn call(&mut self, c: Call) -> Result<(), ()> {
             if let Call::SelectCar(_) = c {
@@ -245,7 +246,7 @@ mod tests {
         start(two, &mut log).unwrap();
         assert_eq!(log.steps.first().unwrap(), "EventType=4");
         assert_eq!(log.steps.iter().filter(|s| *s == "TakeShownCar").count(), 2);
-        assert_eq!(log.steps.last().unwrap(), "Done=1");
+        assert_eq!(log.steps.last().unwrap(), "EventOver=1");
         assert!(log.steps.contains(&"RunChampionship".to_string()));
 
         let a8 = Starter {
@@ -271,6 +272,6 @@ mod tests {
         };
         start(four, &mut log).unwrap();
         assert_eq!(log.steps.iter().filter(|s| *s == "TakeShownCar").count(), 1);
-        assert!(!log.steps.contains(&"Done=1".to_string()));
+        assert!(!log.steps.contains(&"EventOver=1".to_string()));
     }
 }

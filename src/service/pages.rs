@@ -1,24 +1,18 @@
-//! The six edit pages of the service area: what the keys do while one of the setup values or
-//! the tyre or gear ratio choice is being edited ("locked", in the original's error text).
-//! Key 0x68 steps the value down, 0x69 up, 0x1C confirms. Every key also copies
-//! `dword_51899C` (a clock) into `dword_7556C4`.
+//! The six edit pages of the service area: what the keys do while one of the setup values or the
+//! tyre or gear ratio choice is being edited. Key 0x68 steps the value down, 0x69 up, 0x1C
+//! confirms; every key also copies the clock into `last_key_time`.
 //!
-//! Two pages (steering sensitivity, brake balance) change the car directly: confirming just
-//! leaves edit mode. The other four cost service time; confirming goes through this:
-//!   - ride height and stiffness only: if the chosen value is what the car has, the item's
-//!     flag is cleared and that is all;
-//!   - if the value was not changed in this edit (it equals the value at entry), the item's
-//!     selection is flipped (`toggle_change`), and unless that selected it, that is all;
-//!   - the flag is cleared and `try_toggle_repair` says whether selecting it fits:
-//!     - status 2 (no time left at all): the chosen value goes back to the installed one;
-//!     - status 1 (fits only by overrunning): selected and marked (`choose_repair_marked`);
-//!     - status 3 (fits): the marks are cleared and it is selected (`choose_repair`).
-//!
-//! Whatever happened, the four end with `update_repair_total`.
+//! Steering sensitivity and brake balance change the car directly: confirming just leaves edit
+//! mode. The other four cost service time; confirming either clears the flag (ride height and
+//! stiffness whose chosen value is what the car has), flips the item's selection
+//! (`toggle_change`, when the value was not changed in this edit), or clears the flag and asks
+//! `try_toggle_repair` whether selecting it fits: status 2 puts the chosen value back to the
+//! installed one, 1 selects and marks it (`choose_repair_marked`), 3 clears the marks and
+//! selects it (`choose_repair`). All four end with `update_repair_total`.
 
 use crate::errors::{BadInput, Refused};
 use crate::input::take_key::take_key;
-use crate::menu::owner::{Menus, Play};
+use crate::menu::owner::Menus;
 use crate::service::setup_values::{Change, Stepper, step};
 use crate::service::state::{
     chosen_repairs_time, current_player, flagged_item, has_repair_time, leave_edit_mode,
@@ -32,8 +26,7 @@ use crate::service::{
     step_tyre_down, step_tyre_up, toggle_gear_ratio_change, toggle_ride_height_change,
     toggle_suspension_stiffness_change, toggle_tyre_change,
 };
-use crate::session::Dword;
-use crate::system::owner::system;
+use crate::system::owner::System;
 use rc2k_core::menu::player::SetupField;
 
 pub const KEY_CONFIRM: u8 = 0x1C;
@@ -53,8 +46,6 @@ pub struct ChangePage {
     pub down: Stepper,
     pub up: Stepper,
     pub change: Change,
-    /// The chosen value as it was when the edit started.
-    pub entry: &'static Dword,
     /// The car's value, for the pages that compare with it.
     pub in_car: Option<SetupField>,
     /// The page's menu item (the one to highlight).
@@ -75,7 +66,6 @@ pub const GEAR_RATIO: ChangePage = ChangePage {
     down: step_gear_ratio_down::STEPPER,
     up: step_gear_ratio_up::STEPPER,
     change: toggle_gear_ratio_change::CHANGE,
-    entry: &crate::menu::owner::MENUS.screens.state.driver_stats.setups[0].start,
     in_car: None,
     item: 0xE,
 };
@@ -83,7 +73,6 @@ pub const TYRE: ChangePage = ChangePage {
     down: step_tyre_down::STEPPER,
     up: step_tyre_up::STEPPER,
     change: toggle_tyre_change::CHANGE,
-    entry: &crate::menu::owner::MENUS.screens.state.driver_stats.setups[1].start,
     in_car: None,
     item: 0xF,
 };
@@ -91,7 +80,6 @@ pub const RIDE_HEIGHT: ChangePage = ChangePage {
     down: step_ride_height_down::STEPPER,
     up: step_ride_height_up::STEPPER,
     change: toggle_ride_height_change::CHANGE,
-    entry: &crate::menu::owner::MENUS.screens.state.driver_stats.setups[2].start,
     in_car: Some(SetupField::RideHeight),
     item: 0x12,
 };
@@ -99,102 +87,115 @@ pub const SUSPENSION_STIFFNESS: ChangePage = ChangePage {
     down: step_suspension_stiffness_down::STEPPER,
     up: step_suspension_stiffness_up::STEPPER,
     change: toggle_suspension_stiffness_change::CHANGE,
-    entry: &crate::menu::owner::MENUS.screens.state.driver_stats.setups[3].start,
     in_car: Some(SetupField::Stiffness),
     item: 0x13,
 };
 
-fn player() -> Result<crate::menu::standings::PlayerCell, BadInput> {
-    current_player().ok_or(BadInput(
+fn player(menus: &Menus) -> Result<crate::menu::standings::PlayerCell<'_>, BadInput> {
+    current_player(menus).ok_or(BadInput(
         "no current player object: the original reads through null",
     ))
 }
 
 /// The key, with the clock noted and the value stepped if it was an arrow. 0 = no key.
-fn key_and_step(play: &Play, down: Stepper, up: Stepper) -> Result<u8, Refused> {
-    // Converted: `rc2k_core::service::setups::page_key`.
+fn key_and_step(
+    menus: &Menus,
+    system: &System,
+    input: &crate::input::owner::Input,
+    down: Stepper,
+    up: Stepper,
+) -> Result<u8, Refused> {
     use rc2k_core::service::setups::{PageKey, page_key};
-    let key = take_key();
+    let key = take_key(input);
     let action = page_key(key);
     if action == PageKey::None {
         return Ok(0);
     }
-    play.champ_view
+    menus
+        .play
+        .champ_view
+        .key_clock
         .last_key_time
-        .set(system().session.clocks.frame.get());
+        .set(system.clocks().frame.get());
     match action {
         PageKey::Down => {
-            step(down)?;
+            step(menus, down)?;
         }
         PageKey::Up => {
-            step(up)?;
+            step(menus, up)?;
         }
         _ => {}
     }
     Ok(key)
 }
 
-pub fn simple_page(menus: &Menus, page: SimplePage) -> Result<(), Refused> {
+pub fn simple_page(
+    menus: &Menus,
+    system: &System,
+    input: &crate::input::owner::Input,
+    page: SimplePage,
+) -> Result<(), Refused> {
     // Nothing may be written before it is known that nothing will be refused.
-    player()?;
-    if { key_and_step(&menus.play, page.down, page.up) }? == KEY_CONFIRM {
+    player(menus)?;
+    if { key_and_step(menus, system, input, page.down, page.up) }? == KEY_CONFIRM {
         leave_edit_mode(&menus.screens);
     }
     Ok(())
 }
 
-/// `confirm`: act as if the confirm key had been pressed, without taking a key (the callers
-/// outside the key handler pass ebx = 1 for this).
-pub fn change_page(menus: &Menus, page: ChangePage, confirm: bool) -> Result<(), Refused> {
-    let (screens, tables) = (&menus.screens, &menus.tables);
+/// `confirm`: act as if the confirm key had been pressed, without taking a key (callers
+/// outside the key handler pass true).
+pub fn change_page(
+    menus: &Menus,
+    system: &System,
+    input: &crate::input::owner::Input,
+    page: ChangePage,
+    confirm: bool,
+) -> Result<(), Refused> {
+    let screens = &menus.screens;
     // Everything the steps below could refuse is checked first, so that an error never
     // leaves half of the work done.
     let item = flagged_item(screens)?;
-    if !has_repair_time(tables, item) {
+    if !has_repair_time(&menus.service, item) {
         return Err(BadInput("the highlighted item has no repair time").into());
     }
-    chosen_repairs_time(menus, tables)?;
-    if !marks_ended(tables) {
+    chosen_repairs_time(&menus.service)?;
+    if !marks_ended(&menus.service) {
         return Err(BadInput("the second flag table has lost its end mark").into());
     }
     let installed_in_car = match page.in_car {
-        Some(field) => Some((player()?, field)),
+        Some(field) => Some((player(menus)?, field)),
         None => None,
     };
 
-    if !confirm && key_and_step(&menus.play, page.down, page.up)? != KEY_CONFIRM {
+    if !confirm && key_and_step(menus, system, input, page.down, page.up)? != KEY_CONFIRM {
         return update_repair_total(menus);
     }
 
-    // Converted: `rc2k_core::service::repairs::confirm_change`.
     use crate::service::state::{flags, marks, store_flags, store_marks, time_of};
-    let (mut f, mut m) = (flags(tables), marks(tables));
+    let (mut f, mut m) = (flags(&menus.service), marks(&menus.service));
     let v = rc2k_core::service::repairs::Value {
-        chosen: page.change.chosen.get(),
-        installed: page.change.installed.get(),
-        entry: page.entry.get(),
+        chosen: page.change.chosen(&menus.service).get(),
+        installed: page.change.installed(&menus.service).get(),
+        entry: page.change.start(&menus.service).get(),
         in_car: installed_in_car.map(|(p, field)| field.get(p.get())),
     };
     let c = rc2k_core::service::repairs::confirm_change(
         &mut f,
         &mut m,
         item as usize,
-        screens.event.service_minutes.get() as i32,
+        screens.event.service.minutes.get() as i32,
         v,
-        |item| time_of(menus, tables, item),
+        |item| time_of(&menus.service, item),
     )
     .map_err(|e| BadInput(e.0))?;
-    store_flags(tables, &f);
-    store_marks(tables, &m);
-    page.change.chosen.set(c.chosen);
+    store_flags(&menus.service, &f);
+    store_marks(&menus.service, &m);
+    page.change.chosen(&menus.service).set(c.chosen);
     if let Some(status) = c.status {
         screens.state.service_ui.status.set(status);
     }
-    screens.state.driver_stats.repair_time.set(c.total as u32);
+    menus.service.repair_time.set(c.total as u32);
     leave_edit_mode(screens);
     Ok(())
 }
-
-// ---- hook side ----
-
-// ---- self-tests ----

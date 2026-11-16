@@ -1,15 +1,21 @@
-//! `menu::sort_standings_by_total` (0x47B3D7): as `menu::sort_standings_by_time` by +0x18 (a reading: the total time).
+//! `menu::sort_standings_by_total`: as `menu::sort_standings_by_time` by +0x18 (a reading: the
+//! total time).
 //!
 //! Refuses a null table, before anything.
 
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
+use crate::menu::owner::{Play, Screens};
 use crate::menu::standings::*;
-
-// dword_75598C
-
-/// The Rust version.
-pub fn sort_standings_by_total(menus: &Menus) -> Result<(), Refused> {
-    sort_table_a(menus, rc2k_core::saves::entries::Field::RallyTime)?;
+pub fn sort_standings_by_total(
+    screens: &Screens,
+    play: &Play,
+    tables: &crate::saves::best_times::BestTables,
+) -> Result<(), Refused> {
+    sort_table_a(
+        screens,
+        play,
+        tables,
+        rc2k_core::saves::entries::Field::RallyTime,
+    )?;
     Ok(())
 }

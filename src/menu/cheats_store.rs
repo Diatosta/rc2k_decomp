@@ -1,33 +1,30 @@
 //! The main menu's notice flag, the car specification screen's kept car and the cheats, out of
-//! RAL.EXE's image (IDA 0x7585D8 .. 0x758714; phase 7, typed). A `#[repr(C)]` struct with the image's
-//! layout, one static; `moved::MOVED` points the range at it. (Split 2026-10-25 from the front end's
-//! block `menu::store`.)
+//! RAL.EXE's image. One static.
 
-use crate::session::{Bytes, Dword, with_runs};
+use crate::memory::session::{PlainBytes, PlainDword, with_runs};
 
-/// The notice flag, the kept car and the cheats (IDA 0x7585D8 .. 0x758714).
-#[repr(C)]
+/// The notice flag, the kept car and the cheats.
 #[derive(rc2k_derive::Cells)]
 pub struct Cheats {
-    /// `g_noticeDue`: Set to 1 by the main menu before a frame (`menu::frame_callback` looks at it).
-    pub notice_due: Dword,
-    /// `dword_7585DC`: The car shown on the car specification screen, kept over its visits.
-    pub kept_car: Dword,
-    /// `aNepnqrNpgvba`: The list of the cheats' coded names: each entry a rot13 name, its NUL and the cheat's bit number; a NUL where a name would start ends it (`menu::check_cheat_name`).
-    pub cheat_names: Bytes<300>,
-    /// `g_cheats`: The cheats switched on, one bit each (`menu::apply_cheats`).
-    pub cheats: Dword,
-    /// `g_allSecretCars`: The `allsecretcars` / `secretcar` setting of `var\ral.cfg`.
-    pub all_secret_cars: Dword,
+    /// Set to 1 by the main menu before a frame (`menu::frame_callback` looks at it).
+    pub notice_due: PlainDword,
+    /// The car shown on the car specification screen, kept over its visits.
+    pub kept_car: PlainDword,
+    /// The list of the cheats' coded names: each entry a rot13 name, its NUL and the cheat's bit
+    /// number; a NUL where a name would start ends it (`menu::check_cheat_name`).
+    pub cheat_names: PlainBytes<300>,
+    /// The cheats switched on, one bit each (`menu::apply_cheats`).
+    pub cheats: PlainDword,
+    /// The `allsecretcars` / `secretcar` setting of `var\ral.cfg`.
+    pub all_secret_cars: PlainDword,
 }
 
-/// First values the image's (`tests::cheat_vars_starts_as_the_games`).
 impl Cheats {
     pub const fn new() -> Self {
         Cheats {
-            notice_due: Dword::new(0x0),
-            kept_car: Dword::new(0x0),
-            cheat_names: Bytes::new(with_runs::<300>(&[(
+            notice_due: PlainDword::new(0x0),
+            kept_car: PlainDword::new(0x0),
+            cheat_names: PlainBytes::new(with_runs::<300>(&[(
                 0x0,
                 &[
                     0x6e, 0x65, 0x70, 0x6e, 0x71, 0x72, 0x20, 0x6e, 0x70, 0x67, 0x76, 0x62, 0x61,
@@ -55,47 +52,8 @@ impl Cheats {
                     0x20, 0x65, 0x72, 0x69, 0x72, 0x65, 0x66, 0x76, 0x00, 0x12,
                 ],
             )])),
-            cheats: Dword::new(0x0),
-            all_secret_cars: Dword::new(0xFFFFFFFF),
+            cheats: PlainDword::new(0x0),
+            all_secret_cars: PlainDword::new(0xFFFFFFFF),
         }
-    }
-}
-
-/// IDA 0x7585D8, the first byte of the piece.
-pub const START: usize = 0x7585D8;
-/// IDA 0x758714, the end of the piece.
-pub const END: usize = 0x758714;
-
-/// Where IDA 0x7585D8 is now (`moved::MOVED`'s home).
-#[cfg(test)]
-pub fn cheats_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::menu::owner::MENUS.play.cheats)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::moved::image_bytes;
-    use core::mem::{offset_of, size_of};
-
-    #[test]
-    fn cheat_vars_starts_as_the_games() {
-        assert!(
-            END - START <= size_of::<Cheats>()
-                && size_of::<Cheats>() <= (END - START).next_multiple_of(4)
-        );
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host(cheats_addr()).cast_const(),
-                END - START,
-            )
-        };
-        assert_eq!(mine, &image_bytes(START, END - START)[..]);
-        let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
-        at(offset_of!(Cheats, notice_due), 0x7585D8);
-        at(offset_of!(Cheats, kept_car), 0x7585DC);
-        at(offset_of!(Cheats, cheat_names), 0x7585E0);
-        at(offset_of!(Cheats, cheats), 0x75870C);
-        at(offset_of!(Cheats, all_secret_cars), 0x758710);
     }
 }

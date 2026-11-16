@@ -7,7 +7,7 @@ use crate::errors::BadInput;
 use std::cell::Cell;
 
 /// A refusal in a function whose callers have no way to carry it (a `bool`, an `Option`):
-/// the program ends naming it, as a refusal does at the top (`GamePtr` logged the address).
+/// the program ends naming it, as a refusal does at the top.
 pub fn refuse(e: BadInput) -> ! {
     crate::fatal::raise::end("a game read", e)
 }

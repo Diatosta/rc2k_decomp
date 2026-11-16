@@ -1,19 +1,8 @@
-//! `d3d::set_texture` (0x41ACF5): makes a texture the one polygons are drawn with.
-//!
-//! Takes: the texture's number, or 0xFFFFFC43 for none
-//! Nothing if it is the current one (`g_currentTexture`, 0x5AB93C); else that is set
-//! and the device told: render state 1 with the texture's handle from the texture
-//! table (0x78 bytes a texture at `dword_5ABC84`) and a light state, or render state 1
-//! with 0 for none. 0x41ACF0, five bytes before it, loads eax with "none" and runs
-//! into it. Four callers.
-//! Platform: the original always runs, here it is only noted. In the standalone
-//! program, and for a recording that swallows, the number is kept and nothing more.
+//! `d3d::set_texture`: makes a texture the one polygons are drawn with. Takes the texture's
+//! number, or 0xFFFFFC43 for none. Nothing if it is the current one. Four callers. The number
+//! is kept in the part's render cache (`d3d::render_cache`) and nothing more.
 
-use crate::d3d::owner::d3d;
-
-/// The texture polygons are drawn with from now on (the standalone keeps its number).
-/// Its leftover ecx (0) is read by none of the original's callers (register liveness,
-/// 2026-10-23).
-pub fn set_texture(texture: u32) {
-    d3d().cards.current_texture.set(texture);
+/// The texture drawing part `part`'s polygons are drawn with from now on.
+pub fn set_texture(part: &crate::scene::workers::PartScratch, texture: u32) {
+    crate::d3d::render_cache::set_texture(part, texture);
 }

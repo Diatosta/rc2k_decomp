@@ -1,14 +1,12 @@
-//! `physics::clear_forces` (0x43F395): `physics::clear_records` on 0x17 records of 0x20 bytes at `unk_614770` (by the look of
-//! it the step's forces, a reading).
+//! Clears the 0x17 force records of 0x20 bytes (`forces`, the step's forces) with
+//! `physics::clear_records`.
 //!
-//! Caller: `physics::car_physics_step` (0x43B71E), every physics step.
+//! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::errors::Refused;
 use crate::physics::clear_records::clear_records;
-use crate::race::owner_shared::Shared;
-const COUNT: u32 = 0x17;
-
-/// The Rust version.
-pub fn clear_forces(shared: &Shared) -> Result<(), Refused> {
-    clear_records(&shared.physics_tables.forces, COUNT)
+use crate::physics::tables_store::PhysicsTables;
+pub fn clear_forces(tables: &PhysicsTables) -> Result<(), Refused> {
+    clear_records(&tables.forces);
+    Ok(())
 }

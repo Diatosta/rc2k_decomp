@@ -1,23 +1,21 @@
-//! `effects::adjugate3` (0x4BCED6): the adjugate of the 3 x 3 matrix at esi (rows 12 bytes
-//! apart) into edi's: each entry a difference of two products (`fsubp`), rounded as written
-//! (so an output over the input is read back as the original does).
+//! `effects::adjugate3`: the adjugate of the 3 x 3 matrix (rows 12 bytes apart) into the
+//! result: each entry a difference of two products, rounded as written (so an output over
+//! the input reads back what was written).
 //!
-//! Takes: the matrix, the result (here two arrays of nine floats)
-//!
-//! Caller: `effects::expire_windscreen_drops` (0x4BCD63). The arithmetic is plain Rust on the x87
-//! model (`math::x87_float`), in the original's order.
+//! The arithmetic is plain Rust on the x87 model (`math::x87_float`).
 
-use crate::session::Float;
+use crate::memory::session::PlainFloat;
 
-/// The Rust version (see the header): `s` the matrix, `d` the result (another array).
-pub fn adjugate3(s: &[Float; 9], d: &[Float; 9]) {
+/// `s` the matrix, `d` the result (another array).
+pub fn adjugate3(s: &[PlainFloat; 9], d: &[PlainFloat; 9]) {
     adjugate3_x87(s, d);
 }
 
 use crate::effects::plain::{ld_cell, st_cell};
 
-/// `adjugate3`'s x87 block as plain Rust on the x87 model (54 instructions), same order and memory places.
-fn adjugate3_x87(s: &[Float; 9], d: &[Float; 9]) {
+/// `adjugate3`'s x87 block as plain Rust on the x87 model, in the same order and over the
+/// same memory places.
+fn adjugate3_x87(s: &[PlainFloat; 9], d: &[PlainFloat; 9]) {
     let t0 = ld_cell(&s[4]);
     let t1 = t0 * ld_cell(&s[8]);
     let t2 = ld_cell(&s[5]);
@@ -74,100 +72,31 @@ fn adjugate3_x87(s: &[Float; 9], d: &[Float; 9]) {
     st_cell(&d[8], t44);
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
-    //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
-
-    pub(super) fn adjugate3_x87(s: usize, d: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{s} + 0x10]",
-            "fmul dword ptr [{s} + 0x20]",
-            "fld dword ptr [{s} + 0x14]",
-            "fmul dword ptr [{s} + 0x1C]",
-            ".byte 0xDE, 0xE9",
-            "fstp dword ptr [{d} + 0x0]",
-            "fld dword ptr [{s} + 0x8]",
-            "fmul dword ptr [{s} + 0x1C]",
-            "fld dword ptr [{s} + 0x4]",
-            "fmul dword ptr [{s} + 0x20]",
-            ".byte 0xDE, 0xE9",
-            "fstp dword ptr [{d} + 0x4]",
-            "fld dword ptr [{s} + 0x4]",
-            "fmul dword ptr [{s} + 0x14]",
-            "fld dword ptr [{s} + 0x8]",
-            "fmul dword ptr [{s} + 0x10]",
-            ".byte 0xDE, 0xE9",
-            "fstp dword ptr [{d} + 0x8]",
-            "fld dword ptr [{s} + 0x14]",
-            "fmul dword ptr [{s} + 0x18]",
-            "fld dword ptr [{s} + 0xC]",
-            "fmul dword ptr [{s} + 0x20]",
-            ".byte 0xDE, 0xE9",
-            "fstp dword ptr [{d} + 0xC]",
-            "fld dword ptr [{s} + 0x0]",
-            "fmul dword ptr [{s} + 0x20]",
-            "fld dword ptr [{s} + 0x8]",
-            "fmul dword ptr [{s} + 0x18]",
-            ".byte 0xDE, 0xE9",
-            "fstp dword ptr [{d} + 0x10]",
-            "fld dword ptr [{s} + 0x8]",
-            "fmul dword ptr [{s} + 0xC]",
-            "fld dword ptr [{s} + 0x0]",
-            "fmul dword ptr [{s} + 0x14]",
-            ".byte 0xDE, 0xE9",
-            "fstp dword ptr [{d} + 0x14]",
-            "fld dword ptr [{s} + 0xC]",
-            "fmul dword ptr [{s} + 0x1C]",
-            "fld dword ptr [{s} + 0x10]",
-            "fmul dword ptr [{s} + 0x18]",
-            ".byte 0xDE, 0xE9",
-            "fstp dword ptr [{d} + 0x18]",
-            "fld dword ptr [{s} + 0x4]",
-            "fmul dword ptr [{s} + 0x18]",
-            "fld dword ptr [{s} + 0x0]",
-            "fmul dword ptr [{s} + 0x1C]",
-            ".byte 0xDE, 0xE9",
-            "fstp dword ptr [{d} + 0x1C]",
-            "fld dword ptr [{s} + 0x0]",
-            "fmul dword ptr [{s} + 0x10]",
-            "fld dword ptr [{s} + 0x4]",
-            "fmul dword ptr [{s} + 0xC]",
-            ".byte 0xDE, 0xE9",
-            "fstp dword ptr [{d} + 0x20]",
-            s = in(reg) s,
-            d = in(reg) d,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-}
-
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_differential {
-    use super::asm_reference as reference;
+#[cfg(test)]
+mod reference_vectors {
     use crate::effects::asm_test::Kind::*;
-    use crate::effects::asm_test::{Op, Spec, differential};
-    use crate::session::Float;
+    use crate::effects::asm_test::{Op, Spec, recorded};
+    use crate::memory::session::PlainFloat;
 
     /// Nine floats holding the test buffer's (at `at`) dwords.
-    fn staged(at: usize) -> [Float; 9] {
+    fn staged(at: crate::effects::asm_test::Operand) -> [PlainFloat; 9] {
         std::array::from_fn(|n| {
-            Float::from_bits(unsafe {
-                crate::pointers::host_at(at + 4 * n)
-                    .cast::<u32>()
-                    .read_unaligned()
-            })
+            // SAFETY: `at` checks that the four bytes lie in the operand's test buffer, which the
+            // recorded run keeps alive and nothing else reaches meanwhile; unaligned, any bits a
+            // `u32`.
+            PlainFloat::from_bits(unsafe { (at + 4 * n).at(0, 4).cast::<u32>().read_unaligned() })
         })
     }
 
     /// The nine floats back into the test buffer at `at`.
-    fn put_back(at: usize, cells: &[Float; 9]) {
+    fn put_back(at: crate::effects::asm_test::Operand, cells: &[PlainFloat; 9]) {
         for (n, cell) in cells.iter().enumerate() {
+            // SAFETY: `at` checks that the four bytes lie in the operand's test buffer, which the
+            // recorded run keeps alive and nothing else reaches meanwhile; unaligned, any bits a
+            // `u32`.
             unsafe {
-                crate::pointers::host_at(at + 4 * n)
+                (at + 4 * n)
+                    .at(0, 4)
                     .cast::<u32>()
                     .write_unaligned(cell.bits());
             }
@@ -213,14 +142,10 @@ mod asm_differential {
             ],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::adjugate3_x87(b[0], b[1]),
-            |b| {
-                let (s, d) = (staged(b[0]), staged(b[1]));
-                super::adjugate3_x87(&s, &d);
-                put_back(b[1], &d);
-            },
-        );
+        recorded("effects.adjugate3.adjugate3_x87", &SPEC, |b| {
+            let (s, d) = (staged(b[0]), staged(b[1]));
+            super::adjugate3_x87(&s, &d);
+            put_back(b[1], &d);
+        });
     }
 }

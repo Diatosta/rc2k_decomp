@@ -1,31 +1,12 @@
-//! `gfx::fill_row_table` (0x40586A): fills the table of row addresses with a start address
-//! and so many steps on from it.
-//!
-//! Takes: the first row's address, the bytes from one row to the next, rows
-//! The table is `dword_4F3FC4`, which has room for 602 rows. Four callers, the rescalers
-//! and two picture functions not yet read.
-//! Refuses a count of 0 (the original counts through all 32 bits) and one above the table's
-//! room. The name is a reading.
-//! Since phase 12 (2026-10-27) the decoded picture is a Rust buffer (`gfx::picture`) and the
-//! table holds each row's offset in it: its callers give 0 for the first row.
+//! Fills the table of row addresses with a start address and so many steps on from it: the first
+//! row's address, the bytes from one row to the next, the rows. The table is `row_table`, which has
+//! room for 602 rows. Refuses a count of 0 and one above the table's room. The decoded picture is a
+//! Rust buffer (`gfx::picture`) and the table holds each row's offset in it: its callers give 0 for
+//! the first row.
 
 use crate::errors::BadInput;
-#[cfg(test)]
-use crate::gfx::owner::gfx;
 
-// ---- game data ----
-
-/// IDA's address of the row table.
-pub const START: usize = 0x4F3FC4;
 pub const ROW_TABLE_ROOM: u32 = 602;
-/// The table's length.
-pub const LEN: usize = 4 * ROW_TABLE_ROOM as usize;
-
-/// Where the table is (`moved::MOVED`'s home for IDA 0x4F3FC4).
-#[cfg(test)]
-pub fn home() -> usize {
-    (crate::pointers::game_address(gfx().drawing.row_table.as_ptr())) as usize
-}
 
 /// The address the table holds for a row.
 pub fn row_address(row: u32, gfx: &crate::gfx::owner::Gfx) -> u32 {
@@ -38,8 +19,6 @@ pub fn row_address(row: u32, gfx: &crate::gfx::owner::Gfx) -> u32 {
     }
 }
 
-// ---- Rust version ----
-
 pub fn fill_row_table(
     first: u32,
     step: u32,
@@ -49,7 +28,6 @@ pub fn fill_row_table(
     if rows == 0 || rows > ROW_TABLE_ROOM {
         return Err(BadInput("a row count the row table has no room for"));
     }
-    // Converted: `rc2k_core::gfx::pixels::row_table`.
     for (cell, address) in gfx
         .drawing
         .row_table
@@ -63,23 +41,4 @@ pub fn fill_row_table(
         cell.set(address);
     }
     Ok(())
-}
-
-#[cfg(test)]
-mod block_tests {
-    use super::*;
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&gfx().drawing.row_table, START, START + LEN);
-    }
-
-    #[test]
-    fn moved_knows_the_block() {
-        assert_eq!(crate::moved::place(START), home());
-        assert_eq!(
-            crate::moved::place(START + LEN - 4),
-            gfx().drawing.row_table[601].addr() as usize
-        );
-    }
 }

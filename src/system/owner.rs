@@ -1,31 +1,43 @@
-//! Module system's owner (step 11, owned state): the program-wide state in one struct, reached
-//! through `system()` by the code that does not take it as a parameter.
+//! Module system's owner: the program-wide state in one struct, handed by reference to the code
+//! that uses it.
 
 use crate::files::scratch::Scratch as FileScratch;
 use crate::logfile::numeric::SCRATCH_LEN;
+use crate::memory::session::{
+    Clocks, DrawShared, GameThread, HostShared, KeyClock, Machine, PlainBytes, Screen,
+    WindowLoopState, WindowShared,
+};
 use crate::records::stages_store::StageTables;
-use crate::session::{Bytes, Clocks, Flags, Machine, Screen};
 use crate::system::keep_start_time::KEPT_LEN;
 use crate::system::load_game_data::RunCount;
 use crate::system::read_command_line::CommandLine;
 use crate::system::set_error_mode::ErrorMode;
 use crate::system::start_texts::StartTexts;
 
-/// The screen's figures, the window's flags, what the machine is and the clocks.
+/// The screen's figures and what other threads read of the window, the machine and the clocks.
 pub struct Session {
-    pub screen: Screen,
-    pub flags: Flags,
-    pub machine: Machine,
-    pub clocks: Clocks,
+    /// Lent to the drawing parts (`scene::workers::Lent`): the game's thread sets the mode between
+    /// frames.
+    pub screen: DrawShared<Screen>,
+    /// The window's flags the audio, key and network threads read (`quitting`, focus, active).
+    pub flags: WindowShared,
+    /// The window handle and the FPU flag the audio thread reads.
+    pub host: HostShared,
+    /// The key thread's count of turns.
+    pub key_clock: KeyClock,
+    /// The clock override of the replay viewer's picture saving (`system::tick_count`): the
+    /// input and audio threads read the clock too.
+    pub picture_clock: crate::system::tick_count::PictureClock,
 }
 
 impl Session {
     pub const fn new() -> Self {
         Session {
-            screen: Screen::new(),
-            flags: Flags::new(),
-            machine: Machine::new(),
-            clocks: Clocks::new(),
+            screen: DrawShared::new(Screen::new()),
+            flags: WindowShared::new(),
+            host: HostShared::new(),
+            key_clock: KeyClock::new(),
+            picture_clock: crate::system::tick_count::PictureClock::new(),
         }
     }
 }
@@ -34,7 +46,7 @@ impl Session {
 /// the command line.
 pub struct Start {
     /// The nine bytes of the start's moment (`keep_start_time`).
-    pub kept: Bytes<KEPT_LEN>,
+    pub kept: PlainBytes<KEPT_LEN>,
     pub run_count: RunCount,
     pub error_mode: ErrorMode,
     pub texts: StartTexts,
@@ -44,7 +56,7 @@ pub struct Start {
 impl Start {
     pub const fn new() -> Self {
         Start {
-            kept: Bytes::new([0; KEPT_LEN]),
+            kept: PlainBytes::new([0; KEPT_LEN]),
             run_count: RunCount::new(),
             error_mode: ErrorMode::new(),
             texts: StartTexts::new(),
@@ -55,22 +67,20 @@ impl Start {
 
 /// The scratch areas: the shared 64 KB one and the numbers' text.
 pub struct Work {
-    /// `files::scratch::SCRATCH` before the owner.
     pub files: FileScratch,
-    /// `logfile::numeric::SCRATCH` before the owner: where a number's text is made.
-    pub numbers: Bytes<SCRATCH_LEN>,
+    /// Where a number's text is made.
+    pub numbers: PlainBytes<SCRATCH_LEN>,
 }
 
 impl Work {
     pub const fn new() -> Self {
         Work {
             files: FileScratch::new(),
-            numbers: Bytes::new([0; SCRATCH_LEN]),
+            numbers: PlainBytes::new([0; SCRATCH_LEN]),
         }
     }
 }
 
-/// The stage and rally record tables.
 pub struct Records {
     pub stage_tables: StageTables,
 }
@@ -83,23 +93,72 @@ impl Records {
     }
 }
 
-/// The program-wide state.
-pub struct System {
-    pub session: Session,
+/// What only the game's thread reaches: the start-up's keeps, the scratch areas, the
+/// record tables, the main loop's state, the machine's facts and the menus' clocks (the
+/// audio, key and network threads and the drawing parts touch none).
+pub struct SystemMain {
     pub start: Start,
     pub work: Work,
     pub records: Records,
+    pub window_loop: WindowLoopState,
+    pub machine: Machine,
+    pub clocks: Clocks,
 }
 
-/// The one instance. Reached through `system()`; `moved` registers its stores' places.
-pub static SYSTEM: System = System {
-    session: Session::new(),
-    start: Start::new(),
-    work: Work::new(),
-    records: Records::new(),
-};
+impl SystemMain {
+    pub const fn new() -> Self {
+        SystemMain {
+            start: Start::new(),
+            work: Work::new(),
+            records: Records::new(),
+            window_loop: WindowLoopState::new(),
+            machine: Machine::new(),
+            clocks: Clocks::new(),
+        }
+    }
+}
 
-/// The program-wide state, for a caller that does not take it as a parameter yet.
-pub fn system() -> &'static System {
-    &SYSTEM
+/// The program-wide state.
+pub struct System {
+    /// Read by other threads (the window's flags, the key ticks, the window handle and FPU
+    /// flag) or by the drawing parts (the screen): atomic cells.
+    pub session: Session,
+    main: GameThread<SystemMain>,
+}
+
+impl System {
+    pub fn start(&self) -> &Start {
+        &self.main.get().start
+    }
+
+    pub fn work(&self) -> &Work {
+        &self.main.get().work
+    }
+
+    pub fn records(&self) -> &Records {
+        &self.main.get().records
+    }
+
+    /// The main loop's state (paused, surfaces lost, the two settings).
+    pub fn window_loop(&self) -> &WindowLoopState {
+        &self.main.get().window_loop
+    }
+
+    pub fn machine(&self) -> &Machine {
+        &self.main.get().machine
+    }
+
+    pub fn clocks(&self) -> &Clocks {
+        &self.main.get().clocks
+    }
+}
+
+impl System {
+    /// The state at start-up: every store in its first state.
+    pub const fn new() -> Self {
+        Self {
+            session: Session::new(),
+            main: GameThread::new(SystemMain::new()),
+        }
+    }
 }

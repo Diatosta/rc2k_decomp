@@ -1,10 +1,10 @@
-//! `sound::let_sounds_play` (0x409B76): `g_soundsHeldBack` 0.
+//! `sound::let_sounds_play`: lets the sounds play (the held-back flag is 0).
 //!
-//! Its twin `sound::hold_sounds_back` (0x409B6B) sets it to 1; `sound::play_sound` plays
-//! nothing while it is 1. Five callers (`race::start_race_sounds` and four more).
+//! Its twin `sound::hold_sounds_back` sets it to 1; `sound::play_sound` plays nothing while it is
+//! 1. Five callers (`race::start_race_sounds` and four more).
 
-use crate::audio::owner::audio;
+use crate::audio::owner::Audio;
 
-pub fn let_sounds_play() {
-    audio().state.sounds_held_back.set(0);
+pub fn let_sounds_play_in(audio: &Audio) {
+    audio.state.sounds_held_back.set(0);
 }

@@ -1,23 +1,17 @@
-//! `net::join_group` (0x419354): the session's groups listed (`EnumGroups` with
-//! `net::group_found`, which finds the host's "susanivanovafanclub" into `g_netSendTo`), and
-//! this machine's player added to that group (`AddPlayerToGroup`).
-//!
+//! Lists the session's groups to find the host's, and adds this machine's player to it.
 //! Returns true when joined.
-//! Callers: `net::join_session`, `net::open_lobby`. DirectPlay's calls from Rust
-//! (`net::dplay`).
 
 use crate::net::create_group::join;
-use crate::net::owner::net;
-
-/// The Rust version.
-pub fn join_group() -> bool {
-    let vars = &net().vars;
+use crate::net::link::Link;
+pub fn join_group(link: &Link) -> bool {
     let result = {
         crate::net::dp_objects::enum_groups(
-            net().vars.dplay.get(),
-            crate::net::group_found::callback,
+            link.dplay(),
+            &|id, kind, short, _flags, _context| {
+                crate::net::group_found::callback(link, id, kind, short)
+            },
             0,
         )
     };
-    result == 0 && join(vars)
+    result == 0 && join(link)
 }

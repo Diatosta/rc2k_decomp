@@ -1,14 +1,10 @@
-//! `service::step_suspension_stiffness_down` (0x46BEA9): steps the chosen suspension stiffness, `dword_75ACB4`, one
-//! down, stopping at 0.
-//!
-//! The exact rule at the limits is in `setup_values.rs` (`Stepper`).
+//! Steps the suspension stiffness one down, stopping at 0. The rule at the limits is in
+//! `setup_values.rs` (`Stepper`).
 
 use crate::service::setup_values::{Stepper, Target};
 
-// ---- Rust version: `setup_values::step` with this ----
-
 pub const STEPPER: Stepper = Stepper {
-    target: Target::Global(&crate::menu::owner::MENUS.screens.state.driver_stats.setups[3].chosen),
+    target: Target::Chosen(3),
     max: 100,
     up: false,
 };

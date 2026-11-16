@@ -1,14 +1,10 @@
-//! `input::effect_found` (0x40953B): DirectInput's `EnumEffects` callback: each of the
+//! DirectInput's `EnumEffects` callback: each of the
 //! device record's six effects (from +0x3C, 0xA4 bytes) whose kind (+4) is the found
 //! effect's type (`DIEFFECTINFOA` +0x14, its low byte) takes it, unless it already has
 //! one (+0xC 1) that is the GUID it wants (+8 points at it): +0xC 1, +0x20 .. +0x28 the
 //! info's type, static and dynamic parameters, +0x10 its GUID. So each effect ends with
 //! its wanted GUID when the device has it, else with the last of its type listed. Always
-//! goes on (eax 1).
-//!
-//! In:  (stdcall) the `DIEFFECTINFOA`, the context (the device's record)
-//!
-//! Caller: DirectInput, from `input::begin_force`.
+//! goes on (returns 1).
 
 use crate::errors::BadInput;
 use crate::input::guids::InputGuids;
@@ -26,13 +22,11 @@ pub fn callback(guids: &InputGuids, info: &DiEffectInfo, record: &InputDevice) -
     }
 }
 
-/// The Rust version: eax.
 pub fn effect_found(
     guids: &InputGuids,
     info: &DiEffectInfo,
     record: &InputDevice,
 ) -> Result<u32, BadInput> {
-    // Converted: `rc2k_core::input::force::take_listed`.
     use rc2k_core::input::force::{Found, Listed, take_listed};
     let listed = Listed {
         guid: info.guid,

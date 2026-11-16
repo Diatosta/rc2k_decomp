@@ -1,89 +1,79 @@
-//! The fonts, out of RAL.EXE's image (phase 5; typed in phase 7, `notes/conversion.md`):
-//! IDA 0x51E3A4 .. 0x51EB84, 63 font objects of 0x20 bytes (`rc2k_core::text::Font`). Their
-//! palettes (+0x14) and glyph tables (+0x18) are hung on by `gfx::build_fonts`; the
-//! drawing functions take a font by its place (`FontId::addr`). The game's own fonts (the
-//! credits' and the race's, 0x51E2C4 ..) are a block of `rest`'s.
-//!
-//! Which font is which is a reading of the callers: a font's mode (+2) says how it draws
-//! (0 at x as given, 2 centred, 3 right-aligned or fixed pitch, 4 measuring), its line
-//! height (+8) the size of the sheet it was built from (10, 21, 23, 27, 13).
+//! The fonts, 63 font objects of 0x20 bytes (`rc2k_core::strings::text::Font`). Their palettes (+0x14) and
+//! glyph tables (+0x18) are hung on by `gfx::build_fonts`; the drawing functions take a font by its
+//! place (`FontId::addr`). The game's own fonts (the credits' and the race's ..) are a block of
+//! `rest`'s. Which font is which is a reading of the callers: a font's mode (+2) says how it draws
+//! (0 at x as given, 2 centred, 3 right-aligned or fixed pitch, 4 measuring), its line height (+8)
+//! the size of the sheet it was built from (10, 21, 23, 27, 13).
 
-use crate::gfx::owner::gfx;
-use crate::session::{Byte, Dword};
-use rc2k_core::text::Font;
+use crate::memory::session::{PlainByte, PlainDword};
+use rc2k_core::strings::text::Font;
 
-/// IDA's address of the block's first byte.
+#[cfg(test)]
 pub const START: usize = 0x51E3A4;
 /// The font objects' number.
 pub const COUNT: usize = 63;
-/// The block's length.
-pub const LEN: usize = COUNT * 0x20;
 
-/// A font object (0x20 bytes, `rc2k_core::text::Font`), its fields as cells.
-#[repr(C)]
+/// A font object (0x20 bytes, `rc2k_core::strings::text::Font`), its fields as cells.
 #[derive(rc2k_derive::Cells)]
 pub struct FontObject {
     /// +0x00: the character drawn with glyph 0.
-    pub first_char: Byte,
+    pub first_char: PlainByte,
     /// +0x01: the last character with a glyph.
-    pub last_char: Byte,
-    /// +0x02: how it draws (`rc2k_core::text::MODE_*`).
-    pub mode: Byte,
+    pub last_char: PlainByte,
+    /// +0x02: how it draws (`rc2k_core::strings::text::MODE_*`).
+    pub mode: PlainByte,
     /// +0x03: `FLAG_*` bits.
-    pub flags: Byte,
+    pub flags: PlainByte,
     /// +0x04: pixels added after every normal glyph.
-    pub spacing: Dword,
+    pub spacing: PlainDword,
     /// +0x08: pixels from one line to the next.
-    pub line_height: Dword,
+    pub line_height: PlainDword,
     /// +0x0C: added to y once.
-    pub y_offset: Dword,
+    pub y_offset: PlainDword,
     /// +0x10: pixels added after every extended glyph.
-    pub extended_spacing: Dword,
+    pub extended_spacing: PlainDword,
     /// +0x14: the palette (a counter in the measuring mode).
-    pub palette: Dword,
+    pub palette: PlainDword,
     /// +0x18: the glyph table.
-    pub glyph_table: Dword,
+    pub glyph_table: PlainDword,
     /// +0x1C: the box width lines are aligned in (the widest line's width, measuring).
-    pub box_width: Dword,
+    pub box_width: PlainDword,
 }
-
-const _: () = assert!(size_of::<FontObject>() == size_of::<Font>());
 
 impl FontObject {
     const fn new(mode: u8, line_height: u32, palette: u32) -> Self {
         Self {
-            first_char: Byte::new(32),
-            last_char: Byte::new(255),
-            mode: Byte::new(mode),
-            flags: Byte::new(4),
-            spacing: Dword::new(1),
-            line_height: Dword::new(line_height),
-            y_offset: Dword::new(0),
-            extended_spacing: Dword::new(6),
-            palette: Dword::new(palette),
-            glyph_table: Dword::new(0),
-            box_width: Dword::new(0),
+            first_char: PlainByte::new(32),
+            last_char: PlainByte::new(255),
+            mode: PlainByte::new(mode),
+            flags: PlainByte::new(4),
+            spacing: PlainDword::new(1),
+            line_height: PlainDword::new(line_height),
+            y_offset: PlainDword::new(0),
+            extended_spacing: PlainDword::new(6),
+            palette: PlainDword::new(palette),
+            glyph_table: PlainDword::new(0),
+            box_width: PlainDword::new(0),
         }
     }
 
     /// The object made from a font record.
     pub const fn from_font(font: Font) -> Self {
         Self {
-            first_char: Byte::new(font.first_char),
-            last_char: Byte::new(font.last_char),
-            mode: Byte::new(font.mode),
-            flags: Byte::new(font.flags),
-            spacing: Dword::new(font.spacing as u32),
-            line_height: Dword::new(font.line_height as u32),
-            y_offset: Dword::new(font.y_offset as u32),
-            extended_spacing: Dword::new(font.extended_spacing as u32),
-            palette: Dword::new(font.palette),
-            glyph_table: Dword::new(font.glyph_table),
-            box_width: Dword::new(font.box_width),
+            first_char: PlainByte::new(font.first_char),
+            last_char: PlainByte::new(font.last_char),
+            mode: PlainByte::new(font.mode),
+            flags: PlainByte::new(font.flags),
+            spacing: PlainDword::new(font.spacing as u32),
+            line_height: PlainDword::new(font.line_height as u32),
+            y_offset: PlainDword::new(font.y_offset as u32),
+            extended_spacing: PlainDword::new(font.extended_spacing as u32),
+            palette: PlainDword::new(font.palette),
+            glyph_table: PlainDword::new(font.glyph_table),
+            box_width: PlainDword::new(font.box_width),
         }
     }
 
-    /// A copy of the font (its fields may be read half changed, as the original's).
     pub fn get(&self) -> Font {
         Font {
             first_char: self.first_char.get(),
@@ -120,25 +110,19 @@ impl FontObject {
         change(&mut font);
         self.set(font);
     }
-
-    /// Where the object is.
-    #[cfg(test)]
-    pub fn addr(&self) -> u32 {
-        crate::pointers::game_address(std::ptr::from_ref::<Self>(self))
-    }
 }
 
 /// The font objects.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct FontObjects {
     pub objects: [FontObject; COUNT],
+    /// The font a highlighted menu item is drawn with (`text::blend_font`).
+    pub blended: FontObject,
 }
 
 impl FontObjects {
-    /// The font objects; the first values are the image's (the glyph tables and palettes come
-    /// with `gfx::build_fonts`; the loading font's palette is the image's `unk_51DEC4`, made a
-    /// home at start).
+    /// The font objects (the glyph tables and palettes come with `gfx::build_fonts`; the loading
+    /// font's palette is the image's `FontBlock.palette_sheet[0]`, made a home at start).
     pub const fn new() -> Self {
         FontObjects {
             objects: [
@@ -206,14 +190,21 @@ impl FontObjects {
                 FontObject::new(0, 21, 0),
                 FontObject::new(2, 21, 0),
             ],
+            blended: FontObject::from_font(Font {
+                first_char: 0x20,
+                last_char: 0xFF,
+                mode: 0,
+                flags: 4,
+                spacing: 1,
+                line_height: 0x1B,
+                y_offset: 0,
+                extended_spacing: 6,
+                palette: 0,
+                glyph_table: 0,
+                box_width: 0,
+            }),
         }
     }
-}
-
-#[cfg(test)]
-/// Where the block is (`moved::MOVED`'s home for IDA 0x51E3A4).
-pub fn home() -> usize {
-    crate::pointers::game_address(&raw const gfx().fonts.typefaces) as usize
 }
 
 /// A font of the block: its number (the object's place less the first's, in 0x20s).
@@ -221,43 +212,38 @@ pub fn home() -> usize {
 pub struct FontId(usize);
 
 impl FontId {
-    /// The font at IDA's address `ida` of the block (a constant that is not one fails to
-    /// compile).
-    pub const fn at(ida: usize) -> Self {
-        assert!(START <= ida && ida < START + LEN && (ida - START).is_multiple_of(0x20));
-        Self((ida - START) / 0x20)
+    /// Font number `number` of the block (a constant past the block fails to compile).
+    pub const fn numbered(number: usize) -> Self {
+        assert!(number < COUNT);
+        Self(number)
     }
 
-    /// The font at IDA's address `ida`, if it is one of the block's (a table that keeps
-    /// the image's addresses as names resolves them here).
-    pub fn try_at(ida: usize) -> Option<Self> {
-        (START..START + LEN)
-            .contains(&ida)
-            .then(|| ida - START)
-            .filter(|off| off.is_multiple_of(0x20))
-            .map(|off| Self(off / 0x20))
+    /// Font number `number` of the block, if there is one.
+    pub fn try_numbered(number: usize) -> Option<Self> {
+        (number < COUNT).then_some(Self(number))
     }
 
-    pub fn object(self) -> &'static FontObject {
-        &gfx().fonts.typefaces.objects[self.0]
+    pub fn object(self, typefaces: &'static FontObjects) -> &'static FontObject {
+        &typefaces.objects[self.0]
     }
 
-    /// Where the object is (the tests').
-    #[cfg(test)]
-    pub fn addr(self) -> u32 {
-        crate::pointers::GamePtr::to(self.object()).addr()
+    /// The font's number in the block, as the screens' core keeps a font in a work variable
+    /// (`GameScreen::font_value`).
+    pub const fn number(self) -> u32 {
+        self.0 as u32
     }
 
-    /// IDA's address of the object (what the image's tables held).
     #[cfg(test)]
     pub const fn ida(self) -> usize {
         START + 0x20 * self.0
     }
 }
 
-/// A font the text functions draw and measure with: one of the block's, or the menus' blended
-/// font (`text::blend_font::BLENDED_FONT`). Resolved to the object's cells in one place
-/// (`object`).
+/// What the screens' core keeps for the menus' blended font: one past the block's numbers.
+pub const BLENDED_NUMBER: u32 = COUNT as u32;
+
+/// A font the text functions draw and measure with: one of the block's, or the menus' blended font
+/// (`FontObjects::blended`). Resolved to the object's cells in one place (`object`).
 #[derive(Clone, Copy)]
 pub enum FontRef {
     Typeface(FontId),
@@ -281,10 +267,10 @@ impl From<FontId> for FontRef {
 
 impl FontRef {
     /// The font object.
-    pub fn object(self) -> &'static FontObject {
+    pub fn object(self, typefaces: &'static FontObjects) -> &'static FontObject {
         match self {
-            FontRef::Typeface(id) => id.object(),
-            FontRef::Blended => &crate::text::blend_font::BLENDED_FONT,
+            FontRef::Typeface(id) => id.object(typefaces),
+            FontRef::Blended => &typefaces.blended,
             FontRef::Stored(object) => object,
         }
     }
@@ -292,27 +278,16 @@ impl FontRef {
     pub fn is_blended(self) -> bool {
         matches!(self, FontRef::Blended)
     }
-
-    /// Where the object is, as the game's tables keep a font (`GameScreen::font_value`
-    /// only: the screens' core stores the font in a work variable as the original did).
-    pub fn addr(self) -> u32 {
-        crate::pointers::GamePtr::to(self.object()).addr()
-    }
 }
 
-/// A font a table of the game's keeps (a menu item's): the object by number, where the
-/// original kept its address (phase 13, handles: `moved::point_into_homes` passes these
-/// places over).
+/// A font a table of the game's keeps (a menu item's): the object by number.
 #[repr(transparent)]
-#[derive(rc2k_derive::Cells)]
-pub struct FontCell(crate::session::Dword);
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
+pub struct FontCell(crate::memory::session::Dword);
 
 impl FontCell {
-    /// The font at IDA's address `ida` (a constant that is not one fails to compile).
-    pub const fn at(ida: u32) -> Self {
-        Self(crate::session::Dword::new(
-            FontId::at(ida as usize).0 as u32,
-        ))
+    pub const fn new(font: FontId) -> Self {
+        Self(crate::memory::session::Dword::new(font.0 as u32))
     }
 
     pub fn get(&self) -> FontId {
@@ -324,109 +299,88 @@ impl FontCell {
     }
 }
 
-/// The fonts the callers name (`stru_51E3C4` and so on, by IDA's address; the readings of
-/// what each is for are the callers').
+/// The fonts the callers name, by number (what each is for is a reading of its callers).
 pub mod fonts {
     use super::FontId;
 
-    /// `icon_palette`: the small number font (the volume settings' captions, the service area).
-    pub const SMALL: FontId = FontId::at(0x51E3C4);
-    /// `stru_51E3E4`: labels and descriptions (the service area, the lap time boxes).
-    pub const LABEL: FontId = FontId::at(0x51E3E4);
-    /// `stru_51E404`: the wide notice font (the installer's and the front end's notices).
-    pub const NOTICE: FontId = FontId::at(0x51E404);
-    /// `dword_51E424`: the chat lines.
-    pub const CHAT_LINE: FontId = FontId::at(0x51E424);
-    /// `stru_51E504`: a marked (the player's) time.
-    pub const MARKED_TIME: FontId = FontId::at(0x51E504);
-    /// `stru_51E524`: a marked name.
-    pub const MARKED_NAME: FontId = FontId::at(0x51E524);
-    /// `stru_51E544`: a marked place.
-    pub const MARKED_RANK: FontId = FontId::at(0x51E544);
-    /// `stru_51E564`: a time; the credits' centred lines.
-    pub const TIME: FontId = FontId::at(0x51E564);
-    /// `stru_51E584`: a name, the plain body font; the chat's input line.
-    pub const NAME: FontId = FontId::at(0x51E584);
-    /// `stru_51E5A4`: a place, a label.
-    pub const RANK: FontId = FontId::at(0x51E5A4);
-    /// `stru_51E5C4`: the stage panel's heading.
-    pub const HEADING: FontId = FontId::at(0x51E5C4);
-    /// `stru_51E5E4`: the class ranking's title.
-    pub const RANKING_TITLE: FontId = FontId::at(0x51E5E4);
-    /// `palette`: the measuring font of the 23-high sheet (the lobby, the stage results).
-    pub const MEASURE_23: FontId = FontId::at(0x51E624);
-    /// `unk_51E644`: the lit button font (the connections).
-    pub const BUTTON_LIT: FontId = FontId::at(0x51E644);
-    /// `stru_51E684`: the lit centred item.
-    pub const CENTRED_LIT: FontId = FontId::at(0x51E684);
-    /// `font`: the heading font (the credits' second, the service area's, the lobby's).
-    pub const HEADING_23: FontId = FontId::at(0x51E6A4);
-    /// `stru_51E6C4`: values (the credits' fourth, the lobby's names).
-    pub const VALUES: FontId = FontId::at(0x51E6C4);
-    /// `stru_51E6E4`: labels, totals (the credits' third, the fastest time).
-    pub const LABELS: FontId = FontId::at(0x51E6E4);
-    /// `unk_51E704`: the plain button font.
-    pub const BUTTON: FontId = FontId::at(0x51E704);
-    /// `unk_51E744`: the plain centred item.
-    pub const CENTRED_PLAIN: FontId = FontId::at(0x51E744);
-    /// `stru_51E784`: the ready marks.
-    pub const READY: FontId = FontId::at(0x51E784);
-    /// `stru_51E7C4`: the dimmed button font.
-    pub const BUTTON_DIM: FontId = FontId::at(0x51E7C4);
-    /// `dword_51E824`: the font the name editors measure with.
-    pub const MEASURE: FontId = FontId::at(0x51E824);
-    /// `font_b`: the caption font blended towards (`blend_font`).
-    pub const CAPTION_B: FontId = FontId::at(0x51E844);
-    /// `stru_51E884`: the stage choice's second look.
-    pub const STAGE_ITEM_B: FontId = FontId::at(0x51E884);
-    /// `stru_51E8A4`: titles (the credits' first, the leave question).
-    pub const TITLE: FontId = FontId::at(0x51E8A4);
-    /// `stru_51E8C4`: the lists (names, settings).
-    pub const LIST: FontId = FontId::at(0x51E8C4);
-    /// `stru_51E8E4`: the plain item font (back for `enable_item`).
-    pub const ITEM_PLAIN: FontId = FontId::at(0x51E8E4);
-    /// `stru_51E904`: the message box's and installer's text.
-    pub const BOX_TEXT: FontId = FontId::at(0x51E904);
-    /// `stru_51E944`: the big heading (the installer's, the lobby's title).
-    pub const HEAD: FontId = FontId::at(0x51E944);
-    /// `stru_51E964`: the caption font blended from.
-    pub const CAPTION_A: FontId = FontId::at(0x51E964);
-    /// `stru_51E9A4`: the stage title.
-    pub const STAGE_TITLE: FontId = FontId::at(0x51E9A4);
-    /// `unk_51EA04`: the grey item font (`disable_item`).
-    pub const ITEM_GREY: FontId = FontId::at(0x51EA04);
-    /// `stru_51EAA4`: the loading font.
-    pub const LOADING: FontId = FontId::at(0x51EAA4);
-    /// `unk_51EAC4` .. `stru_51EB64`: the replay viewer's panel fonts.
-    pub const PANEL_E: FontId = FontId::at(0x51EAC4);
-    pub const PANEL_A: FontId = FontId::at(0x51EAE4);
-    pub const PANEL_C: FontId = FontId::at(0x51EB04);
-    /// `unk_51EB24`: the sixth panel font (only its palette is set).
-    pub const PANEL_F: FontId = FontId::at(0x51EB24);
-    pub const PANEL_B: FontId = FontId::at(0x51EB44);
-    pub const PANEL_D: FontId = FontId::at(0x51EB64);
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use core::mem::offset_of;
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&gfx().fonts.typefaces, START, START + LEN);
-    }
-
-    #[test]
-    fn moved_knows_the_block() {
-        assert_eq!(offset_of!(FontObject, palette), 0x14);
-        assert_eq!(offset_of!(FontObject, glyph_table), 0x18);
-        assert_eq!(size_of::<FontObject>(), 0x20);
-        assert_eq!(crate::moved::place(START), home());
-        assert_eq!(
-            crate::moved::place(0x51EAB8),
-            gfx().fonts.typefaces.objects[56].palette.addr() as usize
-        );
-        assert_eq!(fonts::MEASURE.addr() as usize, home() + 0x51E824 - START);
-    }
+    /// The small number font (the volume settings' captions, the service area).
+    pub const SMALL: FontId = FontId::numbered(1);
+    /// Labels and descriptions (the service area, the lap time boxes).
+    pub const LABEL: FontId = FontId::numbered(2);
+    /// The wide notice font (the installer's and the front end's notices).
+    pub const NOTICE: FontId = FontId::numbered(3);
+    /// The chat lines.
+    pub const CHAT_LINE: FontId = FontId::numbered(4);
+    /// A marked (the player's) time.
+    pub const MARKED_TIME: FontId = FontId::numbered(11);
+    /// A marked name.
+    pub const MARKED_NAME: FontId = FontId::numbered(12);
+    /// A marked place.
+    pub const MARKED_RANK: FontId = FontId::numbered(13);
+    /// A time; the credits' centred lines.
+    pub const TIME: FontId = FontId::numbered(14);
+    /// A name, the plain body font; the chat's input line.
+    pub const NAME: FontId = FontId::numbered(15);
+    /// A place, a label.
+    pub const RANK: FontId = FontId::numbered(16);
+    /// The stage panel's heading.
+    pub const HEADING: FontId = FontId::numbered(17);
+    /// The class ranking's title.
+    pub const RANKING_TITLE: FontId = FontId::numbered(18);
+    /// The measuring font of the 23-high sheet (the lobby, the stage results).
+    pub const MEASURE_23: FontId = FontId::numbered(20);
+    /// The lit button font (the connections).
+    pub const BUTTON_LIT: FontId = FontId::numbered(21);
+    /// The lit centred item.
+    pub const CENTRED_LIT: FontId = FontId::numbered(23);
+    /// The heading font (the credits' second, the service area's, the lobby's).
+    pub const HEADING_23: FontId = FontId::numbered(24);
+    /// Values (the credits' fourth, the lobby's names).
+    pub const VALUES: FontId = FontId::numbered(25);
+    /// Labels, totals (the credits' third, the fastest time).
+    pub const LABELS: FontId = FontId::numbered(26);
+    /// The plain button font.
+    pub const BUTTON: FontId = FontId::numbered(27);
+    /// The plain centred item.
+    pub const CENTRED_PLAIN: FontId = FontId::numbered(29);
+    /// The ready marks.
+    pub const READY: FontId = FontId::numbered(31);
+    /// The dimmed button font.
+    pub const BUTTON_DIM: FontId = FontId::numbered(33);
+    /// The font the name editors measure with.
+    pub const MEASURE: FontId = FontId::numbered(36);
+    /// The caption font blended towards (`blend_font`).
+    pub const CAPTION_B: FontId = FontId::numbered(37);
+    /// The stage choice's second look.
+    pub const STAGE_ITEM_B: FontId = FontId::numbered(39);
+    /// The arcade button's pulse font.
+    pub const ARCADE_BUTTON_PULSE: FontId = FontId::numbered(38);
+    /// The arcade button font.
+    pub const ARCADE_BUTTON: FontId = FontId::numbered(47);
+    /// Titles (the credits' first, the leave question).
+    pub const TITLE: FontId = FontId::numbered(40);
+    /// The lists (names, settings).
+    pub const LIST: FontId = FontId::numbered(41);
+    /// The plain item font (back for `enable_item`).
+    pub const ITEM_PLAIN: FontId = FontId::numbered(42);
+    /// The message box's and installer's text.
+    pub const BOX_TEXT: FontId = FontId::numbered(43);
+    /// The big heading (the installer's, the lobby's title).
+    pub const HEAD: FontId = FontId::numbered(45);
+    /// The caption font blended from.
+    pub const CAPTION_A: FontId = FontId::numbered(46);
+    /// The stage title.
+    pub const STAGE_TITLE: FontId = FontId::numbered(48);
+    /// The grey item font (`disable_item`).
+    pub const ITEM_GREY: FontId = FontId::numbered(51);
+    /// The loading font.
+    pub const LOADING: FontId = FontId::numbered(56);
+    /// The replay viewer's panel fonts.
+    pub const PANEL_E: FontId = FontId::numbered(57);
+    pub const PANEL_A: FontId = FontId::numbered(58);
+    pub const PANEL_C: FontId = FontId::numbered(59);
+    /// The sixth panel font (only its palette is set).
+    pub const PANEL_F: FontId = FontId::numbered(60);
+    pub const PANEL_B: FontId = FontId::numbered(61);
+    pub const PANEL_D: FontId = FontId::numbered(62);
 }

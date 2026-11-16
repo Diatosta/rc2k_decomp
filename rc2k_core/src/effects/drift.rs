@@ -1,13 +1,12 @@
-//! The rain's two drifting offsets (converted 2026-10-21 from `effects::drift_offsets`
-//! 0x4C1BA9): whole-number offsets moved each frame by a pace that eases toward targets
-//! drawn anew after a wait. As in `math::geometry`, what the x87 keeps on its stack is an
-//! `f64`, rounded to `f32` where the original stores it; the offsets' rounding follows the
-//! x87's control word and comes in as a closure.
+//! The rain's two drifting offsets: whole-number offsets moved each frame by a pace that eases
+//! toward targets drawn anew after a wait. As in `math::geometry`, what the x87 keeps on its stack
+//! is an `f64`, rounded to `f32` where it is stored; the offsets' rounding follows the x87's
+//! control word and comes in as a closure.
 
-/// The drift's variables: the clock at the last targets (`dword_8BC409`), the wait
-/// (`dword_8BC40D`), the targets and paces (`flt_8BC411`, `flt_8BC419`; `flt_8BC41D`,
-/// `flt_8BC425`), a second random's halves times 0x100 (`dword_8BC429`, `dword_8BC431`:
-/// only written) and the offsets (`dword_8BDD7D`, `dword_8BDD85`).
+/// The drift's variables: the clock at the last targets, the wait, the targets and paces
+/// (`RainState.drift_target[0]`, `RainState.drift_target[2]`; `RainState.drift_pace[0]`,
+/// `RainState.drift_pace[2]`), a second random's halves times 0x100 (`RainState.drift_halves[0]`,
+/// `RainState.drift_halves[2]`: only written) and the offsets.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Drift {
     pub since: u32,
@@ -18,22 +17,22 @@ pub struct Drift {
     pub offset: [i32; 2],
 }
 
-/// What `drift_offsets` leaves in eax, and after new targets in ebx and ecx.
+/// What a drift step reports: the time since the last targets, or after new targets the
+/// first half, with the second half and the new wait.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct DriftRegs {
-    pub eax: u32,
-    pub ebx: Option<u32>,
-    pub ecx: Option<u32>,
+pub struct DriftLeftovers {
+    pub value: u32,
+    pub second_half: Option<u32>,
+    pub wait: Option<u32>,
 }
 
 impl Drift {
-    /// One frame at `clock`: when the wait has passed since the last targets (unsigned),
-    /// new targets from the marks' random (`random()`: the next seed, the marks'
-    /// `next_seed`) (its low 12 bits and the next 12, less 0x7FF,
-    /// times `scale()`, asked only then), a new wait ((its top byte + 0x40) times 5), the clock kept, and a
-    /// second random's halves times 0x100. Then each pace eased toward its target (`fld t;
-    /// fsub p; fmul k; fadd p`) and added to its offset (`add(offset, pace)`: `fild; fadd;
-    /// fistp`).
+    /// One frame at `clock`: when the wait has passed since the last targets (unsigned), new
+    /// targets from the marks' random (`random()`, the marks' `next_seed`: its low 12 bits and the
+    /// next 12, less 0x7FF, times `scale()`, asked only then), a new wait ((its top byte + 0x40)
+    /// times 5), the clock kept, and a second random's halves times 0x100. Then each pace eased
+    /// toward its target (`(t - p) * k + p`) and added to its offset (`add(offset, pace)`, rounded
+    /// to a whole number).
     pub fn step(
         &mut self,
         clock: u32,
@@ -41,12 +40,12 @@ impl Drift {
         scale: impl FnOnce() -> [f32; 2],
         ease: [f32; 2],
         add: impl Fn(i32, f32) -> i32,
-    ) -> DriftRegs {
-        let mut r = DriftRegs {
-            eax: clock.wrapping_sub(self.since),
-            ..DriftRegs::default()
+    ) -> DriftLeftovers {
+        let mut r = DriftLeftovers {
+            value: clock.wrapping_sub(self.since),
+            ..DriftLeftovers::default()
         };
-        if r.eax >= self.wait {
+        if r.value >= self.wait {
             let s = random();
             let parts = [s & 0xFFF, (s >> 12) & 0xFFF].map(|p| p.wrapping_sub(0x7FF));
             let scale = scale();
@@ -58,10 +57,10 @@ impl Drift {
             self.since = clock;
             let s = random();
             self.halves = [(s & 0xFFFF) << 8, (s >> 16) << 8];
-            r = DriftRegs {
-                eax: self.halves[0],
-                ebx: Some(self.halves[1]),
-                ecx: Some(wait),
+            r = DriftLeftovers {
+                value: self.halves[0],
+                second_half: Some(self.halves[1]),
+                wait: Some(wait),
             };
         }
         for (n, k) in ease.into_iter().enumerate() {
@@ -95,10 +94,10 @@ mod tests {
         assert_eq!(
             (r, seed),
             (
-                DriftRegs {
-                    eax: 100,
-                    ebx: None,
-                    ecx: None
+                DriftLeftovers {
+                    value: 100,
+                    second_half: None,
+                    wait: None
                 },
                 0x1234_5678
             )
@@ -121,10 +120,10 @@ mod tests {
         assert_eq!((d.wait, d.since), (((s1 >> 24) + 0x40) * 5, 1001));
         assert_eq!(
             r,
-            DriftRegs {
-                eax: (s2 & 0xFFFF) << 8,
-                ebx: Some((s2 >> 16) << 8),
-                ecx: Some(d.wait)
+            DriftLeftovers {
+                value: (s2 & 0xFFFF) << 8,
+                second_half: Some((s2 >> 16) << 8),
+                wait: Some(d.wait)
             }
         );
         assert_eq!(d.pace, d.target);

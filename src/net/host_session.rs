@@ -1,89 +1,84 @@
-//! `net::host_session` (0x418B13): "NET: Host" and the machine's name logged; with
-//! DirectPlay's object there, the session kept (`unk_52AD00`: no GUID yet, the name
-//! `g_machineName`, the most players `dword_52ABD0`, `unk_52ABD4` as its user data) and
-//! described (`dword_5AB2AC`: zeroed, size 0x50, flags 0x44, the game's GUID, the most
-//! players, the name, the user data) and made (`Open` with DPOPEN_CREATE, or with
-//! `g_netPosting` 1 posted: the code at 0x418C5A); "NET: Open" and its result logged, the
-//! window restored (`system::restore_window`); then `dword_52ACFC` 1, the player made
-//! (`net::create_player`), the group made (`net::create_group`), "NET: Host complete".
-//!
-//! Since 2026-10-29 the session's name goes to `net::dp_objects` as text (`open`): the
-//! description's name pointer is left 0.
-//!
-//! Returns true when hosted.
-//! Caller: `net::hosting`.
+//! Hosts a session ("NET: Host"): keeps its description (name, most players, password), opens
+//! it with DPOPEN_CREATE (directly or, with `posting` 1, on the receiving thread), logs the
+//! result and restores the window; then the own player and the group are made. The name goes to
+//! `net::dp_objects` as text. Returns true when hosted.
 
 use crate::errors::Refused;
 use crate::net::find_sessions::{posted_or_called, zeroed_description};
-use crate::net::lobby::{log, log_bytes, log_hex};
+use crate::net::link::Link;
+use crate::net::lobby::{log_bytes, log_hex};
 use crate::net::owner::Net;
-use crate::net::owner::net;
 use crate::net::store::put_bytes;
-use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
+use crate::race::viewer_screen_store::{NetTexts, texts};
 
 const OPEN_CREATE: u32 = 2; // DPOPEN_CREATE
 pub const OPEN_JOIN: u32 = 1; // DPOPEN_JOIN
 
-/// `Open(dword_5AB2AC, flags)`.
-pub fn open(flags: u32, name: &[u8]) -> u32 {
-    let vars = &net().vars;
-    let d = crate::net::dp_objects::desc(&vars.session_desc, name);
-    crate::net::dp_objects::open(vars.dplay.get(), &d, flags)
+/// `Open(description, flags)`.
+pub fn open(link: &Link, flags: u32, name: &[u8]) -> u32 {
+    let d = crate::net::dp_objects::desc(link.session_desc(), name);
+    crate::net::dp_objects::open(link.dplay(), &d, flags)
 }
 
-/// The code at 0x418C5A as the receiving thread calls it when it is posted.
-pub fn posted_open_host() -> u32 {
-    open(OPEN_CREATE, &net().vars.machine_name.read())
+/// The `Open` as the receiving thread calls it when it is posted.
+pub fn posted_open_host(net: &Net, _lines: &NetTexts) -> u32 {
+    open(&net.link, OPEN_CREATE, &net.link.host_name().read())
 }
-
-/// The Rust version.
-pub fn host_session(net: &Net) -> Result<bool, Refused> {
-    log(VIEWER_PANEL.text_ptr(texts::NET_HOST), false, 2);
-    log_bytes(&net.vars.machine_name.read(), true, 2);
-    if net.vars.dplay.get() == 0 {
+pub fn host_session(o: crate::owners::Owners<'static>, lines: &NetTexts) -> Result<bool, Refused> {
+    let net = o.net;
+    log_bytes(&lines.text(texts::NET_HOST), false, 2);
+    log_bytes(&net.setup().machine_name.read(), true, 2);
+    if !net.link.has_dplay() {
         return Ok(false);
     }
-    net.vars.joined.write(&[0; 16]);
-    net.vars.joined_name.write(&net.vars.machine_name.read());
-    net.vars.joined_most.set(net.vars.most_players.get());
-    net.vars
+    net.joined().joined.write(&[0; 16]);
+    net.joined()
+        .joined_name
+        .write(&net.setup().machine_name.read());
+    net.joined().joined_most.set(net.setup().most_players.get());
+    net.joined()
         .joined_password
-        .write(&net.vars.session_password.read());
-    zeroed_description(&net.vars)?;
-    let desc = &net.vars.session_desc;
+        .write(&net.setup().session_password.read());
+    // For `posted_open_host`, which may run on the receiving thread.
+    net.link.host_name().write(&net.setup().machine_name.read());
+    zeroed_description(&net.link)?;
+    let desc = net.link.session_desc();
     desc.flags.set(0x44);
-    put_bytes(&desc.application, &net.vars.app_guid.read());
-    desc.max_players.set(net.vars.most_players.get());
+    put_bytes(&desc.application, &crate::net::store::APP_GUID);
+    desc.max_players.set(net.setup().most_players.get());
     // The name goes to `open` as text (the description's pointer is left 0).
-    put_bytes(&desc.user, &net.vars.session_password.read());
+    put_bytes(&desc.user, &net.setup().session_password.read());
     finish(
-        net,
+        o,
+        lines,
         posted_open_host,
         crate::net::create_group::create_group,
-        VIEWER_PANEL.text_ptr(texts::NET_HOST_COMPLETE),
+        texts::NET_HOST_COMPLETE,
     )
 }
 
-/// The session opened (posted or called: `posted`), "NET: Open" and its result logged, the
-/// window restored; `dword_52ACFC` 1, the player made, then `then` (the group made or
-/// joined) and `done` logged. Shared with `net::join_session`. Whether all of it worked.
+/// The session opened (posted or called: `posted`), "NET: Open" and its result logged, the window
+/// restored; the session marked made, the player made, then `then` (the group made or joined) and
+/// the text numbered `done` logged. Shared with `net::join_session`. Whether all of it worked.
 pub fn finish(
-    net: &Net,
-    posted: fn() -> u32,
-    then: fn() -> Result<bool, Refused>,
-    done: crate::pointers::GamePtr,
+    o: crate::owners::Owners<'static>,
+    lines: &NetTexts,
+    posted: crate::net::post_call::PostedCall,
+    then: fn(&Link) -> Result<bool, Refused>,
+    done: usize,
 ) -> Result<bool, Refused> {
-    let result = posted_or_called(net, posted);
-    log(VIEWER_PANEL.text_ptr(texts::NET_OPEN), false, 2);
+    let net = o.net;
+    let result = posted_or_called(o, lines, posted);
+    log_bytes(&lines.text(texts::NET_OPEN), false, 2);
     log_hex(result, true);
     crate::system::restore_window::restore_window();
     if result != 0 {
         return Ok(false);
     }
-    net.vars.session_open.set(1);
-    if !crate::net::create_player::create_player()? || !then()? {
+    net.link.mark_session_open();
+    if !crate::net::create_player::create_player(net, lines)? || !then(&net.link)? {
         return Ok(false);
     }
-    log(done, true, 2);
+    log_bytes(&lines.text(done), true, 2);
     Ok(true)
 }

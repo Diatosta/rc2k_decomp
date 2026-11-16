@@ -1,251 +1,89 @@
-//! The audio module's variables, out of RAL.EXE's image (phase 5, `notes/conversion.md`),
-//! typed (phase 7): each block is a `#[repr(C)]` struct of cells with the image's layout
-//! (the first values the image's, `tests::*_start_as_the_games`), one static a piece, and
-//! `moved::MOVED` points the image's addresses at it:
-//! - `AudioState` (`AUDIO`, IDA 0x4F8294 .. 0x506E6C): the sound mode and volumes, the
-//!   voices (0x200 records of 0x70 bytes), the mixer's channels and cursors, the sample file
-//!   and buffer, the two stream players, the command counters, DirectSound / A3D / EAX's
-//!   objects and ids, the quality modes and the audio options the advanced page edits;
-//! - `SampleRecords` (`SAMPLE_RECORDS`, 0x50A7A4 .. 0x511AE4): the 0x1CD sample records of
-//!   0x40 bytes; their pointers (to the sample names and the volume factors) are IDA
-//!   addresses at first, pointed at their homes at start (`moved::point_into_homes`);
-//! - `CommandQueue` (`COMMANDS`, 0x9566F8 .. 0x95E6F8, bss): the 0x400 commands of 0x20
-//!   bytes the game sends the audio thread (`sound::queue`).
+//! The audio module's variables, typed: each block is a struct of cells, one static a piece:
+//! - `AudioShared`, the part both the game's thread and the audio thread touch: the sound mode
+//!   and volumes, the voices (0x200 records of 0x70 bytes), the two stream players, the quality
+//!   modes and the audio options the advanced page edits, the facts of the sound device the menus
+//!   show, the settings read from the file, `tune_turn`. The rest (the mixer's channels and
+//!   cursors, sample file and buffers, the device objects and ids, the voice lists) is the audio
+//!   thread's own, `audio::own::AudioOwn`;
+//! - `SampleRecords`: the 0x1CD sample records of 0x40 bytes, `SAMPLE_CONSTANTS` for the twelve
+//!   fields that never change and, shared, only each record's `data_key` and `first_voice`; their
+//!   pointers (to the sample names and the volume factors) are handles (`name_key`,
+//!   `level_code`).
+//!
+//! `data_key` is written by the game's thread when a race is set up (`sound::load_race_sounds`),
+//! before the Load command, and read by the audio thread when it loads (the command queue's lock
+//! orders them); `first_voice` is written by the audio thread (`audio::load_sounds`,
+//! `free_voices`) and read by both; the rest is read by both, written by none.
 //!
 //! The records the core works on (`Voice`, `SampleRecord`, `MixerChannel`, `AudioStream`,
-//! `MemoryList`, `AudioOptions`, `SampleFile`) are its plain structs held in `Shared`, copied
-//! out and in or borrowed whole; the scalars are atomic cells. Gaps (bytes the code never
-//! names) are kept, with the image's values, as `_gap_XXXX` buffers: they hold the ids of
-//! the property sets nobody asks for, A3D's registry keys and unused floats.
-//!
-//! Threads: the audio thread and the game's thread share these as the image's bytes were
-//! shared (relaxed loads and stores; the command count is added to atomically,
-//! `sound::queue`).
+//! `MemoryList`, `AudioOptions`, `SampleFile`) are plain structs held in `Shared`, copied out and
+//! in or borrowed whole; the scalars of `AudioShared` are atomic cells with relaxed loads and
+//! stores. Gaps (bytes the code never names) are kept as `_gap_XXXX` buffers. The commands the game
+//! sends the audio thread wait in a locked queue (`sound::queue`). The race's EAX environment
+//! (`Audio::environment`) is written by the game's thread and read by the audio thread.
 
-use crate::audio::owner::audio;
-use crate::session::{Bytes, Dword, Float, Loose, Shared};
+use crate::memory::session::{Bytes, Dword, Shared};
 use rc2k_core::audio::modes::AudioOptions;
 use rc2k_core::audio::streams::AudioStream;
 use rc2k_core::audio::voices::{MixerChannel, SampleRecord, Voice};
-use rc2k_core::memory::List;
 
-use crate::audio::describe_wave_format::WaveFormat;
-use crate::audio::make_buffer::BufferDescription;
-use crate::audio::samples::SampleFile;
-use crate::menu::owner::menus;
-
-pub const STATE_IDA: usize = 0x4F8294;
-pub const STATE_END: usize = 0x506E6C;
-
-/// One of `g_eaxRooms`' ten reverb settings (EAX's `EAX_REVERBPROPERTIES`, 16 bytes).
-#[repr(C)]
+/// The audio variables both the game's thread and the audio thread touch.
 #[derive(rc2k_derive::Cells)]
-pub struct EaxRoom {
-    /// The preset's environment number.
-    pub environment: Dword,
-    pub volume: Float,
-    pub decay: Float,
-    pub damping: Float,
-}
-
-/// The audio thread's variables (IDA 0x4F8294 .. 0x506E6C, the image's layout).
-#[repr(C)]
-#[derive(rc2k_derive::Cells)]
-pub struct AudioState {
-    /// `g_qualityModes`: the sound mode of each quality (0x212, 0x222, 0x221, 0x220), the advanced page's first choice picks one. (IDA 0x4F8294)
+pub struct AudioShared {
+    /// The sound mode of each quality (0x212, 0x222, 0x221, 0x220), the advanced page's first
+    /// choice picks one.
     pub quality_modes: [Dword; 4],
-    /// 16 bytes the code never names (0x4F82A4 ..). (IDA 0x4F82A4)
-    pub _gap_82a4: Bytes<16>,
-    /// `g_noAudio`: 1 = no sound (the `noaudio` / `nosound` settings; the audio thread sets it when it ends). (IDA 0x4F82B4)
+    /// 1 = no sound (the `noaudio` / `nosound` settings; the audio thread sets it when it ends).
     pub no_audio: Dword,
-    /// `g_audioTurnTick`: the clock reading of the audio thread's last turn. (IDA 0x4F82B8)
-    pub audio_turn_tick: Dword,
-    /// `g_soundMode`: the mode's bits (0x10000 own buffers, 0x40000 the game's mixer, 0x100000 3D ..) the thread works in. (IDA 0x4F82BC)
+    /// The mode's bits (0x10000 own buffers, 0x40000 the game's mixer, 0x100000 3D ..) the thread
+    /// works in.
     pub sound_mode: Dword,
-    /// `g_openedSoundMode`: the mode DirectSound was opened with. (IDA 0x4F82C0)
-    pub opened_sound_mode: Dword,
-    /// `g_menuSoundMode`: the mode for the menus (saved in `var\ral.dat`). (IDA 0x4F82C4)
+    /// The mode for the menus (saved in `var\ral.dat`).
     pub menu_sound_mode: Dword,
-    /// `g_raceSoundMode`: the mode for the races (saved in `var\ral.dat`). (IDA 0x4F82C8)
+    /// The mode for the races (saved in `var\ral.dat`).
     pub race_sound_mode: Dword,
-    /// `g_soundBufferLost`: 1 when a DirectSound buffer was lost (the thread restores them). (IDA 0x4F82CC)
-    pub sound_buffer_lost: Dword,
-    /// `g_commit3d`: 1 when 3D settings are waiting for the listener's commit. (IDA 0x4F82D0)
-    pub commit_3d: Dword,
-    /// `g_mixRateSetting`: the mixing rate (`audiobasefreq`, 0xAC44 = 44100). (IDA 0x4F82D4)
+    /// The mixing rate (`audiobasefreq`, 0xAC44 = 44100).
     pub mix_rate_setting: Dword,
-    /// `g_masterVolume`: the master volume, 0 ..= 0x40 (saved in `var\ral.dat`). (IDA 0x4F82D8)
+    /// The master volume, 0 ..= 0x40 (saved in `var\ral.dat`).
     pub master_volume: Dword,
-    /// `g_primaryVolumeKept`: the primary buffer's volume kept at start (1: none). (IDA 0x4F82DC)
-    pub primary_volume_kept: Dword,
-    /// `g_sampleBitsFlags`: {format flag, bits} twice: 0x10 eight bits, 0x20 sixteen. (IDA 0x4F82E0)
-    pub sample_bits_flags: [Dword; 4],
-    /// `g_sampleChannelFlags`: {format flag, channels} twice: 0x100 mono, 0x200 stereo. (IDA 0x4F82F0)
-    pub sample_channel_flags: [Dword; 4],
-    /// `g_sampleMemory`: the samples' memory (a `MemoryList`). (IDA 0x4F8300)
-    pub sample_memory: Shared<List>,
-    /// 48 bytes the code never names (0x4F8310 ..). (IDA 0x4F8310)
-    pub _gap_8310: Bytes<48>,
-    /// `g_playingVoices`: the first voice on the playing list (an address; 0: none). (IDA 0x4F8340)
-    pub playing_voices: Dword,
-    /// `g_stoppingVoices`: the first voice on the stopping list. (IDA 0x4F8344)
-    pub stopping_voices: Dword,
-    /// `g_voiceCount`: the voices made so far. (IDA 0x4F8348)
+    /// The voices made so far.
     pub voice_count: Dword,
-    /// `g_voices`: the pool of voices (`audio::voices::Voice`). (IDA 0x4F834C)
+    /// The pool of voices (`audio::voices::Voice`).
     pub voices: [Shared<Voice>; 512],
-    /// `g_channelCount`: the mixer's channels (8 at start). (IDA 0x50634C)
-    pub channel_count: Dword,
-    /// `g_channelsUsed`: the channels held by voices. (IDA 0x506350)
+    /// The channels held by voices.
     pub channels_used: Dword,
-    /// `g_channels`: the mixer's channels. (IDA 0x506354)
-    pub channels: [Shared<MixerChannel>; 16],
-    /// `g_mixRate`: the mixer's rate (the primary buffer's). (IDA 0x5068D4)
-    pub mix_rate: Dword,
-    /// `g_primarySize`: the primary buffer's bytes. (IDA 0x5068D8)
-    pub primary_size: Dword,
-    /// `g_mixMost`: the most a turn mixes, 40 ms of bytes. (IDA 0x5068DC)
-    pub mix_most: Dword,
-    /// `g_mixShift`: bytes to frames (a shift). (IDA 0x5068E0)
-    pub mix_shift: Dword,
-    /// `g_playCursor`: the primary buffer's play cursor. (IDA 0x5068E4)
-    pub play_cursor: Dword,
-    /// `g_writeCursor`: the mixer's write place. (IDA 0x5068E8)
-    pub write_cursor: Dword,
-    /// `g_sampleBufferKb`: the work buffer's KB (`wavheapsize`). (IDA 0x5068EC)
+    /// The work buffer's KB (`wavheapsize`).
     pub sample_buffer_kb: Dword,
-    /// `g_sampleBufferMemory`: the work buffer's memory (a `MemoryList`). (IDA 0x5068F0)
-    pub sample_buffer_memory: Shared<List>,
-    /// 48 bytes the code never names (0x506900 ..). (IDA 0x506900)
-    pub _gap_6900: Bytes<48>,
-    /// `g_sampleBuffer`: the work buffer for reading samples (an address). (IDA 0x506930)
-    pub sample_buffer: Dword,
-    /// `g_sampleBufferSize`: its bytes. (IDA 0x506934)
-    pub sample_buffer_size: Dword,
-    /// `g_sampleFile`: what the last sample file read held. (IDA 0x506938)
-    pub sample_file: Shared<SampleFile>,
-    /// `dword_506958`: 0x40, the volume factor a sample record's `volume_factor` points at. (IDA 0x506958)
-    pub unit_volume_factor: Dword,
-    /// `g_soundListLoaded`: the sound list loaded (command 3), 0 after it is freed. (IDA 0x50695C)
-    pub sound_list_loaded: Dword,
-    /// `g_soundStream`: the sound stream's player (command 9). (IDA 0x506960)
+    /// The sound stream's player (command 9).
     pub sound_stream: Shared<AudioStream>,
-    /// `g_nextTune`: the tune played when the music stops. (IDA 0x50698C)
-    pub next_tune: Dword,
-    /// `g_musicStream`: the music's player (command 0xB). (IDA 0x506990)
+    /// The music's player (command 0xB).
     pub music_stream: Shared<AudioStream>,
-    /// `g_noMusic`: 1 = no music (`nomusic`). (IDA 0x5069BC)
+    /// 1 = no music (`nomusic`).
     pub no_music: Dword,
-    /// `g_musicPath`: `;3files\music\00.wav`, the tune's two digits are put at +0xE. (IDA 0x5069C0)
-    pub music_path: Bytes<24>,
-    /// `g_streamHeader`: the 0xC00 bytes a stream's file head is read into (an address; 0: not taken yet). (IDA 0x5069D8)
-    pub stream_header: Dword,
-    /// `g_streamHeaderMemory`: the header's memory (a `MemoryList`). (IDA 0x5069DC)
-    pub stream_header_memory: Shared<List>,
-    /// 48 bytes the code never names (0x5069EC ..). (IDA 0x5069EC)
-    pub _gap_69ec: Bytes<48>,
-    /// `g_soundCommandCount`: commands waiting in the queue (added to atomically). (IDA 0x506A1C)
-    pub command_count: Dword,
-    /// `g_soundCommandRead`: the place the thread reads the next command at. (IDA 0x506A20)
-    pub command_read: Dword,
-    /// `g_soundCommandWrite`: the place the game writes the next command at. (IDA 0x506A24)
-    pub command_write: Dword,
-    /// `riid`: A3D's interface id. (IDA 0x506A28)
-    pub a3d_iid: Bytes<16>,
-    /// 16 bytes the code never names (0x506A38 ..). (IDA 0x506A38)
-    pub _gap_6a38: Bytes<16>,
-    /// `g_iidListener3d`: the 3D listener's interface id. (IDA 0x506A48)
-    pub iid_listener: Bytes<16>,
-    /// `g_iidSound3dBuffer`: the 3D buffer's interface id. (IDA 0x506A58)
-    pub iid_sound_3d_buffer: Bytes<16>,
-    /// 16 bytes the code never names (0x506A68 ..). (IDA 0x506A68)
-    pub _gap_6a68: Bytes<16>,
-    /// `g_iidKsPropertySet`: the property set's interface id. (IDA 0x506A78)
-    pub iid_property_set: Bytes<16>,
-    /// `g_directSound`: the IDirectSound object (an address; 0: none). (IDA 0x506A88)
-    pub direct_sound: Dword,
-    /// `g_primaryBuffer`: the primary buffer. (IDA 0x506A8C)
-    pub primary_buffer: Dword,
-    /// `g_soundListener`: the 3D listener. (IDA 0x506A90)
-    pub sound_listener: Dword,
-    /// 4 bytes the code never names (0x506A94 ..). (IDA 0x506A94)
-    pub _gap_6a94: Bytes<4>,
-    /// `g_lockedParts`: what `Lock` gives: two pointers and their sizes. (IDA 0x506A98)
-    pub locked_parts: [Dword; 4],
-    /// `g_soundCaps`: DirectSound's `DSCAPS` (flags at +4, free hardware buffers at +0x14, free 3D ones at +0x3C). (IDA 0x506AA8)
+    /// DirectSound's `DSCAPS` (flags at +4, free hardware buffers at +0x14, free 3D ones at +0x3C).
     pub sound_caps: Bytes<96>,
-    /// `g_primaryCaps`: the primary buffer's `DSBCAPS` (its bytes at +8). (IDA 0x506B08)
-    pub primary_caps: Bytes<20>,
-    /// `g_bufferDescription`: the `DSBUFFERDESC` a buffer is made with. (IDA 0x506B1C)
-    pub buffer_description: Shared<BufferDescription>,
-    /// `g_waveFormat`: the `WAVEFORMATEX` a buffer is made with. (IDA 0x506B30)
-    pub wave_format: Shared<WaveFormat>,
-    /// `ignoreds3d` (an unaligned dword): 1 = no 3D listener. (IDA 0x506B42)
-    pub no_listener: Loose,
-    /// `g_has3d` (an unaligned dword): 3D is there. (IDA 0x506B46)
-    pub has_3d: Loose,
-    /// 2 bytes the code never names (0x506B4A ..). (IDA 0x506B4A)
-    pub _gap_6b4a: Bytes<2>,
-    /// `g_volumeTable`: 65 volumes, -10000 .. 0 (signed). (IDA 0x506B4C)
-    pub volume_table: [Dword; 65],
-    /// `g_ignoreDsvSetting` (`ignoredsv`). (IDA 0x506C50)
+    /// The `ignoredsv` setting.
     pub ignore_dsv_setting: Dword,
-    /// `g_voiceManagerOn`: the voice manager is open. (IDA 0x506C54)
+    /// The voice manager is open.
     pub voice_manager_on: Dword,
-    /// `g_voiceManager`: the voice manager's IKsPropertySet. (IDA 0x506C58)
-    pub voice_manager: Dword,
-    /// `g_noA3dSetting` (`ignorea3d`): 1 no A3D, 2 no A3D2 (1 at start). (IDA 0x506C5C)
+    /// `ignorea3d`: 1 no A3D, 2 no A3D2 (1 at start).
     pub no_a3d_setting: Dword,
-    /// `g_a3dSplashKept`: 1 = the splash pair acts. (IDA 0x506C60)
-    pub a3d_splash_kept: Dword,
-    /// `g_a3dReady`. (IDA 0x506C64)
-    pub a3d_ready: Dword,
-    /// `g_a3dObject`. (IDA 0x506C68)
-    pub a3d_object: Dword,
-    /// `g_ignoreEaxSetting` (`ignoreeax`). (IDA 0x506C6C)
+    /// The `ignoreeax` setting.
     pub ignore_eax_setting: Dword,
-    /// `g_hasEax`: EAX is open. (IDA 0x506C70)
+    /// EAX is open.
     pub has_eax: Dword,
-    /// `g_eaxProperties`: EAX's IKsPropertySet. (IDA 0x506C74)
-    pub eax_properties: Dword,
-    /// `g_eaxRoom`: the room asked for (6 at start). (IDA 0x506C78)
-    pub eax_room: Dword,
-    /// `g_eaxRoomSet`: the room set (6 at start). (IDA 0x506C7C)
-    pub eax_room_set: Dword,
-    /// `g_eaxEnvironmentSet`: the race's environment (`ENVIRONMENT`) last set (1.0 at start). (IDA 0x506C80)
-    pub environment_kept: Dword,
-    /// `g_soundsHeldBack`: sounds held back. (IDA 0x506C84)
+    /// Sounds held back.
     pub sounds_held_back: Dword,
-    /// `g_audioOptions`: the advanced page's choices. (IDA 0x506C88)
+    /// The advanced page's choices.
     pub audio_options: Shared<AudioOptions>,
-    /// `g_voiceManagerSet`: the voice manager's property set id. (IDA 0x506CC8)
-    pub voice_manager_set: Bytes<16>,
-    /// `rclsid`: A3D's class id. (IDA 0x506CD8)
-    pub a3d_clsid: Bytes<16>,
-    /// 112 bytes the code never names (0x506CE8 ..). (IDA 0x506CE8)
-    pub _gap_6ce8: Bytes<112>,
-    /// `g_a3d2Interface`. (IDA 0x506D58)
-    pub a3d2_interface: Dword,
-    /// `g_hasA3d2`. (IDA 0x506D5C)
     pub has_a3d2: Dword,
-    /// `g_useA3d`: 1 = A3D is the sound. (IDA 0x506D60)
-    pub use_a3d: Dword,
-    /// 8 bytes the code never names (0x506D64 ..). (IDA 0x506D64)
-    pub _gap_6d64: Bytes<8>,
-    /// A3D2's class id. (IDA 0x506D6C)
-    pub a3d2_clsid: Bytes<16>,
-    /// 16 bytes the code never names (0x506D7C ..). (IDA 0x506D7C)
-    pub _gap_6d7c: Bytes<16>,
-    /// A3D2's interface id. (IDA 0x506D8C)
-    pub a3d2_iid: Bytes<16>,
-    /// 16 bytes the code never names (0x506D9C ..). (IDA 0x506D9C)
-    pub _gap_6d9c: Bytes<16>,
-    /// `g_eaxReverbSet`: EAX's reverb property set id. (IDA 0x506DAC)
-    pub eax_reverb_set: Bytes<16>,
-    /// 16 bytes the code never names (0x506DBC ..). (IDA 0x506DBC)
-    pub _gap_6dbc: Bytes<16>,
-    /// `g_eaxRooms`: the ten rooms' reverb settings. (IDA 0x506DCC)
-    pub eax_rooms: [EaxRoom; 10],
+    /// Which of tunes 10 .. 15 the next tune 0xA is (0 .. 5), kept in `var\ral.dat`; the audio
+    /// thread's music command steps it, the game's thread loads and saves it.
+    pub tune_turn: Dword,
+    /// `ignoreds3d`: 1 = no 3D listener.
+    pub no_listener: Dword,
+    /// 3D is there.
+    pub has_3d: Dword,
 }
 
 /// A voice as the image holds all of them: free (sound -2), 44100 Hz, scale 0x40.
@@ -293,84 +131,28 @@ pub const CHANNEL_IDLE: MixerChannel = MixerChannel {
     step_fraction: 0x0,
     left: 0x0,
     right: 0x0,
-    gap_44: [0x0, 0x0, 0x0, 0x0, 0x0],
+    unused_44: [0x0, 0x0, 0x0, 0x0, 0x0],
 };
 
-impl AudioState {
+impl AudioShared {
     pub const fn new() -> Self {
-        AudioState {
+        AudioShared {
             quality_modes: [
                 Dword::new(0x212),
                 Dword::new(0x222),
                 Dword::new(0x221),
                 Dword::new(0x220),
             ],
-            _gap_82a4: Bytes::new([0, 0, 0, 0, 0, 0, 0x30, 0, 0, 0, 0x30, 0x1, 0, 0, 0, 0x2]),
             no_audio: Dword::new(0),
-            audio_turn_tick: Dword::new(0),
             sound_mode: Dword::new(0),
-            opened_sound_mode: Dword::new(0),
             menu_sound_mode: Dword::new(0),
             race_sound_mode: Dword::new(0),
-            sound_buffer_lost: Dword::new(0),
-            commit_3d: Dword::new(0),
             mix_rate_setting: Dword::new(0xac44),
             master_volume: Dword::new(0x41),
-            primary_volume_kept: Dword::new(0x1),
-            sample_bits_flags: [
-                Dword::new(0x10),
-                Dword::new(0x8),
-                Dword::new(0x20),
-                Dword::new(0x10),
-            ],
-            sample_channel_flags: [
-                Dword::new(0x100),
-                Dword::new(0x1),
-                Dword::new(0x200),
-                Dword::new(0x2),
-            ],
-            sample_memory: Shared::new(List {
-                head: 0x0,
-                total: 0x0,
-                cursor: 0x0,
-                remaining: 0x0,
-            }),
-            _gap_8310: Bytes::new([0; 48]),
-            playing_voices: Dword::new(0),
-            stopping_voices: Dword::new(0),
             voice_count: Dword::new(0),
             voices: [const { Shared::new(VOICE_FREE) }; 512],
-            channel_count: Dword::new(0x8),
             channels_used: Dword::new(0),
-            channels: [const { Shared::new(CHANNEL_IDLE) }; 16],
-            mix_rate: Dword::new(0),
-            primary_size: Dword::new(0x2000),
-            mix_most: Dword::new(0x1000),
-            mix_shift: Dword::new(0),
-            play_cursor: Dword::new(0),
-            write_cursor: Dword::new(0),
             sample_buffer_kb: Dword::new(0x400),
-            sample_buffer_memory: Shared::new(List {
-                head: 0x0,
-                total: 0x0,
-                cursor: 0x0,
-                remaining: 0x0,
-            }),
-            _gap_6900: Bytes::new([0; 48]),
-            sample_buffer: Dword::new(0),
-            sample_buffer_size: Dword::new(0),
-            sample_file: Shared::new(SampleFile {
-                data: 0x0,
-                length: 0x0,
-                format: 0x0,
-                channels: 0x0,
-                rate: 0x0,
-                bits: 0x0,
-                frame_bytes: 0x0,
-                frames: 0x0,
-            }),
-            unit_volume_factor: Dword::new(0x40),
-            sound_list_loaded: Dword::new(0),
             sound_stream: Shared::new(AudioStream {
                 playing: 0x0,
                 volume: 0x40,
@@ -384,7 +166,6 @@ impl AudioState {
                 step: 0x8000,
                 tail: 0x8000,
             }),
-            next_tune: Dword::new(0),
             music_stream: Shared::new(AudioStream {
                 playing: 0x0,
                 volume: 0x40,
@@ -399,151 +180,12 @@ impl AudioState {
                 tail: 0x8000,
             }),
             no_music: Dword::new(0),
-            music_path: Bytes::new([
-                0x3b, 0x33, 0x66, 0x69, 0x6c, 0x65, 0x73, 0x5c, 0x6d, 0x75, 0x73, 0x69, 0x63, 0x5c,
-                0x30, 0x30, 0x2e, 0x77, 0x61, 0x76, 0, 0, 0, 0,
-            ]),
-            stream_header: Dword::new(0),
-            stream_header_memory: Shared::new(List {
-                head: 0x0,
-                total: 0x0,
-                cursor: 0x0,
-                remaining: 0x0,
-            }),
-            _gap_69ec: Bytes::new([0; 48]),
-            command_count: Dword::new(0),
-            command_read: Dword::new(0),
-            command_write: Dword::new(0),
-            a3d_iid: Bytes::new([
-                0x83, 0xfa, 0x9a, 0x27, 0x81, 0x49, 0xce, 0x11, 0xa5, 0x21, 0, 0x20, 0xaf, 0xb,
-                0xe5, 0x60,
-            ]),
-            _gap_6a38: Bytes::new([
-                0x85, 0xfa, 0x9a, 0x27, 0x81, 0x49, 0xce, 0x11, 0xa5, 0x21, 0, 0x20, 0xaf, 0xb,
-                0xe5, 0x60,
-            ]),
-            iid_listener: Bytes::new([
-                0x84, 0xfa, 0x9a, 0x27, 0x81, 0x49, 0xce, 0x11, 0xa5, 0x21, 0, 0x20, 0xaf, 0xb,
-                0xe5, 0x60,
-            ]),
-            iid_sound_3d_buffer: Bytes::new([
-                0x86, 0xfa, 0x9a, 0x27, 0x81, 0x49, 0xce, 0x11, 0xa5, 0x21, 0, 0x20, 0xaf, 0xb,
-                0xe5, 0x60,
-            ]),
-            _gap_6a68: Bytes::new([
-                0x83, 0x7, 0x21, 0xb0, 0xcd, 0x89, 0xd0, 0x11, 0xaf, 0x8, 0, 0xa0, 0xc9, 0x25,
-                0xcd, 0x16,
-            ]),
-            iid_property_set: Bytes::new([
-                0x30, 0xac, 0xef, 0x31, 0x5c, 0x51, 0xd0, 0x11, 0xa9, 0xaa, 0, 0xaa, 0, 0x61, 0xbe,
-                0x93,
-            ]),
-            direct_sound: Dword::new(0),
-            primary_buffer: Dword::new(0),
-            sound_listener: Dword::new(0),
-            _gap_6a94: Bytes::new([0; 4]),
-            locked_parts: [const { Dword::new(0) }; 4],
             sound_caps: Bytes::new([0; 96]),
-            primary_caps: Bytes::new([0; 20]),
-            buffer_description: Shared::new(BufferDescription {
-                size: 0x0,
-                flags: 0x0,
-                bytes: 0x0,
-                reserved: 0x0,
-                format: 0x0,
-            }),
-            wave_format: Shared::new(WaveFormat {
-                tag: 0x0,
-                channels: 0x0,
-                samples_per_second: 0x0,
-                bytes_per_second: 0x0,
-                block_align: 0x0,
-                bits: 0x0,
-                extra: 0x0,
-            }),
-            no_listener: Loose::new(0x0),
-            has_3d: Loose::new(0x0),
-            _gap_6b4a: Bytes::new([0; 2]),
-            volume_table: [
-                Dword::new(0xffffd8f0),
-                Dword::new(0xfffff1e4),
-                Dword::new(0xfffff43e),
-                Dword::new(0xfffff59e),
-                Dword::new(0xfffff698),
-                Dword::new(0xfffff75a),
-                Dword::new(0xfffff7f8),
-                Dword::new(0xfffff87e),
-                Dword::new(0xfffff8f2),
-                Dword::new(0xfffff958),
-                Dword::new(0xfffff9b4),
-                Dword::new(0xfffffa06),
-                Dword::new(0xfffffa52),
-                Dword::new(0xfffffa98),
-                Dword::new(0xfffffad8),
-                Dword::new(0xfffffb14),
-                Dword::new(0xfffffb4c),
-                Dword::new(0xfffffb81),
-                Dword::new(0xfffffbb2),
-                Dword::new(0xfffffbe1),
-                Dword::new(0xfffffc0e),
-                Dword::new(0xfffffc38),
-                Dword::new(0xfffffc62),
-                Dword::new(0xfffffc87),
-                Dword::new(0xfffffcac),
-                Dword::new(0xfffffcd0),
-                Dword::new(0xfffffcf2),
-                Dword::new(0xfffffd12),
-                Dword::new(0xfffffd32),
-                Dword::new(0xfffffd50),
-                Dword::new(0xfffffd6e),
-                Dword::new(0xfffffd8a),
-                Dword::new(0xfffffda6),
-                Dword::new(0xfffffdc1),
-                Dword::new(0xfffffddb),
-                Dword::new(0xfffffdf4),
-                Dword::new(0xfffffe0c),
-                Dword::new(0xfffffe24),
-                Dword::new(0xfffffe3b),
-                Dword::new(0xfffffe52),
-                Dword::new(0xfffffe68),
-                Dword::new(0xfffffe7d),
-                Dword::new(0xfffffe92),
-                Dword::new(0xfffffea7),
-                Dword::new(0xfffffebb),
-                Dword::new(0xfffffece),
-                Dword::new(0xfffffee0),
-                Dword::new(0xfffffef4),
-                Dword::new(0xffffff06),
-                Dword::new(0xffffff18),
-                Dword::new(0xffffff2a),
-                Dword::new(0xffffff3b),
-                Dword::new(0xffffff4c),
-                Dword::new(0xffffff5c),
-                Dword::new(0xffffff6c),
-                Dword::new(0xffffff7c),
-                Dword::new(0xffffff8c),
-                Dword::new(0xffffff9b),
-                Dword::new(0xffffffaa),
-                Dword::new(0xffffffb9),
-                Dword::new(0xffffffc8),
-                Dword::new(0xffffffd6),
-                Dword::new(0xffffffe4),
-                Dword::new(0xfffffff2),
-                Dword::new(0x0),
-            ],
             ignore_dsv_setting: Dword::new(0),
             voice_manager_on: Dword::new(0),
-            voice_manager: Dword::new(0),
             no_a3d_setting: Dword::new(0x1),
-            a3d_splash_kept: Dword::new(0),
-            a3d_ready: Dword::new(0),
-            a3d_object: Dword::new(0),
             ignore_eax_setting: Dword::new(0),
             has_eax: Dword::new(0),
-            eax_properties: Dword::new(0),
-            eax_room: Dword::new(0x6),
-            eax_room_set: Dword::new(0x6),
-            environment_kept: Dword::new(0x3f800000),
             sounds_held_back: Dword::new(0),
             audio_options: Shared::new(AudioOptions {
                 kept: 0x0,
@@ -553,334 +195,103 @@ impl AudioState {
                 has_a3d2: 0x0,
                 has_eax: 0x0,
             }),
-            voice_manager_set: Bytes::new([
-                0xae, 0x9b, 0xa6, 0x62, 0x9d, 0xdf, 0xd1, 0x11, 0x99, 0xa6, 0, 0xc0, 0x4f, 0xc9,
-                0x9d, 0x46,
-            ]),
-            a3d_clsid: Bytes::new([
-                0xe0, 0xee, 0xf1, 0xd8, 0x34, 0xf6, 0xcf, 0x11, 0x87, 0, 0, 0xa0, 0x24, 0x5d, 0x91,
-                0x8b,
-            ]),
-            _gap_6ce8: Bytes::new([
-                0xe1, 0xee, 0xf1, 0xd8, 0x34, 0xf6, 0xcf, 0x11, 0x87, 0, 0, 0xa0, 0x24, 0x5d, 0x91,
-                0x8b, 0xe0, 0xd1, 0x80, 0xfb, 0xd3, 0x98, 0xd1, 0x11, 0x90, 0xfb, 0, 0x60, 0x8,
-                0xa1, 0xf4, 0x41, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x4, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x53, 0x4f, 0x46, 0x54, 0x57, 0x41, 0x52, 0x45,
-                0x5c, 0x41, 0x75, 0x72, 0x65, 0x61, 0x6c, 0x5c, 0x41, 0x33, 0x44, 0, 0x53, 0x70,
-                0x6c, 0x61, 0x73, 0x68, 0x53, 0x63, 0x72, 0x65, 0x65, 0x6e, 0, 0x53, 0x70, 0x6c,
-                0x61, 0x73, 0x68, 0x41, 0x75, 0x64, 0x69, 0x6f, 0, 0, 0, 0,
-            ]),
-            a3d2_interface: Dword::new(0),
             has_a3d2: Dword::new(0),
-            use_a3d: Dword::new(0),
-            _gap_6d64: Bytes::new([0, 0, 0, 0, 0, 0, 0x80, 0x3c]),
-            a3d2_clsid: Bytes::new([
-                0x24, 0x2c, 0xfa, 0x92, 0x3c, 0x25, 0xd2, 0x11, 0x90, 0xfb, 0, 0x60, 0x8, 0xa1,
-                0xf4, 0x41,
-            ]),
-            _gap_6d7c: Bytes::new([
-                0x60, 0xe5, 0x98, 0xc3, 0xb, 0xd9, 0xd1, 0x11, 0x90, 0xfb, 0, 0x60, 0x8, 0xa1,
-                0xf4, 0x41,
-            ]),
-            a3d2_iid: Bytes::new([
-                0x80, 0x2, 0xc4, 0xe4, 0xba, 0xcc, 0xd2, 0x11, 0x9d, 0xcf, 0, 0x50, 0x4, 0x11,
-                0x58, 0x2f,
-            ]),
-            _gap_6d9c: Bytes::new([
-                0x63, 0xe5, 0x98, 0xc3, 0xb, 0xd9, 0xd1, 0x11, 0x90, 0xfb, 0, 0x60, 0x8, 0xa1,
-                0xf4, 0x41,
-            ]),
-            eax_reverb_set: Bytes::new([
-                0xc1, 0x6f, 0x4e, 0x4a, 0x41, 0xc3, 0xd1, 0x11, 0xb7, 0x3a, 0x44, 0x45, 0x53, 0x54,
-                0, 0,
-            ]),
-            _gap_6dbc: Bytes::new([
-                0xc0, 0x6f, 0x4e, 0x4a, 0x41, 0xc3, 0xd1, 0x11, 0xb7, 0x3a, 0x44, 0x45, 0x53, 0x54,
-                0, 0,
-            ]),
-            eax_rooms: [
-                EaxRoom {
-                    environment: Dword::new(0x2),
-                    volume: Float::from_bits(0x3f000000),
-                    decay: Float::from_bits(0x3f000000),
-                    damping: Float::from_bits(0x3f000000),
-                },
-                EaxRoom {
-                    environment: Dword::new(0xf),
-                    volume: Float::from_bits(0x3de353f8),
-                    decay: Float::from_bits(0x404947ae),
-                    damping: Float::from_bits(0x3ef1a9fc),
-                },
-                EaxRoom {
-                    environment: Dword::new(0xf),
-                    volume: Float::from_bits(0x3e800000),
-                    decay: Float::from_bits(0x3dcccccd),
-                    damping: Float::from_bits(0x3dcccccd),
-                },
-                EaxRoom {
-                    environment: Dword::new(0xf),
-                    volume: Float::from_bits(0x3f800000),
-                    decay: Float::from_bits(0x3dcccccd),
-                    damping: Float::from_bits(0x3dcccccd),
-                },
-                EaxRoom {
-                    environment: Dword::new(0xf),
-                    volume: Float::from_bits(0x0),
-                    decay: Float::from_bits(0x3dcccccd),
-                    damping: Float::from_bits(0x3f000000),
-                },
-                EaxRoom {
-                    environment: Dword::new(0x13),
-                    volume: Float::from_bits(0x3dc6a7f0),
-                    decay: Float::from_bits(0x40311687),
-                    damping: Float::from_bits(0x3e656042),
-                },
-                EaxRoom {
-                    environment: Dword::new(0x10),
-                    volume: Float::from_bits(0x3de353f8),
-                    decay: Float::from_bits(0x40311687),
-                    damping: Float::from_bits(0x3e656042),
-                },
-                EaxRoom {
-                    environment: Dword::new(0x11),
-                    volume: Float::from_bits(0x3e800000),
-                    decay: Float::from_bits(0x40000000),
-                    damping: Float::from_bits(0x3eb33333),
-                },
-                EaxRoom {
-                    environment: Dword::new(0x11),
-                    volume: Float::from_bits(0x3e800000),
-                    decay: Float::from_bits(0x40800000),
-                    damping: Float::from_bits(0x3eb33333),
-                },
-                EaxRoom {
-                    environment: Dword::new(0x12),
-                    volume: Float::from_bits(0x3f800000),
-                    decay: Float::from_bits(0x3fbfdf3b),
-                    damping: Float::from_bits(0x3f000000),
-                },
-            ],
+            tune_turn: Dword::new(0),
+            no_listener: Dword::new(0),
+            has_3d: Dword::new(0),
         }
     }
 }
 
-/// (name, address) of every named field, for the layout test.
-#[cfg(test)]
-const LAYOUT: &[(usize, usize)] = &[
-    (core::mem::offset_of!(AudioState, quality_modes), 0x4F8294),
-    (core::mem::offset_of!(AudioState, no_audio), 0x4F82B4),
-    (core::mem::offset_of!(AudioState, audio_turn_tick), 0x4F82B8),
-    (core::mem::offset_of!(AudioState, sound_mode), 0x4F82BC),
-    (
-        core::mem::offset_of!(AudioState, opened_sound_mode),
-        0x4F82C0,
-    ),
-    (core::mem::offset_of!(AudioState, menu_sound_mode), 0x4F82C4),
-    (core::mem::offset_of!(AudioState, race_sound_mode), 0x4F82C8),
-    (
-        core::mem::offset_of!(AudioState, sound_buffer_lost),
-        0x4F82CC,
-    ),
-    (core::mem::offset_of!(AudioState, commit_3d), 0x4F82D0),
-    (
-        core::mem::offset_of!(AudioState, mix_rate_setting),
-        0x4F82D4,
-    ),
-    (core::mem::offset_of!(AudioState, master_volume), 0x4F82D8),
-    (
-        core::mem::offset_of!(AudioState, primary_volume_kept),
-        0x4F82DC,
-    ),
-    (
-        core::mem::offset_of!(AudioState, sample_bits_flags),
-        0x4F82E0,
-    ),
-    (
-        core::mem::offset_of!(AudioState, sample_channel_flags),
-        0x4F82F0,
-    ),
-    (core::mem::offset_of!(AudioState, sample_memory), 0x4F8300),
-    (core::mem::offset_of!(AudioState, playing_voices), 0x4F8340),
-    (core::mem::offset_of!(AudioState, stopping_voices), 0x4F8344),
-    (core::mem::offset_of!(AudioState, voice_count), 0x4F8348),
-    (core::mem::offset_of!(AudioState, voices), 0x4F834C),
-    (core::mem::offset_of!(AudioState, channel_count), 0x50634C),
-    (core::mem::offset_of!(AudioState, channels_used), 0x506350),
-    (core::mem::offset_of!(AudioState, channels), 0x506354),
-    (core::mem::offset_of!(AudioState, mix_rate), 0x5068D4),
-    (core::mem::offset_of!(AudioState, primary_size), 0x5068D8),
-    (core::mem::offset_of!(AudioState, mix_most), 0x5068DC),
-    (core::mem::offset_of!(AudioState, mix_shift), 0x5068E0),
-    (core::mem::offset_of!(AudioState, play_cursor), 0x5068E4),
-    (core::mem::offset_of!(AudioState, write_cursor), 0x5068E8),
-    (
-        core::mem::offset_of!(AudioState, sample_buffer_kb),
-        0x5068EC,
-    ),
-    (
-        core::mem::offset_of!(AudioState, sample_buffer_memory),
-        0x5068F0,
-    ),
-    (core::mem::offset_of!(AudioState, sample_buffer), 0x506930),
-    (
-        core::mem::offset_of!(AudioState, sample_buffer_size),
-        0x506934,
-    ),
-    (core::mem::offset_of!(AudioState, sample_file), 0x506938),
-    (
-        core::mem::offset_of!(AudioState, unit_volume_factor),
-        0x506958,
-    ),
-    (
-        core::mem::offset_of!(AudioState, sound_list_loaded),
-        0x50695C,
-    ),
-    (core::mem::offset_of!(AudioState, sound_stream), 0x506960),
-    (core::mem::offset_of!(AudioState, next_tune), 0x50698C),
-    (core::mem::offset_of!(AudioState, music_stream), 0x506990),
-    (core::mem::offset_of!(AudioState, no_music), 0x5069BC),
-    (core::mem::offset_of!(AudioState, music_path), 0x5069C0),
-    (core::mem::offset_of!(AudioState, stream_header), 0x5069D8),
-    (
-        core::mem::offset_of!(AudioState, stream_header_memory),
-        0x5069DC,
-    ),
-    (core::mem::offset_of!(AudioState, command_count), 0x506A1C),
-    (core::mem::offset_of!(AudioState, command_read), 0x506A20),
-    (core::mem::offset_of!(AudioState, command_write), 0x506A24),
-    (core::mem::offset_of!(AudioState, a3d_iid), 0x506A28),
-    (core::mem::offset_of!(AudioState, iid_listener), 0x506A48),
-    (
-        core::mem::offset_of!(AudioState, iid_sound_3d_buffer),
-        0x506A58,
-    ),
-    (
-        core::mem::offset_of!(AudioState, iid_property_set),
-        0x506A78,
-    ),
-    (core::mem::offset_of!(AudioState, direct_sound), 0x506A88),
-    (core::mem::offset_of!(AudioState, primary_buffer), 0x506A8C),
-    (core::mem::offset_of!(AudioState, sound_listener), 0x506A90),
-    (core::mem::offset_of!(AudioState, locked_parts), 0x506A98),
-    (core::mem::offset_of!(AudioState, sound_caps), 0x506AA8),
-    (core::mem::offset_of!(AudioState, primary_caps), 0x506B08),
-    (
-        core::mem::offset_of!(AudioState, buffer_description),
-        0x506B1C,
-    ),
-    (core::mem::offset_of!(AudioState, wave_format), 0x506B30),
-    (core::mem::offset_of!(AudioState, no_listener), 0x506B42),
-    (core::mem::offset_of!(AudioState, has_3d), 0x506B46),
-    (core::mem::offset_of!(AudioState, volume_table), 0x506B4C),
-    (
-        core::mem::offset_of!(AudioState, ignore_dsv_setting),
-        0x506C50,
-    ),
-    (
-        core::mem::offset_of!(AudioState, voice_manager_on),
-        0x506C54,
-    ),
-    (core::mem::offset_of!(AudioState, voice_manager), 0x506C58),
-    (core::mem::offset_of!(AudioState, no_a3d_setting), 0x506C5C),
-    (core::mem::offset_of!(AudioState, a3d_splash_kept), 0x506C60),
-    (core::mem::offset_of!(AudioState, a3d_ready), 0x506C64),
-    (core::mem::offset_of!(AudioState, a3d_object), 0x506C68),
-    (
-        core::mem::offset_of!(AudioState, ignore_eax_setting),
-        0x506C6C,
-    ),
-    (core::mem::offset_of!(AudioState, has_eax), 0x506C70),
-    (core::mem::offset_of!(AudioState, eax_properties), 0x506C74),
-    (core::mem::offset_of!(AudioState, eax_room), 0x506C78),
-    (core::mem::offset_of!(AudioState, eax_room_set), 0x506C7C),
-    (
-        core::mem::offset_of!(AudioState, environment_kept),
-        0x506C80,
-    ),
-    (
-        core::mem::offset_of!(AudioState, sounds_held_back),
-        0x506C84,
-    ),
-    (core::mem::offset_of!(AudioState, audio_options), 0x506C88),
-    (
-        core::mem::offset_of!(AudioState, voice_manager_set),
-        0x506CC8,
-    ),
-    (core::mem::offset_of!(AudioState, a3d_clsid), 0x506CD8),
-    (core::mem::offset_of!(AudioState, a3d2_interface), 0x506D58),
-    (core::mem::offset_of!(AudioState, has_a3d2), 0x506D5C),
-    (core::mem::offset_of!(AudioState, use_a3d), 0x506D60),
-    (core::mem::offset_of!(AudioState, a3d2_clsid), 0x506D6C),
-    (core::mem::offset_of!(AudioState, a3d2_iid), 0x506D8C),
-    (core::mem::offset_of!(AudioState, eax_reverb_set), 0x506DAC),
-    (core::mem::offset_of!(AudioState, eax_rooms), 0x506DCC),
-];
-
-pub const SAMPLES_IDA: usize = 0x50A7A4;
-pub const SAMPLES_END: usize = 0x511AE4;
 const SAMPLE_COUNT: usize = 0x1CD;
 
-/// The sample records (IDA 0x50A7A4 .. 0x511AE4): sound number -> its record.
-#[repr(C)]
+/// The sample records: sound number -> its record. Of a record's 14 fields only
+/// two change after the start, and these are all that is shared here: `data_key` (the game's thread
+/// sets the race voices' file names, then sends the load command, which the locked queue orders
+/// before the audio thread's read) and `first_voice` (the audio thread's loads and `free_voices`
+/// set it, `sample_settings` of the game's thread reads it). The other twelve are constants
+/// (`SAMPLE_CONSTANTS`, read by both threads), so `record` gives a whole `SampleRecord` made of
+/// both.
 #[derive(rc2k_derive::Cells)]
 pub struct SampleRecords {
-    pub records: [Shared<SampleRecord>; SAMPLE_COUNT],
+    data_keys: [Dword; SAMPLE_COUNT],
+    first_voices: [Dword; SAMPLE_COUNT],
 }
 
-/// A record's `data_key` (phase 13, handles): its file's name by place in
-/// `names_store::SAMPLE_NAMES` (the original kept the name's address; 0: none). The key is
-/// also what voices sharing a sample are matched by.
+/// The sample records' fields that never change (`data_key` and `first_voice` are 0 here: they are
+/// `SampleRecords`'), by sound number.
+pub static SAMPLE_CONSTANTS: [SampleRecord; SAMPLE_COUNT] = constants();
+
+/// The records as the image holds them, without the two fields that change.
+const fn constants() -> [SampleRecord; SAMPLE_COUNT] {
+    let mut out = first_records();
+    let mut n = 0;
+    while n < SAMPLE_COUNT {
+        out[n].data_key = 0;
+        n += 1;
+    }
+    out
+}
+
+/// A record's `data_key` from the image's place of its name: the name's position in the five lists
+/// of `names_store::SampleNames` (0: none). The key is also what voices sharing a sample are
+/// matched by.
 pub const fn name_key(ida: u32) -> u32 {
-    use crate::audio::names_store::SampleNames;
+    use crate::audio::names_store::{FIRST_IDA, FIRST_KEY, POOL_LEN};
     if ida == 0 {
         return 0;
     }
     let at = ida as usize;
-    assert!(SampleNames::START <= at && at < SampleNames::START + SampleNames::LEN);
-    (at - SampleNames::START + NAMES_LEAD) as u32
+    assert!(FIRST_IDA as usize <= at && at < FIRST_IDA as usize + POOL_LEN);
+    (at - FIRST_IDA as usize) as u32 + FIRST_KEY
 }
 
-/// The bytes `SampleNames` has before IDA's `START` (its `_lead`).
-const NAMES_LEAD: usize = 12;
-
-/// Where the name of `key` is (`name_key`). Entry point: the menus and the sound commands
-/// ask without the owner.
-pub fn name_at(key: u32) -> Result<crate::pointers::GamePtr, crate::errors::BadInput> {
-    name_in(&audio().sample_names, key)
-}
-
-/// Where the name of `key` is in `names`.
+/// The name of `key` in `names`, read to its NUL inside the list that holds it: the last name of
+/// every list ends in a NUL, so a name never runs on into the next list.
 pub fn name_in(
     names: &crate::audio::names_store::SampleNames,
     key: u32,
-) -> Result<crate::pointers::GamePtr, crate::errors::BadInput> {
-    use crate::audio::names_store::SampleNames;
-    let at = key as usize;
-    if !(NAMES_LEAD..NAMES_LEAD + SampleNames::LEN).contains(&at) {
+) -> Result<Vec<u8>, crate::errors::BadInput> {
+    use crate::audio::names_store::NameList;
+    let key = key as usize;
+    let Some((list, start)) = NameList::ALL.into_iter().find_map(|list| {
+        let start = list.first_key() as usize;
+        (start..start + list.len())
+            .contains(&key)
+            .then_some((list, start))
+    }) else {
         return Err(crate::errors::BadInput(
             "a sample record's name key off the names",
         ));
+    };
+    let len = list.len();
+    let text: Vec<u8> = (key - start..len)
+        .map(|at| names.byte(list, at))
+        .take_while(|&b| b != 0)
+        .collect();
+    if key - start + text.len() == len {
+        return Err(crate::errors::BadInput(
+            "a sample name with no end in its field",
+        ));
     }
-    // A name's text by its key in the names buffer (read up to its NUL).
-    Ok(crate::pointers::GamePtr::to(names).offset(at as u32))
+    Ok(text)
 }
 
-/// A record's `volume_factor` (phase 13, handles): which level its voices take (the original
-/// kept the level's address; 0: none, 0x40).
+/// A record's `volume_factor`: which level its voices take (0: none, 0x40).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[repr(u32)]
 pub enum VolumeLevel {
-    /// `dword_506958`: `AUDIO.unit_volume_factor`.
+    /// `AudioOwn::unit_volume_factor`.
     Unit = 1,
-    /// `dword_755694`: `OPTION_WORK.menu_sounds_a`.
+    /// `Levels::menu_sounds_a`.
     MenuSounds = 2,
-    /// `dword_75569C`: `OPTION_WORK.sounds_a`.
+    /// `Levels::sounds_a`.
     SoundsA = 3,
-    /// `dword_7556A0`: `OPTION_WORK.sounds_b`.
+    /// `Levels::sounds_b`.
     SoundsB = 4,
 }
 
-/// The code of the level at IDA's `ida` (0 for none; another address fails to compile).
+/// The code of the level named by `ida` (0 for none); another value fails to compile.
 pub const fn level_code(ida: u32) -> u32 {
     match ida {
         0 => 0,
@@ -892,14 +303,18 @@ pub const fn level_code(ida: u32) -> u32 {
     }
 }
 
-/// The level a record's `volume_factor` names (`level_code`; 0 is no level).
-pub fn volume_level(state: &AudioState, code: u32) -> Result<&Dword, crate::errors::BadInput> {
-    let screens = &menus().screens;
+/// The level a record's `volume_factor` names, now (`level_code`; 0 is no level).
+pub fn volume_level(
+    audio: &crate::audio::own::AudioThread,
+    code: u32,
+) -> Result<u32, crate::errors::BadInput> {
+    let state = &audio.state;
+    let levels = &audio.levels;
     Ok(match code {
-        1 => &state.unit_volume_factor,
-        2 => &screens.option_work.menu_sounds_a,
-        3 => &screens.option_work.sounds_a,
-        4 => &screens.option_work.sounds_b,
+        1 => state.unit_volume_factor.get(),
+        2 => levels.menu_sounds_a.get(),
+        3 => levels.sounds_a.get(),
+        4 => levels.sounds_b.get(),
         _ => {
             return Err(crate::errors::BadInput(
                 "a sample record's volume level unknown",
@@ -908,18 +323,11 @@ pub fn volume_level(state: &AudioState, code: u32) -> Result<&Dword, crate::erro
     })
 }
 
-/// A record's length, and its handles' places in it.
-const RECORD_LEN: usize = core::mem::size_of::<SampleRecord>();
-const KEY_AT: usize = core::mem::offset_of!(SampleRecord, data_key);
-const LEVEL_AT: usize = core::mem::offset_of!(SampleRecord, volume_factor);
-const _: () = assert!(RECORD_LEN == 0x40 && KEY_AT == 0xC && LEVEL_AT == 0x20);
-
-/// The records as the image holds them: per record its group, data key (the sample's name,
-/// IDA's address of it), priority, voice kind, copies, scale, volume factor (IDA's address
-/// of the level), minimum distance (bits of an f32), volume, pan and frequency; the number
-/// is the index and the first voice and place are 0. The two addresses become handles
-/// (`name_key`, `level_code`).
-const fn first_records() -> [Shared<SampleRecord>; SAMPLE_COUNT] {
+/// The records as the image holds them: per record its group, data key, priority, voice kind,
+/// copies, scale, volume factor, minimum distance (bits of an f32), volume, pan and frequency; the
+/// number is the index and the first voice and place are 0. The name and level, held in the image
+/// as places, become handles (`name_key`, `level_code`).
+const fn first_records() -> [SampleRecord; SAMPLE_COUNT] {
     let rows: [[u32; 11]; SAMPLE_COUNT] = [
         [
             0x1, 0x5073f9, 0x11, 0x1, 0x1, 0x40, 0x7556a0, 0x40400000, 0x40, 0x0, 0xac44,
@@ -2305,28 +1713,26 @@ const fn first_records() -> [Shared<SampleRecord>; SAMPLE_COUNT] {
             0x0, 0x506ef8, 0x0, 0x3, 0x1, 0x20, 0x506958, 0x3f800000, 0x40, 0x0, 0xac44,
         ],
     ];
-    let mut out = [const {
-        Shared::new(SampleRecord {
-            number: 0,
-            group: 0,
-            first_voice: 0,
-            data_key: 0,
-            priority: 0,
-            voice_kind: 0,
-            copies: 0,
-            scale: 0,
-            volume_factor: 0,
-            min_distance: 0,
-            volume: 0,
-            pan: 0,
-            frequency: 0,
-            place: [0; 3],
-        })
+    let mut out = [SampleRecord {
+        number: 0,
+        group: 0,
+        first_voice: 0,
+        data_key: 0,
+        priority: 0,
+        voice_kind: 0,
+        copies: 0,
+        scale: 0,
+        volume_factor: 0,
+        min_distance: 0,
+        volume: 0,
+        pan: 0,
+        frequency: 0,
+        place: [0; 3],
     }; SAMPLE_COUNT];
     let mut n = 0;
     while n < SAMPLE_COUNT {
         let r = rows[n];
-        out[n] = Shared::new(SampleRecord {
+        out[n] = SampleRecord {
             number: n as u32,
             group: r[0],
             first_voice: 0,
@@ -2341,7 +1747,7 @@ const fn first_records() -> [Shared<SampleRecord>; SAMPLE_COUNT] {
             pan: r[9],
             frequency: r[10],
             place: [0; 3],
-        });
+        };
         n += 1;
     }
     out
@@ -2349,125 +1755,35 @@ const fn first_records() -> [Shared<SampleRecord>; SAMPLE_COUNT] {
 
 impl SampleRecords {
     pub const fn new() -> Self {
+        let first = first_records();
+        let mut data_keys = [const { Dword::new(0) }; SAMPLE_COUNT];
+        let mut n = 0;
+        while n < SAMPLE_COUNT {
+            data_keys[n] = Dword::new(first[n].data_key);
+            n += 1;
+        }
         SampleRecords {
-            records: first_records(),
+            data_keys,
+            first_voices: [const { Dword::new(0) }; SAMPLE_COUNT],
         }
     }
-}
 
-pub const QUEUE_IDA: usize = 0x9566F8;
-pub const QUEUE_END: usize = 0x95E6F8;
-pub const QUEUE_RECORDS: usize = 0x400;
-
-/// One command for the audio thread: its number, then the sender's eax, ebx, ecx, edx, esi,
-/// edi and ebp (`sound::queue`).
-#[repr(C)]
-#[derive(rc2k_derive::Cells)]
-pub struct Command {
-    pub words: [Dword; 8],
-}
-
-impl Command {
-    pub fn get(&self) -> [u32; 8] {
-        std::array::from_fn(|i| self.words[i].get())
+    /// Sound `number`'s record as it is now, or `None` past the records.
+    pub fn record(&self, number: u32) -> Option<SampleRecord> {
+        let n = number as usize;
+        let mut record = *SAMPLE_CONSTANTS.get(n)?;
+        record.data_key = self.data_keys[n].get();
+        record.first_voice = self.first_voices[n].get();
+        Some(record)
     }
 
-    pub fn set(&self, record: [u32; 8]) {
-        for (cell, word) in self.words.iter().zip(record) {
-            cell.set(word);
-        }
-    }
-}
-
-/// The queue of commands (IDA 0x9566F8 .. 0x95E6F8, bss: zero at start).
-#[repr(C)]
-#[derive(rc2k_derive::Cells)]
-pub struct CommandQueue {
-    pub records: [Command; QUEUE_RECORDS],
-}
-
-impl CommandQueue {
-    pub const fn new() -> Self {
-        CommandQueue {
-            records: [const {
-                Command {
-                    words: [const { Dword::new(0) }; 8],
-                }
-            }; QUEUE_RECORDS],
-        }
-    }
-}
-
-/// `g_eaxEnvironment` (IDA 0x6D1DD4): the EAX environment the race asks for (the audio
-/// thread reads it).
-pub static ENVIRONMENT: crate::session::Dword = crate::session::Dword::new(0);
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::moved::image_bytes;
-
-    fn bytes_of<T>(block: &T, len: usize) -> Vec<u8> {
-        let p = std::ptr::from_ref::<T>(block).cast::<u8>();
-        (0..len).map(|i| unsafe { p.add(i).read() }).collect()
+    /// Sound `number`'s file name key set (a race's voices, by the game's thread).
+    pub fn set_data_key(&self, number: usize, key: u32) {
+        self.data_keys[number].set(key);
     }
 
-    #[test]
-    fn the_state_starts_as_the_games() {
-        assert_eq!(size_of::<AudioState>(), STATE_END - STATE_IDA);
-        assert_eq!(
-            bytes_of(&audio().state, size_of::<AudioState>()),
-            image_bytes(STATE_IDA, STATE_END - STATE_IDA)
-        );
-    }
-
-    #[test]
-    fn the_state_keeps_the_images_layout() {
-        for &(offset, ida) in LAYOUT {
-            assert_eq!(offset, ida - STATE_IDA, "{ida:#X}");
-        }
-        assert_eq!(size_of::<Voice>(), 0x70);
-        assert_eq!(size_of::<MixerChannel>(), 0x58);
-        assert_eq!(size_of::<EaxRoom>(), 0x10);
-    }
-
-    #[test]
-    fn the_sample_records_start_as_the_games() {
-        let audio = audio();
-        assert_eq!(size_of::<SampleRecords>(), SAMPLES_END - SAMPLES_IDA);
-        // The name keys and volume levels are handles: compared by IDA's addresses.
-        let mut mine = bytes_of(&audio.sample_records, size_of::<SampleRecords>());
-        let levels = [0, 0x506958u32, 0x755694, 0x75569C, 0x7556A0];
-        for (n, record) in audio.sample_records.records.iter().enumerate() {
-            let r = record.get();
-            let key = if r.data_key == 0 {
-                0
-            } else {
-                (r.data_key as usize - NAMES_LEAD + crate::audio::names_store::SampleNames::START)
-                    as u32
-            };
-            let at = n * RECORD_LEN;
-            mine[at + KEY_AT..at + KEY_AT + 4].copy_from_slice(&key.to_le_bytes());
-            mine[at + LEVEL_AT..at + LEVEL_AT + 4]
-                .copy_from_slice(&levels[r.volume_factor as usize].to_le_bytes());
-        }
-        assert_eq!(mine, image_bytes(SAMPLES_IDA, SAMPLES_END - SAMPLES_IDA));
-    }
-
-    #[test]
-    fn the_queue_starts_as_the_games() {
-        assert_eq!(size_of::<CommandQueue>(), QUEUE_END - QUEUE_IDA);
-        assert_eq!(
-            bytes_of(&audio().commands, size_of::<CommandQueue>()),
-            image_bytes(QUEUE_IDA, QUEUE_END - QUEUE_IDA)
-        );
-    }
-
-    #[test]
-    fn the_environment_starts_as_the_games() {
-        assert_eq!(
-            super::ENVIRONMENT.get().to_le_bytes().to_vec(),
-            image_bytes(0x6D1DD4, 4)
-        );
+    /// Sound `number`'s first voice set (by the audio thread's loads and `free_voices`).
+    pub fn set_first_voice(&self, number: usize, voice: u32) {
+        self.first_voices[number].set(voice);
     }
 }

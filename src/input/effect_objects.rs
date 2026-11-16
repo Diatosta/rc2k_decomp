@@ -1,16 +1,11 @@
 //! A force-feedback effect's DirectInput object (`IDirectInputEffect`, an effect's +0x30;
 //! the effects are a device record's six from +0x3C, 0xA4 bytes each), asked by the game's
 //! four small functions, each doing nothing when the effect has no object:
-//! - `input::release_effect` (0x409ACC): `Stop`, `Release`, +0x30 0;
-//! - `input::start_effect` (0x409AEE): `Download`, `Start` (one iteration, no flags);
-//! - `input::set_effect_parameters` (0x409B1F): `SetParameters` with the effect's
-//!   `DIEFFECT` (+0x34) and eax the flags;
-//! - `input::stop_effect` (0x409B0D): `Stop`.
-//!
-//! Callers: the effects' functions (`input::effect_N_change`, through
-//! `effect_changes::game_part`), `input::make_effect` and `input::end_force`
-//! (`release_effect`). The methods are the object's own (DirectInput's in the game, Rust's
-//! in the standalone program, `input::di_objects`).
+//! - `input::release_effect`: `Stop`, `Release`, +0x30 0;
+//! - `input::start_effect`: `Download`, `Start` (one iteration, no flags);
+//! - `input::set_effect_parameters`: `SetParameters` with the effect's
+//!   `DIEFFECT` (+0x34) and the flags;
+//! - `input::stop_effect`: `Stop`.
 
 use crate::input::di_objects::EffectParameters;
 use crate::input::types::ForceEffect;
@@ -24,9 +19,9 @@ pub fn parameters_of(effect: &ForceEffect) -> EffectParameters {
     EffectParameters {
         duration: d.duration.get(),
         gain: d.gain.get(),
-        direction: (d.directions.get() != 0 && d.axes_count.get() > 0)
+        direction: (d.directions.is_set() && d.axes_count.get() > 0)
             .then(|| effect.directions[0].get() as i32),
-        envelope: (d.envelope.get() != 0).then(|| {
+        envelope: (d.envelope.is_set()).then(|| {
             let e = &effect.envelope;
             [
                 e.attack_level.get(),
@@ -35,7 +30,7 @@ pub fn parameters_of(effect: &ForceEffect) -> EffectParameters {
                 e.fade_time.get(),
             ]
         }),
-        type_specific: (d.type_specific.get() != 0).then(|| {
+        type_specific: (d.type_specific.is_set()).then(|| {
             effect
                 .type_specific
                 .iter()
@@ -46,7 +41,7 @@ pub fn parameters_of(effect: &ForceEffect) -> EffectParameters {
     }
 }
 
-/// `release_effect`'s Rust version.
+/// Gives the effect's DirectInput object back.
 pub fn release_effect(effect: &ForceEffect) {
     let object = effect.object.get();
     if object != 0 {
@@ -56,7 +51,7 @@ pub fn release_effect(effect: &ForceEffect) {
     }
 }
 
-/// `start_effect`'s Rust version.
+/// Downloads and starts the effect.
 pub fn start_effect(effect: &ForceEffect) {
     let object = effect.object.get();
     if object != 0 {
@@ -65,7 +60,7 @@ pub fn start_effect(effect: &ForceEffect) {
     }
 }
 
-/// `set_effect_parameters`'s Rust version.
+/// Sets the effect's parameters with `flags`.
 pub fn set_effect_parameters(effect: &ForceEffect, flags: u32) {
     let object = effect.object.get();
     if object != 0 {
@@ -73,7 +68,7 @@ pub fn set_effect_parameters(effect: &ForceEffect, flags: u32) {
     }
 }
 
-/// `stop_effect`'s Rust version.
+/// Stops the effect.
 pub fn stop_effect(effect: &ForceEffect) {
     let object = effect.object.get();
     if object != 0 {

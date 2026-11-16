@@ -1,123 +1,126 @@
-//! `race::viewer_frame` (0x41D5FB): one frame of the replay viewer (`screens::run_frame`'s
-//! function): at the replay's end (`dword_5BEC90`) the screen cleared
-//! (`gfx::clear_back_surface`); the scene begun (`d3d::begin_scene`; carry: lost); unless
-//! at the end, the block's cameras into it (`drive::replay_frame_marks`) and the frame
-//! drawn (`race::show_replay_still`). A picture asked (`dword_5C2540`): asked no more,
-//! the scene ended (`d3d::end_scene`), the picture saved (`race::viewer_snapshot`), shown.
-//! Else, stopped (`dword_5BEC98` 1): the list's texture (`dword_5BECB4`,
-//! `d3d::set_texture`), eight render states, each item (`race::draw_viewer_item`, ecx its
-//! number, `[edi+1]` of them), the bar's quads (`drive::tyre_quad`: the frame, with blocks
-//! the bar, the two marks and the place shown along it, the four buttons) and the panel
-//! (`race::draw_viewer_panel`); the scene ended and the frame shown (`gfx::show_frame`).
+//! `race::viewer_frame`: one frame of the replay viewer (`screens::run_frame`'s function). At the
+//! replay's end (`replay_at_end`) the screen is cleared (`gfx::clear_back_surface`); the scene
+//! begins; unless at the end, the block's cameras are put into it (`drive::replay_frame_marks`)
+//! and the frame is drawn (`race::show_replay_still`). When a picture is asked
+//! (`snapshot_asked`), the request is cleared, the scene ends (`d3d::end_scene`), the picture is
+//! saved (`race::viewer_snapshot`) and shown. Else, when stopped (`viewer_stopped` 1), the list's
+//! texture (`viewer_list_texture`, `d3d::set_texture`), eight render states, each item, the bar's
+//! quads (`drive::tyre_quad`: the frame, with blocks the bar, the two marks and the place shown
+//! along it, the four buttons) and the panel (`race::draw_viewer_panel`) are drawn; the scene
+//! ends and the frame is shown (`gfx::show_frame`).
 //!
-//! The marks' and the place's positions are `mark * w / blocks` (`mul` / `div`): a quotient
-//! past 32 bits (the original's divide error) is refused, before the bar is drawn. Caller:
-//! `screens::run_frame` (eax, from `race::replay_viewer`).
+//! The marks' and the place's positions are `mark * w / blocks`: a quotient past 32 bits is
+//! refused, before the bar is drawn. Called by `screens::run_frame` (from
+//! `race::replay_viewer`).
 
 use crate::errors::{BadInput, Refused};
+use crate::memory::session::PlainDword;
+use crate::owners::Owners;
 use crate::race::owner::Race;
-use crate::race::owner::race;
-use crate::race::viewer_screen_store::VIEWER_PANEL;
-use crate::session::Dword;
 
-/// The Rust version: whether the frame was lost (the carry the original leaves; it
-/// keeps the other registers).
-pub fn viewer_frame() -> Result<bool, Refused> {
-    let system = crate::system::owner::system();
-    let gfx = crate::gfx::owner::gfx();
-    let input = crate::input::owner::input();
-    let race = race();
+/// Draws one viewer frame; returns whether the frame was lost.
+pub fn viewer_frame(o: Owners<'static>) -> Result<bool, Refused> {
+    let (system, gfx, race) = (o.system, o.gfx, o.race);
     let replay = &race.replay;
-    if race.shared.replay_file.replay_at_end.get() == 1 {
+    if race.shared.replay_file().replay_at_end.is_set() {
         crate::gfx::clear_back_surface::clear_back_surface(gfx, system)?;
     }
-    // `d3d::begin_scene` cannot fail (its carry is clear).
-    crate::platform_3d::begin_layer();
-    if race.shared.replay_file.replay_at_end.get() != 1 {
+    // Beginning the scene cannot fail.
+    crate::platform::direct3d::begin_layer(&o.gfx.d3d, o.scene.scratch.game_scratch());
+    if !race.shared.replay_file().replay_at_end.is_set() {
         crate::drive::replay_frame_marks::replay_frame_marks(race)?;
-        crate::race::show_replay_still::show_replay_still(race, input, system)?;
+        crate::race::show_replay_still::show_replay_still(race, o)?;
     }
-    if replay.replay_view.snapshot_asked.get() == 1 {
-        replay.replay_view.snapshot_asked.set(0);
-        // `d3d::end_scene` cannot fail either.
-        crate::platform_3d::end_layer();
-        crate::race::viewer_snapshot::viewer_snapshot(replay)?;
+    if replay.replay_view().snapshot_asked.get() == 1 {
+        replay.replay_view().snapshot_asked.set(0);
+        // Nor can ending it.
+        crate::platform::direct3d::end_layer(&o.gfx.d3d);
+        crate::race::viewer_snapshot::viewer_snapshot(replay, gfx, o.system)?;
     } else {
-        if race.shared.replay_file.viewer_stopped.get() == 1 {
-            stopped(race)?;
+        if race.shared.replay_file().viewer_stopped.is_set() {
+            stopped(race, o)?;
         }
-        crate::platform_3d::end_layer();
+        crate::platform::direct3d::end_layer(&o.gfx.d3d);
     }
-    // `gfx::show_frame`'s carry says nothing was shown.
-    Ok(!crate::platform::show_frame_now())
+    // Not shown: the frame is lost.
+    Ok(!crate::platform::show_frame_now(o))
 }
 
 /// The list, the bar and the panel (stopped).
-fn stopped(race: &Race) -> Result<(), Refused> {
+fn stopped(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
+    let (list_state, system) = (&o.menus.list, o.system);
     let replay = &race.replay;
     let shared = &race.shared;
-    // Converted: `rc2k_core::race::viewer_flow::{LIST_STATES, bar_places, mark_x, place_x}`.
     use rc2k_core::race::viewer_flow::{LIST_STATES, bar_places, mark_x, place_x};
-    crate::d3d::set_texture::set_texture(shared.replay_file.viewer_list_texture.get());
+    let part = o.scene.scratch.game_scratch();
+    crate::d3d::set_texture::set_texture(part, shared.replay_file().viewer_list_texture.get());
     for (value, state) in LIST_STATES {
-        crate::d3d::set_render_state::set_render_state(value, state);
+        crate::d3d::set_render_state::set_render_state(part, value, state);
     }
-    // The list's item count: the byte at +1 of its first dword.
-    let items = (replay.replay_view.viewer_list[0].get() >> 8) as u8;
-    // The original counts ecx up to the byte at +1 after each item, from 0: a count of 0
-    // goes round 256 times. The items are the list's 16-byte entries from +0x18; one past
-    // the 26 there is refused.
+    let list = &replay.replay_view().viewer_list;
+    // The items are counted from 0 up to the header's count; a count of 0 goes round 256 times
+    // and an item past the list is refused.
+    let items = list.header.count.get();
     for index in 0..if items == 0 { 256 } else { u32::from(items) } {
-        let first = 6 + 4 * index as usize;
-        let item = replay
-            .replay_view
-            .viewer_list
-            .get(first..)
-            .and_then(|rest| rest.first_chunk::<4>())
+        let item = list
+            .items
+            .get(index as usize)
             .ok_or(BadInput("a viewer item past the 26"))?;
-        crate::race::draw_viewer_item::draw_viewer_item(replay, item, index)?;
+        crate::race::draw_viewer_item::draw_viewer_item(
+            race, list_state, item, index, system, o.scene,
+        )?;
     }
-    let quad = |uv: &[Dword], rect: &[Dword; 4], colour: u32| {
+    let quad = |uv: &[PlainDword], rect: &[PlainDword; 4], colour: u32| {
         // The texture rectangle's first four dwords (the frame's picture holds five).
         let uv = uv
             .first_chunk::<4>()
             .ok_or(BadInput("a texture rectangle of fewer than four"))?;
-        crate::drive::tyre_quad::tyre_quad_cells(uv, rect, colour)
+        crate::drive::tyre_quad::tyre_quad(
+            uv.each_ref().map(PlainDword::get),
+            rect,
+            colour,
+            race.viewer_panel(),
+            system,
+            o.scene.scratch.game_scratch(),
+        )
     };
-    let v = &VIEWER_PANEL;
+    let v = race.viewer_panel();
     quad(&v.frame_picture_rect, &v.bar_frame_rect, 0xFF_FFFF)?;
-    let blocks = shared.replay_file.index_block_count.get();
+    let blocks = shared.replay_file().index.block_count.get();
     if blocks != 0 {
         let (w, x) = (
-            VIEWER_PANEL.bar_rect[2].get(),
-            VIEWER_PANEL.bar_rect[0].get(),
+            race.viewer_panel().bar_rect[2].get(),
+            race.viewer_panel().bar_rect[0].get(),
         );
         let [first, second, here] = bar_places(
             (
-                crate::race::viewer_buffers_store::VIEWER_BUFFERS
-                    .mark_in
-                    .get(),
-                crate::race::viewer_buffers_store::VIEWER_BUFFERS
-                    .mark_out
-                    .get(),
+                race.viewer_buffers().mark_in.get(),
+                race.viewer_buffers().mark_out.get(),
             ),
-            replay.replay_view.replay_block.get(),
-            replay.replay_view.replay_frame.get(),
+            replay.replay_view().replay_block.get(),
+            replay.replay_view().replay_frame.get(),
             w,
             blocks,
         )?;
         quad(&v.button_body_rect, &v.bar_rect, 0xFF00)?;
-        VIEWER_PANEL.mark_rect[0].set(mark_x(first.0, x));
+        race.viewer_panel().mark_rect[0].set(mark_x(first.0, x));
         quad(&v.mark_picture_rect, &v.mark_rect, 0xFF_FFFF)?;
-        VIEWER_PANEL.mark_rect[0].set(mark_x(second.0, x));
+        race.viewer_panel().mark_rect[0].set(mark_x(second.0, x));
         quad(&v.mark_picture_rect, &v.mark_rect, 0xFF_FFFF)?;
-        VIEWER_PANEL.place_rect[0].set(place_x(here.0, x));
+        race.viewer_panel().place_rect[0].set(place_x(here.0, x));
         quad(&v.place_picture_rect, &v.place_rect, 0xFF_FFFF)?;
         quad(&v.button_picture_rect, &v.button_rect_a, 0xFF_FFFF)?;
         quad(&v.button_picture_rect, &v.button_rect_c, 0xFF_FFFF)?;
         quad(&v.button_body_rect, &v.button_rect_b, 0xFF_FFFF)?;
         quad(&v.button_body_rect, &v.button_rect_d, 0xFF_FFFF)?;
-        crate::race::draw_viewer_panel::draw_viewer_panel(race)?;
+        crate::race::draw_viewer_panel::draw_viewer_panel(
+            crate::strings::append_string_by_id::StringOwners::of(o),
+            race,
+            o.gfx,
+            o.strings,
+            o.system,
+            o.scene,
+        )?;
     }
     Ok(())
 }

@@ -1,14 +1,10 @@
-//! `service::step_tyre_up` (0x46BE58): steps the chosen tyre, `dword_75AC9C`, one
-//! up, stopping at 5.
-//!
-//! The exact rule at the limits is in `setup_values.rs` (`Stepper`).
+//! Steps the tyre one up, stopping at 5. The rule at the limits is in `setup_values.rs`
+//! (`Stepper`).
 
 use crate::service::setup_values::{Stepper, Target};
 
-// ---- Rust version: `setup_values::step` with this ----
-
 pub const STEPPER: Stepper = Stepper {
-    target: Target::Global(&crate::menu::owner::MENUS.screens.state.driver_stats.setups[1].chosen),
+    target: Target::Chosen(1),
     max: 5,
     up: true,
 };

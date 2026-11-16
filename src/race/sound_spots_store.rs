@@ -1,107 +1,203 @@
-//! The face-drawing, sound-band and sound-spot part of the race block: the face kind flags, view-window limits, sound tables and scratch, and the 36 sound spots with their count. Names are readings unless IDA's.
+//! The face-drawing, sound-band and sound-spot part of the race block: the face kind flags,
+//! view-window limits, sound tables and scratch, and the 36 sound spots with their count.
 
-#[cfg(test)]
-use crate::race::owner::race;
-use crate::session::{Dword, Float};
+use crate::memory::cells::ZeroCells;
 
-#[repr(C)]
-#[derive(rc2k_derive::Cells)]
+use crate::memory::session::{PlainDword, PlainFloat};
+
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct SoundSpotBlock {
-    /// +0x0 (0x6D18C8): `g_workVectorLength` (a reading: float, stored by fst/movss).
-    pub work_vector_length: Float,
-    /// +0x4 (0x6D18CC): `g_faceKind` (`scene::draw_object_face`, `scene::draw_object_faces`).
-    pub face_kind: Dword,
-    /// +0x8 (0x6D18D0): `dword_6D18D0` (`scene::draw_object_face`, `scene::draw_object_faces`).
-    pub face_unlit: Dword,
-    /// +0xc (0x6D18D4): `dword_6D18D4` (`scene::list_object_face`, `race::car_draw`).
-    pub groups_which: Dword,
-    /// +0x10 (0x6D18D8): not named.
-    pub unknown_10: Dword,
-    /// +0x14 (0x6D18DC): `dword_6D18DC`: set to 1 by the original (a reading, unused by Rust).
-    pub flag_18dc: Dword,
-    /// +0x18 (0x6D18E0): `dword_6D18E0`: set to 1 by the original (a reading, unused by Rust).
-    pub flag_18e0: Dword,
-    /// +0x1c (0x6D18E4): `dword_6D18E4`: tested and set to 1 (a reading, unused by Rust).
-    pub flag_18e4: Dword,
-    /// +0x20 (0x6D18E8): `flt_6D18E8`, `flt_6D18EC`: view-window limits (`scene::set_view_window`).
-    pub less_one: [Float; 2],
-    /// +0x28 (0x6D18F0): not named.
-    pub unknown_28: [Dword; 104],
-    /// +0x1c8 (0x6D1A90): `dword_6D1A90[]`: sound by object kind, 4-bit index (`physics::place_sound_object`).
-    pub object_kind_sounds: [Dword; 16],
-    /// +0x208 (0x6D1AD0): `dword_6D1AD0` (`physics::car_physics_step`).
-    pub sound_scratch_a: Dword,
-    /// +0x20c (0x6D1AD4): `dword_6D1AD4` (`physics::place_sound_e1_other`).
-    pub sound_scratch_b: Dword,
-    /// +0x210 (0x6D1AD8): `dword_6D1AD8` (`physics::car_physics_step`).
-    pub sound_scratch_c: Dword,
-    /// +0x214 (0x6D1ADC): `flt_6D1ADC` (a reading, sound band factor).
-    pub band_scale_0: Float,
-    /// +0x218 (0x6D1AE0): `flt_6D1AE0` (`physics::sound_band_1`, `physics::sound_band_2`).
-    pub band_scale_1: Float,
-    /// +0x21c (0x6D1AE4): `flt_6D1AE4` (`physics::sound_band_4`).
-    pub band_scale_2: Float,
-    /// +0x220 (0x6D1AE8): `flt_6D1AE8` (`physics::sound_band_3`).
-    pub band_scale_3: Float,
-    /// +0x224 (0x6D1AEC): `dword_6D1AEC`: fistp target (`physics::sound_bands`, `physics::place_sound_e1`).
-    pub band_scratch: Dword,
-    /// +0x228 (0x6D1AF0): `g_eaxFaceCount`: the faces summed (`race::frame_draw`).
-    pub eax_face_count: Dword,
-    /// +0x22c (0x6D1AF4): `g_soundSpots`: 36 spots of 0x14 bytes (`race::sound_spots`, `race::frame_draw`).
-    pub sound_spots: [Dword; 180],
-    /// +0x4fc (0x6D1DC4): `g_soundSpotCount`: spots made this frame (`race::sound_spots`).
-    pub sound_spot_count: Dword,
-    /// +0x500 (0x6D1DC8): not named.
-    pub unknown_500: [Dword; 3],
+    /// +0x0: the work vector's length (a float).
+    pub work_vector_length: PlainFloat,
+    /// +0x4: `face_kind`; the drawing's is the view's (`race::face_work`), this one not used.
+    pub face_kind: PlainDword,
+    /// +0x8: the face's unlit byte; the drawing's is the view's (`race::face_work`), this one not
+    /// used.
+    pub face_unlit: PlainDword,
+    /// +0xc: which groups to list (`scene::list_object_face`, `race::car_draw`); now each view's
+    /// (`CarDrawState::groups_which`); unused.
+    pub groups_which: PlainDword,
+    /// +0x10: unused; it only keeps the layout.
+    pub unused_10: PlainDword,
+    /// +0x14: a flag set to 1, never read.
+    pub flag_18dc: PlainDword,
+    /// +0x18: a flag set to 1, never read.
+    pub flag_18e0: PlainDword,
+    /// +0x1c: a flag tested and set to 1, never read elsewhere.
+    pub flag_18e4: PlainDword,
+    /// +0x20: the view window's size less one (`scene::set_view_window`); no longer written or
+    /// read.
+    pub less_one: [PlainFloat; 2],
+    /// +0x28: unused.
+    pub unused_28: [PlainDword; 104],
+    /// +0x1c8: the sound by object kind, a 4-bit index (`physics::place_sound_object`).
+    pub object_kind_sounds: [PlainDword; 16],
+    /// +0x208: sound scratch (`physics::car_physics_step`).
+    pub sound_scratch_a: PlainDword,
+    /// +0x20c: sound scratch (`physics::place_sound_e1_other`).
+    pub sound_scratch_b: PlainDword,
+    /// +0x210: sound scratch (`physics::car_physics_step`).
+    pub sound_scratch_c: PlainDword,
+    /// +0x214: a band factor; never read.
+    pub band_scale_0: PlainFloat,
+    /// +0x218: the factor of the wall / ground contact sound (`physics::sound_band_1` for
+    /// `place_sound_e1`, called by the wall and ground contacts) and of `physics::sound_band_2`.
+    pub contact_band_scale: PlainFloat,
+    /// +0x21c: the factor of the crash sound (`physics::sound_band_4` for `place_sound_e5`, called
+    /// by `physics::crash_contact`: the car's speed times it, less 1, held to 0 ..= 0x40).
+    pub crash_band_scale: PlainFloat,
+    /// +0x220: the factor of the car-bump sound (`physics::sound_band_3` for
+    /// `place_sound_e1_other`, called by `physics::bump_cars`: times it, less 10, held to 0 ..=
+    /// 0x40).
+    pub bump_band_scale: PlainFloat,
+    /// +0x224: a band value rounded to a whole number (`physics::sound_bands`,
+    /// `physics::place_sound_e1`).
+    pub band_scratch: PlainDword,
+    /// +0x228: the faces summed; never read.
+    pub eax_face_count: PlainDword,
+    /// +0x22c: 36 spots of 0x14 bytes (`race::sound_spots`, `race::frame_draw`).
+    pub sound_spots: [PlainDword; 180],
+    /// +0x4fc: spots made this frame (`race::sound_spots`).
+    pub sound_spot_count: PlainDword,
+    /// +0x500: unused; it only keeps the layout.
+    pub unused_500: [PlainDword; 3],
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
 
-/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
-/// `race::store::LEFT`), with the image's first values.
 impl SoundSpotBlock {
     pub const fn new() -> Self {
-        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
-    }
-}
-
-/// IDA 0x6D18C8, the first byte of the piece.
-pub const START: usize = 0x6D18C8;
-/// IDA 0x6D1DD4, the end of the piece.
-pub const END: usize = 0x6D1DD4;
-
-const _: () = assert!(END - START == core::mem::size_of::<SoundSpotBlock>());
-
-/// Where IDA 0x6D18C8 is now (its own static).
-#[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&race().frame.sound_spots))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use core::mem::offset_of;
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&race().frame.sound_spots, START, END);
-    }
-
-    #[test]
-    fn piece_has_its_home() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            piece_addr(),
-            crate::framework::game_addr(crate::framework::rva(START))
-        );
-        assert_eq!(
-            offset_of!(SoundSpotBlock, work_vector_length),
-            0x6D18C8 - START
-        );
-        assert_eq!(offset_of!(SoundSpotBlock, flag_18e4), 0x6D18E4 - START);
-        assert_eq!(offset_of!(SoundSpotBlock, band_scale_0), 0x6D1ADC - START);
-        assert_eq!(offset_of!(SoundSpotBlock, sound_spots), 0x6D1AF4 - START);
+        Self {
+            unused_28: [
+                PlainDword::new(0x80000000),
+                PlainDword::new(0x80000000),
+                PlainDword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(0x10000),
+                PlainDword::new(0x20003),
+                PlainDword::new(0x10003),
+                PlainDword::new(0x50004),
+                PlainDword::new(0x60007),
+                PlainDword::new(0x50007),
+                PlainDword::new(0x90008),
+                PlainDword::new(0xA000B),
+                PlainDword::new(0x9000B),
+                PlainDword::new(0xD000C),
+                PlainDword::new(0xE000F),
+                PlainDword::new(0xD000F),
+                PlainDword::new(0x110010),
+                PlainDword::new(0x120013),
+                PlainDword::new(0x110013),
+                PlainDword::new(0x150014),
+                PlainDword::new(0x160017),
+                PlainDword::new(0x150017),
+                PlainDword::new(0x190018),
+                PlainDword::new(0x1A001B),
+                PlainDword::new(0x19001B),
+                PlainDword::new(0x1D001C),
+                PlainDword::new(0x1E001F),
+                PlainDword::new(0x1D001F),
+                PlainDword::new(0x210020),
+                PlainDword::new(0x220023),
+                PlainDword::new(0x210023),
+                PlainDword::new(0x250024),
+                PlainDword::new(0x260027),
+                PlainDword::new(0x250027),
+                PlainDword::new(0x290028),
+                PlainDword::new(0x2A002B),
+                PlainDword::new(0x29002B),
+                PlainDword::new(0x2D002C),
+                PlainDword::new(0x2E002F),
+                PlainDword::new(0x2D002F),
+                PlainDword::new(0x310030),
+                PlainDword::new(0x320033),
+                PlainDword::new(0x310033),
+                PlainDword::new(0x350034),
+                PlainDword::new(0x360037),
+                PlainDword::new(0x350037),
+                PlainDword::new(0x390038),
+                PlainDword::new(0x3A003B),
+                PlainDword::new(0x39003B),
+                PlainDword::new(0x3D003C),
+                PlainDword::new(0x3E003F),
+                PlainDword::new(0x3D003F),
+                PlainDword::new(0x410040),
+                PlainDword::new(0x420043),
+                PlainDword::new(0x410043),
+                PlainDword::new(0x450044),
+                PlainDword::new(0x460047),
+                PlainDword::new(0x450047),
+                PlainDword::new(0x490048),
+                PlainDword::new(0x4A004B),
+                PlainDword::new(0x49004B),
+                PlainDword::new(0x4D004C),
+                PlainDword::new(0x4E004F),
+                PlainDword::new(0x4D004F),
+                PlainDword::new(0x510050),
+                PlainDword::new(0x520053),
+                PlainDword::new(0x510053),
+                PlainDword::new(0x550054),
+                PlainDword::new(0x560057),
+                PlainDword::new(0x550057),
+                PlainDword::new(0x590058),
+                PlainDword::new(0x5A005B),
+                PlainDword::new(0x59005B),
+                PlainDword::new(0x5D005C),
+                PlainDword::new(0x5E005F),
+                PlainDword::new(0x5D005F),
+                PlainDword::new(0x610060),
+                PlainDword::new(0x620063),
+                PlainDword::new(0x610063),
+                PlainDword::new(0x650064),
+                PlainDword::new(0x660067),
+                PlainDword::new(0x650067),
+                PlainDword::new(0x690068),
+                PlainDword::new(0x6A006B),
+                PlainDword::new(0x69006B),
+                PlainDword::new(0x6D006C),
+                PlainDword::new(0x6E006F),
+                PlainDword::new(0x6D006F),
+                PlainDword::new(0x710070),
+                PlainDword::new(0x720073),
+                PlainDword::new(0x710073),
+                PlainDword::new(0x750074),
+                PlainDword::new(0x760077),
+                PlainDword::new(0x750077),
+                PlainDword::new(0x790078),
+                PlainDword::new(0x7A007B),
+                PlainDword::new(0x79007B),
+                PlainDword::new(0x7D007C),
+                PlainDword::new(0x7E007F),
+                PlainDword::new(0x7D007F),
+                PlainDword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(0),
+            ],
+            object_kind_sounds: [
+                PlainDword::new(0xD7),
+                PlainDword::new(0xD7),
+                PlainDword::new(0xD8),
+                PlainDword::new(0xD9),
+                PlainDword::new(0xDA),
+                PlainDword::new(0xDB),
+                PlainDword::new(0xDC),
+                PlainDword::new(0xDD),
+                PlainDword::new(0xDE),
+                PlainDword::new(0xDF),
+                PlainDword::new(0xE0),
+                PlainDword::new(0xE1),
+                PlainDword::new(0xD7),
+                PlainDword::new(0xD7),
+                PlainDword::new(0xD7),
+                PlainDword::new(0xD7),
+            ],
+            band_scale_0: PlainFloat::new(5e+01),
+            contact_band_scale: PlainFloat::new(5e+01),
+            crash_band_scale: PlainFloat::new(5e+01),
+            bump_band_scale: PlainFloat::new(2e+02),
+            ..ZeroCells::ZERO
+        }
     }
 }

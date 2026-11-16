@@ -1,0 +1,684 @@
+//! The platform under the game, on SDL3, for the standalone program (`standalone.rs`).
+//!
+//! Each function takes the place of a piece of the game's platform (the screen, the window or
+//! the message pump), keeps what that piece means to the game's own code (the variables it
+//! leaves, the flags it returns with) and does the rest with SDL.
+//! Beside this file: `direct3d` (the 3D layer), `sound`, `input` (joysticks and wheels), `events`,
+//! `timing`, `film`, `handheld` (the Anbernic), `web` (the browser), `os` (system services), `ffi`
+//! (the C libraries) and `sync` (threads and events), `arch` (processor differences).
+//!
+//! The screen: the game draws into a locked surface in the screen mode's own pixel
+//! layout. Here that surface is memory of ours (`Screen::pixels`, rows without a gap),
+//! and `show_frame` copies it to the window, 16-bit pixels made 32-bit on the way.
+//!
+//! - `gfx::choose_screen_modes`: the kept modes are taken as they are, 800 x 600 in 32 bits
+//!   when there is none.
+//! - `gfx::set_screen_mode`: the mode's size and pixel kind looked up and its variables set; the
+//!   surface made; its pixel format described; the texture formats too (`platform::direct3d.rs`).
+//!   `gfx::set_menu_screen_mode` is it with the menus' mode.
+//! - `gfx::lock_surface`, `gfx::unlock_surface`, `gfx::show_frame`.
+//! - `screens::run_frame` (given the frame's function) and `system::pump_messages`: SDL's events
+//!   (`platform::events`).
+//!
+//! Where the time goes: `platform::timing`.
+
+// Not FFI: `PoolBytes::slice` (the frame's pixels, read in place) is a memory primitive.
+#![allow(unsafe_code)]
+
+pub mod arch;
+pub mod direct3d;
+pub mod events;
+pub mod ffi;
+pub mod film;
+#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+pub mod handheld;
+pub mod input;
+pub mod os;
+pub mod sound;
+pub mod sync;
+pub mod timing;
+#[cfg(target_os = "emscripten")]
+pub mod web;
+
+use crate::gfx::describe_format::describe_format;
+use crate::gfx::set_clip::set_clip;
+use crate::logfile::program_log::log;
+use crate::platform::ffi::sdl;
+use std::sync::Mutex;
+use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
+
+// ---- game data ----
+
+// ---- the screen ----
+
+pub(crate) struct Screen {
+    /// The game's window.
+    pub(crate) window: sdl::Window,
+    /// The window's renderer (`SDL_Renderer`: the frame goes up as a texture, the
+    /// debug UI drawn over it) and the frame's texture (XRGB8888, the screen's size).
+    renderer: sdl::Renderer,
+    #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))]
+    // the handheld shows frames on its framebuffer
+    texture: sdl::Texture,
+    width: usize,
+    height: usize,
+    bits: u32,
+    /// The pixels the game draws on, named by `locked_pixels::SCREEN` while the screen lives.
+    pixels: std::sync::Arc<crate::memory::pool::PoolBytes>,
+}
+
+pub(crate) static SCREEN: Mutex<Option<Screen>> = Mutex::new(None);
+/// Frames shown, and after how many the program ends itself (0: never): for trying it
+/// without anyone at the keyboard. The last frame is written to `rc2k_frame.raw`.
+pub(crate) static SHOWN: AtomicU32 = AtomicU32::new(0);
+pub static FRAMES_TO_SHOW: AtomicU32 = AtomicU32::new(0);
+static LAST_SHOWN: AtomicUsize = AtomicUsize::new(0);
+
+// ---- gfx::choose_screen_modes ----
+
+/// `gfx::choose_screen_modes`: the menus' and the race's modes (the kept ones, else the defaults)
+/// and the graphics options' choices. Fails (the error the caller makes fatal error 0x90201101)
+/// when no mode works.
+pub fn choose_screen_modes(
+    gfx: &'static crate::gfx::owner::Gfx,
+    d3d: &crate::d3d::owner::D3d,
+    system: &crate::system::owner::System,
+) -> Result<(), crate::errors::FatalError> {
+    let gfx_display = &gfx.display;
+    {
+        // The logic is `rc2k_core::gfx::screen_modes::choose`. A mode works here when the mode
+        // table lists it: the window takes any listed mode, and every listed mode passes the 3D
+        // check (`gfx::mark_3d_modes`).
+        use rc2k_core::gfx::screen_modes::{Lookup, choose, look_up};
+        let display = &gfx_display;
+        let modes = &display.modes;
+        let table = crate::gfx::modes::Modes::TABLE_AT;
+        let works = |mode: u32| {
+            let entries = modes.entries(table, modes.count.get());
+            matches!(look_up(entries, mode), Lookup::Found(_))
+        };
+        let listed = |bits: u32| modes.lists_bits(bits);
+        let (menu, race) = (display.mode.menu_mode.get(), display.mode.race_mode.get());
+        #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+        let race = crate::platform::handheld::race_mode(race);
+        match choose(menu, race, works, listed) {
+            Some((menu, race)) => {
+                display.mode.race_mode.set(race);
+                display.mode.menu_mode.set(menu);
+                log(&format!(
+                    "platform: screen modes {menu:#x} for the menus, {race:#x} for a race"
+                ));
+            }
+            None => {
+                return Err(crate::errors::FatalError {
+                    code: 0x9020_1101,
+                    message: "",
+                });
+            }
+        }
+    }
+    // The graphics options' choices made: the list the options page shows its resolution from (not
+    // made yet at the start, so made whatever the caller holds).
+    let made = crate::gfx::screen_mode_choices::screen_mode_choices(gfx, d3d, system, false);
+    if let Err(e) = made {
+        log(&format!(
+            "platform: the screen mode choices are not made: {e:?}"
+        ));
+    }
+    Ok(())
+}
+
+// ---- gfx::set_screen_mode ----
+
+fn set_screen_mode(
+    mode: u32,
+    gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
+) -> Result<(), String> {
+    gfx.display.mode.mode_flags.set(mode);
+    use crate::gfx::modes::Modes;
+    let modes = &gfx.display.modes;
+    let size = modes
+        .value_of(mode & 0xFF, Modes::SIZES_AT, 8)
+        .ok_or("a screen size that is not known")?;
+    let (width, height) = (size & 0xFFFF, size >> 16);
+    let bits = modes
+        .value_of(mode & 0xF00, Modes::PIXEL_KINDS_AT, 2)
+        .ok_or("a kind of pixel that is not known")?;
+    let kind = modes
+        .value_of(mode & 0xF_0000, Modes::KINDS_AT, 3)
+        .ok_or("a kind that is not known")?;
+    let bytes = bits >> 3;
+    // Every texture is given back before the screen changes; the game loads again what it needs (a
+    // trial's 0x40 more found the pool full).
+    crate::platform::direct3d::release_all_textures(gfx);
+    system.session.screen.get().width.set(width);
+    system.session.screen.get().height.set(height);
+    system.session.screen.get().bits.set(bits);
+    if let Some(scratch) = crate::platform::direct3d::game_scratch() {
+        crate::scene::workers::set_game_part_screen(scratch, width, height, bits);
+    }
+    system.session.screen.get().bytes.set(bytes);
+    system.session.screen.get().row_bytes.set(bytes * width);
+    system
+        .session
+        .screen
+        .get()
+        .row_dwords
+        .set((bytes * width) >> 2);
+    system.session.screen.get().kind.set(kind);
+    // The z-buffer's depth: none here (there is no 3D device to pick it).
+    system.session.screen.get().depth_bits.set(0x10u32);
+
+    // The surface's pixel format, as DirectDraw would report it: +4 blue, +8 green,
+    // +0xC red, +0x10 no alpha.
+    let masks: [u32; 3] = if bits == 32 {
+        [0xFF, 0xFF00, 0xFF_0000]
+    } else {
+        [0x001F, 0x07E0, 0xF800]
+    };
+    let format = &system.session.screen.get().format;
+    for (n, mask) in masks.into_iter().enumerate() {
+        format[1 + n].set(mask);
+    }
+    format[4].set(0);
+    describe_format(&gfx.pixel.formats, format);
+    // The screen's own texture description (`texture_tables.descriptions[4]`).
+    gfx.card.texture_tables.descriptions[4].update(|d| {
+        d.found = 1;
+        d.bytes_per_pixel = bytes;
+        let six: [u32; 6] = std::array::from_fn(|n| format[n].get());
+        d.format = rc2k_core::gfx::pixels::PixelFormat {
+            layout: six[0],
+            masks: [six[1], six[2], six[3], six[4]],
+        };
+        d.number = six[5];
+    });
+
+    let mut screen = SCREEN.lock().map_err(|_| "the screen's lock")?;
+    // The old frame's texture is dropped only once the new screen is whole: on a failure
+    // the old one stays as it was.
+    let (window, renderer) = match screen.as_ref() {
+        Some(old) => (old.window, old.renderer),
+        None => {
+            // The handheld's frames go to the framebuffer (`handheld`).
+            #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+            sdl::use_dummy_video_driver();
+            if !sdl::init_video() {
+                return Err("SDL does not start".into());
+            }
+            let Some(window) =
+                sdl::create_window(c"Rally Championship", width as usize, height as usize)
+            else {
+                return Err("SDL opens no window".into());
+            };
+            // The GPU first (`render::choice`): the window's renderer shares the 3D's device.
+            // Each step that fails is logged and the next tried: SDL's own 2D renderer, with
+            // the software rasteriser drawing the 3D. The handheld's GPU starts with its first
+            // frame (`render::show_on_panel`).
+            #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+            let gpu_renderer = start_gpu_renderer(window);
+            #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+            let gpu_renderer: Option<sdl::Renderer> = None;
+            let renderer = match gpu_renderer {
+                Some(renderer) => Some(renderer),
+                None => sdl::create_renderer(window),
+            };
+            let Some(renderer) = renderer else {
+                return Err("SDL makes no renderer for the window".into());
+            };
+            log(&format!(
+                "platform: the window's renderer is SDL's `{}`{}",
+                renderer.name(),
+                if cfg!(all(target_os = "linux", target_arch = "aarch64")) {
+                    ""
+                } else if crate::render::gpu_running() {
+                    ", the 3D on the GPU backend"
+                } else {
+                    ", the 3D on the software rasteriser"
+                }
+            ));
+            (window, renderer)
+        }
+    };
+    window.set_size(width as usize, height as usize);
+    let Some(texture) = renderer.create_frame_texture(width as usize, height as usize) else {
+        return Err("SDL makes no texture for the frame".into());
+    };
+    // Black at once, as a mode change leaves the screen: until the first frame is
+    // shown the resized window would show what the window system puts there (white
+    // under Wine, a frame's flash before the loading picture).
+    renderer.clear_black();
+    renderer.present();
+    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    {
+        let mut held = crate::render::gpu::GPU.lock().unwrap();
+        let sized = match held.as_mut() {
+            Some(_) if crate::render::choice::forced_failure("size") => {
+                Err("made to fail".to_string())
+            }
+            Some(gpu) => gpu.set_size(width, height),
+            None => Ok(()),
+        };
+        if let Err(why) = sized {
+            // The frame texture's size does not matter to the window: the 3D goes on the
+            // software rasteriser from here, and the GPU's targets are not kept.
+            log(&format!(
+                "render: the GPU backend cannot make its targets ({why}): the software \
+                 rasteriser draws the 3D"
+            ));
+            *held = None;
+            crate::render::gpu_stopped();
+        }
+    }
+    // What was noted for the old screen is drawn on it before it goes.
+    crate::gfx::draw2d::quads::before_canvas_write();
+    // Its written rows noted: what the GPU's path uploads of the canvas (`render::gles`). A
+    // write to it first draws the glyphs noted as quads (`gfx::draw2d::quads`).
+    let pixels = std::sync::Arc::new(
+        crate::memory::pool::PoolBytes::noting_rows(
+            vec![0u8; (bytes * width * height) as usize],
+            (bytes * width) as usize,
+        )
+        .with_write_hook(crate::gfx::draw2d::quads::before_canvas_write),
+    );
+    crate::gfx::locked_pixels::register(crate::gfx::locked_pixels::SCREEN, &pixels);
+    gfx.drawing
+        .draw_surface
+        .present_pixels
+        .set(crate::gfx::locked_pixels::SCREEN);
+    gfx.drawing.draw_surface.present_pitch.set(bytes * width);
+    gfx.drawing.draw_surface.present_gap.set(0u32);
+    // "There are surfaces": what the game's own code asks.
+    gfx.drawing.surfaces.front.set(1);
+    gfx.drawing.surfaces.back.set(1);
+    *screen = Some(Screen {
+        window,
+        renderer,
+        texture,
+        width: width as usize,
+        height: height as usize,
+        bits,
+        pixels,
+    });
+    gfx.display.mode.mode_set.set(mode);
+    crate::platform::direct3d::describe_texture_formats(bits, gfx);
+    log(&format!(
+        "platform: screen mode {mode:#x}: {width} x {height}, {bits} bits"
+    ));
+    Ok(())
+}
+
+/// The window's renderer on a GPU device, with the GPU backend started on the same device.
+/// `None` (each failure logged) when the GPU is not wanted or a step fails; the device is
+/// then given up and the caller makes SDL's own renderer. A backend that does not start
+/// leaves the window's GPU renderer in place, drawing the rasteriser's frames.
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+fn start_gpu_renderer(window: sdl::Window) -> Option<sdl::Renderer> {
+    if !crate::render::gpu::wanted() {
+        return None;
+    }
+    let device = if crate::render::choice::forced_failure("device") {
+        None
+    } else {
+        crate::render::gpu::make_device()
+    }?;
+    let renderer = if crate::render::choice::forced_failure("gpu_renderer") {
+        None
+    } else {
+        sdl::create_gpu_renderer(device.as_raw(), window)
+    };
+    let Some(renderer) = renderer else {
+        log(&format!(
+            "render: SDL makes no renderer on the GPU device: {}",
+            crate::platform::ffi::sdl_gpu::error()
+        ));
+        device.destroy();
+        return None;
+    };
+    crate::render::gpu::start(device);
+    Some(renderer)
+}
+
+/// `gfx::set_screen_mode`: the screen in `mode`; false (and logged) if it cannot be.
+pub fn set_mode_now(
+    mode: u32,
+    gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
+) -> bool {
+    // The 3D drawing noted so far, before the screen is shown, written or changed.
+    crate::platform::direct3d::flush();
+    let done = set_screen_mode(mode, gfx, system);
+    if let Err(why) = &done {
+        log(&format!("platform: screen mode {mode:#x}: {why}"));
+    }
+    done.is_ok()
+}
+
+// ---- gfx::set_menu_screen_mode ----
+
+/// `gfx::set_menu_screen_mode`: `gfx::set_screen_mode` with the menus' mode; false (and
+/// logged) if it cannot be.
+pub fn set_menu_mode_now(
+    gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
+) -> bool {
+    // The 3D drawing noted so far, before the screen is shown, written or changed.
+    crate::platform::direct3d::flush();
+    let mode = gfx.display.mode.menu_mode.get();
+    let done = set_screen_mode(mode, gfx, system);
+    if let Err(why) = &done {
+        log(&format!("platform: screen mode {mode:#x}: {why}"));
+    }
+    done.is_ok()
+}
+
+// ---- gfx::lock_surface, gfx::unlock_surface ----
+
+/// `gfx::lock_surface`: the surface locked for drawing (unless quitting or there is no
+/// screen); the locked flag is 1 after it.
+pub fn lock_surface(gfx: &crate::gfx::owner::Gfx, system: &crate::system::owner::System) -> u32 {
+    // The 3D drawing noted so far, before the screen is shown, written or changed.
+    crate::platform::direct3d::flush();
+    let have = SCREEN.lock().is_ok_and(|screen| screen.is_some());
+    if !system.session.flags.quitting.is_set() && have {
+        gfx.locked.surface.set(1);
+        // The surface the blitters draw on, and the clip rectangle.
+        let s = &gfx.drawing.draw_surface;
+        let (row_bytes, pitch): (u32, u32) = (
+            system.session.screen.get().row_bytes.get(),
+            gfx.drawing.draw_surface.present_pitch.get(),
+        );
+        s.width.set(system.session.screen.get().width.get());
+        s.height.set(system.session.screen.get().height.get());
+        s.bits_per_pixel.set(system.session.screen.get().bits.get());
+        s.bytes_per_pixel
+            .set(system.session.screen.get().bytes.get());
+        s.row_bytes.set(row_bytes);
+        s.row_dwords
+            .set(system.session.screen.get().row_dwords.get());
+        s.format.set(crate::gfx::pixel_format::SCREEN_FORMAT);
+        s.pitch.set(pitch);
+        s.pixels.set(gfx.drawing.draw_surface.present_pixels.get());
+        crate::gfx::surface::on_address(gfx);
+        s.row_gap.set(pitch.wrapping_sub(row_bytes));
+        set_clip([s.x.get(), s.y.get(), s.width.get(), s.height.get()], gfx);
+    }
+    gfx.locked.surface.get()
+}
+
+/// `gfx::unlock_surface`: the surface unlocked if it was locked; the locked flag before it
+/// (1: it was) is returned.
+pub fn unlock_surface(gfx: &crate::gfx::owner::Gfx) -> u32 {
+    let gfx_locked = &gfx.locked;
+    let locked: u32 = gfx_locked.surface.get();
+    if locked == 1 {
+        gfx_locked.surface.set(0);
+    }
+    locked
+}
+
+// ---- gfx::show_frame ----
+
+/// The GPU's colour target as a texture of the window's renderer: made once for a set of
+/// targets (`targets_made`, their number), in `GPU_VIEW`.
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+fn make_view(
+    renderer: sdl::Renderer,
+    (colour, targets_made): (*mut sdl3_sys::everything::SDL_GPUTexture, u64),
+    width: usize,
+    height: usize,
+) {
+    let mut view = GPU_VIEW.lock().unwrap();
+    if view.0 != targets_made {
+        // The old view is destroyed (dropped) when the new one is made.
+        let Some(made) = renderer.create_gpu_view(colour, width, height) else {
+            crate::fatal::raise::end(
+                "platform::view_of",
+                crate::errors::BadInput("SDL makes no texture of the GPU's picture"),
+            );
+        };
+        *view = (targets_made, Some(made));
+    }
+}
+
+/// The number of the targets' set the view was made for (none yet: 0), and the view.
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+static GPU_VIEW: Mutex<(u64, Option<sdl::Texture>)> = Mutex::new((0, None));
+
+/// `show` on the frame as XRGB8888: itself at 32 bits, else its 16-bit pixels widened.
+fn with_frame<R>(screen: &Screen, show: impl FnOnce(&[u8]) -> R) -> R {
+    let bytes = (screen.bits / 8) as usize;
+    let converted;
+    // SAFETY: `PoolBytes::slice`'s promise: the screen's pixels are reached from the game's
+    // thread only (the backends' calls and the frame's showing run on it; the drawing threads
+    // they lend the rows to are joined before `Backend::draw` returns), and nothing on it writes
+    // them while `show` runs: the GPU's canvas writes (`render::finish_frame`, `bring_back`,
+    // `show_on_panel`) come before the frame is taken, and `show` only reads it. The slice
+    // borrows `screen`, which keeps the pixels.
+    let pixels = unsafe { screen.pixels.slice() };
+    let frame: &[u8] = if bytes == 4 {
+        pixels
+    } else {
+        converted = pixels
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .flat_map(|from| {
+                let p = u16::from_le_bytes(*from) as u32;
+                let (red, green, blue) = (p >> 11 & 0x1F, p >> 5 & 0x3F, p & 0x1F);
+                let p = (red << 3 | red >> 2) << 16
+                    | (green << 2 | green >> 4) << 8
+                    | blue << 3
+                    | blue >> 2;
+                p.to_le_bytes()
+            })
+            .collect::<Vec<u8>>();
+        &converted
+    };
+    show(frame)
+}
+
+fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(), &'static str> {
+    let race = o.race;
+    // The frame's length as XRGB8888 (`with_frame`), checked before anything is shown.
+    let frame_len = if screen.bits / 8 == 4 {
+        screen.pixels.len()
+    } else {
+        screen.pixels.len() / 2 * 4
+    };
+    if frame_len < screen.width * screen.height * 4 {
+        return Err("the frame is smaller than the screen");
+    }
+    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    {
+        // The framebuffer's mode first, its memory then the GPU's or ours.
+        crate::platform::handheld::open_screen()?;
+        if let Some(target) = crate::platform::direct3d::screen(o.system.session.screen.get())
+            && crate::render::show_on_panel(
+                &race.course,
+                &target,
+                |show| with_frame(screen, show),
+                screen.width,
+                screen.height,
+            )
+        {
+            return Ok(());
+        }
+        with_frame(screen, |frame| {
+            crate::platform::handheld::present(frame, screen.width, screen.height)
+        })
+    }
+    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    {
+        let renderer = screen.renderer;
+        // A race on the GPU: its picture, the canvas's written pixels over it.
+        let gpu_view = crate::platform::direct3d::screen(o.system.session.screen.get())
+            .and_then(|target| crate::render::finish_frame(&race.course, &target))
+            .map(|colour| make_view(renderer, colour, screen.width, screen.height))
+            .is_some();
+        if !gpu_view
+            && !with_frame(screen, |frame| {
+                screen.texture.upload(frame, screen.width * 4)
+            })
+        {
+            return Err("SDL cannot take the frame into its texture");
+        }
+        renderer.clear_black();
+        if gpu_view {
+            let view = GPU_VIEW.lock().unwrap();
+            // `make_view` has just made it.
+            if let Some(view) = view.1.as_ref() {
+                renderer.draw_whole(view);
+            }
+        } else {
+            renderer.draw_whole(&screen.texture);
+        }
+        // The debug UI over the frame.
+        crate::debug::imgui_sdl::draw(o, renderer, screen.window);
+        renderer.present();
+        Ok(())
+    }
+}
+
+/// The frames' running counters, for the debug UI's profiler: microseconds in the
+/// rasteriser, noting the triangles and showing the frame; triangle fans; pixels drawn.
+#[cfg(debug_ui)]
+pub fn frame_counters() -> [u64; 5] {
+    use std::sync::atomic::Ordering::Relaxed;
+    [
+        crate::render::RASTER_MICROS.load(Relaxed),
+        crate::platform::direct3d::NOTE_MICROS.load(Relaxed),
+        crate::platform::timing::SHOW_MICROS.load(Relaxed),
+        crate::render::FANS.load(Relaxed),
+        crate::render::PIXELS.load(Relaxed),
+    ]
+}
+
+/// The screen's width and height.
+#[cfg(debug_ui)]
+pub fn screen_size(system: &crate::system::owner::System) -> (u32, u32) {
+    (
+        system.session.screen.get().width.get(),
+        system.session.screen.get().height.get(),
+    )
+}
+
+/// The screen's pixels (its width times its height).
+#[cfg(debug_ui)]
+pub fn screen_pixels(system: &crate::system::owner::System) -> u64 {
+    u64::from(system.session.screen.get().width.get())
+        * u64::from(system.session.screen.get().height.get())
+}
+
+/// `gfx::show_frame`: the frame drawn shown (at most some sixty a second); false while
+/// quitting (nothing shown).
+pub fn show_frame_now(o: crate::owners::Owners<'static>) -> bool {
+    let drawing = &o.gfx.drawing;
+    // The 3D drawing noted so far, before the screen is shown, written or changed.
+    crate::platform::direct3d::flush();
+    crate::gfx::draw2d::check::end_frame(o.gfx, o.menus.screens.loop_flags.menu.get().ok());
+    {
+        if o.system.session.flags.quitting.is_set() {
+            return false;
+        }
+        #[cfg(feature = "remote")]
+        if crate::remote::shot_wanted()
+            && let Some(target) = crate::platform::direct3d::screen(o.system.session.screen.get())
+        {
+            crate::render::bring_back(&target);
+        }
+        if let Ok(screen) = SCREEN.lock()
+            && let Some(screen) = screen.as_ref()
+        {
+            // Before it is shown: on the GPU's path showing clears the canvas.
+            #[cfg(feature = "remote")]
+            let shot = crate::remote::shot_wanted().then(|| screen.pixels.to_vec());
+            let showing = std::time::Instant::now();
+            let shown_ok = show_frame(&o, screen);
+            crate::platform::timing::SHOW_MICROS.fetch_add(
+                showing.elapsed().as_micros() as u64,
+                std::sync::atomic::Ordering::Relaxed,
+            );
+            if let Err(why) = shown_ok {
+                log(&format!("platform: no frame shown: {why}"));
+            }
+            drawing
+                .draw_surface
+                .flipped
+                .set(drawing.draw_surface.flipped.get() ^ 1);
+            drawing
+                .draw_surface
+                .frames
+                .set(drawing.draw_surface.frames.get().wrapping_add(1));
+            #[cfg(feature = "remote")]
+            if let Some(pixels) = shot {
+                crate::remote::frame(&pixels, screen.width as u32, screen.height as u32);
+            }
+            crate::platform::timing::note_frame_shown();
+            let shown = SHOWN.fetch_add(1, Ordering::SeqCst) + 1;
+            let wanted = FRAMES_TO_SHOW.load(Ordering::SeqCst);
+            if wanted != 0 && shown == wanted {
+                if let Some(target) =
+                    crate::platform::direct3d::screen(o.system.session.screen.get())
+                {
+                    crate::render::bring_back(&target);
+                }
+                let _ = std::fs::write("rc2k_frame.raw", screen.pixels.to_vec());
+                log(&format!(
+                    "platform: {shown} frames shown; the last is in rc2k_frame.raw ({} x {}, {} bits); quitting",
+                    screen.width, screen.height, screen.bits
+                ));
+                o.system.session.flags.quitting.set(true);
+            }
+        }
+        crate::platform::timing::start_sampler();
+        crate::platform::timing::report_timing(o.system);
+        // A flip waits for the screen: some sixty frames a second at most. The next frame's
+        // gap is counted from the end of this wait (counted from before it, every other
+        // frame skipped the wait: about 95 a second with 5 ms of work a frame).
+        let now = sdl::ticks() as usize;
+        let since = now.wrapping_sub(LAST_SHOWN.load(Ordering::SeqCst));
+        if since < 16 {
+            #[cfg(feature = "remote")]
+            let wait = (crate::remote::wall_micros((16 - since) as u32) / 1000) as u32;
+            #[cfg(not(feature = "remote"))]
+            let wait = (16 - since) as u32;
+            if wait > 0 {
+                sdl::delay(wait);
+            }
+        }
+        LAST_SHOWN.store(sdl::ticks() as usize, Ordering::SeqCst);
+    }
+    true
+}
+
+// ---- system::pump_messages, screens::run_frame ----
+
+/// `system::pump_messages`: the window's events (SDL's).
+pub fn pump_messages_now(o: crate::owners::Owners<'static>) {
+    crate::platform::events::pump(o);
+}
+
+/// `screens::run_frame` for Rust callers with a frame of their own (the screen loops): the
+/// messages, then the frame unless quitting (None then).
+pub fn run_frame_now<T>(o: crate::owners::Owners<'static>, frame: impl FnOnce() -> T) -> Option<T> {
+    crate::platform::events::pump(o);
+    if o.system.session.flags.quitting.is_set() {
+        None
+    } else {
+        Some(frame())
+    }
+}
+
+/// A file of ours next to the log (the current folder can change: the installer).
+#[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // used by the debug UI, and on Windows
+pub fn beside_log(name: &str) -> std::path::PathBuf {
+    match crate::logfile::program_log::LOG_PATH
+        .get()
+        .and_then(|p| p.parent())
+    {
+        Some(folder) => folder.join(name),
+        None => name.into(),
+    }
+}

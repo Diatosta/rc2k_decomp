@@ -1,16 +1,12 @@
-//! The x87's habits the physics' converted float code keeps (2026-10-21): a float loaded
-//! and stored again comes back with a signalling NaN made quiet; the compares the
-//! originals read (`fcomp` and the status word's C0 / C3) count an unordered pair as
-//! below and as equal; `fistp` rounds to the nearest, ties to even, and stores the
-//! "integer indefinite" (0x80000000) for what does not fit.
-//!
-//! The values the x87 keeps on its stack are `f64`s in the converted code, rounded to
-//! `f32` where the original stores (`notes/conversion.md`, the float pass).
+//! The x87's habits the physics' float code keeps: a signalling NaN made quiet on load and
+//! store, compares that count an unordered pair as below and as equal, rounding to the nearest
+//! (ties to even) with 0x80000000 for what does not fit. Stack values are `f64`s, rounded to
+//! `f32` where stored.
 
 pub use crate::math::geometry::{fistp, fistp64};
 use std::cmp::Ordering;
 
-/// `fld; fstp`: the float as it comes back (a signalling NaN made quiet).
+/// The float as it comes back (a signalling NaN made quiet).
 pub fn loaded(x: f32) -> f32 {
     if x.is_nan() {
         f32::from_bits(x.to_bits() | 0x0040_0000)
@@ -19,28 +15,27 @@ pub fn loaded(x: f32) -> f32 {
     }
 }
 
-/// `fld; fchs; fstp`: the float with its sign turned (a signalling NaN made quiet).
+/// The float with its sign turned.
 pub fn negated(x: f32) -> f32 {
     loaded(-x)
 }
 
-/// `fld; fabs; fstp`: the float without its sign (a signalling NaN made quiet).
+/// The float without its sign.
 pub fn abs(x: f32) -> f32 {
     loaded(x.abs())
 }
 
-/// C0 of `fld a; fcomp b`: a below b, or unordered.
+/// Whether `a` is below `b`, or unordered.
 pub fn below(a: f64, b: f64) -> bool {
     !matches!(a.partial_cmp(&b), Some(Ordering::Greater | Ordering::Equal))
 }
 
-/// C3 of `fld a; fcomp b`: a equal to b, or unordered.
+/// Whether `a` equals `b`, or unordered.
 pub fn equal(a: f64, b: f64) -> bool {
     matches!(a.partial_cmp(&b), Some(Ordering::Equal) | None)
 }
 
-/// `fld lim; fld v; fcompp; jnb; fld lim; fstp v`: v raised to lim when below it (or
-/// unordered).
+/// v raised to lim when below it (or unordered).
 pub fn hold_low(v: f32, lim: f32) -> f32 {
     if below(v as f64, lim as f64) {
         loaded(lim)
@@ -49,8 +44,7 @@ pub fn hold_low(v: f32, lim: f32) -> f32 {
     }
 }
 
-/// `fld lim; fld v; fcompp; jb; fld lim; fstp v`: v lowered to lim unless below it (or
-/// unordered).
+/// v lowered to lim unless below it (or unordered).
 pub fn hold_high(v: f32, lim: f32) -> f32 {
     if below(v as f64, lim as f64) {
         v

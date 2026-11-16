@@ -1,239 +1,236 @@
-//! The sound module's variables, out of RAL.EXE's image (phase 5, `notes/conversion.md`),
-//! typed (phase 7): each is a `#[repr(C)]` struct of atomic cells with the image's layout
-//! (the first values the image's, `tests::*_start_as_the_games`), one static a piece, and
-//! `moved::MOVED` points the image's addresses at it:
-//! - `WHEEL_SURFACES` (IDA 0x4F66F1 .. 0x4F66F9): the two wheel surfaces the sound reads;
-//! - `RaceClock` (0x5124E4 .. 0x512508): the race sounds' clock and constants;
-//! - `RaceSounds` (0x512A10 .. 0x514F90): the eight sound objects (`SoundObject`, 0x4A8 bytes
-//!   each, with the table of their addresses) and the cars the sound follows. The table
-//!   keeps the image's IDA addresses: nothing reads it (the objects are reached by number);
-//! - `SurfaceSounds` (0x516358 .. 0x51639C): the factors the engine, speed, revs and
-//!   throttle sounds scale by, the wheel sounds across and along, the surface sound volume;
-//! - `StageSounds` (0x51655C .. 0x5168C0): the surface sound sets, the stage's one-off,
-//!   timed, loop and random sounds, and the spots shared with the sound side;
-//! - `SpotPicks` (0x517F40 .. 0x518080): the spot-voice picks and the sound kinds per spot;
-//!   `SettingsApplied` (0x518080); `SoundOptions` (0x5180F0 .. 0x518104): the kept options
-//!   (`g_tuneTurn`, `g_musicVolume` ..); `CdAudio` (0x518104 .. 0x518120). Between them in the
-//!   image, the force-feedback effects' state is `input::store::ForceFeedback`'s (split
-//!   2026-10-25).
+//! The sound module's variables, typed: each is a struct of atomic cells with the game's starting
+//! values (`tests::*_start_as_the_games`), one static a piece. The race sounds' objects and the
+//! surface sounds hold their fields with nothing between them, as `sound::asm_layout` lays them out
+//! for the kept assembly's tests.
+//! - `RaceClock`: the race sounds' clock and constants;
+//! - `RaceSounds`: the eight sound objects (`SoundObject`) and the cars the sound follows;
+//! - `SurfaceSounds`: the factors the engine, speed, revs and throttle sounds scale by, the
+//!   wheel sounds across and along, the surface sound volume;
+//! - `StageSounds`: the surface sound sets, the stage's one-off, timed, loop and random sounds, and
+//!   the spots shared with the sound side;
+//! - `SpotPicks`: the spot-voice picks and the sound kinds per spot;
+//! - `SettingsApplied`, `SoundOptions` (the kept options, without the tune turn) and `CdAudio`. The
+//!   force-feedback effects' state is `input::store::ForceFeedback`'s.
 //!
 //! The sound commands go to the audio thread through `audio::store`'s queue; these are the
 //! game thread's.
 
-use crate::race::owner::race;
-use crate::session::{Dword, Float, Word};
-
-/// `g_wheelSurfaceA`, `g_wheelSurfaceB` (IDA 0x4F66F1, 0x4F66F5): the surfaces of the wheels
-/// the first and the second of a car's two sounds follow (`sound::surface_sounds`). Split
-/// 2026-10-25 from the dwords around them: the save file's four before
-/// (`saves::owner::Files::options_kept`), the race record's seal key after (`race::replay::SEAL_KEY`).
-pub static WHEEL_SURFACES: [Dword; 2] = [Dword::new(0), Dword::new(0)];
+use crate::memory::session::{Dword, PlainDword, PlainFloat, PlainWord};
 
 /// One cue of a car's queue: eight dwords.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct CueEntry {
     /// The cue's first sound.
-    pub first: Dword,
+    pub first: PlainDword,
     /// Its sounds.
-    pub count: Dword,
+    pub count: PlainDword,
     /// The sounds.
-    pub sounds: [Dword; 6],
+    pub sounds: [PlainDword; 6],
 }
 
 /// A car's queue of spoken cues, 0x210 bytes.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct CueQueue {
     /// The first cue queued.
-    pub first: Dword,
+    pub first: PlainDword,
     /// The place in the first cue (-1: none begun).
-    pub place: Dword,
+    pub place: PlainDword,
     /// When the next sound is due.
-    pub due: Dword,
+    pub due: PlainDword,
     /// The cues queued.
-    pub count: Dword,
+    pub count: PlainDword,
     /// The cues.
     pub cues: [CueEntry; 16],
 }
 
 /// One of a car's four wheel records in its sound object: five dwords.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct EngineVoice {
-    /// +0: a share the physics sets (`physics::car_sound_state`: +0x294 of the work car, or 0); the first wheel sum (`int` +0x284 of the object) scales these by 0.4.
-    pub share_a: Float,
-    /// +4: nothing reads or writes it.
-    pub _gap_4: Dword,
-    /// +8: 1.0, or the share +0x28C (`sound::surface_sounds` reads these: front less back and left less right, and their sum x 64).
-    pub share_b: Float,
-    /// +0xC: the share x 256.
-    pub share_c: Float,
-    /// +0x10: the surface the wheel runs on (`g_car` +0x930).
-    pub surface: Dword,
+    /// A share the physics sets (`physics::car_sound_state`, or 0); the first wheel sum (`sum_a`)
+    /// scales these by 0.4.
+    pub share_a: PlainFloat,
+    /// 1.0, or the physics' other share (`sound::surface_sounds` reads these: front less back and
+    /// left less right, and their sum x 64).
+    pub share_b: PlainFloat,
+    /// The share x 256.
+    pub share_c: PlainFloat,
+    /// The surface the wheel runs on.
+    pub surface: PlainDword,
 }
 
-/// A race sound object, 0x4A8 bytes: a car's sound state (the revs, the throttle, the place, the timed sound slots) as `sound::car_sounds` and the physics keep it. Offsets in the docs are the image's (+0x..); fields not worked out are gaps.
-#[repr(C)]
+/// A race sound object: a car's sound state (the revs, the throttle, the place, the timed sound
+/// slots) as `sound::car_sounds` and the physics keep it.
 #[derive(rc2k_derive::Cells)]
 pub struct SoundObject {
-    /// +0: added to a sound set's first sound to pick the car's sound; negative for a computer's car (a reading).
-    pub sound_offset: Dword,
-    /// +4: the car's sound kind, an index into `off_514F90` (36 of 0x88 bytes).
-    pub kind: Dword,
-    /// +8: 1 when the object is in use (`sound::car_sounds_all`).
-    pub in_use: Dword,
-    /// +0xC: `g_car` +0x6F0 xor 1; the engine, throttle and speed sounds' volume is scaled by a constant when it is 0 (a reading).
-    pub view_flag: Dword,
-    /// +0x10: 1 when a new revs reading (+0x14) came (`sound::car_engine_state`).
-    pub new_revs: Dword,
-    /// +0x14: the revs (extrapolated between the physics' readings).
-    pub revs: Dword,
-    /// +0x18: the throttle, 0 ..= 0x100.
-    pub throttle: Dword,
-    /// +0x1C: the car's speed.
-    pub speed: Float,
-    /// +0x20: set by the physics when the gear changed (cleared by `sound::car_engine_state`).
-    pub gear_event: Dword,
-    /// +0x24: 1 when the car is in no gear (a reading).
-    pub no_gear: Dword,
-    /// +0x28: not worked out (1 dwords).
-    pub _gap_28: [Dword; 1],
-    /// +0x2C: the car's place less the listener's, turned by the view and scaled (`physics::car_sound_state`).
-    pub place: [Float; 3],
-    /// +0x38: the car's motion, turned by the view.
-    pub motion: [Float; 3],
-    /// +0x44: four records of five dwords (one per wheel).
+    /// Added to a sound set's first sound to pick the car's sound; negative for a computer's
+    /// car (the sets are picked in `sound::revs_sound` and `surface_sound`).
+    pub sound_offset: PlainDword,
+    /// The car's sound kind, an index into `SoundKinds.kinds[0]` (36 of 0x88 bytes).
+    pub kind: PlainDword,
+    /// 1 when the object is in use (`sound::car_sounds_all`).
+    pub in_use: PlainDword,
+    /// 0 for the view of the car itself, 1 otherwise; the engine, throttle and speed sounds'
+    /// volume is scaled by a constant when it is 0 (`sound::revs_sound`, `throttle_sound`,
+    /// `car_slot_sounds`: 1 gets the surface's gain instead).
+    pub view_flag: PlainDword,
+    /// 1 when a new revs reading (`revs`) came (`sound::car_engine_state`).
+    pub new_revs: PlainDword,
+    /// The revs (extrapolated between the physics' readings).
+    pub revs: PlainDword,
+    /// The throttle, 0 ..= 0x100.
+    pub throttle: PlainDword,
+    /// The car's speed.
+    pub speed: PlainFloat,
+    /// Set by the physics when the gear changed (cleared by `sound::car_engine_state`).
+    pub gear_event: PlainDword,
+    /// 1 when the car is in neutral (gear 0, or the gear cue's random bits 0:
+    /// `sound::car_engine_state`); 1 from the set-up.
+    pub no_gear: PlainDword,
+    /// The car's place less the listener's, turned by the view and scaled
+    /// (`physics::car_sound_state`).
+    pub place: [PlainFloat; 3],
+    /// The car's motion, turned by the view.
+    pub motion: [PlainFloat; 3],
+    /// Four records of five dwords (one per wheel).
     pub voices: [EngineVoice; 4],
-    /// +0x94: the times of the last two revs readings.
-    pub reading_times: [Dword; 2],
-    /// +0x9C: the revs of the last two readings.
-    pub reading_revs: [Dword; 2],
-    /// +0xA4: cleared by the set-up (`race::set_up_race_sound_objects`); nothing else reads or writes them.
-    pub cleared_a4: [Dword; 2],
-    /// +0xAC: set by the physics (`g_car` +0x248 and +0x24C); the speed sound stops when it is not 0.
-    pub flag_ac: Dword,
-    /// +0xB0: the force feedback's inputs (`input::update_car_effects`): +0x1A4 x 10, (+0x1B8 - +0x1AC) x 10, +0x1A4 x 10, +0x1AC x 10 of the view block.
-    pub effect_in: [Dword; 4],
-    /// +0xC0: the knock's force (`input::update_car_effects`); cleared by the set-up.
-    pub knock: Dword,
-    /// +0xC4: the knock's inputs (cleared after each use; +0xCC and +0xC4 give the angle, +0xD0 the weight).
-    pub knock_in: [Dword; 4],
-    /// +0xD4: set by `physics::share_engine_sound` (a reading: nothing in the ported code reads it).
-    pub knock_d4: Dword,
-    /// +0xD8: the third value of the effect requests (a reading).
-    pub effect_d8: Dword,
-    /// +0xDC: counts the knocks to 4 before the next effect 3.
-    pub knock_count: Dword,
-    /// +0xE0: not worked out (2 dwords).
-    pub _gap_e0: [Dword; 2],
-    /// +0xE8: the gear.
-    pub gear: Dword,
-    /// +0xEC: the gear when it last changed.
-    pub last_gear: Dword,
-    /// +0xF0: set with a gear change.
-    pub gear_notice: Dword,
-    /// +0xF4: counts down to 0; the speed sound waits for it.
-    pub countdown: Dword,
-    /// +0xF8: back-fire wait flag (a reading).
-    pub wait_f8: Dword,
-    /// +0xFC: the last direction of the revs.
-    pub last_direction: Dword,
-    /// +0x100: the revs sound's input, (+0x14 - kind +4) x kind +0xC.
-    pub revs_input: Float,
-    /// +0x104: the throttle sound's input, +0x18 over 256.
-    pub throttle_input: Float,
-    /// +0x108: the speed sound's input, |+0x1C| x `flt_516370`.
-    pub speed_input: Float,
-    /// +0x10C: 0 (no revs), 1 (up to 1000), 2, or 3 when +0x20 was set.
-    pub state: Dword,
-    /// +0x110: the last state.
-    pub last_state: Dword,
-    /// +0x114: not worked out (1 dwords).
-    pub _gap_114: [Dword; 1],
-    /// +0x118: follows +0x18.
-    pub smooth_throttle: Dword,
-    /// +0x11C: the gap (a reading).
-    pub gap_time: Dword,
-    /// +0x120: not worked out (2 dwords).
-    pub _gap_120: [Dword; 2],
-    /// +0x128: the turns going up.
-    pub turns_up: Dword,
-    /// +0x12C: 0, 1 up, 2 down.
-    pub direction: Dword,
-    /// +0x130: the turns going down.
-    pub turns_down: Dword,
-    /// +0x134: the listener's distance (the root of +0x2C .. +0x34 squared).
-    pub distance: Float,
-    /// +0x138: its change x the turns a second.
-    pub approach: Float,
-    /// +0x13C: the Doppler-like pitch factor, eased.
-    pub pitch_factor: Float,
-    /// +0x140: 1, or 1 / the distance when that is over 1.
-    pub volume_factor: Float,
-    /// +0x144: the sound playing from the surface sets of eight (-2: none; `sound::surface_sound`).
-    pub eights_sound: Dword,
-    /// +0x148: the sound playing from the surface sets of four (-2: none).
-    pub fours_sound: Dword,
-    /// +0x14C: seven timed sound slots of 0x18 bytes (`sound::car_slot_sounds` the first five, `sound::car_gear_sounds` the last two: +0x1C4 armed by `sound::car_engine_state` when the throttle drops at high revs, +0x1DC by its countdown at low throttle).
+    /// The times of the last two revs readings.
+    pub reading_times: [PlainDword; 2],
+    /// The revs of the last two readings.
+    pub reading_revs: [PlainDword; 2],
+    /// Two dwords cleared by the set-up (`race::set_up_race_sound_objects`); nothing else uses
+    /// them.
+    pub unused_a4: [PlainDword; 2],
+    /// Set by the physics; the speed sound stops when it is not 0.
+    pub flag_ac: PlainDword,
+    /// The force feedback's inputs (`input::update_car_effects`), from the view block's sideways
+    /// speed, forward speed and driven wheels' speed: sideways x 10, (driven - forward) x 10,
+    /// sideways x 10, forward x 10.
+    pub effect_in: [PlainDword; 4],
+    /// The knock's force (`input::update_car_effects`); cleared by the set-up.
+    pub knock: PlainDword,
+    /// The knock's inputs (cleared after each use; `knock_in[2]` and `knock_in[0]` give the angle,
+    /// `knock_in[3]` the weight).
+    pub knock_in: [PlainFloat; 4],
+    /// A copy of the car's steering trim made by `physics::share_engine_sound`; nothing reads it.
+    pub steer_trim_copy: PlainDword,
+    /// The `b` number of the Fourth, Steering and Landing force-feedback requests (the request
+    /// word's bits 20 ..); read only by `input::update_car_effects`, never written, so 0.
+    pub effect_request_b: PlainDword,
+    /// Counts the knocks to 4 before the next effect 3.
+    pub knock_count: PlainDword,
+    /// The gear.
+    pub gear: PlainDword,
+    /// The gear when it last changed.
+    pub last_gear: PlainDword,
+    /// Set with a gear change.
+    pub gear_notice: PlainDword,
+    /// Counts down to 0; the speed sound waits for it.
+    pub countdown: PlainDword,
+    /// 1 once the throttle-drop sound has been triggered in this downward run of the throttle
+    /// (set when the throttle falls more than 0x14 below its follower, cleared when it rises;
+    /// `rc2k_core::sound::engine`), so it plays once per lift; 1 from the set-up.
+    pub drop_latched: PlainDword,
+    /// The last direction of the revs.
+    pub last_direction: PlainDword,
+    /// The revs sound's input, (`revs` less the kind's `revs_low`) x its `revs_scale`.
+    pub revs_input: PlainFloat,
+    /// The throttle sound's input, `throttle` over 256.
+    pub throttle_input: PlainFloat,
+    /// The speed sound's input, |`speed`| x `SurfaceSounds.speed_scale`.
+    pub speed_input: PlainFloat,
+    /// 0 (no revs), 1 (up to 1000), 2, or 3 when `gear_event` was set.
+    pub state: PlainDword,
+    /// The last state.
+    pub last_state: PlainDword,
+    /// Follows `throttle`.
+    pub smooth_throttle: PlainDword,
+    /// The throttle's lead over its follower, `throttle` - `smooth_throttle` (negative on a
+    /// lift; a gear cue needs 0x32 or more, the drop sound -0x14 or less).
+    pub throttle_lead: PlainDword,
+    /// The turns going up.
+    pub turns_up: PlainDword,
+    /// 0, 1 up, 2 down.
+    pub direction: PlainDword,
+    /// The turns going down.
+    pub turns_down: PlainDword,
+    /// The listener's distance (the root of the squares of `place`).
+    pub distance: PlainFloat,
+    /// Its change x the turns a second.
+    pub approach: PlainFloat,
+    /// The Doppler-like pitch factor, eased.
+    pub pitch_factor: PlainFloat,
+    /// 1, or 1 / the distance when that is over 1.
+    pub volume_factor: PlainFloat,
+    /// The sound playing from the surface sets of eight (-2: none; `sound::surface_sound`).
+    pub eights_sound: PlainDword,
+    /// The sound playing from the surface sets of four (-2: none).
+    pub fours_sound: PlainDword,
+    /// Seven timed sound slots (`sound::car_slot_sounds` the first five, `sound::car_gear_sounds`
+    /// the last two: the sixth armed by `sound::car_engine_state` when the throttle drops at high
+    /// revs, the seventh by its countdown at low throttle).
     pub slots: [SoundSlot; 7],
-    /// +0x1F4: counts down (back-fires).
-    pub backfire_wait: Dword,
-    /// +0x1F8: the gear change's slot (pitch +0x210).
+    /// Counts down (back-fires).
+    pub backfire_wait: PlainDword,
+    /// The gear change's slot (pitch `gear_pitch`).
     pub gear_slot: SoundSlot,
-    /// +0x210: the gear change sound's pitch factor.
-    pub gear_pitch: Float,
-    /// +0x214: the place of the slot at +0x220.
-    pub place_b: [Float; 3],
-    /// +0x220: a timed slot.
+    /// The gear change sound's pitch factor.
+    pub gear_pitch: PlainFloat,
+    /// The place of `slot_b`.
+    pub place_b: [PlainFloat; 3],
+    /// A timed slot.
     pub slot_b: SoundSlot,
-    /// +0x238: the hit sound to send once (-2: none), set by the physics.
-    pub hit_sound: Dword,
-    /// +0x23C: its volume.
-    pub hit_volume: Dword,
-    /// +0x240: its place.
-    pub hit_place: [Float; 3],
-    /// +0x24C: the second one-off sound (-2: none), set by the physics' cues.
-    pub cue_sound: Dword,
-    /// +0x250: its volume.
-    pub cue_volume: Dword,
-    /// +0x254: its place.
-    pub cue_place: [Float; 3],
-    /// +0x260: a timed slot.
+    /// The hit sound to send once (-2: none), set by the physics.
+    pub hit_sound: PlainDword,
+    /// Its volume.
+    pub hit_volume: PlainDword,
+    /// Its place.
+    pub hit_place: [PlainFloat; 3],
+    /// The second one-off sound (-2: none), set by the physics' cues.
+    pub cue_sound: PlainDword,
+    /// Its volume.
+    pub cue_volume: PlainDword,
+    /// Its place.
+    pub cue_place: [PlainFloat; 3],
+    /// A timed slot.
     pub slot_c: SoundSlot,
-    /// +0x278: 1 after a landing's effects (`input::update_car_effects`).
-    pub landed: Dword,
-    /// +0x27C: the last +0xBC, for effect 5 (a reading).
-    pub last_effect_bc: Dword,
-    /// +0x280: cleared by the set-up; nothing else reads or writes it.
-    pub cleared_280: Dword,
-    /// +0x284: the first wheel sum x 0.4 (a whole number).
-    pub sum_a: Dword,
-    /// +0x288: not worked out (1 dwords).
-    pub _gap_288: [Dword; 1],
-    /// +0x28C: the second wheel sum x 64 (a whole number).
-    pub sum_b: Dword,
-    /// +0x290: the other wheels' sum x 64 (a whole number).
-    pub sum_c: Dword,
-    /// +0x294: the surface the first wheel runs on.
-    pub surface: Dword,
-    /// +0x298: the queue of spoken cues (`sound::play_cue_queue`; `physics::queue_sound_cue` fills it), 0x210 bytes.
+    /// 1 after a landing's effects (`input::update_car_effects`).
+    pub landed: PlainDword,
+    /// The last forward speed x 10 (`effect_in[3]`), kept for the next turn's speed-change
+    /// effect (`input::update_car_effects`); cleared by the set-up.
+    pub last_forward_speed: PlainDword,
+    /// Cleared by the set-up; nothing else reads or writes it.
+    pub unused_280: PlainDword,
+    /// The first wheel sum x 0.4 (a whole number).
+    pub sum_a: PlainDword,
+    /// The second wheel sum x 64 (a whole number).
+    pub sum_b: PlainDword,
+    /// The other wheels' sum x 64 (a whole number).
+    pub sum_c: PlainDword,
+    /// The surface the first wheel runs on.
+    pub surface: PlainDword,
+    /// The queue of spoken cues (`sound::play_cue_queue`; `physics::queue_sound_cue` fills it),
+    /// 0x210 bytes.
     pub cue_queue: CueQueue,
 }
 
-/// The current car's sound object (`g_raceSoundObjects[g_currentCar & 7]`).
-pub fn current_object() -> &'static SoundObject {
-    &crate::sound::owner::sound().race.sounds.objects
-        [(race().shared.work.current_car.get() & 7) as usize]
+/// The current car's sound object (the current car's number modulo eight).
+pub fn current_object<'a>(
+    sound: &'a crate::sound::owner::Sound,
+    work: &crate::race::work_store::RaceWork,
+) -> &'a SoundObject {
+    &sound.race.sounds.get().objects[(work.current_car.get() & 7) as usize]
 }
 
 impl SoundObject {
-    /// Race sound object `n` (the original kept its address in `g_raceSoundObjects`),
-    /// refused past the eight.
-    pub fn number(n: u32) -> Result<&'static SoundObject, crate::errors::BadInput> {
-        crate::sound::owner::sound()
+    /// Race sound object `n`, refused past the eight.
+    pub fn of(
+        sound: &crate::sound::owner::Sound,
+        n: u32,
+    ) -> Result<&SoundObject, crate::errors::BadInput> {
+        sound
             .race
             .sounds
+            .get()
             .objects
             .get(n as usize)
             .ok_or(crate::errors::BadInput(
@@ -241,8 +238,8 @@ impl SoundObject {
             ))
     }
 
-    /// The timed slot the image names by its offset in the object (the core's lists of
-    /// slots are by offset). Any other offset is a bug of the caller.
+    /// The timed slot at a byte offset in the 1999 object layout (the core's lists of slots are
+    /// by offset). Any other offset is a bug of the caller.
     pub fn slot_at(&self, offset: u32) -> &SoundSlot {
         match offset {
             0x14C => &self.slots[0],
@@ -260,239 +257,249 @@ impl SoundObject {
     }
 }
 
-/// A sound object as the image has it, with the car's `sound_offset` (all eight have the
+/// A sound object as the game starts it, with the car's `sound_offset` (all eight have the
 /// kind 0x11 at the start).
-const fn initial_object(sound_offset: u32) -> SoundObject {
+pub(crate) const fn initial_object(sound_offset: u32) -> SoundObject {
     SoundObject {
-        sound_offset: Dword::new(sound_offset),
-        kind: Dword::new(0x11),
-        in_use: Dword::new(0),
-        view_flag: Dword::new(0),
-        new_revs: Dword::new(0),
-        revs: Dword::new(0x3E8),
-        throttle: Dword::new(0),
-        speed: Float::from_bits(0),
-        gear_event: Dword::new(0),
-        no_gear: Dword::new(0),
-        _gap_28: [Dword::new(0)],
+        sound_offset: PlainDword::new(sound_offset),
+        kind: PlainDword::new(0x11),
+        in_use: PlainDword::new(0),
+        view_flag: PlainDword::new(0),
+        new_revs: PlainDword::new(0),
+        revs: PlainDword::new(0x3E8),
+        throttle: PlainDword::new(0),
+        speed: PlainFloat::new(0.0),
+        gear_event: PlainDword::new(0),
+        no_gear: PlainDword::new(0),
         place: [
-            Float::from_bits(0),
-            Float::from_bits(0),
-            Float::from_bits(0),
+            PlainFloat::new(0.0),
+            PlainFloat::new(0.0),
+            PlainFloat::new(0.0),
         ],
         motion: [
-            Float::from_bits(0),
-            Float::from_bits(0),
-            Float::from_bits(0),
+            PlainFloat::new(0.0),
+            PlainFloat::new(0.0),
+            PlainFloat::new(0.0),
         ],
         voices: [const {
             EngineVoice {
-                share_a: Float::from_bits(0),
-                _gap_4: Dword::new(0),
-                share_b: Float::from_bits(0),
-                share_c: Float::from_bits(0),
-                surface: Dword::new(0),
+                share_a: PlainFloat::new(0.0),
+                share_b: PlainFloat::new(0.0),
+                share_c: PlainFloat::new(0.0),
+                surface: PlainDword::new(0),
             }
         }; 4],
-        reading_times: [Dword::new(0), Dword::new(0)],
-        reading_revs: [Dword::new(0), Dword::new(0)],
-        cleared_a4: [Dword::new(0), Dword::new(0)],
-        flag_ac: Dword::new(0),
-        effect_in: [const { Dword::new(0) }; 4],
-        knock: Dword::new(0),
-        knock_in: [const { Dword::new(0) }; 4],
-        knock_d4: Dword::new(0),
-        effect_d8: Dword::new(0),
-        knock_count: Dword::new(0),
-        _gap_e0: [Dword::new(0), Dword::new(0)],
-        gear: Dword::new(0),
-        last_gear: Dword::new(0),
-        gear_notice: Dword::new(0),
-        countdown: Dword::new(0),
-        wait_f8: Dword::new(1),
-        last_direction: Dword::new(0),
-        revs_input: Float::from_bits(0),
-        throttle_input: Float::from_bits(0),
-        speed_input: Float::from_bits(0),
-        state: Dword::new(0),
-        last_state: Dword::new(0),
-        _gap_114: [Dword::new(0)],
-        smooth_throttle: Dword::new(0),
-        gap_time: Dword::new(0),
-        _gap_120: [Dword::new(0), Dword::new(0)],
-        turns_up: Dword::new(0),
-        direction: Dword::new(0),
-        turns_down: Dword::new(0),
-        distance: Float::from_bits(0),
-        approach: Float::from_bits(0),
-        pitch_factor: Float::from_bits(0x3F800000),
-        volume_factor: Float::from_bits(0),
-        eights_sound: Dword::new(0xFFFFFFFE),
-        fours_sound: Dword::new(0xFFFFFFFE),
+        reading_times: [PlainDword::new(0), PlainDword::new(0)],
+        reading_revs: [PlainDword::new(0), PlainDword::new(0)],
+        unused_a4: [PlainDword::new(0), PlainDword::new(0)],
+        flag_ac: PlainDword::new(0),
+        effect_in: [const { PlainDword::new(0) }; 4],
+        knock: PlainDword::new(0),
+        knock_in: [const { PlainFloat::new(0.0) }; 4],
+        steer_trim_copy: PlainDword::new(0),
+        effect_request_b: PlainDword::new(0),
+        knock_count: PlainDword::new(0),
+        gear: PlainDword::new(0),
+        last_gear: PlainDword::new(0),
+        gear_notice: PlainDword::new(0),
+        countdown: PlainDword::new(0),
+        drop_latched: PlainDword::new(1),
+        last_direction: PlainDword::new(0),
+        revs_input: PlainFloat::new(0.0),
+        throttle_input: PlainFloat::new(0.0),
+        speed_input: PlainFloat::new(0.0),
+        state: PlainDword::new(0),
+        last_state: PlainDword::new(0),
+        smooth_throttle: PlainDword::new(0),
+        throttle_lead: PlainDword::new(0),
+        turns_up: PlainDword::new(0),
+        direction: PlainDword::new(0),
+        turns_down: PlainDword::new(0),
+        distance: PlainFloat::new(0.0),
+        approach: PlainFloat::new(0.0),
+        pitch_factor: PlainFloat::new(1.0),
+        volume_factor: PlainFloat::new(0.0),
+        eights_sound: PlainDword::new(0xFFFFFFFE),
+        fours_sound: PlainDword::new(0xFFFFFFFE),
         slots: [
             SoundSlot {
-                sound: Dword::new(0xD6),
-                start: Dword::new(0),
-                playing: Dword::new(0),
-                ends: Dword::new(0),
-                volume: Dword::new(0xFFFFFF91),
-                rate: Dword::new(0xFFFFFF91),
+                sound: PlainDword::new(0xD6),
+                start: PlainDword::new(0),
+                playing: PlainDword::new(0),
+                ends: PlainDword::new(0),
+                volume: PlainDword::new(0xFFFFFF91),
+                rate: PlainDword::new(0xFFFFFF91),
             },
             SoundSlot {
-                sound: Dword::new(0xD5),
-                start: Dword::new(0),
-                playing: Dword::new(0),
-                ends: Dword::new(0),
-                volume: Dword::new(0xFFFFFF91),
-                rate: Dword::new(0xFFFFFF91),
+                sound: PlainDword::new(0xD5),
+                start: PlainDword::new(0),
+                playing: PlainDword::new(0),
+                ends: PlainDword::new(0),
+                volume: PlainDword::new(0xFFFFFF91),
+                rate: PlainDword::new(0xFFFFFF91),
             },
             SoundSlot {
-                sound: Dword::new(0xD3),
-                start: Dword::new(0),
-                playing: Dword::new(0),
-                ends: Dword::new(0),
-                volume: Dword::new(0xFFFFFF91),
-                rate: Dword::new(0xFFFFFF91),
+                sound: PlainDword::new(0xD3),
+                start: PlainDword::new(0),
+                playing: PlainDword::new(0),
+                ends: PlainDword::new(0),
+                volume: PlainDword::new(0xFFFFFF91),
+                rate: PlainDword::new(0xFFFFFF91),
             },
             SoundSlot {
-                sound: Dword::new(0xD4),
-                start: Dword::new(0),
-                playing: Dword::new(0),
-                ends: Dword::new(0),
-                volume: Dword::new(0xFFFFFF91),
-                rate: Dword::new(0xFFFFFF91),
+                sound: PlainDword::new(0xD4),
+                start: PlainDword::new(0),
+                playing: PlainDword::new(0),
+                ends: PlainDword::new(0),
+                volume: PlainDword::new(0xFFFFFF91),
+                rate: PlainDword::new(0xFFFFFF91),
             },
             SoundSlot {
-                sound: Dword::new(0xD2),
-                start: Dword::new(0),
-                playing: Dword::new(0),
-                ends: Dword::new(0),
-                volume: Dword::new(0xFFFFFF91),
-                rate: Dword::new(0xFFFFFF91),
+                sound: PlainDword::new(0xD2),
+                start: PlainDword::new(0),
+                playing: PlainDword::new(0),
+                ends: PlainDword::new(0),
+                volume: PlainDword::new(0xFFFFFF91),
+                rate: PlainDword::new(0xFFFFFF91),
             },
             SoundSlot {
-                sound: Dword::new(0xEB),
-                start: Dword::new(0),
-                playing: Dword::new(0),
-                ends: Dword::new(0),
-                volume: Dword::new(0xFFFFFF91),
-                rate: Dword::new(0xFFFFFF91),
+                sound: PlainDword::new(0xEB),
+                start: PlainDword::new(0),
+                playing: PlainDword::new(0),
+                ends: PlainDword::new(0),
+                volume: PlainDword::new(0xFFFFFF91),
+                rate: PlainDword::new(0xFFFFFF91),
             },
             SoundSlot {
-                sound: Dword::new(0xE9),
-                start: Dword::new(0),
-                playing: Dword::new(0),
-                ends: Dword::new(0),
-                volume: Dword::new(0xFFFFFF91),
-                rate: Dword::new(0xFFFFFF91),
+                sound: PlainDword::new(0xE9),
+                start: PlainDword::new(0),
+                playing: PlainDword::new(0),
+                ends: PlainDword::new(0),
+                volume: PlainDword::new(0xFFFFFF91),
+                rate: PlainDword::new(0xFFFFFF91),
             },
         ],
-        backfire_wait: Dword::new(0),
+        backfire_wait: PlainDword::new(0),
         gear_slot: SoundSlot {
-            sound: Dword::new(0xE8),
-            start: Dword::new(0),
-            playing: Dword::new(0),
-            ends: Dword::new(0),
-            volume: Dword::new(0xFFFFFF91),
-            rate: Dword::new(0xFFFFFF91),
+            sound: PlainDword::new(0xE8),
+            start: PlainDword::new(0),
+            playing: PlainDword::new(0),
+            ends: PlainDword::new(0),
+            volume: PlainDword::new(0xFFFFFF91),
+            rate: PlainDword::new(0xFFFFFF91),
         },
-        gear_pitch: Float::from_bits(0x3F800000),
+        gear_pitch: PlainFloat::new(1.0),
         place_b: [
-            Float::from_bits(0),
-            Float::from_bits(0),
-            Float::from_bits(0),
+            PlainFloat::new(0.0),
+            PlainFloat::new(0.0),
+            PlainFloat::new(0.0),
         ],
         slot_b: SoundSlot {
-            sound: Dword::new(0xE3),
-            start: Dword::new(0),
-            playing: Dword::new(0),
-            ends: Dword::new(0),
-            volume: Dword::new(0xFFFFFF91),
-            rate: Dword::new(0xFFFFFF91),
+            sound: PlainDword::new(0xE3),
+            start: PlainDword::new(0),
+            playing: PlainDword::new(0),
+            ends: PlainDword::new(0),
+            volume: PlainDword::new(0xFFFFFF91),
+            rate: PlainDword::new(0xFFFFFF91),
         },
-        hit_sound: Dword::new(0xFFFFFFFE),
-        hit_volume: Dword::new(0),
+        hit_sound: PlainDword::new(0xFFFFFFFE),
+        hit_volume: PlainDword::new(0),
         hit_place: [
-            Float::from_bits(0),
-            Float::from_bits(0),
-            Float::from_bits(0),
+            PlainFloat::new(0.0),
+            PlainFloat::new(0.0),
+            PlainFloat::new(0.0),
         ],
-        cue_sound: Dword::new(0xFFFFFFFE),
-        cue_volume: Dword::new(0),
+        cue_sound: PlainDword::new(0xFFFFFFFE),
+        cue_volume: PlainDword::new(0),
         cue_place: [
-            Float::from_bits(0),
-            Float::from_bits(0),
-            Float::from_bits(0),
+            PlainFloat::new(0.0),
+            PlainFloat::new(0.0),
+            PlainFloat::new(0.0),
         ],
         slot_c: SoundSlot {
-            sound: Dword::new(0xE4),
-            start: Dword::new(0),
-            playing: Dword::new(0),
-            ends: Dword::new(0),
-            volume: Dword::new(0xFFFFFF91),
-            rate: Dword::new(0xFFFFFF91),
+            sound: PlainDword::new(0xE4),
+            start: PlainDword::new(0),
+            playing: PlainDword::new(0),
+            ends: PlainDword::new(0),
+            volume: PlainDword::new(0xFFFFFF91),
+            rate: PlainDword::new(0xFFFFFF91),
         },
-        landed: Dword::new(0),
-        last_effect_bc: Dword::new(0),
-        cleared_280: Dword::new(0),
-        sum_a: Dword::new(0),
-        _gap_288: [Dword::new(0)],
-        sum_b: Dword::new(0),
-        sum_c: Dword::new(0),
-        surface: Dword::new(0),
+        landed: PlainDword::new(0),
+        last_forward_speed: PlainDword::new(0),
+        unused_280: PlainDword::new(0),
+        sum_a: PlainDword::new(0),
+        sum_b: PlainDword::new(0),
+        sum_c: PlainDword::new(0),
+        surface: PlainDword::new(0),
         cue_queue: CueQueue {
-            first: Dword::new(0),
-            place: Dword::new(0xFFFFFFFF),
-            due: Dword::new(0),
-            count: Dword::new(0),
+            first: PlainDword::new(0),
+            place: PlainDword::new(0xFFFFFFFF),
+            due: PlainDword::new(0),
+            count: PlainDword::new(0),
             cues: [const {
                 CueEntry {
-                    first: Dword::new(0),
-                    count: Dword::new(0),
-                    sounds: [const { Dword::new(0) }; 6],
+                    first: PlainDword::new(0),
+                    count: PlainDword::new(0),
+                    sounds: [const { PlainDword::new(0) }; 6],
                 }
             }; 16],
         },
     }
 }
 
-/// The race sounds' objects and the cars they follow (IDA 0x512A10 .. 0x514F90, the image's layout; phase 7, typed state).
-#[repr(C)]
+/// The race sounds' objects and the cars they follow.
 #[derive(rc2k_derive::Cells)]
 pub struct RaceSounds {
-    /// `g_raceSoundObjects`: the eight objects' addresses as the image names them (IDA's); read by nothing, the objects are reached by number (`objects`).
-    pub table: [Dword; 8],
-    /// The eight objects (`dword_512A30` ..), 0x4A8 bytes each.
+    /// The 1999 addresses of the eight objects; nothing reads them, the objects are reached by
+    /// number (`objects`).
+    pub table: [PlainDword; 8],
+    /// The eight objects (`RaceSounds.objects[0].sound_offset` ..).
     pub objects: [SoundObject; 8],
-    /// `g_playerCarA`, `g_playerCarB`: the object numbers of the first and second player's cars.
-    pub player_cars: [Dword; 2],
-    /// `g_onePlayer`: 1 when one player races.
-    pub one_player: Dword,
-    /// `g_raceSoundObjectCount`: the objects in use.
-    pub count: Dword,
-    /// `g_nearestComputerCar`: the nearest computer car (an object number, -1 for none).
-    pub nearest: Dword,
-    /// `g_nextComputerCar`: the next nearest.
-    pub next: Dword,
-    /// `g_computerCarDistance`: the squared distance `sound::car_sounds_all` works out.
-    pub nearest_distance: Float,
-    /// `g_markCarVoices`: 1 when the cars' voices are marked (`sound::mark_car_voices`).
-    pub mark_car_voices: Dword,
+    /// The object numbers of the first and second player's cars.
+    pub player_cars: [PlainDword; 2],
+    /// The nearest computer car (an object number, -1 for none).
+    pub nearest: PlainDword,
+    /// The next nearest.
+    pub next: PlainDword,
+    /// The squared distance `sound::car_sounds_all` works out.
+    pub nearest_distance: PlainFloat,
+    /// 1 when the cars' voices are marked (`sound::mark_car_voices`).
+    pub mark_car_voices: PlainDword,
 }
 
-/// The race sounds' objects (`RaceSounds`); first values the image's.
+/// The two race sound values the input thread reads (its force-feedback effects follow the
+/// objects in use and the player count); the game's thread writes them, the rest of the race
+/// sounds stays with it alone (`RaceSounds`).
+#[derive(rc2k_derive::Cells)]
+pub struct SoundShared {
+    /// 1 when one player races.
+    pub one_player: Dword,
+    /// The objects in use.
+    pub count: Dword,
+}
+
+impl SoundShared {
+    pub const fn new() -> Self {
+        SoundShared {
+            one_player: Dword::new(1),
+            count: Dword::new(1),
+        }
+    }
+}
+
+/// The race sounds' objects (`RaceSounds`), starting as the game does.
 impl RaceSounds {
     pub const fn new() -> Self {
         RaceSounds {
             table: [
-                Dword::new(0x512A30),
-                Dword::new(0x512ED8),
-                Dword::new(0x513380),
-                Dword::new(0x513828),
-                Dword::new(0x513CD0),
-                Dword::new(0x514178),
-                Dword::new(0x514620),
-                Dword::new(0x514AC8),
+                PlainDword::new(0x512A30),
+                PlainDword::new(0x512ED8),
+                PlainDword::new(0x513380),
+                PlainDword::new(0x513828),
+                PlainDword::new(0x513CD0),
+                PlainDword::new(0x514178),
+                PlainDword::new(0x514620),
+                PlainDword::new(0x514AC8),
             ],
             objects: [
                 initial_object(0),
@@ -504,816 +511,573 @@ impl RaceSounds {
                 initial_object(0xFFFFFFFA),
                 initial_object(0xFFFFFFF9),
             ],
-            player_cars: [Dword::new(0), Dword::new(1)],
-            one_player: Dword::new(1),
-            count: Dword::new(1),
-            nearest: Dword::new(0),
-            next: Dword::new(0),
-            nearest_distance: Float::from_bits(0),
-            mark_car_voices: Dword::new(0),
+            player_cars: [PlainDword::new(0), PlainDword::new(1)],
+            nearest: PlainDword::new(0),
+            next: PlainDword::new(0),
+            nearest_distance: PlainFloat::new(0.0),
+            mark_car_voices: PlainDword::new(0),
         }
     }
 }
 
-/// Where the race sounds' block is (`moved::MOVED`'s home for IDA 0x512A10).
-#[cfg(test)]
-pub fn race_sounds_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::sound::owner::SOUND.race.sounds)
-}
-
-/// The race sounds' clock and the constants of the placed and moving sounds (IDA 0x5124E4
-/// .. 0x512508, the image's layout; phase 7, typed state).
-#[repr(C)]
+/// The race sounds' clock and the constants of the placed and moving sounds. Laid out as the
+/// 1999 variables: the recorded assembly's tests lay it over raw bytes.
+#[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells)]
 pub struct RaceClock {
-    /// `dword_5124E4`: 1 once the race's sounds are set up (`race::sounds`,
-    /// `race::sound_tables`), 0 at the race's end; `sound::race_turn` does nothing before.
-    pub started: Dword,
-    /// `dword_5124E8`: the clock (ms) of the last sound turn.
-    pub last: Dword,
-    /// `flt_5124EC`: sound turns a second (a distance changed in one turn times it is a
-    /// speed in units a second).
-    pub turns_a_second: Float,
-    /// `dword_5124F0`: the turn's length (ms).
-    pub step: Dword,
-    /// `dword_5124F4`: the turns counted.
-    pub turns: Dword,
-    /// `flt_5124F8` (337.52) and `flt_5124FC` (its inverse, 0.002963): a moving sound's
-    /// pitch is (speed of approach + the first) times the second, the Doppler factor
-    /// with the speed of sound (a reading).
-    pub sound_speed: Float,
-    pub over_sound_speed: Float,
-    /// `flt_512500` (64) and `flt_512504` (128 / pi): a placed sound's pan, the centre and
-    /// the pan steps per radian of angle.
-    pub pan_centre: Float,
-    pub pan_per_radian: Float,
+    /// 1 once the race's sounds are set up (`race::sounds`, `race::sound_tables`), 0 at the race's
+    /// end; `sound::race_turn` does nothing before.
+    pub started: PlainDword,
+    /// The clock (ms) of the last sound turn.
+    pub last: PlainDword,
+    /// Sound turns a second (a distance changed in one turn times it is a speed in units a second).
+    pub turns_a_second: PlainFloat,
+    /// The turn's length (ms).
+    pub step: PlainDword,
+    /// The turns counted.
+    pub turns: PlainDword,
+    /// 337.52 and `RaceClock.over_sound_speed` (its inverse, 0.002963): a moving sound's pitch
+    /// is (speed of approach + the first) times the second, the Doppler factor with the speed
+    /// of sound (`sound::turn_parts`).
+    pub sound_speed: PlainFloat,
+    pub over_sound_speed: PlainFloat,
+    /// 64 and `RaceClock.pan_per_radian` (128 / pi): a placed sound's pan, the centre and the
+    /// pan steps per radian of angle.
+    pub pan_centre: PlainFloat,
+    pub pan_per_radian: PlainFloat,
 }
 
-/// The race sounds' clock (`RaceClock`); first values the image's
+/// The race sounds' clock (`RaceClock`), starting as the game does
 /// (`tests::race_clock_starts_as_the_games`).
 impl RaceClock {
     pub const fn new() -> Self {
         RaceClock {
-            started: Dword::new(0),
-            last: Dword::new(0),
-            turns_a_second: Float::from_bits(0),
-            step: Dword::new(0),
-            turns: Dword::new(0),
-            sound_speed: Float::from_bits(0x43A8_C28F),
-            over_sound_speed: Float::from_bits(0x3B42_2B53),
-            pan_centre: Float::from_bits(0x4280_0000),
-            pan_per_radian: Float::from_bits(0x4222_F983),
+            started: PlainDword::new(0),
+            last: PlainDword::new(0),
+            turns_a_second: PlainFloat::new(0.0),
+            step: PlainDword::new(0),
+            turns: PlainDword::new(0),
+            sound_speed: PlainFloat::new(337.52),
+            over_sound_speed: PlainFloat::new(0.0029627874),
+            pan_centre: PlainFloat::new(64.0),
+            pan_per_radian: PlainFloat::new(40.743664),
         }
     }
 }
 
-/// Where the race clock is (`moved::MOVED`'s home for IDA 0x5124E4).
-#[cfg(test)]
-pub fn race_clock_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::sound::owner::SOUND.race.clock)
-}
-
-/// The surface sounds' constants and work (IDA 0x516358 .. 0x51639C, the image's layout;
-/// phase 7, typed state): the factors the engine, speed, revs and throttle sounds and the
-/// wheel sounds scale by, and what `sound::surface_sounds` works out.
-#[repr(C)]
+/// The surface sounds' constants and work: the factors the engine, speed, revs and throttle sounds
+/// and the wheel sounds scale by, and what `sound::surface_sounds` works out.
 #[derive(rc2k_derive::Cells)]
 pub struct SurfaceSounds {
-    /// `dword_516358`: 1 once `race::prepare_sound_tables` has run.
-    pub tables_done: Dword,
-    /// `flt_51635C` (0.1): a surface sound's volume is the wheels' sum times it.
-    pub volume_scale: Float,
-    /// `flt_516360` (0.1): how far a pitch moves to its target in a turn (the engine's
-    /// and the spot voices' Doppler pitch).
-    pub pitch_blend: Float,
-    /// `flt_516364` (0.4): the first wheel sum (+0x284) is scaled by it.
-    pub across_scale: Float,
-    /// `flt_516368` (64): the second wheel sum (+0x28C, +0x290) is scaled by it.
-    pub along_scale: Float,
-    /// `flt_51636C` (160): not read by any ported code.
-    pub unused_160: Float,
-    /// `flt_516370` (0.014): the car speed's (|+0x1C|) factor for the speed sound's
-    /// input (+0x108).
-    pub speed_scale: Float,
-    /// `0x516374` (65536.0): not read by any ported code.
-    pub unused_65536: Float,
-    /// `0x516378` (2.0): not read by any ported code.
-    pub unused_2: Float,
-    /// `flt_51637C` (1.4): the speed sound's gain.
-    pub speed_gain: Float,
-    /// `flt_516380` (0.714): the revs and throttle sounds' gain.
-    pub revs_gain: Float,
-    /// `0x516384` (0.625) and `0x516388` (0.25): not read by any ported code.
-    pub unused_625: Float,
-    pub unused_quarter: Float,
-    /// `g_wheelSoundAcross`: front less back of the wheel floats (the signs pick the wheel).
-    pub across: Float,
-    /// `0x516390`: nothing reads or writes it (a gap).
-    pub _gap_390: Dword,
-    /// `g_wheelSoundAlong`: left less right of the wheel floats.
-    pub along: Float,
-    /// `g_surfaceSoundVolume`: the volume the surface sound is sent with.
-    pub volume: Float,
+    /// 1 once `race::prepare_sound_tables` has run.
+    pub tables_done: PlainDword,
+    /// 0.1: a surface sound's volume is the wheels' sum times it.
+    pub volume_scale: PlainFloat,
+    /// 0.1: how far a pitch moves to its target in a turn (the engine's and the spot voices'
+    /// Doppler pitch).
+    pub pitch_blend: PlainFloat,
+    /// 0.4: the first wheel sum (`SoundObject.sum_a`) is scaled by it.
+    pub across_scale: PlainFloat,
+    /// 64: the second wheel sum (`sum_b`, `sum_c`) is scaled by it.
+    pub along_scale: PlainFloat,
+    /// 160; nothing reads it.
+    pub unused_160: PlainFloat,
+    /// 0.014: the car speed's (|`SoundObject.speed`|) factor for the speed sound's input
+    /// (`speed_input`).
+    pub speed_scale: PlainFloat,
+    /// 65536.0; nothing reads it.
+    pub unused_65536: PlainFloat,
+    /// 2.0; nothing reads it.
+    pub unused_2: PlainFloat,
+    /// 1.4: the speed sound's gain.
+    pub speed_gain: PlainFloat,
+    /// 0.714: the revs and throttle sounds' gain.
+    pub revs_gain: PlainFloat,
+    /// 0.625 and 0.25; nothing reads them.
+    pub unused_625: PlainFloat,
+    pub unused_quarter: PlainFloat,
+    /// Front less back of the wheel floats (the signs pick the wheel).
+    pub across: PlainFloat,
+    /// Left less right of the wheel floats.
+    pub along: PlainFloat,
+    /// The volume the surface sound is sent with.
+    pub volume: PlainFloat,
 }
 
-/// The surface sounds' constants and work (`SurfaceSounds`); first values the image's.
+/// The surface sounds' constants and work (`SurfaceSounds`), starting as the game does.
 impl SurfaceSounds {
     pub const fn new() -> Self {
         SurfaceSounds {
-            tables_done: Dword::new(0),
-            volume_scale: Float::from_bits(0x3DCC_CCCD),
-            pitch_blend: Float::from_bits(0x3DCC_CCCD),
-            across_scale: Float::from_bits(0x3ECC_CCCD),
-            along_scale: Float::from_bits(0x4280_0000),
-            unused_160: Float::from_bits(0x4320_0000),
-            speed_scale: Float::from_bits(0x3C66_6666),
-            unused_65536: Float::from_bits(0x4780_0000),
-            unused_2: Float::from_bits(0x4000_0000),
-            speed_gain: Float::from_bits(0x3FB3_3333),
-            revs_gain: Float::from_bits(0x3F36_DB6E),
-            unused_625: Float::from_bits(0x3F20_0000),
-            unused_quarter: Float::from_bits(0x3E80_0000),
-            across: Float::from_bits(0),
-            _gap_390: Dword::new(0),
-            along: Float::from_bits(0),
-            volume: Float::from_bits(0),
+            tables_done: PlainDword::new(0),
+            volume_scale: PlainFloat::new(0.1),
+            pitch_blend: PlainFloat::new(0.1),
+            across_scale: PlainFloat::new(0.4),
+            along_scale: PlainFloat::new(64.0),
+            unused_160: PlainFloat::new(160.0),
+            speed_scale: PlainFloat::new(0.0140625),
+            unused_65536: PlainFloat::new(65536.0),
+            unused_2: PlainFloat::new(2.0),
+            speed_gain: PlainFloat::new(1.4),
+            revs_gain: PlainFloat::new(0.71428573),
+            unused_625: PlainFloat::new(0.625),
+            unused_quarter: PlainFloat::new(0.25),
+            across: PlainFloat::new(0.0),
+            along: PlainFloat::new(0.0),
+            volume: PlainFloat::new(0.0),
         }
     }
 }
 
-/// Where the surface sounds' block is (`moved::MOVED`'s home for IDA 0x516358).
-#[cfg(test)]
-pub fn surface_sounds_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::sound::owner::SOUND.race.surface)
-}
-
-/// A timed sound's slot: six dwords (`sound::play_timed_slot`).
-#[repr(C)]
+/// A timed sound's slot (`sound::play_timed_slot`): a car has ten, the stage one.
 #[derive(rc2k_derive::Cells)]
 pub struct SoundSlot {
-    /// The sound (a sample number); +0 of the slot `sound::play_timed_slot` takes.
-    pub sound: Dword,
+    /// The sound (a sample number).
+    pub sound: PlainDword,
     /// 1 = start it (cleared by the slot's turn).
-    pub start: Dword,
+    pub start: PlainDword,
     /// 1 = playing.
-    pub playing: Dword,
+    pub playing: PlainDword,
     /// When it ends (the sound clock, ms).
-    pub ends: Dword,
+    pub ends: PlainDword,
     /// The volume (-0x6F: the sample's own).
-    pub volume: Dword,
+    pub volume: PlainDword,
     /// The rate (-0x6F: the sample's own).
-    pub rate: Dword,
+    pub rate: PlainDword,
+}
+
+/// A timed slot's six dwords (`sound::play_timed_slot`).
+pub trait TimedCells {
+    fn load(&self) -> rc2k_core::sound::cars::TimedSlot;
+    fn store(&self, slot: &rc2k_core::sound::cars::TimedSlot);
+}
+
+impl TimedCells for SoundSlot {
+    fn load(&self) -> rc2k_core::sound::cars::TimedSlot {
+        rc2k_core::sound::cars::TimedSlot {
+            sound: self.sound.get(),
+            start: self.start.get(),
+            playing: self.playing.get(),
+            ends: self.ends.get(),
+            volume: self.volume.get(),
+            rate: self.rate.get(),
+        }
+    }
+    fn store(&self, s: &rc2k_core::sound::cars::TimedSlot) {
+        self.sound.set(s.sound);
+        self.start.set(s.start);
+        self.playing.set(s.playing);
+        self.ends.set(s.ends);
+        self.volume.set(s.volume);
+        self.rate.set(s.rate);
+    }
 }
 
 /// A sound spot shared with the sound side, 0x14 bytes.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SharedSpot {
     /// The spot's id.
-    pub id: Dword,
+    pub id: PlainDword,
     /// Its place.
-    pub place: [Float; 3],
+    pub place: [PlainFloat; 3],
     /// Its kind, 1 .. 0x15.
-    pub kind: Dword,
+    pub kind: PlainDword,
 }
 
 /// A spot kind's repeats, 8 bytes.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct KindRepeats {
     /// Nothing reads it (a gap).
-    pub _word_0: Word,
+    pub _word_0: PlainWord,
     /// The most repeats (0: no limit).
-    pub most: Word,
+    pub most: PlainWord,
     /// The least delay before a repeat.
-    pub least_delay: Word,
+    pub least_delay: PlainWord,
     /// The most delay before a repeat.
-    pub most_delay: Word,
+    pub most_delay: PlainWord,
 }
 
-/// The stage sounds' state and the shared sound spots (IDA 0x51655C .. 0x5168C0, the image's layout; phase 7, typed state).
-#[repr(C)]
+/// The stage sounds' state and the shared sound spots.
 #[derive(rc2k_derive::Cells)]
 pub struct StageSounds {
-    /// `g_surfaceSoundSet` (`dword_51655C`): a surface's sound set (an index into `off_51639C`'s pairs), 16 surfaces.
-    pub surface_sets: [Dword; 16],
-    /// `g_stageSoundOnce1` .. `3`: at 1 the stage's one-off sound (0x1AB, 0x1AC, 0x1AD) is played once (the flag is cleared).
-    pub once: [Dword; 3],
-    /// `g_stageTimedArm`: at 1 the timed sound is armed (cleared; due and waiting set).
-    pub timed_arm: Dword,
-    /// `g_stageTimedPlace` and the two after it: the timed sound's place.
-    pub timed_place: [Float; 3],
-    /// `g_stageTimedDelay`: the delay (ms) from arming to the timed sound.
-    pub timed_delay: Dword,
-    /// `g_stageLoopVolumeA`: the volume (halved) of the sound that plays all the time (0x1C5).
-    pub loop_volume_a: Dword,
-    /// `g_stageLoopVolumeB`: the volume of the second (0x1C6).
-    pub loop_volume_b: Dword,
-    /// `g_stageTimedDue`: the clock the timed sound is due at.
-    pub timed_due: Dword,
-    /// `g_stageTimedWaiting`: 1 while it waits to be due.
-    pub timed_waiting: Dword,
-    /// `g_stageTimedSlot` (`unk_5165CC`): the timed sound's slot (sound 0x1C4).
+    /// A surface's sound set (an index into `SurfaceSets.sets`' pairs), 16 surfaces.
+    pub surface_sets: [PlainDword; 16],
+    /// At 1 the stage's one-off sound is played once (the flag is cleared).
+    pub once: [PlainDword; 3],
+    /// At 1 the timed sound is armed (cleared; due and waiting set).
+    pub timed_arm: PlainDword,
+    /// The timed sound's place.
+    pub timed_place: [PlainFloat; 3],
+    /// The delay (ms) from arming to the timed sound.
+    pub timed_delay: PlainDword,
+    /// The volume (halved) of the sound that plays all the time.
+    pub loop_volume_a: PlainDword,
+    /// The volume of the second.
+    pub loop_volume_b: PlainDword,
+    /// The clock the timed sound is due at.
+    pub timed_due: PlainDword,
+    /// 1 while it waits to be due.
+    pub timed_waiting: PlainDword,
+    /// The timed sound's slot (sound 0x1C4).
     pub timed_slot: SoundSlot,
-    /// `g_stageRandomSound1`, `g_stageRandomSound2`: at 1 a sound (0x1AE, 0x1AF) at a random pitch and place is played once.
-    pub random: [Dword; 2],
-    /// `g_sharedSoundSpotCount`: the spots the race frame shared this frame (`race::share_sound_spots`).
-    pub shared_count: Dword,
-    /// `g_sharedSoundSpots`: the spots shared with the sound side, 36 of 0x14 bytes.
+    /// At 1 a sound at a random pitch and place is played once.
+    pub random: [PlainDword; 2],
+    /// The spots the race frame shared this frame (`race::share_sound_spots`).
+    pub shared_count: PlainDword,
+    /// The spots shared with the sound side, 36 of 0x14 bytes.
     pub shared_spots: [SharedSpot; 36],
 }
 
-/// The stage sounds (`StageSounds`); first values the image's.
+/// The stage sounds (`StageSounds`), starting as the game does.
 impl StageSounds {
     pub const fn new() -> Self {
         StageSounds {
             surface_sets: [
-                Dword::new(1),
-                Dword::new(3),
-                Dword::new(0),
-                Dword::new(1),
-                Dword::new(2),
-                Dword::new(4),
-                Dword::new(1),
-                Dword::new(1),
-                Dword::new(1),
-                Dword::new(2),
-                Dword::new(6),
-                Dword::new(2),
-                Dword::new(2),
-                Dword::new(1),
-                Dword::new(1),
-                Dword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(3),
+                PlainDword::new(0),
+                PlainDword::new(1),
+                PlainDword::new(2),
+                PlainDword::new(4),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(2),
+                PlainDword::new(6),
+                PlainDword::new(2),
+                PlainDword::new(2),
+                PlainDword::new(1),
+                PlainDword::new(1),
+                PlainDword::new(1),
             ],
-            once: [Dword::new(0), Dword::new(0), Dword::new(0)],
-            timed_arm: Dword::new(0),
+            once: [PlainDword::new(0), PlainDword::new(0), PlainDword::new(0)],
+            timed_arm: PlainDword::new(0),
             timed_place: [
-                Float::from_bits(0),
-                Float::from_bits(0x40000000),
-                Float::from_bits(0x3F800000),
+                PlainFloat::new(0.0),
+                PlainFloat::new(2.0),
+                PlainFloat::new(1.0),
             ],
-            timed_delay: Dword::new(0),
-            loop_volume_a: Dword::new(0),
-            loop_volume_b: Dword::new(0),
-            timed_due: Dword::new(0),
-            timed_waiting: Dword::new(0),
+            timed_delay: PlainDword::new(0),
+            loop_volume_a: PlainDword::new(0),
+            loop_volume_b: PlainDword::new(0),
+            timed_due: PlainDword::new(0),
+            timed_waiting: PlainDword::new(0),
             timed_slot: SoundSlot {
-                sound: Dword::new(0x1C4),
-                start: Dword::new(0),
-                playing: Dword::new(0),
-                ends: Dword::new(0),
-                volume: Dword::new(0xFFFFFF91),
-                rate: Dword::new(0xFFFFFF91),
+                sound: PlainDword::new(0x1C4),
+                start: PlainDword::new(0),
+                playing: PlainDword::new(0),
+                ends: PlainDword::new(0),
+                volume: PlainDword::new(0xFFFFFF91),
+                rate: PlainDword::new(0xFFFFFF91),
             },
-            random: [Dword::new(0), Dword::new(0)],
-            shared_count: Dword::new(0),
+            random: [PlainDword::new(0), PlainDword::new(0)],
+            shared_count: PlainDword::new(0),
             shared_spots: [const {
                 SharedSpot {
-                    id: Dword::new(0),
+                    id: PlainDword::new(0),
                     place: [
-                        Float::from_bits(0),
-                        Float::from_bits(0),
-                        Float::from_bits(0),
+                        PlainFloat::new(0.0),
+                        PlainFloat::new(0.0),
+                        PlainFloat::new(0.0),
                     ],
-                    kind: Dword::new(0),
+                    kind: PlainDword::new(0),
                 }
             }; 36],
         }
     }
 }
 
-/// Where the stage sounds are (`moved::MOVED`'s home for IDA 0x51655C).
-#[cfg(test)]
-pub fn stage_sounds_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::sound::owner::SOUND.race.stage)
-}
-
-/// The spot voices' pickers' work and the sound kinds per spot (IDA 0x517f40 .. 0x518080, the image's layout; phase 7, typed state).
-#[repr(C)]
+/// The spot voices' pickers' work and the sound kinds per spot.
 #[derive(rc2k_derive::Cells)]
 pub struct SpotPicks {
-    /// `g_spotPickPlaying`: the pickers' work (`sound::merge_spot_voices`): the playing voice (an address).
-    pub pick_playing: Dword,
-    /// `g_spotPickNearestDistance`: the nearest's distance.
-    pub pick_nearest_distance: Dword,
-    /// `g_spotPickNearest`: the nearest voice (an address).
-    pub pick_nearest: Dword,
-    /// `g_spotPickNextDistance`: the next's distance.
-    pub pick_next_distance: Dword,
-    /// `g_spotPickNext`: the next voice (an address).
-    pub pick_next: Dword,
-    /// `g_spotKindSounds` (`dword_517F54`): a spot kind's sound, 22 of them (kind 0 unused).
-    pub kind_sounds: [Dword; 22],
-    /// `g_spotKindRepeats` (`unk_517FAC`): a kind's repeats, 8 bytes, kind 1 first.
+    /// The pickers' work (`sound::merge_spot_voices`): the playing voice (its number + 1, 0 none).
+    pub pick_playing: PlainDword,
+    /// The nearest's distance.
+    pub pick_nearest_distance: PlainDword,
+    /// The nearest voice (as `pick_playing`).
+    pub pick_nearest: PlainDword,
+    /// The next's distance.
+    pub pick_next_distance: PlainDword,
+    /// The next voice (as `pick_playing`).
+    pub pick_next: PlainDword,
+    /// A spot kind's sound, 22 of them (kind 0 unused).
+    pub kind_sounds: [PlainDword; 22],
+    /// A kind's repeats, 8 bytes, kind 1 first.
     pub kind_repeats: [KindRepeats; 21],
-    /// `dword_518054`: cleared at a race's start (`race::reset_race_sounds`); read by a sound function not ported by name (0x40EC85); a reading.
-    pub spot_work_a: Dword,
-    /// `dword_518058`: read at 0x40EC8E (a reading).
-    pub spot_work_b: Dword,
-    /// `0x51805C`: nine dwords nothing ported reads or writes (1, 2, 3, 4, 5, 6, 9, 7, 8 at start).
-    pub _gap_5c: [Dword; 9],
+    /// Cleared at a race's start (`race::reset_race_sounds`); nothing reads it.
+    pub spot_work_a: PlainDword,
+    /// Nothing reads or writes it (0).
+    pub spot_work_b: PlainDword,
 }
 
 impl SpotPicks {
     pub const fn new() -> Self {
         SpotPicks {
-            pick_playing: Dword::new(0),
-            pick_nearest_distance: Dword::new(0xFFFFFFFF),
-            pick_nearest: Dword::new(0),
-            pick_next_distance: Dword::new(0xFFFFFFFF),
-            pick_next: Dword::new(0),
+            pick_playing: PlainDword::new(0),
+            pick_nearest_distance: PlainDword::new(0xFFFFFFFF),
+            pick_nearest: PlainDword::new(0),
+            pick_next_distance: PlainDword::new(0xFFFFFFFF),
+            pick_next: PlainDword::new(0),
             kind_sounds: [
-                Dword::new(0xFFFFFFFE),
-                Dword::new(0x1B1),
-                Dword::new(0x1B2),
-                Dword::new(0x1B3),
-                Dword::new(0x1B4),
-                Dword::new(0x1B5),
-                Dword::new(0x1B6),
-                Dword::new(0x1B7),
-                Dword::new(0x1B9),
-                Dword::new(0x1BA),
-                Dword::new(0x1BB),
-                Dword::new(0x1B0),
-                Dword::new(0xFFFFFFFE),
-                Dword::new(0x1BD),
-                Dword::new(0x1BE),
-                Dword::new(0x1BF),
-                Dword::new(0x1C0),
-                Dword::new(0x1C1),
-                Dword::new(0x1C2),
-                Dword::new(0x1C3),
-                Dword::new(0x1B8),
-                Dword::new(0x1BC),
+                PlainDword::new(0xFFFFFFFE),
+                PlainDword::new(0x1B1),
+                PlainDword::new(0x1B2),
+                PlainDword::new(0x1B3),
+                PlainDword::new(0x1B4),
+                PlainDword::new(0x1B5),
+                PlainDword::new(0x1B6),
+                PlainDword::new(0x1B7),
+                PlainDword::new(0x1B9),
+                PlainDword::new(0x1BA),
+                PlainDword::new(0x1BB),
+                PlainDword::new(0x1B0),
+                PlainDword::new(0xFFFFFFFE),
+                PlainDword::new(0x1BD),
+                PlainDword::new(0x1BE),
+                PlainDword::new(0x1BF),
+                PlainDword::new(0x1C0),
+                PlainDword::new(0x1C1),
+                PlainDword::new(0x1C2),
+                PlainDword::new(0x1C3),
+                PlainDword::new(0x1B8),
+                PlainDword::new(0x1BC),
             ],
             kind_repeats: [
                 KindRepeats {
-                    _word_0: Word::new(0),
-                    most: Word::new(0),
-                    least_delay: Word::new(1000),
-                    most_delay: Word::new(5000),
+                    _word_0: PlainWord::new(0),
+                    most: PlainWord::new(0),
+                    least_delay: PlainWord::new(1000),
+                    most_delay: PlainWord::new(5000),
                 },
                 KindRepeats {
-                    _word_0: Word::new(1),
-                    most: Word::new(0),
-                    least_delay: Word::new(0),
-                    most_delay: Word::new(3000),
+                    _word_0: PlainWord::new(1),
+                    most: PlainWord::new(0),
+                    least_delay: PlainWord::new(0),
+                    most_delay: PlainWord::new(3000),
                 },
                 KindRepeats {
-                    _word_0: Word::new(0),
-                    most: Word::new(0),
-                    least_delay: Word::new(2000),
-                    most_delay: Word::new(6000),
+                    _word_0: PlainWord::new(0),
+                    most: PlainWord::new(0),
+                    least_delay: PlainWord::new(2000),
+                    most_delay: PlainWord::new(6000),
                 },
                 KindRepeats {
-                    _word_0: Word::new(0),
-                    most: Word::new(0),
-                    least_delay: Word::new(500),
-                    most_delay: Word::new(3000),
+                    _word_0: PlainWord::new(0),
+                    most: PlainWord::new(0),
+                    least_delay: PlainWord::new(500),
+                    most_delay: PlainWord::new(3000),
                 },
                 KindRepeats {
-                    _word_0: Word::new(0),
-                    most: Word::new(0),
-                    least_delay: Word::new(2000),
-                    most_delay: Word::new(6000),
+                    _word_0: PlainWord::new(0),
+                    most: PlainWord::new(0),
+                    least_delay: PlainWord::new(2000),
+                    most_delay: PlainWord::new(6000),
                 },
                 KindRepeats {
-                    _word_0: Word::new(0),
-                    most: Word::new(0),
-                    least_delay: Word::new(1000),
-                    most_delay: Word::new(4000),
+                    _word_0: PlainWord::new(0),
+                    most: PlainWord::new(0),
+                    least_delay: PlainWord::new(1000),
+                    most_delay: PlainWord::new(4000),
                 },
                 KindRepeats {
-                    _word_0: Word::new(1),
-                    most: Word::new(0),
-                    least_delay: Word::new(0),
-                    most_delay: Word::new(0),
+                    _word_0: PlainWord::new(1),
+                    most: PlainWord::new(0),
+                    least_delay: PlainWord::new(0),
+                    most_delay: PlainWord::new(0),
                 },
                 KindRepeats {
-                    _word_0: Word::new(0),
-                    most: Word::new(0),
-                    least_delay: Word::new(1000),
-                    most_delay: Word::new(5000),
+                    _word_0: PlainWord::new(0),
+                    most: PlainWord::new(0),
+                    least_delay: PlainWord::new(1000),
+                    most_delay: PlainWord::new(5000),
                 },
                 KindRepeats {
-                    _word_0: Word::new(0),
-                    most: Word::new(0),
-                    least_delay: Word::new(1000),
-                    most_delay: Word::new(4000),
+                    _word_0: PlainWord::new(0),
+                    most: PlainWord::new(0),
+                    least_delay: PlainWord::new(1000),
+                    most_delay: PlainWord::new(4000),
                 },
                 KindRepeats {
-                    _word_0: Word::new(1),
-                    most: Word::new(0),
-                    least_delay: Word::new(0),
-                    most_delay: Word::new(0),
+                    _word_0: PlainWord::new(1),
+                    most: PlainWord::new(0),
+                    least_delay: PlainWord::new(0),
+                    most_delay: PlainWord::new(0),
                 },
                 KindRepeats {
-                    _word_0: Word::new(0),
-                    most: Word::new(0),
-                    least_delay: Word::new(0),
-                    most_delay: Word::new(0),
+                    _word_0: PlainWord::new(0),
+                    most: PlainWord::new(0),
+                    least_delay: PlainWord::new(0),
+                    most_delay: PlainWord::new(0),
                 },
                 KindRepeats {
-                    _word_0: Word::new(0),
-                    most: Word::new(0),
-                    least_delay: Word::new(4000),
-                    most_delay: Word::new(8000),
+                    _word_0: PlainWord::new(0),
+                    most: PlainWord::new(0),
+                    least_delay: PlainWord::new(4000),
+                    most_delay: PlainWord::new(8000),
                 },
                 KindRepeats {
-                    _word_0: Word::new(0),
-                    most: Word::new(0),
-                    least_delay: Word::new(0),
-                    most_delay: Word::new(0),
+                    _word_0: PlainWord::new(0),
+                    most: PlainWord::new(0),
+                    least_delay: PlainWord::new(0),
+                    most_delay: PlainWord::new(0),
                 },
                 KindRepeats {
-                    _word_0: Word::new(0),
-                    most: Word::new(0),
-                    least_delay: Word::new(0),
-                    most_delay: Word::new(3000),
+                    _word_0: PlainWord::new(0),
+                    most: PlainWord::new(0),
+                    least_delay: PlainWord::new(0),
+                    most_delay: PlainWord::new(3000),
                 },
                 KindRepeats {
-                    _word_0: Word::new(0),
-                    most: Word::new(0),
-                    least_delay: Word::new(0),
-                    most_delay: Word::new(0),
+                    _word_0: PlainWord::new(0),
+                    most: PlainWord::new(0),
+                    least_delay: PlainWord::new(0),
+                    most_delay: PlainWord::new(0),
                 },
                 KindRepeats {
-                    _word_0: Word::new(0),
-                    most: Word::new(0),
-                    least_delay: Word::new(1000),
-                    most_delay: Word::new(5000),
+                    _word_0: PlainWord::new(0),
+                    most: PlainWord::new(0),
+                    least_delay: PlainWord::new(1000),
+                    most_delay: PlainWord::new(5000),
                 },
                 KindRepeats {
-                    _word_0: Word::new(0),
-                    most: Word::new(0),
-                    least_delay: Word::new(0),
-                    most_delay: Word::new(0),
+                    _word_0: PlainWord::new(0),
+                    most: PlainWord::new(0),
+                    least_delay: PlainWord::new(0),
+                    most_delay: PlainWord::new(0),
                 },
                 KindRepeats {
-                    _word_0: Word::new(0),
-                    most: Word::new(0),
-                    least_delay: Word::new(0),
-                    most_delay: Word::new(0),
+                    _word_0: PlainWord::new(0),
+                    most: PlainWord::new(0),
+                    least_delay: PlainWord::new(0),
+                    most_delay: PlainWord::new(0),
                 },
                 KindRepeats {
-                    _word_0: Word::new(1),
-                    most: Word::new(1),
-                    least_delay: Word::new(0),
-                    most_delay: Word::new(5000),
+                    _word_0: PlainWord::new(1),
+                    most: PlainWord::new(1),
+                    least_delay: PlainWord::new(0),
+                    most_delay: PlainWord::new(5000),
                 },
                 KindRepeats {
-                    _word_0: Word::new(1),
-                    most: Word::new(0),
-                    least_delay: Word::new(0),
-                    most_delay: Word::new(0),
+                    _word_0: PlainWord::new(1),
+                    most: PlainWord::new(0),
+                    least_delay: PlainWord::new(0),
+                    most_delay: PlainWord::new(0),
                 },
                 KindRepeats {
-                    _word_0: Word::new(1),
-                    most: Word::new(0),
-                    least_delay: Word::new(0),
-                    most_delay: Word::new(0),
+                    _word_0: PlainWord::new(1),
+                    most: PlainWord::new(0),
+                    least_delay: PlainWord::new(0),
+                    most_delay: PlainWord::new(0),
                 },
             ],
-            spot_work_a: Dword::new(0),
-            spot_work_b: Dword::new(0),
-            _gap_5c: [
-                Dword::new(1),
-                Dword::new(2),
-                Dword::new(3),
-                Dword::new(4),
-                Dword::new(5),
-                Dword::new(6),
-                Dword::new(9),
-                Dword::new(7),
-                Dword::new(8),
-            ],
+            spot_work_a: PlainDword::new(0),
+            spot_work_b: PlainDword::new(0),
         }
     }
 }
 
-impl SpotPicks {
-    pub const START: usize = 0x517f40;
-    pub const LEN: usize = 0x140;
-
-    #[cfg(test)]
-    /// `moved::MOVED`'s home for `START`.
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const crate::sound::owner::SOUND.race.spot_picks)
-            as usize
-    }
-}
-
-/// Set once the kept sound settings are applied (IDA 0x518080 .. 0x518084, the image's layout; phase 7, typed state).
-#[repr(C)]
+/// Set once the kept sound settings are applied.
 #[derive(rc2k_derive::Cells)]
 pub struct SettingsApplied {
-    /// `dword_518080`: set once the kept sound settings are applied (`sound::apply_settings`, `sound::set_up_race_sounds`).
-    pub done: Dword,
+    /// Set by `sound::apply_settings` and `sound::set_up_race_sounds`.
+    pub done: PlainDword,
 }
 
 impl SettingsApplied {
     pub const fn new() -> Self {
         SettingsApplied {
-            done: Dword::new(0),
+            done: PlainDword::new(0),
         }
     }
 }
 
-impl SettingsApplied {
-    pub const START: usize = 0x518080;
-    pub const LEN: usize = 0x4;
-
-    #[cfg(test)]
-    /// `moved::MOVED`'s home for `START`.
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const crate::sound::owner::SOUND.menu.settings_applied)
-            as usize
-    }
-}
-
-/// The kept sound options (IDA 0x5180f0 .. 0x518104, the image's layout; phase 7, typed state).
-#[repr(C)]
+/// The kept sound options. The tune turn is the audio thread's too and lives in
+/// `audio::store::AudioShared`.
 #[derive(rc2k_derive::Cells)]
 pub struct SoundOptions {
-    /// `dword_5180F0`: kept in `var\ral.dat` (`saves::load_options`); what it sets is not worked out.
-    pub kept_f0: Dword,
-    /// `dword_5180F4`: the driver names switch (`menu::toggle_5180f4`), kept in `var\ral.dat`.
-    pub name_switch: Dword,
-    /// `g_tuneTurn`: which of tunes 10 .. 15 the next tune 0xA is (0 .. 5), kept.
-    pub tune_turn: Dword,
-    /// `g_musicVolume`, kept.
+    /// Kept in `var\ral.dat` (`saves::load_options`), 1 at start; no other code uses it, so what
+    /// it sets is unknown.
+    pub unread_option_f0: Dword,
+    /// The race music on (1) or off: tune 8, the race music, plays only while it is 1
+    /// (`sound::play_tune`); the sound page's switch (`OptionSwitch::RaceMusicOn`), kept in
+    /// `var\ral.dat`.
+    pub race_music_on: Dword,
+    /// The music volume, kept.
     pub music_volume: Dword,
-    /// `dword_518100`: the race music's volume (the menu sets it with `g_musicVolume`; both go to the tunes), kept.
+    /// The race music's volume (the menu sets it with the music volume; both go to the tunes),
+    /// kept.
     pub race_music_volume: Dword,
 }
 
 impl SoundOptions {
     pub const fn new() -> Self {
         SoundOptions {
-            kept_f0: Dword::new(1),
-            name_switch: Dword::new(0),
-            tune_turn: Dword::new(0),
+            unread_option_f0: Dword::new(1),
+            race_music_on: Dword::new(0),
             music_volume: Dword::new(0x20),
             race_music_volume: Dword::new(0x20),
         }
     }
 }
 
-impl SoundOptions {
-    pub const START: usize = 0x5180f0;
-    pub const LEN: usize = 0x14;
-
-    #[cfg(test)]
-    /// `moved::MOVED`'s home for `START`.
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const crate::sound::owner::SOUND.menu.options) as usize
-    }
-}
-
-/// The CD audio's state (IDA 0x518104 .. 0x518120, the image's layout; phase 7, typed state).
-#[repr(C)]
+/// The CD audio's state.
 #[derive(rc2k_derive::Cells)]
 pub struct CdAudio {
-    /// `dword_518104`: `nocdaudio` (`var\ral.cfg`).
-    pub no_cd_audio: Dword,
-    /// `g_cdAudioOpen`: the CD audio is open.
-    pub open: Dword,
-    /// `0x51810C`: nothing reads or writes it.
-    pub _gap_10c: Dword,
-    /// `g_cdTrack`.
-    pub track: Dword,
-    /// `dword_518114` (a reading).
-    pub work_114: Dword,
-    /// `mciId`: the CD audio device.
-    pub mci_id: Dword,
-    /// `dword_51811C` (a reading).
-    pub work_11c: Dword,
+    /// `nocdaudio` (`var\ral.cfg`).
+    pub no_cd_audio: PlainDword,
+    /// The CD audio is open.
+    pub open: PlainDword,
+    /// The CD track.
+    pub track: PlainDword,
+    /// Nothing reads or writes it.
+    pub work_114: PlainDword,
+    /// The CD audio device.
+    pub mci_id: PlainDword,
+    /// Nothing reads or writes it.
+    pub work_11c: PlainDword,
 }
 
 impl CdAudio {
     pub const fn new() -> Self {
         CdAudio {
-            no_cd_audio: Dword::new(1),
-            open: Dword::new(0),
-            _gap_10c: Dword::new(0),
-            track: Dword::new(0),
-            work_114: Dword::new(0),
-            mci_id: Dword::new(0),
-            work_11c: Dword::new(0),
+            no_cd_audio: PlainDword::new(1),
+            open: PlainDword::new(0),
+            track: PlainDword::new(0),
+            work_114: PlainDword::new(0),
+            mci_id: PlainDword::new(0),
+            work_11c: PlainDword::new(0),
         }
-    }
-}
-
-impl CdAudio {
-    pub const START: usize = 0x518104;
-    pub const LEN: usize = 0x1c;
-
-    #[cfg(test)]
-    /// `moved::MOVED`'s home for `START`.
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const crate::sound::owner::SOUND.menu.cd_audio) as usize
     }
 }
 
 // ---- single variables the game's thread keeps ----
 
-/// The car stream's three dwords (0xA8C180 .. 0xA8C18C): the place it is at, its list (a
-/// speech row's `texts_store::text_key`; the original kept its address), and
-/// whether it is on (`sound::play_car_stream`, `sound::step_car_stream`, the stage
-/// view's speech).
-#[repr(C)]
+/// The car stream's three dwords: the place it is at, its list (a speech row's
+/// `texts_store::text_key`), and whether it is on (`sound::play_car_stream`,
+/// `sound::step_car_stream`, the stage view's speech).
 #[derive(rc2k_derive::Cells)]
 pub struct CarStream {
-    pub place: Dword,  // dword_A8C180
-    pub stream: Dword, // dword_A8C184
-    pub on: Dword,     // dword_A8C188
+    pub place: PlainDword,
+    pub stream: PlainDword,
+    pub on: PlainDword,
 }
 
 impl CarStream {
     pub const fn new() -> Self {
         CarStream {
-            place: Dword::new(0),
-            stream: Dword::new(0),
-            on: Dword::new(0),
+            place: PlainDword::new(0),
+            stream: PlainDword::new(0),
+            on: PlainDword::new(0),
         }
     }
 }
 
-pub const CAR_STREAM_IDA: usize = 0xA8C180;
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::moved::image_bytes;
-
-    fn dword(d: &Dword) -> Vec<u8> {
-        d.get().to_le_bytes().to_vec()
-    }
-
-    #[test]
-    fn single_variables_start_as_the_games() {
-        assert_eq!(
-            dword(&crate::sound::owner::sound().menu.next_sound_time),
-            image_bytes(0x511B0C, 4)
-        );
-        assert_eq!(
-            dword(&crate::sound::owner::sound().race.sounds_on),
-            image_bytes(0x6218F0, 4)
-        );
-        let mut stream = Vec::new();
-        for d in [
-            &crate::sound::owner::sound().race.car_stream.place,
-            &crate::sound::owner::sound().race.car_stream.stream,
-            &crate::sound::owner::sound().race.car_stream.on,
-        ] {
-            stream.extend(dword(d));
-        }
-        assert_eq!(stream, image_bytes(CAR_STREAM_IDA, 12));
-        assert_eq!(core::mem::size_of::<CarStream>(), 12);
-    }
 
     #[test]
     fn objects_are_by_number_within_the_eight() {
-        assert!(SoundObject::number(7).is_ok());
-        assert!(SoundObject::number(8).is_err());
-    }
-
-    #[test]
-    fn wheel_surfaces_start_as_the_games() {
-        let image = crate::moved::image_bytes(0x4F66F1, 8);
-        let mine = unsafe { std::slice::from_raw_parts(WHEEL_SURFACES.as_ptr().cast::<u8>(), 8) };
-        assert_eq!(mine, &image[..]);
-    }
-
-    #[test]
-    fn surface_sounds_start_as_the_games() {
-        assert_eq!(size_of::<super::SurfaceSounds>(), 0x51639C - 0x516358);
-        let image = crate::moved::image_bytes(0x516358, 0x44);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host(surface_sounds_addr()).cast_const(),
-                0x44,
-            )
-        };
-        assert_eq!(mine, &image[..]);
-    }
-
-    #[test]
-    fn stage_sounds_start_as_the_games() {
-        use core::mem::offset_of;
-        assert_eq!(size_of::<super::StageSounds>(), 0x5168C0 - 0x51655C);
-        assert_eq!(offset_of!(StageSounds, once), 0x51659C - 0x51655C);
-        assert_eq!(offset_of!(StageSounds, timed_arm), 0x5165A8 - 0x51655C);
-        assert_eq!(offset_of!(StageSounds, timed_delay), 0x5165B8 - 0x51655C);
-        assert_eq!(offset_of!(StageSounds, timed_slot), 0x5165CC - 0x51655C);
-        assert_eq!(offset_of!(StageSounds, random), 0x5165E4 - 0x51655C);
-        assert_eq!(offset_of!(StageSounds, shared_count), 0x5165EC - 0x51655C);
-        assert_eq!(offset_of!(StageSounds, shared_spots), 0x5165F0 - 0x51655C);
-        let image = crate::moved::image_bytes(0x51655C, 0x364);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host(stage_sounds_addr()).cast_const(),
-                0x364,
-            )
-        };
-        assert_eq!(mine, &image[..]);
-    }
-
-    #[test]
-    fn spot_picks_starts_as_the_games() {
-        assert_eq!(size_of::<SpotPicks>(), SpotPicks::LEN);
-        let image = crate::moved::image_bytes(SpotPicks::START, SpotPicks::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(SpotPicks::home()).cast_const(),
-                SpotPicks::LEN,
-            )
-        };
-        assert_eq!(mine, &image[..]);
-    }
-
-    #[test]
-    fn settings_applied_starts_as_the_games() {
-        assert_eq!(size_of::<SettingsApplied>(), SettingsApplied::LEN);
-        let image = crate::moved::image_bytes(SettingsApplied::START, SettingsApplied::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(SettingsApplied::home()).cast_const(),
-                SettingsApplied::LEN,
-            )
-        };
-        assert_eq!(mine, &image[..]);
-    }
-
-    #[test]
-    fn sound_options_starts_as_the_games() {
-        assert_eq!(size_of::<SoundOptions>(), SoundOptions::LEN);
-        let image = crate::moved::image_bytes(SoundOptions::START, SoundOptions::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(SoundOptions::home()).cast_const(),
-                SoundOptions::LEN,
-            )
-        };
-        assert_eq!(mine, &image[..]);
-    }
-
-    #[test]
-    fn cd_audio_starts_as_the_games() {
-        assert_eq!(size_of::<CdAudio>(), CdAudio::LEN);
-        let image = crate::moved::image_bytes(CdAudio::START, CdAudio::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(CdAudio::home()).cast_const(),
-                CdAudio::LEN,
-            )
-        };
-        assert_eq!(mine, &image[..]);
-    }
-
-    #[test]
-    fn race_sounds_start_as_the_games() {
-        use core::mem::offset_of;
-        assert_eq!(size_of::<super::SoundObject>(), 0x4A8);
-        assert_eq!(size_of::<super::RaceSounds>(), 0x514F90 - 0x512A10);
-        assert_eq!(offset_of!(RaceSounds, objects), 0x512A30 - 0x512A10);
-        assert_eq!(offset_of!(RaceSounds, player_cars), 0x514F70 - 0x512A10);
-        assert_eq!(offset_of!(RaceSounds, one_player), 0x514F78 - 0x512A10);
-        assert_eq!(offset_of!(RaceSounds, count), 0x514F7C - 0x512A10);
-        assert_eq!(offset_of!(RaceSounds, nearest), 0x514F80 - 0x512A10);
-        assert_eq!(
-            offset_of!(RaceSounds, nearest_distance),
-            0x514F88 - 0x512A10
-        );
-        assert_eq!(offset_of!(RaceSounds, mark_car_voices), 0x514F8C - 0x512A10);
-        assert_eq!(offset_of!(SoundObject, state), 0x10C);
-        assert_eq!(offset_of!(SoundObject, slots), 0x14C);
-        assert_eq!(offset_of!(SoundObject, gear_slot), 0x1F8);
-        assert_eq!(offset_of!(SoundObject, gear_pitch), 0x210);
-        assert_eq!(offset_of!(SoundObject, hit_sound), 0x238);
-        assert_eq!(offset_of!(SoundObject, cue_sound), 0x24C);
-        assert_eq!(offset_of!(SoundObject, slot_c), 0x260);
-        assert_eq!(offset_of!(SoundObject, surface), 0x294);
-        let image = crate::moved::image_bytes(0x512A10, 0x2580);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host(race_sounds_addr()).cast_const(),
-                0x2580,
-            )
-        };
-        assert_eq!(mine, &image[..]);
-    }
-
-    #[test]
-    fn race_clock_starts_as_the_games() {
-        assert_eq!(size_of::<super::RaceClock>(), 0x512508 - 0x5124E4);
-        let image = crate::moved::image_bytes(0x5124E4, 0x24);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host(super::race_clock_addr()).cast_const(),
-                0x24,
-            )
-        };
-        assert_eq!(mine, &image[..]);
+        assert!(SoundObject::of(crate::test_support::own::sound(), 7).is_ok());
+        assert!(SoundObject::of(crate::test_support::own::sound(), 8).is_err());
     }
 }

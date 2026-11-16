@@ -1,20 +1,14 @@
-//! `effects::windscreen_drops_setup` (0x4BBE62): the windscreen drops' frame set up: their two axes
-//! (`flt_814C1A`, `flt_814C26`) times `flt_814BC2` into `unk_814C6E` / `unk_814C7A` and those
-//! times `flt_82E286` .. into `unk_814C86` / `unk_814C92`; `scene::depth_buffer_on`,
-//! `scene::set_texture` (`dword_5D5A24`), render states 0x11 = 1, 0x12 = 1, 0x15 = 4, 0x13 =
-//! 5, 0x14 = 6, 0x1C = 0, 0x1B = 1, 3 = 1; six vertices of `g_polygonVertices` with rhw 0x100
-//! (through `dword_62400C`), colour -1, specular 0xFF000000, texture places 0 /
-//! `dword_82E2A2` (u 0, a, a, 0; v 0, 0, a, a); `g_polygonVertexCount` 6; `flt_814C02` 1 over
-//! `flt_6241C8`.
+//! `effects::windscreen_drops_setup`: the windscreen drops' frame set up: their two axes scaled
+//! into two more, and those by the setup's scales into two more; the render states, the drops'
+//! texture, six polygon vertices (rhw 0x100, colour -1, specular 0xFF000000, texture places 0 / a)
+//! and the drops' depth scale (1 over the farthest depth).
 //!
-//! Caller: `effects::windscreen_drops_frame` (0x4BC0BF). The x87 run is plain Rust on the x87 model
-//! (`math::x87_float`), in the original's order, over the game's variables.
+//! The x87 run is plain Rust on the x87 model (`math::x87_float`).
 
+use crate::effects::cell_x87::CellX87;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::math::x87;
-use crate::math::x87_float as bh;
 
-use crate::d3d::vertices_store::VERTICES;
 const STATES: [(u32, u32); 8] = [
     (1, 0x11),
     (1, 0x12),
@@ -26,148 +20,103 @@ const STATES: [(u32, u32); 8] = [
     (1, 3),
 ];
 
-/// The original's 0x4BBE62 .. 0x4BBF1A: the axes scaled.
+/// The axes scaled.
 fn axes(drops: &WindscreenDrops) {
     axes_x87(drops);
 }
 
-/// The Rust version (see the header).
-pub fn windscreen_drops_setup(drops: &WindscreenDrops, scene: &crate::scene::owner::Scene) {
+pub fn windscreen_drops_setup(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
+    drops: &WindscreenDrops,
+    scene: &crate::scene::owner::Scene,
+) {
+    let part = scene.scratch.game_scratch();
     use crate::scene::set_render_state::set_render_state;
     {
         axes(drops);
-        crate::scene::depth_buffer_on::depth_buffer(true);
-        // `dword_5D5A24`, entry 1999 of the places' slots.
-        crate::scene::set_texture::set_texture(scene.textures.places.place_slot[1999].get());
+        crate::scene::depth_buffer_on::depth_buffer(part, true);
+        // The drops' texture: entry 1999 of the places' slots.
+        crate::scene::set_texture::set_texture(
+            part,
+            scene,
+            scene.textures.places.get().place_slot[1999].get(),
+        );
         for (value, state) in STATES {
-            set_render_state(value, state);
+            set_render_state(part, value, state);
         }
-        for n in 0..6 {
-            scene.drawing.scene.scratch.set_bits(0x100u32);
-            VERTICES.vertices[n].rhw.set_bits(x87::int_to_float(0x100));
+        for item in buffer.vertices.iter().take(6) {
+            item.rhw.set(x87::from_int(0x100));
         }
-        for n in 0..6 {
-            VERTICES.vertices[n].colour.set(0xFFFF_FFFFu32);
-            VERTICES.vertices[n].specular.set(0xFF00_0000u32);
+        for item in buffer.vertices.iter().take(6) {
+            item.colour.set(0xFFFF_FFFFu32);
+            item.specular.set(0xFF00_0000u32);
         }
-        let side: u32 = drops.hex.side.get();
-        for (n, (u, v)) in [(0, 0), (side, 0), (side, side), (0, side)]
+        let side = drops.hex.side.get();
+        for (n, (u, v)) in [(0.0, 0.0), (side, 0.0), (side, side), (0.0, side)]
             .into_iter()
             .enumerate()
         {
-            VERTICES.vertices[n].u.set_bits(u);
-            VERTICES.vertices[n].v.set_bits(v);
+            buffer.vertices[n].u.set(u);
+            buffer.vertices[n].v.set(v);
         }
-        scene.drawing.scene.polygon_vertex_count.set_bits(6u32);
-        drops
-            .work
-            .inverse
-            .set_bits(x87::reciprocal(scene.drawing.scene.farthest.bits()));
+        scene
+            .scratch
+            .front_end_polygon()
+            .polygon_vertex_count
+            .set(6);
+        drops.work.inverse.set(x87::reciprocal(
+            &scene.scratch.front_end_polygon().window.farthest,
+        ));
     }
 }
 
 use crate::effects::plain::ld_cell;
 
-/// `axes`'s x87 block as plain Rust on the x87 model (36 instructions), same order and memory places.
+/// `axes`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn axes_x87(drops: &WindscreenDrops) {
-    let t0 = bh::ld(drops.work.axes[0].bits());
-    let t1 = t0 * bh::ld(drops.work.radii[0].bits());
-    drops.work.setup_axes[0].set_bits(bh::st(t1));
-    let t2 = bh::ld(drops.work.axes[1].bits());
-    let t3 = t2 * bh::ld(drops.work.radii[0].bits());
-    drops.work.setup_axes[1].set_bits(bh::st(t3));
-    let t4 = bh::ld(drops.work.axes[2].bits());
-    let t5 = t4 * bh::ld(drops.work.radii[0].bits());
-    drops.work.setup_axes[2].set_bits(bh::st(t5));
-    let t6 = bh::ld(drops.work.axes[3].bits());
-    let t7 = t6 * bh::ld(drops.work.radii[0].bits());
-    drops.work.setup_axes[3].set_bits(bh::st(t7));
-    let t8 = bh::ld(drops.work.axes[4].bits());
-    let t9 = t8 * bh::ld(drops.work.radii[0].bits());
-    drops.work.setup_axes[4].set_bits(bh::st(t9));
-    let t10 = bh::ld(drops.work.axes[5].bits());
-    let t11 = t10 * bh::ld(drops.work.radii[0].bits());
-    drops.work.setup_axes[5].set_bits(bh::st(t11));
-    let t12 = bh::ld(drops.work.setup_axes[0].bits());
+    let t0 = drops.work.axes[0].ld();
+    let t1 = t0 * drops.work.radii[0].ld();
+    drops.work.setup_axes[0].st(t1);
+    let t2 = drops.work.axes[1].ld();
+    let t3 = t2 * drops.work.radii[0].ld();
+    drops.work.setup_axes[1].st(t3);
+    let t4 = drops.work.axes[2].ld();
+    let t5 = t4 * drops.work.radii[0].ld();
+    drops.work.setup_axes[2].st(t5);
+    let t6 = drops.work.axes[3].ld();
+    let t7 = t6 * drops.work.radii[0].ld();
+    drops.work.setup_axes[3].st(t7);
+    let t8 = drops.work.axes[4].ld();
+    let t9 = t8 * drops.work.radii[0].ld();
+    drops.work.setup_axes[4].st(t9);
+    let t10 = drops.work.axes[5].ld();
+    let t11 = t10 * drops.work.radii[0].ld();
+    drops.work.setup_axes[5].st(t11);
+    let t12 = drops.work.setup_axes[0].ld();
     let t13 = t12 * ld_cell(&drops.hex.axes_k[0]);
-    drops.work.setup_axes[6].set_bits(bh::st(t13));
-    let t14 = bh::ld(drops.work.setup_axes[1].bits());
+    drops.work.setup_axes[6].st(t13);
+    let t14 = drops.work.setup_axes[1].ld();
     let t15 = t14 * ld_cell(&drops.hex.axes_k[1]);
-    drops.work.setup_axes[7].set_bits(bh::st(t15));
-    let t16 = bh::ld(drops.work.setup_axes[2].bits());
+    drops.work.setup_axes[7].st(t15);
+    let t16 = drops.work.setup_axes[2].ld();
     let t17 = t16 * ld_cell(&drops.hex.axes_k[2]);
-    drops.work.setup_axes[8].set_bits(bh::st(t17));
-    let t18 = bh::ld(drops.work.setup_axes[3].bits());
+    drops.work.setup_axes[8].st(t17);
+    let t18 = drops.work.setup_axes[3].ld();
     let t19 = t18 * ld_cell(&drops.hex.axes_k[3]);
-    drops.work.setup_axes[9].set_bits(bh::st(t19));
-    let t20 = bh::ld(drops.work.setup_axes[4].bits());
+    drops.work.setup_axes[9].st(t19);
+    let t20 = drops.work.setup_axes[4].ld();
     let t21 = t20 * ld_cell(&drops.hex.axes_k[4]);
-    drops.work.setup_axes[10].set_bits(bh::st(t21));
-    let t22 = bh::ld(drops.work.setup_axes[5].bits());
+    drops.work.setup_axes[10].st(t21);
+    let t22 = drops.work.setup_axes[5].ld();
     let t23 = t22 * ld_cell(&drops.hex.axes_k[5]);
-    drops.work.setup_axes[11].set_bits(bh::st(t23));
+    drops.work.setup_axes[11].st(t23);
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
-    //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
-
-    pub(super) fn axes_x87(mk: usize) {
-        unsafe {
-            core::arch::asm!(
-                    "fld dword ptr [{mk} + 0xAFCDA]",
-            "fmul dword ptr [{mk} + 0xAFC82]",
-            "fstp dword ptr [{mk} + 0xAFD2E]",
-            "fld dword ptr [{mk} + 0xAFCDE]",
-            "fmul dword ptr [{mk} + 0xAFC82]",
-            "fstp dword ptr [{mk} + 0xAFD32]",
-            "fld dword ptr [{mk} + 0xAFCE2]",
-            "fmul dword ptr [{mk} + 0xAFC82]",
-            "fstp dword ptr [{mk} + 0xAFD36]",
-            "fld dword ptr [{mk} + 0xAFCE6]",
-            "fmul dword ptr [{mk} + 0xAFC82]",
-            "fstp dword ptr [{mk} + 0xAFD3A]",
-            "fld dword ptr [{mk} + 0xAFCEA]",
-            "fmul dword ptr [{mk} + 0xAFC82]",
-            "fstp dword ptr [{mk} + 0xAFD3E]",
-            "fld dword ptr [{mk} + 0xAFCEE]",
-            "fmul dword ptr [{mk} + 0xAFC82]",
-            "fstp dword ptr [{mk} + 0xAFD42]",
-            "fld dword ptr [{mk} + 0xAFD2E]",
-            "fmul dword ptr [{mk} + 0xC9346]",
-            "fstp dword ptr [{mk} + 0xAFD46]",
-            "fld dword ptr [{mk} + 0xAFD32]",
-            "fmul dword ptr [{mk} + 0xC934A]",
-            "fstp dword ptr [{mk} + 0xAFD4A]",
-            "fld dword ptr [{mk} + 0xAFD36]",
-            "fmul dword ptr [{mk} + 0xC934E]",
-            "fstp dword ptr [{mk} + 0xAFD4E]",
-            "fld dword ptr [{mk} + 0xAFD3A]",
-            "fmul dword ptr [{mk} + 0xC9352]",
-            "fstp dword ptr [{mk} + 0xAFD52]",
-            "fld dword ptr [{mk} + 0xAFD3E]",
-            "fmul dword ptr [{mk} + 0xC9356]",
-            "fstp dword ptr [{mk} + 0xAFD56]",
-            "fld dword ptr [{mk} + 0xAFD42]",
-            "fmul dword ptr [{mk} + 0xC935A]",
-            "fstp dword ptr [{mk} + 0xAFD5A]",
-            mk = in(reg) mk,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-            );
-        }
-    }
-}
-
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_differential {
-    use super::asm_reference as reference;
+#[cfg(test)]
+mod reference_vectors {
     use crate::effects::asm_test::Kind::*;
-    use crate::effects::asm_test::{Op, Spec, differential};
-    use crate::effects::typed_sync::{overlay, with_overlays};
-    use crate::effects::windscreen_drop_state::WindscreenDropWork;
-    use crate::effects::windscreen_drop_vars::WindscreenDropVars;
+    use crate::effects::asm_test::{Op, Spec, recorded_writes};
+    use crate::effects::typed_sync::{overlay_laid, with_overlays};
 
     #[test]
     fn axes_x87_matches() {
@@ -213,25 +162,15 @@ mod asm_differential {
             }],
             sincos: false,
         };
-        differential(
-            &SPEC,
-            |b| reference::axes_x87(b[0]),
-            |b| {
-                with_overlays(
-                    b[0],
-                    &[
-                        overlay(
-                            &crate::effects::owner::EFFECTS.windscreen_drops.work,
-                            WindscreenDropWork::START,
-                        ),
-                        overlay(
-                            &crate::effects::owner::EFFECTS.windscreen_drops.hex,
-                            WindscreenDropVars::START,
-                        ),
-                    ],
-                    || super::axes_x87(&crate::effects::owner::EFFECTS.windscreen_drops),
-                );
-            },
-        );
+        recorded_writes("effects.windscreen_drops_setup.axes_x87", &SPEC, |b| {
+            with_overlays(
+                b[0],
+                &[
+                    overlay_laid(&crate::test_support::own::effects().windscreen_drops.work),
+                    overlay_laid(&crate::test_support::own::effects().windscreen_drops.hex),
+                ],
+                || super::axes_x87(&crate::test_support::own::effects().windscreen_drops),
+            );
+        });
     }
 }

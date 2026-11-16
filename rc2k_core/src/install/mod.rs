@@ -1,5 +1,5 @@
-//! The installer that RAL.EXE also is: its pages' items and choices, its paths, the files
-//! it reads and writes about the installation.
+//! The installer: its pages' items and choices, its paths, the files it reads and writes about
+//! the installation.
 
 pub mod config;
 pub mod drives;

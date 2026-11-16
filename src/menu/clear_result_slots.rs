@@ -1,4 +1,4 @@
-//! `menu::clear_result_slots` (0x470DDA): the four players' fourteen result slots
+//! `menu::clear_result_slots`: the four players' fourteen result slots
 //! (+0x98 .. +0xCC) and every driver's (+0x5C .. +0x90) emptied: -1, but 0 in the seventh
 //! and the last (two groups of six sections' points and their total).
 //!
@@ -6,13 +6,13 @@
 //! before anything.
 use crate::errors::Refused;
 use crate::menu::drivers_store::Driver;
+use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 
-/// The Rust version.
-pub fn clear_result_slots() -> Result<(), Refused> {
-    let drivers = drivers()?;
+pub fn clear_result_slots(menus: &Menus) -> Result<(), Refused> {
+    let drivers = drivers(menus)?;
     for n in 0..4 {
-        player(n).update(rc2k_core::menu::player::Player::clear_results);
+        player(menus, n).update(rc2k_core::menu::player::Player::clear_results);
     }
     drivers.iter().for_each(Driver::clear_results);
     Ok(())

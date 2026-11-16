@@ -1,58 +1,52 @@
-//! `scene::draw_flat_quad` (0x44AF85): a flat quad on the screen through the polygon
-//! pipeline: `g_polygonDrawn` 0; the four polygon records' vertex pointers
-//! (`dword_623E40` .. 0x20 apart), texture places (`dword_623DF0` .. u, `dword_623E00` ..
-//! v), the corners' x (`dword_623E10` left, `dword_623E14` right) and y (`dword_623E20`
-//! top, `dword_623E24` bottom) as floats (through `dword_62400C`), depth `dword_5C5E20`;
-//! the entries -1, colour `dword_623DE8`'s low 24 bits, the records' +0x18 0; four
-//! vertices, the record pool, the list 0 .. 3; then `scene::scale_texture_coordinates`,
-//! `scene::clip_polygon_to_screen` and, with three vertices or more left, mode 6
-//! (`g_polygonMode`), `dword_6240E0` 1, `dword_6240E4` 0, `scene::depth_buffer_off`,
-//! `scene::draw_polygon`, `g_polygonDrawn` 1, `scene::depth_buffer_on`; the colour back to
-//! white.
+//! `scene::draw_flat_quad`: a flat quad on the screen through the polygon pipeline: the
+//! polygon-drawn flag 0; the four polygon records' vertex pointers (`quad_vertices`, 0x20
+//! apart), texture places (`quad_uv`), the corners' x (left, right) and y (top, bottom) from
+//! `quad_corners` as floats, the fixed depth; the entries -1, colour `quad_colour`'s low 24
+//! bits, the records' +0x18 0; four vertices, the record pool, the list 0 .. 3; then
+//! `scene::scale_texture_coordinates`, `scene::clip_polygon_to_screen` and, with three vertices
+//! or more left, mode 6, both `polygon_sides` switches set (1, 0), the depth buffer off
+//! (`scene::depth_buffer_on::depth_buffer`), `scene::draw_polygon`, the polygon-drawn flag 1,
+//! the depth buffer on; the colour back to white. The quad's cells are in the race variables, set
+//! by the caller.
 //!
-//! In:  nothing (`dword_623DE8` .. `dword_623E24`, set by the caller)
-//!
-//! Callers: `hud::draw_view_strip` (three), and code at 0x4436B2, 0x4437C1, 0x45BCD8, 0x45BDD0. The
-//! calls (the scale, the clip, the depth buffer off, the draw, the depth buffer on) are
-//! their Rust versions; a refusal of theirs comes after the writes.
+//! Callers: `hud::draw_view_strip` (three), and four more places in the HUD and the viewer. A
+//! refusal from the scale, the clip, the depth buffer calls or the draw comes after the writes.
 
 use crate::errors::Refused;
 use crate::math::x87;
-use crate::race::owner::Race;
-use crate::race::owner_course::Course;
-use crate::session::Dword;
+use crate::race::owner_course::CourseReads;
 
-/// The Rust version (see the header). It reads no register, and what it leaves is read by
-/// none of its callers (register liveness, 2026-10-23).
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the view's polygon work, the part's scratch and the owners"
+)]
 pub fn draw_flat_quad(
-    race: &Race,
-    course: &Course,
-    scene: &crate::scene::owner::Scene,
+    poly: &crate::scene::polygon_work::PolygonWork,
+    part: &crate::scene::workers::PartScratch,
+    face: &crate::race::face_work::FaceWork,
+    course: CourseReads<'_>,
+    reads: crate::scene::workers::DrawReads<'_>,
+    screen: &crate::memory::session::Screen,
+    view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
-    let shared = &race.shared;
-    let drawing = &scene.drawing;
-    drawing.scene.polygon_drawn.set_bits(0);
+    poly.polygon_drawn.set(0);
     for n in 0..4 {
-        let rec = &crate::scene::polygon_store::POLYGON_WORK.entries[n];
+        let rec = &part.polygon.entries[n];
         rec.record
             .set(crate::scene::point_records::of_quad(n as u32));
-        rec.u.set(shared.vars.quad_uv[n].bits());
-        rec.v.set(shared.vars.quad_uv[4 + n].bits());
+        rec.u.set(view.quad.uv[n].get());
+        rec.v.set(view.quad.uv[4 + n].get());
     }
-    let float = |cell: &Dword| {
-        let v = x87::from_int(cell.bits() as i32);
-        drawing.scene.scratch.set_bits(v);
-        v
-    };
+    let float = |cell: &crate::memory::session::PlainDword| x87::from_int(cell.get() as i32);
     let [left, right, top, bottom] = [
-        &shared.vars.quad_corners[0],
-        &shared.vars.quad_corners[1],
-        &shared.vars.quad_corners[4],
-        &shared.vars.quad_corners[5],
+        &view.quad.corners[0],
+        &view.quad.corners[1],
+        &view.quad.corners[4],
+        &view.quad.corners[5],
     ]
     .map(float);
-    let v = |n: usize, o: usize, x: u32| {
-        shared.vars.quad_vertices[8 * n + o / 4].set_bits(x);
+    let v = |n: usize, o: usize, x: f32| {
+        poly.quad_vertices[8 * n + o / 4].set(x.to_bits());
     };
     for (n, x, y) in [
         (0, left, top),
@@ -63,45 +57,37 @@ pub fn draw_flat_quad(
         v(n, 0xC, x);
         v(n, 0x1C, y);
     }
-    let depth: u32 = course.numbers.k4096_b.bits();
+    let depth = course.numbers.k4096_b.get();
     for n in 0..4 {
         v(n, 0x18, depth);
     }
-    for n in 0..4 {
-        crate::scene::polygon_store::POLYGON_WORK.entries[n]
-            .point
-            .set(0xFFFF_FFFF);
+    for item in part.polygon.entries.iter().take(4) {
+        item.point.set(0xFFFF_FFFF);
     }
-    drawing
-        .scene
-        .polygon_colour
-        .set_bits(shared.vars.quad_colour[0].bits() & 0xFF_FFFF);
-    for n in 0..4 {
-        crate::scene::polygon_store::POLYGON_WORK.entries[n]
-            .light
-            .set(0);
+    poly.polygon_colour
+        .set(view.quad.colour[0].get() & 0xFF_FFFF);
+    for item in part.polygon.entries.iter().take(4) {
+        item.light.set(0);
     }
-    drawing.scene.polygon_vertex_count.set_bits(4);
-    drawing
-        .scene
-        .polygon_next_record
-        .set_bits(crate::scene::polygon::pool_start());
+    poly.polygon_vertex_count.set(4);
+    poly.polygon_next_record
+        .set(crate::scene::polygon::pool_start());
     for n in 0..4u32 {
-        crate::scene::polygon::list_cell(n as usize).set(n);
+        crate::scene::polygon::list_cell(&part.polygon, n as usize).set(n);
     }
-    crate::scene::polygon::list_cell(4).set(0);
-    drawing.scene.polygon_next_entry.set_bits(4);
-    crate::scene::scale_texture_coordinates::scale_texture_coordinates(scene)?;
-    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(race, scene)?;
-    if drawing.scene.polygon_vertex_count.bits() >= 3 {
-        shared.view.polygon_mode.set_bits(6);
-        drawing.scene.polygon_sides[0].set_bits(1);
-        drawing.scene.polygon_sides[1].set_bits(0);
-        crate::scene::depth_buffer_on::depth_buffer(false);
-        crate::scene::draw_polygon::draw_polygon_in_game(race, scene)?;
-        drawing.scene.polygon_drawn.set_bits(1);
-        crate::scene::depth_buffer_on::depth_buffer(true);
+    crate::scene::polygon::list_cell(&part.polygon, 4).set(0);
+    poly.polygon_next_entry.set(4);
+    crate::scene::scale_texture_coordinates::scale_texture_coordinates(&part.polygon, poly)?;
+    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(part, poly, course)?;
+    if poly.polygon_vertex_count.get() >= 3 {
+        face.polygon_mode.set(6);
+        poly.polygon_sides[0].set(1);
+        poly.polygon_sides[1].set(0);
+        crate::scene::depth_buffer_on::depth_buffer(part, false);
+        crate::scene::draw_polygon::draw_polygon_in_game(view, part, reads, screen)?;
+        poly.polygon_drawn.set(1);
+        crate::scene::depth_buffer_on::depth_buffer(part, true);
     }
-    drawing.scene.polygon_colour.set_bits(0xFF_FFFF);
+    poly.polygon_colour.set(0xFF_FFFF);
     Ok(())
 }

@@ -1,16 +1,7 @@
-//! The championship's standings tables (converted 2026-10-21 from `menu::sort_standings_by_*`,
-//! `menu::sort_standings_b_by_*`, `menu::rank_best_score*`, `menu::enter_best_score*` and the
-//! three first-player searches, and the arcade's `menu::sort_arcade_stage_times` 0x48A0CE,
-//! `sort_arcade_level_scores` 0x48A2AE, `score_arcade_stage` 0x48A383, `remove_shown_car`
-//! 0x486BF5): entries of a fixed size (table A 0x9C, table B 0x78, the
+//! The championship's standings tables: entries of a fixed size (table A 0x9C, table B 0x78, the
 //! best scores 0x3C) whose dwords are read by offset, as far as they are worked out. And the
-//! tables' emptying and numbering (`menu::init_standings_a` 0x4730D8 / `_b` 0x4A4644,
-//! `number_standings_a` 0x4A2055 / `_b` 0x4A4A9D, `number_all_a` 0x4A2090 / `_b` 0x4A5A98,
-//! `clear_standings_a` 0x4A5A14 / `_b` 0x4A5A2F). Their filling (converted 2026-10-21 from
-//! `menu::copy_standing_entry` 0x46613F, `player_to_standing_b` 0x46618A,
-//! `standings_from_drivers` 0x4A9605, `standings_a_from_all` 0x4A2B75,
-//! `standings_b_from_all` 0x4A44A0, `copy_standings_summary` 0x470466), and
-//! `menu::clear_score_marks` 0x4A919A and `find_cpu_team` 0x4A49FF.
+//! tables' emptying, numbering and filling, the score marks' clearing and the computer team's
+//! search.
 
 /// A name's bytes in an entry.
 pub const NAME_LEN: usize = 0x1F;
@@ -82,8 +73,8 @@ impl Entries<'_> {
         }
     }
 
-    /// Entries `a` and `b`'s dwords at `fields` and names at `name` swapped, the name
-    /// through `kept` (which ends with `a`'s), as the original.
+    /// Entries `a` and `b`'s dwords at `fields` and names at `name` swapped, the name through
+    /// `kept` (which ends with `a`'s).
     pub fn swap(
         &mut self,
         a: usize,
@@ -120,9 +111,9 @@ pub fn b_fields() -> Vec<usize> {
     f
 }
 
-/// The first `SORTED` entries sorted by the signed dword at `key` with the original's
-/// exchange sort: for each i < j, entry j and i swapped (j first) when j's key is at most
-/// i's (`down` false) or at least i's (`down`).
+/// The first `SORTED` entries sorted by the signed dword at `key` with an exchange sort:
+/// for each i < j, entry j and i swapped (j first) when j's key is at most i's (`down` false) or at
+/// least i's (`down`).
 #[cfg(test)]
 pub fn exchange_sort(
     t: &mut Entries,
@@ -165,9 +156,8 @@ pub struct First {
     pub figure: u32,
 }
 
-/// The original's search for the first player (`find1stplayer`): the entries of `group`
-/// (`ANY_GROUP`: any whose group is not 0) whose player (+4) is not 0. None: the game's
-/// fatal error.
+/// The search for the first player (`find1stplayer` in its fatal error): the entries of `group`
+/// (`ANY_GROUP`: any whose group is not 0) whose player (+4) is not 0. None: a fatal error.
 #[cfg(test)]
 pub fn first_player(t: &Entries, group: u32, group_at: usize, figure_at: usize) -> Option<First> {
     let mut computers = 0;
@@ -203,10 +193,9 @@ pub enum Found {
     NoEnd,
 }
 
-/// The searches of the results pages (`menu::find_ranked_entry` 0x4A2547,
-/// `find_ranked_position` 0x4A2584, `find_champ_position` 0x4A5A85,
-/// `first_overall_time` 0x4A327A): from entry 0 on, the first `wanted`; entry 0 is looked at
-/// before any end test, the others only if their first dword (`first(n)`) is not -1.
+/// The searches of the results pages (`menu::find_ranked_entry`, `find_ranked_position`,
+/// `find_champ_position`, `first_overall_time`): from entry 0 on, the first `wanted`; entry 0 is
+/// looked at before any end test, the others only if their first dword (`first(n)`) is not -1.
 pub fn search(
     mut first: impl FnMut(u32) -> u32,
     mut wanted: impl FnMut(u32) -> bool,
@@ -322,7 +311,7 @@ pub fn fill_a(t: &mut Entries, n: usize, p: &PlayerA) {
 pub struct PlayerB {
     /// The player's index (0 .. 3).
     pub index: u32,
-    /// The name's first 0x20 bytes (from the pointer at +0x18).
+    /// The name's first 0x20 bytes.
     pub name: [u8; 0x20],
     /// The nationality (+4), the car's number (+8), the group (+0x90), the total (+0x8C).
     pub nationality: u32,
@@ -410,8 +399,8 @@ pub fn fill_b_from_driver(t: &mut Entries, n: usize, drivers: &Entries, d: usize
 }
 
 /// Where the players go in a table filled from all (`menu::standings_a_from_all`,
-/// `standings_b_from_all`): each group's (0 .. 3) players, in order, into the entries from
-/// the group's first (`firsts`) down. (player, entry) pairs, in the original's order.
+/// `standings_b_from_all`): each group's (0 .. 3) players, in order, into the entries from the
+/// group's first (`firsts`) down. (player, entry) pairs.
 pub fn by_group(groups: &[u32], firsts: [usize; 4]) -> Vec<(usize, usize)> {
     let mut out = Vec::new();
     for (group, first) in firsts.into_iter().enumerate() {
@@ -435,9 +424,9 @@ pub const B_GROUP_FIRSTS: [usize; 4] = [89, 119, 169, 179];
 #[cfg(test)]
 pub const SUMMARY_ROWS: usize = 0x5A;
 
-/// The summary's rows (+0, +4, +8, +0xC of each: the entry's +0xC, +8, +0x10, +0x14) from
-/// table A's first `SUMMARY_ROWS` entries with a group (+0x1C not 0; `grouped`) or
-/// without. None when the table runs out first (the original walks on past its end).
+/// The summary's rows (+0, +4, +8, +0xC of each: the entry's +0xC, +8, +0x10, +0x14) from table A's
+/// first `SUMMARY_ROWS` entries with a group (+0x1C not 0; `grouped`) or without. None when the
+/// table runs out first.
 #[cfg(test)]
 pub fn summary_rows(t: &Entries, grouped: bool) -> Option<Vec<[u32; 4]>> {
     let rows: Vec<[u32; 4]> = (0..t.len())

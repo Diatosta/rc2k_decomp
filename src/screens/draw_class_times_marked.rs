@@ -1,18 +1,10 @@
-//! `screens::draw_class_times_marked` (0x48AB87): the class `dword_7587EC`'s times, the
-//! player's own (+0x40 1) in the highlight fonts, the sprites 4 lower (see
-//! `screens/best_scores.rs`).
-//!
-//!
-//! In a menu loop's draw list (0x758D32). Refuses (before anything) no table. The menus and draw
-//! lists run its `entry` (`menu::table_calls`).
+//! The class `arcade.level`'s times, the player's own in the highlight fonts, the sprites 4
+//! lower (see `screens/best_scores.rs`). Refuses no table.
 
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
 use crate::screens::best_scores::*;
 use crate::text::draw_text::Canvas;
 
-/// The Rust version (see the header).
-pub fn draw(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let tables = &menus.tables;
-    draw_scores(tables, &MARKED_CLASS_TIMES, canvas)
+pub fn draw(o: crate::owners::Owners<'static>, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    draw_scores(o, &MARKED_CLASS_TIMES, canvas)
 }

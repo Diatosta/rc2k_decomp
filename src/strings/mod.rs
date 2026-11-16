@@ -1,5 +1,4 @@
-//! The game's strings, called directly by Rust callers (hooks removed in conversion phase 4,
-//! 2026-10-21).
+//! The game's strings, called directly by Rust callers.
 
 pub mod append_percent;
 pub mod append_speed;
@@ -21,5 +20,4 @@ pub mod string_table;
 pub mod text_buffer;
 pub mod text_from_ids;
 pub mod text_length;
-pub mod unit_labels;
 pub mod units;

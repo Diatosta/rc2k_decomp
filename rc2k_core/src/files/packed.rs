@@ -1,13 +1,11 @@
-//! The game's "SQSL" packed files (course data; converted 2026-10-20 from
-//! `files::read_packed_file` 0x41BA71), unpacked in place.
+//! The game's "SQSL" packed files (course data), unpacked in place.
 //!
-//! The file begins "SQSL", two dwords, and the count of dwords it unpacks to. Its dwords
-//! are moved to the buffer's end (backwards, so a file filling the buffer stays in place);
-//! from +0x10 of them a stream of bits (each dword's highest first) is read and the dwords
-//! written from the buffer's start (both + the size's odd bytes: the move shifts the file
-//! by them), each by a code: 0 a zero; 10 and 8 bits n, the dword n + 1 back; 1100 and 12
-//! bits, likewise; 1101 and 17 bits, that number; 1110, a sign bit and 27 bits, that
-//! number (28 bits, signed); 1111 and 32 bits, that number.
+//! The file begins "SQSL", two dwords, and the count of dwords it unpacks to. Its dwords are
+//! moved to the buffer's end (backwards, so a file filling the buffer stays in place); from +0x10
+//! of them a stream of bits (each dword's highest first) is read, and the dwords written from the
+//! buffer's start, each by a code: 0 a zero; 10 and 8 bits n, the dword n + 1 back; 1100 and 12
+//! bits, likewise; 1101 and 17 bits, that number; 1110, a sign bit and 27 bits (28 bits,
+//! signed); 1111 and 32 bits, that number.
 
 use crate::Invalid;
 
@@ -55,9 +53,8 @@ pub fn is_packed(buffer: &[u8]) -> bool {
 }
 
 /// The file of `size` bytes at the start of `buffer` unpacked in place: the bytes written
-/// from the start. Refused: a count of 0 (the original counts round), a stream that reads
-/// or writes past the buffer or refers back before its start; the buffer may be changed by
-/// then.
+/// from the start. Refused: a count of 0, a stream that reads or writes past the buffer or
+/// refers back before its start; the buffer may be changed by then.
 pub fn unpack(buffer: &mut [u8], size: usize) -> Result<usize, Invalid> {
     let room = buffer.len();
     let words = size >> 2;

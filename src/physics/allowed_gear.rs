@@ -1,28 +1,26 @@
-//! `physics::allowed_gear` (0x4651B5): eax kept or made 0. 0 when `g_car` +0x2B8
-//! (`unk_71A290`) holds the bits of `flt_5C5D14` (100.0, compared as a dword); for eax
-//! 1 or more (by the sign of eax - 1) also 0 when `physics::gear_bit` of it gives CF;
-//! then 0 unless +0x3F4 (`unk_71A3CC`) is set. A reading: the gear asked for, unless the
-//! gearbox refuses it.
+//! The gear the player asked for, or 0 when the gearbox refuses it: 0 when the engine is dead
+//! (its damage word holds the bits of 100.0), when `physics::gear_bit` bars a gear of 1 or more,
+//! and when `engine_power_factor` is not set.
 //!
-//! Takes: the gear
-//!
-//! Caller: `physics::take_asked_gear` (0x43C1FD). Refuses what `gear_bit` refuses (a bit past 31).
+//! Caller: `physics::take_asked_gear`. Refuses a gear whose bit is past 31 (as `gear_bit`).
 
 use crate::errors::Refused;
+use crate::memory::session::{PlainDword, PlainFloat};
+use crate::physics::car_store::Car;
 use crate::physics::gear_bit::bits_at;
-use crate::race::owner::Race;
-use crate::race::owner_course::Course;
+use crate::race::numbers_store::Numbers;
 
-/// The Rust version on the word +0x2B8, the word +0x3F4 and the gear bits at these places.
-// Converted: `rc2k_core::physics::gearbox::allowed_gear`.
+/// On the engine damage word, the engine power factor and the gear bits at these places.
+// Core: `rc2k_core::physics::gearbox::allowed_gear`.
 pub fn allowed_gear_at(
-    course: &Course,
-    locked: &dyn crate::session::Cell32,
-    open: &dyn crate::session::Cell32,
-    bits: &dyn crate::session::Cell32,
-    eax: u32,
-) -> Result<u32, Refused> {
-    let locked = locked.bits() == course.numbers.hundred.bits();
+    numbers: &Numbers,
+    locked: &PlainFloat,
+    open: &PlainFloat,
+    bits: &PlainDword,
+    eax: i32,
+) -> Result<i32, Refused> {
+    // The words are compared: the engine damage is exactly 100.0's bits, not a float compare.
+    let locked = locked.get() == numbers.hundred.get();
     Ok(rc2k_core::physics::gearbox::allowed_gear(
         locked,
         eax,
@@ -31,13 +29,12 @@ pub fn allowed_gear_at(
     )?)
 }
 
-/// The Rust version.
-pub fn allowed_gear(race: &Race, eax: u32) -> Result<u32, Refused> {
+pub fn allowed_gear(car: &Car, numbers: &Numbers, eax: i32) -> Result<i32, Refused> {
     allowed_gear_at(
-        &race.course,
-        &race.shared.car.engine_damage,
-        &race.shared.car.engine_power_factor,
-        &race.shared.car.lost_gear_bits,
+        numbers,
+        &car.engine_damage,
+        &car.engine_power_factor,
+        &car.lost_gear_bits,
         eax,
     )
 }

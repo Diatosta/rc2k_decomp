@@ -1,22 +1,19 @@
-//! The work car's damage warnings (converted 2026-10-21 from `physics::damage_notices`
-//! 0x4B0241): each damage gauge (a float of the work copy, `unk_71A284` .. `unk_71A33C`)
-//! moves a level (`unk_71A340` .. `unk_71A3C8`) by whole-number thresholds, in the
-//! original's order of 82 steps (read from the disassembly): a rising step, the gauge not
-//! below its threshold, sets the level and queues a notice; a falling one (the hysteresis
-//! of some gauges), below it, sets the level back.
+//! The work car's damage warnings: each damage gauge moves a level by whole-number thresholds,
+//! in a fixed order of 82 steps. A rising step (gauge not below its threshold) sets the level
+//! and queues a notice; a falling one (hysteresis of some gauges) sets the level back.
 //!
-//! Floats: each threshold is a whole number made a float (`fild` / `fstp`, exact) and
-//! compared with the gauge (`fcomp`, unordered counting as below): exact at any
-//! precision.
+//! Floats: each threshold is a whole number made a float (exact), so the comparison is exact at
+//! any precision; unordered counts as below.
 
 use super::x87::below;
 
-/// The levels (dwords from `unk_71A340`) and the gauges (dwords from `unk_71A284`).
+/// The number of levels.
 pub const LEVELS: usize = 35;
+/// The number of gauges.
 pub const GAUGES: usize = 47;
 
-/// One step: a level, the level it applies at, the threshold, the gauge, the new level;
-/// a rising one also the notice and its rank.
+/// One step: a level, the level it applies at, the threshold, the gauge and the new level;
+/// a rising one also has the notice and its rank.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Step {
     Up {
@@ -38,7 +35,7 @@ pub enum Step {
 }
 use Step::{Down, Up};
 
-/// The original's steps, in order.
+/// The steps, in the fixed order they apply.
 #[rustfmt::skip]
 pub const STEPS: [Step; 82] = [
     Up { level: 22, from: 0, limit: 1, gauge: 2, to: 1, notice: 0xCF, rank: 1 },
@@ -125,7 +122,7 @@ pub const STEPS: [Step; 82] = [
     Up { level: 21, from: 0, limit: 100, gauge: 17, to: 1, notice: 0x10B, rank: 1 },
 ];
 
-/// A notice queued: its id, the gauge (its value is the original's eax) and its rank.
+/// A notice queued: its id, the gauge it came from and its rank.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Queued {
     pub notice: u32,
@@ -133,8 +130,8 @@ pub struct Queued {
     pub rank: u32,
 }
 
-/// The steps on the levels: `gauge(k)` read where a step applies, `limit(t)` told of each
-/// threshold stored (`flt_75B36C`), `queue` each notice (its refusal stops the steps).
+/// Runs the steps on the levels: `gauge(k)` is read where a step applies, `limit(t)` is told
+/// of each threshold, `queue` takes each notice (its error stops the steps).
 pub fn damage_notices<E>(
     levels: &mut [u32; LEVELS],
     gauge: impl Fn(usize) -> f32,
@@ -189,7 +186,7 @@ mod tests {
     fn notices() {
         let mut levels = [0u32; LEVELS];
         let mut queued = vec![];
-        // Gauge 2 (the first steps' `unk_71A28C`) at 60: two rising steps.
+        // Gauge 2 at 60: two rising steps.
         let gauge = |k: usize| if k == 2 { 60.0 } else { 0.0 };
         damage_notices(
             &mut levels,
@@ -203,11 +200,11 @@ mod tests {
         .unwrap();
         assert_eq!(levels[0x16], 2);
         assert_eq!(queued, [0xCF, 0xCF]);
-        // Back down below 50: one falling step (to 1; the step from 1 came before it).
+        // Back below 50: one falling step (the step from 1 came before it).
         let gauge = |k: usize| if k == 2 { 10.0 } else { 0.0 };
         damage_notices(&mut levels, gauge, |_| {}, |_| -> Result<(), ()> { Ok(()) }).unwrap();
         assert_eq!(levels[0x16], 1);
-        // A refusal stops the steps.
+        // An error from `queue` stops the steps.
         let mut levels = [0u32; LEVELS];
         assert!(damage_notices(&mut levels, |_| f32::INFINITY, |_| {}, |_| Err(())).is_err());
     }

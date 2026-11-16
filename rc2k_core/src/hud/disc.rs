@@ -1,20 +1,15 @@
-//! The HUD's disc (converted 2026-10-21 from `hud::disc_vertex` 0x4B6D10 and
-//! `hud::turned_vertex` 0x4B7058): a ring of 0x11 entries (the centre and sixteen round
-//! it) made vertices, and the needle's turned vertices. As in `math::vector`, what the
-//! x87 keeps on its stack is an `f64`, rounded to `f32` where the original stores it: the
-//! same bits at the game's double precision. The disc's ring and triangles (converted
-//! 2026-10-21 from `hud::draw_disc` 0x4B6C4E) and the needle's turn and corners (from
-//! `hud::draw_needle` 0x4B6ECD): the roundings that follow the x87's control word (the
-//! texture's turn, the needle's) stay the hook's, passed in or worked out from what these
-//! return.
+//! The HUD's disc: a ring of 0x11 entries (the centre and sixteen round it) made vertices, the
+//! disc's ring and triangles, and the needle's turn, corners and turned vertices. Intermediates
+//! are `f64`, rounded to `f32` where stored, as in `math::vector`. The roundings that follow the
+//! x87's control word (the texture's turn, the needle's) stay with the caller, passed in or worked
+//! out from what these return.
 
 use crate::physics::x87::{below, loaded};
 
-/// The ring's entries.
+/// Number of entries in the ring.
 pub const ENTRIES: u32 = 0x11;
 
-/// One ring entry: its place (`flt_75C188`, `flt_75C1CC`) and its texture place
-/// (`flt_75C210`, `flt_75C254`).
+/// One ring entry: its place and its texture place.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RingEntry {
     pub x: f32,
@@ -23,9 +18,8 @@ pub struct RingEntry {
     pub v: f32,
 }
 
-/// The disc's size and places: its radius (`dword_75C050`), the texture's scale
-/// (`dword_75C04C`), middle (`flt_75C01C`), shift (`dword_75C054`, `dword_75C058`) and
-/// size (`flt_75C020`), and the centre on the screen (`dword_75C044`, `dword_75C048`).
+/// The disc's size and places: its radius, the texture's scale, middle, shift and size, and the
+/// centre on the screen.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Disc {
     pub radius: f32,
@@ -64,17 +58,17 @@ pub fn white_under(alpha: u32) -> u32 {
     (alpha << 24) | 0xFF_FFFF
 }
 
-/// `hud::turned_vertex`'s texture place: `fld p; fadd shift; fdiv scale`.
+/// `hud::turned_vertex`'s texture place: `p` plus `shift`, over `scale`.
 pub fn turned_texture(p: f32, shift: f32, scale: f32) -> f32 {
     ((p as f64 + shift as f64) / scale as f64) as f32
 }
 
-/// `hud::turned_vertex`'s place: `fld t; fmul size; fadd centre` (the point turned).
+/// `hud::turned_vertex`'s place: `t` times `size` plus `centre` (the point turned).
 pub fn turned_place(t: f32, size: f32, centre: f32) -> f32 {
     (t as f64 * size as f64 + centre as f64) as f32
 }
 
-/// The disc's segments.
+/// Number of segments the disc is drawn in.
 pub const SEGMENTS: u32 = 0x10;
 
 /// Ring entry k + 1's angles (of 0x1000 a turn) for the sines and cosines: its place's
@@ -96,7 +90,7 @@ pub fn disc_triangle(k: u32) -> [u32; 3] {
     [0, k + 1, third]
 }
 
-/// The needle's constants after its least value (`flt_75C2BC` + 4 n, each asked for where
+/// The needle's constants after its least value (`HudBlock.needle_k[0]` + 4 n, each asked for where
 /// it is read): the angles' base and second base, the split, the most with the kind switch,
 /// the scale, the second scale, the most without.
 pub mod needle {
@@ -119,11 +113,10 @@ pub struct NeedleTurn {
     pub plus: f32,
 }
 
-/// `hud::draw_needle`'s value held to the least (`flt_75C018`) and the most (C0 of the
-/// compares: an unordered one counts as below), and which way it is made an angle: with the
-/// kind switch over the scale plus the base; without, below the split over the second scale
-/// plus the base, else less the split over the scale plus the second base. `value` is the
-/// needle's whole number as the x87 made it a float; `k` the constants (`needle`).
+/// `hud::draw_needle`'s value held to the least and the most (an unordered one counts as below),
+/// and which way it is made an angle: with the kind switch over the scale plus the base; without,
+/// below the split over the second scale plus the base, else less the split over the scale plus the
+/// second base. `value` is the needle's whole number as a float; `k` the constants (`needle`).
 pub fn needle_turn(value: f32, kind: bool, least: f32, k: impl Fn(usize) -> f32) -> NeedleTurn {
     use needle::*;
     let held = |most: f32| {
@@ -165,8 +158,8 @@ pub fn needle_turn(value: f32, kind: bool, least: f32, k: impl Fn(usize) -> f32)
     }
 }
 
-/// What `hud::draw_needle` leaves in edx: the rounded turn times -16.
-pub fn needle_edx(turn: u32) -> u32 {
+/// The needle's angle: the rounded turn times -16.
+pub fn needle_angle(turn: u32) -> u32 {
     (turn << 4).wrapping_neg()
 }
 
@@ -203,7 +196,7 @@ mod tests {
         );
         // an unordered value is held to the least (below), then kept (below the most)
         assert_eq!(needle_turn(f32::NAN, true, 10.0, k).value, 10.0);
-        assert_eq!(needle_edx(3), 0xFFFF_FFD0);
+        assert_eq!(needle_angle(3), 0xFFFF_FFD0);
         assert_eq!(
             needle_corners([1, 2, 3, 4]),
             [(1, 2), (3, 2), (3, 4), (1, 4)]

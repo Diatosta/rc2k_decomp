@@ -1,51 +1,32 @@
-//! `physics::move_car` (0x43CCB0): the work car's place (`dword_71A10C` .. `114`, whole
-//! numbers) moved by its motion (`dword_71A170` .. `178`, floats) times 65536 and the step
-//! `flt_61388C` (`fistp` through `dword_62400C`), x, z, then y.
+//! Moves the work car's place (`position`, whole numbers) by its motion (`velocity`, floats) times
+//! 65536 and the step `step_time`, rounded through `scratch`: x, z, then y.
 //!
-//! Returns: y's move
+//! Returns y's move.
 //!
-//! Callers: `physics::car_physics_step` (0x43B827, 0x43B8A0), every physics step.
+//! Caller: `physics::car_physics_step`, twice every physics step.
 
-use crate::math::x87_run::mul2_to_int;
-use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
-use crate::session::Cell32;
+use crate::math::x87::mul2_to_int;
+use crate::physics::car_store::Car;
+use crate::physics::tables_store::PhysicsTables;
+use crate::race::numbers_store::Numbers;
 
-fn get(v: &[&dyn Cell32], k: usize) -> u32 {
-    v[k].bits()
-}
-
-fn put(v: &[&dyn Cell32], k: usize, x: u32) {
-    v[k].set_bits(x);
-}
-
-/// The Rust core on the variables' cells `v`: the last move.
-pub fn move_at(race: &Race, v: &[&dyn Cell32]) -> u32 {
-    let k65536: u32 = race.course.numbers.k65536.bits();
-    let dt: u32 = race.shared.physics_tables.step_time.bits();
+/// The exact version, for `physics::car_physics_step` and `physics::apply_wheel_torques`: the last
+/// move (it is also left in the scene's scratch dword).
+pub fn move_car(
+    car: &Car,
+    tables: &PhysicsTables,
+    numbers: &Numbers,
+    scene: &crate::scene::owner::Scene,
+) -> u32 {
+    let k65536 = numbers.k65536.get();
+    let dt = tables.step_time.get();
+    let scratch = &scene.drawing.scene.get().scratch;
     let mut last = 0;
-    for (motion, place) in [(0, 3), (2, 5), (1, 4)] {
-        last = mul2_to_int(get(v, motion), k65536, dt) as u32;
-        put(v, 6, last);
-        put(v, place, get(v, place).wrapping_add(last));
+    // x, then z, then y.
+    for k in [0, 2, 1] {
+        last = mul2_to_int(car.velocity[k].get(), k65536, dt) as u32;
+        scratch.set(last);
+        car.position[k].set(car.position[k].get().wrapping_add(last));
     }
     last
-}
-
-fn game<'a>(shared: &'a Shared, scene: &'a crate::scene::owner::Scene) -> Vec<&'a dyn Cell32> {
-    vec![
-        &shared.car.velocity[0] as &dyn Cell32,
-        &shared.car.velocity[1],
-        &shared.car.velocity[2],
-        &shared.car.position[0],
-        &shared.car.position[1],
-        &shared.car.position[2],
-        &scene.drawing.scene.scratch,
-    ]
-}
-
-/// The Rust version (the exact one, for `physics::car_physics_step` and
-/// `physics::apply_wheel_torques`).
-pub fn move_car(race: &Race, scene: &crate::scene::owner::Scene) -> u32 {
-    move_at(race, &game(&race.shared, scene))
 }

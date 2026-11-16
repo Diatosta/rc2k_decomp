@@ -1,54 +1,53 @@
-//! `drive::race_cars_step` (0x4608BB): every car's physics step. `drive::choose_shown_cars`;
-//! for each car n of `g_raceCars` (`g_currentCar` = n, from 0), the
-//! four `dword_6138C4` .. 0, its block (`g_carBlocks[n & 7]`) into `dword_71B404`,
-//! `drive::load_car`; with the car running (`unk_71A234` set) `drive::read_car_controls`,
-//! `physics::gear_input_rules` and `physics::car_physics_step`; `drive::store_car`. Then
-//! `drive::animate_stage` and `drive::race_mode_cars`.
+//! Every car's physics step. `drive::choose_shown_cars`; for each car n (the current car = n,
+//! from 0), the four `input_words` 0, its block into `work_block`, `drive::load_car`; with the
+//! car running `drive::read_car_controls`, `physics::gear_input_rules` and
+//! `physics::car_physics_step`; `drive::store_car`. Then `drive::animate_stage` and
+//! `drive::race_mode_cars`.
 //!
-//! Caller: `drive::race_init` (its fifty settling steps). Refuses (before anything) a cars'
-//! count of 0 or past 8 (the original's `jnz` loop runs on), and what its calls refuse; the
-//! cars' blocks, the work car and the physics' variables are put back then. The pace notes'
-//! sound cues (`physics::pace_notes_step` -> the sound objects' queues) are not put back
-//! between the two runs: a mismatch there would show in those queues only.
+//! Refuses (before anything) a cars' count of 0 or past 8, and what its calls refuse; the cars'
+//! blocks, the work car and the physics' variables are put back then.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
 use rc2k_core::drive::race_steps;
 
-/// One car's step (0x4608CA ..).
-fn car_step(race: &Race) -> Result<(), Refused> {
-    for word in &race.shared.physics_tables.input_words {
+fn car_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refused> {
+    let scene = o.scene;
+    for word in &race.shared.physics_tables.get().input_words {
         word.set(0);
     }
-    let slot = race_steps::block_slot(race.shared.work.current_car.get());
+    let slot = race_steps::block_slot(race.shared.work.get().current_car.get());
     race.shared
         .work
+        .get()
         .work_block
-        .set(race.shared.work.car_block(slot));
+        .set(race.shared.work.get().car_block(slot));
     crate::drive::load_car::load_car(&race.shared)?;
-    if race.shared.car.driver_kind.get() != 0 {
-        crate::drive::read_car_controls::read_car_controls(race)?;
-        crate::physics::gear_input_rules::gear_input_rules(race);
-        crate::physics::car_physics_step::car_physics_step(race)?;
+    if race.shared.car().driver_kind.get() != 0 {
+        crate::drive::read_car_controls::read_car_controls(race, scene, o.net)?;
+        crate::physics::gear_input_rules::gear_input_rules(
+            race.shared.car(),
+            race.shared.physics_tables.get(),
+            race.shared.vars.get(),
+        );
+        crate::physics::car_physics_step::car_physics_step(o, race)?;
     }
     crate::drive::store_car::store_car(&race.shared)?;
     Ok(())
 }
 
-/// The Rust version. The registers it leaves are read by no caller (liveness: only DF
-/// is live after `drive::race_init`'s call).
-// Converted: `rc2k_core::drive::race_steps::{check_cars, each_car, block_slot}`.
-pub fn race_cars_step(race: &Race) -> Result<(), Refused> {
+pub fn race_cars_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refused> {
+    let scene = o.scene;
     let shared = &race.shared;
-    race_steps::check_cars(shared.view.race_cars.get())?;
-    crate::drive::choose_shown_cars::choose_shown_cars(race)?;
+    race_steps::check_cars(shared.view.get().race_cars.get())?;
+    crate::drive::choose_shown_cars::choose_shown_cars_in(race, o.net)?;
     race_steps::each_car(
-        || shared.work.current_car.get(),
-        || shared.view.race_cars.get(),
-        |n| shared.work.current_car.set(n),
-        || car_step(race),
+        || shared.work.get().current_car.get(),
+        || shared.view.get().race_cars.get(),
+        |n| shared.work.get().current_car.set(n),
+        || car_step(o, race),
     )?;
-    crate::drive::animate_stage::animate_stage(race)?;
-    crate::drive::race_mode_cars::race_mode_cars(race)?;
+    crate::drive::animate_stage::animate_stage(race, scene)?;
+    crate::drive::race_mode_cars::race_mode_cars(race, scene)?;
     Ok(())
 }

@@ -1,39 +1,29 @@
-//! `screens::draw_options_checklist` (0x47DEA2): a player's options page: its title (string
-//! 0x190, a space and the player's number, in `byte_A8BC54`) at (0x190, 0x14), the page's
-//! lines (strings 0x524 .. 0x531 at x 0x190 / 0x186, three fonts), the slider (`gfx::blit_bar`
-//! at (0x128, 0x1E3), 0xD0 wide, `dword_75AC80` percent) with its knob and two labels, and a
-//! tick or cross per option (`dword_759C76` .., -1 ends them; sprite 0x9E + (value ^ 1), its
-//! palette the same value) at x 0x190 from y 0x82 every 0x1B (`dword_7559EC`, `hhmm` the
-//! glyph, `g_markerX` 0x190).
-//!
-//!
-//! In a menu loop's draw list (0x75927E). The menus and draw lists run its `entry`
-//! (`menu::table_calls`).
+//! A player's options page: its title (a string, a space and the player's number), the page's
+//! lines, the slider (the inspection score percent) with its knob and two labels, and a tick or
+//! cross per option.
 
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
+use crate::memory::session::PlainDword;
 use crate::text::draw_text::Canvas;
 
 /// (id, x, y, font) of the page's lines.
-/// The Rust version.
-pub fn draw_options_checklist(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    // Converted: `rc2k_core::screens::settings_pages::options_checklist`.
+pub fn draw_options_checklist(
+    o: crate::owners::Owners<'static>,
+    canvas: &mut dyn Canvas,
+) -> Result<(), Refused> {
+    let menus = o.menus;
+    // The logic is in `rc2k_core::screens::settings_pages::options_checklist`.
     {
-        let mut ticks = Vec::new();
-        loop {
-            let tick = crate::session::read_on_in(
-                &menus.tables.lists,
-                &menus.tables.lists.inspection_faults,
-                ticks.len(),
-                "a checklist tick",
-            )?;
-            if tick == u32::MAX {
-                break;
-            }
-            ticks.push(tick);
-        }
+        // The fault flags end with their field's -1: `menu::inspection_faults` writes only
+        // the thirteen before it, each 0 or 1.
+        let faults = &menus.lists.inspection_faults;
+        let end = faults
+            .iter()
+            .position(|f| f.get() == u32::MAX)
+            .ok_or(crate::errors::BadInput("the fault flags without their end"))?;
+        let ticks: Vec<u32> = faults[..end].iter().map(PlainDword::get).collect();
         rc2k_core::screens::settings_pages::options_checklist(
-            &mut crate::screens::game_screen::SettingsScreen::new(canvas),
+            &mut crate::screens::game_screen::SettingsScreen::new(canvas, o),
             menus.screens.event.current_player.get(),
             menus.screens.state.driver_stats.score.get() as i32,
             &ticks,

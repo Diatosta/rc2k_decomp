@@ -1,29 +1,28 @@
-//! `install::next_edit` (0x41530F): with ebx 0, the highlight (`g_listChoice`) moved on to
-//! the first edit item (kind 4) from it, which begins to be edited (`install::start_edit`);
-//! none before the list's end: the highlight back to 0. Any other ebx: nothing.
-//!
-//! Takes 0 (a list action's start), list.
-//! Callers `install::folder_page` (the folder page's action), `install::mark_page`.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
+//! With state 0, the highlight moves on to the first edit item from it, which begins to be edited
+//! (`install::start_edit`); none before the list's end: the highlight back to 0. Any other
+//! state: nothing. Called by `install::folder_page`, `install::mark_page`.
 
-use crate::menu::list_handle::ListMenu;
+use crate::memory::list_handle::ListMenu;
 
-/// `state` which call of the list action this is (0 the start, negative the end): only the start (0) does anything.
-pub fn next_edit(install: &'static crate::install::owner::Install, state: u32, list: ListMenu) {
+/// `state`: which call of the list action this is (0 the start, negative the end); only 0 acts.
+pub fn next_edit(
+    install: &'static crate::install::owner::Install,
+    list_state: &crate::menu::list_state::ListState,
+    state: u32,
+    list: ListMenu,
+) {
     if state != 0 {
         return;
     }
     let count = list.count() as u32;
-    // Converted: `rc2k_core::install::items::next_edit` (the highlight stored once, where
-    // it ends).
-    let (n, found) = rc2k_core::install::items::next_edit(install.pages.choice.get(), count, |n| {
+    // The highlight is stored once, where it ends.
+    let (n, found) = rc2k_core::install::items::next_edit(list_state.choice.get(), count, |n| {
         list.item(n).first()
     });
     if found {
-        install.pages.choice.set(n);
+        list_state.choice.set(n);
         crate::install::start_edit::start_edit(install, list.item(n));
     } else {
-        install.pages.choice.set(0);
+        list_state.choice.set(0);
     }
 }

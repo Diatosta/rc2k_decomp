@@ -1,142 +1,134 @@
-//! The sound module's sets and tables that sit between `sound::store`'s pieces in the image
-//! (the settings page's menu sounds, the race's sets of sounds and the commands that name
-//! them, the cues' lists, the car sound kinds' records, the surface sound sets and the spot
-//! voices), out of RAL.EXE's image (phase 5), typed (phase 7). The sets are lists of sound
-//! numbers ending in -1 that the audio thread reads by address; the tables of pointers name
-//! them by the image's addresses, pointed at their homes at start (`moved::point_into_homes`).
+//! The sound module's sets and tables (the settings page's menu sounds, the race's sets of sounds
+//! and the commands that name them, the cues' lists, the car sound kinds' records, the surface
+//! sound sets and the spot voices), typed. The sets are lists of sound numbers ending in -1 that
+//! the audio thread reads; the tables of pointers name them by handle: the race's sets by
+//! `RACE_LIST_TAG` and an offset in the table they lie in; the cues' and surface sets' lists by
+//! their byte offset in the block of lists after the table, the kinds' records by their number.
 //!
-//! `#[repr(C)]` structs of atomic cells with the image's layout, first values the image's
-//! (`tests`); `moved::MOVED` points the image's addresses at them (`home`).
+//! Structs of atomic cells with the game's starting values (`tests`). The race's sets are named
+//! lists; the read-on order of `RaceField` is what the sound hash's list words rely on.
 
-use crate::session::{Bytes, Dword, Float, with_runs};
+use crate::memory::session::{Bytes, Cell32, Dword, PlainBytes, PlainDword, PlainFloat, with_runs};
+use rc2k_core::audio::commands::RaceField;
 
-/// Handles of the tables of sets (phase 13): in place of a list's, cue's or record's address
-/// a table holds `TAG | (address - the piece's start)`; 0 does not occur. The resolvers keep
-/// the original's reads: the list runs on in its piece as far as the sounds read.
-/// The race's sets (`RaceSoundSets`, by kind of car).
+/// Handle of the race's sets: in place of a list's address the table holds
+/// `TAG | field << 16 | entry` (the field's number in `RaceField::ALL`, the entry in it);
+/// 0 does not occur. The list runs on through the fields after its own as far as the
+/// sounds read (`SoundSets::list_entry`).
 pub const RACE_LIST_TAG: u32 = 0xC400_0000;
-/// The cues' lists (`CueLists`).
-pub const CUE_TAG: u32 = 0xC500_0000;
-/// The surface sets (`SurfaceSets`).
-pub const SURFACE_TAG: u32 = 0xC600_0000;
-/// The kinds' records (`SoundKinds`; 0xC3 is the view records', so this one is 0xC380).
-pub const KIND_TAG: u32 = 0xC380_0000;
 
-const fn offset_ref(tag: u32, ida: u32, start: usize, len: usize) -> u32 {
-    assert!(ida as usize >= start && (ida as usize) < start + len);
-    tag | (ida as usize - start) as u32
-}
-const fn race_ref(ida: u32) -> u32 {
-    offset_ref(RACE_LIST_TAG, ida, 0x511B10, 0x9D4)
-}
-const fn cue_ref(ida: u32) -> u32 {
-    offset_ref(CUE_TAG, ida, 0x512508, 0x508)
-}
-const fn surface_ref(ida: u32) -> u32 {
-    offset_ref(SURFACE_TAG, ida, 0x51639C, 0x1C0)
-}
-const fn kind_ref(ida: u32) -> u32 {
-    offset_ref(KIND_TAG, ida, 0x514F90, 0x13C8)
+/// The handle of the list that starts at entry `entry` of `field`.
+const fn race_list(field: RaceField, entry: u32) -> u32 {
+    assert!((entry as usize) < field.dwords());
+    RACE_LIST_TAG | (field as u32) << 16 | entry
 }
 
-/// The offset in its piece a table's handle names (None: no handle of `tag`, or past `len`).
-fn offset_in(handle: u32, tag: u32, len: usize) -> Option<usize> {
-    let offset = handle.checked_sub(tag)? as usize;
-    (offset < len).then_some(offset)
+/// The field and entry a handle of the race's sets names (None: no handle of the sets).
+fn race_list_of(handle: u32) -> Option<(RaceField, u32)> {
+    let rest = handle.checked_sub(RACE_LIST_TAG)?;
+    let field = *RaceField::ALL.get((rest >> 16) as usize)?;
+    let entry = rest & 0xFFFF;
+    ((entry as usize) < field.dwords()).then_some((field, entry))
 }
 
-/// The settings page's menu sounds list (IDA 0x511AE4 .. 0x511B0C, the image's layout).
-#[repr(C, align(16))]
+/// The settings page's menu sounds list.
 #[derive(rc2k_derive::Cells)]
 pub struct MenuSounds {
-    /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
-    pub _lead: Bytes<4>,
-    /// 0x511AE4: `unk_511AE4`: the list `sound::apply_settings` passes as the menu sounds' third argument.
+    /// The list `sound::apply_settings` passes as the menu sounds' third argument.
     pub list: Bytes<40>,
-    /// Up to the record's alignment (no byte of a record of cells outside a field).
-    pub _tail: Bytes<4>,
 }
 
 impl MenuSounds {
     pub const fn new() -> Self {
         MenuSounds {
-    _lead: Bytes::new([0; 4]),
     list: Bytes::new(with_runs::<40>(&[(0, b"\xc7\x01\x00\x00\xc8\x01\x00\x00\xc9\x01\x00\x00\xca\x01\x00\x00c\x01\x00\x00\x97\x01\x00\x00\xcb\x01\x00\x00\xe4\x00\x00\x00\xcc\x01\x00\x00\xff\xff\xff\xff")])),
-    _tail: Bytes::new([0; 4]),
         }
     }
 }
 
 impl MenuSounds {
-    pub const START: usize = 0x511AE4;
-    pub const LEN: usize = 0x28;
-    #[cfg(test)]
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        (crate::pointers::game_address(&raw const crate::sound::owner::SOUND.menu.menu_sounds) + 4)
-            as usize
+    /// Entry `n` of the list, none past its ten dwords (it ends in -1 at the tenth).
+    pub fn sound(&self, n: usize) -> Option<u32> {
+        (n < self.list.atomics().len() / 4).then(|| self.list.get_u32(4 * n))
     }
 }
 
-/// The sets of sounds a race loads (`sound::load_race_sounds`) and the request it sends (IDA 0x511B10 .. 0x5124E4, the image's layout).
-#[repr(C, align(16))]
+/// The named lists of sounds a race loads (`sound::load_race_sounds`). Lists end in -1; one that
+/// runs past its field reads on into the next in `RaceField` order (`list_entry` is the only
+/// reader that knows that order).
 #[derive(rc2k_derive::Cells)]
-pub struct RaceSoundSets {
-    /// 0x511B10: `unk_511B10` ..: the first car's sets by kind of car, three dwords each (two sounds, -1).
+pub struct SoundSets {
+    /// The first car's sets by kind of car, three dwords each (two sounds, -1).
     pub kind_sets_first: [Dword; 102],
-    /// 0x511CA8: `unk_511CA8`: a set of the first car (sound numbers ending in -1).
+    /// A set of the first car (sound numbers ending in -1).
     pub first_set_a: [Dword; 23],
-    /// 0x511D04: `unk_511D04`: another of the first car.
+    /// Another of the first car.
     pub first_set_c: [Dword; 94],
-    /// 0x511E7C: `unk_511E7C` ..: the second car's sets by kind of car, three dwords each.
+    /// The second car's sets by kind of car, three dwords each.
     pub kind_sets_second: [Dword; 102],
-    /// 0x512014: `unk_512014`: a set of the second car.
+    /// A set of the second car.
     pub second_set_a: [Dword; 23],
-    /// 0x512070: `unk_512070`: another of the second car.
+    /// Another of the second car.
     pub second_set_b: [Dword; 95],
-    /// 0x5121EC: `unk_5121EC`: the set loaded when the two cars differ.
+    /// The set loaded when the two cars differ.
     pub last_set: [Dword; 31],
-    /// 0x512268: `unk_512268`: another of the first car.
+    /// Another of the first car.
     pub first_set_b: [Dword; 54],
-    /// 0x512340: `unk_512340`: the only set of a replay.
+    /// The only set of a replay.
     pub replay_set: [Dword; 8],
-    /// 0x512360: `off_512360`: two sets (pointers) a kind of car.
+    /// Two sets (pointers) a kind of car.
     pub kinds: [Dword; 87],
-    /// 0x5124BC: `g_raceSoundRequest`: the request `sound::turn_parts` sends (a work area).
-    pub request: SoundRequest,
-    /// Not in the image: the bytes that fill the record to its 16-byte alignment.
-    pub _tail: Bytes<12>,
 }
 
-/// `g_raceSoundRequest` (0x5124BC): the ten dwords the race's sounds are sent with
-/// (`sound::play_placed_sound`, `sound::stop_sound`); a work area each turn fills again.
-#[repr(C)]
+/// The ten dwords the race's sounds are sent with (`sound::play_placed_sound`,
+/// `sound::stop_sound`); a work area each turn fills again. The game thread's
+/// (`sound::owner::RaceSoundState::request`). Laid out as the 1999 variables: the recorded
+/// assembly's tests lay it over raw bytes.
+#[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells)]
 pub struct SoundRequest {
-    /// +0: the sound (bit 0x8000: none).
-    pub sound: Dword,
-    /// +4: the pitch, a float (a reading), then the whole number sent.
-    pub pitch: Dword,
-    /// +8: the volume, a float, then (without 3D) the whole number sent.
-    pub volume: Dword,
-    /// +0xC .. +0x14: where the sound is, three floats.
-    pub place: [Dword; 3],
-    /// +0x18: without 3D, the angle (`fpatan` of +0x14 over +0xC).
-    pub angle: Dword,
-    /// +0x1C: without 3D, the place between left and right (a whole number).
-    pub pan: Dword,
-    /// +0x20: the pitch's factor, a float.
-    pub pitch_factor: Dword,
-    /// +0x24: the volume's factor, a float.
-    pub volume_factor: Dword,
+    /// The sound (bit 0x8000: none).
+    pub sound: PlainDword,
+    /// The pitch, a float (`sound::revs_sound::fill_pitch_and_volume`), then the whole number
+    /// sent.
+    pub pitch: PlainDword,
+    /// The volume, a float, then (without 3D) the whole number sent.
+    pub volume: PlainDword,
+    /// Where the sound is, three floats.
+    pub place: [PlainFloat; 3],
+    /// Without 3D, the angle (the arctangent of the place's third float over its first).
+    pub angle: PlainDword,
+    /// Without 3D, the place between left and right (a whole number).
+    pub pan: PlainDword,
+    /// The pitch's factor, a float.
+    pub pitch_factor: PlainFloat,
+    /// The volume's factor, a float.
+    pub volume_factor: PlainFloat,
 }
 
-const _: () = assert!(size_of::<SoundRequest>() == 40);
-
 impl SoundRequest {
-    /// Dword `n` (the original's +4n), for the cores that name the words by number.
-    pub fn word(&self, n: usize) -> Option<&Dword> {
-        Some(match n {
+    /// The request as the game starts: all 0.
+    pub const fn new() -> Self {
+        Self {
+            sound: PlainDword::new(0),
+            pitch: PlainDword::new(0),
+            volume: PlainDword::new(0),
+            place: [
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+            ],
+            angle: PlainDword::new(0),
+            pan: PlainDword::new(0),
+            pitch_factor: PlainFloat::new(0.0),
+            volume_factor: PlainFloat::new(0.0),
+        }
+    }
+
+    /// Stores `bits` in dword `n` (+4n bytes in the 1999 layout), for the cores that name the words
+    /// by number; None past the ten.
+    pub fn set_word(&self, n: usize, bits: u32) -> Option<()> {
+        let cell: &dyn Cell32 = match n {
             0 => &self.sound,
             1 => &self.pitch,
             2 => &self.volume,
@@ -146,13 +138,15 @@ impl SoundRequest {
             8 => &self.pitch_factor,
             9 => &self.volume_factor,
             _ => return None,
-        })
+        };
+        cell.set_bits(bits);
+        Some(())
     }
 }
 
-impl RaceSoundSets {
+impl SoundSets {
     pub const fn new() -> Self {
-        RaceSoundSets {
+        SoundSets {
             kind_sets_first: [
                 Dword::new(0x0),
                 Dword::new(0x2),
@@ -704,78 +698,78 @@ impl RaceSoundSets {
                 Dword::new(0xffffffff),
             ],
             kinds: [
-                Dword::new(race_ref(0x511b10)),
-                Dword::new(race_ref(0x511e7c)),
-                Dword::new(race_ref(0x511b1c)),
-                Dword::new(race_ref(0x511e88)),
-                Dword::new(race_ref(0x511b28)),
-                Dword::new(race_ref(0x511e94)),
-                Dword::new(race_ref(0x511b34)),
-                Dword::new(race_ref(0x511ea0)),
-                Dword::new(race_ref(0x511b40)),
-                Dword::new(race_ref(0x511eac)),
-                Dword::new(race_ref(0x511b4c)),
-                Dword::new(race_ref(0x511eb8)),
-                Dword::new(race_ref(0x511b58)),
-                Dword::new(race_ref(0x511ec4)),
-                Dword::new(race_ref(0x511b64)),
-                Dword::new(race_ref(0x511ed0)),
-                Dword::new(race_ref(0x511b70)),
-                Dword::new(race_ref(0x511edc)),
-                Dword::new(race_ref(0x511b7c)),
-                Dword::new(race_ref(0x511ee8)),
-                Dword::new(race_ref(0x511b88)),
-                Dword::new(race_ref(0x511ef4)),
-                Dword::new(race_ref(0x511b94)),
-                Dword::new(race_ref(0x511f00)),
-                Dword::new(race_ref(0x511ba0)),
-                Dword::new(race_ref(0x511f0c)),
-                Dword::new(race_ref(0x511bac)),
-                Dword::new(race_ref(0x511f18)),
-                Dword::new(race_ref(0x511bb8)),
-                Dword::new(race_ref(0x511f24)),
-                Dword::new(race_ref(0x511bc4)),
-                Dword::new(race_ref(0x511f30)),
-                Dword::new(race_ref(0x511bd0)),
-                Dword::new(race_ref(0x511f3c)),
-                Dword::new(race_ref(0x511bdc)),
-                Dword::new(race_ref(0x511f48)),
-                Dword::new(race_ref(0x511be8)),
-                Dword::new(race_ref(0x511f54)),
-                Dword::new(race_ref(0x511bf4)),
-                Dword::new(race_ref(0x511f60)),
-                Dword::new(race_ref(0x511c00)),
-                Dword::new(race_ref(0x511f6c)),
-                Dword::new(race_ref(0x511c0c)),
-                Dword::new(race_ref(0x511f78)),
-                Dword::new(race_ref(0x511c18)),
-                Dword::new(race_ref(0x511f84)),
-                Dword::new(race_ref(0x511c24)),
-                Dword::new(race_ref(0x511f90)),
-                Dword::new(race_ref(0x511c30)),
-                Dword::new(race_ref(0x511f9c)),
-                Dword::new(race_ref(0x511c3c)),
-                Dword::new(race_ref(0x511fa8)),
-                Dword::new(race_ref(0x511c48)),
-                Dword::new(race_ref(0x511fb4)),
-                Dword::new(race_ref(0x511c54)),
-                Dword::new(race_ref(0x511fc0)),
-                Dword::new(race_ref(0x511c60)),
-                Dword::new(race_ref(0x511fcc)),
-                Dword::new(race_ref(0x511c6c)),
-                Dword::new(race_ref(0x511fd8)),
-                Dword::new(race_ref(0x511c78)),
-                Dword::new(race_ref(0x511fe4)),
-                Dword::new(race_ref(0x511c84)),
-                Dword::new(race_ref(0x511ff0)),
-                Dword::new(race_ref(0x511c90)),
-                Dword::new(race_ref(0x511ffc)),
-                Dword::new(race_ref(0x511c9c)),
-                Dword::new(race_ref(0x512008)),
-                Dword::new(race_ref(0x511bdc)),
-                Dword::new(race_ref(0x511f48)),
-                Dword::new(race_ref(0x511bdc)),
-                Dword::new(race_ref(0x511f48)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 0)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 0)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 3)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 3)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 6)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 6)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 9)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 9)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 12)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 12)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 15)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 15)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 18)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 18)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 21)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 21)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 24)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 24)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 27)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 27)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 30)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 30)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 33)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 33)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 36)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 36)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 39)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 39)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 42)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 42)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 45)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 45)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 48)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 48)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 51)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 51)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 54)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 54)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 57)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 57)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 60)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 60)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 63)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 63)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 66)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 66)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 69)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 69)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 72)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 72)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 75)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 75)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 78)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 78)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 81)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 81)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 84)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 84)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 87)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 87)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 90)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 90)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 93)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 93)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 96)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 96)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 99)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 99)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 51)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 51)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 51)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 51)),
                 Dword::new(0x0),
                 Dword::new(0x10),
                 Dword::new(0x0),
@@ -792,162 +786,228 @@ impl RaceSoundSets {
                 Dword::new(0x4),
                 Dword::new(0x0),
             ],
-            request: SoundRequest {
-                sound: Dword::new(0),
-                pitch: Dword::new(0),
-                volume: Dword::new(0),
-                place: [Dword::new(0), Dword::new(0), Dword::new(0)],
-                angle: Dword::new(0),
-                pan: Dword::new(0),
-                pitch_factor: Dword::new(0),
-                volume_factor: Dword::new(0),
-            },
-            _tail: Bytes::new([0; 12]),
         }
     }
 }
 
-impl RaceSoundSets {
+/// The sets the race loader names directly (the others come from the kind table).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NamedSet {
+    Replay,
+    FirstA,
+    FirstB,
+    FirstC,
+    SecondA,
+    SecondB,
+    Last,
+}
+
+impl NamedSet {
+    #[cfg(test)]
+    pub const ALL: [NamedSet; 7] = [
+        NamedSet::Replay,
+        NamedSet::FirstA,
+        NamedSet::FirstB,
+        NamedSet::FirstC,
+        NamedSet::SecondA,
+        NamedSet::SecondB,
+        NamedSet::Last,
+    ];
+
+    /// The set as the handle a load command carries.
+    pub fn list(self) -> rc2k_core::audio::commands::SoundList {
+        let field = match self {
+            NamedSet::Replay => RaceField::ReplaySet,
+            NamedSet::FirstA => RaceField::FirstSetA,
+            NamedSet::FirstB => RaceField::FirstSetB,
+            NamedSet::FirstC => RaceField::FirstSetC,
+            NamedSet::SecondA => RaceField::SecondSetA,
+            NamedSet::SecondB => RaceField::SecondSetB,
+            NamedSet::Last => RaceField::LastSet,
+        };
+        rc2k_core::audio::commands::SoundList::Race { field, entry: 0 }
+    }
+}
+
+impl SoundSets {
     /// The sets of the kind-table entry `n` (two a kind of car), as a handle.
+    #[cfg(test)]
     pub fn kind_list_of(
         n: usize,
     ) -> Result<rc2k_core::audio::commands::SoundList, crate::errors::BadInput> {
-        let handle = crate::sound::owner::sound()
-            .race
-            .sets
+        crate::test_support::own::sound().threads.sets.kind_list(n)
+    }
+
+    /// The sets of the kind-table entry `n` (two a kind of car), as a handle.
+    pub fn kind_list(
+        &self,
+        n: usize,
+    ) -> Result<rc2k_core::audio::commands::SoundList, crate::errors::BadInput> {
+        let handle = self
             .kinds
             .get(n)
             .filter(|_| n < Self::KIND_ENTRIES)
             .ok_or(crate::errors::BadInput("a race sound kind past the table"))?
             .get();
-        match offset_in(handle, RACE_LIST_TAG, Self::LEN) {
-            Some(offset) => Ok(rc2k_core::audio::commands::SoundList::Race {
-                offset: offset as u32,
-            }),
+        match race_list_of(handle) {
+            Some((field, entry)) => {
+                Ok(rc2k_core::audio::commands::SoundList::Race { field, entry })
+            }
             None => Err(crate::errors::BadInput(
                 "a sound table's entry off its piece",
             )),
         }
     }
 
-    /// Where a list of the race's sets is, bounded to the whole sets (the original reads a
-    /// list on until its end).
-    pub fn list_place(offset: u32) -> Result<crate::pointers::GamePtr, crate::errors::BadInput> {
-        if offset as usize >= core::mem::size_of::<Self>() {
-            return Err(crate::errors::BadInput("a sound list off the race's sets"));
+    /// Entry `n` of the list that starts at entry `entry` of `field`. A list is read on until its
+    /// -1, through the next fields of the sets in their order where it runs past its own; a read
+    /// past the sets is none. The list is named at run time (a handle the race sound loader is
+    /// given), so any of the fields can follow.
+    pub fn list_entry(
+        &self,
+        field: RaceField,
+        entry: u32,
+        n: usize,
+    ) -> Result<Option<u32>, crate::errors::BadInput> {
+        use rc2k_core::audio::commands::ListPlace;
+        match field.list_place(entry, n) {
+            ListPlace::At {
+                field: RaceField::Tail,
+                ..
+            } => Ok(Some(0)),
+            ListPlace::At { field, index } => {
+                let run = self.runs()[field as usize];
+                debug_assert_eq!(run.count(), field.dwords());
+                Ok(Some(run.bits(index)))
+            }
+            ListPlace::PastSets => Ok(None),
+            ListPlace::StartsPastSets => {
+                Err(crate::errors::BadInput("a sound list off the race's sets"))
+            }
         }
-        Ok(crate::pointers::GamePtr::to(&crate::sound::owner::sound().race.sets).offset(offset))
     }
 
-    /// 0x512360: `off_512360`, 36 kinds of car, two sets each.
-    #[cfg(test)]
-    const KINDS_AT: usize = 0x512360;
-    const KIND_ENTRIES: usize = 72;
-    pub const START: usize = 0x511B10;
-    pub const LEN: usize = 0x9D4;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    #[cfg(test)]
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const crate::sound::owner::SOUND.race.sets) as usize
+    /// The stored fields in the read-on order, each a run of dwords (`RaceField::Tail` holds
+    /// nothing: it reads as 0).
+    fn runs(&self) -> [&dyn crate::memory::session::Run; 10] {
+        [
+            &self.kind_sets_first,
+            &self.first_set_a,
+            &self.first_set_c,
+            &self.kind_sets_second,
+            &self.second_set_a,
+            &self.second_set_b,
+            &self.last_set,
+            &self.first_set_b,
+            &self.replay_set,
+            &self.kinds,
+        ]
     }
+
+    const KIND_ENTRIES: usize = 72;
 }
 
-/// The cues' lists (IDA 0x512508 .. 0x512A10, the image's layout).
-#[repr(C, align(16))]
+/// The cues' lists.
 #[derive(rc2k_derive::Cells)]
 pub struct CueLists {
-    /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
-    pub _lead: Bytes<8>,
-    /// 0x512508: `off_512508`: a pointer to each cue's list of sounds (`physics::queue_sound_cue`).
-    pub table: [Dword; 113],
-    /// 0x5126CC: `unk_5126CC` ..: the lists.
-    pub lists: Bytes<836>,
+    /// Padding that keeps every field's 1999 alignment (the struct is 16-byte aligned).
+    pub _lead: PlainBytes<8>,
+    /// Where each cue's list of sounds starts, as a byte offset in `lists`
+    /// (`physics::queue_sound_cue`).
+    pub table: [PlainDword; 113],
+    /// The lists.
+    pub lists: PlainBytes<836>,
 }
 
 impl CueLists {
     pub const fn new() -> Self {
         CueLists {
-    _lead: Bytes::new([0; 8]),
-    table: [Dword::new(cue_ref(0x5126cc)), Dword::new(cue_ref(0x5126d0)), Dword::new(cue_ref(0x5126d8)), Dword::new(cue_ref(0x5126e0)), Dword::new(cue_ref(0x5126e8)), Dword::new(cue_ref(0x5126f0)), Dword::new(cue_ref(0x5126f8)), Dword::new(cue_ref(0x512700)), Dword::new(cue_ref(0x512708)), Dword::new(cue_ref(0x512710)), Dword::new(cue_ref(0x51271c)), Dword::new(cue_ref(0x512728)), Dword::new(cue_ref(0x512734)), Dword::new(cue_ref(0x512740)), Dword::new(cue_ref(0x5126cc)), Dword::new(cue_ref(0x5126cc)), Dword::new(cue_ref(0x5126cc)), Dword::new(cue_ref(0x51274c)), Dword::new(cue_ref(0x512754)), Dword::new(cue_ref(0x51275c)), Dword::new(cue_ref(0x512764)), Dword::new(cue_ref(0x51276c)), Dword::new(cue_ref(0x512774)), Dword::new(cue_ref(0x51277c)), Dword::new(cue_ref(0x512784)), Dword::new(cue_ref(0x51278c)), Dword::new(cue_ref(0x512798)), Dword::new(cue_ref(0x5127a4)), Dword::new(cue_ref(0x5127b0)), Dword::new(cue_ref(0x5127bc)), Dword::new(cue_ref(0x5127c8)), Dword::new(cue_ref(0x5127d0)), Dword::new(cue_ref(0x5127d8)), Dword::new(cue_ref(0x5127e0)), Dword::new(cue_ref(0x5127e8)), Dword::new(cue_ref(0x5127f0)), Dword::new(cue_ref(0x5127f8)), Dword::new(cue_ref(0x512800)), Dword::new(cue_ref(0x512808)), Dword::new(cue_ref(0x512810)), Dword::new(cue_ref(0x512818)), Dword::new(cue_ref(0x512820)), Dword::new(cue_ref(0x5126cc)), Dword::new(cue_ref(0x5126cc)), Dword::new(cue_ref(0x5126cc)), Dword::new(cue_ref(0x5126cc)), Dword::new(cue_ref(0x5126cc)), Dword::new(cue_ref(0x512828)), Dword::new(cue_ref(0x512838)), Dword::new(cue_ref(0x512840)), Dword::new(cue_ref(0x512848)), Dword::new(cue_ref(0x512850)), Dword::new(cue_ref(0x512858)), Dword::new(cue_ref(0x512860)), Dword::new(cue_ref(0x512868)), Dword::new(cue_ref(0x512870)), Dword::new(cue_ref(0x5128c8)), Dword::new(cue_ref(0x5128d0)), Dword::new(cue_ref(0x5128d8)), Dword::new(cue_ref(0x5128e0)), Dword::new(cue_ref(0x5128e8)), Dword::new(cue_ref(0x5128f0)), Dword::new(cue_ref(0x5128f8)), Dword::new(cue_ref(0x512900)), Dword::new(cue_ref(0x512878)), Dword::new(cue_ref(0x512888)), Dword::new(cue_ref(0x512880)), Dword::new(cue_ref(0x512890)), Dword::new(cue_ref(0x512898)), Dword::new(cue_ref(0x5128a0)), Dword::new(cue_ref(0x5128a8)), Dword::new(cue_ref(0x5128b0)), Dword::new(cue_ref(0x5128b8)), Dword::new(cue_ref(0x5128c0)), Dword::new(cue_ref(0x5126cc)), Dword::new(cue_ref(0x5126cc)), Dword::new(cue_ref(0x5126cc)), Dword::new(cue_ref(0x5126cc)), Dword::new(cue_ref(0x5126cc)), Dword::new(cue_ref(0x5126cc)), Dword::new(cue_ref(0x512908)), Dword::new(cue_ref(0x512918)), Dword::new(cue_ref(0x512910)), Dword::new(cue_ref(0x512920)), Dword::new(cue_ref(0x512928)), Dword::new(cue_ref(0x512930)), Dword::new(cue_ref(0x512938)), Dword::new(cue_ref(0x512940)), Dword::new(cue_ref(0x512948)), Dword::new(cue_ref(0x512950)), Dword::new(cue_ref(0x512958)), Dword::new(cue_ref(0x512960)), Dword::new(cue_ref(0x512968)), Dword::new(cue_ref(0x512970)), Dword::new(cue_ref(0x512978)), Dword::new(cue_ref(0x512980)), Dword::new(cue_ref(0x512988)), Dword::new(cue_ref(0x512990)), Dword::new(cue_ref(0x512998)), Dword::new(cue_ref(0x5129a0)), Dword::new(cue_ref(0x5129a8)), Dword::new(cue_ref(0x5129b0)), Dword::new(cue_ref(0x5129b8)), Dword::new(cue_ref(0x5129c0)), Dword::new(cue_ref(0x5129c8)), Dword::new(cue_ref(0x5129d0)), Dword::new(cue_ref(0x5129d8)), Dword::new(cue_ref(0x5129e0)), Dword::new(cue_ref(0x5129e8)), Dword::new(cue_ref(0x5129f0)), Dword::new(cue_ref(0x5129f8)), Dword::new(cue_ref(0x512a00)), Dword::new(cue_ref(0x512a08))],
-    lists: Bytes::new(with_runs::<836>(&[(0, b"\xff\xff\xff\xffE\x01\x00\x00\xff\xff\xff\xffG\x01\x00\x00\xff\xff\xff\xffI\x01\x00\x00\xff\xff\xff\xffK\x01\x00\x00\xff\xff\xff\xffM\x01\x00\x00\xff\xff\xff\xffO\x01\x00\x00\xff\xff\xff\xffQ\x01\x00\x00\xff\xff\xff\xffS\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00E\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00G\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00I\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00K\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00M\x01\x00\x00\xff\xff\xff\xffU\x01\x00\x00\xff\xff\xff\xffW\x01\x00\x00\xff\xff\xff\xffY\x01\x00\x00\xff\xff\xff\xff[\x01\x00\x00\xff\xff\xff\xff]\x01\x00\x00\xff\xff\xff\xff_\x01\x00\x00\xff\xff\xff\xffa\x01\x00\x00\xff\xff\xff\xffc\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00U\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00W\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00Y\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00[\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00]\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00\xff\xff\xff\xffg\x01\x00\x00\xff\xff\xff\xff\xf9\x00\x00\x00\xff\xff\xff\xff\xfb\x00\x00\x00\xff\xff\xff\xff\xfd\x00\x00\x00\xff\xff\xff\xff\xff\x00\x00\x00\xff\xff\xff\xff\x01\x01\x00\x00\xff\xff\xff\xff\x03\x01\x00\x00\xff\xff\xff\xff\x05\x01\x00\x00\xff\xff\xff\xff\x07\x01\x00\x00\xff\xff\xff\xff\t\x01\x00\x00\xff\xff\xff\xff\x0b\x01\x00\x00\xff\xff\xff\xff1\x01\x00\x00!\x01\x00\x00?\x01\x00\x00\xff\xff\xff\xff\x11\x01\x00\x00\xff\xff\xff\xff\x0f\x01\x00\x00\xff\xff\xff\xff\x13\x01\x00\x00\xff\xff\xff\xff\r\x01\x00\x00\xff\xff\xff\xff1\x01\x00\x00\xff\xff\xff\xffA\x01\x00\x00\xff\xff\xff\xff=\x01\x00\x00\xff\xff\xff\xff3\x01\x00\x00\xff\xff\xff\xff\x1b\x01\x00\x00\xff\xff\xff\xff)\x01\x00\x00\xff\xff\xff\xff\x1d\x01\x00\x00\xff\xff\xff\xff#\x01\x00\x00\xff\xff\xff\xff+\x01\x00\x00\xff\xff\xff\xffC\x01\x00\x00\xff\xff\xff\xff\x15\x01\x00\x00\xff\xff\xff\xff\x17\x01\x00\x00\xff\xff\xff\xff\x1f\x01\x00\x00\xff\xff\xff\xff%\x01\x00\x00\xff\xff\xff\xff\x19\x01\x00\x00\xff\xff\xff\xff'\x01\x00\x00\xff\xff\xff\xff-\x01\x00\x00\xff\xff\xff\xff/\x01\x00\x00\xff\xff\xff\xff5\x01\x00\x00\xff\xff\xff\xff7\x01\x00\x00\xff\xff\xff\xff9\x01\x00\x00\xff\xff\xff\xff;\x01\x00\x00\xff\xff\xff\xff}\x01\x00\x00\xff\xff\xff\xff\x81\x01\x00\x00\xff\xff\xff\xff\x7f\x01\x00\x00\xff\xff\xff\xffs\x01\x00\x00\xff\xff\xff\xffi\x01\x00\x00\xff\xff\xff\xffk\x01\x00\x00\xff\xff\xff\xffm\x01\x00\x00\xff\xff\xff\xffo\x01\x00\x00\xff\xff\xff\xffq\x01\x00\x00\xff\xff\xff\xffu\x01\x00\x00\xff\xff\xff\xffw\x01\x00\x00\xff\xff\xff\xffy\x01\x00\x00\xff\xff\xff\xff{\x01\x00\x00\xff\xff\xff\xff\x83\x01\x00\x00\xff\xff\xff\xff\x85\x01\x00\x00\xff\xff\xff\xff\x87\x01\x00\x00\xff\xff\xff\xff\x89\x01\x00\x00\xff\xff\xff\xff\x8b\x01\x00\x00\xff\xff\xff\xff\x8d\x01\x00\x00\xff\xff\xff\xff\x8f\x01\x00\x00\xff\xff\xff\xff\x91\x01\x00\x00\xff\xff\xff\xff\x93\x01\x00\x00\xff\xff\xff\xff\x95\x01\x00\x00\xff\xff\xff\xff\x97\x01\x00\x00\xff\xff\xff\xff\x99\x01\x00\x00\xff\xff\xff\xff\x9b\x01\x00\x00\xff\xff\xff\xff\x9d\x01\x00\x00\xff\xff\xff\xff\x9f\x01\x00\x00\xff\xff\xff\xff\xa1\x01\x00\x00\xff\xff\xff\xff\xa3\x01\x00\x00\xff\xff\xff\xff\xa5\x01\x00\x00\xff\xff\xff\xff\xa7\x01\x00\x00\xff\xff\xff\xff\xa9\x01\x00\x00\xff\xff\xff\xff")])),
+    _lead: PlainBytes::new([0; 8]),
+    table: [PlainDword::new(0), PlainDword::new(4), PlainDword::new(12), PlainDword::new(20), PlainDword::new(28), PlainDword::new(36), PlainDword::new(44), PlainDword::new(52), PlainDword::new(60), PlainDword::new(68), PlainDword::new(80), PlainDword::new(92), PlainDword::new(104), PlainDword::new(116), PlainDword::new(0), PlainDword::new(0), PlainDword::new(0), PlainDword::new(128), PlainDword::new(136), PlainDword::new(144), PlainDword::new(152), PlainDword::new(160), PlainDword::new(168), PlainDword::new(176), PlainDword::new(184), PlainDword::new(192), PlainDword::new(204), PlainDword::new(216), PlainDword::new(228), PlainDword::new(240), PlainDword::new(252), PlainDword::new(260), PlainDword::new(268), PlainDword::new(276), PlainDword::new(284), PlainDword::new(292), PlainDword::new(300), PlainDword::new(308), PlainDword::new(316), PlainDword::new(324), PlainDword::new(332), PlainDword::new(340), PlainDword::new(0), PlainDword::new(0), PlainDword::new(0), PlainDword::new(0), PlainDword::new(0), PlainDword::new(348), PlainDword::new(364), PlainDword::new(372), PlainDword::new(380), PlainDword::new(388), PlainDword::new(396), PlainDword::new(404), PlainDword::new(412), PlainDword::new(420), PlainDword::new(508), PlainDword::new(516), PlainDword::new(524), PlainDword::new(532), PlainDword::new(540), PlainDword::new(548), PlainDword::new(556), PlainDword::new(564), PlainDword::new(428), PlainDword::new(444), PlainDword::new(436), PlainDword::new(452), PlainDword::new(460), PlainDword::new(468), PlainDword::new(476), PlainDword::new(484), PlainDword::new(492), PlainDword::new(500), PlainDword::new(0), PlainDword::new(0), PlainDword::new(0), PlainDword::new(0), PlainDword::new(0), PlainDword::new(0), PlainDword::new(572), PlainDword::new(588), PlainDword::new(580), PlainDword::new(596), PlainDword::new(604), PlainDword::new(612), PlainDword::new(620), PlainDword::new(628), PlainDword::new(636), PlainDword::new(644), PlainDword::new(652), PlainDword::new(660), PlainDword::new(668), PlainDword::new(676), PlainDword::new(684), PlainDword::new(692), PlainDword::new(700), PlainDword::new(708), PlainDword::new(716), PlainDword::new(724), PlainDword::new(732), PlainDword::new(740), PlainDword::new(748), PlainDword::new(756), PlainDword::new(764), PlainDword::new(772), PlainDword::new(780), PlainDword::new(788), PlainDword::new(796), PlainDword::new(804), PlainDword::new(812), PlainDword::new(820), PlainDword::new(828)],
+    lists: PlainBytes::new(with_runs::<836>(&[(0, b"\xff\xff\xff\xffE\x01\x00\x00\xff\xff\xff\xffG\x01\x00\x00\xff\xff\xff\xffI\x01\x00\x00\xff\xff\xff\xffK\x01\x00\x00\xff\xff\xff\xffM\x01\x00\x00\xff\xff\xff\xffO\x01\x00\x00\xff\xff\xff\xffQ\x01\x00\x00\xff\xff\xff\xffS\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00E\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00G\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00I\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00K\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00M\x01\x00\x00\xff\xff\xff\xffU\x01\x00\x00\xff\xff\xff\xffW\x01\x00\x00\xff\xff\xff\xffY\x01\x00\x00\xff\xff\xff\xff[\x01\x00\x00\xff\xff\xff\xff]\x01\x00\x00\xff\xff\xff\xff_\x01\x00\x00\xff\xff\xff\xffa\x01\x00\x00\xff\xff\xff\xffc\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00U\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00W\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00Y\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00[\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00]\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00\xff\xff\xff\xffg\x01\x00\x00\xff\xff\xff\xff\xf9\x00\x00\x00\xff\xff\xff\xff\xfb\x00\x00\x00\xff\xff\xff\xff\xfd\x00\x00\x00\xff\xff\xff\xff\xff\x00\x00\x00\xff\xff\xff\xff\x01\x01\x00\x00\xff\xff\xff\xff\x03\x01\x00\x00\xff\xff\xff\xff\x05\x01\x00\x00\xff\xff\xff\xff\x07\x01\x00\x00\xff\xff\xff\xff\t\x01\x00\x00\xff\xff\xff\xff\x0b\x01\x00\x00\xff\xff\xff\xff1\x01\x00\x00!\x01\x00\x00?\x01\x00\x00\xff\xff\xff\xff\x11\x01\x00\x00\xff\xff\xff\xff\x0f\x01\x00\x00\xff\xff\xff\xff\x13\x01\x00\x00\xff\xff\xff\xff\r\x01\x00\x00\xff\xff\xff\xff1\x01\x00\x00\xff\xff\xff\xffA\x01\x00\x00\xff\xff\xff\xff=\x01\x00\x00\xff\xff\xff\xff3\x01\x00\x00\xff\xff\xff\xff\x1b\x01\x00\x00\xff\xff\xff\xff)\x01\x00\x00\xff\xff\xff\xff\x1d\x01\x00\x00\xff\xff\xff\xff#\x01\x00\x00\xff\xff\xff\xff+\x01\x00\x00\xff\xff\xff\xffC\x01\x00\x00\xff\xff\xff\xff\x15\x01\x00\x00\xff\xff\xff\xff\x17\x01\x00\x00\xff\xff\xff\xff\x1f\x01\x00\x00\xff\xff\xff\xff%\x01\x00\x00\xff\xff\xff\xff\x19\x01\x00\x00\xff\xff\xff\xff'\x01\x00\x00\xff\xff\xff\xff-\x01\x00\x00\xff\xff\xff\xff/\x01\x00\x00\xff\xff\xff\xff5\x01\x00\x00\xff\xff\xff\xff7\x01\x00\x00\xff\xff\xff\xff9\x01\x00\x00\xff\xff\xff\xff;\x01\x00\x00\xff\xff\xff\xff}\x01\x00\x00\xff\xff\xff\xff\x81\x01\x00\x00\xff\xff\xff\xff\x7f\x01\x00\x00\xff\xff\xff\xffs\x01\x00\x00\xff\xff\xff\xffi\x01\x00\x00\xff\xff\xff\xffk\x01\x00\x00\xff\xff\xff\xffm\x01\x00\x00\xff\xff\xff\xffo\x01\x00\x00\xff\xff\xff\xffq\x01\x00\x00\xff\xff\xff\xffu\x01\x00\x00\xff\xff\xff\xffw\x01\x00\x00\xff\xff\xff\xffy\x01\x00\x00\xff\xff\xff\xff{\x01\x00\x00\xff\xff\xff\xff\x83\x01\x00\x00\xff\xff\xff\xff\x85\x01\x00\x00\xff\xff\xff\xff\x87\x01\x00\x00\xff\xff\xff\xff\x89\x01\x00\x00\xff\xff\xff\xff\x8b\x01\x00\x00\xff\xff\xff\xff\x8d\x01\x00\x00\xff\xff\xff\xff\x8f\x01\x00\x00\xff\xff\xff\xff\x91\x01\x00\x00\xff\xff\xff\xff\x93\x01\x00\x00\xff\xff\xff\xff\x95\x01\x00\x00\xff\xff\xff\xff\x97\x01\x00\x00\xff\xff\xff\xff\x99\x01\x00\x00\xff\xff\xff\xff\x9b\x01\x00\x00\xff\xff\xff\xff\x9d\x01\x00\x00\xff\xff\xff\xff\x9f\x01\x00\x00\xff\xff\xff\xff\xa1\x01\x00\x00\xff\xff\xff\xff\xa3\x01\x00\x00\xff\xff\xff\xff\xa5\x01\x00\x00\xff\xff\xff\xff\xa7\x01\x00\x00\xff\xff\xff\xff\xa9\x01\x00\x00\xff\xff\xff\xff")])),
         }
     }
 }
 
-impl CueLists {
-    pub const START: usize = 0x512508;
-    pub const LEN: usize = 0x508;
-    #[cfg(test)]
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        (crate::pointers::game_address(&raw const crate::sound::owner::SOUND.race.cue_lists) + 8)
-            as usize
+/// A list of dwords inside a block of bytes, read by position and bounded to the block.
+pub struct ListIn<'a, const N: usize> {
+    bytes: &'a PlainBytes<N>,
+    from: usize,
+}
+
+impl<const N: usize> ListIn<'_, N> {
+    /// Entry `k`; refused past the block (a list there has no end).
+    pub fn get(&self, k: usize) -> Result<u32, crate::errors::BadInput> {
+        k.checked_mul(4)
+            .and_then(|k| k.checked_add(self.from))
+            .filter(|at| at + 4 <= N)
+            .map(|at| self.bytes.get_u32(at))
+            .ok_or(crate::errors::BadInput(
+                "a sound list read past the lists that hold it",
+            ))
     }
 }
 
 impl CueLists {
-    /// Cue `cue`'s list of sounds, a place in the whole block (the list runs to a -1).
-    pub fn list(cue: u32) -> Result<crate::pointers::GamePtr, crate::errors::BadInput> {
-        let cell = crate::sound::owner::sound()
-            .race
-            .cue_lists
+    /// Cue `cue`'s list of sounds, in the lists after the table (each ends in -1 inside them).
+    pub fn list(&self, cue: u32) -> Result<ListIn<'_, 836>, crate::errors::BadInput> {
+        let lists = self;
+        let cell = lists
             .table
             .get(cue as usize)
             .ok_or(crate::errors::BadInput("a sound cue past the table"))?;
-        let at = offset_in(cell.get(), CUE_TAG, Self::LEN).ok_or(crate::errors::BadInput(
-            "a sound table's entry off its piece",
-        ))?;
-        Ok(
-            crate::pointers::GamePtr::to(&crate::sound::owner::sound().race.cue_lists)
-                .offset((at + 8) as u32),
-        )
+        Ok(ListIn {
+            bytes: &lists.lists,
+            from: cell.get() as usize,
+        })
     }
 }
 
 /// One sound set of a kind's record (0x28 bytes; `sound::revs_sound`, `throttle_sound`,
-/// `speed_sound`): a sound number, three more values, and a pitch and a volume as a
-/// start, an end and the span between them (`race::sound_tables` makes the whole numbers
-/// floats and the spans once). The sound at the object's pitch is `input * scale + low`.
-/// The values are kept as bits: a whole number in the image until the tables are made ready.
-#[repr(C)]
+/// `speed_sound`): a sound number, three more values, and a pitch and a volume as a start, an end
+/// and the span between them (`race::sound_tables` makes the whole numbers floats and the spans
+/// once). The sound at the object's pitch is `input * scale + low`. The values are kept as bits: a
+/// whole number until the tables are made ready. Laid out as the 1999 variables: the recorded
+/// assembly's tests lay it over raw bytes.
+#[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells)]
 pub struct SoundSet {
-    /// +0: the sound's number, added to the object's `sound_offset`.
-    pub sound: Dword,
-    /// +4: a value made a float by `race::sound_tables::sound_row`, read by no sound code.
-    pub unknown_04: Dword,
-    /// +8: as +4.
-    pub unknown_08: Dword,
-    /// +0xC: as +4.
-    pub unknown_0c: Dword,
-    /// +0x10: the pitch at input 0.
-    pub pitch_low: Dword,
-    /// +0x14: the pitch's end (the span's second value).
-    pub pitch_high: Dword,
-    /// +0x18: the pitch span, `pitch_high - pitch_low`: the pitch's slope.
-    pub pitch_scale: Dword,
-    /// +0x1C: the volume at input 0.
-    pub volume_low: Dword,
-    /// +0x20: the volume's end.
-    pub volume_high: Dword,
-    /// +0x24: the volume span: the volume's slope.
-    pub volume_scale: Dword,
+    /// The sound's number, added to the object's `sound_offset`.
+    pub sound: PlainDword,
+    /// Read by no sound code and 0 in every set of the shipped data, so not converted to a
+    /// float (a spare word, probably an input range's start).
+    pub unused_float_04: PlainDword,
+    /// As `unused_float_04` (probably the range's end).
+    pub unused_float_08: PlainDword,
+    /// As `unused_float_04` (probably the range's span).
+    pub unused_float_0c: PlainDword,
+    /// The pitch at input 0.
+    pub pitch_low: PlainDword,
+    /// The pitch's end (the span's second value).
+    pub pitch_high: PlainDword,
+    /// The pitch span, `pitch_high - pitch_low`: the pitch's slope.
+    pub pitch_scale: PlainDword,
+    /// The volume at input 0.
+    pub volume_low: PlainDword,
+    /// The volume's end.
+    pub volume_high: PlainDword,
+    /// The volume span: the volume's slope.
+    pub volume_scale: PlainDword,
 }
 
 const SOUND_SET_LEN: usize = 0x28;
-const _: () = assert!(size_of::<SoundSet>() == SOUND_SET_LEN);
 
 impl SoundSet {
     /// The set in `b` from byte `at` (each dword little-endian).
     const fn from_slice(b: &[u8], at: usize) -> Self {
-        const fn word(b: &[u8], at: usize) -> Dword {
-            Dword::new(u32::from_le_bytes([b[at], b[at + 1], b[at + 2], b[at + 3]]))
+        const fn word(b: &[u8], at: usize) -> PlainDword {
+            PlainDword::new(u32::from_le_bytes([b[at], b[at + 1], b[at + 2], b[at + 3]]))
         }
         Self {
             sound: word(b, at),
-            unknown_04: word(b, at + 0x04),
-            unknown_08: word(b, at + 0x08),
-            unknown_0c: word(b, at + 0x0C),
+            unused_float_04: word(b, at + 0x04),
+            unused_float_08: word(b, at + 0x08),
+            unused_float_0c: word(b, at + 0x0C),
             pitch_low: word(b, at + 0x10),
             pitch_high: word(b, at + 0x14),
             pitch_scale: word(b, at + 0x18),
@@ -963,42 +1023,36 @@ impl SoundSet {
     }
 }
 
-/// A sound kind's record (0x88 bytes, `g_carSoundKinds`' entries): the revs' range and
-/// slope, then the engine's three sets.
-#[repr(C)]
+/// A sound kind's record (0x88 bytes): the revs' range and slope, then the engine's three sets.
+/// Laid out as the 1999 variables: the recorded assembly's tests lay it over raw bytes.
+#[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells)]
 pub struct KindRecord {
-    /// +0: the kind's flags (`sound::car_engine_state`'s `state` reads them).
-    pub flags: Dword,
-    /// +4: the revs the engine's input starts from (a whole number made a float).
-    pub revs_low: Dword,
-    /// +8: the revs' end.
-    pub revs_high: Dword,
-    /// +0xC: first the span (`revs_high - revs_low`), then its reciprocal
-    /// (`race::sound_tables`): the engine input's slope.
-    pub revs_scale: Dword,
-    /// +0x10: the engine's revs sound (`sound::revs_sound`).
+    /// The kind's flags (`sound::car_engine_state`'s `state` reads them).
+    pub flags: PlainDword,
+    /// The revs the engine's input starts from (a whole number made a float).
+    pub revs_low: PlainDword,
+    /// The revs' end.
+    pub revs_high: PlainDword,
+    /// First the span (`revs_high - revs_low`), then its reciprocal (`race::sound_tables`): the
+    /// engine input's slope.
+    pub revs_scale: PlainDword,
+    /// The engine's revs sound (`sound::revs_sound`).
     pub revs: SoundSet,
-    /// +0x38: the throttle sound (`sound::throttle_sound`).
+    /// The throttle sound (`sound::throttle_sound`).
     pub throttle: SoundSet,
-    /// +0x60: the speed sound (`sound::speed_sound`).
+    /// The speed sound (`sound::speed_sound`).
     pub speed: SoundSet,
 }
 
 const KIND_RECORD_LEN: usize = 0x88;
-const _: () = assert!(size_of::<KindRecord>() == KIND_RECORD_LEN);
-const _: () = assert!(core::mem::offset_of!(KindRecord, revs) == 0x10);
-const _: () = assert!(core::mem::offset_of!(KindRecord, throttle) == 0x38);
-const _: () = assert!(core::mem::offset_of!(KindRecord, speed) == 0x60);
-const _: () = assert!(core::mem::offset_of!(SoundSet, pitch_scale) == 0x18);
-const _: () = assert!(core::mem::offset_of!(SoundSet, volume_scale) == 0x24);
 
 impl KindRecord {
     /// A record of zeros with the byte runs `runs` ((offset, bytes), as `with_runs`).
     const fn from_runs(runs: &[(usize, &[u8])]) -> Self {
         let b = with_runs::<KIND_RECORD_LEN>(runs);
-        const fn word(b: &[u8], at: usize) -> Dword {
-            Dword::new(u32::from_le_bytes([b[at], b[at + 1], b[at + 2], b[at + 3]]))
+        const fn word(b: &[u8], at: usize) -> PlainDword {
+            PlainDword::new(u32::from_le_bytes([b[at], b[at + 1], b[at + 2], b[at + 3]]))
         }
         Self {
             flags: word(&b, 0),
@@ -1012,62 +1066,61 @@ impl KindRecord {
     }
 }
 
-/// The car sound kinds'' records, the computer cars' set and the sine table (IDA 0x514F90 .. 0x516358, the image's layout).
-#[repr(C, align(16))]
+/// The car sound kinds' records, the computer cars' set and the sine table.
 #[derive(rc2k_derive::Cells)]
 pub struct SoundKinds {
-    /// 0x514F90: `g_carSoundKinds`: a pointer to each sound kind's record (`sound::car_engine_state`).
-    pub kinds: [Dword; 36],
-    /// 0x515020: `unk_515020` ..: the sound kinds' records of 0x88 bytes (`race::sound_tables` works the floats out).
+    /// Each sound kind's record, by its number (`sound::car_engine_state`).
+    pub kinds: [PlainDword; 36],
+    /// The sound kinds' records of 0x88 bytes (`race::sound_tables` works the floats out).
     pub records: [KindRecord; 34],
-    /// 0x516230: `g_computerCarSoundSet`: the computer's cars' set (`sound::revs_sound`).
+    /// The computer's cars' set (`sound::revs_sound`).
     pub computers: SoundSet,
-    /// 0x516258: `unk_516258`: 0x40 floats, 1 + 0.05 sin x (`race::sound_tables`).
-    pub sines: [Float; 64],
-    /// Not in the image: the bytes that fill the record to its 16-byte alignment.
-    pub _tail: Bytes<8>,
+    /// 0x40 floats, 1 + 0.05 sin x (`race::sound_tables`).
+    pub sines: [PlainFloat; 64],
+    /// Padding that fills the record to its 16-byte alignment.
+    pub _tail: PlainBytes<8>,
 }
 
 impl SoundKinds {
     pub const fn new() -> Self {
         SoundKinds {
             kinds: [
-                Dword::new(kind_ref(0x515020)),
-                Dword::new(kind_ref(0x5150a8)),
-                Dword::new(kind_ref(0x515130)),
-                Dword::new(kind_ref(0x5151b8)),
-                Dword::new(kind_ref(0x515240)),
-                Dword::new(kind_ref(0x5152c8)),
-                Dword::new(kind_ref(0x515350)),
-                Dword::new(kind_ref(0x5153d8)),
-                Dword::new(kind_ref(0x515460)),
-                Dword::new(kind_ref(0x5154e8)),
-                Dword::new(kind_ref(0x515570)),
-                Dword::new(kind_ref(0x5155f8)),
-                Dword::new(kind_ref(0x515680)),
-                Dword::new(kind_ref(0x515708)),
-                Dword::new(kind_ref(0x515790)),
-                Dword::new(kind_ref(0x515818)),
-                Dword::new(kind_ref(0x5158a0)),
-                Dword::new(kind_ref(0x515928)),
-                Dword::new(kind_ref(0x5159b0)),
-                Dword::new(kind_ref(0x515a38)),
-                Dword::new(kind_ref(0x515ac0)),
-                Dword::new(kind_ref(0x515b48)),
-                Dword::new(kind_ref(0x515bd0)),
-                Dword::new(kind_ref(0x515c58)),
-                Dword::new(kind_ref(0x515ce0)),
-                Dword::new(kind_ref(0x515d68)),
-                Dword::new(kind_ref(0x515df0)),
-                Dword::new(kind_ref(0x515e78)),
-                Dword::new(kind_ref(0x515f00)),
-                Dword::new(kind_ref(0x515f88)),
-                Dword::new(kind_ref(0x516010)),
-                Dword::new(kind_ref(0x516098)),
-                Dword::new(kind_ref(0x516120)),
-                Dword::new(kind_ref(0x5161a8)),
-                Dword::new(kind_ref(0x515928)),
-                Dword::new(kind_ref(0x515928)),
+                PlainDword::new(0),
+                PlainDword::new(1),
+                PlainDword::new(2),
+                PlainDword::new(3),
+                PlainDword::new(4),
+                PlainDword::new(5),
+                PlainDword::new(6),
+                PlainDword::new(7),
+                PlainDword::new(8),
+                PlainDword::new(9),
+                PlainDword::new(10),
+                PlainDword::new(11),
+                PlainDword::new(12),
+                PlainDword::new(13),
+                PlainDword::new(14),
+                PlainDword::new(15),
+                PlainDword::new(16),
+                PlainDword::new(17),
+                PlainDword::new(18),
+                PlainDword::new(19),
+                PlainDword::new(20),
+                PlainDword::new(21),
+                PlainDword::new(22),
+                PlainDword::new(23),
+                PlainDword::new(24),
+                PlainDword::new(25),
+                PlainDword::new(26),
+                PlainDword::new(27),
+                PlainDword::new(28),
+                PlainDword::new(29),
+                PlainDword::new(30),
+                PlainDword::new(31),
+                PlainDword::new(32),
+                PlainDword::new(33),
+                PlainDword::new(17),
+                PlainDword::new(17),
             ],
             records: [
                 KindRecord::from_runs(&[
@@ -1484,8 +1537,8 @@ impl SoundKinds {
                     b"`jF\x00|\x92G\x00`jG\x00\x00\x80A\x00\x00\x80B\x00\x00@B",
                 ),
             ]),
-            sines: [const { Float::from_bits(0x0) }; 64],
-            _tail: Bytes::new([0; 8]),
+            sines: [const { PlainFloat::new(0.0) }; 64],
+            _tail: PlainBytes::new([0; 8]),
         }
     }
 }
@@ -1498,20 +1551,8 @@ impl SoundKinds {
             .kinds
             .get(n as usize)
             .ok_or(crate::errors::BadInput("a sound kind past the table"))?;
-        let at = (cell
-            .get()
-            .checked_sub(KIND_TAG)
-            .ok_or(crate::errors::BadInput(
-                "a sound table's entry off its piece",
-            ))? as usize)
-            .wrapping_sub(36 * 4);
-        if !at.is_multiple_of(KIND_RECORD_LEN) {
-            return Err(crate::errors::BadInput(
-                "a sound table's entry off its piece",
-            ));
-        }
         self.records
-            .get(at / KIND_RECORD_LEN)
+            .get(cell.get() as usize)
             .ok_or(crate::errors::BadInput(
                 "a sound table's entry off its piece",
             ))
@@ -1521,1681 +1562,61 @@ impl SoundKinds {
     pub fn computers_set(&self) -> &SoundSet {
         &self.computers
     }
-
-    pub const START: usize = 0x514F90;
-    pub const LEN: usize = 0x13C8;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    #[cfg(test)]
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const crate::sound::owner::SOUND.race.kinds) as usize
-    }
 }
 
-/// The surface sound sets (IDA 0x51639C .. 0x51655C, the image's layout).
-#[repr(C, align(16))]
+/// The surface sound sets.
 #[derive(rc2k_derive::Cells)]
 pub struct SurfaceSets {
-    /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
-    pub _lead: Bytes<12>,
-    /// 0x51639C: `g_surfaceSoundSetsA`: the sets (seven pairs of pointers; `sound::surface_sounds`).
-    pub sets: [Dword; 14],
-    /// 0x5163D4: `unk_5163D4` ..: the lists.
-    pub lists: Bytes<392>,
+    /// Padding that keeps every field's 1999 alignment (the struct is 16-byte aligned).
+    pub _lead: PlainBytes<12>,
+    /// The sets (seven pairs; each is the byte offset in `lists` where its set starts;
+    /// `sound::surface_sounds`).
+    pub sets: [PlainDword; 14],
+    /// The lists.
+    pub lists: PlainBytes<392>,
     /// Up to the record's alignment (no byte of a record of cells outside a field).
-    pub _tail: Bytes<4>,
+    pub _tail: PlainBytes<4>,
 }
 
 impl SurfaceSets {
     pub const fn new() -> Self {
         SurfaceSets {
-    _lead: Bytes::new([0; 12]),
-    sets: [Dword::new(surface_ref(0x5163d4)), Dword::new(surface_ref(0x5163f8)), Dword::new(surface_ref(0x51640c)), Dword::new(surface_ref(0x516430)), Dword::new(surface_ref(0x516444)), Dword::new(surface_ref(0x516468)), Dword::new(surface_ref(0x51647c)), Dword::new(surface_ref(0x5164a0)), Dword::new(surface_ref(0x5164ec)), Dword::new(surface_ref(0x516510)), Dword::new(surface_ref(0x5164b4)), Dword::new(surface_ref(0x5164d8)), Dword::new(surface_ref(0x516524)), Dword::new(surface_ref(0x516548))],
-    lists: Bytes::new(with_runs::<392>(&[(0, b"\x01\x00\x00\x00\x8c\x00\x00\x00\x8d\x00\x00\x00\x90\x00\x00\x00\x91\x00\x00\x00\x8e\x00\x00\x00\x8f\x00\x00\x00\x90\x00\x00\x00\x91\x00\x00\x00\x02\x00\x00\x00\x92\x00\x00\x00\x93\x00\x00\x00\x94\x00\x00\x00\x95\x00\x00\x00\x01\x00\x00\x00\x96\x00\x00\x00\x97\x00\x00\x00\x9a\x00\x00\x00\x9b\x00\x00\x00\x98\x00\x00\x00\x99\x00\x00\x00\x9a\x00\x00\x00\x9b\x00\x00\x00\x02\x00\x00\x00\x9c\x00\x00\x00\x9d\x00\x00\x00\x9e\x00\x00\x00\x9f\x00\x00\x00\x01\x00\x00\x00\xa0\x00\x00\x00\xa1\x00\x00\x00\xa4\x00\x00\x00\xa5\x00\x00\x00\xa2\x00\x00\x00\xa3\x00\x00\x00\xa4\x00\x00\x00\xa5\x00\x00\x00\x02\x00\x00\x00\xa6\x00\x00\x00\xa7\x00\x00\x00\xa8\x00\x00\x00\xa9\x00\x00\x00\x01\x00\x00\x00\xaa\x00\x00\x00\xab\x00\x00\x00\xae\x00\x00\x00\xaf\x00\x00\x00\xac\x00\x00\x00\xad\x00\x00\x00\xae\x00\x00\x00\xaf\x00\x00\x00\x02\x00\x00\x00\xb0\x00\x00\x00\xb1\x00\x00\x00\xb2\x00\x00\x00\xb3\x00\x00\x00\x01\x00\x00\x00\xb4\x00\x00\x00\xb5\x00\x00\x00\xb8\x00\x00\x00\xb9\x00\x00\x00\xb6\x00\x00\x00\xb7\x00\x00\x00\xb8\x00\x00\x00\xb9\x00\x00\x00\x02\x00\x00\x00\xba\x00\x00\x00\xbb\x00\x00\x00\xbc\x00\x00\x00\xbd\x00\x00\x00\x01\x00\x00\x00\xbe\x00\x00\x00\xbf\x00\x00\x00\xc2\x00\x00\x00\xc3\x00\x00\x00\xc0\x00\x00\x00\xc1\x00\x00\x00\xc2\x00\x00\x00\xc3\x00\x00\x00\x02\x00\x00\x00\xc4\x00\x00\x00\xc5\x00\x00\x00\xc6\x00\x00\x00\xc7\x00\x00\x00\x01\x00\x00\x00\xc8\x00\x00\x00\xc9\x00\x00\x00\xcc\x00\x00\x00\xcd\x00\x00\x00\xca\x00\x00\x00\xcb\x00\x00\x00\xcc\x00\x00\x00\xcd\x00\x00\x00\x02\x00\x00\x00\xce\x00\x00\x00\xcf\x00\x00\x00\xd0\x00\x00\x00\xd1")])),
-    _tail: Bytes::new([0; 4]),
+    _lead: PlainBytes::new([0; 12]),
+    sets: [PlainDword::new(0), PlainDword::new(36), PlainDword::new(56), PlainDword::new(92), PlainDword::new(112), PlainDword::new(148), PlainDword::new(168), PlainDword::new(204), PlainDword::new(280), PlainDword::new(316), PlainDword::new(224), PlainDword::new(260), PlainDword::new(336), PlainDword::new(372)],
+    lists: PlainBytes::new(with_runs::<392>(&[(0, b"\x01\x00\x00\x00\x8c\x00\x00\x00\x8d\x00\x00\x00\x90\x00\x00\x00\x91\x00\x00\x00\x8e\x00\x00\x00\x8f\x00\x00\x00\x90\x00\x00\x00\x91\x00\x00\x00\x02\x00\x00\x00\x92\x00\x00\x00\x93\x00\x00\x00\x94\x00\x00\x00\x95\x00\x00\x00\x01\x00\x00\x00\x96\x00\x00\x00\x97\x00\x00\x00\x9a\x00\x00\x00\x9b\x00\x00\x00\x98\x00\x00\x00\x99\x00\x00\x00\x9a\x00\x00\x00\x9b\x00\x00\x00\x02\x00\x00\x00\x9c\x00\x00\x00\x9d\x00\x00\x00\x9e\x00\x00\x00\x9f\x00\x00\x00\x01\x00\x00\x00\xa0\x00\x00\x00\xa1\x00\x00\x00\xa4\x00\x00\x00\xa5\x00\x00\x00\xa2\x00\x00\x00\xa3\x00\x00\x00\xa4\x00\x00\x00\xa5\x00\x00\x00\x02\x00\x00\x00\xa6\x00\x00\x00\xa7\x00\x00\x00\xa8\x00\x00\x00\xa9\x00\x00\x00\x01\x00\x00\x00\xaa\x00\x00\x00\xab\x00\x00\x00\xae\x00\x00\x00\xaf\x00\x00\x00\xac\x00\x00\x00\xad\x00\x00\x00\xae\x00\x00\x00\xaf\x00\x00\x00\x02\x00\x00\x00\xb0\x00\x00\x00\xb1\x00\x00\x00\xb2\x00\x00\x00\xb3\x00\x00\x00\x01\x00\x00\x00\xb4\x00\x00\x00\xb5\x00\x00\x00\xb8\x00\x00\x00\xb9\x00\x00\x00\xb6\x00\x00\x00\xb7\x00\x00\x00\xb8\x00\x00\x00\xb9\x00\x00\x00\x02\x00\x00\x00\xba\x00\x00\x00\xbb\x00\x00\x00\xbc\x00\x00\x00\xbd\x00\x00\x00\x01\x00\x00\x00\xbe\x00\x00\x00\xbf\x00\x00\x00\xc2\x00\x00\x00\xc3\x00\x00\x00\xc0\x00\x00\x00\xc1\x00\x00\x00\xc2\x00\x00\x00\xc3\x00\x00\x00\x02\x00\x00\x00\xc4\x00\x00\x00\xc5\x00\x00\x00\xc6\x00\x00\x00\xc7\x00\x00\x00\x01\x00\x00\x00\xc8\x00\x00\x00\xc9\x00\x00\x00\xcc\x00\x00\x00\xcd\x00\x00\x00\xca\x00\x00\x00\xcb\x00\x00\x00\xcc\x00\x00\x00\xcd\x00\x00\x00\x02\x00\x00\x00\xce\x00\x00\x00\xcf\x00\x00\x00\xd0\x00\x00\x00\xd1")])),
+    _tail: PlainBytes::new([0; 4]),
         }
     }
 }
 
 impl SurfaceSets {
-    /// Surface sound set `n`'s list (the original kept its address), a place in the whole
-    /// block: the list runs on in the lists after it as far as the sets read.
-    pub fn set(n: usize) -> Result<crate::pointers::GamePtr, crate::errors::BadInput> {
-        let cell = crate::sound::owner::sound()
-            .race
-            .surface_sets
-            .sets
-            .get(n)
-            .ok_or(crate::errors::BadInput(
-                "a surface sound set past the table",
-            ))?;
-        let at = offset_in(cell.get(), SURFACE_TAG, Self::LEN).ok_or(crate::errors::BadInput(
-            "a sound table's entry off its piece",
+    /// Surface sound set `n`'s list: the flag, then its sounds (nine dwords for a set of eight,
+    /// five for a set of four; the sets follow one another in the lists).
+    pub fn set(&self, n: usize) -> Result<ListIn<'_, 392>, crate::errors::BadInput> {
+        let sets = self;
+        let cell = sets.sets.get(n).ok_or(crate::errors::BadInput(
+            "a surface sound set past the table",
         ))?;
-        Ok(
-            crate::pointers::GamePtr::to(&crate::sound::owner::sound().race.surface_sets)
-                .offset((at + 12) as u32),
-        )
-    }
-
-    pub const START: usize = 0x51639C;
-    pub const LEN: usize = 0x1C0;
-    #[cfg(test)]
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        (crate::pointers::game_address(&raw const crate::sound::owner::SOUND.race.surface_sets)
-            + 12) as usize
+        Ok(ListIn {
+            bytes: &sets.lists,
+            from: cell.get() as usize,
+        })
     }
 }
 
-/// The spot voices (IDA 0x5168C0 .. 0x517F40, the image's layout).
-#[repr(C, align(16))]
+/// The spot voices.
+#[repr(align(16))]
 #[derive(rc2k_derive::Cells)]
 pub struct SpotVoices {
-    /// 0x5168C0: `g_spotVoices`: 0x48 records of 0x50 bytes (`sound::spot_voices`).
-    pub voices: [[Dword; 20]; 72],
+    /// 0x48 records of 0x50 bytes (`sound::spot_voices`).
+    pub voices: [crate::sound::spot_voices::SpotVoice; 72],
 }
 
 impl SpotVoices {
     pub const fn new() -> Self {
         SpotVoices {
-            voices: [
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-                [
-                    Dword::new(0x1888ffff),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0xfffffffe),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x0),
-                    Dword::new(0x3f800000),
-                    Dword::new(0x0),
-                ],
-            ],
+            voices: [const { crate::sound::spot_voices::SpotVoice::free() }; 72],
         }
-    }
-}
-
-impl SpotVoices {
-    pub const START: usize = 0x5168C0;
-    pub const LEN: usize = 0x1680;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    #[cfg(test)]
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const crate::sound::owner::SOUND.race.spot_voices)
-            as usize
     }
 }
 
@@ -3203,144 +1624,158 @@ impl SpotVoices {
 mod tests {
     use super::*;
 
-    /// The image's `count` address dwords from `at` made handles of `tag` (offsets from `start`).
-    fn handled(image: &mut [u8], at: usize, count: usize, tag: u32, start: usize) {
-        for k in 0..count {
-            let o = at + 4 * k;
-            let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
-            image[o..o + 4].copy_from_slice(&(tag | (v - start as u32)).to_le_bytes());
+    /// Byte offsets in the 1999 layout of the fields, and of the 72 lists the kinds table names.
+    const OLD_FIELD_OFFSETS: [u32; 11] = [
+        0x0, 0x198, 0x1F4, 0x36C, 0x504, 0x560, 0x6DC, 0x758, 0x830, 0x850, 0x9AC,
+    ];
+    const OLD_KIND_OFFSETS: [u32; 72] = [
+        0, 876, 12, 888, 24, 900, 36, 912, 48, 924, 60, 936, 72, 948, 84, 960, 96, 972, 108, 984,
+        120, 996, 132, 1008, 144, 1020, 156, 1032, 168, 1044, 180, 1056, 192, 1068, 204, 1080, 216,
+        1092, 228, 1104, 240, 1116, 252, 1128, 264, 1140, 276, 1152, 288, 1164, 300, 1176, 312,
+        1188, 324, 1200, 336, 1212, 348, 1224, 360, 1236, 372, 1248, 384, 1260, 396, 1272, 204,
+        1080, 204, 1080,
+    ];
+
+    /// The flat dwords of the 1999 layout: every field in order.
+    fn flat(sets: &SoundSets) -> Vec<u32> {
+        sets.runs()
+            .iter()
+            .flat_map(|run| (0..run.count()).map(|i| run.bits(i)))
+            .chain([0])
+            .collect()
+    }
+
+    /// Every entry of every list start, to the end of the sets and past it, reads as a read of
+    /// the 1999 layout's bytes does.
+    #[test]
+    fn list_entries_read_as_the_byte_read() {
+        let sets = Box::new(SoundSets::new());
+        for (k, run) in sets.runs().iter().enumerate() {
+            for i in 0..run.count() {
+                run.set_bits(i, 0x7000_0000 + (OLD_FIELD_OFFSETS[k] / 4) + i as u32);
+            }
+        }
+        let filled = flat(&sets);
+        for field in RaceField::ALL {
+            for entry in 0..field.dwords() as u32 {
+                let offset = OLD_FIELD_OFFSETS[field as usize] + 4 * entry;
+                for n in 0..3 {
+                    let old = filled.get(offset as usize / 4 + n).copied();
+                    assert_eq!(
+                        sets.list_entry(field, entry, n).unwrap(),
+                        old,
+                        "{field:?} {entry} {n}"
+                    );
+                }
+            }
+        }
+        assert!(sets.list_entry(RaceField::Tail, 1, 0).is_err());
+        assert!(sets.list_entry(RaceField::Tail, 0, 0).is_ok());
+        assert_eq!(sets.list_entry(RaceField::Tail, 0, 1).unwrap(), None);
+    }
+
+    /// The lists the kinds table and the named sets start: the same words as the 1999 offsets, and
+    /// the lists read to their -1 without reaching the kinds table (whose values changed with
+    /// their encoding).
+    #[test]
+    fn started_lists_keep_their_hash_words_and_end_before_the_kinds() {
+        use rc2k_core::audio::commands::{Command, SoundList};
+        let sets = &crate::test_support::own::sound().threads.sets;
+        let flat = flat(sets);
+        let kinds_start = OLD_FIELD_OFFSETS[RaceField::Kinds as usize] as usize / 4;
+        let mut lists: Vec<(SoundList, Option<u32>)> = (0..72)
+            .map(|n| (sets.kind_list(n).unwrap(), Some(OLD_KIND_OFFSETS[n])))
+            .collect();
+        let named_old = [
+            (NamedSet::Replay, 0x830),
+            (NamedSet::FirstA, 0x198),
+            (NamedSet::FirstB, 0x758),
+            (NamedSet::FirstC, 0x1F4),
+            (NamedSet::SecondA, 0x504),
+            (NamedSet::SecondB, 0x560),
+            (NamedSet::Last, 0x6DC),
+        ];
+        lists.extend(named_old.map(|(set, old)| (set.list(), Some(old))));
+        for (list, old) in lists {
+            assert_eq!(
+                Command::Load(Some(list)).record_words().1[0],
+                old.unwrap() + 2,
+                "{list:?}"
+            );
+            let SoundList::Race { field, entry } = list else {
+                panic!()
+            };
+            let start = old.unwrap() as usize / 4;
+            let mut n = 0;
+            loop {
+                let got = sets.list_entry(field, entry, n).unwrap();
+                assert_eq!(got, flat.get(start + n).copied());
+                assert!(start + n < kinds_start, "{list:?} reaches the kinds");
+                if got == Some(u32::MAX) {
+                    break;
+                }
+                n += 1;
+            }
         }
     }
 
     #[test]
-    fn menusounds_starts_as_the_games() {
-        let size = size_of::<MenuSounds>();
-        assert!(4 + MenuSounds::LEN <= size && size <= (4 + MenuSounds::LEN).next_multiple_of(16));
-        let image = crate::moved::image_bytes(MenuSounds::START, MenuSounds::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(MenuSounds::home()).cast_const(),
-                MenuSounds::LEN,
-            )
-        };
-        assert_eq!(mine, &image[..]);
-    }
-
-    #[test]
-    fn racesoundsets_starts_as_the_games() {
+    fn racesoundsets_kind_lists_are_their_handles() {
         for n in 0..72 {
-            let handle = crate::sound::owner::sound().race.sets.kinds[n].get();
-            let ida = (handle ^ RACE_LIST_TAG) as usize + RaceSoundSets::START;
-            let at = RaceSoundSets::kind_list_of(n).unwrap();
+            let handle = crate::test_support::own::sound().threads.sets.kinds[n].get();
+            let at = SoundSets::kind_list_of(n).unwrap();
+            let (field, entry) = race_list_of(handle).unwrap();
             assert_eq!(
                 at,
-                rc2k_core::audio::commands::SoundList::Race {
-                    offset: (ida - RaceSoundSets::START) as u32
-                }
-            );
-            // The image's relocated dword names the same set.
-            let image = crate::moved::image_bytes(RaceSoundSets::KINDS_AT + 4 * n, 4);
-            assert_eq!(
-                u32::from_le_bytes(image[..4].try_into().unwrap()) as usize,
-                ida
+                rc2k_core::audio::commands::SoundList::Race { field, entry }
             );
         }
-        assert!(RaceSoundSets::kind_list_of(72).is_err());
-        let size = size_of::<RaceSoundSets>();
-        assert!(RaceSoundSets::LEN <= size && size <= (RaceSoundSets::LEN).next_multiple_of(16));
-        let mut image = crate::moved::image_bytes(RaceSoundSets::START, RaceSoundSets::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(RaceSoundSets::home()).cast_const(),
-                RaceSoundSets::LEN,
-            )
-        };
-        handled(
-            &mut image,
-            RaceSoundSets::KINDS_AT - RaceSoundSets::START,
-            72,
-            RACE_LIST_TAG,
-            RaceSoundSets::START,
-        );
-        assert_eq!(mine, &image[..]);
+        assert!(SoundSets::kind_list_of(72).is_err());
     }
 
     #[test]
-    fn cuelists_starts_as_the_games() {
+    fn cuelists_end_in_minus_one() {
         // Every cue's list is one of the lists, and ends.
         for cue in 0..113 {
-            let at = CueLists::list(cue).unwrap().addr() as usize;
-            assert!(at >= CueLists::home() + 113 * 4);
+            let list = crate::test_support::own::sound()
+                .race
+                .cue_lists
+                .get()
+                .list(cue)
+                .unwrap();
+            // The list ends in -1 inside the lists.
+            assert!((0..6).any(|k| list.get(k) == Ok(u32::MAX)), "{cue}");
         }
-        assert!(CueLists::list(113).is_err());
-        let size = size_of::<CueLists>();
-        assert!(8 + CueLists::LEN <= size && size <= (8 + CueLists::LEN).next_multiple_of(16));
-        let mut image = crate::moved::image_bytes(CueLists::START, CueLists::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(CueLists::home()).cast_const(),
-                CueLists::LEN,
-            )
-        };
-        handled(&mut image, 0, 113, CUE_TAG, CueLists::START);
-        assert_eq!(mine, &image[..]);
-    }
-
-    #[test]
-    fn soundkinds_starts_as_the_games() {
-        let size = size_of::<SoundKinds>();
-        assert!(SoundKinds::LEN <= size && size <= (SoundKinds::LEN).next_multiple_of(16));
-        let mut image = crate::moved::image_bytes(SoundKinds::START, SoundKinds::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(SoundKinds::home()).cast_const(),
-                SoundKinds::LEN,
-            )
-        };
-        handled(&mut image, 0, 36, KIND_TAG, SoundKinds::START);
-        assert_eq!(mine, &image[..]);
-    }
-
-    #[test]
-    fn surfacesets_starts_as_the_games() {
-        for n in 0..14 {
-            let set = SurfaceSets::set(n).unwrap();
-            assert!(set.addr() as usize >= SurfaceSets::home() + 14 * 4);
-            // The shortest set: its mode dword and a first sound.
-            set.offset(4).read::<u32>("a set").unwrap();
-        }
-        for n in 0..36 {
-            let record = crate::sound::owner::sound().race.kinds.record(n).unwrap();
-            assert!(
-                crate::pointers::GamePtr::to(record).addr() as usize >= SoundKinds::home() + 36 * 4
-            );
-        }
-        let size = size_of::<SurfaceSets>();
         assert!(
-            12 + SurfaceSets::LEN <= size && size <= (12 + SurfaceSets::LEN).next_multiple_of(16)
+            crate::test_support::own::sound()
+                .race
+                .cue_lists
+                .get()
+                .list(113)
+                .is_err()
         );
-        let mut image = crate::moved::image_bytes(SurfaceSets::START, SurfaceSets::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(SurfaceSets::home()).cast_const(),
-                SurfaceSets::LEN,
-            )
-        };
-        handled(&mut image, 0, 14, SURFACE_TAG, SurfaceSets::START);
-        assert_eq!(mine, &image[..]);
     }
 
     #[test]
-    fn spotvoices_starts_as_the_games() {
-        let size = size_of::<SpotVoices>();
-        assert!(SpotVoices::LEN <= size && size <= (SpotVoices::LEN).next_multiple_of(16));
-        let image = crate::moved::image_bytes(SpotVoices::START, SpotVoices::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(SpotVoices::home()).cast_const(),
-                SpotVoices::LEN,
-            )
-        };
-        assert_eq!(mine, &image[..]);
+    fn surfacesets_lists_are_inside_the_store() {
+        for n in 0..14 {
+            let set = crate::test_support::own::sound()
+                .race
+                .surface_sets
+                .get()
+                .set(n)
+                .unwrap();
+            // A set of eight (flag 1) holds nine dwords, a set of four five, inside the lists.
+            let dwords = if set.get(0).unwrap() == 1 { 9 } else { 5 };
+            assert!(set.get(dwords - 1).is_ok(), "{n}");
+        }
+        let kinds = crate::test_support::own::sound().race.kinds.get();
+        for n in 0..36 {
+            kinds.record(n).unwrap();
+        }
+        // The records follow the table of their 36 addresses, in the record's field order.
+        let table = crate::test_support::paths::field_start(kinds, ".kinds").unwrap();
+        let records = crate::test_support::paths::field_start(kinds, ".records").unwrap();
+        assert!(records - table >= 36 * 4);
     }
 }

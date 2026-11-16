@@ -1,183 +1,284 @@
-//! The "Effects" tab: the effects' developers' page (`debug::effects_page_1`, 0x4D1711, no
-//! references to it; IDA 2026-10-30), its labels kept. Some figures lie through
-//! `g_marksSettings` (0x767A28, now a set / not-set flag), the rest at their own places. Labels with `?` were
-//! the developers' own, for the names in their source.
+//! The "Effects" tab: the effects' developers' page (`debug::effects_page_1`), its labels kept.
+//! Some figures lie through the settings (now a set / not-set flag), the rest at their own
+//! places. Labels with `?` were the developers' own, for the names in their source.
 
-use crate::debug::wear_page::value_at;
+use crate::effects::owner::Effects;
+use crate::effects::setup::effects_settings;
+use crate::race::effects_settings_store::EffectsSettings;
+use crate::scene::owner::Scene;
 use dear_imgui_rs::{TreeNodeFlags, Ui};
 
-/// `g_marksSettings`.
-const SETTINGS: usize = 0x767A28;
-
-/// The windows and cracks lie from here on (`lea ebp, [ebp+29Ch]`, 0x4D238F).
-const WORK: u32 = 0x29C;
-
+/// Where a figure is read.
 #[derive(Clone, Copy)]
 enum At {
-    /// IDA's address.
-    Place(usize),
-    /// An offset in the settings `g_marksSettings` stands for (the race's record).
-    Through(u32),
+    /// A variable of the effects' or the scene's state.
+    Cell(fn(&Effects, &Scene) -> Figure),
+    /// A figure of the effects' settings (the race's record); the windows and cracks lie in its
+    /// first car's record.
+    Through(fn(&EffectsSettings) -> Figure),
 }
 
-/// A figure: the developers' label, its place, whether a float.
-type Figure = (&'static str, At, bool);
+/// A figure's value: a count or flag as the game keeps it (shown signed), or a float.
+#[derive(Clone, Copy, PartialEq)]
+enum Figure {
+    Whole(u32),
+    Real(f32),
+}
 
-use At::{Place, Through};
+impl From<u32> for Figure {
+    fn from(v: u32) -> Self {
+        Figure::Whole(v)
+    }
+}
+
+impl From<f32> for Figure {
+    fn from(v: f32) -> Self {
+        Figure::Real(v)
+    }
+}
+
+/// A row: the developers' label and its place.
+type Row = (&'static str, At);
+
+use At::{Cell, Through};
 
 /// The window's width for two columns.
 const TWO_COLUMNS: f32 = 900.0;
 
-const GROUPS: &[(&str, &[Figure])] = &[
+const GROUPS: &[(&str, &[Row])] = &[
     (
         "Weather and splashes",
         &[
-            ("?rain.hang", Place(0x81623A), false),
-            ("?rain.total", Place(0x814710), false),
-            ("?snow3d.drawn", Place(0x8D219C), false),
-            ("splash amount", Place(0x9356C8), false),
-            ("fworks amount", Place(0x93A5EC), false),
-            ("fworks run", Place(0x93A5CC), false),
-            ("flag", Place(0x91FF32), false),
-            ("First object in list", Place(0x8DD059), false),
-            ("fsizefp", Place(0x624088), true),
-            ("maxzspacefp", Place(0x6241C8), true),
+            (
+                "?rain.hang",
+                Cell(|effects, _| {
+                    effects
+                        .windscreen_drops
+                        .hex
+                        .windscreen_flakes_cleared
+                        .get()
+                        .into()
+                }),
+            ),
+            (
+                "?rain.total",
+                Cell(|effects, _| effects.windscreen_drops.state.live.get().into()),
+            ),
+            (
+                "?snow3d.drawn",
+                Cell(|effects, _| effects.weather.snow.drawn.get().into()),
+            ),
+            (
+                "splash amount",
+                Cell(|effects, _| effects.ring.work.count.get().into()),
+            ),
+            (
+                "fworks amount",
+                Cell(|effects, _| effects.ring.pool.used.get().into()),
+            ),
+            (
+                "fworks run",
+                Cell(|effects, _| effects.ring.pool.fireworks_run.get().into()),
+            ),
+            (
+                "fsizefp",
+                Cell(|_, scene| scene.drawing.scene.get().view_scale.get().into()),
+            ),
+            (
+                "maxzspacefp",
+                Cell(|_, scene| scene.drawing.scene.get().farthest.get().into()),
+            ),
         ],
     ),
     (
         "The car",
         &[
-            ("change_gear", Through(0x26FC), false),
-            ("hand_brake", Through(0x2700), false),
-            ("backfire", Through(0x8C), false),
-            ("car angle", Place(0x8F3975), true),
-            ("car direction of travel", Place(0x8F397D), true),
-            ("car x", Through(0x26AC), true),
-            ("car y", Through(0x26B0), true),
-            ("car z", Through(0x26B4), true),
-            ("?wheels.vect1.x", Place(0x93543A), true),
-            ("?wheels.vect1.y", Place(0x93543E), true),
-            ("?wheels.vect1.z", Place(0x935442), true),
-            ("?wheels.vect4.x", Place(0x93545E), true),
-            ("?wheels.vect4.y", Place(0x935462), true),
-            ("?wheels.vect4.z", Place(0x935466), true),
+            (
+                "change_gear",
+                Through(|s| s.spline_gear_changed.get().into()),
+            ),
+            ("hand_brake", Through(|s| s.spline_handbrake.get().into())),
+            ("backfire", Through(|s| s.cars[0].gear_notice.get().into())),
+            (
+                "car angle",
+                Cell(|effects, _| effects.frame.view_vars.heading.get().into()),
+            ),
+            (
+                "car direction of travel",
+                Cell(|effects, _| effects.frame.view_vars.facing.get().into()),
+            ),
+            ("car x", Through(|s| s.listener_car_place[0].get().into())),
+            ("car y", Through(|s| s.listener_car_place[1].get().into())),
+            ("car z", Through(|s| s.listener_car_place[2].get().into())),
+            (
+                "?wheels.vect1.x",
+                Cell(|effects, _| effects.kinds.emitter.side_b[0].get().into()),
+            ),
+            (
+                "?wheels.vect1.y",
+                Cell(|effects, _| effects.kinds.emitter.side_b[1].get().into()),
+            ),
+            (
+                "?wheels.vect1.z",
+                Cell(|effects, _| effects.kinds.emitter.side_b[2].get().into()),
+            ),
+            (
+                "?wheels.vect4.x",
+                Cell(|effects, _| effects.kinds.emitter.side_a[0].get().into()),
+            ),
+            (
+                "?wheels.vect4.y",
+                Cell(|effects, _| effects.kinds.emitter.side_a[1].get().into()),
+            ),
+            (
+                "?wheels.vect4.z",
+                Cell(|effects, _| effects.kinds.emitter.side_a[2].get().into()),
+            ),
         ],
     ),
     (
         "Clocks",
         &[
-            ("?world.time_abs", Place(0x764FE8), false),
-            ("?world.time", Place(0x764FD0), false),
-            ("clock0", Place(0x765118), true),
-            ("clock1", Place(0x76511C), true),
-            ("clock2", Place(0x765120), true),
-            ("clock3", Place(0x765124), true),
-            ("clock4", Place(0x765128), true),
-            ("clock5", Place(0x76512C), true),
-            ("clock6", Place(0x765130), true),
-            ("clock7", Place(0x765134), true),
+            (
+                "?world.time_abs",
+                Cell(|effects, _| effects.setup.clock.now.get().into()),
+            ),
+            (
+                "?world.time",
+                Cell(|effects, _| effects.setup.clock.frame_ticks.get().into()),
+            ),
+            (
+                "clock0",
+                Cell(|effects, _| effects.setup.frame.empty_share.get().into()),
+            ),
+            (
+                "clock1",
+                Cell(|effects, _| effects.setup.frame.ring_share.get().into()),
+            ),
+            (
+                "clock2",
+                Cell(|effects, _| effects.setup.frame.whole_share.get().into()),
+            ),
+            (
+                "clock3",
+                Cell(|effects, _| effects.setup.frame.quads_share.get().into()),
+            ),
+            (
+                "clock4",
+                Cell(|effects, _| effects.setup.frame.step_share.get().into()),
+            ),
+            (
+                "clock5",
+                Cell(|effects, _| effects.setup.frame.clock5.get().into()),
+            ),
+            (
+                "clock6",
+                Cell(|effects, _| effects.setup.frame.clock6.get().into()),
+            ),
+            (
+                "clock7",
+                Cell(|effects, _| effects.setup.frame.draw_share.get().into()),
+            ),
         ],
     ),
     (
         "Windows",
         &[
-            ("window 0", Through(WORK + 0x1C), false),
-            ("window 1", Through(WORK + 0x20), false),
-            ("window 2", Through(WORK + 0x24), false),
-            ("window 3", Through(WORK + 0x28), false),
-            ("window 4", Through(WORK + 0x2C), false),
-            ("window 5", Through(WORK + 0x30), false),
+            ("window 0", Through(|s| s.cars[0].face_sums[0].get().into())),
+            ("window 1", Through(|s| s.cars[0].face_sums[1].get().into())),
+            ("window 2", Through(|s| s.cars[0].face_sums[2].get().into())),
+            ("window 3", Through(|s| s.cars[0].face_sums[3].get().into())),
+            ("window 4", Through(|s| s.cars[0].face_sums[4].get().into())),
+            ("window 5", Through(|s| s.cars[0].face_sums[5].get().into())),
         ],
     ),
 ];
 
-/// The three sets of six cracks' offsets (the labels repeat in the original).
-const CRACK_SETS: [u32; 3] = [0x1B8, 0x1FC, 0x240];
-/// `g_marksAnyMeasured` ("?crack.flag").
-const CRACK_FLAG: usize = 0x93C8BC;
+/// The three sets of six cracks: the first car's line sums, shares and point counts.
+const CRACK_SETS: [fn(&EffectsSettings, usize) -> u32; 3] = [
+    |s, n| s.cars[0].kind_sums[n].get(),
+    |s, n| s.cars[0].kind_shares[n].get(),
+    |s, n| s.cars[0].kind_counts[n].get(),
+];
 
-fn read(at: At) -> Option<u32> {
+fn read(effects: &Effects, scene: &Scene, at: At) -> Option<Figure> {
     match at {
-        Place(ida) => value_at(ida),
-        Through(offset) => {
-            if value_at(SETTINGS)? == 0 {
-                return None;
-            }
-            crate::race::marks_settings_store::MARKS_SETTINGS
-                .at(offset)
-                .read::<u32>("the effects' page")
-                .ok()
-        }
+        Cell(read) => Some(read(effects, scene)),
+        Through(read) => effects_settings(effects).ok().map(read),
     }
 }
 
-fn shown(value: Option<u32>, float: bool) -> String {
+fn shown(value: Option<Figure>) -> String {
     match value {
         None => "?".to_owned(),
-        Some(v) if float => format!("{:.3}", f32::from_bits(v)),
-        Some(v) => format!("{}", v as i32),
+        Some(Figure::Real(v)) => format!("{v:.3}"),
+        Some(Figure::Whole(v)) => format!("{}", v as i32),
     }
 }
 
 /// The tab.
-pub fn tab(ui: &Ui) {
-    // 0x4D2B90: its warning, when the two counts differ.
-    let (drawn, run) = (value_at(0x91FFA2), value_at(0x91FFBA));
+pub fn tab(effects: &Effects, scene: &Scene, ui: &Ui) {
+    // Its warning, when the two counts differ.
+    let frame = &effects.frame.draw_frame;
+    let (drawn, run) = (
+        Some(frame.drawn.get().into()),
+        Some(frame.cleared.get().into()),
+    );
     if drawn != run {
         ui.text_colored(
             [1.0, 0.4, 0.3, 1.0],
             format!(
                 "draw amount not same as process amount: {} / {}",
-                shown(drawn, false),
-                shown(run, false)
+                shown(drawn),
+                shown(run)
             ),
         );
     }
-    // Two columns when there is room (owner, 2026-10-30).
+    // Two columns when there is room.
     if ui.content_region_avail_width() >= TWO_COLUMNS
         && let Some(_layout) = ui.begin_table("effects", 2)
     {
         ui.table_next_row();
         ui.table_next_column();
-        group(ui, &GROUPS[0]);
-        group(ui, &GROUPS[2]);
+        group(ui, effects, scene, &GROUPS[0]);
+        group(ui, effects, scene, &GROUPS[2]);
         ui.table_next_column();
-        group(ui, &GROUPS[1]);
-        group(ui, &GROUPS[3]);
-        cracks(ui);
+        group(ui, effects, scene, &GROUPS[1]);
+        group(ui, effects, scene, &GROUPS[3]);
+        cracks(ui, effects);
     } else {
         for g in GROUPS {
-            group(ui, g);
+            group(ui, effects, scene, g);
         }
-        cracks(ui);
+        cracks(ui, effects);
     }
 }
 
 /// A group of figures, under its header.
-fn group(ui: &Ui, (name, figures): &(&str, &[Figure])) {
+fn group(ui: &Ui, effects: &Effects, scene: &Scene, (name, figures): &(&str, &[Row])) {
     if ui.collapsing_header(name, TreeNodeFlags::DEFAULT_OPEN)
         && let Some(_table) = ui.begin_table(name, 2)
     {
-        for &(label, at, float) in *figures {
+        for &(label, at) in *figures {
             ui.table_next_row();
             ui.table_next_column();
             ui.text_disabled(label);
             ui.table_next_column();
-            ui.text(shown(read(at), float));
+            ui.text(shown(read(effects, scene, at)));
         }
     }
 }
 
 /// The three sets of cracks.
-fn cracks(ui: &Ui) {
+fn cracks(ui: &Ui, effects: &Effects) {
     if ui.collapsing_header("Cracks", TreeNodeFlags::DEFAULT_OPEN) {
         ui.text(format!(
             "?crack.flag: {}",
-            shown(value_at(CRACK_FLAG), false)
+            shown(Some(effects.paths.lines_work.any.get().into()))
         ));
-        for (set, base) in CRACK_SETS.iter().enumerate() {
+        for (set, figure) in CRACK_SETS.iter().enumerate() {
             let figures: Vec<String> = (0..6)
-                .map(|n| shown(read(Through(WORK + base + 4 * n)), false))
+                .map(|n| shown(effects_settings(effects).ok().map(|s| figure(s, n).into())))
                 .collect();
             ui.text(format!("Set {}: {}", set + 1, figures.join("  ")));
         }

@@ -1,21 +1,12 @@
-//! `install::read_registry` (0x413D14): what the installer left in the registry.
-//!
-//! Under `HKEY_LOCAL_MACHINE\SOFTWARE\Magnetic Fields\RC99`: the value `status` into
-//! `byte_51BB8C` (kept only if it is one byte of binary data, else 0) and the value
-//! `source` into `byte_51BB8D` (up to 0xFF bytes; emptied unless it is a text). Without
-//! the key nothing changes; if `status` cannot be read, `source` is not asked for. The
-//! registry's own answers are left in `Type` (0x51BC94) and `dword_51BC90` (the size).
-//! Three callers: the two installation checks and the installer.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
-
-// ---- game data ----
+//! What the installer left in the registry, under `HKEY_LOCAL_MACHINE\SOFTWARE\Magnetic
+//! Fields\RC99`: the value `status` (kept only if it is one byte of binary data, else 0) and
+//! the value `source` (up to 0xFF bytes; emptied unless it is a text). Without the key nothing
+//! changes; if `status` cannot be read, `source` is not asked for. Called by the two installation
+//! checks and the installer.
 
 const SOURCE_ROOM: u32 = 0xFF;
 const REG_SZ: u32 = 1;
 const REG_BINARY: u32 = 3;
-
-// ---- Rust version ----
 
 /// What `RegQueryValueExA` gave: its result, the value's type and size when the value is
 /// there, its bytes when they fitted.
@@ -45,8 +36,7 @@ pub trait Registry {
 
 /// A query's answers into the type and the size, and its data to `put`, as the registry
 /// writes them.
-fn take(q: &Query, put: impl FnOnce(&[u8])) {
-    let install = crate::install::owner::install();
+fn take(install: &crate::install::owner::Install, q: &Query, put: impl FnOnce(&[u8])) {
     if let Some(kind) = q.kind {
         install.names.reg_type.set(kind);
     }
@@ -58,10 +48,7 @@ fn take(q: &Query, put: impl FnOnce(&[u8])) {
     }
 }
 
-pub fn read_registry(
-    install: &'static crate::install::owner::Install,
-    registry: &mut dyn Registry,
-) {
+pub fn read_registry(install: &crate::install::owner::Install, registry: &mut dyn Registry) {
     let Ok(key) = registry.open(&install.names.key_name.text()) else {
         return;
     };
@@ -70,7 +57,7 @@ pub fn read_registry(
     'values: {
         names.source_size.set(1);
         let q = registry.query(key, &names.status_name.text(), 1);
-        take(&q, |d| {
+        take(install, &q, |d| {
             if let Some(&first) = d.first() {
                 names.status.set(first);
             }
@@ -83,7 +70,7 @@ pub fn read_registry(
         }
         names.source_size.set(SOURCE_ROOM);
         let q = registry.query(key, &names.source_name.text(), SOURCE_ROOM);
-        take(&q, |d| {
+        take(install, &q, |d| {
             for (k, &b) in d.iter().enumerate().take(SOURCE_ROOM as usize) {
                 names.source.set(k, b);
             }
@@ -99,6 +86,6 @@ pub fn read_registry(
 }
 
 /// The registry, or in the standalone the portable record (`install::portable`).
-pub fn read_registry_here(install: &'static crate::install::owner::Install) {
-    read_registry(install, &mut crate::install::portable::Portable);
+pub fn read_registry_here(install: &crate::install::owner::Install) {
+    read_registry(install, &mut crate::install::portable::Portable::default());
 }

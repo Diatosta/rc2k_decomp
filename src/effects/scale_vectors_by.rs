@@ -1,15 +1,11 @@
-//! `effects::scale_vectors_by` (0x4D16A3): two vectors scaled: `flt_764FA0` .. =
-//! `dword_764F94` .. by `dword_764F90`, `flt_764FBC` .. = `dword_764FB0` .. by
-//! `dword_764FAC` (`fld; fmul`, three on the stack, stored last first).
-//!
-//! Caller: `effects::frame_marks`.
-//!
-//! the x87 version stays for the Rust callers in unconverted code).
+//! `effects::scale_vectors_by`: two vectors scaled: `ViewSources.sources[0].scaled[0]` .. =
+//! `ViewSources.sources[0].vector[0]` .. by `ViewSources.sources[0].factor`,
+//! `ViewSources.sources[1].scaled[0]` .. = `ViewSources.sources[1].vector[0]` .. by
+//! `ViewSources.sources[1].factor` (`fld; fmul`, three on the stack, stored last first).
 
 use crate::effects::view_vectors::VectorSource;
 use crate::math::x87;
 
-/// The Rust version (see the header).
 pub fn scale_vectors_by(effects: &crate::effects::owner::Effects) {
     let frame = &effects.frame;
     scale_triples(&[
@@ -23,7 +19,7 @@ pub fn scale_triples(records: &[&VectorSource]) {
     for r in records {
         let k = r.factor.get();
         for n in 0..3 {
-            r.scaled[n].set_bits(x87::mul(r.vector[n].get(), k));
+            r.scaled[n].set(x87::mul(r.vector[n].get(), k));
         }
     }
 }

@@ -1,53 +1,44 @@
-//! The stage's loading: its number in the file names, the cars' numbers from the cars'
-//! data text, the stages tweaked, and the course's records grouped by kind (converted
-//! 2026-10-21 from `race::set_cdat_number` 0x4456DD, `set_course_number` 0x43944F,
-//! `parse_2_digits` 0x437A25, `parse_3_digits` 0x4379EB, `read_stage_car_numbers`
-//! 0x437971, `tweak_stage` 0x439AAB and `group_records_by_kind` 0x421E42; the texture
-//! swap converted 2026-10-21 from `race::swap_stage_texture` 0x439B03; the difficulty
-//! converted 2026-10-21 from `race::set_car_times` 0x4377D0; the textures' records
-//! converted 2026-10-21 from `race::build_texture_infos` 0x4393A0).
+//! The stage's loading: its number in file names, the cars' numbers from the cars' data text,
+//! tweaked stages, the course's records grouped by kind, the texture swap, the difficulty and
+//! the textures' records.
 
 use crate::Invalid;
 use crate::strings::bytes::Bytes;
 
-/// `race::set_cdat_number` / `race::set_course_number`: a number's two digits as the
-/// file names hold them (`div 10` of the low byte, each + '0').
+/// A number's two digits as file names hold them (tens and units, each + '0').
 pub fn two_digits(n: u8) -> [u8; 2] {
     [n / 10 + b'0', n % 10 + b'0']
 }
 
-/// A digit of the text at `at` (`movzx`, `sub` of the low byte: below '0' wraps within
-/// the byte), None past 9 or past the text.
+/// A digit of the text at `at` (below '0' wraps within the byte); None past 9 or the text.
 fn digit<B: Bytes + ?Sized>(text: &B, at: usize) -> Option<u32> {
     let d = text.byte(at)?.wrapping_sub(b'0') as u32;
     (d < 10).then_some(d)
 }
 
-/// `race::parse_2_digits` (`places` 2) / `race::parse_3_digits` (3): the digits at `at`
-/// as a number, each tested in order (none read past the first that is not a digit);
-/// None with any not a digit.
+/// The `places` digits (2 or 3) at `at` as a number; None if any is not a digit (no read past
+/// the first non-digit).
 pub fn parse_digits<B: Bytes + ?Sized>(text: &B, at: usize, places: usize) -> Option<u32> {
     (0..places).try_fold(0u32, |n, k| Some(n * 10 + digit(text, at.wrapping_add(k))?))
 }
 
-/// The most numbers a stage's line gives (`g_stageCarNumbers`).
+/// The most numbers a stage's line gives.
 pub const MOST_NUMBERS: usize = 0x100;
 
-/// What `read_stage_car_numbers` reads.
+/// What reading the car numbers gives.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CarNumbers {
-    /// The stage's numbers (`g_stageCarNumbers`; their sum is `g_stageCarTotal`).
+    /// The stage's numbers (their sum is the stage's car total).
     pub numbers: Vec<u32>,
-    /// The place reached (ecx).
+    /// The place reached in the text.
     pub place: u32,
-    /// The last number parsed, 0 for a failed one (eax); None when none was.
+    /// The last number parsed, 0 for a failed one; None when none was.
     pub last: Option<u32>,
 }
 
-/// `race::read_stage_car_numbers`: in the text's first `len` bytes each 'l' or 'L'
-/// followed by two digits (0 for none) is a stage's line; on `stage`'s, from three places
-/// on, three-digit numbers four apart, up to the text's end or a failed number. Refuses
-/// more than `MOST_NUMBERS`.
+/// In the text's first `len` bytes each 'l' or 'L' followed by two digits (0 for none) is a
+/// stage's line; on `stage`'s, from three places on, three-digit numbers four apart until the
+/// text's end or a failed number. Refuses more than `MOST_NUMBERS`.
 pub fn stage_car_numbers<B: Bytes + ?Sized>(
     text: &B,
     len: u32,
@@ -104,24 +95,24 @@ pub fn stage_car_numbers<B: Bytes + ?Sized>(
     })
 }
 
-/// The stages `race::tweak_stage` tweaks (three dwords from `dword_60A564` 0xFF).
+/// The stages that are tweaked.
 pub const TWEAKED_STAGES: [u32; 3] = [0x15, 0x3E, 0x36];
 
-/// `race::tweak_stage`: whether the stage is tweaked.
+/// Whether the stage is tweaked.
 pub fn stage_tweaked(stage: u32) -> bool {
     TWEAKED_STAGES.contains(&stage)
 }
 
-/// Which stages swap which texture kind for which (`race::swap_stage_texture`).
+/// Which stages swap which texture kind for which.
 pub const TEXTURE_SWAPS: [([u32; 3], u32, u32); 4] = [
     ([0x20, 0x22, 0x24], 0x2F82, 0x2FD0),
     ([0x34, 0x36, 0x38], 0x2F91, 0x2FE0),
     ([0x3D, 0x3F, 0x41], 0x2F72, 0x2FD2),
     ([0x3E, 0x40, 0x42], 0x2F71, 0x2FD1),
 ];
-/// The texture kinds searched (`g_textureKinds`).
+/// The texture kinds searched for the old kind.
 pub const SWAP_KINDS: u32 = 0xFF;
-/// The places of the swapped list (`dword_60A67C`).
+/// The places of the swapped list.
 pub const SWAPPED_PLACES: u32 = 0x40;
 
 /// How `swap_texture` ended.
@@ -129,7 +120,7 @@ pub const SWAPPED_PLACES: u32 = 0x40;
 pub enum Swap {
     /// Not a stage of `TEXTURE_SWAPS`.
     NotThisStage,
-    /// The old kind not among the first 0xFF.
+    /// The old kind is not among the first 0xFF.
     NotFound,
     /// The kind at `kind` swapped; the new kind found in the list at `at`.
     Listed { kind: u32, at: u32 },
@@ -139,12 +130,10 @@ pub enum Swap {
     Full { kind: u32 },
 }
 
-/// `race::swap_stage_texture`: the pair tried last (old, new: the last of `TEXTURE_SWAPS`
-/// when the stage is none of them) and what was done. The first texture kind (of the
-/// first 0xFF, through `kinds`) that is the old one becomes the new one; then, unless the
-/// new kind is in the swapped list (`swapped`, each place asked in order), it goes >> 4
-/// into the list's first free place (the test made on the kind before the shift: section
-/// 16).
+/// The pair tried last (old, new; the last of `TEXTURE_SWAPS` when the stage is none) and
+/// what was done. The first kind (of the first 0xFF, via `kinds`) equal to the old one becomes
+/// the new one; then, unless the new kind is in the swapped list, it goes >> 4 into the first
+/// free place (the test uses the kind before the shift: kept as is).
 pub fn swap_texture(
     stage: u32,
     kinds: impl Fn(u32) -> u32,
@@ -174,11 +163,10 @@ pub fn swap_texture(
     }
 }
 
-/// The kinds the course's records come in (`g_kindFirstRecords`, `g_kindLastRecords`).
+/// The kinds the course's records come in.
 pub const RECORD_KINDS: usize = 0x100;
 
-/// A course record's kind from its first dword: its low four bits, + bits 11 .. 14 times
-/// 16.
+/// A course record's kind: its low four bits plus bits 11 ..= 14 times 16.
 pub fn record_kind(word: u32) -> u32 {
     (word & 0xF) + (((word >> 11) & 0xF) << 4)
 }
@@ -186,6 +174,7 @@ pub fn record_kind(word: u32) -> u32 {
 /// The record `group_by_kind` looked at last.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Looked {
+    /// The record's index.
     pub index: u32,
     /// Whether it was swapped into place.
     pub swapped: bool,
@@ -202,11 +191,12 @@ pub struct Grouped {
     pub last: Vec<u32>,
     /// The records placed (all of them).
     pub placed: u32,
+    /// The record looked at last.
     pub looked: Option<Looked>,
 }
 
-/// `race::group_records_by_kind`: `records` put in order of kind, each kind's in the
-/// order met, by swapping each one found (from the next place on) into the next place.
+/// Orders `records` by kind, each kind's in the order met, swapping each one found into the
+/// next place.
 pub fn group_by_kind<R>(records: &mut [R], word: impl Fn(&R) -> u32) -> Grouped {
     let count = records.len() as u32;
     let mut first = vec![0u32; RECORD_KINDS];
@@ -245,12 +235,11 @@ pub fn group_by_kind<R>(records: &mut [R], word: impl Fn(&R) -> u32) -> Grouped 
     }
 }
 
-/// The stages past the rallies' (from this up nothing is timed).
+/// Stages past the rallies' (from here up nothing is timed).
 pub const UNTIMED_STAGES: u32 = 0x4F;
 
-/// `race::set_car_times`' rally of a stage: its first stage and its level (0 .. 5, the
-/// rallies in the original's order); none from `UNTIMED_STAGES` up (stages below 0x15 go
-/// with the first, their index wrapping below the table).
+/// The rally of a stage: its first stage and its level (0 ..= 5); none from `UNTIMED_STAGES`
+/// up (stages below 0x15 go with the first, their index wrapping below the table).
 pub fn rally_of(stage: u32) -> Option<(u32, u32)> {
     match stage {
         _ if stage < 0x1D => Some((0x15, 0)),
@@ -268,7 +257,7 @@ pub fn difficulty(stage: u32, (first, level): (u32, u32)) -> u32 {
     stage.wrapping_sub(first).wrapping_add(6 * level)
 }
 
-/// The kind whose factor the cars' times take: the first car's held to 0 .. 0x16.
+/// The kind whose factor the cars' times take: the first car's held to 0 ..= 0x16.
 pub fn timed_kind(kind: i32) -> u32 {
     let kind = kind.max(0);
     if kind.wrapping_sub(0x16) >= 0 {
@@ -278,29 +267,28 @@ pub fn timed_kind(kind: i32) -> u32 {
     }
 }
 
-/// A texture's record (0x40 bytes at 0x979F30, by texture) as `race::build_texture_infos`
-/// makes it from its kind and the course info's record of the kind (+kind x 0x80); the
-/// bytes it does not write are left.
+/// A texture's record from its kind and the course info's record of the kind (+kind x 0x80);
+/// bytes not written are left.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TextureInfo {
-    /// +0 .. +0xC: the record's first four dwords.
+    /// +0 ..= +0xC: the course record's first four dwords.
     pub first: [u32; 4],
-    /// +0x10, +0x14, +0x18: the record's +0x20, +0x10, +0x14.
+    /// +0x10, +0x14, +0x18: the course record's +0x20, +0x10, +0x14.
     pub values: [u32; 3],
-    /// +0x1C: the record's byte +0x18.
+    /// +0x1C: the course record's byte +0x18.
     pub byte: u8,
     /// +0x20: the kind >> 4.
     pub group: u32,
     /// +0x24: the kind & 0xF.
     pub row: u32,
-    /// +0x28: the group with bit 31.
+    /// +0x28: the group with bit 31 set.
     pub marked: u32,
-    /// +0x2C .. +0x2E: the record's bytes +0x24 .. +0x26.
+    /// +0x2C ..= +0x2E: the course record's bytes +0x24 ..= +0x26.
     pub bytes: [u8; 3],
 }
 
-/// A texture's record from its kind (`dword(offset)`, `byte(offset)`: the kind's record in
-/// the course info, asked in the original's order).
+/// A texture's record from its kind (`dword(offset)`, `byte(offset)` read the kind's record in
+/// the course info, asked in a fixed order).
 pub fn texture_info(
     kind: u32,
     mut dword: impl FnMut(u32) -> u32,

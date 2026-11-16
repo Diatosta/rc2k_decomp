@@ -1,47 +1,42 @@
-//! `saves::default_championship_times` (0x47C973): made-up best times for the
-//! championship's stages and rallies.
-//!
-//! `dword_755A0C` is 1)
-//! For each stage of the championship's record table (its records with tag 0, counted
-//! into `seconds`, 0x7559AC): the ten entries of the stage in the table at
-//! `dword_7556D8` get the record's +0x24 + 24,000 and 0x9F more each, and a driver
-//! (`saves/default_times.rs`). Then, going through the records once more: a stage adds
-//! its +0x18 + 0xB6 to `dword_7559B0`; a record with tag 3 or 4 (a rally's end) gives the
-//! twenty entries of the next of the six tables of `off_742C98` that sum and 0xB2 more
-//! each at +0x18, and a driver (0x47CB0A), and the sum starts again from 0.
-//! One caller, `menu::set_up_front_end`, when `var\hst.dat` was not loaded.
-//! Refuses missing tables, a record table without stages or without its end, and more
-//! rallies than the six tables. Converted: `rc2k_core::saves::defaults::championship_times`
-//! (a refusal now leaves nothing written).
+//! Made-up best times for the championship's stages and rallies: the ten entries of each stage
+//! get the record's fourth class time + 24,000 and 0x9F more each, and a driver
+//! (`saves/default_times.rs`); a rally's end (tag 3 or 4) gives the twenty entries of the next of
+//! the six rally tables the running sum of the stages' first class times + 0xB6 and 0xB2 more
+//! each, and a driver. With the checkpoint times asked for, those are made too. One caller,
+//! `menu::set_up_front_end`, when `var\hst.dat` was not loaded. Refuses missing tables, a record
+//! table without stages or without its end, and more rallies than the six tables; a refusal
+//! leaves nothing written.
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::owner::Menus;
+use crate::race::owner::Race;
 use crate::saves::allocate_best_times::count_stages;
 use crate::saves::default_times::*;
 use crate::saves::owner::Saves;
-use crate::system::owner::system;
+use crate::system::owner::System;
 use rc2k_core::saves::defaults::{Championship, RALLIES, championship_times};
 
-// ---- game data ----
-
-// ---- Rust version ----
-
 pub fn default_championship_times(
-    saves: &'static Saves,
+    so: crate::strings::append_string_by_id::StringOwners<'_>,
+    menus: &Menus,
+    race: &Race,
+    system: &System,
+    saves: &Saves,
     ebp: u32,
     log: Log,
 ) -> Result<(), Refused> {
-    let screens = &crate::menu::owner::menus().screens;
-    // Converted: `rc2k_core::saves::defaults::championship_times`.
+    let screens = &menus.screens;
     {
-        let records_at = system().records.stage_tables.championship();
-        let stages = count_stages(records_at)?;
-        let count = records(records_at)?;
-        let table = &crate::saves::best_times::STAGE_TIMES;
+        let tables = &system.records().stage_tables;
+        let records_at = tables.championship();
+        let stages = count_stages(tables, records_at)?;
+        let count = records(tables, records_at)?;
+        let table = &saves.best_tables.stage_times;
         let (true, true) = (stages != 0, table.is_taken()) else {
             return Err(BadInput("no stages, or no table for their times").into());
         };
         let records: Vec<_> = (0..count as u32)
-            .map(|n| read_record(records_at.row(n)?))
+            .map(|n| read_record(tables, records_at.row(tables, n)?))
             .collect::<Result<_, _>>()?;
         let mut tables = vec![Target::Stages(table)];
         // Every rally has its table.
@@ -50,13 +45,18 @@ pub fn default_championship_times(
             tables.push(Target::Rally(saves.rally_times.table(rally)?));
         }
         let filled = championship_times(
-            &mut GameSource { log },
+            &mut GameSource {
+                log,
+                so,
+                menus,
+                race,
+            },
             &records,
             Championship::Times { stage: ebp },
             present,
-            with_checkpoints(screens),
+            false,
         )?;
-        apply(screens, &filled, &tables)?;
+        apply(screens, race, &filled, &tables)?;
         Ok(())
     }
 }

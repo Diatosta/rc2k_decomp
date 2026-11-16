@@ -1,14 +1,14 @@
-//! Helpers of the differential tests that compare the plain-float versions with the
-//! original assembly blocks kept as references (`asm_reference` modules of this
-//! directory's files): one lock for all of them (they write shared statics and the
-//! control word), a seeded generator, and the two control words the tests run at.
+//! Helpers of the differential tests that compare the plain-float versions with the assembly
+//! reference blocks kept (the `asm_reference` modules of the files here): one lock for all of
+//! them (they write shared statics and the control word), a seeded generator, and the two control
+//! words the tests run at.
 
 use std::sync::MutexGuard;
 
 /// Holds the lock of the tests that share statics or the control word
-/// (`crate::store::test_lock`, shared with every test of the statics).
+/// (`crate::test_support::test_lock`, shared with every test of the statics).
 pub(crate) fn lock() -> MutexGuard<'static, ()> {
-    crate::store::test_lock()
+    crate::test_support::test_lock()
 }
 
 /// A seeded generator of the inputs.
@@ -28,8 +28,8 @@ impl Rng {
         self.u32() % n
     }
 
-    /// The bits of a float: mostly normal values in the game's ranges, now and then
-    /// zeros, small, large, whole numbers and halves.
+    /// The bits of a float: mostly normal values in the game's ranges, now and then zeros, small,
+    /// large, whole numbers and halves.
     pub(crate) fn float(&mut self) -> u32 {
         let unit = f64::from(self.u32()) / 4294967296.0;
         let sign = if self.u32() & 1 == 0 { 1.0 } else { -1.0 };
@@ -70,29 +70,6 @@ pub(crate) fn at_each_control_word(mut f: impl FnMut()) {
 /// Two floats' bits are the same, or both are NaN.
 pub(crate) fn same(a: u32, b: u32) -> bool {
     a == b || (f32::from_bits(a).is_nan() && f32::from_bits(b).is_nan())
-}
-
-/// The game's dwords (IDA addresses) as they were, put back when dropped.
-pub(crate) struct Saved(Vec<(usize, u32)>);
-
-impl Saved {
-    pub(crate) fn new(ida: &[usize]) -> Saved {
-        use crate::framework::{game_read, rva};
-        Saved(
-            ida.iter()
-                .map(|&a| (a, { game_read::<u32>(rva(a)) }))
-                .collect(),
-        )
-    }
-}
-
-impl Drop for Saved {
-    fn drop(&mut self) {
-        use crate::framework::{game_write, rva};
-        for &(a, v) in &self.0 {
-            game_write(rva(a), v);
-        }
-    }
 }
 
 /// Two floats' bits are within `ulps` units in the last place (same sign), or both NaN.

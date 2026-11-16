@@ -1,46 +1,60 @@
-//! `menu::apply_screen_mode` (0x4703C2): the graphics page's "apply": the screen mode chosen
-//! set (`gfx::screen_mode_choices` with eax 1, the platform's: DirectDraw modes). Taken: the fonts
-//! freed (`gfx::free_fonts`, `gfx::free_glyph_tables`) and built again (`gfx::build_fonts`,
-//! `gfx::build_menu_sprites`), the 3D tidied (`render3d_tidy`, `objects_tidy`,
-//! `nullsub_6`, `release_textures`), `scene::set_up_front_end_scene`, tune 4, the
-//! highlighted item (`dword_755525`) and `dword_74771C` 1, the menu's sound 2. Refused (a
-//! set carry): `gfx::screen_mode_choices` with eax 0 (the mode before, a reading), the 3D tidied,
-//! the front end's scene, tune 4, the item and `dword_74771C` 3, the menu's sound 8.
+//! `menu::apply_screen_mode`: the graphics page's "apply". The chosen screen mode is set
+//! (`gfx::screen_mode_choices`, the platform's). Taken: the fonts are freed
+//! (`gfx::free_fonts`, `gfx::free_glyph_tables`) and built again (`gfx::build_fonts`,
+//! `gfx::build_menu_sprites`), the 3D is tidied (`render3d_tidy`, `objects_tidy`,
+//! `release_textures`), `scene::set_up_front_end_scene` runs, tune 4 plays, the highlighted
+//! item (`loop_flags.item`) and the screen mode step become 1, and the menu's sound 2 plays.
+//! Refused: the choices list is made again from the race's screen mode (the mode before the
+//! change), the 3D is tidied, the front end's scene is set up, tune 4 plays, the item and the
+//! screen mode step become 3, and the menu's sound 8 plays.
 //!
-//! An item action of the graphics page (0x7548D4). The menus and draw lists run its `entry`
+//! An item action of the graphics page. The menus and draw lists run its `entry`
 //! (`menu::table_calls`).
 
 use crate::errors::Refused;
-use crate::menu::owner::Screens;
 use crate::menu::screen_items_store::slot;
+use crate::owners::Owners;
 
-/// The Rust version. (The original keeps every register of its caller.)
-pub fn apply_screen_mode(screens: &Screens) -> Result<(), Refused> {
-    let system = crate::system::owner::system();
-    let gfx = crate::gfx::owner::gfx();
-    // Converted: `rc2k_core::menu::steps::applied_mode`.
+pub fn apply_screen_mode(o: Owners<'static>) -> Result<(), Refused> {
+    let (screens, system, gfx) = (&o.menus.screens, o.system, o.gfx);
     use rc2k_core::menu::steps::{BACK_TO_MODE, TRY_CHOSEN_MODE, applied_mode};
-    let display = &gfx.display;
-    // `gfx::screen_mode_choices` (0x4045D6): the carry says the chosen mode was not taken.
-    let taken =
-        !crate::gfx::screen_mode_choices::screen_mode_choices(display, TRY_CHOSEN_MODE != 0)?.carry;
+    // `gfx::screen_mode_choices` answers true when the chosen mode was not taken.
+    let taken = !crate::gfx::screen_mode_choices::screen_mode_choices(
+        gfx,
+        &o.gfx.d3d,
+        o.system,
+        TRY_CHOSEN_MODE != 0,
+    )?
+    .carry;
     if taken {
         crate::gfx::free_fonts::free_fonts_in_game(gfx)?;
         crate::gfx::free_glyph_tables::free_glyph_tables(gfx)?;
-        crate::gfx::build_fonts::build_fonts(gfx)?;
-        crate::gfx::build_menu_sprites::build_menu_sprites_in_game(gfx, system)?;
+        crate::gfx::build_fonts::build_fonts_in(gfx, system, o.strings)?;
+        crate::gfx::build_menu_sprites::build_menu_sprites_in_game(
+            gfx, system, o.menus, o.strings,
+        )?;
     } else {
-        crate::gfx::screen_mode_choices::screen_mode_choices(display, BACK_TO_MODE != 0)?;
+        crate::gfx::screen_mode_choices::screen_mode_choices(
+            gfx,
+            &o.gfx.d3d,
+            o.system,
+            BACK_TO_MODE != 0,
+        )?;
     }
-    crate::race::stage_free::render3d_tidy(crate::race::owner::race())?;
-    crate::race::stage_free::objects_tidy(crate::race::owner::race())?;
-    // `nullsub_6`.
-    crate::race::race_end::release_textures();
-    crate::scene::set_up_front_end_scene::set_up_front_end_scene()?;
-    crate::sound::play_tune_4::play_tune_4();
+    crate::race::stage_free::render3d_tidy(o.race, &o.scene.scratch)?;
+    crate::race::stage_free::objects_tidy(o.race, &o.scene.scratch)?;
+    crate::race::race_end::release_textures(o.scene, o.gfx);
+    crate::scene::set_up_front_end_scene::set_up_front_end_scene_in(o)?;
+    crate::sound::play_tune_4::play_tune_4(o);
     let applied = applied_mode(taken);
     screens.loop_flags.item.set(applied.item);
     screens.items.current[slot::VISUAL_OPTIONS].set(applied.item);
-    crate::sound::play_menu_sound::play_menu_sound_in_game(applied.sound);
+    crate::sound::play_menu_sound::play_menu_sound_in_game(
+        o.sound,
+        o.audio,
+        o.menus,
+        o.system,
+        applied.sound,
+    );
     Ok(())
 }

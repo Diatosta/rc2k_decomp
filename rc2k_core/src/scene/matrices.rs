@@ -1,18 +1,12 @@
-//! The scene's matrices and the functions that make them (converted 2026-10-21 from
-//! `scene::multiply_matrices` 0x42720D, `copy_matrix_with_place` 0x4271E4, `set_place`
-//! 0x4271AE, `set_turn_x` 0x426FE1, `set_turn_y` 0x42702A, `set_turn_z_16` 0x427072,
-//! `set_fine_turn_x` 0x4270BA, `set_fine_turn_y` 0x42710C, `set_turn_z` 0x42715D,
-//! `unit_vector` 0x420EF8, `cross_product` 0x420F8D, `square_matrix` 0x420E94,
-//! `invert_turn` 0x420CC2, `set_light_direction` 0x427326, `make_object_matrix` 0x427812,
-//! `set_view_matrices` 0x438FBF, `cross_product3` 0x465551 and `adjugate_matrix`
-//! 0x4BCF6B).
+//! The scene's matrices and the functions that make them: products, turns about each axis,
+//! unit vectors, cross products, inverses, the light direction, the object and view matrices
+//! and the adjugate.
 //!
-//! A matrix is sixteen floats, rows 0x10 bytes apart; a point is turned by the first
-//! three rows and columns and moved by the fourth row's first three floats. Matrices and
-//! vectors are `Places` (they may overlap, as the original's pointers may), each part
-//! written before the next is worked out. As in `math::vector`, what the x87 keeps on its
-//! stack is an `f64`, rounded to `f32` where the original stores it: the same bits at the
-//! game's double precision (but for the sines and cosines, `scene::trig`).
+//! A matrix is sixteen floats, rows 0x10 bytes apart; a point is turned by the first three rows
+//! and columns and moved by the fourth row's first three floats. Matrices and vectors are
+//! `Places` (they may overlap), each part written before the next is worked out. Intermediates
+//! are `f64`, rounded to `f32` where stored (as in `math::vector`; sines and cosines:
+//! `scene::trig`).
 
 use super::places::{Places, loaded};
 use super::trig;
@@ -26,10 +20,9 @@ fn cell(m: u32, row: u32, column: u32) -> u32 {
     m.wrapping_add(row * 0x10 + column * 4)
 }
 
-/// `scene::multiply_matrices`: column by column for the first three, row by row in each,
-/// `out`'s cell the row of `a` times the column of `b` (the last two products added
-/// first); then `b`'s fourth-row float of that column added to `out`'s. `out`'s fourth
-/// column is left as it is.
+/// Column by column for the first three, row by row in each, `out`'s cell the row of `a`
+/// times the column of `b` (the last two products added first); then `b`'s fourth-row float
+/// of that column is added. `out`'s fourth column is left as it is.
 pub fn multiply(p: &mut impl Places, a: u32, b: u32, out: u32) {
     for column in 0..3 {
         for row in 0..4 {
@@ -41,14 +34,14 @@ pub fn multiply(p: &mut impl Places, a: u32, b: u32, out: u32) {
     }
 }
 
-/// `fld a; fadd out; fstp out`.
+/// Adds the float at `a` to the one at `out`, stored as a float.
 fn add_into(p: &mut impl Places, a: u32, out: u32) {
     let sum = p.float(a) as f64 + p.float(out) as f64;
     p.set_float(out, sum as f32);
 }
 
-/// `scene::copy_matrix_with_place`: `out` = `from`, dword by dword upwards, then the
-/// first three floats of `other`'s fourth row added to `out`'s.
+/// `out` = `from`, dword by dword upwards, then the first three floats of `other`'s fourth
+/// row added to `out`'s.
 pub fn copy_with_place(p: &mut impl Places, from: u32, other: u32, out: u32) {
     copy_matrix(p, from, out);
     for n in 0..3 {
@@ -64,14 +57,13 @@ fn copy_matrix(p: &mut impl Places, from: u32, out: u32) {
     }
 }
 
-/// Where the matrix functions' matrices, work and constants are (the game's variables;
-/// the names are the hook crate's).
+/// Where the matrix functions' matrices, work and constants are.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Layout {
     pub turn_x: u32,
     pub turn_y: u32,
     pub turn_z: u32,
-    /// Its fourth row the place.
+    /// A matrix with its fourth row the place.
     pub placed: u32,
     pub turned: u32,
     pub lit: u32,
@@ -88,7 +80,7 @@ pub struct Layout {
     pub turn_z_work: u32,
     /// The light's direction, three floats.
     pub light_direction: u32,
-    /// `dword_62400C`, the scratch several functions leave a value in.
+    /// The scratch several functions leave a value in.
     pub checked: u32,
     /// The squaring's three work rows (and the four dwords after them).
     pub squared: u32,
@@ -121,8 +113,8 @@ impl Axis {
         }
     }
 
-    /// Where the cosine, the sine, the sine negated and the cosine go, in the order the
-    /// table turnings write them.
+    /// Where the cosine, the sine, the sine negated and the cosine go, in the order the table
+    /// turnings write them.
     fn cells(self) -> [(u32, Part); 4] {
         use Part::*;
         match self {
@@ -179,8 +171,7 @@ fn put_turn(p: &mut impl Places, axis: Axis, l: &Layout, t: Turn) {
     }
 }
 
-/// `scene::set_turn_x`, `set_turn_y`, `set_turn_z_16`: the turning about `axis` by an
-/// angle of sixteen bits a turn, from the tables.
+/// The turning about `axis` by an angle of sixteen bits a turn, from the tables.
 pub fn set_table_turn(p: &mut impl Places, l: &Layout, axis: Axis, angle: u32) -> Turn {
     let entry = 4 * table_entry(angle);
     let t = Turn {
@@ -191,7 +182,7 @@ pub fn set_table_turn(p: &mut impl Places, l: &Layout, axis: Axis, angle: u32) -
     t
 }
 
-/// `fild angle; fdiv h; fdiv h; fdiv turn; fsincos`, the two stored.
+/// The sine and cosine of `angle` over `half_turns` twice and `turn`, the two stored.
 pub fn fine_sine_cosine(angle: i32, half_turns: f32, turn: f32) -> Turn {
     let (h, turn) = (half_turns as f64, turn as f64);
     let x = angle as f64 / h / h / turn;
@@ -201,8 +192,7 @@ pub fn fine_sine_cosine(angle: i32, half_turns: f32, turn: f32) -> Turn {
     }
 }
 
-/// `scene::set_fine_turn_x`, `set_fine_turn_y`, `set_turn_z`: the angle (32 bits a turn)
-/// left in the scratch, the turning about `axis` worked out.
+/// The angle (32 bits a turn) left in the scratch, the turning about `axis` worked out.
 pub fn set_fine_turn(p: &mut impl Places, l: &Layout, axis: Axis, angle: u32) -> Turn {
     p.set_dword(l.checked, angle);
     let t = fine_sine_cosine(angle as i32, p.float(l.half_turns), p.float(l.turn));
@@ -210,23 +200,23 @@ pub fn set_fine_turn(p: &mut impl Places, l: &Layout, axis: Axis, angle: u32) ->
     t
 }
 
-/// `scene::set_place`: the place's whole numbers into `placed`'s fourth row, its third
-/// (as it is) into the scratch.
+/// The place's whole numbers into `placed`'s fourth row, its third (as it is) into the
+/// scratch.
 pub fn set_place(p: &mut impl Places, l: &Layout, place: [u32; 3]) {
     let floats = place.map(|v| v as i32 as f32);
     p.set_floats(cell(l.placed, 3, 0), &floats);
     p.set_dword(l.checked, place[2]);
 }
 
-/// Whether two floats compare as equal on the x87 (`fcomp`'s C3), which they also do when
-/// either is no number.
+/// Whether two floats compare as equal as the x87 compares them: also when either is no
+/// number.
 fn equal_or_unordered(a: f32, b: f32) -> bool {
     a == b || a.is_nan() || b.is_nan()
 }
 
-/// `scene::unit_vector`: the three floats at `from` made one long, into `out`; the length
-/// (squares added, the last two first) into the scratch; all zeros when it compares equal
-/// to the layout's nothing; minus zeros made zero.
+/// The three floats at `from` made one long, into `out`; the length (squares added, the
+/// last two first) into the scratch; all zeros when it compares equal to the layout's
+/// nothing; minus zeros made zero.
 pub fn unit_vector(p: &mut impl Places, l: &Layout, from: u32, out: u32) {
     let length = vector::length(p.floats(from)) as f32;
     p.set_float(l.checked, length);
@@ -247,13 +237,12 @@ pub fn unit_vector(p: &mut impl Places, l: &Layout, from: u32, out: u32) {
     }
 }
 
-/// `fld a; fmul b; fld c; fmul d; fsubp`: a b - c d, unrounded.
+/// a b - c d, unrounded.
 fn product_difference(a: f32, b: f32, c: f32, d: f32) -> f64 {
     a as f64 * b as f64 - c as f64 * d as f64
 }
 
-/// `scene::adjugate_matrix`'s entries: where each goes and the four floats (byte offsets)
-/// of a b - c d.
+/// Where each adjugate entry goes and the four floats (byte offsets) of a b - c d.
 pub const COFACTORS: [(u32, [u32; 4]); 9] = [
     (0x00, [0x14, 0x28, 0x24, 0x18]),
     (0x10, [0x20, 0x18, 0x10, 0x28]),
@@ -266,9 +255,9 @@ pub const COFACTORS: [(u32, [u32; 4]); 9] = [
     (0x28, [0x00, 0x14, 0x10, 0x04]),
 ];
 
-/// `scene::adjugate_matrix`: matrix `m`'s 3 x 3 cofactors, transposed, into `out` (each
-/// stored before the next is worked out: `out` may be `m`), then its place (+0x30 ..
-/// +0x38) negated (`fld; fchs; fstp`). +0xC, +0x1C, +0x2C, +0x3C are left.
+/// Matrix `m`'s 3 x 3 cofactors, transposed, into `out` (each stored before the next is
+/// worked out: `out` may be `m`), then its place (+0x30 ..= +0x38) negated. +0xC, +0x1C,
+/// +0x2C, +0x3C are left.
 pub fn adjugate_matrix(p: &mut impl Places, m: u32, out: u32) {
     for (to, [a, b, c, d]) in COFACTORS {
         let f = |o: u32| p.float(m.wrapping_add(o));
@@ -281,8 +270,8 @@ pub fn adjugate_matrix(p: &mut impl Places, m: u32, out: u32) {
     }
 }
 
-/// `scene::cross_product`: ebx `b`, ecx `c`, edx `out`: out[0] c2 b1 - b2 c1, out[1] c0 b2
-/// - b0 c2, out[2] c1 b0 - b1 c0, each stored before the next.
+/// `b` x `c` into `out`: `out[0] = c2 b1 - b2 c1`, `out[1] = c0 b2 - b0 c2`,
+/// `out[2] = c1 b0 - b1 c0`, each stored before the next.
 pub fn cross(p: &mut impl Places, b: u32, c: u32, out: u32) {
     for (n, (x, y)) in [(2, 1), (0, 2), (1, 0)].into_iter().enumerate() {
         let get = |v: u32, k: u32| p.float(v.wrapping_add(4 * k));
@@ -291,8 +280,8 @@ pub fn cross(p: &mut impl Places, b: u32, c: u32, out: u32) {
     }
 }
 
-/// `scene::cross_product3`: esi `a`, edi `b`, ebp `out`: x a.y b.z - a.z b.y, y a.z b.x -
-/// a.x b.z, z a.x b.y - a.y b.x, each stored before the next.
+/// `a` x `b` into `out`: x a.y b.z - a.z b.y, y a.z b.x - a.x b.z, z a.x b.y - a.y b.x, each
+/// stored before the next.
 pub fn cross3(p: &mut impl Places, a: u32, b: u32, out: u32) {
     for (n, (x, y)) in [(1, 2), (2, 0), (0, 1)].into_iter().enumerate() {
         let get = |v: u32, k: u32| p.float(v.wrapping_add(4 * k));
@@ -301,10 +290,9 @@ pub fn cross3(p: &mut impl Places, a: u32, b: u32, out: u32) {
     }
 }
 
-/// `scene::square_matrix`: a turning's three rows made one long and at right angles again
-/// in the work rows (the third from its third row, the first its second crossed with
-/// that, the second the third crossed with the first), then sixteen dwords of the work
-/// back to the matrix.
+/// A turning's three rows made one long and at right angles again in the work rows (the
+/// third from its third row, the first its second crossed with that, the second the third
+/// crossed with the first), then sixteen dwords of the work back to the matrix.
 pub fn square(p: &mut impl Places, l: &Layout, at: u32) {
     let first = l.squared;
     let second = first.wrapping_add(0x10);
@@ -316,9 +304,8 @@ pub fn square(p: &mut impl Places, l: &Layout, at: u32) {
     copy_matrix(p, first, at);
 }
 
-/// `scene::invert_turn`: the turning at `from` undone into `out`: its nine floats copied
-/// to the work (`fld; fstp`), their cofactors laid out the other way round (also kept in
-/// the work), then squared.
+/// The turning at `from` undone into `out`: its nine floats copied to the work, their
+/// cofactors laid out the other way round, then squared.
 pub fn invert_turn(p: &mut impl Places, l: &Layout, from: u32, out: u32) {
     let m: [f32; 9] = std::array::from_fn(|n| {
         f32::from_bits(loaded(p.dword(cell(from, n as u32 / 3, n as u32 % 3))))
@@ -345,10 +332,9 @@ pub fn invert_turn(p: &mut impl Places, l: &Layout, from: u32, out: u32) {
     square(p, l, out);
 }
 
-/// `scene::set_light_direction`: the turnings about x and y by the light's two angles
-/// (`light` x then y, each times 256 and negated), the first times the second into
-/// `turned`, that times the view's turning into `lit`, and (0, 0, 1) through that
-/// (`scene::rotate_point`) the light's direction.
+/// The turnings about x and y by the light's two angles (`light` x then y, each times 256
+/// and negated), the first times the second into `turned`, that times the view's turning
+/// into `lit`, and (0, 0, 1) through that is the light's direction.
 pub fn set_light_direction(p: &mut impl Places, l: &Layout, light: [u32; 2]) {
     set_table_turn(p, l, Axis::X, (light[0] << 8).wrapping_neg());
     set_table_turn(p, l, Axis::Y, (light[1] << 8).wrapping_neg());
@@ -372,19 +358,18 @@ pub struct Object {
     /// About y, then x (16 bits a turn).
     pub angles: [u32; 2],
     pub place: [u32; 3],
-    /// Sixteenths.
+    /// In sixteenths.
     pub size: u32,
 }
 
-/// `fild size; fld1; fadd st, st` four times; `fdivp`: a whole number over 16, stored.
+/// A whole number over 16, stored as a float.
 pub fn sixteenths(size: i32) -> f32 {
     (size as f64 / 16.0) as f32
 }
 
-/// `scene::make_object_matrix`: the light's direction (`light` as there); the turnings
-/// about y and x by the object's angles negated; its place; y times x into `turned`,
-/// scaled by the size (in sixteenths, left in the scratch); that with the place into
-/// `object`.
+/// The light's direction; the turnings about y and x by the object's angles negated; its
+/// place; y times x into `turned`, scaled by the size (in sixteenths, left in the scratch);
+/// that with the place into `object`.
 pub fn make_object_matrix(p: &mut impl Places, l: &Layout, light: [u32; 2], o: Object) {
     set_light_direction(p, l, light);
     set_table_turn(p, l, Axis::Y, o.angles[0].wrapping_neg());
@@ -401,11 +386,10 @@ pub fn make_object_matrix(p: &mut impl Places, l: &Layout, light: [u32; 2], o: O
     copy_with_place(p, l.turned, l.placed, l.object);
 }
 
-/// `scene::set_view_matrices`: the view's turning from the identity, the fine turnings
-/// about y, x and z by the view's angles negated, y times x into `lit`, that times z into
-/// the view's turning; the place negated, the placed matrix kept, times the turning into
-/// the view; the turning undone into `view_back`. The place negated is returned (the
-/// registers take two of it).
+/// The view's turning from the identity, the fine turnings about y, x and z by the view's
+/// angles negated, y times x into `lit`, that times z into the view's turning; the place
+/// negated, the placed matrix kept, times the turning into the view; the turning undone
+/// into `view_back`. Returns the place negated.
 pub fn set_view_matrices(
     p: &mut impl Places,
     l: &Layout,
@@ -466,8 +450,8 @@ mod tests {
         let mut p = TestPlaces(vec![0; (l.cosines as usize + 0x4000) / 4]);
         for n in 0..0x1000u32 {
             let a = n as f64 * std::f64::consts::TAU / 4096.0;
-            p.set_float(l.sines + 4 * n, a.sin() as f32);
-            p.set_float(l.cosines + 4 * n, a.cos() as f32);
+            p.set_float(l.sines + 4 * n, crate::math::portable::sin(a) as f32);
+            p.set_float(l.cosines + 4 * n, crate::math::portable::cos(a) as f32);
         }
         let identity = [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0];
         for at in [l.identity, l.turn_x, l.turn_y, l.turn_z] {
@@ -615,7 +599,7 @@ mod tests {
         p.set_floats(0, &[1.0, 0.0, 0.0, 0.0, 1.0, 0.0]);
         cross3(&mut p, 0, 12, 24);
         assert_eq!(p.floats::<3>(24), [0.0, 0.0, 1.0]);
-        // ebx b, ecx c: b x c, as well.
+        // b x c, as well.
         p.set_floats(24, &[0.0; 3]);
         cross(&mut p, 0, 12, 24);
         assert_eq!(p.floats::<3>(24), [0.0, 0.0, 1.0]);

@@ -1,106 +1,96 @@
-//! `race::viewer_load_stage` (0x41CDC2): with a replay open (`dword_5BEC88` 1), its stage
-//! loaded for the viewer: the front end's 3D tidied (`race::render3d_tidy`,
-//! `race::objects_tidy`, `nullsub_6`, `race::release_textures`), the race's screen mode
-//! (`race::set_race_screen_mode`), the loading picture (`menu::show_loading_picture`);
-//! from the replay's header the game mode, players, cars and options (`dword_719B18` ..
-//! into `dword_75ACD8`, `g_onePlayer`, `dword_75ACE8`, `dword_75ACEC`, `dword_75AE20`,
-//! `dword_75AF8C`; `dword_75AE28`, `dword_75AF94` 0; `dword_75ACE0` the players; the
-//! co-driver's door `byte_719C8C` into `dword_75AE1C` and the cars' block, logged
-//! "doornr="); the race's sounds (`race::set_up_race_sound_objects`,
-//! `sound::set_up_race_sounds`); the fonts unless there are some (`gfx::build_fonts`,
-//! `dword_5BECC4` 1); the header read in (`race::read_replay_header`), the stage
-//! (`race::load_stage`), the sounds reset (`race::reset_race_sounds`), the page's
-//! palettes (`race::viewer_palettes`), `dword_5BECC0` 1. Then (always) the pending key
-//! taken (`input::take_key`).
+//! `race::viewer_load_stage`: with a replay open (`replay_open` 1), loads its stage for the
+//! viewer. The front end's 3D is tidied (`race::render3d_tidy`, `race::objects_tidy`,
+//! `race::release_textures`), the race's screen mode is set (`race::set_race_screen_mode`) and
+//! the loading picture shown (`menu::show_loading_picture`). From the replay's header come the
+//! game mode, players, cars and options (`header_mode` and the words after it go into
+//! `RaceState.settings.run_kind`, `one_player`, `car_kind_current`, `car_kind_first` and both
+//! cars' `codriver_sex`; both cars' `controller` are set to 0 and `race_mode` to the players'
+//! count; the co-driver's door goes into `RaceState.settings.cars[0].race_number` and the cars'
+//! block, logged as "doornr="). Then the race's sounds are set up
+//! (`race::set_up_race_sound_objects`, `sound::set_up_race_sounds`), the fonts built unless there
+//! are some (`gfx::build_fonts`, `viewer_fonts_built` 1), the header read in
+//! (`race::read_replay_header`), the stage loaded (`race::load_stage`), the sounds reset
+//! (`race::reset_race_sounds`), the page's palettes made (`race::viewer_palettes`) and
+//! `viewer_stage_loaded` set to 1. In every case the pending key is taken last
+//! (`input::take_key`).
 //!
-//! Callers: `race::replay_viewer`, `race::viewer_action` (0x14, after another replay is
-//! opened), `race::choose_save_slot`. The only register it reads at entry is esi, which
-//! goes to `release_textures` and `set_race_screen_mode` (attrib), whose Rust versions
-//! read none.
+//! Called by `race::replay_viewer`, `race::viewer_action` (0x14, after another replay is opened)
+//! and `race::choose_save_slot`.
 
 use crate::errors::Refused;
-use crate::race::blocks_store::CAR_BLOCKS;
+use crate::memory::session::DwordLike;
+use crate::owners::Owners;
 use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
-use crate::race::replay_work_store::REPLAY_WORK;
-use crate::session::Dword;
 
-const DOOR_TEXT: &std::ffi::CStr = c"doornr="; // "doornr="
-/// (to, from): the header's settings.
-fn settings(shared: &Shared) -> [(&Dword, &'static Dword); 5] {
+const DOOR_TEXT: &std::ffi::CStr = c"doornr=";
+
+/// The header's settings as (to, from).
+fn settings(race: &Race) -> [(&dyn DwordLike, &crate::memory::session::PlainDword); 5] {
+    let shared = &race.shared;
+    let work = race.replay_work();
     [
-        (&shared.state.settings.run_kind, &REPLAY_WORK.header_mode),
-        (
-            &shared.state.settings.car_kind_current,
-            &REPLAY_WORK.header_kind_0,
-        ),
-        (
-            &shared.state.settings.car_kind_first,
-            &REPLAY_WORK.header_kind_1,
-        ),
+        (&shared.state.settings.run_kind, &work.header_mode),
+        (&shared.state.settings.car_kind_current, &work.header_kind_0),
+        (&shared.state.settings.car_kind_first, &work.header_kind_1),
         (
             &shared.state.settings.cars[0].codriver_sex,
-            &REPLAY_WORK.header_codriver_sex_0,
+            &work.header_codriver_sex_0,
         ),
         (
             &shared.state.settings.cars[1].codriver_sex,
-            &REPLAY_WORK.header_codriver_sex_1,
+            &work.header_codriver_sex_1,
         ),
     ]
 }
 
-/// The Rust version (every register kept).
-pub fn viewer_load_stage(race: &Race) -> Result<(), Refused> {
-    let gfx = crate::gfx::owner::gfx();
-    let sound = crate::sound::owner::sound();
-    let scene = crate::scene::owner::scene();
+pub fn viewer_load_stage(race: &'static Race, o: Owners<'static>) -> Result<(), Refused> {
+    let (gfx, sound, scene) = (o.gfx, o.sound, o.scene);
     let shared = &race.shared;
     use crate::race::{race_end, race_shell, sound_tables, stage_free, stage_loading};
     #[cfg(feature = "remote")]
-    crate::remote::shots_loading();
-    if shared.replay_file.replay_open.get() == 1 {
-        stage_free::render3d_tidy(race)?;
-        stage_free::objects_tidy(race)?;
-        // nullsub_6
-        race_end::release_textures();
-        race_shell::set_race_screen_mode();
+    crate::remote::shots_loading(race, o.race.effects.get(), &o.system.session.picture_clock);
+    if shared.replay_file().replay_open.is_set() {
+        stage_free::render3d_tidy(race, &scene.scratch)?;
+        stage_free::objects_tidy(race, &scene.scratch)?;
+        race_end::release_textures(o.scene, o.gfx);
+        race_shell::set_race_screen_mode(gfx, o.system);
 
-        crate::menu::show_loading_picture::show_loading_picture(crate::menu::owner::menus())?;
-        for (to, from) in settings(shared) {
+        crate::menu::show_loading_picture::show_loading_picture_in(o)?;
+        for (to, from) in settings(race) {
             to.set(from.get());
         }
-        // g_onePlayer (the sound module's) takes the header's setting too.
+        // The sound module's `one_player` takes the header's setting too.
         sound
-            .race
-            .sounds
+            .threads
+            .shared
             .one_player
-            .set(REPLAY_WORK.header_one_player.get());
-        shared.state.settings.cars[0].controller.set(0);
-        shared.state.settings.cars[1].controller.set(0);
+            .set(race.replay_work().header_one_player.get());
+        shared.state.settings.cars[0].controls.controller.set(0);
+        shared.state.settings.cars[1].controls.controller.set(0);
         shared
             .state
             .settings
             .race_mode
-            .set(sound.race.sounds.one_player.get());
-        // byte_719C8C: the low byte of the first dword of `unknown_7d0`.
-        let door = REPLAY_WORK.unknown_7d0[0].get() & 0xFF;
+            .set(sound.threads.shared.one_player.get());
+        // The door number is the low byte of the first dword of `unknown_7d0`.
+        let door = race.replay_work().unknown_7d0[0].get() & 0xFF;
         shared.state.settings.cars[0].race_number.set(door);
-        CAR_BLOCKS.cars[0].start_slot_value.set(door);
+        race.car_blocks().cars[0].start_slot_value.set(door);
         crate::logfile::log_write::log_nul(&DOOR_TEXT, false, 1);
         crate::logfile::log_int::log_int(door as i32, true, 1);
 
-        sound_tables::set_up_race_sound_objects(race, &sound_tables::ObjectVars::game(), sound)?;
-        crate::sound::set_up_race_sounds::set_up_race_sounds(sound)?;
+        sound_tables::set_up_race_sound_objects(o, &sound_tables::ObjectVars::of(sound))?;
+        crate::sound::set_up_race_sounds::set_up_race_sounds(o)?;
         if gfx.fonts.font_block.palettes.get() == 0 {
-            { crate::gfx::build_fonts::build_fonts(gfx) }?;
-            shared.replay_file.viewer_fonts_built.set(1);
+            crate::gfx::build_fonts::build_fonts_in(gfx, o.system, o.strings)?;
+            shared.replay_file().viewer_fonts_built.set(1);
         }
-        crate::race::read_replay_header::read_replay_header(shared);
-        { stage_loading::load_stage(race) }?;
-        race_end::reset_race_sounds(&race_end::SoundVars::game(), sound)?;
-        crate::race::viewer_palettes::viewer_palettes(shared, scene)?;
-        shared.replay_file.viewer_stage_loaded.set(1);
+        crate::race::read_replay_header::read_replay_header(race);
+        { stage_loading::load_stage(race, o) }?;
+        race_end::reset_race_sounds(&race_end::SoundVars::game(sound), o)?;
+        crate::race::viewer_palettes::viewer_palettes(shared, scene, gfx, o.system)?;
+        shared.replay_file().viewer_stage_loaded.set(1);
     }
-    crate::input::take_key::take_key();
+    crate::input::take_key::take_key(o.input);
     Ok(())
 }

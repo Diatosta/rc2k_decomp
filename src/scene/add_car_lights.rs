@@ -1,81 +1,97 @@
-//! `scene::add_car_lights` (0x44F1FE): which cars' lamps light an object.
+//! `scene::add_car_lights`: which cars' lamps light an object.
 //!
-//! Returns: the number of cars, the last car's block
+//! Returns the number of cars and the last car's block. Calls `scene::add_car_light` for:
+//! - in a network session: the network player's car, or every car while the split-screen
+//!   setting is 1;
+//! - else: the cars under the player count (every car while the split-screen setting is 1),
+//!   but not the car being drawn (the drawn-car light cell), and of those all of them if
+//!   the player count is 1 or the run kind is 0 or 2, else only the drawn view's car.
 //!
-//! Goes through the `dword_63DB90` blocks of `g_carBlocks` and calls
-//! `scene::add_car_light` for:
-//! - with `dword_52A910` set: the car `dword_52A920`, or every car while
-//!   `dword_6238B8` is 1;
-//! - else: the cars under `dword_63DB94` (every car while `dword_6238B8` is 1), but
-//!   not the car `dword_639968` (the one being drawn, by its use), and of those all
-//!   of them if `dword_63DB94` is 1 or `dword_62389C` is 0 or 2, else only the car
-//!   `dword_63DBA8[dword_63DB9C]`.
-//!
-//! One caller, `scene::gather_lights`. Refuses no cars (the original goes through 2^32) or more
-//! than the eight blocks.
+//! Refuses no cars or more than the eight blocks.
 
 use crate::errors::{BadInput, Refused};
-use crate::net::owner::net;
-use crate::physics::car_store::Car;
-use crate::race::owner::Race;
+use crate::race::frame_view::CarView;
+use rc2k_core::net::net_race::NetRace;
 
 // ---- game data ----
 const BLOCKS: u32 = 8;
 
-// ---- Rust version ----
-
 /// The game's variables the choice reads.
-struct GameCars<'a>(&'a Race, crate::scene::reading::Reading);
+struct GameCars<'a>(
+    crate::scene::reading::Reading,
+    u32,
+    u32,
+    Option<NetRace>,
+    crate::scene::workers::DrawReads<'a>,
+);
 
 impl rc2k_core::scene::lamps::CarLights for GameCars<'_> {
     fn one_car(&self) -> bool {
-        net().vars.session.get() != 0
+        self.3.is_some()
     }
     fn the_car(&self) -> u32 {
-        net().vars.player.get()
+        self.3.map_or(0, |net_race| net_race.player)
     }
     fn all_cars(&self) -> bool {
-        self.0.shared.vars.settings_words[4].bits() == 1
+        self.4.vars.settings_words[4].get() == 1
     }
     fn near(&self) -> u32 {
-        self.0.shared.view.players.bits()
+        self.4.view.players.get()
     }
     fn view(&self) -> u32 {
-        self.0.shared.vars.run_kind.bits()
+        self.4.vars.run_kind.get()
     }
     fn drawn(&self) -> u32 {
-        self.0.physics.ground.drawn_car_light.bits()
+        self.1
     }
     fn viewed(&self) -> u32 {
-        let shared = &self.0.shared;
-        // The store holds two views; the original's index is not held to them.
-        self.1.keep(crate::session::read_on_in(
-            &shared.view,
-            &shared.view.view_cars,
-            shared.view.drawn_view.bits() as usize,
-            "the drawn view's car",
-        ))
+        // The drawn view is 0 or 1: a part's own view number modulo 2, or a players'
+        // scene's, which only `race::draw_race_scene` writes (0, or the player 0 .. 1).
+        self.0.keep(self.4.view.drawn_view_car(self.2))
     }
 }
 
-// Converted: `rc2k_core::scene::lamps::car_lights`
+// Logic: `rc2k_core::scene::lamps::car_lights`
+/// `drawn`: the car whose lights are skipped, or -1 (`ObjectLight::drawn_car_light`).
 pub fn add_car_lights(
-    race: &Race,
-    add: &mut dyn FnMut(&Car) -> Result<(), Refused>,
+    reads: crate::scene::workers::DrawReads<'_>,
+    net_race: Option<NetRace>,
+    drawn: u32,
+    view: u32,
+    add: &mut dyn FnMut(&CarView, u32) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    let shared = &race.shared;
     {
-        let cars: u32 = shared.view.race_cars.bits();
+        let cars: u32 = reads.view.race_cars.get();
         if cars == 0 || cars > BLOCKS {
             return Err(BadInput("no cars, or more than their blocks").into());
         }
-        let lights = GameCars(race, crate::scene::reading::Reading::new());
+        let lights = GameCars(
+            crate::scene::reading::Reading::new(),
+            drawn,
+            view,
+            net_race,
+            reads,
+        );
         for car in 0..cars {
-            let block = shared.work.car_block(car as usize);
             let lit = rc2k_core::scene::lamps::car_lights(&lights, car);
-            lights.1.finish()?;
+            lights.0.finish()?;
             if lit {
-                add(crate::race::blocks_store::block_at(block, "no car")?)?;
+                // The car as the drawing sees it, and its marks count (the drawing's own, in
+                // the block: `race::car_parts`).
+                let marks = crate::race::owner_shared::RaceShared::race_car_or_in(
+                    reads.work,
+                    reads.car_blocks,
+                    car as usize,
+                    "no car",
+                )?
+                .marks_count
+                .get();
+                add(
+                    reads
+                        .frame_cars
+                        .car(reads.work.block_number(car as usize)?)?,
+                    marks,
+                )?;
             }
         }
         Ok(())

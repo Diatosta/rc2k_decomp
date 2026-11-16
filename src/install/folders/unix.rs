@@ -1,9 +1,8 @@
-//! Native Unix folders: absolute paths kept as the system names them (a `/` at the end, no
-//! case change), shown whole (the game's font has no `~`: seen 2026-10-28), typed whole
-//! or with `~` for the home folder; by default the user's data
-//! folder (`$XDG_DATA_HOME`, `~/.local/share`) + `rally-championship`, not the home
-//! folder's root (owner, 2026-10-28). The installer's file lists name their files with `\`
-//! (`files\d\..`): `files::host_path` reads those as `/`.
+//! Native Unix folders: absolute paths as the system names them (a `/` at the end, no case
+//! change), shown whole, typed whole or with `~` for the home folder; by default the user's data
+//! folder (`$XDG_DATA_HOME`, `~/.local/share`) + `rally-championship`; on macOS
+//! `~/Library/Application Support/Rally Championship`. The installer's file lists name their
+//! files with `\` (`files\d\..`): `files::host_path` reads those as `/`.
 
 use super::{Current, Folders, Room};
 use crate::errors::{BadInput, Refused};
@@ -12,7 +11,12 @@ use std::path::Path;
 pub struct Unix;
 
 /// The folder's name in the user's data folder.
+#[cfg(not(target_os = "macos"))]
 const NAME: &str = "rally-championship";
+/// The folder's name in the user's Application Support folder (macOS names these as the
+/// application is named).
+#[cfg(target_os = "macos")]
+const MAC_NAME: &str = "Rally Championship";
 
 fn home() -> Option<String> {
     std::env::var("HOME")
@@ -57,6 +61,18 @@ fn absolute(text: &str, cwd: &str, home: Option<&str>) -> Option<String> {
 impl Folders for Unix {
     const DRIVES: bool = false;
 
+    #[cfg(target_os = "macos")]
+    fn first_folder() -> Option<Vec<u8>> {
+        // macOS keeps an application's data in the user's Application Support folder;
+        // without a home folder (none set): the name alone, in the current folder.
+        let shown = match home() {
+            Some(h) => format!("{h}/Library/Application Support/{MAC_NAME}"),
+            None => MAC_NAME.to_string(),
+        };
+        Some(crate::files::ansi_bytes(&shown))
+    }
+
+    #[cfg(not(target_os = "macos"))]
     fn first_folder() -> Option<Vec<u8>> {
         // Without a home folder (none set): the name alone, in the current folder.
         let shown = match (std::env::var("XDG_DATA_HOME"), home()) {
@@ -97,17 +113,17 @@ impl Folders for Unix {
             || inner.windows(2).any(|w| w == b"//"))
     }
 
-    fn make(at: crate::place::Place) -> Result<bool, Refused> {
+    fn make(at: crate::memory::place::BytePlace) -> Result<bool, Refused> {
         let text = at.text("a folder")?;
         let folder = crate::files::host_path(&text);
         let made = std::fs::create_dir_all(&folder);
         if let Err(e) = &made {
-            crate::framework::log(&format!("install: {}: {e}", folder.display()));
+            crate::logfile::program_log::log(&format!("install: {}: {e}", folder.display()));
         }
         Ok(made.is_ok())
     }
 
-    fn room(folder: &[u8]) -> Room {
+    fn room(folder: &[u8], _system: &crate::system::owner::System) -> Room {
         let full = crate::files::host_path(folder);
         let mut at: &Path = &full;
         while !at.is_dir() {
@@ -116,7 +132,7 @@ impl Folders for Unix {
                 None => return Room::Unreadable,
             }
         }
-        match crate::os::free_kb_at(at) {
+        match crate::platform::os::free_kb_at(at) {
             Some(kb) => Room::Kb(kb),
             None => Room::Unreadable,
         }
@@ -128,12 +144,12 @@ impl Folders for Unix {
         crate::files::ansi_bytes(if full.is_empty() { "/" } else { full })
     }
 
-    fn field_most(_original: u8) -> u8 {
-        // A whole path: the original's 124 cut a long home folder's without a word.
+    fn field_most(_record_most: u8) -> u8 {
+        // A whole path: a long home folder is not cut.
         200
     }
 
-    fn field_width(_original: u16) -> u16 {
+    fn field_width(_record_width: u16) -> u16 {
         // Whole paths (`/home/me/.local/share/..`): nearly the 800-pixel screen.
         760
     }
@@ -164,7 +180,10 @@ mod tests {
         assert!(Unix::bad_name(b"/opt/a\\b/").unwrap());
         assert!(Unix::bad_name(b"opt/").unwrap());
         assert!(matches!(
-            Unix::room(b"/no/such/folder/at/all/"),
+            Unix::room(
+                b"/no/such/folder/at/all/",
+                crate::test_support::own::system()
+            ),
             Room::Kb(_)
         ));
     }

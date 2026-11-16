@@ -1,8 +1,7 @@
-//! The HUD's time panels (converted 2026-10-21 from `hud::layout_0` 0x4B1D8C,
-//! `hud::layout_1` 0x4B2743 and `hud::layout_2`): a time in hundredths made six digits,
-//! each a rectangle of the HUD's sprite sheet (`dword_75B940`, 0x10 bytes a rectangle), and
-//! the rules the three layouts share: the clock and lap panels' rectangles, the times with
-//! their leading digits left out, the stage panel's number and the needle's sign.
+//! The HUD's time panels: a time in hundredths made six digits, each a rectangle of the HUD's
+//! sprite sheet (`HudBlock.rects[0].left`, 0x10 bytes a rectangle), and the rules the three layouts
+//! share: the clock and lap panels' rectangles, the times with their leading digits left out, the
+//! stage panel's number and the needle's sign.
 
 /// The six digits are the time's remainder by this (an hour and a half in hundredths:
 /// minutes go up to 89).
@@ -11,8 +10,8 @@ pub const WRAP: u32 = 0x57E40;
 /// what is left is the hundredths.
 pub const DIVISORS: [u32; 5] = [60000, 6000, 1000, 100, 10];
 
-/// A time's digits (`dword_75C08C` ..): its size (the original's `neg` of a negative,
-/// wrapping) by `WRAP`, then by `DIVISORS`; each plus `base` (the first digit's rectangle).
+/// A time's digits (`HudBlock.digits[0]` ..): its size (negatives wrap) by `WRAP`, then by
+/// `DIVISORS`; each plus `base` (the first digit's rectangle).
 pub fn time_digits(value: u32, base: u32) -> [u32; 6] {
     let mut r = if (value as i32) < 0 {
         value.wrapping_neg()
@@ -29,12 +28,12 @@ pub fn time_digits(value: u32, base: u32) -> [u32; 6] {
     d
 }
 
-/// What the divisions leave in eax, ebx, edx: the tenths' digit, 10, the hundredths'.
-pub fn division_registers(d: &[u32; 6]) -> [u32; 3] {
+/// The tenths' digit, 10 and the hundredths' digit the divisions leave.
+pub fn division_leftovers(d: &[u32; 6]) -> [u32; 3] {
     [d[4], 10, d[5]]
 }
 
-/// The sign of a time (`dword_75C0A4`): `minus` for a negative one (signed), else `plus`.
+/// The sign of a time: `minus` for a negative one (signed), else `plus`.
 pub fn sign(value: u32, plus: u32, minus: u32) -> u32 {
     if (value as i32) < 0 { minus } else { plus }
 }
@@ -57,7 +56,7 @@ pub fn lap_rects(value: u32) -> [u32; 8] {
 }
 
 /// A time's last three digits (from 0xC) with its leading ones left out while they are 0
-/// (`dword_75C03C` set first, cleared at the first digit drawn): (the digit, its slot 0 ..
+/// (`HudBlock.leading` set first, cleared at the first digit drawn): (the digit, its slot 0 ..
 /// 2, whether it is drawn) in order. The last is always drawn.
 pub fn leading_digits(value: u32) -> [(u32, usize, bool); 3] {
     let d = time_digits(value, LAP_BASE);
@@ -74,7 +73,7 @@ pub fn leading_digits(value: u32) -> [(u32, usize, bool); 3] {
     out
 }
 
-/// Whether `dword_75C03C` is left set after `leading_digits`: no digit but the last drawn.
+/// Whether `HudBlock.leading` is left set after `leading_digits`: no digit but the last drawn.
 pub fn leading_left(value: u32) -> bool {
     !leading_digits(value)[..2]
         .iter()
@@ -90,7 +89,7 @@ pub fn stage_rect(field: u32) -> Option<u32> {
     Some((field as i32).clamp(0, 0x16) as u32 + 0x29)
 }
 
-/// The needle's sign by the record's +0xCC (+0xD0): its rectangle (`dword_75C040`) and
+/// The needle's sign by the record's +0xCC (+0xD0): its rectangle and
 /// texture: 0x5E on 0xC0, or with the field set 0x60 on 0xC2.
 pub fn needle_sign(field: u32) -> (u32, u32) {
     if field != 0 {
@@ -100,7 +99,7 @@ pub fn needle_sign(field: u32) -> (u32, u32) {
     }
 }
 
-/// A sprite's rectangle's offset in the sheet (eax going in).
+/// A sprite's rectangle's offset in the sheet.
 pub fn rect_offset(rect: u32) -> u32 {
     rect.wrapping_mul(0x10)
 }
@@ -119,7 +118,7 @@ mod tests {
             time_digits(0x8000_0000, 0),
             time_digits(0x8000_0000 % WRAP, 0)
         );
-        assert_eq!(division_registers(&[0, 1, 2, 3, 4, 5]), [4, 10, 5]);
+        assert_eq!(division_leftovers(&[0, 1, 2, 3, 4, 5]), [4, 10, 5]);
         assert_eq!(sign(u32::MAX, 0, 1), 1);
         assert_eq!(sign(5, 0x22, 0x23), 0x22);
         assert_eq!(

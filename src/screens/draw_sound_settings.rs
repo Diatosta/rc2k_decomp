@@ -1,51 +1,47 @@
-//! `screens::draw_sound_settings` (0x47022A): the sound page's items 4 .. 6 (3D sound, EAX,
-//! A3D 2) choosable only when the card has them (`g_audioOptions.has_3d`, `has_eax`,
-//! `has_a3d2`), and the six settings' names (strings 0x54B + quality, 0x554 + channels,
-//! 0x56D + DS3D, EAX, A3D, Dolby; each kept in `dword_7559EC`) at x 0x1D1, y 0x10B and on
-//! every 0x1B, in the font at 0x51E8C4.
-//!
-//!
-//! In a menu loop's draw list (0x758C96). Refuses what `menu::enable_item` refuses (no current
-//! menu), before anything. The menus and draw lists run its `entry` (`menu::table_calls`).
+//! The sound page: items 4 to 6 (3D sound, EAX, A3D 2) are choosable only when the card has
+//! them, and the six settings' names (quality, channels, DS3D, EAX, A3D, Dolby: a string picked
+//! by each value) are drawn in the item font. Refuses what `menu::enable_item` refuses (no current
+//! menu).
 
-use crate::audio::owner::audio;
 use crate::errors::Refused;
+use crate::memory::session::DwordLike;
 use crate::menu::disable_item::disable_item;
 use crate::menu::enable_item::enable_item;
-use crate::session::Dword;
+use crate::menu::owner::Menus;
 use crate::text::draw_text::Canvas;
 
 /// (the setting, its first string).
-const NAMES: [(&Dword, u32); 6] = [
-    (
-        &crate::menu::owner::MENUS.screens.option_work.audio_quality,
-        0x54B,
-    ),
-    (
-        &crate::menu::owner::MENUS.screens.option_work.channels,
-        0x554,
-    ),
-    (&crate::menu::owner::MENUS.screens.option_work.ds3d, 0x56D),
-    (&crate::menu::owner::MENUS.screens.option_work.eax, 0x56D),
-    (&crate::menu::owner::MENUS.screens.option_work.a3d, 0x56D),
-    (&crate::menu::owner::MENUS.screens.option_work.dolby, 0x56D),
-];
+fn names(menus: &Menus) -> [(&dyn DwordLike, u32); 6] {
+    let work = &menus.options;
+    [
+        (&work.audio_quality, 0x54B),
+        (&work.channels, 0x554),
+        (&work.ds3d, 0x56D),
+        (&work.eax, 0x56D),
+        (&work.a3d, 0x56D),
+        (&work.dolby, 0x56D),
+    ]
+}
 
-/// The Rust version (the registers the last name leaves: the menus read none of them).
-pub fn draw_sound_settings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    // Converted: `rc2k_core::screens::settings_pages::{sound_items, sound}`.
+pub fn draw_sound_settings(
+    o: crate::owners::Owners<'static>,
+    audio: &crate::audio::owner::Audio,
+    canvas: &mut dyn Canvas,
+) -> Result<(), Refused> {
+    let menus = o.menus;
+    // The logic is in `rc2k_core::screens::settings_pages::{sound_items, sound}`.
     use crate::screens::game_screen::SettingsScreen;
     // The switches, by their items 4, 5 and 6: 3D, EAX and A3D2 there.
-    let options = audio().state.audio_options.get();
+    let options = audio.state.audio_options.get();
     let [a, b, c] = [options.has_3d, options.has_eax, options.has_a3d2].map(|switch| switch == 1);
     for (item, on) in rc2k_core::screens::settings_pages::sound_items(a, b, c) {
         if on {
-            enable_item(item)?;
+            enable_item(menus, item)?;
         } else {
-            disable_item(item)?;
+            disable_item(menus, item)?;
         }
     }
-    let ids = NAMES.map(|(setting, first)| setting.get().wrapping_add(first));
-    rc2k_core::screens::settings_pages::sound(&mut SettingsScreen::new(canvas), ids)?;
+    let ids = names(menus).map(|(setting, first)| setting.get().wrapping_add(first));
+    rc2k_core::screens::settings_pages::sound(&mut SettingsScreen::new(canvas, o), ids)?;
     Ok(())
 }

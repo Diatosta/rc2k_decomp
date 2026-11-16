@@ -1,16 +1,16 @@
-//! `menu::find_cpu_team` (0x4A49FF): the driver (`g_drivers`, `standings::drivers`'s walk)
-//! whose first dword is eax (a reading: the computer team's number); none: the fatal error 0x8070A098
+//! `menu::find_cpu_team`: the driver (`standings::drivers`'s walk) whose first dword is the
+//! given one (a reading: the computer team's number); none: the fatal error 0x8070A098
 //! "CpuTeam Not Found (oh sh_t!)".
 //!
-//! Refuses a table without its end entry, before anything;
-//! raises the fatal error as the original.
+//! Refuses a table without its end entry, before anything; raises the fatal error.
 
 use crate::errors::Refused;
 use crate::menu::drivers_store::Driver;
+use crate::menu::owner::Menus;
 
-/// The Rust version: the driver.
-pub fn find_cpu_team(team: u32) -> Result<&'static Driver, Refused> {
-    crate::menu::standings::drivers()?
+/// The driver.
+pub fn find_cpu_team(menus: &Menus, team: u32) -> Result<&Driver, Refused> {
+    crate::menu::standings::drivers(menus)?
         .iter()
         .find(|d| d.name_entry.get() == team)
         .ok_or(

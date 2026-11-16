@@ -1,18 +1,26 @@
 //! The software backend: the commands drawn by the rasteriser into the target, in tiles over the
-//! processor's threads. Pixel for pixel what the game showed before there were backends.
+//! processor's threads. Pixel for pixel what the rasteriser alone draws.
 
 #![allow(unsafe_code)]
 
 use super::*;
-use crate::system::owner::system;
 use std::sync::Mutex;
 
-/// The rasteriser as a backend.
-pub struct Software;
+/// The rasteriser as a backend, with the screen's size (the depth buffer's) and whether a race
+/// is on (the handheld draws a race's 3D smaller).
+pub struct Software {
+    pub screen: (usize, usize),
+    #[cfg_attr(
+        not(all(target_os = "linux", target_arch = "aarch64")),
+        allow(dead_code, reason = "only the handheld's small frame reads it")
+    )]
+    pub racing: bool,
+}
 
 impl Backend for Software {
-    fn draw(&mut self, target: &Target, commands: Vec<Command>) {
-        draw(target, commands);
+    fn draw(&mut self, target: &Target, mut commands: CommandList) {
+        draw(target, &mut commands, self.screen, self.racing);
+        give_back(commands);
     }
 }
 
@@ -32,12 +40,7 @@ pub struct Depth {
 pub static DEPTH: Mutex<Option<Depth>> = Mutex::new(None);
 
 /// The depth buffer at the screen's size, made or made again.
-pub fn with_depth<R>(f: impl FnOnce(&mut Depth) -> R) -> R {
-    let system = system();
-    let (width, height) = (
-        system.session.screen.width.get() as usize,
-        system.session.screen.height.get() as usize,
-    );
+pub fn with_depth<R>(width: usize, height: usize, f: impl FnOnce(&mut Depth) -> R) -> R {
     let mut depth = DEPTH.lock().unwrap();
     if depth
         .as_ref()
@@ -54,7 +57,7 @@ pub fn with_depth<R>(f: impl FnOnce(&mut Depth) -> R) -> R {
 
 /// The small frame draw_noted draws into: only the handheld has one.
 #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-use crate::handheld::Small;
+use crate::platform::handheld::Small;
 #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
 enum Small {}
 #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
@@ -66,18 +69,17 @@ impl Small {
 
 /// The noted things' screen places for the handheld's small frame.
 #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-fn scale_noted(noted: &mut [Command]) {
-    const BY: f32 = crate::handheld::SMALLER as f32;
-    let by = crate::handheld::SMALLER;
-    for what in noted {
+fn scale_noted(noted: &mut CommandList) {
+    const BY: f32 = crate::platform::handheld::SMALLER as f32;
+    let by = crate::platform::handheld::SMALLER;
+    // Every vertex is a fan's (the list holds no others).
+    for v in noted.vertices.iter_mut() {
+        v[0] = (f32::from_bits(v[0]) / BY).to_bits();
+        v[1] = (f32::from_bits(v[1]) / BY).to_bits();
+    }
+    for what in noted.commands.iter_mut() {
         match what {
-            Command::Fan {
-                vertices, bounds, ..
-            } => {
-                for v in vertices.iter_mut() {
-                    v[0] = (f32::from_bits(v[0]) / BY).to_bits();
-                    v[1] = (f32::from_bits(v[1]) / BY).to_bits();
-                }
+            Command::Fan { bounds, .. } => {
                 *bounds = (bounds.0 / BY, bounds.1 / BY, bounds.2 / BY, bounds.3 / BY);
             }
             Command::Clear([left, top, right, bottom]) => {
@@ -90,17 +92,22 @@ fn scale_noted(noted: &mut [Command]) {
     }
 }
 
-fn draw(into: &Target, noted: Vec<Command>) {
-    use crate::rasteriser::{Frame, Pixels, States, Texture};
-    use rayon::prelude::*;
+fn draw(
+    into: &Target,
+    noted: &mut CommandList,
+    screen: (usize, usize),
     #[cfg_attr(
         not(all(target_os = "linux", target_arch = "aarch64")),
-        allow(unused_mut) // only the handheld changes them
+        allow(unused_variables, reason = "only the handheld's small frame reads it")
     )]
-    let mut noted = noted;
+    racing: bool,
+) {
+    use crate::render::rasteriser::{Frame, Pixels, States, Texture};
+    use rayon::prelude::*;
     FLUSHES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let started = std::time::Instant::now();
     let fans = noted
+        .commands
         .iter()
         .filter(|n| matches!(n, Command::Fan { .. }))
         .count() as u64;
@@ -108,28 +115,23 @@ fn draw(into: &Target, noted: Vec<Command>) {
     // frame, which takes the screen's picture so far and gives it back enlarged.
     #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
     let mut small = (into.bits == 32
-        && crate::handheld::draws_small()
-        && !crate::render::gpu::wanted())
+        && crate::platform::handheld::draws_small(racing)
+        && !crate::render::gpu_running())
     .then(|| {
-        scale_noted(&mut noted);
+        scale_noted(noted);
         // SAFETY: not kept: the screen's rows, checked by `slice`, nothing else writes them
         // while the game's code waits here.
         let screen = unsafe { into.bytes() };
-        crate::handheld::Small::from_screen(screen, into.pitch, into.width, into.height)
+        crate::platform::handheld::Small::from_screen(screen, into.pitch, into.width, into.height)
     });
     #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
     let mut small: Option<Small> = None;
-    with_depth(|depth| {
+    with_depth(screen.0, screen.1, |depth| {
         if small.is_none() && (depth.width != into.width || depth.height != into.height) {
             return;
         }
-        // The screen's pixels are lent (a region the size of its rows), checked here; the
-        // depths are Rust's own, borrowed for the frame.
-        crate::pointers::check_or_end(
-            into.pixels as u32,
-            into.pitch * into.height,
-            "the screen's pixels",
-        );
+        // The screen's pixels are checked by `pixels`; the depths are Rust's own, borrowed
+        // for the frame.
         let mut frame = match small.as_mut().map(Small::frame_parts) {
             Some((pixels, width, height, depth)) => {
                 Frame::new(Pixels::Bits32(pixels), width, width, height, depth)
@@ -145,12 +147,31 @@ fn draw(into: &Target, noted: Vec<Command>) {
             ),
         };
         let mut tiles = frame.tiles(if noted.len() < FEW { 0 } else { TILE });
-        let noted = &noted;
-        let draw_tile = move |tile: &mut crate::rasteriser::Tile| {
+        let noted = &*noted;
+        // The noted textures' bytes, taken once (a noted texture is not written while it is
+        // drawn from: locking it flushes the noted fans first), by id.
+        let mut notes: Vec<super::TextureNote> = Vec::new();
+        for what in noted.commands.iter() {
+            if let Command::Fan {
+                texture: Some(t), ..
+            } = what
+                && notes.last().is_none_or(|l| l.pixels != t.pixels)
+            {
+                notes.push(*t);
+            }
+        }
+        notes.sort_unstable_by_key(|t| t.pixels);
+        notes.dedup_by_key(|t| t.pixels);
+        let levels: Vec<(super::TextureId, &[u8])> = notes
+            .iter()
+            .map(|t| (t.pixels, super::noted_bytes(t)))
+            .collect();
+        let levels = &levels;
+        let draw_tile = move |tile: &mut crate::render::rasteriser::Tile| {
             let tile_started = std::time::Instant::now();
             let clip = *tile.clip();
             let mut written = 0u64;
-            for what in noted {
+            for what in &noted.commands {
                 match what {
                     Command::Fan {
                         vertices,
@@ -167,16 +188,21 @@ fn draw(into: &Target, noted: Vec<Command>) {
                             continue;
                         }
                         let texture = texture.map(|t| Texture {
-                            // SAFETY: a noted texture is not written while it is drawn
-                            // from: locking it flushes the noted fans first (`lock`).
-                            pixels: unsafe { t.pixels.slice(t.len, "a texture's pixels") },
+                            pixels: levels
+                                .binary_search_by_key(&t.pixels, |l| l.0)
+                                .map(|n| levels[n].1)
+                                .expect("a noted texture's level was taken above"),
                             width: t.width,
                             height: t.height,
                             pitch: t.pitch,
                             bytes: t.bytes,
                             masks: t.masks,
                         });
-                        written += tile.draw_fan(vertices, &States(&states[..]), texture.as_ref());
+                        written += tile.draw_fan(
+                            noted.fan_vertices(*vertices),
+                            &States(&states[..]),
+                            texture.as_ref(),
+                        );
                     }
                     Command::Clear(rect) => tile.clear_depth(*rect),
                 }

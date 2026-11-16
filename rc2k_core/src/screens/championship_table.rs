@@ -1,7 +1,6 @@
-//! The championship's standings table (converted 2026-10-20 from
-//! `screens::draw_championship_table` 0x4A4E1E): the heads, the six rounds' flags and ten
-//! rows of the championship history (0x78-byte entries): position, name, the six rounds'
-//! points ("-" for below 0), the total, the nationality's and the car's sprites.
+//! The championship's standings table: the heads, the six rounds' flags and ten rows of the
+//! championship history (0x78-byte entries): position, name, the six rounds' points ("-" for
+//! below 0), the total, the nationality's and the car's sprites.
 
 use crate::screens::best_scores::{car_glyph, flag_glyph};
 use crate::screens::screen::Screen;
@@ -9,24 +8,25 @@ use crate::strings::format::{Pad, decimal};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Font {
-    /// `stru_51E5A4`, `stru_51E584`: a position, the rest.
+    /// A position.
     Position,
+    /// The rest.
     Text,
-    /// `stru_51E544`, `stru_51E524`: the same for the player's own rows.
+    /// The same two for the player's own rows.
     MarkedPosition,
     MarkedText,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Work {
-    /// `dword_755579`: the position drawn.
+    /// The position drawn.
     Position,
-    /// `dword_7556BC`: the position after the last.
+    /// The position after the last.
     End,
 }
 
-/// A history entry's row: the player's own (+4 above 0), nationality (+8), car (+0xC), name
-/// (+0x14), the rounds' points (+0x54 .. +0x68), total (+0x6C), position (+0x70).
+/// A history entry's row: own flag (+4), nationality (+8), car (+0xC), name (+0x14), the
+/// rounds' points (+0x54 .. +0x68), total (+0x6C), position (+0x70).
 #[derive(Clone, Copy, Debug)]
 pub struct Row<T> {
     pub mine: bool,
@@ -42,10 +42,9 @@ const ROUNDS_X: [i32; 6] = [0x19A, 0x1D0, 0x206, 0x23C, 0x272, 0x2A8];
 
 pub const HISTORY_ENTRY_LEN: u32 = 0x78;
 
-/// `screens::find_history_entry`: from entry 0 on, the number of the first whose class
-/// (+0x10) and position (+0x70) are these (`fields(n)`); entry 0 is looked at before any
-/// end test, the others only if their first dword (`first(n)`) is not -1. `None`: the end
-/// met first (the original's fatal error 0x8070A7FA).
+/// The first history entry, from entry 0 on, whose class (+0x10) and position (+0x70) match
+/// (`fields(n)`); entry 0 is looked at before any end test, the others only if `first(n)` is not
+/// -1. `None`: the end met first (fatal error 0x8070A7FA).
 pub fn find_history(
     mut first: impl FnMut(u32) -> u32,
     mut fields: impl FnMut(u32) -> (u32, u32),
@@ -64,10 +63,9 @@ pub fn find_history(
     }
 }
 
-/// The table: the heads (strings 0x484, 0x485, 0x4F9 at y 0xDC), the rounds' flags
-/// (sprites 0x90 .. 0x95 in event mode 0x13, else 0x8A .. 0x8F, at y 0x8C, the palette
-/// where the last head ended), then the rows from `first`, each text from the last one's y,
-/// rows 0x19 apart from y 0xF0, the sprites' palette where the total ended.
+/// The table: the heads (strings 0x484, 0x485, 0x4F9 at y 0xDC), the rounds' flags (sprites
+/// 0x90 .. 0x95 in event mode 0x13, else 0x8A .. 0x8F), then the rows from `first`, 0x19 apart
+/// from y 0xF0.
 pub fn championship_table<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     first: u32,

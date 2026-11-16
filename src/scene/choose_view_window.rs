@@ -1,10 +1,7 @@
-//! `scene::choose_view_window` (0x44FE1A): the view's window, then `scene::set_view_window`:
-//! without `dword_621514` the screen's size (`g_screenWidth`, `g_screenHeight`) at 0, 0;
-//! with it 800 x 600 at 0, 0 when `dword_621480` is set or `word_636526` is 2, else 720 x
-//! 540 at 0x50, 0; `dword_624080` 0x100 either way.
-//!
-//! Callers: `scene::full_view_window`, code at `race::loading_bar_frame` (0x446810).
-//! `set_view_window` is its Rust version.
+//! `scene::choose_view_window`: the view's window, then `scene::set_view_window`: without the
+//! front-end switch the screen's size at 0, 0; with it 800 x 600 at 0, 0 when `scene_set_up`
+//! is set or the screen mode word is 2, else 720 x 540 at 0x50, 0; the view's zoom 0x100 either
+//! way. Callers: `scene::full_view_window`, `race::loading_bar_frame`.
 
 use crate::race::owner::Race;
 
@@ -16,20 +13,33 @@ pub fn choose_view_window(
 ) {
     let session = &system.session;
     let shared = &race.shared;
-    // Converted: `rc2k_core::scene::view_window::choose`.
+    // Logic: `rc2k_core::scene::view_window::choose`.
     use rc2k_core::scene::view_window::{ViewSettings, choose};
     let settings = ViewSettings {
-        framed: shared.switches.editor_mode.bits() != 0,
-        wide: shared.switches.other_way.bits() != 0,
-        mode: scene.light_tables.view_mode.get(),
+        framed: shared.switches.get().editor_mode.get() != 0,
+        wide: shared.switches.get().scene_set_up.get() != 0,
+        mode: scene.light_tables.get().view_mode.get(),
     };
-    let window = choose(settings, || {
-        [session.screen.width.get(), session.screen.height.get()]
+    // The front end's window: the menus, the loading bar and the HUD's full view.
+    let view = scene.scratch.front_end_polygon();
+    let window = &view.window;
+    let chosen = choose(settings, || {
+        [
+            session.screen.get().width.get(),
+            session.screen.get().height.get(),
+        ]
     });
-    scene.drawing.scene.view_size[0].set_bits(window.size[0]);
-    scene.drawing.scene.view_size[1].set_bits(window.size[1]);
-    scene.drawing.scene.view_offset[0].set_bits(window.offset[0]);
-    scene.drawing.scene.view_offset[1].set_bits(window.offset[1]);
-    scene.drawing.scene.view_zoom.set_bits(window.scale);
-    crate::scene::set_view_window::set_view_window(race, scene);
+    window.view_size[0].set(chosen.size[0]);
+    window.view_size[1].set(chosen.size[1]);
+    window.view_offset[0].set(chosen.offset[0]);
+    window.view_offset[1].set(chosen.offset[1]);
+    window.view_zoom.set(chosen.scale);
+    crate::scene::set_view_window::set_view_window(
+        race.course.reads(),
+        scene.drawing.scene.get(),
+        system.session.screen.get(),
+        window,
+        &race.frame.view_and_records.get().view_vars,
+        &race.shared.vars.get().scale_factor,
+    );
 }

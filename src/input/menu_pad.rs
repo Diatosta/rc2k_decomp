@@ -1,12 +1,12 @@
-//! A gamepad in the menus (not the original's, which take only the keyboard; owner,
-//! 2026-10-30): any pad SDL knows, on every system. The menus read one pending key
-//! (`input::take_key`), so a button gives them the key of what it means; the race's own
-//! controls are the game's devices (`platform_input`), and the held-key table is left alone,
-//! so driving with the pad steers nothing through the keyboard's controls.
+//! A gamepad in the menus (the game's menus otherwise take only the keyboard): any pad SDL knows,
+//! on every system. The menus read one pending key (`input::take_key`), so a button gives them the
+//! key of what it means; the race's own controls are the game's devices (`platform::input`), and the
+//! held-key table is left alone, so driving with the pad steers nothing through the keyboard's
+//! controls.
 
-use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
+use crate::input::owner::Input;
+use std::sync::atomic::Ordering::Relaxed;
 
-/// What a button means in a menu.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum MenuAction {
     Up,
@@ -26,22 +26,21 @@ pub enum MenuAction {
 // ---- answers to the game's yes / no questions ----
 
 /// Not an answer yet.
-const NONE: u32 = 0;
-/// The answer the last button gave (`input::yes_no_key`'s values), for a question to take. The
-/// race's (`drive::quit_question`) reads a typed character, the first of the language's word,
-/// and shows nothing to choose from: the pad's buttons answer it directly, in any language.
-/// The menus' question has items to choose from: there only Back answers (`handle_yes_no`).
-static ANSWER: AtomicU32 = AtomicU32::new(NONE);
+pub const NO_ANSWER: u32 = 0;
 
-/// A button's answer.
-pub fn note_answer(answer: u32) {
-    ANSWER.store(answer, Relaxed);
+/// Notes the answer the last button gave (`input::yes_no_key`'s values), for a question to
+/// take. The race's question (`drive::quit_question`) reads a typed character, the first of the
+/// language's word, and shows nothing to choose from: the pad's buttons answer it directly, in
+/// any language. The menus' question has items to choose from: there only Back answers
+/// (`handle_yes_no`).
+pub fn note_answer(input: &Input, answer: u32) {
+    input.menu_answer.store(answer, Relaxed);
 }
 
-/// The button's answer since the last time, if any.
-pub fn take_answer() -> Option<u32> {
-    match ANSWER.swap(NONE, Relaxed) {
-        NONE => None,
+/// The noted answer, once.
+pub fn take_answer(input: &Input) -> Option<u32> {
+    match input.menu_answer.swap(NO_ANSWER, Relaxed) {
+        NO_ANSWER => None,
         answer => Some(answer),
     }
 }
@@ -49,7 +48,6 @@ pub fn take_answer() -> Option<u32> {
 /// How long START's Escape stays down in a race (ms): longer than a slow frame.
 const LEAVE_HOLD: u64 = 400;
 
-/// A gamepad's button, as far as the menus care.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum PadButton {
     DpadUp,
@@ -66,7 +64,6 @@ pub enum PadButton {
 const REPEAT_AFTER: u64 = 400;
 const REPEAT_EVERY: u64 = 120;
 
-/// What the buttons are doing.
 #[derive(Default)]
 pub struct MenuPad {
     /// The direction held and when it next repeats.
@@ -170,9 +167,10 @@ mod tests {
 
     #[test]
     fn an_answer_is_taken_once() {
-        note_answer(7);
-        assert_eq!(take_answer(), Some(7));
-        assert_eq!(take_answer(), None);
+        let input = Input::new();
+        note_answer(&input, 7);
+        assert_eq!(take_answer(&input), Some(7));
+        assert_eq!(take_answer(&input), None);
     }
 
     #[test]

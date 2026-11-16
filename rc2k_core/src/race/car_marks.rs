@@ -1,32 +1,32 @@
-//! A car's marks' textures (converted 2026-10-21 from `race::car_number_textures`
-//! 0x46203D): which lamps' sides show, the letter of the model's name by the car's +0x718,
-//! the race number's digits, the stage's plate, whether the decals show.
+//! A car's marks' textures: lamp sides, the model name's letter, the race number's digits,
+//! the stage's plate, and whether the decals show.
 
 /// What the number's digits read when there is none.
 pub const NO_DIGIT: u32 = 999;
 
-/// A lamp's side mark (+0x1B8 / +0x1BC): 1 unless |x| is below the limit (`flt_641740`)
-/// or not a number (`fabs` / `fcomp`).
+/// A lamp's side mark: 1 unless |x| is below the limit or x is not a number.
 pub fn lamp_side(x: f32, limit: f32) -> u32 {
     u32::from(x.abs() >= limit)
 }
 
-/// The letter's place in the model's name and the remainder: the car's +0x718 (rounded
-/// by the caller) held to 0 .. 0x2EDF (signed), over 250.
+/// The letter's place in the model's name and the remainder: the value held to 0 ..= 0x2EDF,
+/// over 250.
 pub fn letter_place(value: i32) -> (u32, u32) {
     let held = value.clamp(0, 0x2EDF) as u32;
     (held / 250, held % 250)
 }
 
-/// The letter's number: a digit's value, a letter's from 10 on ('a' 10; `sub al, 0x30`,
-/// then 0x27 off at 10 or more, unsigned).
+/// The letter's number: a digit's value, a letter's from 10 on ('a' is 10).
 pub fn letter_number(character: u8) -> u8 {
-    let al = character.wrapping_sub(0x30);
-    if al >= 10 { al.wrapping_sub(0x27) } else { al }
+    let value = character.wrapping_sub(0x30);
+    if value >= 10 {
+        value.wrapping_sub(0x27)
+    } else {
+        value
+    }
 }
 
-/// The race number's digits: the tens and the units (`dword_5CD6A0`, `dword_5CD6A4`) and
-/// the units alone (`dword_5CD6AC`) for a number below ten; `NO_DIGIT` where none.
+/// The race number's digits (tens, units; units alone below ten); `NO_DIGIT` where none.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Digits {
     pub tens: u32,
@@ -51,15 +51,13 @@ pub fn number_digits(number: u32) -> Digits {
     }
 }
 
-/// The stage's plate: the stage less 11 held to 0 .. 0x45 (signed), its tens (the
-/// plate's entry, `dword_71BA10[]`) and units.
+/// The stage's plate: the stage less 11 held to 0 ..= 0x45, as its tens and units.
 pub fn stage_plate(stage: u32) -> (u32, u32) {
     let s = (stage.wrapping_sub(0xB) as i32).clamp(0, 0x45) as u32;
     (s / 10, s % 10)
 }
 
-/// Whether the decals' bytes (+0xAC0 ..) go into the marks: while the car's +0x310 is
-/// below the limit (`flt_5C5D14`, 100) or not a number.
+/// Whether the decals show: wear below the limit (100) or not a number.
 pub fn decals_shown(wear: f32, limit: f32) -> bool {
     !matches!(
         wear.partial_cmp(&limit),

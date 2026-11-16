@@ -1,10 +1,9 @@
-//! What the game's sound senders decide before they queue a command (converted 2026-10-21
-//! from `sound::play_menu_sound` 0x40F059, `sound::play_sound` 0x409B36,
-//! `sound::set_music_volume` 0x40F83E and `sound::stop_sound` 0x40F1D1), and the music's
-//! command (`sound::play_music` 0x40F80E, `stop_music` 0x40F826, `play_tune_2` .. `_9`
-//! 0x40F76F ..).
+//! What the sound senders decide before they queue a command, and the music's command
+//! (`sound::play_music`, `stop_music`, `play_tune_2` .. `_9`).
 
-/// The menus' sounds' volumes: `dword_755694`, `dword_7554E8`, `dword_755690`.
+use crate::audio::commands::StreamAction;
+
+/// The three volume settings the menus' sounds are played at.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MenuVolume {
     A,
@@ -42,22 +41,21 @@ pub fn menu_sound(which: u32, now: u32, next: u32) -> Option<(u32, Option<(u32, 
     Some((now.wrapping_add(MENU_SOUND_GAP), pick))
 }
 
-/// The sound modes with a place (`dword_4F82BC`'s bit).
+/// The sound mode bit of the modes that give a sound a place in space.
 pub const MODE_3D: u32 = 0x10_0000;
-/// No place: what esi, edi and ebp are sent as outside the 3D modes.
-pub const NO_PLACE: u32 = 0xFF80_0000;
 
-/// Command 1's esi, ecx, edi, ebp from the sender's ecx, edi, ebp: None while sounds are
-/// held back (1); outside the 3D modes no place, else the place (esi the ecx, ecx 0).
-pub fn sound_place(held_back: u32, mode: u32, place: [u32; 3]) -> Option<[u32; 4]> {
+/// The pan and place command 1 carries, from the sender's `place` (a pan or a coordinate, then
+/// two coordinates): None while sounds are held back; outside the 3D modes the first value is the
+/// pan and there is no place, else the pan is 0 and the place is the three values.
+pub fn sound_place(held_back: u32, mode: u32, place: [u32; 3]) -> Option<(u32, Option<[u32; 3]>)> {
     if held_back == 1 {
         return None;
     }
-    let [ecx, edi, ebp] = place;
+    let [first, second, third] = place;
     Some(if mode & MODE_3D == 0 {
-        [NO_PLACE, ecx, NO_PLACE, NO_PLACE]
+        (first, None)
     } else {
-        [ecx, 0, edi, ebp]
+        (0, Some([first, second, third]))
     })
 }
 
@@ -71,15 +69,15 @@ pub fn stopped(request: u32) -> Option<u32> {
     (request & 0x8000 == 0).then_some(request)
 }
 
-/// Command 0xB, the music's: what it is sent with (eax, ebx, ecx, edx).
+/// Command 0xB, the music's: the tune, the tune to follow, the volume and the action it is sent
+/// with.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Music {
     pub tune: u32,
-    /// The tune to go on with (a reading).
+    /// The tune to go on with when this one ends (the "then" tune of the music command).
     pub then: u32,
     pub volume: u32,
-    /// 2 play, 3 change the volume, 0 stop.
-    pub action: u32,
+    pub action: StreamAction,
 }
 
 impl Music {
@@ -88,32 +86,32 @@ impl Music {
             tune,
             then,
             volume,
-            action: 2,
+            action: StreamAction::Play,
         }
     }
 
-    /// `sound::stop_music`'s: four zeros.
+    /// What `sound::stop_music` sends: all four fields 0.
     pub const STOP: Music = Music {
         tune: 0,
         then: 0,
         volume: 0,
-        action: 0,
+        action: StreamAction::Stop,
     };
 }
 
 /// The volume a tune is started at.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TuneVolume {
-    /// 0x40.
+    /// 0x40: full volume.
     Full,
-    /// The music's volume (`dword_5180FC`).
+    /// The music's volume setting.
     Music,
-    /// `dword_518100` (tune 8's).
+    /// Tune 8's own volume setting.
     Other,
 }
 
 /// `sound::play_tune_n` (2 .. 9): the tune, the one to go on with and its volume. Tune 8
-/// is started only while its switch (`dword_5180F4`) is 1, else the music is stopped.
+/// is started only while its switch is 1, else the music is stopped.
 pub fn tune(n: u32) -> Option<(u32, u32, TuneVolume)> {
     Some(match n {
         2 => (2, 0, TuneVolume::Full),
@@ -159,11 +157,11 @@ mod tests {
         );
         assert_eq!((menu_sound(1, 49, 50), menu_sound(0, 100, 0)), (None, None));
         assert_eq!(menu_sound(0x200, 100, 0), Some((225, None)));
-        assert_eq!(sound_place(0, MODE_3D, [1, 2, 3]), Some([1, 0, 2, 3]));
         assert_eq!(
-            sound_place(0, 0, [1, 2, 3]),
-            Some([NO_PLACE, 1, NO_PLACE, NO_PLACE])
+            sound_place(0, MODE_3D, [1, 2, 3]),
+            Some((0, Some([1, 2, 3])))
         );
+        assert_eq!(sound_place(0, 0, [1, 2, 3]), Some((1, None)));
         assert_eq!(
             (sound_place(1, 0, [0; 3]), stopped(0x8001), stopped(5)),
             (None, None, Some(5))

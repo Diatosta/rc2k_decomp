@@ -1,18 +1,6 @@
-//! `input::begin_force` (0x40945D): a device's force feedback set up, when its controller
-//! has it (the controller's entry, `g_controllers` + 0x50 its number, +0x1C 1): "INP:
-//! using force feedback" logged (level 2); the `DIPROPDWORD` (`dword_4F6AA4`: 0x14, 0x10,
-//! the device, 0); with the record's strength (+0xC) 0 only the self-centring turned on
-//! (`DIPROP_AUTOCENTER` 1); else the self-centring off and the gain the strength x 100
-//! (`DIPROP_FFGAIN`), each failure a fatal error (0x80238421, 0x80238422), the device's
-//! effects listed (`EnumEffects` with `input::effect_found`, the record as context), the
-//! six made (`input::make_effect`, ecx the number, edi the effect) and +0x28 1 (effects
-//! on).
-//!
-//! Takes: the device's record (+4 its DirectInput device)
-//!
-//! Caller: `input::acquire_device`. The controller's number is not checked (as the
-//! original's). The effects' functions through `make_effect`'s `part`; the methods the
-//! device's own.
+//! A device's force feedback set up, when its controller has it: the self-centring or the gain
+//! (strength x 100) set, the device's effects listed and the six made. Each failure is a fatal
+//! error. The controller's number is not checked.
 
 use crate::errors::Refused;
 use crate::input::di_harness::entry_of;
@@ -39,14 +27,13 @@ pub fn dword_property(data: u32) -> DiPropDword {
     }
 }
 
-/// The Rust version (see the header).
+/// See the header.
 pub fn begin_force(input: &Input, record: &InputDevice) -> Result<(), Refused> {
     if entry_of(&input.devices, record)?.force_feedback.get() != 1 {
         return Ok(());
     }
     crate::logfile::log_write::log_nul(&USING_TEXT_RVA, true, 2);
     let device = record.device.get();
-    // Converted: `rc2k_core::input::acquire::gain`.
     let Some(gain) = gain(record.strength.get()) else {
         set_property(device, Property::AutoCenter(&dword_property(1)));
         return Ok(());

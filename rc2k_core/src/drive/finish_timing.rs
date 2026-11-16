@@ -1,37 +1,36 @@
-//! The championship finish routine's time and shares (converted 2026-10-21 from
-//! `drive::finish_timing` 0x45948A, after its clock call): the time since the start in
-//! seconds, eased to a stop between two times, and a share rising between two others.
+//! The championship finish routine's time and shares: the time since the start in seconds, eased to
+//! a stop between two times, and a share rising between two others.
 //!
-//! Floats: what the x87 keeps on its stack is an `f64`, rounded to `f32` where the
-//! original stores (`physics::x87`): the same bits at the game's double precision.
+//! Floats: sums are `f64` and rounded to `f32` where stored (`physics::x87`), the same bits as the
+//! game's x87 at double precision.
 
 use crate::physics::x87::{below, loaded};
 
-/// The routine's figures (`flt_64BB44` ..).
+/// The routine's figures (`Finish.limit_a` ..).
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct FinishFigures {
-    /// `flt_5C5D18`: the clock's units a second.
+    /// The clock's units a second.
     pub units: f32,
-    /// `flt_64BB44`, `flt_64BB48`: the easing's start and end.
+    /// The easing's start and end.
     pub ease: [f32; 2],
-    /// `flt_5C5E40`: a half.
+    /// A half.
     pub half: f32,
-    /// `flt_64BB70`, `flt_64BB74`: the share's start and end.
+    /// The share's start and end.
     pub share: [f32; 2],
-    /// `dword_75B108`: the share's switch.
+    /// The share's switch.
     pub switch: bool,
 }
 
 /// What it stores.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct FinishTiming {
-    /// `flt_64BB64`: the time.
+    /// The time.
     pub time: f32,
-    /// `flt_64BB68`: the eased time.
+    /// The eased time.
     pub eased: f32,
-    /// `flt_64BB6C`: the share.
+    /// The share.
     pub share: f32,
-    /// `dword_5C2F88` set to 1.
+    /// `ViewerAndKinds.marks_settings.race_done` set to 1.
     pub flag: bool,
 }
 

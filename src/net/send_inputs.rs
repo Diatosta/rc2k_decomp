@@ -1,20 +1,15 @@
-//! `net::send_inputs` (0x464194): "send j", the player and the step logged, and the
-//! message 'JGSM' (0x4D53474A) with the car's four input dwords (the current car's block
-//! +0xFD0 .. +0xFDC) built in `unk_71C4D0` and sent (`net::send_race_message`, which is
-//! `call net::send_message; retn`: `net::send_message` here).
-//!
-//!
-//! See `net/mod.rs`; `send_position` and `send_extra` are the same with other dwords (this
-//! file has their shared body). One caller, `net::send_turn` (every fourth step).
+//! Logs "send j" and sends the 'JGSM' message with the car's four input dwords; `send_position`
+//! and `send_extra` are the same with other dwords, sharing this body. Called every fourth
+//! step.
 
 use crate::errors::{BadInput, Refused};
+use crate::memory::session::Cell32;
 use crate::net::log_send;
 use crate::net::owner::Net;
-use crate::net::owner::net;
-use crate::net::send_message::send_message;
+use crate::net::send_message::send_payload;
 use crate::physics::car_store::Car;
-use crate::race::owner::race;
-use crate::session::Cell32;
+use crate::race::owner::Race;
+use rc2k_core::net::message::Payload;
 use rc2k_core::net::race::Limit::{Free, Gauge, Gear, Large, Pedal};
 use rc2k_core::net::race::{Kind, Limit};
 
@@ -45,10 +40,10 @@ pub fn fields(kind: Kind) -> &'static [Field] {
 
 /// +0xFD0 .. +0xFDC.
 const INPUT_FIELDS: [Field; 4] = [
-    (|c| &c.unknown_fc0[4], Free),
-    (|c| &c.unknown_fc0[5], Free),
-    (|c| &c.unknown_fc0[6], Free),
-    (|c| &c.unknown_fc0[7], Free),
+    (|c| &c.kept_throttle_word, Free),
+    (|c| &c.kept_keys_word, Free),
+    (|c| &c.kept_steering_word, Free),
+    (|c| &c.kept_brake_word, Free),
 ];
 
 /// +0x134 .. +0x13C (the place, put where the car is to be on arrival), the matrix's first
@@ -93,7 +88,7 @@ const POSITION_FIELDS: [Field; 40] = [
     (|c| &c.handbrake, Pedal),
     (|c| &c.steering, Pedal),
     (|c| &c.steering_raw, Pedal),
-    (|c| &c.unknown_1ec, Free),
+    (|c| &c.position_message_word, Free),
 ];
 
 /// +0x64 .. +0x84: the eight gauges and the lights.
@@ -109,45 +104,49 @@ const EXTRA_FIELDS: [Field; 9] = [
     (|c| &c.lights_on, Free),
 ];
 
-/// The shared body: the car block `g_car`, the message built at `RaceWork::net_message`.
-pub fn send_fields(net: &Net, m: &Message) -> Result<(), Refused> {
-    let shared = &race().shared;
-    let car = &shared.car;
-    let message = &shared.work.net_message;
-    log_send(&net.vars, m.text);
-    // The tag, then the kind's fields' bits.
-    let mut dwords = vec![m.kind.tag()];
-    dwords.extend(fields(m.kind).iter().map(|(field, _)| field(car).bits()));
+/// The shared body: the car block, the message built at `RaceWork::net_message`.
+pub fn send_fields(race: &Race, net: &Net, m: &Message) -> Result<(), Refused> {
+    let shared = &race.shared;
+    let car = shared.car();
+    let message = &shared.work.get().net_message;
+    log_send(race, net, m.text);
+    let values: Vec<u32> = fields(m.kind)
+        .iter()
+        .map(|(field, _)| field(car).bits())
+        .collect();
+    // The work area keeps a copy of the message: the tag, then the kind's fields' bits.
     let cells = message
-        .get(..dwords.len())
+        .get(..1 + values.len())
         .ok_or(BadInput("a network message past its buffer"))?;
-    for (cell, &v) in cells.iter().zip(&dwords) {
+    for (cell, &v) in cells
+        .iter()
+        .zip(std::iter::once(&m.kind.tag()).chain(&values))
+    {
         cell.set(v);
     }
-    let bytes: Vec<u8> = dwords.iter().flat_map(|v| v.to_le_bytes()).collect();
-    send_message(net, &bytes)
+    send_payload(net, Payload::of(m.kind, values))
 }
-
-/// The Rust version.
-pub fn send_inputs() -> Result<(), Refused> {
-    let net = net();
-    send_fields(net, &INPUTS)
+pub fn send_inputs(race: &Race, net: &Net) -> Result<(), Refused> {
+    send_fields(race, net, &INPUTS)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::pointers::GamePtr;
 
     /// Each field sits where the core's table had its offset in the car's block.
     #[test]
     fn the_fields_sit_where_the_offsets_were() {
-        let car = &race().shared.car;
-        let base = GamePtr::to(car).addr();
+        let car = crate::test_support::own::race().shared.car();
         let offsets = |kind| -> Vec<u32> {
             fields(kind)
                 .iter()
-                .map(|(field, _)| GamePtr::to(field(car)).addr() - base)
+                .map(|(field, _)| {
+                    crate::physics::car_offsets_1999::offset_1999(
+                        car,
+                        core::ptr::from_ref(field(car)).addr(),
+                    ) as u32
+                })
                 .collect()
         };
         assert_eq!(offsets(Kind::Inputs), [0xFD0, 0xFD4, 0xFD8, 0xFDC]);
@@ -169,11 +168,13 @@ mod tests {
     /// The limits are the ranges the core's table matched by offset.
     #[test]
     fn the_limits_are_the_old_ranges() {
-        let car = &race().shared.car;
-        let base = GamePtr::to(car).addr();
+        let car = crate::test_support::own::race().shared.car();
         for kind in [Kind::Inputs, Kind::Position, Kind::Extra] {
             for (field, limit) in fields(kind) {
-                let at = GamePtr::to(field(car)).addr() - base;
+                let at = crate::physics::car_offsets_1999::offset_1999(
+                    car,
+                    core::ptr::from_ref(field(car)).addr(),
+                ) as u32;
                 let old = match at {
                     0x1D4 => Limit::Gear,
                     0x64..=0x80 | 0xB4..=0xE0 | 0x600..=0x60C => Limit::Gauge,

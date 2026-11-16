@@ -1,16 +1,10 @@
-//! The race cars' lights and parts' sounds (converted 2026-10-21 from
-//! `race::car_light_modes` 0x455B70, `race::car_lights` 0x455CFF and
-//! `race::wake_part_sounds` 0x45D1EA; the light at a place, its colours added and
-//! multiplied, converted 2026-10-21 from `race::light_colour_at` 0x4537CE (0x44F601,
-//! 0x44F691, 0x44F863), `race::view_light` 0x455896 and `race::face_colours`
-//! 0x452887).
+//! The race cars' lights and parts' sounds: whether a car's lights are drawn, its light word,
+//! the light at a place and the face corners' colours.
 
 use crate::Invalid;
 
-/// `race::car_light_modes`: whether a race car's lights are drawn: it has lights
-/// (+0x25C), it is drawn (any car in modes 0 and 2, else the shown car only), and, for
-/// the shown car, it is not standing (`standing`: +0x69C and +0x684 both 0) nor hidden
-/// (`hidden`: `dword_63993C`); each asked only when it decides.
+/// Whether a race car's lights are drawn: it has lights, it is drawn (any car in modes 0 and 2,
+/// else the shown car), and the shown car is not standing nor hidden; each asked only when needed.
 pub fn lights_drawn(
     has_lights: bool,
     mode: u32,
@@ -29,11 +23,9 @@ fn set(prev: u32, keep: u32, bits: u32) -> u32 {
     (prev & keep) | bits
 }
 
-/// `race::car_light_modes`: a drawn car's light word (+0x6FC) from `prev`, its nibbles set
-/// step by step: 0x21; for the shown car with beams (`dword_606274`), 0x12, then 0x14
-/// unless the kind (`dword_606270`, asked only then) is 1, then 0x11 unless it is 2 or 3;
-/// then 0x100 in the third nibble, 0x200 with `high` (`dword_6238B4`; 1: the shown car
-/// only).
+/// A drawn car's light word from `prev`: 0x21; for the shown car with beams 0x12, then 0x14
+/// unless the kind is 1, then 0x11 unless it is 2 or 3; then 0x100 in the third nibble, 0x200
+/// with `high` (the shown car only).
 pub fn light_word(
     prev: u32,
     shown: bool,
@@ -61,10 +53,10 @@ pub fn light_word(
     w
 }
 
-/// The light word's bit for lights on (`light_word` sets it in every drawn car's).
+/// The light word's bit for lights on (set in every drawn car's).
 pub const LIGHTS_ON: u32 = 0x20;
 
-/// `race::car_lights`: whether a car's lights are drawn from its light word (+0x6FC).
+/// Whether a car's lights are drawn, from its light word.
 pub fn lights_on(word: u32) -> bool {
     word & LIGHTS_ON != 0
 }
@@ -72,9 +64,8 @@ pub fn lights_on(word: u32) -> bool {
 /// The depth entries one car's lights may add (its own and its flares).
 pub const ENTRIES_A_CAR: u32 = 25;
 
-/// What `race::car_lights` refuses before anything: no race cars (its loop tests at its
-/// end) or more than eight, and a depth list (`count` of `room`) without room for every
-/// car's entries.
+/// What the car lights refuse: no race cars or more than eight, and a depth list without room
+/// for every car's entries.
 pub fn check_car_lights(cars: u32, count: u32, room: u32) -> Result<(), Invalid> {
     if cars == 0 || cars > 8 {
         return Err(Invalid("no race cars or more than eight"));
@@ -85,21 +76,21 @@ pub fn check_car_lights(cars: u32, count: u32, room: u32) -> Result<(), Invalid>
     Ok(())
 }
 
-/// The count from which a car part's sound wakes (`race::wake_part_sounds`).
+/// The count from which a car part's sound wakes.
 pub const WAKE_COUNT: u32 = 10;
 
-/// What `race::wake_part_sounds` does with one part slot.
+/// What happens to one part slot's sound.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PartWake {
-    /// Already awake (+0x48 set) or not yet counted to 10.
+    /// Already awake (flag set) or not yet counted to 10.
     Left,
-    /// +0x48 set to 1.
+    /// Flag set to 1.
     Woken,
-    /// +0x48 set, and the count exactly 10: the car's sound object may wake too.
+    /// Flag set, and the count exactly 10: the car's sound object may wake too.
     WokenNow,
 }
 
-/// `race::wake_part_sounds`: a part slot by its flag (+0x48) and its count (+0x700).
+/// A part slot by its wake flag and its count.
 pub fn part_wake(flag: u32, count: u32) -> PartWake {
     if flag != 0 || count < WAKE_COUNT {
         PartWake::Left
@@ -110,9 +101,7 @@ pub fn part_wake(flag: u32, count: u32) -> PartWake {
     }
 }
 
-/// Two colours added byte by byte, each held to 0xFF: all four bytes with MMX
-/// (`paddusb`), else the low three, the top byte left as `a`'s (the original's
-/// `add al, cl` / `add ah, ch` / `ror` steps).
+/// Two colours added byte by byte, each held to 0xFF: four bytes with MMX, else the low three.
 pub fn add_colours(a: u32, b: u32, mmx: bool) -> u32 {
     let bytes = if mmx { 4 } else { 3 };
     let mut out = a;
@@ -123,7 +112,7 @@ pub fn add_colours(a: u32, b: u32, mmx: bool) -> u32 {
     out
 }
 
-/// Two colours multiplied byte by byte, (a x b) >> 8 for each, all four bytes.
+/// Two colours multiplied byte by byte, (a x b) >> 8.
 pub fn multiply_colours(a: u32, b: u32) -> u32 {
     let mut out = 0;
     for k in 0..4 {
@@ -138,10 +127,9 @@ pub fn clamp_byte(v: u32) -> u32 {
     (v as i32).clamp(0, 0xFF) as u32
 }
 
-/// 0x44F601: whether car n's headlights light the place: with one car chosen
-/// (`dword_52A910`) that car (`dword_52A920`) or all with `dword_6238B8` 1; else the
-/// players' cars (all with `dword_6238B8` 1), outside one player and modes 0 and 2 only
-/// the drawn view's car. Each value asked where the original reads it.
+/// Whether car n's headlights light the place: with one car chosen that car (or all with the
+/// all-cars setting); else the players' cars; outside one player and modes 0 and 2 only the
+/// drawn view's car.
 pub fn headlights_light(
     n: u32,
     one_chosen: bool,
@@ -162,23 +150,20 @@ pub fn headlights_light(
     }
 }
 
-/// 0x44F691's strength of a car's headlights at the place, an index into the car
-/// light table (`g_carLightTable`): from the spread ahead (`spread`, the x87's scaled
-/// square sum), the place's height off the beam (`side`, the turned y) and the car's
-/// marks (+0xABC).
+/// The strength of a car's headlights at the place, an index into the car light table: from the
+/// spread ahead, the height off the beam and the car's marks.
 pub fn headlight_index(spread: u32, side: u32, marks: u32) -> u32 {
-    let mut ecx = clamp_byte(((spread >> 2).wrapping_sub(0x100)).wrapping_neg());
-    ecx = ecx.wrapping_add(ecx);
+    let mut beam = clamp_byte(((spread >> 2).wrapping_sub(0x100)).wrapping_neg());
+    beam = beam.wrapping_add(beam);
     let side = (side as i32).wrapping_abs() as u32;
     let f = clamp_byte(((0x10_0000u32.wrapping_sub(side)) as i32 >> 12) as u32);
-    let mut eax = f.wrapping_mul(ecx) >> 8;
-    eax = eax.wrapping_mul(marks) >> 8;
-    clamp_byte(eax)
+    let mut strength = f.wrapping_mul(beam) >> 8;
+    strength = strength.wrapping_mul(marks) >> 8;
+    clamp_byte(strength)
 }
 
-/// 0x44F863's grey of a lamp at the place: ((0x200000 - its distance) x its
-/// strength) >> 17, held to 0 ..= 0xFF, in the three colour bytes; with the product's
-/// high half (the original's edx).
+/// The grey of a lamp at the place: ((0x200000 - distance) x strength) >> 17, held to
+/// 0 ..= 0xFF, in the three colour bytes.
 pub fn lamp_grey(distance: u32, strength: u32) -> (u32, u32) {
     let product = (0x20_0000u32.wrapping_sub(distance) as i32 as i64) * (strength as i32 as i64);
     let grey = clamp_byte(((product as u32) as i32 >> 0x11) as u32);
@@ -188,11 +173,10 @@ pub fn lamp_grey(distance: u32, strength: u32) -> (u32, u32) {
     )
 }
 
-/// The lamps there are at most (`light_colour_at`'s refusal past them).
+/// The lamps there are at most (the light colour refuses past them).
 pub const MOST_LIGHT_LAMPS: u32 = 16;
 
-/// `light_colour_at`'s refusals: no cars (its loop tests at its end), more than eight, a
-/// null block it would read, more than 16 lamps.
+/// The light colour's refusals: no cars, more than eight, a null block, more than 16 lamps.
 pub fn check_light_colour(
     cars: u32,
     block: impl Fn(u32) -> u32,
@@ -210,8 +194,7 @@ pub fn check_light_colour(
     Ok(())
 }
 
-/// `face_colours`: a corner's colour, its light (`g_lightTable` by +0x14 ..) and with the
-/// face's flag 4 the two extra lights added (`extra`, asked only then).
+/// A corner's colour, its light and with the face's flag 4 the two extra lights.
 pub fn corner_colour(light: u32, lit: bool, extra: impl FnOnce() -> (u32, u32), mmx: bool) -> u32 {
     if !lit {
         return light;
@@ -220,7 +203,7 @@ pub fn corner_colour(light: u32, lit: bool, extra: impl FnOnce() -> (u32, u32), 
     add_colours(add_colours(light, a, mmx), b, mmx)
 }
 
-/// The face's flag (+2) for the extra lights.
+/// The face's switches flag (+2) for the extra lights.
 pub const EXTRA_LIGHTS: u16 = 4;
 
 #[cfg(test)]

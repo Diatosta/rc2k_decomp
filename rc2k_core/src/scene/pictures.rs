@@ -1,13 +1,11 @@
-//! The system textures' pictures (converted 2026-10-21 from `scene::load_texture_picture`
-//! 0x42578E, `scene::load_changed_texture_picture` 0x42574B and
-//! `scene::reload_system_textures` 0x4254B4): which picture a texture wants and whether it
-//! is to be loaded, the picture's file names (`tx<number>.pcx`, four decimal digits, and the
-//! one numbered one higher) and folder, and the size a picture is read at.
+//! The system textures' pictures: which picture a texture wants and whether it is loaded, the
+//! picture's file names (`tx<number>.pcx`, four decimal digits, and the one numbered one
+//! higher) and folder, and the size a picture is read at.
 
 use crate::scene::textures::{PictureFolder, picture_folder};
 
-/// The four decimal digits of a picture's number as they go into its name (each digit
-/// plus '0', the thousands first: a number past 9999 gives a byte past '9').
+/// The four decimal digits of a picture's number as they go into its name (a number past
+/// 9999 gives a byte past '9').
 pub fn digits(number: u32) -> [u8; 4] {
     [
         (number / 1000) as u8,
@@ -24,9 +22,9 @@ pub const FOLDERS: usize = 6;
 /// The gravel folder's place among them.
 pub const GRAVEL: usize = 3;
 
-/// The digits written into each folder's name and second name (`None`: left as it is).
-/// The `files\m` name gets its third digit twice and the `files\s\extr` second name keeps
-/// its `xxxx` (the original's slips, kept).
+/// The digits written into each folder's name and second name (`None`: left as it is). Kept:
+/// the `files\m` name gets its third digit twice and the `files\s\extr` second name keeps
+/// its `xxxx`.
 pub fn names(number: u32) -> [([u8; 4], Option<[u8; 4]>); FOLDERS] {
     let (first, second) = (digits(number), digits(number.wrapping_add(1)));
     std::array::from_fn(|n| {
@@ -49,9 +47,8 @@ pub fn folder_place(folder: PictureFolder) -> usize {
     }
 }
 
-/// The car a picture 1000 .. 1999 is for: the texture less the cars' first texture (kind
-/// 0x100's), over 8, when that is under the cars' count (unsigned). Both are asked for
-/// only for such a picture.
+/// The car a picture 1000 ..= 1999 is for: the texture less the cars' first texture, over 8,
+/// when that is under the cars' count. Both are asked for only for such a picture.
 pub fn picture_car(
     number: u32,
     texture: u32,
@@ -65,14 +62,13 @@ pub fn picture_car(
     (car < cars()).then_some(car)
 }
 
-/// Whether a car's gravel value (`dword_6235FC`) takes its picture from `files\b\gravel`
-/// when the file is there: 3 or more, by the difference's sign as the original has it.
+/// Whether a car's gravel value (3 or more) takes its picture from `files\b\gravel` when
+/// the file is there.
 pub fn takes_gravel(gravel: u32) -> bool {
     gravel.wrapping_sub(3) as i32 >= 0
 }
 
-/// `load_texture_picture`'s folder: by the number (`texture_picture_folder`), or the
-/// gravel one.
+/// The folder of a picture: by its number, or the gravel one.
 pub fn folder(number: u32, gravel: bool) -> usize {
     if gravel {
         GRAVEL
@@ -81,14 +77,13 @@ pub fn folder(number: u32, gravel: bool) -> usize {
     }
 }
 
-/// `load_changed_texture_picture`: the picture to load into a texture, unless it wants
-/// none (-1 or 0) or holds it already (`loaded` asked only then).
+/// The picture to load into a texture, unless it wants none (-1 or 0) or holds it already
+/// (`loaded` asked only then).
 pub fn changed_picture(wanted: u32, loaded: impl FnOnce() -> u32) -> Option<u32> {
     (wanted != u32::MAX && wanted != 0 && wanted != loaded()).then_some(wanted)
 }
 
-/// `reload_system_textures`: the picture a kind's first texture wants (its kind's picture,
-/// 0 made -1).
+/// The picture a kind's first texture wants (its kind's picture, 0 made -1).
 pub fn kind_picture(picture: u32) -> u32 {
     if picture == 0 { u32::MAX } else { picture }
 }
@@ -138,7 +133,7 @@ mod tests {
             None
         );
         assert!(takes_gravel(3) && !takes_gravel(2) && !takes_gravel(0x8000_0003));
-        // by the sign of the difference: 0x80000002 less 3 is positive
+        // By the sign of the difference: 0x80000002 less 3 is positive.
         assert!(takes_gravel(0x8000_0002));
         assert_eq!(changed_picture(5, || 6), Some(5));
         assert_eq!(changed_picture(5, || 5), None);

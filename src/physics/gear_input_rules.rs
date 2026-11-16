@@ -1,94 +1,62 @@
-//! `physics::gear_input_rules` (0x439BF6): the gearbox's input state (0x613890 ..
-//! 0x6138A8) by the car's state (the work copy's `dword_71A244`, `dword_71A010`,
-//! `dword_719FEC`, `dword_71A07C`, `dword_71A078`, `dword_71A080`): with `dword_71A244`
-//! neither 0 nor -1 all cleared, 0x61389C = 500 and `g_carGear` 0 (nothing else); with
-//! `dword_71A010` 2 the two inputs 0x613894 / 0x613898 joined into the first (in neutral,
-//! `dword_6138A8` = 1, or -1 when the second is the larger) or swapped (in reverse);
-//! with `dword_719FEC` below 800 (the sign of the difference) 0x61389C = 500 and, unless
-//! `dword_62389C` is 1, four cleared; each of three switches clears them and the gear.
-//! What they are is a reading at best (an automatic box's held inputs?).
+//! The gearbox's input state by the car's state (the work copy's `tyre_change_state`,
+//! `gearbox_kind`, `run_ticks`, `go_stand_timer`, `started_stand_timer`, `finish_flag`): with
+//! `tyre_change_state` neither 0 nor -1 all are cleared, the hold word = 500 and the gear is 0
+//! (nothing else); with `gearbox_kind` 2 the two inputs are joined into the first (in neutral,
+//! `input_gear_wanted` = 1, or -1 when the second is the larger) or swapped (in reverse); with
+//! `run_ticks` below 800 the hold word = 500 and, unless `run_kind` is 1, four are cleared;
+//! each of three switches clears them and the gear. What they are is a reading at best (an
+//! automatic box's held inputs?).
 //!
-//! Returns: the joined input when they were joined
+//! Returns the joined input when they were joined.
 //!
 //! Callers: race init's loop (`drive::race_cars_step`), `race::step_replay_cars`,
-//! `drive::replay_step` (each calls
-//! `physics::car_physics_step` or `drive::steer_inputs` next).
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
+//! `drive::replay_step` (each calls `physics::car_physics_step` or `drive::steer_inputs` next).
 
-use crate::race::owner::Race;
-use crate::session::Cell32;
+use crate::memory::session::DwordLike;
+use crate::physics::car_store::Car;
+use crate::physics::tables_store::PhysicsTables;
+use crate::race::vars_store::RaceVars;
 use rc2k_core::physics::gearbox::{GearCar, GearInputs};
 
-fn get(v: &[&dyn Cell32], k: usize) -> u32 {
-    v[k].bits()
-}
-
-fn put(v: &[&dyn Cell32], k: usize, x: u32) {
-    v[k].set_bits(x);
-}
-
-/// The Rust version on the variables' cells `v`; what the rules change is written back. The
-/// eax it leaves (the joined input) is read by none of its callers.
-// Converted: `rc2k_core::physics::gearbox::GearInputs::apply_rules`.
-pub fn rules_at(v: &[&dyn Cell32]) {
-    let car = GearCar {
-        state: get(v, 0),
-        box_mode: get(v, 7),
-        timer: get(v, 9),
-        race_mode: get(v, 10),
-        switches: [get(v, 12), get(v, 13), get(v, 14)],
+/// The rules change what they change; only the words that differ are written back.
+// Core: `rc2k_core::physics::gearbox::GearInputs::apply_rules`.
+pub fn gear_input_rules(car: &Car, tables: &PhysicsTables, vars: &RaceVars) {
+    let state = GearCar {
+        state: car.tyre_change_state.get(),
+        box_mode: car.gearbox_kind.get(),
+        timer: car.run_ticks.get(),
+        race_mode: vars.run_kind.get(),
+        switches: [
+            car.go_stand_timer.get(),
+            car.started_stand_timer.get(),
+            car.finish_flag.get(),
+        ],
     };
     let before = GearInputs {
-        w90: get(v, 11),
-        first: get(v, 3),
-        second: get(v, 4),
-        hold: get(v, 5),
-        wa0: get(v, 2),
-        wa4: get(v, 1),
-        joined: get(v, 8),
+        w90: tables.input_steer.get(),
+        first: tables.input_throttle.get(),
+        second: tables.input_brake.get(),
+        hold: tables.input_handbrake.get(),
+        wa0: tables.input_gear_up.get(),
+        wa4: tables.input_gear_down.get(),
+        joined: tables.input_gear_wanted.get(),
     };
-    let gear_before = get(v, 6);
+    let gear_before = car.gear.get();
     let (mut inputs, mut gear) = (before, gear_before);
-    inputs.apply_rules(&mut gear, &car);
-    for (k, now, was) in [
-        (11, inputs.w90, before.w90),
-        (3, inputs.first, before.first),
-        (4, inputs.second, before.second),
-        (5, inputs.hold, before.hold),
-        (2, inputs.wa0, before.wa0),
-        (1, inputs.wa4, before.wa4),
-        (8, inputs.joined, before.joined),
-        (6, gear, gear_before),
-    ] {
-        if now != was {
-            put(v, k, now);
-        }
+    inputs.apply_rules(&mut gear, &state);
+    let changes: [(&dyn DwordLike, u32, u32); 7] = [
+        (&tables.input_steer, inputs.w90, before.w90),
+        (&tables.input_throttle, inputs.first, before.first),
+        (&tables.input_brake, inputs.second, before.second),
+        (&tables.input_handbrake, inputs.hold, before.hold),
+        (&tables.input_gear_up, inputs.wa0, before.wa0),
+        (&tables.input_gear_down, inputs.wa4, before.wa4),
+        (&tables.input_gear_wanted, inputs.joined, before.joined),
+    ];
+    for (cell, now, was) in changes {
+        crate::physics::cells::set_changed(cell, was, now);
     }
-}
-
-fn game(race: &Race) -> Vec<&dyn Cell32> {
-    vec![
-        &race.shared.car.tyre_change_state as &dyn Cell32,
-        &race.shared.physics_tables.input_gear_down,
-        &race.shared.physics_tables.input_gear_up,
-        &race.shared.physics_tables.input_throttle,
-        &race.shared.physics_tables.input_brake,
-        &race.shared.physics_tables.input_handbrake,
-        &race.shared.car.gear,
-        &race.shared.car.gearbox_kind,
-        &race.shared.physics_tables.input_gear_wanted,
-        &race.shared.car.run_ticks,
-        &race.shared.vars.run_kind,
-        &race.shared.physics_tables.input_steer,
-        &race.shared.car.go_stand_timer,
-        &race.shared.car.started_stand_timer,
-        &race.shared.car.finish_flag,
-    ]
-}
-
-/// The Rust version.
-pub fn gear_input_rules(race: &Race) {
-    rules_at(&game(race));
+    if gear != gear_before {
+        car.gear.set(gear);
+    }
 }

@@ -1,22 +1,16 @@
-//! The lexicon compiler (RAL.EXE 0x40356E and its 25 functions, in their order; moved to
-//! the core 2026-10-20): from the text of a language file to the packed string table
+//! The lexicon compiler: from the text of a language file to the packed string table
 //! (`strings::StringTable` reads it) and the counts the game logs.
 //!
 //! The language file: one message a line, a label and then the text; `;` starts a comment.
-//! The text is cut into words: a run of letters, digits and bytes of 0x80 and more (with
-//! `'` and `-` inside it); any other character by itself; `{...}` as one word whatever is
-//! in it; `\x` (and `\#hh`) as one word; `~ddd` as one word; and the blanks between two
-//! words as one word, a space. Every different word is kept once, and every different
-//! message, as the list of its words, once.
-//! The table: an index of dwords, one for each message and then one for each word, each
-//! an offset into the table with a flag in its top byte (below 0x80: so many bytes of
-//! text; else 0x100 less so many 16-bit numbers of index entries). After the index a zero
-//! byte, the words' bytes shortest first, a padding byte if that leaves an odd offset, and
-//! the messages of more than one word, shortest first, as the index numbers of their words.
-//! A message of one word shares that word's entry.
-//!
-//! Whatever the original would report as an error in the file, or would run into, is
-//! refused here, and the original left to say so.
+//! The text is cut into words: a run of letters, digits and bytes of 0x80 and more (with `'`
+//! and `-` inside it); any other character by itself; `{...}`, `\x` (and `\#hh`) and `~ddd`
+//! each as one word; the blanks between two words as one word, a space. Every different word
+//! is kept once, and every different message, as the list of its words, once.
+//! The table is read by `strings::table`: an index of dwords (one per message, then one per
+//! word), then a zero byte, the words' bytes shortest first, a padding byte if that leaves an
+//! odd offset, and the messages of more than one word, shortest first, as the index numbers of
+//! their words. A message of one word shares that word's entry. Input that would be an error
+//! or run on is refused.
 
 use crate::Invalid;
 use std::collections::HashMap;
@@ -25,7 +19,7 @@ use std::collections::HashMap;
 #[derive(Debug, PartialEq, Eq)]
 pub struct Compiled {
     pub table: Vec<u8>,
-    /// The counts, as the original keeps them (`dword_94EAB8` .. `dword_94F6F4`).
+    /// The counts the game logs.
     pub padded: u32,
     pub lines: u32,
     pub messages: u32,
@@ -41,7 +35,7 @@ pub struct Compiled {
     pub empty_messages: u32,
 }
 
-/// The table has room from 0x4E07F8 to 0x4F07C8.
+/// The table has room for 0xFFD0 bytes.
 pub const TABLE_ROOM: usize = 0xFFD0;
 /// The word the blanks between two words become, before it is unescaped to a space.
 const SPACE: &[u8] = b"\\s";
@@ -61,7 +55,7 @@ struct Phrase {
     entry: u32,
 }
 
-/// The memory the original works in: when it runs out, the original ends in a fatal error.
+/// The memory the compiler may use; running out is refused.
 struct Arena(u32);
 
 impl Arena {
@@ -74,13 +68,13 @@ impl Arena {
     }
 }
 
-/// One word of a message's text, as the original's tokeniser hands it out.
+/// One word of a message's text, as the tokeniser hands it out.
 struct Token {
     /// 0 = the text has ended (or an empty `{}` was met).
     length: u32,
     /// Where the word's bytes are; None for the space between two words.
     start: Option<usize>,
-    /// What the original leaves in esi when the length is 0.
+    /// Where the scan stands when the length is 0.
     left: usize,
     after: usize,
 }
@@ -92,12 +86,12 @@ fn is_word_byte(byte: u8) -> bool {
 struct Source<'a>(&'a [u8]);
 
 impl Source<'_> {
-    /// The byte at a place; past the text the original finds the zeros of fresh memory.
+    /// The byte at a place; past the text, 0.
     fn at(&self, place: usize) -> u8 {
         self.0.get(place).copied().unwrap_or(0)
     }
 
-    /// For the loops that do not stop at a zero byte: past the text they would run on.
+    /// For loops that do not stop at a zero byte: past the text they would run on (refused).
     fn within(&self, place: usize) -> Result<u8, Invalid> {
         if place > self.0.len() {
             return Err(Invalid(
@@ -107,7 +101,7 @@ impl Source<'_> {
         Ok(self.at(place))
     }
 
-    /// 0x403889: the next word from `scan` on.
+    /// The next word from `scan` on.
     fn next_word(&self, scan: usize) -> Result<Token, Invalid> {
         let mut place = scan;
         loop {
@@ -154,8 +148,7 @@ impl Source<'_> {
         match first {
             b'{' => {
                 let content = place;
-                // Counted like the original: one for every byte read, the closing brace
-                // too, which is then not part of the word.
+                // One for every byte read, the closing brace too (not part of the word).
                 let mut read = 0u32;
                 loop {
                     read += 1;
@@ -233,7 +226,7 @@ impl Source<'_> {
     }
 }
 
-/// 0x403B85 after its `#`: two hex digits.
+/// After its `#`: two hex digits.
 fn hex_pair(digits: &[u8]) -> Result<u8, Invalid> {
     let mut value = 0u8;
     for n in 0..2 {
@@ -248,14 +241,14 @@ fn hex_pair(digits: &[u8]) -> Result<u8, Invalid> {
     Ok(value)
 }
 
-/// 0x403AC2 for one word: the escapes of the file become the bytes of the table.
+/// For one word: the escapes of the file become the bytes of the table.
 fn unescaped(raw: &[u8]) -> Result<Vec<u8>, Invalid> {
     let mut text = raw.to_vec();
     let mut place = 0;
     while place < text.len() {
         let byte = text[place];
         place += 1;
-        // The original takes a zero byte for the word's end.
+        // A zero byte ends the word.
         if byte == 0 {
             break;
         }
@@ -295,15 +288,14 @@ fn unescaped(raw: &[u8]) -> Result<Vec<u8>, Invalid> {
     Ok(text)
 }
 
-/// The original's bubble sort: it leaves a list of one or two as it is, and otherwise
-/// sorts by length, things of one length staying in their order.
+/// A stable sort by length; a list of one or two is left as it is.
 fn sort_by_length<T>(list: &mut [T], length: impl Fn(&T) -> usize) {
     if list.len() > 2 {
         list.sort_by_key(length);
     }
 }
 
-/// `arena_bytes` is the memory the original gives itself (`dword_519554` * 0x400).
+/// `arena_bytes` is the memory the compiler may use.
 pub fn compile(text: &[u8], arena_bytes: u32) -> Result<Compiled, Invalid> {
     let source = Source(text);
     let mut arena = Arena(arena_bytes);
@@ -320,10 +312,10 @@ pub fn compile(text: &[u8], arena_bytes: u32) -> Result<Compiled, Invalid> {
     let (mut lines, mut source_size, mut words_encountered, mut phrases_encountered) =
         (1u32, 0u32, 0u32, 0u32);
 
-    // 0x403682: a message a line.
+    // A message a line.
     let mut place = 0usize;
     loop {
-        // 0x403CD2: comments and line ends.
+        // Comments and line ends.
         let at_end = loop {
             match source.at(place) {
                 0 => break true,
@@ -376,7 +368,7 @@ pub fn compile(text: &[u8], arena_bytes: u32) -> Result<Compiled, Invalid> {
         arena.take(counted)?;
         let body = label + counted as usize - 1;
 
-        // 0x403745: the message's words.
+        // The message's words.
         let mut message: Vec<usize> = Vec::new();
         let mut scan = body;
         let end = loop {
@@ -394,7 +386,7 @@ pub fn compile(text: &[u8], arena_bytes: u32) -> Result<Compiled, Invalid> {
             if token.length > 0x7F {
                 return Err(Invalid("language file: Word too long"));
             }
-            // 0x403A10: the word, kept once.
+            // The word, kept once.
             let raw: &[u8] = match token.start {
                 Some(start) => text
                     .get(start..start + token.length as usize)
@@ -429,7 +421,7 @@ pub fn compile(text: &[u8], arena_bytes: u32) -> Result<Compiled, Invalid> {
             scan = token.after;
         };
 
-        // 0x40379F: the message as a phrase, kept once.
+        // The message as a phrase, kept once.
         if message.is_empty() {
             messages.push(None);
         } else {
@@ -452,12 +444,12 @@ pub fn compile(text: &[u8], arena_bytes: u32) -> Result<Compiled, Invalid> {
         place = end;
     }
 
-    // 0x403AC2.
+    // The words' escapes become bytes.
     for word in &mut words {
         word.text = unescaped(&word.raw)?;
     }
 
-    // 0x403BDC, 0x403C54: one list each, by first byte and then as met; sorted.
+    // One list each, by first byte and then as met; sorted.
     let mut word_order: Vec<usize> = word_buckets.into_iter().flatten().collect();
     sort_by_length(&mut word_order, |&word| words[word].text.len());
     let mut phrase_order: Vec<usize> = phrase_buckets.into_iter().flatten().collect();
@@ -466,7 +458,7 @@ pub fn compile(text: &[u8], arena_bytes: u32) -> Result<Compiled, Invalid> {
         return Err(Invalid("a language file without words"));
     }
 
-    // 0x403DA7: offsets and numbers.
+    // Offsets and numbers.
     let entries = messages.len() + words.len();
     if entries > 0x10000 {
         return Err(Invalid("language file: More than 64K indices in bundle"));
@@ -506,7 +498,7 @@ pub fn compile(text: &[u8], arena_bytes: u32) -> Result<Compiled, Invalid> {
         return Err(Invalid("the compiled lexicon is larger than its table"));
     }
 
-    // The index, and 0x403F0B: the table.
+    // The index, and the table.
     let mut index: Vec<u32> = Vec::with_capacity(entries);
     let mut empty_messages = 0;
     for message in &messages {
@@ -519,7 +511,7 @@ pub fn compile(text: &[u8], arena_bytes: u32) -> Result<Compiled, Invalid> {
         });
     }
     index.extend(word_order.iter().map(|&word| words[word].entry));
-    // 0x403FC1: an entry's number is that of the first index entry like it.
+    // An entry's number is that of the first index entry like it.
     let mut number_of: HashMap<u32, u16> = HashMap::new();
     for (n, &entry) in index.iter().enumerate() {
         number_of.entry(entry).or_insert(n as u16);
@@ -570,7 +562,7 @@ struct WordAt {
     named_at: Option<usize>,
 }
 
-/// Every word of string `id` (RAL.EXE 0x4163CE), in order.
+/// Every word of string `id`, in order.
 fn words_of(
     table: &[u8],
     id: u32,
@@ -620,10 +612,10 @@ fn word_text(table: &[u8], entry: usize) -> Result<&[u8], Invalid> {
         .ok_or(Invalid("a lexicon word past the table"))
 }
 
-/// The four corrections the game makes in its lexicon after loading it (RAL.EXE
-/// `strings::correct_lexicon`): in string 0x6CA "Bowland" loses its `w`, in 0x6AB "Laukennen"
-/// becomes "Laukkanen", and in 0x23B the word "A7" or "(A7)" names string 0x23A's "A8" or "(A8)"
-/// instead. A correction meeting its word where the string is that word alone is refused.
+/// The four corrections the game makes in its lexicon after loading it: in string 0x6CA "Bowland"
+/// loses its `w`, in 0x6AB "Laukennen" becomes "Laukkanen", and in 0x23B the word "A7" or "(A7)"
+/// names string 0x23A's "A8" or "(A8)" instead. A correction meeting its word where the string is
+/// that word alone is refused.
 pub fn correct(table: &mut [u8]) -> Result<(), Invalid> {
     const ALONE: Invalid = Invalid("a correction's word is its whole string");
     let words = |table: &[u8], id| -> Result<Vec<WordAt>, Invalid> {
@@ -670,9 +662,8 @@ pub fn correct(table: &mut [u8]) -> Result<(), Invalid> {
     Ok(())
 }
 
-/// Whether the string table is made again from the language file
-/// (`strings::maybe_compile_lexicon` 0x403555): `dword_4E0758` (signed) 1 or more and the
-/// key's state `byte_4F6B2A` not 0, a developer's way to see a changed language file.
+/// Whether the string table is made again from the language file: the setting (signed) 1 or more
+/// and the key's state not 0, a developer's way to see a changed language file.
 pub fn recompile_wanted(level: u32, key: u8) -> bool {
     level as i32 >= 1 && key != 0
 }

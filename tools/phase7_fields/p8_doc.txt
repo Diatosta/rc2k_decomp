@@ -1,7 +1,0 @@
-The race's work variables after the work car (IDA 0x71AFB8 .. 0x71C814; phase 7, typed):
-the cars' blocks and the current car, the stage's direction, the cars' number textures,
-the loose parts' slots, the computer driver's state, the credits' race, the network's
-message, the `patch*` settings, the stages' checkpoint counts. Named from the code's uses
-(2026-10-25); most names are readings, `unknown_*` runs are places no ported code names.
-`#[repr(C)]` with the image's layout, over the race block's bytes (`RACE_WORK`, as
-`physics::car_store::CAR`) until the code reaching them by RVA is typed.

@@ -1,17 +1,18 @@
-//! `physics::damage_step` (0x4AB5D6): the car's damage and wear model for this physics
-//! step: `physics::damage_factors`, `physics::damage_wear`, `physics::damage_gauges`
-//! (its only code: three calls and `retn`).
+//! The car's damage and wear model for this physics step: `physics::damage_factors`,
+//! `physics::damage_wear`, `physics::damage_gauges`.
 //!
-//! Caller: `physics::car_physics_step` (0x43B952), every physics step.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
+//! Caller: `physics::car_physics_step`, every physics step.
 
-use crate::race::owner::Race;
+use crate::errors::BadInput;
+use crate::physics::car_store::Car;
+use crate::physics::store::DamageModel;
+use crate::race::work_store::RaceWork;
 
-/// The Rust version (the registers the three leave are read by no caller).
-pub fn damage_step(race: &Race) {
-    crate::physics::damage_factors::steps(race);
-    crate::physics::damage_wear::steps(race);
-    crate::physics::damage_gauges::steps(race);
+pub fn damage_step(car: &Car, damage: &DamageModel, work: &RaceWork) -> Result<(), BadInput> {
+    // The steps' arithmetic is written for rounding to nearest, the mode the damage model runs in.
+    debug_assert!(crate::math::x87::rounds_to_nearest());
+    crate::physics::damage_factors::steps(car, damage);
+    crate::physics::damage_wear::steps(car, damage)?;
+    crate::physics::damage_gauges::steps(car, damage, work);
+    Ok(())
 }

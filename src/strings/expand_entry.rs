@@ -1,22 +1,21 @@
-//! `strings::expand_entry` (0x401FE1): appends entry `id` of the packed string table, expanding
-//! child entries recursively.
-//!
-//! Takes id, cursor. Returns new cursor. The original also clobbers eax, ecx and esi; its callers
-//! save those around the call.
+//! Appends entry `id` of the packed string table, expanding child entries recursively.
 
 use crate::strings::string_table::table;
-
-// ---- Rust version ----
 
 /// Whether a bad entry has been logged (once).
 static WARNED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
-/// Entry `id` of the string table, given to `emit` (converted:
-/// `rc2k_core::strings::table::StringTable::expand`). A bad entry, or no table yet, is logged
-/// once and gives nothing (the original read wherever it pointed: fixed, `notes/bugs.md`).
-pub fn expand_entry(id: u32, emit: &mut impl FnMut(&[u8])) {
+/// Entry `id` of the string table, given to `emit`
+/// (`rc2k_core::strings::table::StringTable::expand`). A bad entry, or no table yet, is logged once
+/// and gives nothing (fixed: "Text lookup with a bad string id reads anywhere",
+/// `wiki/Fixed-bugs.md`).
+pub fn expand_entry(
+    strings: &crate::strings::owner::Strings,
+    id: u32,
+    emit: &mut impl FnMut(&[u8]),
+) {
     let mut out = Vec::new();
-    let done = match table() {
+    let done = match table(strings) {
         Some(t) => t.expand(id, &mut out).map_err(|e| e.0),
         None => Err("no string table yet"),
     };
@@ -24,7 +23,7 @@ pub fn expand_entry(id: u32, emit: &mut impl FnMut(&[u8])) {
         Ok(()) => emit(&out),
         Err(why) => {
             if !WARNED.swap(true, std::sync::atomic::Ordering::Relaxed) {
-                crate::framework::log(&format!(
+                crate::logfile::program_log::log(&format!(
                     "strings::expand_entry: id={id}: {why}; nothing written"
                 ));
             }

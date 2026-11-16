@@ -1,32 +1,27 @@
-//! The two stream commands (IDA, 2026-10-14): command 9, `audio::stream_command`
-//! (0x40C194, `g_soundStream`), and command 0xB, `audio::music_command` (0x40C4DD,
-//! `g_musicStream`); and `audio::stop_streams` (0x40C5E8). Actions (edx, unsigned): 0 stop;
-//! 1 the thread's turn (feed while playing; stopped after it: stop, and for the music the
-//! next tune); 3 the volume of what plays; any other plays (stop first if playing; nothing
-//! for a volume <= 0, for `g_noMusic` (music), and a stop for no path or tune).
-//!
-//! Music tunes: the file is `g_musicPath` with the tune's two last digits at +0xE
-//! (`strings::format_u32`, flags 0x12); tune 0xA is 10 + `g_tuneTurn` for the first turn
-//! (counted on, 0 .. 5) whose file exists. When a tune stops, `g_nextTune` is played, and it
-//! is never cleared there: the second tune repeats. Fixed (2026-10-20, section 16): a turn
-//! past 5 starts from 0, and after `RETRIES` plays in a row that stop at their first feed
-//! the music stops (the original: both for ever, the audio thread hung).
+//! The two stream commands: command 9, `audio::stream_command`, and command 0xB,
+//! `audio::music_command`; and `audio::stop_streams`. Actions (unsigned): 0 stop; 1 the thread's
+//! turn (feed while playing; stopped after it: stop, and for the music the next tune); 3 the
+//! volume of what plays; any other plays (stop first if playing; nothing for a volume <= 0, for
+//! no music, and a stop for no path or tune). Music tunes: the file is the music path with the
+//! tune's two last digits at +0xE; tune 0xA is 10 + the tune turn for the first turn (counted on,
+//! 0 .. 5) whose file exists. When a tune stops, the next tune is played, and it is never cleared
+//! there: the second tune repeats (kept). Fixed: a turn past 5 starts from 0, and after `RETRIES`
+//! plays in a row that stop at their first feed the music stops ("The music can hang the sound",
+//! `wiki/Fixed-bugs.md`).
 
-use crate::audio::owner::Audio;
-use crate::audio::store::AudioState;
+use crate::audio::own::{AudioOwn, AudioThread};
 use crate::audio::stream::*;
 use crate::errors::Refused;
-use crate::pointers::GamePtr;
-use crate::session::Shared;
+use crate::memory::session::Shared;
+use rc2k_core::audio::commands::StreamAction;
 
 fn playing(player: &Shared<AudioStream>) -> bool {
     player.get().playing == 1
 }
 
-/// The core's player: one of the game's stream players, `path` the file it starts (none for a
-/// stop: the core starts nothing then).
+/// The core's player: one of the stream players, `path` the file it starts (none for a stop).
 struct GamePlayer<'a> {
-    state: &'a AudioState,
+    state: &'a AudioOwn,
     player: &'a Shared<AudioStream>,
     path: Option<StreamPath<'a>>,
 }
@@ -35,23 +30,22 @@ struct GamePlayer<'a> {
 #[derive(Clone, Copy)]
 enum StreamPath<'a> {
     /// The music's path buffer.
-    Music(&'a crate::session::Bytes<24>),
-    /// A sample name in the sound set (a place in the names' table).
-    Name(GamePtr),
+    Music(&'a crate::memory::session::PlainBytes<24>),
+    /// A sample name in the sound set (its text, read from the names' table).
+    Name(&'a [u8]),
 }
 
 impl StreamPath<'_> {
     fn text(self) -> Result<Vec<u8>, crate::errors::BadInput> {
         match self {
             StreamPath::Music(field) => crate::files::cstring(field, "a stream's path"),
-            StreamPath::Name(at) => crate::files::cstring_at(at, "a stream's path"),
+            StreamPath::Name(text) => Ok(text.to_vec()),
         }
     }
 }
 
 impl GamePlayer<'_> {
-    /// `work` on a copy of the player's record, written back after it (the stream
-    /// functions do not reach the record by address).
+    /// `work` on a copy of the player's record, written back after it.
     fn with<R>(&self, work: impl FnOnce(&mut AudioStream) -> R) -> R {
         let mut stream = self.player.get();
         let out = work(&mut stream);
@@ -101,24 +95,26 @@ impl rc2k_core::audio::streams::Tunes for GamePlayer<'_> {
         Ok(crate::files::file_exists::file_exists(&path)?)
     }
     fn gave_up(&mut self, tune: u32) {
-        crate::framework::log(&format!(
+        crate::logfile::program_log::log(&format!(
             "audio: tune {tune:#x}: {} plays in a row stopped at their first feed; the music stopped",
             rc2k_core::audio::streams::RETRIES
         ));
     }
 }
 
-/// `audio::stream_command` on the player at `player`. Converted:
-/// `rc2k_core::audio::streams::stream_command`.
-/// `name` the sample name's key (`audio::store::name_key`), 0 with none (a stop).
-pub fn stream_command(audio: &Audio, name: u32, volume: i32, action: u32) -> Result<(), Refused> {
-    let path = match name {
+/// `audio::stream_command` on the player at `player`. `name` is the sample name's key
+/// (`audio::store::name_key`), 0 with none (a stop).
+pub fn stream_command(
+    audio: &AudioThread,
+    name: u32,
+    volume: i32,
+    action: StreamAction,
+) -> Result<(), Refused> {
+    let text = match name {
         0 => None,
-        _ => Some(StreamPath::Name(crate::audio::store::name_in(
-            &audio.sample_names,
-            name,
-        )?)),
+        _ => Some(crate::audio::store::name_in(&audio.sample_names, name)?),
     };
+    let path = text.as_deref().map(StreamPath::Name);
     let mut p = GamePlayer {
         state: &audio.state,
         player: &audio.state.sound_stream,
@@ -127,21 +123,18 @@ pub fn stream_command(audio: &Audio, name: u32, volume: i32, action: u32) -> Res
     rc2k_core::audio::streams::stream_command(&mut p, name != 0, volume, action)
 }
 
-/// `audio::music_command`: `tune` with `next` to follow. Converted:
-/// `rc2k_core::audio::streams::music_command` (its calls do not read the three variables,
-/// which are stored once it is done).
+/// `audio::music_command`: `tune` with `next` to follow.
 pub fn music_command(
-    state: &AudioState,
+    state: &AudioOwn,
     tune: u32,
     next: u32,
     volume: i32,
-    action: u32,
+    action: StreamAction,
 ) -> Result<(), Refused> {
-    let turn = &crate::sound::owner::sound().menu.options.tune_turn;
     let mut m = rc2k_core::audio::streams::Music {
         next_tune: state.next_tune.get(),
         no_music: state.no_music.get(),
-        turn: turn.get(),
+        turn: state.tune_turn.get(),
     };
     let mut p = GamePlayer {
         state,
@@ -150,6 +143,6 @@ pub fn music_command(
     };
     let done = rc2k_core::audio::streams::music_command(&mut p, &mut m, tune, next, volume, action);
     state.next_tune.set(m.next_tune);
-    turn.set(m.turn);
+    state.tune_turn.set(m.turn);
     done
 }

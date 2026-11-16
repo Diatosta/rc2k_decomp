@@ -1,5 +1,5 @@
-//! Pictures loaded (converted 2026-10-21): which reader `gfx::read_picture_file` 0x4119F4
-//! takes, and the overlay `gfx::load_picture_with_overlay` 0x4118D1 lays over a picture.
+//! Pictures loaded: which reader `gfx::read_picture_file` takes, and the overlay
+//! `gfx::load_picture_with_overlay` lays over a picture.
 
 use crate::Invalid;
 
@@ -16,9 +16,9 @@ pub enum Reader {
     Chatzone,
 }
 
-/// The reader, by the path's last four characters and the setting `dword_51B97C` (0 in
-/// the owner's game): with 0 every path goes to the PNG reader first; else a `.png` is not
-/// read (2: success) or replaced by the chat zone's picture, and other paths go to PCX.
+/// The reader, by the path's last four characters and the setting (0 in the installs seen):
+/// with 0 every path goes to the PNG reader first; else a `.png` is not read (2: success) or
+/// replaced by the chat zone's picture, and other paths go to PCX.
 pub fn reader(ending: [u8; 4], setting: u32) -> Reader {
     match setting {
         0 => Reader::PngThenPcx,

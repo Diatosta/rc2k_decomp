@@ -1,44 +1,53 @@
-//! `effects::begin_quads` (0x4C4453): the render set up for the marks' quads and a quad's
-//! four vertices made ready. `scene::set_texture` with `dword_5D1E10`,
-//! `scene::depth_buffer_on`, `scene::depth_test_off`, render states 0x15 = 4, 0x13 = 5,
-//! 0x14 = 6, 0x1C = 0, 0x1B = 1 (`scene::set_render_state`); then each of the four
-//! `g_polygonVertices` gets +0xC `dword_91FFA6`, +0x10 -1, +0x14 0, and its texture place
-//! from `dword_91FFAA` .. `dword_91FFB6` (u: AA, B2, B2, AA; v: AE, AE, B6, B6);
-//! `g_polygonVertexCount` 4, `flt_8EB96D` 1 / `flt_6241C8`, `dword_91FFBA` 0.
-//!
-//! Caller: `effects::draw_frame`.
+//! `effects::begin_quads`: the render set up for the effects' quads and a quad's four vertices made
+//! ready: `scene::set_texture` with the effects' texture, `scene::depth_buffer_on`,
+//! `scene::depth_test_off`, render states 0x15 = 4, 0x13 = 5, 0x14 = 6, 0x1C = 0, 0x1B = 1
+//! (`scene::set_render_state`); then each of the four polygon vertices gets +0xC the quad's value,
+//! +0x10 -1, +0x14 0, and its texture place from the quad's constants (u: a, b, b, a; v: c, c, d,
+//! d); the polygon's vertex count 4, the depth scale 1 / the farthest depth, the quad's last cell
+//! 0.
 
-use crate::d3d::vertices_store::VERTICES;
-use crate::session::read_bits;
+use crate::memory::session::PlainFloat;
 
 /// The render states set (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
 
-/// The Rust version (see the header): `scene::set_texture`, `scene::depth_buffer_on`,
-/// `scene::depth_test_off`, the render states (`scene::set_render_state`).
-pub fn begin_quads(effects: &crate::effects::owner::Effects, scene: &crate::scene::owner::Scene) {
+/// Sets the texture, the depth state and the render states, then readies the four vertices.
+pub fn begin_quads(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
+    effects: &crate::effects::owner::Effects,
+    scene: &crate::scene::owner::Scene,
+) {
+    let part = scene.scratch.game_scratch();
     let frame = &effects.frame;
     {
-        crate::scene::set_texture::set_texture(scene.textures.kinds.kind_first_slots[202].bits());
-        crate::scene::depth_buffer_on::depth_buffer(true);
-        crate::scene::depth_test_off::depth_test_off();
+        crate::scene::set_texture::set_texture(
+            part,
+            scene,
+            scene.textures.kinds.get().kind_first_slots[202].get(),
+        );
+        crate::scene::depth_buffer_on::depth_buffer(part, true);
+        crate::scene::depth_test_off::depth_test_off(part);
         for (value, state) in STATES {
-            crate::scene::set_render_state::set_render_state(value, state);
+            crate::scene::set_render_state::set_render_state(part, value, state);
         }
-        let colour: u32 = frame.draw_frame.colour.get();
-        let [a, b, c, d]: [u32; 4] = read_bits(&frame.draw_frame.places);
+        let rhw = frame.draw_frame.rhw.get();
+        let [a, b, c, d] = frame.draw_frame.places.each_ref().map(PlainFloat::get);
         let uv = [(a, b), (c, b), (c, d), (a, d)];
         for (k, (u, v)) in uv.into_iter().enumerate() {
-            let at = &VERTICES.vertices[k];
-            at.rhw.set_bits(colour);
+            let at = &buffer.vertices[k];
+            at.rhw.set(rhw);
             at.colour.set(0xFFFF_FFFF);
             at.specular.set(0);
-            at.u.set_bits(u);
-            at.v.set_bits(v);
+            at.u.set(u);
+            at.v.set(v);
         }
-        scene.drawing.scene.polygon_vertex_count.set_bits(4u32);
-        frame.draw_work.z_k.set_bits(crate::math::x87::reciprocal(
-            scene.drawing.scene.farthest.bits(),
+        scene
+            .scratch
+            .front_end_polygon()
+            .polygon_vertex_count
+            .set(4);
+        frame.draw_work.z_k.set(crate::math::x87::reciprocal(
+            &scene.scratch.front_end_polygon().window.farthest,
         ));
         frame.draw_frame.cleared.set(0);
     }

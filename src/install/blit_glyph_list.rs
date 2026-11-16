@@ -1,41 +1,30 @@
-//! `install::blit_glyph_list` (0x402628): a list of `eax` records (16 bytes each: dx, dy,
-//! glyph, palette) blitted, each at (dx + x, dy + y) with its palette (`gfx::blit_glyph`).
-//! The x and y come in ecx and edx.
-//!
-//! Takes the count, table, x, y.
-//! Caller the copy-progress frame (the install bar). Refuses a count of 0
-//! (the original's loop is a do-while: it
-//! would blit 2^32 records).
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
+//! Blits a list of glyph records (16 bytes each: dx, dy, glyph, palette), each at
+//! (dx + x, dy + y) with its palette (`gfx::blit_glyph`). The copy-progress frame (the install
+//! bar) draws with it. Refused: an empty list.
 
 use crate::errors::Refused;
-use crate::install::installer::{rd, rl};
+use crate::install::vars::GlyphRecord;
 use rc2k_core::install::layout;
 
-/// `count` records of `table` blitted at (x, y) on, from the glyph table `glyphs`.
+/// The records of `table` blitted at (x, y) on, from the glyph table `glyphs`. An empty table
+/// is refused.
 pub fn blit_glyph_list(
-    count: u32,
-    table: impl Into<crate::place::Place>,
+    table: &[GlyphRecord],
     x: u32,
     y: u32,
     glyphs: u32,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
-    let table: crate::place::Place = table.into();
-    // Converted: `rc2k_core::install::layout` (`list_records`, `list_place`).
-    for (offset, _) in layout::list_records(count)? {
-        let record = table.add(offset);
-        let (x, y) = layout::list_place(rd(record), rd(record.add(4)), x, y);
-        // gfx::blit_glyph (0x4069B2): eax the glyph, ebx the palette.
-        {
-            crate::gfx::blit_glyph::blit_glyph_on_surface(
-                rd(record.add(8)),
-                glyphs,
-                x as i32,
-                y as i32,
-                Some(palette(rl(record.add(0xC)))),
-            )
-        }?;
+    for (record, _) in table.iter().zip(layout::list_records(table.len() as u32)?) {
+        let (x, y) = layout::list_place(record.dx.get(), record.dy.get(), x, y);
+        crate::gfx::blit_glyph::blit_glyph_on_surface(
+            record.glyph.get(),
+            glyphs,
+            x as i32,
+            y as i32,
+            Some(palette(record.palette_link())),
+            gfx,
+        )?;
     }
     Ok(())
 }
@@ -47,5 +36,5 @@ fn palette(link: crate::install::page_links::PageLink) -> u32 {
             "a glyph list's palette that is not the blended palette",
         ));
     }
-    crate::pointers::GamePtr::to(&crate::text::blend_font::BLENDED_PALETTE).addr()
+    crate::gfx::glyph_store::BLENDED_PLACE
 }

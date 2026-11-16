@@ -1,56 +1,52 @@
-//! `physics::wall_contacts` (0x45D7B6): the probe points (`unk_71A238` of them) against
-//! walls. For each point k, its face now (`unk_71ADC8[k]`, into `dword_6D3174`) and before
-//! (`dword_6D2814[k]`, into `dword_6D3170` when they differ): their words +2 or-ed
-//! together; when they differ and the pair's has both 0x400 and 0x800, the wall met:
-//! `dword_6D3214` = k, the point's three floats from `unk_71AAC8[k]` .. into
-//! `unk_71A1FC` .., `physics::wall_edge_contact`, `unk_71A208` raised to |`flt_6D3108`|,
-//! `unk_71A20C` = 1, `unk_71A1CC` = 0x32, `physics::restore_saved_car`,
-//! `physics::feel_ground`. None met: `dword_6D3174` = `dword_6D3170`, the faces' words
-//! or-ed & 0xC00 into `dword_6D3038`; at 0xC00, the car-frame speed (`unk_71A17C` ..)
-//! into `unk_71A1FC` .., `physics::wall_push_back`, the same two words,
-//! `restore_saved_car`, `feel_ground`.
+//! The probe points (`probe_count` of them) against walls. For each point k, its face now
+//! (`probe_point_face[k]`, into `wall_face_now`) and before (`probe_saved_faces[k]`, into
+//! `wall_face_before` when they differ): their flag words are or-ed together; when they differ and
+//! the pair's has both 0x400 and 0x800, the wall is met: `probe_index` = k, the point goes from
+//! `probe_point_x` into `contact_point`, then `physics::wall_edge_contact`, `contact_depth` raised
+//! to |`contact_speed_length`|, `contact_flag` = 1, `wall_hit_timer` = 0x32,
+//! `physics::restore_saved_car`, `physics::feel_ground`. None met: `wall_face_now` =
+//! `wall_face_before`, the faces' words or-ed & 0xC00 into `wall_bits`; at 0xC00, the car-frame
+//! speed (`local_velocity`) goes into `contact_point`, then `physics::wall_push_back`, the same two
+//! words, `restore_saved_car`, `feel_ground`.
 //!
 //! Callers: `physics::car_physics_step` (every physics step), `physics::find_clear_place`. Refuses
-//! (before anything) a count of 0 or past 0x40 (the original's loop runs on, or past the tables),
-//! and what its calls refuse (what was written put back).
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
+//! (before anything) a count of 0 or past 0x40, and what its calls refuse (what was written is put
+//! back).
 
 use crate::errors::Refused;
-use crate::race::owner::Race;
-use crate::race::owner_shared::Shared;
+use crate::physics::car_store::Car;
+use crate::physics::step_families::ContactInputs;
+use crate::race::owner_course::Course;
 use rc2k_core::physics::walls;
 
-fn word(face: u32) -> Result<u32, Refused> {
+fn word(course: &Course, face: u32) -> Result<u32, Refused> {
     Ok(u32::from(crate::race::course_places::face_field::<u16>(
+        course.reads(),
         face,
         2,
-        "a face's flags",
     )?))
 }
 
-fn after(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    race.shared.car.contact_flag.set(1);
-    race.shared.car.wall_hit_timer.set(0x32);
-    { crate::physics::restore_saved_car::restore_saved_car(race) }?;
-    crate::physics::feel_ground::feel_ground(race, scene)
+fn after(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    c.car.contact_flag.set(1);
+    c.car.wall_hit_timer.set(0x32);
+    { crate::physics::restore_saved_car::restore_saved_car(c.car, c.tables, c.contact) }?;
+    crate::physics::feel_ground::feel_ground(&c.ground, scene)
 }
 
-/// The steps, not guarded (`check` before). The registers the original leaves are read by
-/// none of its callers.
-// Converted: `rc2k_core::physics::walls::walk`.
-pub fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let physics_store = &race.physics;
-    let walked = walls::walk(race.shared.car.probe_count.get(), |k| {
+/// The steps, not guarded (`check` before).
+// Core: `rc2k_core::physics::walls::walk`.
+pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    let contact = c.contact;
+    let walked = walls::walk(c.car.probe_count.get(), |k| {
         let k = k as usize;
-        let now = race.shared.car.probe_point_face[k].get();
-        physics_store.contact.wall_face_now.set(now);
-        let now_word = word(now)?;
-        let before = physics_store.contact.probe_saved_faces[k].get();
+        let now = c.car.probe_point_face[k].get();
+        contact.wall_face_now.set(now);
+        let now_word = word(c.course, now)?;
+        let before = contact.probe_saved_faces[k].get();
         let before_word = if now != before {
-            physics_store.contact.wall_face_before.set(before);
-            Some(word(before)?)
+            contact.wall_face_before.set(before);
+            Some(word(c.course, before)?)
         } else {
             None
         };
@@ -61,46 +57,45 @@ pub fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refu
     })?;
     match walked {
         walls::Walk::Met { probe, .. } => {
-            // 0x45D83E: a wall met.
+            // A wall met.
             let k = probe as usize;
-            physics_store.contact.probe_index.set(probe);
-            race.shared.car.contact_point[0].set_bits(race.shared.car.probe_point_x[k].bits());
-            race.shared.car.contact_point[1].set_bits(race.shared.car.probe_point_y[k].bits());
-            race.shared.car.contact_point[2].set_bits(race.shared.car.probe_point_z[k].bits());
-            crate::physics::wall_edge_contact::steps(race, scene)?;
+            contact.probe_index.set(probe);
+            c.car.contact_point[0].set(c.car.probe_point_x[k].get());
+            c.car.contact_point[1].set(c.car.probe_point_y[k].get());
+            c.car.contact_point[2].set(c.car.probe_point_z[k].get());
+            crate::physics::wall_edge_contact::steps(c, scene)?;
             if let Some(hit) = rc2k_core::physics::walls::raised_hit(
-                f32::from_bits(physics_store.contact.contact_speed_length.bits()),
-                f32::from_bits(race.shared.car.contact_depth.bits()),
+                contact.contact_speed_length.get(),
+                c.car.contact_depth.get(),
             ) {
-                race.shared.car.contact_depth.set_bits(hit.to_bits());
+                c.car.contact_depth.set(hit);
             }
-            after(race, scene)
+            after(c, scene)
         }
         walls::Walk::Clear { bits } => {
-            physics_store
-                .contact
-                .wall_face_now
-                .set(physics_store.contact.wall_face_before.get());
-            physics_store.contact.wall_bits.set(bits);
+            contact.wall_face_now.set(contact.wall_face_before.get());
+            contact.wall_bits.set(bits);
             if bits != walls::WALL_BITS {
                 return Ok(());
             }
-            race.shared.car.contact_point[0].set_bits(race.shared.car.local_velocity[0].bits());
-            race.shared.car.contact_point[1].set_bits(race.shared.car.local_velocity[1].bits());
-            race.shared.car.contact_point[2].set_bits(race.shared.car.local_velocity[2].bits());
-            crate::physics::wall_push_back::steps(race, scene)?;
-            after(race, scene)
+            c.car.contact_point[0].set(c.car.local_velocity[0].get());
+            c.car.contact_point[1].set(c.car.local_velocity[1].get());
+            c.car.contact_point[2].set(c.car.local_velocity[2].get());
+            crate::physics::wall_push_back::steps(c, scene)?;
+            after(c, scene)
         }
     }
 }
 
 /// The probe count checked: 0 or past 0x40 refused.
-pub fn check(shared: &Shared) -> Result<(), Refused> {
-    Ok(walls::check_probe_count(shared.car.probe_count.get())?)
+pub fn check(car: &Car) -> Result<(), Refused> {
+    Ok(walls::check_probe_count(car.probe_count.get())?)
 }
 
-/// The Rust version.
-pub fn wall_contacts(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    check(&race.shared)?;
-    steps(race, scene)
+pub fn wall_contacts(
+    c: &ContactInputs<'_>,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    check(c.car)?;
+    steps(c, scene)
 }

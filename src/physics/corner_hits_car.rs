@@ -1,85 +1,70 @@
-//! `physics::corner_hits_car` (0x45F703): whether a corner of another car (`dword_6D3BD4`
-//! .., floats) lies inside the work car. In `pusha` / `popa`: the corner x 65536
-//! (`flt_5C5D98`, unrounded) turned by `flt_6D3C40` (`scene::rotate_point`) and / 65536
-//! into `flt_6D3BC8` ... Inside when each part's size is below the box's (`flt_6D3BBC`
-//! ..; unordered counts as below, as `fcomp` / `jnb`): `dword_6D3BB4` = 1,
-//! `physics::restore_saved_car`, `physics::bump_cars`.
+//! Whether a corner of another car (`corner_in`, floats) lies inside the work car: the corner
+//! times 65536 (`k65536`, unrounded) turned by `corner_matrix` and divided by 65536 into
+//! `corner_turned`. Inside when each part's size is below the box's (`box_size`; unordered counts
+//! as below): `corner_inside` = 1, then `physics::restore_saved_car` and `physics::bump_cars`.
 //!
-//! Takes: the other car's block (passed to `bump_cars`)
+//! Takes: the other car's block (passed to `bump_cars`).
 //!
-//! Caller: `physics::car_collisions` (eight corners a car). Refuses what
-//! `restore_saved_car` and `bump_cars` refuse (what was written put back).
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
+//! Caller: `physics::car_collisions`, eight corners a car. Refuses what `restore_saved_car` and
+//! `bump_cars` refuse (what was written is put back).
 
+use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
-use crate::math::x87_float::{from_f80, ld, st};
-use crate::math::x87_run::{abs_compare, ext_times};
-use crate::race::owner::Race;
-use crate::race::owner_course::Course;
+use crate::math::x87::{abs_compare, ext_times};
+use crate::math::x87_float::from_f80;
+use crate::memory::session::Cell32;
+use crate::physics::contact_store::ContactWork;
+use crate::physics::step_families::ContactInputs;
+use crate::race::numbers_store::Numbers;
 use crate::scene::matrix3::extended;
 use crate::scene::rotate_point::rotate_point;
-use crate::session::Cell32;
 
-/// Whether the corner is inside (`flt_6D3BC8` .. written either way).
-pub fn corner_inside(race: &Race) -> bool {
-    let k = race.course.numbers.k65536.bits();
-    let corner = race
-        .physics
-        .contact
+/// Whether the corner is inside (`corner_turned` .. written either way).
+pub fn corner_inside(contact: &ContactWork, numbers: &Numbers) -> bool {
+    let k = numbers.k65536.get();
+    let corner = contact
         .corner_in
         .each_ref()
-        .map(|x| ext_times(extended(x.bits()), k));
-    let turned = rotate_point(&race.physics.contact.corner_matrix, corner);
+        .map(|x| ext_times(extended(x.get()), k));
+    let turned = rotate_point(&contact.corner_matrix, corner);
     for (n, e) in turned.iter().enumerate() {
-        x87_1(&race.course, e, &race.physics.contact.corner_turned[n]);
+        x87_1(numbers, e, &contact.corner_turned[n]);
     }
-    (0..3).all(|n| {
-        abs_compare(
-            race.physics.contact.corner_turned[n].bits(),
-            race.physics.contact.box_size[n].bits(),
-        ) & 0x100
-            != 0
-    })
+    (0..3).all(|n| abs_compare(&contact.corner_turned[n], &contact.box_size[n]) & 0x100 != 0)
 }
 
-/// The Rust version: `block` the other car's block (edi). The registers it leaves are
-/// read by none of its callers.
+/// `block` the other car's block.
 pub fn corner_hits_car(
-    race: &Race,
-    block: u32,
+    c: &ContactInputs<'_>,
+    block: &crate::physics::car_store::Car,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    if !corner_inside(race) {
+    if !corner_inside(c.contact, c.numbers) {
         return Ok(());
     }
-    race.physics.contact.corner_inside.set(1);
-    { crate::physics::restore_saved_car::restore_saved_car(race) }?;
-    { crate::physics::bump_cars::bump_cars(race, block, scene) }?;
+    c.contact.corner_inside.set(1);
+    { crate::physics::restore_saved_car::restore_saved_car(c.car, c.tables, c.contact) }?;
+    { crate::physics::bump_cars::bump_cars(c, block, scene) }?;
     Ok(())
 }
 
-// ---- the arithmetic that was x87 assembly ----
+// ---- the x87 arithmetic ----
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[o + 0] = ext [e + 0] / [rc + 0x1C5D98]`
-fn x87_1(course: &Course, e: &[u8; 10], o: &impl Cell32) {
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables
+/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[o + 0] = ext [e + 0] / [k65536]`
+fn x87_1(numbers: &Numbers, e: &[u8; 10], o: &impl Cell32) {
     let t0 = from_f80(*e);
-    let t1 = ld(course.numbers.k65536.bits());
+    let t1 = numbers.k65536.ld();
     let t2 = t0 / t1;
-    o.set_bits(st(t2));
+    o.st(t2);
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
     use crate::scene::x87_mem::{HostCell, view};
-
-    // The original's instructions, one function per run.
-    reference!(ref_0(e, rc, o) "fld tbyte ptr [{e}]", "fdiv dword ptr [{rc} + 0x1C5D98]", "fstp dword ptr [{o}]");
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
         vec![Block {
@@ -99,10 +84,9 @@ mod asm_reference {
                 },
             ],
             ulps: 0,
-            reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
             plain: |a| {
                 x87_1(
-                    &crate::race::owner::race().course,
+                    crate::test_support::own::race().course.numbers.get(),
                     view(a[0], 0),
                     &HostCell(a[2]),
                 );
@@ -112,6 +96,6 @@ mod asm_reference {
 
     #[test]
     fn x87_blocks_matches_the_assembly() {
-        sparse(&blocks(), 1200, 100);
+        sparse("physics.corner_hits_car", &blocks(), 1200, 100);
     }
 }

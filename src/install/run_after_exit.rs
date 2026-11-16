@@ -1,27 +1,15 @@
-//! `install::run_after_exit` (0x412FA2): what the installer's pages asked to be done once
-//! the game has closed (not after a fatal error, `g_fatalReported` 1):
-//! - `dword_51B9D4` 1: the Start menu's items added (`install::add_start_menu_items`, DDE to the
-//!   Program Manager: "Rally", "Uninstall Rally", "View Readme"); `dword_51B9D8` 1: removed
-//!   (`install::remove_start_menu_items`, DDE);
-//! - then the first of: `dword_51B9DC` 1: DirectX's set-up run (into the game's folder
-//!   `byte_95E6F8`, then `unk_5295B5`; 0x410ADC "redist\directx\dxsetup.exe", not
-//!   waited for); `dword_51B9E8` 1: the registration program run (its folder, the game's
-//!   and "ereg\", made current; "eregip.exe" into `byte_94E8B0`); installing
-//!   (`g_installing` 1): the installed folder (`g_installSource` normalised into
-//!   `byte_95E7F8`) made current, from the CD (`g_runningFromCd` 1) the program named on
-//!   the command line (`dword_518BA8`, `dword_518BAC` bytes, into `byte_94E8B0`; the standalone
-//!   copies its own folder's program instead, so only the length is kept) copied
-//!   to ".\ral.exe" (`files::copy_file`) and a second's sleep, and ".\ral.exe" run.
+//! What the installer's pages asked to be done once the game has closed (not after a fatal
+//! error): the Start menu items added or removed (shell shortcuts, `install::shortcuts`); then
+//! the first of: DirectX's set-up run; the registration program run; or, when installing, the
+//! installed folder made current, from the CD the program copied to `.\ral.exe` after a
+//! second's sleep, and run. A folder that cannot be made current ends it.
 //!
-//! A folder that cannot be made current ends it.
-//!
-//! One caller, `start`'s way out. Refuses (before anything, where the way could lead there) a game
-//! folder too long for "ereg\" in its 0x100 bytes, and a command line's program of 0x100 bytes or
-//! more. Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
+//! One caller, `start`'s way out. Refuses (before anything, where the way could lead there) a
+//! game folder too long for "ereg\" in its 0x100 bytes, and a command line's program of 0x100
+//! bytes or more.
 
 use crate::errors::{BadInput, Refused};
 use crate::install::runs_from_source::{scratch_put, scratch_text};
-use crate::system::owner::system;
 use rc2k_core::files::paths;
 
 const ROOM: u32 = 0x100;
@@ -38,53 +26,46 @@ fn set_cd(path: &[u8]) -> bool {
 fn run(command: &[u8]) {
     crate::install::shortcuts::run_program(&crate::files::host_path(command));
 }
-
-/// The Rust version (see the header).
-pub fn run_after_exit(install: &'static crate::install::owner::Install) -> Result<(), Refused> {
+pub fn run_after_exit(
+    install: &crate::install::owner::Install,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
     let run_vars = &install.run;
-    // `g_addStartItems` .. `g_runRegistration`.
-    let switch = |n: u32| {
-        [
-            &run_vars.add_items,
-            &run_vars.remove_items,
-            &run_vars.run_dxsetup,
-            &run_vars.installing,
-            &run_vars.offer_registration,
-            &run_vars.run_registration,
-        ][n as usize]
-            .get()
-    };
+    let add_items = run_vars.add_items.get() == 1;
+    let remove_items = run_vars.remove_items.get() == 1;
+    let run_dxsetup = run_vars.run_dxsetup.get() == 1;
+    let installing = install.flags.installing.get();
+    let run_registration = run_vars.run_registration.get() == 1;
     if crate::fatal::state::REPORTED.get() == 1 {
         return Ok(());
     }
     // The refusals, before anything.
     let game_dir = install.paths.game_dir.text();
     let game_dir_len = game_dir.len() as u32;
-    if switch(2) != 1 && switch(5) == 1 && game_dir_len + 5 + 1 > ROOM {
+    if !run_dxsetup && run_registration && game_dir_len + 5 + 1 > ROOM {
         return Err(
             BadInput("the game's folder too long for \"ereg\\\" in its 0x100 bytes").into(),
         );
     }
     let from_cd = install.vars.running_from_cd.get();
-    if switch(2) != 1
-        && switch(5) != 1
-        && switch(3) == 1
+    if !run_dxsetup
+        && !run_registration
+        && installing
         && from_cd == 1
-        && system().start.command_line.program_len.get() >= ROOM
+        && system.start().command_line.program_len.get() >= ROOM
     {
         return Err(BadInput("a command line's program of 0x100 bytes or more").into());
     }
-    // install::add_start_menu_items, install::remove_start_menu_items (DDE in the
-    // original): the standalone's shell shortcuts.
-    if switch(0) == 1 {
+    // The Start menu items: the standalone's shell shortcuts.
+    if add_items {
         crate::install::shortcuts::add_start_menu_items(&crate::files::host_path(
             &install.paths.installed.text(),
         ));
     }
-    if switch(1) == 1 {
+    if remove_items {
         crate::install::shortcuts::remove_start_menu_items();
     }
-    if switch(2) == 1 {
+    if run_dxsetup {
         let other_dir = install.texts.other_dir.text();
         for dir in [&game_dir, &other_dir] {
             if !set_cd(dir) {
@@ -94,9 +75,9 @@ pub fn run_after_exit(install: &'static crate::install::owner::Install) -> Resul
         run(&install.names.dxsetup.text());
         return Ok(());
     }
-    if switch(5) == 1 {
+    if run_registration {
         // "ereg\eregip.exe" (the script's text after its count): its folder after the
-        // game's, its name into the program's buffer (`byte_94E8B0`).
+        // game's, its name into the program's name buffer.
         let ereg = install.run.ereg.read();
         let ereg = &ereg[2..];
         let ereg = &ereg[..ereg.iter().position(|&c| c == 0).unwrap_or(ereg.len())];
@@ -113,7 +94,7 @@ pub fn run_after_exit(install: &'static crate::install::owner::Install) -> Resul
         run(&scratch_text()?);
         return Ok(());
     }
-    if switch(3) != 1 {
+    if !installing {
         return Ok(());
     }
     let normalised = crate::install::normalise_path::normalised_bytes(

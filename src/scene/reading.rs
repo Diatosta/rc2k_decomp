@@ -1,9 +1,6 @@
 //! Readers of the game's memory for the converted cores, whose closures cannot fail: the
 //! first bad address is kept, the reader answers 0 from then on, and `finish` refuses
 //! afterwards (so the core's own answer on those zeros is never used).
-//!
-//! Local to the callers of `pointers::GamePtr` in `scene` and `drive` (phase 8); not a
-//! change of `pointers.rs`.
 
 use crate::errors::BadInput;
 use std::cell::Cell;
@@ -41,22 +38,27 @@ impl Reading {
 }
 
 /// The objects' point records (`scene::point_records`, 0x1000 + (n & 0xFFF) for a point or
-/// normal number `n`; +0x10 its place, three words).
-pub struct PointRecords;
+/// normal number `n`; +0x10 its place, three words), the drawing part's.
+pub struct PointRecords<'a> {
+    part: &'a crate::scene::workers::PartScratch,
+}
 
-impl PointRecords {
-    /// Refused when the records are not taken.
-    pub fn new() -> Result<Self, BadInput> {
-        if !crate::scene::point_records::held() {
+impl<'a> PointRecords<'a> {
+    /// `part`'s records; refused when the records are not taken.
+    pub fn new(
+        lists: &crate::race::course_lists_store::CourseLists,
+        part: &'a crate::scene::workers::PartScratch,
+    ) -> Result<Self, BadInput> {
+        if !crate::scene::point_records::held(lists) {
             return Err(BadInput("no records for the points"));
         }
-        Ok(Self)
+        Ok(Self { part })
     }
 
     /// The place of point or normal `number`.
     pub fn place(&self, number: u32) -> Result<[u32; 3], BadInput> {
         use crate::scene::point_records::{get, of_object_point};
-        let r = get(of_object_point(number))?;
+        let r = get(self.part, of_object_point(number))?;
         Ok([r[4], r[5], r[6]])
     }
 }

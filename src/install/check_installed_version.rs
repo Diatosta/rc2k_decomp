@@ -1,34 +1,26 @@
-//! `install::check_installed_version` (0x413B0B): whether the already-installed `ral.exe` is
-//! this same build (`dword_51B9C8`). Only when installed (`g_installStatus` 1) with a source
-//! (`g_installSource`): the source is normalised into `byte_95E7F8` and made current, then
-//! `.\ral.exe` is read in 0xFF00-byte chunks (`g_pngInfo` the buffer, the last 0x100 bytes of
-//! each chunk carried to the front of the next so a match can span a boundary). Each chunk is
-//! scanned for `$VER: Rally 5`; on a hit the bytes are skipped to the next NUL and compared
-//! against the copyright line (`byte_4E001C`, up to its first `.`); a full match sets
-//! `dword_51B9C8`. The file is closed and the current directory set to `byte_95E6F8`.
-//!
-//! Caller `install::run_installer`.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
+//! Whether the already-installed program is this same build (`same_version`): the installed
+//! copy is read in chunks and scanned for the version text and the copyright line. Called by
+//! `install::run_installer`.
 
 use crate::errors::Refused;
 use crate::install::installer::set_cd;
-use crate::system::owner::system;
 use rc2k_core::install::version::{self, Scan};
 
 const READ_TARGET: usize = 0x100; // into the scratch
 const TAIL: usize = 0xFF00;
 const SCAN_LEN: u32 = version::CHUNK;
+/// The scratch buffer's size: the scan zeroes and reads all of it.
+const BUFFER_LEN: usize = 0x10000;
 
 pub fn check_installed_version(
     install: &'static crate::install::owner::Install,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
-    let system = system();
     install.run.same_version.set(0);
     if install.names.status.get() != 1 || install.names.source.get(0) == 0 {
         return Ok(());
     }
-    // normalise the source into byte_95E7F8, cd there
+    // Normalise the source into the installed folder's path, and go there.
     let normalised = crate::install::normalise_path::normalised_bytes(
         &install.names.source.text(),
         &mut || crate::install::normalise_path::current_directory(),
@@ -43,16 +35,12 @@ pub fn check_installed_version(
     if !set_cd(&install.paths.installed) {
         return Ok(());
     }
-    system
-        .work
-        .files
-        .buffer
-        .write(&[0; crate::files::scratch::Scratch::LEN]);
+    system.work().files.buffer.write(&[0; BUFFER_LEN]);
     // The standalone checks its own program (the same version text is in its built-in
-    // image). files::open_by_mode, mode 0.
+    // image).
     let program = crate::install::run_after_exit::RC2K;
     if let Some(file) = crate::files::handle::open_by_mode(program, 0)? {
-        let buffer = &system.work.files.buffer;
+        let buffer = &system.work().files.buffer;
         loop {
             // the previous tail carried to the front (`rep movsd`, 0x40 dwords)
             for n in 0..0x100 {
@@ -64,11 +52,9 @@ pub fn check_installed_version(
             if !ok || read == 0 {
                 break;
             }
-            // Converted: `rc2k_core::install::version::scan` (the copyright compared up
-            // to its NUL, inside its 91 bytes).
-            let scanned =
-                buffer.read_at(0, crate::files::scratch::Scratch::LEN, "the scan buffer")?;
-            let copyright = system.start.texts.copyright.read();
+            // The copyright is compared up to its NUL, inside its 91 bytes.
+            let scanned = buffer.read_at(0, BUFFER_LEN, "the scan buffer")?;
+            let copyright = system.start().texts.copyright.read();
             if let Scan::Stopped { same, .. } = version::scan(&scanned[..], &copyright[..])? {
                 if same {
                     install.run.same_version.set(1);

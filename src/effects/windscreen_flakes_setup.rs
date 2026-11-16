@@ -1,17 +1,13 @@
-//! `effects::windscreen_flakes_setup` (0x4BFEAC): the windscreen flakes' frame set up: `scene::depth_buffer_on`,
-//! `scene::set_texture` (`dword_5D1E10`), render states 0x11 = 2, 0x12 = 2, 0x15 = 4, 0x13 =
-//! 5, 0x14 = 6, 0x1C = 0, 0x1B = 1; four vertices of `g_polygonVertices` with rhw 0x100
-//! (through `dword_62400C`), colour -1, specular 0xFF000000, texture places from
-//! `dword_8BC212` .. (u a, c, c, a; v b, b, d, d); `g_polygonVertexCount` 4; `flt_89CEEA` 1
-//! over `flt_6241C8`.
-//!
-//! Caller: `effects::run_windscreen_flakes` (0x4C000F).
+//! `effects::windscreen_flakes_setup`: the windscreen flakes' frame set up:
+//! `scene::depth_buffer_on`, `scene::set_texture` (the flakes' texture), render states 0x11 = 2,
+//! 0x12 = 2, 0x15 = 4, 0x13 = 5, 0x14 = 6, 0x1C = 0, 0x1B = 1; four polygon vertices with rhw
+//! 0x100, colour -1, specular 0xFF000000, texture places from the flakes' constants (u a, c, c, a;
+//! v b, b, d, d); the polygon's vertex count 4; the flakes' `inverse` 1 over the farthest depth.//!
 
-use crate::d3d::vertices_store::VERTICES;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 
 use crate::math::x87;
-use crate::session::read_bits;
+use crate::memory::session::PlainFloat;
 const STATES: [(u32, u32); 7] = [
     (2, 0x11),
     (2, 0x12),
@@ -22,36 +18,56 @@ const STATES: [(u32, u32); 7] = [
     (1, 0x1B),
 ];
 
-/// The Rust version (see the header).
-pub fn windscreen_flakes_setup(fl: &WindscreenFlakes, scene: &crate::scene::owner::Scene) {
-    setup_with(fl, read_bits(&fl.state.setup_places), scene);
+pub fn windscreen_flakes_setup(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
+    fl: &WindscreenFlakes,
+    scene: &crate::scene::owner::Scene,
+) {
+    setup_with(
+        buffer,
+        fl,
+        fl.state.setup_places.each_ref().map(PlainFloat::get),
+        scene,
+    );
 }
 
 /// The set-up with the texture places `places` (`effects::pong_setup` has its own).
-pub fn setup_with(fl: &WindscreenFlakes, places: [u32; 4], scene: &crate::scene::owner::Scene) {
+pub fn setup_with(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
+    fl: &WindscreenFlakes,
+    places: [f32; 4],
+    scene: &crate::scene::owner::Scene,
+) {
     use crate::scene::set_render_state::set_render_state;
     {
-        crate::scene::depth_buffer_on::depth_buffer(true);
-        crate::scene::set_texture::set_texture(scene.textures.kinds.kind_first_slots[202].bits());
+        crate::scene::depth_buffer_on::depth_buffer(scene.scratch.game_scratch(), true);
+        crate::scene::set_texture::set_texture(
+            scene.scratch.game_scratch(),
+            scene,
+            scene.textures.kinds.get().kind_first_slots[202].get(),
+        );
         for (value, state) in STATES {
-            set_render_state(value, state);
+            set_render_state(scene.scratch.game_scratch(), value, state);
         }
-        for n in 0..4 {
-            scene.drawing.scene.scratch.set_bits(0x100u32);
-            VERTICES.vertices[n].rhw.set_bits(x87::int_to_float(0x100));
+        for item in buffer.vertices.iter().take(4) {
+            item.rhw.set(x87::from_int(0x100));
         }
-        for n in 0..4 {
-            VERTICES.vertices[n].colour.set(0xFFFF_FFFFu32);
-            VERTICES.vertices[n].specular.set(0xFF00_0000u32);
+        for item in buffer.vertices.iter().take(4) {
+            item.colour.set(0xFFFF_FFFFu32);
+            item.specular.set(0xFF00_0000u32);
         }
         let [a, b, c, d] = places;
         for (n, (u, v)) in [(a, b), (c, b), (c, d), (a, d)].into_iter().enumerate() {
-            VERTICES.vertices[n].u.set_bits(u);
-            VERTICES.vertices[n].v.set_bits(v);
+            buffer.vertices[n].u.set(u);
+            buffer.vertices[n].v.set(v);
         }
-        scene.drawing.scene.polygon_vertex_count.set_bits(4u32);
-        fl.tables
-            .inverse
-            .set_bits(x87::reciprocal(scene.drawing.scene.farthest.bits()));
+        scene
+            .scratch
+            .front_end_polygon()
+            .polygon_vertex_count
+            .set(4);
+        fl.tables.inverse.set(x87::reciprocal(
+            &scene.scratch.front_end_polygon().window.farthest,
+        ));
     }
 }

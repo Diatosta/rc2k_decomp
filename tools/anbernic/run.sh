@@ -8,6 +8,11 @@ if [ -L third_party ]; then
     real=$(readlink -f third_party)
     extra=(-v "$real:$real:ro")
 fi
+# The build folder may be a link to another disk: mount where it points (read-write).
+if [ -L target ]; then
+    built=$(readlink -f target)
+    extra+=(-v "$built:$built")
+fi
 exec docker run "${extra[@]}" --rm --user "$(id -u):$(id -g)" -e HOME="$HOME" \
     -e CARGO_TARGET_DIR=target/a64-linux \
     -e CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc \

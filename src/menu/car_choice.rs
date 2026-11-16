@@ -1,7 +1,8 @@
-//! The car choice's own steps (IDA, 2026-10-15): the current player's car found in the
+//! The car choice's own steps: the current player's car found in the
 //! carousel's entries, and the carousel turned to the next or the previous car.
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::lists_store::CarListParts;
 use crate::menu::owner::Menus;
 use crate::menu::player::player;
 
@@ -13,23 +14,26 @@ const MOST_ENTRIES: u32 = 0x100;
 /// entries, or entries without their end within 0x100.
 pub fn find_player_car(menus: &Menus) -> Result<(), Refused> {
     let current: u32 = menus.screens.event.current_player.get();
-    let car = player(current)
+    let car = player(menus, current)
         .ok_or(BadInput("a current player past the four"))?
         .get()
         .car_number;
-    let Some(list) = menus.screens.state.carousel.list()? else {
+    let Some(list) = menus.screens.carousel.list()? else {
         return Err(BadInput("no carousel entries").into());
     };
-    let entries = menus.tables.lists.cars(list);
-    let entry = |n: u32| entries.offset(4 * n).read::<u32>("a carousel entry");
+    let entry = |n: u32| menus.lists.car_entry(CarListParts::of(menus), list, n);
     if entry(0)? == u32::MAX {
         return Err(BadInput("no carousel entries").into());
     }
-    // Converted: `rc2k_core::menu::cars::find_car`, over the entries' cars.
+    // The logic is in `rc2k_core::menu::cars::find_car`, over the entries' cars.
     let mut cars = Vec::new();
     let mut n = 0;
     loop {
-        cars.push(crate::menu::cars_store::description(entry(n)?)?.get().car);
+        cars.push(
+            crate::menu::cars_store::description(&menus.cars.table, entry(n)?)?
+                .get()
+                .car,
+        );
         if entry(n + 1)? == u32::MAX {
             break;
         }
@@ -39,8 +43,8 @@ pub fn find_player_car(menus: &Menus) -> Result<(), Refused> {
         }
     }
     let found = rc2k_core::menu::cars::find_car(&cars, car);
-    menus.screens.state.carousel.front.set(found);
-    menus.screens.event.shown_car.set(found);
+    menus.screens.carousel.front.set(found);
+    menus.screens.event.shown.car.set(found);
 
     Ok(())
 }
@@ -48,8 +52,8 @@ pub fn find_player_car(menus: &Menus) -> Result<(), Refused> {
 /// `menu::next_choice_car`: unless the carousel has one car, a turn already going the other way
 /// is not counted: with the direction 1 the front moves on (round the count); then the
 /// direction 1, the angle 0, the shown car on (after the last entry to 0), and
-/// `dword_755561` 0.
-/// The carousel turned (`menu::next_choice_car` / `previous_choice_car`). Converted:
+/// `LoopFlags.leave_screen` 0.
+/// The carousel turned (`menu::next_choice_car` / `previous_choice_car`). The logic is in
 /// `rc2k_core::menu::cars::turn_carousel`.
 fn turn(menus: &Menus, on: bool) {
     use rc2k_core::menu::cars::{Carousel, turn_carousel};
@@ -58,21 +62,21 @@ fn turn(menus: &Menus, on: bool) {
     let c = turn_carousel(
         Carousel {
             turn: Turn {
-                count: menus.screens.state.carousel.count.get() as i32,
-                value: menus.screens.state.carousel.front.get() as i32,
-                way: menus.screens.state.carousel.direction.get(),
-                step: menus.screens.state.carousel.angle.get(),
+                count: menus.screens.carousel.count.get() as i32,
+                value: menus.screens.carousel.front.get() as i32,
+                way: menus.screens.carousel.direction.get(),
+                step: menus.screens.carousel.angle.get(),
             },
-            shown: menus.screens.event.shown_car.get(),
+            shown: menus.screens.event.shown.car.get(),
             last: menus.cars.table.last_car.get(),
         },
         on,
     );
-    menus.screens.state.carousel.front.set(c.turn.value as u32);
-    menus.screens.state.carousel.direction.set(c.turn.way);
-    menus.screens.state.carousel.angle.set(c.turn.step);
-    menus.screens.event.shown_car.set(c.shown);
-    menus.screens.loop_flags.back.set(0u32);
+    menus.screens.carousel.front.set(c.turn.value as u32);
+    menus.screens.carousel.direction.set(c.turn.way);
+    menus.screens.carousel.angle.set(c.turn.step);
+    menus.screens.event.shown.car.set(c.shown);
+    menus.screens.loop_flags.leave_screen.set(false);
 }
 
 pub fn next_choice_car(menus: &Menus) {

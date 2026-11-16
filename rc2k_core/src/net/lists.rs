@@ -1,16 +1,12 @@
-//! The lists DirectPlay's enumerations fill (converted 2026-10-21 from
-//! `net::connection_entry` 0x418530, `net::session_entry` 0x418553, `net::session_found`
-//! 0x418A62 and `net::player_found` 0x41929E; and `net::allocate_lists` 0x418576,
-//! `net::connection_found` 0x4186E5 and `net::find_saved_connection` 0x4185DF): the
-//! connections' and sessions' tables (records of 0x54 and 0x68 bytes, 0x100 at most) and
-//! the players' blocks (eight).
+//! The lists DirectPlay's enumerations fill: the connections' and sessions' tables (records of 0x54
+//! and 0x68 bytes, 0x100 at most) and the players' blocks (eight).
 
 /// The most connections and sessions listed.
 pub const MOST_LISTED: u32 = 0x100;
 /// The most players listed.
 pub const MOST_PLAYERS: u32 = 8;
 
-/// A table's record bytes.
+/// The tables' record bytes: connections, sessions.
 pub const CONNECTION_LEN: u32 = 0x54;
 pub const SESSION_LEN: u32 = 0x68;
 
@@ -20,7 +16,7 @@ pub const NO_CONNECTIONS: u32 = 0x80A6_1011;
 pub const NO_SESSION: u32 = 0x80A6_1030;
 pub const NO_SESSIONS: u32 = 0x80A6_1031;
 
-/// Why a record cannot be had: the original's fatal error.
+/// Why a record cannot be had: a fatal error.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Missing(pub u32);
 
@@ -49,9 +45,9 @@ pub fn record(
 pub enum Found {
     /// The enumeration stops (a time-out, no session, or the list full).
     Stop,
-    /// The session passed over (its `dwUser2` bit 0 clear: not the game's).
+    /// The session is passed over (its `dwUser2` bit 0 clear: not the game's).
     Pass,
-    /// The session listed as number `n`.
+    /// The session is listed as number `n`.
     List(u32),
 }
 
@@ -83,7 +79,8 @@ pub fn player_found(listed: u32) -> Option<u32> {
     (listed < MOST_PLAYERS).then_some(listed)
 }
 
-/// The fatal errors of the network's memory not had for the tables.
+/// The fatal errors when the network's memory for the tables cannot be had: connections,
+/// sessions.
 pub const NO_CONNECTION_MEMORY: u32 = 0x80E6_8021;
 pub const NO_SESSION_MEMORY: u32 = 0x80E6_8022;
 

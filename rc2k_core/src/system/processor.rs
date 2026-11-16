@@ -1,12 +1,10 @@
-//! What the processor is and has, and its clock (converted 2026-10-21 from
-//! `system::test_processor` 0x410883).
+//! What the processor is and has, and its clock.
 //!
 //! The family is 3 when the flags' AC bit cannot be changed, 4 when the ID bit cannot (or
-//! `cpuid` has no leaf 1), else `cpuid`'s; its leaf 1 says which of the FPU, the time-stamp
-//! counter, CMOV, MMX and SSE are there, and an AMD's extended leaf 0x80000001 3DNow!.
-//! Without `cpuid` the FPU is looked for by its words after `fninit`. With a time-stamp
-//! counter, the cycles of 250 ms of `GetTickCount` (from its next change) give the clock in
-//! MHz. Each found feature is set to 1; nothing is cleared.
+//! `cpuid` has no leaf 1), else `cpuid`'s; leaf 1 says which of the FPU, time-stamp counter,
+//! CMOV, MMX and SSE are there, and an AMD's leaf 0x80000001 3DNow!. Without `cpuid` the FPU
+//! is looked for by its words after `fninit`. With a time-stamp counter, 250 ms of cycles
+//! give the clock in MHz. Each found feature is set to 1; nothing is cleared.
 
 use crate::Invalid;
 
@@ -24,7 +22,7 @@ pub const CYRIX: [u32; 3] = [0x6972_7943, 0x736E_4978, 0x6461_6574];
 pub trait Processor {
     /// Whether toggling `bit` in the flags changes them.
     fn flag_toggles(&self, bit: u32) -> bool;
-    /// `cpuid` leaf -> (eax, ebx, ecx, edx).
+    /// The four result words (eax, ebx, ecx, edx) of `cpuid` leaf `leaf`.
     fn cpuid(&self, leaf: u32) -> (u32, u32, u32, u32);
     /// The status word after `fninit` (0x5A5A there before) and the control word.
     fn fpu_words(&self) -> (u16, u16);
@@ -36,7 +34,7 @@ pub trait Processor {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Var {
     Family,
-    /// Leaf 1's eax.
+    /// Leaf 1's first result word.
     Signature,
     /// The vendor's text, dword 0 .. 2.
     Vendor(usize),
@@ -54,10 +52,8 @@ pub enum Var {
     FpuWord,
 }
 
-/// The test, in the original's order: `put` writes a variable, `get` reads one back
-/// (the vendor and the counter's flag are read where the original reads them). Refuses
-/// (with the processor's variables already written) a clock whose quotient does not fit in
-/// 32 bits (the original's `div` traps).
+/// The test: `put` writes a variable, `get` reads one back. Refuses (with the processor's
+/// variables already written) a clock whose quotient does not fit in 32 bits.
 pub fn test(
     p: &dyn Processor,
     put: &mut dyn FnMut(Var, u32),
@@ -97,7 +93,7 @@ fn test_fpu(p: &dyn Processor, put: &mut dyn FnMut(Var, u32)) {
     }
 }
 
-/// `cpuid` and what follows from it; false where the original goes to the FPU test.
+/// `cpuid` and what follows from it; false where the FPU test is needed instead.
 fn test_cpuid(p: &dyn Processor, put: &mut dyn FnMut(Var, u32), get: &dyn Fn(Var) -> u32) -> bool {
     put(Var::Family, 3);
     if !p.flag_toggles(AC_FLAG) {
@@ -117,7 +113,7 @@ fn test_cpuid(p: &dyn Processor, put: &mut dyn FnMut(Var, u32), get: &dyn Fn(Var
     let (signature, _, _, features) = p.cpuid(1);
     put(Var::Signature, signature);
     put(Var::Family, (signature >> 8) & 0xF);
-    // Each with the instruction the original tries first (the filter's place 0 after it).
+    // Each feature, with whether its instruction is tried (the filter's place 0 after it).
     for (bit, var, tried) in [
         (1, Var::HasFpu, false),
         (0x10, Var::HasTsc, true),

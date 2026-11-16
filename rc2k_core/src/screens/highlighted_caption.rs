@@ -1,18 +1,14 @@
-//! The highlighted entry's caption on a button at the bottom of the screen (converted
-//! 2026-10-20 from `screens::draw_highlighted_caption` 0x4695C6): the caption (string
-//! 0x1004, which reads the caption the game put in `byte_A8BE54`) measured, the button as
-//! wide as it plus 12 centred on x 0x197 (sprite 0xF, pieces of 32 of sprite 0xB, the last
-//! drawn over the one before so the width comes out, sprite 0x10), then the caption in the
-//! font blended by the time since the last key.
+//! The highlighted entry's caption on a button at the bottom of the screen: the button as wide
+//! as the measured caption plus 12, centred on x 0x197, then the caption in the font blended by
+//! the time since the last key.
 
 use crate::Invalid;
 use crate::screens::screen::Screen;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Font {
-    /// `stru_51E824`.
     Measure,
-    /// `stru_51E964`, `stru_51E844`: blended into `stru_51E384`.
+    /// The two fonts blended (by the time since the last key) into `Blended`.
     A,
     B,
     Blended,
@@ -20,17 +16,17 @@ pub enum Font {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Work {
-    /// `g_markerX`, `g_markerY`.
+    /// Where the caption's text went (the marker's x and y).
     MarkerX,
     MarkerY,
-    /// `seconds`, `dword_7559B0`, `dword_7559B4`, `glyph`, `dword_7559C4`: the button's
-    /// width, x, y, left and right sprites.
+    /// The button's width, x, y, left and right sprites (x and y are kept in
+    /// `DrawWork.button_x` / `button_y`).
     Width,
     X,
     Y,
     Left,
     Right,
-    /// `dword_755A20` .. `dword_755A2C`: where its two ends were drawn.
+    /// `DrawWork.marker_end_a` .. `DrawWork.marker_end_d`: where its two ends were drawn.
     LeftX,
     LeftY,
     RightX,
@@ -40,9 +36,8 @@ pub enum Work {
 /// The caption's string.
 pub const CAPTION_STRING: u32 = 0x1004;
 
-/// The button and caption, measured from x `measured_at` (the caller's ecx); the carry of
-/// the caption's text. A width of 0 is the original's fatal error 0x80701010; refused: a
-/// caption narrower than 20 (the original then draws 2^32 middle pieces).
+/// The button and caption, measured from x `measured_at`; returns the caption text's
+/// `too_wide`. A width of 0 is fatal error 0x80701010; refused: a caption narrower than 20.
 pub fn highlighted_caption<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     measured_at: i32,

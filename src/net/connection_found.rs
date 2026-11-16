@@ -1,44 +1,42 @@
-//! `net::connection_found` (0x4186E5): DirectPlay's `EnumConnections` callback: "NET: Found"
-//! and the connection's name logged; with `g_noticeKind` 2, the two service providers
-//! `unk_5AB370` and `unk_5AB380` (`system::same_guid`) left out; else the connection's data
-//! copied into memory of the network's list (`memory::allocate`; none: the enumeration
-//! stops) and, if fewer than 0x100 are listed, a record added (`net::connection_entry`):
-//! +0x50 the data, +0x40 the service provider's GUID, +0 the name
-//! (`strings::copy_printable`, 0x40 room).
-//!
-//! Takes (stdcall) the service provider's GUID, the connection, its size, its name (a DPNAME:
-//! +8 the short name), the flags and the context. Returns 1 to go on, 0 to stop.
-//! A full list stops the enumeration after the memory is taken (it stays on the list).
-//! Caller: DirectPlay, from `net::find_connections` (`callback`, a `stdcall` Rust function).
+//! DirectPlay's `EnumConnections` callback: logs the connection and, unless it is a serial or
+//! modem provider (with the notice kind 2), copies its data into the network's memory and adds a
+//! record to the list (up to 0x100). Returns 1 to go on, 0 to stop (out of memory or a full list).
 
 use crate::errors::Refused;
-use crate::net::lobby::{log, log_bytes};
-use crate::net::owner::net;
+use crate::net::link::Link;
+use crate::net::lobby::log_bytes;
 use crate::net::tables::{copy_printable_into, with_connection};
-use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
+use crate::race::viewer_screen_store::{NetTexts, texts};
+use crate::strings::owner::Strings;
 use rc2k_core::net::lists;
 
-/// The Rust version (see the header): the provider's GUID, the connection's address, its
+/// The provider's GUID, the connection's address, its
 /// short name.
-pub fn connection_found(guid: &[u8; 16], data: &[u8], short: &[u8]) -> Result<u32, Refused> {
-    let vars = &net().vars;
-    log(VIEWER_PANEL.text_ptr(texts::NET_FOUND), false, 2);
+pub fn connection_found(
+    link: &Link,
+    strings: &Strings,
+    lines: &NetTexts,
+    guid: &[u8; 16],
+    data: &[u8],
+    short: &[u8],
+) -> Result<u32, Refused> {
+    log_bytes(&lines.text(texts::NET_FOUND), false, 2);
     log_bytes(short, true, 2);
-    if crate::strings::load_language::notice_kind() == lists::LEAVES_OUT_PROVIDERS
-        && [&vars.sp_serial, &vars.sp_modem]
+    if crate::strings::load_language::notice_kind(strings) == lists::LEAVES_OUT_PROVIDERS
+        && [&crate::net::store::SP_SERIAL, &crate::net::store::SP_MODEM]
             .into_iter()
-            .any(|left_out| left_out.read() == *guid)
+            .any(|left_out| *left_out == *guid)
     {
         return Ok(1);
     }
-    crate::net::tables::count(data.len() as u32)?;
-    let Some(count) = lists::connection_listed(vars.connections.get()) else {
+    crate::net::tables::count(link, data.len() as u32)?;
+    let Some(count) = lists::connection_listed(link.connections().get()) else {
         return Ok(0);
     };
-    vars.connections.set(count + 1);
-    let mut name = with_connection(count, |c| c.name)?;
+    link.connections().set(count + 1);
+    let mut name = with_connection(link, count, |c| c.name)?;
     copy_printable_into(short, &mut name, 0x40)?;
-    with_connection(count, |c| {
+    with_connection(link, count, |c| {
         c.data = data.to_vec();
         c.provider = *guid;
         c.name = name;
@@ -46,8 +44,15 @@ pub fn connection_found(guid: &[u8; 16], data: &[u8], short: &[u8]) -> Result<u3
     Ok(1)
 }
 
-pub fn callback(guid: &[u8; 16], data: &[u8], short: &[u8], _flags: u32, _context: u32) -> u32 {
+pub fn callback(
+    link: &Link,
+    strings: &Strings,
+    lines: &NetTexts,
+    guid: &[u8; 16],
+    data: &[u8],
+    short: &[u8],
+) -> u32 {
     crate::net::lobby::callback_entry("net::connection_found", 0x4186E5, || {
-        connection_found(guid, data, short)
+        connection_found(link, strings, lines, guid, data, short)
     })
 }

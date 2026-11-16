@@ -1,5 +1,4 @@
-//! The race's view and sound keys (converted 2026-10-21 from `race::race_keys` 0x43A649):
-//! the first key down, in the original's order, and what it changes.
+//! The race's view and sound keys: the first key down (tested in a fixed order) and its effect.
 
 /// A race key.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -8,17 +7,17 @@ pub enum Key {
     NextView,
     /// The split screen's layout (not with one player).
     Split,
-    /// The volume down / up.
+    /// The volume down.
     VolumeDown,
+    /// The volume up.
     VolumeUp,
-    /// One of `BIT_KEYS`: a bit of the view block's +0x220 flipped.
+    /// One of `BIT_KEYS`: a bit of the view flags flipped.
     Bit(usize),
-    /// Bit 0x40 of the first view's block.
+    /// Bit 0x40 of the first view's flags.
     Shared,
 }
 
-/// The keys that flip a bit of the view block's +0x220: (bit, counter when the bit is now
-/// clear, when set), in the order tested.
+/// The keys that flip a view-flags bit: (bit, counter when now clear, when set), in test order.
 pub const BIT_KEYS: [(u32, u32, u32); 7] = [
     (0x10, 0x117, 0x118),
     (0x08, 0x119, 0x11A),
@@ -32,7 +31,7 @@ pub const BIT_KEYS: [(u32, u32, u32); 7] = [
 /// The shared key's bit and its counters (clear, set).
 pub const SHARED_BIT: (u32, u32, u32) = (0x40, 0x125, 0x126);
 
-/// The first key down (`down` asked in the original's order, until one is).
+/// The first key down (`down` asked in order, until one is).
 pub fn first_key(mut down: impl FnMut(Key) -> bool) -> Option<Key> {
     [Key::NextView, Key::Split, Key::VolumeDown, Key::VolumeUp]
         .into_iter()
@@ -41,7 +40,7 @@ pub fn first_key(mut down: impl FnMut(Key) -> bool) -> Option<Key> {
         .find(|&k| down(k))
 }
 
-/// The split's layout flipped (^ 3) and its counter (0x127 when it is now 1, else 0x128).
+/// The split's layout flipped (^ 3) and its counter (0x127 when now 1, else 0x128).
 pub fn split_flip(split: u32) -> (u32, u32) {
     let split = split ^ 3;
     (split, if split == 1 { 0x127 } else { 0x128 })
@@ -52,15 +51,13 @@ pub fn volume_step(v: u32, step: i32) -> u32 {
     ((v.wrapping_add(step as u32) & !3) as i32).clamp(0, 0x40) as u32
 }
 
-/// The volume keys' step and counter: the master volume's 0x113 / 0x114, the music's
-/// (with the second view's keys) 0x115 / 0x116.
+/// The volume keys' step and counter: master 0x113 / 0x114, music (with the second view's keys)
+/// 0x115 / 0x116.
 pub fn volume_key(up: bool, music: bool) -> (i32, u32) {
     let base = if music { 0x115 } else { 0x113 };
     if up { (4, base + 1) } else { (-4, base) }
 }
 
-/// A bit of the flags flipped (`(bit, clear, set)`): the flags and the counter for the
-/// bit's new state.
 pub fn flip_bit(flags: u32, (bit, clear, set): (u32, u32, u32)) -> (u32, u32) {
     let flags = flags ^ bit;
     (flags, if flags & bit != 0 { set } else { clear })

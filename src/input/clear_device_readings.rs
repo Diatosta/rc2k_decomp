@@ -1,14 +1,9 @@
-//! `input::clear_device_readings` (0x40883C): a device's state copies (+0x2C .. +0x38) and
+//! A device's state copies (+0x2C .. +0x38) and
 //! readings (+0x4DC .. +0x4E4) 0, its bits reading +0x4E8 0xE00 (the hat centred).
-//!
-//! Takes: the device's record (`input/devices.rs`)
-//!
-//! Callers: `input::acquire_device` (an acquiring that failed), `input::release_device` (the
-//! release).
 
 use crate::input::types::InputDevice;
 
-/// The Rust version (see the header).
+/// See the header.
 pub fn clear_device_readings(record: &InputDevice) {
     // `rc2k_core::input::devices::CLEARED_READINGS`, in its order: the state copies
     // (+0x2C .. +0x38) and the readings 0, the bits reading the hat centred.

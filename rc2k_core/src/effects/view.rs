@@ -1,20 +1,14 @@
-//! The marks' view (converted 2026-10-21 from `effects::turn_kept_vectors` 0x4C13CA,
-//! `turn_kept_xz` 0x4C1411, `turn_kept_zy` 0x4C14D2, `scale_kept_vectors` 0x4C15F4,
-//! `scale_vectors_by` 0x4D16A3, `view_step` 0x4C1593, `aim_vector` 0x4C1294,
-//! `tilt_shape` 0x4C1194, `view_motion` 0x4C4D40 and `view_heading` 0x4C4CEC): the three
-//! kept vectors turned by two angles and scaled, the view's step, its aim made of length
-//! 1, a shape's tilt, the view's motion and heading. And the view's place (converted
-//! 2026-10-21 from `effects::place_view` 0x4C1CC8 and its twin `effects::place_view_2`
-//! 0x4C2AA5).
+//! The marks' view: the three kept vectors turned by two angles and scaled, the view's step, its
+//! aim made of length 1, a shape's tilt, the view's motion and heading. And the view's place.
 //!
-//! As in `math::vector`, what the x87 keeps on its stack is an `f64`, rounded to `f32`
-//! where the original stores it (the same bits at the game's double precision, but for
-//! the sines and cosines: `scene::trig`).
+//! As in `math::vector`, what the x87 keeps on its stack is an `f64`, rounded to `f32` where it
+//! is stored (the same bits at the game's double precision, but for the sines and cosines:
+//! `scene::trig`).
 
 use crate::math::vector;
 use crate::scene::trig;
 
-/// An angle's sine and cosine (`fsin`, `fcos`), stored.
+/// An angle's sine and cosine (`scene::trig`'s), stored as `f32`.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SineCosine {
     pub sine: f32,
@@ -69,19 +63,19 @@ pub fn turn_kept_vectors(v: &mut KeptVectors, angles: [f32; 2]) -> [SineCosine; 
     turns
 }
 
-/// A vector times a factor (`fld; fmul; fstp` each).
+/// A vector times a factor, each part in `f64` stored as `f32`.
 pub fn scaled(v: [f32; 3], factor: f32) -> [f32; 3] {
     v.map(|x| (x as f64 * factor as f64) as f32)
 }
 
-/// `effects::view_step`: the step from the last place to this one, each part `-(now -
-/// last)` as the original has it.
+/// `effects::view_step`: the step from the last place to this one, each part `-(now - last)`
+/// (kept: `last - now` would give zeros of the other sign).
 pub fn step(now: [f32; 3], last: [f32; 3]) -> [f32; 3] {
     std::array::from_fn(|k| -(now[k] as f64 - last[k] as f64) as f32)
 }
 
 /// A vector made of length 1 and its length, as `effects::aim_vector` and `tilt_shape` do it
-/// (the length stored with `fst`, each part times one over the unrounded length).
+/// (the length stored as `f32`, each part times one over the unrounded length).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Unit {
     pub unit: [f32; 3],
@@ -135,10 +129,9 @@ pub struct Motion {
     pub last: [f32; 3],
 }
 
-/// `effects::view_motion`: the view's place (the origin through its matrix `m`, the game's
-/// 4 x 4 layout as `vector::rotate_point` takes it, unrounded) less the last place; the
-/// third row's dot product with that step made of length 1; the place kept; the step
-/// over the ticks (`fidiv`).
+/// `effects::view_motion`: the view's place (the origin through its matrix `m`, the game's 4 x 4
+/// layout as `vector::rotate_point` takes it, unrounded) less the last place; the third row's dot
+/// product with that step made of length 1; the place kept; the step over the ticks.
 pub fn view_motion(m: &[f32; 15], last: [f32; 3], ticks: i32) -> Motion {
     let place = vector::rotate_point(m, [0.0; 3]);
     let step: [f32; 3] = std::array::from_fn(|k| (place[k] - last[k] as f64) as f32);
@@ -162,9 +155,8 @@ pub fn heading(angle: f32, x: f32) -> f32 {
 }
 
 /// `effects::place_view`'s place, from the point turned by the view's matrix (the turn is
-/// `math::vector::turn_int_point`'s): the place less it in x and y (`fldz; fisub; fiadd;
-/// fistp`: whole numbers, exact), and the height less its z plus the place's z (`fld;
-/// fisub; fiadd; fistp`, rounded to the nearest, as the turn).
+/// `math::vector::turn_int_point`'s): the place less it in x and y (whole numbers, exact), and
+/// the height less its z plus the place's z (rounded to the nearest, as the turn).
 pub fn view_place(turned: [i32; 3], place: [i32; 3], height: f32) -> [i32; 3] {
     use crate::math::geometry::fistp64;
     let less = |t: i32, p: i32| fistp64(-(t as f64) + p as f64);

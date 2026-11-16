@@ -1,7 +1,5 @@
-//! The cheats' names: a player's name looked for in RAL.EXE's list of coded names
-//! (converted 2026-10-21 from `menu::check_cheat_name` 0x480CBF). The list
-//! (`aNepnqrNpgvba`, 0x7585E0) holds each name rot13-coded, its NUL and the cheat's bit
-//! number; a NUL where a name would start ends it.
+//! The cheats' names: a player's name looked for in the list of coded names. The list holds each
+//! name rot13-coded, its NUL and the cheat's bit number; a NUL where a name would start ends it.
 
 use crate::Invalid;
 use crate::strings::bytes::Bytes;
@@ -57,8 +55,7 @@ pub fn find(
     Err(Invalid("a cheat list without its end in 64 entries"))
 }
 
-/// The cheats' bits with `bit` set. Refused: a bit past 31 (the original's `bts` would
-/// reach past `g_cheats`).
+/// The cheats' bits with `bit` set. Refused: a bit past 31.
 pub fn with_cheat(cheats: u32, bit: u8) -> Result<u32, Invalid> {
     if bit > 31 {
         return Err(Invalid("a cheat bit past 31"));

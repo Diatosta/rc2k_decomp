@@ -1,23 +1,65 @@
-//! `race::loading_bar_frame` (0x4467C7): one frame of the loading bar while a stage loads
-//! (the loading's callback `dword_623704`), with `dword_71C3E0` only: `dword_6365CC` 8;
-//! nothing while quitting; with the window active and the surfaces not lost
-//! (`dword_518380` not 1): `scene::begin_scene`, the view window chosen as unframed
-//! (`dword_621514` 0 for `scene::choose_view_window`, put back), `race::loading_bar_quad`,
-//! `scene::end_scene`, `scene::lock_frame`, an empty function, `scene::unlock_frame`,
-//! `scene::present_frame`, carry clear. A failed step (or the window inactive, or the
-//! surfaces lost) instead, unless quitting, restores the surfaces (0x405B10, the
-//! platform's) and leaves carry set when they were neither lost before nor after.
-//!
-//! Caller: the stage's loading (through `dword_623704`). Its calls are the Rust versions (the
-//! restore the platform's call). The registers above are the original's, for reference; a call
-//! by address goes through `routes.rs`.
+//! The loading bar: the `Progress` sink the loaders report to, and the frame it draws. Outside a
+//! stage's loading and the credits a frame does nothing; otherwise it sets `scene_state` to the
+//! frame mark and, unless the game is quitting, draws `race::loading_bar_quad` in an unframed view
+//! window and presents the frame. A frame that cannot be drawn (the window inactive, its surfaces
+//! lost, or the lock refused) is skipped: nothing is shown and the load goes on; the next frame
+//! tries again.
 
 use crate::errors::Refused;
-use crate::race::owner::Race;
-const RESTORE: usize = 0x405B10; // 0x405B10: the surfaces restored (the platform's)
+use rc2k_core::scene::loading::BarEnds;
 
-/// A stage is loading (`race::load_stage`). Not the original's: it draws the bar for the
-/// credits' race only; here for every stage, over the loading picture (owner, 2026-10-30).
+/// Where a load reports how far it has got.
+pub trait Progress {
+    /// The load is `share` percent done (0 ..= 100): shows a frame.
+    fn mark(&mut self, share: u32) -> Result<(), Refused>;
+
+    /// The share the texture marks (`textures_done`) run between.
+    fn set_span(&mut self, low: u32, high: u32);
+
+    /// `done` of `textures` system textures are loaded: the share moves on within the span (and
+    /// stays where it is with no textures), and a frame is shown.
+    fn textures_done(&mut self, textures: u32, done: u32) -> Result<(), Refused>;
+}
+
+/// The loading bar on the screen: a `Progress` that draws a frame (at most 30 a second) at
+/// each mark.
+pub struct LoadingBar {
+    o: crate::owners::Owners<'static>,
+    share: u32,
+    span: BarEnds,
+}
+
+impl LoadingBar {
+    /// A bar at 0 whose texture span is the whole bar.
+    pub fn new(o: crate::owners::Owners<'static>) -> Self {
+        Self {
+            o,
+            share: 0,
+            span: BarEnds { low: 0, high: 100 },
+        }
+    }
+}
+
+impl Progress for LoadingBar {
+    fn mark(&mut self, share: u32) -> Result<(), Refused> {
+        self.share = share;
+        loading_bar_frame(self.o, share)
+    }
+
+    fn set_span(&mut self, low: u32, high: u32) {
+        self.span = BarEnds { low, high };
+    }
+
+    fn textures_done(&mut self, textures: u32, done: u32) -> Result<(), Refused> {
+        if let Some(share) = self.span.progress(done, textures) {
+            self.share = share;
+        }
+        loading_bar_frame(self.o, self.share)
+    }
+}
+
+/// A stage is loading (`race::load_stage`). The bar is drawn for every stage, over the loading
+/// picture.
 pub static STAGE_LOADING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 /// The bar's frames and their microseconds since last asked (the load's log line).
@@ -34,70 +76,67 @@ pub fn shown() -> (u64, u64) {
     (FRAMES[0].swap(0, Relaxed), FRAMES[1].swap(0, Relaxed))
 }
 
-/// The Rust version (see the header), timed.
-pub fn loading_bar_frame(race: &Race) -> Result<(), Refused> {
+/// Draws a frame showing `share` percent, at most one in 33 ms (every frame from 100 on).
+fn loading_bar_frame(o: crate::owners::Owners<'static>, share: u32) -> Result<(), Refused> {
     use std::sync::atomic::Ordering::Relaxed;
-    // Not the original's: some 30 frames a second at most, and the last. Every step's frame
-    // was 3/4 of a load (882 ms of 1231, 2026-10-30).
+    // At most some 30 frames a second, and the last: drawing every step's frame took 3/4 of a
+    // load (882 ms of 1231).
 
     let begun = std::time::Instant::now();
     {
         let mut last = LAST_FRAME
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if race.shared.vars.bar_share.bits() < 100
-            && last.is_some_and(|last| begun.duration_since(last) < BAR_FRAME)
-        {
+        if share < 100 && last.is_some_and(|last| begun.duration_since(last) < BAR_FRAME) {
             return Ok(());
         }
         *last = Some(begun);
     }
-    let result = frame(race);
+    let result = {
+        let _timed = crate::race::load_times::scope(crate::race::load_times::Category::BarFrame);
+        frame(o, share)
+    };
     FRAMES[0].fetch_add(1, Relaxed);
     FRAMES[1].fetch_add(begun.elapsed().as_micros() as u64, Relaxed);
     result
 }
 
-fn frame(race: &Race) -> Result<(), Refused> {
-    let system = crate::system::owner::system();
-    let scene = crate::scene::owner::scene();
+fn frame(o: crate::owners::Owners<'static>, share: u32) -> Result<(), Refused> {
+    let (race, system, scene, gfx, d3d) = (o.race, o.system, o.scene, o.gfx, &o.gfx.d3d);
     let session = &system.session;
     let shared = &race.shared;
-    // Converted: `rc2k_core::race::loading::{FRAME_MARK, frame_tried}`.
+    // Logic in `rc2k_core::race::loading::{FRAME_MARK, frame_tried}`.
     use crate::scene::*;
     use rc2k_core::race::loading::{FRAME_MARK, frame_tried};
-    if shared.work.in_credits.get() == 0
+    if !shared.work.get().in_credits.is_set()
         && !STAGE_LOADING.load(std::sync::atomic::Ordering::Relaxed)
     {
         return Ok(());
     }
-    scene.lights.state.scene_state.set_bits(FRAME_MARK);
-    if session.flags.quitting.get() == 1 {
+    scene.lights.state.get().scene_state.set(FRAME_MARK);
+    if session.flags.quitting.is_set() {
         return Ok(());
     }
-    let drawn = 'frame: {
+    // A frame that cannot be drawn is skipped: the load goes on and the next frame tries again.
+    'frame: {
         let active: u32 = session.flags.window_active.get();
-        if active == 0 || !frame_tried(active, session.flags.lost.get()) {
-            break 'frame false;
+        if active == 0 || !frame_tried(active, system.window_loop().lost.get()) {
+            break 'frame;
         }
-        // `scene::begin_scene` leaves the carry clear.
-        begin_scene::begin_scene();
-        let framed: u32 = shared.switches.editor_mode.bits();
-        shared.switches.editor_mode.set_bits(0u32);
+        begin_scene::begin_scene(race, d3d, o.scene.scratch.game_scratch());
+        let framed: u32 = shared.switches.get().editor_mode.get();
+        shared.switches.get().editor_mode.set(0u32);
         choose_view_window::choose_view_window(race, scene, system);
-        shared.switches.editor_mode.set_bits(framed);
-        crate::race::loading_bar_quad::loading_bar_quad(race, scene, system)?;
-        end_scene::end_scene();
-        if lock_frame::lock_frame(race).0 < 1 {
-            break 'frame false;
+        shared.switches.get().editor_mode.set(framed);
+        crate::race::loading_bar_quad::loading_bar_quad(race, system, scene, o.net, share)?;
+        end_scene::end_scene(d3d);
+        if lock_frame::lock_frame(race, gfx, system).0 < 1 {
+            break 'frame;
         }
-        unlock_frame::unlock_frame(&race.frame);
-        present_frame::present_frame()
-    };
-    if drawn || session.flags.quitting.get() == 1 {
-        return Ok(());
+        unlock_frame::unlock_frame(&race.frame, gfx);
+        // A refused present is skipped as well.
+        let _timed = crate::race::load_times::scope(crate::race::load_times::Category::Present);
+        present_frame::present_frame(o);
     }
-    // The platform's restore, with ebx `dword_518380` (a local scratch: the flags it
-    // leaves were read by no caller).
-    crate::standalone::not_ported(RESTORE, "race::loading_bar_frame")
+    Ok(())
 }

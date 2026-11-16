@@ -1,64 +1,42 @@
-//! `physics::stall_when_still` (0x440B9D): the length of the motion kept by
-//! `physics::keep_motion` (0x61409C .., `physics::vector_length`, rounded into
-//! `dword_62400C`); when not 0 (C3 clear), `flt_6140AC` = the motion (0x71A17C ..) dot it
-//! (`physics::dot_product`) over the length twice. Then, unless the length's size is
-//! below `flt_613E40`, with `flt_6140AC` below `flt_613E44` and `dword_61416C` 0: gear 0
-//! and both drive speeds 0. By the look of it the engine stalling when the car turns
-//! back on itself (a reading).
+//! The length of the motion kept by `physics::keep_motion` (`physics::vector_length`, rounded into
+//! `scratch`); when not 0, `stall_figure` = the motion dot it (`physics::dot_product`) over the
+//! length twice. Then, unless the length's size is below `stall_speed`, with `stall_figure` below
+//! `stall_share` and `no_auto_neutral` 0: gear 0 and both drive speeds 0. Probably the engine
+//! stalling when the car is stopped or turned back on itself: the motion's dot product against its
+//! own length.
 //!
-//! Caller: `physics::car_physics_step` (0x43B896), every physics step.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
+//! Caller: `physics::car_physics_step`, every physics step.
 
-use crate::math::x87_run::{abs_compare, compare_full, ext_div2};
+use crate::math::x87::{abs_compare, compare_full, ext_div2};
+use crate::physics::car_store::Car;
 use crate::physics::dot_product::dot_product;
+use crate::physics::flow::ZERO_BITS as ZERO;
+use crate::physics::tables_store::PhysicsTables;
 use crate::physics::vector_length::vector_length;
-use crate::race::owner::Race;
-use crate::scene::matrix3::rounded;
-use crate::session::Cell32;
+use crate::scene::matrix3::rounded_value;
 
-/// The Rust core on the variables' cells `v`. The registers the original leaves are read by none of its callers (esi, edi).
-pub fn stall_at(race: &Race, v: &[&dyn Cell32]) {
-    let get = |k: usize| v[k].bits();
-    let put = |k: usize, x: u32| v[k].set_bits(x);
-    put(3, rounded(vector_length(&v[0..3])));
-    let zero: u32 = race.course.numbers.zero.bits();
-    if compare_full(get(3), zero) & 0x4000 == 0 {
-        put(7, ext_div2(dot_product(&v[4..7], &v[0..3]), get(3), get(3)));
+pub fn stall_when_still(car: &Car, tables: &PhysicsTables, scene: &crate::scene::owner::Scene) {
+    let kept = &tables.kept_motion;
+    // The length goes through the scene's scratch dword (a float's bits).
+    let length = rounded_value(vector_length(kept));
+    scene.drawing.scene.get().scratch.set(length.to_bits());
+    if compare_full(length, ZERO) & 0x4000 == 0 {
+        tables.stall_figure.set(ext_div2(
+            dot_product(&car.local_velocity, kept),
+            length,
+            length,
+        ));
     }
-    if abs_compare(get(3), race.shared.physics_tables.stall_speed.bits()) & 0x100 != 0 {
+    if abs_compare(length, &tables.stall_speed) & 0x100 != 0 {
         return;
     }
-    if compare_full(get(7), race.shared.physics_tables.stall_share.bits()) & 0x100 == 0 {
+    if compare_full(&tables.stall_figure, &tables.stall_share) & 0x100 == 0 {
         return;
     }
-    if get(8) != 0 {
+    if tables.no_auto_neutral.get() != 0 {
         return;
     }
-    put(9, 0);
-    put(10, 0);
-    put(11, 0);
-}
-
-fn game<'a>(race: &'a Race, scene: &'a crate::scene::owner::Scene) -> Vec<&'a dyn Cell32> {
-    vec![
-        &race.shared.physics_tables.kept_motion[0] as &dyn Cell32,
-        &race.shared.physics_tables.kept_motion[1],
-        &race.shared.physics_tables.kept_motion[2],
-        &scene.drawing.scene.scratch,
-        &race.shared.car.local_velocity[0],
-        &race.shared.car.local_velocity[1],
-        &race.shared.car.local_velocity[2],
-        &race.shared.physics_tables.stall_figure,
-        &race.shared.physics_tables.no_auto_neutral,
-        &race.shared.car.gear,
-        &race.shared.car.drive_speed_a,
-        &race.shared.car.drive_speed_b,
-    ]
-}
-
-/// The Rust version.
-pub fn stall_when_still(race: &Race, scene: &crate::scene::owner::Scene) {
-    stall_at(race, &game(race, scene));
+    car.gear.set(0);
+    car.drive_speed_a.set(0.0);
+    car.drive_speed_b.set(0.0);
 }

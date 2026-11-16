@@ -1,14 +1,14 @@
-//! The players' view strips (converted 2026-10-21 from `hud::draw_view_strips` 0x45B7B1
-//! and `hud::draw_view_strip` 0x45B86E): a view block's strip is shown while its flash is
-//! on, as three flat quads side by side (a reading: a strip of the screen's overlay)
-//! scaled from 800 x 600 to the screen; then two more at the top corners.
+//! The players' view strips: a view block's strip is shown while its flash is on, as three flat
+//! quads side by side (the banner a view shows while a notice of its car is shown, `notice_shown` /
+//! the notice's time: the strip flashes with the notice's period) scaled from 800 x 600 to the
+//! screen; then two more at the top corners.
 
 /// Each strip's texture: the first player's, the second's.
 pub const TEXTURES: [u32; 2] = [0xC4, 0xC5];
 /// What is added to the players' number for the second player's view.
 pub const SECOND_VIEW: u32 = 3;
 
-/// The flash's division (what the original leaves in eax, edx, ebx).
+/// The flash's division.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Flash {
     pub quotient: u32,
@@ -26,11 +26,11 @@ impl Flash {
 /// A block's strip.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Strip {
-    /// Not shown: the block's +0xFA8 set or its +0x728 0.
+    /// Not shown: the block's hide flag is set or its strip value is 0.
     Hidden,
-    /// Shown without a flash: the period (+0x730) at most 0 (signed).
+    /// Shown without a flash: the period is at most 0 (signed).
     Steady,
-    /// Flashing: the clock (+0x72C) over the period (unsigned).
+    /// Flashing: the clock over the period (unsigned).
     Flashing(Flash),
 }
 
@@ -60,31 +60,32 @@ pub fn strip(covered: u32, shown: u32, clock: u32, period: u32) -> Strip {
     })
 }
 
-/// The views (`dword_6D1880`: twelve tops, the second six with `dword_6D1502` 0;
-/// `dword_6D18B0`: six lefts).
+/// The views (`Strips.tops[0]`: twelve tops, the second six when the flat-layout switch is 0;
+/// six lefts).
 pub const VIEWS: u32 = 6;
 /// The strip's height and each quad's width on the 800 x 600 screen.
 pub const HEIGHT: u32 = 0x19;
 pub const WIDTH: u32 = 0x78;
 /// How far each quad's texture rows move on.
 pub const ROWS_STEP: u32 = 0x32_0000;
-/// The virtual screen.
+/// The virtual screen: width and height.
 pub const VIRTUAL: [u32; 2] = [0x320, 0x258];
 
-/// The top's entry of a view (below `VIEWS`): the second six with `dword_6D1502` 0.
+/// The top's entry of a view (below `VIEWS`): the second six when the flat-layout switch is 0.
 pub fn top_entry(view: u32, flat: u32) -> usize {
     (view + if flat == 0 { VIEWS } else { 0 }) as usize
 }
 
 /// A size scaled to the screen: `mul` by the screen's size, `div` by the virtual one
-/// (unsigned, 64 bits between): (eax, edx), the quotient and the remainder.
+/// (unsigned, 64 bits between): the quotient and the remainder.
 pub fn scaled(v: u32, screen: u32, of: u32) -> (u32, u32) {
     let n = u64::from(v) * u64::from(screen);
     ((n / u64::from(of)) as u32, (n % u64::from(of)) as u32)
 }
 
-/// The strip's sizes on the screen (top, height, left, width: `dword_6D1870` ..) from the
-/// virtual ones, and what the last division leaves in eax, edx, ebx.
+/// The strip's sizes on the screen (top, height, left, width: `Strips.sizes[0]` ..) from the
+/// virtual ones, and what the last division leaves: the width, its remainder and the
+/// virtual width.
 pub fn sizes(v: [u32; 4], width: u32, height: u32) -> ([u32; 4], [u32; 3]) {
     let [(top, _), (h, _), (left, _), (w, r)] = [
         scaled(v[0], height, VIRTUAL[1]),
@@ -95,9 +96,9 @@ pub fn sizes(v: [u32; 4], width: u32, height: u32) -> ([u32; 4], [u32; 3]) {
     ([top, h, left, w], [w, r, VIRTUAL[0]])
 }
 
-/// A flat quad's inputs (`dword_623DE8` ..: (offset, value) in the order written) at x
-/// `left` (ebx) of width `width` (ebp), the sizes' top and height, texture rows from
-/// `rows` (ecx): the colour -1 last.
+/// A flat quad's inputs (`RaceVars.quad_colour[0]` ..: (offset, value) in the order written) at x
+/// `left` of width `width`, the sizes' top and height, texture rows from
+/// `rows`: the colour -1 last.
 pub fn quad_inputs(left: u32, width: u32, sizes: &[u32; 4], rows: u32) -> Vec<(usize, u32)> {
     let mut out = vec![
         (0x28, left),
@@ -116,8 +117,8 @@ pub fn quad_inputs(left: u32, width: u32, sizes: &[u32; 4], rows: u32) -> Vec<(u
     out
 }
 
-/// The tail's quads (`hud::draw_view_strips` jumps to it too): shown with
-/// `dword_6D14F6` bit 0x40 and `dword_6238A4` (the players) 0.
+/// The tail's quads (drawn by `hud::draw_view_strips` too): shown with the strips' bit 0x40 and
+/// `RaceVars.split` (the players) 0.
 pub fn tail_shown(shown: u32, players: u32) -> bool {
     shown & 0x40 != 0 && players == 0
 }

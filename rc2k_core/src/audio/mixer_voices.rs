@@ -1,5 +1,4 @@
-//! The turn's update of the voices on the game's own mixer (converted 2026-10-21 from
-//! `audio::update_mixer_voices` 0x40BC05, a chunk of `audio::update_voices` 0x40AC77).
+//! The turn's update of the voices on the game's own mixer.
 //!
 //! Before the mix: each playing voice's dirty bits carried out on its channel (the step
 //! for 4; the left and right volumes for 1 or 2; for a restart or a voice not yet sounding
@@ -15,7 +14,7 @@ use crate::audio::voices::{
     Voice, list,
 };
 
-/// `g_soundMode`: the right channel's sign follows the voice's pan sign (surround).
+/// The sound mode's bit: the right channel's sign follows the voice's pan sign (surround).
 pub const MODE_SURROUND: u32 = 0x200_0000;
 
 /// A voice's dirty bits carried out on its channel; `rate` the mixing rate (not 0 when the
@@ -97,10 +96,9 @@ fn playing_pass<P: Pool>(pool: &mut P, lists: &mut Lists, rate: u32, mode: u32, 
     }
 }
 
-/// The update's part before the mix (see the module's doc). Refused, before anything is
-/// written: a list without its end, a playing voice without its channel, a dirty frequency
-/// with no mixing rate (the original divides by 0), a dirty volume or pan on a voice that
-/// ended (the original writes through the pan).
+/// The update's part before the mix. Refused, before anything is written: a list without its end, a
+/// playing voice without its channel, a dirty frequency with no mixing rate (a division by
+/// 0), a dirty volume or pan on a voice that ended (a write through the pan).
 pub fn before_mix<P: Pool>(
     pool: &mut P,
     lists: &mut Lists,

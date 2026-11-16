@@ -1,46 +1,47 @@
-//! `menu::best_class_scores` (0x4A8608): each class's (0 .. `dword_7558F8`) new best scores: each counted player of the class whose score (+0xB0) is not below the class's tenth is entered (`menu::enter_best_score`); with one entered, `dword_7558F4` the class and the page (`menu::best_class_scores_loop`), stopping when the leaving is answered yes (`g_yesNoAnswer` 1).
+//! `menu::best_class_scores`: each class's (0 .. `event.shown.classes`) new best scores. Each
+//! counted
+//! player of the class whose score (+0xB0) is not below the class's tenth is entered
+//! (`menu::enter_best_score`); with one entered, `event.shown.class` is set to the class and its
+//! page
+//! shown (`menu::best_class_scores_loop`), stopping when leaving is answered yes.
 //!
-//! Caller: the event drivers. The entries are their Rust versions. Refuses a player count of 0 or
+//! Caller: the event drivers. Refuses a player count of 0 or
 //! past 4, a missing player, no classes or more than five, no table, and what an entry refuses,
 //! before anything.
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::menu::standings::*;
 
-/// The Rust version.
-pub fn best_class_scores(menus: &crate::menu::owner::Menus) -> Result<(), Refused> {
-    let screens = &menus.screens;
-    let players = counted_players(screens)?;
-    let classes: u32 = menus.screens.event.classes.get();
-    let (true, true) = (
-        classes != 0 && classes <= 5,
-        crate::saves::best_times::SCORES.is_taken(),
-    ) else {
+pub fn best_class_scores(
+    menus: &crate::menu::owner::Menus,
+    tables: &crate::saves::best_times::BestTables,
+    entry: &Entry,
+) -> Result<(), Refused> {
+    let players = counted_players(&menus.screens, &menus.play)?;
+    let classes: u32 = menus.screens.event.shown.classes.get();
+    let (true, true) = (classes != 0 && classes <= 5, tables.scores.is_taken()) else {
         return Err(BadInput("no classes, more than five, or no best-score table").into());
     };
     for class in 0..classes {
-        menus.screens.event.any_time_qualified.set(0u32);
+        menus.screens.event.trial.any_qualified.set(false);
         for (n, &p) in players.iter().enumerate() {
             menus.screens.event.current_player.set(n as u32);
             let player_score = p.get().stage_points[6];
             if p.get().class == class {
-                // The group's tenth entry's offset (the original leaves its address in
-                // esi, which the screen's lists set before anything reads it).
-                // Converted: `rc2k_core::menu::bests::makes_score`.
-                let tenth = tenth_best_score(class)?;
+                let tenth = tenth_best_score(tables, class)?;
                 if rc2k_core::menu::bests::makes_score(player_score, tenth) {
-                    enter_best(menus, None, |p| p.stage_points[6])?;
-                    menus.screens.event.any_time_qualified.set(1u32);
+                    enter_best(&menus.screens, &menus.play, tables, None, |p| {
+                        p.stage_points[6]
+                    })?;
+                    menus.screens.event.trial.any_qualified.set(true);
                 }
             }
         }
-        if menus.screens.event.any_time_qualified.get() == 1 {
-            menus.screens.event.class.set(class);
-            run_screen(
-                &crate::menu::best_class_scores_loop::SCREEN,
-                &Entry::new(menus),
-            )?;
+        if menus.screens.event.trial.any_qualified.is_set() {
+            menus.screens.event.shown.class.set(class);
+            run_screen(ScreenId::BestClassScores, entry)?;
             if menus.tables.pages.yes_no_answer.get() == 1 {
                 break;
             }

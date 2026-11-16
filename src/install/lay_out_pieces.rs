@@ -1,28 +1,17 @@
-//! `install::lay_out_pieces` (0x414C7E): a page's pieces (`dword_51C407` of them, 0x30 bytes
-//! each after it: +0 the item's kind and marks, +1 the piece's kind, +2 its text, +4 its
-//! item, +8 x, +0xC y, +0x10 width, +0x14 height) made from its list. The title (unless the
-//! list's flags are 0x40 of 0xC0: `test; jg`) is kind 0x10 of `unk_51DD78`; then each item
-//! not hidden (0x40 of 0xC0): a link a piece of kind 0; a choice a label (1) and a piece
-//! (2) for each of its choices not hidden, its marks from the choice's high bits; a value
-//! a label (1) and a piece (0x12); an edit the same, without the label when the item has
-//! 0x10; a text kind 0x10 with its font's bits (`byte_51D52C`); an action 0x14. The places
-//! and sizes are zeroed.
-//!
-//! Takes the list.
-//! Any other kind is fatal error 0x80A97451. More pieces than the 0xFFC bytes hold (85) is
-//! refused (the original writes over the list variables after them). Caller
-//! `install::run_page`.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
+//! A page's pieces (0x30 bytes each after `layout`) made from its list: the title (unless the
+//! list is hidden), then for each item not hidden: a link a piece, a choice a label and a piece
+//! for each choice not hidden, a value or edit a label and a piece, a text and an action one
+//! piece each. Places and sizes are zeroed. Any other kind is fatal error 0x80A97451. More
+//! pieces than the 0xFFC bytes hold (85) are refused. Called by `install::run_page`.
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::fatal;
 use crate::install::page_records::{Piece, set_piece_count};
-use crate::menu::list_handle::{ListItem, ListMenu};
+use crate::memory::list_handle::{ListItem, ListMenu};
 use rc2k_core::install::pieces::{self, Item, LayoutError, ListSource, Owner};
 
-/// A page's list, read where the original reads it.
-struct GameList(ListMenu);
+/// A page's list.
+struct GameList(ListMenu, &'static crate::install::owner::Install);
 
 impl ListSource for GameList {
     fn flags(&self) -> u8 {
@@ -43,10 +32,10 @@ impl ListSource for GameList {
         }
     }
     fn choice(&self, k: u32, c: u32) -> u16 {
-        self.0.item(k).choices().word(c)
+        self.0.item(k).choices(self.1).word(c)
     }
     fn text_font(&self, font: u8) -> u8 {
-        let install = crate::install::owner::install();
+        let install = self.1;
         install.pages.kind_fonts.get(4 + 8 * font as usize)
     }
 }
@@ -55,8 +44,7 @@ pub fn lay_out_pieces(
     install: &'static crate::install::owner::Install,
     list: ListMenu,
 ) -> Result<(), Refused> {
-    // Converted: `rc2k_core::install::pieces::lay_out`; the pieces written here.
-    let made = match pieces::lay_out(&GameList(list)) {
+    let made = match pieces::lay_out(&GameList(list, install)) {
         Ok(made) => made,
         Err(LayoutError::UnknownKind) => return Err(fatal(pieces::UNKNOWN_KIND)),
         Err(LayoutError::TooMany) => {
@@ -64,16 +52,19 @@ pub fn lay_out_pieces(
         }
     };
     for (n, new) in made.iter().enumerate() {
-        let piece = Piece::nth(n as u32);
+        let piece = Piece::nth(install, n as u32);
         if let Some(text) = new.text {
             piece.set_text_id(text);
         }
         piece.set_marks(new.marks);
         piece.set_kind(new.kind);
-        piece.set_item(match new.owner {
-            Owner::Title => ListItem::of_title(),
-            Owner::Item(k) => list.item(k),
-        });
+        piece.set_item(
+            install,
+            match new.owner {
+                Owner::Title => ListItem::of_title(install),
+                Owner::Item(k) => list.item(k),
+            },
+        );
         piece.set_x(0);
         piece.set_y(0);
         piece.set_width(0);

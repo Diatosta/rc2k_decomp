@@ -1,31 +1,28 @@
 //! The inspection's two fades (`menu::fade_in`, `menu::fade_out`): frames of
-//! `menu::fade_frame` (`screens::run_frame`) for `dword_75AB44` milliseconds, the fade
-//! quad's see-through `dword_75AB50` going from 0 up to (in) or from `dword_75AA94` down
-//! (out) with the time gone (`dword_75AB4C`, from `dword_75AB48`).
+//! `menu::fade_frame` (`screens::run_frame`) for `state.menus.fade_length` milliseconds, the fade
+//! quad's see-through going from 0 up to (in) or from the fade's full see-through down
+//! (out) with the time gone since the fade started.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::menu::owner::Screens;
+use crate::owners::Owners;
 
-// system::tick_count
 const DIVIDE_BY_ZERO: FatalError = FatalError {
     code: 0x80701010,
     message: "",
 };
 
-/// `screens::run_frame` with `menu::fade_frame` (0x4A1E60): the messages, then (unless
+/// `screens::run_frame` with `menu::fade_frame`: the messages, then (unless
 /// quitting) the frame.
-fn frame() -> Result<(), Refused> {
-    match crate::platform::run_frame_now(|| {
-        crate::menu::fade_frame::fade_frame(crate::menu::owner::menus())
-    }) {
+fn frame(o: Owners<'static>) -> Result<(), Refused> {
+    match crate::platform::run_frame_now(o, || crate::menu::fade_frame::fade_frame(o)) {
         Some(made) => made.map(|_| ()),
         None => Ok(()),
     }
 }
 
 /// A fade: `out` the way.
-pub fn fade(screens: &Screens, out: bool) -> Result<(), Refused> {
-    // Converted: `rc2k_core::menu::fades` (`too_short`, `first_see`, `step`, `over`).
+pub fn fade(o: Owners<'static>, out: bool) -> Result<(), Refused> {
+    let screens = &o.menus.screens;
     use rc2k_core::menu::fades::{self, Stop};
     let length: u32 = screens.state.menus.fade_length.get();
     if fades::too_short(length) {
@@ -36,17 +33,19 @@ pub fn fade(screens: &Screens, out: bool) -> Result<(), Refused> {
             .state
             .menus
             .fade_start
-            .set(crate::system::tick_count::tick_count());
+            .set(crate::system::tick_count::tick_count(
+                &o.system.session.picture_clock,
+            ));
         screens.state.menus.fade_see.set(fades::first_see(
             out,
             screens.state.service_ui.fade_full.get(),
         ));
-        frame()?;
+        frame(o)?;
         loop {
-            let gone = crate::system::tick_count::tick_count()
+            let gone = crate::system::tick_count::tick_count(&o.system.session.picture_clock)
                 .wrapping_sub(screens.state.menus.fade_start.get());
             screens.state.menus.fade_gone.set(gone);
-            // The length and the full see-through read only where the original reads them.
+            // The length and the full see-through are read only where they are needed.
             let made = if gone != 0 || out {
                 fades::step(
                     gone,
@@ -65,7 +64,7 @@ pub fn fade(screens: &Screens, out: bool) -> Result<(), Refused> {
                     return Err(BadInput("a fade's step of 0 ms: the original divides by 0").into());
                 }
             }
-            frame()?;
+            frame(o)?;
             if fades::over(
                 screens.state.menus.fade_gone.get(),
                 screens.state.menus.fade_length.get(),

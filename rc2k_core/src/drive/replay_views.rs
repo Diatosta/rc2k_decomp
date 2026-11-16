@@ -1,10 +1,8 @@
-//! The replay's cameras and the two-car race's sound levels (converted 2026-10-21 from
-//! `drive::replay_cameras` 0x460949, `drive::pick_replay_camera` 0x460AA6 and
-//! `drive::duel_sound_levels` 0x45C596): a replay frame's camera wishes made into views
-//! (a wish 0x23 .. 0x25 a view of a kind drawn at random, at most every three frames),
+//! The replay's cameras and the two-car race's sound levels: a replay frame's camera wishes made
+//! into views (a wish 0x23 .. 0x25 a view of a kind drawn at random, at most every three frames),
 //! and two levels 0 ..= 0x40 from the first car block's figures (a reading).
 
-/// The camera modes `pick_replay_camera` draws from.
+/// The camera modes a draw picks from.
 pub const MODES: u32 = 0x34;
 
 /// The wishes that draw a mode, and the kind each stops at.
@@ -17,19 +15,19 @@ pub fn wish_kind(wish: u32) -> Option<u32> {
     }
 }
 
-/// Whether a drawn mode of kind `mode_kind` ends the draws for `kind`: its kind, but for
-/// kind 0 any other kind (0x23's loop is `cmp [ebx], 0 / jz`; notes/bugs.md).
+/// Whether a drawn mode of kind `mode_kind` ends the draws for `kind`: its kind, but for kind 0
+/// any other kind (a slip kept as is).
 pub fn fits(kind: u32, mode_kind: u32) -> bool {
     (mode_kind == kind) != (kind == 0)
 }
 
-/// A draw: a random number x `MODES` as `mul` leaves it, (eax, edx the mode).
+/// A draw: the random number x `MODES` as (the low dword, the high dword: the mode).
 pub fn draw(random: u32) -> (u32, u32) {
     let product = u64::from(random) * u64::from(MODES);
     (product as u32, (product >> 32) as u32)
 }
 
-/// The kinds past which a car has no views 2 and 3 (`g_carBlockStore` +0x24).
+/// The kinds past which a car has no views 2 and 3.
 pub const LAST_VIEW_KIND: u32 = 0x16;
 
 /// The mode drawn as kept: 2 and 3 become 4 when the first car's kind is past
@@ -52,13 +50,13 @@ pub fn kept_mode(
 /// The frames between two draws for a car.
 pub const DRAW_GAP: u32 = 3;
 
-/// What `replay_cameras` does for one car's wish.
+/// What a replay frame does with one car's camera wish.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WishStep {
-    /// Nothing (a drawing wish too soon, with the frames since the last draw: the
-    /// original's ebx; or the wish already the view).
+    /// Nothing (a drawing wish too soon, with the frames since the last draw; or the wish already
+    /// the view).
     Nothing(Option<u32>),
-    /// A drawing wish: a mode drawn (the frames since, ebx).
+    /// A drawing wish: a mode drawn (the frames since).
     Draw(u32),
     /// Another wish: it is the view (and the wanted one), the last draw's frame 0.
     Set,
@@ -85,7 +83,7 @@ pub fn wish_step(wish: u32, frame: u32, last: u32, view: impl FnOnce() -> u32) -
 pub const LEVEL_TOP: u32 = 0x40;
 pub const RARE_FROM: u32 = 0x38;
 
-/// A level held to 0 ..= `LEVEL_TOP` (by the signs).
+/// A level held to 0 ..= `LEVEL_TOP` (signed).
 pub fn held_level(v: u32) -> u32 {
     let v = if (v as i32) < 0 { 0 } else { v };
     if (v.wrapping_sub(LEVEL_TOP) as i32) < 0 {
@@ -107,7 +105,7 @@ pub fn rare_draw(random: u32) -> bool {
 }
 
 /// The second level from the block's +0x908: (its square's low dword >> 12 - 8, held;
-/// the square's high dword, the original's edx).
+/// the square's high dword).
 pub fn second_level(figure: u32) -> (u32, u32) {
     let square = i64::from(figure as i32) * i64::from(figure as i32);
     (

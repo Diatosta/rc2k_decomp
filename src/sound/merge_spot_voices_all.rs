@@ -1,21 +1,19 @@
-//! `sound::merge_spot_voices_all` (0x40E7CA): `sound::merge_spot_voices` for the six
-//! sounds whose voices are merged into one: 0x1B7, 0x1B8, 0x1BB, 0x1BC, 0x1C1, 0x1BF.
+//! `sound::merge_spot_voices_all`: `sound::merge_spot_voices` for the six sounds whose voices are
+//! merged into one: 0x1B7, 0x1B8, 0x1BB, 0x1BC, 0x1C1, 0x1BF.
 //!
-//! Each call with eax the sound and the other registers the one before left. One caller,
+//! Each call is for one of those sounds. One caller,
 //! `sound::spot_sounds`.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::Refused;
 
-// ---- Rust version ----
-
 /// `sound::merge_spot_voices` for each sound merged.
-pub fn merge_spot_voices_all(owner: &crate::sound::owner::Sound) -> Result<(), Refused> {
-    // Converted: `rc2k_core::sound::spot_voices::MERGED_SOUNDS`.
+pub fn merge_spot_voices_all(
+    owner: &crate::sound::owner::Sound,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
+    // The logic is `rc2k_core::sound::spot_voices::MERGED_SOUNDS`.
     for sound in rc2k_core::sound::spot_voices::MERGED_SOUNDS {
-        crate::sound::merge_spot_voices::merge_spot_voices(sound, owner)?;
+        crate::sound::merge_spot_voices::merge_spot_voices(sound, owner, system);
     }
     Ok(())
 }

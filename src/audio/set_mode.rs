@@ -1,48 +1,46 @@
-//! `audio::set_mode` (0x40A426): command 5, the sound mode changed (menus <-> a race).
-//!
-//! "SAM:" and the mode logged; `audio::stop_streams`, `audio::free_voices`,
-//! `audio::close_way`, `audio::release_primary`; `g_soundMode` the new mode; the channels:
-//! 8 (0x10 with bit 0x400000), held to the free hardware buffers of the mode's kind (2D or
-//! 3D: bit 0x10000 all, 0x20000 the other count of `g_soundCaps`) when there are any, and
-//! at least 6, into `g_channelCount`; `audio::reopen_sound`, `audio::make_primary` (either
-//! failing: `g_openedSoundMode` 0, "SAM: FAIL", the carry), `audio::open_way`, a second's
-//! `system::sleep`, `audio::play_primary`; `g_openedSoundMode` the mode, "SAM: OK". Either
-//! way `system::restore_window` last (its flags kept around it). Callers: the audio thread's
-//! start (the menus' mode), `audio::take_commands` (command 5).
+//! Command 5: the sound mode changed (menus <-> a race). "SAM:" and the mode are logged; streams
+//! stopped, voices freed, the way closed, the primary released; the channels: 8 (0x10 in the
+//! mixer mode), held to the free hardware buffers of the mode's kind when there are any, and at
+//! least 6; DirectSound reopened, the primary made (either failing: opened mode 0, "SAM: FAIL"),
+//! the way opened, a second's sleep, the primary played; "SAM: OK". Either way the window is
+//! restored last.
 
-use crate::audio::owner::Audio;
+use crate::audio::own::AudioThread;
 use crate::errors::Refused;
 
 const SAM_TEXT: &std::ffi::CStr = c"SAM:"; // "SAM:"
 const OK_TEXT: &std::ffi::CStr = c"SAM: OK"; // "SAM: OK"
 const FAIL_TEXT: &std::ffi::CStr = c"SAM: FAIL"; // "SAM: FAIL"
 
-/// True for no carry.
-pub fn set_mode(audio: &Audio, mode: u32) -> Result<bool, Refused> {
+/// True when it worked.
+pub fn set_mode(
+    audio: &AudioThread,
+    system: &'static crate::system::owner::System,
+    mode: u32,
+) -> Result<bool, Refused> {
     use crate::audio::mixer_set_up::{close_way, open_way};
     use crate::audio::sound_device as sd;
     let caps = &audio.state.sound_caps;
     sd::log_text(SAM_TEXT, false);
     sd::log_hex(mode, true);
-    // Fixed (section 16, 2026-10-20): the streams stopped with action 0; the original
-    // hands on whatever edx holds (normally the thread's 1, a feed), so the music
-    // outlived the DirectSound it played on.
+    // Fixed: the streams are always stopped here ("Changing the sound mode leaves the music
+    // playing", `wiki/Fixed-bugs.md`).
     crate::audio::stop_streams::stop_streams(audio)?;
     crate::audio::free_voices::free_voices(audio)?;
-    close_way(audio, audio.state.sound_mode.get())?;
-    sd::release_primary(&audio.state)?;
+    close_way(audio, system, audio.state.sound_mode.get())?;
+    sd::release_primary(&audio.state);
     audio.state.sound_mode.set(mode);
-    // Converted: `rc2k_core::audio::modes::channels`. `g_soundCaps`: free hardware buffers
-    // +0x24 all, +0x28 static, +0x3C 3D all, +0x40 3D static.
+    // The sound caps: free hardware buffers +0x24 all, +0x28 static, +0x3C 3D all, +0x40 3D static.
     let (channels, _) = rc2k_core::audio::modes::channels(
         mode,
         [caps.get_u32(0x24), caps.get_u32(0x28)],
         [caps.get_u32(0x3C), caps.get_u32(0x40)],
     );
     audio.state.channel_count.set(channels);
-    let ok = !sd::reopen_sound(&audio.state)? && crate::audio::primary::make_primary(&audio.state)?;
+    let ok = !sd::reopen_sound(&audio.state, system)?
+        && crate::audio::primary::make_primary(audio, system)?;
     if ok {
-        open_way(audio, audio.state.sound_mode.get())?;
+        open_way(audio, system, audio.state.sound_mode.get())?;
         crate::system::sleep::sleep(1000);
         crate::audio::thread_parts::play_primary(&audio.state);
         audio

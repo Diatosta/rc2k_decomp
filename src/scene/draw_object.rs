@@ -1,16 +1,11 @@
-//! `scene::draw_object` (0x45045D): draws one object, in seven steps.
+//! `scene::draw_object`: draws one object (the current object number), in seven steps.
 //!
-//! In:  nothing (`g_objectNumber` the object)
-//!
-//! eax = `g_objectNumber`; `scene::set_object_light`; `scene::set_object_material`;
-//! `scene::set_object_fade` (which may make `g_objectNumber` another object); ebx =
-//! `g_objectNumber`; `scene::place_object_points_any` (0x45BDE1, inlined: with `g_use3dNow`
-//! 0x45BF89, else with `g_useSse` 0x45C04E, neither ported, else
-//! `scene::place_object_points`); `scene::list_object_faces`; `scene::sort_listed_faces`;
-//! `scene::draw_object_faces`. One caller, `scene::draw_shown_object`, which reads no register
-//! after it. The Rust versions of the light, the material, the fade and the sorting keep the
-//! registers their originals change, so what is left differs from the original's there. A refusal
-//! of a later step comes with the earlier ones done; the original then does them again.
+//! The steps: `scene::set_object_light`; `scene::set_object_material`; `scene::set_object_fade`
+//! (which may make the current object another object); `scene::place_object_points_any`
+//! (inlined: the 3DNow way is refused, with SSE on its way; else `scene::place_object_points`);
+//! `scene::list_object_faces`; `scene::sort_listed_faces`; `scene::draw_object_faces`. One
+//! caller, `scene::draw_shown_object`. A refusal of a later step comes with the earlier ones
+//! done.
 
 use crate::errors::BadInput;
 use crate::errors::Refused;
@@ -38,10 +33,8 @@ pub enum Step {
     Faces,
 }
 
-// ---- Rust version ----
-
-/// `step`: what stands for each call. The registers between the calls carry nothing
-/// a later call reads (the object's number goes to each through `g_objectNumber`).
+/// `step`: what stands for each call. The object's number goes to each through
+/// the current object.
 pub fn draw_object(step: &mut dyn FnMut(Step) -> Result<(), Refused>) -> Result<(), Refused> {
     for s in [
         Step::Light,
@@ -57,48 +50,48 @@ pub fn draw_object(step: &mut dyn FnMut(Step) -> Result<(), Refused>) -> Result<
     Ok(())
 }
 
-/// `scene::place_object_points_any` (0x45BDE1). The 3DNow way (0x45BF89) is not ported:
-/// a refusal ends the program.
-fn place_object_points_any(
-    race: &crate::race::owner::Race,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), Refused> {
-    let draw_switches = &scene.draw_switches;
-    if draw_switches.use_3dnow.bits() != 0 {
+/// `scene::place_object_points_any`. The 3DNow way is refused: a refusal ends the program.
+fn place_object_points_any(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
+    let draw_switches = ctx.reads.draw_switches;
+    if draw_switches.use_3dnow.get() != 0 {
         return Err(BadInput("the 3DNow way of placing points is not ported").into());
     }
-    if draw_switches.use_sse.bits() != 0 {
-        return crate::scene::place_object_points::place_object_points_sse(race, scene);
+    if draw_switches.use_sse.is_set() {
+        return crate::scene::place_object_points::place_object_points_sse(ctx);
     }
-    place_object_points(race, scene)?;
+    place_object_points(ctx)?;
     Ok(())
 }
 
 /// With the steps' Rust versions.
-pub fn draw_object_in_game(
-    race: &crate::race::owner::Race,
-    scene: &crate::scene::owner::Scene,
-    system: &crate::system::owner::System,
-) -> Result<(), Refused> {
+pub fn draw_object_in_game(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
+    // The object's listed faces: filled, sorted and drawn here alone.
+    let mut faces = crate::scene::face_list::FaceList::new();
     draw_object(&mut |step| {
         match step {
-            Step::Light => set_object_light_in_game(race, scene, system)?,
-            Step::Material => set_object_material(race, scene)?,
-            Step::Fade => set_object_fade(race, scene)?,
-            Step::Points => place_object_points_any(race, scene)?,
+            Step::Light => set_object_light_in_game(ctx)?,
+            Step::Material => set_object_material(ctx)?,
+            Step::Fade => set_object_fade(ctx)?,
+            Step::Points => place_object_points_any(ctx)?,
             Step::List => {
                 list_object_faces(
-                    &race.shared,
-                    &mut |face| list_object_face(race, face, scene),
-                    scene,
+                    &ctx.reads.buffers.faces,
+                    &ctx.view.object,
+                    &ctx.view.face,
+                    &mut faces,
+                    &mut |list, face| list_object_face(ctx, face, list, ctx.marks),
                 )?;
             }
-            Step::Sort => sort_listed_faces(scene)?,
+            Step::Sort => sort_listed_faces(&mut faces)?,
             Step::Faces => {
                 draw_object_faces(
-                    race,
-                    &mut |face| draw_object_face_in_game(race, face, scene, system),
-                    scene,
+                    &ctx.reads.stage.object_faces,
+                    &ctx.reads.buffers.faces,
+                    &ctx.view.polygon,
+                    &ctx.view.object,
+                    &ctx.view.face,
+                    &faces,
+                    &mut |face| draw_object_face_in_game(ctx, face),
                 )?;
             }
         }

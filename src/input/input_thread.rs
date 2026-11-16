@@ -1,29 +1,19 @@
-//! `input::input_thread` (0x4078DA): the input thread's routine ("INPUTTDB", its slot
-//! `slot` 0x5184F4). Unless its slot's flag (+0xC) is already 1 (then straight to the end):
-//! the flag 1, "INPUTTDB:START" logged; DirectInput made (0x4079DC, `dword_4F6904`; none:
-//! to the end), the keyboard, the mouse and the joysticks (0x407A1F, 0x407FFE,
-//! `input::list_joysticks`), the priority 2 (`threading::set_priority`). Then every 20 ms (waits of
-//! 5 ms on `system::tick_count`, kept in `dword_4F68D8`): `dword_518998` one more for each
-//! 20 ms gone, the keyboard and the mouse read (0x407AC2, 0x4080F2), a tick of the
-//! devices (`input::input_tick`), a second's sleep while the window is not the active one
-//! (`dword_518378` not 1); until `g_quitting` is 1. The end: both devices given back
-//! (`input::release_device`), the mouse, the keyboard and DirectInput released
-//! (0x40809E, 0x407A84, 0x4079FE), "INPUTTDB:QUIT" logged, the priority 0, the
-//! flag 0, `ExitThread`.
+//! The input thread's routine ("INPUTTDB"). Unless its slot's flag is already 1: the flag set,
+//! "INPUTTDB:START" logged, DirectInput made (none: to the end), the keyboard, the mouse and the
+//! joysticks set up, the priority raised. Then every 20 ms (waits of 5 ms on the tick count, kept
+//! in `last_tick`): `clocks.key_ticks` one more for each 20 ms gone, the keyboard and the mouse
+//! read, a tick of the devices, a second's sleep while the window is not the active one; until
+//! the game is quitting. The end: both devices given back, the mouse, the keyboard and DirectInput
+//! released, "INPUTTDB:QUIT" logged, the priority back, the flag 0.
 //!
-//! Takes: the thread's parameter (not read)
-//! Out: does not return
-//!
-//! Started by `threading::start_threads` (a slot's routine). In
-//! the standalone program DirectInput is made in Rust (`input::di_objects`, on SDL's
-//! joysticks, `platform_input.rs`) and released; the keyboard and the mouse are SDL's
-//! events (they fill `g_keysDown`): nothing is made, read or released for them. Refuses what its
-//! steps refuse.
+//! Started by `threading::start_threads`. DirectInput is Rust's here (`input::di_objects`, on
+//! SDL's joysticks, `platform::input`); the keyboard and the mouse are SDL's events (they fill
+//! the key table), so nothing is made, read or released for them. Refuses what its steps refuse.
 
 use crate::errors::Refused;
 use crate::input::devices::records;
 use crate::input::owner::Input;
-use crate::system::owner::system;
+use crate::system::owner::System;
 
 const START_TEXT_RVA: &std::ffi::CStr = c"INPUTTDB:START"; // "INPUTTDB:START"
 const QUIT_TEXT_RVA: &std::ffi::CStr = c"INPUTTDB:QUIT"; // "INPUTTDB:QUIT"
@@ -35,8 +25,12 @@ fn log(text: &std::ffi::CStr) {
 }
 
 /// The thread's work up to its `ExitThread` (see the header).
-pub fn input_thread(input: &Input, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
-    let system = system();
+pub fn input_thread(
+    input: &Input,
+    sound: &crate::sound::store::SoundShared,
+    system: &System,
+    race: &crate::race::owner::Race,
+) -> Result<(), Refused> {
     use crate::threading::set_priority::set_priority;
     let flag = &crate::threading::thread_slot::slot_ref(crate::threading::thread_slot::INPUT)?.flag;
     'work: {
@@ -52,16 +46,17 @@ pub fn input_thread(input: &Input, sound: &crate::sound::owner::Sound) -> Result
         if direct_input == 0 {
             break 'work;
         }
-        crate::input::list_joysticks::list_joysticks(input);
+        crate::input::list_joysticks::list_joysticks(input, system);
         set_priority(2);
-        let mut last = crate::system::tick_count::tick_count();
+        let mut last = crate::system::tick_count::tick_count(&system.session.picture_clock);
         input.devices.last_tick.set(last);
         loop {
             let mut gone;
             loop {
                 crate::system::sleep::sleep(5);
                 last = input.devices.last_tick.get();
-                gone = crate::system::tick_count::tick_count().wrapping_sub(last);
+                gone = crate::system::tick_count::tick_count(&system.session.picture_clock)
+                    .wrapping_sub(last);
                 if gone >= TICK_MS {
                     break;
                 }
@@ -69,9 +64,9 @@ pub fn input_thread(input: &Input, sound: &crate::sound::owner::Sound) -> Result
             loop {
                 system
                     .session
-                    .clocks
-                    .key_ticks
-                    .set(system.session.clocks.key_ticks.get().wrapping_add(1));
+                    .key_clock
+                    .ticks
+                    .set(system.session.key_clock.ticks.get().wrapping_add(1));
                 gone -= TICK_MS;
                 last = last.wrapping_add(TICK_MS);
                 if gone < TICK_MS {
@@ -79,11 +74,11 @@ pub fn input_thread(input: &Input, sound: &crate::sound::owner::Sound) -> Result
                 }
             }
             input.devices.last_tick.set(last);
-            crate::input::input_tick::input_tick_in_game(input, sound)?;
+            crate::input::input_tick::input_tick_in_game(input, sound, system, race)?;
             if system.session.flags.window_focused.get() != 1 {
                 crate::system::sleep::sleep(1000);
             }
-            if system.session.flags.quitting.get() == 1 {
+            if system.session.flags.quitting.is_set() {
                 break;
             }
         }
@@ -100,11 +95,4 @@ pub fn input_thread(input: &Input, sound: &crate::sound::owner::Sound) -> Result
     set_priority(0);
     flag.set(0);
     Ok(())
-}
-
-/// The thread's routine as its slot starts it (by address: `routes.rs`): the work; its end
-/// ends the thread (the original's `ExitThread`).
-pub fn thread_routine(input: &crate::input::owner::Input) -> Result<(), Refused> {
-    let sound = crate::sound::owner::sound();
-    input_thread(input, sound)
 }

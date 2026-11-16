@@ -1,25 +1,20 @@
-//! `net::begin_chat` (0x4180C5): Enter on the lobby's chat item starts a message: the input
-//! (`byte_52A4C8`) emptied and edited (`net::begin_edit`, the item `g_listChoice`, width
-//! 0x30C, measured with `dword_51E424`).
-//!
-//! Returns the item, input, 0x30C, `dword_51E424`'s address.
-//! Caller: `net::lobby_loop`.
+//! Enter on the lobby's chat item starts a message: the input is emptied and edited with
+//! `net::begin_edit`. Returns the item, input, width and font the edit uses.
 
-use crate::net::store::NetVars;
+use crate::net::owner::Net;
 
 const CHAT_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::CHAT_LINE;
 
-/// The Rust version. The registers the original leaves (eax the item, ebx the input, ecx
-/// 0x30C, edx the font) are read by no caller (`lobby_loop` only; liveness: ebp, edi, edx,
-/// esi live after, edx the caller's own).
+/// Starts the chat line's edit (item, input, width 0x30C and the chat font).
 pub fn begin_chat(
-    install: &'static crate::install::owner::Install,
-    vars: &NetVars,
+    net: &Net,
+    list_state: &crate::menu::list_state::ListState,
 ) -> Result<(), crate::errors::Refused> {
-    vars.chat_input.set(0, 0);
+    net.lobby().chat_input.set(0, 0);
     crate::net::begin_edit::begin_edit(
-        vars,
-        install.pages.choice.get(),
+        net,
+        &net.lobby().edit,
+        list_state.choice.get(),
         crate::net::begin_edit::EditedText::ChatInput,
         0x30C,
         CHAT_FONT,

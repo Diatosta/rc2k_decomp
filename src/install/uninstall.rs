@@ -1,25 +1,15 @@
-//! `install::uninstall` (0x4134DF): the installation removed. Only when installed
-//! (`g_installStatus` != 0) with a source. The status is marked busy and written
-//! (`install::write_registry`); a "removing" frame is shown; the source is made current and
-//! the install script run (`install::run_script`) to rebuild the file and folder lists; each
-//! listed file is deleted (`files::delete_file`) and each folder removed in reverse
-//! (`files::remove_directory`); the parent is entered and the install folder removed; after a
-//! second the status and source are cleared, written again, the DirectPlay key removed
-//! (`install::unregister_lobby`), the Start-menu removal asked (`g_removeStartItems`) and
-//! `g_installing` cleared. Each path is built in `byte_95E9F8` from `byte_95E7F8` plus the
-//! listed name.
+//! The installation removed, the action of a list item. Only when installed with a source: the
+//! status is marked busy and written; a "removing" frame is shown; the source is made current and
+//! the install script run to rebuild the file and folder lists; each listed file is deleted and
+//! each folder removed in reverse; the parent is entered and the install folder removed; after a
+//! second the status and source are cleared and written again, the DirectPlay key removed, the
+//! Start menu removal asked and the installing flag cleared. Called by `install::run_page`.
 //!
-//! A list action (`off_51DD30`). Caller `install::run_page`.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
-//!
-//! "Remove all" (2026-11-03, a decided difference): the original removed only what its
-//! script lists, so files the game made (its log, `rc2k.log`, the program and its
-//! libraries) kept the folder. With every folder chosen (`script_mark` not 5, "keep saved
-//! data"'s End) the installation's folder goes whole once the listed files are gone; on
-//! Windows what is still in use goes after the program ends (`os::remove_folder_after_exit`).
-//! Only a folder that holds an installation's record (`var\install.cfg`) and is neither a
-//! root nor the home folder.
+//! "Remove all" (a decided difference: removing only what the script lists would leave the
+//! files the game made, and so the folder): with every folder chosen (`script_mark` not 5) the
+//! installation's folder goes whole once the listed files are gone; on Windows what is still in
+//! use goes after the program ends (`os::remove_folder_after_exit`). Only a folder that holds an
+//! installation's record (`var\install.cfg`) and is neither a root nor the home folder.
 
 use crate::errors::Refused;
 use crate::install::installer::{
@@ -27,22 +17,22 @@ use crate::install::installer::{
     store_text, text_at, unlock, wb,
 };
 
-/// byte_95E9F8 = byte_95E7F8 + name #index of `table`, NUL-ended.
+/// `path_b` = `paths.installed` + name #index of `table`, NUL-ended.
 fn build_path(
     install: &'static crate::install::owner::Install,
     table: &crate::memory::owned::Owned<crate::install::name_tables::NameTable>,
     index: u32,
-) -> Result<crate::place::Place, Refused> {
+) -> Result<crate::memory::place::BytePlace, Refused> {
     let mut path = text_at(&install.paths.installed);
     crate::install::name_tables::push_name(table, index, &mut path)?;
     path.push(0);
     store_text(&install.paths.path_b, &path);
-    Ok(crate::place::Place::from(&install.paths.path_b))
+    Ok(crate::memory::place::BytePlace::from(&install.paths.path_b))
 }
 
 /// The installation's folder, when "remove all" was chosen and it is one that may go whole.
-fn whole_folder(install: &'static crate::install::owner::Install) -> Option<std::path::PathBuf> {
-    if install.names.script_mark.get() == 5 {
+fn whole_folder(install: &crate::install::owner::Install) -> Option<std::path::PathBuf> {
+    if install.names.script.get(crate::install::vars::SCRIPT_MARK) == 5 {
         return None;
     }
     let text = install.paths.installed.read();
@@ -59,7 +49,7 @@ fn whole_folder(install: &'static crate::install::owner::Install) -> Option<std:
         || home.is_some_and(|h| h == folder)
         || !crate::files::host_path(&record).is_file();
     if kept {
-        crate::framework::log(&format!(
+        crate::logfile::program_log::log(&format!(
             "install: \"{}\" is not removed whole (not an installation's folder)",
             folder.display()
         ));
@@ -77,7 +67,7 @@ fn remove_whole(folder: &std::path::Path) {
     };
     #[cfg(windows)]
     let now = if folder.exists() {
-        let later = crate::os::remove_folder_after_exit(folder);
+        let later = crate::platform::os::remove_folder_after_exit(folder);
         format!(
             "{now}; the rest after the end: {}",
             if later { "asked" } else { "not asked" }
@@ -85,32 +75,45 @@ fn remove_whole(folder: &std::path::Path) {
     } else {
         now
     };
-    crate::framework::log(&format!("install: \"{}\": {now}", folder.display()));
+    crate::logfile::program_log::log(&format!("install: \"{}\": {now}", folder.display()));
 }
 
-pub fn uninstall(install: &'static crate::install::owner::Install) -> Result<(), Refused> {
+pub fn uninstall(
+    install: &'static crate::install::owner::Install,
+    o: crate::owners::Owners<'static>,
+) -> Result<(), Refused> {
+    let (system, gfx) = (o.system, o.gfx);
     use crate::install as i;
     if install.names.status.get() == 0 || install.names.source.get(0) == 0 {
         return Ok(());
     }
     install.names.status.set(0x80);
-    i::write_registry::write_registry(install, &mut crate::install::portable::Portable)?;
+    i::write_registry::write_registry(install, &mut crate::install::portable::Portable::default())?;
     // the "removing" frame
-    run_frame(None)?;
-    if lock() {
-        copy_picture()?;
-        i::draw_string_list::draw_string_list(1, &install.pages.remove_strings, 0, 0)?;
-        unlock();
-        show();
+    run_frame(o, None)?;
+    if lock(gfx, system) {
+        copy_picture(gfx, system)?;
+        i::draw_string_list::draw_string_list(
+            crate::strings::append_string_by_id::StringOwners::of(o),
+            &install.pages.remove_strings.each_ref(),
+            0,
+            0,
+            gfx,
+        )?;
+        unlock(gfx);
+        show(o);
     }
     normalise(&install.names.source, &install.paths.installed)?;
     let whole = whole_folder(install);
     set_cd(&install.paths.installed);
-    i::run_script::run_script(install, &install.names.script)?;
+    i::run_script::run_script(
+        install,
+        crate::memory::place::BytePlace::from(&install.names.script),
+    )?;
     if install.run.file_count.get() != 0 {
         let mut n = 0;
         loop {
-            delete_file(build_path(install, &crate::install::name_tables::FILES, n)?);
+            delete_file(build_path(install, &install.files, n)?);
             n = n.wrapping_add(1);
             if n == install.run.file_count.get() {
                 break;
@@ -120,11 +123,7 @@ pub fn uninstall(install: &'static crate::install::owner::Install) -> Result<(),
     if install.run.dir_count.get() != 0 {
         let mut n = install.run.dir_count.get().wrapping_sub(1);
         loop {
-            remove_dir(build_path(
-                install,
-                &crate::install::name_tables::FOLDERS,
-                n,
-            )?);
+            remove_dir(build_path(install, &install.folders, n)?);
             n = n.wrapping_sub(1);
             if (n as i32) < 0 {
                 break;
@@ -139,9 +138,12 @@ pub fn uninstall(install: &'static crate::install::owner::Install) -> Result<(),
     sleep(1000);
     install.names.status.set(0);
     wb(&install.names.source, 0);
-    i::write_registry::write_registry(install, &mut crate::install::portable::Portable)?;
-    i::unregister_lobby::unregister_lobby(install, &mut crate::install::portable::Portable);
+    i::write_registry::write_registry(install, &mut crate::install::portable::Portable::default())?;
+    i::unregister_lobby::unregister_lobby(
+        install,
+        &mut crate::install::portable::Portable::default(),
+    );
     install.run.remove_items.set(1);
-    install.run.installing.set(0);
+    install.flags.installing.set(false);
     Ok(())
 }

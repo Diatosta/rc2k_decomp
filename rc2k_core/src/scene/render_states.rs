@@ -1,8 +1,5 @@
-//! The device's render states the scene and the HUD set as groups (converted 2026-10-21
-//! from `scene::glow_render_states` 0x44E44D, `scene::set_filters` 0x44E8FB,
-//! `scene::set_fog_colour` 0x44E76B and `hud::overlay_states` 0x45A943). The numbers are
-//! Direct3D's `D3DRENDERSTATETYPE` (the names a reading of that numbering); each group is
-//! set in the order given, one state at a time.
+//! The device's render states the scene and the HUD set as groups. The numbers are Direct3D's
+//! `D3DRENDERSTATETYPE`; each group is set in the order given, one state at a time.
 
 /// A render state and the value it is set to.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -28,11 +25,11 @@ pub const FOG_ENABLE: u32 = 0x1C;
 pub const FOG_COLOUR: u32 = 0x22;
 pub const ANISOTROPY: u32 = 0x31;
 
-/// `glow_render_states`: what is drawn glowing (the sky's sun, the views' backdrop): the
-/// depth test and depth writing on, the comparison "always" (8).
+/// What is drawn glowing (the sky's sun, the views' backdrop): depth test and depth writing
+/// on, the comparison "always" (8).
 pub const GLOW: [Setting; 3] = [set(Z_ENABLE, 1), set(Z_WRITE_ENABLE, 1), set(Z_FUNC, 8)];
 
-/// `hud::overlay_states`: the 2D overlay's.
+/// The 2D overlay's states.
 pub const OVERLAY: [Setting; 5] = [
     set(TEXTURE_MAP_BLEND, 4),
     set(ALPHA_BLEND_ENABLE, 1),
@@ -41,8 +38,8 @@ pub const OVERLAY: [Setting; 5] = [
     set(FOG_ENABLE, 0),
 ];
 
-/// `set_filters`: the textures' filters by the setting (`dword_623898`): made larger 2;
-/// made smaller 2 with the setting 0, else 6; then 0x31 1.
+/// The textures' filters by the setting: made larger 2; made smaller 2 with the setting 0,
+/// else 6; then 0x31 1.
 pub fn filters(setting: u32) -> [Setting; 3] {
     let smaller = if setting == 0 { 2 } else { 6 };
     [
@@ -52,7 +49,7 @@ pub fn filters(setting: u32) -> [Setting; 3] {
     ]
 }
 
-/// `set_fog_colour`'s state: the colour with its top byte set.
+/// The fog colour's state: the colour with its top byte set.
 pub fn fog_colour(colour: u32) -> Setting {
     set(FOG_COLOUR, colour | 0xFF00_0000)
 }

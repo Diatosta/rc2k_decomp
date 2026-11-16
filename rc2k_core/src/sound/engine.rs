@@ -1,21 +1,11 @@
 //! A car's sound object brought up to date for the turn (the whole-number part of
-//! `sound::car_engine_state`: the float inputs are the game crate's), and the engine
-//! sounds' choices (`sound::revs_sound`, `throttle_sound`, `speed_sound` and
-//! `car_slot_sounds`).
-//!
-//! The object's dwords the engine reads and writes (a reading of the code, names by use) are
-//! an `Engine`, taken from the sound object and put back by the game crate: `new_revs` a new
-//! revs reading (`revs`) came, `reading_times` / `reading_revs` the last two readings';
-//! `throttle`, `smooth_throttle` following it, `gap_time` the gap, `direction` its direction
-//! (0 level, 1 up, 2 down), `turns_up` / `turns_down` the turns going each way; `state` the
-//! engine's state (0 no revs, 1 up to 1000, 2, 3 cut), `last_state` the last; `gear` and
-//! `last_gear`, `no_gear` 1 in neutral; `countdown` a hold-off counted down, `wait_flag` and
-//! `last_direction`; the back-fires `backfire_*`; `drop_sound` / `drop_start` the timed slot of
-//! the throttle's drop, `gear_slot_start` / `gear_notice` the gear change's.
+//! `sound::car_engine_state`; the float inputs are the game crate's), and the engine sounds'
+//! choices (`sound::revs_sound`, `throttle_sound`, `speed_sound` and `car_slot_sounds`).
 
 use crate::Invalid;
 
-/// A sound object's dwords the engine works on, by name: what goes in and what comes out.
+/// A sound object's dwords the engine works on (what goes in and what comes out), with their
+/// offsets in the object; the game crate takes them from the object and puts them back.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Engine {
     /// +0x10: a new revs reading came.
@@ -38,23 +28,23 @@ pub struct Engine {
     pub last_gear: u32,
     /// +0xF0: set with a gear change.
     pub gear_notice: u32,
-    /// +0xF4: counted down to 0.
+    /// +0xF4: a hold-off, counted down to 0.
     pub countdown: u32,
     /// +0xF8: the back-fire wait flag.
     pub wait_flag: u32,
     /// +0xFC: the last direction.
     pub last_direction: u32,
-    /// +0x10C: the engine's state.
+    /// +0x10C: the engine's state (0 no revs, 1 up to 1000, 2, 3 cut).
     pub state: u32,
     /// +0x110: the last state.
     pub last_state: u32,
     /// +0x118: follows the throttle.
     pub smooth_throttle: u32,
-    /// +0x11C: the gap.
-    pub gap_time: u32,
+    /// +0x11C: the gap between the throttle and `smooth_throttle`.
+    pub throttle_lead: u32,
     /// +0x128: the turns going up.
     pub turns_up: u32,
-    /// +0x12C: the direction.
+    /// +0x12C: the throttle's direction (0 level, 1 up, 2 down).
     pub direction: u32,
     /// +0x130: the turns going down.
     pub turns_down: u32,
@@ -74,16 +64,14 @@ pub struct Engine {
     pub gear_slot_start: u32,
 }
 
-/// The request's place for the timed sounds (converted 2026-10-21 from
-/// `sound::car_gear_sounds` 0x40E24F): the object's +0x2C .. +0x34 less its +0x38 ..
-/// +0x40, each `fsub` stored as a float. One rounding of an exact `f64` difference: the
-/// x87's at any precision.
+/// The request's place for the timed sounds: the object's +0x2C .. +0x34 less its +0x38 .. +0x40,
+/// each stored as an `f32` (one rounding of an exact `f64` difference).
 pub fn place_behind(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
     [0, 1, 2].map(|n| (f64::from(a[n]) - f64::from(b[n])) as f32)
 }
 
-/// The gear change's pitch factor (the same function's): the request's factor (+0x20)
-/// times the object's +0x210, stored as a float (the product exact in `f64`).
+/// The gear change's pitch factor: the request's factor (+0x20) times the object's +0x210, as an
+/// `f32`.
 pub fn gear_pitch(factor: f32, pitch: f32) -> f32 {
     (f64::from(factor) * f64::from(pitch)) as f32
 }
@@ -92,11 +80,10 @@ pub fn gear_pitch(factor: f32, pitch: f32) -> f32 {
 pub const GEAR_CUE: u32 = 0x2000;
 pub const BACK_FIRES: u32 = 0x1000;
 
-/// The revs extrapolated, worked out before anything is written: the change since the
-/// last reading, as the readings' rise over their gap (held to 1000) times the time since,
-/// or None without one (a new reading, the revs held, or a gap of 0). `hold`
-/// (`dword_5BEC94`) is asked only without a new reading. Refuses a quotient that does not
-/// fit (the original's `idiv` traps).
+/// The revs extrapolated, worked out before anything is written: the readings' rise over their gap
+/// (held to 1000) times the time since the last, or None without one (a new reading, the revs held,
+/// or a gap of 0). `hold` is asked only without a new reading. Refuses a quotient that does not
+/// fit.
 pub fn extrapolation(
     o: &Engine,
     clock: u32,
@@ -121,8 +108,8 @@ pub fn extrapolation(
     Ok(Some(quotient as i32 as u32))
 }
 
-/// The readings: a new one kept (its time `clock`), else the revs extrapolated (at least
-/// 1000). `change` is `extrapolation`'s.
+/// The readings: a new one kept (its time `clock`), else the revs extrapolated (at least 1000).
+/// `change` is `extrapolation`'s.
 pub fn readings(o: &mut Engine, clock: u32, change: Option<u32>) {
     if o.new_revs == 1 {
         o.reading_times[0] = o.reading_times[1];
@@ -136,9 +123,9 @@ pub fn readings(o: &mut Engine, clock: u32, change: Option<u32>) {
     }
 }
 
-/// The state, the throttle followed, the gear and the back-fires (after the pitch
-/// inputs). `kind` reads the sound kind's flags (+0) where the original does. Returns
-/// the gear change's cue: Some(clock & 0xF) when its pitch (+0x210) is to be set.
+/// The state, the throttle followed, the gear and the back-fires (after the pitch inputs). `kind`
+/// reads the sound kind's flags (+0). Returns the gear change's cue: Some(clock & 0xF) when its
+/// pitch (+0x210) is to be set.
 pub fn state(o: &mut Engine, kind: impl Fn() -> u32, clock: u32) -> Option<u32> {
     o.last_state = o.state;
     o.state = match o.revs {
@@ -157,13 +144,13 @@ pub fn state(o: &mut Engine, kind: impl Fn() -> u32, clock: u32) -> Option<u32> 
         o.countdown = o.countdown.wrapping_add(5);
     }
     let mut cue = None;
-    // The original tests this register for "no gear" after the cue may have replaced the
-    // gear in it by the clock's low bits: with a cue, no gear is when those are 0.
+    // "No gear" is tested after a cue may have replaced the gear by the clock's low bits: with
+    // a cue, no gear is when those are 0.
     let mut gear_or_cue = o.gear;
     if o.gear != o.last_gear {
         o.last_gear = o.gear;
         o.countdown = o.countdown.wrapping_add(7);
-        if kind() & GEAR_CUE != 0 && o.gear as i32 > 1 && o.gap_time as i32 >= 0x32 {
+        if kind() & GEAR_CUE != 0 && o.gear as i32 > 1 && o.throttle_lead as i32 >= 0x32 {
             o.gear_slot_start = 1;
             o.gear_notice = 1;
             gear_or_cue = clock & 0xF;
@@ -187,7 +174,7 @@ fn follow_throttle(o: &mut Engine) {
     let throttle = o.throttle;
     let followed = o.smooth_throttle;
     let gap = throttle.wrapping_sub(followed);
-    o.gap_time = gap;
+    o.throttle_lead = gap;
     if gap == 0 {
         o.direction = 0;
         if o.turns_up == 1 {
@@ -239,7 +226,7 @@ fn back_fires(o: &mut Engine, kind: &impl Fn() -> u32, clock: u32) {
     }
     if o.direction == 1 {
         o.wait_flag = 0;
-    } else if o.wait_flag != 1 && o.direction == 2 && (o.gap_time as i32) < -0x14 {
+    } else if o.wait_flag != 1 && o.direction == 2 && (o.throttle_lead as i32) < -0x14 {
         if o.revs >= 0xFA0 {
             o.drop_sound = kind() & 0xFFF;
             o.drop_start = 1;

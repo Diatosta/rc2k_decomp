@@ -1,17 +1,12 @@
-//! The work car's motion held to its limits (converted 2026-10-21 from
-//! `physics::limit_motion` 0x43F7AC): a motion part that is no number or infinite zeroes
-//! the motion, its car-frame copy and the spin; then the spin's parts held to ± one limit
-//! and the motion's (x, z, y) to ± another; past the top speed the motion and its copy
-//! scaled down to it.
-//!
-//! Floats: what the x87 keeps on its stack is an `f64`, rounded to `f32` where the
-//! original stores (`physics::x87`): the same bits at the game's double precision.
+//! The work car's motion held to its limits: a motion part that is no number or infinite zeroes
+//! the motion, its car-frame copy and the spin; then the spin and the motion are held to ±
+//! their limits; past the top speed the motion and its copy are scaled down to it. Floats: the
+//! x87's stack values are `f64`, rounded to `f32` where stored.
 
 use super::x87::{below, loaded, negated};
 use crate::math::vector::{length, scale};
 
-/// The variables it holds (the work copy's +0x184, +0x198, +0x1A4) and the two limits
-/// (`flt_613E70`, `flt_613E74`: negated in place for the second compare and put back).
+/// The spin, motion and car-frame motion, and the two limits.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Moving {
     pub spin: [f32; 3],
@@ -21,19 +16,18 @@ pub struct Moving {
     pub motion_limit: f32,
 }
 
-/// What it leaves besides.
+/// What `limit_motion` leaves besides the motion.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Limited {
-    /// The last motion part's exponent bits looked at (ecx): the first all ones, or z's.
+    /// The exponent bits of the last motion part looked at: the first all ones, or z's.
     pub exponent: u32,
-    /// The motion's length after the holds (`flt_623FBC`).
+    /// The motion's length after the holds.
     pub length: f32,
-    /// The scale past the top (`dword_62400C`), or none.
+    /// The scale past the top speed, or none.
     pub factor: Option<f32>,
 }
 
-/// `v` held to ± `l`: `fld l; fld v; fcompp` (not below: `l`), `l` negated, the same the
-/// other way (below: `-l`), `l` negated back.
+/// `v` held to ± `l` (`l` negated for the second compare and back).
 pub fn hold(v: &mut f32, l: &mut f32) {
     if !below(*v as f64, *l as f64) {
         *v = loaded(*l);
@@ -45,8 +39,7 @@ pub fn hold(v: &mut f32, l: &mut f32) {
     *l = negated(*l);
 }
 
-/// `physics::limit_motion`: `infinite` is told the motion when a part is no number or
-/// infinite (the original logs it), before the three are zeroed; `top` is `flt_614100`.
+/// `infinite` is told the motion when a part is no number or infinite; `top` is the top speed.
 pub fn limit_motion(m: &mut Moving, top: f32, infinite: impl FnOnce([f32; 3])) -> Limited {
     let mut exponent = 0;
     let mut bad = false;
@@ -71,7 +64,7 @@ pub fn limit_motion(m: &mut Moving, top: f32, infinite: impl FnOnce([f32; 3])) -
     }
     let length = length(m.motion) as f32;
     let mut factor = None;
-    // `fld top; fcomp length`: on unless top is not below the length (or no number).
+    // On unless top is not below the length (or no number).
     if !matches!(
         top.partial_cmp(&length),
         Some(std::cmp::Ordering::Greater | std::cmp::Ordering::Equal)

@@ -1,35 +1,26 @@
-//! `physics::turn_by_car_matrix` (0x43F14E): the three floats at esi turned and placed by
-//! `g_crashMatrix` (0x71A08C, the work copy's +0xB4; rows 0x10 apart, the place at +0x30)
-//! with `scene::rotate_point`, and stored back (rounded to floats).
+//! Turns and places a point (three floats) by the work car's `crash_matrix` (the crash matrix; rows
+//! 0x10 apart, the place at 0x30) with `scene::rotate_point`, and stores it back (rounded to
+//! floats).
 //!
-//! Takes: the point
-//! Returns: the point turned
-//!
-//! `physics::turn_by_inverse` (0x43F118) is the same with the matrix at 0x71A9A4
-//! (`g_carInverseMatrix`, made by `race::invert_car_matrix` with `scene::invert_turn`).
-//! Callers (6): the cars' physics under `drive::race_step`.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
+//! `physics::turn_by_inverse` is the same with the car's `car_inverse_matrix` (made by
+//! `race::invert_car_matrix` with `scene::invert_turn`). Callers: the cars' physics under
+//! `drive::race_step`, six calls.
 
 use crate::math::cells::Cells;
-use crate::race::owner_shared::Shared;
-use crate::scene::matrix3::{extended, rounded};
+use crate::physics::car_store::Car;
+use crate::scene::matrix3::{extended, rounded_value};
 use crate::scene::rotate_point::rotate_point;
 
-// g_crashMatrix
-
-/// The point `v` turned by the matrix `m`, as the two functions do it: `fld z; fld y; fld
-/// x`, `rotate_point`, `fstp x; fstp y; fstp z`.
+/// The point `v` turned by the matrix `m`: loaded as z, y, x, turned by `rotate_point` and stored
+/// back as floats.
 pub fn turn_cells(m: &(impl Cells + ?Sized), v: &(impl Cells + ?Sized)) {
-    let point = std::array::from_fn(|k| extended(v.bits(k)));
+    let point = std::array::from_fn(|k| extended(v.float(k)));
     let out = rotate_point(m, point);
     for (k, e) in out.iter().enumerate() {
-        v.set_bits(k, rounded(*e));
+        v.set_float(k, rounded_value(*e));
     }
 }
 
-/// The Rust version.
-pub fn turn_by_car_matrix(shared: &Shared, v: &(impl Cells + ?Sized)) {
-    turn_cells(&shared.car.crash_matrix, v);
+pub fn turn_by_car_matrix(car: &Car, v: &(impl Cells + ?Sized)) {
+    turn_cells(&car.crash_matrix, v);
 }

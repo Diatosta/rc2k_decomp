@@ -1,18 +1,19 @@
-//! Race mode 2's two computer cars kept near the lead car (converted 2026-10-21 from
-//! `drive::start_cars_behind` 0x43703E, its rules; the moves and calls stay the
-//! adapter's): their first starts, the gaps by how many cars are ahead, the wanted gaps
-//! eased toward, and the push apart of two cars too close. By the look of it a time
-//! trial's pace cars (a reading). Every comparison takes the sign of the difference, as
-//! the original.
+//! The arcade race's (run kind 2) two computer opponents kept near the lead car: their first
+//! starts, the gaps by how many cars are ahead, the wanted gaps eased toward (what the arcade HUD
+//! shows as the gaps to the cars ahead and behind), and the push apart of two cars too close. Only
+//! two of the arcade race's opponents are simulated at a time (the rest are numbers in
+//! `arcade_cars`). Every comparison takes the sign of the difference. The moves and calls stay
+//! with the caller.
 
-/// The first two starts: the last start (`dword_6051BC`) less 2 and less 1, put 80 and 40
+/// The first two starts: the last start less 2 and less 1, put 80 and 40
 /// checkpoints on.
 pub fn first_starts(last: u32) -> [(u32, u32); 2] {
     let a = last.wrapping_sub(2);
     [(a, 0x50), (a.wrapping_add(1), 0x28)]
 }
 
-/// A value held below `hi` (`cmp; jns`) and, with `lo_zero`, above 0 (`cmp 0; jns`).
+/// A value held below `hi` and, with `lo_zero`, at 0 or above; both by the sign of the
+/// difference.
 pub fn hold_signs(v: u32, lo_zero: bool, hi: u32) -> u32 {
     let mut v = v;
     if lo_zero && (v as i32) < 0 {
@@ -24,7 +25,7 @@ pub fn hold_signs(v: u32, lo_zero: bool, hi: u32) -> u32 {
     v
 }
 
-/// The start whose word gives the gaps: the cars ahead (`dword_70FA40`) less one, both
+/// The start whose word gives the gaps: the cars ahead less one, both
 /// held to 0 ..= the start count.
 pub fn gap_start(ahead: u32, count: u32) -> u32 {
     let v = hold_signs(ahead, true, count);
@@ -32,7 +33,7 @@ pub fn gap_start(ahead: u32, count: u32) -> u32 {
 }
 
 /// The gaps from the start's word (its low four bits b): (passed, 0x2C + b; behind, 0x28
-/// + b; their sum), `dword_6051D4` .. `DC`.
+/// + b; their sum).
 pub fn gaps(word: u32) -> (u32, u32, u32) {
     let b = word & 0xF;
     let (pass, back) = (0x2C + b, 0x28 + b);
@@ -45,7 +46,7 @@ pub fn passed(d: u32, pass: u32) -> bool {
 }
 
 /// Whether a kept car is ahead of the lead: its checkpoint past the lead's, or the same
-/// with the tie-break (+0x624, asked only then) past `dword_70FA10`.
+/// with the tie-break (+0x624, asked only then) past `CarBlocks.cars[0].checkpoint_offset[1]`.
 pub fn ahead_of_lead(lead: u32, checkpoint: u32, lead_tie: u32, tie: impl FnOnce() -> u32) -> bool {
     let d = lead.wrapping_sub(checkpoint);
     (d as i32) < 0 || (d == 0 && (lead_tie.wrapping_sub(tie()) as i32) < 0)
@@ -68,8 +69,8 @@ pub const EASE_SCALE: u32 = 0x14A;
 /// How far the eased gap may be before it jumps.
 pub const EASE_JUMP: u32 = 1000;
 
-/// The first pass: (the distance made positive, the original's eax; the eased gap when
-/// it jumps to the wanted one, which eax then holds).
+/// The first pass: (the distance made positive; the eased gap when it jumps to the
+/// wanted one, which the distance then holds).
 pub fn ease_jump(wanted: u32, eased: u32) -> (u32, Option<u32>) {
     let target = wanted.wrapping_mul(EASE_SCALE);
     let mut d = target.wrapping_sub(eased);

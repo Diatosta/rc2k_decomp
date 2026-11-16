@@ -1,8 +1,4 @@
-//! The best scores, class times, stage times and record pages (converted 2026-10-20 from
-//! `screens::draw_best_scores` 0x4A9300, `draw_class_times` 0x46D162,
-//! `draw_class_times_marked` 0x48AB87, `draw_stage_times` 0x48D0F2,
-//! `draw_rally_stage_times` 0x48A948, the headings, `draw_record_times` 0x4A41AE and
-//! `draw_event_best_scores` / `draw_overall_best_scores`): ten ranked rows of a name, a
+//! The best scores, class times, stage times and record pages: ten ranked rows of a name, a
 //! figure, the rank, the nationality's flag sprite and the car's.
 
 use crate::screens::screen::Screen;
@@ -23,7 +19,6 @@ pub enum Font {
     Fastest,
 }
 
-/// The work variables.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Work {
     /// The rank being drawn.
@@ -36,8 +31,7 @@ pub enum Work {
     Heading,
 }
 
-/// A row: its name (where the game keeps it), its figure (a score or a time in
-/// hundredths), the nationality and car, and whether it is the player's own.
+/// A row: name, figure (a score, or a time in hundredths), nationality, car, own-row flag.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Row<T> {
     pub name: T,
@@ -47,8 +41,7 @@ pub struct Row<T> {
     pub marked: bool,
 }
 
-/// The rows of a list: row `n` (from 0), and whether the list ends at row `n` (its first
-/// dword is -1; row 0 is never asked).
+/// Row `n` of a list (from 0), and whether the list ends at row `n` (row 0 is never asked).
 pub struct Rows<'a, T> {
     pub row: &'a dyn Fn(u32) -> Row<T>,
     pub ends_at: &'a dyn Fn(u32) -> bool,
@@ -64,7 +57,6 @@ pub enum Keep {
     Below4,
 }
 
-/// A nationality's flag sprite.
 pub fn flag_glyph(nation: u32) -> u32 {
     0x1C_u32.wrapping_add(nation)
 }
@@ -87,8 +79,8 @@ fn fonts(marked: bool) -> (Font, Font, Font) {
     }
 }
 
-/// A row of a section's best times (an entry of 0x9C bytes): the name (+0x20), the time
-/// (+0x18), the nationality (+8), the car (+0x10), a player's (+0x40 is 1).
+/// A row of a section's best times (0x9C-byte entry): name +0x20, time +0x18, nationality +8,
+/// car +0x10, player flag +0x40.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SectionRow<T> {
     pub name: T,
@@ -98,11 +90,9 @@ pub struct SectionRow<T> {
     pub player: bool,
 }
 
-/// A section's best times (`screens::draw_section_best_times` 0x46762B): ten rows from y
-/// 0xF0, 0x19 apart, row n kept: the name at 0xF0, the time at 0x1E0, n at 0xC8, each from
-/// the last text's y; then the flag's sprite at 0xD2 and the car's at 0x276, and again at
-/// 0x276 the sprite of the car's number swapped once more and 0x44 on it (sic,
-/// `notes/bugs.md`), their palette where the number's text ended.
+/// A section's best times: ten rows 0x19 apart from y 0xF0, each with a flag and a car sprite.
+/// The second, wrong sprite over each car is gone: "The section best times drew a second, wrong
+/// sprite" in `wiki/Fixed-bugs.md`.
 pub fn section_best_times<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     rows: &[SectionRow<S::Text>; 10],
@@ -128,10 +118,8 @@ pub fn section_best_times<S: Screen<Font = Font, Work = Work>>(
     Ok(())
 }
 
-/// A score list (`draw_scores`): from rank 1 until ten or a list's end: the name (x 0xF0),
-/// the score (x 0x21C), the rank (x 0xC8), each from the last text's y; the flag's sprite
-/// (x 0xD2) and the car's (x 0x1CC) `sprite_dy` below, their palette where the rank's
-/// text ended; rows 0x19 apart. With `keeps_y` the sprites' y is kept.
+/// A score list: from rank 1 until ten rows or the list's end, rows 0x19 apart. With `keeps_y`
+/// the sprites' y is kept.
 pub fn scores<S, T>(
     s: &mut S,
     rows: &Rows<T>,
@@ -168,9 +156,8 @@ where
     Ok(())
 }
 
-/// A times list (`draw_time_rows`): as `scores`, the figure a time (`show_hours`) drawn in
-/// fixed columns ending at x 0x276 (the rank then at the name's y). True when all ten rows
-/// were drawn and the list does not end right after them.
+/// A times list: as `scores`, with a time in fixed columns. True when all ten rows were drawn
+/// and the list does not end right after them.
 pub fn time_rows<S, T>(
     s: &mut S,
     rows: &Rows<T>,
@@ -210,14 +197,11 @@ where
         }
         y = y.wrapping_add(0x19);
     }
-    // The original looks at the entry after the tenth before it counts the ten: a list
-    // ending there counts as ended early.
+    // The entry after the tenth is checked first: a list ending there counts as ended early.
     Ok(!(rows.ends_at)(10))
 }
 
-/// A page's heading: string `id` at (0x2EB, 0x77), then a stage line (no NUL) at
-/// (0x2EB, 0x91) when there is one; `line` gives it once the string is drawn (its errors
-/// are the caller's: the original builds it there).
+/// A page's heading string `id`, then the stage line when `line` gives one.
 pub fn heading<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     id: u32,
@@ -230,9 +214,8 @@ pub fn heading<S: Screen<Font = Font, Work = Work>>(
     Ok(())
 }
 
-/// The heading string of the event and overall best scores: in event mode 0x13 the
-/// section's (`section_string`), else 0x35E + the group (kept) for the event's, 0x362 for
-/// the overall.
+/// The heading string of the event and overall best scores: the section's in event mode 0x13,
+/// else string 0x35E + the group (event) or 0x362 (overall).
 pub fn scores_heading<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     section_string: Option<u32>,
@@ -249,9 +232,7 @@ pub fn scores_heading<S: Screen<Font = Font, Work = Work>>(
     }
 }
 
-/// The record's fastest line: string 0x1A2 at (0x142, 0x1FB), the flag's sprite after it
-/// (x 0x14F), the name (x 0x172), the car's sprite (x 0x225, after the name), the speed
-/// (no NUL) at x 0x262.
+/// The record's fastest line: string 0x1A2, the flag, the name, the car and the speed.
 pub fn fastest<S, T>(
     s: &mut S,
     nation: u32,

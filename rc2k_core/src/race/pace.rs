@@ -1,15 +1,11 @@
-//! The pace notes' rules (converted 2026-10-21 from `race::pace_note_code` 0x441A37,
-//! `race::next_pace_slot` 0x441A4B,
-//! `pace_distance_word` 0x441C78, and the codes and the corner of `race::pace_note_calls`
-//! 0x441CB4 / `race::init_pace_notes` 0x441A66): a place on the line is a checkpoint and
-//! one of its face's eight slots; a note runs from a code in 1 .. 0x63 other than 'b' to
-//! the next 'b' or 'd'.
+//! The pace notes' rules: a place on the line is a checkpoint and one of its face's eight
+//! slots; a note runs from a code in 1 ..= 0x63 other than 'b' to the next 'b' or 'd'.
 
 use crate::Invalid;
 
 /// A note's end that is not joined to the next ('b').
 pub const B: u32 = 0x62;
-/// A corner ('c'): its code is worked out (`corner`).
+/// A corner ('c'): its code is worked out by `corner`.
 pub const C: u32 = 0x63;
 /// A note's end ('d').
 pub const D: u32 = 0x64;
@@ -19,9 +15,7 @@ pub const JOIN: u8 = 0x29;
 /// The slots a checkpoint's face has.
 pub const SLOTS: u32 = 8;
 
-/// `race::pace_note_code`: where the face's code for `slot` is: the face plus the slot's
-/// offset (`dword_614D14[slot]`, asked only for a slot below 8). Refused past 7 (the
-/// original reads past its table).
+/// Where the face's code for `slot` is. Refused past slot 7.
 pub fn code_place(face: u32, slot: u32, offset: impl FnOnce(u32) -> u32) -> Result<u32, Invalid> {
     if slot >= SLOTS {
         return Err(Invalid("a pace note slot past 7"));
@@ -29,8 +23,7 @@ pub fn code_place(face: u32, slot: u32, offset: impl FnOnce(u32) -> u32) -> Resu
     Ok(offset(slot).wrapping_add(face))
 }
 
-/// `race::next_pace_slot`: the slot on by one; at 8 or past (unsigned) back to 0 and the
-/// checkpoint on by one. (slot, checkpoint).
+/// The next (slot, checkpoint): at slot 8 or more it wraps to 0 and the checkpoint advances.
 pub fn next_slot(slot: u32, checkpoint: u32) -> (u32, u32) {
     let slot = slot.wrapping_add(1);
     if slot >= SLOTS {
@@ -40,45 +33,43 @@ pub fn next_slot(slot: u32, checkpoint: u32) -> (u32, u32) {
     }
 }
 
-/// The last word of the distances (`byte_614D38` has 41).
+/// The last distance word (41 words, 0 ..= 40).
 pub const MOST_TENS: u32 = 40;
 
-/// `race::pace_distance_word`: the distance's (16.16) tens, at most 40: the word's place.
+/// The word index for a distance (16.16) in tens, at most 40.
 pub fn distance_tens(distance: u32) -> u32 {
     ((distance >> 16) / 10).min(MOST_TENS)
 }
 
-/// `race::init_pace_notes`: whether a code starts a note.
+/// Whether a code starts a note.
 pub fn starts_note(code: u32) -> bool {
     code != 0 && code != B && code < D
 }
 
-/// `race::init_pace_notes`: whether a code ends a note.
+/// Whether a code ends a note.
 pub fn ends_note(code: u32) -> bool {
     code == B || code == D
 }
 
-/// `race::pace_note_calls`: whether a code takes the place of a joint just written
-/// ('/', '<', '4' .. '8').
+/// Whether a code takes the place of a joint just written ('/', '<', '4' .. '8').
 pub fn replaces_join(code: u8) -> bool {
     code == 0x2F || code == 0x3C || (0x34..=0x38).contains(&code)
 }
 
-/// A corner's code and what the original leaves of its sums.
+/// A corner's code and the sums left from working it out.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Corner {
-    /// 1 .. 5 by how sharp, + the flags.
     pub code: u32,
-    /// + 8 for a note of 0x780000 or longer, + 0x10 turning one way (ebp).
+    /// + 8 for a note of 0x780000 or longer, + 0x10 turning one way.
     pub flags: u32,
-    /// The length, at least 0x3C0000 (ecx).
+    /// The note's length, at least 0x3C0000.
     pub length: u32,
-    /// The division's remainder (edx).
+    /// The division's remainder.
     pub remainder: u32,
 }
 
-/// `race::pace_note_calls`: the checkpoint a corner's turn is measured from: the next
-/// note's start less one, held to 0 ..= 0x1869F (signed), a checkpoint (>> 3).
+/// The checkpoint a corner's turn is measured from: the next note's start less one, held to
+/// 0 ..= 0x1869F, as a checkpoint (>> 3).
 pub fn corner_start(start: u32) -> u32 {
     let mut s = start.wrapping_sub(1);
     if (s as i32) < 0 {
@@ -90,10 +81,9 @@ pub fn corner_start(start: u32) -> u32 {
     s >> 3
 }
 
-/// `race::pace_note_calls`: a corner from the note's length (the distance between its
-/// end and start) and its turn (the angle at its end less that at `corner_start`): the
-/// turn's size x 60 over the length (held to 0x3C0000 at least) graded at 0xCCC, 0x1998,
-/// 0x2664 and 0x3330. The sign tests as the original's (`cmp` / `jns`, wrapping).
+/// A corner from the note's length and its turn (the angle at its end less that at
+/// `corner_start`): turn x 60 over the length (at least 0x3C0000), graded at 0xCCC, 0x1998,
+/// 0x2664 and 0x3330. Sign tests wrap.
 pub fn corner(length: u32, turn: u32) -> Corner {
     let mut flags = 0u32;
     if (length.wrapping_sub(0x78_0000) as i32) >= 0 {
@@ -113,7 +103,7 @@ pub fn corner(length: u32, turn: u32) -> Corner {
         turn
     };
     let product = size as u64 * 60;
-    // The length is 0x3C0000 or more, or past 0x80000000 (unsigned): the quotient fits.
+    // The length is 0x3C0000 or more, or past 0x80000000: the quotient fits.
     let quotient = (product / length as u64) as u32;
     let grade = match quotient {
         q if q > 0x3330 => 5,

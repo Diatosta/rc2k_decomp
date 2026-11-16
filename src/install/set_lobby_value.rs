@@ -1,21 +1,14 @@
-//! `install::set_lobby_value` (0x4190D0): one string value set under the lobby's registry
-//! key (`register_lobby`): its data's length found (`strings::text_length`) and one more
-//! (the NUL), and `RegSetValueExA(phkResult, name, 0, REG_SZ, data, len + 1)`.
-//!
-//! Takes the value's name and the data (NUL-terminated). Returns `RegSetValueExA`'s result.
-//! Caller `install::register_lobby` (five times). The call through `api`
-//! (`installer::game_api`: `RegSetValueExA`).
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
+//! One string value (the data and its NUL) set under the lobby's registry key with
+//! `RegSetValueExA`, for `install::register_lobby`; returns the call's result.
 
 use crate::errors::Refused;
 use crate::install::read_registry::Registry;
 
 const REG_SZ: u32 = 1;
 
-/// The Rust version: the text `data` (its NUL added) as the value `name` of the lobby's key.
+/// The text `data` (its NUL added) as the value `name` of the lobby's key.
 pub fn set_lobby_value(
-    install: &'static crate::install::owner::Install,
+    install: &crate::install::owner::Install,
     name: &[u8],
     data: &[u8],
     registry: &mut dyn Registry,

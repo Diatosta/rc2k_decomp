@@ -1,141 +1,158 @@
 //! The name plates: texts drawn into the views' plate textures (`race::update_name_plates` ->
-//! `race::draw_name_plate` / `race::draw_plate_by_id` / `race::draw_time_plate`, part R3, IDA
-//! 2026-10-18). A plate's surface is locked (the platform's `d3d::lock_texture`, carry when it
-//! failed), cleared and written with
-//! `text::draw_text_keep_regs`, then unlocked (`d3d::unlock_texture`). Parts: 1 lock (eax the
-//! slot), 2 unlock (eax the slot), 3 a text (eax font, ebx text, ecx x, edx y).
+//! `race::draw_name_plate` / `race::draw_plate_by_id` / `race::draw_time_plate`). A plate's surface
+//! is locked (`d3d::lock_texture`), cleared and written with `text::draw_text_keep_regs`, then
+//! unlocked (`d3d::unlock_texture`).
 
 use crate::errors::Refused;
-use crate::gfx::owner::gfx;
-use crate::pointers::GamePtr;
+use crate::gfx::owner::Gfx;
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
-use crate::strings::owner::strings;
+use crate::strings::owner::Strings;
 
-/// `race::draw_name_plate` (0x45B695): slot `slot`'s (eax) surface, locked and unlocked
-/// (`d3d::lock_texture`, nothing when it fails): three lines' height cleared, text `text`
-/// (ebx) drawn three times in the name font (box 0x168 wide) at x 4, -0x74, -0xEC and y 0, a
-/// line, two lines (a long name wrapped over the plate's three rows). Every register kept.
-pub fn draw_name_plate(slot: u32, text: impl Into<crate::place::Place>) -> Result<(), Refused> {
-    let gfx = crate::gfx::owner::gfx();
+/// Draws a name on slot `slot`'s surface, locked and unlocked (`d3d::lock_texture`; nothing is
+/// drawn when it fails): three lines' height is cleared and text `text` is drawn three times in
+/// the name font (box 0x168 wide) at x 4, -0x74, -0xEC and y 0, a line, two lines (a long name
+/// wrapped over the plate's three rows).
+pub fn draw_name_plate(
+    slot: u32,
+    text: impl Into<crate::memory::place::BytePlace>,
+    gfx: &'static Gfx,
+) -> Result<(), Refused> {
     let fonts = &gfx.fonts;
     let text = text.into();
-    use crate::d3d::{lock_texture::lock_texture, unlock_texture::unlock_texture};
-    if lock_texture(slot)?.carry {
+    use crate::d3d::{lock_texture::lock_texture_in, unlock_texture::unlock_texture};
+    if lock_texture_in(gfx, slot)?.carry {
         return Ok(());
     }
-    // Converted: `rc2k_core::race::plates::{name_rows, NAME_BOX, name_places}`.
+    // Logic in `rc2k_core::race::plates::{name_rows, NAME_BOX, name_places}`.
     use rc2k_core::race::plates::{NAME_BOX, name_places, name_rows};
-    let line = fonts.font_block.game_fonts[0].get().line_height as u32; // a line's height
+    let line = fonts.font_block.game_fonts[0].get().line_height as u32;
     crate::gfx::rows::clear_surface_rows(0, name_rows(line), gfx)?;
     fonts.font_block.game_fonts[2].update(|f| f.box_width = NAME_BOX);
     for (x, y) in name_places(line) {
-        draw_text_in_game(&fonts.font_block.game_fonts[2], text, x, y)?;
+        draw_text_in_game(&fonts.font_block.game_fonts[2], text, x, y, gfx)?;
     }
-    unlock_texture(slot)?;
+    unlock_texture(gfx, slot)?;
     Ok(())
 }
 
-/// `race::draw_plate_by_id` (0x41B2D4): string id `id` (ebx) into the text buffer (`text`,
-/// with its NUL) and drawn on slot `slot`'s (eax) plate (`draw_name_plate`). Every register
-/// kept.
-pub fn draw_plate_by_id(slot: u32, id: u32) -> Result<(), Refused> {
-    let text = &strings().text;
+/// Writes string id `id` into the text buffer (`text`, with its NUL) and draws it on slot
+/// `slot`'s plate (`draw_name_plate`).
+pub fn draw_plate_by_id(
+    so: crate::strings::append_string_by_id::StringOwners<'static>,
+    slot: u32,
+    id: u32,
+    gfx: &'static Gfx,
+    strings: &'static Strings,
+) -> Result<(), Refused> {
+    let text = &strings.text;
     let mut cursor = 0usize;
-    crate::strings::append_string_by_id::append_string_by_id(id, &mut |bytes| {
+    crate::strings::append_string_by_id::append_string_by_id(so, id, &mut |bytes| {
         for (k, &b) in bytes.iter().enumerate() {
             text.buffer.text.set(cursor + k, b);
         }
         cursor += bytes.len();
     })?;
     text.buffer.text.set(cursor, 0);
-    draw_name_plate(slot, &text.buffer.text)
+    draw_name_plate(slot, &text.buffer.text, gfx)
 }
 
-/// `race::draw_time_plate` (0x45B70A): slot `slot`'s (eax) surface, locked and unlocked as
-/// `draw_name_plate`'s, below the name's three lines: two
-/// lines and three rows cleared, the texts at `dword_6D1838` and `dword_6D1844` in the time
-/// font (box 0x80 wide) at x 4, y three and four lines. Every register kept.
-pub fn draw_time_plate(frame: &Frame, slot: u32) -> Result<(), Refused> {
-    let gfx = gfx();
-    use crate::d3d::{lock_texture::lock_texture, unlock_texture::unlock_texture};
-    if lock_texture(slot)?.carry {
+/// Draws the times on slot `slot`'s surface, locked and unlocked as in `draw_name_plate`, below
+/// the name's three lines: two lines and three rows are cleared, and the texts at `label_behind`
+/// and `label_ahead` are drawn in the time font (box 0x80 wide) at x 4, y three and four lines.
+pub fn draw_time_plate(frame: &Frame, slot: u32, gfx: &'static Gfx) -> Result<(), Refused> {
+    use crate::d3d::{lock_texture::lock_texture_in, unlock_texture::unlock_texture};
+    if lock_texture_in(gfx, slot)?.carry {
         return Ok(());
     }
-    // Converted: `rc2k_core::race::plates::{time_start, time_rows, TIME_BOX,
+    // Logic in `rc2k_core::race::plates::{time_start, time_rows, TIME_BOX,
     // time_places}`.
     use rc2k_core::race::plates::{TIME_BOX, time_places, time_rows, time_start};
     let line = gfx.fonts.font_block.game_fonts[0].get().line_height as u32;
     let start = time_start(line, gfx.drawing.draw_surface.pitch.get());
     crate::gfx::rows::clear_surface_rows(start, time_rows(line), gfx)?;
     // A label is eight bytes (spaces after each split, no NUL): its text runs on into the
-    // block's next dword, so the place is bounded to the block, not the label.
-    use crate::race::overlay_store::OverlayBlock;
-    use core::mem::offset_of;
-    for (label, (x, y)) in [
-        offset_of!(OverlayBlock, label_behind),
-        offset_of!(OverlayBlock, label_ahead),
+    // dword after it, which ends it.
+    let overlay = &frame.panel_and_overlay.get().overlay;
+    for ((label, after), (x, y)) in [
+        (&overlay.label_behind, &overlay.unused_334),
+        (&overlay.label_ahead, &overlay.unused_340),
     ]
     .into_iter()
     .zip(time_places(line))
     {
-        let text = GamePtr::to(&frame.panel_and_overlay.overlay).offset(label as u32);
+        let text: Vec<u8> = label
+            .iter()
+            .chain(std::iter::once(after))
+            .flat_map(|d| d.get().to_le_bytes())
+            .collect();
         gfx.fonts.font_block.game_fonts[3].update(|f| f.box_width = TIME_BOX);
-        draw_text_in_game(&gfx.fonts.font_block.game_fonts[3], text, x, y)?;
+        draw_bytes_in_game(&gfx.fonts.font_block.game_fonts[3], &text, x, y, gfx)?;
     }
-    unlock_texture(slot)?;
+    unlock_texture(gfx, slot)?;
     Ok(())
 }
 
-/// `race::update_name_plates` (0x45B3B9): when the two time texts (8 bytes each at
-/// `dword_6D1838` / `dword_6D1844`) differ from their last copies (`dword_6D1850` /
-/// `dword_6D185C`): the time plate drawn (`race::draw_time_plate`, slot `dword_5D0DF8`),
-/// the copies made and both views' cars' +0x720 1. Then for each view (slots `dword_5D0DF8` / `dword_5D0DFC`) with
-/// a name asked for at its car's +0x71C: drawn by string id below 0x10000
-/// (`race::draw_plate_by_id`) or as a text pointer (`race::draw_name_plate`), into +0x724,
-/// +0x71C 0, +0x720 and +0x728 1. Its one caller, `race::draw_race_scene`, reads no
-/// register it leaves. Refuses (before anything) a null view block.
-pub fn update_name_plates(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+/// When the two time texts (8 bytes each at `label_behind` / `label_ahead`) differ from their last
+/// copies (`kept_behind` / `kept_ahead`), draws the time plate (`race::draw_time_plate`, slot
+/// `KindTextureTables.kind_first_textures[196]`), makes the copies and sets both views' cars'
+/// `notice_counter` to 1. Then for each view (slots `kind_first_textures[196]` / `[197]`) with a
+/// name asked for in its car's `notice_id`, draws it by string id below 0x10000
+/// (`race::draw_plate_by_id`) and sets `notice_last` to it, `notice_id` 0, `notice_counter` and
+/// `notice_shown` 1. Refuses (before anything) a null view block; and a word from 0x10000 up,
+/// which nothing writes to `notice_id`.
+pub fn update_name_plates(
+    so: crate::strings::append_string_by_id::StringOwners<'static>,
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    gfx: &'static Gfx,
+    strings: &'static Strings,
+) -> Result<(), Refused> {
     let frame = &race.frame;
     let shared = &race.shared;
     let textures = &scene.textures;
-    let (Some(a), Some(b)) = (shared.view.view_car(0), shared.view.view_car(1)) else {
+    let (Some(a), Some(b)) = (shared.view_car(0), shared.view_car(1)) else {
         return Err(crate::errors::BadInput("a view without its car block").into());
     };
-    // Their notice fields: +0x71C asked, +0x720 the plate flag, +0x724 the last, +0x728 shown.
+    // Their notice fields: `notice_id` asked, `notice_counter` the plate flag, `notice_last` the
+    // last, `notice_shown` shown.
     let blocks = [a, b];
-    // Converted: `rc2k_core::race::plates::{times_changed, NameAsk}`.
+    // Logic in `rc2k_core::race::plates::{times_changed, NameAsk}`.
     use rc2k_core::race::plates::{NameAsk, times_changed};
     let now = [
-        frame.panel_and_overlay.overlay.label_behind[0].get(),
-        frame.panel_and_overlay.overlay.label_behind[1].get(),
-        frame.panel_and_overlay.overlay.label_ahead[0].get(),
-        frame.panel_and_overlay.overlay.label_ahead[1].get(),
+        frame.panel_and_overlay.get().overlay.label_behind[0].get(),
+        frame.panel_and_overlay.get().overlay.label_behind[1].get(),
+        frame.panel_and_overlay.get().overlay.label_ahead[0].get(),
+        frame.panel_and_overlay.get().overlay.label_ahead[1].get(),
     ];
     let kept = [
-        frame.panel_and_overlay.overlay.kept_behind[0].get(),
-        frame.panel_and_overlay.overlay.kept_behind[1].get(),
-        frame.panel_and_overlay.overlay.kept_ahead[0].get(),
-        frame.panel_and_overlay.overlay.kept_ahead[1].get(),
+        frame.panel_and_overlay.get().overlay.kept_behind[0].get(),
+        frame.panel_and_overlay.get().overlay.kept_behind[1].get(),
+        frame.panel_and_overlay.get().overlay.kept_ahead[0].get(),
+        frame.panel_and_overlay.get().overlay.kept_ahead[1].get(),
     ];
     if times_changed(now, kept) {
-        draw_time_plate(frame, textures.kinds.kind_first_textures[196].get())?;
+        draw_time_plate(
+            frame,
+            textures.kinds.get().kind_first_textures[196].get(),
+            gfx,
+        )?;
         for (from, to) in [
             (
-                &frame.panel_and_overlay.overlay.label_behind[0],
-                &frame.panel_and_overlay.overlay.kept_behind[0],
+                &frame.panel_and_overlay.get().overlay.label_behind[0],
+                &frame.panel_and_overlay.get().overlay.kept_behind[0],
             ),
             (
-                &frame.panel_and_overlay.overlay.label_behind[1],
-                &frame.panel_and_overlay.overlay.kept_behind[1],
+                &frame.panel_and_overlay.get().overlay.label_behind[1],
+                &frame.panel_and_overlay.get().overlay.kept_behind[1],
             ),
             (
-                &frame.panel_and_overlay.overlay.label_ahead[0],
-                &frame.panel_and_overlay.overlay.kept_ahead[0],
+                &frame.panel_and_overlay.get().overlay.label_ahead[0],
+                &frame.panel_and_overlay.get().overlay.kept_ahead[0],
             ),
             (
-                &frame.panel_and_overlay.overlay.label_ahead[1],
-                &frame.panel_and_overlay.overlay.kept_ahead[1],
+                &frame.panel_and_overlay.get().overlay.label_ahead[1],
+                &frame.panel_and_overlay.get().overlay.kept_ahead[1],
             ),
         ] {
             to.set(from.get());
@@ -149,13 +166,24 @@ pub fn update_name_plates(race: &Race, scene: &crate::scene::owner::Scene) -> Re
         match NameAsk::of(asked) {
             NameAsk::Nothing => continue,
             NameAsk::Id(_) => {
-                draw_plate_by_id(textures.kinds.kind_first_textures[slot].get(), asked)?;
+                draw_plate_by_id(
+                    so,
+                    textures.kinds.get().kind_first_textures[slot].get(),
+                    asked,
+                    gfx,
+                    strings,
+                )?;
             }
             NameAsk::Text(_) => {
-                draw_name_plate(textures.kinds.kind_first_textures[slot].get(), asked)?;
+                // Every writer of `notice_id` gives a string id: the notices' constants, the view
+                // keys' counters, the race state's 0xCA.
+                return Err(crate::errors::BadInput(
+                    "a name plate asked for by a text's address (no writer gives one)",
+                )
+                .into());
             }
         }
-        // ebx at the store: the name asked for (every drawing keeps its registers).
+        // The store takes the name asked for.
         b.notice_last.set(asked);
         b.notice_id.set(0);
         b.notice_counter.set(1);
@@ -164,23 +192,34 @@ pub fn update_name_plates(race: &Race, scene: &crate::scene::owner::Scene) -> Re
     Ok(())
 }
 
-/// A text drawn in the game: `text::draw_text_keep_regs`'s Rust version on the game's
-/// surface, the font at `font`, the text at `text`, at (`x`, `y`); whether it was too wide
-/// (the original's carry).
+/// Draws `text` in `font` at (`x`, `y`) on the plate's surface (as `text::draw_text_keep_regs`);
+/// returns whether it was too wide.
 pub fn draw_text_in_game(
     font: &crate::gfx::typefaces::FontObject,
-    text: impl Into<crate::place::Place>,
+    text: impl Into<crate::memory::place::BytePlace>,
     x: u32,
     y: u32,
+    gfx: &'static crate::gfx::owner::Gfx,
+) -> Result<bool, Refused> {
+    draw_bytes_in_game(font, &text.into().bytes("a name plate's text")?, x, y, gfx)
+}
+
+/// As `draw_text_in_game`, the text's bytes in hand.
+pub fn draw_bytes_in_game(
+    font: &crate::gfx::typefaces::FontObject,
+    text: &(impl rc2k_core::strings::bytes::Bytes + ?Sized),
+    x: u32,
+    y: u32,
+    gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<bool, Refused> {
     use crate::text::draw_text::GameCanvas;
     let mut copy = font.get();
     let wide = crate::text::draw_text_keep_regs::draw_text_keep_regs(
         &mut copy,
-        &text.into().game_ptr().bytes("a name plate's text")?,
+        text,
         x as i32,
         y as i32,
-        &mut GameCanvas,
+        &mut GameCanvas::new(gfx),
     )?;
     if copy != font.get() {
         font.set(copy);

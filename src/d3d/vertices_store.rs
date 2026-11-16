@@ -1,79 +1,64 @@
-//! The polygon vertex buffer `g_polygonVertices`, typed (phase 7): IDA 0x9605A0 .. 0x960DA0,
-//! 64 transformed and lit vertices (`TLVertex`, 0x20 bytes) in the image's zeroed tail
-//! (`race::buffers_store`). The polygon about to be drawn stands in its first vertices
-//! (`g_polygonVertexCount`, `DRAW.polygon_vertex_count`, says how many).
+//! The polygon vertex buffer: 64 transformed and lit vertices (`Vertex`, 0x20 bytes), one
+//! buffer for each drawing part (`scene::workers::PartScratch::vertices`). The polygon about to be
+//! drawn stands in its first vertices (`polygon_vertex_count` says how many).
 
-use crate::race::owner::race;
-use crate::session::{Dword, Float};
+use crate::memory::session::{CellKind, PlainCells};
 
-/// One `TLVertex` of IDA: a Direct3D transformed and lit vertex.
+/// One vertex: a Direct3D transformed and lit vertex.
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
-pub struct Vertex {
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
+pub struct Vertex<K: CellKind = PlainCells> {
     /// +0x0: the screen x.
-    pub x: Float,
+    pub x: K::Float,
     /// +0x4: the screen y.
-    pub y: Float,
+    pub y: K::Float,
     /// +0x8: the depth.
-    pub z: Float,
+    pub z: K::Float,
     /// +0xC: the reciprocal of the homogeneous w.
-    pub rhw: Float,
+    pub rhw: K::Float,
     /// +0x10: the colour (ARGB).
-    pub colour: Dword,
+    pub colour: K::Dword,
     /// +0x14: the specular colour (its top byte the fog).
-    pub specular: Dword,
+    pub specular: K::Dword,
     /// +0x18: the texture u.
-    pub u: Float,
+    pub u: K::Float,
     /// +0x1C: the texture v.
-    pub v: Float,
+    pub v: K::Float,
 }
 
-/// The vertices of the polygon being drawn.
-#[repr(C)]
+/// The vertices of the polygon being drawn: a drawing part's own (`scene::workers::PartScratch`), on
+/// plain cells, reached by the one thread that draws the part.
+#[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells)]
 pub struct PolygonVertices {
-    /// +0x0 (0x9605A0): `g_polygonVertices`: `TLVertex[64]` (`d3d::draw_fan_unclipped`, `scene::draw_polygon`, `effects::`, `hud::`, `drive::tyre_parts`).
+    /// The 64 vertices (`d3d::draw_fan_unclipped`, `scene::draw_polygon`, `effects::`, `hud::`,
+    /// `drive::tyre_parts`).
     pub vertices: [Vertex; 64],
 }
 
-/// The piece, a field of `crate::race::owner::race().shared.buffers`.
-pub struct InBuffers;
-
-impl core::ops::Deref for InBuffers {
-    type Target = PolygonVertices;
-    fn deref(&self) -> &PolygonVertices {
-        &race().shared.buffers.vertices
+impl PolygonVertices {
+    /// The buffer, zeroed as in the image.
+    pub const fn new() -> Self {
+        crate::memory::cells::zeroed_cells()
     }
 }
 
-pub static VERTICES: InBuffers = InBuffers;
-
-/// IDA 0x9605A0, the first byte of the piece.
-pub const START: usize = 0x9605A0;
-/// IDA 0x960DA0, the end of the piece.
-pub const END: usize = 0x960DA0;
-
-const _: () = assert!(END - START == core::mem::size_of::<PolygonVertices>());
+/// The tests' way to the game's thread's buffer (part 0's of the test thread's scene).
+#[cfg(test)]
+pub struct GameThreadVertices;
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use core::mem::offset_of;
-
-    fn piece_addr() -> u32 {
-        crate::pointers::game_address(core::ptr::from_ref(&*VERTICES))
-    }
-
-    #[test]
-    fn piece_sits_on_the_buffers() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(
-            crate::moved::place(END - 1),
-            (piece_addr() + (END - START) as u32 - 1) as usize
-        );
-        assert_eq!(offset_of!(PolygonVertices, vertices), 0);
-        assert_eq!(offset_of!(Vertex, colour), 0x10);
-        assert_eq!(offset_of!(Vertex, v), 0x1C);
-        assert_eq!(core::mem::size_of::<Vertex>(), 0x20);
+impl core::ops::Deref for GameThreadVertices {
+    type Target = PolygonVertices;
+    fn deref(&self) -> &PolygonVertices {
+        &crate::owners::Owners::the()
+            .scene
+            .scratch
+            .game_scratch()
+            .vertices
     }
 }
+
+/// The game's thread's buffer, for the tests.
+#[cfg(test)]
+pub static VERTICES: GameThreadVertices = GameThreadVertices;

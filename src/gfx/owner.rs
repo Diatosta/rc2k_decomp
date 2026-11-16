@@ -1,10 +1,7 @@
-//! Module gfx's owner (step 11, owned state): the module's state in one struct, handed by
-//! reference to the code that runs it in place of global stores. The PNG reader's state
-//! comes first; the other groups join it one by one.
-//!
-//! `gfx()` is the boundary: the callers outside the module that do not take the owner yet
-//! fetch it there and pass it down (`notes/memory_layer_plan.md`, step 11).
+//! Module gfx's owner: the module's state in one struct, handed by reference to the code that runs
+//! it in place of global stores.
 
+use crate::d3d::owner::D3d;
 use crate::gfx::bar_store::BarVars;
 use crate::gfx::blit::Blitter;
 use crate::gfx::build_game_fonts::GameFontsMemory;
@@ -18,12 +15,14 @@ use crate::gfx::fill_thirds_table::TABLE_LEN;
 use crate::gfx::fonts_store::FontBlock;
 use crate::gfx::formats::Formats;
 use crate::gfx::front::Surfaces;
+use crate::gfx::glyph_store::GlyphStore;
 use crate::gfx::glyph_tables::GlyphTables;
 use crate::gfx::jade_store::JadeFont;
 use crate::gfx::locked::Locked;
 use crate::gfx::modes::Modes;
 use crate::gfx::pcx::Pcx;
 use crate::gfx::pcx_planes::LEN as PLANES_LEN;
+use crate::gfx::picture::PictureBuffers;
 use crate::gfx::picture_store::Picture;
 use crate::gfx::png_file::PngFile;
 use crate::gfx::png_header::PngHeader;
@@ -37,16 +36,15 @@ use crate::gfx::texture_upload::Textures;
 use crate::gfx::typefaces::FontObjects;
 use crate::gfx::upload::Upload;
 use crate::gfx::windscreen_drop_batch::WindscreenDrops;
-use crate::session::{Bytes, Dword};
+use crate::memory::session::{PlainBytes, PlainDword};
 
-/// The PNG reader's state: the file being decoded, its header and the setting that turns
-/// PNG files off.
+/// The PNG reader's state: the file being decoded, its header and the setting that turns PNG files
+/// off.
 pub struct Png {
     pub file: PngFile,
     pub header: PngHeader,
-    /// `g_pngSetting` (`dword_51B97C`, `nopngdecode`, a `var\ral.cfg` setting): 0 = PNG
-    /// files are read.
-    pub setting: Dword,
+    /// The `nopngdecode` setting (`var\ral.cfg`): 0 = PNG files are read.
+    pub setting: PlainDword,
 }
 
 impl Png {
@@ -54,13 +52,13 @@ impl Png {
         Png {
             file: PngFile::new(),
             header: PngHeader::new(),
-            setting: Dword::new(0),
+            setting: PlainDword::new(0),
         }
     }
 }
 
-/// The screen modes: the 3D cards found, the mode table, the chosen modes and the
-/// graphics settings' choices.
+/// The screen modes: the 3D cards found, the mode table, the chosen modes and the graphics
+/// settings' choices.
 pub struct Display {
     pub cards: Cards,
     pub modes: Modes,
@@ -94,16 +92,18 @@ impl Pixel {
     }
 }
 
-/// The picture loader and the decoders: the picture being loaded, the decoded picture,
-/// the PCX file, the row of planes a screenshot writes and the showing switch.
+/// The picture loader and the decoders: the picture being loaded, the decoded picture, the PCX
+/// file, the row of planes a screenshot writes and the showing switch.
 pub struct Pictures {
     pub picture: Picture,
     pub decoder: Decoder,
     pub pcx: Pcx,
     /// The planes of the row being written (a buffer, zero at the start).
-    pub planes: Bytes<PLANES_LEN>,
-    /// `g_showingPicture` (`dword_51B9C4`): 1 while a picture is being shown.
-    pub showing: Dword,
+    pub planes: PlainBytes<PLANES_LEN>,
+    /// 1 while a picture is being shown.
+    pub showing: PlainDword,
+    /// The picture buffers (`gfx::picture`).
+    pub buffers: PictureBuffers,
 }
 
 impl Pictures {
@@ -112,20 +112,28 @@ impl Pictures {
             picture: Picture::new(),
             decoder: Decoder::new(),
             pcx: Pcx::new(),
-            planes: Bytes::new([0; PLANES_LEN]),
-            showing: Dword::new(0),
+            planes: PlainBytes::new([0; PLANES_LEN]),
+            showing: PlainDword::new(0),
+            buffers: PictureBuffers::new(),
         }
     }
 }
 
-/// The fonts: the menu fonts, the font objects, the jade font, the game fonts' memory and
-/// the glyph tables.
+/// The fonts: the menu fonts, the font objects, the jade font, the game fonts' memory and the glyph
+/// tables.
 pub struct FontStores {
     pub font_block: FontBlock,
     pub typefaces: FontObjects,
     pub jade: JadeFont,
     pub game_fonts_memory: GameFontsMemory,
     pub glyph_tables: GlyphTables,
+    /// The palettes and glyph tables the fonts and sprites draw with.
+    pub glyph_store: GlyphStore,
+    /// The blended font's palette (`BLENDED_PLACE`), 1024 bytes of which 15 entries are made; the
+    /// installer's bar draws with it too.
+    pub blended_palette: [PlainDword; 256],
+    /// The kerning row table the text drawer keeps between glyphs: 0 at the start.
+    pub kerning: std::sync::Mutex<crate::text::glyph_kerning::State>,
 }
 
 impl FontStores {
@@ -136,22 +144,28 @@ impl FontStores {
             jade: JadeFont::new(),
             game_fonts_memory: GameFontsMemory::new(),
             glyph_tables: GlyphTables::new(),
+            glyph_store: GlyphStore::new(),
+            blended_palette: [const { PlainDword::new(0) }; 256],
+            kerning: std::sync::Mutex::new([0; rc2k_core::strings::text::KERNING_ROWS * 2]),
         }
     }
 }
 
-/// The drawing target: the blitters' variables, the loading bar, the draw surface, the
-/// surface handles and the row and thirds tables.
+/// The drawing target: the blitters' variables, the loading bar, the draw surface, the surface
+/// handles and the row and thirds tables.
 pub struct Drawing {
     pub blit: Blitter,
     pub bar: BarVars,
+    /// The surface the screen is drawn on: atomic cells, which the drawing threads read through
+    /// `platform::direct3d::Handles` while the game's thread waits.
     pub draw_surface: DrawSurface,
     pub surfaces: Surfaces,
-    /// `dword_4F3FC4`: each row of a picture (602 of them), zero at the start: its offset in
-    /// the decoded buffer since phase 12 (the original's addresses).
-    pub row_table: [Dword; ROW_TABLE_ROOM as usize],
+    /// Each row of a picture (602 of them), zero at the start: its offset in the decoded buffer.
+    pub row_table: [PlainDword; ROW_TABLE_ROOM as usize],
     /// `byte_4F4B30`: n / 3 for the sums of three components (zero until filled).
-    pub thirds: Bytes<TABLE_LEN>,
+    pub thirds: PlainBytes<TABLE_LEN>,
+    /// The picture buffer's number while it is the surface (`gfx::picture_as_surface`), else 0.
+    pub on_picture: std::sync::atomic::AtomicU32,
 }
 
 impl Drawing {
@@ -161,16 +175,19 @@ impl Drawing {
             bar: BarVars::new(),
             draw_surface: DrawSurface::new(),
             surfaces: Surfaces::new(),
-            row_table: [const { Dword::new(0) }; ROW_TABLE_ROOM as usize],
-            thirds: Bytes::new([0; TABLE_LEN]),
+            row_table: [const { PlainDword::new(0) }; ROW_TABLE_ROOM as usize],
+            thirds: PlainBytes::new([0; TABLE_LEN]),
+            on_picture: std::sync::atomic::AtomicU32::new(0),
         }
     }
 }
 
-/// The 3D card's textures: the upload's variables, the card's tables and the windscreen
-/// drops' batch.
+/// The 3D card's textures: the upload's variables, the card's tables and the windscreen drops'
+/// batch.
 pub struct Card3d {
     pub upload: Upload,
+    /// The card's tables: atomic cells, which the drawing threads read through
+    /// `platform::direct3d::Handles` while the game's thread waits.
     pub texture_tables: Textures,
     pub windscreen_drop_batch: WindscreenDrops,
 }
@@ -185,7 +202,6 @@ impl Card3d {
     }
 }
 
-/// Module gfx's state.
 pub struct Gfx {
     pub display: Display,
     pub pixel: Pixel,
@@ -193,7 +209,6 @@ pub struct Gfx {
     pub sheet: SheetVars,
     /// The screenshot switch and name.
     pub shots: Shots,
-    /// `g_surfaceLocked`.
     pub locked: Locked,
     /// The switch that makes Direct3D's errors fatal.
     pub reports: Reports,
@@ -208,27 +223,29 @@ pub struct Gfx {
     pub fonts: FontStores,
     pub drawing: Drawing,
     pub card: Card3d,
+    /// The 3D cards' settings, scene flag and modes.
+    pub d3d: D3d,
 }
 
-/// The one instance. Reached through `gfx()`; `moved` registers its stores' places.
-pub static GFX: Gfx = Gfx {
-    display: Display::new(),
-    pixel: Pixel::new(),
-    sheet: SheetVars::new(),
-    shots: Shots::new(),
-    locked: Locked::new(),
-    reports: Reports::new(),
-    strips: Strips::new(),
-    grading: Grading::new(),
-    png: Png::new(),
-    rescale: Rescaler::new(),
-    pictures: Pictures::new(),
-    fonts: FontStores::new(),
-    drawing: Drawing::new(),
-    card: Card3d::new(),
-};
-
-/// The module's state, for a caller that does not take it as a parameter yet.
-pub fn gfx() -> &'static Gfx {
-    &GFX
+impl Gfx {
+    /// The state at start-up: every store in its first state.
+    pub const fn new() -> Self {
+        Self {
+            display: Display::new(),
+            pixel: Pixel::new(),
+            sheet: SheetVars::new(),
+            shots: Shots::new(),
+            locked: Locked::new(),
+            reports: Reports::new(),
+            strips: Strips::new(),
+            grading: Grading::new(),
+            png: Png::new(),
+            rescale: Rescaler::new(),
+            pictures: Pictures::new(),
+            fonts: FontStores::new(),
+            drawing: Drawing::new(),
+            card: Card3d::new(),
+            d3d: D3d::new(),
+        }
+    }
 }

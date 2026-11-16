@@ -1,7 +1,6 @@
-//! An event's races (converted 2026-10-21 from `menu::run_event_races` 0x473126): the
-//! computer drivers' times shaken by lot (eight get time added, one to four drop out),
-//! the standings before the race, then the players' races by the event mode, the event
-//! ended when every result is -1. Its steps in the original's order, on `EventRaces`.
+//! An event's races: the computer drivers' times shaken by lot (eight get time added, one to four
+//! drop out), the standings before the race, then the players' races by the event mode, the event
+//! ended when every result is -1. Its steps, on `EventRaces`.
 
 /// The drivers the lot picks from (the first 0xB2).
 pub const PICKED: u32 = 0xB2;
@@ -39,17 +38,17 @@ pub fn players_of(mode: u32) -> Option<(u32, bool)> {
 /// The variables.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Var {
-    /// `dword_75592C`: the event goes on.
+    /// The event goes on.
     GoesOn,
-    /// `dword_75ACF0`, `g_cheats`.
+    /// `RaceState.settings.direction`, the cheat bits.
     CheatSwitch,
     Cheats,
-    /// `dword_7554C8`, `dword_75ACE4`.
+    /// `ScreenFlow.kept`, `RaceState.settings.kept`.
     Kept,
     RaceKept,
-    /// `dword_75598C`.
+    /// `Event.current_player`.
     Current,
-    /// `dword_75B028`, `dword_75B098`.
+    /// `RaceState.results.results[0].result`, `RaceState.results.results[1].result`.
     Result,
     Result2,
 }
@@ -62,15 +61,16 @@ pub enum Step {
     StandingsFromDrivers,
     SortByTime,
     CopySummary,
-    /// `dword_75ACD0` the summary table, `dword_75ACD4` the track pack entry's +0x34.
+    /// `RaceState.settings.rivals` the summary table, `RaceState.settings.stage` the track pack
+    /// entry's +0x34.
     RaceInfo,
     /// `race::single_rally_race` (kind 1); `next` when another player's race follows
-    /// (the original's eax 1, from `menu::player_entered`; 0 otherwise).
+    /// (1 from `menu::player_entered`; 0 otherwise).
     Race {
         next: bool,
     },
     ReloadFrontEnd,
-    ClearPlayers288,
+    ClearServiceSpent,
 }
 
 pub trait EventRaces {
@@ -80,15 +80,15 @@ pub trait EventRaces {
     fn step(&mut self, s: Step) -> Result<(), Self::Error>;
     /// A random number below `n`.
     fn below(&mut self, n: u32) -> Result<u32, Self::Error>;
-    /// Driver `k` (of the picked) gets `added` on its two times (edi it, eax `added`).
+    /// Driver `k` (of the picked) gets `added` on its two times.
     fn slow(&mut self, k: u32, added: u32);
-    /// Whether driver `k` still runs (edi it, eax its offset).
+    /// Whether driver `k` still runs.
     fn running(&mut self, k: u32) -> bool;
     /// The driver last asked about drops out.
     fn drop_out(&mut self);
-    /// Whether player `i` takes part (edi it).
+    /// Whether player `i` takes part.
     fn takes_part(&mut self, i: u32) -> bool;
-    /// The fourth player's dropping out noted (edi it).
+    /// The fourth player's dropping out noted.
     fn fourth_out(&mut self);
 }
 
@@ -129,7 +129,7 @@ fn players_races<E: EventRaces>(e: &mut E, n: u32, note_fourth: bool) -> Result<
 }
 
 /// `menu::run_event_races` (its checks made by the caller): `mode` the event mode,
-/// `reset_only` `dword_755250` 1.
+/// `reset_only` `MenuPages.reset_times` 1.
 pub fn run_event_races<E: EventRaces>(
     e: &mut E,
     mode: u32,
@@ -192,7 +192,7 @@ pub fn run_event_races<E: EventRaces>(
             }
         }
     }
-    e.step(Step::ClearPlayers288)
+    e.step(Step::ClearServiceSpent)
 }
 
 #[cfg(test)]
@@ -279,7 +279,7 @@ mod tests {
         );
         assert!(log.steps.contains(&"fourth".to_string()));
         assert!(log.steps.contains(&"GoesOn=0".to_string()));
-        assert_eq!(log.steps.last().unwrap(), "ClearPlayers288");
+        assert_eq!(log.steps.last().unwrap(), "ClearServiceSpent");
 
         let mut log = Log {
             running: vec![true; 4],

@@ -1,9 +1,8 @@
-//! The stage's moving faces (converted 2026-10-21 from `drive::animate_lit_faces`
-//! 0x45EB06, all but kind 4's move, which turns a point and looks for the ground, and
-//! `physics::touch_face` 0x45E9E0, a face the car touches listed and marked): each
-//! listed face's bytes stepped by its object's kind, at a pace by its distance from the
-//! lead car; a face that is done leaves the list (the list's last takes its place). By
-//! the look of it lights blinking and things falling (a reading).
+//! The stage's moving faces: each listed face's bytes stepped by its object's kind, at a pace by
+//! its distance from the lead car; a face that is done leaves the list (the list's last takes its
+//! place). The listed faces are the ones the car has touched (`physics::touch_face`): roadside
+//! objects that blink, rise or are knocked away for a while. Kind 4's move (a point turned and
+//! the ground looked for) stays with the caller.
 
 /// The object whose faces only count down (+0x11).
 pub const COUNTDOWN_OBJECT: u8 = 0x3B;
@@ -40,7 +39,7 @@ pub fn pace(distance: u32) -> u32 {
 pub const BLINK_STEPS: u8 = 0x18;
 
 /// Kinds 1 and 9: +0x11 counts up; at `BLINK_STEPS` +0x11 and +0x13 are cleared and the
-/// face leaves (None); else +0x13 = `blink(count)` (`byte_6D1DFC`), returned.
+/// face leaves (None); else +0x13 = `blink(count)`, returned.
 pub fn blink(f: &mut FaceBytes, blink: impl FnOnce(u8) -> u8) -> Option<u8> {
     f.b11 = f.b11.wrapping_add(1);
     if f.b11 >= BLINK_STEPS {
@@ -57,7 +56,7 @@ pub const RISE_TOP: u8 = 0x30;
 pub const ALIGNED_RISE_TOP: u8 = 0x40;
 
 /// +0x13 up by one `pace` times, stopping at `top`: (true when it is at the top: the face
-/// leaves; the steps left, the original's edx).
+/// leaves; the steps left).
 pub fn rise(f: &mut FaceBytes, pace: u32, top: u8) -> (bool, u32) {
     let mut left = pace;
     loop {
@@ -74,27 +73,26 @@ pub fn rise(f: &mut FaceBytes, pace: u32, top: u8) -> (bool, u32) {
 
 /// Kinds 3 and 8: +9 stepped (up to `pace` x 4 steps) toward making +8 + +9 + +0x12 a
 /// multiple of 0x80 (down below 0x40 past it, up from 0x40 on); once it is, `rise` to
-/// `ALIGNED_RISE_TOP`. (leaves, the original's edx, the low byte of eax: the last sum
-/// & 0x7F.)
+/// `ALIGNED_RISE_TOP`. Gives (the face leaves, the steps left, the last sum & 0x7F).
 pub fn align(f: &mut FaceBytes, pace: u32) -> (bool, u32, u8) {
     let mut steps = pace << 2;
     let sum = loop {
-        let al = f.b9.wrapping_add(f.b8).wrapping_add(f.b12) & 0x7F;
-        if al == 0 {
-            break al;
+        let sum_low = f.b9.wrapping_add(f.b8).wrapping_add(f.b12) & 0x7F;
+        if sum_low == 0 {
+            break sum_low;
         }
         let mut b9 = f.b9.wrapping_sub(1);
-        if al >= 0x40 {
+        if sum_low >= 0x40 {
             b9 = b9.wrapping_add(2);
         }
         f.b9 = b9;
         steps = steps.wrapping_sub(1);
         if steps == 0 {
-            return (false, 0, al);
+            return (false, 0, sum_low);
         }
     };
-    let (leave, edx) = rise(f, pace, ALIGNED_RISE_TOP);
-    (leave, edx, sum)
+    let (leave, steps_left) = rise(f, pace, ALIGNED_RISE_TOP);
+    (leave, steps_left, sum)
 }
 
 /// Kind 4 moves while +0x11 is not 0 (else the face leaves); its offset's turn: (the
@@ -103,14 +101,14 @@ pub fn fall_turn(f: &FaceBytes) -> Option<(u32, u32)> {
     (f.b11 != 0).then(|| (u32::from(f.b11) << 8, (u32::from(f.b12) + 0x80) << 24))
 }
 
-/// The list's room (`g_litFaces`).
+/// The most faces the list holds.
 pub const LIST_ROOM: u32 = 0x100;
 
-/// What `touch_face` does to a face by the contact's kind (`dword_6D3624`).
+/// What `touch_face` does to a face by the contact's kind.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Touch {
     /// 2, 3, 8 (and 1, 9 when the car is fast enough): +9 0, +0x11 1, +0x13 0, +0x12 the
-    /// low byte of `dword_6D3B70`; then the sound.
+    /// low byte of `ContactWork.face_angle`; then the sound.
     Mark,
     /// 1, 9: `Mark` unless the car's speed is below the limit (or unordered; then nothing
     /// more).
@@ -134,7 +132,7 @@ pub fn touch(kind: u32) -> Touch {
     }
 }
 
-/// Kind 4's +0x11: `dword_6D3B74` >> 14, at most 0x40.
+/// Kind 4's +0x11: `ContactWork.face_speed` >> 14, at most 0x40.
 pub fn fall_mark(v: u32) -> u32 {
     (v >> 14).min(0x40)
 }

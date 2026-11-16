@@ -1,7 +1,4 @@
-//! The frame's keys and mouse (converted 2026-10-20 from `input::update` 0x420115 and its
-//! parts `unpack_mouse` 0x4081FC, `take_mouse` 0x42019C, `copy_keys` 0x4201EC,
-//! `buttons_to_keys` 0x420200, `find_pressed_keys` 0x420215, `repeat_keys` 0x420247,
-//! `take_mouse_clicks` 0x42028C).
+//! The frame's keys and mouse.
 //!
 //! The keys down (by scan code; the window's messages keep them) are copied for the frame,
 //! with the mouse's buttons as keys 0x73 and 0x74 and two pairs of keys made one; a key is
@@ -33,7 +30,7 @@ pub fn buttons(buttons: u32) -> [u32; 3] {
     [buttons, buttons & 1, (buttons >> 1) & 1]
 }
 
-/// The frame's key tables (`g_keysNow`, `g_keysBefore`, `g_keysPressed`, `g_keyRepeat`).
+/// The frame's key tables: now, before, pressed and repeat.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct KeyTables {
     pub now: [u8; KEYS],
@@ -43,7 +40,7 @@ pub struct KeyTables {
 }
 
 impl KeyTables {
-    /// The keys down (`g_keysDown`, the window's) copied for the frame (`copy_keys`).
+    /// The keys down (the window's table) copied for the frame.
     pub fn copy_keys(&mut self, down: &[u8; KEYS]) {
         self.now = *down;
     }
@@ -64,8 +61,7 @@ impl KeyTables {
     }
 
     /// The keys down now and not before (their low bits only, a dword at a time), and
-    /// before = now. The last dword's pressed and now (what the original leaves in eax
-    /// and edx).
+    /// before = now. The last dword's pressed and now.
     pub fn find_pressed(&mut self) -> (u32, u32) {
         let mut last = (0, 0);
         for at in (0..KEYS).step_by(4) {
@@ -105,12 +101,11 @@ impl KeyTables {
     }
 }
 
-/// The dwords `end_frame` clears: the debug page and the race freeze (`g_debugPage`,
-/// `g_debugFreezeRace`).
+/// The dwords the end of a frame clears: the debug page and the race freeze.
 pub const DEBUG_WORDS: usize = 2;
 
-/// `input::end_frame` (0x43AA91): with screenshots on, `check` (the screenshot key looked
-/// at); the frame's dwords as they are left.
+/// `input::end_frame`: with screenshots on, `check` looks at the screenshot key; the dwords as
+/// left.
 pub fn end_frame(screenshots_on: u32, check: impl FnOnce()) -> [u32; DEBUG_WORDS] {
     if screenshots_on != 0 {
         check();
@@ -118,8 +113,7 @@ pub fn end_frame(screenshots_on: u32, check: impl FnOnce()) -> [u32; DEBUG_WORDS
     [0; DEBUG_WORDS]
 }
 
-/// `gfx::screenshot_if_key` (0x43B573): a screenshot while the key (`SCREENSHOT_KEY`) is
-/// down in the frame's copy.
+/// Whether a screenshot is wanted: the screenshot key is down in the frame's copy.
 pub fn screenshot_wanted(key_now: u8) -> bool {
     key_now != 0
 }

@@ -1,35 +1,19 @@
-//! `scene::fog_at` (0x44E260): the fog's alpha at a depth: eax (0 when below 0) >> 13,
-//! held below `g_fogTableLength` (the last entry past it), its byte of `g_fogTable` in the
-//! top byte, flipped (`xor 0xFF000000`).
+//! `scene::fog_at`: the fog's alpha at a depth: the depth (0 when below 0) >> 13, held below
+//! the fog table's length (the last entry past it), its byte of the fog table in the top byte,
+//! flipped (`xor 0xFF000000`). The table and its length are the view's (`scene::fog::Fog`).
+//! Takes the depth (whole) and returns the alpha in its top byte.
 //!
-//! Takes: the depth (whole)
-//! Returns: the alpha in its top byte
-//!
-//! Callers: the marks' drawers (16). The callers go on with a `mov`: no flags read. Refuses a
-//! table length of 0 or past the table's 0x1000 bytes (the original reads past it).
+//! Callers: the marks' drawers (16). Refuses a table length of 0 or past the table's 0x1000
+//! bytes.
 
 use crate::errors::Refused;
-use crate::scene::owner::scene;
 
-/// The Rust version (see the header).
-pub fn fog_at(depth: u32) -> Result<u32, Refused> {
-    let lights = &scene().lights;
-    // Converted: `rc2k_core::scene::fog::fog_at`.
-    let reading = crate::scene::reading::Reading::new();
-    let answer = rc2k_core::scene::fog::fog_at(
+/// On the view's fog.
+pub fn fog_at(fog: &crate::scene::fog::Fog, depth: u32) -> Result<u32, Refused> {
+    // Logic: `rc2k_core::scene::fog::fog_at`.
+    Ok(rc2k_core::scene::fog::fog_at(
         depth,
-        lights.state.fog_table_length.bits() as i32,
-        // A byte of the table (the store types it in dwords).
-        |n| {
-            let dword = reading.keep(crate::session::read_on_in(
-                &lights.state,
-                &lights.state.fog_table,
-                n / 4,
-                "the fog table",
-            ));
-            (dword >> (8 * (n % 4))) as u8
-        },
-    );
-    reading.finish()?;
-    Ok(answer?)
+        fog.length.get() as i32,
+        |n| fog.level(n as u32),
+    )?)
 }

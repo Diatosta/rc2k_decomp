@@ -1,6 +1,5 @@
-//! A sound placed around the listener, its whole-number rules (converted 2026-10-21 from
-//! `sound::play_placed_sound` 0x40F11C; its products and the angle stay the hook's x87,
-//! whose `fistp` and `fpatan` the results go through).
+//! A sound placed around the listener, its whole-number rules (the products and the angle are
+//! the caller's, rounded there).
 //!
 //! Without 3D the volume (the request's x the sample's factor x the request's factor) is
 //! held to 0 .. 0x40 and the place between left and right comes from the angle; with Dolby
@@ -13,7 +12,7 @@ pub const NO_SOUND: u32 = 0x8000;
 /// The sound mode's bits: 3D, Dolby.
 pub const MODE_3D: u32 = 0x10_0000;
 pub const MODE_DOLBY: u32 = 0x200_0000;
-/// Sample records.
+/// Number of sample records.
 pub const SAMPLES: u32 = 0x1CD;
 /// The loudest volume.
 pub const LOUDEST: i32 = 0x40;
@@ -33,17 +32,16 @@ pub fn sample_of(sound: u32) -> Result<u32, Invalid> {
     Ok(number as u32)
 }
 
-/// The volume as a whole number (the `fistp`'s), held to 0 .. 0x40.
+/// The volume from its rounded whole number, held to 0 .. 0x40.
 pub fn volume(whole: u32) -> u32 {
     (whole as i32).clamp(0, LOUDEST) as u32
 }
 
-/// The place sent: 0 when the sound is straight ahead (the request's x, a float's bits,
-/// is a zero), else the whole number from the angle; with Dolby (`mode`) and an angle
-/// below zero (its bits, signed) the second byte inverted.
-pub fn place(whole: u32, x: u32, angle: u32, mode: u32) -> u32 {
-    let mut place = if x & 0x7FFF_FFFF == 0 { 0 } else { whole };
-    if mode & MODE_DOLBY != 0 && (angle as i32) < 0 {
+/// The place sent: 0 when the sound is straight ahead (x is a zero of either sign), else the whole
+/// number from the angle; with Dolby (`mode`) and an angle below zero the second byte is inverted.
+pub fn place(whole: u32, x: f32, angle: i32, mode: u32) -> u32 {
+    let mut place = if x == 0.0 { 0 } else { whole };
+    if mode & MODE_DOLBY != 0 && angle < 0 {
         place ^= 0xFF00;
     }
     place
@@ -62,9 +60,9 @@ mod tests {
         assert_eq!(volume(0x41), 0x40);
         assert_eq!(volume(0xFFFF_FFFF), 0);
         assert_eq!(volume(0x20), 0x20);
-        assert_eq!(place(0x40, 0x8000_0000, 0xBF00_0000, MODE_DOLBY), 0xFF00);
-        assert_eq!(place(0x40, 0x3F80_0000, 0xBF00_0000, MODE_DOLBY), 0xFF40);
-        assert_eq!(place(0x40, 0x3F80_0000, 0x3F00_0000, MODE_DOLBY), 0x40);
-        assert_eq!(place(0x40, 0x3F80_0000, 0xBF00_0000, 0), 0x40);
+        assert_eq!(place(0x40, -0.0, -1, MODE_DOLBY), 0xFF00);
+        assert_eq!(place(0x40, 1.0, -1, MODE_DOLBY), 0xFF40);
+        assert_eq!(place(0x40, 1.0, 1, MODE_DOLBY), 0x40);
+        assert_eq!(place(0x40, 1.0, -1, 0), 0x40);
     }
 }

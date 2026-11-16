@@ -1,16 +1,11 @@
-//! `physics::race_timers` (0x436790): the race's timers for the work car, every physics
-//! step. `flt_614170` 1.0, or `flt_601028` once finished (+0xA8). Then by the race mode
-//! (`dword_62389C`): 2: `physics::count_start_second`, `physics::count_down_start`,
-//! `physics::take_split_counted`, `physics::start_go_notice`,
-//! `physics::count_stop_timers`, `physics::mark_car_started`; 0, 1, 3:
-//! `count_start_second`, `physics::take_split`, `count_stop_timers`, `mark_car_started`;
-//! else nothing.
+//! The race's timers for the work car, every physics step. `weight` 1.0, or `timer_factor` once
+//! finished. Then by the race mode (`run_kind`): 2: `physics::count_start_second`,
+//! `physics::count_down_start`, `physics::take_split_counted`, `physics::start_go_notice`,
+//! `physics::count_stop_timers`, `physics::mark_car_started`; 0, 1, 3: `count_start_second`,
+//! `physics::take_split`, `count_stop_timers`, `mark_car_started`; otherwise nothing.
 //!
-//! Caller: `physics::car_physics_step` (0x43B64E). Refuses what the steps refuse; what was written
-//! is put back.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
+//! Caller: `physics::car_physics_step`. Refuses what the steps refuse; what was written is put
+//! back.
 use crate::errors::Refused;
 use crate::physics::count_down_start::count_down_start;
 use crate::physics::count_start_second::count_start_second;
@@ -21,34 +16,60 @@ use crate::physics::take_split::take_split;
 use crate::physics::take_split_counted::take_split_counted;
 use crate::race::owner::Race;
 
-/// The Rust version. The registers the original leaves are read by none of its callers.
-// Converted: `rc2k_core::physics::splits::{timer_rate, timer_run}`.
-pub fn race_timers(race: &Race, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
+// Core: `rc2k_core::physics::splits::{timer_rate, timer_run}`.
+pub fn race_timers(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refused> {
+    let sound = o.sound;
+    let (physics, numbers, league) = (
+        &race.physics,
+        race.course.numbers.get(),
+        race.course.league(),
+    );
+    let (frame_work, panel_and_overlay) = (
+        &race.frame.frame_work.get(),
+        &race.frame.panel_and_overlay.get(),
+    );
+    let (shared, car_blocks) = (&race.shared, race.car_blocks());
     use rc2k_core::physics::splits::{TimerRun, timer_rate, timer_run};
-    race.shared.physics_tables.weight.set_bits(1.0f32.to_bits());
-    let finished = race.shared.car.finish_flag.get() != 0;
+    shared.physics_tables.get().weight.set(1.0f32);
+    let finished = shared.car().finish_flag.get() != 0;
     let factor = if finished {
-        race.physics.split_tables.timer_factor.bits()
+        physics.split_tables().timer_factor.get()
     } else {
-        0
+        0.0
     };
-    race.shared
+    shared
         .physics_tables
+        .get()
         .weight
-        .set_bits(timer_rate(finished, f32::from_bits(factor)).to_bits());
-    let run = timer_run(race.shared.vars.run_kind.bits());
+        .set(timer_rate(finished, factor));
+    let run = timer_run(shared.vars.get().run_kind.get());
     if run == TimerRun::None {
         return Ok(());
     }
-    count_start_second(&race.shared);
+    count_start_second(shared.car());
     if run == TimerRun::Start {
-        count_down_start(race, sound)?;
-        take_split_counted(race, sound)?;
-        start_go_notice(race, sound)?;
+        count_down_start(frame_work, shared.work.get(), shared.car(), sound)?;
+        take_split_counted(
+            o,
+            physics,
+            league,
+            frame_work,
+            panel_and_overlay,
+            shared,
+            car_blocks,
+        )?;
+        start_go_notice(frame_work, shared.work.get(), shared.car(), sound, o.menus)?;
     } else {
-        take_split(race)?;
+        take_split(
+            o,
+            physics.split_tables(),
+            league,
+            panel_and_overlay,
+            shared,
+            car_blocks,
+        )?;
     }
-    count_stop_timers(race);
-    mark_car_started(&race.shared);
+    count_stop_timers(shared.car(), numbers);
+    mark_car_started(shared.car());
     Ok(())
 }

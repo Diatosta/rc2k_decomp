@@ -1,14 +1,11 @@
-//! `net::clear_car_state` (0x463EB6): a car's block made ready for a network race: 51 of
-//! its dwords (+0x64 .. +0x80, +0x2B8 .. +0x364) 0, +0x298 -1.
-//!
-//! Takes `block`.
-//! Caller: `net::reset_cars`.
+//! Makes a car's block ready for a network race: 51 of its dwords are cleared and one is set
+//! to -1.
 
+use crate::memory::session::Cell32;
 use crate::physics::car_store::Car;
-use crate::session::Cell32;
 
-/// A car block's dwords cleared (`clear_car_state`), in the original's order, and what goes
-/// in them: 51 of them 0, `parts_present` (+0x298) -1.
+/// A car block's dwords cleared (`clear_car_state`) and what goes in them: 51 of them 0,
+/// `parts_present` (+0x298) -1.
 type Field = fn(&Car) -> &dyn Cell32;
 
 const CLEARED: [(Field, u32); 52] = [
@@ -51,10 +48,10 @@ const CLEARED: [(Field, u32); 52] = [
     (|c| &c.suspension_damage[3], 0),
     (|c| &c.brake_wear_a, 0),
     (|c| &c.brake_wear_b, 0),
-    (|c| &c.part_hit_damage[0], 0),
-    (|c| &c.part_hit_damage[1], 0),
-    (|c| &c.part_hit_damage[2], 0),
-    (|c| &c.part_hit_damage[3], 0),
+    (|c| &c.tyre_wears[0], 0),
+    (|c| &c.tyre_wears[1], 0),
+    (|c| &c.tyre_wears[2], 0),
+    (|c| &c.tyre_wears[3], 0),
     (|c| &c.impact_octant_marks[0], 0),
     (|c| &c.impact_octant_marks[1], 0),
     (|c| &c.impact_octant_marks[2], 0),
@@ -65,8 +62,6 @@ const CLEARED: [(Field, u32); 52] = [
     (|c| &c.impact_octant_marks[7], 0),
     (|c| &c.parts_present, u32::MAX),
 ];
-
-/// The Rust version.
 pub fn clear_car_state(block: &Car) -> Result<(), crate::errors::BadInput> {
     for (field, v) in CLEARED {
         field(block).set_bits(v);
@@ -89,10 +84,12 @@ mod tests {
             0x7C, 0x80, 0x298,
         ];
         let car = &crate::race::blocks_store::CAR_BLOCKS.cars[0];
-        let base = core::ptr::from_ref(car) as usize;
         for ((field, v), old) in CLEARED.iter().zip(old) {
             assert_eq!(
-                core::ptr::from_ref(field(car)).cast::<u8>() as usize - base,
+                crate::physics::car_offsets_1999::offset_1999(
+                    car,
+                    core::ptr::from_ref(field(car)).addr()
+                ),
                 old
             );
             assert_eq!(*v, if old == 0x298 { u32::MAX } else { 0 });

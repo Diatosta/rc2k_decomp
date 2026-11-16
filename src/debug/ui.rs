@@ -1,33 +1,22 @@
-//! The debug UI (owner, 2026-10-30): one semi-transparent ImGui window over the game,
-//! resizable, its pages as tabs.
-//! - "Display": the display page's figures (`debug::wear_page`), named and grouped
-//!   (`debug::display_rows`), its bars as bars, filtered by name; a wide window lays the
-//!   groups out in columns side by side.
-//! - "Profiler": the original profile page's live items (`debug::draw_profile`, 0x43530E:
-//!   the frame rate, the course's memory, the processor's features, `dword_6218B8`) and our
-//!   own timings (`debug::timing`, `platform::frame_counters`): RAL.EXE writes none of its
-//!   page's 40 timers (the developers' timing code was taken out).
-//! - "Watch list": the variables of the developers' watch pages (`debug::watch_rows`), laid
-//!   out as "Display"; "Dumps": the league tables those pages dumped in hex.
-//! - "Rivals": the rivals' table the display page ended with (`g_rivalNames`,
-//!   `g_rivalScaled`, `g_rivalTimes`, as they are: unlike the original page this does not
-//!   refill them).
-//!
-//! The race's freeze as a check box.
+//! The debug UI: one semi-transparent ImGui window over the game, resizable, its pages as tabs:
+//! "Display" (the display page's figures, named and grouped, bars as bars, filtered by name; a wide
+//! window lays the groups out in columns), "Profiler" (the developers' profile page's live items
+//! and our own timings), "Watch list" (the developers' watch pages' variables) and "Dumps" (the
+//! league tables those pages dumped in hex), "Rivals" (the rivals' table the display page ended
+//! with, as it is), and the race's freeze as a check box.
 
-use crate::audio::owner::audio;
+use crate::debug::row_cells::Raw;
+use crate::debug::switches::EXTENSIONS;
 use crate::debug::timing::STAGES;
-use crate::debug::wear_page::{SURFACES, value_at};
+use crate::debug::wear_page::SURFACES;
+use crate::owners::Owners;
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
 use crate::race::owner_physics::Physics;
-use crate::scene::owner::scene;
-use crate::system::owner::system;
 use dear_imgui_rs::{Condition, TableColumnFlags, TableColumnWidth, TableFlags, TreeNodeFlags, Ui};
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
 
-/// How a figure is shown.
 #[derive(Clone, Copy)]
 pub enum Shown {
     Whole,
@@ -37,29 +26,24 @@ pub enum Shown {
 }
 
 /// A figure of the display page: its name, the developers' label, how it is shown, its
-/// place (IDA's address), whether the page drew a bar of it, and its place on the
-/// original's 800 x 600 screen.
+/// place, whether the page drew a bar of it, and its place on the page's 800 x 600 screen.
 pub struct Row {
     name: &'static str,
     label: &'static str,
     shown: Shown,
     at: usize,
+    cell: for<'a> fn(&Owners<'a>) -> &'a dyn Raw,
     bar: bool,
     place: (u32, u32),
 }
 
 impl Row {
-    /// Its place (IDA's address).
-    #[cfg(test)]
-    pub fn at(&self) -> usize {
-        self.at
-    }
-
-    pub const fn new(
+    pub const fn typed(
         name: &'static str,
         label: &'static str,
         shown: Shown,
         at: usize,
+        cell: for<'a> fn(&Owners<'a>) -> &'a dyn Raw,
         bar: bool,
         place: (u32, u32),
     ) -> Self {
@@ -68,13 +52,17 @@ impl Row {
             label,
             shown,
             at,
+            cell,
             bar,
             place,
         }
     }
+
+    fn value(&self, o: &Owners<'static>) -> u32 {
+        (self.cell)(o).raw()
+    }
 }
 
-/// A group of figures.
 pub struct Group {
     pub name: &'static str,
     pub rows: &'static [Row],
@@ -100,31 +88,29 @@ type NotedView = ([f32; 16], f32, [f32; 2]);
 /// drawing (the mirror) changes them, so they are noted here (`note_view`).
 static VIEW: std::sync::Mutex<Option<NotedView>> = std::sync::Mutex::new(None);
 
-/// The first view's scene has been drawn.
-pub fn note_view(frame: &Frame) {
-    let drawing = &scene().drawing;
+pub fn note_view(frame: &Frame, scene: &crate::scene::owner::Scene) {
     let view = (
-        std::array::from_fn(|n| frame.matrices.view_matrix[n].get()),
-        drawing.scene.view_scale.get(),
+        std::array::from_fn(|n| frame.matrices.get().view_matrix[n].get()),
+        scene.scratch.main_view(0).polygon.window.view_scale.get(),
         [
-            f32::from_bits(drawing.scene.view_centre[0].bits()),
-            f32::from_bits(drawing.scene.view_centre[1].bits()),
+            scene.scratch.main_view(0).polygon.window.view_centre[0].get(),
+            scene.scratch.main_view(0).polygon.window.view_centre[1].get(),
         ],
     );
     *VIEW
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(view);
+    crate::debug::frame_figures::note_first_view(scene);
 }
 
-/// In the spirit of 0x4295AD, the developers' mode 0xB, which drew the probe
-/// lists as one pixel each: the physics' probe points as last worked out
-/// (`physics::probe_ground`: 0x6D1E14 .. in the world, whole numbers), through the view
-/// noted, each with a line down to the ground found under it. Green the first four (the
-/// wheels, a reading), red a point at or under the ground, white the rest; yellow the
-/// ground. Above the window, and behind the eye skipped.
-fn draw_probes(race: &Race, ui: &Ui) {
+/// After the developers' mode 0xB, which drew the probe lists as one pixel each: the physics'
+/// probe points as last worked out (`physics::probe_ground`, in the world, whole numbers),
+/// through the view noted, each with a line down to the ground found under it. Green the
+/// first four (the wheels, a reading), red a point at or under the ground, white the rest;
+/// yellow the ground. Above the window, and behind the eye skipped.
+fn draw_probes(race: &Race, system: &crate::system::owner::System, ui: &Ui) {
     let physics = &race.physics;
-    let wk = &physics.contact;
+    let wk = &physics.contact.get();
     let Some((m, scale, centre)) = *VIEW
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -132,7 +118,7 @@ fn draw_probes(race: &Race, ui: &Ui) {
         return;
     };
     let [w, h] = ui.io().display_size();
-    let (width, height) = crate::platform::screen_size();
+    let (width, height) = crate::platform::screen_size(system);
     let (sx, sy) = (w / width.max(1) as f32, h / height.max(1) as f32);
     let place = |[x, y, z]: [i32; 3]| {
         let [x, y, z] = [f64::from(x), f64::from(y), f64::from(z)];
@@ -153,7 +139,7 @@ fn draw_probes(race: &Race, ui: &Ui) {
     };
     let list = ui.get_foreground_draw_list();
     let size = ui.current_font_size() / 4.0;
-    for n in 0..race.shared.car.probe_count.get().min(0x40) as usize {
+    for n in 0..race.shared.car().probe_count.get().min(0x40) as usize {
         let (x, y, z) = (
             wk.probe_x[n].get() as i32,
             wk.probe_y[n].get() as i32,
@@ -192,19 +178,20 @@ struct Layout {
 
 static LAYOUT: std::sync::Mutex<Option<Layout>> = std::sync::Mutex::new(None);
 
-/// A tab's contents, scrolled under the tabs (which stay; owner, 2026-10-30).
+/// A tab's contents, scrolled under the tabs (which stay).
 fn body(ui: &Ui, f: impl FnOnce()) {
     ui.child_window("body").build(ui, f);
 }
 
-/// The UI's frame.
-pub fn build(race: &Race, ui: &Ui) {
+pub fn build(o: &Owners<'static>, ui: &Ui) {
+    let race = o.race;
+    crate::debug::frame_figures::take();
     if PROBES.load(Relaxed) {
-        draw_probes(race, ui);
+        draw_probes(race, o.system, ui);
     }
-    crate::debug::kstar::over_picture(&race.frame, ui);
+    crate::debug::kstar::over_picture(o.system, o.scene, ui);
     // The window keeps its share of the screen when the mode changes (the menus' 640 x 480,
-    // the race's own; owner, 2026-10-30).
+    // the race's own).
     let screen = ui.io().display_size();
     let mut layout = LAYOUT
         .lock()
@@ -242,7 +229,7 @@ pub fn build(race: &Race, ui: &Ui) {
             if ui.is_item_hovered() {
                 ui.tooltip_text(
                     "Where the physics asks for the ground (the last car simulated): green \
-                     the first four (the wheels, a reading), red at or under the ground, \
+                     the first four (the wheels: their points feed `wheel_ground_*` and `wheel_lifted`), red at or under the ground, \
                      white the rest; the yellow line goes down to the ground found",
                 );
             }
@@ -251,54 +238,57 @@ pub fn build(race: &Race, ui: &Ui) {
             if let Some(_bar) = ui.tab_bar("pages") {
                 if let Some(_tab) = ui.tab_item("Display") {
                     body(ui, || {
-                        display(ui, crate::debug::display_rows::GROUPS, &FILTER);
+                        display(ui, o, crate::debug::display_rows::GROUPS, &FILTER);
                     });
                 }
                 if let Some(_tab) = ui.tab_item("Watch list") {
                     body(ui, || {
-                        display(ui, crate::debug::watch_rows::GROUPS, &WATCH_FILTER);
+                        display(ui, o, crate::debug::watch_rows::GROUPS, &WATCH_FILTER);
                     });
                 }
                 if let Some(_tab) = ui.tab_item("Dumps") {
-                    body(ui, || dumps(ui));
+                    body(ui, || dumps(race, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Profiler") {
-                    body(ui, || profiler(race, ui));
+                    body(ui, || profiler(o, ui));
+                }
+                if let Some(_tab) = ui.tab_item("GPU") {
+                    body(ui, || crate::debug::gpu_cuts::tab(race, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Kstar modes") {
-                    body(ui, || crate::debug::kstar::tab(race, ui));
+                    body(ui, || crate::debug::kstar::tab(race, o.scene, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Switches") {
-                    body(ui, || crate::debug::switches::tab(race, ui));
+                    body(ui, || crate::debug::switches::tab(race, o.scene, o.system, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Rivals") {
-                    body(ui, || rivals(&race.physics, ui));
+                    body(ui, || rivals(crate::strings::append_string_by_id::StringOwners::of(*o), &race.physics, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Effects") {
-                    body(ui, || crate::debug::effects_page::tab(ui));
+                    body(ui, || crate::debug::effects_page::tab(o.race.effects.get(), o.scene, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Dyno") {
-                    body(ui, || crate::debug::dyno::tab(race, ui));
+                    body(ui, || crate::debug::dyno::tab(race, o.scene, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Players") {
-                    body(ui, || crate::debug::players::tab(ui));
+                    body(ui, || crate::debug::players::tab(o.menus, race, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Screens") {
-                    body(ui, || screens(ui));
+                    body(ui, || screens(o.saves, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Developers") {
-                    body(ui, || crate::debug::dev_front_end::tab(race, ui));
+                    body(ui, || crate::debug::dev_front_end::tab(race, o.scene, ui));
                 }
             }
         });
 }
 
 /// The screens no route reaches.
-fn screens(ui: &Ui) {
+fn screens(saves: &crate::saves::owner::Saves, ui: &Ui) {
     ui.text("Section best times (shown at the next menu's frame):");
     for section in 0..6 {
         let label = format!("Section {}", section + 1);
-        if crate::debug::screens::section_has_times(section) {
+        if crate::debug::screens::section_has_times(saves, section) {
             if ui.button(&label) {
                 crate::debug::screens::ask_section_times(section as u32);
             }
@@ -313,16 +303,13 @@ fn screens(ui: &Ui) {
     }
 }
 
-/// A figure's text.
-fn figure(value: Option<u32>, shown: Shown) -> String {
-    match (value, shown) {
-        (None, _) => "?".to_owned(),
-        (Some(v), Shown::Whole) => format!("{}", v as i32),
-        (Some(v), Shown::Float) => format!("{:.3}", f32::from_bits(v)),
-        (Some(v), Shown::Hex) => format!("{v:08x}"),
-        (Some(v), Shown::Surface) => {
-            String::from_utf8_lossy(SURFACES[(v & 0xF) as usize]).into_owned()
-        }
+fn figure(value: u32, shown: Shown) -> String {
+    let v = value;
+    match shown {
+        Shown::Whole => format!("{}", v as i32),
+        Shown::Float => format!("{:.3}", f32::from_bits(v)),
+        Shown::Hex => format!("{v:08x}"),
+        Shown::Surface => String::from_utf8_lossy(SURFACES[(v & 0xF) as usize]).into_owned(),
     }
 }
 
@@ -334,7 +321,7 @@ fn wanted_row(row: &Row, wanted: &str) -> bool {
 }
 
 /// A tab of groups, in as many columns as the width holds.
-fn display(ui: &Ui, all: &'static [Group], filter: &std::sync::Mutex<String>) {
+fn display(ui: &Ui, o: &Owners<'static>, all: &'static [Group], filter: &std::sync::Mutex<String>) {
     let wanted = {
         let mut filter = filter
             .lock()
@@ -368,19 +355,18 @@ fn display(ui: &Ui, all: &'static [Group], filter: &std::sync::Mutex<String>) {
         ui.table_next_column();
         for group in column {
             if ui.collapsing_header(group.name, TreeNodeFlags::DEFAULT_OPEN) {
-                group_table(ui, group, &wanted);
+                group_table(ui, o, group, &wanted);
             }
         }
     }
 }
 
-/// A group's figures as a table.
-fn group_table(ui: &Ui, group: &Group, wanted: &str) {
+fn group_table(ui: &Ui, o: &Owners<'static>, group: &Group, wanted: &str) {
     let flags = TableFlags::BORDERS | TableFlags::ROW_BG | TableFlags::RESIZABLE;
     let Some(_table) = ui.begin_table_with_flags(group.name, 4, flags) else {
         return;
     };
-    // The name wide, the figure narrow (owner, 2026-10-30).
+    // The name wide, the figure narrow.
     let column = |name: &str, weight: f32| {
         ui.table_setup_column(
             name,
@@ -394,7 +380,7 @@ fn group_table(ui: &Ui, group: &Group, wanted: &str) {
     column("Original", 1.2);
     ui.table_headers_row();
     for row in group.rows.iter().filter(|r| wanted_row(r, wanted)) {
-        let value = value_at(row.at);
+        let value = row.value(o);
         ui.table_next_row();
         ui.table_next_column();
         ui.text(row.name);
@@ -402,7 +388,7 @@ fn group_table(ui: &Ui, group: &Group, wanted: &str) {
         ui.text(figure(value, row.shown));
         ui.table_next_column();
         if row.bar {
-            let v = value.map_or(0.0, f32::from_bits);
+            let v = f32::from_bits(value);
             let _id = ui.push_id(row.at);
             ui.progress_bar(v / 100.0)
                 .size([-1.0, 0.0])
@@ -412,7 +398,7 @@ fn group_table(ui: &Ui, group: &Group, wanted: &str) {
         ui.table_next_column();
         ui.text_disabled(row.label);
         if ui.is_item_hovered() {
-            let hex = value.map_or("?".to_owned(), |v| format!("{v:08x}"));
+            let hex = format!("{value:08x}");
             ui.tooltip_text(if row.place == (0, 0) {
                 format!("IDA {:#08x}; {hex}", row.at)
             } else {
@@ -449,7 +435,6 @@ fn push(history: &mut VecDeque<f32>, value: f32) {
     }
 }
 
-/// A reading of the running counters.
 #[derive(Clone, Copy)]
 struct Counts {
     at: std::time::Instant,
@@ -497,7 +482,7 @@ const HISTORY: usize = 240;
 
 /// The readings taken, once a UI frame while the tab is shown (a gap, from another tab, is
 /// not a frame's time).
-fn take_readings(t: &mut Timings) {
+fn take_readings(system: &crate::system::owner::System, t: &mut Timings) {
     let now = Counts {
         at: std::time::Instant::now(),
         frame: crate::platform::frame_counters(),
@@ -511,7 +496,7 @@ fn take_readings(t: &mut Timings) {
         let ms = now.at.duration_since(then.at).as_secs_f32() * 1000.0;
         push(&mut t.frames, ms);
         let ease = |shown: &mut f32, new: f32| *shown += (new - *shown) * SMOOTHING;
-        let screen = crate::platform::screen_pixels().max(1) as f32;
+        let screen = crate::platform::screen_pixels(system).max(1) as f32;
         for (n, shown) in t.frame.iter_mut().enumerate() {
             let d = now.frame[n].wrapping_sub(then.frame[n]) as f32;
             ease(
@@ -560,18 +545,17 @@ fn take_readings(t: &mut Timings) {
     t.last = Some(now);
 }
 
-/// The "Profiler" tab.
-fn profiler(race: &Race, ui: &Ui) {
+fn profiler(o: &Owners<'static>, ui: &Ui) {
+    let race = o.race;
     let course = &race.course;
-    let session = &system().session;
-    let state = &audio().state;
+    let state = &o.audio.state;
     let shared = &race.shared;
     use crate::debug::timing::Stage;
     let mut t = TIMINGS
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    take_readings(&mut t);
-    let fps = f32::from_bits(shared.switches.frame_rate.bits());
+    take_readings(o.system, &mut t);
+    let fps = shared.switches.get().frame_rate.get();
     ui.text(format!("Frame rate (the game's, over 16 frames): {fps:.1}"));
     ui.same_line();
     ui.checkbox("Each part in the graph", &mut t.each);
@@ -641,6 +625,22 @@ fn profiler(race: &Race, ui: &Ui) {
                 "Scene (all its 3D work)",
                 ms(t.stages[Stage::Scene as usize]),
             ),
+            (
+                "  of which the course's faces",
+                ms(t.stages[Stage::CourseEntries as usize]),
+            ),
+            (
+                "  of which the depth-sorted entries",
+                ms(t.stages[Stage::DepthEntries as usize]),
+            ),
+            (
+                "  of which the mirror",
+                ms(t.stages[Stage::Mirror as usize]),
+            ),
+            (
+                "  of which the effects",
+                ms(t.stages[Stage::Effects as usize]),
+            ),
             ("  of which the rasteriser", ms(t.frame[0])),
             ("  of which noting the triangles", ms(t.frame[1])),
             ("Sound commands", ms(t.stages[Stage::SoundTick as usize])),
@@ -654,7 +654,7 @@ fn profiler(race: &Race, ui: &Ui) {
             ("Ticks a frame", format!("{:.1}", t.ticks)),
             (
                 "Cars in the race",
-                format!("{}", shared.view.race_cars.bits()),
+                format!("{}", shared.view.get().race_cars.get()),
             ),
         ],
     );
@@ -683,10 +683,9 @@ fn profiler(race: &Race, ui: &Ui) {
             ("Mode's bits", format!("{:08x}", state.sound_mode.get())),
         ],
     );
-    // The original profile page's items. `dword_6218B8` is the developers' switch: 1 in the
-    // image, changed only by a key of their handler at 0x43B3D6, which nothing calls; that
-    // handler is also all that masks the processor's features into `g_useSse`, `g_use3dNow`
-    // and `dword_621A60`, so "Game uses" stays at none.
+    // The developers' profile page's items. The developers' switch is 1 by default, changed only by
+    // a key of their handler, which nothing calls; that handler is also all that masks the
+    // processor's features into the SSE, 3DNow and MMX switches, so "Game uses" stays at none.
     let names = |flags: [(&'static str, Option<u32>); 3]| {
         let on: Vec<&str> = flags
             .iter()
@@ -704,27 +703,30 @@ fn profiler(race: &Race, ui: &Ui) {
         &[
             (
                 "Course memory",
-                format!("{} KiB", course.lists.course_bytes_total.get() >> 10),
+                format!("{} KiB", course.lists.get().course_bytes_total.get() >> 10),
             ),
             (
                 "Processor has",
                 names([
-                    ("MMX", Some(session.machine.has_mmx.get())),
-                    ("3DNow!", Some(session.machine.has_3dnow.get())),
-                    ("SSE", Some(session.machine.has_sse.get())),
+                    ("MMX", Some(o.system.machine().has_mmx.get())),
+                    ("3DNow!", Some(o.system.machine().has_3dnow.get())),
+                    ("SSE", Some(o.system.machine().has_sse.get())),
                 ]),
             ),
             (
                 "Game uses",
                 names([
-                    ("MMX", value_at(0x621A60)),
-                    ("3DNow!", value_at(0x621A5C)),
-                    ("SSE", value_at(0x621A58)),
+                    ("MMX", Some(o.scene.draw_switches.get().use_mmx.get())),
+                    ("3DNow!", Some(o.scene.draw_switches.get().use_3dnow.get())),
+                    (
+                        "SSE",
+                        Some(u32::from(o.scene.draw_switches.get().use_sse.is_set())),
+                    ),
                 ]),
             ),
             (
                 "Developers' extensions switch",
-                figure(value_at(0x6218B8), Shown::Whole),
+                figure(EXTENSIONS.load(Relaxed), Shown::Whole),
             ),
         ],
     );
@@ -770,67 +772,66 @@ fn parts_graph(ui: &Ui, t: &Timings, total: &[f32], top: f32, height: f32, summa
     }
 }
 
-/// The league tables the watch pages dumped (`debug::draw_league_dump`, 0x427A79: 50 rows of
-/// 8 bytes each, `off_4278DB` ..; `g_leagueRows` was dumped twice).
-const DUMPS: [(&str, &str, usize, usize, usize); 4] = [
+/// A dump's dword by its number.
+type DumpWord = fn(&Race, usize) -> u32;
+
+/// The league tables the watch pages dumped (`debug::draw_league_dump`: 50 rows of 8 bytes
+/// each; the league rows were dumped twice).
+const DUMPS: [(&str, &str, DumpWord, usize, usize); 4] = [
     (
         "League: the ten records' names (g_leagueNames)",
         "`race::copy_league_table` fills them; `physics::compare_split_times` reads them.",
-        0x60410C,
+        |race, n| race.course.league().names[n].get(),
         1,
         10,
     ),
     (
         "League: kept times, sixteen rows of ten (g_leagueRows)",
         "A row a split, a column a record; hundredths of a second.",
-        0x604134,
+        |race, n| race.course.league().rows[n].get(),
         10,
         16,
     ),
     (
         "Car 1's times at the splits (unk_75B02C)",
         "Noted at each split; kept in the player's +0x20C after the race; hundredths of a second.",
-        0x75B02C,
+        |race, n| race.shared.state.results.results[0].data.get_u32(4 * n),
         1,
         16,
     ),
     (
         "Car 2's times at the splits (unk_75B09C)",
         "As car 1's.",
-        0x75B09C,
+        |race, n| race.shared.state.results.results[1].data.get_u32(4 * n),
         1,
         16,
     ),
 ];
 
-/// A row of a dump as text.
-fn dump_row(at: usize, columns: usize, row: usize) -> String {
+fn dump_row(race: &Race, word: DumpWord, columns: usize, row: usize) -> String {
     let figures: Vec<String> = (0..columns)
-        .map(|column| {
-            value_at(at + 4 * (row * columns + column))
-                .map_or("?".to_owned(), |v| format!("{}", v as i32))
-        })
+        .map(|column| format!("{}", word(race, row * columns + column) as i32))
         .collect();
     format!("{row:2}: {}", figures.join("  "))
 }
 
-/// The "Dumps" tab: what the developers' page showed as bytes, read (2026-10-30).
-fn dumps(ui: &Ui) {
+/// The "Dumps" tab: what the developers' page showed as bytes, read.
+fn dumps(race: &Race, ui: &Ui) {
     if ui.button("Write the four to the log") {
-        for (name, _, at, columns, rows) in DUMPS {
-            crate::framework::log(name);
+        for (name, _, word, columns, rows) in DUMPS {
+            crate::logfile::program_log::log(name);
             for row in 0..rows {
-                crate::framework::log(&dump_row(at, columns, row));
+                crate::logfile::program_log::log(&dump_row(race, word, columns, row));
             }
         }
     }
-    for (name, about, at, columns, rows) in DUMPS {
+    for (name, about, word, columns, rows) in DUMPS {
         if !ui.collapsing_header(name, TreeNodeFlags::NONE) {
             continue;
         }
         ui.text_disabled(about);
         for row in 0..rows {
-            ui.text(dump_row(at, columns, row));
+            ui.text(dump_row(race, word, columns, row));
         }
     }
 }
@@ -840,8 +841,7 @@ fn time(t: u32) -> String {
     format!("{}:{:02}.{:02}", t / 6000, t / 100 % 60, t % 100)
 }
 
-/// The "Rivals" tab.
-fn rivals(physics: &Physics, ui: &Ui) {
+fn rivals(so: crate::strings::append_string_by_id::StringOwners<'_>, physics: &Physics, ui: &Ui) {
     let flags = TableFlags::BORDERS | TableFlags::ROW_BG | TableFlags::SCROLL_Y;
     let Some(_table) = ui.begin_table_with_flags("rivals", 4, flags) else {
         return;
@@ -859,13 +859,14 @@ fn rivals(physics: &Physics, ui: &Ui) {
         ui.table_next_column();
         let mut name = Vec::new();
         let _ = crate::strings::append_string_by_id::append_string_by_id(
-            physics.split_tables.rival_names[n].get(),
+            so,
+            physics.split_tables().rival_names[n].get(),
             &mut |run| name.extend_from_slice(run),
         );
         ui.text(name.iter().map(|&b| char::from(b)).collect::<String>());
         ui.table_next_column();
-        ui.text(time(physics.split_tables.rival_scaled[n].get()));
+        ui.text(time(physics.split_tables().rival_scaled[n].get()));
         ui.table_next_column();
-        ui.text(time(physics.split_tables.rival_times[n].get()));
+        ui.text(time(physics.split_tables().rival_times[n].get()));
     }
 }

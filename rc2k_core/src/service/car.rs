@@ -1,8 +1,5 @@
-//! The car's condition in the service area (converted 2026-10-21 from
-//! `service::repair_body` .. `repair_suspension`, `reset_tyre_wear` 0x486EDD and
-//! `repair_car` 0x486F63): each part has a run of the player's wear dwords and a damage
-//! dword; a repair zeroes both. The service area's picture for a car converted the same
-//! day from `service::load_background` 0x470F55 (`background`).
+//! The car's condition in the service area: each part has a run of the player's wear dwords
+//! and a damage dword; a repair zeroes both. Also the service area's picture for a car.
 
 use crate::Invalid;
 use crate::menu::player::Player;
@@ -36,8 +33,7 @@ const TYRE_DAMAGE: usize = 13;
 const CAR_DAMAGE: [usize; 8] = [0, 2, 3, 4, 6, 7, 8, 10];
 
 impl Player {
-    /// The part's run of wear dwords zeroed (`service::apply_repairs` before the work is
-    /// shown).
+    /// The part's run of wear dwords zeroed, before the work is shown.
     pub fn clear_wear(&mut self, part: Part) {
         let (first, dwords, _) = part.places();
         self.parts_wear[first..first + dwords].fill(0);

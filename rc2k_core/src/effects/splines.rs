@@ -1,17 +1,13 @@
-//! The marks' splines' whole-number steps (converted 2026-10-21 from
-//! `effects::add_face_points` 0x4B9E29, `centre_spline_points` 0x4B9F95,
-//! `grade_spline_points` 0x4BA316, `order_spline_points` 0x4BA388, `find_spline_ends`
-//! 0x4BA4F1 and the box of `bound_spline_points` 0x4B9E7D): a spline record (`MarkSpline`, 0xE90 bytes) holds up to 0x80 points of an
-//! object's faces of one kind, with their ids, two values each, a centre and a grade by
-//! height.
+//! The marks' splines' whole-number steps: a spline record (`MarkSpline`, 0xE90 bytes) holds up to
+//! 0x80 points of an object's faces of one kind, with their ids, two values each, a centre and a
+//! grade by height.
 
 use crate::Invalid;
 use crate::effects::points::{Collected, add_points};
 
 /// The most points a record holds.
 pub const MOST_POINTS: u32 = 0x80;
-/// The heights the grades part at (`effects::grade_spline_points`'s; its reading of +0x18 and +0x1C
-/// is overwritten).
+/// The heights the grades part at: constants (the record's own +0x18 and +0x1C are not used).
 pub const LOW: i32 = 0x3830;
 pub const HIGH: i32 = 0x6720;
 /// The grades.
@@ -120,7 +116,7 @@ pub fn order(
 /// What `find_spline_ends` finds in one run of points.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct End {
-    /// The point found (from the run's start), and its value.
+    /// The point found (counted from the run's start), and its value.
     pub at: u32,
     pub value: u32,
     /// The last point read, if any.
@@ -167,7 +163,7 @@ pub fn find_end(start: u32, count: u32, highest: bool, value: impl Fn(u32) -> u3
 /// A record's points' box (`bound_spline_points`): the smallest and the largest in each
 /// part (signed; the largest starts at 0x80000001, so a part of 0x80000000 is never the
 /// largest, and with no points the box is the starting values'), its size (largest less
-/// smallest, wrapping) and its middle (half the size, `sar`, plus the smallest).
+/// smallest, wrapping) and its middle (half the size, shifted arithmetically, plus the smallest).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Bounds {
     pub low: [i32; 3],

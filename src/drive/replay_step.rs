@@ -1,98 +1,85 @@
-//! `drive::replay_step` (0x460B2F): the two-player / replay race's step (`drive::race_tick`'s).
-//! `drive::choose_shown_cars`; the replay's frame kept (`drive::keep_replay_frame`) and,
-//! playing, read (`drive::play_replay_frame`); the skid marks begun again
-//! (`race::init_skidmarks`) unless the first block's clock (+8) is one past +0xF0C, which
-//! takes it. For each car (`g_currentCar` from 0): its input words
-//! (`drive::car_input_words`, recorded or played: `record_inputs_if`, `play_inputs_if`),
-//! its block into `dword_71B404`, `drive::load_car`; running (`unk_71A234`): controls,
-//! gear rules, steering, pedals, the reset key, `physics::car_physics_step` and the
-//! network's step (`net::race_step`, its Rust version); the work car's clocks
-//! (`unk_719FE0`, `unk_719FEC`) + 1; `drive::store_car`. Then the stage's animation, the
-//! race-mode cars, the duel's sound levels, the count down's beeps, the two cars' order,
-//! the hold count, the replay written at its last tenth, the replay's clock.
-//!
-//! Caller: `drive::race_step`'s `drive::race_tick`. Refuses (before anything) a cars' count of 0
-//! or past 8, and what its calls refuse (the cars' blocks, the work car and the physics'
-//! variables put back).
+//! The two-player / replay race's step (`drive::race_tick`'s): `drive::choose_shown_cars`, the
+//! replay's frame kept and, playing, read; the skid marks begun again at a frame change; then
+//! for each car its input words (recorded or played), `drive::load_car`, and, when running,
+//! controls, gear rules, steering, pedals, the reset key, `physics::car_physics_step`, the
+//! network's step, the clocks + 1 and `drive::store_car`; then the stage's animation, the
+//! race-mode cars, the duel's sound levels, the count down's beeps, the two cars' order, the hold
+//! count and the replay's writing and clock. Refuses (before anything) a cars' count of 0 or past
+//! 8, and what its calls refuse (the cars' blocks, the work car and the physics' variables put
+//! back).
 
 use crate::errors::Refused;
-use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use rc2k_core::drive::race_steps;
 
-/// One car's step (inside `pusha` / `popa`: nothing it leaves in the registers goes out).
-fn car_step(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    crate::drive::car_input_words::car_input_words(race, crate::input::owner::input())?;
+/// One car's step.
+fn car_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refused> {
+    let (scene, input, net) = (o.scene, o.input, o.net);
+    crate::drive::car_input_words::car_input_words(race, input, net)?;
     crate::drive::record_inputs_if::record_inputs_if(race)?;
     crate::drive::play_inputs_if::play_inputs_if(race)?;
-    let slot = race_steps::block_slot(race.shared.work.current_car.get());
+    let slot = race_steps::block_slot(race.shared.work.get().current_car.get());
     race.shared
         .work
+        .get()
         .work_block
-        .set(race.shared.work.car_block(slot as usize));
+        .set(race.shared.work.get().car_block(slot as usize));
     crate::drive::load_car::load_car(&race.shared)?;
-    if race.shared.car.driver_kind.get() != 0 {
-        crate::drive::read_car_controls::read_car_controls(race)?;
-        crate::physics::gear_input_rules::gear_input_rules(race);
-        crate::drive::steer_inputs::steer_inputs(race);
+    if race.shared.car().driver_kind.get() != 0 {
+        crate::drive::read_car_controls::read_car_controls(race, scene, net)?;
+        crate::physics::gear_input_rules::gear_input_rules(
+            race.shared.car(),
+            race.shared.physics_tables.get(),
+            race.shared.vars.get(),
+        );
+        crate::drive::steer_inputs::steer_inputs(race, scene);
         crate::drive::pedal_inputs::pedal_inputs(race);
         crate::drive::reset_request::reset_request(race, scene)?;
-        crate::physics::car_physics_step::car_physics_step(race)?;
-        // `net::race_step` reads no register at entry (liveness: its esi "read" at
-        // 0x4644AF is `imul esi, ebp, ..`'s destination); its Rust version still takes
-        // the registers: a local scratch.
-        crate::net::race_step::race_step(race)?;
+        crate::physics::car_physics_step::car_physics_step(o, race)?;
+        crate::net::race_step::race_step(race, net)?;
     }
     race.shared
-        .car
+        .car()
         .step_clock
-        .set(race.shared.car.step_clock.get().wrapping_add(1));
+        .set(race.shared.car().step_clock.get().wrapping_add(1));
     race.shared
-        .car
+        .car()
         .run_ticks
-        .set(race.shared.car.run_ticks.get().wrapping_add(1));
+        .set(race.shared.car().run_ticks.get().wrapping_add(1));
     crate::drive::store_car::store_car(&race.shared)?;
     Ok(())
 }
 
-/// The Rust version. The registers it leaves are read by no caller (liveness: ecx, edi
-/// and esi after `drive::race_tick`'s call have no read point).
-// Converted: `rc2k_core::drive::race_steps::{check_cars, each_car, block_slot,
-// skids_restart}`.
-pub fn replay_step(
-    race: &Race,
-    sound: &crate::sound::owner::Sound,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), Refused> {
+pub fn replay_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refused> {
+    let (sound, scene) = (o.sound, o.scene);
     let shared = &race.shared;
-    race_steps::check_cars(shared.view.race_cars.get())?;
-    crate::drive::choose_shown_cars::choose_shown_cars(race)?;
+    race_steps::check_cars(shared.view.get().race_cars.get())?;
+    crate::drive::choose_shown_cars::choose_shown_cars_in(race, o.net)?;
     crate::drive::keep_replay_frame::keep_replay_frame(race)?;
-    crate::drive::play_replay_frame::play_replay_frame(race)?;
+    crate::drive::play_replay_frame::play_replay_frame(race, o.system)?;
     if race_steps::skids_restart(
-        CAR_BLOCKS.cars[0].step_clock.bits(),
-        CAR_BLOCKS.cars[0].unknown_f0c.bits(),
+        race.car_blocks().cars[0].step_clock.get(),
+        race.car_blocks().cars[0].previous_step_clock.get(),
     ) {
-        // `race::init_skidmarks` reads no register at entry (liveness): a scratch.
         crate::race::stage_prefs::init_skidmarks(race)?;
     }
-    CAR_BLOCKS.cars[0]
-        .unknown_f0c
-        .set_bits(CAR_BLOCKS.cars[0].step_clock.bits());
+    race.car_blocks().cars[0]
+        .previous_step_clock
+        .set(race.car_blocks().cars[0].step_clock.get());
     race_steps::each_car(
-        || shared.work.current_car.get(),
-        || shared.view.race_cars.get(),
-        |n| shared.work.current_car.set(n),
-        || car_step(race, scene),
+        || shared.work.get().current_car.get(),
+        || shared.view.get().race_cars.get(),
+        |n| shared.work.get().current_car.set(n),
+        || car_step(o, race),
     )?;
     crate::drive::replay_check::note(race)?;
-    crate::drive::animate_stage::animate_stage(race)?;
-    crate::drive::race_mode_cars::race_mode_cars(race)?;
-    crate::drive::duel_sound_levels::duel_sound_levels(sound);
-    crate::drive::countdown_beeps::countdown_beeps(race)?;
-    crate::drive::two_car_order::two_car_order(&race.shared)?;
+    crate::drive::animate_stage::animate_stage(race, scene)?;
+    crate::drive::race_mode_cars::race_mode_cars(race, scene)?;
+    crate::drive::duel_sound_levels::duel_sound_levels(race, sound);
+    crate::drive::countdown_beeps::countdown_beeps(race, o.audio)?;
+    crate::drive::two_car_order::two_car_order(race)?;
     crate::drive::hold_count_tick::hold_count_tick(&race.shared);
-    crate::drive::flush_replay_if::flush_replay_if(race)?;
+    crate::drive::flush_replay_if::flush_replay_if(race, o.system)?;
     crate::drive::replay_clock_tick::replay_clock_tick(&race.replay);
     Ok(())
 }

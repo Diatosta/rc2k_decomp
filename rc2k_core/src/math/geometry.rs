@@ -1,16 +1,10 @@
-//! Points and vectors in plain `f32` (converted 2026-10-20 from the x87 code of
-//! `math::turn_scratch_xz` 0x41FEF8 and its siblings, `math::nearest_on_segment` 0x4633DE,
-//! `math::normalise_vector` 0x45C3FE).
+//! Points and vectors in plain `f32`.
 //!
-//! Every step is in the original's order. What the x87 keeps on its stack is an `f64`
-//! here, rounded to `f32` only where the original stores it: at the x87's double
-//! precision, which the game runs at most of the time (control word 0x027F, seen
-//! 2026-10-20), every step rounds as an `f64` step does, so the results are the same bits;
-//! at its extended precision (0x037F, after the game's `finit`) the last bit may differ
-//! (`notes/conversion.md`, the float decision).
+//! Steps keep an `f64` where the x87 keeps its stack and round to `f32` where a value is
+//! stored: at double precision (control word 0x027F) the bits are the same; at extended
+//! precision (0x037F) the last bit may differ.
 
-/// `fistp` under the default rounding: to the nearest, ties to even; what does not fit
-/// (and NaN) is the "integer indefinite", `i32::MIN`.
+/// Rounds to the nearest, ties to even; what does not fit (and NaN) gives `i32::MIN`.
 pub fn fistp64(v: f64) -> i32 {
     let r = v.round_ties_even();
     if r.is_nan() || r < i32::MIN as f64 || r >= 2147483648.0 {
@@ -20,12 +14,12 @@ pub fn fistp64(v: f64) -> i32 {
     }
 }
 
-/// `fistp` of a float loaded from memory.
+/// [`fistp64`] of an `f32`.
 pub fn fistp(v: f32) -> i32 {
     fistp64(v as f64)
 }
 
-/// The sine and cosine tables' entry of an angle (a dword's turn is 2^32; 4096 entries).
+/// The sine and cosine tables' entry of an angle (a turn is 2^32; 4096 entries).
 pub fn turn_entry(angle: u32) -> u32 {
     angle.wrapping_add(0x8_0000) >> 20
 }
@@ -36,8 +30,8 @@ pub fn turn_xz(x: f32, z: f32, sine: f32, cosine: f32) -> (f32, f32) {
     ((x * c + z * s) as f32, (z * c - x * s) as f32)
 }
 
-/// `math::nearest_on_segment`'s block (0x71C384, 21 floats): the ends A and B, the point
-/// O, the result, t, the work and the zero it is compared with.
+/// The block (21 floats) of [`nearest_on_segment`]: the ends A and B, the point O, the
+/// result, t and the work.
 pub mod nearest {
     pub const A: usize = 0;
     pub const B: usize = 3;
@@ -47,7 +41,7 @@ pub mod nearest {
     /// A - O (x, z), B - O (x, z).
     pub const AO: usize = 13;
     pub const BO: usize = 15;
-    /// What the denominator is compared with (0.0 in the game).
+    /// What the denominator is compared with (0.0).
     pub const ZERO: usize = 17;
     /// A - B (x, z), from the two differences.
     pub const AB: usize = 19;
@@ -55,24 +49,24 @@ pub mod nearest {
 }
 
 /// The point of segment AB nearest O, seen from above (x and z only): t = (A - O).(A - B)
-/// over |A - B|^2, 0 when that is equal to the block's zero (or unordered); held to `low`
-/// .. `high` (0 and 1 in the game); the point A + (B - A) t in all three.
+/// over |A - B|^2, 0 when that equals the block's zero (or is unordered); held to `low`
+/// .. `high` (0 and 1); the point is A + (B - A) t in all three.
 pub fn nearest_on_segment(block: &mut [f32; nearest::LEN], low: f32, high: f32) {
     use nearest::*;
     let at = |block: &[f32; LEN], n: usize| block[n] as f64;
-    // Each difference stored (`fstp`).
+    // Each difference rounded to `f32`.
     block[AO] = (at(block, A) - at(block, O)) as f32;
     block[AO + 1] = (at(block, A + 2) - at(block, O + 2)) as f32;
     block[BO] = (at(block, B) - at(block, O)) as f32;
     block[BO + 1] = (at(block, B + 2) - at(block, O + 2)) as f32;
     block[AB] = (at(block, AO) - at(block, BO)) as f32;
     block[AB + 1] = (at(block, AO + 1) - at(block, BO + 1)) as f32;
-    // These three stay on the stack.
+    // These three stay `f64`.
     let numerator = at(block, AO) * at(block, AB) + at(block, AO + 1) * at(block, AB + 1);
     let other = at(block, BO) * at(block, AB) + at(block, BO + 1) * at(block, AB + 1);
     let denominator = numerator - other;
     let zero = at(block, ZERO);
-    // `fcom`: C3 for equal or unordered.
+    // Equal or unordered.
     if denominator == zero || denominator.is_nan() || zero.is_nan() {
         block[T] = f32::from_bits(0);
     } else {
@@ -92,10 +86,10 @@ pub fn nearest_on_segment(block: &mut [f32; nearest::LEN], low: f32, high: f32) 
     }
 }
 
-/// What normalising the x87 way leaves.
+/// What normalising a vector the x87 way leaves.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Normalised {
-    /// The squares' sum, as the original leaves its bits in eax.
+    /// The squares' sum.
     pub sum: f32,
     pub length: f32,
     /// The vector, a component that comes out minus zero made plus zero.
@@ -104,11 +98,9 @@ pub struct Normalised {
     pub reciprocal: f32,
 }
 
-/// The vector made one long, the x87 way: the squares' sum; its square root from two
-/// tables (the float's bits 15 .. 22 pick one of 256 in `roots`, its exponent one of
-/// `exponent_roots`), the two multiplied; each component times 1 over that. `None` for a
-/// length equal to `nothing` (or unordered): the original ends there with the length on
-/// the x87's stack.
+/// The vector made one long: the squares' sum; its square root from two tables (bits
+/// 15 .. 22 pick one of 256 in `roots`, the exponent one of `exponent_roots`), multiplied;
+/// each component times 1 over that. `None` for a length equal to `nothing` (or unordered).
 pub fn normalise(
     v: [f32; 3],
     roots: &[f32; 256],
@@ -116,12 +108,12 @@ pub fn normalise(
     nothing: f32,
 ) -> Option<Normalised> {
     let w = v.map(|x| x as f64);
-    // The sum stored (`fstp`), its bits picking the roots.
+    // The sum rounded to `f32`; its bits pick the roots.
     let sum = (w[0] * w[0] + (w[1] * w[1] + w[2] * w[2])) as f32;
     let bits = sum.to_bits();
     let root = roots[((bits >> 15) & 0xFF) as usize] as f64;
     let exponent_root = exponent_roots[((bits & 0x7F80_0000) >> 23) as usize] as f64;
-    // The length stays on the stack (`fst` stores a rounded copy).
+    // The length stays `f64`.
     let length = root * exponent_root;
     let nothing = nothing as f64;
     if length == nothing || length.is_nan() || nothing.is_nan() {
@@ -146,8 +138,8 @@ pub struct NormalisedFour {
     pub vector: [f32; 4],
 }
 
-/// The SSE way. The original's `rsqrtss` and `rcpss` are approximations that differ
-/// between processors; here they are exact (a decided difference: within 1 part in 2^11).
+/// The SSE way, with exact results in place of the processors' estimates (within 1 part
+/// in 2^11 of them).
 pub fn normalise_four(v: [f32; 4]) -> NormalisedFour {
     let squares = v.map(|x| x * x);
     let sum = squares[0] + squares[1] + squares[2];

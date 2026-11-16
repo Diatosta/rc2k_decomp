@@ -1,34 +1,21 @@
-//! `gfx::write_screen_pcx` (0x411E0C): the locked surface (`g_surface`) written as a
-//! 24-bit PCX file: the header (`g_pcxHeader`, 0x80 bytes zeroed: 0x0A, version 5, run
-//! coded, 8 bits; 300 dpi both ways; right and bottom the size less one; the 16-colour
-//! palette greys 0 .. 15; three planes of `width` bytes), then each row taken apart
-//! (`gfx::pixel_to_components`, 16- or 32-bit pixels) into red, green and blue planes in
-//! `byte_94F6F8` and run coded as one line of `3 * width` bytes (runs to 63, a lone byte
-//! below 0xC0 as itself), through the stream `g_pictureStream` (`files::open_stream` mode
-//! 1, `files::write_stream_block`, `files::write_stream_byte`, `files::close_stream`).
-//! The file is `dword_4F49C8` when set, else the game's screenshot name `000.pcx`
-//! (0x4F52BC), its three digits one more first (999 goes round to 000). Here the callers
-//! that set `dword_4F49C8` (and put it back after) pass the name instead.
+//! Writes the locked surface as a 24-bit PCX file: a header (0x0A, version 5, run coded, 8 bits,
+//! 300 dpi both ways, right and bottom the size less one, the 16-colour palette greys 0 .. 15,
+//! three planes of `width` bytes), then each row taken apart into red, green and blue planes and
+//! run coded as one line of `3 * width` bytes (runs to 63, a lone byte below 0xC0 as itself). The
+//! file is `name` when set, else the next screenshot name `000.pcx` (999 goes round to 000). The
+//! runs go over the planes' ends (the game's reader does not mind).
 //!
-//! In:  nothing (the surface locked)
-//!
-//! A 16-bit pixel is read with `mov ax`: the conversion gets the upper half of eax as it
-//! was (reproduced, eax followed through). Pixels of other sizes are not read: the last
-//! value of eax is used (reproduced). The runs go over the planes' ends (the format wants
-//! each plane's line coded alone; the game's own reader does not mind).
-//!
-//! Callers: `gfx::take_screenshot`, `race::viewer_snapshot`, `race::replay_screenshot`. Refuses
-//! what `open_stream` refuses.
+//! Kept as the game's screenshots had it: a 16-bit pixel goes into the low half of the running
+//! value `eax`, whose upper half the conversion gets as it was, and pixels of other sizes are not
+//! read (the last value is used). Refuses what `open_stream` refuses.
 
 use crate::errors::Refused;
 use crate::files::stream::{Stream, with_stream};
 use crate::files::write_stream_block::write_stream_all;
 use crate::files::write_stream_byte::write_stream_byte;
-use crate::gfx::owner::gfx;
 use crate::gfx::shots::Shots;
 
-/// The header's first 0x80 bytes for a surface `width` x `height` (converted:
-/// `rc2k_core::gfx::pcx::screen_header`).
+/// The header's first 0x80 bytes for a surface `width` x `height`.
 pub use rc2k_core::gfx::pcx::screen_header as header;
 
 /// The screenshot name's three digits one more (999 goes round to 000).
@@ -43,12 +30,13 @@ fn next_shot_name(shots: &Shots) {
     }
 }
 
-/// The Rust version: whether it worked (carry clear). `name` the file's path (without its
-/// NUL), or None for the next numbered screenshot.
+/// Whether it worked. `name` is the file's path without its NUL, or None for the next numbered
+/// screenshot.
 pub fn write_screen_pcx(
     shots: &Shots,
     name: Option<&[u8]>,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<bool, Refused> {
     let header_bytes = header(
         gfx.drawing.draw_surface.width.get(),
@@ -66,25 +54,28 @@ pub fn write_screen_pcx(
         if !crate::files::open_stream::open_stream(stream, &path, 1)? {
             return Ok(false);
         }
-        let mut ok = write_stream_all(stream, &header_bytes)? && rows(stream)?;
+        let mut ok = write_stream_all(stream, &header_bytes)? && rows(stream, gfx, system)?;
         let closed = crate::files::close_stream::close_stream(stream)?;
         ok = ok && closed;
         Ok(ok)
     })
 }
 
-/// The rows; false when a write failed. Converted: `rc2k_core::gfx::pcx::screen_planes` and
-/// `encode_line`; the planes are left in the game's buffer, as the original leaves them.
-fn rows(stream: &mut Stream) -> Result<bool, Refused> {
-    let gfx = gfx();
-    let rows = crate::gfx::rows::Rows::surface()?;
-    // eax as the original has it: the block's byte count after the header (0x80).
+/// The rows; false when a write failed.
+fn rows(
+    stream: &mut Stream,
+    gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
+) -> Result<bool, Refused> {
+    let rows = crate::gfx::rows::Rows::surface(gfx)?;
+    // The block's byte count after the header (0x80).
     let mut eax: u32 = 0x80;
     let width = gfx.drawing.draw_surface.width.get();
     let mut y = 0u32;
     loop {
-        let format = crate::gfx::pixel_format::layout(gfx.drawing.draw_surface.format.get())?;
-        // The row's pixels, as the original reads them (none for other sizes).
+        let format =
+            crate::gfx::pixel_format::layout(system, gfx, gfx.drawing.draw_surface.format.get())?;
+        // The row's pixels (none for other sizes).
         let bits = gfx.drawing.draw_surface.bits_per_pixel.get();
         let pixels = match bits {
             0x10 => rows.read(y, 0, 2 * width as usize, "the surface")?,

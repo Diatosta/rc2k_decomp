@@ -1,25 +1,21 @@
-//! The installer's page actions (converted 2026-10-21 from `install::mark_main_page`
-//! 0x4141EF, `mode_page` 0x41422B, `drive_page` 0x41425E, `folder_page` 0x4142F5,
-//! `language_page` 0x414199, `dxsetup_page` 0x41432F and `finish_page` 0x414347): what a
-//! page sets up at its start (ebx 0) and takes at its end (ebx negative), and which of its
-//! items are marked. An item's first byte: 0x40 hidden, 0x80 not to be chosen. And the
-//! pages' walk (`install::run_pages` 0x4144AA, converted the same day): an entry is a
-//! page's list and, after it, the entries its answers go to.
+//! The installer's page actions: what a page sets up at its start and takes at its end (a negative
+//! argument), and which items are marked (an item's first byte: 0x40 hidden, 0x80 not to be
+//! chosen). And the pages' walk: an entry is a page's list and the entries its answers go to.
 
 /// When a page action is called.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum When {
-    /// ebx 0.
+    /// The argument is 0.
     Start,
-    /// ebx negative.
+    /// The argument is negative.
     End,
-    /// Any other ebx.
+    /// Any other argument.
     Other,
 }
 
 impl When {
-    pub fn of(ebx: u32) -> When {
-        match ebx as i32 {
+    pub fn of(argument: u32) -> When {
+        match argument as i32 {
             0 => When::Start,
             n if n < 0 => When::End,
             _ => When::Other,
@@ -27,20 +23,19 @@ impl When {
     }
 }
 
-/// An item mark.
+/// The item marks: hidden, and not to be chosen.
 pub const HIDDEN: u8 = 0x40;
 pub const UNUSABLE: u8 = 0x80;
 
 /// A change to an item's first byte: `(offset in the list, or, and)`, made in order.
 pub type Mark = (u32, u8, u8);
 
-/// The update script's title (the list's `[edi+2Ah]`).
+/// The string id of the update script's title.
 pub const UPDATE_TITLE: u16 = 0xBD;
 
-/// The main page's marks, in the original's order: not this version, "play" (+0x28)
-/// unusable; no installation, "uninstall" (+0x38) unusable; registration not offered, its
-/// item (+0x48) hidden; for the update script, "play" usable again and the other two
-/// hidden.
+/// The main page's marks: not this version, "play" (+0x28) unusable; no installation, "uninstall"
+/// (+0x38) unusable; registration not offered, its item (+0x48) hidden; for the update script,
+/// "play" usable again and the other two hidden.
 pub fn main_page_marks(
     same_version: bool,
     installed: bool,
@@ -76,10 +71,9 @@ pub fn mode_highlight(media_mode: u32) -> u32 {
 pub const DRIVE_TEXTS: u32 = 0x1A;
 pub const DRIVE_TEXT: u32 = 0x10;
 
-/// The drive page at its start: the place of the typed letter (lowered) among the drives'
-/// texts (`letter_at`, asked in order; 0x1A when none: the search stops there), and the
-/// highlight it gives, that place plus 2, when that is one of the page's `items`
-/// (compared as bytes).
+/// The drive page at its start: the place of the typed letter (lowered) among the drives' texts
+/// (`letter_at`, asked in order; 0x1A when none), and the highlight it gives, that place plus 2,
+/// when that is one of the page's `items` (compared as bytes).
 pub fn drive_highlight(letter: u8, letter_at: impl Fn(u32) -> u8, items: u8) -> (u32, Option<u32>) {
     let mut place = 0u32;
     while letter_at(place) != letter && place < DRIVE_TEXTS {
@@ -106,14 +100,14 @@ pub fn hidden_notices(problem: u32) -> (bool, bool) {
     (problem != BAD_FOLDER, problem != NO_ROOM)
 }
 
-/// Whether the language page is passed over (its list hidden): this version installed
-/// already, or at most one language (unsigned).
+/// Whether the language page is passed over (its list hidden): this version installed already,
+/// or at most one language (unsigned).
 pub fn language_page_skipped(same_version: bool, languages: u32) -> bool {
     same_version || languages <= 1
 }
 
-/// The language page's items past the languages, hidden: from item `languages` on, 9 less
-/// the languages of them (wrapping, as the original's count; 0: none).
+/// The language page's items past the languages, hidden: from item `languages` on, 9 less the
+/// languages of them (wrapping; 0: none).
 pub fn hidden_languages(languages: u32) -> (u32, u32) {
     (languages.wrapping_mul(0x10), 9u32.wrapping_sub(languages))
 }
@@ -123,7 +117,7 @@ pub fn runs_dxsetup(answer: u8) -> bool {
     answer == 1
 }
 
-/// The last page: answer 2 shows the readme (`byte_51BE21` 5, the answer made 1).
+/// The last page: answer 2 shows the readme (`InstallerNames.script_mark` 5, the answer made 1).
 pub fn shows_readme(answer: u8) -> bool {
     answer == 2
 }

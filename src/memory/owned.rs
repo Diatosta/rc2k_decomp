@@ -1,4 +1,4 @@
-//! A typed value Rust owns in place of a block of the game's heap (phase 12): the table is
+//! A typed value Rust owns in place of a block of the game's heap: the table is
 //! a struct with named fields, not bytes at offsets. It is
 //! taken as `memory::allocate` took the block (counted on the same list, so the game's
 //! "MEM:" lines are unchanged) and given back with that list.
@@ -8,34 +8,18 @@
 //! for itself). Another thread's step is waited for.
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::{MemoryList, with_figures};
-use crate::pointers::{load_value, store_value};
+use crate::memory::{HeldList, ListCells, with_figures};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
 
 /// `bytes` counted on `list` as `memory::allocate` counts a block (the list's total, the
 /// memory figures). Refuses what `allocate` refuses: a size that with
 /// the header wraps.
-pub fn count_on(list: &dyn crate::pointers::Store, bytes: u32) -> Result<(), Refused> {
+pub fn count_on(list: &impl HeldList, bytes: u32) -> Result<(), Refused> {
     check_count(bytes)?;
-    let mut l = load_value::<MemoryList>(list, 0)?;
+    let mut l = list.get();
     l.total = l.total.wrapping_add(bytes);
-    store_value(list, 0, l)?;
-    with_figures(|f| f.taken(bytes));
-    Ok(())
-}
-
-/// `count_on` for a list that is a computed place; refuses none.
-pub fn count_on_at(list: crate::pointers::GamePtr, bytes: u32) -> Result<(), Refused> {
-    check_count(bytes)?;
-    if list.is_null() {
-        return Err(BadInput("no list, or a size that wraps").into());
-    }
-    // Stores type a list by its first dword: the record runs on past that field.
-    let at = list.unbounded();
-    let mut l = at.read::<MemoryList>("a memory list")?;
-    l.total = l.total.wrapping_add(bytes);
-    at.write(l, "a memory list")?;
+    list.set(l);
     with_figures(|f| f.taken(bytes));
     Ok(())
 }
@@ -52,7 +36,7 @@ fn check_count(bytes: u32) -> Result<(), Refused> {
 /// only while one function runs. Sized as the game's block was (whole pages less its
 /// header), so a read just past `bytes` gives zeros as it did. Refuses what `count_on`
 /// refuses.
-pub fn counted(list: &dyn crate::pointers::Store, bytes: u32) -> Result<Vec<u8>, Refused> {
+pub fn counted(list: &ListCells, bytes: u32) -> Result<Vec<u8>, Refused> {
     count_on(list, bytes)?;
     Ok(vec![0; block_len(bytes)])
 }
@@ -108,25 +92,8 @@ impl<T> Owned<T> {
     }
 
     /// `value` taken, `bytes` (the game's block size) counted on `list`.
-    pub fn take(
-        &self,
-        list: &dyn crate::pointers::Store,
-        bytes: u32,
-        value: T,
-    ) -> Result<(), Refused> {
+    pub fn take(&self, list: &impl HeldList, bytes: u32, value: T) -> Result<(), Refused> {
         count_on(list, bytes)?;
-        *self.lock() = Some(Box::new(value));
-        Ok(())
-    }
-
-    /// `take` on a list that is a computed place (a record by offset).
-    pub fn take_at(
-        &self,
-        list: crate::pointers::GamePtr,
-        bytes: u32,
-        value: T,
-    ) -> Result<(), Refused> {
-        count_on_at(list, bytes)?;
         *self.lock() = Some(Box::new(value));
         Ok(())
     }
@@ -137,7 +104,7 @@ impl<T> Owned<T> {
     }
 
     /// The value set without counting it: the 32-bit build's tests of code that reads it.
-    #[cfg(all(test, target_arch = "x86"))]
+    #[cfg(test)]
     pub fn set(&self, value: T) {
         *self.lock() = Some(Box::new(value));
     }
@@ -160,88 +127,15 @@ impl<T> Owned<T> {
     }
 }
 
-/// As `Owned`, for what the game's own thread alone reaches and reaches all the time (the course
-/// and the objects, many times a physics tick): the value in that thread's storage, so a step
-/// is a borrow flag and no lock. Another thread sees none taken, and is refused for it.
-pub struct ThreadOwned<T: 'static> {
-    value: &'static std::thread::LocalKey<std::cell::RefCell<Option<T>>>,
-    what: &'static str,
-}
-
-impl<T> ThreadOwned<T> {
-    pub const fn new(
-        value: &'static std::thread::LocalKey<std::cell::RefCell<Option<T>>>,
-        what: &'static str,
-    ) -> Self {
-        Self { value, what }
-    }
-
-    /// `value` taken, `bytes` (the game's block size) counted on `list`.
-    pub fn take(
-        &self,
-        list: &dyn crate::pointers::Store,
-        bytes: u32,
-        value: T,
-    ) -> Result<(), Refused> {
-        count_on(list, bytes)?;
-        self.set(value);
-        Ok(())
-    }
-
-    /// Given back (its list's total is counted down by `memory::free_list`).
-    pub fn give_back(&self) {
-        self.value.with(|v| *v.borrow_mut() = None);
-    }
-
-    /// The value set without counting it: tests of code that reads it, or a part moved out
-    /// of a block that stays counted (`race::scene_points`).
-    pub fn set(&self, value: T) {
-        self.value.with(|v| *v.borrow_mut() = Some(value));
-    }
-
-    pub fn is_taken(&self) -> bool {
-        self.value.with(|v| v.borrow().is_some())
-    }
-
-    /// `f` on the value. Refuses none taken and a step inside one on the same value.
-    #[inline]
-    pub fn with<R>(&self, f: impl FnOnce(&mut T) -> R) -> Result<R, BadInput> {
-        self.value.with(|v| {
-            let mut held = v
-                .try_borrow_mut()
-                .map_err(|_| BadInput("a step inside a step on the same value"))?;
-            match held.as_mut() {
-                Some(value) => Ok(f(value)),
-                None => Err(BadInput(self.what)),
-            }
-        })
-    }
-}
-
-/// A `ThreadOwned` static and its thread's storage.
-macro_rules! thread_owned {
-    ($(#[$doc:meta])* $vis:vis static $name:ident: $t:ty = $what:expr;) => {
-        $(#[$doc])*
-        $vis static $name: $crate::memory::owned::ThreadOwned<$t> = {
-            thread_local! {
-                static VALUE: std::cell::RefCell<Option<$t>> =
-                    const { std::cell::RefCell::new(None) };
-            }
-            $crate::memory::owned::ThreadOwned::new(&VALUE, $what)
-        };
-    };
-}
-pub(crate) use thread_owned;
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn taken_counted_lent_and_given_back() {
-        let _lock = crate::store::test_lock();
+        let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
-        let l = crate::memory::ListCells::new(MemoryList {
+        let l = crate::memory::ListCells::new(crate::memory::MemoryList {
             head: 0,
             total: 0,
             cursor: 0,

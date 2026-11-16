@@ -1,43 +1,26 @@
-//! `physics::value_notice` (0x45B357): notice 0xCE by `dword_71A24C` against 300 (the
-//! sign of the difference): at 300 or more, with no notice shown (`dword_71A700` 0) and
-//! 0xCE not the last (`dword_71A6FC`), `dword_71A6F4` = 0xCE and `dword_71A704` = 0;
-//! below 300 with 0xCE the last, `dword_71A700` and `dword_71A6FC` 0. What the figure is
-//! is not known.
+//! Notice 0xCE by `turned_steps` against 300: at 300 or more, with no notice shown (`notice_shown`
+//! 0) and 0xCE not the last (`notice_last`), `notice_id` = 0xCE and `notice_time` = 0; below 300
+//! with 0xCE the last, `notice_shown` and `notice_last` = 0. What the figure is is not known.
 //!
-//! Caller: `physics::car_physics_step` (0x43B9AE), its last call, every physics step.
+//! Caller: `physics::car_physics_step`, its last call, every physics step.
 
-use crate::race::owner_shared::Shared;
-use crate::session::Cell32;
+use crate::physics::car_store::Car;
+use crate::physics::cells::set_changed;
 use rc2k_core::physics::notices::Notice;
 
-// Converted: `rc2k_core::physics::notices::Notice::value_notice`.
-fn core(v: &[&dyn Cell32]) {
+// Core: `rc2k_core::physics::notices::Notice::value_notice`.
+pub fn value_notice(car: &Car) {
     let was = Notice {
-        shown: v[1].bits(),
-        last: v[2].bits(),
-        id: v[3].bits(),
-        time: v[4].bits(),
+        shown: car.notice_shown.get(),
+        last: car.notice_last.get(),
+        id: car.notice_id.get(),
+        time: car.notice_time.get(),
         ..Notice::default()
     };
     let mut n = was;
-    n.value_notice(v[0].bits());
-    crate::physics::cells::set_changed(v[3], was.id, n.id);
-    crate::physics::cells::set_changed(v[4], was.time, n.time);
-    crate::physics::cells::set_changed(v[1], was.shown, n.shown);
-    crate::physics::cells::set_changed(v[2], was.last, n.last);
-}
-
-fn game(shared: &Shared) -> Vec<&dyn Cell32> {
-    vec![
-        &shared.car.turned_steps as &dyn Cell32,
-        &shared.car.notice_shown,
-        &shared.car.notice_last,
-        &shared.car.notice_id,
-        &shared.car.notice_time,
-    ]
-}
-
-/// The Rust version.
-pub fn value_notice(shared: &Shared) {
-    core(&game(shared));
+    n.value_notice(car.turned_steps.get());
+    set_changed(&car.notice_id, was.id, n.id);
+    set_changed(&car.notice_time, was.time, n.time);
+    set_changed(&car.notice_shown, was.shown, n.shown);
+    set_changed(&car.notice_last, was.last, n.last);
 }

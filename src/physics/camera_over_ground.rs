@@ -1,48 +1,40 @@
-//! `physics::camera_over_ground` (0x438CEC): whether there is ground under the camera
-//! and a half-unit (0x8000) to either side across its heading (`unk_71A688`,
-//! `math::turn_point_xz` of (-0x8000, y, 0) and (0x8000, y, 0)), each probe from its own
-//! last face (`unk_71AEC8`, `unk_71AECC`, `unk_71AED0`; `physics/camera_ground.rs`).
-//! CF clear when all three are found; the first not found sets CF and ends it.
+//! Whether there is ground under the camera and under points half a unit (0x8000) to either side
+//! of it across its heading; each probe starts from its own last face (`camera_ground_faces`).
+//! True only when all three are found; the first one not found ends it.
 //!
-//! Caller: `physics::camera_avoid_ground` (four). Refuses what `count_ground_probe` refuses.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
+//! Caller: `physics::camera_avoid_ground`. Refuses what `count_ground_probe` refuses.
 
 use crate::errors::Refused;
-use crate::math::turn_point_xz::turn_point_xz;
+use crate::math::rotate_point_about_y::rotate_point_about_y;
 use crate::physics::camera_ground::probe_at;
-use crate::race::owner::Race;
+use crate::physics::step_families::CameraGroundInputs;
 use rc2k_core::physics::camera_ground::SIDES;
 
-/// The Rust version: whether the camera and both sides are over ground (CF clear). The
-/// registers it leaves are read by none of its callers.
-// Converted: `rc2k_core::physics::camera_ground::SIDES`.
+/// Whether the camera and both sides are over ground.
+// Core: `rc2k_core::physics::camera_ground::SIDES`.
 pub fn camera_over_ground(
-    race: &Race,
+    engine_tables: &crate::scene::engine_tables_store::EngineTables,
+    c: &CameraGroundInputs<'_>,
     scene: &crate::scene::owner::Scene,
 ) -> Result<bool, Refused> {
     if !probe_at(
-        race,
-        race.shared.car.camera_position[0].get(),
-        race.shared.car.camera_position[2].get(),
-        &race.shared.car.camera_ground_faces[0],
+        c,
+        c.car.camera_position[0].get(),
+        c.car.camera_position[2].get(),
+        &c.car.camera_ground_faces[0],
         scene,
     )? {
         return Ok(false);
     }
-    for (side, slot) in SIDES
-        .into_iter()
-        .zip(&race.shared.car.camera_ground_faces[1..])
-    {
-        race.course.course.ground_face_last.set(slot.get());
-        // The y (the original's ebx, a leftover) only goes through the scratch point,
-        // which nothing reads after: 0 here.
-        let [x, _, z, _] = turn_point_xz(side as i32, 0, 0, race.shared.car.camera_heading.get());
+    for (side, slot) in SIDES.into_iter().zip(&c.car.camera_ground_faces[1..]) {
+        c.course.course.get().ground_face_last.set(slot.get());
+        // The y only goes through the scratch point, which nothing reads after: 0 here.
+        let [x, _, z, _] =
+            rotate_point_about_y(engine_tables, side as i32, 0, 0, c.car.camera_heading.get());
         if !probe_at(
-            race,
-            x.wrapping_add(race.shared.car.camera_position[0].get()),
-            z.wrapping_add(race.shared.car.camera_position[2].get()),
+            c,
+            x.wrapping_add(c.car.camera_position[0].get()),
+            z.wrapping_add(c.car.camera_position[2].get()),
             slot,
             scene,
         )? {

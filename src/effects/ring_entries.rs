@@ -1,29 +1,27 @@
-//! The marks' ring of 0x400 entries of 0x94 bytes (`g_marksRingBlock`, 0x25000 bytes of the
-//! game's heap on `stru_935620`, taken by `effects::set_up_surface`): Rust's since phase 12
-//! (2026-10-27), counted on the list as the game's block was, given back by
-//! `effects::tidy_marks`. An entry is named by its number + 1 (0 none), in `RING_WORK.cursor`
-//! / `block` and in the entries' links (+0 the one before, +4 the one after) as the
-//! original held their addresses. Each field keeps its offset in the original's record.
+//! The effects' ring of 0x400 entries of 0x94 bytes (0x25000 bytes, taken by
+//! `effects::set_up_surface`), counted on the ring list as the game's block was, given back by
+//! `effects::tidy_marks`. An entry is named by its number + 1 (0 none), in `RingWork.cursor` /
+//! `block` and in the entries' links (+0 the one before, +4 the one after). Each field keeps its
+//! offset in the record.
 
-#[cfg(test)]
-use crate::effects::owner::effects;
 use crate::effects::ring_store::Ring;
 use crate::errors::BadInput;
 use crate::math::x87_float::{self as bh, X};
-use std::mem::size_of;
+#[cfg(test)]
+use crate::test_support::own::effects;
 
 /// The entries.
 pub const ENTRIES: u32 = 0x400;
 /// An entry's bytes.
+#[cfg(test)]
 pub const ENTRY_LEN: u32 = 0x94;
 /// The block's bytes, as counted.
 pub const RING_BYTES: u32 = 0x2_5000;
 
-/// One ring entry: 37 dwords with the offsets of the original's record (a float is kept as its
-/// bits, as the x87 blocks load and store them). The three-axis fields are arrays x, y, z.
+/// One ring entry: 37 dwords (the size, alpha and pull fields stay dwords: kinds differ in
+/// whether they hold a float or a whole number). The three-axis fields are arrays x, y, z.
 /// Fields no code reads or writes by name are `unknown_<offset>`.
-#[repr(C)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Entry {
     /// 0x00: The link to the entry before it in the ring (an entry number + 1).
     pub prev: u32,
@@ -33,18 +31,18 @@ pub struct Entry {
     pub emitter_tag: u32,
     /// 0x0C: The particle's kind (1, 5, 6, 0xB, 0xD, 0x10 ..).
     pub kind: u32,
-    /// 0x10: Its place (float bits).
-    pub place: [u32; 3],
+    /// 0x10: Its place.
+    pub place: [f32; 3],
     /// 0x1C: Its last place (the streaks), kept for the next frame's segment.
-    pub last_place: [u32; 3],
+    pub last_place: [f32; 3],
     /// 0x28: The height of the ground under it: it dies when its y is below this.
-    pub ground_y: u32,
-    /// 0x2C: Its motion a frame (float bits). It lies 0x1C after the place, as the place plus
+    pub ground_y: f32,
+    /// 0x2C: Its motion a frame. It lies 0x1C after the place, as the place plus
     /// the motion times the ticks is how it moves.
-    pub motion: [u32; 3],
+    pub motion: [f32; 3],
     /// 0x38: The burst particles' extra push (three floats; the car's +0x4C .. +0x54 times
     /// minus an eighth, x first).
-    pub push: [u32; 3],
+    pub push: [f32; 3],
     /// 0x44: Three dwords no emitter sets (0 from the emitter that clears them).
     pub spare: [u32; 3],
     /// 0x50: The sprite's angle.
@@ -55,13 +53,13 @@ pub struct Entry {
     pub cell: u32,
     /// 0x5C: How fast the sprite's cell advances with its life (read by the draw of kinds
     /// 0x10, 0x11; no emitter writes it, so it is 0 as the ring takes it).
-    pub cell_rate: u32,
+    pub cell_rate: f32,
     /// 0x60: The sprite's size.
     pub size: u32,
     /// 0x64: Kind 1's size factor (a float): the size grows by it times `k1_size`; pulled
     /// toward 65536 while the entry is near the car and faces it.
-    pub size_factor: u32,
-    /// 0x68: The car it was emitted for (a `marks_settings_store::car_handle`).
+    pub size_factor: f32,
+    /// 0x68: The car it was emitted for (a `effects_settings_store::car_handle`).
     pub car: u32,
     /// 0x6C: The emitting car's +0x88 (its pace), kept by the emitters of kinds 6, 0xD, 0x15.
     pub car_pace: u32,
@@ -70,19 +68,20 @@ pub struct Entry {
     /// 0x74: The sprite's alpha.
     pub alpha: u32,
     /// 0x78: How much of the alpha goes a tick.
-    pub alpha_fade: u32,
+    pub alpha_fade: f32,
     /// 0x7C: The limits the object's box extents are tested against (kinds 6, 0x15, 0x10,
     /// 0x11); no emitter writes them, so they are 0 as the ring takes it.
     pub box_limit: [u32; 2],
     /// 0x84: The ticks of life left.
     pub life: u32,
-    pub unknown_88: u32,
-    pub unknown_8c: u32,
+    /// 0x88: no emitter writes it and no ring step reads it (only the tests' word copies touch it);
+    /// an unused word.
+    pub unused_88: u32,
+    /// 0x8C: as 0x88, an unused word.
+    pub unused_8c: u32,
     /// 0x90: The emitting car's tag (its object's +0x1C, 24 bits), for the draw lists.
     pub car_tag: u32,
 }
-
-const _: () = assert!(size_of::<Entry>() == ENTRY_LEN as usize);
 
 #[cfg(test)]
 impl Entry {
@@ -95,27 +94,27 @@ impl Entry {
             n += v.len();
         };
         push(&[self.prev, self.next, self.emitter_tag, self.kind]);
-        push(&self.place);
-        push(&self.last_place);
-        push(&[self.ground_y]);
-        push(&self.motion);
-        push(&self.push);
+        push(&self.place.map(f32::to_bits));
+        push(&self.last_place.map(f32::to_bits));
+        push(&[self.ground_y.to_bits()]);
+        push(&self.motion.map(f32::to_bits));
+        push(&self.push.map(f32::to_bits));
         push(&self.spare);
         push(&[
             self.angle,
             self.angle_rate,
             self.cell,
-            self.cell_rate,
+            self.cell_rate.to_bits(),
             self.size,
-            self.size_factor,
+            self.size_factor.to_bits(),
             self.car,
             self.car_pace,
             self.size_goal,
             self.alpha,
-            self.alpha_fade,
+            self.alpha_fade.to_bits(),
         ]);
         push(&self.box_limit);
-        push(&[self.life, self.unknown_88, self.unknown_8c, self.car_tag]);
+        push(&[self.life, self.unused_88, self.unused_8c, self.car_tag]);
         assert_eq!(n, w.len());
         w
     }
@@ -127,34 +126,34 @@ impl Entry {
             next: w[1],
             emitter_tag: w[2],
             kind: w[3],
-            place: [w[4], w[5], w[6]],
-            last_place: [w[7], w[8], w[9]],
-            ground_y: w[10],
-            motion: [w[11], w[12], w[13]],
-            push: [w[14], w[15], w[16]],
+            place: [w[4], w[5], w[6]].map(f32::from_bits),
+            last_place: [w[7], w[8], w[9]].map(f32::from_bits),
+            ground_y: f32::from_bits(w[10]),
+            motion: [w[11], w[12], w[13]].map(f32::from_bits),
+            push: [w[14], w[15], w[16]].map(f32::from_bits),
             spare: [w[17], w[18], w[19]],
             angle: w[20],
             angle_rate: w[21],
             cell: w[22],
-            cell_rate: w[23],
+            cell_rate: f32::from_bits(w[23]),
             size: w[24],
-            size_factor: w[25],
+            size_factor: f32::from_bits(w[25]),
             car: w[26],
             car_pace: w[27],
             size_goal: w[28],
             alpha: w[29],
-            alpha_fade: w[30],
+            alpha_fade: f32::from_bits(w[30]),
             box_limit: [w[31], w[32]],
             life: w[33],
-            unknown_88: w[34],
-            unknown_8c: w[35],
+            unused_88: w[34],
+            unused_8c: w[35],
             car_tag: w[36],
         }
     }
 }
 
 /// The ring made: each entry linked to its neighbours, counted on `list`.
-pub fn take(ring: &Ring, list: &dyn crate::pointers::Store) -> Result<(), crate::errors::Refused> {
+pub fn take(ring: &Ring, list: &crate::memory::ListCells) -> Result<(), crate::errors::Refused> {
     let entries = (0..ENTRIES)
         .map(|i| Entry {
             prev: (i.wrapping_sub(1) & (ENTRIES - 1)) + 1,
@@ -177,7 +176,7 @@ impl<'a> Slot<'a> {
     }
 
     /// The field `field` selects set to `v`.
-    pub fn put(&self, field: impl FnOnce(&mut Entry) -> &mut u32, v: u32) -> Result<(), BadInput> {
+    pub fn put<T>(&self, field: impl FnOnce(&mut Entry) -> &mut T, v: T) -> Result<(), BadInput> {
         set(self.ring, self.e, v, field)
     }
 }
@@ -190,16 +189,16 @@ pub fn entry(ring: &Ring, e: u32) -> Result<Entry, BadInput> {
 }
 
 /// What `field` reads of entry `e`; refused as `entry`.
-pub fn get(ring: &Ring, e: u32, field: impl FnOnce(&Entry) -> u32) -> Result<u32, BadInput> {
+pub fn get<T>(ring: &Ring, e: u32, field: impl FnOnce(&Entry) -> T) -> Result<T, BadInput> {
     Ok(field(&entry(ring, e)?))
 }
 
 /// The field `field` selects of entry `e` set to `v`; refused as `entry`.
-pub fn set(
+pub fn set<T>(
     ring: &Ring,
     e: u32,
-    v: u32,
-    field: impl FnOnce(&mut Entry) -> &mut u32,
+    v: T,
+    field: impl FnOnce(&mut Entry) -> &mut T,
 ) -> Result<(), BadInput> {
     ring.entries
         .with(|r| {
@@ -209,36 +208,84 @@ pub fn set(
         .ok_or(BadInput("a ring entry past the ring"))
 }
 
+/// An entry that died: the ring's count is one less; the entry at the cursor is passed over
+/// by moving the cursor on, any other is unlinked and linked in just before the cursor (the
+/// end of the walk's order), so the live ones stay together from the cursor on.
+pub fn retire_entry(ring: &Ring, e: u32) -> Result<(), BadInput> {
+    ring.work.count.set(ring.work.count.get().wrapping_sub(1));
+    if e == ring.work.cursor.get() {
+        ring.work.cursor.set(entry(ring, e)?.next);
+    } else {
+        let (before, after) = (entry(ring, e)?.prev, entry(ring, e)?.next);
+        set(ring, before, after, |en| &mut en.next)?;
+        set(ring, after, before, |en| &mut en.prev)?;
+        let cursor: u32 = ring.work.cursor.get();
+        let last = entry(ring, cursor)?.prev;
+        set(ring, cursor, e, |en| &mut en.prev)?;
+        set(ring, last, e, |en| &mut en.next)?;
+        set(ring, e, last, |en| &mut en.prev)?;
+        set(ring, e, cursor, |en| &mut en.next)?;
+    }
+    Ok(())
+}
+
+/// The ring walked once: `visit` is called with each entry, from the cursor along `next`, as
+/// many times as the count held at the start; an entry it says has died is retired
+/// (`retire_entry`). The next entry is read before the visit.
+pub fn walk_ring(
+    ring: &Ring,
+    mut visit: impl FnMut(u32) -> Result<bool, crate::errors::Refused>,
+) -> Result<(), crate::errors::Refused> {
+    let mut e: u32 = ring.work.cursor.get();
+    let mut counter = ring.work.count.get() as i32;
+    loop {
+        counter = counter.wrapping_sub(1);
+        if counter < 0 {
+            break;
+        }
+        let next = entry(ring, e)?.next;
+        if visit(e)? {
+            retire_entry(ring, e)?;
+        }
+        e = next;
+    }
+    Ok(())
+}
+
 /// A field loaded on the x87 stack (a refusal ends the game, as the reads of the game's
 /// memory did).
-pub fn ld(ring: &Ring, e: u32, field: impl FnOnce(&Entry) -> u32) -> X {
+pub fn ld<T: bh::Loadable>(ring: &Ring, e: u32, field: impl FnOnce(&Entry) -> T) -> X {
     bh::ld(get(ring, e, field).unwrap_or_else(|r| crate::fatal::raise::end("a ring entry", r)))
 }
 
 /// A field stored from the x87 stack (as `ld`).
-pub fn st(ring: &Ring, e: u32, x: X, field: impl FnOnce(&mut Entry) -> &mut u32) {
-    if let Err(r) = set(ring, e, bh::st(x), field) {
+pub fn st<T: bh::Stored>(ring: &Ring, e: u32, x: X, field: impl FnOnce(&mut Entry) -> &mut T) {
+    if let Err(r) = set(ring, e, T::stored(x), field) {
         crate::fatal::raise::end("a ring entry", r)
     }
 }
 
-/// `f` on entry 1 of a test ring holding the bytes `lo .. hi` of the game's memory at
-/// `base` (the differential tests' operand), the bytes copied back after it.
-#[cfg(all(test, target_arch = "x86"))]
-pub fn with_entry_at<R>(ring: &Ring, base: usize, lo: u32, hi: u32, f: impl FnOnce(u32) -> R) -> R {
-    use crate::pointers::GamePtr;
+/// `f` on entry 1 of a test ring holding the bytes `lo .. hi` of the test buffer `base`
+/// (the differential tests' operand), the bytes copied back after it.
+#[cfg(test)]
+pub fn with_entry_at<R>(
+    ring: &Ring,
+    base: crate::effects::asm_test::Operand,
+    lo: u32,
+    hi: u32,
+    f: impl FnOnce(u32) -> R,
+) -> R {
+    use crate::scene::x87_mem::Base;
     let kept = ring.entries.with(std::mem::take).ok();
     let mut w = [0u32; (ENTRY_LEN / 4) as usize];
     for o in (lo..hi).step_by(4) {
-        w[o as usize / 4] = GamePtr::new(base as u32 + o).read("a test entry").unwrap();
+        w[o as usize / 4] = base.dword(o as usize);
     }
     ring.entries.set(vec![Entry::from_words(w)]);
     let out = f(1);
     let w = ring.entries.with(|r| r[0].words()).unwrap();
     for o in (lo..hi).step_by(4) {
-        GamePtr::new(base as u32 + o)
-            .write(w[o as usize / 4], "a test entry")
-            .unwrap();
+        base.set_dword(o as usize, w[o as usize / 4]);
     }
     match kept {
         Some(r) => ring.entries.set(r),
@@ -253,7 +300,7 @@ mod tests {
 
     #[test]
     fn the_ring_is_linked_and_read_by_number() {
-        let _lock = crate::store::test_lock();
+        let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
         let memory = crate::memory::ListCells::empty();
         let ring = &effects().ring;
@@ -264,8 +311,8 @@ mod tests {
         assert_eq!(entry(ring, ENTRIES).unwrap().next, 1);
         set(ring, 3, 0x1234, |e| &mut e.car_tag).unwrap();
         assert_eq!(get(ring, 3, |e| e.car_tag).unwrap(), 0x1234);
-        set(ring, 3, 7, |e| &mut e.motion[2]).unwrap();
-        assert_eq!(entry(ring, 3).unwrap().motion, [0, 0, 7]);
+        set(ring, 3, 7.0, |e| &mut e.motion[2]).unwrap();
+        assert_eq!(entry(ring, 3).unwrap().motion, [0.0, 0.0, 7.0]);
         assert!(entry(ring, 0).is_err());
         assert!(entry(ring, ENTRIES + 1).is_err());
         assert!(set(ring, 0, 1, |e| &mut e.life).is_err());
@@ -275,42 +322,12 @@ mod tests {
     }
 
     #[test]
-    fn fields_sit_at_the_originals_offsets() {
-        use std::mem::offset_of;
-        for (offset, at) in [
-            (0x00, offset_of!(Entry, prev)),
-            (0x04, offset_of!(Entry, next)),
-            (0x08, offset_of!(Entry, emitter_tag)),
-            (0x0C, offset_of!(Entry, kind)),
-            (0x10, offset_of!(Entry, place)),
-            (0x1C, offset_of!(Entry, last_place)),
-            (0x28, offset_of!(Entry, ground_y)),
-            (0x2C, offset_of!(Entry, motion)),
-            (0x38, offset_of!(Entry, push)),
-            (0x44, offset_of!(Entry, spare)),
-            (0x50, offset_of!(Entry, angle)),
-            (0x54, offset_of!(Entry, angle_rate)),
-            (0x58, offset_of!(Entry, cell)),
-            (0x5C, offset_of!(Entry, cell_rate)),
-            (0x60, offset_of!(Entry, size)),
-            (0x64, offset_of!(Entry, size_factor)),
-            (0x68, offset_of!(Entry, car)),
-            (0x6C, offset_of!(Entry, car_pace)),
-            (0x70, offset_of!(Entry, size_goal)),
-            (0x74, offset_of!(Entry, alpha)),
-            (0x78, offset_of!(Entry, alpha_fade)),
-            (0x7C, offset_of!(Entry, box_limit)),
-            (0x84, offset_of!(Entry, life)),
-            (0x90, offset_of!(Entry, car_tag)),
-        ] {
-            assert_eq!(at, offset);
-        }
-        assert_eq!(size_of::<Entry>(), 0x94);
+    fn words_round_trip_in_the_originals_order() {
         let words: [u32; 37] = std::array::from_fn(|n| n as u32 + 1);
         let e = Entry::from_words(words);
         assert_eq!(e.words(), words);
         assert_eq!(e.life, 0x84 / 4 + 1);
-        assert_eq!(e.motion, [12, 13, 14]);
+        assert_eq!(e.motion.map(f32::to_bits), [12, 13, 14]);
         assert_eq!(e.box_limit, [32, 33]);
     }
 }

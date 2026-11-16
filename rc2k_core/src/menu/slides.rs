@@ -1,13 +1,12 @@
-//! The car pages' pictures: the car whose pictures are shown, the page's background and
-//! the slideshow's search for a picture that is there (converted 2026-10-21 from
-//! `menu::load_car_background` 0x468482 and `menu::load_slideshow_picture` 0x4684F5).
+//! The car pages' pictures: the car whose pictures are shown, the page's background and the
+//! slideshow's search for a picture that is there.
 
 use crate::Invalid;
 
-/// The car pages' background tables (`off_759AD2`), one a page.
+/// The car pages' background tables, one a page.
 pub const PAGES: u32 = 4;
 
-/// The cars with slideshow pictures (`off_759B0E`): the first 0x18.
+/// The cars with slideshow pictures: the first 0x18.
 pub const SLIDESHOW_CARS: u32 = 0x18;
 
 /// A car's pictures are numbered 0 .. 99.
@@ -34,8 +33,8 @@ pub fn slideshow_car(car: u32) -> Result<u32, Invalid> {
     Ok(car)
 }
 
-/// The picture number after `number` the way looked (`back`: down, from 0 round to 99;
-/// else up, from 99 round to 0; signed, as the original's).
+/// The picture number after `number` the way looked (`back`: down, from 0 round to 99; else up,
+/// from 99 round to 0; signed).
 pub fn next_picture(number: u32, back: bool) -> u32 {
     let n = number as i32;
     let next = if back {
@@ -58,10 +57,10 @@ pub fn pcx(path: &mut [u8]) -> Result<(), Invalid> {
     Ok(())
 }
 
-/// The slideshow's search from picture `start`: `tried(number)` (true: a picture taken);
-/// otherwise the number steps (`moved` gets each next one, `dword_755994`) until it comes
-/// round to `start`, when the last one tried is taken anyway. A start past 0 .. 99 never
-/// comes round (as the original).
+/// The slideshow's search from picture `start`: `tried(number)` (true: a picture taken); otherwise
+/// the number steps (`moved` gets each next one, `EventState.shown.picture`) until it comes round
+/// to `start`, when the last one tried is taken anyway. A start past 0 .. 99 never comes round
+/// (kept).
 pub fn search<E>(
     start: u32,
     back: bool,

@@ -1,14 +1,11 @@
-//! `net::hosting` (0x4176D5): "hosting" shown (string 0x151, as `net::connecting` shows
-//! its), then the session made (`net::host_session`).
-//!
-//! Returns whether `net::host_session` worked.
-//! Caller: `net::start_link`.
+//! Shows "hosting", then makes the session with `net::host_session`. Returns whether that
+//! worked.
 
 use crate::errors::Refused;
-use crate::net::owner::Net;
-
-/// The Rust version.
-pub fn hosting(net: &Net) -> Result<bool, Refused> {
-    crate::net::connecting::status(0x151)?;
-    crate::net::host_session::host_session(net)
+pub fn hosting(
+    o: crate::owners::Owners<'static>,
+    lines: &crate::race::viewer_screen_store::NetTexts,
+) -> Result<bool, Refused> {
+    crate::net::connecting::status(o, 0x151)?;
+    crate::net::host_session::host_session(o, lines)
 }

@@ -1,44 +1,31 @@
-//! `input::update_car_effects` (0x40F347): one car's force feedback for one device. From the
-//! car's physics (the view block) and its sound object it fills the object's feedback inputs
-//! and sends up to seven requests (`input::set_effect`) to the device:
-//! - the object's `flag_ac` = the block's `front_wheels_off`; `effect_in` = the local velocity
-//!   (x, then drive speed minus z, then x and z again) times ten, truncated (`fistp`);
-//! - the knock: with a weight and an x component both not zero, (256 - |atan2(y, x)| *
-//!   162.97) * weight * 0.1, else 0; the angle also goes into the session's scratch dword; the
-//!   knock inputs are cleared afterwards;
-//! - the surface effect: the surface's effect kind and the speed (|`sum_a`|, or at 5 or less
-//!   the revs squared >> 19), held to 0x100;
-//! - the steering and engine effects by the surface kind (5, 9 and 0; 7; 8; others), and for
-//!   the others the car's landing (leaving the ground, coming back) or a steering force from
-//!   `effect_in`;
-//! - the knock effect once per knock (+-0x100; `knock_count` counts to 4 before the next);
-//! - the speed-change effect: the change of `effect_in[3]` since the last time, held to +-0x200,
-//!   halved.
-//!
-//! Every request is a "set" (what 3). The x87 work uses the original's rounding.
-//! Refuses (before anything) a surface number past the table's 16.
+//! One car's force feedback for one device. From the car's physics (the view block) and its
+//! sound object it fills the object's feedback inputs (the local velocity times ten, the knock
+//! from the impact's angle and weight, the surface effect and speed) and sends up to seven "set"
+//! requests (`input::set_effect`): the steering and engine effects by the surface kind, the
+//! car's landing or a steering force, a knock effect once per knock, and a speed-change effect
+//! (the change of the velocity input since last time, held to +-0x200, halved). The x87 work
+//! rounds as the game's x87 does. Refuses (before anything) a surface number past the table's 16.
 
 use crate::errors::{BadInput, Refused};
 use crate::input::store::ForceFeedback;
 use crate::input::types::InputDevice;
 use crate::math::x87::mul_to_int;
-use crate::math::x87_float::{ld, st, to_int};
-use crate::system::owner::system;
+use crate::math::x87_float::{Loadable, ld, st, to_int};
+use crate::system::owner::System;
 
-/// The force feedback effects of a device's record (its six slots).
 #[derive(Clone, Copy)]
 enum Effect {
     Steering = 0,
     Surface = 1,
     Landing = 2,
     Knock = 3,
-    /// Set together with the steering effect by the surface kind (not worked out further).
+    /// Effect 4: set with the steering effect on every surface kind, to the same figure on kinds 5, 9, 0 (0x100) and 7 (0x55), else 0 (probably a second force on the same device; nothing else shows what it drives).
     Fourth = 4,
     SpeedChange = 5,
 }
 
 /// A "set" request of one effect with its two numbers; the second number is what the
-/// next request that has none of its own repeats (the original passes it on in a register).
+/// next request that has none of its own repeats.
 struct Requests<'a> {
     feedback: &'a ForceFeedback,
     device: &'a InputDevice,
@@ -52,31 +39,36 @@ impl Requests<'_> {
     }
 }
 
-/// The number of surface kinds (the effect kind table's entries).
 const KIND_COUNT: u32 = 16;
 
-/// `fld a; fsub b; fmul c; fistp`.
-fn sub_mul_to_int(a: u32, b: u32, c: u32) -> i32 {
+/// (a - b) x c as a whole number, rounded as the x87 rounds.
+fn sub_mul_to_int(a: impl Loadable, b: impl Loadable, c: impl Loadable) -> i32 {
     to_int((ld(a) - ld(b)) * ld(c))
 }
 
-/// `fld y; fld x; fpatan; fst angle; fabs; fmul s; fsubr full; fmul d; fmul tenth;
-/// fistp`: (the angle's bits, the knock).
-fn knock(y: u32, x: u32, s: u32, full: u32, d: u32, tenth: u32) -> (u32, i32) {
+/// The angle atan2(y, x) and the knock (full - |angle| x s) x d x tenth as a whole number:
+/// (the angle's bits, the knock).
+fn knock(
+    y: impl Loadable,
+    x: impl Loadable,
+    s: impl Loadable,
+    full: impl Loadable,
+    d: impl Loadable,
+    tenth: impl Loadable,
+) -> (u32, i32) {
     let angle = ld(y).atan2(ld(x));
     let knock = (ld(full) - angle.abs() * ld(s)) * ld(d) * ld(tenth);
     (st(angle), to_int(knock))
 }
 
-/// The car's feedback for the frame, the angle written to `scratch`; the original's x87
-/// arithmetic. `view` the view block, `o` the car's sound object, `device` the device's
-/// record.
+/// The car's feedback for the frame, the angle written to `scratch`. `view` the view block,
+/// `o` the car's sound object, `device` the device's record.
 fn update_car_effects_with(
     effects: &ForceFeedback,
     view: &crate::physics::car_store::Car,
     o: &crate::sound::store::SoundObject,
     device: &InputDevice,
-    scratch: &crate::session::Dword,
+    scratch: &crate::memory::session::PlainDword,
 ) -> Result<(), Refused> {
     let surface = o.surface.get();
     if surface >= KIND_COUNT {
@@ -88,24 +80,21 @@ fn update_car_effects_with(
         last_strength: 0,
     };
     o.flag_ac.set(view.front_wheels_off.get());
-    let ten = effects.effect_ten.bits();
-    o.effect_in[0].set(mul_to_int(view.local_velocity[0].bits(), ten) as u32);
-    o.effect_in[1].set(sub_mul_to_int(
-        view.drive_speed_a.bits(),
-        view.local_velocity[2].bits(),
-        ten,
-    ) as u32);
-    o.effect_in[2].set(mul_to_int(view.local_velocity[0].bits(), ten) as u32);
-    o.effect_in[3].set(mul_to_int(view.local_velocity[2].bits(), ten) as u32);
+    let ten = effects.effect_ten.get();
+    o.effect_in[0].set(mul_to_int(&view.local_velocity[0], ten) as u32);
+    o.effect_in[1]
+        .set(sub_mul_to_int(view.drive_speed_a.get(), view.local_velocity[2].get(), ten) as u32);
+    o.effect_in[2].set(mul_to_int(&view.local_velocity[0], ten) as u32);
+    o.effect_in[3].set(mul_to_int(&view.local_velocity[2], ten) as u32);
     // The knock's force from its inputs (angle from y = `knock_in[2]`, x = `knock_in[0]`).
-    if o.knock_in[3].get() & 0x7FFF_FFFF != 0 && o.knock_in[0].get() & 0x7FFF_FFFF != 0 {
+    if o.knock_in[3].get() != 0.0 && o.knock_in[0].get() != 0.0 {
         let (angle, force) = knock(
             o.knock_in[2].get(),
             o.knock_in[0].get(),
-            effects.effect_angle_scale.bits(),
-            effects.effect_full.bits(),
+            effects.effect_angle_scale.get(),
+            effects.effect_full.get(),
             o.knock_in[3].get(),
-            effects.effect_tenth.bits(),
+            effects.effect_tenth.get(),
         );
         scratch.set(angle);
         o.knock.set(force as u32);
@@ -113,7 +102,7 @@ fn update_car_effects_with(
         o.knock.set(0);
     }
     for d in &o.knock_in {
-        d.set(0);
+        d.set(0.0);
     }
     // The surface effect: the surface's kind and the speed.
     let mut kind = effects.surface_effect_kinds[surface as usize].get();
@@ -125,7 +114,7 @@ fn update_car_effects_with(
     }
     let speed = speed.min(0x100);
     out.set(Effect::Surface, kind, speed)?;
-    let strength = || o.effect_d8.get();
+    let strength = || o.effect_request_b.get();
     let mut landed_now = false;
     match kind {
         5 | 9 | 0 => {
@@ -142,7 +131,7 @@ fn update_car_effects_with(
         }
         _ => {
             out.set(Effect::Fourth, 0, strength())?;
-            if o.flag_ac.get() != 0 {
+            if o.flag_ac.is_set() {
                 // Wheels off the ground.
                 o.landed.set(1);
                 out.set(Effect::Steering, 0, strength())?;
@@ -187,7 +176,7 @@ fn update_car_effects_with(
                 o.knock.set(0);
             }
         }
-        if !counted && o.knock_count.get() != 0 {
+        if !counted && o.knock_count.is_set() {
             o.knock_count.set(o.knock_count.get().wrapping_add(1));
             if o.knock_count.get() >= 4 {
                 o.knock_count.set(0);
@@ -196,85 +185,38 @@ fn update_car_effects_with(
     }
     // The change of `effect_in[3]` since the last time.
     let now = o.effect_in[3].get();
-    let before = o.last_effect_bc.get();
-    o.last_effect_bc.set(now);
+    let before = o.last_forward_speed.get();
+    o.last_forward_speed.set(now);
     let change = (now.wrapping_sub(before) as i32).clamp(-0x200, 0x200) >> 1;
     let carried = out.last_strength;
     out.set(Effect::SpeedChange, change as u32, carried)
 }
 
-/// The car's force feedback for the frame (the original's x87 arithmetic). The
-/// converted version (`rc2k_core::input::feedback::update_car_effects`, plain floats)
-/// waits for the float pass.
+/// The car's force feedback for the frame (x87 arithmetic; the plain-float version in
+/// `rc2k_core::input::feedback` waits for the float pass).
 pub fn update_car_effects(
     effects: &ForceFeedback,
     view: &crate::physics::car_store::Car,
     object: &crate::sound::store::SoundObject,
     device: &InputDevice,
+    system: &System,
 ) -> Result<(), Refused> {
-    update_car_effects_with(
-        effects,
-        view,
-        object,
-        device,
-        &system().session.machine.scratch,
-    )
+    update_car_effects_with(effects, view, object, device, &system.machine().scratch)
 }
 
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+#[cfg(test)]
+mod reference_vectors {
     use super::*;
-    use crate::scene::asm_test::{Kind, differential};
-
-    /// `fld a; fsub b; fmul c; fistp`, the original's instructions over `v` (3 dwords) and
-    /// the result at dword 3.
-    unsafe fn ref_sub_mul(p: *mut u8) {
-        unsafe {
-            core::arch::asm!(
-                "fld dword ptr [{v}]",
-                "fsub dword ptr [{v} + 4]",
-                "fmul dword ptr [{v} + 8]",
-                "fistp dword ptr [{o}]",
-                v = in(reg) p,
-                o = in(reg) p.add(12),
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
-    }
-
-    /// The knock's instructions over `v` (6 dwords), the angle at dword 6, the knock at 7.
-    unsafe fn ref_knock(p: *mut u8) {
-        unsafe {
-            core::arch::asm!(
-                "fld dword ptr [{v}]",
-                "fld dword ptr [{v} + 4]",
-                "fpatan",
-                "fst dword ptr [{o}]",
-                "fabs",
-                "fmul dword ptr [{v} + 8]",
-                "fsubr dword ptr [{v} + 12]",
-                "fmul dword ptr [{v} + 16]",
-                "fmul dword ptr [{v} + 20]",
-                "fistp dword ptr [{o} + 4]",
-                v = in(reg) p,
-                o = in(reg) p.add(24),
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
-    }
+    use crate::test_support::vectors::{Differential, Kind, differential};
 
     #[test]
     fn sub_mul_to_int_matches_the_assembly() {
-        differential(
-            "sub_mul_to_int",
-            6000,
-            209,
-            [Kind::Exact; 4],
-            |rng, m| {
+        let test = Differential {
+            name: "input.update_car_effects.sub_mul_to_int",
+            cases: 6000,
+            seed: 209,
+            kinds: [Kind::Exact; 4],
+            fill: &|rng, m| {
                 for d in &mut m[..3] {
                     *d = if rng.below(2) == 0 {
                         rng.moderate()
@@ -284,39 +226,34 @@ mod asm_reference {
                 }
                 m[3] = 0xAAAA_AAAA;
             },
-            |p| unsafe { ref_sub_mul(p) },
-            |p| unsafe {
-                let m = p.cast::<u32>();
-                m.add(3)
-                    .write(sub_mul_to_int(m.read(), m.add(1).read(), m.add(2).read()) as u32);
-            },
-        );
+            plain: &|c| c[3].set(sub_mul_to_int(c[0].get(), c[1].get(), c[2].get()) as u32),
+        };
+        differential(test);
     }
 
     #[test]
     fn knock_matches_the_assembly() {
         let mut kinds = [Kind::Exact; 8];
         kinds[6] = Kind::Ulp1;
-        differential(
-            "knock",
-            6000,
-            210,
+        let test = Differential {
+            name: "input.update_car_effects.knock",
+            cases: 6000,
+            seed: 210,
             kinds,
-            |rng, m| {
+            fill: &|rng, m| {
                 for d in &mut m[..6] {
                     *d = rng.moderate();
                 }
                 m[6] = 0xAAAA_AAAA;
                 m[7] = 0xAAAA_AAAA;
             },
-            |p| unsafe { ref_knock(p) },
-            |p| unsafe {
-                let m = p.cast::<u32>();
-                let v: Vec<u32> = (0..6).map(|k| m.add(k).read()).collect();
+            plain: &|c| {
+                let v: Vec<u32> = c[..6].iter().map(std::cell::Cell::get).collect();
                 let (angle, force) = knock(v[0], v[1], v[2], v[3], v[4], v[5]);
-                m.add(6).write(angle);
-                m.add(7).write(force as u32);
+                c[6].set(angle);
+                c[7].set(force as u32);
             },
-        );
+        };
+        differential(test);
     }
 }

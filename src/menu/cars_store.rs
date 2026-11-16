@@ -1,47 +1,38 @@
-//! The car table, out of RAL.EXE's image (IDA 0x75648C .. 0x7585D8; phase 7, typed): the places of
-//! the players' names, the carousel's last index, the table of the 34 car descriptions' addresses, the
-//! descriptions (`CarDescription`, 0x78 bytes each) and the texts they point at. A `#[repr(C)]` struct
-//! with the image's layout, one static; `moved::MOVED` points the range at it. (Split 2026-10-25 from
-//! the front end's block `menu::store`.)
+//! The car table, out of RAL.EXE's image: the places of the players' names, the carousel's last
+//! index, the table of the 34 car descriptions' addresses, the descriptions (`CarDescription`, 0x78
+//! bytes each) and the texts they point at. One static.
 
 use crate::errors::BadInput;
+use crate::memory::session::{PlainBytes, PlainDword, Shared, with_runs};
 use crate::menu::owner::Menus;
-use crate::menu::owner::menus;
-use crate::session::{Bytes, Dword, Shared, with_runs};
 use rc2k_core::screens::car_pages::CarDescription;
 
-/// The car table (IDA 0x75648C .. 0x7585D8).
-#[repr(C)]
+/// The car table.
 #[derive(rc2k_derive::Cells)]
 pub struct CarTable {
-    /// `| The four players' names' addresses in `g_playerNames` (`Player::name` is one of them).`:
-    /// kept as IDA's addresses, as names (phase 13; nothing reads them, and
-    /// `moved::point_into_homes` passes them over).
-    pub name_places: [Dword; 4],
-    /// `dword_75649C`: The carousel entries' last index (0xE at start; `menu::start_event` sets 0xF for the repair set).
-    pub last_car: Dword,
-    /// `off_7564A0`: The 34 car descriptions by car number (handles, `car_ref`: the original
-    /// kept their addresses).
-    pub cars: [Dword; 34],
-    /// Unreferenced bytes (IDA 0x756528 .. 0x756568).
-    pub _gap_756528: Bytes<64>,
-    /// `stru_756568`: The car descriptions (the last is the Clio of the update disc).
+    /// The four players' names' places (`Player::name` is one of them); nothing reads them.
+    pub name_places: [PlainDword; 4],
+    /// The carousel entries' last index (0xE at start; `menu::start_event` sets 0xF for the repair
+    /// set).
+    pub last_car: PlainDword,
+    /// The 34 car descriptions by car number (handles, `car_ref`).
+    pub cars: [PlainDword; 34],
+    /// The car descriptions (the last is the Clio of the update disc).
     pub descriptions: [Shared<CarDescription>; 34],
-    /// `unk_757558`: The 24 texts of 0xB0 bytes the descriptions point at.
-    pub description_texts: Bytes<4224>,
+    /// The 24 texts of 0xB0 bytes the descriptions point at.
+    pub description_texts: PlainBytes<4224>,
 }
 
-/// First values the image's (`tests::car_table_starts_as_the_games`).
 impl CarTable {
     pub const fn new() -> Self {
         CarTable {
             name_places: [
-                Dword::new(0x755784),
-                Dword::new(0x7557A4),
-                Dword::new(0x7557C4),
-                Dword::new(0x7557E4),
+                PlainDword::new(0x755784),
+                PlainDword::new(0x7557A4),
+                PlainDword::new(0x7557C4),
+                PlainDword::new(0x7557E4),
             ],
-            last_car: Dword::new(0xE),
+            last_car: PlainDword::new(0xE),
             cars: [
                 car_cell(0x756568),
                 car_cell(0x7565E0),
@@ -78,16 +69,6 @@ impl CarTable {
                 car_cell(0x757468),
                 car_cell(0x7574E0),
             ],
-            _gap_756528: Bytes::new(with_runs::<64>(&[(
-                0x0,
-                &[
-                    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-                    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-                    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-                    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-                    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-                ],
-            )])),
             descriptions: [
                 Shared::new(CarDescription::from_le_bytes(with_runs::<120>(&[(
                     0x4,
@@ -765,7 +746,7 @@ impl CarTable {
                     ),
                 ]))),
             ],
-            description_texts: Bytes::new(with_runs::<4224>(&[
+            description_texts: PlainBytes::new(with_runs::<4224>(&[
                 (
                     0x0,
                     &[
@@ -1201,18 +1182,17 @@ impl CarTable {
     }
 }
 
-/// A car description by handle (phase 13): what the car table, the car lists and the
-/// carousel keep where the original kept a description's address. `CAR_TAG | n` for
-/// description `n`; 0 (none) and -1 (a list's end) stay as they are.
+/// A car description by handle, as the car table, the car lists and the carousel keep them:
+/// `CAR_TAG | n` for description `n`; 0 (none) and -1 (a list's end) stay as they are.
 pub const CAR_TAG: u32 = 0xCA00_0000;
 
-/// IDA's address of the first description.
+/// The game address of the first description, which handles stand for.
 const DESCRIPTIONS_IDA: u32 = 0x756568;
 const DESCRIPTION_LEN: u32 = 0x78;
 const DESCRIPTION_COUNT: u32 = 34;
 
-/// The handle for IDA's `ida` (a description's address, 0 or -1; anything else fails to
-/// compile).
+/// The handle for the description at game address `ida` (0 and -1 stay; any other address
+/// that is no description fails to compile).
 pub const fn car_ref(ida: u32) -> u32 {
     if ida == 0 || ida == u32::MAX {
         return ida;
@@ -1226,8 +1206,8 @@ pub const fn car_ref(ida: u32) -> u32 {
 }
 
 /// A cell holding `car_ref(ida)`.
-pub const fn car_cell(ida: u32) -> Dword {
-    Dword::new(car_ref(ida))
+pub const fn car_cell(ida: u32) -> PlainDword {
+    PlainDword::new(car_ref(ida))
 }
 
 /// The handle of description `n`.
@@ -1235,8 +1215,7 @@ pub const fn car_handle(n: usize) -> u32 {
     CAR_TAG | n as u32
 }
 
-/// The description a handle names. Refused: 0, -1 and what is no handle (the original
-/// reads at what it holds as an address).
+/// The description a handle names. Refused: 0, -1 and what is no handle.
 pub fn car_of(handle: u32) -> Result<usize, BadInput> {
     let n = handle ^ CAR_TAG;
     if n < DESCRIPTION_COUNT {
@@ -1247,38 +1226,29 @@ pub fn car_of(handle: u32) -> Result<usize, BadInput> {
 }
 
 /// The description a handle names (`car_of`).
-pub fn description(handle: u32) -> Result<&'static Shared<CarDescription>, BadInput> {
-    Ok(&menus().cars.table.descriptions[car_of(handle)?])
+pub fn description(table: &CarTable, handle: u32) -> Result<&Shared<CarDescription>, BadInput> {
+    Ok(&table.descriptions[car_of(handle)?])
 }
 
-/// The table's entry for car `number` (refused past the 34: the original reads on into
-/// the bytes after the table as addresses).
+/// The table's entry for car `number` (refused past the 34).
 pub fn car_entry(menus: &Menus, number: u32) -> Result<u32, BadInput> {
     menus
         .cars
         .table
         .cars
         .get(number as usize)
-        .map(Dword::get)
+        .map(PlainDword::get)
         .ok_or(BadInput("a car number past the car table"))
 }
 
-/// IDA 0x75648C, the first byte of the piece.
-pub const START: usize = 0x75648C;
-/// IDA 0x7585D8, the end of the piece.
-pub const END: usize = 0x7585D8;
-
-/// Where IDA 0x75648C is now (`moved::MOVED`'s home).
-#[cfg(test)]
-pub fn cars_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::menu::owner::MENUS.cars.table)
-}
-
-/// Where the figures of the description `entry` names are now: its +0x74 keeps their IDA
-/// address, a name in `CarTable::description_texts` (read by `menu::driver_stats`).
-pub fn description_table(entry: u32) -> Result<crate::pointers::GamePtr, crate::errors::BadInput> {
+/// Where the figures of the description `entry` names are: a name in
+/// `CarTable::description_texts` (read by `menu::driver_stats`).
+pub fn description_table(
+    table: &CarTable,
+    entry: u32,
+) -> Result<DescriptionTable, crate::errors::BadInput> {
     const TEXTS: usize = 0x757558;
-    let table = description(entry)?.get().figures;
+    let table = description(table, entry)?.get().figures;
     if table == 0 {
         return Err(crate::errors::BadInput("a car without its table"));
     }
@@ -1287,73 +1257,48 @@ pub fn description_table(entry: u32) -> Result<crate::pointers::GamePtr, crate::
             "a description's table off the texts",
         ));
     }
-    crate::moved::named(table as usize)
+    Ok(DescriptionTable(table as usize - TEXTS))
+}
+
+/// A car's figures: their start in `CarTable::description_texts`.
+#[derive(Clone, Copy, Debug)]
+pub struct DescriptionTable(usize);
+
+impl DescriptionTable {
+    /// The dword `offset` bytes into the figures; refused past the texts' end.
+    pub fn dword(self, table: &CarTable, offset: usize) -> Result<u32, crate::errors::BadInput> {
+        let texts = &table.description_texts;
+        let at = self.0 + offset;
+        if at + 4 > 4224 {
+            return Err(crate::errors::BadInput("a car's figures past the texts"));
+        }
+        Ok(u32::from_le_bytes(std::array::from_fn(|k| {
+            texts.get(at + k)
+        })))
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::moved::image_bytes;
-    use core::mem::{offset_of, size_of};
 
     #[test]
-    fn car_table_starts_as_the_games() {
-        let menu_cars = &menus().cars;
-        assert!(
-            END - START <= size_of::<CarTable>()
-                && size_of::<CarTable>() <= (END - START).next_multiple_of(4)
-        );
-        let mine = unsafe {
-            std::slice::from_raw_parts(crate::pointers::host(cars_addr()).cast_const(), END - START)
-        };
-        // The table's entries are handles: the image's addresses made handles to compare.
-        let mut image = image_bytes(START, END - START);
-        for n in 0..DESCRIPTION_COUNT as usize {
-            let at = 0x7564A0 - START + 4 * n;
-            let v = u32::from_le_bytes(image[at..at + 4].try_into().unwrap());
-            image[at..at + 4].copy_from_slice(&car_ref(v).to_le_bytes());
-        }
-        assert_eq!(mine, &image[..]);
-        // The name places and the descriptions' text places are the image's addresses,
-        // names that resolve to what they named.
-        for n in 0..4 {
-            let at = 4 * n;
-            let name = u32::from_le_bytes(image[at..at + 4].try_into().unwrap());
-            assert_eq!(name as usize, crate::menu::names_store::START + 0x20 * n);
-            assert_eq!(
-                crate::moved::named_in(
-                    name,
-                    crate::menu::names_store::START,
-                    crate::menu::names_store::END - crate::menu::names_store::START,
-                    "a player's name off the names"
-                ),
-                Ok(crate::menu::names_store::names_addr() + 0x20 * n as u32)
-            );
-        }
-        for n in 0..DESCRIPTION_COUNT as usize {
-            let at = 0x756568 - START + 0x78 * n + 0x74;
-            let text = u32::from_le_bytes(image[at..at + 4].try_into().unwrap());
-            assert_eq!(
-                crate::moved::named_in(text, 0x757558, 4224, "a description's text off the texts"),
-                Ok(cars_addr() + (text as usize - START) as u32)
-            );
-        }
+    fn the_car_table_finds_its_descriptions() {
         for car in 0..34 {
-            let found = description_table(car_entry(crate::menu::owner::menus(), car).unwrap())
-                .unwrap()
-                .addr();
+            let found = description_table(
+                &crate::test_support::own::menus().cars.table,
+                car_entry(crate::test_support::own::menus(), car).unwrap(),
+            )
+            .unwrap();
             assert!(
-                (menu_cars.table.description_texts.addr()..).contains(&found),
+                found
+                    .dword(&crate::test_support::own::menus().cars.table, 0)
+                    .is_ok(),
                 "{car}"
             );
         }
+        let menu_cars = &crate::test_support::own::menus().cars;
         assert_eq!(car_of(menu_cars.table.cars[33].get()), Ok(33));
         assert!(car_of(0x756568).is_err() && car_of(u32::MAX).is_err());
-        let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
-        at(offset_of!(CarTable, name_places), 0x75648C);
-        at(offset_of!(CarTable, last_car), 0x75649C);
-        at(offset_of!(CarTable, cars), 0x7564A0);
-        at(offset_of!(CarTable, descriptions), 0x756568);
-        at(offset_of!(CarTable, description_texts), 0x757558);
     }
 }

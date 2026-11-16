@@ -1,30 +1,11 @@
-//! `input::acquire_device` (0x408473): a device record's controller acquired. Only for a
-//! listed controller (+0 below `g_controllerCount`) that is attached (its entry's +0x18 1);
-//! a record that still has a device (+4) is a fatal error (0x8023831D). The settings: the
-//! kind (+8) 2 when 0, 3 for a controller of more than three axes; then the configuration's
-//! (each only when set): `dword_4F68E0` 1 .. 3 the kind, `dword_4F68E4` (not negative) the
-//! axes' code +0x18, `dword_4F68F8` (up to 100) the strength +0xC, `dword_4F68E8` and
-//! `dword_4F68EC` (up to 100) the dead zone +0x10 and the end zone +0x14, `dword_4F68F0`
-//! (not negative) +0x1C. Logged (level 2): "JOY:" the number, the axes, the buttons,
-//! "axmode=" the kind, "axcode=" +0x18 (hex), "dz=" +0x10 +0x14, "ff=" force feedback, the
-//! strength (a line). Then its device: `CreateDevice` with the entry's GUID into +4
-//! (0x80238311 "Cannot create joystick object - check directx installation"), its
-//! `IDirectInputDevice2A` (0x80238318) in its place (the first given back), the joystick
-//! data format (0x80238312), the cooperative level 5 for `hWnd` (0x80238313); the ranges
-//! (`DIPROPRANGE` `dword_4F6AB8`): all axes -256 .. 0, the axis at offset (+0x1D & 7) x 4
-//! -256 .. 256 and for kinds up to 2 the one at (+0x1C & 7) x 4 too; the dead zones
-//! (`DIPROPDWORD` `dword_4F6AA4`): all 0, then +0x10 x 100 by offset with the object left 0
-//! (the axis is written into the range's object instead: the x axis gets it, twice for
-//! kinds up to 2; section 16); the saturation for all, (100 - dz - ez) x 10000 / (100 - dz)
-//! when both are above 0 (signed; unsigned division); the results not looked at. With
-//! force feedback (the entry's +0x1C 1) `input::begin_force`; `Acquire`; the readings
-//! cleared (`input::clear_device_readings`); +0x24 1 (acquired).
+//! Acquires a device record's controller: applies the configured kind, axes, zones and
+//! strength, creates the DirectInput device, sets its data format, cooperative level, axis
+//! ranges, dead zones and saturation, starts force feedback when the controller has it,
+//! then acquires it and clears its readings.
 //!
-//! Takes: the device's record
-//!
-//! Callers: `input::set_up_device`, `input::device_command`. The effects' functions through
-//! `begin_force`'s `part`; the methods the objects' own. Refuses nothing: the fatal errors
-//! are raised.
+//! Only a listed, attached controller is acquired; a record that already has a device is a
+//! fatal error. The dead-zone loop writes the axis into the range's object field, so the x axis
+//! gets the zone (twice for kinds up to 2); this slip is kept as is.
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::input::devices::Deferred;
@@ -32,14 +13,12 @@ use crate::input::di_harness::{entry_of, fatal};
 use crate::input::owner::Input;
 use crate::input::store::Devices;
 use crate::input::types::{DiPropDword as W, DiPropHeader, DiPropRange as R, InputDevice as D};
-use crate::session::Dword;
-use crate::system::owner::system;
+use crate::memory::session::Dword;
+use crate::system::owner::System;
 use rc2k_core::input::acquire::{
     Acquire, HAS_DEVICE, acquire, axis_offset, dead_zone_value, saturation, two_axes,
 };
 use std::mem::size_of;
-
-// dword_4F68DC .. dword_4F68F8
 
 const JOY_RVA: &std::ffi::CStr = c"JOY:"; // aJoy "JOY:"
 const AXMODE_RVA: &std::ffi::CStr = c"axmode="; // aAxmode "axmode="
@@ -63,7 +42,6 @@ fn log_int(v: u32, newline: bool) {
 /// The settings from the configuration, and the log's line.
 fn settings(devices: &Devices, record: &D) -> Result<(), BadInput> {
     use rc2k_core::input::acquire::{Config, Settings, settings};
-    // Converted: `rc2k_core::input::acquire::settings`.
     let fields = [
         &record.kind,
         &record.axis_code,
@@ -158,8 +136,6 @@ fn properties(record: &D) {
         device,
         Property::Range(&range(axis(record, 1), 1, -256, 0x100)),
     );
-    // Converted: `rc2k_core::input::acquire` (`axis_offset`, `two_axes`,
-    // `dead_zone_value`, `saturation`).
     let two_axes = two_axes(record.kind.get());
     if two_axes {
         set_property(
@@ -179,9 +155,8 @@ fn properties(record: &D) {
     }
 }
 
-/// The Rust version (see the header).
-pub fn acquire_device(input: &Input, record: &D) -> Result<(), Refused> {
-    // Converted: `rc2k_core::input::acquire::acquire`.
+/// See the header.
+pub fn acquire_device(input: &Input, system: &System, record: &D) -> Result<(), Refused> {
     let late = Deferred::default();
     let step = acquire(
         record.controller.get(),
@@ -213,11 +188,8 @@ pub fn acquire_device(input: &Input, record: &D) -> Result<(), Refused> {
     if crate::input::di_objects::set_data_format(device) != 0 {
         return Err(fatal(0x8023_8312).into());
     }
-    if crate::input::di_objects::set_cooperative_level(
-        device,
-        system().session.machine.window.get(),
-        5,
-    ) != 0
+    if crate::input::di_objects::set_cooperative_level(device, system.session.host.window.get(), 5)
+        != 0
     {
         return Err(fatal(0x8023_8313).into());
     }

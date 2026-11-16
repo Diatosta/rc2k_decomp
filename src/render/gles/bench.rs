@@ -2,8 +2,7 @@
 //! of at least `LEAST` batches (six times at most) is drawn again in several ways, each
 //! `ROUNDS` times between two `glFinish`es, and the times logged: as drawn, then with one kind
 //! of state change left out at a time. The picture of those frames is wrong (drawn over
-//! itself); the measurement is the point. Found what the handheld's libmali spends its time
-//! on (2026-11-06).
+//! itself); the measurement is the point: it shows what the handheld's libmali spends its time
 
 use super::*;
 use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
@@ -109,17 +108,27 @@ const WAYS: [Way; 10] = [
     },
 ];
 
-/// Whether this part (of `batches` batches) is to be measured.
-pub(super) fn due(batches: usize) -> bool {
+/// Every how many parts the bench measures one (`RC2K_GL_BENCH`), if it is on.
+fn every() -> Option<u32> {
     static EVERY: std::sync::OnceLock<Option<u32>> = std::sync::OnceLock::new();
-    static SEEN: AtomicU32 = AtomicU32::new(0);
-    static DONE: AtomicU32 = AtomicU32::new(0);
-    let Some(every) = *EVERY.get_or_init(|| {
+    *EVERY.get_or_init(|| {
         std::env::var("RC2K_GL_BENCH")
             .ok()
             .and_then(|v| v.trim().parse().ok())
             .filter(|&n| n > 0)
-    }) else {
+    })
+}
+
+/// Whether the bench is on: it reads the parts' commands at the GL, which are kept for it.
+pub(super) fn enabled() -> bool {
+    every().is_some()
+}
+
+/// Whether this part (of `batches` batches) is to be measured.
+pub(super) fn due(batches: usize) -> bool {
+    static SEEN: AtomicU32 = AtomicU32::new(0);
+    static DONE: AtomicU32 = AtomicU32::new(0);
+    let Some(every) = every() else {
         return false;
     };
     if batches < LEAST || DONE.load(Relaxed) >= TIMES {
@@ -136,7 +145,14 @@ pub(super) fn due(batches: usize) -> bool {
 impl Gpu {
     /// Draws `batches` (whose vertices `draw` has just sent up) in each of the `WAYS`, and logs
     /// the time each takes.
-    pub(super) fn bench(&mut self, batches: &Batches, height: i32) {
+    pub(super) fn bench(
+        &mut self,
+        commands: &CommandList,
+        batches: &Batches,
+        opaque: &[bool],
+        height: i32,
+    ) {
+        self.bench_gathering(commands, batches, opaque);
         let changes =
             |f: &dyn Fn(&super::super::batches::Batch, &super::super::batches::Batch) -> bool| {
                 batches
@@ -246,7 +262,7 @@ impl Gpu {
         let Some(first) = batches.batches.first() else {
             return;
         };
-        self.set_pipeline(&first.pipeline);
+        self.set_pipeline(&first.pipeline, None);
         if way.one_draw {
             gl.draw_arrays(TRIANGLES, 0, batches.vertices.len() as i32);
             return;
@@ -261,12 +277,12 @@ impl Gpu {
             match way.pipeline {
                 Pipeline::Whole => {
                     if last.is_none_or(|l| l.pipeline != *key) {
-                        self.set_pipeline(key);
+                        self.set_pipeline(key, None);
                     }
                 }
                 Pipeline::Changed => {
                     if changed(&|b| b.pipeline.cull != 1) || changed(&|b| b.pipeline.cull == 2) {
-                        self.set_pipeline(key);
+                        self.set_pipeline(key, None);
                     } else {
                         if changed(&|b| b.pipeline.depth_function != 0)
                             && last.is_some_and(|l| l.pipeline.depth_function != key.depth_function)
@@ -330,14 +346,16 @@ impl Gpu {
                 && last.is_none_or(|l| l.texture != batch.texture)
                 && let Some(n) = batch.texture
             {
-                let name = self.textures[&batches.textures[n as usize].pixels].name;
-                gl.bind_texture(TEXTURE_2D, name);
+                let note = &batches.textures[n as usize];
+                self.bind_arrays(0, (note.width, note.height));
+                gl.active_texture(TEXTURE0);
             }
             if way.samplers
                 && last.is_none_or(|l| (l.linear, l.clamp) != (batch.linear, batch.clamp))
             {
                 let sampler = self.samplers[batch.linear as usize + 2 * batch.clamp as usize];
                 gl.bind_sampler(0, sampler);
+                gl.bind_sampler(1, sampler);
             }
             if let Some([left, top, right, bottom]) = batch.scissor {
                 gl.enable(SCISSOR_TEST);
@@ -359,5 +377,32 @@ impl Gpu {
             gl.disable(SCISSOR_TEST);
         }
         gl.bind_sampler(0, 0);
+        gl.bind_sampler(1, 0);
+    }
+}
+
+impl Gpu {
+    /// How many draws the frame takes with its textures as layers, against one texture a
+    /// draw (`Batches::of`).
+    /// `opaque`: whether each of `batches.textures` is (`Batched::opaque`).
+    fn bench_gathering(&self, commands: &CommandList, batches: &Batches, opaque: &[bool]) {
+        let opaque = |note: &TextureNote| {
+            let n = batches
+                .textures
+                .iter()
+                .position(|t| t.pixels == note.pixels);
+            n.is_some_and(|n| opaque[n])
+        };
+        let alone = Batches::of(
+            commands,
+            self.width as u32,
+            self.height as u32,
+            Some(&opaque),
+        );
+        log(&format!(
+            "gles bench: gathering: {} draws with the textures as layers, {} with one texture a draw",
+            batches.batches.len(),
+            alone.batches.len(),
+        ));
     }
 }

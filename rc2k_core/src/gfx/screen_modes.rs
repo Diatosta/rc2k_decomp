@@ -1,12 +1,9 @@
-//! Screen modes and the picture as a surface (converted 2026-10-21 from
-//! `gfx::mark_3d_modes` 0x40442C, `gfx::try_screen_mode` 0x404AED's lookup,
-//! `gfx::keep_race_screen_mode` 0x404805 and `gfx::picture_as_surface` 0x405FE7).
+//! Screen modes and the picture as a surface.
 //!
-//! A screen mode is a dword of bits: the low byte its size (`g_screenSizes`), the second
-//! its pixel kind (`g_pixelKinds`: 0x200 16 bits, 0x800 32), the third byte's low nibble
-//! the menus' own, the third's high nibble the card (0x1000 .. primary, 0x2000 secondary)
-//! and Direct3D's marks above. The mode table (`g_screenModeTable`) holds the modes found,
-//! 8 bytes each: the mode's bits and a dword of extra flags.
+//! A screen mode is a dword of bits: the low byte its size, the second its pixel kind (0x200 16
+//! bits, 0x800 32), the third byte's low nibble the menus' own, the third's high nibble the card
+//! (0x1000 .. primary, 0x2000 secondary) and Direct3D's marks above. The mode table holds the
+//! modes found, 8 bytes each: the mode's bits and a dword of extra flags.
 
 use crate::system::tables::{Entry, with_any_bit, with_bits};
 
@@ -17,7 +14,7 @@ pub const DRAWS_3D: u32 = 0x10_0000;
 /// A mode with extra flags in its second dword.
 pub const HAS_EXTRA: u32 = 0x20_0000;
 
-/// `gfx::mark_3d_modes`' marking: from the table's start, each entry with all of `kind`'s
+/// The 3D modes marked: from the table's start, each entry with all of `kind`'s
 /// bits, and from there the next with any of `depth`'s (the depth formats Direct3D has),
 /// gets `DRAWS_3D` and, with `extra` not 0, `HAS_EXTRA` and `extra` in its second dword;
 /// the search goes on one entry past it, until one finds nothing.
@@ -55,7 +52,7 @@ pub fn lookup_bits(mode: u32) -> u32 {
     mode & 0xF0_FFFF
 }
 
-/// `gfx::try_screen_mode`'s lookup: the first entry with all of the mode's bits.
+/// A mode looked up: the first entry with all of the mode's bits.
 pub fn look_up(table: impl IntoIterator<Item = Entry>, mode: u32) -> Lookup {
     let bits = lookup_bits(mode);
     if bits == 0 {
@@ -70,8 +67,7 @@ pub fn menu_mode_for(race_mode: u32) -> u32 {
     race_mode & 0xFF00 | 0x32_0002
 }
 
-/// A picture's flags that name no size or no pixel kind (the original's fatal errors
-/// 0x80A19091, 0x80A19092).
+/// A picture's flags that name no size or no pixel kind; `code` gives the fatal error.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SurfaceError {
     Size,
@@ -87,17 +83,16 @@ impl SurfaceError {
     }
 }
 
-/// The first entry whose key is `key` (`system::find_entry`).
+/// The first entry whose key is `key`.
 fn entry(t: impl IntoIterator<Item = Entry>, key: u32) -> Option<Entry> {
     t.into_iter().find(|e| e[0] == key)
 }
 
-/// `gfx::picture_as_surface`'s surface block from its third dword on, for a picture with
-/// `flags` (the low byte its size, bits 8 .. 11 its pixel kind) at `pixels`: width,
-/// height, bits and bytes a pixel, bytes of a row, its dwords, `format` (the surface
-/// format's address), the pitch (the row's bytes), the pixels and no gap after a row.
-/// `sizes` are `g_screenSizes`' entries (key, width and height as words), `kinds`
-/// `g_pixelKinds`' (key, bits).
+/// The picture's surface block from its third dword on, for a picture with `flags`
+/// (the low byte its size, bits 8 .. 11 its pixel kind) at `pixels`: width, height, bits and bytes
+/// a pixel, bytes of a row, its dwords, `format` (the surface format's address), the pitch (the
+/// row's bytes), the pixels and no gap after a row. `sizes` are screen sizes' entries (key, width
+/// and height as words), `kinds` pixel kinds' (key, bits).
 pub fn picture_surface(
     flags: u32,
     sizes: impl IntoIterator<Item = Entry>,
@@ -124,8 +119,8 @@ pub fn picture_surface(
     ])
 }
 
-/// `gfx::choose_screen_modes`' race modes, tried in this order when the kept ones do not
-/// both work: the secondary card's (0x2000) before the primary's, 16 bits before 32.
+/// The race modes tried in this order when the kept ones do not both work: the secondary card's
+/// (0x2000) before the primary's, 16 bits before 32.
 pub const RACE_CHOICES: [u32; 12] = [
     0x32_2202, 0x32_2208, 0x32_2201, 0x32_1202, 0x32_1208, 0x32_1201, 0x32_2802, 0x32_2808,
     0x32_2801, 0x32_1802, 0x32_1808, 0x32_1801,
@@ -134,12 +129,10 @@ pub const RACE_CHOICES: [u32; 12] = [
 /// The menus' modes tried after the race's own card and kind at size 2.
 pub const MENU_CHOICES: [u32; 4] = [0x32_2202, 0x32_1202, 0x32_2802, 0x32_1802];
 
-/// `gfx::choose_screen_modes` (0x404481): the (menu, race) modes. The kept ones when both
-/// work (`works`: `gfx::try_screen_mode`), the menu's tried first; else, when a 3D mode
-/// of size 2 is listed and one with both 3D bits (`listed`: 0x404AD9, a table entry
-/// with all the bits), the first race choice that works and the first menu mode that
-/// does: the race's card and kind at size 2, then `MENU_CHOICES`. None where the
-/// original fails (its carry).
+/// The (menu, race) modes: the kept ones when both work (`works`, the menu's tried first); else,
+/// when a 3D mode of size 2 is listed and one with both 3D bits (`listed`: a table entry with all
+/// the bits), the first race choice that works and the first menu mode that does: the race's card
+/// and kind at size 2, then `MENU_CHOICES`. None where no pair works.
 pub fn choose(
     menu: u32,
     race: u32,
@@ -182,7 +175,7 @@ mod tests {
             choose(0x32_2802, 0x32_2802, primary, any),
             Some((0x32_1202, 0x32_1202))
         );
-        // No 3D mode of size 2 listed: the original fails.
+        // No 3D mode of size 2 listed: it fails.
         assert_eq!(choose(0, 0, primary, |_| false), None);
         // Nothing works.
         assert_eq!(choose(0, 0, |_| false, any), None);

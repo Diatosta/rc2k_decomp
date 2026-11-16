@@ -1,59 +1,42 @@
-//! `sound::apply_settings` (0x40EFF3): sends the kept sound settings to the audio thread.
+//! `sound::apply_settings`: sends the kept sound settings to the audio thread.
 //!
-//! `dword_518080` = 1; `sound::stop_music`; command 5 with `dword_4F82C4`; command 3 with the
-//! menus' list (`unk_511AE4`, by handle); command 8 with `dword_755684`; `sound::wait_for_commands`;
-//! `dword_506C84` = 0 (`sound::let_sounds_play`).
-//! What the two numbers are is a reading: volumes, the second the one the options screen
-//! steps between 0 and 0x40 (0x467F00, 0x467F24).
-//! Five callers; `system::main_loop` calls it once the window is there.
+//! Marks the settings applied, stops the music, sends the menu sound mode, the menus' sound list
+//! and the options screen's volume, waits for the commands, then lets sounds play. What the two
+//! numbers are is a reading: volumes, the second the one the options screen steps between 0 and
+//! 0x40. Five callers; `system::main_loop` calls it once the window is there.
 
-use crate::audio::owner::audio;
+use crate::owners::Owners;
 use rc2k_core::audio::commands::SoundList;
-
-// ---- Rust version ----
 
 pub use rc2k_core::sound::set_up::Step;
 
-/// A step run: each command sent with its eax, all the audio thread reads of it (the
-/// original carries eax on to the steps after it, which read no more).
-pub fn run_step(
-    step: Step,
-    sound: &crate::sound::owner::Sound,
-) -> Result<(), crate::errors::Refused> {
-    let audio = crate::audio::owner::audio();
+/// One step of the settings run: a command sent, the music stopped, the race sounds
+/// loaded, or the queue waited for.
+pub fn run_step(step: Step, o: Owners<'static>) -> Result<(), crate::errors::Refused> {
     match step {
-        Step::StopMusic => crate::sound::stop_music::stop_music(),
-        Step::Send { command, eax } => crate::sound::senders::send(command, [eax, 0, 0, 0]),
+        Step::StopMusic => crate::sound::stop_music::stop_music(o),
+        Step::Send(command) => crate::sound::senders::send(o.audio, command),
         Step::LoadRaceSounds => {
-            crate::sound::load_race_sounds::load_race_sounds_in_game(sound, audio)?;
+            crate::sound::load_race_sounds::load_race_sounds_in_game(o.race, o.sound, o.audio)?;
         }
-        Step::Wait => crate::sound::wait_for_commands::wait_for_commands(
-            &mut crate::sound::wait_for_commands::Game([0; 7]),
-        ),
+        Step::Wait => crate::sound::wait_for_commands::wait_in_game(o),
     }
     Ok(())
 }
 
-pub fn apply_settings() -> Result<(), crate::errors::Refused> {
-    let sound = crate::sound::owner::sound();
-    let audio = audio();
-    // Converted: `rc2k_core::sound::set_up::menus`.
+pub fn apply_settings(o: Owners<'static>) -> Result<(), crate::errors::Refused> {
     use rc2k_core::sound::set_up::{MENUS, menus};
 
-    sound.menu.settings_applied.done.set(MENUS);
+    o.sound.menu.settings_applied.get().done.set(MENUS);
     let steps = menus(
-        audio.state.menu_sound_mode.get(),
+        o.audio.state.menu_sound_mode.get(),
         SoundList::Menu,
-        crate::menu::owner::menus()
-            .screens
-            .option_work
-            .master_volume_shown
-            .get(),
+        o.audio.levels.master_volume_shown.get(),
     );
     for s in steps {
-        run_step(s, sound)?;
+        run_step(s, o)?;
     }
-    audio.state.sounds_held_back.set(0);
+    o.audio.state.sounds_held_back.set(0);
 
     Ok(())
 }

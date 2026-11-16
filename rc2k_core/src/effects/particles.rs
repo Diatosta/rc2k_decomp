@@ -1,16 +1,14 @@
-//! The marks' particles' points moved by lot, and the splines' blended points (converted
-//! 2026-10-21 from `effects::jitter_point` 0x4C6106, `spread_point` 0x4C61AB and
-//! `blend_points` 0x4BA5E2). As in `math::vector`, what the x87 keeps on its stack is an
-//! `f64`, rounded to `f32` where the original stores it: the same bits at the game's
-//! double precision (`fprem` is exact, as `%` is).
+//! The marks' particles' points moved by lot, and the splines' blended points. As in
+//! `math::vector`, what the x87 keeps on its stack is an `f64`, rounded to `f32` where it is
+//! stored: the same bits at the game's double precision (`fprem` is exact, as `%` is).
 
-/// A step of the marks' random (`g_marksSeed`, `g_marksSpreadRandom`): times 0x9D plus 0x47.
+/// A step of the marks' random: times 0x9D plus 0x47.
 pub fn next_random(r: u32) -> u32 {
     r.wrapping_mul(0x9D).wrapping_add(0x47)
 }
 
-/// What `jitter_point` leaves: the point moved (in the stack's order, b c d as they came
-/// in st(1) .. st(3)), the random and its last value shifted right 12 (ebx).
+/// What `jitter_point` leaves: the point moved (b c d), the random and its last value shifted
+/// right 12.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Jittered {
     pub point: [f32; 3],
@@ -20,7 +18,7 @@ pub struct Jittered {
 
 /// `effects::jitter_point`: three steps of the random; each moves one of the point's
 /// values (d first, then c, then b) by the step shifted right 12 (arithmetic) remainder
-/// the spread (`fprem`), stored.
+/// the spread (exact, as `%`), stored.
 pub fn jitter(spread: f32, point: [f32; 3], seed: u32) -> Jittered {
     let mut moved = [point[2], point[1], point[0]];
     let (mut seed, mut last) = (seed, 0);
@@ -39,7 +37,7 @@ pub fn jitter(spread: f32, point: [f32; 3], seed: u32) -> Jittered {
 /// `effects::spread_point`: one step of the random, then it rotated right 12 and again; each
 /// of the point's values (d by the third, c the second, b the first) grown by itself times
 /// the spread times the value (signed) times `scale` (a double), stored. Returns the point
-/// (b c d) and the third value (the random kept, and eax).
+/// (b c d) and the third value (the random kept).
 pub fn spread(spread: f32, point: [f32; 3], random: u32, scale: f64) -> ([f32; 3], u32) {
     let first = next_random(random);
     let second = first.rotate_right(12);

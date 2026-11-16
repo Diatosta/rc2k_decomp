@@ -1,20 +1,16 @@
-//! The gearbox's shifts (converted 2026-10-21 from `physics::manual_gearbox` 0x43C2AE,
-//! `physics::auto_gearbox` 0x43C5C2, `physics::change_gear` 0x43C20D and
-//! `physics::pick_start_gear` 0x43C8AC; the engine's sums and their compares stay the
-//! hooks' x87, which hand the compares in as answers): where each box goes from a gear
-//! (-1 reverse, 0 neutral, 1 .. the top). The steps run in the original's order; a step
-//! that ends in another (`Shift`) is the original's jump to it.
+//! The gearbox's shifts: where each box goes from a gear (-1 reverse, 0 neutral, 1 .. the top).
+//! The engine's compares are handed in as answers; a step that ends in another (`Shift`) goes on.
 
 /// Where a step of the box goes on to.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Shift {
-    /// The change up (`manual`: 0x43C340; `auto`: 0x43C66D).
+    /// The change up.
     Up,
-    /// The change down (`manual`: 0x43C379; `auto`: 0x43C6B7).
+    /// The change down.
     Down,
     /// Neutral and settled.
     Neutral,
-    /// `physics::pick_start_gear`.
+    /// Pick a start gear.
     Start,
     /// Into reverse.
     Reverse,
@@ -23,23 +19,22 @@ pub enum Shift {
 }
 
 /// The reverse gear.
-pub const REVERSE: u32 = u32::MAX;
+pub const REVERSE: i32 = -1;
 
 /// The manual box's change up from `gear`: from reverse to neutral, from neutral a start
-/// gear, at the top (`top()`, `g_gearCount`) nothing; None: the next free gear up is
-/// looked for.
-pub fn manual_up(gear: u32, top: impl FnOnce() -> u32) -> Option<Shift> {
+/// gear, at the top (`top()`) nothing; `None`: look for the next free gear up.
+pub fn manual_up(gear: i32, top: impl FnOnce() -> u32) -> Option<Shift> {
     match gear {
         REVERSE => Some(Shift::Neutral),
         0 => Some(Shift::Start),
-        g if g == top() => Some(Shift::Done),
+        g if g as u32 == top() => Some(Shift::Done),
         _ => None,
     }
 }
 
-/// The manual box's change down from `gear`: from 1 to neutral, from neutral into
-/// reverse, in reverse nothing; None: the next free gear down is looked for.
-pub fn manual_down(gear: u32) -> Option<Shift> {
+/// The manual box's change down from `gear`: from 1 to neutral, from neutral into reverse, in
+/// reverse nothing; `None`: look for the next free gear down.
+pub fn manual_down(gear: i32) -> Option<Shift> {
     match gear {
         1 => Some(Shift::Neutral),
         0 => Some(Shift::Reverse),
@@ -48,15 +43,15 @@ pub fn manual_down(gear: u32) -> Option<Shift> {
     }
 }
 
-/// The start line's keys (down `dword_6138A4` first, then up `dword_6138A0`): down from
-/// neutral into reverse, from a forward gear (or neutral's other) to neutral; up from
-/// neutral a start gear, from reverse to neutral. None: neither applies.
-pub fn start_line_keys(gear: u32, down: bool, up: impl FnOnce() -> bool) -> Option<Shift> {
+/// The start line's keys (down first, then up): down from neutral into reverse, from a
+/// forward gear to neutral; up from neutral a start gear, from reverse to neutral. `None`:
+/// neither applies.
+pub fn start_line_keys(gear: i32, down: bool, up: impl FnOnce() -> bool) -> Option<Shift> {
     if down {
         if gear == 0 {
             return Some(Shift::Reverse);
         }
-        if (gear as i32) >= 0 {
+        if gear >= 0 {
             return Some(Shift::Neutral);
         }
     }
@@ -64,7 +59,7 @@ pub fn start_line_keys(gear: u32, down: bool, up: impl FnOnce() -> bool) -> Opti
         if gear == 0 {
             return Some(Shift::Start);
         }
-        if (gear as i32) < 0 {
+        if gear < 0 {
             return Some(Shift::Neutral);
         }
     }
@@ -82,27 +77,26 @@ pub fn manual_keys(up: bool, down: impl FnOnce() -> bool) -> Shift {
     }
 }
 
-/// A forward gear (1 or more, by the sign of gear - 1): the engine looked at for a
-/// change up.
-pub fn forward(gear: u32) -> bool {
-    (gear.wrapping_sub(1) as i32) >= 0
+/// A forward gear (1 or more): the engine is looked at for a change up.
+pub fn forward(gear: i32) -> bool {
+    gear.wrapping_sub(1) >= 0
 }
 
-/// A gear with one below it to change down to (2 or more, by the sign of gear - 2).
-pub fn above_first(gear: u32) -> bool {
-    (gear.wrapping_sub(2) as i32) >= 0
+/// A gear with one below it to change down to (2 or more).
+pub fn above_first(gear: i32) -> bool {
+    gear.wrapping_sub(2) >= 0
 }
 
-/// The engine's share for a change down: the clutch's (`flt_5CB960`) with the clutch
-/// down (`unk_71A614`), else the free one (`flt_5CB95C`).
+/// Whether the engine's share for a change down is the clutch's point (clutch down) rather
+/// than the free one.
 pub fn down_point_clutch(clutch: u32) -> bool {
     clutch != 0
 }
 
 /// The automatic's change up from `gear`: at the top nothing, from reverse a start gear;
-/// None: up one.
-pub fn auto_up(gear: u32, top: u32) -> Option<Shift> {
-    if gear == top {
+/// `None`: up one.
+pub fn auto_up(gear: i32, top: u32) -> Option<Shift> {
+    if gear as u32 == top {
         Some(Shift::Done)
     } else if gear == REVERSE {
         Some(Shift::Start)
@@ -111,15 +105,14 @@ pub fn auto_up(gear: u32, top: u32) -> Option<Shift> {
     }
 }
 
-/// The automatic's tests (0x43C798), each asked only where the original reads or
-/// compares: up when in a forward gear on the ground (`all_off()` false) with the engine
-/// at its share (`over_share()`); a start gear from reverse with the clutch down
-/// (`clutch()`) and the speed at the start's (`fast()`); down (`down()`: from gear 2 or
-/// more, the engine under the lower gear's share and the point); reverse from first with
-/// the clutch down and the speed under the reverse's (`slow()`).
-#[allow(clippy::too_many_arguments)] // reason: each compare is the original's, asked in turn
+/// The automatic's tests, each asked only where it is needed: up when in a forward gear on
+/// the ground (`all_off()` false) with the engine at its share (`over_share()`); a start gear
+/// from reverse with the clutch down (`clutch()`) and the speed at the start's (`fast()`);
+/// down (`down()`: from gear 2 or more, the engine under the lower gear's share); reverse
+/// from first with the clutch down and the speed under the reverse's (`slow()`).
+#[allow(clippy::too_many_arguments)] // reason: one answer per compare, asked in turn
 pub fn auto_tests<E>(
-    gear: u32,
+    gear: i32,
     all_off: impl FnOnce() -> bool,
     clutch: impl Fn() -> bool,
     over_share: impl FnOnce() -> bool,
@@ -142,21 +135,21 @@ pub fn auto_tests<E>(
     Ok(Shift::Done)
 }
 
-/// `physics::change_gear`'s way from `gear` to the gear asked for.
+/// How `change` goes from `gear` to the gear asked for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Change {
     /// The gear already.
     Same,
-    /// From neutral: the gear set, the wheels from the revs.
+    /// From neutral: the gear is set and the wheels follow from the revs.
     FromNeutral,
     /// To neutral.
     ToNeutral,
-    /// The new gear tested (`physics::gear_bit`): refused, neutral; else the wheels from
-    /// the revs, the gear set, the revs from the wheels.
+    /// The new gear tested: refused (neutral), else the wheels follow from the revs, the gear
+    /// is set and the revs follow from the wheels.
     Through,
 }
 
-pub fn change(gear: u32, wanted: u32) -> Change {
+pub fn change(gear: i32, wanted: i32) -> Change {
     if gear == wanted {
         Change::Same
     } else if gear == 0 {
@@ -168,10 +161,8 @@ pub fn change(gear: u32, wanted: u32) -> Change {
     }
 }
 
-/// `physics::pick_start_gear`: gears 1 .. 6 tried in turn (`try_gear(g)`: not refused
-/// and the engine's share under the change point); the first taken, or None (the last
-/// tried stays).
-pub fn pick_start<E>(mut try_gear: impl FnMut(u32) -> Result<bool, E>) -> Result<Option<u32>, E> {
+/// Gears 1 .. 6 tried in turn; the first taken, or `None` (the last tried stays).
+pub fn pick_start<E>(mut try_gear: impl FnMut(i32) -> Result<bool, E>) -> Result<Option<i32>, E> {
     for gear in 1..=6 {
         if try_gear(gear)? {
             return Ok(Some(gear));

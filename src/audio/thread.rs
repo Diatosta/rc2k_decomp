@@ -1,36 +1,49 @@
-//! `audio::thread` (0x409CCE): the audio thread's routine, from its start to `ExitThread`.
-//!
-//! Out: does not return (`ExitThread(0)`)
-//!
-//! Its slot (`stru_518604`, +0xC running): already running goes straight to the end. Else
-//! running; "AUDIOTDB:START"; `CoInitialize` (gone in phase 11: no COM objects are
-//! left); `g_noAudio` set: the end. Else
-//! `audio::take_sample_buffer`, `audio::start` (the carry: the end), `audio::read_splash`,
-//! `audio::set_mode` with `g_menuSoundMode`, `threading::set_priority` 0xF; then a turn
-//! every 20 ms: sleep what is left of them since the last (`g_audioTurnTick`; at least 1),
-//! `audio::stream_command` and `audio::music_command` with edx 1 (ebx the last turn's
-//! tick), `audio::take_commands`, `audio::update_voices`, `audio::restore_lost` when
-//! `g_soundBufferLost`, until `g_quitting` is 1. The end: `g_noAudio` 1, `audio::close_all`,
-//! `audio::free_sample_buffer`, `audio::write_splash`, `CoUninitialize`, "AUDIOTDB:QUIT",
-//! priority 0, not running, `ExitThread(0)` (the routine's return since phase 11:
-//! `sync::spawn`).
-//! ecx (and edx before the first turn) handed on to `take_commands` and `close_all` are, in
-//! the original, what `CoInitialize` and the clock's Win32 calls leave; the Rust version
-//! hands on the entry's. Neither is read there (ecx is a volume for action 1, which does not
-//! read it; edx reaches `close_all` only when nothing plays yet, where every action stops).
+//! The audio thread's routine, from its start to the thread's end. Already running goes straight
+//! to the end. Else: "AUDIOTDB:START"; unless audio is off, the sample buffer taken, `audio::start`
+//! (failing: the end), the splash read, the menu sound mode set, priority raised; then a turn every
+//! 20 ms: sleep what is left of them, the streams fed, commands taken, voices updated, lost
+//! buffers restored, until the game quits. The end: audio off, everything closed, the splash
+//! written, "AUDIOTDB:QUIT".
 
 use crate::errors::Refused;
-use crate::system::owner::system;
+use rc2k_core::audio::commands::StreamAction;
 
 const START_TEXT: &std::ffi::CStr = c"AUDIOTDB:START"; // "AUDIOTDB:START"
 const QUIT_TEXT: &std::ffi::CStr = c"AUDIOTDB:QUIT"; // "AUDIOTDB:QUIT"
 
-/// Runs to the `ExitThread`, which does not come back. Its slot's flag
+/// Everything the audio thread reads from outside its own state, built once where the thread is
+/// started (`threading::thread_slot`).
+///
+/// What crosses threads: `audio` (atomic cells, `Shared` records and the command queue's mutex;
+/// the game's thread writes the modes, volumes, sample keys and `environment`, the audio thread
+/// the voices, streams and device facts), `sets` and `menu_sounds` (`SoundForThreads`' lists, atomic cells the game's
+/// thread fills before it queues the load command that makes the audio thread read them) and
+/// `system` (only the quitting flag, an atomic cell, is read). No `GameThread` state is
+/// reachable from here, and the thread reads none of the sound options.
+#[derive(Clone, Copy)]
+pub struct AudioInputs<'a> {
+    pub audio: &'static crate::audio::owner::Audio,
+    pub system: &'static crate::system::owner::System,
+    /// The sets of sounds a race loads (the lists of the load command).
+    pub sets: &'a crate::sound::sets_store::SoundSets,
+    /// The settings page's menu sounds (the menu list of the load command).
+    pub menu_sounds: &'a crate::sound::sets_store::MenuSounds,
+}
+
+/// Runs to the thread's end, which does not come back. Its slot's flag
 /// (`threading::thread_slot::AUDIO`) says it runs.
-pub fn audio_thread(audio: &crate::audio::owner::Audio) -> Result<(), Refused> {
+pub fn audio_thread(inputs: AudioInputs<'_>) -> Result<(), Refused> {
+    let AudioInputs {
+        audio: owner,
+        system,
+        sets,
+        menu_sounds,
+    } = inputs;
     use crate::audio::*;
     use crate::system::tick_count::tick_count;
     use crate::threading::set_priority::set_priority;
+    // The thread's own variables (`audio::own`): made here, so that no other thread has them.
+    let audio = &crate::audio::own::AudioThread::new(owner);
     let running =
         &crate::threading::thread_slot::slot_ref(crate::threading::thread_slot::AUDIO)?.flag;
     let started = running.get() != 1
@@ -40,46 +53,49 @@ pub fn audio_thread(audio: &crate::audio::owner::Audio) -> Result<(), Refused> {
             audio.state.no_audio.get() == 0
         }
         && {
-            thread_parts::take_sample_buffer(&audio.state)?;
-            start::start(audio)?
+            thread_parts::take_sample_buffer(&audio.state);
+            start::start(audio, system)?
         };
     if started {
         a3d::splash(&audio.state)?;
-        set_mode::set_mode(audio, audio.state.menu_sound_mode.get())?;
+        set_mode::set_mode(audio, system, audio.state.menu_sound_mode.get())?;
         set_priority(0xF);
-        audio.state.audio_turn_tick.set(tick_count());
+        audio
+            .state
+            .audio_turn_tick
+            .set(tick_count(&system.session.picture_clock));
         loop {
             let last = audio.state.audio_turn_tick.get();
-            let now = tick_count();
+            let now = tick_count(&system.session.picture_clock);
             audio.state.audio_turn_tick.set(now);
-            // Converted: `rc2k_core::audio::device::turn_sleep`.
             crate::system::sleep::sleep(rc2k_core::audio::device::turn_sleep(last, now));
             let begun = crate::debug::timing::start();
             // The turn's feeds (action 1, which reads nothing else).
-            stream_commands::stream_command(audio, 0, 0, 1)?;
-            stream_commands::music_command(&audio.state, 0, 0, 0, 1)?;
-            take_commands::take_commands(audio)?;
+            stream_commands::stream_command(audio, 0, 0, StreamAction::Turn)?;
+            stream_commands::music_command(&audio.state, 0, 0, 0, StreamAction::Turn)?;
+            take_commands::take_commands(audio, system, sets, menu_sounds)?;
             update_voices::update_voices(audio)?;
             stray_voices::check(&audio.state);
+            #[cfg(feature = "remote")]
+            mix_hash::audio_turn_done();
             if begun.is_some() {
                 crate::debug::timing::note_voices(stray_voices::on_lists(&audio.state));
             }
             crate::debug::timing::stop(crate::debug::timing::Stage::AudioTurn, begun);
-            if audio.state.sound_buffer_lost.get() != 0 {
-                restore::restore_lost(audio)?;
+            if audio.state.sound_buffer_lost.is_set() {
+                restore::restore_lost(audio, system)?;
             }
-            if system().session.flags.quitting.get() == 1 {
+            if system.session.flags.quitting.is_set() {
                 break;
             }
         }
     }
     audio.state.no_audio.set(1);
-    close_all::close_all(audio)?;
+    close_all::close_all(audio, system)?;
     thread_parts::free_sample_buffer(&audio.state)?;
     a3d::splash(&audio.state)?;
     sound_device::log_text(QUIT_TEXT, true);
     set_priority(0);
     running.set(0);
-    // The routine's end ends its thread (the original's `ExitThread`).
     Ok(())
 }

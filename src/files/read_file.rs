@@ -1,34 +1,11 @@
-//! `files::read_file` (0x402BB6): opens a file for reading, seeks if the offset is not 0,
-//! reads, closes.
-//!
-//! Takes path, buffer, bytes to read, offset. Returns bytes read if the read was reached, else
-//! unchanged. It fails if the open, the seek, the read or the close fails. A short read is not a
-//! failure: the caller has to look at eax. The file is opened as the original's mode 0 says (table
-//! at 0x4E06EA). Like the original's `open_by_mode` and `close`, which are inlined here, it sets
-//! `g_lastFilePath` to the resolved path while the file is open and to 0 after closing; after a
-//! failed open the path stays.
+//! Opens a file for reading, seeks if the offset is not 0, reads, closes. It fails if the open,
+//! the seek, the read or the close fails; a short read is not a failure (the caller looks at the
+//! count). The last file path is the resolved path while the file is open and none after the
+//! close; after a failed open it stays.
 
 use crate::errors::BadInput;
-// ---- Rust version ----
-
 use crate::files::handle::GameFiles;
-use crate::pointers::GamePtr;
 pub use rc2k_core::files::io::ReadResult;
-
-/// Refuses what `resolve_path` refuses.
-#[track_caller]
-pub fn read_file(
-    path: &[u8],
-    to: GamePtr,
-    count: u32,
-    offset: u32,
-) -> Result<ReadResult, BadInput> {
-    // Converted: `rc2k_core::files::io::read_file`.
-    let mut into = to.read_bytes(count as usize, "a file's buffer")?;
-    let result = rc2k_core::files::io::read_file(&mut GameFiles::new(), path, &mut into, offset)?;
-    to.write_bytes(&into, "a file's buffer")?;
-    Ok(result)
-}
 
 /// `read_file` into Rust's memory: `into` holds what the file's bytes do not reach over,
 /// as the game's buffer did. Refuses what `resolve_path` refuses.
@@ -45,7 +22,7 @@ pub fn read_file_into(path: &[u8], into: &mut [u8], offset: u32) -> Result<ReadR
 #[track_caller]
 pub fn read_file_to_store(
     path: &[u8],
-    to: &dyn crate::pointers::Store,
+    to: &dyn crate::memory::cells::Store,
     count: u32,
     offset: u32,
 ) -> Result<ReadResult, BadInput> {

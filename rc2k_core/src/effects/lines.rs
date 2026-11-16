@@ -1,9 +1,6 @@
-//! The marks' measuring of lines between two objects' faces (converted 2026-10-21 from
-//! `effects::measure_slot_lines` 0x4D1167, `effects::measure_kind_lines` 0x4D1225,
-//! `effects::measure_lines` 0x4D0EB4, `effects::measure_starting_sums` 0x4D0DB5,
-//! `effects::set_up_blocks` 0x4D05BD and `effects::copy_block_points` 0x4D0A82): each face's
-//! points against the other object's same face's, their lengths summed into a settings
-//! block's sums by the face's slot kind or kind; the blocks measured and their checks.
+//! The marks' measuring of lines between two objects' faces: each face's points against the other
+//! object's same face's, their lengths summed into a settings block's sums by the face's slot kind
+//! or kind; the blocks measured and their checks.
 //!
 //! As in `math::geometry`, what the x87 keeps on its stack is an `f64`: the same at the
 //! game's double precision; at extended a sum may land one off at a rounding edge.
@@ -15,14 +12,14 @@ use crate::math::geometry::fistp64;
 pub const SLOTS: u32 = 8;
 pub const KINDS: u32 = 0x11;
 
-/// `fild x; fmul st, st; fild y; fmul st, st; fild z; fmul st, st; faddp; faddp; fsqrt;
-/// fiadd sum; fistp`: the sum plus the length of (x, y, z).
+/// `sum` plus the length of (x, y, z), the squares added as x + (y + z), rounded to a whole
+/// number.
 pub fn length_plus(d: [i32; 3], sum: i32) -> i32 {
     let [x, y, z] = d.map(|v| v as f64 * v as f64);
     fistp64((x + (y + z)).sqrt() + sum as f64)
 }
 
-/// The differences of two points (x, y, z, wrapping), what the original stores.
+/// The differences of two points (x, y, z, wrapping).
 pub fn difference(p: [u32; 3], q: [u32; 3]) -> [u32; 3] {
     std::array::from_fn(|n| p[n].wrapping_sub(q[n]))
 }
@@ -39,14 +36,14 @@ pub fn kind_takes(kind: u32, face_kind: u8, lines: u8) -> bool {
     kind as u8 == face_kind && lines == 1
 }
 
-/// The settings' blocks (`g_marksSettings` + 0x29C, 0x4C8 apart; +0x5C their count).
+/// The settings' blocks: from +0x29C of the settings, `BLOCK_LEN` apart (their count at +0x5C).
 pub const BLOCKS_AT: u32 = 0x29C;
 pub const BLOCK_LEN: u32 = 0x4C8;
 pub const MOST_BLOCKS: u32 = 8;
 /// The objects a block may name.
 pub const OBJECTS: u32 = 0x100;
 
-/// A block's place from the settings (wrapping, as the original's sums).
+/// A block's place from the settings (wrapping).
 pub fn block_at(settings: u32, k: u32) -> u32 {
     settings
         .wrapping_add(BLOCK_LEN.wrapping_mul(k))
@@ -70,7 +67,7 @@ pub struct Measured {
     pub faces: u32,
 }
 
-/// What the game's tables tell the planning, asked in the original's order.
+/// What the tables tell the planning, asked in the game's order.
 pub trait Blocks {
     /// Block k's +0xC (marked to be measured).
     fn marked(&self, k: u32) -> bool;
@@ -81,9 +78,8 @@ pub trait Blocks {
     fn first_face(&self, object: u32) -> u32;
 }
 
-/// The blocks `measure_lines` measures, the last first: every one (`every`) or the marked
-/// ones. Refuses more than 8 blocks (signed), an object past 0xFF and faces past
-/// `faces_total` (`g_faces`).
+/// The blocks `measure_lines` measures, the last first: every one (`every`) or the marked ones.
+/// Refuses more than 8 blocks (signed), an object past 0xFF and faces past `faces_total`.
 pub fn measured(
     count: u32,
     every: bool,

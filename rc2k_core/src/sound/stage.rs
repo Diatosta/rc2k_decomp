@@ -1,8 +1,7 @@
-//! The stage's own sounds (converted 2026-10-21 from `sound::stage_sounds` 0x40E2A9): the
-//! timed sound's wait and the two sounds at a random pitch and place.
+//! The stage's own sounds: the timed sound's wait and the two sounds at a random pitch and place.
 
-/// The timed sound's wait (`dword_5165A8` the arming flag, `dword_5165B8` the delay,
-/// `dword_5165C4` when due, `dword_5165C8` waiting) and its slot's start flag.
+/// The timed sound's wait (`arm` the arming flag, `delay`, `due` when due, `waiting`) and its
+/// slot's start flag (`start`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Wait {
     pub arm: u32,
@@ -12,9 +11,8 @@ pub struct Wait {
     pub start: u32,
 }
 
-/// The wait's turn at `clock`: armed (cleared), due the clock + the delay and waiting;
-/// while waiting and not due (`js`) the slot is skipped (false); once due its slot is
-/// told to start and the wait ends.
+/// The wait's turn at `clock`: armed, it becomes due at the clock plus the delay and waits; while
+/// waiting and not due the slot is skipped (false); once due its slot starts and the wait ends.
 pub fn wait_turn(w: &mut Wait, clock: u32) -> bool {
     if w.arm == 1 {
         w.arm = 0;
@@ -34,17 +32,16 @@ pub fn wait_turn(w: &mut Wait, clock: u32) -> bool {
 /// A sound at a random pitch and place, from one random number `n`.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Random {
-    /// 0x21 + the low five bits.
+    /// 0x21 plus the low five bits.
     pub volume: u32,
-    /// The mix rate + (the next nine bits - 0x100) x the mix rate / 4096 (`sar`).
+    /// The mix rate + (the next nine bits - 0x100) x the mix rate / 4096 (an arithmetic shift).
     pub rate: u32,
     /// (nine bits - 0x100) x 0.01, and nine bits x 0.01.
     pub across: f32,
     pub ahead: f32,
 }
 
-/// A whole number x 0.01 as the x87 makes it (`fild`, `fmul` of the float 0.01, `fstp`:
-/// the product is exact, so one rounding).
+/// A whole number x 0.01 as one `f32` rounding (the product is exact).
 pub fn hundredth(v: i32) -> f32 {
     (v as f64 * 0.01f32 as f64) as f32
 }

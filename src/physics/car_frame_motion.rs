@@ -1,23 +1,22 @@
-//! `physics::car_frame_motion` (0x43DB71): the work car's motion (`dword_71A170` ..,
-//! `g_car` +0x198) turned by `g_carInverseMatrix` (`scene::rotate_point`) into the car's
-//! frame, stored (rounded to floats) at `dword_71A17C`, `dword_71A180`, `g_carSpeed`
-//! (+0x1A4 .. +0x1AC). The tail of `physics::apply_force` on the work car.
+//! Turns the work car's motion by its inverse matrix into the car's frame and stores it, rounded
+//! to floats, as `local_velocity` (the third part is the car speed). The tail of
+//! `physics::apply_force` on the work car.
 //!
-//! Caller: `physics::put_back_motion_vectors` (its tail).
+//! Caller: `physics::put_back_motion_vectors`.
 
 use crate::math::cells::Cells;
-use crate::scene::matrix3::{extended, rounded};
+use crate::scene::matrix3::{extended, rounded_value};
 use crate::scene::rotate_point::rotate_point;
 
-/// The Rust core: the motion `from` turned by the matrix `m` into `to`.
+/// The motion `from` turned by the matrix `m` into `to`.
 pub fn car_frame_motion(
     from: &(impl Cells + ?Sized),
     m: &(impl Cells + ?Sized),
     to: &(impl Cells + ?Sized),
 ) {
-    let point = std::array::from_fn(|k| extended(from.bits(k)));
+    let point = std::array::from_fn(|k| extended(from.float(k)));
     let out = rotate_point(m, point);
     for (k, e) in out.iter().enumerate() {
-        to.set_bits(k, rounded(*e));
+        to.set_float(k, rounded_value(*e));
     }
 }

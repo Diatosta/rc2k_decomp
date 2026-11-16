@@ -1,30 +1,26 @@
 //! The 64 KB scratch the game's loaders share (the packed copy of a file, the replay's
 //! packing, the map's read buffer, the installer's pages, the PNG decoder's info), out of
-//! RAL.EXE's image (phase 5), typed (phase 7). `#[repr(C)]` struct of a byte buffer;
-//! `moved::MOVED` points the image's address at it.
+//! RAL.EXE's image. Struct of a byte buffer.
 
-use crate::session::Bytes;
-#[cfg(test)]
-use crate::system::owner::system;
+use crate::memory::session::PlainBytes;
 
-/// The shared 64 KB scratch (IDA 0x93E8B0 .. 0x94E8B0, the image's layout).
-#[repr(C, align(16))]
+/// The shared 64 KB scratch.
+#[repr(align(16))]
 #[derive(rc2k_derive::Cells)]
 pub struct Scratch {
-    /// 0x93E8B0: `g_pngInfo`: scratch space (0x10000 bytes), used by whoever needs a buffer for a moment.
-    pub buffer: Bytes<65536>,
+    /// Scratch space (0x10000 bytes), used by whoever needs a buffer for a moment.
+    pub buffer: PlainBytes<65536>,
 }
 
 impl Scratch {
     pub const fn new() -> Self {
         Scratch {
-            buffer: Bytes::new([0; 65536]),
+            buffer: PlainBytes::new([0; 65536]),
         }
     }
 }
 
 impl Scratch {
-    pub const START: usize = 0x93E8B0;
     pub const LEN: usize = 0x10000;
 
     /// `files::read` of `count` bytes from `file` into the scratch: (the bytes read, whether
@@ -37,36 +33,12 @@ impl Scratch {
         what: &str,
     ) -> Result<(u32, bool), crate::errors::BadInput> {
         if count as usize > Self::LEN {
-            crate::framework::log(&format!("scratch: {what}: {count:#x} bytes"));
+            crate::logfile::program_log::log(&format!("scratch: {what}: {count:#x} bytes"));
             return Err(crate::errors::BadInput("a read past the scratch"));
         }
         let mut bytes = vec![0u8; count as usize];
         let (got, ok) = crate::files::handle::read_slice(file, &mut bytes);
         self.buffer.write_at(0, &bytes[..got as usize], what)?;
         Ok((got, ok))
-    }
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    #[cfg(test)]
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const system().work.files) as usize
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn scratch_starts_as_the_games() {
-        let size = size_of::<Scratch>();
-        assert!(Scratch::LEN <= size && size <= (Scratch::LEN).next_multiple_of(16));
-        let image = crate::moved::image_bytes(Scratch::START, Scratch::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(Scratch::home()).cast_const(),
-                Scratch::LEN,
-            )
-        };
-        assert_eq!(mine, &image[..]);
     }
 }

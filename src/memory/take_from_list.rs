@@ -8,24 +8,19 @@
 //! The name is a reading.
 
 use crate::errors::BadInput;
-use crate::memory::MemoryList;
-use crate::pointers::{load_value, store_value};
-
-// ---- Rust version ----
+use crate::memory::HeldList;
 
 /// The address of the bytes, or None if the list has not that many left.
-pub fn take_from_list(
-    list: &dyn crate::pointers::Store,
-    bytes: u32,
-) -> Result<Option<u32>, BadInput> {
-    let mut l = load_value::<MemoryList>(list, 0)?;
+pub fn take_from_list(list: &impl HeldList, bytes: u32) -> Result<Option<u32>, BadInput> {
+    let mut l = list.get();
     let taken = l.take(bytes);
-    store_value(list, 0, l)?;
+    list.set(l);
     Ok(taken)
 }
 
-pub fn rewind_list(list: &dyn crate::pointers::Store) -> Result<(), BadInput> {
-    let mut l = load_value::<MemoryList>(list, 0)?;
+pub fn rewind_list(list: &impl HeldList) -> Result<(), BadInput> {
+    let mut l = list.get();
     l.rewind();
-    store_value(list, 0, l)
+    list.set(l);
+    Ok(())
 }

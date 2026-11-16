@@ -1,25 +1,25 @@
-//! `race::keep_undo` (0x41E438): the viewed replay kept for one undo before an edit: the
-//! block count into `dword_9673F4`, the index's places (`lDistanceToMove`, 0x3840 bytes)
-//! into `dword_9673F8`, the blocks' cameras (`unk_963BB4`) into `unk_96AC38`.
+//! `race::keep_undo`: keeps the viewed replay for one undo before an edit: the block count into
+//! `undo_blocks`, the index's places (0x3840 bytes) into `undo_places`, the blocks' cameras
+//! (`block_cameras`) into `undo_cameras`.
 //!
-//! Callers: `race::viewer_action` (six places), `race::edit_camera_1`, `edit_camera_2`.
+//! Callers: `race::viewer_action` (six places) and `race::edit_camera`.
 
-use crate::race::owner_shared::Shared;
-use crate::race::viewer_buffers_store::VIEWER_BUFFERS;
+use crate::race::owner::Race;
 
-/// The Rust version.
-pub fn keep_undo(shared: &Shared) {
-    // As `rc2k_core::race::viewer_flow::copy_tables`, cell by cell.
-    VIEWER_BUFFERS
+pub fn keep_undo(race: &Race) {
+    let shared = &race.shared;
+    let buffers = race.viewer_buffers();
+    // Cell by cell, as `rc2k_core::race::viewer_flow::copy_tables`.
+    buffers
         .undo_blocks
-        .set(shared.replay_file.index_block_count.get());
-    for (k, (to, from)) in VIEWER_BUFFERS
+        .set(shared.replay_file().index.block_count.get());
+    for (k, (to, from)) in buffers
         .undo_places
         .iter()
-        .zip(&shared.replay_file.block_places)
+        .zip(&shared.replay_file().index.block_places)
         .enumerate()
     {
         to.set(from.get());
-        VIEWER_BUFFERS.undo_cameras[k].set(VIEWER_BUFFERS.block_cameras.get_u32(4 * k));
+        buffers.undo_cameras[k].set(buffers.block_cameras.get_u32(4 * k));
     }
 }

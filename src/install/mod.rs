@@ -1,6 +1,7 @@
 //! What the game reads about its installation: the record `var\ral.zog`, the languages
 //! file `lang.cfg`, the edition file `files\d\gfx\sku`.
 
+pub mod apply_config;
 pub mod check_at_start;
 pub mod check_clio_disc;
 pub mod choose_language;
@@ -14,6 +15,7 @@ pub mod read_record;
 pub mod read_registry;
 pub mod read_sku;
 pub mod run_after_exit;
+pub mod run_flags;
 pub mod runs_from_source;
 
 // The installer (`install::run_installer` and its tree). Helpers:
@@ -68,6 +70,8 @@ pub mod open_installed;
 pub mod open_installer;
 pub mod page_key;
 pub mod page_links;
+#[cfg(test)]
+mod page_readers_tests;
 pub mod page_records;
 pub mod place_pieces;
 pub mod place_row;

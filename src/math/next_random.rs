@@ -1,62 +1,111 @@
-//! `math::next_random` (0x4018B4): the game's random numbers.
+//! `math::next_random`: the game's random numbers.
 //!
-//! One step of the generator on its state `dword_4E0140` (`math::random_step`, 0x4018C8,
-//! with 0 mixed in): the low byte is changed by three bits of the number (bit 22, then
-//! bit 2 and bit 1 of the byte as it then is, each flipping bit 0), the whole is turned
-//! right by one, and what is mixed in is `xor`ed on. 23 callers, and
-//! `math::random_below` (73 more).
+//! One step of the generator on its state: the low byte is changed by three bits of the
+//! number (bit 22, then bit 2 and bit 1 of the byte as it then is, each flipping bit 0),
+//! the whole is turned right by one, and what is mixed in is `xor`ed on.
 
-// ---- Rust version ----
-
-/// The generator's state: out of the image since 2026-10-24 (phase 5; it was
-/// `g_randomState`, 0x4E0140, whose first value it keeps until `seed_random`).
-pub static STATE: crate::session::Dword = crate::session::Dword::new(0x9570_1114);
-
-/// The generator loaded from `STATE`, `f` run on it, its state stored back.
-pub fn with_random<R>(f: impl FnOnce(&mut rc2k_core::math::random::Random) -> R) -> R {
-    let mut random = rc2k_core::math::random::Random { state: STATE.get() };
-    let value = f(&mut random);
-    STATE.set(random.state);
-    value
+/// The game's random numbers: the main generator and the two streams of their own for the race
+/// sounds and the drawing. Held by the race (`RaceShared::random`) and handed to what draws.
+pub struct Randoms {
+    /// The main generator's state, starting at the game's first value until `seed_random`.
+    pub state: crate::memory::session::Dword,
+    /// The race sounds' numbers: drawn only on the game's thread (the sound turn, the race's sound
+    /// levels), so which sounds played no longer changes what the race and the drawing draw.
+    pub sounds: Stream,
+    /// The drawing's numbers (the mud thrown on the textures, the objects' shimmer), so the race
+    /// draws the same numbers whatever the frame rate. Drawn in the drawing's order: on a drawing
+    /// thread after the runs before its own (`next_drawing`).
+    drawing: Stream,
 }
 
-/// The thread that owns the generator while it draws a sequence that must stay together
-/// (0: none). Another thread asking for a number meanwhile waits.
-static OWNER: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
-
-fn this_thread() -> u32 {
-    crate::sync::thread_id()
-}
-
-/// Waits while another thread owns the generator (`own_random`).
-pub fn wait_for_random() {
-    use std::sync::atomic::Ordering;
-    loop {
-        let owner = OWNER.load(Ordering::SeqCst);
-        if owner == 0 || owner == this_thread() {
-            return;
+impl Randoms {
+    pub const fn new() -> Self {
+        Randoms {
+            state: crate::memory::session::Dword::new(0x9570_1114),
+            sounds: Stream::new(),
+            drawing: Stream::new(),
         }
-        std::thread::sleep(std::time::Duration::from_millis(1));
+    }
+
+    /// The generator loaded from the state, `f` run on it, its state stored back.
+    pub fn with_random<R>(&self, f: impl FnOnce(&mut rc2k_core::math::random::Random) -> R) -> R {
+        let mut random = rc2k_core::math::random::Random {
+            state: self.state.get(),
+        };
+        let value = f(&mut random);
+        self.state.set(random.state);
+        value
+    }
+
+    /// The next number. On a drawing thread it comes after the runs before its own, so the
+    /// numbers follow the list's order.
+    pub fn next_random(&self) -> u32 {
+        crate::scene::workers::wait_for_earlier_runs();
+        self.with_random(rc2k_core::math::random::Random::draw)
+    }
+
+    /// A number under `limit`; a limit of 0 is refused.
+    pub fn random_below(&self, limit: u32) -> Result<u32, crate::errors::BadInput> {
+        if limit == 0 {
+            return Err(crate::errors::BadInput(
+                "a random number under 0: the original divides by it",
+            ));
+        }
+        self.with_random(|r| r.below(limit))
+            .ok_or(crate::errors::BadInput("unreachable: the limit is not 0"))
+    }
+
+    /// A number for the drawing, after the runs before this thread's.
+    pub fn next_drawing(&self) -> u32 {
+        crate::scene::workers::wait_for_earlier_runs();
+        self.drawing.next()
+    }
+
+    /// The streams started from the main generator's state (after `math::seed_random`).
+    pub fn seed_streams(&self) {
+        for stream in [&self.sounds, &self.drawing] {
+            stream.state.set(self.state.get());
+        }
     }
 }
 
-/// The numbers drawn so far (for tests that compare how many each side drew).
-pub static DRAWS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
-
-pub fn next_random() -> u32 {
-    wait_for_random();
-    DRAWS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-    with_random(rc2k_core::math::random::Random::draw)
+/// A generator of its own for one part of the game, so how many numbers one part takes no
+/// longer shifts every number the others draw (wiki: "The race's sounds steer the race's
+/// random numbers", "The pictures steer the race's random numbers"). The same generator
+/// as the main one, started from the game's state (`Randoms::seed_streams`).
+pub struct Stream {
+    state: crate::memory::session::Dword,
 }
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn state_starts_as_the_games() {
-        let d = crate::moved::image_bytes(0x4E0140, 4);
-        assert_eq!(
-            u32::from_le_bytes(d.try_into().unwrap()),
-            super::STATE.get()
-        );
+impl Stream {
+    const fn new() -> Self {
+        Stream {
+            state: crate::memory::session::Dword::new(0x9570_1114),
+        }
+    }
+
+    fn with<R>(&self, f: impl FnOnce(&mut rc2k_core::math::random::Random) -> R) -> R {
+        let mut random = rc2k_core::math::random::Random {
+            state: self.state.get(),
+        };
+        let value = f(&mut random);
+        self.state.set(random.state);
+        value
+    }
+
+    /// The next number, as `next_random` on this stream.
+    pub fn next(&self) -> u32 {
+        self.with(rc2k_core::math::random::Random::draw)
+    }
+
+    /// A number below `limit`, as `Randoms::random_below` on this stream.
+    pub fn below(&self, limit: u32) -> Result<u32, crate::errors::BadInput> {
+        if limit == 0 {
+            return Err(crate::errors::BadInput(
+                "a random number under 0: the original divides by it",
+            ));
+        }
+        self.with(|r| r.below(limit))
+            .ok_or(crate::errors::BadInput("unreachable: the limit is not 0"))
     }
 }

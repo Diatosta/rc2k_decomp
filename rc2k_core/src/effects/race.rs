@@ -1,15 +1,15 @@
-//! What the marks take from the race (converted 2026-10-21 from `effects::init_mark_step`
-//! 0x456EA7 and `effects::stage_record` 0x4D2DE0): each car's record set up for the marks
-//! when a stage loads, and the stage's record among the 0x34.
+//! What the marks take from the race: each car's record set up for the marks when a stage loads,
+//! and the stage's record among the 0x34.
 
 use crate::Invalid;
 
 /// The most cars of a race.
 pub const MOST_CARS: u32 = 8;
-/// The last kind of car with a row (`dword_5C90D8` ..: rows of 0x134 bytes).
+/// The last kind of car with a row (`LightsAndGear.light_records.records[0].groups[5]` ..: rows of
+/// 0x134 bytes).
 pub const LAST_KIND: i32 = 0x16;
 pub const ROW_LEN: usize = 0x134;
-/// The stages' records (`off_606320`).
+/// The stages' records.
 pub const STAGE_RECORDS: u32 = 0x34;
 
 /// The row's offsets the record's `slot_kinds` (its first seven) are set from.
@@ -32,8 +32,8 @@ pub struct CarFields {
     pub kinds: [u32; 17],
 }
 
-/// `init_mark_step`'s check, before anything: refuses no cars or more than 8 (the original's
-/// loop would run on) and a car without its block or record (`has(n)`).
+/// `init_mark_step`'s check, before anything: refuses no cars or more than 8 (the loop would
+/// run on) and a car without its block or record (`has(n)`).
 pub fn check_cars(count: u32, has: impl Fn(u32) -> bool) -> Result<(), Invalid> {
     if count == 0 || count > MOST_CARS {
         return Err(Invalid("an init mark of 0 or more than 8 cars"));
@@ -65,7 +65,7 @@ pub fn car_fields(n: u32, row: impl Fn(usize) -> u32) -> CarFields {
 /// `stage_record`: the record of a stage's number; refuses one past the table (unsigned).
 pub fn stage_record(number: u32) -> Result<usize, Invalid> {
     if number >= STAGE_RECORDS {
-        return Err(Invalid("a stage number past off_606320's 0x34"));
+        return Err(Invalid("a stage number past the 0x34"));
     }
     Ok(number as usize)
 }

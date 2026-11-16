@@ -1,22 +1,18 @@
-//! `race::draw_viewer_panel` (0x41DA25): the replay viewer's panel: its texture
-//! (`dword_5BECB8`) locked (`d3d::lock_texture`; failing, nothing), cleared, and written
-//! on: text 0x1A4 and the time at the frame shown (block * 100 + frame, `strings::append_time`),
-//! text 0x1A5 and the replay's length, the names of the block's two cameras
-//! (`word_5C291C` by its bytes 0 and 1, at most 0x2E; `strings::append_string_by_id`),
-//! each three times 0x78 to the left and 0xD down, texts 0x560 and 0x561 (the fonts at
-//! `stru_51EAE4` ..; `text::draw_text_keep_regs`, 0x402368); unlocked
-//! (`d3d::unlock_texture`), copied to its device texture (`dword_5BECBC`,
-//! `d3d::copy_to_device_texture`), made the texture (`d3d::set_texture`) and drawn as ten quads
-//! (`drive::tyre_quad`, the texture's and the screen's rectangles `dword_5C2A1C`, `dword_5C2A0C`),
-//! the switch lights dimmed (0x555555) by the block's camera byte 5 (0: the second, 1: the first).
-//!
-//! Caller: `race::viewer_frame`.
+//! Draws the replay viewer's panel: its texture (`viewer_panel_texture`) is locked
+//! (`d3d::lock_texture`; failing, nothing is drawn), cleared, and written on: text 0x1A4 and the
+//! time at the frame shown (block * 100 + frame, `strings::append_time`), text 0x1A5 and the
+//! replay's length, the names of the block's two cameras (`camera_name_ids[0]`
+//! by its bytes 0 and 1, at most 0x2E; `strings::append_string_by_id`), each
+//! three times 0x78 to the left and 0xD down, and texts 0x560 and 0x561
+//! (`text::draw_text_keep_regs`). The texture is then unlocked (`d3d::unlock_texture`), copied to
+//! its device texture (`viewer_device_texture`, `d3d::copy_to_device_texture`), made the texture
+//! (`d3d::set_texture`) and drawn as ten quads (`drive::tyre_quad`, the texture's and the screen's
+//! rectangles `texture_rect`, `screen_rect`), the switch lights dimmed by the block's camera byte 5
+//! (0: the second, 1: the first). Called by `viewer_frame`.
 
 use crate::errors::Refused;
+use crate::memory::session::PlainDword;
 use crate::race::owner::Race;
-use crate::race::viewer_screen_store::VIEWER_PANEL;
-use crate::session::Dword;
-use crate::strings::owner::strings;
 use crate::text::draw_text::GameCanvas;
 const FONT_A: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::PANEL_A;
 const FONT_B: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::PANEL_B;
@@ -24,21 +20,27 @@ const FONT_C: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::PANE
 const FONT_D: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::PANEL_D;
 const FONT_E: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::PANEL_E;
 
-/// The Rust version (the original keeps every register of its caller).
-pub fn draw_viewer_panel(race: &Race) -> Result<(), Refused> {
-    let gfx = crate::gfx::owner::gfx();
+pub fn draw_viewer_panel(
+    so: crate::strings::append_string_by_id::StringOwners<'static>,
+    race: &Race,
+    gfx: &'static crate::gfx::owner::Gfx,
+    strings: &crate::strings::owner::Strings,
+    system: &crate::system::owner::System,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let replay = &race.replay;
-    let text_stores = &strings().text;
+    let text_stores = &strings.text;
     let shared = &race.shared;
-    // Converted: `rc2k_core::race::viewer_flow::{shown_time, replay_length, camera_name,
-    // switch_lights}`.
     use rc2k_core::race::viewer_flow::{camera_name, replay_length, shown_time, switch_lights};
-    if crate::d3d::lock_texture::lock_texture(shared.replay_file.viewer_panel_texture.get())?.carry
+    if crate::d3d::lock_texture::lock_texture_in(
+        gfx,
+        shared.replay_file().viewer_panel_texture.get(),
+    )?
+    .carry
     {
         return Ok(());
     }
-    // The surface cleared (as `rep stosd` row by row). A height of 0 is refused: the
-    // original goes round 2^32 times.
+    // The surface is cleared row by row. A height of 0 is refused (the loop would run 2^32 times).
     let height = gfx.drawing.draw_surface.height.get();
     if height == 0 {
         return Err(crate::errors::BadInput("a panel texture of no rows").into());
@@ -47,19 +49,26 @@ pub fn draw_viewer_panel(race: &Race) -> Result<(), Refused> {
     // A string of the game's texts drawn with a font at (x, y).
     let string =
         |id: u32, font: crate::gfx::typefaces::FontId, x: i32, y: i32| -> Result<(), Refused> {
-            crate::text::draw_string_by_id::draw_string_by_id_at(id, font, x, y, &mut GameCanvas)?;
+            crate::text::draw_string_by_id::draw_string_by_id_at(
+                so,
+                id,
+                font,
+                x,
+                y,
+                &mut GameCanvas::new(gfx),
+            )?;
             Ok(())
         };
     // The text buffer drawn with a font at (x, y).
     let text = |font: crate::gfx::typefaces::FontId, x: i32, y: i32| -> Result<(), Refused> {
-        let font = font.object();
+        let font = font.object(&gfx.fonts.typefaces);
         let mut copy = font.get();
         crate::text::draw_text_keep_regs::draw_text_keep_regs(
             &mut copy,
-            &crate::pointers::StoreBytes(&text_stores.buffer.text),
+            &crate::memory::cells::StoreBytes(&text_stores.buffer.text),
             x,
             y,
-            &mut GameCanvas,
+            &mut GameCanvas::new(gfx),
         )?;
         if copy != font.get() {
             font.set(copy);
@@ -70,7 +79,7 @@ pub fn draw_viewer_panel(race: &Race) -> Result<(), Refused> {
     let append_time = |hundredths: u32| {
         let time = crate::strings::append_time::append_time(
             hundredths,
-            crate::strings::append_time::show_hours(),
+            crate::strings::append_time::show_hours(strings),
         );
         for (n, &b) in time.iter().enumerate() {
             text_stores.buffer.text.set(n, b);
@@ -79,27 +88,32 @@ pub fn draw_viewer_panel(race: &Race) -> Result<(), Refused> {
     };
     string(0x1A4, FONT_A, 4, 0)?;
     append_time(shown_time(
-        replay.replay_view.replay_block.get(),
-        replay.replay_view.replay_frame.get(),
+        replay.replay_view().replay_block.get(),
+        replay.replay_view().replay_frame.get(),
     ));
     text(FONT_B, 4, 8)?;
     string(0x1A5, FONT_C, 0x60, 0x19)?;
-    append_time(replay_length(shared.replay_file.index_block_count.get()));
+    append_time(replay_length(shared.replay_file().index.block_count.get()));
     text(FONT_D, 0x60, 0x21)?;
     // The two cameras' names, three times each, 0xD lower and 0x78 to the left.
     let mut y = 0x32;
     for byte in 0..2usize {
         let camera = camera_name(crate::race::viewer::camera_byte_at(
-            byte.wrapping_add(8 * replay.replay_view.replay_block.get() as usize),
+            race,
+            byte.wrapping_add(8 * replay.replay_view().replay_block.get() as usize),
         )?);
-        let id = crate::race::viewer_screen_store::VIEWER_PANEL.camera_name(camera as usize);
+        let id = race.viewer_panel().camera_name(camera as usize);
         let mut out = 0usize;
-        crate::strings::append_string_by_id::append_string_by_id(u32::from(id), &mut |bytes| {
-            for (k, &b) in bytes.iter().enumerate() {
-                text_stores.buffer.text.set(out + k, b);
-            }
-            out += bytes.len();
-        })?;
+        crate::strings::append_string_by_id::append_string_by_id(
+            so,
+            u32::from(id),
+            &mut |bytes| {
+                for (k, &b) in bytes.iter().enumerate() {
+                    text_stores.buffer.text.set(out + k, b);
+                }
+                out += bytes.len();
+            },
+        )?;
         text_stores.buffer.text.set(out, 0);
         if byte == 1 {
             y += 0xD;
@@ -114,44 +128,60 @@ pub fn draw_viewer_panel(race: &Race) -> Result<(), Refused> {
     }
     string(0x560, FONT_E, 0x75, 0)?;
     string(0x561, FONT_E, 0x75, 0xF)?;
-    crate::d3d::unlock_texture::unlock_texture(shared.replay_file.viewer_panel_texture.get())?;
+    crate::d3d::unlock_texture::unlock_texture(
+        gfx,
+        shared.replay_file().viewer_panel_texture.get(),
+    )?;
     crate::d3d::copy_to_device_texture::copy_to_device_texture(
-        shared.replay_file.viewer_panel_texture.get(),
-        shared.replay_file.viewer_device_texture.get(),
+        shared.replay_file().viewer_panel_texture.get(),
+        shared.replay_file().viewer_device_texture.get(),
     );
-    crate::d3d::set_texture::set_texture(shared.replay_file.viewer_device_texture.get());
+    crate::d3d::set_texture::set_texture(
+        scene.scratch.game_scratch(),
+        shared.replay_file().viewer_device_texture.get(),
+    );
     // The quads.
     let camera_5 = crate::race::viewer::camera_byte_at(
-        5usize.wrapping_add(8 * replay.replay_view.replay_block.get() as usize),
+        race,
+        5usize.wrapping_add(8 * replay.replay_view().replay_block.get() as usize),
     )?;
     let (first, second) = switch_lights(camera_5);
     let white = 0x00FF_FFFF;
     let quad = |colour: u32| {
-        crate::drive::tyre_quad::tyre_quad_cells(
-            &VIEWER_PANEL.texture_rect,
-            &VIEWER_PANEL.screen_rect,
+        crate::drive::tyre_quad::tyre_quad(
+            race.viewer_panel()
+                .texture_rect
+                .each_ref()
+                .map(crate::memory::session::PlainDword::get),
+            &race.viewer_panel().screen_rect,
             colour,
+            race.viewer_panel(),
+            system,
+            scene.scratch.game_scratch(),
         )
     };
-    // dword_5C2A1C: the texture's rectangle; dword_5C2A0C: the screen's.
-    let (uv, rect) = (&VIEWER_PANEL.texture_rect, &VIEWER_PANEL.screen_rect);
-    let set = |cells: &[Dword; 4], v: [u32; 4]| {
+    // `texture_rect`: the texture's rectangle; `screen_rect`: the screen's.
+    let (uv, rect) = (
+        &race.viewer_panel().texture_rect,
+        &race.viewer_panel().screen_rect,
+    );
+    let set = |cells: &[PlainDword; 4], v: [u32; 4]| {
         for (cell, x) in cells.iter().zip(v) {
             cell.set(x);
         }
     };
-    let add = |cell: &Dword, v: u32| cell.set(cell.get().wrapping_add(v));
+    let add = |cell: &PlainDword, v: u32| cell.set(cell.get().wrapping_add(v));
     set(uv, [0, 0, 0xC8, 0x32]);
     set(rect, [4, 2, 0x64, 0x19]);
     quad(white)?;
     uv[1].set(0x32);
-    VIEWER_PANEL.screen_rect[0].set(0x2B8);
+    race.viewer_panel().screen_rect[0].set(0x2B8);
     quad(white)?;
     set(uv, [0xDC, 0, 0x1A, 0x1A]);
     set(rect, [1, 0x20, 0xD, 0xD]);
     quad(first)?;
     uv[1].set(0x1E);
-    VIEWER_PANEL.screen_rect[0].set(0x191);
+    race.viewer_panel().screen_rect[0].set(0x191);
     quad(second)?;
     set(uv, [0, 0x64, 0x100, 0x1A]);
     set(rect, [0x11, 0x20, 0x80, 0xD]);
@@ -162,7 +192,7 @@ pub fn draw_viewer_panel(race: &Race) -> Result<(), Refused> {
         quad(first)?;
     }
     uv[1].set(0xB2);
-    VIEWER_PANEL.screen_rect[0].set(0x1A1);
+    race.viewer_panel().screen_rect[0].set(0x1A1);
     quad(second)?;
     for _ in 0..2 {
         add(&uv[1], 0x1A);

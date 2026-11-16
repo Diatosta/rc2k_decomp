@@ -1,39 +1,33 @@
-//! `audio::start` (0x40A01D): the sound device probed at the audio thread's start, and the
-//! two sound modes chosen.
-//!
-//! `audio::open_a3d2` (eax 0), `g_hasA3d2` = `g_useA3d`, `audio::close_a3d2`; the mode
-//! 0x11221 | 0x1900000; `audio::open_sound` (eax 0). Opened: `g_a3dSplashKept` =
-//! `g_a3dReady`; `audio::read_caps`; unless it fails or the caps say emulated (0x20):
-//! `audio::make_primary`, `g_has3d` from the mode's 3D bit, `audio::open_way`, a probe voice
-//! in `g_voices[0]` (zeroed; format 0x121, `g_mixRateSetting`, flags 1, 0x4000 bytes)
-//! through `audio::make_buffer` (ebx 0x11221, esi the voice), `release_eax`,
-//! `release_voice_manager`, `release_voice`, `audio::close_way`, `audio::release_primary`; with
-//! caps flag 0x100, free hardware buffers and 3D: race bits 0x112221 for A3D2, else with
-//! `g_voiceManagerOn` and at least 6 free 3D buffers 0x900000 (and 0x1000000 with `g_hasEax`). Not
-//! opened: 0x112221 with A3D2, else both modes 0 and straight to the log. Then: unless
-//! both modes are kept, the race mode is the probe's and at once the menu's 0x11221 (the
-//! probe thrown away: section 16); `audio::choose_modes`; "AUD: Using modes" and both;
-//! `audio::close_sound`; the mode 0. One caller, the audio thread.
+//! Probes the sound device at the audio thread's start and chooses the two sound modes: A3D2
+//! tried, DirectSound opened, its caps read; unless that fails or the caps say emulated, the
+//! primary made, a probe voice made through `make_buffer` and released, and the 3D / EAX / voice
+//! manager abilities noted for the race mode. Not opened: A3D2's race mode with A3D2, else both
+//! modes 0. Unless both modes are kept, the race mode is the probe's and at once the menu's (the
+//! probe thrown away: a game slip kept). Then `audio::choose_modes`, "AUD: Using
+//! modes" logged and the device closed.
 
-use crate::audio::owner::Audio;
+use crate::audio::own::AudioThread;
 use crate::errors::Refused;
 
 const USING_MODES_TEXT: &std::ffi::CStr = c"AUD: Using modes"; // "AUD: Using modes"
 
-/// False for the carry (no race mode).
-pub fn start(audio: &Audio) -> Result<bool, Refused> {
+/// False when there is no race mode.
+pub fn start(
+    audio: &AudioThread,
+    system: &'static crate::system::owner::System,
+) -> Result<bool, Refused> {
     use crate::audio::sound_device as sd;
     use rc2k_core::audio::device::{
         A3D2_MODE, CAPS_EMULATED, Fact, MENU_MODE, modes_kept, probed_race_mode,
     };
     crate::audio::a3d::open_a3d2(&audio.state)?;
     audio.state.has_a3d2.set(audio.state.use_a3d.get());
-    crate::audio::a3d::close_a3d2(&audio.state)?;
-    // The original's ebx: the race mode found.
+    crate::audio::a3d::close_a3d2(&audio.state);
+    // The race mode found.
     let mut found = MENU_MODE;
     audio.state.sound_mode.set(MENU_MODE | 0x190_0000);
     let mut to_log = false;
-    if !sd::open_sound_in_game(&audio.state, 0)? {
+    if !sd::open_sound_in_game(&audio.state, system, 0)? {
         if audio.state.has_a3d2.get() == 1 {
             found = A3D2_MODE;
         } else {
@@ -45,12 +39,12 @@ pub fn start(audio: &Audio) -> Result<bool, Refused> {
         audio.state.a3d_splash_kept.set(audio.state.a3d_ready.get());
         let flags = || audio.state.sound_caps.get_u32(4);
         if sd::read_caps(&audio.state)? && flags() & CAPS_EMULATED == 0 {
-            crate::audio::primary::make_primary(&audio.state)?;
+            crate::audio::primary::make_primary(audio, system)?;
             let has_3d = (audio.state.sound_mode.get() & 0x10_0000 != 0) as u32;
             audio.state.has_3d.set(has_3d);
-            crate::audio::mixer_set_up::open_way(audio, audio.state.sound_mode.get())?;
-            // A probe voice in the pool's first record: zeroed, then its format, the mixing
-            // rate setting, flags 1 and 0x4000 bytes.
+            crate::audio::mixer_set_up::open_way(audio, system, audio.state.sound_mode.get())?;
+            // A probe voice in the pool's first record: zeroed, then its format, the mixing rate
+            // setting, flags 1 and 0x4000 bytes.
             let probe = &audio.state.voices[0];
             probe.update(|v| {
                 *v = Default::default();
@@ -60,13 +54,16 @@ pub fn start(audio: &Audio) -> Result<bool, Refused> {
                 v.length = 0x4000;
             });
             let voice = crate::audio::voices::voice_id(0);
-            crate::audio::make_buffer::make_buffer(&audio.state, voice, MENU_MODE)?;
+            crate::audio::make_buffer::make_buffer(
+                &audio.state,
+                voice,
+                crate::audio::property_sets::Holder::Value,
+            )?;
             crate::audio::release_eax::release_eax(&audio.state);
             crate::audio::release_voice_manager::release_voice_manager(&audio.state);
             crate::audio::release_voice::release_voice_in_game(&audio.state, voice);
-            crate::audio::mixer_set_up::close_way(audio, audio.state.sound_mode.get())?;
-            sd::release_primary(&audio.state)?;
-            // Converted: `rc2k_core::audio::device::probed_race_mode`.
+            crate::audio::mixer_set_up::close_way(audio, system, audio.state.sound_mode.get())?;
+            sd::release_primary(&audio.state);
             found = probed_race_mode(|fact| match fact {
                 Fact::CapsFlags => flags(),
                 Fact::FreeHardware => audio.state.sound_caps.get_u32(0x14),
@@ -86,12 +83,12 @@ pub fn start(audio: &Audio) -> Result<bool, Refused> {
             audio.state.menu_sound_mode.set(MENU_MODE);
             audio.state.race_sound_mode.set(MENU_MODE);
         }
-        crate::audio::choose_modes::in_game(&mut crate::audio::choose_modes::real_log)?;
+        crate::audio::choose_modes::in_game(audio, &mut crate::audio::choose_modes::real_log)?;
     }
     sd::log_text(USING_MODES_TEXT, false);
     sd::log_hex(audio.state.menu_sound_mode.get(), false);
     sd::log_hex(audio.state.race_sound_mode.get(), true);
-    sd::close_sound(&audio.state)?;
+    sd::close_sound(&audio.state, system)?;
     audio.state.sound_mode.set(0);
     Ok(audio.state.race_sound_mode.get() >= 1)
 }

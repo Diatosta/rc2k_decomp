@@ -1,16 +1,14 @@
-//! Keys made characters with a keyboard layout (converted 2026-10-20 from
-//! `input::key_to_char` 0x407E43).
+//! Keys made characters with a keyboard layout.
 //!
-//! A layout has a list of dead keys {key, plain, shifted} ended by a 0 key, and three
-//! tables of a character a key: plain, shifted, and the one used while AltGr is down. A
-//! dead key is kept pending; the next key is then looked up, by its plain character, in
-//! the compose list {dead key, base, plain result, shifted result} ended by a 0. Keys whose
-//! bit is set in the silent bitmap type nothing.
+//! A layout has a list of dead keys {key, plain, shifted} ended by a 0 key, and three tables of
+//! a character a key: plain, shifted, and AltGr's. A dead key is kept pending; the next key is
+//! looked up by its plain character in the compose list {dead key, base, plain result, shifted
+//! result} ended by a 0. Keys whose bit is set in the silent bitmap type nothing.
 
 use crate::Invalid;
 use crate::strings::bytes::Bytes;
 
-/// A layout's lists and tables; `None` where the game's pointer is null.
+/// A layout's lists and tables; `None` where the pointer is null.
 pub struct Layout<'a> {
     pub dead_keys: Option<&'a dyn Bytes>,
     pub plain: Option<&'a dyn Bytes>,
@@ -45,12 +43,11 @@ pub fn switch(
     }
 }
 
-/// What a key typed: eax's low half as the original leaves it (al the character, 0 for
-/// none; ah the dead key stored or used), and the pending dead key's new value, if it
-/// changes.
+/// What a key typed: the low 16 bits (the character, 0 for none; the next byte the dead key
+/// stored or used), and the pending dead key's new value, if it changes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Typed {
-    pub eax: u32,
+    pub code: u32,
     pub pending: Option<u8>,
 }
 
@@ -63,9 +60,8 @@ fn at(bytes: &dyn Bytes, n: usize) -> Result<u8, Invalid> {
         .ok_or(Invalid("a keyboard table past its end"))
 }
 
-/// The key (below 0x80) made a character. Refused (before anything changes): a dead key
-/// pending with no plain table (the original reads through null), lists without an end
-/// within 256 entries.
+/// The key (below 0x80) made a character. Refused (before anything changes): a dead key pending
+/// with no plain table, lists without an end within 256 entries.
 pub fn key_to_char(
     key: u8,
     layout: &Layout,
@@ -124,13 +120,13 @@ pub fn key_to_char(
     }
     if dead != 0 {
         return Ok(Typed {
-            eax: (dead as u32) << 8,
+            code: (dead as u32) << 8,
             pending: Some(dead),
         });
     }
     if silent {
         return Ok(Typed {
-            eax: 0,
+            code: 0,
             pending: None,
         });
     }
@@ -141,7 +137,7 @@ pub fn key_to_char(
     };
     if let Some(c) = composed {
         return Ok(Typed {
-            eax: high | c as u32,
+            code: high | c as u32,
             pending,
         });
     }
@@ -152,15 +148,15 @@ pub fn key_to_char(
     } else {
         layout.plain
     };
-    let eax = match table {
+    let code = match table {
         Some(table) => high | at(table, key as usize)? as u32,
         None => high,
     };
-    Ok(Typed { eax, pending })
+    Ok(Typed { code, pending })
 }
 
-/// A key's name on the keyboard pages (`input::append_key_name` 0x407F39): the layout's
-/// string for the key's low seven bits, or none (0): "0x" and two hexadecimal digits.
+/// A key's name on the keyboard pages: the layout's string for the key's low seven bits, or none
+/// (0): "0x" and two hexadecimal digits.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum KeyName {
     String(u32),
@@ -178,9 +174,9 @@ pub fn key_name(key: u32, names: impl Fn(u32) -> u16) -> KeyName {
 /// The answers to a yes/no question: strings 0xC3 (yes, 1), 0xC4 (no, -1), 0xC5 (2).
 pub const ANSWERS: [(u32, u32); 3] = [(0xC3, 1), (0xC4, u32::MAX), (0xC5, 2)];
 
-/// The answer a key's character (made lower case) gives (`input::yes_no_key` 0x407D71):
-/// the first of the three whose string's first byte it is (`first(id)`; an empty string
-/// is compared through what was there before), else 0.
+/// The answer a key's character (made lower case) gives: the first of the three whose string's
+/// first byte it is (`first(id)`; an empty string is compared through what was there before), else
+/// 0.
 pub fn answer(lower: u8, mut first: impl FnMut(u32) -> u8) -> u32 {
     ANSWERS
         .into_iter()
@@ -211,34 +207,34 @@ mod tests {
         assert_eq!(
             typed(5, false, false, 0),
             Typed {
-                eax: 0x25,
+                code: 0x25,
                 pending: None
             }
         );
-        assert_eq!(typed(5, true, false, 0).eax, 0x45);
+        assert_eq!(typed(5, true, false, 0).code, 0x45);
         assert_eq!(
             typed(0x1A, false, false, 0),
             Typed {
-                eax: 0x5E00,
+                code: 0x5E00,
                 pending: Some(b'^')
             }
         );
         assert_eq!(
             typed(5, false, false, b'^'),
             Typed {
-                eax: 0x5EE2,
+                code: 0x5EE2,
                 pending: Some(0)
             }
         );
         assert_eq!(
             typed(6, false, false, b'^'),
             Typed {
-                eax: 0x5E26,
+                code: 0x5E26,
                 pending: Some(0)
             }
         );
-        assert_eq!(typed(15, false, false, 0).eax, 0); // silent
-        assert_eq!(typed(5, false, true, 0).eax, 0); // no AltGr table
+        assert_eq!(typed(15, false, false, 0).code, 0); // silent
+        assert_eq!(typed(5, false, true, 0).code, 0); // no AltGr table
         assert_eq!(switch(2, true, false, false, true), Some(Switch::Second));
         assert_eq!(switch(1, true, false, true, false), None);
     }

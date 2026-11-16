@@ -1,7 +1,11 @@
-//! Plain since 2026-10-23 (phase 3): its arguments are what the audio thread reads of the
-//! command (`rc2k_core::audio::commands::decode`); the registers above are the original's,
-//! for reference.
-
-pub fn stop_stream() {
-    crate::sound::senders::send_and_wait(9, [0; 4]);
+/// Stops the sound stream and waits until the audio thread has acted on it.
+pub fn stop_stream(o: crate::owners::Owners<'static>) {
+    crate::sound::senders::send_and_wait(
+        o,
+        rc2k_core::audio::commands::Command::Stream {
+            path: 0,
+            volume: 0,
+            action: rc2k_core::audio::commands::StreamAction::Stop,
+        },
+    );
 }

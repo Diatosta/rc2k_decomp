@@ -1,9 +1,6 @@
-//! Where the view is drawn on the screen (converted 2026-10-21 from
-//! `scene::choose_view_window` 0x44FE1A): the whole screen, or in the framed layout
-//! (`dword_621514`) 800 x 600 at 0, 0 (with `dword_621480`, or mode `word_636526` 2) or
-//! 720 x 540 at 0x50, 0; and the window's middle, clip rectangle, scale and depths
-//! (converted 2026-10-21 from `scene::set_view_window` 0x44E47B; what the x87 keeps on
-//! its stack an `f64`, the same at the game's double precision).
+//! Where the view is drawn on the screen: the whole screen, or in the framed layout 800 x 600
+//! at 0, 0 (with `FrameSwitches.scene_set_up`, or mode `LightTables.view_mode` 2) or 720 x 540
+//! at 0x50, 0; and the window's middle, clip rectangle, scale and depths (`f64` intermediates).
 
 use crate::math::geometry::fistp64;
 
@@ -15,7 +12,7 @@ pub struct ViewSettings {
     pub mode: u16,
 }
 
-/// The window chosen: its size, its offset, and the scale (`dword_624080`, 0x100).
+/// The window chosen: its size, its offset, and the scale.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ViewWindow {
     pub size: [u32; 2],
@@ -23,12 +20,12 @@ pub struct ViewWindow {
     pub scale: u32,
 }
 
-/// The scale every choice sets.
+/// The scale every choice sets (0x100).
 pub const SCALE: u32 = 0x100;
-/// The mode `scene::full_view_window` sets around the choice.
+/// The mode the full-screen choice sets around the choice.
 pub const FULL_MODE: u16 = 2;
 
-/// `choose_view_window`'s window; `screen` (width, height) is asked only when not framed.
+/// The window chosen; `screen` (width, height) is asked only when not framed.
 pub fn choose(settings: ViewSettings, screen: impl FnOnce() -> [u32; 2]) -> ViewWindow {
     let (size, x) = if !settings.framed {
         (screen(), 0)
@@ -44,12 +41,9 @@ pub fn choose(settings: ViewSettings, screen: impl FnOnce() -> [u32; 2]) -> View
     }
 }
 
-/// What `set_view_window` reads: the reach (`dword_60A87C`), the window's size
-/// (`dword_62408C`) and offsets (`dword_623FB0`), whether in a race (`g_inRace` 1), the
-/// screen's width, the scale's three (`dword_606294` a float, `dword_624080`,
-/// `flt_623DCC`), the nearer setting (`dword_60AC80`) and its factor (`flt_5C5CFC`), the
-/// fade's two (`flt_624228`, `flt_624220`), 65536 (`flt_5C5D98`), the clip's factor
-/// (`flt_62422C`), one (`flt_5C5D38`).
+/// What `set_view_window` reads: the reach, the window's size and offsets, whether in a race,
+/// the screen's width, the scale's three, the nearer setting and its factor, the fade's two,
+/// 65536, the clip's factor, one.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct WindowInputs {
     pub reach: u32,
@@ -66,17 +60,17 @@ pub struct WindowInputs {
     pub one: f32,
 }
 
-/// What it works out (in the order of the header of `scene::set_view_window`).
+/// What `window_settings` works out.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct WindowSettings {
-    /// `dword_63DC54` (and `dword_63DC58`): the reach times 0x20.
+    /// The reach times 0x20.
     pub depth: u32,
     pub middle: [u32; 2],
     /// Top, bottom, left, right.
     pub edges: [u32; 4],
     pub scale: f32,
     pub divisor: f32,
-    /// The depth times 0x10000 (64 bits: eax, edx).
+    /// The depth times 0x10000 (64 bits).
     pub product: u64,
     pub farthest: f32,
     pub reciprocal: f32,
@@ -88,8 +82,7 @@ pub struct WindowSettings {
     pub less_one: [f32; 2],
 }
 
-/// The nearer setting's share: 100 less it, held to 0x5A .. 0x64 by the differences'
-/// signs (`cmp; jns`, `cmp; js`, as the original).
+/// The nearer setting's share: 100 less it, held to 0x5A ..= 0x64 by the differences' signs.
 pub fn nearer_share(nearer: u32) -> u32 {
     let mut v = 100u32.wrapping_sub(nearer);
     if (v.wrapping_sub(0x5A) as i32) < 0 {
@@ -101,7 +94,7 @@ pub fn nearer_share(nearer: u32) -> u32 {
     v
 }
 
-/// `set_view_window`'s work.
+/// The settings worked out from the inputs.
 pub fn window_settings(i: &WindowInputs) -> WindowSettings {
     let int = |v: u32| v as i32 as f64;
     let depth = i.reach.wrapping_mul(0x20);

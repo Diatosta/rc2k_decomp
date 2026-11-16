@@ -1,49 +1,46 @@
-//! `physics::set_wheel_weights` (0x43F3E7): the four wheels' load forces (the records at
-//! 0x614770 + 0x20 k, `physics::clear_forces`'): a share `flt_6D3070` held to 1 ..
-//! `flt_5C5D48` (through `dword_62400C`), ((it - 1) `flt_5C5DA4` + 1) gravity
-//! (`flt_613FC8`) `flt_614170`, negated, times `flt_5C5DA4` again into each record's +4,
-//! turned into the car's frame (`physics::turn_by_inverse`); then each record's second
-//! vector (+0xC ..) set to (-1 / 1, 0, ±1) by its corner and turned the same way. A
-//! reading: the weight on each wheel, the corners' places.
+//! The four wheels' load forces (four of the force records `physics::clear_forces` clears): a share
+//! `wheel_share` held to 1 ..= `five` (through `scratch`), ((it - 1) `quarter` + 1) `gravity`
+//! `weight`, negated, times `quarter` again goes into each record's force, turned into the car's
+//! frame (`physics::turn_by_inverse`); then each record's second vector is set to (-1 / 1, 0, +-1)
+//! by its corner and turned the same way. A reading: the weight on each wheel, the corners' places.
 //!
-//! Caller: `physics::car_physics_step` (0x43B723), every physics step.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
+//! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::math::x87;
-use crate::math::x87_run::{compare_full, weight_force};
+use crate::math::x87::{compare_full, weight_force};
+use crate::physics::car_store::Car;
+use crate::physics::contact_store::ContactWork;
+use crate::physics::tables_store::PhysicsTables;
 use crate::physics::turn_by_inverse::turn_by_inverse;
-use crate::race::owner::Race;
+use crate::race::numbers_store::Numbers;
 
-/// The Rust version. The registers the original leaves are read by none of its callers (esi).
-pub fn set_wheel_weights(race: &Race, scene: &crate::scene::owner::Scene) {
-    let scratch = &scene.drawing.scene.scratch;
-    let one: u32 = race.course.numbers.one.bits();
-    let high: u32 = race.course.numbers.five.bits();
-    let k: u32 = race.course.numbers.quarter.bits();
-    scratch.set(x87::loaded(race.physics.contact.wheel_share.bits()));
+pub fn set_wheel_weights(
+    car: &Car,
+    tables: &PhysicsTables,
+    contact: &ContactWork,
+    numbers: &Numbers,
+    scene: &crate::scene::owner::Scene,
+) {
+    let scratch = &scene.drawing.scene.get().scratch;
+    let one = numbers.one.get();
+    let high = numbers.five.get();
+    let k = numbers.quarter.get();
+    scratch.set(x87::loaded(&contact.wheel_share).to_bits());
     if compare_full(scratch.get(), one) & 0x100 != 0 {
-        scratch.set(x87::loaded(one));
+        scratch.set(x87::loaded(one).to_bits());
     }
     if compare_full(scratch.get(), high) & 0x100 == 0 {
-        scratch.set(x87::loaded(high));
+        scratch.set(x87::loaded(high).to_bits());
     }
-    let f = weight_force(
-        scratch.get(),
-        one,
-        k,
-        race.shared.physics_tables.gravity.bits(),
-        race.shared.physics_tables.weight.bits(),
-    );
-    let wheels = &race.shared.physics_tables.forces[..4];
+    let f = weight_force(scratch.get(), one, k, &tables.gravity, &tables.weight);
+    let wheels = &tables.forces[..4];
     for w in wheels {
-        w.force[1].set_bits(f);
+        w.force[1].set(f);
     }
     for w in wheels {
-        turn_by_inverse(&race.shared, &w.force);
+        turn_by_inverse(car, &w.force);
     }
-    let plus = x87::loaded(1.0f32.to_bits());
+    let plus = x87::loaded(1.0f32);
     let minus = x87::negated(plus);
     // The wheels' points: x and z of +1 or -1 (0x2C, 0x6C, 0x14, 0x34 plus; 0x0C, 0x4C,
     // 0x54, 0x74 minus).
@@ -53,7 +50,7 @@ pub fn set_wheel_weights(race: &Race, scene: &crate::scene::owner::Scene) {
         &wheels[0].point[2],
         &wheels[1].point[2],
     ] {
-        cell.set_bits(plus);
+        cell.set(plus);
     }
     for cell in [
         &wheels[0].point[0],
@@ -61,9 +58,9 @@ pub fn set_wheel_weights(race: &Race, scene: &crate::scene::owner::Scene) {
         &wheels[2].point[2],
         &wheels[3].point[2],
     ] {
-        cell.set_bits(minus);
+        cell.set(minus);
     }
     for w in wheels {
-        turn_by_inverse(&race.shared, &w.point);
+        turn_by_inverse(car, &w.point);
     }
 }

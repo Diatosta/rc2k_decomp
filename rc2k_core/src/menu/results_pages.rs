@@ -1,14 +1,10 @@
-//! The results and standings pages: the first player's figure each page holds, and the
-//! order of the tables' sorts before them (converted 2026-10-21 from
-//! `menu::show_overall_stage_results`, `show_overall_rally_results` 0x4A3BA2,
-//! `show_championship_standings` 0x4A5A47, `show_class_stage_results`,
-//! `show_class_rally_results`, `show_class_championship_standings`,
-//! `menu::rally_results` 0x4A94EC and `championship_standings` 0x4A9583).
+//! The results and standings pages: the first player's figure each page holds, and the order of the
+//! tables' sorts before them.
 
-/// The A8 championship's `g_eventMode`.
+/// The A8 championship's event mode.
 pub const A8: u32 = 0x13;
 
-/// The most a page's figure (`dword_7556B4`) may be (signed).
+/// The most a page's figure may be (signed).
 pub const OVERALL_MOST: u32 = 0xAB;
 pub const CLASS_MOST: u32 = 0x33;
 pub const A8_CLASS_MOST: u32 = 0x51;
@@ -17,11 +13,11 @@ pub const A8_CLASS_MOST: u32 = 0x51;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Page {
     OverallStage,
-    /// Held to 0xAB, but a figure above it becomes 0x51 (the original's slip, bugs.md).
+    /// Held to 0xAB, but a figure above it becomes 0x51 (a 1999 slip kept as is: bugs.md).
     OverallRally,
     ChampionshipStandings,
     ClassStage,
-    /// The A8 championship's (`g_eventMode` 0x13) held to 0x51, the others' to 0x33.
+    /// The A8 championship's held to 0x51, the others' to 0x33.
     ClassRally {
         a8: bool,
     },

@@ -1,8 +1,6 @@
-//! Which texture slots a stage wants at which level (converted 2026-10-21 from
-//! `scene::init_texture_levels` 0x424001, `race::loadlevel_init`'s "init ed textures"):
-//! each car's runs of slots, each kind's slots by the stage prefs, then fixed runs, into
-//! `LevelTables`. With the other levels on (`dword_5CDADC`, which the original sets to 0
-//! first and nothing else sets) every level is the run's other one.
+//! Which texture slots a stage wants at which level: each car's runs of slots, each kind's
+//! slots by the stage prefs, then fixed runs, into `LevelTables`. With the other levels on
+//! (`ObjectTables.other_levels`, which nothing sets) every level is the run's other one.
 
 use crate::Invalid;
 use crate::scene::textures::LevelTables;
@@ -55,7 +53,7 @@ pub const LEVEL_ONE_SYSTEM: u32 = 6;
 pub const LEVEL_ONE_VIDEO: u32 = 2;
 /// The last run.
 pub const LAST: Run = run(2, 0x21C, 0, 0, FIXED_TAG);
-/// The runs with `dword_621514` set (the framed layout).
+/// The runs with `FrameSwitches.editor_mode` set (the framed layout).
 pub const FRAMED: [Run; 3] = [
     run(0x10, 0x200, 2, 2, FIXED_TAG),
     run(1, 0x218, 0, 0, FIXED_TAG),
@@ -64,7 +62,7 @@ pub const FRAMED: [Run; 3] = [
 /// The most cars.
 pub const MOST_CARS: u32 = 8;
 
-/// The race's cars held to 1 .. 8, by the signs of the differences (as the original).
+/// The race's cars held to 1 ..= 8, by the signs of the differences.
 pub fn held_cars(cars: u32) -> u32 {
     let mut cars = cars;
     if (cars.wrapping_sub(1) as i32) < 0 {
@@ -76,12 +74,12 @@ pub fn held_cars(cars: u32) -> u32 {
     cars
 }
 
-/// The cars' runs, two each: the own car's second at level 0 when `second_first`
-/// (`dword_63DB94` 1), else 1, each other car's second at level 1 (half the size); firsts
-/// at level 0; the other levels 1 for the own car, 2 for the others. Car 0's slots are 0x100 and 0x104, a further car's 0x108 + 8 a car; the tag
-/// 0x29 for car 0, else 0x29 + the car. `own` tells the cars this machine's cockpit may
-/// draw from: its own and any of the same model. The original has always car 0, which left
-/// a network client's cockpit at the lower levels.
+/// The cars' runs, two each: the own car's second at level 0 when `second_first`, else 1,
+/// each other car's second at level 1 (half the size); firsts at level 0; the other levels
+/// 1 for the own car, 2 for the others. Car 0's slots are 0x100 and 0x104, a further car's
+/// 0x108 + 8 a car; the tag 0x29 for car 0, else 0x29 + the car. `own` tells the cars this
+/// machine's cockpit may draw from: its own and any of the same model (a fixed bug: "A network
+/// client's dashboard is blurred" in `wiki/Fixed-bugs.md`).
 pub fn car_runs(cars: u32, second_first: bool, own: impl Fn(u32) -> bool) -> Vec<Run> {
     (0..MOST_CARS)
         .take_while(|&car| car == 0 || cars != car)
@@ -102,8 +100,8 @@ pub fn car_runs(cars: u32, second_first: bool, own: impl Fn(u32) -> bool) -> Vec
         .collect()
 }
 
-/// A kind's block of slots: the first, its tag, levels, and what the kinds' slot count
-/// (`dword_5DC978`) gets for each slot taken.
+/// A kind's block of slots: the first, its tag, levels, and what the kinds' slot count gets
+/// for each slot taken.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct KindSlots {
     pub first: u32,
@@ -114,7 +112,7 @@ pub struct KindSlots {
 }
 
 impl LevelTables<'_> {
-    /// A run, by `set_texture_levels`.
+    /// A run applied: `other` picks its other level.
     pub fn apply(&mut self, r: &Run, other: bool) -> Result<(), Invalid> {
         let level = if other { r.other_level } else { r.level };
         self.set_run(r.first, r.count, level, r.tag)
@@ -147,16 +145,16 @@ impl LevelTables<'_> {
     }
 }
 
-/// What `init_texture_levels` leaves: the last run and the kinds' slot count's growth.
+/// What `set_levels` leaves: the last run and the kinds' slot count's growth.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct LevelsSet {
     pub last: Run,
     pub kind_slots_added: u32,
 }
 
-/// `init_texture_levels` after its calls: the cars' runs, the kinds' slots (each block
-/// with its prefs entries), the runs after them, the slots of level one, the last run and
-/// with `framed` three more. Refuses a run past the tables (none of the fixed ones is).
+/// The cars' runs, the kinds' slots (each block with its prefs entries), the runs after
+/// them, the slots of level one, the last run and with `framed` three more. Refuses a run
+/// past the tables (none of the fixed ones is).
 pub fn set_levels(
     t: &mut LevelTables,
     cars: u32,
@@ -200,7 +198,7 @@ mod tests {
 
     #[test]
     fn the_own_car_has_the_better_levels_whichever_it_is() {
-        // As the original with car 0 its own.
+        // Car 0 is the own car.
         let first = car_runs(2, true, |car| car == 0);
         assert_eq!(first[0], run(4, 0x100, 0, 1, 0x29));
         assert_eq!(first[1], run(4, 0x104, 0, 1, 0x29));

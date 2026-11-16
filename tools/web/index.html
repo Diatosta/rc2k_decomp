@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rally Championship</title>
+<style>
+  :root { --bg: #0b0d10; --panel: #161a20; --text: #d8dde4; --dim: #8a94a3; --accent: #e0a526; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 15px/1.45 system-ui, -apple-system, sans-serif; }
+  canvas { display: none; width: 100vw; height: 100vh; object-fit: contain; background: #000; }
+  body.playing canvas { display: block; }
+  body.playing #panel { display: none; }
+  #panel { max-width: 34rem; margin: 0 auto; padding: 2rem 16px; }
+  h1 { font-size: 1.4rem; margin: 0 0 .25rem; }
+  p { color: var(--dim); margin: .4rem 0 1rem; }
+  .box { background: var(--panel); border-radius: 10px; padding: 1rem; margin: 1rem 0; }
+  label { display: block; font-weight: 600; margin-bottom: .5rem; }
+  input[type=url] { width: 100%; box-sizing: border-box; padding: .6rem; border-radius: 6px;
+    border: 1px solid #333a44; background: #0f1216; color: var(--text); font-size: 1rem; }
+  button { margin-top: .6rem; padding: .6rem 1rem; border: 0; border-radius: 6px;
+    background: var(--accent); color: #111; font-weight: 700; font-size: 1rem; }
+  progress { width: 100%; height: 10px; }
+  #status { min-height: 1.4em; }
+  .error { color: #ff7a6b; }
+</style>
+</head>
+<body>
+<canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
+<div id="panel">
+  <h1>Rally Championship</h1>
+  <p id="lead">Starting…</p>
+  <div id="import" hidden>
+    <div class="box">
+      <label for="zips">The game folder's zip (one or several parts)</label>
+      <input id="zips" type="file" accept=".zip,application/zip" multiple>
+    </div>
+    <div class="box">
+      <label for="url">Or its address</label>
+      <input id="url" type="url" placeholder="https://…/game.zip">
+      <button id="fetch">Fetch</button>
+    </div>
+  </div>
+  <div id="working" hidden><progress id="bar" max="1" value="0"></progress></div>
+  <p id="status"></p>
+  <button id="again" hidden>Start again</button>
+</div>
+<script>
+// The folders in the origin's storage (`src/platform/web.rs`): the unpacked zip, and the home folder
+// the installer puts the game in.
+const SOURCE = ["source"];
+const INSTALLED = ["home", ".local", "share", "rally-championship"];
+const $ = (id) => document.getElementById(id);
+
+async function has(parts, file) {
+  try {
+    let d = await navigator.storage.getDirectory();
+    for (const p of parts) d = await d.getDirectoryHandle(p);
+    await d.getFileHandle(file);
+    return true;
+  } catch { return false; }
+}
+
+// Names in the storage keep the zip's case: the game finds them in any case, the page looks
+// for both of the CD's spellings.
+async function hasSource() {
+  return (await has(SOURCE, "RAL.EXE")) || (await has(SOURCE, "ral.exe"));
+}
+
+function status(text, error) {
+  $("status").textContent = text;
+  $("status").className = error ? "error" : "";
+}
+
+function start(dir) {
+  document.body.classList.add("playing");
+  window.Module = {
+    canvas: $("canvas"),
+    preRun: [() => {
+      Module.ENV.HOME = "/opfs/home";
+      Module.ENV.RC2K_DIR = dir;
+    }],
+    print: (t) => console.log(t),
+    printErr: (t) => console.warn(t),
+    // The program ended (the installer when it is done, the game when left): the page again.
+    onExit: (code) => {
+      document.body.classList.remove("playing");
+      $("lead").textContent = "The game ended (" + code + ").";
+      $("again").hidden = false;
+    },
+  };
+  const s = document.createElement("script");
+  s.src = "rc2k.js";
+  document.body.appendChild(s);
+}
+
+function unpack(message) {
+  $("import").hidden = true;
+  $("working").hidden = false;
+  status("Unpacking…");
+  const worker = new Worker("unzip.js");
+  worker.onmessage = async (m) => {
+    if (m.data.progress !== undefined) {
+      $("bar").value = m.data.progress;
+      status(m.data.text);
+    } else if (m.data.done !== undefined) {
+      worker.terminate();
+      if (await hasSource()) {
+        status(m.data.done + " files unpacked.");
+        location.reload();
+      } else {
+        $("import").hidden = false;
+        $("working").hidden = true;
+        status("No RAL.EXE in what was unpacked: is it the game folder?", true);
+      }
+    } else if (m.data.error) {
+      worker.terminate();
+      $("import").hidden = false;
+      $("working").hidden = true;
+      status(m.data.error, true);
+    }
+  };
+  worker.postMessage(message);
+}
+
+$("zips").onchange = (e) => e.target.files.length && unpack({ files: [...e.target.files] });
+$("fetch").onclick = () => $("url").value && unpack({ url: $("url").value });
+$("again").onclick = () => location.reload();
+
+(async () => {
+  if (!self.crossOriginIsolated) {
+    $("lead").textContent = "This page needs to be served with cross-origin isolation (tools/web/serve.py).";
+    return;
+  }
+  if (navigator.storage.persist) navigator.storage.persist();
+  if (await has(INSTALLED.concat(["var"]), "install.cfg")) {
+    start("/opfs/" + INSTALLED.join("/"));
+  } else if (await hasSource()) {
+    $("lead").textContent = "Installing from the unpacked folder…";
+    start("/opfs/" + SOURCE.join("/"));
+  } else {
+    $("lead").textContent = "First, the game's files: they are kept in this browser for the next time.";
+    $("import").hidden = false;
+  }
+})();
+</script>
+</body>
+</html>

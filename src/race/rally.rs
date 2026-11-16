@@ -1,9 +1,8 @@
-//! `single_rally`'s race (`race::single_rally_race`, IDA 2026-10-17) and its rally's times
+//! `single_rally`'s race (`race::single_rally_race`) and its rally's times
 //! (`race::copy_rally_times`).
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_flow::StageTable;
-use crate::menu::owner::menus;
 
 /// " ", "-----", "Count:", "GB_Timed: t:- ", "CTs:-", "-----", "%%%%%", "-----",
 /// "GB_Shaun: ", "CTs:", "-----", "%%%%%", "%%%%%", "%%%%%".
@@ -25,45 +24,50 @@ const WORDS: [&std::ffi::CStr; 14] = [
 ];
 
 /// Where `copy_rally_times` takes its ten records from: the rally's times (by
-/// `dword_7558C8`'s table `off_735512`, the rally `dword_7558D0`, the stage
-/// `dword_7558CC` x 0xA4, its +0x3C the stage in `g_stageBestTimesAlt` when
-/// `dword_7558C8` is 1, else in `dword_7556E8`). None for a null pointer, or a table or
-/// the summary they go to (`saves::best_times::SUMMARY`) not taken.
-pub fn rally_times_places() -> Result<Option<(&'static StageTable, usize)>, BadInput> {
-    let system = crate::system::owner::system();
-    let screens = &menus().screens;
+/// `EventState.stage.group`'s table, the rally `EventState.stage.sub`, the stage
+/// `EventState.stage.number` x 0xA4, its dword at +0x3C the stage in `stage_best_times_alt` when
+/// `EventState.stage.group` is 1, else in `ChampView.time_trial_best_times`). None when a table or
+/// the summary they go to (`BestTables::summary`) is not taken.
+pub fn rally_times_places<'t>(
+    system: &crate::system::owner::System,
+    menus: &crate::menu::owner::Menus,
+    best: &'t crate::saves::best_times::BestTables,
+) -> Result<Option<(&'t StageTable, usize)>, BadInput> {
+    let screens = &menus.screens;
     {
-        let kind = screens.event.stage_group.get();
+        let kind = screens.event.stage.group.get();
         let stages = system
-            .records
+            .records()
             .stage_tables
-            .group_event_table(kind, screens.event.stage_sub.get())?;
-        let stage = crate::records::stages_store::row(stages, screens.event.stage_number.get())?;
-        let n = stage.record()?.event_slot() as usize;
+            .group_event_table(kind, screens.event.stage.sub.get())?;
+        let tables = &system.records().stage_tables;
+        let stage =
+            crate::records::stages_store::row(tables, stages, screens.event.stage.number.get())?;
+        let n = stage.record(tables)?.event_slot() as usize;
         let table = if kind == 1 {
-            &crate::saves::best_times::STAGE_TIMES_ALT
+            &best.stage_times_alt
         } else {
-            &crate::saves::best_times::TIME_TRIAL_TIMES
+            &best.time_trial_times
         };
-        let (true, true) = (
-            table.is_taken(),
-            crate::saves::best_times::SUMMARY.is_taken(),
-        ) else {
+        let (true, true) = (table.is_taken(), best.summary.is_taken()) else {
             return Ok(None);
         };
         Ok(Some((table, n)))
     }
 }
 
-/// `race::copy_rally_times` (0x48C997): the stage's ten best times into the summary's
-/// first ten rows (`saves::best_times::SUMMARY`): the time, nationality, car and name id
-/// from the key, nationality, car and name id, and the sixteen checkpoints; each logged (the count, "GB_Timed",
-/// the sixteen "CTs", "GB_Shaun", the name, the sixteen again, rules). Every register
-/// kept. Refuses, before anything, a null pointer on the way (the original reads through
-/// it) and a stage past its table. The logs read only eax (their text or number).
-pub fn copy_rally_times() -> Result<(), Refused> {
+/// Copies the stage's ten best times into the summary's first ten rows
+/// (`BestTables::summary`): the time, nationality, car and name id from the key,
+/// nationality, car and name id, and the sixteen checkpoints; each is logged (the count,
+/// "GB_Timed", the sixteen "CTs", "GB_Shaun", the name, the sixteen again, rules). Refuses, before
+/// anything, a missing table on the way and a stage past its table.
+pub fn copy_rally_times(
+    system: &crate::system::owner::System,
+    menus: &crate::menu::owner::Menus,
+    best: &crate::saves::best_times::BestTables,
+) -> Result<(), Refused> {
     use crate::logfile::{log_int::log_int, write_line::log_text};
-    let Some((table, stage)) = rally_times_places()? else {
+    let Some((table, stage)) = rally_times_places(system, menus, best)? else {
         return Err(BadInput("a null pointer to the rally's times").into());
     };
     // The ten as their bytes, as `race_time` reads a record.
@@ -79,14 +83,14 @@ pub fn copy_rally_times() -> Result<(), Refused> {
     let word = |n: usize| WORDS[n].to_bytes();
     let int = |v: u32, line: bool| log_int(v as i32, line, 1);
     use rc2k_core::saves::rankings::Rival;
-    let summary = &crate::saves::best_times::SUMMARY;
+    let summary = &best.summary;
     for (row, (esi, ecx)) in ten.iter().zip((1..=10u32).rev()).enumerate() {
         let from = |off: u32| u32::from_le_bytes(esi[off as usize..][..4].try_into().unwrap());
-        // Converted: `rc2k_core::race::results::race_time`.
+        // Logic in `rc2k_core::race::results::race_time`.
         let time = rc2k_core::race::results::race_time(from);
         let rival = Rival::from_dwords(time);
-        // The row's text as the log reads it: from its start to a NUL, on into the rows
-        // after (and the block's zeros past the summary).
+        // The row's text as the log shows it: from its start to a NUL, on into the rows after (and
+        // the block's zeros past the summary).
         let row_text = summary.with(|t| {
             t.rows[row] = rival;
             let bytes = rc2k_core::saves::tables::FileTable::write(t);
@@ -108,7 +112,7 @@ pub fn copy_rally_times() -> Result<(), Refused> {
         text(word(7), true);
         text(word(8), false);
         int(rival.time, false);
-        // The record's text: its bytes from its start, read as the original's log reads.
+        // The record's text: its bytes from its start, as logged.
         text(&row_text, true);
         text(word(9), false);
         for k in 0..16u32 {

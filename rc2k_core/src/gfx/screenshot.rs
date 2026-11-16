@@ -1,21 +1,20 @@
-//! A screenshot taken, and the fatal error's own font loaded (converted 2026-10-21 from
-//! `gfx::take_screenshot` 0x407897 and `gfx::load_jade` 0x4075F3).
+//! A screenshot taken, and the fatal error's own font loaded.
 
-/// What `gfx::take_screenshot` is made of.
+/// What taking a screenshot needs.
 pub trait Shooting {
     type Error;
-    /// `g_screenshotsOn`.
+    /// Whether screenshots are on (not 0).
     fn screenshots_on(&mut self) -> u32;
-    /// `g_surfaceLocked`.
+    /// Whether the surface is locked already (1).
     fn surface_locked(&mut self) -> u32;
-    /// `dword_4F52B8`: 1 while the lock is this function's.
+    /// `Shots.locked_here`: 1 while the lock is the screenshot's own.
     fn locked_here(&mut self) -> u32;
     fn set_locked_here(&mut self, value: u32);
-    /// `gfx::lock_surface`: true for its carry (failed).
+    /// Locks the surface; true when the lock failed.
     fn lock(&mut self) -> Result<bool, Self::Error>;
-    /// `gfx::write_screen_pcx`.
+    /// Writes the screen to a PCX file.
     fn write(&mut self) -> Result<(), Self::Error>;
-    /// `gfx::unlock_surface`.
+    /// Unlocks the surface.
     fn unlock(&mut self) -> Result<(), Self::Error>;
 }
 
@@ -48,8 +47,8 @@ pub const JADE_TOO_BIG: u32 = 0x80F0_B0D2;
 /// The jade fonts' colour (0x00RRGGBB), in the surface's format.
 pub const JADE_COLOUR: u32 = 0xFF_FFFF;
 
-/// `gfx::load_jade`: a read (whether it worked, the bytes it read) -> the fatal error it
-/// is, if any.
+/// The jade font file's read (whether it worked, the bytes it read) checked: the fatal error it
+/// gives, if any.
 pub fn jade_read(ok: bool, bytes: Option<u32>) -> Result<(), u32> {
     if !ok {
         Err(JADE_UNREAD)

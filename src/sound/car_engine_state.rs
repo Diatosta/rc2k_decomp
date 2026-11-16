@@ -1,7 +1,6 @@
-//! `sound::car_engine_state` (0x40D8E2): a car's sound object brought up to date for the
-//! turn: the revs eased between the physics' readings, the pitch and volume inputs of
-//! the engine sounds, the engine's state, the gear-change and back-fire cues, the
-//! listener's distance and the Doppler-like factors.
+//! `sound::car_engine_state`: a car's sound object brought up to date for the turn: the revs eased
+//! between the physics' readings, the pitch and volume inputs of the engine sounds, the engine's
+//! state, the gear-change and back-fire cues, the listener's distance and the Doppler-like factors.
 //!
 //! Per turn it:
 //! - takes a new revs reading in (the last two readings' times and revs kept), or else
@@ -13,17 +12,16 @@
 //! - works out the listener's distance, how fast it changes, and the Doppler-like pitch
 //!   and volume factors.
 //!
-//! Returns the object's sound kind number. One caller, `sound::car_sounds`.
-//! Refuses (before writing) a kind past the 36 of the table and a revs extrapolation
-//! whose quotient does not fit (the original's `idiv` traps).
+//! Returns the object's sound kind number. One caller, `sound::car_sounds`. Refuses (before
+//! writing) a kind past the 36 of the table and a revs extrapolation whose quotient does not fit.
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::from_int;
-use crate::math::x87_float::{X, int, ld, st};
-use crate::race::owner::race;
+use crate::math::x87_float::{X, int, ld, stf};
+use crate::race::owner::Race;
 use crate::sound::sets_store::KindRecord;
 use crate::sound::store::{RaceClock, SoundObject, SurfaceSounds};
-use crate::system::owner::system;
+use crate::system::owner::System;
 use rc2k_core::sound::engine::{Engine, extrapolation, over_256, readings, state};
 
 pub const KIND_COUNT: u32 = 36;
@@ -40,8 +38,6 @@ pub fn kind_of(
     Ok(n)
 }
 
-// ---- Rust version ----
-
 /// The object's dwords the engine works on, taken as values.
 fn load(o: &crate::sound::store::SoundObject) -> Engine {
     Engine {
@@ -56,12 +52,12 @@ fn load(o: &crate::sound::store::SoundObject) -> Engine {
         last_gear: o.last_gear.get(),
         gear_notice: o.gear_notice.get(),
         countdown: o.countdown.get(),
-        wait_flag: o.wait_f8.get(),
+        wait_flag: o.drop_latched.get(),
         last_direction: o.last_direction.get(),
         state: o.state.get(),
         last_state: o.last_state.get(),
         smooth_throttle: o.smooth_throttle.get(),
-        gap_time: o.gap_time.get(),
+        throttle_lead: o.throttle_lead.get(),
         turns_up: o.turns_up.get(),
         direction: o.direction.get(),
         turns_down: o.turns_down.get(),
@@ -75,11 +71,10 @@ fn load(o: &crate::sound::store::SoundObject) -> Engine {
     }
 }
 
-/// The dwords `now` has changed from `before` put back in the object (the others are left
-/// alone, as the original never wrote them).
+/// The dwords `now` has changed from `before` put back in the object (the others are left alone).
 fn store(o: &crate::sound::store::SoundObject, before: &Engine, now: &Engine) {
-    use crate::session::Dword;
-    let put = |cell: &Dword, was: u32, is: u32| {
+    use crate::memory::session::PlainDword;
+    let put = |cell: &PlainDword, was: u32, is: u32| {
         if was != is {
             cell.set(is);
         }
@@ -103,7 +98,7 @@ fn store(o: &crate::sound::store::SoundObject, before: &Engine, now: &Engine) {
     put(&o.last_gear, before.last_gear, now.last_gear);
     put(&o.gear_notice, before.gear_notice, now.gear_notice);
     put(&o.countdown, before.countdown, now.countdown);
-    put(&o.wait_f8, before.wait_flag, now.wait_flag);
+    put(&o.drop_latched, before.wait_flag, now.wait_flag);
     put(&o.last_direction, before.last_direction, now.last_direction);
     put(&o.state, before.state, now.state);
     put(&o.last_state, before.last_state, now.last_state);
@@ -112,7 +107,7 @@ fn store(o: &crate::sound::store::SoundObject, before: &Engine, now: &Engine) {
         before.smooth_throttle,
         now.smooth_throttle,
     );
-    put(&o.gap_time, before.gap_time, now.gap_time);
+    put(&o.throttle_lead, before.throttle_lead, now.throttle_lead);
     put(&o.turns_up, before.turns_up, now.turns_up);
     put(&o.direction, before.direction, now.direction);
     put(&o.turns_down, before.turns_down, now.turns_down);
@@ -137,41 +132,44 @@ fn store(o: &crate::sound::store::SoundObject, before: &Engine, now: &Engine) {
     );
 }
 
-/// The object `so` brought up to date; its sound kind's number returned (the original's edi
-/// held the record's address).
+/// The object `so` brought up to date; its sound kind's number returned.
 pub fn car_engine_state(
     so: &crate::sound::store::SoundObject,
     sound: &crate::sound::owner::Sound,
+    race: &Race,
+    system: &System,
 ) -> Result<u32, Refused> {
-    // Converted: `rc2k_core::sound::engine` (`extrapolation`, `readings`, `state`,
-    // `over_256`); the floats are the original's x87 still.
-    let kind = kind_of(so, &sound.race.kinds)?;
-    let record = sound.race.kinds.record(kind)?;
+    // The logic is `rc2k_core::sound::engine` (`extrapolation`, `readings`, `state`, `over_256`);
+    // the floats go through the x87 helpers.
+    let kind = kind_of(so, sound.race.kinds.get())?;
+    let record = sound.race.kinds.get().record(kind)?;
     let before = load(so);
     let mut object = before;
-    let clock = sound.race.clock.last.get();
-    // The revs extrapolated, worked out first: its `idiv` may trap.
+    let clock = sound.race.clock.get().last.get();
+    // The revs extrapolated, worked out first: its division may trap.
     let change = extrapolation(&object, clock, || {
-        race().shared.replay_file.hold_car_revs.get()
+        race.shared.replay_file().hold_car_revs.get()
     })
     .map_err(BadInput::from)?;
     readings(&mut object, clock, change);
     store(so, &before, &object);
     revs_input(so, record);
-    so.throttle_input
-        .set_bits(over_256(from_int(so.throttle.get() as i32)));
-    speed_input(so, &sound.race.surface);
+    so.throttle_input.set(f32::from_bits(over_256(
+        from_int(so.throttle.get() as i32).to_bits(),
+    )));
+    speed_input(so, sound.race.surface.get());
     let before = load(so);
     let mut object = before;
     let low = state(&mut object, || record.flags.get(), clock);
     store(so, &before, &object);
     if let Some(low) = low {
-        gear_pitch(so, low);
+        gear_pitch(so, low, system);
     }
-    distance_and_approach(so, &sound.race.clock);
-    so.volume_factor.set_bits(0);
-    ease_pitch_factor(so, &sound.race.clock, &sound.race.surface);
-    so.volume_factor.set_bits(0x3F80_0000);
+    distance_and_approach(so, sound.race.clock.get());
+    so.volume_factor.set(0.0);
+    ease_pitch_factor(so, sound.race.clock.get(), sound.race.surface.get());
+    so.volume_factor.set(1.0);
+    // The float's bit pattern compared as a signed integer: 1.0f32 is 0x3F80_0000.
     if so.distance.bits() as i32 > 0x3F80_0000 {
         volume_factor_by_distance(so);
     }
@@ -185,30 +183,28 @@ fn revs_input(so: &SoundObject, kind: &KindRecord) {
     let revs = int(so.revs.get() as i32);
     let above_low = revs - ld(kind.revs_low.get());
     so.revs_input
-        .set_bits(st(above_low * ld(kind.revs_scale.get())));
+        .set(stf(above_low * ld(kind.revs_scale.get())));
 }
 
 /// The speed input: `|speed| * surface.speed_scale`.
 fn speed_input(so: &SoundObject, surface: &SurfaceSounds) {
-    let speed = ld(so.speed.bits()).abs();
+    let speed = ld(so.speed.get()).abs();
     so.speed_input
-        .set_bits(st(speed * ld(surface.speed_scale.bits())));
+        .set(stf(speed * ld(surface.speed_scale.get())));
 }
 
-/// The gear-change cue's pitch from the clock's low four bits `low`: `low / 60 + 0.75`
-/// (the factors as the game's float constants). The original worked in the machine's
-/// scratch dword and left 0.75 there.
-fn gear_pitch(so: &SoundObject, low: u32) {
-    let system = system();
-    system.session.machine.scratch.set(low);
-    let bits = gear_pitch_bits(low);
-    system.session.machine.scratch.set(GEAR_PITCH_BASE);
-    so.gear_pitch.set_bits(bits);
+/// The gear-change cue's pitch from the clock's low four bits `low`: `low / 60 + 0.75` (the factors
+/// as the game's float constants). The machine's scratch dword is left holding 0.75.
+fn gear_pitch(so: &SoundObject, low: u32, system: &System) {
+    system.machine().scratch.set(low);
+    let pitch = gear_pitch_value(low);
+    system.machine().scratch.set(GEAR_PITCH_BASE);
+    so.gear_pitch.set(pitch);
 }
 
-/// The pitch's bits: `low * (1 / 60) + 0.75`, rounded to a float.
-fn gear_pitch_bits(low: u32) -> u32 {
-    st(int(low as i32) * ld(GEAR_PITCH_PER_STEP) + ld(GEAR_PITCH_BASE))
+/// The pitch: `low * (1 / 60) + 0.75`, rounded to a float.
+fn gear_pitch_value(low: u32) -> f32 {
+    stf(int(low as i32) * ld(GEAR_PITCH_PER_STEP) + ld(GEAR_PITCH_BASE))
 }
 
 /// 1 / 60 as a float.
@@ -219,102 +215,44 @@ const GEAR_PITCH_BASE: u32 = 0x3F40_0000;
 /// The distance to the listener (the root of the place's squares) and how fast it
 /// changes (`approach = (old - new distance) * turns a second`).
 fn distance_and_approach(so: &SoundObject, clock: &RaceClock) {
-    let old = ld(so.distance.bits());
-    let [x, y, z] = [0, 1, 2].map(|n| ld(so.place[n].bits()));
+    let old = ld(so.distance.get());
+    let [x, y, z] = [0, 1, 2].map(|n| ld(so.place[n].get()));
     let distance = (x * x + (y * y + z * z)).sqrt();
-    so.distance.set_bits(st(distance));
+    so.distance.set(stf(distance));
     so.approach
-        .set_bits(st((old - distance) * ld(clock.turns_a_second.bits())));
+        .set(stf((old - distance) * ld(clock.turns_a_second.get())));
 }
 
 /// The pitch factor eased toward `(approach + sound speed) * (1 / sound speed)`:
 /// `((target - factor) * blend) + factor`.
 fn ease_pitch_factor(so: &SoundObject, clock: &RaceClock, surface: &SurfaceSounds) {
     let target =
-        (ld(so.approach.bits()) + ld(clock.sound_speed.bits())) * ld(clock.over_sound_speed.bits());
-    let factor = ld(so.pitch_factor.bits());
-    let eased = (target - factor) * ld(surface.pitch_blend.bits()) + factor;
-    so.pitch_factor.set_bits(st(eased));
+        (ld(so.approach.get()) + ld(clock.sound_speed.get())) * ld(clock.over_sound_speed.get());
+    let factor = ld(so.pitch_factor.get());
+    let eased = (target - factor) * ld(surface.pitch_blend.get()) + factor;
+    so.pitch_factor.set(stf(eased));
 }
 
 /// The volume factor for a far car: `1 / distance`.
 fn volume_factor_by_distance(so: &SoundObject) {
-    so.volume_factor
-        .set_bits(st(X(1.0) / ld(so.distance.bits())));
+    so.volume_factor.set(stf(X(1.0) / ld(so.distance.get())));
 }
 
 #[cfg(test)]
-mod tests {
-    /// The engine's dwords sit where the core's offsets had them in the sound object.
-    #[test]
-    fn the_engine_words_sit_where_the_offsets_were() {
-        use crate::session::Dword;
-        let o = crate::sound::store::SoundObject::number(0).unwrap();
-        let base = crate::pointers::GamePtr::to(o).addr();
-        let at = |cell: &Dword| crate::pointers::GamePtr::to(cell).addr() - base;
-        let found = [
-            at(&o.new_revs),
-            at(&o.revs),
-            at(&o.throttle),
-            at(&o.gear_event),
-            at(&o.no_gear),
-            at(&o.reading_times[0]),
-            at(&o.reading_times[1]),
-            at(&o.reading_revs[0]),
-            at(&o.reading_revs[1]),
-            at(&o.gear),
-            at(&o.last_gear),
-            at(&o.gear_notice),
-            at(&o.countdown),
-            at(&o.wait_f8),
-            at(&o.last_direction),
-            at(&o.state),
-            at(&o.last_state),
-            at(&o.smooth_throttle),
-            at(&o.gap_time),
-            at(&o.turns_up),
-            at(&o.direction),
-            at(&o.turns_down),
-            at(&o.slots[5].sound),
-            at(&o.slots[5].start),
-            at(&o.slots[6].start),
-            at(&o.slots[6].playing),
-            at(&o.slots[6].volume),
-            at(&o.backfire_wait),
-            at(&o.gear_slot.start),
-        ];
-        assert_eq!(
-            found,
-            [
-                0x10, 0x14, 0x18, 0x20, 0x24, 0x94, 0x98, 0x9C, 0xA0, 0xE8, 0xEC, 0xF0, 0xF4, 0xF8,
-                0xFC, 0x10C, 0x110, 0x118, 0x11C, 0x128, 0x12C, 0x130, 0x1C4, 0x1C8, 0x1E0, 0x1E4,
-                0x1EC, 0x1F4, 0x1FC
-            ]
-        );
-    }
-}
-
-#[cfg(all(test, target_arch = "x86"))]
-mod asm_reference {
+mod reference_vectors {
     use super::*;
-    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
-    use crate::scene::x87_mem::HostCell;
-    use crate::session::Cell32;
-
-    // The original's instructions, one function per run.
-    reference!(ref_0(bx, di) "fild dword ptr [{bx} + 0x14]", "fsub dword ptr [{di} + 0x4]", "fmul dword ptr [{di} + 0xC]", "fstp dword ptr [{bx} + 0x100]");
-    reference!(ref_1(bx, sf) "fld dword ptr [{bx} + 0x1C]", ".byte 0xD9, 0xE1", "fmul dword ptr [{sf} + 0x18]", "fstp dword ptr [{bx} + 0x108]");
-    reference!(ref_2(t, bx) "fild dword ptr [{t}]", "mov dword ptr [{t}], 0x3C888889", "fmul dword ptr [{t}]", "mov dword ptr [{t}], 0x3F400000", "fadd dword ptr [{t}]", "fstp dword ptr [{bx} + 0x210]");
-    reference!(ref_3(bx, ck) "fld dword ptr [{bx} + 0x134]", "fld dword ptr [{bx} + 0x2C]", "fmul dword ptr [{bx} + 0x2C]", "fld dword ptr [{bx} + 0x30]", "fmul dword ptr [{bx} + 0x30]", "fld dword ptr [{bx} + 0x34]", "fmul dword ptr [{bx} + 0x34]", ".byte 0xDE, 0xC1", ".byte 0xDE, 0xC1", ".byte 0xD9, 0xFA", "fst dword ptr [{bx} + 0x134]", ".byte 0xDE, 0xE9", "fmul dword ptr [{ck} + 8]", "fstp dword ptr [{bx} + 0x138]");
-    reference!(ref_4(bx, ck, sf) "fld dword ptr [{bx} + 0x138]", "fadd dword ptr [{ck} + 0x14]", "fmul dword ptr [{ck} + 0x18]", "fsub dword ptr [{bx} + 0x13C]", "fmul dword ptr [{sf} + 0x8]", "fadd dword ptr [{bx} + 0x13C]", "fstp dword ptr [{bx} + 0x13C]");
-    reference!(ref_5(bx) ".byte 0xD9, 0xE8", "fdiv dword ptr [{bx} + 0x134]", "fstp dword ptr [{bx} + 0x140]");
+    use crate::memory::session::Cell32;
+    use crate::scene::x87_mem::{HostCell, view};
+    use crate::sound::asm_layout::{Laid, with_laid};
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
         vec![
             Block {
                 name: "revs_input",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::Sized {
+                        len: SoundObject::EXTENT,
                         reads: &[(0x14, In::I)],
                         writes: &[(0x100, Out::F)],
                     },
@@ -324,45 +262,30 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_0(a[0], a[1]) },
                 plain: |a| {
-                    revs_input(
-                        unsafe {
-                            &*(crate::pointers::host_at(a[0])
-                                as *const crate::sound::store::SoundObject)
-                        },
-                        unsafe {
-                            &*(crate::pointers::host_at(a[1])
-                                as *const crate::sound::sets_store::KindRecord)
-                        },
-                    );
+                    let kind = view::<crate::sound::sets_store::KindRecord>(a[1], 0);
+                    with_laid::<SoundObject, _>(a[0], |so| revs_input(so, kind));
                 },
             },
             Block {
                 name: "speed_input",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::Sized {
+                        len: SoundObject::EXTENT,
                         reads: &[(0x1C, In::F)],
                         writes: &[(0x108, Out::F)],
                     },
-                    Operand::Buffer {
+                    Operand::Sized {
+                        len: SurfaceSounds::EXTENT,
                         reads: &[(0x18, In::F)],
                         writes: &[],
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_1(a[0], a[1]) },
                 plain: |a| {
-                    speed_input(
-                        unsafe {
-                            &*(crate::pointers::host_at(a[0])
-                                as *const crate::sound::store::SoundObject)
-                        },
-                        unsafe {
-                            &*(crate::pointers::host_at(a[1])
-                                as *const crate::sound::store::SurfaceSounds)
-                        },
-                    );
+                    with_laid::<SoundObject, _>(a[0], |so| {
+                        with_laid::<SurfaceSounds, _>(a[1], |sf| speed_input(so, sf));
+                    });
                 },
             },
             Block {
@@ -378,16 +301,16 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_2(a[0], a[1]) },
                 plain: |a| {
                     let low = HostCell(a[0]).bits();
-                    HostCell(a[1] + 0x210).set_bits(gear_pitch_bits(low));
+                    HostCell(a[1] + 0x210).set_bits(gear_pitch_value(low).to_bits());
                 },
             },
             Block {
                 name: "distance_and_approach",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::Sized {
+                        len: SoundObject::EXTENT,
                         reads: &[(0x2C, In::F), (0x30, In::F), (0x34, In::F), (0x134, In::F)],
                         writes: &[(0x134, Out::F), (0x138, Out::F)],
                     },
@@ -397,24 +320,16 @@ mod asm_reference {
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_3(a[0], a[1]) },
                 plain: |a| {
-                    distance_and_approach(
-                        unsafe {
-                            &*(crate::pointers::host_at(a[0])
-                                as *const crate::sound::store::SoundObject)
-                        },
-                        unsafe {
-                            &*(crate::pointers::host_at(a[1])
-                                as *const crate::sound::store::RaceClock)
-                        },
-                    );
+                    let clock = view::<RaceClock>(a[1], 0);
+                    with_laid::<SoundObject, _>(a[0], |so| distance_and_approach(so, clock));
                 },
             },
             Block {
                 name: "ease_pitch_factor",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::Sized {
+                        len: SoundObject::EXTENT,
                         reads: &[(0x138, In::F), (0x13C, In::F)],
                         writes: &[(0x13C, Out::F)],
                     },
@@ -422,43 +337,30 @@ mod asm_reference {
                         reads: &[(0x14, In::F), (0x18, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::Sized {
+                        len: SurfaceSounds::EXTENT,
                         reads: &[(8, In::F)],
                         writes: &[],
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_4(a[0], a[1], a[2]) },
                 plain: |a| {
-                    ease_pitch_factor(
-                        unsafe {
-                            &*(crate::pointers::host_at(a[0])
-                                as *const crate::sound::store::SoundObject)
-                        },
-                        unsafe {
-                            &*(crate::pointers::host_at(a[1])
-                                as *const crate::sound::store::RaceClock)
-                        },
-                        unsafe {
-                            &*(crate::pointers::host_at(a[2])
-                                as *const crate::sound::store::SurfaceSounds)
-                        },
-                    );
+                    let clock = view::<RaceClock>(a[1], 0);
+                    with_laid::<SoundObject, _>(a[0], |so| {
+                        with_laid::<SurfaceSounds, _>(a[2], |sf| ease_pitch_factor(so, clock, sf));
+                    });
                 },
             },
             Block {
                 name: "volume_factor_by_distance",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::Sized {
+                    len: SoundObject::EXTENT,
                     reads: &[(0x134, In::F)],
                     writes: &[(0x140, Out::F)],
                 }],
                 ulps: 0,
-                reference: |a| unsafe { ref_5(a[0]) },
                 plain: |a| {
-                    volume_factor_by_distance(unsafe {
-                        &*(crate::pointers::host_at(a[0])
-                            as *const crate::sound::store::SoundObject)
-                    });
+                    with_laid::<SoundObject, _>(a[0], volume_factor_by_distance);
                 },
             },
         ]
@@ -466,6 +368,6 @@ mod asm_reference {
 
     #[test]
     fn x87_blocks_matches_the_assembly() {
-        sparse(&blocks(), 1200, 100);
+        sparse("sound.car_engine_state", &blocks(), 1200, 100);
     }
 }

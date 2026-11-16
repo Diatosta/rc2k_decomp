@@ -1,18 +1,17 @@
-//! `install::finish_page` (0x414347): at the page's end (ebx negative) with the answer
-//! (`byte_51D415`) 2, `byte_51BE21` becomes 5 and the answer 1 (the readme is shown).
-//!
-//! Takes the state.
-//! Caller `install::run_page`.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
+//! At the page's end with the answer 2, `script_mark` becomes 5 and the answer 1 (the readme is
+//! shown). Called by `install::run_page`.
 
 /// `state` which call of the list action this is (0 the start, negative the end).
-pub fn finish_page(install: &'static crate::install::owner::Install, state: u32) {
-    // Converted: `rc2k_core::install::pages::shows_readme`.
-    if (state as i32) < 0
-        && rc2k_core::install::pages::shows_readme(install.pages.list_answer.get())
-    {
-        install.names.script_mark.set(5);
-        install.pages.list_answer.set(1);
+pub fn finish_page(
+    install: &crate::install::owner::Install,
+    list_state: &crate::menu::list_state::ListState,
+    state: u32,
+) {
+    if (state as i32) < 0 && rc2k_core::install::pages::shows_readme(list_state.list_answer.get()) {
+        install
+            .names
+            .script
+            .set(crate::install::vars::SCRIPT_MARK, 5);
+        list_state.list_answer.set(1);
     }
 }

@@ -1,25 +1,20 @@
-//! What the four redefine keys pages share ("REDEFINIR TECLADO", `defkeys.png`): the
-//! twelve keys a player drives with (`Player::keys`, +0x1C), a copy of them the page works
-//! on (`g_redefinedKeys`, 0x755595, filled by the page's set-up), and the key being
-//! redefined.
+//! What the four redefine keys pages share ("REDEFINIR TECLADO", `defkeys.png`): the twelve
+//! keys a player drives with (`Player::keys`, +0x1C), a copy of them the page works on, and the
+//! key being redefined.
 //!
-//! An item's action (`menu::choose_key_0` .. `_11`, 0x4682D3 ..) sets `g_redefiningKey`
-//! (0x7556AC) to 1 and `g_redefinedKeyPlace` (0x7556B0) to its key's place; then once a
-//! frame `redefine_key` takes the pending key:
-//!   none          nothing;
-//!   1 (Escape)    the copy goes to the player unchanged and the redefining ends;
-//!   any other     its low seven bits; a key the copy already has gets the redefined
-//!                 place's old key (the two swap); otherwise a key of the reserved list
-//!                 (`g_reservedKeys`, 0x755621, ended by a NUL) is not taken and the page
-//!                 goes on waiting; then the key goes to its place, the place becomes 999
-//!                 (0x3E7), the copy goes to the player and the redefining ends.
-//! The place 8 has no item on the pages (it is not drawn either).
+//! An item's action (`menu::choose_key_0` .. `_11`) sets the redefining key to 1 and the
+//! redefined key place to its key's place; then once a frame `redefine_key` takes the pending
+//! key: none does nothing; Escape (1) gives the copy to the player unchanged and ends; any
+//! other key (its low seven bits) swaps with the redefined place's old key if the copy already
+//! has it, is not taken if it is in the reserved list (the page keeps waiting), else goes to
+//! its place; then the place becomes 999, the copy goes to the player and the redefining ends.
+//! Place 8 has no item on the pages.
 
 use crate::errors::{BadInput, Refused};
 use crate::input::take_key::take_key;
+use crate::memory::cells::Store;
 use crate::menu::owner::Keys;
 use crate::menu::owner::Menus;
-use crate::pointers::Store;
 
 pub use rc2k_core::menu::player::{KEYS, Redefined};
 pub const NO_PLACE: u32 = 999;
@@ -40,26 +35,26 @@ fn reserved(keys: &Keys) -> Result<Option<Vec<u8>>, BadInput> {
 /// One frame of redefining a key of `player` (0: refused).
 pub fn redefine_key(
     menus: &Menus,
+    input: &crate::input::owner::Input,
     player: Option<crate::menu::standings::PlayerCell>,
 ) -> Result<(), Refused> {
-    if menus.screens.option_work.redefining_key.get() == 0 {
+    if !menus.screens.entry.redefining_key.is_set() {
         return Ok(());
     }
     // Everything that could be refused, before the key is taken.
     let Some(player) = player else {
         return Err(BadInput("no player").into());
     };
-    let place: u32 = menus.screens.option_work.redefined_key_place.get();
+    let place: u32 = menus.screens.entry.redefined_key_place.get();
     if place as usize >= KEYS {
         return Err(BadInput("a key's place of 12 or more").into());
     }
     let Some(reserved) = reserved(&menus.keys)? else {
         return Err(BadInput("a reserved list without its end").into());
     };
-    // Converted: `rc2k_core::menu::player::redefine`.
     let work: [u8; KEYS] = std::array::from_fn(|i| menus.keys.tables.redefined_keys.get(i));
     let Redefined::Done { keys, placed } =
-        rc2k_core::menu::player::redefine(work, place as usize, take_key(), &reserved)
+        rc2k_core::menu::player::redefine(work, place as usize, take_key(input), &reserved)
     else {
         return Ok(());
     };
@@ -67,10 +62,10 @@ pub fn redefine_key(
         menus.keys.tables.redefined_keys.set(i, key);
     }
     if placed {
-        menus.screens.option_work.redefined_key_place.set(NO_PLACE);
+        menus.screens.entry.redefined_key_place.set(NO_PLACE);
     }
     player.update(|p| p.keys = keys);
-    menus.screens.option_work.redefining_key.set(0u32);
+    menus.screens.entry.redefining_key.set(false);
 
     Ok(())
 }

@@ -1,62 +1,49 @@
-//! The best times, out of RAL.EXE's image (phase 7, typed): the six rallies' tables (IDA
-//! 0x742C98 .. 0x7475D0, `RallyTimes`), then the memory the nine other tables are taken
-//! on, the two switches and where each table is (0x7475D0 .. 0x747660, `BestTimes`:
-//! `saves::allocate_best_times`, `load_best_times`, `free_best_times`). Since phase 12 the
-//! nine tables are typed and Rust's own (`saves::best_times`): each pair keeps only the
-//! size.
-//! `#[repr(C)]`, the image's layout (all zero in it); `moved::MOVED` points the range at it.
-//! `allocate_best_times` walks the switches and the pairs as one run of dwords from
-//! `allocated` (`vars()`).
+//! The best times: the six rallies' tables (`RallyTimes`), then the memory the nine other tables
+//! are taken on, the two switches and where each table is (`BestTimes`). The nine tables are
+//! typed and Rust's own (`saves::best_times`): each pair keeps only the size. `TimeEntry` keeps
+//! its `#[repr(C)]` (`ByteView`: entries are copied in runs).
 
-use crate::session::{Bytes, Dword};
+use crate::memory::session::{PlainBytes, PlainDword};
 
-/// Where one table is: its address (the game's; 0 since the tables are typed, phase 12)
-/// and its size in bytes.
-#[repr(C)]
+/// Where one table is: its address (0, since the tables are typed) and its size in bytes.
 #[derive(rc2k_derive::Cells)]
 pub struct TablePlace {
-    pub address: Dword,
-    pub size: Dword,
+    pub address: PlainDword,
+    pub size: PlainDword,
 }
 
 impl TablePlace {
     const fn new() -> Self {
         Self {
-            address: Dword::new(0),
-            size: Dword::new(0),
+            address: PlainDword::new(0),
+            size: PlainDword::new(0),
         }
     }
 }
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct BestTimes {
-    /// `g_bestTimesMemory` (0x7475D0): the memory list (a `MemoryList`).
-    pub memory: Bytes<16>,
-    /// 0x7475E0 .. 0x747610: nothing reads or writes them (a gap).
-    pub _gap_10: Bytes<0x30>,
-    /// `g_bestTimesAllocated` (0x747610): 1 once the memory is taken.
-    pub allocated: Dword,
-    /// `g_bestTimesLoaded` (0x747614): 1 once the tables hold times (the file's or made up).
-    pub loaded: Dword,
-    /// `dword_747618` ..: the nine tables, in `rc2k_core::saves::tables`' order.
+    /// The memory list (a `MemoryList`).
+    pub memory: crate::memory::ListCells,
+    /// 1 once the memory is taken.
+    pub allocated: PlainDword,
+    /// 1 once the tables hold times (the file's or made up).
+    pub loaded: PlainDword,
+    /// `BestTimes.tables[0].address` ..: the nine tables, in `rc2k_core::saves::tables`' order.
     pub tables: [TablePlace; 9],
 }
 
 impl BestTimes {
-    /// The first values (the image's), for the saves' owner.
     pub const fn new() -> Self {
         BestTimes {
-            memory: Bytes::new([0; 16]),
-            _gap_10: Bytes::new([0; 0x30]),
-            allocated: Dword::new(0),
-            loaded: Dword::new(0),
+            memory: crate::memory::ListCells::empty(),
+            allocated: PlainDword::new(0),
+            loaded: PlainDword::new(0),
             tables: [const { TablePlace::new() }; 9],
         }
     }
 
-    /// The memory list.
-    pub fn list(&self) -> &Bytes<16> {
+    pub fn list(&self) -> &crate::memory::ListCells {
         &self.memory
     }
 }
@@ -65,61 +52,105 @@ impl BestTimes {
 /// standings' table A, `menu::standings`). Fields by `rc2k_core::saves::defaults::TimeEntry`
 /// and the section screen (readings).
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct TimeEntry {
-    pub field_0: Dword,
+    /// +0: read by no code.
+    pub unread_0: PlainDword,
     /// +4: the player (1 .. 4), 0 for a computer driver.
-    pub player: Dword,
+    pub player: PlainDword,
     /// +8: the nationality (the driver's +0x14).
-    pub nation: Dword,
+    pub nation: PlainDword,
     /// +0xC: the name's string id.
-    pub name_id: Dword,
+    pub name_id: PlainDword,
     /// +0x10: the car (the driver's +0x18).
-    pub car: Dword,
+    pub car: PlainDword,
     /// +0x14: the time in a stage's table.
-    pub stage_time: Dword,
+    pub stage_time: PlainDword,
     /// +0x18: the time in a rally's table.
-    pub rally_time: Dword,
+    pub rally_time: PlainDword,
     /// +0x1C: the group (the driver's class).
-    pub group: Dword,
+    pub group: PlainDword,
     /// +0x20: the name, NUL-ended.
-    pub name: Bytes<0x20>,
+    pub name: PlainBytes<0x20>,
     /// +0x40: 1 for a player's time.
-    pub is_player: Dword,
+    pub is_player: PlainDword,
     /// +0x44: a figure.
-    pub figure: Dword,
-    pub field_48: [Dword; 2],
-    /// +0x50: 0xB in a made-up entry.
-    pub field_50: Dword,
-    pub field_54: [Dword; 2],
+    pub figure: PlainDword,
+    /// +0x48 .. +0x50: read by no code but as the name's tail (a name without a NUL reads on into
+    /// it); 0 in the shipped data.
+    pub unread_48: [PlainDword; 2],
+    /// +0x50: read by no code (0xB in a made-up entry).
+    pub unread_50: PlainDword,
+    /// +0x54, +0x58: read by no code.
+    pub unread_54: [PlainDword; 2],
     /// +0x5C: the checkpoints' times.
-    pub checkpoints: [Dword; 16],
+    pub checkpoints: [PlainDword; 16],
 }
 
 impl TimeEntry {
+    /// A made-up time (`saves::defaults`), field by field: the time at `time_at` (+0x14 the stage
+    /// time, +0x18 the rally time), the driver's first field as the group, the second as the
+    /// nationality, 0xB at +0x50, the guessed checkpoints when it has them, the car, the name's
+    /// string id and the name's bytes. Refuses a name longer than the field, writing nothing.
+    pub fn fill_made_up(
+        &self,
+        e: &rc2k_core::saves::defaults::TimeEntry,
+        time_at: usize,
+    ) -> Result<(), crate::errors::BadInput> {
+        let time = match time_at {
+            0x14 => &self.stage_time,
+            0x18 => &self.rally_time,
+            _ => {
+                return Err(crate::errors::BadInput(
+                    "a made-up time written at neither time field",
+                ));
+            }
+        };
+        if e.driver.name.len() > core::mem::size_of_val(&self.name) {
+            return Err(crate::errors::BadInput(
+                "a made-up name longer than the name field",
+            ));
+        }
+        time.set(e.time);
+        self.group.set(e.driver.fields[0]);
+        self.nation.set(e.driver.fields[1]);
+        self.unread_50.set(0xB);
+        if let Some(checkpoints) = e.checkpoints {
+            for (cell, c) in self.checkpoints.iter().zip(checkpoints) {
+                cell.set(c);
+            }
+        }
+        self.car.set(e.driver.fields[2]);
+        self.name_id.set(e.driver.name_id);
+        for (n, b) in e.driver.name.iter().enumerate() {
+            self.name.set(n, *b);
+        }
+        Ok(())
+    }
+
     /// From the dwords but the name's (31 of them, in order) and the name's bytes.
     const fn new(w: [u32; 31], name: [u8; 0x20]) -> Self {
-        let mut checkpoints = [const { Dword::new(0) }; 16];
+        let mut checkpoints = [const { PlainDword::new(0) }; 16];
         let mut k = 0;
         while k < 16 {
-            checkpoints[k] = Dword::new(w[15 + k]);
+            checkpoints[k] = PlainDword::new(w[15 + k]);
             k += 1;
         }
         Self {
-            field_0: Dword::new(w[0]),
-            player: Dword::new(w[1]),
-            nation: Dword::new(w[2]),
-            name_id: Dword::new(w[3]),
-            car: Dword::new(w[4]),
-            stage_time: Dword::new(w[5]),
-            rally_time: Dword::new(w[6]),
-            group: Dword::new(w[7]),
-            name: Bytes::new(name),
-            is_player: Dword::new(w[8]),
-            figure: Dword::new(w[9]),
-            field_48: [Dword::new(w[10]), Dword::new(w[11])],
-            field_50: Dword::new(w[12]),
-            field_54: [Dword::new(w[13]), Dword::new(w[14])],
+            unread_0: PlainDword::new(w[0]),
+            player: PlainDword::new(w[1]),
+            nation: PlainDword::new(w[2]),
+            name_id: PlainDword::new(w[3]),
+            car: PlainDword::new(w[4]),
+            stage_time: PlainDword::new(w[5]),
+            rally_time: PlainDword::new(w[6]),
+            group: PlainDword::new(w[7]),
+            name: PlainBytes::new(name),
+            is_player: PlainDword::new(w[8]),
+            figure: PlainDword::new(w[9]),
+            unread_48: [PlainDword::new(w[10]), PlainDword::new(w[11])],
+            unread_50: PlainDword::new(w[12]),
+            unread_54: [PlainDword::new(w[13]), PlainDword::new(w[14])],
             checkpoints,
         }
     }
@@ -127,28 +158,26 @@ impl TimeEntry {
 
 const _: () = assert!(core::mem::size_of::<TimeEntry>() == 0x9C);
 
-/// The six rallies' best times (IDA 0x742C98 .. 0x7475D0): `off_742C98`, the six tables'
-/// addresses, kept as IDA's, as names (phase 13; `RallyTimes::table_of` makes one real, for
-/// `screens::draw_section_best_times` and `saves::default_championship_times`;
-/// `moved::point_into_homes` passes them over), then the tables, twenty entries each.
-#[repr(C)]
+/// The six rallies' best times: `RallyTimes.tables[0]`, the six tables' names (addresses of
+/// the old layout; `RallyTimes::table_named` makes one real, for
+/// `screens::draw_section_best_times` and `saves::default_championship_times`), then the
+/// tables, twenty entries each.
 #[derive(rc2k_derive::Cells)]
 pub struct RallyTimes {
-    pub tables: [Dword; 6],
+    pub tables: [PlainDword; 6],
     pub rallies: [[TimeEntry; 20]; 6],
 }
 
 impl RallyTimes {
-    /// The first values (the image's), for the saves' owner.
     pub const fn new() -> Self {
         RallyTimes {
             tables: [
-                Dword::new(0x742cb0),
-                Dword::new(0x7438e0),
-                Dword::new(0x744510),
-                Dword::new(0x745140),
-                Dword::new(0x745d70),
-                Dword::new(0x7469a0),
+                PlainDword::new(0x742cb0),
+                PlainDword::new(0x7438e0),
+                PlainDword::new(0x744510),
+                PlainDword::new(0x745140),
+                PlainDword::new(0x745d70),
+                PlainDword::new(0x7469a0),
             ],
             rallies: [
                 [
@@ -1249,26 +1278,35 @@ impl RallyTimes {
 }
 
 impl RallyTimes {
-    /// Where rally `n`'s table is.
-    pub fn table_of(&self, n: usize) -> Result<u32, crate::errors::BadInput> {
+    /// The number of the table the name kept for rally `n` names (its own, when the data is
+    /// whole).
+    pub fn table_named(&self, n: usize) -> Result<usize, crate::errors::BadInput> {
         let name = self.tables.get(n).ok_or(crate::errors::BadInput(
             "a rally past the six best-times tables",
         ))?;
-        crate::moved::named_in(
-            name.get(),
-            Self::START,
-            Self::END - Self::START,
-            "a best-times table off the rallies' tables",
-        )
+        let name = name.get() as usize;
+        let table_len = size_of::<[TimeEntry; 20]>();
+        if !(Self::START..Self::END).contains(&name) || name < Self::FIRST_TABLE {
+            return Err(crate::errors::BadInput(
+                "a best-times table off the rallies' tables",
+            ));
+        }
+        let at = name - Self::FIRST_TABLE;
+        if !at.is_multiple_of(table_len) || at / table_len >= self.rallies.len() {
+            return Err(crate::errors::BadInput(
+                "a best-times table off the rallies' tables",
+            ));
+        }
+        Ok(at / table_len)
     }
 
-    /// Rally `n`'s table, when the name the game keeps for it (`table_of`) is that table.
+    /// Rally `n`'s table, when the name kept for it (`table_named`) is that table.
     pub fn table(&self, n: usize) -> Result<&[TimeEntry; 20], crate::errors::BadInput> {
-        let at = self.table_of(n)?;
+        let named = self.table_named(n)?;
         let table = self.rallies.get(n).ok_or(crate::errors::BadInput(
             "a rally past the six best-times tables",
         ))?;
-        if at != crate::pointers::GamePtr::to(table).addr() {
+        if named != n {
             return Err(crate::errors::BadInput(
                 "a rally's best-times name not at its own table",
             ));
@@ -1276,81 +1314,82 @@ impl RallyTimes {
         Ok(table)
     }
 
-    /// IDA 0x742C98, the first byte of the piece.
+    /// Where the first rally's table is in the old layout (the six names follow the piece's start).
+    const FIRST_TABLE: usize = 0x742CB0;
+    /// The old address of the piece's first byte.
     pub const START: usize = 0x742C98;
-    /// IDA 0x7475D0, its end.
+    /// The old address of its end.
     pub const END: usize = 0x7475D0;
-    #[cfg(test)]
-    /// Where IDA 0x742C98 is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const crate::saves::owner::SAVES.rally_times) as usize
-    }
-}
-
-/// IDA 0x7475D0, the first byte of the piece.
-pub const START: usize = 0x7475D0;
-/// IDA 0x747660, the end of the piece.
-pub const END: usize = 0x747660;
-
-/// Where IDA 0x7475D0 is now (`moved::MOVED`'s home).
-#[cfg(test)]
-pub fn best_times_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::saves::owner::SAVES.best_times)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::moved::image_bytes;
-    use crate::saves::owner::saves;
-    use core::mem::{offset_of, size_of};
 
     #[test]
-    fn best_times_start_as_the_games() {
-        assert_eq!(size_of::<BestTimes>(), END - START);
-        assert_eq!(offset_of!(BestTimes, allocated), 0x747610 - START);
-        assert_eq!(offset_of!(BestTimes, tables), 0x747618 - START);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host(best_times_addr()).cast_const(),
-                END - START,
-            )
-        };
-        assert_eq!(mine, &image_bytes(START, END - START)[..]);
-    }
-
-    #[test]
-    fn rally_times_start_as_the_games() {
-        let rally_times = &saves().rally_times;
-        let len = RallyTimes::END - RallyTimes::START;
-        assert_eq!(size_of::<RallyTimes>(), len);
-        assert_eq!(
-            offset_of!(RallyTimes, rallies),
-            0x742CB0 - RallyTimes::START
-        );
-        assert_eq!(offset_of!(TimeEntry, name), 0x20);
-        assert_eq!(offset_of!(TimeEntry, checkpoints), 0x5C);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(RallyTimes::home()).cast_const(),
-                len,
-            )
-        };
-        let image = image_bytes(RallyTimes::START, len);
-        assert_eq!(mine, &image[..]);
-        // The six names are the image's addresses of the six tables and resolve to them.
+    fn rally_times_names_resolve() {
+        let rally_times = &crate::test_support::own::saves().rally_times;
+        // The six names are the tables' places and resolve to them.
+        let first = rally_times.tables[0].get();
         for n in 0..6 {
-            let name = u32::from_le_bytes(image[4 * n..4 * n + 4].try_into().unwrap());
-            assert_eq!(name as usize, 0x742CB0 + 20 * 0x9C * n);
-            assert_eq!(
-                rally_times.table_of(n),
-                Ok(RallyTimes::home() as u32 + name - RallyTimes::START as u32)
-            );
-            assert_eq!(
-                rally_times.table_of(n).unwrap(),
-                crate::pointers::game_address(core::ptr::from_ref(&rally_times.rallies[n]))
-            );
+            let table = 20 * 0x9C * n;
+            assert_eq!(rally_times.tables[n].get() as usize, first as usize + table);
+            assert_eq!(rally_times.table_named(n), Ok(n));
         }
-        assert!(rally_times.table_of(6).is_err());
+        assert!(rally_times.table_named(6).is_err());
+    }
+}
+
+#[cfg(test)]
+mod table_named_tests {
+
+    #[test]
+    fn table_named_resolves_the_six_names_and_no_more() {
+        let _g = crate::test_support::test_lock();
+        let times = &crate::test_support::own::saves().rally_times;
+        for n in 0..8 {
+            assert_eq!(times.table_named(n).is_ok(), n < 6, "rally {n}");
+            if n < 6 {
+                assert!(times.table(n).is_ok(), "rally {n}");
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod fill_made_up_tests {
+    use super::*;
+    use crate::memory::cells::load_cells;
+
+    /// A made-up time written by fields is the entry the core writes by offsets, in a stage's
+    /// table (+0x14) and a rally's (+0x18); a name longer than the field and another place for
+    /// the time are refused, writing nothing.
+    #[test]
+    fn a_made_up_time_is_the_cores_bytes() {
+        let _g = crate::test_support::test_lock();
+        let made = rc2k_core::saves::defaults::TimeEntry {
+            time: 0x1234,
+            driver: rc2k_core::saves::defaults::Driver {
+                fields: [7, 8, 9],
+                name_id: 0x5A6,
+                name: b"Somebody Else".to_vec(),
+            },
+            checkpoints: Some(std::array::from_fn(|n| 100 + n as u32)),
+        };
+        for time_at in [0x14, 0x18] {
+            let entry = TimeEntry::new([0; 31], [0; 0x20]);
+            let mut want = vec![0; 0x9C];
+            load_cells(&entry, 0, &mut want).unwrap();
+            made.write(&mut want, time_at);
+            entry.fill_made_up(&made, time_at).unwrap();
+            let mut got = vec![0; 0x9C];
+            load_cells(&entry, 0, &mut got).unwrap();
+            assert!(got == want, "time at {time_at:#x}");
+        }
+        let entry = TimeEntry::new([0; 31], [0; 0x20]);
+        assert!(entry.fill_made_up(&made, 0x1C).is_err());
+        let mut long = made.clone();
+        long.driver.name = vec![b'x'; 0x21];
+        assert!(entry.fill_made_up(&long, 0x14).is_err());
+        assert_eq!(entry.stage_time.get(), 0);
     }
 }

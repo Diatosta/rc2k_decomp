@@ -1,21 +1,18 @@
-//! `scene::reset_texture_tables` (0x42247B): forgets which textures the kinds need and where they are.
-//!
-//! `dword_5DC978` = 0; -1 throughout the kinds' two tables of textures needed (`dword_5CFAE0`,
-//! `dword_5CEAE0`) and their first slots and first textures (`g_kindFirstSlots`,
-//! `g_kindFirstTextures`), 0x400 dwords each. Four callers.
+//! `scene::reset_texture_tables`: forgets which textures the kinds need and where they are:
+//! `TexturePlaces.kind_slot_bytes` = 0; -1 throughout the kinds' two tables of textures needed
+//! (`ObjectTables.video_levels`, `ObjectTables.system_levels`) and their first slots and first
+//! textures, 0x400 dwords each. Four callers.
 
 // ---- game data ----
 
-// ---- Rust version ----
-
 pub fn reset_texture_tables(scene: &crate::scene::owner::Scene) {
-    scene.textures.places.kind_slot_bytes.set(0); // dword_5DC978, cleared first
-    // dword_5CFAE0, dword_5CEAE0, g_kindFirstSlots, g_kindFirstTextures: 0x1000 bytes each.
+    scene.textures.places.get().kind_slot_bytes.set(0); // TexturePlaces.kind_slot_bytes, cleared first
+    // The two tables of textures needed, the first slots and the first textures: 0x1000 bytes each.
     for table in [
-        &scene.objects.tables.video_levels,
-        &scene.objects.tables.system_levels,
-        &scene.textures.kinds.kind_first_slots,
-        &scene.textures.kinds.kind_first_textures,
+        &scene.objects.tables.get().video_levels,
+        &scene.objects.tables.get().system_levels,
+        &scene.textures.kinds.get().kind_first_slots,
+        &scene.textures.kinds.get().kind_first_textures,
     ] {
         for cell in table {
             cell.set(u32::MAX);

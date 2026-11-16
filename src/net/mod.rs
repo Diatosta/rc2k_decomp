@@ -1,29 +1,16 @@
-//! Network play (DirectPlay), the game's side: its set-up at the start and the receiving
-//! thread (agent A's), the race's messages and the way out (agent B's) (read 2026-10-19; a reading, not seen in
-//! play). `dword_52A910` is 1 while a network race runs, `dword_52A920` this machine's
-//! player (its car's number), `dword_52AD98` the players. Each race step of the player's
-//! own car (`net::race_step`, from `drive::replay_step`) sends its inputs ('JGSM', every
-//! fourth step), its place and motion ('PGSM', step 2 of 32) and nine more dwords ('XGSM',
-//! step 1 of 256), and applies what the other players sent; a remote car's steps glide
-//! its place to the one received (`net::follow_remote`).
-//! The messages: `net::send_message` (0x41736D) puts a sequence byte (`byte_52A915`,
-//! counted, top bit set) and the bytes into `byte_52AA68` and sends them to everyone
-//! (`dword_5AB274`) through DirectPlay (`net::dplay_send`). The receiving thread
-//! (`net::receive_thread` 0x4183C3, "NETRXTDB", slot `stru_518714`, and its loop
-//! `net::take_messages` 0x4194CC: IDA's names, agent A's) keeps each player's in
-//! `byte_52AD9C` + player * 0x804C: +0x34 a count, from +0x38 records of 0x100 bytes
-//! (+1 the length, +2 the bytes); `net::copy_received` copies that to +0x4040 under the
-//! mutex `dword_52AB6C` for `net::apply_received`.
-//! The way out: `net::shut_down` (the network ended, the connection destroyed, the two
-//! handles closed).
+//! Network play (DirectPlay), the game's side: set-up at the start, the receiving thread, the
+//! race's messages and the way out. The network's `NetRaceSlot` (`Net::race_slot`) says whether a
+//! link is open, this machine's player (its car's number) and the players' count. Each race step
+//! of the player's own car (`net::race_step`) sends its inputs ('JGSM', every fourth step), its place and motion
+//! ('PGSM', step 2 of 32) and nine more dwords ('XGSM', step 1 of 256), and applies what the
+//! other players sent; a remote car's steps glide its place to the one received.
 //!
-//! The race's messages, the receiving thread, the way out and the DirectPlay set-up are
-//! plain functions calling each other directly (conversion phase 3, 2026-10-23); the
-//! screens' loops and frames of the lobby too (conversion phase 3, 2026-10-24: no registers,
-//! no calls by place). DirectPlay's methods from Rust (`net::dplay`).
+//! `net::send_message` puts a sequence byte (top bit set) and the bytes into `send_buffer` and
+//! sends them to everyone through DirectPlay. The receiving thread (`net::receive_thread`) keeps
+//! each player's messages in its inbox (`Net::inboxes`); `net::copy_received` copies them under
+//! the lock for `net::apply_received`. `net::shut_down` ends the network at the game's end.
 
-use crate::net::store::NetVars;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 
 pub mod add_address_element;
 pub mod add_chat_line;
@@ -60,6 +47,7 @@ pub mod dp_objects;
 pub mod dp_session;
 pub mod dplay;
 pub mod dplay_send;
+pub mod drain_chat;
 pub mod draw_button;
 pub mod draw_centred_item;
 pub mod draw_number_value;
@@ -71,6 +59,8 @@ pub mod find_saved_connection;
 pub mod find_sessions;
 pub mod follow_remote;
 pub mod free_messages;
+#[cfg(test)]
+mod frozen_formats;
 pub mod group_found;
 pub mod host_session;
 pub mod hosting;
@@ -82,12 +72,12 @@ pub mod keep_connection;
 pub mod keep_hud_options;
 pub mod lets_race;
 pub mod lets_rally;
+pub mod link;
 pub mod list_players;
 pub mod lobby;
 pub mod lobby_button;
 pub mod lobby_frame;
 pub mod lobby_loop;
-pub mod lock_received;
 pub mod message_frame;
 pub mod open_lobby;
 pub mod owner;
@@ -132,12 +122,11 @@ pub mod tables;
 pub mod take_messages;
 pub mod take_player_settings;
 pub mod types;
-pub mod unlock_received;
 
-/// Logs as the send functions do: "send x", the player, the step (`log_int_l1_nl`).
-pub fn log_send(vars: &NetVars, text: &std::ffi::CStr) {
+/// Logs as the send functions do: "send x", the player, the step.
+pub fn log_send(race: &Race, net: &owner::Net, text: &std::ffi::CStr) {
     use crate::logfile::log_int::log_int;
     crate::logfile::log_write::log_nul(&text, false, 1);
-    log_int(vars.player.get() as i32, false, 1);
-    log_int(race().shared.view.local_car.get() as i32, true, 1);
+    log_int(net.race_slot.player() as i32, false, 1);
+    log_int(race.shared.view.get().local_car.get() as i32, true, 1);
 }

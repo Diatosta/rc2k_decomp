@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # tools/build_ffmpeg.sh
-# Builds FFmpeg's decoder library for the standalone program's films (`src/film.rs`):
+# Builds FFmpeg's decoder library for the standalone program's films (`src/platform/film.rs`):
 # the version pinned here, from its signed source, for 32-bit Windows with clang-cl and
 # the Windows SDK that cargo-xwin keeps (~/.cache/cargo-xwin/xwin), only the decoders the
 # films need (ALLOGO.AVI: Indeo 4; MFLOGO.MPG, INTRO.MPG: MPEG-1 video and MPEG audio
@@ -9,10 +9,19 @@
 # libraries bin/avcodec.lib, bin/avutil.lib. `build_ffmpeg.sh x64` builds the same for
 # 64-bit Windows into third_party/ffmpeg-x64; `build_ffmpeg.sh linux` static libraries
 # (lib/libavcodec.a, lib/libavutil.a) for the native Linux build into
-# third_party/ffmpeg-linux (needs gcc and make).
+# third_party/ffmpeg-linux (needs gcc and make). `build_ffmpeg.sh mac`, run on a Mac, the
+# same static libraries for macOS on Intel and on Apple silicon (crossed with the Command
+# Line Tools' clang) into third_party/ffmpeg-mac-x64 and third_party/ffmpeg-mac-a64 (needs
+# make and gnupg, from MacPorts or Homebrew; MACOSX_DEPLOYMENT_TARGET as the program's,
+# default 11.0).
 # Needs: curl, gpg, clang-cl, lld-link, llvm-lib, llvm-nm, make; a cargo xwin build run
 # once (for the SDK).
 set -euo pipefail
+
+if [ "${1:-}" = mac ]; then
+    "$0" mac-x64
+    exec "$0" mac-a64
+fi
 
 VERSION=7.1.1
 SHA256=733984395e0dbbe5c046abda2dc49a5544e7e0e1e2366bba849222ae9e3a03b1
@@ -28,8 +37,19 @@ case "$ARCH" in
     x64) TRIPLE=x86_64-pc-windows-msvc; FFARCH=x86_64; SUFFIX="-x64" ;;
     linux) FFARCH=x86_64; SUFFIX="-linux" ;;
     a64) FFARCH=aarch64; SUFFIX="-a64" ;;
-    *) echo "usage: build_ffmpeg.sh [x86|x64|linux|a64]" >&2; exit 1 ;;
+    mac-x64) FFARCH=x86_64; MACARCH=x86_64; SUFFIX="-mac-x64" ;;
+    mac-a64) FFARCH=aarch64; MACARCH=arm64; SUFFIX="-mac-a64" ;;
+    *) echo "usage: build_ffmpeg.sh [x86|x64|linux|a64|mac]" >&2; exit 1 ;;
 esac
+UNIX=false
+case "$ARCH" in linux|a64|mac-*) UNIX=true ;; esac
+if [ "$(uname)" = Darwin ]; then
+    JOBS="$(sysctl -n hw.ncpu)"
+    sha256() { shasum -a 256 -c - >/dev/null; }
+else
+    JOBS="$(nproc)"
+    sha256() { sha256sum -c - >/dev/null; }
+fi
 
 cd "$(dirname "$0")/.."
 DEST="$PWD/third_party/ffmpeg$SUFFIX"
@@ -40,7 +60,7 @@ if [ -f "$DEST/VERSION" ] && [ "$(cat "$DEST/VERSION")" = "$VERSION $CONFIG" ]; 
 fi
 
 XWIN="${XWIN_CACHE:-$HOME/.cache/cargo-xwin/xwin}"
-[ "$ARCH" = linux ] || [ "$ARCH" = a64 ] || [ -d "$XWIN/crt/lib/$FFARCH" ] || { echo "no Windows SDK for $FFARCH in $XWIN: run a cargo xwin build for it first" >&2; exit 1; }
+$UNIX || [ -d "$XWIN/crt/lib/$FFARCH" ] || { echo "no Windows SDK for $FFARCH in $XWIN: run a cargo xwin build for it first" >&2; exit 1; }
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
@@ -48,7 +68,7 @@ trap 'rm -rf "$TMP"' EXIT
 curl -sSfL -o "$TMP/ffmpeg.tar.xz" "$URL"
 curl -sSfL -o "$TMP/ffmpeg.tar.xz.asc" "$URL.asc"
 curl -sSfL -o "$TMP/ffmpeg-devel.asc" "https://ffmpeg.org/ffmpeg-devel.asc"
-echo "$SHA256  $TMP/ffmpeg.tar.xz" | sha256sum -c - >/dev/null
+echo "$SHA256  $TMP/ffmpeg.tar.xz" | sha256
 mkdir -m 700 "$TMP/gnupg"
 gpg --homedir "$TMP/gnupg" --quiet --import "$TMP/ffmpeg-devel.asc" 2>/dev/null
 gpg --homedir "$TMP/gnupg" --status-fd 1 --verify "$TMP/ffmpeg.tar.xz.asc" "$TMP/ffmpeg.tar.xz" 2>/dev/null \
@@ -57,9 +77,9 @@ gpg --homedir "$TMP/gnupg" --status-fd 1 --verify "$TMP/ffmpeg.tar.xz.asc" "$TMP
 tar xf "$TMP/ffmpeg.tar.xz" -C "$TMP"
 SRC="$TMP/ffmpeg-$VERSION"
 
-if [ "$ARCH" = linux ] || [ "$ARCH" = a64 ]; then
-    # Static, position-independent libraries for the native Linux build: linked into the
-    # program, so it needs no FFmpeg on the machine it runs on (build.rs links them).
+if $UNIX; then
+    # Static, position-independent libraries for the native Linux and macOS builds: linked
+    # into the program, so it needs no FFmpeg on the machine it runs on (build.rs links them).
     # glibc 2.44 gave sinh and cosh new symbol versions (libavutil's expression evaluator
     # calls them): bound to their first ones, so the program does not need a glibc newer
     # than the one its other calls need.
@@ -73,17 +93,34 @@ if [ "$ARCH" = linux ] || [ "$ARCH" = a64 ]; then
         : > "$TMP/glibc_floor.h"
         CROSS=(--enable-cross-compile --cross-prefix=aarch64-linux-gnu- --target-os=linux
             --cc=aarch64-linux-gnu-gcc)
+    elif [ -n "${MACARCH:-}" ]; then
+        # macOS: no glibc; either processor from the one clang (`-arch`), crossed so that
+        # configure does not run what it builds for the other one.
+        MIN="-mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET:-11.0}"
+        printf '/* no glibc on macOS */\n' > "$TMP/glibc_floor.h"
+        if [ "$(uname)" = Darwin ]; then
+            CROSS=(--enable-cross-compile --target-os=darwin --cc=clang
+                --extra-ldflags="-arch $MACARCH $MIN")
+            MACFLAGS="-arch $MACARCH $MIN"
+        else
+            # From Linux: clang for the Mac against the SDK in SDKROOT (tools/mac/README.md),
+            # LLVM's archiver and Mach-O linker.
+            : "${SDKROOT:?SDKROOT: a macOS SDK (tools/mac/README.md)}"
+            MACFLAGS="-target $MACARCH-apple-macos${MACOSX_DEPLOYMENT_TARGET:-11.0} -isysroot $SDKROOT"
+            CROSS=(--enable-cross-compile --target-os=darwin --cc=clang --ar=llvm-ar
+                --ranlib=llvm-ranlib --nm=llvm-nm --extra-ldflags="$MACFLAGS -fuse-ld=lld")
+        fi
     else
         CROSS=(--cc="${CC:-gcc}")
     fi
     "$SRC/configure" "${CROSS[@]}" --arch=$FFARCH --disable-asm --enable-pic \
-        --extra-cflags="-include $TMP/glibc_floor.h" \
+        --extra-cflags="-include $TMP/glibc_floor.h ${MACFLAGS:-}" \
         --disable-everything --enable-decoder=indeo4,mpeg1video,mp2 \
         --enable-parser=mpegvideo,mpegaudio --disable-programs --disable-doc \
         --disable-avformat --disable-avdevice --disable-avfilter --disable-swscale \
         --disable-swresample --disable-network --disable-autodetect --enable-static \
         --disable-shared --prefix="$TMP/out" >/dev/null
-    make -j"$(nproc)" >/dev/null 2>"$TMP/make.err" || { tail -20 "$TMP/make.err" >&2; exit 1; }
+    make -j"$JOBS" >/dev/null 2>"$TMP/make.err" || { tail -20 "$TMP/make.err" >&2; exit 1; }
     make install >/dev/null
     rm -rf "$DEST"
     mkdir -p "$DEST/lib"
@@ -112,7 +149,7 @@ LDFLAGS="-libpath:$XWIN/crt/lib/$FFARCH -libpath:$XWIN/sdk/lib/um/$FFARCH -libpa
     --disable-swresample --disable-network --disable-autodetect --enable-shared \
     --disable-static --extra-cflags="$CFLAGS" --extra-ldflags="$LDFLAGS" \
     --prefix="$TMP/out" >/dev/null
-PATH="$TMP/shim:$PATH" NM=llvm-nm make -j"$(nproc)" >/dev/null 2>"$TMP/make.err" \
+PATH="$TMP/shim:$PATH" NM=llvm-nm make -j"$JOBS" >/dev/null 2>"$TMP/make.err" \
     || { tail -20 "$TMP/make.err" >&2; exit 1; }
 PATH="$TMP/shim:$PATH" NM=llvm-nm make install >/dev/null
 

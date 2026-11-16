@@ -1,10 +1,8 @@
-//! The credits rolling up over the screen (converted 2026-10-21 from `race::roll_credits`
-//! 0x415FC2 and `race::credit_line` 0x4161BA): a script of words laid out from the top
-//! down, the top moving up a pixel each 0x12 ms, the end once the last line is off the
-//! top and the music has stopped; and the race the credits show, its stage and car drawn
-//! (converted 2026-10-21 from `race::set_up_credits_race` 0x463711).
+//! The credits rolling up over the screen: a script of words laid out top down, the top moving
+//! up a pixel each 0x12 ms, ending when the last line is off the top and the music has stopped;
+//! and the race the credits show, its stage and car drawn at random.
 
-/// The credits' font of a script word (1, 2, 3, 4, 7, 8; the columns use 4's).
+/// The font of a script word (1, 2, 3, 4, 7, 8; the columns use 4's).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Font(pub u16);
 
@@ -22,11 +20,10 @@ pub fn start_top(screen_height: u32) -> u32 {
     screen_height.wrapping_add(0x15E)
 }
 
-/// The script's lines from `top` down (`word` the script's next word; `line_height` a
-/// font's): 1, 2, 7 a string centred, 8 one at a sixteenth of the width, 4 one right of
-/// the middle, each moving down a line; 3 one left of the middle (not moving); 5 three
-/// strings in columns (moving down once); 6 a signed move (its next word); 9 nothing; any
-/// other the end. Gives the lines in order and the place below the last.
+/// The script's lines from `top` down: words 1, 2, 7 a string centred, 8 one at a sixteenth of
+/// the width, 4 right of the middle (each moving down a line); 3 left of the middle (not
+/// moving); 5 three strings in columns; 6 a signed move; 9 nothing; any other ends the script.
+/// Gives the lines and the place below the last.
 pub fn lay_out(
     mut word: impl FnMut() -> u16,
     width: i32,
@@ -81,15 +78,13 @@ pub fn lay_out(
     }
 }
 
-/// `race::credit_line`'s test: a line is drawn unless it is at or above -0x1B (off the
-/// top) or at or past the screen's bottom.
+/// A line is drawn unless at or above -0x1B or at or past the screen's bottom.
 pub fn shown(y: i32, screen_height: u32) -> bool {
     y > -0x1B && y < screen_height as i32
 }
 
-/// The clock caught up: while 0x12 ms or more have passed since `clock` (`now` asked each
-/// time), the top one pixel up and the clock 0x12 on. Gives the top, the clock and the
-/// time passed last seen.
+/// The clock caught up: while 0x12 ms or more have passed since `clock`, the top moves one
+/// pixel up and the clock 0x12 on. Gives the top, the clock and the last time seen.
 pub fn catch_up(mut top: u32, mut clock: u32, mut now: impl FnMut() -> u32) -> (u32, u32, u32) {
     loop {
         let elapsed = now().wrapping_sub(clock);
@@ -101,19 +96,17 @@ pub fn catch_up(mut top: u32, mut clock: u32, mut now: impl FnMut() -> u32) -> (
     }
 }
 
-/// Whether the credits are over: the place below the last line at or above -0xAF and the
-/// music (`playing`, 1 while it plays) stopped.
+/// Whether the credits are over: below the last line at or above -0xAF and the music stopped.
 pub fn rolled_off(below_last: i32, playing: u32) -> bool {
     below_last <= -0xAF && playing != 1
 }
 
-/// The stages the credits' race is drawn from (`dword_71C3E4`).
+/// The stages the credits' race is drawn from.
 pub const RACE_STAGES: u32 = 36;
-/// The car kinds it is drawn from (`dword_71C474`).
+/// The car kinds the credits' race is drawn from.
 pub const RACE_KINDS: u32 = 23;
 
-/// A draw (`math::next_random`) as a place among `n`: the high dword of draw x n, held to
-/// 0 .. n - 1 by the original's sign tests.
+/// A draw as a place among `n`: the high dword of draw x n, held to 0 ..= n - 1.
 pub fn drawn_place(draw: u32, n: u32) -> u32 {
     let p = ((draw as u64 * n as u64) >> 32) as u32;
     let p = if (p as i32) < 0 { 0 } else { p };

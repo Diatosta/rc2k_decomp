@@ -1,88 +1,100 @@
-//! `effects::init_marks` (0x4D12F7): the marks set up for a stage: the settings and the
-//! seed kept, then the fifteen steps (each after `nullsub_1` with its number in eax), the
-//! screen's middle and the kind's float.
+//! `effects::init_marks`: the marks set up for a stage: the settings and the seed kept, then
+//! the fifteen steps, the screen's middle and the kind's float.
 //!
-//! One caller, init mark's end (0x457030). Refuses a kind (the settings'
-//! +0x26A8, which step 1 makes `g_marksKind`) of 0x22 or more (the kinds' tables); both
-//! before anything. Kinds 0x17 .. 0x21 are past `g_marksKindFloatTable`'s 0x17 entries:
-//! fixed (section 16, 2026-10-23), they get 18240.0.
+//! Refuses a kind (the settings' +0x26A8, which step 1 makes the effects kind) of 0x22 or more (the
+//! kinds' tables); both before anything. Kinds 0x17 .. 0x21 are past the kind float table's 0x17
+//! entries: they get 18240.0 (wiki/Fixed-bugs.md: "Some cars' marks lose their depth bias").
 
 use crate::effects::owner::Effects;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::owner::Race;
-use crate::system::owner::system;
 
 /// The table's entries; the kinds go to 0x21 (the other kinds' tables have 0x22).
 const KIND_FLOATS: u32 = 0x17;
 const KINDS: u32 = rc2k_core::effects::kind_values::KINDS;
-/// 18240.0, the value of most of the table's kinds: the kinds past it get it (section 16).
-const KIND_FLOAT_PAST: u32 = 0x468E_8000;
+/// 18240.0, the value of most of the table's kinds: the kinds past it get it.
+const KIND_FLOAT_PAST: f32 = 18240.0;
 
-/// The Rust version (see the header): `seed` the seed (eax). The original took the settings'
-/// address in esi; the race hands its one record (`race::marks_settings_store`), so none is
-/// passed. The steps (`nullsub_1` before each, `nullsub_26` for step 7: nothing).
+/// `seed` is the seed. The race hands its one settings record (`race::effects_settings_store`).
 pub fn init_marks(
-    race: &Race,
+    race: &'static Race,
     effects: &Effects,
     seed: u32,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let course = &race.course;
-    let system = system();
     use crate::effects::*;
     let (ring, masks) = (&effects.ring, &effects.masks);
     let weather = &effects.weather;
     let paths = &effects.paths;
     {
-        // Every read through `g_marksSettings` is a field of the race's record.
-        let marks = &*crate::race::marks_settings_store::MARKS_SETTINGS;
+        // Every read of the settings is a field of the race's record.
+        let marks = race.effects_settings();
         if marks.mark_car_file_number.get() >= KINDS {
             return Err(BadInput("a marks kind of 0x22 or more").into());
         }
+        effects.setup.marks.set(Some(marks));
+        effects.setup.car_blocks.set(Some(race.car_blocks()));
+        effects.setup.stage.set(Some(&race.course.stage));
         effects.setup.settings.is_set.set(1);
         effects.setup.work.seed.set(seed);
         effects.setup.clock.started.set(0);
-        edges::load_kind_data(course, effects, scene, gfx)?;
+        crate::race::load_times::mark("load_kind_data");
+        edges::load_kind_data(race, effects, scene, gfx, system)?;
+        crate::race::load_times::mark("make_wave_tables");
         setup::make_wave_tables(paths)?;
-        profiles::make_profiles(course, paths, profiles::RESUME, effects)?;
+        crate::race::load_times::mark("make_profiles");
+        profiles::make_profiles(paths, profiles::RESUME, scene, effects)?;
+        crate::race::load_times::mark("seed_noise");
         setup::seed_noise(weather, effects);
+        crate::race::load_times::mark("make_noise_curve");
         setup::make_noise_curve(weather, scene, effects)?;
+        crate::race::load_times::mark("allocate_places");
         blocks::allocate_places(effects)?;
-        kind_values::set_kind_values(&kind_values::FIRST, effects)?;
-        kind_values::set_kind_values(&kind_values::SECOND, effects)?;
-        load_mask_pictures::load_mask_pictures(masks, scene, gfx, effects)?;
+        crate::race::load_times::mark("set_kind_values");
+        kind_values::set_kind_values(&kind_values::first(effects), effects)?;
+        kind_values::set_kind_values(&kind_values::second(effects), effects)?;
+        crate::race::load_times::mark("load_mask_pictures");
+        load_mask_pictures::load_mask_pictures(masks, scene, gfx, effects, system)?;
         setup::clear_slots(effects);
-        set_up_surface::set_up_surface(ring, masks, scene, gfx, effects)?;
+        crate::race::load_times::mark("set_up_surface");
+        set_up_surface::set_up_surface(ring, masks, scene, gfx, effects, system)?;
+        crate::race::load_times::mark("allocate_ring");
         blocks::allocate_ring(&effects.particles, ring)?;
-        lines::set_up_blocks(course, paths, scene, effects)?;
-        marks.unknown_67c[1].set(1);
+        crate::race::load_times::mark("set_up_blocks");
+        lines::set_up_blocks(course, race.faces(), paths, scene, effects)?;
+        marks.fresh_marks_flags[1].set(1);
         for r in &effects.setup.clock.settings_copies {
             r.set(1);
         }
+        crate::race::load_times::mark("tick_clock");
         setup::tick_clock(&race.shared, effects)?;
-        effects.setup.frame.steps.set_bits(0u32);
-        let less: u32 = effects.setup.floats.one.bits();
-        for (n, side) in [&system.session.screen.width, &system.session.screen.height]
-            .into_iter()
-            .enumerate()
+        effects.setup.frame.steps.set(0);
+        let less = effects.setup.floats.one.get();
+        for (n, side) in [
+            &system.session.screen.get().width,
+            &system.session.screen.get().height,
+        ]
+        .into_iter()
+        .enumerate()
         {
             let half = side.get() >> 1;
-            // The screen's middle x, it less `flt_76516C`, the same for y.
-            effects.clipping.clip.edges[2 * n].set_bits(x87::from_int(half as i32));
-            effects.clipping.clip.edges[2 * n + 1].set_bits(x87::int_less(half as i32, less));
+            // The screen's middle x, it less `MarksFloats.one`, the same for y.
+            effects.clipping.clip.edges[2 * n].set(x87::from_int(half as i32));
+            effects.clipping.clip.edges[2 * n + 1].set(x87::int_less(half as i32, less));
         }
-        let kind: u32 = effects.kinds.marks_kind.kind.bits();
-        // Fixed (section 16, 2026-10-23): the original reads past the table for kinds
-        // 0x17 .. 0x21 (the next variables: `g_marksKindFloat` itself, a 0/1 flag, 9, ..),
-        // so those cars' marks lose their depth bias.
+        let kind: u32 = effects.kinds.marks_kind.kind.get();
+        // Kinds 0x17 .. 0x21 are past the table and get `KIND_FLOAT_PAST` (wiki/Fixed-bugs.md:
+        // "Some cars' marks lose their depth bias").
         let float = if kind < KIND_FLOATS {
-            effects.setup.kind_floats.kind_floats[kind as usize].bits()
+            effects.setup.kind_floats.kind_floats[kind as usize].get()
         } else {
             KIND_FLOAT_PAST
         };
-        effects.setup.kind_floats.kind_float.set_bits(float);
+        effects.setup.kind_floats.kind_float.set(float);
     }
     Ok(())
 }

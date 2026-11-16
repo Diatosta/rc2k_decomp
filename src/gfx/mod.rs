@@ -40,6 +40,7 @@ pub mod load_jade;
 pub mod load_picture;
 pub mod load_picture_to_texture;
 pub mod load_picture_with_overlay;
+pub mod locked_pixels;
 pub mod mark_3d_modes;
 pub mod mmx_converters;
 pub mod owner;
@@ -86,6 +87,7 @@ pub mod cards;
 pub mod clear_back_surface;
 pub mod converters;
 pub mod decoder;
+pub mod draw2d;
 pub mod formats;
 pub mod front;
 pub mod locked;
@@ -102,53 +104,25 @@ pub mod typefaces;
 pub mod upload;
 pub mod windscreen_drop_batch;
 
-/// The test of every typed block of this module: the static's bytes are the image's (phase 7).
-#[cfg(test)]
-pub(crate) fn first_values_are_the_games<T>(block: &'static T, start: usize, end: usize) {
-    let _g = crate::store::test_lock();
-    let len = end - start;
-    let size = core::mem::size_of::<T>();
-    assert!(
-        len <= size && size <= len.next_multiple_of(4),
-        "the struct's size"
-    );
-    // Read in place: a copy of a big block would not fit the test thread's stack.
-    let mine =
-        unsafe { core::slice::from_raw_parts(std::ptr::from_ref::<T>(block).cast::<u8>(), len) };
-    let image = crate::moved::image_bytes(start, len);
-    assert!(
-        mine == &image[..],
-        "the block's bytes differ from the image's"
-    );
-}
-
-/// As `first_values_are_the_games`, the image's bytes first changed by `patch` (places
-/// that hold a handle where the image has an address).
-#[cfg(test)]
-pub(crate) fn first_values_are_the_games_but<T>(
-    block: &'static T,
-    start: usize,
-    end: usize,
-    patch: impl Fn(&mut [u8]),
-) {
-    let _g = crate::store::test_lock();
-    let len = end - start;
-    let mine =
-        unsafe { core::slice::from_raw_parts(std::ptr::from_ref::<T>(block).cast::<u8>(), len) };
-    let mut image = crate::moved::image_bytes(start, len);
-    patch(&mut image);
-    assert!(
-        mine == &image[..],
-        "the block's bytes differ from the image's"
-    );
-}
-
 /// An array of dwords with these first values (the blocks' tables).
-pub(crate) const fn dwords<const N: usize>(values: [u32; N]) -> [crate::session::Dword; N] {
-    let mut out = [const { crate::session::Dword::new(0) }; N];
+pub(crate) const fn dwords<const N: usize>(values: [u32; N]) -> [crate::memory::session::Dword; N] {
+    let mut out = [const { crate::memory::session::Dword::new(0) }; N];
     let mut i = 0;
     while i < N {
-        out[i] = crate::session::Dword::new(values[i]);
+        out[i] = crate::memory::session::Dword::new(values[i]);
+        i += 1;
+    }
+    out
+}
+
+/// `dwords` for the tables only the game's thread reaches.
+pub(crate) const fn plain_dwords<const N: usize>(
+    values: [u32; N],
+) -> [crate::memory::session::PlainDword; N] {
+    let mut out = [const { crate::memory::session::PlainDword::new(0) }; N];
+    let mut i = 0;
+    while i < N {
+        out[i] = crate::memory::session::PlainDword::new(values[i]);
         i += 1;
     }
     out

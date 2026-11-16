@@ -1,23 +1,8 @@
-//! `input::make_effect` (0x40992F): one of a device record's six force-feedback effects
-//! made: an object it had given back (`input::release_effect`); its `DIEFFECT` (+0x34,
-//! 0x34 bytes: cartesian, by object offsets, for ever, gain 10000, no trigger, one axis, x
-//! (+0x80; +0x84 4), direction 0 (+0x88), no envelope (one of 0x14 bytes at +0x90, all 0,
-//! not linked)) and its type-specific parameters (+0x68) by its kind (+4): 1 a constant
-//! force of 10000; 2 a ramp from 10000 to 10000; 3 a periodic one (magnitude 10000, offset
-//! 0, phase 0, period 50000); 4 a condition (offset 0, both coefficients and saturations
-//! 10000, dead band 0); others none (no size, no pointer); then its function (+0) called
-//! with eax 1; and with an effect found for it (+0xC 1, `input::effect_found`) its object
-//! made (`CreateEffect` of the record's device (+4) with the GUID found (+0x10), into
-//! +0x30; its result not looked at).
-//!
-//! Takes: the device's record, the effect, its number (for its function)
-//!
-//! Caller: `input::begin_force` (each of the six). The effect's function is
-//! one of `input::effect_N_change` (eax 1, the other registers as here), the methods the
-//! objects' own.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
+//! Makes one of a device record's six force-feedback effects: the object it had is given back;
+//! its `DIEFFECT` (+0x34) and its type-specific parameters (+0x68) are set by its kind (+4: 1
+//! constant force, 2 ramp, 3 periodic, 4 condition, others none) at their default values; its
+//! change function is called with the change 1; and with an effect found for it (+0xC 1) its
+//! object is made (`CreateEffect`; the result is not looked at).
 
 use crate::errors::Refused;
 use crate::input::store::Devices;
@@ -27,9 +12,8 @@ use crate::input::types::{ForceEffect, InputDevice};
 /// it points at the effect's own part: any value but 0 (nothing reads the address).
 pub const PART_SET: u32 = 1;
 
-/// The effect's `DIEFFECT` and parameters, as the original writes them (in its order).
+/// The effect's `DIEFFECT` and parameters.
 pub fn fill_parameters(e: &ForceEffect) {
-    // Converted: `rc2k_core::input::force` (the figures, `type_specific`).
     use rc2k_core::input::force as k;
     let d = &e.effect;
     d.size.set(k::EFFECT_SIZE);
@@ -40,8 +24,8 @@ pub fn fill_parameters(e: &ForceEffect) {
     d.trigger_button.set(k::NO_BUTTON);
     d.trigger_repeat_interval.set(0);
     d.axes_count.set(k::AXES_COUNT);
-    // the pointers the `DIEFFECT` holds (the original: game addresses of the effect's own
-    // arrays) are `PART_SET`: only `effect_objects::parameters_of` reads them, as set or not
+    // The pointers the `DIEFFECT` holds are `PART_SET`: only `effect_objects::parameters_of`
+    // reads them, as set or not.
     d.axes.set(PART_SET);
     e.axes[0].set(k::AXES[0]);
     e.axes[1].set(k::AXES[1]);
@@ -75,11 +59,11 @@ pub fn make_effect(
     n: u32,
 ) -> Result<(), Refused> {
     let e = effect;
-    if e.object.get() != 0 {
+    if e.object.is_set() {
         crate::input::effect_objects::release_effect(e);
     }
     fill_parameters(e);
-    // The effect's function with a change of 1, ecx the effect's number, edx 0.
+    // The effect's function with a change of 1, the effect's number and 0.
     crate::input::effect_changes::effect_change_at(devices, e.change.get(), record, e, 1, n, 0)?;
     if e.found.get() == 1 {
         // The GUID and the `DIEFFECT`'s parts, as DirectInput takes them; the object's

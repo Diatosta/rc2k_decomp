@@ -1,33 +1,29 @@
-//! Four twins (IDA 2026-10-18) that make a band 0 ..= 0x40 out of a float: ebx =
-//! `fistp` of value x factor (through `dword_6D1AEC`), less a step, held to 0 ..= 0x40
-//! (by the sign, `jns` / `js`):
-//! - `physics::sound_band_1` (0x45D067): `flt_6D3108` x `flt_6D1AE0`, less 1;
-//! - `physics::sound_band_2` (0x45D097): `g_car` +0x1C4 x `flt_6D1AE0`, less 10;
-//! - `physics::sound_band_3` (0x45D0F1): `flt_6D3CD0` x `flt_6D1AE8`, less 10;
-//! - `physics::sound_band_4` (0x45D121): `g_car` +0x1C4 x `flt_6D1AE4`, less 1.
+//! Four twins that make a band 0 ..= 0x40 out of a float: value x factor (rounded through
+//! `band_scratch`), less a step, held to 0 ..= 0x40:
+//! - `physics::sound_band_1`: `contact_speed_length` x `contact_band_scale`, less 1;
+//! - `physics::sound_band_2`: the car's `speed` x `contact_band_scale`, less 10;
+//! - `physics::sound_band_3`: `bump_speed_length` x `bump_band_scale`, less 10;
+//! - `physics::sound_band_4`: the car's `speed` x `crash_band_scale`, less 1.
 //!
 //! A reading: volume or pitch steps for the car's sounds (their callers
-//! `physics::place_sound_object` ..
-//! `physics::place_sound_e5` drive the sound objects).
-//!
-//! Returns: the band
+//! `physics::place_sound_object` .. `physics::place_sound_e5` drive the sound objects).
 
 use crate::math::x87;
-use crate::race::owner::Race;
-use crate::session::{Dword, Float};
+use crate::memory::session::PlainDword;
+use crate::physics::step_families::SoundInputs;
 use rc2k_core::physics::sound_bands::sound_band;
 
 /// One twin: (address, value, factor, step).
 pub type Twin = (
     usize,
-    for<'a> fn(&'a Race) -> &'a Float,
-    for<'a> fn(&'a Race) -> &'a Float,
+    fn(&SoundInputs<'_>) -> f32,
+    fn(&SoundInputs<'_>) -> f32,
     u32,
 );
 
-/// The exact x87 version on the value and the factor, the scratch keeps the number of `fistp`.
-pub fn band_at(value: &Float, factor: &Float, scratch: &Dword, step: u32) -> u32 {
-    let n = x87::mul_to_int(value.bits(), factor.bits()) as u32;
+/// The exact x87 version on the value and the factor; the scratch keeps the rounded number.
+pub fn band_at(value: f32, factor: f32, scratch: &PlainDword, step: u32) -> u32 {
+    let n = x87::mul_to_int(value, factor) as u32;
     scratch.set(n);
     let mut b = n.wrapping_sub(step);
     if (b as i32) < 0 {
@@ -40,29 +36,19 @@ pub fn band_at(value: &Float, factor: &Float, scratch: &Dword, step: u32) -> u32
 }
 
 /// The band on the game's variables (the exact x87 version).
-pub fn band_value(race: &Race, twin: Twin) -> u32 {
-    band_at(
-        twin.1(race),
-        twin.2(race),
-        &race.frame.sound_spots.band_scratch,
-        twin.3,
-    )
+pub fn band_value(c: &SoundInputs<'_>, twin: Twin) -> u32 {
+    band_at(twin.1(c), twin.2(c), &c.spots.band_scratch, twin.3)
 }
 
 /// The converted version (`rc2k_core::physics::sound_bands`, plain floats).
-// Converted: `rc2k_core::physics::sound_bands::sound_band`.
-pub fn band_at_plain(value: &Float, factor: &Float, scratch: &Dword, step: u32) -> u32 {
-    let (n, b) = sound_band(value.get(), factor.get(), step);
+// Core: `rc2k_core::physics::sound_bands::sound_band`.
+pub fn band_at_plain(value: f32, factor: f32, scratch: &PlainDword, step: u32) -> u32 {
+    let (n, b) = sound_band(value, factor, step);
     scratch.set(n as u32);
     b
 }
 
 /// The converted band on the game's variables.
-pub fn band_value_plain(race: &Race, twin: Twin) -> u32 {
-    band_at_plain(
-        twin.1(race),
-        twin.2(race),
-        &race.frame.sound_spots.band_scratch,
-        twin.3,
-    )
+pub fn band_value_plain(c: &SoundInputs<'_>, twin: Twin) -> u32 {
+    band_at_plain(twin.1(c), twin.2(c), &c.spots.band_scratch, twin.3)
 }

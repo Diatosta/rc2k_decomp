@@ -1,17 +1,12 @@
-//! `audio::stop_streams` (0x40C5E8): both stream commands with eax 0.
-//!
-//! `audio::stream_command` and then `audio::music_command`, each with eax 0 and the
-//! caller's ebx, ecx and edx: with action 0 (or any but 1 and 3) both stop.
-//!
-//! Plain since 2026-10-23 (phase 3): action 0 (both callers now stop: section 16), with
-//! which neither command reads its other arguments.
+//! Both stream commands with action 0: the stream and the music stopped.
 
-use crate::audio::owner::Audio;
+use crate::audio::own::AudioThread;
 use crate::audio::stream_commands::{music_command, stream_command};
 use crate::errors::Refused;
+use rc2k_core::audio::commands::StreamAction;
 
 /// Both streams stopped.
-pub fn stop_streams(audio: &Audio) -> Result<(), Refused> {
-    stream_command(audio, 0, 0, 0)?;
-    music_command(&audio.state, 0, 0, 0, 0)
+pub fn stop_streams(audio: &AudioThread) -> Result<(), Refused> {
+    stream_command(audio, 0, 0, StreamAction::Stop)?;
+    music_command(&audio.state, 0, 0, 0, StreamAction::Stop)
 }

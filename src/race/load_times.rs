@@ -1,0 +1,220 @@
+//! A stage load's timing, for builds with the `remote` feature run with `RC2K_LOAD_TIMES=1`: one
+//! log line per load step, `load time <step>: <ms> ms (<category> <ms> [<count>], ..)`, then the
+//! total and the time to the first race frame. The categories are exclusive (a file read inside
+//! a picture decode counts as a file read only); what no category covers is the step's own work.
+//! `mark` splits a step into sub-steps (`load time <step> / <sub>: <ms>`, wall time, categories
+//! not separated). Without the feature, or without the variable, every call here does nothing.
+
+/// What a measured scope waits on or works at.
+#[derive(Clone, Copy)]
+pub enum Category {
+    /// Opening and reading a file (not the decoding of what it holds).
+    FileRead,
+    /// Decoding a PNG / PCX picture into pixels.
+    PictureDecode,
+    /// Converting a picture to a texture's levels and writing them.
+    TextureConvert,
+    /// Unlocking a texture's surface (the upload to the drawing backend).
+    SurfaceUnlock,
+    /// Making a picture ready for a texture (alpha, key colours, grading).
+    TexturePrepare,
+    /// Halving a picture to a texture level's size.
+    TextureHalve,
+    /// Locking a texture level's surface.
+    SurfaceLock,
+    /// The loading bar's frame, its present excepted.
+    BarFrame,
+    /// Presenting the loading bar's frame.
+    Present,
+}
+
+#[cfg(feature = "remote")]
+mod active {
+    use super::Category;
+    use std::cell::RefCell;
+    use std::time::{Duration, Instant};
+
+    const NAMES: [&str; 9] = [
+        "file read",
+        "picture decode",
+        "texture convert",
+        "surface unlock",
+        "texture prepare",
+        "texture halve",
+        "surface lock",
+        "bar frame",
+        "present",
+    ];
+
+    /// The load being timed on this thread.
+    struct State {
+        begun: Instant,
+        phase_name: String,
+        phase_begun: Instant,
+        totals: [Duration; 9],
+        counts: [u32; 9],
+        /// Each open scope's children's time.
+        children: Vec<Duration>,
+        /// The open sub-step of the phase, and when it began.
+        sub: Option<(String, Instant)>,
+    }
+
+    thread_local! {
+        static STATE: RefCell<Option<State>> = const { RefCell::new(None) };
+        /// When the last finished load began, until its first race frame is logged.
+        static FIRST: RefCell<Option<Instant>> = const { RefCell::new(None) };
+    }
+
+    fn enabled() -> bool {
+        static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        *ON.get_or_init(|| std::env::var_os("RC2K_LOAD_TIMES").is_some())
+    }
+
+    pub fn begin(name: &str) {
+        if !enabled() {
+            return;
+        }
+        let now = Instant::now();
+        STATE.with(|s| {
+            *s.borrow_mut() = Some(State {
+                begun: now,
+                phase_name: name.to_string(),
+                phase_begun: now,
+                totals: [Duration::ZERO; 9],
+                counts: [0; 9],
+                children: Vec::new(),
+                sub: None,
+            });
+        });
+    }
+
+    fn close_sub(state: &mut State, now: Instant) {
+        if let Some((name, begun)) = state.sub.take() {
+            crate::logfile::program_log::log(&format!(
+                "load time {} / {name}: {:.1} ms",
+                state.phase_name,
+                now.duration_since(begun).as_secs_f64() * 1000.0
+            ));
+        }
+    }
+
+    pub fn mark(name: &str) {
+        STATE.with(|s| {
+            if let Some(state) = s.borrow_mut().as_mut() {
+                let now = Instant::now();
+                close_sub(state, now);
+                state.sub = Some((name.to_string(), now));
+            }
+        });
+    }
+
+    fn close_phase(state: &mut State, now: Instant) {
+        close_sub(state, now);
+        let mut line = format!(
+            "load time {}: {:.1} ms",
+            state.phase_name,
+            now.duration_since(state.phase_begun).as_secs_f64() * 1000.0
+        );
+        let parts: Vec<String> = NAMES
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| state.counts[*i] != 0)
+            .map(|(i, name)| {
+                format!(
+                    "{name} {:.1} [{}]",
+                    state.totals[i].as_secs_f64() * 1000.0,
+                    state.counts[i]
+                )
+            })
+            .collect();
+        if !parts.is_empty() {
+            line += &format!(" ({})", parts.join(", "));
+        }
+        crate::logfile::program_log::log(&line);
+        state.totals = [Duration::ZERO; 9];
+        state.counts = [0; 9];
+    }
+
+    pub fn phase(name: &str) {
+        STATE.with(|s| {
+            if let Some(state) = s.borrow_mut().as_mut() {
+                let now = Instant::now();
+                close_phase(state, now);
+                state.phase_name = name.to_string();
+                state.phase_begun = now;
+            }
+        });
+    }
+
+    pub fn end() {
+        STATE.with(|s| {
+            if let Some(mut state) = s.borrow_mut().take() {
+                let now = Instant::now();
+                close_phase(&mut state, now);
+                crate::logfile::program_log::log(&format!(
+                    "load time total: {:.1} ms",
+                    now.duration_since(state.begun).as_secs_f64() * 1000.0
+                ));
+                FIRST.with(|f| *f.borrow_mut() = Some(state.begun));
+            }
+        });
+    }
+
+    pub fn first_frame() {
+        FIRST.with(|f| {
+            if let Some(begun) = f.borrow_mut().take() {
+                crate::logfile::program_log::log(&format!(
+                    "load time to the first race frame: {:.1} ms",
+                    begun.elapsed().as_secs_f64() * 1000.0
+                ));
+            }
+        });
+    }
+
+    /// A measured stretch, counted when dropped.
+    pub struct Scope(Option<(Category, Instant)>);
+
+    pub fn scope(category: Category) -> Scope {
+        let open = STATE.with(|s| {
+            s.borrow_mut()
+                .as_mut()
+                .map(|state| state.children.push(Duration::ZERO))
+        });
+        Scope(open.map(|()| (category, Instant::now())))
+    }
+
+    impl Drop for Scope {
+        fn drop(&mut self) {
+            let Some((category, begun)) = self.0 else {
+                return;
+            };
+            let elapsed = begun.elapsed();
+            STATE.with(|s| {
+                if let Some(state) = s.borrow_mut().as_mut() {
+                    let own_children = state.children.pop().unwrap_or_default();
+                    if let Some(parent) = state.children.last_mut() {
+                        *parent += elapsed;
+                    }
+                    state.totals[category as usize] += elapsed.saturating_sub(own_children);
+                    state.counts[category as usize] += 1;
+                }
+            });
+        }
+    }
+}
+
+#[cfg(not(feature = "remote"))]
+mod active {
+    use super::Category;
+    pub fn begin(_: &str) {}
+    pub fn phase(_: &str) {}
+    pub fn mark(_: &str) {}
+    pub fn end() {}
+    pub fn first_frame() {}
+    pub struct Scope;
+    pub fn scope(_: Category) -> Scope {
+        Scope
+    }
+}
+
+pub use active::{begin, end, first_frame, mark, phase, scope};

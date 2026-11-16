@@ -1,7 +1,4 @@
-//! The picture converters' table and the MMX ones (converted 2026-10-21 from
-//! `gfx::install_converters` 0x407062 and the eight row converters 0x4070F9 .. 0x407484:
-//! `gfx::rows_565_mmx`, `rows_555_mmx`, `rows_1555_mmx`, `rows_4444_mmx` and their 3DNow
-//! twins).
+//! The picture converters' table and the MMX ones.
 //!
 //! The table has a converter for each surface format number (seven); a format without one
 //! is converted pixel by pixel. The MMX converters take four pixels of four 8-bit
@@ -13,9 +10,9 @@
 pub enum Converter {
     /// None: pixel by pixel.
     None,
-    /// `gfx::components_to_4444_rows`.
+    /// Components to 4-4-4-4 pixels, row by row.
     Components4444,
-    /// `gfx::copy_pixel_rows`.
+    /// Rows copied as they are.
     CopyRows,
     /// The MMX converter of a format (1 .. 4).
     Mmx(u32),
@@ -92,7 +89,7 @@ pub fn step(format: u32, k: &[u64; 5], q0: u64, q1: u64) -> u64 {
 }
 
 /// Where the next row is written: `to` (past the row) moved by `gap`, forward for the
-/// MMX 5-6-5 converter, back for the others (as each original has it).
+/// MMX 5-6-5 converter, back for the others (each converter's own way, kept).
 pub fn next_row(to: u32, gap: u32, format: u32, three_dnow: bool) -> u32 {
     if format == 1 && !three_dnow {
         to.wrapping_add(gap)
@@ -121,7 +118,7 @@ mod tests {
 
     #[test]
     fn pixels_565() {
-        // The game's 5-6-5 masks: the components, red, green, blue.
+        // The 5-6-5 masks: the components, red, green, blue.
         let k = [
             0x00FF_00FF_00FF_00FF,
             0xF800_F800_F800_F800,

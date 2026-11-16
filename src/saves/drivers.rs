@@ -1,9 +1,8 @@
-//! The 180 drivers' records (`unk_73B674`, 0x94 bytes each) as the functions that make up
-//! default best times use them, and the table their names come from.
+//! The 180 drivers' records (0x94 bytes each) as the functions that make up default best times
+//! use them, and the table their names come from.
 
 use crate::errors::BadInput;
 use crate::menu::owner::Menus;
-use crate::menu::owner::menus;
 use crate::strings::append_string_by_id::push_string;
 
 pub const DRIVERS: u32 = 180;
@@ -13,14 +12,15 @@ const MOST_NAME_ENTRIES: u32 = 0x400;
 pub const NAME_ROOM: usize = 0x20;
 
 /// A driver's record, by number.
-pub struct Driver(&'static crate::menu::drivers_store::Driver);
+pub struct Driver<'a>(&'a crate::menu::drivers_store::Driver);
 
-impl Driver {
-    pub fn number(number: u32) -> Result<Self, BadInput> {
+impl<'a> Driver<'a> {
+    /// The record of driver `number` among `menus`' drivers.
+    pub fn of(menus: &'a Menus, number: u32) -> Result<Self, BadInput> {
         if number >= DRIVERS {
             return Err(BadInput("a driver past the 180"));
         }
-        Ok(Self(&menus().cars.drivers.drivers[number as usize]))
+        Ok(Self(&menus.cars.drivers.drivers[number as usize]))
     }
 
     /// The dword at `offset` of the record.
@@ -45,14 +45,18 @@ impl Driver {
         if entry >= MOST_NAME_ENTRIES {
             return Err(BadInput("a driver whose name entry is far past the table"));
         }
-        crate::menu::drivers_store::name_string(menus, entry)
+        crate::menu::drivers_store::name_string(&menus.cars, entry)
     }
 
     /// The name's bytes, without a NUL, as `strings::append_string_by_id` writes them.
-    pub fn name(&self, menus: &Menus) -> Result<(u32, Vec<u8>), BadInput> {
+    pub fn name(
+        &self,
+        so: crate::strings::append_string_by_id::StringOwners<'_>,
+        menus: &Menus,
+    ) -> Result<(u32, Vec<u8>), BadInput> {
         let id = self.name_id(menus)?;
         let mut name = Vec::new();
-        push_string(&mut name, id)?;
+        push_string(so, &mut name, id)?;
         if name.len() > NAME_ROOM {
             return Err(BadInput("a driver's name longer than its place"));
         }

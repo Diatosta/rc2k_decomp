@@ -1,4 +1,5 @@
-//! `menu::picture_frame` (0x46F3FA): a frame of a still picture: the surface locked, the picture copied to it, unlocked, the frame shown.
+//! `menu::picture_frame`: a frame of a still picture: the surface locked, the picture copied to it,
+//! unlocked, the frame shown.
 //!
 //! The frame callback of `menu::championship_welcome` and `menu::a8_welcome` (handed to
 //! `screens::run_frame`). The steps are the game's (the surface, the 3D scene and the showing are
@@ -6,17 +7,18 @@
 
 use crate::errors::Refused;
 
-/// The Rust version: whether the frame was made (the original's carry clear): the surface
-/// locked (else no frame), the picture copied onto it, unlocked, shown.
-pub fn picture_frame() -> Result<bool, Refused> {
-    if crate::platform::lock_surface() < 1 {
+/// Whether the frame was made: the surface locked (else no frame), the picture copied onto it,
+/// unlocked, shown.
+pub fn picture_frame(o: crate::owners::Owners<'static>) -> Result<bool, Refused> {
+    let (gfx, system) = (o.gfx, o.system);
+    if crate::platform::lock_surface(gfx, system) < 1 {
         return Ok(false);
     }
     {
         crate::gfx::copy_picture_to_surface::copy_picture_to_surface(
-            &mut crate::gfx::copy_picture_to_surface::GameSurface,
+            &mut crate::gfx::copy_picture_to_surface::GameSurface(gfx, system),
         )
     }?;
-    crate::platform::unlock_surface();
-    Ok(crate::platform::show_frame_now())
+    crate::platform::unlock_surface(gfx);
+    Ok(crate::platform::show_frame_now(o))
 }

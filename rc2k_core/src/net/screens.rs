@@ -1,11 +1,6 @@
-//! The network game's screens: the lobby, the settings, the connections' and sessions'
-//! lists (converted 2026-10-21 from `net::draw_button` 0x416CE0, `net::draw_centred_item`
-//! 0x416B53, `net::connections_frame` 0x4175C7, `net::sessions_frame` 0x41790E,
-//! `net::settings_frame` 0x4169E2, `net::lobby_button` 0x41802F, `net::lobby_frame`
-//! 0x417D95, `net::choose_connection` 0x4174C5, `net::choose_session` 0x417726,
-//! `net::draw_setting_value` 0x416BC4 and `net::draw_number_value` 0x416B8E): what is lit,
-//! where buttons and their frames go, which rows a list shows, how the highlight moves,
-//! and what a value or a time is shown as. Compares are signed where the original's are.
+//! The network game's screens: the lobby, the settings, the connections' and sessions' lists:
+//! what is lit, where buttons and their frames go, which rows a list shows, how the highlight
+//! moves, and what a value or a time is shown as.
 
 use crate::Invalid;
 
@@ -59,8 +54,8 @@ pub struct Button {
     pub text_x: u32,
 }
 
-/// A button of a text `width` wide at `x` with `flags`: centred on x, or ending half its
-/// width left of x with its text centred too (halves signed, as `sar`).
+/// A button of a text `width` wide at `x` with `flags`: centred on x, or ending half its width
+/// left of x with its text centred too.
 pub fn button(width: u32, x: u32, flags: u32) -> Button {
     let span = width.wrapping_add(FRAME_MORE);
     let half = ((span as i32) >> 1) as u32;
@@ -185,7 +180,7 @@ pub fn moved_top(found: u32, top: u32, choice: u32) -> u32 {
 pub const LAST_ITEM_RIGHT: u32 = 0x311;
 
 /// The settings screen's last item (a text `width` wide): its tiles and its text's x.
-/// Refused: a text of no width (the original's tiles' loop goes round 2^32 times).
+/// Refused: a text of no width.
 pub fn last_item(width: u32) -> Result<(u32, u32), Invalid> {
     let tiles = width.wrapping_add(0x1F) >> 5;
     if tiles == 0 {
@@ -200,9 +195,13 @@ pub fn last_item(width: u32) -> Result<(u32, u32), Invalid> {
 
 /// A lobby button's flags: centred; dim while this player is ready (`state` bit 0) for all
 /// but the chat (item 3), and for "ready" (item 0) back from a race.
-pub fn lobby_button_flags(state: u8, item: u32, back_from_race: u32) -> u32 {
+pub fn lobby_button_flags(
+    state: crate::net::players::State,
+    item: u32,
+    back_from_race: u32,
+) -> u32 {
     let mut flags = CENTRED;
-    if state & crate::net::players::READY != 0 && item != 3 {
+    if state.is_ready() && item != 3 {
         flags |= DIM;
     }
     if back_from_race == 1 && item == 0 {
@@ -312,6 +311,7 @@ pub fn number_value(edited: bool, number: u32) -> Number {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::net::players::State;
 
     #[test]
     fn lit() {
@@ -350,10 +350,10 @@ mod tests {
         assert_eq!(button_font(2, true), ButtonFont::Dim);
         assert_eq!(button_font(1, true), ButtonFont::Lit);
         assert_eq!(button_font(0, false), ButtonFont::Plain);
-        assert_eq!(lobby_button_flags(1, 0, 0), 3);
-        assert_eq!(lobby_button_flags(1, 3, 0), 1);
-        assert_eq!(lobby_button_flags(0, 0, 1), 3);
-        assert_eq!(lobby_button_flags(0, 1, 1), 1);
+        assert_eq!(lobby_button_flags(State::READY, 0, 0), 3);
+        assert_eq!(lobby_button_flags(State::READY, 3, 0), 1);
+        assert_eq!(lobby_button_flags(State::default(), 0, 1), 3);
+        assert_eq!(lobby_button_flags(State::default(), 1, 1), 1);
         assert_eq!(next_button_x(0x310, 0x40), 0x310 - 0x84 - 8);
         assert_eq!(lobby_buttons(1, 0)[2], (0x15C, false));
         assert_eq!(

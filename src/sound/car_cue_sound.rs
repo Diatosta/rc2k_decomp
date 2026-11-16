@@ -1,30 +1,25 @@
-//! `sound::car_cue_sound` (0x40E1E5): a car's second one-off sound (+0x24C, which the
-//! physics' cues set: `physics::sound_cue_e5`, `physics::place_sound_e5`).
+//! `sound::car_cue_sound`: a car's second one-off sound (`cue_sound`, which the physics' cues set:
+//! `physics::sound_cue_e5`, `physics::place_sound_e5`).
 //!
-//! Takes: the car's sound object, the request
-//! Nothing when +0x24C is -2 (none); else it is taken (+0x24C = -2) into the
-//! request, with its volume +0x250 and the sample's own rate through
-//! `sound::sample_settings`; a volume of 0: `sound::stop_sound`; else the request's +8 and +4 the volume and rate
-//! as floats, the place +0x254 .. +0x25C, and `sound::play_placed_sound`.
-//! One caller, `sound::car_sounds`.
-//! Refuses (before anything) a null object and a sound past the sample
-//! records.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
+//! Takes the car's sound object and the request. Nothing when the sound is -2 (none); else it is
+//! taken (set to -2) into the request, with its volume and the sample's own rate through
+//! `sound::sample_settings`. A volume of 0 stops the sound (`sound::stop_sound`); else the volume
+//! and rate go into the request as floats, with the place, and `sound::play_placed_sound` plays it.
+//! One caller, `sound::car_sounds`. Refuses (before anything) a null object and a sound past the
+//! sample records.
 
 use crate::errors::Refused;
 use crate::sound::sample_settings::{record, sample_settings};
 use crate::sound::sets_store::SoundRequest;
 
-// ---- Rust version ----
-
-/// Converted: `rc2k_core::sound::cars::one_off`.
+/// The logic is `rc2k_core::sound::cars::one_off`.
 ///
 /// The waiting cue sound of object `so`, through `request`.
 pub fn car_cue_sound(
     so: &crate::sound::store::SoundObject,
     request: &SoundRequest,
+    owner: &crate::sound::owner::Sound,
+    audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
     use rc2k_core::sound::cars::{OneOff, from_int, one_off};
     let mut waiting = so.cue_sound.get();
@@ -33,8 +28,8 @@ pub fn car_cue_sound(
         so.cue_volume.get(),
         LEAST,
         STOP_QUIET,
-        |sound| record(sound).map(|_| ()),
-        sample_settings,
+        |sample| record(audio, sample).map(|_| ()),
+        |sample, volume, rate| sample_settings(audio, sample, volume, rate),
     )?;
     let (sound, turn) = taken;
     if turn == OneOff::Nothing {
@@ -44,14 +39,14 @@ pub fn car_cue_sound(
     request.sound.set(sound);
     match turn {
         OneOff::Nothing | OneOff::Quiet { .. } => Ok(()),
-        OneOff::Stop { .. } => crate::sound::turn_parts::stop(request),
+        OneOff::Stop { .. } => crate::sound::turn_parts::stop(request, audio),
         OneOff::Play { volume, rate } => {
             request.volume.set(from_int(volume as i32));
             request.pitch.set(from_int(rate as i32));
             for (cell, place) in request.place.iter().zip(&so.cue_place) {
-                cell.set(place.bits());
+                cell.set(place.get());
             }
-            crate::sound::turn_parts::placed(request)
+            crate::sound::turn_parts::placed(request, owner, audio)
         }
     }
 }
