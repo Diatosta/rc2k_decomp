@@ -280,14 +280,28 @@ pub struct Gpu {
     framebuffer: u32,
     colour: u32,
     depth: u32,
-    canvas: u32,
-    canvas_size: (i32, i32),
+    /// The canvas's textures, taken in turn: a flush's rows go into the one after the last
+    /// flush's, so an upload never waits for the GPU to finish a frame still reading its texture.
+    canvases: [CanvasTexture; CANVAS_TEXTURES],
+    /// The one of `canvases` the last upload went into.
+    canvas_now: usize,
     /// The 2D layer's atlas, program and background (`layer2d`).
     layer2d: layer2d::Layer2d,
     width: i32,
     height: i32,
     depth_is_new: bool,
     textures: super::TextureMap<CachedTexture>,
+}
+
+/// How many textures the canvas's uploads take turns in: more than the frames the GPU may
+/// still have to draw when the next one's rows arrive.
+const CANVAS_TEXTURES: usize = 4;
+
+/// One of the canvas's textures, and the size it was made at.
+#[derive(Clone, Copy, Default)]
+struct CanvasTexture {
+    texture: u32,
+    size: (i32, i32),
 }
 
 pub static GPU: Mutex<Option<Front>> = Mutex::new(None);
@@ -338,8 +352,8 @@ impl Gpu {
             framebuffer: 0,
             colour: 0,
             depth: 0,
-            canvas: 0,
-            canvas_size: (0, 0),
+            canvases: [CanvasTexture::default(); CANVAS_TEXTURES],
+            canvas_now: 0,
             layer2d: Default::default(),
             width: 0,
             height: 0,
@@ -482,7 +496,9 @@ impl Gpu {
         self.set_filters(false, false);
         self.framebuffer = gl.gen_framebuffer();
         self.colour = gl.gen_texture();
-        self.canvas = gl.gen_texture();
+        for canvas in &mut self.canvases {
+            canvas.texture = gl.gen_texture();
+        }
         self.depth = gl.gen_renderbuffer();
         self.copy_framebuffer = gl.gen_framebuffer();
         self.layer2d = self.make_layer2d()?;
@@ -593,42 +609,36 @@ impl Gpu {
         Ok(())
     }
 
-    /// The canvas's bytes into its texture.
-    fn upload_canvas(&mut self, canvas: &[u8], width: i32, height: i32) {
+    /// The next of the canvas's textures becomes the one uploads go into and draws read, bound
+    /// and made at `width` x `height` (with no pixels) if it is not of that size yet. Once for
+    /// each flush that uploads: every flush draws only what it uploaded, so nothing is carried
+    /// from one texture to the next.
+    fn next_canvas(&mut self, width: i32, height: i32) {
+        self.canvas_now = (self.canvas_now + 1) % CANVAS_TEXTURES;
+        let canvas = &mut self.canvases[self.canvas_now];
         let gl = &self.gl;
-        gl.bind_texture(TEXTURE_2D, self.canvas);
+        gl.bind_texture(TEXTURE_2D, canvas.texture);
         gl.bind_sampler(0, 0);
-        if self.canvas_size != (width, height) {
-            gl.tex_image_2d(0x8058, width, height, RGBA, UNSIGNED_BYTE, Some(canvas));
-            gl.tex_parameter(TEXTURE_2D, 0x2801, 0x2600);
-            gl.tex_parameter(TEXTURE_2D, 0x2800, 0x2600);
-            self.canvas_size = (width, height);
-        } else {
-            gl.tex_sub_image_2d((0, 0), (width, height), RGBA, UNSIGNED_BYTE, canvas);
-        }
-    }
-
-    /// Rows `first ..= last` of the canvas (`rows`, those alone) into its texture. At a new
-    /// size the texture is made first, with no pixels: what it holds outside the rows is cut off
-    /// by the overlay's scissor.
-    fn upload_canvas_rows(
-        &mut self,
-        rows: &[u8],
-        width: i32,
-        height: i32,
-        first: usize,
-        last: usize,
-    ) {
-        let gl = &self.gl;
-        gl.bind_texture(TEXTURE_2D, self.canvas);
-        gl.bind_sampler(0, 0);
-        if self.canvas_size != (width, height) {
+        if canvas.size != (width, height) {
             gl.tex_image_2d(0x8058, width, height, RGBA, UNSIGNED_BYTE, None);
             gl.tex_parameter(TEXTURE_2D, 0x2801, 0x2600);
             gl.tex_parameter(TEXTURE_2D, 0x2800, 0x2600);
-            self.canvas_size = (width, height);
+            canvas.size = (width, height);
         }
-        gl.tex_sub_image_2d(
+    }
+
+    /// The canvas's bytes into the next of its textures.
+    fn upload_canvas(&mut self, canvas: &[u8], width: i32, height: i32) {
+        self.next_canvas(width, height);
+        self.gl
+            .tex_sub_image_2d((0, 0), (width, height), RGBA, UNSIGNED_BYTE, canvas);
+    }
+
+    /// Rows `first ..= last` of the canvas (`rows`, those alone) into the texture `next_canvas`
+    /// chose and left bound. What the texture holds outside the rows is cut off by the overlay's
+    /// scissor.
+    fn upload_canvas_rows(&self, rows: &[u8], width: i32, first: usize, last: usize) {
+        self.gl.tex_sub_image_2d(
             (0, first as i32),
             (width, (last - first + 1) as i32),
             RGBA,
@@ -636,7 +646,6 @@ impl Gpu {
             rows,
         );
     }
-
     /// Everything a quad needs off.
     fn plain_state(&self) {
         let gl = &self.gl;
@@ -698,8 +707,11 @@ impl Gpu {
             super::CANVAS_UPLOADS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         }
         let started = std::time::Instant::now();
+        if !written.is_empty() {
+            self.next_canvas(width, height);
+        }
         for w in &written {
-            self.upload_canvas_rows(&w.bytes, width, height, w.first, w.last);
+            self.upload_canvas_rows(&w.bytes, width, w.first, w.last);
             super::CANVAS_UPLOAD_BYTES
                 .fetch_add(w.bytes.len() as u64, std::sync::atomic::Ordering::Relaxed);
         }
@@ -747,7 +759,7 @@ impl Gpu {
         if !written.is_empty() && !self.cuts.two_d {
             gl.enable(SCISSOR_TEST);
             for w in &written {
-                gl.bind_texture(TEXTURE_2D, self.canvas);
+                gl.bind_texture(TEXTURE_2D, self.canvases[self.canvas_now].texture);
                 let rows = (w.last - w.first + 1) as i32;
                 gl.scissor(0, height - w.last as i32 - 1, width, rows);
                 self.draw_quad(&self.overlay, false);
