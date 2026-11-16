@@ -15,7 +15,7 @@ standard formats. This page says which, and what a replacement must be.
 
 A missing film is skipped. If `ALLOGO.AVI` is missing, `ALLOGO.MPG` is tried in its place.
 The setting `nofmv` in `var/ral.cfg` turns all films off, and starting straight into a race
-from the command line skips them too.
+or a replay from the command line skips them too.
 
 Any key ends a film.
 

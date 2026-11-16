@@ -73,6 +73,7 @@ not contain this code.
 ```sh
 tools/remote.py build                       # builds rc2k with --features remote
 tools/remote.py start -- --stage langton    # starts it; words after -- go to the game
+tools/remote.py start -- --replay 0 --then quit   # or: plays a saved replay and ends
 tools/remote.py wait race=1 60              # waits until a race is running
 tools/remote.py down Up                     # holds a key (SDL's key names)
 tools/remote.py shot first_corner           # saves the next frame as a PNG

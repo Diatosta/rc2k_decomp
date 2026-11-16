@@ -32,7 +32,7 @@ for the menus' item tables, `texts_store.rs` ...). The service area's state is a
 | `arcade_event` | `src/menu/arcade_event.rs` | The arcade game. |
 | `run_event_races` | `src/menu/run_event_races.rs` | One round of races, each player in turn. |
 | `Game` | `src/menu/flow_game.rs` | The game's side of the event flows whose logic is in `rc2k_core::menu::flow`. |
-| `asked`, `run_once` | `src/menu/launch.rs` | The launch switches (`--stage` and the rest): starting straight into a race. |
+| `asked`, `run_once` | `src/menu/launch.rs` | The launch switches (`--stage` and the rest, `--replay`): starting straight into a race or a replay. |
 | `confirm_leaving` | `src/menu/confirm_leaving.rs` | The "leave?" question. |
 | `MenuId` | `src/menu/menus_store.rs` | A menu's item table, by name. |
 

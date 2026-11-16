@@ -114,11 +114,13 @@ program into the folder that holds `files` and `var` and start it there.
 ### Starting straight into a race
 
 Switches on the command line skip the menus and start a single rally stage, as if it had been
-chosen there; afterwards come its results and the menus.
+chosen there; afterwards come its results and the menus. `--replay` plays a saved replay the
+same way.
 
 ```sh
 rc2k --stage langton
 rc2k --stage "hamiltons folly" --car felicia --gearbox manual --players 2 --seed 42
+rc2k --replay 0
 ```
 
 Stages and cars go by their English names, and a part of a name is enough when only one name

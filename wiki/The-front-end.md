@@ -183,6 +183,14 @@ are listed in [Running and options](Running-and-options). Here is the path they 
 So a launched race is the menus' own race. Nothing about the race, its results or the menus
 after it is a special case.
 
+`rc2k --replay 0` takes the same path up to step 3; the step then runs the replay viewer
+(`race::replay_viewer::launched_replay`) as the replays menu's item runs it, with the slot
+given instead of chosen on the loading screen, and plays the replay at once. A slot is checked
+first (the file's head and index, as the viewer checks them when it opens one); a file given by
+its path gets a slot number of its own (`rc2k_core::race::viewer::GIVEN_FILE`) that
+`race::replay_path` turns into that path. With `--then quit` the viewer returns when the play
+stops and the program leaves through its normal save-and-close.
+
 ## Where to look
 
 | To change or understand | Start in |

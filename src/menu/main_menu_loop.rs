@@ -129,7 +129,7 @@ pub const SCREEN: Screen = Screen {
         Step::WriteScene(SceneVar::ObjectLightStrength, 0xFF),
         Step::WriteScene(SceneVar::LightTurn0, 0x6E),
         Step::WriteScene(SceneVar::LightTurn1, 0x1E),
-        // A race asked for on the command line, once: its event runs from here, as the
+        // A race or a replay asked for on the command line, once: it runs from here, as the
         // menus' own choices run from a screen, with the engine and the scene set up.
         Step::Do(crate::menu::launch::run_once),
         Step::Call(Callee::PlayTune4),

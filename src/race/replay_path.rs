@@ -1,6 +1,8 @@
 //! `race::replay_path`: a replay's file by its number: 222 the last race's (`var\tmprpl`); below
 //! 100 a saved one (`savedata\replay\replay00` numbered); else one of the game's own
 //! (`files\replay\replay00` numbered by the number less 100), both through `files::numbered_path`.
+//! One number is the file named when the program was started (`Replay.given_file`): opened where
+//! it lies, as the game's own are.
 //!
 //! Takes the number.
 //!
@@ -61,6 +63,17 @@ pub fn replay_path(race: &Race, slot: u32) -> Result<ReplayPath, Refused> {
                 path: last_race(replay),
                 number,
                 last_race: true,
+            });
+        }
+        ReplayFile::Given => {
+            let path = replay
+                .given_file
+                .get()
+                .ok_or(crate::errors::BadInput("no replay file was named"))?;
+            return Ok(ReplayPath {
+                path: path.clone(),
+                number,
+                last_race: false,
             });
         }
         ReplayFile::Saved(_) => shared.replay_templates.saved.to_vec(),

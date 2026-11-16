@@ -10,6 +10,8 @@ pub const MOST_BLOCKS: u32 = 0x708;
 pub const BLOCK_FRAMES: u32 = 100;
 /// The slot of the last race's replay.
 pub const LAST_RACE: u32 = 0xDE;
+/// The slot of a replay file named when the program was started.
+pub const GIVEN_FILE: u32 = 0xDD;
 /// The slots from which the game's own replays are numbered.
 pub const OWN_FROM: u32 = 100;
 
@@ -22,12 +24,16 @@ pub enum ReplayFile {
     Saved(u32),
     /// `files\replay\replayNN`, numbered from slot 100.
     Own(u32),
+    /// A file named when the program was started.
+    Given,
 }
 
 impl ReplayFile {
     pub fn of(slot: u32) -> Self {
         if slot == LAST_RACE {
             Self::LastRace
+        } else if slot == GIVEN_FILE {
+            Self::Given
         } else if slot < OWN_FROM {
             Self::Saved(slot)
         } else {
@@ -589,6 +595,7 @@ mod tests {
         assert_eq!(ReplayFile::of(0xDE), ReplayFile::LastRace);
         assert_eq!(ReplayFile::of(99), ReplayFile::Saved(99));
         assert_eq!(ReplayFile::of(105), ReplayFile::Own(5));
+        assert_eq!(ReplayFile::of(GIVEN_FILE), ReplayFile::Given);
         assert_eq!(step(false, 0, 0, 9, 9), Step::Closed);
         assert_eq!(step(true, 9, 0, 9, 9), Step::AtLast { last: true });
         assert_eq!(step(true, 10, 0, 9, 9), Step::AtLast { last: false });

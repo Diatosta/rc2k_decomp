@@ -111,7 +111,7 @@ Started with `--stage` and its companion switches (see [Running and options](Run
 the program skips the films, and the main menu's set-up runs a single rally with the car and
 stage choices already answered (`menu::launch`; the switches are read in
 `rc2k_core::menu::launch`). The race, its results and the menus afterwards are the same code
-the menus use.
+the menus use. `--replay` runs the replay viewer on a saved replay from the same step.
 
 ## From the menus into a race
 

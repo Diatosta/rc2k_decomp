@@ -28,7 +28,7 @@ the game; both are listed.
 | game's folder | The folder that holds `files`, `var` and `savedata`. The program is started in it. |
 | download folder | The files of the game's CD on disk; the installer installs from it. |
 | installation record | The file that says a folder is an installed game ([Install records](Install-records)). |
-| launch | Starting straight into a race from the command line; a launch file holds the same choices as lines of text ([Running and options](Running-and-options)). |
+| launch | Starting straight into a race or a replay from the command line; a launch file holds the same choices as lines of text ([Running and options](Running-and-options)). |
 
 ## The simulation and replays
 

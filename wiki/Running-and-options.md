@@ -93,6 +93,35 @@ then      = menus
 A line that is not `name = value`, or names a setting that does not exist, stops the program
 with the file's name and the line's number.
 
+### Starting straight into a replay
+
+`--replay` skips the films and the menus and opens the replay viewer on a replay, as if it had
+been chosen in the replays menu. The replay starts playing at once (in the menus the viewer
+waits for Enter on its play button; nothing else differs: the same viewer, the same cameras).
+
+```sh
+rc2k --replay 0                       # savedata/replay/replay00
+rc2k --replay 17 --then quit          # savedata/replay/replay17, then the program ends
+rc2k --replay ~/kept/my_best_run      # a replay file anywhere
+```
+
+| Switch | What it takes |
+| --- | --- |
+| `--replay` | A number, `0` .. `99`: a saved replay's slot. Slots are counted from 0, as the replays menu counts them (its pages are captioned `0-19`, `20-39`, ...) and as the files are named: slot `7` is `savedata/replay/replay07`. Anything that is not a number is a replay file's path (a file whose name is a number needs its folder: `./12`). |
+| `--then` | `menus` (the default): the viewer stays open when the replay has played, and leaving it leads to the main menu. `quit`: the program saves and ends when the play stops, at the replay's end or at a key. |
+
+A replay holds its own stage, cars and random numbers, so none of the race's switches goes
+with `--replay`: together with `--stage`, `--car` or another of them the program stops with a
+message. In a launch file the line is `replay = 0`.
+
+A saved replay is copied over the last race's replay (`var/tmprpl`) before it plays, as the
+menus do it. A replay file given by its path is opened where it lies and is not changed;
+saving it from the viewer asks for a slot.
+
+If the slot holds no replay, or the file is not a replay of this game, the program stops
+before anything loads, with a message that says why and lists the saved replays by slot and
+name.
+
 ### The options files' switches
 
 | Switch | Effect |

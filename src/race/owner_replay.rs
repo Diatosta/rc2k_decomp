@@ -18,6 +18,8 @@ pub struct Replay {
     pub finish: DrawShared<Finish>,
     /// The last race's replay file's name (`race::replay_path`).
     pub last_race: [u8; LAST_RACE_LEN],
+    /// A replay file named when the program was started (`menu::launch`): its path, once known.
+    pub given_file: std::sync::OnceLock<Vec<u8>>,
     /// The viewer's panel through the kinds' tables (`race::groups_store`).
     pub viewer_and_kinds: ViewerAndKinds,
     main: GameThread<ReplayMain>,
@@ -39,6 +41,7 @@ impl Replay {
         Replay {
             finish: DrawShared::new(Finish::new()),
             last_race: with_runs(&[(0, b"var\\tmprpl\0")]),
+            given_file: std::sync::OnceLock::new(),
             viewer_and_kinds: ViewerAndKinds::new(),
             main: GameThread::new(ReplayMain {
                 replay_frames: ReplayFrames::new(),

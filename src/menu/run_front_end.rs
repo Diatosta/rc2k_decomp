@@ -31,7 +31,7 @@ pub fn run_front_end(o: Owners<'static>) -> Result<(), Refused> {
         .set(audio.state.master_volume.get());
     crate::menu::drop_missing_controllers::drop_missing_controllers(menus, o.input)?;
     crate::gfx::build_fonts::build_fonts_in(gfx, o.system, o.strings)?;
-    // The films, at the game's start, unless a race was asked for on the command line (the
+    // The films, at the game's start, unless a race or a replay was asked for on the command line (the
     // main menu's set-up runs it, `menu::launch`).
     if crate::menu::launch::asked().is_none() {
         crate::menu::play_films::play_films(o, false)?;

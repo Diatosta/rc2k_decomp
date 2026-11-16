@@ -335,7 +335,9 @@ computer-driven, and what their driver needs to carry on is the state described 
 
 Saving a replay copies `var/tmprpl` into a slot: a new header with the name typed in, each block
 read, given its camera bytes and written again, then a new index. Opening a saved replay in the
-viewer copies it over `var/tmprpl` first, so viewing a saved replay replaces the last race's.
+viewer copies it over `var/tmprpl` first, so viewing a saved replay replaces the last race's. A replay file named on the command line
+(`--replay`, [Running and options](Running-and-options)) is opened where it lies, as the
+shipped ones are.
 
 Code: `src/race/replay.rs` (open, write, close), `src/drive/replay_state.rs` (what goes into a
 block), `src/race/open_viewed_replay.rs` and `src/race/save_viewed_replay.rs` (the viewer's

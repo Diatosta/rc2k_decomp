@@ -23,6 +23,10 @@
 //! `list_leave` 1 ends it. At the end the replay closed (`race::close_viewed_replay`), the front
 //! end back (`race::viewer_tidy_stage`), `viewer_stopped` and `hold_car_revs` 0.
 //!
+//! A replay named when the program was started (`launched_replay`) is viewed as mode 2's, its
+//! slot given instead of chosen on the loading screen, and it plays at once, as Enter on the
+//! item the viewer opens on plays it.
+//!
 //! Takes the mode.
 //!
 //! Callers: the three replay modes (`race::replay_mode_2` and its siblings). Key 0x26
@@ -89,9 +93,56 @@ enum Next {
     Action(u32),
 }
 
+/// How the viewer comes by its replay and what it does with it first.
+#[derive(Clone, Copy)]
+enum Start {
+    /// From a menu: the mode's replay, the viewer stopped until a key plays it.
+    Menu(Mode),
+    /// From the program's start: the saved replay `slot`, played at once; `leave_when_played`
+    /// ends the viewer when that play stops.
+    Launched { slot: u32, leave_when_played: bool },
+}
+
+/// How a view ended.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Viewed {
+    /// No replay was opened: none chosen, or its file could not be read.
+    Nothing,
+    /// The viewer ran and was left.
+    Left,
+    /// The viewer ran and its first play stopped (a launch that leaves then).
+    Played,
+}
+
 pub fn replay_viewer(race: &'static Race, o: Owners<'static>, mode: Mode) -> Result<(), Refused> {
-    view(race, o, mode)?;
-    // The end.
+    view(race, o, Start::Menu(mode))?;
+    end(race, o)
+}
+
+/// The viewer on the saved replay `slot`, as mode 2 runs it on the slot its loading screen
+/// leaves, playing at once; with `leave_when_played` it ends when that play stops (the replay's
+/// end or a key) and the front end is not brought back: the caller ends the program.
+pub fn launched_replay(
+    race: &'static Race,
+    o: Owners<'static>,
+    slot: u32,
+    leave_when_played: bool,
+) -> Result<Viewed, Refused> {
+    let start = Start::Launched {
+        slot,
+        leave_when_played,
+    };
+    let viewed = view(race, o, start)?;
+    if viewed == Viewed::Played {
+        crate::race::close_viewed_replay::close_viewed_replay(race)?;
+    } else {
+        end(race, o)?;
+    }
+    Ok(viewed)
+}
+
+/// The viewer's end: the replay closed, the front end back.
+fn end(race: &'static Race, o: Owners<'static>) -> Result<(), Refused> {
     crate::race::close_viewed_replay::close_viewed_replay(race)?;
     crate::race::viewer_tidy_stage::viewer_tidy_stage(race, o)?;
     race.shared.replay_file().viewer_stopped.set(false);
@@ -100,26 +151,39 @@ pub fn replay_viewer(race: &'static Race, o: Owners<'static>, mode: Mode) -> Res
 }
 
 /// Up to the end.
-fn view(race: &'static Race, o: Owners<'static>, mode: Mode) -> Result<(), Refused> {
+fn view(race: &'static Race, o: Owners<'static>, start: Start) -> Result<Viewed, Refused> {
     let (system, list_state) = (o.system, &o.menus.list);
     let devices = &o.input.devices;
     let session = &system.session;
     let replay = &race.replay;
     use crate::race::*;
+    let (mode, launched) = match start {
+        Start::Menu(mode) => (mode, None),
+        Start::Launched { slot, .. } => (Mode::Saved, Some(slot)),
+    };
+    let leave_when_played = matches!(
+        start,
+        Start::Launched {
+            leave_when_played: true,
+            ..
+        }
+    );
     race.shared.replay_file().viewer_mode.set(mode as u32);
     race.shared.replay_file().hold_car_revs.set(1);
     replay.replay_view().viewer_only_shown.set(0);
-    let slot = match mode {
-        Mode::LastRace => LAST_RACE,
-        Mode::Saved | Mode::SaveLast => {
+    let slot = match (mode, launched) {
+        (_, Some(slot)) => slot,
+        (Mode::LastRace, None) => LAST_RACE,
+        (Mode::Saved | Mode::SaveLast, None) => {
             let saving = mode == Mode::SaveLast;
             let slot = crate::menu::replay_slot_loop::replay_slot_loop(o, saving)?;
             if slot == u32::MAX {
-                return Ok(());
+                return Ok(Viewed::Nothing);
             }
             if saving {
                 race.shared.replay_file().viewer_slot.set(slot);
-                return save_last_replay::save_last_replay(race, o.system, slot);
+                save_last_replay::save_last_replay(race, o.system, slot)?;
+                return Ok(Viewed::Nothing);
             }
             slot
         }
@@ -128,7 +192,7 @@ fn view(race: &'static Race, o: Owners<'static>, mode: Mode) -> Result<(), Refus
     race.shared.replay_file().viewer_stopped.set(true);
     let failed = open_viewed_replay::open_viewed_replay(race, o.system, slot)?;
     if failed {
-        return Ok(());
+        return Ok(Viewed::Nothing);
     }
     race.viewer_buffers().camera_edit.set(0);
     replay.replay_view().last_race_viewed.set(slot == LAST_RACE);
@@ -145,11 +209,19 @@ fn view(race: &'static Race, o: Owners<'static>, mode: Mode) -> Result<(), Refus
     // The pending key dropped.
     crate::input::take_key::take_key(o.input);
     mark_viewer_items::mark_viewer_items(race, list)?;
-    // A test run's picture check: the item chosen (play) at once, as Return would.
+    // A launched replay, and a test run's picture check: the item chosen (play) at once, as
+    // Return would.
     #[cfg(feature = "remote")]
-    if crate::remote::shots_on() {
+    let play_at_once = launched.is_some() || crate::remote::shots_on();
+    #[cfg(not(feature = "remote"))]
+    let play_at_once = launched.is_some();
+    if play_at_once {
         let chosen = list.item(list_state.choice.get());
         action_next(race, o, u32::from(chosen.viewer_action()))?;
+        // The play runs to its stop inside the action.
+        if leave_when_played {
+            return Ok(Viewed::Played);
+        }
     }
     loop {
         // `screens::run_frame` with `race::viewer_frame`.
@@ -160,7 +232,7 @@ fn view(race: &'static Race, o: Owners<'static>, mode: Mode) -> Result<(), Refus
         list_state.choice_before.set(list_state.choice.get());
         let mut key = crate::menu::list_take_key::list_take_key(list_state, o.input);
         if session.flags.quitting.is_set() {
-            return Ok(());
+            return Ok(Viewed::Left);
         }
         if replay.replay_view().wait_key_release.get() == 1 {
             if devices.keys_down.get(1) == 0 && devices.keys_down.get(0x1C) == 0 {
@@ -175,7 +247,7 @@ fn view(race: &'static Race, o: Owners<'static>, mode: Mode) -> Result<(), Refus
                 .escape_count
                 .set(replay.replay_view().escape_count.get().wrapping_add(1));
             if replay.replay_view().escape_count.get() == 2 {
-                return Ok(());
+                return Ok(Viewed::Left);
             }
             key = 0;
         }
@@ -208,7 +280,7 @@ fn view(race: &'static Race, o: Owners<'static>, mode: Mode) -> Result<(), Refus
             o.sound, o.audio, o.menus, o.system, sound,
         );
         if list_state.list_leave.get() == 1 {
-            return Ok(());
+            return Ok(Viewed::Left);
         }
     }
 }

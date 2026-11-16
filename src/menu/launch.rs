@@ -1,5 +1,5 @@
-//! A race started from the command line (`rc2k_core::menu::launch` reads the switches and the
-//! launch file): the front end runs the menus' own single rally with the car and stage
+//! A race or a replay started from the command line (`rc2k_core::menu::launch` reads the
+//! switches and the launch file). A race: the front end runs the menus' own single rally with the car and stage
 //! choices answered from the launch, then goes on as if the player had made them.
 //!
 //! What the answers leave is what the screens leave when a choice is confirmed: the car
@@ -7,6 +7,11 @@
 //! stage's group, rally and number, the map's mode and the race's stage and direction. A name or number
 //! the game does not have ends the program with a message naming what it has, before the
 //! race loads.
+//!
+//! A replay: the replay viewer on a saved replay's slot or on a named file, as the replays
+//! menu's item runs it once a slot is chosen on its loading screen; the replay plays at once.
+//! A slot with no replay, or a file that is not one, ends the program with a message listing
+//! the saved replays.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::flow_game::Game;
@@ -15,18 +20,21 @@ use crate::menu::player::player;
 use crate::owners::Owners;
 use crate::records::stages_store::TrackField;
 use rc2k_core::menu::flow::CarList;
-use rc2k_core::menu::launch::{Answers, Choice, Launch, LaunchError, Launched, Pick, Stage, Then};
+use rc2k_core::menu::launch::{
+    Answers, Asked, Choice, Launch, LaunchError, Launched, Pick, REPLAY_SLOTS, Replay,
+    ReplayLaunch, Stage, Then,
+};
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 /// The launch the program was started with, read once.
-pub fn asked() -> Option<&'static Launch> {
-    static ASKED: OnceLock<Option<Launch>> = OnceLock::new();
+pub fn asked() -> Option<&'static Asked> {
+    static ASKED: OnceLock<Option<Asked>> = OnceLock::new();
     ASKED
         .get_or_init(|| {
             let args: Vec<String> = std::env::args().skip(1).collect();
             let mut read = |path: &str| std::fs::read_to_string(path).map_err(|e| e.to_string());
-            match Launch::from_args(&args, &mut read) {
+            match Asked::from_args(&args, &mut read) {
                 Ok(launch) => launch,
                 Err(LaunchError(why)) => refuse(&why),
             }
@@ -37,7 +45,7 @@ pub fn asked() -> Option<&'static Launch> {
 /// The program ends: a launch it cannot run, said in the log and in a message box (none in
 /// the test builds, which run without a screen to answer it).
 fn refuse(why: &str) -> ! {
-    let text = format!("The race asked for on the command line cannot start:\n{why}");
+    let text = format!("What the command line asked for cannot start:\n{why}");
     crate::logfile::program_log::log(&format!("menu::launch: {text}"));
     #[cfg(not(feature = "remote"))]
     crate::platform::os::message_box(
@@ -85,7 +93,10 @@ pub fn reseed(
 pub fn run_once(entry: &crate::menu::screen_loop::Entry) -> Result<(), Refused> {
     static RAN: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
     match asked() {
-        Some(launch) if !RAN.swap(true, Ordering::Relaxed) => run(entry.owners, launch),
+        Some(asked) if !RAN.swap(true, Ordering::Relaxed) => match asked {
+            Asked::Race(launch) => run(entry.owners, launch),
+            Asked::Replay(launch) => run_replay(entry.owners, launch),
+        },
         _ => Ok(()),
     }
 }
@@ -102,6 +113,109 @@ fn run(o: Owners<'static>, launch: &Launch) -> Result<(), Refused> {
         match players {
             1 => rc2k_core::menu::rounds::single_rally(&mut launched),
             _ => rc2k_core::menu::rounds::single_rally_split(&mut launched),
+        }
+    })
+}
+
+/// The replay viewer on the launch's replay, run from the main menu's set-up; after it the main
+/// menu goes on, or the program ends.
+fn run_replay(o: Owners<'static>, launch: &ReplayLaunch) -> Result<(), Refused> {
+    use crate::race::replay_viewer::{Viewed, launched_replay};
+    let slot = find_replay(o, &launch.replay)?;
+    crate::logfile::program_log::log(&format!("menu::launch: {launch:?}"));
+    let quit = launch.then == Then::Quit;
+    let viewed = launched_replay(o.race, o, slot, quit)?;
+    if viewed == Viewed::Nothing {
+        refuse(&format!(
+            "replay {}: it could not be read through",
+            said(&launch.replay)
+        ));
+    }
+    if quit {
+        crate::logfile::program_log::log("menu::launch: the replay is over; leaving (--then quit)");
+        crate::standalone::leave_on_close(o);
+    }
+    Ok(())
+}
+
+/// The launch's replay as its messages name it.
+fn said(replay: &Replay) -> String {
+    match replay {
+        Replay::Slot(slot) => format!("{slot} ({})", saved_replay_text(*slot)),
+        Replay::File(file) => file.clone(),
+    }
+}
+
+/// A saved replay's file as the game names it.
+fn saved_replay(slot: u32) -> Vec<u8> {
+    format!("savedata\\replay\\replay{slot:02}").into_bytes()
+}
+
+fn saved_replay_text(slot: u32) -> String {
+    crate::files::ansi_text(&saved_replay(slot)).to_string()
+}
+
+/// The name a replay file holds, or why the file is not a replay the viewer can open: its head
+/// and its index are looked at, as the viewer does when it opens one.
+fn replay_name(path: &[u8]) -> Result<Vec<u8>, String> {
+    use rc2k_core::race::replay::INDEX_MAGIC;
+    use rc2k_core::race::viewer_flow::{HEADER_LEN, INDEX_LEN};
+    use rc2k_core::saves::kept;
+    use std::io::{Read, Seek, SeekFrom};
+    let mut file = std::fs::File::open(crate::files::host_path(path))
+        .map_err(|e| format!("no such file to read ({e})"))?;
+    let mut head = [0u8; 0x30];
+    let not_one = "not a replay of this game (no replay head)";
+    file.read_exact(&mut head)
+        .map_err(|_| not_one.to_string())?;
+    let name = kept::slot_name(&head, kept::REPLAY, kept::REPLAY_VERSION).ok_or(not_one)?;
+    let cut_short = "a replay cut short (no index at its end)";
+    let mut magic = [0u8; 4];
+    let length = file.metadata().map_err(|e| e.to_string())?.len();
+    if length < u64::from(HEADER_LEN) + u64::from(INDEX_LEN) {
+        return Err(cut_short.into());
+    }
+    file.seek(SeekFrom::End(-i64::from(INDEX_LEN)))
+        .and_then(|_| file.read_exact(&mut magic))
+        .map_err(|e| e.to_string())?;
+    if u32::from_le_bytes(magic) != INDEX_MAGIC {
+        return Err(cut_short.into());
+    }
+    let end = name.iter().position(|&b| b == 0).unwrap_or(name.len());
+    Ok(name[..end].to_vec())
+}
+
+/// The viewer's slot for the launch's replay: the saved one's own, or the named file's (its
+/// path kept for the viewer). One that is not there or not a replay ends the program with the
+/// saved replays listed.
+fn find_replay(o: Owners<'static>, replay: &Replay) -> Result<u32, Refused> {
+    let path = match replay {
+        Replay::Slot(slot) => saved_replay(*slot),
+        Replay::File(file) => crate::files::ansi_bytes(file),
+    };
+    if let Err(why) = replay_name(&path) {
+        let saved: Vec<String> = (0..REPLAY_SLOTS)
+            .filter_map(|slot| {
+                let name = replay_name(&saved_replay(slot)).ok()?;
+                Some(format!("{slot} {}", crate::files::ansi_text(&name)))
+            })
+            .collect();
+        let listed = if saved.is_empty() {
+            "there are no saved replays (savedata\\replay)".to_string()
+        } else {
+            format!("the saved replays, by slot:\n{}", saved.join("\n"))
+        };
+        refuse(&format!("replay {}: {why}\n{listed}", said(replay)));
+    }
+    Ok(match replay {
+        Replay::Slot(slot) => *slot,
+        Replay::File(_) => {
+            o.race
+                .replay
+                .given_file
+                .set(path)
+                .map_err(|_| BadInput("a replay file named twice"))?;
+            rc2k_core::race::viewer::GIVEN_FILE
         }
     })
 }

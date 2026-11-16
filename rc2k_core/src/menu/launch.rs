@@ -1,5 +1,5 @@
-//! A race started from the command line: the switches and the launch file read into a
-//! [`Launch`], and [`Launched`], a [`Game`] around the menus' own one that answers the car and
+//! A race or a replay started from the command line: the switches and the launch file read into
+//! an [`Asked`] (a race's [`Launch`] or a [`ReplayLaunch`]), and [`Launched`], a [`Game`] around the menus' own one that answers the car and
 //! stage choices the launch made the first time the flow asks for them. Everything else the flow
 //! runs as the menus do; after the race it goes on as if the player had chosen in the menus.
 //!
@@ -16,8 +16,13 @@
 //! - `--gearbox <name or number>`: one of the game's three gearbox choices (1-based).
 //! - `--players 1|2`: one player, or two on a split screen.
 //! - `--seed <n>` (decimal or `0x` hex): the random numbers start from it.
+//! - `--replay <slot or file>`: a replay instead of a race, played in the replay viewer as one
+//!   chosen in the replays menu is: a saved replay's slot (0 .. 99, the number at the end of its
+//!   file's name, `savedata\replay\replayNN`; the menu's pages count them the same way, twenty
+//!   a page from 0), or a replay file's path. No race switch goes with it.
 //! - `--then menus|quit`: after the race, its results and the menus (the default), or the
-//!   program ends.
+//!   program ends. After a replay: the viewer stays until it is left, then the menus; or the
+//!   program ends when the replay has played.
 //! - `--launch <file>`: the rest from a file; switches on the command line come after it and
 //!   win.
 //!
@@ -234,7 +239,8 @@ impl std::fmt::Display for LaunchError {
 }
 
 /// The switches that take a value (the next word, or after `=`).
-const VALUED: [&str; 9] = [
+const VALUED: [&str; 10] = [
+    "replay",
     "stage",
     "stage-set",
     "car",
@@ -351,13 +357,77 @@ fn stage(value: &str) -> Result<Stage, LaunchError> {
     Ok(Stage::Name(v.to_string()))
 }
 
-impl Launch {
-    /// The launch the program's words (after its own name) ask for, if any; `read_file` reads a
+/// The replay a launch plays.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Replay {
+    /// A saved replay by its slot, the number its file's name ends in.
+    Slot(u32),
+    /// A replay file by its path.
+    File(String),
+}
+
+/// The saved replays' slots: 0 up to this.
+pub const REPLAY_SLOTS: u32 = 100;
+
+/// A launch into the replay viewer.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ReplayLaunch {
+    pub replay: Replay,
+    pub then: Then,
+}
+
+/// What the command line and the launch file asked for.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Asked {
+    Race(Launch),
+    Replay(ReplayLaunch),
+}
+
+/// The switches that choose a race's parts: none goes with a replay, which holds its own.
+const RACE_ONLY: [&str; 7] = [
+    "stage",
+    "stage-set",
+    "car",
+    "car2",
+    "gearbox",
+    "players",
+    "seed",
+];
+
+fn replay(value: &str) -> Result<Replay, LaunchError> {
+    let v = value.trim();
+    if v.is_empty() {
+        return Err(LaunchError("--replay: no replay named".into()));
+    }
+    if !v.bytes().all(|b| b.is_ascii_digit()) {
+        return Ok(Replay::File(v.to_string()));
+    }
+    match v.parse::<u32>() {
+        Ok(slot) if slot < REPLAY_SLOTS => Ok(Replay::Slot(slot)),
+        _ => Err(LaunchError(format!(
+            "--replay: {v} is not a slot (0 to {}); a file whose name is a number needs its folder (./{v})",
+            REPLAY_SLOTS - 1
+        ))),
+    }
+}
+
+fn then(all: &Given) -> Result<Then, LaunchError> {
+    match all.last("then").map(str::trim) {
+        None | Some("menus") => Ok(Then::Menus),
+        Some("quit") => Ok(Then::Quit),
+        Some(other) => Err(LaunchError(format!(
+            "--then: `{other}` is neither `menus` nor `quit`"
+        ))),
+    }
+}
+
+impl Asked {
+    /// What the program's words (after its own name) ask for, if anything; `read_file` reads a
     /// `--launch` file's text.
     pub fn from_args<S: AsRef<str>>(
         args: &[S],
         read_file: &mut dyn FnMut(&str) -> Result<String, String>,
-    ) -> Result<Option<Launch>, LaunchError> {
+    ) -> Result<Option<Asked>, LaunchError> {
         let given = switches(args)?;
         let mut all = Given::default();
         if let Some((_, file)) = given.iter().rev().find(|(k, _)| k == "launch") {
@@ -370,9 +440,27 @@ impl Launch {
         if all.values.is_empty() {
             return Ok(None);
         }
+        let Some(named) = all.last("replay") else {
+            return Launch::from_given(&all).map(|l| Some(Asked::Race(l)));
+        };
+        if let Some(other) = RACE_ONLY.iter().find(|key| all.last(key).is_some()) {
+            return Err(LaunchError(format!(
+                "--replay does not go with --{other}: a replay holds its own stage, cars and random numbers"
+            )));
+        }
+        Ok(Some(Asked::Replay(ReplayLaunch {
+            replay: replay(named)?,
+            then: then(&all)?,
+        })))
+    }
+}
+
+impl Launch {
+    /// The race the given values ask for.
+    fn from_given(all: &Given) -> Result<Launch, LaunchError> {
         let stage = match all.last("stage") {
             Some(v) => stage(v)?,
-            None => return Err(LaunchError("a launch needs --stage".into())),
+            None => return Err(LaunchError("a launch needs --stage or --replay".into())),
         };
         let players = match all.last("players") {
             Some(v) => one_of("players", v, 1, 2)?,
@@ -380,24 +468,15 @@ impl Launch {
         };
         let car = all.last("car").map(Choice::read);
         let car2 = all.last("car2").map(Choice::read).or_else(|| car.clone());
-        let then = match all.last("then").map(str::trim) {
-            None | Some("menus") => Then::Menus,
-            Some("quit") => Then::Quit,
-            Some(other) => {
-                return Err(LaunchError(format!(
-                    "--then: `{other}` is neither `menus` nor `quit`"
-                )));
-            }
-        };
-        Ok(Some(Launch {
+        Ok(Launch {
             stage,
             stage_set: all.last("stage-set").map(Choice::read),
             cars: [car, car2],
             gearbox: all.last("gearbox").map(Choice::read),
             players,
             seed: all.last("seed").map(|v| number("seed", v)).transpose()?,
-            then,
-        }))
+            then: then(all)?,
+        })
     }
 }
 
@@ -522,8 +601,54 @@ mod tests {
     use super::super::flow::log::Log;
     use super::*;
 
+    fn race(asked: Result<Option<Asked>, LaunchError>) -> Result<Option<Launch>, LaunchError> {
+        asked.map(|a| {
+            a.map(|a| match a {
+                Asked::Race(launch) => launch,
+                Asked::Replay(replay) => panic!("a replay: {replay:?}"),
+            })
+        })
+    }
+
     fn read(args: &[&str]) -> Result<Option<Launch>, LaunchError> {
-        Launch::from_args(args, &mut |_| Err("no file".into()))
+        race(Asked::from_args(args, &mut |_| Err("no file".into())))
+    }
+
+    #[test]
+    fn replay_by_slot_or_file() {
+        let read = |args: &[&str]| Asked::from_args(args, &mut |_| Ok("replay = 7 # held".into()));
+        let replay = |replay, then| Ok(Some(Asked::Replay(ReplayLaunch { replay, then })));
+        assert_eq!(
+            read(&["--replay", "0"]),
+            replay(Replay::Slot(0), Then::Menus)
+        );
+        assert_eq!(
+            read(&["--replay=99", "--then", "quit"]),
+            replay(Replay::Slot(99), Then::Quit)
+        );
+        assert_eq!(
+            read(&["--replay", "held/replay00"]),
+            replay(Replay::File("held/replay00".into()), Then::Menus)
+        );
+        assert_eq!(
+            read(&["--replay", "./12"]),
+            replay(Replay::File("./12".into()), Then::Menus)
+        );
+        assert_eq!(
+            read(&["--launch", "a.txt"]),
+            replay(Replay::Slot(7), Then::Menus)
+        );
+        assert!(
+            read(&["--replay", "100"])
+                .unwrap_err()
+                .0
+                .contains("0 to 99")
+        );
+        assert!(read(&["--replay"]).is_err(), "no value");
+        for race_only in ["--stage", "--car", "--seed", "--players"] {
+            let refused = read(&["--replay", "3", race_only, "1"]).unwrap_err();
+            assert!(refused.0.contains(race_only), "{refused}");
+        }
     }
 
     #[test]
@@ -576,16 +701,19 @@ mod tests {
     #[test]
     fn file_then_switches() {
         let text = "# a held race\nstage = langton\ncar = 2 # the second\nthen = quit\n";
-        let l = Launch::from_args(&["--launch", "a.txt", "--car", "5"], &mut |name| {
-            assert_eq!(name, "a.txt");
-            Ok(text.into())
-        })
+        let l = race(Asked::from_args(
+            &["--launch", "a.txt", "--car", "5"],
+            &mut |name| {
+                assert_eq!(name, "a.txt");
+                Ok(text.into())
+            },
+        ))
         .unwrap()
         .unwrap();
         assert_eq!(l.stage, Stage::Name("langton".into()));
         assert_eq!(l.cars[0], Some(Choice::Number(5)));
         assert_eq!(l.then, Then::Quit);
-        let bad = Launch::from_args(&["--launch", "b"], &mut |_| Ok("weather = rain".into()));
+        let bad = Asked::from_args(&["--launch", "b"], &mut |_| Ok("weather = rain".into()));
         assert!(bad.unwrap_err().0.contains("line 1"));
     }
 
