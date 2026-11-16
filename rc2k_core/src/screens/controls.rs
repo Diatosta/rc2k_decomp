@@ -90,11 +90,11 @@ fn draw_cells<S: Screen<Font = Font>>(
     Ok(s.draw(Font::Value, Buffer::Cells, x, y)?.too_wide)
 }
 
-/// The ten bindings at x 0x1B8 from y 0xD5 every 0x1B; the row being learnt is left out. Returns
+/// The bindings at x 0x1B8 from y 0xD5 every 0x1B; the row being learnt is left out. Returns
 /// the last row's `too_wide` (false when it is the one being learnt).
 pub fn control_bindings<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
-    texts: &[Vec<u8>; 10],
+    texts: &[Vec<u8>],
     learning: Option<usize>,
 ) -> Result<bool, S::Error> {
     check_room(texts)?;

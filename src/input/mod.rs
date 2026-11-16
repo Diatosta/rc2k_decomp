@@ -5,7 +5,6 @@
 
 pub mod acquire_device;
 pub mod append_key_name;
-pub mod axes;
 pub mod axis_found;
 pub mod begin_effects;
 pub mod begin_force;

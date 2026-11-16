@@ -459,6 +459,11 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
         self.canvas.blit_glyph(call)
     }
 
+    fn solid(&mut self, rect: [i32; 4], rgb: u32) -> Result<(), Refused> {
+        crate::input::osk_draw::fill(self.owners, rect, rgb);
+        Ok(())
+    }
+
     fn bar(&mut self, bar: rc2k_core::screens::screen::Bar) -> Result<(), Refused> {
         use crate::gfx::blit_bar::{Bar, blit_bar_in};
         Bar {

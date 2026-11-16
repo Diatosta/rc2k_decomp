@@ -58,6 +58,8 @@ pub enum ScreenId {
     Player4Buttons,
     Player4Controller,
     Player4Details,
+    PlayerAxes,
+    PlayerAxis,
     PlayerDetails,
     RallyStages,
     RedefineKeysPlayer1,
@@ -96,7 +98,7 @@ pub enum ScreenId {
 impl ScreenId {
     /// Every screen, in the order of the variants (the tests walk it).
     #[cfg(test)]
-    pub const ALL: [ScreenId; 85] = [
+    pub const ALL: [ScreenId; 87] = [
         ScreenId::AdvancedAudio,
         ScreenId::ArcadeBestScores,
         ScreenId::ArcadeBestTimes,
@@ -149,6 +151,8 @@ impl ScreenId {
         ScreenId::Player4Buttons,
         ScreenId::Player4Controller,
         ScreenId::Player4Details,
+        ScreenId::PlayerAxes,
+        ScreenId::PlayerAxis,
         ScreenId::PlayerDetails,
         ScreenId::RallyStages,
         ScreenId::RedefineKeysPlayer1,
@@ -249,6 +253,8 @@ impl ScreenId {
             ScreenId::Player4Buttons => &crate::menu::player_pages::PlayerPage::<3>::BUTTONS,
             ScreenId::Player4Controller => &crate::menu::player_pages::PlayerPage::<3>::CONTROLLER,
             ScreenId::Player4Details => &crate::menu::player_pages::PlayerPage::<3>::DETAILS,
+            ScreenId::PlayerAxes => &crate::menu::player_axes_loop::SCREEN,
+            ScreenId::PlayerAxis => &crate::menu::player_axis_loop::SCREEN,
             ScreenId::PlayerDetails => &crate::menu::player_details_loop::SCREEN,
             ScreenId::RallyStages => &crate::menu::rally_stages_loop::SCREEN,
             ScreenId::RedefineKeysPlayer1 => {

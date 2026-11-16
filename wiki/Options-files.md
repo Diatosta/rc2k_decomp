@@ -246,10 +246,10 @@ describes its bytes). Choices are numbers, counted from 0 unless the table says 
 | --- | --- |
 | `key_scan_codes` | The twelve keys of the "redefine keyboard" page, in this order: steer left, steer right, accelerate, brake, handbrake, gear up, gear down, lights, wipers (no page item; unused), camera, pause, reset car. Each is a key number: the PC keyboard's scan code (for example 44 is Z, 45 is X, 57 the space bar), with the arrow keys and other extended keys numbered 0x60 .. 0x7A by the game. |
 | `controller` | The controller the player drives with: 0 the keyboard, n the n-th controller in the list of those plugged in. The program sets it from `controller_device` (below); changing it by hand has no lasting effect. |
-| `sensitivity_level` | The controller page's "axis mode": 0 analogue joystick, 1 digital joystick or gamepad, 2 two-axis wheel with pedals, 3 three-axis wheel with pedals. Kept in saved games; a controller no longer uses it (the player's profile for it says which axes do what). |
+| `sensitivity_level` | The controller page's former "axis mode" item, which is gone: 0 analogue joystick, 1 digital joystick or gamepad, 2 two-axis wheel with pedals, 3 three-axis wheel with pedals. Kept in saved games; a controller no longer uses it (the player's profile for it says which axes do what). |
 | `pedal_axis_codes` | The axes learned for the pedals in the three-axis wheel mode. Kept, unused. |
 | `controller_mode` | The controller page's "ACT LABS RS Shifter" switch: 1 reads the gear lever of that shifter (its buttons and hat as gears). |
-| `end_zone_percent`, `centre_dead_zone_percent` | The controller page's two dead zones: how much of the stick's travel at the far end counts as full, and how much around the centre counts as nothing, in percent. |
+| `end_zone_percent`, `centre_dead_zone_percent` | The controller page's two former dead zone items, gone (each axis has its dead zone in its profile, set on the axis pages): how much of the stick's travel at the far end counts as full, and how much around the centre counts as nothing, in percent. |
 | `strength` | The controller page's force feedback strength, 0 .. 100 (0: off). |
 | `binding_buttons`, `binding_directions` | The old record's bindings, eleven each, in this order: accelerate, brake, steer left, steer right, gear up, gear down, handbrake, camera, pause, lights, reset car. Kept as saved games carry them; the race reads the profiles (below) instead. |
 | `controller_sensitivity` | The player details page's steering sensitivity, 0 .. 100. |
@@ -269,7 +269,7 @@ A player also has a list `[[players.player_n.profiles]]`, one for each controlle
 | `wheel`, `full_rotation_degrees` | A steering wheel, and its rotation lock to lock in degrees (default 900). |
 | `axes` | A list of tables, axis 0 first, each with `dead_zone` and `range` (per mille of the travel), `sensitivity` (-100 .. 100) and `invert`. An axis past the list has the defaults (no dead zone, range 1000, linear). The axes are SDL's; a gamepad's are the left stick x, y, the right stick x, y, the left trigger and the right trigger. |
 | `bindings.steering_axis`, `accelerate_axis`, `brake_axis` | An axis: `kind = "centred"` and `axis`; or `kind = "pedal"`, `axis` and `rest_high` (the end it rests at has the large values); or `kind = "half"`, `axis` and `positive` (the side of the axis used). |
-| `bindings.left`, `right`, `accelerate`, `brake`, `gear_up`, `gear_down`, `handbrake`, `camera`, `pause`, `lights`, `reset` | A button (`button = 5`, from 0) or a hat direction (`hat = 0`, `direction = "up"`, `"right"`, `"down"` or `"left"`). A key or one of these gives all of the control at once. |
+| `bindings.left`, `right`, `accelerate`, `brake`, `gear_up`, `gear_down`, `handbrake`, `camera`, `pause`, `lights`, `wipers`, `reset` | A button (`button = 5`, from 0) or a hat direction (`hat = 0`, `direction = "up"`, `"right"`, `"down"` or `"left"`). A key or one of these gives all of the control at once. |
 
 **On-screen displays** (the visual preferences page; each 1 shown, 0 hidden)
 

@@ -83,7 +83,7 @@ pub fn move_highlight(o: Owners<'static>, direction: Direction) -> Result<(), Re
         }
         match to {
             Some(n) => screens.loop_flags.item.set(n),
-            None => crate::menu::table_calls::call_key(o, item.fixed().on_key[way], item)?,
+            None => crate::menu::table_calls::call_key(o, item.fixed().on_key[way])?,
         }
     }
     Ok(())

@@ -1,5 +1,6 @@
 //! Functions that lay out parts of a screen: fixed positions, fonts and string ids.
 
+pub mod axes_page;
 pub mod best_scores;
 pub mod buttons;
 pub mod car_caption;

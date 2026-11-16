@@ -50,6 +50,8 @@ pub mod slot {
     pub const BEST_OVERALL_SCORES: usize = 44;
     pub const VISUAL_PREFERENCES: usize = 46;
     pub const VISUAL_OPTIONS: usize = 47;
+    pub const PLAYER_AXES: usize = 48;
+    pub const PLAYER_AXIS: usize = 49;
     pub const PLAYER1_CONTROLLER: usize = 50;
     pub const PLAYER1_BUTTONS: usize = 51;
     pub const PLAYER2_CONTROLLER: usize = 52;
@@ -156,8 +158,8 @@ impl ScreenItems {
                 PlainDword::new(0x4),
                 PlainDword::new(0x2),
                 PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
+                PlainDword::new(0x2),
+                PlainDword::new(0x2),
                 PlainDword::new(0x1),
                 PlainDword::new(0x1),
                 PlainDword::new(0x1),

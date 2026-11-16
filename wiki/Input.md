@@ -183,11 +183,16 @@ A flag for each of steering, throttle and brake says whether it came from a key 
 ("all or nothing") or from an axis. Replays and network games carry the car's inputs, not the
 devices, so they do not change.
 
-The controller pages of the options let the player pick a controller, **learn** a binding by
+The controller pages of the options let the player pick a controller, edit each axis's settings
+(the axes list and axis pages: `src/menu/player_axes_loop.rs`, `src/menu/player_axis_loop.rs`,
+`src/screens/axes_page.rs`,
+`src/menu/axes_items.rs`, with the rules in `rc2k_core::input::axes_page`), **learn** a binding by
 moving the wanted axis or pressing the button within five seconds
 (`src/menu/learn_bindings.rs`, `src/screens/controller.rs`, `profile::detect` and
-`profile::learn`: only what moves from the controller's rest counts), and redefine keyboard keys
-(`src/menu/redefine_keys.rs`).
+`profile::learn`: only what moves from the controller's rest counts; the buttons page's axis rows
+take axes, its other rows buttons and hat directions), and redefine keyboard keys
+(`src/menu/redefine_keys.rs`). The pages' own texts (`rc2k_core::strings::own`, string ids from
+0x2000, English and Portuguese) are chosen by the language file's name.
 
 ## From readings to the car
 
@@ -266,7 +271,7 @@ project's automated races are driven this way; see [Testing](Testing).
 | How SDL's devices are presented | `src/platform/input.rs`, `src/input/di_objects.rs` |
 | The input thread | `src/input/input_thread.rs`, `input_tick.rs` |
 | Bindings to readings | `src/input/read_device.rs`, `set_up_device.rs` |
-| The controller pages | `src/menu/controller_items.rs`, `learn_bindings.rs`, `redefine_keys.rs` |
+| The controller pages | `src/menu/controller_items.rs`, `axes_items.rs`, `learn_bindings.rs`, `redefine_keys.rs`, `src/screens/axes_page.rs` |
 | Readings to steering and pedals | `src/drive/steer_inputs.rs`, `pedal_inputs.rs` |
 | Force feedback | `src/input/update_car_effects.rs`, `effects.rs`, `device_effects.rs` |
 

@@ -100,6 +100,11 @@ pub trait Screen {
     fn sprite(&mut self, glyph: u32, x: i32, y: i32) -> Result<(), Self::Error>;
     /// A work variable set.
     fn keep(&mut self, work: Self::Work, value: u32);
+    /// A solid rectangle (x, y, width, height) of `rgb` (0x00RRGGBB). A screen that draws none
+    /// refuses.
+    fn solid(&mut self, _rect: [i32; 4], _rgb: u32) -> Result<(), Self::Error> {
+        Err(Invalid("this screen draws no solid rectangles").into())
+    }
     /// A bar drawn.
     fn bar(&mut self, bar: Bar) -> Result<(), Self::Error>;
     /// The error for fatal error `code`.

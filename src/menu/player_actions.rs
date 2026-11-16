@@ -42,16 +42,6 @@ pub fn keep_player_keys(menus: &Menus) -> Result<(), Refused> {
     })
 }
 
-/// The first dead zone one less.
-pub fn lower_end_zone(menus: &Menus) -> Result<(), Refused> {
-    with_player(menus, Player::lower_end_zone)
-}
-
-/// The second dead zone one less.
-pub fn lower_centre_dead_zone(menus: &Menus) -> Result<(), Refused> {
-    with_player(menus, Player::lower_centre_dead_zone)
-}
-
 /// The device's strength ten more.
 pub fn raise_strength(menus: &Menus) -> Result<(), Refused> {
     with_player(menus, |p| p.step_strength(true))

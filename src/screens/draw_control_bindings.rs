@@ -1,7 +1,6 @@
-//! What each of the current player's ten controls is bound to, on the controller pages: "no
-//! binding" (string 0x3BD), or the direction's name, for a device of kind 3 on the first two rows
-//! the axis, and for a button the button's number. The row being learnt is left out. Refuses no
-//! current player and a direction past the two 9-entry name tables.
+//! What each control of the controller buttons page's shown page is bound to, and the rows' own
+//! items: "no binding" (string 0x3BD), a button's number, a hat direction's name, or an axis's
+//! name with its side. The row being learnt is left out. Refuses no current player.
 
 use crate::errors::{BadInput, Refused};
 use crate::screens::game_screen::ControlsScreen;
@@ -17,20 +16,19 @@ fn direction_names(
     }
 }
 
-/// Row n's text (without its NUL): "no binding" (string 0x3BD), a button's name (string 0x3C0)
-/// and number, a hat direction's name, or an axis as its short name, "(+x)" with its side
+/// The text of `row` (without its NUL): "no binding" (string 0x3BD), a button's name (string
+/// 0x3C0) and number, a hat direction's name, or an axis as its short name, "(+x)" with its side
 /// (none for a centred axis, the steering).
 pub fn binding_text(
     o: crate::owners::Owners<'static>,
     controls: &crate::screens::controls_store::ControlsScreen,
     player: crate::menu::standings::PlayerCell,
-    n: u32,
+    row: rc2k_core::input::profile::Row,
     gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<Vec<u8>, Refused> {
-    use rc2k_core::input::profile::{HatDirection, Row, Shown, shown};
+    use rc2k_core::input::profile::{HatDirection, Shown, shown};
     let current = o.menus.screens.event.current_player.get();
     let controller = player.get().controller;
-    let row = Row::of_control(n + 1).ok_or(BadInput("a binding row past the controls"))?;
     let (profile_shown, kind) = if controller == 0 {
         (Shown::Nothing, rc2k_core::input::profile::Kind::Joystick)
     } else {
@@ -97,13 +95,31 @@ pub fn draw_control_bindings(
         return Err(BadInput("no current player").into());
     };
     let learning: u32 = controls.learning.get();
-    let row: u32 = controls.learned.get();
-    let mut texts: [Vec<u8>; 10] = Default::default();
-    for (n, text) in texts.iter_mut().enumerate() {
-        *text = binding_text(o, controls, player, n as u32, gfx)?;
+    let learning_row: u32 = controls.learned.get();
+    use crate::menu::axes_items::{ROWS_PER_PAGE, row_at, set_look, shown_look};
+    use rc2k_core::strings::own::id;
+    // The rows of the page shown: each item's label, hidden past the last row, and the binding's
+    // text beside it (not for the row being learnt, whose prompt is drawn instead).
+    let mut texts: [Vec<u8>; ROWS_PER_PAGE] = Default::default();
+    let mut learnt = None;
+    for (slot, text) in texts.iter_mut().enumerate() {
+        let row = row_at(controls, slot);
+        let label = row.map_or(id::BLANK, |row| id::CONTROL_ROWS + row.place() as u32);
+        set_look(menus, 2 + slot as u32, shown_look(label), row.is_none())?;
+        if let Some(row) = row {
+            *text = binding_text(o, controls, player, row, gfx)?;
+            if learning == 1 && row.control() == learning_row {
+                learnt = Some(slot);
+            }
+        }
     }
+    let more = if controls.page.get() == 0 {
+        id::MORE_CONTROLS
+    } else {
+        id::FIRST_CONTROLS
+    };
+    set_look(menus, 2 + ROWS_PER_PAGE as u32, shown_look(more), false)?;
     // The logic is in `rc2k_core::screens::controls::control_bindings`.
-    let learnt = (learning == 1 && (1..=10).contains(&row)).then(|| row as usize - 1);
     rc2k_core::screens::controls::control_bindings(
         &mut ControlsScreen::new(canvas, o),
         &texts,

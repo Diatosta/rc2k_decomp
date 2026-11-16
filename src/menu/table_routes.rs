@@ -1,15 +1,14 @@
 //! Which Rust function runs each function the menus' items and the draw lists name (typed
-//! tables, `rc2k_core::menu::tables`); `table_calls.rs` calls these. Kept by hand. An item's
-//! function gets an `ItemCall` (its value, item, menu and the carried values), a screen
-//! function nothing.
+//! tables, `rc2k_core::menu::tables`); `table_calls.rs` calls these. Kept by hand.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::menu::advanced_audio_loop;
 use crate::menu::apply_screen_mode;
 use crate::menu::arcade_levels;
 use crate::menu::arcade_select_level_loop;
 use crate::menu::ask_to_leave;
 use crate::menu::audio_setup_loop;
+use crate::menu::axes_items;
 use crate::menu::begin_player_name;
 use crate::menu::begin_replay_name;
 use crate::menu::begin_savegame_name;
@@ -28,7 +27,6 @@ use crate::menu::go_back;
 use crate::menu::in_game_options_loop;
 use crate::menu::information_loop;
 use crate::menu::item_actions;
-use crate::menu::learn_bindings;
 use crate::menu::load_championship_loop;
 use crate::menu::load_championship_table_loop;
 use crate::menu::lower_sensitivity;
@@ -44,6 +42,8 @@ use crate::menu::option_steps::{
 use crate::menu::options_loop;
 use crate::menu::player;
 use crate::menu::player_actions;
+use crate::menu::player_axes_loop;
+use crate::menu::player_axis_loop;
 use crate::menu::player_details_loop;
 use crate::menu::player_settings;
 use crate::menu::raise_sensitivity;
@@ -65,7 +65,6 @@ use crate::menu::start_rally_loop;
 use crate::menu::step_carousel;
 use crate::menu::step_items;
 use crate::menu::switch_stage_group;
-use crate::menu::table_calls;
 use crate::menu::time_trial_select_players_loop;
 use crate::menu::view_best_scores_loop;
 use crate::menu::view_best_times_loop;
@@ -79,6 +78,7 @@ use crate::saves::load_savegame;
 use crate::scene::draw_car_object;
 use crate::scene::draw_highlighted_object;
 use crate::scene::draw_main_menu_objects;
+use crate::screens::axes_page;
 use crate::screens::best_scores;
 use crate::screens::car_caption;
 use crate::screens::car_page_title;
@@ -152,7 +152,7 @@ use crate::text::draw_text::GameCanvas;
 use rc2k_core::menu::tables::{ItemFn, ScreenFn};
 
 /// Runs item function `f` with what the item hands it (`c`).
-pub fn item_fn(o: Owners<'static>, f: ItemFn, c: &table_calls::ItemCall) -> Result<(), Refused> {
+pub fn item_fn(o: Owners<'static>, f: ItemFn) -> Result<(), Refused> {
     let menus = o.menus;
     let race = o.race;
     match f {
@@ -165,15 +165,21 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn, c: &table_calls::ItemCall) -> Resu
             choose_key::choose_key(&menus.screens, u32::from(row));
             Ok(())
         }
-        ItemFn::LearnBinding(button) => {
-            learn_bindings::learn_binding(
-                &menus.screens.controls,
-                o.system,
-                o.input,
-                u32::from(button),
-            );
+        ItemFn::LearnRow(slot) => {
+            axes_items::learn_row(o, slot);
             Ok(())
         }
+        ItemFn::AxesLoop => player_axes_loop::run(o),
+        ItemFn::TurnControlsPage => {
+            axes_items::turn_controls_page(&menus.screens.controls);
+            Ok(())
+        }
+        ItemFn::AxisStep { up } => axes_items::step(o, up),
+        ItemFn::AxisOpen(axis) => {
+            menus.screens.controls.axis.set(u32::from(axis));
+            player_axis_loop::run(o)
+        }
+        ItemFn::AxisPageStep { up } => axes_items::page_step(o, up),
         ItemFn::PlayerCarSpecs(n) => {
             player_actions::player_car_specs(menus, u32::from(n), &Entry::new(o))
         }
@@ -217,22 +223,6 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn, c: &table_calls::ItemCall) -> Resu
             }
             Ok(())
         }
-        ItemFn::LowerEndZone => player_actions::lower_end_zone(menus),
-        ItemFn::RaiseEndZone => controller_items::raise_dead_zone(menus, false),
-        ItemFn::LowerCentreDeadZone => player_actions::lower_centre_dead_zone(menus),
-        ItemFn::RaiseCentreDeadZone => controller_items::raise_dead_zone(menus, true),
-        ItemFn::LowerControllerSensitivity => {
-            controller_items::lower_controller_sensitivity(menus, o.input).map(|_| ())
-        }
-        ItemFn::RaiseControllerSensitivity => controller_items::raise_controller_sensitivity(
-            menus,
-            o.input,
-            c.menu
-                .ok_or(BadInput("no menu to read the item from"))?
-                .items(&menus.tables.menus)[0]
-                .fixed()
-                .links[1],
-        ),
         ItemFn::RaiseStrength => player_actions::raise_strength(menus),
         ItemFn::LowerStrength => player_actions::lower_strength(menus),
         ItemFn::BeginGearRatioEdit => begin_edits::begin_edit(menus, begin_edits::GEAR_RATIO),
@@ -542,6 +532,12 @@ pub fn screen_fn(o: Owners<'static>, f: ScreenFn) -> Result<(), Refused> {
         .map(|_| ()),
         ScreenFn::DrawControllerPage => {
             controller::draw_controller_page(o, o.input, &mut GameCanvas::new(o.gfx)).map(|_| ())
+        }
+        ScreenFn::DrawAxesPage => {
+            axes_page::draw_axes_page(o, o.input, &mut GameCanvas::new(o.gfx))
+        }
+        ScreenFn::DrawAxisPage => {
+            axes_page::draw_axis_page(o, o.input, &mut GameCanvas::new(o.gfx))
         }
         ScreenFn::DrawControlBindings => {
             draw_control_bindings::draw_control_bindings(o, &mut GameCanvas::new(o.gfx), o.gfx)

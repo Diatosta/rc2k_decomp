@@ -78,14 +78,36 @@ hats.
 
 ## Setting up a controller for driving
 
-In the game's options, each player has a controller page and a buttons page:
+In the game's options, each player has a controller page, an axes list with a page for each axis, and a buttons page:
 
 - **Controller**: step through "none" and the controllers found; the chosen one is taken into
-  use at once.
-- **Sensitivity**: four steps.
-- **Dead zones**: two of them, which can be raised until little travel is left between them.
-- **Buttons and axes**: which axis steers, which is the throttle and the brake, and which
-  buttons do the rest.
+  use at once. The page also has the shifter switch and the force feedback strength.
+- **Axes** (opened from the controller page): a list with a row for each axis the controller has
+  (up to six, a gamepad's as the left stick x and y, the right stick x and y and the two
+  triggers), each with a live bar of where the axis is now, as the race takes it (dark track;
+  a centred axis fills from the middle to the side it leans, a pedal or trigger from the left),
+  then "wheel" (yes or no; set from SDL's type at first and changeable with left and right) and,
+  for a wheel, "full rotation" (900 degrees at first, steps of 10). Return on an axis opens that
+  axis's page.
+- **Axis** (one axis's page, opened from the list): rows "axis" (left and right pick another
+  axis of the controller), "dead zone" and "range" (per cent, with the game's sliders; a wheel's
+  range reads as per cent and degrees of its full rotation, "50% (450 degrees)", without a
+  slider), "sensitivity" (a figure from -100 to 100 in steps of 10 and what it does: linear at 0,
+  gentle above 0, finer near the rest; quick below 0, quicker near the rest), "invert" (yes or
+  no) and a live bar of where the axis is, shaped by the settings above so a change shows at
+  once. Left and right change the highlighted row (Return flips the invert). Every change goes
+  to the player's profile for the controller at once. Back returns to the list.
+- **Buttons**: the controls on two pages, turned by the "more controls" item. The axis rows
+  come first: steering, accelerate and brake (each learns an axis: steering takes the side it is
+  turned to as right, an axis moved the other way is inverted; accelerate and brake take a pedal
+  from where it rests or a side of an axis). Then the rows learnt with a button or a hat
+  direction: steer left, steer right, accelerate, brake, gear up, gear down, handbrake, camera,
+  pause, lights, wipers and reset car. An axis row and a button row of the same control both
+  count. "Undo changes" puts the page's profile back as it was when the page was entered.
+
+The texts of the axes pages and of the new rows are not in the language file: the game keeps
+them itself, in English and in Portuguese (the language the game loaded; any other language
+shows the English).
 
 Learning a button, a hat direction or an axis (the page asks for the control for five seconds)
 takes what moves from where the controller rests when the learning starts, so a pedal that rests
@@ -121,8 +143,8 @@ profile instead:
 | sensitivity | -100 to 100: 0 is linear; above 0 the axis is softer near its rest and sharper at the end, below 0 the other way round. |
 | invert | The axis the other way round. |
 
-A profile has `wheel` (true for a wheel) and `full_rotation_degrees` (900 unless changed), for
-showing a wheel's range in degrees. Profiles are in the options file
+A profile has `wheel` (true for a wheel; the axes list switches it) and `full_rotation_degrees`
+(900 unless changed), for showing a wheel's range in degrees. Profiles are in the options file
 ([Options files](Options-files)); the controller pages show the controls' bindings from them
 and "cancel changes" puts the page's profile back as it was when the page was entered.
 

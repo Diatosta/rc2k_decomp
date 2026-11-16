@@ -16,6 +16,10 @@ pub struct ControlsScreen {
     pub learn_start: PlainDword,
     /// The control learning (from 1), -1 when it timed out.
     pub learned: PlainDword,
+    /// The axis (0 ..= 5) the axes list opened the axis page for.
+    pub axis: PlainDword,
+    /// The page of controls the buttons page shows (0 or 1).
+    pub page: PlainDword,
     /// The string ids of the directions of a pad (a device kind below 2).
     pub pad_names: [PlainWord; 9],
     /// The string ids of the directions of a stick.
@@ -41,6 +45,8 @@ impl ControlsScreen {
             learning: PlainDword::new(0),
             learn_start: PlainDword::new(0),
             learned: PlainDword::new(0),
+            axis: PlainDword::new(0),
+            page: PlainDword::new(0),
             pad_names: [
                 PlainWord::new(0),
                 PlainWord::new(0x3C4),

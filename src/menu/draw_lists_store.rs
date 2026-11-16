@@ -270,6 +270,8 @@ pub struct DrawLists {
     pub load_replay_setup: DrawList,
     pub player_controller_setup: [DrawList; 4],
     pub player_buttons_setup: [DrawList; 3],
+    pub player_axes_draw: DrawList,
+    pub player_axis_draw: DrawList,
 }
 
 impl DrawLists {
@@ -515,6 +517,8 @@ impl DrawLists {
             load_replay_setup: DrawList(292),
             player_controller_setup: [DrawList(293), DrawList(295), DrawList(297), DrawList(299)],
             player_buttons_setup: [DrawList(294), DrawList(296), DrawList(298)],
+            player_axes_draw: DrawList(301),
+            player_axis_draw: DrawList(302),
         }
     }
 }

@@ -1,6 +1,7 @@
 //! Keys, devices, force feedback.
 
 pub mod acquire;
+pub mod axes_page;
 pub mod device_id;
 pub mod devices;
 pub mod effect_changes;

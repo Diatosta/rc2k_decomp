@@ -1,5 +1,6 @@
 //! What the menu screens draw.
 
+pub mod axes_page;
 pub mod best_scores;
 pub mod buttons;
 pub mod captions;

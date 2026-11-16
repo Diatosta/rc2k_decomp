@@ -40,7 +40,7 @@ pub fn run_item_action(
         let item = &items[n as usize];
         let value = item.fixed().action_value;
         screens.draw_work.action_mode.set(value);
-        crate::menu::table_calls::call_action(o, item.fixed().action, value, menu);
+        crate::menu::table_calls::call_action(o, item.fixed().action);
         screens.loop_flags.item.set(item.fixed().id);
     }
     Ok(ActionResult {

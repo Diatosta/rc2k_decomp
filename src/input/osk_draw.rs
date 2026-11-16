@@ -68,7 +68,7 @@ fn pixel(rgb: u32, bits: u32) -> u32 {
 }
 
 /// A solid rectangle (x, y, width, height) of `rgb`.
-fn fill(o: crate::owners::Owners<'static>, rect: [i32; 4], rgb: u32) {
+pub fn fill(o: crate::owners::Owners<'static>, rect: [i32; 4], rgb: u32) {
     let surface = crate::gfx::surface::surface(o.gfx);
     let value = pixel(rgb, surface.bits_per_pixel);
     if surface.bits_per_pixel == 32

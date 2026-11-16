@@ -221,10 +221,12 @@ pub struct Bindings {
     pub lights: Option<Digital>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reset: Option<Digital>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wipers: Option<Digital>,
 }
 
 impl Bindings {
-    /// The digital binding of an action (the wipers have none: only their key).
+    /// The digital binding of an action.
     pub fn digital(&self, action: Action) -> Option<Digital> {
         match action {
             Action::Left => self.left,
@@ -235,15 +237,15 @@ impl Bindings {
             Action::GearDown => self.gear_down,
             Action::Handbrake => self.handbrake,
             Action::Lights => self.lights,
-            Action::Wipers => None,
+            Action::Wipers => self.wipers,
             Action::Camera => self.camera,
             Action::Pause => self.pause,
             Action::Reset => self.reset,
         }
     }
 
-    fn digital_mut(&mut self, action: Action) -> Option<&mut Option<Digital>> {
-        Some(match action {
+    fn digital_mut(&mut self, action: Action) -> &mut Option<Digital> {
+        match action {
             Action::Left => &mut self.left,
             Action::Right => &mut self.right,
             Action::Accelerate => &mut self.accelerate,
@@ -252,11 +254,11 @@ impl Bindings {
             Action::GearDown => &mut self.gear_down,
             Action::Handbrake => &mut self.handbrake,
             Action::Lights => &mut self.lights,
-            Action::Wipers => return None,
+            Action::Wipers => &mut self.wipers,
             Action::Camera => &mut self.camera,
             Action::Pause => &mut self.pause,
             Action::Reset => &mut self.reset,
-        })
+        }
     }
 }
 
@@ -595,12 +597,17 @@ const BUTTON_BITS: [(Action, u32); 8] = [
 
 // ---- learning ----
 
-/// A control of the controller page, from 1 as the page numbers them.
+/// A row of the controller buttons page, from 1 as the page numbers its controls: the digital
+/// rows take a button or a hat direction, the three axis rows an axis.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Row {
+    /// Accelerate with a button.
     Accelerate,
+    /// Brake with a button.
     Brake,
+    /// Steer left with a button.
     Left,
+    /// Steer right with a button.
     Right,
     GearUp,
     GearDown,
@@ -609,10 +616,36 @@ pub enum Row {
     Pause,
     Lights,
     Reset,
+    Wipers,
+    /// The axis that steers.
+    SteeringAxis,
+    /// The axis that accelerates.
+    AccelerateAxis,
+    /// The axis that brakes.
+    BrakeAxis,
 }
 
 impl Row {
-    /// The row of control `control` (1 ..= 11).
+    /// The rows in the order the page lists them.
+    pub const LISTED: [Row; 15] = [
+        Row::SteeringAxis,
+        Row::AccelerateAxis,
+        Row::BrakeAxis,
+        Row::Left,
+        Row::Right,
+        Row::Accelerate,
+        Row::Brake,
+        Row::GearUp,
+        Row::GearDown,
+        Row::Handbrake,
+        Row::Camera,
+        Row::Pause,
+        Row::Lights,
+        Row::Wipers,
+        Row::Reset,
+    ];
+
+    /// The row of control `control` (1 ..= 15).
     pub fn of_control(control: u32) -> Option<Row> {
         Some(match control {
             1 => Row::Accelerate,
@@ -626,12 +659,26 @@ impl Row {
             9 => Row::Pause,
             10 => Row::Lights,
             11 => Row::Reset,
+            12 => Row::Wipers,
+            13 => Row::SteeringAxis,
+            14 => Row::AccelerateAxis,
+            15 => Row::BrakeAxis,
             _ => return None,
         })
     }
 
-    fn action(self) -> Action {
-        match self {
+    /// The row's place in `LISTED`.
+    pub fn place(self) -> usize {
+        Row::LISTED.iter().position(|&r| r == self).unwrap_or(0)
+    }
+
+    /// The control number of the row (the inverse of `of_control`).
+    pub fn control(self) -> u32 {
+        LISTED_CONTROLS[self.place()]
+    }
+
+    fn action(self) -> Option<Action> {
+        Some(match self {
             Row::Accelerate => Action::Accelerate,
             Row::Brake => Action::Brake,
             Row::Left => Action::Left,
@@ -643,14 +690,22 @@ impl Row {
             Row::Pause => Action::Pause,
             Row::Lights => Action::Lights,
             Row::Reset => Action::Reset,
-        }
+            Row::Wipers => Action::Wipers,
+            Row::SteeringAxis | Row::AccelerateAxis | Row::BrakeAxis => return None,
+        })
     }
 
-    /// Whether the row can take an axis.
+    /// Whether the row takes an axis (the other rows take a button or a hat direction).
     pub fn takes_axis(self) -> bool {
-        matches!(self, Row::Accelerate | Row::Brake | Row::Left | Row::Right)
+        matches!(
+            self,
+            Row::SteeringAxis | Row::AccelerateAxis | Row::BrakeAxis
+        )
     }
 }
+
+/// The control number of each of `Row::LISTED`.
+const LISTED_CONTROLS: [u32; 15] = [13, 14, 15, 3, 4, 1, 2, 5, 6, 7, 8, 9, 10, 12, 11];
 
 /// How far an axis must move from where it rested (of -32768 .. 32767) to count.
 pub const MOVED: i32 = 16384;
@@ -667,9 +722,21 @@ pub enum Learned {
     Digital(Digital),
 }
 
-/// What moved from `rest` to `now`: a button newly down (alone), a hat newly off its centre,
-/// else (when `axes`) the axis that moved furthest past `MOVED`; `axis_count` axes are looked at.
+/// What moved from `rest` to `now`. For an axis row (`axes`) the axis that moved furthest past
+/// `MOVED` among the first `axis_count`; for the others a button newly down (alone) or a hat
+/// newly off its centre.
 pub fn detect(now: &RawInput, rest: &RawInput, axis_count: usize, axes: bool) -> Option<Learned> {
+    if axes {
+        return (0..axis_count.min(AXES))
+            .map(|n| (n, (now.axes[n] - rest.axes[n]).abs()))
+            .filter(|&(_, moved)| moved > MOVED)
+            .max_by_key(|&(_, moved)| moved)
+            .map(|(n, _)| Learned::Axis {
+                axis: n as u8,
+                rest: rest.axes[n],
+                now: now.axes[n],
+            });
+    }
     let fresh = now.buttons & !rest.buttons;
     if fresh.count_ones() == 1 {
         return Some(Learned::Digital(Digital::Button {
@@ -684,68 +751,41 @@ pub fn detect(now: &RawInput, rest: &RawInput, axis_count: usize, axes: bool) ->
             }));
         }
     }
-    if !axes {
-        return None;
-    }
-    (0..axis_count.min(AXES))
-        .map(|n| (n, (now.axes[n] - rest.axes[n]).abs()))
-        .filter(|&(_, moved)| moved > MOVED)
-        .max_by_key(|&(_, moved)| moved)
-        .map(|(n, _)| Learned::Axis {
-            axis: n as u8,
-            rest: rest.axes[n],
-            now: now.axes[n],
-        })
+    None
 }
 
 /// What the profile does for a learnt thing.
-/// - an axis for the accelerate and brake rows: a pedal when it rested at an end of its travel
-///   (past three quarters), else one side of it, the side it moved to;
-/// - an axis for left and right: steering; moved the wrong way for the row (left to the large
-///   values, right to the small), the axis is inverted;
-/// - a button or a hat direction: the row's digital binding.
+/// - an axis for the accelerate and brake axis rows: a pedal when it rested at an end of its
+///   travel (past three quarters), else one side of it, the side it moved to;
+/// - an axis for the steering row: steering, taking the side it moved to as right (moved the
+///   other way, the axis is inverted);
+/// - a button or a hat direction: the digital row's binding.
 ///
-/// The row's other kind of binding is cleared (an axis learnt for left clears the left button).
+/// A row never changes the bindings of the others: a button for accelerate leaves the axis
+/// that accelerates as it was.
 pub fn learn(profile: &mut Profile, row: Row, learned: Learned) {
     match learned {
         Learned::Digital(digital) => {
-            if let Some(slot) = profile.bindings.digital_mut(row.action()) {
-                *slot = Some(digital);
-            }
-            match row {
-                Row::Accelerate => profile.bindings.accelerate_axis = None,
-                Row::Brake => profile.bindings.brake_axis = None,
-                _ => {}
+            if let Some(action) = row.action() {
+                *profile.bindings.digital_mut(action) = Some(digital);
             }
         }
         Learned::Axis { axis, rest, now } => {
             let up = now > rest;
-            match row {
-                Row::Accelerate | Row::Brake => {
-                    let using = if rest.abs() > 3 * 32768 / 4 {
-                        AxisUse::Pedal {
-                            axis,
-                            rest_high: rest > 0,
-                        }
-                    } else {
-                        AxisUse::Half { axis, positive: up }
-                    };
-                    if row == Row::Accelerate {
-                        profile.bindings.accelerate_axis = Some(using);
-                        profile.bindings.accelerate = None;
-                    } else {
-                        profile.bindings.brake_axis = Some(using);
-                        profile.bindings.brake = None;
-                    }
+            let using = if rest.abs() > 3 * 32768 / 4 {
+                AxisUse::Pedal {
+                    axis,
+                    rest_high: rest > 0,
                 }
-                Row::Left | Row::Right => {
+            } else {
+                AxisUse::Half { axis, positive: up }
+            };
+            match row {
+                Row::AccelerateAxis => profile.bindings.accelerate_axis = Some(using),
+                Row::BrakeAxis => profile.bindings.brake_axis = Some(using),
+                Row::SteeringAxis => {
                     profile.bindings.steering_axis = Some(AxisUse::Centred { axis });
-                    if row == Row::Left {
-                        profile.bindings.left = None;
-                    } else {
-                        profile.bindings.right = None;
-                    }
-                    profile.settings_mut(axis).invert = (row == Row::Left) == up;
+                    profile.settings_mut(axis).invert = !up;
                 }
                 _ => {}
             }
@@ -753,7 +793,7 @@ pub fn learn(profile: &mut Profile, row: Row, learned: Learned) {
     }
 }
 
-/// What a row shows on the controller page.
+/// What a row shows on the controller buttons page.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Shown {
     Nothing,
@@ -764,19 +804,20 @@ pub enum Shown {
     Axis(u8, Option<bool>),
 }
 
-/// What the row is bound to: its button or hat direction if it has one, else its axis.
+/// What the row is bound to: an axis row its axis, a digital row its button or hat direction.
 pub fn shown(profile: &Profile, row: Row) -> Shown {
     let b = &profile.bindings;
-    match b.digital(row.action()) {
-        Some(Digital::Button { button }) => return Shown::Button(button as u32 + 1),
-        Some(Digital::Hat { direction, .. }) => return Shown::Hat(direction),
-        None => {}
+    if let Some(action) = row.action() {
+        return match b.digital(action) {
+            Some(Digital::Button { button }) => Shown::Button(button as u32 + 1),
+            Some(Digital::Hat { direction, .. }) => Shown::Hat(direction),
+            None => Shown::Nothing,
+        };
     }
     let using = match row {
-        Row::Accelerate => b.accelerate_axis,
-        Row::Brake => b.brake_axis,
-        Row::Left | Row::Right => b.steering_axis,
-        _ => None,
+        Row::AccelerateAxis => b.accelerate_axis,
+        Row::BrakeAxis => b.brake_axis,
+        _ => b.steering_axis,
     };
     match using {
         None => Shown::Nothing,
@@ -1027,7 +1068,7 @@ mod tests {
         let mut now = rest;
         now.axes[2] = -20000;
         let found = detect(&now, &rest, 4, true).unwrap();
-        learn(&mut p, Row::Accelerate, found);
+        learn(&mut p, Row::AccelerateAxis, found);
         assert_eq!(
             p.bindings.accelerate_axis,
             Some(AxisUse::Pedal {
@@ -1039,7 +1080,7 @@ mod tests {
         let mut now = RawInput::default();
         now.axes[1] = -25000;
         let found = detect(&now, &RawInput::default(), 4, true).unwrap();
-        learn(&mut p, Row::Brake, found);
+        learn(&mut p, Row::BrakeAxis, found);
         assert_eq!(
             p.bindings.brake_axis,
             Some(AxisUse::Half {
@@ -1047,17 +1088,24 @@ mod tests {
                 positive: false
             })
         );
-        // left learnt with the wheel to the large values: inverted
+        // steering learnt with the wheel to the large values: not inverted; the other way: inverted
         let found = detect(&raw(0, 30000), &RawInput::default(), 4, true).unwrap();
-        learn(&mut p, Row::Left, found);
+        learn(&mut p, Row::SteeringAxis, found);
         assert_eq!(p.bindings.steering_axis, Some(AxisUse::Centred { axis: 0 }));
-        assert!(p.settings(0).invert);
-        learn(&mut p, Row::Right, found);
         assert!(!p.settings(0).invert);
-        // nothing moved, an axis past the count, an axis for another row
+        let found = detect(&raw(0, -30000), &RawInput::default(), 4, true).unwrap();
+        learn(&mut p, Row::SteeringAxis, found);
+        assert!(p.settings(0).invert);
+        // nothing moved, an axis past the count, an axis for a digital row
         assert_eq!(detect(&rest, &rest, 4, true), None);
         assert_eq!(detect(&raw(6, 30000), &RawInput::default(), 4, true), None);
         assert_eq!(detect(&raw(0, 30000), &RawInput::default(), 4, false), None);
+        // an axis row does not take a button
+        let pressed = RawInput {
+            buttons: 1,
+            ..RawInput::default()
+        };
+        assert_eq!(detect(&pressed, &RawInput::default(), 4, true), None);
     }
 
     #[test]
@@ -1083,12 +1131,23 @@ mod tests {
         let found = detect(&hat, &RawInput::default(), 6, false).unwrap();
         learn(&mut p, Row::Lights, found);
         assert_eq!(shown(&p, Row::Lights), Shown::Hat(HatDirection::Left));
-        // a button for accelerate clears its trigger
+        // a button for accelerate leaves the axis that accelerates
         let found = Learned::Digital(Digital::Button { button: 1 });
         learn(&mut p, Row::Accelerate, found);
-        assert_eq!(p.bindings.accelerate_axis, None);
-        assert_eq!(shown(&p, Row::Brake), Shown::Axis(4, Some(true)));
+        assert!(p.bindings.accelerate_axis.is_some());
+        assert_eq!(shown(&p, Row::Accelerate), Shown::Button(2));
+        assert_eq!(shown(&p, Row::BrakeAxis), Shown::Axis(4, Some(true)));
         assert_eq!(shown(&p, Row::Left), Shown::Hat(HatDirection::Left));
+        // the wipers have a button of their own
+        learn(&mut p, Row::Wipers, found);
+        assert_eq!(
+            p.bindings.digital(Action::Wipers),
+            Some(Digital::Button { button: 1 })
+        );
+        // every listed row has its control number back
+        for row in Row::LISTED {
+            assert_eq!(Row::of_control(row.control()), Some(row));
+        }
     }
 
     #[test]
@@ -1105,7 +1164,7 @@ mod tests {
             (None, None)
         );
         let j = Profile::new(id(), Kind::Joystick);
-        assert_eq!(shown(&j, Row::Accelerate), Shown::Axis(1, Some(false)));
+        assert_eq!(shown(&j, Row::AccelerateAxis), Shown::Axis(1, Some(false)));
         assert_eq!(axis_label(Kind::Pad, 5), "rt");
         assert_eq!(axis_label(Kind::Joystick, 3), "rx");
         assert_eq!(axis_label(Kind::Joystick, 7), "a7");

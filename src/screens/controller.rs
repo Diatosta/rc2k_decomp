@@ -42,9 +42,16 @@ pub fn learn_axis(
             .menu
             .get()?
             .item(&menus.tables.menus, screens.loop_flags.item.get())?;
+        // The prompt names what the row takes.
+        use rc2k_core::input::profile::Row;
+        let prompt = match controls_row(controls) {
+            Some(Row::SteeringAxis) => rc2k_core::strings::own::id::PROMPT_STEERING,
+            Some(Row::AccelerateAxis | Row::BrakeAxis) => rc2k_core::strings::own::id::PROMPT_AXIS,
+            _ => rc2k_core::strings::own::id::PROMPT_BUTTON,
+        };
         crate::text::draw_string_by_id::draw_string_by_id_at(
             crate::strings::append_string_by_id::StringOwners::of(o),
-            0x3BE,
+            prompt,
             crate::gfx::typefaces::fonts::LIST,
             0x1B8,
             item.fixed().alignment_or_text_y,
@@ -81,6 +88,7 @@ pub fn learn_axis(
                 controls.learning.set(0);
                 return Ok(());
             }
+            BackHold::Tapped if row.takes_axis() => {}
             BackHold::Tapped => {
                 found = Some(rc2k_core::input::profile::Learned::Digital(
                     rc2k_core::input::profile::Digital::Button {
@@ -102,6 +110,13 @@ pub fn learn_axis(
         controls.learning.set(0);
     }
     Ok(())
+}
+
+/// The row being learnt.
+fn controls_row(
+    controls: &crate::screens::controls_store::ControlsScreen,
+) -> Option<rc2k_core::input::profile::Row> {
+    rc2k_core::input::profile::Row::of_control(controls.learned.get())
 }
 
 /// The pad's Back in the profiles' numbering of a gamepad's buttons.
@@ -162,12 +177,10 @@ pub fn controller_page_refuses<'m>(
     Ok(player)
 }
 
-/// The player's controller (none: items 3 to 8 off and string 0x56D), else items 3 to 8 on;
-/// the device's name; the mode; item 4 only for a device that has it, with its strength (a
-/// percent, or string 0x56D); the sensitivity; two sliders (their fills clipped in); and the
-/// stick's place now (a pressed button sprite 9, else 8). The sprites' palette is unused.
-/// Refuses no current player record, or no input device for a player that has one; an x whose
-/// x 100 is 0 is a fatal error.
+/// The player's controller (none: items 3 to 6 off and string 0x56D), else items 3 to 6 on; the
+/// device's name; the shifter switch; item 4 only for a device that has it, with its strength (a
+/// percent, or string 0x56D). Refuses no current player record, or no input device for a player
+/// that has one.
 pub fn draw_controller_page(
     o: crate::owners::Owners<'static>,
     input: &Input,
@@ -176,40 +189,29 @@ pub fn draw_controller_page(
     let menus = o.menus;
     // The logic is in `rc2k_core::screens::controller_page::controller_page`.
     use rc2k_core::screens::controller_page::{Controller, Font, Work, controller_page};
-    {
-        let player = controller_page_refuses(menus, input)?;
-        let p = player.get();
-        let device = p.controller;
-        use crate::screens::game_screen::HeldText;
-        let mut screen =
-            crate::screens::game_screen::GameScreen::<Font, Work, HeldText>::new(canvas, o);
-        if device == 0 {
-            return controller_page(&mut screen, None);
-        }
-        // Device n is the controllers' record n - 1 (0x50 bytes; +0x30 its name, +0x1C 1
-        // with a strength).
-        let Some(entry) = (device as usize)
-            .checked_sub(1)
-            .and_then(|n| input.devices.controllers.get(n))
-        else {
-            return Err(BadInput("a player's device past the controllers").into());
-        };
-        let [stick_x, _, _, buttons] = crate::input::axes::first_device_state(input)?;
-        let c = Controller {
-            // The record's number among the controllers.
-            record: device - 1,
-            name: crate::screens::game_screen::held_field(&entry.name)?,
-            has_strength: entry.force_feedback.get() == 1,
-            mode: p.controller_mode,
-            strength: p.strength,
-            sensitivity: p.sensitivity_level,
-            first: p.end_zone_pct,
-            second: p.centre_dead_zone_pct,
-            stick_x,
-            buttons,
-        };
-        controller_page(&mut screen, Some(&c))
+    let player = controller_page_refuses(menus, input)?;
+    let p = player.get();
+    let device = p.controller;
+    use crate::screens::game_screen::HeldText;
+    let mut screen =
+        crate::screens::game_screen::GameScreen::<Font, Work, HeldText>::new(canvas, o);
+    if device == 0 {
+        return controller_page(&mut screen, None);
     }
+    // Device n is the controllers' record n - 1.
+    let Some(entry) = (device as usize)
+        .checked_sub(1)
+        .and_then(|n| input.devices.controllers.get(n))
+    else {
+        return Err(BadInput("a player's device past the controllers").into());
+    };
+    let c = Controller {
+        name: crate::screens::game_screen::held_field(&entry.name)?,
+        has_strength: entry.force_feedback.get() == 1,
+        mode: p.controller_mode,
+        strength: p.strength,
+    };
+    controller_page(&mut screen, Some(&c))
 }
 
 #[cfg(test)]
