@@ -27,7 +27,7 @@ pub struct ServiceUi {
 pub struct MenuVariables {
     /// The review option screens' kind (`sensiblesaving` in `ral.cfg`).
     pub review_kind: PlainDword,
-    /// 1 for "voltar" in the results' first item, else "continuar".
+    /// 1 for "back" in the results' first item, else "continue".
     pub which_title: PlainFlag,
     /// 1 = leave the service area's edit variables alone.
     pub skip_edit_values: PlainFlag,

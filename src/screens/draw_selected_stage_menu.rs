@@ -1,7 +1,7 @@
 //! The stage panel for the stage the game has selected, on a screen whose titles are menu
 //! items: instead of drawing the group's and the table's titles it stores their string ids in
 //! items 0 and 1 of the current menu, and it builds the heading text (string 0x482) in its own
-//! buffer without drawing it. Used by the stage selection screen ("Escolha Etapa"); which of the
+//! buffer without drawing it. Used by the stage selection screen ("Select Stage"); which of the
 //! two screen loops that use it was seen is not known. The record rows come from one of two
 //! best-time tables and are skipped while a table is missing (see
 //! `stage_panel::draw_records_for_group`).

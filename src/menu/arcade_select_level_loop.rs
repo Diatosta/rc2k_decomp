@@ -1,4 +1,4 @@
-//! The mode menu's third entry, by its title "ESCOLHA NÍVEL". Screen-specific part of
+//! The mode menu's third entry, by its title "SELECT LEVEL". Screen-specific part of
 //! `menu::screen_loop`: background `Selarc.png`; leaving is not asked about; the next frame begins
 //! with the steps after the first frame.
 

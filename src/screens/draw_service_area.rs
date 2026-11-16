@@ -6,7 +6,7 @@
 //! take the end of the text drawn just before them as their palette (unused). It also sets a
 //! service area work cell to 0.
 //!
-//! Seen in a screenshot of a championship's service area: the title "JOGADOR 1 ÁREA DE SERVIÇO";
+//! Seen in a screenshot of a championship's service area: the title "PLAYER 1 SERVICE AREA";
 //! fourteen parts in two columns (engine, exhaust, turbo, cooling, clutch, differential, gearbox;
 //! body, electronics, lights, steering, suspension, brakes, tyres), each with an icon, a repair
 //! time and a damage bar; "n/d" on the turbo's bar when the car has no turbo; five gear ratio

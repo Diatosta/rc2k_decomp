@@ -1,4 +1,4 @@
-//! The stage selection "ESCOLHA ETAPA" of the start menus under `menu::single_rally`.
+//! The stage selection "SELECT STAGE" of the start menus under `menu::single_rally`.
 //! Screen-specific part of `menu::screen_loop`: leaving is asked about; left without the
 //! question, the highlight is not saved; the next frame begins with the steps after the first
 //! frame; the question is not put while the lamps flag is 1.

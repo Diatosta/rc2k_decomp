@@ -24,11 +24,11 @@ pub struct MenuOptions {
     pub unused_percent_b: PlainDword,
     /// The reflections option.
     pub reflections: PlainDword,
-    /// The car shadows setting (row 6 of the visual options, strings 0x396 "reduzido" / 0x397
-    /// "completo"); copied to the race's `settings.car_shadows` and `settings_words[2]`.
+    /// The car shadows setting (row 6 of the visual options, strings 0x396 "reduced" / 0x397
+    /// "full"); copied to the race's `settings.car_shadows` and `settings_words[2]`.
     pub car_shadows: PlainDword,
-    /// The car detail setting, 0 .. 2 (row 7, strings 0x393 "nenhum carro" / "o seu carro" /
-    /// "todos os carros": which cars get the detailed textures; stepped by
+    /// The car detail setting, 0 .. 2 (row 7, strings 0x393 "no cars" / "your car" /
+    /// "all cars": which cars get the detailed textures; stepped by
     /// `menu::next_texture_setting`); copied to the race's `settings.car_detail` and
     /// `settings_words[3]`.
     pub car_detail: PlainDword,

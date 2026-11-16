@@ -4,7 +4,7 @@
 //! that: the overrun (`900 - (budget - repairs)`) and the penalty (10 for every started 60 of
 //! overrun). All four are printed with `append_clock`. It leaves the penalty in the money.
 //!
-//! Seen in a screenshot: "TEMPO DISPONÍVEL: 40:00" at the top left and "TEMPO RESTANTE: 40:00" at
+//! Seen in a screenshot: "TIME AVAILABLE: 40:00" at the top left and "TIME REMAINING: 40:00" at
 //! the top right. The overrun pair of labels has not been seen.
 
 use crate::errors::Refused;

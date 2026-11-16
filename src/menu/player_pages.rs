@@ -315,7 +315,7 @@ impl<const N: usize> PlayerPage<N> {
         )
     };
 
-    /// The keyboard assignment page "REDEFINIR TECLADO".
+    /// The keyboard assignment page "REDEFINE KEYBOARD".
     pub const REDEFINE_KEYS: Screen = Screen {
         lists: &[
             List {

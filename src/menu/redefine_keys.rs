@@ -1,4 +1,4 @@
-//! What the four redefine keys pages share ("REDEFINIR TECLADO", `defkeys.png`): the twelve
+//! What the four redefine keys pages share ("REDEFINE KEYBOARD", `defkeys.png`): the twelve
 //! keys a player drives with (`Player::keys`, +0x1C), a copy of them the page works on, and the
 //! key being redefined.
 //!

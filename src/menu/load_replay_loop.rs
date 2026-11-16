@@ -1,4 +1,4 @@
-//! The replay list "CARREGAR REPETIÇÃO"; returns the replay chosen. Screen-specific part of
+//! The replay list "LOAD REPLAY"; returns the replay chosen. Screen-specific part of
 //! `menu::screen_loop`: background `loadsv.png`; leaving is not asked about; its own 3D scene list
 //! is set before the first frame only; the Escape flag is looked at at the top of every frame; it
 //! returns a value.

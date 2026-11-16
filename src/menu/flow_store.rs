@@ -16,7 +16,7 @@ pub struct ScreenFlow {
     /// `load_savegame` puts it back.
     pub start_section: PlainDword,
     /// The start section of the A8 rally championship, 0 .. 6 (the pictures are string 0x1DA,
-    /// "Campeonato de Rali A8", then "ronda um" .. "ronda seis", 0x3D6 .. 0x3DB; chosen by
+    /// "A8 Rally Championship", then "round one" .. "round six", 0x3D6 .. 0x3DB; chosen by
     /// `menu::next_colour_b` / `previous_colour_b`). Kept in car 0 at +0x274 by the saved games.
     pub start_section_a8: PlainDword,
     /// Kept by `menu::run_event_races`.

@@ -1,4 +1,4 @@
-//! The stage details opened from the service area of a championship, by its title "VER ETAPA"
+//! The stage details opened from the service area of a championship, by its title "VIEW STAGE"
 //! and its draw list, which is that of `screens::draw_service_stage_info`. Screen-specific part
 //! of `menu::screen_loop`: leaving is asked about; it has a step of its own once a frame.
 

@@ -1,4 +1,4 @@
-//! The mode menu, titled "COMEÇAR RALI". Screen-specific part of `menu::screen_loop`: background
+//! The mode menu, titled "START RALLY". Screen-specific part of `menu::screen_loop`: background
 //! `sral.png`; leaving is not asked about; the next frame begins with the steps after the first
 //! frame; it has steps of its own first on leaving; the menu sound is cleared every frame.
 

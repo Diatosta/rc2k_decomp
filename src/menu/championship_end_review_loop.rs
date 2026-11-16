@@ -1,4 +1,4 @@
-//! The menu after the results screens, by its title "OPÇÕES DE REVISÃO". Screen-specific part of
+//! The menu after the results screens, by its title "REVIEW OPTIONS". Screen-specific part of
 //! `menu::screen_loop`: background `roptions.png`; leaving is asked about; also when
 //! `loop_flags.ask_leave` is set; the Escape flag is looked at at the top of every frame; around an
 //! action the highlight is kept in the saved highlight; the action run is that of the item of

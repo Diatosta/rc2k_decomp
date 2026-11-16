@@ -1,4 +1,4 @@
-//! The stage details screen before a stage of a championship, by its title "ETAPA SEGUINTE" and
+//! The stage details screen before a stage of a championship, by its title "NEXT STAGE" and
 //! its draw list, which is that of `screens::draw_stage_info`. Screen-specific part of
 //! `menu::screen_loop`: leaving is asked about; it has a step of its own once a frame.
 

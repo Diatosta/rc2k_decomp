@@ -1,4 +1,4 @@
-//! The replay naming screen "GRAVAR REPETIÇÃO"; returns the slot the replay goes to.
+//! The replay naming screen "SAVE REPLAY"; returns the slot the replay goes to.
 //! Screen-specific part of `menu::screen_loop`: background `loadsv.png`; leaving is not asked
 //! about; its own 3D scene list is set before the first frame only; the Escape flag is looked at
 //! at the top of every frame; it has a step of its own once a frame.

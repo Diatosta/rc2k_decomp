@@ -1,5 +1,5 @@
-//! The "leave?" question's button shows the answer: string 0x56B + the answer ("não" /
-//! "sim" by the language file) goes to the caption text, from which
+//! The "leave?" question's button shows the answer: string 0x56B + the answer ("no" /
+//! "yes" by the language file) goes to the caption text, from which
 //! `screens::draw_highlighted_caption` draws the button. Refuses a caption longer than its place.
 
 use crate::errors::Refused;

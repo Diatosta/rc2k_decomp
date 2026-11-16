@@ -135,18 +135,19 @@ A **sound mode** is one number, written in decimal; turn it into hexadecimal to 
 | `menu_sound_mode` | The sound mode of the menus. The game sets it to `0x11221` (`70177`: DirectSound, own buffers, half the sample rate) whenever the audio options are applied; 0 means not yet chosen. |
 | `race_sound_mode` | The sound mode of the races, built from the advanced audio page (`[pages] audio`) and what the machine has. `0x11221` is the plain mode; with 3D sound it carries `0x100000` (`0x111221`), with the card's own buffers `0x911221`, with EAX also `0x1000000` (`0x1911221`). 0 means not yet chosen. |
 | `master_volume` | The master volume the audio thread holds, 0 .. 64. A fresh game holds 65, which counts as full. It follows the slider `master_volume_shown`. |
-| `master_volume_shown` | The first slider of the sound page, "general" volume, 0 .. 64: it is sent to the audio thread as the master volume, at start and at each step. |
+| `master_volume_shown` | The sound page's "general volume" slider, 0 .. 64: it is sent to the audio thread as the master volume, at start and at each step. |
 | `unread_option_f0` | A sound option the old file has room for; nothing reads it (a fresh game holds 1). Kept so the old file can be written back as it was. |
 | `race_music_on` | The race music: 0 off, 1 on. The music of the races (tune 8) plays only while it is 1; the sound page shows it as an off / on row. |
 | `tune_turn` | Which tune the music plays next: a counter the audio thread keeps for the music's order and saves, so the tunes go on from where they stopped. |
 | `music_volume` | The volume the menus' music is started at, 0 .. 64. At the start of the front end it is set from `music_level`. |
 | `race_music_volume` | The volume the races' music is started at, 0 .. 64. At the start of the front end it is set from `other_volume`. |
-| `music_level` | The "music" slider of the volume page, 0 .. 64 (a fresh game 64). Stepping it sets `music_volume` and the music's volume at once. |
-| `other_volume` | The "race music" slider, 0 .. 64: stepping it sets `race_music_volume`. (The name is the code's reading: it is the music slider the race music takes its level from.) |
-| `menu_sounds_c` | The slider for most of the menus' own sounds (clicks, moving between items), 0 .. 64; the sound is played at each step so that it can be heard. |
-| `menu_sounds_a` | The "race sounds" slider, 0 .. 64: the level a group of sound effects takes (those whose sample record names this level), and the one sound the menus play when it is stepped. |
-| `speech_level` | The speech slider, 0 .. 64: the volume of the spoken sounds the menus play (the co-driver's calls, the car's names); a sample is played at each step. |
-| `sounds_a`, `sounds_b` | The last two sliders of the volume page, 0 .. 64. Each is the level a group of sound effects takes (sample records name `sounds_a` or `sounds_b` as their level); which sounds belong to which could not be told from the code alone. |
+| `music_level` | The "menu music" slider, 0 .. 64 (a fresh game 64). Stepping it sets `music_volume` and the music's volume at once. |
+| `other_volume` | The "race music" slider, 0 .. 64: stepping it sets `race_music_volume`. |
+| `menu_sounds_c` | The "menu effects" slider, 0 .. 64: the menus' own sounds (clicks, moving between items); a sound plays at each step so that it can be heard. |
+| `menu_sounds_a` | The "race effects" slider, 0 .. 64: the level of the race's sound effects (those whose sample record names this level); a race sound plays at each step. |
+| `speech_level` | The "menu voices" slider, 0 .. 64: the spoken sounds of the menus (the announcer, the car's names); a sample plays at each step. |
+| `sounds_a` | The "co-driver's voice" slider, 0 .. 64: the level of the pace notes the co-driver reads in a race. |
+| `sounds_b` | The "car engine" slider, 0 .. 64: the level of the cars' engine sounds. |
 
 ### Network
 

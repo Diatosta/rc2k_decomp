@@ -1,4 +1,4 @@
-//! The start screen of the normal championship, by its title "NOVA SIMULAÇÃO" and its place in the
+//! The start screen of the normal championship, by its title "NEW SIMULATION" and its place in the
 //! mode menu. Screen-specific part of `menu::screen_loop`: background `sral.png`; leaving is not
 //! asked about; the next frame begins with the steps after the first frame.
 

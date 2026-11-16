@@ -103,23 +103,23 @@ pub struct Player {
     pub codriver_sex: u32,
     // The visual preferences (the page of `menu::visual_preferences_loop`), each 0 or 1,
     // flipped by `menu::toggle_*`.
-    /// "mapa local".
+    /// "local map".
     pub map_area: u32,
-    /// "retrovisor".
+    /// "rear-view mirror".
     pub rear_mirror: u32,
-    /// "contador de rotações".
+    /// "rev counter".
     pub rev_counter: u32,
-    /// "informação do carro".
+    /// "car information".
     pub car_info: u32,
-    /// "barra de mensagens".
+    /// "message bar".
     pub message_display: u32,
-    /// "barra de progresso".
+    /// "progress bar".
     pub progress_bar: u32,
-    /// "informação do piloto".
+    /// "driver information".
     pub driver_info: u32,
-    /// "notas informativas".
+    /// "pace notes".
     pub pace_notes: u32,
-    /// "indicador de unidades": 0 imperial, 1 metric.
+    /// "units indicator": 0 imperial, 1 metric.
     pub metric_units: u32,
     /// The wear of the car's parts, 31 words (the race's `wear[0..31]`); `tyre_wear` goes on
     /// with the next five.
@@ -141,7 +141,7 @@ pub struct Player {
     pub state_flags: u32,
     /// The word the last race left for the car (the race's result `word`).
     pub result_word: u32,
-    /// The controller's steering sensitivity, 0 .. 100 ("sensibilidade da direcção"; the
+    /// The controller's steering sensitivity, 0 .. 100 ("steering sensitivity"; the
     /// player details page shows it as a marker at x + 2 * it).
     pub controller_sensitivity: u32,
     /// The HUD's bits: set to -1 for every player by `menu::clear_hud_bits` at an event's

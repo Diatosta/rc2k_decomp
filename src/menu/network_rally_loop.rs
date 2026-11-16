@@ -1,4 +1,4 @@
-//! The network rally menu, by its title "RALI EM REDE". Screen-specific part of
+//! The network rally menu, by its title "NETWORK RALLY". Screen-specific part of
 //! `menu::screen_loop`: background `nral.png`; leaving is not asked about; the menu sound is
 //! cleared every frame.
 

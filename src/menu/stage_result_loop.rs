@@ -1,8 +1,8 @@
 //! The loop of a stage's result screen. Seen after a single race's stage. Screen-specific part of
 //! `menu::screen_loop`: background `results1.png` through `menu::load_background` (a failed load is
 //! fatal error 0x80712345); leaving is asked about; its own 3D scene list is set before the first
-//! frame only. Screen: the one player's result after a stage, "RESULTADOS": the rally and stage,
-//! then "piloto", "tempo" and "velocidade máxima".
+//! frame only. Screen: the one player's result after a stage, "RESULTS": the rally and stage,
+//! then "driver", "time" and "top speed".
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Asking, Callee, Frames, List, MenuSound, Screen, ScreenFlag, Step};

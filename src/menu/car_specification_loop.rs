@@ -1,4 +1,4 @@
-//! The screen titled "ESPECIFICAÇÕES DO CARRO". Screen-specific part of `menu::screen_loop`:
+//! The screen titled "CAR SPECIFICATIONS". Screen-specific part of `menu::screen_loop`:
 //! leaving is not asked about; it has a step of its own once a frame, and one after the loop
 //! (the shown car kept for the cheats).
 

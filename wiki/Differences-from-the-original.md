@@ -21,7 +21,7 @@ The original was a 32-bit Windows program on DirectX. Its platform side was not 
 
 ## Racing
 
-- The pause binding ("pausa", a button on a pad and a key on the keyboard) asks the same
+- The pause binding (a button on a pad and a key on the keyboard) asks the same
   "leave?" question as Escape, in place of the original's plain pause that waited for a key.
   The race still pauses until a key when its window stops being the active one.
 

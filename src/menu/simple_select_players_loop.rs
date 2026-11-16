@@ -1,4 +1,4 @@
-//! The player count of the simple mode, titled "ESCOLHA NÚMERO DE JOGADORES", the mode menu's
+//! The player count of the simple mode, titled "SELECT NUMBER OF PLAYERS", the mode menu's
 //! first entry. Screen-specific part of `menu::screen_loop`: background `arcade1.png`; leaving
 //! is not asked about; the next frame begins with the steps after the first frame. The
 //! background's file name says "arcade", but the arcade mode is another one and has no player

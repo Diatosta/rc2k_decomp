@@ -1,4 +1,4 @@
-//! A second screen titled "CARREGAR CAMPEONATO", reached through a table. Screen-specific part of
+//! A second screen titled "LOAD CHAMPIONSHIP", reached through a table. Screen-specific part of
 //! `menu::screen_loop`: leaving is not asked about; on leaving the highlight is saved in the saved
 //! highlight, not in the variable it is taken from (a 1999 slip kept as is).
 

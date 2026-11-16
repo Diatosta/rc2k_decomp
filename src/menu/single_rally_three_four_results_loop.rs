@@ -1,4 +1,4 @@
-//! A screen titled "RESULTADOS" called by `menu::single_rally_three` and `menu::single_rally_four`.
+//! A screen titled "RESULTS" called by `menu::single_rally_three` and `menu::single_rally_four`.
 //! Screen-specific part of `menu::screen_loop`: background `results1.png`; leaving is asked about;
 //! left without the question, the highlight is not saved; its own 3D scene list is set before the
 //! first frame only; around an action the highlight is kept in the saved highlight; the action run

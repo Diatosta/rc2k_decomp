@@ -13,7 +13,7 @@ view). The keys are set per player in the game's options, on the "redefine keys"
 choose an action, then press the key for it. A key already used by another action swaps with
 it; a few reserved keys are not accepted.
 
-Escape in a race asks whether to leave it; so does a player's pause binding ("pausa"), a key
+Escape in a race asks whether to leave it; so does a player's pause binding, a key
 or a button of the player's controller.
 
 ## Gamepads

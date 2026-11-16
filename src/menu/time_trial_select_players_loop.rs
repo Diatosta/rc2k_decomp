@@ -1,6 +1,6 @@
 //! The loop of the screen where the number of players is chosen. Screen-specific part of
 //! `menu::screen_loop`: background `arcade1.png`; leaving is not asked about. Screen: the player
-//! count of the time trial, "ESCOLHA NÚMERO DE JOGADORES".
+//! count of the time trial, "SELECT NUMBER OF PLAYERS".
 
 use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;

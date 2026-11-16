@@ -1,4 +1,4 @@
-//! A screen titled "ETAPA SEGUINTE" under the mode menu's third entry. Screen-specific part of
+//! A screen titled "NEXT STAGE" under the mode menu's third entry. Screen-specific part of
 //! `menu::screen_loop`: leaving is asked about; left without the question, the highlight is not
 //! saved.
 use crate::menu::draw_lists_store::DRAW_LISTS;
