@@ -10,17 +10,16 @@
 //! - 3: `car_light` plus `light_added`, then blended (below);
 //! - anything else: the number as it came.
 //!
-//! "Plus" is byte by byte without overflow. The lit colour: the normal's place in the view (the point record 0x1000 +
-//! (number & 0xFFF), its +0x10 .. +0x18) goes to `light_dot_point`; if the object's
-//! `light_strength` is not 0, the light's direction goes to `light_dot_light`, the strength
-//! as a float to `light_dot_factor`, and `scene::light_dot` gives a number; that plus
-//! `light_level`, held to `light_lowest` .. `light_highest`, picks a colour from the light
-//! table (0x100 entries), kept in `light_colour`. The blend: the same number without the
-//! table, held to -255 .. 255; each of the colour's three bytes moves that many 256ths of
-//! the way to the stage's `lit_colour` (red, green, blue by the byte's place) for a number
-//! of 0 or more, and by its size towards `dark_colour` for one below. One caller,
-//! `scene::draw_object_face`. Refuses when there are no records and when the table's place
-//! is outside it.
+//! "Plus" is byte by byte without overflow. The lit colour: the normal's place in the view (the
+//! point record 0x1000 + (number & 0xFFF), its +0x10 .. +0x18) goes to `light_dot_point`; if the
+//! object's `light_strength` is not 0, the light's direction goes to `light_dot_light`, the
+//! strength as a float to `light_dot_factor`, and `scene::light_dot` gives a number; that plus
+//! `light_level`, held to `light_lowest` .. `light_highest`, picks a colour from the light table
+//! (0x100 entries), kept in `light_colour`. The blend: the same number without the table, held to
+//! -255 .. 255; each of the colour's three bytes moves that many 256ths of the way to the stage's
+//! `lit_colour` (red, green, blue by the byte's place) for a number of 0 or more, and by its size
+//! towards `dark_colour` for one below. Refuses when there are no records and when the table's
+//! place is outside it.
 
 use crate::errors::BadInput;
 use crate::math::x87;

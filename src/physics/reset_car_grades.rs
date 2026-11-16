@@ -4,8 +4,6 @@
 //! ..) = `ride_height` / 256 x 100 (both read from the work copy, whatever block is reset: the
 //! setup's percentages, by the look of it); `steering_efficiency` .. `lost_gear_bits` and one more
 //! run zeroed; `parts_present` = -1. A reading: the block's grades and values.
-//!
-//! Caller: `physics::grade_or_reset`.
 
 use core::slice::from_ref;
 

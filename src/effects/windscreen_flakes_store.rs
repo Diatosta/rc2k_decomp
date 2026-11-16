@@ -222,8 +222,8 @@ impl WindscreenFlakeItems {
 /// The windscreen flakes' once-only mark, constants and randoms.
 #[derive(rc2k_derive::Cells)]
 pub struct WindscreenFlakeState {
-    /// 0, or the done mark `effects::set_up_windscreen_flakes` sets.
-    pub done: PlainDword,
+    /// No code reads it (it was a once-only mark with nothing done once).
+    pub unused_done: PlainDword,
     /// The curve's two constants (1024.0, 0.0005).
     pub curve_ends: [PlainFloat; 2],
     /// The circles' steps (4).
@@ -279,7 +279,7 @@ impl WindscreenFlakeState {
     /// The values the game starts with.
     pub const fn new() -> Self {
         WindscreenFlakeState {
-            done: PlainDword::new(0x0),
+            unused_done: PlainDword::new(0x0),
             curve_ends: [PlainFloat::new(1024.0), PlainFloat::new(0.00054414064)],
             steps: PlainDword::new(0x4),
             step_angle: PlainFloat::new(2.0),

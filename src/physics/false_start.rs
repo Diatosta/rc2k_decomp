@@ -6,7 +6,7 @@
 //! `notice_id` 0xCA, `notice_counter` 0, `notice_shown` 0, and `race::start_car` (the car is
 //! put back at its start).
 //!
-//! Caller: `physics::car_physics_step`, every physics step. Refuses what `start_car` refuses.
+//! Refuses what `start_car` refuses.
 
 use crate::errors::Refused;
 use crate::memory::session::PlainDword;

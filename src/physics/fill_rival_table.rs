@@ -2,8 +2,6 @@
 //! % 23, `rival_names[c]` = 0x5A5 + c (a string id: the rival's name); then, when `rivals`
 //! points at a table of 90 records of 0x50 bytes, each record's name, car and time go into
 //! `rival_names`, `rival_cars` and `rival_times` instead.
-//!
-//! Caller: `physics::rank_split_time`.
 use crate::errors::Refused;
 use crate::physics::split_tables_store::SplitTables;
 use crate::race::vars_store::RaceVars;

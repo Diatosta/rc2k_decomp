@@ -19,8 +19,6 @@
 //!   `DamageModel.gauge_top` (also when no number);
 //! - `damage_failed` = 0 when five figures are all below `DamageModel.gauge_top`, else 1, and then
 //!   `engine_power_factor` = 0 unless `electrics_damage` is below it.
-//!
-//! Caller: `physics::grade_or_reset`.
 
 use crate::effects::cell_x87::CellX87;
 use crate::math::x87;

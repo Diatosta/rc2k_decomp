@@ -1,10 +1,9 @@
 //! `scene::reset_objects`: empties the objects' tables before they are loaded.
 //!
 //! The points' memory zeroed (its room `CourseLists.object_points_room`, in dwords); the slots'
-//! first points, numbers of points and normals, first faces and numbers of faces zeroed; the
-//! object point count = 1 (point 0 is never an object's), the faces' number and the faces'
-//! memory used = 0; every slot's kind = -1. One caller, `scene::load_front_end_objects`.
-//! Refuses points' room without memory.
+//! first points, numbers of points and normals, first faces and numbers of faces zeroed; the object
+//! point count = 1 (point 0 is never an object's), the faces' number and the faces' memory used =
+//! 0; every slot's kind = -1. Refuses points' room without memory.
 
 use crate::errors::BadInput;
 

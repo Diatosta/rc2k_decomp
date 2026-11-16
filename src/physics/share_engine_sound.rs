@@ -5,8 +5,7 @@
 //! `knock_in` while it is the deepest so far) and the steering pull (from `steer_trim`) that the
 //! sounds read.
 //!
-//! Caller: `physics::car_physics_step`, every physics step. Refuses (before anything) a null sound
-//! object.
+//! Refuses (before anything) a null sound object.
 
 use crate::errors::Refused;
 use crate::physics::car_store::Car;

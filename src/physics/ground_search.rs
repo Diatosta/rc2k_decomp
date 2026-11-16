@@ -2,9 +2,9 @@
 //! `ground_slot` = -1 and `physics::search_cell` on the point's cell and its eight neighbours
 //! (`ground::CELLS`) until one has it. `ground_found` is 1 when found, else 0.
 //!
-//! See `physics/ground.rs`. Caller: `physics::find_ground`. Refuses (before anything) what
-//! `find_course_record` or `search_record_faces_at` would refuse on any of the nine cells (also on
-//! cells past the one found).
+//! See `physics/ground.rs`. Refuses (before anything) what `find_course_record` or
+//! `search_record_faces_at` would refuse on any of the nine cells (also on cells past the one
+//! found).
 
 use crate::errors::Refused;
 use crate::physics::ground::*;

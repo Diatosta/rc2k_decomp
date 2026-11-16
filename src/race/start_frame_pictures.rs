@@ -5,17 +5,15 @@
 //! is reset to 0.
 //!
 //! Takes the ms a picture takes, or 0 for the rate's.
-//!
-//! Called by `race::viewer_action` (actions 0x25 .. 0x28: 0, 0xA0, 0x50, 0x28).
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
-/// Starts the picture series; `eax` is the ms a picture takes, or 0 for the rate's.
+/// Starts the picture series; `picture_ms` is the ms a picture takes, or 0 for the rate's.
 pub fn start_frame_pictures(
     race: &Race,
     clock: &crate::system::tick_count::PictureClock,
-    eax: u32,
+    picture_ms: u32,
 ) -> Result<(), Refused> {
     use rc2k_core::race::viewer::{picture_rate, picture_time};
     let panel = race.viewer_panel();
@@ -23,7 +21,7 @@ pub fn start_frame_pictures(
     if panel.picture_rate() != rate {
         panel.set_picture_rate(rate);
     }
-    panel.set_picture_time(picture_time(eax, rate));
+    panel.set_picture_time(picture_time(picture_ms, rate));
     // Whether the folder was made does not matter.
     crate::files::directories::make_directory(&crate::files::cstring(
         &panel.picture_folder,

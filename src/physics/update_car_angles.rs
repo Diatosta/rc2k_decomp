@@ -1,7 +1,5 @@
 //! `physics::car_angles` when `camera_mode_is_2_or_3` is set or `all_wheels_off` is 0; otherwise
 //! nothing.
-//!
-//! Caller: `physics::car_physics_step`, twice, after `race::invert_car_matrix`.
 
 use crate::physics::car_angles::car_angles;
 use crate::physics::car_store::Car;

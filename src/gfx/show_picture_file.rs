@@ -14,8 +14,6 @@
 //!
 //! The picture is shown once: the screen is one picture, with no second page behind it to
 //! fill.
-//!
-//! Callers: `menu::show_loading_picture`, `race::stage_loading`.
 
 use crate::errors::Refused;
 use crate::gfx::copy_picture_to_surface::{GameSurface, copy_picture_to_surface};

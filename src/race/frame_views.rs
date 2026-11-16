@@ -223,14 +223,14 @@ pub fn copy_mirror_picture(
         scene.drawing.scene.get().mirror_picture.get(),
         scene.textures.kinds.get().kind_first_textures[200].get(),
     );
-    if lock_texture_in(gfx, from)?.carry {
+    if !lock_texture_in(gfx, from)? {
         return Ok(());
     }
     // The surfaces' pixels by handle (kept, never read back).
     let from_pixels = crate::gfx::surface::handle(gfx)?;
     frame.frame_work.get().view_kept[0].set(from_pixels);
     let ebp = gfx_drawing.draw_surface.pitch.get();
-    if !lock_texture_in(gfx, to)?.carry {
+    if lock_texture_in(gfx, to)? {
         let to_pixels = crate::gfx::surface::handle(gfx)?;
         frame.frame_work.get().view_kept[1].set(to_pixels);
         let format = gfx_drawing.draw_surface.format.get();
@@ -297,12 +297,11 @@ impl rc2k_core::race::view_steps::Surfaces for GameSurfaces<'_> {
 /// (slots `[196]` / `[197]`, bits 4, 8), `forget_flag_0` / `forget_flag_1` (slots `[220]` /
 /// `[221]`, bits 0x10, 0x1000). With the mirror on (`mirror_wanted`, not the next flag) bits 0x20
 /// and 0x400 are set too, and the mirror's picture is copied (`race::copy_mirror_picture`, then its
-/// slot forgotten) or uploaded with the mirror table. Refuses (before anything) a null view block
+/// slot forgotten). Refuses (before anything) a null view block
 /// or a slot past 0x3FF.
 pub fn forget_view_textures(
     race: &Race,
     scene: &crate::scene::owner::Scene,
-    input: &crate::input::owner::Input,
     system: &crate::system::owner::System,
     gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
@@ -348,7 +347,6 @@ pub fn forget_view_textures(
         u32::from(frame.frame_work.get().mirror_wanted.is_set()),
         frame.frame_work.get().mirror_switch.get(),
     );
-    let uploaded = input.devices.keys_now.get(0x18) != 0; // Devices.keys_now
     let mut slots: Vec<u32> = FORGET_ORDER
         .iter()
         .map(|&(f, _)| source(f))
@@ -394,13 +392,8 @@ pub fn forget_view_textures(
         .get()
         .view_textures_forgotten
         .set(frame.frame_work.get().view_textures_forgotten.get() | MIRROR_BIT);
-    if !uploaded {
-        copy_mirror_picture(frame, scene, system, gfx)?;
-        forget_slot_texture(textures.kinds.get().kind_first_textures[200].get(), scene)?;
-    } else {
-        // The platform's upload (then the slot forgotten), with the picture and the slot.
-        crate::standalone::not_ported(0x44E828, "race::frame_views");
-    }
+    copy_mirror_picture(frame, scene, system, gfx)?;
+    forget_slot_texture(textures.kinds.get().kind_first_textures[200].get(), scene)?;
     frame.panel_and_overlay.get().panel.texture_changes.set(
         frame
             .panel_and_overlay

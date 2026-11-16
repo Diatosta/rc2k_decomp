@@ -16,8 +16,6 @@
 //!
 //! The flow, the compares and the integer steps are Rust; each straight x87 run is plain Rust
 //! over `X` in the named helpers below.
-//!
-//! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::effects::cell_x87::CellX87;
 use crate::math::x87;

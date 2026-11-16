@@ -1,7 +1,6 @@
 //! Turns the picture buffer's decoded pixels of three bytes into dwords, in place: width times
-//! height pixels, from the last down: the first byte shifted up 16, the second up 8, the
-//! third; the top byte 0. One caller, `gfx::read_png`, for a file without a palette: every PNG
-//! file of the game. Refuses what `pixels_to_dwords::pixel_count` refuses.
+//! height pixels, from the last down: the first byte shifted up 16, the second up 8, the third; the
+//! top byte 0. Refuses what `pixels_to_dwords::pixel_count` refuses.
 
 use crate::errors::BadInput;
 use crate::gfx::picture::{read_bytes, write_bytes};

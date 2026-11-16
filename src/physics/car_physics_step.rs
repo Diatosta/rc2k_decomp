@@ -22,10 +22,8 @@
 //! load, the engine sound's share, the time mark, a false start and the value notice. The holds
 //! are in `physics/flow.rs`.
 //!
-//! Callers: `physics::race_cars_step`, `race::step_replay_cars`, `drive::replay_step`.
-//! Refuses (before anything) a current car past 7, and what its calls refuse; the work car and
-//! the physics' variables are put back then (the callees put back their own
-//! other writes).
+//! Refuses (before anything) a current car past 7, and what its calls refuse; the work car and the
+//! physics' variables are put back then (the callees put back their own other writes).
 
 use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
@@ -397,7 +395,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
 
 pub fn car_physics_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refused> {
     if race.shared.work.get().current_car.get() > 7 {
-        return Err(BadInput("a current car past 7 (dword_641680's room)").into());
+        return Err(BadInput("a current car past 7 (the per-car table's room)").into());
     }
     steps(o, race)
 }

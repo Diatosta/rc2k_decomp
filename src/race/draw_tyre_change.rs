@@ -126,10 +126,9 @@ pub fn draw_tyre_change(
         clip(&gfx.drawing.blit.clip.right),
     );
     let done = (|| -> Result<(), Refused> {
-        let failed =
-            { crate::d3d::lock_texture::lock_texture_in(gfx, shared.tyre_change().texture.get()) }?
-                .carry;
-        if !failed && shared.tyre_change().drawn.get() != 1 {
+        let locked =
+            crate::d3d::lock_texture::lock_texture_in(gfx, shared.tyre_change().texture.get())?;
+        if locked && shared.tyre_change().drawn.get() != 1 {
             let mut y = 0u32;
             for (n, (id, font, x)) in [
                 (0x129u32, &gfx.fonts.font_block.game_fonts[2], 4u32),

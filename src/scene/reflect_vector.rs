@@ -2,12 +2,11 @@
 //! the matrix `SceneMatrices.view_back_matrix`.
 //!
 //! v = the three floats at `SceneMatrices.reflect_vector`, n = the three at
-//! `SceneMatrices.reflect_normal`: d = v . n (the first and second products added first, then
-//! the third); v = v * d, each rounded to a float; v = v + v - n; then v through the matrix
-//! `SceneMatrices.view_back_matrix` (`scene::rotate_point`, inlined) and back to its place. d
-//! stays unrounded between its uses. Plain Rust (the x87's arithmetic in `X`,
-//! `math/x87_float.rs`); the tests compare against recorded vectors (`data/vectors`). One
-//! caller, `scene::reflection_coordinates` (the reflection's texture coordinates).
+//! `SceneMatrices.reflect_normal`: d = v . n (the first and second products added first, then the
+//! third); v = v * d, each rounded to a float; v = v + v - n; then v through the matrix
+//! `SceneMatrices.view_back_matrix` (`scene::rotate_point`, inlined) and back to its place. d stays
+//! unrounded between its uses. Plain Rust (the x87's arithmetic in `X`, `math/x87_float.rs`); the
+//! tests compare against recorded vectors (`data/vectors`).
 use crate::math::x87_float::{Rounds, at_rounding};
 use crate::scene::x87_mem::{Base, cells, fld_with, fstp_with};
 

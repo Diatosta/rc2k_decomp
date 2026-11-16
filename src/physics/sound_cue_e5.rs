@@ -2,8 +2,7 @@
 //! sound objects) gets the cue 0xE5, a cue count of 0 and its update flag set (a reading: a sound
 //! to play).
 //!
-//! Caller: `physics::crash_contact`. Refuses (before anything) a current car past 7, or a null
-//! sound object when written.
+//! Refuses (before anything) a current car past 7, or a null sound object when written.
 
 use crate::errors::Refused;
 use crate::memory::session::PlainDword;

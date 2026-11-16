@@ -4,8 +4,8 @@
 //! (`physics::queue_listed_event`); a code of 0x54 or more ends it with the log lines "!!! invalid
 //! pace data", "data", the code, "ecx", the group, "pointer", its place (level 1).
 //!
-//! Caller: `physics::pace_notes_step`. Refuses (before anything) more than 0x400 groups (the scan
-//! reads past the group checkpoints) and a text place past the 0x4000 bytes (checked at each code).
+//! Refuses (before anything) more than 0x400 groups (the scan reads past the group checkpoints) and
+//! a text place past the 0x4000 bytes (checked at each code).
 
 use crate::errors::Refused;
 use crate::physics::car_store::Car;

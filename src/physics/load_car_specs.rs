@@ -11,8 +11,8 @@
 //! The x87 runs are plain Rust over `X` (`math/x87_float.rs`); the compares and the integer steps
 //! are Rust.
 //!
-//! Callers: `physics::car_physics_step`, `physics::test_drive`. Refuses (before anything) a drive
-//! kind past 3 (`rev_limits` holds two floats; kinds 0 ..= 2 are read, kind 2 into `camera_drop`).
+//! Refuses (before anything) a drive kind past 3 (`rev_limits` holds two floats; kinds 0 ..= 2 are
+//! read, kind 2 into `camera_drop`).
 
 use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;

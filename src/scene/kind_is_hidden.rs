@@ -1,7 +1,6 @@
-//! `scene::kind_is_hidden`: with `in_credits` not 0 or the run kind at 2, whether the object is
-//! of kind 0x30 or 0x4E (false without either setting). Callers: `scene::draw_shown_object` and
-//! `scene::kind_hidden_at`. Refuses an object past
-//! 0xFF while a setting is on.
+//! `scene::kind_is_hidden`: with `in_credits` not 0 or the run kind at 2, whether the object is of
+//! kind 0x30 or 0x4E (false without either setting). Refuses an object past 0xFF while a setting is
+//! on.
 
 use crate::errors::Refused;
 use crate::race::owner_shared::RaceShared;

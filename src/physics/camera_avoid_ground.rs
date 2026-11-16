@@ -8,7 +8,7 @@
 //! the pitch is eased up (`ease_pitch_up`) or, once clear, down (`ease_pitch_down`), placed and
 //! tried, until `pitch_step` is 0.
 //!
-//! Caller: `physics::update_camera`. Refuses what the ground checks refuse.
+//! Refuses what the ground checks refuse.
 //!
 //! Seen in play: the camera checks serve the hood camera; when the car flips over the view
 //! changes to chase 1 for a while so the camera does not clip into the ground.

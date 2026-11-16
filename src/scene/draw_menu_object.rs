@@ -2,8 +2,8 @@
 //!
 //! Sets the shine to 0x200, makes the matrix from the angles, place and size the caller set
 //! (`scene::make_object_matrix`), sets `LightState.view_kind` = 5 and the light kind = 4, draws
-//! (`scene::draw_scene_object`), then sets the shine to 0x100. 14 callers: the carousel's entry
-//! and thirteen menus' objects.
+//! (`scene::draw_scene_object`), then sets the shine to 0x100. Used for the carousel's entry
+//! and the menus' objects.
 
 use crate::errors::Refused;
 use crate::scene::matrix::make_object_matrix;

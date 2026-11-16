@@ -1,7 +1,7 @@
 //! The marks' wave tables: `MarksSines`, `WaveLevels` (the lens flare's parts' levels) and
 //! `WaveState` (the made-once flag and constants).
 
-use crate::memory::session::{PlainDword, PlainFloat};
+use crate::memory::session::{PlainDword, PlainFlag, PlainFloat};
 
 /// The marks' sine table.
 #[derive(rc2k_derive::Cells)]
@@ -57,8 +57,8 @@ impl WaveLevels {
 /// The wave tables' flag and constants.
 #[derive(rc2k_derive::Cells)]
 pub struct WaveState {
-    /// 0, or the set mark once the tables are made.
-    pub done: PlainDword,
+    /// Set once the tables are made.
+    pub done: PlainFlag,
     /// 256.0, what a level is divided by.
     pub scale: PlainFloat,
     /// 1.0, taken off the quotient.
@@ -71,7 +71,7 @@ impl WaveState {
     /// The values the game starts with.
     pub const fn new() -> Self {
         WaveState {
-            done: PlainDword::new(0x0),
+            done: PlainFlag::new(false),
             scale: PlainFloat::new(256.0),
             less: PlainFloat::new(1.0),
             sine_step: PlainFloat::new(0.024543693),

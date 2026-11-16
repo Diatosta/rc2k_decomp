@@ -1,15 +1,14 @@
 //! `scene::draw_clipped_polygon`: a polygon's whole way from its points to the screen.
 //!
-//! The polygon's entries are the work table's first, in order. Three clip cells and the drawn
-//! flag = 0; the pool of records for new vertices = the pool's start; the list = 0, 1, 2 .. and
-//! a 0 after it; the next free entry = the number of vertices. Then `scene::project_polygon`;
-//! nothing more if every point is outside the depths; `scene::scale_texture_coordinates`;
-//! `scene::fog_polygon`; if some point is outside, `scene::clip_polygon_by_depth`, and nothing
-//! more with fewer than three vertices left; `scene::clip_polygon_to_screen`, and the same;
-//! `scene::draw_polygon`; the drawn flag = 1 (the polygon was drawn). Four callers
-//! (`scene::draw_object_polygon` and three more: the objects' polygons). Refuses a polygon of
-//! no vertices or of more than 256, and what its parts refuse. A refusal after the texture
-//! coordinates were scaled leaves a polygon that would be scaled once more.
+//! The polygon's entries are the work table's first, in order. Three clip cells and the drawn flag
+//! = 0; the pool of records for new vertices = the pool's start; the list = 0, 1, 2 .. and a 0
+//! after it; the next free entry = the number of vertices. Then `scene::project_polygon`; nothing
+//! more if every point is outside the depths; `scene::scale_texture_coordinates`;
+//! `scene::fog_polygon`; if some point is outside, `scene::clip_polygon_by_depth`, and nothing more
+//! with fewer than three vertices left; `scene::clip_polygon_to_screen`, and the same;
+//! `scene::draw_polygon`; the drawn flag = 1 (the polygon was drawn). Refuses a polygon of no
+//! vertices or of more than 256, and what its parts refuse. A refusal after the texture coordinates
+//! were scaled leaves a polygon that would be scaled once more.
 
 use crate::errors::{BadInput, Refused};
 use crate::scene::clip_polygon_by_depth::clip_polygon_by_depth;

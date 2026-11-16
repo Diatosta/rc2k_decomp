@@ -5,8 +5,7 @@
 //!
 //! Returns the sound object.
 //!
-//! Caller: `physics::engine_sound`. Refuses (before anything) a null sound object when it
-//! would be written.
+//! Refuses (before anything) a null sound object when it would be written.
 
 use crate::errors::Refused;
 use crate::memory::session::PlainInt;

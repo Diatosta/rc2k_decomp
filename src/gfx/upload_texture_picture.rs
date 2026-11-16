@@ -12,11 +12,10 @@
 //! - A lock or unlock that fails is a fatal error (0x80218772, 0x80218773) when `reports.on` is
 //!   1; otherwise it is refused.
 //!
-//! One caller, `gfx::load_picture_to_texture`. The two DirectDraw calls go through `Surfaces`,
-//! which the standalone program can answer with textures of its own. Refuses a texture of 0x140
-//! or more, a record without its format, more than nine levels, a picture that halves to
-//! nothing, and what `ready_picture` refuses; a refusal after the picture was changed leaves it
-//! changed.
+//! The two DirectDraw calls go through `Surfaces`, which the platform answers with
+//! textures of its own. Refuses a texture of 0x140 or more, a record without its format, more than
+//! nine levels, a picture that halves to nothing, and what `ready_picture` refuses; a refusal after
+//! the picture was changed leaves it changed.
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::owner::Gfx;

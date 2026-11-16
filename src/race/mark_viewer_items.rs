@@ -7,8 +7,6 @@
 //! camera byte 5 is 0, 0xD, 0xE when it is 1; 0xF for one player's replay (`header_one_player`).
 //!
 //! Takes the list (`viewer_list`).
-//!
-//! Callers: `race::replay_viewer` (two).
 
 use crate::race::owner::Race;
 

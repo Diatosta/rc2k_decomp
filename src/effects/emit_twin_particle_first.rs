@@ -73,7 +73,7 @@ pub fn refusal(
             return Ok(Some("a null g_marksCar or matrix"));
         }
         if object.levels[set.level].get() >= LEVELS {
-            return Ok(Some("a level past dword_939B86's 9 entries"));
+            return Ok(Some("a level past the level table's 9 entries"));
         }
         None
     })

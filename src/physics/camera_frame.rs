@@ -4,7 +4,6 @@
 //! `k4096` times `three` times it. Both are 0 again with `still` set. Then
 //! `physics::update_camera`.
 //!
-//! Callers: `physics::car_physics_step`, `drive::finish_run`, `race::show_replay_still`.
 //! Refuses what `update_camera` refuses (everything written is put back).
 
 use crate::effects::cell_x87::CellX87;

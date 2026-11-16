@@ -8,8 +8,6 @@
 //! `DamageModel.wear_table[0]` (row `DamageModel.tyre_kind`, two columns through
 //! `DamageModel.wear_columns`) blended by `DamageModel.surface_blend`, times
 //! `DamageModel.wear_figure_scale`.
-//!
-//! Caller: `physics::damage_step`.
 
 use crate::errors::BadInput;
 use crate::memory::session::PlainFloat;

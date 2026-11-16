@@ -1,8 +1,8 @@
 //! `scene::load_slot_textures`: every texture slot in use gets the texture it wants, and
 //! returns the number of slots.
 //!
-//! `scene::load_slot_texture` for the slots 0 .. `TexturePlaces.totals[2]`. Six callers.
-//! Refuses more slots than the table has.
+//! `scene::load_slot_texture` for the slots 0 .. `TexturePlaces.totals[2]`. Refuses more slots than
+//! the table has.
 
 use crate::errors::BadInput;
 use crate::race::owner_frame::Frame;

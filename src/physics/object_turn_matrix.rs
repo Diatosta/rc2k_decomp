@@ -5,7 +5,7 @@
 //! y by `ObjectWork.angles[2]` times that into `object_turn_matrix`. Then each of its 16 floats is
 //! multiplied by `size` / 16 (the share through `scratch`).
 //!
-//! Caller: `physics::object_hits_car`. Refuses (before anything) an object past 0xFF.
+//! Refuses (before anything) an object past 0xFF.
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;

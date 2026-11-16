@@ -2,8 +2,6 @@
 //! (|car speed| + `drive_speed_cap_a`) - `drive_speed_cap_b`, held at 0 or more (an unordered one
 //! counts as below); the car's drive speed is held to at most the speed plus it (a lower or
 //! unordered drive speed is left).
-//!
-//! Caller: `physics::drive_wheels_step`.
 
 use crate::math::x87;
 use crate::math::x87::over_abs_plus_minus;

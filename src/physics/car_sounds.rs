@@ -1,5 +1,5 @@
 //! The car's sound objects placed: four functions under the sound drive that, when the current car
-//! is listed (`listed_car_sounds` entry not -1), take a band (`physics::sound_band_1` .. `_4`), set
+//! is listed (`listed_car_sounds` entry not -1), take a band (`physics::sound_bands`), set
 //! two words of the car's sound object and its place: the car's place (with an offset for one) less
 //! the listener's, turned by the heard turn (`race::heard_turn::turn`), each part times
 //! `one_over_65536`.

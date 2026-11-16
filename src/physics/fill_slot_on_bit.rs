@@ -1,8 +1,7 @@
 //! When the given bit of the car's `parts_present` is set, it is cleared and part 0x50 + 0x14 x
 //! `current_car` + bit goes into a race slot (`physics::fill_race_slot`).
 //!
-//! Callers: `physics::drop_broken_parts`, `physics::drop_hit_parts`. Refuses what
-//! `fill_race_slot` refuses (before anything: the bit is cleared after).
+//! Refuses what `fill_race_slot` refuses (before anything: the bit is cleared after).
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::Car;

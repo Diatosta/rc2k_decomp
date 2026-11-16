@@ -1,7 +1,5 @@
 //! Clears the 7 contact records of 0x20 bytes (`contacts`, the step's contact forces) with
 //! `physics::clear_records`.
-//!
-//! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::errors::Refused;
 use crate::physics::clear_records::clear_records;

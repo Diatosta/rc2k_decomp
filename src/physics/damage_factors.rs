@@ -7,8 +7,6 @@
 //! the switches `wheels_down`, `brake_share` and `DamageModel.engine_over_limit` (the engine
 //! past its limit); the copies of the gear, tyre kind and surface; the side hit
 //! (`DamageModel.hit_side`, 1 .. 4) and its size; the four wheels' loads; and the hit time.
-//!
-//! Caller: `physics::damage_step`.
 
 use crate::memory::session::PlainFloat;
 use crate::physics::car_store::Car;

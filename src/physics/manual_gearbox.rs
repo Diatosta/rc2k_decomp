@@ -20,8 +20,8 @@
 //! free lower gear's share is below `shift_ratio_figure` and the engine over its top is below
 //! `shift_down_clutch_point` / `shift_down_point`, by `brake`).
 //!
-//! Caller: `physics::gearbox_step`. Refuses what the calls refuse, and a gear outside -1 ..= 7
-//! where a ratio is read; what was written is put back.
+//! Refuses what the calls refuse, and a gear outside -1 ..= 7 where a ratio is read; what was
+//! written is put back.
 
 use crate::errors::Refused;
 use crate::math::x87;

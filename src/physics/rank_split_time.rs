@@ -7,8 +7,8 @@
 //! (`strings::append_string_by_id` into `text`) into `label_ahead`; but for last place the gap to
 //! the one behind, its car, name id and name into `label_behind`.
 //!
-//! Caller: `physics::split_by_mode`. Refuses a split or a split count past 0x40, a divisor of 0 or
-//! a quotient past a dword; what was written is put back.
+//! Refuses a split or a split count past 0x40, a divisor of 0 or a quotient past a dword; what was
+//! written is put back.
 use crate::errors::{BadInput, Refused};
 use crate::memory::session::PlainDword;
 use crate::physics::fill_rival_table::fill_rival_table;

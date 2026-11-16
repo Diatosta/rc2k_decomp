@@ -2,9 +2,8 @@
 //!
 //! The steps: `scene::set_object_light`; `scene::set_object_material`; `scene::set_object_fade`
 //! (which may make the current object another object); `scene::place_object_points`;
-//! `scene::list_object_faces`; `scene::sort_listed_faces`; `scene::draw_object_faces`. One
-//! caller, `scene::draw_shown_object`. A refusal of a later step comes with the earlier ones
-//! done.
+//! `scene::list_object_faces`; `scene::sort_listed_faces`; `scene::draw_object_faces`. A refusal of
+//! a later step comes with the earlier ones done.
 
 use crate::errors::Refused;
 use crate::scene::draw_object_face::draw_object_face_in_game;

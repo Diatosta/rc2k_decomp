@@ -7,8 +7,6 @@
 //! `lever_share_left` is the share for `physics::lever_push`; then
 //! `PhysicsTables.lever_push_vector[2]` = `probe_point_z` and `lever_share_left` 1 less it for
 //! a second `lever_push`.
-//!
-//! Caller: `physics::car_physics_step`, twice every physics step.
 
 use crate::math::x87;
 use crate::math::x87::{lever_share, one_less};

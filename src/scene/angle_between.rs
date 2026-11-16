@@ -1,9 +1,8 @@
 //! `scene::angle_between`: the direction from one place to another as an angle of sixteen
 //! bits a turn.
 //!
-//! `fpatan` of the first difference over the second, over pi, times 0.5 and 65536, rounded, its
-//! low sixteen bits. It runs the instructions themselves, as `fpatan`'s result is the
-//! processor's. Four callers.
+//! `fpatan` of the first difference over the second, over pi, times 0.5 and 65536, rounded, its low
+//! sixteen bits. It runs the instructions themselves, as `fpatan`'s result is the processor's.
 
 use crate::math::x87;
 use crate::race::owner_course::Course;

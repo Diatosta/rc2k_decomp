@@ -4,8 +4,7 @@
 //! `physics::count_stop_timers`, `physics::mark_car_started`; 0, 1, 3: `count_start_second`,
 //! `physics::take_split`, `count_stop_timers`, `mark_car_started`; otherwise nothing.
 //!
-//! Caller: `physics::car_physics_step`. Refuses what the steps refuse; what was written is put
-//! back.
+//! Refuses what the steps refuse; what was written is put back.
 use crate::errors::Refused;
 use crate::physics::count_down_start::count_down_start;
 use crate::physics::count_start_second::count_start_second;

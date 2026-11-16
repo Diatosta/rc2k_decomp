@@ -4,8 +4,7 @@
 //! is still set (`physics::fill_slot_on_bit`, the timer 256) and it ends there; a bit of
 //! `parts_present` already clear ends it too. A reading: hit parts coming off.
 //!
-//! Caller: `physics::hit_part_checks`. Refuses what `fill_slot_on_bit` refuses; what was
-//! written is put back.
+//! Refuses what `fill_slot_on_bit` refuses; what was written is put back.
 
 use crate::errors::Refused;
 use crate::math::x87;

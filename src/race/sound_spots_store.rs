@@ -40,13 +40,13 @@ pub struct SoundSpotBlock {
     pub sound_scratch_c: PlainDword,
     /// +0x214: a band factor; never read.
     pub band_scale_0: PlainFloat,
-    /// +0x218: the factor of the wall / ground contact sound (`physics::sound_band_1` for
-    /// `place_sound_e1`, called by the wall and ground contacts) and of `physics::sound_band_2`.
+    /// +0x218: the factor of the wall / ground contact sound (the contact band (`sound_bands::CONTACT_BAND`) for
+    /// `place_sound_e1`, called by the wall and ground contacts) and of the object band (`sound_bands::OBJECT_BAND`).
     pub contact_band_scale: PlainFloat,
-    /// +0x21c: the factor of the crash sound (`physics::sound_band_4` for `place_sound_e5`, called
+    /// +0x21c: the factor of the crash sound (the crash band (`sound_bands::CRASH_BAND`) for `place_sound_e5`, called
     /// by `physics::crash_contact`: the car's speed times it, less 1, held to 0 ..= 0x40).
     pub crash_band_scale: PlainFloat,
-    /// +0x220: the factor of the car-bump sound (`physics::sound_band_3` for
+    /// +0x220: the factor of the car-bump sound (the bump band (`sound_bands::BUMP_BAND`) for
     /// `place_sound_e1_other`, called by `physics::bump_cars`: times it, less 10, held to 0 ..=
     /// 0x40).
     pub bump_band_scale: PlainFloat,

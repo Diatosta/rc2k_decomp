@@ -4,8 +4,6 @@
 //! palette. That palette gets the fonts' 256 colours (the fonts' `palettes`), taken apart in the
 //! screen's format (`gfx::pixel_to_components`, `surface_format`), made opaque and put together in
 //! the texture format (`gfx::components_to_pixel`).
-//!
-//! Called by `race::viewer_load_stage`.
 
 use crate::errors::BadInput;
 use crate::race::owner_shared::RaceShared;

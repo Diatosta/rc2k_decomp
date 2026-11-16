@@ -1,6 +1,5 @@
-//! `scene::full_view_window`: `scene::choose_view_window` with `LightTables.view_mode` 2
-//! (800 x 600 when framed), the word back to 0 after. Callers: `hud::overlay_pass` and the
-//! code that frames the views.
+//! `scene::full_view_window`: `scene::choose_view_window` with `LightTables.view_mode` 2 (800 x 600
+//! when framed), the word back to 0 after.
 
 use crate::scene::choose_view_window::choose_view_window;
 

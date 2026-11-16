@@ -1,8 +1,6 @@
 //! At or past the engine's top speed the cut: `rev_cut_count` = 5 and the torque `engine_force`
 //! = 0; below it (an unordered compare counts as below), while `rev_cut_count` counts down the
 //! torque stays 0; otherwise `physics::engine_torque`.
-//!
-//! Caller: `physics::drive_force`.
 
 use crate::physics::engine_torque::{below, engine_torque};
 use crate::race::owner_course::Course;

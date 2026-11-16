@@ -4,8 +4,6 @@
 //! 1 .. 4 of `parts_present` all set, or in gear; kept in other modes); `tyre_change_state` goes
 //! up by one unless 0, -1 or 1; `top_speed` is raised to `engine_speed_scaled` (the highest so
 //! far). Readings, all.
-//!
-//! Callers: `physics::car_physics_step`, `physics::test_drive_run`.
 
 use crate::physics::car_store::Car;
 use crate::race::vars_store::RaceVars;

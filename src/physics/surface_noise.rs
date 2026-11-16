@@ -3,8 +3,6 @@
 //! and held to 0 ..= 0xFF. The first goes into `surface_noise_a` and `surface_noise_b`; the second
 //! into `surface_noise_second`, and at least `surface_floor` (unsigned), / 256, into
 //! `surface_blend`. Then with `noise_pick` set `surface_noise_a` becomes 0, else `surface_noise_b`.
-//!
-//! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::math::x87::{ext_div2, int_80};
 use crate::race::frame_draw::sample_noise;

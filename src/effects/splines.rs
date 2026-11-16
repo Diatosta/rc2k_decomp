@@ -7,7 +7,7 @@
 use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::memory::session::{PlainBytes, PlainDword, PlainFloat, read_bits};
+use crate::memory::session::{PlainBytes, PlainDword, PlainFlag, PlainFloat, read_bits};
 use crate::race::owner_course::Course;
 
 pub const SPLINE_LEN: u32 = 0xE90;
@@ -20,8 +20,6 @@ const SECONDS: u32 = 0x254;
 const COORDS: u32 = 0x654;
 const CENTRE: u32 = 0xC54;
 const GRADES: u32 = 0xC90;
-// PongState.steps
-// PongState.hits
 
 /// The bytes of one of the four tables (A .. D).
 const TABLE_LEN: u32 = 29824;
@@ -649,28 +647,22 @@ pub fn make_spline(
     }
     Ok(())
 }
-pub const RESUME: u32 = 0x4B9706; // loc_4B9706
 const KINDS: u32 = 0x22;
 const MOST_OBJECTS: u32 = (0x2708 - 0x26BC) / 4;
 
-/// `effects::load_splines`, in step 1: once (then `resume`) `files\m\spline.dat` (0xC00
+/// `effects::load_splines`, in step 1: once (then the loaded flag is set) `files\m\spline.dat` (0xC00
 /// bytes at most, `files::read_whole_file`) into the spline file; the five values of the
 /// marks' kind kept; the place count 0; `make_spline` for each of the settings' objects
-/// (+0x26BC, the last first). Refuses a mark neither 0 nor `resume`, a kind of 0x22 or
+/// (+0x26BC, the last first). Refuses a kind of 0x22 or
 /// more, more than 19 objects, and what `make_spline` would refuse for any of them, before
 /// writing anything.
 pub fn load_splines(
     course: &Course,
     faces_table: &crate::scene::faces_store::Faces,
     paths: &Paths,
-    resume: u32,
     scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    let loaded: u32 = paths.spline_kinds.loaded.get();
-    if loaded != 0 && loaded != resume {
-        return Err(BadInput("the splines' mark is neither 0 nor loc_4B9706").into());
-    }
     let kind: u32 = effects.kinds.marks_kind.kind.get();
     if kind >= KINDS {
         return Err(BadInput("a marks' kind of 0x22 or more").into());
@@ -688,12 +680,12 @@ pub fn load_splines(
     for &o in objects.iter().take(8) {
         spline_checks(paths, o, scene)?;
     }
-    if loaded == 0 {
+    if !paths.spline_kinds.loaded.is_set() {
         crate::files::read_whole_file::read_whole_file_plain_bytes(
             &crate::files::cstring(&paths.spline_path.path, "a spline file's path")?,
             &paths.spline_head.file,
         )?;
-        paths.spline_kinds.loaded.set(resume);
+        paths.spline_kinds.loaded.set(true);
     }
     for n in 0..5 {
         let v = paths.spline_kinds.by_kind[(n * KINDS + kind) as usize].get();
@@ -1245,8 +1237,8 @@ pub struct SplineKinds {
     pub chosen: [PlainDword; 5],
     /// Five tables of 0x22 values by kind.
     pub by_kind: [PlainDword; 170],
-    /// 0, or the `resume` mark once done.
-    pub loaded: PlainDword,
+    /// Set once the spline file is read.
+    pub loaded: PlainFlag,
 }
 
 impl SplineKinds {
@@ -1432,7 +1424,7 @@ impl SplineKinds {
                 PlainDword::new(0xFFFFFFFF),
                 PlainDword::new(0x1C),
             ],
-            loaded: PlainDword::new(0x0),
+            loaded: PlainFlag::new(false),
         }
     }
 }

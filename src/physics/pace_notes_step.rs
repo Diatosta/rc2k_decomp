@@ -8,7 +8,7 @@
 //! (`physics::queue_pace_note`), and `last_pace_call` becomes the target. Then (unless it left at
 //! the start) `physics::expire_car_events`.
 //!
-//! Caller: `physics::car_physics_step`. Refuses what its calls refuse.
+//! Refuses what its calls refuse.
 
 use crate::errors::Refused;
 use crate::physics::car_store::Car;

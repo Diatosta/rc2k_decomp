@@ -1,18 +1,17 @@
 //! `scene::project_point`: a point's place in the view and on the screen, worked out once and
 //! kept.
 //!
-//! The records are 0x20 bytes each in the scene's point records: +0 the point's number, +0xC
-//! the x on the screen, +0x10, +0x14, +0x18 the point in the view, +0x1C the y on the screen. A
-//! point n of the scene has record n & 0xFFF; a point -n of an object has record
-//! 0x1000 + (n & 0xFFF), which is made elsewhere and only found here. A record whose number is
-//! not the point's is made anew: the point's three whole numbers (12 bytes each in the course's
-//! point table) through the view matrix (`scene::rotate_point`: three rows of x, y, z factors
-//! and a fourth to add), the screen's two set to 0, and, unless the depth is under 4096:
-//! x = x' * (view scale / depth) + the view's centre x, y = the centre y - y' * (the same).
-//! With the stage's flat-depth switch set the depth divided by is a fixed depth + 1 instead.
-//! With the lights' draw mode at 1 the record's depth is then lowered by 262144. Fatal errors
-//! 0x80600902 and 0x80600903 for a number past the object's or the scene's points. One caller,
-//! `scene::project_polygon`.
+//! The records are 0x20 bytes each in the scene's point records: +0 the point's number, +0xC the x
+//! on the screen, +0x10, +0x14, +0x18 the point in the view, +0x1C the y on the screen. A point n
+//! of the scene has record n & 0xFFF; a point -n of an object has record 0x1000 + (n & 0xFFF),
+//! which is made elsewhere and only found here. A record whose number is not the point's is made
+//! anew: the point's three whole numbers (12 bytes each in the course's point table) through the
+//! view matrix (`scene::rotate_point`: three rows of x, y, z factors and a fourth to add), the
+//! screen's two set to 0, and, unless the depth is under 4096: x = x' * (view scale / depth) + the
+//! view's centre x, y = the centre y - y' * (the same). With the stage's flat-depth switch set the
+//! depth divided by is a fixed depth + 1 instead. With the lights' draw mode at 1 the record's
+//! depth is then lowered by 262144. Fatal errors 0x80600902 and 0x80600903 for a number past the
+//! object's or the scene's points.
 //!
 //! `record_offset` is the core's (`rc2k_core::scene::projection`); the arithmetic is the
 //! x87's, in plain Rust over `X` (`math/x87_float.rs`); the tests compare against recorded

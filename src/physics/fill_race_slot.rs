@@ -6,8 +6,7 @@
 //! `part_fling` plus the car's motion (+2.0 for y) as its speed; and the car's spin. A reading: a
 //! part breaking off, flying with the car's motion.
 //!
-//! Caller: `physics::fill_slot_on_bit`. Refuses (before anything) a part past 0xFF, or no slot
-//! to take.
+//! Refuses (before anything) a part past 0xFF, or no slot to take.
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::{ext_to_int, int_80, int_mul_add};

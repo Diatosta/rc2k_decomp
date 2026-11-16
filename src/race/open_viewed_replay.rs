@@ -11,8 +11,6 @@
 //! (`race::close_viewed_replay`) and carry is set.
 //!
 //! Takes the replay (`race::replay_path`'s number).
-//!
-//! Callers: `race::replay_viewer`, `race::viewer_action` (action 0x14), `race::save_last_replay`.
 
 use crate::errors::Refused;
 use crate::files::handle;
@@ -43,7 +41,7 @@ pub fn open_viewed_replay(
     let mut path = found.path;
     if last_race_missing(
         found.last_race,
-        || shared.replay_file().replay_closed.get(), /* dword_5BEC84: a replay was recorded */
+        || shared.replay_file().replay_closed.get(), /* a replay was recorded */
     ) {
         return failed();
     }

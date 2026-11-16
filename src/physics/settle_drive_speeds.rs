@@ -4,7 +4,6 @@
 //! set (whatever the gear). A speed of 0 (or NaN) is left; one that reaches or crosses 0 becomes +0
 //! (a NaN after the step too). Then, in gear, `physics::revs_from_wheels`.
 //!
-//! Caller: `physics::car_physics_step`, before `physics::free_rev_in_neutral`, every physics step.
 //! Refuses (before anything) a gear outside -1 ..= 7 (`revs_from_wheels`' table).
 
 use crate::errors::{BadInput, Refused};

@@ -3,8 +3,7 @@
 //! `drive_torque_figure` / the gear's ratio / 10000, or 0 with `drive_cut_steps` set; then
 //! `physics::drive_torque_share`.
 //!
-//! Caller: `physics::car_physics_step`, every physics step. Refuses (before anything) a gear
-//! outside -1 ..= 7.
+//! Refuses (before anything) a gear outside -1 ..= 7.
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::{mul_div2, sum_times_int_over_minus};

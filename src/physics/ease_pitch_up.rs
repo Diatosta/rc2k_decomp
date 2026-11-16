@@ -3,8 +3,6 @@
 //! `pitch_floor`.
 //!
 //! Returns the step.
-//!
-//! Caller: `physics::camera_avoid_ground`.
 
 use crate::physics::camera_store::CameraWork;
 use crate::physics::car_store::Car;

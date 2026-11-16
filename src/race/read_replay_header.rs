@@ -3,8 +3,6 @@
 //! stage, the game mode, the players, the cars and their kinds (into the car blocks too), the two
 //! game-over flags (`targets`); then twelve of them are logged, each as its name and its value
 //! (`NAMES`).
-//!
-//! Callers: `race::viewer_load_stage`.
 
 use crate::memory::session::DwordLike;
 use crate::race::owner::Race;

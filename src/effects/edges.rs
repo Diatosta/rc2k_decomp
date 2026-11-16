@@ -7,9 +7,8 @@ use crate::effects::owner::Effects;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::memory::session::{PlainBytes, PlainDword, PlainFloat, read_bits};
+use crate::memory::session::{PlainBytes, PlainDword, PlainFlag, PlainFloat, read_bits};
 
-pub const RESUME: u32 = 0x4C0FFD; // loc_4C0FFD
 const KINDS: u32 = 0x22;
 const SETTING_VALUE: u32 = 0xFFFF_7B2E;
 const DIGITS: u32 = 12; // the two digits' place in the path
@@ -21,13 +20,13 @@ fn clamped(kind: u32) -> u32 {
     (kind as i32).clamp(0, MOST_KIND) as u32
 }
 
-/// `effects::load_edges`: once (then `resume`) each kind's record (`x87::scale_record` by 65536 /
+/// `effects::load_edges`: once (then the done flag is set) each kind's record (`x87::scale_record` by 65536 /
 /// 1000) and its float less from 90; the settings' +0x2708 0xFFFF7B2E; the kind (held to 0 .. 0x16)
 /// written as two digits into the edge picture's path; that read (`gfx::read_picture_file`, at 256
 /// x 128, the picture's sizes kept round it); its pixels packed (the four bytes or'd, inverted)
 /// into the edge mask; the shape tilt the kind's float times 0.0175; then `make_masks`,
-/// `set_up_windscreen_drops`, `set_up_windscreen_flakes`. Refuses a mark neither 0 nor `resume`,
-/// before writing; a picture that is not read, after the path is written.
+/// `set_up_windscreen_drops`, `set_up_windscreen_flakes`. Refuses a picture that is not read, after
+/// the path is written.
 #[allow(
     clippy::too_many_arguments,
     reason = "the edges' inputs and the owners they are read from"
@@ -36,17 +35,12 @@ pub fn load_edges(
     race: &crate::race::owner::Race,
     masks: &Masks,
     drops: &WindscreenDrops,
-    resume: u32,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
     effects: &crate::effects::owner::Effects,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
-    let done: u32 = masks.edge_settings.done.get();
-    if done != 0 && done != resume {
-        return Err(BadInput("the edges' mark is neither 0 nor loc_4C0FFD").into());
-    }
-    if done == 0 {
+    if !masks.edge_settings.done.is_set() {
         let boxes = &masks.kind_boxes.boxes;
         let scale: [u32; 3] = read_bits(&masks.edge_settings.scale);
         for k in 0..KINDS {
@@ -59,7 +53,7 @@ pub fn load_edges(
             let f = &masks.kind_boxes.kind_floats[k as usize];
             f.set(x87::sub(scale[2], f));
         }
-        masks.edge_settings.done.set(resume);
+        masks.edge_settings.done.set(true);
     }
     let marks = effects.settings()?;
     marks.light_point_a_negated[0].set(SETTING_VALUE);
@@ -107,17 +101,11 @@ pub fn load_edges(
     crate::race::load_times::mark("edges: make_masks");
     crate::effects::masks::make_masks(&race.course, race.faces(), masks, drops, scene, effects)?;
     crate::race::load_times::mark("edges: windscreen drops");
-    crate::effects::shapes::set_up_windscreen_drops(
-        drops,
-        crate::effects::shapes::WINDSCREEN_DROPS_RESUME,
-        gfx,
-        effects,
-    )?;
+    crate::effects::shapes::set_up_windscreen_drops(drops, gfx, effects)?;
     crate::race::load_times::mark("edges: windscreen flakes");
     crate::effects::shapes::set_up_windscreen_flakes(
         &effects.pong,
         &effects.windscreen_flakes,
-        crate::effects::shapes::WINDSCREEN_FLAKES_RESUME,
         effects,
     )?;
     Ok(())
@@ -138,13 +126,12 @@ pub fn load_kind_data(
         let kind = marks.mark_car_file_number.get();
         effects.kinds.marks_kind.kind.set(kind);
         crate::race::load_times::mark("edges: scale kinds");
-        load_edges(race, masks, drops, RESUME, scene, gfx, effects, system)?;
+        load_edges(race, masks, drops, scene, gfx, effects, system)?;
         crate::race::load_times::mark("splines");
         crate::effects::splines::load_splines(
             &race.course,
             race.faces(),
             &effects.paths,
-            crate::effects::splines::RESUME,
             scene,
             effects,
         )?;
@@ -368,8 +355,8 @@ impl KindBoxes {
 pub struct EdgeSettings {
     /// What the settings' +0x2750 is multiplied by (`effects::scale_setting`; 1.0).
     pub factor: PlainFloat,
-    /// 0, or where `effects::load_edges` goes on.
-    pub done: PlainDword,
+    /// Set once `effects::load_edges` has scaled the kinds' records.
+    pub done: PlainFlag,
     /// 65536.0, 1000.0, 90.0: the kinds' records are scaled by the first over the second,
     /// and their floats taken from the third.
     pub scale: [PlainFloat; 3],
@@ -384,7 +371,7 @@ impl EdgeSettings {
     pub const fn new() -> Self {
         EdgeSettings {
             factor: PlainFloat::new(1.0),
-            done: PlainDword::new(0x0),
+            done: PlainFlag::new(false),
             scale: [
                 PlainFloat::new(65536.0),
                 PlainFloat::new(1000.0),

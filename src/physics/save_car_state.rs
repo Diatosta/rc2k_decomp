@@ -2,8 +2,8 @@
 //! `saved_place`; the crash matrix (0x40 bytes) into `saved_matrix`; `probe_count` dwords of
 //! `probe_point_face` (the probe points' faces) into `probe_saved_faces`.
 //!
-//! Caller: `physics::car_physics_step`, every physics step. Refuses (before writing) a count above
-//! 0x40 (unsigned; `probe_saved_faces` has 0x40 before `probe_face_flip`).
+//! Refuses (before writing) a count above 0x40 (unsigned; `probe_saved_faces` has 0x40 before
+//! `probe_face_flip`).
 
 use crate::errors::Refused;
 use crate::physics::car_store::Car;

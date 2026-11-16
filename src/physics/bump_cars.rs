@@ -8,8 +8,8 @@
 //!
 //! The straight float runs are plain Rust over `X` in the named helpers below.
 //!
-//! Caller: `physics::corner_hits_car`. Refuses a null block (before anything), and what
-//! `place_sound_e1_other` refuses (what was written is put back).
+//! Refuses a null block (before anything), and what `place_sound_e1_other` refuses (what was
+//! written is put back).
 
 use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};

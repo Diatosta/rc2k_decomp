@@ -9,8 +9,6 @@
 //! and the surface unlocked (`gfx::unlock_surface`), then `Picture.name` is put back; the clock
 //! moves on by `ViewerAndKinds.viewer_panel.untyped_tail[2]` (the recording's frame time) for the
 //! next.
-//!
-//! Caller: `drive::race_frame` (each frame drawn).
 
 use crate::errors::Refused;
 use crate::memory::cells::Store;

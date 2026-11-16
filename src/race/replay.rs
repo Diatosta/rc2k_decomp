@@ -63,12 +63,12 @@ pub fn seal_replay_header(
     // The sealed header is the file's bytes: the version byte and the name sit inside its dwords.
     let replay = &race.replay;
     let sealed = &race.replay_work().sealed_header;
-    put_header(sealed, 0x719B58 - 0x719B54, &[SEAL_VERSION])?;
+    put_header(sealed, VERSION_AT, &[SEAL_VERSION])?;
     let name: [u8; 0x20] = menus.play.slots.names.player_names.read()[..0x20]
         .try_into()
         .expect("0x20 bytes");
     let printable = crate::strings::copy_printable::printable(&name, 0x20)?;
-    put_header(sealed, 0x719B61 - 0x719B54, &printable)?;
+    put_header(sealed, PLAYER_NAME_AT, &printable)?;
     copy_header_settings_of(race, menus, strings, sealed)?;
     let sealed_dwords = &race.replay_work().sealed_header;
     let dwords: Vec<u32> = (1..0x40).map(|n| sealed_dwords[n].get()).collect();
@@ -100,6 +100,10 @@ pub fn seal_replay_header(
     Ok(())
 }
 
+/// Where the version byte and the player's name stand in the sealed header.
+const VERSION_AT: usize = 4;
+const PLAYER_NAME_AT: usize = 0xD;
+
 /// `bytes` written into the sealed header from byte `at` (the file's bytes: the dwords hold them
 /// little-endian, whatever the alignment).
 fn put_header(sealed: &[PlainDword; 64], at: usize, bytes: &[u8]) -> Result<(), BadInput> {
@@ -114,9 +118,9 @@ fn put_header(sealed: &[PlainDword; 64], at: usize, bytes: &[u8]) -> Result<(), 
     Ok(())
 }
 
-/// The settings the sealed header copies, in order: the low `size` bytes of each setting go to `at`
-/// (an offset from the header's first byte; 0x138 and more, past the end of its 0x100 bytes, are
-/// the first dword of `unknown_7d0`: a slip kept as is).
+/// The settings the sealed header copies: the low bytes of each go to its place in the header;
+/// the first car's race number also goes to the first dword of `unknown_7d0`, outside the header
+/// (a slip kept as is).
 #[cfg(test)]
 fn copy_header_settings(sealed: &[PlainDword; 64]) -> Result<(), BadInput> {
     copy_header_settings_of(
@@ -138,15 +142,16 @@ fn copy_header_settings_of(
     let settings = &shared.state.settings;
     let car = &settings.cars[0];
     let patches = shared.work.get().patch_settings();
-    let cells: [(usize, usize, u32); 31] = [
+    // (bytes, place in the sealed header, value)
+    let cells: [(usize, usize, u32); 30] = [
         (
             1,
-            0x719B81,
+            0x2D,
             u32::from(crate::strings::load_language::notice_kind(strings)),
         ),
         (
             4,
-            0x719B59,
+            0x5,
             u32::from_le_bytes(
                 shared
                     .replays()
@@ -156,46 +161,41 @@ fn copy_header_settings_of(
                     .expect("four bytes"),
             ),
         ),
-        (1, 0x719B86, settings.car_kind_current.get()),
-        (1, 0x719B87, settings.stage.get()),
-        (1, 0x719B88, settings.direction.get()),
-        (1, 0x719B89, settings.run_kind.get()),
-        (1, 0x719B8A, car.race_number.get()),
-        (1, 0x719C8C, car.race_number.get()),
-        (1, 0x719B8B, car.view.get()),
-        (4, 0x719B5D, shared.replay_file().season_code.get()),
-        (4, 0x719B82, menus.play.cheats.cheats.get()),
-        (1, 0x719B94, car.controls.gearing.get()),
-        (1, 0x719B95, car.gear_ratio.get()),
-        (1, 0x719B96, car.tyre.get()),
-        (1, 0x719B97, car.brake_balance.get()),
-        (1, 0x719B98, car.steering_sensitivity.get()),
-        (1, 0x719B99, car.ride_height.get()),
-        (1, 0x719B9A, car.suspension_stiffness.get()),
-        (1, 0x719B9B, shared.work.get().patch_switch().get()),
-        (1, 0x719B9C, patches[0].get()),
-        (1, 0x719B9D, patches[1].get()),
-        (2, 0x719B9E, patches[2].get()),
-        (4, 0x719BA0, patches[3].get()),
-        (2, 0x719BA4, patches[4].get()),
-        (2, 0x719BA6, patches[5].get()),
-        (2, 0x719BA8, patches[6].get()),
-        (2, 0x719BAA, patches[7].get()),
-        (2, 0x719BAC, patches[8].get()),
-        (2, 0x719BAE, patches[9].get()),
-        (2, 0x719BB0, patches[10].get()),
-        (2, 0x719BB2, patches[11].get()),
+        (1, 0x32, settings.car_kind_current.get()),
+        (1, 0x33, settings.stage.get()),
+        (1, 0x34, settings.direction.get()),
+        (1, 0x35, settings.run_kind.get()),
+        (1, 0x36, car.race_number.get()),
+        (1, 0x37, car.view.get()),
+        (4, 0x9, shared.replay_file().season_code.get()),
+        (4, 0x2E, menus.play.cheats.cheats.get()),
+        (1, 0x40, car.controls.gearing.get()),
+        (1, 0x41, car.gear_ratio.get()),
+        (1, 0x42, car.tyre.get()),
+        (1, 0x43, car.brake_balance.get()),
+        (1, 0x44, car.steering_sensitivity.get()),
+        (1, 0x45, car.ride_height.get()),
+        (1, 0x46, car.suspension_stiffness.get()),
+        (1, 0x47, shared.work.get().patch_switch().get()),
+        (1, 0x48, patches[0].get()),
+        (1, 0x49, patches[1].get()),
+        (2, 0x4A, patches[2].get()),
+        (4, 0x4C, patches[3].get()),
+        (2, 0x50, patches[4].get()),
+        (2, 0x52, patches[5].get()),
+        (2, 0x54, patches[6].get()),
+        (2, 0x56, patches[7].get()),
+        (2, 0x58, patches[8].get()),
+        (2, 0x5A, patches[9].get()),
+        (2, 0x5C, patches[10].get()),
+        (2, 0x5E, patches[11].get()),
     ];
-    for (size, to, value) in cells {
-        let bytes = &value.to_le_bytes()[..size];
-        if to < 0x719B54 + 0x100 {
-            put_header(sealed, to - 0x719B54, bytes)?;
-        } else {
-            // The viewer's first car number, past the header.
-            let door = &race.replay_work().unknown_7d0[0];
-            door.set(door.get() & !0xFF | u32::from(bytes[0]));
-        }
+    for (size, at, value) in cells {
+        put_header(sealed, at, &value.to_le_bytes()[..size])?;
     }
+    // The viewer's first car number, kept outside the header.
+    let door = &race.replay_work().unknown_7d0[0];
+    door.set(door.get() & !0xFF | (car.race_number.get() & 0xFF));
     Ok(())
 }
 

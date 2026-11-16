@@ -17,8 +17,7 @@
 //! The slots (`race_slots`, eight) are loose objects that move on their own, fall, bounce on the
 //! ground and spin; probably debris thrown off in a crash (the code does not say which object).
 //!
-//! Caller: `physics::move_slots`. Refuses (before anything) what `find_ground` would refuse where
-//! the slot moves to.
+//! Refuses (before anything) what `find_ground` would refuse where the slot moves to.
 
 use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;

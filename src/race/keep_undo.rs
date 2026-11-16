@@ -1,8 +1,6 @@
 //! `race::keep_undo`: keeps the viewed replay for one undo before an edit: the block count into
 //! `undo_blocks`, the index's places (0x3840 bytes) into `undo_places`, the blocks' cameras
 //! (`block_cameras`) into `undo_cameras`.
-//!
-//! Callers: `race::viewer_action` (six places) and `race::edit_camera`.
 
 use crate::race::owner::Race;
 

@@ -1,14 +1,13 @@
 //! `scene::face_faces_away`: whether a face of an object is seen from behind.
 //!
 //! The polygon's vertex count = the face's number of vertices. Then, for the triangles of the
-//! face's first point with each two that follow one another: the three points' places in the
-//! view (their records 0x1000 + (number & 0xFFF), +0x10 .. +0x18) kept in the work area; the
-//! two sides from the first point; their cross product to the work vector; and the first
-//! point's place times that. A product above 0 (or no number) says this triangle faces away;
-//! the first one that does not ends it with 0. The x87's arithmetic runs in `X` (plain Rust;
-//! the tests compare against recorded vectors in `data/vectors`). A point's number below 0 is
-//! fatal error 0x80600314. One caller, `scene::list_object_face`. Refuses when there is no
-//! face or no records.
+//! face's first point with each two that follow one another: the three points' places in the view
+//! (their records 0x1000 + (number & 0xFFF), +0x10 .. +0x18) kept in the work area; the two sides
+//! from the first point; their cross product to the work vector; and the first point's place times
+//! that. A product above 0 (or no number) says this triangle faces away; the first one that does
+//! not ends it with 0. The x87's arithmetic runs in `X` (plain Rust; the tests compare against
+//! recorded vectors in `data/vectors`). A point's number below 0 is fatal error 0x80600314. Refuses
+//! when there is no face or no records.
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::math::x87_float::{Rounds, at_rounding};

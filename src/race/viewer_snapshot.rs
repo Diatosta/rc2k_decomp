@@ -3,8 +3,6 @@
 //! `race::find_snapshot_number`), and the name is used as `Picture.name` while the surface is
 //! locked (`gfx::lock_surface`; if that fails, nothing is saved), written
 //! (`gfx::write_screen_pcx`) and unlocked (`gfx::unlock_surface`); `Picture.name` is put back.
-//!
-//! Called by `race::viewer_frame` when `snapshot_asked` asks.
 
 use crate::errors::Refused;
 use crate::race::find_snapshot_number::DIGITS_AT;

@@ -2,7 +2,7 @@
 //! all 0, and cheat bit 16 clear: `set_flag` on `StageSounds.once[2]`, then `go_stand_timer` = 1,
 //! `notice_id` 0xC7, `notice_time_b` 0x32 and `notice_time` -1.
 //!
-//! Caller: `physics::race_timers`. Refuses what `set_flag` refuses.
+//! Refuses what `set_flag` refuses.
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;

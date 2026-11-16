@@ -2,9 +2,6 @@
 //! (`race::open_viewed_replay`, 222), saved and closed (`race::close_viewed_replay`).
 //!
 //! Takes the slot.
-//!
-//! Caller: `race::replay_viewer` (mode 3, the slot from `menu::save_replay_loop`; no flags
-//! read).
 
 use crate::errors::Refused;
 use crate::race::owner::Race;

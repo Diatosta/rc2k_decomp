@@ -690,7 +690,7 @@ impl Target {
     }
 }
 
-/// For the standalone's timing line (`platform::show`): fans drawn and the microseconds
+/// For the timing line (`platform::show`): fans drawn and the microseconds
 /// spent drawing them (at the flushes).
 pub static FANS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 pub static RASTER_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);

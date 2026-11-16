@@ -8,20 +8,17 @@
 //! is not 0: the device is drawing, set by `race::draw_race_scene`). The vertices: each must
 //! have x in 0 .. the screen's width, y in 0 .. its height and z in 0 .. 1 (compared on the
 //! x87; one that is not a number fails), else "Error" is logged, the buffer shown by
-//! `scene::show_bad_polygon` and nothing drawn. Then, with 3D, the fan; a result other than 0
-//! is logged as "drawtri" and the number.
+//! `scene::show_bad_polygon` and nothing drawn. Then, with 3D, the fan.
 
 use crate::d3d::draw_fan_unclipped::polygon;
 use crate::d3d::vertices_store::PolygonVertices;
 use crate::d3d::{NO_TEXTURE, Vertex};
-use crate::logfile::log_hex8::log_hex8;
 use crate::memory::session::Screen;
 
 // ---- game data ----
 const TEXTURES: u32 = 0x400;
 
 const ERROR_TEXT: &std::ffi::CStr = c"Error";
-const DRAWTRI_TEXT: &std::ffi::CStr = c"drawtri";
 
 /// What the function asks of the code around it.
 pub trait Outside {
@@ -29,12 +26,10 @@ pub trait Outside {
     fn texture(&self) -> u32;
     /// `d3d::set_texture`.
     fn set_texture(&mut self, texture: u32);
-    /// `d3d::draw_fan_unclipped`: Direct3D's result.
-    fn draw_fan(&mut self, vertices: &[Vertex]) -> u32;
+    /// Draws the fan.
+    fn draw_fan(&mut self, vertices: &[Vertex]);
     /// A vertex is off the screen: "Error" to the log and `scene::show_bad_polygon`.
     fn bad_vertex(&mut self, buffer: &PolygonVertices, screen: &Screen);
-    /// Direct3D did not draw: "drawtri" and its result to the log.
-    fn not_drawn(&mut self, result: u32);
 }
 
 /// `scene::check_polygon_vertices`: every vertex on the screen and between the planes.
@@ -74,10 +69,7 @@ pub fn submit_polygon(
         return;
     }
     if device_on {
-        let result = outside.draw_fan(&vertices);
-        if result != 0 {
-            outside.not_drawn(result);
-        }
+        outside.draw_fan(&vertices);
     }
 }
 
@@ -95,19 +87,13 @@ impl Outside for Game<'_> {
     fn set_texture(&mut self, texture: u32) {
         crate::d3d::set_texture::set_texture(self.0, texture);
     }
-    fn draw_fan(&mut self, vertices: &[Vertex]) -> u32 {
-        // `d3d::draw_fan_unclipped`: its result is always 0.
+    fn draw_fan(&mut self, vertices: &[Vertex]) {
         crate::platform::direct3d::draw_fan(self.0, vertices);
-        0
     }
     fn bad_vertex(&mut self, buffer: &PolygonVertices, screen: &Screen) {
         crate::logfile::log_write::log_nul(&ERROR_TEXT, true, 1);
         if let Err(e) = crate::scene::show_bad_polygon::show_bad_polygon(self.1, buffer, screen) {
             crate::fatal::raise::end("scene::show_bad_polygon", e);
         }
-    }
-    fn not_drawn(&mut self, result: u32) {
-        crate::logfile::log_write::log_nul(&DRAWTRI_TEXT, false, 1);
-        log_hex8(result, false, 1);
     }
 }

@@ -3,10 +3,7 @@
 //! Takes: the point (`ground_x`, `ground_z`), the face mask `settle_mark` and the last face
 //! `ground_face_last`.
 //!
-//! Callers: `physics::probe_ground` (the car's ground points), `physics::move_slot`,
-//! `drive::animate_lit_faces`, `race::shadow_points`, `physics::car_lighting`,
-//! `drive::simple_car_step`, `physics::count_ground_probe`. Refuses what `ground_search`
-//! refuses.
+//! Refuses what `ground_search` refuses.
 
 use crate::errors::Refused;
 use crate::physics::ground_probe_store::GroundProbe;

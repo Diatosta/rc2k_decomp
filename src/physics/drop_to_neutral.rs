@@ -2,8 +2,6 @@
 //! unordered) and `no_auto_neutral` 0: gear 0, `drive_cut_steps` from the tables,
 //! `gear_change_hold` = 0x14, `gear_changed` and `gear_change_pending` 1 (as the gear changes of
 //! `physics::change_gear` set them). Probably the engine stalling into neutral.
-//!
-//! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::physics::car_store::Car;
 use crate::physics::tables_store::PhysicsTables;

@@ -3,7 +3,7 @@
 //! toward the matching mud component (blue for the lowest byte), held to 0 .. 0xFF; the top byte
 //! is kept.
 //!
-//! See `race/mud.rs`. Called by `race::muddy_texel`.
+//! See `race/mud.rs`.
 use crate::race::owner_course::Course;
 
 /// The mud's colour, as its three dwords (red, green, blue).

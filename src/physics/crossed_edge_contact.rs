@@ -8,8 +8,8 @@
 //! times `tenth`) are set, with no slide limit; `physics::contact_force` fills contact record
 //! 1, then `physics::place_sound_e1`.
 //!
-//! Caller: `physics::crossed_edge`. Refuses (before anything) a probe point past 0x3F (the
-//! tables' room), and what `place_sound_e1` refuses (what was written is put back).
+//! Refuses (before anything) a probe point past 0x3F (the tables' room), and what `place_sound_e1`
+//! refuses (what was written is put back).
 
 use crate::errors::Refused;
 use crate::math::x87::mul;

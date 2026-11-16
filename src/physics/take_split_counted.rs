@@ -6,8 +6,7 @@
 //! `splits_passed`; at `split_colour_count` finished: `finish_flag` = 1, the notice 0xC8
 //! (`notice_time` -1, `notice_time_b` 0).
 //!
-//! Caller: `physics::race_timers`. Refuses (before anything) a split past 0x3F, and what the calls
-//! refuse.
+//! Refuses (before anything) a split past 0x3F, and what the calls refuse.
 use crate::errors::Refused;
 use crate::physics::flag_current_car_listed::flag_current_car_listed;
 use crate::physics::keep_split_time::keep_split_time;

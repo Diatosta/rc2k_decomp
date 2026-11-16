@@ -11,7 +11,7 @@
 //! - `Grading.reading` = 0 and the size 256 x 256 again; `scene::load_hud_car_icons`; two lines
 //!   in the log.
 //!
-//! Two callers. Refuses more than 0x400 system textures and a first texture past the table.
+//! Refuses more than 0x400 system textures and a first texture past the table.
 //!
 //! The kinds' pictures and the read sizes are in the core crate (`rc2k_core::scene::pictures`).
 

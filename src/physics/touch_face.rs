@@ -10,8 +10,8 @@
 //!
 //! Then `physics::place_sound_object` and the count + 1.
 //!
-//! Callers: `physics::face_contact`, six calls. Refuses (before anything) a count past 0x100 (the
-//! list's room); what `place_sound_object` refuses (its writes are put back).
+//! Refuses (before anything) a count past 0x100 (the list's room); what `place_sound_object`
+//! refuses (its writes are put back).
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::contact_store::ContactWork;

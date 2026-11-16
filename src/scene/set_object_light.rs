@@ -9,10 +9,9 @@
 //!   while the lamps are gathered (a car is not lit by its own), -1 afterwards;
 //! - anything else: nothing more.
 //!
-//! "The lamps gathered" (`scene::gather_lights`, inlined): the object's `place` to the lit
-//! place, the light colour = 0, `scene::add_car_lights`, `scene::add_point_lights`. "Plus" is
-//! byte by byte without overflow, as in `scene::vertex_light`. One caller,
-//! `scene::draw_object`.
+//! "The lamps gathered" (`scene::gather_lights`, inlined): the object's `place` to the lit place,
+//! the light colour = 0, `scene::add_car_lights`, `scene::add_point_lights`. "Plus" is byte by byte
+//! without overflow, as in `scene::vertex_light`.
 //!
 //! The kind's way is in `rc2k_core::scene::lamps::object_light`.
 
@@ -36,7 +35,7 @@ pub fn set_object_light(
     use rc2k_core::scene::lamps::{ObjectLight, WHITE, object_light};
     light.light_added.set(0u32);
     let (clear_strength, own_car) = match object_light(light.light_kind.get(), || {
-        input.devices.keys_now.get(0x18) != 0 // Devices.keys_now
+        input.devices.keys_now.get(0x18) != 0
     }) {
         ObjectLight::White => {
             light.light_added.set(WHITE);

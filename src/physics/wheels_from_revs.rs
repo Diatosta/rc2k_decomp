@@ -1,10 +1,7 @@
 //! In gear, `drive_speed_a` = `engine_speed` times `gear_ratios[gear]`; with `drive_kind` 1
 //! `drive_speed_b` the same. Nothing in neutral.
 //!
-//! See `physics/gearing.rs`. Callers: the gearbox under `drive::race_step`
-//! (`physics::gearbox_step`, `physics::change_gear`, `physics::manual_gearbox`,
-//! `physics::auto_gearbox`, `physics::pick_start_gear`, `physics::free_rev_clutch`). Refuses
-//! (before writing) a gear outside -1 ..= 7 (the ratio table).
+//! See `physics/gearing.rs`. Refuses (before writing) a gear outside -1 ..= 7 (the ratio table).
 
 use crate::errors::Refused;
 use crate::physics::car_store::Car;

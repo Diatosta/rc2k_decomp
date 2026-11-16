@@ -6,9 +6,9 @@
 //! its clocks (`step_clock`, `run_ticks`) one more; `drive::store_car` follows. Last comes
 //! `drive::race_mode_cars`.
 //!
-//! Called by `race::show_replay_still`. Unlike `drive::replay_step` the clocks count only for a
-//! running car, and nothing is recorded or sent. Refuses (before anything) a cars' count of 0 or
-//! past 8 (a count of 0 would loop 2^32 times).
+//! Unlike `drive::replay_step` the clocks count only for a running car, and nothing is recorded or
+//! sent. Refuses (before anything) a cars' count of 0 or past 8 (a count of 0 would loop 2^32
+//! times).
 
 use crate::errors::Refused;
 use crate::race::owner::Race;

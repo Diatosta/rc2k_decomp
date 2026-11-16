@@ -2,7 +2,7 @@
 //! (its damage word holds the bits of 100.0), when `physics::gear_bit` bars a gear of 1 or more,
 //! and when `engine_power_factor` is not set.
 //!
-//! Caller: `physics::take_asked_gear`. Refuses a gear whose bit is past 31 (as `gear_bit`).
+//! Refuses a gear whose bit is past 31 (as `gear_bit`).
 
 use crate::errors::Refused;
 use crate::memory::session::{PlainDword, PlainFloat};

@@ -5,8 +5,6 @@
 //! into the place `camera_position`; then the second offset (`view_turn_x` .., / 65536) is
 //! turned by the crash matrix (`scene::rotate_point`), times 65536 and
 //! rounded, plus `camera_car`, and added to it.
-//!
-//! Caller: `physics::camera_avoid_ground`, seven times.
 
 use crate::math::x87_float::{f80, int, ld};
 use crate::physics::camera_store::CameraWork;

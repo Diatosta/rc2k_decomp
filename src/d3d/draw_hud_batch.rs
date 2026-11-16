@@ -1,7 +1,6 @@
-//! `d3d::draw_hud_batch`: draws the HUD's batch, an indexed list of triangles of transformed
-//! and lit vertices. The HUD block's vertices and indices (16 bits) and their counts are the
-//! input. One caller, `hud::flush_batch`. The rasteriser draws each triangle
-//! (`platform::direct3d::draw_triangles`); the result is 0.
+//! `d3d::draw_hud_batch`: draws the HUD's batch, an indexed list of triangles of transformed and
+//! lit vertices. The HUD block's vertices and indices (16 bits) and their counts are the input. The
+//! rasteriser draws each triangle (`platform::direct3d::draw_triangles`); the result is 0.
 
 /// Draws the HUD's batch.
 pub fn draw_hud_batch(part: &crate::scene::workers::PartScratch, hud: &crate::hud::owner::Hud) {

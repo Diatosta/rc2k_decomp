@@ -6,8 +6,7 @@
 //! ((kept - e) x k + e), `physics::wheels_from_revs`, and the change settled (`drive_cut_steps`,
 //! the hold 20, `gear_changed` and `gear_change_pending` 1). None taken: the last tried stays.
 //!
-//! Callers: `physics::manual_gearbox`, `physics::auto_gearbox`. Refuses what the calls refuse; what
-//! was written is put back.
+//! Refuses what the calls refuse; what was written is put back.
 
 use crate::errors::Refused;
 use crate::math::x87;

@@ -6,7 +6,7 @@
 //! runs go over the planes' ends (the game's reader does not mind).
 //!
 //! Kept as the game's screenshots had it: a 16-bit pixel goes into the low half of the running
-//! value `eax`, whose upper half the conversion gets as it was, and pixels of other sizes are not
+//! value, whose upper half the conversion gets as it was, and pixels of other sizes are not
 //! read (the last value is used). Refuses what `open_stream` refuses.
 
 use crate::errors::Refused;

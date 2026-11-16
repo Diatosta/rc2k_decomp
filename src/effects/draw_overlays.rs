@@ -4,9 +4,8 @@
 //! `effects::windscreen_flakes_frame`, `effects::windscreen_drops_top`; then the second shadow, the
 //! twin of `effects::draw_shadow` without its depth calls (`draw_shadow`'s `second`).
 //!
-//! Caller: the race's frame (`race::draw_marks_overlays`, just before `draw_shadow`).
-//! Refuses the shadow's refusals (null settings, a corner past the mark corners table, an
-//! angle with no sine and cosine), before anything.
+//! Refuses the shadow's refusals (null settings, a corner past the mark corners table, an angle
+//! with no sine and cosine), before anything.
 
 use crate::effects::draw_shadow::{draw_shadow_with, second};
 use crate::effects::mask_store::Masks;

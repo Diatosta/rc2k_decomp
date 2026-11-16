@@ -2,8 +2,6 @@
 //! counts down by 1; at 0 the notice is cleared. `physics::take_notice` sets them.
 //!
 //! Returns the time before (when `notice_shown` is set).
-//!
-//! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::physics::car_store::Car;
 use crate::physics::cells::set_changed;

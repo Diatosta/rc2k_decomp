@@ -9,8 +9,7 @@
 //! the depth buffer on; the colour back to white. The quad's cells are in the race variables, set
 //! by the caller.
 //!
-//! Callers: `hud::draw_view_strip` (three), and four more places in the HUD and the viewer. A
-//! refusal from the scale, the clip, the depth buffer calls or the draw comes after the writes.
+//! A refusal from the scale, the clip, the depth buffer calls or the draw comes after the writes.
 
 use crate::errors::Refused;
 use crate::math::x87;

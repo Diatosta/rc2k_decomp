@@ -42,7 +42,7 @@ pub fn run_shapes(
                 .set((r & 0xFF).wrapping_add(shared.physics_tables.get().scene_clock.get()));
             let mask = marks.mask_number.get();
             if mask >= MASK_COUNT {
-                return Err(BadInput("a mask number past dword_844E34's 9").into());
+                return Err(BadInput("a mask number past the masks' 9").into());
             }
             let moving = next_c5(&setup.mask_constants.move_random)
                 .rotate_right(16)

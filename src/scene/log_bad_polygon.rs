@@ -1,14 +1,13 @@
 //! `scene::log_bad_polygon`: a polygon Direct3D was not given, dumped to the log at level 1:
 //! "videox" the screen's width, "videoy" the screen's height (twice), "r" "l" "b" "t" the clip
 //! edges (two decimals), "donezcut" `PolygonWork.depth_clipped`, "donesuth"
-//! `PolygonWork.screen_clipped`, "cuttest" `PolygonWork.polygon_clip_mask` (with a line's end;
-//! then the mask 0), "tpage" the texture page (hex8), "points" the polygon's vertex count;
-//! "polynum" the current course face, or with the drawing-object flag 1 "objdraw" the current
-//! object and "objfaced" the face number; a line's end. Then with vertices, each (0x20 bytes):
-//! "pt" its number, "x" +0, "yzuwv" +4, "zuwv" +8, "uwv" +0x18, "wv" +0xC, "v" +0x1C (floats,
-//! two decimals; the labels are the tails of one string), "co" +0x10 and "sp" +0x14 (hex8), a
-//! line's end; and a last line's end. Caller: `scene::show_bad_polygon`. Refuses (before
-//! anything) more than 64 vertices.
+//! `PolygonWork.screen_clipped`, "cuttest" `PolygonWork.polygon_clip_mask` (with a line's end; then
+//! the mask 0), "tpage" the texture page (hex8), "points" the polygon's vertex count; "polynum" the
+//! current course face, or with the drawing-object flag 1 "objdraw" the current object and
+//! "objfaced" the face number; a line's end. Then with vertices, each (0x20 bytes): "pt" its
+//! number, "x" +0, "yzuwv" +4, "zuwv" +8, "uwv" +0x18, "wv" +0xC, "v" +0x1C (floats, two decimals;
+//! the labels are the tails of one string), "co" +0x10 and "sp" +0x14 (hex8), a line's end; and a
+//! last line's end. Refuses (before anything) more than 64 vertices.
 
 use crate::errors::BadInput;
 use crate::memory::cells::Store;

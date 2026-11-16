@@ -1,6 +1,5 @@
-//! `scene::unlock_frame`: the back surface unlocked (`gfx::unlock_surface`) and the kept pitch
-//! and pixels (`FrameScratch.frame_pixels`, `FrameScratch.frame_pitch`) 0. Callers:
-//! `race::loading_bar_frame` and three of the game's.
+//! `scene::unlock_frame`: the back surface unlocked (`gfx::unlock_surface`) and the kept pitch and
+//! pixels (`FrameScratch.frame_pixels`, `FrameScratch.frame_pitch`) 0.
 use crate::race::owner_frame::Frame;
 
 /// The back surface unlocked and the kept pitch and pixels 0. Returns the locked flag

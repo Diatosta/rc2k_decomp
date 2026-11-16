@@ -5,9 +5,9 @@
 //! next. (The original counted the processor's cycles with `rdtsc` and needed its clock in MHz,
 //! timed for a quarter of a second at every start.)
 //!
-//! Caller: `race::show_frame`; `frame_rate` is shown by `race::draw_frame_rate`. The rate is worked
-//! out in plain floats. Fixed ("The frame rate never measured below some 28 frames a second" in
-//! `wiki/Fixed-bugs.md`): the time from the whole count, not its signed low halves.
+//! The rate is worked out in plain floats. Fixed ("The frame rate never measured below some 28
+//! frames a second" in `wiki/Fixed-bugs.md`): the time from the whole count, not its signed low
+//! halves.
 
 use crate::race::owner::Race;
 use std::sync::OnceLock;

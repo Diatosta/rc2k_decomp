@@ -9,8 +9,8 @@
 //! gear go into `test_speeds[k]`, `test_gears[k]`; at the end the speed x `two_and_a_quarter` goes
 //! into `LightsAndGear.gear.test_marks[2]` and the two steps / `hundred` (times) back into theirs.
 //!
-//! Caller: `physics::test_drive`. Refuses a gear outside -1 ..= 7 (past `gear_ratios`) and what its
-//! calls refuse; everything written is put back.
+//! Refuses a gear outside -1 ..= 7 (past `gear_ratios`) and what its calls refuse; everything
+//! written is put back.
 
 use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};

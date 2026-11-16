@@ -6,17 +6,14 @@
 //!
 //! Takes the number.
 //!
-//! Callers: `race::open_viewed_replay`, `race::save_viewed_replay`. Refuses what `numbered_path`
-//! refuses.
+//! Refuses what `numbered_path` refuses.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
 use crate::race::owner_replay::Replay;
 
-/// The game's address of the last race's replay file's name.
-pub const LAST_RACE_START: usize = 0x5295F0;
-/// Its room.
-pub const LAST_RACE_LEN: usize = 0x5296FB - LAST_RACE_START;
+/// The room of the last race's replay file's name.
+pub const LAST_RACE_LEN: usize = 0x10B;
 
 /// The replay files' names, the number's two digits last.
 pub struct Templates {

@@ -2,7 +2,7 @@
 //!
 //! Two lines in the game's log (a rule and "reload video plates - start");
 //! `scene::clear_slot_textures`; `scene::load_wanted_textures`; two lines more ("reload video
-//! plates - finis" and a rule). Two callers (the front end's 3D set-up and a race's).
+//! plates - finis" and a rule).
 
 use crate::errors::BadInput;
 use crate::race::owner_frame::Frame;

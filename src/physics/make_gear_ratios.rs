@@ -7,8 +7,7 @@
 //! past five and six gears; the step itself rounded into `scratch`); reverse (`gear_ratios`) is the
 //! first's negative; neutral (`gear_ratios[0]`) is `gear_ratio_step`.
 //!
-//! Callers: `physics::car_physics_step`, `physics::test_drive`. Refuses (before anything) a gear
-//! count above 7 (past `gear_ratios`).
+//! Refuses (before anything) a gear count above 7 (past `gear_ratios`).
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;

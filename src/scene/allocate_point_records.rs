@@ -2,8 +2,7 @@
 //!
 //! 0x40000 bytes (0x2000 records of 0x20 bytes: 0x1000 for a scene's points and 0x1000 for an
 //! object's) on the list `CourseLists.point_records_list[0]`, counted in
-//! `CourseLists.course_bytes_total`, and kept as the point records. Two callers, the front end's 3D
-//! set-up and the stage's loading.
+//! `CourseLists.course_bytes_total`, and kept as the point records.
 
 use crate::errors::Refused;
 use crate::race::owner_course::Course;

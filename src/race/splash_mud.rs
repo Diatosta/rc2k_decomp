@@ -7,9 +7,8 @@
 //! they are put back (`race::mud_texel`, `race::put_mud_texel`; a texel without the top bit is
 //! left alone). `mud_column` and `mud_row` count the columns and rows (4 each after).
 //!
-//! See `race/mud.rs`. Called by `race::update_mud_texture`, once per splash. Refuses what
-//! `muddy_texel` refuses before anything, and `put_mud_texel`'s later refusals (the counts, the
-//! counters and the random state are put back).
+//! See `race/mud.rs`. Refuses what `muddy_texel` refuses before anything, and `put_mud_texel`'s
+//! later refusals (the counts, the counters and the random state are put back).
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::fade_colour::fade_colour;

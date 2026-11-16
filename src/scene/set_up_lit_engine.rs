@@ -3,8 +3,8 @@
 //! `ObjectWork.light_turns[0]` 0x6E, `ObjectWork.light_turns[1]` 0x1E) and
 //! `scene::fill_light_tables`.
 //!
-//! Caller: `menu::play_films`. Its calls by place: 0 `set_up_engine`, 1 `find_present_courses`,
-//! 2 `fill_light_tables`. Refuses what its calls refuse.
+//! Its calls by place: 0 `set_up_engine`, 1 `find_present_courses`, 2 `fill_light_tables`. Refuses
+//! what its calls refuse.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;

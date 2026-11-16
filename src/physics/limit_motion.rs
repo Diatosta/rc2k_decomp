@@ -6,8 +6,6 @@
 //! (`physics::scale_vector`).
 //!
 //! The x87 compares are plain Rust over `X` (`math/x87_float.rs`).
-//!
-//! Callers: `physics::car_physics_step` (twice), `physics::find_clear_place`.
 
 use crate::effects::cell_x87::CellX87;
 use crate::logfile::log_float::log_float;

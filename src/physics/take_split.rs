@@ -4,8 +4,7 @@
 //! `finish_flag` = 1, `started_stand_timer` = 0, the notice 0xC8 (`notice_time` -1, `notice_time_b`
 //! 0).
 //!
-//! Caller: `physics::race_timers`. Refuses (before anything) a split past 0x3F, and what
-//! `split_by_mode` refuses.
+//! Refuses (before anything) a split past 0x3F, and what `split_by_mode` refuses.
 use crate::errors::Refused;
 use crate::physics::split_by_mode::split_by_mode;
 use crate::physics::split_tables_store::SplitTables;

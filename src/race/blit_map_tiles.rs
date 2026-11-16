@@ -1,10 +1,10 @@
 //! Draws the map's tiles into its picture: locks the given texture, then fills 8 x 8 tiles of 16 x
 //! 16 pixels from the given tile on. A tile is the pixels `map_tiles` holds for it (0x80 x 0x80
-//! pointers, 16 x 16 pixels each) or, for a tile without them or outside the 0x80 x 0x80, the
-//! the map's black colour; the pixels are written as words on a surface of 2 bytes a pixel and as
+//! pointers, 16 x 16 pixels each) or, for a tile without them or outside the 0x80 x 0x80, the the
+//! map's black colour; the pixels are written as words on a surface of 2 bytes a pixel and as
 //! dwords on any other, at the tile's place on the locked surface (`surface`). The texture is
-//! unlocked at the end. Called by the map's scroll (`map_tiles`). Refused (after the lock,
-//! unlocking first): a null surface, and a null tile table with a tile inside the 0x80 x 0x80.
+//! unlocked at the end. Refused (after the lock, unlocking first): a null surface, and a null tile
+//! table with a tile inside the 0x80 x 0x80.
 
 use crate::errors::BadInput;
 use crate::errors::Refused;
@@ -26,7 +26,7 @@ pub fn blit_map_tiles(
     use rc2k_core::race::map::{
         BLITTED, any_inside, check_tiles, pixel_width, row_gap, tile_index, tile_row,
     };
-    if { lock_texture_in(gfx, texture) }?.carry {
+    if !lock_texture_in(gfx, texture)? {
         return Ok(());
     }
     let (bytes, pitch, pixels) = (

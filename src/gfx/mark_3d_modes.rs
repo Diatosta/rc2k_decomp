@@ -6,8 +6,8 @@
 //! card kind's bits (`system::find_entry_with_bits`), from there the next with any of the depth
 //! bits (`system::find_entry_with_any_bit`); that one gets 0x100000 and, with `depth_extra` not 0,
 //! 0x200000 and `depth_extra` in its second dword; one entry on (`system::next_entry`, its failure
-//! not looked at), again, until a search finds nothing. In the standalone the device is its
-//! rasteriser: it draws in both pixel kinds with a depth buffer of 16 or 32 bits and has every
+//! not looked at), again, until a search finds nothing. The device is the program's own
+//! renderer: it draws in both pixel kinds with a depth buffer of 16 or 32 bits and has every
 //! capability the game asks about (the depth formats and the `cards.mode_switches` that the
 //! graphics options read), so one always fits. Refuses (before anything) more than 0x20 entries,
 //! the table's room.

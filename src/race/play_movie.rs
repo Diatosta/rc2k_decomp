@@ -1,8 +1,6 @@
 //! `race::play_movie`: "shaunplayrendermovie - in" logged, the clock restarted
 //! (`scene::restart_clock`, `scene_clock` into `race_clock_base`), the replay played
 //! (`race::play_movie_loop`), "shaunplayrendermovie - out" logged.
-//!
-//! Caller: `race::play_replay_range`.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;

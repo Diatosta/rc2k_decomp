@@ -11,8 +11,7 @@
 //!
 //! Takes the slot (`race::replay_path`'s number).
 //!
-//! Callers: `race::viewer_action` (0x15 back into a saved slot, 0x16 into a chosen one),
-//! `race::save_last_replay`. Saving into slot 222 would make the file it reads from anew.
+//! Saving into slot 222 would make the file it reads from anew.
 
 use crate::errors::Refused;
 use crate::files::handle;

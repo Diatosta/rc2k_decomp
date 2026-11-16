@@ -39,29 +39,16 @@ impl core::ops::Deref for InGroup {
 #[cfg(test)]
 pub static CAR_BLOCKS: InGroup = InGroup;
 
-/// The first block's address in the image's layout.
-const IDA_START: usize = 0x70F3EC;
-/// The distance between two blocks' addresses in the game's memory.
-const IDA_BLOCK_LEN: usize = 0xFE0;
-
-/// A car block by handle: what `car_blocks` and `view_blocks` hold where the block's address
-/// was kept. `BLOCK_TAG | n` for block `n`; 0 stays 0.
+/// A car block by handle, as `car_blocks` and `view_blocks` hold it: `BLOCK_TAG | n` for block
+/// `n`, 0 for none.
 pub const BLOCK_TAG: u32 = 0xCB00_0000;
 /// The blocks.
 pub const BLOCK_COUNT: usize = 8;
 
-/// The handle for a block's address (or 0; anything else fails to compile).
-pub const fn block_ref(ida: u32) -> u32 {
-    if ida == 0 {
-        return 0;
-    }
-    let off = ida as usize - IDA_START;
-    assert!(
-        ida as usize >= IDA_START
-            && off.is_multiple_of(IDA_BLOCK_LEN)
-            && off / IDA_BLOCK_LEN < BLOCK_COUNT
-    );
-    BLOCK_TAG | (off / IDA_BLOCK_LEN) as u32
+/// The handle of block `n` (a number past the blocks fails to compile).
+pub const fn block_handle(n: usize) -> u32 {
+    assert!(n < BLOCK_COUNT);
+    BLOCK_TAG | n as u32
 }
 
 /// The number of the block a handle names, none for 0. A value that is no handle ends the program.
@@ -142,7 +129,7 @@ mod tests {
     #[test]
     fn blocks_start_as_the_games() {
         assert_eq!(size_of::<CarBlocks>(), BLOCK_COUNT * size_of::<Car>());
-        assert_eq!(block_ref(0x70F3EC + 0xFE0), BLOCK_TAG | 1);
+        assert_eq!(block_handle(1), BLOCK_TAG | 1);
         for n in 0..BLOCK_COUNT {
             assert_eq!(known_block(BLOCK_TAG | n as u32), Some(n));
             assert!(core::ptr::eq(

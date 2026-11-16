@@ -13,9 +13,8 @@
 //!
 //! Then the texture is unlocked (`d3d::unlock_texture`).
 //!
-//! See `race/mud.rs`. Called by `race::mud_texture_turn`. Refuses (before anything) a texture
-//! past 3 and no mud, and its callees' refusals (the counts, the throws and the random state
-//! are put back).
+//! See `race/mud.rs`. Refuses (before anything) a texture past 3 and no mud, and its callees'
+//! refusals (the counts, the throws and the random state are put back).
 
 use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
@@ -86,7 +85,7 @@ pub fn update_mud_texture(
     if texture == 0 {
         return Ok(());
     }
-    if crate::d3d::lock_texture::lock_texture_in(gfx, texture)?.carry {
+    if !crate::d3d::lock_texture::lock_texture_in(gfx, texture)? {
         return Ok(());
     }
     // The throws.

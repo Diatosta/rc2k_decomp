@@ -1,12 +1,11 @@
 //! `scene::add_car_light`: what one car's lamps add to the light on an object.
 //!
 //! Does nothing unless the car's lamp flag is set. The place being lit, relative to the car and
-//! turned through the car's matrix, is the place as the car sees it (x across, y up, z ahead).
-//! Two amounts, each held to 0 ..= 255, come from it: a cone ahead of the car, and how near the
-//! place is to the car's height. Their product, scaled by the car's light strength, picks a
-//! colour from `LightTables.car_light_table`, added to the light colour byte by byte without
-//! overflow. The arithmetic runs on `X`, the x87's double-precision stand-in. Callers:
-//! `scene::add_car_lights`, twice.
+//! turned through the car's matrix, is the place as the car sees it (x across, y up, z ahead). Two
+//! amounts, each held to 0 ..= 255, come from it: a cone ahead of the car, and how near the place
+//! is to the car's height. Their product, scaled by the car's light strength, picks a colour from
+//! `LightTables.car_light_table`, added to the light colour byte by byte without overflow. The
+//! arithmetic runs on `X`, the x87's double-precision stand-in.
 
 use crate::scene::vertex_light::plus;
 use crate::scene::x87_mem::{Base, cells, fild, fistp, fld};

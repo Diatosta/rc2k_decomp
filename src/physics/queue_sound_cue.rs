@@ -4,9 +4,8 @@
 //! `sets_store::table`, up to six up to a -1; one not below 0 plus the object's base), their
 //! number; the count goes up by one.
 //!
-//! Caller: `physics::cue_car_sound`. The object is a reference; the queue is walked by dword (a
-//! dword past it is refused). Refuses (before anything) a cue past 0x70, the end of the 113 sound
-//! lists.
+//! The object is a reference; the queue is walked by dword (a dword past it is refused). Refuses
+//! (before anything) a cue past 0x70, the end of the 113 sound lists.
 
 use crate::errors::{BadInput, Refused};
 use crate::memory::session::PlainDword;

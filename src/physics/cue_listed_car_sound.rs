@@ -3,8 +3,7 @@
 //!
 //! Returns the entry.
 //!
-//! Caller: `physics::off_line_warnings` (twice). Refuses (before anything) a current car past
-//! 7.
+//! Refuses (before anything) a current car past 7.
 
 use crate::errors::Refused;
 use crate::race::frame_store::FrameWork;

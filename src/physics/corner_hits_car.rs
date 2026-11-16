@@ -5,8 +5,7 @@
 //!
 //! Takes: the other car's block (passed to `bump_cars`).
 //!
-//! Caller: `physics::car_collisions`, eight corners a car. Refuses what `restore_saved_car` and
-//! `bump_cars` refuse (what was written is put back).
+//! Refuses what `restore_saved_car` and `bump_cars` refuse (what was written is put back).
 
 use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;

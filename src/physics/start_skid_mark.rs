@@ -3,8 +3,6 @@
 //! `camera_switch_share` 0, `camera_switch_length` 10, `camera_switch_clock` the step count
 //! `step_clock`; then `camera_view_return` 0. This starts a skid mark (the start's place, a count
 //! of 10, the step it began).
-//!
-//! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::physics::car_store::Car;
 use crate::physics::cells::set_changed;

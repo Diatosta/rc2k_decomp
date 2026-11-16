@@ -563,7 +563,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         .panel
         .texture_changes
         .set(0);
-    crate::race::frame_views::forget_view_textures(race, scene, input, system, o.gfx)?;
+    crate::race::frame_views::forget_view_textures(race, scene, system, o.gfx)?;
     crate::race::mud_frame::mud_frame(race, scene, o.gfx, o.system)?;
     race.frame.frame_work.get().kind_textures_done.set(0);
     crate::scene::assign_kind_textures::assign_kind_textures(scene)?;

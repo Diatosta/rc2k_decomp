@@ -199,8 +199,8 @@ impl RaceView {
             players: PlainDword::new(1),
             view_cars: [PlainDword::new(0), PlainDword::new(1)],
             view_blocks: [
-                PlainDword::new(crate::race::blocks_store::block_ref(0x70F3EC)),
-                PlainDword::new(crate::race::blocks_store::block_ref(0x7103CC)),
+                PlainDword::new(crate::race::blocks_store::block_handle(0)),
+                PlainDword::new(crate::race::blocks_store::block_handle(1)),
             ],
             view_depth: [PlainDword::new(0xC0), PlainDword::new(0xC0)],
             ..ZeroCells::ZERO

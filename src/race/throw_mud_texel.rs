@@ -5,9 +5,8 @@
 //! a random number is muddied too (`math::next_random::next_drawing_random`, the drawing's
 //! numbers).
 //!
-//! See `race/mud.rs`. Called by `race::update_mud_texture`, once per thrown unit. Refuses what
-//! `muddy_texel` refuses (a texture past 3, no mud) before anything, and its later refusals (the
-//! counts and the random state are put back).
+//! See `race/mud.rs`. Refuses what `muddy_texel` refuses (a texture past 3, no mud) before
+//! anything, and its later refusals (the counts and the random state are put back).
 
 use crate::errors::Refused;
 use crate::race::muddy_texel::{muddy_texel, texture_and_mud};

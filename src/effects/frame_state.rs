@@ -2,7 +2,7 @@
 //! step and ribbon work (`ViewVars`), the frame's turned points, view and quads (`DrawFrame`), and
 //! the lens flare's tables (`FlareParts`, `FlareScales`).
 
-use crate::memory::session::{PlainDword, PlainFloat};
+use crate::memory::session::{PlainDword, PlainFlag, PlainFloat};
 
 /// The marks' sprites' and profiles' work places.
 #[derive(rc2k_derive::Cells)]
@@ -130,8 +130,8 @@ impl ViewVars {
 /// The marks' frame: profile mark and steps, turned points, view, quads and flare.
 #[derive(rc2k_derive::Cells)]
 pub struct DrawFrame {
-    /// 0, or where `effects::make_profiles` goes on.
-    pub profiles_done: PlainDword,
+    /// Set once `effects::make_profiles` has made its tables.
+    pub profiles_done: PlainFlag,
     /// 256.0, the ramps' and the curves' steps (`effects::make_profiles`).
     pub profile_steps: [PlainFloat; 2],
     /// Three points the frame turns by the view matrix (x, y, z each; `effects::draw_frame`).
@@ -164,7 +164,7 @@ pub struct DrawFrame {
 impl DrawFrame {
     pub const fn new() -> Self {
         Self {
-            profiles_done: PlainDword::new(0x0),
+            profiles_done: PlainFlag::new(false),
             profile_steps: [PlainFloat::new(256.0), PlainFloat::new(256.0)],
             points: [
                 [

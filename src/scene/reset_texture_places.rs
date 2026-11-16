@@ -1,6 +1,6 @@
 //! `scene::reset_texture_places`: no texture has a place: -1 throughout
 //! `TexturePlaces.loaded_pictures` and `TexturePlaces.wanted_pictures` (each texture's place),
-//! 0x400 dwords each. Two callers.
+//! 0x400 dwords each.
 
 // ---- game data ----
 

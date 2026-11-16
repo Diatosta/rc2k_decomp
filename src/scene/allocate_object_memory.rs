@@ -1,10 +1,9 @@
 //! `scene::allocate_object_memory`: takes the memory the objects' points and faces are loaded
 //! into.
 //!
-//! One block on the memory list, counted: in a race 0x300000 bytes, 0xC0000 of them for the
-//! points and 0x240000 for the faces; else 0x580000, 0x180000 and 0x400000. The object points
-//! are the block, the faces' memory what follows the points' part, and the two rooms are kept.
-//! One caller, `scene::set_up_object_memory`.
+//! One block on the memory list, counted: in a race 0x300000 bytes, 0xC0000 of them for the points
+//! and 0x240000 for the faces; else 0x580000, 0x180000 and 0x400000. The object points are the
+//! block, the faces' memory what follows the points' part, and the two rooms are kept.
 
 use crate::errors::Refused;
 

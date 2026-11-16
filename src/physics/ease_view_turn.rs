@@ -4,8 +4,6 @@
 //! share, rounded, is added.
 //!
 //! Returns the last step.
-//!
-//! Caller: `physics::camera_avoid_ground`.
 
 use crate::drive::replay_frames_store::ReplayFrames;
 use crate::effects::cell_x87::CellX87;

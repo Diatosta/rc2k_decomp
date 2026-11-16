@@ -1,8 +1,6 @@
 //! `low_speed_share` = 1.0; when |car speed| is below `low_speed_limit` (20; an unordered
 //! compare counts as below), `low_speed_share` = (|speed| / `low_speed_limit` +
 //! `low_speed_add`) x `low_speed_scale` and the two `drive_forces` are multiplied by it.
-//!
-//! Caller: `physics::drive_wheels_step`.
 
 use crate::effects::cell_x87::CellX87;
 use crate::math::x87;

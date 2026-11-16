@@ -1,7 +1,7 @@
 //! The windscreen drops' variables: the item table, the view's moves kept and the drift, the shape
 //! constants.
 
-use crate::memory::session::{PlainBytes, PlainDword, PlainFloat, PlainInt};
+use crate::memory::session::{PlainBytes, PlainDword, PlainFlag, PlainFloat, PlainInt};
 
 /// The windscreen drops' variables.
 #[derive(rc2k_derive::Cells)]
@@ -37,8 +37,8 @@ pub struct WindscreenDropVars {
     pub windscreen_flakes_cleared: PlainDword,
     /// 0x800 items of 0x30 bytes (+0 1 live)
     pub items: PlainBytes<98304>,
-    /// The once-only mark of `set_up_windscreen_drops`
-    pub done: PlainDword,
+    /// Set once `set_up_windscreen_drops` has scaled its floats.
+    pub done: PlainFlag,
     /// The factors the four scale floats are scaled by (1, 1, 2, 2)
     pub factors: [PlainFloat; 6],
     /// The quarter-circle curve's first constant
@@ -100,7 +100,7 @@ impl WindscreenDropVars {
             buffer: PlainDword::new(0x0),
             windscreen_flakes_cleared: PlainDword::new(0x0),
             items: PlainBytes::new([0; 98304]),
-            done: PlainDword::new(0x0),
+            done: PlainFlag::new(false),
             factors: [
                 PlainFloat::new(2.0),
                 PlainFloat::new(2.0),

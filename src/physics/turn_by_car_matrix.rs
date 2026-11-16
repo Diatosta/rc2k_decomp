@@ -3,8 +3,7 @@
 //! floats).
 //!
 //! `physics::turn_by_inverse` is the same with the car's `car_inverse_matrix` (made by
-//! `race::invert_car_matrix` with `scene::invert_turn`). Callers: the cars' physics under
-//! `drive::race_step`, six calls.
+//! `race::invert_car_matrix` with `scene::invert_turn`).
 
 use crate::math::cells::Cells;
 use crate::physics::car_store::Car;

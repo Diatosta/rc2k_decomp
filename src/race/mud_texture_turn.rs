@@ -2,8 +2,8 @@
 //! into `RaceVars.mud_turn_a[1]` and `mud_turn_b` into `RaceVars.mud_turn_b[1]`, both 0, and
 //! `race::update_mud_texture`.
 //!
-//! See `race/mud.rs`. One caller, `race::mud_frame`. Refuses what `update_mud_texture` refuses,
-//! before anything (its checks first).
+//! See `race/mud.rs`. Refuses what `update_mud_texture` refuses, before anything (its checks
+//! first).
 
 use crate::errors::Refused;
 use crate::race::muddy_texel::texture_and_mud;

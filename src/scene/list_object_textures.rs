@@ -1,11 +1,10 @@
 //! `scene::list_object_textures`: the different textures the faces of the file just read use.
 //!
-//! Goes through the file's faces (after its points; a face is 0x10 bytes and as many again for
-//! each vertex) and lists each face's texture (its word +4) once, in the order met, in the
-//! texture list; their number is kept. For a slot under 0x40 the number and the list also go
-//! to the slot's record of 0x40 bytes; more than fifteen textures run on into the next slots'
-//! records, while that stays inside the 0x40 records. One caller, `scene::load_object`, for
-//! slots up to 0x40. Refuses a file of no faces, faces that run past the file's room, more
+//! Goes through the file's faces (after its points; a face is 0x10 bytes and as many again for each
+//! vertex) and lists each face's texture (its word +4) once, in the order met, in the texture list;
+//! their number is kept. For a slot under 0x40 the number and the list also go to the slot's record
+//! of 0x40 bytes; more than fifteen textures run on into the next slots' records, while that stays
+//! inside the 0x40 records. Refuses a file of no faces, faces that run past the file's room, more
 //! than 0x100 textures, and a list that would leave the records.
 
 use crate::errors::BadInput;

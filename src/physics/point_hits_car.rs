@@ -9,8 +9,6 @@
 //! the car's `contact_point`, the car's speed length (`velocity`, `physics::vector_length`) into
 //! `contact_speed_length`, `contact_depth` is raised to its size, `contact_flag` = 1 and
 //! `wall_hit_timer` = 0x32.
-//!
-//! Callers: `physics::object_hits_car`, `physics::scene_point_hits_car`.
 
 use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;

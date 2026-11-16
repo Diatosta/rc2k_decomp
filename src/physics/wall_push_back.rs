@@ -4,8 +4,7 @@
 //! no slide limit; `physics::contact_force` into contact record 4, `physics::place_sound_e1`;
 //! `wall_heading` = -1.
 //!
-//! Callers: `physics::wall_contacts`, `physics::wall_edge_contact`. Refuses what `place_sound_e1`
-//! refuses (what was written is put back).
+//! Refuses what `place_sound_e1` refuses (what was written is put back).
 
 use crate::errors::Refused;
 use crate::math::x87::compare_80;

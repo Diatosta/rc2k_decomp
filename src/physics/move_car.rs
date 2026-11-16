@@ -2,8 +2,6 @@
 //! 65536 and the step `step_time`, rounded through `scratch`: x, z, then y.
 //!
 //! Returns y's move.
-//!
-//! Caller: `physics::car_physics_step`, twice every physics step.
 
 use crate::math::x87::mul2_to_int;
 use crate::physics::car_store::Car;

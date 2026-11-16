@@ -3,9 +3,8 @@
 //! `first_records[kind]` ..= `last_records[kind]` (`race/course_data.rs`; a first of
 //! -1: none). For its callers the key is a grid cell, (z >> 21) << 11 + (x >> 21).
 //!
-//! Callers: `physics::ground_search` (its nine cells) and `physics::cell_face_contacts`.
-//! Refuses (before anything) a kind whose last record is at or past `course_record_count`
-//! while its first is not -1 (a search past the records; not worked out).
+//! Refuses (before anything) a kind whose last record is at or past `course_record_count` while its
+//! first is not -1 (a search past the records; not worked out).
 
 use crate::errors::Refused;
 use crate::physics::cells::Trap;

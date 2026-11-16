@@ -11,8 +11,8 @@
 //! (wheel-load figure + 64) / 64 held at most 1, times the car's spin figure; the car's
 //! `contact_value` is the contact work's.
 //!
-//! Caller: `physics::car_physics_step`, every physics step. Refuses a point past 0x3F on the
-//! long path (the tables' room), and what its calls refuse; what was written is put back.
+//! Refuses a point past 0x3F on the long path (the tables' room), and what its calls refuse; what
+//! was written is put back.
 
 use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;

@@ -2,8 +2,8 @@
 //! (`race::set_course_number`, `race::set_cdat_number` with 0), its flag (`course_present[n]`) to
 //! 0, and reads 4 bytes of `srclvls\levelNN\cdat00c` into `work_dword` (`files::read_whole_file`);
 //! if four are read (`read_bytes`) the flag is 1; else it tries the same with
-//! `files\levels\levelNN\cdat00c.sq`. Called by `scene::set_up_lit_engine`. Refused: what
-//! `files::read_whole_file` refuses (nothing written then).
+//! `files\levels\levelNN\cdat00c.sq`. Refused: what `files::read_whole_file` refuses (nothing
+//! written then).
 
 use crate::errors::Refused;
 use crate::files::read_whole_file::read_whole_file_cells;

@@ -13,8 +13,6 @@
 //! from the wheels' places (`probe_point_x`, `probe_point_y`, `probe_point_z`), copied on into the
 //! records 11 .. 14 and 15 .. 18; the point y of record 10 is 0; minus the `wheel_spin_push`
 //! figures go into the y of records 11 .. 14 and 15 .. 18.
-//!
-//! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::math::x87;
 use crate::math::x87::{ext_div2, int_80, mul2, neg_rounded, negated, wheel_int};

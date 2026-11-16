@@ -2,8 +2,7 @@
 //! also set, 0 (a reading: which parts are left); then, with `tyre_change_state` 0,
 //! `physics::drop_hit_parts` and `physics::sound_hit_parts`.
 //!
-//! Caller: `physics::car_physics_step`, every physics step. Refuses what the calls refuse; what was
-//! written is put back.
+//! Refuses what the calls refuse; what was written is put back.
 
 use crate::errors::Refused;
 use crate::physics::drop_hit_parts::drop_hit_parts;

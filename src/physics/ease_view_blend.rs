@@ -2,8 +2,6 @@
 //! (`physics/camera_view.rs`; 1 less it for a blend below 0) between `view_shift_a` and
 //! `view_shift_b` goes into `camera_zoom`, and between `view_shift_c` and `view_shift_d`, times
 //! `k65536`, negated and rounded, into `camera_offset_z`.
-//!
-//! Caller: `physics::update_camera`.
 
 use crate::effects::cell_x87::CellX87;
 use crate::math::x87_float::X;

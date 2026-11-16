@@ -5,9 +5,8 @@
 //! has its top bit set, it is tinted by `race::tint_to_mud_colour`, the top byte set, and put back
 //! (`race::put_mud_texel`).
 //!
-//! See `race/mud.rs`. Callers: `race::throw_mud_texel` (twice). Refuses a texture past 3 (the
-//! map would be read past its 64 KB) and no mud, before anything; what `put_mud_texel` refuses
-//! (`scratch` put back).
+//! See `race/mud.rs`. Refuses a texture past 3 (the map would be read past its 64 KB) and no mud,
+//! before anything; what `put_mud_texel` refuses (`scratch` put back).
 
 use crate::errors::{BadInput, Refused};
 use crate::race::mud_texel::mud_texel;

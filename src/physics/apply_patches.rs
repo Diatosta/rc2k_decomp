@@ -13,10 +13,8 @@
 //! The setting names (`fizpatch`, `patchgravity`, `patchbrakegrip`, ...) are read from the
 //! config's keys; the meanings are a reading, not seen in a race.
 //!
-//! Callers: `system::load_game_data`, and two that copy thirteen settings in from
-//! `kept_patch_switches`, clear the switch and call it again. The arithmetic is plain floats
-//! (`rc2k_core::physics::patches`): each figure is one correctly rounded quotient or product at
-//! the game's double and extended precision.
+//! The arithmetic is plain floats (`rc2k_core::physics::patches`): each figure is one correctly
+//! rounded quotient or product at the game's double and extended precision.
 
 use crate::memory::session::PlainFloat;
 use crate::physics::tables_store::PhysicsTables;

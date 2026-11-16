@@ -544,14 +544,11 @@ impl submit_polygon::Outside for Game<'_> {
     fn set_texture(&mut self, texture: u32) {
         submit_polygon::Game(self.0, self.1).set_texture(texture);
     }
-    fn draw_fan(&mut self, vertices: &[crate::d3d::Vertex]) -> u32 {
-        submit_polygon::Game(self.0, self.1).draw_fan(vertices)
+    fn draw_fan(&mut self, vertices: &[crate::d3d::Vertex]) {
+        submit_polygon::Game(self.0, self.1).draw_fan(vertices);
     }
     fn bad_vertex(&mut self, buffer: &PolygonVertices, screen: &crate::memory::session::Screen) {
         submit_polygon::Game(self.0, self.1).bad_vertex(buffer, screen);
-    }
-    fn not_drawn(&mut self, result: u32) {
-        submit_polygon::Game(self.0, self.1).not_drawn(result);
     }
 }
 

@@ -1,9 +1,8 @@
 //! `scene::clear_depth_buffer`: clears the depth buffer over the whole screen.
 //!
-//! Only with `ObjectTables.d3d_drawing_on` not 0: the rectangle
-//! `SceneDraw.cleared_rectangle` = 0, 0, the screen's width and height, and
-//! `d3d::clear_viewport` (the viewport's depth-buffer clear over that one rectangle). Three
-//! callers.
+//! Only with `ObjectTables.d3d_drawing_on` not 0: the rectangle `SceneDraw.cleared_rectangle` = 0,
+//! 0, the screen's width and height, and `d3d::clear_viewport` (the viewport's depth-buffer clear
+//! over that one rectangle).
 
 // ---- game data ----
 

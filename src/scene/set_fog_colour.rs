@@ -1,6 +1,5 @@
-//! `scene::set_fog_colour`: the fog's colour: kept as the fade start and given to Direct3D
-//! (render state 0x22 = the colour with its top byte set, through `d3d::set_render_state`).
-//! Callers: `race::set_up_fog` and ten more.
+//! `scene::set_fog_colour`: the fog's colour: kept as the fade start and given to Direct3D (render
+//! state 0x22 = the colour with its top byte set, through `d3d::set_render_state`).
 
 // Logic: `rc2k_core::scene::render_states::fog_colour`
 pub fn set_fog_colour(

@@ -1,9 +1,7 @@
 //! When the current car's entry in `listed_car_sounds` is not -1, the given stage sound flag is set
 //! to 1 (the callers pass `StageSounds.once[0]`, `[1]` or `[2]`).
 //!
-//! Callers: `physics::take_split_counted`, `physics::count_down_start`, `physics::start_go_notice`
-//! (under `physics::race_timers`). Refuses (before anything) a current car past 7
-//! (`listed_car_sounds` holds eight).
+//! Refuses (before anything) a current car past 7 (`listed_car_sounds` holds eight).
 
 use crate::errors::Refused;
 use crate::memory::session::PlainDword;

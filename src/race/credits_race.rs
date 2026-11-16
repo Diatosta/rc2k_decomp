@@ -3,7 +3,7 @@
 //! `set_up_credits_race`, `set_up_arcade_cars` and `set_start_states`; sets `in_credits`; logs
 //! "INIT CREDITS - track", the stage, "car" and the car kinds (level 1); loads the stage, starts
 //! `roll_credits`, sets `after_credits` 0, plays the race, clears `in_credits` and tidies
-//! everything. Called by `menu::play_films` and the front end's developer entry.
+//! everything.
 
 use crate::errors::Refused;
 use crate::logfile::log_int::log_int;

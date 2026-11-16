@@ -7,7 +7,7 @@
 //! time moves the time on by 3000 and cues a sound (`physics::cue_listed_car_sound`: 0x50 turned,
 //! 0x52 off the line).
 //!
-//! Caller: `physics::track_checkpoints`. Refuses (before anything) a checkpoint past 0x1418.
+//! Refuses (before anything) a checkpoint past 0x1418.
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::Car;

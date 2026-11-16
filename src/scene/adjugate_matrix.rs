@@ -2,9 +2,9 @@
 //! cofactors, transposed (rows 0x10 bytes apart), and its place (+0x30 .. +0x38) negated, not
 //! turned. The matrix itself may be the result.
 //!
-//! Each of the nine is a product less a product (`x87::product_difference`), worked in order
-//! and read from memory as it then is (in place, later ones see earlier results). +0xC, +0x1C,
-//! +0x2C, +0x3C are not written. One caller, `effects::cars_particles`.
+//! Each of the nine is a product less a product (`x87::product_difference`), worked in order and
+//! read from memory as it then is (in place, later ones see earlier results). +0xC, +0x1C, +0x2C,
+//! +0x3C are not written.
 
 use crate::math::cells::Cells;
 use crate::math::x87;

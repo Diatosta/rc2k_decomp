@@ -1,8 +1,7 @@
 //! `gear_changed` = 0; the gear asked for, bits 8 .. 11 of `input_keys` as a signed nibble, goes
 //! through `physics::allowed_gear` into `gear_asked`; then `physics::change_gear`.
 //!
-//! Caller: `physics::gearbox_step`. Refuses what the two calls refuse; what was written by then is
-//! put back.
+//! Refuses what the two calls refuse; what was written by then is put back.
 
 use crate::errors::Refused;
 use crate::physics::allowed_gear::allowed_gear;

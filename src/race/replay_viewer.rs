@@ -29,8 +29,7 @@
 //!
 //! Takes the mode.
 //!
-//! Callers: the three replay modes (`race::replay_mode_2` and its siblings). Key 0x26
-//! is in `KEYS` twice (0x1D, then 0x14 never reached; a slip kept as is).
+//! Key 0x26 is in `KEYS` twice (0x1D, then 0x14 never reached; a slip kept as is).
 
 use crate::errors::Refused;
 use crate::memory::list_handle::ListMenu;

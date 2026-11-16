@@ -5,8 +5,7 @@
 //! `replay_at_end` and reports a stop. Otherwise the block and frame are stored and the frame's
 //! inputs located (`block` + 0x2000 + frame * 16).
 //!
-//! Called by `race::replay_viewer` for each frame played. Refuses what `read_replay_frame`
-//! refuses (a block past 0x708).
+//! Refuses what `read_replay_frame` refuses (a block past 0x708).
 
 use crate::errors::Refused;
 use crate::race::owner::Race;

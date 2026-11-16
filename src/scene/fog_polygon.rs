@@ -1,13 +1,12 @@
 //! `scene::fog_polygon`: each of the polygon's points gets its fog by its depth.
 //!
-//! For each entry: the depth of its point's record (+0x18) as a whole number, under 0 taken as
-//! 0, over 0x2000 is the place in the view's fog table (`scene::fog_at`; a place past the
-//! table's length is the last one); the entry's byte +0x20 is that table's byte inverted. With
-//! the view kind at 4 the byte is the low byte of the next step inverted instead. The table,
-//! its length and the next step are the view's (`scene::fog::Fog`). One caller, a six-byte
-//! stub which six functions call. Refuses a polygon of no vertices, an entry without its
-//! record and a table's length above 0x1000. A length of 0, as the menus have it, makes every
-//! place the byte before the table, which nothing writes: 0.
+//! For each entry: the depth of its point's record (+0x18) as a whole number, under 0 taken as 0,
+//! over 0x2000 is the place in the view's fog table (`scene::fog_at`; a place past the table's
+//! length is the last one); the entry's byte +0x20 is that table's byte inverted. With the view
+//! kind at 4 the byte is the low byte of the next step inverted instead. The table, its length and
+//! the next step are the view's (`scene::fog::Fog`). Refuses a polygon of no vertices, an entry
+//! without its record and a table's length above 0x1000. A length of 0, as the menus have it, makes
+//! every place the byte before the table, which nothing writes: 0.
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;

@@ -4,8 +4,7 @@
 //! negated goes to the next pair; `car_time` is the time; for car 0 or 1 the time is kept in the
 //! results' data for the split.
 //!
-//! Caller: `physics::split_by_mode`. Refuses (before anything) a split past 27 (each kept table
-//! is 28 dwords).
+//! Refuses (before anything) a split past 27 (each kept table is 28 dwords).
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::Car;
 use crate::race::league_store::League;

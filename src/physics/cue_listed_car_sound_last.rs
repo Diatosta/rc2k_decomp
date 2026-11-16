@@ -3,7 +3,7 @@
 //!
 //! Returns the entry.
 //!
-//! Caller: `physics::queue_pace_note`. Refuses (before anything) a current car past 7.
+//! Refuses (before anything) a current car past 7.
 
 use crate::errors::Refused;
 use crate::race::frame_store::FrameWork;

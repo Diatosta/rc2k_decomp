@@ -18,10 +18,9 @@
 //!   from the race screen mode (its low 12 bits in the list, else both 0; +0xC from `modes.kinds`
 //!   by its fourth nibble, less 1, not below 0); +0x10 masked by +0x20; made.
 //!
-//! Callers: `gfx::choose_screen_modes` and the graphics options' actions
-//! (`menu::apply_screen_mode`). Refuses (before anything is written) a list longer than the
-//! record's room (16 modes: it would write over the constants after the record) and a size's place
-//! of 0x1000 or more when made (it would read that far past the list).
+//! Refuses (before anything is written) a list longer than the record's room (16 modes: it would
+//! write over the constants after the record) and a size's place of 0x1000 or more when made (it
+//! would read that far past the list).
 
 use crate::d3d::owner::D3d;
 use crate::errors::CarryZeroFlags;

@@ -3,9 +3,8 @@
 //! `physics::crossed_edge_contact`, `contact_depth` raised to |`contact_speed_length`|,
 //! `contact_flag` = 1, `wall_hit_timer` = 0x32 and `physics::feel_ground`.
 //!
-//! Callers: `physics::car_physics_step` (every physics step), `physics::find_clear_place`.
-//! Refuses (before anything) a probe point past 0x3F (the tables' room), and what its calls
-//! refuse (what was written is put back).
+//! Refuses (before anything) a probe point past 0x3F (the tables' room), and what its calls refuse
+//! (what was written is put back).
 
 use crate::errors::Refused;
 use crate::physics::contact_store::ContactWork;

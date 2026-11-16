@@ -15,8 +15,8 @@
 //!   `auto_gear_speed_up`, reverse.
 //!   Shifts go through `physics::revs_from_speed`, `wheels_from_revs` and `revs_from_wheels`.
 //!
-//! Caller: `physics::gearbox_step`. Refuses what the calls refuse, and a gear outside -1 ..= 7
-//! where a ratio is read; what was written is put back.
+//! Refuses what the calls refuse, and a gear outside -1 ..= 7 where a ratio is read; what was
+//! written is put back.
 
 use crate::errors::Refused;
 use crate::math::x87::{mul_div_status, mul_status};

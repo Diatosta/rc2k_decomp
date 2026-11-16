@@ -3,8 +3,6 @@
 //! again, and `car_pitch` is minus `physics::clamped_asin` of the y; then (1, 0, 0) is turned, and
 //! `car_roll` is `clamped_asin` of the y over the cosine of the pitch (80 bits). A reading: the
 //! car's heading, pitch and roll.
-//!
-//! Caller: `physics::car_angles`, with the crash matrix.
 
 use crate::math::cells::Cells;
 use crate::math::x87::{neg_rounded, over_cos_80, patan};

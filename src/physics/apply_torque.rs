@@ -2,8 +2,6 @@
 //! spin is turned into the car's frame; each part is reduced by the matching part of the cross
 //! product of the record's two vectors times the physics step times the car's inverse inertia;
 //! the result is turned back into the world and stored as the spin.
-//!
-//! Caller: `physics::apply_torques`, once per record.
 
 use crate::math::x87::neg_product2_plus;
 use crate::physics::car_store::Car;

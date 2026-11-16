@@ -1,8 +1,6 @@
 //! `noise_word` (the word `physics::test_car_word` tests) = `scene::noise_step` of itself.
 //!
 //! Returns the new word.
-//!
-//! Caller: `physics::car_physics_step`, first: every physics step.
 
 use crate::memory::session::PlainDword;
 use crate::physics::car_store::Car;

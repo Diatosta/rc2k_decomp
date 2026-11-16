@@ -2,7 +2,7 @@
 //! for its cell and the eight about it (+-0x200000 each way; the place is read back from
 //! `ground_x` before each).
 //!
-//! Caller: `physics::face_contacts`. Refuses what `cell_face_contacts` refuses.
+//! Refuses what `cell_face_contacts` refuses.
 
 use crate::errors::Refused;
 use crate::physics::step_families::ContactInputs;

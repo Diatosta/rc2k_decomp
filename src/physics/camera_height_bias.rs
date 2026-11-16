@@ -1,8 +1,6 @@
 //! With the mode's bias flag not 0: `camera_distance` / `camera_bias_limit`, held to 0 ..= 1
 //! (1 less it for a negative flag), times `k65536` times `camera_bias_scale`, rounded to an
 //! integer into `camera_height_bias` and added to the camera's height.
-//!
-//! Caller: `physics::update_camera`.
 
 use crate::effects::cell_x87::CellX87;
 use crate::math::x87_float::X;

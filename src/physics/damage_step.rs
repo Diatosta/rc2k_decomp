@@ -1,7 +1,5 @@
 //! The car's damage and wear model for this physics step: `physics::damage_factors`,
 //! `physics::damage_wear`, `physics::damage_gauges`.
-//!
-//! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::errors::BadInput;
 use crate::physics::car_store::Car;

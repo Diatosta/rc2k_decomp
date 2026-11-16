@@ -2,8 +2,6 @@
 //! (`physics::queue_notice`) is not empty: the first entry's id goes into `notice_id`,
 //! `notice_time_b` = 0x32, `notice_time` = 0x12C (by the look of them, times to show it), the count
 //! goes down by 1, and the three lists move down one (0x1F dwords each).
-//!
-//! Caller: `physics::car_physics_step`, right after `physics::damage_notices`, every physics step.
 
 use crate::physics::car_store::Car;
 use crate::physics::cells::set_changed;

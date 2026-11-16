@@ -1,25 +1,46 @@
-//! Four twins that make a band 0 ..= 0x40 out of a float: value x factor (rounded through
-//! `band_scratch`), less a step, held to 0 ..= 0x40:
-//! - `physics::sound_band_1`: `contact_speed_length` x `contact_band_scale`, less 1;
-//! - `physics::sound_band_2`: the car's `speed` x `contact_band_scale`, less 10;
-//! - `physics::sound_band_3`: `bump_speed_length` x `bump_band_scale`, less 10;
-//! - `physics::sound_band_4`: the car's `speed` x `crash_band_scale`, less 1.
-//!
-//! A reading: volume or pitch steps for the car's sounds (their callers
-//! `physics::place_sound_object` .. `physics::place_sound_e5` drive the sound objects).
+//! The four bands 0 ..= 0x40 the car's sounds are placed with: a value times a factor (rounded
+//! through `band_scratch`), less a step, held to 0 ..= 0x40. A reading: volume or pitch steps of
+//! the contact, object, bump and crash sounds.
 
 use crate::math::x87;
 use crate::memory::session::PlainDword;
 use crate::physics::step_families::SoundInputs;
 use rc2k_core::physics::sound_bands::sound_band;
 
-/// One twin: (address, value, factor, step).
-pub type Twin = (
-    usize,
-    fn(&SoundInputs<'_>) -> f32,
-    fn(&SoundInputs<'_>) -> f32,
-    u32,
-);
+/// What a band is made of.
+pub struct Band {
+    pub value: fn(&SoundInputs<'_>) -> f32,
+    pub factor: fn(&SoundInputs<'_>) -> f32,
+    pub step: u32,
+}
+
+/// The wall and ground contacts' band: the contact's speed.
+pub const CONTACT_BAND: Band = Band {
+    value: |c| c.contact.contact_speed_length.get(),
+    factor: |c| c.spots.contact_band_scale.get(),
+    step: 1,
+};
+
+/// A hit object's band: the car's speed.
+pub const OBJECT_BAND: Band = Band {
+    value: |c| c.car.speed.get(),
+    factor: |c| c.spots.contact_band_scale.get(),
+    step: 10,
+};
+
+/// A bump between cars: the bump's speed.
+pub const BUMP_BAND: Band = Band {
+    value: |c| c.contact.bump_speed_length.get(),
+    factor: |c| c.spots.bump_band_scale.get(),
+    step: 10,
+};
+
+/// A crash: the car's speed.
+pub const CRASH_BAND: Band = Band {
+    value: |c| c.car.speed.get(),
+    factor: |c| c.spots.crash_band_scale.get(),
+    step: 1,
+};
 
 /// The exact x87 version on the value and the factor; the scratch keeps the rounded number.
 pub fn band_at(value: f32, factor: f32, scratch: &PlainDword, step: u32) -> u32 {
@@ -36,8 +57,13 @@ pub fn band_at(value: f32, factor: f32, scratch: &PlainDword, step: u32) -> u32 
 }
 
 /// The band on the game's variables (the exact x87 version).
-pub fn band_value(c: &SoundInputs<'_>, twin: Twin) -> u32 {
-    band_at(twin.1(c), twin.2(c), &c.spots.band_scratch, twin.3)
+pub fn band_value(c: &SoundInputs<'_>, band: &Band) -> u32 {
+    band_at(
+        (band.value)(c),
+        (band.factor)(c),
+        &c.spots.band_scratch,
+        band.step,
+    )
 }
 
 /// The converted version (`rc2k_core::physics::sound_bands`, plain floats).
@@ -49,6 +75,11 @@ pub fn band_at_plain(value: f32, factor: f32, scratch: &PlainDword, step: u32) -
 }
 
 /// The converted band on the game's variables.
-pub fn band_value_plain(c: &SoundInputs<'_>, twin: Twin) -> u32 {
-    band_at_plain(twin.1(c), twin.2(c), &c.spots.band_scratch, twin.3)
+pub fn band_value_plain(c: &SoundInputs<'_>, band: &Band) -> u32 {
+    band_at_plain(
+        (band.value)(c),
+        (band.factor)(c),
+        &c.spots.band_scratch,
+        band.step,
+    )
 }

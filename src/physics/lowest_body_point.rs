@@ -3,8 +3,7 @@
 //! `lowest_point` (-1 for none); then `wheel_share` = `lowest_depth` / 65536 (with four or fewer,
 //! of what it held).
 //!
-//! Callers: `physics::feel_ground`, `physics::find_clear_place` (twice), `physics::crash_contact`,
-//! `physics::ground_contact`. Refuses (before anything) a count above 0x40 (the depths' room).
+//! Refuses (before anything) a count above 0x40 (the depths' room).
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;

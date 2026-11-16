@@ -1,8 +1,6 @@
 //! `physics::point_hits_car` for the scene point whose number is the record's second dword (the
 //! scene points, 12 bytes each), with no offset: `scene_point_hits` is incremented and
 //! `object_offset` set to 0.
-//!
-//! Caller: `physics::face_contact`.
 
 use crate::errors::Refused;
 use crate::physics::flow::fill_cells;

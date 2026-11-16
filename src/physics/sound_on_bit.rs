@@ -1,7 +1,6 @@
 //! When the given bit of `parts_present` is set, it is cleared and `physics::place_car_sound` runs.
 //!
-//! Caller: `physics::sound_hit_parts`, four calls. Refuses what `place_car_sound` refuses (before
-//! anything: the bit is cleared after the check).
+//! Refuses what `place_car_sound` refuses (before anything: the bit is cleared after the check).
 
 use crate::errors::Refused;
 use crate::physics::place_car_sound::place_car_sound;

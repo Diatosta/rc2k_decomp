@@ -18,9 +18,8 @@
 //!   - part 0xA takes the rest again, part 0xB the whole file; the other parts nothing (part 0
 //!     loaded them).
 //!
-//! At the end three fatal errors: the faces' memory used up (0x80600011), the points' memory
-//! used up (0x80600010), and 0xC000 faces or more (0x80600012). One caller,
-//! `scene::load_front_end_objects`.
+//! At the end three fatal errors: the faces' memory used up (0x80600011), the points' memory used
+//! up (0x80600010), and 0xC000 faces or more (0x80600012).
 
 use crate::errors::{FatalError, Refused};
 use crate::files::read_whole_file::read_whole_file_plain_bytes;

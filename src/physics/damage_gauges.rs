@@ -6,8 +6,6 @@
 //! then held 0 ..= `gauge_top`. The hit's side (`DamageModel.hit_side`, 1 .. 4) chooses the
 //! gauges a hit wears, its size (`DamageModel.hit_size`) is scaled past `gauge_rates[22]`, and
 //! the direction `DamageModel.gear_changed` (1 or -1) adds fixed steps.
-//!
-//! Caller: `physics::damage_step`.
 
 use crate::errors::BadInput;
 use crate::memory::session::PlainFloat;

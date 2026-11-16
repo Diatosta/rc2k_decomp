@@ -8,8 +8,8 @@
 //! `probe_index` (its y x `tenth`), no slide limit; `physics::contact_force` into contact record 4,
 //! `physics::place_sound_e1`.
 //!
-//! Caller: `physics::wall_contacts`. Refuses a probe point past 0x3F on the edge path (the tables'
-//! room), and what its calls refuse (what was written is put back).
+//! Refuses a probe point past 0x3F on the edge path (the tables' room), and what its calls refuse
+//! (what was written is put back).
 
 use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;

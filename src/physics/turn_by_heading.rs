@@ -1,7 +1,5 @@
 //! Turns the x and z floats of a point by minus the work car's heading (`car_heading`) with
 //! `math::rotate_float_point_about_y` (y passed through) and stores them back.
-//!
-//! Caller: `physics::point_hits_car`.
 
 use crate::math::rotate_float_point_about_y::rotate_float_point_about_y;
 use crate::physics::car_store::Car;

@@ -10,8 +10,7 @@
 //! height; the log line "porky" with n, the first depth and the last (level 1);
 //! `clear_place_tries` + 1; `physics::limit_motion`.
 //!
-//! Caller: `physics::car_physics_step`. Refuses (before anything) a probe count of 0 or past
-//! 0x40; what its calls refuse.
+//! Refuses (before anything) a probe count of 0 or past 0x40; what its calls refuse.
 
 use crate::errors::Refused;
 use crate::physics::step_families::ClearPlaceInputs;

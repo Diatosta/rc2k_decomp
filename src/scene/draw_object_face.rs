@@ -2,26 +2,25 @@
 //! to the drawing.
 //!
 //! Nothing at all unless the lights' `draw_mode` is 0. Then, per vertex, an entry of the work
-//! table: the point's number negated (an object's point), the point's place in the view copied
-//! to the light's `point_place`, the coordinates, and the light: `scene::vertex_light`, or
-//! plain white with the `view_kind` at 4, with the face's kind (`face_kind`) at 5, or with a
-//! kind of 10 and up other than 0x1C while `face_unlit` is not 0. With reflections (the
-//! course's `shine` and the second `settings_words` entry not 0, `view_kind` not 4, the face's
-//! own shine not 0) each entry also gets a second pair of coordinates from
-//! `scene::cached_reflection_coordinates` and, in its `amount`, the face's shine times `shine`
-//! times the face's first vertex's fog (as `scene::fog_polygon` will give it), over 0x1000,
-//! held to 255; `face_any_shine` says whether any of them was not 0, and the second texture is
-//! 0x87. `face_any_shine` is only cleared when this part runs: a face without reflections goes
-//! by what an earlier one left. Then the first pass's fade (`faded`, when `fade_alpha` is set
-//! and the face's five bits are `faded_bits`), the two sides of `scene::draw_polygon` (the
-//! first texture always, the second with a reflection), mode 4; or, with `see_through` not
-//! 0x100, the first sixteen entries get that as their `amount` and their first coordinates as
-//! their second, the sides the other way round, the second texture = the first, mode 3. Then
-//! `scene::draw_object_polygon`, mode 0, the fade off. The other way, with `scene_set_up` set
-//! and `other_way_kind` at 2 (per vertex): the coordinates as the second pair, 0xFF in the
-//! `amount`, the light `other_light`; second texture = first, mode 4, and the drawing with the
-//! depth test off around it. One caller, `scene::draw_object_faces`. Refuses a face of no
-//! vertices or of more than 64, and when there are no records.
+//! table: the point's number negated (an object's point), the point's place in the view copied to
+//! the light's `point_place`, the coordinates, and the light: `scene::vertex_light`, or plain white
+//! with the `view_kind` at 4, with the face's kind (`face_kind`) at 5, or with a kind of 10 and up
+//! other than 0x1C while `face_unlit` is not 0. With reflections (the course's `shine` and the
+//! second `settings_words` entry not 0, `view_kind` not 4, the face's own shine not 0) each entry
+//! also gets a second pair of coordinates from `scene::cached_reflection_coordinates` and, in its
+//! `amount`, the face's shine times `shine` times the face's first vertex's fog (as
+//! `scene::fog_polygon` will give it), over 0x1000, held to 255; `face_any_shine` says whether any
+//! of them was not 0, and the second texture is 0x87. `face_any_shine` is only cleared when this
+//! part runs: a face without reflections goes by what an earlier one left. Then the first pass's
+//! fade (`faded`, when `fade_alpha` is set and the face's five bits are `faded_bits`), the two
+//! sides of `scene::draw_polygon` (the first texture always, the second with a reflection), mode 4;
+//! or, with `see_through` not 0x100, the first sixteen entries get that as their `amount` and their
+//! first coordinates as their second, the sides the other way round, the second texture = the
+//! first, mode 3. Then `scene::draw_object_polygon`, mode 0, the fade off. The other way, with
+//! `scene_set_up` set and `other_way_kind` at 2 (per vertex): the coordinates as the second pair,
+//! 0xFF in the `amount`, the light `other_light`; second texture = first, mode 4, and the drawing
+//! with the depth test off around it. Refuses a face of no vertices or of more than 64, and when
+//! there are no records.
 
 use crate::errors::{BadInput, Refused};
 use crate::scene::cached_reflection_coordinates::cached_reflection_coordinates;

@@ -1,8 +1,6 @@
-//! `scene::look_up_texture`: the polygon's texture for the texture word
-//! `SceneDraw.texture_page`: -1 none; with the top bit a place
-//! (`TexturePlaces.place_slot`, below 0xFA0); else a kind's first slot (below 0x400); a slot not
-//! below the texture slot count (or none loaded) none (0xFFFFFC43). Callers:
-//! `scene::choose_texture`, `race::frame_flush::flush_batch`.
+//! `scene::look_up_texture`: the polygon's texture for the texture word `SceneDraw.texture_page`:
+//! -1 none; with the top bit a place (`TexturePlaces.place_slot`, below 0xFA0); else a kind's first
+//! slot (below 0x400); a slot not below the texture slot count (or none loaded) none (0xFFFFFC43).
 
 /// Looks up the polygon's texture.
 pub fn look_up_texture(

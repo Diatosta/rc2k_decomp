@@ -2,7 +2,7 @@
 //! among `ViewAndRecords.view_vars.view_records[0]`'s 0x34 (0x5C bytes each; by their count and
 //! `race::draw_car`'s clamp to 0x33, the stages: a reading).
 //!
-//! One caller, `effects::run_frame`. Refuses a number past the table (unsigned).
+//! Refuses a number past the table (unsigned).
 
 use crate::errors::Refused;
 use crate::race::owner_frame::Frame;

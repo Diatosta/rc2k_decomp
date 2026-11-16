@@ -4,8 +4,8 @@
 //! (old gear), the gear set, `physics::revs_from_wheels`. Every change sets the car's
 //! `gear_changed` and `gear_change_pending` to 1.
 //!
-//! Caller: `physics::take_asked_gear`. Refuses (before anything) a gear or new gear outside
-//! -1 ..= 7 where the gearing reads its ratio, and what `gear_bit` refuses.
+//! Refuses (before anything) a gear or new gear outside -1 ..= 7 where the gearing reads its ratio,
+//! and what `gear_bit` refuses.
 
 use crate::errors::{BadInput, Refused};
 use crate::memory::session::{PlainDword, PlainInt};
@@ -76,8 +76,7 @@ pub fn change_gear_at(
     if way == Change::ToNeutral {
         return neutral();
     }
-    let bit = gear_bit_at(c.bits, w)?;
-    if bit.carry {
+    if gear_bit_at(c.bits, w)? {
         return neutral();
     }
     ratio_gear(gear)?;

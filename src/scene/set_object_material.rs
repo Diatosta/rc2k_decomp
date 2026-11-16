@@ -1,20 +1,19 @@
 //! `scene::set_object_material`: what an object's drawing needs from its kind's record, and for
 //! a kind that moves between two shapes, how far it has moved.
 //!
-//! `move_by` = 0 and the polygon's colour white; the object's kind picks a record of 0x80 bytes
-//! in `object_materials`, whose byte +0x20 goes to `other_way_kind`; then the object's
-//! `first_face` and `face_counts` entries to the current object's first face and face count.
-//! With that byte at 4 the object has two shapes, the second right after the first: `move_by` =
-//! the bytes between them (the next object's first point less this one's, times 12), and the
-//! fraction `move_fraction` is worked out from a state of four dwords (+0x30 .. +0x3C of the
-//! current course face's record of 0x40 bytes: the clock when last here, the time into the
-//! phase, the phase's length, the phase): the time since last here (the scene clock, at most
-//! 100) is added; while the time is not under the length, it loses the length, the phase goes
-//! on by one of four, and the new length is a base (200, 400, 200, 400) plus a random part of
-//! 400 (the drawing's random numbers, `next_drawing_random`, its top half times 400). The
-//! fraction: 0 in phase 0, time over length in phase 1, 1 in phase 2, 1 less that in phase 3.
-//! There is no second way for when the four random parts are all 0: they never are. One
-//! caller, `scene::draw_object`. Refuses an object's number past the tables and, for a moving
+//! `move_by` = 0 and the polygon's colour white; the object's kind picks a record of 0x80 bytes in
+//! `object_materials`, whose byte +0x20 goes to `other_way_kind`; then the object's `first_face`
+//! and `face_counts` entries to the current object's first face and face count. With that byte at 4
+//! the object has two shapes, the second right after the first: `move_by` = the bytes between them
+//! (the next object's first point less this one's, times 12), and the fraction `move_fraction` is
+//! worked out from a state of four dwords (+0x30 .. +0x3C of the current course face's record of
+//! 0x40 bytes: the clock when last here, the time into the phase, the phase's length, the phase):
+//! the time since last here (the scene clock, at most 100) is added; while the time is not under
+//! the length, it loses the length, the phase goes on by one of four, and the new length is a base
+//! (200, 400, 200, 400) plus a random part of 400 (the drawing's random numbers,
+//! `next_drawing_random`, its top half times 400). The fraction: 0 in phase 0, time over length in
+//! phase 1, 1 in phase 2, 1 less that in phase 3. There is no second way for when the four random
+//! parts are all 0: they never are. Refuses an object's number past the tables and, for a moving
 //! kind, no state.
 //!
 //! The work is `set_object_material_plain`, through `rc2k_core::scene::materials` (the

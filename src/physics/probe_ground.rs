@@ -24,9 +24,8 @@
 //! Then the first four of `probe_x`, `probe_ground_height`, `probe_z` go into the car's
 //! `wheel_ground_x`, `wheel_ground_height`, `wheel_ground_z`.
 //!
-//! Callers: `physics::find_clear_place`, `physics::feel_ground`, `race::settle_car` (twice),
-//! `race::face_hide_mask`, `physics::probe_and_keep`. Refuses (before anything: what it wrote is
-//! put back) a count above 0x40 (the lists' room), and what `find_ground` refuses on any point.
+//! Refuses (before anything: what it wrote is put back) a count above 0x40 (the lists' room), and
+//! what `find_ground` refuses on any point.
 
 use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};

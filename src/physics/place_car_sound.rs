@@ -3,7 +3,7 @@
 //! (`scene::rotate_point`), each part times `one_over_65536` into the object's place; update
 //! flag 1. A reading: the car's sound placed against the view.
 //!
-//! Caller: `physics::sound_on_bit`. Refuses (before anything) a null sound object.
+//! Refuses (before anything) a null sound object.
 
 use crate::errors::Refused;
 use crate::math::x87::{ext_times, ints_diff_80};

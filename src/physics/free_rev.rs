@@ -5,8 +5,6 @@
 //! alone).
 //!
 //! The x87 run is plain Rust over `X` (`math/x87_float.rs`).
-//!
-//! Callers: `physics::free_rev_in_neutral`, `physics::free_rev_clutch`.
 
 use crate::effects::cell_x87::CellX87;
 use crate::math::x87;

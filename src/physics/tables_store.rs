@@ -10,7 +10,7 @@ use crate::memory::session::{PlainDword, PlainFlag, PlainFloat, PlainInt};
 #[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct Surface {
-    /// Its table in `surface_tables` (an address).
+    /// Where its table starts in `surface_tables`, as a dword's number (a multiple of 13).
     pub table: PlainDword,
     /// Slide grip (`patchslidegrip`).
     pub slide_grip: PlainFloat,
@@ -584,16 +584,16 @@ impl PhysicsTables {
             },
             surfaces: {
                 let mut v: [Surface; 16] = ZeroCells::ZERO;
-                v[0].table = PlainDword::new(0x613C78); // an IDA address: wave 3
+                v[0].table = PlainDword::new(0);
                 v[0].slide_grip = PlainFloat::new(1.0);
                 v[0].accel_grip = PlainFloat::new(0.9);
                 v[0].brake_grip = PlainFloat::new(1.7);
-                v[1].table = PlainDword::new(0x613CAC); // an IDA address: wave 3
+                v[1].table = PlainDword::new(13);
                 v[1].slide_grip = PlainFloat::new(1.0);
                 v[1].accel_grip = PlainFloat::new(0.9);
                 v[1].brake_grip = PlainFloat::new(1.7);
                 v[1].wear_factor = PlainFloat::new(0.07);
-                v[2].table = PlainDword::new(0x613CE0); // an IDA address: wave 3
+                v[2].table = PlainDword::new(26);
                 v[2].slide_grip = PlainFloat::new(1.0);
                 v[2].accel_grip = PlainFloat::new(0.9);
                 v[2].brake_grip = PlainFloat::new(1.7);
@@ -601,7 +601,7 @@ impl PhysicsTables {
                 v[2].unknown_18[1] = PlainDword::new(0x40000000);
                 v[2].grip = PlainFloat::new(1.0);
                 v[2].wear_factor = PlainFloat::new(0.2);
-                v[3].table = PlainDword::new(0x613D14); // an IDA address: wave 3
+                v[3].table = PlainDword::new(39);
                 v[3].slide_grip = PlainFloat::new(1.0);
                 v[3].accel_grip = PlainFloat::new(0.9);
                 v[3].brake_grip = PlainFloat::new(1.7);
@@ -613,7 +613,7 @@ impl PhysicsTables {
                 v[3].rolling_drag_min_speed = PlainFloat::new(30.0);
                 v[3].grip = PlainFloat::new(0.5);
                 v[3].wear_factor = PlainFloat::new(0.05);
-                v[4].table = PlainDword::new(0x613DB0); // an IDA address: wave 3
+                v[4].table = PlainDword::new(78);
                 v[4].slide_grip = PlainFloat::new(1.0);
                 v[4].accel_grip = PlainFloat::new(0.9);
                 v[4].brake_grip = PlainFloat::new(1.2);
@@ -624,13 +624,13 @@ impl PhysicsTables {
                 v[4].drag = PlainFloat::new(5.0);
                 v[4].rolling_drag_min_speed = PlainFloat::new(40.0);
                 v[4].wear_factor = PlainFloat::new(0.05);
-                v[5].table = PlainDword::new(0x613DB0); // an IDA address: wave 3
+                v[5].table = PlainDword::new(78);
                 v[5].slide_grip = PlainFloat::new(1.0);
                 v[5].accel_grip = PlainFloat::new(0.9);
                 v[5].brake_grip = PlainFloat::new(1.7);
                 v[5].drag = PlainFloat::new(10.0);
                 v[5].rolling_drag_min_speed = PlainFloat::new(5.0);
-                v[6].table = PlainDword::new(0x613D14); // an IDA address: wave 3
+                v[6].table = PlainDword::new(39);
                 v[6].slide_grip = PlainFloat::new(1.0);
                 v[6].accel_grip = PlainFloat::new(0.9);
                 v[6].brake_grip = PlainFloat::new(1.7);
@@ -640,7 +640,7 @@ impl PhysicsTables {
                 v[6].unknown_18[1] = PlainDword::new(0x40A00000);
                 v[6].grip = PlainFloat::new(1.0);
                 v[6].wear_factor = PlainFloat::new(0.05);
-                v[7].table = PlainDword::new(0x613D7C); // an IDA address: wave 3
+                v[7].table = PlainDword::new(65);
                 v[7].slide_grip = PlainFloat::new(1.0);
                 v[7].accel_grip = PlainFloat::new(0.9);
                 v[7].brake_grip = PlainFloat::new(1.7);
@@ -652,7 +652,7 @@ impl PhysicsTables {
                 v[7].rolling_drag_min_speed = PlainFloat::new(25.0);
                 v[7].grip = PlainFloat::new(3.0);
                 v[7].wear_factor = PlainFloat::new(0.1);
-                v[8].table = PlainDword::new(0x613D7C); // an IDA address: wave 3
+                v[8].table = PlainDword::new(65);
                 v[8].slide_grip = PlainFloat::new(1.0);
                 v[8].accel_grip = PlainFloat::new(0.9);
                 v[8].brake_grip = PlainFloat::new(1.7);
@@ -664,18 +664,18 @@ impl PhysicsTables {
                 v[8].rolling_drag_min_speed = PlainFloat::new(15.0);
                 v[8].grip = PlainFloat::new(5.0);
                 v[8].wear_factor = PlainFloat::new(1.0);
-                v[9].table = PlainDword::new(0x613DE4); // an IDA address: wave 3
+                v[9].table = PlainDword::new(91);
                 v[9].slide_grip = PlainFloat::new(1.0);
                 v[9].accel_grip = PlainFloat::new(0.9);
                 v[9].brake_grip = PlainFloat::new(1.7);
                 v[9].wear_factor = PlainFloat::new(0.05);
-                v[10].table = PlainDword::new(0x613D7C); // an IDA address: wave 3
+                v[10].table = PlainDword::new(65);
                 v[10].slide_grip = PlainFloat::new(1.0);
                 v[10].accel_grip = PlainFloat::new(0.9);
                 v[10].brake_grip = PlainFloat::new(1.7);
                 v[10].grip = PlainFloat::new(1.0);
                 v[10].wear_factor = PlainFloat::new(0.05);
-                v[11].table = PlainDword::new(0x613DB0); // an IDA address: wave 3
+                v[11].table = PlainDword::new(78);
                 v[11].slide_grip = PlainFloat::new(1.0);
                 v[11].accel_grip = PlainFloat::new(0.9);
                 v[11].brake_grip = PlainFloat::new(1.2);
@@ -686,7 +686,7 @@ impl PhysicsTables {
                 v[11].drag = PlainFloat::new(5.0);
                 v[11].rolling_drag_min_speed = PlainFloat::new(30.0);
                 v[11].wear_factor = PlainFloat::new(0.1);
-                v[12].table = PlainDword::new(0x613D48); // an IDA address: wave 3
+                v[12].table = PlainDword::new(52);
                 v[12].slide_grip = PlainFloat::new(1.0);
                 v[12].accel_grip = PlainFloat::new(0.9);
                 v[12].brake_grip = PlainFloat::new(1.7);
@@ -696,15 +696,15 @@ impl PhysicsTables {
                 v[12].unknown_18[1] = PlainDword::new(0x40000000);
                 v[12].grip = PlainFloat::new(0.75);
                 v[12].wear_factor = PlainFloat::new(0.15);
-                v[13].table = PlainDword::new(0x613C78); // an IDA address: wave 3
+                v[13].table = PlainDword::new(0);
                 v[13].slide_grip = PlainFloat::new(1.0);
                 v[13].accel_grip = PlainFloat::new(0.9);
                 v[13].brake_grip = PlainFloat::new(1.7);
-                v[14].table = PlainDword::new(0x613C78); // an IDA address: wave 3
+                v[14].table = PlainDword::new(0);
                 v[14].slide_grip = PlainFloat::new(1.0);
                 v[14].accel_grip = PlainFloat::new(0.9);
                 v[14].brake_grip = PlainFloat::new(1.7);
-                v[15].table = PlainDword::new(0x613C78); // an IDA address: wave 3
+                v[15].table = PlainDword::new(0);
                 v[15].slide_grip = PlainFloat::new(1.0);
                 v[15].accel_grip = PlainFloat::new(0.9);
                 v[15].brake_grip = PlainFloat::new(1.7);
@@ -1098,43 +1098,33 @@ impl PhysicsTables {
 }
 
 impl PhysicsTables {
-    /// The first surface table's key and its length.
-    const TABLES: usize = 0x613C78;
-    const TABLES_LEN: usize = 104 * 4;
+    /// The dwords of `surface_tables`.
+    const TABLES_LEN: usize = 104;
 
-    /// Where ground kind `n`'s table starts in `surface_tables`, as a dword's number (the records
-    /// name their tables by key). A kind past the 16, or a name off the tables (or between two
-    /// dwords), is refused.
+    /// Where ground kind `n`'s table starts in `surface_tables`, as a dword's number. A kind past
+    /// the 16, or a start past the tables, is refused.
     pub fn surface_table_index(&self, n: u32) -> Result<usize, crate::errors::BadInput> {
         let record = self
             .surfaces
             .get(n as usize)
             .ok_or(crate::errors::BadInput("a ground kind past the 16"))?;
-        let at = (record.table.get() as usize).wrapping_sub(Self::TABLES);
-        if at >= Self::TABLES_LEN || !at.is_multiple_of(4) {
+        let at = record.table.get() as usize;
+        if at >= Self::TABLES_LEN {
             return Err(crate::errors::BadInput(
                 "a ground record's table off the tables",
             ));
         }
-        Ok(at / 4)
+        Ok(at)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
-    fn the_ground_records_name_their_tables_as_the_image_does() {
+    fn the_ground_records_name_whole_tables() {
         let shared = &crate::test_support::own::race().shared;
         for n in 0..16u32 {
-            // The record keeps a table's name; resolved to that table's place.
-            let image = shared.physics_tables.get().surfaces[n as usize].table.get();
-            let slot = (image as usize - PhysicsTables::TABLES) / 4;
-            assert_eq!(
-                shared.physics_tables.get().surface_table_index(n).unwrap(),
-                slot
-            );
+            let slot = shared.physics_tables.get().surface_table_index(n).unwrap();
             assert!(slot.is_multiple_of(13) && slot < 104);
         }
         assert!(shared.physics_tables.get().surface_table_index(16).is_err());

@@ -17,8 +17,7 @@
 //!
 //! The result also goes into the machine's scratch dword.
 //!
-//! Called by `race::tyre_change` (twice), which reads only the result. Refuses (before anything)
-//! a player past 7 or a missing device.
+//! Refuses (before anything) a player past 7 or a missing device.
 
 use crate::errors::{BadInput, Refused};
 use crate::input::types::InputDevice;

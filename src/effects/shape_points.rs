@@ -186,13 +186,13 @@ fn all_steps<'a>(
             &masks.vars.shapes[0].ease_step,
             0, // `ShapeSetTuning.turn_angles[0]`, `ShapeSetTuning::turn_angles`
             &drops.shape_work.work.steps[0], // ShapeWork.work.steps[0]
-            &drops.picks.flags[0], // MaskPicks.flags[0]
+            &drops.picks.flags[0],
         ),
         (
             &masks.vars.shapes[1].ease_step,
             2,                               // `ShapeSetTuning.turn_angles[2]`
             &drops.shape_work.work.steps[1], // ShapeWork.work.steps[1]
-            &drops.picks.flags[1],           // MaskPicks.flags[1]
+            &drops.picks.flags[1],
         ),
     ]
 }

@@ -47,7 +47,7 @@ pub fn init_marks(
         crate::race::load_times::mark("make_wave_tables");
         setup::make_wave_tables(paths)?;
         crate::race::load_times::mark("make_profiles");
-        profiles::make_profiles(paths, profiles::RESUME, scene, effects)?;
+        profiles::make_profiles(paths, scene, effects)?;
         crate::race::load_times::mark("seed_noise");
         setup::seed_noise(weather, effects);
         crate::race::load_times::mark("make_noise_curve");

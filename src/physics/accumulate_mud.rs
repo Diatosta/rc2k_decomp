@@ -5,8 +5,6 @@
 //! the ground, the drive speed (clamped at 0) times the scale pair is added to the four thrown
 //! amounts; the drive speed less the car speed (clamped at 0) times the second pair is added to
 //! the four splash amounts.
-//!
-//! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::math::x87;
 use crate::memory::session::PlainFloat;

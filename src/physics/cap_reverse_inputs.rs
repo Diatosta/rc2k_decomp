@@ -1,7 +1,5 @@
 //! In reverse while the car's speed is not below 0 (an unordered compare counts as below), the
 //! two `wheel_slips` floats are held to at most `two` (2.0; a lower or unordered one is left).
-//!
-//! Caller: `physics::drive_wheels_step`.
 
 use crate::physics::car_store::Car;
 use crate::physics::flow::ZERO_BITS as ZERO;

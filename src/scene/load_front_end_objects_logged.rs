@@ -1,8 +1,8 @@
-//! `scene::load_front_end_objects_logged`: `scene::load_front_end_objects`, then its log: a
-//! rule, "Front end objects loaded", "total points" the object point count, "total pointmem"
+//! `scene::load_front_end_objects_logged`: `scene::load_front_end_objects`, then its log: a rule,
+//! "Front end objects loaded", "total points" the object point count, "total pointmem"
 //! `ObjectWork.point_memory_total`, "total faces" `ObjectTables.face_count`, "total facemem"
-//! `ObjectWork.face_memory_total` (each label without a line's end, its value in hex8 with
-//! one), a rule. Caller: `scene::set_up_front_end_scene`.
+//! `ObjectWork.face_memory_total` (each label without a line's end, its value in hex8 with one), a
+//! rule.
 
 use crate::errors::Refused;
 use crate::logfile::log_hex8::log_hex8;

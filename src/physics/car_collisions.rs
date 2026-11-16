@@ -7,7 +7,6 @@
 //!
 //! Returns the cars' count (at least 1) in modes 0 and 2.
 //!
-//! Callers: `physics::car_physics_step` (every physics step), `physics::find_clear_place`.
 //! Refuses (before anything) more than eight cars or a null block among them, and what
 //! `corner_hits_car` refuses (what was written is put back).
 

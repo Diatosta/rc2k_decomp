@@ -1,10 +1,9 @@
 //! `scene::list_object_faces`: goes through an object's faces and lists the ones to draw.
 //!
-//! The list is emptied; then for each of the object's `ObjectWork.object_face_count` faces,
-//! from `ObjectWork.object_first_face` on in the faces table: its number within the object to
-//! `RaceVars.face_number` and `scene::list_object_face`. One caller, `scene::draw_object`.
-//! Refuses an object of no faces or of more than the list holds, a face's number past the
-//! table and a face that is not there.
+//! The list is emptied; then for each of the object's `ObjectWork.object_face_count` faces, from
+//! `ObjectWork.object_first_face` on in the faces table: its number within the object to
+//! `RaceVars.face_number` and `scene::list_object_face`. Refuses an object of no faces or of more
+//! than the list holds, a face's number past the table and a face that is not there.
 
 use crate::errors::Refused;
 

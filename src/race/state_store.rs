@@ -177,7 +177,7 @@ pub struct SettingsHead {
     /// The stage's direction (the selected group's copy).
     pub direction: PlainDword,
     /// Never used; 0 at start.
-    pub unk_75acf4: PlainDword,
+    pub unused_after_direction: PlainDword,
     /// The track entry's +0x1C.
     pub track_1c: PlainDword,
     /// The track entry's +0x20.
@@ -296,7 +296,7 @@ impl RaceState {
                     car_kind_current: PlainDword::new(0),
                     car_kind_first: PlainDword::new(0),
                     direction: PlainDword::new(0),
-                    unk_75acf4: PlainDword::new(0),
+                    unused_after_direction: PlainDword::new(0),
                     track_1c: PlainDword::new(0x2d),
                     track_20: PlainDword::new(0x19),
                     lens_flare: PlainDword::new(0),

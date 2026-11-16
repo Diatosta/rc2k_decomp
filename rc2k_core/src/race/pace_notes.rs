@@ -20,22 +20,21 @@ use crate::race::pace::{
 /// Room for checkpoints (faces, distances and angles).
 pub const MOST_CHECKPOINTS: u32 = 0x1418;
 
-/// The tables' places in the image.
-pub const IMAGE_START: u32 = 0x615E10;
-pub const IMAGE_END: u32 = 0x61FE18;
-pub const COUNT: u32 = 0x615E10; // PaceNotes.note_count
-pub const GROUPS: u32 = 0x615E14; // PaceNotes.group_count
-pub const STARTS: u32 = 0x615E18; // PaceNotes.note_starts[0]
-pub const ENDS: u32 = 0x616E18; // PaceNotes.note_ends[0]
-pub const KINDS: u32 = 0x617E18; // PaceNotes.note_end_codes[0]
-pub const GAPS: u32 = 0x618E18; // PaceNotes.note_gaps
-pub const GROUP_CHECKPOINTS: u32 = 0x619E18; // PaceNotes.group_checkpoints[0]
-pub const GROUP_TEXTS: u32 = 0x61AE18; // PaceNotes.group_texts[0]
-pub const TEXT: u32 = 0x61BE18; // PaceNotes.text
+/// The tables' places in their image (byte offsets).
+pub const IMAGE_END: u32 = 0xA008;
+pub const COUNT: u32 = 0x0; // `note_count`
+pub const GROUPS: u32 = 0x4; // `group_count`
+pub const STARTS: u32 = 0x8; // `note_starts[0]`
+pub const ENDS: u32 = 0x1008; // `note_ends[0]`
+pub const KINDS: u32 = 0x2008; // `note_end_codes[0]`
+pub const GAPS: u32 = 0x3008; // `note_gaps`
+pub const GROUP_CHECKPOINTS: u32 = 0x4008; // `group_checkpoints[0]`
+pub const GROUP_TEXTS: u32 = 0x5008; // `group_texts[0]`
+pub const TEXT: u32 = 0x6008; // `text`
 pub const TEXT_LEN: u32 = 0x4000;
 
 /// The tables' image length in bytes.
-pub const IMAGE_LEN: usize = (IMAGE_END - IMAGE_START) as usize;
+pub const IMAGE_LEN: usize = IMAGE_END as usize;
 
 /// What the walk asks of the stage; `k` is below `MOST_CHECKPOINTS`, `slot` below 8.
 pub trait Stage {
@@ -65,7 +64,7 @@ pub struct Course {
 pub struct Notes<'a, S: Stage> {
     /// The slot the walk is at; kept between calls.
     pub slot: u32,
-    /// The tables' image (`IMAGE_LEN` bytes, from `IMAGE_START`).
+    /// The tables' image (`IMAGE_LEN` bytes).
     pub image: Vec<u8>,
     /// Where the next text byte goes (offset from `TEXT`).
     text_end: u32,
@@ -87,13 +86,10 @@ impl<'a, S: Stage> Notes<'a, S> {
     }
 
     fn place(&self, at: u32, len: u32) -> Result<usize, Invalid> {
-        let off = at.wrapping_sub(IMAGE_START);
-        if off > IMAGE_END - IMAGE_START - len {
-            return Err(Invalid(
-                "a pace notes table place outside 0x615E10 .. 0x61FE18",
-            ));
+        if at > IMAGE_END - len {
+            return Err(Invalid("a pace notes table place outside the tables"));
         }
-        Ok(off as usize)
+        Ok(at as usize)
     }
 
     fn word(&self, at: u32) -> Result<u32, Invalid> {
@@ -436,7 +432,7 @@ mod tests {
         assert_eq!(m.entry(GROUP_TEXTS, 1).unwrap(), 5);
         assert_eq!(m.entry(GROUP_CHECKPOINTS, 1).unwrap(), 3);
         assert_eq!(
-            &m.image[(TEXT - IMAGE_START) as usize..][..7],
+            &m.image[TEXT as usize..][..7],
             &[0xA0, 0x10, JOIN, 0x20, 0, 0xA0 + 40, 0]
         );
     }
@@ -451,7 +447,7 @@ mod tests {
         // No kind-2 face: the start is the count + 2, past the window.
         assert!(m.init().is_err());
         assert!(m.word(IMAGE_END - 2).is_err());
-        assert!(m.set_byte(IMAGE_START - 1, 0).is_err());
+        assert!(m.set_byte(u32::MAX, 0).is_err());
         let few = Test {
             codes: vec![[0; 8]],
             kinds: vec![0],

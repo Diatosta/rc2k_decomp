@@ -8,7 +8,6 @@ use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::memory::session::PlainDword;
 
-pub const RESUME: u32 = 0x4C3EA6; // loc_4C3EA6
 pub const COURSE_CORNERS: u32 = 0x1C_2000;
 pub const CORNERS_LEN: usize = 0x8000;
 
@@ -90,30 +89,25 @@ fn make_tables(paths: &Paths, effects: &crate::effects::owner::Effects) -> Resul
 }
 
 /// `effects::make_profiles`: `ProfileRings.zero` 0, the rings' before and after (of 0x100);
-/// unless done (the done mark is `resume`): the 3 ramps (start to end over 256 steps), 8
+/// unless done before: the 3 ramps (start to end over 256 steps), 8
 /// sines (base + amplitude sin, the angle stepped), 2 curves (top - x² scale), each table's
-/// differences after it (a fourth list is of no tables), the done mark `resume`; then
+/// differences after it (a fourth list is of no tables), the done flag set; then
 /// 0x8000 bytes of corners from the course info + 0x1C2000 (twice), `allocate_links` and
-/// `reset_settings_blocks`. Refuses a mark that is neither 0 nor `resume`.
+/// `reset_settings_blocks`.
 pub fn make_profiles(
     paths: &Paths,
-    resume: u32,
     scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     {
-        let done: u32 = effects.frame.draw_frame.profiles_done.get();
-        if done != 0 && done != resume {
-            return Err(BadInput("the profiles' mark is neither 0 nor loc_4C3EA6").into());
-        }
         paths.profile_rings.zero.set(0);
         for n in 0..0x100u32 {
             paths.profile_rings.before[n as usize].set(n.wrapping_sub(1) & 0xFF);
             paths.profile_rings.after[n as usize].set((n + 1) & 0xFF);
         }
-        if done == 0 {
+        if !effects.frame.draw_frame.profiles_done.is_set() {
             make_tables(paths, effects)?;
-            effects.frame.draw_frame.profiles_done.set(resume);
+            effects.frame.draw_frame.profiles_done.set(true);
         }
         if !crate::race::course_places::info_held(&effects.stage()?.course) {
             return Err(BadInput("no course info").into());

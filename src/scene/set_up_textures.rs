@@ -1,9 +1,9 @@
 //! `scene::set_up_textures`: the texture memory for everything that is needed, and one texture
 //! more for the game's own use.
 //!
-//! `scene::build_texture_catalogue`; the mirror picture = 0; then one system texture of size
-//! code 3 and pixel kind 4 without mip levels from `gfx::allocate_textures`, whose number goes
-//! to the mirror picture. If that one is refused: fatal error 0x80600943. Two callers.
+//! `scene::build_texture_catalogue`; the mirror picture = 0; then one system texture of size code 3
+//! and pixel kind 4 without mip levels from `gfx::allocate_textures`, whose number goes to the
+//! mirror picture. If that one is refused: fatal error 0x80600943.
 
 use crate::errors::Refused;
 use crate::race::owner_shared::RaceShared;

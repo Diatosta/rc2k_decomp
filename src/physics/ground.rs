@@ -93,7 +93,7 @@ pub fn face_under_point_at(
             return None;
         }
         match edge_side(course, q, f.dword_at(from), f.dword_at(to)) {
-            Ok(s) => (s.zero == Some(true)).then_some(s.carry),
+            Ok(side) => side,
             Err(e) => {
                 trap.refuse(e);
                 None

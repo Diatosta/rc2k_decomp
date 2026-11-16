@@ -3,7 +3,7 @@
 //! `race::place_car_on_line`, `race::reset_car_motion`; then `value_jump_steps` and
 //! `light_hold_steps` = 8 and `reset_marker` = 10.
 //!
-//! Caller: `physics::reset_car`. Refuses what the three calls refuse.
+//! Refuses what the three calls refuse.
 
 use crate::errors::Refused;
 use crate::physics::step_families::ResetInputs;

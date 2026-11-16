@@ -28,10 +28,9 @@
 //! - 0x25 .. 0x28: play between the marks saving pictures (`race::start_frame_pictures` 0, 0xA0,
 //!   0x50, 0x28 ms; `race::stop_frame_pictures`).
 //!
-//! Called by `race::replay_viewer`. The camera bytes' edits (0xE .. 0x10, 0x18) keep the undo
-//! before they look at the block. Nothing is checked of the table's room for a cut or a paste
-//! beyond the 0x708 blocks, except that a block shown past the count is refused for a paste (it
-//! would move memory by a negative count).
+//! The camera bytes' edits (0xE .. 0x10, 0x18) keep the undo before they look at the block. Nothing
+//! is checked of the table's room for a cut or a paste beyond the 0x708 blocks, except that a block
+//! shown past the count is refused for a paste (it would move memory by a negative count).
 
 use crate::errors::Refused;
 use crate::owners::Owners;

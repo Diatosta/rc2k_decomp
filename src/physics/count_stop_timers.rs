@@ -3,8 +3,6 @@
 //! returns; otherwise while `speed` is below `one` (1.0; unordered counts as below) it goes up,
 //! and on reaching 300 (unsigned) the same. A reading: the car has stood still too long after a
 //! start or a finish.
-//!
-//! Caller: `physics::race_timers`.
 
 use crate::memory::session::PlainDword;
 use crate::physics::car_store::Car;

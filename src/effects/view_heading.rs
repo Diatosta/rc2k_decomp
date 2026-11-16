@@ -3,8 +3,6 @@
 //! `DrawFrame.other[0]` (`scene::angle_between_vectors`, both normalised in place), into
 //! `ViewVars.heading`; 2 pi less it when the level part's x (normalised) is not negative. No level
 //! part: the heading left as it was.
-//!
-//! One caller, `effects::draw_frame`.
 
 use crate::math::x87;
 use crate::memory::session::write_bits;

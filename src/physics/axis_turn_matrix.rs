@@ -3,8 +3,6 @@
 //! 1 - cosine, three products of two axis parts and three of one with the sine) are left in
 //! `turn_sine` .. `turn_sine_z`; the fourth row is 0, 0, 0, 1 and the fourth column is left as
 //! it was.
-//!
-//! Callers: `physics::move_slot`, `physics::spin_matrix`.
 
 use crate::math::cells::Cells;
 use crate::math::x87;

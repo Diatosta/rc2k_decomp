@@ -1,7 +1,5 @@
 //! Applies the 0x17 force records (`forces`, the wheels' among them) to the work car with
 //! `physics::apply_forces`.
-//!
-//! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::errors::Refused;
 use crate::physics::apply_forces::apply_forces;

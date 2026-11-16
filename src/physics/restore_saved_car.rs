@@ -3,10 +3,8 @@
 //! `probe_count` dwords from `probe_saved_faces` into `probe_point_face`. What the pieces are (a
 //! place, the car's matrix, a list) is a reading.
 //!
-//! Callers: `physics::find_clear_place`, `physics::crossed_edge`, `physics::wall_contacts` (twice),
-//! `physics::face_contact`, `physics::ground_contact`, `physics::corner_hits_car`, under
-//! `drive::race_step` (most followed by `physics::feel_ground`). Refuses (before writing) a count
-//! above 0x7C (unsigned: the list would run past the work copy's end).
+//! Refuses (before writing) a count above 0x7C (unsigned: the list would run past the work copy's
+//! end).
 
 use crate::errors::Refused;
 use crate::memory::session::{Run, read_runs, write_runs};

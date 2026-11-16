@@ -55,7 +55,6 @@ impl MarksClock {
     }
 }
 
-const WAVE_DONE_TARGET: u32 = 0x4C4EA0; // nullsub_23
 pub const WAVE_LEVELS: u32 = 0x11;
 pub const SINES: u32 = 0x140;
 
@@ -75,18 +74,13 @@ pub fn seed_noise(weather: &Weather, effects: &crate::effects::owner::Effects) {
     weather.rain.drawn.set(0);
 }
 
-/// `effects::make_wave_tables`: once (the done mark 0): the 0x11 levels, whole numbers,
+/// `effects::make_wave_tables`: once: the 0x11 levels, whole numbers,
 /// become floats (over `WaveState.scale`, less `WaveState.less`), the 0x140 sines of 0,
-/// step, 2 step .. (`math::x87::sine_table`); then the done mark is set. Done before:
-/// nothing. Refuses a done mark that is neither 0 nor the set value.
+/// step, 2 step .. (`math::x87::sine_table`); then the done flag is set. Done before:
+/// nothing.
 pub fn make_wave_tables(paths: &Paths) -> Result<(), Refused> {
-    let done = paths.wave.done.get();
-    let target = WAVE_DONE_TARGET;
-    if done == target {
+    if paths.wave.done.is_set() {
         return Ok(());
-    }
-    if done != 0 {
-        return Err(BadInput("the wave tables' mark is neither 0 nor nullsub_23").into());
     }
     let (scale, less) = (paths.wave.scale.get(), paths.wave.less.get());
     for level in paths
@@ -105,7 +99,7 @@ pub fn make_wave_tables(paths: &Paths) -> Result<(), Refused> {
     for (cell, &v) in paths.sines.table.iter().zip(&sines) {
         cell.set(v);
     }
-    paths.wave.done.set(target);
+    paths.wave.done.set(true);
     Ok(())
 }
 

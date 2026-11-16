@@ -3,8 +3,6 @@
 //! `axle_slips[0]` + `axle_slips[1]`, `force_sums[3]` = the y forces of force records 6 .. 9,
 //! `force_sums[4]` = those of records 0 .. 4 (the records `physics::clear_forces` clears). The
 //! step's forces summed, over gravity (so in g).
-//!
-//! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::math::x87::sum_over;
 use crate::physics::tables_store::PhysicsTables;

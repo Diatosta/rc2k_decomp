@@ -19,12 +19,12 @@ const MOST_CARS: i32 = 8;
 fn lists(effects: &Effects) -> [&ListCells; 6] {
     let (ring, masks, blocks) = (&effects.ring, &effects.masks, &effects.blocks);
     [
-        &ring.pool.list,      // g_marksRingList
-        &ring.work.list,      // RingWork.list
-        &masks.blocks.list_b, // g_marksBMaskList
-        &masks.blocks.list_a, // MaskBlocks.list_a[0]
-        &blocks.places.list,  // g_marksPlacesList
-        &blocks.links.list,   // g_marksLinksList
+        &ring.pool.list,
+        &ring.work.list,
+        &masks.blocks.list_b,
+        &masks.blocks.list_a,
+        &blocks.places.list,
+        &blocks.links.list,
     ]
 }
 /// Each car's list, worked out without writing (none for a count past the refusals).

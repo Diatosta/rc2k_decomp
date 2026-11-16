@@ -1,18 +1,17 @@
 //! `scene::set_object_fade`: how see-through an object is drawn by how far off it is, and
 //! whether another, simpler object is drawn in its place.
 //!
-//! From the record of the object's kind (0x80 bytes in `object_materials`) two words: +0x1D to
-//! the first `fade_words` entry (another kind to draw instead) and +0x22 to its second (a
-//! distance). The object's `position` x and depth = 0, `object_fading` = 0 (no fading), `fade`
-//! = 0x100 (not see-through). Nothing more if both words are 0 or the object's `object_place`
-//! (a point of the scene) is -1. Else that point's record (made if it is not there, the same
-//! as `scene::project_point` makes one) gives the `position`: its x and depth in the view as
-//! whole numbers. With the depth beyond the distance times 65536: both `fade` cells = (the
-//! distance times 65536 less the depth, plus 0x100000, not under 0) over 0x1000,
-//! `object_fading` = 1, and if the first word is not 0 and an object of that kind exists
-//! (`scene::find_object_of_kind`: the first of the objects 1 ..= 0xFF with that kind), the
-//! current object becomes that object. One caller, `scene::draw_object`. Refuses an object's
-//! number past the tables and, where a record has to be made, no records or no points.
+//! From the record of the object's kind (0x80 bytes in `object_materials`) two words: +0x1D to the
+//! first `fade_words` entry (another kind to draw instead) and +0x22 to its second (a distance).
+//! The object's `position` x and depth = 0, `object_fading` = 0 (no fading), `fade` = 0x100 (not
+//! see-through). Nothing more if both words are 0 or the object's `object_place` (a point of the
+//! scene) is -1. Else that point's record (made if it is not there, the same as
+//! `scene::project_point` makes one) gives the `position`: its x and depth in the view as whole
+//! numbers. With the depth beyond the distance times 65536: both `fade` cells = (the distance times
+//! 65536 less the depth, plus 0x100000, not under 0) over 0x1000, `object_fading` = 1, and if the
+//! first word is not 0 and an object of that kind exists (`scene::find_object_of_kind`: the first
+//! of the objects 1 ..= 0xFF with that kind), the current object becomes that object. Refuses an
+//! object's number past the tables and, where a record has to be made, no records or no points.
 
 use crate::errors::BadInput;
 use crate::math::x87;

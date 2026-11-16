@@ -1,10 +1,9 @@
 //! `scene::scale_texture_coordinates`: the polygon's texture coordinates from whole numbers to
 //! floats.
 //!
-//! For each entry of the polygon, with the switch `SceneDraw.polygon_sides[0]` its first pair
-//! of coordinates (+8, +0xC) and with `SceneDraw.polygon_sides[1]` its second (+0x10, +0x14): a
-//! value that is not 0 becomes a float whose bits then lose 0x0C000000: the number over 2^24.
-//! Eight callers.
+//! For each entry of the polygon, with the switch `SceneDraw.polygon_sides[0]` its first pair of
+//! coordinates (+8, +0xC) and with `SceneDraw.polygon_sides[1]` its second (+0x10, +0x14): a value
+//! that is not 0 becomes a float whose bits then lose 0x0C000000: the number over 2^24.
 
 use crate::errors::Refused;
 use crate::scene::polygon::{Listed, listed};

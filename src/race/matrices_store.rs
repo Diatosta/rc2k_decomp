@@ -56,8 +56,8 @@ pub struct SceneMatrices {
     pub object_matrix_slots: [PlainDword; 32],
     /// The view's matrix, place at +0x30 (`effects::view_motion`, `race::frame_views`).
     pub view_place: [PlainFloat; 16],
-    /// Pointer to the object matrix in use (`scene::place_object_points`).
-    pub object_matrix_ptr: PlainDword,
+    /// Unused; it only keeps the layout.
+    pub unused_object_matrix: PlainDword,
     /// Unused; it only keeps the layout.
     pub unused_548: [PlainDword; 6],
     /// The vector reflected (`scene::reflect_vector`); now each view's
@@ -128,8 +128,6 @@ impl SceneMatrices {
                 a[15] = PlainFloat::new(1.0);
                 a
             },
-            // A game address:
-            object_matrix_ptr: PlainDword::new(0x5EA30C),
             ..ZeroCells::ZERO
         }
     }

@@ -1,9 +1,8 @@
 //! `effects::jitter_point`: the three values (the second to fourth of the four) each moved
 //! by the remainder of a random by the first, left as the first three.
 //!
-//! Three steps of the marks' random (times 0x9D plus 0x47, shifted right 12): the first
-//! moves the fourth value, the second the third, the third the second. Nine callers in the
-//! marks' particles.
+//! Three steps of the marks' random (times 0x9D plus 0x47, shifted right 12): the first moves the
+//! fourth value, the second the third, the third the second.
 
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};

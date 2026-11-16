@@ -8,8 +8,8 @@
 //! colour blends (`lamp_table_a`, `lamp_table_b`) go into `lamp_a_colour`, each added to the car's
 //! lamp colour byte by byte with saturation.
 //!
-//! Caller: `physics::car_physics_step`, every physics step. Refuses a light index past 0xFF (the
-//! tables hold 256) and no faces; what was written is put back.
+//! Refuses a light index past 0xFF (the tables hold 256) and no faces; what was written is put
+//! back.
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::ground_store::GroundWork;

@@ -5,8 +5,6 @@
 //! (`input::take_key`) into `key_after_play`, `wait_key_release` 1 (keys held), the block shown
 //! held to the last (the index's `block_count` at most, unsigned; then frame 0), `viewer_stopped` 1
 //! (stopped).
-//!
-//! Caller: `race::play_marked`.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;

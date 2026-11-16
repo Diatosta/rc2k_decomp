@@ -5,8 +5,6 @@
 //! (`physics::axis_turn_matrix`) and squared (`scene::square_matrix`), the crash matrix times it
 //! into `turned_matrix` (`scene::multiply_matrices`) and copied back (16 dwords). Then the crash
 //! matrix is squared.
-//!
-//! Caller: `physics::car_physics_step`, twice every physics step.
 
 use crate::math::x87;
 use crate::physics::axis_turn_matrix::axis_turn_matrix;

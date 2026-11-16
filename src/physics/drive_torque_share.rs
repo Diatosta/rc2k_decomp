@@ -2,8 +2,6 @@
 //! `torque_share_b` (32); s = |car speed| / `torque_share_c` held to at most 1.0 (a lower or
 //! unordered value is left); d = (n - the car's `gear_ratio_setting`) / n; `torque_share` = d +
 //! (1 - d) s, and `drive_torque` is multiplied by it.
-//!
-//! Callers: `physics::test_drive_run`, `physics::drive_force`.
 
 use crate::effects::cell_x87::CellX87;
 use crate::math::x87;

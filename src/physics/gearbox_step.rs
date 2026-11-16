@@ -4,8 +4,7 @@
 //! `gearbox_kind`: 1 `manual_gearbox`, 2 `physics::auto_gearbox`, other `manual_gearbox`. Then,
 //! after a change, the engine speed x `engine_ease` and `physics::wheels_from_revs`.
 //!
-//! Callers: `physics::drive_force` (under `physics::car_physics_step`),
-//! `physics::test_drive_run`. Refuses what the steps refuse; what was written is put back.
+//! Refuses what the steps refuse; what was written is put back.
 
 use crate::errors::Refused;
 use crate::math::x87;

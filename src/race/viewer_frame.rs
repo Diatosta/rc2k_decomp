@@ -10,8 +10,7 @@
 //! ends and the frame is shown (`gfx::show_frame`).
 //!
 //! The marks' and the place's positions are `mark * w / blocks`: a quotient past 32 bits is
-//! refused, before the bar is drawn. Called by `screens::run_frame` (from
-//! `race::replay_viewer`).
+//! refused, before the bar is drawn.
 
 use crate::errors::{BadInput, Refused};
 use crate::memory::session::PlainDword;

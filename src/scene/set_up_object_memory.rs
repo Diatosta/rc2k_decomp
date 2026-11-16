@@ -1,7 +1,6 @@
 //! `scene::set_up_object_memory`: the objects' memory and the kinds' records.
 //!
-//! `scene::allocate_object_memory`, then `scene::read_kind_records`. Two callers (the front
-//! end's 3D set-up and a race's).
+//! `scene::allocate_object_memory`, then `scene::read_kind_records`.
 
 use crate::errors::Refused;
 use crate::scene::allocate_object_memory::allocate_object_memory_in_game;

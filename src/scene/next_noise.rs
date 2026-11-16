@@ -1,9 +1,8 @@
 //! `scene::next_noise`: the next number of the scene's own generator.
 //!
-//! One step on the state `PhysicsTables.noise_state` (`scene::noise_step`, inlined): bit 22,
-//! then bits 2 and 1 of the low byte as it then is, each flip bit 0; the whole turned right by
-//! one; then `xor` 0x87654321. `math::next_random`'s step with that last `xor` added. Five
-//! callers (two in the engine's tables, three unread).
+//! One step on the state `PhysicsTables.noise_state` (`scene::noise_step`, inlined): bit 22, then
+//! bits 2 and 1 of the low byte as it then is, each flip bit 0; the whole turned right by one; then
+//! `xor` 0x87654321. `math::next_random`'s step with that last `xor` added.
 
 use crate::race::owner_shared::RaceShared;
 

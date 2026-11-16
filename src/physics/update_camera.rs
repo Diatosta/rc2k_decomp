@@ -19,8 +19,8 @@
 //! `physics::ease_view_angles`, `ease_view_blend` and `physics::camera_avoid_ground` run; the
 //! offset's length goes into `flat_depth` and the first camera figure into `camera_first`.
 //!
-//! Caller: `physics::camera_frame`. Refuses a mode past 0x33 on the blending path (past
-//! `view_records`), and what the ground checks refuse; everything written is put back.
+//! Refuses a mode past 0x33 on the blending path (past `view_records`), and what the ground checks
+//! refuse; everything written is put back.
 
 use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;

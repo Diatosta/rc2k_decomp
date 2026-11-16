@@ -3,7 +3,7 @@
 //!
 //! Returns the entry.
 //!
-//! Caller: `physics::take_split_counted`. Refuses (before anything) a current car past 7.
+//! Refuses (before anything) a current car past 7.
 
 use crate::errors::Refused;
 use crate::physics::listed_car_flags::set_flag;

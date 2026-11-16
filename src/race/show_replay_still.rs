@@ -6,7 +6,7 @@
 //! (`physics::camera_frame`), and stored again. The race scene is drawn
 //! (`race::draw_race_scene`) with `scene_switch` set to 1 and put back after.
 //!
-//! Called by `race::viewer_frame`. Refuses (before anything) a cars' count of 0 or past 8.
+//! Refuses (before anything) a cars' count of 0 or past 8.
 
 use crate::errors::{BadInput, Refused};
 use crate::memory::cells::copy_cells;

@@ -3,8 +3,6 @@
 //! into `view_a_shares`; the heading (`car_heading`) into `view_a_heading`; the next two
 //! (`car_pitch`, `car_roll`), halved (arithmetic shift) when the mode's record has `halve_tilt`
 //! set, into `view_a_pitch` and `view_a_roll`.
-//!
-//! Caller: `physics::update_camera`.
 
 use crate::effects::cell_x87::CellX87;
 use crate::math::x87_float::ld;

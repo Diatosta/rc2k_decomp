@@ -4,8 +4,6 @@
 //! scaled by the share `lever_share_left` and by `lever_share` (`physics::scale_vector`); its x and
 //! z times 65536 and the step (`step_time`), rounded, go into `lever_pushes` and are added to the
 //! car's x and z.
-//!
-//! Caller: `physics::lever_pushes`, twice.
 
 use crate::math::x87::mul2_to_int;
 use crate::physics::car_store::Car;

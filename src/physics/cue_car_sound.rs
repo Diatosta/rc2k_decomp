@@ -2,8 +2,7 @@
 //! `physics::queue_sound_cue` puts the cue first in its queue, using the object's
 //! `parts_present`.
 //!
-//! Caller: `physics::cue_listed_car_sound`. Refuses (before anything) a car past 7 or a null
-//! sound object.
+//! Refuses (before anything) a car past 7 or a null sound object.
 
 use crate::errors::Refused;
 use crate::sound::store::SoundObject;

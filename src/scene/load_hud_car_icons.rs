@@ -13,8 +13,7 @@
 //!   texture (0xAD, 0x68 for the first and 0x94 for the second);
 //! - `scene::upload_car_icon`.
 //!
-//! One caller, `scene::reload_system_textures`. Refuses a number of 0x24 or more (the tables'
-//! room) and a car without its block.
+//! Refuses a number of 0x24 or more (the tables' room) and a car without its block.
 
 use crate::errors::Refused;
 use crate::scene::car_icon_number::car_icon_number;

@@ -5,9 +5,8 @@
 //! `drive_kind`, then times `ride_height_handling_scale`), `handling[0]`, `handling[3]`,
 //! `handling[5]`, `handling[6]` (`suspension_stiffness`). What each is, is a reading.
 //!
-//! Callers: `physics::car_physics_step` (every physics step) and `race::settle_car`. Refuses
-//! (before anything) a drive kind above 1 (the cars' records have 0 and 1; the pair tables hold
-//! two).
+//! Refuses (before anything) a drive kind above 1 (the cars' records have 0 and 1; the pair tables
+//! hold two).
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;

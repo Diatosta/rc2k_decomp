@@ -2,7 +2,7 @@
 //! `physics::drop_hit_parts` on the hit timers and the bits 1 .. 4 of `parts_present`, by
 //! `physics::sound_on_bit` (the timer 256).
 //!
-//! Caller: `physics::hit_part_checks`. Refuses what `sound_on_bit` refuses.
+//! Refuses what `sound_on_bit` refuses.
 
 use crate::errors::Refused;
 use crate::physics::drop_hit_parts::hit_tests;

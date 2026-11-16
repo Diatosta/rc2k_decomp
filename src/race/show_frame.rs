@@ -3,8 +3,6 @@
 //! (`race::draw_frame_rate`), and the frame is unlocked and shown. Then the sound tick runs, the
 //! clock restarts (`scene::restart_clock`) and its time less `clock_base` goes into
 //! `frame_time`, and the frame rate is measured (`race::measure_frame_rate`).
-//!
-//! Called by `drive::race_frame`.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;

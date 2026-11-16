@@ -1,6 +1,5 @@
-//! `scene::lock_frame`: the back surface locked (`gfx::lock_surface`) and its pitch and pixels
-//! kept for the drawing (`FrameScratch.frame_pixels`, `FrameScratch.frame_pitch`). Callers:
-//! `race::loading_bar_frame` and three of the game's.
+//! `scene::lock_frame`: the back surface locked (`gfx::lock_surface`) and its pitch and pixels kept
+//! for the drawing (`FrameScratch.frame_pixels`, `FrameScratch.frame_pitch`).
 
 use crate::gfx::owner::Gfx;
 use crate::race::owner::Race;

@@ -5,14 +5,14 @@
 
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::math::x87;
-use crate::memory::session::{PlainBytes, PlainDword, PlainFloat, PlainInt};
+use crate::memory::session::{PlainBytes, PlainFlag, PlainFloat, PlainInt};
 
 /// One kind's tables.
 pub struct Shapes<'a> {
-    /// The once-only mark: 0, or where the set-up goes on once done.
-    pub done: &'a PlainDword,
+    /// Set once the set-up's once-only part is done.
+    pub done: &'a PlainFlag,
     /// The items (`ITEMS` of `item_len` bytes).
     pub items: &'a PlainBytes<0x18000>,
     pub item_len: u32,
@@ -36,26 +36,20 @@ const RADII: u32 = 8;
 impl<'a> Shapes<'a> {
     pub fn windscreen_drops(drops: &'a WindscreenDrops) -> Self {
         Shapes {
-            done: &drops.hex.done,   // g_marksWindscreenDropsDone
-            items: &drops.hex.items, // g_marksWindscreenDropItems
+            done: &drops.hex.done,
+            items: &drops.hex.items,
             item_len: 0x30,
-            curve: &drops.work.curve,    // g_marksWindscreenDropCurve
-            curve_a: &drops.hex.curve_a, // WindscreenDropVars.curve_a
-            curve_b: &drops.hex.curve_b, // WindscreenDropVars.curve_b
-            radii: &drops.work.radii,    // WindscreenDropWork.radii[0]
-            points: &drops.work.points,  // g_marksWindscreenDropPoints
+            curve: &drops.work.curve,
+            curve_a: &drops.hex.curve_a,
+            curve_b: &drops.hex.curve_b,
+            radii: &drops.work.radii,
+            points: &drops.work.points,
             sides: 6,
-            step_c: &drops.hex.step_c, // WindscreenDropVars.step_c
-            step_d: &drops.hex.step_d, // WindscreenDropVars.step_d
+            step_c: &drops.hex.step_c,
+            step_d: &drops.hex.step_d,
         }
     }
 }
-
-/// The `resume` mark of `effects::set_up_windscreen_drops`: set once done.
-pub const WINDSCREEN_DROPS_RESUME: u32 = 0x4BAAC5;
-
-/// The `resume` mark of `effects::set_up_windscreen_flakes`: set once done.
-pub const WINDSCREEN_FLAKES_RESUME: u32 = 0x4BF545;
 
 /// The squares' side of `Shapes`: the same steps over the squares' typed
 /// variables (`effects::windscreen_flakes_store`), four points to a circle.
@@ -63,21 +57,9 @@ mod squares {
     use super::{CURVE, RADII};
     use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 
-    use crate::errors::{BadInput, Refused};
     use crate::math::x87;
 
     pub const SIDES: usize = 4;
-
-    /// The once-only mark: refuses one neither 0 nor `resume`; true when not yet done.
-    pub fn first(fl: &WindscreenFlakes, resume: u32) -> Result<bool, Refused> {
-        use rc2k_core::effects::waves::{Mark, mark};
-        match mark(fl.state.done.get(), resume) {
-            Mark::Elsewhere => {
-                Err(BadInput("a shapes' mark neither 0 nor where it goes on").into())
-            }
-            m => Ok(m == Mark::ToMake),
-        }
-    }
 
     /// The items cleared.
     fn clear_items(fl: &WindscreenFlakes) {
@@ -137,17 +119,6 @@ fn scaled(drops: &WindscreenDrops) -> [(&PlainFloat, Vec<&PlainFloat>); 4] {
 const FANS: u32 = 0x40;
 
 impl<'a> Shapes<'a> {
-    /// The once-only mark: refuses one neither 0 nor `resume`; true when not yet done.
-    fn first(&self, resume: u32) -> Result<bool, Refused> {
-        use rc2k_core::effects::waves::{Mark, mark};
-        match mark(self.done.get(), resume) {
-            Mark::Elsewhere => {
-                Err(BadInput("a shapes' mark neither 0 nor where it goes on").into())
-            }
-            m => Ok(m == Mark::ToMake),
-        }
-    }
-
     /// The items' first dwords cleared (each item's live mark).
     fn clear_items(&self) -> Result<(), Refused> {
         for n in 0..ITEMS {
@@ -218,22 +189,21 @@ fn circle_cells(r: f32, out: &[PlainFloat], count: u32, c: i32, d: f32) {
     }
 }
 
-/// `effects::set_up_windscreen_drops`: once (the done mark, then `resume`) four floats scaled;
+/// `effects::set_up_windscreen_drops`: once (then the done flag is set) four floats scaled;
 /// then the windscreen drop items cleared, their curve and circles (6 points); 0x40 fans of
 /// four triangles (words: n6, n6+1 .. n6+5); 0x40 records of six parts (+0xC
 /// `MarksFloats.two_fifty_six`, +0x10 -1, +0x14 0xFF000000, 0x20 apart);
 /// `WindscreenDropVars.started` ..
-/// `WindscreenDropVars.spare[1]` 0. Refuses a mark neither 0 nor `resume`.
+/// `WindscreenDropVars.spare[1]` 0.
 fn windscreen_drops_with(
     drops: &WindscreenDrops,
-    resume: u32,
     plain: bool,
     gfx: &crate::gfx::owner::Gfx,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     {
         let shapes = Shapes::windscreen_drops(drops);
-        if shapes.first(resume)? {
+        if !shapes.done.is_set() {
             for (to, by) in scaled(drops).iter() {
                 let v = to.get();
                 let v = if plain {
@@ -248,7 +218,7 @@ fn windscreen_drops_with(
                 };
                 to.set(v);
             }
-            shapes.done.set(resume);
+            shapes.done.set(true);
         }
         if plain {
             shapes.make_plain()?;
@@ -292,27 +262,21 @@ fn windscreen_drops_with(
 /// `effects::set_up_windscreen_drops`' x87 version, for `effects::load_edges`.
 pub fn set_up_windscreen_drops(
     drops: &WindscreenDrops,
-    resume: u32,
     gfx: &crate::gfx::owner::Gfx,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    windscreen_drops_with(drops, resume, false, gfx, effects)
+    windscreen_drops_with(drops, false, gfx, effects)
 }
 
-/// `effects::set_up_windscreen_flakes`: its once-only mark set (then `resume`; nothing else
-/// is done once); the square items cleared, their curve and circles
-/// (4 points); then `effects::reset_pong`. Refuses a mark neither 0 nor `resume`.
+/// `effects::set_up_windscreen_flakes`: the square items cleared, their curve and circles
+/// (4 points); then `effects::reset_pong`.
 fn windscreen_flakes_with(
     pong: &crate::effects::pong::Pong,
     fl: &WindscreenFlakes,
-    resume: u32,
     plain: bool,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     {
-        if squares::first(fl, resume)? {
-            fl.state.done.set(resume);
-        }
         if plain {
             squares::make_plain(fl);
         } else {
@@ -327,8 +291,7 @@ fn windscreen_flakes_with(
 pub fn set_up_windscreen_flakes(
     pong: &crate::effects::pong::Pong,
     fl: &WindscreenFlakes,
-    resume: u32,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    windscreen_flakes_with(pong, fl, resume, false, effects)
+    windscreen_flakes_with(pong, fl, false, effects)
 }

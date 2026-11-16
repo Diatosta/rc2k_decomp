@@ -177,31 +177,27 @@ impl core::ops::Deref for InGroup {
 #[cfg(test)]
 pub static VIEWER_PANEL: InGroup = InGroup;
 
-/// The image address of the first byte of `untyped_tail`: the untyped tail with the viewer's texts
-/// and its unaligned values.
-const TAIL: usize = 0x5C2CE8;
-
 /// The tail's first bytes at the start: the last bytes of the picture name, the viewer's
 /// settings (`wrreplayenable`, `wrreplayrate`, the picture time), and the texts the network code
 /// logs (`texts`), zero-padded to the tail's length.
 const TAIL_TEXT: &[u8] = b"cx\0\x01\0\0\0d\0\0\0\n\0\0\0Finding 3d hardware\0 dd:\0=\0:\x003d:\0primary card\0secondary card\0VID: Mode for game=\0VID: Mode for main=\0VID: Open ddraw\0VID: Close ddraw\0Getting available video modes\0SVM:\0SVM: OK\0SVM: FAIL\0SDM:\0 SDM return=\0SVM: Release video screens\0SVM: Release all textures\0OpenWindow\0NET: Starting link\0NET: Stopping link\0NET: Lets rally\0NET: Create dplay\0NET: Destroy dplay\0NET: Find connections\0NET: Found\0NET: Init connection index\0NET: Init\0NET: Destroy connection\0NET: DPCA\0NET: Find sessions\0NET: Host\0NET: Open\0NET: Host complete\0NET: Join session\0NET: Join complete\0NET: Disable new players\0NET: Lobby launch detected\0NET: Create dplobby\0NET: Create player";
 
 /// The network code's log texts (`texts`): the viewer panel's tail holds them from the start and
-/// nothing writes there (the viewer's three settings stand before them, `tail_write` takes only
-/// those addresses), so the code reads them from the start values rather than from the panel. Plain
-/// data: the network's receiving thread reads them beside the game thread.
+/// nothing writes there (the viewer's three settings stand before them), so the code reads them
+/// from the start values rather than from the panel. Plain data: the network's receiving thread
+/// reads them beside the game thread.
 pub struct NetTexts(&'static [u8]);
 
 /// The network's log texts as they start.
 pub static NET_TEXTS: NetTexts = NetTexts(TAIL_TEXT);
 
 impl NetTexts {
-    /// The text of `texts` that starts at the image address `ida` in the untyped tail, up to its
-    /// NUL (or the tail's end).
-    pub fn text(&self, ida: usize) -> Vec<u8> {
-        assert!((TAIL..TAIL + 4 * 167).contains(&ida));
+    /// The text of `texts` that starts at byte `at` of the untyped tail, up to its NUL (or the
+    /// tail's end).
+    pub fn text(&self, at: usize) -> Vec<u8> {
+        assert!(at < 4 * 167);
         self.0
-            .get(ida - TAIL..)
+            .get(at..)
             .unwrap_or_default()
             .iter()
             .copied()
@@ -210,77 +206,77 @@ impl NetTexts {
     }
 }
 
-/// The texts in `untyped_tail`, by image address (for `NetTexts::text`).
+/// The texts in `untyped_tail`, by their first byte's place in it (for `NetTexts::text`).
 pub mod texts {
     /// "NET: Starting link"
-    pub const NET_STARTING_LINK: usize = 0x5C2E04;
+    pub const NET_STARTING_LINK: usize = 0x11C;
     /// "NET: Stopping link"
-    pub const NET_STOPPING_LINK: usize = 0x5C2E17;
+    pub const NET_STOPPING_LINK: usize = 0x12F;
     /// "NET: Lets rally"
-    pub const NET_LETS_RALLY: usize = 0x5C2E2A;
+    pub const NET_LETS_RALLY: usize = 0x142;
     /// "NET: Create dplay"
-    pub const NET_CREATE_DPLAY: usize = 0x5C2E3A;
+    pub const NET_CREATE_DPLAY: usize = 0x152;
     /// "NET: Destroy dplay"
-    pub const NET_DESTROY_DPLAY: usize = 0x5C2E4C;
+    pub const NET_DESTROY_DPLAY: usize = 0x164;
     /// "NET: Find connections"
-    pub const NET_FIND_CONNECTIONS: usize = 0x5C2E5F;
+    pub const NET_FIND_CONNECTIONS: usize = 0x177;
     /// "NET: Found"
-    pub const NET_FOUND: usize = 0x5C2E75;
+    pub const NET_FOUND: usize = 0x18D;
     /// "NET: Init connection index"
-    pub const NET_INIT_CONNECTION_INDEX: usize = 0x5C2E80;
+    pub const NET_INIT_CONNECTION_INDEX: usize = 0x198;
     /// "NET: Init"
-    pub const NET_INIT: usize = 0x5C2E9B;
+    pub const NET_INIT: usize = 0x1B3;
     /// "NET: Destroy connection"
-    pub const NET_DESTROY_CONNECTION: usize = 0x5C2EA5;
+    pub const NET_DESTROY_CONNECTION: usize = 0x1BD;
     /// "NET: DPCA"
-    pub const NET_DPCA: usize = 0x5C2EBD;
+    pub const NET_DPCA: usize = 0x1D5;
     /// "NET: Find sessions"
-    pub const NET_FIND_SESSIONS: usize = 0x5C2EC7;
+    pub const NET_FIND_SESSIONS: usize = 0x1DF;
     /// "NET: Host"
-    pub const NET_HOST: usize = 0x5C2EDA;
+    pub const NET_HOST: usize = 0x1F2;
     /// "NET: Open"
-    pub const NET_OPEN: usize = 0x5C2EE4;
+    pub const NET_OPEN: usize = 0x1FC;
     /// "NET: Host complete"
-    pub const NET_HOST_COMPLETE: usize = 0x5C2EEE;
+    pub const NET_HOST_COMPLETE: usize = 0x206;
     /// "NET: Join session"
-    pub const NET_JOIN_SESSION: usize = 0x5C2F01;
+    pub const NET_JOIN_SESSION: usize = 0x219;
     /// "NET: Join complete"
-    pub const NET_JOIN_COMPLETE: usize = 0x5C2F13;
+    pub const NET_JOIN_COMPLETE: usize = 0x22B;
     /// "NET: Disable new players"
-    pub const NET_DISABLE_NEW_PLAYERS: usize = 0x5C2F26;
+    pub const NET_DISABLE_NEW_PLAYERS: usize = 0x23E;
     /// "NET: Create dplobby"
-    pub const NET_CREATE_DLOBBY: usize = 0x5C2F5A;
+    pub const NET_CREATE_DLOBBY: usize = 0x272;
     /// "NET: Create player"
-    pub const NET_CREATE_PLAYER: usize = 0x5C2F6E;
+    pub const NET_CREATE_PLAYER: usize = 0x286;
 }
 
 impl ViewerPanelBlock {
     /// Whether the developer's keys work in the viewer (1): an unaligned dword in the tail.
     pub fn developer_keys(&self) -> u32 {
-        self.tail_read(0x5C2CEB)
+        self.tail_read(DEVELOPER_KEYS_AT)
     }
 
     /// Sets the developer's keys flag (the `wrreplayenable` setting writes it).
     pub fn set_developer_keys(&self, value: u32) {
-        self.tail_write(0x5C2CEB, value);
+        self.tail_write(DEVELOPER_KEYS_AT, value);
     }
 
     /// Pictures a second, 1 .. 100: an unaligned dword in the tail.
     pub fn picture_rate(&self) -> u32 {
-        self.tail_read(0x5C2CEF)
+        self.tail_read(PICTURE_RATE_AT)
     }
 
     pub fn set_picture_rate(&self, value: u32) {
-        self.tail_write(0x5C2CEF, value);
+        self.tail_write(PICTURE_RATE_AT, value);
     }
 
     /// Ms a picture: an unaligned dword in the tail.
     pub fn picture_time(&self) -> u32 {
-        self.tail_read(0x5C2CF3)
+        self.tail_read(PICTURE_TIME_AT)
     }
 
     pub fn set_picture_time(&self, value: u32) {
-        self.tail_write(0x5C2CF3, value);
+        self.tail_write(PICTURE_TIME_AT, value);
     }
 
     /// The text id of camera `camera` (47 of them; a number past them reads on in the block).
@@ -333,10 +329,9 @@ impl ViewerPanelBlock {
         crate::memory::cells::load_value(self, ida - START)
     }
 
-    /// The dword at the image address `ida` in the tail: unaligned, so made of the two cells it
-    /// spans.
-    fn tail_read(&self, ida: usize) -> u32 {
-        let (n, shift) = Self::tail_cells(ida);
+    /// The dword at byte `at` of the tail: unaligned, so made of the two cells it spans.
+    fn tail_read(&self, at: usize) -> u32 {
+        let (n, shift) = Self::tail_cells(at);
         let low = self.untyped_tail[n].get();
         match shift {
             0 => low,
@@ -345,8 +340,8 @@ impl ViewerPanelBlock {
     }
 
     /// `tail_read`'s write: the bytes of the two cells it spans that the dword covers.
-    fn tail_write(&self, ida: usize, value: u32) {
-        let (n, shift) = Self::tail_cells(ida);
+    fn tail_write(&self, at: usize, value: u32) {
+        let (n, shift) = Self::tail_cells(at);
         if shift == 0 {
             self.untyped_tail[n].set(value);
             return;
@@ -356,12 +351,17 @@ impl ViewerPanelBlock {
         high.set(high.get() & (u32::MAX << shift) | value >> (32 - shift));
     }
 
-    /// The tail's cell holding the image address `ida` and the dword's bit shift in it.
-    fn tail_cells(ida: usize) -> (usize, u32) {
-        assert!((TAIL..TAIL + 4 * 166).contains(&ida));
-        ((ida - TAIL) / 4, 8 * ((ida - TAIL) % 4) as u32)
+    /// The tail's cell holding byte `at` and the dword's bit shift in it.
+    fn tail_cells(at: usize) -> (usize, u32) {
+        assert!(at < 4 * 166);
+        (at / 4, 8 * (at % 4) as u32)
     }
 }
+
+/// Where the viewer's three settings stand in the tail (bytes from its start, unaligned).
+const DEVELOPER_KEYS_AT: usize = 3;
+const PICTURE_RATE_AT: usize = 7;
+const PICTURE_TIME_AT: usize = 11;
 
 /// The image address of the panel's first byte.
 pub const START: usize = 0x5C291C;
@@ -383,10 +383,7 @@ mod tests {
             .iter()
             .map(crate::memory::session::PlainDword::get)
             .collect();
-        for (k, ida) in [TAIL, TAIL + 3, TAIL + 7, TAIL + 11]
-            .into_iter()
-            .enumerate()
-        {
+        for (k, at) in [0, 3, 7, 11].into_iter().enumerate() {
             for (n, c) in v.untyped_tail.iter().enumerate() {
                 c.set(0xA5A5_0000 | n as u32);
             }
@@ -397,12 +394,12 @@ mod tests {
             };
             let before = tail_bytes();
             let value = 0x1122_3344 + k as u32;
-            v.tail_write(ida, value);
+            v.tail_write(at, value);
             let after = tail_bytes();
             let mut want = before.clone();
-            want[ida - TAIL..ida - TAIL + 4].copy_from_slice(&value.to_le_bytes());
-            assert_eq!(after, want, "{ida:#x}");
-            assert_eq!(v.tail_read(ida), value);
+            want[at..at + 4].copy_from_slice(&value.to_le_bytes());
+            assert_eq!(after, want, "{at}");
+            assert_eq!(v.tail_read(at), value);
         }
         for (c, k) in v.untyped_tail.iter().zip(kept) {
             c.set(k);

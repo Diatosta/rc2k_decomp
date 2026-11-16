@@ -5,8 +5,8 @@
 //! `physics::passed_split_point` is true, `reset_checkpoint` and `checkpoint` become the split's
 //! checkpoint (`SplitTables.checkpoints[1][splits_passed]`) and `splits_passed` goes up by one.
 //!
-//! Caller: `physics::car_physics_step`, every physics step. Refuses (before writing) a checkpoint
-//! past 0x1418 or a split past 0x40, and what the calls refuse.
+//! Refuses (before writing) a checkpoint past 0x1418 or a split past 0x40, and what the calls
+//! refuse.
 
 use crate::errors::Refused;
 use crate::physics::step_families::CheckpointInputs;

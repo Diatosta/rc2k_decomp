@@ -90,7 +90,7 @@ impl DrawSurface {
             bytes_per_pixel: Dword::new(0x0),
             row_bytes: Dword::new(0x0),
             row_dwords: Dword::new(0x0),
-            format: Dword::new(0x4f496c),
+            format: Dword::new(crate::gfx::pixel_format::SCREEN_FORMAT),
             pitch: Dword::new(0x0),
             pixels: Dword::new(0x0),
             row_gap: Dword::new(0x0),

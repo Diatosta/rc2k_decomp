@@ -1,6 +1,4 @@
 //! `physics::free_rev` in neutral.
-//!
-//! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::physics::free_rev::free_rev;
 use crate::race::owner_course::Course;

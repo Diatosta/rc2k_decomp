@@ -2,8 +2,6 @@
 //! `downforce_spec`) `gravity` (gravity, by `physics::apply_patches`),
 //! `PhysicsTables.forces[4].force[1]` is its negative, `PhysicsTables.forces[4].point[2]` = -1. The
 //! car's downward force: its weight plus downforce growing with the speed's square.
-//!
-//! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::math::x87::square_times_plus_times;
 use crate::physics::car_store::Car;

@@ -1,6 +1,4 @@
 //! Applies the 7 contact force records (`contacts`) to the work car with `physics::apply_forces`.
-//!
-//! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::errors::Refused;
 use crate::physics::apply_forces::apply_forces;

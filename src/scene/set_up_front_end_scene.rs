@@ -23,8 +23,7 @@
 //! - the colours a third time with the stage's lamp level = 0x7F, `scene_set_up` = 1,
 //!   `scene::fill_light_tables`, the reflections setting = 1.
 //!
-//! Thirteen callers (the main menu's loop, the films, the ends of the events). A refusal by one
-//! of its parts comes with the work half done.
+//! A refusal by one of its parts comes with the work half done.
 
 use crate::errors::Refused;
 use crate::memory::session::PlainDword;

@@ -4,7 +4,7 @@
 //! goes down, and the two write counters go up by 0x20 and 0x40. Then the second counter moves 4
 //! towards the first (not past it; left when at or below it). It loops to its own start.
 //!
-//! Callers: `physics::pace_notes_step`, and itself. Refuses (before anything) a count above 7.
+//! Refuses (before anything) a count above 7.
 
 use crate::errors::Refused;
 use crate::physics::car_store::Car;

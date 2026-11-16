@@ -3,8 +3,6 @@
 //! `weight`, negated, times `quarter` again goes into each record's force, turned into the car's
 //! frame (`physics::turn_by_inverse`); then each record's second vector is set to (-1 / 1, 0, +-1)
 //! by its corner and turned the same way. A reading: the weight on each wheel, the corners' places.
-//!
-//! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::math::x87;
 use crate::math::x87::{compare_full, weight_force};

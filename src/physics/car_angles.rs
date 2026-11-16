@@ -4,8 +4,6 @@
 //! (<< 4).
 //!
 //! Returns the crash matrix.
-//!
-//! Caller: `physics::update_car_angles`.
 
 use crate::math::x87::mul3_to_int;
 use crate::physics::car_store::Car;

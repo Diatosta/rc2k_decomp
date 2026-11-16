@@ -1,7 +1,5 @@
 //! The air's drag: for each of the car's three local velocities, its square times `air_drag`
 //! over `k10000` becomes the force in `forces[5]`, directed against the motion.
-//!
-//! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::math::x87;
 use crate::math::x87::{abs_of, compare_full, square_times_over};

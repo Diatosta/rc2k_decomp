@@ -42,7 +42,7 @@ pub fn neutral(car: &Car, tables: &PhysicsTables) {
 
 /// `gear_bit`: true when the gear cannot be taken.
 pub fn bit(car: &Car, gear: i32) -> Result<bool, Refused> {
-    Ok({ gear_bit(car, gear) }?.carry)
+    gear_bit(car, gear)
 }
 
 /// `wheels_from_revs`.

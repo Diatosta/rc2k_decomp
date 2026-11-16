@@ -8,10 +8,9 @@
 //! goes into `ground_force`; with the depth below 0, `physics::restore_saved_car` and
 //! `physics::feel_ground`.
 //!
-//! Caller: `physics::car_physics_step`, every physics step. Refuses a point past 0x3F on the
-//! long path (the tables' room), and what its calls refuse; what was written is put back. A
-//! depth below 0 is not reached by the tests (`restore_saved_car` and `feel_ground` need the
-//! stage; their own tests cover them).
+//! Refuses a point past 0x3F on the long path (the tables' room), and what its calls refuse; what
+//! was written is put back. A depth below 0 is not reached by the tests (`restore_saved_car` and
+//! `feel_ground` need the stage; their own tests cover them).
 
 use crate::errors::Refused;
 use crate::physics::contact_force::contact_force;

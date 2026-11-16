@@ -1,8 +1,7 @@
 //! Keeps the work car's `stage_time` in `kept_times[k]`, k = `splits_passed` less one, held to 0
 //! ..= `split_colour_count`. A reading: a split time at a checkpoint.
 //!
-//! Caller: `physics::take_split_counted`. Refuses (before anything) a k past the table's 0x40
-//! entries.
+//! Refuses (before anything) a k past the table's 0x40 entries.
 
 use crate::errors::Refused;
 use crate::physics::car_store::Car;

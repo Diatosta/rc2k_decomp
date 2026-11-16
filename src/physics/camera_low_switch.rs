@@ -5,7 +5,7 @@
 //! = 1, `camera_switch_share` = 0, `camera_switch_length` = 10, `camera_switch_clock` = the step
 //! clock.
 //!
-//! Caller: `physics::update_camera`. Refuses what `count_ground_probe` refuses.
+//! Refuses what `count_ground_probe` refuses.
 
 use crate::errors::Refused;
 use crate::physics::camera_ground::probe_at;

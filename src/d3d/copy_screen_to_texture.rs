@@ -1,7 +1,6 @@
 //! `d3d::copy_screen_to_texture`: while the frame's `mirror_wanted` is set (the view's mirror
-//! picture wanted), the back surface is copied, stretched, into the mirror picture's system
-//! texture (`platform::direct3d::copy_screen_to_system_texture`). Caller: `race::draw_race_scene`
-//! (one view).
+//! picture wanted), the back surface is copied, stretched, into the mirror picture's system texture
+//! (`platform::direct3d::copy_screen_to_system_texture`).
 use crate::race::owner_frame::Frame;
 use crate::scene::owner::Scene;
 

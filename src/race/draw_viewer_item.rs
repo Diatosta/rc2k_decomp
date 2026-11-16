@@ -2,7 +2,7 @@
 //! (`drive::tyre_quad`) on the item's place at the picture's width (its absolute value), centred
 //! (`item_place`). The colour is grey when the item is marked unusable (bit 7), else white, or for
 //! the highlighted item red while a camera is edited, else yellow and red by turns (bit 3 of
-//! `frame_clock` - `move_clock`). Called by `viewer_frame` for each item.
+//! `frame_clock` - `move_clock`).
 
 use crate::errors::BadInput;
 use crate::errors::Refused;

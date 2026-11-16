@@ -2,7 +2,7 @@
 //! DirectDraw is made for the card ("VID: Open ddraw"; failing is a fatal error), its display modes
 //! are enumerated with the primary card's bit (0x1000), which puts the modes in the table,
 //! `gfx::mark_3d_modes` runs for the same kind (the one card always draws in 3D), then
-//! DirectDraw is closed. DirectDraw is the platform's: in the standalone the modes are every size
+//! DirectDraw is closed. DirectDraw is the platform's: the modes are every size
 //! the game knows at 32 bits a pixel (`standalone_modes`), and the opening and closing do nothing.
 
 use crate::errors::{BadInput, Refused};

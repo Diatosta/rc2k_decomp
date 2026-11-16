@@ -8,9 +8,6 @@
 //! automatic box's held inputs?).
 //!
 //! Returns the joined input when they were joined.
-//!
-//! Callers: race init's loop (`drive::race_cars_step`), `race::step_replay_cars`,
-//! `drive::replay_step` (each calls `physics::car_physics_step` or `drive::steer_inputs` next).
 
 use crate::memory::session::DwordLike;
 use crate::physics::car_store::Car;

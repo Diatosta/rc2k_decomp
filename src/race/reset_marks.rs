@@ -3,8 +3,7 @@
 //! (`mark_in` 0, `mark_out` the count) and the block shown read again
 //! (`drive::read_replay_frame_0`).
 //!
-//! Callers: `race::viewer_action` (the cut and the paste), `race::undo_edit`. Refuses what
-//! `read_replay_frame_0` refuses (what it wrote put back).
+//! Refuses what `read_replay_frame_0` refuses (what it wrote put back).
 
 use crate::errors::Refused;
 use crate::race::owner::Race;

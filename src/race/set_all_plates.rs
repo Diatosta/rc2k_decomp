@@ -6,7 +6,7 @@
 //! - Each car gets eight pictures: its kind's picture (`scene::known_kind_picture` of
 //!   `race_car_kinds`[car]) and the seven after it.
 //!
-//! Called by `race::loadlevel_init`. Refuses more than 8 cars.
+//! Refuses more than 8 cars.
 
 use crate::errors::Refused;
 

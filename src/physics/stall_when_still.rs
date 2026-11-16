@@ -4,8 +4,6 @@
 //! `stall_share` and `no_auto_neutral` 0: gear 0 and both drive speeds 0. Probably the engine
 //! stalling when the car is stopped or turned back on itself: the motion's dot product against its
 //! own length.
-//!
-//! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::math::x87::{abs_compare, compare_full, ext_div2};
 use crate::physics::car_store::Car;

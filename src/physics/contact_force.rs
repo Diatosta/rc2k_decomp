@@ -15,9 +15,6 @@
 //! `x87_1` .. `x87_8` functions below.
 //!
 //! Takes: the record the force goes to (`contact_record`, set by each caller just before).
-//!
-//! Callers: `physics::wall_push_back`, `wall_edge_contact`, `crossed_edge_contact`,
-//! `face_contact`, `crash_contact` and `ground_contact`.
 
 use crate::effects::cell_x87::CellX87;
 use crate::math::x87::{compare_80, neg_rounded};

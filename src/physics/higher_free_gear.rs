@@ -2,8 +2,8 @@
 //! gear + 1, + 2, .. up to `gear_count` (unsigned); found with that gear, or not found with one
 //! past the count when none is.
 //!
-//! Caller: `physics::manual_gearbox`. Refuses what `gear_bit` refuses (a bit past the dword: a
-//! count of 31 or more lets the search run there), nothing written.
+//! Refuses what `gear_bit` refuses (a bit past the dword: a count of 31 or more lets the search run
+//! there), nothing written.
 
 use crate::errors::Refused;
 use crate::memory::session::PlainDword;

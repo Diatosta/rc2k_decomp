@@ -8,8 +8,7 @@
 //! The exact x87 version (the runs over the object, plain Rust over `X`) stays for
 //! `physics::engine_sound`.
 //!
-//! Caller: `physics::engine_sound`. Refuses (before anything) a null sound object, or a null
-//! view block when it is read.
+//! Refuses (before anything) a null sound object, or a null view block when it is read.
 
 use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};

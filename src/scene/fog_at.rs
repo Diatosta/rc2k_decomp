@@ -3,8 +3,7 @@
 //! flipped (`xor 0xFF000000`). The table and its length are the view's (`scene::fog::Fog`).
 //! Takes the depth (whole) and returns the alpha in its top byte.
 //!
-//! Callers: the marks' drawers (16). Refuses a table length of 0 or past the table's 0x1000
-//! bytes.
+//! Refuses a table length of 0 or past the table's 0x1000 bytes.
 
 use crate::errors::Refused;
 

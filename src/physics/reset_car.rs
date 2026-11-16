@@ -7,7 +7,6 @@
 //! `stuck_count` is reduced by 100 and it returns. Otherwise `race::place_car_on_line`,
 //! `physics::reset_car_on_line` and `reset_marker` = 10.
 //!
-//! Callers: `physics::reset_when_stuck`, `drive::reset_request`, `physics::find_clear_place`.
 //! Refuses what the calls refuse.
 
 use crate::errors::Refused;

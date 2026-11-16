@@ -3,8 +3,6 @@
 //! into `view_b_shares`; the heading into `view_b_heading`; the next two halved (arithmetic shift)
 //! unless the mode before (`camera_blend_view`) is 1, 2 or 3, into `view_b_pitch` and
 //! `view_b_roll`.
-//!
-//! Caller: `physics::update_camera`.
 
 use crate::effects::cell_x87::CellX87;
 use crate::math::x87_float::ld;

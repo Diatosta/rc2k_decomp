@@ -1,8 +1,6 @@
 //! Applies one force record (its first three floats) to a car block. The force is scaled by the
 //! physics step, turned into the world by the crash matrix and added to the car's motion; the
 //! motion is then turned by the car's inverse matrix into the car-frame speed.
-//!
-//! Caller: `physics::apply_forces`, once per record.
 
 use crate::math::x87;
 use crate::physics::car_store::Car;

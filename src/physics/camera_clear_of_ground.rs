@@ -1,7 +1,7 @@
 //! Whether the camera is a whole unit or more above the ground under it
 //! (`Car.camera_position[1]` less `ground_height`); false when no ground is found.
 //!
-//! Caller: `physics::camera_avoid_ground`. Refuses what `count_ground_probe` refuses.
+//! Refuses what `count_ground_probe` refuses.
 
 use crate::errors::Refused;
 use crate::physics::camera_ground::probe_at;

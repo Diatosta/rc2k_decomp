@@ -28,7 +28,7 @@ pub struct Grading {
     pub scale: PlainDword,
     /// The saturation pictures are read at (0x100: none).
     pub saturation: PlainDword,
-    /// `byte_4F4A30`: the grades table the last graded texture used.
+    /// The grades table the last graded texture used.
     pub grades: PlainBytes<0x100>,
 }
 

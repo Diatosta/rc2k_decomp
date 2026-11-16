@@ -4,7 +4,7 @@
 //! 0x1AC once and clears it: a beep each whole second of the last eight). `time_left` is in
 //! hundredths of a second (the arcade race's clock: `race::panel_neighbours` shows it times 10).
 //!
-//! Caller: `physics::race_timers`. Refuses what `set_flag` refuses.
+//! Refuses what `set_flag` refuses.
 
 use crate::errors::Refused;
 use crate::physics::car_store::Car;

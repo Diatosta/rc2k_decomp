@@ -1,12 +1,11 @@
 //! `scene::face_sort_key`: the depth a face is sorted by.
 //!
-//! Takes the face, the number of its vertices and the point numbers of its vertices (read once
-//! by `scene::face_faces_away`). The depths of the face's points (each point's record
-//! 0x1000 + (number & 0xFFF), its +0x18) are added one by one, each sum rounded to a float; the
-//! sum times the entry `polygon_vertex_count` of the table `CourseLists.face_key_factors`
-//! (0x100 floats the game fills: one over the number, by the use) is rounded to a whole number.
-//! One caller, `scene::list_object_face`. Refuses a count of 0, a vertex count past the table,
-//! no face and no records.
+//! Takes the face, the number of its vertices and the point numbers of its vertices (read once by
+//! `scene::face_faces_away`). The depths of the face's points (each point's record 0x1000 + (number
+//! & 0xFFF), its +0x18) are added one by one, each sum rounded to a float; the sum times the entry
+//! `polygon_vertex_count` of the table `CourseLists.face_key_factors` (0x100 floats the game fills:
+//! one over the number, by the use) is rounded to a whole number. Refuses a count of 0, a vertex
+//! count past the table, no face and no records.
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;

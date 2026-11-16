@@ -5,8 +5,7 @@
 //!
 //! Takes: the point (`ground_x`, `ground_z`; the callers set it).
 //!
-//! Callers: `physics::camera_low_switch`, `physics::camera_over_ground`. Refuses what
-//! `find_ground` refuses.
+//! Refuses what `find_ground` refuses.
 
 use crate::errors::Refused;
 use crate::physics::camera_store::CameraWork;

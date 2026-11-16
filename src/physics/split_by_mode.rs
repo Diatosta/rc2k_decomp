@@ -2,7 +2,7 @@
 //! `place`) into the place field; 1 `physics::rank_split_time`; 3 `physics::compare_split_times`;
 //! otherwise nothing.
 //!
-//! Callers: `physics::take_split`, `physics::take_split_counted`. Refuses what the steps refuse.
+//! Refuses what the steps refuse.
 use crate::errors::Refused;
 use crate::physics::compare_split_times::compare_split_times;
 use crate::physics::rank_split_time::rank_split_time;

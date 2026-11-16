@@ -1,7 +1,7 @@
 //! `scene::clear_slot_textures`: no texture slot holds or wants a texture.
 //!
-//! -1 throughout the slots' loaded and wanted textures, 0x400 dwords each, so that
-//! every slot is loaded anew. One caller, `scene::reload_slot_textures`.
+//! -1 throughout the slots' loaded and wanted textures, 0x400 dwords each, so that every slot is
+//! loaded anew.
 
 // ---- game data ----
 

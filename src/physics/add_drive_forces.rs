@@ -2,8 +2,6 @@
 //! the car's drive kind is set) times the sum of the four wheel loads becomes `drive_force_scale`;
 //! then `drive_forces[0]` and `drive_forces[1]` gain `wheel_slips[0]` and `wheel_slips[1]` times
 //! that scale times `drive_shares[2]`.
-//!
-//! Caller: `physics::drive_wheels_step`.
 
 use crate::math::x87;
 use crate::math::x87::mul2_plus;

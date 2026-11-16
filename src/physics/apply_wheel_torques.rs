@@ -1,7 +1,4 @@
 //! Applies the same 0x17 records as torques (`physics::apply_torques`).
-//!
-//! Caller: `physics::car_physics_step`, after `physics::apply_wheel_forces` and before
-//! `physics::move_car`, every physics step.
 
 use crate::errors::Refused;
 use crate::physics::apply_torques::apply_torques;

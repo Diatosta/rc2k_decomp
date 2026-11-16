@@ -122,7 +122,7 @@ pub struct FontObjects {
 
 impl FontObjects {
     /// The font objects (the glyph tables and palettes come with `gfx::build_fonts`; the loading
-    /// font's palette is the image's `FontBlock.palette_sheet[0]`, made a home at start).
+    /// font's palette is the fonts block's palette sheet from the start).
     pub const fn new() -> Self {
         FontObjects {
             objects: [
@@ -182,7 +182,7 @@ impl FontObjects {
                 FontObject::new(0, 27, 0),
                 FontObject::new(2, 27, 0),
                 FontObject::new(0, 27, 0),
-                FontObject::new(2, 27, 0x51dec4),
+                FontObject::new(2, 27, crate::gfx::glyph_store::SHEET_PLACE),
                 FontObject::new(3, 13, 0),
                 FontObject::new(0, 13, 0),
                 FontObject::new(2, 13, 0),

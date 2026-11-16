@@ -78,7 +78,7 @@ fn refusal(
         }
         if flags >> 6 > 3 {
             return Ok(Some(
-                "wheel flags of 0x100 or more: the life read past dword_939B76",
+                "wheel flags of 0x100 or more: the life read past its table",
             ));
         }
         None

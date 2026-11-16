@@ -8,8 +8,8 @@
 //! The flow, the compares, the integer steps and the calls are Rust; each straight x87 run is
 //! plain Rust over `X` in the named helpers below.
 //!
-//! Caller: `physics::car_physics_step`, every physics step. Refuses (before anything) a gear
-//! outside -1 ..= 7 (`revs_from_wheels` refuses it; the gear is not written here).
+//! Refuses (before anything) a gear outside -1 ..= 7 (`revs_from_wheels` refuses it; the gear is
+//! not written here).
 
 use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};

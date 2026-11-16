@@ -5,7 +5,7 @@
 //! `car_event_limit` is reduced by 0x20. The events are the pace-note symbols the HUD stacks
 //! (`race::panel_marks`), each shown for 3000 of the scene clock.
 //!
-//! Caller: `physics::queue_listed_event`. Refuses (before anything) a count above 7.
+//! Refuses (before anything) a count above 7.
 
 use crate::errors::Refused;
 use crate::physics::car_store::Car;

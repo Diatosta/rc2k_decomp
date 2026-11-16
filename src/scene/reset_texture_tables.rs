@@ -1,7 +1,7 @@
 //! `scene::reset_texture_tables`: forgets which textures the kinds need and where they are:
 //! `TexturePlaces.kind_slot_bytes` = 0; -1 throughout the kinds' two tables of textures needed
 //! (`ObjectTables.video_levels`, `ObjectTables.system_levels`) and their first slots and first
-//! textures, 0x400 dwords each. Four callers.
+//! textures, 0x400 dwords each.
 
 // ---- game data ----
 

@@ -1,8 +1,7 @@
 //! Applies a table of force records (0x20 bytes each) to the work car, one `physics::apply_force`
 //! each.
 //!
-//! Callers: `physics::apply_wheel_forces`, `physics::apply_contact_forces`. Refuses no records,
-//! or more than 0x100.
+//! Refuses no records, or more than 0x100.
 
 use crate::errors::Refused;
 use crate::physics::apply_force::apply_force;

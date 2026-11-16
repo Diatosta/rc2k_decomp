@@ -9,21 +9,21 @@ use crate::memory::session::PlainDword;
 pub struct ObjectFileNumbers {
     /// The dword before the file numbers; nothing reads or writes it (a gap).
     pub unknown_0: PlainDword,
-    /// .ro3 name number, kept as the text's game address within `path_texts`
+    /// .ro3 name number, kept as the text's place in `path_texts`
     /// (`scene::set_object_file_names`).
     pub object_ro3_number: PlainDword,
-    /// .ro3 path, kept as the text's game address within `path_texts`
+    /// .ro3 path, kept as the text's place in `path_texts`
     /// (`scene::set_object_file_names`).
     pub object_ro3_path: PlainDword,
-    /// .lwo path, kept as the text's game address within `path_texts`
+    /// .lwo path, kept as the text's place in `path_texts`
     /// (`scene::set_object_file_names`).
     pub object_lwo_path: PlainDword,
-    /// .lwo name number, kept as the text's game address within `path_texts`
+    /// .lwo name number, kept as the text's place in `path_texts`
     /// (`scene::set_object_file_names`).
     pub object_lwo_number: PlainDword,
-    /// The path texts the stored text addresses above point into: the folder, map, info and
-    /// car-icon file names (`texts`, reached by game address through `text_at`; the dwords are
-    /// only the storage, 464 bytes of NUL-ended strings).
+    /// The path texts the places above point into: the folder, map, info and car-icon file names
+    /// (`texts`, reached through `text_at`; the dwords are only the storage, 464 bytes of
+    /// NUL-ended strings).
     pub path_texts: [PlainDword; 116],
     /// The picture number (`scene::load_texture_picture`).
     pub picture_number: PlainDword,
@@ -68,33 +68,34 @@ impl ObjectFileNumbers {
     }
 }
 
-/// The path texts in `path_texts`, by game address (for `ObjectFileNumbers::text_at`).
+/// The path texts in `path_texts`, by their first byte's place in it (for
+/// `ObjectFileNumbers::text_at`).
 pub mod texts {
-    pub const FOLDER_0_RO3: usize = 0x60AD4E;
-    pub const FOLDER_0_LWO: usize = 0x60AD62;
-    pub const FOLDER_1_RO3: usize = 0x60AD76;
-    pub const FOLDER_1_LWO: usize = 0x60AD8A;
-    pub const FOLDER_2_RO3: usize = 0x60AD9E;
-    pub const FOLDER_2_LWO: usize = 0x60ADB7;
-    pub const FOLDER_3_RO3: usize = 0x60ADD0;
-    pub const FOLDER_3_LWO: usize = 0x60ADE9;
-    pub const ERROR_LIST_PATH: usize = 0x60AE02;
-    pub const MAP_PATH: usize = 0x60AE12;
-    pub const NUMBER_PLACE_A: usize = 0x60AE0F;
-    pub const NUMBER_PLACE_B: usize = 0x60AE1D;
-    pub const NUMBER_PLACE_C: usize = 0x60AE2F;
-    pub const MAP_KEY: usize = 0x60AE24;
-    pub const TEXTURE_INFO_A: usize = 0x60AE36;
-    pub const MARK_INFO: usize = 0x60AE47;
-    pub const TEXTURE_INFO_B: usize = 0x60AE58;
-    pub const OBJECTS_INFO: usize = 0x60AE69;
-    pub const CARS_INFO: usize = 0x60AE7A;
-    pub const EXTRAS_INFO: usize = 0x60AE8B;
-    pub const FRONT_INFO: usize = 0x60AEA1;
-    pub const CAR_ICON_0: usize = 0x60AEB7;
-    pub const CAR_ICON_1: usize = 0x60AECA;
-    pub const CAR_ICON_2: usize = 0x60AEDD;
-    pub const CAR_ICON_3: usize = 0x60AEF0;
+    pub const FOLDER_0_RO3: usize = 26;
+    pub const FOLDER_0_LWO: usize = 46;
+    pub const FOLDER_1_RO3: usize = 66;
+    pub const FOLDER_1_LWO: usize = 86;
+    pub const FOLDER_2_RO3: usize = 106;
+    pub const FOLDER_2_LWO: usize = 131;
+    pub const FOLDER_3_RO3: usize = 156;
+    pub const FOLDER_3_LWO: usize = 181;
+    pub const ERROR_LIST_PATH: usize = 206;
+    pub const MAP_PATH: usize = 222;
+    pub const NUMBER_PLACE_A: usize = 219;
+    pub const NUMBER_PLACE_B: usize = 233;
+    pub const NUMBER_PLACE_C: usize = 251;
+    pub const MAP_KEY: usize = 240;
+    pub const TEXTURE_INFO_A: usize = 258;
+    pub const MARK_INFO: usize = 275;
+    pub const TEXTURE_INFO_B: usize = 292;
+    pub const OBJECTS_INFO: usize = 309;
+    pub const CARS_INFO: usize = 326;
+    pub const EXTRAS_INFO: usize = 343;
+    pub const FRONT_INFO: usize = 365;
+    pub const CAR_ICON_0: usize = 387;
+    pub const CAR_ICON_1: usize = 406;
+    pub const CAR_ICON_2: usize = 425;
+    pub const CAR_ICON_3: usize = 444;
 }
 
 /// A path text in `path_texts`: read up to its NUL and written to inside the 464 bytes the
@@ -106,12 +107,12 @@ pub struct PathText<'a> {
 }
 
 impl ObjectFileNumbers {
-    /// The text at game address `ida`.
-    pub fn text_at(&self, ida: usize) -> PathText<'_> {
-        assert!((0x60AD34..0x60AF04).contains(&ida));
+    /// The text that starts at byte `from` of `path_texts`.
+    pub fn text_at(&self, from: usize) -> PathText<'_> {
+        assert!(from < TEXTS_LEN);
         PathText {
             numbers: self,
-            from: ida - 0x60AD34,
+            from,
         }
     }
 }

@@ -3,8 +3,6 @@
 //! start is behind (`physics::false_start`'s fields).
 //!
 //! Returns the timer less 0x320 when it got that far.
-//!
-//! Caller: `physics::race_timers`.
 
 use crate::physics::car_store::Car;
 use rc2k_core::physics::start::CarStart;

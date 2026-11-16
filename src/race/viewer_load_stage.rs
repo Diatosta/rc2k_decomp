@@ -13,9 +13,6 @@
 //! (`race::reset_race_sounds`), the page's palettes made (`race::viewer_palettes`) and
 //! `viewer_stage_loaded` set to 1. In every case the pending key is taken last
 //! (`input::take_key`).
-//!
-//! Called by `race::replay_viewer`, `race::viewer_action` (0x14, after another replay is opened)
-//! and `race::choose_save_slot`.
 
 use crate::errors::Refused;
 use crate::memory::session::DwordLike;

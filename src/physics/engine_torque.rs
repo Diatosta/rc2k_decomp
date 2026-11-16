@@ -6,8 +6,6 @@
 //! (as a float).
 //!
 //! Returns i on the curve's path.
-//!
-//! Callers: `physics::engine_torque_or_cut`, `physics::test_drive_run`, `physics::free_rev`.
 
 use crate::effects::cell_x87::CellX87;
 use crate::math::x87;

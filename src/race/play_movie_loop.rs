@@ -5,8 +5,6 @@
 //! (`input::update`), a key pressed (`keys_pressed + 1`) ending it, the race's step
 //! (`drive::race_step`) and frame (`drive::race_frame`), until the block played is the one to stop
 //! at; "dpg replay exit".
-//!
-//! Caller: `race::play_movie`.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;

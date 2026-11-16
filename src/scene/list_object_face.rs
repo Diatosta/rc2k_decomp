@@ -24,11 +24,10 @@
 //!    hold for it (`scene::car_marks`).
 //! 5. Dropped if `scene::face_faces_away`.
 //!
-//! A face that is left and has a vertex gets its key (`scene::face_sort_key`) and the next
-//! entry of the list: its number, the key plus bit 30 unless bit 0 of its byte +8 is set,
-//! the polygon's `entry_third` and the see-through value. One caller, `scene::list_object_faces`.
-//! Refuses an object's number or a list's length past their tables, no block for kind 0x1C,
-//! and what its parts refuse.
+//! A face that is left and has a vertex gets its key (`scene::face_sort_key`) and the next entry of
+//! the list: its number, the key plus bit 30 unless bit 0 of its byte +8 is set, the polygon's
+//! `entry_third` and the see-through value. Refuses an object's number or a list's length past
+//! their tables, no block for kind 0x1C, and what its parts refuse.
 
 use crate::errors::{BadInput, Refused};
 use crate::scene::face_faces_away::face_faces_away;

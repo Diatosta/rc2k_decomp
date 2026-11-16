@@ -1,9 +1,9 @@
 //! `scene::fill_light_tables`: the five tables of colours the lighting picks from.
 //!
 //! With `scene_set_up` and the stage's `lit_b` both 0 (the plain way): the light table a ramp
-//! between the two `plain_light_colours`, and the four lamp tables that first colour scaled.
-//! Else: the light table a ramp between the stage's `dark_colour` and `lit_colour`, and the
-//! four lamp tables the stage's lamp colours scaled. Four callers.
+//! between the two `plain_light_colours`, and the four lamp tables that first colour scaled. Else:
+//! the light table a ramp between the stage's `dark_colour` and `lit_colour`, and the four lamp
+//! tables the stage's lamp colours scaled.
 
 use crate::scene::light_tables::{fill_light_ramp, fill_light_scale};
 

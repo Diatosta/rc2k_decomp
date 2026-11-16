@@ -1,8 +1,6 @@
 //! With the mode record's change time not 0: the share done (`physics/camera_view.rs`) times
 //! the record's three angle changes, times `k65536`, rounded and shifted left 16, is added to
 //! `camera_offset_turns`.
-//!
-//! Caller: `physics::update_camera`.
 
 use crate::effects::cell_x87::CellX87;
 use crate::math::x87_float::ld;

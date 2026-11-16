@@ -5,7 +5,7 @@
 //!
 //! Takes x and y (0 .. 0xFF).
 //!
-//! See `race/mud.rs`. Callers: `race::muddy_texel`, `race::splash_mud`.
+//! See `race/mud.rs`.
 
 use crate::errors::BadInput;
 use crate::race::mud::mud_pixel;

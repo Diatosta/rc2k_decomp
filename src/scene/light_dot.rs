@@ -1,10 +1,9 @@
 //! `scene::light_dot`: how much a light falls on a point, as a whole number.
 //!
-//! The three floats at `LightWork.light_dot_point` times the three at
-//! `LightWork.light_dot_light`, added (the second and third products first), times
-//! `LightWork.light_dot_factor`, rounded as the x87 is set to. Callers: the two lighting
-//! functions, which put a point's place in the first three, a light's direction in the second
-//! and its strength in the factor.
+//! The three floats at `LightWork.light_dot_point` times the three at `LightWork.light_dot_light`,
+//! added (the second and third products first), times `LightWork.light_dot_factor`, rounded as the
+//! x87 is set to. The point holds a point's place, the light a light's direction and the factor
+//! its strength.
 //!
 //! Plain Rust (the x87's arithmetic in `X`, `math/x87_float.rs`); the tests compare against
 //! recorded vectors (`data/vectors`).

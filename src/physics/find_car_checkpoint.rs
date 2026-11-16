@@ -4,7 +4,7 @@
 //! `nearest_checkpoint_distance`; above 0xA0000 (unsigned) `race::nearest_checkpoint` runs over
 //! all of them, otherwise the nearest of the three is the result.
 //!
-//! Caller: `physics::track_checkpoints`. Refuses what the two calls refuse.
+//! Refuses what the two calls refuse.
 
 use crate::errors::Refused;
 use crate::math::x87::{ext_div2, int_80};

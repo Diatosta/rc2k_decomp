@@ -3,8 +3,7 @@
 //! `physics::fill_slot_on_bit` runs with bit 9, 0xD, 0xE, 0x10, 0x11, 0xC, 0xF (the first only
 //! with `marks_mask` set). A reading: damaged parts falling off.
 //!
-//! Caller: `physics::car_physics_step`, every physics step. Refuses what `fill_slot_on_bit`
-//! refuses; what was written is put back.
+//! Refuses what `fill_slot_on_bit` refuses; what was written is put back.
 
 use crate::errors::Refused;
 use crate::physics::car_store::Car;

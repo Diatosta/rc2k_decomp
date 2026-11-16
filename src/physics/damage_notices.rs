@@ -6,8 +6,7 @@
 //! (`physics::queue_notice` with the notice, the gauge and the rank); falling steps (the
 //! hysteresis of some gauges), when below, set it back.
 //!
-//! Caller: `physics::car_physics_step`, every physics step. Refuses what `queue_notice`
-//! refuses (everything written is put back).
+//! Refuses what `queue_notice` refuses (everything written is put back).
 
 use crate::errors::Refused;
 use crate::math::x87::from_int;

@@ -39,17 +39,17 @@ const _: () = assert!(core::mem::size_of::<RaceSlot>() == 0x78);
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct RaceWork {
     /// +0x400: the eight cars' blocks (`Car`, by handle:
-    /// `blocks_store::block_ref`).
+    /// `blocks_store::block_handle`).
     pub car_blocks: [PlainDword; 8],
-    /// +0x420: a name for each car's view marks record (`race::frame_views`), an image address
-    /// (see `car_record_number`).
+    /// +0x420: a handle for each car's view marks record (`race::frame_views`; see
+    /// `car_record_number`).
     pub car_records: [PlainDword; 8],
     /// +0x440: the car being stepped.
     pub current_car: PlainDword,
     /// +0x448: the stage run forwards or backwards ("dir").
     pub stage_direction: PlainDword,
     /// +0x44c: the current car's block by handle (`drive::race_cars_step`, the
-    /// replay; `blocks_store::block_ref`).
+    /// replay; `blocks_store::block_handle`).
     pub work_block: PlainDword,
     /// +0x450: 32 names of 0x30 bytes by car kind: the cars' number textures (`race::car_draw`).
     pub number_texture_names: [PlainDword; 384],
@@ -199,7 +199,7 @@ impl RaceWork {
         &self.patches[1..]
     }
 
-    /// Car `n`'s block by handle (`car_blocks[n]`: `blocks_store::block_ref`, 0 for none). A number
+    /// Car `n`'s block by handle (`car_blocks[n]`: `blocks_store::block_handle`, 0 for none). A number
     /// past the eight is read on through the variables that follow the table (`past_the_eight`).
     /// A handle among the eight that names no block ends the program.
     pub fn car_block(&self, n: usize) -> u32 {
@@ -213,7 +213,7 @@ impl RaceWork {
     }
 
     /// The dword `k` places after the table of car blocks, which is what `car_blocks[8 + k]`
-    /// reads: the eight car records' names, `current_car`, a dword nothing uses (0), the stage's
+    /// reads: the eight car records' handles, `current_car`, a dword nothing uses (0), the stage's
     /// direction, the current car's block (a handle too), then the number texture names. A
     /// number past those would be a car number of nearly 400.
     fn past_the_eight(&self, k: usize) -> Result<u32, BadInput> {
@@ -265,29 +265,27 @@ impl RaceWork {
         }
     }
 
-    /// The number of car record `n` (`car_records[n]`, the name of one of the effects' car
+    /// The number of car record `n` (`car_records[n]`, the handle of one of the effects' car
     /// records, `race::effects_settings_store`; `RaceShared::car_record`). Refused past the eight
-    /// and for a name that is not a record's start.
+    /// and for a value that is no record's handle.
     pub fn car_record_number(&self, n: usize) -> Result<usize, BadInput> {
         let name = self
             .car_records
             .get(n)
             .ok_or(BadInput("a car record past the eight"))?
             .get() as usize;
-        let off = name.wrapping_sub(CAR_RECORDS_IDA);
-        if off >= CAR_RECORDS_LEN
-            || !off.is_multiple_of(crate::race::effects_settings_store::CAR_LEN)
-        {
+        let number = name.wrapping_sub(CAR_RECORD_TAG as usize);
+        if number >= CAR_RECORDS {
             return Err(BadInput("a car record off the view marks' records"));
         }
-        Ok(off / crate::race::effects_settings_store::CAR_LEN)
+        Ok(number)
     }
 }
 
-/// Where the eight car records (0x4C8 bytes each, in
-/// `effects_settings_store::EffectsSettings::cars`) begin, and their length.
-pub const CAR_RECORDS_IDA: usize = 0x5C2FE4;
-pub const CAR_RECORDS_LEN: usize = 8 * 0x4C8;
+/// A car record by handle: `CAR_RECORD_TAG | n` for record `n` of
+/// `effects_settings_store::EffectsSettings::cars`. No car block's handle has this tag.
+const CAR_RECORD_TAG: u32 = 0xCE00_0000;
+const CAR_RECORDS: usize = 8;
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
@@ -366,20 +364,18 @@ const fn block_handles() -> [PlainDword; 8] {
     let mut out = [const { PlainDword::new(0) }; 8];
     let mut k = 0;
     while k < 8 {
-        out[k] = PlainDword::new(crate::race::blocks_store::BLOCK_TAG | k as u32);
+        out[k] = PlainDword::new(crate::race::blocks_store::block_handle(k));
         k += 1;
     }
     out
 }
 
-/// `car_records` at the start: the names of the eight car records, which follow each other.
+/// `car_records` at the start: the handles of the eight car records in order.
 const fn car_record_names() -> [PlainDword; 8] {
     let mut out = [const { PlainDword::new(0) }; 8];
     let mut k = 0;
     while k < 8 {
-        out[k] = PlainDword::new(
-            (CAR_RECORDS_IDA + k * crate::race::effects_settings_store::CAR_LEN) as u32,
-        );
+        out[k] = PlainDword::new(CAR_RECORD_TAG | k as u32);
         k += 1;
     }
     out

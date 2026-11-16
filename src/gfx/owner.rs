@@ -156,7 +156,7 @@ pub struct Drawing {
     pub surfaces: Surfaces,
     /// Each row of a picture (602 of them), zero at the start: its offset in the decoded buffer.
     pub row_table: [PlainDword; ROW_TABLE_ROOM as usize],
-    /// `byte_4F4B30`: n / 3 for the sums of three components (zero until filled).
+    /// n / 3 for the sums of three components (zero until filled).
     pub thirds: PlainBytes<TABLE_LEN>,
     /// The picture buffer's number while it is the surface (`gfx::picture_as_surface`), else 0.
     pub on_picture: std::sync::atomic::AtomicU32,

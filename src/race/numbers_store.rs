@@ -185,7 +185,7 @@ pub struct Numbers {
 impl Numbers {
     pub const fn new() -> Self {
         Self {
-            // Game addresses:
+            // A text nothing reads ("xyz").
             unused_4: [PlainDword::new(0x7A7978), PlainDword::new(0)],
             metres_in_mile: PlainFloat::new(1609.3457),
             thousandth_a: PlainFloat::new(0.001),

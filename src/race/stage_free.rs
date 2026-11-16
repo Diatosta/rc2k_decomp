@@ -30,7 +30,6 @@ pub const COURSE: Freeing = Freeing {
 };
 /// Frees the second course list.
 pub const COURSE_2: Freeing = Freeing {
-    // CourseLists.second_course_list[0]
     list: |race| &race.course.lists.get().second_course_list,
     counted: true,
     // `second_course_list_a`, `second_course_list_b`
@@ -46,7 +45,6 @@ pub const COURSE_2: Freeing = Freeing {
 };
 /// Frees the point records.
 pub const POINT_RECORDS: Freeing = Freeing {
-    // CourseLists.point_records_list[0]
     list: |race| &race.course.lists.get().point_records_list,
     counted: true,
     // point_records
@@ -55,7 +53,6 @@ pub const POINT_RECORDS: Freeing = Freeing {
 };
 /// Frees the object points.
 pub const OBJECT_POINTS: Freeing = Freeing {
-    // CourseLists.object_points_list[0]
     list: |race| &race.course.lists.get().object_points_list,
     counted: true,
     // object_points, face_memory
@@ -70,7 +67,6 @@ pub const OBJECT_POINTS: Freeing = Freeing {
 };
 /// Frees the mud.
 pub const MUD: Freeing = Freeing {
-    // CourseLists.mud_list[0]
     list: |race| &race.course.lists.get().mud_list,
     counted: true,
     // mud

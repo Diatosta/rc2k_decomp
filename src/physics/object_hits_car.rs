@@ -4,8 +4,8 @@
 //! (`scene::rotate_point`) and rounded into the offset `object_offset`, then
 //! `physics::point_hits_car` runs with the caller's object; the first inside ends it.
 //!
-//! Caller: `physics::face_contact`. Refuses (before anything) an object past 0xFF (the tables'
-//! room; `object_turn_matrix` refuses it too).
+//! Refuses (before anything) an object past 0xFF (the tables' room; `object_turn_matrix` refuses it
+//! too).
 
 use crate::errors::Refused;
 use crate::math::x87::{ext_to_int, int_80};

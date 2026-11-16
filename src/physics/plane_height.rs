@@ -3,9 +3,6 @@
 //! `GroundWork.face_corners[7]`, `GroundWork.face_corners[1]`: by the look of it the height of a
 //! course face's plane under a point, from its corners' heights and the point's shares (a reading;
 //! set by `physics::face_under_point`).
-//!
-//! Callers: `physics::face_under_point` (the face under a point, the ground's search) and
-//! `race::car_shadow`.
 
 use crate::physics::ground_query::GroundQuery;
 

@@ -2,9 +2,8 @@
 //! but the third byte's low nibble; 0 fails), the mode set (`gfx::set_screen_mode`), and with the
 //! mode flags' bit 0x100000 a trial of the textures (`gfx::allocate_textures` for 0x40 x 0x40
 //! textures, then `gfx::release_all_textures`). Meanwhile `trying` is 1 and the reports
-//! (`reports.on`) off, both put back after. Callers: `gfx::choose_screen_modes`,
-//! `gfx::screen_mode_choices`, `gfx::keep_race_screen_mode`, and two in the race's set-up. Its
-//! three calls (set the mode, allocate, release: the platform's) are direct.
+//! (`reports.on`) off, both put back after. Its three calls (set the mode, allocate, release: the
+//! platform's) are direct.
 
 use crate::errors::CarryZeroFlags;
 use crate::errors::Refused;

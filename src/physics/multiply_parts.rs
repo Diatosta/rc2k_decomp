@@ -2,8 +2,6 @@
 //! before the next is read).
 //!
 //! The result may go into either source vector.
-//!
-//! Caller: `physics::contact_force`.
 
 use crate::math::cells::Cells;
 use crate::math::x87;

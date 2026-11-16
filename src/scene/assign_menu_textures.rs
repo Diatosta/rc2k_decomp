@@ -1,9 +1,9 @@
 //! `scene::assign_menu_textures`: the eight slots of kind 0x258 get the menu's own textures.
 //!
-//! For each of the eight numbers of `Carousel::textures` that is not -1: the slot
-//! (kind 0x258's first slot, `KindTextureTables.kind_first_slots[600]`, plus its place in the
-//! eight) wants that number plus kind 0x258's first texture
-//! (`KindTextureTables.kind_first_textures[600]`). Two callers. Refuses a slot past the table.
+//! For each of the eight numbers of `Carousel::textures` that is not -1: the slot (kind 0x258's
+//! first slot, `KindTextureTables.kind_first_slots[600]`, plus its place in the eight) wants that
+//! number plus kind 0x258's first texture (`KindTextureTables.kind_first_textures[600]`). Refuses a
+//! slot past the table.
 
 use crate::errors::BadInput;
 use crate::memory::session::read_all;

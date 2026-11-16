@@ -1,8 +1,7 @@
 //! In gear with the clutch out (the clutch word and `driven_wheels_off`): `physics::free_rev`,
 //! then `physics::wheels_from_revs`.
 //!
-//! Caller: `physics::car_physics_step`, every physics step. Refuses (before anything) a gear
-//! outside -1 ..= 7.
+//! Refuses (before anything) a gear outside -1 ..= 7.
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::free_rev::free_rev;

@@ -1,8 +1,6 @@
 //! With all four wheels down (the four `wheel_squeeze` dwords not 0), the spin's x and z are held
 //! to -`ground_spin_limit` .. `ground_spin_limit`, and `ground_spin` = whether either now has the
 //! limit's size (also when no number). A reading: no tumbling on the ground.
-//!
-//! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::physics::car_store::Car;
 use crate::physics::tables_store::PhysicsTables;

@@ -10,7 +10,7 @@
 //! twice) are set and each car block's +0xF78 ..= +0xF98 and +0xFA0 are cleared. The x87 steps go
 //! through `math::x87`; `scratch` is left as the `fild` leaves it.
 //!
-//! One caller, `race::loadlevel_init`. Refuses more than 0x40 parts.
+//! Refuses more than 0x40 parts.
 
 use crate::errors::Refused;
 use crate::math::x87;

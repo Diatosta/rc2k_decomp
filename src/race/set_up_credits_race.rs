@@ -4,7 +4,7 @@
 //! (0 .. 0x16) into `race_car_kinds`; `direction` is 0, `run_kind` 3, and 72 more stores follow
 //! (`WRITES`: the first car block's settings, the race's switches).
 //!
-//! Called by `race::credits_race`. Refuses nothing.
+//! Refuses nothing.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;

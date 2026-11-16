@@ -6,9 +6,8 @@
 //! face word under probe point 4 (`Car.probe_point_face[4]`). A reading: the wheels in the air,
 //! the ground's kind.
 //!
-//! Callers: `physics::car_physics_step`, `physics::crossed_edge`, `physics::wall_contacts`,
-//! `physics::face_contact`, `physics::ground_contact`. Refuses (before anything) more than
-//! 0x40 probe points; `probe_ground`'s refusals mid-way (it puts back what it wrote).
+//! Refuses (before anything) more than 0x40 probe points; `probe_ground`'s refusals mid-way (it
+//! puts back what it wrote).
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::step_families::GroundInputs;

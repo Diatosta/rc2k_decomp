@@ -5,9 +5,9 @@
 //! to the next one's start, and the groups (the distance word, then each note's calls, ')' between
 //! joined notes, a NUL after each group but the last) with their count.
 //!
-//! Caller: `race::loadlevel_init`. Refuses what `race/pace_notes.rs` refuses: places outside the
-//! tables or the course, and a search that would run on past the count (no face of kind 2 before
-//! the last checkpoint but one). Nothing is written then.
+//! Refuses what `race/pace_notes.rs` refuses: places outside the tables or the course, and a search
+//! that would run on past the count (no face of kind 2 before the last checkpoint but one). Nothing
+//! is written then.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;

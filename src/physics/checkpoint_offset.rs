@@ -3,8 +3,7 @@
 //! point's, turned by minus the checkpoint's angle (`math::rotate_point_about_y`) into the two
 //! checkpoint offset fields. Otherwise both are 0.
 //!
-//! Caller: `physics::track_checkpoints`. Refuses (before anything) a checkpoint below 0 or past
-//! 0x1418, or no faces or points.
+//! Refuses (before anything) a checkpoint below 0 or past 0x1418, or no faces or points.
 
 use crate::errors::{BadInput, Refused};
 use crate::math::rotate_point_about_y::rotate_point_about_y;

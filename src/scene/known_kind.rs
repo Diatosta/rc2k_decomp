@@ -1,7 +1,7 @@
 //! `scene::known_kind`: a known kind of car's object kind.
 //!
-//! Takes which of the known kinds (held to 0 ..= 0x21, signed) and returns the entry at that
-//! place of the known object kinds: 0x22 dwords, one for each known kind of car. Two callers.
+//! Takes which of the known kinds (held to 0 ..= 0x21, signed) and returns the entry at that place
+//! of the known object kinds: 0x22 dwords, one for each known kind of car.
 
 use crate::race::kind_store::KindTables;
 

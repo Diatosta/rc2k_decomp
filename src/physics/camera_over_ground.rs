@@ -2,7 +2,7 @@
 //! of it across its heading; each probe starts from its own last face (`camera_ground_faces`).
 //! True only when all three are found; the first one not found ends it.
 //!
-//! Caller: `physics::camera_avoid_ground`. Refuses what `count_ground_probe` refuses.
+//! Refuses what `count_ground_probe` refuses.
 
 use crate::errors::Refused;
 use crate::math::rotate_point_about_y::rotate_point_about_y;

@@ -2,8 +2,7 @@
 //! digits are made `???` and searched for (`files::find_first`, `files::find_next_wanted`,
 //! `files::close_search`, the path not resolved, `last_file_path` the pattern); of each name found
 //! whose first three characters are digits the number is taken, and the highest (0 for none) is
-//! written back over the `???`. `race::viewer_snapshot` counts on from it. Called by
-//! `race::replay_viewer`.
+//! written back over the `???`. `race::viewer_snapshot` counts on from it.
 
 use crate::errors::BadInput;
 use crate::files::search::DIRECTORY;

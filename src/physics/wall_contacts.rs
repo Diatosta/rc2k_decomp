@@ -9,9 +9,8 @@
 //! speed (`local_velocity`) goes into `contact_point`, then `physics::wall_push_back`, the same two
 //! words, `restore_saved_car`, `feel_ground`.
 //!
-//! Callers: `physics::car_physics_step` (every physics step), `physics::find_clear_place`. Refuses
-//! (before anything) a count of 0 or past 0x40, and what its calls refuse (what was written is put
-//! back).
+//! Refuses (before anything) a count of 0 or past 0x40, and what its calls refuse (what was written
+//! is put back).
 
 use crate::errors::Refused;
 use crate::physics::car_store::Car;

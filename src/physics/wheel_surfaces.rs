@@ -22,9 +22,8 @@
 //!
 //! The x87 runs are plain Rust over `X` (`math/x87_float.rs`); the integer steps are Rust.
 //!
-//! Callers: `physics::car_physics_step`, `drive::simple_car_step`. Refuses no faces, a table index
-//! (`tyre_kind`) past 5 (before anything) and a surface past 15 (what was written by then is put
-//! back).
+//! Refuses no faces, a table index (`tyre_kind`) past 5 (before anything) and a surface past 15
+//! (what was written by then is put back).
 
 use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};

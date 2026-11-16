@@ -1,4 +1,4 @@
-//! A software rasteriser for the standalone program: what Direct3D 5 did with the
+//! A software rasteriser: what Direct3D 5 did with the
 //! game's polygons. The game hands over triangle fans of `D3DTLVERTEX` (x, y, z, 1/w
 //! as floats, the colour and the specular as ARGB, u, v), already projected, lit and
 //! clipped (`d3d::draw_fan_unclipped`); this draws them into the screen's memory with

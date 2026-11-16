@@ -9,9 +9,8 @@
 //!   with `scene_set_up` set and `only_object` not 0, every object unless `only_object` - 1 is
 //!   `stage_direction`; and an object without faces (the slots' `face_counts`).
 //!
-//! Outside a race the caller's context carries the menus' marks (`scene::car_marks::MENUS`).
-//! Then `scene::draw_object`. One caller, `scene::draw_scene_object`. Refuses, in a race, an
-//! object's number of 0x100 or more.
+//! Outside a race the caller's context carries the menus' marks (`scene::car_marks::MENUS`). Then
+//! `scene::draw_object`. Refuses, in a race, an object's number of 0x100 or more.
 //!
 //! The race's tests and the kind bytes are in `rc2k_core::scene::shown`.
 

@@ -3,8 +3,6 @@
 //! `scratch`). These are the driven wheels' turn angles, for the drawing.
 //!
 //! Returns the second driven wheel's turn.
-//!
-//! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::math::x87::div_mul3_to_int;
 use crate::physics::car_store::Car;

@@ -2,8 +2,7 @@
 //! points' faces (`probe_point_face`, 0x40 dwords) are copied: the probe lists as they were before
 //! the step (`saved_probe_x` ..), read by `crossed_edge_contact`.
 //!
-//! Caller: `physics::car_physics_step`, every physics step. Refuses what `probe_ground` refuses
-//! (nothing written).
+//! Refuses what `probe_ground` refuses (nothing written).
 
 use crate::errors::Refused;
 use crate::physics::probe_ground::probe_ground_at;

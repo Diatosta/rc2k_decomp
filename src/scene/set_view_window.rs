@@ -16,8 +16,6 @@
 //!   it times `clip_factor`, both rounded;
 //! - as floats: the offsets (`view_offset_float`), the clip rectangle (`clip_screen`) and
 //!   the middle (`view_centre`).
-//!
-//! Twelve callers.
 
 use crate::math::x87;
 use crate::math::x87_float as bh;

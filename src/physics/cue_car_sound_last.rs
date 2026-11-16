@@ -1,8 +1,7 @@
 //! `physics::cue_car_sound`'s twin for the pace notes: the cue goes last in the queue of the
 //! sound object of car 0 or 1, when the object's state word is 1.
 //!
-//! Caller: `physics::cue_listed_car_sound_last`. Refuses (before anything) a car past 7 or a
-//! null sound object.
+//! Refuses (before anything) a car past 7 or a null sound object.
 
 use crate::errors::Refused;
 use crate::sound::store::SoundObject;

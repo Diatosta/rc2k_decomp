@@ -1,10 +1,10 @@
 //! `scene::load_changed_texture_picture`: a system texture gets the picture it should have, if
 //! it has another.
 //!
-//! Nothing if the texture wants no picture (`TexturePlaces.wanted_pictures[texture]` is -1 or
-//! 0) or has the one it wants (`TexturePlaces.loaded_pictures[texture]`). Else
-//! `scene::load_texture_picture` and the picture is noted as the one it has. One caller,
-//! `scene::reload_system_textures`. Refuses a texture past the tables.
+//! Nothing if the texture wants no picture (`TexturePlaces.wanted_pictures[texture]` is -1 or 0) or
+//! has the one it wants (`TexturePlaces.loaded_pictures[texture]`). Else
+//! `scene::load_texture_picture` and the picture is noted as the one it has. Refuses a texture past
+//! the tables.
 //!
 //! The rule is in the core crate: `rc2k_core::scene::pictures::changed_picture`.
 
