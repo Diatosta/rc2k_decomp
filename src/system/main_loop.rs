@@ -40,10 +40,10 @@ pub fn main_loop(o: Owners<'static>) -> Result<(), Refused> {
     let menus = o.menus;
     log_line(c"");
     log_line(c"Entering main loop...");
-    // Wait for the window to be the active one and the key thread to have run; the quit
-    // switch leaves without asking to quit.
+    // Wait for the window to be the active one and the key thread to have run, looked at
+    // every 10 ms (the original slept a whole second before looking); the quit switch leaves
+    // without asking to quit.
     loop {
-        crate::system::sleep::sleep(1000);
         if session.flags.quitting.is_set() {
             log_line(c"Leaving main loop...");
             return Ok(());
@@ -51,6 +51,7 @@ pub fn main_loop(o: Owners<'static>) -> Result<(), Refused> {
         if session.flags.window_active.is_set() && session.key_clock.ticks.is_set() {
             break;
         }
+        crate::system::sleep::sleep(10);
     }
     crate::platform::set_menu_mode_now(gfx, o.system);
     crate::sound::apply_settings::apply_settings(o)?;

@@ -253,11 +253,10 @@ pub struct Machine {
     pub date: Vec<u8>,
     pub version: Vec<u8>,
     pub second: Option<Vec<u8>>,
-    /// The processor's family, flags, name; clock, FPU, MMX, 3DNow, SSE.
+    /// The processor's family, flags, name; FPU, MMX, 3DNow, SSE.
     pub cpu_family: i32,
     pub cpu_flags: u32,
     pub cpu_name: Vec<u8>,
-    pub clock: i32,
     pub fpu: i32,
     pub mmx: i32,
     pub has_3dnow: i32,
@@ -293,8 +292,7 @@ pub fn head(m: &Machine) -> Vec<(Message, bool)> {
         (Text(m.cpu_name.clone()), true),
     ]);
     for (name, v) in [
-        (&b"clk="[..], m.clock),
-        (b"fpu=", m.fpu),
+        (&b"fpu="[..], m.fpu),
         (b"mmx=", m.mmx),
         (b"amdk3d=", m.has_3dnow),
         (b"katmai=", m.katmai),
@@ -345,7 +343,7 @@ mod head_tests {
         assert_eq!(format_line(b"ab", false, 2, 0), (b"ab ".to_vec(), 0));
         let h = head(&Machine::default());
         assert_eq!(h[0], (Message::Text(b"Log started".to_vec()), false));
-        assert_eq!(h.len(), 39);
+        assert_eq!(h.len(), 37);
         let second = Machine {
             second: Some(b"x".to_vec()),
             ..Machine::default()

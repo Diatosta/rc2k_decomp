@@ -1,7 +1,7 @@
 //! Begins the game's log anew. Nothing if the log is off. Else `var\logfile.txt` is deleted and
 //! the head is written: "Log started" with `logfile::date_text`, the version, a second text if
 //! there is one (`SECOND_TEXT`), then what `start` has found out by then: the processor
-//! (`cpu=`, `clk=`, `fpu=`, `mmx=`, `amdk3d=`, `katmai=`), the keyboard type (`machinetype=`),
+//! (`cpu=`, `fpu=`, `mmx=`, `amdk3d=`, `katmai=`), the keyboard type (`machinetype=`),
 //! the Windows version (`platform=`), the memory and the free space of the current drive in Kb
 //! (`FREE_SPACE_KB`).
 
@@ -81,7 +81,6 @@ pub fn start_log(system: &System) -> Result<(), BadInput> {
         cpu_flags: system.machine().cpu_signature.get(),
         // Twelve characters; the end follows the field (read on to the record's end).
         cpu_name: crate::files::cstring_in(&vendor_run)?,
-        clock: system.machine().cpu_mhz.get() as i32,
         fpu: system.session.host.has_fpu.get() as i32,
         mmx: system.machine().found_mmx.get() as i32,
         has_3dnow: system.machine().found_3dnow.get() as i32,

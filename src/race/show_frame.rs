@@ -54,8 +54,7 @@ pub fn show_frame(race: &Race, o: crate::owners::Owners<'static>) -> Result<Show
     race.shared.view.get().frame_time.set(time);
     // The measuring leaves the counter's low half as the leftover value on the 16th call, else as
     // it was.
-    let eax = { crate::race::measure_frame_rate::measure_frame_rate(race, scene, system) }
-        .unwrap_or(time);
+    let eax = { crate::race::measure_frame_rate::measure_frame_rate(race, scene) }.unwrap_or(time);
     Ok(Shown { eax })
 }
 

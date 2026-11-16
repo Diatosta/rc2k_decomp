@@ -394,7 +394,7 @@ fn start(o: Owners<'static>) {
     crate::platform::direct3d::set_handles(o.gfx);
     set_up_fixed_objects(o.gfx, o.menus);
     seed_clock_and_random(o.system, &o.race.shared.random);
-    check_machine(o.system, &r);
+    check_machine(o.system);
     read_settings_and_start_log(o, &r);
     make_save_folders();
     read_command_line_and_install_state(o, &r);
@@ -436,14 +436,10 @@ fn seed_clock_and_random(system: &'static System, random: &crate::math::next_ran
 }
 
 /// The processor, keyboard and Windows version tests, and the error mode.
-fn check_machine(system: &'static System, r: &Context) {
+fn check_machine(system: &'static System) {
     // `system::set_exception_filter` sets nothing in the standalone.
     rust("system::test_processor");
-    if let Err(e) =
-        crate::system::test_processor::test_processor(&crate::system::test_processor::Real, system)
-    {
-        refused("system::test_processor", e, r);
-    }
+    crate::system::test_processor::test_processor(&crate::system::test_processor::Real, system);
     rust("system::read_keyboard_type");
     crate::system::read_keyboard_type::read_keyboard_type(system);
     rust("system::read_windows_version");
@@ -596,8 +592,8 @@ fn start_workers(o: Owners<'static>, r: &Context) {
     }
     rust("sound::wait_for_commands");
     crate::sound::wait_for_commands::wait_in_game(o);
-    rust("system::sleep");
-    crate::system::sleep::sleep(1000);
+    // The original slept a second more here, for the sound card of its day; SDL's sound is
+    // ready once the audio thread has taken its commands.
 }
 
 /// The screen modes, the picture buffer and the pixel converters. `sound::open_cd_audio` is not

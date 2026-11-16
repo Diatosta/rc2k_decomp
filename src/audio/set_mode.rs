@@ -41,7 +41,8 @@ pub fn set_mode(
         && crate::audio::primary::make_primary(audio, system)?;
     if ok {
         open_way(audio, system, audio.state.sound_mode.get())?;
-        crate::system::sleep::sleep(1000);
+        // No pause before playing (the original waited a second for the sound card of its
+        // day; every start and every change of the sound mode waited on it).
         crate::audio::thread_parts::play_primary(&audio.state);
         audio
             .state

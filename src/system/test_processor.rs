@@ -1,10 +1,8 @@
-//! What the processor is and has, and its clock: the family, vendor, signature, and the feature
-//! bits the game uses (FPU, which `start` requires, TSC, CMOV, MMX, SSE, 3DNow!), through
-//! `cpuid`, with a plain FPU test on a processor without it. With a TSC, 250 ms are timed by
-//! `rdtsc` into `cpu_mhz`. Refuses (with the processor's variables already written) a clock
-//! whose quotient does not fit in 32 bits.
+//! What the processor is and has: the family, vendor, signature, and the feature bits the game
+//! uses (FPU, which `start` requires, TSC, CMOV, MMX, SSE, 3DNow!), through `cpuid`, with a
+//! plain FPU test on a processor without it. The clock is no longer timed (a quarter of a
+//! second at every start, for the log alone): `cpu_mhz` stays 0.
 
-use crate::errors::{BadInput, Refused};
 use crate::memory::session::{Machine, PlainDword};
 use rc2k_core::system::processor::{Var, test};
 
@@ -25,8 +23,7 @@ fn fpu_words() -> (u16, u16) {
 /// SSE paths by them (lighting, polygon depths, the ground's face shares), which compute
 /// differently: one answer everywhere, so the handheld, the Mac and every PC run the same
 /// arithmetic and replays and network games agree (the estimates themselves are tables,
-/// `arch::rcpss`). The vendor, the signature and the clock stay the machine's (the log and
-/// the frame rate shown).
+/// `arch::rcpss`). The vendor and the signature stay the machine's (the log).
 const FEATURES: u32 = 1 | 1 << 4 | 1 << 15 | 1 << 23 | 1 << 25;
 
 fn cpuid(leaf: u32) -> (u32, u32, u32, u32) {
@@ -74,12 +71,6 @@ impl Processor for Real {
     fn fpu_words(&self) -> (u16, u16) {
         fpu_words()
     }
-    fn ticks(&self) -> u32 {
-        crate::platform::os::ticks()
-    }
-    fn cycles(&self) -> u64 {
-        crate::platform::arch::rdtsc()
-    }
 }
 
 /// Each variable but the FPU's word (the scratch buffer's first bytes) and the FPU flag
@@ -89,7 +80,6 @@ fn cell(m: &Machine, v: Var) -> &PlainDword {
         Var::Family => &m.cpu_family,
         Var::Signature => &m.cpu_signature,
         Var::Vendor(n) => &m.cpu_vendor[n],
-        Var::Clock => &m.cpu_mhz,
         Var::HasTsc => &m.has_tsc,
         Var::HasCmov => &m.has_cmov,
         Var::HasMmx => &m.found_mmx,
@@ -101,10 +91,7 @@ fn cell(m: &Machine, v: Var) -> &PlainDword {
     }
 }
 
-pub fn test_processor(
-    p: &dyn Processor,
-    system: &crate::system::owner::System,
-) -> Result<(), Refused> {
+pub fn test_processor(p: &dyn Processor, system: &crate::system::owner::System) {
     let mut put = |v: Var, value: u32| {
         if v == Var::FpuWord {
             system.work().files.buffer.set(0, value as u8);
@@ -128,6 +115,5 @@ pub fn test_processor(
             }
         }
     };
-    let answer = test(p, &mut put, &get);
-    answer.map_err(|e| BadInput::from(e).into())
+    test(p, &mut put, &get);
 }
