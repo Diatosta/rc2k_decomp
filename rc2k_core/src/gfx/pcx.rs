@@ -208,6 +208,109 @@ pub fn decode_planes<E>(
     Ok(Some(()))
 }
 
+/// What `decode_planes_in` refuses: a pixel that would land past the buffer.
+pub const PAST_BUFFER: crate::Invalid = crate::Invalid("a decoded pixel past the picture buffer");
+
+/// `decode_planes` on a file held in memory: `file` is everything after the header (the bytes
+/// past its end read as 0), `out` the buffer from the first row's start. The same bytes land in
+/// `out` as `decode_planes` puts, a run or a stretch of plain bytes at a time.
+/// Refused: a pixel past `out` (bytes before it may have been written).
+pub fn decode_planes_in(
+    layout: &Layout,
+    file: &[u8],
+    out: &mut [u8],
+) -> Result<Option<()>, crate::Invalid> {
+    if layout.width == 0 || layout.height == 0 {
+        return Ok(None);
+    }
+    // The last byte the rows reach, when no row's place wraps.
+    let end = u64::from(layout.height - 1) * u64::from(layout.stride) + u64::from(layout.width) * 4;
+    if layout.planes != 3 || layout.line_bytes == 0 || end > out.len() as u64 {
+        return decode_planes_bytewise(layout, file, out);
+    }
+    let (width, line, stride) = (
+        layout.width as usize,
+        layout.line_bytes as usize,
+        layout.stride as usize,
+    );
+    // The pixels the planes reach (a row's pixels past its plane bytes get their fourth byte only).
+    let stored = width.min(line);
+    let mut planes = vec![0u8; 3 * line];
+    // The file's bytes one after the other, 0 past its end.
+    let mut file = file.iter();
+    // The byte being repeated and how many more times it comes before the next is read.
+    let (mut byte, mut left) = (0u8, 0usize);
+    for row in 0..layout.height as usize {
+        for plane in planes.chunks_exact_mut(line) {
+            let mut places = plane.iter_mut();
+            while let Some(place) = places.next() {
+                if left == 0 {
+                    byte = file.next().copied().unwrap_or(0);
+                    if byte < 0xC0 {
+                        *place = byte;
+                        continue;
+                    }
+                    // A count of 0 still gives the byte once.
+                    left = usize::from(byte - 0xC0).max(1);
+                    byte = file.next().copied().unwrap_or(0);
+                }
+                *place = byte;
+                left -= 1;
+                // The rest of the run, as far as the plane goes.
+                let rest = places.len().min(left);
+                places.by_ref().take(rest).for_each(|place| *place = byte);
+                left -= rest;
+            }
+        }
+        // A slip kept: a run going on into the next row repeats 0.
+        byte = 0;
+        let to = &mut out[row * stride..row * stride + width * 4];
+        let (first, rest) = planes.split_at(line);
+        let (second, third) = rest.split_at(line);
+        let (reached, past) = to.split_at_mut(stored * 4);
+        for (((pixel, &r), &g), &b) in reached
+            .as_chunks_mut::<4>()
+            .0
+            .iter_mut()
+            .zip(first)
+            .zip(second)
+            .zip(third)
+        {
+            *pixel = [b, g, r, 0];
+        }
+        for pixel in past.as_chunks_mut::<4>().0 {
+            pixel[3] = 0;
+        }
+    }
+    Ok(Some(()))
+}
+
+/// `decode_planes_in` a byte at a time, each place checked: for the layouts whose rows wrap, run
+/// past the buffer or have another number of planes than three.
+fn decode_planes_bytewise(
+    layout: &Layout,
+    file: &[u8],
+    out: &mut [u8],
+) -> Result<Option<()>, crate::Invalid> {
+    let mut file = file.iter();
+    let past = core::cell::Cell::new(false);
+    let done = decode_planes(
+        layout,
+        || match past.get() {
+            true => Err(PAST_BUFFER),
+            false => Ok(file.next().copied().unwrap_or(0)),
+        },
+        |to, byte| match out.get_mut(to as usize) {
+            Some(place) => *place = byte,
+            None => past.set(true),
+        },
+    )?;
+    if past.get() {
+        return Err(PAST_BUFFER);
+    }
+    Ok(done)
+}
+
 /// The header of a screenshot: run coded, 8 bits, 300 dpi both ways, right and bottom the size
 /// less one, the 16-colour palette greys 0 .. 15, three planes of `width` bytes.
 pub fn screen_header(width: u32, height: u32) -> [u8; HEADER_LEN] {
@@ -432,5 +535,167 @@ mod tests {
         .unwrap()
         .unwrap();
         assert_eq!(out, [0x30, 0x20, 0x10, 0, 0x31, 0x20, 0x10, 0]);
+    }
+
+    /// A small generator for the comparison tests.
+    struct Numbers(u64);
+    impl Numbers {
+        fn next(&mut self, below: u32) -> u32 {
+            self.0 ^= self.0 << 13;
+            self.0 ^= self.0 >> 7;
+            self.0 ^= self.0 << 17;
+            ((self.0 >> 20) % u64::from(below.max(1))) as u32
+        }
+    }
+
+    /// `decode_planes` with every place checked, as the game ran it: the buffer after, or the
+    /// refusal of a pixel past it.
+    fn planes_reference(l: &Layout, file: &[u8], len: usize) -> Result<Option<Vec<u8>>, ()> {
+        let mut out = vec![0xAAu8; len];
+        let mut at = 0;
+        let past = core::cell::Cell::new(false);
+        let done = decode_planes(
+            l,
+            || {
+                if past.get() {
+                    return Err(());
+                }
+                let b = file.get(at).copied().unwrap_or(0);
+                at += 1;
+                Ok(b)
+            },
+            |to, b| match out.get_mut(to as usize) {
+                Some(place) => *place = b,
+                None => past.set(true),
+            },
+        )?;
+        if past.get() {
+            return Err(());
+        }
+        Ok(done.map(|()| out))
+    }
+
+    /// `decode_planes_in` against `decode_planes` for one layout and file.
+    fn same_planes(l: &Layout, file: &[u8], len: usize, what: &str) {
+        let want = planes_reference(l, file, len);
+        let mut out = vec![0xAAu8; len];
+        let got = decode_planes_in(l, file, &mut out);
+        match (want, got) {
+            (Ok(Some(want)), Ok(Some(()))) => assert!(want == out, "{what}: other pixels, {l:?}"),
+            (Ok(None), Ok(None)) | (Err(()), Err(_)) => {}
+            (want, got) => panic!(
+                "{what}: {:?} against {got:?}, {l:?}",
+                want.map(|w| w.is_some())
+            ),
+        }
+    }
+
+    /// The decoder on a held file gives what the byte-by-byte one gives: runs crossing the ends of
+    /// planes and rows, counts of 0, odd widths, rows wider or narrower than their plane bytes,
+    /// rows that overlap or lie apart, files that end early, pixels past the buffer.
+    #[test]
+    fn decodes_planes_in_memory_as_byte_by_byte() {
+        let mut n = Numbers(0x1234_5678_9ABC_DEF1);
+        for case in 0..4000 {
+            let planes = if n.next(20) == 0 { 1 + n.next(4) } else { 3 };
+            let line_bytes = n.next(40);
+            let width = n.next(40);
+            let height = n.next(12);
+            let stride = match n.next(6) {
+                0 => n.next(200),
+                1 => 0xFFFF_FFF0 + n.next(16),
+                _ => width * 4 + n.next(9),
+            };
+            let l = Layout {
+                planes,
+                line_bytes,
+                width,
+                height,
+                stride,
+                ..Layout::default()
+            };
+            // Mostly counts, mostly plain bytes, or anything; sometimes too short a file.
+            let kind = n.next(3);
+            let full = (planes * line_bytes.max(1) * height) as usize;
+            let len = match n.next(4) {
+                0 => n.next(full as u32 + 1) as usize,
+                _ => full + 8,
+            };
+            let file: Vec<u8> = (0..len)
+                .map(|_| match kind {
+                    0 => 0xC0 + n.next(0x40) as u8,
+                    1 => n.next(0xC8) as u8,
+                    _ => n.next(0x100) as u8,
+                })
+                .collect();
+            let room = match n.next(5) {
+                0 => n.next(64) as usize,
+                _ => height as usize * (width as usize * 4 + 8) + 16,
+            };
+            same_planes(&l, &file, room, &format!("case {case}"));
+        }
+    }
+
+    /// Every PCX file of three planes under the folder `RC2K_PCX_FILES` names (a game's `files`
+    /// folder; nothing is checked when it is not set) decodes the same both ways, as a texture, as
+    /// a screen and into a buffer of its own rows.
+    #[test]
+    fn decodes_the_installed_pictures_as_byte_by_byte() {
+        let Some(root) = std::env::var_os("RC2K_PCX_FILES") else {
+            return;
+        };
+        let mut folders = vec![std::path::PathBuf::from(root)];
+        let mut checked = 0;
+        while let Some(folder) = folders.pop() {
+            for entry in std::fs::read_dir(&folder).unwrap() {
+                let path = entry.unwrap().path();
+                if path.is_dir() {
+                    folders.push(path);
+                    continue;
+                }
+                let is_pcx = path
+                    .extension()
+                    .is_some_and(|e| e.eq_ignore_ascii_case("pcx"));
+                let bytes = if is_pcx {
+                    std::fs::read(&path).unwrap()
+                } else {
+                    Vec::new()
+                };
+                let Some((header, rows)) = bytes.split_first_chunk::<HEADER_LEN>() else {
+                    continue;
+                };
+                if kind(header) != Some(Kind::Planes) {
+                    continue;
+                }
+                let targets = [
+                    (256, 256, 0xFFFF_FFFE),
+                    (640, 480, 0xFFFF_FFFF),
+                    (800, 600, 0xFFFF_FFFD),
+                    (100, 37, 0xFFFF_FFFE),
+                ];
+                for (width, height, row_bytes) in targets {
+                    let target = Target {
+                        width,
+                        height,
+                        width_limit: 800,
+                        height_limit: 600,
+                        flags: 0x800,
+                        row_bytes,
+                    };
+                    let l = lay_out(header, &target);
+                    let room = (l.stride * l.height.max(1)) as usize;
+                    let what = path.display().to_string();
+                    same_planes(&l, rows, room, &what);
+                    // Cut short: the rest reads as 0.
+                    same_planes(&l, &rows[..rows.len() / 3], room, &what);
+                }
+                checked += 1;
+            }
+        }
+        println!("{checked} pictures of three planes checked");
+        assert!(
+            checked > 0,
+            "no PCX file of three planes under RC2K_PCX_FILES"
+        );
     }
 }
