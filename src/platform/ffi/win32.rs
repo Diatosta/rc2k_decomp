@@ -595,6 +595,25 @@ pub fn install_fault_reporter() {
     }
 }
 
+/// The terminal that started the program, if one did: a windowed program has no console of
+/// its own, so it joins its parent's to write there. False when there is none (started from
+/// Explorer).
+pub fn attach_parent_console() -> bool {
+    use windows_sys::Win32::System::Console::{ATTACH_PARENT_PROCESS, AttachConsole};
+    // SAFETY: a plain call with a constant; it changes only this process's console.
+    unsafe { AttachConsole(ATTACH_PARENT_PROCESS) != 0 }
+}
+
+/// Whether the program was given a standard output (a pipe or a file the starting command sent
+/// its output to). A windowed program started at a console prompt has none.
+pub fn has_standard_output() -> bool {
+    use windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE;
+    use windows_sys::Win32::System::Console::{GetStdHandle, STD_OUTPUT_HANDLE};
+    // SAFETY: a plain call with a constant; the handle is only compared.
+    let handle = unsafe { GetStdHandle(STD_OUTPUT_HANDLE) };
+    !handle.is_null() && handle != INVALID_HANDLE_VALUE
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

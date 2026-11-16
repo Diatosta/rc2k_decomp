@@ -102,6 +102,41 @@ pub fn message_box(icon: Icon, caption: &[u8], text: &[u8]) {
     crate::platform::ffi::sdl::show_message_box(flags, &caption, &text);
 }
 
+/// A text for the terminal the program was started from (`--help`, a switch it does not know):
+/// standard output; on Windows, where a windowed program has one only when its output was sent
+/// to a pipe or a file, else the console of the program that started it (`CONOUT$` once
+/// attached). False when there is nowhere to write to.
+pub fn print_to_terminal(text: &str) -> bool {
+    use std::io::Write;
+    #[cfg(windows)]
+    {
+        if crate::platform::ffi::win32::has_standard_output() {
+            let mut out = std::io::stdout().lock();
+            return out
+                .write_all(text.as_bytes())
+                .and_then(|()| out.flush())
+                .is_ok();
+        }
+        if !crate::platform::ffi::win32::attach_parent_console() {
+            return false;
+        }
+        // The console's line ends, and a fresh line after the shell's prompt.
+        let text = format!("\n{}", text.replace('\n', "\r\n"));
+        std::fs::OpenOptions::new()
+            .write(true)
+            .open("CONOUT$")
+            .and_then(|mut out| out.write_all(text.as_bytes()))
+            .is_ok()
+    }
+    #[cfg(not(windows))]
+    {
+        let mut out = std::io::stdout().lock();
+        out.write_all(text.as_bytes())
+            .and_then(|()| out.flush())
+            .is_ok()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #[test]

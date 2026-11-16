@@ -33,6 +33,13 @@ rc2k [log file] [switches]
 The first word that is not a switch names the program's log file. Without one the log is
 `rc2k.log` in the current folder.
 
+`rc2k --help` (or `-h`) prints every switch with a line on what it does, then ends. On Windows
+it prints into the terminal the program was started from; started without one, it shows the
+list in a message box. A switch starting with `--` that the program does not know ends it at
+once with a message naming the switch, before anything loads: a mistyped switch is not passed
+over silently. The list comes from one table, `rc2k_core/src/cli.rs`; a switch added to the
+program goes there too.
+
 ### Starting straight into a race
 
 These switches skip the films and the menus and start a single rally stage, as if it had been

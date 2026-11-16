@@ -239,7 +239,7 @@ impl std::fmt::Display for LaunchError {
 }
 
 /// The switches that take a value (the next word, or after `=`).
-const VALUED: [&str; 10] = [
+pub const VALUED: [&str; 10] = [
     "replay",
     "stage",
     "stage-set",

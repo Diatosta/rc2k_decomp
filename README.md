@@ -118,7 +118,7 @@ program into the folder that holds `files` and `var` and start it there.
 
 Switches on the command line skip the menus and start a single rally stage, as if it had been
 chosen there; afterwards come its results and the menus. `--replay` plays a saved replay the
-same way.
+same way. `rc2k --help` lists every switch.
 
 ```sh
 rc2k --stage langton

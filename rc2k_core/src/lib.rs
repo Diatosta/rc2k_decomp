@@ -4,6 +4,7 @@
 #![cfg_attr(not(test), forbid(unsafe_code))]
 
 pub mod audio;
+pub mod cli;
 pub mod d3d;
 pub mod drive;
 pub mod effects;

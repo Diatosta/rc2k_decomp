@@ -12,6 +12,9 @@ pub struct Paths {
     pub old: PathBuf,
 }
 
+/// The switches `Asked::from_args` reads.
+pub const SWITCHES: [&str; 2] = ["--load-old-options", "--save-old-options"];
+
 /// What the player asked for on the command line (or with the settings page's button).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Asked {
@@ -27,8 +30,8 @@ impl Asked {
         let mut asked = Self::default();
         for arg in args {
             match arg.as_ref() {
-                "--load-old-options" => asked.load_old = true,
-                "--save-old-options" => asked.save_old = true,
+                a if a == SWITCHES[0] => asked.load_old = true,
+                a if a == SWITCHES[1] => asked.save_old = true,
                 _ => {}
             }
         }

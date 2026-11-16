@@ -617,6 +617,27 @@ fn shut_down(o: Owners<'static>) {
     crate::fatal::show_report_at_exit::show_report_at_exit();
 }
 
+/// What the command line asks of the program before it starts, if anything: `--help` prints the
+/// list of switches (to the terminal it was started from, else in a message box) and ends; a
+/// `--` switch the program does not know is refused the same way, before anything loads. The
+/// code the program ends with, or None to go on.
+pub fn answer_command_line(args: &[String]) -> Option<i32> {
+    use crate::platform::os::{Icon, message_box, print_to_terminal};
+    let (text, code, icon) = if rc2k_core::cli::wants_help(args) {
+        (
+            rc2k_core::cli::help_text(env!("CARGO_PKG_VERSION")),
+            0,
+            Icon::Information,
+        )
+    } else {
+        (rc2k_core::cli::unknown(args)? + "\n", 2, Icon::Warning)
+    };
+    if !print_to_terminal(&text) {
+        message_box(icon, b"Rally Championship", text.as_bytes());
+    }
+    Some(code)
+}
+
 /// Starts the platform and goes through `start`. The current
 /// directory has to be the game's. Does not come back.
 /// `frames`, if not 0: the program ends itself after that many frames were shown.
