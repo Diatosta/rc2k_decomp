@@ -86,7 +86,9 @@ pub fn set_up_front_end_scene_in(o: crate::owners::Owners<'static>) -> Result<()
     let shared = &race.shared;
     let frame = &race.frame;
     let course = &race.course;
+    crate::race::load_times::begin("front end scene: loading picture");
     crate::menu::show_loading_picture::show_loading_picture_in(o)?;
+    crate::race::load_times::phase("front end scene: textures made");
     reset_texture_tables(scene);
     for (count, first, levels, tag) in NEEDS {
         for texture in first..first + count {
@@ -95,6 +97,7 @@ pub fn set_up_front_end_scene_in(o: crate::owners::Owners<'static>) -> Result<()
         }
     }
     crate::scene::set_up_textures::set_up_textures(shared, scene, o.gfx, &o.gfx.d3d)?;
+    crate::race::load_times::phase("front end scene: object memory, lights");
     set_up_object_memory(race, scene)?;
     clear_slot_kinds(scene);
     colours(course, 0);
@@ -124,7 +127,9 @@ pub fn set_up_front_end_scene_in(o: crate::owners::Owners<'static>) -> Result<()
         scene.objects.tables.get().slot_kinds[0x2D + place]
             .set(known_kind(race.kind_tables(), place as u32));
     }
+    crate::race::load_times::phase("front end scene: objects");
     crate::scene::load_front_end_objects_logged::load_front_end_objects_logged(race, scene)?;
+    crate::race::load_times::phase("front end scene: texture places");
     reset_texture_places(scene);
 
     scene.textures.places.get().kind_pictures[0x87].set(0x82A);
@@ -138,10 +143,12 @@ pub fn set_up_front_end_scene_in(o: crate::owners::Owners<'static>) -> Result<()
             picture = picture.wrapping_add(1);
         }
     }
+    crate::race::load_times::phase("front end scene: system textures");
     crate::scene::reload_system_textures::reload_system_textures(
         o,
         &mut crate::race::loading_bar_frame::LoadingBar::new(o),
     )?;
+    crate::race::load_times::phase("front end scene: records, lights");
     allocate_point_records_in_game(&scene.scratch, course)?;
     colours(course, 0);
     fill_scene_light_tables(race, scene)?;
@@ -150,10 +157,13 @@ pub fn set_up_front_end_scene_in(o: crate::owners::Owners<'static>) -> Result<()
         frame,
         &o.scene.scratch.front_end().matrices,
     );
+    crate::race::load_times::phase("front end scene: slot textures");
     reload_slot_textures(frame, scene)?;
+    crate::race::load_times::phase("front end scene: rest");
     colours(course, 0x7F);
     shared.switches.get().scene_set_up.set(1u32);
     fill_light_tables(scene, race)?;
     shared.vars.get().settings_words[1].set(1u32);
+    crate::race::load_times::end();
     Ok(())
 }

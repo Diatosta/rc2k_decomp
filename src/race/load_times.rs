@@ -1,7 +1,9 @@
-//! A stage load's timing, for builds with the `remote` feature run with `RC2K_LOAD_TIMES=1`: one
+//! A stage load's timing, and the front end's set-up's (the menus' own load, at the start and
+//! after every event), for builds with the `remote` feature run with `RC2K_LOAD_TIMES=1`: one
 //! log line per load step, `load time <step>: <ms> ms (<category> <ms> [<count>], ..)`, then the
-//! total and the time to the first race frame. The categories are exclusive (a file read inside
-//! a picture decode counts as a file read only); what no category covers is the step's own work.
+//! total and, after a stage's load, the time to the first race frame. The categories are exclusive
+//! (a file read inside a picture decode counts as a file read only); what no category covers is
+//! the step's own work.
 //! `mark` splits a step into sub-steps (`load time <step> / <sub>: <ms>`, wall time, categories
 //! not separated). Without the feature, or without the variable, every call here does nothing.
 
