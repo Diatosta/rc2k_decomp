@@ -126,7 +126,7 @@ rc2k --launch my_race.txt
 | --- | --- |
 | `--stage` | the stage's name, or `rally-stage` in the stage screen's order (e.g. `4-5`, 1-based) |
 | `--stage-set` | the stage screen's set, `simulation` (the default) or `arcade`, which runs each stage the other way; or `1` / `2` |
-| `--car`, `--car2` | the car for player 1 (and 2), by name; one not unlocked yet is taken as the game's "Unlock Cars" cheat would; the player's own car unless given |
+| `--car`, `--car2` | the car for player 1 (and 2), by name; one not unlocked yet is taken as the game's "Unlock Cars" cheat would; without `--car`, the car the menus would show; without `--car2`, the same car as `--car` |
 | `--gearbox` | `manual`, `semi-automatic` or `automatic` (or 1 .. 3) |
 | `--players` | `1`, or `2` on a split screen |
 | `--seed` | a number: the random numbers of the race start from it |

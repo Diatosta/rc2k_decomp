@@ -9,7 +9,7 @@
 //!   stage; a launch needs it.
 //! - `--stage-set <name or number>`: the stage screen's set (its group switch: the simulation's
 //!   or the arcade's, by the game's name for it or 1 / 2); the first unless given.
-//! - `--car <name or number>`, `--car2 <...>` (the second player's; the first's unless given):
+//! - `--car <name>`, `--car2 <name>` (the second player's; the first's unless given):
 //!   a car of the list the car screen shows, by its name as the game shows it or its place in
 //!   that list (1-based); a car by name not in it is taken from every car's list, as the
 //!   "Unlock Cars" cheat shows it. The player's own car unless given.
