@@ -395,7 +395,7 @@ fn joystick_in_menus(
 fn menu_action(input: &crate::input::owner::Input, action: crate::input::menu_pad::MenuAction) {
     use crate::input::menu_pad::{MenuAction as A, note_answer};
     use crate::input::yes_no_key::{NO, THIRD, YES};
-    // The on-screen keyboard takes the moves, the south button and the east button.
+    // The on-screen keyboard takes the moves and the south, east and west buttons.
     if crate::input::typed_text::osk().is_some() {
         let step = match action {
             A::Up => Some((0, -1)),
@@ -415,11 +415,15 @@ fn menu_action(input: &crate::input::owner::Input, action: crate::input::menu_pa
                 }
                 return;
             }
+            // The east button (B on an Xbox pad) cancels the field, the west one (X) deletes.
             A::Back => {
+                osk_asks(input, crate::input::typed_text::Asks::Cancel);
+                return;
+            }
+            A::Third => {
                 osk_asks(input, crate::input::typed_text::Asks::Backspace);
                 return;
             }
-            A::Third => return,
             _ => {}
         }
     }

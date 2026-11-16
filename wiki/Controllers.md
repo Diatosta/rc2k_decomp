@@ -44,7 +44,8 @@ language.
 
 Typing a name (a player's, a saved game's, the network settings and the chat) with a pad shows
 an on-screen keyboard when the field is entered with the pad's confirm: the cross or stick moves
-over the keys, South types one, East is backspace, Start is done and Back cancels. On a system
+over the keys, A types one, X deletes, B cancels the field, Start is done. The keyboard sits
+below or above the field, never over it, and has pages of symbols and accented letters. On a system
 with its own screen keyboard (a phone, a Steam Deck under Steam) that one is shown instead. A
 keyboard typed on closes ours. See [Input](Input).
 

@@ -59,11 +59,15 @@ The yes/no questions accept the first letter of "yes" and "no" in the game's lan
 ### A pad in the menus
 
 When a text field is entered with a controller's confirm (the last confirm in the menus came
-from a pad, wheel or other controller, not from the keyboard), a grid of keys is drawn over the
-screen with the menus' fonts (`src/input/osk_draw.rs`; the grid and its moves are
-`rc2k_core::input::osk`): digits, letters, a few symbols, a case key, space, delete and ok. The
-cross or stick moves it, South types the key under it, East is backspace, Start is done (Enter)
-and Back (Select) cancels (Escape). Typing on a physical keyboard closes the grid.
+from a pad, wheel or other controller, not from the keyboard), a keyboard is drawn on a dark
+panel below the field, or above it when there is no room below, so the field stays in sight
+(`src/input/osk_draw.rs`; the grid, its pages and its moves are `rc2k_core::input::osk`). Each
+key is a tile, the key under the cursor on a red one. Three pages: digits and letters, symbols
+(`! ? * # $ % & ( ) /` and more), and the accented letters with a few signs (`¡ ¿ « » © £`);
+the command row has the case key, the two page keys, space, delete and ok. The cross or stick
+moves over it, South (A) types the key under it, West (X) deletes, East (B) cancels the field
+(Escape: the text from before comes back), Start is done (Enter), Back (Select) cancels too.
+Typing on a physical keyboard closes the grid.
 
 The 1999 menus knew only the keyboard. `src/input/menu_pad.rs` lets any gamepad SDL recognises
 drive them, by turning a button into the pending key it stands for:
