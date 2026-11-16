@@ -2,7 +2,7 @@
 # The handheld's profile for a profile-guided build (PGO): builds the game instrumented
 # (`-C profile-generate`, `--cfg rc2k_pgo` so that it writes its counts as it ends), runs it on
 # the handheld through tools/anbernic/pgo_train.py, and merges the counts into
-# target/a64-pgo/rc2k.profdata. `./deploy_standalone.sh anbernic pgo` then builds with it.
+# target/a64-pgo/rc2k.profdata. `./build.sh handheld --pgo` then builds with it.
 #
 # The profile only steers the compiler's layout and inlining: the program does the same with or
 # without it. Functions changed since the training are built as without it, so train again

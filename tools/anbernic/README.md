@@ -5,7 +5,8 @@ The build is made for the stock OS's Ubuntu 22.04 (glibc 2.35) and needs only th
 runs on either. `src/platform/handheld.rs` shows the frames on `/dev/fb0`; SDL does the sound and the pad.
 
 - Container: `docker build -t rc2k-anbernic tools/anbernic` (`run.sh` runs a command in it).
-- Deploy: `./deploy_standalone.sh anbernic`; `ANBERNIC_HOST=root@address` in `deploy.local`,
+- Build and deploy: `./build.sh handheld --deploy` (the program and `Rally.sh` in `dist/handheld/`);
+  `ANBERNIC_HOST=root@address` in `deploy.local`,
   the key in `~/.ssh/rg34xxsp` (or `ANBERNIC_KEY`). The game's folder is `/userdata/roms/ports/rally`
   (`ANBERNIC_GAME` for another; the stock OS's was `/mnt/mmc/Roms/APPS/rally`), its entry
   `roms/ports/Rally.sh` beside it.
@@ -26,6 +27,6 @@ runs on either. `src/platform/handheld.rs` shows the frames on `/dev/fb0`; SDL d
   (the address and key: `RC2K_REMOTE_HOST` / `RC2K_REMOTE_KEY`, else `ANBERNIC_HOST` / `ANBERNIC_KEY` in `deploy.local`; no default).
 - Profile-guided build (2 fps more, about 6 %): `tools/anbernic/pgo.sh` builds the game instrumented,
   drives it on the handheld (`pgo_train.py`: menus, then the first stage by the pilot) and writes
-  `target/a64-pgo/rc2k.profdata`; `./deploy_standalone.sh anbernic pgo` builds with it. Train
+  `target/a64-pgo/rc2k.profdata`; `./build.sh handheld --pgo` builds with it. Train
   again after larger changes (changed functions are built as without a profile). Needs
   `llvm-profdata` of rustc's LLVM major version.

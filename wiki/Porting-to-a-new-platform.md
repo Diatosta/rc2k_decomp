@@ -82,7 +82,7 @@ renderer has to combine that with its 3D; `gpu.rs` and `gles/layer2d.rs` show ho
 | `src/install/folders/` | The installer's rules for naming and checking folders and its default folder. One implementation per system. |
 | `src/install/shortcuts.rs` | The menu entries the installer makes. |
 | `src/files/` | Reading the game's paths (written the Windows way, without regard to case) on a system whose file names are case-sensitive. Already done for Unix. |
-| `deploy_standalone.sh`, `tools/` | Building and copying for the target. |
+| `build.sh`, `build.ps1`, `tools/` | Building and copying for the target. |
 
 ## Example: the Anbernic RG34XXSP
 
@@ -104,7 +104,7 @@ What the port needed:
   (`rasteriser_neon.rs`).
 - **No debug window**, since there is no window to draw it over (`build.rs`).
 - **Build tooling.** A container that matches the device's system (`tools/anbernic/`), a
-  launcher script for the device's menu, and a `deploy_standalone.sh anbernic` step.
+  launcher script for the device's menu, and a `handheld` target in `build.sh`.
 
 ## Example: macOS
 
@@ -122,7 +122,7 @@ What the port needed:
 - **The installer.** The Unix folder rules with a Mac default folder, and menu entries as
   small application bundles.
 - **Build tooling.** FFmpeg for both processors, `lipo` to join the two programs, ad hoc
-  signing (`deploy_standalone.sh mac`, `tools/mac/`).
+  signing (`build.sh mac`, `tools/mac/`).
 
 One renderer detail differs: on macOS the menus' 2D is still uploaded as pixels rather than
 drawn by the GPU as rectangles.

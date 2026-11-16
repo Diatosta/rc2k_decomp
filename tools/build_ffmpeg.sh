@@ -17,7 +17,7 @@
 # Needs: curl, gpg, clang-cl, lld-link, llvm-lib, llvm-nm, make; a cargo xwin build run
 # once (for the SDK).
 # On Windows itself (`x86` / `x64` run in MSYS2's bash with a Visual Studio developer
-# environment inherited: `tools/windows/build.ps1` sets that up) the same libraries are
+# environment inherited: `build.ps1` sets that up) the same libraries are
 # built with Visual Studio's own cl, link and lib instead (needs MSYS2's make, diffutils,
 # gnupg, tar, xz and curl).
 set -euo pipefail
@@ -67,7 +67,7 @@ if [ -f "$DEST/VERSION" ] && [ "$(cat "$DEST/VERSION")" = "$VERSION $CONFIG" ]; 
 fi
 
 if $NATIVE; then
-    command -v cl.exe >/dev/null || { echo "no cl.exe: run this from a Visual Studio developer environment (tools/windows/build.ps1)" >&2; exit 1; }
+    command -v cl.exe >/dev/null || { echo "no cl.exe: run this from a Visual Studio developer environment (build.ps1)" >&2; exit 1; }
     case "$ARCH:${VSCMD_ARG_TGT_ARCH:-}" in
         x86:x86|x64:x64) ;;
         *) echo "the Visual Studio environment builds for '${VSCMD_ARG_TGT_ARCH:-?}', not $ARCH" >&2; exit 1 ;;

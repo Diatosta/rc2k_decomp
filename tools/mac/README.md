@@ -2,7 +2,7 @@
 
 Three ways to the Mac program:
 
-- **On a Mac**: `./deploy_standalone.sh mac` (Intel and Apple silicon joined by `lipo` into
+- **On a Mac**: `./build.sh mac` (Intel and Apple silicon joined by `lipo` into
   `Rally Championship.app`), or from another machine through SSH (`MAC_HOST`).
 - **On Linux, crossed** (below): Intel (`x86_64-apple-darwin`, `env.sh x64`) and Apple
   silicon (`aarch64-apple-darwin`, `env.sh a64`), joined by `llvm-lipo` into the bundle.
@@ -29,7 +29,7 @@ bsdtar / bsdcpio, and Rust's target (`rustup target add x86_64-apple-darwin`).
    source tools/mac/cross/env.sh x64
    CARGO_TARGET_DIR=target/mac cargo build --release --target x86_64-apple-darwin --bin rc2k
    ```
-4. The bundle, as `deploy_standalone.sh mac` makes it on a Mac:
+4. The bundle, as `build.sh mac` makes it on a Mac:
 
    ```sh
    APP="target/mac/Rally Championship.app"

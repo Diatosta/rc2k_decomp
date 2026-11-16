@@ -35,7 +35,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 HOME = os.path.expanduser(os.environ.get('RC2K_REMOTE_HOME', '~/.cache/rc2k_remote'))  # a second copy: another folder
 GAME = HOME + '/game'
 # Run on a Mac itself (over SSH from elsewhere: `ssh mac rc2k_src/tools/remote.py ..`): the
-# game's folder there is RC2K_REMOTE_INSTALLED (default ~/rally, as deploy_standalone.sh mac).
+# game's folder there is RC2K_REMOTE_INSTALLED (default ~/rally, as build.sh mac).
 MAC = sys.platform == 'darwin'
 INSTALLED = os.path.expanduser(os.environ.get('RC2K_REMOTE_INSTALLED',
                                               '~/rally' if MAC else '~/.local/share/rally-championship'))
@@ -51,7 +51,7 @@ WINE = os.environ.get('RC2K_REMOTE_WINE')
 # A device over SSH (the handheld, the Steam Deck: the game started from Steam by its run.sh,
 # which sets RC2K_REMOTE). Its address and key are never written here: RC2K_REMOTE_HOST and
 # RC2K_REMOTE_KEY, else ANBERNIC_HOST and ANBERNIC_KEY of the untracked deploy.local in the
-# repository's root (the names deploy_standalone.sh anbernic reads). RC2K_REMOTE_GAME is the
+# repository's root (the names build.sh handheld reads). RC2K_REMOTE_GAME is the
 # game's folder there.
 DEVICE_GAME = os.environ.get('RC2K_REMOTE_GAME', '/userdata/roms/ports/rally')
 DEVICE_REMOTE = '/tmp/rc2k_remote'

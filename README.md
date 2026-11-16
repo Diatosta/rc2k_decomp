@@ -61,7 +61,7 @@ Measured figures:
 | Platform | Needs |
 | --- | --- |
 | Windows, 64 or 32 bits | Windows 10 or later (the minimum of the pinned Rust toolchain's Windows targets). |
-| Linux, x86-64 | glibc only; which version depends on the system the program was built on. The workflow's builds are made on Ubuntu 24.04 (glibc 2.38); a build made on a current rolling distribution needed 2.43. `deploy_standalone.sh linux` prints the version its build needs. |
+| Linux, x86-64 | glibc only; which version depends on the system the program was built on. The workflow's builds are made on Ubuntu 24.04 (glibc 2.38); a build made on a current rolling distribution needed 2.43. `./build.sh linux` prints the version its build needs. |
 | macOS | macOS 11.0 (Big Sur) or later, Intel or Apple silicon. |
 | Anbernic RG34XXSP | Knulli or the stock system; glibc 2.35 or later. |
 
@@ -141,121 +141,82 @@ The game then appears under Ports as "Rally"; MENU + START leaves it. Details:
 
 ## Building
 
-The repository and the crate are named `rc2k_decomp`. The Rust toolchain is pinned in
-`rust-toolchain.toml`. All builds described here are made
-on Linux, except the Mac's, which can also be made on a Mac. SDL and FFmpeg are not in the
-repository; the scripts in `tools/` fetch or build them into `third_party/`:
+The repository and the crate are named `rc2k_decomp`; the program is `rc2k`. The Rust
+toolchain is pinned in `rust-toolchain.toml`. One command builds each target, from the
+repository's top folder:
 
-- `tools/fetch_sdl3.sh` fetches SDL's ready-made Windows library (a pinned version,
-  checked by its hash). The other systems build SDL from source through the `sdl3-sys`
-  crate, which needs cmake and the usual development packages of the system's video and
-  sound (the list for Ubuntu is in `.github/workflows/build.yml`).
-- `tools/build_ffmpeg.sh [x86|x64|linux|a64|mac]` builds FFmpeg from its signed source
-  with only the three decoders the game's films need. It needs curl, gpg and make; for
-  Windows also clang-cl, lld-link, llvm-lib and llvm-nm, and the Windows SDK that a first
-  `cargo xwin` run fetches.
+| Target | Command | Run on | Result |
+| --- | --- | --- | --- |
+| Linux, x86-64 | `./build.sh linux` | Linux | `dist/linux/rc2k` |
+| Windows, 64 bits | `./build.sh windows-x64` | Linux (cargo-xwin) | `dist/windows-x64/`: `rc2k.exe` and three DLLs |
+| Windows, 32 bits | `./build.sh windows` | Linux (cargo-xwin) | `dist/windows/`: `rc2k.exe` and three DLLs |
+| Windows, either | `build.ps1 -Target windows-x64` (or `windows`) | Windows | the same folders |
+| macOS | `./build.sh mac` | a Mac (or Linux, on a Mac over SSH) | `dist/mac/Rally Championship.app` |
+| Anbernic RG34XXSP | `./build.sh handheld` | Linux (Docker) | `dist/handheld/`: `rc2k`, `Rally.sh` |
+| Web (experimental) | `./build.sh web` | Linux (Emscripten) | `dist/web/`: `rc2k.js`, `rc2k.wasm`, the page |
 
-### Linux
+`./build.sh` alone lists the targets. Every target's `dist/<target>/` holds the program
+and all it needs beside it: copy the folder's contents into the game's folder (the one
+with `files` and `var`) and it runs. `--debug` makes an unoptimised build, and `--deploy`
+also copies the folder where `deploy.local` says (below). The script says which tool is
+missing when one is.
 
-```sh
-tools/build_ffmpeg.sh linux
-cargo build --release --target x86_64-unknown-linux-gnu --bin rc2k
-```
+What each target needs:
 
-The program is `target/x86_64-unknown-linux-gnu/release/rc2k`.
+- **All**: `rustup`, a C and C++ compiler, `make`, `curl` and `gpg`. SDL and FFmpeg are
+  not in the repository; the build fetches or builds them into `third_party/`. FFmpeg
+  (`tools/build_ffmpeg.sh`) is built from its signed source with only the three decoders
+  the game's films need.
+- **Linux**: cmake and the development packages of the system's video and sound (SDL is
+  built from source; the list for Ubuntu is in `.github/workflows/build.yml`).
+- **Windows from Linux**: `cargo install --locked cargo-xwin`, LLVM's clang-cl, lld-link,
+  llvm-lib and llvm-nm (Clang 19 or later) and unzip. SDL's ready-made library is
+  downloaded (`tools/fetch_sdl3.sh`: a pinned version, checked by its hash). The 32-bit
+  build has no debug window.
+- **Windows on Windows**: Visual Studio 2022 (or its Build Tools) with "Desktop
+  development with C++", and for FFmpeg MSYS2
+  (`pacman -S --needed make diffutils gnupg tar xz curl`). In PowerShell:
 
-### Windows (crossed from Linux with cargo-xwin)
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File build.ps1 -Target windows-x64
+  powershell -ExecutionPolicy Bypass -File build.ps1 -Target windows -GameDir C:\Games\Rally
+  ```
 
-```sh
-cargo install --locked cargo-xwin
-tools/fetch_sdl3.sh
+  `-GameDir` (or `-Deploy` with a `DEPLOY_WINDOWS` line in `deploy.local`) also copies the
+  result into the game's folder. Not yet tried on a real Windows machine.
+- **macOS**: the Command Line Tools, rustup's two `apple-darwin` targets, cmake and
+  gnupg. Both processors' programs are joined with `lipo` into one bundle, signed ad hoc
+  (not notarised); `--arch x64` or `--arch a64` builds one alone. From Linux,
+  `./build.sh mac` copies the source to the Mac named by `MAC_HOST`, builds there and
+  brings the bundle back. Crossing on Linux by hand is described in
+  [tools/mac/README.md](tools/mac/README.md).
+- **Handheld**: Docker. The build runs in a container of the handheld's stock system
+  (`tools/anbernic/Dockerfile`; `tools/anbernic/run.sh` runs a command in it). `--pgo`
+  builds with the profile `tools/anbernic/pgo.sh` made.
+- **Web**: the Emscripten SDK in `~/emsdk` and a nightly toolchain with the
+  `wasm32-unknown-emscripten` target and `rust-src`. Serve it with
+  `python3 dist/web/serve.py dist/web`. This build is unfinished.
 
-# 64 bits
-cargo xwin cache xwin --xwin-arch x86_64
-tools/build_ffmpeg.sh x64
-cargo xwin build --release --xwin-arch x86_64 --target x86_64-pc-windows-msvc --bin rc2k
+### Deploying
 
-# 32 bits (no debug window)
-tools/build_ffmpeg.sh
-cargo xwin build --release --xwin-arch x86 --target i686-pc-windows-msvc --bin rc2k
-```
-
-Next to `rc2k.exe` go `SDL3.dll` (`third_party/sdl3/lib/x64` or `lib/x86`) and
-`avcodec-61.dll` and `avutil-59.dll` (`third_party/ffmpeg-x64/bin` or
-`third_party/ffmpeg/bin`).
-
-### Windows (on Windows itself)
-
-With rustup, Visual Studio 2022 (or its Build Tools) with "Desktop development with C++",
-and MSYS2 (`pacman -S --needed make diffutils gnupg tar xz unzip curl`), from the
-repository's root in PowerShell:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File tools\windows\build.ps1 -Arch x64
-powershell -ExecutionPolicy Bypass -File tools\windows\build.ps1 -Arch x86 -GameDir C:\Games\Rally
-```
-
-It fetches SDL, builds FFmpeg's decoders with Visual Studio's compiler and builds
-`rc2k.exe` into `target\<target>\release` with its DLLs beside it; `-GameDir` also copies
-them into the game's folder. Not yet tried on a real Windows machine.
-
-### macOS
-
-On a Mac with the Command Line Tools, rustup's two `apple-darwin` targets, cmake and
-gnupg:
-
-```sh
-./deploy_standalone.sh mac        # both processors in one bundle; `mac x64` or `mac a64` for one
-```
-
-It builds FFmpeg, both programs, joins them with `lipo` into `Rally Championship.app`,
-signs it ad hoc (it is not notarised) and copies it into `MAC_GAME_DIR` (default
-`~/rally`). Crossing from Linux is described in [tools/mac/README.md](tools/mac/README.md).
-
-### Anbernic RG34XXSP
-
-Needs Docker. The build runs in a container of the handheld's stock system
-(`tools/anbernic/Dockerfile`); `tools/anbernic/run.sh` runs a command in it.
+`./build.sh <target> --deploy` copies `dist/<target>/` to the place `deploy.local` names
+for that target. `deploy.local` lies in the repository's top folder and is not in git; an
+example with made-up values:
 
 ```sh
-docker build -t rc2k-anbernic tools/anbernic
-tools/anbernic/run.sh tools/build_ffmpeg.sh a64
-tools/anbernic/run.sh cargo build --release --target aarch64-unknown-linux-gnu --bin rc2k
+DEPLOY_LINUX=/home/sam/games/rally            # default: ~/.local/share/rally-championship
+DEPLOY_WINDOWS=/home/sam/games/rally-win
+DEPLOY_WINDOWS_X64=/home/sam/games/rally-win/x64
+DEPLOY_WEB=/srv/www/rally
+ANBERNIC_HOST=root@192.0.2.20                 # the handheld, over SSH
+MAC_HOST=sam@192.0.2.30                       # a Mac to build on, over SSH
 ```
 
-The program is `target/a64-linux/aarch64-unknown-linux-gnu/release/rc2k`.
-`./deploy_standalone.sh anbernic` does these steps and copies the result to the device
-(`ANBERNIC_HOST` in `deploy.local`).
-
-### Web (experimental)
-
-Needs the Emscripten SDK in `~/emsdk` and a nightly toolchain with the
-`wasm32-unknown-emscripten` target and `rust-src`:
-
-```sh
-tools/web/build.sh
-python3 tools/web/serve.py [folder] [port]
-```
-
-The output is `target/web/wasm32-unknown-emscripten/release/rc2k.js` and `rc2k.wasm`; the
-page is `tools/web/index.html`. This build is unfinished.
-
-### Building and copying in one step
-
-`deploy_standalone.sh` builds and copies the program into a game folder. It reads
-`deploy.local` (not in git), which sets `GAME_DIR`; the program goes into the folder above
-it, or into `STANDALONE_DIR` if set.
-
-| Command | Builds | Copies to |
-| --- | --- | --- |
-| `./deploy_standalone.sh` | Windows, 32 bits | the game's folder |
-| `./deploy_standalone.sh x64` | Windows, 64 bits | `x64/` in it |
-| `./deploy_standalone.sh linux` | Linux | `linux/` in it |
-| `./deploy_standalone.sh mac [x64\|a64]` | macOS | `MAC_GAME_DIR` |
-| `./deploy_standalone.sh anbernic [pgo]` | the handheld | the device, over SSH |
+The wiki's [Building from source](wiki/Building-from-source.md) page lists every line.
+`deploy_standalone.sh` is the older name of the same thing and still works.
 
 The GitHub workflow `.github/workflows/build.yml` builds Windows (64 bits), Linux and
-macOS the same way.
+macOS with the same `./build.sh` commands.
 
 ### Checks
 

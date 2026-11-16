@@ -1,4 +1,5 @@
 /target
+/dist
 deploy.local
 /CLAUDE.md
 /third_party

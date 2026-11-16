@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- The macOS bundle's property list (`deploy_standalone.sh mac`): `Rally Championship.app`,
+<!-- The macOS bundle's property list (`build.sh mac`): `Rally Championship.app`,
      its program `Contents/MacOS/rc2k`, which runs in the folder that holds the bundle (the
      game's folder: `os::enter_bundle_folder`). -->
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

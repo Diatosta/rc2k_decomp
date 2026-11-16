@@ -1,11 +1,11 @@
 # Builds the game (`rc2k`) for 64-bit Windows, for Linux and for macOS on every push and pull
 # request, and keeps each build as a download of the run (Actions -> the run -> Artifacts).
-# macOS is built on a Mac runner (`deploy_standalone.sh mac`); the others on Linux the way
-# `deploy_standalone.sh` builds them: Windows with cargo-xwin
-# (clang-cl and the Windows SDK it fetches), SDL's ready-made DLL (`tools/fetch_sdl3.sh`)
-# and FFmpeg's decoders built from their signed source (`tools/build_ffmpeg.sh x64`);
-# Linux with SDL built from source and FFmpeg's decoders linked in (`build_ffmpeg.sh
-# linux`), so the program needs only the C library. `third_party/` is cached by the
+# Every job runs the repository's own entry point, `./build.sh <target>`, and uploads the
+# dist/<target>/ folder it makes. macOS is built on a Mac runner; the others on Linux:
+# Windows with cargo-xwin (clang-cl and the Windows SDK it fetches), SDL's ready-made DLL
+# (`tools/fetch_sdl3.sh`) and FFmpeg's decoders built from their signed source
+# (`tools/build_ffmpeg.sh x64`); Linux with SDL built from source and FFmpeg's decoders
+# linked in, so the program needs only the C library. `third_party/` is cached by the
 # scripts' contents: FFmpeg is built again only when its script changes. Ubuntu 24.04, not
 # `ubuntu-latest`: the Linux program needs the glibc it is built against or newer (2.38
 # there; 26.04's 2.43 would leave out most systems in use).
@@ -64,25 +64,14 @@ jobs:
             ~/.cache/cargo-xwin
           key: windows-x64-${{ hashFiles('tools/fetch_sdl3.sh', 'tools/build_ffmpeg.sh') }}
 
-      - name: SDL, the Windows SDK and FFmpeg
-        run: |
-          tools/fetch_sdl3.sh
-          cargo xwin cache xwin --xwin-arch x86_64
-          tools/build_ffmpeg.sh x64
-
+      # SDL, the Windows SDK, FFmpeg, the program, and dist/windows-x64/ with its DLLs.
       - name: Build
-        run: cargo xwin build --release --xwin-arch x86_64 --target x86_64-pc-windows-msvc --bin rc2k
-
-      - name: Pack
-        run: |
-          mkdir -p out
-          cp target/x86_64-pc-windows-msvc/release/rc2k.exe third_party/sdl3/lib/x64/SDL3.dll \
-            third_party/ffmpeg-x64/bin/avcodec-61.dll third_party/ffmpeg-x64/bin/avutil-59.dll out/
+        run: ./build.sh windows-x64
 
       - uses: actions/upload-artifact@v7
         with:
           name: rc2k-windows-x64-${{ github.sha }}
-          path: out/
+          path: dist/windows-x64/
 
   linux-x64:
     runs-on: ubuntu-24.04
@@ -111,26 +100,17 @@ jobs:
           path: third_party/ffmpeg-linux
           key: linux-x64-${{ hashFiles('tools/build_ffmpeg.sh') }}
 
-      - name: FFmpeg
-        run: tools/build_ffmpeg.sh linux
-
+      # FFmpeg, the program, and dist/linux/; it prints the glibc the program needs.
       - name: Build
-        run: cargo build --release --target x86_64-unknown-linux-gnu --bin rc2k
-
-      - name: Pack
-        run: |
-          mkdir -p out
-          cp target/x86_64-unknown-linux-gnu/release/rc2k out/
-          echo "needs glibc $(objdump -T out/rc2k | grep -v ' w ' | grep -oE 'GLIBC_[0-9.]+' \
-            | sort -uV | tail -1 | cut -d_ -f2) or newer"
+        run: ./build.sh linux
 
       - uses: actions/upload-artifact@v7
         with:
           name: rc2k-linux-x64-${{ github.sha }}
-          path: out/
+          path: dist/linux/
 
   macos:
-    # Built on the Mac runner as on a Mac (`deploy_standalone.sh mac`): Intel and Apple
+    # Built on the Mac runner as on a Mac (`./build.sh mac`): Intel and Apple
     # silicon joined into one program in `Rally Championship.app`, signed ad hoc. Only for
     # `main` and runs started by hand: a private repository's Mac minutes count ten times.
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
@@ -159,12 +139,12 @@ jobs:
           key: macos-${{ hashFiles('tools/build_ffmpeg.sh') }}
 
       - name: Build
-        run: MAC_GAME_DIR=out ./deploy_standalone.sh mac
+        run: ./build.sh mac
 
       - uses: actions/upload-artifact@v7
         with:
           name: rc2k-macos-${{ github.sha }}
-          path: out/
+          path: dist/mac/
 
   release:
     needs: [windows-x64, linux-x64, macos]
