@@ -710,3 +710,13 @@ has the same fixed addresses, but its network mode could not be run here to see 
 **Seen or read:** read, not seen (the platform's play call fails only for a buffer that is not there).
 
 **Fix:** the lost-buffer flag and its restore are gone (`audio::restore` removed). A play that fails is written to `rc2k.log` and that sound stays silent.
+
+## The menus took the last race's mipmapping
+
+**What it is:** the number of texture levels the menus' scene was made with came from a race setting that only a race's start wrote, from the mipmapping option. The menus never set it themselves.
+
+**In game:** the menus' textures had one level when the game started and three after any race (until the credits ran, which put it back to one), so the menus could look slightly different after racing.
+
+**Seen or read:** read.
+
+**Fix:** the menus' set-up puts the setting back to one level each time (`scene::set_up_front_end_scene`); races still take the option as before.

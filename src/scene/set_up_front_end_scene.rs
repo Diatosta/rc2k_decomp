@@ -86,6 +86,9 @@ pub fn set_up_front_end_scene_in(o: crate::owners::Owners<'static>) -> Result<()
     let shared = &race.shared;
     let frame = &race.frame;
     let course = &race.course;
+    // The menus' textures always have one level: the mipmapping option is the races' (each race
+    // copies it in again from its settings), so the last race's value does not carry over here.
+    shared.vars.get().mip_setting.set(0);
     crate::race::load_times::begin("front end scene: loading picture");
     crate::menu::show_loading_picture::show_loading_picture_in(o)?;
     crate::race::load_times::phase("front end scene: textures made");
