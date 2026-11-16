@@ -17,7 +17,7 @@ the game reaches was ported and the two behaved alike. The hooks were then
 removed and the code converted, module by module, into typed and mostly safe Rust with
 nothing left that depends on the original's memory layout, on 32 bits or on Windows. The
 platform side (DirectDraw, Direct3D, DirectSound, DirectInput, DirectPlay, the film player)
-was not ported one to one: SDL3, a GPU renderer and FFmpeg stand in for it.
+was not ported one to one: SDL3, a GPU renderer and the project's own film decoders stand in for it.
 
 The game itself is meant to stay the same for the player: the same menus, physics, stages,
 replays and save files. Where the original had bugs, they are fixed (see below).
@@ -39,7 +39,7 @@ Platforms:
 | Platform | State |
 | --- | --- |
 | Windows, 64 and 32 bits | Built and run (under Wine / Proton during development). |
-| Linux, x86-64 | Built and run. One program with SDL and FFmpeg linked in; it needs only glibc. |
+| Linux, x86-64 | Built and run. One program with SDL linked in; it needs only glibc. |
 | macOS, Intel and Apple silicon | Builds as `Rally Championship.app`. Tested less than the others. |
 | Anbernic RG34XXSP (handheld, aarch64 Linux) | Built and run on Knulli and on the stock system. See [tools/anbernic/README.md](tools/anbernic/README.md). |
 | Web (WebAssembly) | Experimental: it builds and starts, but does not show a picture yet. |
@@ -163,10 +163,9 @@ missing when one is.
 
 What each target needs:
 
-- **All**: `rustup`, a C and C++ compiler, `make`, `curl` and `gpg`. SDL and FFmpeg are
-  not in the repository; the build fetches or builds them into `third_party/`. FFmpeg
-  (`tools/build_ffmpeg.sh`) is built from its signed source with only the three decoders
-  the game's films need.
+- **All**: `rustup` and a C and C++ compiler. SDL is not in the repository: the build
+  fetches it (Windows) or builds it from source (the others). The films are decoded in
+  Rust, so no media library is needed.
 - **Linux**: cmake and the development packages of the system's video and sound (SDL is
   built from source; the list for Ubuntu is in `.github/workflows/build.yml`).
 - **Windows from Linux**: `cargo install --locked cargo-xwin`, LLVM's clang-cl, lld-link,
@@ -174,8 +173,7 @@ What each target needs:
   downloaded (`tools/fetch_sdl3.sh`: a pinned version, checked by its hash). The 32-bit
   build has no debug window.
 - **Windows on Windows**: Visual Studio 2022 (or its Build Tools) with "Desktop
-  development with C++", and for FFmpeg MSYS2
-  (`pacman -S --needed make diffutils gnupg tar xz curl`). In PowerShell:
+  development with C++"; nothing else. In PowerShell:
 
   ```powershell
   powershell -ExecutionPolicy Bypass -File build.ps1 -Target windows-x64
@@ -184,8 +182,8 @@ What each target needs:
 
   `-GameDir` (or `-Deploy` with a `DEPLOY_WINDOWS` line in `deploy.local`) also copies the
   result into the game's folder. Not yet tried on a real Windows machine.
-- **macOS**: the Command Line Tools, rustup's two `apple-darwin` targets, cmake and
-  gnupg. Both processors' programs are joined with `lipo` into one bundle, signed ad hoc
+- **macOS**: the Command Line Tools, rustup's two `apple-darwin` targets, and cmake.
+  Both processors' programs are joined with `lipo` into one bundle, signed ad hoc
   (not notarised); `--arch x64` or `--arch a64` builds one alone. From Linux,
   `./build.sh mac` copies the source to the Mac named by `MAC_HOST`, builds there and
   brings the bundle back. Crossing on Linux by hand is described in
@@ -244,7 +242,7 @@ files, texts, network messages). `tools/remote.py` drives a build made with
 | `src/` | The game: one folder per area (`race`, `physics`, `scene`, `menu`, `screens`, `hud`, `effects`, `audio`, `sound`, `net`, `saves`, `install`, `gfx`, `files`, ...), the renderers in `render/`, each system's own code in `platform/`, the debug window in `debug/`. The program's entry is `src/bin/rc2k.rs`. |
 | `rc2k_core/` | The game's logic with no platform and no `unsafe`; most unit tests are here. |
 | `rc2k_derive/` | Derive macros for the typed cells and byte views the game's records use. |
-| `tools/` | Build scripts (FFmpeg, SDL, shaders), the handheld's, the Mac's and the web build's tooling, the installer tests, the remote test driver. |
+| `tools/` | Build scripts (SDL, shaders), the handheld's, the Mac's and the web build's tooling, the installer tests, the remote test driver. |
 | `fuzz/` | Fuzz targets for `rc2k_core`'s readers. |
 | `data/vectors/` | Recorded inputs and results that the tests compare against. |
 | `wiki/` | The source of the project's wiki. |
@@ -284,8 +282,7 @@ The full list, with what each bug was and how it was fixed, is in
 
 - Diatosta: author and maintainer.
 - The original *Rally Championship 2000* is by Magnetic Fields (Software Design) Ltd.
-- Libraries: [SDL](https://libsdl.org) (window, input, sound, GPU), [FFmpeg](https://ffmpeg.org)
-  (the films' decoders), [Dear ImGui](https://github.com/ocornut/imgui) (the debug
+- Libraries: [SDL](https://libsdl.org) (window, input, sound, GPU), [Dear ImGui](https://github.com/ocornut/imgui) (the debug
   window), and the Rust crates `rayon` and `miniz_oxide`.
 - Written with the help of AI coding assistants (Claude), as said at the top.
 
@@ -303,6 +300,6 @@ Some of the original program's own built-in data is present in the source, becau
 game needs it: tables, menu definitions, constants and texts (such as its copyright
 lines). These are not covered by the project's licence and remain their owners'.
 
-Builds link SDL3 (zlib licence) and FFmpeg's decoders (LGPL 2.1); the debug window uses
-Dear ImGui (MIT). The Linux, macOS and handheld builds link FFmpeg statically, which the
-GPL allows (LGPL 2.1 code may be combined into a GPL program).
+Builds link SDL3 (zlib licence); the debug window uses Dear ImGui (MIT). The film decoders
+in `rc2k_core/src/film/` are ported from [FFmpeg](https://ffmpeg.org)'s (LGPL 2.1 or later,
+which may be combined into a GPL program); their files say so.

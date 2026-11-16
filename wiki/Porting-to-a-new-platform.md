@@ -16,8 +16,8 @@ handheld and macOS, as examples.
 ## How much SDL already covers
 
 The platform layer is built on SDL3. Where SDL runs, most of a port exists already: the
-window, keyboard, gamepads and wheels, haptics, and sound output all go through SDL. FFmpeg
-decodes the films. So the first question for a new system is: does SDL3 have a video and an
+window, keyboard, gamepads and wheels, haptics, and sound output all go through SDL. The
+films are decoded in plain Rust, which needs nothing from the system. So the first question for a new system is: does SDL3 have a video and an
 audio driver for it, and is there a GPU API SDL's GPU device supports (Vulkan, Metal)?
 
 | If the system has | Then |
@@ -34,13 +34,13 @@ audio driver for it, and is there a GPU API SDL's GPU device supports (Vulkan, M
 | `events.rs` | Turns SDL's events into what the game expects: the quit switch, window focus, the pending key for the menus, gamepad buttons as menu keys. | Add a way to quit if the device has no window to close. |
 | `input.rs` | Joysticks, gamepads and wheels as the game's controllers; force feedback through SDL's haptics. | Add a controller mapping if SDL does not know the built-in pad. |
 | `sound.rs` | Sound output: a small mixer that plays the game's sound buffers, with volume, pan and 3D placing, into one SDL audio stream. | Nothing, where SDL has audio. |
-| `film.rs` | The films, decoded with FFmpeg and shown as frames. | Build FFmpeg's decoders for the target (`tools/build_ffmpeg.sh`). |
+| `film.rs` | The films, decoded with `rc2k_core::film` and shown as frames. | Nothing. |
 | `direct3d.rs` | The 3D layer the game's drawing code stands on: textures, the start and end of a scene, and collecting the drawing commands for a renderer. | Nothing. |
 | `sync.rs` | Threads, events and locks, on Rust's standard library. | Nothing. |
 | `timing.rs` | Clocks and the optional profiler. | Nothing, unless you want the profiler. |
 | `pacing.rs` | The frames' pace: one frame for each refresh of the display SDL reports (60 a second when it reports none), by sleeping until the next frame is due. | Nothing. If your way of showing a frame already waits for the display, say so in `set_display` and the pace does not wait as well. |
 | `os/` | Facts about the system the game asks for: the clock, the command line, folders, free space, message boxes. `windows.rs` and `unix.rs` answer the per-system ones. | A Unix-like system uses `unix.rs`; add the calls that differ. |
-| `ffi/` | Thin safe wrappers around the C libraries (SDL, SDL's GPU API, FFmpeg, OpenGL ES, libc, Win32, Dear ImGui). The only place in the platform that may use unsafe code. | A new library gets a new file here. |
+| `ffi/` | Thin safe wrappers around the C libraries (SDL, SDL's GPU API, OpenGL ES, libc, Win32, Dear ImGui). The only place in the platform that may use unsafe code. | A new library gets a new file here. |
 | `arch.rs` | What differs between processors (intrinsics). | A new processor may need entries. |
 | `handheld.rs`, `web.rs` | The two ports that needed a file of their own. | A model for yours. |
 
@@ -78,7 +78,7 @@ renderer has to combine that with its 3D; `gpu.rs` and `gles/layer2d.rs` show ho
 | Place | What is chosen |
 | --- | --- |
 | `Cargo.toml` | How SDL is built and linked for the target, and whether the debug window's library is included. |
-| `build.rs` | Where FFmpeg's libraries are for the target; whether the debug window is built in. |
+| `build.rs` | Where SDL's library is on Windows; whether the debug window is built in. |
 | `src/install/folders/` | The installer's rules for naming and checking folders and its default folder. One implementation per system. |
 | `src/install/shortcuts.rs` | The menu entries the installer makes. |
 | `src/files/` | Reading the game's paths (written the Windows way, without regard to case) on a system whose file names are case-sensitive. Already done for Unix. |
@@ -121,7 +121,7 @@ What the port needed:
   the bundle, not inside it; the program moves there before it reads any file.
 - **The installer.** The Unix folder rules with a Mac default folder, and menu entries as
   small application bundles.
-- **Build tooling.** FFmpeg for both processors, `lipo` to join the two programs, ad hoc
+- **Build tooling.** Both processors' programs, `lipo` to join the two programs, ad hoc
   signing (`build.sh mac`, `tools/mac/`).
 
 One renderer detail differs: on macOS the menus' 2D is still uploaded as pixels rather than
@@ -129,7 +129,7 @@ drawn by the GPU as rectangles.
 
 ## A checklist
 
-1. Get SDL3 and FFmpeg's decoders building for the target.
+1. Get SDL3 building for the target.
 2. Build with the software rasteriser first (`RC2K_RENDERER=software`). Menus, a race, sound
    and input should all work before any GPU work starts.
 3. Check a replay plays back without `replay check` differences in `rc2k.log`, and compare a

@@ -1,5 +1,5 @@
-//! The films: `gfx::play_film`, here an AVI reader of its own and FFmpeg's decoder (`libavcodec`,
-//! built by `tools/build_ffmpeg.sh` with the Indeo 4 decoder only).
+//! The films: `gfx::play_film`, here an AVI reader of its own and the decoders of
+//! `rc2k_core::film` (Indeo 4, MPEG-1 video, MPEG audio layer II).
 //!
 //! A film: nothing with the setting `nofmv`; otherwise the reports (`Reports.on`) are off while it
 //! plays and a pending key is thrown away (`input::take_key`). The path is resolved
@@ -15,7 +15,7 @@
 //! An AVI (`ALLOGO.AVI`: Indeo 4) is read by its own reader, its first video stream's chunks in
 //! order (a chunk of no bytes shows the frame before again), at the AVI's time a frame; an MPEG-1
 //! program stream (`MFLOGO.MPG`, `INTRO.MPG`) by its own demuxer, its video (stream 0xE0, MPEG-1
-//! video, cut into frames by FFmpeg's parser) at its sequence header's rate and its sound (stream
+//! video, cut into pictures by `mpeg1_video::cut`) at its sequence header's rate and its sound (stream
 //! 0xC0, MPEG audio layer 2) decoded first and played through an SDL audio stream from the moment
 //! the first picture is shown (stopped by the key or the end). The pictures follow the sound's
 //! position (what the device has taken from the stream; the wall clock for a film without sound or
@@ -26,9 +26,8 @@
 
 use crate::gfx::owner::Gfx;
 use crate::logfile::program_log::log;
-use crate::platform::ffi::ffmpeg::{Decoder, Frame, MP2, MPEG1VIDEO};
 use crate::system::owner::System;
-use std::ffi::CStr;
+use rc2k_core::film::{indeo4, mpeg_film, mpeg1_video};
 
 // ---- the AVI ----
 
@@ -136,7 +135,7 @@ fn walk(b: &[u8], mut at: usize, end: usize, depth: usize, f: &mut Visit) -> Res
     Ok(())
 }
 
-// ---- the decoder (FFmpeg's, `ffi::ffmpeg`) ----
+// ---- the decoder (`rc2k_core::film`) ----
 
 /// A decoded picture as 0xRRGGBB (BT.601, studio range), its width and height.
 struct Picture {
@@ -145,27 +144,44 @@ struct Picture {
     height: usize,
 }
 
+/// A decoded picture's planes as the player reads them: the size, how many pixels share one
+/// chroma sample across and down, and each plane's bytes with the bytes from one row to the next.
+struct Yuv<'a> {
+    width: usize,
+    height: usize,
+    shared: (usize, usize),
+    planes: [(&'a [u8], usize); 3],
+}
+
+impl<'a> Yuv<'a> {
+    fn of_mpeg(p: &'a mpeg1_video::Picture) -> Self {
+        Self {
+            width: p.width,
+            height: p.height,
+            shared: (2, 2),
+            planes: [p.plane(0), p.plane(1), p.plane(2)],
+        }
+    }
+
+    fn of_indeo(p: &'a indeo4::Picture) -> Self {
+        let plane = |n: usize| (p.planes[n].as_slice(), p.line_size(n));
+        Self {
+            width: p.width(),
+            height: p.height(),
+            shared: (4, 4),
+            planes: [plane(0), plane(1), plane(2)],
+        }
+    }
+}
+
 /// A video frame converted.
-fn picture(head: &Frame) -> Result<Picture, String> {
-    let name = head.pixel_format_name();
-    let (cx, cy) = match name.as_ref() {
-        "yuv410p" => (4, 4),
-        "yuv420p" => (2, 2),
-        other => return Err(format!("a picture in {other}, which is not converted")),
-    };
-    let (width, height) = (head.width().max(0) as usize, head.height().max(0) as usize);
+fn picture(yuv: &Yuv) -> Result<Picture, String> {
+    let (cx, cy) = yuv.shared;
+    let (width, height) = (yuv.width, yuv.height);
     let mut rgb = vec![0u32; width * height];
-    let planes = [
-        head.plane(0, height),
-        head.plane(1, height.div_ceil(cy)),
-        head.plane(2, height.div_ceil(cy)),
-    ];
-    let [Some(_), Some(_), Some(_)] = planes else {
-        return Err("a picture without its three planes".into());
-    };
     let at = |plane: usize, px: usize, py: usize| -> i32 {
-        let line = head.line_size(plane) as usize;
-        planes[plane].map_or(0, |b| b.get(py * line + px).copied().unwrap_or(0) as i32)
+        let (bytes, line) = yuv.planes[plane];
+        bytes.get(py * line + px).copied().unwrap_or(0) as i32
     };
     for y in 0..height {
         for x in 0..width {
@@ -182,131 +198,27 @@ fn picture(head: &Frame) -> Result<Picture, String> {
     Ok(Picture { rgb, width, height })
 }
 
-/// An audio frame as 16-bit samples, interleaved, appended to `pcm` (`channels` of them).
-fn samples(head: &Frame, channels: usize, pcm: &mut Vec<i16>) -> Result<(), String> {
-    let name = head.sample_format_name();
-    let n = head.sample_count().max(0) as usize;
-    let missing = || format!("sound in {name} without its samples");
-    match name.as_ref() {
-        "s16" => pcm.extend_from_slice(head.values::<i16>(0, n * channels).ok_or_else(missing)?),
-        "s16p" | "fltp" => {
-            let planes = (0..channels)
-                .map(|c| match name.as_ref() {
-                    "s16p" => head.values::<i16>(c, n).map(<[i16]>::to_vec),
-                    _ => head.values::<f32>(c, n).map(|p| {
-                        p.iter()
-                            .map(|&v| (v * 32767.0).clamp(-32768.0, 32767.0) as i16)
-                            .collect()
-                    }),
-                })
-                .collect::<Option<Vec<Vec<i16>>>>()
-                .ok_or_else(missing)?;
-            for i in 0..n {
-                pcm.extend(planes.iter().map(|p| p[i]));
-            }
-        }
-        other => return Err(format!("sound in {other}, which is not converted")),
-    }
-    Ok(())
+/// A film's video decoder: MPEG-1 for the program streams, Indeo 4 for the AVI.
+enum FilmDecoder {
+    Mpeg(Box<mpeg1_video::VideoDecoder>),
+    Indeo(Box<indeo4::Decoder>),
 }
 
-// ---- the MPEG program stream (MPEG-1 system stream) ----
-
-/// Its video stream (0xE0) and its audio stream (0xC0), each as one run of bytes.
-pub fn demux_mpeg(b: &[u8]) -> Result<(Vec<u8>, Vec<u8>), String> {
-    let (mut video, mut audio) = (Vec::new(), Vec::new());
-    let mut at = 0usize;
-    let word = |at: usize| {
-        b.get(at..at + 4)
-            .map(|x| u32::from_be_bytes([x[0], x[1], x[2], x[3]]))
-    };
-    while let Some(code) = word(at) {
-        if code >> 8 != 1 {
-            // not at a start code: on to the next one
-            at += 1;
-            continue;
-        }
-        match code & 0xFF {
-            0xB9 => break,
-            0xBA => {
-                // the pack header: 12 bytes in MPEG-1 ('0010'), else MPEG-2's 14 + stuffing
-                let mpeg1 = b.get(at + 4).is_some_and(|&x| x >> 4 == 2);
-                at += if mpeg1 {
-                    12
-                } else {
-                    14 + (b.get(at + 13).copied().unwrap_or(0) & 7) as usize
-                };
-            }
-            id @ 0xBB..=0xFF => {
-                let len = b
-                    .get(at + 4..at + 6)
-                    .map(|x| u16::from_be_bytes([x[0], x[1]]) as usize)
-                    .ok_or("a packet past the file's end")?;
-                let end = (at + 6 + len).min(b.len());
-                if matches!(id, 0xC0 | 0xE0) {
-                    // MPEG-1's packet header: stuffing, the buffer's size, the times
-                    let mut p = at + 6;
-                    while b.get(p) == Some(&0xFF) {
-                        p += 1;
-                    }
-                    if b.get(p).is_some_and(|&x| x & 0xC0 == 0x40) {
-                        p += 2;
-                    }
-                    p += match b.get(p).map(|&x| x & 0xF0) {
-                        Some(0x20) => 5,
-                        Some(0x30) => 10,
-                        _ => 1,
-                    };
-                    let data = b.get(p.min(end)..end).unwrap_or(&[]);
-                    if id == 0xE0 {
-                        video.extend_from_slice(data);
-                    } else {
-                        audio.extend_from_slice(data);
-                    }
-                }
-                at = end;
-            }
-            _ => at += 4,
+impl FilmDecoder {
+    /// A packet in (None at the film's end), `each` called for every picture that comes out.
+    fn decode(
+        &mut self,
+        packet: Option<&[u8]>,
+        each: &mut dyn FnMut(&Yuv) -> Result<(), String>,
+    ) -> Result<(), String> {
+        match self {
+            Self::Mpeg(decoder) => match decoder.decode(packet.unwrap_or(&[])).map_err(|e| e.0)? {
+                Some(p) => each(&Yuv::of_mpeg(p)),
+                None => Ok(()),
+            },
+            Self::Indeo(decoder) => decoder.decode_each(packet, &mut |p| each(&Yuv::of_indeo(p))),
         }
     }
-    if video.is_empty() {
-        return Err("an MPEG stream without video".into());
-    }
-    Ok((video, audio))
-}
-
-/// The frames a second of an MPEG-1 video stream (its sequence header's code).
-fn mpeg_frame_rate(video: &[u8]) -> f64 {
-    let at = video.windows(4).position(|w| w == [0, 0, 1, 0xB3]);
-    match at.and_then(|at| video.get(at + 7)).map(|&b| b & 0xF) {
-        Some(1) => 24000.0 / 1001.0,
-        Some(2) => 24.0,
-        Some(3) => 25.0,
-        Some(4) => 30000.0 / 1001.0,
-        Some(5) => 30.0,
-        Some(6) => 50.0,
-        Some(7) => 60000.0 / 1001.0,
-        Some(8) => 60.0,
-        _ => 25.0,
-    }
-}
-
-/// An MPEG audio stream's rate and channels (its first frame's header).
-fn mpeg_audio_format(audio: &[u8]) -> Option<(u32, usize)> {
-    let at = audio
-        .windows(2)
-        .position(|w| w[0] == 0xFF && w[1] & 0xE0 == 0xE0)?;
-    let h = audio.get(at..at + 4)?;
-    let mpeg1 = h[1] & 0x08 != 0;
-    let rate = match (h[2] >> 2) & 3 {
-        0 => 44100,
-        1 => 48000,
-        2 => 32000,
-        _ => return None,
-    };
-    let rate = if mpeg1 { rate } else { rate / 2 };
-    let channels = if h[3] >> 6 == 3 { 1 } else { 2 };
-    Some((rate, channels))
 }
 
 // ---- the back surface ----
@@ -357,7 +269,7 @@ fn blit(p: &Picture, gfx: &Gfx, system: &System) {
 struct Film {
     packets: Vec<Vec<u8>>,
     frame: std::time::Duration,
-    decoder: Decoder,
+    decoder: FilmDecoder,
     sound: Option<(Vec<i16>, u32, usize)>,
     what: String,
 }
@@ -366,8 +278,8 @@ fn open(path: &str) -> Result<Film, String> {
     let bytes = std::fs::read(path).map_err(|e| format!("{path}: {e}"))?;
     if bytes.starts_with(b"RIFF") {
         let avi = parse_avi(&bytes)?;
-        let name: &CStr = match &avi.codec.map(|c| c.to_ascii_uppercase()) {
-            b"IV41" => c"indeo4",
+        match &avi.codec.map(|c| c.to_ascii_uppercase()) {
+            b"IV41" => {}
             other => {
                 return Err(format!(
                     "no decoder built in for {}",
@@ -382,7 +294,7 @@ fn open(path: &str) -> Result<Film, String> {
                 .map(|&(at, len)| bytes[at..at + len].to_vec())
                 .collect(),
             frame: std::time::Duration::from_micros(avi.frame_us.max(1) as u64),
-            decoder: Decoder::open(name, None)?,
+            decoder: FilmDecoder::Indeo(Box::new(indeo4::Decoder::new())),
             sound: None,
             what: format!(
                 "AVI {} x {}, {}, {} us a frame",
@@ -394,21 +306,24 @@ fn open(path: &str) -> Result<Film, String> {
         });
     }
     if bytes.starts_with(&[0, 0, 1, 0xBA]) {
-        let (video, audio) = demux_mpeg(&bytes)?;
-        let rate = mpeg_frame_rate(&video);
-        let mut decoder = Decoder::open(c"mpeg1video", Some(MPEG1VIDEO))?;
-        let packets = decoder.cut(&video);
-        let sound = match mpeg_audio_format(&audio) {
-            Some((hz, channels)) if !audio.is_empty() => match decoded_sound(&audio, channels) {
-                Ok(pcm) => Some((pcm, hz, channels)),
-                Err(why) => {
+        let (video, audio) = mpeg_film::demux(&bytes).map_err(|e| e.0)?;
+        let rate = mpeg_film::frame_rate(&video);
+        let packets: Vec<Vec<u8>> = mpeg1_video::cut(&video)
+            .into_iter()
+            .map(|range| video[range].to_vec())
+            .collect();
+        let sound = if audio.is_empty() {
+            None
+        } else {
+            match mpeg_film::decoded_sound(&audio) {
+                Some(s) => Some((s.pcm, s.sample_rate, s.channels)),
+                None => {
                     log(&format!(
-                        "gfx::play_film: {path}: played without sound: {why}"
+                        "gfx::play_film: {path}: played without sound: nothing decoded"
                     ));
                     None
                 }
-            },
-            _ => None,
+            }
         };
         return Ok(Film {
             what: format!(
@@ -424,22 +339,11 @@ fn open(path: &str) -> Result<Film, String> {
             ),
             packets,
             frame: std::time::Duration::from_secs_f64(1.0 / rate),
-            decoder,
+            decoder: FilmDecoder::Mpeg(Box::new(mpeg1_video::VideoDecoder::new())),
             sound,
         });
     }
     Err("neither an AVI nor an MPEG program stream".into())
-}
-
-/// An MPEG audio stream of `channels` decoded, 16-bit, interleaved.
-fn decoded_sound(audio: &[u8], channels: usize) -> Result<Vec<i16>, String> {
-    let mut sound = Decoder::open(c"mp2", Some(MP2))?;
-    let mut pcm = Vec::new();
-    for packet in sound.cut(audio) {
-        sound.decode(Some(&packet), &mut |f| samples(f, channels, &mut pcm))?;
-    }
-    sound.decode(None, &mut |f| samples(f, channels, &mut pcm))?;
-    Ok(pcm)
 }
 
 /// Plays the film at `path` (see the header): true at the film's end, false for a key or a film

@@ -22,15 +22,22 @@ Any key ends a film.
 ## What the player accepts
 
 The original program handed the films to Windows' film player. This project has a small
-player of its own, which reads the two containers itself and uses FFmpeg only to decode the
-pictures and the sound. The project builds FFmpeg with just three decoders, so nothing else
-will play:
+player of its own, which reads the two containers itself and decodes the pictures and the
+sound with decoders of its own, in Rust (`rc2k_core/src/film/`). There are just three, so
+nothing else will play:
 
 | Decoder | Used for |
 | --- | --- |
 | Indeo 4 | The AVI's pictures. |
 | MPEG-1 video | The MPEG files' pictures. |
 | MPEG audio layer 2 | The MPEG files' sound. |
+
+The three are ports of FFmpeg's decoders to safe Rust that give the same pictures and samples
+byte for byte: every picture and sample of the three films, and for Indeo 4 thousands of
+made-up streams too, compared with FFmpeg's ([Testing](Testing)). The Indeo 4 decoder does
+what FFmpeg's does except pictures split into four luma bands and bidirectional frames, which
+it refuses; `ALLOGO.AVI` has neither. No media library is linked into the program, so it
+builds with each system's own tools.
 
 ### AVI
 
@@ -77,4 +84,5 @@ and put an `ALLOGO.MPG` made the same way in its place.
 
 `src/menu/play_films.rs`, `rc2k_core/src/menu/films.rs` (which film when),
 `src/platform/film.rs` (the AVI reader, the MPEG reader, timing, drawing),
-`src/platform/ffi/ffmpeg.rs` (the decoders), `tools/build_ffmpeg.sh` (how FFmpeg is built).
+`rc2k_core/src/film/` (the decoders: `indeo4.rs`, `mpeg1_video.rs`, `mp2.rs`, and
+`mpeg_film.rs`, which splits an MPEG film into its streams).

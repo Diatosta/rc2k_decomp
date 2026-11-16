@@ -4,8 +4,8 @@
 
 Everything between the game and the computer. The game's own code never calls SDL or the
 operating system directly; it calls this module, which keeps the meaning each service had for
-the original game (what a call leaves behind, what it answers) and does the work with SDL3,
-FFmpeg or the standard library. If you are porting to a new system, this is the folder to read.
+the original game (what a call leaves behind, what it answers) and does the work with SDL3
+or the standard library. If you are porting to a new system, this is the folder to read.
 
 ## State
 
@@ -24,7 +24,7 @@ Its own statics, not an owner: the window and the screen's pixels (`Screen` in
 | `draw_fan`, `flush`, `take_noted` | `src/platform/direct3d.rs` | Where the 3D layer's calls become drawing commands for a renderer. |
 | `create_device`, `create_sound_buffer`, `play`, `set_volume` ... | `src/platform/sound.rs` | Sound buffers and their mixing into SDL's output. |
 | `SdlBackend`, `pad_added`, `pad_removed` | `src/platform/input.rs` | Controllers, wheels and force feedback through SDL. |
-| `play_film` | `src/platform/film.rs` | Plays a film: reads the file's container, decodes with FFmpeg, shows the frames and plays the sound. |
+| `play_film` | `src/platform/film.rs` | Plays a film: reads the file's container, decodes with `rc2k_core::film`, shows the frames and plays the sound. |
 | `spawn`, `create_event`, `wait` | `src/platform/sync.rs` | Threads and the events they wait on. |
 | `ticks`, `local_time`, `message_box` | `src/platform/os/mod.rs` | Operating-system facts, with `os/windows.rs` and `os/unix.rs` behind them. |
 | `open_screen`, `present`, `pad_mapping` | `src/platform/handheld.rs` | The Anbernic handheld's screen and built-in pad. |
@@ -34,7 +34,7 @@ Its own statics, not an owner: the window and the screen's pixels (`Screen` in
 
 One file per service, as in the table. `os/` holds what differs between Windows and the
 Unix-like systems. `ffi/` holds the bindings to C libraries (`sdl.rs`, `sdl_gpu.rs`,
-`sdl_input.rs`, `ffmpeg.rs`, `gl.rs`, `imgui.rs`, `win32.rs`, `unix.rs`); unsafe code that
+`sdl_input.rs`, `gl.rs`, `imgui.rs`, `win32.rs`, `unix.rs`); unsafe code that
 talks to them is kept there and in the files above. `web.rs` is the browser build's part,
 `arch.rs` the few processor-specific pieces.
 

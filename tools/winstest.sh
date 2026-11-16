@@ -31,7 +31,7 @@ fi
 for f in "$SRC"/*; do
   case "$(basename "$f")" in rc2k|rc2k.exe|rc2k.log|var|savedata|files|linux|x64) ;; *) ln -s "$f" $DL/;; esac
 done
-cp $EXE $DL/; cp $REPO/third_party/sdl3/lib/x64/SDL3.dll $REPO/third_party/ffmpeg-x64/bin/avcodec-61.dll $REPO/third_party/ffmpeg-x64/bin/avutil-59.dll $DL/
+cp $EXE $DL/; cp $REPO/third_party/sdl3/lib/x64/SDL3.dll $DL/
 timeout 120 wineboot -i >/dev/null 2>&1
 export SDL_AUDIODRIVER=dummy SDL_VIDEODRIVER=offscreen RC2K_REMOTE="Z:${RH//\//\\}\\ctl"
 cd $DL; nohup wine rc2k.exe > $RH/rc2k.out 2>&1 < /dev/null &

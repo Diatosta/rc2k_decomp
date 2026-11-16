@@ -3,7 +3,7 @@
 cd "$(dirname "$0")/.." || exit 1
 seconds=${1:-60}
 shift
-targets=${*:-packed png rle string_table lexicon inbox pcx language}
+targets=${*:-packed png rle string_table lexicon inbox pcx language mpeg1_video mp2 indeo4}
 for t in $targets; do
     echo "== $t"
     cargo +nightly fuzz run "$t" -- -max_total_time="$seconds" -rss_limit_mb=4096 -timeout=20 2>&1 |

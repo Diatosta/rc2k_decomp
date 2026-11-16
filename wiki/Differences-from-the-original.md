@@ -16,7 +16,7 @@ The original was a 32-bit Windows program on DirectX. Its platform side was not 
 | DirectSound | The game's sound code over a small mixer on SDL's sound output ([Sound and music](Sound-and-music)). |
 | DirectInput | SDL's keyboard, gamepad, joystick and haptic support ([Input](Input)). |
 | DirectPlay | A protocol of this project's own ([Network messages](Network-messages)). |
-| The system's film player | FFmpeg's decoders ([Films](Films)). |
+| The system's film player | The project's own decoders in Rust ([Films](Films)). |
 | Windows, 32 bits | Windows (32 and 64 bits), Linux, macOS, a handheld ([Platforms](Platforms)). |
 
 ## Installing

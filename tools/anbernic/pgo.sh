@@ -25,7 +25,6 @@ if [ "$want" != "$have" ]; then
 fi
 
 docker build -q -t rc2k-anbernic tools/anbernic >/dev/null
-tools/anbernic/run.sh tools/build_ffmpeg.sh a64
 tools/anbernic/run.sh env CARGO_TARGET_DIR=target/a64-pgo \
     CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUSTFLAGS="-C target-cpu=cortex-a53 -C profile-generate=$COUNTS --cfg rc2k_pgo" \
     cargo build --release --target aarch64-unknown-linux-gnu --features remote --bin rc2k

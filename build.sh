@@ -108,35 +108,6 @@ report() {
     (cd "$DIST" && find . -type f -exec ls -l {} + | awk '{printf "  %10d  %s\n", $5, $NF}')
 }
 
-# ---- FFmpeg (the films' decoders) -----------------------------------------------------------
-# The only FFmpeg step of this script: each target calls it once, and the Windows targets take
-# its two DLLs through ffmpeg_dlls. When the films are decoded in Rust, this block, its calls
-# and tools/build_ffmpeg.sh go.
-ffmpeg_step() {
-    local arch="$1" runner=()
-    case "$arch" in
-        x86|x64)
-            # The script builds with the Windows SDK that cargo-xwin keeps: fetched first when
-            # neither it nor a built FFmpeg is there.
-            local sdk suffix=""
-            [ "$arch" = x64 ] && { sdk=x86_64; suffix=-x64; } || sdk=x86
-            export XWIN_CACHE="${XWIN_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/cargo-xwin/xwin}"
-            if [ ! -f "third_party/ffmpeg$suffix/VERSION" ] && [ ! -d "$XWIN_CACHE/crt/lib/$sdk" ]; then
-                cargo xwin cache xwin --xwin-arch "$sdk"
-            fi
-            need gpg "FFmpeg's source is checked by its signature (install gnupg)"
-            ;;
-        a64) runner=(tools/anbernic/run.sh) ;;
-    esac
-    ${runner[@]+"${runner[@]}"} tools/build_ffmpeg.sh "$arch"
-}
-ffmpeg_dlls() {
-    local folder=third_party/ffmpeg/bin
-    [ "$1" = x64 ] && folder=third_party/ffmpeg-x64/bin
-    cp "$folder/avcodec-61.dll" "$folder/avutil-59.dll" "$DIST/"
-}
-# ---- end of FFmpeg --------------------------------------------------------------------------
-
 build_windows() {
     local arch="$1" triple="$2" xwin_arch="$3" target_dir="$4"
     need cargo "install rustup (https://rustup.rs)"
@@ -146,18 +117,15 @@ build_windows() {
     need curl "SDL's library is downloaded with curl"
     need unzip "SDL's library comes as a zip"
     tools/fetch_sdl3.sh
-    ffmpeg_step "$arch"
     CARGO_TARGET_DIR="$target_dir" cargo xwin build ${CARGO_FLAGS[@]+"${CARGO_FLAGS[@]}"} \
         --xwin-arch "$xwin_arch" --target "$triple" --bin rc2k
     fresh_dist
     cp "$target_dir/$triple/$PROFILE/rc2k.exe" "third_party/sdl3/lib/$arch/SDL3.dll" "$DIST/"
-    ffmpeg_dlls "$arch"
 }
 
 build_linux() {
     need cargo "install rustup (https://rustup.rs)"
     need cmake "SDL is built from source: install cmake and your system's video and sound development packages"
-    ffmpeg_step linux
     CARGO_TARGET_DIR=target/linux cargo build ${CARGO_FLAGS[@]+"${CARGO_FLAGS[@]}"} \
         --target x86_64-unknown-linux-gnu --bin rc2k
     fresh_dist
@@ -173,7 +141,6 @@ build_linux() {
 build_handheld() {
     need docker "the handheld's build runs in a container (tools/anbernic/Dockerfile)"
     docker build -q -t rc2k-anbernic tools/anbernic >/dev/null
-    ffmpeg_step a64
     local built
     if $PGO; then
         local profile="$PWD/target/a64-pgo/rc2k.profdata"
@@ -207,13 +174,12 @@ deploy_handheld() {
 }
 
 # macOS, on a Mac: each processor's program (the other one crossed), joined by lipo into
-# `Rally Championship.app` and signed ad hoc (not notarised). SDL and FFmpeg are linked in.
+# `Rally Championship.app` and signed ad hoc (not notarised). SDL is linked in.
 build_mac() {
     export PATH="$HOME/.cargo/bin:/opt/local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
     export MACOSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET:-11.0}"
     need cargo "install rustup (https://rustup.rs) with the two apple-darwin targets"
     need cmake "SDL is built from source: install cmake (MacPorts or Homebrew)"
-    need gpg "FFmpeg's source is checked by its signature: install gnupg (MacPorts or Homebrew)"
     need lipo "install the Command Line Tools (xcode-select --install)"
     local triples=() bins=() triple
     case "$MAC_ARCH" in
@@ -222,7 +188,6 @@ build_mac() {
         "") triples=(x86_64-apple-darwin aarch64-apple-darwin) ;;
         *) fail "--arch takes x64 or a64" ;;
     esac
-    ffmpeg_step mac
     for triple in "${triples[@]}"; do
         CARGO_TARGET_DIR=target/mac cargo build ${CARGO_FLAGS[@]+"${CARGO_FLAGS[@]}"} \
             --target "$triple" --bin rc2k

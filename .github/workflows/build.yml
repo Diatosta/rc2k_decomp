@@ -3,10 +3,9 @@
 # Every job runs the repository's own entry point, `./build.sh <target>`, and uploads the
 # dist/<target>/ folder it makes. macOS is built on a Mac runner; the others on Linux:
 # Windows with cargo-xwin (clang-cl and the Windows SDK it fetches), SDL's ready-made DLL
-# (`tools/fetch_sdl3.sh`) and FFmpeg's decoders built from their signed source
-# (`tools/build_ffmpeg.sh x64`); Linux with SDL built from source and FFmpeg's decoders
-# linked in, so the program needs only the C library. `third_party/` is cached by the
-# scripts' contents: FFmpeg is built again only when its script changes. Ubuntu 24.04, not
+# (`tools/fetch_sdl3.sh`); Linux with SDL built from source and linked in, so the program
+# needs only the C library. The films are decoded in Rust: no media library is built.
+# `third_party/` is cached by the SDL script's contents. Ubuntu 24.04, not
 # `ubuntu-latest`: the Linux program needs the glibc it is built against or newer (2.38
 # there; 26.04's 2.43 would leave out most systems in use).
 #
@@ -36,7 +35,7 @@ jobs:
         run: |
           sudo apt-get update
           # Clang 19 at least: the Windows SDK's C++ library refuses older ones.
-          sudo apt-get install -y build-essential clang-19 lld-19 llvm-19 make gpg unzip xz-utils
+          sudo apt-get install -y build-essential clang-19 lld-19 llvm-19 unzip
           # lld-link, llvm-lib and llvm-nm by those names: LLVM's own folder; clang-cl is
           # clang called by that name (Ubuntu's clang package has no clang-cl).
           LLVM=/usr/lib/llvm-19/bin
@@ -62,9 +61,9 @@ jobs:
           path: |
             third_party
             ~/.cache/cargo-xwin
-          key: windows-x64-${{ hashFiles('tools/fetch_sdl3.sh', 'tools/build_ffmpeg.sh') }}
+          key: windows-x64-${{ hashFiles('tools/fetch_sdl3.sh') }}
 
-      # SDL, the Windows SDK, FFmpeg, the program, and dist/windows-x64/ with its DLLs.
+      # SDL, the Windows SDK, the program, and dist/windows-x64/ with its DLLs.
       - name: Build
         run: ./build.sh windows-x64
 
@@ -82,7 +81,7 @@ jobs:
       - name: Tools and SDL's build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake ninja-build pkg-config gpg xz-utils \
+          sudo apt-get install -y build-essential cmake ninja-build pkg-config \
             libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev \
             libxss-dev libxtst-dev libxkbcommon-dev libwayland-dev wayland-protocols \
             libdecor-0-dev libegl-dev libgl-dev libgles-dev libdrm-dev libgbm-dev \
@@ -94,13 +93,7 @@ jobs:
         with:
           key: linux-x64
 
-      - name: Cached FFmpeg
-        uses: actions/cache@v6
-        with:
-          path: third_party/ffmpeg-linux
-          key: linux-x64-${{ hashFiles('tools/build_ffmpeg.sh') }}
-
-      # FFmpeg, the program, and dist/linux/; it prints the glibc the program needs.
+      # The program, and dist/linux/; it prints the glibc the program needs.
       - name: Build
         run: ./build.sh linux
 
@@ -119,9 +112,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Tools
-        run: brew install gnupg
-
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-apple-darwin,aarch64-apple-darwin
@@ -129,14 +119,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: macos
-
-      - name: Cached FFmpeg
-        uses: actions/cache@v6
-        with:
-          path: |
-            third_party/ffmpeg-mac-x64
-            third_party/ffmpeg-mac-a64
-          key: macos-${{ hashFiles('tools/build_ffmpeg.sh') }}
 
       - name: Build
         run: ./build.sh mac

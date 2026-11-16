@@ -51,12 +51,12 @@ dear-imgui-sys = { version = "0.21", default-features = false, features = ["buil
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
 
-# On Linux SDL is built from its source and linked into the program (as FFmpeg's decoders,
-# `tools/build_ffmpeg.sh linux`): one program for every distribution, nothing to install.
+# On Linux SDL is built from its source and linked into the program: one program for every
+# distribution, nothing to install.
 [target.'cfg(target_os = "linux")'.dependencies]
 sdl3-sys = { version = "0.7", features = ["build-from-source-static"] }
 
-# On macOS the same (SDL on Cocoa and Metal, `tools/build_ffmpeg.sh mac`): one program in its
+# On macOS the same (SDL on Cocoa and Metal): one program in its
 # `.app`, nothing to install (`deploy_standalone.sh mac`). Without SDL's camera: the game has
 # no use for one, and its AVFoundation capture calls are missing from Darling, where it is tested.
 [target.'cfg(target_os = "macos")'.dependencies]

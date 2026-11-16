@@ -22,6 +22,16 @@ CARGO_TARGET_DIR=target/linux cargo test --target x86_64-unknown-linux-gnu -p rc
 
 - **`rc2k_decomp`** (the game crate) has tests for the code that holds state.
 
+One test of `rc2k_core` reads a game file when told where it is: the Indeo 4 decoder's
+comparison with FFmpeg over the whole of `ALLOGO.AVI`. It is skipped unless both folders are
+named:
+
+```sh
+ffmpeg -i files/fmv/ALLOGO.AVI -fps_mode passthrough -f rawvideo dumps/allogo_frames.yuv
+ffmpeg -i files/fmv/ALLOGO.AVI -f rawvideo dumps/allogo_shown.yuv
+RC2K_FILM_FILES=files/fmv RC2K_FILM_DUMPS=dumps cargo test -p rc2k_core --release film::
+```
+
 Many tests of numeric code compare against recorded results rather than a second
 implementation:
 
@@ -139,8 +149,25 @@ tools/fuzz.sh [seconds per target] [targets]
 ```
 
 Fuzzes `rc2k_core`'s readers of outside data: packed files, PNG and PCX pictures, run-length
-data, the text tables, language files and network messages. The targets are in
-`fuzz/fuzz_targets/`. It needs a nightly toolchain and `cargo-fuzz`.
+data, the text tables, language files, network messages, MPEG-1 video and layer II sound
+streams, and Indeo 4 video. The targets are in `fuzz/fuzz_targets/`. It needs a nightly toolchain and
+`cargo-fuzz`.
+
+## The film decoders' test
+
+```sh
+tools/film_reference/make.sh /home/sam/rally/files/fmv /home/sam/film_dumps
+RC2K_FILM_FILES=/home/sam/rally/files/fmv RC2K_FILM_DUMPS=/home/sam/film_dumps \
+    cargo test --release -p rc2k_core film:: -- --nocapture
+```
+
+`rc2k_core/src/film/` holds the film player's decoders in plain Rust (Indeo 4, MPEG-1 video,
+layer II sound), written to give exactly what FFmpeg's decoders give. `make.sh` decodes
+`INTRO.MPG` and `MFLOGO.MPG` with a reference FFmpeg (built once by
+`tools/film_reference/build_ffmpeg.sh`: the pinned version with only these decoders, used by
+nothing but this test) into a folder of dumps (about 400 MB, never committed); the test then decodes the films
+with the Rust decoders and compares every packet's size, every picture and every sample, and
+prints how fast it decoded. Without the two variables the test does nothing.
 
 ## Other tools
 

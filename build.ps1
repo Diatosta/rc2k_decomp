@@ -12,32 +12,27 @@ with -Deploy copies that folder into the game's folder. The Windows side of buil
     -GameDir <folder>     the game's folder (the one that holds `files\` and `var\`); naming
                           it deploys there
     -DebugBuild           an unoptimised build
-    -Msys <folder>        where MSYS2 is, if not C:\msys64 (only FFmpeg's step uses it)
 
-dist\<target>\ holds rc2k.exe, SDL3.dll and FFmpeg's two DLLs: all the program needs beside
-the game's own files.
+dist\<target>\ holds rc2k.exe and SDL3.dll: all the program needs beside the game's own
+files.
 
 What it does:
   1. finds Visual Studio's C++ tools (vswhere);
   2. downloads SDL's ready-made library (the version and SHA-256 pinned in tools/fetch_sdl3.sh)
      and checks its hash;
-  3. builds FFmpeg's decoders with Visual Studio's compiler (tools/build_ffmpeg.sh, in MSYS2's
-     bash inside a developer environment for the chosen processor);
-  4. runs cargo for the target and gathers dist\<target>\.
+  3. runs cargo for the target and gathers dist\<target>\.
 
 Needs:
   - rustup (the toolchain named in rust-toolchain.toml is installed on first use);
   - Visual Studio 2022 or its Build Tools with "Desktop development with C++" (MSVC and a
     Windows SDK);
-  - for FFmpeg: MSYS2 with: pacman -S --needed make diffutils gnupg tar xz curl
   - a checkout without line-ending conversion (.gitattributes asks for that).
 #>
 param(
     [ValidateSet('windows', 'windows-x64')][string]$Target = 'windows',
     [switch]$Deploy,
     [string]$GameDir = '',
-    [switch]$DebugBuild,
-    [string]$Msys = 'C:\msys64'
+    [switch]$DebugBuild
 )
 $ErrorActionPreference = 'Stop'
 $Repo = $PSScriptRoot
@@ -126,26 +121,8 @@ function Get-Sdl {
     } finally { Remove-Item -Recurse -Force $work }
 }
 
-# ---- FFmpeg (the films' decoders) -----------------------------------------------------------
-# The only FFmpeg step of this script, and the only one that needs MSYS2: tools/build_ffmpeg.sh
-# run in MSYS2's bash with the Windows PATH (and so Visual Studio's tools) inherited. When
-# the films are decoded in Rust, this function, its call and $ffmpegDlls go.
-function Build-FFmpeg {
-    $bash = Join-Path $Msys 'usr\bin\bash.exe'
-    if (-not (Test-Path $bash)) { Fail "no MSYS2 in $Msys (https://www.msys2.org; or pass -Msys <folder>)" }
-    $missing = & $bash -lc 'for t in make diff gpg tar xz curl; do command -v $t >/dev/null || echo $t; done'
-    if ($missing) { Fail "MSYS2 lacks: $($missing -join ' ') (pacman -S --needed make diffutils gnupg tar xz curl)" }
-    Invoke-Vs @('set MSYS2_PATH_TYPE=inherit', 'set CHERE_INVOKING=1', 'set MSYSTEM=MSYS',
-        "`"$bash`" -lc `"tools/build_ffmpeg.sh $Arch`" || exit /b 1")
-}
-if ($x64) { $ffmpegBin = Join-Path $Repo 'third_party\ffmpeg-x64\bin' } else { $ffmpegBin = Join-Path $Repo 'third_party\ffmpeg\bin' }
-$ffmpegDlls = @((Join-Path $ffmpegBin 'avcodec-61.dll'), (Join-Path $ffmpegBin 'avutil-59.dll'))
-# ---- end of FFmpeg --------------------------------------------------------------------------
-
 Write-Host "== SDL"
 Get-Sdl
-Write-Host "== FFmpeg ($Arch)"
-Build-FFmpeg
 Write-Host "== rc2k.exe ($triple, $profileName)"
 # The repository's cargo config names LLVM's linker for 32 bits (the Linux cross build);
 # here Visual Studio's own is used.
@@ -154,7 +131,7 @@ Invoke-Vs @('set CARGO_TARGET_I686_PC_WINDOWS_MSVC_LINKER=link.exe',
     "cargo build $cargoProfile --target $triple --bin rc2k || exit /b 1")
 
 $files = @((Join-Path $Repo "target\$triple\$profileName\rc2k.exe"),
-    (Join-Path $Repo "third_party\sdl3\lib\$Arch\SDL3.dll")) + $ffmpegDlls
+    (Join-Path $Repo "third_party\sdl3\lib\$Arch\SDL3.dll"))
 foreach ($f in $files) { if (-not (Test-Path $f)) { Fail "missing after the build: $f" } }
 if (Test-Path $Dist) { Remove-Item -Recurse -Force $Dist }
 New-Item -ItemType Directory -Force $Dist | Out-Null
@@ -165,5 +142,5 @@ Get-ChildItem $Dist | ForEach-Object { Write-Host ("  {0,10}  {1}" -f $_.Length,
 if ($deployTo) {
     if (-not (Test-Path $deployTo)) { New-Item -ItemType Directory -Force $deployTo | Out-Null }
     Get-ChildItem $Dist | ForEach-Object { Copy-Item -Force $_.FullName $deployTo }
-    Write-Host "deployed rc2k.exe, SDL3.dll and FFmpeg's two DLLs to $deployTo"
+    Write-Host "deployed rc2k.exe and SDL3.dll to $deployTo"
 }

@@ -20,16 +20,14 @@ bsdtar / bsdcpio, and Rust's target (`rustup target add x86_64-apple-darwin`).
    `tools/mac/cross/fetch_tools.sh --accept-apple-license` (into `~/.cache/rc2k_mac`, or
    `RC2K_MAC_TOOLS`). Written from the steps that fetched them by hand on 2026-11-08; the
    script itself not yet run.
-2. FFmpeg's decoders: `SDKROOT=... tools/build_ffmpeg.sh mac-x64` and `mac-a64` (into
-   `third_party/ffmpeg-mac-x64`, `third_party/ffmpeg-mac-a64`).
-3. The program, for each processor (`x64` / `x86_64-apple-darwin`, `a64` /
+2. The program, for each processor (`x64` / `x86_64-apple-darwin`, `a64` /
    `aarch64-apple-darwin`; each in its own shell, `env.sh` sets the target's linker):
 
    ```sh
    source tools/mac/cross/env.sh x64
    CARGO_TARGET_DIR=target/mac cargo build --release --target x86_64-apple-darwin --bin rc2k
    ```
-4. The bundle, as `build.sh mac` makes it on a Mac:
+3. The bundle, as `build.sh mac` makes it on a Mac:
 
    ```sh
    APP="target/mac/Rally Championship.app"
@@ -39,7 +37,7 @@ bsdtar / bsdcpio, and Rust's target (`rustup target add x86_64-apple-darwin`).
    cp tools/mac/Info.plist "$APP/Contents/"
    ```
 
-   SDL and FFmpeg are linked in: the program loads only the system's frameworks and
+   SDL is linked in: the program loads only the system's frameworks and
    libraries. `ld64.lld` signs the arm64 slice ad hoc (linker-signed, as Apple's linker
    does; Apple silicon runs nothing unsigned); the bundle as a whole is not signed on Linux
    (`codesign --force --sign -` on a Mac seals it), nor notarised.

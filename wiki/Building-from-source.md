@@ -45,18 +45,17 @@ target needs and what the script does for it, so that the steps can also be run 
   targets; `rustup` installs them the first time `cargo` runs here.
 - A C and C++ compiler, `make` and `cmake`: SDL and the debug window's library are built from
   source as part of the build on Linux and macOS.
-- `curl` and `gpg`: the FFmpeg script downloads FFmpeg's source and checks its signature.
+- `curl` and `unzip` for the Windows builds: SDL's ready-made library is downloaded.
 
-Two libraries are not in the repository. Scripts in `tools/` fetch or build them into
-`third_party/`, which git ignores:
+One library is not in the repository, SDL3; it is fetched or built into `third_party/`, which
+git ignores. The films are decoded in Rust (`rc2k_core/src/film/`), so no media library is
+needed:
 
 | Library | Used for | How it gets there |
 | --- | --- | --- |
 | SDL3 | window, input, sound output, GPU drawing | Windows: `tools/fetch_sdl3.sh` downloads SDL's ready-made library (a pinned version, checked by its hash). Other systems: built from source by cargo, with no script. On Linux this needs the development packages of the system's video and sound; the list for Ubuntu is in `.github/workflows/build.yml`. |
-| FFmpeg (decoders only) | the three films | `tools/build_ffmpeg.sh [x86\|x64\|linux\|a64\|mac]` builds a small FFmpeg with only the decoders the films need. With no argument it builds for 32-bit Windows. |
 
-`build.sh` and `build.ps1` run these scripts themselves. FFmpeg is one marked step in each of
-them.
+`build.sh` and `build.ps1` fetch it themselves.
 
 ## Linux
 
@@ -67,11 +66,10 @@ them.
 Needs cmake and the development packages named above. The script runs:
 
 ```sh
-tools/build_ffmpeg.sh linux
 CARGO_TARGET_DIR=target/linux cargo build --release --target x86_64-unknown-linux-gnu --bin rc2k
 ```
 
-and copies the program to `dist/linux/rc2k`. SDL and FFmpeg are linked into it, so it needs
+and copies the program to `dist/linux/rc2k`. SDL is linked into it, so it needs
 nothing installed beyond the C library; the script prints the glibc version the build needs.
 
 ## Windows, built on Linux
@@ -89,21 +87,18 @@ bits:
 
 ```sh
 tools/fetch_sdl3.sh
-cargo xwin cache xwin --xwin-arch x86_64     # only when the SDK and FFmpeg are both missing
-tools/build_ffmpeg.sh x64
 CARGO_TARGET_DIR=target/x64 cargo xwin build --release --xwin-arch x86_64 --target x86_64-pc-windows-msvc --bin rc2k
 ```
 
-and for 32 bits the same with `x86`, `tools/build_ffmpeg.sh` and
-`--xwin-arch x86 --target i686-pc-windows-msvc` (cargo's folder: `target`). The
-`cargo xwin cache` line fetches the Windows SDK, which the FFmpeg script uses.
+and for 32 bits the same with `--xwin-arch x86 --target i686-pc-windows-msvc` (cargo's
+folder: `target`).
 
-Then it gathers the four files:
+Then it gathers the two files:
 
 | Build | Program | DLLs |
 | --- | --- | --- |
-| 64-bit | `target/x64/x86_64-pc-windows-msvc/release/rc2k.exe` | `third_party/sdl3/lib/x64/SDL3.dll`, `third_party/ffmpeg-x64/bin/avcodec-61.dll`, `third_party/ffmpeg-x64/bin/avutil-59.dll` |
-| 32-bit | `target/i686-pc-windows-msvc/release/rc2k.exe` | `third_party/sdl3/lib/x86/SDL3.dll`, `third_party/ffmpeg/bin/avcodec-61.dll`, `third_party/ffmpeg/bin/avutil-59.dll` |
+| 64-bit | `target/x64/x86_64-pc-windows-msvc/release/rc2k.exe` | `third_party/sdl3/lib/x64/SDL3.dll` |
+| 32-bit | `target/i686-pc-windows-msvc/release/rc2k.exe` | `third_party/sdl3/lib/x86/SDL3.dll` |
 
 cargo-xwin keeps the SDK of one processor at a time in its cache (`~/.cache/cargo-xwin`), and
 fetches the other's again when the build changes between 32 and 64 bits. Do not run a 32-bit
@@ -118,7 +113,6 @@ You need:
 
 - `rustup`;
 - Visual Studio 2022, or its Build Tools, with "Desktop development with C++";
-- for FFmpeg, MSYS2 with `pacman -S --needed make diffutils gnupg tar xz curl`;
 - a checkout without line-ending conversion (the repository's `.gitattributes` asks git for
   that).
 
@@ -135,18 +129,16 @@ powershell -ExecutionPolicy Bypass -File build.ps1 -Target windows -GameDir C:\G
 | `-Deploy` | Also copy `dist\<target>\` into the game's folder: the one `-GameDir` names, or else the `DEPLOY_WINDOWS` line (`DEPLOY_WINDOWS_X64` for 64 bits) of `deploy.local`. |
 | `-GameDir <folder>` | The game's folder. Naming it deploys there, with or without `-Deploy`. |
 | `-DebugBuild` | An unoptimised build. |
-| `-Msys <folder>` | Where MSYS2 is, if not `C:\msys64`. |
 
 The script finds Visual Studio's C++ tools, downloads SDL's ready-made library itself (the
 version and SHA-256 pinned in `tools/fetch_sdl3.sh`; a download with another hash is refused),
-builds FFmpeg's decoders with Visual Studio's own compiler in MSYS2's bash, and runs
-`cargo build` for the target. The result is `dist\windows\` or `dist\windows-x64\`, as on
-Linux. Only the FFmpeg step uses MSYS2.
+and runs `cargo build` for the target inside Visual Studio's developer environment. The
+result is `dist\windows\` or `dist\windows-x64\`, as on Linux. Only Windows' own tools are
+used.
 
 ## macOS
 
-On a Mac with the Command Line Tools, `rustup` with both `apple-darwin` targets, `cmake` and
-`gnupg`:
+On a Mac with the Command Line Tools, `rustup` with both `apple-darwin` targets and `cmake`:
 
 ```sh
 ./build.sh mac               # both processors in one bundle
@@ -154,7 +146,7 @@ On a Mac with the Command Line Tools, `rustup` with both `apple-darwin` targets,
 ./build.sh mac --arch a64    # Apple silicon only
 ```
 
-This builds FFmpeg and the program, joins the two processors' programs with `lipo` into
+This builds the program, joins the two processors' programs with `lipo` into
 `dist/mac/Rally Championship.app` and signs it ad hoc (it is not notarised). With `--deploy`
 the bundle is copied into the game's folder: `~/rally`, or the folder named by `MAC_GAME_DIR`.
 
@@ -174,7 +166,6 @@ runs:
 
 ```sh
 docker build -t rc2k-anbernic tools/anbernic
-tools/anbernic/run.sh tools/build_ffmpeg.sh a64
 tools/anbernic/run.sh cargo build --release --target aarch64-unknown-linux-gnu --bin rc2k
 ```
 

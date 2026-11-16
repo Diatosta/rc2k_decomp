@@ -9,6 +9,7 @@ pub mod drive;
 pub mod effects;
 pub mod fatal;
 pub mod files;
+pub mod film;
 pub mod gfx;
 pub mod hud;
 pub mod input;

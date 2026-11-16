@@ -3,7 +3,6 @@
 
 #![deny(clippy::undocumented_unsafe_blocks)]
 
-pub mod ffmpeg;
 #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
 pub mod gl;
 #[cfg(debug_ui)]

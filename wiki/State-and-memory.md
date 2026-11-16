@@ -166,7 +166,7 @@ The opt-ins are few and of two kinds:
 
 | Where | Why |
 | --- | --- |
-| `src/platform/ffi/` | Calls into C libraries: SDL, FFmpeg, OpenGL ES, Dear ImGui, the operating system. |
+| `src/platform/ffi/` | Calls into C libraries: SDL, OpenGL ES, Dear ImGui, the operating system. |
 | `src/platform/`, `src/render/` | Handing memory to those libraries; processor-specific instructions in the rasteriser. |
 | `src/memory/` | The building blocks themselves: the `Sync` promises of `GameThread`, `DrawShared` and `PartCell`, the byte views, the page pool, copies through atomics. |
 | `src/owners.rs` | Building the owners on a large temporary stack. |

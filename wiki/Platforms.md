@@ -9,7 +9,7 @@ What the program runs on, what each system needs, and what is different or missi
 | Platform | State |
 | --- | --- |
 | Windows, 64 and 32 bits | Built and run (under Wine and Proton during development). |
-| Linux, x86-64 | Built and run. One program with SDL and FFmpeg linked in. |
+| Linux, x86-64 | Built and run. One program with SDL linked in. |
 | macOS, Intel and Apple silicon | Builds as `Rally Championship.app`, one bundle for both processors. Tested less than the others. |
 | Anbernic RG34XXSP (handheld, 64-bit ARM Linux) | Built and run on Knulli and on the device's stock system. |
 | Web (WebAssembly) | Experimental: it builds and starts, but does not show a picture yet. |
