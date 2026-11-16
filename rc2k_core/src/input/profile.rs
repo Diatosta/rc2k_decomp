@@ -223,6 +223,85 @@ pub struct Bindings {
     pub reset: Option<Digital>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub wipers: Option<Digital>,
+    /// The gears of an H shifter (the controller page's switch): the input held while the
+    /// shifter is in gear n, or in reverse. Absent: not bound.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gear_1: Option<Digital>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gear_2: Option<Digital>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gear_3: Option<Digital>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gear_4: Option<Digital>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gear_5: Option<Digital>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gear_6: Option<Digital>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gear_7: Option<Digital>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reverse: Option<Digital>,
+}
+
+/// An H shifter's position: a gear 1 ..= 7 or reverse.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Gear {
+    Forward(u8),
+    Reverse,
+}
+
+impl Gear {
+    /// The seven forward gears, then reverse, in the order the page lists them.
+    pub const ALL: [Gear; 8] = [
+        Gear::Forward(1),
+        Gear::Forward(2),
+        Gear::Forward(3),
+        Gear::Forward(4),
+        Gear::Forward(5),
+        Gear::Forward(6),
+        Gear::Forward(7),
+        Gear::Reverse,
+    ];
+
+    /// The bits of a reading that ask for this gear (the race reads bits 8 .. 11): the gear's
+    /// number there, 0xF for reverse.
+    pub fn code(self) -> u32 {
+        match self {
+            Gear::Forward(n) => u32::from(n) << 8,
+            Gear::Reverse => 0xF00,
+        }
+    }
+}
+
+impl Bindings {
+    /// The input bound to a gear of the H shifter.
+    pub fn gear(&self, gear: Gear) -> Option<Digital> {
+        match gear {
+            Gear::Forward(1) => self.gear_1,
+            Gear::Forward(2) => self.gear_2,
+            Gear::Forward(3) => self.gear_3,
+            Gear::Forward(4) => self.gear_4,
+            Gear::Forward(5) => self.gear_5,
+            Gear::Forward(6) => self.gear_6,
+            Gear::Forward(7) => self.gear_7,
+            Gear::Reverse => self.reverse,
+            Gear::Forward(_) => None,
+        }
+    }
+
+    fn gear_mut(&mut self, gear: Gear) -> Option<&mut Option<Digital>> {
+        Some(match gear {
+            Gear::Forward(1) => &mut self.gear_1,
+            Gear::Forward(2) => &mut self.gear_2,
+            Gear::Forward(3) => &mut self.gear_3,
+            Gear::Forward(4) => &mut self.gear_4,
+            Gear::Forward(5) => &mut self.gear_5,
+            Gear::Forward(6) => &mut self.gear_6,
+            Gear::Forward(7) => &mut self.gear_7,
+            Gear::Reverse => &mut self.reverse,
+            Gear::Forward(_) => return None,
+        })
+    }
 }
 
 impl Bindings {
@@ -463,29 +542,48 @@ pub fn axis_value(profile: &Profile, using: &AxisUse, raw: &RawInput) -> i32 {
 }
 
 /// The hat's bits of a reading, as the race has always had them: with no shifter the hat's
-/// angle in 256ths in the top byte and "no direction" (0xE00); with one, the buttons 6, 7, 1, 2
-/// (numbers 5, 6, 0, 1) as 0x100 .. 0x400, else the hat straight on 0x500, 270 degrees 0x600,
-/// 180 degrees 0x700, 90 degrees 0xF00, else 0.
-fn hat_bits(raw: &RawInput, shifter: bool) -> u32 {
-    let hat = raw.hats[0];
-    if !shifter {
-        let angle = if hat & 0xFFFF == 0xFFFF {
-            0
-        } else {
-            (hat << 8) / 0x8CA0
-        };
-        return (angle << 24) | HAT_CENTRED;
+/// angle in 256ths in the top byte and "no direction" (0xE00); with an H shifter the gear it is
+/// in, as `shifter_bits` says.
+fn hat_bits(raw: &RawInput, bindings: &Bindings, shifter: bool) -> u32 {
+    if shifter {
+        return shifter_bits(raw, bindings);
     }
-    for (button, code) in [(5, 0x100), (6, 0x200), (0, 0x300), (1, 0x400)] {
+    let hat = raw.hats[0];
+    let angle = if hat & 0xFFFF == 0xFFFF {
+        0
+    } else {
+        (hat << 8) / 0x8CA0
+    };
+    (angle << 24) | HAT_CENTRED
+}
+
+/// The gear an H shifter is in, as the bits the race reads (`Gear::code`; 0, neutral, when no
+/// bound input is held): the first of gear 1 .. 7 and reverse whose bound input is held. A profile
+/// with no gear bound at all (made before the gears could be bound) reads the shifter the way
+/// the first one supported was wired: buttons 6, 7, 1 and 2 are gears 1 .. 4, the hat up,
+/// left and down gears 5 .. 7 and the hat right reverse.
+fn shifter_bits(raw: &RawInput, bindings: &Bindings) -> u32 {
+    if Gear::ALL.iter().all(|&g| bindings.gear(g).is_none()) {
+        return fixed_shifter_bits(raw);
+    }
+    Gear::ALL
+        .iter()
+        .find(|&&gear| bindings.gear(gear).is_some_and(|d| d.pressed(raw)))
+        .map_or(0, |gear| gear.code())
+}
+
+/// The shifter's gear with its inputs as they were before they could be bound.
+fn fixed_shifter_bits(raw: &RawInput) -> u32 {
+    for (button, gear) in [(5, 1), (6, 2), (0, 3), (1, 4)] {
         if raw.buttons >> button & 1 != 0 {
-            return code;
+            return Gear::Forward(gear).code();
         }
     }
-    match hat {
-        0 => 0x500,
-        27000 => 0x600,
-        18000 => 0x700,
-        9000 => 0xF00,
+    match raw.hats[0] {
+        0 => Gear::Forward(5).code(),
+        27000 => Gear::Forward(6).code(),
+        18000 => Gear::Forward(7).code(),
+        9000 => Gear::Reverse.code(),
         _ => 0,
     }
 }
@@ -511,7 +609,7 @@ pub fn readings(
     };
     let pressed =
         |action: Action| keys.down(action) || b.digital(action).is_some_and(|d| d.pressed(raw));
-    let mut bits = hat_bits(raw, shifter);
+    let mut bits = hat_bits(raw, b, shifter);
     let (left, right) = (pressed(Action::Left), pressed(Action::Right));
     let steering = if left || right {
         bits |= 0x1000;
@@ -623,10 +721,12 @@ pub enum Row {
     AccelerateAxis,
     /// The axis that brakes.
     BrakeAxis,
+    /// An H shifter's gear (the page lists these only while the shifter switch is on).
+    Shifter(Gear),
 }
 
 impl Row {
-    /// The rows in the order the page lists them.
+    /// The rows in the order the page lists them, without the H shifter's.
     pub const LISTED: [Row; 15] = [
         Row::SteeringAxis,
         Row::AccelerateAxis,
@@ -645,7 +745,39 @@ impl Row {
         Row::Reset,
     ];
 
-    /// The row of control `control` (1 ..= 15).
+    /// Every row, the H shifter's last.
+    pub const ALL: [Row; 23] = [
+        Row::SteeringAxis,
+        Row::AccelerateAxis,
+        Row::BrakeAxis,
+        Row::Left,
+        Row::Right,
+        Row::Accelerate,
+        Row::Brake,
+        Row::GearUp,
+        Row::GearDown,
+        Row::Handbrake,
+        Row::Camera,
+        Row::Pause,
+        Row::Lights,
+        Row::Wipers,
+        Row::Reset,
+        Row::Shifter(Gear::Forward(1)),
+        Row::Shifter(Gear::Forward(2)),
+        Row::Shifter(Gear::Forward(3)),
+        Row::Shifter(Gear::Forward(4)),
+        Row::Shifter(Gear::Forward(5)),
+        Row::Shifter(Gear::Forward(6)),
+        Row::Shifter(Gear::Forward(7)),
+        Row::Shifter(Gear::Reverse),
+    ];
+
+    /// The rows the page lists: `LISTED`, and with the H shifter switched on the gears' too.
+    pub fn listed(shifter: bool) -> &'static [Row] {
+        if shifter { &Row::ALL } else { &Row::LISTED }
+    }
+
+    /// The row of control `control` (1 ..= 23).
     pub fn of_control(control: u32) -> Option<Row> {
         Some(match control {
             1 => Row::Accelerate,
@@ -663,13 +795,15 @@ impl Row {
             13 => Row::SteeringAxis,
             14 => Row::AccelerateAxis,
             15 => Row::BrakeAxis,
+            16..=22 => Row::Shifter(Gear::Forward(control as u8 - 15)),
+            23 => Row::Shifter(Gear::Reverse),
             _ => return None,
         })
     }
 
-    /// The row's place in `LISTED`.
+    /// The row's place in `ALL`.
     pub fn place(self) -> usize {
-        Row::LISTED.iter().position(|&r| r == self).unwrap_or(0)
+        Row::ALL.iter().position(|&r| r == self).unwrap_or(0)
     }
 
     /// The control number of the row (the inverse of `of_control`).
@@ -691,7 +825,9 @@ impl Row {
             Row::Lights => Action::Lights,
             Row::Reset => Action::Reset,
             Row::Wipers => Action::Wipers,
-            Row::SteeringAxis | Row::AccelerateAxis | Row::BrakeAxis => return None,
+            Row::SteeringAxis | Row::AccelerateAxis | Row::BrakeAxis | Row::Shifter(_) => {
+                return None;
+            }
         })
     }
 
@@ -704,8 +840,10 @@ impl Row {
     }
 }
 
-/// The control number of each of `Row::LISTED`.
-const LISTED_CONTROLS: [u32; 15] = [13, 14, 15, 3, 4, 1, 2, 5, 6, 7, 8, 9, 10, 12, 11];
+/// The control number of each of `Row::ALL`.
+const LISTED_CONTROLS: [u32; 23] = [
+    13, 14, 15, 3, 4, 1, 2, 5, 6, 7, 8, 9, 10, 12, 11, 16, 17, 18, 19, 20, 21, 22, 23,
+];
 
 /// How far an axis must move from where it rested (of -32768 .. 32767) to count.
 pub const MOVED: i32 = 16384;
@@ -768,6 +906,10 @@ pub fn learn(profile: &mut Profile, row: Row, learned: Learned) {
         Learned::Digital(digital) => {
             if let Some(action) = row.action() {
                 *profile.bindings.digital_mut(action) = Some(digital);
+            } else if let Row::Shifter(gear) = row
+                && let Some(slot) = profile.bindings.gear_mut(gear)
+            {
+                *slot = Some(digital);
             }
         }
         Learned::Axis { axis, rest, now } => {
@@ -807,8 +949,12 @@ pub enum Shown {
 /// What the row is bound to: an axis row its axis, a digital row its button or hat direction.
 pub fn shown(profile: &Profile, row: Row) -> Shown {
     let b = &profile.bindings;
-    if let Some(action) = row.action() {
-        return match b.digital(action) {
+    let digital = match row {
+        Row::Shifter(gear) => Some(b.gear(gear)),
+        _ => row.action().map(|action| b.digital(action)),
+    };
+    if let Some(digital) = digital {
+        return match digital {
             Some(Digital::Button { button }) => Shown::Button(button as u32 + 1),
             Some(Digital::Hat { direction, .. }) => Shown::Hat(direction),
             None => Shown::Nothing,
@@ -1046,15 +1192,97 @@ mod tests {
 
     #[test]
     fn the_hat_bits_as_before() {
+        let none = Bindings::default();
         let mut r = RawInput::default();
-        assert_eq!(hat_bits(&r, false), 0xE00);
+        assert_eq!(hat_bits(&r, &none, false), 0xE00);
         r.hats[0] = 9000;
-        assert_eq!(hat_bits(&r, false), (64 << 24) | 0xE00);
-        assert_eq!(hat_bits(&r, true), 0xF00);
+        assert_eq!(hat_bits(&r, &none, false), (64 << 24) | 0xE00);
+        // a shifter with no gear bound: the first wiring
+        assert_eq!(hat_bits(&r, &none, true), 0xF00);
         r.hats[0] = u32::MAX;
         r.buttons = 1 << 6;
-        assert_eq!(hat_bits(&r, true), 0x200);
-        assert_eq!(hat_bits(&RawInput::default(), true), 0);
+        assert_eq!(hat_bits(&r, &none, true), 0x200);
+        assert_eq!(hat_bits(&RawInput::default(), &none, true), 0);
+        let mut r = RawInput::default();
+        for (hat, gear) in [(0, 0x500), (27000, 0x600), (18000, 0x700)] {
+            r.hats[0] = hat;
+            assert_eq!(hat_bits(&r, &none, true), gear);
+        }
+    }
+
+    fn shifter_profile() -> Profile {
+        let mut p = Profile::new(id(), Kind::Wheel);
+        let button = |button| Some(Digital::Button { button });
+        let b = &mut p.bindings;
+        b.gear_1 = button(10);
+        b.gear_2 = button(11);
+        b.gear_3 = Some(Digital::Hat {
+            hat: 1,
+            direction: HatDirection::Up,
+        });
+        b.gear_7 = button(12);
+        b.reverse = button(13);
+        p
+    }
+
+    #[test]
+    fn a_bound_shifter_gives_the_gear_held() {
+        let p = shifter_profile();
+        let keys = Keys::default();
+        let gear = |raw: &RawInput| readings(Some(&p), Some(raw), &keys, true).bits;
+        // neutral: nothing held, and the old fixed inputs mean nothing now
+        assert_eq!(gear(&RawInput::default()), 0);
+        let old = RawInput {
+            buttons: 1 << 5,
+            ..RawInput::default()
+        };
+        assert_eq!(gear(&old), 0);
+        for (button, code) in [(10, 0x100), (11, 0x200), (12, 0x700), (13, 0xF00)] {
+            let held = RawInput {
+                buttons: 1 << button,
+                ..RawInput::default()
+            };
+            assert_eq!(gear(&held), code, "button {button}");
+        }
+        let mut hat = RawInput::default();
+        hat.hats[1] = 0;
+        assert_eq!(gear(&hat), 0x300);
+        // two held: the lower gear
+        hat.buttons = 1 << 11 | 1 << 13;
+        assert_eq!(gear(&hat), 0x200);
+        // the switch off: the hat's angle as for any controller
+        let off = readings(Some(&p), Some(&hat), &keys, false).bits;
+        assert_eq!(off & 0xFFF, 0xE00);
+    }
+
+    #[test]
+    fn gears_are_learnt_shown_and_saved() {
+        let mut p = Profile::new(id(), Kind::Wheel);
+        let found = Learned::Digital(Digital::Button { button: 4 });
+        for (n, row) in Row::ALL[15..].iter().enumerate() {
+            assert!(!row.takes_axis());
+            assert_eq!(shown(&p, *row), Shown::Nothing);
+            learn(&mut p, *row, found);
+            assert_eq!(shown(&p, *row), Shown::Button(5), "row {n}");
+            assert_eq!(Row::of_control(row.control()), Some(*row));
+        }
+        assert_eq!(p.bindings.gear_5, Some(Digital::Button { button: 4 }));
+        assert_eq!(p.bindings.reverse, Some(Digital::Button { button: 4 }));
+        let text = toml::to_string(&p).unwrap();
+        for word in [
+            "[bindings.gear_1]",
+            "[bindings.gear_7]",
+            "[bindings.reverse]",
+        ] {
+            assert!(text.contains(word), "{word} not in\n{text}");
+        }
+        assert_eq!(toml::from_str::<Profile>(&text).unwrap(), p);
+        // unbound gears are not written
+        let bare = toml::to_string(&Profile::new(id(), Kind::Wheel)).unwrap();
+        assert!(!bare.contains("gear_1") && !bare.contains("reverse"));
+        // the page lists the gears only with the switch on
+        assert_eq!(Row::listed(false).len(), 15);
+        assert_eq!(Row::listed(true).len(), 23);
     }
 
     #[test]
@@ -1145,7 +1373,7 @@ mod tests {
             Some(Digital::Button { button: 1 })
         );
         // every listed row has its control number back
-        for row in Row::LISTED {
+        for row in Row::ALL {
             assert_eq!(Row::of_control(row.control()), Some(row));
         }
     }

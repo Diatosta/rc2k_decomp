@@ -82,26 +82,52 @@ pub fn page_step(o: crate::owners::Owners<'static>, up: bool) -> Result<(), Refu
     Ok(())
 }
 
-/// The buttons page shows its other page of controls.
-pub fn turn_controls_page(controls: &ControlsScreen) {
-    controls.page.set(1 - controls.page.get().min(1));
+/// Whether the current player's controller page has the H shifter switched on: the buttons
+/// page then lists the shifter's gears too.
+pub fn shifter_on(menus: &Menus) -> bool {
+    crate::menu::player_settings::current(menus).is_ok_and(|p| p.get().controller_mode & 1 != 0)
+}
+
+/// How many pages of controls the buttons page has.
+fn pages(shifter: bool) -> usize {
+    Row::listed(shifter).len().div_ceil(ROWS_PER_PAGE)
+}
+
+/// The page shown, held to the pages there are (the switch may have been turned off since the
+/// page was turned).
+pub fn page_shown(controls: &ControlsScreen, shifter: bool) -> usize {
+    (controls.page.get() as usize).min(pages(shifter) - 1)
+}
+
+/// The buttons page shows its next page of controls, the first after the last.
+pub fn turn_controls_page(controls: &ControlsScreen, shifter: bool) {
+    let next = (page_shown(controls, shifter) + 1) % pages(shifter);
+    controls.page.set(next as u32);
 }
 
 /// The row of the buttons page that is item slot `slot` (0 ..= 7) on the page shown.
-pub fn row_at(controls: &ControlsScreen, slot: usize) -> Option<Row> {
-    Row::LISTED
-        .get(controls.page.get() as usize * ROWS_PER_PAGE + slot)
+pub fn row_at(controls: &ControlsScreen, shifter: bool, slot: usize) -> Option<Row> {
+    Row::listed(shifter)
+        .get(page_shown(controls, shifter) * ROWS_PER_PAGE + slot)
         .copied()
+}
+
+/// The text id of a row's label: the rows of the game's own controls, then the shifter's.
+pub fn row_label(row: Row) -> u32 {
+    use rc2k_core::strings::own::id;
+    let place = row.place() as u32;
+    let base = Row::LISTED.len() as u32;
+    if place < base {
+        id::CONTROL_ROWS + place
+    } else {
+        id::GEAR_ROWS + place - base
+    }
 }
 
 /// The row at `slot` starts learning its control.
 pub fn learn_row(o: crate::owners::Owners<'static>, slot: u8) {
-    if let Some(row) = row_at(&o.menus.screens.controls, slot as usize) {
-        crate::menu::learn_bindings::learn_binding(
-            &o.menus.screens.controls,
-            o.system,
-            o.input,
-            row.control(),
-        );
+    let controls = &o.menus.screens.controls;
+    if let Some(row) = row_at(controls, shifter_on(o.menus), slot as usize) {
+        crate::menu::learn_bindings::learn_binding(controls, o.system, o.input, row.control());
     }
 }

@@ -1,0 +1,77 @@
+# Os textos das páginas que este jogo acrescenta às do original: a página dos eixos e as
+# linhas novas da página dos botões. Ver english.rc2k.toml. Um texto em falta aparece em
+# inglês.
+
+blank = ""
+axes = "eixos"
+more_controls = "mais controlos"
+first_controls = "primeiros controlos"
+wheel = "volante"
+full_rotation = "rotação total"
+degrees = "graus"
+yes = "sim"
+no = "não"
+on = "sim"
+off = "não"
+h_shifter = "caixa em H"
+
+[joystick_axis]
+x = "eixo x"
+y = "eixo y"
+z = "eixo z"
+rx = "eixo rx"
+ry = "eixo ry"
+rz = "eixo rz"
+
+[pad_axis]
+left_stick_x = "analógico esq. x"
+left_stick_y = "analógico esq. y"
+right_stick_x = "analógico dir. x"
+right_stick_y = "analógico dir. y"
+left_trigger = "gatilho esq."
+right_trigger = "gatilho dir."
+
+[axis_page]
+axis = "eixo"
+dead_zone = "zona morta"
+sensitivity = "sensibilidade"
+range = "alcance"
+invert = "inverter"
+position = "posição"
+
+[sensitivity]
+linear = "linear"
+gentle = "suave"
+quick = "rápido"
+
+[control_rows]
+steering_axis = "direção (eixo)"
+accelerate_axis = "acelerar (eixo)"
+brake_axis = "travar (eixo)"
+steer_left_button = "virar à esquerda (botão)"
+steer_right_button = "virar à direita (botão)"
+accelerate_button = "acelerar (botão)"
+brake_button = "travar (botão)"
+gear_up = "mudança superior"
+gear_down = "mudança inferior"
+handbrake = "travão de mão"
+camera = "vistas de câmara"
+pause = "pausa"
+lights = "faróis"
+wipers = "limpa-pára-brisas"
+reset_car = "repor carro"
+
+[gear_rows]
+gear_1 = "mudança 1"
+gear_2 = "mudança 2"
+gear_3 = "mudança 3"
+gear_4 = "mudança 4"
+gear_5 = "mudança 5"
+gear_6 = "mudança 6"
+gear_7 = "mudança 7"
+reverse = "marcha atrás"
+
+[prompt]
+steering = "vire à direita"
+axis = "carregue no pedal"
+button = "carregue num botão"

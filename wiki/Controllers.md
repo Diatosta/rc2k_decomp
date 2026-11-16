@@ -81,7 +81,8 @@ hats.
 In the game's options, each player has a controller page, an axes list with a page for each axis, and a buttons page:
 
 - **Controller**: step through "none" and the controllers found; the chosen one is taken into
-  use at once. The page also has the shifter switch and the force feedback strength.
+  use at once. The page also has the "H shifter" switch (see below) and the force feedback
+  strength.
 - **Axes** (opened from the controller page): a list with a row for each axis the controller has
   (up to six, a gamepad's as the left stick x and y, the right stick x and y and the two
   triggers), each with a live bar of where the axis is now, as the race takes it (dark track;
@@ -97,17 +98,33 @@ In the game's options, each player has a controller page, an axes list with a pa
   no) and a live bar of where the axis is, shaped by the settings above so a change shows at
   once. Left and right change the highlighted row (Return flips the invert). Every change goes
   to the player's profile for the controller at once. Back returns to the list.
-- **Buttons**: the controls on two pages, turned by the "more controls" item. The axis rows
+- **Buttons**: the controls on two pages (three with the H shifter switched on), turned by the
+  "more controls" item. The axis rows
   come first: steering, accelerate and brake (each learns an axis: steering takes the side it is
   turned to as right, an axis moved the other way is inverted; accelerate and brake take a pedal
   from where it rests or a side of an axis). Then the rows learnt with a button or a hat
   direction: steer left, steer right, accelerate, brake, gear up, gear down, handbrake, camera,
   pause, lights, wipers and reset car. An axis row and a button row of the same control both
-  count. "Undo changes" puts the page's profile back as it was when the page was entered.
+  count. With the H shifter switched on the buttons page has a third page of rows for the
+  shifter's gears (see "The H shifter"). "Undo changes" puts the page's profile back as it was
+  when the page was entered.
 
-The texts of the axes pages and of the new rows are not in the language file: the game keeps
-them itself, in English and in Portuguese (the language the game loaded; any other language
-shows the English).
+The texts of the axes pages and of the new rows are not in the language file: the game reads
+them from a file of its own for each language, `files/locale/<language>.rc2k.toml`, with English
+built in ([Language files](Language-files#the-games-own-texts-rc2ktoml)).
+
+### The H shifter
+
+The controller page's "H shifter" switch (on or off, as the original's "ACT LABS RS Shifter"
+switch was) says the controller has a gear lever with its gears on buttons or hat directions
+(a wheel's separate shifter, such as the Fanatec one). With it on, the buttons page lists seven
+more rows after the others: gear 1 .. gear 7 and reverse, each learnt like the button rows (a
+button or a hat direction; the page asks for it for five seconds). In a race the first of
+those, in that order, whose input is held is the gear asked for; none held is neutral. A
+profile with no gear bound at all reads the shifter the way the switch did before the gears
+could be bound, so an old set-up still works: buttons 6, 7, 1 and 2 are gears 1 .. 4, the hat
+up, left and down gears 5 .. 7, and the hat right reverse. With the switch off the rows are
+hidden and the hat and buttons mean what they are bound to.
 
 Learning a button, a hat direction or an axis (the page asks for the control for five seconds)
 takes what moves from where the controller rests when the learning starts, so a pedal that rests

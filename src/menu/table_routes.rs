@@ -171,7 +171,7 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn) -> Result<(), Refused> {
         }
         ItemFn::AxesLoop => player_axes_loop::run(o),
         ItemFn::TurnControlsPage => {
-            axes_items::turn_controls_page(&menus.screens.controls);
+            axes_items::turn_controls_page(&menus.screens.controls, axes_items::shifter_on(menus));
             Ok(())
         }
         ItemFn::AxisStep { up } => axes_items::step(o, up),

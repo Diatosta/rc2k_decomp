@@ -9,6 +9,7 @@ pub mod apply_config;
 pub mod check_at_start;
 pub mod check_clio_disc;
 pub mod choose_language;
+pub mod copy_own_texts;
 pub mod end_text_line;
 pub mod normalise_path;
 pub mod outside;

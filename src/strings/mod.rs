@@ -15,6 +15,7 @@ pub mod format_u32;
 pub mod hex_append;
 pub mod load_language;
 pub mod maybe_compile_lexicon;
+pub mod own_texts;
 pub mod owner;
 pub mod rot13_into_text;
 pub mod same_text;

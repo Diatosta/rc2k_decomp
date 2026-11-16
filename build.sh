@@ -77,10 +77,29 @@ CARGO_FLAGS=()
 [ "$PROFILE" = release ] && CARGO_FLAGS+=(--release)
 [ -n "${RC2K_FEATURES:-}" ] && CARGO_FLAGS+=(--features "$RC2K_FEATURES")
 
-# An empty dist/<target>/.
+# An empty dist/<target>/, with the own texts of every language in locale/ (the installer copies
+# the installed language's into the game's files/locale).
 fresh_dist() {
     rm -rf "$DIST"
-    mkdir -p "$DIST"
+    mkdir -p "$DIST/locale"
+    cp assets/locale/*.rc2k.toml "$DIST/locale/"
+}
+
+# The own texts of the language installed in a game folder, from dist/<target>/locale/ into its
+# files/locale (named after the language's .LOC file, whatever its case).
+deploy_own_texts() {
+    local dest="$1" loc stem
+    loc=$(find "$dest/files" -maxdepth 2 -ipath '*locale/*.loc' 2>/dev/null | sort | head -1)
+    [ -n "$loc" ] || return 0
+    stem=$(basename "$loc"); stem=${stem%.*}
+    local from
+    from=$(find "$DIST/locale" -maxdepth 1 -iname "$stem.rc2k.toml" | head -1)
+    if [ -n "$from" ]; then
+        cp "$from" "$(dirname "$loc")/$(basename "$from")"
+        echo "own texts: $(basename "$from") into $(dirname "$loc")"
+    else
+        echo "own texts: none for the language $stem (the game shows English)"
+    fi
 }
 
 # Copies dist/<target>/ into a folder, replacing what is there by the same names (a program
@@ -89,9 +108,13 @@ deploy_to_folder() {
     local dest="$1" item
     mkdir -p "$dest"
     for item in "$DIST"/*; do
+        # The languages' own texts are the installer's to pick from: only the installed one goes
+        # in (deploy_own_texts), not the whole folder.
+        [ "$(basename "$item")" = locale ] && continue
         rm -rf "$dest/$(basename "$item")"
         cp -R "$item" "$dest/"
     done
+    deploy_own_texts "$dest"
     echo "deployed $(ls "$DIST" | tr '\n' ' ')to $dest"
 }
 

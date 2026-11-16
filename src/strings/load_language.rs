@@ -6,6 +6,7 @@
 //! - the first `files\%locale\*.loc`, 0x30 bytes: none is fatal error 0x80E38381, one that does
 //!   not start "LOCL" 0x80E38382. Its byte +0xF is the units (the units setting and each car's
 //!   +0x178); its byte +8 is read further down;
+//! - the language's own texts (`strings::own_texts`);
 //! - the first `files\%locale\*.kim`, up to 0x400 bytes, if there is one: not starting "KEYB" is
 //!   fatal error 0x80E383A2. The ten offsets at its +0x30 become addresses, the layout is the
 //!   block of 0x14 bytes its byte +0xB chooses, and if its byte +8 is 0x0C three entries of that
@@ -144,6 +145,8 @@ pub fn load_language(
     for player in &o.menus.play.slots.records {
         player.update(|p| p.metric_units = units);
     }
+
+    crate::strings::own_texts::load(strings)?;
 
     // Read over the block the last load left (a shorter file leaves its tail).
     let mut keyboard = o.input.layouts().file_bytes();

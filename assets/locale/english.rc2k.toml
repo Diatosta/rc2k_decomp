@@ -1,0 +1,87 @@
+# The texts of the pages this game adds to the original's: the controller axes page and the
+# controller buttons page's new rows. The language file of the original game (files/locale/
+# *.TXT) holds none of them.
+#
+# One file per language, named after the original's language file with ".rc2k.toml" in place
+# of its ending (ENGLISH.TXT -> english.rc2k.toml, PORTUGES.TXT -> portuges.rc2k.toml), kept
+# in the same folder. UTF-8; the game converts the texts to Windows-1252. A text left out
+# is shown in English (this file is built into the game). Keys the game does not know are
+# logged and ignored.
+
+blank = ""
+axes = "axes"
+more_controls = "more controls"
+first_controls = "first controls"
+wheel = "wheel"
+full_rotation = "full rotation"
+degrees = "degrees"
+yes = "yes"
+no = "no"
+on = "on"
+off = "off"
+h_shifter = "H shifter"
+
+[joystick_axis]
+x = "axis x"
+y = "axis y"
+z = "axis z"
+rx = "axis rx"
+ry = "axis ry"
+rz = "axis rz"
+
+[pad_axis]
+left_stick_x = "left stick x"
+left_stick_y = "left stick y"
+right_stick_x = "right stick x"
+right_stick_y = "right stick y"
+left_trigger = "left trigger"
+right_trigger = "right trigger"
+
+# The axes page's rows.
+[axis_page]
+axis = "axis"
+dead_zone = "dead zone"
+sensitivity = "sensitivity"
+range = "range"
+invert = "invert"
+position = "position"
+
+# What a sensitivity does.
+[sensitivity]
+linear = "linear"
+gentle = "gentle"
+quick = "quick"
+
+# The buttons page's rows.
+[control_rows]
+steering_axis = "steering (axis)"
+accelerate_axis = "accelerate (axis)"
+brake_axis = "brake (axis)"
+steer_left_button = "steer left (button)"
+steer_right_button = "steer right (button)"
+accelerate_button = "accelerate (button)"
+brake_button = "brake (button)"
+gear_up = "gear up"
+gear_down = "gear down"
+handbrake = "handbrake"
+camera = "camera"
+pause = "pause"
+lights = "lights"
+wipers = "wipers"
+reset_car = "reset car"
+
+[gear_rows]
+gear_1 = "gear 1"
+gear_2 = "gear 2"
+gear_3 = "gear 3"
+gear_4 = "gear 4"
+gear_5 = "gear 5"
+gear_6 = "gear 6"
+gear_7 = "gear 7"
+reverse = "reverse"
+
+# What is asked while a control is learnt.
+[prompt]
+steering = "turn right"
+axis = "press the pedal"
+button = "press a button"

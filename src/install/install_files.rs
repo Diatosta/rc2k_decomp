@@ -185,6 +185,12 @@ pub fn install_files(
             }
         }
     }
+    // The language's own texts, from the program's folder (not in the CD's list).
+    i::copy_own_texts::copy_own_texts(
+        &text_at(&install.paths.game_dir),
+        &text_at(&install.paths.installed),
+        &crate::files::state::directory_text(1, "the locale directory")?,
+    );
     // The change of folder's result is not looked at; a failed record write is the error
     // message.
     set_cd(&install.paths.installed);

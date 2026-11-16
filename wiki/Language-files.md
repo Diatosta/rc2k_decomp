@@ -178,10 +178,43 @@ A layout file with one layout, no dead keys and no AltGr table:
 
 The file is `0x258` (600) bytes long.
 
+## The game's own texts: `.rc2k.toml`
+
+The pages this version adds to the original's (the controller axes page, the extra rows of the
+controller buttons page, the H shifter's switch) have texts that the language's `.txt` does not
+hold. They are in a file of their own for each language, in the same folder as the language's
+files, named after its `.loc` file with `.rc2k.toml` in place of the ending: `PORTUGES.LOC`
+goes with `portuges.rc2k.toml`, `ENGLISH.LOC` with `english.rc2k.toml`. The repository has them
+in `assets/locale/`; English is also built into the program.
+
+The game reads the file at start, after the language's own files. A missing file, or a text the
+file does not have, is shown in English (a missing file is noted in `rc2k.log`); a key the game
+does not know is noted there and ignored; a file that is not UTF-8 TOML text is refused with
+its reason.
+
+The file is TOML in UTF-8, a `key = "text"` for each text; a key's dots stand for tables, so
+`axis_page.dead_zone = "dead zone"` may also be written `dead_zone = "dead zone"` under
+`[axis_page]`. The texts are converted to Windows-1252, the code page of the game's own. The
+built-in English file, `assets/locale/english.rc2k.toml`, lists every key with its comment.
+**To add a language**, copy it, translate the texts and name it after the language's `.loc`
+file; no code changes.
+
+Where the files go:
+
+- the builds (`./build.sh`) put every language's file in `dist/<target>/locale/`, beside the
+  program;
+- the installer copies the one of the language chosen from there into the installed
+  `files/locale`, as it copies the language's own files (a download folder that already has the
+  file in its language folder gets it copied with that folder);
+- `./build.sh <target> --deploy` copies the one of the language already installed in the game
+  folder it deploys to.
+
 ## Code
 
 `src/strings/load_language.rs` (the order of loading, the `.loc` and `.kim` checks),
 `src/strings/compile_lexicon.rs`, `rc2k_core/src/strings/lexicon.rs` (the `.txt` compiler),
-`rc2k_core/src/strings/language.rs` (the `.loc` record),
+`rc2k_core/src/strings/language.rs` (the `.loc` record), `rc2k_core/src/strings/own.rs` and
+`src/strings/own_texts.rs` (the `.rc2k.toml` files), `src/install/copy_own_texts.rs` (the
+installer's copy),
 `rc2k_core/src/input/layouts.rs` (the `.kim` file), `rc2k_core/src/input/keyboard.rs` (keys
 to characters, dead keys), `rc2k_core/src/strings/table.rs` (reading the compiled table).

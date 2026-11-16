@@ -18,6 +18,7 @@ compiled table of texts), the computer drivers' names and the shared text buffer
 | Item | File | What it does |
 | --- | --- | --- |
 | `load_language` | `src/strings/load_language.rs` | Reads the chosen language's files. |
+| `own_texts` | `src/strings/own_texts.rs` | Reads the language's file of the game's own texts (`.rc2k.toml`). |
 | `compile_lexicon` | `src/strings/compile_lexicon.rs` | Builds the table of texts from the language file. |
 | `table`, `lexicon_bytes` | `src/strings/string_table.rs` | Where a text's bytes are found by its number. |
 | `append_string_by_id` | `src/strings/append_string_by_id.rs` | Appends a text, by number, to a text being built. |

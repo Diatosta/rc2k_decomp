@@ -33,12 +33,17 @@ impl<'a> StringOwners<'a> {
     }
 }
 
-/// The text of an own id (`rc2k_core::strings::own`) in the language the game loaded; none for an
-/// id no page uses.
+/// The text of an own id (`rc2k_core::strings::own`) in the language the game loaded, English
+/// where its file lacks it; none for an id no page uses.
 pub fn own_text(strings: &crate::strings::owner::Strings, id: u32) -> Vec<u8> {
-    use rc2k_core::strings::own::{Language, text};
-    let language = Language::of_locale(&strings.language.locale.read());
-    text(id, language).unwrap_or_default().to_vec()
+    let file = strings
+        .language
+        .own
+        .read()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    rc2k_core::strings::own::text(id, file.as_ref())
+        .unwrap_or_default()
+        .to_vec()
 }
 
 /// `emit` receives each run of bytes to append. Returns the value described at

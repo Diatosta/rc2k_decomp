@@ -96,15 +96,19 @@ pub fn draw_control_bindings(
     };
     let learning: u32 = controls.learning.get();
     let learning_row: u32 = controls.learned.get();
-    use crate::menu::axes_items::{ROWS_PER_PAGE, row_at, set_look, shown_look};
+    use crate::menu::axes_items::{
+        ROWS_PER_PAGE, page_shown, row_at, row_label, set_look, shifter_on, shown_look,
+    };
+    use rc2k_core::input::profile::Row;
     use rc2k_core::strings::own::id;
     // The rows of the page shown: each item's label, hidden past the last row, and the binding's
     // text beside it (not for the row being learnt, whose prompt is drawn instead).
     let mut texts: [Vec<u8>; ROWS_PER_PAGE] = Default::default();
     let mut learnt = None;
+    let shifter = shifter_on(menus);
     for (slot, text) in texts.iter_mut().enumerate() {
-        let row = row_at(controls, slot);
-        let label = row.map_or(id::BLANK, |row| id::CONTROL_ROWS + row.place() as u32);
+        let row = row_at(controls, shifter, slot);
+        let label = row.map_or(id::BLANK, row_label);
         set_look(menus, 2 + slot as u32, shown_look(label), row.is_none())?;
         if let Some(row) = row {
             *text = binding_text(o, controls, player, row, gfx)?;
@@ -113,7 +117,9 @@ pub fn draw_control_bindings(
             }
         }
     }
-    let more = if controls.page.get() == 0 {
+    // "more controls" on every page but the last, which turns back to the first.
+    let last = Row::listed(shifter).len().div_ceil(ROWS_PER_PAGE) - 1;
+    let more = if page_shown(controls, shifter) < last {
         id::MORE_CONTROLS
     } else {
         id::FIRST_CONTROLS
