@@ -90,7 +90,7 @@ pub fn learn_axis(
             take = false;
         }
     } else {
-        let [x, y, z, buttons] = crate::input::axes::first_device_state(input)?;
+        let [x, y, z, buttons] = crate::input::axes::first_device_state_from_rest(input)?;
         figure = classify_controller(controls, z, buttons, x, y);
     }
     if take {

@@ -24,7 +24,6 @@ pub mod finish_store;
 pub mod finish_timing;
 pub mod flush_replay;
 pub mod flush_replay_if;
-pub mod hold_count_tick;
 pub mod keep_lead_car_values;
 pub mod keep_replay_frame;
 pub mod lead_car_values;

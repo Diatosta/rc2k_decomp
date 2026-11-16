@@ -78,14 +78,15 @@ for every picture drawn:
    pauses.
 2. **Input update.** `update_input` (`src/input/keys.rs`) turns the key states into "pressed
    this frame".
-3. **Escape** asks whether to leave (`drive::quit_question`); the answer goes into the cars. A
-   pause waits for a key (`drive::pause_until_key`).
+3. **Escape**, or a player's pause binding going down (a pad's START sends Escape), asks
+   whether to leave (`drive::quit_question`); the answer goes into the cars. A window that is
+   not the active one pauses the race until a key (`drive::pause_until_key`).
 4. **Race keys.** `race_keys` (`src/race/frame.rs`): view changes and the like.
 5. **Simulation.** `drive::race_step` works out how many steps of a hundredth of a second have
    gone by since the last time round and calls `drive::race_tick` that many times. A slow
    frame runs more steps; a fast one may run none. The race therefore runs at the same speed
    whatever the frame rate.
-6. **Tyre change.** In events that have one, the tyre change screen (`src/drive/tyre_screen.rs`).
+6. **Tyre change.** While a roadside tyre change is under way (after a puncture), the tyre change screen with its timed gauge (`src/drive/tyre_screen.rs`).
 7. **Picture.** `drive::race_frame` draws and shows one picture (see
    [Drawing a frame](Drawing-a-frame)) and runs the race's sounds for the frame
    (see [Sound and music](Sound-and-music)).

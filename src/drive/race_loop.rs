@@ -1,9 +1,10 @@
 //! The race played until it ends: each time round the clock is read, a window not active pauses,
-//! unpaused `input::update` runs; in the attract mode a key or the credits' end leaves; Esc asks
-//! to quit (`drive::quit_question`) and the answer goes into the cars; a view's pause bit pauses;
-//! else `race::race_keys`, `drive::race_step`, `race::tyre_change` and the race's frame
-//! (`drive::race_frame`) run, and all players out ends it. Paused: in a replay the car's pause
-//! bit is cleared, else `drive::pause_until_key`. Refuses what its calls refuse.
+//! unpaused `input::update` runs; in the attract mode a key or the credits' end leaves; Esc, or
+//! a player's pause binding going down, asks to quit (`drive::quit_question`) and the answer goes
+//! into the cars; else `race::race_keys`, `drive::race_step`, `race::tyre_change` and the race's
+//! frame (`drive::race_frame`) run, and all players out ends it. Paused (the window not
+//! active): in a network race the car's keys are cleared, else `drive::pause_until_key`.
+//! Refuses what its calls refuse.
 
 use crate::drive::race_parts::{
     input_update, players_all_out, race_frame, race_keys, restart_clock, tyre_change,
@@ -13,7 +14,8 @@ use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use rc2k_core::net::net_race::NetRace;
 
-fn view_bit(
+/// Whether the pause binding is down for a view's car (the key word's bit 0x40).
+fn pause_down(
     shared: &RaceShared,
     view: &crate::memory::session::PlainDword,
 ) -> Result<bool, BadInput> {
@@ -22,6 +24,42 @@ fn view_bit(
         .of(view.get())
         .ok_or(BadInput("a view's block"))?;
     Ok(car.input_keys.get() & 0x40 != 0)
+}
+
+/// A view's pause binding going down asks the quit question once: the binding must be let go
+/// before it asks again, and the steps just after an answer do not count (the answer clears the
+/// cars' keys and the held binding comes back with the next step).
+struct PauseBinding {
+    was_down: bool,
+    settling: u32,
+}
+
+impl PauseBinding {
+    const SETTLE_TURNS: u32 = 2;
+
+    fn new() -> Self {
+        Self {
+            was_down: false,
+            settling: 0,
+        }
+    }
+
+    /// Takes this turn's state; true when the binding has just gone down.
+    fn pressed(&mut self, down: bool) -> bool {
+        if self.settling != 0 {
+            self.settling -= 1;
+            self.was_down = true;
+            return false;
+        }
+        let pressed = down && !self.was_down;
+        self.was_down = down;
+        pressed
+    }
+
+    fn answered(&mut self) {
+        self.settling = Self::SETTLE_TURNS;
+        self.was_down = true;
+    }
 }
 
 fn net_player_car(
@@ -83,6 +121,7 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
         mark.set(u32::MAX);
     }
     race.replay.replay_view().play_end.set(u32::MAX);
+    let mut pause_binding = PauseBinding::new();
     loop {
         restart_clock(race, system);
         race.shared
@@ -128,9 +167,14 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
                     return Ok(());
                 }
             }
-            if devices.keys_pressed.get(1) != 0 {
+            let binding_down = pause_down(&race.shared, &race.shared.view.get().view_blocks[0])?
+                || (race.shared.view.get().views.get() != 1
+                    && pause_down(&race.shared, &race.shared.view.get().view_blocks[1])?);
+            let binding_pressed = pause_binding.pressed(binding_down);
+            if devices.keys_pressed.get(1) != 0 || binding_pressed {
                 let answer = { crate::drive::quit_question::quit_question(race, o) }?;
                 if answer == 0 {
+                    pause_binding.answered();
                     break false;
                 }
                 if race.shared.work.get().in_credits.is_set() {
@@ -141,16 +185,6 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
                 }
                 put_answer(race, o.net, answer)?;
                 return Ok(());
-            }
-            if race.shared.vars.get().hold_count.get() == 0 {
-                if view_bit(&race.shared, &race.shared.view.get().view_blocks[0])? {
-                    break true;
-                }
-                if race.shared.view.get().views.get() != 1
-                    && view_bit(&race.shared, &race.shared.view.get().view_blocks[1])?
-                {
-                    break true;
-                }
             }
             if system.window_loop().paused.get() != 0 {
                 break true;

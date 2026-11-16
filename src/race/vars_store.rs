@@ -13,8 +13,8 @@ pub struct RaceVars {
     /// +0x0: a scene switch (`race::show_replay_still`; read by `physics::car_lighting`,
     /// `race::skid_laying`).
     pub scene_switch: PlainDword,
-    /// +0x4: the held count (`drive::hold_count_tick`; `drive::pause_until_key` sets 0x19).
-    pub hold_count: PlainDword,
+    /// +0x4: unused; it only keeps the layout.
+    pub unused_4: PlainDword,
     /// +0x8: `drive::pause_until_key`'s wait (0x1E, counted down).
     pub pause_wait: PlainDword,
     /// +0xc: a scale put back at the race's end (`race::race_end`).

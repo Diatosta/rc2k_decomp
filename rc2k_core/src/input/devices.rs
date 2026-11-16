@@ -302,6 +302,12 @@ pub fn axis_moved(now: &[u32; 6], rest: &[u32; 6], axes: u32) -> Result<u32, u32
     Err(last)
 }
 
+/// The six axes' readings `now` as movements from `rest` (wrapping): an axis that has not moved
+/// reads 0, whatever place of its travel it rests at.
+pub fn from_rest(now: &[u32; 6], rest: &[u32; 6]) -> [u32; 6] {
+    std::array::from_fn(|n| now[n].wrapping_sub(rest[n]))
+}
+
 /// One player on two devices: the second's three readings added to the first's, and of its bits
 /// those of 0x70FF.
 pub fn merge_readings(first: &mut [u32; 4], second: &[u32; 4]) {
@@ -472,6 +478,56 @@ mod tests {
         assert_eq!(classify(6, 0x100, 0x100, 0x100, [u32::MAX; 4]).1, 0);
         let (h, f) = classify(0, 0x100, 0, 0, [0, 0, u32::MAX, u32::MAX]);
         assert_eq!((h[0], f), (1, 0));
+    }
+
+    /// What 32 polls of a controller in `state` (rest `rest`) classify as, a kind above 2 with
+    /// x the first axis, y the second and z the third.
+    fn learnt(state: [u32; 6], rest: [u32; 6]) -> u32 {
+        use crate::input::joystick::{SELECT_SECOND, poll_axes};
+        let moved = from_rest(&state, &rest);
+        let [x, y, z] = poll_axes(
+            3,
+            |place| if place == SELECT_SECOND { 1 } else { 2 },
+            |n| moved[n as usize],
+        );
+        let mut history = [0u32; 4];
+        let mut found = 0;
+        for _ in 0..32 {
+            (history, found) = classify(0, x, y, z, history);
+        }
+        found
+    }
+
+    /// A pedal resting at an end of its travel is never a direction; one moved from there is;
+    /// a controller resting at its centre reads as it did.
+    #[test]
+    fn learning_from_rest() {
+        let end = (-32768i32) as u32;
+        let mut rest = [0u32; 6];
+        rest[1] = end;
+        // Read without its rest the pedal wins a direction it never moved.
+        assert_eq!(learnt(rest, [0; 6]), 0x100);
+        // Read from its rest it counts as nothing.
+        assert_eq!(learnt(rest, rest), 0);
+        // The first axis pushed left, or the third pushed, with the pedal still: those count.
+        let mut now = rest;
+        now[0] = (-0x400i32) as u32;
+        assert_eq!(learnt(now, rest), 0x400);
+        let mut now = rest;
+        now[0] = 0x400;
+        assert_eq!(learnt(now, rest), 0x800);
+        let mut now = rest;
+        now[2] = 0x400;
+        assert_eq!(learnt(now, rest), 0x200);
+        // The pedal itself moved from its end.
+        let mut now = rest;
+        now[1] = 0;
+        assert_eq!(learnt(now, rest), 0x100);
+        // Centre-resting as before.
+        let mut now = [0u32; 6];
+        now[0] = 0x400;
+        assert_eq!(learnt(now, [0; 6]), 0x800);
+        assert_eq!(learnt([0; 6], [0; 6]), 0);
     }
 
     #[test]

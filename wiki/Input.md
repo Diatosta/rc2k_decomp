@@ -63,7 +63,8 @@ line). In a race the sticks and triggers belong to driving only (below).
 
 Once per frame, `update_input` (`src/input/keys.rs`) copies the key table and works out which
 keys went down *this frame* (with auto-repeat for held keys). The race's own keys read that:
-pause, the view change, the screenshot key (`race_keys` in `src/race/frame.rs`).
+the view change, the screenshot key (`race_keys` in `src/race/frame.rs`). The pause binding
+("pausa") and Escape ask the "leave?" question (`drive::race_loop`).
 
 Driving does not read keys this way. It reads the players' devices.
 

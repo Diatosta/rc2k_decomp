@@ -65,3 +65,17 @@ pub fn axis_moved(eax: u32, input: &crate::input::owner::Input) -> Result<Moved,
         },
     )
 }
+
+/// `device_state` of the first input device with its axes measured from where they rested when
+/// the learning began (`axis_moved` with 0): the x, y and z the poll works out from each axis's
+/// movement, and the buttons.
+pub fn first_device_state_from_rest(
+    input: &crate::input::owner::Input,
+) -> Result<[u32; 4], BadInput> {
+    let Some(device) = input.devices.device(0) else {
+        return Err(BadInput("no first input device record"));
+    };
+    let rest: [u32; 6] = std::array::from_fn(|n| input.keyboard().axes_rest[n].get());
+    let [x, y, z] = crate::input::poll_device::axes_from_rest(&input.devices, device, &rest);
+    Ok([x, y, z, device.buttons.get()])
+}

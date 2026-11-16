@@ -1,5 +1,4 @@
-//! The race paused until a key. The hold count
-//! `hold_count` 0x19, five keys taken, the race's sounds stopped (`race::stop_race_sounds`),
+//! The race paused until a key. Five keys taken, the race's sounds stopped (`race::stop_race_sounds`),
 //! `scene_switch` 1, the two first blocks' notice 0xCB (+0x71C, +0x730 0, +0x72C -1); the
 //! wait `pause_wait` 30, held at 10 or more while the window is not active; each turn a key
 //! taken and the race's frame drawn (`drive::race_frame`, stream A's: through the game); with the
@@ -27,7 +26,6 @@ fn any_ending_key(input: &crate::input::owner::Input) -> u32 {
 pub fn pause_until_key(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (input, system) = (o.input, o.system);
     let shared = &race.shared;
-    shared.vars.get().hold_count.set(0x19);
     for _ in 0..5 {
         take_key(input);
     }

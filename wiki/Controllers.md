@@ -13,7 +13,8 @@ view). The keys are set per player in the game's options, on the "redefine keys"
 choose an action, then press the key for it. A key already used by another action swaps with
 it; a few reserved keys are not accepted.
 
-Escape in a race asks whether to leave it.
+Escape in a race asks whether to leave it; so does a player's pause binding ("pausa"), a key
+or a button of the player's controller.
 
 ## Gamepads
 
@@ -63,6 +64,10 @@ In the game's options, each player has a controller page and a buttons page:
 - **Dead zones**: two of them, which can be raised until little travel is left between them.
 - **Buttons and axes**: which axis steers, which is the throttle and the brake, and which
   buttons do the rest.
+
+Learning a button or an axis (the page asks for the control for three seconds) takes what moves
+from where the controller rests when the learning starts, so a pedal that rests at the end of
+its travel, a clutch for one, is not taken for the axis you moved.
 
 The choice is kept per player with the options. A player whose controller is not plugged in at
 start goes back to "none" (the keyboard).

@@ -45,13 +45,6 @@ pub fn countdown_beep(finished: u32, running: u32, elapsed: impl FnOnce() -> u32
     }
 }
 
-/// The hold one down, stopping at 0.
-pub fn hold_tick(hold: &mut u32) {
-    if *hold != 0 {
-        *hold -= 1;
-    }
-}
-
 /// How the beep is played (the sound and its volume).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct BeepSound {
@@ -106,15 +99,6 @@ mod tests {
                 cue: false
             }
         );
-    }
-
-    #[test]
-    fn hold() {
-        let mut h = 2;
-        hold_tick(&mut h);
-        hold_tick(&mut h);
-        hold_tick(&mut h);
-        assert_eq!(h, 0);
     }
 
     #[test]

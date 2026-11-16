@@ -26,6 +26,20 @@ fn selector(record: &InputDevice, place: u32) -> u8 {
     }
 }
 
+/// The record's three axes as `poll_device` works them out, with each of the six state axes
+/// taken from its value in `rest`.
+pub fn axes_from_rest(devices: &Devices, record: &InputDevice, rest: &[u32; 6]) -> [u32; 3] {
+    let from_rest = rc2k_core::input::devices::from_rest(
+        &std::array::from_fn(|n| state(devices, n as u32)),
+        rest,
+    );
+    rc2k_core::input::joystick::poll_axes(
+        record.kind.get(),
+        |place| selector(record, place),
+        |n| from_rest[n as usize],
+    )
+}
+
 /// The device `record` polled (see the header).
 pub fn poll_device(devices: &Devices, record: &InputDevice) -> Result<(), Refused> {
     let device = record.device.get();

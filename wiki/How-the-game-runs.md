@@ -151,8 +151,8 @@ Running the race means:
 
 `drive::race_loop` goes round once per picture drawn. Each time round:
 
-1. **Keys.** `race_keys` (`src/race/frame.rs`): pause, view changes, and Escape, which asks
-   whether to leave.
+1. **Keys.** `race_keys` (`src/race/frame.rs`): view changes and the like. Escape, or a
+   player's pause binding going down, asks whether to leave (`drive::race_loop`).
 2. **Simulation.** `drive::race_step` looks at how much time has passed and runs that many
    simulation **steps**, `drive::race_tick` each (the cars' part of a step is
    `drive::replay_step`, whether or not a replay is involved). The simulation always advances

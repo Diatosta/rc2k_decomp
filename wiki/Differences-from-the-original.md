@@ -19,6 +19,18 @@ The original was a 32-bit Windows program on DirectX. Its platform side was not 
 | The system's film player | The project's own decoders in Rust ([Films](Films)). |
 | Windows, 32 bits | Windows (32 and 64 bits), Linux, macOS, a handheld ([Platforms](Platforms)). |
 
+## Racing
+
+- The pause binding ("pausa", a button on a pad and a key on the keyboard) asks the same
+  "leave?" question as Escape, in place of the original's plain pause that waited for a key.
+  The race still pauses until a key when its window stops being the active one.
+
+## Controllers
+
+- Learning a control on the controller page counts only what moves from where the controller
+  rests when the learning starts, so an axis that rests at the end of its travel (a clutch
+  pedal) is not taken for a direction held.
+
 ## Installing
 
 - No registry. The installation's record is the file `var/install.cfg` in the game's folder,

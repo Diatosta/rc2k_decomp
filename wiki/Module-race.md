@@ -29,7 +29,7 @@ are in `blocks_store.rs`.
 | `open_viewed_replay`, `save_viewed_replay` | files of the same names | Opens a saved replay for the viewer; saves one into a slot. |
 | `draw_race_scene` | `src/race/draw_race_scene.rs` | Draws every player's view, then the overlays. |
 | `show_frame` | `src/race/show_frame.rs` | Puts the finished picture on the screen. |
-| `race_keys` | `src/race/frame.rs` | The race's own keys: pause, views, leaving. |
+| `race_keys` | `src/race/frame.rs` | The race's own keys: views and the like. |
 | `draw_car` | `src/race/car_draw.rs` | Draws a car from its parts. |
 | `draw_skidmarks` | `src/race/skidmarks.rs` | The skid marks on the road. |
 | `load_mud`, `init_mud` | `src/race/mud.rs` | Mud that gathers on a car's textures. |
