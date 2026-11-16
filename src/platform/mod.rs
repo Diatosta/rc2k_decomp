@@ -331,6 +331,7 @@ fn set_screen_mode(
 #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
 fn start_gpu_renderer(window: sdl::Window) -> Option<sdl::Renderer> {
     if !crate::render::gpu::wanted() {
+        log("render: the software rasteriser draws the 3D (--renderer or RC2K_RENDERER)");
         return None;
     }
     let device = if crate::render::choice::forced_failure("device") {

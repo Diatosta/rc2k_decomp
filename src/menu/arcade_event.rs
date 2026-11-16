@@ -17,6 +17,8 @@ struct Game<'a> {
     owners: crate::owners::Owners<'static>,
     cars: Option<CarList>,
     player0: crate::menu::standings::PlayerCell<'a>,
+    /// A launch's answer to the car choice, until it has given it.
+    answer: Option<crate::menu::launch::CarAnswer<'a>>,
 }
 
 /// The variables that are in the physics block.
@@ -104,7 +106,21 @@ impl arcade::Arcade for Game<'_> {
                 self.cars =
                     Some(m::cheat_car_list::cheat_car_list(menus).unwrap_or(CarList::Second));
             }
-            Step::SelectCarLoop => self.screen(ScreenId::SelectCar)?,
+            Step::SelectCarLoop => {
+                let handed = self.cars;
+                let answered = match (self.answer.as_mut(), handed) {
+                    (Some(answer), Some(list)) => answer(list)?,
+                    _ => None,
+                };
+                match answered {
+                    Some(list) => {
+                        self.answer = None;
+                        self.cars = Some(list);
+                        arcade::Arcade::set_flag(self, Switch::LeftByKey, false);
+                    }
+                    None => self.screen(ScreenId::SelectCar)?,
+                }
+            }
             Step::TakeShownCar => m::take_shown_car::take_shown_car(menus, self.cars)?,
             Step::NextStageLoop => self.screen(ScreenId::ArcadeNextStage)?,
             Step::TakeStageBest => {
@@ -156,6 +172,14 @@ impl Game<'_> {
 }
 
 pub fn arcade_event(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    arcade_event_with(o, None)
+}
+
+/// The arcade event with a launch's answer to its first car choice.
+pub fn arcade_event_with<'a>(
+    o: crate::owners::Owners<'static>,
+    answer: Option<crate::menu::launch::CarAnswer<'a>>,
+) -> Result<(), Refused> {
     let menus = o.menus;
     let player0 = crate::menu::standings::player(menus, 0);
     let mut game = Game {
@@ -163,6 +187,7 @@ pub fn arcade_event(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
         owners: o,
         cars: None,
         player0,
+        answer,
     };
     arcade::arcade_event(&mut game)
 }

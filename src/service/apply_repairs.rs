@@ -62,6 +62,27 @@ impl Driver for GameDriver {
     }
 }
 
+/// A clock that jumps a second at every reading, with no frames and no sleeping: the work goes
+/// through at once (a launch's tune, with no screen to show it).
+#[derive(Default)]
+struct QuietDriver {
+    now: u32,
+}
+
+impl Driver for QuietDriver {
+    fn clock(&mut self) -> u32 {
+        self.now = self.now.wrapping_add(1000);
+        self.now
+    }
+    fn frame(&mut self) {}
+    fn sleep(&mut self, _milliseconds: u32) {}
+}
+
+/// The chosen work carried out as `apply_repairs` does, without showing it.
+pub fn apply_repairs_unshown(menus: &Menus) -> Result<(), Refused> {
+    apply_repairs(menus, &mut QuietDriver::default())
+}
+
 /// The work on the current player's car, with `driver`'s time, frames and sleep.
 struct Game<'a> {
     menus: &'a Menus,

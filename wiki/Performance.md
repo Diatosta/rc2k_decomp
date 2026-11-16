@@ -89,7 +89,7 @@ in under half a second, where it took about four and a half with the pauses kept
 
 | Choice | Effect |
 | --- | --- |
-| `RC2K_RENDERER=software` | Forces the software rasteriser: no GPU needed, several cores used. |
+| `--renderer software` (or `RC2K_RENDERER=software`) | Forces the software rasteriser: no GPU needed, several cores used. |
 | One processor core | The views and mirrors are prepared one after another instead of side by side. The picture is the same. |
 | Split screen, mirrors, rain | More to draw per frame. |
 

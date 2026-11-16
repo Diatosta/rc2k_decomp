@@ -158,7 +158,8 @@ done. What the set-up values do to the car is described in [Car physics](Car-phy
 
 ## Starting a race from the command line
 
-`rc2k --stage langton --car felicia` starts a single rally without showing a menu. The switches
+`rc2k --stage langton --car felicia` starts a single rally without showing a menu; `--mode`
+starts a time trial, the arcade game or a new championship the same way. The switches
 are listed in [Running and options](Running-and-options). Here is the path they take:
 
 1. `rc2k_core::menu::launch` reads the switches (and the `--launch` file, if given) into a
@@ -170,15 +171,27 @@ are listed in [Running and options](Running-and-options). Here is the path they 
    compared in English whatever language the game runs in, without case, spaces or punctuation;
    a whole name wins over a part of one. A name that fits nothing, or several things, ends the
    program with a message that lists the choices.
-5. It then runs the ordinary single rally flow (`rounds::single_rally` or
-   `single_rally_split`) on a wrapper around the menus' `Game`, called `Launched`. The wrapper
-   answers the car choices and the stage choice from the launch the first time the flow asks,
-   leaving exactly what the car and stage screens leave when a choice is confirmed. Everything
-   else passes through to the real menus.
+5. It then runs the ordinary flow of the event (`--mode`: `rounds::single_rally` or
+   `single_rally_split`, `rounds::time_trial_one` or `time_trial_split`) on a wrapper around the
+   menus' `Game`, called `Launched`. The wrapper answers the car choices and the stage choice
+   (the single rally's or the time trial's stage screen) from the launch the first time the flow
+   asks, leaving exactly what the car and stage screens leave when a choice is confirmed.
+   Everything else passes through to the real menus. The time trial's service area is answered
+   once (`menu::time_trial_service::time_trial_service_unshown`): each player's figures and
+   entry kind as the area leaves them, with the launch's tune put into the car first
+   (`menu::launch::apply_tune`, through `service::apply_repairs` run on a clock that does not
+   wait).
+   The arcade (`--mode arcade`) starts the level as its item on the level screen does
+   (`menu::arcade_event`), and a championship through its start menu's starter
+   (`menu::start_event`); their flows are not `flow::Game`s, so each takes the launch's answer
+   to the car choice as a closure (`menu::launch::CarAnswer`), and their stages stay the
+   event's own.
 6. With `--seed`, the random numbers are reseeded as the stage begins to load
    (`menu::launch::stage_loading`).
 7. After the race the flow goes on as usual: results, then the menus. With `--then quit` the
-   program leaves through its normal save-and-close instead.
+   program leaves through its normal save-and-close instead (for the arcade and the
+   championships, at the end of the first race: `menu::launch::race_over`, called by
+   `race::single_rally_race`).
 
 So a launched race is the menus' own race. Nothing about the race, its results or the menus
 after it is a special case.

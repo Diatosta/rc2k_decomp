@@ -118,7 +118,7 @@ pub struct Gpu {
 /// The GPU, once asked for and made.
 pub static GPU: Mutex<Option<Gpu>> = Mutex::new(None);
 
-/// Whether a device is to be tried: unless `RC2K_RENDERER=software`.
+/// Whether a device is to be tried: unless `--renderer software` or `RC2K_RENDERER=software`.
 pub fn wanted() -> bool {
     super::choice::gpu_wanted()
 }

@@ -61,6 +61,7 @@ Three entries are made: "Rally", "Uninstall Rally" and "View Readme".
 | `var/` | options, best times, the game's log, the installation's record |
 | `savedata/` | saved games, saved replays, car set-ups, screenshots |
 | `rc2k.log` | the program's log, written anew at each start |
+| `rc2k.lock` | empty; the running program holds a lock on it, so that a second copy in the folder knows (`--allow-another` lets one start anyway) |
 
 The program always works in the folder it is started in: it looks for `files` and `var` there.
 The menu entries start it in the right folder.

@@ -8,7 +8,7 @@ own. None of them is read back by the game; they are for people. When something 
 
 | File | Written by | Holds |
 | --- | --- | --- |
-| `rc2k.log` | this program | Each step of start-up and shut-down, warnings, and the reason if the program stopped itself or crashed. |
+| `rc2k.log` | this program | Each step of start-up and shut-down, warnings, and the reason if the program stopped itself or crashed. A second copy started with `--allow-another` writes `rc2k-2.log` (and so on) instead. |
 | `var/logfile.txt` | the game's own log code, as in 1999 | What the game says about the machine, its data and each stage it loads. |
 | `var/imgui.ini` | the debug window | Where its windows and tables were left. |
 

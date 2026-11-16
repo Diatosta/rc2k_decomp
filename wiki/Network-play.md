@@ -53,6 +53,11 @@ every player is ready the host starts the race.
 **The race.** Each machine simulates its own car and sends its inputs and position; the others
 show it. Afterwards the results come up and the lobby returns for the next stage.
 
+## From the command line
+
+`rc2k --host` and `rc2k --join <address>` go straight to the lobby, with `--name` and `--port`
+for this run: see [Running and options](Running-and-options).
+
 ## Two copies on one machine
 
 For trying it out, two copies can run on the same computer: host in one, and in the other join

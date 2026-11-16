@@ -19,6 +19,44 @@ use crate::menu::owner::Menus;
 use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_loop::{Entry, run_screen};
 
+/// The service area for a launch: each counted player's service without its screens, pauses and
+/// repairs shown. `tune` is run for the current player where the area's choices would be made
+/// (after the figures, before the entry kind is set); a player out at inspection is refused, as
+/// there is no inspection page to show.
+pub fn time_trial_service_unshown(
+    menus: &Menus,
+    tune: &mut dyn FnMut(&Menus) -> Result<(), Refused>,
+) -> Result<(), Refused> {
+    use rc2k_core::menu::passes;
+    let screens = &menus.screens;
+    let event = &screens.event;
+    crate::menu::standings::counted_players(&menus.screens, &menus.play)?;
+    set(&event.service.minutes, passes::TIME_TRIAL_MINUTES);
+    set(&event.event_goes_on, 1);
+    let mut current = 0;
+    loop {
+        set(&event.current_player, current);
+        menus.service.repair_time.set(0);
+        { crate::menu::driver_stats::driver_stats(menus, screens) }?;
+        screens.state.menus.service_flag.set(false);
+        tune(menus)?;
+        crate::menu::set_player_entry_kind::set_player_entry_kind(menus)?;
+        let serviced = get(&event.current_player);
+        if serviced >= 4 {
+            return Err(BadInput("a current player past the four").into());
+        }
+        if passes::is_out(player(menus, serviced).get().entry) {
+            return Err(BadInput("a launched time trial's car is out at the inspection").into());
+        }
+        current += 1;
+        if current == get(&event.player_count) {
+            break;
+        }
+    }
+    set(&event.service.due, 0);
+    Ok(())
+}
+
 pub fn time_trial_service(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
     let screens = &menus.screens;
     let event = &screens.event;

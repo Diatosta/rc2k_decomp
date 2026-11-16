@@ -1,12 +1,24 @@
 //! A race or a replay started from the command line (`rc2k_core::menu::launch` reads the
-//! switches and the launch file). A race: the front end runs the menus' own single rally with the car and stage
+//! switches and the launch file). A race: the front end runs the menus' own event (`--mode`: the
+//! single rally, the time trial, the arcade or a new championship) with the car and stage
 //! choices answered from the launch, then goes on as if the player had made them.
+//!
+//! The time trial's service area, a championship's welcome and its screens before the first
+//! race are the player's, as in the menus; the launch answers only the car and stage choices.
+//! A championship is always a new one: a saved game is only written by the save menu, which a
+//! launch never opens, so a launch cannot overwrite a saved championship.
 //!
 //! What the answers leave is what the screens leave when a choice is confirmed: the car
 //! screen the shown car (its place in the handed list) and the gearbox; the stage screen the
 //! stage's group, rally and number, the map's mode and the race's stage and direction. A name or number
 //! the game does not have ends the program with a message naming what it has, before the
 //! race loads.
+//!
+//! A network game: the front end's own host or join item (`net::start_link`), run from the
+//! main menu's set-up with the settings the switches gave (the player's name, the host's
+//! address, the port) and the TCP/IP connection taken as the saved one, so that the settings
+//! screen and the connection list are not asked. A joined session is the first one listed.
+//! The settings the switches replaced are put back when the lobby is left.
 //!
 //! A replay: the replay viewer on a saved replay's slot or on a named file, as the replays
 //! menu's item runs it once a slot is chosen on its loading screen; the replay plays at once.
@@ -16,14 +28,16 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::flow_game::Game;
 use crate::menu::lists_store::CarListParts;
+use crate::menu::name_lists::NAME_LEN;
 use crate::menu::player::player;
 use crate::owners::Owners;
 use crate::records::stages_store::TrackField;
 use rc2k_core::menu::flow::CarList;
 use rc2k_core::menu::launch::{
-    Answers, Asked, Choice, Launch, LaunchError, Launched, Pick, REPLAY_SLOTS, Replay,
-    ReplayLaunch, Stage, Then,
+    ARCADE_LEVELS, Answers, Asked, Choice, Launch, LaunchError, Launched, Mode, NetLaunch, Pick,
+    REPLAY_SLOTS, Replay, ReplayLaunch, Role, Stage, Then,
 };
+use rc2k_core::menu::starters::{Championship, Seats};
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -96,25 +110,235 @@ pub fn run_once(entry: &crate::menu::screen_loop::Entry) -> Result<(), Refused> 
         Some(asked) if !RAN.swap(true, Ordering::Relaxed) => match asked {
             Asked::Race(launch) => run(entry.owners, launch),
             Asked::Replay(launch) => run_replay(entry.owners, launch),
+            Asked::Net(launch) => run_net(entry.owners, launch),
         },
         _ => Ok(()),
     }
 }
 
-/// The single rally with the launch's choices, run from the main menu's set-up; after it the
-/// main menu goes on.
+/// The first car choice(s) of an event whose flow is not the menus' `Game`'s (the arcade, a
+/// championship): given the car list the screen would show, the list the car was chosen in,
+/// or `None` when the screen is the player's.
+pub type CarAnswer<'a> = &'a mut dyn FnMut(CarList) -> Result<Option<CarList>, Refused>;
+
+/// Whether the program ends when the first race is over (a launch's `--then quit` in an event
+/// the launch's wrapper does not see the race of).
+static QUIT_AFTER_RACE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// A race is over (`race::single_rally_race`): the program ends if the launch asked for that
+/// after the first race of an arcade game or a championship.
+pub fn race_over(o: Owners<'static>) {
+    if QUIT_AFTER_RACE.swap(false, Ordering::Relaxed) {
+        crate::logfile::program_log::log("menu::launch: the race is over; leaving (--then quit)");
+        crate::standalone::leave_on_close(o);
+    }
+}
+
+/// The event the launch asks for, with the launch's choices, run from the main menu's set-up;
+/// after it the main menu goes on.
 fn run(o: Owners<'static>, launch: &Launch) -> Result<(), Refused> {
-    let stage = find_stage(o, launch)?;
-    let answers = GameAnswers { o, launch, stage };
     crate::logfile::program_log::log(&format!("menu::launch: {launch:?}"));
+    match launch.mode {
+        Mode::Single | Mode::TimeTrial => run_rounds(o, launch),
+        Mode::Arcade => run_arcade(o, launch),
+        Mode::Championship | Mode::A8 => run_championship(o, launch),
+    }
+}
+
+/// The single rally or the time trial: the menus' own flow on a `Game` that answers the car and
+/// stage choices.
+fn run_rounds(o: Owners<'static>, launch: &Launch) -> Result<(), Refused> {
+    let stage = find_stage(o, launch)?;
+    let answers = GameAnswers {
+        o,
+        launch,
+        stage: Some(stage),
+    };
     let players = launch.players;
     Game::new(o).run(|game| {
         let mut launched = Launched::new(game, answers, players);
-        match players {
-            1 => rc2k_core::menu::rounds::single_rally(&mut launched),
+        match (launch.mode, players) {
+            (Mode::TimeTrial, 1) => rc2k_core::menu::rounds::time_trial_one(&mut launched),
+            (Mode::TimeTrial, _) => rc2k_core::menu::rounds::time_trial_split(&mut launched),
+            (_, 1) => rc2k_core::menu::rounds::single_rally(&mut launched),
             _ => rc2k_core::menu::rounds::single_rally_split(&mut launched),
         }
     })
+}
+
+/// The settings a network launch replaces for its run, as they were.
+struct Kept {
+    machine_name: [u8; 64],
+    host_address: [u8; 64],
+    port: u32,
+    player_name: Vec<u8>,
+}
+
+impl Kept {
+    fn take(o: Owners<'static>) -> Result<Kept, Refused> {
+        let setup = o.net.setup();
+        let names = &o.menus.play.slots.names.player_names;
+        Ok(Kept {
+            machine_name: setup.machine_name.read(),
+            host_address: setup.host_address.read(),
+            port: setup.port.get(),
+            player_name: names.read_at(0, NAME_LEN, "player 1's name")?,
+        })
+    }
+
+    fn put_back(&self, o: Owners<'static>) {
+        let setup = o.net.setup();
+        setup.machine_name.write(&self.machine_name);
+        setup.host_address.write(&self.host_address);
+        setup.port.set(self.port);
+        // The room was read whole above.
+        let _ =
+            o.menus
+                .play
+                .slots
+                .names
+                .player_names
+                .write_at(0, &self.player_name, "player 1's name");
+    }
+}
+
+/// A text as a NUL-padded field of `N` bytes.
+fn padded<const N: usize>(text: &str) -> [u8; N] {
+    let mut field = [0u8; N];
+    field[..text.len()].copy_from_slice(text.as_bytes());
+    field
+}
+
+/// The network game the launch asked for: the settings set, the host or join item's own
+/// function run, the settings put back; after it the main menu goes on, or the program ends.
+fn run_net(o: Owners<'static>, launch: &NetLaunch) -> Result<(), Refused> {
+    crate::logfile::program_log::log(&format!("menu::launch: {launch:?}"));
+    let kept = Kept::take(o)?;
+    let setup = o.net.setup();
+    let mode = match &launch.role {
+        Role::Host => 1,
+        Role::Join(host) => {
+            setup.host_address.write(&padded(host));
+            2
+        }
+    };
+    if let Some(name) = &launch.name {
+        let field = padded::<NAME_LEN>(name);
+        o.menus
+            .play
+            .slots
+            .names
+            .player_names
+            .write_at(0, &field, "player 1's name")?;
+        setup.machine_name.write(&padded(name));
+    }
+    if let Some(port) = launch.port {
+        setup.port.set(u32::from(port));
+    }
+    // The only connection offered is TCP/IP; as the saved one it is taken without the list.
+    setup.saved_connection.write(&crate::net::store::SP_TCPIP);
+    let result = crate::net::start_link::start_link_launched(o, mode);
+    kept.put_back(o);
+    result?;
+    if launch.then == Then::Quit {
+        crate::logfile::program_log::log("menu::launch: the lobby is left; leaving (--then quit)");
+        crate::standalone::leave_on_close(o);
+    }
+    Ok(())
+}
+
+/// What an event the wrapper does not see the race of waits for: the seed, and the end after
+/// the first race.
+fn prepare_unwrapped(launch: &Launch) {
+    if let Some(seed) = launch.seed {
+        SEED.store(WAITING | u64::from(seed), Ordering::Relaxed);
+    }
+    QUIT_AFTER_RACE.store(launch.then == Then::Quit, Ordering::Relaxed);
+}
+
+/// The answerer of the first `players` car choices.
+fn car_answers<'a>(
+    answers: &'a GameAnswers<'a>,
+    players: u32,
+) -> impl FnMut(CarList) -> Result<Option<CarList>, Refused> + 'a {
+    let mut left = players;
+    move |handed| {
+        if left == 0 {
+            return Ok(None);
+        }
+        left -= 1;
+        answers.choose_car(handed).map(Some)
+    }
+}
+
+/// The arcade's level, as its item on the level screen starts it: the screen's first item
+/// starts the first level (the game's level 0) and is always open; each of the five after it
+/// starts a level (1 .. 5) that its opened mark, set by winning the level before, opens. A level
+/// not open is refused here (the item plays its closed sound).
+fn run_arcade(o: Owners<'static>, launch: &Launch) -> Result<(), Refused> {
+    use rc2k_core::menu::arcade::level_open;
+    let (menus, play) = (o.menus, &o.menus.play);
+    // The level as the screen counts it: 1 is its start item, 2 .. 6 its level items 1 .. 5.
+    let shown = launch.level.unwrap_or(1);
+    let answers = GameAnswers {
+        o,
+        launch,
+        stage: None,
+    };
+    let mut answer = car_answers(&answers, 1);
+    if shown == 1 {
+        play.arcade.start_level(0);
+    } else {
+        let level = shown - 1;
+        if !level_open(play.cheats.cheats.get(), || {
+            play.arcade.opened(level as usize - 1)
+        }) {
+            let marks: Vec<String> = (0..ARCADE_LEVELS as usize - 1)
+                .map(|i| play.arcade.opened(i).to_string())
+                .collect();
+            refuse(&format!(
+                "arcade level {shown} is not open (the opened marks of levels 2 .. {ARCADE_LEVELS}: {}): win the level before it, or turn on the Unlock Arcade cheat",
+                marks.join(" ")
+            ));
+        }
+        play.arcade.start_level(level);
+    }
+    prepare_unwrapped(launch);
+    crate::menu::take_player1_units::take_player1_units(menus, o.strings)?;
+    crate::menu::arcade_event::arcade_event_with(o, Some(&mut answer))
+}
+
+/// A new championship for the players, as the start menu's item starts it.
+fn run_championship(o: Owners<'static>, launch: &Launch) -> Result<(), Refused> {
+    let (championship, seats) = (
+        if launch.mode == Mode::A8 {
+            Championship::A8
+        } else {
+            Championship::First
+        },
+        if launch.players == 1 {
+            Seats::One
+        } else {
+            Seats::Split
+        },
+    );
+    let answers = GameAnswers {
+        o,
+        launch,
+        stage: None,
+    };
+    let mut answer = car_answers(&answers, launch.players);
+    prepare_unwrapped(launch);
+    crate::menu::start_event::start_event_with(
+        o,
+        &crate::menu::start_event::Starter {
+            kind: rc2k_core::menu::starters::Starter {
+                championship,
+                seats,
+            },
+        },
+        Some(&mut answer),
+    )
 }
 
 /// The replay viewer on the launch's replay, run from the main menu's set-up; after it the main
@@ -291,6 +515,10 @@ fn listing(names: &[(String, Option<Vec<u8>>)], which: Vec<usize>) -> String {
 
 /// The launch's stage on the screen's group, by name or by place.
 fn find_stage(o: Owners<'static>, launch: &Launch) -> Result<Place, Refused> {
+    let stage = launch
+        .stage
+        .as_ref()
+        .ok_or(BadInput("a launch of a stage choice without a stage"))?;
     let stages = &o.system.records().stage_tables;
     let group = match &launch.stage_set {
         None => 0,
@@ -318,7 +546,7 @@ fn find_stage(o: Owners<'static>, launch: &Launch) -> Result<Place, Refused> {
             names.push((format!("{}-{number}", sub + 1), name().ok()));
         }
     }
-    let at = match &launch.stage {
+    let at = match stage {
         Stage::Place { rally, stage } => places
             .iter()
             .position(|p| p.sub + 1 == *rally && p.number == *stage)
@@ -336,7 +564,8 @@ fn find_stage(o: Owners<'static>, launch: &Launch) -> Result<Place, Refused> {
 struct GameAnswers<'l> {
     o: Owners<'static>,
     launch: &'l Launch,
-    stage: Place,
+    /// The stage the stage screen is answered with (the modes that have one).
+    stage: Option<Place>,
 }
 
 impl GameAnswers<'_> {
@@ -430,12 +659,15 @@ impl GameAnswers<'_> {
     /// The stage screen's confirmed choice: the place, the map on the choice, and the race's
     /// stage (the track entry's, which the stage panel keeps as it is drawn).
     fn choose_stage(&self) -> Result<(), Refused> {
+        let place = self
+            .stage
+            .ok_or(BadInput("a stage answered with none chosen"))?;
         let (menus, system) = (self.o.menus, self.o.system);
         let stages = &system.records().stage_tables;
         let chosen = &menus.screens.event.stage;
-        chosen.group.set(self.stage.group);
-        chosen.sub.set(self.stage.sub);
-        chosen.number.set(self.stage.number);
+        chosen.group.set(place.group);
+        chosen.sub.set(place.sub);
+        chosen.number.set(place.number);
         crate::menu::mark_stage_choice::mark_stage_choice(&menus.play.champ_view);
         let selection = crate::screens::draw_stage_records::selection_in(menus, system)?
             .ok_or(BadInput("no stage tables for the choice"))?;
@@ -449,15 +681,67 @@ impl GameAnswers<'_> {
             .set(track.get(stages, TrackField::Stage)?);
         // The direction: the arcade's set runs each stage the other way (the screen writes it as
         // it draws the chosen stage, as it does the stage).
-        self.o
-            .race
-            .shared
-            .state
-            .settings
-            .direction
-            .set(self.stage.group);
+        self.o.race.shared.state.settings.direction.set(place.group);
         Ok(())
     }
+}
+
+/// The current player's tune put into the car as the service area's choices end up there: a
+/// brake balance or steering sensitivity is the car's own value; a tyre, a gear ratio, a ride
+/// height or a stiffness that differs from the car's is chosen, its repair flagged, and the
+/// service area's own work (`service::apply_repairs`) carried out without showing it.
+fn apply_tune(o: Owners<'static>, tune: &rc2k_core::menu::launch::Tune) -> Result<(), Refused> {
+    let menus = o.menus;
+    use crate::service::pages::{GEAR_RATIO, RIDE_HEIGHT, SUSPENSION_STIFFNESS, TYRE};
+    use crate::service::state::{current_player, set_repair_flag};
+    if !tune.is_given() {
+        return Ok(());
+    }
+    let player = current_player(menus).ok_or(BadInput("a tune for a player that is not there"))?;
+    player.update(|car| {
+        if let Some(value) = tune.brake_balance {
+            car.brake_balance = value;
+        }
+        if let Some(value) = tune.steering {
+            car.steering_sensitivity = value;
+        }
+    });
+    let car = player.get();
+    let mut changed = false;
+    for (given, in_car, page) in [
+        (tune.gear_ratio, car.gear_ratio, GEAR_RATIO),
+        (tune.tyres, car.tyre, TYRE),
+        (tune.ride_height, car.ride_height, RIDE_HEIGHT),
+        (
+            tune.suspension,
+            car.suspension_stiffness,
+            SUSPENSION_STIFFNESS,
+        ),
+    ] {
+        if let Some(value) = given
+            && value != in_car
+        {
+            page.change.chosen(&menus.service).set(value);
+            set_repair_flag(&menus.service, page.item, 1);
+            changed = true;
+        }
+    }
+    if changed {
+        crate::service::apply_repairs::apply_repairs_unshown(menus)?;
+    }
+    let car = player.get();
+    let tyre = crate::files::ansi_text(&text(o, 0x4B0 + car.tyre)?).to_string();
+    crate::logfile::program_log::log(&format!(
+        "menu::launch: tune for player {}: tyre {} ({tyre}), gear ratio {}, ride height {}, stiffness {}, brake balance {}, steering {}",
+        menus.screens.event.current_player.get() + 1,
+        car.tyre,
+        car.gear_ratio,
+        car.ride_height,
+        car.suspension_stiffness,
+        car.brake_balance,
+        car.steering_sensitivity
+    ));
+    Ok(())
 }
 
 /// The car screen's gearbox names: strings 0x21F on, one per value.
@@ -478,6 +762,14 @@ impl Answers<Game<'static>> for GameAnswers<'_> {
 
     fn stage(&mut self, _game: &mut Game<'static>) -> Result<(), Refused> {
         self.choose_stage()
+    }
+
+    fn service(&mut self, _game: &mut Game<'static>) -> Result<(), Refused> {
+        let tune = &self.launch.tune;
+        let o = self.o;
+        crate::menu::time_trial_service::time_trial_service_unshown(o.menus, &mut |_| {
+            apply_tune(o, tune)
+        })
     }
 
     fn before_race(&mut self, _game: &mut Game<'static>) -> Result<(), Refused> {

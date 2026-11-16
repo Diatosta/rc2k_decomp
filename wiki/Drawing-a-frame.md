@@ -117,7 +117,7 @@ and texture coordinates.
 | Software | `src/render/software.rs`, `src/render/rasteriser.rs` | Anywhere, as the fallback or by choice. | The processor fills every triangle, with a depth buffer, texturing, blending and fog as the states say. The picture is cut into tiles spread over the processor's cores; the result is identical to one thread's. |
 
 `src/render/choice.rs` picks one at start: the GPU first, and if it cannot start, the software
-rasteriser. Setting the environment variable `RC2K_RENDERER=software` forces the rasteriser.
+rasteriser. The switch `--renderer software` (or the environment variable `RC2K_RENDERER=software`) forces the rasteriser.
 On the handheld the fallback rasteriser draws straight into the framebuffer.
 
 The renderers are expected to draw the same picture. The project's checks compare them (see

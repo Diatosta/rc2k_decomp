@@ -619,8 +619,9 @@ fn shut_down(o: Owners<'static>) {
 
 /// What the command line asks of the program before it starts, if anything: `--help` prints the
 /// list of switches (to the terminal it was started from, else in a message box) and ends; a
-/// `--` switch the program does not know is refused the same way, before anything loads. The
-/// code the program ends with, or None to go on.
+/// `--` switch the program does not know, or a value of the program's own switches it cannot
+/// take, is refused the same way, before anything loads. The code the program ends with, or
+/// None to go on.
 pub fn answer_command_line(args: &[String]) -> Option<i32> {
     use crate::platform::os::{Icon, message_box, print_to_terminal};
     let (text, code, icon) = if rc2k_core::cli::wants_help(args) {
@@ -630,12 +631,46 @@ pub fn answer_command_line(args: &[String]) -> Option<i32> {
             Icon::Information,
         )
     } else {
-        (rc2k_core::cli::unknown(args)? + "\n", 2, Icon::Warning)
+        let refusal = rc2k_core::cli::unknown(args).or_else(|| program_switches_refused(args));
+        (refusal? + "\n", 2, Icon::Warning)
     };
     if !print_to_terminal(&text) {
         message_box(icon, b"Rally Championship", text.as_bytes());
     }
     Some(code)
+}
+
+/// Why the switches that say how the program runs (`--renderer`) cannot be taken, if they
+/// cannot.
+fn program_switches_refused(args: &[String]) -> Option<String> {
+    let switches = match rc2k_core::system::program_switches::Switches::from_args(args) {
+        Ok(switches) => switches,
+        Err(why) => return Some(why),
+    };
+    let renderer = switches.renderer?;
+    match crate::render::choice::parse(&renderer) {
+        Some(_) => None,
+        None => Some(format!(
+            "--renderer {renderer}: not a renderer; the choices are {}",
+            crate::render::choice::names()
+        )),
+    }
+}
+
+/// The program ends at its start: another copy runs in this folder, said where the player
+/// reads it (the terminal, else a message box; no box in the test builds, which run without a
+/// screen to answer it).
+fn refuse_second_copy(why: &str) -> ! {
+    let text = format!("{why}\n");
+    if !crate::platform::os::print_to_terminal(&text) {
+        #[cfg(not(feature = "remote"))]
+        crate::platform::os::message_box(
+            crate::platform::os::Icon::Warning,
+            b"Rally Championship",
+            text.as_bytes(),
+        );
+    }
+    std::process::exit(3)
 }
 
 /// Starts the platform and goes through `start`. The current
@@ -650,8 +685,25 @@ pub fn run(log_file: &Path, frames: u32) -> ! {
     #[cfg(target_os = "macos")]
     let bundle_folder = crate::platform::os::enter_bundle_folder();
     // Absolute: the installer changes the current folder (`install::make_folders`).
-    let log_file = &std::path::absolute(log_file).unwrap_or_else(|_| log_file.to_path_buf());
+    let allow_another = rc2k_core::system::program_switches::Switches::from_args(
+        &std::env::args().skip(1).collect::<Vec<_>>(),
+    )
+    .is_ok_and(|switches| switches.allow_another);
+    // Held until the program ends. A refusal comes before the log is begun: the log of the
+    // copy that runs is not emptied.
+    let copy = match crate::single_copy::claim(allow_another) {
+        Ok(claim) => claim,
+        Err(why) => refuse_second_copy(&why),
+    };
+    let log_file = crate::single_copy::log_for(log_file, copy.number);
+    let log_file = &std::path::absolute(&log_file).unwrap_or(log_file);
     crate::logfile::program_log::start(log_file);
+    if copy.number > 1 {
+        log(&format!(
+            "standalone: copy {} in this folder (--allow-another): the options, saved games and the game's log are shared with the others",
+            copy.number
+        ));
+    }
     crate::gfx::draw2d::enable_from_environment();
     #[cfg(target_os = "macos")]
     match bundle_folder {

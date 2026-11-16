@@ -295,7 +295,9 @@ pub fn single_rally_race(
     start: u32,
     kind: u32,
 ) -> Result<(), Refused> {
-    guarded(o, start, kind, &mut |call| step(o, call))
+    guarded(o, start, kind, &mut |call| step(o, call))?;
+    crate::menu::launch::race_over(o);
+    Ok(())
 }
 
 /// The refusal, then the race, its calls done by `step`.

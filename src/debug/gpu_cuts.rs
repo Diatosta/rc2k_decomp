@@ -33,7 +33,7 @@ pub fn tab(race: &Race, ui: &Ui) {
     let fps = race.shared.switches.get().frame_rate.get();
     let flushes = crate::render::GPU_FLUSHES.load(Relaxed);
     let backend = if !crate::render::choice::gpu_wanted() {
-        "software rasteriser (RC2K_RENDERER=software)"
+        "software rasteriser (--renderer or RC2K_RENDERER)"
     } else if flushes > 0 {
         "SDL GPU"
     } else {

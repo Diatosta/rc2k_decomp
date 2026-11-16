@@ -48,8 +48,8 @@ Platforms:
 | Web (WebAssembly) | Experimental: it builds and starts, but does not show a picture yet. |
 
 Races are drawn on the GPU where one can be started (SDL's GPU device on the desktop,
-OpenGL ES on the handheld), otherwise by a software rasteriser. `RC2K_RENDERER=software`
-forces the rasteriser.
+OpenGL ES on the handheld), otherwise by a software rasteriser. `--renderer software`
+(or `RC2K_RENDERER=software`) forces the rasteriser.
 
 Measured figures:
 

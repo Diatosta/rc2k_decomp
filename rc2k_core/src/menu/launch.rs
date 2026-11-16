@@ -5,8 +5,18 @@
 //!
 //! Switches (each also `--name=value`; a launch file holds the same names as `name = value`
 //! lines, `#` starting a comment):
+//! - `--mode <single | time-trial | arcade | championship | a8>`: the kind of event, as the
+//!   mode menu starts it (`single`, the single rally, when not given). Each runs its own flow
+//!   with the launch's answers; a switch that does not fit the mode is refused with the reason.
+//! - `--tyres`, `--gear-ratio`, `--ride-height`, `--suspension`, `--brake-balance`,
+//!   `--steering` (time trial only): the car's tune, the service area's six values; the service
+//!   area is not shown. Each not given stays as the player's record has it.
 //! - `--stage <name>` or `--stage <rally>-<stage>` (1-based, the stage screen's order): the
-//!   stage; a launch needs it.
+//!   stage; a single rally and a time trial need it, the arcade's and the championships' stages
+//!   come with the event.
+//! - `--level <1 .. 6>`: the arcade's level as the level screen shows them (1 unless given: its
+//!   start item; a level not yet opened by winning the one before it is refused unless the
+//!   Unlock Arcade cheat is on).
 //! - `--stage-set <name or number>`: the stage screen's set (its group switch: the simulation's
 //!   or the arcade's, by the game's name for it or 1 / 2); the first unless given.
 //! - `--car <name>`, `--car2 <name>` (the second player's; the first's unless given):
@@ -14,17 +24,22 @@
 //!   that list (1-based); a car by name not in it is taken from every car's list, as the
 //!   "Unlock Cars" cheat shows it. The player's own car unless given.
 //! - `--gearbox <name or number>`: one of the game's three gearbox choices (1-based).
-//! - `--players 1|2`: one player, or two on a split screen.
+//! - `--players 1|2`: one player, or two on a split screen (the arcade has one player).
 //! - `--seed <n>` (decimal or `0x` hex): the random numbers start from it.
 //! - `--replay <slot or file>`: a replay instead of a race, played in the replay viewer as one
 //!   chosen in the replays menu is: a saved replay's slot (0 .. 99, the number at the end of its
 //!   file's name, `savedata\replay\replayNN`; the menu's pages count them the same way, twenty
 //!   a page from 0), or a replay file's path. No race switch goes with it.
 //! - `--then menus|quit`: after the race, its results and the menus (the default), or the
-//!   program ends. After a replay: the viewer stays until it is left, then the menus; or the
+//!   program ends (in a championship or the arcade: after the first race). After a replay: the viewer stays until it is left, then the menus; or the
 //!   program ends when the replay has played.
 //! - `--launch <file>`: the rest from a file; switches on the command line come after it and
 //!   win.
+//! - `--host` or `--join <address>`: straight into the network lobby, hosting a session or
+//!   joining the host's (a host name or number, with `:port` if it is not the usual one);
+//!   `--name <name>` is the player's name there, `--port <number>` the TCP/IP port; both for
+//!   this run only. No race or replay switch goes with them (the lobby chooses the race); in a
+//!   launch file `join`, `name` and `port` are lines (`--host` is a switch only).
 //!
 //! Switches of other parts (`--load-old-options`, the original's `-a`, `-c`, ..) are left alone.
 
@@ -197,6 +212,139 @@ pub fn english_name(id: u32) -> Option<&'static str> {
         .map(|(_, name)| *name)
 }
 
+/// The kind of event a launch starts, as the mode menu's items start them.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Mode {
+    /// The single rally.
+    #[default]
+    Single,
+    TimeTrial,
+    Arcade,
+    /// The first championship (the game's "Mobil One Championship").
+    Championship,
+    /// The A8 championship.
+    A8,
+}
+
+impl Mode {
+    /// The names the switch takes, each mode's own first.
+    pub const NAMES: [&'static str; 5] = ["single", "time-trial", "arcade", "championship", "a8"];
+
+    /// The mode a `--mode` value names: its own name, or the same without case, dashes and
+    /// spaces, or a longer name the menus use for it.
+    pub fn read(value: &str) -> Result<Mode, LaunchError> {
+        let folded = Choice::fold(value.bytes());
+        Ok(match &folded[..] {
+            b"single" | b"singlerally" => Mode::Single,
+            b"timetrial" => Mode::TimeTrial,
+            b"arcade" => Mode::Arcade,
+            b"championship" | b"mobilonechampionship" => Mode::Championship,
+            b"a8" | b"a8championship" | b"a8rally" => Mode::A8,
+            _ => {
+                return Err(LaunchError(format!(
+                    "--mode: `{}` is none of {}",
+                    value.trim(),
+                    Mode::NAMES.join(", ")
+                )));
+            }
+        })
+    }
+
+    /// The mode's own name, as `--mode` takes it.
+    pub fn name(self) -> &'static str {
+        Mode::NAMES[self as usize]
+    }
+
+    /// Whether the mode's stages are chosen on the stage screen (the others bring their own).
+    pub fn chooses_stage(self) -> bool {
+        matches!(self, Mode::Single | Mode::TimeTrial)
+    }
+}
+
+/// The service area's tyres, in the order of its choice (the game's text numbers 0x4B0 on).
+pub const TYRES: [&str; 6] = [
+    "Slicks",
+    "Intermediate",
+    "Wets",
+    "Dry Gravel",
+    "Wet Gravel",
+    "Snow",
+];
+/// The service area's gear ratio choices.
+pub const GEAR_RATIOS: u32 = 5;
+/// The four sliders' positions: 0 up to this.
+pub const SLIDER_MAX: u32 = 100;
+
+/// The time trial's tune, each value as the car's record keeps it (`None`: as the record has it).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Tune {
+    /// The tyre's place in `TYRES`, 0-based.
+    pub tyres: Option<u32>,
+    /// The gear ratio choice, 0-based.
+    pub gear_ratio: Option<u32>,
+    pub ride_height: Option<u32>,
+    pub suspension: Option<u32>,
+    pub brake_balance: Option<u32>,
+    pub steering: Option<u32>,
+}
+
+impl Tune {
+    /// The switches that give a tune.
+    pub const KEYS: [&'static str; 6] = [
+        "tyres",
+        "gear-ratio",
+        "ride-height",
+        "suspension",
+        "brake-balance",
+        "steering",
+    ];
+
+    fn read(all: &Given) -> Result<Tune, LaunchError> {
+        let slider = |key| -> Result<Option<u32>, LaunchError> {
+            all.last(key)
+                .map(|v| one_of(key, v, 0, SLIDER_MAX))
+                .transpose()
+        };
+        let tyres = match all.last("tyres").map(Choice::read) {
+            None => None,
+            Some(choice) => {
+                let names: Vec<Option<&[u8]>> = TYRES.iter().map(|n| Some(n.as_bytes())).collect();
+                match choice.pick(&names) {
+                    Pick::Found(i) => Some(i as u32),
+                    _ => {
+                        return Err(LaunchError(format!(
+                            "--tyres: `{}` is none of {} (or 1 .. {})",
+                            all.last("tyres").unwrap_or("").trim(),
+                            TYRES.join(", "),
+                            TYRES.len()
+                        )));
+                    }
+                }
+            }
+        };
+        Ok(Tune {
+            tyres,
+            gear_ratio: all
+                .last("gear-ratio")
+                .map(|v| one_of("gear-ratio", v, 1, GEAR_RATIOS).map(|n| n - 1))
+                .transpose()?,
+            ride_height: slider("ride-height")?,
+            suspension: slider("suspension")?,
+            brake_balance: slider("brake-balance")?,
+            steering: slider("steering")?,
+        })
+    }
+
+    /// Whether any value is given.
+    pub fn is_given(&self) -> bool {
+        *self != Tune::default()
+    }
+}
+
+/// The arcade's levels a launch can start at, as the level screen counts them (the screen's
+/// start item, then its five level items).
+pub const ARCADE_LEVELS: u32 = 6;
+
 /// The stage: by name, or by its rally and stage (1-based).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Stage {
@@ -217,7 +365,13 @@ pub enum Then {
 /// A launch: what the command line and the launch file asked for.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Launch {
-    pub stage: Stage,
+    pub mode: Mode,
+    /// The stage, for the modes whose stages are chosen (`Mode::chooses_stage`).
+    pub stage: Option<Stage>,
+    /// The arcade's level, 1 .. 6 as the level screen counts (`None`: the first).
+    pub level: Option<u32>,
+    /// The time trial's tune.
+    pub tune: Tune,
     /// The stage screen's set (its group).
     pub stage_set: Option<Choice>,
     /// Per player.
@@ -239,7 +393,18 @@ impl std::fmt::Display for LaunchError {
 }
 
 /// The switches that take a value (the next word, or after `=`).
-pub const VALUED: [&str; 10] = [
+pub const VALUED: [&str; 21] = [
+    "join",
+    "name",
+    "port",
+    "mode",
+    "level",
+    "tyres",
+    "gear-ratio",
+    "ride-height",
+    "suspension",
+    "brake-balance",
+    "steering",
     "replay",
     "stage",
     "stage-set",
@@ -251,6 +416,9 @@ pub const VALUED: [&str; 10] = [
     "then",
     "launch",
 ];
+
+/// The switches that take none (the launch file has no lines for them).
+pub const FLAGS: [&str; 1] = ["host"];
 
 /// The launch's values as given, before they are checked.
 #[derive(Default)]
@@ -283,6 +451,13 @@ fn switches<S: AsRef<str>>(args: &[S]) -> Result<Vec<(String, String)>, LaunchEr
             Some((k, v)) => (k, Some(v.to_string())),
             None => (long, None),
         };
+        if FLAGS.contains(&key) {
+            if inline.is_some() {
+                return Err(LaunchError(format!("--{key} takes no value")));
+            }
+            out.push((key.to_string(), String::new()));
+            continue;
+        }
         if !VALUED.contains(&key) {
             continue;
         }
@@ -376,15 +551,160 @@ pub struct ReplayLaunch {
     pub then: Then,
 }
 
+/// The longest player name the lobby takes, in bytes.
+pub const NAME_LONGEST: usize = 30;
+/// The longest address the settings screen's field holds, in bytes.
+pub const ADDRESS_LONGEST: usize = 63;
+
+/// What a network launch does in the lobby's place: make the session, or join one.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Role {
+    Host,
+    /// The host to join: its name or number, as the settings screen's address field holds it.
+    Join(String),
+}
+
+/// A launch into the network lobby.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NetLaunch {
+    pub role: Role,
+    /// The player's name for this run; the player's own unless given.
+    pub name: Option<String>,
+    /// The TCP/IP port for this run; the saved one (or the usual) unless given.
+    pub port: Option<u16>,
+    pub then: Then,
+}
+
 /// What the command line and the launch file asked for.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Asked {
     Race(Launch),
     Replay(ReplayLaunch),
+    Net(NetLaunch),
+}
+
+/// A host's address as `--join` gives it: a name or an IPv4 number, then `:port` if it is
+/// not the usual one. Gives the host and the port. (The network code takes IPv4 only.)
+pub fn host_address(value: &str) -> Result<(String, Option<u16>), LaunchError> {
+    let bad = |why: &str| LaunchError(format!("--join: `{value}` is not an address: {why}"));
+    let v = value.trim();
+    let (host, port) = match v.split_once(':') {
+        None => (v, None),
+        Some((host, port)) if !port.contains(':') => (host, Some(port)),
+        Some(_) => return Err(bad("only IPv4 addresses and names are taken")),
+    };
+    if host.is_empty() {
+        return Err(bad("no host before the colon"));
+    }
+    if host.len() > ADDRESS_LONGEST {
+        return Err(bad(&format!("longer than {ADDRESS_LONGEST} characters")));
+    }
+    let label_ok = |l: &str| {
+        !l.is_empty()
+            && !l.starts_with('-')
+            && !l.ends_with('-')
+            && l.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-')
+    };
+    if !host.split('.').all(label_ok) {
+        return Err(bad("a host name is letters, digits, hyphens and dots"));
+    }
+    let numbers_only = host.bytes().all(|b| b.is_ascii_digit() || b == b'.');
+    if numbers_only && host.parse::<std::net::Ipv4Addr>().is_err() {
+        return Err(bad("a number address is four numbers up to 255"));
+    }
+    let port = match port {
+        None => None,
+        Some(p) => Some(port_number("join", p)?),
+    };
+    Ok((host.to_string(), port))
+}
+
+fn port_number(key: &str, value: &str) -> Result<u16, LaunchError> {
+    match number(key, value).map(u16::try_from) {
+        Ok(Ok(port)) if port != 0 => Ok(port),
+        _ => Err(LaunchError(format!(
+            "--{key}: `{value}` is not a port (1 to 65535)"
+        ))),
+    }
+}
+
+fn player_name(value: &str) -> Result<String, LaunchError> {
+    let name = value.trim();
+    if name.is_empty()
+        || name.len() > NAME_LONGEST
+        || !name.bytes().all(|b| (0x20..0x7F).contains(&b))
+    {
+        return Err(LaunchError(format!(
+            "--name: `{value}` is not a name (1 to {NAME_LONGEST} letters, digits, spaces or signs of ASCII)"
+        )));
+    }
+    Ok(name.to_string())
+}
+
+/// The network launch the values ask for, if they ask for one.
+fn net_launch(all: &Given) -> Result<Option<NetLaunch>, LaunchError> {
+    let (host, join) = (all.last("host").is_some(), all.last("join"));
+    if !host && join.is_none() {
+        return match ["name", "port"].iter().find(|key| all.last(key).is_some()) {
+            Some(key) => Err(LaunchError(format!(
+                "--{key} goes with --host or --join (the lobby's switches)"
+            ))),
+            None => Ok(None),
+        };
+    }
+    if host && join.is_some() {
+        return Err(LaunchError(
+            "--host and --join do not go together: one machine hosts, the others join".into(),
+        ));
+    }
+    let way = if host { "--host" } else { "--join" };
+    let replay_or_race = RACE_ONLY
+        .iter()
+        .chain(&["replay"])
+        .find(|k| all.last(k).is_some());
+    if let Some(other) = replay_or_race {
+        return Err(LaunchError(format!(
+            "{way} does not go with --{other}: a lobby chooses its own race"
+        )));
+    }
+    let mut port = all
+        .last("port")
+        .map(|v| port_number("port", v))
+        .transpose()?;
+    let role = match join {
+        None => Role::Host,
+        Some(address) => {
+            let (host, in_address) = host_address(address)?;
+            match (port, in_address) {
+                (Some(a), Some(b)) if a != b => {
+                    return Err(LaunchError(format!(
+                        "--join names port {b} and --port {a}: give one"
+                    )));
+                }
+                (None, found) => port = found,
+                _ => {}
+            }
+            Role::Join(host)
+        }
+    };
+    Ok(Some(NetLaunch {
+        role,
+        name: all.last("name").map(player_name).transpose()?,
+        port,
+        then: then(all)?,
+    }))
 }
 
 /// The switches that choose a race's parts: none goes with a replay, which holds its own.
-const RACE_ONLY: [&str; 7] = [
+const RACE_ONLY: [&str; 15] = [
+    "mode",
+    "level",
+    "tyres",
+    "gear-ratio",
+    "ride-height",
+    "suspension",
+    "brake-balance",
+    "steering",
     "stage",
     "stage-set",
     "car",
@@ -440,6 +760,9 @@ impl Asked {
         if all.values.is_empty() {
             return Ok(None);
         }
+        if let Some(net) = net_launch(&all)? {
+            return Ok(Some(Asked::Net(net)));
+        }
         let Some(named) = all.last("replay") else {
             return Launch::from_given(&all).map(|l| Some(Asked::Race(l)));
         };
@@ -458,25 +781,88 @@ impl Asked {
 impl Launch {
     /// The race the given values ask for.
     fn from_given(all: &Given) -> Result<Launch, LaunchError> {
+        let mode = match all.last("mode") {
+            Some(v) => Mode::read(v)?,
+            None => Mode::Single,
+        };
         let stage = match all.last("stage") {
-            Some(v) => stage(v)?,
-            None => return Err(LaunchError("a launch needs --stage or --replay".into())),
+            Some(v) => Some(stage(v)?),
+            None if mode == Mode::Single => {
+                return Err(LaunchError("a launch needs --stage or --replay".into()));
+            }
+            None if mode.chooses_stage() => {
+                return Err(LaunchError(format!(
+                    "--mode {} needs --stage (the stage to race)",
+                    mode.name()
+                )));
+            }
+            None => None,
         };
         let players = match all.last("players") {
             Some(v) => one_of("players", v, 1, 2)?,
             None => 1,
         };
+        let level = match all.last("level") {
+            Some(v) if mode == Mode::Arcade => Some(one_of("level", v, 1, ARCADE_LEVELS)?),
+            _ => None,
+        };
         let car = all.last("car").map(Choice::read);
         let car2 = all.last("car2").map(Choice::read).or_else(|| car.clone());
-        Ok(Launch {
+        let launch = Launch {
+            mode,
             stage,
+            level,
+            tune: Tune::read(all)?,
             stage_set: all.last("stage-set").map(Choice::read),
             cars: [car, car2],
             gearbox: all.last("gearbox").map(Choice::read),
             players,
             seed: all.last("seed").map(|v| number("seed", v)).transpose()?,
             then: then(all)?,
-        })
+        };
+        launch.refuse_what_does_not_fit(all)?;
+        Ok(launch)
+    }
+
+    /// The switches given that the mode has no use for, refused with the reason.
+    fn refuse_what_does_not_fit(&self, all: &Given) -> Result<(), LaunchError> {
+        let name = self.mode.name();
+        let own_stages = "the arcade's levels hold their own stages";
+        let in_order = "a championship's stages come in its order";
+        let only_arcade = "only the arcade has levels";
+        let misfits: &[(&str, &str)] = match self.mode {
+            Mode::Single | Mode::TimeTrial => &[("level", only_arcade)],
+            Mode::Arcade => &[
+                ("stage", own_stages),
+                ("stage-set", own_stages),
+                ("car2", "the arcade has one player"),
+            ],
+            Mode::Championship | Mode::A8 => &[
+                ("stage", in_order),
+                ("stage-set", in_order),
+                ("level", only_arcade),
+            ],
+        };
+        if self.mode != Mode::TimeTrial
+            && let Some(key) = Tune::KEYS.iter().find(|key| all.last(key).is_some())
+        {
+            return Err(LaunchError(format!(
+                "--{key} does not go with --mode {name}: only a time trial has the service area's tune"
+            )));
+        }
+        for (key, why) in misfits {
+            if all.last(key).is_some() {
+                return Err(LaunchError(format!(
+                    "--{key} does not go with --mode {name}: {why}"
+                )));
+            }
+        }
+        if self.mode == Mode::Arcade && self.players != 1 {
+            return Err(LaunchError(
+                "--players 2 does not go with --mode arcade: the arcade has one player".into(),
+            ));
+        }
+        Ok(())
     }
 }
 
@@ -488,7 +874,7 @@ pub fn log_path<S: AsRef<str>>(args: &[S]) -> Option<String> {
         let word = args[i].as_ref();
         i += 1;
         if let Some(long) = word.strip_prefix("--") {
-            if !long.contains('=') && VALUED.contains(&long) {
+            if !long.contains('=') && crate::cli::takes_value(word) {
                 i += 1;
             }
             continue;
@@ -508,6 +894,8 @@ pub trait Answers<G: Game> {
     fn car(&mut self, game: &mut G) -> Result<(), G::Error>;
     /// The stage screen's choice, as the screen leaves it when a stage is confirmed.
     fn stage(&mut self, game: &mut G) -> Result<(), G::Error>;
+    /// The time trial's service area, answered with the launch's tune instead of shown.
+    fn service(&mut self, game: &mut G) -> Result<(), G::Error>;
     /// Just before the launched race.
     fn before_race(&mut self, game: &mut G) -> Result<(), G::Error>;
     /// Just after it.
@@ -521,6 +909,7 @@ pub struct Launched<'g, G, A> {
     answers: A,
     cars_left: u32,
     stage_left: bool,
+    serviced: bool,
     raced: bool,
 }
 
@@ -531,6 +920,7 @@ impl<'g, G: Game, A: Answers<G>> Launched<'g, G, A> {
             answers,
             cars_left: players,
             stage_left: true,
+            serviced: false,
             raced: false,
         }
     }
@@ -558,11 +948,16 @@ impl<G: Game, A: Answers<G>> Game for Launched<'_, G, A> {
                 self.game.set_flag(Switch::LeftByKey, false);
                 self.answers.car(self.game)
             }
-            Call::SelectStageLoop if self.stage_left => {
+            Call::SelectStageLoop | Call::TimeTrialSelectStage if self.stage_left => {
                 self.stage_left = false;
                 self.game.set(Var::Answer, 0);
                 self.game.set_flag(Switch::EventLeft, false);
                 self.answers.stage(self.game)
+            }
+            Call::TimeTrialService if !self.serviced => {
+                self.serviced = true;
+                self.game.set(Var::Answer, 0);
+                self.answers.service(self.game)
             }
             Call::Race { .. } if !self.raced => {
                 self.raced = true;
@@ -606,6 +1001,7 @@ mod tests {
             a.map(|a| match a {
                 Asked::Race(launch) => launch,
                 Asked::Replay(replay) => panic!("a replay: {replay:?}"),
+                Asked::Net(net) => panic!("a lobby: {net:?}"),
             })
         })
     }
@@ -651,6 +1047,299 @@ mod tests {
         }
     }
 
+    fn lobby(args: &[&str]) -> Result<Option<NetLaunch>, LaunchError> {
+        Asked::from_args(args, &mut |_| Ok("join = box.local # a file".into())).map(|a| {
+            a.map(|a| match a {
+                Asked::Net(net) => net,
+                other => panic!("not a lobby: {other:?}"),
+            })
+        })
+    }
+
+    #[test]
+    fn host_and_join_read() {
+        let host = lobby(&[
+            "--host",
+            "--name",
+            "Ann Lee",
+            "--port=5000",
+            "--then",
+            "quit",
+        ])
+        .unwrap()
+        .unwrap();
+        assert_eq!(
+            host,
+            NetLaunch {
+                role: Role::Host,
+                name: Some("Ann Lee".into()),
+                port: Some(5000),
+                then: Then::Quit,
+            }
+        );
+        let join = lobby(&["--join", "127.0.0.1"]).unwrap().unwrap();
+        assert_eq!(join.role, Role::Join("127.0.0.1".into()));
+        assert_eq!((join.name, join.port, join.then), (None, None, Then::Menus));
+        let join = lobby(&["--join=game.example.org:47700"]).unwrap().unwrap();
+        assert_eq!(join.role, Role::Join("game.example.org".into()));
+        assert_eq!(join.port, Some(47700));
+        let from_file = lobby(&["--launch", "a.txt", "--name", "Bo"])
+            .unwrap()
+            .unwrap();
+        assert_eq!(from_file.role, Role::Join("box.local".into()));
+        assert_eq!(from_file.name.as_deref(), Some("Bo"));
+        assert_eq!(
+            lobby(&["--join", "h:80", "--port", "80"])
+                .unwrap()
+                .unwrap()
+                .port,
+            Some(80)
+        );
+    }
+
+    #[test]
+    fn lobby_refusals() {
+        let refused = |args: &[&str]| lobby(args).unwrap_err().0;
+        assert!(refused(&["--host", "--join", "a"]).contains("do not go together"));
+        assert!(refused(&["--host", "--stage", "langton"]).contains("--stage"));
+        assert!(refused(&["--join", "a", "--replay", "3"]).contains("--replay"));
+        assert!(refused(&["--name", "Ann"]).contains("--host or --join"));
+        assert!(refused(&["--port", "99"]).contains("--host or --join"));
+        assert!(refused(&["--host=yes"]).contains("no value"));
+        assert!(refused(&["--host", "--port", "0"]).contains("1 to 65535"));
+        assert!(refused(&["--host", "--port", "65536"]).contains("1 to 65535"));
+        assert!(refused(&["--host", "--name", ""]).contains("--name"));
+        assert!(refused(&["--host", "--name", &"x".repeat(31)]).contains("--name"));
+        assert!(refused(&["--host", "--name", "caf\u{e9}"]).contains("--name"));
+        assert!(refused(&["--join", "a:1", "--port", "2"]).contains("give one"));
+        assert!(refused(&["--join"]).contains("needs a value"));
+        assert!(refused(&["--host", "--then", "later"]).contains("--then"));
+    }
+
+    #[test]
+    fn addresses_read() {
+        let ok = |s: &str| host_address(s).unwrap();
+        assert_eq!(ok("192.168.1.2"), ("192.168.1.2".into(), None));
+        assert_eq!(ok(" box-1.lan:9 "), ("box-1.lan".into(), Some(9)));
+        for bad in [
+            "",
+            ":80",
+            "a b",
+            "a:",
+            "a:x",
+            "a:0",
+            "a:70000",
+            "a:1:2",
+            "::1",
+            "[::1]:5",
+            "-a",
+            "a-.b",
+            "a..b",
+            ".a",
+            "a.",
+            "1.2.3",
+            "1.2.3.4.5",
+            "300.1.1.1",
+            "ex_ample.org",
+        ] {
+            assert!(host_address(bad).is_err(), "`{bad}` taken");
+        }
+        assert!(host_address(&"a".repeat(64)).is_err());
+        assert!(host_address(&"a".repeat(63)).is_ok());
+    }
+
+    #[test]
+    fn every_mode_read() {
+        let mode = |args: &[&str]| read(args).map(|l| l.unwrap());
+        for (word, wanted) in [
+            ("single", Mode::Single),
+            ("Single-Rally", Mode::Single),
+            ("time-trial", Mode::TimeTrial),
+            ("timetrial", Mode::TimeTrial),
+            ("arcade", Mode::Arcade),
+            ("championship", Mode::Championship),
+            ("a8", Mode::A8),
+            ("A8 Championship", Mode::A8),
+        ] {
+            let stage = ["--stage", "langton"];
+            let args: Vec<&str> = if wanted.chooses_stage() {
+                ["--mode", word].into_iter().chain(stage).collect()
+            } else {
+                vec!["--mode", word]
+            };
+            let l = mode(&args).unwrap();
+            assert_eq!(l.mode, wanted, "{word}");
+            assert_eq!(l.stage.is_some(), wanted.chooses_stage(), "{word}");
+            assert_eq!(Mode::read(wanted.name()), Ok(wanted), "its own name");
+        }
+        assert_eq!(Mode::NAMES.len(), 5);
+        let bad = mode(&["--mode", "rally", "--stage", "x"]).unwrap_err();
+        assert!(
+            bad.0.contains("time-trial") && bad.0.contains("rally"),
+            "{bad}"
+        );
+        assert!(read(&["--mode"]).is_err(), "no value");
+    }
+
+    #[test]
+    fn modes_need_what_they_need() {
+        let refused = |args: &[&str]| read(args).unwrap_err().0;
+        assert!(refused(&["--mode", "single"]).contains("--stage"));
+        assert!(refused(&["--mode", "time-trial"]).contains("time-trial needs --stage"));
+        // The arcade and the championships bring their stages.
+        for mode in ["arcade", "championship", "a8"] {
+            for key in ["--stage", "--stage-set"] {
+                let said = refused(&["--mode", mode, key, "1"]);
+                assert!(said.contains(key) && said.contains(mode), "{said}");
+            }
+        }
+        // Levels are the arcade's.
+        for mode in ["single", "time-trial", "championship", "a8"] {
+            let said = refused(&["--mode", mode, "--stage", "x", "--level", "2"]);
+            let said = if mode == "single" || mode == "time-trial" {
+                said
+            } else {
+                refused(&["--mode", mode, "--level", "2"])
+            };
+            assert!(
+                said.contains("--level") && said.contains("only the arcade"),
+                "{said}"
+            );
+        }
+        let arcade = |args: &[&str]| {
+            let all: Vec<&str> = ["--mode", "arcade"].iter().chain(args).copied().collect();
+            read(&all)
+        };
+        assert_eq!(arcade(&[]).unwrap().unwrap().level, None);
+        assert_eq!(arcade(&["--level", "6"]).unwrap().unwrap().level, Some(6));
+        assert!(
+            arcade(&["--level", "7"])
+                .unwrap_err()
+                .0
+                .contains("between 1 and 6")
+        );
+        assert!(arcade(&["--level", "0"]).is_err());
+        assert!(
+            arcade(&["--players", "2"])
+                .unwrap_err()
+                .0
+                .contains("one player")
+        );
+        assert!(
+            arcade(&["--car2", "puma"])
+                .unwrap_err()
+                .0
+                .contains("one player")
+        );
+        let ok = arcade(&[
+            "--car",
+            "puma",
+            "--gearbox",
+            "2",
+            "--seed",
+            "3",
+            "--then",
+            "quit",
+        ])
+        .unwrap()
+        .unwrap();
+        assert_eq!((ok.then, ok.seed), (Then::Quit, Some(3)));
+        // Two players on a championship's split screen.
+        let two = read(&["--mode=a8", "--players", "2", "--car2", "x"])
+            .unwrap()
+            .unwrap();
+        assert_eq!((two.players, two.mode), (2, Mode::A8));
+        // A replay holds none of it.
+        for key in ["--mode", "--level"] {
+            let said = read(&["--replay", "3", key, "1"]).unwrap_err().0;
+            assert!(said.contains(key), "{said}");
+        }
+        // The launch file takes them too.
+        let file = Asked::from_args(&["--launch", "a"], &mut |_| {
+            Ok("mode = arcade\nlevel = 2".into())
+        });
+        assert!(matches!(file, Ok(Some(Asked::Race(l))) if l.level == Some(2)));
+    }
+
+    #[test]
+    fn the_time_trials_tune() {
+        let tt = |args: &[&str]| {
+            let all: Vec<&str> = ["--mode", "time-trial", "--stage", "langton"]
+                .iter()
+                .chain(args)
+                .copied()
+                .collect();
+            read(&all).map(|l| l.unwrap().tune)
+        };
+        assert_eq!(tt(&[]).unwrap(), Tune::default());
+        assert!(!Tune::default().is_given());
+        let tune = tt(&[
+            "--tyres",
+            "dry-gravel",
+            "--gear-ratio=5",
+            "--ride-height",
+            "0",
+            "--suspension",
+            "100",
+            "--brake-balance",
+            "40",
+            "--steering",
+            "55",
+        ])
+        .unwrap();
+        assert_eq!(
+            tune,
+            Tune {
+                tyres: Some(3),
+                gear_ratio: Some(4),
+                ride_height: Some(0),
+                suspension: Some(100),
+                brake_balance: Some(40),
+                steering: Some(55),
+            }
+        );
+        assert!(tune.is_given());
+        assert_eq!(tt(&["--tyres", "6"]).unwrap().tyres, Some(5), "by number");
+        assert_eq!(tt(&["--tyres", "snow"]).unwrap().tyres, Some(5));
+        assert!(
+            tt(&["--tyres", "wet"])
+                .unwrap_err()
+                .0
+                .contains("Wet Gravel")
+        );
+        for (args, said) in [
+            (["--tyres", "mud"], "--tyres"),
+            (["--tyres", "7"], "--tyres"),
+            (["--gear-ratio", "0"], "between 1 and 5"),
+            (["--gear-ratio", "6"], "between 1 and 5"),
+            (["--ride-height", "101"], "between 0 and 100"),
+            (["--steering", "x"], "not a number"),
+        ] {
+            let refused = tt(&args).unwrap_err().0;
+            assert!(refused.contains(said), "{refused}");
+        }
+        // Only a time trial has a tune.
+        for mode in ["single", "arcade", "championship", "a8"] {
+            let mut all = vec!["--mode", mode, "--brake-balance", "10"];
+            if mode == "single" {
+                all.extend(["--stage", "langton"]);
+            }
+            let refused = read(&all).unwrap_err().0;
+            assert!(
+                refused.contains("--brake-balance") && refused.contains("time trial"),
+                "{refused}"
+            );
+        }
+        let refused = read(&["--replay", "1", "--tyres", "1"]).unwrap_err().0;
+        assert!(refused.contains("--tyres"), "{refused}");
+        let file = Asked::from_args(&["--launch", "a"], &mut |_| {
+            Ok("mode = time-trial\nstage = x\ntyres = slicks\nsteering = 9".into())
+        });
+        assert!(
+            matches!(file, Ok(Some(Asked::Race(l))) if l.tune.tyres == Some(0) && l.tune.steering == Some(9))
+        );
+    }
+
     #[test]
     fn no_switches_no_launch() {
         assert_eq!(read(&["-a", "--load-old-options", "my.log"]), Ok(None));
@@ -672,7 +1361,8 @@ mod tests {
         ])
         .unwrap()
         .unwrap();
-        assert_eq!(l.stage, Stage::Name("Hamiltons Folly".into()));
+        assert_eq!(l.stage, Some(Stage::Name("Hamiltons Folly".into())));
+        assert_eq!(l.mode, Mode::Single);
         assert_eq!(l.cars, [Some(Choice::Number(3)), Some(Choice::Number(3))]);
         assert_eq!(
             (l.players, l.seed, l.then, l.stage_set),
@@ -688,7 +1378,7 @@ mod tests {
         assert_eq!(
             (l.stage, l.stage_set),
             (
-                Stage::Place { rally: 4, stage: 5 },
+                Some(Stage::Place { rally: 4, stage: 5 }),
                 Some(Choice::Name("arcade".into()))
             )
         );
@@ -710,7 +1400,7 @@ mod tests {
         ))
         .unwrap()
         .unwrap();
-        assert_eq!(l.stage, Stage::Name("langton".into()));
+        assert_eq!(l.stage, Some(Stage::Name("langton".into())));
         assert_eq!(l.cars[0], Some(Choice::Number(5)));
         assert_eq!(l.then, Then::Quit);
         let bad = Asked::from_args(&["--launch", "b"], &mut |_| Ok("weather = rain".into()));
@@ -774,6 +1464,11 @@ mod tests {
             Some("my.log".into())
         );
         assert_eq!(log_path(&["--stage=langton", "-a"]), None);
+        // Every valued switch of the table has its value passed over, not only the launch's.
+        assert_eq!(
+            log_path(&["--renderer", "software", "my.log", "--allow-another"]),
+            Some("my.log".into())
+        );
     }
 
     struct Noted;
@@ -785,6 +1480,10 @@ mod tests {
         }
         fn stage(&mut self, g: &mut Log) -> Result<(), <Log as Game>::Error> {
             g.set(Var::Round, 200);
+            Ok(())
+        }
+        fn service(&mut self, g: &mut Log) -> Result<(), <Log as Game>::Error> {
+            g.set(Var::Round, 250);
             Ok(())
         }
         fn before_race(&mut self, g: &mut Log) -> Result<(), <Log as Game>::Error> {
@@ -818,6 +1517,32 @@ mod tests {
             .unwrap();
         assert!(at("Round=300") < race && race < at("Round=400"));
         assert!(at("Round=400") < at("SelectStageLoop"));
+    }
+
+    #[test]
+    fn a_time_trial_answers_the_cars_and_the_stage_screen_of_its_own() {
+        // The time trial's stage screen, then a yes on the stage choice after the race.
+        let mut log = Log::default().on("TimeTrialSelectStage", vec![vec![(Var::Answer, 1)]]);
+        super::super::rounds::time_trial_one(&mut Launched::new(&mut log, Noted, 1)).unwrap();
+        assert_eq!(log.count("SelectCarLoop"), 0, "the car answered");
+        assert_eq!(log.count("Round=100"), 1);
+        assert_eq!(log.count("Round=200"), 1, "the stage answered once");
+        assert_eq!(
+            log.count("TimeTrialSelectStage"),
+            1,
+            "the second is the screen's"
+        );
+        assert_eq!(log.count("Round=300"), 1);
+        assert_eq!(log.count("Round=400"), 1);
+        // The service area is answered once, not shown; a later round's is the screen's.
+        assert_eq!(log.count("TimeTrialService"), 0);
+        assert_eq!(log.count("Round=250"), 1);
+        let at = |step: &str| log.steps.iter().position(|s| s == step).unwrap();
+        assert!(at("Round=200") < at("Round=250"));
+        assert!(at("Round=250") < at("Round=300"));
+        let mut log = Log::default().on("TimeTrialSelectStage", vec![vec![(Var::Answer, 1)]]);
+        super::super::rounds::time_trial_split(&mut Launched::new(&mut log, Noted, 2)).unwrap();
+        assert_eq!((log.count("Round=100"), log.count("Round=200")), (2, 1));
     }
 
     #[test]

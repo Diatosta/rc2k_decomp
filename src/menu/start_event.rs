@@ -30,6 +30,8 @@ struct Game<'a> {
     menus: &'a crate::menu::owner::Menus,
     owners: crate::owners::Owners<'static>,
     cars: Option<CarList>,
+    /// A launch's answers to the car choices.
+    answer: Option<crate::menu::launch::CarAnswer<'a>>,
 }
 
 impl starters::Event for Game<'_> {
@@ -67,12 +69,22 @@ impl starters::Event for Game<'_> {
             }
             C::SelectCar(list) => {
                 self.cars = Some(list);
-                {
-                    run_screen(
-                        ScreenId::SelectCar,
-                        &Entry::with_cars(self.owners, self.cars),
-                    )
-                }?;
+                let answered = match self.answer.as_mut() {
+                    Some(answer) => answer(list)?,
+                    None => None,
+                };
+                match answered {
+                    Some(chosen_in) => {
+                        self.cars = Some(chosen_in);
+                        starters::Event::set_flag(self, Switch::LeftByKey, false);
+                    }
+                    None => {
+                        run_screen(
+                            ScreenId::SelectCar,
+                            &Entry::with_cars(self.owners, self.cars),
+                        )?;
+                    }
+                }
             }
             C::TakeShownCar => m::take_shown_car::take_shown_car(self.menus, self.cars)?,
             C::HideAllInGameOptions => {
@@ -105,6 +117,15 @@ fn var(menus: &crate::menu::owner::Menus, v: starters::Var) -> &PlainDword {
 
 /// Starts the event of a starter.
 pub fn start_event(o: crate::owners::Owners<'static>, s: &Starter) -> Result<(), Refused> {
+    start_event_with(o, s, None)
+}
+
+/// `start_event` with a launch's answers to the car choices.
+pub fn start_event_with<'a>(
+    o: crate::owners::Owners<'static>,
+    s: &Starter,
+    answer: Option<crate::menu::launch::CarAnswer<'a>>,
+) -> Result<(), Refused> {
     let menus = o.menus;
     // The logic is in `rc2k_core::menu::starters::start`. The players' own settings come back
     // afterwards (`menu::own_settings`).
@@ -115,6 +136,7 @@ pub fn start_event(o: crate::owners::Owners<'static>, s: &Starter) -> Result<(),
                 menus,
                 owners: o,
                 cars: None,
+                answer,
             },
         )
     })

@@ -25,7 +25,7 @@ enum Way {
     End,
 }
 
-fn link(o: Owners<'static>) -> Result<Way, Refused> {
+fn link(o: Owners<'static>, launched: bool) -> Result<Way, Refused> {
     let net = o.net;
     let lines = &crate::race::viewer_screen_store::NET_TEXTS;
     let vars = &net.vars;
@@ -58,7 +58,7 @@ fn link(o: Owners<'static>) -> Result<Way, Refused> {
     if !find_sessions::find_sessions(o, lines)? {
         return Ok(Way::Message(NO_SESSION));
     }
-    let session = choose_session::choose_session(o, lines)?;
+    let session = choose_session::choose_session(o, lines, launched)?;
     // Escape (a negative choice) is taken as a failure, so it shows the message too (kept as
     // is).
     if (session as i32) < 0 {
@@ -71,8 +71,18 @@ fn link(o: Owners<'static>) -> Result<Way, Refused> {
     })
 }
 
-/// A network game in `mode` (1 host, 2 join).
+/// A network game in `mode` (1 host, 2 join), as the menu's items start it.
 pub fn start_link(o: crate::owners::Owners<'static>, mode: u32) -> Result<(), Refused> {
+    run(o, mode, false)
+}
+
+/// A network game from the command line (`menu::launch`): as the menu's, with the session
+/// joined as soon as one is listed, instead of waiting for a choice from the sessions' list.
+pub fn start_link_launched(o: crate::owners::Owners<'static>, mode: u32) -> Result<(), Refused> {
+    run(o, mode, true)
+}
+
+fn run(o: crate::owners::Owners<'static>, mode: u32, launched: bool) -> Result<(), Refused> {
     let (net, race) = (o.net, o.race);
     let vars = &net.vars;
     use crate::net::*;
@@ -86,7 +96,7 @@ pub fn start_link(o: crate::owners::Owners<'static>, mode: u32) -> Result<(), Re
     take_player_settings::take_player_settings(race, &menus.play.slots);
     fill_own_player::fill_own_player(race, net, &menus.play.slots, &menus.options.snapshot())?;
     show_background::show_background(o)?;
-    match link(o)? {
+    match link(o, launched)? {
         Way::Message(n) => show_message::show_message(o, n)?,
         Way::End => {}
         Way::On => {

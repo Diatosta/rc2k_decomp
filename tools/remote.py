@@ -335,6 +335,13 @@ def stop():
             found = process(pid)
             if found and found[1] == 'rc2k':
                 os.kill(pid, 15)
+                # gone before this returns: a copy still on its way out holds the folder's lock
+                # (rc2k.lock), and the next start in the folder would be refused
+                end = time.time() + 10
+                while time.time() < end and process(pid) and process(pid)[0] != 'Z':
+                    time.sleep(0.05)
+                if process(pid) and process(pid)[0] != 'Z':
+                    os.kill(pid, 9)
             elif found and WINE:  # Wine's own processes for the game: its session, started apart
                 os.killpg(pid, 15)
         except (OSError, ValueError):

@@ -1,6 +1,7 @@
 //! The list screen of the sessions, like `net::choose_connection`'s, with the sessions listed
 //! again once a second; the highlighted session is found again by its GUID and stays highlighted
-//! (at the top when it is gone). A failed listing gives -2. Returns the session chosen.
+//! (at the top when it is gone). A failed listing gives -2. Returns the session chosen. A game
+//! started from the command line takes the first session listed without waiting for a key.
 
 use crate::errors::Refused;
 use crate::net::choose_connection::list_move;
@@ -54,7 +55,11 @@ fn refresh(o: crate::owners::Owners<'static>, lines: &NetTexts) -> Result<bool, 
     list_state.choice_before.set(top);
     Ok(true)
 }
-pub fn choose_session(o: crate::owners::Owners<'static>, lines: &NetTexts) -> Result<u32, Refused> {
+pub fn choose_session(
+    o: crate::owners::Owners<'static>,
+    lines: &NetTexts,
+    launched: bool,
+) -> Result<u32, Refused> {
     let (net, system) = (o.net, o.system);
     let list_state = &o.menus.list;
     let now = system.session.key_clock.ticks.get();
@@ -86,6 +91,9 @@ pub fn choose_session(o: crate::owners::Owners<'static>, lines: &NetTexts) -> Re
             .set(system.session.key_clock.ticks.get());
         let key = list_key(list_state, o.input)?;
         let any = net.link.sessions().get() != 0;
+        if any && launched {
+            return Ok(list_state.choice.get());
+        }
         if any && list_move(list_state, key, net.link.sessions().get()) {
             list_state.move_clock.set(list_state.frame_clock.get());
         } else if any && ListKey::of(key) == ListKey::Enter {

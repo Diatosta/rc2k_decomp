@@ -35,6 +35,7 @@ mod scene;
 mod screens;
 mod service;
 mod settings;
+mod single_copy;
 mod sound;
 pub mod standalone;
 mod strings;

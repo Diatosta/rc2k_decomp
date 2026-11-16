@@ -38,7 +38,7 @@ otherwise by the program's own software rasteriser, which needs no GPU at all.
 | Handheld | OpenGL ES 3.0, through the system's `libmali` | software rasteriser, races at half size |
 
 `rc2k.log` says which one started and, if the GPU one did not, why.
-`RC2K_RENDERER=software` forces the rasteriser ([Running and options](Running-and-options)).
+`--renderer software` (or `RC2K_RENDERER=software`) forces the rasteriser ([Running and options](Running-and-options)).
 
 ## Per-platform notes
 

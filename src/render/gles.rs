@@ -475,7 +475,7 @@ struct CanvasTexture {
 
 pub static GPU: Mutex<Option<Front>> = Mutex::new(None);
 
-/// Whether the GPU is to be tried: unless `RC2K_RENDERER=software`.
+/// Whether the GPU is to be tried: unless `--renderer software` or `RC2K_RENDERER=software`.
 pub fn wanted() -> bool {
     super::choice::gpu_wanted()
 }
@@ -1576,7 +1576,7 @@ pub fn start_if_wanted() {
         return;
     }
     if !wanted() {
-        log("render: the software rasteriser draws the 3D (RC2K_RENDERER=software)");
+        log("render: the software rasteriser draws the 3D (--renderer or RC2K_RENDERER)");
         return;
     }
     let (jobs, to_batch) = sync_channel(JOBS_WAITING);

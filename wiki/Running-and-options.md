@@ -42,29 +42,50 @@ program goes there too.
 
 ### Starting straight into a race
 
-These switches skip the films and the menus and start a single rally stage, as if it had been
-chosen in the menus. After the race come its results and then the menus, as usual.
+These switches skip the films and the menus and start an event, as if it had been chosen in the
+menus: by default a single rally stage, or with `--mode` a time trial, the arcade game or a new
+championship. After the race come its results and then the menus, as usual.
 
 ```sh
 rc2k --stage langton
 rc2k --stage "hamiltons folly" --car felicia --gearbox manual --players 2 --seed 42
 rc2k --stage 4-5 --stage-set arcade --then quit
 rc2k --launch my_race.txt
+rc2k --mode time-trial --stage langton --car felicia --then quit
+rc2k --mode arcade --level 3 --car puma
+rc2k --mode a8 --players 2 --car octavia --car2 puma
 ```
 
 | Switch | What it takes |
 | --- | --- |
-| `--stage` | The stage: its name, or `rally-stage` as two numbers in the stage screen's order, both counted from 1 (`4-5` is the fourth rally's fifth stage). A launch needs this one; the others are optional. |
+| `--mode` | The kind of event: `single` (the single rally, the default), `time-trial`, `arcade`, `championship` (the first championship, "Mobil One") or `a8` (the A8 championship). Without `--stage` a launch is refused for the single rally and the time trial; the arcade and the championships bring their own stages. |
+| `--level` | The arcade's level, `1` .. `6`, counted as the arcade's level screen shows them (`1` unless given: the screen's start item, then its five level items). A level not opened yet by winning the one before it (or by the Unlock Arcade cheat) is refused, as the screen refuses it. Only with `--mode arcade`. |
+| `--stage` | The stage: its name, or `rally-stage` as two numbers in the stage screen's order, both counted from 1 (`4-5` is the fourth rally's fifth stage). The single rally and the time trial need this one; the others are optional. |
 | `--stage-set` | The stage screen's set: `simulation` (the default) or `arcade`, or `1` / `2`. The arcade set runs each stage the other way. |
 | `--car` | Player 1's car, by name. Without it, the car the player last chose. |
 | `--car2` | Player 2's car. Without it, the same as `--car`. |
 | `--gearbox` | `manual`, `semi-automatic` or `automatic`, or `1` .. `3`. |
-| `--players` | `1`, or `2` for a split screen. |
+| `--players` | `1`, or `2` for a split screen (in a championship too). The arcade has one player. |
 | `--seed` | A number (decimal, or hexadecimal with `0x`): the race's random numbers start from it, so two runs with the same seed get the same random events. |
-| `--then` | `menus` (the default) or `quit`: with `quit` the program saves and ends when the race is over. |
+| `--then` | `menus` (the default) or `quit`: with `quit` the program saves and ends when the race is over (the first race of a championship or of the arcade game). |
 | `--launch` | A file holding the same settings. Switches typed on the command line as well win over the file's. |
 
 Each switch can also be written as `--name=value`.
+
+**The time trial's tune** (only with `--mode time-trial`; each one not given stays as it is):
+
+| Switch | What it takes |
+| --- | --- |
+| `--tyres` | `slicks`, `intermediate`, `wets`, `dry-gravel`, `wet-gravel` or `snow`, or `1` .. `6` in that order. |
+| `--gear-ratio` | `1` .. `5`: the choices the service area offers, counted from the first. |
+| `--ride-height` | `0` .. `100`: the slider's position (the number the set-up files hold). |
+| `--suspension` | `0` .. `100`: the suspension stiffness slider's position. |
+| `--brake-balance` | `0` .. `100`: the brake balance slider's position. |
+| `--steering` | `0` .. `100`: the steering sensitivity slider's position. |
+
+```sh
+rc2k --mode time-trial --stage langton --car felicia --tyres dry-gravel --steering 60 --then quit
+```
 
 **Names.** Stages, cars, gearboxes and stage sets are named in English, whatever language the
 game itself runs in. Names are compared without regard to capitals, spaces or punctuation, so
@@ -78,9 +99,33 @@ game itself runs in. Names are compared without regard to capitals, spaces or pu
 - A car that is not unlocked yet can still be named: it is taken from the list of every car,
   as the game's "Unlock Cars" cheat shows it.
 
+**Events.** Each event runs the menus' own flow for it, with the launch's answers to the car and
+stage choices; the rest is the player's, as in the menus.
+
+- Single rally and time trial: `--stage` is needed. Two players (`--players 2`) share a split
+  screen.
+- Time trial: the service area is not shown. The car is left as the player's record has it,
+  plus the tune the switches below give (the same for both players). No repairs are made.
+  The set-up values are put in as the service area's choices end up: brake balance and steering
+  sensitivity are the car's own values; a tyre, gear ratio, ride height or suspension stiffness
+  that differs from the car's is chosen and the service area's own work is carried out without
+  showing it (new tyres reset the tyre wear). The service time allowance does not limit a
+  launch's tune.
+- Arcade: `--level` (1 .. 6), `--car`, `--gearbox`. The level's six stages come in their order and a
+  failed race retries the level, as in the menus. `--stage`, `--stage-set`, `--car2` and
+  `--players 2` are refused: the arcade has fixed stages and one player.
+- Championship and A8: a new championship, with the car choice answered; its welcome and the
+  screens before the first stage are the player's. `--stage`, `--stage-set` and `--level` are
+  refused. A launch never starts or overwrites a saved championship: a saved game is written
+  only by the save menu, which a launch does not open, and a launch always begins a new
+  championship (to go on with a saved one, load it from the menus).
+- `--then quit` ends the program after the first race of any event.
+
 **Refusals.** If a name fits nothing, or fits more than one, the program does not guess. It
 stops before the race loads, with a message (in a box, and in `rc2k.log`) that lists the names
-to choose from. The same happens for a value that cannot be read, such as `--players 3`.
+to choose from. The same happens for a value that cannot be read, such as `--players 3` or
+`--mode rally`, and for a switch the event has no use for, such as `--stage` with
+`--mode arcade` (the message says why).
 
 **A launch file** holds one `name = value` line per setting, with the switches' names without
 the dashes. `#` starts a comment. For example, `my_race.txt`:
@@ -95,10 +140,40 @@ gearbox   = automatic
 players   = 2
 seed      = 0x2A
 then      = menus
+mode      = single
 ```
 
 A line that is not `name = value`, or names a setting that does not exist, stops the program
 with the file's name and the line's number.
+
+### Starting straight into the network lobby
+
+`--host` and `--join` skip the films and the menus and go to the network game's lobby, as if the
+network menu's host or join item had been chosen (the settings screen and the connection list
+are not shown). In the lobby everything goes on as usual: cars, ready, chat, the host chooses
+the stage and starts the race. When the lobby is left the menus come up. See
+[Network play](Network-play).
+
+```sh
+rc2k --host --name Ann
+rc2k --join 192.168.1.20 --name Bo
+rc2k --join game.example.org:47700 --then quit
+rc2k --host --port 47700
+```
+
+| Switch | What it takes |
+| --- | --- |
+| `--host` | Host a session. It takes no value. |
+| `--join` | The host to join: its name or its IPv4 number, with `:port` after it if the port is not the usual one. The session found at that address is joined as soon as it is listed; if the host is not up yet, the program waits for it (Escape gives up). |
+| `--name` | Your name in the lobby, up to 30 letters, digits, spaces or signs of ASCII. Without it, player 1's name. For this run only. |
+| `--port` | The TCP/IP port, 1 .. 65535, the same on every machine. Without it, the saved one (`port` in the `network` table of `var/rc2k.toml`) or 47624. For this run only; not saved. |
+| `--then` | As for a race: `menus` (the default) or `quit` when the lobby is left. |
+
+No race or replay switch goes with `--host` or `--join` (a lobby chooses its own race), and
+`--host` does not go with `--join`; `--name` and `--port` need one of them. A malformed address
+(`--join "a b"`, an IPv6 address, a number above 255, a port outside 1 .. 65535) stops the
+program with a message. In a launch file the lines are `join = host`, `name = ...` and
+`port = ...`; `--host` is a switch only.
 
 ### Starting straight into a replay
 
@@ -128,6 +203,32 @@ saving it from the viewer asks for a slot.
 If the slot holds no replay, or the file is not a replay of this game, the program stops
 before anything loads, with a message that says why and lists the saved replays by slot and
 name.
+
+### How the program runs here
+
+| Switch | Effect |
+| --- | --- |
+| `--renderer <gpu \| software>` | What draws the 3D. `gpu` (the default): the GPU first, the software rasteriser if no GPU renderer starts. `software`: the rasteriser only, which needs no GPU and uses several processor cores. On the handheld `gles` is another name for `gpu`. Any other value stops the program before anything loads, with the names that are valid. The switch wins over the environment variable `RC2K_RENDERER`. The log's `render:` lines say which renderer started. |
+| `--allow-another` | Start although another copy of the program already runs in this folder. Without it the second copy stops at once with a message that names this switch. |
+
+**Two copies in one folder.** The first copy holds a lock on `rc2k.lock` in the game's folder
+while it runs (the system lets it go when the program ends, even if it crashes); a copy that
+finds the lock taken stops. With `--allow-another` the copy starts beside it, takes the next
+number (`rc2k.lock.2`, up to eight copies) and, when the log's name was not given, writes
+`rc2k-2.log` instead of `rc2k.log`, so it does not empty the first copy's log. What the copies
+share, and what to expect:
+
+- The options (`var/rc2k.toml`) are written when a copy ends: **the last copy to quit wins**,
+  and what the other copies changed in the options screens is lost.
+- Saved games, replays, best times and the game's own log (`var/logfile.txt`) are the same
+  files for every copy: a save made in one is not seen by a copy that has already read the
+  folder, and the later write replaces the earlier.
+- Only one copy at a time can host a network game on the default port; the others can join it
+  (this is how two copies of the game play each other on one machine).
+- A second window needs its own place on the screen and its own sound: the copies do not
+  coordinate either.
+
+For two copies that must not touch each other's options and saves, use two game folders.
 
 ### The options files' switches
 
@@ -166,11 +267,11 @@ The layouts are on [Options files](Options-files) and [Settings files](Settings-
 
 ## Environment variables
 
-Two are useful to anyone:
+Two are useful to anyone (`RC2K_RENDERER` has a switch of its own, `--renderer`, which wins):
 
 | Variable | Effect |
 | --- | --- |
-| `RC2K_RENDERER` | `software` draws with the software rasteriser instead of the GPU. `gpu` (or nothing) is the default: the GPU first, the rasteriser if no GPU renderer starts. On the handheld `gles` means the same as `gpu`. An unknown value is noted in the log and ignored. |
+| `RC2K_RENDERER` | Same as `--renderer`, which outranks it: `software` draws with the software rasteriser instead of the GPU. `gpu` (or nothing) is the default: the GPU first, the rasteriser if no GPU renderer starts. On the handheld `gles` means the same as `gpu`. An unknown value is noted in the log and ignored. |
 | `RC2K_FRAMES` | A number: the program ends itself after that many pictures and leaves the last one in `rc2k_frame.raw`. For quick automated checks. |
 
 The rest are diagnostics for people working on the code. They change nothing unless set.

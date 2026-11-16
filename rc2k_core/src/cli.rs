@@ -7,29 +7,43 @@
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Group {
     Race,
+    Event,
+    Tune,
     Replay,
     AfterLaunch,
+    Network,
     Options,
+    Machine,
     Original,
     Help,
 }
 
 impl Group {
-    const ORDER: [Group; 6] = [
+    const ORDER: [Group; 10] = [
         Group::Race,
+        Group::Event,
+        Group::Tune,
         Group::Replay,
         Group::AfterLaunch,
+        Group::Network,
         Group::Options,
+        Group::Machine,
         Group::Original,
         Group::Help,
     ];
 
     fn title(self) -> &'static str {
         match self {
-            Group::Race => "Straight into a race (a launch needs --stage):",
+            Group::Race => "Straight into a race (a single rally and a time trial need --stage):",
+            Group::Tune => {
+                "The time trial's tune, as the service area sets it (--mode time-trial; the service area is not shown):"
+            }
+            Group::Event => "The kind of event a launch starts (the single rally unless given):",
             Group::Replay => "Straight into a replay:",
-            Group::AfterLaunch => "With either:",
+            Group::AfterLaunch => "With a race, a replay or the lobby:",
+            Group::Network => "Straight into the network lobby (no race switch goes with these):",
             Group::Options => "The options files:",
+            Group::Machine => "How the program runs here:",
             Group::Original => "The original program's switches:",
             Group::Help => "This list:",
         }
@@ -105,6 +119,54 @@ pub const SWITCHES: &[Switch] = &[
         Group::Race,
     ),
     switch(
+        "--mode",
+        Some("<single | time-trial | arcade | championship | a8>"),
+        "the event: the single rally, a time trial, the arcade, or a new championship",
+        Group::Event,
+    ),
+    switch(
+        "--level",
+        Some("<1 .. 6>"),
+        "the arcade's level as the level screen counts them (1 unless given; one not yet opened is refused)",
+        Group::Event,
+    ),
+    switch(
+        "--tyres",
+        Some("<slicks | intermediate | wets | dry-gravel | wet-gravel | snow>"),
+        "the tyres (or 1 .. 6, in that order)",
+        Group::Tune,
+    ),
+    switch(
+        "--gear-ratio",
+        Some("<1 .. 5>"),
+        "the gear ratio choice, counted from the first the service area offers",
+        Group::Tune,
+    ),
+    switch(
+        "--ride-height",
+        Some("<0 .. 100>"),
+        "the ride height slider's position, as the set-up files count it",
+        Group::Tune,
+    ),
+    switch(
+        "--suspension",
+        Some("<0 .. 100>"),
+        "the suspension stiffness slider's position",
+        Group::Tune,
+    ),
+    switch(
+        "--brake-balance",
+        Some("<0 .. 100>"),
+        "the brake balance slider's position",
+        Group::Tune,
+    ),
+    switch(
+        "--steering",
+        Some("<0 .. 100>"),
+        "the steering sensitivity slider's position",
+        Group::Tune,
+    ),
+    switch(
         "--replay",
         Some("<slot | file>"),
         "a saved replay's slot (0 .. 99), or a replay file's path",
@@ -113,7 +175,7 @@ pub const SWITCHES: &[Switch] = &[
     switch(
         "--then",
         Some("<menus | quit>"),
-        "after the race or the replay: the menus (the default), or the program ends",
+        "after the race, the replay or the lobby: the menus (the default), or the program ends",
         Group::AfterLaunch,
     ),
     switch(
@@ -121,6 +183,30 @@ pub const SWITCHES: &[Switch] = &[
         Some("<file>"),
         "the same settings from a file of `name = value` lines; switches typed as well win",
         Group::AfterLaunch,
+    ),
+    switch(
+        "--host",
+        None,
+        "host a network game: the lobby, with this machine's session in it",
+        Group::Network,
+    ),
+    switch(
+        "--join",
+        Some("<host[:port]>"),
+        "join the network game of that host (a name or an IPv4 number) and go to its lobby",
+        Group::Network,
+    ),
+    switch(
+        "--name",
+        Some("<player name>"),
+        "your name in the lobby (up to 30 letters, digits and signs), for this run only",
+        Group::Network,
+    ),
+    switch(
+        "--port",
+        Some("<1 .. 65535>"),
+        "the TCP/IP port, for this run only (the same on every machine; usually 47624)",
+        Group::Network,
     ),
     switch(
         "--load-old-options",
@@ -133,6 +219,18 @@ pub const SWITCHES: &[Switch] = &[
         None,
         "write the original's var/ral.dat as well when the options are saved",
         Group::Options,
+    ),
+    switch(
+        "--renderer",
+        Some("<gpu | software>"),
+        "what draws the 3D: the GPU (the default) or the software rasteriser; wins over RC2K_RENDERER",
+        Group::Machine,
+    ),
+    switch(
+        "--allow-another",
+        None,
+        "start although another copy runs in this folder (the last to quit wins the options)",
+        Group::Machine,
     ),
     switch("-v", None, "show the version and end", Group::Original),
     switch("-a", None, "no sound", Group::Original),
@@ -161,6 +259,12 @@ pub const SWITCHES: &[Switch] = &[
         Group::Help,
     ),
 ];
+
+/// Whether `name` (a switch with its dashes, no `=`) is a switch of the table that takes a
+/// value, which is then the next word.
+pub fn takes_value(name: &str) -> bool {
+    SWITCHES.iter().any(|s| s.name == name && s.value.is_some())
+}
 
 /// The words that ask for the list.
 const HELP_WORDS: [&str; 4] = ["--help", "-h", "-?", "/?"];
@@ -278,6 +382,28 @@ mod tests {
             assert!(
                 found.is_some_and(|s| s.value.is_some()),
                 "{name} is read by the launch but not listed with a value"
+            );
+        }
+        for key in crate::menu::launch::FLAGS {
+            let name = format!("--{key}");
+            let found = SWITCHES.iter().find(|s| s.name == name);
+            assert!(
+                found.is_some_and(|s| s.value.is_none()),
+                "{name} is read by the launch but not listed as a switch without a value"
+            );
+        }
+        for key in crate::system::program_switches::VALUED {
+            let name = format!("--{key}");
+            let found = SWITCHES.iter().find(|s| s.name == name);
+            assert!(
+                found.is_some_and(|s| s.value.is_some()),
+                "{name} is read by the program's switches but not listed with a value"
+            );
+        }
+        for name in crate::system::program_switches::PLAIN {
+            assert!(
+                SWITCHES.iter().any(|s| s.name == name && s.value.is_none()),
+                "{name} is read by the program's switches but not listed"
             );
         }
         for name in crate::options::files::SWITCHES {

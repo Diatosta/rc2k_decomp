@@ -1,4 +1,5 @@
-//! Which renderer the game asks for. `RC2K_RENDERER=software` forces the software rasteriser;
+//! Which renderer the game asks for. `--renderer software` or `RC2K_RENDERER=software` forces the
+//! software rasteriser (the switch outranks the environment variable);
 //! `gpu` (or nothing) means the default order: the GPU first, each renderer that cannot start
 //! falling back to the next. Desktop: the SDL GPU device, then SDL's own 2D renderer with the
 //! software rasteriser. Handheld: OpenGL ES, then the rasteriser into the framebuffer. What
@@ -26,15 +27,29 @@ pub fn parse(value: &str) -> Option<Wish> {
     }
 }
 
-/// The renderer wish from the environment's value, `wanted` (a renderer asked for some other
-/// way; the environment outranks it) and the default order. An unknown value is passed to
-/// `unknown` and skipped.
+/// The names `--renderer` takes on this platform, for the message that refuses another.
+pub fn names() -> &'static str {
+    if cfg!(all(target_os = "linux", target_arch = "aarch64")) {
+        "gpu, gles or software"
+    } else {
+        "gpu or software"
+    }
+}
+
+/// The renderer wish from the command line's `--renderer` value, the environment's value,
+/// `wanted` (a renderer asked for some other way) and the default order, in that order of
+/// weight. An unknown value is passed to `unknown` and skipped.
 pub fn decide(
+    switch: Option<&str>,
     env: Option<&str>,
     wanted: Option<&str>,
     mut unknown: impl FnMut(&str, &str),
 ) -> Wish {
-    for (source, value) in [("RC2K_RENDERER", env), ("the setting", wanted)] {
+    for (source, value) in [
+        ("--renderer", switch),
+        ("RC2K_RENDERER", env),
+        ("the setting", wanted),
+    ] {
         let Some(value) = value.filter(|v| !v.is_empty()) else {
             continue;
         };
@@ -46,13 +61,23 @@ pub fn decide(
     Wish::GpuFirst
 }
 
-/// What the environment asks for.
+/// The `--renderer` value among the program's words, if any (a missing value is refused at
+/// the start, `standalone::answer_command_line`).
+fn switch_value() -> Option<String> {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    rc2k_core::system::program_switches::Switches::from_args(&args)
+        .ok()?
+        .renderer
+}
+
+/// What the command line and the environment ask for.
 pub fn wish() -> Wish {
+    let switch = switch_value();
     let env = std::env::var("RC2K_RENDERER").ok();
-    decide(env.as_deref(), None, |source, value| {
+    decide(switch.as_deref(), env.as_deref(), None, |source, value| {
         crate::logfile::program_log::log(&format!(
-            "render: {source}: renderer `{value}` is not known here (gpu, gles or software): \
-             the default order"
+            "render: {source}: renderer `{value}` is not known here ({}): the default order",
+            names()
         ));
     })
 }
@@ -90,7 +115,7 @@ mod tests {
 
     #[test]
     fn the_environment_outranks_a_wanted_renderer() {
-        let wish = |env, wanted| decide(env, wanted, |_, _| {});
+        let wish = |env, wanted| decide(None, env, wanted, |_, _| {});
         assert_eq!(wish(None, None), Wish::GpuFirst);
         assert_eq!(wish(Some(""), None), Wish::GpuFirst);
         assert_eq!(wish(Some("software"), Some("gpu")), Wish::Software);
@@ -99,9 +124,18 @@ mod tests {
     }
 
     #[test]
+    fn the_switch_outranks_the_environment() {
+        let wish = |switch, env| decide(switch, env, None, |_, _| {});
+        assert_eq!(wish(Some("software"), Some("gpu")), Wish::Software);
+        assert_eq!(wish(Some("gpu"), Some("software")), Wish::GpuFirst);
+        assert_eq!(wish(None, Some("software")), Wish::Software);
+        assert_eq!(wish(Some("vulkan"), Some("software")), Wish::Software);
+    }
+
+    #[test]
     fn an_unknown_value_is_reported_and_the_next_source_decides() {
         let mut seen = Vec::new();
-        let wish = decide(Some("vulkan"), Some("software"), |s, v| {
+        let wish = decide(None, Some("vulkan"), Some("software"), |s, v| {
             seen.push((s.to_string(), v.to_string()));
         });
         assert_eq!(wish, Wish::Software);
