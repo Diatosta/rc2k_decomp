@@ -49,13 +49,15 @@ drive them, by turning a button into the pending key it stands for:
 
 | Button | In a menu | In a race |
 | --- | --- | --- |
-| D-pad | Move the highlight (repeats when held) | |
+| D-pad, or the left stick | Move the highlight (repeats when held) | |
 | South (A / Cross) | Enter | |
 | East (B / Circle) | Back (Escape) | |
 | Start | Enter | The pause and "leave?" question, as Escape |
 
-South and East also answer the race's yes/no question directly, whatever the language. The
-pad's sticks and triggers are not involved here; they belong to driving (below).
+South and East also answer the race's yes/no question directly, whatever the language. Outside
+a race the left stick counts as the D-pad: leaning it past about half its travel presses that
+direction, bringing it back within a third lets go (the gap keeps it from chattering near the
+line). In a race the sticks and triggers belong to driving only (below).
 
 ## Keys in a race
 
@@ -71,7 +73,10 @@ Driving does not read keys this way. It reads the players' devices.
 
 `src/platform/input.rs` lists SDL's joysticks in the order they were first seen. A device that
 is unplugged keeps its place in the list and reads as centred, so the players' controller
-numbers do not shift.
+numbers do not shift; the same model plugged back in takes that place again. When SDL reports a
+joystick added or removed, the input thread lists the new ones into the game's controllers'
+table (`list_new_joysticks` in `src/input/list_joysticks.rs`), so a pad plugged in after the
+start is offered on the controller pages and can be set up for a race.
 
 - A **gamepad** SDL knows is presented with a fixed layout: the left stick as two axes, both
   triggers together on one axis (resting in the middle), the right stick as two more, ten
@@ -171,7 +176,7 @@ Effects are started and stopped around a race (`src/input/begin_effects.rs`,
 ## The handheld
 
 On the Anbernic RG34XXSP the built-in controls are a gamepad to SDL, so everything above
-applies: the D-pad and face buttons work the menus through `menu_pad`, and driving uses the
+applies: the D-pad, the left stick and the face buttons work the menus through `menu_pad`, and driving uses the
 pad as a device with the player's bindings. SDL runs without a display there (the picture goes
 straight to the screen's framebuffer, `src/platform/handheld.rs`), but still provides the pad
 and the sound.

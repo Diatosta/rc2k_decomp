@@ -362,6 +362,16 @@ impl PolledEvent {
         Some((SDL_GamepadButton(button.button as i32), button.down))
     }
 
+    /// The axis and the value of a gamepad axis event (else `None`).
+    pub fn gamepad_axis(&self) -> Option<(SDL_GamepadAxis, i16)> {
+        if self.kind() != SDL_EVENT_GAMEPAD_AXIS_MOTION {
+            return None;
+        }
+        // SAFETY: the type says the `gaxis` record is the one SDL filled.
+        let axis = unsafe { self.0.gaxis };
+        Some((SDL_GamepadAxis(axis.axis as i32), axis.value))
+    }
+
     /// The scancode and the direction of a key event (else `None`).
     pub fn key(&self) -> Option<(i32, bool)> {
         if self.kind() != SDL_EVENT_KEY_DOWN && self.kind() != SDL_EVENT_KEY_UP {

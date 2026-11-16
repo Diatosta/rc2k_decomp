@@ -84,7 +84,7 @@ fn pad(button: SDL_GamepadButton, down: bool) {
 static STICK: Mutex<Option<(SDL_JoystickID, sdl_input::Joystick)>> = Mutex::new(None);
 
 /// `RC2K_REMOTE_STICK`: the stand-in stick plugged in as SDL's joysticks start, so the game
-/// lists it with the others (it looks for devices once, at its start).
+/// lists it with the others at its start (`joy attach` later is a pad plugged in while it runs).
 pub fn stick_at_start() {
     if std::env::var_os("RC2K_REMOTE_STICK").is_some() && folder().is_some() {
         let answer = stick(&["attach"]);

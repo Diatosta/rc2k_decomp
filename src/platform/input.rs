@@ -29,6 +29,15 @@ use sdl3_sys::everything::*;
 use std::collections::HashMap;
 use std::sync::Mutex;
 
+/// Set when SDL reports a joystick added or removed, for the input thread to list the new ones
+/// (`take_devices_changed`).
+static DEVICES_CHANGED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Whether a joystick came or went since the last call.
+pub fn take_devices_changed() -> bool {
+    DEVICES_CHANGED.swap(false, std::sync::atomic::Ordering::AcqRel)
+}
+
 /// The gamepads `pad_added` opened for the menus, by SDL's id.
 static MENU_PADS: Mutex<Vec<(SDL_JoystickID, Gamepad)>> = Mutex::new(Vec::new());
 
@@ -59,6 +68,7 @@ pub fn pad_added(id: SDL_JoystickID) {
     log(&format!(
         "platform: {name} appeared; a gamepad for the menus: {opened}"
     ));
+    DEVICES_CHANGED.store(true, std::sync::atomic::Ordering::Release);
 }
 
 /// A joystick has gone (SDL's event): the menus' gamepad of it closed.
@@ -72,6 +82,7 @@ pub fn pad_removed(id: SDL_JoystickID) {
         }
         pad_id != id
     });
+    DEVICES_CHANGED.store(true, std::sync::atomic::Ordering::Release);
 }
 
 struct Device {
@@ -183,6 +194,27 @@ impl SdlBackend {
         };
         let name = joystick.name();
         let product = joystick.guid();
+        // The same kind of device plugged back in takes the place it left (the first such),
+        // with its instance: the game's controller entry and the players' choice of it hold.
+        let back = self
+            .devices
+            .iter()
+            .position(|d| d.joystick.is_none() && d.info.product == product && d.info.name == name);
+        if let Some(n) = back {
+            let haptic = joystick.open_haptic();
+            let d = &mut self.devices[n];
+            d.sdl_id = id;
+            d.joystick = Some(joystick);
+            d.gamepad = gamepad;
+            d.features = haptic.map_or(0, Haptic::features);
+            d.haptic = haptic;
+            d.stick_moved = [false; 4];
+            log(&format!(
+                "platform: joystick {n}: \"{}\" is back",
+                d.info.name
+            ));
+            return;
+        }
         let mut instance = product;
         for (n, b) in id.0.to_le_bytes().iter().enumerate() {
             instance[n] ^= b;

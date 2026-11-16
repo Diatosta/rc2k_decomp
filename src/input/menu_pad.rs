@@ -64,12 +64,26 @@ pub enum PadButton {
 const REPEAT_AFTER: u64 = 400;
 const REPEAT_EVERY: u64 = 120;
 
+/// How far the left stick must lean (of 32767) to count as a direction, and how far back it
+/// must come to let go of it: the gap keeps a stick held near the line from chattering.
+const STICK_PRESS: i32 = 16000;
+const STICK_RELEASE: i32 = 10000;
+
+/// One of the left stick's two axes.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum StickAxis {
+    X,
+    Y,
+}
+
 #[derive(Default)]
 pub struct MenuPad {
     /// The direction held and when it next repeats.
     held: Option<(PadButton, u64)>,
     /// When START's Escape is let go.
     leave_until: Option<u64>,
+    /// The direction each stick axis (x, y) is leaning past the press line, if any.
+    stick: [Option<PadButton>; 2],
 }
 
 impl MenuPad {
@@ -102,6 +116,34 @@ impl MenuPad {
                 direction_of(direction)?
             }
         })
+    }
+
+    /// The left stick's axis moved to `value` (-32768 .. 32767, down and right positive) at
+    /// `now`: leaning past the press line is that direction of the pad's cross pressed (with
+    /// its repeat), coming back inside the release line lets go of it.
+    pub fn stick(&mut self, axis: StickAxis, value: i32, now: u64) -> Option<MenuAction> {
+        let (slot, negative, positive) = match axis {
+            StickAxis::X => (0, PadButton::DpadLeft, PadButton::DpadRight),
+            StickAxis::Y => (1, PadButton::DpadUp, PadButton::DpadDown),
+        };
+        let leaning = if value <= -STICK_PRESS {
+            Some(negative)
+        } else if value >= STICK_PRESS {
+            Some(positive)
+        } else if value.abs() > STICK_RELEASE {
+            // between the lines: as it was
+            self.stick[slot]
+        } else {
+            None
+        };
+        if leaning == self.stick[slot] {
+            return None;
+        }
+        if let Some(old) = self.stick[slot].take() {
+            self.button(old, false, false, now);
+        }
+        self.stick[slot] = leaning;
+        self.button(leaning?, true, false, now)
     }
 
     /// The held direction's repeat, if it is due at `now`.
@@ -171,6 +213,28 @@ mod tests {
         note_answer(&input, 7);
         assert_eq!(take_answer(&input), Some(7));
         assert_eq!(take_answer(&input), None);
+    }
+
+    #[test]
+    fn the_left_stick_is_the_cross() {
+        let mut p = MenuPad::default();
+        assert_eq!(p.stick(StickAxis::Y, -5000, 0), None);
+        assert_eq!(p.stick(StickAxis::Y, -20000, 10), Some(MenuAction::Up));
+        // held: no new press while it stays leaning, the repeat comes from `tick`
+        assert_eq!(p.stick(StickAxis::Y, -30000, 20), None);
+        assert_eq!(p.tick(410), Some(MenuAction::Up));
+        // back between the lines: still held
+        assert_eq!(p.stick(StickAxis::Y, -12000, 420), None);
+        assert_eq!(p.tick(530), Some(MenuAction::Up));
+        // back to the middle: let go
+        assert_eq!(p.stick(StickAxis::Y, -2000, 540), None);
+        assert_eq!(p.tick(5000), None);
+        // straight across to the other side
+        assert_eq!(p.stick(StickAxis::X, 20000, 6000), Some(MenuAction::Right));
+        assert_eq!(p.stick(StickAxis::X, -20000, 6010), Some(MenuAction::Left));
+        assert_eq!(p.tick(6410), Some(MenuAction::Left));
+        assert_eq!(p.stick(StickAxis::X, 0, 6420), None);
+        assert_eq!(p.tick(9000), None);
     }
 
     #[test]

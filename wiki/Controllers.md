@@ -23,7 +23,7 @@ Any gamepad SDL recognises works in the menus on every system, with nothing to s
 
 | Button | Does |
 | --- | --- |
-| D-pad | moves the highlight (held, it repeats) |
+| D-pad, or the left stick | moves the highlight (held, it repeats) |
 | South button (A on an Xbox pad) | Enter |
 | East button (B) | Escape / back |
 | West button (X) | the third answer, where a question has three |
@@ -67,8 +67,11 @@ In the game's options, each player has a controller page and a buttons page:
 The choice is kept per player with the options. A player whose controller is not plugged in at
 start goes back to "none" (the keyboard).
 
-Controllers are listed when the game looks for them; one plugged in while the program runs is
-opened as soon as SDL reports it, and one unplugged keeps its place and reads as at rest.
+A controller plugged in while the program runs is added to the list as soon as SDL reports it,
+so it can be chosen on the controller pages and driven with at once, without a restart. One
+unplugged keeps its place and reads as at rest; plugged back in (the same model), it takes that
+place again, so a player who had chosen it has it back. A player's saved controller that was not
+plugged in when the program started has gone back to "none": choose it again once it is in.
 
 ## Force feedback
 

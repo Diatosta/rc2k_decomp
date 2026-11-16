@@ -18,6 +18,10 @@ enum Event {
         button: SDL_GamepadButton,
         down: bool,
     },
+    Stick {
+        axis: crate::input::menu_pad::StickAxis,
+        value: i32,
+    },
     Other,
 }
 
@@ -49,6 +53,17 @@ fn next_event() -> Option<Event> {
         Event::Other
     } else if let Some((button, down)) = event.gamepad_button() {
         Event::Pad { button, down }
+    } else if let Some((axis, value)) = event.gamepad_axis() {
+        use crate::input::menu_pad::StickAxis;
+        let axis = match axis {
+            SDL_GAMEPAD_AXIS_LEFTX => StickAxis::X,
+            SDL_GAMEPAD_AXIS_LEFTY => StickAxis::Y,
+            _ => return Some(Event::Other),
+        };
+        Event::Stick {
+            axis,
+            value: value.into(),
+        }
     } else if let Some((scancode, down)) = event.key() {
         Event::Key { scancode, down }
     } else {
@@ -170,6 +185,15 @@ pub fn pump(o: crate::owners::Owners<'static>) {
                 }
             }
             Event::Pad { button, down } => pad_button(course, input, system, button, down),
+            // In a race the stick steers (the game's own devices): only the menus take it.
+            Event::Stick { axis, value } => {
+                if !course.numbers.get().in_race.is_set() {
+                    let now = u64::from(crate::platform::os::ticks());
+                    if let Some(action) = lock_menu_pad().stick(axis, value, now) {
+                        menu_action(input, action);
+                    }
+                }
+            }
             Event::Other => {}
         }
     }

@@ -94,6 +94,9 @@ pub fn input_thread(
                 }
             }
             input.devices.last_tick.set(last);
+            if crate::platform::input::take_devices_changed() {
+                crate::input::list_joysticks::list_new_joysticks(input, system);
+            }
             crate::input::input_tick::input_tick(input, sound, system, race)?;
             wait_while_unfocused(system);
             if system.session.flags.quitting.is_set() {
