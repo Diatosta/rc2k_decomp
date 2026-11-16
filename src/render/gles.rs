@@ -1098,7 +1098,7 @@ pub struct Front {
 /// Jobs waiting for the batching thread at most: a frame's part, its end, a little more; then
 /// the game waits. Past them, one being batched and `BATCHED_WAITING` batched wait for the GL:
 /// with fewer (one waiting in all, handed over directly) the game waited for the GL three
-/// times as long and the handheld drew about 8 % fewer frames (2026-11-13).
+/// times as long and the handheld drew about 8 % fewer frames.
 const JOBS_WAITING: usize = 2;
 
 /// Parts batched and waiting for the GL's thread at most.

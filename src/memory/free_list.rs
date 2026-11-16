@@ -5,8 +5,7 @@
 //! (also when it has no block). Then, if it has one: the list is emptied (head, total, and
 //! through `memory::rewind_list` the cursor and what remains, all 0) and each block is given back
 //! with `VirtualFree`, or, with the setting `altmemenable`, to the game's own heap
-//! (0x402A92). No block is put on a list any more (the own heap and the system's
-//! blocks removed 2026-11-07): a list holding one is refused.
+//! (0x402A92). No block is put on a list any more: a list holding one is refused.
 //! 38 callers.
 
 use crate::errors::BadInput;

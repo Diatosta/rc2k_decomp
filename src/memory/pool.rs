@@ -118,12 +118,16 @@ pub fn take(len: usize) -> &'static PoolBlock {
     let bytes = unsafe { std::slice::from_raw_parts(first.cast::<UnsafeCell<u8>>(), need) };
     let blocks = MADE.fetch_add(1, Relaxed) + 1;
     let total = MADE_BYTES.fetch_add(need, Relaxed) + need;
-    log(&format!(
-        "pointers: the pool maps {blocks} blocks, {} KiB of addresses (one of {} KiB made; a \
-         free block keeps its addresses, not its memory)",
-        total / 1024,
-        need / 1024
-    ));
+    // Said at each doubling of the count: a start makes several hundred blocks (one for each
+    // texture), and a line for each made the log hard to read.
+    if blocks.is_power_of_two() {
+        log(&format!(
+            "pointers: the pool maps {blocks} blocks, {} KiB of addresses (the last made of {} \
+             KiB; a free block keeps its addresses, not its memory)",
+            total / 1024,
+            need / 1024
+        ));
+    }
     Box::leak(Box::new(PoolBlock { bytes }))
 }
 

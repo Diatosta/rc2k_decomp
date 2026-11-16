@@ -1,6 +1,6 @@
-//! The game's three worker threads started: `threading::start_slot_thread` for the audio and
-//! net slots and the input thread's. The threads whose routines are not ported end at once; the
-//! audio thread's is `audio::thread`.
+//! The game's three worker threads started (`threading::start_slot_thread` for each slot): the
+//! input thread (`input::input_thread`), the audio thread (`audio::thread`) and the network's
+//! receiving thread (`net::receive_thread`).
 
 use crate::errors::Refused;
 use crate::threading::thread_slot::SlotOwners;
