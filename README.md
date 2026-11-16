@@ -1,3 +1,5 @@
+![Rally Championship](assets/banner.png)
+
 # Rally Championship 2000 Decomp
 
 This project was written with AI coding assistants (Claude) under the maintainer's
@@ -7,7 +9,8 @@ changes are checked with recorded races and replays and in play on PCs and the h
 A reimplementation in Rust of *Rally Championship 2000* (developed by Magnetic Fields; the
 program `RAL.EXE`). It is a complete program of its own, `rc2k`: none of the original's code runs.
 It reads the game's data files from the player's own copy of the game. No part of the
-game is included here.
+game is included here, but for its icon and its main menu's background picture, which stand
+as the project's icon and banner (`assets/`).
 
 ## How it came about
 
@@ -292,8 +295,11 @@ The project's own code is under the GNU General Public License, version 3 or (at
 option) any later version (GPL-3.0-or-later); see [LICENSE](LICENSE).
 
 *Rally Championship 2000* and its data belong to their owners. This repository contains
-neither the original program nor any of the game's data files (pictures, stages, cars,
-sounds, films); they are needed from your own copy of the game. The project is not
+neither the original program nor the game's data files (stages, cars, sounds, films,
+pictures); they are needed from your own copy of the game. The one exception is `assets/`:
+the project's icon is the car and the title of the game's loading picture (the art the
+original program's 32 x 32 icon reduces) on its plain blue, and its banner is the main menu's
+title on that blue; they remain their owners'. The project is not
 affiliated with or endorsed by the game's developers or publishers.
 
 Some of the original program's own built-in data is present in the source, because the
