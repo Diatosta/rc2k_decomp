@@ -111,6 +111,32 @@ The program writes its log to `rc2k.log` in the folder it runs in. To remove the
 An existing installation of the original game also works without the installer: put the
 program into the folder that holds `files` and `var` and start it there.
 
+### Starting straight into a race
+
+Switches on the command line skip the menus and start a single rally stage, as if it had been
+chosen there; afterwards come its results and the menus.
+
+```sh
+rc2k --stage langton
+rc2k --stage "hamiltons folly" --car felicia --gearbox manual --players 2 --seed 42
+rc2k --launch my_race.txt
+```
+
+| Switch | What it takes |
+| --- | --- |
+| `--stage` | the stage's name as the game shows it, or `rally-stage` (e.g. `5-5`, 1-based) |
+| `--stage-group` | the stage screen's group, `1` or `2` (1 unless given) |
+| `--car`, `--car2` | a car of the car screen's list for player 1 (and 2), by name or by its place in the list; the player's own car unless given |
+| `--gearbox` | one of the car screen's gearbox choices, by name or 1 .. 3 |
+| `--players` | `1`, or `2` on a split screen |
+| `--seed` | a number: the random numbers of the race start from it |
+| `--then` | `menus` (the default) or `quit`: the program ends after the race |
+| `--launch` | a file holding the same settings as `name = value` lines (`#` starts a comment); switches typed as well win |
+
+Names are matched without case, spaces or punctuation, and a part of a name is enough when
+only one name holds it (`--car 106`, `--gearbox manual`). A name or number the game does not
+have stops the program with a message listing what it has.
+
 ### The handheld
 
 There is no installer step on the Anbernic RG34XXSP. The program is built on a PC and

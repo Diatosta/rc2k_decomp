@@ -141,6 +141,7 @@ pub mod item_sprites_store;
 pub mod keep_record_best;
 pub mod keep_stage_best;
 pub mod keys_store;
+pub mod launch;
 pub mod learn_bindings;
 pub mod leave_question_loop;
 pub mod leaving;

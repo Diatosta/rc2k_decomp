@@ -48,6 +48,11 @@ impl<'a> Game<'a> {
         self.fault.check()?;
         done
     }
+
+    /// The car list the next car choice shows, if one was handed.
+    pub fn handed_cars(&self) -> Option<CarList> {
+        self.cars
+    }
 }
 
 /// The player's fields the flows read and write.

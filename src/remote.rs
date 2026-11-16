@@ -550,9 +550,7 @@ pub fn held_clock() -> Option<u32> {
 
 /// Both random generators (the game's and the effects') from one state.
 fn reseed(random: &crate::math::next_random::Randoms, effects: &crate::effects::owner::Effects) {
-    random.with_random(|r| r.state = 0x1234_5678);
-    random.seed_streams();
-    effects.setup.work.seed.set(0x8765_4321);
+    crate::menu::launch::reseed(random, effects, 0x1234_5678, 0x8765_4321);
 }
 
 /// A race frame drawn (`drive::race_frame`): the held clock 10 ms on, unless the game is

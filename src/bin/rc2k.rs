@@ -7,7 +7,8 @@
 //! are read off the command line by the game itself (`system::read_command_line`); a word
 //! naming a `.exe` is passed over (the old `rc2k.exe RAL.EXE [log]`). With the environment
 //! variable `RC2K_FRAMES` set to a number it ends itself after that many frames and leaves
-//! the last one in `rc2k_frame.raw`.
+//! the last one in `rc2k_frame.raw`. `--stage` and its kin start a race straight away
+//! (`menu::launch`).
 //!
 //! A windowed program (no console: everything goes to the log; owner, 2026-10-19).
 
@@ -18,10 +19,8 @@ use std::path::Path;
 fn main() {
     #[cfg(target_os = "emscripten")]
     rc2k_decomp::web::enter_game_folder();
-    let log = std::env::args()
-        .skip(1)
-        .find(|a| !a.starts_with('-') && !a.to_ascii_lowercase().ends_with(".exe"))
-        .unwrap_or_else(|| "rc2k.log".into());
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let log = rc2k_core::menu::launch::log_path(&args).unwrap_or_else(|| "rc2k.log".into());
     let frames = std::env::var("RC2K_FRAMES")
         .ok()
         .and_then(|frames| frames.parse().ok())

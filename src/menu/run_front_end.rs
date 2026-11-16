@@ -4,7 +4,8 @@
 //! `audio.levels.master_volume_shown` = the master volume; `menu::drop_missing_controllers`;
 //! `gfx::build_fonts`; the films at the start (`menu::play_films`); the log line "BEV: Starting
 //! GB_Front"; `menu::main_menu_loop`; "BEV: Finished GB_Front"; `menu::store_player_names`;
-//! `gfx::free_fonts`; `saves::list_car_numbers`.
+//! `gfx::free_fonts`; `saves::list_car_numbers`. A race asked for on the command line
+//! (`menu::launch`) skips the films; the main menu's set-up runs it.
 //! Callers: `system::main_loop`. Refuses what its parts refuse; such a refusal comes with the
 //! work half done. Rust callers run its `entry` (`routes.rs`).
 
@@ -30,8 +31,11 @@ pub fn run_front_end(o: Owners<'static>) -> Result<(), Refused> {
         .set(audio.state.master_volume.get());
     crate::menu::drop_missing_controllers::drop_missing_controllers(menus, o.input)?;
     crate::gfx::build_fonts::build_fonts_in(gfx, o.system, o.strings)?;
-    // The films, at the game's start.
-    crate::menu::play_films::play_films(o, false)?;
+    // The films, at the game's start, unless a race was asked for on the command line (the
+    // main menu's set-up runs it, `menu::launch`).
+    if crate::menu::launch::asked().is_none() {
+        crate::menu::play_films::play_films(o, false)?;
+    }
     crate::logfile::log_write::log_nul(STARTING_RVA, true, 1);
     run_screen(ScreenId::MainMenu, &Entry::new(o))?;
     crate::logfile::log_write::log_nul(FINISHED_RVA, true, 1);

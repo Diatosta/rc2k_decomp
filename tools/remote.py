@@ -2,7 +2,7 @@
 """Drives a `remote` build of the game for automated tests (src/remote.rs).
 
     remote.py build [--handheld]         builds the binary with the `remote` feature
-    remote.py start [--software] [--fresh] [--profile]    starts it (PC: on a copy of var and savedata);
+    remote.py start [--software] [--fresh] [--profile] [-- game switches]    starts it (PC: on a copy of var and savedata; the words after -- go to the game, e.g. a launch);
                                          the GPU renderer is the default (--gpu is kept: the same),
                                          --software forces the rasteriser (RC2K_RENDERER=software)
     remote.py key Return [ms]            a key press (SDL's scancode names)
@@ -28,7 +28,7 @@
 savedata are put back on stop, as the folder is the real one. On a Mac it runs there as on the
 PC (the game's folder ~/rally, or RC2K_REMOTE_INSTALLED).
 """
-import math, os, shutil, struct, subprocess, sys, time, zlib
+import math, os, shlex, shutil, struct, subprocess, sys, time, zlib
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 HOME = os.path.expanduser(os.environ.get('RC2K_REMOTE_HOME', '~/.cache/rc2k_remote'))  # a second copy: another folder
@@ -204,7 +204,7 @@ def build():
         os.replace(GAME + '/rc2k.new', GAME + '/rc2k')
 
 
-def start(software, fresh, profile=False):
+def start(software, fresh, profile=False, game_args=()):
     renderer = 'RC2K_RENDERER=software ' if software else ''
     if os.environ.get('RC2K_FAIL_RENDERER'):  # start-up steps made to fail, to test the fallbacks
         renderer += f"RC2K_FAIL_RENDERER={os.environ['RC2K_FAIL_RENDERER']} "
@@ -244,7 +244,7 @@ def start(software, fresh, profile=False):
             'kill -STOP $(cat /tmp/rc2k_paused) 2>/dev/null; pkill dmenu.bin; sleep 1; '
             # Knulli's sound server (PipeWire) is found through this; the stock OS has none
             '[ -S /var/run/pipewire-0 ] && export XDG_RUNTIME_DIR=/var/run; '
-            f'RC2K_REMOTE={FOLDER} {renderer} nohup ./rc2k_remote > rc2k.out 2>&1 < /dev/null & echo started')
+            f'RC2K_REMOTE={FOLDER} {renderer} nohup ./rc2k_remote {" ".join(shlex.quote(a) for a in game_args)} > rc2k.out 2>&1 < /dev/null & echo started')
     else:
         shutil.rmtree(FOLDER, ignore_errors=True)
         os.makedirs(FOLDER)
@@ -260,11 +260,11 @@ def start(software, fresh, profile=False):
             env['RC2K_RENDERER'] = 'software'
         if os.environ.get('RC2K_FAIL_RENDERER'):
             env['RC2K_FAIL_RENDERER'] = os.environ['RC2K_FAIL_RENDERER']
-        command = ['./rc2k']
+        command = ['./rc2k', *game_args]
         if WINE:
             env.update(WINEPREFIX=os.path.expanduser(WINE), WINEDEBUG='-all',
                        RC2K_REMOTE='Z:' + FOLDER.replace('/', '\\'))
-            command = ['wine', 'rc2k.exe']
+            command = ['wine', 'rc2k.exe', *game_args]
         if DARLING:
             env['DPREFIX'] = DARLING
             # SDL's controller back ends lean on frameworks Darling only stubs.
@@ -411,7 +411,10 @@ def main():
     if command == 'build':
         build()
     elif command == 'start':
-        start('--software' in rest, '--fresh' in rest, '--profile' in rest)
+        # Words after `--` go to the game (a launch: `-- --stage langton --then quit`).
+        game_args = rest[rest.index('--') + 1:] if '--' in rest else []
+        own = rest[:rest.index('--')] if '--' in rest else rest
+        start('--software' in own, '--fresh' in own, '--profile' in own, game_args)
     elif command == 'stop':
         stop()
     elif command == 'shot':
