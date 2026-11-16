@@ -136,8 +136,6 @@ pub fn install_files(
     if !i::make_folders::make_folders(&install.paths.installed)? {
         return bad_path();
     }
-    // Its answer is not read: a download folder is installed from as well as a CD.
-    crate::files::is_cd_drive::is_cd_drive(rb(&install.paths.game_dir));
     // A close during the copy waits for its end (the progress still shown).
     crate::platform::events::hold_quit(o.system, true);
     run_frame(

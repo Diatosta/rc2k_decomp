@@ -45,6 +45,8 @@ pub const NET: usize = 2;
 pub const SHUTDOWN: usize = 3;
 /// The slots, in the order they are started (`start_threads` starts the first three).
 pub const SLOT_COUNT: usize = 4;
+/// The slots' threads' names, as a debugger, a profiler or a fault report shows them.
+pub const NAMES: [&str; SLOT_COUNT] = ["input", "audio", "net receive", "shutdown"];
 
 pub static SLOTS: [ThreadSlot; SLOT_COUNT] = [
     ThreadSlot::new(0x4078DA),

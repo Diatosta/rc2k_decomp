@@ -246,14 +246,6 @@ pub fn packed_level_path(path: &[u8]) -> Result<Vec<u8>, Invalid> {
     Ok(out)
 }
 
-/// The drive kind of a CD-ROM.
-pub const CD_ROM: u32 = 5;
-
-/// `files::is_cd_drive`: (below, equal) of a drive's kind compared with a CD-ROM's.
-pub fn is_cd(kind: u32) -> (bool, bool) {
-    (kind < CD_ROM, kind == CD_ROM)
-}
-
 /// A stream's buffer size.
 pub const BUFFER_LEN: usize = 0x2000;
 

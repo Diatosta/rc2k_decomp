@@ -11,7 +11,6 @@ pub mod drive_type;
 pub mod file_exists;
 pub mod file_size;
 pub mod handle;
-pub mod is_cd_drive;
 pub mod numbered_path;
 pub mod open_stream;
 pub mod read_file;

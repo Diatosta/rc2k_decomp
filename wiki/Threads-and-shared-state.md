@@ -29,7 +29,8 @@ It is the page to read before changing anything that more than one thread touche
 
 The first three worker threads and the shutdown thread have **slots**
 (`src/threading/thread_slot.rs`): a small record per thread with its routine, its id, and a
-flag that says whether it is running. `threading::start_slot_thread` starts a slot's thread.
+flag that says whether it is running. `threading::start_slot_thread` starts a slot's thread,
+named `input`, `audio`, `net receive` or `shutdown` (the names a debugger or profiler shows).
 The threads themselves, and the events and waits they use, are built on the standard library
 (`src/platform/sync.rs`).
 

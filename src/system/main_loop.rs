@@ -15,11 +15,6 @@ use crate::threading::thread_slot::SlotOwners;
 /// `InstallerPages.script_set_up` when the installer's script is set up.
 const INSTALLER_MARK: u16 = 0xBD;
 
-/// The base directory's first character.
-fn base_drive() -> u8 {
-    crate::files::state::directory_byte(0)
-}
-
 /// `logfile::log_write` of a line of the game's log.
 fn log_line(text: &std::ffi::CStr) {
     crate::logfile::log_write::log_nul(text, true, 1);
@@ -78,8 +73,6 @@ pub fn main_loop(o: Owners<'static>) -> Result<(), Refused> {
     }
     install.flags.clear_command();
     crate::sound::stop_cd_audio::stop_cd_audio(sound);
-    // Its answer is not read.
-    crate::files::is_cd_drive::is_cd_drive(base_drive());
     crate::menu::run_front_end::run_front_end(o)?;
     crate::sound::stop_music::stop_music(o);
     if session.flags.quitting.is_set() {

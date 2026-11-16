@@ -1,6 +1,5 @@
 //! What kind of drive a letter is: the letter is lowered and asked about as `x:\`
-//! (`files::drive_root`). Used by the search for the game's CD, the installer and
-//! `files::is_cd_drive`.
+//! (`files::drive_root`). Used by the search for the game's CD and the installer.
 
 /// The root that is asked about: `x:\`, or none for the current drive.
 pub fn drive_root(letter: u8) -> Option<[u8; 4]> {
