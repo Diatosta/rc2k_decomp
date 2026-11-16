@@ -83,7 +83,8 @@ start is offered on the controller pages and can be set up for a race.
   buttons, and the D-pad as a hat.
 - Any **other joystick or wheel** is presented as SDL has it: up to six axes, 32 buttons and
   four hats.
-- If SDL can open force feedback for a device, its effects are available.
+- If SDL can open force feedback for a device, its effects are available; a pad with only
+  rumble motors reports force feedback too, and its effects are played on the motors (below).
 
 The original talked to DirectInput. `src/input/di_objects.rs` keeps that shape (list devices,
 open one, read its state, create and update effects) as plain functions on top of the list
@@ -169,6 +170,14 @@ Force feedback runs the other way, in three stages:
 3. **The input thread delivers.** On its next turn, `input::device_effects` hands each waiting
    request to the platform, which translates it into an SDL haptic effect: a constant force, a
    ramp, or a periodic effect (`src/platform/input.rs`).
+
+A pad with rumble motors and no such effects keeps the effects instead, and on each reading
+the input thread turns those running into the two motors' levels (`rc2k_core::input::rumble`):
+a steady force, a ramp or a slow shake (a period of 100 ms or more) on the heavy motor, a fast
+shake on the light one, each as strong as its envelope says at that moment, added up and held
+to full, at the device's gain; conditions (springs, dampers) are left out. In a race the game
+sets its effects every frame, so a quarter second without a setting (a pause, a question) stills
+the motors.
 
 Effects are started and stopped around a race (`src/input/begin_effects.rs`,
 `end_effects.rs`). The strength is a per-player option.

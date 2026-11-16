@@ -10,6 +10,7 @@
     remote.py pad a [ms]                 a gamepad button (menus)
     remote.py joy attach|detach          a plain stand-in stick plugged in or out
     remote.py joy axis n v / button n 0|1   its axes and buttons
+    remote.py joy rumble                 its motors as last set (heavy light, 0 .. 65535)
     remote.py shot name                  the next frame to <folder>/shots/name.png
     remote.py time n                     the arcade's countdown set to n
     remote.py state                      frames, race flag, menu, item, speed, time, place, cars

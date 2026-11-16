@@ -76,12 +76,17 @@ plugged in when the program started has gone back to "none": choose it again onc
 ## Force feedback
 
 The game's force feedback effects (a constant force, springs and dampers, the periodic
-shakes) are played through SDL's haptic support, on the steering axis. They work on a device
-for which SDL opens a haptic interface, which in practice means wheels and some joysticks.
+shakes) are played through SDL's haptic support, on the steering axis, on a device for which
+SDL opens a haptic interface with such effects: in practice wheels and some joysticks. An
+effect the device or SDL cannot do is noted once in `rc2k.log` and skipped; the others go on.
 
-- An effect the device or SDL cannot do is noted once in `rc2k.log` and skipped; the others
-  go on.
-- Many gamepads offer SDL only simple rumble and no such effects, so they stay still.
+A gamepad that has only rumble motors (an Xbox pad, a DualSense and most others) rumbles
+instead: the game's engine and surface shakes as the light motor, its knocks, landings and
+slow shakes as the heavy one, at the strength chosen on the controller set-up page ("force
+feedback"; off, the pad stays still). The springs and dampers that hold a wheel straight have
+nothing to shake on a pad and are left out. While the race is paused, or a question is on the
+screen, the pad is still. To use it, choose the pad as the player's controller and raise its
+force feedback from off.
 
 ## The handheld
 

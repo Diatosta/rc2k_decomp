@@ -21,6 +21,11 @@
 //!
 //! What SDL's haptics cannot do (an effect it does not have) is logged once and skipped:
 //! the game's own effects go on without it.
+//!
+//! A pad SDL can rumble but has no force-feedback effects for (an Xbox pad, a DualSense; SDL
+//! may open a haptic device for it that has only the two motors) reports force feedback too:
+//! the game's effects are kept here and, on each reading, those running are turned into the
+//! motors' levels (`rc2k_core::input::rumble`).
 
 use crate::input::di_objects::{Backend, DeviceInfo, Effect, Kind, Reading};
 use crate::logfile::program_log::log;
@@ -97,6 +102,124 @@ struct Device {
     effects: HashMap<u32, SDL_HapticEffectID>,
     /// Which of the sticks' four axes have left their rest (`stick_axis`).
     stick_moved: [bool; 4],
+    /// With no haptic device of use and SDL able to rumble it: the game's effects for its
+    /// motors.
+    rumble: Option<Rumble>,
+}
+
+/// A rumbled device's effects: each as the game last set it, and since when it runs.
+#[derive(Default)]
+struct Rumble {
+    effects: HashMap<u32, (Effect, Option<std::time::Instant>)>,
+    /// The device's gain, 0 .. 10000.
+    gain: u32,
+    /// When the game last set an effect: in a race it sets them every frame, so a game that
+    /// has stopped setting them (a pause, a question) has its pad still.
+    set_at: Option<std::time::Instant>,
+    /// The motors' levels last sent, and when.
+    sent: (u16, u16),
+    sent_at: Option<std::time::Instant>,
+}
+
+/// How long a rumble lasts unless sent again, and how often a running one is sent again (ms).
+const RUMBLE_FOR_MS: u32 = 1000;
+const RUMBLE_AGAIN_MS: u128 = 400;
+/// How long after the game's last setting the motors go still (ms).
+const RUMBLE_STALE_MS: u128 = 250;
+
+impl Rumble {
+    fn new() -> Self {
+        Self {
+            gain: 10_000,
+            ..Self::default()
+        }
+    }
+
+    /// The motors set for the effects running now (sent when they change, and again before a
+    /// running rumble ends).
+    fn update(&mut self, joystick: Joystick) {
+        use rc2k_core::input::rumble::{Form, Running, motors};
+        let now = std::time::Instant::now();
+        let running = self.effects.values().filter_map(|(e, since)| {
+            let since = (*since)?;
+            let form = match e.kind {
+                Kind::Constant => Form::Constant,
+                Kind::Ramp => Form::Ramp,
+                Kind::Square | Kind::Sine | Kind::Triangle | Kind::SawUp | Kind::SawDown => {
+                    Form::Periodic
+                }
+                Kind::Spring | Kind::Damper | Kind::Inertia | Kind::Friction => Form::Condition,
+            };
+            Some(Running {
+                form,
+                params: &e.params,
+                gain: e.gain,
+                length_us: e.duration,
+                envelope: e.envelope,
+                elapsed_us: now.duration_since(since).as_micros() as u64,
+            })
+        });
+        let fresh = self
+            .set_at
+            .is_some_and(|at| now.duration_since(at).as_millis() < RUMBLE_STALE_MS);
+        let levels = if fresh {
+            motors(running, self.gain)
+        } else {
+            (0, 0)
+        };
+        let due = levels != (0, 0)
+            && self
+                .sent_at
+                .is_none_or(|at| now.duration_since(at).as_millis() >= RUMBLE_AGAIN_MS);
+        if levels != self.sent || due {
+            joystick.rumble(levels.0, levels.1, RUMBLE_FOR_MS);
+            self.sent = levels;
+            self.sent_at = Some(now);
+        }
+    }
+
+    /// Everything stopped, the motors still.
+    fn stop(&mut self, joystick: Option<Joystick>) {
+        for (_, since) in self.effects.values_mut() {
+            *since = None;
+        }
+        if let Some(joystick) = joystick
+            && self.sent != (0, 0)
+        {
+            joystick.rumble(0, 0, 0);
+        }
+        self.sent = (0, 0);
+        self.sent_at = None;
+    }
+}
+
+/// SDL's haptic effects the game's effects can be (`sdl_effect`): a haptic device with none of
+/// them (only the two motors) is of no use, the pad is rumbled instead.
+const GAME_EFFECTS: u32 = SDL_HAPTIC_CONSTANT.0 as u32
+    | SDL_HAPTIC_RAMP.0 as u32
+    | SDL_HAPTIC_SQUARE.0 as u32
+    | SDL_HAPTIC_SINE.0 as u32
+    | SDL_HAPTIC_TRIANGLE.0 as u32
+    | SDL_HAPTIC_SAWTOOTHUP.0 as u32
+    | SDL_HAPTIC_SAWTOOTHDOWN.0 as u32
+    | SDL_HAPTIC_SPRING.0 as u32
+    | SDL_HAPTIC_DAMPER.0 as u32
+    | SDL_HAPTIC_INERTIA.0 as u32
+    | SDL_HAPTIC_FRICTION.0 as u32;
+
+/// The joystick's haptic device if it has effects the game can use, else none (closed); and
+/// whether the pad is rumbled instead.
+fn haptic_or_rumble(joystick: Joystick) -> (Option<Haptic>, bool) {
+    let haptic = joystick.open_haptic();
+    let haptic = match haptic {
+        Some(h) if h.features() & GAME_EFFECTS == 0 => {
+            h.close();
+            None
+        }
+        h => h,
+    };
+    let rumble = haptic.is_none() && joystick.has_rumble();
+    (haptic, rumble)
 }
 
 impl Device {
@@ -106,6 +229,10 @@ impl Device {
         // the gamepad's, closed with it.
         if let Some(haptic) = self.haptic.take() {
             haptic.close();
+        }
+        if let Some(rumble) = self.rumble.as_mut() {
+            rumble.stop(self.joystick);
+            rumble.effects.clear();
         }
         if let Some(gamepad) = self.gamepad.take() {
             gamepad.close();
@@ -201,8 +328,9 @@ impl SdlBackend {
             .iter()
             .position(|d| d.joystick.is_none() && d.info.product == product && d.info.name == name);
         if let Some(n) = back {
-            let haptic = joystick.open_haptic();
+            let (haptic, rumble) = haptic_or_rumble(joystick);
             let d = &mut self.devices[n];
+            d.rumble = rumble.then(Rumble::new);
             d.sdl_id = id;
             d.joystick = Some(joystick);
             d.gamepad = gamepad;
@@ -225,7 +353,7 @@ impl SdlBackend {
         } else {
             5
         };
-        let haptic = joystick.open_haptic();
+        let (haptic, rumble) = haptic_or_rumble(joystick);
         let features = haptic.map_or(0, Haptic::features);
         let info = DeviceInfo {
             name,
@@ -242,10 +370,10 @@ impl SdlBackend {
             } else {
                 1
             },
-            force: haptic.is_some(),
+            force: haptic.is_some() || rumble,
         };
         log(&format!(
-            "platform: joystick {}: \"{}\"{}, {} axes, {} buttons, {} hats, force feedback {} (SDL's effects {features:#x})",
+            "platform: joystick {}: \"{}\"{}, {} axes, {} buttons, {} hats, force feedback {}{} (SDL's effects {features:#x})",
             self.devices.len(),
             info.name,
             if gamepad.is_none() {
@@ -256,7 +384,8 @@ impl SdlBackend {
             axes,
             info.buttons,
             info.hats,
-            info.force
+            info.force,
+            if rumble { " (its rumble motors)" } else { "" }
         ));
         self.devices.push(Device {
             sdl_id: id,
@@ -267,6 +396,7 @@ impl SdlBackend {
             info,
             effects: HashMap::new(),
             stick_moved: [false; 4],
+            rumble: rumble.then(Rumble::new),
         });
     }
 }
@@ -499,6 +629,9 @@ impl Backend for SdlBackend {
             }
             return r;
         };
+        if let Some(rumble) = d.rumble.as_mut() {
+            rumble.update(joystick);
+        }
         if let Some(pad) = d.gamepad {
             return pad_reading(pad, &mut d.stick_moved);
         }
@@ -525,6 +658,19 @@ impl Backend for SdlBackend {
         let Some(d) = self.devices.get_mut(device) else {
             return;
         };
+        if let Some(rumble) = d.rumble.as_mut() {
+            let since = rumble.effects.get(&id).and_then(|(_, since)| *since);
+            let since = if start {
+                Some(std::time::Instant::now())
+            } else if playing {
+                since
+            } else {
+                None
+            };
+            rumble.effects.insert(id, (effect.clone(), since));
+            rumble.set_at = Some(std::time::Instant::now());
+            return;
+        }
         let Some(haptic) = d.haptic else {
             return;
         };
@@ -563,6 +709,9 @@ impl Backend for SdlBackend {
         let Some(d) = self.devices.get_mut(device) else {
             return;
         };
+        if let Some(rumble) = d.rumble.as_mut() {
+            rumble.effects.remove(&id);
+        }
         if let Some(sdl_id) = d.effects.remove(&id)
             && let Some(haptic) = d.haptic
         {
@@ -571,6 +720,9 @@ impl Backend for SdlBackend {
     }
 
     fn gain(&mut self, device: usize, gain: u32) {
+        if let Some(rumble) = self.devices.get_mut(device).and_then(|d| d.rumble.as_mut()) {
+            rumble.gain = gain.min(10_000);
+        }
         if let Some(d) = self.devices.get(device)
             && d.features & SDL_GAIN != 0
             && let Some(haptic) = d.haptic
@@ -590,10 +742,16 @@ impl Backend for SdlBackend {
 
     fn acquired(&mut self, device: usize, on: bool) {
         // Given back, a device's effects stop (as DirectInput's exclusive devices do).
-        if !on
-            && let Some(d) = self.devices.get(device)
-            && let Some(haptic) = d.haptic
-        {
+        if on {
+            return;
+        }
+        let Some(d) = self.devices.get_mut(device) else {
+            return;
+        };
+        if let Some(rumble) = d.rumble.as_mut() {
+            rumble.stop(d.joystick);
+        }
+        if let Some(haptic) = d.haptic {
             haptic.stop_effects();
         }
     }

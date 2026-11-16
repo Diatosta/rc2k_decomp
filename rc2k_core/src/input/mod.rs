@@ -10,3 +10,4 @@ pub mod frame;
 pub mod joystick;
 pub mod keyboard;
 pub mod layouts;
+pub mod rumble;

@@ -173,6 +173,24 @@ impl Joystick {
     }
 
     /// The haptic device of this joystick, opened, when it has one.
+    /// Whether SDL can rumble it (a gamepad's two motors).
+    pub fn has_rumble(self) -> bool {
+        // SAFETY: an open joystick; its properties' id (0 on failure) is only read here.
+        unsafe {
+            let props = SDL_GetJoystickProperties(self.0);
+            props != 0 && SDL_GetBooleanProperty(props, SDL_PROP_JOYSTICK_CAP_RUMBLE_BOOLEAN, false)
+        }
+    }
+
+    /// Its motors at `low` and `high` (0 .. 65535: the slow, heavy one and the fast, light one)
+    /// for `ms` milliseconds, or until the next call.
+    pub fn rumble(self, low: u16, high: u16, ms: u32) {
+        // SAFETY: an open joystick; SDL answers false (ignored) when it cannot.
+        unsafe {
+            SDL_RumbleJoystick(self.0, low, high, ms);
+        }
+    }
+
     pub fn open_haptic(self) -> Option<Haptic> {
         // SAFETY: an open joystick; null (no haptic device) checked.
         unsafe {
@@ -217,11 +235,26 @@ pub fn attach_virtual_stick(
         vendor_id: vendor,
         product_id: product,
         name: c"Remote stand-in stick".as_ptr(),
+        Rumble: Some(virtual_rumble),
         ..SDL_VirtualJoystickDesc::default()
     };
     // SAFETY: a description made by SDL's own initialiser; the name is a constant C text.
     let id = unsafe { SDL_AttachVirtualJoystick(&raw const desc) };
     (id.0 != 0).then_some(id)
+}
+
+/// The stand-in stick's motors as SDL last set them (heavy in the high half, light in the low).
+#[cfg(feature = "remote")]
+pub static VIRTUAL_RUMBLE: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+/// SDL's call to rumble the stand-in stick: the levels noted.
+#[cfg(feature = "remote")]
+unsafe extern "C" fn virtual_rumble(_: *mut std::ffi::c_void, low: u16, high: u16) -> bool {
+    VIRTUAL_RUMBLE.store(
+        (low as u32) << 16 | high as u32,
+        std::sync::atomic::Ordering::Relaxed,
+    );
+    true
 }
 
 /// A virtual joystick detached, as if unplugged.

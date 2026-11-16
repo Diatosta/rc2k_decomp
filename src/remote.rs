@@ -118,6 +118,10 @@ fn stick(words: &[&str]) -> Option<String> {
                 .set_virtual_button(n.parse().ok()?, *down == "1")
                 .then(|| "ok".to_string())
         }
+        ["rumble"] => {
+            let v = sdl_input::VIRTUAL_RUMBLE.load(std::sync::atomic::Ordering::Relaxed);
+            Some(format!("{} {}", v >> 16, v & 0xFFFF))
+        }
         ["detach"] => {
             let (id, joystick) = held.take()?;
             joystick.close();
