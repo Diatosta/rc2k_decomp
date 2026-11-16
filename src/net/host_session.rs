@@ -1,4 +1,4 @@
-//! Hosts a session ("NET: Host"): keeps its description (name, most players, password), opens
+//! Hosts a session ("NET: Host"): keeps its description (name, most players, the game's mark), opens
 //! it with DPOPEN_CREATE (directly or, with `posting` 1, on the receiving thread), logs the
 //! result and restores the window; then the own player and the group are made. The name goes to
 //! `net::dp_objects` as text. Returns true when hosted.
@@ -37,8 +37,8 @@ pub fn host_session(o: crate::owners::Owners<'static>, lines: &NetTexts) -> Resu
         .write(&net.setup().machine_name.read());
     net.joined().joined_most.set(net.setup().most_players.get());
     net.joined()
-        .joined_password
-        .write(&net.setup().session_password.read());
+        .joined_user_values
+        .write(&net.setup().session_user_values.read());
     // For `posted_open_host`, which may run on the receiving thread.
     net.link.host_name().write(&net.setup().machine_name.read());
     zeroed_description(&net.link)?;
@@ -47,7 +47,7 @@ pub fn host_session(o: crate::owners::Owners<'static>, lines: &NetTexts) -> Resu
     put_bytes(&desc.application, &crate::net::store::APP_GUID);
     desc.max_players.set(net.setup().most_players.get());
     // The name goes to `open` as text (the description's pointer is left 0).
-    put_bytes(&desc.user, &net.setup().session_password.read());
+    put_bytes(&desc.user, &net.setup().session_user_values.read());
     finish(
         o,
         lines,

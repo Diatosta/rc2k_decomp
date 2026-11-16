@@ -32,14 +32,13 @@ pub struct Moved {
     pub eax: u32,
 }
 
-/// With a first argument of 0, after a sleep of 250 ms the axes' rest values are taken
+/// With a first argument of 0 the axes' rest values are taken (the caller pauses after it)
 /// (`Devices.device_state[0]` -> `Keyboard.axes_rest[0]`), `carry` set. Else the number of the
 /// first of the device's axes that moved more than 0x80 from rest (+0x10 when it went up);
 /// `carry` when none. A controller number past the table's 16 is refused.
 pub fn axis_moved(eax: u32, input: &crate::input::owner::Input) -> Result<Moved, BadInput> {
     let now: [u32; 6] = std::array::from_fn(|n| input.devices.device_state[n].get());
     if eax == 0 {
-        crate::system::sleep::sleep(250);
         for (rest, now) in input.keyboard().axes_rest.iter().zip(now) {
             rest.set(now);
         }

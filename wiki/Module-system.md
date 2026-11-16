@@ -22,6 +22,7 @@ buffers that [`files`](Module-files) uses.
 | `test_processor` | `src/system/test_processor.rs` | Notes what the processor is. |
 | `tick_count` | `src/system/tick_count.rs` | The millisecond clock. |
 | `sleep` | `src/system/sleep.rs` | Sleeps. |
+| `pause` | `src/system/pause.rs` | The screens' fixed pauses: the window's events go on meanwhile, and a key ends one early (`pause` takes the key, `pause_keeping_key` leaves it for the menu, `hold` ignores keys). |
 | `wait_or_key` | `src/system/wait_or_key.rs` | Waits for a time or a key, whichever is first. |
 | `packed_local_time` | `src/system/packed_local_time.rs` | The date and time as one number (as stored in replays and saves). |
 | `checked_reads.rs` | `src/system/checked_reads.rs` | Bounds-checked reads used by loaders. |

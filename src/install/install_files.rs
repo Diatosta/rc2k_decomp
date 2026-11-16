@@ -8,8 +8,8 @@
 
 use crate::errors::Refused;
 use crate::install::installer::{
-    lock, normalise, pump, rb, run_frame, set_cd, show, sleep, store_text, take_key, text_at,
-    unlock, wb,
+    hold, lock, normalise, pause, pump, rb, run_frame, set_cd, show, sleep, store_text, take_key,
+    text_at, unlock, wb,
 };
 
 use crate::install::vars::StringRecord;
@@ -72,7 +72,7 @@ fn message(
         unlock(gfx);
         show(o);
     }
-    sleep(500);
+    hold(o, 500);
     take_key(input);
     loop {
         if take_key(input) != 0 {
@@ -213,7 +213,7 @@ pub fn install_files(
     }
     crate::platform::events::hold_quit(o.system, false);
     list_state.list_answer.set(2);
-    sleep(1000);
+    pause(o, 1000);
     install.names.status.set(1);
     // The installed folder's path copied to the install source, with its length (NUL included)
     // kept in `source_size`.

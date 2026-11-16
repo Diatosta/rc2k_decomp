@@ -56,6 +56,11 @@ More on [Network play](Network-play).
 - A single rally stage can be started straight from the command line
   ([Running and options](Running-and-options)).
 - Closing the window ends the game properly, saving the options and the session's records.
+- The fixed pauses between screens (the service area's and the inspection's, the network's
+  "connecting" lines, the installer's messages) keep their length, but a key or a pad's button
+  ends them early, and the window answers during them.
+- Controllers are read from a race's first moment (the original's input thread slept a second
+  at each race's start), and at once after coming back to the window.
 - A loading bar is shown while a stage loads.
 - The developers' debug pages, unreachable in the released game, are a window over the game
   ([The debug window](The-debug-window)). Not in the 32-bit Windows build or on the handheld.

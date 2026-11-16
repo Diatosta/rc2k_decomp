@@ -1,6 +1,6 @@
 //! The network rally menu, by its title "RALI EM REDE". Screen-specific part of
-//! `menu::screen_loop`: background `nral.png`; leaving is not asked about; the quit switch is not
-//! looked at.
+//! `menu::screen_loop`: background `nral.png`; leaving is not asked about; the menu sound is
+//! cleared every frame.
 
 use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;
@@ -58,7 +58,7 @@ pub const SCREEN: Screen = Screen {
         Step::WriteFlag(ScreenFlag::LeaveScreen, false),
     ],
     frames: Frames {
-        no_quit_check: true,
+        clears_menu_sound: true,
         ..Frames::DEFAULT
     },
     ..Screen::new(

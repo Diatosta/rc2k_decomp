@@ -46,9 +46,9 @@ pub fn service_pass(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
                 continue;
             }
             crate::menu::inspection_screen::inspection_screen(entry.owners)?;
-            crate::system::sleep::sleep(passes::SCREEN_PAUSE);
+            crate::system::pause::pause(entry.owners, passes::SCREEN_PAUSE);
             crate::menu::fade_in::fade_in(entry.owners)?;
-            crate::system::sleep::sleep(passes::FADE_PAUSE);
+            crate::system::pause::pause(entry.owners, passes::FADE_PAUSE);
             menus.service.repair_time.set(0);
             crate::menu::driver_stats::driver_stats(menus, screens)?;
             menus.screens.state.menus.service_flag.set(false);

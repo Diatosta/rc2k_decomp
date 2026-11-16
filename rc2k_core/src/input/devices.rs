@@ -355,14 +355,13 @@ pub enum CommandStep {
     Reading(usize, bool),
     /// Player 2's controller made none when it is player 1's.
     SecondApart,
-    Sleep(u32),
     BeginEffects,
 }
 
 /// The steps of command `command` (`device` too for 1): 1 gives the device back and acquires it
 /// again; 2 (the race's end) turns the effects off and ends them, waits a tick, gives both devices
 /// back and stops reading them; 3 (the race's start) sets up and reads device 0, device 1 too
-/// unless one player is on one device, sleeps a second, begins the effects, waits a tick and
+/// unless one player is on one device, begins the effects, waits a tick and
 /// turns them on. Refused: a device past 1 for 1.
 pub fn command_steps(
     command: u8,
@@ -392,7 +391,7 @@ pub fn command_steps(
             if two_devices != 0 || one_player != 1 {
                 v.extend([SecondApart, SetUp(1), Reading(1, true)]);
             }
-            v.extend([Sleep(1000), BeginEffects, Tick, EffectsOn(true)]);
+            v.extend([BeginEffects, Tick, EffectsOn(true)]);
             v
         }
         _ => vec![],
@@ -478,8 +477,8 @@ mod tests {
     #[test]
     fn commands() {
         assert!(command_steps(1, 2, 0, 0).is_err());
-        assert_eq!(command_steps(3, 0, 0, 1).unwrap().len(), 6);
-        assert_eq!(command_steps(3, 0, 1, 1).unwrap().len(), 9);
+        assert_eq!(command_steps(3, 0, 0, 1).unwrap().len(), 5);
+        assert_eq!(command_steps(3, 0, 1, 1).unwrap().len(), 8);
         assert!(command_steps(9, 0, 0, 0).unwrap().is_empty());
     }
 

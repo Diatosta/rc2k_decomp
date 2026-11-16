@@ -33,7 +33,8 @@ tools/anbernic/run.sh env CARGO_TARGET_DIR=target/a64-pgo \
 "${SSH[@]}" "pkill -x rc2k_remote; rm -rf $COUNTS; mkdir -p $COUNTS; true"
 "${SSH[@]}" "cat > $GAME/rc2k_remote; chmod +x $GAME/rc2k_remote" \
     < target/a64-pgo/aarch64-unknown-linux-gnu/release/rc2k
-RC2K_REMOTE_HOST="$HOST" python3 tools/anbernic/pgo_train.py "${1:-85}"
+RC2K_REMOTE_HOST="$HOST" RC2K_REMOTE_KEY="${RC2K_REMOTE_KEY:-${ANBERNIC_KEY:-$HOME/.ssh/rg34xxsp}}" \
+    python3 tools/anbernic/pgo_train.py "${1:-85}"
 
 rm -rf target/a64-pgo/counts
 mkdir -p target/a64-pgo/counts

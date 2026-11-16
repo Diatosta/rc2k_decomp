@@ -2,7 +2,7 @@
 //! page one less, from 0 round to 9), `service::open_steering_box` / `open_brake_box` (the box
 //! turned over, its page 3 or 4), `view_stage_details` (a time trial's stage details, else the
 //! stage view), `new_simulation_if_unlocked` (the simulation, else the refusal's sound 8 and a
-//! quarter of a second's sleep) and `start_arcade` (level and stage 0, the first player's units
+//! quarter of a second's pause, which a key ends) and `start_arcade` (level and stage 0, the first player's units
 //! taken, the arcade event).
 
 use crate::errors::Refused;
@@ -66,7 +66,7 @@ pub fn new_simulation_if_unlocked(o: crate::owners::Owners<'static>) -> Result<(
             o.system,
             REFUSED_SOUND,
         );
-        crate::system::sleep::sleep(REFUSED_SLEEP);
+        crate::system::pause::pause_keeping_key(o, REFUSED_SLEEP);
     }
     Ok(())
 }

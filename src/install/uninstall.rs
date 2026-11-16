@@ -13,7 +13,7 @@
 
 use crate::errors::Refused;
 use crate::install::installer::{
-    copy_picture, delete_file, lock, normalise, remove_dir, run_frame, set_cd, show, sleep,
+    copy_picture, delete_file, lock, normalise, pause, remove_dir, run_frame, set_cd, show,
     store_text, text_at, unlock, wb,
 };
 
@@ -135,7 +135,7 @@ pub fn uninstall(
     if let Some(folder) = whole {
         remove_whole(&folder);
     }
-    sleep(1000);
+    pause(o, 1000);
     install.names.status.set(0);
     wb(&install.names.source, 0);
     i::write_registry::write_registry(install, &mut crate::install::portable::Portable::default())?;

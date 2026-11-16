@@ -33,7 +33,7 @@ These appear in several messages.
 | bytes | A u32 length, then that many bytes. |
 | text | A "bytes" holding UTF-8 text. |
 | GUID | 16 bytes. |
-| description | The session's description: u32 flags; GUID of this session; GUID of the application (the game's fixed one); u32 most players; u32 players now; text name; four u32 of the game's own (the session password as 16 bytes of text, zeros for none). |
+| description | The session's description: u32 flags; GUID of this session; GUID of the application (the game's fixed one); u32 most players; u32 players now; text name; four u32 of the game's own (a fixed mark: `0x17`, 1, 0, 0; bit 0 of the second says the session is this game's, and a session without it is not listed). |
 | player | text name; bytes data; u32 machine number. |
 | group | text name; bytes data; u32 machine number; u32 count; that many u32 player ids. |
 
@@ -249,7 +249,7 @@ Host → machine, the welcome (shown in parts):
 <16 bytes> <16 bytes>       session GUID, application GUID
 08 00 00 00  01 00 00 00    at most 8 players, 1 now
 06 00 00 00  46 72 69 64 61 79          name "Friday"
-<16 bytes>                  password field (zeros)
+17 00 00 00  01 00 00 00  00 00 00 00  00 00 00 00    the game's four values
 01 00 00 00                 one player:
   01 00 00 00                 id 1
   04 00 00 00  41 6E 6E 61    name "Anna"
@@ -273,8 +273,8 @@ Later, in a race, the joined machine's player (id 2) sends its inputs to everyon
 
 ## Things to know
 
-- Nothing is encrypted or signed, and the session password travels in the description as
-  plain text. The protocol is meant for a home network or a trusted link.
+- Nothing is encrypted or signed, and a session has no password: anyone who can reach the
+  host's port can join. The protocol is meant for a home network or a trusted link.
 - The host does not pass to another machine when it leaves.
 - The host's port must be reachable over both TCP and UDP for others to find and join it.
 

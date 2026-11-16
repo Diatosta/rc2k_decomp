@@ -33,7 +33,7 @@ program, not with the 1999 game.
 `src/net/dp_session/mod.rs` describes the design:
 
 - **The host keeps the session.** It holds the session's description (name, most players,
-  password), the list of players and the group. Every change is made by the host: another
+  the game's mark), the list of players and the group. Every change is made by the host: another
   machine asks, the host does it and tells every machine. So all machines see changes in the
   same order.
 - **Finding a session** is a small UDP question sent to a given address, or broadcast on the

@@ -214,6 +214,16 @@ pub fn close_search() {
     crate::files::search::close();
 }
 
+/// A pause that a key ends, the window's events going on.
+pub fn pause(o: crate::owners::Owners<'static>, milliseconds: u32) {
+    crate::system::pause::pause(o, milliseconds);
+}
+
+/// A pause that keys do not end, the window's events going on.
+pub fn hold(o: crate::owners::Owners<'static>, milliseconds: u32) {
+    crate::system::pause::hold(o, milliseconds);
+}
+
 pub fn sleep(milliseconds: u32) {
     crate::system::sleep::sleep(milliseconds);
 }

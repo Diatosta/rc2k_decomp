@@ -6,7 +6,7 @@
 
 use crate::errors::Refused;
 use crate::install::installer::{
-    copy_picture, draw_string, lock, normalise, set_cd, show, sleep, store_text, take_key, text_at,
+    copy_picture, draw_string, lock, normalise, pause, set_cd, show, store_text, take_key, text_at,
     unlock,
 };
 
@@ -118,12 +118,12 @@ pub fn install_clio(
         )?;
         unlock(gfx);
         show(o);
-        sleep(1000);
+        pause(o, 1000);
     }
     if let Stop::SetBack = work(install, system, input)? {
         set_cd(&install.paths.installed);
     }
     install.flags.clear_command();
-    sleep(1000);
+    pause(o, 1000);
     Ok(())
 }

@@ -404,9 +404,8 @@ pub struct Frames {
     pub after_blink: &'static [Step],
     /// Steps of the screen's own once a frame, after the frame and before the keys.
     pub each_frame: &'static [Step],
-    /// The quit switch is not looked at; `entry.menu_sound` = 0x6F is stored once a frame in
-    /// that place.
-    pub no_quit_check: bool,
+    /// `entry.menu_sound` = 0x6F is stored once a frame, before the frame.
+    pub clears_menu_sound: bool,
 }
 
 impl Frames {
@@ -421,7 +420,7 @@ impl Frames {
         before_frame: &[],
         after_blink: &[],
         each_frame: &[],
-        no_quit_check: false,
+        clears_menu_sound: false,
     };
 }
 
@@ -477,7 +476,7 @@ impl Screen {
             late_highlight: self.late_highlight,
             escape_leaves: self.keys.escape_leaves,
             action_check: self.keys.action_check,
-            no_quit_check: self.frames.no_quit_check,
+            clears_menu_sound: self.frames.clears_menu_sound,
             next_frame_repeats_first: self.frames.next_frame_repeats_first,
             asking: self.asking.as_ref().map(|asking| AskShape {
                 always: asking.always,
@@ -786,6 +785,10 @@ impl Callee {
             )?,
             Self::AxisMoved(axis) => {
                 crate::input::axes::axis_moved(axis, input)?;
+                // The rest values taken, the page waits a moment before it reads the axes.
+                if axis == 0 {
+                    crate::system::pause::hold(entry.owners, 250);
+                }
             }
             Self::RankStageTimes => rs::rank_stage_times(menus)?,
             Self::RankTotals => rs::rank_totals(menus)?,

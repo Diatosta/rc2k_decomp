@@ -6,7 +6,7 @@ use crate::errors::Refused;
 use crate::race::replay_viewer::Mode;
 
 /// `menu::replay_item_a`: unless `RaceState.settings.no_replay` is 1, with a replay there
-/// (`ReplayFileBlock.replay_closed` 1) `race::replay_mode_1`; else half a second's sleep and the
+/// (`ReplayFileBlock.replay_closed` 1) `race::replay_mode_1`; else half a second's pause (a key ends it) and the
 /// menu's sound 8.
 pub fn replay_item_a(
     race: &'static crate::race::owner::Race,
@@ -17,7 +17,7 @@ pub fn replay_item_a(
     {
         return crate::race::replay_mode::replay_mode(race, o, Mode::LastRace);
     }
-    crate::system::sleep::sleep(500);
+    crate::system::pause::pause_keeping_key(o, 500);
     crate::sound::play_menu_sound::play_menu_sound_in_game(o.sound, o.audio, o.menus, o.system, 8);
     Ok(())
 }

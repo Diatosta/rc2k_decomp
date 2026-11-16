@@ -367,7 +367,7 @@ impl SessionsScreen {
 }
 
 /// This machine's network settings and name: the fields kept in the options file, the
-/// player's name and the session's password.
+/// player's name and a hosted session's mark.
 #[derive(rc2k_derive::Cells)]
 pub struct SetupVars {
     /// This player's name.
@@ -376,8 +376,10 @@ pub struct SetupVars {
     pub machine_name: PlainBytes<64>,
     /// The most players a hosted session takes (kept).
     pub most_players: PlainDword,
-    /// The session's password.
-    pub session_password: PlainBytes<16>,
+    /// The four values of the game's own in a hosted session's description: a fixed mark
+    /// (the second's bit 0 says the session is this game's). Nobody types them and nothing
+    /// compares them as a password.
+    pub session_user_values: PlainBytes<16>,
     /// The host's address (TCP/IP), kept.
     pub host_address: PlainBytes<64>,
     /// The TCP/IP port (the `inetport` setting, kept).
@@ -392,7 +394,7 @@ impl SetupVars {
             player_name: PlainBytes::new([0; 32]),
             machine_name: PlainBytes::new([0; 64]),
             most_players: PlainDword::new(0x8),
-            session_password: PlainBytes::new(with_runs::<16>(&[(0, b"\x17\x00\x00\x00\x01")])),
+            session_user_values: PlainBytes::new(with_runs::<16>(&[(0, b"\x17\x00\x00\x00\x01")])),
             host_address: PlainBytes::new([0; 64]),
             port: PlainDword::new(0),
             saved_connection: PlainBytes::new([0; 16]),
@@ -430,8 +432,8 @@ pub struct JoinedVars {
     pub joined_name: PlainBytes<64>,
     /// Its most players.
     pub joined_most: PlainDword,
-    /// Its password.
-    pub joined_password: PlainBytes<16>,
+    /// Its description's four values of the game's own (the host's mark).
+    pub joined_user_values: PlainBytes<16>,
 }
 
 impl JoinedVars {
@@ -440,7 +442,7 @@ impl JoinedVars {
             joined: PlainBytes::new([0; 16]),
             joined_name: PlainBytes::new([0; 64]),
             joined_most: PlainDword::new(0),
-            joined_password: PlainBytes::new([0; 16]),
+            joined_user_values: PlainBytes::new([0; 16]),
         }
     }
 }

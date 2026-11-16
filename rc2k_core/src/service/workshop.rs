@@ -92,17 +92,23 @@ pub trait Workshop {
     fn clock(&mut self) -> u32;
     /// A frame of the service area.
     fn frame(&mut self);
+    /// The wait at the end.
     fn sleep(&mut self, milliseconds: u32);
+    /// Whether a key was pressed since the last asking (it is taken): the frames shown
+    /// after a piece of work end early then.
+    fn key_pressed(&mut self) -> bool {
+        false
+    }
 }
 
-/// Waits frames for `PAUSE_MS`.
+/// Waits frames for `PAUSE_MS`, or until a key.
 fn pause<W: Workshop>(w: &mut W) {
     let now = w.clock();
     w.set_timer(Timer::Start, now);
     loop {
         w.frame();
         let elapsed = w.clock().wrapping_sub(w.timer(Timer::Start));
-        if elapsed as i32 >= PAUSE_MS {
+        if elapsed as i32 >= PAUSE_MS || w.key_pressed() {
             return;
         }
     }

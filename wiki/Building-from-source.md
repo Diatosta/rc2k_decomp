@@ -171,9 +171,9 @@ with made-up values, showing every variable the scripts read:
 GAME_DIR=/home/sam/games/rally/bin
 STANDALONE_DIR=/home/sam/games/rally
 
-# The handheld (deploy_standalone.sh anbernic, tools/anbernic/pgo.sh)
+# The handheld (deploy_standalone.sh anbernic, tools/anbernic/pgo.sh, tools/remote.py --handheld)
 ANBERNIC_HOST=root@192.0.2.20
-ANBERNIC_KEY=/home/sam/.ssh/handheld_key          # default: ~/.ssh/rg34xxsp
+ANBERNIC_KEY=/home/sam/.ssh/handheld_key          # default: ~/.ssh/rg34xxsp (remote.py has none)
 ANBERNIC_GAME=/userdata/roms/ports/rally          # default: this folder
 
 # A Mac reached over SSH (deploy_standalone.sh mac, run on another machine)

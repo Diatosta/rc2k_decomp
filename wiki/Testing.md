@@ -90,7 +90,10 @@ a test run does not touch your options and saves. The installed game is looked f
 `RC2K_REMOTE_INSTALLED`; the working copy is in `~/.cache/rc2k_remote`, or `RC2K_REMOTE_HOME`.
 
 With `--handheld`, or `RC2K_REMOTE_HOST=root@address`, the same commands drive the handheld
-over SSH. There the game's real folder is used, so the script sets `var` and `savedata` aside
+over SSH. The script holds no address or key of its own: it reads `RC2K_REMOTE_HOST` and
+`RC2K_REMOTE_KEY`, else `ANBERNIC_HOST` and `ANBERNIC_KEY` from `deploy.local`
+([Building from source](Building-from-source)), and stops with a message when one is
+missing. There the game's real folder is used, so the script sets `var` and `savedata` aside
 at start and puts them back at stop.
 
 `tools/remote_to_race.sh [rally] [stage]` starts the remote build straight into a stage (both

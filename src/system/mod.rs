@@ -9,6 +9,7 @@ pub mod load_game_data;
 pub mod main_loop;
 pub mod owner;
 pub mod packed_local_time;
+pub mod pause;
 pub mod read_command_line;
 pub mod read_windows_version;
 pub mod restore_window;

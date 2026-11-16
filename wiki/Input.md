@@ -95,6 +95,11 @@ Each turn (`src/input/input_tick.rs`):
 3. otherwise each player's device is read (`input::read_device`) and its force-feedback
    changes are passed on (`input::device_effects`).
 
+While the window is not the active one the thread turns only once a second; it looks for the
+window's becoming active every 10 ms, so the controllers answer at once on coming back. The
+original slept the whole second, and also slept a second at every race's start before it began
+the force-feedback effects (time for DirectInput to take the device); that sleep is gone.
+
 There are two device records, for player 1 and player 2 (`src/input/devices.rs`). One player
 can also use two devices at once, a wheel and separate pedals for instance; the second
 device's readings are then added to the first's.

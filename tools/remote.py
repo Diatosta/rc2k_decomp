@@ -24,7 +24,8 @@
     remote.py log [n]                    the game's log, last n lines
     remote.py stop                       quits, then ends it
 
---handheld (or RC2K_REMOTE_HOST=root@address) drives the handheld over SSH. There var and
+--handheld (or RC2K_REMOTE_HOST=root@address) drives the handheld over SSH; its address and key
+come from RC2K_REMOTE_HOST / RC2K_REMOTE_KEY, else ANBERNIC_HOST / ANBERNIC_KEY in deploy.local. There var and
 savedata are put back on stop, as the folder is the real one. On a Mac it runs there as on the
 PC (the game's folder ~/rally, or RC2K_REMOTE_INSTALLED).
 """
@@ -47,21 +48,52 @@ DARLING = os.environ.get('RC2K_REMOTE_DARLING')
 # The Windows build under Wine (RC2K_REMOTE_WINE=the Wine prefix): the game folder holds rc2k.exe
 # and its DLLs, and the game reads the remote folder by its Z: path.
 WINE = os.environ.get('RC2K_REMOTE_WINE')
-# A device over SSH: the handheld (Knulli) by default; RC2K_REMOTE_GAME / RC2K_REMOTE_KEY for another
-# (the Steam Deck: the game started from Steam by its run.sh, which sets RC2K_REMOTE).
+# A device over SSH (the handheld, the Steam Deck: the game started from Steam by its run.sh,
+# which sets RC2K_REMOTE). Its address and key are never written here: RC2K_REMOTE_HOST and
+# RC2K_REMOTE_KEY, else ANBERNIC_HOST and ANBERNIC_KEY of the untracked deploy.local in the
+# repository's root (the names deploy_standalone.sh anbernic reads). RC2K_REMOTE_GAME is the
+# game's folder there.
 DEVICE_GAME = os.environ.get('RC2K_REMOTE_GAME', '/userdata/roms/ports/rally')
 DEVICE_REMOTE = '/tmp/rc2k_remote'
-KEY = os.path.expanduser(os.environ.get('RC2K_REMOTE_KEY', '~/.ssh/rg34xxsp'))
+
+
+def deploy_local():
+    """deploy.local's NAME=value lines (bash style: `export`, quotes and a trailing comment allowed)."""
+    values = {}
+    try:
+        lines = open(ROOT + '/deploy.local').read().splitlines()
+    except OSError:
+        return values
+    for line in lines:
+        try:
+            words = shlex.split(line, comments=True)
+        except ValueError:
+            continue
+        if words and words[0] == 'export':
+            words = words[1:]
+        if len(words) == 1 and '=' in words[0]:
+            name, value = words[0].split('=', 1)
+            values[name] = value
+    return values
+
+
+def device_setting(remote_name, local_name, what):
+    """A device's setting from the environment, else from deploy.local; neither: stops."""
+    value = os.environ.get(remote_name) or deploy_local().get(local_name)
+    if not value:
+        sys.exit(f'remote.py: no {what} for the device: set {remote_name}, or {local_name} in {ROOT}/deploy.local')
+    return os.path.expanduser(value.replace('$HOME', '~').replace('${HOME}', '~'))
 
 
 def host():
     if '--handheld' in sys.argv:
         sys.argv.remove('--handheld')
-        return os.environ.get('RC2K_REMOTE_HOST', 'rc2k@192.168.1.207')
+        return device_setting('RC2K_REMOTE_HOST', 'ANBERNIC_HOST', 'address (user@address)')
     return os.environ.get('RC2K_REMOTE_HOST')
 
 
 HOST = host()
+KEY = device_setting('RC2K_REMOTE_KEY', 'ANBERNIC_KEY', 'SSH key file') if HOST else None
 FOLDER = DEVICE_REMOTE if HOST else HOME + '/ctl'
 
 

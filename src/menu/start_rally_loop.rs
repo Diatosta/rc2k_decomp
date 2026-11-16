@@ -1,6 +1,6 @@
 //! The mode menu, titled "COMEÇAR RALI". Screen-specific part of `menu::screen_loop`: background
 //! `sral.png`; leaving is not asked about; the next frame begins with the steps after the first
-//! frame; it has steps of its own first on leaving; the quit switch is not looked at.
+//! frame; it has steps of its own first on leaving; the menu sound is cleared every frame.
 
 use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;
@@ -67,7 +67,7 @@ pub const SCREEN: Screen = Screen {
     leaving: &[Step::DoMenus(leaving)],
     frames: Frames {
         next_frame_repeats_first: true,
-        no_quit_check: true,
+        clears_menu_sound: true,
         ..Frames::DEFAULT
     },
     ..Screen::new(

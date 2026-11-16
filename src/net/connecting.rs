@@ -7,7 +7,7 @@ use crate::race::viewer_screen_store::NetTexts;
 
 pub const STATUS_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::STAGE_TITLE;
 
-/// An empty frame, then string `id` shown on the background and a second's sleep (not
+/// An empty frame, then string `id` shown on the background and a second's pause, which a key ends (not
 /// when the lock fails). Shared with `net::hosting`, `net::joining`, `net::stopping`.
 pub fn status(o: crate::owners::Owners<'static>, id: u32) -> Result<(), Refused> {
     run_frame(o, || Ok::<(), Refused>(()))?;
@@ -15,7 +15,7 @@ pub fn status(o: crate::owners::Owners<'static>, id: u32) -> Result<(), Refused>
         return Ok(());
     }
     crate::net::message_frame::string_frame_locked(o, id, STATUS_FONT, 0x316, 0x6F)?;
-    crate::system::sleep::sleep(1000);
+    crate::system::pause::pause(o, 1000);
     Ok(())
 }
 pub fn connecting(

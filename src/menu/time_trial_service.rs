@@ -1,7 +1,7 @@
 //! `menu::time_trial_service`: the time trial's service area before its stage. The service
 //! minutes are set to 0xA8C and `event_goes_on` to 1; for each counted player (`current_player`
-//! 0 .. `player_count`): the inspection's screen (`menu::inspection_screen`), a second's sleep,
-//! the fade in, 250 ms' sleep, the time of the chosen repairs cleared, the figures
+//! 0 .. `player_count`): the inspection's screen (`menu::inspection_screen`), a second's pause,
+//! the fade in, a pause of 250 ms (a key ends either), the time of the chosen repairs cleared, the figures
 //! (`menu::driver_stats`), the service flag cleared, the service page
 //! (`service::service_area_loop`; a yes to leaving ends it all), the repairs
 //! (`service::apply_repairs`), the entry kind (`menu::set_player_entry_kind`); a player now out
@@ -33,9 +33,9 @@ pub fn time_trial_service(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
         loop {
             set(&event.current_player, current);
             { crate::menu::inspection_screen::inspection_screen(entry.owners) }?;
-            crate::system::sleep::sleep(passes::SCREEN_PAUSE);
+            crate::system::pause::pause(entry.owners, passes::SCREEN_PAUSE);
             crate::menu::fade_in::fade_in(entry.owners)?;
-            crate::system::sleep::sleep(passes::FADE_PAUSE);
+            crate::system::pause::pause(entry.owners, passes::FADE_PAUSE);
             menus.service.repair_time.set(0);
             { crate::menu::driver_stats::driver_stats(menus, screens) }?;
             screens.state.menus.service_flag.set(false);

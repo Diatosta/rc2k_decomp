@@ -37,7 +37,7 @@ pub fn join_session(
         .write_at(0, &s.name, "the joined session")?;
     net.joined().joined_most.set(s.max_players);
     net.joined()
-        .joined_password
+        .joined_user_values
         .write_at(0, &s.user, "the joined session")?;
     net.link.session_desc().clear();
     net.link.session_desc().size.set(0x50);

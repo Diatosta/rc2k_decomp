@@ -8,8 +8,8 @@
 
 use crate::errors::Refused;
 use crate::install::installer::{
-    copy_picture, draw_string, fatal, load_language, lock, normalise, push_string_by_id, rb,
-    set_cd, show, sleep, store_text, unlock, wb,
+    copy_picture, draw_string, fatal, load_language, lock, normalise, pause, push_string_by_id, rb,
+    set_cd, show, store_text, unlock, wb,
 };
 use crate::memory::place::BytePlace;
 
@@ -99,7 +99,7 @@ pub fn run_installer(
         )?;
         unlock(o.gfx);
         show(o);
-        sleep(2000);
+        pause(o, 2000);
     }
     i::close_installer::close_installer(install, gfx)?;
     crate::gfx::free_fonts::free_fonts(&gfx.fonts)?;

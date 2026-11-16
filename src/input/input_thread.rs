@@ -2,7 +2,8 @@
 //! "INPUTTDB:START" logged, DirectInput made (none: to the end), the keyboard, the mouse and the
 //! joysticks set up, the priority raised. Then every 20 ms (waits of 5 ms on the tick count, kept
 //! in `last_tick`): `clocks.key_ticks` one more for each 20 ms gone, the keyboard and the mouse
-//! read, a tick of the devices, a second's sleep while the window is not the active one; until
+//! read, a tick of the devices, a wait of up to a second while the window is not the active one
+//! (ended by its becoming active); until
 //! the game is quitting. The end: both devices given back, the mouse, the keyboard and DirectInput
 //! released, "INPUTTDB:QUIT" logged, the priority back, the flag 0.
 //!
@@ -22,6 +23,23 @@ const TICK_MS: u32 = 20;
 /// "INPUTTDB:.." to the game's log (level 2, a line).
 fn log(text: &std::ffi::CStr) {
     crate::logfile::log_write::log_nul(&text, true, 2);
+}
+
+/// How long a tick waits for the window to be the active one again, and how often it looks.
+const UNFOCUSED_WAIT_MS: u32 = 1000;
+const UNFOCUSED_LOOK_MS: u32 = 10;
+
+/// While the window is not the active one the devices are read only once a second; the wait
+/// ends as soon as the window is active again or the game is quitting, so the controllers
+/// answer at once after coming back to the window.
+fn wait_while_unfocused(system: &System) {
+    let flags = &system.session.flags;
+    for _ in 0..UNFOCUSED_WAIT_MS / UNFOCUSED_LOOK_MS {
+        if flags.window_focused.get() == 1 || flags.quitting.is_set() {
+            return;
+        }
+        crate::system::sleep::sleep(UNFOCUSED_LOOK_MS);
+    }
 }
 
 /// The thread's work up to its `ExitThread` (see the header).
@@ -75,9 +93,7 @@ pub fn input_thread(
             }
             input.devices.last_tick.set(last);
             crate::input::input_tick::input_tick(input, sound, system, race)?;
-            if system.session.flags.window_focused.get() != 1 {
-                crate::system::sleep::sleep(1000);
-            }
+            wait_while_unfocused(system);
             if system.session.flags.quitting.is_set() {
                 break;
             }

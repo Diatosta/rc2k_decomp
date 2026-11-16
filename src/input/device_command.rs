@@ -1,7 +1,7 @@
 //! The input thread's command: 1 gives the device back and acquires it again; 2 (the race's
 //! end) switches the race off, ends the effects, ticks, gives both devices back; 3 (the race's
 //! start) sets up device 0 from player 1's controls and, unless one player uses one device,
-//! device 1 from player 2's, sleeps a second, begins the effects, ticks and switches the race
+//! device 1 from player 2's, begins the effects, ticks and switches the race
 //! on; others do nothing. Refuses (before anything) a device past 1 for command 1.
 
 use crate::errors::Refused;
@@ -66,7 +66,6 @@ pub fn device_command(
                             .set(0);
                     }
                 }
-                Sleep(ms) => crate::system::sleep::sleep(ms),
                 BeginEffects => crate::input::begin_effects::begin_effects(input, sound, system)?,
             }
         }

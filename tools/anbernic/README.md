@@ -22,7 +22,8 @@ runs on either. `src/platform/handheld.rs` shows the frames on `/dev/fb0`; SDL d
   unstripped build with `aarch64-linux-gnu-addr2line -i -f -C`.
 - Testing over SSH: `remote.py` pauses the front end (SIGSTOP: Knulli's `emulationstation`, or the
   stock OS's `loadapp.sh` and `dmenu_ln`, `dmenu.bin` killed); SIGCONT brings it back. Writing `input_event`s to `/dev/input/event1` presses buttons.
-- Automated runs: `tools/remote.py build --handheld`, then `start`, `pad`, `key`, `shot`, `state`, `stop` with `--handheld`.
+- Automated runs: `tools/remote.py build --handheld`, then `start`, `pad`, `key`, `shot`, `state`, `stop` with `--handheld`
+  (the address and key: `RC2K_REMOTE_HOST` / `RC2K_REMOTE_KEY`, else `ANBERNIC_HOST` / `ANBERNIC_KEY` in `deploy.local`; no default).
 - Profile-guided build (2 fps more, about 6 %): `tools/anbernic/pgo.sh` builds the game instrumented,
   drives it on the handheld (`pgo_train.py`: menus, then the first stage by the pilot) and writes
   `target/a64-pgo/rc2k.profdata`; `./deploy_standalone.sh anbernic pgo` builds with it. Train

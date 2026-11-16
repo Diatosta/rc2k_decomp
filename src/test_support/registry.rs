@@ -210,10 +210,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             &crate::logfile::write_line::state::LEVEL,
         ),
         listed!(
-            "logfile.write_line.state.LOCK",
-            &crate::logfile::write_line::state::LOCK,
-        ),
-        listed!(
             "logfile.write_line.state.INDENT",
             &crate::logfile::write_line::state::INDENT,
         ),

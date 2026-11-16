@@ -14,7 +14,6 @@ use crate::owners::Owners;
 use crate::service::pages::{GEAR_RATIO, RIDE_HEIGHT, SUSPENSION_STIFFNESS, TYRE};
 use crate::service::reset_tyre_wear::reset_tyre_wear;
 use crate::service::state::{current_player, repair_flag_in, set_repair_flag};
-use crate::system::sleep::sleep;
 use crate::system::tick_count::tick_count;
 use rc2k_core::fatal::Context;
 
@@ -26,6 +25,10 @@ pub trait Driver {
     fn clock(&mut self) -> u32;
     fn frame(&mut self);
     fn sleep(&mut self, milliseconds: u32);
+    /// Whether a key was pressed (it is taken).
+    fn key_pressed(&mut self) -> bool {
+        false
+    }
 }
 
 /// The real clock, frames and sleep.
@@ -50,8 +53,12 @@ impl Driver for GameDriver {
             );
         }
     }
+    /// A pause a key ends, the window's events going on.
     fn sleep(&mut self, milliseconds: u32) {
-        sleep(milliseconds);
+        crate::system::pause::pause(self.o, milliseconds);
+    }
+    fn key_pressed(&mut self) -> bool {
+        crate::input::take_key::take_key(self.o.input) != 0
     }
 }
 
@@ -107,6 +114,9 @@ impl Workshop for Game<'_> {
     }
     fn sleep(&mut self, milliseconds: u32) {
         self.driver.sleep(milliseconds);
+    }
+    fn key_pressed(&mut self) -> bool {
+        self.driver.key_pressed()
     }
 }
 
