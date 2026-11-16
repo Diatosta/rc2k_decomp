@@ -97,7 +97,7 @@ const VERTEX: [(&std::ffi::CStr, Part, u32); 8] = [
     (c"co", Part::Hex8, 0x10), // "co"
     (c"sp", Part::Hex8, 0x14), // "sp"
 ];
-const PT: &std::ffi::CStr = c"pt"; // "pt"
+const PT: &std::ffi::CStr = c"pt";
 
 /// The dump of the `polygon_vertex_count` vertices at `vertices` (at most 64, held to the
 /// vertex buffer: the longest read is the last vertex's 0x20 bytes of its 0x800).

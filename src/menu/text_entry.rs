@@ -60,7 +60,7 @@ pub fn put_field(
     at.into().write(text, "a text field")
 }
 
-const BACKED_UP_RVA: &std::ffi::CStr = c"Backed up name="; // aBackedUpName: "Backed up name="
+const BACKED_UP: &std::ffi::CStr = c"Backed up name=";
 
 /// Starts an entry on the text field `field`, as the saved game and replay screens do it:
 /// the text is copied to the backup, "Backed up name=<backup>" goes to the log if `log` is
@@ -75,7 +75,7 @@ pub fn begin_logged(
     with_entry(menus, |e| e.begin(&mut text));
     put_field(at, &text)?;
     if log {
-        crate::logfile::log_write::log_nul(BACKED_UP_RVA, false, 1);
+        crate::logfile::log_write::log_nul(BACKED_UP, false, 1);
         crate::logfile::log_write::log_at(backup(menus), true, 1);
     }
     Ok(())

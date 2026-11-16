@@ -19,7 +19,7 @@ use rc2k_core::net::message::Payload;
 use rc2k_core::net::race::{self, Arrival, Kind};
 
 /// The log text before the sender's number.
-const TEXT: &std::ffi::CStr = c"rcvd fm plyr"; // "rcvd fm plyr"
+const TEXT: &std::ffi::CStr = c"rcvd fm plyr";
 
 /// A car's place (+0x134 .. +0x13C).
 pub fn place(car: &Car) -> &[PlainDword; 3] {

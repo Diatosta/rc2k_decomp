@@ -105,7 +105,7 @@ pub fn run_installer(
         sleep(2000);
     }
     i::close_installer::close_installer(install, gfx)?;
-    crate::gfx::free_fonts::free_fonts_in_game(gfx)?;
+    crate::gfx::free_fonts::free_fonts(&gfx.fonts)?;
     Ok(())
 }
 

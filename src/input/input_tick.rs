@@ -46,13 +46,3 @@ pub fn input_tick(
     }
     Ok(())
 }
-
-/// For the standalone's input thread.
-pub fn input_tick_in_game(
-    input: &Input,
-    sound: &crate::sound::store::SoundShared,
-    system: &crate::system::owner::System,
-    race: &crate::race::owner::Race,
-) -> Result<(), Refused> {
-    input_tick(input, sound, system, race)
-}

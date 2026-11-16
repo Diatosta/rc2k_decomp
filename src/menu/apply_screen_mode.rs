@@ -27,7 +27,7 @@ pub fn apply_screen_mode(o: Owners<'static>) -> Result<(), Refused> {
     )?
     .carry;
     if taken {
-        crate::gfx::free_fonts::free_fonts_in_game(gfx)?;
+        crate::gfx::free_fonts::free_fonts(&gfx.fonts)?;
         crate::gfx::free_glyph_tables::free_glyph_tables(gfx)?;
         crate::gfx::build_fonts::build_fonts_in(gfx, system, o.strings)?;
         crate::gfx::build_menu_sprites::build_menu_sprites_in_game(

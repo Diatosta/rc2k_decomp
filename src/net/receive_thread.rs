@@ -7,8 +7,8 @@ use crate::errors::Refused;
 use crate::net::owner::Net;
 use crate::system::owner::System;
 
-const START_TEXT: &std::ffi::CStr = c"NETRXTDB:START"; // "NETRXTDB:START"
-const QUIT_TEXT: &std::ffi::CStr = c"NETRXTDB:QUIT"; // "NETRXTDB:QUIT"
+const START_TEXT: &std::ffi::CStr = c"NETRXTDB:START";
+const QUIT_TEXT: &std::ffi::CStr = c"NETRXTDB:QUIT";
 /// The wait for the event, in milliseconds.
 const WAIT: u32 = 1000;
 

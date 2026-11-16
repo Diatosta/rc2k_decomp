@@ -20,11 +20,11 @@ use rc2k_core::input::acquire::{
 };
 use std::mem::size_of;
 
-const JOY_RVA: &std::ffi::CStr = c"JOY:"; // aJoy "JOY:"
-const AXMODE_RVA: &std::ffi::CStr = c"axmode="; // aAxmode "axmode="
-const AXCODE_RVA: &std::ffi::CStr = c"axcode="; // aAxcode "axcode="
-const DZ_RVA: &std::ffi::CStr = c"dz="; // aDz "dz="
-const FF_RVA: &std::ffi::CStr = c"ff="; // aFf "ff="
+const JOY_TEXT: &std::ffi::CStr = c"JOY:";
+const AXMODE: &std::ffi::CStr = c"axmode=";
+const AXCODE: &std::ffi::CStr = c"axcode=";
+const DZ: &std::ffi::CStr = c"dz=";
+const FF: &std::ffi::CStr = c"ff=";
 
 const NO_OBJECT: FatalError = FatalError {
     code: 0x8023_8311,
@@ -84,18 +84,18 @@ fn settings(devices: &Devices, record: &D) -> Result<(), BadInput> {
     for (f, v) in fields.into_iter().zip(values) {
         f.set(v);
     }
-    log_text(JOY_RVA);
+    log_text(JOY_TEXT);
     log_int(record.controller.get(), false);
     log_int(entry_of(devices, record)?.axes.get(), false);
     log_int(entry_of(devices, record)?.buttons.get(), false);
-    log_text(AXMODE_RVA);
+    log_text(AXMODE);
     log_int(record.kind.get(), false);
-    log_text(AXCODE_RVA);
+    log_text(AXCODE);
     crate::logfile::log_hex8::log_hex8(record.axis_code.get(), false, 2);
-    log_text(DZ_RVA);
+    log_text(DZ);
     log_int(record.dead_zone.get(), false);
     log_int(record.end_zone.get(), false);
-    log_text(FF_RVA);
+    log_text(FF);
     log_int(entry_of(devices, record)?.force_feedback.get(), false);
     log_int(record.strength.get(), true);
     Ok(())

@@ -8,10 +8,10 @@ use crate::errors::{BadInput, Refused};
 use crate::memory::session::Dword;
 use crate::system::owner::System;
 
-const CAPS_TEXT: &std::ffi::CStr = c"AUD: sound caps: flgs/pri/min/max:\t"; // "AUD: sound caps: flgs/pri/min/max:\t"
-const MAX_HW_TEXT: &std::ffi::CStr = c" maxhw: all/static/stream (free)\t"; // " maxhw: all/static/stream (free)\t"
-const MAX_3D_TEXT: &std::ffi::CStr = c" max3d: all/static/stream (free)\t"; // " max3d: all/static/stream (free)\t"
-const CLOSE_TEXT: &std::ffi::CStr = c"AUD: close sound"; // "AUD: close sound"
+const CAPS_TEXT: &std::ffi::CStr = c"AUD: sound caps: flgs/pri/min/max:\t";
+const MAX_HW_TEXT: &std::ffi::CStr = c" maxhw: all/static/stream (free)\t";
+const MAX_3D_TEXT: &std::ffi::CStr = c" max3d: all/static/stream (free)\t";
+const CLOSE_TEXT: &std::ffi::CStr = c"AUD: close sound";
 
 /// A text to the log at level 2, with a line's end or not.
 pub fn log_text(text: &std::ffi::CStr, end: bool) {
@@ -158,7 +158,7 @@ pub fn close_sound(state: &AudioOwn, system: &System) -> Result<(), Refused> {
     Ok(())
 }
 
-const OPEN_TEXT: &std::ffi::CStr = c"AUD: open sound"; // "AUD: open sound"
+const OPEN_TEXT: &std::ffi::CStr = c"AUD: open sound";
 const OPEN_FAILED_TEXT: &std::ffi::CStr = c"AUD: open failed rc=";
 
 /// `DirectSoundCreate` for the device's GUID: the device, or the failure's result.

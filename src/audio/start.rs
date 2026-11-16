@@ -9,7 +9,7 @@
 use crate::audio::own::AudioThread;
 use crate::errors::Refused;
 
-const USING_MODES_TEXT: &std::ffi::CStr = c"AUD: Using modes"; // "AUD: Using modes"
+const USING_MODES_TEXT: &std::ffi::CStr = c"AUD: Using modes";
 
 /// False when there is no race mode.
 pub fn start(

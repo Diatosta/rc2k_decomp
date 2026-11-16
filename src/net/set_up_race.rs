@@ -9,9 +9,9 @@ use crate::net::store::NetShared;
 use crate::race::owner::Race;
 use rc2k_core::net::record;
 
-const RULE: &std::ffi::CStr = c"------------------------"; // "------------------------"
-const START: &std::ffi::CStr = c"LOADING NETWORK START   "; // "LOADING NETWORK START   "
-const COMPLETE: &std::ffi::CStr = c"LOADING NETWORK COMPLETE"; // "LOADING NETWORK COMPLETE"
+const RULE: &std::ffi::CStr = c"------------------------";
+const START: &std::ffi::CStr = c"LOADING NETWORK START   ";
+const COMPLETE: &std::ffi::CStr = c"LOADING NETWORK COMPLETE";
 const RULE_2: &std::ffi::CStr = c"------------------------";
 /// The counts logged: (the label, the value's variable).
 const COUNTS: [(&std::ffi::CStr, Count); 11] = [

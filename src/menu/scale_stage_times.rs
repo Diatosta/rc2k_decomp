@@ -11,7 +11,7 @@ use crate::menu::owner::Screens;
 use crate::race::owner::Race;
 use crate::records::stages_store::RecordRef;
 
-const TEXTS_RVA: [&std::ffi::CStr; 4] = [c"stage times info", c"a7x", c"a8x", c"times a8-a5"];
+const TEXTS: [&std::ffi::CStr; 4] = [c"stage times info", c"a7x", c"a8x", c"times a8-a5"];
 /// The section held to 0 .. 5.
 pub fn held_section(screens: &Screens) -> u32 {
     rc2k_core::menu::stage_scale::held_section(screens.event.section.get() as i32)
@@ -45,7 +45,7 @@ pub fn scale_stage_times(
     race.shared.work.get().stage_time_scales[0].set(f[0]);
     race.shared.work.get().stage_time_scales[1].set(f[1]);
     write_all(&screens.state.menus.class_times, times);
-    let text = |n: usize| &TEXTS_RVA[n];
+    let text = |n: usize| &TEXTS[n];
     crate::logfile::log_write::log_nul(text(0), false, 1);
     log_int(section as i32, false, 1);
     log_int(record.record(stages)?.number() as i32, false, 1);

@@ -12,7 +12,7 @@ use crate::input::types::{DiPropDword, DiPropHeader, InputDevice};
 use rc2k_core::input::acquire::gain;
 use std::mem::size_of;
 
-const USING_TEXT_RVA: &std::ffi::CStr = c"INP: using force feedback"; // aInpUsingForceF
+const USING_TEXT: &std::ffi::CStr = c"INP: using force feedback";
 
 /// The `DIPROPDWORD` for the whole device with `data`.
 pub fn dword_property(data: u32) -> DiPropDword {
@@ -32,7 +32,7 @@ pub fn begin_force(input: &Input, record: &InputDevice) -> Result<(), Refused> {
     if entry_of(&input.devices, record)?.force_feedback.get() != 1 {
         return Ok(());
     }
-    crate::logfile::log_write::log_nul(&USING_TEXT_RVA, true, 2);
+    crate::logfile::log_write::log_nul(&USING_TEXT, true, 2);
     let device = record.device.get();
     let Some(gain) = gain(record.strength.get()) else {
         set_property(device, Property::AutoCenter(&dword_property(1)));

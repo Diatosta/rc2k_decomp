@@ -4,8 +4,8 @@
 use crate::audio::own::AudioOwn;
 use crate::errors::Refused;
 
-const OPEN_TEXT: &std::ffi::CStr = c"AUD: open ds3d"; // "AUD: open ds3d"
-const FAILED_TEXT: &std::ffi::CStr = c"AUD: open ds3d failed rc="; // "AUD: open ds3d failed rc="
+const OPEN_TEXT: &std::ffi::CStr = c"AUD: open ds3d";
+const FAILED_TEXT: &std::ffi::CStr = c"AUD: open ds3d failed rc=";
 const MODE_3D: u32 = crate::audio::voices::MODE_3D;
 
 /// The first index of the volume table whose volume is at least `volume` (signed), or 0x40.

@@ -18,7 +18,7 @@ use crate::menu::drivers_store::{Driver, IN_EVENT};
 use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 
-const STATUS_TEXT_RVA: &std::ffi::CStr = c"Status of driver"; // aStatusOfDriver
+const STATUS_TEXT: &std::ffi::CStr = c"Status of driver";
 /// The driver (computer, by `find_cpu_team`) or player of an entry, and the field its
 /// stage points go to, and whether it keeps them.
 enum Owner<'a> {
@@ -62,7 +62,7 @@ pub fn award_stage_points(
             if e.group != class {
                 continue;
             }
-            crate::logfile::log_write::log_nul(&STATUS_TEXT_RVA, false, 1);
+            crate::logfile::log_write::log_nul(&STATUS_TEXT, false, 1);
             crate::logfile::log_int::log_int(e.status as i32, true, 1);
             let given = points.take();
             let keeps = match *o {

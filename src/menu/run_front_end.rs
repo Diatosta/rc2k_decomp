@@ -15,8 +15,8 @@ use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::owners::Owners;
 
-const STARTING_RVA: &std::ffi::CStr = c"BEV: Starting GB_Front"; // "BEV: Starting GB_Front"
-const FINISHED_RVA: &std::ffi::CStr = c"BEV: Finished GB_Front"; // "BEV: Finished GB_Front"
+const STARTING: &std::ffi::CStr = c"BEV: Starting GB_Front";
+const FINISHED: &std::ffi::CStr = c"BEV: Finished GB_Front";
 
 pub fn run_front_end(o: Owners<'static>) -> Result<(), Refused> {
     let menus = o.menus;
@@ -36,9 +36,9 @@ pub fn run_front_end(o: Owners<'static>) -> Result<(), Refused> {
     if crate::menu::launch::asked().is_none() {
         crate::menu::play_films::play_films(o, false)?;
     }
-    crate::logfile::log_write::log_nul(STARTING_RVA, true, 1);
+    crate::logfile::log_write::log_nul(STARTING, true, 1);
     run_screen(ScreenId::MainMenu, &Entry::new(o))?;
-    crate::logfile::log_write::log_nul(FINISHED_RVA, true, 1);
+    crate::logfile::log_write::log_nul(FINISHED, true, 1);
     crate::menu::store_player_names::store_player_names(menus, play, &mut |line| {
         crate::logfile::log_write::log_nul(line, true, 1);
     })?;

@@ -28,8 +28,3 @@ pub fn release_device(devices: &Devices, record: &InputDevice) -> Result<(), Ref
     clear_device_readings(record);
     Ok(())
 }
-
-/// `release_device` on a record of `devices`.
-pub fn release_device_in_game(devices: &Devices, record: &InputDevice) -> Result<(), Refused> {
-    release_device(devices, record)
-}

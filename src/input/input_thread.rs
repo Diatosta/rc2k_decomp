@@ -15,8 +15,8 @@ use crate::input::devices::records;
 use crate::input::owner::Input;
 use crate::system::owner::System;
 
-const START_TEXT_RVA: &std::ffi::CStr = c"INPUTTDB:START"; // "INPUTTDB:START"
-const QUIT_TEXT_RVA: &std::ffi::CStr = c"INPUTTDB:QUIT"; // "INPUTTDB:QUIT"
+const START_TEXT: &std::ffi::CStr = c"INPUTTDB:START";
+const QUIT_TEXT: &std::ffi::CStr = c"INPUTTDB:QUIT";
 const TICK_MS: u32 = 20;
 
 /// "INPUTTDB:.." to the game's log (level 2, a line).
@@ -38,7 +38,7 @@ pub fn input_thread(
             break 'work;
         }
         flag.set(1);
-        log(START_TEXT_RVA);
+        log(START_TEXT);
         // DirectInput made (in Rust, on SDL's joysticks); the keyboard and the mouse are
         // SDL's events: nothing to make for them.
         let direct_input = crate::input::di_objects::create_input();
@@ -74,7 +74,7 @@ pub fn input_thread(
                 }
             }
             input.devices.last_tick.set(last);
-            crate::input::input_tick::input_tick_in_game(input, sound, system, race)?;
+            crate::input::input_tick::input_tick(input, sound, system, race)?;
             if system.session.flags.window_focused.get() != 1 {
                 crate::system::sleep::sleep(1000);
             }
@@ -84,14 +84,14 @@ pub fn input_thread(
         }
     }
     for record in records(&input.devices) {
-        { crate::input::release_device::release_device_in_game(&input.devices, record) }?;
+        crate::input::release_device::release_device(&input.devices, record)?;
     }
     let direct_input = input.devices.direct_input.get();
     if direct_input != 0 {
         crate::input::di_objects::release(direct_input);
         input.devices.direct_input.set(0);
     }
-    log(QUIT_TEXT_RVA);
+    log(QUIT_TEXT);
     set_priority(0);
     flag.set(0);
     Ok(())

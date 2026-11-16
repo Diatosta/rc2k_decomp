@@ -63,7 +63,7 @@ fn other(scene: &crate::scene::owner::Scene) -> bool {
     scene.objects.tables.get().other_levels.get() != 0
 }
 
-const COUNT_TEXT_RVA: &std::ffi::CStr = c"NUM DIFFERENT CARS/OBJECTS/TEXTURE SETS "; // "NUM DIFFERENT CARS/OBJECTS/TEXTURE SETS "
+const COUNT_TEXT: &std::ffi::CStr = c"NUM DIFFERENT CARS/OBJECTS/TEXTURE SETS ";
 
 /// `scene::init_texture_levels`, see the header: the number of cars held to 1 ..= 8 (by the
 /// signs of the differences); the tables reset, the count in the log; `ObjectTables.other_levels`
@@ -82,7 +82,7 @@ pub fn init_texture_levels(race: &Race, o: crate::owners::Owners<'static>) -> Re
     let cars = held_cars(shared.view.get().race_cars.get());
     shared.view.get().race_cars.set(cars);
     crate::scene::reset_texture_tables::reset_texture_tables(scene);
-    crate::logfile::log_write::log_nul(&COUNT_TEXT_RVA, false, 1);
+    crate::logfile::log_write::log_nul(&COUNT_TEXT, false, 1);
     log_int(cars as i32, true, 1);
     scene.objects.tables.get().other_levels.set(0);
     crate::input::keys::update_input(o);

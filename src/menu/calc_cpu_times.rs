@@ -22,7 +22,7 @@ use rc2k_core::saves::defaults::CLASS_DRIVER_COUNTS;
 
 use crate::menu::scale_stage_times::{held_section, scaled};
 
-const TEXTS_RVA: [&std::ffi::CStr; 2] = [c"CALCCPUTIMES:STARTED", c"CALCCPUTIMES:FINISHED"];
+const TEXTS: [&std::ffi::CStr; 2] = [c"CALCCPUTIMES:STARTED", c"CALCCPUTIMES:FINISHED"];
 
 /// The class time `c`, the class's entry of `class_times`. `event.shown.classes` is only ever the 4
 /// of `EventState::new` (no other writer, no saved copy), so a class is one of the four.
@@ -120,7 +120,7 @@ pub fn calc_cpu_times(
 ) -> Result<(), Refused> {
     let rec = record(screens, system, tables)?;
     let (classes, drivers, length) = check(cars, screens, system, race, rec)?;
-    crate::logfile::log_write::log_nul(&TEXTS_RVA[0], true, 1);
+    crate::logfile::log_write::log_nul(&TEXTS[0], true, 1);
     for (k, t) in rec
         .record(&system.records().stage_tables)?
         .class_times()
@@ -162,6 +162,6 @@ pub fn calc_cpu_times(
             gaps = gaps.wrapping_add(gap);
         }
     }
-    crate::logfile::log_write::log_nul(&TEXTS_RVA[1], true, 1);
+    crate::logfile::log_write::log_nul(&TEXTS[1], true, 1);
     Ok(())
 }

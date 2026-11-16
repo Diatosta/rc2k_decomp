@@ -20,8 +20,8 @@ use crate::memory::session::Screen;
 // ---- game data ----
 const TEXTURES: u32 = 0x400;
 
-const ERROR_TEXT: &std::ffi::CStr = c"Error"; // "Error"
-const DRAWTRI_TEXT: &std::ffi::CStr = c"drawtri"; // "drawtri"
+const ERROR_TEXT: &std::ffi::CStr = c"Error";
+const DRAWTRI_TEXT: &std::ffi::CStr = c"drawtri";
 
 /// What the function asks of the code around it.
 pub trait Outside {

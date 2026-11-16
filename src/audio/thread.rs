@@ -8,8 +8,8 @@
 use crate::errors::Refused;
 use rc2k_core::audio::commands::StreamAction;
 
-const START_TEXT: &std::ffi::CStr = c"AUDIOTDB:START"; // "AUDIOTDB:START"
-const QUIT_TEXT: &std::ffi::CStr = c"AUDIOTDB:QUIT"; // "AUDIOTDB:QUIT"
+const START_TEXT: &std::ffi::CStr = c"AUDIOTDB:START";
+const QUIT_TEXT: &std::ffi::CStr = c"AUDIOTDB:QUIT";
 
 /// Everything the audio thread reads from outside its own state, built once where the thread is
 /// started (`threading::thread_slot`).

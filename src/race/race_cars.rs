@@ -663,12 +663,12 @@ pub fn set_up_cars(
 
 // ---- the arcade's opponents ----
 
-const SEED_WORD_RVA: &std::ffi::CStr = c"seed"; // "seed"
+const SEED_WORD: &std::ffi::CStr = c"seed";
 /// "p1", "power", "p2", "power", "p3", "power", "p4", "power".
 const OPPONENT_WORDS: [&std::ffi::CStr; 8] = [
     c"p1", c"power", c"p2", c"power", c"p3", c"power", c"p4", c"power",
 ];
-const SETUP_ARCADE_WORD_RVA: &std::ffi::CStr = c"SETUPARCADECARS"; // "SETUPARCADECARS"
+const SETUP_ARCADE_WORD: &std::ffi::CStr = c"SETUPARCADECARS";
 
 /// The kinds a draw (0 .. 0x21) can give that `choose_arcade_opponents` takes: usable
 /// (`kind_unusable` clear) and within 5 places (`index_of_kind`) of the first car's.
@@ -705,7 +705,7 @@ pub fn choose_arcade_opponents(shared: &RaceShared) -> Result<(), Refused> {
         return Err(BadInput("fewer than three opponents can be drawn").into());
     }
     let first_place = index_of_kind(shared, first)?;
-    text(SEED_WORD_RVA, false);
+    text(SEED_WORD, false);
     number(shared.tables().noise_seed.get(), true);
     text(OPPONENT_WORDS[0], false);
     number(first, false);
@@ -752,7 +752,7 @@ pub fn choose_arcade_opponents(shared: &RaceShared) -> Result<(), Refused> {
 pub fn set_up_arcade_cars(race: &Race) -> Result<(), Refused> {
     let shared = &race.shared;
     if shared.vars.get().run_kind.get() == 2 {
-        text(SETUP_ARCADE_WORD_RVA, true);
+        text(SETUP_ARCADE_WORD, true);
         let indent = crate::logfile::write_line::state::INDENT.atomic();
         indent.fetch_add(3, std::sync::atomic::Ordering::Relaxed);
         choose_arcade_opponents(shared)?;

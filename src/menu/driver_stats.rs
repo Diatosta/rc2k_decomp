@@ -18,7 +18,7 @@ use crate::menu::owner::Screens;
 use crate::menu::standings::*;
 
 /// The parts' names in the log, by inspected part.
-const NAMES_RVA: [&std::ffi::CStr; 13] = [
+const NAMES: [&std::ffi::CStr; 13] = [
     c"DriverStats.Engine",
     c"DriverStats.Bodywork",
     c"DriverStats.Exhaust",
@@ -34,7 +34,7 @@ const NAMES_RVA: [&std::ffi::CStr; 13] = [
     c"DriverStats.TyresWear",
 ];
 /// The text logged after each part (one copy per part, all the same).
-const EQUALS_RVA: [&std::ffi::CStr; 13] = [
+const EQUALS: [&std::ffi::CStr; 13] = [
     c"eax=", c"eax=", c"eax=", c"eax=", c"eax=", c"eax=", c"eax=", c"eax=", c"eax=", c"eax=",
     c"eax=", c"eax=", c"eax=",
 ];
@@ -112,9 +112,9 @@ pub fn driver_stats(menus: &Menus, screens: &Screens) -> Result<(), Refused> {
         }
     }
     for (slot, line) in f.logged.iter().enumerate() {
-        crate::logfile::log_write::log_nul(&NAMES_RVA[slot], false, 1);
+        crate::logfile::log_write::log_nul(&NAMES[slot], false, 1);
         log_int(line.wear as i32, false, 1);
-        crate::logfile::log_write::log_nul(&EQUALS_RVA[slot], false, 1);
+        crate::logfile::log_write::log_nul(&EQUALS[slot], false, 1);
         log_int(line.limit as i32, true, 1);
     }
     Ok(())

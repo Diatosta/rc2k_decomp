@@ -8,9 +8,9 @@
 use crate::audio::own::AudioThread;
 use crate::errors::Refused;
 
-const SAM_TEXT: &std::ffi::CStr = c"SAM:"; // "SAM:"
-const OK_TEXT: &std::ffi::CStr = c"SAM: OK"; // "SAM: OK"
-const FAIL_TEXT: &std::ffi::CStr = c"SAM: FAIL"; // "SAM: FAIL"
+const SAM_TEXT: &std::ffi::CStr = c"SAM:";
+const OK_TEXT: &std::ffi::CStr = c"SAM: OK";
+const FAIL_TEXT: &std::ffi::CStr = c"SAM: FAIL";
 
 /// True when it worked.
 pub fn set_mode(

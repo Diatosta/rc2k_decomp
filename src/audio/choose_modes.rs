@@ -9,7 +9,7 @@ use crate::audio::owner::Audio;
 use crate::audio::store::AudioShared;
 use crate::errors::Refused;
 
-const NEW_MODES_TEXT: &std::ffi::CStr = c"AUD: New modes"; // "AUD: New modes"
+const NEW_MODES_TEXT: &std::ffi::CStr = c"AUD: New modes";
 
 pub use rc2k_core::audio::modes::{AudioOptions, Facts};
 
