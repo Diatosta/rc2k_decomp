@@ -334,10 +334,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!("owners.gfx.pixel.formats", on_game(&o.gfx.pixel.formats),),
         listed!("owners.gfx.drawing.thirds", on_game(&o.gfx.drawing.thirds),),
         listed!("owners.gfx.display.modes", on_game(&o.gfx.display.modes),),
-        listed!(
-            "owners.gfx.pixel.converters",
-            on_game(&o.gfx.pixel.converters),
-        ),
         listed!("owners.gfx.reports", on_game(&o.gfx.reports),),
         listed!("owners.gfx.shots", on_game(&o.gfx.shots),),
         listed!(
@@ -352,7 +348,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             "owners.gfx.pictures.planes",
             on_game(&o.gfx.pictures.planes),
         ),
-        listed!("owners.gfx.display.cards", on_game(&o.gfx.display.cards),),
         listed!("owners.gfx.card.upload", on_game(&o.gfx.card.upload),),
         listed!(
             "owners.install.vars",
@@ -479,10 +474,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         ),
         listed!("owners.input.force_feedback", &o.input.force_feedback,),
         listed!("owners.sound.menu.options", &o.sound.menu.options,),
-        listed!(
-            "owners.sound.menu.cd_audio",
-            on_game(o.sound.menu.cd_audio.get()),
-        ),
         listed!("owners.input.devices", &o.input.devices,),
         listed!("owners.input.keyboard", on_game(o.input.keyboard()),),
         listed!("owners.input.mouse", on_game(o.input.mouse()),),
@@ -563,10 +554,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             "owners.race.replay.seal_work",
             on_game_from(o.race.replay.seal_work(), ".subkeys[0]"),
             0x98,
-        ),
-        listed!(
-            "owners.system.start.error_mode",
-            on_game(&o.system.start().error_mode),
         ),
         listed!(
             "owners.system.start.texts",

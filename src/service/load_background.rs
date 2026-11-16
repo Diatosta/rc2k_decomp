@@ -25,6 +25,6 @@ pub fn load_background_in(
         menus.lists.service_pictures[car as usize].get(),
     )?;
     crate::gfx::load_picture::load_picture_with(&path, gfx, system)?;
-    crate::gfx::convert_picture::convert_picture_now_in(gfx, system)?;
+    crate::gfx::convert_picture::convert_picture_now_in(gfx)?;
     Ok(())
 }

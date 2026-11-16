@@ -88,7 +88,7 @@ pub fn draw_view_scene(
         view.polygon.view_mirrored.get() != 0,
         view.drawn_view(race),
     )?;
-    clear_point_records(&scene.scratch, reads, part)?;
+    clear_point_records(&scene.scratch, part)?;
     set_up_fog(
         &reads.buffers.engine_tables,
         reads.stage_prefs,
@@ -99,7 +99,7 @@ pub fn draw_view_scene(
     )?;
     camera_view(reads, &view.matrices, view)?;
     draw_sky(&ctx)?;
-    view_light(&ctx, reads.has_mmx)?;
+    view_light(&ctx)?;
     reset_lamps(&ctx)?;
     // `view_lamps` is not set to 0 here: nothing reads it.
     prepare_course_view(reads, view, part)?;

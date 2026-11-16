@@ -204,7 +204,7 @@ pub fn load_first_car(shared: &RaceShared) -> Result<(), Refused> {
 
 /// Copies the mirror's surface (slot `mirror_picture`) onto the slot
 /// `KindTextureTables.kind_first_textures[200]`: each pixel goes through `gfx::pixel_to_components`
-/// (the screen's format, 16 or 32 bits by `screen_bits`) and back through
+/// (the screen's format) and back through
 /// `gfx::components_to_pixel` (the destination's) with alpha 0xFF, over the destination's width and
 /// height. Both surfaces are locked and unlocked (`d3d::lock_texture` / `d3d::unlock_texture`).
 /// Refuses (before the copy) a null destination format.
@@ -245,7 +245,6 @@ pub fn copy_mirror_picture(
             height: gfx_drawing.draw_surface.height.get(),
             from_pitch: ebp,
             to_pitch: gfx_drawing.draw_surface.pitch.get(),
-            from_16_bit: system.session.screen.get().bits.get() == 0x10,
             to_16_bit: gfx_drawing.draw_surface.bits_per_pixel.get() == 0x10,
         };
         let mut surfaces = GameSurfaces {
@@ -255,9 +254,8 @@ pub fn copy_mirror_picture(
             to: crate::gfx::locked_pixels::Place::start(to_pixels),
             gfx,
         };
-        // What the first pixel's high half is under: the destination's slot, as the lock was given
-        // it. The pixels are places in each surface's bytes, from offset 0.
-        copy_picture(&copy, 0, 0, to, &mut surfaces);
+        // The pixels are places in each surface's bytes, from offset 0.
+        copy_picture(&copy, 0, 0, &mut surfaces);
         unlock_texture(gfx, to)?;
     }
     unlock_texture(gfx, from)?;
@@ -276,9 +274,6 @@ struct GameSurfaces<'a> {
 }
 
 impl rc2k_core::race::view_steps::Surfaces for GameSurfaces<'_> {
-    fn read16(&mut self, at: u32) -> u16 {
-        self.from.must_read_at(at, "a surface's pixel")
-    }
     fn read32(&mut self, at: u32) -> u32 {
         self.from.must_read_at(at, "a surface's pixel")
     }

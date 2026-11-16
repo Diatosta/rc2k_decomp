@@ -20,7 +20,7 @@ pub struct ScreenChoices {
     /// Mipmapping, 0 off, 1 on (row 3; the copy of `MenuOptions.mipmapping`; into
     /// `RACE_VARS.mip_setting`), held to `mip_limit`.
     pub mipmapping: PlainDword,
-    /// 1 when there is a primary 3D card (`gfx::cards`).
+    /// 1 when there is a primary 3D card .
     pub has_primary: PlainDword,
     /// 1 when there is a secondary one; row 0 is choosable only with both
     /// (`screens::draw_graphics_settings`).

@@ -27,16 +27,6 @@ pub fn rdtsc() -> u64 {
         / 2
 }
 
-/// `rcpss`: the 5800X's estimate on every machine (the processors' own differ).
-pub fn rcpss(a: f32) -> f32 {
-    rc2k_core::math::estimates::reciprocal_estimate(a)
-}
-
-/// `rsqrtss`: the 5800X's estimate on every machine.
-pub fn rsqrtss(a: f32) -> f32 {
-    rc2k_core::math::estimates::reciprocal_root_estimate(a)
-}
-
 #[cfg(windows)]
 use windows_sys::Win32::System::Diagnostics::Debug::CONTEXT;
 

@@ -55,13 +55,8 @@ pub struct StepAnswer {
 pub trait Films {
     /// The setting `nofmv` is on.
     fn no_fmv(&mut self) -> bool;
-    /// The screen's bits a pixel.
-    fn screen_bits(&mut self) -> u32;
     fn step(&mut self, s: Step) -> StepAnswer;
 }
-
-/// The screen depth that shows the first logo.
-pub const LOGO_BITS: u32 = 0x10;
 
 /// `menu::play_films`: `idle` from the idle main menu, else at the start (0).
 pub fn play_films<F: Films>(e: &mut F, idle: bool) {
@@ -72,10 +67,8 @@ pub fn play_films<F: Films>(e: &mut F, idle: bool) {
         if e.no_fmv() {
             return;
         }
-        if e.screen_bits() == LOGO_BITS {
-            e.step(Step::SwapMissingExtension(Film::AlLogo));
-            e.step(Step::Player(None));
-        }
+        e.step(Step::SwapMissingExtension(Film::AlLogo));
+        e.step(Step::Player(None));
         e.step(Step::Player(Some(Film::MfLogo)));
         e.step(Step::Step4059F4);
     }
@@ -124,7 +117,6 @@ mod tests {
     struct Log {
         steps: Vec<Step>,
         no_fmv: bool,
-        bits: u32,
         /// The keys: each `TakeKey` and `Player(Intro)` answers the next (true: a key).
         keys: Vec<bool>,
         intro: bool,
@@ -133,9 +125,6 @@ mod tests {
     impl Films for Log {
         fn no_fmv(&mut self) -> bool {
             self.no_fmv
-        }
-        fn screen_bits(&mut self) -> u32 {
-            self.bits
         }
         fn step(&mut self, s: Step) -> StepAnswer {
             self.steps.push(s);
@@ -158,7 +147,6 @@ mod tests {
         let mut log = Log {
             steps: vec![],
             no_fmv: true,
-            bits: 0x10,
             keys: vec![false],
             intro: true,
         };
@@ -168,7 +156,6 @@ mod tests {
         let mut log = Log {
             steps: vec![],
             no_fmv: false,
-            bits: 0x10,
             keys: vec![false, false, true],
             intro: true,
         };
@@ -185,7 +172,6 @@ mod tests {
         let mut log = Log {
             steps: vec![],
             no_fmv: false,
-            bits: 0x20,
             keys: vec![false, false, false, true],
             intro: false,
         };

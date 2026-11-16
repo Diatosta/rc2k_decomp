@@ -1,8 +1,8 @@
 //! The command line's switches. The first word is the program; of the rest only words of two
 //! characters or more count, by their first two: `-v` (version shown, game left; later words
 //! not read), `-u`, `-p` (installing), `-a` (no audio), `-i` (the next two words copied, the
-//! first characters of the two after them less `0`), `-c` (the next word's first character:
-//! `1` ignores the secondary, `2` the primary). The line ends at its NUL.
+//! first characters of the two after them less `0`), `-c` (the next word taken and not used:
+//! it named a 3D card to leave out). The line ends at its NUL.
 
 use crate::Invalid;
 use crate::strings::bytes::Bytes;
@@ -29,8 +29,6 @@ pub struct Switches {
     pub installing: bool,
     pub no_audio: bool,
     pub install: Vec<Install>,
-    pub ignore_secondary: bool,
-    pub ignore_primary: bool,
 }
 
 /// The switches of the line in `text` (to its NUL). Refused: a text without its NUL, a word
@@ -83,14 +81,8 @@ pub fn read(text: &(impl Bytes + ?Sized)) -> Result<Switches, Invalid> {
                 s.install.push(i);
             }
             [b'-', b'c'] => {
-                let (start, len) = word(&mut from)?;
-                if len != 0 {
-                    match byte(start)? {
-                        b'1' => s.ignore_secondary = true,
-                        b'2' => s.ignore_primary = true,
-                        _ => {}
-                    }
-                }
+                // The 3D card to leave out: its word is taken, there is one card.
+                word(&mut from)?;
             }
             _ => {}
         }
@@ -105,7 +97,7 @@ mod tests {
     fn command_line() {
         let s = read(&b"ral.exe -a x -c 2 -i one two 7\0"[..]).unwrap();
         assert_eq!(s.program, (0, 7));
-        assert!(s.no_audio && s.ignore_primary && !s.ignore_secondary && !s.version);
+        assert!(s.no_audio && !s.version);
         assert_eq!(
             s.install,
             vec![Install {

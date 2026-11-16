@@ -73,12 +73,10 @@ pub fn hold_change(light: u32, old: u32, keep: bool) -> Held {
 /// The light and colour tables' size: an index past it is refused.
 pub const TABLE: u32 = 0x100;
 
-/// A colour added to the light byte by byte with saturation: four bytes with MMX, else the
-/// low three (the colour's top byte kept).
-pub fn add_colour(colour: u32, light: u32, mmx: bool) -> u32 {
+/// A colour added to the light byte by byte with saturation.
+pub fn add_colour(colour: u32, light: u32) -> u32 {
     let sat = |k: u32| (((colour >> k) & 0xFF) + ((light >> k) & 0xFF)).min(0xFF) << k;
-    let top = if mmx { sat(24) } else { colour & 0xFF00_0000 };
-    sat(0) | sat(8) | sat(16) | top
+    sat(0) | sat(8) | sat(16) | sat(24)
 }
 
 #[cfg(test)]
@@ -107,7 +105,6 @@ mod tests {
 
     #[test]
     fn colours() {
-        assert_eq!(add_colour(0x80F0_1010, 0x8020_2020, true), 0xFFFF_3030);
-        assert_eq!(add_colour(0x80F0_1010, 0x8020_2020, false), 0x80FF_3030);
+        assert_eq!(add_colour(0x80F0_1010, 0x8020_2020), 0xFFFF_3030);
     }
 }

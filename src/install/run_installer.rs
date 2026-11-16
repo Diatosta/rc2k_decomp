@@ -56,9 +56,6 @@ pub fn run_installer(
         );
         typed.push(0);
         store_text(&install.paths.typed, &typed);
-        if system.machine().keyboard_type.get() == 2 {
-            install.paths.typed.set(0, install.flags.first_drive.get());
-        }
         i::read_registry::read_registry_here(install);
         if install.names.source.get(0) != 0 {
             let n = install.names.source_size.get();

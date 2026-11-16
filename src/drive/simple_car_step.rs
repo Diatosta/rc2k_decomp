@@ -69,7 +69,6 @@ pub fn simple_car_step(
             race.physics.ground_probe.get(),
             race.physics.ground(),
             &race.course,
-            scene,
         )
     }?;
     if race.course.course.get().ground_slot.get() != u32::MAX {

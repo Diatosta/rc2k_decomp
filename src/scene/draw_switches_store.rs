@@ -1,8 +1,8 @@
 //! The draw switches, second part: the far clip switch, the group table word, the loading group
-//! mask, the SSE and 3DNow switches, and a marks source word.
+//! mask and a marks source word.
 
 use crate::memory::cells::ZeroCells;
-use crate::memory::session::{PlainDword, PlainFlag};
+use crate::memory::session::PlainDword;
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct DrawSwitches {
@@ -22,15 +22,9 @@ pub struct DrawSwitches {
     pub unknown_38: [PlainDword; 71],
     /// The loading group mask (`scene::add_object_shape`).
     pub loading_group_mask: PlainDword,
-    /// The SSE switch (`scene::draw_object`, `scene::draw_polygon`, `math::normalise_vector`,
-    /// `physics::ground`, `race::frame_draw`).
-    pub use_sse: PlainFlag,
-    /// The 3DNow switch (`scene::draw_object`).
-    pub use_3dnow: PlainDword,
-    /// The MMX switch (shown by the debug Switches tab, `debug::switches`).
-    pub use_mmx: PlainDword,
-    /// Seven dwords after `use_mmx`, unreferenced.
-    pub unknown_164: [PlainDword; 7],
+    /// Ten dwords, unreferenced (the first three were the 1999 program's SSE, 3DNow! and MMX
+    /// switches).
+    pub unknown_158: [PlainDword; 10],
     /// The marks source word (`effects::draw_frame`).
     pub marks_source: PlainDword,
 }

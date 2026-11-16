@@ -1466,7 +1466,6 @@ pub struct WindowLoopState {
     pub f370: PlainDword,
     pub lost: PlainDword,
     pub no_task_switch: PlainDword, // `notaskswitch`, a `var\ral.cfg` setting
-    pub keep_priority: PlainDword,  // `noprichange`, a setting
     /// Only the main loop's, which needs neither.
     pub _gap_51838c: [PlainDword; 2],
     pub f394: PlainDword, // 1 at start
@@ -1479,7 +1478,6 @@ impl WindowLoopState {
             f370: PlainDword::new(0),
             lost: PlainDword::new(0),
             no_task_switch: PlainDword::new(0),
-            keep_priority: PlainDword::new(0),
             _gap_51838c: [PlainDword::new(0), PlainDword::new(0)],
             f394: PlainDword::new(1),
             paused: PlainDword::new(0),
@@ -1509,12 +1507,6 @@ impl HostShared {
 /// less `HostShared`'s two.
 #[derive(rc2k_derive::Cells)]
 pub struct Machine {
-    pub has_mmx: PlainDword,
-    pub ignore_mmx: PlainDword, // `ignoremmx`
-    pub has_sse: PlainDword,
-    pub ignore_katmai: PlainDword, // `ignorekatmai`
-    pub has_3dnow: PlainDword,
-    pub ignore_3dnow: PlainDword, // `ignoreamdk3d`
     pub work: PlainDword,
     pub work_float: PlainDword,
     pub gap_c8: PlainDword,
@@ -1533,8 +1525,6 @@ pub struct Machine {
     pub version: [PlainDword; 37], // OSVERSIONINFOA, 148 bytes
     pub exception_resume: PlainDword,
     pub instance: PlainDword,
-    /// 1 on a computer called "andrew" (`system::check_developer_machine`).
-    pub developer: PlainDword,
     /// The setting `nofmv`: 1 = no films.
     pub no_fmv: PlainDword,
 }
@@ -1542,12 +1532,6 @@ pub struct Machine {
 impl Machine {
     pub const fn new() -> Self {
         Machine {
-            has_mmx: PlainDword::new(0),
-            ignore_mmx: PlainDword::new(0),
-            has_sse: PlainDword::new(0),
-            ignore_katmai: PlainDword::new(0),
-            has_3dnow: PlainDword::new(0),
-            ignore_3dnow: PlainDword::new(0),
             work: PlainDword::new(0),
             work_float: PlainDword::new(0),
             gap_c8: PlainDword::new(0),
@@ -1566,7 +1550,6 @@ impl Machine {
             version: [const { PlainDword::new(0) }; 37],
             exception_resume: PlainDword::new(0),
             instance: PlainDword::new(0),
-            developer: PlainDword::new(0),
             no_fmv: PlainDword::new(0),
         }
     }

@@ -188,7 +188,6 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
                         race.physics.ground_probe.get(),
                         race.physics.ground(),
                         &race.course,
-                        scene,
                     )?;
                     put(
                         &race.course,

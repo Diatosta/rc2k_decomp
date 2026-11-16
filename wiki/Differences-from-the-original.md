@@ -65,4 +65,14 @@ More on [Network play](Network-play).
 - Playing against the original program over a network.
 - The original's choice between 3D cards; the program picks its renderer itself
   (`RC2K_RENDERER=software` forces the rasteriser).
+- 16-bit screen modes: the screen always has 32 bits a pixel. A saved 16-bit mode is taken as
+  the same size at 32 bits, and a first start picks 800 × 600 at 32 bits. The first logo
+  film, which the original showed only on 16-bit screens, always plays.
+- Twin code paths chosen by the processor's features (MMX, SSE, 3DNow!): the game computes
+  one way on every machine, the way the original took on a processor with MMX and without
+  3DNow!, with its SSE switch off. The settings `ignoremmx`, `ignorekatmai` and
+  `ignoreamdk3d` are read and not used.
+- What only served 1999's machines: CD audio, the process's raised priority (`noprichange`),
+  the PC-98 keyboard layout, the search for 3D cards (`forceno3dcard`, `ignoreprimary`,
+  `ignoresecondary`, the `-c` switch).
 - The web build is experimental and does not show a picture yet.

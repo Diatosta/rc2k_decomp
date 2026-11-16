@@ -3,9 +3,8 @@
 //! the same questions in its own file.
 
 pub use crate::platform::ffi::win32::{
-    computer_name, discard_pages, disk_free, drive_type, keyboard_subtype, language_id, map_pages,
-    memory, own_stack_word, set_error_mode, set_priority_class, terminate, user_name,
-    version_record, volume,
+    computer_name, discard_pages, disk_free, drive_type, language_id, map_pages, memory,
+    own_stack_word, terminate, user_name, version_record,
 };
 
 /// The folder `dir` removed by a hidden `cmd.exe` once this program lets go of its files in

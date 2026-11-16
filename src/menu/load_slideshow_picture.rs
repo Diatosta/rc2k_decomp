@@ -85,7 +85,7 @@ pub fn load_slideshow_picture_in(o: Owners<'static>, way: u32) -> Result<(), Ref
             load_picture_with_overlay_in(&MirroredPath::new(path), over, o.gfx, o.system, o.strings)
         }
         Step::Load(path) => load_picture_with(path, o.gfx, o.system).map(|_| false),
-        Step::Convert => convert_picture_now_in(o.gfx, o.system)
+        Step::Convert => convert_picture_now_in(o.gfx)
             .map(|_| false)
             .map_err(Into::into),
     })

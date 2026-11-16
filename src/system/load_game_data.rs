@@ -24,6 +24,13 @@ use rc2k_core::system::game_data::{
 
 const MACHINE_NAME_ROOM: usize = 0x40;
 /// More draws than a name can need.
+/// The computer's name with its NUL (room for `MACHINE_NAME_ROOM` bytes), if it can be had.
+fn computer_name() -> Option<Vec<u8>> {
+    let mut name = crate::platform::os::computer_name(MACHINE_NAME_ROOM as u32)?;
+    name.push(0);
+    Some(name)
+}
+
 const MOST_DRAWS: usize = 10_000;
 
 /// What the function calls.
@@ -260,7 +267,7 @@ fn in_game(o: Owners<'static>, call: Call) -> Result<u32, Refused> {
             }
         }
         Call::ComputerName => {
-            if let Some(name) = crate::system::check_developer_machine::computer_name() {
+            if let Some(name) = computer_name() {
                 o.net
                     .setup()
                     .machine_name

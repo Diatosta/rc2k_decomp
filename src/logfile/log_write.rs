@@ -47,9 +47,3 @@ pub fn log_at(at: impl Into<crate::memory::place::BytePlace>, newline: bool, lev
         Err(e) => crate::fatal::raise::end("logfile::log_write", e),
     }
 }
-
-/// An empty line at level 1 (the empty text is the
-/// end of the log's path literal).
-pub fn log_newline_l1() {
-    log_text(b"", true, 1);
-}

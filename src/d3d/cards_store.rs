@@ -1,15 +1,13 @@
-//! The 3D cards' and the Direct3D device's state (`gfx::find_3d_cards`, `platform::direct3d`,
+//! The 3D cards' and the Direct3D device's state (`platform::direct3d`,
 //! `d3d::set_render_state`, `d3d::set_texture`, the 3D switches of `var\ral.cfg`). A `#[repr(C)]`
 //! struct of plain cells (the game's thread alone reaches it: `D3d::cards`), first values the
 //! image's (`tests`).
 
-use crate::memory::session::{PlainBytes, PlainDword};
+use crate::memory::session::PlainDword;
 
 /// The 3D cards, the device's render states and the 3D switches.
 #[derive(rc2k_derive::Cells)]
 pub struct Cards3d {
-    /// The secondary card's GUID.
-    pub secondary_card_guid: PlainBytes<16>,
     /// The Direct3D device (a pointer).
     pub d3d_device: PlainDword,
     /// Each render state's last value (`d3d::set_render_state`); the drawing parts keep it in
@@ -17,12 +15,6 @@ pub struct Cards3d {
     pub _kept_states: [PlainDword; 160],
     /// The texture set last (`d3d::set_texture`); in `d3d::render_cache` likewise.
     pub _current_texture: PlainDword,
-    /// Not 0, no search for 3D cards (`forceno3dcard`).
-    pub no_search: PlainDword,
-    /// No 3D primary card (`ignoreprimary`).
-    pub not_primary: PlainDword,
-    /// The `ignoresecondary` setting.
-    pub ignore_secondary: PlainDword,
     /// The `forcedx5` setting.
     pub force_dx5: PlainDword,
     /// The `agpmode` setting.
@@ -53,13 +45,9 @@ pub struct Cards3d {
 impl Cards3d {
     pub const fn new() -> Self {
         Cards3d {
-            secondary_card_guid: PlainBytes::new([0; 16]),
             d3d_device: PlainDword::new(0x0),
             _kept_states: [const { PlainDword::new(0xfffffc43) }; 160],
             _current_texture: PlainDword::new(0xfffffc43),
-            no_search: PlainDword::new(0x0),
-            not_primary: PlainDword::new(0x0),
-            ignore_secondary: PlainDword::new(0x0),
             force_dx5: PlainDword::new(0x0),
             agp_mode: PlainDword::new(0x0),
             in_scene: PlainDword::new(0x0),

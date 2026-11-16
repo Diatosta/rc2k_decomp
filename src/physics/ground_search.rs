@@ -17,7 +17,6 @@ pub fn ground_search(
     ground_probe: &GroundProbe,
     ground: &GroundWork,
     course: &Course,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<bool, Refused> {
     ground_search_at(
         course.reads(),
@@ -27,6 +26,5 @@ pub fn ground_search(
             course.course.get(),
             &crate::race::scene_points::no_own(),
         ),
-        scene.draw_switches.get(),
     )
 }

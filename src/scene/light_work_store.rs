@@ -45,10 +45,9 @@ pub struct LightWork {
     /// The base light colour of the view or car. Unused: each view has its own in
     /// `scene::object_light::ObjectLight::car_light`.
     pub view_light_base: PlainDword,
-    /// The 8 bytes of padding before `sse_fill`; no code references them.
+    /// 8 bytes of padding; no code references them.
     pub unknown_94: [PlainDword; 2],
-    /// 16 bytes the point records are cleared with by SSE (`race::frame_draw`); 8 bytes of
-    /// padding before it are unused.
+    /// 16 bytes nothing reads (a fill pattern of the 1999 program's SSE path).
     pub sse_fill: [PlainDword; 4],
     /// The fog's step; never read, no longer written (`scene::fog`).
     pub fog_step: PlainDword,

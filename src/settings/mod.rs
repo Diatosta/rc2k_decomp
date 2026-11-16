@@ -1,7 +1,6 @@
 //! The game's settings files (`var\ral.cfg` and the others of its kind): lines of
 //! `key=value` or `key value`, read whole into a scratch block and searched key by key.
 
-pub mod apply_feature_switches;
 pub mod parse_number;
 pub mod read_driver_names;
 pub mod read_settings;

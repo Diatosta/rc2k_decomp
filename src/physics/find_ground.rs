@@ -19,16 +19,14 @@ pub fn find_ground(
     ground_probe: &GroundProbe,
     ground: &GroundWork,
     course: &Course,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<bool, Refused> {
-    ground_search(ground_probe, ground, course, scene)
+    ground_search(ground_probe, ground, course)
 }
 
 /// The same on the fields of `q` (a drawing's own: `race::car_shadow`).
 pub fn find_ground_with(
     course: crate::race::owner_course::CourseReads<'_>,
     q: &crate::physics::ground_query::GroundQuery<'_>,
-    switches: &crate::scene::draw_switches_store::DrawSwitches,
 ) -> Result<bool, Refused> {
-    crate::physics::ground::ground_search_at(course, q, switches)
+    crate::physics::ground::ground_search_at(course, q)
 }

@@ -668,39 +668,25 @@ impl Target {
         unsafe { std::slice::from_raw_parts_mut(held.as_mut_ptr(), len) }
     }
 
-    /// The screen's pixels for the rasteriser, rows `pitch / (bits / 8)` pixels apart: its
-    /// bytes (`bytes`) as 16- or 32-bit pixels. A screen not aligned to its pixels, or whose
-    /// pitch is not whole pixels, ends the program.
+    /// The screen's pixels for the rasteriser, rows `pitch / 4` pixels apart: its bytes
+    /// (`bytes`) as 32-bit pixels. A target that is not 32 bits a pixel, not aligned to its
+    /// pixels, or whose pitch is not whole pixels, ends the program.
     ///
     /// # Safety
     /// As `bytes`.
-    pub unsafe fn pixels<'a>(&self) -> crate::render::rasteriser::Pixels<'a> {
+    pub unsafe fn pixels<'a>(&self) -> &'a mut [u32] {
         let size = (self.bits / 8) as usize;
         // SAFETY: the caller's promise.
         let bytes = unsafe { self.bytes() };
         let at = bytes.as_mut_ptr();
         assert!(
-            (size == 2 || size == 4)
-                && (at as usize).is_multiple_of(size)
-                && self.pitch.is_multiple_of(size),
+            size == 4 && (at as usize).is_multiple_of(size) && self.pitch.is_multiple_of(size),
             "the screen's pixels not whole aligned pixels"
         );
         let len = bytes.len() / size;
         // SAFETY: the same bytes (borrowed for 'a with them), aligned and whole pixels (checked
         // above); every bit pattern is a pixel.
-        unsafe {
-            if size == 2 {
-                crate::render::rasteriser::Pixels::Bits16(std::slice::from_raw_parts_mut(
-                    at.cast(),
-                    len,
-                ))
-            } else {
-                crate::render::rasteriser::Pixels::Bits32(std::slice::from_raw_parts_mut(
-                    at.cast(),
-                    len,
-                ))
-            }
-        }
+        unsafe { std::slice::from_raw_parts_mut(at.cast(), len) }
     }
 }
 

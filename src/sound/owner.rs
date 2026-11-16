@@ -6,8 +6,8 @@ use crate::sound::sets_store::{
     CueLists, MenuSounds, SoundKinds, SoundRequest, SoundSets, SpotVoices, SurfaceSets,
 };
 use crate::sound::store::{
-    CarStream, CdAudio, RaceClock, RaceSounds, SettingsApplied, SoundOptions, SoundShared,
-    SpotPicks, StageSounds, SurfaceSounds,
+    CarStream, RaceClock, RaceSounds, SettingsApplied, SoundOptions, SoundShared, SpotPicks,
+    StageSounds, SurfaceSounds,
 };
 
 /// The race's sounds: the objects, the clock, the surface and stage constants, the sets and
@@ -58,7 +58,6 @@ pub struct MenuSoundState {
     pub next_sound_time: GameThread<PlainDword>,
     pub options: SoundOptions,
     pub settings_applied: GameThread<SettingsApplied>,
-    pub cd_audio: GameThread<CdAudio>,
 }
 
 impl MenuSoundState {
@@ -67,7 +66,6 @@ impl MenuSoundState {
             next_sound_time: GameThread::new(PlainDword::new(0)),
             options: SoundOptions::new(),
             settings_applied: GameThread::new(SettingsApplied::new()),
-            cd_audio: GameThread::new(CdAudio::new()),
         }
     }
 }

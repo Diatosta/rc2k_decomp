@@ -6,9 +6,7 @@ use crate::gfx::bar_store::BarVars;
 use crate::gfx::blit::Blitter;
 use crate::gfx::build_game_fonts::GameFontsMemory;
 use crate::gfx::build_glyphs::SheetVars;
-use crate::gfx::cards::Cards;
 use crate::gfx::choices_store::ScreenChoices;
-use crate::gfx::converters::Converters;
 use crate::gfx::decoder::Decoder;
 use crate::gfx::fill_row_table::ROW_TABLE_ROOM;
 use crate::gfx::fill_thirds_table::TABLE_LEN;
@@ -57,10 +55,9 @@ impl Png {
     }
 }
 
-/// The screen modes: the 3D cards found, the mode table, the chosen modes and the graphics
+/// The screen modes: the mode table, the chosen modes and the graphics
 /// settings' choices.
 pub struct Display {
-    pub cards: Cards,
     pub modes: Modes,
     pub mode: ScreenMode,
     pub choices: ScreenChoices,
@@ -69,7 +66,6 @@ pub struct Display {
 impl Display {
     pub const fn new() -> Self {
         Display {
-            cards: Cards::new(),
             modes: Modes::new(),
             mode: ScreenMode::new(),
             choices: ScreenChoices::new(),
@@ -77,17 +73,15 @@ impl Display {
     }
 }
 
-/// The pixel formats and the converters between them.
+/// The pixel formats.
 pub struct Pixel {
     pub formats: Formats,
-    pub converters: Converters,
 }
 
 impl Pixel {
     pub const fn new() -> Self {
         Pixel {
             formats: Formats::new(),
-            converters: Converters::new(),
         }
     }
 }

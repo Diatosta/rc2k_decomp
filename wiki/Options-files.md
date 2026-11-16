@@ -123,7 +123,7 @@ The values have no gaps or alignment between them, which is why some offsets are
 | --- | --- | --- | --- |
 | `0x0010` | `0x4` | `kept.runs` | Times the game was started. |
 | `0x0014` | `0x4` | `display.menu_mode` | The menus' screen mode. |
-| `0x0018` | `0x4` | `display.race_mode` | The race's screen mode. |
+| `0x0018` | `0x4` | `display.race_mode` | The race's screen mode. A mode saved at 16 bits a pixel (both modes) is taken as the same size at 32 bits: the screen always has 32. |
 | `0x001C` | `0x4` | `display.mipmapping` | Mipmapping, 0 or 1. |
 | `0x0020` | `0x4` | `sound.menu_sound_mode` | The menus' sound mode. |
 | `0x0024` | `0x4` | `sound.race_sound_mode` | The race's sound mode. |

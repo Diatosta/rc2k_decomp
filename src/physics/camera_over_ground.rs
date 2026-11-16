@@ -15,14 +15,12 @@ use rc2k_core::physics::camera_ground::SIDES;
 pub fn camera_over_ground(
     engine_tables: &crate::scene::engine_tables_store::EngineTables,
     c: &CameraGroundInputs<'_>,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<bool, Refused> {
     if !probe_at(
         c,
         c.car.camera_position[0].get(),
         c.car.camera_position[2].get(),
         &c.car.camera_ground_faces[0],
-        scene,
     )? {
         return Ok(false);
     }
@@ -36,7 +34,6 @@ pub fn camera_over_ground(
             x.wrapping_add(c.car.camera_position[0].get()),
             z.wrapping_add(c.car.camera_position[2].get()),
             slot,
-            scene,
         )? {
             return Ok(false);
         }

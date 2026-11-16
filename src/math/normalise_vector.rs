@@ -1,18 +1,11 @@
 //! `math::normalise_vector`: the work vector made one long.
 //!
 //! The vector is three floats; its length is left in `SoundSpotBlock.work_vector_length`
-//! (not kept here: nothing reached reads it). Two ways, by the switch
-//! `DrawSwitches.use_sse` (a key's toggle and the processor's SSE together; 0 as the game
-//! starts, so the x87 way is the one in use):
-//! - x87: the squares' sum as a float; its square root from two tables (the float's
-//!   bits 15 .. 22 pick one of 0x100 at `CourseLists.root_table[0]`, its exponent one at
-//!   `CourseLists.exponent_root_table[0]`), the two multiplied; each of the three times 1
-//!   over that; a component that comes out as minus zero is made zero. A length that
-//!   compares equal to `Numbers.zero` (0.0), or is no number, is refused.
-//! - SSE: the four floats squared, the first three added, `rsqrtss`, `rcpss` of that to
-//!   `SoundSpotBlock.work_vector_length`, and all four (the fourth too) times the
-//!   `rsqrtss`. Both instructions are approximations that differ between processors: one
-//!   processor's results, as tables (`arch::rsqrtss`), on every machine.
+//! (not kept here: nothing reached reads it). The squares' sum as a float; its square root from
+//! two tables (the float's bits 15 .. 22 pick one of 0x100 at `CourseLists.root_table[0]`, its
+//! exponent one at `CourseLists.exponent_root_table[0]`), the two multiplied; each of the three
+//! times 1 over that; a component that comes out as minus zero is made zero. A length that
+//! compares equal to `Numbers.zero` (0.0), or is no number, is refused.
 //!
 //! Three callers.
 
@@ -20,9 +13,8 @@ use crate::errors::BadInput;
 use crate::math::x87_float::{ONE, compare, ld, st};
 use crate::memory::session::PlainDword;
 use crate::race::course_lists_store::CourseLists;
-use crate::scene::draw_switches_store::DrawSwitches;
 
-// The work vector and the SSE switch (the race's) and the root tables
+// The work vector (the race's) and the root tables
 // (`scene::fill_engine_tables` makes them) are the game's; the squares and the length are
 // not stored, as nothing reads them.
 /// `Numbers.zero`: 0.0.
@@ -52,37 +44,9 @@ pub(crate) fn scaled_by_inverse(
     (v.map(|k| st(ld(k) * inverse)), st(inverse))
 }
 
-/// Normalises the work vector. The x87 way gives `Some` of the squares' sum (the bits of a
-/// float); the SSE way gives `None`.
-pub fn normalise_vector(
-    lists: &CourseLists,
-    switches: &DrawSwitches,
-    work: &[PlainDword; 4],
-) -> Result<Option<u32>, BadInput> {
-    normalise(lists, work, switches.use_sse.is_set())
-}
-
-/// The SSE path: each component times the approximate reciprocal root of the squares'
-/// sum, in single precision. The fourth component is scaled too.
-fn sse_normalise(v: [u32; 4]) -> [u32; 4] {
-    let v = v.map(f32::from_bits);
-    let sum = (v[0] * v[0] + v[1] * v[1]) + v[2] * v[2];
-    let root = crate::platform::arch::rsqrtss(sum);
-    v.map(|k| (root * k).to_bits())
-}
-
-/// The x87 at its precision and the SSE instructions: what the callers in modules not yet
-/// converted use.
-pub fn normalise(
-    lists: &CourseLists,
-    work: &[PlainDword; 4],
-    sse: bool,
-) -> Result<Option<u32>, BadInput> {
+/// Normalises the work vector: gives the squares' sum (the bits of a float).
+pub fn normalise_vector(lists: &CourseLists, work: &[PlainDword; 4]) -> Result<u32, BadInput> {
     let v: [u32; 4] = crate::memory::session::read_bits(work);
-    if sse {
-        crate::memory::session::write_bits(work, sse_normalise(v));
-        return Ok(None);
-    }
     let sum = squares_sum([v[0], v[1], v[2]]);
     let root: f32 = lists.root_table[((sum >> 15) & 0xFF) as usize].get();
     let exponent_root: f32 = lists.exponent_root_table[((sum & 0x7F80_0000) >> 23) as usize].get();
@@ -95,33 +59,5 @@ pub fn normalise(
     let unsigned_zero = |bits: u32| if bits == 0x8000_0000 { 0 } else { bits };
     let _ = inverse;
     crate::memory::session::write_first(work, &scaled.map(unsigned_zero));
-    Ok(Some(sum))
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::test_support::frozen::{Canon, Digest, check_one};
-
-    /// The SSE path (`sse_normalise`: `mulps`, `rsqrtss`, `rcpss` from the tables of
-    /// `arch`) over seeded vectors, against a frozen hash of the results.
-    #[test]
-    fn the_sse_path_as_the_instructions_gave() {
-        let mut x = 0x9E37_79B9u32;
-        let mut digest = Digest::default();
-        for _ in 0..200_000 {
-            let mut next = || {
-                x ^= x << 13;
-                x ^= x >> 17;
-                x ^= x << 5;
-                x
-            };
-            let scale = |r: u32| (r as i32 as f32 / 2.0f32.powi(31) * 500.0).to_bits();
-            let v = [scale(next()), scale(next()), scale(next()), next()];
-            super::sse_normalise(v).feed(&mut digest);
-        }
-        check_one("normalise_vector", "sse_normalise", digest, FROZEN);
-    }
-
-    /// The results' hash (`RC2K_FREEZE_OUT` makes it again).
-    const FROZEN: &[(&str, u64)] = &[("normalise_vector::sse_normalise", 0x9e32f6b98da9268e)];
+    Ok(sum)
 }

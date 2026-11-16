@@ -422,32 +422,24 @@ fn set_up_fixed_objects(gfx: &'static Gfx, menus: &'static Menus) {
         .set(crate::gfx::pixel_format::SCREEN_FORMAT);
 }
 
-/// The start time, the random generator's seed and the volume serial that stirs it.
+/// The start time and the random generator's seed (from that time alone).
 fn seed_clock_and_random(system: &'static System, random: &crate::math::next_random::Randoms) {
     rust("system::keep_start_time");
     crate::system::keep_start_time::keep_start_time(system);
     rust("math::seed_random");
     crate::math::seed_random::seed_random(random, system);
-    rust("system::read_volume_serial");
-    crate::system::read_volume_serial::read_volume_serial(system);
-    // The volume serial is lost (a slip kept as is): the random state is stirred with 0.
+    // One more step of the generator, with nothing stirred in.
     rust("math::stir_random");
     crate::math::stir_random::stir_random(random, 0);
 }
 
-/// The processor, keyboard and Windows version tests, and the error mode.
+/// The processor's test and the system's version.
 fn check_machine(system: &'static System) {
     // `system::set_exception_filter` sets nothing in the standalone.
     rust("system::test_processor");
     crate::system::test_processor::test_processor(&crate::system::test_processor::Real, system);
-    rust("system::read_keyboard_type");
-    crate::system::read_keyboard_type::read_keyboard_type(system);
     rust("system::read_windows_version");
     crate::system::read_windows_version::read_windows_version(system);
-    // `CoInitialize` (no COM is used on this thread). `memory::open_own_heap`: the game's own heap
-    // is not used.
-    rust("system::set_error_mode");
-    crate::system::set_error_mode::set_error_mode(system);
 }
 
 /// `var\ral.cfg`'s settings, the feature switches and the game's log.
@@ -456,8 +448,6 @@ fn read_settings_and_start_log(o: Owners<'static>, r: &Context) {
     if let Err(why) = crate::settings::read_settings::read_settings(o) {
         finish(&format!("settings::read_settings refused: {}", why.0), 1);
     }
-    rust("settings::apply_feature_switches");
-    crate::settings::apply_feature_switches::apply_feature_switches(o.system);
     rust("logfile::start_log");
     if let Err(why) = crate::logfile::start_log::start_log(o.system) {
         refused("logfile::start_log", why.into(), r);
@@ -492,7 +482,7 @@ fn make_save_folders() {
 }
 
 /// The FPU check, the command line and what the installation left: the disc check, the
-/// start check, the developer machine, the languages and the install record.
+/// start check, the languages and the install record.
 fn read_command_line_and_install_state(o: Owners<'static>, r: &Context) {
     let system = o.system;
     // `system::test_processor` (called above) has set it from `cpuid`.
@@ -522,8 +512,6 @@ fn read_command_line_and_install_state(o: Owners<'static>, r: &Context) {
     ) {
         refused("install::check_at_start", e, r);
     }
-    rust("system::check_developer_machine");
-    crate::system::check_developer_machine::check_developer_machine(o.strings, o.system);
     rust("install::read_languages");
     if let Err(e) = crate::install::read_languages::load_languages(
         o.install,
@@ -543,8 +531,7 @@ fn read_command_line_and_install_state(o: Owners<'static>, r: &Context) {
     }
 }
 
-/// The language's texts (`strings::load_language`), the game's data files, and the check that
-/// no other copy of the game runs.
+/// The language's texts (`strings::load_language`) and the game's data files.
 fn load_language_and_game_data(o: Owners<'static>, r: &Context) {
     rust("strings::load_language");
     let compile = &mut || crate::strings::compile_lexicon::compile_lexicon(o.strings, o.system);
@@ -555,26 +542,14 @@ fn load_language_and_game_data(o: Owners<'static>, r: &Context) {
     if let Err(e) = crate::system::load_game_data::load_in_game(o) {
         refused("system::load_game_data", e, r);
     }
-    rust("system::find_running_game");
-    if crate::system::find_running_game::find_running_game() {
-        finish("the game is running already (0x4103BE)", 0);
-    }
 }
 
 /// The 3D cards and the display modes the screen can take. `system::open_window` and
 /// `gfx::probe_exclusive_mode` are SDL's (`SDL_DOES`).
 fn probe_display(gfx: &'static Gfx, d3d: &'static D3d, system: &'static System, r: &Context) {
-    rust("gfx::find_3d_cards");
-    crate::gfx::find_3d_cards::find_3d_cards(&gfx.display, d3d);
     rust("gfx::list_primary_modes");
     if let Err(e) = crate::gfx::list_primary_modes::list_primary_modes(&gfx.display, system, d3d) {
         refused("gfx::list_primary_modes", e, r);
-    }
-    rust("gfx::list_secondary_modes");
-    if let Err(e) =
-        crate::gfx::list_secondary_modes::list_secondary_modes(&gfx.display, system, d3d)
-    {
-        refused("gfx::list_secondary_modes", e, r);
     }
 }
 
@@ -584,8 +559,6 @@ fn start_workers(o: Owners<'static>, r: &Context) {
     if let Err(e) = crate::net::set_up::set_up(o.net, o.strings) {
         refused("net::set_up", e, r);
     }
-    rust("system::set_priority_class");
-    crate::system::set_priority_class::set_priority_class(o.system, 0x80);
     rust("threading::start_threads");
     if let Err(e) = crate::threading::start_threads::start_threads_in_game(SlotOwners::of(o)) {
         refused("threading::start_threads", e, r);
@@ -613,8 +586,6 @@ fn choose_screen_modes(gfx: &'static Gfx, d3d: &'static D3d, system: &'static Sy
     }
     rust("gfx::fill_thirds_table");
     crate::gfx::fill_thirds_table::fill_thirds_table(gfx);
-    rust("gfx::install_converters");
-    crate::gfx::install_converters::install_converters(&gfx.pixel.converters, system);
 }
 
 /// What the window's procedure and the key thread tell the main loop (the films play from
@@ -651,16 +622,10 @@ fn shut_down(o: Owners<'static>, r: &Context) {
     if let Err(why) = crate::gfx::free_picture_buffer::free_picture_buffer(o.gfx) {
         finish(&format!("gfx::free_picture_buffer refused: {}", why.0), 1);
     }
-    rust("system::set_priority_class");
-    crate::system::set_priority_class::set_priority_class(o.system, 0x20);
     rust("install::run_after_exit");
     if let Err(e) = crate::install::run_after_exit::run_after_exit(o.install, o.system) {
         refused("install::run_after_exit", e, r);
     }
-    rust("system::restore_error_mode");
-    crate::system::restore_error_mode::restore_error_mode(o.system);
-    // `memory::free_own_heap`: the game's own heap is not used. `CoUninitialize` (see
-    // `CoInitialize`).
     rust("fatal::show_report_at_exit");
     crate::fatal::show_report_at_exit::show_report_at_exit();
 }

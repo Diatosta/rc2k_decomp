@@ -11,7 +11,6 @@ use crate::records::stages_store::StageTables;
 use crate::system::keep_start_time::KEPT_LEN;
 use crate::system::load_game_data::RunCount;
 use crate::system::read_command_line::CommandLine;
-use crate::system::set_error_mode::ErrorMode;
 use crate::system::start_texts::StartTexts;
 
 /// The screen's figures and what other threads read of the window, the machine and the clocks.
@@ -42,13 +41,12 @@ impl Session {
     }
 }
 
-/// What the start-up keeps: the start's moment, the run count, the error mode, the texts and
+/// What the start-up keeps: the start's moment, the run count, the texts and
 /// the command line.
 pub struct Start {
     /// The nine bytes of the start's moment (`keep_start_time`).
     pub kept: PlainBytes<KEPT_LEN>,
     pub run_count: RunCount,
-    pub error_mode: ErrorMode,
     pub texts: StartTexts,
     pub command_line: CommandLine,
 }
@@ -58,7 +56,6 @@ impl Start {
         Start {
             kept: PlainBytes::new([0; KEPT_LEN]),
             run_count: RunCount::new(),
-            error_mode: ErrorMode::new(),
             texts: StartTexts::new(),
             command_line: CommandLine::new(),
         }

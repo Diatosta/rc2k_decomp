@@ -114,14 +114,7 @@ pub fn draw_object_face(
         entry.u.set(fw(vertex + 4));
         entry.v.set(fw(vertex + 8));
         let light = if lit {
-            vertex_light(
-                ctx.part,
-                fw(vertex + 0xC),
-                ctx.reads,
-                light,
-                object,
-                ctx.reads.has_mmx,
-            )?
+            vertex_light(ctx.part, fw(vertex + 0xC), ctx.reads, light, object)?
         } else {
             0x00FF_FFFF
         };

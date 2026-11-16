@@ -680,3 +680,23 @@ has the same fixed addresses, but its network mode could not be run here to see 
 **Seen or read:** seen (headless championship and arcade runs); the original reads the same bytes and carries on.
 
 **Fix:** a kind of -1 reads the record before the first (`scene::polygon::material_run_byte`) in the object's matrix, its contact material, its contact sound and the lit faces' animation, as the original does, so nothing ends the game.
+
+## A computer named "andrew" could not set the best tyre-change time
+
+**What it is:** at start the original asked for the computer's name, and on a machine whose name begins with "andrew" (in any case) the tyre change's gauge ignored a press made in the top band of the gauge: it ran on until the band was left. A developer's machine was kept off the record that way.
+
+**In game:** on such a computer the fastest tyre changes could not be made, so the tyre-change record could not be beaten with a near-perfect press.
+
+**Seen or read:** read.
+
+**Fix:** the name is no longer looked at; a press ends the gauge on every machine (`rc2k_core::race::tyre_change::turn`).
+
+## The first logo film played only on 16-bit screens
+
+**What it is:** at start-up the original played `allogo.avi` only when the screen had 16 bits a pixel; on a 32-bit screen it went straight to the second logo.
+
+**In game:** with the menus at 32 bits (every saved set of options of today) the first logo was never seen.
+
+**Seen or read:** read (and seen: the film never played in 32-bit runs).
+
+**Fix:** the screen always has 32 bits a pixel now, and the first logo always plays before the second (`rc2k_core::menu::films::play_films`); `nofmv` still skips every film.

@@ -3,7 +3,6 @@
 pub mod atlas;
 pub mod bars;
 pub mod blit;
-pub mod converters;
 pub mod glyphs;
 pub mod loading;
 pub mod mode_choices;

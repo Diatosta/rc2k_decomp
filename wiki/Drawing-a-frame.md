@@ -126,7 +126,7 @@ The renderers are expected to draw the same picture. The project's checks compar
 ## The 2D layer
 
 Menus, text and pictures are drawn by the game's own 2D code into a picture in memory, in the
-screen mode's own pixel format:
+screen's pixel format (always 32 bits a pixel, XRGB):
 
 - pictures: `src/gfx/` loads PCX and PNG files ([Textures (PCX)](Textures-PCX),
   [Screens (PNG)](Screens-PNG)) and copies them to the screen

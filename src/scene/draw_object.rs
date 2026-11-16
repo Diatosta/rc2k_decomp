@@ -1,13 +1,11 @@
 //! `scene::draw_object`: draws one object (the current object number), in seven steps.
 //!
 //! The steps: `scene::set_object_light`; `scene::set_object_material`; `scene::set_object_fade`
-//! (which may make the current object another object); `scene::place_object_points_any`
-//! (inlined: the 3DNow way is refused, with SSE on its way; else `scene::place_object_points`);
+//! (which may make the current object another object); `scene::place_object_points`;
 //! `scene::list_object_faces`; `scene::sort_listed_faces`; `scene::draw_object_faces`. One
 //! caller, `scene::draw_shown_object`. A refusal of a later step comes with the earlier ones
 //! done.
 
-use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::scene::draw_object_face::draw_object_face_in_game;
 use crate::scene::draw_object_faces::draw_object_faces;
@@ -50,19 +48,6 @@ pub fn draw_object(step: &mut dyn FnMut(Step) -> Result<(), Refused>) -> Result<
     Ok(())
 }
 
-/// `scene::place_object_points_any`. The 3DNow way is refused: a refusal ends the program.
-fn place_object_points_any(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
-    let draw_switches = ctx.reads.draw_switches;
-    if draw_switches.use_3dnow.get() != 0 {
-        return Err(BadInput("the 3DNow way of placing points is not ported").into());
-    }
-    if draw_switches.use_sse.is_set() {
-        return crate::scene::place_object_points::place_object_points_sse(ctx);
-    }
-    place_object_points(ctx)?;
-    Ok(())
-}
-
 /// With the steps' Rust versions.
 pub fn draw_object_in_game(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
     // The object's listed faces: filled, sorted and drawn here alone.
@@ -72,7 +57,7 @@ pub fn draw_object_in_game(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
             Step::Light => set_object_light_in_game(ctx)?,
             Step::Material => set_object_material(ctx)?,
             Step::Fade => set_object_fade(ctx)?,
-            Step::Points => place_object_points_any(ctx)?,
+            Step::Points => place_object_points(ctx)?,
             Step::List => {
                 list_object_faces(
                     &ctx.reads.buffers.faces,

@@ -10,8 +10,7 @@
 //! - 3: `car_light` plus `light_added`, then blended (below);
 //! - anything else: the number as it came.
 //!
-//! "Plus" is byte by byte without overflow: with MMX all four bytes, without it the low
-//! three. The lit colour: the normal's place in the view (the point record 0x1000 +
+//! "Plus" is byte by byte without overflow. The lit colour: the normal's place in the view (the point record 0x1000 +
 //! (number & 0xFFF), its +0x10 .. +0x18) goes to `light_dot_point`; if the object's
 //! `light_strength` is not 0, the light's direction goes to `light_dot_light`, the strength
 //! as a float to `light_dot_factor`, and `scene::light_dot` gives a number; that plus
@@ -30,9 +29,9 @@ use crate::scene::light_dot::light_dot;
 // ---- game data ----
 const TABLE_LEN: u32 = 0x100;
 
-/// Byte by byte without overflow: all four with MMX, the low three without.
-pub fn plus(a: u32, b: u32, mmx: bool) -> u32 {
-    rc2k_core::scene::lamps::brighter(a, b, mmx)
+/// Byte by byte without overflow.
+pub fn plus(a: u32, b: u32) -> u32 {
+    rc2k_core::scene::lamps::brighter(a, b)
 }
 
 /// Holds `value` to `low ..= high`, compared by the sign of the difference as the game
@@ -104,7 +103,6 @@ fn lit(
     reads: crate::scene::workers::DrawReads<'_>,
     part: &crate::scene::workers::PartScratch,
     number: u32,
-    mmx: bool,
     light: &crate::scene::object_light::ObjectLight,
     object: &crate::scene::object_place::ObjectPlace,
 ) -> Result<u32, BadInput> {
@@ -115,7 +113,6 @@ fn lit(
     let colour = plus(
         reads.light_tables.light_table[place].get(),
         light.light_colour.get(),
-        mmx,
     );
     light.light_colour.set(colour);
     Ok(colour)
@@ -155,12 +152,11 @@ pub fn vertex_light(
     reads: crate::scene::workers::DrawReads<'_>,
     light: &crate::scene::object_light::ObjectLight,
     object: &crate::scene::object_place::ObjectPlace,
-    mmx: bool,
 ) -> Result<u32, BadInput> {
     let kind: u32 = light.light_kind.get();
     if kind == 4 {
         // The lit colour added to nothing: it only makes the bytes the right ones.
-        return Ok(plus(0, lit(reads, part, number, mmx, light, object)?, mmx));
+        return Ok(plus(0, lit(reads, part, number, light, object)?));
     }
     let lit_at_all = reads.switches.scene_set_up.get() != 0 || reads.stage_prefs.lit_b.get() != 0;
     if !lit_at_all || kind == 0 {
@@ -169,9 +165,8 @@ pub fn vertex_light(
     let added: u32 = light.light_added.get();
     match kind {
         2 | 5 => Ok(plus(
-            plus(0, lit(reads, part, number, mmx, light, object)?, mmx),
+            plus(0, lit(reads, part, number, light, object)?),
             added,
-            mmx,
         )),
         1 => {
             let level: u32 = light.light_level.get();
@@ -181,13 +176,12 @@ pub fn vertex_light(
             Ok(plus(
                 reads.light_tables.light_table[level as usize].get(),
                 added,
-                mmx,
             ))
         }
         3 => {
             set_normal(reads.course_lists, part, number, light)?;
             // `set_normal` has just set the colour to 0.
-            let colour = plus(plus(light.car_light.get(), 0, mmx), added, mmx);
+            let colour = plus(plus(light.car_light.get(), 0), added);
             light.light_colour.set(colour);
             blend(reads.course(), light, object);
             Ok(light.light_colour.get())

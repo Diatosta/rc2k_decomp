@@ -125,7 +125,7 @@ fn fixed_camera(
 // Core: `rc2k_core::physics::camera_view::{fixed_camera, keeps_light_figure, switch_over,
 // mode_after_switch, check_modes}` (the x87 sums stay).
 pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    crate::physics::camera_low_switch::camera_low_switch(&c.ground, scene)?;
+    crate::physics::camera_low_switch::camera_low_switch(&c.ground)?;
     for k in 0..3 {
         c.frame_work.camera_car[k].set(c.car.position[k].get());
     }

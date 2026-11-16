@@ -33,7 +33,7 @@ so on.
 | `gfx` | PCX and PNG decoding (`pcx.rs`, `png.rs`), pixel conversion, glyph cutting, screen-mode choice. |
 | `input` | Key tables, device and force-feedback rules. |
 | `install` | The installer's pages, script and record rules. |
-| `math` | Vectors, the random generator, portable sine / cosine and the reciprocal estimates. |
+| `math` | Vectors, the random generator, portable sine / cosine. |
 | `menu`, `screens`, `service` | The event flows, championship points, list menus, the launch switches (`menu/launch.rs`), screen layouts, repair and set-up rules. |
 | `net` | Message layouts, the inbox, the lobby's lists. |
 | `options`, `saves` | The options model and its two file forms (`options/toml_file.rs`, `options/old_file.rs`); best times, scores and the saved game's layout. |

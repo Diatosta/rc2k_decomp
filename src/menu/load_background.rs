@@ -26,7 +26,7 @@ pub fn load_background_in(
 ) -> Result<(), Refused> {
     // Whether the file was read is not looked at.
     load_picture_with(path, gfx, system)?;
-    convert_picture_now_in(gfx, system)?;
+    convert_picture_now_in(gfx)?;
     gfx.pictures
         .picture
         .flags

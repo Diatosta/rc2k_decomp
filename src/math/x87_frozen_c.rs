@@ -867,38 +867,28 @@ mod tests {
 
     #[test]
     fn run_face_shares() {
-        // The SSE path's `rcpss` is the tables' (`arch::rcpss`), the same on every processor.
-        for sse in [false, true] {
-            let name = if sse {
-                "face_shares (sse)"
-            } else {
-                "face_shares"
-            };
-            check_all(
-                name,
-                |g| {
-                    (
-                        [
-                            g.i() as u32,
-                            g.i() as u32,
-                            g.i() as u32,
-                            g.i() as u32,
-                            g.i() as u32,
-                            g.i() as u32,
-                            g.f(),
-                        ],
-                        sse,
-                    )
-                },
-                |&(i, sse)| {
-                    let mut o = [0xAAAA_AAAAu32; 8];
-                    {
-                        x87::face_shares_bits(&i, &mut o, sse);
-                    };
-                    o
-                },
-            );
-        }
+        check_all(
+            "face_shares",
+            |g| {
+                [
+                    g.i() as u32,
+                    g.i() as u32,
+                    g.i() as u32,
+                    g.i() as u32,
+                    g.i() as u32,
+                    g.i() as u32,
+                    g.f(),
+                ]
+            },
+            |i| {
+                // The frozen results have an eighth dword, never written.
+                let mut o = [0xAAAA_AAAAu32; 8];
+                let mut shares = [0xAAAA_AAAAu32; 7];
+                x87::face_shares_bits(i, &mut shares);
+                o[..7].copy_from_slice(&shares);
+                o
+            },
+        );
     }
 
     // ---- the transcendental ones (within an ulp of a float against the x87, two of a double)
@@ -1011,7 +1001,6 @@ mod tests {
         ("c::ext_to_int", 0xe6e3a348b32b4a00),
         ("c::f64_to_f80", 0xe36bb580e035c5d4),
         ("c::f80_to_f64", 0x31c9fefbec2c18ba),
-        ("c::face_shares (sse)", 0x233b70d25f0546a5),
         ("c::face_shares", 0xf10173da5b8c36db),
         ("c::float_hypot", 0x56337ddfe7023d78),
         ("c::float_hypot_to_int", 0x6df31d1d7078e7f8),

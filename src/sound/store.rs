@@ -9,7 +9,7 @@
 //! - `StageSounds`: the surface sound sets, the stage's one-off, timed, loop and random sounds, and
 //!   the spots shared with the sound side;
 //! - `SpotPicks`: the spot-voice picks and the sound kinds per spot;
-//! - `SettingsApplied`, `SoundOptions` (the kept options, without the tune turn) and `CdAudio`. The
+//! - `SettingsApplied`, `SoundOptions` (the kept options, without the tune turn). The
 //!   force-feedback effects' state is `input::store::ForceFeedback`'s.
 //!
 //! The sound commands go to the audio thread through `audio::store`'s queue; these are the
@@ -1015,36 +1015,6 @@ impl SoundOptions {
             race_music_on: Dword::new(0),
             music_volume: Dword::new(0x20),
             race_music_volume: Dword::new(0x20),
-        }
-    }
-}
-
-/// The CD audio's state.
-#[derive(rc2k_derive::Cells)]
-pub struct CdAudio {
-    /// `nocdaudio` (`var\ral.cfg`).
-    pub no_cd_audio: PlainDword,
-    /// The CD audio is open.
-    pub open: PlainDword,
-    /// The CD track.
-    pub track: PlainDword,
-    /// Nothing reads or writes it.
-    pub work_114: PlainDword,
-    /// The CD audio device.
-    pub mci_id: PlainDword,
-    /// Nothing reads or writes it.
-    pub work_11c: PlainDword,
-}
-
-impl CdAudio {
-    pub const fn new() -> Self {
-        CdAudio {
-            no_cd_audio: PlainDword::new(1),
-            open: PlainDword::new(0),
-            track: PlainDword::new(0),
-            work_114: PlainDword::new(0),
-            mci_id: PlainDword::new(0),
-            work_11c: PlainDword::new(0),
         }
     }
 }

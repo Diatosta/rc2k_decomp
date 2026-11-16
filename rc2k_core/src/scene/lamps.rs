@@ -3,10 +3,9 @@
 
 use crate::scene::distance::approximate;
 
-/// Two colours added byte by byte without overflow: all four bytes with MMX, else the low three.
-pub fn brighter(a: u32, b: u32, mmx: bool) -> u32 {
-    let bytes = if mmx { 4 } else { 3 };
-    (0..bytes).fold(a, |out, n| {
+/// Two colours added byte by byte without overflow.
+pub fn brighter(a: u32, b: u32) -> u32 {
+    (0..4).fold(a, |out, n| {
         let at = n * 8;
         let sum = ((a >> at & 0xFF) + (b >> at & 0xFF)).min(0xFF);
         out & !(0xFF << at) | sum << at
@@ -52,7 +51,6 @@ pub fn add_point_lights(
     place: [u32; 3],
     point: impl Fn(u32) -> [u32; 3],
     mut light: u32,
-    mmx: bool,
 ) -> PointLights {
     let mut out = PointLights::default();
     for lamp in lamps {
@@ -65,11 +63,7 @@ pub fn add_point_lights(
         let distance =
             approximate(std::array::from_fn(|k| at[k].wrapping_sub(place[k]) as i32)).length;
         out.distance = Some(distance);
-        light = brighter(
-            tinted(amount(distance, lamp.strength), lamp.colour),
-            light,
-            mmx,
-        );
+        light = brighter(tinted(amount(distance, lamp.strength), lamp.colour), light);
         out.light = Some(light);
     }
     out
@@ -154,8 +148,7 @@ mod tests {
 
     #[test]
     fn sums() {
-        assert_eq!(brighter(0xF0F0_F0F0, 0x2020_2020, true), 0xFFFF_FFFF);
-        assert_eq!(brighter(0xF0F0_F0F0, 0x2020_2020, false), 0xF0FF_FFFF);
+        assert_eq!(brighter(0xF0F0_F0F0, 0x2020_2020), 0xFFFF_FFFF);
         assert_eq!(amount(0x20_0000, 5), 0);
         assert_eq!(amount(0, 0x100), 0xFF);
         // The product wraps.
@@ -179,7 +172,7 @@ mod tests {
                 colour: 7,
             },
         ];
-        let out = add_point_lights(lamps, [0; 3], |p| [p, 0, 0], 0x10, false);
+        let out = add_point_lights(lamps, [0; 3], |p| [p, 0, 0], 0x10);
         assert_eq!(
             out,
             PointLights {
@@ -189,7 +182,7 @@ mod tests {
                 light: Some(0xFF),
             }
         );
-        let none = add_point_lights([], [0; 3], |_| unreachable!(), 0, false);
+        let none = add_point_lights([], [0; 3], |_| unreachable!(), 0);
         assert_eq!(none, PointLights::default());
     }
 

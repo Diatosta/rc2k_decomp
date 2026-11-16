@@ -129,28 +129,6 @@ pub fn normalise(
     })
 }
 
-/// What normalising the SSE way leaves: the four squares, the length and the four
-/// components (the fourth too) times 1 over the length.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct NormalisedFour {
-    pub squares: [f32; 4],
-    pub length: f32,
-    pub vector: [f32; 4],
-}
-
-/// The SSE way, with exact results in place of the processors' estimates (within 1 part
-/// in 2^11 of them).
-pub fn normalise_four(v: [f32; 4]) -> NormalisedFour {
-    let squares = v.map(|x| x * x);
-    let sum = squares[0] + squares[1] + squares[2];
-    let reciprocal_root = 1.0 / sum.sqrt();
-    NormalisedFour {
-        squares,
-        length: 1.0 / reciprocal_root,
-        vector: v.map(|x| reciprocal_root * x),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -194,7 +172,5 @@ mod tests {
         assert_eq!(n.vector, [0.6, 0.8, 0.0]);
         assert_eq!(n.vector[2].to_bits(), 0);
         assert!(normalise([1.0, 0.0, 0.0], &[0.0; 256], &exponent_roots, 0.0).is_none());
-        let f = normalise_four([3.0, 4.0, 0.0, 1.0]);
-        assert_eq!((f.length, f.vector[0]), (5.0, 0.6));
     }
 }

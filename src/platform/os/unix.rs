@@ -1,8 +1,7 @@
 //! The system's own facts on Unix (the native Linux build, and macOS): the questions
 //! `windows.rs` answers on Windows, answered from `/proc`, the environment and libc
 //! (`ffi::unix`, which has each system's own calls where they differ).
-//! Where Unix has no such thing (a drive's serial, a keyboard's subtype, an error mode, a
-//! priority class) the answer is the one a plain Windows machine gives, or none.
+//! Where Unix has no such thing the answer is the one a plain Windows machine gives, or none.
 
 /// A record shaped as `OSVERSIONINFOA` (0x94 bytes): the kernel's release as the version
 /// (major, minor, build), platform 2 (NT's), and "<system> <release>" as its text ("Linux
@@ -28,16 +27,6 @@ pub fn version_record() -> [u8; 0x94] {
     let len = text.len().min(127);
     record[0x14..0x14 + len].copy_from_slice(&text.as_bytes()[..len]);
     record
-}
-
-/// No drive serial on Unix: as `GetVolumeInformationA` failing.
-pub fn volume() -> Option<(u32, [u8; 12])> {
-    None
-}
-
-/// A standard keyboard's subtype (0).
-pub fn keyboard_subtype() -> u32 {
-    0
 }
 
 /// A name cut to `room` bytes with its NUL.
@@ -132,14 +121,6 @@ pub fn memory() -> [u32; 4] {
         capped(info.total_swap),
     ]
 }
-
-/// No error mode on Unix (no dialogs to keep away): the mode before is 0.
-pub fn set_error_mode(_mode: u32) -> u32 {
-    0
-}
-
-/// No priority classes on Unix: the process runs as it was started.
-pub fn set_priority_class(_class: u32) {}
 
 pub use crate::platform::ffi::unix::{discard_pages, map_pages, own_stack_word};
 

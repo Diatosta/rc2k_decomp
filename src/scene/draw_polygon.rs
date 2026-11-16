@@ -15,7 +15,7 @@
 //! 3. With `view_mirrored` set: the list's entries after the first are reversed, and after 4
 //!    every x is mirrored.
 //! 4. The positions into the vertex buffer: x and y plus an offset, the depth times a factor,
-//!    and 1/w as 0.01 / that, or with SSE `rcpss` of the depth times 65536.
+//!    and 1/w as 0.01 / that.
 //! 5. With `faded` set: a first pass in a colour faded from `fade_from` towards 0x10 by each
 //!    entry's byte +0x20 (`gfx::fade_colour`), with texture 0xC0.
 //! 6. The pass or two of the polygon mode (0, 2 .. 6, 8, 9, 0xA; anything else draws nothing):
@@ -24,7 +24,7 @@
 //!    and to 8, 9 and 0xA, when one of the two material switches is 0; mode 3 first lets
 //!    `clear_a_switch` clear a switch by the entries' bytes +0x21.
 //!
-//! The x87 and `rcpss` are used with the processor's own rounding. Refuses a polygon of no
+//! The x87's arithmetic is used with its own rounding. Refuses a polygon of no
 //! vertices or of more than 256, a list entry past the work table and an entry without its
 //! vertex.
 
@@ -267,7 +267,6 @@ fn place_with<R: x87_float::Rounds>(
         window.view_offset_float[1].get(),
     );
     let depth_factor = window.one_over_farthest.get();
-    let sse = reads.draw_switches.use_sse.is_set();
     let mirror_at = window.view_centre[0].get();
     for (n, &(_, entry)) in entries.iter().enumerate() {
         let vertex = entry.record.get();
@@ -277,11 +276,11 @@ fn place_with<R: x87_float::Rounds>(
         let depth = x87::mul_with(r, field(0x18), depth_factor);
         out.y.set(x87::add_with(r, field(0x1C), y_offset));
         out.z.set(depth);
-        out.rhw.set(if sse {
-            x87::rcpss_times(field(0x18), reads.numbers.k65536.get())
-        } else {
-            x87::reciprocal_times_with(r, depth, reads.panel_and_overlay.overlay.w_factor.get())
-        });
+        out.rhw.set(x87::reciprocal_times_with(
+            r,
+            depth,
+            reads.panel_and_overlay.overlay.w_factor.get(),
+        ));
         if mirrored && entries.len() > 2 {
             x = x87::mirrored_with(r, x, mirror_at, x_offset);
         }

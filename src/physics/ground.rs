@@ -25,12 +25,8 @@ fn record_faces(course: CourseReads<'_>, record: u32) -> Result<(u32, u32), BadI
 
 /// `physics::face_shares`: the three corners named by `face_corner_numbers` copied, the point,
 /// the differences, and the shares by the x87
-/// (`math::x87::face_shares`; the `rcpss` way with the SSE switch).
-pub fn face_shares_at(
-    course: CourseReads<'_>,
-    q: &GroundQuery<'_>,
-    switches: &crate::scene::draw_switches_store::DrawSwitches,
-) -> Result<(), Refused> {
+/// (`math::x87::face_shares`).
+pub fn face_shares_at(course: CourseReads<'_>, q: &GroundQuery<'_>) -> Result<(), Refused> {
     let mut corner = [[0u32; 3]; 3];
     for (k, c) in corner.iter_mut().enumerate() {
         *c = crate::race::scene_points::point_number(course, q.points, q.corner_numbers[k].get())?;
@@ -54,15 +50,11 @@ pub fn face_shares_at(
     for &(cell, value) in &d {
         cell.set(value);
     }
-    let sse = switches.use_sse.is_set();
-    let shares = crate::math::x87::face_shares(
-        &crate::math::x87::FaceDifferences {
-            x: [d[0].1 as i32, d[1].1 as i32, d[2].1 as i32],
-            z: [d[3].1 as i32, d[4].1 as i32, d[5].1 as i32],
-            scale: &course.numbers.k65536,
-        },
-        sse,
-    );
+    let shares = crate::math::x87::face_shares(&crate::math::x87::FaceDifferences {
+        x: [d[0].1 as i32, d[1].1 as i32, d[2].1 as i32],
+        z: [d[3].1 as i32, d[4].1 as i32, d[5].1 as i32],
+        scale: &course.numbers.k65536,
+    });
     q.share_a.set(shares.share_a);
     q.share_b.set(shares.share_b);
     q.share_c.set(shares.share_c);
@@ -70,9 +62,6 @@ pub fn face_shares_at(
     q.share_s.set(shares.share_s as u32);
     q.plane_g.set(shares.plane_g);
     q.share_t.set(shares.share_t as u32);
-    if let Some(scale) = shares.share_scale {
-        q.share_scale.set(scale);
-    }
     Ok(())
 }
 
@@ -90,7 +79,6 @@ pub fn face_under_point_at(
     course: CourseReads<'_>,
     q: &GroundQuery<'_>,
     number: u32,
-    switches: &crate::scene::draw_switches_store::DrawSwitches,
 ) -> Result<bool, Refused> {
     if let Some(why) = face_refusal(course, number) {
         return Err(BadInput(why).into());
@@ -131,7 +119,7 @@ pub fn face_under_point_at(
         q.corner_numbers[k].set(corner);
         q.face_corners[k].set(corner);
     }
-    face_shares_at(course, q, switches)?;
+    face_shares_at(course, q)?;
     q.done.set(1);
     plane_height(q);
     Ok(true)
@@ -162,15 +150,13 @@ pub fn search_record_faces_at(
     course: CourseReads<'_>,
     q: &GroundQuery<'_>,
     record: u32,
-    switches: &crate::scene::draw_switches_store::DrawSwitches,
 ) -> Result<bool, Refused> {
     if let Some(why) = record_refusal(course, record) {
         return Err(BadInput(why).into());
     }
     let (first, last) = record_faces(course, record)?;
-    let (found, _) = ground_search::search_faces(first, last, |number| {
-        face_under_point_at(course, q, number, switches)
-    })?;
+    let (found, _) =
+        ground_search::search_faces(first, last, |number| face_under_point_at(course, q, number))?;
     Ok(found)
 }
 
@@ -182,46 +168,37 @@ pub fn search_cell_at(
     q: &GroundQuery<'_>,
     x: u32,
     z: u32,
-    switches: &crate::scene::draw_switches_store::DrawSwitches,
 ) -> Result<bool, Refused> {
     let (key, _) = ground_search::cell_key(x, z);
     let Some(record) = find_course_record(course, key)? else {
         return Ok(false);
     };
-    search_record_faces_at(course, q, record, switches)
+    search_record_faces_at(course, q, record)
 }
 
 /// `physics::try_last_face`: the saved last face (`last_face`); when it is a face (not -1,
 /// below the count) `face_under_point` on it. True when found.
 // Core: `rc2k_core::physics::ground_search::last_face`.
-pub fn try_last_face_at(
-    course: CourseReads<'_>,
-    q: &GroundQuery<'_>,
-    switches: &crate::scene::draw_switches_store::DrawSwitches,
-) -> Result<bool, Refused> {
+pub fn try_last_face_at(course: CourseReads<'_>, q: &GroundQuery<'_>) -> Result<bool, Refused> {
     let last = q.last.get();
     if ground_search::last_face(last, course.course.course_face_count.get()).is_none() {
         return Ok(false);
     }
-    face_under_point_at(course, q, last, switches)
+    face_under_point_at(course, q, last)
 }
 
 /// `physics::ground_search`: `try_last_face_at`; else `ground_slot` = -1 and `search_cell` on the
 /// point plus each of `CELLS` until one finds it. `ground_found` is 1 when found, else 0; the
 /// result says whether it was found.
 // Core: `rc2k_core::physics::ground_search::ground_search`.
-pub fn ground_search_at(
-    course: CourseReads<'_>,
-    q: &GroundQuery<'_>,
-    switches: &crate::scene::draw_switches_store::DrawSwitches,
-) -> Result<bool, Refused> {
+pub fn ground_search_at(course: CourseReads<'_>, q: &GroundQuery<'_>) -> Result<bool, Refused> {
     let found = ground_search::ground_search(
-        || try_last_face_at(course, q, switches),
+        || try_last_face_at(course, q),
         || {
             q.slot.set(ground_search::NO_FACE);
         },
         || (q.x.get(), q.z.get()),
-        |x, z| search_cell_at(course, q, x, z, switches),
+        |x, z| search_cell_at(course, q, x, z),
     )?;
     q.found.set(u32::from(found));
     crate::debug::timing::note_ground_search(found);

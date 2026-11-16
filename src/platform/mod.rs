@@ -9,7 +9,7 @@
 //!
 //! The screen: the game draws into a locked surface in the screen mode's own pixel
 //! layout. Here that surface is memory of ours (`Screen::pixels`, rows without a gap),
-//! and `show_frame` copies it to the window, 16-bit pixels made 32-bit on the way.
+//! and `show_frame` copies it to the window (the screen is XRGB8888, as the window takes it).
 //!
 //! - `gfx::choose_screen_modes`: the kept modes are taken as they are, 800 x 600 in 32 bits
 //!   when there is none.
@@ -89,7 +89,7 @@ pub fn choose_screen_modes(
         // The logic is `rc2k_core::gfx::screen_modes::choose`. A mode works here when the mode
         // table lists it: the window takes any listed mode, and every listed mode passes the 3D
         // check (`gfx::mark_3d_modes`).
-        use rc2k_core::gfx::screen_modes::{Lookup, choose, look_up};
+        use rc2k_core::gfx::screen_modes::{Lookup, at_32_bits, choose, look_up};
         let display = &gfx_display;
         let modes = &display.modes;
         let table = crate::gfx::modes::Modes::TABLE_AT;
@@ -98,7 +98,11 @@ pub fn choose_screen_modes(
             matches!(look_up(entries, mode), Lookup::Found(_))
         };
         let listed = |bits: u32| modes.lists_bits(bits);
-        let (menu, race) = (display.mode.menu_mode.get(), display.mode.race_mode.get());
+        // The screen has 32 bits a pixel: a kept 16-bit mode is the same size at 32.
+        let (menu, race) = (
+            at_32_bits(display.mode.menu_mode.get()),
+            at_32_bits(display.mode.race_mode.get()),
+        );
         #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
         let race = crate::platform::handheld::race_mode(race);
         match choose(menu, race, works, listed) {
@@ -135,6 +139,8 @@ fn set_screen_mode(
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<(), String> {
+    // The screen has 32 bits a pixel: a 16-bit mode asked for is the same size at 32.
+    let mode = rc2k_core::gfx::screen_modes::at_32_bits(mode);
     gfx.display.mode.mode_flags.set(mode);
     use crate::gfx::modes::Modes;
     let modes = &gfx.display.modes;
@@ -172,11 +178,10 @@ fn set_screen_mode(
 
     // The surface's pixel format, as DirectDraw would report it: +4 blue, +8 green,
     // +0xC red, +0x10 no alpha.
-    let masks: [u32; 3] = if bits == 32 {
-        [0xFF, 0xFF00, 0xFF_0000]
-    } else {
-        [0x001F, 0x07E0, 0xF800]
-    };
+    if bits != 32 {
+        return Err("a screen mode that is not 32 bits a pixel".into());
+    }
+    let masks: [u32; 3] = [0xFF, 0xFF00, 0xFF_0000];
     let format = &system.session.screen.get().format;
     for (n, mask) in masks.into_iter().enumerate() {
         format[1 + n].set(mask);
@@ -302,7 +307,7 @@ fn set_screen_mode(
         pixels,
     });
     gfx.display.mode.mode_set.set(mode);
-    crate::platform::direct3d::describe_texture_formats(bits, gfx);
+    crate::platform::direct3d::describe_texture_formats(gfx);
     log(&format!(
         "platform: screen mode {mode:#x}: {width} x {height}, {bits} bits"
     ));
@@ -446,10 +451,8 @@ fn make_view(
 #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
 static GPU_VIEW: Mutex<(u64, Option<sdl::Texture>)> = Mutex::new((0, None));
 
-/// `show` on the frame as XRGB8888: itself at 32 bits, else its 16-bit pixels widened.
+/// `show` on the frame, XRGB8888.
 fn with_frame<R>(screen: &Screen, show: impl FnOnce(&[u8]) -> R) -> R {
-    let bytes = (screen.bits / 8) as usize;
-    let converted;
     // SAFETY: `PoolBytes::slice`'s promise: the screen's pixels are reached from the game's
     // thread only (the backends' calls and the frame's showing run on it; the drawing threads
     // they lend the rows to are joined before `Backend::draw` returns), and nothing on it writes
@@ -457,37 +460,13 @@ fn with_frame<R>(screen: &Screen, show: impl FnOnce(&[u8]) -> R) -> R {
     // `show_on_panel`) come before the frame is taken, and `show` only reads it. The slice
     // borrows `screen`, which keeps the pixels.
     let pixels = unsafe { screen.pixels.slice() };
-    let frame: &[u8] = if bytes == 4 {
-        pixels
-    } else {
-        converted = pixels
-            .as_chunks::<2>()
-            .0
-            .iter()
-            .flat_map(|from| {
-                let p = u16::from_le_bytes(*from) as u32;
-                let (red, green, blue) = (p >> 11 & 0x1F, p >> 5 & 0x3F, p & 0x1F);
-                let p = (red << 3 | red >> 2) << 16
-                    | (green << 2 | green >> 4) << 8
-                    | blue << 3
-                    | blue >> 2;
-                p.to_le_bytes()
-            })
-            .collect::<Vec<u8>>();
-        &converted
-    };
-    show(frame)
+    show(pixels)
 }
 
 fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(), &'static str> {
     let race = o.race;
-    // The frame's length as XRGB8888 (`with_frame`), checked before anything is shown.
-    let frame_len = if screen.bits / 8 == 4 {
-        screen.pixels.len()
-    } else {
-        screen.pixels.len() / 2 * 4
-    };
-    if frame_len < screen.width * screen.height * 4 {
+    // The frame's length (`with_frame`), checked before anything is shown.
+    if screen.pixels.len() < screen.width * screen.height * 4 {
         return Err("the frame is smaller than the screen");
     }
     #[cfg(all(target_os = "linux", target_arch = "aarch64"))]

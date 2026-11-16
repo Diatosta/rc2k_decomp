@@ -121,7 +121,7 @@ pub fn move_slot(
     c.ground.ground_z.set(s.place[2].get());
     c.course.course.get().ground_face_last.set(s.car_word.get());
     c.probe.settle_mark.set(0x80);
-    crate::physics::find_ground::find_ground(c.probe, c.ground, c.course, scene)?;
+    crate::physics::find_ground::find_ground(c.probe, c.ground, c.course)?;
     let face: u32 = c.course.course.get().ground_slot.get();
     if face == u32::MAX {
         copy_place(&c.work.slot_place, &s.place);

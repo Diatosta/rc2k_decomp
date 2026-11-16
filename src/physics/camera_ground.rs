@@ -17,14 +17,13 @@ pub fn probe_at(
     x: u32,
     z: u32,
     slot: &PlainDword,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<bool, Refused> {
     c.course.course.get().ground_face_last.set(slot.get());
     c.ground.ground_x.set(x);
     c.ground.ground_z.set(z);
     {
         crate::physics::count_ground_probe::count_ground_probe(
-            c.camera, c.probe, c.ground, c.course, scene,
+            c.camera, c.probe, c.ground, c.course,
         )
     }?;
     if c.ground.ground_found.get() == 0 {

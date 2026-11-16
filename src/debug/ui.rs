@@ -6,7 +6,6 @@
 //! with, as it is), and the race's freeze as a check box.
 
 use crate::debug::row_cells::Raw;
-use crate::debug::switches::EXTENSIONS;
 use crate::debug::timing::STAGES;
 use crate::debug::wear_page::SURFACES;
 use crate::owners::Owners;
@@ -259,7 +258,7 @@ pub fn build(o: &Owners<'static>, ui: &Ui) {
                     body(ui, || crate::debug::kstar::tab(race, o.scene, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Switches") {
-                    body(ui, || crate::debug::switches::tab(race, o.scene, o.system, ui));
+                    body(ui, || crate::debug::switches::tab(race, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Rivals") {
                     body(ui, || rivals(crate::strings::append_string_by_id::StringOwners::of(*o), &race.physics, ui));
@@ -683,52 +682,12 @@ fn profiler(o: &Owners<'static>, ui: &Ui) {
             ("Mode's bits", format!("{:08x}", state.sound_mode.get())),
         ],
     );
-    // The developers' profile page's items. The developers' switch is 1 by default, changed only by
-    // a key of their handler, which nothing calls; that handler is also all that masks the
-    // processor's features into the SSE, 3DNow and MMX switches, so "Game uses" stays at none.
-    let names = |flags: [(&'static str, Option<u32>); 3]| {
-        let on: Vec<&str> = flags
-            .iter()
-            .filter(|(_, v)| v.is_some_and(|v| v != 0))
-            .map(|(name, _)| *name)
-            .collect();
-        if on.is_empty() {
-            "none".to_owned()
-        } else {
-            on.join(", ")
-        }
-    };
     section(
         "Machine",
-        &[
-            (
-                "Course memory",
-                format!("{} KiB", course.lists.get().course_bytes_total.get() >> 10),
-            ),
-            (
-                "Processor has",
-                names([
-                    ("MMX", Some(o.system.machine().has_mmx.get())),
-                    ("3DNow!", Some(o.system.machine().has_3dnow.get())),
-                    ("SSE", Some(o.system.machine().has_sse.get())),
-                ]),
-            ),
-            (
-                "Game uses",
-                names([
-                    ("MMX", Some(o.scene.draw_switches.get().use_mmx.get())),
-                    ("3DNow!", Some(o.scene.draw_switches.get().use_3dnow.get())),
-                    (
-                        "SSE",
-                        Some(u32::from(o.scene.draw_switches.get().use_sse.is_set())),
-                    ),
-                ]),
-            ),
-            (
-                "Developers' extensions switch",
-                figure(EXTENSIONS.load(Relaxed), Shown::Whole),
-            ),
-        ],
+        &[(
+            "Course memory",
+            format!("{} KiB", course.lists.get().course_bytes_total.get() >> 10),
+        )],
     );
 }
 

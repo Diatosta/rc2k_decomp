@@ -1,8 +1,8 @@
 //! `menu::play_films`: the two logos at the start, then the intro, over and over with the
 //! game's own demonstration between, until a key.
 //! - `sound::stop_music`; a pending key is taken and thrown away.
-//! - At the start only: nothing at all with the setting `nofmv`; else `allogo.avi` if the screen
-//!   has 16 bits (the extension swapped by `files::swap_missing_extension` if missing), then
+//! - At the start only: nothing at all with the setting `nofmv`; else `allogo.avi`
+//!   (the extension swapped by `files::swap_missing_extension` if missing), then
 //!   `mflogo.mpg`, each through the film player; then `gfx::clear_front_surface`.
 //! - `scene::set_up_lit_engine`; from the idle menu also `race::render3d_tidy`.
 //! - Round and round: without `nofmv` and if `intro.mpg` is there, the intro, which ends the
@@ -121,10 +121,6 @@ impl Game {
 impl films::Films for Game {
     fn no_fmv(&mut self) -> bool {
         self.owners.system.machine().no_fmv.get() != 0
-    }
-
-    fn screen_bits(&mut self) -> u32 {
-        self.owners.system.session.screen.get().bits.get()
     }
 
     fn step(&mut self, s: Step) -> StepAnswer {

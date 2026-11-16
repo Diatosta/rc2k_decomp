@@ -9,7 +9,7 @@ standard formats. This page says which, and what a replacement must be.
 
 | File | Container | Video | Sound | When it plays |
 | --- | --- | --- | --- | --- |
-| `files/fmv/ALLOGO.AVI` | AVI | Indeo 4 (`IV41`), 320 × 240, 30 frames a second | none | First, at start-up, and only when the screen has 16 bits a pixel. |
+| `files/fmv/ALLOGO.AVI` | AVI | Indeo 4 (`IV41`), 320 × 240, 30 frames a second | none | First, at start-up. |
 | `files/fmv/MFLOGO.MPG` | MPEG-1 program stream | MPEG-1 video, 352 × 288 | MPEG audio layer 2, stereo, 44,100 Hz | Second, at start-up. |
 | `files/fmv/INTRO.MPG` | MPEG-1 program stream | MPEG-1 video, 352 × 288 | MPEG audio layer 2, stereo, 44,100 Hz | After the logos, and again whenever the main menu is left idle. |
 

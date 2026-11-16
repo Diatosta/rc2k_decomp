@@ -26,7 +26,6 @@ compiled table of texts), the computer drivers' names and the shared text buffer
 | `append_speed`, `units.rs` | `src/strings/append_speed.rs`, `src/strings/units.rs` | A speed in miles or kilometres an hour, by the player's choice. |
 | `format_u32`, `hex_append`, `append_percent` | files of the same names | Numbers as text. |
 | `text_length.rs`, `same_text.rs`, `copy_printable.rs` | `src/strings/` | Small helpers on texts: length, comparison, copying only printable characters. |
-| `KeyboardTables` | `src/strings/keyboard_tables.rs` | The key-to-character tables of the language's keyboard. |
 
 ## How it is laid out
 

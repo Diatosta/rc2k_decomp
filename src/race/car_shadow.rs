@@ -531,7 +531,7 @@ fn raise_onto_face(
     index: u32,
 ) -> Result<(), Refused> {
     use crate::physics::ground::face_shares_at;
-    let (probe, switches) = (reads.ground_probe, reads.draw_switches);
+    let probe = reads.ground_probe;
     let p = work_entry(polygon_work, index)?.point.get();
     let q = work.query(probe, points);
     for k in 0..3 {
@@ -540,7 +540,7 @@ fn raise_onto_face(
     let (x, z) = point_xz(reads.course(), points, p)?;
     q.x.set(x);
     q.z.set(z);
-    face_shares_at(reads.course(), &q, switches)?;
+    face_shares_at(reads.course(), &q)?;
     crate::physics::plane_height::plane_height(&q);
     put_point_word(
         reads.course(),
@@ -762,7 +762,7 @@ pub fn shadow_points(
     car: &Car,
     sun: u32,
 ) -> Result<(), Refused> {
-    let (probe, switches) = (reads.ground_probe, reads.draw_switches);
+    let probe = reads.ground_probe;
     use crate::math::x87::mul_to_int;
     use crate::math::x87::{below_or_unordered, to_tbyte};
     let count: u32 = work.point_count.get();
@@ -773,7 +773,7 @@ pub fn shadow_points(
     q.x.set(car.position[0].get());
     q.z.set(car.position[2].get());
     q.last.set(car.probe_point_face[4].get());
-    crate::physics::find_ground::find_ground_with(reads.course(), &q, switches)?;
+    crate::physics::find_ground::find_ground_with(reads.course(), &q)?;
     work.farthest_length.set(-1.0f32);
     work.ground.set(q.height.get());
     let sun = sun.max(0x10);

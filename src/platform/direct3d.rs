@@ -105,8 +105,10 @@ fn textures() -> &'static crate::gfx::texture_upload::Textures {
 
 // ---- the texture formats ----
 
-/// `d3d::find_texture_formats`, for a screen of `bits`.
-pub fn describe_texture_formats(bits: u32, gfx: &crate::gfx::owner::Gfx) {
+/// `d3d::find_texture_formats`: the four formats described, and every texture kind given the
+/// 32-bit one (the 16-bit formats were a 16-bit screen's kinds; they stay as formats a
+/// texture's data may have).
+pub fn describe_texture_formats(gfx: &crate::gfx::owner::Gfx) {
     // (bits, masks blue, green, red, alpha)
     let formats: [(u32, [u32; 4]); 4] = [
         (16, [0x001F, 0x03E0, 0x7C00, 0]),
@@ -138,13 +140,8 @@ pub fn describe_texture_formats(bits: u32, gfx: &crate::gfx::owner::Gfx) {
     }
     // By handle (`texture_upload::FORMAT_TAG`).
     let at = |n: usize| crate::gfx::texture_upload::FORMAT_TAG | n as u32;
-    let kinds = if bits == 32 {
-        [at(3); 3]
-    } else {
-        [at(0), at(1), at(2)]
-    };
-    for (n, kind) in kinds.into_iter().enumerate() {
-        gfx.card.texture_tables.kinds[1 + n].set(kind);
+    for kind in &gfx.card.texture_tables.kinds[1..4] {
+        kind.set(at(3));
     }
 }
 
@@ -665,23 +662,12 @@ pub fn copy_screen_to_system_texture(number: u32, figures: &crate::memory::sessi
         let sy = y * screen.height / h;
         let what = "the screen's row";
         let row = rows
-            .read(
-                sy as u32,
-                0,
-                screen.width * if screen.bits == 16 { 2 } else { 4 },
-                what,
-            )
+            .read(sy as u32, 0, screen.width * 4, what)
             .unwrap_or_else(|e| crate::fatal::raise::end(what, e));
         for x in 0..w {
             let sx = x * screen.width / w;
-            let (red, green, blue) = if screen.bits == 16 {
-                let p = u16::from_le_bytes([row[sx * 2], row[sx * 2 + 1]]) as u32;
-                let (r5, g6, b5) = (p >> 11 & 0x1F, p >> 5 & 0x3F, p & 0x1F);
-                (r5 << 3 | r5 >> 2, g6 << 2 | g6 >> 4, b5 << 3 | b5 >> 2)
-            } else {
-                let p = u32::from_le_bytes(row[sx * 4..sx * 4 + 4].try_into().unwrap());
-                (p >> 16 & 0xFF, p >> 8 & 0xFF, p & 0xFF)
-            };
+            let p = u32::from_le_bytes(row[sx * 4..sx * 4 + 4].try_into().unwrap());
+            let (red, green, blue) = (p >> 16 & 0xFF, p >> 8 & 0xFF, p & 0xFF);
             let texel = put(blue, masks[0]) | put(green, masks[1]) | put(red, masks[2]) | masks[3];
             let at = y * level.pitch as usize + x * bytes;
             // A texel past the level's end is left out.

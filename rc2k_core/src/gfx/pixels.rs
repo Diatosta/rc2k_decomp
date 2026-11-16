@@ -356,33 +356,6 @@ pub fn to_4444(c: [u8; 4]) -> [u8; 2] {
     [c[0] >> 4 | c[1] & 0xF0, c[2] >> 4 | c[3] & 0xF0]
 }
 
-/// A picture of four components a pixel made the surface's pixels in place, for a format without
-/// a converter: each packed (`pack`) and written from the buffer's start as words (`words`, a
-/// 16-bit screen) or dwords. Gives the last scratch the packing left (the caller keeps it).
-/// Refused: a buffer shorter than the pixels.
-pub fn convert_in_place(
-    buffer: &mut [u8],
-    pixels: usize,
-    format: &PixelFormat,
-    words: bool,
-) -> Result<Option<[u8; 4]>, crate::Invalid> {
-    if buffer.len() < pixels * 4 {
-        return Err(crate::Invalid("a picture larger than its buffer"));
-    }
-    let mut kept = None;
-    for n in 0..pixels {
-        let c = u32::from_le_bytes(buffer[n * 4..n * 4 + 4].try_into().unwrap());
-        let (pixel, scratch) = pack(format, c);
-        kept = scratch.or(kept);
-        if words {
-            buffer[n * 2..n * 2 + 2].copy_from_slice(&(pixel as u16).to_le_bytes());
-        } else {
-            buffer[n * 4..n * 4 + 4].copy_from_slice(&pixel.to_le_bytes());
-        }
-    }
-    Ok(kept)
-}
-
 /// A row of pixels of four components packed into the surface's format: `from` holds the row's
 /// components, `to` gets words (`words`, two bytes a pixel) or dwords. Gives the last scratch the
 /// packing left. Refused: a row longer than either side.

@@ -326,7 +326,6 @@ pub fn face_hide_mask(
             engine_tables: &reads.buffers.engine_tables,
         },
         &view.car,
-        reads.draw_switches,
         &part.points,
     )?;
     let ground: u32 = view.car.probe_point_face[4].get();

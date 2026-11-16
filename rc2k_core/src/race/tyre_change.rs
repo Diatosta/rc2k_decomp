@@ -10,16 +10,12 @@ pub mod stage {
     pub const RUNNING: u32 = 0;
     /// Done: the time is kept.
     pub const DONE: u32 = 1;
-    /// A developer's press: running on to the gauge's top.
-    pub const DEVELOPER: u32 = 2;
 }
 
 /// Longest a change runs (ms) before it ends with an empty gauge.
 pub const LONGEST: u32 = 60000;
 /// The time (ms) the gauge takes to fill.
 pub const FILL_MS: u32 = 500;
-/// Where a developer's press stops.
-pub const DEVELOPER_TOP: u32 = 0xF618;
 
 /// The gauge's state.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -43,8 +39,6 @@ pub trait Io {
     fn draw(&mut self, gauge: &Gauge) -> Result<(), Self::Error>;
     /// The time of a press, from 0x10000 less the gauge.
     fn press_time(&mut self, s: u32) -> u32;
-    /// Whether this is a developer's machine (asked at a press).
-    fn developer(&mut self) -> bool;
     /// The record time (asked once a press is timed).
     fn record(&mut self) -> u32;
     /// Notes the running gauge: time since the start x 0x10000 over `FILL_MS` gives the gauge (low
@@ -59,8 +53,7 @@ pub trait Io {
 }
 
 /// The gauge's next turn. `start` (mode 0) starts it (clock, gauge 0, waiting for the button
-/// to be let go, drawn). Waiting: letting go starts it running. Running: a press ends it (on a
-/// developer's machine it runs on to `DEVELOPER_TOP`), else the gauge follows the clock
+/// to be let go, drawn). Waiting: letting go starts it running. Running: a press ends it, else the gauge follows the clock
 /// (`LONGEST` or more: empty gauge, done). Done: the time from the press (record beaten when
 /// below it, unsigned), drawn. Returns the time once done, else 0.
 pub fn turn<I: Io>(start: bool, g: &mut Gauge, io: &mut I) -> Result<u32, I::Error> {
@@ -68,7 +61,6 @@ pub fn turn<I: Io>(start: bool, g: &mut Gauge, io: &mut I) -> Result<u32, I::Err
         LetGo,
         Read,
         Run,
-        Developer,
         Done,
     }
     let mut at = if start {
@@ -84,8 +76,7 @@ pub fn turn<I: Io>(start: bool, g: &mut Gauge, io: &mut I) -> Result<u32, I::Err
         match g.stage {
             stage::LET_GO => At::LetGo,
             stage::DONE => return Ok(g.clock),
-            stage::RUNNING => At::Read,
-            _ => At::Developer,
+            _ => At::Read,
         }
     };
     loop {
@@ -98,16 +89,6 @@ pub fn turn<I: Io>(start: bool, g: &mut Gauge, io: &mut I) -> Result<u32, I::Err
             }
             At::Read => {
                 if !io.pressed()? {
-                    At::Run
-                } else if io.developer() {
-                    g.stage = stage::DEVELOPER;
-                    At::Developer
-                } else {
-                    At::Done
-                }
-            }
-            At::Developer => {
-                if g.gauge >= DEVELOPER_TOP {
                     At::Run
                 } else {
                     At::Done
@@ -151,7 +132,6 @@ mod tests {
         pressed: Vec<bool>,
         drawn: Vec<Gauge>,
         beaten: Option<u32>,
-        developer: bool,
         record: u32,
     }
 
@@ -170,9 +150,6 @@ mod tests {
         fn press_time(&mut self, s: u32) -> u32 {
             s / 16
         }
-        fn developer(&mut self) -> bool {
-            self.developer
-        }
         fn record(&mut self) -> u32 {
             self.record
         }
@@ -181,13 +158,12 @@ mod tests {
         }
     }
 
-    fn script(clock: &[u32], pressed: &[bool], developer: bool, record: u32) -> Script {
+    fn script(clock: &[u32], pressed: &[bool], record: u32) -> Script {
         Script {
             clock: clock.to_vec(),
             pressed: pressed.to_vec(),
             drawn: Vec::new(),
             beaten: None,
-            developer,
             record,
         }
     }
@@ -200,45 +176,45 @@ mod tests {
             clock: 9,
         };
         // Started with the button still held: waiting.
-        let mut io = script(&[1000], &[true], false, 0);
+        let mut io = script(&[1000], &[true], 0);
         assert_eq!(turn(true, &mut g, &mut io), Ok(0));
         assert_eq!((g.stage, io.drawn.len()), (stage::LET_GO, 1));
         // Let go: running.
-        let mut io = script(&[], &[false], false, 0);
+        let mut io = script(&[], &[false], 0);
         assert_eq!(turn(false, &mut g, &mut io), Ok(0));
         assert_eq!(g.stage, stage::RUNNING);
         // A quarter of a second in: the gauge half full.
-        let mut io = script(&[1250], &[false], false, 0);
+        let mut io = script(&[1250], &[false], 0);
         assert_eq!(turn(false, &mut g, &mut io), Ok(0));
         assert_eq!(g.gauge, 0x8000);
         // The press: timed from what the gauge left, the record beaten.
-        let mut io = script(&[1300], &[true], false, 0x1000);
+        let mut io = script(&[1300], &[true], 0x1000);
         assert_eq!(turn(false, &mut g, &mut io), Ok(0x800));
         assert_eq!(
             (g.stage, g.clock, io.beaten),
             (stage::DONE, 0x800, Some(0x800))
         );
         // Done: the time again.
-        let mut io = script(&[], &[], false, 0);
+        let mut io = script(&[], &[], 0);
         assert_eq!(turn(false, &mut g, &mut io), Ok(0x800));
     }
 
     #[test]
-    fn developer_and_timeout() {
+    fn press_and_timeout() {
         let mut g = Gauge {
             gauge: 0x100,
             stage: stage::RUNNING,
             clock: 0,
         };
-        let mut io = script(&[60000], &[true], true, 0);
+        let mut io = script(&[60000], &[true], 0);
         assert_eq!(turn(false, &mut g, &mut io), Ok(0xFF00 / 16));
         assert_eq!(g.stage, stage::DONE);
         let mut g = Gauge {
-            gauge: DEVELOPER_TOP,
-            stage: stage::DEVELOPER,
+            gauge: 0xF618,
+            stage: stage::RUNNING,
             clock: 0,
         };
-        let mut io = script(&[60000, 60000], &[], true, 0);
+        let mut io = script(&[60000, 60000], &[false], 0);
         assert_eq!(turn(false, &mut g, &mut io), Ok(0x1_0000 / 16));
         assert_eq!(g.gauge, 0);
     }

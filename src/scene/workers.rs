@@ -398,9 +398,8 @@ pub struct Lent<'s> {
     car_blocks: crate::memory::session::PhaseRead<'s, crate::race::blocks_store::CarBlocks>,
     view_and_records:
         crate::memory::session::PhaseRead<'s, crate::race::groups_store::ViewAndRecords>,
-    // The system's screen and the processor's MMX flag.
+    // The system's screen.
     screen: crate::memory::session::PhaseRead<'s, crate::memory::session::Screen>,
-    has_mmx: bool,
     net_race: &'s rc2k_core::net::net_race::NetRaceSlot,
     // The course's groups.
     course_lists:
@@ -423,12 +422,6 @@ pub struct Lent<'s> {
     contact: crate::memory::session::PhaseRead<'s, crate::physics::contact_store::ContactWork>,
     // The race's buffers the parts read.
     buffers: crate::memory::session::PhaseRead<'s, crate::race::buffers_store::BufferReads>,
-}
-
-/// Whether the processor has MMX and the game uses it: fixed at start-up, so one value for
-/// every part of a drawing.
-fn has_mmx(system: &crate::system::owner::System) -> bool {
-    system.machine().has_mmx.get() != 0
 }
 
 impl<'s> Lent<'s> {
@@ -466,9 +459,8 @@ impl<'s> Lent<'s> {
             // The cars' blocks and the view variables.
             car_blocks: PhaseRead::lend(&race.shared.car_blocks, scope),
             view_and_records: PhaseRead::lend(&race.frame.view_and_records, scope),
-            // The system's screen and the processor's MMX flag.
+            // The system's screen.
             screen: PhaseRead::lend(&system.session.screen, scope),
-            has_mmx: has_mmx(system),
             net_race: &net.race_slot,
             // The course's groups.
             course_lists: PhaseRead::lend(&race.course.lists, scope),
@@ -518,9 +510,8 @@ impl<'s> Lent<'s> {
             // The cars' blocks and the view variables.
             car_blocks: &self.car_blocks,
             view_and_records: &self.view_and_records,
-            // The system's screen and the processor's MMX flag.
+            // The system's screen.
             screen: &self.screen,
-            has_mmx: self.has_mmx,
             net_race: self.net_race,
             // The course's groups.
             course_lists: &self.course_lists,
@@ -595,12 +586,9 @@ pub struct DrawReads<'a> {
     /// The shared view variables and the view records
     /// (`race::owner_frame::Frame::view_and_records`).
     pub view_and_records: &'a crate::race::groups_store::ViewAndRecords,
-    // The system's screen and the processor's MMX flag.
+    // The system's screen.
     /// The screen's figures (`system::owner::Session::screen`).
     pub screen: &'a crate::memory::session::Screen,
-    /// Whether the processor has MMX and the game uses it (`Machine::has_mmx`, set once at
-    /// start-up before any drawing): the lighting's colour paths.
-    pub has_mmx: bool,
     /// The network game's slot: whether one is on, this machine's car and the players' count
     /// (`net::owner::Net::race_slot`), read live: the receiving thread can end the game.
     pub net_race: &'a rc2k_core::net::net_race::NetRaceSlot,
@@ -699,9 +687,8 @@ impl<'a> DrawReads<'a> {
             // The cars' blocks and the view variables.
             car_blocks: race.shared.car_blocks.get(),
             view_and_records: race.frame.view_and_records.get(),
-            // The system's screen and the processor's MMX flag.
+            // The system's screen.
             screen: system.session.screen.get(),
-            has_mmx: has_mmx(system),
             net_race: &net.race_slot,
             // The course's groups.
             course_lists: race.course.lists.get(),

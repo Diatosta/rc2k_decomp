@@ -125,8 +125,7 @@ There are two stream players sharing that code, driven by the Stream and Music c
 game side picks the tune: the menus' music, a race's music chosen at stage load
 (`src/race/music.rs`), and the other tunes (the `play_tune_*` files in `src/sound/`). `sound::stop_music` stops it; `sound::set_music_volume` follows the options.
 
-The original could also play CD audio tracks. There is no CD here, and those calls do nothing
-(`sound::stop_cd_audio`).
+The original could also play CD audio tracks. There is no CD here, and those calls are gone.
 
 ## The co-driver
 

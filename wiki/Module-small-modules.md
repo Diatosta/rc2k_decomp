@@ -47,7 +47,7 @@ from ordinary `f32` / `f64` arithmetic; replays depend on every result matching 
 bit. `X` in `src/math/x87_float.rs` is a float that rounds as that unit did, and
 `src/math/x87.rs` holds the operations built on it. Used heavily by
 [`physics`](Module-physics), [`effects`](Module-effects) and [`scene`](Module-scene). The
-portable sine, cosine and square-root estimates are in `rc2k_core::math`.
+portable sine and cosine are in `rc2k_core::math`.
 
 ## `records`: the stage tables
 
@@ -60,8 +60,7 @@ lengths and record holders. `src/records/stages_store.rs` holds the tables
 ## `settings`: `var/ral.cfg`
 
 Reads the settings files: lines of `key=value`. `read_settings` (`src/settings/read_settings.rs`)
-reads the file and `apply_settings` stores each known key; `apply_feature_switches` applies the
-switches that turn features on and off; `read_driver_names` reads the optional file of
+reads the file and `apply_settings` stores each known key; `read_driver_names` reads the optional file of
 computer drivers' names. See [Settings files](Settings-files).
 
 ## `threading`: the game's threads

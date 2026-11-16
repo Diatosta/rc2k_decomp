@@ -863,10 +863,8 @@ impl Callee {
                 )?);
             }
             Self::ConvertPicture => {
-                return Ok(crate::gfx::convert_picture::convert_picture_now_in(
-                    entry.owners.gfx,
-                    entry.owners.system,
-                )?);
+                crate::gfx::convert_picture::convert_picture_now_in(entry.owners.gfx)?;
+                return Ok(false);
             }
             Self::SetUpFrontEnd => {
                 crate::race::load_times::begin("front end: sprites, names, best times");

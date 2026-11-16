@@ -1,5 +1,5 @@
 //! Win32 behind safe functions (`windows-sys`): the system's own facts for `os` (version,
-//! volume, names, language, drives, memory, error mode, priority, page mapping, the stack
+//! names, language, drives, memory, page mapping, the stack
 //! and image bounds, ending the process) and the shell links of the Start menu items
 //! (`install::shortcuts`, COM's `IShellLinkW` through its vtables).
 //!
@@ -11,10 +11,7 @@
 #![allow(unsafe_code)]
 
 use windows_sys::Win32::Globalization::GetSystemDefaultLCID;
-use windows_sys::Win32::Storage::FileSystem::{
-    GetDiskFreeSpaceA, GetDriveTypeA, GetVolumeInformationA,
-};
-use windows_sys::Win32::System::Diagnostics::Debug::{SetErrorMode, THREAD_ERROR_MODE};
+use windows_sys::Win32::Storage::FileSystem::{GetDiskFreeSpaceA, GetDriveTypeA};
 use windows_sys::Win32::System::Memory::{
     MEM_COMMIT, MEM_RESERVE, MEM_RESET, PAGE_READWRITE, VirtualAlloc,
 };
@@ -22,10 +19,9 @@ use windows_sys::Win32::System::SystemInformation::{
     GetVersionExA, GlobalMemoryStatus, MEMORYSTATUS, OSVERSIONINFOA,
 };
 use windows_sys::Win32::System::Threading::{
-    ExitProcess, GetCurrentProcess, GetCurrentThreadStackLimits, SetPriorityClass, TerminateProcess,
+    ExitProcess, GetCurrentProcess, GetCurrentThreadStackLimits, TerminateProcess,
 };
 use windows_sys::Win32::System::WindowsProgramming::{GetComputerNameA, GetUserNameA};
-use windows_sys::Win32::UI::Input::KeyboardAndMouse::GetKeyboardType;
 
 /// `OSVERSIONINFOA` (0x94 bytes) as `GetVersionExA` fills it.
 pub fn version_record() -> [u8; 0x94] {
@@ -50,31 +46,6 @@ pub fn version_record() -> [u8; 0x94] {
         }
         record
     }
-}
-
-/// The current drive's serial number and the first 12 bytes of its name, if they can be had.
-pub fn volume() -> Option<(u32, [u8; 12])> {
-    let (mut serial, mut name) = (0u32, [0u8; 12]);
-    // SAFETY: out-parameters of their sizes; no root (the current drive).
-    let worked = unsafe {
-        GetVolumeInformationA(
-            std::ptr::null(),
-            name.as_mut_ptr(),
-            name.len() as u32,
-            &raw mut serial,
-            std::ptr::null_mut(),
-            std::ptr::null_mut(),
-            std::ptr::null_mut(),
-            0,
-        )
-    } != 0;
-    worked.then_some((serial, name))
-}
-
-/// `GetKeyboardType(1)`: the keyboard's subtype.
-pub fn keyboard_subtype() -> u32 {
-    // SAFETY: a plain value.
-    unsafe { GetKeyboardType(1) as u32 }
 }
 
 /// A name the system writes into `room` bytes (its NUL among them): the name, if any.
@@ -157,18 +128,6 @@ pub fn memory() -> [u32; 4] {
         m.dwAvailPageFile as u32,
         m.dwTotalPageFile as u32,
     ]
-}
-
-/// `SetErrorMode`: the mode set, the one before returned.
-pub fn set_error_mode(mode: u32) -> u32 {
-    // SAFETY: a plain value.
-    unsafe { SetErrorMode(mode as THREAD_ERROR_MODE) }
-}
-
-/// `SetPriorityClass` of the process.
-pub fn set_priority_class(class: u32) {
-    // SAFETY: the process's own pseudo-handle and a plain value.
-    unsafe { SetPriorityClass(GetCurrentProcess(), class) };
 }
 
 /// `len` bytes of zeroed, readable and writable pages for the program's life (a pool block):

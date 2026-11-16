@@ -30,7 +30,6 @@ pub fn main_loop(o: Owners<'static>) -> Result<(), Refused> {
     let session = &o.system.session;
     let saves = o.saves;
     let gfx = o.gfx;
-    let sound = o.sound;
     let install = o.install;
     let menus = o.menus;
     log_line(c"");
@@ -72,7 +71,6 @@ pub fn main_loop(o: Owners<'static>) -> Result<(), Refused> {
         )?;
     }
     install.flags.clear_command();
-    crate::sound::stop_cd_audio::stop_cd_audio(sound);
     crate::menu::run_front_end::run_front_end(o)?;
     crate::sound::stop_music::stop_music(o);
     if session.flags.quitting.is_set() {

@@ -148,10 +148,9 @@ pub fn gather_lamps(ctx: &DrawCtx) -> Result<(), Refused> {
     Ok(())
 }
 
-/// Two colours added byte by byte (`rc2k_core::race::lights::add_colours`), with MMX (`mmx`) or
-/// not.
-pub fn add_colours(a: u32, b: u32, mmx: bool) -> u32 {
-    rc2k_core::race::lights::add_colours(a, b, mmx)
+/// Two colours added byte by byte (`rc2k_core::race::lights::add_colours`).
+pub fn add_colours(a: u32, b: u32) -> u32 {
+    rc2k_core::race::lights::add_colours(a, b)
 }
 
 /// A car's headlights on the lit place, added to `light_colour` (see `light_colour_at`).
@@ -161,7 +160,6 @@ pub(super) fn car_light_on_point(
     marks_count: u32,
     light_tables: &crate::scene::light_tables_store::LightTables,
     object_light: &crate::scene::object_light::ObjectLight,
-    mmx: bool,
 ) -> Result<(), BadInput> {
     use crate::math::x87::{int_square_sum_scaled_to_int, rotate_rounding};
     use rc2k_core::race::lights::headlight_index;
@@ -192,7 +190,7 @@ pub(super) fn car_light_on_point(
     let colour = light_tables.car_light_table[index as usize].get();
     object_light
         .light_colour
-        .set(add_colours(colour, object_light.light_colour.get(), mmx));
+        .set(add_colours(colour, object_light.light_colour.get()));
     Ok(())
 }
 
@@ -208,7 +206,6 @@ pub(super) fn car_lights_on_point(
     net_race: Option<rc2k_core::net::net_race::NetRace>,
     object_light: &crate::scene::object_light::ObjectLight,
     drawn_view: u32,
-    mmx: bool,
 ) -> Result<(), BadInput> {
     let light_tables = reads.light_tables;
     let blocks = &reads.car_blocks;
@@ -243,7 +240,6 @@ pub(super) fn car_lights_on_point(
                     .get(),
                 light_tables,
                 object_light,
-                mmx,
             )?;
         }
     }
@@ -258,7 +254,6 @@ pub(super) fn lamp_lights_on_point(
     points: &crate::race::scene_points::OwnPoints,
     lamps: &crate::race::lamp_work::LampWork,
     object_light: &crate::scene::object_light::ObjectLight,
-    mmx: bool,
 ) -> Result<(), BadInput> {
     {
         let count: u32 = lamps.lamp_count.get();
@@ -282,7 +277,6 @@ pub(super) fn lamp_lights_on_point(
             let light = add_colours(
                 rc2k_core::race::lights::multiply_colours(grey, tint),
                 object_light.light_colour.get(),
-                mmx,
             );
             object_light.light_colour.set(light);
         }
@@ -314,13 +308,12 @@ pub fn light_colour_at(
     lamps: &crate::race::lamp_work::LampWork,
     object_light: &crate::scene::object_light::ObjectLight,
     drawn_view: u32,
-    mmx: bool,
 ) -> Result<(), Refused> {
     // The turned place, the spreads and the lamps' distances are the x87's and the scene's.
     check_light_colour(reads.work, reads.view, lamps)?;
     object_light.light_colour.set(0u32);
-    car_lights_on_point(reads, net_race, object_light, drawn_view, mmx)?;
-    lamp_lights_on_point(reads.course(), points, lamps, object_light, mmx)?;
+    car_lights_on_point(reads, net_race, object_light, drawn_view)?;
+    lamp_lights_on_point(reads.course(), points, lamps, object_light)?;
     Ok(())
 }
 
@@ -329,7 +322,7 @@ pub fn light_colour_at(
 /// (`add_colours`). Fixed: `view_light_base`, the light colour of the last car the
 /// previous view drew, used to be added, so the views' order showed in the snowflakes' tint ("Each
 /// view lit by what the view before it left" in `wiki/Fixed-bugs.md`).
-pub fn view_light(ctx: &DrawCtx<'_>, mmx: bool) -> Result<(), Refused> {
+pub fn view_light(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     let (race, view) = (ctx.race, ctx.view);
     let (lamps, object_light, car) = (&view.lamps, &view.light, &view.car);
     let drawn_view = view.drawn_view(race);
@@ -345,11 +338,10 @@ pub fn view_light(ctx: &DrawCtx<'_>, mmx: bool) -> Result<(), Refused> {
         lamps,
         object_light,
         drawn_view,
-        mmx,
     )?;
     let light: u32 = object_light.light_colour.get();
     object_light
         .view_light
-        .set(add_colours(car.light_colour.get(), light, mmx));
+        .set(add_colours(car.light_colour.get(), light));
     Ok(())
 }

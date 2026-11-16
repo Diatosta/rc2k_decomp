@@ -6,8 +6,7 @@
 //! light; with the car's hold set the change is held to 10 a step (or none with `scene_switch`);
 //! the light table's entry goes into `car_light_colour`. With bit 2 of the face's flags also two
 //! colour blends (`lamp_table_a`, `lamp_table_b`) go into `lamp_a_colour`, each added to the car's
-//! lamp colour byte by byte with saturation (four bytes with the machine's MMX flag, else the low
-//! three).
+//! lamp colour byte by byte with saturation.
 //!
 //! Caller: `physics::car_physics_step`, every physics step. Refuses a light index past 0xFF (the
 //! tables hold 256) and no faces; what was written is put back.
@@ -32,7 +31,6 @@ fn corners(ground: &GroundWork, course_work: &CourseWork) -> u32 {
 pub fn car_lighting(
     c: &LightingInputs<'_>,
     scene: &crate::scene::owner::Scene,
-    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     c.ground.ground_x.set(c.car.position[0].get());
     c.ground.ground_z.set(c.car.position[2].get());
@@ -48,7 +46,7 @@ pub fn car_lighting(
         .get()
         .ground_face_last
         .set(c.car.probe_point_face[4].get());
-    { crate::physics::find_ground::find_ground(c.probe, c.ground, c.course, scene) }?;
+    { crate::physics::find_ground::find_ground(c.probe, c.ground, c.course) }?;
     let face = c.course.course.get().ground_slot.get();
     if face == u32::MAX {
         return Ok(());
@@ -131,11 +129,9 @@ pub fn car_lighting(
         }
         let colour = table[i as usize].get();
         to.set(colour);
-        c.car.light_colour.set(lighting::add_colour(
-            colour,
-            c.car.light_colour.get(),
-            system.machine().has_mmx.get() != 0,
-        ));
+        c.car
+            .light_colour
+            .set(lighting::add_colour(colour, c.car.light_colour.get()));
     }
     Ok(())
 }

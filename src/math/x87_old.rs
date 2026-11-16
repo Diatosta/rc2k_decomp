@@ -1,7 +1,6 @@
 //! Arithmetic that has to match the x87 to the last bit: plain Rust on `X`
 //! (`x87_float.rs`), an `f64` that rounds as the control word says, in the x87's order of
-//! operations; `rcpss` is an approximation that differs between processors, taken from one
-//! processor's tables (`arch::rcpss`). No x87 instruction runs outside the tests.
+//! operations. No x87 instruction runs outside the tests.
 //! The helpers as they were before their results became floats, for the comparison test.
 
 use super::x87_float as bh;
@@ -93,12 +92,6 @@ pub fn mul_to_int(a: impl Flt, b: impl Flt) -> i32 {
 /// `a / b`, two whole numbers, as a float.
 pub fn int_ratio(a: i32, b: i32) -> u32 {
     bh::st(bh::int(a) / bh::int(b))
-}
-
-/// `rcpss` of `a` times `b`: `rcpss` is an SSE approximation taken from the tables of
-/// `arch::rcpss`, as the processors' own results differ.
-pub fn rcpss_times(a: u32, b: u32) -> u32 {
-    (crate::platform::arch::rcpss(f32::from_bits(a)) * f32::from_bits(b)).to_bits()
 }
 
 /// A whole number over sixteen (one doubled four times).

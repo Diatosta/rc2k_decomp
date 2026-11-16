@@ -159,12 +159,6 @@ pub fn load_language(
 
     make_case_tables(o)?;
 
-    // The NEC keyboard's head (its layout mode) and layout.
-    if o.system.machine().keyboard_type.get() == 2 {
-        o.input.layouts().use_nec(strings);
-        install.flags.first_drive.set(b'a');
-    }
-
     let kind = file.notice_kind;
     if crate::platform::os::language_id() & 0x3FF == 0x11 && kind != 7 {
         return Err(fatal(

@@ -8,7 +8,7 @@ pub const TITLE_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fon
 pub fn show_background(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (gfx, system, net) = (o.gfx, o.system, o.net);
     crate::gfx::load_picture::load_picture_with(&crate::gfx::texts::CHATZONE, gfx, system)?;
-    crate::gfx::convert_picture::convert_picture_now_in(gfx, system)?;
+    crate::gfx::convert_picture::convert_picture_now_in(gfx)?;
     gfx.pictures
         .picture
         .flags

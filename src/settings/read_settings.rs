@@ -19,7 +19,9 @@ enum Target {
     /// A dword that straddles two cells of its store's untyped tail: the store's own
     /// setter writes the four bytes (`race::viewer_screen_store`'s).
     Unaligned(fn(Owners<'static>, u32)),
-    /// A key that is read and has no variable (the own-heap settings of the 1999 game).
+    /// A key that is read and has no variable: a setting for the 1999 game's machines (its
+    /// own heap, the process's priority, CD audio, the search for 3D cards, the processor's
+    /// extensions).
     Ignored,
 }
 
@@ -67,35 +69,15 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
         0x518384,
         dword!(o => o.system.window_loop().no_task_switch),
     ),
-    (
-        b"noprichange",
-        0x518388,
-        dword!(o => o.system.window_loop().keep_priority),
-    ),
-    (
-        b"ignoremmx",
-        0x5183AC,
-        dword!(o => o.system.machine().ignore_mmx),
-    ),
-    (
-        b"ignorekatmai",
-        0x5183B4,
-        dword!(o => o.system.machine().ignore_katmai),
-    ),
-    (
-        b"ignoreamdk3d",
-        0x5183BC,
-        dword!(o => o.system.machine().ignore_3dnow),
-    ),
+    (b"noprichange", 0x518388, Target::Ignored),
+    (b"ignoremmx", 0x5183AC, Target::Ignored),
+    (b"ignorekatmai", 0x5183B4, Target::Ignored),
+    (b"ignoreamdk3d", 0x5183BC, Target::Ignored),
     (b"altmemenable", 0x4E0584, Target::Ignored),
     (b"altmemheapsize", 0x4E0588, Target::Ignored),
     (b"noaudio", 0x4F82B4, dword!(o => o.audio.state.no_audio)),
     (b"nosound", 0x4F82B4, dword!(o => o.audio.state.no_audio)),
-    (
-        b"nocdaudio",
-        0x518104,
-        dword!(o => o.sound.menu.cd_audio.get().no_cd_audio),
-    ),
+    (b"nocdaudio", 0x518104, Target::Ignored),
     (b"nomusic", 0x5069BC, dword!(o => o.audio.state.no_music)),
     (
         b"audiobasefreq",
@@ -147,21 +129,9 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
         0x5AB958,
         dword!(o => o.gfx.d3d.cards.get().force_dx5),
     ),
-    (
-        b"forceno3dcard",
-        0x5AB94C,
-        dword!(o => o.gfx.d3d.cards.get().no_search),
-    ),
-    (
-        b"ignoreprimary",
-        0x5AB950,
-        dword!(o => o.gfx.d3d.cards.get().not_primary),
-    ),
-    (
-        b"ignoresecondary",
-        0x5AB954,
-        dword!(o => o.gfx.d3d.cards.get().ignore_secondary),
-    ),
+    (b"forceno3dcard", 0x5AB94C, Target::Ignored),
+    (b"ignoreprimary", 0x5AB950, Target::Ignored),
+    (b"ignoresecondary", 0x5AB954, Target::Ignored),
     (
         b"agpmode",
         0x5AB95C,
@@ -420,19 +390,14 @@ mod tests {
 
     /// Where each setting's variable is: its store (a registry name) and the field in it, by
     /// path. The game's table holds the variables' addresses; these are the places of them.
-    const PLACES: [(&str, &str, &str); 75] = [
+    const PLACES: [(&str, &str, &str); 67] = [
         (
             "notaskswitch",
             "owners.system.window_loop",
             ".no_task_switch",
         ),
-        ("noprichange", "owners.system.window_loop", ".keep_priority"),
-        ("ignoremmx", "owners.system.machine", ".ignore_mmx"),
-        ("ignorekatmai", "owners.system.machine", ".ignore_katmai"),
-        ("ignoreamdk3d", "owners.system.machine", ".ignore_3dnow"),
         ("noaudio", "owners.audio.state", ".no_audio"),
         ("nosound", "owners.audio.state", ".no_audio"),
-        ("nocdaudio", "owners.sound.menu.cd_audio", ".no_cd_audio"),
         ("nomusic", "owners.audio.state", ".no_music"),
         ("audiobasefreq", "owners.audio.state", ".mix_rate_setting"),
         ("ignoreds3d", "owners.audio.state", ".no_listener"),
@@ -452,13 +417,6 @@ mod tests {
             ".units",
         ),
         ("forcedx5", "owners.gfx.d3d.cards", ".force_dx5"),
-        ("forceno3dcard", "owners.gfx.d3d.cards", ".no_search"),
-        ("ignoreprimary", "owners.gfx.d3d.cards", ".not_primary"),
-        (
-            "ignoresecondary",
-            "owners.gfx.d3d.cards",
-            ".ignore_secondary",
-        ),
         ("agpmode", "owners.gfx.d3d.cards", ".agp_mode"),
         ("force3dtrans", "owners.gfx.d3d.cards", ".force_trans"),
         ("force3dalpha", "owners.gfx.d3d.cards", ".force_alpha"),
@@ -747,13 +705,13 @@ mod tests {
         let o = Owners::the();
         let start = dword_values(o);
         let start_unaligned = unaligned_values(o);
-        super::apply_settings(o, b"ignoremmx=7\r\nignorekatmai\r\nsparksmode 3\r\n\0").unwrap();
+        super::apply_settings(o, b"nomusic=7\r\nforcedx5\r\nsparksmode 3\r\n\0").unwrap();
         let now = dword_values(o);
         let find = |key: &[u8]| ENTRIES.iter().position(|(k, _, _)| *k == key).unwrap();
-        assert_eq!(now[find(b"ignoremmx")], Some(7));
-        assert_eq!(now[find(b"ignorekatmai")], Some(0));
+        assert_eq!(now[find(b"nomusic")], Some(7));
+        assert_eq!(now[find(b"forcedx5")], Some(0));
         assert_eq!(now[find(b"sparksmode")], Some(3));
-        let untouched = [b"notaskswitch".as_slice(), b"noprichange", b"ignoreamdk3d"];
+        let untouched = [b"notaskswitch".as_slice(), b"noaudio", b"agpmode"];
         for key in untouched {
             assert_eq!(
                 now[find(key)],

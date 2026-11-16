@@ -78,7 +78,7 @@ pub fn open_installer(
     );
     // Whether `gfx::load_picture` worked is not looked at.
     crate::gfx::load_picture::load_picture_with(&install.names.backdrop, gfx, system)?;
-    crate::gfx::convert_picture::convert_picture_now_in(gfx, system)?;
+    crate::gfx::convert_picture::convert_picture_now_in(gfx)?;
     gfx.pictures
         .picture
         .flags

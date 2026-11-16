@@ -19,11 +19,8 @@ fn fpu_words() -> (u16, u16) {
 }
 
 /// The features every machine reports (leaf 1's feature bits): an FPU, a counter, `cmov`, MMX and
-/// SSE, as every x86 these builds run on has, and no 3DNow!. The game picks its MMX and
-/// SSE paths by them (lighting, polygon depths, the ground's face shares), which compute
-/// differently: one answer everywhere, so the handheld, the Mac and every PC run the same
-/// arithmetic and replays and network games agree (the estimates themselves are tables,
-/// `arch::rcpss`). The vendor and the signature stay the machine's (the log).
+/// SSE, as every x86 these builds run on has, and no 3DNow!: one answer everywhere (the
+/// log's head shows them; the game's code has one path). The vendor and the signature stay the machine's (the log).
 const FEATURES: u32 = 1 | 1 << 4 | 1 << 15 | 1 << 23 | 1 << 25;
 
 fn cpuid(leaf: u32) -> (u32, u32, u32, u32) {

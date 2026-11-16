@@ -4,9 +4,6 @@
 /// The text files\g\graphics\sprites\mbuts00.pcx (a NUL ends it).
 pub static MBUTS: [u8; 37] = *b"files\\g\\graphics\\sprites\\mbuts00.pcx\0";
 
-/// The text Finding 3d hardware (a NUL ends it).
-pub static FINDING_3D: [u8; 20] = *b"Finding 3d hardware\0";
-
 /// The text files\d\gfx\jade.bun (a NUL ends it).
 pub static JADE: [u8; 21] = *b"files\\d\\gfx\\jade.bun\0";
 

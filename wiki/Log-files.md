@@ -79,7 +79,7 @@ free space on partition= 44153324 Kb
 | `Log started` | The date and time, to hundredths of a second. |
 | `$VER:` | The version of the original game that this program reproduces. |
 | `cpu=` | The processor's family, its identification number in hexadecimal, and its maker's name. |
-| `fpu=`, `mmx=`, `amdk3d=`, `katmai=` | 1 if the processor has floating point, MMX, 3DNow! and SSE. The program reports the same set on every machine, so that the game behaves the same everywhere. |
+| `fpu=`, `mmx=`, `amdk3d=`, `katmai=` | 1 if the processor has floating point, MMX, 3DNow! and SSE. The program reports the same set on every machine; the game's arithmetic has one path whatever they say. |
 | `machinetype=` | The keyboard type. |
 | `platform=` | The system's version numbers and name. |
 | `ram`, `swp` | Free and total memory and swap space, in Kb, as far as a 32-bit number can say. |

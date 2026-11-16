@@ -24,14 +24,15 @@ buffers that [`files`](Module-files) uses.
 | `sleep` | `src/system/sleep.rs` | Sleeps. |
 | `wait_or_key` | `src/system/wait_or_key.rs` | Waits for a time or a key, whichever is first. |
 | `packed_local_time` | `src/system/packed_local_time.rs` | The date and time as one number (as stored in replays and saves). |
-| `find_running_game` | `src/system/find_running_game.rs` | Checks whether the game is already running. |
 | `checked_reads.rs` | `src/system/checked_reads.rs` | Bounds-checked reads used by loaders. |
 
 ## How it is laid out
 
 A small flat folder, one function per file. Several files keep services the 1999 program
-asked Windows for (`read_windows_version`, `read_volume_serial`, `set_error_mode`); here they
-answer from the standard library or with fixed values.
+asked Windows for (`read_windows_version`, the processor's test); here they
+answer from the standard library or with fixed values. What only served 1999's machines (the
+error mode, the process's priority, the drive's serial, the search for a running copy, for 3D
+cards and for a PC-98 keyboard) is gone.
 
 ## Calls and callers
 

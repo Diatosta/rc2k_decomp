@@ -5,7 +5,6 @@ use crate::memory::session::{PlainBytes, PlainDword};
 use crate::settings::read_driver_names::NAMES_SIZE;
 use crate::strings::compile_lexicon::{EMPTY_MESSAGE_LEN, LexiconMemory, WORK_LEN};
 use crate::strings::format_seal_code::SEAL_TEXT_LEN;
-use crate::strings::keyboard_tables::KeyboardTables;
 use crate::strings::load_language::{LOCALE_INIT, LOCALE_LEN, PLAIN_LETTERS_INIT};
 use crate::strings::string_table::LEXICON_ROOM;
 use crate::strings::text_buffer::TextBuffer;
@@ -40,7 +39,6 @@ pub struct Language {
     pub locale: PlainBytes<LOCALE_LEN>,
     /// The plain-letters table.
     pub plain_letters: PlainBytes<256>,
-    pub keyboard: KeyboardTables,
     /// 0 = imperial (Fahrenheit, miles) and non-zero = metric (0 at the start). Set by the language
     /// (`load_language`) and player 1's choice (`menu::take_player1_units`, `menu::options_loop`).
     pub units: PlainDword,
@@ -51,7 +49,6 @@ impl Language {
         Language {
             locale: PlainBytes::new(LOCALE_INIT),
             plain_letters: PlainBytes::new(PLAIN_LETTERS_INIT),
-            keyboard: KeyboardTables::new(),
             units: PlainDword::new(0),
         }
     }

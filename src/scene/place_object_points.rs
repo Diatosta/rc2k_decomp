@@ -10,9 +10,7 @@
 //! object's `move_by` not 0 the point is first moved towards the one that many bytes further on
 //! in the table, by `move_fraction` of the way, rounded to whole numbers (the moved point and
 //! the fraction are the drawing's own values). A normal goes through the matrix without its
-//! fourth row. One caller, `scene::place_object_points_any`, which takes this way unless the
-//! 3DNow or the SSE switch is set: `place_object_points_sse` is the SSE way; the 3DNow way is
-//! not ported. Refuses an object's number of 0x100 or more, no records, no points' table, no
+//! fourth row. Refuses an object's number of 0x100 or more, no records, no points' table, no
 //! matrix, and normals without points.
 //!
 //! The arithmetic (the moved point, the rotation, the normals) is the x87's, in plain Rust over
@@ -168,107 +166,6 @@ pub fn place_object_points(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
         number = number.wrapping_add(1);
     }
     Ok(())
-}
-
-/// A point or normal through three rows of the matrix, plus the fourth when `place`: the
-/// four lanes the SSE way stores at a record's +0x10 (`mulps`, `addps`, in its order).
-fn sse_lanes(p: [f32; 3], m: &[f32; 16], place: bool) -> [u32; 4] {
-    std::array::from_fn(|k| {
-        let sum = p[0] * m[k] + p[1] * m[k + 4] + p[2] * m[k + 8];
-        (if place { sum + m[k + 12] } else { sum }).to_bits()
-    })
-}
-
-/// The SSE way, reached only with the developers' extensions switch (the debug UI's
-/// Switches tab). Not as the x87 way: the matrix is always `made_object_matrix`, the
-/// points are never moved, a record's +0x1C holds the fourth lane until the screen's two are
-/// worked out, and the table's point 0 ends as a normal in record 0x1000.
-pub fn place_object_points_sse(
-    ctx: &crate::race::view_scratch::DrawCtx<'_>,
-) -> Result<(), Refused> {
-    let object = object(
-        ctx.reads.course_lists,
-        ctx.reads.object_slots,
-        &ctx.view.cars,
-    )?;
-    let m: [f32; 16] = std::array::from_fn(|n| ctx.view.matrices.made_object_matrix[n].get());
-    let mut number = object.first;
-    let mut from = object.table.wrapping_add(object.first.wrapping_mul(12));
-    for _ in 0..object.points.max(0) {
-        let record = point_records::of_object_point(number);
-        let mut r = point_records::get(ctx.part, record)?;
-        r[0] = number;
-        let point = ctx.reads.stage.object_points.point(from)?;
-        // The whole numbers rounded to floats.
-        let lanes = sse_lanes(point.map(|v| v as i32 as f32), &m, true);
-        r[4..8].copy_from_slice(&lanes);
-        // The screen position.
-        r[3] = 0;
-        r[7] = 0;
-        if f32::from_bits(r[6]) >= NEAR {
-            let flat = ctx.reads.stage_prefs.flat_depth.get() != 0;
-            to_screen(
-                &mut r,
-                &ctx.view.polygon.window,
-                ctx.reads.course_work.flat_depth.get(),
-                flat,
-                &crate::memory::session::Dword::new(0),
-            );
-        }
-        point_records::set(ctx.part, record, r)?;
-        from = from.wrapping_add(12);
-        number = number.wrapping_add(1);
-    }
-    let normal = |from: u32, number: u32| -> Result<(), Refused> {
-        let record = point_records::of_object_point(number);
-        let mut r = point_records::get(ctx.part, record)?;
-        r[0] = number;
-        let n = ctx.reads.stage.object_points.point(from)?;
-        let lanes = sse_lanes(n.map(f32::from_bits), &m, false);
-        r[4..8].copy_from_slice(&lanes);
-        point_records::set(ctx.part, record, r)?;
-        Ok(())
-    };
-    for _ in 0..object.normals.max(0) {
-        normal(from, number)?;
-        from = from.wrapping_add(12);
-        number = number.wrapping_add(1);
-    }
-    normal(object.table, 0)
-}
-
-#[cfg(all(test, any(target_arch = "x86", target_arch = "x86_64")))] // x86's instructions
-mod sse_tests {
-    use super::sse_lanes;
-    #[cfg(target_arch = "x86")]
-    use std::arch::x86::*;
-    #[cfg(target_arch = "x86_64")]
-    use std::arch::x86_64::*;
-
-    /// The lanes as the SSE instructions make them.
-    #[test]
-    fn lanes_match_the_instructions() {
-        let m: [f32; 16] = std::array::from_fn(|n| (n as f32 * 1.37 - 7.1).powi(3));
-        let p = [123_456.0f32, -9_876_543.0, 0.125];
-        let got = sse_lanes(p, &m, true);
-        // SAFETY: SSE is on every x86 the game builds for; the loads are unaligned ones
-        // of the arrays above.
-        let want: [u32; 4] = unsafe {
-            let row = |k: usize| _mm_loadu_ps(m[k..k + 4].as_ptr());
-            let sum = _mm_add_ps(
-                _mm_add_ps(
-                    _mm_add_ps(
-                        _mm_mul_ps(_mm_set1_ps(p[0]), row(0)),
-                        _mm_mul_ps(_mm_set1_ps(p[1]), row(4)),
-                    ),
-                    _mm_mul_ps(_mm_set1_ps(p[2]), row(8)),
-                ),
-                row(12),
-            );
-            std::mem::transmute(sum)
-        };
-        assert_eq!(got, want);
-    }
 }
 
 #[cfg(test)]

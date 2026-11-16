@@ -16,7 +16,7 @@ pub struct StartTexts {
     pub second_text: PlainByte,
     /// The window's name, "Rally 5".
     pub window_name: PlainBytes<8>,
-    /// The window class's name, "MF-SDG R5" (`system::find_running_game`).
+    /// The window class's name, "MF-SDG R5".
     pub class_name: PlainBytes<10>,
 }
 

@@ -251,7 +251,6 @@ fn point_light(ctx: &DrawCtx<'_>, n: u32) -> Result<u32, Refused> {
         &ctx.view.lamps,
         &ctx.view.light,
         ctx.view.drawn_view(race),
-        ctx.reads.has_mmx,
     )?;
     let light: u32 = ctx.view.light.light_colour.get();
     Ok(light)
@@ -838,7 +837,6 @@ fn halfway_entry(
 pub fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     let race = ctx.race;
     use crate::race::frame_draw::add_colours;
-    let mmx = ctx.reads.has_mmx;
     let mut lit = false;
     for s in 0..3 {
         if lamp_byte(&ctx.part.polygon, s)? != 0 {
@@ -926,7 +924,6 @@ pub fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
             &ctx.view.lamps,
             &ctx.view.light,
             ctx.view.drawn_view(race),
-            mmx,
         )?;
         let light: u32 = ctx.view.light.light_colour.get();
         to.lamp_light.set(light);
@@ -938,8 +935,7 @@ pub fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
             let fog = e.amount.get() as i32 - 2 * lamp_byte(&ctx.part.polygon, slot)? as i32;
             e.amount.set(fog.max(0) as u8);
         }
-        e.light
-            .set(add_colours(e.light.get(), e.lamp_light.get(), mmx));
+        e.light.set(add_colours(e.light.get(), e.lamp_light.get()));
     }
     for list in [[0u32, 3, 5], [1, 4, 3], [2, 5, 4], [3, 4, 5]] {
         for (k, n) in list.iter().enumerate() {
@@ -954,7 +950,7 @@ pub fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
 }
 
 /// Works out the corners' colours from `light_table` by the face's bytes +0x14 .. +0x17, with flag
-/// 4 of +2 plus `lamp_table_a[+0x28 ..]` and `lamp_table_b[+0x2C ..]` (`add_colours`, MMX or not);
+/// 4 of +2 plus `lamp_table_a[+0x28 ..]` and `lamp_table_b[+0x2C ..]` (`add_colours`);
 /// the fog bytes +0x22 .. +0x25 go into `corner_alphas` ..; then the face is drawn (`draw_face`).
 pub fn face_colours(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), Refused> {
     let light_tables = ctx.reads.light_tables;
@@ -970,7 +966,7 @@ pub fn face_colours(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), Refused> {
                 let b = light_tables.lamp_table_b[b as usize].get();
                 (a, b)
             };
-            let c = corner_colour(c, lit, extra, ctx.reads.has_mmx);
+            let c = corner_colour(c, lit, extra);
             ctx.view.face.corner_colours[k].set(c);
         }
     }
@@ -1092,8 +1088,7 @@ pub fn draw_course_face(ctx: &DrawCtx<'_>, face: u32) -> Result<(), Refused> {
 }
 
 /// Draws face `face` (`draw_course_face`) with `polygon_colour` times its object's tint
-/// (`object_tints[+1]`, when not 0; byte by byte (a x b) >> 8, all four with MMX, the low three
-/// without); the colour is put back after.
+/// (`object_tints[+1]`, when not 0; byte by byte (a x b) >> 8); the colour is put back after.
 pub fn draw_tinted_face(ctx: &DrawCtx<'_>, face: u32) -> Result<(), Refused> {
     use rc2k_core::race::face_drawing::{tinted, tints};
     let colour: u32 = ctx.view.polygon.polygon_colour.get();
@@ -1101,10 +1096,7 @@ pub fn draw_tinted_face(ctx: &DrawCtx<'_>, face: u32) -> Result<(), Refused> {
     // `object` is a byte: inside the 256 tints.
     let tint = ctx.reads.stage_prefs.object_tints[object as usize].get();
     if tints(tint) {
-        ctx.view
-            .polygon
-            .polygon_colour
-            .set(tinted(tint, colour, ctx.reads.has_mmx));
+        ctx.view.polygon.polygon_colour.set(tinted(tint, colour));
     }
     let done = draw_course_face(ctx, face);
     ctx.view.polygon.polygon_colour.set(colour);

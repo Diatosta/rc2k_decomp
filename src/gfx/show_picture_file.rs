@@ -86,7 +86,7 @@ pub fn show_picture_file(
         }
     }
     crate::race::load_times::mark("picture: convert");
-    crate::gfx::convert_picture::convert_picture_now_in(gfx, system)?;
+    crate::gfx::convert_picture::convert_picture_now_in(gfx)?;
     for _ in 0..pages {
         crate::race::load_times::mark("picture: copy");
         copy_picture_to_surface(&mut GameSurface(gfx, system))?;

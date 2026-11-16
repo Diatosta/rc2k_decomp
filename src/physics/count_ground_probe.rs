@@ -21,7 +21,6 @@ pub fn count_ground_probe(
     ground_probe: &GroundProbe,
     ground: &GroundWork,
     course: &Course,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let mut counts = ProbeCounts {
         tries: camera.ground_probes.get(),
@@ -31,7 +30,7 @@ pub fn count_ground_probe(
     ground_probe.settle_mark.set(0x40);
     counts.tried();
     camera.ground_probes.set(counts.tries);
-    { crate::physics::find_ground::find_ground(ground_probe, ground, course, scene) }?;
+    { crate::physics::find_ground::find_ground(ground_probe, ground, course) }?;
     if ground.ground_found.get() != 0 {
         counts.searched(
             true,

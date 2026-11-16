@@ -101,11 +101,10 @@ pub fn part_wake(flag: u32, count: u32) -> PartWake {
     }
 }
 
-/// Two colours added byte by byte, each held to 0xFF: four bytes with MMX, else the low three.
-pub fn add_colours(a: u32, b: u32, mmx: bool) -> u32 {
-    let bytes = if mmx { 4 } else { 3 };
+/// Two colours added byte by byte, each held to 0xFF.
+pub fn add_colours(a: u32, b: u32) -> u32 {
     let mut out = a;
-    for k in 0..bytes {
+    for k in 0..4 {
         let s = ((a >> (8 * k)) & 0xFF) + ((b >> (8 * k)) & 0xFF);
         out = (out & !(0xFF << (8 * k))) | (s.min(0xFF) << (8 * k));
     }
@@ -195,12 +194,12 @@ pub fn check_light_colour(
 }
 
 /// A corner's colour, its light and with the face's flag 4 the two extra lights.
-pub fn corner_colour(light: u32, lit: bool, extra: impl FnOnce() -> (u32, u32), mmx: bool) -> u32 {
+pub fn corner_colour(light: u32, lit: bool, extra: impl FnOnce() -> (u32, u32)) -> u32 {
     if !lit {
         return light;
     }
     let (a, b) = extra();
-    add_colours(add_colours(light, a, mmx), b, mmx)
+    add_colours(add_colours(light, a), b)
 }
 
 /// The face's switches flag (+2) for the extra lights.
@@ -212,14 +211,7 @@ mod tests {
 
     #[test]
     fn colours() {
-        assert_eq!(
-            add_colours(0x80_F0_10_20, 0x90_20_F0_01, true),
-            0xFF_FF_FF_21
-        );
-        assert_eq!(
-            add_colours(0x80_F0_10_20, 0x90_20_F0_01, false),
-            0x80_FF_FF_21
-        );
+        assert_eq!(add_colours(0x80_F0_10_20, 0x90_20_F0_01), 0xFF_FF_FF_21);
         assert_eq!(
             multiply_colours(0xFF_80_40_FF, 0x80_80_FF_02),
             0x7F_40_3F_01
@@ -271,8 +263,8 @@ mod tests {
         assert!(check_light_colour(1, |_| 0, || 0).is_err());
         assert!(check_light_colour(1, |_| 1, || 17).is_err());
         assert!(check_light_colour(1, |_| 1, || 16).is_ok());
-        assert_eq!(corner_colour(5, false, || unreachable!(), true), 5);
-        assert_eq!(corner_colour(5, true, || (1, 2), true), 8);
+        assert_eq!(corner_colour(5, false, || unreachable!()), 5);
+        assert_eq!(corner_colour(5, true, || (1, 2)), 8);
     }
 
     #[test]

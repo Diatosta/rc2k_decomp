@@ -18,7 +18,6 @@ pub fn probe_and_keep_at(
     probe_ground_at(
         &crate::physics::probe_ground::ProbeInputs::of_ground(c),
         c.car,
-        scene.draw_switches.get(),
         &crate::physics::ground_query::GroundQuery::of_physics(
             c.ground,
             c.probe,

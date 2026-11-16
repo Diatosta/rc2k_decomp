@@ -64,7 +64,7 @@ pub fn draw_stage_map(o: Owners<'static>) -> Result<(), Refused> {
     if load_picture_with_overlay_in(&menus.texts.ukmap_png, &overlay, gfx, system, o.strings)? {
         return Err(NO_MAP.into());
     }
-    convert_picture_now_in(gfx, system)?;
+    convert_picture_now_in(gfx)?;
     gfx.pictures
         .picture
         .flags

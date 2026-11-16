@@ -102,7 +102,7 @@ fn draw(
     )]
     racing: bool,
 ) {
-    use crate::render::rasteriser::{Frame, Pixels, States, Texture};
+    use crate::render::rasteriser::{Frame, States, Texture};
     use rayon::prelude::*;
     FLUSHES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let started = std::time::Instant::now();
@@ -133,9 +133,7 @@ fn draw(
         // The screen's pixels are checked by `pixels`; the depths are Rust's own, borrowed
         // for the frame.
         let mut frame = match small.as_mut().map(Small::frame_parts) {
-            Some((pixels, width, height, depth)) => {
-                Frame::new(Pixels::Bits32(pixels), width, width, height, depth)
-            }
+            Some((pixels, width, height, depth)) => Frame::new(pixels, width, width, height, depth),
             None => Frame::new(
                 // SAFETY: the screen's rows, checked by `pixels`; the game's code does not
                 // run while the frame is drawn (it waits for `Backend::draw`).

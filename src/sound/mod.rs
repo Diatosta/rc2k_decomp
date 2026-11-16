@@ -58,8 +58,6 @@ pub mod spot_voices;
 pub mod stage_sounds;
 pub mod start_stream;
 pub mod step_car_stream;
-pub mod stop_cd_audio;
-pub mod stop_cd_track;
 pub mod stop_music;
 pub mod stop_sound;
 pub mod stop_stream;

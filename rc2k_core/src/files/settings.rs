@@ -429,9 +429,3 @@ pub fn driver_names(
     }
     Ok(out)
 }
-
-/// Which of the processor's extensions the game uses: MMX, SSE, 3DNow each when the processor has
-/// it (bit 0) and its ignore setting is 0.
-pub fn feature_switches(has: [u32; 3], ignore: [u32; 3]) -> [u32; 3] {
-    std::array::from_fn(|n| ((ignore[n] == 0) as u32) & has[n])
-}

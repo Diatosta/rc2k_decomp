@@ -146,7 +146,7 @@ pub fn load_welcome_picture(o: Owners<'static>) -> Result<(), Refused> {
         }
         .into());
     }
-    crate::gfx::convert_picture::convert_picture_now_in(o.gfx, o.system)?;
+    crate::gfx::convert_picture::convert_picture_now_in(o.gfx)?;
     Ok(())
 }
 

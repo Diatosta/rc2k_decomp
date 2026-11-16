@@ -1,7 +1,6 @@
 //! Arithmetic that has to match the x87 to the last bit: plain Rust on `X`
 //! (`x87_float.rs`), an `f64` that rounds as the control word says, in the x87's order of
-//! operations; `rcpss` is an approximation that differs between processors, taken from one
-//! processor's tables (`arch::rcpss`). No x87 instruction runs outside the tests.
+//! operations. No x87 instruction runs outside the tests.
 //! Floats are given as `impl Flt` (bits, an `f32` or the cell holding it); a result is the
 //! `f32` stored, or the whole number, status word or bits the x87 would have kept.
 
@@ -166,12 +165,6 @@ pub fn int_ratio(a: i32, b: i32) -> f32 {
 #[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn one_less_int_ratio(a: i32, b: i32) -> u32 {
     bh::st(bh::ONE - bh::int(a) / bh::int(b))
-}
-
-/// `rcpss` of `a` times `b`: `rcpss` is an SSE approximation taken from the tables of
-/// `arch::rcpss`, as the processors' own results differ.
-pub fn rcpss_times(a: impl Flt, b: impl Flt) -> f32 {
-    crate::platform::arch::rcpss(a.value()) * b.value()
 }
 
 /// A row of one matrix times a column of another: `a[0] b[0] + (a[1] b[4] + a[2] b[8])`,

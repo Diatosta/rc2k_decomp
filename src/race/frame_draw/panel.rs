@@ -217,24 +217,14 @@ pub fn share_sound_spots(race: &Race, sound: &crate::sound::owner::Sound) -> Res
 }
 
 /// Clears the point records, on its variables: the 0x1000 point records of 0x20 bytes at
-/// `point_records`: each first dword -1, or with `use_sse` set each first 16 bytes
-/// `sse_fill`; `part` is the drawing part clearing them
+/// `point_records`: each first dword -1; `part` is the drawing part clearing them
 /// (`scene::point_records::first_records_everywhere`).
 pub fn clear_point_records(
     scratch: &crate::scene::workers::DrawingScratch,
-    reads: crate::scene::workers::DrawReads<'_>,
     part: &crate::scene::workers::PartScratch,
 ) -> Result<(), BadInput> {
-    let pattern: [u32; 4] = crate::memory::session::read_bits(&reads.light_work.sse_fill);
-    let sse = reads.draw_switches.use_sse.is_set();
     for record in crate::scene::point_records::first_records_everywhere(scratch, part, 0x1000)? {
-        if sse {
-            for (cell, v) in record.iter().zip(pattern) {
-                cell.set(v);
-            }
-        } else {
-            record[0].set(u32::MAX);
-        }
+        record[0].set(u32::MAX);
     }
     Ok(())
 }

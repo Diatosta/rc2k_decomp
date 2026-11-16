@@ -31,7 +31,6 @@ pub fn set_object_light(
     input: &crate::input::owner::Input,
     light: &crate::scene::object_light::ObjectLight,
     object: &crate::scene::object_place::ObjectPlace,
-    mmx: bool,
     vars: &crate::race::view_vars_store::ViewVarsCopy,
 ) -> Result<(), Refused> {
     use rc2k_core::scene::lamps::{ObjectLight, WHITE, object_light};
@@ -66,7 +65,7 @@ pub fn set_object_light(
     }
     light
         .light_added
-        .set(plus(light.light_colour.get(), light.other_light.get(), mmx));
+        .set(plus(light.light_colour.get(), light.other_light.get()));
     Ok(())
 }
 
@@ -88,7 +87,6 @@ pub fn set_object_light_in_game(
                         marks,
                         ctx.reads.light_tables,
                         &ctx.view.light,
-                        ctx.reads.has_mmx,
                     );
                     Ok(())
                 },
@@ -99,7 +97,6 @@ pub fn set_object_light_in_game(
         ctx.input,
         &ctx.view.light,
         &ctx.view.object,
-        ctx.reads.has_mmx,
         &ctx.view.vars,
     )
 }

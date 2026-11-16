@@ -119,15 +119,27 @@ pub fn picture_surface(
     ])
 }
 
-/// The race modes tried in this order when the kept ones do not both work: the secondary card's
-/// (0x2000) before the primary's, 16 bits before 32.
-pub const RACE_CHOICES: [u32; 12] = [
-    0x32_2202, 0x32_2208, 0x32_2201, 0x32_1202, 0x32_1208, 0x32_1201, 0x32_2802, 0x32_2808,
-    0x32_2801, 0x32_1802, 0x32_1808, 0x32_1801,
-];
+/// The pixel kind's bits of a mode, and the two kinds: 16 bits a pixel and 32.
+const PIXEL_KIND: u32 = 0xF00;
+const KIND_16_BITS: u32 = 0x200;
+const KIND_32_BITS: u32 = 0x800;
 
-/// The menus' modes tried after the race's own card and kind at size 2.
-pub const MENU_CHOICES: [u32; 4] = [0x32_2202, 0x32_1202, 0x32_2802, 0x32_1802];
+/// A mode at 32 bits a pixel: a kept 16-bit mode (a 1999 screen's) becomes the same size at
+/// 32 bits; any other mode stays as it is.
+pub fn at_32_bits(mode: u32) -> u32 {
+    if mode & PIXEL_KIND == KIND_16_BITS {
+        mode & !PIXEL_KIND | KIND_32_BITS
+    } else {
+        mode
+    }
+}
+
+/// The race modes tried in this order when the kept ones do not both work: 800 x 600, then
+/// 1024 x 768, then 640 x 480, each at 32 bits.
+pub const RACE_CHOICES: [u32; 3] = [0x32_1802, 0x32_1808, 0x32_1801];
+
+/// The menus' mode tried after the race's own kind at size 2.
+pub const MENU_CHOICES: [u32; 1] = [0x32_1802];
 
 /// The (menu, race) modes: the kept ones when both work (`works`, the menu's tried first); else,
 /// when a 3D mode of size 2 is listed and one with both 3D bits (`listed`: a table entry with all
@@ -165,16 +177,17 @@ mod tests {
             choose(0x32_1802, 0x34_1802, primary, any),
             Some((0x32_1802, 0x34_1802))
         );
-        // None kept (0) on a machine with the primary card only: its 16-bit 800 x 600.
-        assert_eq!(choose(0, 0, primary, any), Some((0x32_1202, 0x32_1202)));
-        // Only 32 bits: the first 32-bit primary mode, the menu at its kind.
-        let only_32 = |m: u32| primary(m) && m & 0xF00 == 0x800;
-        assert_eq!(choose(0, 0, only_32, any), Some((0x32_1802, 0x32_1802)));
-        // A kept secondary mode without that card: chosen again.
+        // None kept (0): 800 x 600 at 32 bits for both.
+        assert_eq!(choose(0, 0, primary, any), Some((0x32_1802, 0x32_1802)));
+        // A kept secondary card's mode: chosen again.
         assert_eq!(
             choose(0x32_2802, 0x32_2802, primary, any),
-            Some((0x32_1202, 0x32_1202))
+            Some((0x32_1802, 0x32_1802))
         );
+        // A kept 16-bit mode is the same size at 32 bits; a 32-bit one and none stay.
+        assert_eq!(super::at_32_bits(0x34_1280), 0x34_1880);
+        assert_eq!(super::at_32_bits(0x32_1801), 0x32_1801);
+        assert_eq!(super::at_32_bits(0), 0);
         // No 3D mode of size 2 listed: it fails.
         assert_eq!(choose(0, 0, primary, |_| false), None);
         // Nothing works.

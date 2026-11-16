@@ -30,26 +30,12 @@ use std::cell::Cell;
 /// colours).
 pub type Vertex = [u32; 8];
 
-/// A frame's colours: 16 (5-6-5) or 32 bits (XRGB) a pixel.
-pub enum Pixels<'a> {
-    Bits16(&'a mut [u16]),
-    Bits32(&'a mut [u32]),
-}
-
-impl Pixels<'_> {
-    fn len(&self) -> usize {
-        match self {
-            Pixels::Bits16(p) => p.len(),
-            Pixels::Bits32(p) => p.len(),
-        }
-    }
-}
-
 /// Where it draws: the colours, rows `pitch` pixels apart, and the depths, a float a pixel.
 /// Drawn into through its tiles (`tiles`), bands of whole rows, each holding its own rows
 /// of both, so tiles can be drawn at once.
 pub struct Frame<'a> {
-    pixels: Pixels<'a>,
+    /// The colours, 32 bits (XRGB) a pixel.
+    pixels: &'a mut [u32],
     pitch: usize,
     width: usize,
     height: usize,
@@ -60,7 +46,7 @@ impl<'a> Frame<'a> {
     /// The frame on `pixels` (`height` rows `pitch` pixels apart, `width` of them drawn) and
     /// `depth` (`width` x `height`). Too small a buffer for those ends the program.
     pub fn new(
-        pixels: Pixels<'a>,
+        pixels: &'a mut [u32],
         pitch: usize,
         width: usize,
         height: usize,
@@ -90,10 +76,7 @@ impl<'a> Frame<'a> {
         let rows = if rows == 0 { height.max(1) } else { rows };
         let mut tiles = Vec::with_capacity(height.div_ceil(rows));
         let mut depth: &mut [f32] = &mut self.depth[..width * height];
-        let mut pixels = match &mut self.pixels {
-            Pixels::Bits16(p) => Pixels::Bits16(&mut p[..]),
-            Pixels::Bits32(p) => Pixels::Bits32(&mut p[..]),
-        };
+        let mut pixels: &mut [u32] = &mut self.pixels[..];
         let mut top = 0;
         while top < height {
             let bottom = (top + rows).min(height);
@@ -104,16 +87,7 @@ impl<'a> Frame<'a> {
             } else {
                 pitch * (bottom - top)
             };
-            let (band, rest) = match pixels {
-                Pixels::Bits16(p) => {
-                    let (a, b) = p.split_at_mut(take);
-                    (Pixels::Bits16(a), Pixels::Bits16(b))
-                }
-                Pixels::Bits32(p) => {
-                    let (a, b) = p.split_at_mut(take);
-                    (Pixels::Bits32(a), Pixels::Bits32(b))
-                }
-            };
+            let (band, rest) = std::mem::take(&mut pixels).split_at_mut(take);
             pixels = rest;
             let (d, rest) = std::mem::take(&mut depth).split_at_mut(width * (bottom - top));
             depth = rest;
@@ -138,7 +112,7 @@ impl<'a> Frame<'a> {
 
 /// A band of a frame's rows, its colours and depths its own.
 pub struct Tile<'a> {
-    pixels: Pixels<'a>,
+    pixels: &'a mut [u32],
     depth: &'a mut [f32],
     pitch: usize,
     width: usize,
@@ -154,24 +128,12 @@ impl Tile<'_> {
     /// The tile's places as cells, for the drawing (which reads and writes them through
     /// shared references).
     fn cells(&mut self) -> Cells<'_> {
-        let bits = match self.pixels {
-            Pixels::Bits16(_) => 16,
-            Pixels::Bits32(_) => 32,
-        };
         Cells {
-            pixels: match &mut self.pixels {
-                Pixels::Bits16(p) => {
-                    CellPixels::Bits16(Cell::from_mut(&mut p[..]).as_slice_of_cells())
-                }
-                Pixels::Bits32(p) => {
-                    CellPixels::Bits32(Cell::from_mut(&mut p[..]).as_slice_of_cells())
-                }
-            },
+            pixels: Cell::from_mut(&mut self.pixels[..]).as_slice_of_cells(),
             depth: Cell::from_mut(&mut self.depth[..]).as_slice_of_cells(),
             pitch: self.pitch,
             width: self.width,
             height: self.height,
-            bits,
             clip: self.clip,
         }
     }
@@ -199,21 +161,14 @@ impl Tile<'_> {
     }
 }
 
-/// A tile's colours as cells.
-enum CellPixels<'a> {
-    Bits16(&'a [Cell<u16>]),
-    Bits32(&'a [Cell<u32>]),
-}
-
 /// A tile's places while it is drawn: its colours and depths as cells (from the tile's own
 /// `&mut`), every place checked to lie in its band.
 struct Cells<'a> {
-    pixels: CellPixels<'a>,
+    pixels: &'a [Cell<u32>],
     depth: &'a [Cell<f32>],
     pitch: usize,
     width: usize,
     height: usize,
-    bits: u32,
     clip: Clip,
 }
 
@@ -241,46 +196,29 @@ impl Cells<'_> {
         self.depth[(y - self.clip.top) * self.width + x].set(z);
     }
 
-    /// The raw pixel at (x, y): 16 or 32 bits.
+    /// The raw pixel at (x, y).
     #[inline(always)]
     fn pixel(&self, x: usize, y: usize) -> u32 {
         self.check(x, y, 1);
-        let at = (y - self.clip.top) * self.pitch + x;
-        match self.pixels {
-            CellPixels::Bits16(p) => u32::from(p[at].get()),
-            CellPixels::Bits32(p) => p[at].get(),
-        }
+        self.pixels[(y - self.clip.top) * self.pitch + x].get()
     }
 
-    /// The raw pixel at (x, y) written: 16 or 32 bits.
+    /// The raw pixel at (x, y) written.
     #[inline(always)]
     fn put_pixel(&self, x: usize, y: usize, v: u32) {
         self.check(x, y, 1);
-        let at = (y - self.clip.top) * self.pitch + x;
-        match self.pixels {
-            CellPixels::Bits16(p) => p[at].set(v as u16),
-            CellPixels::Bits32(p) => p[at].set(v),
-        }
+        self.pixels[(y - self.clip.top) * self.pitch + x].set(v);
     }
 
     fn read(&self, x: usize, y: usize) -> Colour {
-        let p = self.pixel(x, y);
-        if self.bits == 16 {
-            [part(p, 0x001F), part(p, 0x07E0), part(p, 0xF800), 1.0]
-        } else {
-            let mut colour = unpack(p);
-            colour[3] = 1.0;
-            colour
-        }
+        let mut colour = unpack(self.pixel(x, y));
+        colour[3] = 1.0;
+        colour
     }
 
     fn write(&self, x: usize, y: usize, colour: &Colour) {
         let to = |c: f32, most: f32| (c.clamp(0.0, 1.0) * most + 0.5) as i32 as u32;
-        let p = if self.bits == 16 {
-            to(colour[2], 31.0) << 11 | to(colour[1], 63.0) << 5 | to(colour[0], 31.0)
-        } else {
-            to(colour[2], 255.0) << 16 | to(colour[1], 255.0) << 8 | to(colour[0], 255.0)
-        };
+        let p = to(colour[2], 255.0) << 16 | to(colour[1], 255.0) << 8 | to(colour[0], 255.0);
         self.put_pixel(x, y, p);
     }
 }
@@ -335,15 +273,6 @@ fn unpack(argb: u32) -> Colour {
         (argb >> 16 & 0xFF) as f32 * INV_255,
         (argb >> 24) as f32 * INV_255,
     ]
-}
-
-/// A part of a pixel by its mask, from 0 to 1; 1 for a mask of nothing.
-fn part(pixel: u32, mask: u32) -> f32 {
-    if mask == 0 {
-        return 1.0;
-    }
-    let most = mask >> mask.trailing_zeros();
-    ((pixel & mask) >> mask.trailing_zeros()) as f32 * (1.0 / most as f32)
 }
 
 impl Texture<'_> {
@@ -1217,29 +1146,18 @@ impl Cells<'_> {
             let v = _mm_and_si128(p, _mm_set1_epi32(mask));
             let v = match shift {
                 0 => v,
-                5 => _mm_srli_epi32(v, 5),
                 8 => _mm_srli_epi32(v, 8),
-                11 => _mm_srli_epi32(v, 11),
                 _ => _mm_srli_epi32(v, 16),
             };
             _mm_mul_ps(_mm_cvtepi32_ps(v), _mm_set1_ps(1.0 / most))
         };
         let one = _mm_set1_ps(1.0);
-        if self.bits == 16 {
-            [
-                part(0x1F, 0, 31.0),
-                part(0x07E0, 5, 63.0),
-                part(0xF800, 11, 31.0),
-                one,
-            ]
-        } else {
-            [
-                part(0xFF, 0, 255.0),
-                part(0xFF00, 8, 255.0),
-                part(0xFF_0000, 16, 255.0),
-                one,
-            ]
-        }
+        [
+            part(0xFF, 0, 255.0),
+            part(0xFF00, 8, 255.0),
+            part(0xFF_0000, 16, 255.0),
+            one,
+        ]
     }
 }
 
@@ -1374,23 +1292,13 @@ impl Triangle<'_> {
                     _mm_set1_ps(0.5),
                 ))
             };
-            let packed = if tile.bits == 16 {
+            let packed = _mm_or_si128(
                 _mm_or_si128(
-                    _mm_or_si128(
-                        _mm_slli_epi32(to(out[2], 31.0), 11),
-                        _mm_slli_epi32(to(out[1], 63.0), 5),
-                    ),
-                    to(out[0], 31.0),
-                )
-            } else {
-                _mm_or_si128(
-                    _mm_or_si128(
-                        _mm_slli_epi32(to(out[2], 255.0), 16),
-                        _mm_slli_epi32(to(out[1], 255.0), 8),
-                    ),
-                    to(out[0], 255.0),
-                )
-            };
+                    _mm_slli_epi32(to(out[2], 255.0), 16),
+                    _mm_slli_epi32(to(out[1], 255.0), 8),
+                ),
+                to(out[0], 255.0),
+            );
             let pixels = i32s(packed).map(|p| p as u32);
             let zs = f32s(z);
             for lane in 0..n {
@@ -1516,7 +1424,7 @@ mod tests {
         states[0x16] = 1;
         SCALAR_ONLY.store(scalar, std::sync::atomic::Ordering::SeqCst);
         {
-            let mut frame = Frame::new(Pixels::Bits32(&mut pixels), w, w, h, &mut depth);
+            let mut frame = Frame::new(&mut pixels, w, w, h, &mut depth);
             for tile in frame.tiles(size).iter_mut() {
                 tile.draw_fan(&fan, &States(&states), None);
                 tile.clear_depth([0, 0, 5, 5]);

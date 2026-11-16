@@ -4,7 +4,7 @@
 //! gives (0x200000 less its distance from the place being lit, by `scene::approximate_distance`)
 //! times the strength over 0x20000, held to 0 ..= 255, in all three colour places, each times
 //! the lamp's colour's over 256. That is added to the light colour byte by byte without
-//! overflow (all four bytes with MMX, the low three without, as in `scene::vertex_light`).
+//! overflow (as in `scene::vertex_light`).
 //! Refuses more than 0x100 lamps and lamps without the
 //! scene's points.
 
@@ -24,7 +24,6 @@ pub fn add_point_lights(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
     if lamps > MOST || !crate::race::scene_points::held(&ctx.reads.stage.course) {
         return Err(BadInput("more lamps than the list holds, or no points").into());
     }
-    let mmx = ctx.reads.has_mmx;
     let place: [u32; 3] = crate::memory::session::read_bits(&ctx.view.light.lit_place);
     let reading = crate::scene::reading::Reading::new();
     let list = (0..lamps as usize).map(|n| {
@@ -53,7 +52,7 @@ pub fn add_point_lights(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
             point,
         ))
     };
-    let out = lamps::add_point_lights(list, place, at, ctx.view.light.light_colour.get(), mmx);
+    let out = lamps::add_point_lights(list, place, at, ctx.view.light.light_colour.get());
     reading.finish()?;
     for (to, value) in [
         (&ctx.view.light.lamp_tint, out.colour),

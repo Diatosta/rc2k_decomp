@@ -13,7 +13,6 @@ pub mod expand_entry;
 pub mod format_seal_code;
 pub mod format_u32;
 pub mod hex_append;
-pub mod keyboard_tables;
 pub mod load_language;
 pub mod maybe_compile_lexicon;
 pub mod owner;

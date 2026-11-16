@@ -111,7 +111,6 @@ pub fn add_car_light(
     marks_count: u32,
     light_tables: &crate::scene::light_tables_store::LightTables,
     light: &crate::scene::object_light::ObjectLight,
-    mmx: bool,
 ) {
     if car.lights_on.get() == 0 {
         return;
@@ -134,7 +133,7 @@ pub fn add_car_light(
     let colour: u32 = light_tables.car_light_table[held(amount as i32) as usize].get();
     light
         .light_colour
-        .set(plus(colour, light.light_colour.get(), mmx));
+        .set(plus(colour, light.light_colour.get()));
 }
 
 #[cfg(test)]

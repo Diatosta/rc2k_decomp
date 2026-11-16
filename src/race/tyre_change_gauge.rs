@@ -1,13 +1,10 @@
 //! `race::tyre_change_gauge`: the roadside tyre change's gauge, timed by a button (the low byte
 //! of the input device's `bits`). The state is the device's (`input_devices[player]`): `gauge`
-//! (0 .. 0xFFFF), `stage` (-1 waiting for the button to be let go, 0 running, 1 done, 2 a
-//! developer's press) and `clock` (the start's clock, then the time).
+//! (0 .. 0xFFFF), `stage` (-1 waiting for the button to be let go, 0 running, 1 done) and `clock` (the start's clock, then the time).
 //! - Mode 0 starts it: the clock (`system::tick_count`) goes into `clock`, `gauge` is 0, `stage`
 //!   -1 and `race::draw_tyre_change` draws; then as -1.
 //! - -1: the button is read; let go, `stage` becomes 0. Result 0.
-//! - 0: the button is read; pressed: on the developer's machine `stage`
-//!   becomes 2 and it goes on as 2, else it is done. Not pressed: running.
-//! - 2: with the gauge at 0xF618 or more it is running, else done.
+//! - 0: the button is read; pressed: it is done. Not pressed: running.
 //! - running: if the clock less the start is 60000 or more, the gauge is 0 and it is done; else
 //!   the gauge is that x 0x10000 / 500, low 16 bits. Result 0.
 //! - done: the time is worked out from 0x10000 less the gauge (a logarithm of the square root of
@@ -96,9 +93,6 @@ impl Io for GameIo {
     }
     fn press_time(&mut self, s: u32) -> u32 {
         press_time(self.race, s as i32) as u32
-    }
-    fn developer(&mut self) -> bool {
-        self.o.system.machine().developer.get() == 1
     }
     fn record(&mut self) -> u32 {
         self.race.shared.tyre_change().record.get()

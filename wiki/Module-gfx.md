@@ -11,7 +11,7 @@ the window.
 ## State
 
 The owner is `Gfx` (`src/gfx/owner.rs`): the screen's state, the picture buffer, the fonts and
-glyph tables, the pixel converters. It also holds the 3D layer's state (`Gfx::d3d`, see
+glyph tables, the pixel formats. It also holds the 3D layer's state (`Gfx::d3d`, see
 [`d3d`](Module-d3d)). Parts are defined in the `*_store.rs` files (`fonts_store.rs`,
 `glyph_store.rs`, `picture_store.rs`) and `screen_state.rs`.
 
@@ -35,7 +35,7 @@ glyph tables, the pixel converters. It also holds the 3D layer's state (`Gfx::d3
 ## How it is laid out
 
 One function per file. Groups by name: `read_*`, `lay_out_*`, `decode_*` and `png*.rs` /
-`pcx*.rs` (picture files), `build_*` and `glyph_*` (fonts), `*_to_dwords.rs`, `converters.rs`
+`pcx*.rs` (picture files), `build_*` and `glyph_*` (fonts), `*_to_dwords.rs`
 and `components_*` (pixel formats), `*_modes.rs` (screen modes), `blit_*` (copying).
 `draw2d/` records a frame's 2D drawing as typed commands, which the GPU renderers use to draw
 menus as textured quads and which checks replay.

@@ -176,11 +176,9 @@ pub fn screen_mode_choices(
         return rebuild(display, d3d, current, modes);
     }
     display.choices.card.set(kind);
-    display.choices.has_primary.set(display.cards.primary.get());
-    display
-        .choices
-        .has_secondary
-        .set(display.cards.secondary.get());
+    // The one card there is: a primary one that draws in 3D.
+    display.choices.has_primary.set(1);
+    display.choices.has_secondary.set(0);
     rebuild(display, d3d, display.mode.race_mode.get(), modes)
 }
 

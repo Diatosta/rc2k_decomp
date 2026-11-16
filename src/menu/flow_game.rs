@@ -409,10 +409,7 @@ impl flow::Game for Game<'_> {
             }
             C::ConvertPicture => {
                 // Whether it worked is not looked at.
-                crate::gfx::convert_picture::convert_picture_now_in(
-                    self.owners.gfx,
-                    self.owners.system,
-                )?;
+                crate::gfx::convert_picture::convert_picture_now_in(self.owners.gfx)?;
             }
             C::RunFrame => {
                 // `screens::run_frame` with `menu::picture_frame` (whether the frame was

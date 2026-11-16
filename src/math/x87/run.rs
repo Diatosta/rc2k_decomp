@@ -50,7 +50,7 @@ pub struct FaceDifferences<S: Flt> {
 }
 
 /// What `face_shares` leaves: the three cross products, the two quotients with the whole
-/// numbers they give times the scale, and with `sse` the reciprocal that was used.
+/// numbers they give times the scale.
 pub struct FaceShares {
     pub share_a: f32,
     pub share_b: f32,
@@ -59,11 +59,10 @@ pub struct FaceShares {
     pub share_s: i32,
     pub plane_g: f32,
     pub share_t: i32,
-    pub share_scale: Option<f32>,
 }
 
 /// `face_shares_bits` on typed values.
-pub fn face_shares<S: Flt>(d: &FaceDifferences<S>, sse: bool) -> FaceShares {
+pub fn face_shares<S: Flt>(d: &FaceDifferences<S>) -> FaceShares {
     let i = [
         d.x[0] as u32,
         d.x[1] as u32,
@@ -73,8 +72,8 @@ pub fn face_shares<S: Flt>(d: &FaceDifferences<S>, sse: bool) -> FaceShares {
         d.z[2] as u32,
         d.scale.bits(),
     ];
-    let mut o = [0u32; 8];
-    face_shares_bits(&i, &mut o, sse);
+    let mut o = [0u32; 7];
+    face_shares_bits(&i, &mut o);
     FaceShares {
         share_a: f32::from_bits(o[0]),
         share_b: f32::from_bits(o[1]),
@@ -83,16 +82,14 @@ pub fn face_shares<S: Flt>(d: &FaceDifferences<S>, sse: bool) -> FaceShares {
         share_s: o[4] as i32,
         plane_g: f32::from_bits(o[5]),
         share_t: o[6] as i32,
-        share_scale: sse.then(|| f32::from_bits(o[7])),
     }
 }
 
 /// `physics::face_shares`' floating point part. `i`: the six differences (whole numbers:
 /// x[0..3] then z[0..3]) and the scale `Numbers.k65536` (bits) at [6]. `o` gets, in
 /// order, the three cross products, the first quotient, the whole number it gives times the
-/// scale, the second quotient and its whole number, and with `sse` the reciprocal (`rcpss`
-/// of the first cross product, from the tables of `arch::rcpss`) at [7].
-pub fn face_shares_bits(i: &[u32; 7], o: &mut [u32; 8], sse: bool) {
+/// scale, the second quotient and its whole number.
+pub fn face_shares_bits(i: &[u32; 7], o: &mut [u32; 7]) {
     let n = |k: usize| int(i[k] as i32);
     let scale = ld(i[6]);
     // The three cross products, each stored as a float.
@@ -100,30 +97,16 @@ pub fn face_shares_bits(i: &[u32; 7], o: &mut [u32; 8], sse: bool) {
     let x1 = n(0) * n(5) - n(2) * n(3);
     let x2 = n(1) * n(3) - n(0) * n(4);
     o[0] = st(x0);
-    if !sse {
-        o[1] = st(x1);
-        o[2] = st(x2);
-        // Divided by the first cross product as stored; the quotient stored, and times the
-        // scale, rounded.
-        let q1 = ld(o[1]) / ld(o[0]);
-        o[3] = st(q1);
-        o[4] = to_int(q1 * scale) as u32;
-        let q2 = ld(o[2]) / ld(o[0]);
-        o[5] = st(q2);
-        o[6] = to_int(q2 * scale) as u32;
-    } else {
-        let rcp = crate::platform::arch::rcpss(f32::from_bits(o[0]));
-        o[7] = rcp.to_bits();
-        // The cross products times 1 over the first, unrounded until stored.
-        o[1] = st(x1);
-        let q1 = x1 * ld(o[7]);
-        o[3] = st(q1);
-        o[4] = to_int(q1 * scale) as u32;
-        o[2] = st(x2);
-        let q2 = x2 * ld(o[7]);
-        o[5] = st(q2);
-        o[6] = to_int(q2 * scale) as u32;
-    }
+    o[1] = st(x1);
+    o[2] = st(x2);
+    // Divided by the first cross product as stored; the quotient stored, and times the
+    // scale, rounded.
+    let q1 = ld(o[1]) / ld(o[0]);
+    o[3] = st(q1);
+    o[4] = to_int(q1 * scale) as u32;
+    let q2 = ld(o[2]) / ld(o[0]);
+    o[5] = st(q2);
+    o[6] = to_int(q2 * scale) as u32;
 }
 
 /// `(a - b [+ c]) - d e`, left unrounded (80 bits).
