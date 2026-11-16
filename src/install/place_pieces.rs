@@ -1,5 +1,5 @@
 //! A page's pieces placed, box by box: the pieces in a row whose items share a box go to
-//! `install::place_row` together. Refused: no pieces. Called by `install::run_page`.
+//! `install::place_row` together. Refused: no pieces.
 
 use crate::errors::Refused;
 use crate::install::page_links::PageLink;

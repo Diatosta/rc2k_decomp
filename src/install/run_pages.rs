@@ -1,6 +1,6 @@
-//! The installer's flow run: each step shows its page (`install::run_page`) or does its work,
-//! and the answer says which step follows (`rc2k_core::install::flow`). It ends when a step
-//! leads nowhere or the game is quitting. Called by `install::run_installer`.
+//! The installer's flow run: each step shows its page (`install::run_page`) or does its work, and
+//! the answer says which step follows (`rc2k_core::install::flow`). It ends when a step leads
+//! nowhere or the game is quitting.
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::logged;

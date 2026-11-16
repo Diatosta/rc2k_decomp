@@ -1,6 +1,5 @@
 //! The 64 KB scratch the game's loaders share (the packed copy of a file, the replay's
-//! packing, the map's read buffer, the installer's pages, the PNG decoder's info), out of
-//! RAL.EXE's image. Struct of a byte buffer.
+//! packing, the map's read buffer, the installer's pages, the PNG decoder's info).
 
 use crate::memory::session::PlainBytes;
 

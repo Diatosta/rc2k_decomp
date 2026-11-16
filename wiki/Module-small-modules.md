@@ -69,10 +69,10 @@ Starts and ends the worker threads the original design has (input, audio, networ
 
 | Item | File | What it does |
 | --- | --- | --- |
-| `start_threads` | `src/threading/start_threads.rs` | Starts them together at start-up. |
-| `ThreadSlot`, `run_routine` | `src/threading/thread_slot.rs` | A thread's record, and what each runs. |
+| `SlotThread`, `ThreadSlot` | `src/threading/thread_slot.rs` | The four threads by name, what each runs, how one is started, and a thread's record. |
+| `start_workers` | `src/threading/thread_slot.rs` | Starts the three workers together at start-up. |
 | `request_quit_with` | `src/threading/request_quit.rs` | Asks the threads to end. |
-| `shutdown_thread`, `wait_for_threads` | files of the same names | Waits for them at the game's end. |
+| `shutdown_thread` | `src/threading/shutdown_thread.rs` | Waits for them at the game's end. |
 
 See [Threads and shared state](Threads-and-shared-state).
 

@@ -1,5 +1,5 @@
-//! An item of choices (kind 2) set to choice `number` (a number key's), if there is one and it
-//! is not marked. Called by `install::key_number`.
+//! An item of choices (kind 2) set to choice `number` (a number key's), if there is one and it is
+//! not marked.
 
 use crate::memory::list_handle::ListItem;
 use rc2k_core::install::items::{self, MARKS};

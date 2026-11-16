@@ -179,7 +179,7 @@ impl DiEffect {
 /// One of a device record's six force-feedback effects (`input::make_effect`).
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ForceEffect {
-    /// +0: its function (`input::effect_N_change`, a game address), called with a change.
+    /// Which of the six change functions is its own (`effect_changes::effect_change`'s number).
     pub change: Dword,
     /// +4: the kind wanted: 1 constant, 2 ramp, 3 periodic, 4 condition.
     pub kind: Dword,

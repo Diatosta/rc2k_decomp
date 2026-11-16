@@ -1,5 +1,5 @@
-//! A name copied from the script (from the cursor on) to `script_path` until a byte below a
-//! space, a NUL written at the end. Called by `install::run_script`.
+//! A name copied from the script (from the cursor on) to `script_path` until a byte below a space,
+//! a NUL written at the end.
 
 use crate::errors::Refused;
 use crate::install::installer::wb;

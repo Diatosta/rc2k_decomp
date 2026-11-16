@@ -249,10 +249,9 @@ pub enum Message {
 /// What `start` has found out by the log's start.
 #[derive(Clone, Debug, Default)]
 pub struct Machine {
-    /// `logfile::date_text`'s text, the version and a second text if any.
+    /// `logfile::date_text`'s text and the version.
     pub date: Vec<u8>,
     pub version: Vec<u8>,
-    pub second: Option<Vec<u8>>,
     /// The processor's family, flags, name; FPU, MMX, 3DNow, SSE.
     pub cpu_family: i32,
     pub cpu_flags: u32,
@@ -281,9 +280,6 @@ pub fn head(m: &Machine) -> Vec<(Message, bool)> {
         (Text(m.date.clone()), true),
         (Text(m.version.clone()), true),
     ];
-    if let Some(second) = &m.second {
-        out.push((Text(second.clone()), true));
-    }
     out.push((t(b""), true));
     out.extend([
         (t(b"cpu="), false),
@@ -344,11 +340,6 @@ mod head_tests {
         let h = head(&Machine::default());
         assert_eq!(h[0], (Message::Text(b"Log started".to_vec()), false));
         assert_eq!(h.len(), 37);
-        let second = Machine {
-            second: Some(b"x".to_vec()),
-            ..Machine::default()
-        };
-        assert_eq!(head(&second)[3], (Message::Text(b"x".to_vec()), true));
         assert_eq!(free_kb(8, 512, 4), 16);
         assert_eq!(free_kb(0x1000, 0x1000, 0x40000), u32::MAX);
         // The cluster's bytes wrap in 32 bits.

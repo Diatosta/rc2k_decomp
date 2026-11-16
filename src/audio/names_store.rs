@@ -63,8 +63,8 @@ impl NameList {
     }
 }
 
-/// Where the first name lay in the image: the image's data names the files by address, which
-/// `audio::store::name_key` turns into keys.
+/// The 1999 address of the first name: the menus' speech tables name their samples by address,
+/// which `audio::store::name_key` turns into keys.
 pub const FIRST_IDA: u32 = 0x506E6C;
 /// The five lists' bytes in all.
 pub const POOL_LEN: usize = EFFECTS_LEN + 2 * SPEECH_LEN + RALLY_LEN + MENU_LEN;

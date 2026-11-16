@@ -3,7 +3,7 @@
 //! Marks the settings applied, stops the music, sends the menu sound mode, the menus' sound list
 //! and the options screen's volume, waits for the commands, then lets sounds play. What the two
 //! numbers are is a reading: volumes, the second the one the options screen steps between 0 and
-//! 0x40. Five callers; `system::main_loop` calls it once the window is there.
+//! 0x40. `system::main_loop` calls it once the window is there.
 
 use crate::owners::Owners;
 use rc2k_core::audio::commands::SoundList;

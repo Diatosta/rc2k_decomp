@@ -3,7 +3,8 @@
 
 use crate::errors::BadInput;
 
-const BUF_LEN: usize = 0x100; // ThreadSlot + 0x10 .. + 0x110
+/// The room of a resolved path's buffer (a thread slot's, or the global one).
+const BUF_LEN: usize = 0x100;
 
 struct Globals {
     mode: u32,
@@ -27,9 +28,9 @@ fn globals() -> Result<Globals, BadInput> {
 /// the global one (0x100 into the paths).
 fn write_out(path: &[u8]) -> Result<(), BadInput> {
     let what = "the resolved path's buffer";
-    match crate::threading::find_thread_slot::current_slot()? {
+    match crate::threading::thread_slot::SlotThread::current() {
         None => crate::files::state::PATHS.write_at(0x100, path, what),
-        Some(slot) => slot.path.write_at(0, path, what),
+        Some(thread) => thread.slot().path.write_at(0, path, what),
     }
 }
 

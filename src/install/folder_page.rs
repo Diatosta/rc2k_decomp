@@ -1,6 +1,5 @@
 //! The install-folder page: at the start the first edit item is begun (`install::next_edit`); at
 //! the end `path_problem` is 0; then the items that do not match `path_problem` are hidden.
-//! Called by `install::run_page`.
 
 use crate::memory::list_handle::ListMenu;
 use rc2k_core::install::pages;

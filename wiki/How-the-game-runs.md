@@ -64,7 +64,7 @@ and calls `start`. `start` is a plain list of steps, each a function further dow
 | `read_command_line_and_install_state` | The command line's switches, the install record. | `system::read_command_line`, `src/install/` |
 | `load_language_and_game_data` | Texts, options, best times, the lists of saved games and replays. | `strings::load_language`, `system::load_game_data`, `src/saves/` |
 | `probe_display` | Lists the display's screen modes. | `src/gfx/` |
-| `start_workers` | Network set-up; starts the game's threads (below). | `net::set_up`, `threading::start_threads` |
+| `start_workers` | Network set-up; starts the game's threads (below). | `net::set_up`, `threading::thread_slot::start_workers` |
 | `choose_screen_modes` | Picks the menu and race screen modes, prepares pixel conversion. | `src/platform/mod.rs`, `src/gfx/` |
 | `run_main_loop` | Runs the game until the player quits. | `system::main_loop` |
 | `shut_down` | Closes the network, restores settings, shows a fatal report if there is one. | `src/standalone.rs` |
@@ -209,7 +209,7 @@ system, this is the folder to read (see [Porting to a new platform](Porting-to-a
 | Sound mixer | `src/platform/sound.rs` | SDL calls it to mix the playing sounds into the output. |
 
 The input, audio and network threads are the original game's design, started together by
-`threading::start_threads`; they share state with the game thread through the owners, using
+`threading::thread_slot::start_workers`; they share state with the game thread through the owners, using
 locks and atomic values where they meet. The drawing and renderer threads are this project's
 additions, and are arranged so that the picture is the same as one thread would draw. More in
 [Threads and shared state](Threads-and-shared-state).

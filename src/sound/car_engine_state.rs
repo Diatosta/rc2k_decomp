@@ -12,8 +12,8 @@
 //! - works out the listener's distance, how fast it changes, and the Doppler-like pitch
 //!   and volume factors.
 //!
-//! Returns the object's sound kind number. One caller, `sound::car_sounds`. Refuses (before
-//! writing) a kind past the 36 of the table and a revs extrapolation whose quotient does not fit.
+//! Returns the object's sound kind number. Refuses (before writing) a kind past the 36 of the table
+//! and a revs extrapolation whose quotient does not fit.
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::from_int;

@@ -1,5 +1,5 @@
 //! Key 0x66 on an item: for choices shown upright (kind 0x22) the previous choice
-//! (`install::choice_back`). Called by `install::page_key`.
+//! (`install::choice_back`).
 
 use crate::errors::Refused;
 use crate::memory::list_handle::ListItem;

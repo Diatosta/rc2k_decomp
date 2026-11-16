@@ -103,7 +103,7 @@ pub struct Incoming {
     pub data: Vec<u8>,
 }
 
-/// Signals a player's event (a Windows event's handle, in the standalone program).
+/// Signals a player's event (a `platform::sync` event's handle).
 pub type Signal = Arc<dyn Fn(u32) + Send + Sync>;
 
 // ---- a session ----

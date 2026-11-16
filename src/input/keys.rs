@@ -139,7 +139,7 @@ pub fn update_input_in(input: &Input, race: &Race, shots_on: u32, shot: Screensh
     t.join_pairs();
     input.devices.keys_now.write(&t.now);
     buttons_to_keys(input);
-    let (_, edx) = find_pressed_keys(&input.devices);
+    let (_, pressed) = find_pressed_keys(&input.devices);
     repeat_keys(&input.devices);
     let right = take_mouse_clicks(input);
     // The debug overlay's keys, taken from the game (`debug::overlay`).
@@ -147,7 +147,7 @@ pub fn update_input_in(input: &Input, race: &Race, shots_on: u32, shot: Screensh
     end_frame(race, shots_on, &mut || {
         screenshot_if_key(&input.devices, &mut *shot);
     });
-    (right, edx)
+    (right, pressed)
 }
 
 pub fn game_screenshot(gfx: &crate::gfx::owner::Gfx, system: &crate::system::owner::System) {

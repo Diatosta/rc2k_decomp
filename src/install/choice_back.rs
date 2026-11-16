@@ -1,7 +1,6 @@
-//! An item of choices (kind 2) moved to the previous choice that is not marked (bits 6, 7 of
-//! its second byte), wrapping from the first to the last; none: nothing changes. Refused: a
-//! chosen byte past the choices with every choice marked. Called by `install::key_up`,
-//! `install::key_left`.
+//! An item of choices (kind 2) moved to the previous choice that is not marked (bits 6, 7 of its
+//! second byte), wrapping from the first to the last; none: nothing changes. Refused: a chosen byte
+//! past the choices with every choice marked.
 
 use crate::errors::Refused;
 use crate::memory::list_handle::{ItemByte, ListItem};

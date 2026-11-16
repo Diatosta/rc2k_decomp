@@ -1,7 +1,7 @@
-//! Each of a page's pieces measured into its width and height: a plain text piece as its string
-//! in the font of its marks; else by the item's kind: an edit its record's width and height, a
-//! text its string and appended text, an action its box's size, any other the size of the pieces
-//! before it. Refused: no pieces. Called by `install::run_page`.
+//! Each of a page's pieces measured into its width and height: a plain text piece as its string in
+//! the font of its marks; else by the item's kind: an edit its record's width and height, a text
+//! its string and appended text, an action its box's size, any other the size of the pieces before
+//! it. Refused: no pieces.
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::{

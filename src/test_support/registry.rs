@@ -222,10 +222,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(&o.system.work().numbers),
         ),
         listed!(
-            "logfile.start_log.FREE_SPACE_KB",
-            on_game(crate::logfile::start_log::FREE_SPACE_KB.get()),
-        ),
-        listed!(
             "owners.race.shared.random.state",
             &o.race.shared.random.state
         ),
@@ -279,10 +275,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(&o.strings.drivers.names),
         ),
         listed!(
-            "threading.thread_slot.SLOTS",
-            &crate::threading::thread_slot::SLOTS,
-        ),
-        listed!(
             "owners.gfx.fonts.blended_palette",
             on_game(&o.gfx.fonts.blended_palette),
         ),
@@ -291,12 +283,9 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(&o.strings.text.blend_mode),
         ),
         listed!("files.state.PATHS", &crate::files::state::PATHS),
-        listed!("fatal.state.W32", &crate::fatal::state::W32),
         listed!("fatal.state.CODE", &crate::fatal::state::CODE),
         listed!("fatal.state.CAPTION", &crate::fatal::state::CAPTION),
-        listed!("fatal.state.TEMPLATE", &crate::fatal::state::TEMPLATE),
         listed!("fatal.state.REPORTED", &crate::fatal::state::REPORTED),
-        listed!("fatal.state.EXTRA", &crate::fatal::state::EXTRA),
         listed!("fatal.state.TEXT", &crate::fatal::state::TEXT),
         listed!("files.state.MEDIA_MODE", &crate::files::state::MEDIA_MODE),
         listed!("files.state.DIRECTORIES", &crate::files::state::DIRECTORIES),

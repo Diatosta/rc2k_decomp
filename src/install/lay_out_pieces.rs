@@ -1,8 +1,8 @@
-//! A page's pieces (0x30 bytes each after `layout`) made from its list: the title (unless the
-//! list is hidden), then for each item not hidden: a link a piece, a choice a label and a piece
-//! for each choice not hidden, a value or edit a label and a piece, a text and an action one
-//! piece each. Places and sizes are zeroed. Any other kind is fatal error 0x80A97451. More
-//! pieces than the 0xFFC bytes hold (85) are refused. Called by `install::run_page`.
+//! A page's pieces (0x30 bytes each after `layout`) made from its list: the title (unless the list
+//! is hidden), then for each item not hidden: a link a piece, a choice a label and a piece for each
+//! choice not hidden, a value or edit a label and a piece, a text and an action one piece each.
+//! Places and sizes are zeroed. Any other kind is fatal error 0x80A97451. More pieces than the
+//! 0xFFC bytes hold (85) are refused.
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::fatal;

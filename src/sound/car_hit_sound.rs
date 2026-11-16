@@ -4,9 +4,8 @@
 //! Takes the car's sound object and the request. Nothing when the sound is -2 (none); else it is
 //! taken (set to -2) into the request, with its volume and the sample's own rate through
 //! `sound::sample_settings`. A volume under 4 plays nothing; else the volume and rate go into the
-//! request as floats, with the place, and `sound::play_placed_sound` plays it. One caller,
-//! `sound::car_sounds`. Refuses (before anything) a null object and a sound past the sample
-//! records.
+//! request as floats, with the place, and `sound::play_placed_sound` plays it. Refuses (before
+//! anything) a null object and a sound past the sample records.
 
 use crate::errors::Refused;
 use crate::sound::sample_settings::{record, sample_settings};

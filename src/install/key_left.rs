@@ -1,5 +1,5 @@
-//! Key 0x68 on an item: kind 2 the previous choice (`install::choice_back`), kind 3 the value
-//! down (`install::value_down`). Called by `install::page_key`.
+//! Key 0x68 on an item: kind 2 the previous choice (`install::choice_back`), kind 3 the value down
+//! (`install::value_down`).
 
 use crate::errors::Refused;
 use crate::install::key_up::item_key;

@@ -1,7 +1,7 @@
 //! `sound::stop_sound`: plays a request's sound at volume 0.
 //!
 //! Unless the sound has bit 0x8000: `sound::play_sound` with the sound and volume 0. That it stops
-//! the sound is a reading (a volume of 0). 14 callers (the race's sounds).
+//! the sound is a reading (a volume of 0).
 
 use crate::sound::sets_store::SoundRequest;
 

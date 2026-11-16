@@ -7,7 +7,7 @@
 //! - any other: the key's character (`input::key_to_char`) added if it is not below a space and
 //!   there is room, and cut again if the text is then wider than the record's width.
 //!
-//! The key word is the key in its low byte and its bits in the next. Called by `install::page_key`.
+//! The key word is the key in its low byte and its bits in the next.
 
 use crate::errors::Refused;
 use crate::install::installer::{

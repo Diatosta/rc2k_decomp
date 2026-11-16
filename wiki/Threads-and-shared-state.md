@@ -14,9 +14,9 @@ It is the page to read before changing anything that more than one thread touche
 | Thread | Started by | Runs | Does |
 | --- | --- | --- | --- |
 | Game | the program's `main` | `standalone::run` | Everything not listed below: start-up, the menus, the simulation, issuing the drawing, file reading and writing. Also SDL's event handling. |
-| Input | `threading::start_threads` | `input::input_thread` | Every 20 ms: counts the key clock, reads the players' devices, delivers force-feedback changes. |
-| Audio | `threading::start_threads` | `audio_thread` (`src/audio/thread.rs`) | Every 20 ms: feeds the music streams, takes the game's sound commands, updates the voices. |
-| Network receive | `threading::start_threads` | `net::receive_thread` | Waits for a signal that messages have arrived, takes them, and files race messages in each player's inbox. |
+| Input | `threading::thread_slot::start_workers` | `input::input_thread` | Every 20 ms: counts the key clock, reads the players' devices, delivers force-feedback changes. |
+| Audio | `threading::thread_slot::start_workers` | `audio_thread` (`src/audio/thread.rs`) | Every 20 ms: feeds the music streams, takes the game's sound commands, updates the voices. |
+| Network receive | `threading::thread_slot::start_workers` | `net::receive_thread` | Waits for a signal that messages have arrived, takes them, and files race messages in each player's inbox. |
 | Network connections | a session, when one is hosted or joined | `src/net/dp_session/` | The sockets: accepting machines, reading and writing frames. |
 | Shutdown | `threading::request_quit_in` and its siblings (`src/threading/request_quit.rs`) | `threading::shutdown_thread` | Waits up to three seconds for the input, audio and network threads to end. |
 | Drawing helpers | `src/scene/workers.rs` (a thread pool) | parts of a frame | Draw a view, a mirror or the player's car at the same time as the game thread draws another part. |
@@ -28,9 +28,11 @@ It is the page to read before changing anything that more than one thread touche
 ### Thread slots
 
 The first three worker threads and the shutdown thread have **slots**
-(`src/threading/thread_slot.rs`): a small record per thread with its routine, its id, and a
-flag that says whether it is running. `threading::start_slot_thread` starts a slot's thread,
-named `input`, `audio`, `net receive` or `shutdown` (the names a debugger or profiler shows).
+(`src/threading/thread_slot.rs`): the threads are the `SlotThread` enum (`Input`, `Audio`,
+`NetReceive`, `Shutdown`), and each has a small record with its id, its handle and whether its
+routine is running. `SlotThread::start` starts a thread, named `input`, `audio`, `net receive`
+or `shutdown` (the names a debugger, a profiler and the log show); `SlotThread::run` is what it
+runs.
 The threads themselves, and the events and waits they use, are built on the standard library
 (`src/platform/sync.rs`).
 

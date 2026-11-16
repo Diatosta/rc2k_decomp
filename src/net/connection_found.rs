@@ -52,7 +52,7 @@ pub fn callback(
     data: &[u8],
     short: &[u8],
 ) -> u32 {
-    crate::net::lobby::callback_entry("net::connection_found", 0x4186E5, || {
+    crate::net::lobby::callback_entry("net::connection_found", || {
         connection_found(link, strings, lines, guid, data, short)
     })
 }

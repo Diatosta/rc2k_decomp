@@ -1,6 +1,5 @@
-//! The installed folder (the install source normalised into `installed`) made the current
-//! directory and the installing flag set; if the normalise or the change fails, nothing is set.
-//! Called by `install::run_pages`.
+//! The installed folder (the install source normalised into `installed`) made the current directory
+//! and the installing flag set; if the normalise or the change fails, nothing is set.
 
 use crate::errors::Refused;
 use crate::install::installer::{normalise, set_cd};

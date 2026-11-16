@@ -1,7 +1,6 @@
 //! The game registered as a DirectPlay lobby program under
-//! `HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\DirectPlay\Applications\RC`: five string values
-//! (`Guid`, `File`, `CommandLine`, `Path`, `CurrentDirectory`) set with `install::set_lobby_value`.
-//! Called by `install::install_files`.
+//! `HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\DirectPlay\Applications\RC`: five string values (`Guid`,
+//! `File`, `CommandLine`, `Path`, `CurrentDirectory`) set with `install::set_lobby_value`.
 
 use crate::errors::Refused;
 use crate::install::read_registry::Registry;

@@ -2,10 +2,10 @@
 //! delay of its kind and, while its repeats last, a restart.
 //!
 //! For each voice heard and not playing: its kind's record (`SpotPicks.kind_repeats`, 8 bytes from
-//! kind 1: the most repeats, the least and most delay): the delay is the least +
-//! `Stream::below` (most - least) (as words; no call when they are equal); then with no limit
-//! (0), or the repeats below it (counted up), the restart flag is 1. One caller,
-//! `sound::spot_sounds`. Refuses (before anything) a voice of kind 0 or past 0x15.
+//! kind 1: the most repeats, the least and most delay): the delay is the least + `Stream::below`
+//! (most - least) (as words; no call when they are equal); then with no limit (0), or the repeats
+//! below it (counted up), the restart flag is 1. Refuses (before anything) a voice of kind 0 or
+//! past 0x15.
 
 use crate::errors::Refused;
 

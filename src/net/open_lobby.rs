@@ -1,5 +1,5 @@
 //! Makes DirectPlay's lobby object ("NET: Create dplobby"). Games launched from a lobby are
-//! left out: the standalone has no lobbies (its own network protocol). Returns true when done.
+//! left out: the program has no lobbies (its own network protocol). Returns true when done.
 
 use crate::errors::Refused;
 use crate::net::link::Link;

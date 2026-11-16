@@ -6,27 +6,28 @@
 use crate::errors::Refused;
 use crate::net::owner::Net;
 use crate::system::owner::System;
+use rc2k_core::threading::Waited;
+use std::sync::atomic::Ordering;
 
 const START_TEXT: &std::ffi::CStr = c"NETRXTDB:START";
 const QUIT_TEXT: &std::ffi::CStr = c"NETRXTDB:QUIT";
 /// The wait for the event, in milliseconds.
 const WAIT: u32 = 1000;
 
-/// Runs to the `ExitThread`, which does not come back.
+/// Runs to the thread's end.
 pub fn receive_thread(net: &Net, system: &System) -> Result<(), Refused> {
     let lines = &crate::race::viewer_screen_store::NET_TEXTS;
     let vars = &net.vars;
-    let running =
-        &crate::threading::thread_slot::slot_ref(crate::threading::thread_slot::NET)?.flag;
-    if running.get() != 1 {
-        running.set(1);
+    let running = &crate::threading::thread_slot::SlotThread::NetReceive
+        .slot()
+        .running;
+    if !running.swap(true, Ordering::SeqCst) {
         crate::logfile::log_write::log_nul(&START_TEXT, true, 2);
         if vars.receive_done.get() == 0 {
             loop {
-                let (_, zero) =
-                    crate::threading::wait_for_object::wait_for_object(vars.event.get(), WAIT)
-                        .flags();
-                if !zero {
+                // A wait that fails counts as the time running out.
+                let waited = Waited::of(crate::platform::sync::wait(vars.event.get(), WAIT));
+                if waited == Waited::Signalled {
                     vars.receiver.receiving.set(1);
                     if net.race_slot.is_on() {
                         crate::net::take_messages::take_messages(
@@ -51,7 +52,7 @@ pub fn receive_thread(net: &Net, system: &System) -> Result<(), Refused> {
     }
     vars.receive_done.set(1);
     crate::logfile::log_write::log_nul(&QUIT_TEXT, true, 2);
-    running.set(0);
+    running.store(false, Ordering::SeqCst);
     // The routine's end ends its thread.
     Ok(())
 }

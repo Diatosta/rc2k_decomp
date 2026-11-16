@@ -12,7 +12,7 @@ use crate::input::types::{Controller, DiDeviceObjectInstance};
 /// the controller's entry.
 pub fn callback(guids: &InputGuids, object: &DiDeviceObjectInstance, entry: &Controller) -> u32 {
     match axis_found(guids, object, entry) {
-        Ok(eax) => eax,
+        Ok(go_on) => go_on,
         Err(e) => {
             crate::input::devices::refused_here("input::axis_found", e);
             0

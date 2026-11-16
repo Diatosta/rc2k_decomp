@@ -11,15 +11,21 @@ use crate::errors::BadInput;
 pub fn request_device_setup(
     controller: u32,
     sensitivity: u32,
-    mode: u32,
-    edx: u32,
-    ebp: u32,
+    axis_code: u32,
+    dead_zone: u32,
+    end_zone: u32,
     input: &crate::input::owner::Input,
 ) -> Result<(), BadInput> {
     let Some(record) = input.devices.device(0) else {
         return Err(BadInput("no first input device record"));
     };
-    let s = rc2k_core::input::joystick::device_setup(controller, sensitivity, mode, edx, ebp);
+    let s = rc2k_core::input::joystick::device_setup(
+        controller,
+        sensitivity,
+        axis_code,
+        dead_zone,
+        end_zone,
+    );
     record.controller.set(s.controller);
     record.sensitivity.set(s.sensitivity);
     record.kind.set(s.kind);

@@ -7,14 +7,14 @@
 //! `SurfaceSounds.volume` = the products' sum x 0.1: a reading. The wheel whose surface counts is
 //! the front or back pair by the sign bit of the first (negative: the first or third), then the
 //! second of the pair when the other is negative; its surface goes to `surface`; on 7 and 8 the
-//! volume (`SurfaceSounds.volume`) x 0.25. The surface's sound set is the first sound sets' pair
-//! at 2 x `StageSounds.surface_sets[surface]`, and `sound::surface_sound` plays it (with the set
-//! and the other wheel of the pair). Then the same from the first floats (the third wheel sum =
-//! their sum x 64, the volume their sum x 0.1, x 0.1 on 7 and 8) with the second sound sets. The
-//! x87 code is plain Rust over `X` (`math/x87_float.rs`; checked in the tests' `reference_vectors`;
-//! `Machine.scratch` is the scratch dword for the constants). One caller, `sound::car_sounds`.
-//! Refuses a null object, a surface past the 16 of `StageSounds.surface_sets` and a set past the
-//! seven pairs: what was written is put back (a sound already sent stays).
+//! volume (`SurfaceSounds.volume`) x 0.25. The surface's sound set is the first sound sets' pair at
+//! 2 x `StageSounds.surface_sets[surface]`, and `sound::surface_sound` plays it (with the set and
+//! the other wheel of the pair). Then the same from the first floats (the third wheel sum = their
+//! sum x 64, the volume their sum x 0.1, x 0.1 on 7 and 8) with the second sound sets. The x87 code
+//! is plain Rust over `X` (`math/x87_float.rs`; checked in the tests' `reference_vectors`;
+//! `Machine.scratch` is the scratch dword for the constants). Refuses a null object, a surface past
+//! the 16 of `StageSounds.surface_sets` and a set past the seven pairs: what was written is put
+//! back (a sound already sent stays).
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87_float::X;

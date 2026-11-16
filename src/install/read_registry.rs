@@ -1,8 +1,7 @@
 //! What the installer left in the registry, under `HKEY_LOCAL_MACHINE\SOFTWARE\Magnetic
-//! Fields\RC99`: the value `status` (kept only if it is one byte of binary data, else 0) and
-//! the value `source` (up to 0xFF bytes; emptied unless it is a text). Without the key nothing
-//! changes; if `status` cannot be read, `source` is not asked for. Called by the two installation
-//! checks and the installer.
+//! Fields\RC99`: the value `status` (kept only if it is one byte of binary data, else 0) and the
+//! value `source` (up to 0xFF bytes; emptied unless it is a text). Without the key nothing changes;
+//! if `status` cannot be read, `source` is not asked for.
 
 const SOURCE_ROOM: u32 = 0xFF;
 const REG_SZ: u32 = 1;
@@ -18,7 +17,7 @@ pub struct Query {
 }
 
 /// The registry calls the installer makes (under `HKEY_LOCAL_MACHINE`), so that a test can
-/// answer them; in the standalone the portable record (`install::portable`).
+/// answer them; here the portable record (`install::portable`).
 pub trait Registry {
     /// `RegOpenKeyExA`: the key, or the error.
     fn open(&mut self, name: &[u8]) -> Result<u32, u32>;
@@ -85,7 +84,7 @@ pub fn read_registry(install: &crate::install::owner::Install, registry: &mut dy
     registry.close(key);
 }
 
-/// The registry, or in the standalone the portable record (`install::portable`).
+/// The registry, or here the portable record (`install::portable`).
 pub fn read_registry_here(install: &crate::install::owner::Install) {
     read_registry(install, &mut crate::install::portable::Portable::default());
 }

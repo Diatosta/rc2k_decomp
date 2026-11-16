@@ -2,8 +2,7 @@
 //! started by an earlier voice in the table, silences the others.
 //!
 //! The kinds' bits of the voices heard and playing are gathered; then each voice heard and not
-//! playing whose bit is among them is silenced, and its bit added either way. One caller,
-//! `sound::spot_sounds`.
+//! playing whose bit is among them is silenced, and its bit added either way.
 
 use crate::sound::spot_voices::{load_voices, store_voices};
 

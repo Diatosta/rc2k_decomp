@@ -13,8 +13,8 @@
 //! one `math::next_random` gives the volume (0x21 + its low five bits), the rate (the mix rate +
 //! its next nine bits less 0x100 times the mix rate over 4096) and two floats of nine bits less
 //! 0x100 and nine bits, x 0.01, as the first and second place values, the third 1.0: sound 0x1AE /
-//! 0x1AF. One caller, `sound::race_turn`. Refuses nothing of its own (what the slot refuses puts
-//! back what was written; sounds already sent stay sent).
+//! 0x1AF. Refuses nothing of its own (what the slot refuses puts back what was written; sounds
+//! already sent stay sent).
 
 use crate::errors::Refused;
 use crate::sound::sample_settings::OWN;

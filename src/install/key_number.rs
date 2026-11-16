@@ -1,6 +1,5 @@
 //! A number key (2 .. 0xA) on an item: kind 2 that choice (`install::choice_by_number`), kind 3
 //! that eighth of the value's span (`install::value_by_number`); the number is the key less 2.
-//! Called by `install::page_key`.
 
 use crate::errors::Refused;
 use crate::install::key_up::item_key;

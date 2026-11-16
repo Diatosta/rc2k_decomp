@@ -22,12 +22,12 @@ pub const THIRD: u32 = 2;
 pub fn answer_for_key(
     so: StringOwners<'_>,
     input: &crate::input::owner::Input,
-    eax: u32,
+    key_word: u32,
 ) -> Result<u32, BadInput> {
-    if eax == 0 {
+    if key_word == 0 {
         return Ok(0);
     }
-    let character = key_to_char_for_text(input, eax);
+    let character = key_to_char_for_text(input, key_word);
     let lower = crate::strings::same_text::lower(character? as u8);
     let mut strings = Vec::new();
     for (id, _) in ANSWERS {
@@ -56,10 +56,10 @@ pub fn yes_no_key(
     if !has_layout(input) {
         return Err(BadInput("no keyboard layout"));
     }
-    let eax = if input.keyboard().yes_no_key_given.get() == 1 {
+    let key_word = if input.keyboard().yes_no_key_given.get() == 1 {
         given
     } else {
         take_key(input) as u32
     };
-    answer_for_key(so, input, eax)
+    answer_for_key(so, input, key_word)
 }

@@ -1,4 +1,4 @@
-//! The standalone program's joysticks and wheels: the backend of DirectInput's objects made
+//! The program's joysticks and wheels: the backend of DirectInput's objects made
 //! in Rust (`input::di_objects`) on SDL's joysticks and haptics.
 //!
 //! - The devices: SDL's joysticks in the order first seen (a device unplugged keeps its place and

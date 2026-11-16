@@ -1,11 +1,10 @@
-//! The install itself, the action of a list item: the source is scanned to count the files and
-//! the room needed, the destination checked (bad name, room, folders made, source a CD), then
-//! the folders made and the files copied one by one with a frame after each and Escape watched,
-//! the record written, the readme and manual copied if a language is set, and finally the status
-//! set to installed and the lobby, shortcuts and registration done. How it ended is
-//! returned (`flow::Copied`): a folder that cannot be used, too little room, or the copy stopped
-//! with its error / cancel message shown. Always the full installation. Called by
-//! `install::run_pages` and `install::install_from_command`.
+//! The install itself, the action of a list item: the source is scanned to count the files and the
+//! room needed, the destination checked (bad name, room, folders made, source a CD), then the
+//! folders made and the files copied one by one with a frame after each and Escape watched, the
+//! record written, the readme and manual copied if a language is set, and finally the status set to
+//! installed and the lobby, shortcuts and registration done. How it ended is returned
+//! (`flow::Copied`): a folder that cannot be used, too little room, or the copy stopped with its
+//! error / cancel message shown. Always the full installation.
 
 use crate::errors::Refused;
 use crate::install::installer::{

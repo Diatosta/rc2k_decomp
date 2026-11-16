@@ -3,8 +3,7 @@
 //! Quitting (the game closing): the program is ended (`standalone::leave_on_close`). Else, once the
 //! sounds are started (`RaceClock.started` 1): `sound::step_race_clock`; with a turn due
 //! `sound::mark_car_voices`, `car_sounds_all`, `play_cue_queues`, `stage_sounds`, `spot_sounds` and
-//! `send_end_of_turn`; and either way `input::step_effects_clock`. One caller,
-//! `sound::race_turn_if`. Refuses what its callees refuse.
+//! `send_end_of_turn`; and either way `input::step_effects_clock`. Refuses what its callees refuse.
 
 use crate::errors::Refused;
 

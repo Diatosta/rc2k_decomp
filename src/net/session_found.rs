@@ -50,7 +50,7 @@ pub fn session_found(
 }
 
 pub fn callback(link: &Link, lines: &NetTexts, desc: Option<&Desc>, flags: u32) -> u32 {
-    crate::net::lobby::callback_entry("net::session_found", 0x418A62, || {
+    crate::net::lobby::callback_entry("net::session_found", || {
         session_found(link, lines, desc, flags)
     })
 }

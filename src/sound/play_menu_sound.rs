@@ -5,8 +5,8 @@
 //! first bit set of these, in this order, picks the sound and the volume it is played at: 0x80
 //! sound 0xE4 at `levels.menu_sounds_a`; 0x10, 0x20, 0x40 sounds 0x163, 0x197, 0x1CB at
 //! `ScreenFlow.menu_sounds_volume`; 0x100, 8, 2, 4, 1 sounds 0x1CC, 0x1CA, 0x1C8, 0x1C9, 0x1C7 at
-//! `MenuOptions.menu_sounds_level`. Then `sound::play_sound` with the sample's own rate and no place. 25
-//! callers (1 is the highlight's click, 2 Enter's sound: `menu::handle_keys`).
+//! `MenuOptions.menu_sounds_level`. Then `sound::play_sound` with the sample's own rate and no
+//! place.
 
 use crate::audio::owner::Audio;
 use crate::menu::owner::Menus;

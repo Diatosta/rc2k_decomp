@@ -1,6 +1,6 @@
-//! Whether the game was started from the directory the registry names as its installation's
-//! source: only if the status is 1, a source is named and the current directory can be had, the
-//! two are compared. Called by `system::main_loop` on every start, and `install::check_clio_disc`.
+//! Whether the game was started from the directory the registry names as its installation's source:
+//! only if the status is 1, a source is named and the current directory can be had, the two are
+//! compared.
 
 use crate::errors::BadInput;
 use crate::install::outside::Outside;

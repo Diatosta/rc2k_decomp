@@ -51,7 +51,7 @@ pub fn main_loop(o: Owners<'static>) -> Result<(), Refused> {
     crate::sound::apply_settings::apply_settings(o)?;
     crate::gfx::load_jade::load_jade_in_game(gfx, o.system)?;
     crate::menu::build_notice::build_notice(menus, o.strings);
-    // The standalone in the download folder installs from it (`install::portable`); and with
+    // A program in the download folder installs from it (`install::portable`); and with
     // `-u` (`flags.updating`) it uninstalls where it is: its record is in the installed folder, so
     // the uninstall runs from there.
     if install.pages.main_menu.items[1].text.get() == INSTALLER_MARK

@@ -1,4 +1,4 @@
-//! Enter on an action item (kind 6): its action, if it has one. Called by `install::item_enter`.
+//! Enter on an action item (kind 6): its action, if it has one.
 
 use crate::errors::Refused;
 use crate::install::installer::item_action_at;

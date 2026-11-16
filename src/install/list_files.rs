@@ -1,6 +1,6 @@
-//! The files matching a pattern added to the files-to-copy table: each found name is appended
-//! with a NUL behind its folder, the cursor advanced and `file_count` raised. More than 0x40000
-//! bytes of names is fatal error 0x80AF2206. Called by `install::run_script` (opcode 3).
+//! The files matching a pattern added to the files-to-copy table: each found name is appended with
+//! a NUL behind its folder, the cursor advanced and `file_count` raised. More than 0x40000 bytes of
+//! names is fatal error 0x80AF2206. The script's opcode 3.
 
 use crate::errors::Refused;
 use crate::files::search::DIRECTORY;

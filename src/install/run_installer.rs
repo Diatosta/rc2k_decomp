@@ -1,10 +1,9 @@
 //! The installer's branch of the main loop: the languages read, the fonts built, the installer
 //! opened. With the `-i` paths given, `install::install_from_command` does it all; otherwise base
-//! directory B is normalised (failing: fatal error 0x80AF8101), the drives listed, a default
-//! folder built, the registry read, and the installed version checked (this build: its record
-//! read and its language loaded). Then the pages run
-//! (`install::run_pages`); if installing from a CD a "please wait" frame is shown. Finally the
-//! installer is closed and the fonts freed. Called by `system::main_loop`.
+//! directory B is normalised (failing: fatal error 0x80AF8101), the drives listed, a default folder
+//! built, the registry read, and the installed version checked (this build: its record read and its
+//! language loaded). Then the pages run (`install::run_pages`); if installing from a CD a "please
+//! wait" frame is shown. Finally the installer is closed and the fonts freed.
 
 use crate::errors::Refused;
 use crate::install::installer::{

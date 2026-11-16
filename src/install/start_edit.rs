@@ -1,6 +1,5 @@
 //! An edit item (kind 4) begins to be edited: its record's bit 0 is set, its text cut at its most
-//! bytes and kept in `script_path` (for Escape, `install::edit_key`). Called by
-//! `install::item_enter`, `install::next_edit`.
+//! bytes and kept in `script_path` (for Escape, `install::edit_key`).
 
 use crate::memory::list_handle::ListItem;
 

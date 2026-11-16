@@ -143,7 +143,7 @@ const OPEN_FAILED_TEXT: &std::ffi::CStr = c"AUD: open failed rc=";
 /// `DirectSoundCreate` for the device's GUID: the device, or the failure's result.
 pub type CreateSound<'a> = &'a mut dyn FnMut(u32) -> Result<u32, i32>;
 
-/// The standalone program's DirectSound on SDL (`platform::sound`), whatever the GUID.
+/// The program's DirectSound on SDL (`platform::sound`), whatever the GUID.
 pub fn game_direct_sound_create(_guid: u32, focus: &'static Dword) -> Result<u32, i32> {
     crate::platform::sound::create_device(focus)
 }

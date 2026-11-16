@@ -1,9 +1,8 @@
-//! A key on the page's highlighted item. Nothing for no key or one of 0x80 and above. An edit
-//! being edited takes every key (`install::edit_key`); else the arrows (`install::key_up`,
-//! `key_down`, `key_left`, `key_right`), 2 .. 0xA (`install::key_number`), Enter
-//! (`install::item_enter`); Escape leaves the page with answer 0 unless the list's flags have
-//! 0x10. Key 0x52 takes a screenshot with screenshots on. A key that did something sets
-//! `key_taken`. Called by `install::run_page`.
+//! A key on the page's highlighted item. Nothing for no key or one of 0x80 and above. An edit being
+//! edited takes every key (`install::edit_key`); else the arrows (`install::key_up`, `key_down`,
+//! `key_left`, `key_right`), 2 .. 0xA (`install::key_number`), Enter (`install::item_enter`);
+//! Escape leaves the page with answer 0 unless the list's flags have 0x10. Key 0x52 takes a
+//! screenshot with screenshots on. A key that did something sets `key_taken`.
 
 use crate::errors::Refused;
 use crate::memory::list_handle::{ListItem, ListMenu};
@@ -72,10 +71,10 @@ pub fn page_key(
     Ok((key, took(list_state, plain_edit)))
 }
 
-/// `jnz` out, else the key marked as taken (zero set).
-fn took(list_state: &crate::menu::list_state::ListState, zero: bool) -> bool {
-    if zero {
+/// A plain edit marks the key as taken; whether it did.
+fn took(list_state: &crate::menu::list_state::ListState, plain_edit: bool) -> bool {
+    if plain_edit {
         list_state.key_taken.set(1);
     }
-    zero
+    plain_edit
 }

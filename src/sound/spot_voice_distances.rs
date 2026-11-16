@@ -1,11 +1,10 @@
 //! `sound::spot_voice_distances`: each voice heard this turn: its distance, the distance's change
 //! and the pitch and volume factors, as `sound::car_engine_state` does for a car.
 //!
-//! For each voice heard (+4 1): +0x40 the root of +8 .. +0x10 squared, +0x44 its change
-//! x the turns a second (`RaceClock.turns_a_second`); +0x4C 0 and +0x48 1.0, then unless the voice
-//! is new (+0x20 1) +0x48 eased from 1.0 toward (+0x44 + 337.52) x 0.00296; +0x4C 1.0,
-//! or 1 / the distance when that is over 1 (compared as integers); +0x20 cleared. See
-//! `sound/spot_voices.rs`. One caller, `sound::spot_sounds`.
+//! For each voice heard (+4 1): +0x40 the root of +8 .. +0x10 squared, +0x44 its change x the turns
+//! a second (`RaceClock.turns_a_second`); +0x4C 0 and +0x48 1.0, then unless the voice is new
+//! (+0x20 1) +0x48 eased from 1.0 toward (+0x44 + 337.52) x 0.00296; +0x4C 1.0, or 1 / the distance
+//! when that is over 1 (compared as integers); +0x20 cleared. See `sound/spot_voices.rs`.
 
 use crate::math::x87_float::X;
 use crate::math::x87_float::{ld, stf};

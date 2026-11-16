@@ -4,9 +4,8 @@
 //! installed folder made current, from the CD the program copied to `.\ral.exe` after a
 //! second's sleep, and run. A folder that cannot be made current ends it.
 //!
-//! One caller, `start`'s way out. Refuses (before anything, where the way could lead there) a
-//! game folder too long for "ereg\" in its 0x100 bytes, and a command line's program of 0x100
-//! bytes or more.
+//! Refuses (before anything, where the way could lead there) a game folder too long for "ereg\" in
+//! its 0x100 bytes, and a command line's program of 0x100 bytes or more.
 
 use crate::errors::{BadInput, Refused};
 use crate::install::runs_from_source::{scratch_put, scratch_text};
@@ -54,7 +53,7 @@ pub fn run_after_exit(
     {
         return Err(BadInput("a command line's program of 0x100 bytes or more").into());
     }
-    // The Start menu items: the standalone's shell shortcuts.
+    // The Start menu items: the program's shell shortcuts.
     if add_items {
         crate::install::shortcuts::add_start_menu_items(&crate::files::host_path(
             &install.paths.installed.text(),

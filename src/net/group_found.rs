@@ -19,7 +19,5 @@ pub fn group_found(link: &Link, id: u32, kind: u32, short: &[u8]) -> Result<u32,
 }
 
 pub fn callback(link: &Link, id: u32, kind: u32, short: &[u8]) -> u32 {
-    crate::net::lobby::callback_entry("net::group_found", 0x419391, || {
-        group_found(link, id, kind, short)
-    })
+    crate::net::lobby::callback_entry("net::group_found", || group_found(link, id, kind, short))
 }

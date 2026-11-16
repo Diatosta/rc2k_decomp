@@ -1,7 +1,7 @@
 //! A folder and everything under it added to the tables, breadth first (the folders table is the
-//! queue): a sub-folder (not `.` / `..`) is appended behind its parent, a file to the files
-//! table. The skip mask is 0 for the walk and put back at the end. Overflow of either table is
-//! fatal error 0x80AF2201 or 0x80AF2202. Called by `install::run_script` (opcode 4).
+//! queue): a sub-folder (not `.` / `..`) is appended behind its parent, a file to the files table.
+//! The skip mask is 0 for the walk and put back at the end. Overflow of either table is fatal error
+//! 0x80AF2201 or 0x80AF2202. The script's opcode 4.
 
 use crate::errors::Refused;
 use crate::install::installer::{

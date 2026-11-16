@@ -4,8 +4,7 @@
 //! Returns the volume and the rate. A sample without a buffer: volume 0, rate 44100. Else a volume
 //! of -0x6F (the sample's own) takes the record's volume, then is held to 0 .. 0x40 (signed); a
 //! rate of -0x6F takes the record's rate, then (so a record's -0x70 chains) -0x70 the buffer's
-//! rate, then is held to 100 .. 200000 (signed). Five callers (the race sounds' turn). Refuses a
-//! sample past the 0x1CD records.
+//! rate, then is held to 100 .. 200000 (signed). Refuses a sample past the 0x1CD records.
 
 use crate::audio::owner::Audio;
 use crate::audio::voices::{SampleRecord, voice_of};

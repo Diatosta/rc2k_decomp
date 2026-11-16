@@ -10,8 +10,8 @@
 //! and the three floats as they are. Then the pitch is the pitch x the request's pitch factor as a
 //! whole number, and `sound::play_sound` plays the sound with the volume, the place (3D: the three
 //! floats) and that rate. The x87 arithmetic is plain Rust over `X` (`math/x87_float.rs`), rounding
-//! as the control word says; it is checked in the tests' `reference_vectors`. Eight callers (the
-//! race's sounds). Refuses, without 3D, a sound past the 0x1CD sample records.
+//! as the control word says; it is checked in the tests' `reference_vectors`. Refuses, without 3D,
+//! a sound past the 0x1CD sample records.
 
 use crate::errors::BadInput;
 use crate::scene::x87_mem::{Base, cells, fistp, fld, fstp};

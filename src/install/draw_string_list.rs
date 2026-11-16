@@ -1,6 +1,5 @@
-//! A list of `count` records (16 bytes each: dx, dy, font, string id) drawn, each at
-//! (dx + x, dy + y) with its font (`text::draw_string_by_id`). Called by `install::install_files`
-//! and the copy-progress and page frames. Refuses a count of 0.
+//! A list of `count` records (16 bytes each: dx, dy, font, string id) drawn, each at (dx + x, dy +
+//! y) with its font (`text::draw_string_by_id`). Refuses a count of 0.
 
 use crate::errors::Refused;
 use crate::install::installer::draw_string;

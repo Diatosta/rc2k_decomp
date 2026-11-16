@@ -6,7 +6,6 @@
 //! the page the end (state -1). The game quitting ends it.
 //!
 //! Returns the answer (`list_answer`). Refused: a page whose every item cannot be chosen.
-//! Called by `install::run_pages`.
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::{

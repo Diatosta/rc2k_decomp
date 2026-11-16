@@ -1,9 +1,8 @@
-//! The folders of a path made, segment by segment: a drive path first changes to the drive's
-//! root, a UNC path skips the server and share; then each `\`-separated segment is entered
-//! (`files::set_current_directory`) and, where that fails, made (`files::make_directory`). A
-//! failed change or make ends it. A path without its closing `\` has its last folder made at its
-//! NUL. Refuses a scan of 0x400 bytes from the path's start and a UNC path without its share's
-//! `\`. Called by `install::install_files`, `install::install_clio`.
+//! The folders of a path made, segment by segment: a drive path first changes to the drive's root,
+//! a UNC path skips the server and share; then each `\`-separated segment is entered
+//! (`files::set_current_directory`) and, where that fails, made (`files::make_directory`). A failed
+//! change or make ends it. A path without its closing `\` has its last folder made at its NUL.
+//! Refuses a scan of 0x400 bytes from the path's start and a UNC path without its share's `\`.
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::{make_dir, rb, rw, set_cd, wb};

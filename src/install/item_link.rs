@@ -1,6 +1,5 @@
-//! Enter on a link item (kind 1): its action if it has one; else, unless its next list is
-//! negative, that number goes into `list_answer` and the page is left. Called by
-//! `install::item_enter`.
+//! Enter on a link item (kind 1): its action if it has one; else, unless its next list is negative,
+//! that number goes into `list_answer` and the page is left.
 
 use crate::errors::Refused;
 use crate::install::installer::item_action_at;

@@ -1,13 +1,11 @@
 //! `sound::surface_sound`: one of a car's sounds of what its wheels run on.
 //!
-//! Takes: the car's sound object, the surface's sound set, the request
-//! The set: +0 1 for a set of eight (+4 ..; the sound by the object's +0 & 3 and, 4
-//! further for +0xC 1), else four (by +0 & 3). Its sound replaces the object's +0x144
-//! (sets of eight) or +0x148; a changed one has the old one stopped first
-//! (`sound::stop_sound`). Then the request: the sound, +4 the rate as a float, +8
+//! Takes: the car's sound object, the surface's sound set, the request The set: +0 1 for a set of
+//! eight (+4 ..; the sound by the object's +0 & 3 and, 4 further for +0xC 1), else four (by +0 &
+//! 3). Its sound replaces the object's +0x144 (sets of eight) or +0x148; a changed one has the old
+//! one stopped first (`sound::stop_sound`). Then the request: the sound, +4 the rate as a float, +8
 //! `SurfaceSounds.volume` (`fld` / `fstp`), the place +0x2C .. +0x34, and
-//! `sound::play_placed_sound` (a tail jump). Two callers, `sound::surface_sounds`.
-//! Refuses (before anything) a set of eight with +0xC
+//! `sound::play_placed_sound` (a tail jump). Refuses (before anything) a set of eight with +0xC
 //! over 1, and a sound past the sample records.
 
 use crate::errors::{BadInput, Refused};

@@ -30,8 +30,7 @@ pub struct AudioInputs<'a> {
     pub menu_sounds: &'a crate::sound::sets_store::MenuSounds,
 }
 
-/// Runs to the thread's end, which does not come back. Its slot's flag
-/// (`threading::thread_slot::AUDIO`) says it runs.
+/// Runs to the thread's end. Its slot (`threading::thread_slot`) says while it runs.
 pub fn audio_thread(inputs: AudioInputs<'_>) -> Result<(), Refused> {
     let AudioInputs {
         audio: owner,
@@ -40,15 +39,16 @@ pub fn audio_thread(inputs: AudioInputs<'_>) -> Result<(), Refused> {
         menu_sounds,
     } = inputs;
     use crate::audio::*;
+    use crate::platform::sync::set_priority;
     use crate::system::tick_count::tick_count;
-    use crate::threading::set_priority::set_priority;
+    use std::sync::atomic::Ordering;
     // The thread's own variables (`audio::own`): made here, so that no other thread has them.
     let audio = &crate::audio::own::AudioThread::new(owner);
-    let running =
-        &crate::threading::thread_slot::slot_ref(crate::threading::thread_slot::AUDIO)?.flag;
-    let started = running.get() != 1
+    let running = &crate::threading::thread_slot::SlotThread::Audio
+        .slot()
+        .running;
+    let started = !running.swap(true, Ordering::SeqCst)
         && {
-            running.set(1);
             sound_device::log_text(START_TEXT, true);
             audio.state.no_audio.get() == 0
         }
@@ -96,6 +96,6 @@ pub fn audio_thread(inputs: AudioInputs<'_>) -> Result<(), Refused> {
     thread_parts::free_sample_buffer(&audio.state)?;
     sound_device::log_text(QUIT_TEXT, true);
     set_priority(0);
-    running.set(0);
+    running.store(false, Ordering::SeqCst);
     Ok(())
 }

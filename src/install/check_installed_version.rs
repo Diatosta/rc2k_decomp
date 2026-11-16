@@ -1,6 +1,5 @@
-//! Whether the already-installed program is this same build (`same_version`): the installed
-//! copy is read in chunks and scanned for the version text and the copyright line. Called by
-//! `install::run_installer`.
+//! Whether the already-installed program is this same build (`same_version`): the installed copy is
+//! read in chunks and scanned for the version text and the copyright line.
 
 use crate::errors::Refused;
 use crate::install::installer::set_cd;
@@ -36,7 +35,7 @@ pub fn check_installed_version(
         return Ok(());
     }
     system.work().files.buffer.write(&[0; BUFFER_LEN]);
-    // The standalone checks its own program (the same version text is in its built-in
+    // The program checks itself (the same version text is in its built-in
     // image).
     let program = crate::install::run_after_exit::RC2K;
     if let Some(file) = crate::files::handle::open_by_mode(program, 0)? {

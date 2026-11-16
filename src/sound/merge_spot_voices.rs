@@ -6,8 +6,8 @@
 //! cleared (distances to -1). For each voice heard with the sound: a playing one is noted in
 //! `SpotPicks.pick_playing`; its distance x 1000 as a whole number is compared (unsigned) with the
 //! nearest's and the next's, which move down; the voice is silenced. The nearest, if any, is
-//! started; with a next as well, `math::nearest_on_segment` of their places and the listener
-//! (0, 0, 0) gives the nearest's new place. Six callers, `sound::merge_spot_voices_all`.
+//! started; with a next as well, `math::nearest_on_segment` of their places and the listener (0, 0,
+//! 0) gives the nearest's new place.
 
 /// The logic is `rc2k_core::sound::spot_voices::merge` and `merge_between`. The voices of `sound`
 /// merged.

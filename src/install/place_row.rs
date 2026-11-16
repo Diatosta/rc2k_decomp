@@ -1,8 +1,7 @@
-//! The pieces of one box of a page placed in it: labels in a column as wide as the widest,
-//! choices after their label and each other 10 pixels apart, wrapped where they would pass the
-//! box's width, the rest centred (or at 0 / the right edge by the piece's kind bits); then the
-//! whole centred across and down in the box (by an even number of pixels down in the title's
-//! box). Called by `install::place_pieces`.
+//! The pieces of one box of a page placed in it: labels in a column as wide as the widest, choices
+//! after their label and each other 10 pixels apart, wrapped where they would pass the box's width,
+//! the rest centred (or at 0 / the right edge by the piece's kind bits); then the whole centred
+//! across and down in the box (by an even number of pixels down in the title's box).
 
 use crate::errors::Refused;
 use crate::install::page_records::{BoxRecord, Piece as LaidPiece};

@@ -14,7 +14,7 @@ use crate::input::types::{DiEffectInfo, InputDevice};
 /// device record the effects are listed for.
 pub fn callback(guids: &InputGuids, info: &DiEffectInfo, record: &InputDevice) -> u32 {
     match effect_found(guids, info, record) {
-        Ok(eax) => eax,
+        Ok(go_on) => go_on,
         Err(e) => {
             crate::input::devices::refused_here("input::effect_found", e);
             0

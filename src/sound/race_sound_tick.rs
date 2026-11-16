@@ -3,9 +3,7 @@
 //!
 //! Less than 0x14 (unsigned) since `ClockTicks.sound_tick_last`: nothing. Else
 //! `ClockTicks.sound_tick_last` is set to the clock, `sound::race_turn_if` runs and
-//! `ClockTicks.sound_ticks` counts up. 28 callers, all in the race's frame (`drive::race_frame`,
-//! `race::draw_race_scene`, `race::show_frame`, `race::draw_view_scene`,
-//! `race::draw_view_overlays`).
+//! `ClockTicks.sound_ticks` counts up.
 
 use crate::errors::Refused;
 use crate::race::owner_frame::Frame;

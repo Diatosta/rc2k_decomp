@@ -1,5 +1,5 @@
 //! Enter on an item, by its kind: 1 a link (`install::item_link`), 4 an edit begun
-//! (`install::start_edit`), 6 an action (`install::item_action`). Called by `install::page_key`.
+//! (`install::start_edit`), 6 an action (`install::item_action`).
 
 use crate::errors::Refused;
 use crate::memory::list_handle::ListItem;

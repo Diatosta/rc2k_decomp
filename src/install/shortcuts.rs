@@ -1,4 +1,4 @@
-//! The standalone's Start menu items and the program's copy (platform code): shell shortcuts in
+//! The program's Start menu items and the program's copy (platform code): shell shortcuts in
 //! the user's Start menu Programs folder, group "Rally Championship": "Rally", "Uninstall Rally"
 //! (`rc2k.exe -u`; only that copy can remove the installation) and "View Readme"; the removal
 //! deletes the three and the group's folder. On Unix the items are desktop entries in

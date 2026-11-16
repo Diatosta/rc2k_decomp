@@ -323,30 +323,30 @@ impl InstallerPages {
     frame: PlainBytes::new(with_runs::<17>(&[(0, b"\xdf\x00\x00\x00*\x01\x00\x00\x94\x01\x00\x00!")])),
     fonts: [
         PlainDword::new(0x0),
-        PlainDword::new(PageLink::of_font(fonts::MEASURE_23).raw()), // IDA 0x51E624
-        PlainDword::new(PageLink::of_font(fonts::MEASURE).raw()), // IDA 0x51E824
-        PlainDword::new(PageLink::of_font(fonts::MEASURE).raw()), // IDA 0x51E824
-        PlainDword::new(PageLink::of_font(FontId::numbered(53)).raw()), // IDA 0x51EA44
-        PlainDword::new(PageLink::of_font(FontId::numbered(54)).raw()), // IDA 0x51EA64
-        PlainDword::new(PageLink::of_font(FontId::numbered(52)).raw()), // IDA 0x51EA24
-        PlainDword::new(PageLink::of_font(FontId::numbered(50)).raw()), // IDA 0x51E9E4
-        PlainDword::new(PageLink::of_font(fonts::ITEM_GREY).raw()), // IDA 0x51EA04
-        PlainDword::new(PageLink::of_font(FontId::numbered(49)).raw()), // IDA 0x51E9C4
-        PlainDword::new(PageLink::of_font(fonts::ARCADE_BUTTON_PULSE).raw()), // IDA 0x51E864
-        PlainDword::new(PageLink::of_font(fonts::STAGE_ITEM_B).raw()), // IDA 0x51E884
-        PlainDword::new(PageLink::of_font(fonts::CAPTION_B).raw()), // IDA 0x51E844
-        PlainDword::new(PageLink::of_font(fonts::VALUES).raw()), // IDA 0x51E6C4
-        PlainDword::new(PageLink::of_font(fonts::LABELS).raw()), // IDA 0x51E6E4
-        PlainDword::new(PageLink::of_font(fonts::HEADING_23).raw()), // IDA 0x51E6A4
-        PlainDword::new(PageLink::of_font(fonts::LIST).raw()), // IDA 0x51E8C4
-        PlainDword::new(PageLink::of_font(fonts::ITEM_PLAIN).raw()), // IDA 0x51E8E4
-        PlainDword::new(PageLink::of_font(fonts::TITLE).raw()), // IDA 0x51E8A4
-        PlainDword::new(PageLink::of_font(fonts::LIST).raw()), // IDA 0x51E8C4
-        PlainDword::new(PageLink::of_font(fonts::ITEM_PLAIN).raw()), // IDA 0x51E8E4
-        PlainDword::new(PageLink::of_font(fonts::TITLE).raw()), // IDA 0x51E8A4
-        PlainDword::new(PageLink::of_font(fonts::ARCADE_BUTTON).raw()), // IDA 0x51E984
-        PlainDword::new(PageLink::of_font(fonts::STAGE_TITLE).raw()), // IDA 0x51E9A4
-        PlainDword::new(PageLink::of_font(fonts::CAPTION_A).raw()), // IDA 0x51E964
+        PlainDword::new(PageLink::of_font(fonts::MEASURE_23).raw()),
+        PlainDword::new(PageLink::of_font(fonts::MEASURE).raw()),
+        PlainDword::new(PageLink::of_font(fonts::MEASURE).raw()),
+        PlainDword::new(PageLink::of_font(FontId::numbered(53)).raw()),
+        PlainDword::new(PageLink::of_font(FontId::numbered(54)).raw()),
+        PlainDword::new(PageLink::of_font(FontId::numbered(52)).raw()),
+        PlainDword::new(PageLink::of_font(FontId::numbered(50)).raw()),
+        PlainDword::new(PageLink::of_font(fonts::ITEM_GREY).raw()),
+        PlainDword::new(PageLink::of_font(FontId::numbered(49)).raw()),
+        PlainDword::new(PageLink::of_font(fonts::ARCADE_BUTTON_PULSE).raw()),
+        PlainDword::new(PageLink::of_font(fonts::STAGE_ITEM_B).raw()),
+        PlainDword::new(PageLink::of_font(fonts::CAPTION_B).raw()),
+        PlainDword::new(PageLink::of_font(fonts::VALUES).raw()),
+        PlainDword::new(PageLink::of_font(fonts::LABELS).raw()),
+        PlainDword::new(PageLink::of_font(fonts::HEADING_23).raw()),
+        PlainDword::new(PageLink::of_font(fonts::LIST).raw()),
+        PlainDword::new(PageLink::of_font(fonts::ITEM_PLAIN).raw()),
+        PlainDword::new(PageLink::of_font(fonts::TITLE).raw()),
+        PlainDword::new(PageLink::of_font(fonts::LIST).raw()),
+        PlainDword::new(PageLink::of_font(fonts::ITEM_PLAIN).raw()),
+        PlainDword::new(PageLink::of_font(fonts::TITLE).raw()),
+        PlainDword::new(PageLink::of_font(fonts::ARCADE_BUTTON).raw()),
+        PlainDword::new(PageLink::of_font(fonts::STAGE_TITLE).raw()),
+        PlainDword::new(PageLink::of_font(fonts::CAPTION_A).raw()),
     ],
     kind_fonts: PlainBytes::new(with_runs::<108>(&[(0, b"\x12\x00\t\x0c\x00\x02\x00\x1e\x17\x00\x08\x0b\x01\x02\x00\x1e\n\x00\x07\x10\x02\x02\x00\x1e"), (32, b"\x12\x00\t\x0c\x00\x02\x00\x1e"), (64, b"\x0c\x00\t\x12\x00\x02\x00\x1e\x15\x00\x15\x15\x00\x03\x00,\x0c\x00\x0c\x0c\x00\x02\x00\x1e\x12\x00\x12\x12\x00\x02\x00\x1e\x18\x00\x18\x18\x00\x02\x00\x1e\t")])),
             language_menu: ListData10::new(ListHeader::new(0x00, 0x0A, 0x009B, 0x0, 0x0, 0x0, 0x0, 0x0), [

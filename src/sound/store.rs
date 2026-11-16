@@ -450,9 +450,6 @@ pub(crate) const fn initial_object(sound_offset: u32) -> SoundObject {
 /// The race sounds' objects and the cars they follow.
 #[derive(rc2k_derive::Cells)]
 pub struct RaceSounds {
-    /// The 1999 addresses of the eight objects; nothing reads them, the objects are reached by
-    /// number (`objects`).
-    pub table: [PlainDword; 8],
     /// The eight objects (`RaceSounds.objects[0].sound_offset` ..).
     pub objects: [SoundObject; 8],
     /// The object numbers of the first and second player's cars.
@@ -491,16 +488,6 @@ impl SoundShared {
 impl RaceSounds {
     pub const fn new() -> Self {
         RaceSounds {
-            table: [
-                PlainDword::new(0x512A30),
-                PlainDword::new(0x512ED8),
-                PlainDword::new(0x513380),
-                PlainDword::new(0x513828),
-                PlainDword::new(0x513CD0),
-                PlainDword::new(0x514178),
-                PlainDword::new(0x514620),
-                PlainDword::new(0x514AC8),
-            ],
             objects: [
                 initial_object(0),
                 initial_object(1),

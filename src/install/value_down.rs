@@ -1,5 +1,4 @@
-//! An item of a value (kind 3) lowered by the key's repeats, not below its least (signed
-//! compare). Called by `install::key_left`.
+//! An item of a value (kind 3) lowered by the key's repeats, not below its least (signed compare).
 
 use crate::memory::list_handle::ListItem;
 

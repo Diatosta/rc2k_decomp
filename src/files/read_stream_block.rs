@@ -1,8 +1,7 @@
 //! Reads a number of bytes from a buffered stream.
 //!
-//! Gives how many were read. One `read_stream_byte` per byte. The end of the file stops it
-//! without the failure flag: the caller has to look at the count. Used by the picture readers
-//! (0x80 bytes of header).
+//! Gives how many were read. One `read_stream_byte` per byte. The end of the file stops it without
+//! the failure flag: the caller has to look at the count.
 
 use crate::errors::BadInput;
 use crate::files::stream::Stream;

@@ -3,8 +3,7 @@
 //! Marks the settings applied as 2, stops the music, sends the race's sound mode
 //! (`AudioShared.race_sound_mode`), loads the race sounds (`sound::load_race_sounds`), waits for
 //! the commands (`sound::wait_for_commands`) and lets sounds play (`sound::let_sounds_play`). The
-//! menus' counterpart is `sound::apply_settings`. Nine callers (the events' starters, before a
-//! stage is loaded).
+//! menus' counterpart is `sound::apply_settings`.
 
 use crate::owners::Owners;
 use crate::sound::apply_settings::run_step;

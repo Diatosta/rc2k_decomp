@@ -3,9 +3,8 @@
 //!
 //! Takes the car's sound object and the request. Nothing for a computer's car (negative
 //! `sound_offset`). The car's timed slots are played at the car's place (the fourth only when
-//! `view_flag` is 0), then `slot_b` at `place_b`. One caller, `sound::car_sounds`. Refuses (before
-//! anything) a null object; what the slots refuse puts back what was written (sounds already sent
-//! stay sent).
+//! `view_flag` is 0), then `slot_b` at `place_b`. Refuses (before anything) a null object; what the
+//! slots refuse puts back what was written (sounds already sent stay sent).
 
 use crate::errors::Refused;
 use crate::sound::sets_store::SoundRequest;

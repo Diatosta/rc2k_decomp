@@ -1,12 +1,7 @@
-//! `memory::free_list` (0x4028F5): gives back every block of a list.
-//!
-//! Takes: the list (`MemoryList`), or 0
-//! Nothing happens without a list. The bytes held now are counted down by the list's total
-//! (also when it has no block). Then, if it has one: the list is emptied (head, total, and
-//! through `memory::rewind_list` the cursor and what remains, all 0) and each block is given back
-//! with `VirtualFree`, or, with the setting `altmemenable`, to the game's own heap
-//! (0x402A92). No block is put on a list any more: a list holding one is refused.
-//! 38 callers.
+//! Gives back every block of a list (a `MemoryList`). The bytes held now are counted down by
+//! the list's total and the list is emptied (head, total, and through `memory::rewind_list` the
+//! cursor and what remains, all 0). No block is put on a list any more: a list holding one is
+//! refused.
 
 use crate::errors::BadInput;
 use crate::memory::{HeldList, with_figures};

@@ -49,13 +49,15 @@ pub fn input_thread(
     system: &System,
     race: &crate::race::owner::Race,
 ) -> Result<(), Refused> {
-    use crate::threading::set_priority::set_priority;
-    let flag = &crate::threading::thread_slot::slot_ref(crate::threading::thread_slot::INPUT)?.flag;
+    use crate::platform::sync::set_priority;
+    use std::sync::atomic::Ordering;
+    let running = &crate::threading::thread_slot::SlotThread::Input
+        .slot()
+        .running;
     'work: {
-        if flag.get() == 1 {
+        if running.swap(true, Ordering::SeqCst) {
             break 'work;
         }
-        flag.set(1);
         log(START_TEXT);
         // DirectInput made (in Rust, on SDL's joysticks); the keyboard and the mouse are
         // SDL's events: nothing to make for them.
@@ -109,6 +111,6 @@ pub fn input_thread(
     }
     log(QUIT_TEXT);
     set_priority(0);
-    flag.set(0);
+    running.store(false, Ordering::SeqCst);
     Ok(())
 }

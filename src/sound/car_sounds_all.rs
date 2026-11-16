@@ -8,9 +8,9 @@
 //! their numbers (-1 for none). When the nearest is last turn's second (`RaceSounds.next`) or the
 //! next last turn's nearest (`RaceSounds.nearest`), the two swap, so that each keeps its voice;
 //! they are kept in the two dwords and each gets `sound::car_sounds` with its `sound_offset` set to
-//! -2 (the nearest) or -1 for the call and put back after. One caller, `sound::race_turn`. Refuses
-//! (before anything) a count over 8 and a null object; what the callees refuse puts back what was
-//! written (sounds already sent stay sent).
+//! -2 (the nearest) or -1 for the call and put back after. Refuses (before anything) a count over 8
+//! and a null object; what the callees refuse puts back what was written (sounds already sent stay
+//! sent).
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87_float::{ld, stf};

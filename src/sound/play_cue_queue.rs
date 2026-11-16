@@ -6,9 +6,9 @@
 //! past the cue's sounds the cue is dropped (`sound::drop_cue`, place 0) and the next begun at 0,
 //! or with none left the place is -1. Else its sound: due again after `sound::sample_duration` (the
 //! sample's own rate) + 25 ms (sounds 0x13F and 0x140: 0x1000000 later, so never), and
-//! `sound::play_sound` with the cue's volume, the sample's own rate and no place. Two callers,
-//! `sound::play_cue_queues`. Refuses a null object, a queue of more than 16 or a cue of more than
-//! six sounds (before anything), and the duration's refusals (what was written put back).
+//! `sound::play_sound` with the cue's volume, the sample's own rate and no place. Refuses a null
+//! object, a queue of more than 16 or a cue of more than six sounds (before anything), and the
+//! duration's refusals (what was written put back).
 
 use crate::errors::Refused;
 use crate::sound::sample_duration::sample_duration;

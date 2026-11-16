@@ -1,4 +1,4 @@
-//! A stand-in for DirectSound for the standalone program, on one SDL3 audio stream.
+//! A stand-in for DirectSound, on one SDL3 audio stream.
 //!
 //! The audio code calls DirectSound's methods as the functions here, on objects held as ids: a
 //! device, its buffers (the primary one and the secondary ones, with duplicates sharing their
@@ -710,7 +710,7 @@ pub(crate) fn mixed_frames(frames: usize) -> Vec<i16> {
 
 static OPENED: Mutex<bool> = Mutex::new(false);
 
-/// `DirectSoundCreate` for the standalone: the device, SDL's audio opened the first time.
+/// The sound device made: the device, SDL's audio opened the first time.
 /// Fails (as `DirectSoundCreate` can, with `DSERR_NODRIVER`) when SDL cannot.
 pub fn create_device(window_focused: &'static crate::memory::session::Dword) -> Result<u32, i32> {
     with(|s| s.window_focused = Some(window_focused));

@@ -104,15 +104,15 @@ pub struct Devices {
 
 const EFFECTS: usize = 6;
 
-/// The six effects of a record, in order: the change function (`input::effect_N_change`), the
-/// kind wanted (1 constant, 3 periodic, 4 condition) and the GUID wanted.
-const EFFECT_KINDS: [(u32, u32, EffectGuid); EFFECTS] = [
-    (0x409708, 4, EffectGuid::Spring),
-    (0x4097FA, 3, EffectGuid::Sine),
-    (0x409754, 3, EffectGuid::Sine),
-    (0x4097B4, 1, EffectGuid::ConstantForce),
-    (0x409871, 4, EffectGuid::Damper),
-    (0x4098BF, 1, EffectGuid::ConstantForce),
+/// The six effects of a record, in order: the kind wanted (1 constant, 3 periodic, 4 condition)
+/// and the GUID wanted.
+const EFFECT_KINDS: [(u32, EffectGuid); EFFECTS] = [
+    (4, EffectGuid::Spring),
+    (3, EffectGuid::Sine),
+    (3, EffectGuid::Sine),
+    (1, EffectGuid::ConstantForce),
+    (4, EffectGuid::Damper),
+    (1, EffectGuid::ConstantForce),
 ];
 
 /// A device record as the game starts it: the force feedback at 75 with the dead and end zones
@@ -122,9 +122,9 @@ const fn record(controller: u32) -> InputDevice {
     let mut effects = [const { ForceEffect::ZERO }; EFFECTS];
     let mut k = 0;
     while k < EFFECTS {
-        let (change, kind, wanted) = EFFECT_KINDS[k];
+        let (kind, wanted) = EFFECT_KINDS[k];
         effects[k] = ForceEffect {
-            change: Dword::new(change),
+            change: Dword::new(k as u32),
             kind: Dword::new(kind),
             wanted: Dword::new(wanted.handle()),
             ..ForceEffect::ZERO
@@ -268,9 +268,6 @@ pub fn device_of(devices: &Devices, handle: u32) -> Option<&InputDevice> {
 pub struct Keyboard {
     /// 1 = the key comes from the caller.
     pub yes_no_key_given: PlainDword,
-    /// The built-in layout's five pointers (nothing reads them: `input::layouts`
-    /// copies the tables below).
-    pub _built_in_layout: [PlainDword; 5],
     /// One bit per key; the keys set type nothing.
     pub silent_keys: [PlainDword; 4],
     /// The dead keys' list {dead key, base, plain result, shifted result}.
@@ -291,13 +288,6 @@ impl Keyboard {
         use crate::memory::cells::ZeroCells;
         use crate::memory::session::{PlainBytes, PlainDword, with_runs};
         Self {
-_built_in_layout: {
-let mut v: [PlainDword; 5] = ZeroCells::ZERO;
-v[1] = PlainDword::new(0x4F806C); // a game address nothing reads
-v[2] = PlainDword::new(0x4F80EC); // a game address nothing reads
-v[4] = PlainDword::new(0x4F816C); // a game address nothing reads
-v
-},
 silent_keys: {
 let mut v: [PlainDword; 4] = ZeroCells::ZERO;
 v[0] = PlainDword::new(0x20000000);

@@ -4,7 +4,7 @@
 //! `sound::hold_sounds_back` sets it, `sound::let_sounds_play` clears it). Unless the sound mode in
 //! use (`AudioShared.sound_mode`) has bit 0x100000 (the 3D modes), the command carries no place
 //! (the three place words are 0xFF800000) and the caller's first place value is the pan; in the 3D
-//! modes the three place values are the sound's place and the pan is 0. 14 callers.
+//! modes the three place values are the sound's place and the pan is 0.
 
 use crate::audio::owner::Audio;
 use crate::sound::queue::send_command_in;

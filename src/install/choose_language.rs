@@ -1,8 +1,7 @@
-//! Makes one of the languages of `lang.cfg` (number from 1) the language of the paths: the
-//! second of the language's two NUL-ended texts (`name:directory`) is what `%` stands for in a
-//! path. Nothing if the number is above the language count. Called by `install::read_languages`,
-//! `install::install_from_command`, `install::language_page`. Refuses number 0 and a slot whose
-//! two texts do not end inside it.
+//! Makes one of the languages of `lang.cfg` (number from 1) the language of the paths: the second
+//! of the language's two NUL-ended texts (`name:directory`) is what `%` stands for in a path.
+//! Nothing if the number is above the language count. Refuses number 0 and a slot whose two texts
+//! do not end inside it.
 
 use crate::errors::BadInput;
 use crate::memory::place::BytePlace;

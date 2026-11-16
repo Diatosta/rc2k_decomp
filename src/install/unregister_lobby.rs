@@ -1,4 +1,4 @@
-//! The game's DirectPlay lobby key removed. Called by `install::uninstall`.
+//! The game's DirectPlay lobby key removed.
 
 use crate::install::read_registry::Registry;
 

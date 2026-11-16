@@ -1,6 +1,6 @@
 //! The installation record `var\ral.zog` written: a header, `cdrom=<folder installed from>`,
-//! `language=<...>` only if the locale directory is set, and `installation=<media mode>`, each
-//! line ended CR LF. `install::read_record` reads it back. Called by `install::install_files`.
+//! `language=<...>` only if the locale directory is set, and `installation=<media mode>`, each line
+//! ended CR LF. `install::read_record` reads it back.
 
 use crate::errors::Refused;
 use crate::install::installer::media_mode;

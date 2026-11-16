@@ -1,7 +1,7 @@
-//! Each of a page's pieces drawn at its place: a plain text piece as its string in the font of
-//! its marks; else by the item's kind: an edit its text (with the caret after it while it is
-//! edited), a text its string and the item's appended text, an action its drawing action.
-//! Refused: no pieces. Called by `install::run_page` (the surface locked).
+//! Each of a page's pieces drawn at its place: a plain text piece as its string in the font of its
+//! marks; else by the item's kind: an edit its text (with the caret after it while it is edited), a
+//! text its string and the item's appended text, an action its drawing action. Refused: no pieces.
+//! The caller has locked the surface.
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::{

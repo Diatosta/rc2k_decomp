@@ -1,17 +1,9 @@
-//! The program: the game's start-up as the list of calls it is, in Rust, without RAL.EXE.
-//!
-//! What happens (`run`):
-//! 1. Every variable and constant of the game's is a Rust static (the owners' fields); the
-//!    game's own pointers in its data are handles or the 1999 addresses kept as names.
-//! 2. No code of RAL.EXE runs. Every call the game's data makes by address (menus, draw lists,
-//!    frames, thread routines) and every one Rust still makes goes to its Rust version
-//!    (`menu::table_calls`, `crate::routes`); an address with none ends the program, "not ported".
-//! 3. `on_exception` only reports the fault, with the place and the stack's return
-//!    addresses, and ends the program.
+//! The program: the game's start-up as the list of calls it is (`run`, `start`), its ways out
+//! (`finish`, `leave_on_close`) and the report of a fault, with the place and the stack's return
+//! addresses.
 //!
 //! A refusal (`BadInput`) ends the program with its reason; a fatal error is reported by
-//! `fatal::report` and ends it. Stand-ins, each to be replaced by a piece of the platform: see
-//! `stand_in`.
+//! `fatal::report` and ends it. What the window would tell the main loop is set by `stand_in`.
 
 use crate::d3d::owner::D3d;
 use crate::errors::Refused;
@@ -22,7 +14,6 @@ use crate::menu::owner::Menus;
 use crate::owners::Owners;
 use crate::system::owner::System;
 use crate::threading::thread_slot::SlotOwners;
-use rc2k_core::fatal::Context;
 use std::path::Path;
 use std::sync::atomic::Ordering;
 
@@ -373,8 +364,8 @@ fn rust(name: &str) {
 
 /// A refusal in `start`: a refused input ends the program, a fatal error is
 /// raised.
-fn refused(name: &str, e: Refused, r: &Context) {
-    crate::fatal::raise::refused_in(name, e, r);
+fn refused(name: &str, e: Refused) {
+    crate::fatal::raise::refused(name, e);
 }
 
 fn stand_in(what: &str, variable: &crate::memory::session::Dword, value: u32) {
@@ -388,23 +379,22 @@ fn stand_in(what: &str, variable: &crate::memory::session::Dword, value: u32) {
 /// Once, on the main thread: the start-up functions it calls write the game's state before
 /// any thread of the game's runs.
 fn start(o: Owners<'static>) {
-    let r = Context::default();
     // The fatal-error reporter finds the owners here from any thread.
     crate::threading::thread_slot::publish(SlotOwners::of(o));
     crate::platform::direct3d::set_handles(o.gfx);
     set_up_fixed_objects(o.gfx, o.menus);
     seed_clock_and_random(o.system, &o.race.shared.random);
     check_machine(o.system);
-    read_settings_and_start_log(o, &r);
+    read_settings_and_start_log(o);
     make_save_folders();
-    read_command_line_and_install_state(o, &r);
-    load_language_and_game_data(o, &r);
-    probe_display(o.gfx, &o.gfx.d3d, o.system, &r);
-    start_workers(o, &r);
-    choose_screen_modes(o.gfx, &o.gfx.d3d, o.system, &r);
+    read_command_line_and_install_state(o);
+    load_language_and_game_data(o);
+    probe_display(o.gfx, &o.gfx.d3d, o.system);
+    start_workers(o);
+    choose_screen_modes(o.gfx, &o.gfx.d3d, o.system);
     stand_in_window_state(o.system);
-    run_main_loop(o, &r);
-    shut_down(o, &r);
+    run_main_loop(o);
+    shut_down(o);
 }
 
 /// The objects that point at each other: the players' records, font 56's palette (its place in
@@ -435,7 +425,6 @@ fn seed_clock_and_random(system: &'static System, random: &crate::math::next_ran
 
 /// The processor's test and the system's version.
 fn check_machine(system: &'static System) {
-    // `system::set_exception_filter` sets nothing in the standalone.
     rust("system::test_processor");
     crate::system::test_processor::test_processor(&crate::system::test_processor::Real, system);
     rust("system::read_windows_version");
@@ -443,14 +432,14 @@ fn check_machine(system: &'static System) {
 }
 
 /// `var\ral.cfg`'s settings, the feature switches and the game's log.
-fn read_settings_and_start_log(o: Owners<'static>, r: &Context) {
+fn read_settings_and_start_log(o: Owners<'static>) {
     rust("settings::read_settings");
     if let Err(why) = crate::settings::read_settings::read_settings(o) {
         finish(&format!("settings::read_settings refused: {}", why.0), 1);
     }
     rust("logfile::start_log");
     if let Err(why) = crate::logfile::start_log::start_log(o.system) {
-        refused("logfile::start_log", why.into(), r);
+        refused("logfile::start_log", why.into());
     }
 }
 
@@ -483,7 +472,7 @@ fn make_save_folders() {
 
 /// The FPU check, the command line and what the installation left: the disc check, the
 /// start check, the languages and the install record.
-fn read_command_line_and_install_state(o: Owners<'static>, r: &Context) {
+fn read_command_line_and_install_state(o: Owners<'static>) {
     let system = o.system;
     // `system::test_processor` (called above) has set it from `cpuid`.
     if system.session.host.has_fpu.get() != 1 {
@@ -491,7 +480,7 @@ fn read_command_line_and_install_state(o: Owners<'static>, r: &Context) {
     }
     rust("system::read_command_line");
     if let Err(why) = crate::system::read_command_line::read_own_command_line(o) {
-        refused("system::read_command_line", why.into(), r);
+        refused("system::read_command_line", why.into());
     }
     let mut outside = Outside {
         install: o.install,
@@ -499,7 +488,7 @@ fn read_command_line_and_install_state(o: Owners<'static>, r: &Context) {
     };
     rust("install::check_clio_disc");
     if let Err(e) = crate::install::check_clio_disc::check_clio_disc(o.install, &mut outside) {
-        refused("install::check_clio_disc", e, r);
+        refused("install::check_clio_disc", e);
     }
     rust("install::check_at_start");
     let no_audio = &o.audio.state.no_audio;
@@ -510,7 +499,7 @@ fn read_command_line_and_install_state(o: Owners<'static>, r: &Context) {
         &mut outside,
         no_audio,
     ) {
-        refused("install::check_at_start", e, r);
+        refused("install::check_at_start", e);
     }
     rust("install::read_languages");
     if let Err(e) = crate::install::read_languages::load_languages(
@@ -520,48 +509,46 @@ fn read_command_line_and_install_state(o: Owners<'static>, r: &Context) {
     )
     .map_err(Refused::from)
     {
-        refused("install::read_languages", e, r);
+        refused("install::read_languages", e);
     }
     rust("install::read_record");
     if let Err(e) =
         crate::install::read_record::load_record(o.system, &o.install.texts.record_path.text())
             .map_err(Refused::from)
     {
-        refused("install::read_record", e, r);
+        refused("install::read_record", e);
     }
 }
 
 /// The language's texts (`strings::load_language`) and the game's data files.
-fn load_language_and_game_data(o: Owners<'static>, r: &Context) {
+fn load_language_and_game_data(o: Owners<'static>) {
     rust("strings::load_language");
     let compile = &mut || crate::strings::compile_lexicon::compile_lexicon(o.strings, o.system);
     if let Err(e) = crate::strings::load_language::load_language(o, compile) {
-        refused("strings::load_language", e, r);
+        refused("strings::load_language", e);
     }
     rust("system::load_game_data");
     if let Err(e) = crate::system::load_game_data::load_in_game(o) {
-        refused("system::load_game_data", e, r);
+        refused("system::load_game_data", e);
     }
 }
 
 /// The 3D cards and the display modes the screen can take. `system::open_window` and
 /// `gfx::probe_exclusive_mode` are SDL's (`SDL_DOES`).
-fn probe_display(gfx: &'static Gfx, d3d: &'static D3d, system: &'static System, r: &Context) {
+fn probe_display(gfx: &'static Gfx, d3d: &'static D3d, system: &'static System) {
     rust("gfx::list_primary_modes");
     if let Err(e) = crate::gfx::list_primary_modes::list_primary_modes(&gfx.display, system, d3d) {
-        refused("gfx::list_primary_modes", e, r);
+        refused("gfx::list_primary_modes", e);
     }
 }
 
 /// The network's set-up, the game's threads and the audio thread's commands.
-fn start_workers(o: Owners<'static>, r: &Context) {
+fn start_workers(o: Owners<'static>) {
     rust("net::set_up");
-    if let Err(e) = crate::net::set_up::set_up(o.net, o.strings) {
-        refused("net::set_up", e, r);
-    }
-    rust("threading::start_threads");
-    if let Err(e) = crate::threading::start_threads::start_threads_in_game(SlotOwners::of(o)) {
-        refused("threading::start_threads", e, r);
+    crate::net::set_up::set_up(o.net, o.strings);
+    rust("threading::start_workers");
+    if let Err(e) = crate::threading::thread_slot::start_workers(SlotOwners::of(o)) {
+        refused("threading::start_workers", e.into());
     }
     rust("sound::wait_for_commands");
     crate::sound::wait_for_commands::wait_in_game(o);
@@ -571,18 +558,18 @@ fn start_workers(o: Owners<'static>, r: &Context) {
 
 /// The screen modes, the picture buffer and the pixel converters. `sound::open_cd_audio` is not
 /// called: there is no CD audio here.
-fn choose_screen_modes(gfx: &'static Gfx, d3d: &'static D3d, system: &'static System, r: &Context) {
+fn choose_screen_modes(gfx: &'static Gfx, d3d: &'static D3d, system: &'static System) {
     rust("gfx::choose_screen_modes");
     if let Err(e) = crate::platform::choose_screen_modes(gfx, d3d, system) {
-        refused("gfx::choose_screen_modes", e.into(), r);
+        refused("gfx::choose_screen_modes", e.into());
     }
     rust("gfx::allocate_picture_buffer");
     if let Err(e) = crate::gfx::allocate_picture_buffer::allocate_picture_buffer(gfx) {
-        refused("gfx::allocate_picture_buffer", e, r);
+        refused("gfx::allocate_picture_buffer", e);
     }
     rust("gfx::set_component_format");
     if let Err(e) = crate::gfx::set_component_format::set_component_format(&gfx.pixel.formats) {
-        refused("gfx::set_component_format", e, r);
+        refused("gfx::set_component_format", e);
     }
     rust("gfx::fill_thirds_table");
     crate::gfx::fill_thirds_table::fill_thirds_table(gfx);
@@ -601,22 +588,22 @@ fn stand_in_window_state(system: &'static System) {
     stand_in("the key thread runs", &system.session.key_clock.ticks, 1);
 }
 
-fn run_main_loop(o: Owners<'static>, r: &Context) {
+fn run_main_loop(o: Owners<'static>) {
     rust("system::main_loop");
     if let Err(e) = crate::system::main_loop::main_loop_in_game(o) {
-        refused("system::main_loop", e, r);
+        refused("system::main_loop", e);
     }
 }
 
 /// What follows the main loop: the network, the picture buffer, the priority class, the installer's
 /// after-exit script, the error mode and the fatal report. `gfx::release_screens`,
 /// `sound::close_cd_audio` and `system::drain_messages` are SDL's (`SDL_DOES`).
-fn shut_down(o: Owners<'static>, r: &Context) {
+fn shut_down(o: Owners<'static>) {
     rust("net::shut_down");
     if let Err(e) =
         crate::net::shut_down::shut_down(o, &crate::race::viewer_screen_store::NET_TEXTS)
     {
-        refused("net::shut_down", e, r);
+        refused("net::shut_down", e);
     }
     rust("gfx::free_picture_buffer");
     if let Err(why) = crate::gfx::free_picture_buffer::free_picture_buffer(o.gfx) {
@@ -624,7 +611,7 @@ fn shut_down(o: Owners<'static>, r: &Context) {
     }
     rust("install::run_after_exit");
     if let Err(e) = crate::install::run_after_exit::run_after_exit(o.install, o.system) {
-        refused("install::run_after_exit", e, r);
+        refused("install::run_after_exit", e);
     }
     rust("fatal::show_report_at_exit");
     crate::fatal::show_report_at_exit::show_report_at_exit();
@@ -643,8 +630,7 @@ pub fn run(log_file: &Path, frames: u32) -> ! {
     let bundle_folder = crate::platform::os::enter_bundle_folder();
     // Absolute: the installer changes the current folder (`install::make_folders`).
     let log_file = &std::path::absolute(log_file).unwrap_or_else(|_| log_file.to_path_buf());
-    let _ = std::fs::File::create(log_file);
-    let _ = LOG_PATH.set(log_file.to_path_buf());
+    crate::logfile::program_log::start(log_file);
     crate::gfx::draw2d::enable_from_environment();
     #[cfg(target_os = "macos")]
     match bundle_folder {

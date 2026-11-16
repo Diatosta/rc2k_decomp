@@ -5,9 +5,9 @@
 //!
 //! Takes the car's sound object and the request. Nothing in state 3. The request's place is the
 //! car's place less its motion; the first two slots are played (`sound::play_timed_slot`); then the
-//! request's pitch factor is multiplied by `gear_pitch` for the gear slot and put back after. One
-//! caller, `sound::car_sounds`. Refuses (before anything) a null object; what the slots refuse puts
-//! back what was written (sounds already sent stay sent).
+//! request's pitch factor is multiplied by `gear_pitch` for the gear slot and put back after.
+//! Refuses (before anything) a null object; what the slots refuse puts back what was written
+//! (sounds already sent stay sent).
 
 use crate::errors::Refused;
 use crate::sound::sets_store::SoundRequest;

@@ -6,8 +6,6 @@
 //! - 4 n: read a name and add the folder tree;
 //! - 8 n: if the media mode is below n, skip to the matching 9 (they nest);
 //! - 9, 6: nothing; any other byte (0): the end. An unbalanced stack is fatal error 0x80AF3011.
-//!
-//! Called by `install::install_files`, `uninstall`, `install_clio`.
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::{fatal, media_mode, rb, wb};

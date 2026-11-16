@@ -1,9 +1,8 @@
 //! Begins the game's log anew. Nothing if the log is off. Else `var\logfile.txt` is deleted and
-//! the head is written: "Log started" with `logfile::date_text`, the version, a second text if
-//! there is one (`SECOND_TEXT`), then what `start` has found out by then: the processor
-//! (`cpu=`, `fpu=`, `mmx=`, `amdk3d=`, `katmai=`), the keyboard type (`machinetype=`),
-//! the Windows version (`platform=`), the memory and the free space of the current drive in Kb
-//! (`FREE_SPACE_KB`).
+//! the head is written: "Log started" with `logfile::date_text`, the version, then what `start`
+//! has found out by then: the processor (`cpu=`, `fpu=`, `mmx=`, `amdk3d=`, `katmai=`), the
+//! keyboard type (`machinetype=`), the system's version (`platform=`), the memory and the free
+//! space of the current drive in Kb.
 
 use crate::errors::BadInput;
 use crate::logfile::date_text::write_date_text;
@@ -15,11 +14,6 @@ use crate::system::owner::System;
 
 /// The version's text.
 pub const VERSION: &[u8] = b"$VER: Rally 5.30 (4.8.2000)\0";
-/// `StartTexts.second_text`: a second text, logged when not empty (it is empty).
-pub const SECOND_TEXT: &[u8] = b"\0";
-/// What the log's head says of the current drive. Nothing reads it.
-pub static FREE_SPACE_KB: crate::memory::session::GameThread<crate::memory::session::PlainDword> =
-    crate::memory::session::GameThread::new(crate::memory::session::PlainDword::new(0));
 
 /// The free space of the current drive in Kb, or 0xFFFFFFFF if it cannot be asked or is 2^42
 /// bytes or more.
@@ -69,14 +63,10 @@ pub fn start_log(system: &System) -> Result<(), BadInput> {
     ]);
     // The date in the numbers' scratch buffer (the log's lock is not held: no thread logs yet).
     let date = write_date_text(system, &system.work().numbers)?;
-    // `Buffer`, written and read here only: a local.
     let memory = crate::platform::os::memory();
-    let free = free_space_kb();
-    FREE_SPACE_KB.get().set(free);
     let m = Machine {
         date,
-        version: VERSION[..VERSION.len() - 1].to_vec(), // Rust's own text
-        second: (SECOND_TEXT[0] != 0).then(|| SECOND_TEXT[..SECOND_TEXT.len() - 1].to_vec()),
+        version: VERSION[..VERSION.len() - 1].to_vec(),
         cpu_family: system.machine().cpu_family.get() as i32,
         cpu_flags: system.machine().cpu_signature.get(),
         // Twelve characters; the end follows the field (read on to the record's end).
@@ -92,10 +82,10 @@ pub fn start_log(system: &System) -> Result<(), BadInput> {
             system.machine().version[2].get() as i32,
             (system.machine().version[3].get() & 0xFFFF) as i32,
         ],
-        // The Windows version record's text, inside the record.
+        // The version record's text, inside the record.
         platform_text: crate::files::cstring_in(&le_bytes(&machine.version[5..]))?,
         memory,
-        free_kb: free,
+        free_kb: free_space_kb(),
     };
     for (message, newline) in head(&m) {
         match message {

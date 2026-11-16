@@ -1,6 +1,4 @@
 //! `sound::race_turn_if`: `sound::race_turn` while the race's sounds are on.
-//!
-//! One caller, `sound::race_sound_tick`.
 
 use crate::errors::Refused;
 

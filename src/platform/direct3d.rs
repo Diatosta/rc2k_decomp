@@ -1,4 +1,4 @@
-//! The 3D layer the game's 3D code stands on, for the standalone program: textures of our own, the
+//! The 3D layer the game's 3D code stands on: textures of our own, the
 //! scene's beginning and end, the depth buffer's clearing. As in `platform/mod.rs`, each function takes
 //! the place of a piece of the game's 3D layer, keeps what that piece leaves for the game's own
 //! code, and does the rest itself.

@@ -1,7 +1,6 @@
-//! The main page's items marked by the installation's state: not this version, the update item
-//! is unusable; no installation, the item after it; registration not offered, its item hidden;
-//! with the update script's title word the update item is usable and the others hidden. Called by
-//! `install::run_page`.
+//! The main page's items marked by the installation's state: not this version, the update item is
+//! unusable; no installation, the item after it; registration not offered, its item hidden; with
+//! the update script's title word the update item is usable and the others hidden.
 
 use crate::memory::list_handle::ListMenu;
 use rc2k_core::install::pages;

@@ -10,7 +10,6 @@
 
 use crate::errors::Refused;
 use crate::memory::session::Dword;
-use rc2k_core::fatal::Context;
 
 // ---- game data ----
 
@@ -185,25 +184,16 @@ pub const fn fatal(code: u32) -> crate::errors::FatalError {
     crate::errors::FatalError { code, message: "" }
 }
 
-// ---- DirectPlay's callbacks (`stdcall`, their arguments on the stack) ----
+// ---- the session layer's callbacks ----
 
-/// Runs a callback where DirectPlay calls it: a refused
-/// input ends the program with its reason (there is no game code to run in its place), a
-/// fatal error is raised.
-pub fn callback_entry(name: &str, ral: u32, rust: impl FnOnce() -> Result<u32, Refused>) -> u32 {
+/// Runs a callback where the session layer calls it and gives its answer: a refused input
+/// ends the program with its reason, a fatal error is raised (and answers 0 if it comes back).
+pub fn callback_entry(name: &str, rust: impl FnOnce() -> Result<u32, Refused>) -> u32 {
     match rust() {
-        Ok(eax) => eax,
-        Err(Refused::BadInput(why)) => {
-            crate::standalone::finish(&format!("{name} ({ral:#x}) refused: {}", why.0), 1)
-        }
-        Err(Refused::Fatal(error)) => {
-            crate::logfile::program_log::log(&format!(
-                "{name}: raises fatal error {:#x} {:?}",
-                error.code, error.message
-            ));
-            let r = Context::default();
-            crate::fatal::raise::raise(error, &r);
-            r.eax
+        Ok(answer) => answer,
+        Err(e) => {
+            crate::fatal::raise::refused(name, e);
+            0
         }
     }
 }

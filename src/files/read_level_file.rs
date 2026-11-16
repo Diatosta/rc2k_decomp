@@ -1,5 +1,5 @@
-//! A file read as it is, or, when it is not there, its packed copy under `files\levels`. Refuses
-//! a path too short for the packed copy's prefix. Used by `race::load_level`.
+//! A file read as it is, or, when it is not there, its packed copy under `files\levels`. Refuses a
+//! path too short for the packed copy's prefix.
 
 use crate::errors::Refused;
 use crate::files::read_packed_file::{Outcome, read, read_packed_file};

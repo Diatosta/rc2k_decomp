@@ -1,8 +1,7 @@
 //! The installation written to the registry, under `HKEY_LOCAL_MACHINE\SOFTWARE\Magnetic
 //! Fields\RC99`: the value `status` (one byte, type binary) and, if the install source is not
-//! empty, `source` (type string). A failed create, or a failed set of either value, is fatal
-//! error 0x80108420, 0x80108421 or 0x80108425. Called by `install::install_files`, `uninstall`
-//! and `install::run_installer`; the registry calls go through `api`.
+//! empty, `source` (type string). A failed create, or a failed set of either value, is fatal error
+//! 0x80108420, 0x80108421 or 0x80108425. The registry calls go through `api`.
 
 use crate::errors::Refused;
 use crate::install::installer::fatal;

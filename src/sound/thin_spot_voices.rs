@@ -6,7 +6,6 @@
 //! and the next's (unsigned): a new nearest moves the old one to next and stays heard; a new next,
 //! and every other, is silenced. A nearest displaced stays heard (a slip kept as is). With a next
 //! found: `math::next_random` & 1 for the nearest's heard flag, the other bit for the next's.
-//! Twelve callers, `sound::thin_spot_voices_all`.
 
 /// The logic is `rc2k_core::sound::spot_voices::thin` and `thin_choose`. The voices of `sound`
 /// thinned.

@@ -1,6 +1,6 @@
 //! With state 0, the highlight moves on to the first edit item from it, which begins to be edited
-//! (`install::start_edit`); none before the list's end: the highlight back to 0. Any other
-//! state: nothing. Called by `install::folder_page`, `install::mark_page`.
+//! (`install::start_edit`); none before the list's end: the highlight back to 0. Any other state:
+//! nothing.
 
 use crate::memory::list_handle::ListMenu;
 

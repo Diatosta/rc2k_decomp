@@ -4,8 +4,8 @@
 //! Only while `RaceSounds.mark_car_voices` is 1: for each of the `RaceSounds.count` objects in use,
 //! `in_use` is set to 0; when its car's block has the voice field not 0, `in_use` is 1 and
 //! `sound_offset` 0, and unless the field is 1, `sound_offset` is !n (a negative number: a
-//! computer's car, by the callers' reading). One caller, `sound::race_turn`. Refuses (before
-//! writing) a count of 0 or over 8, and a null object or car.
+//! computer's car, by the callers' reading). Refuses (before writing) a count of 0 or over 8, and a
+//! null object or car.
 
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;

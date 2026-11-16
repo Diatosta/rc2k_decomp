@@ -1,5 +1,5 @@
 //! The game's own software mixer: the playing channels mixed into a work buffer of left and right
-//! `i32`s, then clipped into the sound buffer's format. The standalone mixes this way.
+//! `i32`s, then clipped into the sound buffer's format.
 //!
 //! A channel's frame is blended with the next by the position's fraction, as DirectSound
 //! resamples (fixed: the game took the frame the position is in, whose steps gave the Dolby

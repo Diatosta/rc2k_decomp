@@ -1,8 +1,8 @@
-//! The install driven by the `-i` command line (two paths already in `game_dir` / `installed`
-//! and two digits in `flags.given_mode` / `flags.given_language`): with the first digit above 0 a
-//! given language (above 0) is taken, and the files installed (`install::install_files`, always
-//! the full installation, whatever kind the first digit named). A failing directory change or normalise ends it early. Called by
-//! `install::run_installer`.
+//! The install driven by the `-i` command line (two paths already in `game_dir` / `installed` and
+//! two digits in `flags.given_mode` / `flags.given_language`): with the first digit above 0 a given
+//! language (above 0) is taken, and the files installed (`install::install_files`, always the full
+//! installation, whatever kind the first digit named). A failing directory change or normalise ends
+//! it early.
 
 use crate::errors::Refused;
 use crate::install::installer::{load_language, logged, normalise, set_cd};

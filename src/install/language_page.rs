@@ -1,7 +1,5 @@
-//! The language page: at the end with a chosen answer the language is chosen and loaded; the
-//! items past the languages (up to 9) are hidden. Called by `install::run_page`
-//! (`install::run_pages` does not show the page with at most one language or this version
-//! already installed).
+//! The language page: at the end with a chosen answer the language is chosen and loaded; the items
+//! past the languages (up to 9) are hidden.
 
 use crate::errors::Refused;
 use crate::install::installer::load_language;

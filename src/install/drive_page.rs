@@ -1,6 +1,5 @@
-//! The drive page: at the start the highlight is set to the item of the typed drive letter; at
-//! the end the typed letter becomes the highlighted drive's and `path_problem` is 0. Called by
-//! `install::run_page`.
+//! The drive page: at the start the highlight is set to the item of the typed drive letter; at the
+//! end the typed letter becomes the highlighted drive's and `path_problem` is 0.
 
 use crate::install::installer::rb;
 use crate::memory::list_handle::ListMenu;

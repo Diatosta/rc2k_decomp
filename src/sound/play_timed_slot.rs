@@ -4,8 +4,8 @@
 //! A start flag of 1 is cleared; then the slot starts unless it is playing (sound 0xE9 starts even
 //! then): the request's sound, volume and rate (floats) are set, the end is the clock +
 //! `sound::sample_duration`, the slot is playing, and `sound::play_placed_sound` plays it. Else, if
-//! playing: the playing flag is cleared once the clock is at or past the end. 14 callers. Refuses
-//! what the two leaves refuse, before writing.
+//! playing: the playing flag is cleared once the clock is at or past the end. Refuses what the two
+//! leaves refuse, before writing.
 
 use crate::errors::Refused;
 use crate::sound::sample_duration::sample_duration;

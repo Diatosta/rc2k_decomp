@@ -2,26 +2,21 @@
 //! `COMMAND_LINE`); of the words after it only those of two characters or more count, by their
 //! first two. `-v` shows a message box with the version and leaves; `-u` and `-p` are returned in
 //! the `Command`, `-a` sets `no_audio`; `-i` takes the next two words as the game and installed
-//! folder paths and the two after as the display mode and language; `-c` (which
-//! 3D card to leave out) is read and does nothing. Refuses a word for `-i` of 0x100
-//! bytes or more. The `-v` part cannot be run in a test.
+//! folder paths and the two after as the display mode and language; `-c` takes its word and
+//! does nothing. Refuses a word for `-i` of
+//! 0x100 bytes or more. The `-v` part cannot be run in a test.
 
 use crate::errors::BadInput;
 use crate::install::run_flags::{Command, GivenInstall};
 use crate::memory::session::PlainDword;
 use crate::system::owner::Start;
 
-const EXIT_PATH: usize = 0x401116;
-
-/// The `-v` part: the box, and out through `start`'s exit path. Does not return.
+/// The `-v` part: the box, and the program ended. Does not return.
 pub fn show_version_and_leave(start: &Start) -> ! {
     let leave = |e: BadInput| -> ! { crate::fatal::raise::end("system::read_command_line", e) };
     let caption = &crate::fatal::state::CAPTION;
     // The `:` of the caption text is cut (the title is "Rally" alone).
     caption.set(5, 0);
-    let c_text = |at: &dyn crate::memory::cells::Store, what| {
-        crate::files::cstring(at, what).unwrap_or_else(|e| leave(e))
-    };
     // The text from its seventh byte up to its NUL.
     let version = start.texts.version.read();
     let Some(end) = version[6..].iter().position(|&b| b == 0) else {
@@ -29,16 +24,14 @@ pub fn show_version_and_leave(start: &Start) -> ! {
     };
     let mut text = version[6..6 + end].to_vec();
     text.extend(*b"\t\r\n");
-    // The second text is empty: its NUL is its one byte.
-    text.extend(c_text(&start.texts.second_text, "the second text"));
     let mut kept = text.clone();
     kept.push(0);
-    crate::fatal::state::TEXT // Text
+    crate::fatal::state::TEXT
         .write_at(0, &kept, "the version's text")
         .unwrap_or_else(|e| leave(e));
-    let caption = c_text(caption, "the caption");
+    let caption = crate::files::cstring(caption, "the caption").unwrap_or_else(|e| leave(e));
     crate::platform::os::message_box(crate::platform::os::Icon::Information, &caption, &text);
-    crate::standalone::finish(&format!("the game's way out {EXIT_PATH:#x} was reached"), 0)
+    crate::standalone::finish("the version was shown", 0)
 }
 
 /// Reads a command line (its text with the NUL), keeps the program word's length, sets the
@@ -79,9 +72,8 @@ pub fn read_command_line(
     })
 }
 
-/// Reads the program's own command line (`os::command_line`, for
-/// `GetCommandLineA`; kept as a region); `-v` shows the version and leaves through
-/// `start`'s exit path.
+/// Reads the program's own command line (`os::command_line`); `-v` shows the version and ends
+/// the program.
 pub fn read_own_command_line(o: crate::owners::Owners<'static>) -> Result<(), BadInput> {
     let mut line = crate::platform::os::command_line();
     line.push(0);
@@ -94,8 +86,7 @@ pub fn read_own_command_line(o: crate::owners::Owners<'static>) -> Result<(), Ba
     Ok(())
 }
 
-/// The program's name on the command line, as `read_command_line` found it (the image had
-/// its place and length; nothing reads the place).
+/// The program's name on the command line, as `read_command_line` found it.
 pub struct CommandLine {
     /// The program word's length.
     pub program_len: PlainDword,

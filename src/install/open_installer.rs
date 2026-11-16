@@ -1,9 +1,8 @@
-//! The installer's buffers taken and its backdrop drawn: the folder names (0x10100 bytes), the
-//! file names (0x40100) and the progress glyphs (0x3000, from `files\d\gfx\install.bun`) are
-//! taken on the installer memory list; `install.pal` becomes the blended palette; `backdrop.pcx`
-//! is loaded and made the surface; three strings are drawn and the frame shown. A failed
-//! allocation or read is fatal error 0x80AF7121/7122/7022/7444/7445. Called by
-//! `install::run_installer`.
+//! The installer's buffers taken and its backdrop drawn: the folder names (0x10100 bytes), the file
+//! names (0x40100) and the progress glyphs (0x3000, from `files\d\gfx\install.bun`) are taken on
+//! the installer memory list; `install.pal` becomes the blended palette; `backdrop.pcx` is loaded
+//! and made the surface; three strings are drawn and the frame shown. A failed allocation or read
+//! is fatal error 0x80AF7121/7122/7022/7444/7445.
 
 use crate::errors::Refused;
 use crate::install::installer::{components_to_pixels, copy_picture, draw_string, fatal, show};

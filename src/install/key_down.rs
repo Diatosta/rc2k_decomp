@@ -1,5 +1,5 @@
 //! Key 0x6B on an item: for choices shown upright (kind 0x22) the next choice
-//! (`install::choice_on`). Called by `install::page_key`.
+//! (`install::choice_on`).
 
 use crate::errors::Refused;
 use crate::install::key_up::item_key;

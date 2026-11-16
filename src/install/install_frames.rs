@@ -27,10 +27,10 @@ pub fn progress_frame(o: crate::owners::Owners<'static>) -> Result<bool, Refused
     let (install, strings, gfx, system) = (o.install, o.strings, o.gfx, o.system);
     let drawing = &gfx.drawing;
     let width = bar_width(install)?;
-    let mut carry = false;
+    let mut failed = false;
     for _ in 0..2 {
         if !lock(gfx, system) {
-            carry = true;
+            failed = true;
             continue;
         }
         // gfx::fill_rect: colour 0
@@ -70,18 +70,18 @@ pub fn progress_frame(o: crate::owners::Owners<'static>) -> Result<bool, Refused
             gfx,
         )?;
         unlock(gfx);
-        carry = !show(o);
+        failed = !show(o);
     }
-    Ok(carry)
+    Ok(failed)
 }
 
 /// The copying frame; true when the last lock or show failed.
 pub fn copying_frame(o: crate::owners::Owners<'static>) -> Result<bool, Refused> {
     let (install, gfx, system) = (o.install, o.gfx, o.system);
-    let mut carry = false;
+    let mut failed = false;
     for _ in 0..2 {
         if !lock(gfx, system) {
-            carry = true;
+            failed = true;
             continue;
         }
         copy_picture(gfx, system)?;
@@ -102,7 +102,7 @@ pub fn copying_frame(o: crate::owners::Owners<'static>) -> Result<bool, Refused>
             gfx,
         );
         unlock(gfx);
-        carry = !show(o);
+        failed = !show(o);
     }
-    Ok(carry)
+    Ok(failed)
 }

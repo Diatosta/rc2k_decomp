@@ -1,4 +1,4 @@
-//! The standalone program's installation record in place of the registry: the standalone is
+//! The program's installation record in place of the registry: the program is
 //! portable, a folder that needs nothing outside it. `status` (1 installed) is kept in
 //! `var\install.cfg`; `source` is not kept: read, it is always the folder the program runs in,
 //! so that a copied or moved folder is still its own installation; written, it says only where
@@ -11,7 +11,7 @@ use crate::install::read_registry::{Query, Registry};
 /// The record, relative to an installation's folder.
 pub const FILE: &str = "var\\install.cfg";
 
-/// Whether the standalone runs in the game's download folder (the CD's files, as it is
+/// Whether the program runs in the game's download folder (the CD's files, as it is
 /// bundled), not an installation: the game's data (`files\d\gfx\jade.bun`) but neither
 /// `var\ral.zog` nor `var\install.cfg`. The main loop then enters the installer (owner:
 /// the folder in place of a CD).

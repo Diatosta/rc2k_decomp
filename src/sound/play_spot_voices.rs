@@ -8,8 +8,8 @@
 //! one goes on, its sound with bit 31 set unless the sample loops. Then the request gets the
 //! volume, the rate, the pitch and volume factors and the place, and `sound::play_placed_sound`
 //! plays it; once the clock is at or past the end, the sound is stopped (`sound::stop_sound`) and
-//! the voice is no longer playing. One caller, `sound::spot_sounds`. A sound past the sample
-//! records and the two leaves' refusals put back what was written (sounds already sent stay sent).
+//! the voice is no longer playing. A sound past the sample records and the two leaves' refusals put
+//! back what was written (sounds already sent stay sent).
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::from_int;

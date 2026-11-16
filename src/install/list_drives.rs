@@ -1,8 +1,8 @@
 //! The drives that can be installed to found and their menu built: each letter from `first_drive`
-//! to 'z' that is not a CD-ROM or a RAM disk and whose free space can be read is recorded, then
-//! a text (letter, space, free space as KB, MB or GB) is built in `drive_rows` for 'a' to 'y'
-//! (drive Z is found but never listed, a slip kept as is; at most 24 drives are listed), and the drive menu list that fits
-//! the count is given its number of items. Called by `install::run_installer`.
+//! to 'z' that is not a CD-ROM or a RAM disk and whose free space can be read is recorded, then a
+//! text (letter, space, free space as KB, MB or GB) is built in `drive_rows` for 'a' to 'y' (drive
+//! Z is found but never listed, a slip kept as is; at most 24 drives are listed), and the drive
+//! menu list that fits the count is given its number of items.
 
 use crate::install::installer::wb;
 use rc2k_core::install::drives;
@@ -31,7 +31,7 @@ pub fn list_drives(
         }
     }
     install.run.drive_count.set(0);
-    let mut ebx = crate::memory::place::BytePlace::from(&install.drive_rows.drive_rows);
+    let mut next_row = crate::memory::place::BytePlace::from(&install.drive_rows.drive_rows);
     // 'a' .. 'y': the loop's bound leaves 'z' out (the game's slip, section 16)
     let found: Vec<u8> = drives::LISTED
         .filter(|letter| drives[2 * (letter - b'a') as usize].get() != 0)
@@ -43,7 +43,7 @@ pub fn list_drives(
             .run
             .drive_count
             .set(install.run.drive_count.get() + 1);
-        let row = ebx;
+        let row = next_row;
         wb(row, letter);
         let free = drives::free(drives[slot + 1].get());
         let mut unit = Vec::new();
@@ -61,7 +61,7 @@ pub fn list_drives(
         for (n, &b) in drives::text(free, &unit).iter().enumerate() {
             wb(row.add(2 + n as u32), b);
         }
-        ebx = row.add(0x10);
+        next_row = row.add(0x10);
     }
     let count = install.run.drive_count.get();
     let list = drive_list(count);

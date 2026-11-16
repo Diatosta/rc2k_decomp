@@ -1,5 +1,4 @@
 //! Raises `files_copied` by one and copies the file from the source path to the destination.
-//! Called by `install::install_files`, `install::install_clio`.
 
 use crate::errors::Refused;
 use crate::install::installer::copy_file;

@@ -1,4 +1,4 @@
-//! The platform under the game, on SDL3, for the standalone program (`standalone.rs`).
+//! The platform under the game, on SDL3.
 //!
 //! Each function takes the place of a piece of the game's platform (the screen, the window or
 //! the message pump), keeps what that piece means to the game's own code (the variables it

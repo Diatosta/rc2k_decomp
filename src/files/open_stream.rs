@@ -2,7 +2,7 @@
 //!
 //! Stores the mode in the stream, opens the file with `open_by_mode` and, if that worked, stores
 //! the handle and an empty buffer (position 0, 0 bytes). After a failure only the mode is stored.
-//! Used by the picture readers. Refuses what `open_by_mode` refuses.
+//! Refuses what `open_by_mode` refuses.
 
 use crate::errors::BadInput;
 use crate::files::stream::Stream;

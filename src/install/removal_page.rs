@@ -1,6 +1,5 @@
 //! The removal page: left with "keep the saves and settings" (answer 2), the uninstall script is
-//! marked to end before those folders and the answer becomes the uninstall's (1). Called by
-//! `install::run_page`.
+//! marked to end before those folders and the answer becomes the uninstall's (1).
 
 /// `state` which call of the page's action this is (0 the start, negative the end).
 pub fn removal_page(

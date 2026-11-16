@@ -1,6 +1,6 @@
 //! One folder path added to the folders-to-make table: resolved, appended with a NUL, the cursor
-//! advanced and `dir_count` raised. More than 0x10000 bytes of names is fatal error 0x80AF2205.
-//! Called by `install::run_script` (opcode 1).
+//! advanced and `dir_count` raised. More than 0x10000 bytes of names is fatal error 0x80AF2205. The
+//! script's opcode 1.
 
 use crate::errors::Refused;
 use crate::install::installer::{fatal, resolve_path};

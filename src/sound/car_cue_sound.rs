@@ -5,8 +5,7 @@
 //! taken (set to -2) into the request, with its volume and the sample's own rate through
 //! `sound::sample_settings`. A volume of 0 stops the sound (`sound::stop_sound`); else the volume
 //! and rate go into the request as floats, with the place, and `sound::play_placed_sound` plays it.
-//! One caller, `sound::car_sounds`. Refuses (before anything) a null object and a sound past the
-//! sample records.
+//! Refuses (before anything) a null object and a sound past the sample records.
 
 use crate::errors::Refused;
 use crate::sound::sample_settings::{record, sample_settings};
