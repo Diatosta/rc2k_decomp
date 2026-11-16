@@ -119,24 +119,11 @@ chosen there; afterwards come its results and the menus.
 ```sh
 rc2k --stage langton
 rc2k --stage "hamiltons folly" --car felicia --gearbox manual --players 2 --seed 42
-rc2k --launch my_race.txt
 ```
 
-| Switch | What it takes |
-| --- | --- |
-| `--stage` | the stage's name, or `rally-stage` in the stage screen's order (e.g. `4-5`, 1-based) |
-| `--stage-set` | the stage screen's set, `simulation` (the default) or `arcade`, which runs each stage the other way; or `1` / `2` |
-| `--car`, `--car2` | the car for player 1 (and 2), by name; one not unlocked yet is taken as the game's "Unlock Cars" cheat would; without `--car`, the car the menus would show; without `--car2`, the same car as `--car` |
-| `--gearbox` | `manual`, `semi-automatic` or `automatic` (or 1 .. 3) |
-| `--players` | `1`, or `2` on a split screen |
-| `--seed` | a number: the random numbers of the race start from it |
-| `--then` | `menus` (the default) or `quit`: the program ends after the race |
-| `--launch` | a file holding the same settings as `name = value` lines (`#` starts a comment); switches typed as well win |
-
-Names are in English whatever language the game runs in, matched without case, spaces or
-punctuation. The whole name always wins, and a part of a name is enough when only one name
-holds it: `--car 106`, `--car "evo v"`, `--stage hamiltons`. A name that fits none, or several,
-stops the program with a message listing the names to choose from.
+Stages and cars go by their English names, and a part of a name is enough when only one name
+holds it. Every switch, the launch files and the rest of the command line are in the wiki's
+[Running and options](wiki/Running-and-options.md) page.
 
 ### The handheld
 
