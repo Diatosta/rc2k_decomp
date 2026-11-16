@@ -50,7 +50,7 @@ renderer, on Knulli, the computer driver driving:
 | The menus | 47 to 59 frames a second |
 | Loading a stage | about 2 seconds |
 | From the program's start to the main menu | about 4 seconds |
-| Back to the menus after a race | about 3 seconds |
+| Back to the menus after a race | about 2.7 seconds |
 
 Runs of the same stage differ by about a frame a second. The GPU is the limit on this
 device: its frames are shown at the panel's refresh (just under 60 a second), a frame it does
