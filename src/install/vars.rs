@@ -520,9 +520,10 @@ impl InstallerPages {
 pub struct InstallerPaths {
     /// Padding that keeps every field its alignment (the struct is 16-byte aligned).
     pub _lead: PlainBytes<8>,
-    /// The folder installed into (also the first of `-i`'s paths).
+    /// The folder installed from: the CD or the download folder (also the first of `-i`'s
+    /// paths). The install record's `cdrom=` line holds it.
     pub game_dir: PlainBytes<256>,
-    /// The folder installed from (also `-i`'s second path).
+    /// The folder installed into (also `-i`'s second path).
     pub installed: PlainBytes<256>,
     /// A path being built.
     pub path_a: PlainBytes<256>,

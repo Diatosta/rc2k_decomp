@@ -1,12 +1,14 @@
-//! Network play (DirectPlay), the game's side: set-up at the start, the receiving thread, the
-//! race's messages and the way out. The network's `NetRaceSlot` (`Net::race_slot`) says whether a
-//! link is open, this machine's player (its car's number) and the players' count. Each race step
+//! Network play. The game's side (the lobby screens, set-up at the start, the receiving thread,
+//! the race's messages and the way out) sits on the project's own session layer (`dp_session`),
+//! which stands where DirectPlay stood: its calls keep DirectPlay's shape (`dp_objects`).
+//!
+//! The network's `NetRaceSlot` (`Net::race_slot`) says whether a link is open, this machine's player (its car's number) and the players' count. Each race step
 //! of the player's own car (`net::race_step`) sends its inputs ('JGSM', every fourth step), its place and motion
 //! ('PGSM', step 2 of 32) and nine more dwords ('XGSM', step 1 of 256), and applies what the
 //! other players sent; a remote car's steps glide its place to the one received.
 //!
 //! `net::send_message` puts a sequence byte (top bit set) and the bytes into `send_buffer` and
-//! sends them to everyone through DirectPlay. The receiving thread (`net::receive_thread`) keeps
+//! sends them to everyone through the session layer. The receiving thread (`net::receive_thread`) keeps
 //! each player's messages in its inbox (`Net::inboxes`); `net::copy_received` copies them under
 //! the lock for `net::apply_received`. `net::shut_down` ends the network at the game's end.
 

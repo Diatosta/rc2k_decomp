@@ -1,16 +1,13 @@
-//! The game without the game: runs the ported code on `RAL.EXE`'s data (`standalone.rs`),
-//! on SDL (`platform/mod.rs`).
+//! The game's program: runs the game (`standalone.rs`) on SDL (`platform/mod.rs`).
 //!
-//! Started in the game's folder: `rc2k.exe [log] [switches]`; the log is `rc2k.log` there
-//! unless another is named. The game's data built into `RAL.EXE` is the program's own (its
-//! statics' first values): RAL.EXE is not needed. The game's switches (`-a`, `-c`, `-p`, ..)
-//! are read off the command line by the game itself (`system::read_command_line`); a word
-//! naming a `.exe` is passed over (the old `rc2k.exe RAL.EXE [log]`). With the environment
-//! variable `RC2K_FRAMES` set to a number it ends itself after that many frames and leaves
-//! the last one in `rc2k_frame.raw`. `--stage` and its kin start a race straight away
-//! (`menu::launch`).
+//! Started in the game's folder: `rc2k [log] [switches]`; the log is `rc2k.log` there unless
+//! another is named. The game's own switches (`-a`, `-c`, `-p`, ..) are read off the command
+//! line by the game itself (`system::read_command_line`); a word naming a `.exe` is passed
+//! over. With the environment variable `RC2K_FRAMES` set to a number it ends itself after that
+//! many frames and leaves the last one in `rc2k_frame.raw`. `--stage` and its kin start a race
+//! straight away (`menu::launch`).
 //!
-//! A windowed program (no console: everything goes to the log; owner, 2026-10-19).
+//! A windowed program on Windows: no console, everything goes to the log.
 
 #![windows_subsystem = "windows"]
 

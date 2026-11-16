@@ -1,3 +1,7 @@
+//! Small vector helpers, the game's random number streams (`next_random`, `seed_random`,
+//! `stir_random`), and the arithmetic that reproduces the x87 unit's rounding (`x87_float::X` and
+//! the operations in `x87`), on which replays depend bit for bit.
+
 pub mod cells;
 pub mod nearest_on_segment;
 pub mod next_random;

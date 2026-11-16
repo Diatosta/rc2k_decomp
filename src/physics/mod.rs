@@ -1,4 +1,11 @@
-//! The cars' physics.
+//! The car model. For each car and each simulation step: the ground under the wheels, the forces
+//! (engine, brakes, grip by surface, air drag, contacts with scenery and other cars), the car's
+//! motion, gear changes, wear and damage, and the cues for the car's sounds and particles; also
+//! the cameras that follow a car and the pace notes' steps.
+//!
+//! The arithmetic is exact to the last bit, rounding included (`math::x87_float`): a replay plays
+//! back correctly only if every step gives the same result. The state is the race owner's
+//! `physics` group (`race::owner_physics`).
 
 pub mod accumulate_mud;
 pub mod add_drive_forces;

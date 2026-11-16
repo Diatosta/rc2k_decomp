@@ -1,4 +1,7 @@
-//! The game's strings, called directly by Rust callers.
+//! The game's texts. Every text shown has a number; the language file gives the words for each
+//! number in the chosen language. This module loads the language (`load_language`), looks texts
+//! up, and builds the texts put together from pieces: times, speeds in the chosen units, numbers,
+//! percentages. It also holds the keyboard tables that belong to a language.
 
 pub mod append_percent;
 pub mod append_speed;

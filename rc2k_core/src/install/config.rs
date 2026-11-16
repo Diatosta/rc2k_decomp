@@ -55,9 +55,10 @@ pub fn read_record(text: &(impl Bytes + ?Sized), case: &CaseTable) -> Result<Rec
     Ok(Record { base, mode, locale })
 }
 
-/// The record's text: the header, `cdrom=` the folder installed into, `language=` the language's
-/// directory when there is one, `installation=` the kind, each line ended CR LF.
-pub fn record_text(installed_into: &[u8], locale: Option<&[u8]>, mode: u32) -> Vec<u8> {
+/// The record's text: the header, `cdrom=` the folder installed from (where the files not copied
+/// are read), `language=` the language's directory when there is one, `installation=` the kind,
+/// each line ended CR LF.
+pub fn record_text(installed_from: &[u8], locale: Option<&[u8]>, mode: u32) -> Vec<u8> {
     let mut out = HEADER.to_vec();
     let mut line = |key: &[u8], value: &[u8]| {
         out.extend(key);
@@ -65,7 +66,7 @@ pub fn record_text(installed_into: &[u8], locale: Option<&[u8]>, mode: u32) -> V
         out.extend(value);
         out.extend(b"\r\n");
     };
-    line(CDROM, installed_into);
+    line(CDROM, installed_from);
     if let Some(locale) = locale {
         line(LANGUAGE, locale);
     }

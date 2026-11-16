@@ -1,4 +1,8 @@
-//! The menu system's state.
+//! The front end: everything between the opening films and a race. The loop every menu screen
+//! runs, each screen's description, the handling of keys and menu items, the players' details, and
+//! the event flows that walk through a championship, a single rally, a time trial or an arcade
+//! game screen by screen and race by race. Its state is the `Menus` owner (`owner.rs`), in the
+//! `*_store.rs` files.
 
 pub mod a8_welcome;
 pub mod add_clio_car;

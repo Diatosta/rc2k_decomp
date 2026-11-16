@@ -1,4 +1,7 @@
-//! Keyboard input.
+//! Keyboard, controllers and force feedback, as the game sees them: the table of held keys and
+//! the one pending key the menus read, the list of game controllers and their readings, and the
+//! force-feedback effects run from what the car is doing. The input thread (`input_thread`) turns
+//! every 20 ms; the devices themselves come from SDL through `platform::input`.
 
 pub mod acquire_device;
 pub mod append_key_name;

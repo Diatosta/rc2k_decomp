@@ -1,3 +1,8 @@
+//! Reading and writing files. The game names its files as a 1999 Windows program does, with
+//! backslashes and without regard to case; this module turns such a name into a real path on the
+//! system it runs on (`resolve_path`) and offers the ways the game reads a file: whole, packed
+//! (`read_packed_file`), or through a small buffered stream.
+
 pub mod close_stream;
 pub mod copy_file;
 pub mod directories;

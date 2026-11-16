@@ -1,3 +1,9 @@
+//! The game's 2D graphics: the picture in memory that the menus are drawn into, the picture
+//! files' readers (PCX and PNG), the fonts' glyphs, copying and scaling pictures, the pixel
+//! formats' converters, the choice of screen modes and the screenshots. Menus and text are drawn
+//! here pixel by pixel; the platform puts the result on the window. Its state is the `Gfx` owner
+//! (`owner.rs`).
+
 pub mod allocate_picture_buffer;
 pub mod blend_palette;
 pub mod blit_bar;

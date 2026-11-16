@@ -1,5 +1,9 @@
-//! What the game reads about its installation: the record `var\ral.zog`, the languages
-//! file `lang.cfg`, the edition file `files\d\gfx\sku`.
+//! The installer and uninstaller, and what the game knows about its installation. Started among
+//! the files of the game's CD (or its download folder) with no installation present, the program
+//! runs the installer's pages (`run_installer`) instead of the game. The module also reads and
+//! writes the installation's records (`var\ral.zog`, `var\install.cfg`), the languages file
+//! `lang.cfg` and the edition file `files\d\gfx\sku`, makes the menu shortcuts, and removes the
+//! game again.
 
 pub mod apply_config;
 pub mod check_at_start;

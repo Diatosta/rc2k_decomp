@@ -1,3 +1,8 @@
+//! What the game keeps between sessions: the options, the best times and scores, the saved
+//! championships, and the lists of saved games and replays the menus show. Read at start-up;
+//! written when the player leaves, saves a game or beats a time. Its state is the `Saves` owner
+//! (`owner.rs`).
+
 pub mod allocate_best_times;
 pub mod best_times;
 pub mod best_times_store;

@@ -1,4 +1,7 @@
-//! Operating system services other than files.
+//! The program's outer shell and its small services: the main loop that chooses between the
+//! installer and the game (`main_loop`), the command line, the clocks, sleeping and waiting, and
+//! what the game wants to know about the machine it runs on. Its state is the `System` owner
+//! (`owner.rs`): the session's flags (quitting, window active), the clocks, the machine's facts.
 
 pub mod check_developer_machine;
 pub mod checked_reads;
