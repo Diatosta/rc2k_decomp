@@ -62,7 +62,7 @@ pub enum ItemFn {
     PreviousAudioQuality,
     ViewStageDetails,
     ApplyScreenMode,
-    /// Runs `player_actions::toggle_controller_mode`.
+    /// Turns the chosen controller's H shifter switch over (`axes_items::toggle_shifter`).
     ToggleControllerMode,
     ReplayItemC,
     ReplayItemB,

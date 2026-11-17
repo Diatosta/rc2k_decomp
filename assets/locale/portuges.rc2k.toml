@@ -34,7 +34,7 @@ right_trigger = "gatilho dir."
 [axis_page]
 axis = "eixo"
 dead_zone = "zona morta"
-sensitivity = "sensibilidade"
+sensitivity = "curva de resposta"
 range = "alcance"
 invert = "inverter"
 position = "posição"
@@ -58,7 +58,6 @@ handbrake = "travão de mão"
 camera = "vistas de câmara"
 pause = "pausa"
 lights = "faróis"
-wipers = "limpa-pára-brisas"
 reset_car = "repor carro"
 
 [gear_rows]

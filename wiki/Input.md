@@ -84,14 +84,12 @@ South and East also answer the race's yes/no question directly, whatever the lan
 a race the left stick counts as the D-pad: leaning it past about half its travel presses that
 direction, bringing it back within a third lets go (the gap keeps it from chattering near the
 line). In a race the sticks and triggers belong to driving only (below). A joystick that is not
-a gamepad (a wheel) sends SDL's joystick events instead: outside a race its hat is the cross, its
-first axis (from the rest SDL saw when it was opened, and left alone when that rest is near an
-end, as a pedal's is) is left and right with a smaller turn than a stick's, its buttons 1 and 2
-are Back and Enter (`joystick_in_menus` in `src/platform/events.rs`). In a race only those two
+a gamepad (a wheel) sends SDL's joystick events instead: outside a race its hat is the cross (its
+axes move nothing in the menus), its buttons 2 and 3 are Enter and Back (`joystick_in_menus` in `src/platform/events.rs`). In a race only those two
 buttons go on to the menus' side, so they answer the "leave?" question as a pad's buttons do.
 
 Places that end on "any key" look at the pad too, through a count of presses
-(`Input::pad_pressed_since`): the pad's South, East or Start (a wheel's first two buttons) end
+(`Input::pad_pressed_since`): the pad's South, East or Start (a wheel's second and third buttons) end
 the credits race of the attract mode, skip the drive after the finish line, stop a replay played
 from the film loop, and end the pause that follows a window losing the focus. In the network
 race's wait for the other players, East (Back) leaves as Escape does and so does Start.

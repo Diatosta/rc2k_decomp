@@ -208,7 +208,13 @@ pub fn draw_controller_page(
     let c = Controller {
         name: crate::screens::game_screen::held_field(&entry.name)?,
         has_strength: entry.force_feedback.get() == 1,
-        mode: p.controller_mode,
+        mode: crate::input::profiles::with_profile(
+            input,
+            menus.screens.event.current_player.get(),
+            device,
+            |profile| u32::from(profile.shifter),
+        )
+        .unwrap_or(0),
         strength: p.strength,
     };
     controller_page(&mut screen, Some(&c))

@@ -72,7 +72,6 @@ pub fn set_up_device(
     if n != 0 {
         record.controller.set(n - 1);
         for (to, from) in [
-            (&record.hat_kind, 0x10),
             (&record.strength, 0x1C),
             (&record.dead_zone, 0x18),
             (&record.end_zone, 0x14),

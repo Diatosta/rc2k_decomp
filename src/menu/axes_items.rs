@@ -82,10 +82,29 @@ pub fn page_step(o: crate::owners::Owners<'static>, up: bool) -> Result<(), Refu
     Ok(())
 }
 
-/// Whether the current player's controller page has the H shifter switched on: the buttons
-/// page then lists the shifter's gears too.
-pub fn shifter_on(menus: &Menus) -> bool {
-    crate::menu::player_settings::current(menus).is_ok_and(|p| p.get().controller_mode & 1 != 0)
+/// Whether the H shifter is switched on in the current player's profile for the controller
+/// they have chosen (off with none chosen): the buttons page then lists the shifter's gears too.
+pub fn shifter_on(menus: &Menus, input: &crate::input::owner::Input) -> bool {
+    let current = menus.screens.event.current_player.get();
+    let Ok(player) = crate::menu::player_settings::current(menus) else {
+        return false;
+    };
+    crate::input::profiles::with_profile(input, current, player.get().controller, |p| p.shifter)
+        .unwrap_or(false)
+}
+
+/// The controller page's shifter switch turned over, in the profile of the chosen controller
+/// (nothing with no controller chosen).
+pub fn toggle_shifter(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    let menus = o.menus;
+    let current = menus.screens.event.current_player.get();
+    let controller = crate::menu::player_settings::current(menus)?
+        .get()
+        .controller;
+    crate::input::profiles::with_profile(o.input, current, controller, |p| {
+        p.shifter = !p.shifter;
+    });
+    Ok(())
 }
 
 /// How many pages of controls the buttons page has.
@@ -127,7 +146,7 @@ pub fn row_label(row: Row) -> u32 {
 /// The row at `slot` starts learning its control.
 pub fn learn_row(o: crate::owners::Owners<'static>, slot: u8) {
     let controls = &o.menus.screens.controls;
-    if let Some(row) = row_at(controls, shifter_on(o.menus), slot as usize) {
+    if let Some(row) = row_at(controls, shifter_on(o.menus, o.input), slot as usize) {
         crate::menu::learn_bindings::learn_binding(controls, o.system, o.input, row.control());
     }
 }

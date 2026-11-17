@@ -73,17 +73,11 @@ const REPEAT_EVERY: u64 = 120;
 const STICK_PRESS: i32 = 16000;
 const STICK_RELEASE: i32 = 10000;
 
-/// A wheel's lines (of 32767, from where it rests): a wheel turns much further than a stick,
-/// so a smaller turn counts.
-const WHEEL_PRESS: i32 = 5000;
-const WHEEL_RELEASE: i32 = 2500;
-
-/// One of the left stick's two axes, or a wheel (or another joystick's first axis) turned.
+/// One of the left stick's two axes.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum StickAxis {
     X,
     Y,
-    Wheel,
 }
 
 #[derive(Default)]
@@ -92,8 +86,8 @@ pub struct MenuPad {
     held: Option<(PadButton, u64)>,
     /// When START's Escape is let go.
     leave_until: Option<u64>,
-    /// The direction each stick axis (x, y, the wheel) is leaning past the press line, if any.
-    stick: [Option<PadButton>; 3],
+    /// The direction each stick axis (x, y) is leaning past the press line, if any.
+    stick: [Option<PadButton>; 2],
     /// A joystick's hat's bits as last seen (1 up, 2 right, 4 down, 8 left).
     hat: u8,
 }
@@ -138,13 +132,8 @@ impl MenuPad {
         let (slot, negative, positive) = match axis {
             StickAxis::X => (0, PadButton::DpadLeft, PadButton::DpadRight),
             StickAxis::Y => (1, PadButton::DpadUp, PadButton::DpadDown),
-            StickAxis::Wheel => (2, PadButton::DpadLeft, PadButton::DpadRight),
         };
-        let (press, release) = if axis == StickAxis::Wheel {
-            (WHEEL_PRESS, WHEEL_RELEASE)
-        } else {
-            (STICK_PRESS, STICK_RELEASE)
-        };
+        let (press, release) = (STICK_PRESS, STICK_RELEASE);
         let leaning = if value <= -press {
             Some(negative)
         } else if value >= press {
@@ -293,20 +282,6 @@ mod tests {
         assert_eq!(p.tick(6410), Some(MenuAction::Left));
         assert_eq!(p.stick(StickAxis::X, 0, 6420), None);
         assert_eq!(p.tick(9000), None);
-    }
-
-    #[test]
-    fn a_wheel_turns_through_the_menus_with_a_small_turn() {
-        let mut p = MenuPad::default();
-        assert_eq!(p.stick(StickAxis::Wheel, 4000, 0), None);
-        assert_eq!(p.stick(StickAxis::Wheel, 6000, 10), Some(MenuAction::Right));
-        assert_eq!(p.stick(StickAxis::Wheel, 3000, 20), None);
-        assert_eq!(p.stick(StickAxis::Wheel, 1000, 30), None);
-        assert_eq!(p.tick(5000), None);
-        assert_eq!(
-            p.stick(StickAxis::Wheel, -6000, 6000),
-            Some(MenuAction::Left)
-        );
     }
 
     #[test]

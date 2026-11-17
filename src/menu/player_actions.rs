@@ -52,11 +52,6 @@ pub fn lower_strength(menus: &Menus) -> Result<(), Refused> {
     with_player(menus, |p| p.step_strength(false))
 }
 
-/// The controller's mode flipped.
-pub fn toggle_controller_mode(menus: &Menus) -> Result<(), Refused> {
-    with_player(menus, Player::toggle_controller_mode)
-}
-
 pub fn next_scores_page(tables: &Tables) {
     tables
         .pages

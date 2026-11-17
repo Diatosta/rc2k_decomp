@@ -32,12 +32,12 @@ Any gamepad SDL recognises works in the menus on every system, with nothing to s
 | Start | Enter in a menu; in a race, the same as Escape (asks whether to leave) |
 
 A wheel or another joystick that SDL does not know as a gamepad works the menus too: its hat
-moves the highlight like the D-pad, turning the wheel (its first axis, measured from where it
-rests; a small turn is enough, and held it repeats) moves left and right, its first button
-goes back and its second enters. Each button press in the menus is noted in `rc2k.log` with its
+moves the highlight like the D-pad (turning the wheel or pressing a pedal moves nothing in the
+menus), its second button enters and its third goes back (cross and circle on a wheel with a
+PlayStation pad's faces). Each button press in the menus is noted in `rc2k.log` with its
 number, so a wheel whose buttons are numbered otherwise can be told. In a race the axes and hat
 are the player's controls only; the two buttons also answer the race's "leave?" question (the
-second leaves, the first stays), as a pad's do.
+second leaves, the third stays), as a pad's do.
 
 On a yes / no question the South and East buttons answer yes and no directly, in any
 language.
@@ -49,7 +49,7 @@ below or above the field, never over it, and has pages of symbols and accented l
 with its own screen keyboard (a phone, a Steam Deck under Steam) that one is shown instead. A
 keyboard typed on closes ours. See [Input](Input).
 
-A pad's South, East or Start (a wheel's first two buttons) also end what ends on any key: the
+A pad's South, East or Start (a wheel's second and third buttons) also end what ends on any key: the
 credits race of the attract mode, the drive after the finish line, a replay played from the film
 loop and the pause after the window lost the focus. While the network race waits for the other
 players, East or Start leaves, as Escape does. The replay viewer works with the D-pad, the stick
@@ -93,8 +93,10 @@ In the game's options, each player has a controller page, an axes list with a pa
 - **Axis** (one axis's page, opened from the list): rows "axis" (left and right pick another
   axis of the controller), "dead zone" and "range" (per cent, with the game's sliders; a wheel's
   range reads as per cent and degrees of its full rotation, "50% (450 degrees)", without a
-  slider), "sensitivity" (a figure from -100 to 100 in steps of 10 and what it does: linear at 0,
-  gentle above 0, finer near the rest; quick below 0, quicker near the rest), "invert" (yes or
+  slider), "response curve" (a figure from -100 to 100 in steps of 10 and what it does: linear at
+  0, gentle above 0, finer near the rest; quick below 0, quicker near the rest; not the player
+  page's steering sensitivity, which is the car's set-up and acts on every controller and the
+  keyboard alike), "invert" (yes or
   no) and a live bar of where the axis is, shaped by the settings above so a change shows at
   once. Left and right change the highlighted row (Return flips the invert). Every change goes
   to the player's profile for the controller at once. Back returns to the list.
@@ -104,7 +106,7 @@ In the game's options, each player has a controller page, an axes list with a pa
   turned to as right, an axis moved the other way is inverted; accelerate and brake take a pedal
   from where it rests or a side of an axis). Then the rows learnt with a button or a hat
   direction: steer left, steer right, accelerate, brake, gear up, gear down, handbrake, camera,
-  pause, lights, wipers and reset car. An axis row and a button row of the same control both
+  pause, lights and reset car (the game has no wipers: the original reads no wipers key). An axis row and a button row of the same control both
   count. With the H shifter switched on the buttons page has a third page of rows for the
   shifter's gears (see "The H shifter"). "Undo changes" puts the page's profile back as it was
   when the page was entered.
@@ -125,6 +127,11 @@ profile with no gear bound at all reads the shifter the way the switch did befor
 could be bound, so an old set-up still works: buttons 6, 7, 1 and 2 are gears 1 .. 4, the hat
 up, left and down gears 5 .. 7, and the hat right reverse. With the switch off the rows are
 hidden and the hat and buttons mean what they are bound to.
+
+The switch belongs to the controller, not to the player: it is kept in the player's profile for
+that controller (`shifter`, see [Options files](Options-files)), so a pad used on its own does not
+inherit the wheel's switch. With no controller chosen the row is not shown. The player's old
+"controller mode" value is kept in the saved file as it was but no longer read.
 
 Learning a button, a hat direction or an axis (the page asks for the control for five seconds)
 takes what moves from where the controller rests when the learning starts, so a pedal that rests
@@ -157,7 +164,7 @@ profile instead:
 | --- | --- |
 | dead zone | Per mille of the travel from the rest that reads nothing. |
 | range | Per mille of the travel that gives all of it: 1000 is all of it, 300 gives full lock at 30 % of the way (a wheel's rotation is then 30 % of its full rotation, 270 degrees for 900). |
-| sensitivity | -100 to 100: 0 is linear; above 0 the axis is softer near its rest and sharper at the end, below 0 the other way round. |
+| sensitivity | The axis page's "response curve", -100 to 100: 0 is linear; above 0 the axis is softer near its rest and sharper at the end, below 0 the other way round. |
 | invert | The axis the other way round. |
 
 A profile has `wheel` (true for a wheel; the axes list switches it) and `full_rotation_degrees`

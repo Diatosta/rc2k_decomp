@@ -221,8 +221,6 @@ pub struct Bindings {
     pub lights: Option<Digital>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reset: Option<Digital>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub wipers: Option<Digital>,
     /// The gears of an H shifter (the controller page's switch): the input held while the
     /// shifter is in gear n, or in reverse. Absent: not bound.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -316,15 +314,16 @@ impl Bindings {
             Action::GearDown => self.gear_down,
             Action::Handbrake => self.handbrake,
             Action::Lights => self.lights,
-            Action::Wipers => self.wipers,
+            // The race reads no wipers bit: a profile binds none (an old file's key is passed over).
+            Action::Wipers => None,
             Action::Camera => self.camera,
             Action::Pause => self.pause,
             Action::Reset => self.reset,
         }
     }
 
-    fn digital_mut(&mut self, action: Action) -> &mut Option<Digital> {
-        match action {
+    fn digital_mut(&mut self, action: Action) -> Option<&mut Option<Digital>> {
+        Some(match action {
             Action::Left => &mut self.left,
             Action::Right => &mut self.right,
             Action::Accelerate => &mut self.accelerate,
@@ -333,11 +332,11 @@ impl Bindings {
             Action::GearDown => &mut self.gear_down,
             Action::Handbrake => &mut self.handbrake,
             Action::Lights => &mut self.lights,
-            Action::Wipers => &mut self.wipers,
+            Action::Wipers => return None,
             Action::Camera => &mut self.camera,
             Action::Pause => &mut self.pause,
             Action::Reset => &mut self.reset,
-        }
+        })
     }
 }
 
@@ -373,6 +372,10 @@ pub struct Profile {
     /// How far the wheel turns lock to lock, in degrees.
     #[serde(default = "default_rotation")]
     pub full_rotation_degrees: u32,
+    /// The controller's hat and buttons are an H shifter's (the controller page's switch): a
+    /// property of the controller, so a pad used on its own does not inherit a wheel's switch.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub shifter: bool,
     /// By axis number (an axis past the list has the default settings).
     #[serde(default)]
     pub axes: Vec<AxisSettings>,
@@ -409,6 +412,7 @@ impl Profile {
             device,
             wheel: kind == Kind::Wheel,
             full_rotation_degrees: default_rotation(),
+            shifter: false,
             axes: Vec::new(),
             bindings: Bindings {
                 steering_axis: Some(AxisUse::Centred { axis: 0 }),
@@ -714,7 +718,6 @@ pub enum Row {
     Pause,
     Lights,
     Reset,
-    Wipers,
     /// The axis that steers.
     SteeringAxis,
     /// The axis that accelerates.
@@ -727,7 +730,7 @@ pub enum Row {
 
 impl Row {
     /// The rows in the order the page lists them, without the H shifter's.
-    pub const LISTED: [Row; 15] = [
+    pub const LISTED: [Row; 14] = [
         Row::SteeringAxis,
         Row::AccelerateAxis,
         Row::BrakeAxis,
@@ -741,12 +744,11 @@ impl Row {
         Row::Camera,
         Row::Pause,
         Row::Lights,
-        Row::Wipers,
         Row::Reset,
     ];
 
     /// Every row, the H shifter's last.
-    pub const ALL: [Row; 23] = [
+    pub const ALL: [Row; 22] = [
         Row::SteeringAxis,
         Row::AccelerateAxis,
         Row::BrakeAxis,
@@ -760,7 +762,6 @@ impl Row {
         Row::Camera,
         Row::Pause,
         Row::Lights,
-        Row::Wipers,
         Row::Reset,
         Row::Shifter(Gear::Forward(1)),
         Row::Shifter(Gear::Forward(2)),
@@ -791,7 +792,6 @@ impl Row {
             9 => Row::Pause,
             10 => Row::Lights,
             11 => Row::Reset,
-            12 => Row::Wipers,
             13 => Row::SteeringAxis,
             14 => Row::AccelerateAxis,
             15 => Row::BrakeAxis,
@@ -824,7 +824,6 @@ impl Row {
             Row::Pause => Action::Pause,
             Row::Lights => Action::Lights,
             Row::Reset => Action::Reset,
-            Row::Wipers => Action::Wipers,
             Row::SteeringAxis | Row::AccelerateAxis | Row::BrakeAxis | Row::Shifter(_) => {
                 return None;
             }
@@ -841,8 +840,8 @@ impl Row {
 }
 
 /// The control number of each of `Row::ALL`.
-const LISTED_CONTROLS: [u32; 23] = [
-    13, 14, 15, 3, 4, 1, 2, 5, 6, 7, 8, 9, 10, 12, 11, 16, 17, 18, 19, 20, 21, 22, 23,
+const LISTED_CONTROLS: [u32; 22] = [
+    13, 14, 15, 3, 4, 1, 2, 5, 6, 7, 8, 9, 10, 11, 16, 17, 18, 19, 20, 21, 22, 23,
 ];
 
 /// How far an axis must move from where it rested (of -32768 .. 32767) to count.
@@ -905,7 +904,9 @@ pub fn learn(profile: &mut Profile, row: Row, learned: Learned) {
     match learned {
         Learned::Digital(digital) => {
             if let Some(action) = row.action() {
-                *profile.bindings.digital_mut(action) = Some(digital);
+                if let Some(slot) = profile.bindings.digital_mut(action) {
+                    *slot = Some(digital);
+                }
             } else if let Row::Shifter(gear) = row
                 && let Some(slot) = profile.bindings.gear_mut(gear)
             {
@@ -1259,7 +1260,7 @@ mod tests {
     fn gears_are_learnt_shown_and_saved() {
         let mut p = Profile::new(id(), Kind::Wheel);
         let found = Learned::Digital(Digital::Button { button: 4 });
-        for (n, row) in Row::ALL[15..].iter().enumerate() {
+        for (n, row) in Row::ALL[14..].iter().enumerate() {
             assert!(!row.takes_axis());
             assert_eq!(shown(&p, *row), Shown::Nothing);
             learn(&mut p, *row, found);
@@ -1277,12 +1278,17 @@ mod tests {
             assert!(text.contains(word), "{word} not in\n{text}");
         }
         assert_eq!(toml::from_str::<Profile>(&text).unwrap(), p);
+        // the shifter switch is saved only when on, and an old file without it reads off
+        assert!(!text.contains("shifter"));
+        p.shifter = true;
+        let on = toml::to_string(&p).unwrap();
+        assert!(toml::from_str::<Profile>(&on).unwrap().shifter);
         // unbound gears are not written
         let bare = toml::to_string(&Profile::new(id(), Kind::Wheel)).unwrap();
         assert!(!bare.contains("gear_1") && !bare.contains("reverse"));
         // the page lists the gears only with the switch on
-        assert_eq!(Row::listed(false).len(), 15);
-        assert_eq!(Row::listed(true).len(), 23);
+        assert_eq!(Row::listed(false).len(), 14);
+        assert_eq!(Row::listed(true).len(), 22);
     }
 
     #[test]
@@ -1366,12 +1372,8 @@ mod tests {
         assert_eq!(shown(&p, Row::Accelerate), Shown::Button(2));
         assert_eq!(shown(&p, Row::BrakeAxis), Shown::Axis(4, Some(true)));
         assert_eq!(shown(&p, Row::Left), Shown::Hat(HatDirection::Left));
-        // the wipers have a button of their own
-        learn(&mut p, Row::Wipers, found);
-        assert_eq!(
-            p.bindings.digital(Action::Wipers),
-            Some(Digital::Button { button: 1 })
-        );
+        // the wipers have no row and no binding: the race reads none
+        assert_eq!(p.bindings.digital(Action::Wipers), None);
         // every listed row has its control number back
         for row in Row::ALL {
             assert_eq!(Row::of_control(row.control()), Some(row));

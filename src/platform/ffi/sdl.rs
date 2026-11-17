@@ -369,8 +369,8 @@ impl PolledEvent {
         }
     }
 
-    /// What a joystick event says (its joystick, then a hat's bits, a button going down or up,
-    /// or an axis's value), else `None`. A gamepad's joystick sends these too.
+    /// What a joystick event says (its joystick, then a hat's bits or a button going down or up),
+    /// else `None`. A gamepad's joystick sends these too.
     pub fn joystick_input(&self) -> Option<(SDL_JoystickID, JoystickInput)> {
         let kind = self.kind();
         // SAFETY: each branch reads the record its type says SDL filled.
@@ -382,9 +382,6 @@ impl PolledEvent {
             {
                 let e = self.0.jbutton;
                 Some((e.which, JoystickInput::Button(e.button, e.down)))
-            } else if kind == SDL_EVENT_JOYSTICK_AXIS_MOTION {
-                let e = self.0.jaxis;
-                Some((e.which, JoystickInput::Axis(e.axis, e.value)))
             } else {
                 None
             }
@@ -608,6 +605,4 @@ pub enum JoystickInput {
     Hat(u8, u8),
     /// A button (counted from 0) and whether it went down.
     Button(u8, bool),
-    /// An axis and its value.
-    Axis(u8, i16),
 }

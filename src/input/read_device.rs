@@ -29,8 +29,8 @@ pub fn read_device(input: &Input, device: usize, record: &InputDevice) -> Result
     }
     debug_assert_eq!(record.bindings.len(), ACTIONS);
     let raw = crate::input::di_objects::profile_reading(record.device.get());
-    // The controller's mode switch (`controller_mode`) says its hat and buttons are a shifter's.
-    let shifter = record.hat_kind.get() != 0;
+    // The controller's profile says whether its hat and buttons are a shifter's.
+    let shifter = profile.as_ref().is_some_and(|p| p.shifter);
     let r = rc2k_core::input::profile::readings(profile.as_ref(), raw.as_ref(), &keys, shifter);
     record.readings[0].set(r.steering);
     record.readings[1].set(r.brake);

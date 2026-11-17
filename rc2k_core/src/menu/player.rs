@@ -42,7 +42,8 @@ pub struct Player {
     /// The learned pedals' axes (+0x3A the second pedal's, +0x3B the first's;
     /// `screens::learning::pedal`), handed to the device's set-up as one dword.
     pub axis_codes: [u8; 4],
-    /// The controller's mode (bit 0; string 0x56D + it).
+    /// Kept as the old record has it so a saved file round-trips; nothing reads it now (the H
+    /// shifter switch is the controller profile's `shifter`).
     pub controller_mode: u32,
     /// +0x40: the stick's end zone in percent of its travel (0 at start): the share at the
     /// far end that counts as full. The controller page's first slider; with the centre dead
@@ -453,11 +454,6 @@ impl Player {
 
     pub fn set_binding(&mut self, k: usize, v: u32) {
         self.bindings.set_word(k, v);
-    }
-
-    /// The controller mode's bit 0 turned over.
-    pub fn toggle_controller_mode(&mut self) {
-        self.controller_mode ^= 1;
     }
 
     /// The setting's dword.
@@ -900,7 +896,5 @@ mod tests {
         assert_eq!(p.strength, 100);
         p.step_strength(false);
         assert_eq!(p.strength, 90);
-        p.toggle_controller_mode();
-        assert_eq!(p.controller_mode, 1);
     }
 }

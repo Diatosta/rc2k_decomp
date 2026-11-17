@@ -105,7 +105,7 @@ pub fn draw_control_bindings(
     // text beside it (not for the row being learnt, whose prompt is drawn instead).
     let mut texts: [Vec<u8>; ROWS_PER_PAGE] = Default::default();
     let mut learnt = None;
-    let shifter = shifter_on(menus);
+    let shifter = shifter_on(menus, o.input);
     for (slot, text) in texts.iter_mut().enumerate() {
         let row = row_at(controls, shifter, slot);
         let label = row.map_or(id::BLANK, row_label);

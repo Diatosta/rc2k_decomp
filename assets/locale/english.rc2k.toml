@@ -41,12 +41,12 @@ right_trigger = "right trigger"
 [axis_page]
 axis = "axis"
 dead_zone = "dead zone"
-sensitivity = "sensitivity"
+sensitivity = "response curve"
 range = "range"
 invert = "invert"
 position = "position"
 
-# What a sensitivity does.
+# What a response curve does.
 [sensitivity]
 linear = "linear"
 gentle = "gentle"
@@ -67,7 +67,6 @@ handbrake = "handbrake"
 camera = "camera"
 pause = "pause"
 lights = "lights"
-wipers = "wipers"
 reset_car = "reset car"
 
 [gear_rows]

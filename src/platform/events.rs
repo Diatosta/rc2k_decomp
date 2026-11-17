@@ -220,8 +220,8 @@ pub fn pump(o: crate::owners::Owners<'static>) {
             // In a race a joystick's axes and hat drive the car; its menu buttons still answer the
             // race's questions (leave the stage?), as a gamepad's do.
             Event::Joystick { id, input: what } => {
-                // A wheel's first two buttons end what ends on any key, in a race too.
-                if let sdl::JoystickInput::Button(0..=1, true) = what {
+                // A wheel's enter and back buttons end what ends on any key, in a race too.
+                if let sdl::JoystickInput::Button(1..=2, true) = what {
                     input.note_pad_press(false);
                 }
                 let driving = driving(o.race);
@@ -338,9 +338,9 @@ fn pad_button(
     }
 }
 
-/// A joystick that is not a gamepad (a wheel) in the menus: its hat is the pad's cross, its first
-/// axis turned from where it rests is left and right (an axis resting at an end, a pedal, is left
-/// alone), its first button enters and its second goes back. Each button press is logged, so a
+/// A joystick that is not a gamepad (a wheel) in the menus: its hat is the pad's cross (its axes
+/// move nothing: a wheel turned while choosing would wander through the items), its second button
+/// enters and its third goes back. Each button press is logged, so a
 /// wheel whose buttons are numbered otherwise can be told.
 fn joystick_in_menus(
     input: &crate::input::owner::Input,
@@ -348,20 +348,12 @@ fn joystick_in_menus(
     what: sdl::JoystickInput,
     in_race: bool,
 ) {
-    use crate::input::menu_pad::{PadButton, StickAxis};
+    use crate::input::menu_pad::PadButton;
     use sdl::JoystickInput as J;
     let now = u64::from(crate::platform::os::ticks());
     let action = match what {
         J::Hat(0, bits) => lock_menu_pad().hat(bits, now),
         J::Hat(..) => None,
-        J::Axis(0, value) => {
-            let rest = crate::platform::ffi::sdl_input::axis_rest_for_id(id, 0).unwrap_or(0);
-            if rest.unsigned_abs() > 16000 {
-                return;
-            }
-            lock_menu_pad().stick(StickAxis::Wheel, i32::from(value) - i32::from(rest), now)
-        }
-        J::Axis(..) => None,
         J::Button(n, down) => {
             // Logged so a player can tell which number a button is; not in a race, where the
             // buttons shift gears and the like.
@@ -371,15 +363,17 @@ fn joystick_in_menus(
                     crate::platform::ffi::sdl_input::joystick_name_for_id(id, "a joystick"),
                     n + 1,
                     match n {
-                        0 => " (back)",
                         1 => " (enter)",
+                        2 => " (back)",
                         _ => "",
                     }
                 ));
             }
             let button = match n {
-                0 => PadButton::East,
+                // The second and third buttons: cross and circle on a wheel with a PlayStation
+                // pad's faces (square is the first).
                 1 => PadButton::South,
+                2 => PadButton::East,
                 _ => return,
             };
             lock_menu_pad().button(button, down, in_race, now)

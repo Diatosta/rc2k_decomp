@@ -97,19 +97,6 @@ pub fn is_gamepad(id: SDL_JoystickID) -> bool {
     unsafe { SDL_IsGamepad(id) }
 }
 
-/// Where an open joystick's axis rested when it was opened, if SDL knows.
-pub fn axis_rest_for_id(id: SDL_JoystickID, axis: i32) -> Option<i16> {
-    // SAFETY: the joystick SDL has open for the id (null checked); the state written by SDL.
-    unsafe {
-        let joystick = SDL_GetJoystickFromID(id);
-        if joystick.is_null() {
-            return None;
-        }
-        let mut state = 0i16;
-        SDL_GetJoystickAxisInitialState(joystick, axis, &raw mut state).then_some(state)
-    }
-}
-
 /// An open joystick.
 #[derive(Clone, Copy)]
 pub struct Joystick(*mut SDL_Joystick);

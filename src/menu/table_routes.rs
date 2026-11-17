@@ -171,7 +171,10 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn) -> Result<(), Refused> {
         }
         ItemFn::AxesLoop => player_axes_loop::run(o),
         ItemFn::TurnControlsPage => {
-            axes_items::turn_controls_page(&menus.screens.controls, axes_items::shifter_on(menus));
+            axes_items::turn_controls_page(
+                &menus.screens.controls,
+                axes_items::shifter_on(menus, o.input),
+            );
             Ok(())
         }
         ItemFn::AxisStep { up } => axes_items::step(o, up),
@@ -304,7 +307,7 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn) -> Result<(), Refused> {
             item_actions::view_stage_details(&menus.screens, &Entry::new(o))
         }
         ItemFn::ApplyScreenMode => apply_screen_mode::apply_screen_mode(o),
-        ItemFn::ToggleControllerMode => player_actions::toggle_controller_mode(menus),
+        ItemFn::ToggleControllerMode => axes_items::toggle_shifter(o),
         ItemFn::ReplayItemC => replay_items::replay_item_c(race, o),
         ItemFn::ReplayItemB => replay_items::replay_item_b(race, o),
         ItemFn::ReplayItemA => replay_items::replay_item_a(race, o),

@@ -33,7 +33,7 @@ The original was a 32-bit Windows program on DirectX. Its platform side was not 
 
 - The controller page has no axis mode or dead zone items; an axes list opens a page for each axis that edits its dead
   zone, sensitivity curve, invert and range (and a wheel's rotation), and the buttons page lists
-  the steering, accelerate and brake axes and the buttons, with wipers and reset car, on two
+  the steering, accelerate and brake axes and the buttons, with reset car, on two
   pages ([Controllers](Controllers)).
 
 ## Installing
