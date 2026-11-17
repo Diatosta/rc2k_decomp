@@ -24,6 +24,18 @@ use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
 const OUT_RATE: u32 = 44100;
+
+/// The most a volume slider holds (full volume).
+pub const FULL_VOLUME: u32 = 0x40;
+
+/// Whether the game's sounds go on while its window is not in front (the sound page's "sound when
+/// not in front"; off, a buffer made without a global focus goes quiet then).
+pub static SOUND_IN_BACKGROUND: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
+/// The films' volume, 0 ..= `FULL_VOLUME` (the volume page's "film volume").
+pub static FILM_VOLUME: std::sync::atomic::AtomicU32 =
+    std::sync::atomic::AtomicU32::new(FULL_VOLUME);
 const E_NOINTERFACE: i32 = 0x8000_4002u32 as i32;
 /// `DSERR_NODRIVER`.
 const NO_DRIVER: i32 = 0x8878_0078u32 as i32;
@@ -666,7 +678,8 @@ pub(crate) fn mixed_frames(frames: usize) -> Vec<i16> {
     let mut unheard = Vec::new();
     with(|s| {
         // Before the device exists nothing plays; the flag is then taken as set.
-        let focused = s.window_focused.is_none_or(|flag| flag.get() == 1);
+        let focused = s.window_focused.is_none_or(|flag| flag.get() == 1)
+            || SOUND_IN_BACKGROUND.load(std::sync::atomic::Ordering::Relaxed);
         let master = s
             .primary
             .and_then(|p| match &s.entries.get(&p)?.kind {

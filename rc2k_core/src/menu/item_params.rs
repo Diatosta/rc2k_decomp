@@ -21,6 +21,8 @@ pub enum VolumeKind {
     Engine,
     /// The "menu effects" slider (`options.menu_effects_volume`), heard with a menu sound.
     MenuEffects,
+    /// The "film volume" slider, kept in the options file (`platform::sound::FILM_VOLUME`).
+    Film,
 }
 
 /// The switches of the options pages (the items flipped left or right).
@@ -56,6 +58,8 @@ pub enum OptionSwitch {
     Dolby,
     /// The channels.
     Channels,
+    /// Sound while the window is not in front (`platform::sound::SOUND_IN_BACKGROUND`).
+    SoundInBackground,
 }
 
 /// The stage pages' two counters.

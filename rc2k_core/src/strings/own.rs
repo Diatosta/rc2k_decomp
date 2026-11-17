@@ -74,6 +74,11 @@ pub mod id {
     pub const HINTS: u32 = FIRST + 0x98;
     /// The buttons page's rows for the menu controls (8 ids).
     pub const MENU_ROWS: u32 = FIRST + 0x70;
+    /// The sound page's switch for sound while the window is not in front, the volume page's
+    /// films slider and the network settings' port.
+    pub const BACKGROUND_SOUND: u32 = FIRST + 0xC0;
+    pub const FILM_VOLUME: u32 = FIRST + 0xC1;
+    pub const NETWORK_PORT: u32 = FIRST + 0xC2;
     /// The controller page's switch for the H shifter.
     pub const H_SHIFTER: u32 = FIRST + 0x68;
 }
@@ -92,6 +97,9 @@ pub const KEYS: &[(&str, u32)] = &[
     ("on", id::ON),
     ("off", id::OFF),
     ("h_shifter", id::H_SHIFTER),
+    ("options.background_sound", id::BACKGROUND_SOUND),
+    ("options.film_volume", id::FILM_VOLUME),
+    ("options.network_port", id::NETWORK_PORT),
     ("button_icons", id::BUTTON_ICONS),
     ("icon_styles.automatic", id::ICON_STYLES),
     ("icon_styles.xbox", id::ICON_STYLES + 1),

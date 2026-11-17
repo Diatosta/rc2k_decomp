@@ -1,5 +1,5 @@
-//! The frame of the network settings screen: background, four settings (connection, player's
-//! name, most players, host's address) and the last item's framed string. A zero-width string is
+//! The frame of the network settings screen: background, five settings (connection, player's
+//! name, most players, host's address, port) and the last item's framed string. A zero-width string is
 //! refused.
 
 use crate::errors::Refused;
@@ -30,6 +30,10 @@ pub fn settings_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> 
         (0x164, Value::Text((&net.setup().machine_name).into())),
         (0x165, Value::Number(net.setup().most_players.get())),
         (0x166, Value::Text((&net.setup().host_address).into())),
+        (
+            rc2k_core::strings::own::id::NETWORK_PORT,
+            Value::Number(rc2k_core::net::chat::shown_port(net.setup().port.get())),
+        ),
     ]
     .into_iter()
     .enumerate()
@@ -73,7 +77,7 @@ pub fn settings_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> 
         }
     }
     piece(screens::LEFT_END, screens::END_WIDTH)?;
-    draw_centred_item(o, net, 0x16F, 4, text_x, 0x21D)?;
+    draw_centred_item(o, net, 0x16F, 5, text_x, 0x21D)?;
     crate::platform::unlock_surface(o.gfx);
     crate::platform::show_frame_now(o);
     Ok(())

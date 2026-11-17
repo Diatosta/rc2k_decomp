@@ -164,6 +164,14 @@ fn volume_item(var: StepOperand, up: bool, then: Then) -> Item {
 /// the others on the volume page).
 pub fn volume(o: Owners<'static>, which: VolumeKind, up: bool) -> Result<(), Refused> {
     use crate::menu::option_steps::{Then as StepThen, Volume, volume_step};
+    use std::sync::atomic::Ordering::Relaxed;
+    if which == VolumeKind::Film {
+        // The films' volume lives with the platform's sound (the films are played there).
+        let now = crate::platform::sound::FILM_VOLUME.load(Relaxed) as i32;
+        let next = rc2k_core::menu::steps::volume(now, up);
+        crate::platform::sound::FILM_VOLUME.store(next as u32, Relaxed);
+        return Ok(());
+    }
     let work = &o.menus.options;
     let item = match which {
         VolumeKind::General => volume_item(var!(@o audio.levels.general_volume), up, Then::Send),
@@ -218,6 +226,7 @@ pub fn volume(o: Owners<'static>, which: VolumeKind, up: bool) -> Result<(), Ref
             );
             return Ok(());
         }
+        VolumeKind::Film => return Ok(()),
         VolumeKind::Engine => {
             volume_step(
                 o,
@@ -236,6 +245,12 @@ pub fn volume(o: Owners<'static>, which: VolumeKind, up: bool) -> Result<(), Ref
 /// `ItemFn::OptionSwitch(which)`: the switch flipped; the visual ones also flip or copy
 /// the setting the game reads, the audio ones apply the audio choices.
 pub fn switch(o: Owners<'static>, which: OptionSwitch) -> Result<(), Refused> {
+    if which == OptionSwitch::SoundInBackground {
+        use std::sync::atomic::Ordering::Relaxed;
+        let on = &crate::platform::sound::SOUND_IN_BACKGROUND;
+        on.store(!on.load(Relaxed), Relaxed);
+        return Ok(());
+    }
     let copy = |other: StepOperand| Kind::SwitchCopy { other, flip: false };
     let flip = |other: StepOperand| Kind::SwitchCopy { other, flip: true };
     let (var, kind) = match which {
@@ -286,6 +301,7 @@ pub fn switch(o: Owners<'static>, which: OptionSwitch) -> Result<(), Refused> {
         OptionSwitch::Eax => (var!(@o menus.options.eax), Kind::SwitchAudio),
         OptionSwitch::Dolby => (var!(@o menus.options.dolby), Kind::SwitchAudio),
         OptionSwitch::Channels => (var!(@o menus.options.channels), Kind::SwitchAudio),
+        OptionSwitch::SoundInBackground => return Ok(()),
     };
     option_item(o, Item { var, kind })
 }

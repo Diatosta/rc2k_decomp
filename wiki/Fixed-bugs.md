@@ -720,3 +720,13 @@ has the same fixed addresses, but its network mode could not be run here to see 
 **Seen or read:** read.
 
 **Fix:** the menus' set-up puts the setting back to one level each time (`scene::set_up_front_end_scene`); races still take the option as before.
+
+## The windscreen Pong's bat never moved
+
+*Original*: `effects::move_pong_bat` (0x4B82B0).
+*Fixed*: 2026-11-17.
+
+- **What**: the hidden Pong game over the race (cheat "blarby garby", seen from the in-car views) has code that moves the bat up and down by keys, but two jumps right after the bat's place is kept skip all of it.
+- **In game**: a ball and a bat are drawn and the ball bounces, but the bat stays where it is: the game cannot be played.
+- **Seen or read**: seen in the standalone and read in the disassembly.
+- **Fix**: the bat follows player 1's steering (left up, right down; keys, pad or wheel as the race reads them), 32 units a frame within the original's walls (`rc2k_core::effects::pong::Court::move_bat`).

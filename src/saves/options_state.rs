@@ -13,6 +13,7 @@ use crate::owners::Owners;
 use crate::records::stages_store::{RECORD_LEN, Record};
 use crate::saves::best_times_store::TimeEntry;
 use rc2k_core::options::Options;
+use std::sync::atomic::Ordering::Relaxed;
 
 /// The options as the game's stores hold them now.
 pub fn capture(o: Owners<'static>) -> Result<Options, Refused> {
@@ -27,6 +28,8 @@ pub fn capture(o: Owners<'static>) -> Result<Options, Refused> {
     }
     options.players.devices = crate::input::device_ids::kept(o.input);
     options.players.profiles = crate::input::profiles::kept(o.input);
+    options.sound.film_volume = crate::platform::sound::FILM_VOLUME.load(Relaxed);
+    options.sound.sound_in_background = crate::platform::sound::SOUND_IN_BACKGROUND.load(Relaxed);
     Ok(options)
 }
 
@@ -39,6 +42,8 @@ pub fn apply(o: Owners<'static>, options: &Options) -> Result<(), Refused> {
     }
     crate::input::device_ids::keep(o.input, options.players.devices.clone());
     crate::input::profiles::keep(o.input, options.players.profiles.clone());
+    crate::platform::sound::FILM_VOLUME.store(options.sound.film_volume, Relaxed);
+    crate::platform::sound::SOUND_IN_BACKGROUND.store(options.sound.sound_in_background, Relaxed);
     Ok(())
 }
 

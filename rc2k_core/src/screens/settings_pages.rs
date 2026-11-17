@@ -46,10 +46,10 @@ pub fn sound_items(has_3d: bool, has_eax: bool) -> Vec<(u32, bool)> {
     out
 }
 
-/// The sound page's five names (each a string id), from y 0x10B every 0x1B.
+/// The sound page's six names (each a string id), from y 0x10B every 0x1B.
 pub fn sound<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
-    ids: [u32; 5],
+    ids: [u32; 6],
 ) -> Result<Drawn, S::Error> {
     names(s, ids.into_iter().zip((0..).map(|n| 0x10B + 0x1B * n)))
 }
@@ -92,20 +92,24 @@ pub fn visual_preferences<S: Screen<Font = Font, Work = Work>>(
     Ok(names(s, ids.into_iter().zip((0..).map(|n| 0xC8 + 0x1D * n)))?.too_wide)
 }
 
-/// The volume page: the name `id` at (0x1EA, 0x1B3); eight bar backgrounds (sprite 0x19 at x
-/// 0x222, y 0xDA every 0x1C); eight bars of the volumes (0 .. 0x40, as percent; a v whose
+/// The volume page: the name `id` at (0x1EA, 0x1B3); nine bar backgrounds (sprite 0x19 at x
+/// 0x222, y 0xDA every 0x1C); the ninth volume (the films') sits in row 9, below the race
+/// music's switch that has row 8; nine bars of the volumes (0 .. 0x40, as percent; a v whose
 /// v x 100 wraps to 0 is fatal error 0x80701010); each row's knob (sprite 0x1B) and its two ends
 /// (strings 0x547, 0x548).
+/// The volume page's rows: eight volumes, the race music's switch's row left out, the films'.
+const VOLUME_ROWS: [i32; 9] = [0, 1, 2, 3, 4, 5, 6, 7, 9];
+
 pub fn volume<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     id: u32,
-    volumes: [u32; 8],
+    volumes: [u32; 9],
 ) -> Result<(), S::Error> {
     s.string(Font::Value, id, 0x1EA, 0x1B3)?;
-    for n in 0..8 {
+    for n in VOLUME_ROWS {
         s.sprite(0x19, 0x222, 0xDA + 0x1C * n)?;
     }
-    for (n, v) in volumes.into_iter().enumerate() {
+    for (n, v) in VOLUME_ROWS.into_iter().zip(volumes) {
         let percent = if v == 0 {
             0
         } else {
@@ -117,14 +121,14 @@ pub fn volume<S: Screen<Font = Font, Work = Work>>(
         };
         s.bar(Bar {
             x: 0x221,
-            y: 0xDA + 0x1C * n as i32,
+            y: 0xDA + 0x1C * n,
             width: 0x76,
             fill_glyph: 0x18,
             end_glyph: 0x87,
             percent: percent as i32,
         })?;
     }
-    for n in 0..8 {
+    for n in VOLUME_ROWS {
         let y = 0xD9 + 0x1C * n;
         s.sprite(0x1B, 0x1E6, y)?;
         s.string(Font::Small, 0x547, 0x203, y + 4)?;
@@ -257,12 +261,14 @@ mod tests {
         assert_eq!(s.0[1], "Value \"640x480x16\\0\" 0x1d1 0xf7");
         assert_eq!(s.0[2], "Value s2 0x1d1 0x112");
         let mut s = Record::default();
-        volume(&mut s, 0x56D, [0x40, 0, 0x20, 0, 0, 0, 0, 1]).unwrap();
+        volume(&mut s, 0x56D, [0x40, 0, 0x20, 0, 0, 0, 0, 1, 0x10]).unwrap();
         assert!(s.0.contains(&"bar 218 100".to_string()));
         assert!(s.0.contains(&"bar 274 50".to_string()));
         assert!(s.0.contains(&"bar 414 1".to_string()));
+        assert!(s.0.contains(&"bar 470 25".to_string()));
+        assert!(!s.0.iter().any(|l| l.starts_with("bar 442")));
         let mut s = Record::default();
-        assert!(volume(&mut s, 0, [0x0290_0000, 0, 0, 0, 0, 0, 0, 0]).is_ok());
+        assert!(volume(&mut s, 0, [0x0290_0000, 0, 0, 0, 0, 0, 0, 0, 0]).is_ok());
         let mut s = Record::default();
         options_checklist(&mut s, 1, 30, &[1, 0]).unwrap();
         assert_eq!(s.0[0], "Title \"<190> 2\\0\" 0x190 0x14");

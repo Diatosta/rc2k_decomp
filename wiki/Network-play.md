@@ -23,7 +23,9 @@ network screens are the 1999 game's; what carries the messages underneath is new
 - The machines must reach the host on **port 47624** (`0xB9E8`), both TCP and UDP. On a home
   network that usually just works; a firewall on the host may need the port opened. To host
   over the internet, forward that port (TCP and UDP) to the hosting machine.
-- A different port can be set in `var/rc2k.toml` (`port` in the `network` table); `0` means
+- A different port can be set on the network settings page (the "port" row below the host's
+  address: Enter, type the number, Enter), for hosting and for joining; it is kept in
+  `var/rc2k.toml` (`port` in the `network` table, which can also be edited by hand); `0` means
   the default. All machines must use the same one.
 
 ## Setting up a game

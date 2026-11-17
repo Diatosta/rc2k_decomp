@@ -24,8 +24,9 @@ At start-up:
    once. This is how an existing installation of the original game is taken over.
 3. Otherwise the game starts with its built-in values.
 
-When the game saves its options (on leaving, and when the window is closed), it writes
-`var/rc2k.toml`. It leaves `var/ral.dat` alone.
+When the game saves its options it writes `var/rc2k.toml`. It saves when the program ends (also when
+the window is closed) and when an options page, a player's details or controller pages, or a review
+menu after a stage is left; not on every key press. It leaves `var/ral.dat` alone.
 
 Two command-line switches change this:
 
@@ -143,6 +144,8 @@ A **sound mode** is one number, written in decimal; turn it into hexadecimal to 
 | `race_music_volume` | The volume the races' music is started at, 0 .. 64. At the start of the front end it is set from `race_music_level`. |
 | `menu_music_volume` | The "menu music" slider, 0 .. 64 (a fresh game 64). Stepping it sets `music_volume` and the music's volume at once. |
 | `race_music_level` | The "race music" slider, 0 .. 64: stepping it sets `race_music_volume`. |
+| `film_volume` | The volume page's "film volume" slider, 0 .. 64 (an optional field, only in `rc2k.toml`; missing it is 64, full): the intro and logo films play at this volume. |
+| `sound_in_background` | The sound page's "sound when not in front" row (an optional field, only in `rc2k.toml`; missing it is `false`). Off, the sounds go quiet while the window is not in front, as the original's DirectSound did; on, they go on. |
 | `menu_effects_volume` | The "menu effects" slider, 0 .. 64: the menus' own sounds (clicks, moving between items); a sound plays at each step so that it can be heard. |
 | `race_effects_volume` | The "race effects" slider, 0 .. 64: the level of the race's sound effects (those whose sample record names this level); a race sound plays at each step. |
 | `menu_voices_volume` | The "menu voices" slider, 0 .. 64: the spoken sounds of the menus (the announcer, the car's names); a sample plays at each step. |

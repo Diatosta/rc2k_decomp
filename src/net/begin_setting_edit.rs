@@ -1,5 +1,5 @@
 //! Enter on a setting of the network settings screen starts editing it: item 1 the player's
-//! name, item 3 the host's address, item 2 the most players as text. Other items do nothing.
+//! name, item 3 the host's address, item 2 the most players and item 4 the port as text. Other items do nothing.
 
 use crate::net::begin_edit::EditedText;
 use crate::net::lobby::PALETTE;
@@ -19,6 +19,15 @@ pub fn begin_setting_edit(
         Setting::MostPlayers => {
             let mut digits =
                 crate::strings::format_u32::format_u32(net.setup().most_players.get(), 0);
+            digits.push(0);
+            net.settings()
+                .most_players_text
+                .write_at(0, &digits, "a text line's bytes")?;
+            EditedText::MostPlayers
+        }
+        Setting::Port => {
+            let port = rc2k_core::net::chat::shown_port(net.setup().port.get());
+            let mut digits = crate::strings::format_u32::format_u32(port, 0);
             digits.push(0);
             net.settings()
                 .most_players_text

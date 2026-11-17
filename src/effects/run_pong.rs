@@ -1,6 +1,6 @@
 //! `effects::run_pong`: the pong game over the race (an Easter egg: a ball, a bat and a score; seen
 //! on the windscreen), with cheat bit 0x8000 and `FrameWork.lead_kept[7]` only:
-//! `effects::pong_setup`, `effects::move_pong_bat`, `effects::move_pong_ball` once for each of the
+//! `effects::pong_setup`, `effects::move_pong_bat` (steered by player 1's car's steering word), `effects::move_pong_ball` once for each of the
 //! ball's steps (read once), `effects::draw_pong_box` for the ball and for the bat, then
 //! `effects::pong_score`.
 
@@ -10,7 +10,6 @@ use crate::effects::pong::Pong;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::Refused;
 use crate::memory::session::PlainFloat;
-use crate::race::owner_frame::Frame;
 use crate::scene::matrix3::extended;
 
 const CHEAT: u32 = 0x8000;
@@ -21,7 +20,7 @@ fn box_values(place: &[PlainFloat; 2], size: &[PlainFloat; 2]) -> [[u8; 10]; 4] 
 
 pub fn run_pong(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
-    frame: &Frame,
+    race: &crate::race::owner::Race,
     pong: &Pong,
     fl: &WindscreenFlakes,
     scene: &crate::scene::owner::Scene,
@@ -32,11 +31,16 @@ pub fn run_pong(
     let p = &pong.state;
     {
         // `FrameWork.lead_kept[7]`: pong shown.
-        if cheats.cheats.get() & CHEAT == 0 || frame.frame_work.get().lead_kept[7].get() == 0 {
+        if cheats.cheats.get() & CHEAT == 0 || race.frame.frame_work.get().lead_kept[7].get() == 0 {
             return Ok(());
         }
         crate::effects::pong_setup::pong_setup(buffer, pong, fl, scene);
-        move_pong_bat(pong);
+        let steer = race
+            .shared
+            .race_car_or(0, "player 1's car")?
+            .input_steering
+            .get() as i32;
+        move_pong_bat(pong, effects, steer);
         let steps = p.steps.get() as i32;
         for _ in 0..steps.max(0) {
             move_pong_ball(pong, effects);

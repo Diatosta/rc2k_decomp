@@ -88,8 +88,15 @@ pub struct Display {
     pub mipmapping: u32,
 }
 
+/// The films' volume at its fullest (the sliders' range is 0 ..= 0x40).
+pub const FILM_VOLUME_FULL: u32 = 0x40;
+
+fn film_volume_full() -> u32 {
+    FILM_VOLUME_FULL
+}
+
 /// The sound settings.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Sound {
     pub menu_sound_mode: u32,
     pub race_sound_mode: u32,
@@ -117,6 +124,39 @@ pub struct Sound {
     pub codriver_voice_volume: u32,
     /// The "car engine" slider.
     pub engine_volume: u32,
+    /// The films' volume, 0 ..= `FILM_VOLUME_FULL` (only in the new file; an old file or a file
+    /// without it gives full volume).
+    #[serde(default = "film_volume_full")]
+    pub film_volume: u32,
+    /// Whether the sound goes on while the window is not in front (only in the new file; off
+    /// when missing).
+    #[serde(default)]
+    pub sound_in_background: bool,
+}
+
+impl Default for Sound {
+    fn default() -> Self {
+        Self {
+            menu_sound_mode: 0,
+            race_sound_mode: 0,
+            master_volume: 0,
+            unread_option_f0: 0,
+            race_music_on: 0,
+            tune_turn: 0,
+            music_volume: 0,
+            race_music_volume: 0,
+            general_volume: 0,
+            menu_music_volume: 0,
+            race_music_level: 0,
+            menu_effects_volume: 0,
+            race_effects_volume: 0,
+            menu_voices_volume: 0,
+            codriver_voice_volume: 0,
+            engine_volume: 0,
+            film_volume: FILM_VOLUME_FULL,
+            sound_in_background: false,
+        }
+    }
 }
 
 /// The network settings.

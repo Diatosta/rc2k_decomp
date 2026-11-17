@@ -40,7 +40,14 @@ pub fn draw_sound_settings(
             disable_item(menus, item)?;
         }
     }
-    let ids = names(menus).map(|(setting, first)| setting.get().wrapping_add(first));
+    let mut ids = names(menus)
+        .map(|(setting, first)| setting.get().wrapping_add(first))
+        .to_vec();
+    // The sixth, sound while the window is not in front, shows the game's "off" and "on".
+    let background =
+        crate::platform::sound::SOUND_IN_BACKGROUND.load(std::sync::atomic::Ordering::Relaxed);
+    ids.push(0x56D + u32::from(background));
+    let ids: [u32; 6] = ids.try_into().expect("six names");
     rc2k_core::screens::settings_pages::sound(&mut SettingsScreen::new(canvas, o), ids)?;
     Ok(())
 }

@@ -255,7 +255,11 @@ characters.
 ## Options
 
 The game's options (screen modes, sound volumes, players, controls, unlocked cars) are set in
-the game's own options screens and saved when the program ends properly.
+the game's own options screens and saved when each of those pages is left (and when the program
+ends), so a crash or a killed process keeps the changes made in the pages already left. The review
+menu after a stage opens the options too: audio, display, the players' details (names, controllers,
+buttons, visual preferences) and the cars' specifications; what a race fixes (the number of players,
+the cars) is not changed there.
 
 | File | What it is |
 | --- | --- |

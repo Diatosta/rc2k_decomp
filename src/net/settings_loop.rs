@@ -1,9 +1,12 @@
-//! The network settings screen: up and down move the highlight over five items, Enter leaves
-//! (item 4), chooses the connection (item 0) or starts editing the setting; Escape leaves. A
+//! The network settings screen: up and down move the highlight over six items, Enter leaves
+//! (item 5), chooses the connection (item 0) or starts editing the setting; Escape leaves. A
 //! setting being edited gets the keys. Also ends when the game is closing.
 
 use crate::errors::Refused;
 use crate::net::lobby::{list_key, other_key, run_frame};
+/// The last item, the one that leaves (the port is the item before it).
+const LAST: u32 = 5;
+
 pub fn settings_loop(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (net, system) = (o.net, o.system);
     let list_state = &o.menus.list;
@@ -33,11 +36,11 @@ pub fn settings_loop(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
                 }
                 0x6B => {
                     let c = list_state.choice.get().wrapping_add(1);
-                    list_state.choice.set(if (c as i32) > 4 { 4 } else { c });
+                    list_state.choice.set(if c > LAST { LAST } else { c });
                     moved = true;
                 }
                 0x1C => {
-                    if list_state.choice.get() == 4 {
+                    if list_state.choice.get() == LAST {
                         break;
                     }
                     if list_state.choice.get() == 0 {

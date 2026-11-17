@@ -92,6 +92,9 @@ pub struct Rules {
     pub start: [u32; 8],
 }
 
+/// How far the bat moves in a frame while steered.
+pub const BAT_STEP: f32 = 32.0;
+
 /// The ball's steps a frame after a reset.
 pub const START_STEPS: u32 = 5;
 
@@ -146,12 +149,28 @@ impl Court {
         Back::PutBack(self.saved_bat)
     }
 
-    /// `effects::move_pong_bat`: the bat's place kept, then `bat_back` (kept: the keys' moves are
-    /// skipped, so the bat never moves). Returns the bat's place going in (as bits) and what
-    /// `bat_back` returns.
-    pub fn move_bat(&mut self) -> ([u32; 2], Back) {
+    /// `effects::move_pong_bat`: the bat's place kept, then moved up (`steer` negative) or down
+    /// (positive) by `BAT_STEP` and held between the top wall and the bottom wall less its height
+    /// (a bat past a wall is put at it), then `bat_back`. Returns the bat's place going in (as
+    /// bits) and what `bat_back` returns.
+    pub fn move_bat(&mut self, rules: &Rules, steer: i32) -> ([u32; 2], Back) {
         let place = self.bat.map(f32::to_bits);
         self.saved_bat = place;
+        if steer < 0 {
+            self.bat[1] = (self.bat[1] as f64 - BAT_STEP as f64) as f32;
+            if status(self.bat[1] as f64, rules.walls[4] as f64) != 0 {
+                self.bat[1] = rules.walls[5];
+            }
+        } else if steer > 0 {
+            self.bat[1] = (self.bat[1] as f64 + BAT_STEP as f64) as f32;
+            if status(
+                rules.walls[6] as f64 - self.bat_size[1] as f64,
+                self.bat[1] as f64,
+            ) != 0
+            {
+                self.bat[1] = less(rules.walls[7], self.bat_size[1]);
+            }
+        }
         (place, self.bat_back())
     }
 
@@ -279,6 +298,27 @@ mod tests {
     }
 
     #[test]
+    fn steered_bat_moves_and_stops_at_the_walls() {
+        let (mut c, rules) = court();
+        c.ball = [0.0, 0.0];
+        c.bat = [300.0, 100.0];
+        c.move_bat(&rules, -1);
+        assert_eq!(c.bat[1], 68.0);
+        c.bat[1] = 40.0;
+        c.move_bat(&rules, -1);
+        assert_eq!(c.bat[1], 22.0);
+        c.move_bat(&rules, 1);
+        assert_eq!(c.bat[1], 54.0);
+        c.move_bat(&rules, 0);
+        assert_eq!(c.bat[1], 54.0);
+        c.bat[1] = 360.0;
+        c.move_bat(&rules, 1);
+        assert_eq!(c.bat[1], 392.0);
+        c.move_bat(&rules, 1);
+        assert_eq!(c.bat[1], 390.0);
+    }
+
+    #[test]
     fn statuses() {
         assert_eq!(status(1.0, 2.0), 0x100);
         assert_eq!(status(2.0, 2.0), 0);
@@ -294,7 +334,7 @@ mod tests {
         assert_eq!(c.bat_back(), Back::Kept(0x100));
         c.ball = [296.0, 110.0];
         assert_eq!(c.overlap(), (true, 0));
-        let (place, back) = c.move_bat();
+        let (place, back) = c.move_bat(&rules, 0);
         assert_eq!(place, [300.0f32.to_bits(), 100.0f32.to_bits()]);
         assert_eq!(back, Back::PutBack(place));
         let Hit::Hit(way) = c.ball_hits(&rules) else {

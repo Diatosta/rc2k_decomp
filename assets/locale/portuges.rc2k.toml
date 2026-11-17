@@ -100,3 +100,9 @@ type = "escrever"
 delete = "apagar"
 cancel = "cancelar"
 done = "pronto"
+
+# The sound pages' and the network settings' new rows.
+[options]
+background_sound = "som fora da janela"
+film_volume = "volume dos filmes"
+network_port = "porta"

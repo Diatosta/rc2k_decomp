@@ -1289,6 +1289,9 @@ pub fn screen_entry(o: Owners<'static>, id: ScreenId) -> Result<(), Refused> {
     log(&format!("{name}: runs"));
     let exit = screen_loop(screens, screen, &Entry::new(o))?;
     log(&format!("{name}: has left the screen ({exit})"));
+    if id.changes_settings() {
+        crate::saves::save_game_data::save_settings_in_game(o);
+    }
     Ok(())
 }
 
@@ -1300,6 +1303,9 @@ pub fn run_screen(id: ScreenId, entry: &Entry) -> Result<Option<u32>, Refused> {
     let menus = entry.menus;
     let screens = &menus.screens;
     { screen_loop(screens, screen, entry) }?;
+    if id.changes_settings() {
+        crate::saves::save_game_data::save_settings_in_game(entry.owners);
+    }
     Ok(screen.result.map(|result| result(menus)))
 }
 

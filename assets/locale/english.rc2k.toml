@@ -110,3 +110,9 @@ type = "type"
 delete = "delete"
 cancel = "cancel"
 done = "done"
+
+# The sound pages' and the network settings' new rows.
+[options]
+background_sound = "sound when not in front"
+film_volume = "film volume"
+network_port = "port"

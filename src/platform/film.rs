@@ -443,10 +443,17 @@ impl Clock<'_> {
 /// The frames until the end or a key: the key, or 0 at the end.
 fn run(film: &mut Film, o: crate::owners::Owners<'static>) -> u8 {
     let (gfx, system, input) = (o.gfx, o.system, o.input);
-    let sound = film
-        .sound
-        .as_ref()
-        .and_then(|(pcm, hz, ch)| crate::platform::ffi::sdl::PlayedSound::start(pcm, *hz, *ch));
+    let sound = film.sound.as_ref().and_then(|(pcm, hz, ch)| {
+        let volume = crate::platform::sound::FILM_VOLUME
+            .load(std::sync::atomic::Ordering::Relaxed)
+            .min(crate::platform::sound::FULL_VOLUME);
+        let full = crate::platform::sound::FULL_VOLUME as i32;
+        let scaled: Vec<i16> = pcm
+            .iter()
+            .map(|&s| (i32::from(s) * volume as i32 / full) as i16)
+            .collect();
+        crate::platform::ffi::sdl::PlayedSound::start(&scaled, *hz, *ch)
+    });
     let clock = Clock {
         sound: sound.as_ref(),
         start: std::cell::Cell::new(None),

@@ -94,7 +94,6 @@ pub mod place_spline;
 pub mod plain;
 pub mod pong;
 pub mod pong_ball_hits;
-pub mod pong_bat_back;
 pub mod pong_cell;
 pub mod pong_digit;
 pub mod pong_score;

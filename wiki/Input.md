@@ -104,7 +104,7 @@ the cross as hat 0) as the pad's button that stands for it,
 and the default for that control (a gamepad's South, a wheel's button 2, the cross' direction)
 is dropped for that controller. Start leaving a race and the left stick stay as they are.
 
-Places that end on "any key" look at the pad too, through a count of presses
+The pad's West button also gives a key the menus ignore, so the films and the messages that wait for any key end on it. Places that end on "any key" look at the pad too, through a count of presses
 (`Input::pad_pressed_since`): the pad's South, East or Start (a wheel's second and third buttons) end
 the credits race of the attract mode, skip the drive after the finish line, stop a replay played
 from the film loop, and end the pause that follows a window losing the focus. In the network

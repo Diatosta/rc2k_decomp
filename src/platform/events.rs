@@ -580,6 +580,12 @@ fn menu_action(input: &crate::input::owner::Input, action: crate::input::menu_pa
         }
         A::Third => {
             note_answer(input, THIRD);
+            // Also a key the menus ignore, so that what waits for any key (the films, the
+            // messages, the pauses) takes this button as it takes the others.
+            crate::input::take_key::pending_key(input).store(
+                rc2k_core::menu::keys::IGNORED,
+                std::sync::atomic::Ordering::SeqCst,
+            );
             return;
         }
         A::Tab => SDL_SCANCODE_TAB,

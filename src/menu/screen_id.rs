@@ -96,6 +96,48 @@ pub enum ScreenId {
 }
 
 impl ScreenId {
+    /// Whether leaving the screen saves the settings: the options pages, the players' pages and
+    /// the reviews after a stage (where the options are opened from), so a crash or a killed
+    /// process keeps what was changed. Saved once on leaving, not on every key.
+    pub fn changes_settings(self) -> bool {
+        matches!(
+            self,
+            ScreenId::AdvancedAudio
+                | ScreenId::AudioSetup
+                | ScreenId::InGameOptions
+                | ScreenId::Options
+                | ScreenId::Player1Buttons
+                | ScreenId::Player1Controller
+                | ScreenId::Player1Details
+                | ScreenId::Player2Buttons
+                | ScreenId::Player2Controller
+                | ScreenId::Player2Details
+                | ScreenId::Player3Buttons
+                | ScreenId::Player3Controller
+                | ScreenId::Player3Details
+                | ScreenId::Player4Buttons
+                | ScreenId::Player4Controller
+                | ScreenId::Player4Details
+                | ScreenId::PlayerAxes
+                | ScreenId::PlayerAxis
+                | ScreenId::PlayerDetails
+                | ScreenId::RedefineKeysPlayer1
+                | ScreenId::RedefineKeysPlayer2
+                | ScreenId::RedefineKeysPlayer3
+                | ScreenId::RedefineKeysPlayer4
+                | ScreenId::VisualOptions
+                | ScreenId::VisualPreferences
+                | ScreenId::ArcadeNextLevelReview
+                | ScreenId::ArcadeRetryReview
+                | ScreenId::ArcadeReviewOptions
+                | ScreenId::ChampionshipEndReview
+                | ScreenId::ChampionshipRacesReview
+                | ScreenId::ChampionshipServiceReview
+                | ScreenId::ChampionshipStandingsReview
+                | ScreenId::SingleRallyReview
+        )
+    }
+
     /// Every screen, in the order of the variants (the tests walk it).
     #[cfg(test)]
     pub const ALL: [ScreenId; 87] = [

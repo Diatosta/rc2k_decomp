@@ -203,7 +203,7 @@ mod tests {
             Some(held)
         );
         let sum = crate::test_support::hash(text.as_bytes());
-        assert_eq!((text.len(), sum), (200_302, 5_781_392_271_360_575_531));
+        assert_eq!((text.len(), sum), (200_347, 9_774_075_395_527_410_901));
     }
 
     /// Loading the new file through the stores leaves the stores holding what it said, with

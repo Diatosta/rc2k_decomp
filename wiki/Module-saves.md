@@ -24,7 +24,7 @@ the file buffers, and the preview of a saved game shown on the load screen (`pre
 | `gather_savegame`, `write_savegame_slot` | files of the same names | Collects a championship's state and writes it into a slot. |
 | `read_savegame_slot_in`, `load_savegame` | `src/saves/read_savegame_slot.rs`, `src/saves/load_savegame.rs` | Reads a slot; puts a saved championship back. |
 | `read_replay_slot` | `src/saves/read_replay_slot.rs` | Reads a saved replay's name and details for the list. |
-| `save_game_data` | `src/saves/save_game_data.rs` | Everything saved when the game is left. |
+| `save_game_data` | `src/saves/save_game_data.rs` | Everything saved when the game is left; `save_settings_in_game` saves only the options when a settings page is left (`ScreenId::changes_settings`). |
 
 ## How it is laid out
 

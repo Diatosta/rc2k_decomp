@@ -27,7 +27,7 @@ Any gamepad SDL recognises works in the menus on every system, with nothing to s
 | D-pad, or the left stick | moves the highlight (held, it repeats) |
 | South button (A on an Xbox pad) | Enter |
 | East button (B) | Escape / back |
-| West button (X) | the third answer, where a question has three |
+| West button (X) | the third answer, where a question has three; where a screen waits for any key (the films, a message), it also ends the wait |
 | Left or right shoulder | Tab: the network lobby shows or hides the gaps (in a race they stay the car's controls) |
 | Start | Enter in a menu; in a race, the same as Escape (asks whether to leave) |
 

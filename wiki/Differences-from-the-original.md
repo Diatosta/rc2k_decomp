@@ -60,6 +60,9 @@ More on [Network play](Network-play).
 
 - Options are kept in a text file, `var/rc2k.toml`. The original's `var/ral.dat` is read when
   the new file does not exist, and written only on request ([Options files](Options-files)).
+- The options are saved when a settings page is left, not only when the game closes. The review menu
+  after a stage opens the options (audio, display, the players' details and controllers), where the
+  original offered fewer.
 - Every other file keeps the original's format: replays, saved games, car set-ups, best times
   and `var/ral.cfg`. Old replays and saves are read as they are.
 - The program writes a log of its own, `rc2k.log`, beside the game's `var/logfile.txt`
@@ -79,6 +82,8 @@ More on [Network play](Network-play).
 - Controllers are read from a race's first moment (the original's input thread slept a second
   at each race's start), and at once after coming back to the window.
 - A loading bar is shown while a stage loads.
+- The volume page has a "film volume" slider (the intro and logo films), the sound page a "sound when not in front" row (the original's sounds went quiet while its window was behind), and the network settings page a "port" row ([Options files](Options-files), [Network play](Network-play)).
+- The hidden Pong game on the windscreen can be played: the bat follows player 1's steering ([Fixed bugs](Fixed-bugs)).
 - The loading screen does not hold up the load: the loading picture is shown once (the
   original showed it once for each page of its screen), and a bar frame is drawn only when
   the last frame of the loading screen is at least 33 ms old, so the bar's last steps may go
