@@ -65,6 +65,8 @@ pub mod id {
     pub const DEGREES: u32 = FIRST + 0x46;
     /// The buttons page's rows for the H shifter's gears 1 .. 7 and reverse (8 ids).
     pub const GEAR_ROWS: u32 = FIRST + 0x60;
+    /// The buttons page's rows for the menu controls (8 ids).
+    pub const MENU_ROWS: u32 = FIRST + 0x70;
     /// The controller page's switch for the H shifter.
     pub const H_SHIFTER: u32 = FIRST + 0x68;
 }
@@ -126,6 +128,14 @@ pub const KEYS: &[(&str, u32)] = &[
     ("gear_rows.gear_6", id::GEAR_ROWS + 5),
     ("gear_rows.gear_7", id::GEAR_ROWS + 6),
     ("gear_rows.reverse", id::GEAR_ROWS + 7),
+    ("menu_rows.enter", id::MENU_ROWS),
+    ("menu_rows.back", id::MENU_ROWS + 1),
+    ("menu_rows.up", id::MENU_ROWS + 2),
+    ("menu_rows.down", id::MENU_ROWS + 3),
+    ("menu_rows.left", id::MENU_ROWS + 4),
+    ("menu_rows.right", id::MENU_ROWS + 5),
+    ("menu_rows.third_answer", id::MENU_ROWS + 6),
+    ("menu_rows.tab", id::MENU_ROWS + 7),
     ("prompt.steering", id::PROMPT_STEERING),
     ("prompt.axis", id::PROMPT_AXIS),
     ("prompt.button", id::PROMPT_BUTTON),

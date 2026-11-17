@@ -88,6 +88,15 @@ a gamepad (a wheel) sends SDL's joystick events instead: outside a race its hat 
 axes move nothing in the menus), its buttons 2 and 3 are Enter and Back (`joystick_in_menus` in `src/platform/events.rs`). In a race only those two
 buttons go on to the menus' side, so they answer the "leave?" question as a pad's buttons do.
 
+Each controller's profile can bind the menu controls (enter, back, up, down, left, right, third
+answer, Tab) to buttons or hat directions of its own, on the last page of the buttons page
+([Controllers](Controllers)). `bound_menu_controls` in `src/platform/events.rs` looks the
+controller up by name among the players' profiles (`input::profiles::menu_map_of`, the
+bindings as `rc2k_core::input::profile::MenuMap`); a bound control is pressed from its button
+or hat direction (a gamepad's raw joystick buttons too) as the pad's button that stands for it,
+and the default for that control (a gamepad's South, a wheel's button 2, the cross' direction)
+is dropped for that controller. Start leaving a race and the left stick stay as they are.
+
 Places that end on "any key" look at the pad too, through a count of presses
 (`Input::pad_pressed_since`): the pad's South, East or Start (a wheel's second and third buttons) end
 the credits race of the attract mode, skip the drive after the finish line, stop a replay played

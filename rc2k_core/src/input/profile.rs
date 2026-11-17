@@ -119,6 +119,16 @@ pub enum HatDirection {
 }
 
 impl HatDirection {
+    /// The direction's bit in a hat's value (1 up, 2 right, 4 down, 8 left).
+    pub fn bit(self) -> u8 {
+        match self {
+            HatDirection::Up => 1,
+            HatDirection::Right => 2,
+            HatDirection::Down => 4,
+            HatDirection::Left => 8,
+        }
+    }
+
     /// The direction nearest to a hat's angle (hundredths of degrees).
     pub fn nearest(angle: u32) -> HatDirection {
         match ((angle % 36000 + 4500) / 9000) % 4 {
@@ -239,6 +249,99 @@ pub struct Bindings {
     pub gear_7: Option<Digital>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reverse: Option<Digital>,
+    /// What the menus take from this controller (`MenuControl`): absent, the controller's own
+    /// default for that kind of controller (a gamepad's face buttons and cross, a wheel's second
+    /// and third buttons and hat).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub menu_enter: Option<Digital>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub menu_back: Option<Digital>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub menu_up: Option<Digital>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub menu_down: Option<Digital>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub menu_left: Option<Digital>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub menu_right: Option<Digital>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub menu_third: Option<Digital>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub menu_tab: Option<Digital>,
+}
+
+/// What a controller does in the menus.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MenuControl {
+    Enter,
+    Back,
+    Up,
+    Down,
+    Left,
+    Right,
+    /// The third answer of a question.
+    Third,
+    /// Shows or hides the gaps in the network lobby.
+    Tab,
+}
+
+impl MenuControl {
+    /// The menu controls in the order the page lists them.
+    pub const ALL: [MenuControl; 8] = [
+        MenuControl::Enter,
+        MenuControl::Back,
+        MenuControl::Up,
+        MenuControl::Down,
+        MenuControl::Left,
+        MenuControl::Right,
+        MenuControl::Third,
+        MenuControl::Tab,
+    ];
+
+    /// The control's place in `ALL`.
+    pub fn place(self) -> usize {
+        self as usize
+    }
+
+    /// The direction of a hat that is this control's, for the four moves.
+    pub fn hat_bit(self) -> Option<u8> {
+        match self {
+            MenuControl::Up => Some(1),
+            MenuControl::Right => Some(2),
+            MenuControl::Down => Some(4),
+            MenuControl::Left => Some(8),
+            _ => None,
+        }
+    }
+}
+
+impl Bindings {
+    /// What the menu control is bound to, if the profile binds it.
+    pub fn menu(&self, control: MenuControl) -> Option<Digital> {
+        match control {
+            MenuControl::Enter => self.menu_enter,
+            MenuControl::Back => self.menu_back,
+            MenuControl::Up => self.menu_up,
+            MenuControl::Down => self.menu_down,
+            MenuControl::Left => self.menu_left,
+            MenuControl::Right => self.menu_right,
+            MenuControl::Third => self.menu_third,
+            MenuControl::Tab => self.menu_tab,
+        }
+    }
+
+    fn menu_mut(&mut self, control: MenuControl) -> &mut Option<Digital> {
+        match control {
+            MenuControl::Enter => &mut self.menu_enter,
+            MenuControl::Back => &mut self.menu_back,
+            MenuControl::Up => &mut self.menu_up,
+            MenuControl::Down => &mut self.menu_down,
+            MenuControl::Left => &mut self.menu_left,
+            MenuControl::Right => &mut self.menu_right,
+            MenuControl::Third => &mut self.menu_third,
+            MenuControl::Tab => &mut self.menu_tab,
+        }
+    }
 }
 
 /// An H shifter's position: a gear 1 ..= 7 or reverse.
@@ -697,6 +800,52 @@ const BUTTON_BITS: [(Action, u32); 8] = [
     (Action::Reset, 0x80),
 ];
 
+// ---- the menus ----
+
+/// What a controller's profile binds for the menus (`MenuControl`): a bound control is taken from
+/// its button or hat direction in place of the controller's own default for it.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct MenuMap([Option<Digital>; 8]);
+
+impl MenuMap {
+    /// The menu bindings of `profile`.
+    pub fn of(profile: &Profile) -> MenuMap {
+        MenuMap(MenuControl::ALL.map(|control| profile.bindings.menu(control)))
+    }
+
+    /// Whether the profile binds `control`.
+    pub fn is_bound(&self, control: MenuControl) -> bool {
+        self.0[control.place()].is_some()
+    }
+
+    /// The controls bound to button `button`.
+    pub fn on_button(&self, button: u8) -> impl Iterator<Item = MenuControl> + '_ {
+        MenuControl::ALL
+            .into_iter()
+            .filter(move |c| self.0[c.place()] == Some(Digital::Button { button }))
+    }
+
+    /// The controls bound to a direction of hat `hat`, with the direction's bit (1 up, 2 right,
+    /// 4 down, 8 left).
+    pub fn on_hat(&self, hat: u8) -> impl Iterator<Item = (MenuControl, u8)> + '_ {
+        MenuControl::ALL
+            .into_iter()
+            .filter_map(move |c| match self.0[c.place()] {
+                Some(Digital::Hat { hat: h, direction }) if h == hat => Some((c, direction.bit())),
+                _ => None,
+            })
+    }
+
+    /// The bits of a hat's own default cross that are given up: the four moves that are bound.
+    pub fn moves_bound(&self) -> u8 {
+        MenuControl::ALL
+            .into_iter()
+            .filter(|&c| self.is_bound(c))
+            .filter_map(MenuControl::hat_bit)
+            .fold(0, |bits, bit| bits | bit)
+    }
+}
+
 // ---- learning ----
 
 /// A row of the controller buttons page, from 1 as the page numbers its controls: the digital
@@ -726,6 +875,8 @@ pub enum Row {
     BrakeAxis,
     /// An H shifter's gear (the page lists these only while the shifter switch is on).
     Shifter(Gear),
+    /// What the menus take from the controller (the page after the others).
+    Menu(MenuControl),
 }
 
 impl Row {
@@ -773,9 +924,38 @@ impl Row {
         Row::Shifter(Gear::Reverse),
     ];
 
-    /// The rows the page lists: `LISTED`, and with the H shifter switched on the gears' too.
+    /// The menu controls' rows: a page of their own.
+    pub const MENU: [Row; 8] = [
+        Row::Menu(MenuControl::Enter),
+        Row::Menu(MenuControl::Back),
+        Row::Menu(MenuControl::Up),
+        Row::Menu(MenuControl::Down),
+        Row::Menu(MenuControl::Left),
+        Row::Menu(MenuControl::Right),
+        Row::Menu(MenuControl::Third),
+        Row::Menu(MenuControl::Tab),
+    ];
+
+    /// The rows the page lists before the menu controls: `LISTED`, and with the H shifter
+    /// switched on the gears' too.
     pub fn listed(shifter: bool) -> &'static [Row] {
         if shifter { &Row::ALL } else { &Row::LISTED }
+    }
+
+    /// How many pages of `per_page` rows the buttons page has: those of `listed`, then the menu
+    /// controls on a page of their own.
+    pub fn pages(shifter: bool, per_page: usize) -> usize {
+        Row::listed(shifter).len().div_ceil(per_page) + 1
+    }
+
+    /// The row in slot `slot` of page `page` (see `pages`).
+    pub fn on_page(shifter: bool, per_page: usize, page: usize, slot: usize) -> Option<Row> {
+        let listed = Row::listed(shifter);
+        if page < listed.len().div_ceil(per_page) {
+            listed.get(page * per_page + slot).copied()
+        } else {
+            Row::MENU.get(slot).copied()
+        }
     }
 
     /// The row of control `control` (1 ..= 23).
@@ -797,13 +977,17 @@ impl Row {
             15 => Row::BrakeAxis,
             16..=22 => Row::Shifter(Gear::Forward(control as u8 - 15)),
             23 => Row::Shifter(Gear::Reverse),
+            24..=31 => Row::MENU[control as usize - 24],
             _ => return None,
         })
     }
 
-    /// The row's place in `ALL`.
+    /// The row's place in `ALL`, the menu controls' after it.
     pub fn place(self) -> usize {
-        Row::ALL.iter().position(|&r| r == self).unwrap_or(0)
+        match self {
+            Row::Menu(control) => Row::ALL.len() + control.place(),
+            _ => Row::ALL.iter().position(|&r| r == self).unwrap_or(0),
+        }
     }
 
     /// The control number of the row (the inverse of `of_control`).
@@ -824,7 +1008,11 @@ impl Row {
             Row::Pause => Action::Pause,
             Row::Lights => Action::Lights,
             Row::Reset => Action::Reset,
-            Row::SteeringAxis | Row::AccelerateAxis | Row::BrakeAxis | Row::Shifter(_) => {
+            Row::SteeringAxis
+            | Row::AccelerateAxis
+            | Row::BrakeAxis
+            | Row::Shifter(_)
+            | Row::Menu(_) => {
                 return None;
             }
         })
@@ -839,9 +1027,10 @@ impl Row {
     }
 }
 
-/// The control number of each of `Row::ALL`.
-const LISTED_CONTROLS: [u32; 22] = [
-    13, 14, 15, 3, 4, 1, 2, 5, 6, 7, 8, 9, 10, 11, 16, 17, 18, 19, 20, 21, 22, 23,
+/// The control number of each of `Row::ALL`, then of `Row::MENU`.
+const LISTED_CONTROLS: [u32; 30] = [
+    13, 14, 15, 3, 4, 1, 2, 5, 6, 7, 8, 9, 10, 11, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
+    28, 29, 30, 31,
 ];
 
 /// How far an axis must move from where it rested (of -32768 .. 32767) to count.
@@ -911,6 +1100,8 @@ pub fn learn(profile: &mut Profile, row: Row, learned: Learned) {
                 && let Some(slot) = profile.bindings.gear_mut(gear)
             {
                 *slot = Some(digital);
+            } else if let Row::Menu(control) = row {
+                *profile.bindings.menu_mut(control) = Some(digital);
             }
         }
         Learned::Axis { axis, rest, now } => {
@@ -952,6 +1143,7 @@ pub fn shown(profile: &Profile, row: Row) -> Shown {
     let b = &profile.bindings;
     let digital = match row {
         Row::Shifter(gear) => Some(b.gear(gear)),
+        Row::Menu(control) => Some(b.menu(control)),
         _ => row.action().map(|action| b.digital(action)),
     };
     if let Some(digital) = digital {
@@ -990,6 +1182,58 @@ mod tests {
         let mut r = RawInput::default();
         r.axes[axis] = v;
         r
+    }
+
+    #[test]
+    fn menu_controls_are_learnt_shown_and_mapped() {
+        let mut p = Profile::new(id(), Kind::Pad);
+        assert!(!MenuMap::of(&p).is_bound(MenuControl::Enter));
+        assert_eq!(shown(&p, Row::Menu(MenuControl::Enter)), Shown::Nothing);
+        learn(
+            &mut p,
+            Row::Menu(MenuControl::Enter),
+            Learned::Digital(Digital::Button { button: 5 }),
+        );
+        learn(
+            &mut p,
+            Row::Menu(MenuControl::Up),
+            Learned::Digital(Digital::Hat {
+                hat: 1,
+                direction: HatDirection::Down,
+            }),
+        );
+        assert_eq!(shown(&p, Row::Menu(MenuControl::Enter)), Shown::Button(6));
+        assert_eq!(
+            shown(&p, Row::Menu(MenuControl::Up)),
+            Shown::Hat(HatDirection::Down)
+        );
+        let map = MenuMap::of(&p);
+        assert_eq!(map.on_button(5).collect::<Vec<_>>(), [MenuControl::Enter]);
+        assert_eq!(map.on_button(4).count(), 0);
+        assert_eq!(map.on_hat(1).collect::<Vec<_>>(), [(MenuControl::Up, 4)]);
+        assert_eq!(map.on_hat(0).count(), 0);
+        // only the hat-bound moves give up the default cross's bit
+        assert_eq!(map.moves_bound(), 1);
+        // the game's own controls are left as they were
+        assert_eq!(p.bindings.gear_up, Some(Digital::Button { button: 0 }));
+        // the page lists them on a page of their own, after the others
+        assert_eq!(Row::pages(false, 8), 3);
+        assert_eq!(Row::pages(true, 8), 4);
+        assert_eq!(Row::on_page(false, 8, 1, 5), Some(Row::Reset));
+        assert_eq!(Row::on_page(false, 8, 1, 6), None);
+        assert_eq!(
+            Row::on_page(false, 8, 2, 0),
+            Some(Row::Menu(MenuControl::Enter))
+        );
+        assert_eq!(
+            Row::on_page(true, 8, 3, 7),
+            Some(Row::Menu(MenuControl::Tab))
+        );
+        // their control numbers go both ways
+        for row in Row::MENU {
+            assert_eq!(Row::of_control(row.control()), Some(row));
+        }
+        assert_eq!(Row::Menu(MenuControl::Enter).control(), 24);
     }
 
     fn only(using: AxisUse, settings: AxisSettings) -> Profile {

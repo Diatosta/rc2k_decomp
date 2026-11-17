@@ -60,6 +60,16 @@ pause = "pausa"
 lights = "faróis"
 reset_car = "repor carro"
 
+[menu_rows]
+enter = "menus: entrar"
+back = "menus: voltar"
+up = "menus: cima"
+down = "menus: baixo"
+left = "menus: esquerda"
+right = "menus: direita"
+third_answer = "menus: terceira resposta"
+tab = "menus: tab"
+
 [gear_rows]
 gear_1 = "mudança 1"
 gear_2 = "mudança 2"

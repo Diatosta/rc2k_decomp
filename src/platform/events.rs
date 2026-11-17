@@ -3,6 +3,7 @@
 
 use crate::logfile::program_log::log;
 use crate::platform::ffi::sdl;
+use rc2k_core::input::profile::MenuControl;
 use sdl3_sys::everything::*;
 
 /// An SDL event the program looks at.
@@ -14,6 +15,7 @@ enum Event {
         down: bool,
     },
     Pad {
+        id: SDL_JoystickID,
         button: SDL_GamepadButton,
         down: bool,
     },
@@ -57,8 +59,8 @@ fn next_event() -> Option<Event> {
     } else if kind == SDL_EVENT_JOYSTICK_REMOVED {
         crate::platform::input::pad_removed(event.joystick_id());
         Event::Other
-    } else if let Some((button, down)) = event.gamepad_button() {
-        Event::Pad { button, down }
+    } else if let Some((id, button, down)) = event.gamepad_button() {
+        Event::Pad { id, button, down }
     } else if let Some((axis, value)) = event.gamepad_axis() {
         use crate::input::menu_pad::StickAxis;
         let axis = match axis {
@@ -71,10 +73,6 @@ fn next_event() -> Option<Event> {
             value: value.into(),
         }
     } else if let Some((id, input)) = event.joystick_input() {
-        // A gamepad's joystick sends these beside its gamepad events: only the others count.
-        if crate::platform::ffi::sdl_input::is_gamepad(id) {
-            return Some(Event::Other);
-        }
         Event::Joystick { id, input }
     } else if let Some(text) = event.text() {
         Event::Text(text)
@@ -204,8 +202,8 @@ pub fn pump(o: crate::owners::Owners<'static>) {
                     input.devices.set_key_state(key, 0);
                 }
             }
-            Event::Pad { button, down } => {
-                pad_button(driving(o.race), input, system, button, down);
+            Event::Pad { id, button, down } => {
+                pad_button(driving(o.race), input, system, id, button, down);
             }
             // In a race the stick steers (the game's own devices): only the menus and the
             // replay viewer take it.
@@ -220,6 +218,12 @@ pub fn pump(o: crate::owners::Owners<'static>) {
             // In a race a joystick's axes and hat drive the car; its menu buttons still answer the
             // race's questions (leave the stage?), as a gamepad's do.
             Event::Joystick { id, input: what } => {
+                // A gamepad's joystick sends these beside its gamepad events: only what its
+                // profile binds for the menus counts (`bound_menu_controls`).
+                if crate::platform::ffi::sdl_input::is_gamepad(id) {
+                    bound_menu_controls(input, id, what, driving(o.race));
+                    continue;
+                }
                 // A wheel's enter and back buttons end what ends on any key, in a race too.
                 if let sdl::JoystickInput::Button(1..=2, true) = what {
                     input.note_pad_press(false);
@@ -283,6 +287,7 @@ fn pad_button(
     driving: bool,
     input: &crate::input::owner::Input,
     system: &crate::system::owner::System,
+    pad: SDL_JoystickID,
     button: SDL_GamepadButton,
     down: bool,
 ) {
@@ -328,6 +333,12 @@ fn pad_button(
         SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER if !driving => B::RightShoulder,
         _ => return,
     };
+    // A control the pad's profile binds is taken from its bound button instead.
+    if let Some(control) = menu_control_of(button)
+        && menu_map(input, pad).is_some_and(|map| map.is_bound(control))
+    {
+        return;
+    }
     if down && matches!(button, B::South | B::East | B::Start) {
         input.note_pad_press(button == B::Start);
     }
@@ -351,8 +362,14 @@ fn joystick_in_menus(
     use crate::input::menu_pad::PadButton;
     use sdl::JoystickInput as J;
     let now = u64::from(crate::platform::os::ticks());
+    bound_menu_controls(input, id, what, in_race);
+    let map = menu_map(input, id);
+    let given_up = |control| map.is_some_and(|map| map.is_bound(control));
     let action = match what {
-        J::Hat(0, bits) => lock_menu_pad().hat(bits, now),
+        J::Hat(0, bits) => {
+            let bits = bits & !map.map_or(0, |map| map.moves_bound());
+            lock_menu_pad().hat(bits, now)
+        }
         J::Hat(..) => None,
         J::Button(n, down) => {
             // Logged so a player can tell which number a button is; not in a race, where the
@@ -372,8 +389,8 @@ fn joystick_in_menus(
             let button = match n {
                 // The second and third buttons: cross and circle on a wheel with a PlayStation
                 // pad's faces (square is the first).
-                1 => PadButton::South,
-                2 => PadButton::East,
+                1 if !given_up(MenuControl::Enter) => PadButton::South,
+                2 if !given_up(MenuControl::Back) => PadButton::East,
                 _ => return,
             };
             lock_menu_pad().button(button, down, in_race, now)
@@ -381,6 +398,83 @@ fn joystick_in_menus(
     };
     if let Some(action) = action {
         menu_action(input, action);
+    }
+}
+
+/// The menu bindings of the controller `id` (see `input::profiles::menu_map_of`).
+fn menu_map(
+    input: &crate::input::owner::Input,
+    id: SDL_JoystickID,
+) -> Option<rc2k_core::input::profile::MenuMap> {
+    let name = crate::platform::ffi::sdl_input::joystick_name_for_id(id, "");
+    crate::input::profiles::menu_map_of(input, &name)
+}
+
+/// The menu control a gamepad button stands for by default (the pad's Start, which leaves a
+/// race, and the shoulders' use in a race are not bindable).
+fn menu_control_of(button: crate::input::menu_pad::PadButton) -> Option<MenuControl> {
+    use crate::input::menu_pad::PadButton as B;
+    Some(match button {
+        B::South => MenuControl::Enter,
+        B::East => MenuControl::Back,
+        B::West => MenuControl::Third,
+        B::LeftShoulder | B::RightShoulder => MenuControl::Tab,
+        B::DpadUp => MenuControl::Up,
+        B::DpadDown => MenuControl::Down,
+        B::DpadLeft => MenuControl::Left,
+        B::DpadRight => MenuControl::Right,
+        B::Start => return None,
+    })
+}
+
+/// The menu controls the controller's profile binds to what moved: each is pressed or let go as
+/// the pad's button that stands for it.
+fn bound_menu_controls(
+    input: &crate::input::owner::Input,
+    id: SDL_JoystickID,
+    what: sdl::JoystickInput,
+    in_race: bool,
+) {
+    use crate::input::menu_pad::PadButton as B;
+    let Some(map) = menu_map(input, id) else {
+        return;
+    };
+    let now = u64::from(crate::platform::os::ticks());
+    let mut pressed: Vec<(MenuControl, bool)> = Vec::new();
+    match what {
+        sdl::JoystickInput::Button(n, down) => {
+            if n < 32 {
+                pressed.extend(map.on_button(n).map(|c| (c, down)));
+            }
+        }
+        sdl::JoystickInput::Hat(hat, bits) => {
+            let (newly, gone) = lock_menu_pad().bound_hat_changes(hat, bits);
+            for (control, bit) in map.on_hat(hat) {
+                if newly & bit != 0 {
+                    pressed.push((control, true));
+                } else if gone & bit != 0 {
+                    pressed.push((control, false));
+                }
+            }
+        }
+    }
+    for (control, down) in pressed {
+        let button = match control {
+            MenuControl::Enter => B::South,
+            MenuControl::Back => B::East,
+            MenuControl::Third => B::West,
+            MenuControl::Tab => B::LeftShoulder,
+            MenuControl::Up => B::DpadUp,
+            MenuControl::Down => B::DpadDown,
+            MenuControl::Left => B::DpadLeft,
+            MenuControl::Right => B::DpadRight,
+        };
+        if down && matches!(button, B::South | B::East) {
+            input.note_pad_press(false);
+        }
+        if let Some(action) = lock_menu_pad().button(button, down, in_race, now) {
+            menu_action(input, action);
+        }
     }
 }
 

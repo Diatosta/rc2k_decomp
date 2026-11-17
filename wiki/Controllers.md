@@ -100,15 +100,22 @@ In the game's options, each player has a controller page, an axes list with a pa
   no) and a live bar of where the axis is, shaped by the settings above so a change shows at
   once. Left and right change the highlighted row (Return flips the invert). Every change goes
   to the player's profile for the controller at once. Back returns to the list.
-- **Buttons**: the controls on two pages (three with the H shifter switched on), turned by the
-  "more controls" item. The axis rows
+- **Buttons**: the controls on three pages (four with the H shifter switched on), turned by the
+  "more controls" item; the last page is the menu controls (below). The axis rows
   come first: steering, accelerate and brake (each learns an axis: steering takes the side it is
   turned to as right, an axis moved the other way is inverted; accelerate and brake take a pedal
   from where it rests or a side of an axis). Then the rows learnt with a button or a hat
   direction: steer left, steer right, accelerate, brake, gear up, gear down, handbrake, camera,
   pause, lights and reset car (the game has no wipers: the original reads no wipers key). An axis row and a button row of the same control both
-  count. With the H shifter switched on the buttons page has a third page of rows for the
-  shifter's gears (see "The H shifter"). "Undo changes" puts the page's profile back as it was
+  count. With the H shifter switched on the buttons page has a page of rows for the
+  shifter's gears (see "The H shifter"). The last page, "menus: ...", sets what the menus take from
+  this controller: enter, back, up, down, left, right, third answer and Tab. Each row learns a
+  button or a hat direction as the others do. A control left unbound keeps the controller's own
+  default (a gamepad's South, East and West buttons, cross and shoulders; a wheel's second and
+  third buttons and its hat); a bound one is taken from the button or hat direction learnt, and
+  the default for that control stops working. The menus take the profile of whichever player has
+  used the controller (a controller in the menus belongs to no player). The left stick of a
+  gamepad, Start leaving a race and the keyboard are not changed. "Undo changes" puts the page's profile back as it was
   when the page was entered.
 
 The texts of the axes pages and of the new rows are not in the language file: the game reads

@@ -1,8 +1,8 @@
 //! The texts of the pages this game adds (`rc2k_core::strings::own`): the file of the language
 //! the game loaded, `files\%locale\<name>.rc2k.toml` with `<name>` the first `.loc` file's name,
-//! read after the language file. A missing file leaves English (logged once); a file that is not
-//! a valid TOML text of texts is refused as a bad input; keys the game does not know are logged
-//! once and ignored.
+//! read after the language file. A missing file, or one that is not UTF-8 TOML of texts (a
+//! translator's slip), leaves English, with the reason logged; keys the game does not know are
+//! logged once and ignored.
 
 use crate::errors::BadInput;
 use rc2k_core::strings::own::File;
@@ -42,14 +42,13 @@ pub fn load(strings: &crate::strings::owner::Strings) -> Result<(), BadInput> {
         Some(name) => {
             let path = file_path(&name);
             let host = crate::files::host_path(&crate::files::resolve_path::resolve(&path)?);
-            match std::fs::read(&host) {
-                Ok(bytes) => {
-                    let text = String::from_utf8(bytes)
-                        .map_err(|_| BadInput("a language's own texts that are not UTF-8"))?;
-                    let file = File::parse(&text).map_err(|reason| {
-                        log(&format!("strings::own_texts: {}: {reason}", host.display()));
-                        BadInput("a language's own texts that are not a TOML file of texts")
-                    })?;
+            let read = std::fs::read(&host).map_err(|error| error.to_string());
+            let parsed = read.and_then(|bytes| {
+                let text = String::from_utf8(bytes).map_err(|_| "not UTF-8 text".to_string())?;
+                File::parse(&text).map_err(|reason| reason.to_string())
+            });
+            match parsed {
+                Ok(file) => {
                     for key in &file.unknown {
                         log(&format!(
                             "strings::own_texts: {}: unknown key {key}, ignored",

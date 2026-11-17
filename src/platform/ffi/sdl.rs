@@ -388,8 +388,8 @@ impl PolledEvent {
         }
     }
 
-    /// The button and the direction of a gamepad button event (else `None`).
-    pub fn gamepad_button(&self) -> Option<(SDL_GamepadButton, bool)> {
+    /// The gamepad, the button and the direction of a gamepad button event (else `None`).
+    pub fn gamepad_button(&self) -> Option<(SDL_JoystickID, SDL_GamepadButton, bool)> {
         if self.kind() != SDL_EVENT_GAMEPAD_BUTTON_DOWN
             && self.kind() != SDL_EVENT_GAMEPAD_BUTTON_UP
         {
@@ -397,7 +397,11 @@ impl PolledEvent {
         }
         // SAFETY: the type says the `gbutton` record is the one SDL filled.
         let button = unsafe { self.0.gbutton };
-        Some((SDL_GamepadButton(button.button as i32), button.down))
+        Some((
+            button.which,
+            SDL_GamepadButton(button.button as i32),
+            button.down,
+        ))
     }
 
     /// The text of a text-input event (UTF-8, as SDL gives it), else `None`.

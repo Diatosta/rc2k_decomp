@@ -99,7 +99,6 @@ pub fn draw_control_bindings(
     use crate::menu::axes_items::{
         ROWS_PER_PAGE, page_shown, row_at, row_label, set_look, shifter_on, shown_look,
     };
-    use rc2k_core::input::profile::Row;
     use rc2k_core::strings::own::id;
     // The rows of the page shown: each item's label, hidden past the last row, and the binding's
     // text beside it (not for the row being learnt, whose prompt is drawn instead).
@@ -118,7 +117,7 @@ pub fn draw_control_bindings(
         }
     }
     // "more controls" on every page but the last, which turns back to the first.
-    let last = Row::listed(shifter).len().div_ceil(ROWS_PER_PAGE) - 1;
+    let last = crate::menu::axes_items::page_count(shifter) - 1;
     let more = if page_shown(controls, shifter) < last {
         id::MORE_CONTROLS
     } else {

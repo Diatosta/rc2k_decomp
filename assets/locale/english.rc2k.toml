@@ -69,6 +69,16 @@ pause = "pause"
 lights = "lights"
 reset_car = "reset car"
 
+[menu_rows]
+enter = "menus: enter"
+back = "menus: back"
+up = "menus: up"
+down = "menus: down"
+left = "menus: left"
+right = "menus: right"
+third_answer = "menus: third answer"
+tab = "menus: tab"
+
 [gear_rows]
 gear_1 = "gear 1"
 gear_2 = "gear 2"

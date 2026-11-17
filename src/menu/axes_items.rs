@@ -109,7 +109,7 @@ pub fn toggle_shifter(o: crate::owners::Owners<'static>) -> Result<(), Refused> 
 
 /// How many pages of controls the buttons page has.
 fn pages(shifter: bool) -> usize {
-    Row::listed(shifter).len().div_ceil(ROWS_PER_PAGE)
+    Row::pages(shifter, ROWS_PER_PAGE)
 }
 
 /// The page shown, held to the pages there are (the switch may have been turned off since the
@@ -126,9 +126,12 @@ pub fn turn_controls_page(controls: &ControlsScreen, shifter: bool) {
 
 /// The row of the buttons page that is item slot `slot` (0 ..= 7) on the page shown.
 pub fn row_at(controls: &ControlsScreen, shifter: bool, slot: usize) -> Option<Row> {
-    Row::listed(shifter)
-        .get(page_shown(controls, shifter) * ROWS_PER_PAGE + slot)
-        .copied()
+    Row::on_page(shifter, ROWS_PER_PAGE, page_shown(controls, shifter), slot)
+}
+
+/// How many pages of controls the buttons page has (the last one the menu controls').
+pub fn page_count(shifter: bool) -> usize {
+    pages(shifter)
 }
 
 /// The text id of a row's label: the rows of the game's own controls, then the shifter's.
@@ -136,10 +139,13 @@ pub fn row_label(row: Row) -> u32 {
     use rc2k_core::strings::own::id;
     let place = row.place() as u32;
     let base = Row::LISTED.len() as u32;
+    let gears_end = Row::ALL.len() as u32;
     if place < base {
         id::CONTROL_ROWS + place
-    } else {
+    } else if place < gears_end {
         id::GEAR_ROWS + place - base
+    } else {
+        id::MENU_ROWS + place - gears_end
     }
 }
 

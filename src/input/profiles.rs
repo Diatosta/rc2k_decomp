@@ -97,6 +97,19 @@ pub fn race_profile(input: &Input, device: usize) -> Option<Profile> {
         .clone()
 }
 
+/// The menu bindings of the controller called `name`, from the first player's profile for it that
+/// binds any (a controller in the menus belongs to no player: whoever has used it). None when no
+/// profile for it binds a menu control: its defaults then.
+pub fn menu_map_of(input: &Input, name: &str) -> Option<rc2k_core::input::profile::MenuMap> {
+    use rc2k_core::input::profile::{MenuControl, MenuMap};
+    all(input)
+        .iter()
+        .flatten()
+        .filter(|p| p.device.name == name)
+        .map(MenuMap::of)
+        .find(|map| MenuControl::ALL.iter().any(|&c| map.is_bound(c)))
+}
+
 /// What the first device reads now, as the profiles take it.
 pub fn first_reading(input: &Input) -> Option<RawInput> {
     let record = input.devices.device(0)?;

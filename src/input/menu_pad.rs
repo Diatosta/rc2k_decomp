@@ -90,9 +90,21 @@ pub struct MenuPad {
     stick: [Option<PadButton>; 2],
     /// A joystick's hat's bits as last seen (1 up, 2 right, 4 down, 8 left).
     hat: u8,
+    /// Each hat's bits as last seen by the menu controls bound to hat directions.
+    bound_hats: [u8; 4],
 }
 
 impl MenuPad {
+    /// Hat `hat` moved to `bits`: the bits newly set and the bits newly let go (for the menu
+    /// controls bound to the hat's directions).
+    pub fn bound_hat_changes(&mut self, hat: u8, bits: u8) -> (u8, u8) {
+        let Some(was) = self.bound_hats.get_mut(hat as usize) else {
+            return (0, 0);
+        };
+        let old = std::mem::replace(was, bits);
+        (bits & !old, old & !bits)
+    }
+
     /// A button went down or up at `now` (ms); `in_race`: START is the race's pause (the
     /// keyboard's Escape), and in a menu it enters.
     pub fn button(
@@ -282,6 +294,16 @@ mod tests {
         assert_eq!(p.tick(6410), Some(MenuAction::Left));
         assert_eq!(p.stick(StickAxis::X, 0, 6420), None);
         assert_eq!(p.tick(9000), None);
+    }
+
+    #[test]
+    fn a_bound_hat_reports_its_changes() {
+        let mut p = MenuPad::default();
+        assert_eq!(p.bound_hat_changes(1, 4), (4, 0));
+        assert_eq!(p.bound_hat_changes(1, 4), (0, 0));
+        assert_eq!(p.bound_hat_changes(1, 2), (2, 4));
+        assert_eq!(p.bound_hat_changes(0, 1), (1, 0));
+        assert_eq!(p.bound_hat_changes(9, 1), (0, 0));
     }
 
     #[test]

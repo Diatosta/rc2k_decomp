@@ -189,8 +189,9 @@ in `assets/locale/`; English is also built into the program.
 
 The game reads the file at start, after the language's own files. A missing file, or a text the
 file does not have, is shown in English (a missing file is noted in `rc2k.log`); a key the game
-does not know is noted there and ignored; a file that is not UTF-8 TOML text is refused with
-its reason.
+does not know is noted there and ignored; a file that is not UTF-8 TOML text is passed over as
+a whole, the texts shown in English and the reason (the line and what is wrong) noted in
+`rc2k.log`.
 
 The file is TOML in UTF-8, a `key = "text"` for each text; a key's dots stand for tables, so
 `axis_page.dead_zone = "dead zone"` may also be written `dead_zone = "dead zone"` under
