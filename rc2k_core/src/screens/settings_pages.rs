@@ -59,25 +59,25 @@ pub fn graphics_item(a: u32, b: u32) -> bool {
     a.wrapping_add(b) == 2
 }
 
+/// The graphics page's first row (the original's 0xDC, moved up two rows for the rows below the
+/// last of the original's, so none lies over the page's buttons).
+const GRAPHICS_TOP: i32 = 0xDC - 2 * 0x1B;
+
 /// The graphics page: eight names at rows 0, 2 .. 8 (y 0xDC every 0x1B); after the first,
 /// the screen mode "w x h x depth" in the text buffer at (0x1D1, 0xF7).
 pub fn graphics<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     ids: [u32; 8],
-    mode: [u32; 3],
+    mode: &[u8],
 ) -> Result<Drawn, S::Error> {
     let mut last = Drawn::default();
     for (n, (id, row)) in ids.into_iter().zip([0, 2, 3, 4, 5, 6, 7, 8]).enumerate() {
-        last = names(s, [(id, 0xDC + 0x1B * row)])?;
+        last = names(s, [(id, GRAPHICS_TOP + 0x1B * row)])?;
         if n == 0 {
-            let mut line = decimal(mode[0], Pad::None);
-            line.push(b'x');
-            line.extend(decimal(mode[1], Pad::None));
-            line.push(b'x');
-            line.extend(decimal(mode[2], Pad::None));
+            let mut line = mode.to_vec();
             line.push(0);
             s.store(Buffer::Text, &line)?;
-            s.draw(Font::Value, Buffer::Text, 0x1D1, 0xF7)?;
+            s.draw(Font::Value, Buffer::Text, 0x1D1, GRAPHICS_TOP + 0x1B)?;
         }
     }
     Ok(last)
@@ -89,7 +89,7 @@ pub fn graphics_frame_limit<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     text: &[u8],
 ) -> Result<Drawn, S::Error> {
-    s.line(Font::Value, text, 0x1D1, 0xDC + 0x1B * 9)
+    s.line(Font::Value, text, 0x1D1, GRAPHICS_TOP + 0x1B * 9)
 }
 
 /// The graphics page's 3D resolution: `text` (no NUL) in the names' column on row 10.
@@ -97,7 +97,18 @@ pub fn graphics_render_scale<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     text: &[u8],
 ) -> Result<Drawn, S::Error> {
-    s.line(Font::Value, text, 0x1D1, 0xDC + 0x1B * 10)
+    s.line(Font::Value, text, 0x1D1, GRAPHICS_TOP + 0x1B * 10)
+}
+
+/// The graphics page's HUD area and screen mode: `hud_box` and `window` (no NUL) in the names'
+/// column on rows 11 and 12.
+pub fn graphics_display<S: Screen<Font = Font, Work = Work>>(
+    s: &mut S,
+    hud_box: &[u8],
+    window: &[u8],
+) -> Result<Drawn, S::Error> {
+    s.line(Font::Value, hud_box, 0x1D1, GRAPHICS_TOP + 0x1B * 11)?;
+    s.line(Font::Value, window, 0x1D1, GRAPHICS_TOP + 0x1B * 12)
 }
 
 /// The advanced page's values: `texts[n]` (no NUL) in the names' column on row `n`.
@@ -286,9 +297,9 @@ mod tests {
     fn pages() {
         assert_eq!(sound_items(true, false), [(4, true), (5, true), (5, false)]);
         let mut s = Record::default();
-        graphics(&mut s, [1, 2, 3, 4, 5, 6, 7, 8], [640, 480, 16]).unwrap();
-        assert_eq!(s.0[1], "Value \"640x480x16\\0\" 0x1d1 0xf7");
-        assert_eq!(s.0[2], "Value s2 0x1d1 0x112");
+        graphics(&mut s, [1, 2, 3, 4, 5, 6, 7, 8], b"640 x 480 (4:3)").unwrap();
+        assert_eq!(s.0[1], "Value \"640 x 480 (4:3)\\0\" 0x1d1 0xc1");
+        assert_eq!(s.0[2], "Value s2 0x1d1 0xdc");
         let mut s = Record::default();
         volume(&mut s, 0x56D, [0x40, 0, 0x20, 0, 0, 0, 0, 1, 0x10]).unwrap();
         assert!(s.0.contains(&"bar 218 100".to_string()));

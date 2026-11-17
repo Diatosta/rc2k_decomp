@@ -738,6 +738,16 @@ impl RenderPass {
         unsafe { SDL_BindGPUFragmentSamplers(self.0, 0, &raw const bound, 1) };
     }
 
+    /// Three textures with their samplers in the fragment shader's slots 0 to 2.
+    pub fn bind_fragment_samplers3(&self, bindings: [(Texture, Sampler); 3]) {
+        let bound = bindings.map(|(texture, sampler)| SDL_GPUTextureSamplerBinding {
+            texture: texture.0,
+            sampler: sampler.0,
+        });
+        // SAFETY: our open pass; `bound` lives through the call.
+        unsafe { SDL_BindGPUFragmentSamplers(self.0, 0, bound.as_ptr(), 3) };
+    }
+
     /// The viewport over the target's top-left `width` by `height` pixels, depth 0 to 1.
     pub fn set_viewport(&self, width: f32, height: f32) {
         let viewport = SDL_GPUViewport {

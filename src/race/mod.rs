@@ -3,6 +3,7 @@
 #[cfg(test)]
 pub(crate) mod asm_test;
 pub mod best_line;
+pub mod blend;
 pub mod blit_map_tiles;
 pub mod blocks_store;
 pub mod buffers_store;

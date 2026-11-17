@@ -32,7 +32,7 @@ pub struct ScreenChoices {
     /// How many resolutions there are in `list`.
     pub resolutions: PlainDword,
     /// The resolutions, 0x10 bytes each (width, height, the pixel kind's figure, the mode); room
-    /// for 16 and 8 bytes more.
+    /// for 64 and 8 bytes more.
     pub list: ModeList,
 }
 
@@ -49,10 +49,10 @@ pub struct ScreenMode {
     pub mode: PlainDword,
 }
 
-/// The resolutions' list: room for 16 and 8 bytes more.
+/// The resolutions' list: room for 64 and 8 bytes more.
 #[derive(rc2k_derive::Cells)]
 pub struct ModeList {
-    pub modes: [ScreenMode; 16],
+    pub modes: [ScreenMode; 64],
     pub spare: PlainBytes<8>,
 }
 
@@ -71,7 +71,7 @@ impl Run for ScreenMode {
 
 impl ModeList {
     /// PlainDword `index` (0 width, 1 height, 2 figure, 3 mode) of the resolution at `place`. A
-    /// place past the 16 reads on into the 8 bytes after the list, and past those is refused
+    /// place past the 64 reads on into the 8 bytes after the list, and past those is refused
     /// (`what` names it in the log).
     pub fn dword(&self, place: u32, index: usize, what: &'static str) -> Result<u32, BadInput> {
         let n = 4 * place as usize + index;
@@ -100,7 +100,7 @@ impl ScreenChoices {
                         figure: PlainDword::new(0),
                         mode: PlainDword::new(0),
                     }
-                }; 16],
+                }; 64],
                 spare: PlainBytes::new([0; 8]),
             },
         }
@@ -126,14 +126,14 @@ mod tests {
         }
         list.spare.set_u32(0, 0xAAAA_0001);
         list.spare.set_u32(4, 0xAAAA_0002);
-        for place in 0..16 {
+        for place in 0..64 {
             for index in 0..4 {
                 let want = 0x100 * place + index + 1;
                 assert_eq!(list.dword(place, index as usize, "t").ok(), Some(want));
             }
         }
-        assert_eq!(list.dword(16, 0, "t").ok(), Some(0xAAAA_0001));
-        assert_eq!(list.dword(16, 1, "t").ok(), Some(0xAAAA_0002));
-        assert!(list.dword(16, 2, "t").is_err());
+        assert_eq!(list.dword(64, 0, "t").ok(), Some(0xAAAA_0001));
+        assert_eq!(list.dword(64, 1, "t").ok(), Some(0xAAAA_0002));
+        assert!(list.dword(64, 2, "t").is_err());
     }
 }

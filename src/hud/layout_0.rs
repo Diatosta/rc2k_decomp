@@ -7,8 +7,8 @@
 use crate::errors::Refused;
 use crate::hud::draw_signs::row;
 use crate::hud::layout_common::{
-    begin_dials, clock_panel, gear_rect, lap_panel, leading_time, needle_sign, sign, sprite,
-    time_digits, white_opaque,
+    Keep, begin_dials, clock_panel, gear_rect, keep, keep_layout, lap_panel, leading_time,
+    needle_sign, sign, sprite, time_digits, white_opaque,
 };
 use crate::hud::owner::{Hud, Pen};
 use crate::hud::store::texture;
@@ -25,8 +25,11 @@ pub fn layout_0(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
         dials::disc(frame, hud, pen, &dials::DISC_0)?;
     }
     hud.block.texture.set(texture::SPRITES);
+    // The progress bar, its markers and the two clocks at its ends keep together in the middle.
     if flags & 0x40 != 0 {
+        keep(hud, Keep::Middle);
         draw_stage_bar::draw_stage_bar(frame, hud, pen)?;
+        keep_layout(hud);
     }
     white_opaque(hud, texture::ICONS);
     icons::icons(frame, hud, pen, &icons::LAYOUT_0)?;
@@ -51,8 +54,10 @@ pub fn layout_0(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
         sprite(frame, hud, pen, 0x5F, 0x282, 0x1B8)?;
     }
     if flags & 0x40 != 0 {
+        keep(hud, Keep::Middle);
         draw_marker::draw_other_markers(frame, hud, pen)?;
         draw_marker::draw_marker(frame, hud, pen)?;
+        keep_layout(hud);
     }
     hud.block.quad.colour.set(0xFFFF_FFFF);
     if flags & 0x80 != 0 {
@@ -63,6 +68,7 @@ pub fn layout_0(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
         dials::needle(frame, hud, pen, &dials::NEEDLE_0)?;
     }
     if flags & 0x40 != 0 {
+        keep(hud, Keep::Middle);
         let panels = [
             (
                 &panel.view_a.back,
@@ -87,6 +93,7 @@ pub fn layout_0(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
                 sprite(frame, hud, pen, r, x, y)
             })?;
         }
+        keep_layout(hud);
     }
     if flags & 2 != 0 {
         let v = panel.view_a.place.get();

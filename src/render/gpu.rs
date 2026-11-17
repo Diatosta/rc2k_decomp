@@ -43,6 +43,7 @@ const SCENE_VERT: ShaderCode = shader_code!("scene.vert");
 const SCENE_FRAG: ShaderCode = shader_code!("scene.frag");
 const OVERLAY_VERT: ShaderCode = shader_code!("overlay.vert");
 const OVERLAY_FRAG: ShaderCode = shader_code!("overlay.frag");
+const MERGE_FRAG: ShaderCode = shader_code!("merge.frag");
 
 const COLOUR_FORMAT: SDL_GPUTextureFormat = SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM;
 const DEPTH_FORMAT: SDL_GPUTextureFormat = SDL_GPU_TEXTUREFORMAT_D32_FLOAT;
@@ -89,6 +90,22 @@ struct Small {
     depth_is_new: bool,
 }
 
+/// The targets of a menu's 3D drawn larger than the menu's frame, so that it is sharp on a window
+/// larger than the frame (`render::menu_high_percent`).
+struct MenuHigh {
+    /// The picture of the frame with the 3D drawn so far, one of them being drawn into while the
+    /// other is read (`Gpu::frame_high`).
+    colour: [Texture; 2],
+    /// The finished merge of the frame's end, which is what the window shows.
+    shown: Texture,
+    depth: Texture,
+    /// The frame's colour as it was right after the 3D was drawn into it (`merge.frag`).
+    kept: Texture,
+    /// The size they were made at.
+    size: (u32, u32),
+    depth_is_new: bool,
+}
+
 pub struct Gpu {
     device: Device,
     colour: Texture,
@@ -114,6 +131,16 @@ pub struct Gpu {
     /// (`render_scale`), the screen's size with the picture in their top-left corner; made when
     /// first needed.
     small: Option<Small>,
+    /// The targets of a menu's larger 3D, made when first needed.
+    menu_high: Option<MenuHigh>,
+    /// Which of its `colour` holds the frame in progress, once a flush of the frame has drawn
+    /// 3D there.
+    frame_high: Option<usize>,
+    /// Whether the frame last finished is the larger picture (`MenuHigh::shown`).
+    high_shown: bool,
+    /// How many times the larger targets have been made.
+    high_made: u64,
+    merge: Pipeline,
     scene_vert: Shader,
     scene_frag: Shader,
     overlay: Pipeline,
@@ -207,6 +234,11 @@ impl Gpu {
             targets_made: 0,
             depth_is_new: true,
             small: None,
+            menu_high: None,
+            frame_high: None,
+            high_shown: false,
+            high_made: 0,
+            merge: Pipeline::NONE,
             scene_vert: Shader::NONE,
             scene_frag: Shader::NONE,
             overlay: Pipeline::NONE,
@@ -252,6 +284,19 @@ impl Gpu {
         gpu.device.release_shader(overlay_vert);
         gpu.device.release_shader(overlay_frag);
         gpu.overlay = overlay?;
+        let merge_vert = gpu.shader(OVERLAY_VERT, SDL_GPU_SHADERSTAGE_VERTEX, 0, 0)?;
+        let merge_frag = gpu.shader(MERGE_FRAG, SDL_GPU_SHADERSTAGE_FRAGMENT, 3, 0);
+        let merge_frag = match merge_frag {
+            Ok(shader) => shader,
+            Err(why) => {
+                gpu.device.release_shader(merge_vert);
+                return Err(why);
+            }
+        };
+        let merge = gpu.make_merge_pipeline(merge_vert, merge_frag);
+        gpu.device.release_shader(merge_vert);
+        gpu.device.release_shader(merge_frag);
+        gpu.merge = merge?;
         for mips in [false, true] {
             for clamp in [false, true] {
                 for linear in [false, true] {
@@ -275,6 +320,20 @@ impl Gpu {
         if let Some(small) = self.small.take() {
             device.release_texture(small.colour);
             device.release_texture(small.depth);
+        }
+        if let Some(high) = self.menu_high.take() {
+            for texture in [
+                high.colour[0],
+                high.colour[1],
+                high.shown,
+                high.depth,
+                high.kept,
+            ] {
+                device.release_texture(texture);
+            }
+        }
+        if !self.merge.is_none() {
+            device.release_pipeline(self.merge);
         }
         self.release_targets(&Targets {
             colour: self.colour,
@@ -413,6 +472,25 @@ impl Gpu {
                     alpha_blend_op: SDL_GPU_BLENDOP_ADD,
                     ..Default::default()
                 },
+            },
+            rasterizer: SDL_GPURasterizerState::default(),
+            depth: None,
+        };
+        self.device
+            .create_pipeline(vertex_shader, fragment_shader, &spec)
+    }
+
+    /// The merge of a menu's larger 3D and its frame (`merge.frag`): every pixel replaced.
+    fn make_merge_pipeline(
+        &self,
+        vertex_shader: Shader,
+        fragment_shader: Shader,
+    ) -> Result<Pipeline, String> {
+        let spec = PipelineSpec {
+            vertices: None,
+            colour: SDL_GPUColorTargetDescription {
+                format: COLOUR_FORMAT,
+                blend_state: SDL_GPUColorTargetBlendState::default(),
             },
             rasterizer: SDL_GPURasterizerState::default(),
             depth: None,
@@ -566,8 +644,20 @@ impl Gpu {
 
     /// The colour target, for showing it, and the number of its set of targets (a new
     /// target may be made at an old one's address).
-    pub fn colour_texture(&self) -> (*mut SDL_GPUTexture, u64) {
-        (self.colour.as_raw(), self.targets_made)
+    pub fn colour_texture(&self) -> (*mut SDL_GPUTexture, u64, (u32, u32)) {
+        if self.high_shown
+            && let Some(high) = &self.menu_high
+        {
+            // A made-again set of the larger targets is another number, past any of the
+            // screen's sets.
+            let number = (self.targets_made << 20) + self.high_made;
+            return (high.shown.as_raw(), number, high.size);
+        }
+        (
+            self.colour.as_raw(),
+            self.targets_made,
+            (self.width, self.height),
+        )
     }
 
     /// `bytes` into the transfer buffer `transfer` from `at` (cycled when `at` is 0: the last
@@ -766,6 +856,18 @@ impl Gpu {
             && self.check.is_none();
         if smaller {
             self.ensure_small(percent)?;
+        }
+        // A menu's 3D at the window's size, not the frame's.
+        let high = super::menu_high_percent().filter(|_| {
+            percent == 100
+                && !batches.batches.is_empty()
+                && !cuts.scene
+                && !cuts.half
+                && self.check.is_none()
+                && !crate::gfx::draw2d::quads::check_2d_only()
+        });
+        if let Some(high) = high {
+            self.ensure_menu_high(high)?;
         }
         if !self.mip_levels && batches.batches.iter().any(|b| b.mips) {
             // The textures made so far have a level; they are made again, with the rest, as
@@ -980,10 +1082,41 @@ impl Gpu {
             }
             self.draw_2d(&buffer, &pass, &two_d);
         }
-        if !cuts.scene && !smaller && !crate::gfx::draw2d::quads::check_2d_only() {
+        if !cuts.scene && !smaller && high.is_none() && !crate::gfx::draw2d::quads::check_2d_only()
+        {
             draw_batches(&pass, if cuts.half { 50 } else { 100 });
         }
         pass.end();
+        if let (Some(percent), Some(high)) = (high, self.menu_high.as_mut()) {
+            let full = (self.width, self.height);
+            let size = high.size;
+            // The picture so far enlarged (or, when an earlier flush of the frame drew 3D, what
+            // that left, with the 2D drawn since in its place) is what the 3D is drawn over.
+            let into = match self.frame_high {
+                None => {
+                    buffer.blit(self.colour, full, high.colour[0], size, true);
+                    0
+                }
+                Some(held) => {
+                    let into = 1 - held;
+                    let inputs = (self.merge, self.colour, self.samplers[3], self.nearest);
+                    Self::merge_into(&buffer, inputs, high, high.colour[held], high.colour[into]);
+                    into
+                }
+            };
+            let clear = std::mem::replace(&mut high.depth_is_new, false);
+            let pass = buffer.begin_render_pass(high.colour[into], high.depth, clear);
+            pass.set_viewport(size.0 as f32, size.1 as f32);
+            draw_batches(&pass, percent);
+            pass.end();
+            // The same 3D in the frame's own picture, which the 2D after it is drawn over, and
+            // what it then holds kept to tell where that 2D is.
+            let pass = buffer.begin_render_pass(self.colour, self.depth, false);
+            draw_batches(&pass, 100);
+            pass.end();
+            buffer.blit(self.colour, full, high.kept, full, false);
+            self.frame_high = Some(into);
+        }
         if smaller && let Some(small) = self.small.as_mut() {
             let full = (self.width, self.height);
             let part = (
@@ -1037,6 +1170,95 @@ impl Gpu {
 
     /// The written pixels of `layer` (the canvas, or the background) over the target, in an open
     /// pass.
+    /// The larger targets of a menu's 3D at `percent` of the frame's size, made or made again.
+    fn ensure_menu_high(&mut self, percent: u32) -> Result<(), String> {
+        let size = (
+            rc2k_core::gfx::render_scale::scaled(self.width as usize, percent) as u32,
+            rc2k_core::gfx::render_scale::scaled(self.height as usize, percent) as u32,
+        );
+        if self.menu_high.as_ref().is_some_and(|h| h.size == size) {
+            return Ok(());
+        }
+        let both = SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER;
+        let mut colour = [Texture::NONE; 2];
+        let mut shown = Texture::NONE;
+        let mut kept = Texture::NONE;
+        let mut depth = Texture::NONE;
+        let made = (|| -> Result<(), String> {
+            colour[0] = self.make_texture(size.0, size.1, both)?;
+            colour[1] = self.make_texture(size.0, size.1, both)?;
+            shown = self.make_texture(size.0, size.1, both)?;
+            kept = self.make_texture(self.width, self.height, both)?;
+            depth = self.make_texture_of(
+                DEPTH_FORMAT,
+                size.0,
+                size.1,
+                SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET,
+            )?;
+            Ok(())
+        })();
+        if let Err(why) = made {
+            for texture in [colour[0], colour[1], shown, kept, depth] {
+                if !texture.is_none() {
+                    self.device.release_texture(texture);
+                }
+            }
+            return Err(why);
+        }
+        if let Some(old) = self.menu_high.replace(MenuHigh {
+            colour,
+            shown,
+            depth,
+            kept,
+            size,
+            depth_is_new: true,
+        }) {
+            for texture in [old.colour[0], old.colour[1], old.shown, old.depth, old.kept] {
+                self.device.release_texture(texture);
+            }
+        }
+        self.high_made += 1;
+        self.frame_high = None;
+        self.high_shown = false;
+        Ok(())
+    }
+
+    /// The frame's picture merged with the larger 3D picture `from` (`merge.frag`) into `to`.
+    fn merge_into(
+        buffer: &sdl_gpu::CommandBuffer,
+        (pipeline, colour, linear, nearest): (Pipeline, Texture, Sampler, Sampler),
+        high: &MenuHigh,
+        from: Texture,
+        to: Texture,
+    ) {
+        let pass = buffer.begin_render_pass(to, high.depth, false);
+        pass.set_viewport(high.size.0 as f32, high.size.1 as f32);
+        pass.bind_pipeline(pipeline);
+        pass.bind_fragment_samplers3([(colour, linear), (high.kept, nearest), (from, nearest)]);
+        pass.draw(3, 0);
+        pass.end();
+    }
+
+    /// The end of a menu frame whose 3D was drawn larger: the merge of the frame's own picture
+    /// (the text and buttons drawn after the 3D in it) and the larger 3D picture, which is what
+    /// the window shows from here (`colour_texture`). The frame as it stands otherwise.
+    pub fn finish_high(&mut self) -> Result<(), String> {
+        let Some(held) = self.frame_high.take() else {
+            self.high_shown = false;
+            return Ok(());
+        };
+        let Some(high) = self.menu_high.as_ref() else {
+            self.high_shown = false;
+            return Ok(());
+        };
+        let buffer = self.device.acquire_command_buffer()?;
+        let inputs = (self.merge, self.colour, self.samplers[3], self.nearest);
+        Self::merge_into(&buffer, inputs, high, high.colour[held], high.shown);
+        buffer.submit()?;
+        self.high_shown = true;
+        Ok(())
+    }
+
     fn draw_overlay(&self, pass: &sdl_gpu::RenderPass, layer: Texture) {
         pass.bind_pipeline(self.overlay);
         pass.bind_fragment_sampler(layer, self.nearest);
@@ -1077,6 +1299,9 @@ impl Gpu {
     /// The target's picture, with the canvas's written pixels, into the canvas.
     pub fn bring_back(&mut self, rows: Option<Vec<bool>>, canvas: &mut [u8]) -> Result<(), String> {
         self.finish_frame(rows, canvas)?;
+        // The frame comes back as its own picture: the larger 3D of the frame so far is dropped.
+        self.frame_high = None;
+        self.high_shown = false;
         let picture = self.read_colour()?;
         canvas[..picture.len()].copy_from_slice(&picture);
         Ok(())

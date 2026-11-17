@@ -22,6 +22,16 @@ be done by a GPU or by the processor.
 
 ## A race frame from the top
 
+Between the race's ticks (the simulation runs 100 times a second) a frame is drawn from a blend
+of the last two ticks: `race::blend` keeps, after every tick, each car's place and turn matrices,
+its wheels' turns and heights and its camera's place and angles, and `draw_race_scene` puts the
+blend at the frame's time (`rc2k_core::race::blend`: the time since the last tick over 10 ms;
+places and angles linearly, the shorter way round a turn, matrices entry by entry) into the cars'
+blocks while it draws and puts the ticks' values back after. A car or camera that moved far in one
+tick (a reset, a camera cut) is not blended across it. The advanced page's "smooth frames"
+switch turns this off. Frames drawn without a tick step before them (a pause, a replay's still)
+show the last tick exactly.
+
 `drive::race_frame` (`src/drive/race_frame.rs`) draws one picture:
 
 1. the platform's events are handled;
@@ -49,7 +59,7 @@ For each view, in order:
 | Effects | Rain, snow, dust and spray particles, glows, drops on the windscreen. | `effects::run_frame` (`src/effects/`) |
 | Mirror | The same again, smaller, looking back. | `draw_race_scene.rs` |
 
-After the views comes the 2D pass over the whole screen: the HUD (`hud::overlay_pass` →
+After the views comes the 2D pass over the whole screen (the HUD's 800 x 600 layout keeps its shape on a screen wider than 4:3, its pieces anchored left, middle or right by `rc2k_core::hud::anchor`; the 3D's scale is made from the screen's height on such a screen, `scene::view_window::design_width`): the HUD (`hud::overlay_pass` →
 `hud::draw_hud`: dials, times, the map, notices) and name plates.
 
 ## From an object to triangles
@@ -149,7 +159,13 @@ is in memory. Three things make that cheap:
 
 A menu frame is mostly 2D. Menus with a 3D part (the car carousel) draw a small scene through
 the same object path (`scene::draw_carousel`, `scene::prepare_menu_scene`) between the
-background and the text.
+background and the text. The frame is 800 x 600 and the window shows it enlarged, so on the GPU
+renderers the models are drawn a second time at the size the frame has in the window (times the
+3D resolution share): the picture so far enlarged, the 3D over it. The frame's own picture, with
+the low-resolution 3D, stays what the 2D after the 3D is drawn over; at the frame's end a merge
+takes the large picture wherever the frame is unchanged since the 3D and the frame's own enlarged
+picture elsewhere (text and buttons over the models). The software rasteriser draws the models at
+the frame's size.
 
 ## Views side by side on several threads
 

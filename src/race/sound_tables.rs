@@ -182,6 +182,26 @@ pub fn set_up_race_sound_objects(
     o: crate::owners::Owners<'static>,
     v: &ObjectVars<'_>,
 ) -> Result<(), Refused> {
+    set_up_objects(o, v, false)
+}
+
+/// `set_up_race_sound_objects` for the replay viewer: with `both_cars` (a replay with two cars or
+/// more that the header calls a one-player race, as a network race's is) the first two cars have
+/// the sound objects of a two-player race, so the second car can be heard when it is the one
+/// shown.
+pub fn set_up_viewer_race_sound_objects(
+    o: crate::owners::Owners<'static>,
+    v: &ObjectVars<'_>,
+    both_cars: bool,
+) -> Result<(), Refused> {
+    set_up_objects(o, v, both_cars)
+}
+
+fn set_up_objects(
+    o: crate::owners::Owners<'static>,
+    v: &ObjectVars<'_>,
+    both_cars: bool,
+) -> Result<(), Refused> {
     let (race, sound, system) = (o.race, o.sound, o.system);
     let shared = &race.shared;
     {
@@ -191,7 +211,11 @@ pub fn set_up_race_sound_objects(
         }
         use rc2k_core::race::sound_objects::{object_mark, sound_objects, sound_players};
         prepare_sound_tables_plain(&TableVars::of(sound, system))?;
-        let players = sound_players(shared.state.settings.race_mode.get());
+        let players = if both_cars {
+            2
+        } else {
+            sound_players(shared.state.settings.race_mode.get())
+        };
         sound.threads.shared.one_player.set(players);
         let (count, arcade) = sound_objects(players, shared.state.settings.run_kind.get());
         if arcade {

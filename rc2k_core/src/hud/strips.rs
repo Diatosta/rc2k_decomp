@@ -86,14 +86,35 @@ pub fn scaled(v: u32, screen: u32, of: u32) -> (u32, u32) {
 /// The strip's sizes on the screen (top, height, left, width: `Strips.sizes[0]` ..) from the
 /// virtual ones, and what the last division leaves: the width, its remainder and the
 /// virtual width.
-pub fn sizes(v: [u32; 4], width: u32, height: u32) -> ([u32; 4], [u32; 3]) {
+pub fn sizes(
+    v: [u32; 4],
+    screen_width: u32,
+    height: u32,
+    rule: crate::hud::anchor::Rule,
+    hud_box: crate::hud::anchor::BoxRatio,
+) -> ([u32; 4], [u32; 3]) {
+    use crate::hud::anchor;
+    // The strip keeps to the HUD's box, centred on the screen.
+    let (box_left, width) = hud_box.area(screen_width, height);
+    if anchor::is_wide(width, height) {
+        // The layout keeps its shape: the strip's size and corner by one factor, the corner
+        // from the edge or the middle its place goes with.
+        let (sx, sy) = anchor::factors(width, height);
+        let middle = v[2] as f32 + v[3] as f32 / 2.0;
+        let at = anchor::offset(width, height, anchor::anchor_of(middle, rule));
+        let across = |n: u32| (f64::from(n) * sx).floor() as u32;
+        let down = |n: u32| (f64::from(n) * sy).floor() as u32;
+        let left = (f64::from(box_left) + at + f64::from(v[2]) * sx).floor() as u32;
+        let w = across(v[3]);
+        return ([down(v[0]), down(v[1]), left, w], [w, 0, VIRTUAL[0]]);
+    }
     let [(top, _), (h, _), (left, _), (w, r)] = [
         scaled(v[0], height, VIRTUAL[1]),
         scaled(v[1], height, VIRTUAL[1]),
         scaled(v[2], width, VIRTUAL[0]),
         scaled(v[3], width, VIRTUAL[0]),
     ];
-    ([top, h, left, w], [w, r, VIRTUAL[0]])
+    ([top, h, box_left + left, w], [w, r, VIRTUAL[0]])
 }
 
 /// A flat quad's inputs (`RaceVars.quad_colour[0]` ..: (offset, value) in the order written) at x
@@ -159,7 +180,13 @@ mod tests {
         assert_eq!(top_entry(2, 0), 8);
         assert_eq!(top_entry(5, 1), 5);
         assert_eq!(scaled(0x78, 1024, 0x320), (0x99, 480));
-        let (s, regs) = sizes([10, HEIGHT, 20, WIDTH], 1024, 768);
+        let (s, regs) = sizes(
+            [10, HEIGHT, 20, WIDTH],
+            1024,
+            768,
+            crate::hud::anchor::Rule::Thirds,
+            crate::hud::anchor::BoxRatio::Full,
+        );
         assert_eq!(s, [12, 32, 25, 0x99]);
         assert_eq!(regs, [0x99, 480, 0x320]);
         let q = quad_inputs(25, 0x99, &s, 0x32_0000);

@@ -6,7 +6,7 @@
 # [[texture(0)]], [[sampler(0)]], [[buffer(0)]]; the vertex buffer at [[buffer(14)]] (SDL's).
 set -euo pipefail
 cd "$(dirname "$0")/../src/render/shaders"
-for s in scene.vert scene.frag overlay.vert overlay.frag quad.vert quad.frag; do
+for s in scene.vert scene.frag overlay.vert overlay.frag merge.frag quad.vert quad.frag; do
     glslc -O --target-env=vulkan1.0 "$s" -o "$s.spv"
     spirv-cross "$s.spv" --msl --msl-version 20100 --msl-decoration-binding --output "$s.msl"
 done

@@ -37,6 +37,19 @@ pub fn capture(o: Owners<'static>) -> Result<Options, Refused> {
     options.display.renderer = crate::render::choice::wanted();
     options.display.draw_threads = crate::scene::workers::chosen_threads();
     options.display.quit_pictures = crate::drive::quit_question::pictures_on();
+    // A race size beyond the game's table is kept as its size; the mode word has the table's
+    // 800 x 600 in its place, which the old file reads.
+    let race = o.gfx.display.mode.race_mode.get();
+    options.display.race_mode = crate::gfx::monitor_sizes::kept_mode(race);
+    options.display.race_size = crate::gfx::monitor_sizes::size_of_mode(race).map(|(w, h)| [w, h]);
+    let custom = crate::gfx::monitor_sizes::custom();
+    options.display.custom_width = custom.map(|c| c.0);
+    options.display.custom_height = custom.map(|c| c.1);
+    let window = crate::platform::window_mode::get();
+    options.display.window_mode = (window != Default::default()).then(|| window.name().to_owned());
+    let hud_box = crate::hud::box_ratio::get();
+    options.display.hud_box = (hud_box != Default::default()).then(|| hud_box.name().to_owned());
+    options.display.smooth_frames = crate::race::blend::smooth_on();
     Ok(options)
 }
 
@@ -57,6 +70,36 @@ pub fn apply(o: Owners<'static>, options: &Options) -> Result<(), Refused> {
     crate::render::choice::set_wanted(options.display.renderer.clone());
     crate::scene::workers::set_threads(options.display.draw_threads);
     crate::drive::quit_question::set_pictures_on(options.display.quit_pictures);
+    let d = &options.display;
+    crate::gfx::monitor_sizes::set_custom(d.custom_width.zip(d.custom_height));
+    crate::platform::window_mode::set(
+        d.window_mode
+            .as_deref()
+            .map(crate::platform::window_mode::WindowMode::of)
+            .unwrap_or_default(),
+    );
+    crate::hud::box_ratio::set(
+        d.hud_box
+            .as_deref()
+            .map(rc2k_core::hud::anchor::BoxRatio::of)
+            .unwrap_or_default(),
+    );
+    // The size set by hand wins; else the size the file kept beyond the game's table.
+    let wanted = crate::gfx::monitor_sizes::custom().or(d.race_size.map(|[w, h]| (w, h)));
+    if let Some((w, h)) = wanted {
+        let modes = &o.gfx.display.modes;
+        let table: Vec<(u32, u32, u32)> = (0..8)
+            .map(|n| {
+                let size = modes.sizes[2 * n + 1].get();
+                (size & 0xFFFF, size >> 16, modes.sizes[2 * n].get())
+            })
+            .collect();
+        let race = o.gfx.display.mode.race_mode.get();
+        if let Some(mode) = crate::gfx::monitor_sizes::mode_for(race, &table, w, h) {
+            o.gfx.display.mode.race_mode.set(mode);
+        }
+    }
+    crate::race::blend::set_smooth(options.display.smooth_frames);
     Ok(())
 }
 

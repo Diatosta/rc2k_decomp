@@ -35,6 +35,9 @@ pub fn windscreen_flakes_spawn(
     let setup = &effects.setup;
     {
         fl.timing.frames.set(fl.timing.frames.get().wrapping_add(1));
+        if !crate::effects::spawn_gate::FLAKES.due(setup.clock.now.get()) {
+            return Ok(());
+        }
         let old = x87::set_chop();
         rate(drops, fl, effects);
         let status = setup.work.fpu_status.get() & 0x700;

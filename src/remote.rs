@@ -577,6 +577,19 @@ static HELD_CLOCK: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::
 /// starts at 0x10000), so the clock never runs backwards.
 const HELD_START: u32 = 0x0100_0000;
 
+/// The held clock's step for each frame drawn, in milliseconds: 10, or `RC2K_HELD_STEP` (1 to
+/// 10) to run frames faster than the ticks (with `RC2K_BLEND_HELD`, frames between ticks).
+fn held_step() -> u32 {
+    static STEP: OnceLock<u32> = OnceLock::new();
+    *STEP.get_or_init(|| {
+        std::env::var("RC2K_HELD_STEP")
+            .ok()
+            .and_then(|s| s.parse::<u32>().ok())
+            .filter(|n| (1..=10).contains(n))
+            .unwrap_or(10)
+    })
+}
+
 /// A held race was asked for (`RC2K_HELD_RACE`, remote builds).
 pub fn held_race() -> bool {
     static ON: OnceLock<bool> = OnceLock::new();
@@ -625,7 +638,7 @@ pub fn shot_frame_drawn(race: &Race, picture_clock: &crate::system::tick_count::
         let next = if held == 0 {
             HELD_START
         } else {
-            held.wrapping_add(10)
+            held.wrapping_add(held_step())
         };
         HELD_CLOCK.store(next.max(1), Relaxed);
     }

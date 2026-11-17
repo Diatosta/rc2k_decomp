@@ -50,6 +50,34 @@ pub fn title_parts(table: Rect, width: u32) -> Vec<(Rect, Rect)> {
     ]
 }
 
+/// The first row of the title texture's prompt strips for a half (0 or 1) of the screen: below
+/// the title's two strips, two strips (left half, right half) for each half.
+pub const fn prompt_row(half: u32) -> u32 {
+    0x32 + 0x32 * half
+}
+
+/// The prompt's quads (texture rectangle on the title texture, screen rectangle) where the
+/// prompt's three old strips were: one strip when `width` fits `TITLE_BOX`, else two side by
+/// side, centred on the same place.
+pub fn prompt_parts(table: Rect, width: u32, half: u32) -> Vec<(Rect, Rect)> {
+    let row = prompt_row(half);
+    let y = table[3].wrapping_sub(0x32);
+    let centre = table[2].wrapping_add(0xB8);
+    if width <= TITLE_BOX {
+        return vec![(
+            [0, row, 0x100, 0x19],
+            [centre.wrapping_sub(0x80), y, 0x100, 0x19],
+        )];
+    }
+    vec![
+        (
+            [0, row, 0x100, 0x19],
+            [centre.wrapping_sub(0x100), y, 0x100, 0x19],
+        ),
+        ([0, row + 0x19, 0x100, 0x19], [centre, y, 0x100, 0x19]),
+    ]
+}
+
 /// The nine fixed quads (texture, screen) from the second rectangle of the layout
 /// (`TyreChange.parts[0]` ..), the wheel's rectangle (`TyreChange.wheel[0]` ..) and whether the car
 /// is not the first (its half of the texture).
@@ -143,6 +171,22 @@ mod tests {
         );
         assert_eq!(p[7].0, [0x80, 0x32 + 0x32, 0x80, 0x19]);
         assert_eq!(p[8].1, [300 + 0x3C, 400 + 0x1E, 0x100, 0x19]);
+    }
+
+    #[test]
+    fn prompts() {
+        let one = prompt_parts([0, 0, 100, 200], 10, 1);
+        assert_eq!(
+            one,
+            vec![(
+                [0, 0x64, 0x100, 0x19],
+                [100 + 0xB8 - 0x80, 200 - 0x32, 0x100, 0x19]
+            )]
+        );
+        let two = prompt_parts([0, 0, 100, 200], TITLE_BOX + 1, 0);
+        assert_eq!(two.len(), 2);
+        assert_eq!(two[0].1[0] + 0x100, two[1].1[0]);
+        assert_eq!(two[1].0, [0, 0x32 + 0x19, 0x100, 0x19]);
     }
 
     #[test]

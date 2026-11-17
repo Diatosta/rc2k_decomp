@@ -320,6 +320,16 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn) -> Result<(), Refused> {
             crate::render::step_render_scale(true);
             Ok(())
         }
+        ItemFn::PreviousHudBox | ItemFn::NextHudBox => {
+            crate::hud::box_ratio::step(matches!(f, ItemFn::NextHudBox));
+            Ok(())
+        }
+        ItemFn::PreviousWindowMode | ItemFn::NextWindowMode => {
+            use crate::platform::window_mode as wm;
+            wm::set(wm::get().step(matches!(f, ItemFn::NextWindowMode)));
+            crate::platform::apply_window_mode();
+            Ok(())
+        }
         ItemFn::NextAudioQuality => next_audio_quality::run(o),
         ItemFn::PreviousAudioQuality => previous_audio_quality::run(o),
         ItemFn::ViewStageDetails => {

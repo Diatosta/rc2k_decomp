@@ -338,12 +338,34 @@ pub fn step_render_scale(up: bool) {
 }
 
 /// The percent the flush being drawn draws its 3D at: the chosen share in a race, the whole
-/// screen elsewhere (a menu's 3D, the car carousel, stays sharp).
+/// screen elsewhere (a menu's 3D is drawn larger when the window shows the frame larger, see
+/// `menu_high_percent`).
 static FLUSH_SCALE: AtomicU32 = AtomicU32::new(100);
 
 /// The percent of the screen's size the 3D of the flush being drawn takes.
 pub fn flush_scale() -> u32 {
     FLUSH_SCALE.load(Relaxed)
+}
+
+/// Whether the flush being drawn is a race's.
+static FLUSH_RACING: AtomicBool = AtomicBool::new(false);
+
+/// The percent of the menus' frame the window shows it at (the frame's place in the window,
+/// times the 3D's share), set by the platform when it is above 100; 0 when the frame is shown
+/// at its own size or less.
+static MENU_HIGH: AtomicU32 = AtomicU32::new(0);
+
+/// Sets the size the window shows a menu's frame at (`menu_high_percent`).
+pub fn set_menu_high(percent: u32) {
+    MENU_HIGH.store(percent, Relaxed);
+}
+
+/// The percent of the frame's size the 3D of the menu flush being drawn is drawn at, when that
+/// is more than the frame's own size: the menus' models then keep the window's sharpness while
+/// the 2D stays the frame's pixels enlarged.
+pub fn menu_high_percent() -> Option<u32> {
+    let percent = MENU_HIGH.load(Relaxed);
+    (percent > 100 && !FLUSH_RACING.load(Relaxed)).then_some(percent)
 }
 
 /// Whether the GPU holds the frame: the 3D of a race or of a menu on the GPU backend.
@@ -360,6 +382,7 @@ static GPU_DREW_THIS_FRAME: AtomicBool = AtomicBool::new(false);
 /// over the target at each flush.
 pub fn draw(screen: (usize, usize), racing: bool, target: &Target, commands: CommandList) {
     FLUSH_SCALE.store(if racing { render_scale() } else { 100 }, Relaxed);
+    FLUSH_RACING.store(racing, Relaxed);
     if target.bits == 32 {
         let mut gpu = gpu::GPU.lock().unwrap();
         if let Some(gpu) = gpu.as_mut() {
@@ -447,12 +470,13 @@ fn give_frame_back(target: &Target) {
 }
 
 /// The frame's end, before it is shown. The GPU's colour target when that is what to show, the
-/// canvas's written pixels over it, with the number of its set of targets (`Gpu::colour_texture`).
+/// canvas's written pixels over it, with the number of its set of targets and its size
+/// (`Gpu::colour_texture`).
 #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
 pub fn finish_frame(
     course: &Course,
     target: &Target,
-) -> Option<(*mut sdl3_sys::everything::SDL_GPUTexture, u64)> {
+) -> Option<(*mut sdl3_sys::everything::SDL_GPUTexture, u64, (u32, u32))> {
     if !GPU_HOLDS_FRAME.load(Relaxed) {
         return None;
     }
@@ -475,6 +499,11 @@ pub fn finish_frame(
     let rows = canvas_rows::written_rows(target, canvas);
     if let Err(why) = gpu.finish_frame(Some(rows), canvas) {
         crate::logfile::program_log::log(&format!("render: the frame did not finish: {why}"));
+    }
+    if let Err(why) = gpu.finish_high() {
+        crate::logfile::program_log::log(&format!(
+            "render: the menu's larger 3D did not finish: {why}"
+        ));
     }
     Some(gpu.colour_texture())
 }

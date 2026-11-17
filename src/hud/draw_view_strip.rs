@@ -12,6 +12,7 @@ use crate::race::owner::Race;
 use crate::race::view_scratch::ViewScratch;
 use crate::scene::owner::Scene;
 use crate::system::owner::System;
+use rc2k_core::hud::anchor::Rule;
 use rc2k_core::hud::strips;
 
 /// The quad's input at byte offset `o` from `quad_colour`: its colour and see-through,
@@ -37,11 +38,13 @@ pub struct Overlay<'a> {
 }
 
 /// The strip's sizes into `strips.sizes` (`strips::sizes`).
-fn sizes(system: &System, strips: &Strips, v: [u32; 4]) {
+fn sizes(system: &System, strips: &Strips, v: [u32; 4], rule: Rule) {
     let (sizes, _) = strips::sizes(
         v,
         system.session.screen.get().width.get(),
         system.session.screen.get().height.get(),
+        rule,
+        crate::hud::box_ratio::get(),
     );
     for (n, x) in sizes.into_iter().enumerate() {
         strips.sizes[n].set(x);
@@ -113,11 +116,16 @@ pub fn overlay_tail(overlay: &Overlay) -> Result<(), Refused> {
         return Ok(());
     }
     for (v, rows) in strips::TAIL {
-        sizes(system, strips_store, v);
+        sizes(system, strips_store, v, Rule::Thirds);
         let get = |n: usize| strips_store.sizes[n].get();
         quad(overlay, get(2), get(3), rows, Some(strips::TAIL_TEXTURE))?;
     }
     Ok(())
+}
+
+/// The layout the strips are drawn for (0 one player, 1 side by side, 2 one above the other).
+fn view_layout(race: &Race) -> u32 {
+    crate::hud::overlay_pass::shown_layout(&race.shared)
 }
 
 /// View `view`'s strip, then the shared tail.
@@ -136,7 +144,18 @@ pub fn draw_view_strip(overlay: &Overlay, view: u32) -> Result<(), Refused> {
         let top = strips::top_entry(view, frame.panel_and_overlay.get().panel.flat.get());
         let top: u32 = strips.tops[top as usize].get();
         let left: u32 = strips.lefts[view as usize].get();
-        sizes(system, strips, [top, strips::HEIGHT, left, strips::WIDTH]);
+        // Two players side by side each keep to their own half.
+        let rule = if view_layout(race) == 1 {
+            Rule::Halves
+        } else {
+            Rule::Thirds
+        };
+        sizes(
+            system,
+            strips,
+            [top, strips::HEIGHT, left, strips::WIDTH],
+            rule,
+        );
         let get = |n: usize| strips.sizes[n].get();
         let (mut left, width, mut rows) = (get(2), get(3), 0);
         for _ in 0..3 {

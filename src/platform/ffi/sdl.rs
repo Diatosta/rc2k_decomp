@@ -13,6 +13,18 @@
 
 use sdl3_sys::everything::*;
 
+/// How a window is shown on its display.
+#[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // the handheld's panel is always the whole screen
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum FullScreen {
+    /// As a window.
+    Off,
+    /// Over the whole desktop, without a mode change (borderless).
+    Desktop,
+    /// With the display set to the mode nearest this size.
+    Exclusive(u32, u32),
+}
+
 // ---- handles ----
 
 /// An SDL window.
@@ -122,6 +134,40 @@ impl Window {
         // SAFETY: as `restore_if_minimised`; SDL writes the two integers.
         let known = unsafe { SDL_GetWindowSizeInPixels(self.0, &raw mut width, &raw mut height) };
         (known && width > 0 && height > 0).then_some((width as u32, height as u32))
+    }
+
+    /// The window's full-screen state set. False when SDL refuses (the window stays as it was).
+    #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // the handheld's panel is always the whole screen
+    pub fn set_full_screen(self, how: FullScreen) -> bool {
+        // SAFETY: as `restore_if_minimised`; the mode is a record of this call's own that SDL
+        // fills in (all zero is the "none" it starts from) and reads during the call.
+        unsafe {
+            match how {
+                FullScreen::Off => SDL_SetWindowFullscreen(self.0, false),
+                FullScreen::Desktop => {
+                    SDL_SetWindowFullscreenMode(self.0, std::ptr::null())
+                        && SDL_SetWindowFullscreen(self.0, true)
+                }
+                FullScreen::Exclusive(width, height) => {
+                    let mut mode: SDL_DisplayMode = std::mem::zeroed();
+                    SDL_GetClosestFullscreenDisplayMode(
+                        SDL_GetDisplayForWindow(self.0),
+                        width as i32,
+                        height as i32,
+                        0.0,
+                        false,
+                        &raw mut mode,
+                    ) && SDL_SetWindowFullscreenMode(self.0, &raw const mode)
+                        && SDL_SetWindowFullscreen(self.0, true)
+                }
+            }
+        }
+    }
+
+    /// Whether the window is full screen now.
+    pub fn is_full_screen(self) -> bool {
+        // SAFETY: as `restore_if_minimised`.
+        unsafe { SDL_GetWindowFlags(self.0).0 & SDL_WINDOW_FULLSCREEN.0 != 0 }
     }
 
     /// The refreshes a second of the display the window is on, if SDL knows them.
@@ -423,6 +469,46 @@ pub fn init_video() -> bool {
     unsafe { SDL_Init(SDL_INIT_VIDEO) }
 }
 
+/// A display's modes, each (width, height, refresh rate), and its desktop's size.
+pub type DisplayModes = (Vec<(u32, u32, f32)>, Option<(u32, u32)>);
+
+/// The modes of the display `window` is on (the primary display without a window): each
+/// (width, height, refresh rate), and the desktop's size. SDL's video is started if it is not.
+#[cfg_attr(
+    any(test, all(target_os = "linux", target_arch = "aarch64")),
+    allow(dead_code)
+)] // the unit tests and the handheld ask no display
+pub fn display_modes(window: Option<Window>) -> DisplayModes {
+    if !init_video() {
+        return (Vec::new(), None);
+    }
+    // SAFETY: SDL's video is up; the display id is SDL's own; the list SDL returns holds `count`
+    // pointers to modes that live as long as the list, read at once and the list freed once
+    // (the modes are not used after); the desktop mode is read at once and only when not null.
+    unsafe {
+        let display = match window {
+            Some(w) => SDL_GetDisplayForWindow(w.0),
+            None => SDL_GetPrimaryDisplay(),
+        };
+        let mut modes = Vec::new();
+        let mut count = 0;
+        let list = SDL_GetFullscreenDisplayModes(display, &raw mut count);
+        if !list.is_null() {
+            for n in 0..usize::try_from(count).unwrap_or(0) {
+                let mode = *list.add(n);
+                if !mode.is_null() && (*mode).w > 0 && (*mode).h > 0 {
+                    modes.push(((*mode).w as u32, (*mode).h as u32, (*mode).refresh_rate));
+                }
+            }
+            SDL_free(list.cast());
+        }
+        let desktop = SDL_GetDesktopDisplayMode(display);
+        let desktop = (!desktop.is_null() && (*desktop).w > 0 && (*desktop).h > 0)
+            .then(|| ((*desktop).w as u32, (*desktop).h as u32));
+        (modes, desktop)
+    }
+}
+
 /// A window of the given size with a title.
 pub fn create_window(title: &std::ffi::CStr, width: usize, height: usize) -> Option<Window> {
     // SAFETY: a NUL-ended title; plain sizes and no flags.
@@ -570,6 +656,16 @@ impl PolledEvent {
         // SAFETY: the type says the `key` record is the one SDL filled.
         let key = unsafe { self.0.key };
         key.scancode == scancode && !key.repeat && key.r#mod.0 & SDL_KMOD_CTRL.0 != 0
+    }
+
+    /// A key going down for the first time (no repeat) with Alt held, and its scancode.
+    pub fn is_fresh_alt_key_down(&self, scancode: SDL_Scancode) -> bool {
+        if self.kind() != SDL_EVENT_KEY_DOWN {
+            return false;
+        }
+        // SAFETY: the type says the `key` record is the one SDL filled.
+        let key = unsafe { self.0.key };
+        key.scancode == scancode && !key.repeat && key.r#mod.0 & SDL_KMOD_ALT.0 != 0
     }
 
     /// The joystick id of a joystick added or removed event (else 0).

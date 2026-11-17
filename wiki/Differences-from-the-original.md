@@ -89,21 +89,31 @@ More on [Network play](Network-play).
   the last frame of the loading screen is at least 33 ms old, so the bar's last steps may go
   unseen.
 - The frames follow the display's refresh: one frame for each refresh (60 a second on a 60 Hz
-  display, also when the display's rate is not known), every second or third refresh on
-  displays faster than 100 Hz, as the race moves 100 times a second. The program does this by
+  display, also when the display's rate is not known). The race moves 100 times a second; on
+  displays faster than that the frames between two of its ticks are drawn blended between the
+  last two ticks (the advanced page's "smooth frames", on by default, kept as `smooth_frames`
+  in `rc2k.toml`; the picture is up to a tick behind the simulation, the simulation itself and
+  so every replay and held race is unchanged). With "smooth frames" off a frame shows the last
+  tick and the frames are every second or third refresh on displays faster than 100 Hz. The
+  windscreen's drops and flakes appear at most once a tick, so a faster display gets no more
+  of them. The program does this by
   waiting until each frame is due; with SDL's own switch `SDL_RENDER_VSYNC=1` in the
   environment the showing itself waits for the display instead, at every refresh. The speed
   of the race does not depend on it: its steps come from the clock. The graphics page has a
   "frame limit" row after the original's: no limit (nothing here waits; a display that waits
   for its refresh still does), the display's own pace (the default), 30 or 60 a second, and the
-  rates that divide the display's refresh evenly (half, a third, a quarter of it). It is kept in
+  rates that divide the display's refresh evenly (half, a third, a quarter of it; with smooth
+  frames the display's own rate and its half, shown as "(half)", up to 1000 a second). It is kept in
   `var/rc2k.toml`'s `[display]` table as `frame_limit` (`"off"`, `"display"` or a number a second;
   left out for the default, `"display"`). A "3D resolution" row below it draws the race's 3D at
   50, 75, 100, 125, 150, 175 or 200 % of the screen's size: below 100 it is enlarged (nearest
   pixel) over the screen, above 100 it is drawn larger and scaled down with a smoothing filter
   (supersampling anti-aliasing; an exact area average in the software rasteriser, the bilinear
   filter on the GPU renderers, which is the mean of four pixels at 200 %); the
-  menus, the dashboard and the texts stay at full size. It works on the software rasteriser and
+  menus' pictures, the dashboard and the texts stay at full size, while the menus' 3D models (the
+  main menu's key and signpost, the helmets, the car carousel) are drawn on the GPU renderers at
+  the size the menu's frame has in the window times this share, so they are sharp on a large window
+  (the software rasteriser draws them at the frame's own size). It works on the software rasteriser and
   on both GPU renderers, and is kept in `[display]` as `render_scale` (50 to 200 in those steps; left out
   for 100). The handheld's software rasteriser no longer draws races at half size by itself:
   set the row to 50 % there.
@@ -133,7 +143,17 @@ More on [Network play](Network-play).
 - Playing against the original program over a network.
 - The original's choice between 3D cards; the program picks its renderer itself
   (`RC2K_RENDERER=software` forces the rasteriser).
+- Wide screens: the race's resolution list holds the monitor's own modes, the usual sizes of 4:3, 16:10,
+  16:9, 21:9 and 32:9 that fit the desktop, and the game's eight, each shown with its ratio ("2560 x 1080
+  (21:9)"); `custom_width` / `custom_height` in `[display]` set any other size. On a screen wider than 4:3 the
+  3D keeps its field of view up and down and shows more to the sides (the usual "Hor+"), and the HUD keeps
+  its 800 x 600 shape instead of stretching: the dials, the map, the timers and the mirror keep to their
+  corners and edges, the progress bar to the middle (two players side by side each keep to their half, one
+  above the other the divider spans the screen). The "HUD area" row confines the HUD to a centred 4:3,
+  16:9 or 21:9 box. The "screen" row shows the window as a window, full screen or borderless. On a screen
+  as wide as 4:3 or narrower everything is as before.
 - The window keeps the size of the race's screen mode from the start to the end. The original's menus
+
   ran at 800 x 600 and switched the display when a race began or ended; here the menus are still drawn
   at 800 x 600 (their pictures, layouts and fonts are made for it) and shown scaled in the window,
   keeping the 4:3 shape and centred, with a linear filter (a whole-number factor stays sharp, so

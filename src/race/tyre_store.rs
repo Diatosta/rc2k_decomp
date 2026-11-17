@@ -69,6 +69,9 @@ pub struct TyreChange {
     pub title_device_texture: PlainDword,
     /// The title's width in pixels as drawn (0 before it is).
     pub title_width: PlainDword,
+    /// The prompt's width in pixels as drawn on the title texture, for each half of the screen
+    /// (0 when that half shows the time instead).
+    pub prompt_width: [PlainDword; 2],
 }
 
 impl TyreChange {
@@ -173,6 +176,7 @@ impl TyreChange {
             title_texture: PlainDword::new(0x0),
             title_device_texture: PlainDword::new(0x0),
             title_width: PlainDword::new(0x0),
+            prompt_width: [PlainDword::new(0x0), PlainDword::new(0x0)],
         }
     }
 }

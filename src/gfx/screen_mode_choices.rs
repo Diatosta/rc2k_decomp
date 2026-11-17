@@ -18,7 +18,7 @@
 //!   from the race screen mode (its low 12 bits in the list, else both 0; +0xC from `modes.kinds`
 //!   by its fourth nibble, less 1, not below 0); +0x10 masked by +0x20; made.
 //!
-//! Refuses (before anything is written) a list longer than the record's room (16 modes: it would
+//! Refuses (before anything is written) a list longer than the record's room (64 modes: it would
 //! write over the constants after the record) and a size's place of 0x1000 or more when made (it
 //! would read that far past the list).
 
@@ -196,21 +196,55 @@ fn rebuild(
             zero: false,
         });
     };
-    let mut listed = Vec::new();
-    for (n, &at) in modes.iter().enumerate() {
+    let mut all = Vec::new();
+    for &at in &modes {
         let mode = display.modes.dword(at)?;
         let (size_key, kind_key) = mc::keys(mode);
         let size = entry_of(&display.modes, size_key, Modes::SIZES_AT, 8)?;
         let kind = entry_of(&display.modes, kind_key, Modes::PIXEL_KINDS_AT, 2)?;
         // The entries' second dwords: the size's two halves, the kind's figure.
         let size_halves = display.modes.dword(size + 1)?;
-        let l = mc::Listed {
+        all.push(mc::Listed {
             width: size_halves & 0xFFFF,
             height: size_halves >> 16,
             figure: display.modes.dword(kind + 1)?,
             mode,
-        };
-        // `n` is below the list's 16: the room was checked before anything was written.
+        });
+    }
+    // The sizes beyond the game's table: the monitor's modes, the usual sizes that fit its
+    // desktop and the size set by hand, each as the first mode's kind with a size of its own.
+    if let Some(first) = all.first().copied() {
+        let (modes, desktop) = crate::platform::monitor_modes();
+        let monitor = rc2k_core::gfx::resolutions::modes_as_sizes(&modes);
+        crate::gfx::monitor_sizes::set_monitor(monitor.clone(), desktop);
+        let table: Vec<(u32, u32, u32)> = all
+            .iter()
+            .map(|l| (l.width, l.height, l.mode & 0xFF))
+            .collect();
+        let table_sizes: Vec<(u32, u32)> = all.iter().map(|l| (l.width, l.height)).collect();
+        for (w, h) in rc2k_core::gfx::resolutions::extra_sizes(
+            &table_sizes,
+            &monitor,
+            desktop,
+            crate::gfx::monitor_sizes::custom(),
+        ) {
+            let Some(mode) = crate::gfx::monitor_sizes::mode_for(first.mode, &table, w, h) else {
+                break;
+            };
+            all.push(mc::Listed {
+                width: w,
+                height: h,
+                figure: first.figure,
+                mode,
+            });
+        }
+        all.sort_by_key(|l| (u64::from(l.width) * u64::from(l.height), l.width));
+        all.truncate(mc::ROOM as usize);
+    }
+    let mut listed = Vec::new();
+    for (n, l) in all.iter().enumerate() {
+        // `n` is below the list's room: the table's modes were counted before anything was
+        // written and the rest cut to the room.
         let slot = &display.choices.list.modes[n];
         slot.width.set(l.width);
         slot.height.set(l.height);

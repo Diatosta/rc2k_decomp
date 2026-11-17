@@ -295,6 +295,32 @@ void main() {
     result = vec4(texture(canvas, clamp(v_uv, half_texel, 1.0 - half_texel)).bgr, 1.0);
 }
 ";
+/// The frame buffer object's picture of a menu whose 3D was drawn larger (`HighTarget`): where it
+/// is still what it was when the 3D was drawn (`kept`) the larger 3D picture is taken, where the
+/// game drew over it since (the text and the buttons) the frame's own picture, beside it as
+/// `CANVAS_FS`.
+const MERGE_FS: &CStr = c"#version 300 es
+precision highp float;
+in vec2 v_uv; in vec2 v_win; out vec4 result;
+uniform sampler2D canvas; uniform sampler2D kept; uniform sampler2D high;
+uniform sampler2D wash; uniform float bars; uniform float has_wash;
+void main() {
+    if (v_uv != clamp(v_uv, 0.0, 1.0)) {
+        result = (bars > 0.5 || has_wash < 0.5)
+            ? vec4(0.0, 0.0, 0.0, 1.0) : vec4(texture(wash, v_win).bgr, 1.0);
+        return;
+    }
+    ivec2 size = textureSize(canvas, 0);
+    ivec2 source = min(ivec2(v_uv * vec2(size)), size - 1);
+    vec2 half_texel = 0.5 / vec2(size);
+    vec2 at = clamp(v_uv, half_texel, 1.0 - half_texel);
+    if (texelFetch(canvas, source, 0) == texelFetch(kept, source, 0)) {
+        result = vec4(texture(high, at).rgb, 1.0);
+    } else {
+        result = vec4(texture(canvas, at).rgb, 1.0);
+    }
+}
+";
 /// The frame buffer object's picture (red first), beside it as `CANVAS_FS`.
 const TARGET_FS: &CStr = c"#version 300 es
 precision mediump float;
@@ -503,6 +529,8 @@ pub struct Gpu {
     overlay: Quad,
     canvas_quad: Quad,
     target_quad: Quad,
+    /// The frame's picture with a menu's larger 3D (`MERGE_FS`).
+    merge_quad: Quad,
     vertices: u32,
     /// The vertices' second passes (`Batches::seconds`).
     seconds: u32,
@@ -524,6 +552,11 @@ pub struct Gpu {
     /// The target a 3D drawn smaller than the screen goes into (`render_scale`): the screen's
     /// size, the picture in its bottom-left corner; made when first needed.
     small: Option<SmallTarget>,
+    /// The targets of a menu's larger 3D, made when first needed.
+    high: Option<HighTarget>,
+    /// Which of its `colour` holds the frame in progress, once a part of the frame has drawn 3D
+    /// there.
+    frame_high: Option<usize>,
     /// The canvas's textures, taken in turn: a flush's rows go into the one after the last
     /// flush's, so an upload never waits for the GPU to finish a frame still reading its texture.
     canvases: [CanvasTexture; CANVAS_TEXTURES],
@@ -537,6 +570,24 @@ pub struct Gpu {
     /// The programs of the start are made: one made from here on holds a frame up.
     set_up_done: bool,
     textures: super::TextureMap<CachedTexture>,
+}
+
+/// The targets of a menu's 3D drawn larger than the menu's frame, so that it is sharp on a window
+/// larger than the frame (`render::menu_high_percent`).
+struct HighTarget {
+    /// The picture of the frame with the 3D drawn so far, one of them being drawn into while the
+    /// other is read (`Gles::frame_high`); both with `depth`.
+    framebuffer: [u32; 2],
+    colour: [u32; 2],
+    depth: u32,
+    /// The frame's colour as it was right after the 3D was drawn into it (`MERGE_FS`).
+    kept_framebuffer: u32,
+    kept: u32,
+    /// The size of the larger ones.
+    size: (i32, i32),
+    /// The size of `kept`.
+    kept_size: (i32, i32),
+    depth_is_new: bool,
 }
 
 /// The frame buffer object of a 3D drawn smaller, and the size it was made at.
@@ -607,6 +658,14 @@ impl Gpu {
                 wash: -1,
                 has_wash: -1,
             },
+            merge_quad: Quad {
+                program: 0,
+                flip: 0,
+                fit: -1,
+                bars: -1,
+                wash: -1,
+                has_wash: -1,
+            },
             vertices: 0,
             seconds: 0,
             layers: 0,
@@ -619,6 +678,8 @@ impl Gpu {
             samplers: [0; 8],
             framebuffer: 0,
             small: None,
+            high: None,
+            frame_high: None,
             colour: 0,
             depth: 0,
             canvases: [CanvasTexture::default(); CANVAS_TEXTURES],
@@ -805,6 +866,14 @@ impl Gpu {
         self.overlay = self.quad(QUAD_VS, OVERLAY_FS)?;
         self.canvas_quad = self.quad(FIT_VS, CANVAS_FS)?;
         self.target_quad = self.quad(FIT_VS, TARGET_FS)?;
+        self.merge_quad = self.quad(FIT_VS, MERGE_FS)?;
+        // The merge reads the frame's picture on unit 0, the wash on 1, the kept one on 2 and the
+        // larger 3D on 3.
+        self.gl.use_program(self.merge_quad.program);
+        self.gl
+            .uniform_1i(self.uniform(self.merge_quad.program, "kept"), 2);
+        self.gl
+            .uniform_1i(self.uniform(self.merge_quad.program, "high"), 3);
         let gl = &self.gl;
         // The attribute layout is `batches::Vertex`'s eight dwords.
         self.empty_array = gl.gen_vertex_array();
@@ -1079,6 +1148,147 @@ impl Gpu {
         Ok(())
     }
 
+    /// The larger targets of a menu's 3D at `size`, made or made again.
+    fn ensure_high(&mut self, size: (i32, i32), frame: (i32, i32)) -> Result<(), String> {
+        if self
+            .high
+            .as_ref()
+            .is_some_and(|h| h.size == size && h.kept_size == frame)
+        {
+            return Ok(());
+        }
+        let gl = &self.gl;
+        let mut made = match self.high.take() {
+            Some(old) => old,
+            None => HighTarget {
+                framebuffer: [gl.gen_framebuffer(), gl.gen_framebuffer()],
+                colour: [gl.gen_texture(), gl.gen_texture()],
+                depth: gl.gen_renderbuffer(),
+                kept_framebuffer: gl.gen_framebuffer(),
+                kept: gl.gen_texture(),
+                size,
+                kept_size: frame,
+                depth_is_new: true,
+            },
+        };
+        gl.bind_renderbuffer(0x8D41, made.depth);
+        gl.renderbuffer_storage(0x8D41, 0x81A6, size.0, size.1);
+        let mut complete = true;
+        for n in 0..2 {
+            gl.bind_texture(TEXTURE_2D, made.colour[n]);
+            gl.tex_image_2d(0x8058, size.0, size.1, RGBA, UNSIGNED_BYTE, None);
+            // Linear: it is shown at the window's size.
+            gl.tex_parameter(TEXTURE_2D, 0x2801, 0x2601);
+            gl.tex_parameter(TEXTURE_2D, 0x2800, 0x2601);
+            gl.tex_parameter(TEXTURE_2D, 0x2802, 0x812F);
+            gl.tex_parameter(TEXTURE_2D, 0x2803, 0x812F);
+            gl.bind_framebuffer(FRAMEBUFFER, made.framebuffer[n]);
+            gl.framebuffer_texture_2d(FRAMEBUFFER, 0x8CE0, made.colour[n]);
+            gl.framebuffer_renderbuffer(FRAMEBUFFER, 0x8D00, made.depth);
+            complete &= gl.framebuffer_status(FRAMEBUFFER) == 0x8CD5;
+        }
+        gl.bind_texture(TEXTURE_2D, made.kept);
+        gl.tex_image_2d(0x8058, frame.0, frame.1, RGBA, UNSIGNED_BYTE, None);
+        gl.tex_parameter(TEXTURE_2D, 0x2801, 0x2600);
+        gl.tex_parameter(TEXTURE_2D, 0x2800, 0x2600);
+        gl.bind_framebuffer(FRAMEBUFFER, made.kept_framebuffer);
+        gl.framebuffer_texture_2d(FRAMEBUFFER, 0x8CE0, made.kept);
+        complete &= gl.framebuffer_status(FRAMEBUFFER) == 0x8CD5;
+        gl.bind_framebuffer(FRAMEBUFFER, self.framebuffer);
+        made.size = size;
+        made.kept_size = frame;
+        made.depth_is_new = true;
+        self.frame_high = None;
+        self.high = Some(made);
+        if complete {
+            Ok(())
+        } else {
+            Err("the menu's larger frame buffer object is not complete".into())
+        }
+    }
+
+    /// A menu part's 3D at `percent` of the frame's size: the picture so far enlarged (or, when an
+    /// earlier part of the frame drew 3D, what that left, with the 2D drawn since in its place),
+    /// the batches drawn over it; and the same batches in the frame's own picture, which the 2D
+    /// after them is drawn over, kept to tell where that 2D is (`MERGE_FS`).
+    fn draw_batches_high(
+        &mut self,
+        batches: &Batches,
+        (width, height): (i32, i32),
+        percent: u32,
+    ) -> Result<(), String> {
+        let size = (
+            rc2k_core::gfx::render_scale::scaled(width as usize, percent) as i32,
+            rc2k_core::gfx::render_scale::scaled(height as usize, percent) as i32,
+        );
+        self.ensure_high(size, (width, height))?;
+        let gl = &self.gl;
+        gl.disable(SCISSOR_TEST);
+        let high = self.high.as_ref().expect("made above");
+        let into = match self.frame_high {
+            None => {
+                gl.bind_framebuffer(READ_FRAMEBUFFER, self.framebuffer);
+                gl.bind_framebuffer(DRAW_FRAMEBUFFER, high.framebuffer[0]);
+                gl.blit_colour((width, height), size, true);
+                0
+            }
+            Some(held) => {
+                let into = 1 - held;
+                gl.bind_framebuffer(FRAMEBUFFER, high.framebuffer[into]);
+                gl.viewport(0, 0, size.0, size.1);
+                self.bind_merge_inputs(held);
+                self.draw_quad(
+                    &self.merge_quad,
+                    true,
+                    Some(Placement {
+                        fit: [0.0, 0.0, 1.0, 1.0],
+                        bars: true,
+                        sharp: true,
+                    }),
+                );
+                into
+            }
+        };
+        let gl = &self.gl;
+        let high = self.high.as_mut().expect("made above");
+        gl.bind_framebuffer(FRAMEBUFFER, high.framebuffer[into]);
+        gl.viewport(0, 0, size.0, size.1);
+        if std::mem::replace(&mut high.depth_is_new, false) {
+            gl.depth_mask(true);
+            gl.clear_depth(1.0);
+            gl.clear(DEPTH_BIT);
+        }
+        let kept_framebuffer = high.kept_framebuffer;
+        self.draw_batches(batches, width, height, percent);
+        let gl = &self.gl;
+        gl.bind_framebuffer(FRAMEBUFFER, self.framebuffer);
+        gl.viewport(0, 0, width, height);
+        self.draw_batches(batches, width, height, 100);
+        self.plain_state();
+        let gl = &self.gl;
+        gl.bind_framebuffer(READ_FRAMEBUFFER, self.framebuffer);
+        gl.bind_framebuffer(DRAW_FRAMEBUFFER, kept_framebuffer);
+        gl.blit_colour((width, height), (width, height), false);
+        gl.bind_framebuffer(FRAMEBUFFER, self.framebuffer);
+        self.frame_high = Some(into);
+        Ok(())
+    }
+
+    /// The merge's textures bound: the frame's picture on unit 0, the kept one on 2 and the larger
+    /// 3D `held` on 3, the wash on 1.
+    fn bind_merge_inputs(&self, held: usize) {
+        let gl = &self.gl;
+        let high = self.high.as_ref().expect("made before");
+        self.plain_state();
+        for (unit, texture) in [(0, self.colour), (2, high.kept), (3, high.colour[held])] {
+            gl.active_texture(TEXTURE0 + unit);
+            gl.bind_texture(TEXTURE_2D, texture);
+            gl.bind_sampler(unit, 0);
+        }
+        gl.active_texture(TEXTURE0);
+        self.bind_wash();
+    }
+
     /// The next of the canvas's textures becomes the one uploads go into and draws read, bound
     /// and made at `width` x `height` (with no pixels) if it is not of that size yet. Once for
     /// each flush that uploads: every flush draws only what it uploaded, so nothing is carried
@@ -1155,6 +1365,7 @@ impl Gpu {
                     background,
                     size: (width, height),
                     scale,
+                    high,
                 },
             batches,
             quad_vertices,
@@ -1251,7 +1462,14 @@ impl Gpu {
             self.draw_quads(quad_vertices.len(), (width, height));
         }
         if !batches.batches.is_empty() && !self.cuts.scene {
-            if scale != 100 && !self.cuts.half {
+            if high > 100 && scale == 100 && !self.cuts.half {
+                if let Err(why) = self.draw_batches_high(&batches, (width, height), high) {
+                    crate::fatal::raise::end(
+                        "render::gles",
+                        crate::errors::BadInput(Box::leak(why.into_boxed_str())),
+                    );
+                }
+            } else if scale != 100 && !self.cuts.half {
                 if let Err(why) = self.draw_batches_small(&batches, (width, height), scale) {
                     crate::fatal::raise::end(
                         "render::gles",
@@ -1544,6 +1762,15 @@ impl Gpu {
                     (width as u32, height as u32),
                     (w as u32, h as u32),
                 );
+                // The menus' 3D of the next frames is drawn at the size this frame's place has in
+                // the window, times the 3D's share.
+                super::set_menu_high(if menu {
+                    let enlarged = u64::from(fit.width) * 100 / (width.max(1) as u64);
+                    let share = u64::from(super::render_scale());
+                    (enlarged * share / 100).min(400) as u32
+                } else {
+                    0
+                });
                 let placed = Placement {
                     fit: [
                         fit.x as f32 / w as f32,
@@ -1618,12 +1845,21 @@ impl Gpu {
         self.plain_state();
         let placed = self.panel_viewport(self.width, self.height, menu);
         let gl = &self.gl;
-        gl.bind_sampler(0, 0);
-        gl.bind_texture(TEXTURE_2D, self.colour);
-        self.set_filter(placed.sharp);
-        self.bind_wash();
-        self.draw_quad(&self.target_quad, true, Some(placed));
-        self.set_filter(true);
+        if let Some(held) = self.frame_high.take() {
+            // A menu with its 3D drawn larger: the picture is the merge of it and the frame's.
+            self.bind_merge_inputs(held);
+            self.set_filter(placed.sharp);
+            self.draw_quad(&self.merge_quad, true, Some(placed));
+            self.set_filter(true);
+        } else {
+            gl.bind_sampler(0, 0);
+            gl.bind_texture(TEXTURE_2D, self.colour);
+            self.set_filter(placed.sharp);
+            self.bind_wash();
+            self.draw_quad(&self.target_quad, true, Some(placed));
+            self.set_filter(true);
+        }
+        let gl = &self.gl;
         let waited = wait.then(|| {
             let start = std::time::Instant::now();
             gl.finish();
@@ -1676,6 +1912,8 @@ impl Gpu {
 
     /// The target's rows as the GL holds them.
     fn read_target(&mut self) -> Vec<u8> {
+        // The frame comes back as its own picture: the larger 3D of the frame so far is dropped.
+        self.frame_high = None;
         let (width, height) = (self.width, self.height);
         let mut out = vec![0u8; width as usize * height as usize * 4];
         self.gl.bind_framebuffer(FRAMEBUFFER, self.framebuffer);
@@ -1868,6 +2106,7 @@ impl Front {
             background,
             size: self.size,
             scale: super::flush_scale(),
+            high: super::menu_high_percent().unwrap_or(0),
         }));
     }
 

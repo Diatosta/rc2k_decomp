@@ -127,6 +127,7 @@ pub mod shapes;
 pub mod shapes_frame;
 pub mod snow;
 pub mod spans;
+pub mod spawn_gate;
 pub mod splines;
 pub mod spread_point;
 pub mod stage_record;

@@ -269,6 +269,12 @@ pub struct HudBlock {
     pub vertex_count: PlainDword,
     /// The indices in the batch.
     pub index_count: PlainDword,
+    // Our own, after the original's layout (the kept assembly reaches the fields above by
+    // offset).
+    /// How the pieces drawn now keep to the screen on a wide one (`layout_common::Keep`).
+    pub anchor_rule: PlainDword,
+    /// The rule the layout starts with and goes back to.
+    pub base_rule: PlainDword,
 }
 
 impl HudBlock {
@@ -554,6 +560,8 @@ impl HudBlock {
             indices: [const { PlainWord::new(0) }; 0x600],
             vertex_count: PlainDword::new(0x0),
             index_count: PlainDword::new(0x0),
+            anchor_rule: PlainDword::new(0x0),
+            base_rule: PlainDword::new(0x0),
         }
     }
 }

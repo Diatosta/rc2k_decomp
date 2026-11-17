@@ -1,5 +1,6 @@
 //! The race's HUD.
 
+pub mod anchor;
 pub mod batch;
 pub mod disc;
 pub mod icons;

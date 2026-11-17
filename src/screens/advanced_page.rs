@@ -57,6 +57,11 @@ pub fn draw_advanced(
             } else {
                 id::OFF
             }),
+            Kind::SmoothFrames => own(if values.smooth_frames {
+                id::ON
+            } else {
+                id::OFF
+            }),
             Kind::Flag { .. } => own(if values.flags[n] { id::ON } else { id::OFF }),
         });
     }

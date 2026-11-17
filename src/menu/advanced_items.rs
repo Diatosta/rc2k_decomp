@@ -60,6 +60,7 @@ fn current(o: Owners<'static>) -> Values {
         threads: crate::scene::workers::threads() as u32,
         renderer: Renderer::of(crate::render::choice::wanted().as_deref()),
         quit_pictures: crate::drive::quit_question::pictures_on(),
+        smooth_frames: crate::race::blend::smooth_on(),
         flags,
     }
 }
@@ -163,6 +164,9 @@ pub fn apply(o: Owners<'static>) -> Result<(), Refused> {
             }
             Kind::QuitPictures if new.quit_pictures != old.quit_pictures => {
                 crate::drive::quit_question::set_pictures_on(new.quit_pictures);
+            }
+            Kind::SmoothFrames if new.smooth_frames != old.smooth_frames => {
+                crate::race::blend::set_smooth(new.smooth_frames);
             }
             Kind::Flag { key, inverted } if new.flags[n] != old.flags[n] => {
                 let number = flag_number(inverted, new.flags[n]);

@@ -10,6 +10,7 @@ pub mod add_solid_quad;
 pub mod add_sprite;
 pub mod add_triangle;
 pub mod batch;
+pub mod box_ratio;
 pub mod dials;
 pub mod disc_vertex;
 pub mod draw_disc;

@@ -6,8 +6,8 @@
 use crate::errors::Refused;
 use crate::hud::draw_signs::row_by;
 use crate::hud::layout_common::{
-    begin_dials, black_divider, clock_panel, gear_rect, lap_panel, leading_time, needle_sign,
-    scaled, sign, sprite, time_digits, white_opaque,
+    Keep, begin_dials, black_divider, clock_panel, gear_rect, keep, keep_layout, lap_panel,
+    leading_time, needle_sign, scaled, sign, sprite, time_digits, white_opaque,
 };
 use crate::hud::owner::{Hud, Pen};
 use crate::hud::store::texture;
@@ -36,10 +36,13 @@ pub fn layout_2(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
     if f2 & 0x10 != 0 {
         dials::disc(frame, hud, pen, &dials::DISC_2B)?;
     }
+    keep(hud, Keep::Whole);
     black_divider(frame, hud, pen, [0, 0x12B, 0x320, 0x12D])?;
+    keep(hud, Keep::Middle);
     if f1 & 0x40 != 0 {
         draw_stage_bars::draw_stage_bars(frame, hud, pen, draw_stage_bars::STAGE_BARS_DROP_2)?;
     }
+    keep_layout(hud);
     white_opaque(hud, texture::ICONS);
     icons::icons(frame, hud, pen, &icons::LAYOUT_2)?;
     white_opaque(hud, texture::NEEDLES_AND_DIGITS);
@@ -82,7 +85,9 @@ pub fn layout_2(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
         scaled(frame, hud, pen, 0x5F, 0x2A7, 0x1DE)?;
     }
     if f1 & 0x40 != 0 {
+        keep(hud, Keep::Middle);
         draw_markers::draw_markers(frame, hud, pen, draw_markers::MARKER_ROWS_2)?;
+        keep_layout(hud);
     }
     hud.block.quad.colour.set(0xFFFF_FFFF);
     if f1 & 0x80 != 0 {
@@ -149,6 +154,7 @@ pub fn layout_2(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
     }
     let left = [8, 0x16, 0x23, 0x2A, 0x38, 0x45, 0x4C, 0x5A];
     let right = [0x2B7, 0x2C5, 0x2D2, 0x2D9, 0x2E7, 0x2F4, 0x2FB, 0x309];
+    keep(hud, Keep::Middle);
     for (times, y) in [
         ([&hud.block.times[0], &hud.block.times[1]], 0x120u32),
         ([&hud.block.times[3], &hud.block.times[4]], 0x12F),
@@ -162,5 +168,6 @@ pub fn layout_2(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
             }
         }
     }
+    keep_layout(hud);
     Ok(())
 }

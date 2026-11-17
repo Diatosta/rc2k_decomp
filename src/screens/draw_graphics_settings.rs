@@ -30,6 +30,7 @@ fn frame_limit_text(o: crate::owners::Owners<'static>) -> Vec<u8> {
     use rc2k_core::strings::format::{Pad, decimal};
     use rc2k_core::strings::own::id;
     let own = |n: u32| own_text(o.strings, n);
+    let smooth = crate::race::blend::smooth_on();
     let rate = |frames: u32| {
         let mut text = decimal(frames, Pad::None);
         text.push(b' ');
@@ -38,9 +39,19 @@ fn frame_limit_text(o: crate::owners::Owners<'static>) -> Vec<u8> {
     };
     match crate::platform::pacing::frame_limit() {
         FrameLimit::Off => own(id::NO_LIMIT),
-        FrameLimit::Rate(n) => rate(n),
+        FrameLimit::Rate(n) => {
+            let mut text = rate(n);
+            // The half of the display's own rate (with the smooth frames on) is named so.
+            let refresh = crate::platform::pacing::display_refresh();
+            if smooth && refresh.is_some_and(|r| (r / 2.0 - f64::from(n)).abs() < 1.0) {
+                text.extend(b" (");
+                text.extend(own(id::HALF));
+                text.push(b')');
+            }
+            text
+        }
         FrameLimit::Display => {
-            let shown = display_rate(crate::platform::pacing::display_refresh());
+            let shown = display_rate(crate::platform::pacing::display_refresh(), smooth);
             let mut text = own(id::DISPLAY);
             text.extend(b" (");
             text.extend(rate(shown.round() as u32));
@@ -69,14 +80,32 @@ pub fn draw_graphics_settings(
             disable_item(menus, 2)?;
         }
         let place = display.choices.resolution.get();
-        let v = |i: usize| display.choices.list.dword(place, i, "a screen mode");
+        let size = |i: usize| display.choices.list.dword(place, i, "a screen mode");
+        let own = |n: u32| crate::strings::append_string_by_id::own_text(o.strings, n);
+        let resolution = rc2k_core::gfx::resolutions::label(
+            size(0)?,
+            size(1)?,
+            crate::gfx::monitor_sizes::custom(),
+            &own(rc2k_core::strings::own::id::CUSTOM),
+        );
         let ids = NAMES.map(|(setting, first, _)| setting(menus, gfx).wrapping_add(first));
         let mut screen = SettingsScreen::new(canvas, o);
-        rc2k_core::screens::settings_pages::graphics(&mut screen, ids, [v(0)?, v(1)?, v(2)?])?;
+        rc2k_core::screens::settings_pages::graphics(&mut screen, ids, &resolution)?;
         rc2k_core::screens::settings_pages::graphics_frame_limit(
             &mut screen,
             &frame_limit_text(o),
         )?;
+        use rc2k_core::strings::own::id;
+        let hud_box = match crate::hud::box_ratio::get() {
+            rc2k_core::hud::anchor::BoxRatio::Full => own(id::FULL_SCREEN),
+            other => other.name().as_bytes().to_vec(),
+        };
+        let window = own(match crate::platform::window_mode::get() {
+            crate::platform::window_mode::WindowMode::Window => id::WINDOW,
+            crate::platform::window_mode::WindowMode::FullScreen => id::FULL_SCREEN,
+            crate::platform::window_mode::WindowMode::Borderless => id::BORDERLESS,
+        });
+        rc2k_core::screens::settings_pages::graphics_display(&mut screen, &hud_box, &window)?;
         let mut scale = rc2k_core::strings::format::decimal(
             crate::render::render_scale(),
             rc2k_core::strings::format::Pad::None,

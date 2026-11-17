@@ -1,6 +1,7 @@
 //! The race's logic.
 
 pub mod best_line;
+pub mod blend;
 pub mod car_marks;
 pub mod car_parts;
 pub mod cars;

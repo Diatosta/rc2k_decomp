@@ -99,6 +99,18 @@ pub mod id {
     pub const NO_LIMIT: u32 = FIRST + 0xC9;
     pub const DISPLAY: u32 = FIRST + 0xCA;
     pub const FRAMES_A_SECOND: u32 = FIRST + 0xCB;
+    /// The graphics page's rows for the HUD's box and the window's mode, the window modes' names
+    /// and the word for a size set by hand.
+    pub const HUD_BOX: u32 = FIRST + 0xE0;
+    pub const WINDOW_MODE: u32 = FIRST + 0xE1;
+    pub const WINDOW: u32 = FIRST + 0xE2;
+    pub const FULL_SCREEN: u32 = FIRST + 0xE3;
+    pub const BORDERLESS: u32 = FIRST + 0xE4;
+    pub const CUSTOM: u32 = FIRST + 0xE5;
+    /// The frame limit that is half of the display's rate.
+    pub const HALF: u32 = FIRST + 0xCC;
+    /// The advanced page's row for frames drawn between the ticks.
+    pub const SMOOTH_FRAMES: u32 = FIRST + 0xB9;
     /// The graphics page's 3D resolution row.
     pub const RENDER_SCALE: u32 = FIRST + 0xE8;
     /// The advanced page: its name (also the options menu's item), then the rows' names in
@@ -148,7 +160,15 @@ pub const KEYS: &[(&str, u32)] = &[
     ("graphics.no_limit", id::NO_LIMIT),
     ("graphics.display", id::DISPLAY),
     ("graphics.frames_a_second", id::FRAMES_A_SECOND),
+    ("graphics.half", id::HALF),
+    ("advanced.smooth_frames", id::SMOOTH_FRAMES),
     ("graphics.render_scale", id::RENDER_SCALE),
+    ("graphics.hud_box", id::HUD_BOX),
+    ("graphics.window_mode", id::WINDOW_MODE),
+    ("graphics.window", id::WINDOW),
+    ("graphics.full_screen", id::FULL_SCREEN),
+    ("graphics.borderless", id::BORDERLESS),
+    ("graphics.custom", id::CUSTOM),
     ("lobby.save_replay", id::SAVE_REPLAY),
     ("lobby.settings", id::LOBBY_SETTINGS),
     ("lobby.replay_not_saved", id::REPLAY_NOT_SAVED),

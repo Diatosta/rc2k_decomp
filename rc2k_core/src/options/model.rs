@@ -105,6 +105,24 @@ pub struct Display {
     /// Only in the new file; left out when nothing was chosen, which is the normal order.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub renderer: Option<String>,
+    /// The race's size when it is none of the game's own list (`[width, height]`; only in the
+    /// new file, left out when the size is one of the list's, which `race_mode` names).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub race_size: Option<[u32; 2]>,
+    /// A size set by hand: the race uses it and the page lists it as "custom" (only in the new
+    /// file, with `custom_height`; left out when unset).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub custom_width: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub custom_height: Option<u32>,
+    /// How the window is shown: `"window"`, `"fullscreen"` or `"borderless"` (only in the new
+    /// file; left out for a window).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub window_mode: Option<String>,
+    /// The box the HUD keeps to: `"4:3"`, `"16:9"` or `"21:9"` (only in the new file; left out
+    /// for the whole screen).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hud_box: Option<String>,
     /// How many parts of a frame may be drawn at once (1 = one after another); only in the new
     /// file, left out for as many as the machine has cores.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -113,6 +131,11 @@ pub struct Display {
     /// file; on when missing).
     #[serde(default = "on", skip_serializing_if = "is_on")]
     pub quit_pictures: bool,
+    /// The race drawn between the simulation's ticks, so that a screen faster than a hundred
+    /// frames a second shows motion in every frame (only in the new file; on when missing).
+    /// Off, a frame shows the last tick, at most a hundred a second.
+    #[serde(default = "on", skip_serializing_if = "is_on")]
+    pub smooth_frames: bool,
 }
 
 fn on() -> bool {
@@ -131,9 +154,15 @@ impl Default for Display {
             mipmapping: 0,
             frame_limit: Default::default(),
             render_scale: crate::gfx::render_scale::DEFAULT,
+            race_size: None,
+            custom_width: None,
+            custom_height: None,
+            window_mode: None,
+            hud_box: None,
             renderer: None,
             draw_threads: None,
             quit_pictures: true,
+            smooth_frames: true,
         }
     }
 }

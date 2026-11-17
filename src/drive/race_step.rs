@@ -22,6 +22,14 @@ pub fn race_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), R
             },
         )?;
     }
+    let tables = race.shared.physics_tables.get();
+    crate::race::blend::ticks_done(
+        tables
+            .race_clock_now
+            .get()
+            .wrapping_sub(tables.race_clock_base.get()),
+        tables.debug[1].get() == 0,
+    );
     Ok(())
 }
 
@@ -47,6 +55,9 @@ fn hash_if_asked(race: &Race) {
     }
     groups.push(crate::drive::sim_hash::staging_group(&bytes));
     let tick = TICKS.fetch_add(1, Relaxed);
+    if std::env::var_os("RC2K_SIM_FIELDS").is_some() && tick < 40 {
+        crate::drive::sim_hash::log_fields(race.shared.car_blocks.get(), tick);
+    }
     crate::logfile::program_log::log(&format!(
         "sim hash {tick}: {:016x}, random {:08x}",
         crate::drive::sim_hash::total(&groups),

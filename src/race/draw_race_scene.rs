@@ -412,6 +412,9 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     let part = o.scene.scratch.game_scratch();
     use crate::scene::set_render_state::set_render_state;
     use crate::sound::race_sound_tick::race_sound_tick;
+    // Declared before the snapshot: the blend is in the blocks while the snapshot is taken and
+    // until the drawing is over.
+    let blended = crate::race::blend::Blended::new(race);
     let _cars = crate::race::frame_view::Held::take(race);
     let blocks = view_blocks(&race.shared)?;
     for (k, extra) in race
@@ -549,7 +552,9 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     // only read them.
     crate::race::frame_draw::draw_distance_settings(&race.course);
     crate::race::car_parts::ready_car_parts(race, scene)?;
-    crate::race::map_scroll::scroll_maps(race, scene, o.gfx, &o.net.race_slot)?;
+    blended.at_the_tick(|| {
+        crate::race::map_scroll::scroll_maps(race, scene, o.gfx, &o.net.race_slot)
+    })?;
     race.frame
         .panel_and_overlay
         .get()
@@ -695,5 +700,5 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     if race.course.numbers.get().replay_mode.get() != 2 {
         crate::drive::tyre_change_screen::tyre_change_screen(race, input, system, scene)?;
     }
-    Ok(())
+    blended.finish(scene)
 }

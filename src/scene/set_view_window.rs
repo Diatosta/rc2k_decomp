@@ -77,8 +77,10 @@ pub fn set_view_window_reaching(
     };
     crate::memory::session::write_bits(&window.clip_edges, edges);
     window.view_scale.set(bh::stf(
-        bh::int(screen.width.get() as i32)
-            * bh::ld(vars.view_scale.get())
+        bh::int(
+            rc2k_core::scene::view_window::design_width(screen.width.get(), screen.height.get())
+                as i32,
+        ) * bh::ld(vars.view_scale.get())
             * bh::int(window.view_zoom.get() as i32)
             * bh::ld(scale_factor.get()),
     ));
@@ -132,7 +134,10 @@ pub fn set_view_window_plain(
         size: crate::memory::session::read_bits(&window.view_size),
         offsets: crate::memory::session::read_bits(&window.view_offset),
         in_race: course.numbers.in_race.is_set(),
-        screen_width: screen.width.get(),
+        screen_width: rc2k_core::scene::view_window::design_width(
+            screen.width.get(),
+            screen.height.get(),
+        ),
         scale: (
             vars.view_scale.get(),
             window.view_zoom.get(),

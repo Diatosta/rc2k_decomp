@@ -19,6 +19,35 @@ pub fn time_digits(hud: &Hud, value: u32, base: u32) -> [u32; 6] {
     d
 }
 
+/// How the pieces drawn next keep to the screen where it is wider than 4:3 (`hud::add_polygon`).
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Keep {
+    /// Each piece to the third of the layout it lies in.
+    Thirds = 0,
+    /// Each piece to the half it lies in (two players side by side).
+    Halves = 1,
+    /// All to the middle.
+    Middle = 2,
+    /// Stretched over the whole width (the divider of two players one above the other).
+    Whole = 3,
+}
+
+/// The layout's own rule set at the start of a HUD.
+pub fn start_keep(hud: &Hud, keep: Keep) {
+    hud.block.base_rule.set(keep as u32);
+    hud.block.anchor_rule.set(keep as u32);
+}
+
+/// The pieces drawn next keep as `keep`.
+pub fn keep(hud: &Hud, keep: Keep) {
+    hud.block.anchor_rule.set(keep as u32);
+}
+
+/// The pieces drawn next keep as the layout's own rule again.
+pub fn keep_layout(hud: &Hud) {
+    hud.block.anchor_rule.set(hud.block.base_rule.get());
+}
+
 /// A sprite: rectangle `rect` of the sprite sheet at (x, y).
 pub fn sprite(
     frame: &Frame,

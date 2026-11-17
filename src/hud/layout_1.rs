@@ -6,8 +6,8 @@
 use crate::errors::Refused;
 use crate::hud::draw_signs::row;
 use crate::hud::layout_common::{
-    begin_dials, black_divider, clock_panel, gear_rect, lap_panel, leading_time, needle_sign,
-    scaled, sign, sprite, time_digits, white_opaque,
+    Keep, begin_dials, black_divider, clock_panel, gear_rect, keep, keep_layout, lap_panel,
+    leading_time, needle_sign, scaled, sign, sprite, time_digits, white_opaque,
 };
 use crate::hud::owner::{Hud, Pen};
 use crate::hud::store::texture;
@@ -26,10 +26,12 @@ pub fn layout_1(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
     if f2 & 0x10 != 0 {
         dials::disc(frame, hud, pen, &dials::DISC_1B)?;
     }
+    keep(hud, Keep::Middle);
     black_divider(frame, hud, pen, [0x18F, 0, 0x191, 0x258])?;
     if f1 & 0x40 != 0 {
         draw_stage_bars::draw_stage_bars(frame, hud, pen, 0)?;
     }
+    keep_layout(hud);
     white_opaque(hud, texture::ICONS);
     icons::icons(frame, hud, pen, &icons::LAYOUT_1)?;
     white_opaque(hud, texture::NEEDLES_AND_DIGITS);
@@ -72,7 +74,9 @@ pub fn layout_1(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
         scaled(frame, hud, pen, 0x5F, 0x2A7, 0x1DE)?;
     }
     if f1 & 0x40 != 0 {
+        keep(hud, Keep::Middle);
         draw_markers::draw_markers(frame, hud, pen, draw_markers::MARKER_ROWS_1)?;
+        keep_layout(hud);
     }
     hud.block.quad.colour.set(0xFFFF_FFFF);
     if f1 & 0x80 != 0 {
@@ -100,6 +104,7 @@ pub fn layout_1(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
     }
     let left = [8, 0x16, 0x23, 0x2A, 0x38, 0x45, 0x4C, 0x5A];
     let right = [0x2B7, 0x2C5, 0x2D2, 0x2D9, 0x2E7, 0x2F4, 0x2FB, 0x309];
+    keep(hud, Keep::Middle);
     for (times, y) in [
         ([&hud.block.times[0], &hud.block.times[1]], 2u32),
         ([&hud.block.times[3], &hud.block.times[4]], 0x11),
@@ -113,6 +118,7 @@ pub fn layout_1(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
             }
         }
     }
+    keep_layout(hud);
     let laps = [
         (
             f1,

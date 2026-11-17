@@ -38,6 +38,46 @@ pub fn car_blocks_groups(blocks: &CarBlocks) -> Vec<(String, u64)> {
     hasher.groups
 }
 
+/// A check: every field of the cars' blocks, one line each, `sim field <tick> <path> <hash>`.
+#[cfg(any(test, feature = "remote"))]
+pub fn log_fields(blocks: &CarBlocks, tick: u32) {
+    struct Each {
+        path: String,
+        marks: Vec<usize>,
+        tick: u32,
+    }
+    impl CellVisitor for Each {
+        fn enter(&mut self, name: &'static str) {
+            self.marks.push(self.path.len());
+            self.path.push('.');
+            self.path.push_str(name);
+        }
+        fn index(&mut self, i: usize) {
+            self.marks.push(self.path.len());
+            self.path.push_str(&format!("[{i}]"));
+        }
+        fn leave(&mut self) {
+            let mark = self.marks.pop().expect("a part entered");
+            self.path.truncate(mark);
+        }
+        fn leaf(&mut self, bytes: &[u8]) {
+            if !is_gap(&self.path) {
+                crate::logfile::program_log::log(&format!(
+                    "sim field {} {} {:016x}",
+                    self.tick,
+                    self.path,
+                    fnv1a(bytes)
+                ));
+            }
+        }
+    }
+    blocks.visit(&mut Each {
+        path: String::new(),
+        marks: Vec::new(),
+        tick,
+    });
+}
+
 /// The hash of one whole record by field path and value (the cars' hash for any other store):
 /// its layout and its gap fields do not count.
 #[cfg(any(test, feature = "remote"))]

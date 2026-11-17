@@ -66,8 +66,14 @@ pub fn display_refresh() -> Option<f64> {
 pub fn set_display(refresh: Option<f64>, showing_waits: bool) {
     /// Whether the log has the pace (it is written again only when it changes).
     static LOGGED: AtomicBool = AtomicBool::new(false);
+    // A scripted run can stand in a display's refresh rate (`RC2K_FAKE_REFRESH`).
+    #[cfg(feature = "remote")]
+    let refresh = std::env::var("RC2K_FAKE_REFRESH")
+        .ok()
+        .and_then(|s| s.parse::<f64>().ok())
+        .or(refresh);
     REFRESH_BITS.store(refresh.map_or(0, f64::to_bits), Relaxed);
-    let period = frame_period(refresh);
+    let period = frame_period(refresh, crate::race::blend::smooth_on());
     let before = PERIOD_NANOS.swap(period.as_nanos() as u64, Relaxed);
     let waited = SHOWING_WAITS.swap(showing_waits, Relaxed);
     let changed = before != period.as_nanos() as u64 || waited != showing_waits;
@@ -116,7 +122,7 @@ pub fn set_frame_limit(limit: FrameLimit) {
 
 /// The frame limit one choice on (`up`) or back, among what the display offers.
 pub fn step_frame_limit(up: bool) {
-    set_frame_limit(frame_limit().step(display_refresh(), up));
+    set_frame_limit(frame_limit().step(display_refresh(), crate::race::blend::smooth_on(), up));
 }
 
 /// A frame was shown: waits until the next is due, by the frame limit chosen.
@@ -135,9 +141,8 @@ pub fn frame_shown() {
             pacer.forget();
             return;
         }
-        FrameLimit::Display => Duration::from_nanos(PERIOD_NANOS.load(Relaxed)),
-        FrameLimit::Rate(_) => limit
-            .period(display_refresh())
+        FrameLimit::Display | FrameLimit::Rate(_) => limit
+            .period(display_refresh(), crate::race::blend::blends_frames())
             .unwrap_or(Duration::from_nanos(PERIOD_NANOS.load(Relaxed))),
     };
     // A scripted run at a faster clock shows its frames as much faster.
@@ -178,7 +183,7 @@ mod tests {
             (Some(f64::NAN), 60.0),
             (Some(1.0e9), 60.0),
         ] {
-            let period = frame_period(refresh);
+            let period = frame_period(refresh, false);
             assert!(
                 (millis(period) - 1000.0 / frames).abs() < 1.0e-5,
                 "{refresh:?}: {period:?}"

@@ -41,6 +41,9 @@ pub struct Part {
     pub size: (i32, i32),
     /// The percent of the screen's size the part's 3D is drawn at (`render::flush_scale`).
     pub scale: u32,
+    /// The percent of the frame's size a menu part's 3D is drawn at when that is larger than the
+    /// frame (`render::menu_high_percent`); 0 for none.
+    pub high: u32,
 }
 
 /// A part made ready to draw.
@@ -388,6 +391,7 @@ mod tests {
                 background: None,
                 size: (320, 240),
                 scale: 100,
+                high: 0,
             }));
             if numbers.below(2) == 0 {
                 jobs.push(Job::ShowTarget { menu: false });
@@ -519,6 +523,7 @@ mod tests {
             background: Some(Background::Held),
             size: (4, 8),
             scale: 100,
+            high: 0,
         };
         let Job::Draw(b) = batched(&mut opacity, Job::Draw(part), same_size, true) else {
             panic!("a part not drawn");
@@ -587,6 +592,7 @@ mod tests {
             background: Some(Background::Upload(vec![9; 4])),
             size: (8, 8),
             scale: 100,
+            high: 0,
         };
         let Job::Draw(b) = batched(&mut Opacity::default(), Job::Draw(part), same_size, true)
         else {

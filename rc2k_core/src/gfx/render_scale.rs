@@ -1,7 +1,8 @@
 //! The share of the screen's size the race's 3D is drawn at, chosen on the graphics page. Below
 //! 100 the picture is drawn smaller and enlarged to the screen; above it is drawn larger and
 //! scaled down with a smoothing filter (supersampling); the menus' pictures, the dashboard and
-//! the text stay at full size.
+//! the text stay at full size, while the GPU renderers draw the menus' 3D models at the size the
+//! frame has in the window times this share.
 
 /// The choices, in percent of the screen's width and height, smallest first.
 pub const CHOICES: [u32; 7] = [50, 75, 100, 125, 150, 175, 200];

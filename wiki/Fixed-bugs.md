@@ -854,4 +854,14 @@ has the same fixed addresses, but its network mode could not be run here to see 
 - **What**: the tyre change screen's title is drawn into a strip of its texture 256 pixels wide, centred in a box of 248. The Portuguese title ("MUDANÇA DE PNEUS") is about 276 pixels wide, so its centred drawing began and ended outside the strip.
 - **In game**: the first and last letters of the title were half drawn, cut straight at the strip's edges, at every screen size.
 - **Seen or read**: seen (the roadside tyre change on a stage after a puncture, in Portuguese).
-- **Fix**: the title has a texture of its own (texture 0x3F0, 256 by 256, pixel kind 3), drawn with the font's own letter spacing. A title that does not fit one 256 strip (box of 248) is drawn across two strips of that texture, its left half in the first row and its right half in the second, and shown as two quads side by side centred where the single strip was; a title that fits is one strip as before. The old strip's title row is left empty.
+- **Fix**: the title has a texture of its own (texture 0x3F0, 256 by 256, pixel kind 3), drawn with the font's own letter spacing. A title that does not fit one 256 strip (box of 248) is drawn across two strips of that texture, its left half in the first row and its right half in the second, and shown as two quads side by side centred where the single strip was; a title that fits is one strip as before. The old strip's title row is left empty. The prompt ("PRIMA BOTÃO PARA PARAR" with the button's picture, when the player has one) has strips of its own in the same texture, two for each half of the screen, drawn the same way with the font's own letter spacing and shown centred where the prompt was; the letters are no longer drawn up to 3 pixels closer to make it fit.
+
+## The second car of a network race's replay made no sound
+
+*Original*: `race::set_up_race_sound_objects` (`race::viewer_load_stage`).
+*Fixed*: 2026-11-17.
+
+- **What**: a network race's replay is a one-player one by its header (with a car for each machine), so the replay viewer set up the sound of one car only.
+- **In game**: with the replay's second car shown (the viewer's view item), the engine and the other car sounds were silent; the first car had them.
+- **Seen or read**: seen (a replay saved after a two-player network race); read in the sound set-up.
+- **Fix**: a replay whose header names two cars or more but one player gets the sound objects of a two-player race for its first two cars (the second car's kind from the header), as a two-player replay has.

@@ -248,12 +248,36 @@ fn scaled(n: u32, size: u32, of: u32) -> Option<u32> {
 }
 
 /// The mirror's window: its corner (`place`, on 800 x 600) and size scaled to the screen; None
-/// where the scaling would fault.
-pub fn mirror_window(place: (u32, u32), screen: (u32, u32)) -> Option<MirrorRect> {
+/// where the scaling would fault. The mirror keeps to the HUD's box (`hud_box`, centred on the
+/// screen); on a box wider than 4:3 it keeps its size's shape and its edge or middle by `rule`
+/// (`hud::anchor`).
+pub fn mirror_window(
+    place: (u32, u32),
+    screen: (u32, u32),
+    rule: crate::hud::anchor::Rule,
+    hud_box: crate::hud::anchor::BoxRatio,
+) -> Option<MirrorRect> {
+    use crate::hud::anchor;
+    let (left, width) = hud_box.area(screen.0, screen.1);
+    if anchor::is_wide(width, screen.1) {
+        let middle = place.0 as f32 + MIRROR_SIZE.0 as f32 / 2.0;
+        let at = anchor::offset(width, screen.1, anchor::anchor_of(middle, rule));
+        let x = (f64::from(left) + at + f64::from(place.0) * anchor::factors(width, screen.1).0)
+            .floor();
+        if x >= f64::from(u32::MAX) {
+            return None;
+        }
+        return Some(MirrorRect {
+            x: x as u32 & !1,
+            y: scaled(place.1, screen.1, 600)?,
+            width: anchor::across(MIRROR_SIZE.0, width, screen.1)? & !1,
+            height: scaled(MIRROR_SIZE.1, screen.1, 600)?,
+        });
+    }
     Some(MirrorRect {
-        x: scaled(place.0, screen.0, 800)?,
+        x: (left + scaled(place.0, width, 800)?) & !1,
         y: scaled(place.1, screen.1, 600)?,
-        width: scaled(MIRROR_SIZE.0, screen.0, 800)?,
+        width: scaled(MIRROR_SIZE.0, width, 800)?,
         height: scaled(MIRROR_SIZE.1, screen.1, 600)?,
     })
 }
@@ -283,7 +307,12 @@ mod tests {
         assert_eq!(mirror_entry(4, 1, false), 7);
         assert_eq!(mirror_entry(4, 1, true), 13);
         assert_eq!(
-            mirror_window((0x139, 0x10), (1024, 768)),
+            mirror_window(
+                (0x139, 0x10),
+                (1024, 768),
+                crate::hud::anchor::Rule::Thirds,
+                crate::hud::anchor::BoxRatio::Full
+            ),
             Some(MirrorRect {
                 x: 0x190,
                 y: 0x14,
@@ -291,7 +320,15 @@ mod tests {
                 height: 0x50
             })
         );
-        assert_eq!(mirror_window((u32::MAX, 0), (u32::MAX, 600)), None);
+        assert_eq!(
+            mirror_window(
+                (u32::MAX, 0),
+                (u32::MAX, 600),
+                crate::hud::anchor::Rule::Thirds,
+                crate::hud::anchor::BoxRatio::Full
+            ),
+            None
+        );
     }
 
     #[test]

@@ -83,6 +83,13 @@ pub fn mirror_view_window(
     }) = mirror_window(
         (at(0), at(1)),
         (reads.screen.width.get(), reads.screen.height.get()),
+        // Two players side by side keep each mirror to their own half.
+        if reads.vars.split.get() == 1 {
+            rc2k_core::hud::anchor::Rule::Halves
+        } else {
+            rc2k_core::hud::anchor::Rule::Thirds
+        },
+        crate::hud::box_ratio::get(),
     )
     else {
         trap.finish()?;

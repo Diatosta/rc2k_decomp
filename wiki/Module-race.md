@@ -28,6 +28,7 @@ are in `blocks_store.rs`.
 | `replay_viewer` | `src/race/replay_viewer.rs` | The replay viewer. |
 | `open_viewed_replay`, `save_viewed_replay` | files of the same names | Opens a saved replay for the viewer; saves one into a slot. |
 | `draw_race_scene` | `src/race/draw_race_scene.rs` | Draws every player's view, then the overlays. |
+| `blend` | `src/race/blend.rs` | The frames between two ticks: each car's moving values after every tick, and the blend of the last two put in the blocks while a frame is drawn (the advanced page's "smooth frames"). |
 | `show_frame` | `src/race/show_frame.rs` | Puts the finished picture on the screen. |
 | `race_keys` | `src/race/frame.rs` | The race's own keys: views and the like. |
 | `draw_car` | `src/race/car_draw.rs` | Draws a car from its parts. |

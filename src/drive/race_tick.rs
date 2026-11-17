@@ -15,7 +15,9 @@ pub fn race_tick(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), R
         .into());
     }
     if race.shared.switches.get().levers_on.get() == 0 {
-        return crate::drive::simple_car_step::simple_car_step(race, o.input, o.scene, o.net);
+        crate::drive::simple_car_step::simple_car_step(race, o.input, o.scene, o.net)?;
+        crate::race::blend::note_tick(race);
+        return Ok(());
     }
     race.shared
         .vars
@@ -28,5 +30,9 @@ pub fn race_tick(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), R
     ) {
         return Ok(());
     }
-    crate::drive::replay_step::replay_step(o, race)
+    crate::drive::replay_step::replay_step(o, race)?;
+    // Only a tick that moved the cars (a credits race's skipped ticks did not) is a state to
+    // blend from.
+    crate::race::blend::note_tick(race);
+    Ok(())
 }

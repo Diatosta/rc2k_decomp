@@ -109,6 +109,7 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
     #[cfg(feature = "remote")]
     crate::remote::race_loop_begins();
     restart_clock(race, system);
+    let _racing = crate::race::blend::Racing::begin();
     race.frame
         .clock_ticks()
         .clock_a

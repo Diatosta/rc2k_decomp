@@ -4,6 +4,13 @@
 
 use crate::math::geometry::fistp64;
 
+/// The width the projection's scale is made from: the screen's, but no more than 4:3 of its
+/// height, so a wider screen shows more to the sides at the same field of view up and down
+/// (the usual "Hor+"), whatever its shape.
+pub fn design_width(width: u32, height: u32) -> u32 {
+    width.min((u64::from(height) * 4 / 3) as u32)
+}
+
 /// The settings the choice reads (the screen's size only when not framed).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct ViewSettings {
@@ -139,6 +146,14 @@ pub fn window_settings(i: &WindowInputs) -> WindowSettings {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn wide_screens_keep_the_vertical_view() {
+        assert_eq!(design_width(800, 600), 800);
+        assert_eq!(design_width(1280, 1024), 1280);
+        assert_eq!(design_width(1920, 1080), 1440);
+        assert_eq!(design_width(3840, 1080), 1440);
+    }
 
     #[test]
     fn windows() {

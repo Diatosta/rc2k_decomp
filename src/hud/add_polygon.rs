@@ -14,6 +14,7 @@ use crate::race::owner_frame::Frame;
 
 pub fn add_polygon(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
     let system = pen.system;
+    use rc2k_core::hud::anchor;
     use rc2k_core::hud::batch::{self, MOST_VERTICES};
     use rc2k_core::hud::quads::screen_scaled;
     {
@@ -34,9 +35,40 @@ pub fn add_polygon(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
             hud.block.virtual_screen[0].get(),
             hud.block.virtual_screen[1].get(),
         ];
-        for v in pen.vertices.vertices.iter().take(count as usize) {
-            v.x.set(screen_scaled(v.x.get(), w, kx));
-            v.y.set(screen_scaled(v.y.get(), h, ky));
+        let vertices = || pen.vertices.vertices.iter().take(count as usize);
+        // On a screen wider than 4:3 the layout keeps its shape and the piece keeps to an edge
+        // or the middle (`rc2k_core::hud::anchor`); the divider of two players one above the
+        // other is stretched over the whole width.
+        let rule = hud.block.anchor_rule.get();
+        // The pieces keep to the HUD's box, centred on the screen (all of it by default); the
+        // divider's own rule stretches over the whole screen.
+        let (box_left, box_width) = if rule == 3 {
+            (0, w)
+        } else {
+            crate::hud::box_ratio::get().area(w, h)
+        };
+        let wide = anchor::is_wide(box_width, h) && (kx, ky) == (800.0, 600.0);
+        let x_of: Box<dyn Fn(f32) -> f32> = if !wide {
+            Box::new(move |x| box_left as f32 + screen_scaled(x, box_width, kx))
+        } else {
+            let (low, high) = vertices().fold((f32::MAX, f32::MIN), |(lo, hi), v| {
+                (lo.min(v.x.get()), hi.max(v.x.get()))
+            });
+            let rule = match rule {
+                1 => anchor::Rule::Halves,
+                2 => anchor::Rule::Centre,
+                _ => anchor::Rule::Thirds,
+            };
+            let at = anchor::anchor_of((low + high) / 2.0, rule);
+            Box::new(move |x| box_left as f32 + anchor::screen_x(x, box_width, h, at))
+        };
+        for v in vertices() {
+            v.x.set(x_of(v.x.get()));
+            v.y.set(if wide {
+                anchor::screen_y(v.y.get(), box_width, h)
+            } else {
+                screen_scaled(v.y.get(), h, ky)
+            });
         }
         if flushes {
             crate::hud::flush_batch::flush_batch(pen.part, hud);

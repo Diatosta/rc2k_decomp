@@ -42,6 +42,12 @@ fn next_event() -> Option<Event> {
         crate::debug::overlay::toggle_ui();
         return Some(Event::Other);
     }
+    // Alt+Enter: the window to full screen and back (the graphics page's "screen" row).
+    if event.is_fresh_alt_key_down(SDL_SCANCODE_RETURN) {
+        crate::platform::window_mode::set(crate::platform::window_mode::toggled());
+        crate::platform::apply_window_mode();
+        return Some(Event::Other);
+    }
     // The debug UI's first (`debug::imgui_sdl`): what it takes the game does not see.
     if crate::debug::imgui_sdl::event(event.as_sdl()) {
         return Some(Event::Other);

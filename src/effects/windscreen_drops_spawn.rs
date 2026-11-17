@@ -30,6 +30,9 @@ pub fn windscreen_drops_spawn(
             .state
             .frames
             .set(drops.state.frames.get().wrapping_add(1));
+        if !crate::effects::spawn_gate::DROPS.due(setup.clock.now.get()) {
+            return Ok(());
+        }
         let old = x87::set_chop();
         rate(drops, effects);
         let status = setup.work.fpu_status.get() & 0x700;

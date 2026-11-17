@@ -7,7 +7,7 @@
 use crate::errors::Refused;
 use crate::memory::session::PlainDword;
 use crate::race::owner::Race;
-use rc2k_core::drive::tyre_screen::{fixed_parts, title_parts};
+use rc2k_core::drive::tyre_screen::{fixed_parts, prompt_parts, title_parts};
 
 fn set(cells: &[PlainDword; 4], v: [u32; 4]) {
     for (cell, x) in cells.iter().zip(v) {
@@ -28,9 +28,19 @@ pub fn tyre_screen_parts(
     let title = title_parts(parts, shared.tyre_change().title_width.get());
     let main_texture = shared.tyre_change().device_texture.get();
     crate::drive::tyre_parts::set_texture(part, shared.tyre_change().title_device_texture.get());
-    let quads = fixed_parts(parts, wheel, shared.tyre_change().player.get() != 0);
-    let mut title_quads = title.len();
-    for (n, (uv, rect)) in title.into_iter().chain(quads).enumerate() {
+    let half = u32::from(shared.tyre_change().player.get() != 0);
+    let prompt_width = shared.tyre_change().prompt_width[half as usize].get();
+    let mut quads = fixed_parts(parts, wheel, half != 0).to_vec();
+    // The prompt, when it is the one shown, is on the title texture in place of the three strips
+    // of the tyre change texture.
+    let prompt = if prompt_width > 0 {
+        quads.drain(2..5);
+        prompt_parts(parts, prompt_width, half)
+    } else {
+        Vec::new()
+    };
+    let mut title_quads = title.len() + prompt.len();
+    for (n, (uv, rect)) in title.into_iter().chain(prompt).chain(quads).enumerate() {
         if n == title_quads {
             // The rest are on the tyre change texture again.
             crate::drive::tyre_parts::set_texture(part, main_texture);

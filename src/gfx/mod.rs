@@ -93,6 +93,7 @@ pub mod formats;
 pub mod front;
 pub mod locked;
 pub mod modes;
+pub mod monitor_sizes;
 pub mod pcx_planes;
 pub mod picture_store;
 pub mod png_file;

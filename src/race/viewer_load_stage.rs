@@ -76,7 +76,15 @@ pub fn viewer_load_stage(race: &'static Race, o: Owners<'static>) -> Result<(), 
         crate::logfile::log_write::log_nul(&DOOR_TEXT, false, 1);
         crate::logfile::log_int::log_int(door as i32, true, 1);
 
-        sound_tables::set_up_race_sound_objects(o, &sound_tables::ObjectVars::of(sound))?;
+        // A network race's replay is a one-player one with a car for each machine: its sound
+        // objects serve both of the first two cars, as a two-player race's.
+        let both_cars = race.replay_work().header_one_player.get() == 1
+            && race.replay_work().header_cars.get() >= 2;
+        sound_tables::set_up_viewer_race_sound_objects(
+            o,
+            &sound_tables::ObjectVars::of(sound),
+            both_cars,
+        )?;
         crate::sound::set_up_race_sounds::set_up_race_sounds(o)?;
         if gfx.fonts.font_block.palettes.get() == 0 {
             crate::gfx::build_fonts::build_fonts_in(gfx, o.system, o.strings)?;

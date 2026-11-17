@@ -1,11 +1,27 @@
 //! The frame rate limit chosen on the graphics page: no limit, the display's own pace, or a
-//! number of frames a second. The page offers the rates the display can show evenly.
+//! number of frames a second. The page offers the rates the display can show evenly: up to the
+//! display's own rate with the smooth frames on (a frame between two ticks is drawn blended),
+//! up to the simulation's hundred ticks a second with them off (a frame between two ticks
+//! would show nothing new).
 
 use std::time::Duration;
 
-/// The most frames a second shown: the simulation's ticks. A frame between two ticks would show
-/// nothing new.
+/// The most frames a second shown without the smooth frames: the simulation's ticks. A frame
+/// between two ticks would show nothing new.
 pub const MOST_FRAMES: f64 = 100.0;
+
+/// The most frames a second a rate may be, whatever the display.
+const MOST_SMOOTH_FRAMES: f64 = 1000.0;
+
+/// The most frames a second shown: the ticks' hundred, or with `smooth` frames what the display
+/// has.
+pub fn most_frames(smooth: bool) -> f64 {
+    if smooth {
+        MOST_SMOOTH_FRAMES
+    } else {
+        MOST_FRAMES
+    }
+}
 
 /// The refreshes a second taken for a display that names none (or an absurd number).
 pub const USUAL_REFRESH: f64 = 60.0;
@@ -31,35 +47,38 @@ pub fn usable_refresh(refresh: Option<f64>) -> f64 {
 }
 
 /// The time of one frame at the display's pace: one refresh, or the fewest whole refreshes that
-/// keep the frames at `MOST_FRAMES` a second or under.
-pub fn display_period(refresh: Option<f64>) -> Duration {
+/// keep the frames at `most_frames(smooth)` a second or under.
+pub fn display_period(refresh: Option<f64>, smooth: bool) -> Duration {
     let refresh = usable_refresh(refresh);
-    let refreshes = (refresh / MOST_FRAMES).ceil().max(1.0);
+    let refreshes = (refresh / most_frames(smooth)).ceil().max(1.0);
     Duration::from_secs_f64(refreshes / refresh)
 }
 
 /// The frames a second the display's pace gives.
-pub fn display_rate(refresh: Option<f64>) -> f64 {
-    1.0 / display_period(refresh).as_secs_f64()
+pub fn display_rate(refresh: Option<f64>, smooth: bool) -> f64 {
+    1.0 / display_period(refresh, smooth).as_secs_f64()
 }
 
 impl FrameLimit {
     /// The time of one frame; `None` when nothing limits it.
-    pub fn period(self, refresh: Option<f64>) -> Option<Duration> {
+    pub fn period(self, refresh: Option<f64>, smooth: bool) -> Option<Duration> {
         match self {
             FrameLimit::Off => None,
-            FrameLimit::Display => Some(display_period(refresh)),
-            FrameLimit::Rate(n) => Some(Duration::from_secs_f64(1.0 / f64::from(n.max(1)))),
+            FrameLimit::Display => Some(display_period(refresh, smooth)),
+            // A rate chosen with the smooth frames on, kept with them off, is the ticks' hundred.
+            FrameLimit::Rate(n) => Some(Duration::from_secs_f64(
+                1.0 / f64::from(n.max(1)).min(most_frames(smooth)),
+            )),
         }
     }
 
     /// The choices a display offers, slowest first: off, fixed rates up to what the display and
     /// the simulation allow, the rates that divide its refresh evenly (half, a third, a quarter)
     /// and its own pace.
-    pub fn choices(refresh: Option<f64>) -> Vec<FrameLimit> {
+    pub fn choices(refresh: Option<f64>, smooth: bool) -> Vec<FrameLimit> {
         let refresh = usable_refresh(refresh);
-        let own = display_rate(Some(refresh));
-        let most = refresh.min(MOST_FRAMES);
+        let own = display_rate(Some(refresh), smooth);
+        let most = refresh.min(most_frames(smooth));
         let mut rates: Vec<u32> = [30.0, 60.0]
             .into_iter()
             .chain((2..=4).map(|n| (refresh / f64::from(n)).round()))
@@ -83,12 +102,12 @@ impl FrameLimit {
     /// The next choice (`up`) or the one before; the ends stay where they are. A limit that is
     /// not among the choices (it was saved for another display) is taken as the nearest rate
     /// below it.
-    pub fn step(self, refresh: Option<f64>, up: bool) -> FrameLimit {
-        let list = FrameLimit::choices(refresh);
+    pub fn step(self, refresh: Option<f64>, smooth: bool, up: bool) -> FrameLimit {
+        let list = FrameLimit::choices(refresh, smooth);
         let at = list.iter().position(|l| *l == self).unwrap_or_else(|| {
             let rate = |l: &FrameLimit| match l {
                 FrameLimit::Off => f64::INFINITY,
-                FrameLimit::Display => display_rate(refresh),
+                FrameLimit::Display => display_rate(refresh, smooth),
                 FrameLimit::Rate(n) => f64::from(*n),
             };
             let mine = rate(&self);
@@ -149,7 +168,7 @@ mod tests {
     fn a_sixty_hertz_display_offers_what_divides_evenly() {
         use FrameLimit::*;
         assert_eq!(
-            FrameLimit::choices(Some(60.0)),
+            FrameLimit::choices(Some(60.0), false),
             vec![Off, Rate(30), Display]
         );
     }
@@ -159,34 +178,57 @@ mod tests {
         use FrameLimit::*;
         // 144 Hz: every second refresh is 72 a second.
         assert_eq!(
-            FrameLimit::choices(Some(144.0)),
+            FrameLimit::choices(Some(144.0), false),
             vec![Off, Rate(30), Rate(36), Rate(48), Rate(60), Display]
         );
-        assert!((display_rate(Some(144.0)) - 72.0).abs() < 1e-6);
-        assert_eq!(display_period(None), Duration::from_secs_f64(1.0 / 60.0));
+        assert!((display_rate(Some(144.0), false) - 72.0).abs() < 1e-6);
+        assert_eq!(
+            display_period(None, false),
+            Duration::from_secs_f64(1.0 / 60.0)
+        );
     }
 
     #[test]
     fn stepping_stops_at_the_ends_and_finds_a_limit_the_display_lacks() {
         let at = FrameLimit::Off;
-        assert_eq!(at.step(Some(60.0), false), FrameLimit::Off);
-        assert_eq!(at.step(Some(60.0), true), FrameLimit::Rate(30));
+        assert_eq!(at.step(Some(60.0), false, false), FrameLimit::Off);
+        assert_eq!(at.step(Some(60.0), false, true), FrameLimit::Rate(30));
         assert_eq!(
-            FrameLimit::Display.step(Some(60.0), true),
+            FrameLimit::Display.step(Some(60.0), false, true),
             FrameLimit::Display
         );
         // 100 is not offered at 60 Hz: the nearest below it is the display's own pace.
         assert_eq!(
-            FrameLimit::Rate(100).step(Some(60.0), false),
+            FrameLimit::Rate(100).step(Some(60.0), false, false),
             FrameLimit::Rate(30)
         );
     }
 
     #[test]
-    fn periods() {
-        assert_eq!(FrameLimit::Off.period(Some(60.0)), None);
+    fn smooth_frames_offer_the_displays_own_rate_and_its_half() {
+        use FrameLimit::*;
         assert_eq!(
-            FrameLimit::Rate(30).period(Some(60.0)),
+            FrameLimit::choices(Some(240.0), true),
+            vec![Off, Rate(30), Rate(60), Rate(80), Rate(120), Display]
+        );
+        assert!((display_rate(Some(240.0), true) - 240.0).abs() < 1e-3);
+        assert!((display_rate(Some(240.0), false) - 80.0).abs() < 1e-3);
+        // A rate over the ticks' hundred is held there with the smooth frames off.
+        assert_eq!(
+            Rate(240).period(Some(240.0), false),
+            Some(Duration::from_secs_f64(0.01))
+        );
+        assert_eq!(
+            Rate(120).period(Some(240.0), true),
+            Some(Duration::from_secs_f64(1.0 / 120.0))
+        );
+    }
+
+    #[test]
+    fn periods() {
+        assert_eq!(FrameLimit::Off.period(Some(60.0), false), None);
+        assert_eq!(
+            FrameLimit::Rate(30).period(Some(60.0), false),
             Some(Duration::from_secs_f64(1.0 / 30.0))
         );
     }
