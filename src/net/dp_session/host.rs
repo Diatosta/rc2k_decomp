@@ -5,11 +5,34 @@ use super::*;
 
 impl Session {
     /// The host's session made, at `port` (its TCP connections and its UDP answers).
-    pub fn host(mut desc: Desc, port: u16, signal: Signal) -> std::io::Result<Arc<Session>> {
+    #[cfg(test)]
+    pub fn host(desc: Desc, port: u16, signal: Signal) -> std::io::Result<Arc<Session>> {
+        Session::host_locked(desc, port, signal, b"")
+    }
+
+    /// The host's session made, locked by `password` unless it is empty: joiners must prove they
+    /// know it, and the session's description says it is locked.
+    pub fn host_locked(
+        mut desc: Desc,
+        port: u16,
+        signal: Signal,
+        password: &[u8],
+    ) -> std::io::Result<Arc<Session>> {
         let listener = TcpListener::bind(("0.0.0.0", port))?;
         let udp = UdpSocket::bind(("0.0.0.0", port))?;
         udp.set_read_timeout(Some(Duration::from_millis(300)))?;
         desc.current_players = 0;
+        let lock = if password.is_empty() {
+            desc.flags &= !DPSESSION_PASSWORDREQUIRED;
+            None
+        } else {
+            desc.flags |= DPSESSION_PASSWORDREQUIRED;
+            let salt = random_16();
+            Some(Lock {
+                salt,
+                key: rc2k_core::net::password::key(&salt, password),
+            })
+        };
         let session = Session::new(
             1,
             World {
@@ -18,6 +41,7 @@ impl Session {
             },
             signal,
             port,
+            lock,
         );
         let s = session.clone();
         std::thread::spawn(move || s.accept(listener));
@@ -83,6 +107,17 @@ impl Session {
             if first.get(1..8) == Some(MAGIC_FAMILY) {
                 let _ = write_frame(&mut stream, &W::default().u8(REFUSE).u32(DPERR_VERSION).0);
             }
+            return;
+        }
+        if let Some(lock) = &self.lock
+            && !self.proves_password(&mut stream, lock)
+        {
+            // A wrong guess waits before it is answered: guesses cost a second each.
+            std::thread::sleep(Duration::from_secs(1));
+            let _ = write_frame(
+                &mut stream,
+                &W::default().u8(REFUSE).u32(DPERR_INVALIDPASSWORD).0,
+            );
             return;
         }
         let (machine, welcome) = {
@@ -172,6 +207,27 @@ impl Session {
         for id in gone {
             self.host_change(Change::PlayerRemoved(id));
         }
+    }
+
+    /// Whether the machine on `stream` answers a fresh challenge with the proof of the password.
+    fn proves_password(&self, stream: &mut TcpStream, lock: &Lock) -> bool {
+        use rc2k_core::net::password::{KEY_LEN, proof, same};
+        let challenge = random_16();
+        let asked = W::default().u8(CHALLENGE).raw(&lock.salt).raw(&challenge);
+        if write_frame(stream, &asked.0).is_err() {
+            return false;
+        }
+        let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
+        let answer = read_frame(stream);
+        let _ = stream.set_read_timeout(None);
+        let Ok(answer) = answer else {
+            return false;
+        };
+        let mut r = R(&answer);
+        let given = (r.u8() == Some(PROOF))
+            .then(|| r.raw::<KEY_LEN>())
+            .flatten();
+        given.is_some_and(|given| same(&given, &proof(&challenge, &lock.key)))
     }
 
     pub(super) fn to_machine(&self, machine: u32, bytes: &[u8]) {
@@ -313,6 +369,8 @@ impl Session {
                     // what only the host keeps
                     d.instance = s.world.desc.instance;
                     d.application = s.world.desc.application;
+                    d.flags = (d.flags & !DPSESSION_PASSWORDREQUIRED)
+                        | (s.world.desc.flags & DPSESSION_PASSWORDREQUIRED);
                     Change::Desc(d)
                 }
             };
@@ -375,4 +433,22 @@ impl Session {
             );
         }
     }
+}
+
+/// Sixteen random bytes (a salt or a challenge): each half from a hasher the system keyed
+/// at random, with the time in.
+pub(super) fn random_16() -> [u8; 16] {
+    use std::hash::{BuildHasher, Hasher};
+    let mut out = [0u8; 16];
+    for half in out.chunks_mut(8) {
+        let mut h = std::collections::hash_map::RandomState::new().build_hasher();
+        h.write_u128(
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos(),
+        );
+        half.copy_from_slice(&h.finish().to_le_bytes());
+    }
+    out
 }

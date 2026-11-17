@@ -76,7 +76,7 @@ records (`src/net/list_players.rs`). That is how names, cars and "ready" marks a
 screen.
 
 The lobby's items are: ready, car (`choose_car.rs`), stage (the host chooses, `choose_stage.rs`)
-and chat (`chat_key.rs`, `send_chat.rs`). Chat lines are ordinary messages with a marker byte.
+and chat (`chat_key.rs`, `send_chat.rs`). Chat lines are ordinary messages with a marker byte; a joiner's goes to the host, which numbers it and sends it to everyone (`relay_chat.rs`).
 
 When two or more players are all ready, the host starts a **sync round**: it sends each player
 a start message with a counter and waits until every one has answered. Then every machine

@@ -4,8 +4,8 @@
 use super::*;
 
 impl Session {
-    /// Joins the session whose host is at `at`: the session, or DirectPlay's result.
-    pub fn join(at: SocketAddr, signal: Signal) -> Result<Arc<Session>, u32> {
+    /// Joins the session whose host is at `at`, answering a locked host with `password`.
+    pub fn join_with(at: SocketAddr, signal: Signal, password: &[u8]) -> Result<Arc<Session>, u32> {
         let mut stream = TcpStream::connect_timeout(&at, Duration::from_secs(5))
             .map_err(|_| DPERR_NOCONNECTION)?;
         let _ = stream.set_nodelay(true);
@@ -20,6 +20,21 @@ impl Session {
             _ => DPERR_TIMEOUT,
         })?;
         let _ = stream.set_read_timeout(None);
+        let mut answer = answer;
+        if answer.first() == Some(&CHALLENGE) {
+            // A locked session: the proof of the password for this challenge.
+            let mut r = R(&answer[1..]);
+            let (Some(salt), Some(challenge)) = (r.raw(), r.raw()) else {
+                return Err(DPERR_NOCONNECTION);
+            };
+            let key = rc2k_core::net::password::key(&salt, password);
+            let proof = rc2k_core::net::password::proof(&challenge, &key);
+            write_frame(&mut stream, &W::default().u8(PROOF).raw(&proof).0)
+                .map_err(|_| DPERR_NOCONNECTION)?;
+            let _ = stream.set_read_timeout(Some(Duration::from_secs(10)));
+            answer = read_frame(&mut stream).map_err(|_| DPERR_TIMEOUT)?;
+            let _ = stream.set_read_timeout(None);
+        }
         let mut r = R(&answer);
         match r.u8() {
             Some(WELCOME) => {}
@@ -42,7 +57,7 @@ impl Session {
             world.groups.insert(id, r.group().ok_or(bad)?);
         }
         let _ = stream.set_write_timeout(Some(WRITE_WAIT));
-        let session = Session::new(me, world, signal, at.port());
+        let session = Session::new(me, world, signal, at.port(), None);
         let reader = stream.try_clone().map_err(|_| bad)?;
         session
             .links

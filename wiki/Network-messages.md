@@ -63,14 +63,14 @@ player typed or, with no address, to the network's broadcast address and to its 
 
 | Offset | Size | Content |
 | --- | --- | --- |
-| 0 | 8 | The text `RC2KNET2`. |
+| 0 | 8 | The text `RC2KNET4`. |
 | 8 | 16 | The application's GUID. |
 
 A host with a session of that application answers the sender with:
 
 | Size | Content |
 | --- | --- |
-| 8 | `RC2KNET2`. |
+| 8 | `RC2KNET4`. |
 | 4 | u32: the TCP port to connect to. |
 | varies | The session's description. |
 
@@ -85,7 +85,7 @@ first byte of a frame says what it is.
 
 | First byte | Name | Direction | Rest of the frame |
 | --- | --- | --- | --- |
-| `01` | join | machine → host | `RC2KNET2`. Must be the first frame. The last character of the text is the protocol's version (`2`); a join that starts `RC2KNET` with another version is answered with a refuse (reason `0x887700E0`, not a DirectPlay number) and a host that ends the connection on the join is taken for an older version. |
+| `01` | join | machine → host | `RC2KNET4`. Must be the first frame. The last character of the text is the protocol's version (`4`); a join that starts `RC2KNET` with another version is answered with a refuse (reason `0x887700E0`, not a DirectPlay number) and a host that ends the connection on the join is taken for an older version. |
 | `02` | welcome | host → machine | u32 your machine number; description; u32 count and that many (u32 id, player); u32 count and that many (u32 id, group). |
 | `03` | refuse | host → machine | u32 reason (a DirectPlay error number). Sent in place of the welcome when joining is off. |
 | `04` | request | machine → host | u32 request number; one operation (below). |
@@ -94,7 +94,17 @@ first byte of a frame says what it is.
 | `07` | send | machine → host | u32 from (the sender's player id); u32 to; bytes: a game message. |
 | `08` | deliver | host → machine | u32 from; u32 to (the player it is for); bytes: the game message. |
 | `09` | bye | host → every machine | Nothing. The host is closing the session. |
+| `0B` | challenge | host → machine | Only in a locked session (its description has the flag `0x400`), in answer to the join: 16 bytes of the host's salt, 16 bytes of a fresh challenge. |
+| `0C` | proof | machine → host | 32 bytes: the answer to the challenge (below). |
 | `0A` | kicked | host → machine | Nothing. The host has put this machine out; the host ends its connection after it, and the machine's players go as when a machine leaves. |
+
+A **locked session** is joined in two more steps. After the join the host sends a challenge; the
+joiner works out `key` from the salt and its password (SHA-256 of the salt and the password,
+then 4095 more rounds of SHA-256 of the result and the salt) and answers with `proof` =
+SHA-256(challenge, key). The host keeps only the salt and the key, never the password, checks
+the proof in a time that does not depend on where it differs, and a new challenge each join
+makes a recorded proof useless. A wrong or missing password is answered, after a second, with
+a refuse (reason `0x887700E1`, not a DirectPlay number). The password is never sent.
 
 "To" in a send frame is a player's id, a group's id (every member gets it), or 0 for everyone.
 The sender never gets its own message back. The host checks that "from" is a player of the
@@ -161,8 +171,10 @@ without separate messages.
 
 | First byte | Message | Rest |
 | --- | --- | --- |
-| `0x22` (`"`) | A chat line. | The text, with no ending zero. |
+| `0x22` (`"`) | A chat line, joiner to host only. The host takes it, adds it to its chat and orders it (see `0x23`); other machines drop it. | The text, with no ending zero. |
+| `0x23` | A chat line in the host's order, host to every other machine (the line's author too). The receiver finds the author by id and shows the line when it comes; so every machine shows the lines in the order the host took them, and a joiner's own line shows when it comes back. | The host's number for the line (4 bytes), the author's player id (4 bytes), the text with no ending zero. |
 | `0x40` | The host asks: is everyone ready to race? | One byte: the round number. |
+| `0x60` | A machine's stage load's progress. | One byte: the percentage (0 to 100). |
 | `0x41` | Answer to `0x40`. | One byte: the same round number. |
 | `0x50` | The host asks: is everyone done with the race? | One byte: the round number. |
 | `0x51` | Answer to `0x50`. | One byte: the round number. |
@@ -274,8 +286,9 @@ Later, in a race, the joined machine's player (id 2) sends its inputs to everyon
 
 ## Things to know
 
-- Nothing is encrypted or signed, and a session has no password: anyone who can reach the
-  host's port can join. The protocol is meant for a home network or a trusted link.
+- Nothing is encrypted or signed, and a session's password only decides who may join: what is
+  sent afterwards is not hidden. A session without a password lets anyone who can reach the
+  host's port join. The protocol is meant for a home network or a trusted link.
 - The host does not pass to another machine when it leaves.
 - The host's port must be reachable over both TCP and UDP for others to find and join it.
 

@@ -3,7 +3,9 @@
 
 use crate::Invalid;
 use crate::net::inbox::{LONGEST, SEND_ROOM};
-use crate::net::messages::{ALL_DONE, ALL_READY, CHAT, DONE_ANSWER, RACE_BIT, READY_ANSWER};
+use crate::net::messages::{
+    ALL_DONE, ALL_READY, CHAT, CHAT_RELAYED, DONE_ANSWER, LOADING, RACE_BIT, READY_ANSWER,
+};
 use crate::net::players::System;
 use crate::net::race::Kind;
 
@@ -78,11 +80,20 @@ impl Payload {
 pub enum Message {
     /// A chat line: the text after the byte `"`.
     Chat(Vec<u8>),
+    /// A chat line the host has put in its order: the host's number for it, the author's
+    /// player id and the text.
+    ChatRelayed {
+        sequence: u32,
+        author: u32,
+        text: Vec<u8>,
+    },
     /// The host's call, two bytes: `ready` for "everyone ready", else "everyone done"; the
     /// round.
     Call { ready: bool, round: u8 },
     /// A call's answer, two bytes: of the ready call or the done call; the round.
     Answer { ready: bool, round: u8 },
+    /// How far the sender's stage has loaded, in percent (one byte after the first).
+    Loading { share: u8 },
     /// A race message: the sequence byte (top bit set) and what follows it, at most
     /// `LONGEST` bytes.
     Race { sequence: u8, payload: Payload },
@@ -104,6 +115,21 @@ impl Message {
         };
         match first {
             CHAT => Message::Chat(rest.to_vec()),
+            LOADING => match *rest {
+                [share] => Message::Loading { share },
+                _ => Message::Malformed(bytes.to_vec()),
+            },
+            CHAT_RELAYED => match rest.split_first_chunk::<4>() {
+                Some((sequence, rest)) => match rest.split_first_chunk::<4>() {
+                    Some((author, text)) => Message::ChatRelayed {
+                        sequence: u32::from_le_bytes(*sequence),
+                        author: u32::from_le_bytes(*author),
+                        text: text.to_vec(),
+                    },
+                    None => Message::Malformed(bytes.to_vec()),
+                },
+                None => Message::Malformed(bytes.to_vec()),
+            },
             ALL_READY => pair(true, false),
             ALL_DONE => pair(false, false),
             READY_ANSWER => pair(true, true),
@@ -125,12 +151,24 @@ impl Message {
     pub fn encode(&self) -> Vec<u8> {
         match self {
             Message::Chat(text) => [&[CHAT][..], text].concat(),
+            Message::ChatRelayed {
+                sequence,
+                author,
+                text,
+            } => [
+                &[CHAT_RELAYED][..],
+                &sequence.to_le_bytes(),
+                &author.to_le_bytes(),
+                text,
+            ]
+            .concat(),
             Message::Call { ready, round } => {
                 vec![if *ready { ALL_READY } else { ALL_DONE }, *round]
             }
             Message::Answer { ready, round } => {
                 vec![if *ready { READY_ANSWER } else { DONE_ANSWER }, *round]
             }
+            Message::Loading { share } => vec![LOADING, *share],
             Message::Race { sequence, payload } => [&[*sequence][..], &payload.encode()].concat(),
             Message::Malformed(bytes) | Message::Unknown(bytes) => bytes.clone(),
         }
@@ -219,6 +257,19 @@ mod tests {
     fn the_classes_of_the_first_byte() {
         assert_eq!(Message::parse(b"\"hi"), Message::Chat(b"hi".to_vec()));
         assert_eq!(Message::parse(b"\""), Message::Chat(vec![]));
+        assert_eq!(
+            Message::parse(&[0x23, 1, 0, 0, 0, 2, 0, 0, 0, b'h']),
+            Message::ChatRelayed {
+                sequence: 1,
+                author: 2,
+                text: b"h".to_vec()
+            }
+        );
+        // Without both numbers it is malformed.
+        assert_eq!(
+            Message::parse(&[0x23, 1, 0, 0, 0, 2]),
+            Message::Malformed(vec![0x23, 1, 0, 0, 0, 2])
+        );
         let call = |ready| Message::Call { ready, round: 7 };
         let answer = |ready| Message::Answer { ready, round: 7 };
         assert_eq!(Message::parse(&[0x40, 7]), call(true));
@@ -251,6 +302,15 @@ mod tests {
                 payload: Payload::Truncated(vec![])
             }
         );
+    }
+
+    #[test]
+    fn the_loading_message_is_its_byte_and_a_percentage() {
+        assert_eq!(Message::parse(&[0x60, 42]), Message::Loading { share: 42 });
+        assert_eq!(Message::Loading { share: 42 }.encode(), vec![0x60, 42]);
+        for bad in [vec![0x60], vec![0x60, 1, 2]] {
+            assert_eq!(Message::parse(&bad), Message::Malformed(bad.clone()));
+        }
     }
 
     #[test]
@@ -288,6 +348,11 @@ mod tests {
     fn a_message_built_from_values_parses_back() {
         let sent = [
             Message::Chat(b"hello".to_vec()),
+            Message::ChatRelayed {
+                sequence: 0x0102_0304,
+                author: 0x0010_0002,
+                text: b"hello".to_vec(),
+            },
             Message::Call {
                 ready: true,
                 round: 255,

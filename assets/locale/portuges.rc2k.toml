@@ -124,3 +124,10 @@ not_host = "Só o anfitrião pode expulsar um jogador."
 no_player = "Esse jogador não existe."
 done = "Jogador expulso."
 failed = "Não foi possível expulsar o jogador."
+
+# A palavra-passe da rede: a linha no ecrã das definições, a recusa mostrada a quem entra e a
+# marca antes do nome de uma sessão trancada.
+[network]
+password = "palavra-passe"
+password_refused = "Sessão trancada: palavra-passe errada ou em falta."
+lock_mark = "[trancada] "

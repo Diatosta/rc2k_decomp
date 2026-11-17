@@ -26,6 +26,8 @@ pub struct Session {
     pub max_players: u32,
     pub players: u32,
     pub user: [u8; 0x10],
+    /// The session is locked by a password.
+    pub locked: bool,
 }
 
 pub struct NetTables {
@@ -53,6 +55,7 @@ impl NetTables {
                     max_players: 0,
                     players: 0,
                     user: [0; 16],
+                    locked: false,
                 };
                 MOST_LISTED as usize
             ],

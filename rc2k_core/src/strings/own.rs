@@ -79,6 +79,11 @@ pub mod id {
     pub const BACKGROUND_SOUND: u32 = FIRST + 0xC0;
     pub const FILM_VOLUME: u32 = FIRST + 0xC1;
     pub const NETWORK_PORT: u32 = FIRST + 0xC2;
+    /// The network settings' password row, the answer to a refused join (wrong or missing
+    /// password), the mark before a locked session's name in the list.
+    pub const NETWORK_PASSWORD: u32 = FIRST + 0xD0;
+    pub const PASSWORD_REFUSED: u32 = FIRST + 0xD1;
+    pub const LOCK_MARK: u32 = FIRST + 0xD2;
     /// The lobby's answers to the host's kick command: not the host, no such player, put out,
     /// could not be put out (4 ids).
     pub const KICK_ANSWERS: u32 = FIRST + 0xA0;
@@ -112,6 +117,9 @@ pub const KEYS: &[(&str, u32)] = &[
     ("options.background_sound", id::BACKGROUND_SOUND),
     ("options.film_volume", id::FILM_VOLUME),
     ("options.network_port", id::NETWORK_PORT),
+    ("network.password", id::NETWORK_PASSWORD),
+    ("network.password_refused", id::PASSWORD_REFUSED),
+    ("network.lock_mark", id::LOCK_MARK),
     ("button_icons", id::BUTTON_ICONS),
     ("graphics.frame_limit", id::FRAME_LIMIT),
     ("graphics.no_limit", id::NO_LIMIT),

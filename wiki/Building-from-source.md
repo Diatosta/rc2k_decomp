@@ -195,7 +195,7 @@ python3 dist/web/serve.py dist/web [port]
 
 The script runs `tools/web/build.sh` (the cargo step with Emscripten's link switches; its
 output is `target/web/wasm32-unknown-emscripten/release/rc2k.js` and `rc2k.wasm`) and gathers
-those two with the page (`tools/web/index.html`, `unzip.js`, `serve.py`) in `dist/web/`. This
+those two with the page (`tools/web/index.html`, `unzip.js`, `serve.py`) and the saves page (`saves.html`, `saves.js`) in `dist/web/`. This
 build starts but does not show a picture yet.
 
 ## Deploying

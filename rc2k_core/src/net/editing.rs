@@ -93,6 +93,8 @@ pub enum Setting {
     HostAddress,
     /// The port, edited as a number's text.
     Port,
+    /// The session's password, typed as text.
+    Password,
     /// Any other item: nothing is edited.
     None,
 }
@@ -104,6 +106,7 @@ impl Setting {
             2 => Setting::MostPlayers,
             3 => Setting::HostAddress,
             4 => Setting::Port,
+            5 => Setting::Password,
             _ => Setting::None,
         }
     }
@@ -142,6 +145,7 @@ mod tests {
         assert_eq!(Setting::of(3), Setting::HostAddress);
         assert_eq!(Setting::of(0), Setting::None);
         assert_eq!(Setting::of(4), Setting::Port);
-        assert_eq!(Setting::of(5), Setting::None);
+        assert_eq!(Setting::of(5), Setting::Password);
+        assert_eq!(Setting::of(6), Setting::None);
     }
 }

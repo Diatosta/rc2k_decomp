@@ -31,7 +31,20 @@ pub struct Net {
     /// Chat messages the receiving thread took, as (player, text with its NUL), until the game's
     /// thread adds them to the chat (`net::drain_chat`): measuring a line needs the fonts, which
     /// only the game's thread reaches.
-    chat_waiting: std::sync::Mutex<Vec<(u32, Vec<u8>)>>,
+    chat_waiting: std::sync::Mutex<Vec<WaitingChat>>,
+    /// The host's count of the chat lines it has ordered (the next line's number).
+    chat_sequence: std::sync::atomic::AtomicU32,
+}
+
+/// A chat message the receiving thread took.
+pub struct WaitingChat {
+    /// The author's car number.
+    pub player: u32,
+    /// The text with its NUL.
+    pub text: Vec<u8>,
+    /// The host's number for the line when the host ordered it (a joiner's lines all carry
+    /// one); none for a line sent to the host, which orders it when it adds it.
+    pub sequence: Option<u32>,
 }
 
 impl Net {
@@ -44,19 +57,30 @@ impl Net {
             button: GameThread::new(Button::new()),
             race_slot: rc2k_core::net::net_race::NetRaceSlot::new(),
             chat_waiting: std::sync::Mutex::new(Vec::new()),
+            chat_sequence: std::sync::atomic::AtomicU32::new(0),
         }
     }
 
     /// A chat message from `player`, waiting for the game's thread.
-    pub fn queue_chat(&self, player: u32, text: Vec<u8>) {
+    pub fn queue_chat(&self, player: u32, text: Vec<u8>, sequence: Option<u32>) {
         self.chat_waiting
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .push((player, text));
+            .push(WaitingChat {
+                player,
+                text,
+                sequence,
+            });
+    }
+
+    /// The number for the next line the host orders.
+    pub fn next_chat_sequence(&self) -> u32 {
+        self.chat_sequence
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
     }
 
     /// The waiting chat messages in the order they came, none left waiting.
-    pub fn take_waiting_chat(&self) -> Vec<(u32, Vec<u8>)> {
+    pub fn take_waiting_chat(&self) -> Vec<WaitingChat> {
         std::mem::take(
             &mut *self
                 .chat_waiting

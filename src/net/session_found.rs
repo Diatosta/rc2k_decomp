@@ -45,6 +45,7 @@ pub fn session_found(
         s.max_players = d.max_players;
         s.players = d.current_players;
         s.user = user;
+        s.locked = d.flags & crate::net::dp_session::DPSESSION_PASSWORDREQUIRED != 0;
     })?;
     Ok(1)
 }

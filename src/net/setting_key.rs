@@ -1,6 +1,6 @@
 //! A key for the setting being edited. When that ends the editing, an empty player name gets
 //! its old text back, the most players is read from its text, held to 2 ..= 8 (4 with the
-//! notice kind 2), and the port from its text, held to 0 ..= 65535 (0 is the default).
+//! notice kind 2), and the port from its text, held to 0 ..= 65535 (0 is the default); the password is kept as typed.
 
 use crate::errors::Refused;
 use crate::net::lobby::movsb;
@@ -46,6 +46,9 @@ pub fn setting_key(
                 &net.settings().most_players_text.read(),
             );
             net.setup().port.set(chat::port(number));
+        }
+        chat::PASSWORD => {
+            crate::net::password::set(&net.settings().most_players_text.read());
         }
         _ => {}
     }

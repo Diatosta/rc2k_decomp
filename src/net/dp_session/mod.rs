@@ -48,10 +48,14 @@ pub const DPERR_VERSION: u32 = 0x8877_00E0;
 pub const DPERR_TIMEOUT: u32 = 0x8877_00F0;
 pub const DPERR_SESSIONLOST: u32 = 0x8877_0136;
 pub const DPERR_NONEWPLAYERS: u32 = 0x8877_014A;
+/// The host wants a password and the proof of it was wrong or missing (not a DirectPlay number).
+pub const DPERR_INVALIDPASSWORD: u32 = 0x8877_00E1;
 
 // The session's flags the host looks at.
 pub const DPSESSION_NEWPLAYERSDISABLED: u32 = 0x1;
 pub const DPSESSION_JOINDISABLED: u32 = 0x20;
+/// The session is locked by a password (DirectPlay's own flag), shown in the session list.
+pub const DPSESSION_PASSWORDREQUIRED: u32 = 0x400;
 
 // DirectPlay's system messages (their first dword).
 pub const DPSYS_CREATEPLAYERORGROUP: u32 = 0x3;
@@ -151,10 +155,18 @@ pub struct Session {
     port: u16,
     /// The host's connections open.
     connections: AtomicUsize,
+    /// The host's password, as its salt and the key made from it (never the password).
+    lock: Option<Lock>,
+}
+
+/// What a locked session's host keeps of its password.
+struct Lock {
+    salt: [u8; rc2k_core::net::password::SALT_LEN],
+    key: [u8; rc2k_core::net::password::KEY_LEN],
 }
 
 impl Session {
-    fn new(me: u32, world: World, signal: Signal, port: u16) -> Arc<Session> {
+    fn new(me: u32, world: World, signal: Signal, port: u16, lock: Option<Lock>) -> Arc<Session> {
         Arc::new(Session {
             me,
             shared: Mutex::new(Shared {
@@ -173,6 +185,7 @@ impl Session {
             stop: AtomicBool::new(false),
             links: Mutex::new(HashMap::new()),
             connections: AtomicUsize::new(0),
+            lock,
             port,
         })
     }
@@ -223,6 +236,16 @@ impl Session {
 
     pub fn set_desc(&self, desc: Desc) -> u32 {
         self.ask(Op::SetDesc(desc)).0
+    }
+
+    /// The host's player (the first player the host made), when the session has one.
+    pub fn host_player(&self) -> Option<Id> {
+        self.lock()
+            .world
+            .players
+            .iter()
+            .find(|(_, p)| p.machine == 1)
+            .map(|(&id, _)| id)
     }
 
     pub fn world(&self) -> World {

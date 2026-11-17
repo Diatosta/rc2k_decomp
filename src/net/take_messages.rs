@@ -2,9 +2,13 @@
 //! counted and handled by sender and first byte:
 //! - sender 0: a system message;
 //! - a sender not among the players: dropped (the first player is compared even with none);
-//! - 0x22: a chat line (the text after the byte);
+//! - 0x22: a chat line (the text after the byte): the host takes it and orders it, others drop it;
+//! - 0x23: a chat line in the host's order (its number, the author's id, the text), taken by a
+//!   machine that is not the host;
 //! - 0x40 / 0x50 (a sync round, on a machine that is not the host): answered 0x41 / 0x51 and the
 //!   race flags set; a machine that has just joined takes the round of the host's first call;
+//! - 0x60: the sender's stage load's percentage, noted for the loading screen's list
+//!   (`net::loading`);
 //! - 0x41 / 0x51 (on the host): the player's synced byte is set;
 //! - bit 0x80 (a race message, 1 to 0xFF bytes): the bytes after the first stored with the time
 //!   in the player's inbox under the lock;
@@ -76,6 +80,9 @@ pub fn take_messages(
         // The rules of each kind are in `rc2k_core::net::messages` (`this_round`,
         // `answers_call`, `notes_answer`, `answer`).
         match Message::parse(&bytes) {
+            // A joiner's line goes to the host, which orders it; a machine that is not the host
+            // takes no such line.
+            Message::Chat(_) if !own_state.is_host() => {}
             Message::Chat(mut text) => {
                 // A message that fills the buffer gives up its last byte to the NUL (fixed: "A
                 // full-length chat message writes past its buffer" in `wiki/Fixed-bugs.md`).
@@ -86,8 +93,29 @@ pub fn take_messages(
                 text.truncate(ROOM as usize - 2);
                 text.push(0);
                 // Added to the chat by the game's thread (`net::drain_chat`), which owns the fonts.
-                net.queue_chat(player, text);
+                net.queue_chat(player, text, None);
             }
+            // The host's order for a line: its author found by id. The host takes none.
+            Message::ChatRelayed {
+                sequence,
+                author,
+                mut text,
+            } => {
+                let mut author_player = None;
+                for n in 0..net.race_slot.players() {
+                    if net.vars.player_block(n)?.id.get() == author {
+                        author_player = Some(n);
+                        break;
+                    }
+                }
+                if own_state.is_host() || author_player.is_none() {
+                    continue;
+                }
+                text.truncate(ROOM as usize - 2);
+                text.push(0);
+                net.queue_chat(author_player.unwrap_or(0), text, Some(sequence));
+            }
+            Message::Loading { share } => crate::net::loading::note(player, share),
             Message::Call { ready, round } => {
                 if !own_state.is_host()
                     && net

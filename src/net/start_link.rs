@@ -66,6 +66,8 @@ fn link(o: Owners<'static>, launched: bool) -> Result<Way, Refused> {
     }
     Ok(if joining::joining(o, lines, session)? {
         Way::On
+    } else if password::refused() {
+        Way::Message(rc2k_core::strings::own::id::PASSWORD_REFUSED)
     } else {
         Way::Message(NO_SESSION)
     })

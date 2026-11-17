@@ -1,5 +1,5 @@
-//! The frame of the network settings screen: background, five settings (connection, player's
-//! name, most players, host's address, port) and the last item's framed string. A zero-width string is
+//! The frame of the network settings screen: background, six settings (connection, player's
+//! name, most players, host's address, port, password) and the last item's framed string. A zero-width string is
 //! refused.
 
 use crate::errors::Refused;
@@ -24,7 +24,15 @@ pub fn settings_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> 
     enum Value {
         Text(crate::memory::place::BytePlace),
         Number(u32),
+        /// A text built for the screen (the password: its stars, or itself while typed).
+        Shown(Vec<u8>),
     }
+    let password = if net.settings().edit.edited.get() == rc2k_core::net::chat::PASSWORD {
+        let text = net.settings().most_players_text.read();
+        text[..text.iter().position(|&b| b == 0).unwrap_or(text.len())].to_vec()
+    } else {
+        crate::net::password::masked()
+    };
     for (item, (label, value)) in [
         (0x163, Value::Text((&net.settings().saved_name).into())),
         (0x164, Value::Text((&net.setup().machine_name).into())),
@@ -34,6 +42,10 @@ pub fn settings_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> 
             rc2k_core::strings::own::id::NETWORK_PORT,
             Value::Number(rc2k_core::net::chat::shown_port(net.setup().port.get())),
         ),
+        (
+            rc2k_core::strings::own::id::NETWORK_PASSWORD,
+            Value::Shown(password),
+        ),
     ]
     .into_iter()
     .enumerate()
@@ -42,6 +54,7 @@ pub fn settings_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> 
         y = setting_label(o, net, label, item, y)?;
         y = match value {
             Value::Number(n) => draw_number_value(o, n, item, y)?,
+            Value::Shown(text) => draw_setting_value(o, &text, item, y)?,
             Value::Text(text) => {
                 let text = text.text("a setting's text")?;
                 draw_setting_value(o, &text, item, y)?
@@ -77,7 +90,7 @@ pub fn settings_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> 
         }
     }
     piece(screens::LEFT_END, screens::END_WIDTH)?;
-    draw_centred_item(o, net, 0x16F, 5, text_x, 0x21D)?;
+    draw_centred_item(o, net, 0x16F, 6, text_x, 0x21D)?;
     crate::platform::unlock_surface(o.gfx);
     crate::platform::show_frame_now(o);
     Ok(())

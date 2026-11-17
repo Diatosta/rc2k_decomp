@@ -27,6 +27,8 @@ pub struct LoadingBar {
     o: crate::owners::Owners<'static>,
     share: u32,
     span: BarEnds,
+    /// The share the other players were last told (a game with others only).
+    told: Option<u32>,
 }
 
 impl LoadingBar {
@@ -36,6 +38,15 @@ impl LoadingBar {
             o,
             share: 0,
             span: BarEnds { low: 0, high: 100 },
+            told: None,
+        }
+    }
+
+    /// The other players told the share when it has moved.
+    fn tell(&mut self) {
+        if self.told != Some(self.share) {
+            self.told = Some(self.share);
+            crate::net::loading::report(self.o.net, self.share);
         }
     }
 }
@@ -43,6 +54,7 @@ impl LoadingBar {
 impl Progress for LoadingBar {
     fn mark(&mut self, share: u32) -> Result<(), Refused> {
         self.share = share;
+        self.tell();
         loading_bar_frame(self.o, share)
     }
 
@@ -54,6 +66,7 @@ impl Progress for LoadingBar {
         if let Some(share) = self.span.progress(done, textures) {
             self.share = share;
         }
+        self.tell();
         loading_bar_frame(self.o, self.share)
     }
 }
@@ -146,6 +159,8 @@ fn frame(o: crate::owners::Owners<'static>, share: u32) -> Result<(), Refused> {
         if lock_frame::lock_frame(race, gfx, system).0 < 1 {
             break 'frame;
         }
+        // The other players' loads, as 2D text over the frame.
+        crate::net::loading::draw(o)?;
         unlock_frame::unlock_frame(&race.frame, gfx);
         // A refused present is skipped as well.
         let _timed = crate::race::load_times::scope(crate::race::load_times::Category::Present);

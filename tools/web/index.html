@@ -21,6 +21,7 @@
   progress { width: 100%; height: 10px; }
   #status { min-height: 1.4em; }
   .error { color: #ff7a6b; }
+  a { color: var(--accent); }
 </style>
 </head>
 <body>
@@ -37,6 +38,7 @@
   <div id="working" hidden><progress id="bar" max="1" value="0"></progress></div>
   <p id="status"></p>
   <button id="again" hidden>Start again</button>
+  <p><a href="saves.html" id="saves">Export or import the saves and settings</a></p>
 </div>
 <script>
 // The folders in the origin's storage (`src/platform/web.rs`): the unpacked zip, and the home folder

@@ -396,7 +396,14 @@ pub fn get_player_data(this: u32, player: u32, out: &mut [u8]) -> (u32, u32) {
     }
 }
 
+#[cfg(test)]
 pub fn open(this: u32, d: &Desc, flags: u32) -> u32 {
+    open_with_password(this, d, flags, b"")
+}
+
+/// `open`, with the password a created session is locked by or a joined one is answered with
+/// (empty: none).
+pub fn open_with_password(this: u32, d: &Desc, flags: u32, password: &[u8]) -> u32 {
     let port = match with_state(this, |s| {
         if !s.initialized {
             Err(DPERR_UNINITIALIZED)
@@ -414,10 +421,10 @@ pub fn open(this: u32, d: &Desc, flags: u32) -> u32 {
             instance: fresh_guid(),
             ..d.clone()
         };
-        Session::host(d, port, signal()).map_err(|_| DPERR_CANTCREATESESSION)
+        Session::host_locked(d, port, signal(), password).map_err(|_| DPERR_CANTCREATESESSION)
     } else if flags & DPOPEN_JOIN != 0 {
         match session_address(&d.instance) {
-            Some(at) => Session::join(at, signal()),
+            Some(at) => Session::join_with(at, signal(), password),
             None => Err(DPERR_NOSESSIONS),
         }
     } else {
@@ -466,6 +473,11 @@ pub fn receive(this: u32, out: &mut [u8]) -> Received {
             }
         }
     }
+}
+
+/// The session's host's player (none without a session or a player of the host's).
+pub fn host_player(this: u32) -> Option<u32> {
+    session(this).and_then(|s| s.host_player())
 }
 
 pub fn send(this: u32, from: u32, to: u32, data: &[u8]) -> u32 {

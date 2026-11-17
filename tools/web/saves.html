@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rally Championship saves</title>
+<style>
+  :root { --bg: #0b0d10; --panel: #161a20; --text: #d8dde4; --dim: #8a94a3; --accent: #e0a526; --field: #0f1216; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.45 system-ui, -apple-system, sans-serif; }
+  main { max-width: 34rem; margin: 0 auto; padding: 2rem 16px; }
+  h1 { font-size: 1.4rem; margin: 0 0 .25rem; }
+  h2 { font-size: 1.05rem; margin: 0 0 .4rem; }
+  p { color: var(--dim); margin: .4rem 0 1rem; }
+  a { color: var(--accent); }
+  .box { background: var(--panel); border-radius: 10px; padding: 1rem; margin: 1rem 0; }
+  button { margin: .4rem .5rem .2rem 0; padding: .6rem 1rem; border: 0; border-radius: 6px;
+    background: var(--accent); color: #111; font-weight: 700; font-size: 1rem; }
+  button[disabled] { opacity: .5; }
+  textarea { box-sizing: border-box; width: 100%; height: 6rem; background: var(--field); color: var(--text);
+    border: 1px solid #2a313b; border-radius: 6px; font: 12px/1.3 ui-monospace, monospace; }
+  #status { min-height: 1.4em; color: var(--text); }
+  .error { color: #ff7a6b; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Saves and settings</h1>
+  <p>Kept in this browser only, and a browser can clear them. Export a copy now and then.
+     Close the game's tab first. <a href="index.html">Back to the game</a></p>
+  <p id="status"></p>
+  <div class="box">
+    <h2>Export</h2>
+    <p>The saved games, replays, car set-ups, best times and the settings.</p>
+    <button id="download">Download a zip</button>
+    <button id="copy">Show as text</button>
+    <textarea id="out" readonly hidden spellcheck="false"></textarea>
+  </div>
+  <div class="box">
+    <h2>Import</h2>
+    <p>Replaces the saves and settings in this browser with those in the zip or the text.</p>
+    <input id="zipfile" type="file" accept=".zip,application/zip">
+    <p>or the text of an export:</p>
+    <textarea id="in" spellcheck="false" placeholder="Paste the text here"></textarea>
+    <button id="fromtext">Import the text</button>
+  </div>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+function status(t, error) { $("status").textContent = t; $("status").className = error ? "error" : ""; }
+
+function ask(message) {
+  return new Promise((resolve, reject) => {
+    const w = new Worker("saves.js");
+    w.onmessage = (m) => { w.terminate(); m.data.error ? reject(new Error(m.data.error)) : resolve(m.data); };
+    w.onerror = (e) => { w.terminate(); reject(new Error(e.message || "The worker failed.")); };
+    w.postMessage(message);
+  });
+}
+
+function toBase64(bytes) {
+  let s = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+function fromBase64(t) {
+  const s = atob(t.replace(/\s+/g, ""));
+  const out = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i);
+  return out;
+}
+
+async function exported() {
+  const r = await ask({ op: "export" });
+  if (r.files === 0) throw new Error("No saves found in this browser yet.");
+  return r;
+}
+
+async function importBytes(bytes) {
+  if (!confirm("Replace the saves and settings in this browser with these? This cannot be undone.")) {
+    status("Cancelled.");
+    return;
+  }
+  const r = await ask({ op: "import", bytes });
+  status(r.imported + " files imported" + (r.skipped ? " (" + r.skipped + " not saves, left out)" : "") + ".");
+}
+
+function guard(fn) {
+  return async () => {
+    for (const b of document.querySelectorAll("button")) b.disabled = true;
+    try { await fn(); } catch (e) { status(e.message, true); }
+    for (const b of document.querySelectorAll("button")) b.disabled = false;
+  };
+}
+
+$("download").onclick = guard(async () => {
+  const r = await exported();
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([r.exported], { type: "application/zip" }));
+  a.download = "rally-saves.zip";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  status(r.files + " files exported.");
+});
+$("copy").onclick = guard(async () => {
+  const r = await exported();
+  $("out").value = toBase64(r.exported);
+  $("out").hidden = false;
+  $("out").select();
+  status(r.files + " files as text: copy it all.");
+});
+$("zipfile").onchange = guard(async () => {
+  const f = $("zipfile").files[0];
+  if (!f) return;
+  try { await importBytes(new Uint8Array(await f.arrayBuffer())); } finally { $("zipfile").value = ""; }
+});
+$("fromtext").onclick = guard(async () => {
+  let bytes;
+  try { bytes = fromBase64($("in").value); } catch { throw new Error("That is not the text of an export."); }
+  if (bytes.length === 0) throw new Error("Paste the text of an export first.");
+  await importBytes(bytes);
+});
+
+(async () => {
+  try {
+    const r = await ask({ op: "scan" });
+    status(r.scanned + " files of saves and settings in this browser.");
+  } catch (e) { status(e.message, true); }
+})();
+</script>
+</body>
+</html>

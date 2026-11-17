@@ -1,5 +1,5 @@
 //! Enter on a setting of the network settings screen starts editing it: item 1 the player's
-//! name, item 3 the host's address, item 2 the most players and item 4 the port as text. Other items do nothing.
+//! name, item 3 the host's address, item 2 the most players and item 4 the port as text, item 5 the password. Other items do nothing.
 
 use crate::net::begin_edit::EditedText;
 use crate::net::lobby::PALETTE;
@@ -32,6 +32,14 @@ pub fn begin_setting_edit(
             net.settings()
                 .most_players_text
                 .write_at(0, &digits, "a text line's bytes")?;
+            EditedText::MostPlayers
+        }
+        Setting::Password => {
+            let mut text = crate::net::password::get();
+            text.push(0);
+            net.settings()
+                .most_players_text
+                .write_at(0, &text, "a text line's bytes")?;
             EditedText::MostPlayers
         }
         Setting::None => return Ok(()),

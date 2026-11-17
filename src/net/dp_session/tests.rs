@@ -5,7 +5,7 @@ use super::*;
 fn quiet(_: u32) {}
 
 fn session() -> Arc<Session> {
-    Session::new(2, World::default(), Arc::new(quiet), 0)
+    Session::new(2, World::default(), Arc::new(quiet), 0, None)
 }
 
 fn message(len: usize) -> Incoming {
@@ -566,5 +566,58 @@ fn the_host_puts_a_player_out() {
         kicked |= frame == vec![KICKED];
     }
     assert!(kicked);
+    host.close();
+}
+
+/// A host with a password: its description says it is locked; a joiner is asked a challenge
+/// and gets in only with the right password; the wrong one and none are refused with
+/// `DPERR_INVALIDPASSWORD`; an open session never asks.
+#[test]
+fn a_locked_session_lets_in_only_the_right_password() {
+    let (host, port) = (0..10)
+        .find_map(|_| {
+            let port = free_port();
+            Session::host_locked(wire_desc(), port, Arc::new(quiet), b"rally")
+                .ok()
+                .map(|s| (s, port))
+        })
+        .expect("a locked session on one of ten free ports");
+    assert_ne!(host.world().desc.flags & DPSESSION_PASSWORDREQUIRED, 0);
+    let at = SocketAddr::from(([127, 0, 0, 1], port));
+    // A bare join is asked for a proof, and the plain password is nowhere in what is sent.
+    let mut peer = connect(port);
+    write_frame(&mut peer, &[vec![JOIN], MAGIC.to_vec()].concat()).unwrap();
+    let asked = read_frame(&mut peer).expect("the challenge");
+    assert_eq!(asked.first(), Some(&CHALLENGE));
+    assert_eq!(asked.len(), 1 + 16 + 16);
+    assert!(!asked.windows(5).any(|w| w == b"rally"));
+    drop(peer);
+    assert_eq!(
+        Session::join_with(at, Arc::new(quiet), b"wrong").err(),
+        Some(DPERR_INVALIDPASSWORD)
+    );
+    assert_eq!(
+        Session::join_with(at, Arc::new(quiet), b"").err(),
+        Some(DPERR_INVALIDPASSWORD)
+    );
+    let guest = Session::join_with(at, Arc::new(quiet), b"rally").expect("the right password");
+    assert_ne!(guest.world().desc.flags & DPSESSION_PASSWORDREQUIRED, 0);
+    // The host's own description changes do not unlock it.
+    let mut open = wire_desc();
+    open.flags = 0;
+    assert_eq!(host.set_desc(open), DP_OK);
+    assert_ne!(host.world().desc.flags & DPSESSION_PASSWORDREQUIRED, 0);
+    guest.close();
+    host.close();
+}
+
+/// A session without a password is joined with no challenge, whatever the joiner holds.
+#[test]
+fn an_open_session_asks_no_password() {
+    let (host, port) = wire_host();
+    assert_eq!(host.world().desc.flags & DPSESSION_PASSWORDREQUIRED, 0);
+    let at = SocketAddr::from(([127, 0, 0, 1], port));
+    let guest = Session::join_with(at, Arc::new(quiet), b"unneeded").expect("an open session");
+    guest.close();
     host.close();
 }

@@ -17,7 +17,12 @@ pub const OPEN_JOIN: u32 = 1; // DPOPEN_JOIN
 /// `Open(description, flags)`.
 pub fn open(link: &Link, flags: u32, name: &[u8]) -> u32 {
     let d = crate::net::dp_objects::desc(link.session_desc(), name);
-    crate::net::dp_objects::open(link.dplay(), &d, flags)
+    crate::net::dp_objects::open_with_password(
+        link.dplay(),
+        &d,
+        flags,
+        &crate::net::password::get(),
+    )
 }
 
 /// The `Open` as the receiving thread calls it when it is posted.
@@ -69,6 +74,7 @@ pub fn finish(
 ) -> Result<bool, Refused> {
     let net = o.net;
     let result = posted_or_called(o, lines, posted);
+    crate::net::password::note_refused(result == crate::net::dp_session::DPERR_INVALIDPASSWORD);
     log_bytes(&lines.text(texts::NET_OPEN), false, 2);
     log_hex(result, true);
     crate::system::restore_window::restore_window();

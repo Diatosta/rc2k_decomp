@@ -106,6 +106,8 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
     let list_state = &o.menus.list;
     net.race_slot.set_players(0);
     net.lobby().racing.set(0);
+    // The last race's loading figures do not show in the next.
+    crate::net::loading::clear();
     crate::net::show_background::show_background(o)?;
     let now = system.session.key_clock.ticks.get();
     list_state.move_clock.set(now);

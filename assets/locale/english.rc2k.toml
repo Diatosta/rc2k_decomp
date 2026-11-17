@@ -134,3 +134,10 @@ not_host = "Only the host can put a player out."
 no_player = "No such player."
 done = "Player put out."
 failed = "The player could not be put out."
+
+# The network's password: its row on the settings screen, the refusal a joiner is shown and the
+# mark before a locked session's name.
+[network]
+password = "password"
+password_refused = "Locked session: wrong or missing password."
+lock_mark = "[locked] "

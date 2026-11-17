@@ -8,6 +8,8 @@ pub const NAME: u32 = 1;
 pub const MOST_PLAYERS: u32 = 2;
 /// The settings screen's port item (below the host's address, above the last item).
 pub const PORT: u32 = 4;
+/// The settings screen's password item (below the port, above the last item).
+pub const PASSWORD: u32 = 5;
 /// The port the network game uses when none is set.
 pub const DEFAULT_PORT: u32 = 47624;
 

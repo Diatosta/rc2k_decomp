@@ -208,10 +208,15 @@ pub(super) const DELIVER: u8 = 8;
 pub(super) const BYE: u8 = 9;
 /// Host to a machine: it has been put out of the session (the host ends its connection after).
 pub(super) const KICKED: u8 = 10;
+/// Host to a joining machine of a locked session: the password's salt and a fresh challenge.
+pub(super) const CHALLENGE: u8 = 11;
+/// A joining machine to the host: the proof for the challenge.
+pub(super) const PROOF: u8 = 12;
 
 /// The protocol's mark at the start of a JOIN and of the discovery's packets. The last
-/// character is the protocol's version: 2 added the host putting a player out (`KICKED`).
-pub(super) const MAGIC: &[u8; 8] = b"RC2KNET2";
+/// character is the protocol's version: 2 added the host putting a player out (`KICKED`), 3 the sessions locked by a
+/// password (`CHALLENGE`, `PROOF`), 4 the host ordering the lobby chat (`messages::CHAT_RELAYED`).
+pub(super) const MAGIC: &[u8; 8] = b"RC2KNET4";
 /// The first seven characters of every version's mark: a JOIN that starts so but is not this
 /// version's is answered with a refusal for its version, not dropped.
 pub(super) const MAGIC_FAMILY: &[u8; 7] = b"RC2KNET";

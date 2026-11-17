@@ -7,12 +7,18 @@ use crate::net::players::State;
 
 /// A chat line: the text follows the byte.
 pub const CHAT: u8 = 0x22;
+/// A chat line as the host orders it: the host's number for the line, the author's player id
+/// (4 bytes each, little-endian) and the text follow the byte. Every machine, the author's too,
+/// shows the lines the host sends.
+pub const CHAT_RELAYED: u8 = 0x23;
 /// The host's call: everyone ready for the race (answered `READY_ANSWER`).
 pub const ALL_READY: u8 = 0x40;
 pub const READY_ANSWER: u8 = 0x41;
 /// The host's call: everyone done with the race (answered `DONE_ANSWER`).
 pub const ALL_DONE: u8 = 0x50;
 pub const DONE_ANSWER: u8 = 0x51;
+/// A machine's loading progress: the byte, then the percentage (0 ..= 100).
+pub const LOADING: u8 = 0x60;
 /// A race message's bit.
 pub const RACE_BIT: u8 = 0x80;
 

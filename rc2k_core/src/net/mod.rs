@@ -10,6 +10,7 @@ pub mod lists;
 pub mod message;
 pub mod messages;
 pub mod net_race;
+pub mod password;
 pub mod players;
 pub mod race;
 pub mod record;
