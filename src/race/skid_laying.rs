@@ -177,6 +177,17 @@ pub fn lay_skidmarks(race: &Race) -> Result<(), Refused> {
                 let n = crate::math::x87::tbyte_to_int(v);
                 skids.skid_place[i].set(skids.skid_place[i].get().wrapping_add(n));
             }
+            // The wheel has not moved since its last point: that point stands for the place, and
+            // the strip goes on from it (see `rc2k_core::race::skids::is_repeat`).
+            let last = slot.get();
+            if last < rc2k_core::race::skids::POINTS {
+                let at = 0x18 * last as usize;
+                let last_point = std::array::from_fn(|k| skids.skid_points.get_u32(at + 4 * k));
+                let place = crate::memory::session::read_bits(&skids.skid_place);
+                if rc2k_core::race::skids::is_repeat(&last_point, place) {
+                    continue;
+                }
+            }
             add_skid_point(race, slot)?;
         }
     }

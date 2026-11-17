@@ -33,6 +33,15 @@ pub fn middle(p: &Point) -> [u32; 3] {
     })
 }
 
+/// Whether a wheel at `place` is where the strip's last point already is (on the ground plane).
+/// A point laid there would have no direction (the angle between two equal places is 0), so its
+/// edges, and the strip's last point's, would turn across the strip: a twisted quad that draws as
+/// a gap. A game drawn faster than the physics steps asks again before the wheel has moved.
+pub fn is_repeat(last: &Point, place: [u32; 3]) -> bool {
+    let m = middle(last);
+    m[0] == place[0] && m[2] == place[2]
+}
+
 /// A point's edges across `centre` by `offset` (x, z): left less it, right plus it, y the
 /// centre's.
 pub fn edges(centre: [u32; 3], offset: (u32, u32)) -> Point {
@@ -179,6 +188,10 @@ mod tests {
         assert_eq!(between(0x0001_0010, 0x0008), 0x0001_000C);
         assert_eq!(between(0x0000_0002, 0xFFFE), 0x0000_0000);
         assert_eq!(next_point(0x3FF), 0);
+        let p = edges([100, 7, 200], (5, 9));
+        assert!(is_repeat(&p, [100, 8, 200]));
+        assert!(!is_repeat(&p, [101, 7, 200]));
+        assert!(!is_repeat(&p, [100, 7, 199]));
         assert_eq!(next_point(5), 6);
     }
 

@@ -501,9 +501,10 @@ pub fn show_on_panel(
         // SAFETY: `Target::bytes`' promise: on the game's thread, which waits for this call, so
         // nothing else reaches the canvas; no other slice of it lives (the frame's showing takes
         // its own after this returns, `platform::with_frame`); the screen keeps its pixels.
-        gpu.finish_and_show(target, unsafe { target.bytes() });
+        // The handheld's panel is the frame's own size: no space beside it to fill.
+        gpu.finish_and_show(target, unsafe { target.bytes() }, false);
     } else {
-        with_frame(&mut |frame| gpu.show_picture(frame, width, height));
+        with_frame(&mut |frame| gpu.show_picture(frame, width, height, false));
     }
     true
 }
@@ -519,6 +520,7 @@ pub fn show_on_gl_window(
     with_frame: impl FnOnce(&mut dyn FnMut(&[u8])),
     width: usize,
     height: usize,
+    menu: bool,
 ) -> bool {
     if gles::window().is_none() || gles::GPU.lock().unwrap().is_none() {
         return false;
@@ -534,9 +536,9 @@ pub fn show_on_gl_window(
         // SAFETY: `Target::bytes`' promise: on the game's thread, which waits for this call, so
         // nothing else reaches the canvas; no other slice of it lives (the frame's showing takes
         // its own after this returns, `platform::with_frame`); the screen keeps its pixels.
-        gl.finish_and_show(target, unsafe { target.bytes() });
+        gl.finish_and_show(target, unsafe { target.bytes() }, menu);
     } else {
-        with_frame(&mut |frame| gl.show_picture(frame, width, height));
+        with_frame(&mut |frame| gl.show_picture(frame, width, height, menu));
     }
     true
 }

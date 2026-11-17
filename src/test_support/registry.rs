@@ -429,7 +429,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!("owners.system.clocks", on_game(o.system.clocks()),),
         listed!("owners.audio.state", &o.audio.state,),
         listed!("owners.audio.sample_records", &o.audio.sample_records,),
-        listed!("owners.audio.environment", &o.audio.environment,),
         listed!(
             "owners.saves.files.options_kept",
             on_game(&o.saves.files.options_kept),

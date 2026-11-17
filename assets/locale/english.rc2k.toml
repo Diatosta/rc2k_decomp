@@ -115,7 +115,6 @@ done = "done"
 [options]
 background_sound = "sound when not in front"
 film_volume = "film volume"
-reverb = "reverb"
 network_port = "port"
 
 # The graphics page's frame limit.

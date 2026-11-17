@@ -18,9 +18,8 @@ pub struct SceneHandOff {
     lit: [PlainFloat; 16],
     /// `SceneMatrices.made_object_matrix`.
     made: [PlainFloat; 16],
-    /// The view's output (`ViewOutput`), applied by the game's thread: the EAX weight and the
-    /// block and value for `store_view_value`, each with a word saying it is there.
-    environment: [PlainDword; 2],
+    /// The view's output (`ViewOutput`), applied by the game's thread: the block and value for
+    /// `store_view_value`, with a word saying it is there.
     view_value: [PlainDword; 3],
     /// Whether its camera set its view matrices.
     view_matrices: PlainDword,
@@ -32,7 +31,6 @@ impl SceneHandOff {
             mirror_drawn: PlainDword::new(0),
             lit: [const { PlainFloat::new(0.0) }; 16],
             made: [const { PlainFloat::new(0.0) }; 16],
-            environment: [const { PlainDword::new(0) }; 2],
             view_value: [const { PlainDword::new(0) }; 3],
             view_matrices: PlainDword::new(0),
         }
@@ -40,9 +38,6 @@ impl SceneHandOff {
 
     /// The view's output kept (on its part).
     pub fn keep_output(&self, output: ViewOutput) {
-        let (there, weight) = output.environment.map_or((0, 0), |w| (1, w));
-        self.environment[0].set(there);
-        self.environment[1].set(weight);
         let (there, (block, value)) = output.view_value.map_or((0, (0, 0)), |v| (1, v));
         self.view_value[0].set(there);
         self.view_value[1].set(block as u32);
@@ -63,7 +58,6 @@ impl SceneHandOff {
     /// The kept output.
     pub fn output(&self) -> ViewOutput {
         ViewOutput {
-            environment: (self.environment[0].get() != 0).then(|| self.environment[1].get()),
             view_value: (self.view_value[0].get() != 0)
                 .then(|| (self.view_value[1].get() as usize, self.view_value[2].get())),
             view_matrices: self.view_matrices.get() != 0,

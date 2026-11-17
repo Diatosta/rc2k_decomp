@@ -47,10 +47,7 @@ pub fn draw_sound_settings(
     let background =
         crate::platform::sound::SOUND_IN_BACKGROUND.load(std::sync::atomic::Ordering::Relaxed);
     ids.push(0x56D + u32::from(background));
-    // The seventh, the reverb, the same.
-    let reverb = crate::platform::sound::REVERB.load(std::sync::atomic::Ordering::Relaxed);
-    ids.push(0x56D + u32::from(reverb));
-    let ids: [u32; 7] = ids.try_into().expect("seven names");
+    let ids: [u32; 6] = ids.try_into().expect("six names");
     rc2k_core::screens::settings_pages::sound(&mut SettingsScreen::new(canvas, o), ids)?;
     Ok(())
 }

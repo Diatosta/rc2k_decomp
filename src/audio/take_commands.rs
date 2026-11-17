@@ -25,7 +25,6 @@ pub fn take_commands(
             }
             Command::Room(room) => {
                 audio.state.eax_room.set(room);
-                crate::platform::sound::set_reverb_room(room);
             }
             Command::Load(list) => {
                 audio.state.sound_list_loaded.set(list);

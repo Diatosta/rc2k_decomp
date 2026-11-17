@@ -223,6 +223,39 @@ impl Renderer {
         }
     }
 
+    /// The size of the target the renderer draws on (the window's pixels), if SDL knows it.
+    #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // the handheld shows frames on its framebuffer
+    pub fn window_pixels(self) -> Option<(u32, u32)> {
+        let (mut width, mut height) = (0, 0);
+        // SAFETY: the renderer SDL made; SDL writes the two integers.
+        let known =
+            unsafe { SDL_GetCurrentRenderOutputSize(self.0, &raw mut width, &raw mut height) };
+        (known && width > 0 && height > 0).then_some((width as u32, height as u32))
+    }
+
+    /// `part` of the texture (x, y, width, height; `None`: all of it) drawn over `to`, a
+    /// rectangle of the target.
+    #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // the handheld shows frames on its framebuffer
+    pub fn draw_part(self, texture: &Texture, part: Option<[u32; 4]>, to: [u32; 4]) {
+        let rect = |[x, y, w, h]: [u32; 4]| SDL_FRect {
+            x: x as f32,
+            y: y as f32,
+            w: w as f32,
+            h: h as f32,
+        };
+        let (part, to) = (part.map(rect), rect(to));
+        // SAFETY: the renderer and the texture made by it, both alive; the rectangles are read
+        // during the call (a null source means the whole texture).
+        unsafe {
+            SDL_RenderTexture(
+                self.0,
+                texture.raw,
+                part.as_ref().map_or(std::ptr::null(), std::ptr::from_ref),
+                &raw const to,
+            );
+        }
+    }
+
     /// An XRGB8888 streaming texture of the given size.
     pub fn create_frame_texture(self, width: usize, height: usize) -> Option<Texture> {
         // SAFETY: the renderer SDL made; the arguments are plain values.
@@ -290,6 +323,18 @@ impl Renderer {
 }
 
 impl Texture {
+    /// Whether the texture is magnified with no filter (sharp pixels) or with a linear one.
+    #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // the handheld shows frames on its framebuffer
+    pub fn set_sharp(&self, sharp: bool) {
+        let mode = if sharp {
+            SDL_SCALEMODE_NEAREST
+        } else {
+            SDL_SCALEMODE_LINEAR
+        };
+        // SAFETY: the texture SDL made, alive while `self` is.
+        unsafe { SDL_SetTextureScaleMode(self.raw, mode) };
+    }
+
     /// The whole texture replaced by `frame`'s rows of `pitch` bytes. False when SDL
     /// refuses, or when `frame` is shorter than the texture's rows.
     #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // the handheld shows frames on its framebuffer

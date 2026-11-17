@@ -504,14 +504,11 @@ pub enum Step {
     Commit,
 }
 
-/// The EAX room's variables (and the kept one, `AudioOwn::environment_kept`) and the 3D commit
-/// flag.
+/// The EAX room's variables and the 3D commit flag.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Room {
     pub asked: u32,
     pub set: u32,
-    pub environment: u32,
-    pub kept: u32,
     pub commit: u32,
 }
 
@@ -581,7 +578,7 @@ fn apply<P: Pool, E>(
 /// emptied (each voice free, its channel freed); each playing voice's marked settings
 /// carried to its buffer, one not sounding (or to restart) rewound and played; one that
 /// does not loop and has ended goes to the stopping list (a channel fewer); the stopping
-/// list again; then in 3D the EAX room when asked or the environment changed, and the
+/// list again; then in 3D the EAX room when asked, and the
 /// deferred settings committed. Refused (before anything, as `Invalid` through `E`): a
 /// list without its end; a playing voice that does not loop without its channel or
 /// buffer; a marked voice's volume or pan past the volume table; a voice to stop without
@@ -633,15 +630,9 @@ pub fn update_buffers<P: Pool, E: From<Invalid>>(
     }
     stopping_pass(pool, lists, &mut step)?;
     if mode & MODE_3D != 0 {
-        if mode & MODE_EAX != 0 {
-            if room.asked != room.set {
-                room.set = room.asked;
-                room.kept = room.environment;
-                step(Step::Room)?;
-            } else if room.environment != room.kept {
-                room.kept = room.environment;
-                step(Step::Room)?;
-            }
+        if mode & MODE_EAX != 0 && room.asked != room.set {
+            room.set = room.asked;
+            step(Step::Room)?;
         }
         if room.commit == 1 {
             step(Step::Commit)?;

@@ -41,8 +41,6 @@ pub fn update_voices(audio: &AudioThread) -> Result<(), Refused> {
     let mut room = Room {
         asked: audio.state.eax_room.get(),
         set: audio.state.eax_room_set.get(),
-        environment: audio.environment.get(),
-        kept: audio.state.environment_kept.get(),
         commit: audio.state.commit_3d.get(),
     };
     let store = |l: &Lists, room: &Room| {
@@ -50,7 +48,6 @@ pub fn update_voices(audio: &AudioThread) -> Result<(), Refused> {
         audio.state.stopping_voices.set(l.stopping);
         audio.state.channels_used.set(l.channels_used);
         audio.state.eax_room_set.set(room.set);
-        audio.state.environment_kept.set(room.kept);
         audio.state.commit_3d.set(room.commit);
     };
     let mut pool = GamePool::new(audio);

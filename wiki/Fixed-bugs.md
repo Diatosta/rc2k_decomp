@@ -534,7 +534,7 @@ has the same fixed addresses, but its network mode could not be run here to see 
 
 **Seen or read:** read in `race::eax_environment` (0x45C7EE) and the sound thread's voice update; found 2026-11-09 by the conversion's work on what each view hands on.
 
-**Fix:** the weight is summed apart and handed to the sound whole, at the end of each view.
+**Fix:** the weight is summed apart and handed to the sound whole, at the end of each view. (Later the weight was not worked out at all any more: nothing heard used it.)
 
 ## The mirror's backdrop drawn with whatever the last polygon left
 
@@ -570,11 +570,11 @@ has the same fixed addresses, but its network mode could not be run here to see 
 
 **What it is:** the race's reverb (the EAX "room": open road, forest, tunnel...) is worked out while each view is drawn, from the course around that view's camera. Every view drawn sets it, so the rear-view mirror's, or in split screen the second player's view, replaced the first player's; the sound took whichever was set when it ran.
 
-**In game:** with an EAX sound card of the time, the reverb could follow the mirror's view or the other player's surroundings instead of the player's own. The port has a reverb of its own now (see [Sound and music](Sound-and-music)); it follows each player's own view for that player's car sounds.
+**In game:** with an EAX sound card of the time, the reverb could follow the mirror's view or the other player's surroundings instead of the player's own. The port had a reverb of its own for a time, which followed each player's own view; it has been taken out (see [Sound and music](Sound-and-music)).
 
 **Seen or read:** read in `race::eax_environment` (0x45C7EE) and the frame's views; found 2026-11-10 while drawing the views on several threads.
 
-**Fix:** the reverb comes from the first player's main view only.
+**Fix:** the reverb comes from the first player's main view only. (Later the weight was not worked out at all any more.)
 
 ## Tyre wear on snow, ice, water, dust and grass taken from the wrong surface
 

@@ -90,12 +90,14 @@ pub fn rotate_rounding_z(point: [i32; 3], matrix: &[u32]) -> [u32; 3] {
 }
 
 /// `a a + b b` of two whole numbers, as a float.
+#[cfg(test)]
 pub fn int_square_sum(a: i32, b: i32) -> f32 {
     let (a, b) = (int(a), int(b));
     out(a * a + b * b)
 }
 
 /// `a a + b b` of two floats.
+#[cfg(test)]
 pub fn float_square_sum(a: impl Flt, b: impl Flt) -> f32 {
     let a = a.value();
     let b = b.value();
@@ -105,6 +107,7 @@ pub fn float_square_sum(a: impl Flt, b: impl Flt) -> f32 {
 }
 
 /// `(a + b) c`, a whole number plus a float, times a float.
+#[cfg(test)]
 pub fn int_plus_times(a: i32, b: impl Flt, c: impl Flt) -> f32 {
     let b = b.value();
     let c = c.value();
@@ -112,6 +115,7 @@ pub fn int_plus_times(a: i32, b: impl Flt, c: impl Flt) -> f32 {
 }
 
 /// C0 of the compare of `|a|` with `k`: |a| below k, or one is no number.
+#[cfg(test)]
 pub fn abs_below_or_unordered(a: impl Flt, k: impl Flt) -> bool {
     let a = a.value();
     let k = k.value();

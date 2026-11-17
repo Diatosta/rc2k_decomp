@@ -248,6 +248,19 @@ void main() {
     gl_Position = vec4(corner.x * 2.0 - 1.0, 1.0 - corner.y * 2.0, 0.0, 1.0);
 }
 ";
+/// A picture of the frame's shape in a window of another: `fit` is the picture's place as the
+/// window's fractions (left, top, width, height).
+const FIT_VS: &CStr = c"#version 300 es
+uniform float flip;
+uniform vec4 fit;
+out vec2 v_uv;
+void main() {
+    vec2 corner = vec2(float((gl_VertexID << 1) & 2), float(gl_VertexID & 2));
+    vec2 uv = (corner - fit.xy) / fit.zw;
+    v_uv = vec2(uv.x, flip > 0.5 ? 1.0 - uv.y : uv.y);
+    gl_Position = vec4(corner.x * 2.0 - 1.0, 1.0 - corner.y * 2.0, 0.0, 1.0);
+}
+";
 /// The canvas's written pixels only.
 const OVERLAY_FS: &CStr = c"#version 300 es
 precision mediump float;
@@ -262,21 +275,47 @@ void main() {
 }
 ";
 /// A whole picture of the game's bytes (blue first).
+///
+/// Beside the picture (`v_uv` outside the texture) the window shows black (`bars`) or the colour
+/// of the picture's edge, row by row.
 const CANVAS_FS: &CStr = c"#version 300 es
 precision mediump float;
-in vec2 v_uv; out vec4 result; uniform sampler2D canvas;
-void main() { result = vec4(texture(canvas, v_uv).bgr, 1.0); }
+in vec2 v_uv; out vec4 result; uniform sampler2D canvas; uniform float bars;
+void main() {
+    if (bars > 0.5 && v_uv != clamp(v_uv, 0.0, 1.0)) { result = vec4(0.0, 0.0, 0.0, 1.0); return; }
+    vec2 half_texel = 0.5 / vec2(textureSize(canvas, 0));
+    result = vec4(texture(canvas, clamp(v_uv, half_texel, 1.0 - half_texel)).bgr, 1.0);
+}
 ";
 /// The frame buffer object's picture (red first).
 const TARGET_FS: &CStr = c"#version 300 es
 precision mediump float;
-in vec2 v_uv; out vec4 result; uniform sampler2D canvas;
-void main() { result = vec4(texture(canvas, v_uv).rgb, 1.0); }
+in vec2 v_uv; out vec4 result; uniform sampler2D canvas; uniform float bars;
+void main() {
+    if (bars > 0.5 && v_uv != clamp(v_uv, 0.0, 1.0)) { result = vec4(0.0, 0.0, 0.0, 1.0); return; }
+    vec2 half_texel = 0.5 / vec2(textureSize(canvas, 0));
+    result = vec4(texture(canvas, clamp(v_uv, half_texel, 1.0 - half_texel)).rgb, 1.0);
+}
 ";
 
 struct Quad {
     program: u32,
     flip: i32,
+    /// Where a picture of another shape goes in the window (`FIT_VS`), and whether the rest is
+    /// black; -1 in a quad that has none.
+    fit: i32,
+    bars: i32,
+}
+
+/// A picture's place in the window it is shown on.
+#[derive(Clone, Copy)]
+struct Placement {
+    /// Left, top, width and height as fractions of the window.
+    fit: [f32; 4],
+    /// The window's rest is black: a race's frame (a menu's side space has its edge colours).
+    bars: bool,
+    /// The picture is shown with no filter.
+    sharp: bool,
 }
 
 struct Locations {
@@ -529,14 +568,20 @@ impl Gpu {
             overlay: Quad {
                 program: 0,
                 flip: 0,
+                fit: -1,
+                bars: -1,
             },
             canvas_quad: Quad {
                 program: 0,
                 flip: 0,
+                fit: -1,
+                bars: -1,
             },
             target_quad: Quad {
                 program: 0,
                 flip: 0,
+                fit: -1,
+                bars: -1,
             },
             vertices: 0,
             seconds: 0,
@@ -580,11 +625,13 @@ impl Gpu {
         self.gl.uniform_location(program, name)
     }
 
-    fn quad(&self, fragment: &CStr) -> Result<Quad, String> {
-        let program = self.program(QUAD_VS, fragment)?;
+    fn quad(&self, vertex: &CStr, fragment: &CStr) -> Result<Quad, String> {
+        let program = self.program(vertex, fragment)?;
         Ok(Quad {
             program,
             flip: self.uniform(program, "flip"),
+            fit: self.uniform(program, "fit"),
+            bars: self.uniform(program, "bars"),
         })
     }
 
@@ -728,9 +775,9 @@ impl Gpu {
         } else {
             self.program_number(Cuts::default(), ProgramKind::Any { discard_free: true });
         }
-        self.overlay = self.quad(OVERLAY_FS)?;
-        self.canvas_quad = self.quad(CANVAS_FS)?;
-        self.target_quad = self.quad(TARGET_FS)?;
+        self.overlay = self.quad(QUAD_VS, OVERLAY_FS)?;
+        self.canvas_quad = self.quad(FIT_VS, CANVAS_FS)?;
+        self.target_quad = self.quad(FIT_VS, TARGET_FS)?;
         let gl = &self.gl;
         // The attribute layout is `batches::Vertex`'s eight dwords.
         self.empty_array = gl.gen_vertex_array();
@@ -1053,11 +1100,15 @@ impl Gpu {
         gl.bind_vertex_array(self.empty_array);
     }
 
-    fn draw_quad(&self, quad: &Quad, flip: bool) {
+    fn draw_quad(&self, quad: &Quad, flip: bool, placed: Option<Placement>) {
         let gl = &self.gl;
         // A program made in `set_up`; three vertices of no attributes.
         gl.use_program(quad.program);
         gl.uniform_1f(quad.flip, if flip { 1.0 } else { 0.0 });
+        if let Some(placed) = placed {
+            gl.uniform_4fv(quad.fit, &placed.fit);
+            gl.uniform_1f(quad.bars, if placed.bars { 1.0 } else { 0.0 });
+        }
         gl.draw_arrays(TRIANGLES, 0, 3);
     }
 
@@ -1161,7 +1212,7 @@ impl Gpu {
                 gl.scissor(0, height - w.last as i32 - 1, width, rows);
                 gl.enable(BLEND);
                 gl.blend_func(SRC_ALPHA, ONE_MINUS_SRC_ALPHA);
-                self.draw_quad(&self.overlay, false);
+                self.draw_quad(&self.overlay, false, None);
                 gl.disable(BLEND);
             }
             gl.disable(SCISSOR_TEST);
@@ -1447,38 +1498,70 @@ impl Gpu {
     }
 
     /// The whole of the panel (or the window) black, and the viewport where a picture of `width`
-    /// x `height` shows: the panel's picture is centred, shrunk to fit if it is too big; the
-    /// window shows it over the whole of it (the window is the screen's size).
-    fn panel_viewport(&self, width: i32, height: i32) {
+    /// x `height` shows. The panel's picture is centred, shrunk to fit if it is too big. The
+    /// window is drawn over its whole, the picture placed in it keeping its shape (`Placement`):
+    /// a `menu`'s picture has its edge colours carried on beside it, a race's black.
+    fn panel_viewport(&self, width: i32, height: i32, menu: bool) -> Placement {
         let gl = &self.gl;
-        let (x, y, w, h) = match gl.drawable_size() {
-            Some((w, h)) => (0, 0, w, h),
+        let whole = Placement {
+            fit: [0.0, 0.0, 1.0, 1.0],
+            bars: false,
+            sharp: true,
+        };
+        let (view, placed) = match gl.drawable_size() {
+            Some((w, h)) => {
+                let fit = rc2k_core::gfx::screen_fit::fit(
+                    (width as u32, height as u32),
+                    (w as u32, h as u32),
+                );
+                let placed = Placement {
+                    fit: [
+                        fit.x as f32 / w as f32,
+                        fit.y as f32 / h as f32,
+                        fit.width as f32 / w as f32,
+                        fit.height as f32 / h as f32,
+                    ],
+                    bars: !menu,
+                    sharp: fit.sharp,
+                };
+                ((0, 0, w, h), placed)
+            }
             None => {
                 let (w, h) = if width > PANEL.0 || height > PANEL.1 {
                     (width * PANEL.1 / height, PANEL.1)
                 } else {
                     (width, height)
                 };
-                ((PANEL.0 - w) / 2, (PANEL.1 - h) / 2, w, h)
+                (((PANEL.0 - w) / 2, (PANEL.1 - h) / 2, w, h), whole)
             }
         };
         gl.bind_framebuffer(FRAMEBUFFER, 0);
         gl.clear_colour(0.0, 0.0, 0.0, 1.0);
         gl.clear(COLOUR_BIT);
-        gl.viewport(x, y, w, h);
+        gl.viewport(view.0, view.1, view.2, view.3);
+        placed
+    }
+
+    /// The bound picture magnified with no filter (sharp) or a linear one.
+    fn set_filter(&self, sharp: bool) {
+        let filter = if sharp { 0x2600 } else { 0x2601 };
+        self.gl.tex_parameter(TEXTURE_2D, 0x2801, filter);
+        self.gl.tex_parameter(TEXTURE_2D, 0x2800, filter);
     }
 
     /// The target on the panel.
     ///
     /// With `wait`, the GPU is waited for before the frame goes to the panel (the GPU-time
     /// diagnostic, `gpu_time`); the wait's time comes back.
-    fn show_target(&mut self, wait: bool) -> Option<std::time::Duration> {
+    fn show_target(&mut self, wait: bool, menu: bool) -> Option<std::time::Duration> {
         self.plain_state();
-        self.panel_viewport(self.width, self.height);
+        let placed = self.panel_viewport(self.width, self.height, menu);
         let gl = &self.gl;
         gl.bind_sampler(0, 0);
         gl.bind_texture(TEXTURE_2D, self.colour);
-        self.draw_quad(&self.target_quad, true);
+        self.set_filter(placed.sharp);
+        self.draw_quad(&self.target_quad, true, Some(placed));
+        self.set_filter(true);
         let waited = wait.then(|| {
             let start = std::time::Instant::now();
             gl.finish();
@@ -1490,11 +1573,13 @@ impl Gpu {
 
     /// A picture of the game's bytes (`width` x `height`, blue first) on the panel: the frames the
     /// rasteriser made.
-    fn show_picture(&mut self, frame: &[u8], width: i32, height: i32) {
+    fn show_picture(&mut self, frame: &[u8], width: i32, height: i32, menu: bool) {
         self.upload_canvas(frame, width, height);
         self.plain_state();
-        self.panel_viewport(width, height);
-        self.draw_quad(&self.canvas_quad, false);
+        let placed = self.panel_viewport(width, height, menu);
+        self.set_filter(placed.sharp);
+        self.draw_quad(&self.canvas_quad, false, Some(placed));
+        self.set_filter(true);
         self.gl.swap_buffers();
     }
 
@@ -1538,11 +1623,11 @@ impl Gpu {
                     }
                     self.draw(part);
                 }
-                Job::ShowTarget => {
+                Job::ShowTarget { menu } => {
                     let wait = sampler
                         .as_mut()
                         .is_some_and(super::gpu_time::Sampler::frame_ends);
-                    let waited = self.show_target(wait);
+                    let waited = self.show_target(wait, menu);
                     if let Some(sampler) = &mut sampler {
                         match waited {
                             Some(waited) => sampler.counted(waited),
@@ -1558,7 +1643,8 @@ impl Gpu {
                     frame,
                     width,
                     height,
-                } => self.show_picture(&frame, width, height),
+                    menu,
+                } => self.show_picture(&frame, width, height, menu),
                 Job::ReadTarget(answer) => {
                     let _ = answer.send(self.read_target());
                 }
@@ -1711,18 +1797,19 @@ impl Front {
     }
 
     /// The frame's end: what the canvas has written over the target, and the target shown.
-    pub fn finish_and_show(&mut self, target: &Target, canvas: &mut [u8]) {
+    pub fn finish_and_show(&mut self, target: &Target, canvas: &mut [u8], menu: bool) {
         self.draw(target, canvas, CommandList::new());
         super::seethru::frame_end();
-        self.send(Job::ShowTarget);
+        self.send(Job::ShowTarget { menu });
     }
 
     /// A picture of the game's bytes on the panel.
-    pub fn show_picture(&mut self, frame: &[u8], width: usize, height: usize) {
+    pub fn show_picture(&mut self, frame: &[u8], width: usize, height: usize, menu: bool) {
         self.send(Job::ShowPicture {
             frame: frame.to_vec(),
             width: width as i32,
             height: height as i32,
+            menu,
         });
     }
 

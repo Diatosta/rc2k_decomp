@@ -3,7 +3,7 @@
 //! `ObjectWork.view_cleared[1]` are 0 and in turn, with the race's sound tick between the groups:
 //! the car lights' modes, the point records cleared, the fog, the camera's view, the sky and the
 //! draw batch flushed, the view's light; the lamps reset, `view_lamps` 0, the course's view
-//! prepared, its visible faces, the EAX environment, the lamps gathered and wanted; the sort
+//! prepared, its visible faces, the lamps gathered and wanted; the sort
 //! entries sorted and drawn, the race's slots; the cars' shadows, the skidmarks, the car lights;
 //! the depth entries sorted and drawn, the batch flushed, the view's value stored.
 
@@ -12,26 +12,17 @@ use crate::race::owner::Race;
 use crate::race::view_scratch::{DrawCtx, ViewScratch};
 
 /// What a view's drawing hands on, none for a covered view (`draw_view_tint` only, which leaves the
-/// last ones): its EAX weight (`race::eax_environment`), its value for its block
+/// last ones): its value for its block
 /// (`race::store_view_value`: the block and the sun on the screen) and whether its camera set its
 /// view matrices (`race::camera_view`, handed on by `race::hand_on_view_matrices`). Applied by the
 /// game's thread once the view is drawn, in the views' order (the drawing parts write none).
 #[derive(Clone, Copy, Debug, Default)]
 pub struct ViewOutput {
-    pub environment: Option<u32>,
     pub view_value: Option<(usize, u32)>,
     pub view_matrices: bool,
 }
 
 impl ViewOutput {
-    /// The view's EAX weight as the race's environment (`Audio::environment`), where the audio
-    /// thread reads it.
-    pub fn publish_environment(self, audio: &crate::audio::owner::Audio) {
-        if let Some(weight) = self.environment {
-            audio.environment.set(weight);
-        }
-    }
-
     /// The view's value into its block (`race::store_view_value`).
     pub fn store_view_value(self, race: &Race) -> Result<(), Refused> {
         match self.view_value {
@@ -104,13 +95,6 @@ pub fn draw_view_scene(
     // `view_lamps` is not set to 0 here: nothing reads it.
     prepare_course_view(reads, view, part)?;
     gather_visible_faces(&ctx)?;
-    let environment = eax_environment(
-        reads.frame_cars,
-        reads.course(),
-        reads.work,
-        &part.points,
-        &view.grid,
-    )?;
     gather_lamps(&ctx)?;
     lamps_wanted(reads.frame_cars, reads.work, reads.view, &view.lamps)?;
     // From here the view's own car can be drawn aside (`race::car_part`): its drawing reads nothing
@@ -150,7 +134,6 @@ pub fn draw_view_scene(
     }
     let view_value = view_value(reads.view, &view.polygon.sun, view.drawn_view(race))?;
     Ok(ViewOutput {
-        environment: Some(environment),
         view_value: Some(view_value),
         view_matrices: true,
     })

@@ -47,10 +47,7 @@ pub fn play_cue_queue(
     }
     crate::sound::drop_cue::write_words(q, queue.to_words())?;
     if let CueTurn::Play { sound } = turn {
-        // The co-driver's voice is not in the world: no reverb.
-        crate::audio::reverb_views::dry(|| {
-            crate::sound::play_sound::play_sound_in(audio, sound, OWN, OWN, [0; 3]);
-        });
+        crate::sound::play_sound::play_sound_in(audio, sound, OWN, OWN, [0; 3]);
     }
     Ok(())
 }

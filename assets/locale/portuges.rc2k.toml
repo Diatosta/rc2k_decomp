@@ -105,7 +105,6 @@ done = "pronto"
 [options]
 background_sound = "som fora da janela"
 film_volume = "volume dos filmes"
-reverb = "reverberação"
 network_port = "porta"
 
 # The graphics page's frame limit.

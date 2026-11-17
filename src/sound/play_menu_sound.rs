@@ -39,9 +39,7 @@ pub fn play_menu_sound(
         MenuVolume::B => menus.screens.flow.menu_sounds_volume.get(),
         MenuVolume::C => menus.options.snapshot().menu_effects_volume,
     };
-    crate::audio::reverb_views::dry(|| {
-        crate::sound::play_sound::play_sound_in(audio, sound, volume, 0xFFFF_FF91, [0; 3]);
-    });
+    crate::sound::play_sound::play_sound_in(audio, sound, volume, 0xFFFF_FF91, [0; 3]);
 }
 
 /// With the game's clock: what other Rust code calls.

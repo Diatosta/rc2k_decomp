@@ -24,6 +24,7 @@ The original was a 32-bit Windows program on DirectX. Its platform side was not 
 - The pause binding (a button on a pad and a key on the keyboard) asks the same
   "leave?" question as Escape, in place of the original's plain pause that waited for a key.
   The race still pauses until a key when its window stops being the active one.
+- A looping sound whose end does not run on into its start (several engine samples) has the two blended over 10 ms when it is loaded, so the turn of the loop is not heard as a click ([Sound samples](Sound-samples)).
 
 ## Controllers
 
@@ -82,7 +83,7 @@ More on [Network play](Network-play).
 - Controllers are read from a race's first moment (the original's input thread slept a second
   at each race's start), and at once after coming back to the window.
 - A loading bar is shown while a stage loads.
-- The volume page has a "film volume" slider (the intro and logo films; the last slider, above the music switch), the sound page a "sound when not in front" row (the original's sounds went quiet while its window was behind) and a "reverb" row (a reverb of the program's own for the race's sounds, from the original's EAX room presets and the weights of the course around each view; where that weight is very high, in a tunnel or a gateway, the room changes smoothly to a long, clear echo), and the network settings page a "port" row ([Options files](Options-files), [Network play](Network-play)).
+- The volume page has a "film volume" slider (the intro and logo films; the last slider, above the music switch), the sound page a "sound when not in front" row (the original's sounds went quiet while its window was behind), and the network settings page a "port" row ([Options files](Options-files), [Network play](Network-play)).
 - The hidden Pong game on the windscreen can be played: the bat follows player 1's steering ([Fixed bugs](Fixed-bugs)).
 - The loading screen does not hold up the load: the loading picture is shown once (the
   original showed it once for each page of its screen), and a bar frame is drawn only when
@@ -133,6 +134,14 @@ More on [Network play](Network-play).
 - Playing against the original program over a network.
 - The original's choice between 3D cards; the program picks its renderer itself
   (`RC2K_RENDERER=software` forces the rasteriser).
+- The window keeps the size of the race's screen mode from the start to the end. The original's menus
+  ran at 800 x 600 and switched the display when a race began or ended; here the menus are still drawn
+  at 800 x 600 (their pictures, layouts and fonts are made for it) and shown scaled in the window,
+  keeping the 4:3 shape and centred, with a linear filter (a whole-number factor stays sharp, so
+  1600 x 1200 shows each menu pixel as a 2 x 2 square). On a wider window the space beside the menu
+  continues the colours of the menu's edge, row by row; a race's own bars are black. The menu mode in
+  the options files is still read but no longer changes the window. The handheld's panel is
+  unchanged.
 - 16-bit screen modes: the screen always has 32 bits a pixel. A saved 16-bit mode is taken as
   the same size at 32 bits, and a first start picks 800 × 600 at 32 bits. The first logo
   film, which the original showed only on 16-bit screens, always plays.

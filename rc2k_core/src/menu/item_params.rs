@@ -60,8 +60,6 @@ pub enum OptionSwitch {
     Channels,
     /// Sound while the window is not in front (`platform::sound::SOUND_IN_BACKGROUND`).
     SoundInBackground,
-    /// The race's reverb (`platform::sound::REVERB`).
-    Reverb,
 }
 
 /// The stage pages' two counters.

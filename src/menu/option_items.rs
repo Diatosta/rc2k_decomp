@@ -251,12 +251,6 @@ pub fn switch(o: Owners<'static>, which: OptionSwitch) -> Result<(), Refused> {
         on.store(!on.load(Relaxed), Relaxed);
         return Ok(());
     }
-    if which == OptionSwitch::Reverb {
-        use std::sync::atomic::Ordering::Relaxed;
-        let on = &crate::platform::sound::REVERB;
-        on.store(!on.load(Relaxed), Relaxed);
-        return Ok(());
-    }
     let copy = |other: StepOperand| Kind::SwitchCopy { other, flip: false };
     let flip = |other: StepOperand| Kind::SwitchCopy { other, flip: true };
     let (var, kind) = match which {
@@ -307,7 +301,7 @@ pub fn switch(o: Owners<'static>, which: OptionSwitch) -> Result<(), Refused> {
         OptionSwitch::Eax => (var!(@o menus.options.eax), Kind::SwitchAudio),
         OptionSwitch::Dolby => (var!(@o menus.options.dolby), Kind::SwitchAudio),
         OptionSwitch::Channels => (var!(@o menus.options.channels), Kind::SwitchAudio),
-        OptionSwitch::SoundInBackground | OptionSwitch::Reverb => return Ok(()),
+        OptionSwitch::SoundInBackground => return Ok(()),
     };
     option_item(o, Item { var, kind })
 }

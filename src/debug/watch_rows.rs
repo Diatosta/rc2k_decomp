@@ -3159,30 +3159,6 @@ pub static GROUPS: &[Group] = &[
         name: "Sound",
         rows: &[
             Row::typed(
-                "Reverb (EAX) faces",
-                "nrvbpols",
-                Shown::Whole,
-                store_cell!(|o| o.race.frame.sound_spots(), eax_face_count),
-                false,
-                (0, 0),
-            ),
-            Row::typed(
-                "Reverb environment 1",
-                "rvbtotal",
-                Shown::Whole,
-                store_cell!(|o| o.audio, environment),
-                false,
-                (0, 0),
-            ),
-            Row::typed(
-                "Reverb environment 2",
-                "rvbtotal",
-                Shown::Float,
-                store_cell!(|o| o.audio, environment),
-                false,
-                (0, 0),
-            ),
-            Row::typed(
                 "Listener near",
                 "commu.hd",
                 Shown::Whole,

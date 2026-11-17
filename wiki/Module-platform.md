@@ -18,7 +18,7 @@ Its own statics, not an owner: the window and the screen's pixels (`Screen` in
 | Item | File | What it does |
 | --- | --- | --- |
 | `choose_screen_modes`, `set_mode_now` | `src/platform/mod.rs` | Screen modes: which exist, and switching to one. |
-| `lock_surface`, `unlock_surface`, `show_frame_now` | `src/platform/mod.rs` | Access to the screen's pixels, and putting the finished picture on the window. |
+| `lock_surface`, `unlock_surface`, `show_frame_now` | `src/platform/mod.rs` | Access to the screen's pixels, and putting the finished picture on the window (a frame of another size than the window's, the menus' 800 x 600, is fitted by `rc2k_core::gfx::screen_fit`). |
 | `frame_shown`, `set_display` | `src/platform/pacing.rs` | The frames' pace: after a frame is shown, the wait until the next one is due, on the display's refresh or by the graphics page's frame limit. |
 | `pump` | `src/platform/events.rs` | Handles the window's and the devices' events. |
 | `draw_fan`, `flush`, `take_noted` | `src/platform/direct3d.rs` | Where the 3D layer's calls become drawing commands for a renderer. |

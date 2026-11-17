@@ -60,11 +60,15 @@ pub enum Job<Draw> {
     /// The textures whose memory is gone, by address.
     Forget(Vec<TextureId>),
     Draw(Draw),
-    ShowTarget,
+    /// The target shown; `menu`: the frame is a menu's.
+    ShowTarget {
+        menu: bool,
+    },
     ShowPicture {
         frame: Vec<u8>,
         width: i32,
         height: i32,
+        menu: bool,
     },
     ReadTarget(Sender<Vec<u8>>),
 }
@@ -155,15 +159,17 @@ pub fn batched(
             opacity.forget(&gone);
             Job::Forget(gone)
         }
-        Job::ShowTarget => Job::ShowTarget,
+        Job::ShowTarget { menu } => Job::ShowTarget { menu },
         Job::ShowPicture {
             frame,
             width,
             height,
+            menu,
         } => Job::ShowPicture {
             frame,
             width,
             height,
+            menu,
         },
         Job::ReadTarget(answer) => Job::ReadTarget(answer),
     }
@@ -367,7 +373,7 @@ mod tests {
                 scale: 100,
             }));
             if numbers.below(2) == 0 {
-                jobs.push(Job::ShowTarget);
+                jobs.push(Job::ShowTarget { menu: false });
             }
         }
         jobs
@@ -509,11 +515,13 @@ mod tests {
             frame: vec![1, 2],
             width: 1,
             height: 2,
+            menu: false,
         };
         let Job::ShowPicture {
             frame,
             width,
             height,
+            ..
         } = batched(&mut opacity, job, same_size, true)
         else {
             panic!("a picture not shown");
@@ -528,8 +536,13 @@ mod tests {
         answer.send(vec![9]).unwrap();
         assert_eq!(picture.recv().unwrap(), vec![9]);
         assert!(matches!(
-            batched(&mut opacity, Job::ShowTarget, same_size, true),
-            Job::ShowTarget
+            batched(
+                &mut opacity,
+                Job::ShowTarget { menu: false },
+                same_size,
+                true
+            ),
+            Job::ShowTarget { .. }
         ));
     }
 

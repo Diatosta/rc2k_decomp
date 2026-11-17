@@ -36,7 +36,6 @@ pub fn send_command_in(audio: &Audio, command: Command) {
 pub fn send_with_eax_in(audio: &Audio, command: Command, first_word: Option<u32>) {
     #[cfg(feature = "remote")]
     crate::audio::mix_hash::set_racing(audio.racing.is_set());
-    crate::platform::sound::set_race_sounds(audio.racing.is_set());
     let (number, mut registers) = command.record_words();
     if let Some(word) = first_word {
         registers[0] = word;

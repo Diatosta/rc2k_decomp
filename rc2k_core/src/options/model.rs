@@ -141,10 +141,6 @@ impl Default for Display {
 /// The films' volume at its fullest (the sliders' range is 0 ..= 0x40).
 pub const FILM_VOLUME_FULL: u32 = 0x40;
 
-fn reverb_on() -> bool {
-    true
-}
-
 fn film_volume_full() -> u32 {
     FILM_VOLUME_FULL
 }
@@ -186,9 +182,6 @@ pub struct Sound {
     /// when missing).
     #[serde(default)]
     pub sound_in_background: bool,
-    /// Whether the race's sounds go through a reverb (only in the new file; on when missing).
-    #[serde(default = "reverb_on")]
-    pub reverb: bool,
 }
 
 impl Default for Sound {
@@ -212,7 +205,6 @@ impl Default for Sound {
             engine_volume: 0,
             film_volume: FILM_VOLUME_FULL,
             sound_in_background: false,
-            reverb: true,
         }
     }
 }

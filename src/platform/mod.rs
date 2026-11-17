@@ -62,8 +62,16 @@ pub(crate) struct Screen {
     #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))]
     // the handheld shows frames on its framebuffer
     texture: sdl::Texture,
+    /// The frame's size: what the game draws on (800 x 600 in the menus, the race's mode in a race).
     width: usize,
     height: usize,
+    /// The window's size: the race's mode, from the start to the end; a frame of another size is
+    /// shown scaled in it (`rc2k_core::gfx::screen_fit`).
+    window_size: (usize, usize),
+    /// The frame is a menu's: the window's side space beside it continues its edge colours.
+    #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))]
+    // the handheld's panel is the frame's own size
+    menu: bool,
     bits: u32,
     /// The pixels the game draws on, named by `locked_pixels::SCREEN` while the screen lives.
     pixels: std::sync::Arc<crate::memory::pool::PoolBytes>,
@@ -135,8 +143,30 @@ pub fn choose_screen_modes(
 
 // ---- gfx::set_screen_mode ----
 
+/// What a screen mode is for: the window's size follows from it.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Purpose {
+    /// A race's (or a trial of one's) mode: the window has the frame's size.
+    Race,
+    /// The menus' frame: the window stays at the race's size, the frame is shown scaled in it
+    /// (the handheld's panel shows the frame itself).
+    Menu,
+}
+
+/// The screen's size in the mode table for `mode`.
+fn mode_size(gfx: &crate::gfx::owner::Gfx, mode: u32) -> Option<(u32, u32)> {
+    use crate::gfx::modes::Modes;
+    let size = gfx.display.modes.value_of(
+        rc2k_core::gfx::screen_modes::at_32_bits(mode) & 0xFF,
+        Modes::SIZES_AT,
+        8,
+    )?;
+    Some((size & 0xFFFF, size >> 16))
+}
+
 fn set_screen_mode(
     mode: u32,
+    purpose: Purpose,
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<(), String> {
@@ -204,6 +234,18 @@ fn set_screen_mode(
     let mut screen = SCREEN.lock().map_err(|_| "the screen's lock")?;
     // The old frame's texture is dropped only once the new screen is whole: on a failure
     // the old one stays as it was.
+    // The window is the race's size for the menus' frame too, so that it does not change between
+    // a menu and a race.
+    let window_size = match purpose {
+        Purpose::Menu if cfg!(not(all(target_os = "linux", target_arch = "aarch64"))) => {
+            mode_size(gfx, gfx.display.mode.race_mode.get())
+                .map_or((width as usize, height as usize), |(w, h)| {
+                    (w as usize, h as usize)
+                })
+        }
+        _ => (width as usize, height as usize),
+    };
+    let window_before = screen.as_ref().map(|old| old.window_size);
     let (window, renderer) = match screen.as_ref() {
         Some(old) => (old.window, old.renderer),
         None => {
@@ -217,7 +259,7 @@ fn set_screen_mode(
                 return Err("SDL does not start".into());
             }
             let Some(window) =
-                sdl::create_window(c"Rally Championship", width as usize, height as usize)
+                sdl::create_window(c"Rally Championship", window_size.0, window_size.1)
             else {
                 return Err("SDL opens no window".into());
             };
@@ -230,7 +272,7 @@ fn set_screen_mode(
             // (`make_window_renderer`). The handheld's GPU starts with its first frame
             // (`render::show_on_panel`).
             #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-            let renderer = make_window_renderer(window, (width as usize, height as usize));
+            let renderer = make_window_renderer(window, window_size);
             #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
             let renderer = sdl::create_renderer(window);
             let Some(renderer) = renderer else {
@@ -250,7 +292,12 @@ fn set_screen_mode(
             (window, renderer)
         }
     };
-    window.set_size(width as usize, height as usize);
+    // Only a change of the window's size touches the window: the player's own resizing stays
+    // through the menus and the races.
+    let window_changed = window_before != Some(window_size);
+    if window_changed {
+        window.set_size(window_size.0, window_size.1);
+    }
     let Some(texture) = renderer.create_frame_texture(width as usize, height as usize) else {
         return Err("SDL makes no texture for the frame".into());
     };
@@ -260,7 +307,7 @@ fn set_screen_mode(
     renderer.clear_black();
     renderer.present();
     #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-    place_shown_window(window, width as usize, height as usize);
+    place_shown_window(window, window_size.0, window_size.1, window_changed);
     // The OpenGL backend's window, where it shows the frames, never waits for the refresh.
     #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
     let shows_itself = crate::render::gles::window().is_some();
@@ -299,6 +346,8 @@ fn set_screen_mode(
         texture,
         width: width as usize,
         height: height as usize,
+        window_size,
+        menu: purpose == Purpose::Menu,
         bits,
         pixels,
     });
@@ -339,7 +388,7 @@ fn make_window_renderer(window: sdl::Window, size: (usize, usize)) -> Option<sdl
 /// window takes the game's place (same title, icon, size and spot, the keyboard), SDL's renderer
 /// keeping the one it was made on, hidden; with no OpenGL window the game's own is shown.
 #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-fn place_shown_window(window: sdl::Window, width: usize, height: usize) {
+fn place_shown_window(window: sdl::Window, width: usize, height: usize, size_changed: bool) {
     let Some(gl) = crate::render::gles::window() else {
         window.show_raised();
         return;
@@ -348,7 +397,9 @@ fn place_shown_window(window: sdl::Window, width: usize, height: usize) {
         Some(p) if sdl::set_window_icon(gl, p.width, p.height, &p.rgb) => {}
         _ => log("platform: the window's icon was not set"),
     }
-    gl.set_size(width, height);
+    if size_changed || gl.is_hidden() {
+        gl.set_size(width, height);
+    }
     if gl.is_hidden() {
         // First shown: where the game's window was; after that the player's own place for it.
         gl.set_position(window.position());
@@ -502,6 +553,8 @@ fn rebuild_renderer(
         texture,
         width: screen_width,
         height: screen_height,
+        window_size,
+        menu,
         bits,
         pixels,
     } = old;
@@ -519,7 +572,7 @@ fn rebuild_renderer(
     }
     crate::render::choice::set_swapped_to(wish);
     // Some renderer is made whatever the choice gives: the window needs one.
-    let Some(renderer) = make_window_renderer(window, (screen_width, screen_height)) else {
+    let Some(renderer) = make_window_renderer(window, window_size) else {
         crate::fatal::raise::end(
             "platform::swap_renderer",
             crate::errors::BadInput("SDL makes no renderer for the window"),
@@ -538,7 +591,7 @@ fn rebuild_renderer(
     {
         window.set_position(at);
     }
-    place_shown_window(window, screen_width, screen_height);
+    place_shown_window(window, window_size.0, window_size.1, true);
     crate::platform::pacing::set_display(
         window.display_refresh(),
         renderer.present_waits() && crate::render::gles::window().is_none(),
@@ -550,6 +603,8 @@ fn rebuild_renderer(
         texture,
         width: screen_width,
         height: screen_height,
+        window_size,
+        menu,
         bits,
         pixels,
     });
@@ -564,7 +619,7 @@ pub fn set_mode_now(
 ) -> bool {
     // The 3D drawing noted so far, before the screen is shown, written or changed.
     crate::platform::direct3d::flush();
-    let done = set_screen_mode(mode, gfx, system);
+    let done = set_screen_mode(mode, Purpose::Race, gfx, system);
     if let Err(why) = &done {
         log(&format!("platform: screen mode {mode:#x}: {why}"));
     }
@@ -581,8 +636,13 @@ pub fn set_menu_mode_now(
 ) -> bool {
     // The 3D drawing noted so far, before the screen is shown, written or changed.
     crate::platform::direct3d::flush();
+    // The menus' frame is always 800 x 600 (the kind of pixel the race's): what the options
+    // keep as the menus' mode no longer changes it.
+    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    let mode = rc2k_core::gfx::screen_modes::menu_mode_for(gfx.display.mode.race_mode.get());
+    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
     let mode = gfx.display.mode.menu_mode.get();
-    let done = set_screen_mode(mode, gfx, system);
+    let done = set_screen_mode(mode, Purpose::Menu, gfx, system);
     if let Err(why) = &done {
         log(&format!("platform: screen mode {mode:#x}: {why}"));
     }
@@ -710,6 +770,7 @@ fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(),
                 |show| with_frame(screen, show),
                 screen.width,
                 screen.height,
+                screen.menu,
             )
         {
             return Ok(());
@@ -727,21 +788,84 @@ fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(),
         {
             return Err("SDL cannot take the frame into its texture");
         }
-        renderer.clear_black();
-        if gpu_view {
-            let view = GPU_VIEW.lock().unwrap();
-            // `make_view` has just made it.
-            if let Some(view) = view.1.as_ref() {
-                renderer.draw_whole(view);
-            }
-        } else {
-            renderer.draw_whole(&screen.texture);
-        }
+        // `make_view` has just made the GPU's view.
+        let view = GPU_VIEW.lock().unwrap();
+        let texture = view
+            .1
+            .as_ref()
+            .filter(|_| gpu_view)
+            .unwrap_or(&screen.texture);
+        show_fitted(renderer, texture, screen);
+        drop(view);
         // The debug UI over the frame.
         crate::debug::imgui_sdl::draw(o, renderer, screen.window);
         renderer.present();
         Ok(())
     }
+}
+
+/// The frame's texture drawn on the window: the frame keeps its shape and is centred, magnified
+/// with a linear filter (none for a whole factor, which stays sharp). The window's rest is black
+/// in a race; beside a menu's frame it continues the colours of the frame's edge, each row of a
+/// side the colour of its row's edge pixel (the same for the rows above and below a frame that
+/// is wider than the window's shape).
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+fn show_fitted(renderer: sdl::Renderer, texture: &sdl::Texture, screen: &Screen) {
+    let (frame_width, frame_height) = (screen.width as u32, screen.height as u32);
+    let window = renderer
+        .window_pixels()
+        .unwrap_or((screen.window_size.0 as u32, screen.window_size.1 as u32));
+    let fit = rc2k_core::gfx::screen_fit::fit((frame_width, frame_height), window);
+    texture.set_sharp(fit.sharp);
+    renderer.clear_black();
+    if fit.is_whole(window) {
+        renderer.draw_whole(texture);
+        return;
+    }
+    if screen.menu {
+        // One pixel wide (or high) strips of the frame's edges, stretched over the bars; the
+        // strips take no filter, which would draw the next column in.
+        let strips = [
+            (
+                [0, 0, 1, frame_height],
+                [0, fit.y, fit.x, fit.height],
+                fit.x > 0,
+            ),
+            (
+                [frame_width - 1, 0, 1, frame_height],
+                [
+                    fit.x + fit.width,
+                    fit.y,
+                    window.0 - fit.x - fit.width,
+                    fit.height,
+                ],
+                fit.x > 0,
+            ),
+            (
+                [0, 0, frame_width, 1],
+                [fit.x, 0, fit.width, fit.y],
+                fit.y > 0,
+            ),
+            (
+                [0, frame_height - 1, frame_width, 1],
+                [
+                    fit.x,
+                    fit.y + fit.height,
+                    fit.width,
+                    window.1 - fit.y - fit.height,
+                ],
+                fit.y > 0,
+            ),
+        ];
+        texture.set_sharp(true);
+        for (from, to, wanted) in strips {
+            if wanted {
+                renderer.draw_part(texture, Some(from), to);
+            }
+        }
+        texture.set_sharp(fit.sharp);
+    }
+    renderer.draw_part(texture, None, [fit.x, fit.y, fit.width, fit.height]);
 }
 
 /// The frames' running counters, for the debug UI's profiler: microseconds in the

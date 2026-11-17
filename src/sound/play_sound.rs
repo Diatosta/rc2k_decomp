@@ -25,7 +25,6 @@ pub fn play_sound_in(audio: &Audio, sound: u32, volume: u32, rate: u32, place: [
             place,
             ..Start::from_words(sound, volume, pan, rate, [0; 3])
         };
-        crate::audio::reverb_views::tag(sound);
         send_command_in(audio, Command::Start(start));
     }
 }

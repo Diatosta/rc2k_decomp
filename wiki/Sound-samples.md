@@ -82,6 +82,11 @@ Stereo samples are stored left then right for each moment, as usual.
   nothing is gained by a rate above 44,100 Hz.
 - Whether a sample loops is the record's choice. A looping sample loops over its whole
   length; there are no loop points in the file. Make a looping sound's end meet its start.
+  When it does not (the step from the last frame to the first is larger than 95 % of the
+  steps inside the sample), the game blends the last 10 ms into the first 10 ms when it
+  loads the sample and ends the sample where the blend begins, so the turn of the loop is
+  not heard as a click; the sample is 10 ms shorter then. Several of the engine samples
+  needed it.
 - The pitch of engine and tyre sounds is changed while they play; the file's rate is only the
   starting point.
 

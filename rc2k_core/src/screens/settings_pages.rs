@@ -46,10 +46,10 @@ pub fn sound_items(has_3d: bool, has_eax: bool) -> Vec<(u32, bool)> {
     out
 }
 
-/// The sound page's seven names (each a string id), from y 0x10B every 0x1B.
+/// The sound page's six names (each a string id), from y 0x10B every 0x1B.
 pub fn sound<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
-    ids: [u32; 7],
+    ids: [u32; 6],
 ) -> Result<Drawn, S::Error> {
     names(s, ids.into_iter().zip((0..).map(|n| 0x10B + 0x1B * n)))
 }

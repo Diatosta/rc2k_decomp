@@ -6,14 +6,12 @@ use crate::errors::BadInput;
 use crate::race::owner_course::CourseReads;
 
 mod course_view;
-mod environment;
 mod lights;
 mod panel;
 mod scene_objects;
 mod view;
 
 pub use course_view::*;
-pub use environment::*;
 pub use lights::*;
 pub use panel::*;
 pub use scene_objects::*;

@@ -204,6 +204,17 @@ mod tests {
     }
 
     #[test]
+    fn a_removed_sound_key_is_ignored() {
+        // Files written while the sound page had a reverb row still have its key.
+        let base = sample();
+        for value in ["true", "false", "1"] {
+            let text = format!("version = 2\n[sound]\nmaster_volume = 4\nreverb = {value}\n");
+            let o = read(&text, &base).unwrap().unwrap();
+            assert_eq!(o.sound.master_volume, 4);
+        }
+    }
+
+    #[test]
     fn unknown_keys_stay_when_the_file_is_written_over() {
         let old = "version = 2\nfuture = 3\n[later]\na = 1\n";
         let text = write(&sample(), Some(old)).unwrap();

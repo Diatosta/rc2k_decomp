@@ -36,92 +36,6 @@ pub static SOUND_IN_BACKGROUND: std::sync::atomic::AtomicBool =
 /// The films' volume, 0 ..= `FULL_VOLUME` (the volume page's "film volume").
 pub static FILM_VOLUME: std::sync::atomic::AtomicU32 =
     std::sync::atomic::AtomicU32::new(FULL_VOLUME);
-/// Whether the race's sounds go through the reverb (the sound page's "reverb" row).
-pub static REVERB: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
-
-/// The room the race asked for (`rc2k_core::audio::reverb::ROOMS`' index).
-static REVERB_ROOM: std::sync::atomic::AtomicU32 =
-    std::sync::atomic::AtomicU32::new(rc2k_core::audio::reverb::RACE_ROOM as u32);
-
-/// The views' reverb weights (float bits, one for each player's view; 1.0 at a race's start).
-pub const MOST_VIEWS: usize = 4;
-static VIEW_WEIGHTS: [std::sync::atomic::AtomicU32; MOST_VIEWS] =
-    [const { std::sync::atomic::AtomicU32::new(0x3F80_0000) }; MOST_VIEWS];
-
-/// How far each view is under cover (a float's bits, 0.0 ..= 1.0: in a tunnel or gateway), as
-/// the last scene drawn found it from its weight.
-static VIEW_COVER: [std::sync::atomic::AtomicU32; MOST_VIEWS] =
-    [const { std::sync::atomic::AtomicU32::new(0) }; MOST_VIEWS];
-
-/// The weights between which a view goes from open to under cover. The course's own marks of
-/// reverberant places (tunnels and gateways carry a strong one, and walls count too) give the
-/// weight 3 .. 50 in the open and 90 or more in a tunnel or gateway.
-const COVER_FROM: f32 = 55.0;
-const COVER_FULL: f32 = 95.0;
-
-/// The cover a weight means, 0.0 (open) ..= 1.0 (under cover).
-pub fn cover_of_weight(weight: f32) -> f32 {
-    if !weight.is_finite() {
-        return 0.0;
-    }
-    ((weight - COVER_FROM) / (COVER_FULL - COVER_FROM)).clamp(0.0, 1.0)
-}
-
-/// Seconds the heard cover takes to follow the found one (about two thirds of the way).
-const COVER_FOLLOWS: f32 = 0.35;
-
-/// The room asked for: a number past the table is kept out.
-pub fn set_reverb_room(room: u32) {
-    if (room as usize) < rc2k_core::audio::reverb::ROOMS.len() {
-        REVERB_ROOM.store(room, std::sync::atomic::Ordering::Relaxed);
-    }
-}
-
-/// The reverb weight of the surroundings of player view `view` (float bits).
-pub fn set_view_weight(view: usize, weight: u32) {
-    if let Some(slot) = VIEW_WEIGHTS.get(view) {
-        slot.store(weight, std::sync::atomic::Ordering::Relaxed);
-    }
-    if let Some(slot) = VIEW_COVER.get(view) {
-        let cover = cover_of_weight(f32::from_bits(weight));
-        slot.store(cover.to_bits(), std::sync::atomic::Ordering::Relaxed);
-    }
-}
-
-/// A check's notes start again with the next stretch mixed (a race starts).
-#[cfg(feature = "remote")]
-static NOTES_RESET: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-
-/// A race starts: every view's weight back to 1.0.
-pub fn reset_view_weights() {
-    for slot in &VIEW_WEIGHTS {
-        slot.store(0x3F80_0000, std::sync::atomic::Ordering::Relaxed);
-    }
-    for slot in &VIEW_COVER {
-        slot.store(0, std::sync::atomic::Ordering::Relaxed);
-    }
-    #[cfg(feature = "remote")]
-    NOTES_RESET.store(true, std::sync::atomic::Ordering::Relaxed);
-}
-
-/// Whether a race is loaded: the sounds then are the race's, which the reverb takes.
-static RACE_SOUNDS: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-
-/// A race is loaded, or over.
-pub fn set_race_sounds(racing: bool) {
-    RACE_SOUNDS.store(racing, std::sync::atomic::Ordering::Relaxed);
-}
-
-/// During a race, puts buffer `id`'s sound into the reverb of view `view`'s surroundings (the
-/// sounds of the menus stay dry).
-pub fn set_reverb_view(id: u32, view: Option<usize>) {
-    if !RACE_SOUNDS.load(std::sync::atomic::Ordering::Relaxed) {
-        return;
-    }
-    with_buffer(id, |b| {
-        b.reverb_view = view.map(|view| view.min(MOST_VIEWS - 1) as u8);
-    });
-}
 
 const E_NOINTERFACE: i32 = 0x8000_4002u32 as i32;
 /// `DSERR_NODRIVER`.
@@ -189,11 +103,6 @@ struct Buffer {
     pan: i32,
     /// Its place in 3D, once its 3D interface was asked for.
     space: Option<Space>,
-    /// The view whose surroundings' reverb the buffer's sound goes to (none: dry).
-    reverb_view: Option<u8>,
-    /// How much of it goes to the reverb now (it moves towards the level the room and the
-    /// view's weight give, over each stretch mixed).
-    send: f32,
 }
 
 /// A buffer's 3D settings (DirectSound 3D's defaults at first; the game sets only the
@@ -271,20 +180,6 @@ struct State {
     rolloff: f32,
     /// The window's focus flag (1: in front), set when the device is created.
     window_focused: Option<&'static crate::memory::session::Dword>,
-    reverb: rc2k_core::audio::reverb::Reverb,
-    /// The room the reverb has been set to.
-    reverb_room: usize,
-    /// The cover each view hears now, following `VIEW_COVER` over some tenths of a second.
-    cover: [f32; MOST_VIEWS],
-    /// The room the reverb is set to now, from the race's room and the first view's cover.
-    reverb_set: Option<rc2k_core::audio::reverb::Room>,
-    /// A check's notes: whether the first view is under cover, and the frames mixed.
-    #[cfg(feature = "remote")]
-    under_cover: bool,
-    #[cfg(feature = "remote")]
-    mixed: u64,
-    /// Frames left in which a tail may still be heard.
-    reverb_tail: usize,
 }
 
 static STATE: Mutex<Option<State>> = Mutex::new(None);
@@ -300,15 +195,6 @@ fn with<R>(f: impl FnOnce(&mut State) -> R) -> R {
         primary: None,
         rolloff: 1.0,
         window_focused: None,
-        reverb: rc2k_core::audio::reverb::Reverb::new(OUT_RATE),
-        reverb_room: rc2k_core::audio::reverb::RACE_ROOM,
-        cover: [0.0; MOST_VIEWS],
-        reverb_set: None,
-        #[cfg(feature = "remote")]
-        under_cover: false,
-        #[cfg(feature = "remote")]
-        mixed: 0,
-        reverb_tail: 0,
     }))
 }
 
@@ -458,8 +344,6 @@ pub fn create_sound_buffer(flags: u32, bytes: u32, format: Option<Format>) -> u3
                 volume: 0,
                 pan: 0,
                 space: None,
-                reverb_view: None,
-                send: 0.0,
             }),
         );
         if primary {
@@ -682,17 +566,7 @@ fn gain(centibels: i32) -> f32 {
 const SECONDARY_GAIN: f32 = 0.25;
 
 /// One buffer added into `out` (stereo frames at `OUT_RATE`), its position moved on.
-///
-/// `wet` (a send for each frame) takes the share of the buffer's sound the reverb is given,
-/// the send level moving from the buffer's last to `send_to` over the frames.
-fn mix_into(
-    b: &mut Buffer,
-    master: f32,
-    rolloff: f32,
-    out: &mut [f32],
-    wet: &mut [f32],
-    send_to: f32,
-) {
+fn mix_into(b: &mut Buffer, master: f32, rolloff: f32, out: &mut [f32]) {
     let f = b.format;
     let block = f.block() as usize;
     let frames = (b.bytes as usize / block).max(1);
@@ -718,10 +592,7 @@ fn mix_into(
         }
     };
     let bytes = (f.bits / 8) as usize;
-    let send_from = b.send;
-    let ramp = (send_to - send_from) / (out.len() / 2).max(1) as f32;
-    b.send = send_to;
-    for (n, frame) in out.as_chunks_mut::<2>().0.iter_mut().enumerate() {
+    for frame in out.as_chunks_mut::<2>().0.iter_mut() {
         let mut at = b.position as usize;
         if at >= frames {
             if !b.looping {
@@ -753,11 +624,8 @@ fn mix_into(
             (l, r)
         };
         let ((l0, r0), (l1, r1)) = (both(at), both(next));
-        let (dry_l, dry_r) = ((l0 + (l1 - l0) * t) * left, (r0 + (r1 - r0) * t) * right);
-        frame[0] += dry_l;
-        frame[1] += dry_r;
-        // The send is the sound as heard (its distance and place in it), as one channel.
-        wet[n] += (dry_l + dry_r) * 0.5 * (send_from + ramp * n as f32);
+        frame[0] += (l0 + (l1 - l0) * t) * left;
+        frame[1] += (r0 + (r1 - r0) * t) * right;
         b.position += step;
     }
 }
@@ -804,16 +672,12 @@ fn feed(wanted: i32) -> Option<Vec<i16>> {
 
 /// The playing buffers mixed into `frames` stereo frames for the device.
 pub(crate) fn mixed_frames(frames: usize) -> Vec<i16> {
-    use rc2k_core::audio::reverb::{ROOMS, room_under_cover, send_level_covered};
     use std::sync::atomic::Ordering::Relaxed;
     let mut out = vec![0f32; frames * 2];
-    // What the buffers send to the reverb, a value for each frame.
-    let mut wet = vec![0f32; frames];
     // DirectSound's focus: while the window is not in front, a buffer made without
     // `DSBCAPS_GLOBALFOCUS` or `DSBCAPS_STICKYFOCUS` plays on unheard (the game asks for
     // neither, so it goes quiet and comes back with the focus).
     let mut unheard = Vec::new();
-    let mut unheard_wet = Vec::new();
     with(|s| {
         // Before the device exists nothing plays; the flag is then taken as set.
         let focused = s.window_focused.is_none_or(|flag| flag.get() == 1)
@@ -826,45 +690,6 @@ pub(crate) fn mixed_frames(frames: usize) -> Vec<i16> {
             })
             .unwrap_or(1.0);
         let rolloff = s.rolloff;
-        let room = (REVERB_ROOM.load(Relaxed) as usize).min(ROOMS.len() - 1);
-        s.reverb_room = room;
-        // Each view's heard cover moves towards the found one by the time this stretch took.
-        let follow = 1.0
-            - rc2k_core::math::portable::powf(
-                std::f32::consts::E,
-                -(frames as f32) / (COVER_FOLLOWS * OUT_RATE as f32),
-            );
-        for (heard, found) in s.cover.iter_mut().zip(&VIEW_COVER) {
-            let found = f32::from_bits(found.load(Relaxed));
-            *heard += (found - *heard) * follow;
-        }
-        // The reverb's room follows the first view's cover: the open room with no cover, a
-        // tunnel's long echo under it.
-        #[cfg(feature = "remote")]
-        {
-            // A check's note of when the first view goes under cover and out, in seconds of the
-            // race's sound.
-            if NOTES_RESET.swap(false, Relaxed) {
-                s.mixed = 0;
-            }
-            let under = s.cover[0] > 0.5;
-            if under != s.under_cover {
-                s.under_cover = under;
-                crate::logfile::program_log::log(&format!(
-                    "reverb: cover {} at {:.2} s",
-                    if under { "begins" } else { "ends" },
-                    s.mixed as f64 / OUT_RATE as f64
-                ));
-            }
-            s.mixed += frames as u64;
-        }
-        let covered_room = room_under_cover(&ROOMS[room], s.cover[0]);
-        if s.reverb_set != Some(covered_room) {
-            s.reverb_set = Some(covered_room);
-            s.reverb.set_room(&covered_room);
-        }
-        let reverb_on = REVERB.load(Relaxed);
-        let mut sending = false;
         for e in s.entries.values_mut() {
             if let Kind::Buffer(b) = &mut e.kind
                 && b.playing
@@ -877,36 +702,13 @@ pub(crate) fn mixed_frames(frames: usize) -> Vec<i16> {
                 } else {
                     master * SECONDARY_GAIN
                 };
-                let send_to = match b.reverb_view {
-                    Some(view) if reverb_on => send_level_covered(
-                        &ROOMS[room],
-                        f32::from_bits(VIEW_WEIGHTS[view as usize].load(Relaxed)),
-                        s.cover[view as usize],
-                    ),
-                    _ => 0.0,
-                };
-                sending |= send_to > 0.0 || b.send > 0.0;
                 if focused || b.flags & (GLOBAL_FOCUS | STICKY_FOCUS) != 0 {
-                    mix_into(b, m, rolloff, &mut out, &mut wet, send_to);
+                    mix_into(b, m, rolloff, &mut out);
                 } else {
                     unheard.clear();
                     unheard.resize(out.len(), 0f32);
-                    unheard_wet.clear();
-                    unheard_wet.resize(frames, 0f32);
-                    mix_into(b, m, rolloff, &mut unheard, &mut unheard_wet, send_to);
+                    mix_into(b, m, rolloff, &mut unheard);
                 }
-            }
-        }
-        // The reverb runs while something is sent and for as long as its tail lasts.
-        if sending {
-            s.reverb_tail = (s.reverb.tail_seconds() * OUT_RATE as f32) as usize;
-        }
-        if s.reverb_tail > 0 {
-            s.reverb_tail = s.reverb_tail.saturating_sub(frames);
-            for (frame, send) in out.as_chunks_mut::<2>().0.iter_mut().zip(&wet) {
-                let (l, r) = s.reverb.step(*send);
-                frame[0] += l;
-                frame[1] += r;
             }
         }
     });

@@ -79,8 +79,6 @@ pub mod id {
     pub const BACKGROUND_SOUND: u32 = FIRST + 0xC0;
     pub const FILM_VOLUME: u32 = FIRST + 0xC1;
     pub const NETWORK_PORT: u32 = FIRST + 0xC2;
-    /// The sound page's switch for the race's reverb.
-    pub const REVERB: u32 = FIRST + 0xBB;
     /// The network settings' password row, the answer to a refused join (wrong or missing
     /// password), the mark before a locked session's name in the list.
     pub const NETWORK_PASSWORD: u32 = FIRST + 0xD0;
@@ -134,7 +132,6 @@ pub const KEYS: &[(&str, u32)] = &[
     ("h_shifter", id::H_SHIFTER),
     ("options.background_sound", id::BACKGROUND_SOUND),
     ("options.film_volume", id::FILM_VOLUME),
-    ("options.reverb", id::REVERB),
     ("options.network_port", id::NETWORK_PORT),
     ("network.password", id::NETWORK_PASSWORD),
     ("network.password_refused", id::PASSWORD_REFUSED),

@@ -107,8 +107,6 @@ pub struct AudioOwn {
     pub eax_room: PlainDword,
     /// The room set (6 at start).
     pub eax_room_set: PlainDword,
-    /// The race's environment (`ENVIRONMENT`) last set (1.0 at start).
-    pub environment_kept: PlainDword,
     /// The sounds' sample bytes: the work buffer, the stream's header and the kept samples.
     pub sample_data: SampleData,
     /// The mixing buffer: a turn's left and right dwords, from `mix_channels` to `write_mix`.
@@ -287,7 +285,6 @@ impl AudioOwn {
             eax_properties: PlainDword::new(0),
             eax_room: PlainDword::new(0x6),
             eax_room_set: PlainDword::new(0x6),
-            environment_kept: PlainDword::new(0x3f800000),
             sample_data: SampleData::new(),
             mix: std::sync::Mutex::new([0; MIX_BUFFER_LEN as usize / 4]),
         }

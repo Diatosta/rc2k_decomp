@@ -10,7 +10,7 @@
 //!
 //! With `RC2K_MIX_WAV=<file>` as well (or alone) the mixed frames of each turn are also written
 //! to a 16-bit stereo 44100 Hz WAV file, a new one for each race, to listen to what the mixer
-//! makes (the reverb on or off) on a machine without an audio device.
+//! makes on a machine without an audio device.
 
 use crate::debug::check_hash::CheckHasher;
 use std::hash::{Hash, Hasher};
