@@ -1,8 +1,9 @@
 //! Draws the on-screen keyboard (`rc2k_core::input::osk`) over the frame about to be shown: a
 //! dark panel above or below the field being edited (never over it), one tile per key, the key
 //! under the cursor on a bright tile, each key's text centred on its tile in the menus' list
-//! font. On both renderers: solid rectangles go to the GPU as quads where it draws the screen,
-//! else row by row on the canvas.
+//! font. The panel and the tiles are written into the frame's pixels on every renderer: what the
+//! menu left there under the panel is covered, and the button pictures blend their edges with
+//! the panel's colour (as the GPU's quads they would sit under the frame's written pixels).
 
 use crate::gfx::button_hints::width_of;
 use crate::gfx::typefaces::fonts;
@@ -91,11 +92,6 @@ pub fn pixel(rgb: u32, bits: u32) -> u32 {
 pub fn fill(o: crate::owners::Owners<'static>, rect: [i32; 4], rgb: u32) {
     let surface = crate::gfx::surface::surface(o.gfx);
     let value = pixel(rgb, surface.bits_per_pixel);
-    if surface.bits_per_pixel == 32
-        && crate::gfx::draw2d::quads::note_solid(&[rect], value.to_le_bytes(), surface.pitch)
-    {
-        return;
-    }
     let entry = [crate::memory::session::PlainDword::new(value)];
     let palette = crate::gfx::rect::Palette::Of(&entry);
     let [x, y, w, h] = rect;
