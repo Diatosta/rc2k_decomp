@@ -31,6 +31,7 @@ pub fn capture(o: Owners<'static>) -> Result<Options, Refused> {
     options.sound.film_volume = crate::platform::sound::FILM_VOLUME.load(Relaxed);
     options.sound.sound_in_background = crate::platform::sound::SOUND_IN_BACKGROUND.load(Relaxed);
     options.display.frame_limit = crate::platform::pacing::frame_limit();
+    options.display.render_scale = crate::render::render_scale();
     Ok(options)
 }
 
@@ -46,6 +47,7 @@ pub fn apply(o: Owners<'static>, options: &Options) -> Result<(), Refused> {
     crate::platform::sound::FILM_VOLUME.store(options.sound.film_volume, Relaxed);
     crate::platform::sound::SOUND_IN_BACKGROUND.store(options.sound.sound_in_background, Relaxed);
     crate::platform::pacing::set_frame_limit(options.display.frame_limit);
+    crate::render::set_render_scale(options.display.render_scale);
     Ok(())
 }
 

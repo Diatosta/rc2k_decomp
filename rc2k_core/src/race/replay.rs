@@ -23,9 +23,10 @@ pub const SEAL_VERSION: u8 = 6;
 /// The sealed part's key, "halfmoon".
 pub const SEAL_KEY: [u32; 2] = [0x666C_6168, 0x6E6F_6F6D];
 
-/// Whether replays are recorded: on (1), not a demonstration (0), neither other switch 1.
-pub fn replays_on(on: u32, demo: u32, a: u32, b: u32) -> bool {
-    on == 1 && demo == 0 && a != 1 && b != 1
+/// Whether replays are recorded: on (1), not a demonstration (0), and the race's own switch
+/// (`no_replay`) not 1. A network race records too.
+pub fn replays_on(on: u32, demo: u32, no_replay: u32) -> bool {
+    on == 1 && demo == 0 && no_replay != 1
 }
 
 /// Whether the disc has room for a replay (KB free, unsigned).
@@ -159,9 +160,9 @@ mod tests {
 
     #[test]
     fn recording() {
-        assert!(replays_on(1, 0, 0, 0));
-        assert!(!replays_on(2, 0, 0, 0) && !replays_on(1, 1, 0, 0));
-        assert!(!replays_on(1, 0, 1, 0) && !replays_on(1, 0, 0, 1));
+        assert!(replays_on(1, 0, 0));
+        assert!(!replays_on(2, 0, 0) && !replays_on(1, 1, 0));
+        assert!(!replays_on(1, 0, 1));
         assert!(room_for_replay(0x7800) && !room_for_replay(0x77FF));
         assert_eq!(frame_added(0x10, 98), (99, false));
         assert_eq!(frame_added(0x10, 99), (100, true));

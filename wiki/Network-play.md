@@ -63,6 +63,17 @@ in its chat. The player is told and leaves the lobby as if the host had gone, an
 show it. The stage bar along the top shows every car as a marker, each in its own colour, the
 own car's in white. Afterwards the results come up and the lobby returns for the next stage.
 
+**The replay.** A network race is recorded as a single race is, every car included: the other
+players' cars from the inputs their messages carry, and their whole state at the start of each
+second, as this machine saw it. Each machine records its own view, so the replays of one race
+differ a little between players (a remote car's position corrections are not recorded, only
+its inputs and its state each second). Once the race is over the lobby shows a **save replay**
+button at the top right (reached with the left key from the chat); it asks for a slot as the
+single-player results screen does, and the replay can then be watched from the replays menu.
+The file is a replay of the usual format, but it holds only the first two cars' inputs and the
+first four cars' states: a race of more than two players plays back with the other cars
+following their stored states only.
+
 ## From the command line
 
 `rc2k --host` and `rc2k --join <address>` go straight to the lobby, with `--name` and `--port`

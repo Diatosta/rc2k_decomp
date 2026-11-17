@@ -305,7 +305,6 @@ The rest are diagnostics for people working on the code. They change nothing unl
 | `RC2K_2D_CHECK`, `RC2K_QUAD_CHECK`, `RC2K_CANVAS_CHECK`, `RC2K_BACKGROUND_CHECK`, `RC2K_CHECK_SAME`, `RC2K_FRAME_VIEW_CHECK` | Self-checks of the drawing: the picture is made two ways and compared, with differences logged. |
 | `RC2K_COMPARE_FRAME`, `RC2K_COMPARE_OUT` | A file of a frame to compare the GPU's picture with, and where to write the result. |
 | `RC2K_DUMP` | Writes a frame's drawing commands to a file. |
-| `RC2K_FULL_RESOLUTION` | Handheld, software rasteriser: draw races at full size instead of half size. |
 | `RC2K_GPU_CUT` | A list of names (`fog`, `alpha`, `tex`, `blend`, ...): each removes one kind of GPU work, to see what it costs. The picture is wrong under a cut. |
 | `RC2K_GPU_TIME` | A number n: every n-th frame, measure how long the GPU still needed after the last command. |
 | `RC2K_GL_BENCH`, `RC2K_BREAKS_DUMP`, `RC2K_SEETHRU_AREA`, `RC2K_SEETHRU_DUMP` | Measurements of the handheld's OpenGL ES drawing. |

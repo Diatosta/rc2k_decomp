@@ -97,6 +97,7 @@ library! {
     glRenderbufferStorage: fn(u32, u32, i32, i32);
     glFramebufferRenderbuffer: fn(u32, u32, u32, u32);
     glCheckFramebufferStatus: fn(u32) -> u32;
+    glBlitFramebuffer: fn(i32, i32, i32, i32, i32, i32, i32, i32, u32, u32);
     glViewport: fn(i32, i32, i32, i32);
     glScissor: fn(i32, i32, i32, i32);
     glClearColor: fn(f32, f32, f32, f32);
@@ -574,6 +575,15 @@ impl Gles {
     pub fn framebuffer_status(&self, target: u32) -> u32 {
         // SAFETY: a plain number.
         unsafe { (self.table.glCheckFramebufferStatus)(target) }
+    }
+
+    /// The colour of the read framebuffer's rectangle (0, 0) to `from` copied to the draw
+    /// framebuffer's (0, 0) to `to`, each pixel the nearest.
+    pub fn blit_colour_nearest(&self, from: (i32, i32), to: (i32, i32)) {
+        // SAFETY: plain numbers; the framebuffers are bound by the caller.
+        unsafe {
+            (self.table.glBlitFramebuffer)(0, 0, from.0, from.1, 0, 0, to.0, to.1, 0x4000, 0x2600);
+        }
     }
 
     #[inline]

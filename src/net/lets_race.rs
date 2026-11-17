@@ -1,5 +1,5 @@
-//! Drives the network race: clears the stored cars' outputs, sets the HUD, plays the race, keeps
-//! the HUD; then returns this machine's car's race time and whether it did not finish.
+//! Drives the network race: clears the stored cars' outputs, sets the HUD, plays the race while
+//! recording its replay, keeps the HUD; then returns this machine's car's race time and whether it did not finish.
 
 use crate::errors::Refused;
 use crate::owners::Owners;
@@ -14,7 +14,15 @@ pub fn lets_race(o: Owners<'static>) -> Result<(u32, u32), Refused> {
         car.stop_state.set(0);
     }
     crate::net::set_hud_options::set_hud_options(race, o.net, o.gfx)?;
-    { crate::drive::play_race::play_race(race, o) }?;
+    // The race is recorded as a single race is: every car's inputs, the cars' state each frame.
+    let kept_mode = race.course.numbers.get().replay_mode.get();
+    race.course.numbers.get().replay_mode.set(1);
+    crate::race::race_end::record_replay_header(race);
+    crate::race::replay::open_replay(race, o)?;
+    let played = { crate::drive::play_race::play_race(race, o) };
+    crate::race::replay::close_replay(race, o.system)?;
+    race.course.numbers.get().replay_mode.set(kept_mode);
+    played?;
     crate::net::keep_hud_options::keep_hud_options(&race.shared, o.net)?;
     let block = race
         .shared

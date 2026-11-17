@@ -84,7 +84,7 @@ mod tests {
     #[test]
     fn counts() {
         assert_eq!(MENUS.len(), 98);
-        assert_eq!(MENUS.iter().map(|m| m.items.len()).sum::<usize>(), 578);
+        assert_eq!(MENUS.iter().map(|m| m.items.len()).sum::<usize>(), 579);
         assert_eq!(MENUS.iter().filter(|m| !m.referenced).count(), 8);
         assert_eq!(LISTS.len(), 303);
         assert_eq!(LISTS.iter().filter(|l| !l.referenced).count(), 10);
@@ -110,7 +110,7 @@ mod tests {
         );
     }
 
-    const FROZEN_MENUS: u64 = 0xbe54_e587_7ec4_a8af;
+    const FROZEN_MENUS: u64 = 0xc40f_e0a3_f623_eac2;
     const FROZEN_LISTS: u64 = 0x4487_8981_b5fd_a0de;
 
     #[test]

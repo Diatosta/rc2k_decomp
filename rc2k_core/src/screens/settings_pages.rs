@@ -92,6 +92,14 @@ pub fn graphics_frame_limit<S: Screen<Font = Font, Work = Work>>(
     s.line(Font::Value, text, 0x1D1, 0xDC + 0x1B * 9)
 }
 
+/// The graphics page's 3D resolution: `text` (no NUL) in the names' column on row 10.
+pub fn graphics_render_scale<S: Screen<Font = Font, Work = Work>>(
+    s: &mut S,
+    text: &[u8],
+) -> Result<Drawn, S::Error> {
+    s.line(Font::Value, text, 0x1D1, 0xDC + 0x1B * 10)
+}
+
 /// The visual preferences page: nine names from y 0xC8 every 0x1D. Returns the last name's
 /// `too_wide`.
 pub fn visual_preferences<S: Screen<Font = Font, Work = Work>>(

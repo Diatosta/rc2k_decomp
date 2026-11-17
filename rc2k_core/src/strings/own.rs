@@ -89,6 +89,10 @@ pub mod id {
     pub const NO_LIMIT: u32 = FIRST + 0xC9;
     pub const DISPLAY: u32 = FIRST + 0xCA;
     pub const FRAMES_A_SECOND: u32 = FIRST + 0xCB;
+    /// The graphics page's 3D resolution row.
+    pub const RENDER_SCALE: u32 = FIRST + 0xE8;
+    /// The network lobby's button that saves the last race's replay.
+    pub const SAVE_REPLAY: u32 = FIRST + 0xF8;
 }
 
 /// Each text's file key and id.
@@ -113,6 +117,8 @@ pub const KEYS: &[(&str, u32)] = &[
     ("graphics.no_limit", id::NO_LIMIT),
     ("graphics.display", id::DISPLAY),
     ("graphics.frames_a_second", id::FRAMES_A_SECOND),
+    ("graphics.render_scale", id::RENDER_SCALE),
+    ("lobby.save_replay", id::SAVE_REPLAY),
     ("icon_styles.automatic", id::ICON_STYLES),
     ("icon_styles.xbox", id::ICON_STYLES + 1),
     ("icon_styles.playstation", id::ICON_STYLES + 2),

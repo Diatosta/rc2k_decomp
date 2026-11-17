@@ -27,12 +27,13 @@ pub mod rasteriser;
 #[cfg(target_arch = "aarch64")]
 pub mod rasteriser_neon;
 pub mod seethru;
+pub mod small_frame;
 pub mod software;
 
 use crate::race::owner_course::Course;
 use std::collections::HashSet;
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering::Relaxed};
 
 /// Direct3D's render states a command carries.
 pub const STATES: usize = 0x40;
@@ -318,6 +319,33 @@ pub trait Backend: Send {
     fn draw(&mut self, target: &Target, commands: CommandList);
 }
 
+/// The race's 3D drawn at this percent of the screen's size (`rc2k_core::gfx::render_scale`).
+static RENDER_SCALE: AtomicU32 = AtomicU32::new(rc2k_core::gfx::render_scale::DEFAULT);
+
+/// The percent of the screen's size the race's 3D is drawn at.
+pub fn render_scale() -> u32 {
+    RENDER_SCALE.load(Relaxed)
+}
+
+/// Sets the 3D's share (the options' load, the graphics page).
+pub fn set_render_scale(percent: u32) {
+    RENDER_SCALE.store(rc2k_core::gfx::render_scale::nearest(percent), Relaxed);
+}
+
+/// The share one choice on (`up`) or back.
+pub fn step_render_scale(up: bool) {
+    set_render_scale(rc2k_core::gfx::render_scale::step(render_scale(), up));
+}
+
+/// The percent the flush being drawn draws its 3D at: the chosen share in a race, the whole
+/// screen elsewhere (a menu's 3D, the car carousel, stays sharp).
+static FLUSH_SCALE: AtomicU32 = AtomicU32::new(100);
+
+/// The percent of the screen's size the 3D of the flush being drawn takes.
+pub fn flush_scale() -> u32 {
+    FLUSH_SCALE.load(Relaxed)
+}
+
 /// Whether the GPU holds the frame: the 3D of a race or of a menu on the GPU backend.
 static GPU_HOLDS_FRAME: AtomicBool = AtomicBool::new(false);
 
@@ -331,6 +359,7 @@ static GPU_DREW_THIS_FRAME: AtomicBool = AtomicBool::new(false);
 /// the GPU as a race's does: its 2D before and after the 3D is the canvas's written pixels, put
 /// over the target at each flush.
 pub fn draw(screen: (usize, usize), racing: bool, target: &Target, commands: CommandList) {
+    FLUSH_SCALE.store(if racing { render_scale() } else { 100 }, Relaxed);
     if target.bits == 32 {
         let mut gpu = gpu::GPU.lock().unwrap();
         if let Some(gpu) = gpu.as_mut() {
@@ -348,7 +377,7 @@ pub fn draw(screen: (usize, usize), racing: bool, target: &Target, commands: Com
     give_frame_back(target);
     // Whatever was noted for a GPU is on the canvas before the rasteriser draws.
     crate::gfx::draw2d::quads::before_canvas_write();
-    software::Software { screen, racing }.draw(target, commands);
+    software::Software { screen }.draw(target, commands);
 }
 
 /// Whether the GPU holds the frame now (the canvas is then only what the game wrote since the
@@ -502,7 +531,26 @@ pub fn gpu_running() -> bool {
     GPU_STARTED.load(Relaxed)
 }
 
+/// Whether the software renderer keeps smaller levels of textures (`software`): only then are
+/// the textures' changes kept for it (they tell it which levels are stale).
+static LEVELS_KEPT: AtomicBool = AtomicBool::new(false);
+
+static LEVEL_CHANGES: Mutex<Vec<TextureId>> = Mutex::new(Vec::new());
+
+/// From now on the textures' changes are kept for the software renderer's smaller levels.
+pub(crate) fn keep_level_changes() {
+    LEVELS_KEPT.store(true, Relaxed);
+}
+
+/// The textures written or gone since the last call (when `keep_level_changes` was called).
+pub(crate) fn take_level_changes() -> Vec<TextureId> {
+    std::mem::take(&mut *LEVEL_CHANGES.lock().unwrap())
+}
+
 fn note_texture_change(pixels: TextureId, gone: bool) {
+    if LEVELS_KEPT.load(Relaxed) {
+        LEVEL_CHANGES.lock().unwrap().push(pixels);
+    }
     if GPU_STARTED.load(Relaxed) {
         CHANGED_TEXTURES
             .lock()

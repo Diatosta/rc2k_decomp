@@ -449,6 +449,34 @@ impl CommandBuffer {
         })
     }
 
+    /// The top-left `from` (width, height) pixels of `source` copied to the top-left `to` pixels
+    /// of `destination`, each destination pixel the nearest source pixel (outside a pass). Both
+    /// textures are ours, made for blitting (a sampler and a colour target), and the regions are
+    /// inside them.
+    pub fn blit_nearest(
+        &self,
+        source: Texture,
+        from: (u32, u32),
+        destination: Texture,
+        to: (u32, u32),
+    ) {
+        let region = |texture: Texture, (w, h): (u32, u32)| SDL_GPUBlitRegion {
+            texture: texture.0,
+            w,
+            h,
+            ..Default::default()
+        };
+        let info = SDL_GPUBlitInfo {
+            source: region(source, from),
+            destination: region(destination, to),
+            load_op: SDL_GPU_LOADOP_DONT_CARE,
+            filter: SDL_GPU_FILTER_NEAREST,
+            ..Default::default()
+        };
+        // SAFETY: our open command buffer, no pass open; `info` lives through the call.
+        unsafe { SDL_BlitGPUTexture(self.0, &raw const info) };
+    }
+
     /// Two floats for the vertex shader's uniform buffer `slot`.
     pub fn push_vertex_uniform(&self, slot: u32, values: &[f32; 2]) {
         // SAFETY: eight bytes, copied by the call.

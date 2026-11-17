@@ -114,6 +114,7 @@ fn run(o: crate::owners::Owners<'static>, mode: u32, launched: bool) -> Result<(
             vars.receiver.sync.set(0);
             net.lobby().sequence.set(0x80);
             net.lobby().after_race.set(0);
+            net.lobby().replay_kept.set(0);
             loop {
                 vars.all_raced.set(0);
                 vars.race_over.set(0);

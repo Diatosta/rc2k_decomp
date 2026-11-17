@@ -476,9 +476,11 @@ pub struct LobbyScreen {
     pub sync_clock: PlainDword,
     /// The sequence byte of the messages sent.
     pub sequence: PlainByte,
-    /// Three bytes that fill the record's last dword (`Cells` takes no padding); nothing
+    /// 1 when the last network race's replay is kept and can be saved from the lobby.
+    pub replay_kept: PlainByte,
+    /// Two bytes that fill the record's last dword (`Cells` takes no padding); nothing
     /// reads or writes them.
-    pub _pad_cells: PlainBytes<3>,
+    pub _pad_cells: PlainBytes<2>,
 }
 
 impl LobbyScreen {
@@ -497,7 +499,8 @@ impl LobbyScreen {
             racing: PlainDword::new(0),
             sync_clock: PlainDword::new(0),
             sequence: PlainByte::new(128),
-            _pad_cells: PlainBytes::new([0; 3]),
+            replay_kept: PlainByte::new(0),
+            _pad_cells: PlainBytes::new([0; 2]),
         }
     }
 }

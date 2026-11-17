@@ -80,7 +80,7 @@ impl<const N: usize> Field for Words<N> {
 }
 
 /// The screen modes.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Display {
     pub menu_mode: u32,
     pub race_mode: u32,
@@ -93,6 +93,26 @@ pub struct Display {
         with = "crate::gfx::frame_limit::as_option"
     )]
     pub frame_limit: crate::gfx::frame_limit::FrameLimit,
+    /// The race's 3D drawn at this percent of the screen's size (only in the new file; 100
+    /// when missing).
+    #[serde(
+        default = "crate::gfx::render_scale::default_percent",
+        skip_serializing_if = "crate::gfx::render_scale::is_default",
+        with = "crate::gfx::render_scale::as_option"
+    )]
+    pub render_scale: u32,
+}
+
+impl Default for Display {
+    fn default() -> Self {
+        Display {
+            menu_mode: 0,
+            race_mode: 0,
+            mipmapping: 0,
+            frame_limit: Default::default(),
+            render_scale: crate::gfx::render_scale::DEFAULT,
+        }
+    }
 }
 
 /// The films' volume at its fullest (the sliders' range is 0 ..= 0x40).

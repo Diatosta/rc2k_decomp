@@ -77,6 +77,15 @@ impl Default for Targets {
     }
 }
 
+/// The targets of a 3D drawn smaller than the screen.
+struct Small {
+    colour: Texture,
+    depth: Texture,
+    /// The size they were made at.
+    size: (u32, u32),
+    depth_is_new: bool,
+}
+
 pub struct Gpu {
     device: Device,
     colour: Texture,
@@ -98,6 +107,10 @@ pub struct Gpu {
     /// How many times the targets have been made: names the colour target's set.
     targets_made: u64,
     depth_is_new: bool,
+    /// The colour and depth the 3D is drawn into when it is drawn smaller than the screen
+    /// (`render_scale`), the screen's size with the picture in their top-left corner; made when
+    /// first needed.
+    small: Option<Small>,
     scene_vert: Shader,
     scene_frag: Shader,
     overlay: Pipeline,
@@ -172,6 +185,7 @@ impl Gpu {
             height: 0,
             targets_made: 0,
             depth_is_new: true,
+            small: None,
             scene_vert: Shader::NONE,
             scene_frag: Shader::NONE,
             overlay: Pipeline::NONE,
@@ -534,6 +548,41 @@ impl Gpu {
 
     /// Draws the commands over the target: the retained background first if one is noted, then
     /// the canvas's written rows (`rows`, one flag a row; `None` to look at every row).
+    /// The small targets at the screen's size, made or made again.
+    fn ensure_small(&mut self) -> Result<(), String> {
+        let size = (self.width, self.height);
+        if self.small.as_ref().is_some_and(|s| s.size == size) {
+            return Ok(());
+        }
+        let colour = self.make_texture(
+            size.0,
+            size.1,
+            SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER,
+        )?;
+        let depth = match self.make_texture_of(
+            DEPTH_FORMAT,
+            size.0,
+            size.1,
+            SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET,
+        ) {
+            Ok(depth) => depth,
+            Err(why) => {
+                self.device.release_texture(colour);
+                return Err(why);
+            }
+        };
+        if let Some(old) = self.small.replace(Small {
+            colour,
+            depth,
+            size,
+            depth_is_new: true,
+        }) {
+            self.device.release_texture(old.colour);
+            self.device.release_texture(old.depth);
+        }
+        Ok(())
+    }
+
     pub fn draw(
         &mut self,
         canvas: &mut [u8],
@@ -569,6 +618,17 @@ impl Gpu {
         super::seethru::note_list(commands, self.width, self.height);
         let batches = Batches::of(commands, self.width, self.height, None);
         let vertex_bytes = batches.vertices.len() as u32 * VERTEX_BYTES;
+        // The 3D of a race at a share of the screen's size: drawn into the small targets and
+        // enlarged over the screen (the debug cuts and the check draw it whole).
+        let percent = super::flush_scale();
+        let smaller = percent < 100
+            && !batches.batches.is_empty()
+            && !cuts.scene
+            && !cuts.half
+            && self.check.is_none();
+        if smaller {
+            self.ensure_small()?;
+        }
         let mut uploads: Vec<(TextureNote, Vec<u8>)> = Vec::new();
         for note in &batches.textures {
             let up_to_date = self
@@ -678,9 +738,11 @@ impl Gpu {
             let clear = std::mem::replace(&mut c.depth_is_new, false);
             (c.colour, c.depth, c.canvas, c.canvas_transfer, clear)
         });
-        // Under the `half` cut the rectangles are scaled with the viewport.
-        let shrink = |n: i32| if cuts.half { n / 2 } else { n };
-        let draw_batches = |pass: &sdl_gpu::RenderPass| {
+        // The rectangles are scaled with the viewport (the `half` cut's and the small 3D's).
+        let draw_batches = |pass: &sdl_gpu::RenderPass, percent: u32| {
+            let down = |n: i32| (n as i64 * i64::from(percent) / 100) as i32;
+            let up = |n: i32| ((n as i64 * i64::from(percent) + 99) / 100) as i32;
+            let (full_width, full_height) = (up(self.width as i32), up(self.height as i32));
             buffer.push_vertex_uniform(0, &[self.width as f32, self.height as f32]);
             pass.bind_vertex_buffer(self.vertices);
             let mut last_pipeline = None;
@@ -710,21 +772,18 @@ impl Gpu {
                     last_sampling = Some(sampling);
                 }
                 if let Some([left, top, right, bottom]) = batch.scissor {
-                    pass.set_scissor(
-                        shrink(left as i32),
-                        shrink(top as i32),
-                        shrink((right - left) as i32),
-                        shrink((bottom - top) as i32),
-                    );
+                    let (x0, y0) = (down(left as i32), down(top as i32));
+                    pass.set_scissor(x0, y0, up(right as i32) - x0, up(bottom as i32) - y0);
                     scissored = true;
                 } else if scissored {
-                    pass.set_scissor(0, 0, self.width as i32, self.height as i32);
+                    pass.set_scissor(0, 0, full_width, full_height);
                     scissored = false;
                 }
                 pass.draw(batch.vertices, batch.first_vertex);
             }
         };
         let pass = buffer.begin_render_pass(self.colour, self.depth, clear_depth);
+        let shrink = |n: i32| if cuts.half { n / 2 } else { n };
         if cuts.half {
             pass.set_viewport((self.width / 2) as f32, (self.height / 2) as f32);
         }
@@ -746,10 +805,26 @@ impl Gpu {
             }
             self.draw_2d(&buffer, &pass, &two_d);
         }
-        if !cuts.scene && !crate::gfx::draw2d::quads::check_2d_only() {
-            draw_batches(&pass);
+        if !cuts.scene && !smaller && !crate::gfx::draw2d::quads::check_2d_only() {
+            draw_batches(&pass, if cuts.half { 50 } else { 100 });
         }
         pass.end();
+        if smaller && let Some(small) = self.small.as_mut() {
+            let full = (self.width, self.height);
+            let part = (
+                rc2k_core::gfx::render_scale::scaled(full.0 as usize, percent) as u32,
+                rc2k_core::gfx::render_scale::scaled(full.1 as usize, percent) as u32,
+            );
+            // The picture so far made smaller, the 3D drawn over it, the result enlarged: the
+            // 3D may blend with what the screen held.
+            buffer.blit_nearest(self.colour, full, small.colour, part);
+            let clear = std::mem::replace(&mut small.depth_is_new, false);
+            let pass = buffer.begin_render_pass(small.colour, small.depth, clear);
+            pass.set_viewport(part.0 as f32, part.1 as f32);
+            draw_batches(&pass, percent);
+            pass.end();
+            buffer.blit_nearest(small.colour, part, self.colour, full);
+        }
         if let Some((colour, depth, canvas, transfer, clear)) = check_targets {
             // The same frame once more, the way the canvas carried the background.
             let copy = buffer.begin_copy_pass();
@@ -772,7 +847,7 @@ impl Gpu {
                 self.draw_overlay(&pass, canvas);
             }
             if !crate::gfx::draw2d::quads::check_2d_only() {
-                draw_batches(&pass);
+                draw_batches(&pass, 100);
             }
             pass.end();
         }
@@ -1008,7 +1083,6 @@ mod comparison {
         crate::render::Backend::draw(
             &mut crate::render::software::Software {
                 screen: (width, height),
-                racing: false,
             },
             &target,
             read_commands(&mut Reader(r.0)),

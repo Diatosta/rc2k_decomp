@@ -30,6 +30,7 @@ const TEXTURE_2D: u32 = 0x0DE1;
 const TEXTURE0: u32 = 0x84C0;
 const TEXTURE_2D_ARRAY: u32 = 0x8C1A;
 const READ_FRAMEBUFFER: u32 = 0x8CA8;
+const DRAW_FRAMEBUFFER: u32 = 0x8CA9;
 const UNSIGNED_SHORT: u32 = 0x1403;
 const RGBA: u32 = 0x1908;
 const UNSIGNED_BYTE: u32 = 0x1401;
@@ -447,6 +448,9 @@ pub struct Gpu {
     framebuffer: u32,
     colour: u32,
     depth: u32,
+    /// The target a 3D drawn smaller than the screen goes into (`render_scale`): the screen's
+    /// size, the picture in its bottom-left corner; made when first needed.
+    small: Option<SmallTarget>,
     /// The canvas's textures, taken in turn: a flush's rows go into the one after the last
     /// flush's, so an upload never waits for the GPU to finish a frame still reading its texture.
     canvases: [CanvasTexture; CANVAS_TEXTURES],
@@ -460,6 +464,15 @@ pub struct Gpu {
     /// The programs of the start are made: one made from here on holds a frame up.
     set_up_done: bool,
     textures: super::TextureMap<CachedTexture>,
+}
+
+/// The frame buffer object of a 3D drawn smaller, and the size it was made at.
+struct SmallTarget {
+    framebuffer: u32,
+    colour: u32,
+    depth: u32,
+    size: (i32, i32),
+    depth_is_new: bool,
 }
 
 /// How many textures the canvas's uploads take turns in: more than the frames the GPU may
@@ -514,6 +527,7 @@ impl Gpu {
             scene_array: 0,
             samplers: [0; 4],
             framebuffer: 0,
+            small: None,
             colour: 0,
             depth: 0,
             canvases: [CanvasTexture::default(); CANVAS_TEXTURES],
@@ -838,6 +852,86 @@ impl Gpu {
         Ok(())
     }
 
+    /// The small target at `width` x `height`, made or made again.
+    fn ensure_small(&mut self, width: i32, height: i32) -> Result<(), String> {
+        if self
+            .small
+            .as_ref()
+            .is_some_and(|s| s.size == (width, height))
+        {
+            return Ok(());
+        }
+        let gl = &self.gl;
+        let (framebuffer, colour, depth) = match self.small.take() {
+            Some(old) => (old.framebuffer, old.colour, old.depth),
+            None => (
+                gl.gen_framebuffer(),
+                gl.gen_texture(),
+                gl.gen_renderbuffer(),
+            ),
+        };
+        gl.bind_texture(TEXTURE_2D, colour);
+        gl.tex_image_2d(0x8058, width, height, RGBA, UNSIGNED_BYTE, None);
+        gl.tex_parameter(TEXTURE_2D, 0x2801, 0x2600);
+        gl.tex_parameter(TEXTURE_2D, 0x2800, 0x2600);
+        gl.bind_renderbuffer(0x8D41, depth);
+        gl.renderbuffer_storage(0x8D41, 0x81A6, width, height);
+        gl.bind_framebuffer(FRAMEBUFFER, framebuffer);
+        gl.framebuffer_texture_2d(FRAMEBUFFER, 0x8CE0, colour);
+        gl.framebuffer_renderbuffer(FRAMEBUFFER, 0x8D00, depth);
+        let complete = gl.framebuffer_status(FRAMEBUFFER) == 0x8CD5;
+        gl.bind_framebuffer(FRAMEBUFFER, self.framebuffer);
+        if !complete {
+            return Err("the small frame buffer object is not complete".into());
+        }
+        self.small = Some(SmallTarget {
+            framebuffer,
+            colour,
+            depth,
+            size: (width, height),
+            depth_is_new: true,
+        });
+        Ok(())
+    }
+
+    /// The part's 3D at `percent` of the screen's size: the picture so far made smaller, the
+    /// batches drawn over it, the result enlarged over the target.
+    fn draw_batches_small(
+        &mut self,
+        batches: &Batches,
+        (width, height): (i32, i32),
+        percent: u32,
+    ) -> Result<(), String> {
+        self.ensure_small(width, height)?;
+        let part = (
+            rc2k_core::gfx::render_scale::scaled(width as usize, percent) as i32,
+            rc2k_core::gfx::render_scale::scaled(height as usize, percent) as i32,
+        );
+        let gl = &self.gl;
+        let small = self.small.as_mut().expect("made above");
+        gl.disable(SCISSOR_TEST);
+        gl.bind_framebuffer(READ_FRAMEBUFFER, self.framebuffer);
+        gl.bind_framebuffer(DRAW_FRAMEBUFFER, small.framebuffer);
+        gl.blit_colour_nearest((width, height), part);
+        gl.bind_framebuffer(FRAMEBUFFER, small.framebuffer);
+        gl.viewport(0, 0, part.0, part.1);
+        if std::mem::replace(&mut small.depth_is_new, false) {
+            gl.depth_mask(true);
+            gl.clear_depth(1.0);
+            gl.clear(DEPTH_BIT);
+        }
+        let small_framebuffer = small.framebuffer;
+        self.draw_batches(batches, width, height, percent);
+        self.plain_state();
+        let gl = &self.gl;
+        gl.bind_framebuffer(READ_FRAMEBUFFER, small_framebuffer);
+        gl.bind_framebuffer(DRAW_FRAMEBUFFER, self.framebuffer);
+        gl.blit_colour_nearest(part, (width, height));
+        gl.bind_framebuffer(FRAMEBUFFER, self.framebuffer);
+        gl.viewport(0, 0, width, height);
+        Ok(())
+    }
+
     /// The next of the canvas's textures becomes the one uploads go into and draws read, bound
     /// and made at `width` x `height` (with no pixels) if it is not of that size yet. Once for
     /// each flush that uploads: every flush draws only what it uploaded, so nothing is carried
@@ -906,6 +1000,7 @@ impl Gpu {
                     quads,
                     background,
                     size: (width, height),
+                    scale,
                 },
             batches,
             quad_vertices,
@@ -999,7 +1094,21 @@ impl Gpu {
             self.draw_quads(quad_vertices.len(), (width, height));
         }
         if !batches.batches.is_empty() && !self.cuts.scene {
-            self.draw_batches(&batches, width, height);
+            if scale < 100 && !self.cuts.half {
+                if let Err(why) = self.draw_batches_small(&batches, (width, height), scale) {
+                    crate::fatal::raise::end(
+                        "render::gles",
+                        crate::errors::BadInput(Box::leak(why.into_boxed_str())),
+                    );
+                }
+            } else {
+                self.draw_batches(
+                    &batches,
+                    width,
+                    height,
+                    if self.cuts.half { 50 } else { 100 },
+                );
+            }
         }
         if bench::due(batches.batches.len()) {
             self.bench(&commands, &batches, &opaque, height);
@@ -1010,7 +1119,7 @@ impl Gpu {
 
     /// The part's 3D: its vertices sent up and each batch drawn, by the program for its kind.
     /// The target is bound and the quads' state set (`plain_state`).
-    fn draw_batches(&mut self, batches: &Batches, width: i32, height: i32) {
+    fn draw_batches(&mut self, batches: &Batches, width: i32, height: i32, percent: u32) {
         let gl = &self.gl;
         gl.bind_vertex_array(self.scene_array);
         gl.bind_buffer(ARRAY_BUFFER, self.vertices);
@@ -1115,13 +1224,18 @@ impl Gpu {
             }
             if let Some([left, top, right, bottom]) = batch.scissor {
                 gl.enable(SCISSOR_TEST);
-                // Under `half` the rectangle is scaled with the viewport.
-                let shrink = |n: i32| if cuts.half { n / 2 } else { n };
+                // The rectangle is scaled with the viewport (`half`, a smaller 3D): its place from
+                // the bottom, in the scaled picture's rows.
+                let p = i64::from(percent);
+                let down = |n: i32| (i64::from(n) * p / 100) as i32;
+                let up = |n: i32| ((i64::from(n) * p + 99) / 100) as i32;
+                let rows = up(height);
+                let (x0, y0) = (down(left as i32), rows - up(bottom as i32));
                 gl.scissor(
-                    shrink(left as i32),
-                    shrink(height - bottom as i32),
-                    shrink((right - left) as i32),
-                    shrink((bottom - top) as i32),
+                    x0,
+                    y0,
+                    up(right as i32) - x0,
+                    up(bottom as i32) - down(top as i32),
                 );
                 scissored = true;
             } else if scissored {
@@ -1437,6 +1551,7 @@ impl Front {
             quads,
             background,
             size: self.size,
+            scale: super::flush_scale(),
         }));
     }
 

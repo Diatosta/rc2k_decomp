@@ -309,6 +309,14 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn) -> Result<(), Refused> {
             crate::platform::pacing::step_frame_limit(true);
             Ok(())
         }
+        ItemFn::PreviousRenderScale => {
+            crate::render::step_render_scale(false);
+            Ok(())
+        }
+        ItemFn::NextRenderScale => {
+            crate::render::step_render_scale(true);
+            Ok(())
+        }
         ItemFn::NextAudioQuality => next_audio_quality::run(o),
         ItemFn::PreviousAudioQuality => previous_audio_quality::run(o),
         ItemFn::ViewStageDetails => {

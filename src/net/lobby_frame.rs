@@ -176,26 +176,37 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     );
     crate::net::chat_input_line::chat_input_line(o, &net.lobby().chat_input.text(), 3, y)?;
     let mut x = 0x310;
-    let mut item = 0;
-    for (n, (id, shown)) in
-        screens::lobby_buttons(net.lobby().car_item.get(), vars.stage_item.get())
-            .into_iter()
-            .enumerate()
+    let replay_kept = net.lobby().replay_kept.get() == 1;
+    for (item, (id, shown)) in screens::lobby_buttons(
+        net.lobby().car_item.get(),
+        vars.stage_item.get(),
+        replay_kept,
+    )
+    .into_iter()
+    .enumerate()
     {
-        if shown {
-            x = crate::net::lobby_button::lobby_button(
-                crate::strings::append_string_by_id::StringOwners::of(o),
-                net,
-                id,
-                item,
-                x,
-                0x223,
-                o.gfx,
-                o.menus,
-            )?;
+        if !shown {
+            continue;
         }
-        if n != 3 {
-            item += 1;
+        // The bottom row is full: the replay's button stands at the top right, level with the
+        // chosen stage's name.
+        let (at, y) = if item == REPLAY_ITEM {
+            REPLAY_BUTTON_AT
+        } else {
+            (x, 0x223)
+        };
+        let next = crate::net::lobby_button::lobby_button(
+            crate::strings::append_string_by_id::StringOwners::of(o),
+            net,
+            id,
+            item as u32,
+            at,
+            y,
+            o.gfx,
+            o.menus,
+        )?;
+        if item != REPLAY_ITEM {
+            x = next;
         }
     }
     for line_y in [0x156, 0x217] {
@@ -212,6 +223,11 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     crate::platform::show_frame_now(o);
     Ok(())
 }
+
+/// The lobby's item that saves the last race's replay, and where its button is drawn (right edge,
+/// top).
+const REPLAY_ITEM: usize = 4;
+const REPLAY_BUTTON_AT: (u32, u32) = (0x310, 0x4F);
 
 /// Where the chosen stage's name is drawn: left, above the table's headings.
 const STAGE_AT: (i32, i32) = (0x18, 0x4A);

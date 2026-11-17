@@ -75,6 +75,9 @@ pub fn lets_rally(o: Owners<'static>) -> Result<bool, Refused> {
     if not_finished != 0 {
         return Ok(true);
     }
+    net.lobby()
+        .replay_kept
+        .set(u8::from(race.shared.replay_file().replay_closed.get() == 1));
     crate::net::race_over::race_over(net, time)?;
     Ok(false)
 }

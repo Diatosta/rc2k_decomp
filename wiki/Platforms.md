@@ -35,7 +35,7 @@ otherwise by the program's own software rasteriser, which needs no GPU at all.
 | --- | --- | --- |
 | Windows, Linux | SDL's GPU device, on Vulkan | software rasteriser |
 | macOS | SDL's GPU device, on Metal | software rasteriser |
-| Handheld | OpenGL ES 3.0, through the system's `libmali` | software rasteriser, races at half size |
+| Handheld | OpenGL ES 3.0, through the system's `libmali` | software rasteriser |
 
 `rc2k.log` says which one started and, if the GPU one did not, why.
 `--renderer software` (or `RC2K_RENDERER=software`) forces the rasteriser ([Running and options](Running-and-options)).

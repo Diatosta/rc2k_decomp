@@ -16,7 +16,7 @@ use rc2k_core::drive::race_steps;
 fn car_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refused> {
     let (scene, input, net) = (o.scene, o.input, o.net);
     crate::drive::car_input_words::car_input_words(race, input, net)?;
-    crate::drive::record_inputs_if::record_inputs_if(race)?;
+    crate::drive::record_inputs_if::record_inputs_if(race, net)?;
     crate::drive::play_inputs_if::play_inputs_if(race)?;
     let slot = race_steps::block_slot(race.shared.work.get().current_car.get());
     race.shared

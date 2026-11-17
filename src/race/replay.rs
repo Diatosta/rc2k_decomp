@@ -351,7 +351,7 @@ pub fn close_replay(race: &Race, system: &System) -> Result<(), Refused> {
 }
 
 /// Opens the replay: `replay_closed` 0; with replays on (`replays_on` 1, `no_replay_switch` 0,
-/// `session` not 1, `RaceState.settings.no_replay` not 1) and 30 MB free it makes the header
+/// `RaceState.settings.no_replay` not 1) and 30 MB free it makes the header
 /// ("REPL", version 0x50400, the date, "tmpreplay", the race's settings), copies the car's header
 /// (`seal_replay_header`) into it, clears the index "RCIB", sets the cursor, counts and length to
 /// 0, creates `var\tmprpl` and writes the header. A failed open or write closes it
@@ -368,7 +368,6 @@ pub fn open_replay(race: &Race, o: crate::owners::Owners<'static>) -> Result<(),
     if !replays_on(
         shared.replay_file().replays_on.get(),
         shared.replay_file().no_replay_switch.get(),
-        u32::from(o.net.race_slot.is_on()),
         shared.state.settings.no_replay.get(),
     ) {
         return Ok(());

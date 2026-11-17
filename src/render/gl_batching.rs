@@ -39,6 +39,12 @@ pub struct Part {
     /// The background under the canvas's rows, if the frame has one.
     pub background: Option<Background>,
     pub size: (i32, i32),
+    /// The percent of the screen's size the part's 3D is drawn at (`render::flush_scale`).
+    #[cfg_attr(
+        not(all(target_os = "linux", target_arch = "aarch64")),
+        allow(dead_code, reason = "only the handheld's GL draws it")
+    )]
+    pub scale: u32,
 }
 
 /// A part made ready to draw.
@@ -362,6 +368,7 @@ mod tests {
                 quads: Taken::default(),
                 background: None,
                 size: (320, 240),
+                scale: 100,
             }));
             if numbers.below(2) == 0 {
                 jobs.push(Job::ShowTarget);
@@ -492,6 +499,7 @@ mod tests {
             quads: Taken::default(),
             background: Some(Background::Held),
             size: (4, 8),
+            scale: 100,
         };
         let Job::Draw(b) = batched(&mut opacity, Job::Draw(part), same_size, true) else {
             panic!("a part not drawn");
@@ -552,6 +560,7 @@ mod tests {
             },
             background: Some(Background::Upload(vec![9; 4])),
             size: (8, 8),
+            scale: 100,
         };
         let Job::Draw(b) = batched(&mut Opacity::default(), Job::Draw(part), same_size, true)
         else {

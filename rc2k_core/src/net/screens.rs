@@ -201,7 +201,7 @@ pub fn lobby_button_flags(
     back_from_race: u32,
 ) -> u32 {
     let mut flags = CENTRED;
-    if state.is_ready() && item != 3 {
+    if state.is_ready() && item < 3 {
         flags |= DIM;
     }
     if back_from_race == 1 && item == 0 {
@@ -217,15 +217,22 @@ pub fn next_button_x(x: u32, width: u32) -> u32 {
         .wrapping_sub(8)
 }
 
-/// The lobby's buttons right to left: (the string, shown), item 0 .. 3: ready, the car and
-/// the stage when they can be chosen (their switches 1), the chat.
-pub fn lobby_buttons(car_item: u32, stage_item: u32) -> [(u32, bool); 4] {
+/// The lobby's buttons right to left: (the string, shown), item 0 .. 4: ready, the car and
+/// the stage when they can be chosen (their switches 1), the chat, and the last network race's
+/// replay saved when one is kept (`replay_kept`).
+pub fn lobby_buttons(car_item: u32, stage_item: u32, replay_kept: bool) -> [(u32, bool); 5] {
     [
         (0x15D, true),
         (0x15B, car_item == 1),
         (0x15C, stage_item == 1),
         (0x15E, true),
+        (crate::strings::own::id::SAVE_REPLAY, replay_kept),
     ]
+}
+
+/// The lobby's last item: the chat's, or with a replay kept the button that saves it.
+pub fn last_lobby_item(replay_kept: bool) -> u32 {
+    if replay_kept { 4 } else { 3 }
 }
 
 /// The furthest a time may be behind the first row's to be shown as a gap with a '+'.
@@ -355,7 +362,9 @@ mod tests {
         assert_eq!(lobby_button_flags(State::default(), 0, 1), 3);
         assert_eq!(lobby_button_flags(State::default(), 1, 1), 1);
         assert_eq!(next_button_x(0x310, 0x40), 0x310 - 0x84 - 8);
-        assert_eq!(lobby_buttons(1, 0)[2], (0x15C, false));
+        assert_eq!(lobby_buttons(1, 0, false)[2], (0x15C, false));
+        assert!(!lobby_buttons(1, 0, false)[4].1 && lobby_buttons(1, 0, true)[4].1);
+        assert_eq!((last_lobby_item(false), last_lobby_item(true)), (3, 4));
         assert_eq!(
             last_item(0),
             Err(Invalid(

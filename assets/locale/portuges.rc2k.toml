@@ -113,6 +113,11 @@ frame_limit = "limite de quadros"
 no_limit = "sem limite"
 display = "monitor"
 frames_a_second = "q/s"
+render_scale = "resolução 3D"
+
+# The network lobby.
+[lobby]
+save_replay = "gravar repetição"
 
 [kick]
 not_host = "Só o anfitrião pode expulsar um jogador."

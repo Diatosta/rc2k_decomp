@@ -3,7 +3,7 @@
 //! sound and the pad (`platform::input`, `input::menu_pad`), on its `dummy` video driver.
 
 use crate::platform::ffi::linux_handheld::{self, Framebuffer, Sample};
-use std::sync::{Mutex, MutexGuard, OnceLock};
+use std::sync::Mutex;
 
 /// The panel.
 const WIDTH: usize = 720;
@@ -117,77 +117,6 @@ pub fn pad_mapping(guid: &str) -> String {
          leftx:a0,lefty:a1,rightx:a2,righty:a3,dpup:h0.1,dpright:h0.2,dpdown:h0.4,dpleft:h0.8,\
          platform:Linux,"
     )
-}
-
-// ---- a race's 3D drawn smaller: the frame's dearest part, with the fewest pixels to give ----
-
-/// How many times smaller, each way.
-pub const SMALLER: usize = 2;
-
-struct SmallBuffers {
-    pixels: Vec<u32>,
-    depth: Vec<f32>,
-    width: usize,
-}
-
-static SMALL: Mutex<SmallBuffers> = Mutex::new(SmallBuffers {
-    pixels: Vec::new(),
-    depth: Vec::new(),
-    width: 0,
-});
-
-/// Whether this flush goes through a small frame: when `racing`, unless `RC2K_FULL_RESOLUTION`.
-pub fn draws_small(racing: bool) -> bool {
-    static FULL: OnceLock<bool> = OnceLock::new();
-    !*FULL.get_or_init(|| std::env::var_os("RC2K_FULL_RESOLUTION").is_some()) && racing
-}
-
-/// A small frame while it is drawn: its buffers held until it is enlarged.
-pub struct Small(MutexGuard<'static, SmallBuffers>);
-
-impl Small {
-    /// The small frame, holding the screen's picture made smaller (what was drawn before this
-    /// flush, which the 3D may blend over).
-    pub fn from_screen(screen: &[u8], pitch: usize, width: usize, height: usize) -> Self {
-        let (w, h) = (width / SMALLER, height / SMALLER);
-        let mut b = SMALL
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if b.pixels.len() != w * h {
-            b.pixels = vec![0; w * h];
-            b.depth = vec![1.0; w * h];
-        }
-        b.width = w;
-        for (y, to) in b.pixels.chunks_exact_mut(w).enumerate() {
-            let from = screen[y * SMALLER * pitch..].as_chunks::<4>().0;
-            for (x, pixel) in to.iter_mut().enumerate() {
-                *pixel = u32::from_ne_bytes(from[x * SMALLER]);
-            }
-        }
-        Self(b)
-    }
-
-    /// For the rasteriser's `Frame`, which holds them no longer than this `Small` lives:
-    /// (pixels, width, height, depths).
-    pub fn frame_parts(&mut self) -> (&mut [u32], usize, usize, &mut [f32]) {
-        let b = &mut *self.0;
-        let height = b.pixels.len() / b.width;
-        (&mut b.pixels, b.width, height, &mut b.depth)
-    }
-
-    /// Back on the screen, each pixel made `SMALLER` wide and high.
-    pub fn enlarge_to(self, screen: &mut [u8], pitch: usize, width: usize, height: usize) {
-        let b = &*self.0;
-        for (y, row) in screen.chunks_exact_mut(pitch).take(height).enumerate() {
-            let from = &b.pixels[(y / SMALLER) * b.width..][..b.width];
-            let to = row[..width * 4].as_chunks_mut::<{ 4 * SMALLER }>().0;
-            for (wide, &p) in to.iter_mut().zip(from) {
-                for pixel in wide.as_chunks_mut::<4>().0 {
-                    *pixel = p.to_ne_bytes();
-                }
-            }
-        }
-    }
 }
 
 // ---- a sampling profiler for the handheld (the OS has no perf) ----

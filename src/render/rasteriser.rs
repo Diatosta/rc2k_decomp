@@ -252,6 +252,79 @@ pub struct Texture<'a> {
     pub pitch: usize,
     pub bytes: usize,
     pub masks: [u32; 4],
+    /// The smaller levels (`mip_chain`) when the caller has them; empty draws the first level only.
+    pub lower: &'a [MipLevel],
+}
+
+/// A texture's smaller level: 32-bit 0xAARRGGBB texels as little-endian bytes, rows without gaps.
+pub struct MipLevel {
+    pub width: usize,
+    pub height: usize,
+    pub pixels: Vec<u8>,
+}
+
+/// The most smaller levels a chain holds (the game's textures reach 256 across).
+const MOST_LEVELS: usize = 8;
+
+/// The smaller levels of `texture` (halving each side down to one texel, at most `MOST_LEVELS`),
+/// each texel the average of the four it covers in the level above (a box filter), per channel.
+pub fn mip_chain(texture: &Texture) -> Vec<MipLevel> {
+    let base = Texels::of(texture, false);
+    let (mut w, mut h) = (texture.width.max(1), texture.height.max(1));
+    let mut above: Vec<u32> = (0..h)
+        .flat_map(|y| (0..w).map(move |x| (x, y)))
+        .map(|(x, y)| base.argb(x as i32, y as i32))
+        .collect();
+    let mut chain = Vec::new();
+    while (w > 1 || h > 1) && chain.len() < MOST_LEVELS {
+        let (nw, nh) = ((w / 2).max(1), (h / 2).max(1));
+        let mut level = Vec::with_capacity(nw * nh);
+        for y in 0..nh {
+            for x in 0..nw {
+                let (x0, y0) = (x * 2, y * 2);
+                let (x1, y1) = ((x0 + 1).min(w - 1), (y0 + 1).min(h - 1));
+                let four = [
+                    above[y0 * w + x0],
+                    above[y0 * w + x1],
+                    above[y1 * w + x0],
+                    above[y1 * w + x1],
+                ];
+                let mut out = 0u32;
+                for shift in [0, 8, 16, 24] {
+                    let sum: u32 = four.iter().map(|p| p >> shift & 0xFF).sum();
+                    out |= ((sum + 2) >> 2) << shift;
+                }
+                level.push(out);
+            }
+        }
+        chain.push(MipLevel {
+            width: nw,
+            height: nh,
+            pixels: level.iter().flat_map(|p| p.to_le_bytes()).collect(),
+        });
+        above = level;
+        (w, h) = (nw, nh);
+    }
+    chain
+}
+
+/// How many levels down a triangle reads, from how its texels change along the screen's axes
+/// (`[[du/dx, du/dy], [dv/dx, dv/dy]]`, in texels a pixel): the level whose texels are nearest
+/// the footprint's narrow side, so a stretched triangle (a tall thin trunk, a road to the
+/// horizon) keeps its sharpness across and only the stretched way is left to alias.
+fn mip_level([[dudx, dudy], [dvdx, dvdy]]: [[f32; 2]; 2], lowest: usize) -> usize {
+    // The squares of the footprint's two sides are the eigenvalues of J * J^T; the smaller one.
+    let trace = dudx * dudx + dudy * dudy + dvdx * dvdx + dvdy * dvdy;
+    let determinant = dudx * dvdy - dudy * dvdx;
+    let spread = (trace * trace - 4.0 * determinant * determinant).max(0.0);
+    let mut narrow = (trace - spread.sqrt()) * 0.5;
+    let mut level = 0;
+    // The level n is read from 2 * 4^n texels^2 a pixel^2 (half a level's step).
+    while level < lowest && narrow >= 2.0 {
+        narrow *= 0.25;
+        level += 1;
+    }
+    level
 }
 
 /// The render states, by their numbers, as the game last set them.
@@ -457,6 +530,56 @@ fn draw_triangle(
     if left >= right || top >= bottom {
         return 0;
     }
+    // linear when either filter asks for it (0x11 magnifying 2, 0x12 minifying 2, 5
+    // or 6): which applies would be the pixel's footprint; the game sets both alike
+    let linear = states.get(0x11) == 2 || matches!(states.get(0x12), 2 | 5 | 6);
+    // The smaller levels, when the game asks for them (minifying filter 6) and the caller has them.
+    let lower_texture;
+    let mut texture = texture;
+    if let Some(t) = texture
+        && !t.lower.is_empty()
+        && linear
+        && states.get(0x12) == 6
+    {
+        // The texel changes along the triangle's two edges from `a`, turned into changes along
+        // the screen's axes by the edges' own screen steps.
+        let (w, h) = (t.width as f32, t.height as f32);
+        let (du1, dv1) = ((b.u - a.u) * w, (b.v - a.v) * h);
+        let (du2, dv2) = ((c.u - a.u) * w, (c.v - a.v) * h);
+        let (ex1, ey1, ex2, ey2) = (b.x - a.x, b.y - a.y, c.x - a.x, c.y - a.y);
+        let inverse = 1.0 / (ex1 * ey2 - ex2 * ey1);
+        let level = mip_level(
+            [
+                [
+                    (du1 * ey2 - du2 * ey1) * inverse,
+                    (du2 * ex1 - du1 * ex2) * inverse,
+                ],
+                [
+                    (dv1 * ey2 - dv2 * ey1) * inverse,
+                    (dv2 * ex1 - dv1 * ex2) * inverse,
+                ],
+            ],
+            t.lower.len(),
+        );
+        if level > 0 {
+            let l = &t.lower[level - 1];
+            lower_texture = Texture {
+                pixels: &l.pixels,
+                width: l.width,
+                height: l.height,
+                pitch: l.width * 4,
+                bytes: 4,
+                masks: [
+                    0xFF,
+                    0xFF00,
+                    0xFF_0000,
+                    if t.has_alpha() { 0xFF00_0000 } else { 0 },
+                ],
+                lower: &[],
+            };
+            texture = Some(&lower_texture);
+        }
+    }
     let edges = [(b, c), (c, a), (a, b)];
     let triangle = Triangle {
         points: [a, b, c],
@@ -479,9 +602,7 @@ fn draw_triangle(
         fog: states.get(0x1C) != 0,
         fog_colour: unpack(states.get(0x22)),
         mixing: states.get(0x15),
-        // linear when either filter asks for it (0x11 magnifying 2, 0x12 minifying 2, 5
-        // or 6): which applies would be the pixel's footprint; the game sets both alike
-        linear: states.get(0x11) == 2 || matches!(states.get(0x12), 2 | 5 | 6),
+        linear,
         texture: texture.map(|t| Texels::of(t, states.get(0x03) == 3)),
         tile,
     };
@@ -1389,6 +1510,50 @@ impl Texels<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn mip_levels_average_four_texels_and_are_chosen_by_density() {
+        // 4x2, 32-bit: the left half 0xFF000000-black with alpha, the right half white.
+        let texels: [u32; 8] = [
+            0xFF00_0000,
+            0xFF00_0000,
+            0xFFFF_FFFF,
+            0xFFFF_FFFF,
+            0xFF00_0000,
+            0xFF20_4060,
+            0xFFFF_FFFF,
+            0xFFFF_FFFF,
+        ];
+        let bytes: Vec<u8> = texels.iter().flat_map(|p| p.to_le_bytes()).collect();
+        let chain = mip_chain(&Texture {
+            pixels: &bytes,
+            width: 4,
+            height: 2,
+            pitch: 16,
+            bytes: 4,
+            masks: [0xFF, 0xFF00, 0xFF_0000, 0xFF00_0000],
+            lower: &[],
+        });
+        assert_eq!(chain.len(), 2);
+        assert_eq!((chain[0].width, chain[0].height), (2, 1));
+        let first: Vec<u32> = chain[0]
+            .pixels
+            .chunks(4)
+            .map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+            .collect();
+        // (0 + 0 + 0 + 0x60 + 2) / 4 = 0x18 in blue; the right half stays white.
+        assert_eq!(first, [0xFF08_1018, 0xFFFF_FFFF]);
+        assert_eq!((chain[1].width, chain[1].height), (1, 1));
+        // A pixel as big as a texel reads the first level, two texels across the next.
+        let scale = |s: f32, t: f32| mip_level([[s, 0.0], [0.0, t]], 2);
+        assert_eq!(scale(1.0, 1.0), 0);
+        assert_eq!(scale(2.0, 2.0), 1);
+        assert_eq!(scale(4.0, 4.0), 2);
+        assert_eq!(scale(40.0, 40.0), 2);
+        // Stretched: the narrow side decides.
+        assert_eq!(scale(8.0, 1.0), 0);
+        assert_eq!(scale(1.0, 2.0), 0);
+    }
 
     /// A frame of `w` x `h` 32-bit pixels drawn with one fan (blending and the depth test
     /// on), in tiles of `size` (0: one), scalar or not: its pixels and depths.

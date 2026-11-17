@@ -77,6 +77,12 @@ pub fn draw_graphics_settings(
             &mut screen,
             &frame_limit_text(o),
         )?;
+        let mut scale = rc2k_core::strings::format::decimal(
+            crate::render::render_scale(),
+            rc2k_core::strings::format::Pad::None,
+        );
+        scale.extend(b" %");
+        rc2k_core::screens::settings_pages::graphics_render_scale(&mut screen, &scale)?;
         Ok(())
     }
 }

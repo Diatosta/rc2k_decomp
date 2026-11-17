@@ -1,5 +1,5 @@
 //! The lobby: players listed once a second, keys to the chat message while one is typed, else
-//! left and right move over the items (ready, car, stage, chat), Enter acts on one, 0x0F toggles
+//! left and right move over the items (ready, car, stage, chat, and after a race the one that saves its replay), Enter acts on one, 0x0F toggles
 //! the gaps' display, Escape leaves. On the host, once two or more players are all ready, each is
 //! sent "@" with the sync counter until all have answered; then everyone races and the loop ends
 //! with 1. After a race, the "after a race" state ends when no player is still racing (a player
@@ -162,8 +162,10 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
                 moved = true;
             } else if !ready && key == 0x68 {
                 step_item(list_state, net, &net.vars, 1);
-                if (list_state.choice.get() as i32) > 3 {
-                    list_state.choice.set(3);
+                let last =
+                    rc2k_core::net::screens::last_lobby_item(net.lobby().replay_kept.get() == 1);
+                if (list_state.choice.get() as i32) > last as i32 {
+                    list_state.choice.set(last);
                 }
                 moved = true;
             } else if key == 0x1C {
@@ -184,6 +186,15 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
                     }
                     3 => {
                         crate::net::begin_chat::begin_chat(net, list_state)?;
+                        moved = true;
+                    }
+                    4 if net.lobby().replay_kept.get() == 1 => {
+                        // The last race's replay into a slot chosen (the viewer's screens).
+                        crate::race::replay_mode::replay_mode(
+                            o.race,
+                            o,
+                            crate::race::replay_viewer::Mode::SaveLast,
+                        )?;
                         moved = true;
                     }
                     _ => {}

@@ -27,7 +27,7 @@ pub fn tab(race: &Race, ui: &Ui) {
         1,
         "Mipmaps' setting",
         &shared.vars.get().mip_setting,
-        "the mipmaps; the rasteriser filters alike either way: no change",
+        "the mipmaps: the software rasteriser reads smaller texture levels when on (the GPU renderers draw alike)",
     );
     ui.text_disabled("2: a switch nothing reads");
     ui.text_disabled("3: the processor's extensions: one path now, nothing to switch");

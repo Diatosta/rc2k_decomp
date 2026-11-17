@@ -98,7 +98,12 @@ More on [Network play](Network-play).
   for its refresh still does), the display's own pace (the default), 30 or 60 a second, and the
   rates that divide the display's refresh evenly (half, a third, a quarter of it). It is kept in
   `var/rc2k.toml`'s `[display]` table as `frame_limit` (`"off"`, `"display"` or a number a second;
-  left out for the default, `"display"`).
+  left out for the default, `"display"`). A "3D resolution" row below it draws the race's 3D at
+  100, 75 or 50 % of the screen's size and enlarges it (nearest pixel) over the screen; the
+  menus, the dashboard and the texts stay at full size. It works on the software rasteriser and
+  on both GPU renderers, and is kept in `[display]` as `render_scale` (50, 75 or 100; left out
+  for 100). The handheld's software rasteriser no longer draws races at half size by itself:
+  set the row to 50 % there.
 - The developers' debug pages, unreachable in the released game, are a window over the game
   ([The debug window](The-debug-window)). Not in the 32-bit Windows build or on the handheld.
 
