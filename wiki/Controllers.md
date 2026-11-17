@@ -162,7 +162,9 @@ old texts; the keyboard always has its own).
   and the timer's digits are) on a dark plate, and centred where the question is. The menus' enter and back of
   the controller are used (what the profile binds, else the controller's default). A text
   without such a group gets the pictures and the words "yes" and "no" on a dark plate under it.
-  With numbers or the keyboard the question is the original's.
+  With numbers or the keyboard the question is the original's. The pictures are as tall as the
+  text's capitals and centred on them. The advanced page's "buttons in the quit question" switch
+  (`quit_pictures` in `rc2k.toml`) turns them off: the question is then the original's.
 
 The pictures are blended over the screen as white shapes with soft edges (16 and 32 bits, in
 the menus and over a race's frame), scaled down from the atlas's 128 px cells to the size drawn

@@ -22,6 +22,9 @@ pub enum Kind {
     /// The renderer: swapped in at once where the platform can, else tried first at the next
     /// start.
     Renderer,
+    /// The race's quit question with the controller's pictures in its text (`rc2k.toml`); off,
+    /// the question is the game's own line.
+    QuitPictures,
     /// A `ral.cfg` switch: the key; `inverted` when the key names what is off (`nofmv`), so the
     /// page shows the feature, not its absence.
     Flag { key: &'static str, inverted: bool },
@@ -42,7 +45,7 @@ const fn flag(key: &'static str, inverted: bool, when: When) -> Row {
 }
 
 /// The rows in the order the page shows them.
-pub const ROWS: [Row; 10] = [
+pub const ROWS: [Row; 11] = [
     Row {
         kind: Kind::Threads,
         when: When::Now,
@@ -61,6 +64,10 @@ pub const ROWS: [Row; 10] = [
     flag("noprecipitation", true, When::NextRace),
     flag("nomusic", true, When::NextStart),
     flag("noforcefeedback", true, When::NextStart),
+    Row {
+        kind: Kind::QuitPictures,
+        when: When::Now,
+    },
 ];
 
 /// The renderers the page offers.
@@ -111,6 +118,8 @@ pub struct Values {
     /// Parts of a frame drawn at once, 1 ..= the most the machine has.
     pub threads: u32,
     pub renderer: Renderer,
+    /// The quit question's pictures on.
+    pub quit_pictures: bool,
     /// Each `Flag` row's switch as the page shows it (on = the feature on), in `ROWS` order
     /// (the other rows' entries are unused).
     pub flags: [bool; ROWS.len()],
@@ -129,6 +138,7 @@ impl Values {
                 };
             }
             Kind::Renderer => self.renderer = self.renderer.other(up, gl),
+            Kind::QuitPictures => self.quit_pictures = !self.quit_pictures,
             Kind::Flag { .. } => self.flags[row] = !self.flags[row],
         }
     }
@@ -206,9 +216,10 @@ mod tests {
     fn every_row_has_its_place() {
         assert!(matches!(ROWS[0].kind, Kind::Threads));
         assert!(matches!(ROWS[1].kind, Kind::Renderer));
-        for row in &ROWS[2..] {
+        for row in &ROWS[2..ROWS.len() - 1] {
             assert!(matches!(row.kind, Kind::Flag { .. }));
         }
+        assert!(matches!(ROWS[ROWS.len() - 1].kind, Kind::QuitPictures));
     }
 
     #[test]
@@ -216,6 +227,7 @@ mod tests {
         let mut v = Values {
             threads: 1,
             renderer: Renderer::Gpu,
+            quit_pictures: true,
             flags: [false; ROWS.len()],
         };
         v.step(0, false, 4, false);
@@ -228,6 +240,8 @@ mod tests {
         assert_eq!(v.renderer, Renderer::Software);
         v.step(2, false, 4, false);
         assert!(v.flags[2]);
+        v.step(ROWS.len() - 1, true, 4, false);
+        assert!(!v.quit_pictures);
     }
 
     #[test]

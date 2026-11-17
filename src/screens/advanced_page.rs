@@ -52,6 +52,11 @@ pub fn draw_advanced(
                 }
                 text
             }
+            Kind::QuitPictures => own(if values.quit_pictures {
+                id::ON
+            } else {
+                id::OFF
+            }),
             Kind::Flag { .. } => own(if values.flags[n] { id::ON } else { id::OFF }),
         });
     }

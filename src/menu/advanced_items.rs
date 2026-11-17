@@ -59,6 +59,7 @@ fn current(o: Owners<'static>) -> Values {
     Values {
         threads: crate::scene::workers::threads() as u32,
         renderer: Renderer::of(crate::render::choice::wanted().as_deref()),
+        quit_pictures: crate::drive::quit_question::pictures_on(),
         flags,
     }
 }
@@ -159,6 +160,9 @@ pub fn apply(o: Owners<'static>) -> Result<(), Refused> {
                 // now is tried first at the next start.
                 crate::render::choice::set_wanted(Some(new.renderer.name().to_owned()));
                 swap_renderer(&o, new.renderer);
+            }
+            Kind::QuitPictures if new.quit_pictures != old.quit_pictures => {
+                crate::drive::quit_question::set_pictures_on(new.quit_pictures);
             }
             Kind::Flag { key, inverted } if new.flags[n] != old.flags[n] => {
                 let number = flag_number(inverted, new.flags[n]);

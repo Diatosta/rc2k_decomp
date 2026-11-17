@@ -157,6 +157,7 @@ pub const KEYS: &[(&str, u32)] = &[
     ("advanced.rain_and_snow", id::ADVANCED_ROWS + 7),
     ("advanced.music", id::ADVANCED_ROWS + 8),
     ("advanced.force_feedback", id::ADVANCED_ROWS + 9),
+    ("advanced.quit_pictures", id::ADVANCED_ROWS + 10),
     ("advanced.gpu", id::RENDERER_GPU),
     ("advanced.software", id::RENDERER_SOFTWARE),
     ("advanced.gles", id::RENDERER_GLES),

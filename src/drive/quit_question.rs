@@ -140,10 +140,25 @@ fn question_font(o: crate::owners::Owners<'static>) -> &'static crate::gfx::type
     &o.gfx.fonts.font_block.game_fonts[2]
 }
 
+/// Whether the quit question shows the controller's pictures in its text (the advanced page's
+/// switch, kept in `rc2k.toml`); off, the race shows the game's own question.
+static PICTURES_ON: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
+
+pub fn pictures_on() -> bool {
+    PICTURES_ON.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+pub fn set_pictures_on(on: bool) {
+    PICTURES_ON.store(on, std::sync::atomic::Ordering::Relaxed);
+}
+
 impl Inline {
     /// The inline question when the controller in use has pictures for yes and no and the
     /// text of notice `kind` has a "(a/b" group; `third`: the question takes a third answer.
     fn of(o: crate::owners::Owners<'static>, kind: u32, third: bool) -> Option<Inline> {
+        if !pictures_on() {
+            return None;
+        }
         use rc2k_core::input::profile::MenuControl as C;
         let (pictures, bindings) = crate::gfx::button_hints::pictures_in_use(o)?;
         let icon = |c| {

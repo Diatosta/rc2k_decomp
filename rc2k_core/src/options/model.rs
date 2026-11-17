@@ -109,6 +109,18 @@ pub struct Display {
     /// file, left out for as many as the machine has cores.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub draw_threads: Option<u32>,
+    /// The race's quit question with the controller's pictures in its text (only in the new
+    /// file; on when missing).
+    #[serde(default = "on", skip_serializing_if = "is_on")]
+    pub quit_pictures: bool,
+}
+
+fn on() -> bool {
+    true
+}
+
+fn is_on(value: &bool) -> bool {
+    *value
 }
 
 impl Default for Display {
@@ -121,6 +133,7 @@ impl Default for Display {
             render_scale: crate::gfx::render_scale::DEFAULT,
             renderer: None,
             draw_threads: None,
+            quit_pictures: true,
         }
     }
 }
