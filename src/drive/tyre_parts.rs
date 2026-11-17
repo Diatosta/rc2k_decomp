@@ -8,6 +8,7 @@ use crate::errors::Refused;
 use crate::math::x87_float::{int, ld, st, stf};
 use crate::memory::session::PlainDword;
 use crate::race::viewer_screen_store::ViewerPanelBlock;
+pub use rc2k_core::hud::anchor::Spread;
 
 /// `d3d::set_texture` on `part`.
 pub fn set_texture(part: &crate::scene::workers::PartScratch, texture: u32) {
@@ -38,6 +39,7 @@ pub fn quad_tail(
     uv: [u32; 4],
     panel: &ViewerPanelBlock,
     system: &crate::system::owner::System,
+    spread: Spread,
 ) {
     let session = &system.session;
     quad_tail_math_in(
@@ -49,6 +51,7 @@ pub fn quad_tail(
             session.screen.get().height.get(),
         ],
         &system.machine().scratch,
+        spread,
     );
 }
 
@@ -62,6 +65,7 @@ fn quad_tail_math_in(
     vertices: &[Vertex],
     screen: [u32; 2],
     scratch: &PlainDword,
+    spread: Spread,
 ) {
     let [x, y, width, height] = rect.map(|n| int(n as i32));
     let texel = ld(panel.texel_scale.get());
@@ -76,8 +80,18 @@ fn quad_tail_math_in(
     scratch.set(st(
         int(screen[0] as i32) * ld(panel.reciprocal_width_800.get())
     ));
-    for vertex in &vertices[..4] {
-        vertex.x.set(stf(ld(vertex.x.get()) * ld(scratch.get())));
+    if spread != Spread::Fill && rc2k_core::hud::anchor::is_wide(screen[0], screen[1]) {
+        // A screen wider than 4:3: the quad keeps its shape and lies by its spread.
+        let (factor, shift) = spread.across(screen[0], screen[1]);
+        for vertex in &vertices[..4] {
+            vertex
+                .x
+                .set((f64::from(vertex.x.get()) * factor + shift) as f32);
+        }
+    } else {
+        for vertex in &vertices[..4] {
+            vertex.x.set(stf(ld(vertex.x.get()) * ld(scratch.get())));
+        }
     }
     scratch.set(st(
         int(screen[1] as i32) * ld(panel.reciprocal_height_600.get())
@@ -96,6 +110,7 @@ fn quad_tail_math(rect: [u32; 4], vertices: &[Vertex], screen: [u32; 2], scratch
         vertices,
         screen,
         scratch,
+        Spread::Fill,
     );
 }
 

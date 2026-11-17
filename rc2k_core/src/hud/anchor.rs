@@ -77,6 +77,41 @@ impl BoxRatio {
     }
 }
 
+/// How a screen of the 800 x 600 layout's quads (the tyre change's, the replay viewer's) lies
+/// across a screen wider than 4:3. On any other screen every quad is stretched over the width,
+/// as it always was.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Spread {
+    /// Stretched over the whole width (a backdrop).
+    Fill,
+    /// Keeping its shape, in the 4:3 area in the middle.
+    Centred,
+    /// Keeping its shape, at the left edge.
+    Left,
+    /// Keeping its shape, at the right edge.
+    Right,
+}
+
+impl Spread {
+    /// The factor and shift that take a layout x to the screen's x on a `width` x `height`
+    /// screen: x times the factor plus the shift. The same for every spread on a screen of 4:3
+    /// or narrower.
+    pub fn across(self, width: u32, height: u32) -> (f64, f64) {
+        let fill = f64::from(width) / f64::from(VIRTUAL_WIDTH);
+        if !is_wide(width, height) {
+            return (fill, 0.0);
+        }
+        let s = f64::from(height) / f64::from(VIRTUAL_HEIGHT);
+        let spare = f64::from(width) - f64::from(VIRTUAL_WIDTH) * s;
+        match self {
+            Spread::Fill => (fill, 0.0),
+            Spread::Centred => (s, spare / 2.0),
+            Spread::Left => (s, 0.0),
+            Spread::Right => (s, spare),
+        }
+    }
+}
+
 /// How a piece's anchor follows from where it lies in the layout.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Rule {
@@ -132,6 +167,31 @@ pub fn anchor_of(x: f32, rule: Rule) -> Anchor {
     }
 }
 
+/// Where the top bar's middle part begins and ends in the layout: the bar's two end caps, which
+/// hold the clocks and names, lie left and right of it.
+pub const BAR_WINDOW: (f32, f32) = (137.0, 687.0);
+
+/// A layout x of the top bar on a screen wider than 4:3, the bar stretched over the whole
+/// width: the left cap keeps to the screen's left edge and the right cap to its right edge, both
+/// in the layout's shape, and the middle part takes the width between them.
+pub fn bar_x(x: f32, width: u32, height: u32) -> f32 {
+    let s = f64::from(height) / f64::from(VIRTUAL_HEIGHT);
+    let (low, high) = (f64::from(BAR_WINDOW.0), f64::from(BAR_WINDOW.1));
+    let x = f64::from(x);
+    let right = f64::from(width) - (f64::from(VIRTUAL_WIDTH) - x) * s;
+    if x <= low {
+        return (x * s) as f32;
+    }
+    if x >= high {
+        return right as f32;
+    }
+    let (from, to) = (
+        low * s,
+        f64::from(width) - (f64::from(VIRTUAL_WIDTH) - high) * s,
+    );
+    (from + (x - low) / (high - low) * (to - from)) as f32
+}
+
 /// A layout x on the screen.
 pub fn screen_x(x: f32, width: u32, height: u32, anchor: Anchor) -> f32 {
     (f64::from(x) * factors(width, height).0 + offset(width, height, anchor)) as f32
@@ -180,6 +240,29 @@ mod tests {
         assert_eq!(BoxRatio::SixteenNine.area(1024, 768), (0, 1024));
         assert_eq!(BoxRatio::of("16:9").step(true), BoxRatio::TwentyOneNine);
         assert_eq!(BoxRatio::of("x"), BoxRatio::Full);
+    }
+
+    #[test]
+    fn spreads_keep_narrow_screens_and_place_wide_ones() {
+        for spread in [Spread::Fill, Spread::Centred, Spread::Left, Spread::Right] {
+            assert_eq!(spread.across(1024, 768), (1.28, 0.0));
+        }
+        assert_eq!(Spread::Fill.across(3840, 1080), (4.8, 0.0));
+        assert_eq!(Spread::Centred.across(3840, 1080), (1.8, 1200.0));
+        assert_eq!(Spread::Left.across(3840, 1080), (1.8, 0.0));
+        assert_eq!(Spread::Right.across(3840, 1080), (1.8, 2400.0));
+    }
+
+    #[test]
+    fn the_top_bar_reaches_both_edges() {
+        assert_eq!(bar_x(0.0, 3840, 1080), 0.0);
+        assert_eq!(bar_x(800.0, 3840, 1080), 3840.0);
+        // The caps keep their shape at the edges.
+        assert!((bar_x(137.0, 3840, 1080) - 246.6).abs() < 0.01);
+        assert!((bar_x(687.0, 3840, 1080) - (3840.0 - 203.4)).abs() < 0.01);
+        // The middle is stretched between them, continuously.
+        let (a, b) = (bar_x(137.0, 3840, 1080), bar_x(687.0, 3840, 1080));
+        assert!((bar_x(412.0, 3840, 1080) - (a + b) / 2.0).abs() < 0.01);
     }
 
     #[test]

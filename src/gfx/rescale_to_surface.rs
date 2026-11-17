@@ -172,13 +172,20 @@ fn rescale_pixels(
     let rows: Vec<u32> = (0..from_height).map(|row| row_address(row, gfx)).collect();
     let mut last_parts = None;
     let mut last_scratch = None;
-    let mut pixels = Vec::with_capacity(width as usize * height as usize * size as usize);
+    // On a screen wider than 4:3 the picture keeps its shape in the middle and the sides show its
+    // wash, as beside a menu.
+    let centre = if size == 4 {
+        rc2k_core::scene::view_window::design_width(width, height)
+    } else {
+        width
+    };
+    let mut pixels = Vec::with_capacity(centre as usize * height as usize * size as usize);
     let work = crate::gfx::picture::with_buffer(&gfx.pictures.buffers, from, |decoded| {
         rc2k_core::gfx::picture::rescale(
             &rc2k_core::gfx::picture::Sizes {
                 from_width,
                 from_height,
-                width,
+                width: centre,
                 height,
             },
             &|row, byte| match decoded.get(rows[row as usize].wrapping_add(byte) as usize) {
@@ -206,6 +213,10 @@ fn rescale_pixels(
         )
         .expect("the sizes were checked")
     })?;
+    if let Some(wide) = rc2k_core::gfx::screen_wash::centred_in_wash(&pixels, centre, width, height)
+    {
+        pixels = wide;
+    }
     static GENERATIONS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
     Ok(Rescaled {
         key,

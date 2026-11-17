@@ -87,6 +87,45 @@ pub fn make(source: &[u8], source_size: (u32, u32), window: (u32, u32)) -> Optio
     })
 }
 
+/// A picture centred in a frame wider than it: `picture` (`picture_width` x `height` pixels of
+/// four bytes) in the middle of a frame `width` wide, the sides filled with the picture's wash
+/// (magnified with a linear filter as the window shows it). The picture's pixels are kept as
+/// they are. `None` when the picture is not narrower than the frame or has no size.
+pub fn centred_in_wash(
+    picture: &[u8],
+    picture_width: u32,
+    width: u32,
+    height: u32,
+) -> Option<Vec<u8>> {
+    if picture_width == 0 || picture_width >= width || height == 0 {
+        return None;
+    }
+    let wash = make(picture, (picture_width, height), (width, height))?;
+    let (ww, wh) = (wash.width as usize, wash.height as usize);
+    let at = |x: usize, y: usize, c: usize| f32::from(wash.pixels[(y * ww + x) * 4 + c]);
+    let left = ((width - picture_width) / 2) as usize;
+    let (w, h, pw) = (width as usize, height as usize, picture_width as usize);
+    let mut out = vec![0u8; w * h * 4];
+    for y in 0..h {
+        let fy = ((y as f32 + 0.5) * wh as f32 / h as f32 - 0.5).clamp(0.0, (wh - 1) as f32);
+        let (y0, ty) = (fy as usize, fy.fract());
+        let y1 = (y0 + 1).min(wh - 1);
+        let row = &mut out[y * w * 4..(y + 1) * w * 4];
+        for x in (0..left).chain(left + pw..w) {
+            let fx = ((x as f32 + 0.5) * ww as f32 / w as f32 - 0.5).clamp(0.0, (ww - 1) as f32);
+            let (x0, tx) = (fx as usize, fx.fract());
+            let x1 = (x0 + 1).min(ww - 1);
+            for c in 0..3 {
+                let top = at(x0, y0, c) * (1.0 - tx) + at(x1, y0, c) * tx;
+                let bottom = at(x0, y1, c) * (1.0 - tx) + at(x1, y1, c) * tx;
+                row[x * 4 + c] = (top * (1.0 - ty) + bottom * ty + 0.5) as u8;
+            }
+        }
+        row[left * 4..(left + pw) * 4].copy_from_slice(&picture[y * pw * 4..(y + 1) * pw * 4]);
+    }
+    Some(out)
+}
+
 /// One box blur of `radius` over the rows, then over the columns; the picture's edge repeats.
 fn box_blur(data: &mut [[f32; 3]], width: usize, height: usize, radius: usize) {
     let mut line = Vec::new();
@@ -177,6 +216,18 @@ mod tests {
         let w = wash.width as usize;
         assert!(wash.pixels[(34 * w + 60) * 4] > 150);
         assert!(wash.pixels[60 * 4] < wash.pixels[(34 * w + 60) * 4]);
+    }
+
+    #[test]
+    fn a_picture_is_centred_in_its_own_wash() {
+        let picture = flat(4, 4, [200, 100, 40, 255]);
+        let out = centred_in_wash(&picture, 4, 12, 4).unwrap();
+        assert_eq!(out.len(), 12 * 4 * 4);
+        let row = &out[..12 * 4];
+        assert_eq!(&row[4 * 4..8 * 4], &picture[..4 * 4]);
+        assert_eq!(&row[..4], [150, 75, 30, 0]);
+        assert_eq!(&row[11 * 4..], [150, 75, 30, 0]);
+        assert!(centred_in_wash(&picture, 12, 12, 4).is_none());
     }
 
     #[test]

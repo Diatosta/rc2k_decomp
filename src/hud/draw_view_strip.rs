@@ -12,7 +12,7 @@ use crate::race::owner::Race;
 use crate::race::view_scratch::ViewScratch;
 use crate::scene::owner::Scene;
 use crate::system::owner::System;
-use rc2k_core::hud::anchor::Rule;
+use rc2k_core::hud::anchor::{BoxRatio, Rule};
 use rc2k_core::hud::strips;
 
 /// The quad's input at byte offset `o` from `quad_colour`: its colour and see-through,
@@ -39,12 +39,17 @@ pub struct Overlay<'a> {
 
 /// The strip's sizes into `strips.sizes` (`strips::sizes`).
 fn sizes(system: &System, strips: &Strips, v: [u32; 4], rule: Rule) {
+    sizes_in(system, strips, v, rule, crate::hud::box_ratio::get());
+}
+
+/// `sizes` in the box `hud_box`.
+fn sizes_in(system: &System, strips: &Strips, v: [u32; 4], rule: Rule, hud_box: BoxRatio) {
     let (sizes, _) = strips::sizes(
         v,
         system.session.screen.get().width.get(),
         system.session.screen.get().height.get(),
         rule,
-        crate::hud::box_ratio::get(),
+        hud_box,
     );
     for (n, x) in sizes.into_iter().enumerate() {
         strips.sizes[n].set(x);
@@ -116,7 +121,9 @@ pub fn overlay_tail(overlay: &Overlay) -> Result<(), Refused> {
         return Ok(());
     }
     for (v, rows) in strips::TAIL {
-        sizes(system, strips_store, v, Rule::Thirds);
+        // The labels at the top corners lie on the bar's end caps: at the screen's own edges,
+        // whatever the HUD's box (`hud::layout_0` keeps the bar there too).
+        sizes_in(system, strips_store, v, Rule::Thirds, BoxRatio::Full);
         let get = |n: usize| strips_store.sizes[n].get();
         quad(overlay, get(2), get(3), rows, Some(strips::TAIL_TEXTURE))?;
     }

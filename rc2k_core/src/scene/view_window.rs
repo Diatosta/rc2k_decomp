@@ -11,6 +11,18 @@ pub fn design_width(width: u32, height: u32) -> u32 {
     width.min((u64::from(height) * 4 / 3) as u32)
 }
 
+/// How much wider than 4:3 the screen's view is: the screen's width over `design_width`, 1.0 for
+/// a 4:3 screen and any narrower one. The tests that cut the course to the sides of the view
+/// (the far cells, a face's sight) were made for a 4:3 view and widen by this.
+pub fn side_widening(width: u32, height: u32) -> f32 {
+    let design = design_width(width, height);
+    if design == 0 || design >= width {
+        1.0
+    } else {
+        width as f32 / design as f32
+    }
+}
+
 /// The settings the choice reads (the screen's size only when not framed).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct ViewSettings {
@@ -153,6 +165,15 @@ mod tests {
         assert_eq!(design_width(1280, 1024), 1280);
         assert_eq!(design_width(1920, 1080), 1440);
         assert_eq!(design_width(3840, 1080), 1440);
+    }
+
+    #[test]
+    fn widening_is_one_up_to_four_by_three() {
+        assert_eq!(side_widening(800, 600), 1.0);
+        assert_eq!(side_widening(1280, 1024), 1.0);
+        assert_eq!(side_widening(0, 0), 1.0);
+        assert_eq!(side_widening(1920, 1080), 1920.0 / 1440.0);
+        assert_eq!(side_widening(3840, 1080), 3840.0 / 1440.0);
     }
 
     #[test]

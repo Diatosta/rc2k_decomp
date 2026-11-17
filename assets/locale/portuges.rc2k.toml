@@ -119,7 +119,6 @@ window = "janela"
 full_screen = "ecrã inteiro"
 borderless = "sem bordas"
 custom = "personalizado"
-half = "metade"
 render_scale = "resolução 3D"
 
 # The replay viewer's row that renders the replay to a video file.

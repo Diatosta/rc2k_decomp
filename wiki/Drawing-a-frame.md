@@ -59,7 +59,7 @@ For each view, in order:
 | Effects | Rain, snow, dust and spray particles, glows, drops on the windscreen. | `effects::run_frame` (`src/effects/`) |
 | Mirror | The same again, smaller, looking back. | `draw_race_scene.rs` |
 
-After the views comes the 2D pass over the whole screen (the HUD's 800 x 600 layout keeps its shape on a screen wider than 4:3, its pieces anchored left, middle or right by `rc2k_core::hud::anchor`; the 3D's scale is made from the screen's height on such a screen, `scene::view_window::design_width`): the HUD (`hud::overlay_pass` →
+After the views comes the 2D pass over the whole screen (the HUD's 800 x 600 layout keeps its shape on a screen wider than 4:3, its pieces anchored left, middle or right by `rc2k_core::hud::anchor`; the 3D's scale is made from the screen's height on such a screen, `scene::view_window::design_width`, and the tests that cut the course to the sides of the view widen by `scene::view_window::side_widening`; the top progress bar spans the screen, `hud::anchor::bar_x`): the HUD (`hud::overlay_pass` →
 `hud::draw_hud`: dials, times, the map, notices) and name plates.
 
 ## From an object to triangles

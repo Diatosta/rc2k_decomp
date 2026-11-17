@@ -288,8 +288,13 @@ pub fn hidden_by_switches(
     }
 }
 
-/// Hidden by depth: the depth (whole) below |x|.
-pub fn hidden_by_depth(depth: u32, x: u32) -> bool {
+/// Hidden by depth: the depth (whole) below |x|. On a view wider than 4:3 (`widening` above 1,
+/// `scene::view_window::side_widening`) the cone to the sides is as much wider: the depth times
+/// `widening` below |x|.
+pub fn hidden_by_depth(depth: u32, x: u32, widening: f32) -> bool {
+    if widening > 1.0 {
+        return f64::from(depth as i32) * f64::from(widening) < f64::from(x as i32);
+    }
     (depth.wrapping_sub(x) as i32) < 0
 }
 
@@ -650,8 +655,10 @@ mod tests {
         assert_eq!(hidden_by_switches(0, 1, || 4), (Some(4), true));
         assert_eq!(hidden_by_switches(0, 1, || 0), (Some(0), false));
         assert_eq!(hidden_by_switches(1, 1, || unreachable!()), (None, false));
-        assert!(hidden_by_depth(3, 4) && !hidden_by_depth(4, 4));
-        assert!(!hidden_by_depth(0x8000_0000, 1));
+        assert!(hidden_by_depth(3, 4, 1.0) && !hidden_by_depth(4, 4, 1.0));
+        assert!(!hidden_by_depth(0x8000_0000, 1, 1.0));
+        assert!(hidden_by_depth(3, 4, 1.0) && !hidden_by_depth(3, 4, 2.0));
+        assert!(hidden_by_depth(3, 7, 2.0) && hidden_by_depth(0x8000_0000, 1, 2.0));
         assert_eq!(depth_by(0x10, || unreachable!()), DepthBy::First);
         assert_eq!(depth_by(3, || 2), DepthBy::Deepest);
         assert_eq!(depth_by(3, || 1), DepthBy::Average);

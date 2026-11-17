@@ -70,6 +70,7 @@ fn stopped(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
         )?;
     }
     let quad = |uv: &[PlainDword], rect: &[PlainDword; 4], colour: u32| {
+        let spread = rc2k_core::hud::anchor::Spread::Fill;
         // The texture rectangle's first four dwords (the frame's picture holds five).
         let uv = uv
             .first_chunk::<4>()
@@ -81,6 +82,7 @@ fn stopped(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
             race.viewer_panel(),
             system,
             o.scene.scratch.game_scratch(),
+            spread,
         )
     };
     let v = race.viewer_panel();

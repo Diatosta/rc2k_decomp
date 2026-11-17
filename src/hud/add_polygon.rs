@@ -42,13 +42,22 @@ pub fn add_polygon(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
         let rule = hud.block.anchor_rule.get();
         // The pieces keep to the HUD's box, centred on the screen (all of it by default); the
         // divider's own rule stretches over the whole screen.
-        let (box_left, box_width) = if rule == 3 {
+        let (box_left, box_width) = if rule >= 3 {
             (0, w)
         } else {
             crate::hud::box_ratio::get().area(w, h)
         };
         let wide = anchor::is_wide(box_width, h) && (kx, ky) == (800.0, 600.0);
-        let x_of: Box<dyn Fn(f32) -> f32> = if !wide {
+        let x_of: Box<dyn Fn(f32) -> f32> = if wide && rule == 4 {
+            Box::new(move |x| anchor::bar_x(x, box_width, h))
+        } else if wide && rule == 5 {
+            let (low, high) = vertices().fold((f32::MAX, f32::MIN), |(lo, hi), v| {
+                (lo.min(v.x.get()), hi.max(v.x.get()))
+            });
+            let middle = (low + high) / 2.0;
+            let (at, s) = (anchor::bar_x(middle, box_width, h), h as f32 / 600.0);
+            Box::new(move |x| at + (x - middle) * s)
+        } else if !wide {
             Box::new(move |x| box_left as f32 + screen_scaled(x, box_width, kx))
         } else {
             let (low, high) = vertices().fold((f32::MAX, f32::MIN), |(lo, hi), v| {

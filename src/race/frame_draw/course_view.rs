@@ -46,6 +46,12 @@ pub fn checkpoint_colours(
     }
 }
 
+/// How much wider than 4:3 the screen's view is (1.0 up to 4:3): the tests that cut the course to
+/// the sides of the view widen by it.
+pub fn side_widening(screen: &crate::memory::session::Screen) -> f32 {
+    rc2k_core::scene::view_window::side_widening(screen.width.get(), screen.height.get())
+}
+
 /// A scene point's record: the record at `point_records` + (point & 0xFFF) x 0x20, made anew
 /// (`scene::make_scene_record`) when its +0 is not the point.
 pub fn point_record(
@@ -116,7 +122,11 @@ pub fn face_hidden(
         ctx.reads.level_grid.depth_shift.get(),
     );
     ctx.view.object.face_depth.set(depth as u32);
-    Ok(hidden_by_depth(depth as u32, x as u32))
+    Ok(hidden_by_depth(
+        depth as u32,
+        x as u32,
+        side_widening(ctx.reads.screen),
+    ))
 }
 
 /// Works out the depth key of `face` (records of 0x40 at `course_faces`) into
@@ -349,9 +359,12 @@ pub fn mark_far_cells(
     numbers: &crate::race::numbers_store::Numbers,
     scratch: &crate::race::view_scratch::ViewScratch,
     limit: u32,
+    widening: f32,
 ) -> Result<(), BadInput> {
     let view = &scratch.grid;
-    crate::math::x87_float::at_rounding!(|r| mark_far_cells_with(r, numbers, scratch, view, limit));
+    crate::math::x87_float::at_rounding!(|r| mark_far_cells_with(
+        r, numbers, scratch, view, limit, widening
+    ));
     Ok(())
 }
 
@@ -362,6 +375,7 @@ fn mark_far_cells_with<R: crate::math::x87_float::Rounds>(
     scratch: &crate::race::view_scratch::ViewScratch,
     view: &crate::race::view_grid::ViewGrid,
     limit: u32,
+    widening: f32,
 ) {
     use crate::math::x87::{
         below_or_unordered, float_hypot_with, from_int_with, scaled_abs_less_below_with,
@@ -379,7 +393,11 @@ fn mark_far_cells_with<R: crate::math::x87_float::Rounds>(
         .map(crate::memory::session::PlainFloat::get);
     let two = numbers.two.get();
     let zero = numbers.zero.get();
-    let point_five = numbers.half.get();
+    // The cone to the sides is as much wider as the view is wider than 4:3.
+    let point_five = match numbers.half.get() {
+        half if widening > 1.0 => half / widening,
+        half => half,
+    };
     let mut out = [0u32; 8];
     for cell in 0..0x400u32 {
         let x = (cell & 0x1F).wrapping_sub(half);
@@ -420,7 +438,7 @@ pub fn prepare_course_view(
     } else {
         0x10
     };
-    mark_far_cells(reads.numbers, view, limit)?;
+    mark_far_cells(reads.numbers, view, limit, side_widening(reads.screen))?;
     Ok(())
 }
 

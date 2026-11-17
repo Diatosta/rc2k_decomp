@@ -78,6 +78,8 @@ pub fn tyre_screen(
         race.viewer_panel(),
         system,
         part,
+        // The dark backdrop fills the whole screen.
+        Spread::Fill,
     )?;
     crate::drive::tyre_quad::quad_of(
         shared
@@ -90,6 +92,7 @@ pub fn tyre_screen(
         race.viewer_panel(),
         system,
         part,
+        Spread::Centred,
     )?;
     crate::drive::tyre_turned_quad::tyre_turned_quad(
         shared,

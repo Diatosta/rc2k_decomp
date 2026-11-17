@@ -18,6 +18,7 @@ pub fn tyre_quad(
     panel: &ViewerPanelBlock,
     system: &crate::system::owner::System,
     part: &crate::scene::workers::PartScratch,
+    spread: Spread,
 ) -> Result<(), Refused> {
     quad_of(
         uv,
@@ -26,6 +27,7 @@ pub fn tyre_quad(
         panel,
         system,
         part,
+        spread,
     )
 }
 
@@ -37,6 +39,7 @@ pub fn quad_of(
     panel: &ViewerPanelBlock,
     system: &crate::system::owner::System,
     part: &crate::scene::workers::PartScratch,
+    spread: Spread,
 ) -> Result<(), Refused> {
     let buffer = &part.vertices;
     let corners = quad_corners(rect);
@@ -45,6 +48,6 @@ pub fn quad_of(
         buffer.vertices[k].y.set(y);
     }
     quad_words(buffer, colour);
-    quad_tail(buffer, uv, panel, system);
+    quad_tail(buffer, uv, panel, system, spread);
     draw(part)
 }

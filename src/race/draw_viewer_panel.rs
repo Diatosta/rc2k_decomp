@@ -144,7 +144,14 @@ pub fn draw_viewer_panel(
     )?;
     let (first, second) = switch_lights(camera_5);
     let white = 0x00FF_FFFF;
+    // The pieces keep to the screen's left or right edge by where they lie.
     let quad = |colour: u32| {
+        use rc2k_core::hud::anchor::Spread;
+        let spread = if race.viewer_panel().screen_rect[0].get() < 400 {
+            Spread::Left
+        } else {
+            Spread::Right
+        };
         crate::drive::tyre_quad::tyre_quad(
             race.viewer_panel()
                 .texture_rect
@@ -155,6 +162,7 @@ pub fn draw_viewer_panel(
             race.viewer_panel(),
             system,
             scene.scratch.game_scratch(),
+            spread,
         )
     };
     // `texture_rect`: the texture's rectangle; `screen_rect`: the screen's.

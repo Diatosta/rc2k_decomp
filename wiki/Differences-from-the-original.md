@@ -65,7 +65,12 @@ The original was a 32-bit Windows program on DirectX. Its platform side was not 
 - **Wide screens.** On a screen wider than 4:3 the 3D keeps its field of view up and down and
   shows more to the sides; the HUD keeps its 800 x 600 shape with its pieces in the corners and
   edges. The graphics page's "HUD area" row (the whole screen at first) confines the HUD to a
-  centred 4:3, 16:9 or 21:9 box.
+  centred 4:3, 16:9 or 21:9 box. With one player the progress bar along the top runs over the
+  whole width whatever the box: its end caps, with the clocks, the car's icon and name, keep to
+  the screen's edges and its middle stretches between them. The course is not cut at the sides
+  by the 4:3 view's cone. The loading screen, the roadside tyre change and the replay viewer keep
+  their 4:3 shape in the middle: the loading picture has the menus' blurred wash beside it, the
+  tyre change's dark backdrop and the replay viewer's bars span the whole width.
 - **Screen row** (graphics page): window (the default), full screen or borderless. **Alt+Enter**
   toggles between a window and full screen at any time.
 - **One window size.** The window keeps the race's screen size from start to end; the original

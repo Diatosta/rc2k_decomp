@@ -59,6 +59,7 @@ pub fn tyre_screen_parts(
                 race.viewer_panel(),
                 system,
                 part,
+                crate::drive::tyre_parts::Spread::Centred,
             )
         }?;
     }

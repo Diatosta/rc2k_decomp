@@ -30,6 +30,12 @@ pub enum Keep {
     Middle = 2,
     /// Stretched over the whole width (the divider of two players one above the other).
     Whole = 3,
+    /// The top bar over the whole width of the screen, whatever the HUD's box: its end caps and
+    /// what lies on them keep to the edges, its middle stretches (`rc2k_core::hud::anchor::bar_x`).
+    Bar = 4,
+    /// A small piece on the top bar's middle part: its middle goes where the bar puts it and it
+    /// keeps its shape.
+    BarMarker = 5,
 }
 
 /// The layout's own rule set at the start of a HUD.

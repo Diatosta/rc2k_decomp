@@ -66,5 +66,6 @@ pub fn draw_viewer_item(
         panel,
         system,
         scene.scratch.game_scratch(),
+        rc2k_core::hud::anchor::Spread::Centred,
     )
 }

@@ -69,7 +69,7 @@ pub fn tyre_turned_quad(
         &system.machine().scratch,
     );
     quad_words(buffer, colour);
-    quad_tail(buffer, uv, panel, system);
+    quad_tail(buffer, uv, panel, system, Spread::Centred);
     draw(part)
 }
 

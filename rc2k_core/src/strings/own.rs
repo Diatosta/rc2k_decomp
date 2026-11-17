@@ -107,8 +107,6 @@ pub mod id {
     pub const FULL_SCREEN: u32 = FIRST + 0xE3;
     pub const BORDERLESS: u32 = FIRST + 0xE4;
     pub const CUSTOM: u32 = FIRST + 0xE5;
-    /// The frame limit that is half of the display's rate.
-    pub const HALF: u32 = FIRST + 0xCC;
     /// The advanced page's row for frames drawn between the ticks.
     pub const SMOOTH_FRAMES: u32 = FIRST + 0xB9;
     /// The advanced page's row for the three- and four-player events on one split screen.
@@ -179,7 +177,6 @@ pub const KEYS: &[(&str, u32)] = &[
     ("graphics.no_limit", id::NO_LIMIT),
     ("graphics.display", id::DISPLAY),
     ("graphics.frames_a_second", id::FRAMES_A_SECOND),
-    ("graphics.half", id::HALF),
     ("advanced.smooth_frames", id::SMOOTH_FRAMES),
     ("advanced.split_many", id::SPLIT_MANY),
     ("graphics.render_scale", id::RENDER_SCALE),

@@ -39,17 +39,7 @@ fn frame_limit_text(o: crate::owners::Owners<'static>) -> Vec<u8> {
     };
     match crate::platform::pacing::frame_limit() {
         FrameLimit::Off => own(id::NO_LIMIT),
-        FrameLimit::Rate(n) => {
-            let mut text = rate(n);
-            // The half of the display's own rate (with the smooth frames on) is named so.
-            let refresh = crate::platform::pacing::display_refresh();
-            if smooth && refresh.is_some_and(|r| (r / 2.0 - f64::from(n)).abs() < 1.0) {
-                text.extend(b" (");
-                text.extend(own(id::HALF));
-                text.push(b')');
-            }
-            text
-        }
+        FrameLimit::Rate(n) => rate(n),
         FrameLimit::Display => {
             let shown = display_rate(crate::platform::pacing::display_refresh(), smooth);
             let mut text = own(id::DISPLAY);

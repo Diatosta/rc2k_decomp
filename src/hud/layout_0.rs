@@ -25,9 +25,10 @@ pub fn layout_0(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
         dials::disc(frame, hud, pen, &dials::DISC_0)?;
     }
     hud.block.texture.set(texture::SPRITES);
-    // The progress bar, its markers and the two clocks at its ends keep together in the middle.
+    // The progress bar runs over the whole width of the screen, whatever the HUD's box: its end
+    // caps, and the clocks on them, keep to the edges and its middle stretches.
     if flags & 0x40 != 0 {
-        keep(hud, Keep::Middle);
+        keep(hud, Keep::Bar);
         draw_stage_bar::draw_stage_bar(frame, hud, pen)?;
         keep_layout(hud);
     }
@@ -54,7 +55,7 @@ pub fn layout_0(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
         sprite(frame, hud, pen, 0x5F, 0x282, 0x1B8)?;
     }
     if flags & 0x40 != 0 {
-        keep(hud, Keep::Middle);
+        keep(hud, Keep::BarMarker);
         draw_marker::draw_other_markers(frame, hud, pen)?;
         draw_marker::draw_marker(frame, hud, pen)?;
         keep_layout(hud);
@@ -68,7 +69,7 @@ pub fn layout_0(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
         dials::needle(frame, hud, pen, &dials::NEEDLE_0)?;
     }
     if flags & 0x40 != 0 {
-        keep(hud, Keep::Middle);
+        keep(hud, Keep::Bar);
         let panels = [
             (
                 &panel.view_a.back,
