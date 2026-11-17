@@ -1,5 +1,4 @@
-//! The players' standings: the heads, then four rows (three when `event.player_count` is 3;
-//! two players still get four, kept) in the order of `results.order`: name, car sprite, flag,
+//! The players' standings: the heads, then one row per player in the order of `results.order`: name, car sprite, flag,
 //! place and points. Refuses a row's player without its record, name or points.
 
 use crate::errors::{BadInput, Refused};
@@ -10,11 +9,7 @@ pub fn draw_players_standings(
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
     let menus = o.menus;
-    let rows = if menus.screens.event.player_count.get() == 3 {
-        3
-    } else {
-        4
-    };
+    let rows = rc2k_core::screens::players_results::rows(menus.screens.event.player_count.get());
     let mut totals = [0u32; 4];
     for (row, total) in totals.iter_mut().enumerate().take(rows) {
         if menus.play.slots.records[row].get().name_player().is_none() {

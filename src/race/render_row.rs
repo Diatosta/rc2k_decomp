@@ -1,6 +1,6 @@
-//! The replay viewer's "render to video" row, under the two rows of buttons: a text button the
-//! down arrow reaches from the lower row, Enter on it plays the whole replay from its start into
-//! a video file (`video`), asking nothing: the screen's size, 60 frames a second, a file in
+//! The replay viewer's "render to video" button, a third row under the two rows of buttons: the
+//! snapshot button's camera picture, centred, which the down arrow reaches from the lower row.
+//! Enter on it plays the whole replay from its start into a video file (`video`), asking nothing: the screen's size, 60 frames a second, a file in
 //! `savedata/videos` named by the date and time. A bar along the screen's foot shows how far the
 //! render has come (it is not in the video); Escape stops the render and keeps what was written.
 //! The viewer is back where the play ended when the render is over.
@@ -16,20 +16,12 @@ const FPS: u32 = 60;
 /// The row has the highlight (the lower row's button is not lit then).
 static SELECTED: AtomicBool = AtomicBool::new(false);
 
-/// The viewer's frame showed the row since it was last drawn on the screen.
-static VISIBLE: AtomicBool = AtomicBool::new(false);
-
 pub fn selected() -> bool {
     SELECTED.load(Relaxed)
 }
 
 pub fn select(on: bool) {
     SELECTED.store(on, Relaxed);
-}
-
-/// The viewer's frame has the row to show.
-pub fn mark_visible() {
-    VISIBLE.store(true, Relaxed);
 }
 
 /// The viewer's number of the key table's down, up and left arrows, and Enter.
@@ -49,45 +41,64 @@ fn file_name(t: &rc2k_core::system::time::LocalTime) -> String {
     )
 }
 
-/// The row's place, in the viewer's 800 x 600 coordinates.
-const BOX: [i32; 4] = [10, 0xB3, 270, 34];
-const SCREEN: (i32, i32) = (800, 600);
+/// The lower row's snapshot button, whose camera picture the render button shows.
+const CAMERA_ITEM: u32 = 23;
 
-/// The row drawn on the frame about to be shown, if the viewer's frame has it to show: a button
-/// (blue, red when it has the highlight) with its text, written into the frame's pixels as the
-/// on-screen keyboard's panel is.
-pub fn draw(o: Owners<'static>) {
-    use crate::gfx::typefaces::fonts;
-    if !VISIBLE.swap(false, Relaxed) {
-        return;
-    }
-    let locked_here = o.gfx.locked.surface.get() != 1;
-    if locked_here && crate::platform::lock_surface(o.gfx, o.system) < 1 {
-        return;
-    }
-    let (w, h) = (
-        o.gfx.drawing.draw_surface.width.get() as i32,
-        o.gfx.drawing.draw_surface.height.get() as i32,
+/// The render button drawn on the viewer's frame, after the list's items: the snapshot button's
+/// picture, centred under the lower row as far below it as the lower row is below the upper,
+/// lit as a highlighted button is when it has the highlight.
+pub fn draw_button(
+    race: &Race,
+    list_state: &crate::menu::list_state::ListState,
+    system: &crate::system::owner::System,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    use crate::race::viewer_state_store::{ReplayViewBlock, ViewerPicture};
+    let replay = &race.replay;
+    let panel = race.viewer_panel();
+    let ViewerPicture::Rectangle(ida) = ReplayViewBlock::item_picture(replay, CAMERA_ITEM)? else {
+        return Ok(());
+    };
+    let uv = panel.rectangle(ida)?;
+    let place = |index: u32| -> Result<[u32; 4], Refused> {
+        let bytes = ReplayViewBlock::item_place(replay, index)?
+            .read_array::<16>("a viewer item's place")?;
+        Ok(std::array::from_fn(|k| {
+            u32::from_le_bytes([
+                bytes[4 * k],
+                bytes[4 * k + 1],
+                bytes[4 * k + 2],
+                bytes[4 * k + 3],
+            ])
+        }))
+    };
+    let (upper, lower) = (place(0)?, place(*LOWER_ROW.start())?);
+    let width = (uv[2] as i32).unsigned_abs();
+    let y = lower[1].wrapping_add(lower[1].wrapping_sub(upper[1]));
+    panel.item_place[0].set(400u32.wrapping_sub(width / 2));
+    panel.item_place[1].set(y);
+    panel.item_place[2].set(width);
+    panel.item_place[3].set(lower[3]);
+    let colour = rc2k_core::race::viewer::item_colour(
+        0,
+        selected(),
+        || false,
+        || {
+            list_state
+                .frame_clock
+                .get()
+                .wrapping_sub(list_state.move_clock.get())
+        },
     );
-    let at = |x: i32, y: i32| (x * w / SCREEN.0, y * h / SCREEN.1);
-    let (left, top) = at(BOX[0], BOX[1]);
-    let (right, bottom) = at(BOX[0] + BOX[2], BOX[1] + BOX[3]);
-    let colour = if selected() { 0xC8202A } else { 0x27347A };
-    crate::input::osk_draw::fill(o, [left, top, right - left, bottom - top], colour);
-    let mut canvas = crate::text::draw_text::GameCanvas::new(o.gfx);
-    if let Err(why) = crate::text::draw_string_by_id::draw_string_by_id_at(
-        crate::strings::append_string_by_id::StringOwners::of(o),
-        rc2k_core::strings::own::id::RENDER_VIDEO,
-        fonts::LIST,
-        left + 8,
-        top + (bottom - top) / 2 - 12,
-        &mut canvas,
-    ) {
-        crate::logfile::program_log::log(&format!("viewer: the render row not drawn: {why:?}"));
-    }
-    if locked_here {
-        crate::platform::unlock_surface(o.gfx);
-    }
+    crate::drive::tyre_quad::tyre_quad(
+        uv,
+        &panel.item_place,
+        colour,
+        panel,
+        system,
+        scene.scratch.game_scratch(),
+        rc2k_core::hud::anchor::Spread::Centred,
+    )
 }
 
 /// How far the replay has been played, 0 ..= 1, for the render's bar.

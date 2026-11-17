@@ -1,7 +1,6 @@
 //! `menu::class_stage_results_pass`: standings table A sorted by stage time
 //! (`menu::sort_standings_by_time`), then for each class up to `CLASSES`, from 1 when
-//! `state.menus.class_mode` is 2, else from 0: when a player (1 .. 3: player 4 is not looked
-//! for, a 1999 slip kept as is) is in the class's entries of standings table A, the class is
+//! `state.menus.class_mode` is 2, else from 0: when a player (1 .. 4) is in the class's entries of standings table A, the class is
 //! numbered (`number_standings`, its count into `event.standings_count`) and its page shown
 //! (`menu::show_class_stage_results`), stopping when leaving is answered yes.
 //! `loop_flags.left_with_carry` is the class's flag.

@@ -242,13 +242,13 @@ re-encoding the picture (AAC sound, Opus in a `.webm`) and the two parts are rem
 fails the video is kept without sound and the log says so. A render never changes the replay:
 the sound is only read from the mixer.
 
-**From the replay viewer.** Under the two rows of buttons the stopped viewer has a "render to
-video" row. The down arrow from the lower row reaches it (up or left goes back to the buttons) and
+**From the replay viewer.** Under the two rows of buttons the stopped viewer has a third row with
+one button, the snapshot button's camera picture. The down arrow from the lower row reaches it
+(up or left goes back to the buttons) and
 Enter renders the whole replay from its start, asking nothing: the screen's size, 60 frames a
 second, into `savedata/videos/replay_YYYY-MM-DD_HH-MM-SS.mp4`, with the sound, as above. A green bar
 along the foot of the screen shows how far it has come (it is not in the video). Escape stops the
-render and keeps what was written. The viewer is back where the play ended. The row's text is one
-of the game's own texts (`viewer.render_video` in the language files beside the game's).
+render and keeps what was written. The viewer is back where the play ended.
 
 ### How the program runs here
 

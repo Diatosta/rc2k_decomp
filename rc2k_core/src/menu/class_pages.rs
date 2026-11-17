@@ -39,7 +39,7 @@ pub fn classes(first: u32, count: u32) -> Result<Range<u32>, Invalid> {
     Ok(first..count)
 }
 
-/// A class has a page when a player (an entry's +4 1 .. 3: player 4 is not looked at) is
+/// A class has a page when a player (an entry's +4 1 .. 4) is
 /// in it; of the `entries`, `class_of` gives each one's class and `who` its +4 (asked only for
 /// those in the class).
 pub fn has_player(
@@ -48,7 +48,7 @@ pub fn has_player(
     who: impl Fn(usize) -> u32,
     class: u32,
 ) -> bool {
-    (0..entries).any(|n| class_of(n) == class && (1..=3).contains(&who(n)))
+    (0..entries).any(|n| class_of(n) == class && (1..=4).contains(&who(n)))
 }
 
 #[cfg(test)]
@@ -64,8 +64,8 @@ mod tests {
         assert_eq!(first_championship_class(1, || 2), 1);
         assert_eq!(classes(1, 3), Ok(1..3));
         assert!(classes(1, 1).is_err() && classes(0, 0x101).is_err());
-        let e = [(0, 0), (1, 4), (2, 3)];
-        let has = |c| has_player(3, |n| e[n].0, |n| e[n].1, c);
-        assert!(!has(0) && !has(1) && has(2));
+        let e = [(0, 0), (1, 5), (2, 3), (3, 4)];
+        let has = |c| has_player(4, |n| e[n].0, |n| e[n].1, c);
+        assert!(!has(0) && !has(1) && has(2) && has(3));
     }
 }

@@ -7,14 +7,11 @@ pub const ALIGN_CENTRE: u32 = 1;
 pub const ALIGN_LEFT: u32 = 2;
 pub const ALIGN_RIGHT: u32 = 3;
 
-/// How a button draw goes wrong (slips kept as is).
+/// How a button is drawn.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Kind {
-    /// `draw_button`: right-aligned, past the second whole middle piece it continues as the
-    /// centred way does; a width multiple of 32 draws a second, centred button.
-    pub slips: bool,
-    /// `draw_button_alt`: left-aligned; whole middle pieces take their y, the shorter last one its
-    /// x, from `draw_button`'s work (`Borrowed`).
+    /// The alternative button: left-aligned; whole middle pieces take their y, the shorter last
+    /// one its x, from the plain button's work (`Borrowed`).
     pub borrows: bool,
 }
 
@@ -138,15 +135,9 @@ impl<E> Pen<'_, E> {
                 if wholes != 0 {
                     self.put(middle)?;
                     self.step(-32);
-                    if kind.slips {
-                        if wholes > 1 {
-                            return self.rightwards(wholes - 1, rest, middle, right);
-                        }
-                    } else {
-                        for _ in 1..wholes {
-                            self.put(middle)?;
-                            self.step(-32);
-                        }
+                    for _ in 1..wholes {
+                        self.put(middle)?;
+                        self.step(-32);
                     }
                 }
                 if rest != 0 {
@@ -156,12 +147,7 @@ impl<E> Pen<'_, E> {
                     return self.put(left);
                 }
                 self.step(-2);
-                self.put(left)?;
-                if kind.slips {
-                    self.step(to_centre);
-                    return self.left_to_right(width, sprites);
-                }
-                Ok(())
+                self.put(left)
             }
             _ => Err(Error::BadAlign),
         }
@@ -218,23 +204,16 @@ mod tests {
 
     #[test]
     fn buttons() {
-        let plain = Kind {
-            slips: false,
-            borrows: false,
-        };
+        let plain = Kind { borrows: false };
         // Left: end at 100, middles at 0x86 and 0xA6 (40 = 32 + 8: the last moved back 24), end.
         let (_, d, r) = pieces(plain, 40, ALIGN_LEFT);
         assert!(r.is_ok());
         assert_eq!(d, [(1, 100), (3, 0x86), (3, 0x8E), (2, 0xAE)]);
         assert_eq!(pieces(plain, 0, ALIGN_LEFT).2, Err(Error::NoLength));
         assert_eq!(pieces(plain, 32, 7).2, Err(Error::BadAlign));
-        // `draw_button`'s slip: right-aligned with a multiple of 32, a second button.
-        let slipping = Kind {
-            slips: true,
-            borrows: false,
-        };
-        let (_, d, _) = pieces(slipping, 32, ALIGN_RIGHT);
-        assert_eq!(d.len(), 3 + 3);
+        // Right-aligned with a multiple of 32: one button, the ends and two middles.
+        let (_, d, _) = pieces(plain, 64, ALIGN_RIGHT);
+        assert_eq!(d, [(2, 100), (3, 68), (3, 36), (1, 2)]);
         assert_eq!(text_width(20), 32);
     }
 }

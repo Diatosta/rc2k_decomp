@@ -123,7 +123,6 @@ render_scale = "resolução 3D"
 
 # The replay viewer's row that renders the replay to a video file.
 [viewer]
-render_video = "gravar em vídeo"
 
 # The network lobby.
 [lobby]

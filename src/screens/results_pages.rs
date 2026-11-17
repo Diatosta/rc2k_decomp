@@ -5,8 +5,7 @@
 //!   section's first record), the rally's times, the first time the class's, and the rows of the
 //!   class by position.
 //! - `draw_overall_rally_results`: the same with titles 0x4EB / 0x4EE, the first time the first
-//!   classed entry's and the rows by position alone. A player's row is "retired or not finished"
-//!   by its +0x14 where the others' are by +0x18 (kept as is).
+//!   classed entry's and the rows by position alone.
 //! - `draw_class_stage_results`: the heading `screens::draw_record_heading`, the stage's times,
 //!   the class's first time and rows.
 //! - `draw_overall_stage_results`: as the last with the overall first time (the gaps' base) and
@@ -56,7 +55,7 @@ pub const CLASS_RALLY: Page = Page {
 pub const OVERALL_RALLY: Page = Page {
     heading: Heading::Titles(0x4EB, 0x4EE),
     time: 0x18,
-    check: (0x18, 0x14),
+    check: (0x18, 0x18),
     by_class: false,
 };
 pub const CLASS_STAGE: Page = Page {

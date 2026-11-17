@@ -209,14 +209,6 @@ pub struct Holder<T> {
 const ROW_1_Y: i32 = 0x1FC;
 const ROW_2_Y: i32 = 0x213;
 
-/// Where the top speed's car sprite goes: the stage panels' second row, or the first (the time
-/// trial's copy: a slip kept as is).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum CarRow {
-    Second,
-    First,
-}
-
 /// The two record rows: "<0x34B>:  <0>" and "<0x34C>:  <0>" (x 0x188), then the best time
 /// (y 0x1FC) and the top speed (y 0x213, in tenths of a mile per hour at x 0x2A8). Returns the
 /// last text's `too_wide`.
@@ -224,7 +216,6 @@ pub fn records<S, T>(
     s: &mut S,
     best: Holder<T>,
     top: Holder<T>,
-    car_row: CarRow,
     show_hours: bool,
     units: u32,
 ) -> Result<bool, S::Error>
@@ -247,11 +238,7 @@ where
 
     s.sprite(flag_glyph(top.nation), 0x18A, ROW_2_Y)?;
     s.text(Font::Value, top.name, 0x1A6, ROW_2_Y)?;
-    let car_y = match car_row {
-        CarRow::Second => ROW_2_Y,
-        CarRow::First => ROW_1_Y,
-    };
-    s.sprite(car_glyph(top.car), 0x266, car_y)?;
+    s.sprite(car_glyph(top.car), 0x266, ROW_2_Y)?;
     let setting = Units::from_setting(units).ok_or(Invalid("a unit setting with no label"))?;
     let figure = speed(top.figure, setting).ok_or(Invalid(
         "result does not fit 32 bits: the original's div traps",
@@ -369,12 +356,12 @@ mod tests {
             figure: 1234,
         };
         let mut s = Record::default();
-        records(&mut s, best, top, CarRow::First, false, 0).unwrap();
+        records(&mut s, best, top, false, 0).unwrap();
         assert_eq!(s.0[0], "Label \"<34b>:  <0>\\0\" 0x188 0x1fc");
         assert_eq!(s.0[2], "sprite 0x1d 0x18a 0x1fc");
         assert_eq!(s.0[4], "sprite 0x5c 0x266 0x1fc");
         assert_eq!(s.0[6], "sprite 0x1e 0x18a 0x213");
-        assert_eq!(s.0[8], "sprite 0x47 0x266 0x1fc");
+        assert_eq!(s.0[8], "sprite 0x47 0x266 0x213");
         assert_eq!(s.0[9], "Value \"123.4<573>\\0\" 0x2a8 0x213");
     }
 }

@@ -1004,7 +1004,6 @@ pub fn screen_pixels(system: &crate::system::owner::System) -> u64 {
 /// quitting (nothing shown).
 pub fn show_frame_now(o: crate::owners::Owners<'static>) -> bool {
     crate::input::osk_draw::draw(o);
-    crate::race::render_row::draw(o);
     let drawing = &o.gfx.drawing;
     // The 3D drawing noted so far, before the screen is shown, written or changed.
     crate::platform::direct3d::flush();

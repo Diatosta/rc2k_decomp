@@ -90,6 +90,15 @@ pub enum Spread {
     Left,
     /// Keeping its shape, at the right edge.
     Right,
+    /// A strip from layout x `from` to `to` whose ends keep to the screen's edges as the pieces
+    /// beside it do (`Left` / `Right`) and whose middle stretches between them; with `keep_shape`
+    /// a small piece on the strip (a mark on a time bar) lies where the strip takes its left
+    /// edge but keeps its own width.
+    Span {
+        from: u32,
+        to: u32,
+        keep_shape: bool,
+    },
 }
 
 impl Spread {
@@ -108,6 +117,29 @@ impl Spread {
             Spread::Centred => (s, spare / 2.0),
             Spread::Left => (s, 0.0),
             Spread::Right => (s, spare),
+            Spread::Span { from, to, .. } => {
+                let (from, to) = (f64::from(from), f64::from(to));
+                if to <= from {
+                    return (s, spare / 2.0);
+                }
+                let factor = (s * (to - from) + spare) / (to - from);
+                (factor, s * from - factor * from)
+            }
+        }
+    }
+
+    /// The factor and shift for one quad whose leftmost layout x is `left`: as `across`, except
+    /// that a `Span` piece that keeps its shape is moved with the strip but not widened.
+    pub fn across_quad(self, width: u32, height: u32, left: f64) -> (f64, f64) {
+        let (factor, shift) = self.across(width, height);
+        match self {
+            Spread::Span {
+                keep_shape: true, ..
+            } if is_wide(width, height) => {
+                let s = f64::from(height) / f64::from(VIRTUAL_HEIGHT);
+                (s, left * factor + shift - s * left)
+            }
+            _ => (factor, shift),
         }
     }
 }
@@ -273,5 +305,32 @@ mod tests {
         assert_eq!(anchor_of(399.0, Rule::Halves), Anchor::Left);
         assert_eq!(anchor_of(400.0, Rule::Halves), Anchor::Right);
         assert_eq!(anchor_of(10.0, Rule::Centre), Anchor::Centre);
+    }
+
+    #[test]
+    fn a_span_keeps_its_ends_beside_the_edge_pieces() {
+        // 32:9 at 1080 high: the layout's 800 x 600 is 1440 wide, 2400 spare.
+        let (w, h) = (3840, 1080);
+        let span = Spread::Span {
+            from: 100,
+            to: 700,
+            keep_shape: false,
+        };
+        let (f, k) = span.across(w, h);
+        let (lf, lk) = Spread::Left.across(w, h);
+        let (rf, rk) = Spread::Right.across(w, h);
+        assert!((100.0 * f + k - (100.0 * lf + lk)).abs() < 1e-6);
+        assert!((700.0 * f + k - (700.0 * rf + rk)).abs() < 1e-6);
+        // A mark at 400 keeps its width (1.8 a layout pixel) and lies on the strip.
+        let mark = Spread::Span {
+            from: 100,
+            to: 700,
+            keep_shape: true,
+        };
+        let (mf, mk) = mark.across_quad(w, h, 400.0);
+        assert!((mf - 1.8).abs() < 1e-9);
+        assert!((400.0 * mf + mk - (400.0 * f + k)).abs() < 1e-6);
+        // 4:3: every spread stretches as before.
+        assert_eq!(span.across(1600, 1200), Spread::Fill.across(1600, 1200));
     }
 }

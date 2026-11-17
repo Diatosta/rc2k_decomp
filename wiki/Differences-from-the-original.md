@@ -23,7 +23,7 @@ the switches of the command line are on [Running and options](Running-and-option
 - **Lobby passwords, ping, un-ready and `/kick`** to put a player out: [Network play](#network-play).
 - **Finding hosts over Tailscale**: [Network play](#network-play).
 - **Playing through Steam** (an optional build, in progress): [Network play](#network-play).
-- **Replays rendered to a video**, from the command line and (arriving) a button in the viewer:
+- **Replays rendered to a video**, from the viewer's camera button in a third row and from the command line:
   [Replays](#replays).
 - **More players in split screen** (three and four; in progress): [In progress](#in-progress).
 - **Straight into a race, a replay or the lobby** from the command line: [Running](#running).
@@ -191,7 +191,7 @@ Everything is on [Controllers](Controllers) and [Input](Input); in short:
 ## Replays
 
 - **Replays can be rendered to a video**, with its sound: the viewer's "render to video" button
-  (under its two rows of buttons) renders the whole replay at the screen's size and 60 frames a
+  (a third row under its two rows of buttons, showing the snapshot button's camera) renders the whole replay at the screen's size and 60 frames a
   second into `savedata/videos/`, a bar showing the progress and Escape stopping it (what was
   written is kept); from the command line, `--render-replay <slot|file> --out <video> [--size WxH]
   [--fps N]` does it without a window. The video is written through an `ffmpeg` on the path (H.264

@@ -865,3 +865,113 @@ has the same fixed addresses, but its network mode could not be run here to see 
 - **In game**: with the replay's second car shown (the viewer's view item), the engine and the other car sounds were silent; the first car had them.
 - **Seen or read**: seen (a replay saved after a two-player network race); read in the sound set-up.
 - **Fix**: a replay whose header names two cars or more but one player gets the sound objects of a two-player race for its first two cars (the second car's kind from the header), as a two-player replay has.
+
+## The players' results page: a cut time, extra rows and a stray sprite
+
+*Original*: `screens::draw_players_results_points`, `screens::draw_players_results`, `screens::draw_players_standings`.
+*Fixed*: 2026-11-17.
+
+- **What**: the results page with points drew the third row's time 50 pixels further left than the others (under the car's picture); it drew four rows for two players (the last two from whatever the order table held), and tested its first row's "no time" differently from the rest. The page without points drew an extra picture over the third row's car, taken from a variable another screen had left. The players' standings page also drew four rows for two players.
+- **In game**: in a three-player single rally the third row's time started under the car and was cut ("37.49" instead of "01:37.49"); with two players the page showed two more rows of someone else's data; the third row's car had another sprite on it.
+- **Seen or read**: the cut time was seen (a three-player single rally); the rest was read in the code.
+- **Fix**: every row's time is at the same place, one row is drawn per player (one to four) on both pages and the standings, and the extra picture is gone. The first row's "no time" test keeps its signed comparison, which matches the others for every time the game makes.
+
+## A time trial's top speed drawn over the best time's car
+
+*Original*: `screens::draw_time_trial_records`.
+*Fixed*: 2026-11-17.
+
+- **What**: the time trial's copy of the two record rows put the top speed's car picture at the first row's height instead of the second's.
+- **In game**: the best time's row showed two car pictures on top of each other and the top speed's row none.
+- **Seen or read**: read in the code.
+- **Fix**: the car picture goes on the top speed's row, as on the stage panels.
+
+## The fastest line missing from a record page with fewer than ten times
+
+*Original*: `screens::draw_record_times`, `screens::draw_stage_results`.
+*Fixed*: 2026-11-17.
+
+- **What**: a best-times list that ended before ten rows jumped past the page's last line. In the stage results page the same jump left the stack astray (the original crashed there; the Rust version ended the game with a refusal).
+- **In game**: the "fastest" line at the bottom of a record page was left out when the list was short; a time trial's stage results page for such a list ended the game.
+- **Seen or read**: read in the code.
+- **Fix**: the rows the list has are drawn and the fastest line is always drawn.
+
+## A spaced-out empty menu text drew what the line buffer held
+
+*Original*: `screens::draw_menu_item_text`.
+*Fixed*: 2026-11-17.
+
+- **What**: a menu item with spaced letters and an empty text drew its terminator and went on through the line buffer, past the empty text, up to the next zero byte.
+- **In game**: an empty spaced item could show stray characters of an earlier line (none of the shipped menus has one).
+- **Seen or read**: read in the code.
+- **Fix**: an empty text draws nothing.
+
+## The overall rally results judged a player's row by the stage time
+
+*Original*: `screens::draw_overall_rally_results`.
+*Fixed*: 2026-11-17.
+
+- **What**: a player's row on the overall rally results was marked "retired or not finished" by the stage's time where every other row, and the class page, use the rally's.
+- **In game**: a player who had no time in the last stage but a rally total (or the other way round) was shown with the wrong text in place of the total.
+- **Seen or read**: read in the code.
+- **Fix**: every row is judged by the rally time.
+
+## A class with only the fourth player in it had no results page
+
+*Original*: `menu::class_rally_results_pass`, `menu::class_stage_results_pass`, `menu::class_championship_pass`.
+*Fixed*: 2026-11-17.
+
+- **What**: the passes that show a results page for each class in which a player took part looked for players 1 to 3 only.
+- **In game**: with four players, a class holding only the fourth player's car was skipped in the class results.
+- **Seen or read**: read in the code.
+- **Fix**: players 1 to 4 count.
+
+## The network lobby's total drawn at the wrong height
+
+*Original*: `net::lobby_frame`.
+*Fixed*: 2026-11-17.
+
+- **What**: for a player with no race time the total was drawn at the height the "no time" text left (its row plus the font's offset), not at the row's.
+- **In game**: the totals of players still to finish sat a few pixels lower than the others'.
+- **Seen or read**: read in the code.
+- **Fix**: every total is at its row's height.
+
+## Escape on the sessions list said the session failed
+
+*Original*: `net::start_link`.
+*Fixed*: 2026-11-17.
+
+- **What**: leaving the list of sessions with Escape was handled as a failure to join.
+- **In game**: the message "session failed" came up after backing out of the list.
+- **Seen or read**: read in the code.
+- **Fix**: Escape goes back to the menu without a message.
+
+## The upper player's needle sign followed the lower player's
+
+*Original*: `hud::layout_2`.
+*Fixed*: 2026-11-17.
+
+- **What**: in the two-player HUD with the players one above the other, both players' needle signs were chosen from the second player's start value (the one-row layout uses the first for the first).
+- **In game**: the upper player's needle sign could be the lower player's.
+- **Seen or read**: read in the code.
+- **Fix**: each player's sign follows that player's own value.
+
+## Right-aligned buttons drawn as two
+
+*Original*: `screens::draw_button`.
+*Fixed*: 2026-11-17.
+
+- **What**: a right-aligned plain button wider than two pieces continued as a left-to-right button from its second piece, ending with a second right end; with a width that is a multiple of 32 it also drew a second, centred button.
+- **In game**: wide right-aligned buttons had a second end piece and an extra button drawn over or beside them.
+- **Seen or read**: read in the code.
+- **Fix**: the pieces run right to left to the left end, as the highlighted button's do.
+
+## The menus' tune not restarted after a saved replay
+
+*Original*: `race::viewer_load_stage`, `menu::replay_item_c`.
+*Fixed*: 2026-11-17.
+
+- **What**: the replay viewer sets up the race sounds, which stops the music, and nothing started the menus' tune again when a saved replay chosen from the menus was left.
+- **In game**: the menus stayed silent after watching a saved replay.
+- **Seen or read**: heard (the original, 2026-10-21).
+- **Fix**: the menus' tune starts when the viewer returns to the menus.

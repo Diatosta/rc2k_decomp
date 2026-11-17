@@ -36,7 +36,7 @@ pub fn draw_stage_best_and_fastest(
     times: &rc2k_core::saves::entries::BestTime,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    use rc2k_core::screens::stage_panel::{CarRow, Holder};
+    use rc2k_core::screens::stage_panel::Holder;
     {
         let record = stage_record_in(system, play)?;
         let units = crate::strings::units::units(o.strings);
@@ -74,7 +74,6 @@ pub fn draw_stage_best_and_fastest(
             &mut crate::screens::stage_panel::PanelScreen::new(canvas, o),
             best,
             top,
-            CarRow::Second,
             crate::strings::append_time::show_hours(o.strings),
             units,
         )?;

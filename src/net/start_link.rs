@@ -4,7 +4,7 @@
 //! chat is cleared and the lobby and the race run in turn until the lobby is left; the network is
 //! then stopped.
 //!
-//! Escape on the sessions' list shows message 0x155 as a failure does (kept as is).
+//! Escape on the sessions' list goes back to the menu without a message.
 
 use crate::errors::Refused;
 use crate::net::lobby::log_bytes;
@@ -68,11 +68,10 @@ fn link(o: Owners<'static>, launched: bool) -> Result<Way, Refused> {
     }
     loop {
         let session = choose_session::choose_session(o, lines, launched)?;
-        // Escape (a negative choice) is taken as a failure, so it shows the message too (kept as
-        // is).
+        // Escape (a negative choice) goes back to the menu: nothing failed.
         if (session as i32) < 0 {
             why("no session was chosen");
-            return Ok(Way::Message(NO_SESSION));
+            return Ok(Way::End);
         }
         if joining::joining(o, lines, session)? {
             return Ok(Way::On);

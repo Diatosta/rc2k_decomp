@@ -399,7 +399,9 @@ Rules for reading:
   file is valid. The lists of tables (`championship`, an event's, a rally's) are taken whole:
   one is read as written, with every key of each entry.
 - A key the program does not know is ignored, and is still there after the program writes the
-  file again. A later version can add keys without older builds losing them.
+  file again. A later version can add keys without older builds losing them. A key the program
+  knows is written as the option now is: one back at its default (a window, no password, no size
+  set by hand) is taken out of the file.
 - A list of the wrong length, a text too long for its buffer, a GUID that is not one, or a file
   that is not valid TOML, stops the program with a message in `rc2k.log`.
 - A `version` higher than this program knows (2) stops it too: the file is from a newer build.

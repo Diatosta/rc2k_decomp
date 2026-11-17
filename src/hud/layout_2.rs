@@ -1,7 +1,6 @@
 //! The HUD of layout 2, two players one above the other: as layout 1, with a black divider at
-//! 0x12B; the upper's rows move 0x10 down and the lower's 0x10 up with `Panel::flat` 0. Both
-//! needles' signs read the second start value (layout 1 reads the first for the first: a slip kept
-//! as is).
+//! 0x12B; the upper's rows move 0x10 down and the lower's 0x10 up with `Panel::flat` 0. Each
+//! player's needle sign follows that player's own start value.
 
 use crate::errors::Refused;
 use crate::hud::draw_signs::row_by;
@@ -68,7 +67,7 @@ pub fn layout_2(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
             0x22A,
         )?;
     }
-    let p = needle_sign(hud, panel.start_values[1].get());
+    let p = needle_sign(hud, panel.start_values[0].get());
     if f1 & 1 != 0 {
         scaled(frame, hud, pen, p, 0x19, upper(frame, 0xA3))?;
     }

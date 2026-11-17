@@ -47,20 +47,20 @@ fn times_table<'t>(
     Ok(table.is_taken().then_some(table))
 }
 
-/// Whether the end mark comes within the ten rows (n = 1 .. 10 entries on: the tenth is
-/// the next stage's first, or the block's zeros past the table). Refuses one past the
-/// block.
-fn ends_within_ten(table: &StageTable, stage: usize) -> Result<bool, BadInput> {
+/// How many rows the stage's list has: up to the first entry (1 .. 10 on: the tenth is the next
+/// stage's first, or the block's zeros past the table) that is the end mark, at most ten.
+/// Refuses one past the block.
+fn rows_of(table: &StageTable, stage: usize) -> Result<usize, BadInput> {
     table.with(|t| {
         for n in 1..=10 {
             let first = t.first_at(stage * 10 + n).ok_or(BadInput(
                 "an entry after the ten past the best times' block",
             ))?;
             if first == u32::MAX {
-                return Ok(true);
+                return Ok(n);
             }
         }
-        Ok(false)
+        Ok(10)
     })?
 }
 
@@ -71,12 +71,11 @@ fn ends_within_ten(table: &StageTable, stage: usize) -> Result<bool, BadInput> {
 /// (`MenuState.menus.caption_choice` 1) the row's seal code (`strings::format_seal_code`) one
 /// character at a time; else its time (fixed pitch), the first kept in
 /// `MenuState.menus.first_row_time` and the others' gap to it (string 0x579 and the time); after
-/// ten rows the fastest line (string 0x1A2; from the stage record found again by
+/// the rows (ten, or fewer when the list ends) the fastest line (string 0x1A2; from the stage record found again by
 /// `records::find_stage_record` when both switches are 0, else the record's own, its second
 /// fastest with `ChampView.switches.records_alt` 1). The sprites' palette is unused. Refuses no
-/// current menu, no stage records or times table, a stage line past its buffer, a times table
-/// whose end
-/// (-1) comes within the ten rows and what the strings refuse.
+/// current menu, no stage records or times table, a stage line past its buffer and what the
+/// strings refuse.
 pub fn draw_stage_results(o: Owners<'static>, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let menus = o.menus;
     let champ = &menus.play.champ_view;
@@ -127,17 +126,12 @@ pub fn draw_stage_results(o: Owners<'static>, canvas: &mut dyn Canvas) -> Result
     let ten = table
         .with(|t| t.stages.get(slot).copied())?
         .ok_or(BadInput("a stage past its best times table"))?;
-    let names = ten
+    let count = rows_of(table, slot)?;
+    let names = ten[..count]
         .iter()
         .map(|e| e.name_text().and_then(|t| Held::new(&t)))
         .collect::<Option<Vec<_>>>()
         .ok_or(BadInput("a best time's name without its end"))?;
-    if ends_within_ten(table, slot)? {
-        return Err(BadInput(
-            "a times table ending within the ten rows: the original returns through a wrong stack",
-        )
-        .into());
-    }
     let set_item = |n: u32, v: u32| -> Result<(), BadInput> {
         menu.items(&menus.tables.menus)
             .get(n as usize)
@@ -173,16 +167,18 @@ pub fn draw_stage_results(o: Owners<'static>, canvas: &mut dyn Canvas) -> Result
         .write_at(0, &stage, "the stage line")?;
     // The logic is in `rc2k_core::screens::stage_results`.
     use rc2k_core::screens::stage_results::{Entry, Fastest, stage_results};
-    let rows = std::array::from_fn(|n| {
-        let e = &ten[n];
-        Entry {
-            name: HeldText::Held(names[n]),
-            nation: e.head.nation,
-            car: e.head.car,
-            time: e.head.key,
-            seal: (e.sealed[0], e.sealed[1]),
-        }
-    });
+    let rows: Vec<_> = (0..count)
+        .map(|n| {
+            let e = &ten[n];
+            Entry {
+                name: HeldText::Held(names[n]),
+                nation: e.head.nation,
+                car: e.head.car,
+                time: e.head.key,
+                seal: (e.sealed[0], e.sealed[1]),
+            }
+        })
+        .collect();
     speed.pop();
     let held = fastest
         .record(&o.system.records().stage_tables)?

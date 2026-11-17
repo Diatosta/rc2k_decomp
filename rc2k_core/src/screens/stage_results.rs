@@ -1,4 +1,4 @@
-//! The time trial stage results page: ten rows of name, result and rank with the car's and
+//! The time trial stage results page: up to ten rows of name, result and rank with the car's and
 //! flag's sprites, then the fastest line.
 
 use crate::Invalid;
@@ -55,7 +55,7 @@ pub fn stage_results<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     seal_mode: bool,
     show_hours: bool,
-    rows: &[Entry<S::Text>; 10],
+    rows: &[Entry<S::Text>],
     seal_code: &mut dyn FnMut(u32, u32) -> Vec<u8>,
     fastest: &Fastest<S::Text>,
 ) -> Result<(), S::Error> {
@@ -173,7 +173,7 @@ mod tests {
 
     #[test]
     fn page() {
-        let rows = std::array::from_fn(|n| Entry {
+        let rows: [Entry<u32>; 10] = std::array::from_fn(|n| Entry {
             name: n as u32,
             nation: n as u32,
             car: 0x19,
@@ -204,5 +204,24 @@ mod tests {
         stage_results(&mut s, true, false, &rows, &mut code, &fastest).unwrap();
         assert_eq!(s.0[1], "Small \"C\\0\\0\\0\" 0x20a 0xf1");
         assert_eq!(s.0[2], "Small \"0\\0\\0\\0\" 0x218 0xf1");
+        // A list that ends early: its rows, then the fastest line.
+        let mut s = Record::default();
+        stage_results(
+            &mut s,
+            false,
+            false,
+            &rows[..2],
+            &mut |_, _| unreachable!(),
+            &fastest,
+        )
+        .unwrap();
+        assert_eq!(
+            s.0.iter()
+                .filter(|l| l.starts_with("sprite 0x5c 0x1cc"))
+                .count(),
+            2
+        );
+        assert!(!s.0.iter().any(|l| l.contains("n2 ")));
+        assert_eq!(s.0.last().unwrap(), "Rows \"99\\0\" 0x262 0x1f1");
     }
 }

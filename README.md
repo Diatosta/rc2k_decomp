@@ -295,7 +295,10 @@ The full list, with what each bug was and how it was fixed, is in
 ## Licence and legal
 
 The project's own code is under the GNU General Public License, version 3 or (at your
-option) any later version (GPL-3.0-or-later); see [LICENSE](LICENSE).
+option) any later version (GPL-3.0-or-later); see [LICENSE](LICENSE). An additional
+permission under its section 7 allows a build to link Valve's Steamworks library and run with
+the Steam client (the optional `steam` feature); see
+[LICENSE-EXCEPTION-STEAM.md](LICENSE-EXCEPTION-STEAM.md).
 
 *Rally Championship 2000* and its data belong to their owners. This repository contains
 neither the original program nor the game's data files (stages, cars, sounds, films,

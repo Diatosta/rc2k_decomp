@@ -24,15 +24,12 @@ pub fn labels<S: Screen>(s: &mut S, labels: &[Label<S::Font>]) -> Result<(), S::
     Ok(())
 }
 
-/// The line buffer's length; the one-character text follows it.
+/// The line buffer's length.
 const LINE_LEN: usize = 0x100;
 
 /// An item's text: one string, or with `spaced` one character at a time 18 pixels apart from
-/// x - 26 through a one-character text. The string is read with
-/// its NUL: an empty string's NUL is still drawn, then the loop goes on into what the line
-/// buffer held after it (`after(n)`, n < 0x100; past the buffer, the one-character text).
-/// Refused: a string of 0x100 bytes or more with its NUL.
-#[allow(clippy::too_many_arguments)] // the item's id, fonts, position and spacing
+/// x - 26. An empty spaced text draws nothing. Refused: a string of 0x100 bytes or more with
+/// its NUL.
 pub fn item_text<S: Screen<Work = Work>>(
     s: &mut S,
     id: u32,
@@ -40,37 +37,22 @@ pub fn item_text<S: Screen<Work = Work>>(
     x: i32,
     y: i32,
     spaced: bool,
-    after: &dyn Fn(usize) -> u8,
 ) -> Result<(), S::Error> {
     if !spaced {
         s.string(font, id, x, y)?;
         return Ok(());
     }
-    let mut line = s.string_bytes(id);
-    line.push(0);
-    if line.len() > LINE_LEN {
+    let line = s.string_bytes(id);
+    if line.len() >= LINE_LEN {
         return Err(Invalid("a string longer than the line buffer").into());
     }
-    s.store(Buffer::Line, &line)?;
-    let byte = |n: usize| if n < line.len() { line[n] } else { after(n) };
-    let mut x = x.wrapping_sub(0x1A);
-    let mut place = 0usize;
-    loop {
-        // Cleared before the byte is read: past the buffer the byte is that text's own, so 0.
-        let character = if place < LINE_LEN { byte(place) } else { 0 };
+    let mut at = x.wrapping_sub(0x1A);
+    for &character in &line {
         s.store(Buffer::Cells, &[character, 0, 0, 0])?;
-        s.draw(font, Buffer::Cells, x, y)?;
-        x = x.wrapping_add(0x12);
-        place += 1;
-        let next = match place {
-            n if n < LINE_LEN => byte(n),
-            LINE_LEN => character,
-            _ => 0,
-        };
-        if next == 0 {
-            return Ok(());
-        }
+        s.draw(font, Buffer::Cells, at, y)?;
+        at = at.wrapping_add(0x12);
     }
+    Ok(())
 }
 
 /// What is behind an item's text: nothing, or one of the buttons below.
@@ -156,7 +138,7 @@ fn draw_sprite<S: MenuScreen>(
 }
 
 /// The items. `current` is the highlighted item's kind, `since_key` the time since the last key
-/// (0 while the blink is off). `after` as for `item_text`.
+/// (0 while the blink is off).
 ///
 /// Sprites take no palette and text buttons' measuring no x: menu sprites are direct colour and
 /// a measured width does not depend on where measuring starts.
@@ -165,7 +147,6 @@ pub fn items<S: MenuScreen>(
     items: &[Item<S::Font>],
     current: u32,
     since_key: u32,
-    after: &dyn Fn(usize) -> u8,
 ) -> Result<(), S::Error> {
     for (n, it) in items.iter().enumerate() {
         let highlighted = current == it.kind;
@@ -200,7 +181,7 @@ pub fn items<S: MenuScreen>(
         } else {
             it.font
         };
-        item_text(s, it.id, font, x as i32, y as i32, it.spaced, after)?;
+        item_text(s, it.id, font, x as i32, y as i32, it.spaced)?;
     }
     Ok(())
 }
@@ -281,25 +262,13 @@ mod tests {
         .unwrap();
         assert_eq!(s.0, ["7 s30 1 2"]);
         let mut s = Record::default();
-        item_text(&mut s, 1, 7, 100, 50, true, &|_| unreachable!()).unwrap();
+        item_text(&mut s, 1, 7, 100, 50, true).unwrap();
         assert_eq!(s.0, ["7 65 74 50", "7 66 92 50"]);
-        // An empty string: its NUL, then what the buffer held after it until a 0.
+        // An empty string draws nothing.
         let mut s = Record::default();
-        item_text(&mut s, 2, 7, 100, 50, true, &|n| {
-            if n < 3 { b'q' } else { 0 }
-        })
-        .unwrap();
-        assert_eq!(s.0, ["7 0 74 50", "7 113 92 50", "7 113 110 50"]);
-        // A buffer with no 0 after the NUL: on to its end, then the last character again
-        // and the cleared one-character text.
-        let mut s = Record::default();
-        item_text(&mut s, 2, 7, 100, 50, true, &|_| b'q').unwrap();
-        assert_eq!(s.0.len(), 0x101);
-        assert_eq!(
-            s.0.last().unwrap(),
-            &format!("7 0 {} 50", 74 + 0x12 * 0x100)
-        );
-        assert!(item_text(&mut Record::default(), 3, 7, 0, 0, true, &|_| 0).is_err());
+        item_text(&mut s, 2, 7, 100, 50, true).unwrap();
+        assert!(s.0.is_empty());
+        assert!(item_text(&mut Record::default(), 3, 7, 0, 0, true).is_err());
     }
 
     impl MenuScreen for Record {
@@ -343,7 +312,7 @@ mod tests {
             item(4, CENTRED_BUTTON, ItemSprite::Number(NOTHING_EITHER)),
         ];
         let mut s = Record::default();
-        items(&mut s, &list, 3, 7, &|_| 0).unwrap();
+        items(&mut s, &list, 3, 7).unwrap();
         let keep: Vec<_> =
             s.0.iter()
                 .filter(|l| !l.starts_with("keep"))

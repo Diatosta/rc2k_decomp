@@ -115,9 +115,6 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
             let kept_hours = show_hours.get();
             show_hours.set(1);
             let time = block.record.race_time.get();
-            // The total is drawn at the y the drawing before it leaves: the text's, font offset
-            // included, when there is no time (kept as is).
-            let mut total_y = y;
             if time == players::NO_TIME {
                 // A player still racing shows how far through the stage it is, when that has
                 // been heard of; the others the text for no time.
@@ -129,16 +126,13 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
                     None => push_id(o, &mut none, screens::NO_TIME)?,
                 }
                 let none = store_text(strings, none)?;
-                let out = {
-                    crate::text::draw_text::draw_text_at(
-                        NAME_FONT,
-                        &none,
-                        x as i32,
-                        y as i32,
-                        &mut canvas,
-                    )
-                }?;
-                total_y = out.y as u32;
+                crate::text::draw_text::draw_text_at(
+                    NAME_FONT,
+                    &none,
+                    x as i32,
+                    y as i32,
+                    &mut canvas,
+                )?;
             } else {
                 store_text(strings, time_text(strings, time, gaps, first_time))?;
                 {
@@ -167,7 +161,7 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
                     FONT,
                     &text.buffer.text.read(),
                     x,
-                    total_y,
+                    y,
                     o.gfx,
                 )
             }?;

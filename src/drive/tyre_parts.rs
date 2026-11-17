@@ -82,7 +82,11 @@ fn quad_tail_math_in(
     ));
     if spread != Spread::Fill && rc2k_core::hud::anchor::is_wide(screen[0], screen[1]) {
         // A screen wider than 4:3: the quad keeps its shape and lies by its spread.
-        let (factor, shift) = spread.across(screen[0], screen[1]);
+        let left = vertices[..4]
+            .iter()
+            .map(|v| f64::from(v.x.get()))
+            .fold(f64::MAX, f64::min);
+        let (factor, shift) = spread.across_quad(screen[0], screen[1], left);
         for vertex in &vertices[..4] {
             vertex
                 .x

@@ -33,10 +33,13 @@ pub fn replay_item_b(
     Ok(())
 }
 
-/// `menu::replay_item_c`: the viewer's mode 2.
+/// `menu::replay_item_c`: the viewer's mode 2. The viewer stops the music, so the menus' tune is
+/// started again when it returns.
 pub fn replay_item_c(
     race: &'static crate::race::owner::Race,
     o: crate::owners::Owners<'static>,
 ) -> Result<(), Refused> {
-    crate::race::replay_mode_2::replay_mode_2(race, o)
+    crate::race::replay_mode_2::replay_mode_2(race, o)?;
+    crate::sound::play_tune_4::play_tune_4(o);
+    Ok(())
 }

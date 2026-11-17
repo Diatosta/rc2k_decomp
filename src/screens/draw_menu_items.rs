@@ -75,12 +75,10 @@ pub fn draw_menu_items(
     };
     let mut screen = MenuScreen::new(canvas, o);
     screen.menu_items = all;
-    let line = &menus.text_buffers.line;
     rc2k_core::screens::menus::items(
         &mut screen,
         &list,
         menus.screens.loop_flags.item.get(),
         since_key,
-        &|n| line.get(n),
     )
 }

@@ -50,12 +50,48 @@ fn version_of(table: &Table) -> Result<Option<i64>, OptionsError> {
 /// The file's text for `options`; `existing` is the file written over (its unknown keys stay,
 /// unless it is of another version).
 pub fn write(options: &Options, existing: Option<&str>) -> Result<String, OptionsError> {
-    let mut table = existing
+    let new = table_of(options)?;
+    let mut table = new.clone();
+    let old = existing
         .and_then(|text| text.parse::<Table>().ok())
-        .filter(|table| matches!(version_of(table), Ok(None) | Ok(Some(VERSION))))
-        .unwrap_or_default();
-    merge(&mut table, table_of(options)?);
+        .filter(|table| matches!(version_of(table), Ok(None) | Ok(Some(VERSION))));
+    if let Some(old) = old {
+        let mut values = Vec::new();
+        leaves(&old, &[], &mut values);
+        // Only what this program does not know is carried over: a key it knows and left out
+        // (an option back at its default: a window, no password, no size set by hand) goes.
+        for (path, value) in values {
+            if !has_path(&new, &path) && !known(&new, &path, value.clone()) {
+                table = with_value(&table, &path, value);
+            }
+        }
+    }
     toml::to_string(&table).map_err(text_error)
+}
+
+/// Whether `table` has a value at `path`.
+fn has_path(table: &Table, path: &[String]) -> bool {
+    let Some((last, tables)) = path.split_last() else {
+        return false;
+    };
+    let mut here = table;
+    for name in tables {
+        match here.get(name) {
+            Some(Value::Table(inner)) => here = inner,
+            _ => return false,
+        }
+    }
+    here.contains_key(last)
+}
+
+/// Whether this program knows the key at `path`: laid over `written` (the options as this
+/// program writes them), the options read back and written again have it, or the value is not
+/// one the key takes. A key it does not know is passed over when read, so it does not come back.
+fn known(written: &Table, path: &[String], value: Value) -> bool {
+    match Value::Table(with_value(written, path, value)).try_into::<Document>() {
+        Ok(document) => Table::try_from(&document).is_ok_and(|table| has_path(&table, path)),
+        Err(_) => true,
+    }
 }
 
 /// The keys `read` left at their defaults because their values were bad, as paths
@@ -346,6 +382,24 @@ mod tests {
         let old = "version = 2\nfuture = 3\n[later]\na = 1\n";
         let text = write(&sample(), Some(old)).unwrap();
         assert!(text.contains("future = 3") && text.contains("[later]"));
+        assert_eq!(read(&text, &Options::default()).unwrap(), Some(sample()));
+    }
+
+    #[test]
+    fn a_known_key_back_at_its_default_is_not_kept() {
+        let mut full = sample();
+        full.display.window_mode = Some("fullscreen".into());
+        full.display.custom_width = Some(5120);
+        full.display.custom_height = Some(1440);
+        let old = write(&full, Some("version = 2\nfuture = 3\n")).unwrap();
+        assert!(old.contains("window_mode") && old.contains("custom_width"));
+        let text = write(&sample(), Some(&old)).unwrap();
+        assert!(!text.contains("window_mode"), "{text}");
+        assert!(
+            !text.contains("custom_width") && !text.contains("custom_height"),
+            "{text}"
+        );
+        assert!(text.contains("future = 3"), "{text}");
         assert_eq!(read(&text, &Options::default()).unwrap(), Some(sample()));
     }
 

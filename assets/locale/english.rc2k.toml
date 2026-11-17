@@ -133,7 +133,6 @@ custom = "custom"
 
 # The replay viewer's row that renders the replay to a video file.
 [viewer]
-render_video = "render to video"
 
 # The network lobby.
 [lobby]

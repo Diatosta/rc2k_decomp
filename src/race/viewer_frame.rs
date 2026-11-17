@@ -69,8 +69,12 @@ fn stopped(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
             race, list_state, item, index, system, o.scene,
         )?;
     }
-    let quad = |uv: &[PlainDword], rect: &[PlainDword; 4], colour: u32| {
-        let spread = rc2k_core::hud::anchor::Spread::Fill;
+    crate::race::render_row::draw_button(race, list_state, system, o.scene)?;
+    // The dark strip and the view-name row span the screen; the time bar's middle stretches
+    // between its two ends, which keep the 4:3 spacing from the time pieces at the screen's
+    // edges; the marks and the place on it move with it but keep their shape.
+    use rc2k_core::hud::anchor::Spread;
+    let quad_spread = |uv: &[PlainDword], rect: &[PlainDword; 4], colour: u32, spread: Spread| {
         // The texture rectangle's first four dwords (the frame's picture holds five).
         let uv = uv
             .first_chunk::<4>()
@@ -86,6 +90,30 @@ fn stopped(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
         )
     };
     let v = race.viewer_panel();
+    let (from, to) = (
+        v.bar_rect[0].get(),
+        v.bar_rect[0].get().wrapping_add(v.bar_rect[2].get()),
+    );
+    let quad = |uv: &[PlainDword], rect: &[PlainDword; 4], colour: u32| {
+        let spread = if std::ptr::eq(rect, &raw const v.bar_rect) {
+            Spread::Span {
+                from,
+                to,
+                keep_shape: false,
+            }
+        } else if std::ptr::eq(rect, &raw const v.mark_rect)
+            || std::ptr::eq(rect, &raw const v.place_rect)
+        {
+            Spread::Span {
+                from,
+                to,
+                keep_shape: true,
+            }
+        } else {
+            Spread::Fill
+        };
+        quad_spread(uv, rect, colour, spread)
+    };
     quad(&v.frame_picture_rect, &v.bar_frame_rect, 0xFF_FFFF)?;
     let blocks = shared.replay_file().index.block_count.get();
     if blocks != 0 {
@@ -114,7 +142,6 @@ fn stopped(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
         quad(&v.button_picture_rect, &v.button_rect_c, 0xFF_FFFF)?;
         quad(&v.button_body_rect, &v.button_rect_b, 0xFF_FFFF)?;
         quad(&v.button_body_rect, &v.button_rect_d, 0xFF_FFFF)?;
-        crate::race::render_row::mark_visible();
         crate::race::draw_viewer_panel::draw_viewer_panel(
             crate::strings::append_string_by_id::StringOwners::of(o),
             race,

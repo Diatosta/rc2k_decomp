@@ -499,9 +499,9 @@ pub fn draw_record_heading(
     }
 }
 
-/// The record's heading, its best times (the rows' y left in `DrawWork.button_x`), and, when the
-/// list ran to ten rows, the fastest line (string 0x1A2, the car's sprite, the name, the flag's
-/// sprite, the speed with its unit; a list that ended early leaves it out, kept as is). Refuses a
+/// The record's heading, its best times (the rows' y left in `DrawWork.button_x`), and the
+/// fastest line (string 0x1A2, the car's sprite, the name, the flag's sprite, the speed with its
+/// unit), also when the list ended before ten rows. Refuses a
 /// section the table lacks, no times table and what `strings::append_speed` refuses.
 pub fn draw_record_times(
     o: crate::owners::Owners<'static>,
@@ -531,9 +531,7 @@ pub fn draw_record_times(
         crate::strings::units::units(o.strings),
     )?;
     draw_record_heading(o, system, canvas)?;
-    if !draw_time_rows(o, times, times_at as usize, Keep::Y, canvas)? {
-        return Ok(());
-    }
+    draw_time_rows(o, times, times_at as usize, Keep::Y, canvas)?;
     rc2k_core::screens::best_scores::fastest(
         &mut ScoresScreen::new(canvas, o),
         nation,

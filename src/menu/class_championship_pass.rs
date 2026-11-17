@@ -1,7 +1,5 @@
 //! `menu::class_championship_pass`: for each class from 1 (0 outside `state.menus.class_mode` 2
-//! in event mode 0x13) up to `CLASSES`: when a player (1 .. 3: player 4 is not looked
-//! for,
-//! a 1999 slip kept as is) is in the class's entries of standings table B, the class is
+//! in event mode 0x13) up to `CLASSES`: when a player (1 .. 4) is in the class's entries of standings table B, the class is
 //! numbered (`number_standings`, its count into `event.standings_count`) and its page shown
 //! (`menu::show_class_championship_standings`), stopping when leaving is answered yes.
 //! `loop_flags.left_with_carry` is the class's flag.

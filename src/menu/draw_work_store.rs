@@ -14,9 +14,7 @@ pub struct DrawWork {
     /// The x a plain button's drawing ends at. The buttons that borrow their place start from it
     /// (`screens::buttons`), and the best-times fill leaves its sum here (`saves::default_times`).
     pub button_x: PlainDword,
-    /// The y of the last plain button drawn. Besides the borrowing buttons, the players' results
-    /// page reads it as the third row's extra sprite, after `menu::results_setups` and
-    /// `menu::standings` set it to their last row's number: kept, the page's look depends on it.
+    /// The y of the last plain button drawn. Read by the buttons that borrow it.
     pub button_y: PlainDword,
     /// What the screen being left returns: -1 on going back (`menu::go_back`), or the replay
     /// slot a naming screen picked (`menu::save_replay_loop`).

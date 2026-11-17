@@ -1,6 +1,6 @@
 //! The menu's buttons: a left end, a run of 32-pixel middle pieces and a right end, all sprites
 //! of the sprite table. Three drawers differ in the sprites they take, whether they leave their
-//! place behind and two slips kept as is (see `Kind`); five small ones choose among them for a menu item.
+//! place behind and what they leave behind (see `Kind`); five small ones choose among them for a menu item.
 //!
 //! A button is drawn from an x by its alignment: 2 = x is its left edge, 3 = x is where its right
 //! end piece goes, 1 = x is its middle. Any other alignment is fatal error 0x8070202n "Invalid
@@ -23,11 +23,6 @@ pub struct Kind {
     right_at: usize,
     /// The plain and highlighted buttons leave their place in `DrawWork.button_x` / `button_y`.
     keeps_place: bool,
-    /// `draw_button` only. Right-aligned, it goes wrong in two places: from the second whole
-    /// middle piece on it continues in the centred branch's loop, which draws rightwards and
-    /// ends with a second right end; and when the width is a multiple of 32 it falls through
-    /// into the centred branch after the left end, drawing a second, centred button.
-    slips: bool,
     /// `ALT` only. Left-aligned, two of its blits still read the plain button's place: the whole
     /// middle pieces take their y from `DrawWork.button_y`, and the last, shorter one takes its x
     /// from `DrawWork.button_x`. Nothing draws it left-aligned.
@@ -37,12 +32,11 @@ pub struct Kind {
 
 const BAD_ALIGN: &str = "Invalid Active Vbutt Align Tag";
 
-/// The plain button (with the right-aligned slips kept: `slips`).
+/// The plain button.
 pub const PLAIN: Kind = Kind {
     left_at: 0,
     right_at: 1,
     keeps_place: true,
-    slips: true,
     borrows: false,
     bad_align: FatalError {
         code: 0x8070_2021,
@@ -54,7 +48,6 @@ pub const PLAIN: Kind = Kind {
 pub const HIGHLIGHTED: Kind = Kind {
     left_at: 2,
     right_at: 3,
-    slips: false,
     bad_align: FatalError {
         code: 0x8070_2022,
         message: BAD_ALIGN,
@@ -67,7 +60,6 @@ pub const ALT: Kind = Kind {
     left_at: 0,
     right_at: 1,
     keeps_place: false,
-    slips: false,
     borrows: true,
     bad_align: FatalError {
         code: 0x8070_2023,
@@ -112,7 +104,6 @@ pub fn draw_button(
         x: place.button_x.get() as i32,
     };
     let core = rc2k_core::screens::buttons::Kind {
-        slips: kind.slips,
         borrows: kind.borrows,
     };
     let (end, drawn) = rc2k_core::screens::buttons::draw(

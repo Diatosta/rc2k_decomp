@@ -126,8 +126,6 @@ pub mod id {
     pub const APPLY: u32 = FIRST + 0xB8;
     /// The network lobby's button that saves the last race's replay.
     pub const SAVE_REPLAY: u32 = FIRST + 0xF8;
-    /// The replay viewer's row that renders the replay to a video.
-    pub const RENDER_VIDEO: u32 = FIRST + 0xF1;
     /// The network lobby's button that opens the in-race options.
     pub const LOBBY_SETTINGS: u32 = FIRST + 0xD8;
     /// The message shown when a replay could not be saved.
@@ -186,7 +184,6 @@ pub const KEYS: &[(&str, u32)] = &[
     ("graphics.full_screen", id::FULL_SCREEN),
     ("graphics.borderless", id::BORDERLESS),
     ("graphics.custom", id::CUSTOM),
-    ("viewer.render_video", id::RENDER_VIDEO),
     ("lobby.save_replay", id::SAVE_REPLAY),
     ("lobby.settings", id::LOBBY_SETTINGS),
     ("lobby.replay_not_saved", id::REPLAY_NOT_SAVED),
