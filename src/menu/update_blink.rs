@@ -30,6 +30,8 @@ fn states_now(champ: &ChampView, entry: &EntryState, system: &System) -> (bool, 
 pub fn update_blink(menus: &Menus, system: &System) {
     let screens = &menus.screens;
     update_frame_clock(system);
+    // What other threads (the sound's) found wrong waits for a menu frame to be told.
+    crate::error_dialog::show_pending();
     {
         let (blink, cursor_on, idle) = states_now(&menus.play.champ_view, &screens.entry, system);
         screens.draw_work.blink.set(blink);

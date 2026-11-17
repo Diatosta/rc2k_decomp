@@ -2,7 +2,7 @@
 //! slot: the thread's id, its handle, whether its routine runs, and the path buffer
 //! `files::resolve_path` uses for the thread.
 
-use crate::errors::{FatalError, Refused};
+use crate::errors::{BadInput, FatalError, Recover, Refused};
 use crate::logfile::program_log::log;
 use crate::memory::session::Bytes;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
@@ -94,10 +94,12 @@ impl SlotThread {
                     ));
                     crate::fatal::raise::raise_bare(error);
                 }
-                Err(Refused::BadInput(why)) => crate::standalone::finish(
-                    &format!("threading: the {name} thread refused: {}", why.0),
-                    1,
-                ),
+                Err(Refused::BadInput(BadInput(why)) | Refused::Recoverable(Recover(why))) => {
+                    crate::standalone::finish(
+                        &format!("threading: the {name} thread refused: {why}"),
+                        1,
+                    )
+                }
             }
         }) else {
             return Err(FatalError {

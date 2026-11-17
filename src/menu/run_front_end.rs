@@ -17,6 +17,54 @@ use crate::owners::Owners;
 const STARTING: &std::ffi::CStr = c"BEV: Starting GB_Front";
 const FINISHED: &std::ffi::CStr = c"BEV: Finished GB_Front";
 
+/// The main menu. A trouble the game can go back from that no item of the main menu caught (a
+/// launch's race, the main menu's own set-up) cannot go on at a menu whose set-up it
+/// interrupted: the player is told and the game ends as when it is closed.
+fn run_main_menu(o: Owners<'static>) -> Result<(), Refused> {
+    match crate::error_dialog::recover::guarded(|| run_screen(ScreenId::MainMenu, &Entry::new(o))) {
+        Ok(left) => left.map(|_| ()),
+        Err(reason) => {
+            log(&format!(
+                "menu::run_front_end: no menu to go back to: {reason}"
+            ));
+            crate::error_dialog::fatal(&reason);
+            o.system.session.flags.quitting.set(true);
+            Ok(())
+        }
+    }
+}
+
+/// What the main menu's item that ran into a trouble the game can go back from does: the
+/// screens' leaving flags are cleared (a screen that was left in the middle may have set them),
+/// the player is told and chooses the main menu or to quit.
+pub fn back_at_main_menu(o: Owners<'static>, reason: &str) {
+    log(&format!(
+        "menu::run_front_end: back at the main menu: {reason}"
+    ));
+    clear_screen_state(o.menus);
+    if !crate::error_dialog::ask_back(reason) {
+        o.system.session.flags.quitting.set(true);
+    }
+}
+
+/// What a screen that was left in the middle may have set: its leaving flags, the leave
+/// question and the event's end.
+fn clear_screen_state(menus: &crate::menu::owner::Menus) {
+    let screens = &menus.screens;
+    let flags = &screens.loop_flags;
+    for flag in [
+        &flags.event_left,
+        &flags.leave_screen,
+        &flags.left_with_carry,
+        &flags.ask_leave,
+    ] {
+        flag.set(false);
+    }
+    screens.event.event_over.set(false);
+    screens.flow.asking.set(false);
+    screens.draw_work.escape_pressed.set(false);
+}
+
 pub fn run_front_end(o: Owners<'static>) -> Result<(), Refused> {
     let menus = o.menus;
     let audio = o.audio;
@@ -39,7 +87,7 @@ pub fn run_front_end(o: Owners<'static>) -> Result<(), Refused> {
         crate::menu::play_films::play_films(o, false)?;
     }
     crate::logfile::log_write::log_nul(STARTING, true, 1);
-    run_screen(ScreenId::MainMenu, &Entry::new(o))?;
+    run_main_menu(o)?;
     crate::logfile::log_write::log_nul(FINISHED, true, 1);
     crate::menu::store_player_names::store_player_names(menus, play, &mut |line| {
         crate::logfile::log_write::log_nul(line, true, 1);

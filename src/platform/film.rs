@@ -272,6 +272,8 @@ struct Film {
     decoder: FilmDecoder,
     sound: Option<(Vec<i16>, u32, usize)>,
     what: String,
+    /// The file's path, for the notice of a film that breaks.
+    file: String,
 }
 
 fn open(path: &str) -> Result<Film, String> {
@@ -291,8 +293,10 @@ fn open(path: &str) -> Result<Film, String> {
             packets: avi
                 .frames
                 .iter()
-                .map(|&(at, len)| bytes[at..at + len].to_vec())
-                .collect(),
+                .map(|&(at, len)| bytes.get(at..at.checked_add(len)?).map(<[u8]>::to_vec))
+                .collect::<Option<_>>()
+                .ok_or("a frame past the end of the file")?,
+            file: path.to_string(),
             frame: std::time::Duration::from_micros(avi.frame_us.max(1) as u64),
             decoder: FilmDecoder::Indeo(Box::new(indeo4::Decoder::new())),
             sound: None,
@@ -326,6 +330,7 @@ fn open(path: &str) -> Result<Film, String> {
             }
         };
         return Ok(Film {
+            file: path.to_string(),
             what: format!(
                 "MPEG-1, {} packets, {rate:.3} a second, sound {}",
                 packets.len(),
@@ -344,6 +349,15 @@ fn open(path: &str) -> Result<Film, String> {
         });
     }
     Err("neither an AVI nor an MPEG program stream".into())
+}
+
+/// A film that is there and cannot be played is skipped, with one notice.
+fn bad_film(name: &str) {
+    let shown = crate::error_dialog::file_name(name.as_bytes());
+    crate::error_dialog::notice_once(
+        &shown,
+        &crate::error_dialog::text_with(rc2k_core::strings::own::id::BAD_FILM, &shown),
+    );
 }
 
 /// Plays the film at `path` (see the header): true at the film's end, false for a key or a film
@@ -382,7 +396,10 @@ pub fn play_film(
     let mut ended = false;
     if let Some(name) = name {
         match open(&name) {
-            Err(why) => log(&format!("gfx::play_film: {name} not played: {why}")),
+            Err(why) => {
+                log(&format!("gfx::play_film: {name} not played: {why}"));
+                bad_film(&name);
+            }
             Ok(mut film) => {
                 log(&format!("gfx::play_film: {name}: {}", film.what));
                 ended = run(&mut film, o) == 0;
@@ -497,6 +514,7 @@ fn run(film: &mut Film, o: crate::owners::Owners<'static>) -> u8 {
                             });
                     if let Err(why) = result {
                         log(&format!("gfx::play_film: frame {shown}: {why}"));
+                        bad_film(&film.file);
                         ended = true;
                     }
                 }

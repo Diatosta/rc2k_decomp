@@ -71,13 +71,16 @@ pub fn add_polygon(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
             let at = anchor::anchor_of((low + high) / 2.0, rule);
             Box::new(move |x| box_left as f32 + anchor::screen_x(x, box_width, h, at))
         };
-        for v in vertices() {
-            v.x.set(x_of(v.x.get()));
-            v.y.set(if wide {
-                anchor::screen_y(v.y.get(), box_width, h)
-            } else {
-                screen_scaled(v.y.get(), h, ky)
-            });
+        // Pieces that are already in screen pixels are left where they are.
+        if rule != crate::hud::layout_common::Keep::Pixels as u32 {
+            for v in vertices() {
+                v.x.set(x_of(v.x.get()));
+                v.y.set(if wide {
+                    anchor::screen_y(v.y.get(), box_width, h)
+                } else {
+                    screen_scaled(v.y.get(), h, ky)
+                });
+            }
         }
         if flushes {
             crate::hud::flush_batch::flush_batch(pen.part, hud);

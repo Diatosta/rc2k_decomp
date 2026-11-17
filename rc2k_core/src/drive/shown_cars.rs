@@ -47,8 +47,8 @@ impl ShownCars {
             return Err(Invalid("a network car above 7 (past the eight)"));
         }
         self.cars = [0, 0];
-        // Only two views are drawn for now: players 3 and 4 race without a view of their own.
-        self.views = s.players.min(2);
+        // A split screen of three or four players has a view for each (their cars the players' own).
+        self.views = s.players.min(4);
         if self.views != 1 {
             self.cars[1] = 1;
         }
@@ -80,6 +80,11 @@ impl ShownCars {
         if self.views != 1 && !network {
             self.listed[self.cars[1] as usize] = 1;
         }
+        if s.replay_mode != 2 && !network {
+            for view in 2..self.views {
+                self.listed[view as usize] = view;
+            }
+        }
         Ok(if network { s.local_car } else { self.blocks[1] })
     }
 }
@@ -100,13 +105,14 @@ mod tests {
             (c.cars, c.views, c.listed[..3].to_vec()),
             ([0, 1], 2, vec![0, 1, u32::MAX])
         );
-        // Three and four players: two views for now, the third and fourth cars drawn in none.
+        // Three and four players: a view each, the further ones showing their own player's car.
         let four = ShownSetup {
             players: 4,
             ..Default::default()
         };
         c.choose(&four, 0).unwrap();
-        assert_eq!((c.cars, c.views), ([0, 1], 2));
+        assert_eq!((c.cars, c.views), ([0, 1], 4));
+        assert_eq!(c.listed[..5].to_vec(), vec![0, 1, 2, 3, u32::MAX]);
         let laid = ShownSetup {
             players: 2,
             replay_mode: 2,

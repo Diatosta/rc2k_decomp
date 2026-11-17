@@ -66,7 +66,7 @@ rc2k --mode a8 --players 2 --car octavia --car2 puma
 | `--car2` | Player 2's car. Without it, the same as `--car`. |
 | `--car3`, `--car4` | Players 3 and 4's cars (with `--players 3` or `4`). Without them, the same as `--car`. |
 | `--gearbox` | `manual`, `semi-automatic` or `automatic`, or `1` .. `3`. |
-| `--players` | `1`, or `2` for a split screen (in a championship too), or `3` or `4` for the single rally only. The arcade has one player. |
+| `--players` | `1`, or `2` for a split screen (in a championship too), or `3` or `4` for the single rally only (all the players on one screen, as the players menu's "on one screen" entries start it). The arcade has one player. |
 | `--seed` | A number (decimal, or hexadecimal with `0x`): the race's random numbers start from it, so two runs with the same seed get the same random events. |
 | `--then` | `menus` (the default) or `quit`: with `quit` the program saves and ends when the race is over (the first race of a championship or of the arcade game). |
 | `--launch` | A file holding the same settings. Switches typed on the command line as well win over the file's. |

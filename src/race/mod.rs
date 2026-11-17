@@ -124,6 +124,7 @@ pub mod sound_spots_store;
 pub mod sound_tables;
 pub mod sounds;
 pub mod splash_mud;
+pub mod split_layout;
 pub mod stage_data;
 pub mod stage_free;
 pub mod stage_loading;

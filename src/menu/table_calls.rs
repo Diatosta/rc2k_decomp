@@ -29,6 +29,7 @@ pub fn call_action(o: Owners<'static>, function: ItemFn) {
 /// ends the program, a fatal error is raised.
 pub fn refused(what: &str, e: Refused, r: &Context) {
     match e {
+        Refused::Recoverable(why) => crate::error_dialog::recover::back(why.0),
         Refused::BadInput(why) => {
             crate::standalone::finish(&format!("menu::table_calls: {what} refused: {}", why.0), 1)
         }

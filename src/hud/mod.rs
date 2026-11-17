@@ -30,6 +30,7 @@ pub mod layout_0;
 pub mod layout_1;
 pub mod layout_2;
 pub mod layout_common;
+pub mod layout_many;
 pub mod overlay_pass;
 pub mod overlay_states;
 pub mod owner;

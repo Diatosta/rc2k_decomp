@@ -21,7 +21,7 @@ pub struct CaptionTables {
     pub second_views: [PlainDword; 14],
     /// The lists of captions' string ids, each ended by -1 (`screens::draw_highlighted_caption`,
     /// `menu::option_steps`).
-    pub caption_lists: [PlainDword; 88],
+    pub caption_lists: [PlainDword; 97],
 }
 
 impl CaptionTables {
@@ -240,6 +240,17 @@ impl CaptionTables {
                 PlainDword::new(0x3),
                 PlainDword::new(0x4),
                 PlainDword::new(0x5),
+                // The single rally's players menu (carousel menu 0x15): the in-turn items'
+                // names, then the split screens of three and four players (own texts) and back.
+                PlainDword::new(0x1E6),
+                PlainDword::new(0x1E8),
+                PlainDword::new(0x1E9),
+                PlainDword::new(0x1EA),
+                PlainDword::new(0x1EB),
+                PlainDword::new(rc2k_core::strings::own::id::SPLIT_THREE),
+                PlainDword::new(rc2k_core::strings::own::id::SPLIT_FOUR),
+                PlainDword::new(0x13A),
+                PlainDword::new(0xFFFFFFFF),
             ],
         }
     }

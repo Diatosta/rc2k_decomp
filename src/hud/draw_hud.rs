@@ -29,6 +29,7 @@ pub fn draw_hud(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
                 start_keep(hud, Keep::Thirds);
                 layout_2::layout_2(frame, hud, pen)?;
             }
+            batch::Layout::Many(views) => layout_many::layout_many(frame, hud, pen, views)?,
         }
         flush_batch::flush_batch(pen.part, hud);
     }

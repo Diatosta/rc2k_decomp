@@ -56,6 +56,6 @@ pub fn read_pcx_24bit(path: &[u8], gfx: &crate::gfx::owner::Gfx) -> Result<bool,
     match decoded {
         Ok(Some(())) => Ok(closed),
         Ok(None) => Err(BadInput("a PCX picture without rows or columns")),
-        Err(past) => crate::fatal::raise::end("gfx::picture", BadInput::from(past)),
+        Err(past) => Err(BadInput::from(past)),
     }
 }

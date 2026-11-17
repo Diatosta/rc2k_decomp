@@ -67,7 +67,7 @@ pub fn load_view_car(
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
     use rc2k_core::drive::work_car::{car_block, car_slot};
-    let slot = car_slot(view_car(race_view, n).get());
+    let slot = car_slot(race_view.view_car_number(n)?);
     car_block(u32::from(work.has_car_block(slot as usize)))?;
     use crate::memory::cells::Cells;
     view.car
@@ -139,7 +139,13 @@ pub fn race_keys(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
             }
         }
         Some(Key::Split) => {
-            if shared.view.get().players.get() == 1 {
+            let players = shared.view.get().players.get();
+            if players == 1 {
+                return Ok(());
+            }
+            if players > 2 {
+                // Three or four players cycle through their layouts (`race::split_layout`).
+                crate::race::split_layout::cycle(players);
                 return Ok(());
             }
             let (split, counter) = split_flip(shared.vars.get().split.get());

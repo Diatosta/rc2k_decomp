@@ -109,8 +109,9 @@ pub struct Panel {
     pub unused_d4: PlainBytes<32>,
     /// The HUD's layout (`hud::overlay_pass`).
     pub players: PlainDword,
-    /// Each view's HUD flags (the car block's +0x220; bit 0x40 flat, 8 the mirror).
-    pub hud_flags: [PlainDword; 2],
+    /// Each view's HUD flags (the car block's +0x220; bit 0x40 flat, 8 the mirror); the third and
+    /// fourth are the split screen's third and fourth players'.
+    pub hud_flags: [PlainDword; 4],
     /// The HUD batch's texture (`hud::add_polygon`, `hud::set_batch_texture`).
     pub shown_texture: PlainDword,
     /// The first view's HUD flags' bit 0x40, the flat layout (`race::draw_race_scene`).

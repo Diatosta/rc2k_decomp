@@ -109,8 +109,9 @@ pub mod id {
     pub const CUSTOM: u32 = FIRST + 0xE5;
     /// The advanced page's row for frames drawn between the ticks.
     pub const SMOOTH_FRAMES: u32 = FIRST + 0xB9;
-    /// The advanced page's row for the three- and four-player events on one split screen.
-    pub const SPLIT_MANY: u32 = FIRST + 0xBB;
+    /// The single rally's players menu: the captions of its three- and four-player split screens.
+    pub const SPLIT_THREE: u32 = FIRST + 0xF2;
+    pub const SPLIT_FOUR: u32 = FIRST + 0xF3;
     /// The graphics page's 3D resolution row.
     pub const RENDER_SCALE: u32 = FIRST + 0xE8;
     /// The advanced page: its name (also the options menu's item), then the rows' names in
@@ -145,6 +146,15 @@ pub mod id {
     pub const DAMAGED_SAVEGAME: u32 = FIRST + 0xE6;
     pub const DAMAGED_REPLAY: u32 = FIRST + 0xE7;
     pub const SETTINGS_RESET: u32 = FIRST + 0xEF;
+    /// The dialog's way back to the main menu, and the notices of a picture, a sound, a film
+    /// and a replay that could not be used ("{}" what it was), and of a player dropped from a
+    /// network session ("{}" the player).
+    pub const DIALOG_MENU: u32 = FIRST + 0xF9;
+    pub const BAD_PICTURE: u32 = FIRST + 0xFA;
+    pub const BAD_SOUND: u32 = FIRST + 0xFB;
+    pub const BAD_FILM: u32 = FIRST + 0xFC;
+    pub const BAD_PEER: u32 = FIRST + 0xFD;
+    pub const BAD_REPLAY_PLAY: u32 = FIRST + 0xFE;
 }
 
 /// Each text's file key and id.
@@ -176,7 +186,8 @@ pub const KEYS: &[(&str, u32)] = &[
     ("graphics.display", id::DISPLAY),
     ("graphics.frames_a_second", id::FRAMES_A_SECOND),
     ("advanced.smooth_frames", id::SMOOTH_FRAMES),
-    ("advanced.split_many", id::SPLIT_MANY),
+    ("split_screen.three", id::SPLIT_THREE),
+    ("split_screen.four", id::SPLIT_FOUR),
     ("graphics.render_scale", id::RENDER_SCALE),
     ("graphics.hud_box", id::HUD_BOX),
     ("graphics.window_mode", id::WINDOW_MODE),
@@ -197,6 +208,12 @@ pub const KEYS: &[(&str, u32)] = &[
     ("dialog.damaged_savegame", id::DAMAGED_SAVEGAME),
     ("dialog.damaged_replay", id::DAMAGED_REPLAY),
     ("dialog.settings_reset", id::SETTINGS_RESET),
+    ("dialog.main_menu", id::DIALOG_MENU),
+    ("dialog.bad_picture", id::BAD_PICTURE),
+    ("dialog.bad_sound", id::BAD_SOUND),
+    ("dialog.bad_film", id::BAD_FILM),
+    ("dialog.bad_peer", id::BAD_PEER),
+    ("dialog.bad_replay_play", id::BAD_REPLAY_PLAY),
     ("advanced.title", id::ADVANCED),
     ("advanced.threads", id::ADVANCED_ROWS),
     ("advanced.renderer", id::ADVANCED_ROWS + 1),

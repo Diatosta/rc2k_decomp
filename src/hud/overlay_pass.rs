@@ -15,8 +15,12 @@ use crate::race::owner_shared::RaceShared;
 /// screen (fixed: `wiki/Fixed-bugs.md`, "Split-screen divider left in a replay").
 pub fn shown_layout(shared: &RaceShared) -> u32 {
     {
-        if shared.view.get().views.get() == 1 {
+        let views = shared.view.get().views.get();
+        if views == 1 {
             0
+        } else if views > 2 {
+            // Three or four players: the larger split screen's layout, by their count.
+            views.min(4)
         } else {
             shared.vars.get().split.get()
         }

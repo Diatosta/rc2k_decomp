@@ -14,13 +14,15 @@ pub const MOST_VERTICES: u32 = 0x10;
 /// The batch's texture when it has none.
 pub const NO_TEXTURE: u32 = u32::MAX;
 
-/// The HUD's three layouts, by the record's +0xF4 (`draw_hud`): 1 and 2 the split ones,
-/// anything else the single player's.
+/// The HUD's layouts, by the record's +0xF4 (`draw_hud`): 1 and 2 the two-player split ones, 3
+/// and 4 the larger split screens', anything else the single player's.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Layout {
     Single,
     One,
     Two,
+    /// Three or four players, each their part of the screen.
+    Many(u32),
 }
 
 impl Layout {
@@ -28,6 +30,7 @@ impl Layout {
         match field {
             1 => Layout::One,
             2 => Layout::Two,
+            3 | 4 => Layout::Many(field),
             _ => Layout::Single,
         }
     }
@@ -96,8 +99,15 @@ mod tests {
     #[test]
     fn batch() {
         assert_eq!(
-            [0, 1, 2, 3].map(Layout::of),
-            [Layout::Single, Layout::One, Layout::Two, Layout::Single]
+            [0, 1, 2, 3, 4, 5].map(Layout::of),
+            [
+                Layout::Single,
+                Layout::One,
+                Layout::Two,
+                Layout::Many(3),
+                Layout::Many(4),
+                Layout::Single
+            ]
         );
         assert!(flushes(0x65, 1, 1) && flushes(0, 1, 2) && !flushes(0x64, 1, 1));
         assert!(check_polygon(0, 0, 0, false).is_err());

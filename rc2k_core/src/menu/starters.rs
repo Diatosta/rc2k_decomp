@@ -20,6 +20,10 @@ pub enum Seats {
     Two,
     Three,
     Four,
+    /// Three players on one split screen, all racing together.
+    SplitThree,
+    /// Four players on one split screen, all racing together.
+    SplitFour,
 }
 
 /// A starter.
@@ -42,8 +46,8 @@ impl Starter {
         match self.seats {
             Seats::One => 1,
             Seats::Split | Seats::Two => 2,
-            Seats::Three => 3,
-            Seats::Four => 4,
+            Seats::Three | Seats::SplitThree => 3,
+            Seats::Four | Seats::SplitFour => 4,
         }
     }
 
@@ -53,8 +57,8 @@ impl Starter {
             Seats::One => 9,
             Seats::Split => 0xA,
             Seats::Two => 0xB,
-            Seats::Three => 0xC,
-            Seats::Four => 0xD,
+            Seats::Three | Seats::SplitThree => 0xC,
+            Seats::Four | Seats::SplitFour => 0xD,
         }
     }
 

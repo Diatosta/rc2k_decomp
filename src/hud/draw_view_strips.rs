@@ -26,6 +26,10 @@ pub fn draw_view_strips(overlay: &Overlay) -> Result<(), Refused> {
     use crate::hud::draw_view_strip::{draw_view_strip, overlay_tail};
     let Overlay { race, scratch, .. } = *overlay;
     use rc2k_core::hud::strips::{SECOND_VIEW, TEXTURES};
+    // Three or four players have no notice strips: their parts are small.
+    if shown_layout(&race.shared) > 2 {
+        return Ok(());
+    }
     {
         if race.shared.replay_file().hold_car_revs.get() == 0 {
             if flashing(&race.shared, race.shared.view.get().view_blocks[0].get())? {

@@ -176,7 +176,14 @@ impl RaceShared {
 
     /// View `n`'s car block (None for none).
     pub fn view_car(&self, n: usize) -> Option<&Car> {
-        self.car_blocks().of(self.view.get().view_blocks[n].get())
+        match self.view.get().view_blocks.get(n) {
+            Some(block) => self.car_blocks().of(block.get()),
+            // The further views of a split screen show their own player's car.
+            None if n < 4 => self
+                .car_blocks()
+                .of(crate::race::blocks_store::block_handle(n)),
+            None => None,
+        }
     }
 
     /// View `n`'s car block, or the end of the program for none (as `Car::at` on its address).

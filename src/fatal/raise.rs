@@ -55,6 +55,7 @@ pub fn refused_in(name: &str, reason: impl Into<Refused>, r: &Context) {
 
 fn refused_with(name: &str, reason: impl Into<Refused>, r: Option<&Context>) {
     let error = match reason.into() {
+        Refused::Recoverable(why) => crate::error_dialog::recover::back(why.0),
         Refused::BadInput(why) => {
             crate::standalone::finish(&format!("{name} refused: {}", why.0), 1)
         }

@@ -148,14 +148,14 @@ pub fn lamps_wanted(
 }
 
 /// The number of the view block the drawn view `n` names (`view_blocks[]`; the view's own
-/// `ViewScratch::drawn_view` is read); refused: an index past the two
+/// `ViewScratch::drawn_view` is read); refused: an index past the four
 /// and a view without its block.
 pub(super) fn drawn_view(
     race_view: &crate::race::view_store::RaceView,
     n: u32,
 ) -> Result<usize, Refused> {
-    if n > 1 {
-        return Err(BadInput("a view past the two").into());
+    if n > 3 {
+        return Err(BadInput("a view past the four").into());
     }
     Ok(race_view.view_number(n as usize)?)
 }
@@ -338,12 +338,24 @@ pub(super) fn panel_half(race: &Race, car: usize, first: bool) -> Result<(), Bad
 /// A network race's cars' distances shown, for the stage bar's markers of the other cars (the
 /// same figure as the first view's distance).
 fn network_car_distances(race: &Race, unit: f32, miles: f32, from: u32) -> Result<(), BadInput> {
-    use rc2k_core::race::panel::{distance_shown, travelled};
     let panel = &race.frame.panel_and_overlay.get().panel;
     let count = panel.network_cars.get().min(8) as usize;
     panel
         .network_own
         .set(race.shared.view.get().view_number(0)? as u32);
+    car_distances(race, count, unit, miles, from)
+}
+
+/// The first `count` cars' distances shown into `car_distances`.
+fn car_distances(
+    race: &Race,
+    count: usize,
+    unit: f32,
+    miles: f32,
+    from: u32,
+) -> Result<(), BadInput> {
+    use rc2k_core::race::panel::{distance_shown, travelled};
+    let panel = &race.frame.panel_and_overlay.get().panel;
     for (n, shown) in panel.car_distances.iter().enumerate().take(count) {
         let car = race.frame.cars.car(n)?;
         let at = |n: u32| {
@@ -360,6 +372,17 @@ pub fn panel_values_plain(race: &Race) -> Result<(), BadInput> {
     {
         panel_half(race, race.shared.view.get().view_number(0)?, true)?;
         panel_half(race, race.shared.view.get().view_number(1)?, false)?;
+        // A split screen of more than two players shows each player's progress on its own part's
+        // bar (`hud::layout_many`), from the same distances the network markers use.
+        let players = race.shared.view.get().players.get() as usize;
+        if players > 2 {
+            let (unit, miles) = (
+                race.course.numbers.get().k65536.get(),
+                race.course.numbers.get().metres_in_mile.get(),
+            );
+            let from: u32 = race.physics.split_tables().checkpoints[0].get();
+            car_distances(race, players.min(4), unit, miles, from)?;
+        }
     }
     Ok(())
 }

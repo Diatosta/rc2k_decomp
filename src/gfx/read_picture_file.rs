@@ -7,7 +7,7 @@
 //! 2: success, nothing done) or replaced by `files\d\gfx\chatzone.pcx`, and other paths go to
 //! `read_pcx` alone. Refuses a path of fewer than four characters and what the readers refuse.
 
-use crate::errors::Refused;
+use crate::errors::{BadInput, Refused};
 use crate::files::swap_missing_extension::swap_missing_extension;
 use crate::gfx::read_pcx::read_pcx;
 use crate::gfx::read_png::read_png;
@@ -23,16 +23,47 @@ pub fn read_picture_file(
     let png = &gfx.png;
     let text = path.text("a picture's path")?;
     if &ending(&text)? == b".pcx" {
-        return Ok(read_pcx(&text, gfx)?);
+        return lenient(read_pcx(&text, gfx), &text);
     }
     let text = swap_missing_extension(path)?;
     match reader(ending(&text)?, png.setting.get()) {
-        Reader::PngThenPcx => Ok(read_png(png, &text, gfx, system)? || read_pcx(&text, gfx)?),
-        Reader::Pcx => Ok(read_pcx(&text, gfx)?),
+        Reader::PngThenPcx => {
+            // A file the PNG reader refuses is damaged, not missing: not tried as a PCX.
+            match read_png(png, &text, gfx, system) {
+                Err(Refused::BadInput(why)) => {
+                    damaged(&text, why.0);
+                    Ok(false)
+                }
+                Ok(false) => lenient(read_pcx(&text, gfx), &text),
+                other => other,
+            }
+        }
+        Reader::Pcx => lenient(read_pcx(&text, gfx), &text),
         Reader::Nothing => Ok(true),
         Reader::Chatzone => {
             let chatzone = &crate::gfx::texts::CHATZONE;
-            Ok(read_pcx(&chatzone[..chatzone.len() - 1], gfx)?)
+            lenient(read_pcx(&chatzone[..chatzone.len() - 1], gfx), chatzone)
         }
     }
+}
+
+/// A picture whose data the readers refuse is shown as missing, with one notice for the
+/// player; the program goes on.
+fn lenient(read: Result<bool, BadInput>, path: &[u8]) -> Result<bool, Refused> {
+    match read {
+        Err(why) => {
+            damaged(path, why.0);
+            Ok(false)
+        }
+        Ok(read) => Ok(read),
+    }
+}
+
+fn damaged(path: &[u8], why: &str) {
+    let name = crate::error_dialog::file_name(path);
+    crate::logfile::program_log::log(&format!("gfx: the picture {name} cannot be used: {why}"));
+    crate::error_dialog::notice_once(
+        &name,
+        &crate::error_dialog::text_with(rc2k_core::strings::own::id::BAD_PICTURE, &name),
+    );
 }

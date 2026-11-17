@@ -30,11 +30,18 @@ pub fn receive_thread(net: &Net, system: &System) -> Result<(), Refused> {
                 if waited == Waited::Signalled {
                     vars.receiver.receiving.set(1);
                     if net.race_slot.is_on() {
-                        crate::net::take_messages::take_messages(
+                        match crate::net::take_messages::take_messages(
                             net,
                             lines,
                             &system.session.picture_clock,
-                        )?;
+                        ) {
+                            // What a sender's data makes the take refuse is dropped, with a
+                            // notice; the session goes on.
+                            Err(Refused::BadInput(why)) => {
+                                crate::net::bad_peer::dropped_message(u32::MAX, why.0);
+                            }
+                            other => other?,
+                        }
                     }
                 }
                 vars.receiver.receiving.set(0);

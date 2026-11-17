@@ -14,7 +14,8 @@
 //! textures loaded; the sound tick 0xC; the panel set up unless `no_place`. Then the views: one
 //! (`views` 1: car A's, the scene, ticks 0xD and 0xE around `d3d::copy_screen_to_texture`, the
 //! overlays, tick 0xF, the mirror if the view's flags have bit 3), or two halves (`split` 1 side
-//! by side, else one above the other), each with its window (`view_size`, `view_zoom`,
+//! by side, else one above the other; with three or four players each player's part of the layout
+//! chosen with the split key, `race::split_layout`, and no mirrors), each with its window (`view_size`, `view_zoom`,
 //! `scene::set_view_window`), its car, the scene, tick 0xD, the overlays, tick 0xF and its mirror.
 //! Last: the first car loaded, both batches flushed, the sound spots found and shared, the parts'
 //! sounds woken, the sound tick 0x10, render states 0x11 and 0x12 = 2; the HUD's pass unless
@@ -68,6 +69,10 @@ impl<'a> Owners<'a> {
 
 /// Whether the view with `flags` has its mirror (the flags' bit 3).
 fn mirrored(race: &Race, flags: usize) -> bool {
+    // A split screen of more than two players has no mirrors: their slots are the players' views.
+    if crate::race::view_scratch::many_views() {
+        return false;
+    }
     race.frame.panel_and_overlay.get().panel.hud_flags[flags].get() & 8 != 0
         || crate::race::draw_mirror_view::always()
 }
@@ -446,6 +451,20 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     {
         flags.set(race.frame.cars.car(block)?.option_bits.get());
     }
+    // The split screen's further views show their own player's car; each is on.
+    let views = race.shared.view.get().views.get();
+    crate::race::view_scratch::set_many_views(views > 2);
+    {
+        let panel = &race.frame.panel_and_overlay.get().panel;
+        for (n, flags) in panel.hud_flags.iter().enumerate().skip(2) {
+            if (n as u32) < views {
+                let block = race.shared.view.get().view_number(n)?;
+                flags.set(race.frame.cars.car(block)?.option_bits.get());
+            } else {
+                flags.set(0);
+            }
+        }
+    }
     for (flags, on) in race
         .frame
         .panel_and_overlay
@@ -548,6 +567,16 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     ] {
         crate::race::frame_views::full_view_window(race, scene, system, window);
     }
+    if views > 2 {
+        for view in 2..views as usize {
+            crate::race::frame_views::full_view_window(
+                race,
+                scene,
+                system,
+                &o.scene.scratch.main_view(view).polygon.window,
+            );
+        }
+    }
     // The level's draw distance and fog settings, once for the frame: the views and the mirrors
     // only read them.
     crate::race::frame_draw::draw_distance_settings(&race.course);
@@ -604,6 +633,12 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         )?;
     } else {
         let side_by_side = race.shared.vars.get().split.get() == 1;
+        // The views' parts of the screen: the two players' split, or the layout chosen for more.
+        let split = if views > 2 {
+            rc2k_core::race::view::Split::many(views, crate::race::split_layout::index())
+        } else {
+            rc2k_core::race::view::Split::of(2, side_by_side)
+        };
         // A player's half of the screen. (The store's drawn view is set on the game thread only:
         // the parts read their slot's, `ViewScratch::drawn_view`.) With `reads` (the drawing stores
         // as the caller reads them) the view's window set; without, nothing.
@@ -618,17 +653,13 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
             let own = &scratch.polygon.window;
             let (w, h) = (reads.screen.width.get(), reads.screen.height.get());
             // (width, x, height, y).
-            if side_by_side {
-                own.view_size[0].set(w >> 1);
-                own.view_offset[0].set(if view == 0 { 0 } else { w >> 1 });
-                own.view_size[1].set(h);
-                own.view_offset[1].set(0);
-            } else {
-                own.view_size[0].set(w);
-                own.view_offset[0].set(0);
-                own.view_size[1].set(h >> 1);
-                own.view_offset[1].set(if view == 0 { 0 } else { h >> 1 });
-            }
+            let Some(part) = split.and_then(|split| split.part_of(views, view, (w, h))) else {
+                return;
+            };
+            own.view_size[0].set(part.width);
+            own.view_offset[0].set(part.x);
+            own.view_size[1].set(part.height);
+            own.view_offset[1].set(part.y);
             own.view_zoom.set(0x100);
             crate::scene::set_view_window::set_view_window_plain(
                 reads.course(),
@@ -645,11 +676,11 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
                 o.gfx,
                 o.race.effects.get(),
                 &o.menus.play.cheats,
-                2,
+                views.clamp(2, 4) as usize,
                 &player,
             )?;
         } else {
-            for view in 0..2u32 {
+            for view in 0..views.clamp(2, 4) {
                 race.shared.view.get().drawn_view.set(view);
                 player(
                     view,

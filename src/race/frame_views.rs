@@ -497,7 +497,7 @@ pub fn draw_own_car(
     if ctx.reads.switches.scene_set_up.get() == 0 {
         return Ok(());
     }
-    let number = ctx.reads.view.view_cars[ctx.view.drawn_view(race) as usize].get();
+    let number = ctx.reads.view.drawn_view_car(ctx.view.drawn_view(race))?;
     if !ctx.reads.work.has_car_block(car_number(number) as usize) {
         return Err(BadInput("the drawn car without its block").into());
     }

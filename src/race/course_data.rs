@@ -127,18 +127,18 @@ pub fn group_records_by_kind(course: &Course) -> Result<(), Refused> {
 
 /// The log's words: "loadlevel", "done", "next", "this", "then", "ok".
 const LOAD_LOG: [&std::ffi::CStr; 6] = [c"loadlevel", c"done", c"next", c"this", c"then", c"ok"];
-const NOT_READ: crate::errors::FatalError = crate::errors::FatalError {
-    code: 0x8065_0210,
-    message: "",
-};
+/// What the player is told when the stage's data cannot be read: the race is left and the
+/// game goes back to the main menu (the original ended with a fatal error).
+const NOT_READ: crate::errors::Recover =
+    crate::errors::Recover("The data of the stage could not be read (see rc2k.log).");
 
 /// A log line ("loadlevel" .. "ok").
 fn load_log(n: usize) {
     crate::logfile::log_write::log_nul(&LOAD_LOG[n], false, 1);
 }
 
-/// Reads the course data (cdat 0) into a buffer of `FIRST_PART` bytes (a failed read is fatal
-/// error 0x80650210, without a message), takes it apart (`rc2k_core::race::loading::read_course`),
+/// Reads the course data (cdat 0) into a buffer of `FIRST_PART` bytes (a failed read is a trouble the game
+/// goes back to the menu from), takes it apart (`rc2k_core::race::loading::read_course`),
 /// stores the header and the parts, lays the course out and resets the faces' lights, with
 /// "loadlevel", "done", "next", "this", "then", "ok" in the log.
 pub fn load_level(race: &Race) -> Result<(), Refused> {
@@ -160,7 +160,8 @@ pub fn load_level(race: &Race) -> Result<(), Refused> {
     load_log(1);
     load_log(2);
     crate::race::load_times::mark("read_course, store header and parts");
-    let parts = rc2k_core::race::loading::read_course(&data)?;
+    let parts =
+        rc2k_core::race::loading::read_course(&data).map_err(|e| crate::errors::Recover(e.0))?;
     drop(data);
     store_course_header(course, &parts.header);
     crate::race::scene_points::take(&course.stage.course, &parts.points)?;

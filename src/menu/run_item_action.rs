@@ -40,7 +40,20 @@ pub fn run_item_action(
         let item = &items[n as usize];
         let value = item.fixed().action_value;
         screens.draw_work.action_mode.set(value);
-        crate::menu::table_calls::call_action(o, item.fixed().action);
+        let action = item.fixed().action;
+        if menu == menus.tables.menus.main_menu.id() {
+            // The main menu's items run the whole game (an event, a race, a viewer): a trouble
+            // the game can go back from inside one leaves it and the main menu goes on.
+            let ran = crate::error_dialog::recover::guarded(|| {
+                crate::menu::table_calls::call_action(o, action);
+                Ok(())
+            });
+            if let Err(reason) = ran {
+                crate::menu::run_front_end::back_at_main_menu(o, &reason);
+            }
+        } else {
+            crate::menu::table_calls::call_action(o, action);
+        }
         screens.loop_flags.item.set(item.fixed().id);
     }
     Ok(ActionResult {

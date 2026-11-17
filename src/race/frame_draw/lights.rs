@@ -35,11 +35,7 @@ pub fn car_light_modes(
     if cars > 8 {
         return Err(BadInput("more than eight race cars").into());
     }
-    let shown = race_view
-        .view_cars
-        .get(view as usize)
-        .ok_or(BadInput("a drawn view past the two"))?
-        .get();
+    let shown = race_view.view_car_number(view as usize)?;
     for n in 0..8 {
         states.state_of(block(n)?)?.set(0);
     }

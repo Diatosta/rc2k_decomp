@@ -16,11 +16,24 @@ pub struct FatalError {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct BadInput(pub &'static str);
 
-/// Either reason, for functions that can meet both.
+/// A trouble the game can go back from: a file of the player's or a stage's data that cannot
+/// be used. The reason is a short text for the player. Where a menu or a race is running it
+/// ends in the main menu (`error_dialog::recover`), after the player has been told.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Recover(pub &'static str);
+
+/// Either reason, for functions that can meet them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Refused {
     Fatal(FatalError),
     BadInput(BadInput),
+    Recoverable(Recover),
+}
+
+impl From<Recover> for Refused {
+    fn from(e: Recover) -> Self {
+        Refused::Recoverable(e)
+    }
 }
 
 impl From<FatalError> for Refused {

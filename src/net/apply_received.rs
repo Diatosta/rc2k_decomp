@@ -22,7 +22,11 @@ pub fn apply_received(race: &Race, net: &Net) -> Result<(), Refused> {
             loop {
                 // The inbox records are 0x100 bytes each, message bytes from +2.
                 let message = block.copied.read_at(at + 2, 0xFE, "a received message")?;
-                apply_message(race, net, player, &message)?;
+                // A message that is cut short is the sender's doing: it is dropped and the
+                // player is told once; the session goes on.
+                if let Err(why) = apply_message(race, net, player, &message) {
+                    crate::net::bad_peer::dropped_message(player, why.0);
+                }
                 at += 0x100;
                 left = left.wrapping_sub(1);
                 if left == 0 {

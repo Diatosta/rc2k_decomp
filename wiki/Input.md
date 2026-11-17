@@ -112,15 +112,17 @@ race's wait for the other players, East (Back) leaves as Escape does and so does
 In the replay viewer a race is loaded but its list is a menu, so the stick, the wheel and the
 shoulders work it as they work the menus (`driving` in `src/platform/events.rs`).
 
-Race keys that have no pad binding: F1 next view, F2 split screen layout, F3 and F4 volume down
+Race keys that have no pad binding: F1 next view, F2 split screen layout (with three or four
+players it steps through their layouts),  F3 and F4 volume down
 and up (with Left Ctrl held, the music's), F5 the shared-view flag, F6 .. F12 the HUD and view
 option flags (the screenshot key too, with screenshots on), and Left Ctrl itself, which turns
 the view keys to the second player's view. None has a default pad button.
 
 ## Three and four players
 
-In a single rally for three or four players on one screen (`--players 3` / `4`, or the advanced
-page's "3 and 4 players together"), each player's car reads the device of that player's
+In a single rally for three or four players on one screen (`--players 3` / `4`, or the
+"3 players on one screen" / "4 players on one screen" entries of the single rally's players menu),
+each player's car reads the device of that player's
 record: the third and fourth players have devices of their own after the first two (the input
 thread keeps four records, `src/input/store.rs`), set up and read like the others when the race
 starts and given back when it ends. A controller that an earlier player has already chosen is

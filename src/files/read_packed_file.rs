@@ -2,9 +2,9 @@
 //! dwords, and the count of dwords it unpacks to; its dwords are moved to the buffer's end, and a
 //! stream of bits (each dword's highest first) is decoded from the buffer's start, each code
 //! being a zero, a back reference of 8 or 12 bits, or a literal of 17, 28 (signed) or 32 bits.
-//! Gives the bytes unpacked; on a failed read or a file not "SQSL", 0 and a failure. Refuses a
-//! count of 0, and a stream that reads or writes past the buffer or refers back past
-//! its start.
+//! Gives the bytes unpacked; on a failed read or a file not "SQSL", 0 and a failure. A
+//! count of 0, and a stream that reads or writes past the buffer or refers back past its start,
+//! is a damaged file (`Recover`).
 
 use crate::errors::{BadInput, Refused};
 use crate::files::read_file::ReadResult;
@@ -61,7 +61,21 @@ pub fn read_packed_file(path: &[u8], buffer: &mut [u8]) -> Result<Outcome, Refus
     if u32::from_le_bytes(*mark) != MAGIC {
         return Ok(failed);
     }
-    let bytes = unpack(buffer, got.eax)?;
+    // A stream that does not unpack is a damaged file: a trouble the game can go back from.
+    let bytes = match unpack(buffer, got.eax) {
+        Err(Refused::BadInput(why)) => {
+            crate::logfile::program_log::log(&format!(
+                "files: the packed file {} is damaged: {}",
+                String::from_utf8_lossy(path),
+                why.0
+            ));
+            return Err(crate::errors::Recover(
+                "A packed data file of the game is damaged (see rc2k.log).",
+            )
+            .into());
+        }
+        other => other?,
+    };
     Ok(Outcome {
         eax: bytes,
         carry: false,

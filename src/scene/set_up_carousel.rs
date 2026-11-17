@@ -28,7 +28,7 @@ use crate::menu::lists_store::{CarList, CarListParts};
 use crate::scene::carousel_set_ups::PLAIN;
 
 // ---- game data ----
-const MENUS: u32 = 0x15;
+const MENUS: u32 = 0x16;
 use crate::menu::carousel_store::Carousel;
 use rc2k_core::scene::carousel;
 

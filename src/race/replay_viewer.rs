@@ -121,7 +121,7 @@ pub fn replay_viewer(
     o: Owners<'static>,
     mode: Mode,
 ) -> Result<Viewed, Refused> {
-    let viewed = view(race, o, Start::Menu(mode))?;
+    let viewed = viewing(race, o, Start::Menu(mode))?;
     end(race, o)?;
     Ok(viewed)
 }
@@ -139,13 +139,27 @@ pub fn launched_replay(
         slot,
         leave_when_played,
     };
-    let viewed = view(race, o, start)?;
+    let viewed = viewing(race, o, start)?;
     if viewed == Viewed::Played {
         crate::race::close_viewed_replay::close_viewed_replay(race)?;
     } else {
         end(race, o)?;
     }
     Ok(viewed)
+}
+
+/// `view`, with a trouble the game can go back from (a replay's data that cannot be used)
+/// ending the viewer as leaving it does, then on up to the main menu.
+fn viewing(race: &'static Race, o: Owners<'static>, start: Start) -> Result<Viewed, Refused> {
+    match crate::error_dialog::recover::guarded(|| view(race, o, start)) {
+        Ok(viewed) => viewed,
+        Err(reason) => {
+            if end(race, o).is_err() {
+                crate::logfile::program_log::log("recover: the viewer could not be closed");
+            }
+            crate::error_dialog::recover::back(&reason)
+        }
+    }
 }
 
 /// The viewer's end: the replay closed, the front end back.

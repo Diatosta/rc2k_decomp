@@ -160,6 +160,20 @@ pub fn write_bytes(
     .ok_or(BadInput("a write past the picture buffer"))
 }
 
+/// `bytes` into a buffer's bytes at `at`; false (nothing written) past its end.
+pub fn put(buffer: &mut [u8], at: usize, bytes: &[u8]) -> bool {
+    match at
+        .checked_add(bytes.len())
+        .and_then(|end| buffer.get_mut(at..end))
+    {
+        Some(to) => {
+            to.copy_from_slice(bytes);
+            true
+        }
+        None => false,
+    }
+}
+
 /// `bytes` into a buffer's bytes at `at`, a decoder's write: past the end it ends the game.
 pub fn put_or_end(buffer: &mut [u8], at: usize, bytes: &[u8]) {
     match at

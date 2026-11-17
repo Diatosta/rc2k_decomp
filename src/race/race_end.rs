@@ -203,9 +203,27 @@ const EVERYTHING_WORDS: [&std::ffi::CStr; 8] = [
     c"---------------------------------",
 ];
 
-struct Tidy;
+/// The tidying's steps. `forgiving` is for a race that stopped half way: a step that fails
+/// (what it frees was never made) is logged and the others still run.
+#[derive(Clone, Copy)]
+struct Tidy {
+    forgiving: bool,
+}
 
 impl Tidy {
+    /// A step's result: kept as it is, or, when forgiving, logged and let go.
+    fn forgive(&self, result: Result<(), Refused>) -> Result<(), Refused> {
+        match result {
+            Err(why) if self.forgiving => {
+                crate::logfile::program_log::log(&format!(
+                    "recover: a tidying step failed: {why:?}"
+                ));
+                Ok(())
+            }
+            other => other,
+        }
+    }
+
     /// Logs a word and a line break.
     fn log(&self, word: &std::ffi::CStr) {
         crate::logfile::log_write::log_nul(&word, true, 1);
@@ -230,16 +248,17 @@ impl Tidy {
     ) -> Result<(), Refused> {
         self.log(word);
         self.indent(3);
-        call()?;
+        let result = self.forgive(call());
         self.indent(-3);
-        Ok(())
+        result
     }
 }
 
 /// Tidies the stage ("LOADLEVEL_TIDY"), each step with its word and the log indented round it: the
 /// mud, the point records, the marks' tidy (the log off), the fonts, the map, the textures, the
 /// course's two memories, the objects (then `in_race` 0, `view_scale` `kept_scale`); "finis".
-pub fn tidy_stage(
+fn tidy_stage(
+    s: Tidy,
     race: &Race,
     scene: &crate::scene::owner::Scene,
     effects: &Effects,
@@ -249,7 +268,6 @@ pub fn tidy_stage(
     use crate::race::stage_free::{
         COURSE, COURSE_2, MUD, OBJECT_POINTS, POINT_RECORDS, free, free_game_fonts,
     };
-    let s = Tidy;
     s.step(STAGE_WORDS[0], || free(race, &scene.scratch, &MUD))?;
     s.step(STAGE_WORDS[1], || {
         free(race, &scene.scratch, &POINT_RECORDS)
@@ -259,9 +277,10 @@ pub fn tidy_stage(
     let enabled = crate::logfile::write_line::state::ENABLED
         .atomic()
         .swap(0, std::sync::atomic::Ordering::Relaxed);
-    crate::effects::tidy_marks::tidy_marks(effects)?;
+    let marks = crate::effects::tidy_marks::tidy_marks(effects);
     crate::logfile::write_line::state::ENABLED.set(enabled);
     s.indent(-3);
+    s.forgive(marks)?;
     s.step(STAGE_WORDS[3], || free_game_fonts(gfx))?;
     s.step(STAGE_WORDS[4], || {
         crate::race::game_map::free_game_map(race, gfx)
@@ -274,7 +293,7 @@ pub fn tidy_stage(
     s.step(STAGE_WORDS[7], || free(race, &scene.scratch, &COURSE))?;
     s.log(STAGE_WORDS[8]);
     s.indent(3);
-    free(race, &scene.scratch, &OBJECT_POINTS)?;
+    s.forgive(free(race, &scene.scratch, &OBJECT_POINTS))?;
     race.course.numbers.get().in_race.set(false);
     crate::scene::workers::set_game_part_racing(&scene.scratch, false);
     audio.racing.set(false);
@@ -293,9 +312,16 @@ pub fn tidy_stage(
 /// each step with its word: the controls, the game mode, `tidy_stage`, the sounds (then `view_on`
 /// and the second view's flag 1); "finis", a rule, a line break.
 pub fn tidy_everything(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    tidy_everything_as(Tidy { forgiving: false }, race, o)
+}
+
+fn tidy_everything_as(
+    s: Tidy,
+    race: &Race,
+    o: crate::owners::Owners<'static>,
+) -> Result<(), Refused> {
     let (input, sound) = (o.input, o.sound);
     let shared = &race.shared;
-    let s = Tidy;
     s.newline();
     s.log(EVERYTHING_WORDS[0]);
     s.log(EVERYTHING_WORDS[1]);
@@ -307,7 +333,7 @@ pub fn tidy_everything(race: &Race, o: crate::owners::Owners<'static>) -> Result
     })?;
     s.step(EVERYTHING_WORDS[3], || Ok(()))?;
     s.step(EVERYTHING_WORDS[4], || {
-        tidy_stage(race, o.scene, o.race.effects.get(), o.gfx, o.audio)
+        tidy_stage(s, race, o.scene, o.race.effects.get(), o.gfx, o.audio)
     })?;
     #[cfg(feature = "remote")]
     crate::race::course_hash::log_hashes(race, o.scene, "free");
@@ -377,6 +403,58 @@ pub fn start_race(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
 /// Runs `race::render3d_tidy`, `race::objects_tidy`, `race::release_textures` and
 /// `race::start_race`.
 pub fn race_from_menu(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    // A trouble the game can go back from (a stage's data that cannot be read) tears the race
+    // down as when the player quits it, then goes on up to the main menu.
+    match crate::error_dialog::recover::guarded(|| race_from_menu_plain(o)) {
+        Ok(result) => result,
+        Err(reason) => {
+            tear_down_after_trouble(o);
+            crate::error_dialog::recover::back(&reason)
+        }
+    }
+}
+
+/// Puts the game as it is at the main menu after a race that stopped half way: the replay
+/// closed, everything tidied (the controls released, the stage and the race's sounds freed),
+/// the settings taken out, then the menus' screen mode, sounds and scene. Each step is tried
+/// whatever the one before did: a race that failed early has not made all of them.
+fn tear_down_after_trouble(o: crate::owners::Owners<'static>) {
+    use crate::race::single_rally::{Call, step};
+    let race = o.race;
+    let tried = |what: &str, r: Result<(), Refused>| {
+        if let Err(why) = r {
+            crate::logfile::program_log::log(&format!(
+                "recover: {what} could not be done: {why:?}"
+            ));
+        }
+    };
+    tried(
+        "closing the replay",
+        crate::race::replay::close_replay(race, o.system),
+    );
+    tried(
+        "tidying the race",
+        tidy_everything_as(Tidy { forgiving: true }, race, o),
+    );
+    tried(
+        "taking the settings out",
+        crate::race::settings_copy::copy_settings_out(race, &o.saves.best_tables),
+    );
+    for call in [
+        Call::StopMusic,
+        Call::SetMenuScreenMode,
+        Call::ClearRaceSoundObjects,
+        Call::ApplySettings,
+        Call::SetUpEngine,
+        Call::SetUpFrontEndScene,
+        Call::SetUpEngine,
+        Call::TakeKey,
+    ] {
+        tried(&format!("{call:?}"), step(o, call));
+    }
+}
+
+fn race_from_menu_plain(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     crate::race::stage_free::render3d_tidy(o.race, &o.scene.scratch)?;
     crate::race::stage_free::objects_tidy(o.race, &o.scene.scratch)?;
     release_textures(o.scene, o.gfx);

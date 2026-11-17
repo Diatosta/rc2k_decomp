@@ -38,9 +38,20 @@ pub fn step_viewed_replay(race: &Race, system: &System) -> Result<bool, Refused>
         Step::PlayEnd { .. } => return Ok(stop(false)),
         Step::On { block, frame, read } => {
             if read {
-                let failed =
-                    crate::drive::read_replay_frame::read_replay_frame(race, system, block, 0)?;
+                // A block that cannot be read, or a place past what a replay holds, is a
+                // damaged file: the play stops there and the player is told.
+                let failed = match crate::drive::read_replay_frame::read_replay_frame(
+                    race, system, block, 0,
+                ) {
+                    Ok(failed) => failed,
+                    Err(Refused::Recoverable(_)) => true,
+                    Err(other) => return Err(other),
+                };
                 if failed {
+                    crate::error_dialog::notice(&crate::error_dialog::text_with(
+                        rc2k_core::strings::own::id::BAD_REPLAY_PLAY,
+                        "",
+                    ));
                     return Ok(stop(true));
                 }
             }

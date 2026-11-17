@@ -19,6 +19,7 @@ pub mod add_chat_line;
 pub mod allocate_lists;
 pub mod apply_message;
 pub mod apply_received;
+pub mod bad_peer;
 pub mod begin_chat;
 pub mod begin_edit;
 pub mod begin_setting_edit;

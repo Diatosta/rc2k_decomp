@@ -275,17 +275,29 @@ impl RaceView {
 
     /// The number of view `n`'s car block, refused for none.
     pub fn view_number(&self, n: usize) -> Result<usize, crate::errors::BadInput> {
-        crate::race::blocks_store::number_of(self.view_blocks[n].get())
+        match self.view_blocks.get(n) {
+            Some(block) => crate::race::blocks_store::number_of(block.get()),
+            // The further views of a split screen show their own player's car.
+            None if n < 4 => Ok(n),
+            None => Err(crate::errors::BadInput("a view past the four")),
+        }
     }
 
-    /// The car of drawn view `drawn` (`view_cars[drawn]`). Every drawn view is 0 or 1: a part's
-    /// own view number modulo 2, or for the players' scenes `drawn_view`, which only
-    /// `race::draw_race_scene` writes (0, or the player 0 .. 1). One past the two is refused.
+    /// The car view `n` shows: the first two views' (`view_cars`), and with a split screen of
+    /// more than two players each further view's own player's. One past the four is refused.
+    pub fn view_car_number(&self, n: usize) -> Result<u32, crate::errors::BadInput> {
+        match self.view_cars.get(n) {
+            Some(car) => Ok(car.get()),
+            None if n < 4 => Ok(n as u32),
+            None => Err(crate::errors::BadInput("a view past the four")),
+        }
+    }
+
+    /// The car of drawn view `drawn` (`view_cars[drawn]`). The drawn view is a part's own view
+    /// number (modulo 2 with a mirror's slot), or for the players' scenes `drawn_view`, which
+    /// only `race::draw_race_scene` writes (the player 0 .. 3). One past the four is refused.
     pub fn drawn_view_car(&self, drawn: u32) -> Result<u32, crate::errors::BadInput> {
-        self.view_cars
-            .get(drawn as usize)
-            .map(PlainDword::get)
-            .ok_or(crate::errors::BadInput("a drawn view past the two"))
+        self.view_car_number(drawn as usize)
     }
 }
 

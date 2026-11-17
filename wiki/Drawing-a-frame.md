@@ -45,8 +45,11 @@ show the last tick exactly.
 `draw_race_scene` (`src/race/draw_race_scene.rs`) first prepares what all views share: which
 cars are shown, the textures this frame needs, the cars' mud, the map's scroll. Then it draws
 each **view**. A one-player race has one view; a split-screen race has two, side by side or one
-above the other. A view may have a rear-view **mirror**, which is a small view of its own
-looking backwards.
+above the other, or with three or four players one for each in the layout chosen with the F2 key
+(`rc2k_core::race::view::Split`: quarters, rows, columns, or for three one wide view above two;
+the HUD of those, `hud::layout_many`, is a small panel of place, stage time, progress bar, gear and speed
+in each part, in screen pixels). A view may have a rear-view **mirror**, which is a small view of its own looking
+backwards (not in the split screens of more than two players: their view slots are the players').
 
 For each view, in order:
 

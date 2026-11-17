@@ -13,6 +13,8 @@
 //! `RC2K_ERROR_DIALOG` to show it), or
 //! when the window has been closed, nothing is drawn and the caller carries on as before.
 
+pub mod recover;
+
 use crate::gfx::typefaces::fonts;
 use crate::owners::Owners;
 use crate::text::draw_text::{GameCanvas, draw_text_at};
@@ -25,6 +27,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 pub enum Way {
     Quit,
     Continue,
+    MainMenu,
 }
 
 thread_local! {
@@ -34,6 +37,8 @@ thread_local! {
 
 /// Notices raised before there was a window to show them in.
 static PENDING: Mutex<Vec<String>> = Mutex::new(Vec::new());
+/// Whether `PENDING` holds something (read each menu frame).
+static WAITING: AtomicBool = AtomicBool::new(false);
 /// A dialog is up: an error inside it must not open another.
 static SHOWING: AtomicBool = AtomicBool::new(false);
 
@@ -82,25 +87,77 @@ pub fn text_with(id: u32, with: &str) -> String {
 pub fn notice(text: &str) {
     crate::logfile::program_log::log(&format!("notice: {text}"));
     let shown = ready().is_some_and(|o| show(o, DIALOG_NOTICE, text, &[Way::Continue]).is_some());
-    if !shown && !cfg!(test) {
+    if !shown {
+        queue(text);
+    }
+}
+
+/// A notice that waits for the next menu frame, where a panel over a running race would stall
+/// it (a network race's).
+pub fn notice_later(key: &str, text: &str) {
+    if first_time(key) {
+        crate::logfile::program_log::log(&format!("notice: {text}"));
+        queue(text);
+    }
+}
+
+fn queue(text: &str) {
+    if !cfg!(test) {
         PENDING
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .push(text.to_string());
+        WAITING.store(true, Ordering::SeqCst);
     }
+}
+
+/// Whether `key` is new in this run.
+fn first_time(key: &str) -> bool {
+    static TOLD: Mutex<Vec<String>> = Mutex::new(Vec::new());
+    let mut told = TOLD
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    if told.iter().any(|k| k == key) {
+        return false;
+    }
+    told.push(key.to_string());
+    true
+}
+
+/// `notice`, once for each `key` in the run: a file that fails every time it is asked for (a
+/// picture of the menus) tells the player once.
+pub fn notice_once(key: &str, text: &str) {
+    if first_time(key) {
+        notice(text);
+    }
+}
+
+/// The last part of a path (either kind of slash), as text.
+pub fn file_name(path: &[u8]) -> String {
+    let name = path
+        .rsplit(|&b| b == b'\\' || b == b'/')
+        .next()
+        .unwrap_or(path);
+    rc2k_core::files::ansi::ansi_text(name)
 }
 
 /// The notices that waited for a window, shown now.
 pub fn show_pending() {
+    if !WAITING.load(Ordering::SeqCst) {
+        return;
+    }
+    // Only the game's thread shows them, once the screen is there.
+    let Some(o) = ready() else {
+        return;
+    };
+    WAITING.store(false, Ordering::SeqCst);
     let waiting = std::mem::take(
         &mut *PENDING
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner),
     );
-    if let Some(o) = ready() {
-        for text in waiting {
-            let _ = show(o, DIALOG_NOTICE, &text, &[Way::Continue]);
-        }
+    for text in waiting {
+        let _ = show(o, DIALOG_NOTICE, &text, &[Way::Continue]);
     }
 }
 
@@ -118,6 +175,15 @@ pub fn fatal(text: &str) {
             &rc2k_core::files::ansi::ansi_bytes(text),
         );
     }
+}
+
+/// A trouble the game goes back to the main menu from: shown with "Main menu" and "Quit".
+/// True when the player chose to go on at the main menu (also where no dialog can be shown:
+/// an unattended run goes on).
+pub fn ask_back(text: &str) -> bool {
+    crate::logfile::program_log::log(&format!("error: {text}"));
+    ready().and_then(|o| show(o, DIALOG_NOTICE, text, &[Way::MainMenu, Way::Quit]))
+        != Some(Way::Quit)
 }
 
 const DIALOG_ERROR: u32 = rc2k_core::strings::own::id::DIALOG_ERROR;
@@ -160,6 +226,7 @@ fn way_text(o: Owners<'static>, way: Way) -> String {
         match way {
             Way::Quit => id::DIALOG_QUIT,
             Way::Continue => id::DIALOG_CONTINUE,
+            Way::MainMenu => id::DIALOG_MENU,
         },
     )
 }

@@ -61,7 +61,6 @@ fn current(o: Owners<'static>) -> Values {
         renderer: Renderer::of(crate::render::choice::wanted().as_deref()),
         quit_pictures: crate::drive::quit_question::pictures_on(),
         smooth_frames: crate::race::blend::smooth_on(),
-        split_many: crate::menu::split_players::together(),
         flags,
     }
 }
@@ -168,9 +167,6 @@ pub fn apply(o: Owners<'static>) -> Result<(), Refused> {
             }
             Kind::SmoothFrames if new.smooth_frames != old.smooth_frames => {
                 crate::race::blend::set_smooth(new.smooth_frames);
-            }
-            Kind::SplitMany if new.split_many != old.split_many => {
-                crate::menu::split_players::set_together(new.split_many);
             }
             Kind::Flag { key, inverted } if new.flags[n] != old.flags[n] => {
                 let number = flag_number(inverted, new.flags[n]);

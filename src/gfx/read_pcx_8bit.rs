@@ -17,7 +17,7 @@ use crate::files::read_stream_byte::{ByteRead, read_stream_byte};
 use crate::files::stream::Stream;
 use crate::gfx::lay_out_pcx::lay_out_pcx;
 use crate::gfx::pcx::{FILE_PALETTE_LEN, on_stream, read_stream_header};
-use crate::gfx::picture::{put_or_end, with_buffer};
+use crate::gfx::picture::{put, with_buffer};
 
 /// The file's palette read with a seek and a plain read on the stream's handle, and the handle back
 /// at the start: whether it worked.
@@ -48,15 +48,25 @@ fn read_rows(stream: &mut Stream, gfx: &crate::gfx::owner::Gfx) -> Result<bool, 
     pictures.picture.flags.set(0x800u32);
     let layout = lay_out_pcx(gfx)?;
     let palette: [u32; 256] = pictures.decoder.palette();
+    // A pixel past the buffer (a header that claims more than the buffer holds) is skipped and
+    // refused after the decode: the file is damaged.
+    let past = std::cell::Cell::new(false);
     with_buffer(&pictures.buffers, pictures.decoder.pixels.get(), |pixels| {
         rc2k_core::gfx::pcx::decode_8bit(
             &layout,
             &palette,
             || read_stream_byte(stream).map(ByteRead::value),
-            |to, pixel| put_or_end(pixels, to as usize, &pixel.to_le_bytes()),
+            |to, pixel| {
+                if !put(pixels, to as usize, &pixel.to_le_bytes()) {
+                    past.set(true);
+                }
+            },
         )
     })??
     .ok_or(BadInput("a PCX picture without rows"))?;
+    if past.get() {
+        return Err(BadInput("a decoded pixel past the picture buffer"));
+    }
     Ok(true)
 }
 

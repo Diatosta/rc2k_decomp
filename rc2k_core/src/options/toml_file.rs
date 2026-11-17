@@ -378,6 +378,23 @@ mod tests {
     }
 
     #[test]
+    fn the_split_layout_is_kept_and_an_old_switch_is_ignored() {
+        let base = sample();
+        // The old advanced page's switch is read and ignored.
+        let text = "version = 2\n[display]\nrace_mode = 9\nsplit_many = true\n";
+        let o = read(text, &base).unwrap().unwrap();
+        assert_eq!(o.display.race_mode, 9);
+        assert_eq!(o.display.split_layout, 0);
+        // The first layout is left out of the file; another is written and read back.
+        assert!(!write(&base, None).unwrap().contains("split_layout"));
+        let mut chosen = base.clone();
+        chosen.display.split_layout = 2;
+        let text = write(&chosen, None).unwrap();
+        assert!(text.contains("split_layout = 2"));
+        assert_eq!(read(&text, &base).unwrap().unwrap().display.split_layout, 2);
+    }
+
+    #[test]
     fn unknown_keys_stay_when_the_file_is_written_over() {
         let old = "version = 2\nfuture = 3\n[later]\na = 1\n";
         let text = write(&sample(), Some(old)).unwrap();

@@ -36,6 +36,8 @@ pub enum Keep {
     /// A small piece on the top bar's middle part: its middle goes where the bar puts it and it
     /// keeps its shape.
     BarMarker = 5,
+    /// Already in screen pixels (the HUD of three or four players, `hud::layout_many`).
+    Pixels = 6,
 }
 
 /// The layout's own rule set at the start of a HUD.

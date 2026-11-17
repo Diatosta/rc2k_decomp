@@ -17,6 +17,9 @@ use crate::text::draw_text::Canvas;
 /// Where each menu's list of string numbers starts in `CAPTIONS.caption_lists`. The item is not
 /// checked against a list's length (the last list's 32 items still end inside the table).
 const LISTS: [usize; 7] = [0, 6, 29, 36, 40, 44, 52];
+/// The carousel menu of the single rally's players, whose list ends the table.
+const PLAYERS_MENU: u32 = 0x15;
+const PLAYERS_LIST: usize = 88;
 const CAPTION_LEN: usize = 0x100;
 const ITEMS: u32 = 32;
 
@@ -27,7 +30,11 @@ pub fn draw_highlighted_caption(
 ) -> Result<Option<bool>, Refused> {
     let menus = o.menus;
     let menu: u32 = menus.screens.carousel.menu.get();
-    let Some(&list) = LISTS.get(menu as usize) else {
+    let list = if menu == PLAYERS_MENU {
+        PLAYERS_LIST
+    } else if let Some(&list) = LISTS.get(menu as usize) {
+        list
+    } else {
         return Ok(None);
     };
     let item: u32 = menus.screens.loop_flags.item.get();

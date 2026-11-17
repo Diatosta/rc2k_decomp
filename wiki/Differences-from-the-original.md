@@ -25,7 +25,8 @@ the switches of the command line are on [Running and options](Running-and-option
 - **Playing through Steam** (an optional build, in progress): [Network play](#network-play).
 - **Replays rendered to a video**, from the viewer's camera button in a third row and from the command line:
   [Replays](#replays).
-- **More players in split screen** (three and four; in progress): [In progress](#in-progress).
+- **Three and four players on one screen**, a menu entry of their own in the single rally, the
+  screen split in layouts the F2 key cycles: [In progress](#in-progress).
 - **Straight into a race, a replay or the lobby** from the command line: [Running](#running).
 - **Errors shown on a panel** in the window, and damaged files no longer ending the game:
   [Saves and files](#saves-and-files).
@@ -235,7 +236,15 @@ or IPX connection), and Steam in a build made with the `steam` feature.
   where the details are, "Quit"; Up / Down and Enter, or a pad's buttons) in place of the
   "Guru Meditation" box. Troubles belonging to one file no longer end the game: a damaged saved
   game is not loaded, a replay that cannot be read is skipped, and options that are not valid are
-  reset to their defaults, each with a notice. `RC2K_NO_ERROR_DIALOG` turns the panel off.
+  reset to their defaults, each with a notice. So are a picture that cannot be read (shown as
+  missing), a sound that cannot be read (silent), a film that cannot be played (skipped) and a
+  replay whose data breaks while it plays (it stops there); each is told once. A network
+  player's message that cannot be understood is dropped, and the notice comes at the next menu
+  frame. A stage whose data cannot be read, or another trouble the game can go back from inside
+  a menu or a race, shows the panel with "Main menu" and "Quit": the race is torn down as when
+  the player quits it, and the game goes on at the main menu.
+  `RC2K_NO_ERROR_DIALOG` turns the panel off (the game then goes back to the main menu without
+  asking).
 - The program writes `rc2k.log` beside the game's `var/logfile.txt` ([Log files](Log-files)).
 - On Linux and macOS, file names are matched without regard to case, as Windows does.
 - The web build can export its saved games, best times and settings as a zip and import them back.
@@ -282,9 +291,14 @@ or IPX connection), and Steam in a build made with the `steam` feature.
 
 ## In progress
 
-- Split screen for three and four players (the original had two): the single rally can already be
-  started for three or four players racing together (`--players 3` or `4`, or the advanced page's
-  "3 and 4 players together" switch with the menu's three- and four-player items), each player
-  with the controls of their own record, and the three and four players' results page. Not yet:
-  only players 1 and 2's views are drawn, the race's sound follows those two, no replay is kept.
+- Split screen for three and four players (the original had two): the single rally's players menu
+  has an entry of its own for three and for four players on one screen, beside the original's
+  in-turn ones (each shows the same helmets), and `--players 3` or `4` starts the same race. Each
+  player has a view in their part of the screen, the controls of their own record, a compact HUD
+  (place, stage time, progress bar, gear and speed) and a place on the three and four players' results page. The F2 key
+  cycles the layouts: with four players quarters, four rows and four columns; with three one wide
+  view above two, three rows, three columns and quarters with the fourth left black; the choice
+  is kept in `rc2k.toml` (`split_layout`). Not yet: mirrors, the HUD's dials, map and signs, force
+  feedback and the co-driver's sounds follow the first two players only (the race's sound is heard
+  from the first player's view), and no replay is kept.
 - Steam play has not yet been tried against a running Steam client.
