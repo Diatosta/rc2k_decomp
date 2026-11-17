@@ -9,7 +9,7 @@
 # BIN=<binary> tests another build; screenshots of each page in ~/.cache/rc2k_instest/remote/shots.
 REPO=$(cd "$(dirname "$0")/.." && pwd)
 SRC=${RC2K_DOWNLOAD:?set RC2K_DOWNLOAD to the folder holding the files of the CD}
-BOX=$HOME/.cache/rc2k_instest
+BOX=${BOX:-$HOME/.cache/rc2k_instest}
 RH=$BOX/remote            # RC2K_REMOTE_HOME for remote.py
 DL=$BOX/download          # throwaway download folder (symlinks to the CD's files)
 SH=$BOX/home              # sandbox HOME / XDG_DATA_HOME

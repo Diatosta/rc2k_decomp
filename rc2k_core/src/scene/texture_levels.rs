@@ -28,12 +28,18 @@ const fn run(count: u32, first: u32, level: u32, other_level: u32, tag: u32) -> 
 /// The fixed runs' tag.
 pub const FIXED_TAG: u32 = 0x63;
 
+/// The texture the tyre change's title is drawn into: a texture of its own, since the title
+/// (in Portuguese) is wider than the tyre change texture's strips (a number no stage's object
+/// names).
+pub const TYRE_TITLE_TEXTURE: u32 = 0x3F0;
+
 /// The runs after the kinds' slots.
-pub const AFTER_KINDS: [Run; 15] = [
+pub const AFTER_KINDS: [Run; 16] = [
     run(1, 0x87, 0, 0, FIXED_TAG),
     run(2, 0xC0, 0, 0, FIXED_TAG),
     run(1, 0xC2, 0, 1, FIXED_TAG),
     run(1, 0x257, 0, 0, FIXED_TAG),
+    run(1, TYRE_TITLE_TEXTURE, 0, 0, FIXED_TAG),
     run(1, 0xCA, 0, 0, FIXED_TAG),
     run(1, 0xC8, 3, 3, FIXED_TAG),
     run(1, 0xD3, 0, 0, FIXED_TAG),

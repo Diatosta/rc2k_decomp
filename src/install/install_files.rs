@@ -32,6 +32,16 @@ fn path_b(install: &'static crate::install::owner::Install) -> BytePlace {
     BytePlace::from(&install.paths.path_b)
 }
 
+/// Whether file `index` of the CD's list is not installed: the CD's `ral.exe` (the 1999 program,
+/// which this one replaces), and on macOS every file outside the CD's folders (the readmes and the
+/// manual), the application holding only the game's files.
+fn left_out(install: &'static crate::install::owner::Install, index: u32) -> Result<bool, Refused> {
+    let mut name = Vec::new();
+    crate::install::name_tables::push_name(&install.files, index, &mut name)?;
+    let top_level = !name.iter().any(|&c| c == b'\\' || c == b'/');
+    Ok(top_level && (name.eq_ignore_ascii_case(b"ral.exe") || cfg!(target_os = "macos")))
+}
+
 /// `to` = `base` + name `index` of `table`, NUL-ended.
 fn build(
     base: BytePlace,
@@ -142,6 +152,15 @@ pub fn install_files(
         o,
         Some(&|| crate::install::install_frames::copying_frame(o)),
     )?;
+    // On macOS the program's own bundle is installed, the game's files going inside it.
+    #[cfg(target_os = "macos")]
+    {
+        let support = crate::files::host_path(&install.paths.installed.text());
+        if let Err(why) = crate::install::mac_bundle::begin(&support) {
+            crate::logfile::program_log::log(&format!("install: the application: {why}"));
+            return message(o, &error_messages(install), 0);
+        }
+    }
     // the folders
     if install.run.dir_count.get() != 0 {
         for n in 0..install.run.dir_count.get() {
@@ -155,26 +174,40 @@ pub fn install_files(
     // the files
     if install.run.file_count.get() != 0 {
         let mut n = 0;
+        // The bar is drawn after this much copying since the last frame ended (about 15 frames a
+        // second): a frame per file (about 3,000 files) waits for the display's refresh each
+        // time, which costs far more than the copying.
+        const FRAME_GAP: std::time::Duration = std::time::Duration::from_millis(66);
+        let mut last_frame: Option<std::time::Instant> = None;
         loop {
             build(game_dir(install), path_a(install), &install.files, n)?;
             build(installed(install), path_b(install), &install.files, n)?;
             // A failed copy is the error message.
-            if !i::copy_counted::copy_counted(
-                install,
-                o.system,
-                &install.paths.path_a,
-                &install.paths.path_b,
-            )? {
+            if !left_out(install, n)?
+                && !i::copy_counted::copy_counted(
+                    install,
+                    o.system,
+                    &install.paths.path_a,
+                    &install.paths.path_b,
+                )?
+            {
                 return message(o, &error_messages(install), 0);
             }
-            if run_frame(
-                o,
-                Some(&|| crate::install::install_frames::progress_frame(o)),
-            )? {
-                run_frame(
+            let last_file = n.wrapping_add(1) == install.run.file_count.get();
+            if last_frame.is_none_or(|at| at.elapsed() >= FRAME_GAP) || last_file {
+                if run_frame(
                     o,
-                    Some(&|| crate::install::install_frames::copying_frame(o)),
-                )?;
+                    Some(&|| crate::install::install_frames::progress_frame(o)),
+                )? {
+                    run_frame(
+                        o,
+                        Some(&|| crate::install::install_frames::copying_frame(o)),
+                    )?;
+                }
+                last_frame = Some(std::time::Instant::now());
+            } else {
+                // The window's events and keys still go on between frames.
+                run_frame(o, None)?;
             }
             if take_key(o.input) == 1 {
                 return message(o, &install.pages.msg_cancel.each_ref(), 0xFFFF_FFCE);
@@ -197,7 +230,8 @@ pub fn install_files(
     if !i::write_record::write_record(install, o.strings)? {
         return message(o, &error_messages(install), 0);
     }
-    if crate::files::state::directory_byte(1) != 0 {
+    // On macOS only the game's files go into the application.
+    if crate::files::state::directory_byte(1) != 0 && !cfg!(target_os = "macos") {
         // readme.txt then manual.pdf
         for (full, base) in [
             (

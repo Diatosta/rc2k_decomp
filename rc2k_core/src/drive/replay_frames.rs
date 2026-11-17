@@ -50,6 +50,13 @@ pub fn written_view(byte: i8) -> i8 {
     byte.clamp(2, 3)
 }
 
+/// The frame head's byte +5 for a network race: the view of this machine's car (`car`), so the
+/// replay opens on it: 0 the first car, 1 the second (the tape holds two cars; a later one's
+/// machine gets the first).
+pub fn network_view(car: u32) -> u8 {
+    u8::from(car == 1)
+}
+
 /// Whether the replay is flushed: while recording, at the last tenth of a frame.
 pub fn flush_due(mode: u32, tenth: u32) -> bool {
     mode == RECORDING && tenth == TENTHS - 1
@@ -230,6 +237,7 @@ mod tests {
         assert!(past_end(5, 5));
         assert_eq!(written_view(-4), 2);
         assert_eq!(written_view(9), 3);
+        assert_eq!([0, 1, 2].map(network_view), [0, 1, 0]);
         assert!(flush_due(1, 99));
         assert!(!flush_due(2, 99));
         assert_eq!(tape_slot(3, 1), Some((3, 1)));

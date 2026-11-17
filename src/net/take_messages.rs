@@ -9,6 +9,8 @@
 //!   race flags set; a machine that has just joined takes the round of the host's first call;
 //! - 0x60: the sender's stage load's percentage, noted for the loading screen's list
 //!   (`net::loading`);
+//! - 0x61: the sender's progress through its stage in percent, noted by its id for the lobby
+//!   (`net::progress`);
 //! - 0x41 / 0x51 (on the host): the player's synced byte is set;
 //! - bit 0x80 (a race message, 1 to 0xFF bytes): the bytes after the first stored with the time
 //!   in the player's inbox under the lock;
@@ -116,6 +118,7 @@ pub fn take_messages(
                 net.queue_chat(author_player.unwrap_or(0), text, Some(sequence));
             }
             Message::Loading { share } => crate::net::loading::note(player, share),
+            Message::Progress { share } => crate::net::progress::note(block.id.get(), share),
             Message::Call { ready, round } => {
                 if !own_state.is_host()
                     && net

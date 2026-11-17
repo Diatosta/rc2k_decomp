@@ -64,6 +64,11 @@ pub struct TyreChange {
     pub record: PlainDword,
     /// The fill's palette (`gfx::fill_rect`).
     pub palette: PlainBytes<4>,
+    /// The texture the title is drawn into (`race::draw_tyre_change`), and its copy on the device.
+    pub title_texture: PlainDword,
+    pub title_device_texture: PlainDword,
+    /// The title's width in pixels as drawn (0 before it is).
+    pub title_width: PlainDword,
 }
 
 impl TyreChange {
@@ -165,6 +170,9 @@ impl TyreChange {
             record_name: PlainBytes::new([0; 32]),
             record: PlainDword::new(0x5208),
             palette: PlainBytes::new([0; 4]),
+            title_texture: PlainDword::new(0x0),
+            title_device_texture: PlainDword::new(0x0),
+            title_width: PlainDword::new(0x0),
         }
     }
 }

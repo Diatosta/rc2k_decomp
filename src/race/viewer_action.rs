@@ -21,7 +21,8 @@
 //! - 0x16: saved as a slot chosen (`race::choose_save_slot`, `race::save_viewed_replay`).
 //! - 0x17: a picture of the next frame (`snapshot_asked` 1).
 //! - 0xE, 0x18: the block's camera byte 2 / 3 flipped, spread on (`race::spread_camera`).
-//! - 0xF: byte 5 one on (0 .. 3, past 3 back to 2) unless one player's; 0x10: byte 4 (0 .. 2).
+//! - 0xF: byte 5 one on (0 .. 3, past 3 back to 2; a one-player replay with two cars or more
+//!   (a network race's) goes round from 3 to 0, one with a single car has none); 0x10: byte 4 (0 .. 2).
 //! - 0xD, 0x19: camera 1 / 2 edited (`race::edit_camera`).
 //! - 0x1C, 0x24, 0x1D: camera 1 on / back, camera 2 on, the edit ended.
 //! - 0x1E, 0x1F: the camera edited back / on; 0x21: the edit ended (`camera_edit` 0).
@@ -126,7 +127,7 @@ pub fn viewer_action(
         Action::Save { back } => save(race, o, back)?,
         Action::Snapshot => replay.replay_view().snapshot_asked.set(1),
         Action::Cycle { byte } => {
-            if byte == 4 || race.replay_work().header_one_player.get() != 1 {
+            if byte == 4 || views_choosable(race) {
                 cycle_byte(race, byte as usize)?;
             }
         }
@@ -176,6 +177,14 @@ fn read_at(race: &Race, system: &System, block: u32, frame: u32) -> Result<(), R
     Ok(())
 }
 
+/// Whether the view (the cars shown) can be changed in this replay.
+pub fn views_choosable(race: &Race) -> bool {
+    rc2k_core::race::viewer::views_choosable(
+        race.replay_work().header_one_player.get() == 1,
+        race.replay_work().header_cars.get(),
+    )
+}
+
 /// 0xF, 0x10: the block's camera byte `byte` one on (`viewer::next_byte`), spread on.
 fn cycle_byte(race: &Race, byte: usize) -> Result<(), Refused> {
     let replay = &race.replay;
@@ -186,7 +195,8 @@ fn cycle_byte(race: &Race, byte: usize) -> Result<(), Refused> {
     }
     let at = crate::race::viewer::camera_byte((byte as u32).wrapping_add(block.wrapping_mul(8)));
     let old: u8 = at.read(race, "a replay block's camera byte")?;
-    let dl = rc2k_core::race::viewer::next_byte(byte as u32, old);
+    let whole_cycle = race.replay_work().header_one_player.get() == 1;
+    let dl = rc2k_core::race::viewer::next_byte(byte as u32, old, whole_cycle);
     at.write(race, dl, "a replay block's camera byte")?;
     crate::race::spread_camera::spread_camera(race, at, old)
 }

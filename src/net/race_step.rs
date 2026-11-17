@@ -12,6 +12,7 @@ pub fn race_step(race: &Race, net: &Net) -> Result<(), Refused> {
     }
     if race.shared.work.get().current_car.get() == net.race_slot.player() {
         send_turn::send_turn(race, net)?;
+        crate::net::progress::send(race, net);
         apply_received::apply_received(race, net)
     } else {
         follow_remote::follow_remote(race, net)?;

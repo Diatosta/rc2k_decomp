@@ -97,7 +97,8 @@ pub fn race_pictures(
     rc2k_core::input::profile::Bindings,
 )> {
     let profile = race_profile(input, device)?;
-    let controller = input.devices.device(device)?.controller.get();
+    // The record's controller is a place in the table counted from 0; the profiles count from 1.
+    let controller = input.devices.device(device)?.controller.get() + 1;
     let (_, info) = identity(input, controller)?;
     let pictures =
         rc2k_core::input::icons::Pictures::of(info.kind, profile.button_icons, info.icon_family)?;

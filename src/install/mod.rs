@@ -11,6 +11,8 @@ pub mod check_clio_disc;
 pub mod choose_language;
 pub mod copy_own_texts;
 pub mod end_text_line;
+#[cfg(unix)]
+pub mod mac_bundle;
 pub mod normalise_path;
 pub mod outside;
 pub mod owner;

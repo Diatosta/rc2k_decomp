@@ -272,11 +272,31 @@ pub fn draw_glyph(
                 pixel.copy_from_slice(&blend_16(p, a).to_le_bytes());
             }
         }
-        if rows
-            .write(py as u32, at, &pixels, "a button picture's row")
-            .is_err()
-        {
-            return false;
+        // Only the pixels the picture covers are written back: the others are left as the frame
+        // holds them.
+        let covered = &alpha[from..=to];
+        let mut n = 0;
+        while n < covered.len() {
+            if covered[n] == 0 {
+                n += 1;
+                continue;
+            }
+            let end = (n..covered.len())
+                .find(|&m| covered[m] == 0)
+                .unwrap_or(covered.len());
+            let span = &pixels[n * bytes as usize..end * bytes as usize];
+            if rows
+                .write(
+                    py as u32,
+                    at + (n as u32) * bytes as u32,
+                    span,
+                    "a button picture's row",
+                )
+                .is_err()
+            {
+                return false;
+            }
+            n = end;
         }
     }
     true

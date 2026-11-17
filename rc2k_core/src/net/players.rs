@@ -171,6 +171,15 @@ pub fn none_racing(count: u32, state_of: impl Fn(u32) -> State) -> bool {
         .all(|state| state.has(State::LEFT_OUT) || !state.has(State::WAITING))
 }
 
+/// How far through its stage a car is, in percent: its checkpoint of the stage's `count`
+/// (held to 100; none counted is 0).
+pub fn stage_share(checkpoint: u32, count: u32) -> u8 {
+    if count == 0 {
+        return 0;
+    }
+    (u64::from(checkpoint) * 100 / u64::from(count)).min(100) as u8
+}
+
 /// DirectPlay's system messages the game handles, by their first dword.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum System {
@@ -227,6 +236,17 @@ mod tests {
             2,
             of(&[RACED_HOST, State::WAITING.with(State::LEFT_OUT)])
         ));
+    }
+
+    #[test]
+    fn a_stage_share_is_the_checkpoint_over_the_count() {
+        assert_eq!(stage_share(0, 0), 0);
+        assert_eq!(stage_share(0, 400), 0);
+        assert_eq!(stage_share(100, 400), 25);
+        assert_eq!(stage_share(399, 400), 99);
+        assert_eq!(stage_share(400, 400), 100);
+        assert_eq!(stage_share(900, 400), 100);
+        assert_eq!(stage_share(u32::MAX, 3), 100);
     }
 
     #[test]

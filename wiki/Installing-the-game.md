@@ -44,17 +44,36 @@ is on [Differences from the original](Differences-from-the-original).
 | --- | --- |
 | Windows | chosen on the installer's drive and folder pages |
 | Linux | `$XDG_DATA_HOME/rally-championship` (usually `~/.local/share/rally-championship`) |
-| macOS | `~/Library/Application Support/Rally Championship` |
+| macOS | `~/Library/Application Support/Rally Championship` (what the game writes); the application itself is `/Applications/Rally Championship.app`, or `~/Applications/Rally Championship.app` when the user cannot write to `/Applications` |
 
 ### The menu entries
 
-Three entries are made: "Rally", "Uninstall Rally" and "View Readme".
+Three entries are made on Windows and Linux: "Rally", "Uninstall Rally" and "View Readme".
+macOS has none: the installed application is the entry (see below).
 
 | System | Where they are |
 | --- | --- |
 | Windows | shortcuts in the Start menu, in a group named "Rally Championship" |
 | Linux | desktop entries in `~/.local/share/applications`, the game's with its icon |
-| macOS | small application bundles in `~/Applications/Rally Championship/` |
+| macOS | none; Launchpad and Finder list `Rally Championship.app` itself |
+
+### The installer on macOS
+
+The installer copies its own bundle, `Rally Championship.app`, to `/Applications` (to
+`~/Applications` when that cannot be written), puts the game's `files` inside the copy
+(`Contents/Resources/files`) and keeps what the game writes (`var`, `savedata`, the logs) in
+`~/Library/Application Support/Rally Championship`. The bundle is not written to while the game
+runs. At the end the copy is signed again ad hoc (`codesign --force --deep --sign -`, which
+ships with macOS), freed of the quarantine mark, registered with Launch Services (so Launchpad
+shows it, with the icon and the name "Rally Championship") and opened; the installer then
+ends. A program that does not run from a bundle installs as on Linux.
+
+Moved, a bundle that holds `Contents/Resources/files` still runs from its new place: it always
+reads its files from itself and writes in Application Support. A bundle placed next to a game
+folder (`files`, `var`, `savedata` beside it) runs in that folder as before.
+
+The folder field of the installer's folder page shows a path longer than the box by its end,
+with "..." in place of the start.
 
 ## What an installed folder holds
 
@@ -82,6 +101,10 @@ original's saved games, replays, best times and options are read as they are; se
 Use "Uninstall Rally". It starts the installed program with the switch `-u`, which asks
 whether to remove everything, to remove the game but keep the saved games, or to cancel. The
 menu entries are removed too.
+
+On macOS, remove the game by moving `Rally Championship.app` to the Bin (the saved games stay
+in Application Support until that folder is deleted), or run `Rally Championship.app/Contents/MacOS/rc2k -u`,
+which asks the same questions and removes the application too.
 
 Only the installed copy can remove its own installation: run `rc2k -u` in the installed folder,
 not from the CD's files.

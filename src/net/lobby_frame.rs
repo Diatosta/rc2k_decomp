@@ -108,8 +108,15 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
             // included, when there is no time (kept as is).
             let mut total_y = y;
             if time == players::NO_TIME {
+                // A player still racing shows how far through the stage it is, when that has
+                // been heard of; the others the text for no time.
+                let racing = block.record.state().has(players::State::WAITING)
+                    && !block.record.state().has(players::State::LEFT_OUT);
                 let mut none = Vec::new();
-                push_id(o, &mut none, screens::NO_TIME)?;
+                match crate::net::progress::share_of(block.id.get()).filter(|_| racing) {
+                    Some(share) => none.extend(crate::net::progress::text(share)),
+                    None => push_id(o, &mut none, screens::NO_TIME)?,
+                }
                 let none = store_text(strings, none)?;
                 let out = {
                     crate::text::draw_text::draw_text_at(

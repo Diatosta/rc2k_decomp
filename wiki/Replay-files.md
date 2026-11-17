@@ -283,8 +283,10 @@ of each, is in `src/drive/replay_state.rs` (`car_fields`), and their meanings in
 
 The camera bytes are the first 8 bytes of car 0's record. Bytes 0 and 1 choose the replay
 camera for car 0 and car 1 during this second; bytes 2 .. 5 are view switches. A recording
-leaves them 0 (byte 5 is 2 or 3 in a two-player race); the viewer's camera editing fills them
-in when a replay is saved.
+leaves them 0 (byte 5 is 2 or 3 in a two-player race, and in a network race 0 or 1: the car of
+the machine that recorded it); the viewer's camera editing fills them in when a replay is saved.
+Byte 5 is the layout: 0 the first car alone, 1 the second alone, 2 and 3 both cars (side by side, or
+one above the other). Old files read as before.
 
 ### A loose part
 

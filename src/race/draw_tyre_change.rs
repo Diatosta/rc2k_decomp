@@ -261,50 +261,58 @@ fn three_times_with_picture(
     drawn
 }
 
-/// The title at the texture's row 0x80, centred in the strip's box. The strip is 256 wide and a
-/// title wider than the box (the Portuguese "MUDANCA DE PNEUS" is) would be cut at both ends, so
-/// its letters are drawn closer together by the least whole pixels that make it fit; the spaces
-/// get back what the letters on each side gave up, so the words stay apart.
+/// The title drawn into its own texture (`title_texture`) with the font's own letter spacing,
+/// then copied to the device. The tyre change texture's strips are 256 wide and the Portuguese
+/// "MUDANCA DE PNEUS" is wider than their box, so a title that does not fit one strip is drawn
+/// across two (the texture's first row of strips holds its left half, the second its right half)
+/// and shown as two quads side by side (`rc2k_core::drive::tyre_screen::title_parts`). The
+/// width drawn is kept for those quads.
 fn draw_title(
     so: crate::strings::append_string_by_id::StringOwners<'static>,
     gfx: &'static crate::gfx::owner::Gfx,
+    shared: &RaceShared,
 ) -> Result<(), Refused> {
-    const BOX: i32 = 0xF8;
-    /// The closest the letters are brought (a glyph's own side margin is about this much).
-    const MOST_CLOSER: i32 = 3;
+    use rc2k_core::drive::tyre_screen::{TITLE_BOX, TITLE_WIDE_BOX};
+    let tyre = shared.tyre_change();
     let mut title = crate::text::draw_string_by_id::string_text(so, 0x129)?;
     title.pop();
-    let spacing = font(gfx).get().spacing;
-    let mut closer = 0;
-    let mut text = title.clone();
-    while closer < MOST_CLOSER && text_width(gfx, &text) > BOX {
-        closer += 1;
-        gfx.fonts.font_block.game_fonts[2].update(|f| f.spacing = spacing - closer);
-        text = widened_spaces(&title, 2 * closer);
+    let width = text_width(gfx, &title).max(0) as u32;
+    let wide = width > TITLE_BOX;
+    if crate::d3d::lock_texture::lock_texture_in(gfx, tyre.title_texture.get())? {
+        let clips = (
+            clip(&gfx.drawing.blit.clip.left),
+            clip(&gfx.drawing.blit.clip.right),
+        );
+        set_clip(&gfx.drawing.blit.clip.left, 0);
+        set_clip(&gfx.drawing.blit.clip.right, 0xFF);
+        let box_width = if wide { TITLE_WIDE_BOX } else { TITLE_BOX };
+        gfx.fonts.font_block.game_fonts[2].update(|f| f.box_width = box_width);
+        title.push(0);
+        let drawn = (|| -> Result<(), Refused> {
+            let mut canvas = crate::text::draw_text::GameCanvas::new(gfx);
+            crate::text::draw_text::draw_text_at(font(gfx), &title[..], 4, 0, &mut canvas)?;
+            if wide {
+                crate::text::draw_text::draw_text_at(
+                    font(gfx),
+                    &title[..],
+                    4 - 0x100,
+                    0x19,
+                    &mut canvas,
+                )?;
+            }
+            Ok(())
+        })();
+        set_clip(&gfx.drawing.blit.clip.left, clips.0);
+        set_clip(&gfx.drawing.blit.clip.right, clips.1);
+        drawn?;
+        crate::d3d::unlock_texture::unlock_texture(gfx, tyre.title_texture.get())?;
+        crate::d3d::copy_to_device_texture::copy_to_device_texture(
+            tyre.title_texture.get(),
+            tyre.title_device_texture.get(),
+        );
     }
-    text.push(0);
-    let drawn = crate::text::draw_text::draw_text_at(
-        font(gfx),
-        &text[..],
-        4,
-        0x80,
-        &mut crate::text::draw_text::GameCanvas::new(gfx),
-    );
-    gfx.fonts.font_block.game_fonts[2].update(|f| f.spacing = spacing);
-    drawn?;
+    tyre.title_width.set(width);
     Ok(())
-}
-
-/// `text` with every space followed by a move of `by` pixels to the right (the text's 0x0E code).
-fn widened_spaces(text: &[u8], by: i32) -> Vec<u8> {
-    let mut out = Vec::with_capacity(text.len() * 2);
-    for &c in text {
-        out.push(c);
-        if c == b' ' {
-            out.extend_from_slice(&[0x0E, by as i8 as u8]);
-        }
-    }
-    out
 }
 
 /// Draws the tyre change's texture for the device `device`.
@@ -321,11 +329,12 @@ pub fn draw_tyre_change(
         clip(&gfx.drawing.blit.clip.right),
     );
     let done = (|| -> Result<(), Refused> {
+        if shared.tyre_change().drawn.get() != 1 {
+            draw_title(so, gfx, shared)?;
+        }
         let locked =
             crate::d3d::lock_texture::lock_texture_in(gfx, shared.tyre_change().texture.get())?;
         if locked && shared.tyre_change().drawn.get() != 1 {
-            gfx.fonts.font_block.game_fonts[2].update(|f| f.box_width = 0xF8);
-            draw_title(so, gfx)?;
             set_clip(&gfx.drawing.blit.clip.left, 0x80);
             let mut y = 0u32;
             for (n, (id, font, x)) in [

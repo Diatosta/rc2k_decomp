@@ -195,7 +195,7 @@ pub struct ViewerState {
     pub undo_blocks: u32,
     /// The block's camera (its byte 5).
     pub camera: u8,
-    /// The replay has one player.
+    /// The replay has one player and a single car (its view cannot be changed).
     pub one_player: bool,
 }
 
@@ -527,11 +527,23 @@ pub fn mark_out_here(block: u32, mark_in: u32) -> bool {
     block >= mark_in
 }
 
+/// Whether the replay's cars can be chosen to show (the view byte 5 cycled): every replay but a
+/// one-player one with a single car. A network race's replay is a one-player one (the header's
+/// players is 1) with a car for each machine.
+pub fn views_choosable(one_player: bool, cars: u32) -> bool {
+    !one_player || cars >= 2
+}
+
 /// A camera byte one on: byte 5 (the view) past 3 back to 2, byte 4 past 2 back to 0 (signed
-/// bytes).
-pub fn next_byte(byte: u32, old: u8) -> u8 {
+/// bytes). `whole_cycle` (a one-player replay's view: 0 the first car, 1 the second, 2 and 3 both
+/// side by side or above each other) takes byte 5 back to 0 instead.
+pub fn next_byte(byte: u32, old: u8, whole_cycle: bool) -> u8 {
     let next = old.wrapping_add(1);
-    let (last, back) = if byte == 5 { (3, 2) } else { (2, 0) };
+    let (last, back) = match (byte, whole_cycle) {
+        (5, false) => (3, 2),
+        (5, true) => (3, 0),
+        _ => (2, 0),
+    };
     if (next as i8) > last { back } else { next }
 }
 
@@ -675,8 +687,12 @@ mod tests {
         assert_eq!(frame_on(3, 4, 10), (3, 5));
         assert!(mark_in_here(3, 3) && !mark_in_here(4, 3));
         assert!(mark_out_here(3, 3) && !mark_out_here(2, 3));
-        assert_eq!([3u8, 4, 0x7F].map(|b| next_byte(5, b)), [2, 2, 0x80]);
-        assert_eq!([1u8, 2, 0xFE].map(|b| next_byte(4, b)), [2, 0, 0xFF]);
+        assert_eq!([3u8, 4, 0x7F].map(|b| next_byte(5, b, false)), [2, 2, 0x80]);
+        assert_eq!([1u8, 2, 0xFE].map(|b| next_byte(4, b, false)), [2, 0, 0xFF]);
+        assert_eq!([0u8, 1, 2, 3].map(|b| next_byte(5, b, true)), [1, 2, 3, 0]);
+        assert_eq!([1u8, 2].map(|b| next_byte(4, b, true)), [2, 0]);
+        assert!(views_choosable(false, 1) && views_choosable(true, 2));
+        assert!(!views_choosable(true, 1));
         assert_eq!(cut_marks(3, 3, 10), Ok(None));
         assert_eq!(cut_marks(2, 7, 10), Ok(Some((2, 7))));
         assert!(cut_marks(2, 11, 10).is_err());

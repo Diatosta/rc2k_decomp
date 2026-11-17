@@ -124,21 +124,32 @@ pub fn memory() -> [u32; 4] {
 
 pub use crate::platform::ffi::unix::{discard_pages, map_pages, own_stack_word};
 
-/// On macOS a program started from its `.app` bundle (from Finder, or `open`) runs in `/`:
-/// a program inside a bundle (`<folder>/<name>.app/Contents/MacOS/rc2k`) makes the folder
-/// that holds the bundle current, as `linux/rc2k` is started in the game's folder. The folder
-/// made current; None for a program outside a bundle (started where it is to run); the error
-/// when the folder cannot be made current.
+/// On macOS a program started from its `.app` bundle (from Finder, or `open`) runs in `/`.
+/// - An installed bundle (it holds `Contents/Resources/files`) reads the game's files from
+///   itself and runs in the user's Application Support folder, where `var` and `savedata` are
+///   written; the bundle is not written to.
+/// - Any other bundle (`<folder>/<name>.app/Contents/MacOS/rc2k`) makes the folder that holds
+///   it current, as `linux/rc2k` is started in the game's folder.
+///
+/// The folder made current; None for a program outside a bundle (started where it is to run);
+/// the error when the folder cannot be made current.
 #[cfg(target_os = "macos")]
 pub fn enter_bundle_folder() -> std::io::Result<Option<std::path::PathBuf>> {
-    use std::path::Path;
+    use crate::install::mac_bundle::{bundle_of, files_in, support_folder};
     let exe = std::env::current_exe()?;
-    let programs = exe.parent().filter(|p| p.ends_with("Contents/MacOS"));
-    let bundle = programs
-        .and_then(Path::parent)
-        .and_then(Path::parent)
-        .filter(|b| b.extension().is_some_and(|e| e.eq_ignore_ascii_case("app")));
-    let Some(folder) = bundle.and_then(Path::parent) else {
+    let Some(bundle) = bundle_of(&exe) else {
+        return Ok(None);
+    };
+    let files = files_in(&bundle);
+    if files.is_dir()
+        && let Some(support) = support_folder()
+    {
+        std::fs::create_dir_all(&support)?;
+        std::env::set_current_dir(&support)?;
+        crate::files::redirect::add("files", &files.to_string_lossy());
+        return Ok(Some(support));
+    }
+    let Some(folder) = bundle.parent() else {
         return Ok(None);
     };
     std::env::set_current_dir(folder)?;

@@ -142,6 +142,11 @@ fn game_folder(picked: &Path) -> Result<(PathBuf, Kind), String> {
 /// A folder with no game data in the current folder is replaced by the one picked (the program
 /// goes on there), or the program ends when none is picked.
 pub fn find_game_data(given: Option<&str>) {
+    // An installed macOS bundle holds its own files (`files::redirect`).
+    #[cfg(unix)]
+    if crate::files::redirect::active() {
+        return;
+    }
     if cfg!(target_os = "emscripten") || kind_of(Path::new(".")) != Kind::Nothing {
         return;
     }

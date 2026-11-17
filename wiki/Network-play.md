@@ -68,7 +68,7 @@ in its chat. The player is told and leaves the lobby as if the host had gone, an
 
 **The race.** Each machine simulates its own car and sends its inputs and position; the others
 show it. The stage bar along the top shows every car as a marker, each in its own colour, the
-own car's in white. Afterwards the results come up and the lobby returns for the next stage.
+own car's in white. Afterwards the results come up and the lobby returns for the next stage. A player who finishes goes back to the lobby while the others are still racing; there the table shows, in place of the stage time of each player still racing, how far through the stage that player is, as a percentage that rises while the lobby is shown (nothing is shown until the first figure arrives). A finished player's own time replaces it.
 
 **The replay.** A network race is recorded as a single race is, every car included: the other
 players' cars from the inputs their messages carry, and their whole state at the start of each

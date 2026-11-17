@@ -19,6 +19,9 @@ pub const ALL_DONE: u8 = 0x50;
 pub const DONE_ANSWER: u8 = 0x51;
 /// A machine's loading progress: the byte, then the percentage (0 ..= 100).
 pub const LOADING: u8 = 0x60;
+/// A machine's progress through the stage it is racing: the byte, then the percentage
+/// (0 ..= 100). A copy that does not know the byte drops the message.
+pub const PROGRESS: u8 = 0x61;
 /// A race message's bit.
 pub const RACE_BIT: u8 = 0x80;
 

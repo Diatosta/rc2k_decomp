@@ -320,7 +320,18 @@ pub fn pixel_kind(texture: u32) -> u32 {
     let three = (0xDC..0xE2).contains(&texture)
         || matches!(
             texture,
-            0xC6 | 0xC7 | 0xC0 | 0xC1 | 0xC2 | 0xD3 | 0xC4 | 0xC5 | 0xC9 | 0xD4 | 0xCA | 0x257
+            0xC6 | 0xC7
+                | 0xC0
+                | 0xC1
+                | 0xC2
+                | 0xD3
+                | 0xC4
+                | 0xC5
+                | 0xC9
+                | 0xD4
+                | 0xCA
+                | 0x257
+                | crate::scene::texture_levels::TYRE_TITLE_TEXTURE
         );
     if three { 3 } else { 2 }
 }

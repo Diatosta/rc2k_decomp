@@ -201,6 +201,12 @@ two differ, the physics no longer behaves as it did when the replay was recorded
 difference is logged. Every old replay is in this way a check of the physics; see
 [Testing](Testing).
 
+The viewer's view item (the box with the car number) chooses which car is shown: car 1, car 2, or
+both side by side or one above the other. A replay with two cars or more offers it, a network
+race's included (a network replay opens on the car of the machine that saved it); only a
+one-player replay with a single car has nothing to choose. Playing a replay while the network
+lobby is still open shows the cars the view names, not the lobby machine's own car.
+
 From the viewer a replay can be saved to a slot with a name and with the cameras chosen while
 watching (`src/race/save_viewed_replay.rs`).
 

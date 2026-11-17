@@ -78,7 +78,7 @@ pub fn replay_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(),
     crate::drive::duel_sound_levels::duel_sound_levels(race, sound);
     crate::drive::countdown_beeps::countdown_beeps(race, o.audio)?;
     crate::drive::two_car_order::two_car_order(race)?;
-    crate::drive::flush_replay_if::flush_replay_if(race, o.system)?;
+    crate::drive::flush_replay_if::flush_replay_if(race, o.system, o.net)?;
     crate::drive::replay_clock_tick::replay_clock_tick(&race.replay);
     Ok(())
 }

@@ -4,7 +4,7 @@
 use crate::Invalid;
 use crate::net::inbox::{LONGEST, SEND_ROOM};
 use crate::net::messages::{
-    ALL_DONE, ALL_READY, CHAT, CHAT_RELAYED, DONE_ANSWER, LOADING, RACE_BIT, READY_ANSWER,
+    ALL_DONE, ALL_READY, CHAT, CHAT_RELAYED, DONE_ANSWER, LOADING, PROGRESS, RACE_BIT, READY_ANSWER,
 };
 use crate::net::players::System;
 use crate::net::race::Kind;
@@ -94,6 +94,8 @@ pub enum Message {
     Answer { ready: bool, round: u8 },
     /// How far the sender's stage has loaded, in percent (one byte after the first).
     Loading { share: u8 },
+    /// How far through its stage the sender's race is, in percent (one byte after the first).
+    Progress { share: u8 },
     /// A race message: the sequence byte (top bit set) and what follows it, at most
     /// `LONGEST` bytes.
     Race { sequence: u8, payload: Payload },
@@ -117,6 +119,10 @@ impl Message {
             CHAT => Message::Chat(rest.to_vec()),
             LOADING => match *rest {
                 [share] => Message::Loading { share },
+                _ => Message::Malformed(bytes.to_vec()),
+            },
+            PROGRESS => match *rest {
+                [share] => Message::Progress { share },
                 _ => Message::Malformed(bytes.to_vec()),
             },
             CHAT_RELAYED => match rest.split_first_chunk::<4>() {
@@ -169,6 +175,7 @@ impl Message {
                 vec![if *ready { READY_ANSWER } else { DONE_ANSWER }, *round]
             }
             Message::Loading { share } => vec![LOADING, *share],
+            Message::Progress { share } => vec![PROGRESS, *share],
             Message::Race { sequence, payload } => [&[*sequence][..], &payload.encode()].concat(),
             Message::Malformed(bytes) | Message::Unknown(bytes) => bytes.clone(),
         }
@@ -308,6 +315,9 @@ mod tests {
     fn the_loading_message_is_its_byte_and_a_percentage() {
         assert_eq!(Message::parse(&[0x60, 42]), Message::Loading { share: 42 });
         assert_eq!(Message::Loading { share: 42 }.encode(), vec![0x60, 42]);
+        assert_eq!(Message::parse(&[0x61, 7]), Message::Progress { share: 7 });
+        assert_eq!(Message::Progress { share: 7 }.encode(), vec![0x61, 7]);
+        assert_eq!(Message::parse(&[0x61]), Message::Malformed(vec![0x61]));
         for bad in [vec![0x60], vec![0x60, 1, 2]] {
             assert_eq!(Message::parse(&bad), Message::Malformed(bad.clone()));
         }

@@ -16,8 +16,8 @@ const ENTRY: u32 = 0;
 
 /// Where the question and the typed stars stand: high on the screen, so the on-screen keyboard
 /// (below the field) leaves both in view.
-const QUESTION_Y: u32 = 0x58;
-const FIELD_Y: u32 = 0x96;
+const QUESTION_Y: u32 = 0x80;
+const FIELD_Y: u32 = 0xB0;
 
 /// The question's frame: the background, the question and the stars typed so far with the caret.
 fn frame(o: crate::owners::Owners<'static>, question: u32) -> Result<(), Refused> {

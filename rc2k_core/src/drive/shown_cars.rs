@@ -65,6 +65,8 @@ impl ShownCars {
             }
             self.split = split;
         }
+        // A replay playing shows the cars its layout names, whether or not the link is still up.
+        let network = network && s.replay_mode != 2;
         if network {
             self.cars = [s.local_car, 0];
         }
@@ -72,16 +74,12 @@ impl ShownCars {
             .cars
             .map(|c| first_block.wrapping_add(c.wrapping_mul(BLOCK)));
         self.listed = [u32::MAX; 8];
-        Ok(if network {
-            self.listed[s.local_car as usize] = 0;
-            s.local_car
-        } else {
-            self.listed[0] = 0;
-            if s.players != 1 {
-                self.listed[1] = 1;
-            }
-            self.blocks[1]
-        })
+        // Each shown car's view (the cars are below eight: a layout names 0 or 1).
+        self.listed[self.cars[0] as usize] = 0;
+        if self.views != 1 && !network {
+            self.listed[self.cars[1] as usize] = 1;
+        }
+        Ok(if network { s.local_car } else { self.blocks[1] })
     }
 }
 
@@ -117,6 +115,17 @@ mod tests {
         };
         assert_eq!(c.choose(&network, 0), Ok(5));
         assert_eq!((c.cars, c.listed[5], c.listed[0]), ([5, 0], 0, u32::MAX));
+        // A replay of a network race, played while the link is up: its layout wins.
+        let replayed = ShownSetup {
+            replay_mode: 2,
+            layout: 1,
+            ..network
+        };
+        assert_eq!(c.choose(&replayed, 0), Ok(0));
+        assert_eq!(
+            (c.cars, c.views, c.listed[1], c.listed[5]),
+            ([1, 0], 1, 0, u32::MAX)
+        );
         let bad = ShownSetup {
             local_car: 8,
             ..network

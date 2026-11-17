@@ -175,6 +175,7 @@ without separate messages.
 | `0x23` | A chat line in the host's order, host to every other machine (the line's author too). The receiver finds the author by id and shows the line when it comes; so every machine shows the lines in the order the host took them, and a joiner's own line shows when it comes back. | The host's number for the line (4 bytes), the author's player id (4 bytes), the text with no ending zero. |
 | `0x40` | The host asks: is everyone ready to race? | One byte: the round number. |
 | `0x60` | A machine's stage load's progress. | One byte: the percentage (0 to 100). |
+| `0x61` | How far through the stage a machine's race is: its car's checkpoint over the stage's checkpoints. Sent when the figure changes and again every 128th step of the car; a copy that does not know the byte drops the message. | One byte: the percentage (0 to 100). |
 | `0x41` | Answer to `0x40`. | One byte: the same round number. |
 | `0x50` | The host asks: is everyone done with the race? | One byte: the round number. |
 | `0x51` | Answer to `0x50`. | One byte: the round number. |

@@ -89,6 +89,7 @@ pub mod password;
 pub mod password_prompt;
 pub mod player_found;
 pub mod post_call;
+pub mod progress;
 pub mod race_over;
 pub mod race_step;
 pub mod race_wait;

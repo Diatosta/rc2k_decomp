@@ -4,7 +4,7 @@
 //! 0x11 when the marks are not in order; 0x12 with an empty clipboard or one too big to paste
 //! (count + clipboard past 0x708); 0x13 with nothing to undo; 0xA at or before the first mark, 2 at
 //! or past the second; with no blocks 0 .. 0x11 and 0x15 .. 0x19; 0x18, 0x19 when the block's
-//! camera byte 5 is 0, 0xD, 0xE when it is 1; 0xF for one player's replay (`header_one_player`).
+//! camera byte 5 is 0, 0xD, 0xE when it is 1; 0xF for a one-player replay with a single car.
 //!
 //! Takes the list (`viewer_list`).
 
@@ -30,7 +30,7 @@ pub fn mark_viewer_items(
             race,
             5usize.wrapping_add(block.wrapping_mul(8) as usize),
         )?,
-        one_player: race.replay_work().header_one_player.get() == 1,
+        one_player: !crate::race::viewer_action::views_choosable(race),
     };
     for (item, bit) in rc2k_core::race::viewer::item_marks(&state) {
         let item = list.item(item);

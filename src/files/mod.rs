@@ -20,6 +20,8 @@ pub mod read_packed_file;
 pub mod read_stream_block;
 pub mod read_stream_byte;
 pub mod read_whole_file;
+#[cfg(unix)]
+pub mod redirect;
 pub mod resolve_path;
 pub mod scratch;
 pub mod search;
@@ -88,7 +90,7 @@ fn host_path_of(path: &[u8]) -> std::path::PathBuf {
 #[cfg(unix)]
 fn host_path_of(path: &[u8]) -> std::path::PathBuf {
     use std::path::{Path, PathBuf};
-    let text = ansi_text(path).replace('\\', "/");
+    let text = redirect::apply(ansi_text(path).replace('\\', "/"));
     let bytes = text.as_bytes();
     let text = if bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' {
         format!("/{}", text[2..].trim_start_matches('/'))

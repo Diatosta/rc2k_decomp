@@ -43,12 +43,14 @@ timeout 5 $R state >/dev/null || fail "game does not answer: $(tail -3 $RH/rc2k.
 rec() { find $WINEPREFIX/drive_c -iname install.cfg -path '*var*' 2>/dev/null | head -1; }
 for n in $(seq 1 12); do
   [ -n "$(rec)" ] && break
-  sleep 1.5; timeout 20 $R shot page$n >/dev/null || fail "shot $n (the game ended?)"
+  # The installer ends once the installed game has started: a quick install may be done between pages.
+  sleep 1.5; [ -n "$(rec)" ] && break
+  timeout 20 $R shot page$n >/dev/null || { sleep 2; [ -n "$(rec)" ] && break; fail "shot $n (the game ended?)"; }
   if [ "${EDIT_AT:-0}" = $n ]; then
     i=0; for k in ${EDIT_KEYS:-Backspace Backspace X Backslash}; do i=$((i+1)); timeout 10 $R key $k 120 >/dev/null || fail "key $k"; sleep 0.5; timeout 20 $R shot edit$i >/dev/null || fail "after key $i ($k)"; done
     timeout 20 $R shot page${n}edit >/dev/null
   fi
-  timeout 10 $R key Return 120 >/dev/null || fail "Return on page $n"
+  timeout 10 $R key Return 120 >/dev/null || { sleep 2; [ -n "$(rec)" ] && break; fail "Return on page $n"; }
 done
 for i in $(seq 120); do [ -n "$(rec)" ] && break; timeout 5 $R state >/dev/null 2>&1 || break; sleep 2; done
 [ -n "$(rec)" ] || fail "no install record"

@@ -22,9 +22,18 @@ fn set_cd(path: &[u8]) -> bool {
     std::env::set_current_dir(crate::files::host_path(path)).is_ok()
 }
 
-fn run(command: &[u8]) {
-    crate::install::shortcuts::run_program(&crate::files::host_path(command));
+fn run(command: &[u8]) -> bool {
+    crate::install::shortcuts::run_program(&crate::files::host_path(command))
 }
+/// The installer's own run ends once the installed game was started: nothing of it is to stay
+/// behind (a window's last events, the audio, a thread of the library) while the game runs.
+/// Not when the game could not be started: the installer's end then goes its usual way.
+fn end_with_installed_game(started: bool) {
+    if started {
+        crate::standalone::finish("the installed game was started", 0);
+    }
+}
+
 pub fn run_after_exit(
     install: &crate::install::owner::Install,
     system: &crate::system::owner::System,
@@ -98,9 +107,16 @@ pub fn run_after_exit(
     if !set_cd(&install.paths.installed.text()) {
         return Ok(());
     }
+    // The installed application on macOS (signed again, registered, opened).
+    #[cfg(unix)]
+    if crate::install::mac_bundle::installing() {
+        let opened = crate::install::mac_bundle::finish();
+        end_with_installed_game(opened);
+    }
     // The program and its DLLs from its own folder (not a CD's copy of `ral.exe`).
     crate::install::shortcuts::copy_program();
     crate::system::sleep::sleep(1000);
-    run(RC2K);
+    let started = run(RC2K);
+    end_with_installed_game(started);
     Ok(())
 }
