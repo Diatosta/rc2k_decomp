@@ -212,6 +212,18 @@ impl Device {
         height: u32,
         usage: SDL_GPUTextureUsageFlags,
     ) -> Result<Texture, String> {
+        self.create_texture_levels(format, width, height, usage, 1)
+    }
+
+    /// As `create_texture`, with `levels` mipmap levels (the full size counts as one).
+    pub fn create_texture_levels(
+        self,
+        format: SDL_GPUTextureFormat,
+        width: u32,
+        height: u32,
+        usage: SDL_GPUTextureUsageFlags,
+        levels: u32,
+    ) -> Result<Texture, String> {
         let info = SDL_GPUTextureCreateInfo {
             r#type: SDL_GPU_TEXTURETYPE_2D,
             format,
@@ -219,7 +231,7 @@ impl Device {
             width,
             height,
             layer_count_or_depth: 1,
-            num_levels: 1,
+            num_levels: levels,
             sample_count: SDL_GPU_SAMPLECOUNT_1,
             props: SDL_PropertiesID(0),
         };
@@ -560,6 +572,19 @@ impl CopyPass {
         width: u32,
         height: u32,
     ) {
+        self.upload_texture_level(transfer, offset, texture, 0, width, height);
+    }
+
+    /// As `upload_texture`, into mipmap level `level` (`width` x `height` its size).
+    pub fn upload_texture_level(
+        &self,
+        transfer: Transfer,
+        offset: u32,
+        texture: Texture,
+        level: u32,
+        width: u32,
+        height: u32,
+    ) {
         assert!(
             u64::from(offset) + u64::from(width) * u64::from(height) * 4 <= u64::from(transfer.1),
             "past the transfer buffer"
@@ -572,14 +597,17 @@ impl CopyPass {
         };
         let to = SDL_GPUTextureRegion {
             texture: texture.0,
+            mip_level: level,
             w: width,
             h: height,
             d: 1,
             ..Default::default()
         };
+        // The first level may take a fresh backing (the GPU may still be reading the old one); a
+        // later level must not, or it would discard the levels already sent.
         // SAFETY: our open pass; the records live through the call; the picture is within the
         // transfer buffer (checked above).
-        unsafe { SDL_UploadToGPUTexture(self.0, &raw const from, &raw const to, true) };
+        unsafe { SDL_UploadToGPUTexture(self.0, &raw const from, &raw const to, level == 0) };
     }
 
     /// `rows` rows of `width` four-byte pixels from the transfer buffer at `offset` into

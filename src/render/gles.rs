@@ -14,7 +14,7 @@
 
 mod bench;
 mod layer2d;
-mod mip_levels;
+pub mod mip_levels;
 
 use super::batches::{Batch, Batches, NO_TEXTURE, PassKind, PipelineKey, PixelValues, ShaderKind};
 use super::gl_batching::{Background, Batched, Job, Part, Written};

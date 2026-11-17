@@ -13,6 +13,7 @@ mod check;
 mod quads;
 
 use super::batches::{Batch, Batches, PipelineKey};
+use super::gles::mip_levels;
 use super::gpu_cut::Cuts;
 use super::{CommandList, Target, TextureNote};
 use crate::logfile::program_log::log;
@@ -52,6 +53,8 @@ struct CachedTexture {
     width: usize,
     height: usize,
     stale: bool,
+    /// The levels it was made with (1 until a batch asks for mipmapping).
+    levels: u32,
 }
 
 /// The targets a frame is drawn into, at the screen's size.
@@ -115,8 +118,11 @@ pub struct Gpu {
     scene_frag: Shader,
     overlay: Pipeline,
     pipelines: HashMap<PipelineKey, Pipeline>,
-    /// By `linear as usize + 2 * clamp as usize`.
-    samplers: [Sampler; 4],
+    /// By `linear as usize + 2 * clamp as usize + 4 * mips as usize`.
+    samplers: [Sampler; 8],
+    /// Whether textures are made with their smaller levels: set the first time a batch asks for
+    /// mipmapping, so a game that never does pays no memory for them.
+    mip_levels: bool,
     nearest: Sampler,
     white: Texture,
     textures: super::TextureMap<CachedTexture>,
@@ -205,7 +211,8 @@ impl Gpu {
             scene_frag: Shader::NONE,
             overlay: Pipeline::NONE,
             pipelines: HashMap::new(),
-            samplers: [Sampler::NONE; 4],
+            samplers: [Sampler::NONE; 8],
+            mip_levels: false,
             nearest: Sampler::NONE,
             white: Texture::NONE,
             textures: Default::default(),
@@ -245,10 +252,12 @@ impl Gpu {
         gpu.device.release_shader(overlay_vert);
         gpu.device.release_shader(overlay_frag);
         gpu.overlay = overlay?;
-        for linear in [false, true] {
+        for mips in [false, true] {
             for clamp in [false, true] {
-                gpu.samplers[linear as usize + 2 * clamp as usize] =
-                    gpu.make_sampler(linear, clamp)?;
+                for linear in [false, true] {
+                    gpu.samplers[linear as usize + 2 * clamp as usize + 4 * mips as usize] =
+                        gpu.make_sampler(linear, clamp, mips)?;
+                }
             }
         }
         gpu.nearest = gpu.samplers[0];
@@ -321,7 +330,7 @@ impl Gpu {
         self.device.create_shader(code, stage, samplers, uniforms)
     }
 
-    fn make_sampler(&self, linear: bool, clamp: bool) -> Result<Sampler, String> {
+    fn make_sampler(&self, linear: bool, clamp: bool, mips: bool) -> Result<Sampler, String> {
         let filter = if linear {
             SDL_GPU_FILTER_LINEAR
         } else {
@@ -335,7 +344,10 @@ impl Gpu {
         let info = SDL_GPUSamplerCreateInfo {
             min_filter: filter,
             mag_filter: filter,
+            // Linear inside the nearest smaller level; the levels past the first are read only by
+            // the mipmapping samplers (`max_lod` 0 keeps the others to the full picture).
             mipmap_mode: SDL_GPU_SAMPLERMIPMAPMODE_NEAREST,
+            max_lod: if mips { 1000.0 } else { 0.0 },
             address_mode_u: address,
             address_mode_v: address,
             address_mode_w: address,
@@ -351,6 +363,23 @@ impl Gpu {
         usage: SDL_GPUTextureUsageFlags,
     ) -> Result<Texture, String> {
         self.make_texture_of(COLOUR_FORMAT, width, height, usage)
+    }
+
+    /// A texture for the game's picture of `width` x `height`, with its smaller levels when they
+    /// are being made.
+    fn make_picture_texture(&self, width: u32, height: u32) -> Result<Texture, String> {
+        let levels = if self.mip_levels {
+            mip_levels::level_count(width as usize, height as usize) as u32
+        } else {
+            1
+        };
+        self.device.create_texture_levels(
+            COLOUR_FORMAT,
+            width,
+            height,
+            SDL_GPU_TEXTUREUSAGE_SAMPLER,
+            levels,
+        )
     }
 
     fn make_texture_of(
@@ -720,6 +749,14 @@ impl Gpu {
         if smaller {
             self.ensure_small()?;
         }
+        if !self.mip_levels && batches.batches.iter().any(|b| b.mips) {
+            // The textures made so far have a level; they are made again, with the rest, as
+            // they are drawn.
+            self.mip_levels = true;
+            for (_, old) in self.textures.drain() {
+                self.device.release_texture(old.texture);
+            }
+        }
         let mut uploads: Vec<(TextureNote, Vec<u8>)> = Vec::new();
         for note in &batches.textures {
             let up_to_date = self
@@ -727,7 +764,17 @@ impl Gpu {
                 .get(&note.pixels)
                 .is_some_and(|t| !t.stale && (t.width, t.height) == (note.width, note.height));
             if !up_to_date {
-                uploads.push((*note, super::texture_as_bgra(note)));
+                let mut bytes = super::texture_as_bgra(note);
+                if self.mip_levels {
+                    // The smaller levels follow the full picture, largest first.
+                    let whole = bytes.len();
+                    for (_, _, level) in
+                        mip_levels::lower_levels(&bytes[..whole], note.width, note.height)
+                    {
+                        bytes.extend_from_slice(&level);
+                    }
+                }
+                uploads.push((*note, bytes));
             }
         }
         let upload_bytes: usize = uploads.iter().map(|(_, b)| b.len()).sum();
@@ -741,11 +788,7 @@ impl Gpu {
                 .get(&note.pixels)
                 .is_some_and(|t| (t.width, t.height) == (note.width, note.height));
             if !fits {
-                let texture = self.make_texture(
-                    note.width as u32,
-                    note.height as u32,
-                    SDL_GPU_TEXTUREUSAGE_SAMPLER,
-                )?;
+                let texture = self.make_picture_texture(note.width as u32, note.height as u32)?;
                 if let Some(old) = self.textures.insert(
                     note.pixels,
                     CachedTexture {
@@ -753,6 +796,11 @@ impl Gpu {
                         width: note.width,
                         height: note.height,
                         stale: false,
+                        levels: if self.mip_levels {
+                            mip_levels::level_count(note.width, note.height) as u32
+                        } else {
+                            1
+                        },
                     },
                 ) {
                     self.device.release_texture(old.texture);
@@ -801,6 +849,24 @@ impl Gpu {
                 note.width as u32,
                 note.height as u32,
             );
+            if self.mip_levels {
+                let mut at = *offset + (note.width * note.height * 4) as u32;
+                for level in 1..texture.levels as usize {
+                    let (w, h) = (
+                        mip_levels::side_at(note.width, level) as u32,
+                        mip_levels::side_at(note.height, level) as u32,
+                    );
+                    copy.upload_texture_level(
+                        self.transfer,
+                        at,
+                        texture.texture,
+                        level as u32,
+                        w,
+                        h,
+                    );
+                    at += w * h * 4;
+                }
+            }
             texture.stale = false;
         }
         if upload_background {
@@ -854,7 +920,7 @@ impl Gpu {
                     buffer.push_fragment_uniform(0, &words);
                     last_values = Some(batch.values);
                 }
-                let sampling = (batch.texture, batch.linear, batch.clamp);
+                let sampling = (batch.texture, batch.linear, batch.clamp, batch.mips);
                 if last_sampling != Some(sampling) {
                     let texture = batch.texture.map_or(self.white, |n| {
                         self.textures[&batches.textures[n as usize].pixels].texture
@@ -999,7 +1065,9 @@ impl Gpu {
 
 fn sampler_number(batch: &Batch, cuts: Cuts) -> usize {
     let linear = (batch.linear || cuts.linear) && !cuts.nearest;
-    linear as usize + 2 * batch.clamp as usize
+    linear as usize
+        + 2 * batch.clamp as usize
+        + 4 * (batch.mips && batch.texture.is_some()) as usize
 }
 
 /// The pipeline `key` asks for, with the state cuts applied: no blending, and no depth test
