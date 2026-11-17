@@ -463,6 +463,7 @@ fn run_scripted(id: ScreenId, keys: Vec<Pressed>) -> (Vec<Place>, Exit, &'static
             entry: &entry,
             menu,
             action_menu: screen.keys.action_menu.map_or(menu, |other| other(menus)),
+            invited: None,
         },
         keys,
         places: Vec::new(),

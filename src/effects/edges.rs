@@ -5,7 +5,7 @@
 use crate::effects::mask_store::Masks;
 use crate::effects::owner::Effects;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
-use crate::errors::{BadInput, Refused};
+use crate::errors::{Recover, Refused};
 use crate::math::x87;
 use crate::memory::session::{PlainBytes, PlainDword, PlainFlag, PlainFloat, read_bits};
 
@@ -25,8 +25,8 @@ fn clamped(kind: u32) -> u32 {
 /// written as two digits into the edge picture's path; that read (`gfx::read_picture_file`, at 256
 /// x 128, the picture's sizes kept round it); its pixels packed (the four bytes or'd, inverted)
 /// into the edge mask; the shape tilt the kind's float times 0.0175; then `make_masks`,
-/// `set_up_windscreen_drops`, `set_up_windscreen_flakes`. Refuses a picture that is not read, after
-/// the path is written.
+/// `set_up_windscreen_drops`, `set_up_windscreen_flakes`. A picture that is not read is a trouble the game goes back
+/// from (`Recover`), after the path is written.
 #[allow(
     clippy::too_many_arguments,
     reason = "the edges' inputs and the owners they are read from"
@@ -81,7 +81,7 @@ pub fn load_edges(
     gfx.pictures.picture.height.set(sizes[1]);
     gfx.pictures.picture.row_bytes.set(sizes[2]);
     if !read? {
-        return Err(BadInput("the edge picture was not read").into());
+        return Err(Recover("a picture the stage needs could not be read").into());
     }
     crate::race::load_times::mark("edges: mask");
     let pixels = crate::gfx::picture::read_bytes(

@@ -36,7 +36,7 @@ next `"` instead and may hold tabs.
 
 ## `var/ral.cfg`
 
-The "advanced" page of the options menu shows eight of these switches (`framecounter`, `nofmv`, `screensnapshot`, `nonlinearsteering`, `noautoneutral`, `noprecipitation`, `nomusic`, `noforcefeedback`; `nojoy` is read but not shown; its other rows, the drawing threads, the renderer, the quit question's pictures, the smooth frames and the split screen for three and four players, are kept in `rc2k.toml`) and writes a changed one back: its first line is replaced by `key=number` (the line's ending and every other line stay), a key that was not there is added at the end. See [Differences from the original](Differences-from-the-original).
+The "advanced" page of the options menu shows nine of these switches (`framecounter`, `nofmv`, `screensnapshot`, `nonlinearsteering`, `noautoneutral`, `noprecipitation`, `nomusic`, `noforcefeedback`, `usesavegamekeys`; `nojoy` is read but not shown; its other rows, the drawing threads, the renderer, the quit question's pictures, the smooth frames and the split screen for three and four players, are kept in `rc2k.toml`) and writes a changed one back: its first line is replaced by `key=number` (the line's ending and every other line stay), a key that was not there is added at the end. See [Differences from the original](Differences-from-the-original).
 
 
 Every value is a number. Most switches are 0 (off, the default) or 1 (on).
@@ -51,7 +51,7 @@ The switches most often wanted:
 | `noreplay` | 1 stops the game recording a replay of each race. |
 | `replaykeys` | 1 turns on the replay viewer's editing keys. |
 | `wrreplayenable` | 1 turns on the replay viewer's developer keys (saving a sequence of pictures); `wrreplayrate` sets the sequence's picture rate. |
-| `usesavegamekeys` | 1 makes a loaded saved game bring its own controls with it. See [Saved games](Saved-games). |
+| `usesavegamekeys` | 1 makes a loaded saved game bring its own controls with it. Shown on the advanced page as "controls from saved games" (on = 1), which writes it here. See [Saved games](Saved-games). |
 | `seasoncode` | A number stamped into each replay's sealed part. See [Replay files](Replay-files). |
 | `key` | Replaces the first half of the key that seals best times. See [Best times](Best-times). |
 

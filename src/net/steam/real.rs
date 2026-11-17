@@ -4,7 +4,7 @@
 
 use super::callbacks::{self, id};
 use super::flat::Flat;
-use super::{desc_from_data, desc_to_data, instance_lobby, keys};
+use super::{PROVIDER, desc_from_data, desc_to_data, instance_lobby, keys, lobby_instance};
 use crate::net::dp_session::wire::Inbox;
 use crate::net::dp_session::{Desc, Session, Wire, protocol_tag};
 use std::collections::HashMap;
@@ -61,6 +61,12 @@ fn state() -> Option<&'static Steam> {
 
 impl Steam {
     fn start() -> Option<Steam> {
+        // Test runs of the remote driver keep Steam's library out entirely.
+        #[cfg(feature = "remote")]
+        if std::env::var_os("RC2K_STEAM_OFF").is_some() {
+            log("not available: RC2K_STEAM_OFF is set");
+            return None;
+        }
         let flat = match Flat::start(APP_ID) {
             Ok(flat) => flat,
             Err(e) => {
@@ -94,6 +100,11 @@ impl Steam {
                         .invited
                         .lock()
                         .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(lobby);
+                    // The menus take the player into the lobby (`net::invite`).
+                    crate::net::invite::offer(crate::net::invite::Invite {
+                        provider: PROVIDER,
+                        instance: Some(lobby_instance(lobby)),
+                    });
                 }
             }
             id::CONNECTION_STATUS_CHANGED => {

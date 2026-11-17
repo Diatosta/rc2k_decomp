@@ -111,11 +111,14 @@ The original was a 32-bit Windows program on DirectX. Its platform side was not 
 
 ## Menus and settings
 
+- **The installer keeps the folder's case**: a folder typed as `C:\Games\RC2k` is made and recorded
+  with that spelling (the original lowered every letter); folders are still compared without case.
 - **Advanced** (an item after the original's on the options page, and on the in-race options):
   rows for the renderer, the number of drawing threads, "smooth frames", "buttons in the quit
   question", and the switches that lived in `var/ral.cfg` shown as the feature they control:
   frame counter, films, screenshots, non-linear steering, automatic neutral, rain and snow, music
-  and force feedback (some take effect at the next race or start, and the row says so). "Apply"
+  and force feedback, and, on a second part of the page reached by its "more" button ("first page" comes back), "controls from saved games" (whether a loaded championship brings its own
+  keys, controller set-up and gearing, or keeps the players' current ones) (some take effect at the next race or start, and the row says so). "Apply"
   writes them ([Running and options](Running-and-options), [Settings files](Settings-files)).
 - **Settings are saved when a page is left**, not only when the game ends, so a crash keeps them.
   Options are kept in a readable text file, `var/rc2k.toml`; the original's `var/ral.dat` is
@@ -231,6 +234,7 @@ or IPX connection), and Steam when Valve's library is beside the program (it is 
 - **`/kick <name>`** in the chat: the host puts a player out.
 - The lobby has a "settings" button and, after a race, "save replay".
 - A port in use is said so; the failure of any start is written to the log.
+- **Steam invitations**: accepting one (or "Join game" in the friends list) joins that lobby from any menu; during a race or replay it waits for the menus, and in a network game it is ignored.
 - **Command line**: `--host`, `--join`, `--name` and `--port` go straight into the lobby.
 - **Several copies on one machine** (`--allow-another`, or `--instance 1..8` with a folder of its
   own for each) play each other.
@@ -244,11 +248,11 @@ or IPX connection), and Steam when Valve's library is beside the program (it is 
   "Guru Meditation" box. Troubles belonging to one file no longer end the game: a damaged saved
   game is not loaded, a replay that cannot be read is skipped, and options that are not valid are
   reset to their defaults, each with a notice. So are a picture that cannot be read (shown as
-  missing), a sound that cannot be read (silent), a film that cannot be played (skipped) and a
-  replay whose data breaks while it plays (it stops there); each is told once. A network
+  missing), a sound file that holds no sound the game can play (silent; a sound file that is simply not there stays silent with a line in the log only, as the stock game's lists name some it never shipped), a film that cannot be played (skipped) and a
+  replay whose data breaks while it plays (it stops there, or goes back as below); each is told once, in the language in use. A network
   player's message that cannot be understood is dropped, and the notice comes at the next menu
   frame. A stage whose data cannot be read, or another trouble the game can go back from inside
-  a menu or a race, shows the panel with "Main menu" and "Quit": the race is torn down as when
+  a menu or a race, shows the panel with "Main menu" and "Quit" (a stage picture that cannot be read is one of them): the race is torn down as when
   the player quits it, and the game goes on at the main menu.
   `RC2K_NO_ERROR_DIALOG` turns the panel off (the game then goes back to the main menu without
   asking).

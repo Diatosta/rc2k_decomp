@@ -1,4 +1,4 @@
-//! A directory's path in the installer's one form: lower case, `\` for every `/`, and a `\` at
+//! A directory's path in the installer's one form: the case as typed, `\` for every `/`, and a `\` at
 //! the end. An empty path stands for the current directory. Otherwise it must start with `\\` or
 //! `//`, or with a drive letter and `:` (after which a `\` is put if there is none); anything
 //! else is not written. Refuses a path of 0xF8 bytes or more, and a current directory that does

@@ -6,6 +6,7 @@ pub mod editing;
 #[cfg(test)]
 mod frozen;
 pub mod inbox;
+pub mod invite;
 pub mod lists;
 pub mod message;
 pub mod messages;

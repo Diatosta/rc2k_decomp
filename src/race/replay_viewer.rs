@@ -151,7 +151,17 @@ pub fn launched_replay(
 /// `view`, with a trouble the game can go back from (a replay's data that cannot be used)
 /// ending the viewer as leaving it does, then on up to the main menu.
 fn viewing(race: &'static Race, o: Owners<'static>, start: Start) -> Result<Viewed, Refused> {
-    match crate::error_dialog::recover::guarded(|| view(race, o, start)) {
+    // Data the viewer refuses while a replay plays is the replay's: a file that opened and is
+    // damaged further in sends many different checks off, so any refusal here is the file's.
+    let guarded = crate::error_dialog::recover::guarded(|| {
+        view(race, o, start).map_err(|why| match why {
+            Refused::BadInput(crate::errors::BadInput(reason)) => {
+                crate::errors::Recover(reason).into()
+            }
+            other => other,
+        })
+    });
+    match guarded {
         Ok(viewed) => viewed,
         Err(reason) => {
             if end(race, o).is_err() {

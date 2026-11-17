@@ -1,7 +1,9 @@
 //! The list screen of the sessions, like `net::choose_connection`'s, with the sessions listed
 //! again once a second; the highlighted session is found again by its GUID and stays highlighted
 //! (at the top when it is gone). A failed listing gives -2. Returns the session chosen. A game
-//! started from the command line takes the first session listed without waiting for a key.
+//! started from the command line takes the first session listed without waiting for a key; an
+//! accepted invitation takes the session it names as soon as it is listed (until then the list is
+//! shown as usual).
 
 use crate::errors::Refused;
 use crate::net::choose_connection::list_move;
@@ -55,10 +57,21 @@ fn refresh(o: crate::owners::Owners<'static>, lines: &NetTexts) -> Result<bool, 
     list_state.choice_before.set(top);
     Ok(true)
 }
+/// How the session is chosen.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Pick {
+    /// The player chooses from the list.
+    List,
+    /// The first session listed.
+    First,
+    /// The session with this instance.
+    Instance([u8; 16]),
+}
+
 pub fn choose_session(
     o: crate::owners::Owners<'static>,
     lines: &NetTexts,
-    launched: bool,
+    pick: Pick,
 ) -> Result<u32, Refused> {
     let (net, system) = (o.net, o.system);
     let list_state = &o.menus.list;
@@ -91,8 +104,16 @@ pub fn choose_session(
             .set(system.session.key_clock.ticks.get());
         let key = list_key(list_state, o.input)?;
         let any = net.link.sessions().get() != 0;
-        if any && launched {
+        if any && pick == Pick::First {
             return Ok(list_state.choice.get());
+        }
+        if let Pick::Instance(wanted) = pick {
+            for n in 0..net.link.sessions().get() {
+                if with_session(&net.link, n, |s| s.instance)? == wanted {
+                    list_state.choice.set(n);
+                    return Ok(n);
+                }
+            }
         }
         if any && list_move(list_state, key, net.link.sessions().get()) {
             list_state.move_clock.set(list_state.frame_clock.get());

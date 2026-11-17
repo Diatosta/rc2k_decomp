@@ -115,7 +115,7 @@ between sessions. Every field is a u32 unless the table says otherwise.
 When a saved game is loaded, each player's keys (`0x01C`), controller settings and bindings
 (`0x02C` up to `0x07C`) and units choice (`0x178`) are taken from the player's current settings
 and not from the file, unless `usesavegamekeys` is set in
-`var/ral.cfg` (see [Settings files](Settings-files)).
+`var/ral.cfg` (see [Settings files](Settings-files)). The advanced page's "controls from saved games" row (on its second part, the "more" button) sets it; a change counts from the next load.
 
 ## A computer driver's record
 

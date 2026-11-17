@@ -7,6 +7,8 @@
 //! Escape on the sessions' list goes back to the menu without a message.
 
 use crate::errors::Refused;
+use crate::net::choose_session::Pick;
+use crate::net::invite::Invite;
 use crate::net::lobby::log_bytes;
 use crate::owners::Owners;
 use crate::race::viewer_screen_store::texts;
@@ -27,7 +29,18 @@ enum Way {
     PortInUse(u16),
 }
 
-fn link(o: Owners<'static>, launched: bool) -> Result<Way, Refused> {
+/// How the network game was asked for.
+#[derive(Clone, Copy)]
+enum How {
+    /// By the menu's item: the player chooses the connection (unless one is saved) and session.
+    Menu,
+    /// By the command line: the first session listed is joined.
+    Launched,
+    /// By an invitation: its connection, and its session when it names one.
+    Invited(Invite),
+}
+
+fn link(o: Owners<'static>, how: How) -> Result<Way, Refused> {
     let net = o.net;
     let lines = &crate::race::viewer_screen_store::NET_TEXTS;
     let vars = &net.vars;
@@ -36,7 +49,20 @@ fn link(o: Owners<'static>, launched: bool) -> Result<Way, Refused> {
         why("no network connection was found");
         return Ok(Way::Message(NO_CONNECTION));
     }
-    let connection = match find_saved_connection::find_saved_connection(net)? {
+    let found = match how {
+        How::Invited(invite) => {
+            // The invitation's connection is made whatever the saved one is; when it is not
+            // there (no Steam running) the invitation cannot be followed.
+            let Some(connection) = find_saved_connection::find_connection(net, &invite.provider)?
+            else {
+                why("the invitation's connection is not available");
+                return Ok(Way::End);
+            };
+            Some(connection)
+        }
+        _ => find_saved_connection::find_saved_connection(net)?,
+    };
+    let connection = match found {
         Some(saved) => saved,
         None => {
             let chosen = choose_connection::choose_connection(o)?;
@@ -66,8 +92,13 @@ fn link(o: Owners<'static>, launched: bool) -> Result<Way, Refused> {
         why("no session was found to join");
         return Ok(Way::Message(NO_SESSION));
     }
+    let mut pick = match how {
+        How::Menu => Pick::List,
+        How::Launched => Pick::First,
+        How::Invited(invite) => invite.instance.map_or(Pick::First, Pick::Instance),
+    };
     loop {
-        let session = choose_session::choose_session(o, lines, launched)?;
+        let session = choose_session::choose_session(o, lines, pick)?;
         // Escape (a negative choice) goes back to the menu: nothing failed.
         if (session as i32) < 0 {
             why("no session was chosen");
@@ -78,10 +109,12 @@ fn link(o: Owners<'static>, launched: bool) -> Result<Way, Refused> {
         }
         if password::cancelled() {
             // Back from a locked session's password question: to the list of sessions again
-            // (a game started from the command line has no list to go back to).
-            if launched {
+            // (a game started from the command line has no list to go back to; an invitation
+            // goes to the list, where the player chooses).
+            if matches!(how, How::Launched) {
                 return Ok(Way::End);
             }
+            pick = Pick::List;
             continue;
         }
         return Ok(if password::refused() {
@@ -100,16 +133,25 @@ fn why(reason: &str) {
 
 /// A network game in `mode` (1 host, 2 join), as the menu's items start it.
 pub fn start_link(o: crate::owners::Owners<'static>, mode: u32) -> Result<(), Refused> {
-    run(o, mode, false)
+    run(o, mode, How::Menu)
 }
 
 /// A network game from the command line (`menu::launch`): as the menu's, with the session
 /// joined as soon as one is listed, instead of waiting for a choice from the sessions' list.
 pub fn start_link_launched(o: crate::owners::Owners<'static>, mode: u32) -> Result<(), Refused> {
-    run(o, mode, true)
+    run(o, mode, How::Launched)
 }
 
-fn run(o: crate::owners::Owners<'static>, mode: u32, launched: bool) -> Result<(), Refused> {
+/// The network game an accepted invitation asks for: a join, as the menu's item makes it, with
+/// the invitation's connection and session in place of the player's choices.
+pub fn start_link_invited(
+    o: crate::owners::Owners<'static>,
+    invite: Invite,
+) -> Result<(), Refused> {
+    run(o, 2, How::Invited(invite))
+}
+
+fn run(o: crate::owners::Owners<'static>, mode: u32, how: How) -> Result<(), Refused> {
     let (net, race) = (o.net, o.race);
     let vars = &net.vars;
     use crate::net::*;
@@ -125,7 +167,7 @@ fn run(o: crate::owners::Owners<'static>, mode: u32, launched: bool) -> Result<(
     o.input.race_players[0].store(0, std::sync::atomic::Ordering::Relaxed);
     fill_own_player::fill_own_player(race, net, &menus.play.slots, &menus.options.snapshot())?;
     show_background::show_background(o)?;
-    match link(o, launched)? {
+    match link(o, how)? {
         Way::Message(n) => show_message::show_message(o, n)?,
         Way::End => {}
         Way::PortInUse(port) => show_message::show_port_in_use(o, port)?,
@@ -164,5 +206,7 @@ fn run(o: crate::owners::Owners<'static>, mode: u32, launched: bool) -> Result<(
     );
     stopping::stopping(o, &crate::race::viewer_screen_store::NET_TEXTS)?;
     crate::sound::play_tune_3::play_tune_3(o);
+    // An invitation accepted during the game is not followed after it.
+    crate::net::invite::forget();
     Ok(())
 }

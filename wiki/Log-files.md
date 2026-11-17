@@ -25,7 +25,7 @@ rc2k mylog.txt --stage langton
 When the program stops for an error, the line `standalone: ending: <reason>` is the last one,
 and the reason is also shown on a panel in the game window ([Differences from the
 original](Differences-from-the-original)). A trouble the game mended (a damaged saved game or
-replay, options reset to their defaults, a picture, sound or film that cannot be used, a network
+replay, options reset to their defaults, a picture, sound or film that cannot be used (a sound file that is not there only gets an `audio: the sound .. is not there` line), a network
 player's message that is dropped) is logged as a `notice:` line, and a trouble that sends the
 game back to the main menu as `recover: back to the main menu: <reason>` followed by
 `error: <reason>`.

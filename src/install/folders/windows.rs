@@ -13,11 +13,7 @@ impl Folders for Windows {
     }
 
     fn normalised(path: &[u8], current: Current) -> Result<Option<Vec<u8>>, BadInput> {
-        rc2k_core::install::paths::normalise(
-            path,
-            &crate::strings::same_text::case_table(),
-            current,
-        )
+        rc2k_core::install::paths::normalise(path, current)
     }
 
     fn bad_name(folder: &[u8]) -> Result<bool, BadInput> {

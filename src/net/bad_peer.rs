@@ -12,8 +12,9 @@ pub fn dropped_message(player: u32, why: &str) {
     crate::logfile::program_log::log(&format!(
         "net: a message of player {who} cannot be used and is dropped: {why}"
     ));
-    crate::error_dialog::notice_later(
+    crate::error_dialog::notice_own_later(
         &format!("net:{who}:{why}"),
-        &crate::error_dialog::text_with(rc2k_core::strings::own::id::BAD_PEER, &who),
+        rc2k_core::strings::own::id::BAD_PEER,
+        &who,
     );
 }

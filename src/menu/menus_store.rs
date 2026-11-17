@@ -600,7 +600,7 @@ const FIRST_ITEM: [u16; MENUS.len() + 1] = {
     first
 };
 
-const _: () = assert!(ITEM_COUNT == 599 && MENUS.len() == MENU_COUNT as usize);
+const _: () = assert!(ITEM_COUNT == 600 && MENUS.len() == MENU_COUNT as usize);
 
 /// The state of every item, in `MENUS`' order.
 const fn item_states() -> [MenuItem; ITEM_COUNT] {

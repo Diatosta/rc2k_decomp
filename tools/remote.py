@@ -17,6 +17,7 @@
     remote.py state                      frames, race flag, menu, item, speed, time, place, cars
     remote.py renderer gpu|gl|software   swaps the 3D's renderer in game (desktop); the answer names the one that runs
     remote.py chat                       the lobby chat box's lines, joined by |
+    remote.py invite HOST                an accepted invitation pretended (TCP/IP, no Steam): the menus join the first session of HOST
     remote.py wait COND.. [secs]         polls state until every COND holds (menu!=Some(MenuId(5)), item=3,
                                          race=1, screen_frames>=20; ops = != >= <= > < ; default 10 s);
                                          exit 0 when met, 1 with the last state on timeout
@@ -331,7 +332,7 @@ def start(software, fresh, profile=False, game_args=()):
         # port of a game the player runs at the same time.
         if os.environ.get('RC2K_REMOTE_NET_PORT'):
             set_network_port(f'{GAME}/var/rc2k.toml', int(os.environ['RC2K_REMOTE_NET_PORT']))
-        env = dict(os.environ, RC2K_REMOTE=FOLDER)
+        env = dict(os.environ, RC2K_REMOTE=FOLDER, RC2K_STEAM_OFF='1')  # a test copy never starts Steam's library
         if software:
             env['RC2K_RENDERER'] = 'software'
         if os.environ.get('RC2K_FAIL_RENDERER'):
@@ -519,7 +520,7 @@ def main():
         sys.exit(0 if press(rest[0], float(rest[1]) if len(rest) > 1 else 5.0) else 1)
     elif command == 'log':
         log(int(rest[0]) if rest else 30)
-    elif command in ('key', 'down', 'up', 'pad', 'joy', 'state', 'time', 'chat', 'renderer'):
+    elif command in ('key', 'down', 'up', 'pad', 'joy', 'state', 'time', 'chat', 'renderer', 'invite'):
         print(ask(' '.join([command] + rest)))
     else:
         sys.exit(__doc__)

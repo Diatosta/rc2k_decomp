@@ -47,8 +47,9 @@ const fn flag(key: &'static str, inverted: bool, when: When) -> Row {
     }
 }
 
-/// The rows in the order the page shows them.
-pub const ROWS: [Row; 12] = [
+/// The rows in the order the page shows them: the first part the drawing and the screen, the
+/// second driving, sound and controls.
+pub const ROWS: [Row; 13] = [
     Row {
         kind: Kind::Threads,
         when: When::Now,
@@ -60,22 +61,41 @@ pub const ROWS: [Row; 12] = [
         when: When::Now,
     },
     flag("framecounter", false, When::Now),
-    flag("nofmv", true, When::Now),
-    flag("screensnapshot", false, When::Now),
-    flag("nonlinearsteering", false, When::Now),
-    flag("noautoneutral", true, When::Now),
-    flag("noprecipitation", true, When::NextRace),
-    flag("nomusic", true, When::NextStart),
-    flag("noforcefeedback", true, When::NextStart),
-    Row {
-        kind: Kind::QuitPictures,
-        when: When::Now,
-    },
     Row {
         kind: Kind::SmoothFrames,
         when: When::Now,
     },
+    flag("nofmv", true, When::Now),
+    flag("screensnapshot", false, When::Now),
+    flag("noprecipitation", true, When::NextRace),
+    flag("nonlinearsteering", false, When::Now),
+    flag("noautoneutral", true, When::Now),
+    flag("noforcefeedback", true, When::NextStart),
+    flag("nomusic", true, When::NextStart),
+    Row {
+        kind: Kind::QuitPictures,
+        when: When::Now,
+    },
+    // Read when a saved game is loaded, so a change counts from the next load.
+    flag("usesavegamekeys", false, When::Now),
 ];
+
+/// The page's row items: the menu has this many, each part fills them from the top and hides
+/// the rest.
+pub const ROW_SLOTS: usize = 12;
+
+/// How many rows the first part of the page shows; the second shows the rest. Kept short so
+/// the page does not run down the screen.
+pub const PAGE_ROWS: usize = 7;
+
+/// The rows of a part of the page (0 or 1) as a range of `ROWS`.
+pub fn rows_on_page(page: usize) -> std::ops::Range<usize> {
+    if page == 0 {
+        0..PAGE_ROWS
+    } else {
+        PAGE_ROWS..ROWS.len()
+    }
+}
 
 /// The renderers the page offers.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -226,11 +246,57 @@ mod tests {
     fn every_row_has_its_place() {
         assert!(matches!(ROWS[0].kind, Kind::Threads));
         assert!(matches!(ROWS[1].kind, Kind::Renderer));
-        for row in &ROWS[2..ROWS.len() - 2] {
-            assert!(matches!(row.kind, Kind::Flag { .. }));
-        }
+        assert!(matches!(ROWS[3].kind, Kind::SmoothFrames));
         assert!(matches!(ROWS[ROWS.len() - 2].kind, Kind::QuitPictures));
-        assert!(matches!(ROWS[ROWS.len() - 1].kind, Kind::SmoothFrames));
+        // Every part fits the menu's row items.
+        assert!(rows_on_page(0).len() <= ROW_SLOTS);
+        assert!(rows_on_page(1).len() <= ROW_SLOTS);
+        assert_eq!(rows_on_page(0).end, rows_on_page(1).start);
+        assert_eq!(rows_on_page(1).end, ROWS.len());
+        // Each flag key once.
+        for (n, a) in ROWS.iter().enumerate() {
+            for b in &ROWS[n + 1..] {
+                if let (Kind::Flag { key: x, .. }, Kind::Flag { key: y, .. }) = (a.kind, b.kind) {
+                    assert_ne!(x, y);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn the_saved_game_controls_switch_is_a_shown_row() {
+        let at = ROWS
+            .iter()
+            .position(|r| {
+                matches!(
+                    r.kind,
+                    Kind::Flag {
+                        key: "usesavegamekeys",
+                        ..
+                    }
+                )
+            })
+            .unwrap();
+        // The last row, on the second part of the page.
+        assert_eq!(at, ROWS.len() - 1);
+        assert!(rows_on_page(1).contains(&at));
+        // Not inverted: on means the saved game's own controls come back.
+        assert!(matches!(
+            ROWS[at].kind,
+            Kind::Flag {
+                inverted: false,
+                ..
+            }
+        ));
+        assert_eq!(ROWS[at].when, When::Now);
+        assert_eq!(
+            set_key(
+                b"usesavegamekeys=0\r\n",
+                "usesavegamekeys",
+                flag_number(false, true)
+            ),
+            b"usesavegamekeys=1\r\n"
+        );
     }
 
     #[test]
@@ -254,7 +320,7 @@ mod tests {
         assert!(v.flags[2]);
         v.step(ROWS.len() - 2, true, 4, false);
         assert!(!v.quit_pictures);
-        v.step(ROWS.len() - 1, true, 4, false);
+        v.step(3, true, 4, false);
         assert!(!v.smooth_frames);
     }
 

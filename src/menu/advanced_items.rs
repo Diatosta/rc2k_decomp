@@ -12,6 +12,21 @@ use rc2k_core::options::advanced::{
     Kind, ROWS, Renderer, Values, When, flag_number, flag_shown, set_key,
 };
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+/// The part of the page shown: 0 the first `PAGE_ROWS` rows, 1 the rest.
+static PAGE: AtomicUsize = AtomicUsize::new(0);
+
+/// The part of the page shown.
+pub fn page() -> usize {
+    PAGE.load(Ordering::Relaxed)
+}
+
+/// The page shows its other part.
+pub fn turn_page() -> Result<(), Refused> {
+    PAGE.store(1 - page().min(1), Ordering::Relaxed);
+    Ok(())
+}
 
 /// What the page shows and what the game and the files have been given so far.
 struct State {
@@ -77,6 +92,7 @@ pub fn applied_renderer(o: Owners<'static>) -> Renderer {
 
 /// Drops what was stepped and not applied (the page is opened).
 pub fn forget_changes() {
+    PAGE.store(0, Ordering::Relaxed);
     if let Ok(mut state) = STATE.lock() {
         *state = None;
     }
@@ -98,8 +114,12 @@ pub fn shown(o: Owners<'static>) -> Values {
         .shown
 }
 
-/// Row `row` one step.
+/// The item slot `row` of the part shown, stepped one: the part's rows start at its first.
 pub fn step(o: Owners<'static>, row: u8, up: bool) -> Result<(), Refused> {
+    let row = rc2k_core::options::advanced::rows_on_page(page()).start as u8 + row;
+    if usize::from(row) >= ROWS.len() {
+        return Ok(());
+    }
     shown(o);
     let mut guard = STATE
         .lock()

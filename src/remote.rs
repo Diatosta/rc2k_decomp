@@ -400,6 +400,18 @@ fn run(o: &Owners<'static>, line: &str) {
                 Err(why) => format!("error: {why}; {:?} runs", crate::render::running_wish()),
             }
         }),
+        // An invitation to a network game pretended accepted: the first session the TCP/IP
+        // connection finds at `host` is joined from the menus (Steam is not involved).
+        ("invite", [host]) if host.len() < 64 => {
+            let mut field = [0u8; 64];
+            field[..host.len()].copy_from_slice(host.as_bytes());
+            o.net.setup().host_address.write(&field);
+            crate::net::invite::offer(crate::net::invite::Invite {
+                provider: crate::net::store::SP_TCPIP,
+                instance: None,
+            });
+            Some("ok".to_string())
+        }
         ("quit", []) => {
             sdl_input::push_quit_event();
             Some("ok".to_string())

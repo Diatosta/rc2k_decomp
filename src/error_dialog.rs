@@ -36,7 +36,14 @@ thread_local! {
 }
 
 /// Notices raised before there was a window to show them in.
-static PENDING: Mutex<Vec<String>> = Mutex::new(Vec::new());
+static PENDING: Mutex<Vec<Queued>> = Mutex::new(Vec::new());
+
+/// A notice waiting for a screen: its text, or (from a thread that has no language to hand)
+/// an own text and what goes in it, put together when it is shown.
+enum Queued {
+    Text(String),
+    Own { id: u32, with: String },
+}
 /// Whether `PENDING` holds something (read each menu frame).
 static WAITING: AtomicBool = AtomicBool::new(false);
 /// A dialog is up: an error inside it must not open another.
@@ -93,20 +100,38 @@ pub fn notice(text: &str) {
 }
 
 /// A notice that waits for the next menu frame, where a panel over a running race would stall
-/// it (a network race's).
-pub fn notice_later(key: &str, text: &str) {
+/// it (a network race's), from a thread that is not the game's: the text is made in the language in
+/// use when the notice is shown, not here.
+pub fn notice_own_later(key: &str, id: u32, with: &str) {
     if first_time(key) {
-        crate::logfile::program_log::log(&format!("notice: {text}"));
-        queue(text);
+        crate::logfile::program_log::log(&format!("notice: {}", text_with(id, with)));
+        queue_item(Queued::Own {
+            id,
+            with: with.to_string(),
+        });
+    }
+}
+
+/// `notice_once` for a thread that is not the game's (the audio thread's): the notice waits for
+/// the game's thread to show it, in the language in use.
+pub fn notice_own_once(key: &str, id: u32, with: &str) {
+    if OWNERS.with(Cell::get).is_some() {
+        notice_once(key, &text_with(id, with));
+    } else {
+        notice_own_later(key, id, with);
     }
 }
 
 fn queue(text: &str) {
+    queue_item(Queued::Text(text.to_string()));
+}
+
+fn queue_item(item: Queued) {
     if !cfg!(test) {
         PENDING
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .push(text.to_string());
+            .push(item);
         WAITING.store(true, Ordering::SeqCst);
     }
 }
@@ -156,7 +181,11 @@ pub fn show_pending() {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner),
     );
-    for text in waiting {
+    for item in waiting {
+        let text = match item {
+            Queued::Text(text) => text,
+            Queued::Own { id, with } => text_with(id, &with),
+        };
         let _ = show(o, DIALOG_NOTICE, &text, &[Way::Continue]);
     }
 }
@@ -182,7 +211,9 @@ pub fn fatal(text: &str) {
 /// an unattended run goes on).
 pub fn ask_back(text: &str) -> bool {
     crate::logfile::program_log::log(&format!("error: {text}"));
-    ready().and_then(|o| show(o, DIALOG_NOTICE, text, &[Way::MainMenu, Way::Quit]))
+    // The trouble's own words are the program's (English); the lead-in is in the language in use.
+    let shown = text_with(rc2k_core::strings::own::id::BACK_TO_MENU, text);
+    ready().and_then(|o| show(o, DIALOG_NOTICE, &shown, &[Way::MainMenu, Way::Quit]))
         != Some(Way::Quit)
 }
 

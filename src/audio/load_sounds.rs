@@ -69,25 +69,36 @@ impl rc2k_core::audio::load::Loader for GameLoader<'_> {
                 .expect("a sound inside the records"),
             &mut |p| {
                 let name = crate::audio::store::name_in(&self.audio.sample_names, p)?;
-                match samples::read_sample_in_game(&self.audio.state, &name) {
+                let problem = match samples::read_sample_in_game(&self.audio.state, &name) {
                     // A file that is not a sound the game can use stays silent, with one notice.
-                    Err(Refused::BadInput(why)) => {
+                    Err(Refused::BadInput(why)) => why.0,
+                    Ok(false) => {
                         let shown = crate::error_dialog::file_name(&name);
-                        crate::logfile::program_log::log(&format!(
-                            "audio: the sound {shown} cannot be used: {}",
-                            why.0
-                        ));
-                        crate::error_dialog::notice_once(
-                            &shown,
-                            &crate::error_dialog::text_with(
-                                rc2k_core::strings::own::id::BAD_SOUND,
-                                &shown,
-                            ),
-                        );
-                        Ok(false)
+                        let there = crate::files::resolve_path::resolve(&name)
+                            .and_then(|path| crate::files::file_exists::file_exists(&path))
+                            .unwrap_or(false);
+                        if !there {
+                            // The stock game's lists name sounds it does not ship: silent, said
+                            // in the log only.
+                            crate::logfile::program_log::log(&format!(
+                                "audio: the sound {shown} is not there"
+                            ));
+                            return Ok(false);
+                        }
+                        "the file holds no sample the mixer can play"
                     }
-                    other => other,
-                }
+                    other => return other,
+                };
+                let shown = crate::error_dialog::file_name(&name);
+                crate::logfile::program_log::log(&format!(
+                    "audio: the sound {shown} cannot be used: {problem}"
+                ));
+                crate::error_dialog::notice_own_once(
+                    &shown,
+                    rc2k_core::strings::own::id::BAD_SOUND,
+                    &shown,
+                );
+                Ok(false)
             },
         )
     }

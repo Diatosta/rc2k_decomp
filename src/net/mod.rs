@@ -68,6 +68,7 @@ pub mod group_found;
 pub mod host_session;
 pub mod hosting;
 pub mod init_connection;
+pub mod invite;
 pub mod join_group;
 pub mod join_session;
 pub mod joining;

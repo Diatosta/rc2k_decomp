@@ -109,6 +109,11 @@ pub mod id {
     pub const CUSTOM: u32 = FIRST + 0xE5;
     /// The advanced page's row for frames drawn between the ticks.
     pub const SMOOTH_FRAMES: u32 = FIRST + 0xB9;
+    /// The advanced page's row for the controls a loaded saved game brings.
+    pub const SAVE_CONTROLS: u32 = FIRST + 0xBB;
+    /// The advanced page's button to its second part, and the second part's to the first.
+    pub const ADVANCED_MORE: u32 = FIRST + 0xBC;
+    pub const ADVANCED_FIRST: u32 = FIRST + 0xBD;
     /// The single rally's players menu: the captions of its three- and four-player split screens.
     pub const SPLIT_THREE: u32 = FIRST + 0xF2;
     pub const SPLIT_FOUR: u32 = FIRST + 0xF3;
@@ -155,6 +160,8 @@ pub mod id {
     pub const BAD_FILM: u32 = FIRST + 0xFC;
     pub const BAD_PEER: u32 = FIRST + 0xFD;
     pub const BAD_REPLAY_PLAY: u32 = FIRST + 0xFE;
+    /// The lead-in of the dialog that goes back to the main menu ("{}" the trouble).
+    pub const BACK_TO_MENU: u32 = FIRST + 0xFF;
 }
 
 /// Each text's file key and id.
@@ -186,6 +193,9 @@ pub const KEYS: &[(&str, u32)] = &[
     ("graphics.display", id::DISPLAY),
     ("graphics.frames_a_second", id::FRAMES_A_SECOND),
     ("advanced.smooth_frames", id::SMOOTH_FRAMES),
+    ("advanced.saved_game_controls", id::SAVE_CONTROLS),
+    ("advanced.more", id::ADVANCED_MORE),
+    ("advanced.first", id::ADVANCED_FIRST),
     ("split_screen.three", id::SPLIT_THREE),
     ("split_screen.four", id::SPLIT_FOUR),
     ("graphics.render_scale", id::RENDER_SCALE),
@@ -214,6 +224,7 @@ pub const KEYS: &[(&str, u32)] = &[
     ("dialog.bad_film", id::BAD_FILM),
     ("dialog.bad_peer", id::BAD_PEER),
     ("dialog.bad_replay_play", id::BAD_REPLAY_PLAY),
+    ("dialog.back_to_menu", id::BACK_TO_MENU),
     ("advanced.title", id::ADVANCED),
     ("advanced.threads", id::ADVANCED_ROWS),
     ("advanced.renderer", id::ADVANCED_ROWS + 1),

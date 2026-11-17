@@ -467,6 +467,9 @@ pub struct Screen {
     pub late_highlight: bool,
     pub keys: Keys,
     pub frames: Frames,
+    /// Whether an accepted invitation to a network game is followed from this screen: false on
+    /// the screens that belong to a race (the pause menu, its question, the service areas).
+    pub invites: bool,
 }
 
 impl Screen {
@@ -513,6 +516,7 @@ impl Screen {
             late_highlight: false,
             keys: Keys::DEFAULT,
             frames: Frames::DEFAULT,
+            invites: true,
         }
     }
 }
@@ -1010,6 +1014,8 @@ struct MenuHost<'a> {
     entry: &'a Entry,
     menu: MenuId,
     action_menu: MenuId,
+    /// An accepted invitation taken at this frame's keys: the action that follows is the join.
+    invited: Option<crate::net::invite::Invite>,
 }
 
 impl MenuHost<'_> {
@@ -1143,6 +1149,16 @@ impl ScreenHost for MenuHost<'_> {
     }
 
     fn handle_keys(&mut self) -> Result<Pressed, Refused> {
+        // An invitation to a network game acts as the player's Enter on a join item: the loop
+        // runs the join as the item's action and sets the screen up again after it.
+        if self.screen.invites
+            && !self.entry.owners.net.race_slot.is_on()
+            && !quitting(self.entry.owners.system)
+            && let Some(invite) = crate::net::invite::take_in_menus()
+        {
+            self.invited = Some(invite);
+            return Ok(Pressed::Enter);
+        }
         // The handler is handed the time since set-up, as noted for this frame.
         handle_keys(
             self.entry.owners,
@@ -1158,7 +1174,7 @@ impl ScreenHost for MenuHost<'_> {
     }
 
     fn action_pending(&self) -> bool {
-        self.screens().entry.sound() == MenuSound::Enter
+        self.invited.is_some() || self.screens().entry.sound() == MenuSound::Enter
     }
 
     fn highlight(&self) -> u32 {
@@ -1174,6 +1190,11 @@ impl ScreenHost for MenuHost<'_> {
     }
 
     fn run_item_action(&mut self) -> Result<ActionResult, Refused> {
+        if let Some(invite) = self.invited.take() {
+            crate::logfile::program_log::log("menu: an invitation to a network game is followed");
+            crate::net::start_link::start_link_invited(self.entry.owners, invite)?;
+            return Ok(ActionResult::default());
+        }
         run_item_action(self.entry.owners, self.action_menu)
     }
 
@@ -1255,6 +1276,7 @@ pub fn screen_loop(_screens: &Screens, screen: &Screen, entry: &Entry) -> Result
         entry,
         menu,
         action_menu: screen.keys.action_menu.map_or(menu, |other| other(menus)),
+        invited: None,
     };
     core_loop(&screen.shape(), &mut host)
 }

@@ -49,6 +49,7 @@ pub const SCREEN: Screen = Screen {
         escape_leaves: true,
         ..Keys::DEFAULT
     },
+    invites: false,
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.in_game_options.id(),

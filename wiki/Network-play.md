@@ -42,6 +42,15 @@ nothing changes: only TCP/IP is listed, and the program's log says why Steam was
 (`net: steam: not available: ...`). No port needs opening: Steam's relay carries the
 connection, between Steam accounts.
 
+What a player needs:
+1. The Steam client installed, running and signed in (any account: no purchase is needed).
+2. Valve's Steam library in the game program's folder, beside `rc2k` / `rc2k.exe`: `libsteam_api.so` on
+   Linux, `steam_api64.dll` on 64-bit Windows (`steam_api.dll` on 32-bit), `libsteam_api.dylib` on macOS. A
+   release that offers Steam carries it; otherwise take it from the Steamworks SDK (free with a Steam account
+   at partner.steamgames.com), folder `redistributable_bin`, and copy it there.
+3. Start the game, open the network page and choose **Steam** as the connection. If it is not listed, the
+   game's log (`rc2k.log`) says why (`net: steam: not available: ...`).
+
 - Until the game has an application number of its own it runs as Valve's test application,
   **Spacewar** (480), which every Steam account has: friends see you playing "Spacewar".
 - Choose the Steam connection, then host or join as with TCP/IP. **Hosting** makes a public
@@ -50,10 +59,15 @@ connection, between Steam accounts.
   included, as Spacewar's list is shared with other test games), friends' lobbies and a lobby you
   were invited to; choosing one joins the lobby and connects to its host. The password question and
   the lobby are as over TCP/IP.
-- **Invites.** A friend can use "Join game" in Steam's friends list, or an invitation: start the
-  game first and open the network page, then accept; the session then appears in the list. A game
-  started by the invitation takes the lobby from the launch argument `+connect_lobby <id>`.
-  While in a lobby the status line shown to friends says you are in a network race.
+- **Invites.** "Join game" in Steam's friends list, or accepting an invitation, takes you straight
+  into that lobby from any menu: the game goes to the network flow with the Steam connection and
+  joins the lobby as picking it from the list would (your name as the network page has it; the
+  password question when the lobby has one, with Escape going back to the list of sessions). In a
+  race, a replay, a film or the installer the invitation waits and is followed when you are next
+  in the menus. An invitation accepted while you are in a network game is ignored: leaving a
+  lobby others are in is not something to do on a click in another window. A game started by the
+  invitation takes the lobby from the launch argument `+connect_lobby <id>`, followed once the
+  menus are reached. While in a lobby the status line shown to friends says you are in a network race.
 - The Steam list and the TCP/IP list are separate: a Steam host is not found by a TCP/IP join.
 - Two Steam accounts are needed to try a game: one machine cannot join its own lobby.
 
