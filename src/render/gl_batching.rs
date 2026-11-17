@@ -40,10 +40,6 @@ pub struct Part {
     pub background: Option<Background>,
     pub size: (i32, i32),
     /// The percent of the screen's size the part's 3D is drawn at (`render::flush_scale`).
-    #[cfg_attr(
-        not(all(target_os = "linux", target_arch = "aarch64")),
-        allow(dead_code, reason = "only the handheld's GL draws it")
-    )]
     pub scale: u32,
 }
 
@@ -64,7 +60,21 @@ pub enum Job<Draw> {
     /// The textures whose memory is gone, by address.
     Forget(Vec<TextureId>),
     Draw(Draw),
+    #[cfg_attr(
+        not(all(target_os = "linux", target_arch = "aarch64")),
+        allow(
+            dead_code,
+            reason = "only the handheld's panel shows frames; a PC reads them back"
+        )
+    )]
     ShowTarget,
+    #[cfg_attr(
+        not(all(target_os = "linux", target_arch = "aarch64")),
+        allow(
+            dead_code,
+            reason = "only the handheld's panel shows frames; a PC reads them back"
+        )
+    )]
     ShowPicture {
         frame: Vec<u8>,
         width: i32,
@@ -175,7 +185,7 @@ pub fn batched(
 
 /// The batching thread: the game's jobs, in order, batched and handed to the GL's thread. It
 /// ends when the game's side is dropped or the GL's thread has ended.
-#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+#[cfg(not(target_os = "emscripten"))]
 pub fn run(
     jobs: std::sync::mpsc::Receiver<Job<Part>>,
     gl: std::sync::mpsc::SyncSender<Job<Batched>>,

@@ -115,6 +115,7 @@ done = "done"
 [options]
 background_sound = "sound when not in front"
 film_volume = "film volume"
+reverb = "reverb"
 network_port = "port"
 
 # The graphics page's frame limit.
@@ -128,6 +129,27 @@ render_scale = "3D resolution"
 # The network lobby.
 [lobby]
 save_replay = "save replay"
+
+# The advanced page: what the rows change, and when (in the name, or "next start" beside a value).
+[advanced]
+title = "advanced"
+threads = "drawing threads"
+renderer = "renderer (next start)"
+frame_counter = "frame counter"
+films = "films"
+screenshots = "screenshots"
+nonlinear_steering = "non-linear steering"
+automatic_neutral = "automatic neutral"
+rain_and_snow = "rain and snow (next race)"
+music = "music (next start)"
+joysticks = "joysticks (next start)"
+force_feedback = "force feedback (next start)"
+gpu = "GPU"
+software = "software"
+gles = "OpenGL ES"
+gl = "OpenGL"
+next_start = "next start"
+apply = "apply"
 
 [kick]
 not_host = "Only the host can put a player out."

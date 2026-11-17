@@ -9,6 +9,8 @@ pub mod add_clio_car;
 pub mod add_player_times;
 pub mod add_text_length;
 pub mod advanced_audio_loop;
+pub mod advanced_items;
+pub mod advanced_loop;
 pub mod apply_cheats;
 pub mod apply_screen_mode;
 pub mod arcade_best_scores_loop;

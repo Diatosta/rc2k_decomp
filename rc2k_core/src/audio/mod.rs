@@ -8,6 +8,7 @@ pub mod load;
 pub mod mixer;
 pub mod mixer_voices;
 pub mod modes;
+pub mod reverb;
 pub mod samples;
 pub mod streams;
 pub mod voices;

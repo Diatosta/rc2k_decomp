@@ -55,7 +55,7 @@ fn snake(name: &str) -> String {
 
 #[test]
 fn the_registry_names_every_screen_once() {
-    assert_eq!(ScreenId::ALL.len(), 87);
+    assert_eq!(ScreenId::ALL.len(), 88);
     let mut paths = std::collections::HashSet::new();
     for id in ScreenId::ALL {
         let path = id.screen().module_path;

@@ -23,6 +23,8 @@ pub fn set_buffer_volume(state: &AudioOwn, v: &Voice) -> Result<i32, Refused> {
     let level =
         rc2k_core::audio::levels::buffer_volume(v.volume, v.volume_factor, |n| volumes(state, n))?;
     let b = buffer(v)?;
+    // A sound of the race goes through the reverb of its view's surroundings.
+    crate::platform::sound::set_reverb_view(b, crate::audio::reverb_views::view_of(v.sound));
     Ok(crate::platform::sound::set_volume(b, level as i32))
 }
 

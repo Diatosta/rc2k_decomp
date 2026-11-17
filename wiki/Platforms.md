@@ -33,8 +33,8 @@ otherwise by the program's own software rasteriser, which needs no GPU at all.
 
 | Platform | GPU renderer | If it cannot start |
 | --- | --- | --- |
-| Windows, Linux | SDL's GPU device, on Vulkan | software rasteriser |
-| macOS | SDL's GPU device, on Metal | software rasteriser |
+| Windows, Linux | SDL's GPU device, on Vulkan | OpenGL 3.3, then the software rasteriser |
+| macOS | SDL's GPU device, on Metal | OpenGL, then the software rasteriser |
 | Handheld | OpenGL ES 3.0, through the system's `libmali` | software rasteriser |
 
 `rc2k.log` says which one started and, if the GPU one did not, why.

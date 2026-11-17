@@ -79,6 +79,8 @@ pub mod id {
     pub const BACKGROUND_SOUND: u32 = FIRST + 0xC0;
     pub const FILM_VOLUME: u32 = FIRST + 0xC1;
     pub const NETWORK_PORT: u32 = FIRST + 0xC2;
+    /// The sound page's switch for the race's reverb.
+    pub const REVERB: u32 = FIRST + 0xBB;
     /// The network settings' password row, the answer to a refused join (wrong or missing
     /// password), the mark before a locked session's name in the list.
     pub const NETWORK_PASSWORD: u32 = FIRST + 0xD0;
@@ -96,6 +98,17 @@ pub mod id {
     pub const FRAMES_A_SECOND: u32 = FIRST + 0xCB;
     /// The graphics page's 3D resolution row.
     pub const RENDER_SCALE: u32 = FIRST + 0xE8;
+    /// The advanced page: its name (also the options menu's item), then the rows' names in
+    /// the order of `options::advanced::ROWS`, then the renderer names and the "next start" note.
+    pub const ADVANCED: u32 = FIRST + 0xA8;
+    pub const ADVANCED_ROWS: u32 = FIRST + 0xA9;
+    pub const RENDERER_GPU: u32 = FIRST + 0xB4;
+    pub const RENDERER_SOFTWARE: u32 = FIRST + 0xB5;
+    pub const RENDERER_GLES: u32 = FIRST + 0xB6;
+    pub const RENDERER_GL: u32 = FIRST + 0xBA;
+    pub const NEXT_START: u32 = FIRST + 0xB7;
+    /// The advanced page's item that makes its changes real.
+    pub const APPLY: u32 = FIRST + 0xB8;
     /// The network lobby's button that saves the last race's replay.
     pub const SAVE_REPLAY: u32 = FIRST + 0xF8;
 }
@@ -116,6 +129,7 @@ pub const KEYS: &[(&str, u32)] = &[
     ("h_shifter", id::H_SHIFTER),
     ("options.background_sound", id::BACKGROUND_SOUND),
     ("options.film_volume", id::FILM_VOLUME),
+    ("options.reverb", id::REVERB),
     ("options.network_port", id::NETWORK_PORT),
     ("network.password", id::NETWORK_PASSWORD),
     ("network.password_refused", id::PASSWORD_REFUSED),
@@ -127,6 +141,24 @@ pub const KEYS: &[(&str, u32)] = &[
     ("graphics.frames_a_second", id::FRAMES_A_SECOND),
     ("graphics.render_scale", id::RENDER_SCALE),
     ("lobby.save_replay", id::SAVE_REPLAY),
+    ("advanced.title", id::ADVANCED),
+    ("advanced.threads", id::ADVANCED_ROWS),
+    ("advanced.renderer", id::ADVANCED_ROWS + 1),
+    ("advanced.frame_counter", id::ADVANCED_ROWS + 2),
+    ("advanced.films", id::ADVANCED_ROWS + 3),
+    ("advanced.screenshots", id::ADVANCED_ROWS + 4),
+    ("advanced.nonlinear_steering", id::ADVANCED_ROWS + 5),
+    ("advanced.automatic_neutral", id::ADVANCED_ROWS + 6),
+    ("advanced.rain_and_snow", id::ADVANCED_ROWS + 7),
+    ("advanced.music", id::ADVANCED_ROWS + 8),
+    ("advanced.joysticks", id::ADVANCED_ROWS + 9),
+    ("advanced.force_feedback", id::ADVANCED_ROWS + 10),
+    ("advanced.gpu", id::RENDERER_GPU),
+    ("advanced.software", id::RENDERER_SOFTWARE),
+    ("advanced.gles", id::RENDERER_GLES),
+    ("advanced.gl", id::RENDERER_GL),
+    ("advanced.next_start", id::NEXT_START),
+    ("advanced.apply", id::APPLY),
     ("icon_styles.automatic", id::ICON_STYLES),
     ("icon_styles.xbox", id::ICON_STYLES + 1),
     ("icon_styles.playstation", id::ICON_STYLES + 2),

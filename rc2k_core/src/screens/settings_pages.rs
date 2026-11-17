@@ -46,10 +46,10 @@ pub fn sound_items(has_3d: bool, has_eax: bool) -> Vec<(u32, bool)> {
     out
 }
 
-/// The sound page's six names (each a string id), from y 0x10B every 0x1B.
+/// The sound page's seven names (each a string id), from y 0x10B every 0x1B.
 pub fn sound<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
-    ids: [u32; 6],
+    ids: [u32; 7],
 ) -> Result<Drawn, S::Error> {
     names(s, ids.into_iter().zip((0..).map(|n| 0x10B + 0x1B * n)))
 }
@@ -98,6 +98,18 @@ pub fn graphics_render_scale<S: Screen<Font = Font, Work = Work>>(
     text: &[u8],
 ) -> Result<Drawn, S::Error> {
     s.line(Font::Value, text, 0x1D1, 0xDC + 0x1B * 10)
+}
+
+/// The advanced page's values: `texts[n]` (no NUL) in the names' column on row `n`.
+pub fn advanced<S: Screen<Font = Font, Work = Work>>(
+    s: &mut S,
+    texts: &[Vec<u8>],
+) -> Result<Drawn, S::Error> {
+    let mut last = Drawn::default();
+    for (row, text) in texts.iter().enumerate() {
+        last = s.line(Font::Value, text, 0x1D1, 0xDC + 0x1B * row as i32)?;
+    }
+    Ok(last)
 }
 
 /// The visual preferences page: nine names from y 0xC8 every 0x1D. Returns the last name's

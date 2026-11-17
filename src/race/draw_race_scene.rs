@@ -230,6 +230,9 @@ fn view_drawn(
     if car == 0 && !mirror {
         output.publish_environment(audio);
     }
+    if !mirror && let Some(weight) = output.environment {
+        crate::platform::sound::set_view_weight(car, weight);
+    }
     Ok(())
 }
 

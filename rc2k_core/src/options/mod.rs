@@ -11,6 +11,7 @@
 //!   values over), or when asked (a command-line switch, the settings page's button);
 //! - the options are saved to the new file; to the old one only when asked.
 
+pub mod advanced;
 pub mod document;
 pub mod files;
 pub mod model;

@@ -30,8 +30,11 @@ pub fn capture(o: Owners<'static>) -> Result<Options, Refused> {
     options.players.profiles = crate::input::profiles::kept(o.input);
     options.sound.film_volume = crate::platform::sound::FILM_VOLUME.load(Relaxed);
     options.sound.sound_in_background = crate::platform::sound::SOUND_IN_BACKGROUND.load(Relaxed);
+    options.sound.reverb = crate::platform::sound::REVERB.load(Relaxed);
     options.display.frame_limit = crate::platform::pacing::frame_limit();
     options.display.render_scale = crate::render::render_scale();
+    options.display.renderer = crate::render::choice::wanted();
+    options.display.draw_threads = crate::scene::workers::chosen_threads();
     Ok(options)
 }
 
@@ -46,8 +49,11 @@ pub fn apply(o: Owners<'static>, options: &Options) -> Result<(), Refused> {
     crate::input::profiles::keep(o.input, options.players.profiles.clone());
     crate::platform::sound::FILM_VOLUME.store(options.sound.film_volume, Relaxed);
     crate::platform::sound::SOUND_IN_BACKGROUND.store(options.sound.sound_in_background, Relaxed);
+    crate::platform::sound::REVERB.store(options.sound.reverb, Relaxed);
     crate::platform::pacing::set_frame_limit(options.display.frame_limit);
     crate::render::set_render_scale(options.display.render_scale);
+    crate::render::choice::set_wanted(options.display.renderer.clone());
+    crate::scene::workers::set_threads(options.display.draw_threads);
     Ok(())
 }
 

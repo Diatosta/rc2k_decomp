@@ -159,6 +159,7 @@ pub fn reset_race_sounds(
     }
     sound.race.stage.get().shared_count.set(0);
     audio.environment.set(0x3F80_0000u32);
+    crate::platform::sound::reset_view_weights();
     crate::sound::queue::send_command_in(audio, Command::Room(3));
     sound.race.clock.get().started.set(0);
     Ok(())

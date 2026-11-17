@@ -111,6 +111,8 @@ each, written in decimal in the file; to read one, turn it into hexadecimal (`32
 | `race_mode` | The screen mode of the races, in the same form. `3414144` is `0x341880`: size `0x80` (1920 x 1280 in the game's table of sizes), 32 bits, primary card, triple buffering (`0x40000`), the 3D marks. |
 | `mipmapping` | The graphics page's mipmapping switch: 0 off, 1 on. Mipmapping draws a texture in smaller pre-reduced copies when it is far away; the choice is held to what the card can do (this program's value is 0 or 1 whatever is written). Only the software rasteriser draws with it; the GPU renderers draw alike either way. |
 | `render_scale` | The graphics page's "3D resolution": the percent of the screen's width and height the race's 3D is drawn at before it is enlarged over the screen, 50, 75 or 100 (a value between goes down to the one below; 0 or over 100 is an error). Left out for the default, 100. The menus' pictures, the dashboard and the texts are always drawn at full size. |
+| `renderer` | The advanced page's renderer, tried first at start: `"gpu"` (the GPU first, the normal order) or `"software"`. Left out until chosen. `--renderer` and `RC2K_RENDERER` outrank it; when it cannot start, the normal order runs and the file is not changed. |
+| `draw_threads` | The advanced page's number of parts of a frame drawn at once, 1 or more (more than the machine can draw at once counts as the most). Left out for the most. |
 | `frame_limit` | The graphics page's "frame limit": `"off"` (nothing in the program waits for a frame's time; a display that waits for its refresh still does), `"display"` (one frame for each refresh, every second or third on a display faster than 100 Hz) or a number of frames a second. Left out for the default, `"display"`. The race's speed does not depend on it. |
 
 ### Sound
@@ -147,6 +149,7 @@ A **sound mode** is one number, written in decimal; turn it into hexadecimal to 
 | `menu_music_volume` | The "menu music" slider, 0 .. 64 (a fresh game 64). Stepping it sets `music_volume` and the music's volume at once. |
 | `race_music_level` | The "race music" slider, 0 .. 64: stepping it sets `race_music_volume`. |
 | `film_volume` | The volume page's "film volume" slider, 0 .. 64 (an optional field, only in `rc2k.toml`; missing it is 64, full): the intro and logo films play at this volume. |
+| `reverb` | The sound page's "reverb" row (an optional field, only in `rc2k.toml`; missing it is `true`). On, the sounds with a place in the race go through the program's own reverb ([Sound and music](Sound-and-music)). |
 | `sound_in_background` | The sound page's "sound when not in front" row (an optional field, only in `rc2k.toml`; missing it is `false`). Off, the sounds go quiet while the window is not in front, as the original's DirectSound did; on, they go on. |
 | `menu_effects_volume` | The "menu effects" slider, 0 .. 64: the menus' own sounds (clicks, moving between items); a sound plays at each step so that it can be heard. |
 | `race_effects_volume` | The "race effects" slider, 0 .. 64: the level of the race's sound effects (those whose sample record names this level); a race sound plays at each step. |

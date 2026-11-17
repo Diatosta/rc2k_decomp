@@ -714,15 +714,55 @@ impl<'a> DrawReads<'a> {
 
 // ---- the runs ----
 
-/// The rear-view mirror drawn beside its view (`draw_beside`, `race::draw_race_scene`): on a
-/// machine of two cores or more, drawing and sounding the same as one after the other.
-/// `RC2K_MIRROR_BESIDE=0` turns it off, any other value on.
+/// The most parts of a frame that can be drawn at once on this machine: its cores, up to the
+/// drawing copies. The pool is sized for it, whatever the page asks for.
+pub fn most_threads() -> usize {
+    std::thread::available_parallelism()
+        .map_or(1, usize::from)
+        .min(COUNT)
+}
+
+/// How many parts of a frame may be drawn at once, as chosen (0: not chosen, the most). Read
+/// at each frame, so a change takes effect at the next one.
+static THREADS: AtomicUsize = AtomicUsize::new(0);
+
+/// The choice in the options file: none for "as many as there are".
+pub fn chosen_threads() -> Option<u32> {
+    match THREADS.load(std::sync::atomic::Ordering::Relaxed) {
+        0 => None,
+        n => Some(n as u32),
+    }
+}
+
+/// Chooses how many parts may be drawn at once (`None`: the most). A number past the most the
+/// machine has is the most.
+pub fn set_threads(chosen: Option<u32>) {
+    THREADS.store(
+        chosen.map_or(0, |n| (n.max(1) as usize).min(most_threads())),
+        std::sync::atomic::Ordering::Relaxed,
+    );
+}
+
+/// How many parts of a frame may be drawn at once now: 1 is one after another.
+/// `RC2K_MIRROR_BESIDE=0` makes it 1 when nothing was chosen.
+pub fn threads() -> usize {
+    static ENV_OFF: OnceLock<bool> = OnceLock::new();
+    match THREADS.load(std::sync::atomic::Ordering::Relaxed) {
+        0 if *ENV_OFF
+            .get_or_init(|| std::env::var_os("RC2K_MIRROR_BESIDE").is_some_and(|v| v == "0")) =>
+        {
+            1
+        }
+        0 => most_threads(),
+        n => n.min(most_threads()),
+    }
+}
+
+/// The rear-view mirror drawn beside its view (`draw_beside`, `race::draw_race_scene`): when two
+/// parts may be drawn at once (`threads`), drawing and sounding the same as one after the
+/// other. `RC2K_MIRROR_BESIDE=0` turns it off, any other value on.
 pub fn mirror_beside() -> bool {
-    static ON: OnceLock<bool> = OnceLock::new();
-    *ON.get_or_init(|| match std::env::var_os("RC2K_MIRROR_BESIDE") {
-        Some(v) => v != "0",
-        None => std::thread::available_parallelism().map_or(1, usize::from) >= 2,
-    })
+    threads() >= 2
 }
 
 /// Whether parts are being drawn beside each other (`draw_beside`): a list inside one of them
@@ -742,14 +782,13 @@ fn serial() -> bool {
     *ON.get_or_init(|| std::env::var_os("RC2K_DRAW_SERIAL").is_some())
 }
 
-/// The other drawing threads: with `mirror_beside`, one fewer than the cores, up to the
-/// copies (the mirror beside its view uses one: the handheld at 25 to 30 frames a second; the
+/// The other drawing threads: one fewer than the most parts that can be drawn at once
+/// (`most_threads`; the pages' choice limits the parts drawn, not the pool), up to the copies (the mirror beside its view uses one: the handheld at 25 to 30 frames a second; the
 /// players' views and mirrors beside each other up to three).
 fn pool() -> Option<&'static rayon::ThreadPool> {
     static POOL: OnceLock<Option<rayon::ThreadPool>> = OnceLock::new();
     POOL.get_or_init(|| {
-        let cores = std::thread::available_parallelism().map_or(1, usize::from);
-        let all = if mirror_beside() { cores.min(COUNT) } else { 1 };
+        let all = most_threads();
         (all > 1)
             .then(|| {
                 rayon::ThreadPoolBuilder::new()
@@ -881,8 +920,8 @@ pub fn players_beside() -> bool {
     static ON: OnceLock<bool> = OnceLock::new();
     *ON.get_or_init(|| match std::env::var_os("RC2K_PLAYERS_BESIDE") {
         Some(v) => v != "0",
-        None => mirror_beside(),
-    })
+        None => true,
+    }) && threads() >= 4.min(most_threads()).max(2)
 }
 
 /// Parts 0 .. `slots.len()` of a drawing (`part`), part 0 on the game's thread and each other on a
@@ -1068,7 +1107,7 @@ pub fn car_part() -> bool {
 /// be drawn aside: the car part on and a drawing thread for it, or the parts drawn one after
 /// another (`RC2K_DRAW_SERIAL`).
 pub fn car_part_wanted() -> bool {
-    car_part() && (pool().is_some() || serial())
+    car_part() && ((threads() >= 2 && pool().is_some()) || serial())
 }
 
 /// What a part may hand a piece of its own drawing to (`draw_aside`): the drawing threads (none
@@ -1093,7 +1132,7 @@ impl<'a> Helper<'a> {
             return None;
         }
         match pool {
-            Some(p) if p.current_num_threads() >= parts => Some(Self {
+            Some(p) if p.current_num_threads() >= parts && threads() > parts => Some(Self {
                 pool: Some(p),
                 lent,
             }),

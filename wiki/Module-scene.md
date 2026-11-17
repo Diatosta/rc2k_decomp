@@ -32,7 +32,7 @@ light tables, the drawing's working memory. Each drawing thread has its own scra
 | `Fog` | `src/scene/fog.rs` | The fog's levels. |
 | `draw_carousel` | `src/scene/draw_carousel.rs` | The turning cars of the car choice screen. |
 | `set_up_engine_in` | `src/scene/set_up_engine.rs` | Prepares the 3D code's tables. |
-| `workers.rs` | `src/scene/workers.rs` | Draws the players' views and mirrors on several threads at once. |
+| `workers.rs` | `src/scene/workers.rs` | Draws the players' views and mirrors on several threads at once; `threads` is how many parts may draw at once (the advanced page's row), read at each frame. |
 
 ## How it is laid out
 

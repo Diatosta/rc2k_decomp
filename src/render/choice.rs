@@ -1,8 +1,8 @@
 //! Which renderer the game asks for. `--renderer software` or `RC2K_RENDERER=software` forces the
 //! software rasteriser (the switch outranks the environment variable);
 //! `gpu` (or nothing) means the default order: the GPU first, each renderer that cannot start
-//! falling back to the next. Desktop: the SDL GPU device, then SDL's own 2D renderer with the
-//! software rasteriser. Handheld: OpenGL ES, then the rasteriser into the framebuffer. What
+//! falling back to the next. Desktop: the SDL GPU device, then OpenGL (`gl`, also asked for
+//! alone), then SDL's own 2D renderer with the software rasteriser. Handheld: OpenGL ES, then the rasteriser into the framebuffer. What
 //! actually started is asked of `render::gpu_running`, not of this module.
 //!
 //! The choice is read afresh at each call, so a later start of the renderers can ask again,
@@ -13,6 +13,8 @@
 pub enum Wish {
     /// The GPU if it starts, else the software rasteriser.
     GpuFirst,
+    /// OpenGL, if it starts, else the software rasteriser (never the GPU API).
+    Gl,
     /// The software rasteriser only.
     Software,
 }
@@ -22,6 +24,9 @@ pub fn parse(value: &str) -> Option<Wish> {
     match value.trim().to_ascii_lowercase().as_str() {
         "gpu" => Some(Wish::GpuFirst),
         "gles" if cfg!(all(target_os = "linux", target_arch = "aarch64")) => Some(Wish::GpuFirst),
+        "gl" | "opengl" if cfg!(not(all(target_os = "linux", target_arch = "aarch64"))) => {
+            Some(Wish::Gl)
+        }
         "software" => Some(Wish::Software),
         _ => None,
     }
@@ -32,7 +37,7 @@ pub fn names() -> &'static str {
     if cfg!(all(target_os = "linux", target_arch = "aarch64")) {
         "gpu, gles or software"
     } else {
-        "gpu or software"
+        "gpu, gl or software"
     }
 }
 
@@ -70,26 +75,54 @@ fn switch_value() -> Option<String> {
         .renderer
 }
 
-/// What the command line and the environment ask for.
+/// The renderer the options file names (`[display] renderer`), the weakest of the sources. Set
+/// when the options are loaded and by the advanced page; never rewritten by a fallback.
+static WANTED: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
+
+/// The renderer the options name, if any.
+pub fn wanted() -> Option<String> {
+    WANTED.lock().ok().and_then(|w| w.clone())
+}
+
+/// Names the renderer to try first at the next start (`None`: the normal order).
+pub fn set_wanted(name: Option<String>) {
+    if let Ok(mut w) = WANTED.lock() {
+        *w = name;
+    }
+}
+
+/// What the command line, the environment and the options ask for.
 pub fn wish() -> Wish {
     let switch = switch_value();
     let env = std::env::var("RC2K_RENDERER").ok();
-    decide(switch.as_deref(), env.as_deref(), None, |source, value| {
-        crate::logfile::program_log::log(&format!(
-            "render: {source}: renderer `{value}` is not known here ({}): the default order",
-            names()
-        ));
-    })
+    let wanted = wanted();
+    decide(
+        switch.as_deref(),
+        env.as_deref(),
+        wanted.as_deref(),
+        |source, value| {
+            crate::logfile::program_log::log(&format!(
+                "render: {source}: renderer `{value}` is not known here ({}): the default order",
+                names()
+            ));
+        },
+    )
 }
 
-/// Whether a GPU renderer is to be tried.
+/// Whether the GPU API's renderer is to be tried.
 pub fn gpu_wanted() -> bool {
     wish() == Wish::GpuFirst
 }
 
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+/// Whether the OpenGL renderer is to be tried (after the GPU API's, in the default order).
+pub fn gl_wanted() -> bool {
+    matches!(wish(), Wish::GpuFirst | Wish::Gl)
+}
+
 /// With the `remote` feature, `RC2K_FAIL_RENDERER=<step>[,<step>..]` makes the named start-up
 /// steps fail, to test the fallbacks: `device`, `gpu_renderer`, `backend`, `size` (desktop),
-/// `gles` (handheld). Always false without the feature.
+/// `gl` (OpenGL, desktop), `gles` (handheld). Always false without the feature.
 pub fn forced_failure(step: &str) -> bool {
     #[cfg(feature = "remote")]
     if std::env::var("RC2K_FAIL_RENDERER").is_ok_and(|steps| steps.split(',').any(|s| s == step)) {
@@ -111,6 +144,11 @@ mod tests {
         assert_eq!(parse("gpu"), Some(Wish::GpuFirst));
         assert_eq!(parse(" Software "), Some(Wish::Software));
         assert_eq!(parse("vulkan"), None);
+        // OpenGL is a desktop backend; the handheld's GL is its `gpu`.
+        assert_eq!(
+            parse("GL"),
+            cfg!(not(all(target_os = "linux", target_arch = "aarch64"))).then_some(Wish::Gl)
+        );
     }
 
     #[test]

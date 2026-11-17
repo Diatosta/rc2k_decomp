@@ -25,6 +25,14 @@ enum Target {
 }
 
 impl Target {
+    /// The variable's number now; none for a key that has no variable here.
+    fn get(self, o: Owners<'static>) -> Option<u32> {
+        match self {
+            Target::Dword(cell) => Some(cell(o).get()),
+            Target::Unaligned(_) | Target::Ignored => None,
+        }
+    }
+
     /// The four bytes of the variable set.
     fn set(self, o: Owners<'static>, number: u32) {
         match self {
@@ -264,6 +272,23 @@ pub fn apply_settings(o: Owners<'static>, text: &[u8]) -> Result<(), BadInput> {
         ENTRIES[setting.0].1.set(o, number);
     }
     Ok(())
+}
+
+/// The number of the variable `key` names (lower case) now, if it has one here.
+pub fn value_of(o: Owners<'static>, key: &str) -> Option<u32> {
+    let (_, target) = ENTRIES.iter().find(|(k, _)| *k == key.as_bytes())?;
+    target.get(o)
+}
+
+/// Sets the variable `key` names to `number`; false when there is no such key.
+pub fn set_value(o: Owners<'static>, key: &str, number: u32) -> bool {
+    match ENTRIES.iter().find(|(k, _)| *k == key.as_bytes()) {
+        Some((_, target)) => {
+            target.set(o, number);
+            true
+        }
+        None => false,
+    }
 }
 
 pub fn read_settings(o: Owners<'static>) -> Result<(), BadInput> {

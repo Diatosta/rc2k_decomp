@@ -272,6 +272,7 @@ pub struct DrawLists {
     pub player_buttons_setup: [DrawList; 3],
     pub player_axes_draw: DrawList,
     pub player_axis_draw: DrawList,
+    pub advanced_draw: DrawList,
 }
 
 impl DrawLists {
@@ -519,6 +520,7 @@ impl DrawLists {
             player_buttons_setup: [DrawList(294), DrawList(296), DrawList(298)],
             player_axes_draw: DrawList(301),
             player_axis_draw: DrawList(302),
+            advanced_draw: DrawList(303),
         }
     }
 }

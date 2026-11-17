@@ -3,7 +3,7 @@
 
 #![deny(clippy::undocumented_unsafe_blocks)]
 
-#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+#[cfg(not(target_os = "emscripten"))]
 pub mod gl;
 #[cfg(debug_ui)]
 pub mod imgui;

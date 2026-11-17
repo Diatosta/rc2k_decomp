@@ -6,6 +6,7 @@ use crate::menu::screen_loop::Screen;
 /// One of the front end's screens.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ScreenId {
+    Advanced,
     AdvancedAudio,
     ArcadeBestScores,
     ArcadeBestTimes,
@@ -102,7 +103,8 @@ impl ScreenId {
     pub fn changes_settings(self) -> bool {
         matches!(
             self,
-            ScreenId::AdvancedAudio
+            ScreenId::Advanced
+                | ScreenId::AdvancedAudio
                 | ScreenId::AudioSetup
                 | ScreenId::InGameOptions
                 | ScreenId::Options
@@ -140,7 +142,8 @@ impl ScreenId {
 
     /// Every screen, in the order of the variants (the tests walk it).
     #[cfg(test)]
-    pub const ALL: [ScreenId; 87] = [
+    pub const ALL: [ScreenId; 88] = [
+        ScreenId::Advanced,
         ScreenId::AdvancedAudio,
         ScreenId::ArcadeBestScores,
         ScreenId::ArcadeBestTimes,
@@ -233,6 +236,7 @@ impl ScreenId {
     /// The screen's description.
     pub fn screen(self) -> &'static Screen {
         match self {
+            ScreenId::Advanced => &crate::menu::advanced_loop::SCREEN,
             ScreenId::AdvancedAudio => &crate::menu::advanced_audio_loop::SCREEN,
             ScreenId::ArcadeBestScores => &crate::menu::arcade_best_scores_loop::SCREEN,
             ScreenId::ArcadeBestTimes => &crate::menu::arcade_best_times_loop::SCREEN,

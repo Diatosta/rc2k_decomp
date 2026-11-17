@@ -48,7 +48,7 @@ Platforms:
 | Web (WebAssembly) | Experimental: it builds and starts, but does not show a picture yet. |
 
 Races are drawn on the GPU where one can be started (SDL's GPU device on the desktop,
-OpenGL ES on the handheld), otherwise by a software rasteriser. `--renderer software`
+OpenGL on a PC without one, OpenGL ES on the handheld), otherwise by a software rasteriser. `--renderer software`
 (or `RC2K_RENDERER=software`) forces the rasteriser.
 
 Measured figures:
@@ -69,7 +69,8 @@ Measured figures:
 | Anbernic RG34XXSP | Knulli or the stock system; glibc 2.35 or later. |
 
 Graphics: on the desktop the GPU renderer goes through SDL's GPU device with Vulkan
-(Windows, Linux) or Metal (macOS). Where no such device starts, the software rasteriser
+(Windows, Linux) or Metal (macOS). Where no such device starts, OpenGL 3.3 draws the 3D
+(its frames read back, slower), and where that does not start either, the software rasteriser
 draws the game and needs no GPU. On the handheld the GPU renderer needs OpenGL ES 3.0
 (the system's `libmali`), with the same fallback.
 

@@ -36,6 +36,9 @@ next `"` instead and may hold tabs.
 
 ## `var/ral.cfg`
 
+The "advanced" page of the options menu shows nine of these switches (`framecounter`, `nofmv`, `screensnapshot`, `nonlinearsteering`, `noautoneutral`, `noprecipitation`, `nomusic`, `nojoy`, `noforcefeedback`) and writes a changed one back: its first line is replaced by `key=number` (the line's ending and every other line stay), a key that was not there is added at the end. See [Differences from the original](Differences-from-the-original).
+
+
 Every value is a number. Most switches are 0 (off, the default) or 1 (on).
 
 The switches most often wanted:

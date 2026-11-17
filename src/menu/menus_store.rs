@@ -1,4 +1,4 @@
-//! The menus: the 100 lists of labels as cells (the screens that draw a menu's labels, and a
+//! The menus: the 101 lists of labels as cells (the screens that draw a menu's labels, and a
 //! 1999 slip that writes into them, walk them as a run of dwords, five to a list:
 //! `LabelTables::dword`), and the 96 menus as handles into `rc2k_core::menu::tables::MENUS`,
 //! the one source of the menus' items (their places, links, functions and starting values).
@@ -174,6 +174,8 @@ pub struct LabelTables {
     pub player_axes_labels: LabelList,
     /// One axis's page's, past those.
     pub player_axis_labels: LabelList,
+    /// The advanced page's.
+    pub advanced_labels: LabelList,
 }
 
 #[rustfmt::skip]
@@ -280,13 +282,14 @@ impl LabelTables {
         visual_options_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x37F),
         player_axes_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x398),
         player_axis_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x398),
+        advanced_labels: LabelList::new(0x310, 0x30, fonts::HEAD, rc2k_core::strings::own::id::ADVANCED),
         }
     }
 }
 
-/// The 100 label lists: the image's 98 in its order, then the axes pages' (the first 100 fields of
+/// The 101 label lists: the image's 98 in its order, then the axes pages' and the advanced page's (the first 101 fields of
 /// `LabelTables`, one after the other).
-pub fn label_lists(labels: &LabelTables) -> [&LabelList; 100] {
+pub fn label_lists(labels: &LabelTables) -> [&LabelList; 101] {
     [
         &labels.single_rally_review_labels,
         &labels.arcade_review_options_labels,
@@ -388,6 +391,7 @@ pub fn label_lists(labels: &LabelTables) -> [&LabelList; 100] {
         &labels.visual_options_labels,
         &labels.player_axes_labels,
         &labels.player_axis_labels,
+        &labels.advanced_labels,
     ]
 }
 impl LabelList {
@@ -420,7 +424,7 @@ impl LabelList {
 
 impl LabelTables {
     /// The dword at byte `at` of the lists laid end to end (any alignment, over the lists'
-    /// borders), refused past the 100th list's end.
+    /// borders), refused past the 101st list's end.
     pub fn dword(&self, at: usize) -> Result<u32, crate::errors::BadInput> {
         let lists = label_lists(self);
         let mut bytes = [0; 4];
@@ -461,7 +465,7 @@ impl LabelTables {
     }
 }
 
-const LABEL_LIST_COUNT: usize = 100;
+const LABEL_LIST_COUNT: usize = 101;
 /// A label list's length.
 const LABEL_LIST_LEN: usize = 4 * LABEL_LIST_DWORDS;
 
@@ -596,7 +600,7 @@ const FIRST_ITEM: [u16; MENUS.len() + 1] = {
     first
 };
 
-const _: () = assert!(ITEM_COUNT == 579 && MENUS.len() == MENU_COUNT as usize);
+const _: () = assert!(ITEM_COUNT == 594 && MENUS.len() == MENU_COUNT as usize);
 
 /// The state of every item, in `MENUS`' order.
 const fn item_states() -> [MenuItem; ITEM_COUNT] {
@@ -650,6 +654,7 @@ pub struct MenuTables {
     pub player4_buttons: MenuHandle,
     pub player_axes: MenuHandle,
     pub player_axis: MenuHandle,
+    pub advanced: MenuHandle,
     pub car_specification: MenuHandle,
     pub slideshow: MenuHandle,
     pub select_car: MenuHandle,
@@ -744,6 +749,7 @@ impl MenuTables {
             player4_buttons: MenuHandle(19),
             player_axes: MenuHandle(96),
             player_axis: MenuHandle(97),
+            advanced: MenuHandle(98),
             car_specification: MenuHandle(20),
             slideshow: MenuHandle(21),
             select_car: MenuHandle(22),
@@ -822,7 +828,7 @@ impl MenuTables {
 pub struct MenuId(u16);
 
 /// The number of menus.
-pub const MENU_COUNT: u16 = 98;
+pub const MENU_COUNT: u16 = 99;
 
 impl MenuId {
     fn table(self) -> &'static rc2k_core::menu::tables::Menu {
@@ -942,7 +948,7 @@ mod tests {
         assert_eq!(lists[0].end.get(), 0x1234);
         labels.set_dword(0x10, end0).unwrap();
         assert!(labels.set_dword(end - 3, 1).is_err());
-        assert_eq!(labels.dword(end - 4).unwrap(), lists[99].end.get());
+        assert_eq!(labels.dword(end - 4).unwrap(), lists[100].end.get());
         assert!(labels.set_dword(8, 99_999).is_err());
     }
 
@@ -997,6 +1003,6 @@ mod tests {
         // Handle fields are in `MENUS`' order: the first and the last.
         let tables = &crate::test_support::own::menus().tables.menus;
         assert_eq!(tables.visual_preferences.id().0, 0);
-        assert_eq!(tables.player_axis.id().0, MENU_COUNT - 1);
+        assert_eq!(tables.advanced.id().0, MENU_COUNT - 1);
     }
 }

@@ -18,9 +18,9 @@ the GPU holds the frame) and each backend's own state.
 | --- | --- | --- |
 | `Backend` | `src/render/mod.rs` | The trait a renderer implements. |
 | `Command`, `CommandList` | `src/render/mod.rs` | A frame's drawing as data. |
-| `decide`, `Wish` | `src/render/choice.rs` | Chooses the backend (`RC2K_RENDERER` can force one). |
+| `decide`, `Wish`, `wanted` | `src/render/choice.rs` | Chooses the backend (`--renderer` and `RC2K_RENDERER` can force one; the options file's renderer is the weakest source). |
 | `Gpu` | `src/render/gpu.rs` | The desktop GPU backend, on SDL's GPU API (Vulkan, Metal). |
-| `Gpu` | `src/render/gles.rs` | The OpenGL ES backend, used on the handheld. |
+| `Gpu` | `src/render/gles.rs` | The OpenGL ES backend of the handheld, and the OpenGL 3.3 one on the desktop. |
 | `batched`, `run` | `src/render/gl_batching.rs` | Prepares the OpenGL ES backend's batches on a helper thread. |
 | `Software` | `src/render/software.rs` | The software backend: splits the picture into tiles over the processor's cores. |
 | `render_scale`, `flush_scale` | `src/render/mod.rs` | The graphics page's share of the screen's size the race's 3D is drawn at; each backend draws the 3D small and enlarges it (`small_frame.rs` for the software one; the GPU ones blit between the screen's target and a second one). |

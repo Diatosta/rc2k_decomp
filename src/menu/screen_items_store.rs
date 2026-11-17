@@ -48,6 +48,7 @@ pub mod slot {
     pub const ARCADE_BEST_SCORES: usize = 42;
     pub const BEST_CLASS_SCORES: usize = 43;
     pub const BEST_OVERALL_SCORES: usize = 44;
+    pub const ADVANCED: usize = 45;
     pub const VISUAL_PREFERENCES: usize = 46;
     pub const VISUAL_OPTIONS: usize = 47;
     pub const PLAYER_AXES: usize = 48;
@@ -155,7 +156,7 @@ impl ScreenItems {
                 PlainDword::new(0x1),
                 PlainDword::new(0x1),
                 PlainDword::new(0x1),
-                PlainDword::new(0x4),
+                PlainDword::new(0x2),
                 PlainDword::new(0x2),
                 PlainDword::new(0x1),
                 PlainDword::new(0x2),
@@ -260,7 +261,7 @@ impl ScreenItems {
                 PlainDword::new(0x1),
                 PlainDword::new(0x1),
                 PlainDword::new(0x1),
-                PlainDword::new(0x4),
+                PlainDword::new(0x2),
                 PlainDword::new(0x2),
                 PlainDword::new(0x1),
                 PlainDword::new(0x1),

@@ -9,14 +9,13 @@ pub mod batches;
 pub mod canvas_rows;
 pub mod choice;
 pub mod dump;
-#[cfg(any(test, all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(any(test, not(target_os = "emscripten")))]
 pub mod gl_batching;
-#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+#[cfg(not(target_os = "emscripten"))]
 pub mod gles;
 // Built for tests on every machine; only the handheld's GL thread uses it.
 pub mod gpu_cut;
-#[cfg(any(test, all(target_os = "linux", target_arch = "aarch64")))]
-#[cfg_attr(not(target_arch = "aarch64"), allow(dead_code))]
+#[cfg(any(test, not(target_os = "emscripten")))]
 pub mod gpu_time;
 // The handheld has no Vulkan: its GPU is reached through `gles`, by the same name here.
 #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
@@ -150,7 +149,7 @@ impl CommandList {
 
     /// The textures the fans read, each once, in the order they are first read (for the
     /// handheld's GL, which brings them up).
-    #[cfg(any(test, all(target_os = "linux", target_arch = "aarch64")))]
+    #[cfg(any(test, not(target_os = "emscripten")))]
     pub fn textures(&self) -> &[TextureNote] {
         &self.textures
     }
@@ -374,6 +373,17 @@ pub fn draw(screen: (usize, usize), racing: bool, target: &Target, commands: Com
             return;
         }
     }
+    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    if target.bits == 32
+        && let Some(gl) = gles::GPU.lock().unwrap().as_mut()
+    {
+        if !GPU_HOLDS_FRAME.swap(true, Relaxed) {
+            target.note_all_rows_written();
+        }
+        GPU_DREW_THIS_FRAME.store(true, Relaxed);
+        Backend::draw(gl, target, commands);
+        return;
+    }
     give_frame_back(target);
     // Whatever was noted for a GPU is on the canvas before the rasteriser draws.
     crate::gfx::draw2d::quads::before_canvas_write();
@@ -388,6 +398,16 @@ pub fn frame_on_gpu() -> bool {
 
 /// The GPU's picture back in the canvas, if it holds the frame and something wants the true one.
 pub fn bring_back(target: &Target) {
+    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    if GPU_HOLDS_FRAME.load(Relaxed)
+        && let Some(gl) = gles::GPU.lock().unwrap().as_mut()
+    {
+        // SAFETY: as below: the game's thread waits for this call and no other slice of the
+        // canvas lives.
+        gl.bring_back(target, unsafe { target.bytes() });
+        target.note_all_rows_written();
+        return;
+    }
     if GPU_HOLDS_FRAME.load(Relaxed)
         && let Some(gpu) = gpu::GPU.lock().unwrap().as_mut()
     {
@@ -435,8 +455,14 @@ pub fn finish_frame(
     if !GPU_HOLDS_FRAME.load(Relaxed) {
         return None;
     }
-    if !frame_stays_on_gpu(course) {
+    // The OpenGL backend's frame is read back at each frame's end, for SDL's renderer to show
+    // as the canvas.
+    let stays = frame_stays_on_gpu(course);
+    if !stays || gles::GPU.lock().unwrap().is_some() {
         give_frame_back(target);
+        if stays {
+            seethru::frame_end();
+        }
         return None;
     }
     let mut gpu = gpu::GPU.lock().unwrap();
@@ -524,6 +550,25 @@ pub(crate) fn gpu_stopped() {
     crate::gfx::draw2d::quads::gpu_changed();
     background::clear();
     *CHANGED_TEXTURES.lock().unwrap() = None;
+}
+
+/// Whether the desktop's OpenGL backend is the one running (the handheld's GL ES is its GPU
+/// renderer, `gpu_running`).
+pub fn gl_running() -> bool {
+    #[cfg(not(any(
+        all(target_os = "linux", target_arch = "aarch64"),
+        target_os = "emscripten"
+    )))]
+    {
+        gles::GPU.lock().unwrap().is_some()
+    }
+    #[cfg(any(
+        all(target_os = "linux", target_arch = "aarch64"),
+        target_os = "emscripten"
+    ))]
+    {
+        false
+    }
 }
 
 /// Whether a GPU backend is running: what started, not what was asked for.

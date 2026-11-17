@@ -170,6 +170,9 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn) -> Result<(), Refused> {
             Ok(())
         }
         ItemFn::AxesLoop => player_axes_loop::run(o),
+        ItemFn::AdvancedLoop => crate::menu::advanced_loop::run(o),
+        ItemFn::AdvancedStep { row, up } => crate::menu::advanced_items::step(o, row, up),
+        ItemFn::ApplyAdvanced => crate::menu::advanced_items::apply(o),
         ItemFn::TurnControlsPage => {
             axes_items::turn_controls_page(
                 &menus.screens.controls,
@@ -553,6 +556,9 @@ pub fn screen_fn(o: Owners<'static>, f: ScreenFn) -> Result<(), Refused> {
         .map(|_| ()),
         ScreenFn::DrawControllerPage => {
             controller::draw_controller_page(o, o.input, &mut GameCanvas::new(o.gfx)).map(|_| ())
+        }
+        ScreenFn::DrawAdvanced => {
+            crate::screens::advanced_page::draw_advanced(o, &mut GameCanvas::new(o.gfx))
         }
         ScreenFn::DrawAxesPage => {
             axes_page::draw_axes_page(o, o.input, &mut GameCanvas::new(o.gfx))

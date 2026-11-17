@@ -165,8 +165,27 @@ number of channels, and which kind of output. The menus and the race each have t
 | Quality | Three levels; lower ones halve the samples' rate. |
 | Channels | How many sounds can be heard at once. |
 | 3D sound | Sounds are placed in 3D by the output instead of by volume and pan. |
-| EAX | 3D sound with a reverb room chosen per stage. The room is chosen and kept; no reverb is produced. |
+| EAX | 3D sound with a reverb room chosen per stage. The room is chosen and kept; the reverb heard is the program's own (below), not a card's. |
 | Dolby | The game mixes all channels itself (`src/audio/mixer.rs`, `mix_channels.rs`) and writes the result to the primary buffer. |
+
+### The reverb
+
+The original asked EAX 1 sound cards for a reverb room (ten presets: a reverb environment, a
+volume, a decay time and a damping each) and weighed the course around the car to move it; no
+such card exists on a current system, so the original is silent here. The program has a reverb
+of its own in the device mixer (`src/platform/sound.rs`, the network in `rc2k_core::audio::
+reverb`): eight damped feedback combs and four all-passes a side (a Freeverb-style network, the
+right ear's lines a few samples longer). The decay time of the room sets the combs' feedback so
+that the tail falls by 60 dB in that time, the damping how fast the high frequencies die in the
+loop, and the room's volume the tail's level. The sounds that have a place in the race's world
+(the cars, the stage's sounds; not the menus, the music or the co-driver) are sent to it, as much
+as the room's volume and the weight of the course around the listening view give (the weight the
+original computed: a race starts at 1.0, open country is near 0, a wall or tunnel beside the road
+makes it many times that; a fifth of the room's fullest tail is sent at weight 1.0 and four fifths at 16). In
+split screen each player's car sounds follow that player's own view's weight; every other sound
+the first view's. The room a race asks for is room 3 (a short, light tail), as the original.
+The sound page's "reverb" row turns it off (`[sound] reverb = false` in `var/rc2k.toml`); it
+costs about 0.14% of a processor core. The Dolby mode's own mixer has no reverb.
 
 The original's page had a sixth option, A3D (Aureal's 3D sound, for sound cards of 1999). No
 system has it any more, so the option is gone and Dolby stands in its row. An options file that

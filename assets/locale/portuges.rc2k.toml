@@ -105,6 +105,7 @@ done = "pronto"
 [options]
 background_sound = "som fora da janela"
 film_volume = "volume dos filmes"
+reverb = "reverberação"
 network_port = "porta"
 
 # The graphics page's frame limit.
@@ -118,6 +119,27 @@ render_scale = "resolução 3D"
 # The network lobby.
 [lobby]
 save_replay = "gravar repetição"
+
+# A página avançada: o que cada linha muda, e quando (no nome, ou "próximo início" ao lado do valor).
+[advanced]
+title = "avançado"
+threads = "processos de desenho"
+renderer = "renderizador (próximo início)"
+frame_counter = "contador de quadros"
+films = "filmes"
+screenshots = "capturas de ecrã"
+nonlinear_steering = "direção não linear"
+automatic_neutral = "ponto morto automático"
+rain_and_snow = "chuva e neve (próxima corrida)"
+music = "música (próximo início)"
+joysticks = "joysticks (próximo início)"
+force_feedback = "force feedback (próximo início)"
+gpu = "GPU"
+software = "software"
+gles = "OpenGL ES"
+gl = "OpenGL"
+next_start = "próximo início"
+apply = "aplicar"
 
 [kick]
 not_host = "Só o anfitrião pode expulsar um jogador."

@@ -101,6 +101,14 @@ pub struct Display {
         with = "crate::gfx::render_scale::as_option"
     )]
     pub render_scale: u32,
+    /// The renderer tried first at start (`"gpu"` or `"software"`; the advanced page sets it).
+    /// Only in the new file; left out when nothing was chosen, which is the normal order.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub renderer: Option<String>,
+    /// How many parts of a frame may be drawn at once (1 = one after another); only in the new
+    /// file, left out for as many as the machine has cores.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub draw_threads: Option<u32>,
 }
 
 impl Default for Display {
@@ -111,12 +119,18 @@ impl Default for Display {
             mipmapping: 0,
             frame_limit: Default::default(),
             render_scale: crate::gfx::render_scale::DEFAULT,
+            renderer: None,
+            draw_threads: None,
         }
     }
 }
 
 /// The films' volume at its fullest (the sliders' range is 0 ..= 0x40).
 pub const FILM_VOLUME_FULL: u32 = 0x40;
+
+fn reverb_on() -> bool {
+    true
+}
 
 fn film_volume_full() -> u32 {
     FILM_VOLUME_FULL
@@ -159,6 +173,9 @@ pub struct Sound {
     /// when missing).
     #[serde(default)]
     pub sound_in_background: bool,
+    /// Whether the race's sounds go through a reverb (only in the new file; on when missing).
+    #[serde(default = "reverb_on")]
+    pub reverb: bool,
 }
 
 impl Default for Sound {
@@ -182,6 +199,7 @@ impl Default for Sound {
             engine_volume: 0,
             film_volume: FILM_VOLUME_FULL,
             sound_in_background: false,
+            reverb: true,
         }
     }
 }

@@ -82,7 +82,7 @@ More on [Network play](Network-play).
 - Controllers are read from a race's first moment (the original's input thread slept a second
   at each race's start), and at once after coming back to the window.
 - A loading bar is shown while a stage loads.
-- The volume page has a "film volume" slider (the intro and logo films), the sound page a "sound when not in front" row (the original's sounds went quiet while its window was behind), and the network settings page a "port" row ([Options files](Options-files), [Network play](Network-play)).
+- The volume page has a "film volume" slider (the intro and logo films), the sound page a "sound when not in front" row (the original's sounds went quiet while its window was behind) and a "reverb" row (a reverb of the program's own for the race's sounds, from the original's EAX room presets and the weights of the course around each view), and the network settings page a "port" row ([Options files](Options-files), [Network play](Network-play)).
 - The hidden Pong game on the windscreen can be played: the bat follows player 1's steering ([Fixed bugs](Fixed-bugs)).
 - The loading screen does not hold up the load: the loading picture is shown once (the
   original showed it once for each page of its screen), and a bar frame is drawn only when
@@ -104,6 +104,19 @@ More on [Network play](Network-play).
   on both GPU renderers, and is kept in `[display]` as `render_scale` (50, 75 or 100; left out
   for 100). The handheld's software rasteriser no longer draws races at half size by itself:
   set the row to 50 % there.
+- The options menu has an "advanced" item after the original's, opening a page of our own. Its
+  rows: how many parts of a frame may be drawn at once (1 up to the machine's cores, at most 4:
+  the mirror beside its view needs 2, the split-screen players' views and mirrors beside each
+  other 4; read at each frame, so a change shows at the next one); the renderer tried first at
+  the next start (GPU or software; the running one is not swapped, and the page says "next
+  start" beside a value that differs from it); and switches of `var/ral.cfg`: frame counter,
+  films, screenshots, non-linear steering, automatic neutral (all at once), rain and snow (the
+  next race) and music, joysticks, force feedback (the next start). The page shows the feature,
+  not its absence (`nofmv=1` shows as "films: off"). "Apply" sets the live variables, writes
+  the changed keys into `var/ral.cfg` (the key's line is replaced, the others kept; a missing
+  key is added) and keeps the other two rows in `var/rc2k.toml`'s `[display]` table as
+  `renderer` and `draw_threads` (both left out until chosen; the renderer is the weakest of
+  the sources after `--renderer` and `RC2K_RENDERER`, and a fallback never rewrites it).
 - The developers' debug pages, unreachable in the released game, are a window over the game
   ([The debug window](The-debug-window)). Not in the 32-bit Windows build or on the handheld.
 

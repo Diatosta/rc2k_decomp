@@ -83,10 +83,10 @@ mod tests {
 
     #[test]
     fn counts() {
-        assert_eq!(MENUS.len(), 98);
-        assert_eq!(MENUS.iter().map(|m| m.items.len()).sum::<usize>(), 579);
+        assert_eq!(MENUS.len(), 99);
+        assert_eq!(MENUS.iter().map(|m| m.items.len()).sum::<usize>(), 594);
         assert_eq!(MENUS.iter().filter(|m| !m.referenced).count(), 8);
-        assert_eq!(LISTS.len(), 303);
+        assert_eq!(LISTS.len(), 304);
         assert_eq!(LISTS.iter().filter(|l| !l.referenced).count(), 10);
     }
 
@@ -110,8 +110,8 @@ mod tests {
         );
     }
 
-    const FROZEN_MENUS: u64 = 0xc40f_e0a3_f623_eac2;
-    const FROZEN_LISTS: u64 = 0x4487_8981_b5fd_a0de;
+    const FROZEN_MENUS: u64 = 0x2e5d_cd39_e23c_f41f;
+    const FROZEN_LISTS: u64 = 0xa9db_5fd8_cdce_a49a;
 
     #[test]
     fn the_lists_of_all_are_whole() {

@@ -208,7 +208,7 @@ name.
 
 | Switch | Effect |
 | --- | --- |
-| `--renderer <gpu \| software>` | What draws the 3D. `gpu` (the default): the GPU first, the software rasteriser if no GPU renderer starts. `software`: the rasteriser only, which needs no GPU and uses several processor cores. On the handheld `gles` is another name for `gpu`. Any other value stops the program before anything loads, with the names that are valid. The switch wins over the environment variable `RC2K_RENDERER`. The log's `render:` lines say which renderer started. |
+| `--renderer <gpu \| gl \| software>` | What draws the 3D. `gpu` (the default): the GPU API first, then OpenGL 3.3, then the software rasteriser, each if the one before does not start. `gl`: OpenGL (desktop only), the rasteriser if it does not start. `software`: the rasteriser only, which needs no GPU and uses several processor cores. On the handheld `gles` is another name for `gpu`. Any other value stops the program before anything loads, with the names that are valid. The switch wins over the environment variable `RC2K_RENDERER`, and that over the renderer the advanced page keeps in `var/rc2k.toml`. The log's `render:` lines say which renderer started. |
 | `--allow-another` | Start although another copy of the program already runs in this folder. Without it the second copy stops at once with a message that names this switch. |
 | `--instance <1 .. 8>` | Run as that numbered instance of the folder, beside the others, with nothing written by two at once: its own lock (`rc2k.lock`, `rc2k.lock.<n>`; a taken one stops the start), log (`rc2k-<n>.log`) and, from 2 up, its own `var` and `savedata` folders in `instances/<n>/` (the options, best times, saved games, replays, snapshots, the game's log and the debug window's layout). The first start of an instance copies the folder's `var` files (not the game's log) so it begins with the same options; its `savedata` begins empty. Shared and read only: the game's `files`, films and languages. Shared and to be told apart by the player: the network port (give each hosting instance its own with `--port`), the controllers and the sound device. `--instance 1` is the folder's own folders. |
 | `--game-data <folder \| zip>` | Where to take the game's data from when the program's folder has none. Without it, the first-run page opens (see below). |
@@ -287,7 +287,7 @@ Two are useful to anyone (`RC2K_RENDERER` has a switch of its own, `--renderer`,
 
 | Variable | Effect |
 | --- | --- |
-| `RC2K_RENDERER` | Same as `--renderer`, which outranks it: `software` draws with the software rasteriser instead of the GPU. `gpu` (or nothing) is the default: the GPU first, the rasteriser if no GPU renderer starts. On the handheld `gles` means the same as `gpu`. An unknown value is noted in the log and ignored. |
+| `RC2K_RENDERER` | Same as `--renderer`, which outranks it: `software` draws with the software rasteriser instead of the GPU. `gl` asks for OpenGL (desktop). `gpu` (or nothing) is the default: the GPU API first, then OpenGL, then the rasteriser. On the handheld `gles` means the same as `gpu`. An unknown value is noted in the log and ignored. |
 | `RC2K_FRAMES` | A number: the program ends itself after that many pictures and leaves the last one in `rc2k_frame.raw`. For quick automated checks. |
 
 The rest are diagnostics for people working on the code. They change nothing unless set.
@@ -308,6 +308,7 @@ The rest are diagnostics for people working on the code. They change nothing unl
 | `RC2K_GPU_CUT` | A list of names (`fog`, `alpha`, `tex`, `blend`, ...): each removes one kind of GPU work, to see what it costs. The picture is wrong under a cut. |
 | `RC2K_GPU_TIME` | A number n: every n-th frame, measure how long the GPU still needed after the last command. |
 | `RC2K_GL_BENCH`, `RC2K_BREAKS_DUMP`, `RC2K_SEETHRU_AREA`, `RC2K_SEETHRU_DUMP` | Measurements of the handheld's OpenGL ES drawing. |
+| `RC2K_MIX_WAV` | With a remote build: the sound mixed in a race (fixed 20 ms turns, as `RC2K_MIX_HASH`) written to this WAV file (16-bit stereo, 44100 Hz), to listen to without an audio device. |
 | `RC2K_SIM_HASH`, `RC2K_SIM_CHUNKS`, `RC2K_FAN_HASH`, `RC2K_SOUND_HASH`, `RC2K_MIX_HASH`, `RC2K_COURSE_HASH` | Log a running hash of the simulation, the drawing commands, the sound commands, the mixed sound or the loaded course, to compare two runs. |
 | `RC2K_DIR` | Web build only: the folder the game's files are in. |
 

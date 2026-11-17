@@ -179,7 +179,7 @@ and clips every triangle itself and hands finished, screen-space triangles to a 
 | Backend | File | Used |
 | --- | --- | --- |
 | GPU, through SDL's GPU API | `src/render/gpu.rs` | Desktop, by default. |
-| OpenGL ES | `src/render/gles.rs` | The handheld. |
+| OpenGL / OpenGL ES | `src/render/gles.rs` | The handheld, and the desktop after the GPU API. |
 | Software rasteriser | `src/render/software.rs`, `src/render/rasteriser.rs` | Fallback, and by choice (`RC2K_RENDERER=software`). |
 
 Menus and text are drawn by the game's own 2D code (`src/gfx/`, `src/text/`) into a picture in

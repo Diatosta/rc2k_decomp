@@ -40,7 +40,10 @@ pub fn car_sounds_all(
             continue;
         }
         if o.sound_offset.get() as i32 >= 0 {
-            crate::sound::car_sounds::car_sounds(n, sound, race, system, audio)?;
+            // A player's car: its sounds go to the reverb of that player's view.
+            crate::audio::reverb_views::playing_for(n as usize, || {
+                crate::sound::car_sounds::car_sounds(n, sound, race, system, audio)
+            })?;
             continue;
         }
         x87_1(o, &sound.race.sounds.get().nearest_distance);

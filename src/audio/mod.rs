@@ -31,6 +31,7 @@ pub mod read_sample_of;
 pub mod release_eax;
 pub mod release_voice;
 pub mod release_voice_manager;
+pub mod reverb_views;
 pub mod sample_data;
 pub mod sample_mode;
 pub mod samples;

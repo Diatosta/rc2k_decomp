@@ -234,6 +234,12 @@ fn set_screen_mode(
             let gpu_renderer = start_gpu_renderer(window);
             #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
             let gpu_renderer: Option<sdl::Renderer> = None;
+            // Next in the order: OpenGL, which shows its frames read back into the canvas through
+            // SDL's own renderer (`render::gles`).
+            #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+            if gpu_renderer.is_none() {
+                crate::render::gles::start_on_window();
+            }
             let renderer = match gpu_renderer {
                 Some(renderer) => Some(renderer),
                 None => sdl::create_renderer(window),
@@ -247,7 +253,7 @@ fn set_screen_mode(
                 if cfg!(all(target_os = "linux", target_arch = "aarch64")) {
                     ""
                 } else if crate::render::gpu_running() {
-                    ", the 3D on the GPU backend"
+                    ", the 3D on a GPU backend"
                 } else {
                     ", the 3D on the software rasteriser"
                 }
@@ -331,7 +337,9 @@ fn set_screen_mode(
 #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
 fn start_gpu_renderer(window: sdl::Window) -> Option<sdl::Renderer> {
     if !crate::render::gpu::wanted() {
-        log("render: the software rasteriser draws the 3D (--renderer or RC2K_RENDERER)");
+        if !crate::render::gles::wanted() {
+            log("render: the software rasteriser draws the 3D (--renderer or RC2K_RENDERER)");
+        }
         return None;
     }
     let device = if crate::render::choice::forced_failure("device") {

@@ -17,25 +17,24 @@ use std::ffi::{CStr, CString, c_char, c_void};
 type P = *mut c_void;
 
 macro_rules! library {
-    ($($name:ident: fn($($arg:ty),*) $(-> $ret:ty)?;)*) => {
+    ($table:ident { $($name:ident: fn($($arg:ty),*) $(-> $ret:ty)?;)* }) => {
         #[allow(non_snake_case)] // the library's names
-        struct Table { $($name: unsafe extern "C" fn($($arg),*) $(-> $ret)?,)* }
-        impl Table {
-            fn open() -> Result<Table, String> {
-                // SAFETY: a constant name; each symbol is cast to the type the Khronos
-                // headers give it, and the library stays open for the program's life.
+        struct $table { $($name: unsafe extern "C" fn($($arg),*) $(-> $ret)?,)* }
+        impl $table {
+            /// Every entry point, each found by `lookup` (a name ended by a NUL, a null pointer
+            /// for one that does not exist).
+            fn load(lookup: &dyn Fn(&CStr) -> P) -> Result<$table, String> {
+                // SAFETY: each symbol is cast to the type the Khronos headers give it; the
+                // library it comes from stays open for the program's life.
                 unsafe {
-                    let handle = libc::dlopen(c"/usr/lib/libmali.so".as_ptr(), libc::RTLD_NOW);
-                    if handle.is_null() {
-                        return Err("no /usr/lib/libmali.so".into());
-                    }
-                    Ok(Table { $($name: {
-                        let symbol = libc::dlsym(
-                            handle,
-                            concat!(stringify!($name), "\0").as_ptr().cast(),
+                    Ok($table { $($name: {
+                        let symbol = lookup(
+                            CStr::from_bytes_with_nul_unchecked(
+                                concat!(stringify!($name), "\0").as_bytes(),
+                            ),
                         );
                         if symbol.is_null() {
-                            return Err(concat!("libmali has no ", stringify!($name)).into());
+                            return Err(concat!("the GL has no ", stringify!($name)).into());
                         }
                         std::mem::transmute::<*mut c_void, unsafe extern "C" fn($($arg),*) $(-> $ret)?>(symbol)
                     },)* })
@@ -44,7 +43,8 @@ macro_rules! library {
         }
     };
 }
-library! {
+#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+library! { Egl {
     eglGetDisplay: fn(P) -> P;
     eglInitialize: fn(P, *mut i32, *mut i32) -> u32;
     eglChooseConfig: fn(P, *const i32, *mut P, i32, *mut i32) -> u32;
@@ -55,6 +55,8 @@ library! {
     eglSwapInterval: fn(P, i32) -> u32;
     eglBindAPI: fn(u32) -> u32;
     eglGetError: fn() -> i32;
+} }
+library! { Table {
     glCreateShader: fn(u32) -> u32;
     glShaderSource: fn(u32, i32, *const *const c_char, *const i32);
     glCompileShader: fn(u32);
@@ -117,16 +119,77 @@ library! {
     glActiveTexture: fn(u32);
     glDeleteBuffers: fn(i32, *const u32);
     glDeleteVertexArrays: fn(i32, *const u32);
+} }
+
+/// Where the context's frames go, and what keeps the context alive.
+enum Surface {
+    /// The handheld's framebuffer device through libmali's EGL.
+    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    Panel { egl: Egl, display: P, surface: P },
+    /// An SDL window's context (a hidden one: the frames are read back).
+    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    Window(*mut sdl3_sys::everything::SDL_Window),
 }
 
-/// The GL's and EGL's entry points, and the panel's display and surface, with the context
-/// current on the thread that made it.
+/// The GL's entry points and the surface its context draws to, with the context current on the
+/// thread that made it.
 pub struct Gles {
     table: Table,
-    display: P,
-    surface: P,
+    surface: Surface,
+    /// Whether this is a desktop OpenGL context, whose shader language names its version
+    /// differently from ES's.
+    desktop: bool,
     /// Keeps the type off `Send` and `Sync`: the context is current on one thread.
     _one_thread: std::marker::PhantomData<*const ()>,
+}
+
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+/// A hidden SDL window made for an OpenGL context, handed to the thread that makes the context
+/// current there (`Gles::open_window`).
+pub struct GlWindow(*mut sdl3_sys::everything::SDL_Window);
+
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+// SAFETY: the pointer is a window nothing else uses; it moves to the one thread that makes the
+// context on it and keeps it.
+unsafe impl Send for GlWindow {}
+
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+impl GlWindow {
+    /// A hidden window with an OpenGL 3.3 core context asked for, made on the calling thread
+    /// (the one that made the game's window). `None` when SDL cannot, with its message.
+    pub fn new() -> Result<GlWindow, String> {
+        use sdl3_sys::everything::*;
+        // SAFETY: plain attribute values and a NUL-ended title; SDL is initialised (the game's
+        // window exists).
+        unsafe {
+            SDL_GL_ResetAttributes();
+            SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+            SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+            SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE.0);
+            SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 0);
+            let window = SDL_CreateWindow(
+                c"rc2k GL".as_ptr(),
+                64,
+                64,
+                SDL_WindowFlags(SDL_WINDOW_OPENGL.0 | SDL_WINDOW_HIDDEN.0),
+            );
+            if window.is_null() {
+                return Err(format!("SDL makes no OpenGL window: {}", sdl_error()));
+            }
+            Ok(GlWindow(window))
+        }
+    }
+}
+
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+/// SDL's last error message.
+fn sdl_error() -> String {
+    // SAFETY: SDL gives a NUL-ended string that stays valid until its next call; copied here.
+    unsafe {
+        CStr::from_ptr(sdl3_sys::everything::SDL_GetError())
+            .to_string_lossy()
+            .into_owned()
+    }
 }
 
 /// The bytes of `width` x `height` RGBA pixels, for a call that reads them.
@@ -135,59 +198,104 @@ fn pixel_bytes(width: i32, height: i32) -> usize {
     width.max(0) as usize * height.max(0) as usize * 4
 }
 
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+impl Gles {
+    /// Makes an OpenGL context on `window` current on this thread and finds the entry points
+    /// by SDL.
+    pub fn open_window(window: GlWindow) -> Result<Gles, String> {
+        use sdl3_sys::everything::*;
+        let window = window.0;
+        // SAFETY: the window is ours alone and made for OpenGL; the context stays current on
+        // this thread, which keeps the `Gles`; each name is NUL-ended.
+        unsafe {
+            let context = SDL_GL_CreateContext(window);
+            if context.is_null() {
+                return Err(format!("no OpenGL context: {}", sdl_error()));
+            }
+            if !SDL_GL_MakeCurrent(window, context) {
+                return Err(format!(
+                    "the OpenGL context is not made current: {}",
+                    sdl_error()
+                ));
+            }
+            SDL_GL_SetSwapInterval(0);
+            let table = Table::load(&|name| match SDL_GL_GetProcAddress(name.as_ptr()) {
+                Some(function) => function as P,
+                None => std::ptr::null_mut(),
+            })?;
+            Ok(Gles {
+                table,
+                surface: Surface::Window(window),
+                desktop: true,
+                _one_thread: std::marker::PhantomData,
+            })
+        }
+    }
+}
+
 impl Gles {
     /// Opens the library, makes an OpenGL ES 3 context current on the framebuffer device's
     /// `width` x `height` window (leaked: libmali holds on to it).
+    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
     pub fn open_panel(width: u16, height: u16) -> Result<Gles, String> {
-        let table = Table::open()?;
+        // SAFETY: a constant name; each symbol is looked up by name and the library stays open
+        // for the program's life.
+        let handle = unsafe { libc::dlopen(c"/usr/lib/libmali.so".as_ptr(), libc::RTLD_NOW) };
+        if handle.is_null() {
+            return Err("no /usr/lib/libmali.so".into());
+        }
+        // SAFETY: `handle` is the open library; the names are NUL-ended.
+        let lookup = |name: &CStr| unsafe { libc::dlsym(handle, name.as_ptr()) };
+        let egl = Egl::load(&lookup)?;
+        let table = Table::load(&lookup)?;
         // SAFETY: EGL's calls with the values their documents ask for; the attribute lists are
         // ended by EGL_NONE and live through their calls; the window record's lifetime is the
         // program's.
         unsafe {
-            let display = (table.eglGetDisplay)(std::ptr::null_mut());
+            let display = (egl.eglGetDisplay)(std::ptr::null_mut());
             let (mut major, mut minor) = (0, 0);
-            if (table.eglInitialize)(display, &raw mut major, &raw mut minor) == 0 {
-                return Err(format!("eglInitialize: {:#x}", (table.eglGetError)()));
+            if (egl.eglInitialize)(display, &raw mut major, &raw mut minor) == 0 {
+                return Err(format!("eglInitialize: {:#x}", (egl.eglGetError)()));
             }
             let wanted = [
                 0x3024, 8, 0x3023, 8, 0x3022, 8, 0x3033, 4, 0x3040, 0x40, 0x3038i32,
             ];
             let (mut config, mut found) = (std::ptr::null_mut(), 0);
-            (table.eglChooseConfig)(display, wanted.as_ptr(), &raw mut config, 1, &raw mut found);
+            (egl.eglChooseConfig)(display, wanted.as_ptr(), &raw mut config, 1, &raw mut found);
             if found == 0 {
                 return Err("EGL has no such config".into());
             }
-            (table.eglBindAPI)(0x30A0);
+            (egl.eglBindAPI)(0x30A0);
             #[repr(C)]
             struct FbdevWindow {
                 width: u16,
                 height: u16,
             }
             let window = Box::leak(Box::new(FbdevWindow { width, height }));
-            let surface = (table.eglCreateWindowSurface)(
+            let surface = (egl.eglCreateWindowSurface)(
                 display,
                 config,
                 std::ptr::from_mut(window).cast(),
                 std::ptr::null(),
             );
             let attributes = [0x3098, 3, 0x3038i32];
-            let context = (table.eglCreateContext)(
-                display,
-                config,
-                std::ptr::null_mut(),
-                attributes.as_ptr(),
-            );
+            let context =
+                (egl.eglCreateContext)(display, config, std::ptr::null_mut(), attributes.as_ptr());
             if surface.is_null()
                 || context.is_null()
-                || (table.eglMakeCurrent)(display, surface, surface, context) == 0
+                || (egl.eglMakeCurrent)(display, surface, surface, context) == 0
             {
-                return Err(format!("the EGL context: {:#x}", (table.eglGetError)()));
+                return Err(format!("the EGL context: {:#x}", (egl.eglGetError)()));
             }
-            (table.eglSwapInterval)(display, 0);
+            (egl.eglSwapInterval)(display, 0);
             Ok(Gles {
                 table,
-                display,
-                surface,
+                surface: Surface::Panel {
+                    egl,
+                    display,
+                    surface,
+                },
+                desktop: false,
                 _one_thread: std::marker::PhantomData,
             })
         }
@@ -195,12 +303,39 @@ impl Gles {
 
     #[inline]
     pub fn swap_buffers(&self) {
-        // SAFETY: the display and surface made in `open_panel`, current on this thread.
-        unsafe { (self.table.eglSwapBuffers)(self.display, self.surface) };
+        match &self.surface {
+            #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+            Surface::Panel {
+                egl,
+                display,
+                surface,
+            } => {
+                // SAFETY: the display and surface made in `open_panel`, current on this thread.
+                unsafe { (egl.eglSwapBuffers)(*display, *surface) };
+            }
+            #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+            Surface::Window(window) => {
+                // SAFETY: the window `open_window` made the context on, current on this thread.
+                unsafe { sdl3_sys::everything::SDL_GL_SwapWindow(*window) };
+            }
+        }
     }
 
     /// A shader of `kind` made from `text`; the compiler's log (up to 600 bytes) on failure.
+    ///
+    /// The sources are written for ES 3.0 (`#version 300 es`); a desktop context gets the same
+    /// text under desktop GLSL 3.30's version line, which takes the rest unchanged.
     pub fn compile_shader(&self, kind: u32, text: &CStr) -> Result<u32, String> {
+        let desktop_text;
+        let text = match text.to_bytes().strip_prefix(b"#version 300 es") {
+            Some(rest) if self.desktop => {
+                let mut bytes = b"#version 330 core".to_vec();
+                bytes.extend_from_slice(rest);
+                desktop_text = CString::new(bytes).map_err(|_| "a shader holds a NUL")?;
+                desktop_text.as_c_str()
+            }
+            _ => text,
+        };
         // SAFETY: the text lives through the call, ended by its NUL; the log's room is given.
         unsafe {
             let shader = (self.table.glCreateShader)(kind);

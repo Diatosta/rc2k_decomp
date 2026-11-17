@@ -1,5 +1,10 @@
-//! The GPU backend on the handheld: OpenGL ES 3 through the system's `libmali` (no Vulkan driver
-//! there, and SDL has no display for it), drawing to `/dev/fb0` through its EGL. The same frame
+//! The OpenGL backend. On the handheld it is the GPU backend: OpenGL ES 3 through the system's
+//! `libmali` (no Vulkan driver there, and SDL has no display for it), drawing to `/dev/fb0`
+//! through its EGL. On a PC it is the one after the GPU API in the default order, for machines
+//! without Vulkan, Direct3D 12 or Metal: an OpenGL 3.3 core context on a hidden SDL window,
+//! drawing into its own target, which each frame's end reads back into the canvas for SDL's 2D
+//! renderer to show (the shaders are the handheld's, under desktop GLSL's version line,
+//! `Gles::compile_shader`). The same frame
 //! as `gpu`'s: `batches`' lists, and before each part's 3D the retained background, the canvas's
 //! written pixels and the 2D quads (`layer2d`) put over the target. The GL's own thread holds
 //! the context and does the driver's work (a quarter of a frame's time on this processor); the
@@ -488,17 +493,21 @@ struct CanvasTexture {
 
 pub static GPU: Mutex<Option<Front>> = Mutex::new(None);
 
-/// Whether the GPU is to be tried: unless `--renderer software` or `RC2K_RENDERER=software`.
+/// Whether the GL is to be tried: unless `--renderer software` or `RC2K_RENDERER=software` (on a
+/// PC also not when another renderer is the only one asked for).
 pub fn wanted() -> bool {
-    super::choice::gpu_wanted()
+    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    return super::choice::gpu_wanted();
+    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    super::choice::gl_wanted()
 }
 
 impl Gpu {
-    fn new() -> Result<Gpu, String> {
-        if super::choice::forced_failure("gles") {
+    fn new(open: impl FnOnce() -> Result<Gles, String>) -> Result<Gpu, String> {
+        if super::choice::forced_failure(FAILURE_STEP) {
             return Err("made to fail".into());
         }
-        let gl = Gles::open_panel(PANEL.0 as u16, PANEL.1 as u16)?;
+        let gl = open()?;
         if let Some(line) = Cuts::start_from_env() {
             log(&line);
         }
@@ -1581,6 +1590,7 @@ impl Front {
     }
 
     /// The frame's end: what the canvas has written over the target, and the target shown.
+    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
     pub fn finish_and_show(&mut self, target: &Target, canvas: &mut [u8]) {
         self.draw(target, canvas, CommandList::new());
         super::seethru::frame_end();
@@ -1588,6 +1598,7 @@ impl Front {
     }
 
     /// A picture of the game's bytes on the panel.
+    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
     pub fn show_picture(&mut self, frame: &[u8], width: usize, height: usize) {
         self.send(Job::ShowPicture {
             frame: frame.to_vec(),
@@ -1684,8 +1695,44 @@ fn blend_factor(factor: u32) -> u32 {
     }
 }
 
-/// Starts the GL's thread if it is wanted.
+/// The name `RC2K_FAIL_RENDERER` gives to this backend's start.
+#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+const FAILURE_STEP: &str = "gles";
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+const FAILURE_STEP: &str = "gl";
+
+/// Starts the GL's thread if it is wanted (the handheld: its panel's context).
+#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
 pub fn start_if_wanted() {
+    start_with(|| Gles::open_panel(PANEL.0 as u16, PANEL.1 as u16));
+}
+
+/// Starts the GL's thread on a hidden window made for OpenGL, if it is wanted; whether it
+/// runs. The window is made here (on the game's thread) and the context on the GL's.
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+pub fn start_on_window() -> bool {
+    if GPU.lock().unwrap().is_some() {
+        return true;
+    }
+    if TRIED.load(std::sync::atomic::Ordering::Relaxed) || !wanted() {
+        return false;
+    }
+    let window = match super::super::platform::ffi::gl::GlWindow::new() {
+        Ok(window) => window,
+        Err(why) => {
+            TRIED.store(true, std::sync::atomic::Ordering::Relaxed);
+            log(&format!(
+                "render: the OpenGL backend does not start ({why})"
+            ));
+            return false;
+        }
+    };
+    start_with(move || Gles::open_window(window));
+    GPU.lock().unwrap().is_some()
+}
+
+/// Starts the GL's thread, which makes its context with `open`.
+fn start_with(open: impl FnOnce() -> Result<Gles, String> + Send + 'static) {
     let mut held = GPU.lock().unwrap();
     if held.is_some() || TRIED.swap(true, std::sync::atomic::Ordering::Relaxed) {
         return;
@@ -1699,7 +1746,7 @@ pub fn start_if_wanted() {
     let (answer, started) = channel();
     let thread = std::thread::Builder::new()
         .name("GL".into())
-        .spawn(move || match Gpu::new() {
+        .spawn(move || match Gpu::new(open) {
             Ok(gpu) => {
                 let _ = answer.send(Ok(()));
                 gpu.run(to_draw);
@@ -1724,7 +1771,11 @@ pub fn start_if_wanted() {
     });
     match outcome {
         Ok(()) => {
-            log("render: the GPU backend on libmali's OpenGL ES, on its own thread");
+            log(if cfg!(all(target_os = "linux", target_arch = "aarch64")) {
+                "render: the GPU backend on libmali's OpenGL ES, on its own thread"
+            } else {
+                "render: the OpenGL backend (3.3 core), on its own thread"
+            });
             *held = Some(Front {
                 jobs,
                 known: Default::default(),
@@ -1734,7 +1785,7 @@ pub fn start_if_wanted() {
             super::gpu_started();
         }
         Err(why) => log(&format!(
-            "render: the GPU backend does not start ({why}): the software rasteriser draws the 3D"
+            "render: the OpenGL backend does not start ({why}): the next renderer in the order draws the 3D"
         )),
     }
 }
