@@ -77,9 +77,11 @@ pub struct StagePrefs {
     pub sun_height: PlainDword,
     /// Unused; it only keeps the layout.
     pub unused_68c: PlainDword,
-    /// Cleared by the stage prefs, tested by `race::draw_race_scene`, scaling factor of
-    /// `physics::surface_noise`.
-    pub blit_cleared: [PlainDword; 2],
+    /// The stage's precipitation range (low, high): the first noise map's sample is scaled into it
+    /// (`physics::surface_noise`) for the rain and snow amount, and a screen picture for the
+    /// windscreen is wanted only while it is not 0 .. 0 (`race::draw_race_scene`). The
+    /// `noprecipitation` switch clears it (`race::stage_prefs`).
+    pub precipitation_range: [PlainDword; 2],
     /// Which surface noise is kept (`physics::surface_noise`).
     pub noise_pick: PlainDword,
     /// Refresh flags (`race::loadlevel`, `race::draw_race_scene`).
@@ -210,8 +212,8 @@ mod tests {
             files::TEXTURE_KINDS_AT
         );
         assert_eq!(
-            std::mem::offset_of!(StagePrefs, blit_cleared),
-            files::BLIT_CLEARED_AT
+            std::mem::offset_of!(StagePrefs, precipitation_range),
+            files::PRECIPITATION_RANGE_AT
         );
         assert_eq!(
             std::mem::offset_of!(StagePrefs, car_light_table),

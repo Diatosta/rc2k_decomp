@@ -142,7 +142,6 @@ nonlinear_steering = "non-linear steering"
 automatic_neutral = "automatic neutral"
 rain_and_snow = "rain and snow (next race)"
 music = "music (next start)"
-joysticks = "joysticks (next start)"
 force_feedback = "force feedback (next start)"
 gpu = "GPU"
 software = "software"
@@ -160,6 +159,8 @@ failed = "The player could not be put out."
 # The network's password: its row on the settings screen, the refusal a joiner is shown and the
 # mark before a locked session's name.
 [network]
-password = "password"
+password = "host password"
 password_refused = "Locked session: wrong or missing password."
 lock_mark = "[locked] "
+password_prompt = "Locked session. Password, then Enter (Esc: back)"
+password_wrong = "Wrong password. Again, then Enter (Esc: back)"

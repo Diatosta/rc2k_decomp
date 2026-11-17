@@ -168,6 +168,7 @@ and guests running the same program, with no lobby service ([Network play](Netwo
 | `most_players` | The most players a hosted session takes (the host's limit; the network page's "most players" row). In one language edition of the game's texts it is held to 4. |
 | `host_address` | The address a joining player connects to: a host name or an IP address, up to 63 characters. Empty: look for games on the local network. |
 | `port` | The port used with the address, on both TCP and UDP. 0 means the default, 47624 (`0xB9E8`). Every machine in a game must use the same one. |
+| `password` | The password a session this machine hosts is locked by, up to 63 characters; empty or missing: no password. Only in this file (the old `ral.dat` has no room for it), and written as plain text, so keep the file to yourself. A joining player is asked for a locked session's password when joining, and it is not kept. |
 | `saved_connection` | The connection (a DirectPlay service provider, written as a GUID) used last time. At the start of a network game the program looks for a listed connection with this GUID and takes it without asking; otherwise it asks, then saves the one chosen. This program lists only TCP/IP, whose GUID is `36E95EE0-8577-11CF-960C-0080C7534E82`, so it is always that one; a different value in an old file is not found and is replaced when a connection is chosen. |
 
 ### Pages

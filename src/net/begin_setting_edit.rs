@@ -35,12 +35,24 @@ pub fn begin_setting_edit(
             EditedText::MostPlayers
         }
         Setting::Password => {
+            // The old password is what Escape brings back; the typing starts from nothing.
             let mut text = crate::net::password::get();
             text.push(0);
             net.settings()
                 .most_players_text
                 .write_at(0, &text, "a text line's bytes")?;
-            EditedText::MostPlayers
+            crate::net::begin_edit::begin_edit(
+                net,
+                &net.settings().edit,
+                item,
+                EditedText::MostPlayers,
+                editing::WIDTH,
+                PALETTE,
+            )?;
+            net.settings()
+                .most_players_text
+                .write_at(0, &[0], "a text line's bytes")?;
+            return Ok(());
         }
         Setting::None => return Ok(()),
     };

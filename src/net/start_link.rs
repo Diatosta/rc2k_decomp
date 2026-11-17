@@ -58,19 +58,30 @@ fn link(o: Owners<'static>, launched: bool) -> Result<Way, Refused> {
     if !find_sessions::find_sessions(o, lines)? {
         return Ok(Way::Message(NO_SESSION));
     }
-    let session = choose_session::choose_session(o, lines, launched)?;
-    // Escape (a negative choice) is taken as a failure, so it shows the message too (kept as
-    // is).
-    if (session as i32) < 0 {
-        return Ok(Way::Message(NO_SESSION));
+    loop {
+        let session = choose_session::choose_session(o, lines, launched)?;
+        // Escape (a negative choice) is taken as a failure, so it shows the message too (kept as
+        // is).
+        if (session as i32) < 0 {
+            return Ok(Way::Message(NO_SESSION));
+        }
+        if joining::joining(o, lines, session)? {
+            return Ok(Way::On);
+        }
+        if password::cancelled() {
+            // Back from a locked session's password question: to the list of sessions again
+            // (a game started from the command line has no list to go back to).
+            if launched {
+                return Ok(Way::End);
+            }
+            continue;
+        }
+        return Ok(if password::refused() {
+            Way::Message(rc2k_core::strings::own::id::PASSWORD_REFUSED)
+        } else {
+            Way::Message(NO_SESSION)
+        });
     }
-    Ok(if joining::joining(o, lines, session)? {
-        Way::On
-    } else if password::refused() {
-        Way::Message(rc2k_core::strings::own::id::PASSWORD_REFUSED)
-    } else {
-        Way::Message(NO_SESSION)
-    })
 }
 
 /// A network game in `mode` (1 host, 2 join), as the menu's items start it.

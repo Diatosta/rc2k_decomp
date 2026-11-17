@@ -43,7 +43,7 @@ In the main menu choose the network game, then host or join.
 | Most players | The host's limit on how many may join. |
 | Host's address | For joining: the host's address. Leave it empty to look for games on the local network. |
 | Port | The port, as described above. |
-| Password | Hosting: the session needs this password to join (leave it empty for none). Joining: the password to give a locked session. Shown as stars; kept for this run of the program only, never written to a file. |
+| Host password | For hosting only: the session needs this password to join (leave it empty for none). Shown as stars; choosing the row clears it for typing a new one (Escape keeps the old one). Kept in `var/rc2k.toml` (`[network] password`, readable text) so that it is there at the next start. |
 
 **Hosting.** The host makes the session and waits in the lobby. Its machine must stay in the
 game: when the host leaves, the session ends for everybody (it is not handed to another
@@ -51,7 +51,7 @@ machine).
 
 **Joining.** The program lists the sessions it finds. With no address given it asks the whole
 local network (and this machine itself); with an address it asks that machine only. Choose a
-session to join it. Full or closed sessions are not listed. A session with a password shows a lock mark before its name; if the password set on the settings screen is wrong or missing, the join is refused with a message saying so (nothing about the right one is revealed).
+session to join it. Full or closed sessions are not listed. A session with a password shows a lock mark before its name; choosing it asks for the password there and then (typed as stars, on the on-screen keyboard from a pad). A wrong one asks again; Escape goes back to the list of sessions. A session without a password is joined as before. Nothing about the right password is revealed to a joiner, and the joiner's answer is not kept.
 
 **The lobby.** Everyone chooses a car; the host chooses the stage, and its name is shown at
 the top left of everybody's lobby. While the stage loads, the loading screen lists every player's progress in percent in its top left corner. There is a chat line; the host puts the lines in order, so everyone sees the same order (a line you type shows when the host sends it back). When every player is ready the host

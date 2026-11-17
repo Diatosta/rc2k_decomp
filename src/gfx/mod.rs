@@ -68,6 +68,7 @@ pub mod rescale_picture;
 pub mod rescale_to_surface;
 pub mod rgb_pixels_to_dwords;
 pub mod rows;
+pub mod scaled_region;
 pub mod screen_state;
 pub mod set_clip;
 pub mod set_component_format;

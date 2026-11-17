@@ -5,9 +5,11 @@ draws its button icons from.
     python3 tools/glyphs/pack.py <folder of the unpacked pack> [<output folder, assets/glyphs>]
 
 For each family (Xbox Series, PlayStation Series, Steam Deck) it takes the white outline pictures
-(64 x 64, white on transparent) of the buttons the game names and writes
+of the pack's Double size (128 x 128, white on transparent) of the buttons the game names, and
+writes
   <family>.png  one atlas, 8-bit grey: each pixel is the picture's alpha (the pictures are
-                white, so the alpha is all there is), cells of 64 x 64 in rows of 8;
+                white, so the alpha is all there is), cells of 128 x 128 in rows of 8; the game
+                scales them down with an area filter to the size it draws;
   <family>.idx  one line for each picture: "name x y width height" in the atlas.
 The names are the same in every family (see NAMES); a picture the family has not got is left out
 of the index (the game then draws the button's number instead). Needs Pillow.
@@ -17,10 +19,10 @@ import sys
 
 from PIL import Image
 
-CELL = 64
+CELL = 128
 COLUMNS = 8
 
-# name: (Xbox, PlayStation, Steam Deck) file stem inside the family's Default folder, without
+# name: (Xbox, PlayStation, Steam Deck) file stem inside the family's Double folder, without
 # "_outline.png"; None for one the family has not got; "xbox:" takes the Xbox family's picture.
 NAMES = {
     "south": ("xbox_button_a", "playstation_button_cross", "steamdeck_button_a"),
@@ -42,6 +44,13 @@ NAMES = {
     "guide": ("xbox_guide", None, "steamdeck_button_guide"),
     "touchpad": (None, "playstation5_touchpad", None),
 }
+# The stick pictures (solid, not outlined): ls_up, ls_down, ls_left, ls_right, ls_horizontal,
+# ls_vertical and the same for the right stick, every family having them.
+for _side in ("l", "r"):
+    for _dir in ("up", "down", "left", "right", "horizontal", "vertical"):
+        NAMES[f"{_side}s_{_dir}"] = tuple(
+            f"{prefix}_stick_{_side}_{_dir}!" for prefix in ("xbox", "playstation", "steamdeck")
+        )
 FAMILIES = [
     ("xbox", "Xbox Series"),
     ("playstation", "PlayStation Series"),
@@ -50,7 +59,9 @@ FAMILIES = [
 
 
 def load(pack, folder, stem):
-    path = os.path.join(pack, folder, "Default", stem + "_outline.png")
+    # a stem ending in "!" is a picture with no outline version
+    suffix = "" if stem.endswith("!") else "_outline"
+    path = os.path.join(pack, folder, "Double", stem.rstrip("!") + suffix + ".png")
     image = Image.open(path).convert("RGBA")
     if image.size != (CELL, CELL):
         sys.exit(f"{path}: {image.size}, not {CELL} x {CELL}")

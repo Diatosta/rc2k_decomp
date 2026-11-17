@@ -20,7 +20,7 @@ received messages, the lobby screens' variables. Parts are in `src/net/store.rs`
 | --- | --- | --- |
 | `set_up` | `src/net/set_up.rs` | Network set-up at the program's start. |
 | `lobby_loop` | `src/net/lobby_loop.rs` | The lobby screen. |
-| `password` | `src/net/password.rs` | The session password typed on the settings screen (this run only); `rc2k_core/src/net/password.rs` makes the salted key and the proofs. |
+| `password` | `src/net/password.rs` | The host's password (typed on the settings screen, kept in `rc2k.toml`) and the joiner's answer (this join only), with `password_prompt`, the question a joiner is asked; `rc2k_core/src/net/password.rs` makes the salted key and the proofs. |
 | `loading` | `src/net/loading.rs` | Each player's stage-load percentage: sent from the loading bar, listed on the loading screen. |
 | `host_session`, `join_session` | files of the same names | Starting or joining a game. |
 | `receive_thread` | `src/net/receive_thread.rs` | The thread that waits for messages and files them. |

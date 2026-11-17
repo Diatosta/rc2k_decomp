@@ -86,6 +86,9 @@ pub mod id {
     pub const NETWORK_PASSWORD: u32 = FIRST + 0xD0;
     pub const PASSWORD_REFUSED: u32 = FIRST + 0xD1;
     pub const LOCK_MARK: u32 = FIRST + 0xD2;
+    /// What a joiner is asked at a locked session, and when its answer was wrong.
+    pub const PASSWORD_PROMPT: u32 = FIRST + 0xD3;
+    pub const PASSWORD_WRONG: u32 = FIRST + 0xD4;
     /// The lobby's answers to the host's kick command: not the host, no such player, put out,
     /// could not be put out (4 ids).
     pub const KICK_ANSWERS: u32 = FIRST + 0xA0;
@@ -134,6 +137,8 @@ pub const KEYS: &[(&str, u32)] = &[
     ("network.password", id::NETWORK_PASSWORD),
     ("network.password_refused", id::PASSWORD_REFUSED),
     ("network.lock_mark", id::LOCK_MARK),
+    ("network.password_prompt", id::PASSWORD_PROMPT),
+    ("network.password_wrong", id::PASSWORD_WRONG),
     ("button_icons", id::BUTTON_ICONS),
     ("graphics.frame_limit", id::FRAME_LIMIT),
     ("graphics.no_limit", id::NO_LIMIT),
@@ -151,8 +156,7 @@ pub const KEYS: &[(&str, u32)] = &[
     ("advanced.automatic_neutral", id::ADVANCED_ROWS + 6),
     ("advanced.rain_and_snow", id::ADVANCED_ROWS + 7),
     ("advanced.music", id::ADVANCED_ROWS + 8),
-    ("advanced.joysticks", id::ADVANCED_ROWS + 9),
-    ("advanced.force_feedback", id::ADVANCED_ROWS + 10),
+    ("advanced.force_feedback", id::ADVANCED_ROWS + 9),
     ("advanced.gpu", id::RENDERER_GPU),
     ("advanced.software", id::RENDERER_SOFTWARE),
     ("advanced.gles", id::RENDERER_GLES),

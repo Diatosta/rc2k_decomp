@@ -90,6 +90,15 @@ fn byte(b: &(impl Bytes + ?Sized), at: usize) -> Result<u8, Invalid> {
         .ok_or(Invalid("a glyph record past the glyph table"))
 }
 
+/// The rows glyph `glyph` covers below the line's top: (its blank rows on top, its bitmap's rows).
+pub fn ink_rows(glyphs: &(impl Bytes + ?Sized), glyph: u32) -> Result<(i32, i32), Invalid> {
+    let at = record_at(glyphs, glyph)?;
+    Ok((
+        i32::from(byte(glyphs, at + 1)?),
+        i32::from(byte(glyphs, at + 3)?),
+    ))
+}
+
 /// Pixels to the next glyph: the bitmap width, or the x offset for a glyph without one.
 pub fn advance(glyphs: &(impl Bytes + ?Sized), glyph: u32) -> Result<i32, Invalid> {
     let at = record_at(glyphs, glyph)?;

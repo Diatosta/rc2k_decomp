@@ -31,6 +31,8 @@ pub fn capture(o: Owners<'static>) -> Result<Options, Refused> {
     options.sound.film_volume = crate::platform::sound::FILM_VOLUME.load(Relaxed);
     options.sound.sound_in_background = crate::platform::sound::SOUND_IN_BACKGROUND.load(Relaxed);
     options.sound.reverb = crate::platform::sound::REVERB.load(Relaxed);
+    options.network.password.0 = crate::net::password::get();
+    options.network.password.0.resize(0x40, 0);
     options.display.frame_limit = crate::platform::pacing::frame_limit();
     options.display.render_scale = crate::render::render_scale();
     options.display.renderer = crate::render::choice::wanted();
@@ -50,6 +52,7 @@ pub fn apply(o: Owners<'static>, options: &Options) -> Result<(), Refused> {
     crate::platform::sound::FILM_VOLUME.store(options.sound.film_volume, Relaxed);
     crate::platform::sound::SOUND_IN_BACKGROUND.store(options.sound.sound_in_background, Relaxed);
     crate::platform::sound::REVERB.store(options.sound.reverb, Relaxed);
+    crate::net::password::set(&options.network.password.0);
     crate::platform::pacing::set_frame_limit(options.display.frame_limit);
     crate::render::set_render_scale(options.display.render_scale);
     crate::render::choice::set_wanted(options.display.renderer.clone());

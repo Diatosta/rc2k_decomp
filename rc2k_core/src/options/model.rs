@@ -214,6 +214,8 @@ pub struct Network {
     pub port: u32,
     /// The saved connection's GUID.
     pub saved_connection: Bytes<0x10>,
+    /// The password a hosted session is locked by (only in the new file; none when missing).
+    pub password: Bytes<0x40>,
 }
 
 /// The options pages' own settings and what the front end keeps.

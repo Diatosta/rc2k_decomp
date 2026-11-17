@@ -94,9 +94,16 @@ pub const RACE_ROOM: usize = 3;
 /// The tail's level at a room volume of 1.0 and the fullest weight (the dry sound is 1.0).
 const WET_LEVEL: f32 = 0.45;
 /// The weight at which a view hears half the tail: the weight is a sum of the course's
-/// reverberant surfaces near the car (a race starts at 1.0, open country is near 0, a tunnel
-/// or a wall beside the road makes it many times that).
+/// reverberant surfaces near the car (a race starts at 1.0).
 const WEIGHT_HALF: f32 = 4.0;
+/// The share of the tail an open place has: a short, low ambience (the weights measured in open
+/// stages run from about 10 to 50, which tells open country from a street only by a little, so
+/// the weight alone does not say a place is enclosed).
+const OPEN_SHARE: f32 = 0.2;
+/// The weights between which the share grows from `OPEN_SHARE` to the whole tail: above the
+/// highest of the open stages' weights, where the surroundings are very reverberant (a tunnel).
+const ENCLOSED_FROM: f32 = 50.0;
+const ENCLOSED_FULL: f32 = 130.0;
 
 /// How much of a sound goes to the reverb, from the room and the weight of the listening
 /// view's surroundings (0.0 ..= `WET_LEVEL`).
@@ -104,7 +111,9 @@ pub fn send_level(room: &Room, weight: f32) -> f32 {
     if !weight.is_finite() || weight <= 0.0 {
         return 0.0;
     }
-    room.volume.clamp(0.0, 1.0) * WET_LEVEL * weight / (weight + WEIGHT_HALF)
+    let enclosed = ((weight - ENCLOSED_FROM) / (ENCLOSED_FULL - ENCLOSED_FROM)).clamp(0.0, 1.0);
+    let share = OPEN_SHARE + (1.0 - OPEN_SHARE) * enclosed;
+    room.volume.clamp(0.0, 1.0) * WET_LEVEL * share * weight / (weight + WEIGHT_HALF)
 }
 
 /// Freeverb's tunings, in samples at 44100 Hz.
@@ -351,8 +360,12 @@ mod tests {
         assert_eq!(send_level(&ROOMS[3], 0.0), 0.0);
         assert_eq!(send_level(&ROOMS[3], f32::NAN), 0.0);
         let near = send_level(&ROOMS[3], 1.0);
-        let inside = send_level(&ROOMS[3], 64.0);
-        assert!(0.0 < near && near < inside && inside < WET_LEVEL);
+        let open = send_level(&ROOMS[3], 30.0);
+        let inside = send_level(&ROOMS[3], 200.0);
+        assert!(0.0 < near && near < open && open < inside && inside < WET_LEVEL);
+        // Open country is barely heard, an enclosed place several times louder.
+        assert!(open < WET_LEVEL * OPEN_SHARE);
+        assert!(inside > open * 4.0);
     }
 
     /// The reverb's cost beside a sound: `cargo test -p rc2k_core --release reverb -- --nocapture

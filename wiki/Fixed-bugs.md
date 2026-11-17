@@ -826,3 +826,12 @@ has the same fixed addresses, but its network mode could not be run here to see 
 - **In game**: the computer drivers' order in the championship was the same at every event; the random numbers were still drawn, so the rest of the event's random numbers were not affected.
 - **Seen or read**: read in the disassembly, not seen.
 - **Fix**: the two chosen entries swap places as meant (`menu::shuffle_drivers`), with the same two random draws per swap as before: the random state after the shuffle is unchanged, but the order of the computer drivers in a championship now differs from event to event.
+## A replay's camera taken over by the recorded change-view key
+
+*Original*: `drive::read_car_controls`.
+*Fixed*: 2026-11-17.
+
+- **What**: while a replay played, the change-view presses the driver made while racing were read back from the file and changed the camera again.
+- **In game**: a camera chosen in the replay viewer (for example the roadside camera) cut to the bumper, cockpit and chase views at the moments the driver had pressed the key, then came back.
+- **Seen or read**: seen (a replay recorded with view changes, played with a roadside camera).
+- **Fix**: while a replay plays, the recorded change-view bit is ignored (the lights' bit still acts); the camera stays as the viewer set it.

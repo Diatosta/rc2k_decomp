@@ -156,6 +156,7 @@ mod tests {
             0xe0, 0x5e, 0xe9, 0x36, 0x77, 0x85, 0xcf, 0x11, 0x96, 0x0c, 0x00, 0x80, 0xc7, 0x53,
             0x4e, 0x82,
         ];
+        o.network.password.0[..5].copy_from_slice(b"rally");
         o.cars.first_numbers.0 = vec![u32::MAX; 40];
         o.cars.first_numbers.0[..3].copy_from_slice(&[13, 21, 18]);
         o.cars.second_numbers.0 = vec![5; 20];
@@ -170,6 +171,7 @@ mod tests {
         for wanted in [
             "machine_name = \"Jé€ X1\"",
             "saved_connection = \"36E95EE0-8577-11CF-960C-0080C7534E82\"",
+            "password = \"rally\"",
             "first_numbers = [13, 21, 18]",
             "name = \"Ana\"",
             "tyre_change_holder = \"Karl\"",

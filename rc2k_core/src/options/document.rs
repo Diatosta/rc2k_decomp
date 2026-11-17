@@ -203,6 +203,9 @@ pub struct NetworkView {
     pub port: u32,
     /// The saved connection's GUID.
     pub saved_connection: String,
+    /// The password a hosted session is locked by (none when missing).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub password: String,
 }
 
 /// The options pages' own settings.
@@ -708,6 +711,7 @@ impl From<&Options> for Document {
                 host_address: text_in(&o.network.host_address.0),
                 port: o.network.port,
                 saved_connection: guid_text(&o.network.saved_connection.0),
+                password: text_in(&o.network.password.0),
             },
             pages: PagesView {
                 switches: o.pages.switches.0.clone(),
@@ -789,6 +793,7 @@ impl Document {
         o.network.host_address = Bytes(buffer_of(&n.host_address, 0x40, "host_address")?);
         o.network.port = n.port;
         o.network.saved_connection = Bytes(guid_bytes(&n.saved_connection)?);
+        o.network.password = Bytes(buffer_of(&n.password, 0x40, "password")?);
         let p = self.pages;
         o.pages.switches = Words(words_in::<11>(&p.switches, "pages.switches")?);
         o.pages.audio = Words(words_in::<6>(&p.audio, "pages.audio")?);

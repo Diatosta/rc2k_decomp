@@ -25,7 +25,9 @@ const PICTURE_Y: i32 = 0xD5 - 6;
 const ROW_STEP: i32 = 0x1B;
 
 /// The picture `row`'s binding is shown as: a button or a hat direction of a controller whose
-/// player has its pictures on. Axes are told in words.
+/// player has its pictures on, or an axis of a gamepad (a stick pushed one way, along its whole
+/// axis, or a trigger). The axes of other controllers, whose meaning is not known, are told in
+/// words.
 fn binding_picture(
     o: crate::owners::Owners<'static>,
     player: crate::menu::standings::PlayerCell,
@@ -38,19 +40,20 @@ fn binding_picture(
     let current = o.menus.screens.event.current_player.get();
     let controller = player.get().controller;
     let (pictures, _) = crate::input::profiles::pictures(o.input, current, controller)?;
-    let digital =
-        crate::input::profiles::with_profile(o.input, current, controller, |p| {
-            match shown(p, row) {
-                Shown::Button(number) => Some(rc2k_core::input::profile::Digital::Button {
-                    button: (number - 1) as u8,
-                }),
-                Shown::Hat(direction) => {
-                    Some(rc2k_core::input::profile::Digital::Hat { hat: 0, direction })
-                }
-                _ => None,
-            }
-        })??;
-    let icon = pictures.digital(digital)?;
+    let shown =
+        crate::input::profiles::with_profile(o.input, current, controller, |p| shown(p, row))?;
+    let icon = match shown {
+        Shown::Button(number) => pictures.digital(rc2k_core::input::profile::Digital::Button {
+            button: (number - 1) as u8,
+        }),
+        Shown::Hat(direction) => {
+            pictures.digital(rc2k_core::input::profile::Digital::Hat { hat: 0, direction })
+        }
+        Shown::Axis(axis, side) if pictures.kind == rc2k_core::input::profile::Kind::Pad => {
+            rc2k_core::input::icons::Icon::of_pad_axis(axis, side)
+        }
+        _ => None,
+    }?;
     crate::gfx::button_pictures::has(pictures.family, icon).then_some((pictures.family, icon))
 }
 

@@ -86,6 +86,7 @@ pub mod message_frame;
 pub mod open_lobby;
 pub mod owner;
 pub mod password;
+pub mod password_prompt;
 pub mod player_found;
 pub mod post_call;
 pub mod race_over;

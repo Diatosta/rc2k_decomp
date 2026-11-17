@@ -21,7 +21,11 @@ pub fn open(link: &Link, flags: u32, name: &[u8]) -> u32 {
         link.dplay(),
         &d,
         flags,
-        &crate::net::password::get(),
+        &if flags & OPEN_JOIN != 0 {
+            crate::net::password::joining()
+        } else {
+            crate::net::password::get()
+        },
     )
 }
 

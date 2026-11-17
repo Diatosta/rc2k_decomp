@@ -10,8 +10,9 @@ use rc2k_core::input::icons::{Family, Icon, parse_index};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock};
 
-/// The side of a picture in the atlas.
-const CELL: usize = 64;
+/// The side of a picture in the atlas (the pack's 128 px size: pictures are drawn at 20 to
+/// 40 px, so the scaling down is by a factor of three to six and has the detail to be smooth).
+const CELL: usize = 128;
 
 /// A family's atlas: the alpha of each picture, `CELL` x `CELL` bytes, by picture.
 struct Atlas {
@@ -98,21 +99,49 @@ pub fn has(family: Family, icon: Icon) -> bool {
     atlas(family).is_some_and(|a| a.pictures.contains_key(&icon))
 }
 
-/// A picture's alpha scaled to `size` x `size`: each pixel the mean of the atlas pixels it covers.
+/// The rows of picture `icon`'s cell its outline covers, as fractions of the cell's side: (the
+/// first, the last + 1). Pictures leave a margin around their outline, so a picture drawn to
+/// match a text's height is scaled by its outline, not by its cell.
+pub fn outline_rows(family: Family, icon: Icon) -> Option<(f32, f32)> {
+    let cell = atlas(family)?.pictures.get(&icon)?;
+    let inked = |row: &[u8]| row.iter().any(|&a| a >= 0x40);
+    let first = cell.chunks(CELL).position(inked)?;
+    let last = cell.chunks(CELL).rposition(inked)?;
+    Some((first as f32 / CELL as f32, (last + 1) as f32 / CELL as f32))
+}
+
+/// The atlas pixels along one axis that output pixel `n` of `size` covers, with how much of
+/// each it covers (the weights add up to 1): the area filter, partial pixels at the ends
+/// counting in proportion.
+fn coverage(n: usize, size: usize) -> impl Iterator<Item = (usize, f32)> {
+    let step = CELL as f32 / size as f32;
+    let (from, to) = (n as f32 * step, (n + 1) as f32 * step);
+    (from as usize..(to.ceil() as usize).min(CELL)).map(move |at| {
+        let overlap = to.min(at as f32 + 1.0) - from.max(at as f32);
+        (at, overlap.max(0.0) / step)
+    })
+}
+
+/// A picture's alpha scaled to `size` x `size`: each pixel the mean of the atlas pixels it
+/// covers, weighted by how much of each it covers (a box filter at any scale, so the edges of a
+/// circle keep their soft, graded alpha rather than stepping).
 pub fn scaled(cell: &[u8], size: usize) -> Vec<u8> {
+    // across, then down
+    let mut across = vec![0f32; size * CELL];
+    for row in 0..CELL {
+        for x in 0..size {
+            across[row * size + x] = coverage(x, size)
+                .map(|(at, weight)| cell[row * CELL + at] as f32 * weight)
+                .sum();
+        }
+    }
     let mut out = vec![0u8; size * size];
     for y in 0..size {
-        let (y0, y1) = (y * CELL / size, ((y + 1) * CELL).div_ceil(size).min(CELL));
         for x in 0..size {
-            let (x0, x1) = (x * CELL / size, ((x + 1) * CELL).div_ceil(size).min(CELL));
-            let mut sum = 0usize;
-            for sy in y0..y1.max(y0 + 1) {
-                for sx in x0..x1.max(x0 + 1) {
-                    sum += cell[sy * CELL + sx] as usize;
-                }
-            }
-            let count = (y1.max(y0 + 1) - y0) * (x1.max(x0 + 1) - x0);
-            out[y * size + x] = (sum / count) as u8;
+            let value: f32 = coverage(y, size)
+                .map(|(at, weight)| across[at * size + x] * weight)
+                .sum();
+            out[y * size + x] = (value + 0.5).min(255.0) as u8;
         }
     }
     out
@@ -283,6 +312,11 @@ mod tests {
         let small = scaled(&half, 16);
         assert_eq!(small[0], 0);
         assert_eq!(small[15], 255);
+        // a size that does not divide the cell: the middle pixel is half covered
+        let odd = scaled(&half, 25);
+        assert!((127..=128).contains(&odd[12]));
+        assert_eq!(odd[11], 0);
+        assert_eq!(odd[13], 255);
     }
 
     #[test]

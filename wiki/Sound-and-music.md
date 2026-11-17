@@ -178,10 +178,13 @@ reverb`): eight damped feedback combs and four all-passes a side (a Freeverb-sty
 right ear's lines a few samples longer). The decay time of the room sets the combs' feedback so
 that the tail falls by 60 dB in that time, the damping how fast the high frequencies die in the
 loop, and the room's volume the tail's level. The sounds that have a place in the race's world
-(the cars, the stage's sounds; not the menus, the music or the co-driver) are sent to it, as much
-as the room's volume and the weight of the course around the listening view give (the weight the
-original computed: a race starts at 1.0, open country is near 0, a wall or tunnel beside the road
-makes it many times that; a fifth of the room's fullest tail is sent at weight 1.0 and four fifths at 16). In
+(the cars, the stage's sounds; not the menus, the music, the count-down beeps or the co-driver's voice) are sent to it, as much
+as the room's volume and the weight of the course around the listening view give. The weight is
+the original's (a sum of the course's faces and objects near the car), but measured on real stages
+it runs from about 10 to 50 in open country and in streets alike, so it does not say a place is
+enclosed. The program therefore sends only a fifth of the tail (a short, low ambience) up to a
+weight of 50, and grows to the whole tail at 130, where the surroundings are very reverberant (a
+tunnel; not yet heard on a real stage). In
 split screen each player's car sounds follow that player's own view's weight; every other sound
 the first view's. The room a race asks for is room 3 (a short, light tail), as the original.
 The sound page's "reverb" row turns it off (`[sound] reverb = false` in `var/rc2k.toml`); it

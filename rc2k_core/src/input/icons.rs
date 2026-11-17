@@ -134,10 +134,23 @@ pub enum Icon {
     Back,
     Guide,
     Touchpad,
+    /// The left and right sticks, pushed one way (or either way along an axis).
+    LeftStickUp,
+    LeftStickDown,
+    LeftStickLeft,
+    LeftStickRight,
+    LeftStickHorizontal,
+    LeftStickVertical,
+    RightStickUp,
+    RightStickDown,
+    RightStickLeft,
+    RightStickRight,
+    RightStickHorizontal,
+    RightStickVertical,
 }
 
 impl Icon {
-    pub const ALL: [Icon; 18] = [
+    pub const ALL: [Icon; 30] = [
         Icon::South,
         Icon::East,
         Icon::West,
@@ -156,6 +169,18 @@ impl Icon {
         Icon::Back,
         Icon::Guide,
         Icon::Touchpad,
+        Icon::LeftStickUp,
+        Icon::LeftStickDown,
+        Icon::LeftStickLeft,
+        Icon::LeftStickRight,
+        Icon::LeftStickHorizontal,
+        Icon::LeftStickVertical,
+        Icon::RightStickUp,
+        Icon::RightStickDown,
+        Icon::RightStickLeft,
+        Icon::RightStickRight,
+        Icon::RightStickHorizontal,
+        Icon::RightStickVertical,
     ];
 
     /// The name the atlas' index gives the picture.
@@ -179,7 +204,42 @@ impl Icon {
             Icon::Back => "back",
             Icon::Guide => "guide",
             Icon::Touchpad => "touchpad",
+            Icon::LeftStickUp => "ls_up",
+            Icon::LeftStickDown => "ls_down",
+            Icon::LeftStickLeft => "ls_left",
+            Icon::LeftStickRight => "ls_right",
+            Icon::LeftStickHorizontal => "ls_horizontal",
+            Icon::LeftStickVertical => "ls_vertical",
+            Icon::RightStickUp => "rs_up",
+            Icon::RightStickDown => "rs_down",
+            Icon::RightStickLeft => "rs_left",
+            Icon::RightStickRight => "rs_right",
+            Icon::RightStickHorizontal => "rs_horizontal",
+            Icon::RightStickVertical => "rs_vertical",
         }
+    }
+
+    /// The picture of a gamepad's axis (numbered as `axis_label` does: x, y, rx, ry, lt, rt)
+    /// and the side of it in use: a stick pushed one way (`Some(true)` is right or down), the
+    /// stick along its whole axis (`None`), or a trigger. None for an axis a gamepad has not.
+    pub fn of_pad_axis(axis: u8, side: Option<bool>) -> Option<Icon> {
+        Some(match (axis, side) {
+            (0, Some(true)) => Icon::LeftStickRight,
+            (0, Some(false)) => Icon::LeftStickLeft,
+            (0, None) => Icon::LeftStickHorizontal,
+            (1, Some(true)) => Icon::LeftStickDown,
+            (1, Some(false)) => Icon::LeftStickUp,
+            (1, None) => Icon::LeftStickVertical,
+            (2, Some(true)) => Icon::RightStickRight,
+            (2, Some(false)) => Icon::RightStickLeft,
+            (2, None) => Icon::RightStickHorizontal,
+            (3, Some(true)) => Icon::RightStickDown,
+            (3, Some(false)) => Icon::RightStickUp,
+            (3, None) => Icon::RightStickVertical,
+            (4, _) => Icon::L2,
+            (5, _) => Icon::R2,
+            _ => return None,
+        })
     }
 
     /// The picture of a hat's direction.
@@ -457,8 +517,23 @@ mod tests {
             let icons = parse_index(&text);
             assert_eq!(icons.len(), text.lines().count());
             for (icon, [x, y, w, h]) in icons {
-                assert!(x + w <= 512 && y + h <= 192, "{family:?} {icon:?}");
+                assert!(x + w <= 1024 && y + h <= 512, "{family:?} {icon:?}");
             }
         }
+    }
+
+    #[test]
+    fn a_gamepads_axes_have_pictures() {
+        assert_eq!(Icon::of_pad_axis(0, None), Some(Icon::LeftStickHorizontal));
+        assert_eq!(Icon::of_pad_axis(1, Some(false)), Some(Icon::LeftStickUp));
+        assert_eq!(Icon::of_pad_axis(3, Some(true)), Some(Icon::RightStickDown));
+        assert_eq!(Icon::of_pad_axis(4, Some(true)), Some(Icon::L2));
+        assert_eq!(Icon::of_pad_axis(5, None), Some(Icon::R2));
+        assert_eq!(Icon::of_pad_axis(6, None), None);
+        // every picture is named once
+        let mut names: Vec<_> = Icon::ALL.iter().map(|i| i.name()).collect();
+        names.sort();
+        names.dedup();
+        assert_eq!(names.len(), Icon::ALL.len());
     }
 }

@@ -119,7 +119,7 @@ More on [Network play](Network-play).
   the handheld the renderer is only the one tried first at the next start (its GL ES context is
   made once for the program's life), and the page says "next start" beside a value that differs from the running one; and switches of `var/ral.cfg`: frame counter,
   films, screenshots, non-linear steering, automatic neutral (all at once), rain and snow (the
-  next race) and music, joysticks, force feedback (the next start). The page shows the feature,
+  next race) and music, force feedback (the next start; `nojoy` is not on the page, so the handheld cannot switch its controls off, and it still reads from `ral.cfg` by hand). The page shows the feature,
   not its absence (`nofmv=1` shows as "films: off"). "Apply" sets the live variables, writes
   the changed keys into `var/ral.cfg` (the key's line is replaced, the others kept; a missing
   key is added) and keeps the other two rows in `var/rc2k.toml`'s `[display]` table as

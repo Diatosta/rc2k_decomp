@@ -129,9 +129,10 @@ built in ([Language files](Language-files#the-games-own-texts-rc2ktoml)).
 
 Where a button or a hat direction is named (the buttons page's values, the on-screen keyboard's
 hint line, the race's leave question) the game can show the button's picture instead of its
-number or name. The pictures are Kenney's CC0 *Input Prompts* outlines in three families: Xbox
+number or name. The pictures are Kenney's CC0 *Input Prompts* in three families: Xbox
 (A, B, X, Y, LB, RB, LT, RT, the sticks' presses, view, menu), PlayStation (cross, circle,
-square, triangle, L1 to R3, share / create, options, touchpad) and Steam Deck. Each controller
+square, triangle, L1 to R3, share / create, options, touchpad) and Steam Deck; each family also
+has the left and right sticks pushed up, down, left, right, or along a whole axis. Each controller
 has its own "button icons" setting on the controller page, kept in the player's profile for it:
 **automatic** (the default), **Xbox**, **PlayStation**, **Steam Deck** or **numbers** (the
 old texts; the keyboard always has its own).
@@ -149,18 +150,28 @@ old texts; the keyboard always has its own).
   9 share, 10 options, 11 L3, 12 R3, 13 PS, 14 touchpad; for Xbox and Steam Deck 1 A, 2 B, 3 X,
   4 Y, 5 LB, 6 RB, 7 view, 8 menu, 9 LS, 10 RS. A button the order has no picture for (or the PS
   button, which the pack lacks) stays a number. A hat direction is a directional-pad picture.
+- On the buttons page a gamepad's axes are pictures too: the left or right stick pushed the way
+  the binding uses it (the stick's direction picture; the steering, a centred axis, shows the
+  stick's left-right picture), a trigger the LT / RT (L2 / R2) picture. The axes of a joystick or
+  wheel stay text ("(+x)", "(-rz)"), as the page cannot know what they are.
 - The race's leave question shows the pictures of the buttons that answer yes and no inline,
   after the key letters of its own text ("RETIRAR? (s [cross]/n [circle])": the letters are
-  found as the first two of the text's last "(a/b" group, so any language works), drawn over the
-  frame in the question's font and centred where the question is. The menus' enter and back of
+  found as the first two (a third, "(a/b/c", with the third answer's picture when that answer is
+  offered) of the text's last "(a/b" group, so any language works), drawn over the frame in the
+  question's font, enlarged with the screen (the screen's height over 600, as the HUD's pictures
+  and the timer's digits are) on a dark plate, and centred where the question is. The menus' enter and back of
   the controller are used (what the profile binds, else the controller's default). A text
   without such a group gets the pictures and the words "yes" and "no" on a dark plate under it.
   With numbers or the keyboard the question is the original's.
 
-The pictures are blended over the screen as white outlines with soft edges (16 and 32 bits, in
-the menus and over a race's frame); where the GPU's own picture shows through a pixel the canvas
-has not written, a pixel is white when the picture's alpha is at least half, else left alone. `tools/glyphs/pack.py` makes the atlases in `assets/glyphs/`
-from the pack; each is a grey PNG of 64 x 64 cells (the alpha) with an index of names and rects.
+The pictures are blended over the screen as white shapes with soft edges (16 and 32 bits, in
+the menus and over a race's frame), scaled down from the atlas's 128 px cells to the size drawn
+with an area filter (each pixel the mean of the cell pixels it covers, weighted by how much of
+each it covers) so the circles stay smooth. Where the GPU's own picture shows through a pixel the
+canvas has not written, a pixel is white when the picture's alpha is at least half, else left
+alone, so the pictures that go over a race's frame are drawn on a dark plate (the hints, the
+question). `tools/glyphs/pack.py` makes the atlases in `assets/glyphs/` from the pack's Double
+size; each is a grey PNG of 128 x 128 cells (the alpha) with an index of names and rects.
 
 ### The H shifter
 

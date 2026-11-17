@@ -10,8 +10,9 @@ pub const PREFS_SIZE: usize = 0x206C;
 pub const TEXTURE_KINDS_AT: usize = 0x100;
 /// How many texture kinds there are.
 pub const TEXTURE_KINDS: usize = 256;
-/// The noise's cleared pair of dwords.
-pub const BLIT_CLEARED_AT: usize = 0x690;
+/// The stage's precipitation range: the low and the high end of the noise scale the rain and snow
+/// amount is read from (two dwords).
+pub const PRECIPITATION_RANGE_AT: usize = 0x690;
 /// The car light table's three dwords.
 pub const CAR_LIGHT_TABLE_AT: usize = 0x18B0;
 /// The 0x40 swapped picture kinds, as dwords.
@@ -99,11 +100,12 @@ impl StagePrefsFile {
         }
     }
 
-    /// Without precipitation: the cleared pair is 0.
-    pub fn clear_blit_cleared(&mut self, no_precipitation: bool) {
+    /// Without precipitation the range is 0 .. 0: no rain or snow amount, and no screen picture for
+    /// the windscreen's drops and flakes.
+    pub fn clear_precipitation_range(&mut self, no_precipitation: bool) {
         if no_precipitation {
-            self.set_dword(BLIT_CLEARED_AT, 0);
-            self.set_dword(BLIT_CLEARED_AT + 4, 0);
+            self.set_dword(PRECIPITATION_RANGE_AT, 0);
+            self.set_dword(PRECIPITATION_RANGE_AT + 4, 0);
         }
     }
 }
@@ -253,14 +255,17 @@ mod tests {
         p.tweak_stage(0x3E);
         assert_eq!(p.dword(CAR_LIGHT_TABLE_AT + 8), 0xFF);
         assert_eq!(p.dword(CAR_LIGHT_TABLE_AT + 12), 0xAAAA_AAAA);
-        p.clear_blit_cleared(false);
-        assert_eq!(p.dword(BLIT_CLEARED_AT), 0xAAAA_AAAA);
-        p.clear_blit_cleared(true);
+        p.clear_precipitation_range(false);
+        assert_eq!(p.dword(PRECIPITATION_RANGE_AT), 0xAAAA_AAAA);
+        p.clear_precipitation_range(true);
         assert_eq!(
-            (p.dword(BLIT_CLEARED_AT), p.dword(BLIT_CLEARED_AT + 4)),
+            (
+                p.dword(PRECIPITATION_RANGE_AT),
+                p.dword(PRECIPITATION_RANGE_AT + 4)
+            ),
             (0, 0)
         );
-        assert_eq!(p.dword(BLIT_CLEARED_AT + 8), 0xAAAA_AAAA);
+        assert_eq!(p.dword(PRECIPITATION_RANGE_AT + 8), 0xAAAA_AAAA);
     }
 
     #[test]

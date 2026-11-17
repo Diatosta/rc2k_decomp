@@ -33,7 +33,8 @@ pub fn quit_question(race: &Race, o: crate::owners::Owners<'static>) -> Result<u
     let kind = race_ticks::quit_notice(shared.vars.get().no_replay.get() != 0);
     // With pictures for the answers the question is drawn here, over the frame, with them in the
     // text; the race's own notice then stays off.
-    let inline = Inline::of(o, kind);
+    let third = shared.vars.get().no_replay.get() != 0 && shared.vars.get().run_kind.get() != 2;
+    let inline = Inline::of(o, kind, third);
     for c in 0..8 {
         race.car_blocks().cars[c as usize]
             .notice_id
@@ -126,12 +127,12 @@ fn answer_hint(o: crate::owners::Owners<'static>) {
 }
 
 /// The question's own text with a picture after each key letter ("RETIRAR? (s [X]/n [O])"): the
-/// text, where its two key letters are, and the pictures.
+/// text, where its key letters are (two, or three with the third answer), and the pictures.
 struct Inline {
     family: rc2k_core::input::icons::Family,
-    icons: [rc2k_core::input::icons::Icon; 2],
+    icons: Vec<rc2k_core::input::icons::Icon>,
     text: Vec<u8>,
-    letters: (usize, usize),
+    letters: Vec<usize>,
 }
 
 /// The race's notice font: the one the question is drawn in.
@@ -141,8 +142,8 @@ fn question_font(o: crate::owners::Owners<'static>) -> &'static crate::gfx::type
 
 impl Inline {
     /// The inline question when the controller in use has pictures for yes and no and the
-    /// text of notice `kind` has a "(a/b" group.
-    fn of(o: crate::owners::Owners<'static>, kind: u32) -> Option<Inline> {
+    /// text of notice `kind` has a "(a/b" group; `third`: the question takes a third answer.
+    fn of(o: crate::owners::Owners<'static>, kind: u32, third: bool) -> Option<Inline> {
         use rc2k_core::input::profile::MenuControl as C;
         let (pictures, bindings) = crate::gfx::button_hints::pictures_in_use(o)?;
         let icon = |c| {
@@ -150,7 +151,7 @@ impl Inline {
                 .menu(c, bindings.menu(c))
                 .filter(|&i| crate::gfx::button_pictures::has(pictures.family, i))
         };
-        let icons = [icon(C::Enter)?, icon(C::Back)?];
+        let mut icons = vec![icon(C::Enter)?, icon(C::Back)?];
         let mut text = Vec::new();
         crate::strings::append_string_by_id::push_string(
             crate::strings::append_string_by_id::StringOwners::of(o),
@@ -158,7 +159,12 @@ impl Inline {
             kind,
         )
         .ok()?;
-        let letters = race_ticks::answer_letters(&text)?;
+        let mut letters = race_ticks::answer_letters(&text)?;
+        // The third answer's letter has its picture when the question offers that answer.
+        match (letters.len(), third, icon(C::Third)) {
+            (3, true, Some(third)) => icons.push(third),
+            _ => letters.truncate(2),
+        }
         Some(Inline {
             family: pictures.family,
             icons,
@@ -167,7 +173,10 @@ impl Inline {
         })
     }
 
-    /// The line drawn over the frame, centred where the race's notice puts the question.
+    /// The line drawn over the frame, centred where the race's notice puts the question. The
+    /// fonts draw at one size, laid out for 800 x 600, while the HUD (the timer's digits) grows
+    /// with the screen: the line is drawn at its own size on a plate and the plate enlarged by the
+    /// screen's height over 600, the pictures drawn after at the enlarged size.
     fn draw(&self, o: crate::owners::Owners<'static>) {
         use crate::text::draw_text::{GameCanvas, draw_text};
         let locked_here = o.gfx.locked.surface.get() != 1;
@@ -177,7 +186,12 @@ impl Inline {
         let mut canvas = GameCanvas::new(o.gfx);
         let mut font = question_font(o).get();
         font.mode = rc2k_core::strings::text::MODE_AT_X;
-        let size = font.line_height * 5 / 4;
+        let line = font.line_height;
+        // The pictures are as tall as the capitals and centred on them: the rows the question's
+        // first letter covers (the line height also holds room above and below the letters).
+        let (ink_top, ink) = capital_rows(&font, &self.text, &canvas).unwrap_or((0, line));
+        let size = ink;
+        let pad = 6;
         let width_of = |bytes: &[u8], canvas: &mut GameCanvas| {
             let mut copy = font;
             copy.mode = rc2k_core::strings::text::MODE_MEASURE;
@@ -186,34 +200,101 @@ impl Inline {
             crate::text::measure_text::measure_text(&mut copy, &nul[..], 0, canvas)
                 .map_or(0, |m| m.width as i32)
         };
-        let (a, b) = self.letters;
-        let parts = [&self.text[..=a], &self.text[a + 1..=b], &self.text[b + 1..]];
+        // the text in pieces, each ending at a key letter (the last piece, the rest)
+        let mut parts: Vec<&[u8]> = Vec::new();
+        let mut from = 0;
+        for &letter in &self.letters {
+            parts.push(&self.text[from..=letter]);
+            from = letter + 1;
+        }
+        parts.push(&self.text[from..]);
         let space = (width_of(b" ", &mut canvas) / 2).max(2);
-        let widths = parts.map(|p| width_of(p, &mut canvas));
-        let total = widths.iter().sum::<i32>() + 2 * (space + size);
+        let widths: Vec<i32> = parts.iter().map(|p| width_of(p, &mut canvas)).collect();
+        let total = widths.iter().sum::<i32>() + self.icons.len() as i32 * (2 * space + size);
         let screen = o.system.session.screen.get();
         let (w, h) = (screen.width.get() as i32, screen.height.get() as i32);
-        let (mut x, y) = ((w - total) / 2, h * 22 / 100);
+        let (plate_w, plate_h) = (total + 2 * pad, line + 2 * pad);
+        let grow = (h as f32 / 600.0).max(1.0).min(w as f32 / plate_w as f32);
+        let scaled = |v: i32| (v as f32 * grow).round() as i32;
+        let (final_w, final_h) = (scaled(plate_w), scaled(plate_h));
+        let (left, top) = ((w - final_w) / 2, (h * 22 / 100 - scaled(pad)).max(0));
+        // the plate and the text at their own size, in the plate's top left corner
+        let bytes = match crate::gfx::surface::surface(o.gfx).bits_per_pixel {
+            16 => 2,
+            _ => 4,
+        };
+        let value = crate::input::osk_draw::pixel(
+            PLATE,
+            crate::gfx::surface::surface(o.gfx).bits_per_pixel,
+        );
+        let colour: Vec<u8> = value.to_le_bytes()[..bytes].repeat(plate_w as usize);
+        if let Ok(rows) = crate::gfx::rows::Rows::surface(o.gfx) {
+            for row in 0..plate_h {
+                let _ = rows.write(
+                    (top + row) as u32,
+                    (left * bytes as i32) as u32,
+                    &colour,
+                    "the question's plate",
+                );
+            }
+        }
+        let mut x = left + pad;
+        let mut places = Vec::new();
         for (n, part) in parts.iter().enumerate() {
             let mut text = part.to_vec();
             text.push(0);
-            let _ = draw_text(&mut font, &text[..], x, y, &mut canvas);
+            let _ = draw_text(&mut font, &text[..], x, top + pad, &mut canvas);
             x += widths[n];
-            if let Some(&icon) = self.icons.get(n) {
+            if n < self.icons.len() {
                 x += space;
-                crate::gfx::button_pictures::draw_glyph(
-                    o,
-                    self.family,
-                    icon,
-                    x,
-                    y + font.line_height / 2 - size / 2 + 2,
-                    size,
-                );
-                x += size;
+                places.push(x - left);
+                x += size + space;
             }
+        }
+        crate::gfx::scaled_region::enlarge(
+            o.gfx,
+            [left, top, plate_w, plate_h],
+            (left, top),
+            (final_w, final_h),
+        );
+        for (&icon, at) in self.icons.iter().zip(places) {
+            // The cell drawn so that its outline spans the capitals' rows, centred on them.
+            let (from, to) =
+                crate::gfx::button_pictures::outline_rows(self.family, icon).unwrap_or((0.0, 1.0));
+            let outline = scaled(size) as f32;
+            let cell = (outline / (to - from).max(0.1)).round() as i32;
+            let middle = top + scaled(pad + ink_top) + scaled(size) / 2;
+            let cell_top = middle - (cell as f32 * (from + to) / 2.0).round() as i32;
+            crate::gfx::button_pictures::draw_glyph(
+                o,
+                self.family,
+                icon,
+                left + scaled(at) + (scaled(size) - cell) / 2,
+                cell_top,
+                cell,
+            );
         }
         if locked_here {
             crate::platform::unlock_surface(o.gfx);
         }
     }
+}
+
+/// The rows below the line's top that `text`'s first letter covers in `font`: (the first, how many).
+fn capital_rows(
+    font: &rc2k_core::strings::text::Font,
+    text: &[u8],
+    canvas: &crate::text::draw_text::GameCanvas,
+) -> Option<(i32, i32)> {
+    use crate::text::draw_text::Canvas;
+    let c = *text.iter().find(|&&c| c > b' ')?;
+    if c < font.first_char || c > font.last_char {
+        return None;
+    }
+    let glyphs =
+        crate::gfx::glyph_store::bytes(canvas.fonts(), font.glyph_table, "the question's font")
+            .ok()?;
+    let (blank, rows) =
+        rc2k_core::strings::text::ink_rows(&glyphs, u32::from(c - font.first_char)).ok()?;
+    (rows > 0).then_some((font.y_offset + blank, rows))
 }

@@ -79,11 +79,13 @@ pub fn set_race_sounds(racing: bool) {
 
 /// During a race, puts buffer `id`'s sound into the reverb of view `view`'s surroundings (the
 /// sounds of the menus stay dry).
-pub fn set_reverb_view(id: u32, view: usize) {
+pub fn set_reverb_view(id: u32, view: Option<usize>) {
     if !RACE_SOUNDS.load(std::sync::atomic::Ordering::Relaxed) {
         return;
     }
-    with_buffer(id, |b| b.reverb_view = Some(view.min(MOST_VIEWS - 1) as u8));
+    with_buffer(id, |b| {
+        b.reverb_view = view.map(|view| view.min(MOST_VIEWS - 1) as u8);
+    });
 }
 
 const E_NOINTERFACE: i32 = 0x8000_4002u32 as i32;

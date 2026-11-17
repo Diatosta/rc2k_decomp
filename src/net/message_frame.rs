@@ -3,7 +3,7 @@
 use crate::errors::Refused;
 use crate::net::lobby::{copy_picture, draw_string, lock_surface};
 
-const FONT_B: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::CAPTION_B;
+pub const FONT_B: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::CAPTION_B;
 
 /// A frame with one string: locked, the background, the string, unlocked, shown; nothing if
 /// the lock fails.

@@ -36,7 +36,7 @@ pub fn load_prefs(race: &Race) -> Result<(), Refused> {
     let stage = race.shared.vars.get().stage_number.get();
     prefs.swap_stage_texture(stage);
     prefs.tweak_stage(stage);
-    prefs.clear_blit_cleared(race.shared.work.get().no_precipitation.get() != 0);
+    prefs.clear_precipitation_range(race.shared.work.get().no_precipitation.get() != 0);
     crate::memory::cells::store_cells(held, 0, prefs.bytes())?;
     Ok(())
 }

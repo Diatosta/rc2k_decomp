@@ -32,17 +32,23 @@ const TILE_LIT: u32 = 0xC8202A;
 /// The strip at the panel's foot for the hints of the controller's buttons.
 const HINT_STRIP: i32 = 40;
 
-/// The panel's size.
-fn panel_size() -> (i32, i32) {
+/// The width of the keys' block.
+fn keys_width() -> i32 {
+    osk::COLUMNS as i32 * CELL_W - GAP
+}
+
+/// The panel's size: wide enough for the keys and, with a margin each side, for a hint line of
+/// `hint_width` (0 for none).
+fn panel_size(hint_width: i32) -> (i32, i32) {
     (
-        osk::COLUMNS as i32 * CELL_W + 2 * MARGIN - GAP,
+        keys_width().max(hint_width) + 2 * MARGIN,
         osk::ROWS as i32 * CELL_H + 2 * MARGIN - GAP + HINT_STRIP,
     )
 }
 
 /// The panel's top: below the field when it fits there, else above it.
 fn panel_top(field_y: Option<i32>) -> i32 {
-    let (_, h) = panel_size();
+    let (_, h) = panel_size(0);
     let Some(y) = field_y else {
         return DEFAULT_TOP;
     };
@@ -62,7 +68,8 @@ fn field_y(o: crate::owners::Owners<'static>) -> Option<i32> {
     Some(item.fixed().y)
 }
 
-fn pixel(rgb: u32, bits: u32) -> u32 {
+/// A colour (0xRRGGBB) as a pixel of a surface of `bits` bits.
+pub fn pixel(rgb: u32, bits: u32) -> u32 {
     if bits == 16 {
         let (r, g, b) = (rgb >> 16 & 0xFF, rgb >> 8 & 0xFF, rgb & 0xFF);
         (r >> 3) << 11 | (g >> 2) << 5 | b >> 3
@@ -107,19 +114,35 @@ pub fn draw(o: crate::owners::Owners<'static>) {
     if locked_here && crate::platform::lock_surface(o.gfx, o.system) < 1 {
         return;
     }
-    let (w, h) = panel_size();
+    let mut canvas = GameCanvas::new(o.gfx);
+    // The pictures of the controller's buttons for typing, deleting, cancelling and being done.
+    let hints = {
+        use rc2k_core::input::profile::MenuControl as C;
+        use rc2k_core::strings::own::id::HINTS;
+        let wanted = [
+            (C::Enter, HINTS + 2),
+            (C::Third, HINTS + 3),
+            (C::Back, HINTS + 4),
+        ];
+        crate::gfx::button_hints::menu_hints(o, &wanted, Some(HINTS + 5)).map(|(family, hints)| {
+            let width = crate::gfx::button_hints::line_width(&hints, &mut canvas);
+            (family, hints, width)
+        })
+    };
+    let (w, h) = panel_size(hints.as_ref().map_or(0, |&(_, _, width)| width));
     let left = (SCREEN_W - w) / 2;
     let top = panel_top(field_y(o));
     fill(o, [left, top, w, h], PANEL);
-    let mut canvas = GameCanvas::new(o.gfx);
+    // The keys sit in the middle of the panel, which is wider than they are when the hints are.
+    let keys_left = left + (w - keys_width()) / 2;
     let font = fonts::LIST;
     'rows: for row in 0..osk::ROWS {
         let keys = Osk::width(row) as i32;
         // The command row's keys are wider: the row spans the same width.
-        let span = (w - 2 * MARGIN + GAP) / keys;
+        let span = (keys_width() + GAP) / keys;
         for col in 0..keys {
             let key = osk.key_at(row, col as usize);
-            let x = left + MARGIN + col * span;
+            let x = keys_left + col * span;
             let y = top + MARGIN + row as i32 * CELL_H;
             let lit = (row, col as usize) == (osk.row, osk.col);
             let colour = match (lit, key) {
@@ -138,22 +161,9 @@ pub fn draw(o: crate::owners::Owners<'static>) {
             }
         }
     }
-    // The pictures of the controller's buttons for typing, deleting, cancelling and being done.
-    {
-        use rc2k_core::input::profile::MenuControl as C;
-        use rc2k_core::strings::own::id::HINTS;
-        let wanted = [
-            (C::Enter, HINTS + 2),
-            (C::Third, HINTS + 3),
-            (C::Back, HINTS + 4),
-        ];
-        if let Some((family, hints)) =
-            crate::gfx::button_hints::menu_hints(o, &wanted, Some(HINTS + 5))
-        {
-            let width = crate::gfx::button_hints::line_width(&hints, &mut canvas);
-            let foot = top + h - MARGIN - crate::gfx::button_hints::SIZE + 2;
-            crate::gfx::button_hints::draw_line(o, family, &hints, left + (w - width) / 2, foot);
-        }
+    if let Some((family, hints, width)) = hints {
+        let foot = top + h - MARGIN - crate::gfx::button_hints::SIZE + 2;
+        crate::gfx::button_hints::draw_line(o, family, &hints, left + (w - width) / 2, foot);
     }
     if locked_here {
         crate::platform::unlock_surface(o.gfx);
@@ -166,7 +176,10 @@ mod tests {
 
     #[test]
     fn the_panel_keeps_off_the_field() {
-        let (_, h) = panel_size();
+        let (_, h) = panel_size(0);
+        // the hint line widens the panel only when it is wider than the keys
+        assert_eq!(panel_size(10).0, keys_width() + 2 * MARGIN);
+        assert_eq!(panel_size(900).0, 900 + 2 * MARGIN);
         // a field near the top: below it
         assert_eq!(panel_top(Some(220)), 220 + AWAY);
         // a field low down: above it, clear of it

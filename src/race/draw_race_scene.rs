@@ -4,7 +4,7 @@
 //! batches' counts, `whole_polygon_count` and the next, `cars_drawn` and `cars_culled` are set to
 //! 0; bit 1 of `refresh_flags_a` goes into `marks_mask`, bit 0 of `refresh_flags_b` into
 //! `lamps_mask`, bit 6 of the first view's flags into `flat`; `mirror_wanted` is the first view
-//! block's flag (+0x6F0) when `blit_cleared` is not 0, else 0; `d3d_drawing_on` is 1. Then the
+//! block's flag (+0x6F0) when `precipitation_range` is not 0, else 0; `d3d_drawing_on` is 1. Then the
 //! sound tick 0xA, `shine` from `shine_from`, the filters and five render states (0x15 = 4, 0x1C =
 //! 1, 0x13 = 5, 0x14 = 6, 0x1B = 1). Then the sound tick 0xB, one more `frames_drawn`, the clock
 //! restarted into `clock_base`, the full view's window, the cars' parts readied, the maps
@@ -512,8 +512,8 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         .flat
         .set(race.frame.panel_and_overlay.get().panel.hud_flags[0].get() & 0x40);
     race.frame.frame_work.get().mirror_wanted.set(false);
-    if race.course.stage_prefs.get().blit_cleared[0].get()
-        | race.course.stage_prefs.get().blit_cleared[1].get()
+    if race.course.stage_prefs.get().precipitation_range[0].get()
+        | race.course.stage_prefs.get().precipitation_range[1].get()
         != 0
     {
         race.frame

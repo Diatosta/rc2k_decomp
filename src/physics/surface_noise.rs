@@ -1,5 +1,5 @@
 //! The ground's roughness under the work car from two noise maps (`race::sample_noise`): each
-//! sample is scaled into its range (lo + (hi - lo) x it >> 16: `blit_cleared` and `surface_scale`)
+//! sample is scaled into its range (lo + (hi - lo) x it >> 16: `precipitation_range` and `surface_scale`)
 //! and held to 0 ..= 0xFF. The first goes into `surface_noise_a` and `surface_noise_b`; the second
 //! into `surface_noise_second`, and at least `surface_floor` (unsigned), / 256, into
 //! `surface_blend`. Then with `noise_pick` set `surface_noise_a` becomes 0, else `surface_noise_b`.
@@ -35,8 +35,8 @@ pub fn surface_noise(
     {
         let first = scaled(
             sample(shared, 0x50)?,
-            stage_prefs.blit_cleared[0].get(),
-            stage_prefs.blit_cleared[1].get(),
+            stage_prefs.precipitation_range[0].get(),
+            stage_prefs.precipitation_range[1].get(),
         );
         shared.car().surface_noise_a.set(first);
         shared.car().surface_noise_b.set(first);

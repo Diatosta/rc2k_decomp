@@ -216,7 +216,7 @@ In each simulation step, for each car (see [A race, step by step](A-race-step-by
 | --- | --- |
 | `drive::car_input_words` | Takes the four readings of the car's device (`drive::device_axes`). With the "non-linear steering" option, small steering inputs are made smaller still, for finer control near the centre. |
 | `drive::record_inputs_if` / `drive::play_inputs_if` | Replay: the readings are recorded, or replaced by recorded ones. |
-| `drive::read_car_controls` | Button bits become actions: lights, view change. A computer-driven car gets its controls from `drive::drive_computer_car` instead. |
+| `drive::read_car_controls` | Button bits become actions: lights, view change (not while a replay plays). A computer-driven car gets its controls from `drive::drive_computer_car` instead. |
 | `drive::steer_inputs` | Key steering moves the wheels towards full lock at a fixed rate and lets them return to centre faster. Axis steering sets the angle directly. Either way the steering sensitivity set-up value scales it. |
 | `drive::pedal_inputs` | Key pedals ramp up and down; axis pedals are taken as they are. |
 | `physics::gear_input_rules` | Which gear requests count. |

@@ -1,6 +1,6 @@
 //! The work car's controls for this step: the keys (`input_words`) into the car's controls and
 //! the newly pressed keys; for a player's car (or any car in a network game) bit 3 flips
-//! `lights_on` and bit 5 changes the view (`drive::next_camera_view`); for a computer's car
+//! `lights_on` and bit 5 changes the view (`drive::next_camera_view`, not while a replay plays); for a computer's car
 //! (`in_credits` set, or `run_kind` and `driver_kind` 2) `drive::drive_computer_car` supplies
 //! them. Refuses what `drive_computer_car` refuses (before anything).
 
@@ -12,6 +12,7 @@ use crate::math::x87;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use rc2k_core::drive::controls::{FLIP_BIT, VIEW_BIT, computer_drives, flipped, read_keys};
+use rc2k_core::drive::replay_frames::plays_inputs;
 
 /// Does a computer drive this step?
 fn computer(shared: &RaceShared) -> bool {
@@ -122,8 +123,8 @@ pub fn read_car_controls(
         .get()
         .input_gear_down
         .set(keys.down);
-    let replay = net.race_slot.is_on();
-    if replay
+    let network_game = net.race_slot.is_on();
+    if network_game
         || race_owner.shared.work.get().current_car.get()
             < race_owner.shared.view.get().players.get()
     {
@@ -134,7 +135,9 @@ pub fn read_car_controls(
                 .lights_on
                 .set(flipped(race_owner.shared.car().lights_on.get()));
         }
-        if pressed & VIEW_BIT != 0 {
+        // A replay's recorded change-view presses stay unplayed: the camera is the viewer's.
+        let replay_plays = plays_inputs(race_owner.course.numbers.get().replay_mode.get());
+        if pressed & VIEW_BIT != 0 && !replay_plays {
             next_view_at(
                 race_owner.kind_tables(),
                 race_owner.shared.car(),

@@ -42,7 +42,7 @@ const fn flag(key: &'static str, inverted: bool, when: When) -> Row {
 }
 
 /// The rows in the order the page shows them.
-pub const ROWS: [Row; 11] = [
+pub const ROWS: [Row; 10] = [
     Row {
         kind: Kind::Threads,
         when: When::Now,
@@ -60,7 +60,6 @@ pub const ROWS: [Row; 11] = [
     flag("noautoneutral", true, When::Now),
     flag("noprecipitation", true, When::NextRace),
     flag("nomusic", true, When::NextStart),
-    flag("nojoy", true, When::NextStart),
     flag("noforcefeedback", true, When::NextStart),
 ];
 

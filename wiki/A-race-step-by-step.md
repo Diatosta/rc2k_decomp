@@ -118,7 +118,7 @@ know which car it is.
 | 1 | `drive::car_input_words` | The car's raw inputs: a player's device readings (`drive::device_axes`), or, in a network game, what the car's owner sent. |
 | 2 | `drive::record_inputs_if`, `drive::play_inputs_if` | Recording: the players' inputs are added to the replay block. Playing: they are replaced by the block's. |
 | 3 | `drive::load_car` | Block to work car. |
-| 4 | `drive::read_car_controls` | Inputs to controls: keys into buttons, lights, view change. For a computer-driven car, `drive::drive_computer_car` supplies the controls instead. |
+| 4 | `drive::read_car_controls` | Inputs to controls: keys into buttons, lights, view change (not while a replay plays: the viewer's camera stays). For a computer-driven car, `drive::drive_computer_car` supplies the controls instead. |
 | 5 | `physics::gear_input_rules`, `drive::steer_inputs`, `drive::pedal_inputs` | Gear requests; steering eased towards the asked angle (keys) or taken from the device; pedals likewise. |
 | 6 | `drive::reset_request` | The reset key, held for a second at low speed, puts the car back on the road for a time penalty. |
 | 7 | `physics::car_physics_step` | The car moves: see [Car physics](Car-physics). |

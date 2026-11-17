@@ -45,11 +45,29 @@ pub fn join_session(
         &net.link.session_desc().instance,
         &net.joined().joined.read(),
     );
-    finish(
-        o,
-        lines,
-        posted_open_join,
-        join_group,
-        texts::NET_JOIN_COMPLETE,
-    )
+    crate::net::password::note_cancelled(false);
+    crate::net::password::set_joining(b"");
+    let mut wrong = false;
+    loop {
+        // A locked session asks for its password first; a session without one joins at once.
+        if s.locked {
+            let Some(answer) = crate::net::password_prompt::ask(o, wrong)? else {
+                crate::net::password::note_cancelled(true);
+                return Ok(false);
+            };
+            crate::net::password::set_joining(&answer);
+        }
+        let joined = finish(
+            o,
+            lines,
+            posted_open_join,
+            join_group,
+            texts::NET_JOIN_COMPLETE,
+        )?;
+        if joined || !s.locked || !crate::net::password::refused() {
+            crate::net::password::set_joining(b"");
+            return Ok(joined);
+        }
+        wrong = true;
+    }
 }

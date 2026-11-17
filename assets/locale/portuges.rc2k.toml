@@ -132,7 +132,6 @@ nonlinear_steering = "direção não linear"
 automatic_neutral = "ponto morto automático"
 rain_and_snow = "chuva e neve (próxima corrida)"
 music = "música (próximo início)"
-joysticks = "joysticks (próximo início)"
 force_feedback = "force feedback (próximo início)"
 gpu = "GPU"
 software = "software"
@@ -150,6 +149,8 @@ failed = "Não foi possível expulsar o jogador."
 # A palavra-passe da rede: a linha no ecrã das definições, a recusa mostrada a quem entra e a
 # marca antes do nome de uma sessão trancada.
 [network]
-password = "palavra-passe"
+password = "palavra-passe do anfitrião"
 password_refused = "Sessão trancada: palavra-passe errada ou em falta."
 lock_mark = "[trancada] "
+password_prompt = "Sessão trancada. Palavra-passe e Enter (Esc: volta)"
+password_wrong = "Errada. Outra vez e Enter (Esc: volta)"
