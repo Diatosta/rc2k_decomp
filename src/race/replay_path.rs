@@ -32,10 +32,13 @@ impl Templates {
     }
 }
 
-/// The last race's file's name (without its NUL).
+/// The last race's file's name (without its NUL). A copy let in beside another in the same
+/// folder (`--allow-another`) has a file of its own, so that two copies' races do not write one.
 pub fn last_race(replay: &Replay) -> Vec<u8> {
     let bytes = &replay.last_race;
-    bytes[..bytes.iter().position(|&b| b == 0).unwrap_or(bytes.len())].to_vec()
+    let mut name = bytes[..bytes.iter().position(|&b| b == 0).unwrap_or(bytes.len())].to_vec();
+    name.extend_from_slice(crate::single_copy::last_race_suffix().as_bytes());
+    name
 }
 
 /// The path's bytes (without the NUL), and whether it is the last race's name; `numbered_path`'s

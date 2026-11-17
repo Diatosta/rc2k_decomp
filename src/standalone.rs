@@ -702,6 +702,9 @@ pub fn run(log_file: &Path, frames: u32) -> ! {
         Ok(claim) => claim,
         Err(why) => refuse_second_copy(&why),
     };
+    if switches.instance.is_none() {
+        crate::single_copy::note_shared_copy(copy.number);
+    }
     let log_file = crate::single_copy::log_for(log_file, copy.number);
     let log_file = &std::path::absolute(&log_file).unwrap_or(log_file);
     crate::logfile::program_log::start(log_file);

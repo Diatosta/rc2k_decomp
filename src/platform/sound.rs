@@ -616,7 +616,14 @@ fn mix_into(b: &mut Buffer, master: f32, rolloff: f32, out: &mut [f32]) {
         }
     };
     let bytes = (f.bits / 8) as usize;
-    if b.engine != 0 && b.looping && frames >= 2 {
+    // The grains follow the advanced page's switch at once; off, the plain loop below takes
+    // over from the buffer's position.
+    let grained =
+        b.engine != 0 && b.looping && frames >= 2 && crate::audio::engine_loops::smooth_on();
+    if !grained {
+        b.grains = None;
+    }
+    if grained {
         let read = |n: usize| {
             let first = n * block;
             let l = sample(first);

@@ -89,12 +89,18 @@ fn save(race: &Race, system: &System, slot: u32) -> Result<bool, Refused> {
             crate::race::replay::block_place(race, 2 * block as usize)? as i32,
             0,
         );
-        crate::drive::read_packed::read_packed(
+        // A block that cannot be read or unpacked (a recording cut short, or written over by
+        // another copy of the game on the same folder) stops the saving: nothing here ends the game.
+        let read = crate::drive::read_packed::read_packed(
             race,
             system,
             race.viewer_buffers().from_file.get(),
             crate::race::replay::block_place(race, 2 * block as usize + 1)?,
-        )?;
+        );
+        if !matches!(read, Ok((_, false, _))) {
+            close();
+            return Ok(false);
+        }
         move_cells(
             &race.viewer_buffers().block,
             0,

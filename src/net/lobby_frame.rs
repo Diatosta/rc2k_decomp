@@ -1,6 +1,6 @@
 //! The frame of the lobby: background, the table's headings, the sorted players one row each
 //! (flag, name, car, race time and total, or gaps to the first row when `show_gaps`), the chat's
-//! eight lines and input, the four buttons and two lines. More than eight players are refused.
+//! eight lines and input, the two rows of buttons and two lines. More than eight players are refused.
 
 use crate::errors::{BadInput, Refused};
 use crate::net::lobby::{FONT, blit, copy_picture, lock_surface, push_id, store_text};
@@ -175,38 +175,38 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
             .wrapping_mul(8),
     );
     crate::net::chat_input_line::chat_input_line(o, &net.lobby().chat_input.text(), 3, y)?;
-    let mut x = 0x310;
+    // The two rows of buttons, each drawn right to left: the bottom row, and above it the
+    // settings and (when the last network race's replay is kept) the button that saves it.
     let replay_kept = net.lobby().replay_kept.get() == 1;
-    for (item, (id, shown)) in screens::lobby_buttons(
-        net.lobby().car_item.get(),
-        vars.stage_item.get(),
-        replay_kept,
-    )
-    .into_iter()
-    .enumerate()
-    {
-        if !shown {
-            continue;
-        }
-        // The bottom row is full: the replay's button stands at the top right, level with the
-        // chosen stage's name.
-        let (at, y) = if item == REPLAY_ITEM {
-            REPLAY_BUTTON_AT
-        } else {
-            (x, 0x223)
-        };
-        let next = crate::net::lobby_button::lobby_button(
-            crate::strings::append_string_by_id::StringOwners::of(o),
-            net,
-            id,
-            item as u32,
-            at,
-            y,
-            o.gfx,
-            o.menus,
-        )?;
-        if item != REPLAY_ITEM {
-            x = next;
+    let car_item = net.lobby().car_item.get();
+    let rows = [
+        (
+            BOTTOM_ROW_Y,
+            0,
+            screens::lobby_buttons(car_item, vars.stage_item.get()).to_vec(),
+        ),
+        (
+            UPPER_ROW_Y,
+            screens::UPPER_ROW_FIRST,
+            screens::upper_buttons(replay_kept).to_vec(),
+        ),
+    ];
+    for (y, first_item, buttons) in rows {
+        let mut x = ROW_RIGHT;
+        for (n, (id, shown)) in buttons.into_iter().enumerate() {
+            if !shown {
+                continue;
+            }
+            x = crate::net::lobby_button::lobby_button(
+                crate::strings::append_string_by_id::StringOwners::of(o),
+                net,
+                id,
+                first_item + n as u32,
+                x,
+                y,
+                o.gfx,
+                o.menus,
+            )?;
         }
     }
     for line_y in [0x156, 0x217] {
@@ -224,10 +224,11 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     Ok(())
 }
 
-/// The lobby's item that saves the last race's replay, and where its button is drawn (right edge,
-/// top).
-const REPLAY_ITEM: usize = 4;
-const REPLAY_BUTTON_AT: (u32, u32) = (0x310, 0x4F);
+/// Where the buttons' rows stand: the right edge they start from, and the y of the bottom row
+/// and of the one above it.
+const ROW_RIGHT: u32 = 0x310;
+const BOTTOM_ROW_Y: u32 = 0x223;
+const UPPER_ROW_Y: u32 = 0x1EA;
 
 /// Where the chosen stage's name is drawn: left, above the table's headings.
 const STAGE_AT: (i32, i32) = (0x18, 0x4A);

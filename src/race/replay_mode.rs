@@ -4,17 +4,18 @@
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
-use crate::race::replay_viewer::Mode;
+use crate::race::replay_viewer::{Mode, Viewed};
 
-/// One start in `mode`: the viewer, when there is a replay.
+/// One start in `mode`: the viewer, when there is a replay; how the view ended (`Nothing` when
+/// there was none).
 pub fn replay_mode(
     race: &'static Race,
     o: crate::owners::Owners<'static>,
     mode: Mode,
-) -> Result<(), Refused> {
+) -> Result<Viewed, Refused> {
     // Converted: `rc2k_core::race::viewer_flow::views_replay`.
     if rc2k_core::race::viewer_flow::views_replay(race.shared.replay_file().replay_closed.get()) {
-        crate::race::replay_viewer::replay_viewer(race, o, mode)?;
+        return crate::race::replay_viewer::replay_viewer(race, o, mode);
     }
-    Ok(())
+    Ok(Viewed::Nothing)
 }

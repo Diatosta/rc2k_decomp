@@ -118,6 +118,8 @@ render_scale = "resolução 3D"
 # The network lobby.
 [lobby]
 save_replay = "gravar repetição"
+settings = "definições"
+replay_not_saved = "A repetição não foi gravada. Prima uma tecla."
 
 # A página avançada: o que cada linha muda, e quando (no nome, ou "próximo início" ao lado do valor).
 [advanced]
@@ -133,6 +135,7 @@ rain_and_snow = "chuva e neve (próxima corrida)"
 music = "música (próximo início)"
 force_feedback = "force feedback (próximo início)"
 quit_pictures = "botões na pergunta de saída"
+smooth_engine = "ciclos de motor suaves"
 gpu = "GPU"
 software = "software"
 gles = "OpenGL ES"

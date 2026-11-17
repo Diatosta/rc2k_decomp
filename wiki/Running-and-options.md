@@ -234,7 +234,9 @@ share, and what to expect:
   and what the other copies changed in the options screens is lost.
 - Saved games, replays, best times and the game's own log (`var/logfile.txt`) are the same
   files for every copy: a save made in one is not seen by a copy that has already read the
-  folder, and the later write replaces the earlier.
+  folder, and the later write replaces the earlier. The last race's replay is the exception: a
+  copy beside the first (`--allow-another`) keeps it in `var/tmprpl.<number>`, so two copies'
+  races (a network race on one machine, say) never write one file.
 - Only one copy at a time can host a network game on the default port; the others can join it
   (this is how two copies of the game play each other on one machine).
 - A second window needs its own place on the screen and its own sound: the copies do not

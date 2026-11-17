@@ -113,6 +113,10 @@ pub struct Display {
     /// file; on when missing).
     #[serde(default = "on", skip_serializing_if = "is_on")]
     pub quit_pictures: bool,
+    /// The engine sounds' smooth loops, the blended join and the grains (only in the new file;
+    /// on when missing).
+    #[serde(default = "on", skip_serializing_if = "is_on")]
+    pub smooth_engine: bool,
 }
 
 fn on() -> bool {
@@ -134,6 +138,7 @@ impl Default for Display {
             renderer: None,
             draw_threads: None,
             quit_pictures: true,
+            smooth_engine: true,
         }
     }
 }

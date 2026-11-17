@@ -222,7 +222,8 @@ fn last_replay(o: Owners<'static>) -> Result<(), Refused> {
             race,
             o,
             crate::race::replay_viewer::Mode::LastRace,
-        );
+        )
+        .map(|_| ());
         course.numbers.get().replay_mode.set(0);
         result
     })

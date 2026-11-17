@@ -37,6 +37,7 @@ pub fn capture(o: Owners<'static>) -> Result<Options, Refused> {
     options.display.renderer = crate::render::choice::wanted();
     options.display.draw_threads = crate::scene::workers::chosen_threads();
     options.display.quit_pictures = crate::drive::quit_question::pictures_on();
+    options.display.smooth_engine = crate::audio::engine_loops::smooth_on();
     Ok(options)
 }
 
@@ -57,6 +58,7 @@ pub fn apply(o: Owners<'static>, options: &Options) -> Result<(), Refused> {
     crate::render::choice::set_wanted(options.display.renderer.clone());
     crate::scene::workers::set_threads(options.display.draw_threads);
     crate::drive::quit_question::set_pictures_on(options.display.quit_pictures);
+    crate::audio::engine_loops::set_smooth_on(options.display.smooth_engine);
     Ok(())
 }
 

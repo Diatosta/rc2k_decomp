@@ -217,22 +217,57 @@ pub fn next_button_x(x: u32, width: u32) -> u32 {
         .wrapping_sub(8)
 }
 
-/// The lobby's buttons right to left: (the string, shown), item 0 .. 4: ready, the car and
-/// the stage when they can be chosen (their switches 1), the chat, and the last network race's
-/// replay saved when one is kept (`replay_kept`).
-pub fn lobby_buttons(car_item: u32, stage_item: u32, replay_kept: bool) -> [(u32, bool); 5] {
+/// The lobby's bottom row of buttons right to left: (the string, shown), items 0 .. 3: ready,
+/// the car and the stage when they can be chosen (their switches 1), and the chat.
+pub fn lobby_buttons(car_item: u32, stage_item: u32) -> [(u32, bool); 4] {
     [
         (0x15D, true),
         (0x15B, car_item == 1),
         (0x15C, stage_item == 1),
         (0x15E, true),
+    ]
+}
+
+/// The first item of the upper row of buttons, above the bottom row: the settings, then (when
+/// the last network race's replay is kept) the button that saves it.
+pub const UPPER_ROW_FIRST: u32 = 4;
+/// The upper row's rightmost button: the in-race options.
+pub const SETTINGS_ITEM: u32 = 4;
+/// The upper row's button that saves the last race's replay.
+pub const SAVE_REPLAY_ITEM: u32 = 5;
+
+/// The upper row's buttons right to left: (the string, shown), items 4 and 5.
+pub fn upper_buttons(replay_kept: bool) -> [(u32, bool); 2] {
+    [
+        (crate::strings::own::id::LOBBY_SETTINGS, true),
         (crate::strings::own::id::SAVE_REPLAY, replay_kept),
     ]
 }
 
-/// The lobby's last item: the chat's, or with a replay kept the button that saves it.
-pub fn last_lobby_item(replay_kept: bool) -> u32 {
-    if replay_kept { 4 } else { 3 }
+/// The item an up key (`up`) or a down key moves to from `item`: from the bottom row up to the
+/// settings button, from the upper row down to the chat; no move in the row it
+/// would leave for.
+pub fn other_row_item(item: u32, up: bool) -> u32 {
+    match (item >= UPPER_ROW_FIRST, up) {
+        (false, true) => SETTINGS_ITEM,
+        (true, false) => 3,
+        _ => item,
+    }
+}
+
+/// An item of the upper row moved one button: `to_next` toward the next item (the left), else
+/// back; held to the shown buttons.
+pub fn upper_row_step(item: u32, to_next: bool, replay_kept: bool) -> u32 {
+    let last = if replay_kept {
+        SAVE_REPLAY_ITEM
+    } else {
+        SETTINGS_ITEM
+    };
+    if to_next {
+        (item + 1).min(last)
+    } else {
+        item.saturating_sub(1).max(UPPER_ROW_FIRST)
+    }
 }
 
 /// The furthest a time may be behind the first row's to be shown as a gap with a '+'.
@@ -362,9 +397,16 @@ mod tests {
         assert_eq!(lobby_button_flags(State::default(), 0, 1), 3);
         assert_eq!(lobby_button_flags(State::default(), 1, 1), 1);
         assert_eq!(next_button_x(0x310, 0x40), 0x310 - 0x84 - 8);
-        assert_eq!(lobby_buttons(1, 0, false)[2], (0x15C, false));
-        assert!(!lobby_buttons(1, 0, false)[4].1 && lobby_buttons(1, 0, true)[4].1);
-        assert_eq!((last_lobby_item(false), last_lobby_item(true)), (3, 4));
+        assert_eq!(lobby_buttons(1, 0)[2], (0x15C, false));
+        assert!(!upper_buttons(false)[1].1 && upper_buttons(true)[1].1);
+        assert!(upper_buttons(false)[0].1);
+        assert_eq!(other_row_item(3, true), SETTINGS_ITEM);
+        assert_eq!(other_row_item(0, false), 0);
+        assert_eq!(other_row_item(5, false), 3);
+        assert_eq!(upper_row_step(4, true, false), 4);
+        assert_eq!(upper_row_step(4, true, true), 5);
+        assert_eq!(upper_row_step(5, false, true), 4);
+        assert_eq!(upper_row_step(4, false, true), 4);
         assert_eq!(
             last_item(0),
             Err(Invalid(

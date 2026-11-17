@@ -107,15 +107,23 @@ enum Start {
 pub enum Viewed {
     /// No replay was opened: none chosen, or its file could not be read.
     Nothing,
+    /// A replay was to be saved into a slot and could not be (its recording cannot be read, or
+    /// the file cannot be written).
+    NotSaved,
     /// The viewer ran and was left.
     Left,
     /// The viewer ran and its first play stopped (a launch that leaves then).
     Played,
 }
 
-pub fn replay_viewer(race: &'static Race, o: Owners<'static>, mode: Mode) -> Result<(), Refused> {
-    view(race, o, Start::Menu(mode))?;
-    end(race, o)
+pub fn replay_viewer(
+    race: &'static Race,
+    o: Owners<'static>,
+    mode: Mode,
+) -> Result<Viewed, Refused> {
+    let viewed = view(race, o, Start::Menu(mode))?;
+    end(race, o)?;
+    Ok(viewed)
 }
 
 /// The viewer on the saved replay `slot`, as mode 2 runs it on the slot its loading screen
@@ -181,8 +189,12 @@ fn view(race: &'static Race, o: Owners<'static>, start: Start) -> Result<Viewed,
             }
             if saving {
                 race.shared.replay_file().viewer_slot.set(slot);
-                save_last_replay::save_last_replay(race, o.system, slot)?;
-                return Ok(Viewed::Nothing);
+                let saved = save_last_replay::save_last_replay(race, o.system, slot)?;
+                return Ok(if saved {
+                    Viewed::Nothing
+                } else {
+                    Viewed::NotSaved
+                });
             }
             slot
         }

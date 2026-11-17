@@ -86,6 +86,25 @@ pub fn claim(allow_another: bool) -> Result<Claim, String> {
     unreachable!("the loop returns at its last number");
 }
 
+/// The number (above 1) of a copy let in beside another with `--allow-another` and no instance:
+/// it shares the folder's `var`, so the files a copy writes while it runs take its number.
+static SHARED_COPY: std::sync::OnceLock<u32> = std::sync::OnceLock::new();
+
+/// Notes that this copy is number `number` of a folder it shares with the others (no instance).
+pub fn note_shared_copy(number: u32) {
+    if number > 1 {
+        let _ = SHARED_COPY.set(number);
+    }
+}
+
+/// The ending of the last race's replay file's name: empty for the folder's first copy, else
+/// `.<number>`, so that copies sharing `var` do not write one file.
+pub fn last_race_suffix() -> String {
+    SHARED_COPY
+        .get()
+        .map_or_else(String::new, |number| format!(".{number}"))
+}
+
 /// The instance's number (above 1) whose own folders the game's paths take.
 static INSTANCE: std::sync::OnceLock<u32> = std::sync::OnceLock::new();
 

@@ -185,8 +185,9 @@ pub fn prepare_sample(state: &AudioOwn, v: &mut Voice, mode: u32) -> Result<(), 
             .map_err(crate::errors::BadInput::from)?;
         // A looping sample's end is blended into its start, so the loop's turn is not heard
         // (the engines' samples end far from where they start, which at a high pitch is a
-        // buzz at the loop's rate).
-        if v.kind == 1 {
+        // buzz at the loop's rate). Made at the sample's load, so the switch counts from the
+        // next load.
+        if v.kind == 1 && crate::audio::engine_loops::smooth_on() {
             let frames = rc2k_core::audio::samples::blend_loop_join(
                 data,
                 shape.format,

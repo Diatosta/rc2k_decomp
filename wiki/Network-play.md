@@ -57,6 +57,11 @@ session to join it. Full or closed sessions are not listed. A session with a pas
 the top left of everybody's lobby. While the stage loads, the loading screen lists every player's progress in percent in its top left corner. There is a chat line; the host puts the lines in order, so everyone sees the same order (a line you type shows when the host sends it back). When every player is ready the host
 starts the race.
 
+Above the bottom row of buttons is a second row, with a **settings** button (always shown): it opens the options of the menu
+after a stage (audio, display, the players' details and the cars' specifications; what the race
+fixes is not changed there) and returns to the lobby. Up and down change between the two rows,
+left and right move along one.
+
 **Putting a player out.** The host types `/kick <name>` in the chat line (the first other player
 of that name, case ignored). The line is not sent to the others; the host sees an answer line
 in its chat. The player is told and leaves the lobby as if the host had gone, and may join again.
@@ -70,8 +75,11 @@ players' cars from the inputs their messages carry, and their whole state at the
 second, as this machine saw it. Each machine records its own view, so the replays of one race
 differ a little between players (a remote car's position corrections are not recorded, only
 its inputs and its state each second). Once the race is over the lobby shows a **save replay**
-button at the top right (reached with the left key from the chat); it asks for a slot as the
-single-player results screen does, and the replay can then be watched from the replays menu.
+button in a second row of buttons above the bottom row (reached with the up key, then the left
+key); it asks for a slot as the single-player results screen does, and the replay can then be
+watched from the replays menu. Backing out of the slot screen leaves the lobby as it was. A
+replay that cannot be saved (its recording cannot be read, or the slot's file cannot be written)
+gives a message and the lobby stays; it never ends the program.
 The file is a replay of the usual format, but it holds only the first two cars' inputs and the
 first four cars' states: a race of more than two players plays back with the other cars
 following their stored states only.
@@ -85,7 +93,9 @@ for this run: see [Running and options](Running-and-options).
 
 For trying it out, two copies can run on the same computer: host in one, and in the other join
 with the address left empty (this machine is always asked) or set to `127.0.0.1`. Give each
-copy its own game folder, or they will share `var` and `savedata`.
+copy its own game folder, or they will share `var` and `savedata` (see "Two copies in one
+folder" on [Running and options](Running-and-options)). Each copy keeps the last race's replay
+in a file of its own.
 
 ## If it does not work
 

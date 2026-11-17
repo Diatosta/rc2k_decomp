@@ -1,7 +1,7 @@
 //! Reads bytes from a file into a buffer: a count of 0 or more is a plain read (`files::read`);
 //! below 0, minus the count of packed bytes are read and unpacked into the buffer
-//! (`drive::unpack_rle`), returning the bytes unpacked. Refuses what `unpack_rle` refuses
-//! (nothing written then but the packed bytes).
+//! (`drive::unpack_rle`), returning the bytes unpacked. What cannot be read or unpacked is a
+//! failed read (nothing written then but the packed bytes).
 
 use crate::errors::{BadInput, Refused};
 use crate::files::handle::read_slice;
@@ -9,9 +9,28 @@ use crate::race::owner::Race;
 use crate::race::viewer_buffers_store::BLOCK_BYTES;
 use crate::system::owner::System;
 
-/// Into the replay block. A plain read of more than the block holds is refused before
-/// anything, as is a packed one past the scratch.
+/// Into the replay block. A plain read of more than the block holds, a packed one past the
+/// scratch and a packing that does not unpack into the block are a damaged replay file (cut
+/// short, or written over): the read fails (`true` in the second place) and nothing more is
+/// done, so a damaged recording never ends the program.
 pub fn read_packed(
+    race: &Race,
+    system: &System,
+    file: u32,
+    count: u32,
+) -> Result<(u32, bool, Option<bool>), Refused> {
+    match read(race, system, file, count) {
+        Err(Refused::BadInput(why)) => {
+            crate::logfile::program_log::log(&format!(
+                "replay: a block of {count:#x} bytes cannot be read ({why:?}); the file is damaged"
+            ));
+            Ok((0, true, None))
+        }
+        other => other,
+    }
+}
+
+fn read(
     race: &Race,
     system: &System,
     file: u32,

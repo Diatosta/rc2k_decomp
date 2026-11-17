@@ -86,7 +86,9 @@ Stereo samples are stored left then right for each moment, as usual.
   steps inside the sample), the game blends the last 10 ms into the first 10 ms when it
   loads the sample and ends the sample where the blend begins, so the turn of the loop is
   not heard as a click; the sample is 10 ms shorter then. Several of the engine samples
-  needed it.
+  needed it. The advanced page's "smooth engine loops" switch turns the blend off (the
+  original's plain loop); it counts from the next sample load (the next stage), as the
+  blend is made there.
 - A looping engine sample (a file in `files/d/snd/engine/`) is not played as a plain loop
   in the sound modes where each sound has a buffer of its own (the Dolby mode's own mixer still loops plainly): at the pitch of high revs a sample about
   a second long comes round every few tenths of a second and the ear hears the same phrase
@@ -95,6 +97,8 @@ Stereo samples are stored left then right for each moment, as usual.
   random place of the sample, moved a little to where its wave best matches what the grain
   before goes on to play, so the engine's tone is the same as the plain loop's and only the
   order its stretches come in varies. This costs about half a percent of one core a voice.
+  The same switch turns the grains off, at once: a voice playing as grains goes on as the
+  plain loop from the same place.
 - The pitch of engine and tyre sounds is changed while they play; the file's rate is only the
   starting point.
 

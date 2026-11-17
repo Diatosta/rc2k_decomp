@@ -114,6 +114,10 @@ pub mod id {
     pub const APPLY: u32 = FIRST + 0xB8;
     /// The network lobby's button that saves the last race's replay.
     pub const SAVE_REPLAY: u32 = FIRST + 0xF8;
+    /// The network lobby's button that opens the in-race options.
+    pub const LOBBY_SETTINGS: u32 = FIRST + 0xD8;
+    /// The message shown when a replay could not be saved.
+    pub const REPLAY_NOT_SAVED: u32 = FIRST + 0xD9;
 }
 
 /// Each text's file key and id.
@@ -146,6 +150,8 @@ pub const KEYS: &[(&str, u32)] = &[
     ("graphics.frames_a_second", id::FRAMES_A_SECOND),
     ("graphics.render_scale", id::RENDER_SCALE),
     ("lobby.save_replay", id::SAVE_REPLAY),
+    ("lobby.settings", id::LOBBY_SETTINGS),
+    ("lobby.replay_not_saved", id::REPLAY_NOT_SAVED),
     ("advanced.title", id::ADVANCED),
     ("advanced.threads", id::ADVANCED_ROWS),
     ("advanced.renderer", id::ADVANCED_ROWS + 1),
@@ -158,6 +164,8 @@ pub const KEYS: &[(&str, u32)] = &[
     ("advanced.music", id::ADVANCED_ROWS + 8),
     ("advanced.force_feedback", id::ADVANCED_ROWS + 9),
     ("advanced.quit_pictures", id::ADVANCED_ROWS + 10),
+    // Its own id: the ones after the quit row's belong to the renderer names.
+    ("advanced.smooth_engine", id::ADVANCED_ROWS + 16),
     ("advanced.gpu", id::RENDERER_GPU),
     ("advanced.software", id::RENDERER_SOFTWARE),
     ("advanced.gles", id::RENDERER_GLES),

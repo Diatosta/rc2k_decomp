@@ -128,6 +128,8 @@ render_scale = "3D resolution"
 # The network lobby.
 [lobby]
 save_replay = "save replay"
+settings = "settings"
+replay_not_saved = "The replay could not be saved. Press a key."
 
 # The advanced page: what the rows change, and when (in the name, or "next start" beside a value).
 [advanced]
@@ -143,6 +145,7 @@ rain_and_snow = "rain and snow (next race)"
 music = "music (next start)"
 force_feedback = "force feedback (next start)"
 quit_pictures = "buttons in the quit question"
+smooth_engine = "smooth engine loops"
 gpu = "GPU"
 software = "software"
 gles = "OpenGL ES"

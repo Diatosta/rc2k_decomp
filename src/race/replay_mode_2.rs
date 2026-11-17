@@ -9,4 +9,5 @@ pub fn replay_mode_2(
     o: crate::owners::Owners<'static>,
 ) -> Result<(), Refused> {
     crate::race::replay_viewer::replay_viewer(race, o, crate::race::replay_viewer::Mode::Saved)
+        .map(|_| ())
 }

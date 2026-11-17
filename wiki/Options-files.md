@@ -114,6 +114,7 @@ each, written in decimal in the file; to read one, turn it into hexadecimal (`32
 | `renderer` | The advanced page's renderer, swapped in at once on the desktop and tried first at start: `"gpu"` (the GPU first, the normal order) or `"software"`. Left out until chosen. `--renderer` and `RC2K_RENDERER` outrank it; when it cannot start, the normal order runs and the file is not changed. |
 | `draw_threads` | The advanced page's number of parts of a frame drawn at once, 1 or more (more than the machine can draw at once counts as the most). Left out for the most. |
 | `quit_pictures` | The advanced page's "buttons in the quit question" switch: `false` draws the race's quit question as the game's own line, without the controller's pictures and their dark box. Left out when on (the default). |
+| `smooth_engine` | The advanced page's "smooth engine loops" switch: `false` plays the engine samples as the original's plain loop, without the blended loop join (from the next sample load) and without the grains (at once). Left out when on (the default). |
 | `frame_limit` | The graphics page's "frame limit": `"off"` (nothing in the program waits for a frame's time; a display that waits for its refresh still does), `"display"` (one frame for each refresh, every second or third on a display faster than 100 Hz) or a number of frames a second. Left out for the default, `"display"`. The race's speed does not depend on it. |
 
 ### Sound

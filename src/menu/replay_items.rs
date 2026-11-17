@@ -15,7 +15,7 @@ pub fn replay_item_a(
     if race.shared.state.settings.no_replay.get() != 1
         && race.shared.replay_file().replay_closed.get() == 1
     {
-        return crate::race::replay_mode::replay_mode(race, o, Mode::LastRace);
+        return crate::race::replay_mode::replay_mode(race, o, Mode::LastRace).map(|_| ());
     }
     crate::system::pause::pause_keeping_key(o, 500);
     crate::sound::play_menu_sound::play_menu_sound_in_game(o.sound, o.audio, o.menus, o.system, 8);

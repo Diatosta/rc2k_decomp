@@ -57,6 +57,11 @@ pub fn draw_advanced(
             } else {
                 id::OFF
             }),
+            Kind::SmoothEngine => own(if values.smooth_engine {
+                id::ON
+            } else {
+                id::OFF
+            }),
             Kind::Flag { .. } => own(if values.flags[n] { id::ON } else { id::OFF }),
         });
     }

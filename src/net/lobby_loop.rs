@@ -13,6 +13,7 @@ use crate::net::store::NetShared;
 use crate::owners::Owners;
 use rc2k_core::net::message::Message;
 use rc2k_core::net::players::State;
+use rc2k_core::net::screens;
 
 /// The players' states and-ed together (those with bit 0x80 left out), starting from `bits`,
 /// over `count` players (at least one turn: `count` > 0).
@@ -76,6 +77,12 @@ pub fn sync(
         }
     }
     Ok(all_answered)
+}
+
+/// The lobby's own background back in the picture buffer, after a screen of another (the replay
+/// slots', the options') drew its own into it.
+fn restore_background(o: Owners<'static>) -> Result<(), Refused> {
+    crate::net::show_background::show_background(o)
 }
 
 /// An item move: from the highlight by `step` while it lands on an item that is off.
@@ -153,7 +160,21 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
             crate::net::chat_key::chat_key(o.input, o.strings, net, key, o.gfx)?;
         } else {
             let ready = net.vars.own.state().is_ready();
-            if !ready && key == 0x69 {
+            let replay_kept = net.lobby().replay_kept.get() == 1;
+            let choice = list_state.choice.get();
+            if !ready && (key == 0x66 || key == 0x6B) {
+                // Up and down change between the bottom row and the one above it.
+                let to = screens::other_row_item(choice, key == 0x66);
+                if to != choice {
+                    list_state.choice.set(to);
+                    moved = true;
+                }
+            } else if !ready && (key == 0x69 || key == 0x68) && choice >= screens::UPPER_ROW_FIRST {
+                // Within the upper row.
+                let to = screens::upper_row_step(choice, key == 0x68, replay_kept);
+                list_state.choice.set(to);
+                moved = true;
+            } else if !ready && key == 0x69 {
                 step_item(list_state, net, &net.vars, u32::MAX);
                 if net.lobby().after_race.get() == 1 && (list_state.choice.get() as i32) < 1 {
                     list_state.choice.set(1);
@@ -164,10 +185,8 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
                 moved = true;
             } else if !ready && key == 0x68 {
                 step_item(list_state, net, &net.vars, 1);
-                let last =
-                    rc2k_core::net::screens::last_lobby_item(net.lobby().replay_kept.get() == 1);
-                if (list_state.choice.get() as i32) > last as i32 {
-                    list_state.choice.set(last);
+                if list_state.choice.get() > 3 {
+                    list_state.choice.set(3);
                 }
                 moved = true;
             } else if key == 0x1C {
@@ -190,13 +209,29 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
                         crate::net::begin_chat::begin_chat(net, list_state)?;
                         moved = true;
                     }
-                    4 if net.lobby().replay_kept.get() == 1 => {
+                    screens::SETTINGS_ITEM => {
+                        // The options of the menu after a stage: audio, display, the players'
+                        // details and the cars' specifications.
+                        crate::menu::in_game_options_items::show_in_game_options(o.menus)?;
+                        crate::menu::in_game_options_loop::run(o)?;
+                        restore_background(o)?;
+                        moved = true;
+                    }
+                    screens::SAVE_REPLAY_ITEM if net.lobby().replay_kept.get() == 1 => {
                         // The last race's replay into a slot chosen (the viewer's screens).
-                        crate::race::replay_mode::replay_mode(
+                        let viewed = crate::race::replay_mode::replay_mode(
                             o.race,
                             o,
                             crate::race::replay_viewer::Mode::SaveLast,
                         )?;
+                        restore_background(o)?;
+                        if viewed == crate::race::replay_viewer::Viewed::NotSaved {
+                            crate::net::show_message::show_own_text(
+                                o,
+                                rc2k_core::strings::own::id::REPLAY_NOT_SAVED,
+                            )?;
+                            restore_background(o)?;
+                        }
                         moved = true;
                     }
                     _ => {}
