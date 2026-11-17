@@ -463,6 +463,18 @@ pub fn use_dummy_video_driver() {
     unsafe { SDL_SetHint(SDL_HINT_VIDEO_DRIVER, c"dummy".as_ptr()) };
 }
 
+/// SDL's video driver is the offscreen one (a render to a file needs no window on a screen).
+pub fn use_offscreen_video() {
+    // SAFETY: two constant C texts.
+    unsafe { SDL_SetHint(SDL_HINT_VIDEO_DRIVER, c"offscreen".as_ptr()) };
+}
+
+/// SDL's audio driver is the dummy one (no sound to a device).
+pub fn use_dummy_audio() {
+    // SAFETY: two constant C texts.
+    unsafe { SDL_SetHint(SDL_HINT_AUDIO_DRIVER, c"dummy".as_ptr()) };
+}
+
 /// SDL's video started; false when it does not start.
 pub fn init_video() -> bool {
     // SAFETY: SDL's own start-up, on the thread that will own the window.

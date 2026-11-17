@@ -131,6 +131,18 @@ report() {
     (cd "$DIST" && find . -type f -exec ls -l {} + | awk '{printf "  %10d  %s\n", $5, $NF}')
 }
 
+# With the `steam` feature the program links Valve's library, which steamworks-sys leaves in its
+# build folder: copied beside the program (`$1`: cargo's profile folder, `$2`: the file's name,
+# `$3`: where it goes). Without the feature nothing is copied.
+copy_steam_library() {
+    case ",${RC2K_FEATURES:-}," in *,steam,*) ;; *) return 0 ;; esac
+    local found
+    found=$(find "$1/build" -path "*steamworks-sys-*/out/$2" 2>/dev/null | head -1)
+    [ -n "$found" ] || fail "the steam feature is on but $2 was not found under $1/build"
+    cp "$found" "$3/"
+    echo "steam: $2 copied beside the program (the Steam client must be running to use it)"
+}
+
 build_windows() {
     local arch="$1" triple="$2" xwin_arch="$3" target_dir="$4"
     need cargo "install rustup (https://rustup.rs)"
@@ -144,6 +156,11 @@ build_windows() {
         --xwin-arch "$xwin_arch" --target "$triple" --bin rc2k
     fresh_dist
     cp "$target_dir/$triple/$PROFILE/rc2k.exe" "third_party/sdl3/lib/$arch/SDL3.dll" "$DIST/"
+    if [ "$arch" = x86 ]; then
+        copy_steam_library "$target_dir/$triple/$PROFILE" steam_api.dll "$DIST"
+    else
+        copy_steam_library "$target_dir/$triple/$PROFILE" steam_api64.dll "$DIST"
+    fi
 }
 
 build_linux() {
@@ -153,6 +170,7 @@ build_linux() {
         --target x86_64-unknown-linux-gnu --bin rc2k
     fresh_dist
     cp "target/linux/x86_64-unknown-linux-gnu/$PROFILE/rc2k" "$DIST/"
+    copy_steam_library "target/linux/x86_64-unknown-linux-gnu/$PROFILE" libsteam_api.so "$DIST"
     if command -v objdump >/dev/null 2>&1; then
         echo "the Linux program needs glibc $(objdump -T "$DIST/rc2k" | grep -v ' w ' \
             | grep -oE 'GLIBC_[0-9.]+' | sort -uV | tail -1 | cut -d_ -f2) or newer"
@@ -239,6 +257,8 @@ build_mac() {
     local app="$DIST/Rally Championship.app"
     mkdir -p "$app/Contents/MacOS"
     lipo -create -output "$app/Contents/MacOS/rc2k" "${bins[@]}"
+    # Valve's library for the first processor built (one file holds both processors').
+    copy_steam_library "target/mac/${triples[0]}/$PROFILE" libsteam_api.dylib "$app/Contents/MacOS"
     cp tools/mac/Info.plist "$app/Contents/"
     mkdir -p "$app/Contents/Resources"
     cp assets/icon.icns "$app/Contents/Resources/"

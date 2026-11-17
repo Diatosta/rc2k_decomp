@@ -21,6 +21,9 @@ edition = "2024"
 [features]
 # Remote control for automated test runs (`src/remote.rs`, `tools/remote.py`).
 remote = []
+# Network play through Steam (lobbies and the relay, `src/net/steam/`): the Steam redistributable
+# library must sit beside the program. Not built for 64-bit ARM Linux (the handheld has no Steam).
+steam = ["dep:steamworks"]
 
 [lib]
 crate-type = ["rlib"]
@@ -46,6 +49,10 @@ smallvec = { version = "1", features = ["const_generics"] }
 [target.'cfg(all(target_pointer_width = "64", not(all(target_os = "linux", target_arch = "aarch64"))))'.dependencies]
 dear-imgui-rs = { version = "0.21", default-features = false }
 dear-imgui-sys = { version = "0.21", default-features = false, features = ["build-from-source"] }
+
+# Steam's API for network play (feature `steam`; no Steam on the handheld).
+[target.'cfg(not(all(target_os = "linux", target_arch = "aarch64")))'.dependencies]
+steamworks = { version = "0.13", optional = true }
 
 # The system's own facts on Unix (`src/platform/os/unix.rs`): free space, memory, the stack, `_exit`.
 [target.'cfg(unix)'.dependencies]

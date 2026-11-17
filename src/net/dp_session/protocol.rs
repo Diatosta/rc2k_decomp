@@ -2,7 +2,6 @@
 //! every machine, and how a change is applied to the session's world.
 
 use std::io::{Read, Write};
-use std::net::TcpStream;
 use std::time::Duration;
 
 use super::*;
@@ -237,13 +236,13 @@ pub(super) const CONNECTIONS_MOST: usize = 0x40;
 /// that reads whatever comes, so a machine busy loading does not stop reading).
 pub(super) const WRITE_WAIT: Duration = Duration::from_secs(5);
 
-pub(super) fn write_frame(stream: &mut TcpStream, bytes: &[u8]) -> std::io::Result<()> {
+pub(super) fn write_frame(stream: &mut (impl Write + ?Sized), bytes: &[u8]) -> std::io::Result<()> {
     let mut frame = (bytes.len() as u32).to_le_bytes().to_vec();
     frame.extend(bytes);
     stream.write_all(&frame)
 }
 
-pub(super) fn read_frame(stream: &mut TcpStream) -> std::io::Result<Vec<u8>> {
+pub(super) fn read_frame(stream: &mut (impl Read + ?Sized)) -> std::io::Result<Vec<u8>> {
     let mut n = [0u8; 4];
     stream.read_exact(&mut n)?;
     let n = u32::from_le_bytes(n) as usize;

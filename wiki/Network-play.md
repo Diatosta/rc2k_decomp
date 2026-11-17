@@ -9,9 +9,10 @@ network screens are the 1999 game's; what carries the messages underneath is new
 
 - The original used DirectPlay. This program has **its own protocol** in its place, so it
   plays against other copies of this program only, not against the original `RAL.EXE`.
-- Only one kind of connection is offered: TCP/IP. The modem, serial and IPX connections of
-  1999 are not there.
-- There are no lobby services; one machine hosts and the others join it directly.
+- Two kinds of connection are offered: TCP/IP and, in builds made with the `steam` feature,
+  Steam ([Playing through Steam](#playing-through-steam)). The modem, serial and IPX connections
+  of 1999 are not there.
+- One machine hosts and the others join it directly (over Steam, through a Steam lobby).
 - The protocol is the same on every system the program runs on, so builds for different
   systems are meant to play each other. Use the same version of the program on all machines: a machine of another protocol version
   is refused (an older host does not show up in the session list, and ending the connection
@@ -30,6 +31,30 @@ network screens are the 1999 game's; what carries the messages underneath is new
   `var/rc2k.toml` (`port` in the `network` table, which can also be edited by hand); `0` means
   the default. All machines must use the same one.
 
+## Playing through Steam
+
+A program built with the `steam` feature (`RC2K_FEATURES=steam ./build.sh <target>`; the build puts
+Valve's library, `libsteam_api.so`, `steam_api64.dll` / `steam_api.dll` or `libsteam_api.dylib`,
+beside the program) lists **Steam** as a second connection, after TCP/IP, when the Steam client
+is running and you are signed in. It is not there on the handheld, and without Steam running
+nothing changes: only TCP/IP is listed. No port needs opening: Steam's relay carries the
+connection, between Steam accounts.
+
+- Until the game has an application number of its own it runs as Valve's test application,
+  **Spacewar** (480), which every Steam account has: friends see you playing "Spacewar".
+- Choose the Steam connection, then host or join as with TCP/IP. **Hosting** makes a public
+  Steam lobby that carries the session's name, its limit and whether it has a password.
+  **Joining** lists the lobbies of the same program version that Steam finds (strangers'
+  included, as Spacewar's list is shared with other test games), friends' lobbies and a lobby you
+  were invited to; choosing one joins the lobby and connects to its host. The password question and
+  the lobby are as over TCP/IP.
+- **Invites.** A friend can use "Join game" in Steam's friends list, or an invitation: start the
+  game first and open the network page, then accept; the session then appears in the list. A game
+  started by the invitation takes the lobby from the launch argument `+connect_lobby <id>`.
+  While in a lobby the status line shown to friends says you are in a network race.
+- The Steam list and the TCP/IP list are separate: a Steam host is not found by a TCP/IP join.
+- Two Steam accounts are needed to try a game: one machine cannot join its own lobby.
+
 ## Setting up a game
 
 In the main menu choose the network game, then host or join.
@@ -38,7 +63,7 @@ In the main menu choose the network game, then host or join.
 
 | Item | What it is |
 | --- | --- |
-| Connection | The kind of connection; there is one, TCP/IP. |
+| Connection | The kind of connection: TCP/IP, or Steam when the program was built with it and the Steam client is running. |
 | Player's name | Your name in the lobby and the results. |
 | Most players | The host's limit on how many may join. |
 | Host's address | For joining: the host's address. Leave it empty to look for games on the local network. |

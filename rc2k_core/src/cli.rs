@@ -173,6 +173,30 @@ pub const SWITCHES: &[Switch] = &[
         Group::Replay,
     ),
     switch(
+        "--render-replay",
+        Some("<slot | file>"),
+        "render a replay to a video (with --out) instead of playing it, and end; headless, faster than real time",
+        Group::Replay,
+    ),
+    switch(
+        "--out",
+        Some("<file>"),
+        "the video file of --render-replay (.mp4 or .mkv); without an ffmpeg on the path, a folder of numbered PNGs named after it",
+        Group::Replay,
+    ),
+    switch(
+        "--size",
+        Some("<WxH>"),
+        "the video's size (the race screen's size for the render; default: the options' race size)",
+        Group::Replay,
+    ),
+    switch(
+        "--fps",
+        Some("<1 .. 480>"),
+        "the video's frames a second (default 60); frames between the 100 ticks a second are blended",
+        Group::Replay,
+    ),
+    switch(
         "--then",
         Some("<menus | quit>"),
         "after the race, the replay or the lobby: the menus (the default), or the program ends",

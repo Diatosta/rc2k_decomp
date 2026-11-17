@@ -85,7 +85,10 @@ pub fn apply(o: Owners<'static>, options: &Options) -> Result<(), Refused> {
             .unwrap_or_default(),
     );
     // The size set by hand wins; else the size the file kept beyond the game's table.
-    let wanted = crate::gfx::monitor_sizes::custom().or(d.race_size.map(|[w, h]| (w, h)));
+    // A video's size wins over both.
+    let wanted = crate::video::size()
+        .or(crate::gfx::monitor_sizes::custom())
+        .or(d.race_size.map(|[w, h]| (w, h)));
     if let Some((w, h)) = wanted {
         let modes = &o.gfx.display.modes;
         let table: Vec<(u32, u32, u32)> = (0..8)
@@ -99,7 +102,8 @@ pub fn apply(o: Owners<'static>, options: &Options) -> Result<(), Refused> {
             o.gfx.display.mode.race_mode.set(mode);
         }
     }
-    crate::race::blend::set_smooth(options.display.smooth_frames);
+    // A video's frames between the ticks need the blend, whatever the options say.
+    crate::race::blend::set_smooth(options.display.smooth_frames || crate::video::active());
     Ok(())
 }
 

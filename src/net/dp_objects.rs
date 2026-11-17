@@ -112,6 +112,8 @@ struct State {
     initialized: bool,
     host: String,
     port: u16,
+    /// The connection is Steam's, not TCP/IP.
+    steam: bool,
     session: Option<Arc<Session>>,
 }
 
@@ -367,11 +369,20 @@ pub fn enum_sessions(
     context: u32,
     flags: u32,
 ) -> u32 {
-    let Some((host, port)) = with_state(this, |s| s.initialized.then(|| (s.host.clone(), s.port)))
-    else {
+    let Some((host, port, steam)) = with_state(this, |s| {
+        s.initialized.then(|| (s.host.clone(), s.port, s.steam))
+    }) else {
         return DPERR_UNINITIALIZED;
     };
-    for (d, _) in find_sessions(&host, port, *application) {
+    let heard: Vec<Desc> = if steam {
+        crate::net::steam::lobbies(*application)
+    } else {
+        find_sessions(&host, port, *application)
+            .into_iter()
+            .map(|(d, _)| d)
+            .collect()
+    };
+    for d in heard {
         let closed =
             d.flags & 0x21 != 0 || (d.max_players != 0 && d.current_players >= d.max_players);
         if flags & DPENUMSESSIONS_AVAILABLE != 0 && closed {
@@ -404,19 +415,21 @@ pub fn open(this: u32, d: &Desc, flags: u32) -> u32 {
 /// `open`, with the password a created session is locked by or a joined one is answered with
 /// (empty: none).
 pub fn open_with_password(this: u32, d: &Desc, flags: u32, password: &[u8]) -> u32 {
-    let port = match with_state(this, |s| {
+    let (port, steam) = match with_state(this, |s| {
         if !s.initialized {
             Err(DPERR_UNINITIALIZED)
         } else if s.session.is_some() {
             Err(DPERR_ALREADYINITIALIZED)
         } else {
-            Ok(s.port)
+            Ok((s.port, s.steam))
         }
     }) {
-        Ok(port) => port,
+        Ok(got) => got,
         Err(e) => return e,
     };
-    let made = if flags & DPOPEN_CREATE != 0 {
+    let made = if steam {
+        open_steam(d, flags, password)
+    } else if flags & DPOPEN_CREATE != 0 {
         let d = Desc {
             instance: fresh_guid(),
             ..d.clone()
@@ -451,6 +464,31 @@ pub fn open_with_password(this: u32, d: &Desc, flags: u32, password: &[u8]) -> u
             DP_OK
         }
         Err(e) => e,
+    }
+}
+
+/// `open` over Steam: a created session gets a lobby, a joined one connects to its lobby's
+/// owner through Steam's relay.
+fn open_steam(d: &Desc, flags: u32, password: &[u8]) -> Result<Arc<Session>, u32> {
+    if flags & DPOPEN_CREATE != 0 {
+        let d = Desc {
+            instance: fresh_guid(),
+            ..d.clone()
+        };
+        let session = Session::host_over(d.clone(), 0, signal(), password);
+        crate::net::steam::host(&session, &d, !password.is_empty()).map_err(|e| {
+            crate::logfile::program_log::log(&format!(
+                "net: the Steam session could not be hosted: {e}"
+            ));
+            session.close();
+            DPERR_CANTCREATESESSION
+        })?;
+        Ok(session)
+    } else if flags & DPOPEN_JOIN != 0 {
+        let wire = crate::net::steam::join(&d.instance)?;
+        Session::join_over(wire, 0, signal(), password)
+    } else {
+        Err(DPERR_INVALIDPARAMS)
     }
 }
 
@@ -514,7 +552,7 @@ pub fn set_session_desc(this: u32, desc: &Desc) -> u32 {
 /// its name, flags, the context) -> 0 to stop.
 type EnumConnectionsCallback<'a> = &'a dyn Fn(&Guid, &[u8], &[u8], u32, u32) -> u32;
 
-/// `EnumConnections`: TCP/IP alone.
+/// `EnumConnections`: TCP/IP, then Steam when it is there.
 pub fn enum_connections(callback: EnumConnectionsCallback<'_>, context: u32) -> u32 {
     let address = compound(&[(DPAID_SERVICEPROVIDER, DPSPGUID_TCPIP.to_vec())]);
     let name = c"Internet TCP/IP Connection For DirectPlay";
@@ -525,6 +563,17 @@ pub fn enum_connections(callback: EnumConnectionsCallback<'_>, context: u32) -> 
         0,
         context,
     );
+    // Steam is one more connection when its client runs.
+    if crate::net::steam::available() {
+        let address = compound(&[(DPAID_SERVICEPROVIDER, crate::net::steam::PROVIDER.to_vec())]);
+        callback(
+            &crate::net::steam::PROVIDER,
+            &address,
+            crate::net::steam::CONNECTION_NAME,
+            0,
+            context,
+        );
+    }
     DP_OK
 }
 
@@ -590,8 +639,11 @@ pub fn take_port_in_use() -> Option<u16> {
 fn initialize(s: &mut State, parts: Vec<(Guid, Vec<u8>)>) -> u32 {
     s.host = String::new();
     s.port = DEFAULT_PORT;
+    s.steam = false;
     for (kind, data) in parts {
-        if kind == DPAID_INET {
+        if kind == DPAID_SERVICEPROVIDER && data.starts_with(&crate::net::steam::PROVIDER) {
+            s.steam = true;
+        } else if kind == DPAID_INET {
             s.host = String::from_utf8_lossy(&data)
                 .trim_end_matches('\0')
                 .to_string();
@@ -603,10 +655,14 @@ fn initialize(s: &mut State, parts: Vec<(Guid, Vec<u8>)>) -> u32 {
         }
     }
     s.initialized = true;
-    crate::logfile::program_log::log(&format!(
-        "net: TCP/IP connection, host \"{}\", port {}",
-        s.host, s.port
-    ));
+    if s.steam {
+        crate::logfile::program_log::log("net: Steam connection");
+    } else {
+        crate::logfile::program_log::log(&format!(
+            "net: TCP/IP connection, host \"{}\", port {}",
+            s.host, s.port
+        ));
+    }
     DP_OK
 }
 

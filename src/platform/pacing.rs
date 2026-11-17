@@ -127,6 +127,10 @@ pub fn step_frame_limit(up: bool) {
 
 /// A frame was shown: waits until the next is due, by the frame limit chosen.
 pub fn frame_shown() {
+    // A video is made as fast as the frames can be drawn.
+    if crate::video::active() {
+        return;
+    }
     let mut pacer = PACER
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);

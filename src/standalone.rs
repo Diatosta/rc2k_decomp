@@ -304,6 +304,8 @@ pub fn finish(why: &str, code: u32) -> ! {
 
 /// The process ended with `code`, the PGO build's counters written first.
 fn end(code: u32) -> ! {
+    // A video's file is closed first.
+    crate::video::finish();
     #[cfg(rc2k_pgo)]
     {
         crate::platform::ffi::pgo::write_profile();
@@ -647,6 +649,14 @@ fn program_switches_refused(args: &[String]) -> Option<String> {
         Ok(switches) => switches,
         Err(why) => return Some(why),
     };
+    if switches.render_replay.is_some() && switches.out.is_none() {
+        return Some("--render-replay needs --out <video file>".into());
+    }
+    if switches.render_replay.is_none()
+        && (switches.out.is_some() || switches.size.is_some() || switches.fps.is_some())
+    {
+        return Some("--out, --size and --fps go with --render-replay".into());
+    }
     let renderer = switches.renderer?;
     match crate::render::choice::parse(&renderer) {
         Some(_) => None,
@@ -689,6 +699,9 @@ pub fn run(log_file: &Path, frames: u32) -> ! {
         &std::env::args().skip(1).collect::<Vec<_>>(),
     )
     .unwrap_or_default();
+    if let Err(why) = crate::video::begin(&switches) {
+        refuse_second_copy(&why);
+    }
     // Before the folder's lock and log: a folder with no game data is replaced by the one the
     // player picks.
     crate::first_run::find_game_data(switches.game_data.as_deref());

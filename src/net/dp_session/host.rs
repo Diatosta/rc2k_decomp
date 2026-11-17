@@ -13,7 +13,7 @@ impl Session {
     /// The host's session made, locked by `password` unless it is empty: joiners must prove they
     /// know it, and the session's description says it is locked.
     pub fn host_locked(
-        mut desc: Desc,
+        desc: Desc,
         port: u16,
         signal: Signal,
         password: &[u8],
@@ -21,6 +21,17 @@ impl Session {
         let listener = TcpListener::bind(("0.0.0.0", port))?;
         let udp = UdpSocket::bind(("0.0.0.0", port))?;
         udp.set_read_timeout(Some(Duration::from_millis(300)))?;
+        let session = Session::host_over(desc, port, signal, password);
+        let s = session.clone();
+        std::thread::spawn(move || s.accept(listener));
+        let s = session.clone();
+        std::thread::spawn(move || s.answer_probes(udp));
+        Ok(session)
+    }
+
+    /// The host's session made with no listener of its own: machines come through connections
+    /// handed to `serve_wire` (a kind of connection that finds its own machines).
+    pub fn host_over(mut desc: Desc, port: u16, signal: Signal, password: &[u8]) -> Arc<Session> {
         desc.current_players = 0;
         let lock = if password.is_empty() {
             desc.flags &= !DPSESSION_PASSWORDREQUIRED;
@@ -33,7 +44,7 @@ impl Session {
                 key: rc2k_core::net::password::key(&salt, password),
             })
         };
-        let session = Session::new(
+        Session::new(
             1,
             World {
                 desc,
@@ -42,12 +53,21 @@ impl Session {
             signal,
             port,
             lock,
-        );
-        let s = session.clone();
-        std::thread::spawn(move || s.accept(listener));
-        let s = session.clone();
-        std::thread::spawn(move || s.answer_probes(udp));
-        Ok(session)
+        )
+    }
+
+    /// A machine's connection taken in, on a thread of its own, until it ends.
+    pub fn serve_wire(self: &Arc<Self>, wire: Box<dyn Wire>) {
+        if self.connections.fetch_add(1, Ordering::SeqCst) >= CONNECTIONS_MOST {
+            self.connections.fetch_sub(1, Ordering::SeqCst);
+            let _ = wire.shutdown();
+            return;
+        }
+        let s = self.clone();
+        std::thread::spawn(move || {
+            s.clone().serve(wire);
+            s.connections.fetch_sub(1, Ordering::SeqCst);
+        });
     }
 
     pub(super) fn accept(self: Arc<Self>, listener: TcpListener) {
@@ -55,16 +75,9 @@ impl Session {
         while !self.stop.load(Ordering::SeqCst) {
             match listener.accept() {
                 Ok((stream, _)) => {
-                    if self.connections.fetch_add(1, Ordering::SeqCst) >= CONNECTIONS_MOST {
-                        self.connections.fetch_sub(1, Ordering::SeqCst);
-                        continue;
-                    }
                     let _ = stream.set_nonblocking(false);
-                    let s = self.clone();
-                    std::thread::spawn(move || {
-                        s.clone().serve(stream);
-                        s.connections.fetch_sub(1, Ordering::SeqCst);
-                    });
+                    let _ = stream.set_nodelay(true);
+                    self.serve_wire(Box::new(stream));
                 }
                 Err(_) => std::thread::sleep(Duration::from_millis(50)),
             }
@@ -90,8 +103,7 @@ impl Session {
     }
 
     /// One joined machine's connection, until it ends.
-    pub(super) fn serve(self: Arc<Self>, mut stream: TcpStream) {
-        let _ = stream.set_nodelay(true);
+    pub(super) fn serve(self: Arc<Self>, mut stream: Box<dyn Wire>) {
         let _ = stream.set_write_timeout(Some(WRITE_WAIT));
         let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
         let Ok(first) = read_frame(&mut stream) else {
@@ -110,7 +122,7 @@ impl Session {
             return;
         }
         if let Some(lock) = &self.lock
-            && !self.proves_password(&mut stream, lock)
+            && !self.proves_password(&mut *stream, lock)
         {
             // A wrong guess waits before it is answered: guesses cost a second each.
             std::thread::sleep(Duration::from_secs(1));
@@ -210,7 +222,7 @@ impl Session {
     }
 
     /// Whether the machine on `stream` answers a fresh challenge with the proof of the password.
-    fn proves_password(&self, stream: &mut TcpStream, lock: &Lock) -> bool {
+    fn proves_password(&self, stream: &mut dyn Wire, lock: &Lock) -> bool {
         use rc2k_core::net::password::{KEY_LEN, proof, same};
         let challenge = random_16();
         let asked = W::default().u8(CHALLENGE).raw(&lock.salt).raw(&challenge);
@@ -238,7 +250,7 @@ impl Session {
         if let Some(link) = links.get_mut(&machine)
             && write_frame(link, bytes).is_err()
         {
-            let _ = link.shutdown(std::net::Shutdown::Both);
+            let _ = link.shutdown();
         }
     }
 
@@ -270,7 +282,7 @@ impl Session {
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
             for link in links.values_mut() {
                 if write_frame(link, &bytes).is_err() {
-                    let _ = link.shutdown(std::net::Shutdown::Both);
+                    let _ = link.shutdown();
                 }
             }
         }

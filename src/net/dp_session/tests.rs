@@ -621,3 +621,44 @@ fn an_open_session_asks_no_password() {
     guest.close();
     host.close();
 }
+
+/// The whole protocol over a connection that is not TCP: a joined machine makes a player, the
+/// host's player and the joined one swap messages, and the host's closing ends the session.
+#[test]
+fn a_session_runs_over_an_in_memory_connection() {
+    let host = Session::host_over(wire_desc(), 0, Arc::new(quiet), b"");
+    let (host_end, guest_end) = Pipe::pair();
+    host.serve_wire(Box::new(host_end));
+    let guest = Session::join_over(Box::new(guest_end), 0, Arc::new(quiet), b"").expect("joined");
+    let (result, mine) = host.create_player("host", &[], 0);
+    assert_eq!(result, DP_OK);
+    let (result, theirs) = guest.create_player("guest", &[7], 0);
+    assert_eq!(result, DP_OK);
+    assert_eq!(host.world().players.len(), 2);
+
+    let wait_for = |session: &Session, to: Id| {
+        for _ in 0..200 {
+            match session.receive(MESSAGE_MOST) {
+                Some(Ok(m)) if m.to == to && m.from != 0 => return m,
+                Some(_) => {}
+                None => std::thread::sleep(Duration::from_millis(10)),
+            }
+        }
+        panic!("no message came");
+    };
+    assert_eq!(guest.send(theirs, mine, b"to host"), DP_OK);
+    let m = wait_for(&host, mine);
+    assert_eq!((m.from, m.data), (theirs, b"to host".to_vec()));
+    assert_eq!(host.send(mine, theirs, b"to guest"), DP_OK);
+    let m = wait_for(&guest, theirs);
+    assert_eq!((m.from, m.data), (mine, b"to guest".to_vec()));
+
+    host.close();
+    for _ in 0..200 {
+        if guest.send(theirs, mine, b"x") == DPERR_SESSIONLOST {
+            return;
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    panic!("the guest never lost the session");
+}

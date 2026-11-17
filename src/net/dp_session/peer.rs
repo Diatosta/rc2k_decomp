@@ -6,9 +6,19 @@ use super::*;
 impl Session {
     /// Joins the session whose host is at `at`, answering a locked host with `password`.
     pub fn join_with(at: SocketAddr, signal: Signal, password: &[u8]) -> Result<Arc<Session>, u32> {
-        let mut stream = TcpStream::connect_timeout(&at, Duration::from_secs(5))
+        let stream = TcpStream::connect_timeout(&at, Duration::from_secs(5))
             .map_err(|_| DPERR_NOCONNECTION)?;
         let _ = stream.set_nodelay(true);
+        Session::join_over(Box::new(stream), at.port(), signal, password)
+    }
+
+    /// Joins over a connection already made to the host (`port` is what the session reports).
+    pub fn join_over(
+        mut stream: Box<dyn Wire>,
+        port: u16,
+        signal: Signal,
+        password: &[u8],
+    ) -> Result<Arc<Session>, u32> {
         write_frame(&mut stream, &W::default().u8(JOIN).raw(MAGIC).0)
             .map_err(|_| DPERR_NOCONNECTION)?;
         let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
@@ -57,7 +67,7 @@ impl Session {
             world.groups.insert(id, r.group().ok_or(bad)?);
         }
         let _ = stream.set_write_timeout(Some(WRITE_WAIT));
-        let session = Session::new(me, world, signal, at.port(), None);
+        let session = Session::new(me, world, signal, port, None);
         let reader = stream.try_clone().map_err(|_| bad)?;
         session
             .links
@@ -69,7 +79,7 @@ impl Session {
         Ok(session)
     }
 
-    pub(super) fn follow_host(self: Arc<Self>, mut stream: TcpStream) {
+    pub(super) fn follow_host(self: Arc<Self>, mut stream: Box<dyn Wire>) {
         while let Ok(frame) = read_frame(&mut stream) {
             let mut r = R(&frame);
             match r.u8() {

@@ -121,6 +121,7 @@ pub mod show_message;
 pub mod shut_down;
 pub mod sort_players;
 pub mod start_link;
+pub mod steam;
 pub mod stop;
 pub mod stopping;
 pub mod store;

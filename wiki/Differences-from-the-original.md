@@ -52,7 +52,7 @@ More on [The installer](The-installer).
 
 - The protocol is this project's own, so the program plays against other copies of itself,
   not against the original.
-- Only TCP/IP is offered: no modem, serial or IPX connection, and no lobby services.
+- TCP/IP is offered, and Steam in builds made with the `steam` feature: no modem, serial or IPX connection.
 
 More on [Network play](Network-play).
 

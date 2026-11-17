@@ -25,6 +25,10 @@ impl PictureClock {
 }
 
 pub fn tick_count(picture_clock: &PictureClock) -> u32 {
+    // A replay rendered to a video runs on the video's own clock.
+    if let Some(video) = crate::video::clock() {
+        return video;
+    }
     #[cfg(feature = "remote")]
     if let Some(held) = crate::remote::held_clock() {
         return held;

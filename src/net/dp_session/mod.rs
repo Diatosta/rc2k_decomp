@@ -26,12 +26,26 @@ mod peer;
 mod protocol;
 #[cfg(test)]
 mod tests;
+pub(crate) mod wire;
 
 pub use discovery::{find_sessions, session_address};
 pub use protocol::MESSAGE_MOST;
 use protocol::*;
+#[cfg(test)]
+pub use wire::Pipe;
+pub use wire::Wire;
 
 pub type Id = u32;
+
+#[cfg(all(
+    feature = "steam",
+    not(all(target_os = "linux", target_arch = "aarch64"))
+))]
+/// The protocol's version as text (Steam lobbies carry it, so that only machines of the same
+/// version are listed).
+pub fn protocol_tag() -> &'static str {
+    std::str::from_utf8(MAGIC).unwrap_or("")
+}
 
 /// DirectPlay's TCP/IP port, when the game gives none.
 pub const DEFAULT_PORT: u16 = 47624;
@@ -151,12 +165,15 @@ pub struct Session {
     signal: Signal,
     stop: AtomicBool,
     /// The host: each joined machine's connection. A joined machine: the host's (as 1).
-    links: Mutex<HashMap<u32, TcpStream>>,
+    links: Mutex<HashMap<u32, Box<dyn Wire>>>,
     port: u16,
     /// The host's connections open.
     connections: AtomicUsize,
     /// The host's password, as its salt and the key made from it (never the password).
     lock: Option<Lock>,
+    /// What the connection's kind keeps while the session is open (the Steam lobby and its
+    /// listening socket); dropped when the session closes.
+    held: Mutex<Option<Box<dyn std::any::Any + Send>>>,
 }
 
 /// What a locked session's host keeps of its password.
@@ -186,6 +203,7 @@ impl Session {
             links: Mutex::new(HashMap::new()),
             connections: AtomicUsize::new(0),
             lock,
+            held: Mutex::new(None),
             port,
         })
     }
@@ -307,9 +325,21 @@ impl Session {
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         if let Some(link) = links.get(&machine) {
             // Ends the machine's reader, which removes its players.
-            let _ = link.shutdown(std::net::Shutdown::Both);
+            let _ = link.shutdown();
         }
         DP_OK
+    }
+
+    #[cfg(all(
+        feature = "steam",
+        not(all(target_os = "linux", target_arch = "aarch64"))
+    ))]
+    /// Keeps `what` until the session closes.
+    pub fn hold(&self, what: Box<dyn std::any::Any + Send>) {
+        *self
+            .held
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(what);
     }
 
     pub fn close(&self) {
@@ -320,8 +350,13 @@ impl Session {
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         for link in links.values_mut() {
             let _ = write_frame(link, &[BYE]);
-            let _ = link.shutdown(std::net::Shutdown::Both);
+            let _ = link.shutdown();
         }
         links.clear();
+        drop(links);
+        self.held
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take();
     }
 }

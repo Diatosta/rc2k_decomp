@@ -393,7 +393,7 @@ impl std::fmt::Display for LaunchError {
 }
 
 /// The switches that take a value (the next word, or after `=`).
-pub const VALUED: [&str; 21] = [
+pub const VALUED: [&str; 22] = [
     "join",
     "name",
     "port",
@@ -406,6 +406,7 @@ pub const VALUED: [&str; 21] = [
     "brake-balance",
     "steering",
     "replay",
+    "render-replay",
     "stage",
     "stage-set",
     "car",
@@ -660,7 +661,7 @@ fn net_launch(all: &Given) -> Result<Option<NetLaunch>, LaunchError> {
     let way = if host { "--host" } else { "--join" };
     let replay_or_race = RACE_ONLY
         .iter()
-        .chain(&["replay"])
+        .chain(&["replay", "render-replay"])
         .find(|k| all.last(k).is_some());
     if let Some(other) = replay_or_race {
         return Err(LaunchError(format!(
@@ -763,7 +764,14 @@ impl Asked {
         if let Some(net) = net_launch(&all)? {
             return Ok(Some(Asked::Net(net)));
         }
-        let Some(named) = all.last("replay") else {
+        // A replay to render to video is played as a launched replay that ends the program.
+        let rendering = all.last("render-replay");
+        if rendering.is_some() && all.last("replay").is_some() {
+            return Err(LaunchError(
+                "--render-replay and --replay do not go together: give one".into(),
+            ));
+        }
+        let Some(named) = rendering.or(all.last("replay")) else {
             return Launch::from_given(&all).map(|l| Some(Asked::Race(l)));
         };
         if let Some(other) = RACE_ONLY.iter().find(|key| all.last(key).is_some()) {
@@ -773,7 +781,11 @@ impl Asked {
         }
         Ok(Some(Asked::Replay(ReplayLaunch {
             replay: replay(named)?,
-            then: then(&all)?,
+            then: if rendering.is_some() {
+                Then::Quit
+            } else {
+                then(&all)?
+            },
         })))
     }
 }
@@ -1008,6 +1020,28 @@ mod tests {
 
     fn read(args: &[&str]) -> Result<Option<Launch>, LaunchError> {
         race(Asked::from_args(args, &mut |_| Err("no file".into())))
+    }
+
+    #[test]
+    fn a_replay_to_render_is_a_replay_that_ends_the_program() {
+        let read = |args: &[&str]| Asked::from_args(args, &mut |_| Ok(String::new()));
+        match read(&[
+            "--render-replay",
+            "kept/run",
+            "--out",
+            "v.mp4",
+            "--then",
+            "menus",
+        ]) {
+            Ok(Some(Asked::Replay(r))) => {
+                assert_eq!(r.replay, Replay::File("kept/run".into()));
+                assert_eq!(r.then, Then::Quit);
+            }
+            other => panic!("{other:?}"),
+        }
+        assert!(read(&["--render-replay", "3", "--replay", "4"]).is_err());
+        assert!(read(&["--render-replay", "3", "--stage", "langton"]).is_err());
+        assert!(read(&["--host", "--render-replay", "3"]).is_err());
     }
 
     #[test]

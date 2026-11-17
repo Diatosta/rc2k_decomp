@@ -245,6 +245,9 @@ No line is needed to build; each `--deploy` needs only its own target's.
 
 One more variable is read from the environment, not from the file: `RC2K_FEATURES` adds cargo
 features to a build (for example `RC2K_FEATURES=remote ./build.sh linux` for a test build).
+`RC2K_FEATURES=steam` builds Steam network play ([Network play](Network-play)): the build copies Valve's
+library (`libsteam_api.so`, `steam_api.dll` / `steam_api64.dll`, `libsteam_api.dylib`) next to the program; it
+is not built for the handheld (64-bit ARM Linux), and the program then needs the library beside it to start.
 
 ### The older script: `deploy_standalone.sh`
 

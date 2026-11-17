@@ -40,6 +40,11 @@ program, not with the 1999 game.
   local network. A host answers with its description (`discovery.rs`).
 - **Joining** is a TCP connection to the host (`peer.rs` on the joiner, `host.rs` on the
   host). The default port is DirectPlay's old one, 47624.
+- **The connection is a seam** (`wire.rs`): the session talks to each machine through a `Wire`
+  (read, write, clone, shut down, time limits). TCP is one; Steam's relay (`net::steam`, built with
+  the `steam` feature) is the other: a host listens through a Steam lobby and a joiner connects to
+  the lobby owner's Steam ID, each write being one reliable Steam message. The protocol above is
+  the same over both. The tests run a whole session over an in-memory `Wire`.
 - **Messages** from one machine to others go to the host, which passes them on to the players
   they are addressed to. They are never sent back to the sender.
 - **If the host goes**, the session is lost. It does not move to another machine.

@@ -204,6 +204,31 @@ If the slot holds no replay, or the file is not a replay of this game, the progr
 before anything loads, with a message that says why and lists the saved replays by slot and
 name.
 
+### Rendering a replay to a video
+
+`--render-replay` plays a replay without a window on the screen or any sound, as fast as the
+frames can be drawn, and writes the picture as a video file. The replay runs tick for tick as
+when it is watched; only the clock is the video's own.
+
+```
+rc2k --render-replay savedata/replay/replay00 --out run.mp4 --size 1920x1080 --fps 60
+```
+
+| Switch | What it does |
+| --- | --- |
+| `--render-replay` | A replay's slot or file, as `--replay` takes it. The program ends when the replay has played. No race switch and no `--replay` goes with it. |
+| `--out` | The video file. Needed. |
+| `--size` | The size of the video's frames, `WIDTHxHEIGHT` (each side 160 .. 16384): the race screen is made this size for the render, whatever the options hold. Without it, the race size of the options. |
+| `--fps` | The frames a second, 1 .. 480 (60 if not given). The simulation ticks a hundred times a second; a frame between two ticks shows the blend of them (the options' "smooth frames", forced on here), so 60, 120 or 144 are all smooth. |
+
+The frames are piped as raw pixels to an `ffmpeg` found on the path: H.264 (`libx264`, 4:2:0, an
+odd side is cut by one pixel) when it has that encoder, else its own default for the file's
+extension. With no `ffmpeg` the frames are written as numbered PNG files in a folder named
+after the video (`run_frames/frame_000001.png`, ...) and the log says so; `ffmpeg -framerate 60
+-i run_frames/frame_%06d.png run.mp4` makes the video from them. There is no sound in the video.
+`--renderer` chooses the renderer as always (the software renderer needs no graphics card).
+The program uses SDL's offscreen video driver unless `SDL_VIDEODRIVER` is set.
+
 ### How the program runs here
 
 | Switch | Effect |
