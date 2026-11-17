@@ -455,8 +455,8 @@ pub fn finish_frame(
     if !GPU_HOLDS_FRAME.load(Relaxed) {
         return None;
     }
-    // The OpenGL backend's frame is read back at each frame's end, for SDL's renderer to show
-    // as the canvas.
+    // The OpenGL backend's window shows its own frames (`show_on_gl_window`); a frame that
+    // comes here is read back into the canvas.
     let stays = frame_stays_on_gpu(course);
     if !stays || gles::GPU.lock().unwrap().is_some() {
         give_frame_back(target);
@@ -504,6 +504,39 @@ pub fn show_on_panel(
         gpu.finish_and_show(target, unsafe { target.bytes() });
     } else {
         with_frame(&mut |frame| gpu.show_picture(frame, width, height));
+    }
+    true
+}
+
+/// The frame on the OpenGL backend's own window, which shows it without the frame's coming back
+/// through the canvas: the target during a race (and in the menus that keep their background on
+/// the GPU), else the canvas's picture, which `with_frame` hands over. False: the backend does
+/// not show a window (it is not running), and the caller shows the frame.
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+pub fn show_on_gl_window(
+    course: &Course,
+    target: &Target,
+    with_frame: impl FnOnce(&mut dyn FnMut(&[u8])),
+    width: usize,
+    height: usize,
+) -> bool {
+    if gles::window().is_none() || gles::GPU.lock().unwrap().is_none() {
+        return false;
+    }
+    if GPU_HOLDS_FRAME.load(Relaxed) && !frame_stays_on_gpu(course) {
+        give_frame_back(target);
+    }
+    let mut gl = gles::GPU.lock().unwrap();
+    let Some(gl) = gl.as_mut() else {
+        return false;
+    };
+    if GPU_HOLDS_FRAME.load(Relaxed) {
+        // SAFETY: `Target::bytes`' promise: on the game's thread, which waits for this call, so
+        // nothing else reaches the canvas; no other slice of it lives (the frame's showing takes
+        // its own after this returns, `platform::with_frame`); the screen keeps its pixels.
+        gl.finish_and_show(target, unsafe { target.bytes() });
+    } else {
+        with_frame(&mut |frame| gl.show_picture(frame, width, height));
     }
     true
 }

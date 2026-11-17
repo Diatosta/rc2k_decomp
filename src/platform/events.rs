@@ -47,40 +47,44 @@ fn next_event() -> Option<Event> {
         return Some(Event::Other);
     }
     let kind = event.kind();
-    Some(if kind == SDL_EVENT_QUIT {
-        Event::Quit
-    } else if kind == SDL_EVENT_WINDOW_FOCUS_GAINED {
-        Event::Focus(true)
-    } else if kind == SDL_EVENT_WINDOW_FOCUS_LOST {
-        Event::Focus(false)
-    } else if kind == SDL_EVENT_JOYSTICK_ADDED {
-        crate::platform::input::pad_added(event.joystick_id());
-        Event::Other
-    } else if kind == SDL_EVENT_JOYSTICK_REMOVED {
-        crate::platform::input::pad_removed(event.joystick_id());
-        Event::Other
-    } else if let Some((id, button, down)) = event.gamepad_button() {
-        Event::Pad { id, button, down }
-    } else if let Some((axis, value)) = event.gamepad_axis() {
-        use crate::input::menu_pad::StickAxis;
-        let axis = match axis {
-            SDL_GAMEPAD_AXIS_LEFTX => StickAxis::X,
-            SDL_GAMEPAD_AXIS_LEFTY => StickAxis::Y,
-            _ => return Some(Event::Other),
-        };
-        Event::Stick {
-            axis,
-            value: value.into(),
-        }
-    } else if let Some((id, input)) = event.joystick_input() {
-        Event::Joystick { id, input }
-    } else if let Some(text) = event.text() {
-        Event::Text(text)
-    } else if let Some((scancode, down)) = event.key() {
-        Event::Key { scancode, down }
-    } else {
-        Event::Other
-    })
+    // A window's close button: the OpenGL backend's window may be the only one shown, and SDL
+    // sends its quit only when the last of all its windows closes.
+    Some(
+        if kind == SDL_EVENT_QUIT || kind == SDL_EVENT_WINDOW_CLOSE_REQUESTED {
+            Event::Quit
+        } else if kind == SDL_EVENT_WINDOW_FOCUS_GAINED {
+            Event::Focus(true)
+        } else if kind == SDL_EVENT_WINDOW_FOCUS_LOST {
+            Event::Focus(false)
+        } else if kind == SDL_EVENT_JOYSTICK_ADDED {
+            crate::platform::input::pad_added(event.joystick_id());
+            Event::Other
+        } else if kind == SDL_EVENT_JOYSTICK_REMOVED {
+            crate::platform::input::pad_removed(event.joystick_id());
+            Event::Other
+        } else if let Some((id, button, down)) = event.gamepad_button() {
+            Event::Pad { id, button, down }
+        } else if let Some((axis, value)) = event.gamepad_axis() {
+            use crate::input::menu_pad::StickAxis;
+            let axis = match axis {
+                SDL_GAMEPAD_AXIS_LEFTX => StickAxis::X,
+                SDL_GAMEPAD_AXIS_LEFTY => StickAxis::Y,
+                _ => return Some(Event::Other),
+            };
+            Event::Stick {
+                axis,
+                value: value.into(),
+            }
+        } else if let Some((id, input)) = event.joystick_input() {
+            Event::Joystick { id, input }
+        } else if let Some(text) = event.text() {
+            Event::Text(text)
+        } else if let Some((scancode, down)) = event.key() {
+            Event::Key { scancode, down }
+        } else {
+            Event::Other
+        },
+    )
 }
 
 /// Set by `restore_window` (any thread): the window is restored at the next pump, on the
@@ -102,7 +106,7 @@ fn restore_if_asked() {
         return;
     };
     if let Some(screen) = screen.as_ref() {
-        screen.window.restore_if_minimised();
+        crate::platform::input_window(screen.window).restore_if_minimised();
     }
 }
 
@@ -252,7 +256,7 @@ fn sync_text_input() {
         .as_ref()
         .ok()
         .and_then(|screen| screen.as_ref())
-        .map(|screen| screen.window);
+        .map(|screen| crate::platform::input_window(screen.window));
     let has_keyboard = || window.is_some_and(super::ffi::sdl::Window::has_screen_keyboard);
     if let Some(on) = crate::input::typed_text::sync(has_keyboard)
         && let Some(window) = window

@@ -69,6 +69,46 @@ impl Window {
         unsafe { SDL_HasScreenKeyboardSupport() }
     }
 
+    /// The window shown (and raised, so that it takes the keyboard).
+    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    pub fn show_raised(self) {
+        // SAFETY: as `restore_if_minimised`.
+        unsafe {
+            SDL_ShowWindow(self.0);
+            SDL_RaiseWindow(self.0);
+        }
+    }
+
+    /// Whether the window is hidden.
+    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    pub fn is_hidden(self) -> bool {
+        // SAFETY: as `restore_if_minimised`.
+        unsafe { SDL_GetWindowFlags(self.0).0 & SDL_WINDOW_HIDDEN.0 != 0 }
+    }
+
+    /// The window hidden.
+    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    pub fn hide(self) {
+        // SAFETY: as `restore_if_minimised`.
+        unsafe { SDL_HideWindow(self.0) };
+    }
+
+    /// Where the window is on the desktop.
+    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    pub fn position(self) -> (i32, i32) {
+        let (mut x, mut y) = (0, 0);
+        // SAFETY: as `restore_if_minimised`; SDL writes the two integers.
+        unsafe { SDL_GetWindowPosition(self.0, &raw mut x, &raw mut y) };
+        (x, y)
+    }
+
+    /// The window moved to `(x, y)` on the desktop.
+    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    pub fn set_position(self, (x, y): (i32, i32)) {
+        // SAFETY: as `restore_if_minimised`.
+        unsafe { SDL_SetWindowPosition(self.0, x, y) };
+    }
+
     /// The window's size in the screen's pixels.
     pub fn set_size(self, width: usize, height: usize) {
         // SAFETY: as `restore_if_minimised`.

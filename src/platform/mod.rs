@@ -230,7 +230,7 @@ fn set_screen_mode(
             // (`make_window_renderer`). The handheld's GPU starts with its first frame
             // (`render::show_on_panel`).
             #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-            let renderer = make_window_renderer(window);
+            let renderer = make_window_renderer(window, (width as usize, height as usize));
             #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
             let renderer = sdl::create_renderer(window);
             let Some(renderer) = renderer else {
@@ -259,7 +259,17 @@ fn set_screen_mode(
     // under Wine, a frame's flash before the loading picture).
     renderer.clear_black();
     renderer.present();
-    crate::platform::pacing::set_display(window.display_refresh(), renderer.present_waits());
+    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    place_shown_window(window, width as usize, height as usize);
+    // The OpenGL backend's window, where it shows the frames, never waits for the refresh.
+    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    let shows_itself = crate::render::gles::window().is_some();
+    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    let shows_itself = false;
+    crate::platform::pacing::set_display(
+        window.display_refresh(),
+        renderer.present_waits() && !shows_itself,
+    );
     #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
     size_gpu_targets(width, height);
     // What was noted for the old screen is drawn on it before it goes.
@@ -302,14 +312,15 @@ fn set_screen_mode(
 
 /// The window's renderer and the 3D's backend, started in the order the choice names (the GPU
 /// API's renderer on its device, OpenGL beside SDL's own renderer, SDL's own renderer with the
-/// software rasteriser); `None` when SDL makes no renderer at all. Logs what runs.
+/// software rasteriser); `None` when SDL makes no renderer at all. Logs what runs. `size` is the
+/// screen's: the OpenGL backend's window is made at it.
 #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-fn make_window_renderer(window: sdl::Window) -> Option<sdl::Renderer> {
+fn make_window_renderer(window: sdl::Window, size: (usize, usize)) -> Option<sdl::Renderer> {
     let gpu_renderer = start_gpu_renderer(window);
-    // Next in the order: OpenGL, which shows its frames read back into the canvas through
-    // SDL's own renderer (`render::gles`).
+    // Next in the order: OpenGL, which shows its frames on a window of its own in place of
+    // the one SDL's renderer has (`render::gles`).
     if gpu_renderer.is_none() {
-        crate::render::gles::start_on_window();
+        crate::render::gles::start_on_window(size);
     }
     let renderer = gpu_renderer.or_else(|| sdl::create_renderer(window))?;
     log(&format!(
@@ -322,6 +333,38 @@ fn make_window_renderer(window: sdl::Window) -> Option<sdl::Renderer> {
         }
     ));
     Some(renderer)
+}
+
+/// The window the frames are shown on, set for the backend that runs: the OpenGL backend's own
+/// window takes the game's place (same title, icon, size and spot, the keyboard), SDL's renderer
+/// keeping the one it was made on, hidden; with no OpenGL window the game's own is shown.
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+fn place_shown_window(window: sdl::Window, width: usize, height: usize) {
+    let Some(gl) = crate::render::gles::window() else {
+        window.show_raised();
+        return;
+    };
+    match icon::pixels(4) {
+        Some(p) if sdl::set_window_icon(gl, p.width, p.height, &p.rgb) => {}
+        _ => log("platform: the window's icon was not set"),
+    }
+    gl.set_size(width, height);
+    if gl.is_hidden() {
+        // First shown: where the game's window was; after that the player's own place for it.
+        gl.set_position(window.position());
+        gl.show_raised();
+        window.hide();
+    }
+}
+
+/// The window that has the keyboard and is closed by the player: the OpenGL backend's while it
+/// shows the frames, else the game's.
+pub(crate) fn input_window(window: sdl::Window) -> sdl::Window {
+    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    if let Some(gl) = crate::render::gles::window() {
+        return gl;
+    }
+    window
 }
 
 /// The GPU backend's targets at the screen's size; a backend that cannot make them is given up
@@ -466,6 +509,8 @@ fn rebuild_renderer(
     drop(texture);
     *GPU_VIEW.lock().unwrap() = (0, None);
     crate::debug::imgui_sdl::renderer_going();
+    // Where the player left the OpenGL backend's window, if it was the one shown.
+    let left_at = crate::render::gles::window().map(sdl::Window::position);
     crate::render::gles::stop();
     crate::render::gpu::stop();
     sdl::destroy_renderer(renderer);
@@ -474,7 +519,7 @@ fn rebuild_renderer(
     }
     crate::render::choice::set_swapped_to(wish);
     // Some renderer is made whatever the choice gives: the window needs one.
-    let Some(renderer) = make_window_renderer(window) else {
+    let Some(renderer) = make_window_renderer(window, (screen_width, screen_height)) else {
         crate::fatal::raise::end(
             "platform::swap_renderer",
             crate::errors::BadInput("SDL makes no renderer for the window"),
@@ -488,7 +533,16 @@ fn rebuild_renderer(
     };
     renderer.clear_black();
     renderer.present();
-    crate::platform::pacing::set_display(window.display_refresh(), renderer.present_waits());
+    if let Some(at) = left_at
+        && crate::render::gles::window().is_none()
+    {
+        window.set_position(at);
+    }
+    place_shown_window(window, screen_width, screen_height);
+    crate::platform::pacing::set_display(
+        window.display_refresh(),
+        renderer.present_waits() && crate::render::gles::window().is_none(),
+    );
     size_gpu_targets(width, height);
     *guard = Some(Screen {
         window,
@@ -647,6 +701,19 @@ fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(),
     }
     #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
     {
+        // The OpenGL backend's own window shows its frames itself (the debug UI, drawn through
+        // SDL's renderer, is not over them).
+        if let Some(target) = crate::platform::direct3d::screen(o.system.session.screen.get())
+            && crate::render::show_on_gl_window(
+                &race.course,
+                &target,
+                |show| with_frame(screen, show),
+                screen.width,
+                screen.height,
+            )
+        {
+            return Ok(());
+        }
         let renderer = screen.renderer;
         // A race on the GPU: its picture, the canvas's written pixels over it.
         let gpu_view = crate::platform::direct3d::screen(o.system.session.screen.get())

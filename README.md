@@ -70,7 +70,7 @@ Measured figures:
 
 Graphics: on the desktop the GPU renderer goes through SDL's GPU device with Vulkan
 (Windows, Linux) or Metal (macOS). Where no such device starts, OpenGL 3.3 draws the 3D
-(its frames read back, slower), and where that does not start either, the software rasteriser
+(shown on a window of its own), and where that does not start either, the software rasteriser
 draws the game and needs no GPU. On the handheld the GPU renderer needs OpenGL ES 3.0
 (the system's `libmali`), with the same fallback.
 

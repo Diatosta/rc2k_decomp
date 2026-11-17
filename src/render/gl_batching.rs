@@ -60,21 +60,7 @@ pub enum Job<Draw> {
     /// The textures whose memory is gone, by address.
     Forget(Vec<TextureId>),
     Draw(Draw),
-    #[cfg_attr(
-        not(all(target_os = "linux", target_arch = "aarch64")),
-        allow(
-            dead_code,
-            reason = "only the handheld's panel shows frames; a PC reads them back"
-        )
-    )]
     ShowTarget,
-    #[cfg_attr(
-        not(all(target_os = "linux", target_arch = "aarch64")),
-        allow(
-            dead_code,
-            reason = "only the handheld's panel shows frames; a PC reads them back"
-        )
-    )]
     ShowPicture {
         frame: Vec<u8>,
         width: i32,

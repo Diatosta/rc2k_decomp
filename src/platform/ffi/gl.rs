@@ -148,7 +148,7 @@ pub struct Gles {
 }
 
 #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-/// A hidden SDL window made for an OpenGL context, handed to the thread that makes the context
+/// An SDL window made for an OpenGL context, hidden until the game shows it in place of its own, handed to the thread that makes the context
 /// current there (`Gles::open_window`).
 pub struct GlWindow(*mut sdl3_sys::everything::SDL_Window);
 
@@ -159,9 +159,9 @@ unsafe impl Send for GlWindow {}
 
 #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
 impl GlWindow {
-    /// A hidden window with an OpenGL 3.3 core context asked for, made on the calling thread
-    /// (the one that made the game's window). `None` when SDL cannot, with its message.
-    pub fn new() -> Result<GlWindow, String> {
+    /// A hidden window of `size` with an OpenGL 3.3 core context asked for, made on the calling thread
+    /// (the one that made the game's window). `Err` when SDL cannot, with its message.
+    pub fn new((width, height): (usize, usize)) -> Result<GlWindow, String> {
         use sdl3_sys::everything::*;
         // SAFETY: plain attribute values and a NUL-ended title; SDL is initialised (the game's
         // window exists).
@@ -172,9 +172,9 @@ impl GlWindow {
             SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE.0);
             SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 0);
             let window = SDL_CreateWindow(
-                c"rc2k GL".as_ptr(),
-                64,
-                64,
+                c"Rally Championship".as_ptr(),
+                width as i32,
+                height as i32,
                 SDL_WindowFlags(SDL_WINDOW_OPENGL.0 | SDL_WINDOW_HIDDEN.0),
             );
             if window.is_null() {
@@ -182,6 +182,15 @@ impl GlWindow {
             }
             Ok(GlWindow(window))
         }
+    }
+}
+
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+impl GlWindow {
+    /// The window as the platform's window handle, for the calls that belong to the game's
+    /// thread (showing it, its size, its icon, the keyboard). It lives until `destroy`.
+    pub fn handle(&self) -> super::sdl::Window {
+        super::sdl::Window(self.0)
     }
 }
 
@@ -353,6 +362,30 @@ impl Gles {
                 _one_thread: std::marker::PhantomData,
             })
         }
+    }
+
+    /// The size in pixels of what the context draws to, when it is a window (the panel's is
+    /// fixed). SDL's own record, read from the GL's thread while the game's thread only changes
+    /// it between frames.
+    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    pub fn drawable_size(&self) -> Option<(i32, i32)> {
+        let Surface::Window(window, _) = &self.surface;
+        let (mut width, mut height) = (0, 0);
+        // SAFETY: the window `open_window` made the context on, alive while the context is;
+        // SDL writes the two integers.
+        let known = unsafe {
+            sdl3_sys::everything::SDL_GetWindowSizeInPixels(
+                *window,
+                &raw mut width,
+                &raw mut height,
+            )
+        };
+        (known && width > 0 && height > 0).then_some((width, height))
+    }
+
+    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    pub fn drawable_size(&self) -> Option<(i32, i32)> {
+        None
     }
 
     #[inline]

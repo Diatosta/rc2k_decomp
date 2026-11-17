@@ -1,9 +1,9 @@
 //! The OpenGL backend. On the handheld it is the GPU backend: OpenGL ES 3 through the system's
 //! `libmali` (no Vulkan driver there, and SDL has no display for it), drawing to `/dev/fb0`
 //! through its EGL. On a PC it is the one after the GPU API in the default order, for machines
-//! without Vulkan, Direct3D 12 or Metal: an OpenGL 3.3 core context on a hidden SDL window,
-//! drawing into its own target, which each frame's end reads back into the canvas for SDL's 2D
-//! renderer to show (the shaders are the handheld's, under desktop GLSL's version line,
+//! without Vulkan, Direct3D 12 or Metal: an OpenGL 3.3 core context on an SDL window that
+//! is shown in place of the game's own, drawing into its own target, which each frame's end puts
+//! on that window as the handheld puts it on its panel (the shaders are the handheld's, under desktop GLSL's version line,
 //! `Gles::compile_shader`). The same frame
 //! as `gpu`'s: `batches`' lists, and before each part's 3D the retained background, the canvas's
 //! written pixels and the 2D quads (`layer2d`) put over the target. The GL's own thread holds
@@ -1437,19 +1437,26 @@ impl Gpu {
         );
     }
 
-    /// The whole of the panel black, and the viewport where a picture of `width` x `height` shows.
+    /// The whole of the panel (or the window) black, and the viewport where a picture of `width`
+    /// x `height` shows: the panel's picture is centred, shrunk to fit if it is too big; the
+    /// window shows it over the whole of it (the window is the screen's size).
     fn panel_viewport(&self, width: i32, height: i32) {
         let gl = &self.gl;
-        // Shrunk to fit if it is too big, its shape kept; centred.
-        let (w, h) = if width > PANEL.0 || height > PANEL.1 {
-            (width * PANEL.1 / height, PANEL.1)
-        } else {
-            (width, height)
+        let (x, y, w, h) = match gl.drawable_size() {
+            Some((w, h)) => (0, 0, w, h),
+            None => {
+                let (w, h) = if width > PANEL.0 || height > PANEL.1 {
+                    (width * PANEL.1 / height, PANEL.1)
+                } else {
+                    (width, height)
+                };
+                ((PANEL.0 - w) / 2, (PANEL.1 - h) / 2, w, h)
+            }
         };
         gl.bind_framebuffer(FRAMEBUFFER, 0);
         gl.clear_colour(0.0, 0.0, 0.0, 1.0);
         gl.clear(COLOUR_BIT);
-        gl.viewport((PANEL.0 - w) / 2, (PANEL.1 - h) / 2, w, h);
+        gl.viewport(x, y, w, h);
     }
 
     /// The target on the panel.
@@ -1695,7 +1702,6 @@ impl Front {
     }
 
     /// The frame's end: what the canvas has written over the target, and the target shown.
-    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
     pub fn finish_and_show(&mut self, target: &Target, canvas: &mut [u8]) {
         self.draw(target, canvas, CommandList::new());
         super::seethru::frame_end();
@@ -1703,7 +1709,6 @@ impl Front {
     }
 
     /// A picture of the game's bytes on the panel.
-    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
     pub fn show_picture(&mut self, frame: &[u8], width: usize, height: usize) {
         self.send(Job::ShowPicture {
             frame: frame.to_vec(),
@@ -1812,17 +1817,17 @@ pub fn start_if_wanted() {
     start_with(|| Gles::open_panel(PANEL.0 as u16, PANEL.1 as u16).map_err(|why| (why, None)));
 }
 
-/// Starts the GL's thread on a hidden window made for OpenGL, if it is wanted; whether it
-/// runs. The window is made here (on the game's thread) and the context on the GL's.
+/// Starts the GL's thread on a hidden window made for OpenGL at the screen's `size`, if it is
+/// wanted; whether it runs. The window is made here (on the game's thread) and the context on the GL's.
 #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-pub fn start_on_window() -> bool {
+pub fn start_on_window(size: (usize, usize)) -> bool {
     if GPU.lock().unwrap().is_some() {
         return true;
     }
     if TRIED.load(std::sync::atomic::Ordering::Relaxed) || !wanted() {
         return false;
     }
-    let window = match super::super::platform::ffi::gl::GlWindow::new() {
+    let window = match super::super::platform::ffi::gl::GlWindow::new(size) {
         Ok(window) => window,
         Err(why) => {
             TRIED.store(true, std::sync::atomic::Ordering::Relaxed);
@@ -1832,8 +1837,25 @@ pub fn start_on_window() -> bool {
             return false;
         }
     };
+    let handle = window.handle();
     start_with(move || Gles::open_window(window).map_err(|(why, window)| (why, Some(window))));
-    GPU.lock().unwrap().is_some()
+    let runs = GPU.lock().unwrap().is_some();
+    if runs {
+        *WINDOW.lock().unwrap() = Some(handle);
+    }
+    runs
+}
+
+/// The window the OpenGL backend shows its frames on while it runs: the game's window in all but
+/// name (`platform` shows it in place of the one SDL's renderer has, and gives the keyboard to
+/// it).
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+static WINDOW: Mutex<Option<crate::platform::ffi::sdl::Window>> = Mutex::new(None);
+
+/// The window the OpenGL backend shows its frames on, while it runs.
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+pub fn window() -> Option<crate::platform::ffi::sdl::Window> {
+    *WINDOW.lock().unwrap()
 }
 
 /// The OpenGL backend stopped, if it runs: the jobs' end is waited for, both threads are
@@ -1843,6 +1865,7 @@ pub fn stop() -> bool {
     let Some(front) = GPU.lock().unwrap().take() else {
         return false;
     };
+    *WINDOW.lock().unwrap() = None;
     super::gpu_stopped();
     let Front { jobs, threads, .. } = front;
     // The batching thread ends with the game's side, the GL's with the batching thread.
