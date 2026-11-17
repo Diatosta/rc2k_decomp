@@ -287,6 +287,8 @@ The full list, with what each bug was and how it was fixed, is in
 - The original *Rally Championship 2000* is by Magnetic Fields (Software Design) Ltd.
 - Libraries: [SDL](https://libsdl.org) (window, input, sound, GPU), [Dear ImGui](https://github.com/ocornut/imgui) (the debug
   window), and the Rust crates `rayon` and `miniz_oxide`.
+- The button pictures (Xbox, PlayStation and Steam Deck outlines) are from Kenney's *Input Prompts* pack
+  ([kenney.nl](https://www.kenney.nl)), public domain (CC0); see `assets/glyphs/LICENSE.txt`.
 - Written with the help of AI coding assistants (Claude), as said at the top.
 
 ## Licence and legal

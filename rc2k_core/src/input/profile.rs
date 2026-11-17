@@ -484,6 +484,13 @@ pub struct Profile {
     pub axes: Vec<AxisSettings>,
     #[serde(default)]
     pub bindings: Bindings,
+    /// What the controller's buttons are shown as in the menus and questions.
+    #[serde(default, skip_serializing_if = "is_automatic")]
+    pub button_icons: crate::input::icons::IconStyle,
+}
+
+fn is_automatic(style: &crate::input::icons::IconStyle) -> bool {
+    *style == crate::input::icons::IconStyle::Automatic
 }
 
 fn default_rotation() -> u32 {
@@ -516,6 +523,7 @@ impl Profile {
             wheel: kind == Kind::Wheel,
             full_rotation_degrees: default_rotation(),
             shifter: false,
+            button_icons: crate::input::icons::IconStyle::Automatic,
             axes: Vec::new(),
             bindings: Bindings {
                 steering_axis: Some(AxisUse::Centred { axis: 0 }),
@@ -677,6 +685,40 @@ fn shifter_bits(raw: &RawInput, bindings: &Bindings) -> u32 {
         .iter()
         .find(|&&gear| bindings.gear(gear).is_some_and(|d| d.pressed(raw)))
         .map_or(0, |gear| gear.code())
+}
+
+/// An H shifter beside the sequential gear buttons: a gate held asks for its gear; the lever
+/// taken out of a gate asks for neutral for a few readings (so the race, reading at its own pace,
+/// sees it); after that no gear is asked for, and the gear up / down bindings work as without
+/// the shifter. One per controller, kept from reading to reading.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct ShifterGate {
+    in_gear: bool,
+    neutral_left: u8,
+}
+
+/// How many readings the neutral is asked for after the lever leaves a gate.
+pub const NEUTRAL_READINGS: u8 = 3;
+
+impl ShifterGate {
+    /// The bits of a reading made with the shifter on (their gear nibble a gate's code, or 0 with
+    /// no gate held) as the race should have them.
+    pub fn next(&mut self, bits: u32) -> u32 {
+        let gate = bits & 0xF00;
+        if gate != 0 {
+            self.in_gear = true;
+            self.neutral_left = 0;
+            return bits;
+        }
+        if std::mem::take(&mut self.in_gear) {
+            self.neutral_left = NEUTRAL_READINGS;
+        }
+        if self.neutral_left > 0 {
+            self.neutral_left -= 1;
+            return bits;
+        }
+        bits | HAT_CENTRED
+    }
 }
 
 /// The shifter's gear with its inputs as they were before they could be bound.
@@ -1138,6 +1180,43 @@ pub enum Shown {
     Axis(u8, Option<bool>),
 }
 
+impl MenuControl {
+    /// What the menus take for this control from a controller of `kind` that binds nothing for
+    /// it: a gamepad's south, east and west buttons, its left shoulder (the right one too) and
+    /// its cross (buttons as `PAD_BUTTONS` numbers them); another controller's second and third
+    /// buttons and first hat.
+    pub fn default_for(self, kind: Kind) -> Option<Digital> {
+        let button = |button| Some(Digital::Button { button });
+        let hat = |direction| Some(Digital::Hat { hat: 0, direction });
+        match (self, kind == Kind::Pad) {
+            (MenuControl::Up, _) => hat(HatDirection::Up),
+            (MenuControl::Down, _) => hat(HatDirection::Down),
+            (MenuControl::Left, _) => hat(HatDirection::Left),
+            (MenuControl::Right, _) => hat(HatDirection::Right),
+            (MenuControl::Enter, true) => button(0),
+            (MenuControl::Back, true) => button(1),
+            (MenuControl::Third, true) => button(2),
+            (MenuControl::Tab, true) => button(4),
+            (MenuControl::Enter, false) => button(1),
+            (MenuControl::Back, false) => button(2),
+            (MenuControl::Third | MenuControl::Tab, false) => None,
+        }
+    }
+}
+
+/// `shown`, with a menu control the profile leaves unbound shown as the default the menus take
+/// from a controller of `kind`.
+pub fn shown_for(profile: &Profile, row: Row, kind: Kind) -> Shown {
+    match (shown(profile, row), row) {
+        (Shown::Nothing, Row::Menu(control)) => match control.default_for(kind) {
+            Some(Digital::Button { button }) => Shown::Button(button as u32 + 1),
+            Some(Digital::Hat { direction, .. }) => Shown::Hat(direction),
+            None => Shown::Nothing,
+        },
+        (shown, _) => shown,
+    }
+}
+
 /// What the row is bound to: an axis row its axis, a digital row its button or hat direction.
 pub fn shown(profile: &Profile, row: Row) -> Shown {
     let b = &profile.bindings;
@@ -1169,6 +1248,21 @@ pub fn shown(profile: &Profile, row: Row) -> Shown {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_h_shifter_leaves_the_sequential_gears_free() {
+        let mut g = ShifterGate::default();
+        // nothing held from the start: no gear asked, the gear buttons' bits pass
+        assert_eq!(g.next(0x01) & 0xF00, HAT_CENTRED);
+        // third gear held
+        assert_eq!(g.next(0x300) & 0xF00, 0x300);
+        // the lever out: neutral for a few readings, then nothing asked
+        for _ in 0..NEUTRAL_READINGS {
+            assert_eq!(g.next(0) & 0xF00, 0);
+        }
+        assert_eq!(g.next(0x02), 0x02 | HAT_CENTRED);
+        assert_eq!(g.next(0) & 0xF00, HAT_CENTRED);
+    }
 
     fn id() -> DeviceId {
         DeviceId {
@@ -1203,6 +1297,19 @@ mod tests {
             }),
         );
         assert_eq!(shown(&p, Row::Menu(MenuControl::Enter)), Shown::Button(6));
+        // unbound ones show the menus' defaults
+        assert_eq!(
+            shown_for(&p, Row::Menu(MenuControl::Back), Kind::Pad),
+            Shown::Button(2)
+        );
+        assert_eq!(
+            shown_for(&p, Row::Menu(MenuControl::Back), Kind::Wheel),
+            Shown::Button(3)
+        );
+        assert_eq!(
+            shown_for(&p, Row::Menu(MenuControl::Tab), Kind::Wheel),
+            Shown::Nothing
+        );
         assert_eq!(
             shown(&p, Row::Menu(MenuControl::Up)),
             Shown::Hat(HatDirection::Down)

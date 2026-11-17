@@ -4,8 +4,9 @@
 //! font. On both renderers: solid rectangles go to the GPU as quads where it draws the screen,
 //! else row by row on the canvas.
 
+use crate::gfx::button_hints::width_of;
 use crate::gfx::typefaces::fonts;
-use crate::text::draw_text::{Canvas, GameCanvas, draw_text_at};
+use crate::text::draw_text::{GameCanvas, draw_text_at};
 use rc2k_core::input::osk::{self, Key, Osk};
 
 /// A key's tile, and the gap between tiles.
@@ -28,11 +29,14 @@ const TILE: u32 = 0x27347A;
 const TILE_COMMAND: u32 = 0x1B2560;
 const TILE_LIT: u32 = 0xC8202A;
 
+/// The strip at the panel's foot for the hints of the controller's buttons.
+const HINT_STRIP: i32 = 40;
+
 /// The panel's size.
 fn panel_size() -> (i32, i32) {
     (
         osk::COLUMNS as i32 * CELL_W + 2 * MARGIN - GAP,
-        osk::ROWS as i32 * CELL_H + 2 * MARGIN - GAP,
+        osk::ROWS as i32 * CELL_H + 2 * MARGIN - GAP + HINT_STRIP,
     )
 }
 
@@ -94,15 +98,6 @@ fn text_of(osk: &Osk, key: Key) -> Vec<u8> {
     text
 }
 
-/// A text's width in a font, measured without drawing.
-fn width_of(font: crate::gfx::typefaces::FontId, text: &[u8], canvas: &mut GameCanvas) -> i32 {
-    let mut copy = font.object(canvas.typefaces()).get();
-    copy.mode = rc2k_core::strings::text::MODE_MEASURE;
-    crate::text::measure_text::measure_text(&mut copy, text, 0, canvas)
-        .map(|m| m.width as i32)
-        .unwrap_or(0)
-}
-
 /// The keyboard drawn if one is shown. The surface is locked for the drawing when it is not.
 pub fn draw(o: crate::owners::Owners<'static>) {
     let Some(osk) = crate::input::typed_text::osk() else {
@@ -134,13 +129,30 @@ pub fn draw(o: crate::owners::Owners<'static>) {
             };
             fill(o, [x, y, span - GAP, CELL_H - GAP], colour);
             let text = text_of(&osk, key);
-            let tx = x + (span - GAP - width_of(font, &text, &mut canvas)) / 2;
+            let tx = x + (span - GAP - width_of(font, &text[..text.len() - 1], &mut canvas)) / 2;
             // The font's own top offset puts its letters a little below the y it is given.
             let ty = y + (CELL_H - GAP) / 2 - 12;
             if let Err(why) = draw_text_at(font, &text[..], tx, ty, &mut canvas) {
                 crate::logfile::program_log::log(&format!("osk: not drawn: {why:?}"));
                 break 'rows;
             }
+        }
+    }
+    // The pictures of the controller's buttons for typing, deleting, cancelling and being done.
+    {
+        use rc2k_core::input::profile::MenuControl as C;
+        use rc2k_core::strings::own::id::HINTS;
+        let wanted = [
+            (C::Enter, HINTS + 2),
+            (C::Third, HINTS + 3),
+            (C::Back, HINTS + 4),
+        ];
+        if let Some((family, hints)) =
+            crate::gfx::button_hints::menu_hints(o, &wanted, Some(HINTS + 5))
+        {
+            let width = crate::gfx::button_hints::line_width(&hints, &mut canvas);
+            let foot = top + h - MARGIN - crate::gfx::button_hints::SIZE + 2;
+            crate::gfx::button_hints::draw_line(o, family, &hints, left + (w - width) / 2, foot);
         }
     }
     if locked_here {

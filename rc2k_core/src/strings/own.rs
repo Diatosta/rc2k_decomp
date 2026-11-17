@@ -65,6 +65,13 @@ pub mod id {
     pub const DEGREES: u32 = FIRST + 0x46;
     /// The buttons page's rows for the H shifter's gears 1 .. 7 and reverse (8 ids).
     pub const GEAR_ROWS: u32 = FIRST + 0x60;
+    /// The controller page's row for the button pictures, and its five values (automatic, Xbox,
+    /// PlayStation, Steam Deck, numbers).
+    pub const BUTTON_ICONS: u32 = FIRST + 0x88;
+    pub const ICON_STYLES: u32 = FIRST + 0x90;
+    /// The hints beside the pictures of a question or the on-screen keyboard: yes, no, type,
+    /// delete, cancel, done.
+    pub const HINTS: u32 = FIRST + 0x98;
     /// The buttons page's rows for the menu controls (8 ids).
     pub const MENU_ROWS: u32 = FIRST + 0x70;
     /// The controller page's switch for the H shifter.
@@ -85,6 +92,18 @@ pub const KEYS: &[(&str, u32)] = &[
     ("on", id::ON),
     ("off", id::OFF),
     ("h_shifter", id::H_SHIFTER),
+    ("button_icons", id::BUTTON_ICONS),
+    ("icon_styles.automatic", id::ICON_STYLES),
+    ("icon_styles.xbox", id::ICON_STYLES + 1),
+    ("icon_styles.playstation", id::ICON_STYLES + 2),
+    ("icon_styles.steam_deck", id::ICON_STYLES + 3),
+    ("icon_styles.numbers", id::ICON_STYLES + 4),
+    ("hints.yes", id::HINTS),
+    ("hints.no", id::HINTS + 1),
+    ("hints.type", id::HINTS + 2),
+    ("hints.delete", id::HINTS + 3),
+    ("hints.cancel", id::HINTS + 4),
+    ("hints.done", id::HINTS + 5),
     ("joystick_axis.x", id::JOYSTICK_AXIS),
     ("joystick_axis.y", id::JOYSTICK_AXIS + 1),
     ("joystick_axis.z", id::JOYSTICK_AXIS + 2),

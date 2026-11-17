@@ -9,6 +9,7 @@ pub mod effects;
 pub mod feedback;
 pub mod force;
 pub mod frame;
+pub mod icons;
 pub mod joystick;
 pub mod keyboard;
 pub mod layouts;

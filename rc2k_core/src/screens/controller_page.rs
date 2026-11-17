@@ -1,4 +1,4 @@
-//! The controller page: the player's device, its shifter switch and strength; and the background
+//! The controller page: the player's device, its shifter switch, strength and button pictures; and the background
 //! band drawn again.
 
 use crate::screens::notes::{NO_CONTROLLER, Note};
@@ -23,25 +23,28 @@ pub struct Controller<T> {
     /// The player's shifter switch and force feedback strength.
     pub mode: u32,
     pub strength: u32,
+    /// The text id of the style the button pictures are set to.
+    pub icons: u32,
 }
 
 fn note<S: Screen<Font = Font, Work = Work>>(s: &mut S, n: &Note) -> Result<(), S::Error> {
     s.string(Font::Value, n.id, n.x, n.y).map(|_| ())
 }
 
-/// The page: with no controller items 3 .. 6 are greyed out and "none" shown; else the device's
-/// name, the shifter switch and the strength (item 4 only for a device with one).
+/// The page: with no controller items 3 .. 7 are greyed out and "none" shown; else the device's
+/// name, the shifter switch, the strength (item 4 only for a device with one) and the style of
+/// the button pictures.
 pub fn controller_page<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     c: Option<&Controller<S::Text>>,
 ) -> Result<(), S::Error> {
     let Some(c) = c else {
-        for n in 3..=6 {
+        for n in 3..=7 {
             s.item(n, false)?;
         }
         return note(s, &NO_CONTROLLER);
     };
-    for n in 3..=6 {
+    for n in 3..=7 {
         s.item(n, true)?;
     }
     s.text(Font::Value, c.name, 0x1BC, 0xD5)?;
@@ -52,8 +55,8 @@ pub fn controller_page<S: Screen<Font = Font, Work = Work>>(
         s.string(Font::Value, 0x56D, 0x1BC, 0x10B)
     } else {
         s.line(Font::Value, &percent(c.strength), 0x1BC, 0x10B)
-    }
-    .map(|_| ())
+    }?;
+    s.string(Font::Value, c.icons, 0x1BC, 0x15C).map(|_| ())
 }
 
 /// The band (only while `on`, `ScreenFlow.left_service` 1): sprite 0xA0 at (0, 0) with the

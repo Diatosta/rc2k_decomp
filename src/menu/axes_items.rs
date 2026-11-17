@@ -107,6 +107,20 @@ pub fn toggle_shifter(o: crate::owners::Owners<'static>) -> Result<(), Refused> 
     Ok(())
 }
 
+/// The controller page's button pictures style one step, in the profile of the chosen controller
+/// (nothing with no controller chosen).
+pub fn step_icons(o: crate::owners::Owners<'static>, up: bool) -> Result<(), Refused> {
+    let menus = o.menus;
+    let current = menus.screens.event.current_player.get();
+    let controller = crate::menu::player_settings::current(menus)?
+        .get()
+        .controller;
+    crate::input::profiles::with_profile(o.input, current, controller, |p| {
+        p.button_icons = p.button_icons.stepped(up);
+    });
+    Ok(())
+}
+
 /// How many pages of controls the buttons page has.
 fn pages(shifter: bool) -> usize {
     Row::pages(shifter, ROWS_PER_PAGE)

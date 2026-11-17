@@ -516,9 +516,22 @@ pub struct MenuItem {
     pub skip_mark: PlainDword,
     /// +0x50: the font a highlighted item pulses in (`style_stage_item`).
     pub highlight_font: FontCell,
+    /// How many pixels a page has moved the item up from its table place (0 for nearly every
+    /// item; the axes list packs its rows).
+    pub raised: PlainDword,
 }
 
 impl MenuItem {
+    /// The item's y as drawn: its table place less what the page raised it by.
+    pub fn y(&self) -> u32 {
+        (self.fixed().y as u32).wrapping_sub(self.raised.get())
+    }
+
+    /// The y of the item's text as drawn, moved with the item.
+    pub fn text_y(&self) -> u32 {
+        (self.fixed().alignment_or_text_y as u32).wrapping_sub(self.raised.get())
+    }
+
     /// The dword after a menu's last item, and an item's `x` that ends the walk.
     pub const END: u32 = 0xFFFF_FFFF;
 
@@ -538,6 +551,7 @@ impl MenuItem {
             sprites: SpriteCell::new(fixed.sprites),
             skip_mark: PlainDword::new(fixed.skip_mark),
             highlight_font: FontCell::new(font_of(fixed.highlight_font)),
+            raised: PlainDword::new(0),
         }
     }
 }
@@ -582,7 +596,7 @@ const FIRST_ITEM: [u16; MENUS.len() + 1] = {
     first
 };
 
-const _: () = assert!(ITEM_COUNT == 570 && MENUS.len() == MENU_COUNT as usize);
+const _: () = assert!(ITEM_COUNT == 574 && MENUS.len() == MENU_COUNT as usize);
 
 /// The state of every item, in `MENUS`' order.
 const fn item_states() -> [MenuItem; ITEM_COUNT] {

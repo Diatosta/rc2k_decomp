@@ -100,6 +100,9 @@ struct Device {
     info: DeviceInfo,
     /// The game's effects (their object numbers) as SDL's.
     effects: HashMap<u32, SDL_HapticEffectID>,
+    /// The device's gain the game set (its force feedback strength), 0 .. 10000: applied to
+    /// each effect by us when SDL has no gain for the device (many wheels).
+    gain: u32,
     /// Which of the sticks' four axes have left their rest (`stick_axis`).
     stick_moved: [bool; 4],
     /// With no haptic device of use and SDL able to rumble it: the game's effects for its
@@ -374,6 +377,7 @@ impl SdlBackend {
         };
         let info = DeviceInfo {
             kind,
+            icon_family: gamepad.map(|_| sdl_input::pad_family(id)),
             profile_axes: if gamepad.is_some() {
                 6
             } else {
@@ -422,6 +426,7 @@ impl SdlBackend {
             features,
             info,
             effects: HashMap::new(),
+            gain: 10_000,
             stick_moved: [false; 4],
             rumble: rumble.then(Rumble::new),
         });
@@ -429,7 +434,9 @@ impl SdlBackend {
 }
 
 /// A gamepad's buttons in DirectInput's order for an XInput pad.
-const PAD_BUTTONS: [SDL_GamepadButton; 10] = [
+/// A gamepad's buttons in the order the profiles number them (as DirectInput numbered an XInput
+/// pad's).
+pub const PAD_BUTTONS: [SDL_GamepadButton; 10] = [
     SDL_GAMEPAD_BUTTON_SOUTH,
     SDL_GAMEPAD_BUTTON_EAST,
     SDL_GAMEPAD_BUTTON_WEST,
@@ -722,6 +729,22 @@ impl Backend for SdlBackend {
         let Some(haptic) = d.haptic else {
             return;
         };
+        // Without SDL's device gain, the strength is each effect's: its gain and its envelope's
+        // levels scaled by it.
+        let scaled;
+        let effect = if d.features & SDL_GAIN == 0 && d.gain < 10_000 {
+            let mut e = effect.clone();
+            e.gain = (e.gain as u64 * d.gain as u64 / 10_000) as u32;
+            if let Some(envelope) = e.envelope.as_mut() {
+                for level in [0, 2] {
+                    envelope[level] = (envelope[level] as u64 * d.gain as u64 / 10_000) as u32;
+                }
+            }
+            scaled = e;
+            &scaled
+        } else {
+            effect
+        };
         let sdl = match sdl_effect(effect, d.features) {
             Ok(e) => e,
             Err(why) => {
@@ -768,6 +791,9 @@ impl Backend for SdlBackend {
     }
 
     fn gain(&mut self, device: usize, gain: u32) {
+        if let Some(d) = self.devices.get_mut(device) {
+            d.gain = gain.min(10_000);
+        }
         if let Some(rumble) = self.devices.get_mut(device).and_then(|d| d.rumble.as_mut()) {
             rumble.gain = gain.min(10_000);
         }

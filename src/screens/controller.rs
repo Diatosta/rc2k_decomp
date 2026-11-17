@@ -216,6 +216,14 @@ pub fn draw_controller_page(
         )
         .unwrap_or(0),
         strength: p.strength,
+        icons: rc2k_core::strings::own::id::ICON_STYLES
+            + crate::input::profiles::with_profile(
+                input,
+                menus.screens.event.current_player.get(),
+                device,
+                |profile| profile.button_icons.place() as u32,
+            )
+            .unwrap_or(0),
     };
     controller_page(&mut screen, Some(&c))
 }

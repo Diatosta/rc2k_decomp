@@ -32,9 +32,24 @@ pub fn read_device(input: &Input, device: usize, record: &InputDevice) -> Result
     // The controller's profile says whether its hat and buttons are a shifter's.
     let shifter = profile.as_ref().is_some_and(|p| p.shifter);
     let r = rc2k_core::input::profile::readings(profile.as_ref(), raw.as_ref(), &keys, shifter);
+    // With the H shifter, a gate asks for its gear and the lever out of the gates leaves the gear
+    // up / down bindings working (each controller's gate state kept between readings).
+    let bits = if shifter {
+        static GATES: std::sync::Mutex<Vec<rc2k_core::input::profile::ShifterGate>> =
+            std::sync::Mutex::new(Vec::new());
+        let mut gates = GATES
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if gates.len() <= device {
+            gates.resize(device + 1, Default::default());
+        }
+        gates[device].next(r.bits)
+    } else {
+        r.bits
+    };
     record.readings[0].set(r.steering);
     record.readings[1].set(r.brake);
     record.readings[2].set(r.throttle);
-    record.bits.set(r.bits);
+    record.bits.set(bits);
     Ok(())
 }

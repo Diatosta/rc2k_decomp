@@ -12,6 +12,17 @@ pub fn race_frame(
     o: crate::owners::Owners<'static>,
     eax: u32,
 ) -> Result<u32, Refused> {
+    race_frame_over(race, o, eax, &|| {})
+}
+
+/// `race_frame`, with `over` run after the scene is drawn and before the frame is shown: what it
+/// writes on the screen's pixels lies over the scene.
+pub fn race_frame_over(
+    race: &Race,
+    o: crate::owners::Owners<'static>,
+    eax: u32,
+    over: &dyn Fn(),
+) -> Result<u32, Refused> {
     let system = o.system;
     let mut eax = eax;
     crate::platform::pump_messages_now(o);
@@ -27,6 +38,7 @@ pub fn race_frame(
         crate::scene::begin_scene::begin_scene(race, &o.gfx.d3d, o.scene.scratch.game_scratch());
         { crate::race::draw_race_scene::draw_race_scene(race, o) }?;
         crate::scene::end_scene::end_scene(&o.gfx.d3d);
+        over();
         stop(Stage::Scene, begun);
         // The frame's sound tick is in `draw_race_scene`.
         { crate::race::replay_screenshot::replay_screenshot(race, o.gfx, o.system) }?;

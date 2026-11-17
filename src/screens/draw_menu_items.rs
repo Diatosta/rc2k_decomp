@@ -49,9 +49,9 @@ pub fn draw_menu_items(
         .iter()
         .map(|i| Item {
             x: i.fixed().x as u32,
-            y: i.fixed().y as u32,
+            y: i.y(),
             text_x: i.fixed().width_or_text_x as u32,
-            text_y: i.fixed().alignment_or_text_y as u32,
+            text_y: i.text_y(),
             kind: i.fixed().id,
             id: i.string.get(),
             font: MenuFont::Object(i.font.get()),

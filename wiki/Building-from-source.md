@@ -95,6 +95,10 @@ CARGO_TARGET_DIR=target/x64 cargo xwin build --release --xwin-arch x86_64 --targ
 and for 32 bits the same with `--xwin-arch x86 --target i686-pc-windows-msvc` (cargo's
 folder: `target`).
 
+The button pictures in `assets/glyphs/` (atlases and indexes, built into the program) are made from
+Kenney's Input Prompts pack by `python3 tools/glyphs/pack.py <the pack's folder>` (needs Pillow);
+they are committed, so building needs neither the script nor the pack.
+
 The program carries `assets/icon.ico` as its icon: `build.rs` writes it as a resource file and
 the linker takes it in, so no resource compiler is needed. Then it gathers the two files:
 

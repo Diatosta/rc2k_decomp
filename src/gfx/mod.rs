@@ -15,6 +15,8 @@ pub mod build_fonts;
 pub mod build_game_fonts;
 pub mod build_glyphs;
 pub mod build_menu_sprites;
+pub mod button_hints;
+pub mod button_pictures;
 pub mod choices_store;
 pub mod clear_front_surface;
 pub mod clear_picture;

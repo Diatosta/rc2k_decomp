@@ -14,6 +14,7 @@ no = "não"
 on = "sim"
 off = "não"
 h_shifter = "caixa em H"
+button_icons = "ícones dos botões"
 
 [joystick_axis]
 x = "eixo x"
@@ -84,3 +85,18 @@ reverse = "marcha atrás"
 steering = "vire à direita"
 axis = "carregue no pedal"
 button = "carregue num botão"
+
+[icon_styles]
+automatic = "automático"
+xbox = "Xbox"
+playstation = "PlayStation"
+steam_deck = "Steam Deck"
+numbers = "números"
+
+[hints]
+yes = "sim"
+no = "não"
+type = "escrever"
+delete = "apagar"
+cancel = "cancelar"
+done = "pronto"

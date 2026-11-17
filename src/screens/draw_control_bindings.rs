@@ -16,6 +16,44 @@ fn direction_names(
     }
 }
 
+/// The size of a button picture on the page: the picture's square, which the outline nearly
+/// fills.
+const PICTURE: i32 = 32;
+/// Where the pictures go: the bindings' x, and the first row's top, a row down at a time.
+const PICTURE_X: i32 = 0x1B8;
+const PICTURE_Y: i32 = 0xD5 - 6;
+const ROW_STEP: i32 = 0x1B;
+
+/// The picture `row`'s binding is shown as: a button or a hat direction of a controller whose
+/// player has its pictures on. Axes are told in words.
+fn binding_picture(
+    o: crate::owners::Owners<'static>,
+    player: crate::menu::standings::PlayerCell,
+    row: rc2k_core::input::profile::Row,
+) -> Option<(
+    rc2k_core::input::icons::Family,
+    rc2k_core::input::icons::Icon,
+)> {
+    use rc2k_core::input::profile::{Shown, shown};
+    let current = o.menus.screens.event.current_player.get();
+    let controller = player.get().controller;
+    let (pictures, _) = crate::input::profiles::pictures(o.input, current, controller)?;
+    let digital =
+        crate::input::profiles::with_profile(o.input, current, controller, |p| {
+            match shown(p, row) {
+                Shown::Button(number) => Some(rc2k_core::input::profile::Digital::Button {
+                    button: (number - 1) as u8,
+                }),
+                Shown::Hat(direction) => {
+                    Some(rc2k_core::input::profile::Digital::Hat { hat: 0, direction })
+                }
+                _ => None,
+            }
+        })??;
+    let icon = pictures.digital(digital)?;
+    crate::gfx::button_pictures::has(pictures.family, icon).then_some((pictures.family, icon))
+}
+
 /// The text of `row` (without its NUL): "no binding" (string 0x3BD), a button's name (string
 /// 0x3C0) and number, a hat direction's name, or an axis as its short name, "(+x)" with its side
 /// (none for a centred axis, the steering).
@@ -26,24 +64,21 @@ pub fn binding_text(
     row: rc2k_core::input::profile::Row,
     gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<Vec<u8>, Refused> {
-    use rc2k_core::input::profile::{HatDirection, Shown, shown};
+    use rc2k_core::input::profile::{HatDirection, Kind, Shown, shown_for};
     let current = o.menus.screens.event.current_player.get();
     let controller = player.get().controller;
+    let sdl_kind = crate::input::profiles::controller_kind(o.input, controller).map(|(k, _)| k);
     let (profile_shown, kind) = if controller == 0 {
-        (Shown::Nothing, rc2k_core::input::profile::Kind::Joystick)
+        (Shown::Nothing, Kind::Joystick)
     } else {
         crate::input::profiles::with_profile(o.input, current, controller, |p| {
-            let kind = if p.wheel {
-                rc2k_core::input::profile::Kind::Wheel
-            } else {
-                rc2k_core::input::profile::Kind::Joystick
-            };
-            (shown(p, row), kind)
+            let kind = if p.wheel { Kind::Wheel } else { Kind::Joystick };
+            // The menu controls' defaults depend on whether SDL reads it as a gamepad.
+            (shown_for(p, row, sdl_kind.unwrap_or(kind)), kind)
         })
-        .unwrap_or((Shown::Nothing, rc2k_core::input::profile::Kind::Joystick))
+        .unwrap_or((Shown::Nothing, Kind::Joystick))
     };
-    let pad =
-        crate::input::profiles::controller_kind(o.input, controller).map_or(kind, |(kind, _)| kind);
+    let pad = sdl_kind.unwrap_or(kind);
     let mut canvas = crate::text::draw_text::GameCanvas::new(gfx);
     let mut s = ControlsScreen::new(&mut canvas, o);
     use rc2k_core::screens::screen::Screen;
@@ -104,15 +139,21 @@ pub fn draw_control_bindings(
     // text beside it (not for the row being learnt, whose prompt is drawn instead).
     let mut texts: [Vec<u8>; ROWS_PER_PAGE] = Default::default();
     let mut learnt = None;
+    let mut pictures = Vec::new();
     let shifter = shifter_on(menus, o.input);
     for (slot, text) in texts.iter_mut().enumerate() {
         let row = row_at(controls, shifter, slot);
         let label = row.map_or(id::BLANK, row_label);
         set_look(menus, 2 + slot as u32, shown_look(label), row.is_none())?;
         if let Some(row) = row {
-            *text = binding_text(o, controls, player, row, gfx)?;
-            if learning == 1 && row.control() == learning_row {
+            let learning_this = learning == 1 && row.control() == learning_row;
+            if learning_this {
                 learnt = Some(slot);
+            } else if let Some(picture) = binding_picture(o, player, row) {
+                pictures.push((slot, picture));
+            }
+            if pictures.last().is_none_or(|&(s, _)| s != slot) {
+                *text = binding_text(o, controls, player, row, gfx)?;
             }
         }
     }
@@ -124,10 +165,22 @@ pub fn draw_control_bindings(
         id::FIRST_CONTROLS
     };
     set_look(menus, 2 + ROWS_PER_PAGE as u32, shown_look(more), false)?;
-    // The logic is in `rc2k_core::screens::controls::control_bindings`.
-    rc2k_core::screens::controls::control_bindings(
+    // The logic is in `rc2k_core::screens::controls::control_bindings`; a binding shown as a
+    // picture has no text, and its picture is drawn after the texts.
+    let too_wide = rc2k_core::screens::controls::control_bindings(
         &mut ControlsScreen::new(canvas, o),
         &texts,
         learnt,
-    )
+    )?;
+    for (slot, (family, icon)) in pictures {
+        crate::gfx::button_pictures::draw_glyph(
+            o,
+            family,
+            icon,
+            PICTURE_X,
+            PICTURE_Y + ROW_STEP * slot as i32,
+            PICTURE,
+        );
+    }
+    Ok(too_wide)
 }

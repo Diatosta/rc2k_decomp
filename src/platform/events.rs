@@ -203,6 +203,7 @@ pub fn pump(o: crate::owners::Owners<'static>) {
                 }
             }
             Event::Pad { id, button, down } => {
+                pad_bound_controls(input, id, button, down, driving(o.race));
                 pad_button(driving(o.race), input, system, id, button, down);
             }
             // In a race the stick steers (the game's own devices): only the menus and the
@@ -218,10 +219,10 @@ pub fn pump(o: crate::owners::Owners<'static>) {
             // In a race a joystick's axes and hat drive the car; its menu buttons still answer the
             // race's questions (leave the stage?), as a gamepad's do.
             Event::Joystick { id, input: what } => {
-                // A gamepad's joystick sends these beside its gamepad events: only what its
-                // profile binds for the menus counts (`bound_menu_controls`).
+                // A gamepad's joystick sends these beside its gamepad events, numbered as the
+                // device's own report has it: its menu controls come from the gamepad events
+                // (`pad_bound_controls`), numbered as the profiles are.
                 if crate::platform::ffi::sdl_input::is_gamepad(id) {
-                    bound_menu_controls(input, id, what, driving(o.race));
                     continue;
                 }
                 // A wheel's enter and back buttons end what ends on any key, in a race too.
@@ -425,6 +426,52 @@ fn menu_control_of(button: crate::input::menu_pad::PadButton) -> Option<MenuCont
         B::DpadRight => MenuControl::Right,
         B::Start => return None,
     })
+}
+
+/// A gamepad's button, as the profile numbers it (`PAD_BUTTONS`, the cross as hat 0), to the menu
+/// controls its profile binds: the learning reads the pad through that numbering, so a raw joystick
+/// number (which differs by model: a DualSense's L3 / R3 among them) would miss.
+fn pad_bound_controls(
+    input: &crate::input::owner::Input,
+    id: SDL_JoystickID,
+    button: SDL_GamepadButton,
+    down: bool,
+    in_race: bool,
+) {
+    use std::collections::HashMap;
+    static CROSS: std::sync::Mutex<Option<HashMap<SDL_JoystickID, u8>>> =
+        std::sync::Mutex::new(None);
+    let bit = match button {
+        SDL_GAMEPAD_BUTTON_DPAD_UP => 1,
+        SDL_GAMEPAD_BUTTON_DPAD_RIGHT => 2,
+        SDL_GAMEPAD_BUTTON_DPAD_DOWN => 4,
+        SDL_GAMEPAD_BUTTON_DPAD_LEFT => 8,
+        _ => 0,
+    };
+    let what = if bit != 0 {
+        let mut cross = CROSS
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let bits = cross
+            .get_or_insert_with(HashMap::new)
+            .entry(id)
+            .or_insert(0);
+        if down {
+            *bits |= bit;
+        } else {
+            *bits &= !bit;
+        }
+        sdl::JoystickInput::Hat(0, *bits)
+    } else {
+        match crate::platform::input::PAD_BUTTONS
+            .iter()
+            .position(|&b| b == button)
+        {
+            Some(n) => sdl::JoystickInput::Button(n as u8, down),
+            None => return,
+        }
+    };
+    bound_menu_controls(input, id, what, in_race);
 }
 
 /// The menu controls the controller's profile binds to what moved: each is pressed or let go as

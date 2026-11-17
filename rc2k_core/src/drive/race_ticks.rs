@@ -46,6 +46,18 @@ pub fn quit_notice(third: bool) -> u32 {
     if third { 0xC2 } else { 0xC1 }
 }
 
+/// Where the first two key letters are in the question's text: the last "(a/b" group's `a` and
+/// `b` (their byte places); none when the text has no such group.
+pub fn answer_letters(text: &[u8]) -> Option<(usize, usize)> {
+    let open = text.iter().rposition(|&b| b == b'(')?;
+    match text.get(open + 1..open + 4)? {
+        [a, b'/', b] if !matches!(a, b'/' | b')') && !matches!(b, b'/' | b')') => {
+            Some((open + 1, open + 3))
+        }
+        _ => None,
+    }
+}
+
 /// The answer to a key from `input::yes_no_key`: 1 (yes) gives -1, -1 (no) gives 0, 2 gives -2
 /// outside race mode 2 with the third answer offered; any other key, no answer yet.
 pub fn quit_answer(key: u32, mode: u32, third: bool) -> Option<u32> {
@@ -77,6 +89,16 @@ pub fn tyre_change_shown(change: u32) -> bool {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn the_key_letters_are_in_the_last_group() {
+        use super::answer_letters;
+        assert_eq!(answer_letters(b"RETIRAR? (s/n)"), Some((10, 12)));
+        assert_eq!(answer_letters(b"QUIT? (y/n/r)"), Some((7, 9)));
+        assert_eq!(answer_letters(b"Quit"), None);
+        assert_eq!(answer_letters(b"Quit (yes)"), None);
+        assert_eq!(answer_letters(b"A (b/"), None);
+    }
+
     use super::*;
 
     #[test]

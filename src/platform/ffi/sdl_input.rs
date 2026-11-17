@@ -80,6 +80,29 @@ pub fn joystick_guid_text_for_id(id: SDL_JoystickID) -> String {
     }
 }
 
+/// The family of button pictures SDL's gamepad `id` is drawn with when the player has not chosen
+/// one: by its make and USB ids; Steam Deck too when the program runs on a Deck (`SteamDeck=1`,
+/// which Steam sets for what it launches there).
+pub fn pad_family(id: SDL_JoystickID) -> rc2k_core::input::icons::Family {
+    use rc2k_core::input::icons::PadMake;
+    // SAFETY: plain queries by instance id.
+    let (kind, vendor, product) = unsafe {
+        (
+            SDL_GetGamepadTypeForID(id),
+            SDL_GetJoystickVendorForID(id),
+            SDL_GetJoystickProductForID(id),
+        )
+    };
+    let make = match kind {
+        SDL_GAMEPAD_TYPE_XBOX360 | SDL_GAMEPAD_TYPE_XBOXONE => PadMake::Xbox,
+        SDL_GAMEPAD_TYPE_PS3 | SDL_GAMEPAD_TYPE_PS4 | SDL_GAMEPAD_TYPE_PS5 => PadMake::PlayStation,
+        SDL_GAMEPAD_TYPE_STEAM => PadMake::Steam,
+        _ => PadMake::Other,
+    };
+    let on_deck = std::env::var_os("SteamDeck").is_some_and(|v| v == "1");
+    rc2k_core::input::icons::pad_family(make, vendor, product, on_deck)
+}
+
 /// A gamepad mapping added (SDL's mapping string); false when the text has a NUL.
 #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
 pub fn add_gamepad_mapping(mapping: String) -> bool {

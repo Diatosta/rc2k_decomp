@@ -88,7 +88,7 @@ pub fn axes_list<S: Screen<Font = Font, Work = Work>>(
     for (n, at) in list.axes.iter().enumerate() {
         live_bar(s, VALUE_X, row_y(n) + 1, LIST_BAR_WIDTH, *at)?;
     }
-    let wheel_y = row_y(crate::input::axes_page::ROWS);
+    let wheel_y = row_y(list.axes.len());
     s.line(Font::Value, &list.wheel, VALUE_X, wheel_y)?;
     if let Some(rotation) = &list.rotation {
         s.line(Font::Value, rotation, VALUE_X, wheel_y + ROW_SPACING)?;

@@ -7,11 +7,12 @@
 use crate::errors::Refused;
 use crate::input::owner::Input;
 use crate::menu::axes_items::{set_look, shown_look};
+use crate::menu::item_at::item_at;
 use crate::screens::controller::controller_page_refuses;
 use crate::strings::append_string_by_id::own_text;
-use rc2k_core::input::axes_page::{Column, MAX_DEAD_ZONE, Words, position, rows, value_text};
+use rc2k_core::input::axes_page::{Column, MAX_DEAD_ZONE, ROWS, Words, position, rows, value_text};
 use rc2k_core::input::profile::{Kind, Profile};
-use rc2k_core::screens::axes_page::{AxisPage, List, axes_list, axis_page};
+use rc2k_core::screens::axes_page::{AxisPage, List, ROW_SPACING, axes_list, axis_page};
 use rc2k_core::screens::controller_page::{Font, Work};
 use rc2k_core::strings::own::id;
 
@@ -70,7 +71,8 @@ fn none_note<'a>(o: crate::owners::Owners<'static>, canvas: Canvas<'a>) -> Resul
         .map(|_| ())
 }
 
-/// The axes list: items 2 .. 7 are the axes' rows, 8 the wheel switch and 9 its full rotation.
+/// The axes list: items 2 .. 7 are the axes' rows, 8 the wheel switch and 9 its full rotation;
+/// the last two are drawn straight after the last axis row the controller has.
 pub fn draw_axes_page(
     o: crate::owners::Owners<'static>,
     input: &Input,
@@ -80,6 +82,7 @@ pub fn draw_axes_page(
     let Some(now) = shown(o, input)? else {
         for item in 2..=9 {
             set_look(menus, item, shown_look(id::BLANK), true)?;
+            item_at(menus, item)?.raised.set(0);
         }
         return none_note(o, canvas);
     };
@@ -96,6 +99,11 @@ pub fn draw_axes_page(
         if visible {
             axes.push(position(&now.profile, axis as u8, now.raw[axis as usize]));
         }
+    }
+    // The wheel's rows follow the last axis row shown, with no empty places between.
+    let raised = (ROWS - shown_rows) as u32 * ROW_SPACING as u32;
+    for item in [8, 9] {
+        item_at(menus, item)?.raised.set(raised);
     }
     set_look(menus, 8, shown_look(id::WHEEL), false)?;
     set_look(menus, 9, shown_look(id::FULL_ROTATION), !now.profile.wheel)?;

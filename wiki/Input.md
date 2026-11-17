@@ -88,12 +88,19 @@ a gamepad (a wheel) sends SDL's joystick events instead: outside a race its hat 
 axes move nothing in the menus), its buttons 2 and 3 are Enter and Back (`joystick_in_menus` in `src/platform/events.rs`). In a race only those two
 buttons go on to the menus' side, so they answer the "leave?" question as a pad's buttons do.
 
+The pictures of a controller's buttons (`rc2k_core::input::icons`: the style and family, the
+number-to-picture orders; `src/gfx/button_pictures.rs` draws them, `button_hints.rs` the hint
+lines of the on-screen keyboard and the race's leave question) are described in
+[Controllers](Controllers#button-pictures). A gamepad's family comes from SDL's type and USB ids
+(`platform::ffi::sdl_input::pad_family`, kept in `DeviceInfo.icon_family`).
+
 Each controller's profile can bind the menu controls (enter, back, up, down, left, right, third
 answer, Tab) to buttons or hat directions of its own, on the last page of the buttons page
 ([Controllers](Controllers)). `bound_menu_controls` in `src/platform/events.rs` looks the
 controller up by name among the players' profiles (`input::profiles::menu_map_of`, the
 bindings as `rc2k_core::input::profile::MenuMap`); a bound control is pressed from its button
-or hat direction (a gamepad's raw joystick buttons too) as the pad's button that stands for it,
+or hat direction (for a gamepad, its gamepad buttons in the profiles' numbering, `PAD_BUTTONS`,
+the cross as hat 0) as the pad's button that stands for it,
 and the default for that control (a gamepad's South, a wheel's button 2, the cross' direction)
 is dropped for that controller. Start leaving a race and the left stick stay as they are.
 

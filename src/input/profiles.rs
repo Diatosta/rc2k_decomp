@@ -68,6 +68,25 @@ pub fn with_profile<R>(
     Some(f(&mut list[at]))
 }
 
+/// What player `player`'s buttons on the controller at place `controller` are drawn with: the
+/// pictures (none when the player has them as numbers, or the controller is none or unknown to
+/// the program) and the profile's bindings (for the menu controls).
+pub fn pictures(
+    input: &Input,
+    player: u32,
+    controller: u32,
+) -> Option<(
+    rc2k_core::input::icons::Pictures,
+    rc2k_core::input::profile::Bindings,
+)> {
+    let (_, info) = identity(input, controller)?;
+    let (style, bindings) = with_profile(input, player, controller, |p| {
+        (p.button_icons, p.bindings.clone())
+    })?;
+    let pictures = rc2k_core::input::icons::Pictures::of(info.kind, style, info.icon_family)?;
+    Some((pictures, bindings))
+}
+
 /// What a device record reads through in the race: set at the race's start.
 pub fn set_race_profile(input: &Input, device: usize, profile: Option<Profile>) {
     let mut held = input

@@ -43,6 +43,8 @@ pub struct DeviceInfo {
     pub kind: ProfileKind,
     /// How many axes its profile numbers (`rc2k_core::input::profile::AXES` at most).
     pub profile_axes: u32,
+    /// The family of button pictures a gamepad's make calls for; none for another controller.
+    pub icon_family: Option<rc2k_core::input::icons::Family>,
 }
 
 /// What kind of controller a device is, for its profile.

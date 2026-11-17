@@ -47,7 +47,9 @@ an on-screen keyboard when the field is entered with the pad's confirm: the cros
 over the keys, A types one, X deletes, B cancels the field, Start is done. The keyboard sits
 below or above the field, never over it, and has pages of symbols and accented letters. On a system
 with its own screen keyboard (a phone, a Steam Deck under Steam) that one is shown instead. A
-keyboard typed on closes ours. See [Input](Input).
+keyboard typed on closes ours. A hint line at the foot of its panel shows the buttons of the
+controller in use for typing, deleting, cancelling and done, as pictures when the controller's
+button pictures are on (see "Button pictures"). See [Input](Input).
 
 A pad's South, East or Start (a wheel's second and third buttons) also end what ends on any key: the
 credits race of the attract mode, the drive after the finish line, a replay played from the film
@@ -81,15 +83,16 @@ hats.
 In the game's options, each player has a controller page, an axes list with a page for each axis, and a buttons page:
 
 - **Controller**: step through "none" and the controllers found; the chosen one is taken into
-  use at once. The page also has the "H shifter" switch (see below) and the force feedback
-  strength.
+  use at once. The page also has the "H shifter" switch (see below), the force feedback
+  strength and "button icons" (see "Button pictures" below).
 - **Axes** (opened from the controller page): a list with a row for each axis the controller has
   (up to six, a gamepad's as the left stick x and y, the right stick x and y and the two
   triggers), each with a live bar of where the axis is now, as the race takes it (dark track;
   a centred axis fills from the middle to the side it leans, a pedal or trigger from the left),
   then "wheel" (yes or no; set from SDL's type at first and changeable with left and right) and,
-  for a wheel, "full rotation" (900 degrees at first, steps of 10). Return on an axis opens that
-  axis's page.
+  for a wheel, "full rotation" (900 degrees at first, steps of 10). The rows are packed: "wheel"
+  comes straight after the last axis the controller has, with no empty place between, and the
+  highlight skips what is not shown. Return on an axis opens that axis's page.
 - **Axis** (one axis's page, opened from the list): rows "axis" (left and right pick another
   axis of the controller), "dead zone" and "range" (per cent, with the game's sliders; a wheel's
   range reads as per cent and degrees of its full rotation, "50% (450 degrees)", without a
@@ -112,7 +115,7 @@ In the game's options, each player has a controller page, an axes list with a pa
   this controller: enter, back, up, down, left, right, third answer and Tab. Each row learns a
   button or a hat direction as the others do. A control left unbound keeps the controller's own
   default (a gamepad's South, East and West buttons, cross and shoulders; a wheel's second and
-  third buttons and its hat); a bound one is taken from the button or hat direction learnt, and
+  third buttons and its hat), and its row shows that default; a bound one is taken from the button or hat direction learnt, and
   the default for that control stops working. The menus take the profile of whichever player has
   used the controller (a controller in the menus belongs to no player). The left stick of a
   gamepad, Start leaving a race and the keyboard are not changed. "Undo changes" puts the page's profile back as it was
@@ -122,6 +125,43 @@ The texts of the axes pages and of the new rows are not in the language file: th
 them from a file of its own for each language, `files/locale/<language>.rc2k.toml`, with English
 built in ([Language files](Language-files#the-games-own-texts-rc2ktoml)).
 
+### Button pictures
+
+Where a button or a hat direction is named (the buttons page's values, the on-screen keyboard's
+hint line, the race's leave question) the game can show the button's picture instead of its
+number or name. The pictures are Kenney's CC0 *Input Prompts* outlines in three families: Xbox
+(A, B, X, Y, LB, RB, LT, RT, the sticks' presses, view, menu), PlayStation (cross, circle,
+square, triangle, L1 to R3, share / create, options, touchpad) and Steam Deck. Each controller
+has its own "button icons" setting on the controller page, kept in the player's profile for it:
+**automatic** (the default), **Xbox**, **PlayStation**, **Steam Deck** or **numbers** (the
+old texts; the keyboard always has its own).
+
+- Automatic follows SDL's gamepad type: Xbox 360 and Xbox One pads get the Xbox pictures, PS3,
+  PS4 and PS5 pads the PlayStation ones, any other gamepad the Xbox look. A Steam Deck (USB id
+  28DE:1205), a Steam controller, and any Valve pad when the program was started by Steam on a
+  Deck (`SteamDeck=1`) get the Steam Deck pictures. A joystick or wheel that is not a gamepad
+  shows numbers until the player picks a family.
+- A gamepad's buttons are bound by position (south, east, west, north, shoulders, back, start,
+  the sticks' presses; SDL's own mapping puts the physical button there), so the picture is the
+  one on the real button: south is A on an Xbox pad and the cross on a PlayStation one.
+- A joystick or wheel set to a family has its button numbers read in DirectInput's order for
+  that family: for PlayStation 1 square, 2 cross, 3 circle, 4 triangle, 5 L1, 6 R1, 7 L2, 8 R2,
+  9 share, 10 options, 11 L3, 12 R3, 13 PS, 14 touchpad; for Xbox and Steam Deck 1 A, 2 B, 3 X,
+  4 Y, 5 LB, 6 RB, 7 view, 8 menu, 9 LS, 10 RS. A button the order has no picture for (or the PS
+  button, which the pack lacks) stays a number. A hat direction is a directional-pad picture.
+- The race's leave question shows the pictures of the buttons that answer yes and no inline,
+  after the key letters of its own text ("RETIRAR? (s [cross]/n [circle])": the letters are
+  found as the first two of the text's last "(a/b" group, so any language works), drawn over the
+  frame in the question's font and centred where the question is. The menus' enter and back of
+  the controller are used (what the profile binds, else the controller's default). A text
+  without such a group gets the pictures and the words "yes" and "no" on a dark plate under it.
+  With numbers or the keyboard the question is the original's.
+
+The pictures are blended over the screen as white outlines with soft edges (16 and 32 bits, in
+the menus and over a race's frame); where the GPU's own picture shows through a pixel the canvas
+has not written, a pixel is white when the picture's alpha is at least half, else left alone. `tools/glyphs/pack.py` makes the atlases in `assets/glyphs/`
+from the pack; each is a grey PNG of 64 x 64 cells (the alpha) with an index of names and rects.
+
 ### The H shifter
 
 The controller page's "H shifter" switch (on or off, as the original's "ACT LABS RS Shifter"
@@ -129,7 +169,9 @@ switch was) says the controller has a gear lever with its gears on buttons or ha
 (a wheel's separate shifter, such as the Fanatec one). With it on, the buttons page lists seven
 more rows after the others: gear 1 .. gear 7 and reverse, each learnt like the button rows (a
 button or a hat direction; the page asks for it for five seconds). In a race the first of
-those, in that order, whose input is held is the gear asked for; none held is neutral. A
+those, in that order, whose input is held is the gear asked for; taking the lever out of a gate
+asks for neutral. With no gate held the gear up and gear down bindings work as without the
+shifter, so a wheel's paddles or sequential lever can be used beside it. A
 profile with no gear bound at all reads the shifter the way the switch did before the gears
 could be bound, so an old set-up still works: buttons 6, 7, 1 and 2 are gears 1 .. 4, the hat
 up, left and down gears 5 .. 7, and the hat right reverse. With the switch off the rows are
@@ -202,6 +244,9 @@ The game's force feedback effects (a constant force, springs and dampers, the pe
 shakes) are played through SDL's haptic support, on the steering axis, on a device for which
 SDL opens a haptic interface with such effects: in practice wheels and some joysticks. An
 effect the device or SDL cannot do is noted once in `rc2k.log` and skipped; the others go on.
+The strength chosen on the controller set-up page is the device's gain where SDL has one for it;
+for a device without (many wheels, the Fanatec ones among them) each effect's force is scaled by
+it instead.
 
 A gamepad that has only rumble motors (an Xbox pad, a DualSense and most others) rumbles
 instead: the game's engine and surface shakes as the light motor, its knocks, landings and

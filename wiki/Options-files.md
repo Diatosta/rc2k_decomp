@@ -267,6 +267,7 @@ A player also has a list `[[players.player_n.profiles]]`, one for each controlle
 | --- | --- |
 | `device` | The controller, as in `controller_device`: `name`, `serial` (if any) and `nth`. |
 | `wheel`, `full_rotation_degrees` | A steering wheel, and its rotation lock to lock in degrees (default 900). |
+| `button_icons` | What the controller's buttons are shown as: `"xbox"`, `"play_station"`, `"steam_deck"` or `"numbers"`; left out for the default, automatic (SDL's gamepad type and USB ids; numbers for a joystick). [Controllers](Controllers#button-pictures). |
 | `shifter` | The controller's "H shifter" switch (default false, left out when false): this controller's hat and buttons are a gear shifter's. |
 | `axes` | A list of tables, axis 0 first, each with `dead_zone` and `range` (per mille of the travel), `sensitivity` (-100 .. 100) and `invert`. An axis past the list has the defaults (no dead zone, range 1000, linear). The axes are SDL's; a gamepad's are the left stick x, y, the right stick x, y, the left trigger and the right trigger. |
 | `bindings.steering_axis`, `accelerate_axis`, `brake_axis` | An axis: `kind = "centred"` and `axis`; or `kind = "pedal"`, `axis` and `rest_high` (the end it rests at has the large values); or `kind = "half"`, `axis` and `positive` (the side of the axis used). |
