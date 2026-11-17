@@ -11,8 +11,8 @@ use crate::race::owner::Race;
 use crate::race::replay_work_store::ReplayWork;
 use rc2k_core::drive::replay_views::{WishStep, wish_step};
 
-/// Byte `k` of the frame's head (the first car block's start). Asked only for bytes 0 .. 5
-/// (the cars' and the four switches'), inside the head's 8.
+/// Byte `k` of the frame's head (the first car block's start). Asked only for bytes 0 .. 7
+/// (the cars' and the four switches', and the extra cars'), inside the head's 8.
 fn head_byte(race: &Race, k: usize) -> u32 {
     (race.car_blocks().cars[0].frame_head[k / 4].get() >> (8 * (k % 4))) & 0xFF
 }
@@ -41,18 +41,28 @@ fn steps(race: &Race) -> Result<(), Refused> {
         .replay_frames()
         .camera_word_1
         .set(race.car_blocks().cars[0].frame_head[1].get());
-    for c in 0..2usize {
+    // A replay with the extra tape also names the cameras of cars 2 and 3, in the head's bytes
+    // 6 and 7 (zero in every other replay: no wish).
+    let cars = if race.viewer_buffers().extra_tape.is_set() {
+        4
+    } else {
+        2
+    };
+    for c in 0..cars {
         let car = &race.car_blocks().cars[c];
-        let wish = wish_of(race.replay_work(), head_byte(race, c) as usize)?;
+        let (byte, last) = match c {
+            0 | 1 => (c, &race.replay_work().camera_last_frame[c]),
+            _ => (c + 4, &race.replay_work().camera_last_frame_extra[c - 2]),
+        };
+        let wish = wish_of(race.replay_work(), head_byte(race, byte) as usize)?;
         match wish_step(
             wish,
             replay.replay_view().replay_block.get(),
-            race.replay_work().camera_last_frame[c].get(),
+            last.get(),
             || car.camera_view.get(),
         ) {
             WishStep::Draw(_) => {
-                race.replay_work().camera_last_frame[c]
-                    .set(replay.replay_view().replay_block.get());
+                last.set(replay.replay_view().replay_block.get());
                 // `Draw` comes only for the wishes that draw: the mode is there.
                 if let Some(mode) =
                     { crate::drive::pick_replay_camera::pick_replay_camera(race, wish) }?
@@ -69,7 +79,7 @@ fn steps(race: &Race) -> Result<(), Refused> {
                 car.camera_view.set(wish);
                 car.camera_switch_active.set(0);
                 car.camera_switch_clock.set(car.step_clock.get());
-                race.replay_work().camera_last_frame[c].set(0);
+                last.set(0);
             }
         }
     }

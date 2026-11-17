@@ -9,7 +9,7 @@ network screens are the 1999 game's; what carries the messages underneath is new
 
 - The original used DirectPlay. This program has **its own protocol** in its place, so it
   plays against other copies of this program only, not against the original `RAL.EXE`.
-- Two kinds of connection are offered: TCP/IP and, in builds made with the `steam` feature,
+- Two kinds of connection are offered: TCP/IP and, when Valve's library is beside the program,
   Steam ([Playing through Steam](#playing-through-steam)). The modem, serial and IPX connections
   of 1999 are not there.
 - One machine hosts and the others join it directly (over Steam, through a Steam lobby).
@@ -33,11 +33,13 @@ network screens are the 1999 game's; what carries the messages underneath is new
 
 ## Playing through Steam
 
-A program built with the `steam` feature (`RC2K_FEATURES=steam ./build.sh <target>`; the build puts
-Valve's library, `libsteam_api.so`, `steam_api64.dll` / `steam_api.dll` or `libsteam_api.dylib`,
-beside the program) lists **Steam** as a second connection, after TCP/IP, when the Steam client
-is running and you are signed in. It is not there on the handheld, and without Steam running
-nothing changes: only TCP/IP is listed. No port needs opening: Steam's relay carries the
+Every desktop build (Windows, Linux, macOS) can use Steam, loading Valve's library, `libsteam_api.so`,
+`steam_api64.dll` / `steam_api.dll` or `libsteam_api.dylib`, while it runs: from the program's folder, or from
+the system's library path (a release made with `RC2K_STEAM=1 ./build.sh <target>` carries it). With the library
+there, the program lists **Steam** as a second connection, after TCP/IP, when the Steam client is running and
+you are signed in. It is not there on the handheld, and without the library or without Steam running
+nothing changes: only TCP/IP is listed, and the program's log says why Steam was left out
+(`net: steam: not available: ...`). No port needs opening: Steam's relay carries the
 connection, between Steam accounts.
 
 - Until the game has an application number of its own it runs as Valve's test application,
@@ -63,7 +65,7 @@ In the main menu choose the network game, then host or join.
 
 | Item | What it is |
 | --- | --- |
-| Connection | The kind of connection: TCP/IP, or Steam when the program was built with it and the Steam client is running. |
+| Connection | The kind of connection: TCP/IP, or Steam when the library is there and the Steam client is running. |
 | Player's name | Your name in the lobby and the results. |
 | Most players | The host's limit on how many may join. |
 | Host's address | For joining: the host's address. Leave it empty to look for games on the local network. |

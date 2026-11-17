@@ -363,7 +363,12 @@ pub fn loadlevel_init(
         race.shared.switches.get().marker_object.set(marker);
     }
     // `camera_last_frame` cleared.
-    for cell in &race.replay_work().camera_last_frame {
+    for cell in race
+        .replay_work()
+        .camera_last_frame
+        .iter()
+        .chain(&race.replay_work().camera_last_frame_extra)
+    {
         cell.set(0);
     }
     s.indent(-3);

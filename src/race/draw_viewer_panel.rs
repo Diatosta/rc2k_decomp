@@ -144,13 +144,14 @@ pub fn draw_viewer_panel(
     )?;
     let (first, second) = switch_lights(camera_5);
     let white = 0x00FF_FFFF;
-    // The pieces keep to the screen's left or right edge by where they lie.
     let quad = |colour: u32| {
         use rc2k_core::hud::anchor::Spread;
-        let spread = if race.viewer_panel().screen_rect[0].get() < 400 {
-            Spread::Left
-        } else {
-            Spread::Right
+        // Player 1's pieces at the left edge, player 2's light and name from the middle (where
+        // their row's half begins), the total time at the right edge.
+        let spread = match race.viewer_panel().screen_rect[0].get() {
+            x if x < 0x190 => Spread::Left,
+            x if x < 0x2B8 => Spread::Centred,
+            _ => Spread::Right,
         };
         crate::drive::tyre_quad::tyre_quad(
             race.viewer_panel()

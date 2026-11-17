@@ -28,6 +28,8 @@ pub fn layout_1(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
     }
     keep(hud, Keep::Middle);
     black_divider(frame, hud, pen, [0x18F, 0, 0x191, 0x258])?;
+    // The one progress bar runs over the whole width of the screen, as one player's does.
+    keep(hud, Keep::Bar);
     if f1 & 0x40 != 0 {
         draw_stage_bars::draw_stage_bars(frame, hud, pen, 0)?;
     }
@@ -74,17 +76,20 @@ pub fn layout_1(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
         scaled(frame, hud, pen, 0x5F, 0x2A7, 0x1DE)?;
     }
     if f1 & 0x40 != 0 {
-        keep(hud, Keep::Middle);
+        keep(hud, Keep::BarMarker);
         draw_markers::draw_markers(frame, hud, pen, draw_markers::MARKER_ROWS_1)?;
         keep_layout(hud);
     }
     hud.block.quad.colour.set(0xFFFF_FFFF);
+    // Each player's signs lie across the middle of their own half, whole.
+    keep(hud, Keep::PartMiddle);
     if f1 & 0x80 != 0 {
         draw_signs::draw_signs(frame, hud, pen, &draw_signs::LAYOUT_1A)?;
     }
     if f2 & 0x80 != 0 {
         draw_signs::draw_signs(frame, hud, pen, &draw_signs::LAYOUT_1B)?;
     }
+    keep_layout(hud);
     hud.block.texture.set(texture::NEEDLES_AND_DIGITS);
     if f1 & 1 != 0 {
         dials::needle(frame, hud, pen, &dials::NEEDLE_1A)?;
@@ -104,7 +109,7 @@ pub fn layout_1(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
     }
     let left = [8, 0x16, 0x23, 0x2A, 0x38, 0x45, 0x4C, 0x5A];
     let right = [0x2B7, 0x2C5, 0x2D2, 0x2D9, 0x2E7, 0x2F4, 0x2FB, 0x309];
-    keep(hud, Keep::Middle);
+    keep(hud, Keep::Bar);
     for (times, y) in [
         ([&hud.block.times[0], &hud.block.times[1]], 2u32),
         ([&hud.block.times[3], &hud.block.times[4]], 0x11),

@@ -1,5 +1,5 @@
-//! Steam is not part of this build (no `steam` feature, or a target without it): it is never
-//! available, and the connection list does not show it.
+//! Steam is not part of this build (a target without it): it is never available, and the
+//! connection list does not show it.
 
 use crate::net::dp_session::{Desc, Session, Wire};
 use std::sync::Arc;

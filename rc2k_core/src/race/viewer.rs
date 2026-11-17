@@ -231,7 +231,9 @@ pub fn item_marks(s: &ViewerState) -> Vec<(u32, u8)> {
     if s.blocks == 0 {
         marks.extend((0..=0x11).chain(0x15..=0x19).map(|i| (i, GREY)));
     }
-    if s.camera == 0 {
+    // The first car alone, or (a replay with the extra tape) the third or fourth alone: the
+    // second camera's items are not for them.
+    if matches!(s.camera, 0 | 4 | 5) {
         marks.extend([(0x18, GREY), (0x19, GREY)]);
     }
     if s.camera == 1 {
@@ -534,13 +536,25 @@ pub fn views_choosable(one_player: bool, cars: u32) -> bool {
     !one_player || cars >= 2
 }
 
+/// The head byte of the camera of the car a layout shows alone (4 for the third car, 5 for the
+/// fourth), or the first camera byte (`first`) for the other layouts.
+pub fn shown_camera_byte(layout: u8, first: u32) -> u32 {
+    match layout {
+        4 => 6,
+        5 => 7,
+        _ => first,
+    }
+}
+
 /// A camera byte one on: byte 5 (the view) past 3 back to 2, byte 4 past 2 back to 0 (signed
 /// bytes). `whole_cycle` (a one-player replay's view: 0 the first car, 1 the second, 2 and 3 both
 /// side by side or above each other) takes byte 5 back to 0 instead.
-pub fn next_byte(byte: u32, old: u8, whole_cycle: bool) -> u8 {
+/// `extra_cars` (a replay with the extra tape: its players beyond two) adds the layouts that show
+/// the third and the fourth car alone (4 and 5) to the cycle, which then turns back to 2.
+pub fn next_byte(byte: u32, old: u8, whole_cycle: bool, extra_cars: u32) -> u8 {
     let next = old.wrapping_add(1);
     let (last, back) = match (byte, whole_cycle) {
-        (5, false) => (3, 2),
+        (5, false) => (3 + extra_cars as i8, 2),
         (5, true) => (3, 0),
         _ => (2, 0),
     };
@@ -687,10 +701,33 @@ mod tests {
         assert_eq!(frame_on(3, 4, 10), (3, 5));
         assert!(mark_in_here(3, 3) && !mark_in_here(4, 3));
         assert!(mark_out_here(3, 3) && !mark_out_here(2, 3));
-        assert_eq!([3u8, 4, 0x7F].map(|b| next_byte(5, b, false)), [2, 2, 0x80]);
-        assert_eq!([1u8, 2, 0xFE].map(|b| next_byte(4, b, false)), [2, 0, 0xFF]);
-        assert_eq!([0u8, 1, 2, 3].map(|b| next_byte(5, b, true)), [1, 2, 3, 0]);
-        assert_eq!([1u8, 2].map(|b| next_byte(4, b, true)), [2, 0]);
+        assert_eq!(
+            [3u8, 4, 0x7F].map(|b| next_byte(5, b, false, 0)),
+            [2, 2, 0x80]
+        );
+        assert_eq!(
+            [1u8, 2, 0xFE].map(|b| next_byte(4, b, false, 0)),
+            [2, 0, 0xFF]
+        );
+        assert_eq!(
+            [0u8, 1, 2, 3].map(|b| next_byte(5, b, true, 0)),
+            [1, 2, 3, 0]
+        );
+        assert_eq!([1u8, 2].map(|b| next_byte(4, b, true, 0)), [2, 0]);
+        // Three players: 2, 3, then the third car alone, then round; four: the fourth car too.
+        assert_eq!([2u8, 3, 4].map(|b| next_byte(5, b, false, 1)), [3, 4, 2]);
+        assert_eq!(
+            [2u8, 3, 4, 5].map(|b| next_byte(5, b, false, 2)),
+            [3, 4, 5, 2]
+        );
+        assert_eq!(
+            [
+                shown_camera_byte(4, 0),
+                shown_camera_byte(5, 1),
+                shown_camera_byte(1, 1)
+            ],
+            [6, 7, 1]
+        );
         assert!(views_choosable(false, 1) && views_choosable(true, 2));
         assert!(!views_choosable(true, 1));
         assert_eq!(cut_marks(3, 3, 10), Ok(None));

@@ -9,19 +9,12 @@
 //! Refuses (before anything) a cars' count of 0 or past 8.
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::cells::copy_cells;
 use crate::physics::flow::g;
 use crate::race::owner::Race;
-use rc2k_core::drive::replay_frames::FRAME_BYTES;
 
 /// The frame's block copied to the replay's (`drive::load_replay_cars` reads it).
 fn load_frame(race: &Race) {
-    let replay = &race.replay;
-    copy_cells(
-        (&race.viewer_buffers().block, 0),
-        (replay.staging(), 0),
-        FRAME_BYTES,
-    );
+    crate::race::replay_staging_store::load_from_block(race);
 }
 
 pub fn show_replay_still(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {

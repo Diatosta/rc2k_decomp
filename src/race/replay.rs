@@ -214,13 +214,15 @@ pub fn write_replay_chunk(
 ) -> Result<(u32, bool), Refused> {
     let shared = &race.shared;
     let block = race.viewer_buffers().block_bytes();
+    // A replay with the extra tape has its block's own size (the index's plain size).
+    let plain_len = block.len() as u32;
     if shared.replay_file().chunks_plain.get() == 1 {
         return Ok(write(handle, &block));
     }
     let (packing, packed) = crate::race::save_seal::pack_runs(&block, system)?;
     // Logic in `rc2k_core::race::replay::packed_size`.
     Ok(
-        match rc2k_core::race::replay::packed_size(packed, BLOCK_LEN) {
+        match rc2k_core::race::replay::packed_size(packed, plain_len) {
             Some(size) => {
                 // The size rounded up to a dword: within the end mark's three zeros.
                 let (n, failed) = write(handle, &packing[..size as usize]);
@@ -352,7 +354,7 @@ pub fn close_replay(race: &Race, system: &System) -> Result<(), Refused> {
 
 /// Opens the replay: `replay_closed` 0; with replays on (`replays_on` 1, `no_replay_switch` 0,
 /// `RaceState.settings.no_replay` not 1) and 30 MB free it makes the header
-/// ("REPL", version 0x50400, the date, "tmpreplay", the race's settings), copies the car's header
+/// ("REPL", version 0x50400, or 0x50401 with the extra tape, the date, "tmpreplay", the race's settings), copies the car's header
 /// (`seal_replay_header`) into it, clears the index "RCIB", sets the cursor, counts and length to
 /// 0, creates `var\tmprpl` and writes the header. A failed open or write closes it
 /// (`race::close_replay`).
@@ -361,10 +363,16 @@ pub fn open_replay(race: &Race, o: crate::owners::Owners<'static>) -> Result<(),
     let replay = &race.replay;
     // Logic in `rc2k_core::race::replay::{replays_on, room_for_replay}` and the header's and the
     // index's words.
+    use rc2k_core::drive::replay_frames::records_extra_tape;
     use rc2k_core::race::replay::{
-        HEADER_MAGIC, HEADER_NAME, HEADER_VERSION, INDEX_MAGIC, replays_on, room_for_replay,
+        HEADER_MAGIC, HEADER_NAME, INDEX_MAGIC, header_version, replays_on, room_for_replay,
     };
     shared.replay_file().replay_closed.set(0);
+    // A local race of more than two players keeps the inputs of cars 2 and 3 on an extra tape
+    // (a replay of the version that has it); every other race is written as ever.
+    let extra_tape = records_extra_tape(shared.view.get().players.get(), o.net.race_slot.is_on());
+    race.viewer_buffers().extra_tape.set(extra_tape);
+    replay.staging().clear_extra_tape();
     if !replays_on(
         shared.replay_file().replays_on.get(),
         shared.replay_file().no_replay_switch.get(),
@@ -380,7 +388,7 @@ pub fn open_replay(race: &Race, o: crate::owners::Owners<'static>) -> Result<(),
         header.set_u32(4 * k, 0);
     }
     header.set_u32(0, HEADER_MAGIC);
-    header.set_u32(8, HEADER_VERSION);
+    header.set_u32(8, header_version(extra_tape));
     header.set_u32(0xC, crate::system::packed_local_time::packed_local_time());
     for (k, &w) in HEADER_NAME.iter().enumerate() {
         header.set_u32(0x10 + 4 * k, w);

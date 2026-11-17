@@ -80,6 +80,10 @@ pub fn open_viewed_replay(
     {
         return failed();
     }
+    // The blocks of a replay with the extra tape hold it after their frame.
+    race.viewer_buffers().extra_tape.set(
+        rc2k_core::race::replay::read_version(shared.replays().header.get_u32(8)) == Some(true),
+    );
     // The index is the file's last 0x3850 bytes.
     let at = {
         handle::seek(

@@ -6,7 +6,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::files::handle::read_slice;
 use crate::race::owner::Race;
-use crate::race::viewer_buffers_store::BLOCK_BYTES;
 use crate::system::owner::System;
 
 /// Into the replay block. A plain read of more than the block holds, a packed one past the
@@ -38,7 +37,7 @@ fn read(
 ) -> Result<(u32, bool, Option<bool>), Refused> {
     let work = &system.work();
     let Some(packed) = rc2k_core::drive::race_steps::packed_bytes(count) else {
-        if count as usize > BLOCK_BYTES {
+        if count as usize > race.viewer_buffers().block_len() {
             return Err(BadInput("a replay block read past the block").into());
         }
         let mut bytes = vec![0u8; count as usize];

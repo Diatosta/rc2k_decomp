@@ -90,13 +90,15 @@ pub enum Spread {
     Left,
     /// Keeping its shape, at the right edge.
     Right,
-    /// A strip from layout x `from` to `to` whose ends keep to the screen's edges as the pieces
-    /// beside it do (`Left` / `Right`) and whose middle stretches between them; with `keep_shape`
-    /// a small piece on the strip (a mark on a time bar) lies where the strip takes its left
-    /// edge but keeps its own width.
+    /// A strip from layout x `from` to `to` whose ends keep to the screen as the pieces beside
+    /// them do (`from_edge`, `to_edge`: where a piece at that x lies, at its own shape) and whose
+    /// middle stretches between them; with `keep_shape` a small piece on the strip (a mark on a
+    /// time bar) lies where the strip takes its centre but keeps its own width.
     Span {
         from: u32,
+        from_edge: Edge,
         to: u32,
+        to_edge: Edge,
         keep_shape: bool,
     },
 }
@@ -117,29 +119,58 @@ impl Spread {
             Spread::Centred => (s, spare / 2.0),
             Spread::Left => (s, 0.0),
             Spread::Right => (s, spare),
-            Spread::Span { from, to, .. } => {
+            Spread::Span {
+                from,
+                from_edge,
+                to,
+                to_edge,
+                ..
+            } => {
                 let (from, to) = (f64::from(from), f64::from(to));
                 if to <= from {
                     return (s, spare / 2.0);
                 }
-                let factor = (s * (to - from) + spare) / (to - from);
-                (factor, s * from - factor * from)
+                let place = |x: f64, edge: Edge| s * x + edge.share() * spare;
+                let factor = (place(to, to_edge) - place(from, from_edge)) / (to - from);
+                (factor, place(from, from_edge) - factor * from)
             }
         }
     }
 
-    /// The factor and shift for one quad whose leftmost layout x is `left`: as `across`, except
-    /// that a `Span` piece that keeps its shape is moved with the strip but not widened.
-    pub fn across_quad(self, width: u32, height: u32, left: f64) -> (f64, f64) {
+    /// The factor and shift for one quad lying from layout x `left` to `right`: as `across`,
+    /// except that a `Span` piece that keeps its shape is moved with the strip (its centre where
+    /// the strip takes it) but not widened.
+    pub fn across_quad(self, width: u32, height: u32, left: f64, right: f64) -> (f64, f64) {
         let (factor, shift) = self.across(width, height);
         match self {
             Spread::Span {
                 keep_shape: true, ..
             } if is_wide(width, height) => {
                 let s = f64::from(height) / f64::from(VIRTUAL_HEIGHT);
-                (s, left * factor + shift - s * left)
+                let centre = (left + right) / 2.0;
+                (s, centre * factor + shift - s * centre)
             }
             _ => (factor, shift),
+        }
+    }
+}
+
+/// Where a layout x lies on a screen wider than 4:3 for a piece at its own shape: kept to the
+/// screen's left edge, its middle or its right edge.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Edge {
+    Left,
+    Centre,
+    Right,
+}
+
+impl Edge {
+    /// The share of the spare width that lies left of the 800-wide layout.
+    fn share(self) -> f64 {
+        match self {
+            Edge::Left => 0.0,
+            Edge::Centre => 0.5,
+            Edge::Right => 1.0,
         }
     }
 }
@@ -224,6 +255,84 @@ pub fn bar_x(x: f32, width: u32, height: u32) -> f32 {
     (from + (x - low) / (high - low) * (to - from)) as f32
 }
 
+/// The width of each player's layout when two players are side by side (the 800-wide layout
+/// holds both, the first in its left half).
+pub const PART_WIDTH: f32 = VIRTUAL_WIDTH / 2.0;
+
+/// The size of one layout pixel of the side by side layout across a part's HUD box `box_width`
+/// wide and `part_height` high: the part's height over 600 while the box is wider than the
+/// 400 x 600 layout, else the layout stretched over the box's width.
+fn beside_scale(box_width: u32, part_height: u32) -> f64 {
+    let s = f64::from(part_height) / f64::from(VIRTUAL_HEIGHT);
+    if f64::from(box_width) * f64::from(VIRTUAL_HEIGHT)
+        > f64::from(part_height) * f64::from(PART_WIDTH)
+    {
+        s
+    } else {
+        f64::from(box_width) / f64::from(PART_WIDTH)
+    }
+}
+
+/// How the pieces of two players side by side keep to their own halves of a screen wider than
+/// 4:3: each half is a part of its own, wide as it is, and the piece whose middle lies at `mid`
+/// in the layout keeps to the left edge or the right edge of its part (the left or the right
+/// half of the part's 400-wide layout, inside the part's HUD box), or to its middle (`centred`,
+/// for the pieces that belong together across the part's middle, the signs), the layout keeping
+/// its shape as one player's does on a wide screen.
+#[derive(Clone, Copy, Debug)]
+pub struct Beside {
+    /// The part's left edge on the screen.
+    part_left: f64,
+    /// The layout x the part's layout starts at.
+    layout_left: f64,
+    /// The part's HUD box: its left edge in the part.
+    box_left: f64,
+    /// A layout pixel across, and how far the piece's edge or middle lies from the box's left.
+    scale: f64,
+    shift: f64,
+}
+
+impl Beside {
+    /// The map for the piece whose middle lies at layout x `mid` on a `width` x `height` screen.
+    pub fn new(mid: f32, width: u32, height: u32, hud_box: BoxRatio, centred: bool) -> Beside {
+        let second = mid >= PART_WIDTH;
+        let part_width = width / 2;
+        let part_left = if second { part_width } else { 0 };
+        let layout_left = if second { PART_WIDTH } else { 0.0 };
+        let (box_left, box_width) = hud_box.area(part_width, height);
+        let scale = beside_scale(box_width, height);
+        let spare = (f64::from(box_width) - f64::from(PART_WIDTH) * scale).max(0.0);
+        let local = mid - layout_left;
+        let shift = if centred {
+            spare / 2.0
+        } else if local < PART_WIDTH / 2.0 {
+            0.0
+        } else {
+            spare
+        };
+        Beside {
+            part_left: f64::from(part_left),
+            layout_left: f64::from(layout_left),
+            box_left: f64::from(box_left),
+            scale,
+            shift,
+        }
+    }
+
+    /// A layout x on the screen.
+    pub fn x(&self, x: f32) -> f32 {
+        (self.part_left
+            + self.box_left
+            + self.shift
+            + (f64::from(x) - self.layout_left) * self.scale) as f32
+    }
+
+    /// A length across the layout on the screen.
+    pub fn across(&self, length: u32) -> f64 {
+        f64::from(length) * self.scale
+    }
+}
+
 /// A layout x on the screen.
 pub fn screen_x(x: f32, width: u32, height: u32, anchor: Anchor) -> f32 {
     (f64::from(x) * factors(width, height).0 + offset(width, height, anchor)) as f32
@@ -298,6 +407,31 @@ mod tests {
     }
 
     #[test]
+    fn side_by_side_pieces_keep_to_their_own_halves() {
+        // 32:9 at 1080 high: each half is 1920 x 1080, a layout pixel 1.8, the half's layout 720
+        // wide with 1200 spare.
+        let at = |x: f32, mid: f32| Beside::new(mid, 3840, 1080, BoxRatio::Full, false).x(x);
+        assert_eq!(at(0.0, 10.0), 0.0);
+        assert!((at(100.0, 100.0) - 180.0).abs() < 1e-3);
+        assert!((at(300.0, 300.0) - (1200.0 + 540.0)).abs() < 1e-3);
+        // A centred piece lies across the part's middle.
+        let centred = Beside::new(100.0, 3840, 1080, BoxRatio::Full, true);
+        assert!((centred.x(100.0) - (600.0 + 180.0)).abs() < 1e-3);
+        assert!((at(400.0, 390.0) - 1920.0).abs() < 1e-3);
+        // The second player's layout starts at its half's left edge and ends at the screen's.
+        assert_eq!(at(400.0, 410.0), 1920.0);
+        assert!((at(800.0, 790.0) - 3840.0).abs() < 1e-3);
+        assert!((at(500.0, 500.0) - (1920.0 + 180.0)).abs() < 1e-3);
+        // The HUD box 4:3 keeps to the middle of the half.
+        let boxed = Beside::new(10.0, 3840, 1080, BoxRatio::FourThree, false);
+        assert!((boxed.x(0.0) - 240.0).abs() < 1e-3);
+        // A half of 4:3's own shape stretches the layout over it.
+        let narrow = Beside::new(10.0, 1024, 768, BoxRatio::Full, false);
+        assert_eq!(narrow.x(400.0), 512.0);
+        assert_eq!(narrow.across(100), 128.0);
+    }
+
+    #[test]
     fn anchors_follow_the_place() {
         assert_eq!(anchor_of(50.0, Rule::Thirds), Anchor::Left);
         assert_eq!(anchor_of(400.0, Rule::Thirds), Anchor::Centre);
@@ -313,7 +447,9 @@ mod tests {
         let (w, h) = (3840, 1080);
         let span = Spread::Span {
             from: 100,
+            from_edge: Edge::Left,
             to: 700,
+            to_edge: Edge::Right,
             keep_shape: false,
         };
         let (f, k) = span.across(w, h);
@@ -324,12 +460,25 @@ mod tests {
         // A mark at 400 keeps its width (1.8 a layout pixel) and lies on the strip.
         let mark = Spread::Span {
             from: 100,
+            from_edge: Edge::Left,
             to: 700,
+            to_edge: Edge::Right,
             keep_shape: true,
         };
-        let (mf, mk) = mark.across_quad(w, h, 400.0);
+        let (mf, mk) = mark.across_quad(w, h, 395.0, 405.0);
         assert!((mf - 1.8).abs() < 1e-9);
         assert!((400.0 * mf + mk - (400.0 * f + k)).abs() < 1e-6);
+        // A strip from the left edge to the middle ends where a centred piece lies.
+        let half = Spread::Span {
+            from: 0,
+            from_edge: Edge::Left,
+            to: 400,
+            to_edge: Edge::Centre,
+            keep_shape: false,
+        };
+        let (hf, hk) = half.across(w, h);
+        let (cf, ck) = Spread::Centred.across(w, h);
+        assert!((400.0 * hf + hk - (400.0 * cf + ck)).abs() < 1e-6);
         // 4:3: every spread stretches as before.
         assert_eq!(span.across(1600, 1200), Spread::Fill.across(1600, 1200));
     }

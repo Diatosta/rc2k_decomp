@@ -21,14 +21,12 @@ fn main() {
         println!("cargo:rustc-cfg=debug_ui");
     }
     println!("cargo:rerun-if-changed=build.rs");
-    if std::env::var_os("CARGO_FEATURE_STEAM").is_some() && !handheld {
-        // The `steam` feature links Valve's redistributable library, which `build.sh` puts beside
-        // the program: found there (Windows looks in the program's folder anyway).
-        match os.as_str() {
-            "linux" => println!("cargo:rustc-link-arg-bins=-Wl,-rpath,$ORIGIN"),
-            "macos" => println!("cargo:rustc-link-arg-bins=-Wl,-rpath,@executable_path"),
-            _ => {}
-        }
+    // Network play through Steam: the desktop systems (not the handheld, which has no Steam, nor
+    // the web). Valve's library is not linked; the program loads it while it runs when it is
+    // there.
+    println!("cargo:rustc-check-cfg=cfg(steam_support)");
+    if !handheld && matches!(os.as_str(), "windows" | "linux" | "macos") {
+        println!("cargo:rustc-cfg=steam_support");
     }
     if os == "macos" {
         // SDL's haptics for controllers: on every Mac since 10.15 (SDL looks for it before use),

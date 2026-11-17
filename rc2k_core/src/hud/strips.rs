@@ -94,6 +94,21 @@ pub fn sizes(
     hud_box: crate::hud::anchor::BoxRatio,
 ) -> ([u32; 4], [u32; 3]) {
     use crate::hud::anchor;
+    if rule == anchor::Rule::Halves && anchor::is_wide(screen_width, height) {
+        // Two players side by side: the strip keeps to its own half of the screen.
+        let map = anchor::Beside::new(
+            v[2] as f32 + v[3] as f32 / 2.0,
+            screen_width,
+            height,
+            hud_box,
+            false,
+        );
+        let down =
+            |n: u32| (f64::from(n) * f64::from(height) / f64::from(VIRTUAL[1])).floor() as u32;
+        let w = map.across(v[3]).floor() as u32;
+        let left = f64::from(map.x(v[2] as f32)).floor() as u32;
+        return ([down(v[0]), down(v[1]), left, w], [w, 0, VIRTUAL[0]]);
+    }
     // The strip keeps to the HUD's box, centred on the screen.
     let (box_left, width) = hud_box.area(screen_width, height);
     if anchor::is_wide(width, height) {
@@ -173,6 +188,38 @@ mod tests {
         );
         assert!(s.shown());
         assert!(!block(0, 1, 27, 10).shown());
+    }
+
+    #[test]
+    fn side_by_side_strips_keep_to_their_halves() {
+        use crate::hud::anchor::{BoxRatio, Rule};
+        // 32:9 at 1080 high: the second player's strip, laid out at 0x1AA, lies in the right half.
+        let (s, _) = sizes(
+            [2, HEIGHT, 0x1AA, WIDTH],
+            3840,
+            1080,
+            Rule::Halves,
+            BoxRatio::Full,
+        );
+        assert!(s[2] >= 1920 && s[2] + s[3] <= 3840);
+        // The first player's lies in the left half, at the 1.8 factor of the half's height.
+        let (s, _) = sizes(
+            [2, HEIGHT, 4, WIDTH],
+            3840,
+            1080,
+            Rule::Halves,
+            BoxRatio::Full,
+        );
+        assert_eq!((s[2], s[3]), (7, 216));
+        // 4:3 stretches as before.
+        let (s, _) = sizes(
+            [2, HEIGHT, 4, WIDTH],
+            1024,
+            768,
+            Rule::Halves,
+            BoxRatio::Full,
+        );
+        assert_eq!((s[2], s[3]), (5, 0x99));
     }
 
     #[test]

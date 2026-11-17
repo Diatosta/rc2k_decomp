@@ -95,20 +95,42 @@ fn stopped(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
         v.bar_rect[0].get().wrapping_add(v.bar_rect[2].get()),
     );
     let quad = |uv: &[PlainDword], rect: &[PlainDword; 4], colour: u32| {
-        let spread = if std::ptr::eq(rect, &raw const v.bar_rect) {
-            Spread::Span {
-                from,
-                to,
-                keep_shape: false,
-            }
-        } else if std::ptr::eq(rect, &raw const v.mark_rect)
-            || std::ptr::eq(rect, &raw const v.place_rect)
-        {
-            Spread::Span {
-                from,
-                to,
-                keep_shape: true,
-            }
+        use rc2k_core::hud::anchor::Edge;
+        let is = |r: &[PlainDword; 4]| std::ptr::eq(rect, r);
+        let span = |from: u32, from_edge, to: u32, to_edge, keep_shape| Spread::Span {
+            from,
+            from_edge,
+            to,
+            to_edge,
+            keep_shape,
+        };
+        let end = |r: &[PlainDword; 4]| r[0].get().wrapping_add(r[2].get());
+        let spread = if is(&v.bar_rect) {
+            span(from, Edge::Left, to, Edge::Right, false)
+        } else if is(&v.mark_rect) || is(&v.place_rect) {
+            span(from, Edge::Left, to, Edge::Right, true)
+        } else if is(&v.button_rect_a) {
+            // The view-name row: player 1's light at the left edge, player 2's in the middle,
+            // each name's strip stretched from its light to the next piece.
+            Spread::Left
+        } else if is(&v.button_rect_c) {
+            Spread::Centred
+        } else if is(&v.button_rect_b) {
+            span(
+                v.button_rect_b[0].get(),
+                Edge::Left,
+                end(&v.button_rect_b),
+                Edge::Centre,
+                false,
+            )
+        } else if is(&v.button_rect_d) {
+            span(
+                v.button_rect_d[0].get(),
+                Edge::Centre,
+                end(&v.button_rect_d),
+                Edge::Right,
+                false,
+            )
         } else {
             Spread::Fill
         };

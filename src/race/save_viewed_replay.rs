@@ -1,5 +1,5 @@
 //! `race::save_viewed_replay`: the viewed (and edited) replay saved as a replay slot: with blocks
-//! to save, the header made ("REPL", 0, version 0x50400, the date `system::packed_local_time`, the
+//! to save, the header made ("REPL", 0, version 0x50400 (0x50401 for a replay with the extra tape), the date `system::packed_local_time`, the
 //! slot's name: 32 bytes of the slot-name table); the last race's file (`var\tmprpl`) opened to
 //! read (mode 0, `from_file`) and the slot's (`race::replay_path`) made (mode 1, `to_file`); the
 //! undo emptied (`undo_blocks` 0, its places zeroed: they become the new index); the header
@@ -32,17 +32,21 @@ pub fn save_viewed_replay(race: &Race, system: &System, slot: u32) -> Result<boo
 fn save(race: &Race, system: &System, slot: u32) -> Result<bool, Refused> {
     let replay = &race.replay;
     let shared = &race.shared;
-    // Logic in `rc2k_core::race::viewer_flow::{has_blocks, SAVED_HEADER, name_offset,
+    // Logic in `rc2k_core::race::viewer_flow::{has_blocks, saved_header, name_offset,
     // next_offset}`.
     use rc2k_core::race::viewer_flow::{
-        CAMERA_DWORDS, HEADER_LEN, INDEX_HEAD_LEN, NAME_LEN, SAVED_HEADER, has_blocks, name_offset,
-        next_offset,
+        CAMERA_DWORDS, HEADER_LEN, INDEX_HEAD_LEN, NAME_LEN, has_blocks, name_offset, next_offset,
+        saved_header,
     };
     if !has_blocks(shared.replay_file().index.block_count.get()) {
         return Ok(false);
     }
     let header = &shared.replays().header;
-    for (k, word) in SAVED_HEADER.into_iter().enumerate() {
+    // The saved file has the version of the blocks it is made of.
+    for (k, word) in saved_header(race.viewer_buffers().extra_tape.is_set())
+        .into_iter()
+        .enumerate()
+    {
         header.set_u32(4 * k, word);
     }
     header.set_u32(0xC, crate::system::packed_local_time::packed_local_time());

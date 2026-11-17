@@ -13,7 +13,8 @@
 use crate::errors::BadInput;
 use crate::memory::session::PlainDword;
 use rc2k_core::drive::replay_frames::{
-    FRAME_BYTES, ReplayFrame, START_DWORDS, TAPE_CARS, TENTHS, tape_slot,
+    EXTRA_TAPE_BYTES, EXTRA_TAPE_CARS, FRAME_BYTES, ReplayFrame, START_DWORDS, TAPE_CARS, TENTHS,
+    TapePlace, tape_place,
 };
 
 /// What the tape holds of one car at one tenth: 8 bytes.
@@ -34,9 +35,12 @@ pub struct ReplayStaging {
     pub start: [PlainDword; START_DWORDS],
     /// The tape: for each tenth of the frame, the entry of car 0 and of car 1.
     pub tape: [[TapeEntry; TAPE_CARS as usize]; TENTHS as usize],
+    /// The extra tape of a replay with it (3 and 4 player races): for each tenth, the entry of
+    /// car 2 and of car 3. It follows the frame in the file's block.
+    pub extra_tape: [[TapeEntry; EXTRA_TAPE_CARS as usize]; TENTHS as usize],
 }
 
-const _: () = assert!(core::mem::size_of::<ReplayStaging>() == FRAME_BYTES);
+const _: () = assert!(core::mem::size_of::<ReplayStaging>() == FRAME_BYTES + EXTRA_TAPE_BYTES);
 
 impl ReplayStaging {
     /// All zero, as the game's memory starts.
@@ -66,12 +70,51 @@ impl ReplayStaging {
             .ok_or(BadInput("a dword past the replay's starting state"))
     }
 
-    /// The tape's entry of `car` at `tenth`, refused past the frame's hundred tenths or the
-    /// two cars.
-    pub fn entry(&self, tenth: u32, car: u32) -> Result<&TapeEntry, BadInput> {
-        let (tenth, car) =
-            tape_slot(tenth, car).ok_or(BadInput("a tape entry past the frame's tenths"))?;
-        Ok(&self.tape[tenth][car])
+    /// The tape's entry of `car` at `tenth`, refused past the frame's hundred tenths or the cars
+    /// on the tape (two; four when `extended`, a replay with the extra tape).
+    pub fn entry(&self, tenth: u32, car: u32, extended: bool) -> Result<&TapeEntry, BadInput> {
+        match tape_place(tenth, car, extended)
+            .ok_or(BadInput("a tape entry past the frame's tenths"))?
+        {
+            TapePlace::Main(tenth, car) => Ok(&self.tape[tenth][car]),
+            TapePlace::Extra(tenth, car) => Ok(&self.extra_tape[tenth][car]),
+        }
+    }
+
+    /// The extra tape zero (a recording with it starts from nothing).
+    pub fn clear_extra_tape(&self) {
+        for entry in self.extra_tape.iter().flatten() {
+            entry.input.set(0);
+            entry.packed.set(0);
+        }
+    }
+}
+
+/// The replay block's frame (and with the extra tape, that too) copied into the staging.
+pub fn load_from_block(race: &crate::race::owner::Race) {
+    use crate::memory::cells::copy_cells;
+    let buffers = race.viewer_buffers();
+    copy_cells((&buffers.block, 0), (race.replay.staging(), 0), FRAME_BYTES);
+    if buffers.extra_tape.is_set() {
+        copy_cells(
+            (&buffers.block_extra, 0),
+            (race.replay.staging(), FRAME_BYTES),
+            EXTRA_TAPE_BYTES,
+        );
+    }
+}
+
+/// The staging's frame (and with the extra tape, that too) copied into the replay block.
+pub fn store_in_block(race: &crate::race::owner::Race) {
+    use crate::memory::cells::copy_cells;
+    let buffers = race.viewer_buffers();
+    copy_cells((race.replay.staging(), 0), (&buffers.block, 0), FRAME_BYTES);
+    if buffers.extra_tape.is_set() {
+        copy_cells(
+            (race.replay.staging(), FRAME_BYTES),
+            (&buffers.block_extra, 0),
+            EXTRA_TAPE_BYTES,
+        );
     }
 }
 
@@ -89,16 +132,38 @@ mod tests {
     #[test]
     fn fields_sit_at_the_files_offsets() {
         let staging = ReplayStaging::new();
-        staging.entry(3, 1).unwrap().packed.set(7);
+        staging.entry(3, 1, false).unwrap().packed.set(7);
         let mut bytes = vec![0u8; FRAME_BYTES];
         crate::memory::cells::load_cells(&staging, 0, &mut bytes).unwrap();
         let frame = ReplayFrame::from_bytes(&bytes).unwrap();
         // Tenth 3, car 1, second word: dword 3 * 4 + 1 * 2 + 1 of the tape.
         assert_eq!(frame.tape[15], 7);
         assert_eq!(frame.tape.iter().filter(|&&d| d != 0).count(), 1);
-        assert!(staging.entry(100, 0).is_err());
-        assert!(staging.entry(0, 2).is_err());
+        assert!(staging.entry(100, 0, false).is_err());
+        assert!(staging.entry(0, 2, false).is_err());
         assert_eq!(TAPE_DWORDS, 2 * TAPE_CARS as usize * TENTHS as usize);
+    }
+
+    #[test]
+    fn the_extra_tape_follows_the_frame() {
+        let staging = ReplayStaging::new();
+        // Tenth 3, car 3: dword 3 * 4 + 1 * 2 + 1 of the extra tape.
+        staging.entry(3, 3, true).unwrap().packed.set(9);
+        staging.entry(0, 2, true).unwrap().input.set(5);
+        assert!(staging.entry(0, 2, false).is_err());
+        assert!(staging.entry(0, 4, true).is_err());
+        let mut bytes = vec![0u8; FRAME_BYTES + EXTRA_TAPE_BYTES];
+        crate::memory::cells::load_cells(&staging, 0, &mut bytes).unwrap();
+        let dword =
+            |n: usize| u32::from_le_bytes(bytes[FRAME_BYTES + 4 * n..][..4].try_into().unwrap());
+        assert_eq!(dword(15), 9);
+        assert_eq!(dword(0), 5);
+        assert_eq!((0..400).filter(|&n| dword(n) != 0).count(), 2);
+        // The frame's own tape is not touched.
+        assert!(bytes[..FRAME_BYTES].iter().all(|&b| b == 0));
+        staging.clear_extra_tape();
+        crate::memory::cells::load_cells(&staging, 0, &mut bytes).unwrap();
+        assert!(bytes.iter().all(|&b| b == 0));
     }
 
     #[test]

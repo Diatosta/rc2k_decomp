@@ -10,8 +10,9 @@ pub struct ShownSetup {
     pub players: u32,
     /// The replay's mode (2 playing: the views are laid out by `layout`).
     pub replay_mode: u32,
-    /// The playing replay's layout (1 .. 3), the replay frame head's byte +5: 1 one
-    /// view of car 1, 2 two views with split 1 (side by side), 3 two views with split 2.
+    /// The playing replay's layout (1 .. 5), the replay frame head's byte +5: 1 one
+    /// view of car 1, 2 two views with split 1 (side by side), 3 two views with split 2; 4 and 5
+    /// (a replay with the extra tape) one view of the third or the fourth car.
     pub layout: u32,
     /// A network game on (non-zero) (only this machine's car is shown).
     pub network: u32,
@@ -57,6 +58,9 @@ impl ShownCars {
                 1 => (1, 1, None, 0),
                 2 => (2, 0, Some(1), 1),
                 3 => (2, 0, Some(1), 2),
+                // A replay with the extra tape: the third or the fourth car alone.
+                4 => (1, 2, None, 0),
+                5 => (1, 3, None, 0),
                 _ => (1, 0, None, 0),
             };
             self.views = views;
@@ -121,6 +125,19 @@ mod tests {
         };
         c.choose(&laid, 0).unwrap();
         assert_eq!((c.cars, c.views, c.split), ([1, 1], 1, 0));
+        let third = ShownSetup {
+            players: 3,
+            replay_mode: 2,
+            layout: 4,
+            ..Default::default()
+        };
+        c.choose(&third, 0).unwrap();
+        assert_eq!(
+            (c.cars[0], c.views, c.listed[2], c.listed[0]),
+            (2, 1, 0, u32::MAX)
+        );
+        c.choose(&ShownSetup { layout: 5, ..third }, 0).unwrap();
+        assert_eq!((c.cars[0], c.views, c.listed[3]), (3, 1, 0));
         let network = ShownSetup {
             players: 1,
             network: 1,

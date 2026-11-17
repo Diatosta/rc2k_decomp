@@ -173,6 +173,14 @@ pub fn layout_many(frame: &Frame, hud: &Hud, pen: Pen, views: u32) -> Result<(),
         let Some(part) = split.part_of(views, player, size) else {
             continue;
         };
+        // The pieces keep to the corners of the HUD's box inside the part, as one player's do
+        // on a wide screen.
+        let (box_left, box_width) = crate::hud::box_ratio::get().area(part.width, part.height);
+        let part = PlayerPart {
+            x: part.x + box_left,
+            width: box_width,
+            ..part
+        };
         let flags = panel.hud_flags[player as usize].get();
         let car = frame.cars.car(player as usize)?;
         let s = scale(part);

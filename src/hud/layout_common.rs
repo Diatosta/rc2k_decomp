@@ -24,7 +24,8 @@ pub fn time_digits(hud: &Hud, value: u32, base: u32) -> [u32; 6] {
 pub enum Keep {
     /// Each piece to the third of the layout it lies in.
     Thirds = 0,
-    /// Each piece to the half it lies in (two players side by side).
+    /// Each piece to its own half of the screen (two players side by side: each half is a part
+    /// of its own, its layout kept in the shape of the part, `rc2k_core::hud::anchor::Beside`).
     Halves = 1,
     /// All to the middle.
     Middle = 2,
@@ -38,6 +39,9 @@ pub enum Keep {
     BarMarker = 5,
     /// Already in screen pixels (the HUD of three or four players, `hud::layout_many`).
     Pixels = 6,
+    /// The middle of its own half of the screen (two players side by side), as one piece with
+    /// what is drawn beside it under this rule.
+    PartMiddle = 7,
 }
 
 /// The layout's own rule set at the start of a HUD.

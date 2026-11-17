@@ -66,6 +66,8 @@ pub struct ReplayWork {
     /// The frame of the last camera draw for cars 0 and 1; cleared at stage load
     /// (`drive::replay_cameras`, `race::loadlevel`).
     pub camera_last_frame: [PlainDword; 2],
+    /// The same for cars 2 and 3 (a replay with the extra tape; `drive::replay_cameras`).
+    pub camera_last_frame_extra: [PlainDword; 2],
 }
 
 impl ReplayWork {

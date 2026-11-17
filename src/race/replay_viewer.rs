@@ -367,12 +367,24 @@ fn stopped_key(
         crate::race::render_row::select(true);
         return Ok(Next::Mark);
     }
-    if crate::menu::list_step::list_step(
+    let before = list_state.choice.get();
+    let stepped = crate::menu::list_step::list_step(
         list_state,
         key,
         Some(ReplayViewBlock::key_table(&race.replay)?),
         list,
-    )? {
+    )?;
+    // The down arrow from the upper row when the button under it is greyed (the list does not
+    // move): straight to the render button, as through any other lower button.
+    if key == KEY_DOWN
+        && list_state.choice.get() == before
+        && before < *LOWER_ROW.start()
+        && race.shared.replay_file().index.block_count.get() != 0
+    {
+        crate::race::render_row::select(true);
+        return Ok(Next::Mark);
+    }
+    if stepped {
         return Ok(Next::Mark);
     }
     if key == 0x1C {

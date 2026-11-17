@@ -62,18 +62,65 @@ pub fn flush_due(mode: u32, tenth: u32) -> bool {
     mode == RECORDING && tenth == TENTHS - 1
 }
 
-/// The cars on the tape.
+/// The cars on the tape of every replay.
 pub const TAPE_CARS: u32 = 2;
+/// The cars on the tape of a replay with the extra tape (3 and 4 player races).
+pub const EXTENDED_TAPE_CARS: u32 = 4;
+/// The cars the extra tape holds: cars 2 and 3.
+pub const EXTRA_TAPE_CARS: u32 = EXTENDED_TAPE_CARS - TAPE_CARS;
 
-/// Whether a car is on the tape.
-pub fn on_tape(car: u32) -> bool {
-    car < TAPE_CARS
+/// Whether a car is on the tape; `extended` for a replay with the extra tape.
+pub fn on_tape(car: u32, extended: bool) -> bool {
+    car < if extended {
+        EXTENDED_TAPE_CARS
+    } else {
+        TAPE_CARS
+    }
 }
 
-/// A car's entry on the tape at a tenth (16 bytes a tenth, 8 a car): the indices of the
-/// tenth and the car, none past the frame's tenths or the cars on the tape.
-pub fn tape_slot(tenth: u32, car: u32) -> Option<(usize, usize)> {
-    (tenth < TENTHS && on_tape(car)).then_some((tenth as usize, car as usize))
+/// Where a car's entry on the tape is.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TapePlace {
+    /// The frame's own tape (cars 0 and 1): the tenth and the car.
+    Main(usize, usize),
+    /// The extra tape that follows the frame (cars 2 and 3): the tenth and the car less 2.
+    Extra(usize, usize),
+}
+
+/// A car's entry on the tape at a tenth (16 bytes a tenth, 8 a car; the extra tape the same for
+/// cars 2 and 3): none past the frame's tenths or the cars on the tape.
+pub fn tape_place(tenth: u32, car: u32, extended: bool) -> Option<TapePlace> {
+    if tenth >= TENTHS || !on_tape(car, extended) {
+        return None;
+    }
+    Some(if car < TAPE_CARS {
+        TapePlace::Main(tenth as usize, car as usize)
+    } else {
+        TapePlace::Extra(tenth as usize, (car - TAPE_CARS) as usize)
+    })
+}
+
+/// The dwords of the extra tape: a hundred tenths of 16 bytes, for cars 2 and 3.
+pub const EXTRA_TAPE_DWORDS: usize = 400;
+/// The extra tape's bytes: what a block of a replay with the extra tape holds after the plain
+/// frame.
+pub const EXTRA_TAPE_BYTES: usize = 4 * EXTRA_TAPE_DWORDS;
+/// A block's bytes once unpacked in a replay with the extra tape.
+pub const EXTENDED_FRAME_BYTES: usize = FRAME_BYTES + EXTRA_TAPE_BYTES;
+
+/// A block's bytes once unpacked.
+pub fn block_bytes(extended: bool) -> usize {
+    if extended {
+        EXTENDED_FRAME_BYTES
+    } else {
+        FRAME_BYTES
+    }
+}
+
+/// The inputs of cars 2 and 3 are recorded: a local race of more than two players (a network
+/// race's other machines keep their cars' state alone, as before).
+pub fn records_extra_tape(players: u32, network: bool) -> bool {
+    players > TAPE_CARS && !network
 }
 
 /// Whether the inputs are played back: while playing a replay.
@@ -240,11 +287,17 @@ mod tests {
         assert_eq!([0, 1, 2].map(network_view), [0, 1, 0]);
         assert!(flush_due(1, 99));
         assert!(!flush_due(2, 99));
-        assert_eq!(tape_slot(3, 1), Some((3, 1)));
-        assert_eq!(tape_slot(TENTHS, 0), None);
-        assert_eq!(tape_slot(0, TAPE_CARS), None);
-        assert!(on_tape(1));
-        assert!(!on_tape(2));
+        assert_eq!(tape_place(3, 1, false), Some(TapePlace::Main(3, 1)));
+        assert_eq!(tape_place(TENTHS, 0, true), None);
+        assert_eq!(tape_place(0, TAPE_CARS, false), None);
+        assert_eq!(tape_place(7, 3, true), Some(TapePlace::Extra(7, 1)));
+        assert_eq!(tape_place(7, 4, true), None);
+        assert!(on_tape(1, false));
+        assert!(!on_tape(2, false) && on_tape(2, true));
+        assert_eq!(block_bytes(false), 0x2810);
+        assert_eq!(block_bytes(true), 0x2E50);
+        assert!(records_extra_tape(3, false) && !records_extra_tape(2, false));
+        assert!(!records_extra_tape(4, true));
     }
 
     #[test]

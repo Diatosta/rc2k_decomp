@@ -98,6 +98,13 @@ pub fn slot_name(file: &[u8], letters: [u8; 4], version: u32) -> Option<[u8; SET
         .then(|| file[0x10..0x30].try_into().unwrap())
 }
 
+/// A replay's name (at +0x10), if the head is a replay's of a version this program reads (with
+/// or without the extra tape).
+pub fn replay_name(file: &[u8]) -> Option<[u8; SETUP_NAME_LEN]> {
+    slot_name(file, REPLAY, REPLAY_VERSION)
+        .or_else(|| slot_name(file, REPLAY, crate::race::replay::HEADER_VERSION_EXTRA_TAPE))
+}
+
 /// A slot's head and name, the first 48 bytes of its file.
 pub fn slot_head(
     letters: [u8; 4],

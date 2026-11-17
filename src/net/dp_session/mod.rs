@@ -37,10 +37,7 @@ pub use wire::Wire;
 
 pub type Id = u32;
 
-#[cfg(all(
-    feature = "steam",
-    not(all(target_os = "linux", target_arch = "aarch64"))
-))]
+#[cfg(steam_support)]
 /// The protocol's version as text (Steam lobbies carry it, so that only machines of the same
 /// version are listed).
 pub fn protocol_tag() -> &'static str {
@@ -349,10 +346,7 @@ impl Session {
         DP_OK
     }
 
-    #[cfg(all(
-        feature = "steam",
-        not(all(target_os = "linux", target_arch = "aarch64"))
-    ))]
+    #[cfg(steam_support)]
     /// Keeps `what` until the session closes.
     pub fn hold(&self, what: Box<dyn std::any::Any + Send>) {
         *self

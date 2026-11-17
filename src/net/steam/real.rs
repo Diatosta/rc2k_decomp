@@ -1,23 +1,18 @@
-//! The Steam side, over the `steamworks` crate. One Steam client for the program, started the
-//! first time something asks for it; a thread of its own runs Steam's callbacks and moves the
-//! relay connections' messages into their readers' buffers.
+//! The Steam side, over Valve's library loaded at run time (`flat`). One Steam client for the
+//! program, started the first time something asks for it; a thread of its own runs Steam's
+//! callbacks and moves the relay connections' messages into their readers' buffers.
 
+use super::callbacks::{self, id};
+use super::flat::Flat;
 use super::{desc_from_data, desc_to_data, instance_lobby, keys};
 use crate::net::dp_session::wire::Inbox;
 use crate::net::dp_session::{Desc, Session, Wire, protocol_tag};
+use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex, OnceLock, Weak};
 use std::time::{Duration, Instant};
-use steamworks::networking_types::{
-    AppNetConnectionEnd, ListenSocketEvent, NetConnectionEnd, NetworkingConnectionState,
-    NetworkingIdentity, SendFlags,
-};
-use steamworks::{
-    CallbackHandle, Client, DistanceFilter, FriendFlags, GameLobbyJoinRequested, LobbyId, LobbyKey,
-    LobbyType, StringFilter, StringFilterKind,
-};
 
 /// The application number the game runs under (Valve's Spacewar test application).
 const APP_ID: u32 = 480;
@@ -25,16 +20,27 @@ const APP_ID: u32 = 480;
 const STEP_WAIT: Duration = Duration::from_secs(15);
 /// The most players a lobby takes when the session names no limit.
 const LOBBY_MOST: u32 = 16;
+/// The most lobbies one search asks for.
+const SEARCH_MOST: u32 = 50;
+
+/// What a listen socket tells the host's thread.
+enum ListenEvent {
+    /// A machine asks to connect.
+    Connecting(u32),
+    /// A connection is up.
+    Connected(u32),
+}
 
 struct Steam {
-    client: Client,
+    flat: Flat,
     /// The relay connections the thread feeds.
     wires: Mutex<Vec<Weak<Link>>>,
     /// The lobbies the last search found (and when it ended).
     found: Mutex<Found>,
     /// A lobby the player was invited to, not yet listed.
     invited: Mutex<Option<u64>>,
-    _callbacks: Mutex<Vec<CallbackHandle>>,
+    /// Where each listen socket's events go.
+    listeners: Mutex<HashMap<u32, mpsc::Sender<ListenEvent>>>,
 }
 
 #[derive(Default)]
@@ -55,55 +61,73 @@ fn state() -> Option<&'static Steam> {
 
 impl Steam {
     fn start() -> Option<Steam> {
-        let client = match Client::init_app(APP_ID) {
-            Ok(client) => client,
+        let flat = match Flat::start(APP_ID) {
+            Ok(flat) => flat,
             Err(e) => {
                 log(&format!("not available: {e}"));
                 return None;
             }
         };
-        client.networking_utils().init_relay_network_access();
-        let invited = Mutex::new(super::connect_lobby_argument(std::env::args()));
         let steam = Steam {
-            client,
+            flat,
             wires: Mutex::new(Vec::new()),
             found: Mutex::new(Found::default()),
-            invited,
-            _callbacks: Mutex::new(Vec::new()),
+            invited: Mutex::new(super::connect_lobby_argument(std::env::args())),
+            listeners: Mutex::new(HashMap::new()),
         };
-        let handle = steam
-            .client
-            .register_callback(|joined: GameLobbyJoinRequested| {
-                if let Some(steam) = state() {
-                    *steam
-                        .invited
-                        .lock()
-                        .unwrap_or_else(std::sync::PoisonError::into_inner) =
-                        Some(joined.lobby_steam_id.raw());
-                }
-            });
-        steam
-            ._callbacks
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .push(handle);
-        let client = steam.client.clone();
-        std::thread::spawn(move || pump(&client));
+        std::thread::spawn(pump);
         log("started");
         Some(steam)
     }
 
-    /// Waits for what a Steam call reports through its callback.
+    /// Waits for what a Steam call reports through its answer.
     fn wait<T>(rx: &mpsc::Receiver<T>) -> Option<T> {
         rx.recv_timeout(STEP_WAIT).ok()
+    }
+
+    /// One of Steam's callbacks (not an answer to a call).
+    fn callback(&self, number: i32, bytes: &[u8]) {
+        match number {
+            id::GAME_LOBBY_JOIN_REQUESTED => {
+                if let Some(lobby) = callbacks::join_requested_lobby(bytes) {
+                    *self
+                        .invited
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(lobby);
+                }
+            }
+            id::CONNECTION_STATUS_CHANGED => {
+                let Some(change) =
+                    callbacks::connection_status_changed(bytes, callbacks::LARGE_PACK)
+                else {
+                    return;
+                };
+                let event = match change.state {
+                    callbacks::state::CONNECTING => ListenEvent::Connecting(change.conn),
+                    callbacks::state::CONNECTED => ListenEvent::Connected(change.conn),
+                    _ => return,
+                };
+                if let Some(to) = self
+                    .listeners
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .get(&change.listen_socket)
+                {
+                    let _ = to.send(event);
+                }
+            }
+            _ => {}
+        }
     }
 }
 
 /// Runs Steam's callbacks and passes the relay connections' messages on, for ever.
-fn pump(client: &Client) {
+fn pump() {
     loop {
-        client.run_callbacks();
         if let Some(steam) = state() {
+            steam
+                .flat
+                .run_frame(&mut |n, bytes| steam.callback(n, bytes));
             let mut wires = steam
                 .wires
                 .lock()
@@ -114,16 +138,64 @@ fn pump(client: &Client) {
     }
 }
 
-/// Whether Steam can be used: its client runs and took the application number.
+/// Whether Steam can be used: the library is there and its client runs and took the
+/// application number.
 pub fn available() -> bool {
     state().is_some()
+}
+
+/// A relay connection, closed when dropped.
+struct Connection(u32);
+
+impl Drop for Connection {
+    fn drop(&mut self) {
+        if let Some(steam) = state() {
+            steam.flat.close(self.0);
+        }
+    }
+}
+
+/// A listen socket and its events; closed when dropped.
+struct Listener {
+    socket: u32,
+    events: mpsc::Receiver<ListenEvent>,
+}
+
+impl Listener {
+    fn open(steam: &Steam) -> Option<Listener> {
+        let (tx, events) = mpsc::channel();
+        // Held across the call: no event for the socket can be taken before it is registered.
+        let mut listeners = steam
+            .listeners
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let socket = steam.flat.listen_p2p();
+        if socket == 0 {
+            return None;
+        }
+        listeners.insert(socket, tx);
+        Some(Listener { socket, events })
+    }
+}
+
+impl Drop for Listener {
+    fn drop(&mut self) {
+        if let Some(steam) = state() {
+            steam
+                .listeners
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .remove(&self.socket);
+            steam.flat.close_listen(self.socket);
+        }
+    }
 }
 
 // ---- the relay connection ----
 
 /// One relay connection and the bytes it has brought.
 struct Link {
-    conn: Mutex<Option<steamworks::networking_sockets::NetConnection>>,
+    conn: Mutex<Option<Connection>>,
     inbox: Inbox,
     ended: AtomicBool,
     /// Leaves the lobby when the connection goes (a joined machine's).
@@ -133,25 +205,18 @@ struct Link {
 impl Link {
     /// Moves what has come into the inbox; false once the connection is over.
     fn pump(&self) -> bool {
-        let mut conn = self
+        let conn = self
             .conn
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let Some(c) = conn.as_mut() else {
+        let (Some(c), Some(steam)) = (conn.as_ref(), state()) else {
             return false;
         };
-        c.receive_messages_with(|m| self.inbox.put(m.data()));
-        let over = !matches!(
-            c.info().ok().and_then(|i| i.state().ok()),
-            Some(
-                NetworkingConnectionState::Connected
-                    | NetworkingConnectionState::Connecting
-                    | NetworkingConnectionState::FindingRoute
-            )
-        );
+        steam.flat.receive(c.0, &mut |m| self.inbox.put(m));
+        let over = !steam.flat.state(c.0).is_some_and(callbacks::is_live);
         if over {
             // what arrived with the end is taken first
-            c.receive_messages_with(|m| self.inbox.put(m.data()));
+            steam.flat.receive(c.0, &mut |m| self.inbox.put(m));
             self.ended.store(true, Ordering::SeqCst);
             self.inbox.end();
         }
@@ -161,18 +226,13 @@ impl Link {
     fn close(&self) {
         self.ended.store(true, Ordering::SeqCst);
         self.inbox.end();
-        let taken = self
-            .conn
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .take();
-        if let Some(c) = taken {
-            c.close(
-                NetConnectionEnd::App(AppNetConnectionEnd::generic_normal()),
-                Some("closed"),
-                true,
-            );
-        }
+        // dropping the connection closes it
+        drop(
+            self.conn
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .take(),
+        );
     }
 }
 
@@ -183,7 +243,7 @@ struct SteamWire {
 }
 
 impl SteamWire {
-    fn new(conn: steamworks::networking_sockets::NetConnection, lobby: Option<LobbyGuard>) -> Self {
+    fn new(conn: Connection, lobby: Option<LobbyGuard>) -> Self {
         let link = Arc::new(Link {
             conn: Mutex::new(Some(conn)),
             inbox: Inbox::default(),
@@ -222,11 +282,13 @@ impl Write for SteamWire {
             .conn
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let Some(c) = conn.as_ref() else {
+        let (Some(c), Some(steam)) = (conn.as_ref(), state()) else {
             return Err(std::io::ErrorKind::BrokenPipe.into());
         };
-        c.send_message(data, SendFlags::RELIABLE_NO_NAGLE)
-            .map_err(|e| std::io::Error::other(format!("{e}")))?;
+        steam
+            .flat
+            .send(c.0, data)
+            .map_err(|e| std::io::Error::other(format!("Steam result {e}")))?;
         Ok(data.len())
     }
 
@@ -265,7 +327,7 @@ impl Wire for SteamWire {
 
 /// Leaves the lobby and clears the rich presence when dropped.
 struct LobbyGuard {
-    lobby: LobbyId,
+    lobby: u64,
     /// Stops the host's listening thread.
     stop: Arc<AtomicBool>,
 }
@@ -274,7 +336,7 @@ impl Drop for LobbyGuard {
     fn drop(&mut self) {
         self.stop.store(true, Ordering::SeqCst);
         if let Some(steam) = state() {
-            steam.client.matchmaking().leave_lobby(self.lobby);
+            steam.flat.leave_lobby(self.lobby);
         }
         status(None);
     }
@@ -285,16 +347,24 @@ impl Drop for LobbyGuard {
 /// locked, which the list shows.
 pub fn host(session: &Arc<Session>, desc: &Desc, password: bool) -> Result<(), String> {
     let steam = state().ok_or("Steam is not running")?;
-    let mm = steam.client.matchmaking();
     let (tx, rx) = mpsc::channel();
     let most = if desc.max_players == 0 {
         LOBBY_MOST
     } else {
         desc.max_players.min(250)
     };
-    mm.create_lobby(LobbyType::Public, most, move |r| {
-        let _ = tx.send(r);
-    });
+    steam.flat.create_lobby(
+        most,
+        Box::new(move |answer| {
+            let made = match answer.and_then(|b| callbacks::lobby_created(b, callbacks::LARGE_PACK))
+            {
+                Some(Ok(lobby)) => Ok(lobby),
+                Some(Err(result)) => Err(format!("Steam result {result}")),
+                None => Err("no usable answer".to_string()),
+            };
+            let _ = tx.send(made);
+        }),
+    );
     let lobby = Steam::wait(&rx)
         .ok_or("Steam did not answer")?
         .map_err(|e| format!("the lobby was not made: {e}"))?;
@@ -302,48 +372,47 @@ pub fn host(session: &Arc<Session>, desc: &Desc, password: bool) -> Result<(), S
     data.push((keys::VERSION, protocol_tag().to_string()));
     data.push(("locked", u8::from(password).to_string()));
     for (key, value) in data {
-        mm.set_lobby_data(lobby, key, &value);
+        steam.flat.set_lobby_data(lobby, key, &value);
     }
-    let listener = steam
-        .client
-        .networking_sockets()
-        .create_listen_socket_p2p(0, [])
-        .map_err(|_| "the listening socket was not made".to_string())?;
+    let listener =
+        Listener::open(steam).ok_or_else(|| "the listening socket was not made".to_string())?;
     let stop = Arc::new(AtomicBool::new(false));
     let (flag, weak) = (stop.clone(), Arc::downgrade(session));
     std::thread::spawn(move || {
         while !flag.load(Ordering::SeqCst) {
-            while let Some(event) = listener.try_receive_event() {
+            while let Ok(event) = listener.events.try_recv() {
+                let Some(steam) = state() else { return };
                 match event {
-                    ListenSocketEvent::Connecting(request) => {
-                        if request.accept().is_err() {
+                    ListenEvent::Connecting(conn) => {
+                        if !steam.flat.accept(conn) {
                             log("a connection could not be accepted");
+                            steam.flat.close(conn);
                         }
                     }
-                    ListenSocketEvent::Connected(connected) => {
-                        let wire = SteamWire::new(connected.take_connection(), None);
+                    ListenEvent::Connected(conn) => {
+                        let wire = SteamWire::new(Connection(conn), None);
                         match weak.upgrade() {
                             Some(session) => session.serve_wire(Box::new(wire)),
                             None => return,
                         }
                     }
-                    ListenSocketEvent::Disconnected(_) => {}
                 }
             }
             std::thread::sleep(Duration::from_millis(20));
         }
     });
     status_in_lobby(lobby, true);
-    log(&format!("lobby {} made", lobby.raw()));
+    log(&format!("lobby {lobby} made"));
     session.hold(Box::new(LobbyGuard { lobby, stop }));
     Ok(())
 }
 
 /// Rich presence: the status line, and the argument Steam gives a friend's "join game".
-fn status_in_lobby(lobby: LobbyId, hosting: bool) {
+fn status_in_lobby(lobby: u64, hosting: bool) {
     if let Some(steam) = state() {
-        let friends = steam.client.friends();
-        friends.set_rich_presence("connect", Some(&format!("+connect_lobby {}", lobby.raw())));
+        steam
+            .flat
+            .set_rich_presence("connect", Some(&format!("+connect_lobby {lobby}")));
     }
     status(Some(if hosting {
         "Hosting a network race"
@@ -355,10 +424,9 @@ fn status_in_lobby(lobby: LobbyId, hosting: bool) {
 /// The rich presence "status" text, or cleared with `None`.
 fn status(text: Option<&str>) {
     if let Some(steam) = state() {
-        let friends = steam.client.friends();
-        friends.set_rich_presence("status", text);
+        steam.flat.set_rich_presence("status", text);
         if text.is_none() {
-            friends.clear_rich_presence();
+            steam.flat.clear_rich_presence();
         }
     }
 }
@@ -370,7 +438,6 @@ pub fn lobbies(application: [u8; 16]) -> Vec<Desc> {
     let Some(steam) = state() else {
         return vec![];
     };
-    let mm = steam.client.matchmaking();
     let start = {
         let mut found = steam
             .found
@@ -386,32 +453,26 @@ pub fn lobbies(application: [u8; 16]) -> Vec<Desc> {
         due
     };
     if start {
-        mm.add_request_lobby_list_string_filter(StringFilter(
-            LobbyKey::new(keys::VERSION),
-            protocol_tag(),
-            StringFilterKind::Equal,
-        ));
-        mm.set_request_lobby_list_distance_filter(DistanceFilter::Worldwide);
-        mm.set_request_lobby_list_result_count_filter(50);
         let friends: Vec<u64> = steam
-            .client
-            .friends()
-            .get_friends(FriendFlags::IMMEDIATE)
+            .flat
+            .friends_in_games()
             .into_iter()
-            .filter_map(|f| f.game_played())
-            .filter(|g| g.game.raw() & 0x00FF_FFFF == u64::from(APP_ID))
-            .map(|g| g.lobby.raw())
+            .filter(|&(game, _)| game & 0x00FF_FFFF == u64::from(APP_ID))
+            .map(|(_, lobby)| lobby)
             .filter(|&l| l != 0)
             .collect();
-        mm.request_lobby_list(move |result| {
-            if let Some(steam) = state() {
+        steam.flat.request_lobby_list(
+            keys::VERSION,
+            protocol_tag(),
+            SEARCH_MOST,
+            Box::new(move |answer| {
+                let Some(steam) = state() else { return };
+                let count = answer.and_then(callbacks::lobby_match_count).unwrap_or(0);
                 let mut found = steam
                     .found
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner);
-                found.lobbies = result
-                    .map(|ids| ids.into_iter().map(|l| l.raw()).collect())
-                    .unwrap_or_default();
+                found.lobbies = (0..count).map(|i| steam.flat.lobby_by_index(i)).collect();
                 for friend in friends {
                     if !found.lobbies.contains(&friend) {
                         found.lobbies.push(friend);
@@ -419,8 +480,8 @@ pub fn lobbies(application: [u8; 16]) -> Vec<Desc> {
                 }
                 found.asked = Some(Instant::now());
                 found.searching = false;
-            }
-        });
+            }),
+        );
     }
     let mut ids = steam
         .found
@@ -437,17 +498,16 @@ pub fn lobbies(application: [u8; 16]) -> Vec<Desc> {
         ids.push(invited);
     }
     ids.into_iter()
-        .filter_map(|id| {
-            let lobby = LobbyId::from_raw(id);
+        .filter_map(|lobby| {
             desc_from_data(
-                |key| mm.lobby_data(lobby, key).filter(|v| !v.is_empty()),
+                |key| steam.flat.lobby_data(lobby, key),
                 protocol_tag(),
-                mm.lobby_member_count(lobby) as u32,
-                id,
+                steam.flat.member_count(lobby),
+                lobby,
                 application,
             )
             .map(|mut d| {
-                if mm.lobby_data(lobby, "locked").as_deref() == Some("1") {
+                if steam.flat.lobby_data(lobby, "locked").as_deref() == Some("1") {
                     d.flags |= crate::net::dp_session::DPSESSION_PASSWORDREQUIRED;
                 }
                 d
@@ -461,35 +521,35 @@ pub fn join(instance: &[u8; 16]) -> Result<Box<dyn Wire>, u32> {
     use crate::net::dp_session::{DPERR_NOCONNECTION, DPERR_TIMEOUT};
     let lobby = instance_lobby(instance).ok_or(DPERR_NOCONNECTION)?;
     let steam = state().ok_or(DPERR_NOCONNECTION)?;
-    let mm = steam.client.matchmaking();
-    let id = LobbyId::from_raw(lobby);
     let (tx, rx) = mpsc::channel();
-    mm.join_lobby(id, move |r| {
-        let _ = tx.send(r);
-    });
+    steam.flat.join_lobby(
+        lobby,
+        Box::new(move |answer| {
+            let _ = tx.send(answer.and_then(callbacks::lobby_entered).unwrap_or(false));
+        }),
+    );
     match Steam::wait(&rx) {
-        Some(Ok(_)) => {}
-        Some(Err(())) => return Err(DPERR_NOCONNECTION),
+        Some(true) => {}
+        Some(false) => return Err(DPERR_NOCONNECTION),
         None => return Err(DPERR_TIMEOUT),
     }
     // From here the guard leaves the lobby again on any failure.
     let guard = LobbyGuard {
-        lobby: id,
+        lobby,
         stop: Arc::new(AtomicBool::new(true)),
     };
-    let owner = mm.lobby_owner(id);
-    let conn = steam
-        .client
-        .networking_sockets()
-        .connect_p2p(NetworkingIdentity::new_steam_id(owner), 0, [])
-        .map_err(|_| DPERR_NOCONNECTION)?;
+    let owner = steam.flat.lobby_owner(lobby);
+    let conn = steam.flat.connect_p2p(owner);
+    if conn == 0 {
+        return Err(DPERR_NOCONNECTION);
+    }
+    // closes the connection on any failure below
+    let conn = Connection(conn);
     let deadline = Instant::now() + STEP_WAIT;
     loop {
-        match conn.info().ok().and_then(|i| i.state().ok()) {
-            Some(NetworkingConnectionState::Connected) => break,
-            Some(
-                NetworkingConnectionState::Connecting | NetworkingConnectionState::FindingRoute,
-            ) => {}
+        match steam.flat.state(conn.0) {
+            Some(callbacks::state::CONNECTED) => break,
+            Some(callbacks::state::CONNECTING | callbacks::state::FINDING_ROUTE) => {}
             _ => return Err(DPERR_NOCONNECTION),
         }
         if Instant::now() > deadline {
@@ -497,7 +557,7 @@ pub fn join(instance: &[u8; 16]) -> Result<Box<dyn Wire>, u32> {
         }
         std::thread::sleep(Duration::from_millis(20));
     }
-    status_in_lobby(id, false);
+    status_in_lobby(lobby, false);
     Ok(Box::new(SteamWire::new(conn, Some(guard))))
 }
 

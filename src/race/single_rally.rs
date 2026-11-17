@@ -493,10 +493,6 @@ fn single_rally(
     if !one_car && event.player_count.get() != 1 {
         settings.no_replay.set(1);
     }
-    // The replay's tape holds two cars: a split screen of more than two keeps none.
-    if split_players > 2 {
-        settings.no_replay.set(1);
-    }
     step(Call::SetUpRaceSoundObjects)?;
     step(Call::SetUpRaceSounds)?;
     step(Call::RaceFromMenu)?;

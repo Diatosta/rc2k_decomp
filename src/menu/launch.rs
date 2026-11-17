@@ -387,7 +387,7 @@ fn replay_name(path: &[u8]) -> Result<Vec<u8>, String> {
     let not_one = "not a replay of this game (no replay head)";
     file.read_exact(&mut head)
         .map_err(|_| not_one.to_string())?;
-    let name = kept::slot_name(&head, kept::REPLAY, kept::REPLAY_VERSION).ok_or(not_one)?;
+    let name = kept::replay_name(&head).ok_or(not_one)?;
     let cut_short = "a replay cut short (no index at its end)";
     let mut magic = [0u8; 4];
     let length = file.metadata().map_err(|e| e.to_string())?.len();

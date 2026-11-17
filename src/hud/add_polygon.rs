@@ -48,7 +48,31 @@ pub fn add_polygon(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
             crate::hud::box_ratio::get().area(w, h)
         };
         let wide = anchor::is_wide(box_width, h) && (kx, ky) == (800.0, 600.0);
-        let x_of: Box<dyn Fn(f32) -> f32> = if wide && rule == 4 {
+        // Two players side by side on a wide screen: each half is a part of its own.
+        let keep = crate::hud::layout_common::Keep::Halves as u32;
+        let part_middle = crate::hud::layout_common::Keep::PartMiddle as u32;
+        let beside = (rule == keep || rule == part_middle)
+            && anchor::is_wide(w, h)
+            && (kx, ky) == (800.0, 600.0);
+        let middle_of = || {
+            let (low, high) = vertices().fold((f32::MAX, f32::MIN), |(lo, hi), v| {
+                (lo.min(v.x.get()), hi.max(v.x.get()))
+            });
+            (low + high) / 2.0
+        };
+        let x_of: Box<dyn Fn(f32) -> f32> = if beside {
+            let map = anchor::Beside::new(
+                middle_of(),
+                w,
+                h,
+                crate::hud::box_ratio::get(),
+                rule == part_middle,
+            );
+            Box::new(move |x| map.x(x))
+        } else if wide && rule == crate::hud::layout_common::Keep::Whole as u32 {
+            // Stretched over the whole width, as the divider of two players one above the other.
+            Box::new(move |x| x * w as f32 / 800.0)
+        } else if wide && rule == 4 {
             Box::new(move |x| anchor::bar_x(x, box_width, h))
         } else if wide && rule == 5 {
             let (low, high) = vertices().fold((f32::MAX, f32::MIN), |(lo, hi), v| {
@@ -75,7 +99,7 @@ pub fn add_polygon(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
         if rule != crate::hud::layout_common::Keep::Pixels as u32 {
             for v in vertices() {
                 v.x.set(x_of(v.x.get()));
-                v.y.set(if wide {
+                v.y.set(if wide || beside {
                     anchor::screen_y(v.y.get(), box_width, h)
                 } else {
                     screen_scaled(v.y.get(), h, ky)

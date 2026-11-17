@@ -58,7 +58,7 @@ to find each block.
 | --- | --- | --- | --- |
 | `0x000` | 4 | text | `REPL` |
 | `0x004` | 4 | u32 | 0 |
-| `0x008` | 4 | u32 | Version, `0x00050400`. The game refuses any other value. |
+| `0x008` | 4 | u32 | Version, `0x00050400`; `0x00050401` for a race of more than two players (see "The extra tape"). The game refuses any other value. |
 | `0x00C` | 4 | u32 | Date and time the file was made (see below). |
 | `0x010` | `0x20` | text | The replay's name, padded with zero bytes. `tmpreplay` in `var/tmprpl`; the name typed in when a replay is saved. |
 | `0x030` | `0x40` | 16 × u32 | The race's settings (next table). |
@@ -84,7 +84,7 @@ The race's settings, each a u32:
 | --- | --- |
 | `0x030` | Stage number. |
 | `0x034` | Game mode (0 .. 3). |
-| `0x038` | Number of players (1 or 2). |
+| `0x038` | Number of players (1 or 2; 3 or 4 in a replay with the extra tape). |
 | `0x03C` | Number of cars in the race. |
 | `0x040`, `0x044`, `0x048`, `0x04C` | Car model of cars 0 .. 3 (0 .. 33). Only as many as there are cars mean anything. |
 | `0x050` | 1 for a one-player race, 2 for two players. |
@@ -286,7 +286,9 @@ camera for car 0 and car 1 during this second; bytes 2 .. 5 are view switches. A
 leaves them 0 (byte 5 is 2 or 3 in a two-player race, and in a network race 0 or 1: the car of
 the machine that recorded it); the viewer's camera editing fills them in when a replay is saved.
 Byte 5 is the layout: 0 the first car alone, 1 the second alone, 2 and 3 both cars (side by side, or
-one above the other). Old files read as before.
+one above the other); in a replay with the extra tape also 4 the third car alone and 5 the fourth.
+Bytes 6 and 7 choose the camera of the third and the fourth car, as bytes 0 and 1 do for the first
+two; they are 0 in every other replay. Old files read as before.
 
 ### A loose part
 
@@ -311,7 +313,8 @@ wanted speed, its progress along the stage). The fields and their offsets are li
 
 100 entries of 16 bytes, one per step. Each entry holds 8 bytes for car 0, then 8 bytes for
 car 1. Only these two cars have recorded inputs: they are the players' cars. Any other cars are
-computer-driven, and what their driver needs to carry on is the state described above.
+computer-driven, and what their driver needs to carry on is the state described above. (A race of
+more than two players adds the inputs of cars 2 and 3 after the block: see "The extra tape".)
 
 | Offset in a car's 8 bytes | Type | Meaning |
 | --- | --- | --- |
@@ -324,6 +327,24 @@ computer-driven, and what their driver needs to carry on is the state described 
 | 4 .. 12 | throttle, 0 (released) .. 256 (fully pressed) |
 | 13 .. 21 | brake, 0 .. 256 |
 | 22 .. 31 | steering, signed, −256 .. 256 |
+
+### The extra tape
+
+A single rally of three or four players racing together has more human cars than the block's
+inputs hold. Its replay is written with the version `0x00050401` in the header, and each block is
+`0x2E50` (11856) bytes once unpacked: the plain block above, then the **extra tape**, `0x640`
+(1600) bytes laid out as the inputs: 100 entries of 16 bytes, 8 bytes for car 2 and then 8 bytes
+for car 3, each as in the table above. A race of three players leaves car 3's bytes zero. The
+index is as before; a block's size is minus its packed bytes, or, plain, `0x2E50`. The packing,
+the cutting, pasting and saving of blocks are the same, as the tape lies inside the block. The
+header's player count (`0x038`) is 3 or 4. The state of all four cars was already part of every
+block.
+
+Replays of one and two players, and those the original wrote, are written and read exactly as
+before with the version `0x00050400`. A program that does not know the extra tape refuses a file
+of the new version, since it checks the version; the viewer's saving writes the version of the
+file it was opened from. A network race's replay keeps its two cars (the other machines' cars are
+kept by their state alone), as before.
 
 ## How the game writes one
 
@@ -355,10 +376,11 @@ byte, rounded up to a multiple of 4.
 
 ## Compatibility
 
-The format is the 1999 game's and this project does not change it. A replay recorded by the
-original program plays in this one; one recorded here has the same bytes, so the original
-should play it too. There is one version number
-(`0x00050400`); there are no older or newer layouts to tell apart.
+The format is the 1999 game's; this project adds one thing to it, the extra tape of races of more
+than two players, under a version number of its own. A replay recorded by the original program
+plays in this one; one recorded here of one or two players has the same bytes, so the original
+should play it too. There are two version numbers: `0x00050400` (the original's layout) and
+`0x00050401` (the same with the extra tape).
 
 Playback only gives the recorded race if the physics behaves exactly as it did when recording.
 Two things in the file serve that:

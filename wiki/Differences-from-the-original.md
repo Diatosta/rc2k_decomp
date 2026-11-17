@@ -22,7 +22,7 @@ the switches of the command line are on [Running and options](Running-and-option
 - **An on-screen keyboard** for typing with a pad: [Controllers and input](#controllers-and-input).
 - **Lobby passwords, ping, un-ready and `/kick`** to put a player out: [Network play](#network-play).
 - **Finding hosts over Tailscale**: [Network play](#network-play).
-- **Playing through Steam** (an optional build, in progress): [Network play](#network-play).
+- **Playing through Steam** (in progress): [Network play](#network-play).
 - **Replays rendered to a video**, from the viewer's camera button in a third row and from the command line:
   [Replays](#replays).
 - **Three and four players on one screen**, a menu entry of their own in the single rally, the
@@ -68,7 +68,11 @@ The original was a 32-bit Windows program on DirectX. Its platform side was not 
   edges. The graphics page's "HUD area" row (the whole screen at first) confines the HUD to a
   centred 4:3, 16:9 or 21:9 box. With one player the progress bar along the top runs over the
   whole width whatever the box: its end caps, with the clocks, the car's icon and name, keep to
-  the screen's edges and its middle stretches between them. The course is not cut at the sides
+  the screen's edges and its middle stretches between them. With two players the one progress bar
+  (shared at the top, or at the divider when one is above the other) does the same, and side by
+  side each player's HUD lies in their own half of the screen as one player's lies on a wide
+  screen (dial at the left corner, map at the right, the box applying inside the half); three
+  and four players' compact HUDs keep to the corners of their parts, inside the box. The course is not cut at the sides
   by the 4:3 view's cone. The loading screen, the roadside tyre change and the replay viewer keep
   their 4:3 shape in the middle: the loading picture has the menus' blurred wash beside it, the
   tyre change's dark backdrop and the replay viewer's bars span the whole width.
@@ -205,12 +209,15 @@ Everything is on [Controllers](Controllers) and [Input](Input); in short:
   the second car is heard in it. A replay that cannot be saved or read shows a notice instead of
   ending the game.
 - Old replays are read as they are, and replays saved here play in the same way on every system.
+  One- and two-player replays are written byte for byte as the original wrote them. A race of
+  three or four players writes a replay with its own version number, which builds that do not
+  know it refuse as they refuse any other version.
 
 ## Network play
 
 Details on [Network play](Network-play). The protocol is this project's own, so the program plays
 against other copies of itself and not against the original; TCP/IP is offered (no modem, serial
-or IPX connection), and Steam in a build made with the `steam` feature.
+or IPX connection), and Steam when Valve's library is beside the program (it is loaded at run time, so there is no separate build).
 
 - **Password**: a host can lock its session; the session list marks it "[locked]" and a joiner is
   asked for the password. It is checked without being sent.
@@ -300,5 +307,7 @@ or IPX connection), and Steam in a build made with the `steam` feature.
   view above two, three rows, three columns and quarters with the fourth left black; the choice
   is kept in `rc2k.toml` (`split_layout`). Not yet: mirrors, the HUD's dials, map and signs, force
   feedback and the co-driver's sounds follow the first two players only (the race's sound is heard
-  from the first player's view), and no replay is kept.
+  from the first player's view). A race of three or four players keeps a replay (an extra tape for
+  the third and fourth car, see [Replay files](Replay-files)); its viewer's car item also shows the
+  third and the fourth car alone.
 - Steam play has not yet been tried against a running Steam client.

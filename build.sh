@@ -131,16 +131,23 @@ report() {
     (cd "$DIST" && find . -type f -exec ls -l {} + | awk '{printf "  %10d  %s\n", $5, $NF}')
 }
 
-# With the `steam` feature the program links Valve's library, which steamworks-sys leaves in its
-# build folder: copied beside the program (`$1`: cargo's profile folder, `$2`: the file's name,
-# `$3`: where it goes). Without the feature nothing is copied.
+# Network play through Steam is in every desktop build, and loads Valve's library while the program
+# runs when it is beside the program. A release with Steam asks for the library
+# (RC2K_STEAM=1): it is copied from the Steamworks SDK's `redistributable_bin` folder (the SDK's
+# folder in STEAM_SDK_LOCATION, or the copy `steamworks-sys` 0.13.0 leaves in cargo's registry, the
+# SDK the program is written against). `$1`: the file's folder inside `redistributable_bin`
+# (empty for 32-bit Windows), `$2`: its name, `$3`: where it goes. Without RC2K_STEAM nothing is
+# copied, and the program starts and plays without Steam.
 copy_steam_library() {
-    case ",${RC2K_FEATURES:-}," in *,steam,*) ;; *) return 0 ;; esac
-    local found
-    found=$(find "$1/build" -path "*steamworks-sys*/out/$2" 2>/dev/null | head -1)
-    [ -n "$found" ] || fail "the steam feature is on but $2 was not found under $1/build"
+    [ "${RC2K_STEAM:-}" = 1 ] || return 0
+    local found="" dir
+    for dir in "${STEAM_SDK_LOCATION:-}/redistributable_bin" \
+        "${CARGO_HOME:-$HOME/.cargo}"/registry/src/*/steamworks-sys-0.13.0/lib/steam/redistributable_bin; do
+        [ -f "$dir/${1:+$1/}$2" ] && { found="$dir/${1:+$1/}$2"; break; }
+    done
+    [ -n "$found" ] || fail "RC2K_STEAM=1 but $2 was not found: set STEAM_SDK_LOCATION to the Steamworks SDK's folder"
     cp "$found" "$3/"
-    echo "steam: $2 copied beside the program (the Steam client must be running to use it)"
+    echo "steam: $2 copied beside the program (Steam play needs the Steam client running)"
 }
 
 build_windows() {
@@ -157,9 +164,9 @@ build_windows() {
     fresh_dist
     cp "$target_dir/$triple/$PROFILE/rc2k.exe" "third_party/sdl3/lib/$arch/SDL3.dll" "$DIST/"
     if [ "$arch" = x86 ]; then
-        copy_steam_library "$target_dir/$triple/$PROFILE" steam_api.dll "$DIST"
+        copy_steam_library "" steam_api.dll "$DIST"
     else
-        copy_steam_library "$target_dir/$triple/$PROFILE" steam_api64.dll "$DIST"
+        copy_steam_library win64 steam_api64.dll "$DIST"
     fi
 }
 
@@ -170,7 +177,7 @@ build_linux() {
         --target x86_64-unknown-linux-gnu --bin rc2k
     fresh_dist
     cp "target/linux/x86_64-unknown-linux-gnu/$PROFILE/rc2k" "$DIST/"
-    copy_steam_library "target/linux/x86_64-unknown-linux-gnu/$PROFILE" libsteam_api.so "$DIST"
+    copy_steam_library linux64 libsteam_api.so "$DIST"
     if command -v objdump >/dev/null 2>&1; then
         echo "the Linux program needs glibc $(objdump -T "$DIST/rc2k" | grep -v ' w ' \
             | grep -oE 'GLIBC_[0-9.]+' | sort -uV | tail -1 | cut -d_ -f2) or newer"
@@ -257,8 +264,8 @@ build_mac() {
     local app="$DIST/Rally Championship.app"
     mkdir -p "$app/Contents/MacOS"
     lipo -create -output "$app/Contents/MacOS/rc2k" "${bins[@]}"
-    # Valve's library for the first processor built (one file holds both processors').
-    copy_steam_library "target/mac/${triples[0]}/$PROFILE" libsteam_api.dylib "$app/Contents/MacOS"
+    # Valve's library (one file holds both processors').
+    copy_steam_library osx libsteam_api.dylib "$app/Contents/MacOS"
     cp tools/mac/Info.plist "$app/Contents/"
     mkdir -p "$app/Contents/Resources"
     cp assets/icon.icns "$app/Contents/Resources/"
@@ -280,7 +287,7 @@ build_mac_over_ssh() {
     rsync -a --delete -e "$ssh" --exclude=/target/ --exclude=/dist/ --exclude=/ida_db/ \
         --exclude=/.git/ --exclude=/third_party --exclude=/fuzz/target/ --exclude=/deploy.local \
         ./ "$MAC_HOST:$src/"
-    $ssh "$MAC_HOST" "cd $src && MAC_GAME_DIR='${MAC_GAME_DIR:-}' RC2K_FEATURES='${RC2K_FEATURES:-}' ./build.sh $there"
+    $ssh "$MAC_HOST" "cd $src && MAC_GAME_DIR='${MAC_GAME_DIR:-}' RC2K_FEATURES='${RC2K_FEATURES:-}' RC2K_STEAM='${RC2K_STEAM:-}' STEAM_SDK_LOCATION='${STEAM_SDK_LOCATION:-}' ./build.sh $there"
     fresh_dist
     rsync -a -e "$ssh" "$MAC_HOST:$src/dist/mac/" "$DIST/"
 }

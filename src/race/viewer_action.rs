@@ -196,7 +196,17 @@ fn cycle_byte(race: &Race, byte: usize) -> Result<(), Refused> {
     let at = crate::race::viewer::camera_byte((byte as u32).wrapping_add(block.wrapping_mul(8)));
     let old: u8 = at.read(race, "a replay block's camera byte")?;
     let whole_cycle = race.replay_work().header_one_player.get() == 1;
-    let dl = rc2k_core::race::viewer::next_byte(byte as u32, old, whole_cycle);
+    // The players beyond two of a replay with the extra tape each add a layout of their own car.
+    let extra_cars = if race.viewer_buffers().extra_tape.is_set() {
+        race.replay_work()
+            .header_players
+            .get()
+            .saturating_sub(2)
+            .min(2)
+    } else {
+        0
+    };
+    let dl = rc2k_core::race::viewer::next_byte(byte as u32, old, whole_cycle, extra_cars);
     at.write(race, dl, "a replay block's camera byte")?;
     crate::race::spread_camera::spread_camera(race, at, old)
 }

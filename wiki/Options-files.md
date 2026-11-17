@@ -172,7 +172,7 @@ A **sound mode** is one number, written in decimal; turn it into hexadecimal to 
 
 ### Network
 
-`[network]` holds the settings of the network pages. This program plays on TCP/IP (and, when built with it, Steam), host
+`[network]` holds the settings of the network pages. This program plays on TCP/IP (and, when Valve's library is there, Steam), host
 and guests running the same program ([Network play](Network-play)).
 
 | Key | What it does |

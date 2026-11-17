@@ -245,9 +245,13 @@ No line is needed to build; each `--deploy` needs only its own target's.
 
 One more variable is read from the environment, not from the file: `RC2K_FEATURES` adds cargo
 features to a build (for example `RC2K_FEATURES=remote ./build.sh linux` for a test build).
-`RC2K_FEATURES=steam` builds Steam network play ([Network play](Network-play)): the build copies Valve's
-library (`libsteam_api.so`, `steam_api.dll` / `steam_api64.dll`, `libsteam_api.dylib`) next to the program; it
-is not built for the handheld (64-bit ARM Linux), and the program then needs the library beside it to start.
+Steam network play ([Network play](Network-play)) is in every desktop build (Windows, Linux, macOS; not the
+handheld): Valve's library is not linked but loaded while the program runs, when it is there, so the same build
+starts and plays with or without it. `RC2K_STEAM=1 ./build.sh <target>` is for a release that offers Steam: it
+copies Valve's library (`libsteam_api.so`, `steam_api.dll` / `steam_api64.dll`, `libsteam_api.dylib`) next to the
+program, from the Steamworks SDK's `redistributable_bin` folder (`STEAM_SDK_LOCATION` names the SDK's folder; the
+copy `steamworks-sys` 0.13.0 leaves in cargo's registry is used when it is not set). The program is written against
+the interface versions of that SDK (see `src/net/steam/flat.rs`), so ship that SDK's library.
 
 ### The older script: `deploy_standalone.sh`
 

@@ -14,6 +14,32 @@ pub const NEEDED_KB: u32 = 0x7800;
 pub const HEADER_MAGIC: u32 = 0x4C50_4552;
 /// The header's version.
 pub const HEADER_VERSION: u32 = 0x50400;
+/// The header's version of a replay with the extra tape (the inputs of cars 2 and 3 after
+/// each block's frame, `drive::replay_frames::EXTRA_TAPE_BYTES`): written only for a race of
+/// more than two players, so every earlier replay and every one- or two-player replay keeps
+/// `HEADER_VERSION`, and a build that does not know the tape refuses the file as it refuses
+/// any other version.
+pub const HEADER_VERSION_EXTRA_TAPE: u32 = 0x50401;
+
+/// The header's version for a replay with or without the extra tape.
+pub fn header_version(extra_tape: bool) -> u32 {
+    if extra_tape {
+        HEADER_VERSION_EXTRA_TAPE
+    } else {
+        HEADER_VERSION
+    }
+}
+
+/// Whether a header's version is one this program reads, and whether the replay has the
+/// extra tape.
+pub fn read_version(version: u32) -> Option<bool> {
+    match version {
+        HEADER_VERSION => Some(false),
+        HEADER_VERSION_EXTRA_TAPE => Some(true),
+        _ => None,
+    }
+}
+
 /// The header's name, "tmpreplay" with its NUL, as three dwords.
 pub const HEADER_NAME: [u32; 3] = [0x7270_6D74, 0x616C_7065, 0x79];
 /// The index's first dword, "RCIB".
@@ -158,6 +184,9 @@ pub fn read_logged() -> &'static [Setting] {
 mod tests {
     use super::*;
 
+    const PLAIN_PACKED_LEN: usize = 6107;
+    const PLAIN_PACKED_HASH: u64 = 13_287_960_318_591_659_994;
+
     #[test]
     fn recording() {
         assert!(replays_on(1, 0, 0));
@@ -174,6 +203,73 @@ mod tests {
         assert_eq!(closing_frames(2, 5, 437), (100, 3, None));
         assert_eq!(packed_size(0x101, 0x2810), Some(0x104));
         assert_eq!(packed_size(0x280E, 0x2810), None);
+    }
+
+    #[test]
+    fn versions() {
+        assert_eq!(header_version(false), 0x50400);
+        assert_eq!(header_version(true), 0x50401);
+        assert_eq!(read_version(0x50400), Some(false));
+        assert_eq!(read_version(0x50401), Some(true));
+        assert_eq!(read_version(0x50402), None);
+        assert_eq!(read_version(0), None);
+    }
+
+    /// A block's bytes as a recording of cars `0..cars` fills them: the frame, and with the extra
+    /// tape the inputs of cars 2 and 3 after it.
+    fn block(extra_tape: bool) -> Vec<u8> {
+        use crate::drive::replay_frames::{EXTRA_TAPE_DWORDS, ReplayFrame};
+        let mut frame = ReplayFrame::new();
+        let mut x = 0x1234_5678u32;
+        let mut next = move || {
+            x = x.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+            // Runs and noise, as a packed block has them.
+            if x >> 28 < 6 { 0 } else { x >> 8 }
+        };
+        frame.cars.iter_mut().flatten().for_each(|d| *d = next());
+        frame.tape.fill_with(&mut next);
+        let mut bytes = frame.to_bytes();
+        if extra_tape {
+            bytes.extend((0..EXTRA_TAPE_DWORDS).flat_map(|_| next().to_le_bytes()));
+        }
+        bytes
+    }
+
+    fn fnv(bytes: &[u8]) -> u64 {
+        bytes.iter().fold(0xCBF2_9CE4_8422_2325u64, |h, &b| {
+            (h ^ u64::from(b)).wrapping_mul(0x100_0000_01B3)
+        })
+    }
+
+    /// The block of a one- or two-player race is what it was; a block with the extra tape is the
+    /// same bytes and the tape after them, and both pack and unpack whole.
+    #[test]
+    fn blocks_with_and_without_the_extra_tape() {
+        use crate::drive::replay_frames::{EXTENDED_FRAME_BYTES, FRAME_BYTES, block_bytes};
+        let plain = block(false);
+        let extended = block(true);
+        assert_eq!(
+            (plain.len(), extended.len()),
+            (FRAME_BYTES, EXTENDED_FRAME_BYTES)
+        );
+        assert_eq!(plain.len(), block_bytes(false));
+        assert_eq!(extended.len(), block_bytes(true));
+        assert_eq!(extended[..FRAME_BYTES], plain[..]);
+        // The old file's block packs to the bytes it always did (frozen).
+        let packed = crate::race::seal::pack_runs(&plain);
+        assert_eq!(
+            (packed.len(), fnv(&packed)),
+            (PLAIN_PACKED_LEN, PLAIN_PACKED_HASH)
+        );
+        for bytes in [&plain, &extended] {
+            let packed = crate::race::seal::pack_runs(bytes);
+            let mut out = vec![0u8; bytes.len()];
+            let written =
+                crate::drive::rle::unpack_rle(&packed[..], |at, b| out[at as usize] = b).unwrap();
+            assert_eq!(written as usize, bytes.len());
+            assert_eq!(&out, bytes);
+            assert!(packed_size(packed.len() as u32, bytes.len() as u32).is_some());
+        }
     }
 
     #[test]

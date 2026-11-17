@@ -3,16 +3,16 @@
 //! implementation; the Steam relay's (`net::steam`) is another; `Pipe` joins two ends in memory
 //! for the tests.
 
-#[cfg(any(test, feature = "steam"))]
+#[cfg(any(test, steam_support))]
 use std::collections::VecDeque;
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpStream};
 #[cfg(test)]
 use std::sync::Arc;
-#[cfg(any(test, feature = "steam"))]
+#[cfg(any(test, steam_support))]
 use std::sync::{Condvar, Mutex};
 use std::time::Duration;
-#[cfg(any(test, feature = "steam"))]
+#[cfg(any(test, steam_support))]
 use std::time::Instant;
 
 /// A connection to one machine. Reads give `Ok(0)` or an error once the other end is gone.
@@ -47,20 +47,20 @@ impl Wire for TcpStream {
 
 /// Bytes waiting for one direction of a connection that is not a socket.
 #[derive(Default)]
-#[cfg(any(test, feature = "steam"))]
+#[cfg(any(test, steam_support))]
 pub struct Inbox {
     state: Mutex<InboxState>,
     arrived: Condvar,
 }
 
-#[cfg(any(test, feature = "steam"))]
+#[cfg(any(test, steam_support))]
 #[derive(Default)]
 struct InboxState {
     bytes: VecDeque<u8>,
     ended: bool,
 }
 
-#[cfg(any(test, feature = "steam"))]
+#[cfg(any(test, steam_support))]
 impl Inbox {
     /// Adds bytes for the reader.
     pub fn put(&self, data: &[u8]) {
