@@ -211,11 +211,20 @@ pub(super) const KICKED: u8 = 10;
 pub(super) const CHALLENGE: u8 = 11;
 /// A joining machine to the host: the proof for the challenge.
 pub(super) const PROOF: u8 = 12;
+/// Host to a machine: a round trip's start (the host's clock, in ms); answered with `PONG`.
+pub(super) const PING: u8 = 13;
+/// A machine to the host: the `PING`'s stamp given back.
+pub(super) const PONG: u8 = 14;
+/// Host to every machine: each machine's round trip to the host in ms (a count, then machine
+/// and ms for each).
+pub(super) const PINGS: u8 = 15;
 
 /// The protocol's mark at the start of a JOIN and of the discovery's packets. The last
 /// character is the protocol's version: 2 added the host putting a player out (`KICKED`), 3 the sessions locked by a
-/// password (`CHALLENGE`, `PROOF`), 4 the host ordering the lobby chat (`messages::CHAT_RELAYED`).
-pub(super) const MAGIC: &[u8; 8] = b"RC2KNET4";
+/// password (`CHALLENGE`, `PROOF`), 4 the host ordering the lobby chat (`messages::CHAT_RELAYED`),
+/// 5 the round trips measured (`PING`, `PONG`, `PINGS`). A frame of a kind a machine does not know
+/// is passed over.
+pub(super) const MAGIC: &[u8; 8] = b"RC2KNET5";
 /// The first seven characters of every version's mark: a JOIN that starts so but is not this
 /// version's is answered with a refusal for its version, not dropped.
 pub(super) const MAGIC_FAMILY: &[u8; 7] = b"RC2KNET";

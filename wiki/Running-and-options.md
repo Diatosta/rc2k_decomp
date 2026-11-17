@@ -316,6 +316,7 @@ Two are useful to anyone (`RC2K_RENDERER` has a switch of its own, `--renderer`,
 | --- | --- |
 | `RC2K_RENDERER` | Same as `--renderer`, which outranks it: `software` draws with the software rasteriser instead of the GPU. `gl` asks for OpenGL (desktop). `gpu` (or nothing) is the default: the GPU API first, then OpenGL, then the rasteriser. On the handheld `gles` means the same as `gpu`. An unknown value is noted in the log and ignored. |
 | `RC2K_MONITOR_SIZES`, `RC2K_DESKTOP_SIZE` | `WxH` lists (comma separated) and one `WxH`: stand in for the display's modes and desktop size in the graphics page's resolution list, for trials on a machine without that display. |
+| `RC2K_NO_ERROR_DIALOG` | Any value: an error that ends the program is not shown on a panel waiting for a key; the program ends at once, as before the panel existed. For unattended runs. |
 | `RC2K_FRAMES` | A number: the program ends itself after that many pictures and leaves the last one in `rc2k_frame.raw`. For quick automated checks. |
 
 The rest are diagnostics for people working on the code. They change nothing unless set.

@@ -65,6 +65,13 @@ More on [Network play](Network-play).
   original offered fewer.
 - Every other file keeps the original's format: replays, saved games, car set-ups, best times
   and `var/ral.cfg`. Old replays and saves are read as they are.
+- An error that ends the game is shown on a panel in the game's window (the message, where the
+  details are, "Quit"; Up / Down and Enter, or a pad's buttons) in place of the original's
+  "Guru Meditation" box or a silent exit; the log keeps the line. Troubles that belong to one file
+  no longer end the game: a saved game that is damaged is not loaded, a replay that cannot be
+  read is skipped (a notice, then the menu again), and options in `var/rc2k.toml` that are not
+  valid are reset to their defaults with a notice. `RC2K_NO_ERROR_DIALOG` (any value) turns the
+  panel off for unattended runs, which then end as before.
 - The program writes a log of its own, `rc2k.log`, beside the game's `var/logfile.txt`
   ([Log files](Log-files)).
 - On Linux and macOS, file names are matched without regard to case, as Windows does.

@@ -203,6 +203,7 @@ fn view(race: &'static Race, o: Owners<'static>, start: Start) -> Result<Viewed,
     race.shared.replay_file().viewer_stopped.set(true);
     let failed = open_viewed_replay::open_viewed_replay(race, o.system, slot)?;
     if failed {
+        tell_damaged(slot);
         return Ok(Viewed::Nothing);
     }
     race.viewer_buffers().camera_edit.set(0);
@@ -409,4 +410,15 @@ fn mark(
         list_state.move_clock.set(list_state.frame_clock.get());
     }
     Ok(())
+}
+
+/// A replay that could not be opened is said so: it is skipped and the player stays in the
+/// menu. The last race's slot is left out: no race may have been recorded.
+pub fn tell_damaged(slot: u32) {
+    if slot < 100 {
+        crate::error_dialog::notice(&crate::error_dialog::text_with(
+            rc2k_core::strings::own::id::DAMAGED_REPLAY,
+            &(slot + 1).to_string(),
+        ));
+    }
 }

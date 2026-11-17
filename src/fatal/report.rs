@@ -87,6 +87,11 @@ pub fn report_now(context: Option<&Context>) {
         own_thread: &SlotThread::current,
     };
     let code = CODE.get();
+    // The player is told before the report asks the game to quit (a quitting game shows
+    // nothing).
+    if code & rc2k_core::fatal::FATAL != 0 && REPORTED.get() != 1 {
+        crate::error_dialog::fatal(&rc2k_core::files::ansi::ansi_text(&text_from_game(context)));
+    }
     match report(context, &mut outside) {
         Ok(Leave::Return) => {}
         Ok(Leave::Exit) => crate::standalone::finish(&format!("fatal error {code:#x}"), 0),

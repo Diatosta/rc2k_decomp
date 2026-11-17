@@ -447,7 +447,13 @@ pub fn open_with_password(this: u32, d: &Desc, flags: u32, password: &[u8]) -> u
         })
     } else if flags & DPOPEN_JOIN != 0 {
         match session_address(&d.instance) {
-            Some(at) => Session::join_with(at, signal(), password),
+            Some(at) => {
+                let joined = Session::join_with(at, signal(), password);
+                if joined.is_ok() {
+                    crate::net::last_host::remember(at.ip());
+                }
+                joined
+            }
             None => {
                 crate::logfile::program_log::log(
                     "net: the session to join is not in the list found",
@@ -531,6 +537,11 @@ pub fn receive(this: u32, out: &mut [u8]) -> Received {
 /// The session's host's player (none without a session or a player of the host's).
 pub fn host_player(this: u32) -> Option<u32> {
     session(this).and_then(|s| s.host_player())
+}
+
+/// The round trip in ms to the host of the machine `player` is on (`Session::ping_of`).
+pub fn ping_of(this: u32, player: u32) -> Option<u32> {
+    session(this).and_then(|s| s.ping_of(player))
 }
 
 pub fn send(this: u32, from: u32, to: u32, data: &[u8]) -> u32 {
@@ -999,6 +1010,11 @@ mod tests {
 
         // The guest is a known player now: the call of this round is answered, the flag set.
         vars.received[0].id.set(guest_player);
+        // A player that is not ready does not answer the call for everyone ready.
+        say(&[0x40, 7]);
+        settle();
+        assert_eq!(vars.all_raced.get(), 0);
+        vars.own.set_state(rc2k_core::net::players::State::READY);
         say(&[0x40, 7]);
         assert!(until(&|| vars.all_raced.get() == 1));
         assert_eq!(from_host(), [0x41, 7]);

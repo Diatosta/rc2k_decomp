@@ -338,12 +338,21 @@ mod tests {
         let dir = Dir::new("broken");
         let p = dir.paths();
         save_old(&p, &options(1), 0).unwrap();
-        std::fs::write(&p.new, "[display]\nmenu_mode = 'x'\n").unwrap();
+        std::fs::write(&p.new, "[display\nmenu_mode = 'x'\n").unwrap();
         assert!(
             load(&p, Asked::default(), &Options::default(), &mut || load_old(
                 &p
             ))
             .is_err()
         );
+        // A bad value is reset to its default; the old file is still not the fallback.
+        std::fs::write(&p.new, "[display]\nmenu_mode = 'x'\n").unwrap();
+        let (o, from) = load(&p, Asked::default(), &Options::default(), &mut || {
+            load_old(&p)
+        })
+        .unwrap()
+        .unwrap();
+        assert_eq!((o, from), (Options::default(), Source::New));
+        let _ = toml_file::take_skipped();
     }
 }

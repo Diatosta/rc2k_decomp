@@ -72,6 +72,11 @@ impl State {
             .with(State::READY)
     }
 
+    /// The state after the lobby's "ready" is pressed again: ready off.
+    pub fn made_not_ready(self) -> State {
+        self.without(State::READY)
+    }
+
     /// The state once its race is done: waiting and ready off, raced on.
     pub fn raced(self) -> State {
         self.without(State::READY.with(State::WAITING))
@@ -280,6 +285,7 @@ mod tests {
         assert_eq!(s(0x03).made_host(), s(0x12));
         assert_eq!(s(0x16).made_ready(), s(0x11));
         assert_eq!(s(0).made_ready(), State::READY);
+        assert_eq!(s(0).made_ready().made_not_ready(), s(0));
         assert!(s(0x11).is_host() && s(0x11).is_ready() && !s(0x10).is_ready());
         let states = [2u8, 0x82, 6];
         assert_eq!(

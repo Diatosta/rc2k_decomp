@@ -22,6 +22,11 @@ command line that is not a switch:
 rc2k mylog.txt --stage langton
 ```
 
+When the program stops for an error, the line `standalone: ending: <reason>` is the last one,
+and the reason is also shown on a panel in the game window ([Differences from the
+original](Differences-from-the-original)). A trouble the game mended (a damaged saved game or
+replay, options reset to their defaults) is logged as a `notice:` line.
+
 Lines are appended as things happen, one message to a line, so the file is complete up to the
 moment the program stopped. Most lines begin with the part of the program that wrote them:
 

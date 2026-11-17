@@ -662,3 +662,59 @@ fn a_session_runs_over_an_in_memory_connection() {
     }
     panic!("the guest never lost the session");
 }
+
+/// The host measures each machine's round trip once a second and tells every machine; the host's
+/// own players have none.
+#[test]
+fn a_machines_ping_is_measured_and_told_to_all() {
+    let (host, port) = wire_host();
+    let at = SocketAddr::from(([127, 0, 0, 1], port));
+    let guest = Session::join_with(at, Arc::new(quiet), b"").expect("joined");
+    let (_, mine) = guest.create_player("guest", &[1], 0);
+    let (_, theirs) = host.create_player("host", &[2], 0);
+    let mut seen = (None, None);
+    for _ in 0..60 {
+        seen = (host.ping_of(mine), guest.ping_of(mine));
+        if seen.0.is_some() && seen.1.is_some() {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    let (on_host, on_guest) = (seen.0.expect("measured"), seen.1.expect("told"));
+    assert!(on_host < 1000 && on_guest < 5000);
+    assert_eq!(host.ping_of(theirs), None);
+    assert_eq!(guest.ping_of(theirs), None);
+    guest.close();
+    host.close();
+}
+
+/// A frame of a kind the host does not know is passed over: the connection goes on.
+#[test]
+fn a_frame_of_an_unknown_kind_is_passed_over() {
+    let (host, port) = wire_host();
+    let mut peer = connect(port);
+    write_frame(&mut peer, &[vec![JOIN], MAGIC.to_vec()].concat()).unwrap();
+    read_frame(&mut peer).expect("the welcome");
+    write_frame(&mut peer, &[0xEE, 1, 2, 3]).unwrap();
+    let make = [
+        vec![REQUEST],
+        le(&[0]),
+        vec![0],
+        le(&[1]),
+        b"p".to_vec(),
+        le(&[2]),
+        vec![9, 9],
+    ]
+    .concat();
+    write_frame(&mut peer, &make).unwrap();
+    let mut answered = false;
+    for _ in 0..4 {
+        let frame = read_frame(&mut peer).expect("a frame");
+        if frame[0] == REPLY {
+            answered = true;
+            break;
+        }
+    }
+    assert!(answered);
+    host.close();
+}

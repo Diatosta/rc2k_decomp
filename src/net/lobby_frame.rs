@@ -91,6 +91,17 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
                 NAME_FONT
             };
             crate::text::draw_text::draw_text_at(font, &name, x as i32, y as i32, &mut canvas)?;
+            // The ping to the host (its round trip in ms) at the end of the name's column.
+            if let Some(ping) = crate::net::dp_objects::ping_of(net.link.dplay(), block.id.get()) {
+                let text = store_text(strings, screens::ping_text(ping))?;
+                crate::text::draw_text::draw_text_at(
+                    CHAT_FONT,
+                    &text,
+                    PING_X,
+                    y as i32 + 2,
+                    &mut canvas,
+                )?;
+            }
             x += 0x14A;
             blit(
                 screens::car_sprite(block.record.head.get(1)),
@@ -189,7 +200,12 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
         (
             BOTTOM_ROW_Y,
             0,
-            screens::lobby_buttons(car_item, vars.stage_item.get()).to_vec(),
+            screens::lobby_buttons(
+                car_item,
+                vars.stage_item.get(),
+                net.vars.own.state().is_ready(),
+            )
+            .to_vec(),
         ),
         (
             UPPER_ROW_Y,
@@ -235,6 +251,10 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
 const ROW_RIGHT: u32 = 0x310;
 const BOTTOM_ROW_Y: u32 = 0x223;
 const UPPER_ROW_Y: u32 = 0x1F2;
+/// Where a player's ping is drawn: at the right of the name's column (the car's picture starts
+/// at 0x18A).
+const PING_X: i32 = 0x130;
+
 /// The line between the chat's input and the buttons' rows.
 const BUTTONS_RULE_Y: u32 = 0x1EA;
 

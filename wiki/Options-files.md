@@ -24,6 +24,13 @@ At start-up:
    once. This is how an existing installation of the original game is taken over.
 3. Otherwise the game starts with its built-in values.
 
+A value in `var/rc2k.toml` that is not valid (a word where a number goes, a number out of range,
+a text too long) does not stop the game: that one value keeps its built-in value, the other
+values of the file are read, and a notice names the values that were reset (also logged as a
+`notice:` line). A file that is not TOML at all, or is of a newer version, still stops the program
+with the reason shown. The file is not rewritten until the options are next saved, and then the
+reset values are written.
+
 When the game saves its options it writes `var/rc2k.toml`. It saves when the program ends (also when
 the window is closed) and when an options page, a player's details or controller pages, or a review
 menu after a stage is left; not on every key press. It leaves `var/ral.dat` alone.
@@ -174,6 +181,7 @@ and guests running the same program ([Network play](Network-play)).
 | `host_address` | The address a joining player connects to: a host name or an IP address, up to 63 characters. Empty: look for games on the local network. |
 | `port` | The port used with the address, on both TCP and UDP. 0 means the default, 47624 (`0xB9E8`). Every machine in a game must use the same one. |
 | `password` | The password a session this machine hosts is locked by, up to 63 characters; empty or missing: no password. Only in this file (the old `ral.dat` has no room for it), and written as plain text, so keep the file to yourself. A joining player is asked for a locked session's password when joining, and it is not kept. |
+| `last_host` | The address of the last host this machine joined (an IP address), probed again by a search that has no address typed, so a host over a network with no broadcast (Tailscale) is found again. Optional; missing or empty: none. |
 | `saved_connection` | The connection (a DirectPlay service provider, written as a GUID) used last time. At the start of a network game the program looks for a listed connection with this GUID and takes it without asking; otherwise it asks, then saves the one chosen. This program lists TCP/IP, whose GUID is `36E95EE0-8577-11CF-960C-0080C7534E82`, and Steam when available (a GUID of its own); without Steam it is always the first; a different value in an old file is not found and is replaced when a connection is chosen. |
 
 ### Pages

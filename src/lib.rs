@@ -10,6 +10,7 @@ mod d3d;
 mod debug;
 mod drive;
 mod effects;
+mod error_dialog;
 mod errors;
 mod fatal;
 mod files;

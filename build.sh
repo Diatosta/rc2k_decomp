@@ -137,7 +137,7 @@ report() {
 copy_steam_library() {
     case ",${RC2K_FEATURES:-}," in *,steam,*) ;; *) return 0 ;; esac
     local found
-    found=$(find "$1/build" -path "*steamworks-sys-*/out/$2" 2>/dev/null | head -1)
+    found=$(find "$1/build" -path "*steamworks-sys*/out/$2" 2>/dev/null | head -1)
     [ -n "$found" ] || fail "the steam feature is on but $2 was not found under $1/build"
     cp "$found" "$3/"
     echo "steam: $2 copied beside the program (the Steam client must be running to use it)"

@@ -130,6 +130,21 @@ pub mod id {
     pub const LOBBY_SETTINGS: u32 = FIRST + 0xD8;
     /// The message shown when a replay could not be saved.
     pub const REPLAY_NOT_SAVED: u32 = FIRST + 0xD9;
+    /// The network lobby's ready button while the player is ready: it takes the ready back.
+    pub const NOT_READY: u32 = FIRST + 0xDA;
+    /// The error dialog's texts: the title of an error and of a notice, the ways on (quit,
+    /// continue), the line that points to the log, the line that says what the keys do.
+    pub const DIALOG_ERROR: u32 = FIRST + 0xE9;
+    pub const DIALOG_NOTICE: u32 = FIRST + 0xEA;
+    pub const DIALOG_QUIT: u32 = FIRST + 0xEB;
+    pub const DIALOG_CONTINUE: u32 = FIRST + 0xEC;
+    pub const DIALOG_LOG: u32 = FIRST + 0xED;
+    pub const DIALOG_KEYS: u32 = FIRST + 0xEE;
+    /// The notices of a damaged saved game ("{}" the slot's number), a damaged replay (the
+    /// same), and of settings reset to their defaults ("{}" their names).
+    pub const DAMAGED_SAVEGAME: u32 = FIRST + 0xE6;
+    pub const DAMAGED_REPLAY: u32 = FIRST + 0xE7;
+    pub const SETTINGS_RESET: u32 = FIRST + 0xEF;
 }
 
 /// Each text's file key and id.
@@ -172,6 +187,16 @@ pub const KEYS: &[(&str, u32)] = &[
     ("lobby.save_replay", id::SAVE_REPLAY),
     ("lobby.settings", id::LOBBY_SETTINGS),
     ("lobby.replay_not_saved", id::REPLAY_NOT_SAVED),
+    ("lobby.not_ready", id::NOT_READY),
+    ("dialog.error", id::DIALOG_ERROR),
+    ("dialog.notice", id::DIALOG_NOTICE),
+    ("dialog.quit", id::DIALOG_QUIT),
+    ("dialog.continue", id::DIALOG_CONTINUE),
+    ("dialog.log", id::DIALOG_LOG),
+    ("dialog.keys", id::DIALOG_KEYS),
+    ("dialog.damaged_savegame", id::DAMAGED_SAVEGAME),
+    ("dialog.damaged_replay", id::DAMAGED_REPLAY),
+    ("dialog.settings_reset", id::SETTINGS_RESET),
     ("advanced.title", id::ADVANCED),
     ("advanced.threads", id::ADVANCED_ROWS),
     ("advanced.renderer", id::ADVANCED_ROWS + 1),

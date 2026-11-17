@@ -250,6 +250,9 @@ pub struct Network {
     pub saved_connection: Bytes<0x10>,
     /// The password a hosted session is locked by (only in the new file; none when missing).
     pub password: Bytes<0x40>,
+    /// The address of the last host joined, probed again when the address is left empty (only
+    /// in the new file; none when missing).
+    pub last_host: Bytes<0x40>,
 }
 
 /// The options pages' own settings and what the front end keeps.

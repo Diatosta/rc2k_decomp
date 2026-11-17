@@ -140,6 +140,9 @@ struct Shared {
     lost: bool,
     /// A message has been dropped (told once in the log).
     dropped: bool,
+    /// Each machine's round trip to the host in ms, a moving average: measured by the host,
+    /// told by it to every machine.
+    pings: HashMap<u32, u32>,
 }
 
 impl Shared {
@@ -167,6 +170,8 @@ pub struct Session {
     /// The host: each joined machine's connection. A joined machine: the host's (as 1).
     links: Mutex<HashMap<u32, Box<dyn Wire>>>,
     port: u16,
+    /// When the session began: the clock the host's pings are stamped with.
+    started: Instant,
     /// The host's connections open.
     connections: AtomicUsize,
     /// The host's password, as its salt and the key made from it (never the password).
@@ -196,6 +201,7 @@ impl Session {
                 next_machine: 2,
                 lost: false,
                 dropped: false,
+                pings: HashMap::new(),
             }),
             answered: Condvar::new(),
             signal,
@@ -204,6 +210,7 @@ impl Session {
             connections: AtomicUsize::new(0),
             lock,
             held: Mutex::new(None),
+            started: Instant::now(),
             port,
         })
     }
@@ -264,6 +271,18 @@ impl Session {
             .iter()
             .find(|(_, p)| p.machine == 1)
             .map(|(&id, _)| id)
+    }
+
+    /// The round trip to the host in ms (a moving average) of the machine that `player` is on, as
+    /// the host has measured it: none for the host's own players, and while none has been
+    /// measured yet.
+    pub fn ping_of(&self, player: Id) -> Option<u32> {
+        let s = self.lock();
+        let machine = s.world.players.get(&player)?.machine;
+        if machine == 1 {
+            return None;
+        }
+        s.pings.get(&machine).copied()
     }
 
     pub fn world(&self) -> World {

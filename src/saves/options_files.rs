@@ -83,6 +83,15 @@ pub fn load(o: Owners<'static>) -> Result<bool, Refused> {
     if let Some(e) = trouble {
         return Err(e);
     }
+    // Values of the new file that were not valid are at their defaults: the player is told
+    // (once the window is there).
+    let skipped = rc2k_core::options::toml_file::take_skipped();
+    if !skipped.is_empty() {
+        crate::error_dialog::notice(&crate::error_dialog::text_with(
+            rc2k_core::strings::own::id::SETTINGS_RESET,
+            &skipped.join(", "),
+        ));
+    }
     match got.map_err(|e| refusal(&e))? {
         Some((options, files::Source::New)) => apply(o, &options).map(|()| true),
         // The old file's values are in the stores already.

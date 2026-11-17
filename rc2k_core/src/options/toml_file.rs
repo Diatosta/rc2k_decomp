@@ -58,8 +58,110 @@ pub fn write(options: &Options, existing: Option<&str>) -> Result<String, Option
     toml::to_string(&table).map_err(text_error)
 }
 
+/// The keys `read` left at their defaults because their values were bad, as paths
+/// (`display.menu_mode`), for the program to tell the player. Taken once.
+static SKIPPED: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
+
+/// The keys the last reads reset to their defaults (the list is emptied).
+pub fn take_skipped() -> Vec<String> {
+    std::mem::take(
+        &mut *SKIPPED
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner),
+    )
+}
+
+/// Every value of `table` that is not a table, with its path.
+fn leaves(table: &Table, prefix: &[String], into: &mut Vec<(Vec<String>, Value)>) {
+    for (key, value) in table {
+        let mut path = prefix.to_vec();
+        path.push(key.clone());
+        match value {
+            Value::Table(inner) => leaves(inner, &path, into),
+            value => into.push((path, value.clone())),
+        }
+    }
+}
+
+/// `table` with the value at `path` set, the tables on the way made.
+fn with_value(table: &Table, path: &[String], value: Value) -> Table {
+    let mut copy = table.clone();
+    let mut here = &mut copy;
+    for name in &path[..path.len() - 1] {
+        let entry = here
+            .entry(name.clone())
+            .or_insert_with(|| Value::Table(Table::new()));
+        if !entry.is_table() {
+            *entry = Value::Table(Table::new());
+        }
+        here = match entry {
+            Value::Table(inner) => inner,
+            _ => unreachable!("made a table above"),
+        };
+    }
+    here.insert(path[path.len() - 1].clone(), value);
+    copy
+}
+
+/// The options of `given` laid over `base` one value at a time, the values that make them
+/// invalid left out: those values' paths go to `skipped`.
+fn read_by_value(
+    given: &Table,
+    base: &Options,
+    skipped: &mut Vec<String>,
+) -> Result<Options, OptionsError> {
+    let mut accepted = table_of(base)?;
+    let mut all = Vec::new();
+    leaves(given, &[], &mut all);
+    let valid = |table: &Table| {
+        table
+            .clone()
+            .try_into::<Document>()
+            .map_err(text_error)
+            .and_then(Document::into_options)
+            .is_ok()
+    };
+    // A value that is invalid alone may be valid with its neighbours (a device's name,
+    // serial and number are one thing): those wait, and are tried together by table.
+    let mut waiting: Vec<(Vec<String>, Value)> = Vec::new();
+    for (path, value) in all {
+        if path == ["version"] {
+            continue;
+        }
+        let candidate = with_value(&accepted, &path, value.clone());
+        if valid(&candidate) {
+            accepted = candidate;
+        } else {
+            waiting.push((path, value));
+        }
+    }
+    while let Some((first, _)) = waiting.first() {
+        let table = first[..first.len() - 1].to_vec();
+        let (group, rest): (Vec<_>, Vec<_>) = waiting
+            .into_iter()
+            .partition(|(path, _)| path[..path.len() - 1] == table[..]);
+        waiting = rest;
+        let candidate = group.iter().fold(accepted.clone(), |t, (path, value)| {
+            with_value(&t, path, value.clone())
+        });
+        if valid(&candidate) {
+            accepted = candidate;
+        } else {
+            skipped.extend(group.iter().map(|(path, _)| path.join(".")));
+        }
+    }
+    accepted
+        .try_into::<Document>()
+        .map_err(text_error)?
+        .into_options()
+}
+
 /// The options in `text`, the values it has not got taken from `base`. `Ok(None)`: the file is
 /// of an older version, which is not read.
+///
+/// A value that is not valid (the wrong type, an out-of-range number, a text too long) is not
+/// a reason to refuse the file: it is left at its value in `base` and its path noted for
+/// `take_skipped`. A file that is not TOML at all, or has a bad `version`, is still refused.
 pub fn read(text: &str, base: &Options) -> Result<Option<Options>, OptionsError> {
     let given = text.parse::<Table>().map_err(text_error)?;
     match version_of(&given)? {
@@ -68,9 +170,23 @@ pub fn read(text: &str, base: &Options) -> Result<Option<Options>, OptionsError>
         _ => {}
     }
     let mut table = table_of(base)?;
-    merge(&mut table, given);
-    let document = table.try_into::<Document>().map_err(text_error)?;
-    document.into_options().map(Some)
+    merge(&mut table, given.clone());
+    match table
+        .try_into::<Document>()
+        .map_err(text_error)
+        .and_then(Document::into_options)
+    {
+        Ok(options) => Ok(Some(options)),
+        Err(_) => {
+            let mut skipped = Vec::new();
+            let options = read_by_value(&given, base, &mut skipped)?;
+            SKIPPED
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .extend(skipped);
+            Ok(Some(options))
+        }
+    }
 }
 
 #[cfg(test)]
@@ -157,6 +273,7 @@ mod tests {
             0x4e, 0x82,
         ];
         o.network.password.0[..5].copy_from_slice(b"rally");
+        o.network.last_host.0[..10].copy_from_slice(b"100.64.0.7");
         o.cars.first_numbers.0 = vec![u32::MAX; 40];
         o.cars.first_numbers.0[..3].copy_from_slice(&[13, 21, 18]);
         o.cars.second_numbers.0 = vec![5; 20];
@@ -172,6 +289,7 @@ mod tests {
             "machine_name = \"Jé€ X1\"",
             "saved_connection = \"36E95EE0-8577-11CF-960C-0080C7534E82\"",
             "password = \"rally\"",
+            "last_host = \"100.64.0.7\"",
             "first_numbers = [13, 21, 18]",
             "name = \"Ana\"",
             "tyre_change_holder = \"Karl\"",
@@ -263,10 +381,33 @@ mod tests {
             "[records]\nchampionship = []",
             "[[",
         ] {
-            assert!(
-                matches!(read(bad, &base), Err(OptionsError::Text(_))),
-                "{bad}"
-            );
+            if bad == "[[" {
+                assert!(
+                    matches!(read(bad, &base), Err(OptionsError::Text(_))),
+                    "{bad}"
+                );
+            } else {
+                // A bad value is reset to its default, not a reason to refuse the file.
+                assert_eq!(read(bad, &base).unwrap(), Some(base.clone()), "{bad}");
+            }
         }
+        let _ = take_skipped();
+    }
+
+    #[test]
+    fn a_bad_value_is_reset_and_named() {
+        let mut base = Options::default();
+        base.sound.master_volume = 77;
+        let text = "version = 2\n[display]\nmenu_mode = \"wide\"\n[sound]\nmaster_volume = 90\n";
+        let got = read(text, &base).unwrap().unwrap();
+        assert_eq!(got.sound.master_volume, 90);
+        assert_eq!(got.display.menu_mode, base.display.menu_mode);
+        // Other tests read bad values too: the list may hold theirs.
+        assert!(take_skipped().contains(&"display.menu_mode".to_string()));
+    }
+
+    #[test]
+    fn a_file_that_is_not_toml_is_still_refused() {
+        assert!(read("[display\nmenu_mode = ", &Options::default()).is_err());
     }
 }

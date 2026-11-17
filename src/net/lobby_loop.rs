@@ -149,6 +149,7 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
     if !net.vars.own.state().is_host() {
         net.vars.stage_item.set(0);
     }
+    let mut syncing = false;
     loop {
         run_frame(o, || crate::net::lobby_frame::lobby_frame(o))?;
         // The session is gone (the host left or put this machine out): the lobby ends.
@@ -204,10 +205,25 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
                     list_state.choice.set(3);
                 }
                 moved = true;
+            } else if ready && (key == 0x69 || key == 0x68) {
+                // While ready the highlight moves only between the chat and the ready button,
+                // which takes the ready back.
+                list_state.choice.set(if key == 0x69 { 0 } else { 3 });
+                moved = true;
             } else if key == 0x1C {
                 match list_state.choice.get() {
                     0 => {
-                        net.vars.own.set_state(net.vars.own.state().made_ready());
+                        let state = net.vars.own.state();
+                        // Pressed again, "ready" is taken back, and the others hear of it at
+                        // once.
+                        net.vars.own.set_state(if state.is_ready() {
+                            state.made_not_ready()
+                        } else {
+                            state.made_ready()
+                        });
+                        if state.is_ready() {
+                            crate::net::list_players::list_players_regs(net)?;
+                        }
                         list_state.choice.set(3);
                         moved = true;
                     }
@@ -266,12 +282,23 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
         if moved {
             list_state.move_clock.set(list_state.frame_clock.get());
         }
-        if net.vars.own.state().is_host()
+        let everyone_ready = net.vars.own.state().is_host()
             && net.race_slot.players() >= 2
-            && all_states(&net.vars, State::READY, net.race_slot.players()) == State::READY
-            && sync(net, &system.session.picture_clock, true)?
-        {
-            net.vars.all_raced.set(1);
+            && all_states(&net.vars, State::READY, net.race_slot.players()) == State::READY;
+        if everyone_ready {
+            syncing = true;
+            if sync(net, &system.session.picture_clock, true)? {
+                net.vars.all_raced.set(1);
+            }
+        } else if syncing {
+            // A player took the ready back: the answers heard so far are of a round that
+            // does not count any more.
+            syncing = false;
+            net.vars.sync_first.set(1);
+            net.vars
+                .receiver
+                .sync
+                .set(net.vars.receiver.sync.get().wrapping_add(1));
         }
         if net.vars.all_raced.get() == 1 {
             list_state.choice.set(1);

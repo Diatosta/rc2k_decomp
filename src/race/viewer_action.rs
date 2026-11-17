@@ -295,6 +295,7 @@ fn another_replay(race: &'static Race, o: Owners<'static>) -> Result<(), Refused
         if !failed {
             return crate::race::viewer_load_stage::viewer_load_stage(race, o);
         }
+        crate::race::replay_viewer::tell_damaged(slot);
     }
 }
 

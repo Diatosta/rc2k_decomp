@@ -56,18 +56,12 @@ pub fn asked() -> Option<&'static Asked> {
         .as_ref()
 }
 
-/// The program ends: a launch it cannot run, said in the log and in a message box (none in
+/// The program ends: a launch it cannot run, said in the log and on the error dialog (none in
 /// the test builds, which run without a screen to answer it).
 fn refuse(why: &str) -> ! {
     let text = format!("What the command line asked for cannot start:\n{why}");
     crate::logfile::program_log::log(&format!("menu::launch: {text}"));
-    #[cfg(not(feature = "remote"))]
-    crate::platform::os::message_box(
-        crate::platform::os::Icon::Warning,
-        b"Rally Championship",
-        text.as_bytes(),
-    );
-    crate::standalone::finish("a launch that cannot start", 1)
+    crate::standalone::finish_saying("a launch that cannot start", &text, 1)
 }
 
 /// The seed a launch asked for, for the next stage to load (taken once): bit 32 set when one

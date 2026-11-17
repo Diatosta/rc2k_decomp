@@ -137,6 +137,7 @@ custom = "custom"
 save_replay = "save replay"
 settings = "settings"
 replay_not_saved = "The replay could not be saved. Press a key."
+not_ready = "not ready"
 
 # The advanced page: what the rows change, and when (in the name, or "next start" beside a value).
 [advanced]
@@ -175,3 +176,15 @@ lock_mark = "[locked] "
 password_prompt = "Locked session. Password, then Enter (Esc: back)"
 password_wrong = "Wrong password. Again, then Enter (Esc: back)"
 port_in_use = "The port {} is in use by another program."
+
+# The error dialog: its titles, the ways on, the pointer to the log and the keys' line.
+[dialog]
+error = "Rally Championship has stopped"
+notice = "Notice"
+quit = "Quit"
+continue = "Continue"
+log = "The details are in rc2k.log."
+keys = "Up and Down choose, Enter confirms"
+damaged_savegame = "The saved game in slot {} is damaged and was not loaded."
+damaged_replay = "The replay in slot {} is damaged or cannot be read."
+settings_reset = "Settings in var/rc2k.toml that were not valid are back at their defaults: {}"

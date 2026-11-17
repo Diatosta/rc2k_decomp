@@ -79,8 +79,8 @@ local network (and this machine itself); with an address it asks that machine on
 session to join it. Full or closed sessions are not listed. A session with a password shows a lock mark before its name; choosing it asks for the password there and then (typed as stars, on the on-screen keyboard from a pad; the question and the stars stand high on the screen so the keyboard, below them, covers neither). A wrong one asks again; Escape goes back to the list of sessions. A session without a password is joined as before. Nothing about the right password is revealed to a joiner, and the joiner's answer is not kept.
 
 **The lobby.** Everyone chooses a car; the host chooses the stage, and its name is shown at
-the top left of everybody's lobby. While the stage loads, the loading screen lists every player's progress in percent in its top left corner. There is a chat line under the last six chat lines (older ones are kept but not shown, so that no line runs under the buttons; a long message is cut into lines as wide as the screen); the chat starts closed each time the lobby is entered, also on coming back from a race (a key still held from the race's last screen does not open it); the host puts the lines in order, so everyone sees the same order (a line you type shows when the host sends it back). When every player is ready the host
-starts the race.
+the top left of everybody's lobby. While the stage loads, the loading screen lists every player's progress in percent in its top left corner. There is a chat line under the last six chat lines (older ones are kept but not shown, so that no line runs under the buttons; a long message is cut into lines as wide as the screen); the chat starts closed each time the lobby is entered, also on coming back from a race (a key still held from the race's last screen does not open it); the host puts the lines in order, so everyone sees the same order (a line you type shows when the host sends it back). Each joined player's **ping** (the round trip to the host in milliseconds, a moving average of the host's once-a-second measurement) is shown after the name; the host's own row has none. Pressing **ready** again takes the ready back (the button reads "not ready" while you are ready; left and right move between it and the chat). When every player is ready the host
+starts the race; a player who takes the ready back before the start stops it, and a machine that is no longer ready does not answer the host's start call.
 
 Above the bottom row of buttons is a second row, with a **settings** button (always shown): it opens the options of the menu
 after a stage (audio, display, advanced, and the players' details; the cars' specifications are left out, as the lobby has its own car button; what the race
@@ -126,6 +126,10 @@ in a file of its own.
 
 - No session listed: check the firewall and the port on the host; over the internet, give the
   host's address rather than leaving it empty (a broadcast does not leave the local network).
+  With the address left empty the search also asks every peer of your Tailscale network (when the
+  `tailscale` command works on this machine; it is asked once in 30 seconds, and when it is
+  absent nothing changes) and the last host you joined (kept in `var/rc2k.toml`, `last_host`),
+  so a host over Tailscale is found with no address typed.
 - "The port N is in use by another program." when hosting: another program (often a second copy
   of this game) already holds that port, TCP or UDP. Close it, or set another port on the network
   settings page.

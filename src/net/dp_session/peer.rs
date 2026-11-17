@@ -142,7 +142,24 @@ impl Session {
                     drop(s);
                     self.answered.notify_all();
                 }
-                _ => break,
+                Some(PING) => {
+                    let Some(stamp) = r.u32() else { break };
+                    self.to_machine(1, &W::default().u8(PONG).u32(stamp).0);
+                }
+                Some(PINGS) => {
+                    let Some(count) = r.u32() else { break };
+                    let mut pings = HashMap::new();
+                    for _ in 0..count.min(CONNECTIONS_MOST as u32) {
+                        let (Some(machine), Some(ms)) = (r.u32(), r.u32()) else {
+                            break;
+                        };
+                        pings.insert(machine, ms);
+                    }
+                    self.lock().pings = pings;
+                }
+                // A kind this machine does not know is passed over.
+                Some(_) => {}
+                None => break,
             }
         }
         self.lose();

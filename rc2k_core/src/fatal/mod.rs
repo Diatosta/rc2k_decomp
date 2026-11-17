@@ -137,9 +137,60 @@ pub fn caption_cut(code: u32) -> bool {
     code & TEXT_ONLY != 0
 }
 
+/// `text` cut into lines no wider than `max` by `width` (a word is not split unless it is
+/// wider than a line alone, and then by characters); line breaks in the text start new lines.
+pub fn wrap_lines(text: &str, max: i32, width: &dyn Fn(&str) -> i32) -> Vec<String> {
+    let mut lines = Vec::new();
+    for paragraph in text.split('\n') {
+        let mut line = String::new();
+        for word in paragraph.split_whitespace() {
+            let mut word = word.to_string();
+            // A word wider than a line alone is cut at the last character that fits.
+            while width(&word) > max && word.chars().count() > 1 {
+                if !line.is_empty() {
+                    lines.push(std::mem::take(&mut line));
+                }
+                let mut cut = word.chars().count() - 1;
+                while cut > 1 && width(&word.chars().take(cut).collect::<String>()) > max {
+                    cut -= 1;
+                }
+                lines.push(word.chars().take(cut).collect());
+                word = word.chars().skip(cut).collect();
+            }
+            let joined = if line.is_empty() {
+                word.clone()
+            } else {
+                format!("{line} {word}")
+            };
+            if width(&joined) <= max || line.is_empty() {
+                line = joined;
+            } else {
+                lines.push(std::mem::replace(&mut line, word));
+            }
+        }
+        lines.push(line);
+    }
+    lines
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn lines_are_wrapped_to_the_width() {
+        let width = |s: &str| s.chars().count() as i32;
+        assert_eq!(
+            wrap_lines("one two three four", 9, &width),
+            vec!["one two", "three", "four"]
+        );
+        assert_eq!(wrap_lines("a\nb", 9, &width), vec!["a", "b"]);
+        assert_eq!(
+            wrap_lines("abcdefghij", 4, &width),
+            vec!["abcd", "efgh", "ij"]
+        );
+        assert_eq!(wrap_lines("", 4, &width), vec![""]);
+    }
 
     #[test]
     fn texts() {

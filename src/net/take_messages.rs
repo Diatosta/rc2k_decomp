@@ -135,6 +135,10 @@ pub fn take_messages(
                 if !messages::answers_call(this_round, own_state) {
                     continue;
                 }
+                // A player who took the ready back since the host's call does not answer it.
+                if ready && !own_state.is_ready() {
+                    continue;
+                }
                 let reply = if ready {
                     messages::READY_ANSWER
                 } else {

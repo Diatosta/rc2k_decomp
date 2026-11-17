@@ -298,7 +298,16 @@ pub fn not_ported(at: usize, from: &str) -> ! {
 }
 
 pub fn finish(why: &str, code: u32) -> ! {
+    finish_saying(why, why, code)
+}
+
+/// `finish` with a text of its own for the player (the log keeps `why`).
+pub fn finish_saying(why: &str, shown: &str, code: u32) -> ! {
     log(&format!("standalone: ending: {why}"));
+    // An error ends through the dialog, so that the player sees why (the log has it too).
+    if code != 0 {
+        crate::error_dialog::fatal(shown);
+    }
     end(code)
 }
 
@@ -773,6 +782,7 @@ pub fn run(log_file: &Path, frames: u32) -> ! {
     // (`platform::sound`).
     // SAFETY: once, here, on the main thread.
     let owners = Owners::build();
+    crate::error_dialog::publish(owners);
     crate::platform::direct3d::register_game_scratch(&owners.scene.scratch);
     start(owners);
     finish("start came to its end", 0)

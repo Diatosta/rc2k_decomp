@@ -36,8 +36,15 @@ program, not with the 1999 game.
   the game's mark), the list of players and the group. Every change is made by the host: another
   machine asks, the host does it and tells every machine. So all machines see changes in the
   same order.
+- **Ping**: the host sends each machine a `PING` (its clock in ms) every second, the machine
+  answers `PONG` with the same stamp, and the host folds the round trip into a moving average
+  (three parts old, one new) and sends every machine the figures (`PINGS`); the lobby shows
+  them after the names (`Session::ping_of`). A frame of a kind a machine does not know is
+  passed over, not an error; the protocol's mark is `RC2KNET5` since these frames came.
 - **Finding a session** is a small UDP question sent to a given address, or broadcast on the
-  local network. A host answers with its description (`discovery.rs`).
+  local network. A host answers with its description (`discovery.rs`). With no address the
+  probe also goes to the peers `tailscale status --json` lists (`rc2k_core::net::tailscale`,
+  asked on a thread of its own at most every 30 s) and to the last host joined.
 - **Joining** is a TCP connection to the host (`peer.rs` on the joiner, `host.rs` on the
   host). The default port is DirectPlay's old one, 47624.
 - **The connection is a seam** (`wire.rs`): the session talks to each machine through a `Wire`
@@ -79,6 +86,10 @@ state (in the lobby, waiting, racing, raced), and the last race's time. A machin
 record as its player data, and once a second each machine lists the players and reads their
 records (`src/net/list_players.rs`). That is how names, cars and "ready" marks appear on every
 screen.
+
+Pressing ready again clears the ready bit (`State::made_not_ready`) and publishes the record at
+once; the host's sync round starts afresh (a new counter) when its all-ready test fails, and a
+machine that is not ready does not answer a ready call.
 
 The lobby's items are: ready, car (`choose_car.rs`), stage (the host chooses, `choose_stage.rs`)
 and chat (`chat_key.rs`, `send_chat.rs`). Chat lines are ordinary messages with a marker byte; a joiner's goes to the host, which numbers it and sends it to everyone (`relay_chat.rs`).

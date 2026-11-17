@@ -44,7 +44,7 @@ impl Session {
                 key: rc2k_core::net::password::key(&salt, password),
             })
         };
-        Session::new(
+        let session = Session::new(
             1,
             World {
                 desc,
@@ -53,7 +53,10 @@ impl Session {
             signal,
             port,
             lock,
-        )
+        );
+        let weak = Arc::downgrade(&session);
+        std::thread::spawn(move || ping_machines(&weak));
+        session
     }
 
     /// A machine's connection taken in, on a thread of its own, until it ends.
@@ -199,7 +202,13 @@ impl Session {
                         self.route(from, to, data);
                     }
                 }
-                _ => break,
+                Some(PONG) => {
+                    let Some(stamp) = r.u32() else { break };
+                    self.note_round_trip(machine, stamp);
+                }
+                // A kind this host does not know is passed over.
+                Some(_) => {}
+                None => break,
             }
         }
         // the machine has gone: its players with it
@@ -207,6 +216,7 @@ impl Session {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .remove(&machine);
+        self.lock().pings.remove(&machine);
         let gone: Vec<Id> = {
             let s = self.lock();
             s.world
@@ -218,6 +228,40 @@ impl Session {
         };
         for id in gone {
             self.host_change(Change::PlayerRemoved(id));
+        }
+    }
+
+    /// The session's clock in ms (wraps after 49 days: the stamps are only subtracted).
+    fn clock_ms(&self) -> u32 {
+        self.started.elapsed().as_millis() as u32
+    }
+
+    /// A machine's `PONG` for the ping stamped `stamp`: its round trip joins the machine's moving
+    /// average (a quarter new), and every machine is told the figures.
+    fn note_round_trip(&self, machine: u32, stamp: u32) {
+        let trip = self.clock_ms().wrapping_sub(stamp);
+        let bytes = {
+            let mut s = self.lock();
+            let average = s
+                .pings
+                .get(&machine)
+                .map_or(trip, |&old| (old * 3 + trip) / 4);
+            s.pings.insert(machine, average);
+            let mut w = W::default().u8(PINGS).u32(s.pings.len() as u32);
+            for (&m, &ms) in &s.pings {
+                w = w.u32(m).u32(ms);
+            }
+            w.0
+        };
+        let machines: Vec<u32> = self
+            .links
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .keys()
+            .copied()
+            .collect();
+        for m in machines {
+            self.to_machine(m, &bytes);
         }
     }
 
@@ -443,6 +487,36 @@ impl Session {
                 machine,
                 &W::default().u8(DELIVER).u32(from).u32(p).bytes(&data).0,
             );
+        }
+    }
+}
+
+/// How often the host measures the round trip to each machine.
+const PING_EVERY: Duration = Duration::from_secs(1);
+
+/// The host's thread that pings every machine once a second until the session closes or goes.
+fn ping_machines(session: &std::sync::Weak<Session>) {
+    loop {
+        let mut waited = Duration::ZERO;
+        while waited < PING_EVERY {
+            std::thread::sleep(Duration::from_millis(100));
+            waited += Duration::from_millis(100);
+            match session.upgrade() {
+                Some(s) if !s.stop.load(Ordering::SeqCst) => {}
+                _ => return,
+            }
+        }
+        let Some(s) = session.upgrade() else { return };
+        let ping = W::default().u8(PING).u32(s.clock_ms()).0;
+        let machines: Vec<u32> = s
+            .links
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .keys()
+            .copied()
+            .collect();
+        for m in machines {
+            s.to_machine(m, &ping);
         }
     }
 }

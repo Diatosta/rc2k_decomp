@@ -30,6 +30,9 @@ pub fn run_front_end(o: Owners<'static>) -> Result<(), Refused> {
         .set(audio.state.master_volume.get());
     crate::menu::drop_missing_controllers::drop_missing_controllers(menus, o.input)?;
     crate::gfx::build_fonts::build_fonts_in(gfx, o.system, o.strings)?;
+    // What the start-up found wrong and mended (the options file's bad values): the screen and
+    // the fonts are there now.
+    crate::error_dialog::show_pending();
     // The films, at the game's start, unless a race or a replay was asked for on the command line (the
     // main menu's set-up runs it, `menu::launch`).
     if crate::menu::launch::asked().is_none() {
