@@ -153,6 +153,7 @@ pub fn init_overlay(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
         for distance in &race.frame.panel_and_overlay.get().panel.distance {
             distance.set(0);
         }
+        race.frame.panel_and_overlay.get().panel.network_cars.set(0);
     }
     Ok(())
 }

@@ -130,6 +130,43 @@ impl Renderer {
         unsafe { SDL_GetRenderVSync(self.0, &raw mut interval) && interval != 0 }
     }
 
+    /// Everything drawn from now on magnified `factor` times (the first-run page's text).
+    pub fn set_scale(self, factor: f32) {
+        // SAFETY: the renderer SDL made.
+        unsafe { SDL_SetRenderScale(self.0, factor, factor) };
+    }
+
+    /// The target cleared to a colour.
+    pub fn clear(self, [r, g, b]: [u8; 3]) {
+        // SAFETY: the renderer SDL made.
+        unsafe {
+            SDL_SetRenderDrawColor(self.0, r, g, b, 255);
+            SDL_RenderClear(self.0);
+        }
+    }
+
+    /// A filled rectangle in a colour (in the scaled units).
+    pub fn fill(self, [r, g, b]: [u8; 3], [x, y, w, h]: [f32; 4]) {
+        let rect = SDL_FRect { x, y, w, h };
+        // SAFETY: the renderer SDL made; a rectangle that lives over the call.
+        unsafe {
+            SDL_SetRenderDrawColor(self.0, r, g, b, 255);
+            SDL_RenderFillRect(self.0, &raw const rect);
+        }
+    }
+
+    /// SDL's built-in 8 by 8 font: `text` with its top left corner at (x, y).
+    pub fn text(self, [r, g, b]: [u8; 3], x: f32, y: f32, text: &str) {
+        let Ok(text) = std::ffi::CString::new(text.replace('\0', "")) else {
+            return;
+        };
+        // SAFETY: the renderer SDL made; a NUL-ended text read during the call.
+        unsafe {
+            SDL_SetRenderDrawColor(self.0, r, g, b, 255);
+            SDL_RenderDebugText(self.0, x, y, text.as_ptr());
+        }
+    }
+
     /// What was drawn put on the window.
     pub fn present(self) {
         // SAFETY: as `clear_black`.
@@ -303,6 +340,15 @@ pub fn set_app_identifier(id: &std::ffi::CStr) {
     }
 }
 
+/// A window and its renderer given back (the first-run page's, before the game's own window).
+pub fn destroy(window: Window, renderer: Renderer) {
+    // SAFETY: both made by SDL here and not used again by the caller.
+    unsafe {
+        SDL_DestroyRenderer(renderer.0);
+        SDL_DestroyWindow(window.0);
+    }
+}
+
 /// The window's own renderer (SDL's choice of driver).
 pub fn create_renderer(window: Window) -> Option<Renderer> {
     // SAFETY: the window SDL made; a null name lets SDL choose.
@@ -338,6 +384,34 @@ pub fn poll_event() -> Option<PolledEvent> {
 }
 
 impl PolledEvent {
+    /// A mouse button going down: where, in the window's pixels.
+    pub fn click(&self) -> Option<(f32, f32)> {
+        if self.kind() != SDL_EVENT_MOUSE_BUTTON_DOWN {
+            return None;
+        }
+        // SAFETY: the type says the `button` record is the one SDL filled.
+        let button = unsafe { self.0.button };
+        Some((button.x, button.y))
+    }
+
+    /// A file or folder dropped on the window: its path.
+    pub fn dropped(&self) -> Option<String> {
+        if self.kind() != SDL_EVENT_DROP_FILE {
+            return None;
+        }
+        // SAFETY: the type says the `drop` record is the one SDL filled.
+        let data = unsafe { self.0.drop.data };
+        if data.is_null() {
+            return None;
+        }
+        // SAFETY: not null; SDL's NUL-ended text, valid while the event is.
+        Some(
+            unsafe { std::ffi::CStr::from_ptr(data) }
+                .to_string_lossy()
+                .into_owned(),
+        )
+    }
+
     /// SDL's event, for the debug UI's own reads.
     pub fn as_sdl(&self) -> &SDL_Event {
         &self.0
@@ -524,6 +598,77 @@ pub fn show_message_box(
     unsafe {
         SDL_ShowSimpleMessageBox(flags, caption.as_ptr(), text.as_ptr(), std::ptr::null_mut())
     };
+}
+
+// ---- the dialogs ----
+
+/// What a dialog gave: `None` while it is open, `Some(None)` when it was cancelled or failed.
+static DIALOG: std::sync::Mutex<Option<Option<String>>> = std::sync::Mutex::new(None);
+
+unsafe extern "C" fn dialog_done(
+    _user: *mut core::ffi::c_void,
+    list: *const *const core::ffi::c_char,
+    _filter: core::ffi::c_int,
+) {
+    let first = if list.is_null() {
+        None
+    } else {
+        // SAFETY: SDL's list ends with a null; its first item is read, if any.
+        let item = unsafe { *list };
+        // SAFETY: a non-null item is a NUL-ended text valid during the callback.
+        (!item.is_null()).then(|| {
+            // SAFETY: as above, checked not null.
+            unsafe { std::ffi::CStr::from_ptr(item) }
+                .to_string_lossy()
+                .into_owned()
+        })
+    };
+    *DIALOG
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(first);
+}
+
+/// The system's open dialog for a folder (or for a zip file) shown over `window`; its answer
+/// comes by `dialog_answer`.
+pub fn show_open_dialog(window: Window, folder: bool) {
+    *DIALOG
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+    let filters = [SDL_DialogFileFilter {
+        name: c"Zip files".as_ptr(),
+        pattern: c"zip".as_ptr(),
+    }];
+    // SAFETY: the callback is `extern "C"` and touches only a static; the filters live over
+    // the call (SDL copies them); the window SDL made; no default location.
+    unsafe {
+        if folder {
+            SDL_ShowOpenFolderDialog(
+                Some(dialog_done),
+                std::ptr::null_mut(),
+                window.0,
+                std::ptr::null(),
+                false,
+            );
+        } else {
+            SDL_ShowOpenFileDialog(
+                Some(dialog_done),
+                std::ptr::null_mut(),
+                window.0,
+                filters.as_ptr(),
+                1,
+                std::ptr::null(),
+                false,
+            );
+        }
+    }
+}
+
+/// The answer of the dialog shown, once it has one: the path, or none when it was cancelled.
+pub fn dialog_answer() -> Option<Option<String>> {
+    DIALOG
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .take()
 }
 
 // ---- a whole sound played (the films') ----

@@ -127,6 +127,10 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
     }
     loop {
         run_frame(o, || crate::net::lobby_frame::lobby_frame(o))?;
+        // The session is gone (the host left or put this machine out): the lobby ends.
+        if !net.link.has_dplay() {
+            break;
+        }
         let tick = crate::system::tick_count::tick_count(&system.session.picture_clock);
         if (tick
             .wrapping_sub(net.lobby().listed_at.get())
@@ -144,7 +148,7 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
         let key = list_key(list_state, o.input)?;
         let mut moved = false;
         if net.lobby().edit.edited.get() != u32::MAX {
-            crate::net::chat_key::chat_key(o.input, net, key, o.gfx)?;
+            crate::net::chat_key::chat_key(o.input, o.strings, net, key, o.gfx)?;
         } else {
             let ready = net.vars.own.state().is_ready();
             if !ready && key == 0x69 {

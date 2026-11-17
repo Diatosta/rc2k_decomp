@@ -13,6 +13,7 @@ mod effects;
 mod errors;
 mod fatal;
 mod files;
+mod first_run;
 mod gfx;
 mod hud;
 mod input;

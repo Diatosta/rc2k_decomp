@@ -721,6 +721,66 @@ has the same fixed addresses, but its network mode could not be run here to see 
 
 **Fix:** the menus' set-up puts the setting back to one level each time (`scene::set_up_front_end_scene`); races still take the option as before.
 
+## A key blinks on for ever after Escape on the "redefine keys" pages
+
+*Original*: `menu::redefine_key` (0x47D472).
+*Fixed*: 2026-11-17.
+
+- **What**: choosing a key to redefine marks its place; a new key clears the mark, but Escape ended the redefining without clearing it.
+- **In game**: after pressing Escape instead of a key, the chosen key's slot kept blinking, on every player's page, until some key was stored somewhere.
+- **Seen or read**: seen by the owner, with and without the hook, 2026-10-14.
+- **Fix**: Escape clears the mark too (`src/menu/redefine_keys.rs`).
+
+---
+
+## Typing a replay's name changed the saved games' list
+
+*Original*: `menu::edit_replay_name` (0x46F4E7).
+*Fixed*: 2026-11-17.
+
+- **What**: the replay name editor's clear key, backspace and its "name too wide" cut acted on the highlighted name of the saved games' list while the typed length they changed was the replay's.
+- **In game**: clearing or deleting a letter of a replay's name left the name as it was on screen and cut or blanked the name of the saved game in the same slot.
+- **Seen or read**: read in the code.
+- **Fix**: all three act on the replay's own name (`src/menu/edit_replay_name.rs`, `backspace_name`).
+
+---
+
+## Race messages lost their bytes when they arrived out of order
+
+*Original*: `net::store_received` (0x419677).
+*Fixed*: 2026-11-17.
+
+- **What**: a race message from another player is filed in sequence order. One arriving after a newer one moved the newer records up and was then filed with length 0 and none of its bytes. With the inbox full (0x40 messages), the new message was written one record past the end, over the neighbouring fields (the oldest and newest sequence bytes, the time, the copy handed to the race).
+- **In game**: in a network race a late message was applied as an empty one (a lost update of the other car); a long stall of the race step could corrupt the inbox's bookkeeping.
+- **Seen or read**: read in the code, and found by testing the Rust port against it.
+- **Fix**: a message keeps its bytes wherever it is filed; into a full inbox the oldest record goes and the new one is filed in order (`rc2k_core::net::inbox::store`, unit-tested).
+
+---
+
+## The best times file left open, and a short write passed
+
+*Original*: `saves::load_best_times` (0x4AB155), `saves::save_best_times` (0x4AB236).
+*Fixed*: 2026-11-17.
+
+- **What**: a `hst.dat` whose head was wrong was not closed after reading; the writes of the best times were never looked at.
+- **In game**: nothing visible. A file left open could keep the next save from opening it on some systems; a full disk lost the best times with no word.
+- **Seen or read**: read in the code.
+- **Fix**: the file is closed on every path; a write that falls short is logged in `rc2k.log` (`src/saves/load_best_times.rs`, `save_best_times.rs`).
+
+---
+
+## A saved game or set-up that could not be written kept its name in the list
+
+*Original*: `menu::edit_savegame_name`, `service::edit_setup_name` (the writers' result was not looked at).
+*Fixed*: 2026-11-17.
+
+- **What**: the name typed is put into the slot list before the file is written, and nothing took it out again when the write failed (for example because the `savedata` folders did not exist, which the original never made).
+- **In game**: the list showed a saved game or set-up that was not there.
+- **Seen or read**: seen by the owner, 2026-10-10.
+- **Fix**: the standalone makes the `savedata` folders at start (it already did), and a slot whose file was not written gets the name from before and a line in `rc2k.log`.
+
+---
+
 ## The windscreen Pong's bat never moved
 
 *Original*: `effects::move_pong_bat` (0x4B82B0).
@@ -730,3 +790,15 @@ has the same fixed addresses, but its network mode could not be run here to see 
 - **In game**: a ball and a bat are drawn and the ball bounces, but the bat stays where it is: the game cannot be played.
 - **Seen or read**: seen in the standalone and read in the disassembly.
 - **Fix**: the bat follows player 1's steering (left up, right down; keys, pad or wheel as the race reads them), 32 units a frame within the original's walls (`rc2k_core::effects::pong::Court::move_bat`).
+
+---
+
+## A lobby kept showing after its session was gone
+
+*Original*: `net::lobby_loop`.
+*Fixed*: 2026-11-17.
+
+- **What**: when the host's session ended while a joined machine sat in the lobby, the lobby's loop never looked at the link again.
+- **In game**: the joiner stayed in a lobby that no longer worked (a frozen list of players) instead of going back to the join screen.
+- **Seen or read**: seen in a two-copy trial (a joiner put out by the host's `/kick`, which takes the same path as a host that leaves).
+- **Fix**: the lobby ends when the network link has been closed (`net::lobby_loop`); the joiner is back at the join screen.

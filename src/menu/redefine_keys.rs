@@ -4,7 +4,8 @@
 //!
 //! An item's action (`menu::choose_key_0` .. `_11`) sets the redefining key to 1 and the
 //! redefined key place to its key's place; then once a frame `redefine_key` takes the pending
-//! key: none does nothing; Escape (1) gives the copy to the player unchanged and ends; any
+//! key: none does nothing; Escape (1) gives the copy to the player unchanged and ends (the
+//! place becomes 999 as well); any
 //! other key (its low seven bits) swaps with the redefined place's old key if the copy already
 //! has it, is not taken if it is in the reserved list (the page keeps waiting), else goes to
 //! its place; then the place becomes 999, the copy goes to the player and the redefining ends.
@@ -53,7 +54,7 @@ pub fn redefine_key(
         return Err(BadInput("a reserved list without its end").into());
     };
     let work: [u8; KEYS] = std::array::from_fn(|i| menus.keys.tables.redefined_keys.get(i));
-    let Redefined::Done { keys, placed } =
+    let Redefined::Done { keys, .. } =
         rc2k_core::menu::player::redefine(work, place as usize, take_key(input), &reserved)
     else {
         return Ok(());
@@ -61,9 +62,9 @@ pub fn redefine_key(
     for (i, &key) in keys.iter().enumerate() {
         menus.keys.tables.redefined_keys.set(i, key);
     }
-    if placed {
-        menus.screens.entry.redefined_key_place.set(NO_PLACE);
-    }
+    // Escape ends the redefining too: the place is cleared either way, so no key goes on
+    // blinking on the page.
+    menus.screens.entry.redefined_key_place.set(NO_PLACE);
     player.update(|p| p.keys = keys);
     menus.screens.entry.redefining_key.set(false);
 

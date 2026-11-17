@@ -63,14 +63,14 @@ player typed or, with no address, to the network's broadcast address and to its 
 
 | Offset | Size | Content |
 | --- | --- | --- |
-| 0 | 8 | The text `RC2KNET1`. |
+| 0 | 8 | The text `RC2KNET2`. |
 | 8 | 16 | The application's GUID. |
 
 A host with a session of that application answers the sender with:
 
 | Size | Content |
 | --- | --- |
-| 8 | `RC2KNET1`. |
+| 8 | `RC2KNET2`. |
 | 4 | u32: the TCP port to connect to. |
 | varies | The session's description. |
 
@@ -85,7 +85,7 @@ first byte of a frame says what it is.
 
 | First byte | Name | Direction | Rest of the frame |
 | --- | --- | --- | --- |
-| `01` | join | machine → host | `RC2KNET1`. Must be the first frame. |
+| `01` | join | machine → host | `RC2KNET2`. Must be the first frame. The last character of the text is the protocol's version (`2`); a join that starts `RC2KNET` with another version is answered with a refuse (reason `0x887700E0`, not a DirectPlay number) and a host that ends the connection on the join is taken for an older version. |
 | `02` | welcome | host → machine | u32 your machine number; description; u32 count and that many (u32 id, player); u32 count and that many (u32 id, group). |
 | `03` | refuse | host → machine | u32 reason (a DirectPlay error number). Sent in place of the welcome when joining is off. |
 | `04` | request | machine → host | u32 request number; one operation (below). |
@@ -94,6 +94,7 @@ first byte of a frame says what it is.
 | `07` | send | machine → host | u32 from (the sender's player id); u32 to; bytes: a game message. |
 | `08` | deliver | host → machine | u32 from; u32 to (the player it is for); bytes: the game message. |
 | `09` | bye | host → every machine | Nothing. The host is closing the session. |
+| `0A` | kicked | host → machine | Nothing. The host has put this machine out; the host ends its connection after it, and the machine's players go as when a machine leaves. |
 
 "To" in a send frame is a player's id, a group's id (every member gets it), or 0 for everyone.
 The sender never gets its own message back. The host checks that "from" is a player of the

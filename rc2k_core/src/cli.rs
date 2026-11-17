@@ -232,6 +232,18 @@ pub const SWITCHES: &[Switch] = &[
         "start although another copy runs in this folder (the last to quit wins the options)",
         Group::Machine,
     ),
+    switch(
+        "--instance",
+        Some("<1 .. 8>"),
+        "run as that instance of this folder, beside the others: its own var and savedata folders (instances/<n>/, the first start copying var), log and lock; --instance 1 is the folder's own",
+        Group::Machine,
+    ),
+    switch(
+        "--game-data",
+        Some("<folder | zip>"),
+        "where to take the game's data from when this folder has none (an installed game's folder, the download / CD layout, or a zip of either); without it the first-run page asks",
+        Group::Machine,
+    ),
     switch("-v", None, "show the version and end", Group::Original),
     switch("-a", None, "no sound", Group::Original),
     switch(

@@ -76,12 +76,13 @@ fn key(scancode: SDL_Scancode, down: bool) {
     sdl_input::push_key_event(scancode, down);
 }
 
-/// The character a key named `name` types (letters in lower case, digits, space), if any.
+/// The character a key named `name` types (letters in lower case, digits, space, the slash), if any.
 fn typed_char(name: &str) -> Option<char> {
     let mut chars = name.chars();
     match (chars.next(), chars.next()) {
         (Some(c), None) if c.is_ascii_alphanumeric() => Some(c.to_ascii_lowercase()),
         _ if name.eq_ignore_ascii_case("space") => Some(' '),
+        _ if name == "/" => Some('/'),
         _ => None,
     }
 }

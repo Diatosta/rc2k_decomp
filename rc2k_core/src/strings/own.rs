@@ -79,8 +79,16 @@ pub mod id {
     pub const BACKGROUND_SOUND: u32 = FIRST + 0xC0;
     pub const FILM_VOLUME: u32 = FIRST + 0xC1;
     pub const NETWORK_PORT: u32 = FIRST + 0xC2;
+    /// The lobby's answers to the host's kick command: not the host, no such player, put out,
+    /// could not be put out (4 ids).
+    pub const KICK_ANSWERS: u32 = FIRST + 0xA0;
     /// The controller page's switch for the H shifter.
     pub const H_SHIFTER: u32 = FIRST + 0x68;
+    /// The graphics page's frame limit row, its "no limit", "display" and "frames a second".
+    pub const FRAME_LIMIT: u32 = FIRST + 0xC8;
+    pub const NO_LIMIT: u32 = FIRST + 0xC9;
+    pub const DISPLAY: u32 = FIRST + 0xCA;
+    pub const FRAMES_A_SECOND: u32 = FIRST + 0xCB;
 }
 
 /// Each text's file key and id.
@@ -101,11 +109,19 @@ pub const KEYS: &[(&str, u32)] = &[
     ("options.film_volume", id::FILM_VOLUME),
     ("options.network_port", id::NETWORK_PORT),
     ("button_icons", id::BUTTON_ICONS),
+    ("graphics.frame_limit", id::FRAME_LIMIT),
+    ("graphics.no_limit", id::NO_LIMIT),
+    ("graphics.display", id::DISPLAY),
+    ("graphics.frames_a_second", id::FRAMES_A_SECOND),
     ("icon_styles.automatic", id::ICON_STYLES),
     ("icon_styles.xbox", id::ICON_STYLES + 1),
     ("icon_styles.playstation", id::ICON_STYLES + 2),
     ("icon_styles.steam_deck", id::ICON_STYLES + 3),
     ("icon_styles.numbers", id::ICON_STYLES + 4),
+    ("kick.not_host", id::KICK_ANSWERS),
+    ("kick.no_player", id::KICK_ANSWERS + 1),
+    ("kick.done", id::KICK_ANSWERS + 2),
+    ("kick.failed", id::KICK_ANSWERS + 3),
     ("hints.yes", id::HINTS),
     ("hints.no", id::HINTS + 1),
     ("hints.type", id::HINTS + 2),

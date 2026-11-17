@@ -286,6 +286,11 @@ pub fn delete_player_from_group(this: u32, group: u32, player: u32) -> u32 {
     session(this).map_or(DPERR_UNINITIALIZED, |s| s.remove_from_group(group, player))
 }
 
+/// The host puts the machine of `player` out of the session (`Session::kick`).
+pub fn kick(this: u32, player: u32) -> u32 {
+    session(this).map_or(DPERR_UNINITIALIZED, |s| s.kick(player))
+}
+
 pub fn destroy_player(this: u32, player: u32) -> u32 {
     session(this).map_or(DPERR_UNINITIALIZED, |s| s.destroy_player(player))
 }

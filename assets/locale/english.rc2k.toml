@@ -116,3 +116,16 @@ done = "done"
 background_sound = "sound when not in front"
 film_volume = "film volume"
 network_port = "port"
+
+# The graphics page's frame limit.
+[graphics]
+frame_limit = "frame limit"
+no_limit = "off"
+display = "display"
+frames_a_second = "fps"
+
+[kick]
+not_host = "Only the host can put a player out."
+no_player = "No such player."
+done = "Player put out."
+failed = "The player could not be put out."

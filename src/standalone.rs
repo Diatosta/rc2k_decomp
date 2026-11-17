@@ -685,20 +685,32 @@ pub fn run(log_file: &Path, frames: u32) -> ! {
     #[cfg(target_os = "macos")]
     let bundle_folder = crate::platform::os::enter_bundle_folder();
     // Absolute: the installer changes the current folder (`install::make_folders`).
-    let allow_another = rc2k_core::system::program_switches::Switches::from_args(
+    let switches = rc2k_core::system::program_switches::Switches::from_args(
         &std::env::args().skip(1).collect::<Vec<_>>(),
     )
-    .is_ok_and(|switches| switches.allow_another);
+    .unwrap_or_default();
+    // Before the folder's lock and log: a folder with no game data is replaced by the one the
+    // player picks.
+    crate::first_run::find_game_data(switches.game_data.as_deref());
     // Held until the program ends. A refusal comes before the log is begun: the log of the
     // copy that runs is not emptied.
-    let copy = match crate::single_copy::claim(allow_another) {
+    let claimed = match switches.instance {
+        Some(number) => crate::single_copy::claim_instance(number),
+        None => crate::single_copy::claim(switches.allow_another),
+    };
+    let copy = match claimed {
         Ok(claim) => claim,
         Err(why) => refuse_second_copy(&why),
     };
     let log_file = crate::single_copy::log_for(log_file, copy.number);
     let log_file = &std::path::absolute(&log_file).unwrap_or(log_file);
     crate::logfile::program_log::start(log_file);
-    if copy.number > 1 {
+    if switches.instance.is_some_and(|n| n > 1) {
+        log(&format!(
+            "standalone: instance {} of this folder: its own var and savedata are in instances/{}/",
+            copy.number, copy.number
+        ));
+    } else if copy.number > 1 {
         log(&format!(
             "standalone: copy {} in this folder (--allow-another): the options, saved games and the game's log are shared with the others",
             copy.number

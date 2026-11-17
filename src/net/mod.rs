@@ -72,6 +72,7 @@ pub mod join_session;
 pub mod joining;
 pub mod keep_connection;
 pub mod keep_hud_options;
+pub mod kick_command;
 pub mod lets_race;
 pub mod lets_rally;
 pub mod link;

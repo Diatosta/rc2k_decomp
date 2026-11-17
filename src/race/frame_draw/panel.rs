@@ -318,6 +318,9 @@ pub(super) fn panel_half(race: &Race, car: usize, first: bool) -> Result<(), Bad
     );
     let shown = distance_shown(d as i32, unit, miles).to_bits();
     distance.set(shown);
+    if first {
+        network_car_distances(race, unit, miles, from)?;
+    }
     cells[4].set(car.stage_time.get().wrapping_mul(10));
     cells[3].set(car.split_gaps[0].get());
     // The negated gap: `-(split_gaps[1])`.
@@ -328,6 +331,26 @@ pub(super) fn panel_half(race: &Race, car: usize, first: bool) -> Result<(), Bad
         panel.view_a.back.set(car.split_gaps[4].get());
         panel.split_5.set(car.split_gaps[5].get());
         panel.split_6.set(car.split_gaps[6].get());
+    }
+    Ok(())
+}
+
+/// A network race's cars' distances shown, for the stage bar's markers of the other cars (the
+/// same figure as the first view's distance).
+fn network_car_distances(race: &Race, unit: f32, miles: f32, from: u32) -> Result<(), BadInput> {
+    use rc2k_core::race::panel::{distance_shown, travelled};
+    let panel = &race.frame.panel_and_overlay.get().panel;
+    let count = panel.network_cars.get().min(8) as usize;
+    panel
+        .network_own
+        .set(race.shared.view.get().view_number(0)? as u32);
+    for (n, shown) in panel.car_distances.iter().enumerate().take(count) {
+        let car = race.frame.cars.car(n)?;
+        let at = |n: u32| {
+            crate::race::checkpoints_store::distance_run_on(race.checkpoints(), n as usize).get()
+        };
+        let d = travelled(at(car.checkpoint.get()), at(from));
+        shown.set(distance_shown(d as i32, unit, miles).to_bits());
     }
     Ok(())
 }

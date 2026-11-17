@@ -231,7 +231,7 @@ fn the_hosts_frames_are_frozen() {
 
     // A JOIN without the magic is dropped: the connection ends.
     let mut wrong = connect(port);
-    write_frame(&mut wrong, &[vec![JOIN], b"RC2KNET0".to_vec()].concat()).unwrap();
+    write_frame(&mut wrong, &[vec![JOIN], b"XC2KNET0".to_vec()].concat()).unwrap();
     assert!(read_frame(&mut wrong).is_err());
 
     let mut peer = connect(port);
@@ -514,4 +514,57 @@ fn the_hosts_closing_frame_is_frozen() {
     read_frame(&mut peer).expect("the welcome");
     host.close();
     assert_eq!(read_frame(&mut peer).expect("the bye"), vec![BYE]);
+}
+
+/// A joiner of another version of the protocol is refused with `DPERR_VERSION` (the first
+/// version's mark `RC2KNET1` is one), not dropped silently.
+#[test]
+fn another_version_is_refused_with_its_result() {
+    let (host, port) = wire_host();
+    let mut old = connect(port);
+    write_frame(&mut old, &[vec![JOIN], b"RC2KNET1".to_vec()].concat()).unwrap();
+    assert_eq!(
+        read_frame(&mut old).expect("the refusal"),
+        [vec![REFUSE], le(&[DPERR_VERSION])].concat()
+    );
+    host.close();
+}
+
+/// The host puts a joined machine's player out: the machine gets KICKED and its connection
+/// ends; a player of the host's own machine, or none, is refused.
+#[test]
+fn the_host_puts_a_player_out() {
+    let (host, port) = wire_host();
+    let mut peer = connect(port);
+    write_frame(&mut peer, &[vec![JOIN], MAGIC.to_vec()].concat()).unwrap();
+    read_frame(&mut peer).expect("the welcome");
+    // Make a player: request 0, operation 0, name "p", data 9 9.
+    let make = [
+        vec![REQUEST],
+        le(&[0]),
+        vec![0],
+        le(&[1]),
+        b"p".to_vec(),
+        le(&[2]),
+        vec![9, 9],
+    ]
+    .concat();
+    write_frame(&mut peer, &make).unwrap();
+    let mut player = None;
+    for _ in 0..4 {
+        let frame = read_frame(&mut peer).expect("a frame");
+        if frame[0] == REPLY {
+            player = Some(u32::from_le_bytes(frame[9..13].try_into().unwrap()));
+            break;
+        }
+    }
+    let player = player.expect("the reply with the player");
+    assert_eq!(host.kick(0x7777), DPERR_INVALIDPLAYER);
+    assert_eq!(host.kick(player), DP_OK);
+    let mut kicked = false;
+    while let Ok(frame) = read_frame(&mut peer) {
+        kicked |= frame == vec![KICKED];
+    }
+    assert!(kicked);
+    host.close();
 }

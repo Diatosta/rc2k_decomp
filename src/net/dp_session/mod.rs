@@ -43,6 +43,8 @@ pub const DPERR_CANTADDPLAYER: u32 = 0x8877_0028;
 pub const DPERR_INVALIDPLAYER: u32 = 0x8877_0096;
 pub const DPERR_INVALIDGROUP: u32 = 0x8877_009B;
 pub const DPERR_NOCONNECTION: u32 = 0x8877_00AA;
+/// The other machine runs another version of the protocol (not a DirectPlay number).
+pub const DPERR_VERSION: u32 = 0x8877_00E0;
 pub const DPERR_TIMEOUT: u32 = 0x8877_00F0;
 pub const DPERR_SESSIONLOST: u32 = 0x8877_0136;
 pub const DPERR_NONEWPLAYERS: u32 = 0x8877_014A;
@@ -264,6 +266,29 @@ impl Session {
     }
 
     /// Leaves the session (the host: ends it for all).
+    /// The host puts the machine of `player` out of the session: it is told, its connection ends
+    /// and its players go with it as when it leaves. `DPERR_ACCESSDENIED` on a machine that is
+    /// not the host, `DPERR_INVALIDPLAYER` for a player that is none, or this machine's own.
+    pub fn kick(&self, player: Id) -> u32 {
+        if !self.is_host() {
+            return DPERR_ACCESSDENIED;
+        }
+        let machine = self.lock().world.players.get(&player).map(|p| p.machine);
+        let Some(machine) = machine.filter(|&m| m != self.me) else {
+            return DPERR_INVALIDPLAYER;
+        };
+        self.to_machine(machine, &[KICKED]);
+        let links = self
+            .links
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if let Some(link) = links.get(&machine) {
+            // Ends the machine's reader, which removes its players.
+            let _ = link.shutdown(std::net::Shutdown::Both);
+        }
+        DP_OK
+    }
+
     pub fn close(&self) {
         self.stop.store(true, Ordering::SeqCst);
         let mut links = self

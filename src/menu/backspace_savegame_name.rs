@@ -2,7 +2,7 @@
 //! highlighted saved game: if the text entry's length is not 0, it is lowered by one and a
 //! NUL is written there.
 //!
-//! Also called by the replay name editor, which is a slip kept as is (see `edit_replay_name`).
+//! `backspace_name` does the same for any name place (the replay name editor's).
 //! Refuses a name past the list and a length outside 0 .. 0x1F.
 
 use crate::errors::BadInput;
@@ -15,7 +15,17 @@ pub fn backspace_savegame_name(menus: &Menus, saves: &'static Saves) -> Result<(
     if length(menus) == 0 {
         return Ok(());
     }
-    let name = savegame_name(menus, saves)?;
+    backspace_name(menus, savegame_name(menus, saves)?)
+}
+
+/// Takes the last character off the entry being typed into `name`.
+pub fn backspace_name(
+    menus: &Menus,
+    name: crate::memory::place::BytePlace,
+) -> Result<(), BadInput> {
+    if length(menus) == 0 {
+        return Ok(());
+    }
     let mut e = text_entry(menus);
     if let Some(at) = e.backspace(NAME_LEN)? {
         put_entry(menus, &e);

@@ -51,6 +51,7 @@ pub fn layout_0(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
         sprite(frame, hud, pen, 0x5F, 0x282, 0x1B8)?;
     }
     if flags & 0x40 != 0 {
+        draw_marker::draw_other_markers(frame, hud, pen)?;
         draw_marker::draw_marker(frame, hud, pen)?;
     }
     hud.block.quad.colour.set(0xFFFF_FFFF);

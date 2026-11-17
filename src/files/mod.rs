@@ -61,9 +61,23 @@ pub fn cstring(
 }
 
 /// A path in the game's bytes (no NUL) as a `PathBuf`: the one place a game path becomes the
-/// system's.
-#[cfg(windows)]
+/// system's. A numbered instance (`--instance`) finds its `var` and `savedata` folders under
+/// `instances/<n>/` (`single_copy::instance_path`).
 pub fn host_path(path: &[u8]) -> std::path::PathBuf {
+    match crate::single_copy::instance_path(path) {
+        Some(own) => host_path_of(&own),
+        None => host_path_of(path),
+    }
+}
+
+/// `host_path` for a path the instance does not redirect (the folder's own).
+pub fn shared_host_path(path: &[u8]) -> std::path::PathBuf {
+    host_path_of(path)
+}
+
+/// A path in the game's bytes as the system's, as read on Windows.
+#[cfg(windows)]
+fn host_path_of(path: &[u8]) -> std::path::PathBuf {
     std::path::PathBuf::from(ansi_text(path))
 }
 
@@ -73,7 +87,7 @@ pub fn host_path(path: &[u8]) -> std::path::PathBuf {
 /// game's files are named in any case); a name that is not there (a file to be made) is
 /// kept as written.
 #[cfg(unix)]
-pub fn host_path(path: &[u8]) -> std::path::PathBuf {
+fn host_path_of(path: &[u8]) -> std::path::PathBuf {
     use std::path::{Path, PathBuf};
     let text = ansi_text(path).replace('\\', "/");
     let bytes = text.as_bytes();

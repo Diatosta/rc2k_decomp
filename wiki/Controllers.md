@@ -227,7 +227,7 @@ start goes back to "none" (the keyboard).
 A controller plugged in while the program runs is added to the list as soon as SDL reports it,
 so it can be chosen on the controller pages and driven with at once, without a restart. One
 unplugged keeps its place and reads as at rest; plugged back in, it takes that place again, so a
-player who had chosen it has it back.
+player who had chosen it has it back. The force feedback effects the game had set on it (and the strength) are made again on the returned device, so a spring or a rumble running when it left runs again.
 
 The program keeps each player's choice by which controller it is, not by its place in the list:
 its name and, when it reports one, its serial number (a DualSense gives its Bluetooth address).

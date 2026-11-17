@@ -8,6 +8,16 @@
 //! the second copy does not empty the first's log. The var and savedata folders, the options
 //! file and the game's own log are shared by all copies, and the network's port is the first
 //! hosting copy's.
+//!
+//! `--instance <n>` is the way to run several at once with nothing written by two: instance
+//! `n` takes exactly the lock `rc2k.lock[.n]` (and stops if it is taken), writes `rc2k-n.log`
+//! and keeps its own `var` and `savedata` folders in `instances/<n>/` (where the options, the
+//! best times, the saved games, replays, snapshots and the game's log go). Its first start
+//! copies the folder's `var` files into it (so it begins with the same options); its
+//! `savedata` begins empty. Shared, read only: the game's `files`, films and locale folders.
+//! Shared and still to be told apart by the player: the network port (give each hosting
+//! instance its own with `--port`) and the machine's controllers and sound device. Instance 1
+//! is the folder's own folders.
 
 use std::fs::File;
 use std::path::PathBuf;
@@ -76,6 +86,86 @@ pub fn claim(allow_another: bool) -> Result<Claim, String> {
     unreachable!("the loop returns at its last number");
 }
 
+/// The instance's number (above 1) whose own folders the game's paths take.
+static INSTANCE: std::sync::OnceLock<u32> = std::sync::OnceLock::new();
+
+/// Takes the lock of instance `number` (1 ..= `MOST`), and for one above 1 sets its own `var`
+/// and `savedata` folders, `instance_path`, made and seeded. A taken lock is refused.
+pub fn claim_instance(number: u32) -> Result<Claim, String> {
+    let taken = || {
+        format!(
+            "Instance {number} of the program already runs in this folder.\n\
+             Start another number with --instance, or none."
+        )
+    };
+    let file = File::options()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(lock_path(number));
+    let lock = match file {
+        Ok(file) => match file.try_lock() {
+            Ok(()) => Some(file),
+            Err(std::fs::TryLockError::WouldBlock) => return Err(taken()),
+            Err(std::fs::TryLockError::Error(_)) => None,
+        },
+        Err(_) => None,
+    };
+    if number > 1 {
+        let _ = INSTANCE.set(number);
+        seed_instance(number);
+    }
+    Ok(Claim {
+        number,
+        _lock: lock,
+    })
+}
+
+/// The game path `path` (no NUL) moved into this instance's folders when it names `var` or
+/// `savedata` (any case, either separator, relative): `instances\<n>\` first. None for any
+/// other path, and for the folder's own copy.
+pub fn instance_path(path: &[u8]) -> Option<Vec<u8>> {
+    let number = *INSTANCE.get()?;
+    redirected(path, number)
+}
+
+fn redirected(path: &[u8], number: u32) -> Option<Vec<u8>> {
+    let first = path.split(|&b| b == b'\\' || b == b'/').next()?;
+    let own = first.eq_ignore_ascii_case(b"var") || first.eq_ignore_ascii_case(b"savedata");
+    if !own {
+        return None;
+    }
+    let mut moved = format!("instances\\{number}\\").into_bytes();
+    moved.extend_from_slice(path);
+    Some(moved)
+}
+
+/// The instance's `var` folder made, with the files of the folder's own `var` in it the first
+/// time (the game's log and the debug window's layout stay out). Failures are logged and leave
+/// the instance to begin without them.
+fn seed_instance(number: u32) {
+    let own = std::path::PathBuf::from(format!("instances/{number}/var"));
+    if own.is_dir() {
+        return;
+    }
+    if let Err(e) = std::fs::create_dir_all(&own) {
+        eprintln!("rc2k: instance {number}'s folder cannot be made: {e}");
+        return;
+    }
+    let Ok(files) = std::fs::read_dir(crate::files::shared_host_path(b"var")) else {
+        return;
+    };
+    for file in files.flatten() {
+        let name = file.file_name();
+        let skip = name
+            .to_str()
+            .is_none_or(|n| n.eq_ignore_ascii_case("logfile.txt") || n.ends_with(".ini"));
+        if !skip && file.path().is_file() {
+            let _ = std::fs::copy(file.path(), own.join(&name));
+        }
+    }
+}
+
 /// The program's log for copy `number` when the log is the default: the first copy's is
 /// `rc2k.log`, the others' `rc2k-<number>.log`; a log the player named stays.
 pub fn log_for(named: &std::path::Path, number: u32) -> PathBuf {
@@ -96,6 +186,21 @@ mod tests {
         assert_eq!(log_for(Path::new("rc2k.log"), 1), Path::new("rc2k.log"));
         assert_eq!(log_for(Path::new("rc2k.log"), 3), Path::new("rc2k-3.log"));
         assert_eq!(log_for(Path::new("my.log"), 3), Path::new("my.log"));
+    }
+
+    #[test]
+    fn an_instance_moves_var_and_savedata_only() {
+        assert_eq!(
+            redirected(b"var\\ral.cfg", 2).as_deref(),
+            Some(&b"instances\\2\\var\\ral.cfg"[..])
+        );
+        assert_eq!(
+            redirected(b"SaveData/replay", 3).as_deref(),
+            Some(&b"instances\\3\\SaveData/replay"[..])
+        );
+        assert_eq!(redirected(b"files\\var\\x", 2), None);
+        assert_eq!(redirected(b"variety\\x", 2), None);
+        assert_eq!(redirected(b"c:\\var", 2), None);
     }
 
     #[test]

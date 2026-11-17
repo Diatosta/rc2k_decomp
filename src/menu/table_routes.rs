@@ -301,6 +301,14 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn) -> Result<(), Refused> {
             step_texture_setting(&menus.options, true, race);
             Ok(())
         }
+        ItemFn::PreviousFrameLimit => {
+            crate::platform::pacing::step_frame_limit(false);
+            Ok(())
+        }
+        ItemFn::NextFrameLimit => {
+            crate::platform::pacing::step_frame_limit(true);
+            Ok(())
+        }
         ItemFn::NextAudioQuality => next_audio_quality::run(o),
         ItemFn::PreviousAudioQuality => previous_audio_quality::run(o),
         ItemFn::ViewStageDetails => {

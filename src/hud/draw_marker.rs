@@ -24,3 +24,31 @@ pub fn draw_marker(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
         crate::hud::add_sprite::add_sprite(frame, hud, pen, x, 0, RectAt::number(RECT))
     }
 }
+
+/// The other cars of a network race on the stage bar, each its own colour (the marker colours
+/// after the first), the own car's marker is drawn after them. Nothing outside a network race.
+pub fn draw_other_markers(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
+    let panel = &frame.panel_and_overlay.get().panel;
+    let count = panel.network_cars.get().min(8) as usize;
+    if count == 0 {
+        return Ok(());
+    }
+    let own = panel.network_own.get() as usize;
+    let f = f32::from_bits;
+    for n in (0..count).filter(|&n| n != own) {
+        let colour = 1 + (n % (hud.block.marker_colours.len() - 1));
+        hud.block
+            .quad
+            .colour
+            .set(hud.block.marker_colours[colour].get());
+        let x = marker_x(
+            f(panel.car_distances[n].get()),
+            f(panel.overlay_miles.get()),
+            hud.block.marker_k[0].get(),
+            hud.block.marker_k[1].get(),
+        );
+        hud.block.fistp_scratch.set(x);
+        crate::hud::add_sprite::add_sprite(frame, hud, pen, x, 0, RectAt::number(RECT))?;
+    }
+    Ok(())
+}

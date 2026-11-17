@@ -88,6 +88,14 @@ pub struct Panel {
     pub distance: [PlainDword; 2],
     /// The number of parts of the stage bar (`race::init_overlay`).
     pub overlay_parts: PlainDword,
+    /// The cars of a network race, whose markers the stage bar shows beside the own one; 0
+    /// outside a network race (set by `net::set_up_race`, cleared by `race::init_overlay`).
+    pub network_cars: PlainDword,
+    /// The first view's car among them (its own marker is the stage bar's usual one).
+    pub network_own: PlainDword,
+    /// Each car's distance shown (`panel_values_plain`, the same figure as `distance`), for the
+    /// markers of a network race's other cars.
+    pub car_distances: [PlainDword; 8],
     /// Unused (a gap of 0xc bytes): the places of the overlay's three arrays
     /// (`overlay_part_miles`, `overlay_part_kinds_a`, `overlay_part_kinds_b`); nothing reads them.
     pub unused_78: PlainBytes<12>,

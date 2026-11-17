@@ -12,7 +12,13 @@ impl Session {
         write_frame(&mut stream, &W::default().u8(JOIN).raw(MAGIC).0)
             .map_err(|_| DPERR_NOCONNECTION)?;
         let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
-        let answer = read_frame(&mut stream).map_err(|_| DPERR_TIMEOUT)?;
+        let answer = read_frame(&mut stream).map_err(|e| match e.kind() {
+            // A host that ends the connection on the first frame is of an older version.
+            std::io::ErrorKind::UnexpectedEof
+            | std::io::ErrorKind::ConnectionReset
+            | std::io::ErrorKind::ConnectionAborted => DPERR_VERSION,
+            _ => DPERR_TIMEOUT,
+        })?;
         let _ = stream.set_read_timeout(None);
         let mut r = R(&answer);
         match r.u8() {
@@ -76,6 +82,14 @@ impl Session {
                     for e in events {
                         (self.signal)(e);
                     }
+                }
+                Some(KICKED) => {
+                    // Put out by the host: the session is lost for this machine, with a line
+                    // for the log saying why.
+                    crate::logfile::program_log::log(
+                        "net: the host put this machine out of the session",
+                    );
+                    break;
                 }
                 Some(DELIVER) => {
                     let (Some(from), Some(to), Some(data)) = (r.u32(), r.u32(), r.bytes()) else {

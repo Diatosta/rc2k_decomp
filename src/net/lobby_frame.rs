@@ -60,6 +60,7 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
         )?;
     }
     y += 0x1D;
+    draw_chosen_stage(o, &mut canvas)?;
     if net.race_slot.players() != 0 {
         let sorted = crate::net::sort_players::sort_players(net)?;
         let gaps = net.lobby().show_gaps.get() == 1;
@@ -209,5 +210,39 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     }
     crate::platform::unlock_surface(o.gfx);
     crate::platform::show_frame_now(o);
+    Ok(())
+}
+
+/// Where the chosen stage's name is drawn: left, above the table's headings.
+const STAGE_AT: (i32, i32) = (0x18, 0x4A);
+
+/// The stage the host has chosen, by its name, over the table (nothing while no host is listed
+/// or the stage is none of the loaded pack's).
+fn draw_chosen_stage(
+    o: crate::owners::Owners<'static>,
+    canvas: &mut GameCanvas,
+) -> Result<(), Refused> {
+    use crate::records::stages_store::TrackField;
+    let net = o.net;
+    let stages = &o.system.records().stage_tables;
+    let chosen = (0..net.race_slot.players())
+        .map(|n| net.vars.player_block_or_end(n))
+        .find(|block| block.record.state().is_host())
+        .map(|block| block.record.head.get(rc2k_core::net::record::STAGE) & 0x7F);
+    let Some(stage) = chosen else {
+        return Ok(());
+    };
+    let Some(track) = stages
+        .trak_pak
+        .tracks
+        .iter()
+        .find(|track| track.get(TrackField::Stage) == u32::from(stage))
+    else {
+        return Ok(());
+    };
+    let mut text = Vec::new();
+    push_id(o, &mut text, track.get(TrackField::Name))?;
+    let text = store_text(o.strings, text)?;
+    crate::text::draw_text::draw_text_at(NAME_FONT, &text, STAGE_AT.0, STAGE_AT.1, canvas)?;
     Ok(())
 }

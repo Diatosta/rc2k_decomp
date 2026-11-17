@@ -86,6 +86,13 @@ pub struct Display {
     pub race_mode: u32,
     /// Mipmapping, off or on.
     pub mipmapping: u32,
+    /// The frame rate limit (only in the new file; the display's pace when missing).
+    #[serde(
+        default,
+        skip_serializing_if = "crate::gfx::frame_limit::is_default",
+        with = "crate::gfx::frame_limit::as_option"
+    )]
+    pub frame_limit: crate::gfx::frame_limit::FrameLimit,
 }
 
 /// The films' volume at its fullest (the sliders' range is 0 ..= 0x40).

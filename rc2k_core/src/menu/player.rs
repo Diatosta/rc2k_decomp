@@ -661,8 +661,8 @@ pub fn place_key(keys: &mut [u8; KEYS], place: usize, key: u8, reserved: &[u8]) 
 pub enum Redefined {
     /// No key, or a reserved one: the page goes on waiting.
     Waiting,
-    /// The copy goes to the player and the redefining ends; `placed`: the key was put in
-    /// (the place then becomes 999).
+    /// The copy goes to the player and the redefining ends (the place becomes 999 either
+    /// way); `placed`: the key was put in, not Escape.
     Done { keys: [u8; KEYS], placed: bool },
 }
 

@@ -106,3 +106,16 @@ done = "pronto"
 background_sound = "som fora da janela"
 film_volume = "volume dos filmes"
 network_port = "porta"
+
+# The graphics page's frame limit.
+[graphics]
+frame_limit = "limite de quadros"
+no_limit = "sem limite"
+display = "monitor"
+frames_a_second = "q/s"
+
+[kick]
+not_host = "Só o anfitrião pode expulsar um jogador."
+no_player = "Esse jogador não existe."
+done = "Jogador expulso."
+failed = "Não foi possível expulsar o jogador."

@@ -107,9 +107,13 @@ pub fn edit_setup_name(
             }
             screens.entry.typing.set(false);
             end_name(screens, name)?;
-            write_setup_slot(menus, service, slot)?;
-            end_name(screens, name)?;
-            screens.entry.typing.set(false);
+            if !write_setup_slot(menus, service, slot)? {
+                // Not written: the list keeps the name from before.
+                crate::logfile::program_log::log(&format!(
+                    "service: the set-up in slot {slot} was not written"
+                ));
+                restore_text(menus, name)?;
+            }
             return Ok(());
         }
         Key::Clear => clear_text(menus, name)?,

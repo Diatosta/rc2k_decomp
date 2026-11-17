@@ -4,8 +4,8 @@
 //! `slot` is 0 .. 99. The file: "CRSU", 0, version 0x50000, `packed_local_time`, the slot's
 //! 0x20-byte name from the set-ups' names, then the chosen tyre, the car's brake balance, the
 //! chosen ride height and suspension stiffness, the car's steering sensitivity and the chosen
-//! gear ratio. The name is taken from the slot list, so the caller puts it there first; nothing
-//! takes it out again if the write fails. Refuses a slot past 99 and a missing player.
+//! gear ratio. The name is taken from the slot list, so the caller puts it there first and takes it
+//! out again if the write fails (`edit_setup_name`). Refuses a slot past 99 and a missing player.
 
 use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::numbered_path_bytes;

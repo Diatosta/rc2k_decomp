@@ -93,7 +93,12 @@ More on [Network play](Network-play).
   displays faster than 100 Hz, as the race moves 100 times a second. The program does this by
   waiting until each frame is due; with SDL's own switch `SDL_RENDER_VSYNC=1` in the
   environment the showing itself waits for the display instead, at every refresh. The speed
-  of the race does not depend on it: its steps come from the clock.
+  of the race does not depend on it: its steps come from the clock. The graphics page has a
+  "frame limit" row after the original's: no limit (nothing here waits; a display that waits
+  for its refresh still does), the display's own pace (the default), 30 or 60 a second, and the
+  rates that divide the display's refresh evenly (half, a third, a quarter of it). It is kept in
+  `var/rc2k.toml`'s `[display]` table as `frame_limit` (`"off"`, `"display"` or a number a second;
+  left out for the default, `"display"`).
 - The developers' debug pages, unreachable in the released game, are a window over the game
   ([The debug window](The-debug-window)). Not in the 32-bit Windows build or on the handheld.
 

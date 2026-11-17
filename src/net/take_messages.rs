@@ -139,7 +139,6 @@ pub fn take_messages(
                 store_received(
                     sequence,
                     inbox_of(&mut inboxes, player)?,
-                    block,
                     time,
                     &payload.encode(),
                 )?;

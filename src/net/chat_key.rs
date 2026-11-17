@@ -8,11 +8,19 @@ use crate::net::owner::Net;
 /// editing, a message typed is sent and the input cleared.
 pub fn chat_key(
     input: &crate::input::owner::Input,
+    strings: &crate::strings::owner::Strings,
     net: &Net,
     key: u8,
     gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     if !crate::net::edit_key::edit_key(input, net, &net.lobby().edit, key, gfx)? {
+        return Ok(());
+    }
+    let typed = net.lobby().chat_input.read();
+    let typed = &typed[..typed.iter().position(|&c| c == 0).unwrap_or(typed.len())];
+    if crate::net::kick_command::is_kick(typed) {
+        crate::net::kick_command::kick_command(net, strings, gfx, typed)?;
+        net.lobby().chat_input.set(0, 0);
         return Ok(());
     }
     if net.lobby().chat_input.get(0) != 0 {

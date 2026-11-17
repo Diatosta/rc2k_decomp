@@ -13,7 +13,9 @@ network screens are the 1999 game's; what carries the messages underneath is new
   1999 are not there.
 - There are no lobby services; one machine hosts and the others join it directly.
 - The protocol is the same on every system the program runs on, so builds for different
-  systems are meant to play each other. Use the same version of the program on all machines.
+  systems are meant to play each other. Use the same version of the program on all machines: a machine of another protocol version
+  is refused (an older host does not show up in the session list, and ending the connection
+  at a join is read as an older host; both end up in `rc2k.log`).
 - Several of the original's network bugs are fixed, among them remote cars that jerked and
   jumped back along the road ([Fixed bugs](Fixed-bugs)).
 
@@ -49,11 +51,17 @@ machine).
 local network (and this machine itself); with an address it asks that machine only. Choose a
 session to join it. Full or closed sessions are not listed.
 
-**The lobby.** Everyone chooses a car; the host chooses the stage. There is a chat line. When
-every player is ready the host starts the race.
+**The lobby.** Everyone chooses a car; the host chooses the stage, and its name is shown at
+the top left of everybody's lobby. There is a chat line. When every player is ready the host
+starts the race.
+
+**Putting a player out.** The host types `/kick <name>` in the chat line (the first other player
+of that name, case ignored). The line is not sent to the others; the host sees an answer line
+in its chat. The player is told and leaves the lobby as if the host had gone, and may join again.
 
 **The race.** Each machine simulates its own car and sends its inputs and position; the others
-show it. Afterwards the results come up and the lobby returns for the next stage.
+show it. The stage bar along the top shows every car as a marker, each in its own colour, the
+own car's in white. Afterwards the results come up and the lobby returns for the next stage.
 
 ## From the command line
 

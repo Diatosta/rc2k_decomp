@@ -3,30 +3,16 @@
 //! than the simulation's hundred ticks a second). The times frames are due at lie a whole
 //! period apart, so a wait that ends a little late shortens the next one and the pace does not
 //! drift. Where showing a frame already waits for the display's refresh there is no wait here.
+//! The graphics page's frame limit can set another rate or take the wait off.
 //!
 //! Only the frames wait: the simulation's ticks come from the game's clock
 //! (`system::tick_count`), a hundred a second whatever the pace.
 
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering::Relaxed};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering::Relaxed};
 use std::time::{Duration, Instant};
 
-/// The refreshes a second taken for a display that names none (or an absurd number).
-const USUAL_REFRESH: f64 = 60.0;
-
-/// The most frames a second: the simulation's ticks. A frame between two ticks would show
-/// nothing new.
-const MOST_FRAMES: f64 = 100.0;
-
-/// A frame's time on a display refreshing `refresh` times a second: one refresh, or the fewest
-/// whole refreshes that keep the frames at `MOST_FRAMES` a second or under.
-pub fn frame_period(refresh: Option<f64>) -> Duration {
-    let refresh = refresh
-        .filter(|rate| (24.0..=1000.0).contains(rate))
-        .unwrap_or(USUAL_REFRESH);
-    let refreshes = (refresh / MOST_FRAMES).ceil().max(1.0);
-    Duration::from_secs_f64(refreshes / refresh)
-}
+use rc2k_core::gfx::frame_limit::{FrameLimit, display_period as frame_period};
 
 /// When the next frame is due.
 pub struct Pacer {
@@ -65,11 +51,22 @@ static PERIOD_NANOS: AtomicU64 = AtomicU64::new(16_666_667);
 /// Showing a frame waits for the display's refresh itself.
 static SHOWING_WAITS: AtomicBool = AtomicBool::new(false);
 
+/// The display's refreshes a second as the screen was set (the bits of the number; zero: not
+/// known).
+static REFRESH_BITS: AtomicU64 = AtomicU64::new(0);
+
+/// The display's refreshes a second, if it named them.
+pub fn display_refresh() -> Option<f64> {
+    let bits = REFRESH_BITS.load(Relaxed);
+    (bits != 0).then(|| f64::from_bits(bits))
+}
+
 /// The window's display as the screen was set: its refreshes a second (`None`: not known) and
 /// whether showing a frame waits for the refresh.
 pub fn set_display(refresh: Option<f64>, showing_waits: bool) {
     /// Whether the log has the pace (it is written again only when it changes).
     static LOGGED: AtomicBool = AtomicBool::new(false);
+    REFRESH_BITS.store(refresh.map_or(0, f64::to_bits), Relaxed);
     let period = frame_period(refresh);
     let before = PERIOD_NANOS.swap(period.as_nanos() as u64, Relaxed);
     let waited = SHOWING_WAITS.swap(showing_waits, Relaxed);
@@ -93,16 +90,56 @@ pub fn set_display(refresh: Option<f64>, showing_waits: bool) {
     }
 }
 
-/// A frame was shown: waits until the next is due.
+/// The frame limit as the options hold it: 0 the display's pace, 1 none, 2 + n for n a second.
+static LIMIT: AtomicU32 = AtomicU32::new(0);
+
+/// The frame rate limit.
+pub fn frame_limit() -> FrameLimit {
+    match LIMIT.load(Relaxed) {
+        0 => FrameLimit::Display,
+        1 => FrameLimit::Off,
+        n => FrameLimit::Rate(n - 2),
+    }
+}
+
+/// Sets the frame rate limit (the options' load, the graphics page).
+pub fn set_frame_limit(limit: FrameLimit) {
+    LIMIT.store(
+        match limit {
+            FrameLimit::Display => 0,
+            FrameLimit::Off => 1,
+            FrameLimit::Rate(n) => n.saturating_add(2),
+        },
+        Relaxed,
+    );
+}
+
+/// The frame limit one choice on (`up`) or back, among what the display offers.
+pub fn step_frame_limit(up: bool) {
+    set_frame_limit(frame_limit().step(display_refresh(), up));
+}
+
+/// A frame was shown: waits until the next is due, by the frame limit chosen.
 pub fn frame_shown() {
     let mut pacer = PACER
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    if SHOWING_WAITS.load(Relaxed) {
-        pacer.forget();
-        return;
-    }
-    let period = Duration::from_nanos(PERIOD_NANOS.load(Relaxed));
+    let limit = frame_limit();
+    let period = match limit {
+        FrameLimit::Off => {
+            pacer.forget();
+            return;
+        }
+        // Where showing a frame waits for the refresh itself nothing more waits.
+        FrameLimit::Display if SHOWING_WAITS.load(Relaxed) => {
+            pacer.forget();
+            return;
+        }
+        FrameLimit::Display => Duration::from_nanos(PERIOD_NANOS.load(Relaxed)),
+        FrameLimit::Rate(_) => limit
+            .period(display_refresh())
+            .unwrap_or(Duration::from_nanos(PERIOD_NANOS.load(Relaxed))),
+    };
     // A scripted run at a faster clock shows its frames as much faster.
     #[cfg(feature = "remote")]
     let period = period / crate::remote::speed();

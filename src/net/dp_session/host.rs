@@ -74,7 +74,15 @@ impl Session {
             return;
         };
         let _ = stream.set_read_timeout(None);
-        if first.first() != Some(&JOIN) || first.get(1..9) != Some(MAGIC) {
+        if first.first() != Some(&JOIN) {
+            return;
+        }
+        if first.get(1..9) != Some(MAGIC) {
+            // Another version of this protocol is told so (the machine shows its reason);
+            // anything else is not a machine of this game and is dropped.
+            if first.get(1..8) == Some(MAGIC_FAMILY) {
+                let _ = write_frame(&mut stream, &W::default().u8(REFUSE).u32(DPERR_VERSION).0);
+            }
             return;
         }
         let (machine, welcome) = {

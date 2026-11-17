@@ -210,6 +210,18 @@ name.
 | --- | --- |
 | `--renderer <gpu \| software>` | What draws the 3D. `gpu` (the default): the GPU first, the software rasteriser if no GPU renderer starts. `software`: the rasteriser only, which needs no GPU and uses several processor cores. On the handheld `gles` is another name for `gpu`. Any other value stops the program before anything loads, with the names that are valid. The switch wins over the environment variable `RC2K_RENDERER`. The log's `render:` lines say which renderer started. |
 | `--allow-another` | Start although another copy of the program already runs in this folder. Without it the second copy stops at once with a message that names this switch. |
+| `--instance <1 .. 8>` | Run as that numbered instance of the folder, beside the others, with nothing written by two at once: its own lock (`rc2k.lock`, `rc2k.lock.<n>`; a taken one stops the start), log (`rc2k-<n>.log`) and, from 2 up, its own `var` and `savedata` folders in `instances/<n>/` (the options, best times, saved games, replays, snapshots, the game's log and the debug window's layout). The first start of an instance copies the folder's `var` files (not the game's log) so it begins with the same options; its `savedata` begins empty. Shared and read only: the game's `files`, films and languages. Shared and to be told apart by the player: the network port (give each hosting instance its own with `--port`), the controllers and the sound device. `--instance 1` is the folder's own folders. |
+| `--game-data <folder \| zip>` | Where to take the game's data from when the program's folder has none. Without it, the first-run page opens (see below). |
+
+**First run.** A program started in a folder with no game data (no `files/d/gfx/jade.bun`) opens a
+page that asks for the game: pick a folder or a zip file on disk, or drop one on the window
+(nothing is downloaded). A folder that holds an installed game (its `files`, `var` with the
+installation record) is entered and the game runs in it as it is; a folder in the download / CD
+layout is entered and the installer runs on it; a zip is first unpacked into
+`rally-championship-source` in the user's data folder (`$XDG_DATA_HOME`, `%LOCALAPPDATA%`,
+else `~/.local/share`) and then treated as a folder. The game's folder may be one level inside
+what was picked. Zips over 4 GB (zip64), encrypted ones and a name that would leave the unpacking
+folder are not read. The web build has its own page in the browser.
 
 **Two copies in one folder.** The first copy holds a lock on `rc2k.lock` in the game's folder
 while it runs (the system lets it go when the program ends, even if it crashes); a copy that

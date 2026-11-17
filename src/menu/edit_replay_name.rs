@@ -9,24 +9,22 @@
 //! After anything but Escape and Enter the cursor (string 4) is written after the name if
 //! `draw_work.cursor_on` is set, then a NUL; it returns true exactly when `cursor_on` is 0.
 //!
-//! A 1999 slip kept as is: the clear key, the backspace key and the "too wide" case act on the
-//! highlighted name of the SAVED GAME list, not the replay list, while the length they change
-//! is the replay entry's. Called from `menu::save_replay_loop` while `entry.typing` is
-//! set. Refuses, before the key is taken: a name past either list, a length outside 0 .. 0x1F,
+//! The clear key, the backspace key and the "too wide" case act on the replay's name (the
+//! original acted on the saved games' list). Called from `menu::save_replay_loop` while `entry.typing` is
+//! set. Refuses, before the key is taken: a name past the list, a length outside 0 .. 0x1F,
 //! no keyboard layout.
 
 use crate::errors::{BadInput, Refused};
 use crate::input::key_to_char::{has_layout, key_to_char};
 use crate::input::take_key::take_key;
 use crate::menu::add_text_length::add_text_length;
-use crate::menu::backspace_savegame_name::backspace_savegame_name;
+use crate::menu::backspace_savegame_name::backspace_name;
 use crate::menu::clear_text::clear_text;
-use crate::menu::name_lists::{NAME_LEN, replay_name, savegame_name};
+use crate::menu::name_lists::{NAME_LEN, replay_name};
 use crate::menu::owner::Menus;
 use crate::menu::restore_text::restore_text;
 use crate::menu::text_entry::{length, set_length};
 use crate::race::owner::Race;
-use crate::saves::owner::Saves;
 use crate::strings::append_string_by_id::push_string;
 use crate::text::draw_text::Canvas;
 use crate::text::measure_text::measure_text_at;
@@ -44,13 +42,11 @@ pub fn edit_replay_name(
     input: &crate::input::owner::Input,
     so: crate::strings::append_string_by_id::StringOwners<'_>,
     menus: &Menus,
-    saves: &'static Saves,
     race: &'static Race,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
     // Everything that could be refused, before the key is taken.
     let name = replay_name(menus, race)?;
-    let other_name = savegame_name(menus, saves)?;
     if !(0..NAME_LEN as i32).contains(&length(menus)) {
         return Err(BadInput("text length outside the name").into());
     }
@@ -69,7 +65,7 @@ pub fn edit_replay_name(
             let measured =
                 measure_text_at(MEASURING_FONT, &name.bytes("a replay's name")?, len, canvas)?;
             if entry::too_wide(measured.width as i32) {
-                backspace_savegame_name(menus, saves)?;
+                backspace_name(menus, name)?;
             }
         }
         Ok(())
@@ -95,9 +91,8 @@ pub fn edit_replay_name(
             end_name(menus, name)?;
             return Ok(false);
         }
-        // The saved game's name, not the replay's (a 1999 slip kept as is).
-        Key::Clear => clear_text(menus, other_name)?,
-        Key::Backspace => backspace_savegame_name(menus, saves)?,
+        Key::Clear => clear_text(menus, name)?,
+        Key::Backspace => backspace_name(menus, name)?,
         Key::Other(key) => {
             if !typed.text_mode {
                 append(key_to_char(input, key as u32)? as u8)?;

@@ -83,6 +83,15 @@ pub fn graphics<S: Screen<Font = Font, Work = Work>>(
     Ok(last)
 }
 
+/// The graphics page's frame limit: `text` (no NUL) in the names' column on row 9, below the
+/// last of the original's rows.
+pub fn graphics_frame_limit<S: Screen<Font = Font, Work = Work>>(
+    s: &mut S,
+    text: &[u8],
+) -> Result<Drawn, S::Error> {
+    s.line(Font::Value, text, 0x1D1, 0xDC + 0x1B * 9)
+}
+
 /// The visual preferences page: nine names from y 0xC8 every 0x1D. Returns the last name's
 /// `too_wide`.
 pub fn visual_preferences<S: Screen<Font = Font, Work = Work>>(

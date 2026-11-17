@@ -52,12 +52,26 @@ fn highlighted_slot(pages: &MenuPages, loop_flags: &LoopFlags) -> u32 {
         .wrapping_sub(1)
 }
 
-/// Saves the game in `slot`. Whether it worked is not looked at. A slot or a state the writer
-/// refuses ends the program with the reason.
+/// Saves the game in `slot`. When the file cannot be written the slot's name goes back to the
+/// one from before, so the list does not show a game that was not saved. A slot or a state the
+/// writer refuses ends the program with the reason.
 pub fn save_game(menus: &Menus, saves: &'static Saves, slot: u32) {
-    if let Err(why) = write_savegame_slot(menus, saves, slot) {
-        crate::logfile::program_log::log(&format!("saves::write_savegame_slot: slot {slot}"));
-        crate::fatal::raise::end("saves::write_savegame_slot", why);
+    match write_savegame_slot(menus, saves, slot) {
+        Ok(true) => {}
+        Ok(false) => {
+            crate::logfile::program_log::log(&format!(
+                "saves: the saved game in slot {slot} was not written"
+            ));
+            // The slot is below 100 here: `write_savegame_slot` took it.
+            let _ = restore_text(
+                menus,
+                crate::saves::write_savegame_slot::slot_name(saves, slot),
+            );
+        }
+        Err(why) => {
+            crate::logfile::program_log::log(&format!("saves::write_savegame_slot: slot {slot}"));
+            crate::fatal::raise::end("saves::write_savegame_slot", why);
+        }
     }
 }
 
@@ -122,8 +136,6 @@ pub fn edit_savegame_name(
                 &menus.tables.pages,
                 &menus.screens.loop_flags,
             ));
-            end_name(menus, name)?;
-            screens.entry.typing.set(false);
             return Ok(());
         }
         Key::Clear => clear_text(menus, name)?,

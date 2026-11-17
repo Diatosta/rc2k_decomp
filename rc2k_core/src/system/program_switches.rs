@@ -1,9 +1,9 @@
 //! The switches that say how the program runs on this machine, not what the game does: which
 //! renderer draws (`--renderer`) and whether another copy may run beside this one
-//! (`--allow-another`). The words after the program's own name, as `menu::launch` takes them.
+//! (`--allow-another`), or runs as a numbered instance with its own saved state (`--instance`). The words after the program's own name, as `menu::launch` takes them.
 
 /// The switches that take a value (the next word, or after `=`).
-pub const VALUED: [&str; 1] = ["renderer"];
+pub const VALUED: [&str; 3] = ["renderer", "instance", "game-data"];
 
 /// The switches that take none.
 pub const PLAIN: [&str; 1] = ["--allow-another"];
@@ -15,7 +15,15 @@ pub struct Switches {
     pub renderer: Option<String>,
     /// `--allow-another`: this copy starts although another copy is running in the folder.
     pub allow_another: bool,
+    /// `--instance`'s number, 1 ..= `MOST_INSTANCES`: this copy is that instance of the folder.
+    pub instance: Option<u32>,
+    /// `--game-data`: the folder or zip the game's data is taken from when the program's folder
+    /// has none (the first-run page's choice, given on the command line).
+    pub game_data: Option<String>,
 }
+
+/// The most instances `--instance` names.
+pub const MOST_INSTANCES: u32 = 8;
 
 impl Switches {
     /// The switches among `args` (the words after the program's own name). Refused: a
@@ -54,7 +62,20 @@ impl Switches {
                     v.as_ref().to_string()
                 }
             };
-            found.renderer = Some(value);
+            if key == "instance" {
+                let number = value
+                    .parse::<u32>()
+                    .ok()
+                    .filter(|n| (1..=MOST_INSTANCES).contains(n))
+                    .ok_or_else(|| {
+                        format!("--instance {value}: a number from 1 to {MOST_INSTANCES} is wanted")
+                    })?;
+                found.instance = Some(number);
+            } else if key == "game-data" {
+                found.game_data = Some(value);
+            } else {
+                found.renderer = Some(value);
+            }
         }
         Ok(found)
     }
@@ -73,6 +94,20 @@ mod tests {
         let s = Switches::from_args(&["--renderer=gpu", "--renderer", "software"]).unwrap();
         assert_eq!(s.renderer.as_deref(), Some("software"));
         assert!(!s.allow_another);
+    }
+
+    #[test]
+    fn an_instance_is_a_small_number() {
+        let s = Switches::from_args(&["--instance", "3"]).unwrap();
+        assert_eq!(s.instance, Some(3));
+        assert_eq!(
+            Switches::from_args(&["--instance=1"]).unwrap().instance,
+            Some(1)
+        );
+        assert!(Switches::from_args(&["--instance", "0"]).is_err());
+        assert!(Switches::from_args(&["--instance", "9"]).is_err());
+        assert!(Switches::from_args(&["--instance=two"]).is_err());
+        assert!(Switches::from_args(&["--instance"]).is_err());
     }
 
     #[test]

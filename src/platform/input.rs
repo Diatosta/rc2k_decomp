@@ -100,6 +100,9 @@ struct Device {
     info: DeviceInfo,
     /// The game's effects (their object numbers) as SDL's.
     effects: HashMap<u32, SDL_HapticEffectID>,
+    /// The game's effects as it last set them, each with whether it runs: kept while the
+    /// device is away, to make them again on its return.
+    known: HashMap<u32, (Effect, bool)>,
     /// The device's gain the game set (its force feedback strength), 0 .. 10000: applied to
     /// each effect by us when SDL has no gain for the device (many wheels).
     gain: u32,
@@ -233,9 +236,11 @@ impl Device {
         if let Some(haptic) = self.haptic.take() {
             haptic.close();
         }
+        // A rumbled device keeps its effects as the game set them (they run again from its
+        // return); only the motors are marked still.
         if let Some(rumble) = self.rumble.as_mut() {
-            rumble.stop(self.joystick);
-            rumble.effects.clear();
+            rumble.sent = (0, 0);
+            rumble.sent_at = None;
         }
         if let Some(gamepad) = self.gamepad.take() {
             gamepad.close();
@@ -343,7 +348,7 @@ impl SdlBackend {
         if let Some(n) = back {
             let (haptic, rumble) = haptic_or_rumble(joystick);
             let d = &mut self.devices[n];
-            d.rumble = rumble.then(Rumble::new);
+            d.rumble = rumble.then(|| d.rumble.take().unwrap_or_default());
             d.sdl_id = id;
             d.joystick = Some(joystick);
             d.gamepad = gamepad;
@@ -354,6 +359,14 @@ impl SdlBackend {
                 "platform: joystick {n}: \"{}\" is back",
                 d.info.name
             ));
+            // The effects the game had set are made again on the returned device.
+            let gain = d.gain;
+            let mut known: Vec<(u32, (Effect, bool))> = d.known.drain().collect();
+            known.sort_by_key(|(id, _)| *id);
+            self.gain(n, gain);
+            for (effect_id, (effect, running)) in known {
+                self.effect(n, effect_id, &effect, running, running);
+            }
             return;
         }
         let mut instance = product;
@@ -426,6 +439,7 @@ impl SdlBackend {
             features,
             info,
             effects: HashMap::new(),
+            known: HashMap::new(),
             gain: 10_000,
             stick_moved: [false; 4],
             rumble: rumble.then(Rumble::new),
@@ -713,6 +727,7 @@ impl Backend for SdlBackend {
         let Some(d) = self.devices.get_mut(device) else {
             return;
         };
+        d.known.insert(id, (effect.clone(), start || playing));
         if let Some(rumble) = d.rumble.as_mut() {
             let since = rumble.effects.get(&id).and_then(|(_, since)| *since);
             let since = if start {
@@ -780,6 +795,7 @@ impl Backend for SdlBackend {
         let Some(d) = self.devices.get_mut(device) else {
             return;
         };
+        d.known.remove(&id);
         if let Some(rumble) = d.rumble.as_mut() {
             rumble.effects.remove(&id);
         }

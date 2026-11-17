@@ -6,7 +6,7 @@
 //! `allocate_best_times`: 0xBB8 bytes, an entry of 0x618 a stage, 0x15E0, 0xDB60, 0xDB60, an entry
 //! a stage again); the file is closed and `loaded` = 1. A read that fails or gives fewer bytes than
 //! asked for closes the file and ends it there, with what was read so far left in the tables. A
-//! head that is not the right one ends it without the file being closed (a slip kept as is).
+//! head that is not the right one closes the file and ends it as well.
 //! Refuses what `resolve_path` and `allocate_best_times` refuse.
 
 use crate::errors::Refused;
@@ -43,7 +43,7 @@ pub fn load_game_best_times(saves: &Saves, system: &System) -> Result<bool, Refu
         return Ok(false);
     }
     if !rc2k_core::saves::kept::head_ok(&head, rc2k_core::saves::kept::BEST_TIMES) {
-        // The file stays open (kept).
+        close(file);
         return Ok(false);
     }
     for table in READ {
