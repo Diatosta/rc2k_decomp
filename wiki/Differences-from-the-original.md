@@ -300,7 +300,7 @@ or IPX connection), and Steam when Valve's library is beside the program (it is 
 
 - Split screen for three and four players (the original had two): the single rally's players menu
   has an entry of its own for three and for four players on one screen, beside the original's
-  in-turn ones (each shows the same helmets), and `--players 3` or `4` starts the same race. Each
+  in-turn ones (shown by the third and fourth players' helmets, as on the players' details page), and `--players 3` or `4` starts the same race. Each
   player has a view in their part of the screen, the controls of their own record, a compact HUD
   (place, stage time, progress bar, gear and speed) and a place on the three and four players' results page. The F2 key
   cycles the layouts: with four players quarters, four rows and four columns; with three one wide

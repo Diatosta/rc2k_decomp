@@ -158,11 +158,12 @@ menu!(
     [0x235C0, 0xFFFF4000, 0x27900, 0x20000]
 );
 menu!(
-    /// The single rally's players menu: the helmets of the in-turn items again for the split
-    /// screens of three and four players, the back item's object last.
+    /// The single rally's players menu: the split screens of three and four players shown by
+    /// the third and fourth players' helmets of the players' details menu, the back item's
+    /// object last.
     MENU_15, 0,
     textures [0x5, 0x10], 16,
-    kinds [0x270, 0x264, 0x26F, 0x265, 0x26C, 0x265, 0x26C, 0x26D], 8,
+    kinds [0x270, 0x264, 0x26F, 0x265, 0x26C, 0x272, 0x273, 0x26D], 8,
     [0x214C0, 0xFFFF4000, 0x36F00, 0x20000]
 );
 menu!(

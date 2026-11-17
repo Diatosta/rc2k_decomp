@@ -250,11 +250,15 @@ fn draw_view(
         o.race.shared.view.get(),
         o.scene.scratch.main_view(car),
     )?;
-    fetch_value(
-        o.race,
-        o.race.shared.view.get(),
-        o.scene.scratch.mirror(car),
-    )?;
+    // Only the first two players have mirrors (a third's and fourth's slots hold their views).
+    let has_mirror = car < 2;
+    if has_mirror {
+        fetch_value(
+            o.race,
+            o.race.shared.view.get(),
+            o.scene.scratch.mirror(car),
+        )?;
+    }
     // One after another on the game's thread: on its part's scratch, the stores read from their
     // owners.
     let part = o.scene.scratch.game_scratch();
@@ -276,7 +280,7 @@ fn draw_view(
         view_rest(o, gfx, effects, cheats, car, blit)
     };
     let mirror = || view_mirror(o, car, run(o.scene.scratch.mirror(car)), reads());
-    if !mirrored(o.race, flags) {
+    if !has_mirror || !mirrored(o.race, flags) {
         if crate::scene::workers::car_part_wanted() {
             // The view as a part of its own, for its car to be drawn aside (`race::car_part`).
             let filter = filter_input(&o.scene.scratch, car);
