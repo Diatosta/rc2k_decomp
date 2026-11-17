@@ -23,6 +23,8 @@ enum Way {
     Message(u32),
     /// The end.
     End,
+    /// Hosting failed: the port (the number) is held by another program, then the end.
+    PortInUse(u16),
 }
 
 fn link(o: Owners<'static>, launched: bool) -> Result<Way, Refused> {
@@ -31,6 +33,7 @@ fn link(o: Owners<'static>, launched: bool) -> Result<Way, Refused> {
     let vars = &net.vars;
     use crate::net::*;
     if !find_connections::find_connections(net, o.strings, lines)? {
+        why("no network connection was found");
         return Ok(Way::Message(NO_CONNECTION));
     }
     let connection = match find_saved_connection::find_saved_connection(net)? {
@@ -45,17 +48,22 @@ fn link(o: Owners<'static>, launched: bool) -> Result<Way, Refused> {
     };
     keep_connection::keep_connection(net, connection)?;
     if !connecting::connecting(o, lines, connection)? {
+        why("the connection could not be made");
         return Ok(Way::Message(NO_CONNECTION));
     }
     if net.lobby().mode.get() == 1 {
         vars.own.set_state(vars.own.state().with(State::HOST));
         return Ok(if hosting::hosting(o, lines)? {
             Way::On
+        } else if let Some(port) = crate::net::dp_objects::take_port_in_use() {
+            Way::PortInUse(port)
         } else {
+            why("the session could not be hosted (the lines above say why)");
             Way::Message(NO_SESSION)
         });
     }
     if !find_sessions::find_sessions(o, lines)? {
+        why("no session was found to join");
         return Ok(Way::Message(NO_SESSION));
     }
     loop {
@@ -63,6 +71,7 @@ fn link(o: Owners<'static>, launched: bool) -> Result<Way, Refused> {
         // Escape (a negative choice) is taken as a failure, so it shows the message too (kept as
         // is).
         if (session as i32) < 0 {
+            why("no session was chosen");
             return Ok(Way::Message(NO_SESSION));
         }
         if joining::joining(o, lines, session)? {
@@ -79,9 +88,15 @@ fn link(o: Owners<'static>, launched: bool) -> Result<Way, Refused> {
         return Ok(if password::refused() {
             Way::Message(rc2k_core::strings::own::id::PASSWORD_REFUSED)
         } else {
+            why("the session could not be joined (the lines above say why)");
             Way::Message(NO_SESSION)
         });
     }
+}
+
+/// Logs why the link ends with a failure message.
+fn why(reason: &str) {
+    crate::logfile::program_log::log(&format!("net: {reason}"));
 }
 
 /// A network game in `mode` (1 host, 2 join), as the menu's items start it.
@@ -114,6 +129,7 @@ fn run(o: crate::owners::Owners<'static>, mode: u32, launched: bool) -> Result<(
     match link(o, launched)? {
         Way::Message(n) => show_message::show_message(o, n)?,
         Way::End => {}
+        Way::PortInUse(port) => show_message::show_port_in_use(o, port)?,
         Way::On => {
             net.race_slot.begin();
             if mode == 2 {

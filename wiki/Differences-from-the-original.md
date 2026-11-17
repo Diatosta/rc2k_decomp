@@ -82,7 +82,7 @@ More on [Network play](Network-play).
 - Controllers are read from a race's first moment (the original's input thread slept a second
   at each race's start), and at once after coming back to the window.
 - A loading bar is shown while a stage loads.
-- The volume page has a "film volume" slider (the intro and logo films; the last slider, above the music switch), the sound page a "sound when not in front" row (the original's sounds went quiet while its window was behind) and a "reverb" row (a reverb of the program's own for the race's sounds, from the original's EAX room presets and the weights of the course around each view), and the network settings page a "port" row ([Options files](Options-files), [Network play](Network-play)).
+- The volume page has a "film volume" slider (the intro and logo films; the last slider, above the music switch), the sound page a "sound when not in front" row (the original's sounds went quiet while its window was behind) and a "reverb" row (a reverb of the program's own for the race's sounds, from the original's EAX room presets and the weights of the course around each view; where that weight is very high, in a tunnel or a gateway, the room changes smoothly to a long, clear echo), and the network settings page a "port" row ([Options files](Options-files), [Network play](Network-play)).
 - The hidden Pong game on the windscreen can be played: the bat follows player 1's steering ([Fixed bugs](Fixed-bugs)).
 - The loading screen does not hold up the load: the loading picture is shown once (the
   original showed it once for each page of its screen), and a bar frame is drawn only when

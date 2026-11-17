@@ -12,6 +12,7 @@ pub mod picture;
 pub mod picture_size;
 pub mod pixels;
 pub mod png;
+pub mod png_write;
 pub mod raster;
 pub mod render_scale;
 pub mod screen_modes;

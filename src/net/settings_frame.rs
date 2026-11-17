@@ -51,6 +51,9 @@ pub fn settings_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> 
     .enumerate()
     {
         let item = item as u32;
+        if net.settings().edit.edited.get() == item {
+            crate::input::typed_text::note_field_y(y as i32);
+        }
         y = setting_label(o, net, label, item, y)?;
         y = match value {
             Value::Number(n) => draw_number_value(o, n, item, y)?,

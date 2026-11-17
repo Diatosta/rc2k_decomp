@@ -48,6 +48,28 @@ pub const MOST_VIEWS: usize = 4;
 static VIEW_WEIGHTS: [std::sync::atomic::AtomicU32; MOST_VIEWS] =
     [const { std::sync::atomic::AtomicU32::new(0x3F80_0000) }; MOST_VIEWS];
 
+/// How far each view is under cover (a float's bits, 0.0 ..= 1.0: in a tunnel or gateway), as
+/// the last scene drawn found it from its weight.
+static VIEW_COVER: [std::sync::atomic::AtomicU32; MOST_VIEWS] =
+    [const { std::sync::atomic::AtomicU32::new(0) }; MOST_VIEWS];
+
+/// The weights between which a view goes from open to under cover. The course's own marks of
+/// reverberant places (tunnels and gateways carry a strong one, and walls count too) give the
+/// weight 3 .. 50 in the open and 90 or more in a tunnel or gateway.
+const COVER_FROM: f32 = 55.0;
+const COVER_FULL: f32 = 95.0;
+
+/// The cover a weight means, 0.0 (open) ..= 1.0 (under cover).
+pub fn cover_of_weight(weight: f32) -> f32 {
+    if !weight.is_finite() {
+        return 0.0;
+    }
+    ((weight - COVER_FROM) / (COVER_FULL - COVER_FROM)).clamp(0.0, 1.0)
+}
+
+/// Seconds the heard cover takes to follow the found one (about two thirds of the way).
+const COVER_FOLLOWS: f32 = 0.35;
+
 /// The room asked for: a number past the table is kept out.
 pub fn set_reverb_room(room: u32) {
     if (room as usize) < rc2k_core::audio::reverb::ROOMS.len() {
@@ -60,13 +82,26 @@ pub fn set_view_weight(view: usize, weight: u32) {
     if let Some(slot) = VIEW_WEIGHTS.get(view) {
         slot.store(weight, std::sync::atomic::Ordering::Relaxed);
     }
+    if let Some(slot) = VIEW_COVER.get(view) {
+        let cover = cover_of_weight(f32::from_bits(weight));
+        slot.store(cover.to_bits(), std::sync::atomic::Ordering::Relaxed);
+    }
 }
+
+/// A check's notes start again with the next stretch mixed (a race starts).
+#[cfg(feature = "remote")]
+static NOTES_RESET: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 /// A race starts: every view's weight back to 1.0.
 pub fn reset_view_weights() {
     for slot in &VIEW_WEIGHTS {
         slot.store(0x3F80_0000, std::sync::atomic::Ordering::Relaxed);
     }
+    for slot in &VIEW_COVER {
+        slot.store(0, std::sync::atomic::Ordering::Relaxed);
+    }
+    #[cfg(feature = "remote")]
+    NOTES_RESET.store(true, std::sync::atomic::Ordering::Relaxed);
 }
 
 /// Whether a race is loaded: the sounds then are the race's, which the reverb takes.
@@ -239,6 +274,15 @@ struct State {
     reverb: rc2k_core::audio::reverb::Reverb,
     /// The room the reverb has been set to.
     reverb_room: usize,
+    /// The cover each view hears now, following `VIEW_COVER` over some tenths of a second.
+    cover: [f32; MOST_VIEWS],
+    /// The room the reverb is set to now, from the race's room and the first view's cover.
+    reverb_set: Option<rc2k_core::audio::reverb::Room>,
+    /// A check's notes: whether the first view is under cover, and the frames mixed.
+    #[cfg(feature = "remote")]
+    under_cover: bool,
+    #[cfg(feature = "remote")]
+    mixed: u64,
     /// Frames left in which a tail may still be heard.
     reverb_tail: usize,
 }
@@ -258,6 +302,12 @@ fn with<R>(f: impl FnOnce(&mut State) -> R) -> R {
         window_focused: None,
         reverb: rc2k_core::audio::reverb::Reverb::new(OUT_RATE),
         reverb_room: rc2k_core::audio::reverb::RACE_ROOM,
+        cover: [0.0; MOST_VIEWS],
+        reverb_set: None,
+        #[cfg(feature = "remote")]
+        under_cover: false,
+        #[cfg(feature = "remote")]
+        mixed: 0,
         reverb_tail: 0,
     }))
 }
@@ -754,7 +804,7 @@ fn feed(wanted: i32) -> Option<Vec<i16>> {
 
 /// The playing buffers mixed into `frames` stereo frames for the device.
 pub(crate) fn mixed_frames(frames: usize) -> Vec<i16> {
-    use rc2k_core::audio::reverb::{ROOMS, send_level};
+    use rc2k_core::audio::reverb::{ROOMS, room_under_cover, send_level_covered};
     use std::sync::atomic::Ordering::Relaxed;
     let mut out = vec![0f32; frames * 2];
     // What the buffers send to the reverb, a value for each frame.
@@ -777,9 +827,41 @@ pub(crate) fn mixed_frames(frames: usize) -> Vec<i16> {
             .unwrap_or(1.0);
         let rolloff = s.rolloff;
         let room = (REVERB_ROOM.load(Relaxed) as usize).min(ROOMS.len() - 1);
-        if room != s.reverb_room {
-            s.reverb_room = room;
-            s.reverb.set_room(&ROOMS[room]);
+        s.reverb_room = room;
+        // Each view's heard cover moves towards the found one by the time this stretch took.
+        let follow = 1.0
+            - rc2k_core::math::portable::powf(
+                std::f32::consts::E,
+                -(frames as f32) / (COVER_FOLLOWS * OUT_RATE as f32),
+            );
+        for (heard, found) in s.cover.iter_mut().zip(&VIEW_COVER) {
+            let found = f32::from_bits(found.load(Relaxed));
+            *heard += (found - *heard) * follow;
+        }
+        // The reverb's room follows the first view's cover: the open room with no cover, a
+        // tunnel's long echo under it.
+        #[cfg(feature = "remote")]
+        {
+            // A check's note of when the first view goes under cover and out, in seconds of the
+            // race's sound.
+            if NOTES_RESET.swap(false, Relaxed) {
+                s.mixed = 0;
+            }
+            let under = s.cover[0] > 0.5;
+            if under != s.under_cover {
+                s.under_cover = under;
+                crate::logfile::program_log::log(&format!(
+                    "reverb: cover {} at {:.2} s",
+                    if under { "begins" } else { "ends" },
+                    s.mixed as f64 / OUT_RATE as f64
+                ));
+            }
+            s.mixed += frames as u64;
+        }
+        let covered_room = room_under_cover(&ROOMS[room], s.cover[0]);
+        if s.reverb_set != Some(covered_room) {
+            s.reverb_set = Some(covered_room);
+            s.reverb.set_room(&covered_room);
         }
         let reverb_on = REVERB.load(Relaxed);
         let mut sending = false;
@@ -796,9 +878,10 @@ pub(crate) fn mixed_frames(frames: usize) -> Vec<i16> {
                     master * SECONDARY_GAIN
                 };
                 let send_to = match b.reverb_view {
-                    Some(view) if reverb_on => send_level(
+                    Some(view) if reverb_on => send_level_covered(
                         &ROOMS[room],
                         f32::from_bits(VIEW_WEIGHTS[view as usize].load(Relaxed)),
+                        s.cover[view as usize],
                     ),
                     _ => 0.0,
                 };

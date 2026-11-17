@@ -421,11 +421,26 @@ pub fn open_with_password(this: u32, d: &Desc, flags: u32, password: &[u8]) -> u
             instance: fresh_guid(),
             ..d.clone()
         };
-        Session::host_locked(d, port, signal(), password).map_err(|_| DPERR_CANTCREATESESSION)
+        Session::host_locked(d, port, signal(), password).map_err(|e| {
+            // The usual cause is another program (often a second copy of this game) already
+            // listening on the port.
+            crate::logfile::program_log::log(&format!(
+                "net: the session could not be hosted on port {port}: {e} (is another game or program using the port?)"
+            ));
+            if e.kind() == std::io::ErrorKind::AddrInUse {
+                PORT_IN_USE.store(u32::from(port), std::sync::atomic::Ordering::Relaxed);
+            }
+            DPERR_CANTCREATESESSION
+        })
     } else if flags & DPOPEN_JOIN != 0 {
         match session_address(&d.instance) {
             Some(at) => Session::join_with(at, signal(), password),
-            None => Err(DPERR_NOSESSIONS),
+            None => {
+                crate::logfile::program_log::log(
+                    "net: the session to join is not in the list found",
+                );
+                Err(DPERR_NOSESSIONS)
+            }
         }
     } else {
         Err(DPERR_INVALIDPARAMS)
@@ -558,6 +573,17 @@ pub fn initialize_connection_with(this: u32, address: Option<&[u8]>) -> u32 {
     let raw = &raw[..total.clamp(24, 4096).min(raw.len())];
     let parts = elements(raw);
     with_state(this, |s| initialize(s, parts))
+}
+
+/// The port the last attempt to host found held by another program (0: none).
+static PORT_IN_USE: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+/// The port a failed attempt to host found in use, once.
+pub fn take_port_in_use() -> Option<u16> {
+    match PORT_IN_USE.swap(0, std::sync::atomic::Ordering::Relaxed) {
+        0 => None,
+        port => u16::try_from(port).ok(),
+    }
 }
 
 /// The connection's host and port from its address's parts.

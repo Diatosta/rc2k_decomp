@@ -204,7 +204,8 @@ impl Inline {
         let line = font.line_height;
         // The pictures are as tall as the capitals and centred on them: the rows the question's
         // first letter covers (the line height also holds room above and below the letters).
-        let (ink_top, ink) = capital_rows(&font, &self.text, &canvas).unwrap_or((0, line));
+        let (ink_top, ink) =
+            crate::gfx::button_hints::capital_rows(&font, &self.text, &canvas).unwrap_or((0, line));
         let size = ink;
         let pad = 6;
         let width_of = |bytes: &[u8], canvas: &mut GameCanvas| {
@@ -293,23 +294,4 @@ impl Inline {
             crate::platform::unlock_surface(o.gfx);
         }
     }
-}
-
-/// The rows below the line's top that `text`'s first letter covers in `font`: (the first, how many).
-fn capital_rows(
-    font: &rc2k_core::strings::text::Font,
-    text: &[u8],
-    canvas: &crate::text::draw_text::GameCanvas,
-) -> Option<(i32, i32)> {
-    use crate::text::draw_text::Canvas;
-    let c = *text.iter().find(|&&c| c > b' ')?;
-    if c < font.first_char || c > font.last_char {
-        return None;
-    }
-    let glyphs =
-        crate::gfx::glyph_store::bytes(canvas.fonts(), font.glyph_table, "the question's font")
-            .ok()?;
-    let (blank, rows) =
-        rc2k_core::strings::text::ink_rows(&glyphs, u32::from(c - font.first_char)).ok()?;
-    (rows > 0).then_some((font.y_offset + blank, rows))
 }

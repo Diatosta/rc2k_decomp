@@ -29,6 +29,12 @@ const TILE: u32 = 0x27347A;
 const TILE_COMMAND: u32 = 0x1B2560;
 const TILE_LIT: u32 = 0xC8202A;
 
+/// The line at the panel's top that shows what has been typed, and the gap under it.
+const ECHO_H: i32 = 32;
+const ECHO_GAP: i32 = 8;
+/// The echo box's colour.
+const ECHO_BOX: u32 = 0x060A22;
+
 /// The strip at the panel's foot for the hints of the controller's buttons.
 const HINT_STRIP: i32 = 40;
 
@@ -42,7 +48,7 @@ fn keys_width() -> i32 {
 fn panel_size(hint_width: i32) -> (i32, i32) {
     (
         keys_width().max(hint_width) + 2 * MARGIN,
-        osk::ROWS as i32 * CELL_H + 2 * MARGIN - GAP + HINT_STRIP,
+        ECHO_H + ECHO_GAP + osk::ROWS as i32 * CELL_H + 2 * MARGIN - GAP + HINT_STRIP,
     )
 }
 
@@ -62,6 +68,9 @@ fn panel_top(field_y: Option<i32>) -> i32 {
 
 /// The y of the menu item being edited, if the screen is a menu's.
 fn field_y(o: crate::owners::Owners<'static>) -> Option<i32> {
+    if let Some(y) = crate::input::typed_text::field_y() {
+        return Some(y);
+    }
     let flags = &o.menus.screens.loop_flags;
     let menu = flags.menu.get().ok()?;
     let item = menu.item(&o.menus.tables.menus, flags.item.get()).ok()?;
@@ -133,6 +142,35 @@ pub fn draw(o: crate::owners::Owners<'static>) {
     let left = (SCREEN_W - w) / 2;
     let top = panel_top(field_y(o));
     fill(o, [left, top, w, h], PANEL);
+    // What has been typed, in a box over the keys (stars for a password), its end kept in view.
+    let (typed, secret) = crate::input::typed_text::osk_echo();
+    let box_rect = [
+        left + (w - keys_width()) / 2,
+        top + MARGIN,
+        keys_width(),
+        ECHO_H,
+    ];
+    fill(o, box_rect, ECHO_BOX);
+    let mut shown: Vec<u8> = if secret {
+        vec![b'*'; typed.len()]
+    } else {
+        typed
+    };
+    shown.push(b'_');
+    while shown.len() > 1 && width_of(fonts::LIST, &shown, &mut canvas) > box_rect[2] - 16 {
+        shown.remove(0);
+    }
+    shown.push(0);
+    let echo_y = box_rect[1] + ECHO_H / 2 - 12;
+    if let Err(why) = draw_text_at(
+        fonts::LIST,
+        &shown[..],
+        box_rect[0] + 8,
+        echo_y,
+        &mut canvas,
+    ) {
+        crate::logfile::program_log::log(&format!("osk: echo not drawn: {why:?}"));
+    }
     // The keys sit in the middle of the panel, which is wider than they are when the hints are.
     let keys_left = left + (w - keys_width()) / 2;
     let font = fonts::LIST;
@@ -143,7 +181,7 @@ pub fn draw(o: crate::owners::Owners<'static>) {
         for col in 0..keys {
             let key = osk.key_at(row, col as usize);
             let x = keys_left + col * span;
-            let y = top + MARGIN + row as i32 * CELL_H;
+            let y = top + MARGIN + ECHO_H + ECHO_GAP + row as i32 * CELL_H;
             let lit = (row, col as usize) == (osk.row, osk.col);
             let colour = match (lit, key) {
                 (true, _) => TILE_LIT,

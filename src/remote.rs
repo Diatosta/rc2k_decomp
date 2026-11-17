@@ -143,7 +143,8 @@ fn stick(words: &[&str]) -> Option<String> {
 }
 
 fn scancode(name: &str) -> Option<SDL_Scancode> {
-    sdl_input::scancode_from_name(name)
+    // The commands' words are split at spaces: an underscore stands for one ("Keypad_0").
+    sdl_input::scancode_from_name(&name.replace('_', " "))
 }
 
 fn button(name: &str) -> Option<SDL_GamepadButton> {

@@ -19,9 +19,10 @@ fn direction_names(
 /// The size of a button picture on the page: the picture's square, which the outline nearly
 /// fills.
 const PICTURE: i32 = 32;
-/// Where the pictures go: the bindings' x, and the first row's top, a row down at a time.
+/// Where the pictures go: the bindings' x, and the first row's text y (the picture centres on the
+/// text's capitals), a row down at a time.
 const PICTURE_X: i32 = 0x1B8;
-const PICTURE_Y: i32 = 0xD5 - 6;
+const TEXT_Y: i32 = 0xD5;
 const ROW_STEP: i32 = 0x1B;
 
 /// The picture `row`'s binding is shown as: a button or a hat direction of a controller whose
@@ -176,12 +177,12 @@ pub fn draw_control_bindings(
         learnt,
     )?;
     for (slot, (family, icon)) in pictures {
-        crate::gfx::button_pictures::draw_glyph(
+        crate::gfx::button_hints::draw_beside_text(
             o,
             family,
             icon,
             PICTURE_X,
-            PICTURE_Y + ROW_STEP * slot as i32,
+            TEXT_Y + ROW_STEP * slot as i32,
             PICTURE,
         );
     }

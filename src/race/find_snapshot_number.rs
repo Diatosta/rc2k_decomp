@@ -1,4 +1,4 @@
-//! Finds the highest number of the viewer's pictures (`savedata\snapshot\000.pcx`): the name's
+//! Finds the highest number of the viewer's pictures (`savedata\snapshot\000.png`): the name's
 //! digits are made `???` and searched for (`files::find_first`, `files::find_next_wanted`,
 //! `files::close_search`, the path not resolved, `last_file_path` the pattern); of each name found
 //! whose first three characters are digits the number is taken, and the highest (0 for none) is

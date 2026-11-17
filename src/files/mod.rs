@@ -28,7 +28,6 @@ pub mod swap_missing_extension;
 pub mod write_file;
 
 pub mod write_stream_block;
-pub mod write_stream_byte;
 
 pub use rc2k_core::files::ansi::{ansi_bytes, ansi_text};
 

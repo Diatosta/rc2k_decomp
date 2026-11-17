@@ -44,6 +44,8 @@ const FRAMEBUFFER: u32 = 0x8D40;
 const ARRAY_BUFFER: u32 = 0x8892;
 const DEPTH_TEST: u32 = 0x0B71;
 const BLEND: u32 = 0x0BE2;
+const SRC_ALPHA: u32 = 0x0302;
+const ONE_MINUS_SRC_ALPHA: u32 = 0x0303;
 const CULL_FACE: u32 = 0x0B44;
 const SCISSOR_TEST: u32 = 0x0C11;
 const TRIANGLES: u32 = 4;
@@ -254,7 +256,9 @@ void main() {
     vec4 pixel = texture(canvas, v_uv); // blue first
     uvec4 bytes = uvec4(pixel * 255.0 + 0.5);
     if (bytes == uvec4(0xFF, 0x00, 0xFF, 0xA5)) discard;
-    result = vec4(pixel.bgr, 1.0);
+    // A top byte between 0 and 255 is a translucent white's alpha (a button picture's edge).
+    float alpha = (bytes.a == 0u || bytes.a == 255u) ? 1.0 : pixel.a;
+    result = vec4(pixel.bgr, alpha);
 }
 ";
 /// A whole picture of the game's bytes (blue first).
@@ -1155,7 +1159,10 @@ impl Gpu {
                 gl.bind_texture(TEXTURE_2D, self.canvases[self.canvas_now].texture);
                 let rows = (w.last - w.first + 1) as i32;
                 gl.scissor(0, height - w.last as i32 - 1, width, rows);
+                gl.enable(BLEND);
+                gl.blend_func(SRC_ALPHA, ONE_MINUS_SRC_ALPHA);
                 self.draw_quad(&self.overlay, false);
+                gl.disable(BLEND);
             }
             gl.disable(SCISSOR_TEST);
         }

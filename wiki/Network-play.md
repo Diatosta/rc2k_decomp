@@ -91,6 +91,11 @@ copy its own game folder, or they will share `var` and `savedata`.
 
 - No session listed: check the firewall and the port on the host; over the internet, give the
   host's address rather than leaving it empty (a broadcast does not leave the local network).
+- "The port N is in use by another program." when hosting: another program (often a second copy
+  of this game) already holds that port, TCP or UDP. Close it, or set another port on the network
+  settings page.
+- "Could not start the session" when hosting for another reason: `rc2k.log` says "the session could not be hosted on port N" with the
+  system's reason; every other way the network start ends in a failure message is logged too.
 - The session disappears: the host left or lost its connection.
 - Anything else: both machines' `rc2k.log` say what the network layer saw
   ([Running and options](Running-and-options)).

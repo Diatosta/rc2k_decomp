@@ -89,6 +89,8 @@ pub mod id {
     /// What a joiner is asked at a locked session, and when its answer was wrong.
     pub const PASSWORD_PROMPT: u32 = FIRST + 0xD3;
     pub const PASSWORD_WRONG: u32 = FIRST + 0xD4;
+    /// The answer to hosting on a port another program holds ("{}" is the port's number).
+    pub const PORT_IN_USE: u32 = FIRST + 0xD5;
     /// The lobby's answers to the host's kick command: not the host, no such player, put out,
     /// could not be put out (4 ids).
     pub const KICK_ANSWERS: u32 = FIRST + 0xA0;
@@ -139,6 +141,7 @@ pub const KEYS: &[(&str, u32)] = &[
     ("network.lock_mark", id::LOCK_MARK),
     ("network.password_prompt", id::PASSWORD_PROMPT),
     ("network.password_wrong", id::PASSWORD_WRONG),
+    ("network.port_in_use", id::PORT_IN_USE),
     ("button_icons", id::BUTTON_ICONS),
     ("graphics.frame_limit", id::FRAME_LIMIT),
     ("graphics.no_limit", id::NO_LIMIT),

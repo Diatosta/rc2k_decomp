@@ -681,7 +681,9 @@ fn osk_asks(input: &crate::input::owner::Input, asks: crate::input::typed_text::
         Asks::Done => 0x1C,
         Asks::Cancel => 0x01,
     };
-    if asks != Asks::Backspace {
+    if asks == Asks::Backspace {
+        crate::input::typed_text::osk_erased();
+    } else {
         crate::input::typed_text::osk_close();
     }
     crate::input::take_key::pending_key(input).store(key, std::sync::atomic::Ordering::SeqCst);

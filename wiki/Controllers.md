@@ -25,11 +25,11 @@ Any gamepad SDL recognises works in the menus on every system, with nothing to s
 | Button | Does |
 | --- | --- |
 | D-pad, or the left stick | moves the highlight (held, it repeats) |
-| South button (A on an Xbox pad) | Enter |
+| South button (A on an Xbox pad) | Enter (held, it repeats as a held Enter key does: after about 0.4 s, then every 0.12 s) |
 | East button (B) | Escape / back |
 | West button (X) | the third answer, where a question has three; where a screen waits for any key (the films, a message), it also ends the wait |
-| Left or right shoulder | Tab: the network lobby shows or hides the gaps (in a race they stay the car's controls) |
-| Start | Enter in a menu; in a race, the same as Escape (asks whether to leave) |
+| Left or right shoulder | Tab (repeats when held): the network lobby shows or hides the gaps (in a race they stay the car's controls) |
+| Start | Enter in a menu (repeats when held); in a race, the same as Escape (asks whether to leave) |
 
 A wheel or another joystick that SDL does not know as a gamepad works the menus too: its hat
 moves the highlight like the D-pad (turning the wheel or pressing a pedal moves nothing in the
@@ -45,7 +45,9 @@ language.
 Typing a name (a player's, a saved game's, the network settings and the chat) with a pad shows
 an on-screen keyboard when the field is entered with the pad's confirm: the cross or stick moves
 over the keys, A types one, X deletes, B cancels the field, Start is done. The keyboard sits
-below or above the field, never over it, and has pages of symbols and accented letters. On a system
+below or above the field, never over it (the network settings and the join password question
+tell it where their field is), shows what has been typed on it in a line at the top of its panel
+(stars for a password), and has pages of symbols and accented letters. On a system
 with its own screen keyboard (a phone, a Steam Deck under Steam) that one is shown instead. A
 keyboard typed on closes ours. A hint line at the foot of its panel shows the buttons of the
 controller in use for typing, deleting, cancelling and done, as pictures when the controller's
@@ -170,9 +172,12 @@ The pictures are blended over the screen as white shapes with soft edges (16 and
 the menus and over a race's frame), scaled down from the atlas's 128 px cells to the size drawn
 with an area filter (each pixel the mean of the cell pixels it covers, weighted by how much of
 each it covers) so the circles stay smooth. Where the GPU's own picture shows through a pixel the
-canvas has not written, a pixel is white when the picture's alpha is at least half, else left
-alone, so the pictures that go over a race's frame are drawn on a dark plate (the hints, the
-question). `tools/glyphs/pack.py` makes the atlases in `assets/glyphs/` from the pack's Double
+canvas has not written, the pixel is written white with the picture's alpha in its top byte
+(0 and 255 mean opaque, as for every other pixel) and the renderers' overlay blends it with what
+is under it, so the menus' pictures have the same soft edges without a plate. The pictures that
+go over a race's frame are still drawn on a dark plate (the hints, the question), as a race's
+frame is not the canvas's to blend with. In the menus a picture's outline is centred on the
+capitals of the text beside it (`button_hints::draw_beside_text`). `tools/glyphs/pack.py` makes the atlases in `assets/glyphs/` from the pack's Double
 size; each is a grey PNG of 128 x 128 cells (the alpha) with an index of names and rects.
 
 ### The H shifter

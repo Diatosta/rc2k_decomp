@@ -48,7 +48,7 @@ impl Replay {
                 replay_work: ReplayWork::new(),
                 staging: ReplayStaging::new(),
                 replay_view: ReplayViewBlock::new(),
-                snapshot: PlainBytes::new(*b"savedata\\snapshot\\000.pcx\0"),
+                snapshot: PlainBytes::new(*b"savedata\\snapshot\\000.png\0"),
                 seal_key: PlainDword::new(0),
                 seal_work: SealWork::new(),
             }),

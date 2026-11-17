@@ -101,7 +101,7 @@ pub struct ViewerPanelBlock {
     pub pictures_started_unused: PlainDword,
     /// +0x3bc: the pictures' folder: the text rpl and a NUL (`race::start_frame_pictures`).
     pub picture_folder: PlainDword,
-    /// +0x3c0: the 15-byte picture name rpl\000000.pcx, taken in place; the last 3 bytes
+    /// +0x3c0: the 15-byte picture name rpl\000000.png, taken in place; the last 3 bytes
     /// are not a whole dword (`race::replay_screenshot`).
     pub picture_name: [PlainDword; 3],
     /// +0x3cc: the untyped tail: the viewer's texts and unaligned values, reached through `text`
@@ -180,7 +180,7 @@ pub static VIEWER_PANEL: InGroup = InGroup;
 /// The tail's first bytes at the start: the last bytes of the picture name, the viewer's
 /// settings (`wrreplayenable`, `wrreplayrate`, the picture time), and the texts the network code
 /// logs (`texts`), zero-padded to the tail's length.
-const TAIL_TEXT: &[u8] = b"cx\0\x01\0\0\0d\0\0\0\n\0\0\0Finding 3d hardware\0 dd:\0=\0:\x003d:\0primary card\0secondary card\0VID: Mode for game=\0VID: Mode for main=\0VID: Open ddraw\0VID: Close ddraw\0Getting available video modes\0SVM:\0SVM: OK\0SVM: FAIL\0SDM:\0 SDM return=\0SVM: Release video screens\0SVM: Release all textures\0OpenWindow\0NET: Starting link\0NET: Stopping link\0NET: Lets rally\0NET: Create dplay\0NET: Destroy dplay\0NET: Find connections\0NET: Found\0NET: Init connection index\0NET: Init\0NET: Destroy connection\0NET: DPCA\0NET: Find sessions\0NET: Host\0NET: Open\0NET: Host complete\0NET: Join session\0NET: Join complete\0NET: Disable new players\0NET: Lobby launch detected\0NET: Create dplobby\0NET: Create player";
+const TAIL_TEXT: &[u8] = b"ng\0\x01\0\0\0d\0\0\0\n\0\0\0Finding 3d hardware\0 dd:\0=\0:\x003d:\0primary card\0secondary card\0VID: Mode for game=\0VID: Mode for main=\0VID: Open ddraw\0VID: Close ddraw\0Getting available video modes\0SVM:\0SVM: OK\0SVM: FAIL\0SDM:\0 SDM return=\0SVM: Release video screens\0SVM: Release all textures\0OpenWindow\0NET: Starting link\0NET: Stopping link\0NET: Lets rally\0NET: Create dplay\0NET: Destroy dplay\0NET: Find connections\0NET: Found\0NET: Init connection index\0NET: Init\0NET: Destroy connection\0NET: DPCA\0NET: Find sessions\0NET: Host\0NET: Open\0NET: Host complete\0NET: Join session\0NET: Join complete\0NET: Disable new players\0NET: Lobby launch detected\0NET: Create dplobby\0NET: Create player";
 
 /// The network code's log texts (`texts`): the viewer panel's tail holds them from the start and
 /// nothing writes there (the viewer's three settings stand before them), so the code reads them

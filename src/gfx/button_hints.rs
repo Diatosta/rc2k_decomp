@@ -98,7 +98,7 @@ pub fn draw_line(
     let mut canvas = GameCanvas::new(o.gfx);
     let mut x = left;
     for hint in hints {
-        crate::gfx::button_pictures::draw_glyph(o, family, hint.icon, x, top, SIZE);
+        draw_beside_text(o, family, hint.icon, x, top + SIZE / 2 - TEXT_UP, SIZE);
         x += SIZE + BESIDE;
         let mut text = hint.word.clone();
         text.push(0);
@@ -111,4 +111,42 @@ pub fn draw_line(
         );
         x += width_of(fonts::LIST, &hint.word, &mut canvas) + BETWEEN;
     }
+}
+
+/// The rows below the line's top that `text`'s first letter covers in `font`: (the first, how many).
+pub fn capital_rows(
+    font: &rc2k_core::strings::text::Font,
+    text: &[u8],
+    canvas: &crate::text::draw_text::GameCanvas,
+) -> Option<(i32, i32)> {
+    let c = *text.iter().find(|&&c| c > b' ')?;
+    if c < font.first_char || c > font.last_char {
+        return None;
+    }
+    let glyphs =
+        crate::gfx::glyph_store::bytes(canvas.fonts(), font.glyph_table, "the question's font")
+            .ok()?;
+    let (blank, rows) =
+        rc2k_core::strings::text::ink_rows(&glyphs, u32::from(c - font.first_char)).ok()?;
+    (rows > 0).then_some((font.y_offset + blank, rows))
+}
+
+/// Picture `icon` drawn in a cell `size` high with its outline centred on the capitals of a
+/// text drawn in the menus' list font with its y at `text_y`, its left at `x`. The surface must
+/// be locked.
+pub fn draw_beside_text(
+    o: crate::owners::Owners<'static>,
+    family: Family,
+    icon: Icon,
+    x: i32,
+    text_y: i32,
+    size: i32,
+) -> bool {
+    let canvas = GameCanvas::new(o.gfx);
+    let font = fonts::LIST.object(canvas.typefaces()).get();
+    let middle = capital_rows(&font, b"H", &canvas)
+        .map_or(text_y + size / 2, |(top, rows)| text_y + top + rows / 2);
+    let (from, to) = crate::gfx::button_pictures::outline_rows(family, icon).unwrap_or((0.0, 1.0));
+    let top = middle - (size as f32 * (from + to) / 2.0).round() as i32;
+    crate::gfx::button_pictures::draw_glyph(o, family, icon, x, top, size)
 }

@@ -8,7 +8,7 @@ pub struct Shots {
     pub on: PlainDword,
     /// The lock a screenshot holds.
     pub locked_here: PlainDword,
-    /// The screenshot file's name, "000.pcx" and its NUL (the number's three digits are counted up
+    /// The screenshot file's name, "000.png" and its NUL (the number's three digits are counted up
     /// for each file).
     pub name: PlainBytes<8>,
 }
@@ -18,7 +18,7 @@ impl Shots {
         Shots {
             on: PlainDword::new(0),
             locked_here: PlainDword::new(0),
-            name: PlainBytes::new(*b"000.pcx\0"),
+            name: PlainBytes::new(*b"000.png\0"),
         }
     }
 }

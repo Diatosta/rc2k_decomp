@@ -82,7 +82,7 @@ pub enum StickAxis {
 
 #[derive(Default)]
 pub struct MenuPad {
-    /// The direction held and when it next repeats.
+    /// The button held (a direction, Enter or Tab) and when it next repeats.
     held: Option<(PadButton, u64)>,
     /// When START's Escape is let go.
     leave_until: Option<u64>,
@@ -121,15 +121,24 @@ impl MenuPad {
             return None;
         }
         Some(match button {
-            PadButton::South => MenuAction::Enter,
+            PadButton::South => {
+                self.held = Some((button, now + REPEAT_AFTER));
+                MenuAction::Enter
+            }
             PadButton::East => MenuAction::Back,
             PadButton::West => MenuAction::Third,
-            PadButton::LeftShoulder | PadButton::RightShoulder => MenuAction::Tab,
+            PadButton::LeftShoulder | PadButton::RightShoulder => {
+                self.held = Some((button, now + REPEAT_AFTER));
+                MenuAction::Tab
+            }
             PadButton::Start if in_race => {
                 self.leave_until = Some(now + LEAVE_HOLD);
                 MenuAction::LeaveRace
             }
-            PadButton::Start => MenuAction::Enter,
+            PadButton::Start => {
+                self.held = Some((button, now + REPEAT_AFTER));
+                MenuAction::Enter
+            }
             direction => {
                 self.held = Some((direction, now + REPEAT_AFTER));
                 direction_of(direction)?
@@ -201,7 +210,17 @@ impl MenuPad {
             return None;
         }
         self.held = Some((button, now + REPEAT_EVERY));
-        direction_of(button)
+        repeat_of(button)
+    }
+}
+
+/// What a held button repeats: the directions, Enter (the south button and Start in a menu,
+/// as a held Enter key repeats) and Tab; Back and the third answer do not.
+fn repeat_of(button: PadButton) -> Option<MenuAction> {
+    match button {
+        PadButton::South | PadButton::Start => Some(MenuAction::Enter),
+        PadButton::LeftShoulder | PadButton::RightShoulder => Some(MenuAction::Tab),
+        _ => direction_of(button),
     }
 }
 
@@ -235,6 +254,23 @@ mod tests {
             Some(MenuAction::Enter)
         );
         assert_eq!(p.button(PadButton::South, false, false, 0), None);
+    }
+
+    #[test]
+    fn a_held_enter_repeats_as_the_key_does() {
+        let mut p = MenuPad::default();
+        assert_eq!(
+            p.button(PadButton::South, true, false, 0),
+            Some(MenuAction::Enter)
+        );
+        assert_eq!(p.tick(399), None);
+        assert_eq!(p.tick(400), Some(MenuAction::Enter));
+        assert_eq!(p.tick(520), Some(MenuAction::Enter));
+        assert_eq!(p.button(PadButton::South, false, false, 530), None);
+        assert_eq!(p.tick(5000), None);
+        // Back does not repeat.
+        p.button(PadButton::East, true, false, 6000);
+        assert_eq!(p.tick(7000), None);
     }
 
     #[test]

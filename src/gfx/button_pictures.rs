@@ -4,7 +4,8 @@
 //! (16 and 32 bits). It writes to the canvas on both renderers: the GPU path draws the quads
 //! noted so far onto the canvas before a canvas write, so the order stays right, and the
 //! pictures lie over everything drawn before them. Where the GPU's own picture shows through (a
-//! canvas pixel nothing has written) a pixel is white or left alone, by a threshold on the alpha.
+//! canvas pixel nothing has written) a pixel is written white with the picture's alpha in the
+//! pixel's top byte, which the renderers' overlay blends with what is under it.
 
 use rc2k_core::input::icons::{Family, Icon, parse_index};
 use std::collections::HashMap;
@@ -244,13 +245,20 @@ pub fn draw_glyph(
             }
             if bytes == 4 {
                 let p = u32::from_le_bytes([pixel[0], pixel[1], pixel[2], pixel[3]]);
-                // Under a pixel nothing has written the GPU's own picture shows, which cannot
-                // be blended with: the pixel is white when the picture is mostly there, else
-                // left alone.
+                // Under a pixel nothing has written the GPU's own picture shows, which the CPU
+                // cannot blend with: the pixel is white carrying the alpha, for the overlay to
+                // blend (a fully covered pixel has the top byte 0, as every opaque one).
                 if p == rc2k_core::gfx::atlas::UNWRITTEN_PIXEL {
-                    if a >= 128 {
-                        pixel.copy_from_slice(&0x00FF_FFFFu32.to_le_bytes());
-                    }
+                    let top = if a == 255 { 0 } else { u32::from(a) << 24 };
+                    pixel.copy_from_slice(&(0x00FF_FFFF | top).to_le_bytes());
+                    continue;
+                }
+                // White over a translucent white of an earlier picture: the alphas combine.
+                if (1..255).contains(&(p >> 24)) {
+                    let (under, over) = (p >> 24, u32::from(a));
+                    let both = over + under * (255 - over) / 255;
+                    let top = if both >= 255 { 0 } else { both << 24 };
+                    pixel.copy_from_slice(&(0x00FF_FFFF | top).to_le_bytes());
                     continue;
                 }
                 pixel.copy_from_slice(&blend_32(p, a).to_le_bytes());

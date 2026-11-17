@@ -27,7 +27,7 @@ Words such as "stage", "block" and "step" are defined in the [Glossary](Glossary
 | [Replay files](Replay-files) | `var/tmprpl`, `savedata/replay/replayNN`, `files/replay/replayNN` | The recording of a race. |
 | [Saved games](Saved-games) | `savedata/savegame/svgameNN` | A championship in progress. |
 | [Car set-ups](Car-setups) | `savedata/carsetup/carsetNN` | A saved car set-up. |
-| [Screenshots](Screenshots) | `savedata/snapshot/NNN.pcx`, `NNN.pcx` in the game's folder | Pictures taken in the replay viewer and in a race. |
+| [Screenshots](Screenshots) | `savedata/snapshot/NNN.png`, `NNN.png` in the game's folder | Pictures (PNG) taken in the replay viewer and in a race. |
 | [Options files](Options-files) | `var/rc2k.toml`, `var/ral.dat` | The player's options: this version's file and the original's. |
 | [Best times](Best-times) | `var/hst.dat` | Best times and scores. |
 | [Settings files](Settings-files) | `var/ral.cfg`, `var/name.cfg` | Switches as `key=value` lines; the computer drivers' names. |

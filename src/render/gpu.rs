@@ -399,9 +399,20 @@ impl Gpu {
     ) -> Result<Pipeline, String> {
         let spec = PipelineSpec {
             vertices: None,
+            // Translucent pixels (a button picture's edge, `overlay.frag`) blend with the target;
+            // opaque ones have alpha 1 and replace it.
             colour: SDL_GPUColorTargetDescription {
                 format: COLOUR_FORMAT,
-                ..Default::default()
+                blend_state: SDL_GPUColorTargetBlendState {
+                    enable_blend: true,
+                    src_color_blendfactor: SDL_GPU_BLENDFACTOR_SRC_ALPHA,
+                    dst_color_blendfactor: SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+                    color_blend_op: SDL_GPU_BLENDOP_ADD,
+                    src_alpha_blendfactor: SDL_GPU_BLENDFACTOR_ONE,
+                    dst_alpha_blendfactor: SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+                    alpha_blend_op: SDL_GPU_BLENDOP_ADD,
+                    ..Default::default()
+                },
             },
             rasterizer: SDL_GPURasterizerState::default(),
             depth: None,

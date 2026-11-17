@@ -29,7 +29,7 @@ glyph tables, the pixel formats. It also holds the 3D layer's state (`Gfx::d3d`,
 | `Target` | `src/gfx/surface.rs` | What is being drawn on: the screen, a texture, or the picture buffer. |
 | `set_clip` | `src/gfx/set_clip.rs` | Sets the rectangle drawing is kept inside. |
 | `try_screen_mode` | `src/gfx/try_screen_mode.rs` | Tries a screen mode and falls back if it cannot be set. |
-| `take_screenshot`, `write_screen_pcx` | files of the same names | Writes the screen as a PCX file. |
+| `take_screenshot`, `write_screen_pcx` | files of the same names | Writes the screen as a PNG file. |
 | `load_jade` | `src/gfx/load_jade.rs` | Loads the small font the fatal-error screen uses. |
 
 ## How it is laid out

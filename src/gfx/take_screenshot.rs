@@ -1,4 +1,4 @@
-//! `gfx::take_screenshot`: with screenshots on, the screen saved as `000.pcx` and on: the surface
+//! `gfx::take_screenshot`: with screenshots on, the screen saved as `000.png` and on: the surface
 //! locked unless it is (`gfx::lock_surface`; a failed lock ends it; `locked_here` 1 while it is
 //! this function's lock), written (`gfx::write_screen_pcx`), unlocked again if it was locked here
 //! (`gfx::unlock_surface`), `locked_here` 0. The lock and unlock (the platform's) and the writer

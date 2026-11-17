@@ -238,6 +238,28 @@ def build():
         os.replace(GAME + '/rc2k.new', GAME + '/rc2k')
 
 
+def set_network_port(path, port):
+    """Sets `port` in the [network] section of the options file at `path` (added if missing)."""
+    import re
+    if not os.path.exists(path):
+        # A partial options file would replace the copied var's settings with defaults: leave it.
+        print(f'RC2K_REMOTE_NET_PORT ignored: no {path} yet')
+        return
+    text = open(path).read()
+    head = re.search(r'(?m)^\[network\]\n', text)
+    if not head:
+        text += f'\n[network]\nport = {port}\n'
+    else:
+        end = re.search(r'(?m)^\[', text[head.end():])
+        section = text[head.end():head.end() + end.start()] if end else text[head.end():]
+        if re.search(r'(?m)^port = ', section):
+            section = re.sub(r'(?m)^port = .*$', f'port = {port}', section, count=1)
+        else:
+            section = f'port = {port}\n' + section
+        text = text[:head.end()] + section + (text[head.end() + end.start():] if end else '')
+    open(path, 'w').write(text)
+
+
 def start(software, fresh, profile=False, game_args=()):
     renderer = 'RC2K_RENDERER=software ' if software else ''
     if os.environ.get('RC2K_FAIL_RENDERER'):  # start-up steps made to fail, to test the fallbacks
@@ -289,6 +311,10 @@ def start(software, fresh, profile=False, game_args=()):
                 shutil.rmtree(f'{GAME}/{part}', ignore_errors=True)
             if not os.path.exists(f'{GAME}/{part}'):
                 shutil.copytree(f'{INSTALLED}/{part}', f'{GAME}/{part}')
+        # A network port of the copy's own (RC2K_REMOTE_NET_PORT), so a test host never takes the
+        # port of a game the player runs at the same time.
+        if os.environ.get('RC2K_REMOTE_NET_PORT'):
+            set_network_port(f'{GAME}/var/rc2k.toml', int(os.environ['RC2K_REMOTE_NET_PORT']))
         env = dict(os.environ, RC2K_REMOTE=FOLDER)
         if software:
             env['RC2K_RENDERER'] = 'software'

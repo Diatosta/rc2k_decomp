@@ -116,6 +116,49 @@ pub fn send_level(room: &Room, weight: f32) -> f32 {
     room.volume.clamp(0.0, 1.0) * WET_LEVEL * share * weight / (weight + WEIGHT_HALF)
 }
 
+/// The room under cover: a tunnel's long, bright, clear echo.
+pub const TUNNEL_ROOM: Room = Room {
+    environment: 0,
+    volume: 1.0,
+    decay: 2.4,
+    damping: 0.2,
+};
+/// How much of a sound a view under full cover sends (the dry sound is 1.0).
+const TUNNEL_SEND: f32 = 1.6;
+
+/// The room a view hears: `open` with no cover, `TUNNEL_ROOM` under full cover, the numbers
+/// between in proportion (`cover`, 0.0 ..= 1.0).
+pub fn room_under_cover(open: &Room, cover: f32) -> Room {
+    let c = if cover.is_finite() {
+        cover.clamp(0.0, 1.0)
+    } else {
+        0.0
+    };
+    let mix = |a: f32, b: f32| a + (b - a) * c;
+    Room {
+        environment: open.environment,
+        volume: mix(open.volume, TUNNEL_ROOM.volume),
+        decay: mix(open.decay, TUNNEL_ROOM.decay),
+        damping: mix(open.damping, TUNNEL_ROOM.damping),
+    }
+}
+
+/// How much of a sound goes to the reverb for a view with `cover` over it: `send_level` in the
+/// open, `TUNNEL_SEND` (less for the weight of an unenclosed place) under full cover.
+pub fn send_level_covered(room: &Room, weight: f32, cover: f32) -> f32 {
+    let open = send_level(room, weight);
+    if !weight.is_finite() || weight <= 0.0 || room.volume <= 0.0 {
+        return open;
+    }
+    let c = if cover.is_finite() {
+        cover.clamp(0.0, 1.0)
+    } else {
+        0.0
+    };
+    let tunnel = TUNNEL_SEND * weight / (weight + WEIGHT_HALF);
+    open + (tunnel.max(open) - open) * c
+}
+
 /// Freeverb's tunings, in samples at 44100 Hz.
 const COMB_LENGTHS: [usize; 8] = [1116, 1188, 1277, 1356, 1422, 1491, 1557, 1617];
 const ALLPASS_LENGTHS: [usize; 4] = [556, 441, 341, 225];
@@ -335,6 +378,24 @@ mod tests {
         };
         let (d, b) = (roughness(&dark), roughness(&bright));
         assert!(d < b * 0.5, "{d} against {b}");
+    }
+
+    #[test]
+    fn cover_changes_the_room_and_the_send_smoothly() {
+        let open = &ROOMS[RACE_ROOM];
+        assert_eq!(room_under_cover(open, 0.0), *open);
+        assert_eq!(room_under_cover(open, 1.0).decay, TUNNEL_ROOM.decay);
+        let half = room_under_cover(open, 0.5);
+        assert!(open.decay < half.decay && half.decay < TUNNEL_ROOM.decay);
+        let (a, b, c) = (
+            send_level_covered(open, 30.0, 0.0),
+            send_level_covered(open, 30.0, 0.5),
+            send_level_covered(open, 30.0, 1.0),
+        );
+        assert_eq!(a, send_level(open, 30.0));
+        assert!(a < b && b < c && c <= TUNNEL_SEND);
+        assert!(c > a * 4.0);
+        assert_eq!(send_level_covered(open, 0.0, 1.0), 0.0);
     }
 
     #[test]

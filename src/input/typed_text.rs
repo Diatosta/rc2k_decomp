@@ -30,6 +30,12 @@ struct State {
     /// The last menu confirmation came from a controller.
     confirmed_by_pad: bool,
     osk: Option<Osk>,
+    /// What the on-screen keyboard typed into the field since it opened, shown in its panel.
+    echo: Vec<u8>,
+    /// When a field last asked for its text to be shown as stars.
+    secret_at: Option<Instant>,
+    /// Where a field that is not a menu's item was last drawn (its y), and when.
+    field_at: Option<(Instant, i32)>,
 }
 
 fn state() -> std::sync::MutexGuard<'static, State> {
@@ -39,6 +45,9 @@ fn state() -> std::sync::MutexGuard<'static, State> {
         queue: VecDeque::new(),
         confirmed_by_pad: false,
         osk: None,
+        echo: Vec::new(),
+        secret_at: None,
+        field_at: None,
     });
     STATE
         .lock()
@@ -100,6 +109,7 @@ pub fn sync(screen_keyboard: impl FnOnce() -> bool) -> Option<bool> {
     st.active = wanted;
     st.queue.clear();
     st.osk = (wanted && st.confirmed_by_pad && !screen_keyboard()).then(Osk::default);
+    st.echo.clear();
     Some(wanted)
 }
 
@@ -111,6 +121,38 @@ pub fn text_mode() -> bool {
 /// The on-screen keyboard, if shown.
 pub fn osk() -> Option<Osk> {
     state().osk
+}
+
+/// A field that is not a menu's item says where it is drawn (its top y on the 800x600 screen),
+/// each frame it is edited, so the on-screen keyboard keeps off it.
+pub fn note_field_y(y: i32) {
+    state().field_at = Some((Instant::now(), y));
+}
+
+/// A field says, each frame it is edited, that its text is shown as stars: the keyboard's echo
+/// of it is too.
+pub fn note_secret() {
+    state().secret_at = Some(Instant::now());
+}
+
+/// Where the field being edited is, if it said so lately.
+pub fn field_y() -> Option<i32> {
+    state()
+        .field_at
+        .filter(|(at, _)| at.elapsed() < FIELD_GRACE)
+        .map(|(_, y)| y)
+}
+
+/// What the on-screen keyboard has typed into the field, and whether to show it as stars.
+pub fn osk_echo() -> (Vec<u8>, bool) {
+    let st = state();
+    let secret = st.secret_at.is_some_and(|at| at.elapsed() < FIELD_GRACE);
+    (st.echo.clone(), secret)
+}
+
+/// A character of the keyboard's was deleted.
+pub fn osk_erased() {
+    state().echo.pop();
 }
 
 /// What the on-screen keyboard asks of the game after a move or press.
@@ -146,6 +188,7 @@ pub fn osk_press() -> Option<Asks> {
         Press::Type(c) => {
             if st.queue.len() < QUEUE_MOST {
                 st.queue.push_back(c);
+                st.echo.push(c);
             }
             Asks::Nothing
         }
@@ -174,6 +217,15 @@ mod tests {
         assert!(osk().is_some());
         assert!(osk_step(1, 0));
         assert_eq!(osk_press(), Some(Asks::Nothing));
+        // what the keyboard typed is echoed, and a deleted character leaves it
+        assert_eq!(osk_echo().0, [b'2']);
+        osk_erased();
+        assert!(osk_echo().0.is_empty());
+        note_field_y(300);
+        assert_eq!(field_y(), Some(300));
+        assert!(!osk_echo().1);
+        note_secret();
+        assert!(osk_echo().1);
         typed_by_keyboard("a\u{3B1}\u{e7}");
         assert!(osk().is_none());
         let t = take();

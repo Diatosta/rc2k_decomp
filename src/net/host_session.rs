@@ -38,6 +38,7 @@ pub fn host_session(o: crate::owners::Owners<'static>, lines: &NetTexts) -> Resu
     log_bytes(&lines.text(texts::NET_HOST), false, 2);
     log_bytes(&net.setup().machine_name.read(), true, 2);
     if !net.link.has_dplay() {
+        crate::logfile::program_log::log("net: no connection object to host with");
         return Ok(false);
     }
     net.joined().joined.write(&[0; 16]);
@@ -83,10 +84,18 @@ pub fn finish(
     log_hex(result, true);
     crate::system::restore_window::restore_window();
     if result != 0 {
+        crate::logfile::program_log::log(&format!(
+            "net: the session could not be opened (error {result:#x})"
+        ));
         return Ok(false);
     }
     net.link.mark_session_open();
-    if !crate::net::create_player::create_player(net, lines)? || !then(&net.link)? {
+    if !crate::net::create_player::create_player(net, lines)? {
+        crate::logfile::program_log::log("net: the own player could not be made in the session");
+        return Ok(false);
+    }
+    if !then(&net.link)? {
+        crate::logfile::program_log::log("net: the group could not be made or joined");
         return Ok(false);
     }
     log_bytes(&lines.text(done), true, 2);

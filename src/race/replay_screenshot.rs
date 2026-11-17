@@ -3,7 +3,7 @@
 //! 0x28 and cleared by `race::stop_frame_pictures`; the "recording" is of pictures, not of the
 //! replay), saves the frame as a picture. The clock is started at the first
 //! (`PICTURE_CLOCK.started` 1, `PICTURE_CLOCK.clock` the tick count); the six digits of the name
-//! `rpl\000000.pcx` count one more (each past '9' back to '0' and the one before raised; all six
+//! `rpl\000000.png` count one more (each past '9' back to '0' and the one before raised; all six
 //! at most); the name is set as
 //! `Picture.name` while the surface is locked, the picture is written (`gfx::write_screen_pcx`)
 //! and the surface unlocked (`gfx::unlock_surface`), then `Picture.name` is put back; the clock

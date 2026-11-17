@@ -28,6 +28,8 @@ fn frame(o: crate::owners::Owners<'static>, question: u32) -> Result<(), Refused
         0x12C,
         o.gfx,
     )?;
+    crate::input::typed_text::note_field_y(0x16A);
+    crate::input::typed_text::note_secret();
     let typed = o.net.settings().most_players_text.read();
     let length = typed.iter().position(|&b| b == 0).unwrap_or(typed.len());
     let mut shown = vec![b'*'; length];

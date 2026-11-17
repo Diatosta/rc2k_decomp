@@ -1,5 +1,5 @@
 //! `race::viewer_snapshot`: saves the viewer's frame as a picture. The three digits of
-//! `savedata\snapshot\000.pcx` go up by one (999 rounds to 000; the number is found by
+//! `savedata\snapshot\000.png` go up by one (999 rounds to 000; the number is found by
 //! `race::find_snapshot_number`), and the name is used as `Picture.name` while the surface is
 //! locked (`gfx::lock_surface`; if that fails, nothing is saved), written
 //! (`gfx::write_screen_pcx`) and unlocked (`gfx::unlock_surface`); `Picture.name` is put back.

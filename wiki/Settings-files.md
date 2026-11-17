@@ -46,7 +46,7 @@ The switches most often wanted:
 | Key | Effect |
 | --- | --- |
 | `logfile` | How much the game writes to `var/logfile.txt`: 0 nothing, 1 the main messages (the default), 2 or more everything. See [Log files](Log-files). |
-| `screensnapshot` | 1 turns the screenshot key on. See [Screenshots](Screenshots). |
+| `screensnapshot` | 1 turns the screenshot key on (the pictures are PNG files). See [Screenshots](Screenshots). |
 | `framecounter` | 1 shows the frame rate in races. |
 | `noreplay` | 1 stops the game recording a replay of each race. |
 | `replaykeys` | 1 turns on the replay viewer's editing keys. |
