@@ -136,6 +136,10 @@ pub struct Display {
     /// Off, a frame shows the last tick, at most a hundred a second.
     #[serde(default = "on", skip_serializing_if = "is_on")]
     pub smooth_frames: bool,
+    /// The single rally's three- and four-player items race all the players together on a split
+    /// screen, in place of one after another (only in the new file; off when missing).
+    #[serde(default, skip_serializing_if = "is_off")]
+    pub split_many: bool,
 }
 
 fn on() -> bool {
@@ -144,6 +148,10 @@ fn on() -> bool {
 
 fn is_on(value: &bool) -> bool {
     *value
+}
+
+fn is_off(value: &bool) -> bool {
+    !*value
 }
 
 impl Default for Display {
@@ -163,6 +171,7 @@ impl Default for Display {
             draw_threads: None,
             quit_pictures: true,
             smooth_frames: true,
+            split_many: false,
         }
     }
 }

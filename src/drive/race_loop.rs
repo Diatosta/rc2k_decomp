@@ -84,16 +84,20 @@ fn put_answer(race: &Race, net: &crate::net::owner::Net, answer: u32) -> Result<
         net_player_car(net_race, shared)?.stop_state.set(answer);
         return Ok(());
     }
-    race.car_blocks().cars[0].stop_state.set(answer);
-    race.car_blocks().cars[1].stop_state.set(answer);
-    if shared.view.get().players.get() != 2 {
+    let players = shared.view.get().players.get();
+    let seats = crate::race::race_cars::seats(race);
+    for car in 0..seats {
+        race.car_blocks().cars[car].stop_state.set(answer);
+    }
+    // One player's race (and no race of more than four) stays as asked; a car that has
+    // finished keeps its finish.
+    if !(2..=4).contains(&players) {
         return Ok(());
     }
-    if race.car_blocks().cars[0].finish_flag.get() != 0 {
-        race.car_blocks().cars[0].stop_state.set(2);
-    }
-    if race.car_blocks().cars[1].finish_flag.get() != 0 {
-        race.car_blocks().cars[1].stop_state.set(2);
+    for car in 0..seats {
+        if race.car_blocks().cars[car].finish_flag.get() != 0 {
+            race.car_blocks().cars[car].stop_state.set(2);
+        }
     }
     Ok(())
 }

@@ -132,6 +132,10 @@ full_screen = "full screen"
 borderless = "borderless"
 custom = "custom"
 
+# The replay viewer's row that renders the replay to a video file.
+[viewer]
+render_video = "render to video"
+
 # The network lobby.
 [lobby]
 save_replay = "save replay"
@@ -154,6 +158,7 @@ music = "music (next start)"
 force_feedback = "force feedback (next start)"
 quit_pictures = "buttons in the quit question"
 smooth_frames = "smooth frames"
+split_many = "3 and 4 players together"
 gpu = "GPU"
 software = "software"
 gles = "OpenGL ES"

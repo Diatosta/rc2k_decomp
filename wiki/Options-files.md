@@ -127,6 +127,7 @@ each, written in decimal in the file; to read one, turn it into hexadecimal (`32
 | `window_mode` | The graphics page's "screen" row (Alt+Enter toggles between a window and full screen): `"window"` (the default, left out), `"fullscreen"` (the display set to the mode nearest the race's size) or `"borderless"` (over the whole desktop without a mode change, the frame shown scaled in it, its shape kept). |
 | `hud_box` | The graphics page's "HUD area": the box, centred on the screen, the HUD's pieces keep to: `"4:3"`, `"16:9"` or `"21:9"` (never wider than the screen). Left out for the whole screen, the default. The 3D always fills the screen. |
 | `smooth_frames` | The advanced page's "smooth frames" switch: on (the default), the race's frames between two of the simulation's ticks are drawn blended between the last two, so a display faster than 100 Hz shows motion in every frame (the picture is up to a tick, 10 ms, behind the simulation); `false` draws the last tick as it is and holds the frames to 100 a second at most. Left out when on. |
+| `split_many` | The advanced page's "3 and 4 players together" switch: on, the single rally's three- and four-player items race all their players together on a split screen (each with the controls of that player's record; for now the screen draws players 1 and 2 only), where the original has the players race one after another; `false` (the default) keeps the original's. Left out when off. |
 
 ### Sound
 

@@ -34,7 +34,7 @@ pub fn tick_count(picture_clock: &PictureClock) -> u32 {
         return held;
     }
     // The original asks Windows first in both cases.
-    let now = crate::platform::os::ticks();
+    let now = crate::platform::os::ticks().wrapping_add(crate::video::clock_offset());
     rc2k_core::system::time::clock(now, picture_clock.started.get(), || {
         picture_clock.clock.get()
     })

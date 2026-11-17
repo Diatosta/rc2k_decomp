@@ -134,8 +134,8 @@ mod tests {
     fn a_flat_picture_gives_a_darker_flat_wash_of_a_sixteenth_the_window() {
         let wash = make(&flat(800, 600, [200, 100, 40, 0]), (800, 600), (1920, 1080)).unwrap();
         assert_eq!((wash.width, wash.height), (120, 68));
-        for pixel in wash.pixels.chunks_exact(4) {
-            assert_eq!(pixel, [150, 75, 30, 0]);
+        for pixel in wash.pixels.as_chunks::<4>().0 {
+            assert_eq!(*pixel, [150, 75, 30, 0]);
         }
     }
 
@@ -143,7 +143,7 @@ mod tests {
     fn the_wash_follows_the_picture_and_is_blurred() {
         // Left half white, right half black.
         let mut picture = vec![0u8; 800 * 600 * 4];
-        for row in picture.chunks_exact_mut(800 * 4) {
+        for row in picture.as_chunks_mut::<{ 800 * 4 }>().0 {
             row[..400 * 4].fill(255);
         }
         let wash = make(&picture, (800, 600), (1600, 1200)).unwrap();
@@ -161,7 +161,12 @@ mod tests {
     fn a_wide_window_crops_the_picture_to_its_shape() {
         // Rows of the top and bottom quarters differ from the middle.
         let mut picture = vec![0u8; 800 * 600 * 4];
-        for (y, row) in picture.chunks_exact_mut(800 * 4).enumerate() {
+        for (y, row) in picture
+            .as_chunks_mut::<{ 800 * 4 }>()
+            .0
+            .iter_mut()
+            .enumerate()
+        {
             if (150..450).contains(&y) {
                 row.fill(255);
             }

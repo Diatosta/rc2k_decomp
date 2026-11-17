@@ -101,6 +101,8 @@ pub enum CommandStep {
     Reading(usize, bool),
     /// Player 2's controller made none when it is player 1's.
     SecondApart,
+    /// Player `n`'s (3 or 4) controller made none when an earlier player has it.
+    ApartFrom(usize),
     BeginEffects,
 }
 
@@ -108,34 +110,47 @@ pub enum CommandStep {
 /// again; 2 (the race's end) turns the effects off and ends them, waits a tick, gives both devices
 /// back and stops reading them; 3 (the race's start) sets up and reads device 0, device 1 too
 /// unless one player is on one device, begins the effects, waits a tick and
-/// turns them on. Refused: a device past 1 for 1.
+/// turns them on. Refused: a device past 1 for 1 (past 3 with `players` of more than two).
+/// `players` is the race's players: the third and fourth (a larger split screen) have devices 2
+/// and 3, set up and given back like the others.
 pub fn command_steps(
     command: u8,
     device: u8,
     two_devices: u32,
     one_player: u32,
+    players: u32,
 ) -> Result<Vec<CommandStep>, Invalid> {
     use CommandStep::*;
     Ok(match command {
         1 => {
-            if device > 1 {
-                return Err(Invalid("a device past 1"));
+            let last = if players > 2 { 3 } else { 1 };
+            if device > last {
+                return Err(Invalid("a device past the race's players"));
             }
             vec![Release(device as usize), Acquire(device as usize)]
         }
-        2 => vec![
-            EffectsOn(false),
-            EndEffects,
-            Tick,
-            Release(0),
-            Reading(0, false),
-            Release(1),
-            Reading(1, false),
-        ],
+        2 => {
+            let mut v = vec![
+                EffectsOn(false),
+                EndEffects,
+                Tick,
+                Release(0),
+                Reading(0, false),
+                Release(1),
+                Reading(1, false),
+            ];
+            for n in 2..players.min(4) as usize {
+                v.extend([Release(n), Reading(n, false)]);
+            }
+            v
+        }
         3 => {
             let mut v = vec![SetUp(0), Reading(0, true)];
             if two_devices != 0 || one_player != 1 {
                 v.extend([SecondApart, SetUp(1), Reading(1, true)]);
+            }
+            for n in 2..players.min(4) as usize {
+                v.extend([ApartFrom(n), SetUp(n), Reading(n, true)]);
             }
             v.extend([BeginEffects, Tick, EffectsOn(true)]);
             v
@@ -170,10 +185,15 @@ mod tests {
 
     #[test]
     fn commands() {
-        assert!(command_steps(1, 2, 0, 0).is_err());
-        assert_eq!(command_steps(3, 0, 0, 1).unwrap().len(), 5);
-        assert_eq!(command_steps(3, 0, 1, 1).unwrap().len(), 8);
-        assert!(command_steps(9, 0, 0, 0).unwrap().is_empty());
+        assert!(command_steps(1, 2, 0, 0, 2).is_err());
+        assert!(command_steps(1, 2, 0, 0, 3).is_ok());
+        assert!(command_steps(1, 4, 0, 0, 4).is_err());
+        assert_eq!(command_steps(3, 0, 0, 1, 1).unwrap().len(), 5);
+        assert_eq!(command_steps(3, 0, 1, 1, 2).unwrap().len(), 8);
+        // Players 3 and 4: each apart from the earlier ones, set up and read.
+        assert_eq!(command_steps(3, 0, 1, 2, 4).unwrap().len(), 8 + 6);
+        assert_eq!(command_steps(2, 0, 0, 2, 4).unwrap().len(), 7 + 4);
+        assert!(command_steps(9, 0, 0, 0, 1).unwrap().is_empty());
     }
 
     #[test]

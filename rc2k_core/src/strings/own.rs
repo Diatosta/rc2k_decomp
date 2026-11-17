@@ -111,6 +111,8 @@ pub mod id {
     pub const HALF: u32 = FIRST + 0xCC;
     /// The advanced page's row for frames drawn between the ticks.
     pub const SMOOTH_FRAMES: u32 = FIRST + 0xB9;
+    /// The advanced page's row for the three- and four-player events on one split screen.
+    pub const SPLIT_MANY: u32 = FIRST + 0xBB;
     /// The graphics page's 3D resolution row.
     pub const RENDER_SCALE: u32 = FIRST + 0xE8;
     /// The advanced page: its name (also the options menu's item), then the rows' names in
@@ -126,6 +128,8 @@ pub mod id {
     pub const APPLY: u32 = FIRST + 0xB8;
     /// The network lobby's button that saves the last race's replay.
     pub const SAVE_REPLAY: u32 = FIRST + 0xF8;
+    /// The replay viewer's row that renders the replay to a video.
+    pub const RENDER_VIDEO: u32 = FIRST + 0xF1;
     /// The network lobby's button that opens the in-race options.
     pub const LOBBY_SETTINGS: u32 = FIRST + 0xD8;
     /// The message shown when a replay could not be saved.
@@ -177,6 +181,7 @@ pub const KEYS: &[(&str, u32)] = &[
     ("graphics.frames_a_second", id::FRAMES_A_SECOND),
     ("graphics.half", id::HALF),
     ("advanced.smooth_frames", id::SMOOTH_FRAMES),
+    ("advanced.split_many", id::SPLIT_MANY),
     ("graphics.render_scale", id::RENDER_SCALE),
     ("graphics.hud_box", id::HUD_BOX),
     ("graphics.window_mode", id::WINDOW_MODE),
@@ -184,6 +189,7 @@ pub const KEYS: &[(&str, u32)] = &[
     ("graphics.full_screen", id::FULL_SCREEN),
     ("graphics.borderless", id::BORDERLESS),
     ("graphics.custom", id::CUSTOM),
+    ("viewer.render_video", id::RENDER_VIDEO),
     ("lobby.save_replay", id::SAVE_REPLAY),
     ("lobby.settings", id::LOBBY_SETTINGS),
     ("lobby.replay_not_saved", id::REPLAY_NOT_SAVED),

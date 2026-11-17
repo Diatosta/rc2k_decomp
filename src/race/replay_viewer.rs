@@ -175,6 +175,7 @@ fn view(race: &'static Race, o: Owners<'static>, start: Start) -> Result<Viewed,
             ..
         }
     );
+    crate::race::render_row::select(false);
     race.shared.replay_file().viewer_mode.set(mode as u32);
     race.shared.replay_file().hold_car_revs.set(1);
     replay.replay_view().viewer_only_shown.set(0);
@@ -327,6 +328,30 @@ fn stopped_key(
             0x1C => Next::Action(0x21),
             _ => Next::Sound,
         });
+    }
+    // The "render to video" row under the buttons: the down arrow from the lower row reaches
+    // it, up or left leaves it, Enter renders.
+    use crate::race::render_row::{KEY_DOWN, KEY_ENTER, KEY_LEFT, KEY_UP, LOWER_ROW};
+    if crate::race::render_row::selected() {
+        return Ok(match key {
+            KEY_UP | KEY_LEFT => {
+                crate::race::render_row::select(false);
+                Next::Mark
+            }
+            KEY_ENTER => {
+                crate::race::render_row::select(false);
+                crate::race::render_row::render(race, o)?;
+                Next::Mark
+            }
+            _ => Next::Sound,
+        });
+    }
+    if key == KEY_DOWN
+        && LOWER_ROW.contains(&list_state.choice.get())
+        && race.shared.replay_file().index.block_count.get() != 0
+    {
+        crate::race::render_row::select(true);
+        return Ok(Next::Mark);
     }
     if crate::menu::list_step::list_step(
         list_state,

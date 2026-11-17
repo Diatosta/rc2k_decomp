@@ -94,7 +94,7 @@ pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Res
     log();
     indent(3);
     crate::race::load_times::phase("load_stage: create controls");
-    crate::race::create_controls::create_controls(input);
+    crate::race::create_controls::create_controls(input, race.shared.view.get().players.get());
     indent(-3);
     log();
     indent(3);

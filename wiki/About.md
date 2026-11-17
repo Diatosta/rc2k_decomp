@@ -11,7 +11,7 @@ repository's README has the credits and the licence.
 | Page | What it covers |
 | --- | --- |
 | [Fixed bugs](Fixed-bugs) | The original game's bugs fixed here: what each was, what it did in the game, how it was fixed. |
-| [Differences from the original](Differences-from-the-original) | What was changed on purpose, and what is not there. |
+| [Differences from the original](Differences-from-the-original) | **Start here as a player:** everything that is different from the 1999 game, with highlights first. |
 | [Project history](Project-history) | The stages of the work and how each was checked. |
 | [Performance](Performance) | Frame rates, processor use and start-up and loading times, and how they were measured. |
 | [Glossary](Glossary) | The words these pages and the code use. |

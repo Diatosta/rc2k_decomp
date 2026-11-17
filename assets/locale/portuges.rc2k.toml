@@ -122,6 +122,10 @@ custom = "personalizado"
 half = "metade"
 render_scale = "resolução 3D"
 
+# The replay viewer's row that renders the replay to a video file.
+[viewer]
+render_video = "gravar em vídeo"
+
 # The network lobby.
 [lobby]
 save_replay = "gravar repetição"
@@ -144,6 +148,7 @@ music = "música (próximo início)"
 force_feedback = "force feedback (próximo início)"
 quit_pictures = "botões na pergunta de saída"
 smooth_frames = "quadros suaves"
+split_many = "3 e 4 jogadores juntos"
 gpu = "GPU"
 software = "software"
 gles = "OpenGL ES"

@@ -5,6 +5,9 @@ program `RAL.EXE`). It is a complete program of its own, `rc2k`: none of the ori
 runs. It reads the game's data files from the player's own copy of the game, and runs on
 Windows, Linux, macOS and a handheld.
 
+Players: [what is different from the 1999 game](Differences-from-the-original) is the list of
+everything new, with the highlights at its top.
+
 This wiki is for people who want to play it, build it, find their way around its source, or
 read and write the game's files.
 

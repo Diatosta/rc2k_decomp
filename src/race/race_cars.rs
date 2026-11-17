@@ -120,11 +120,17 @@ pub fn drop_absent_player(race: &Race) {
     }
 }
 
-/// Sets the two players' blocks' `car_kind`, `tyre_kind` and `gearbox_kind`
+/// The players' slots the race sets up: the two first players' always, and players 3 and 4's when
+/// the split screen has them.
+pub fn seats(race: &Race) -> usize {
+    (race.shared.view.get().players.get() as usize).clamp(2, 4)
+}
+
+/// Sets the players' blocks' `car_kind`, `tyre_kind` and `gearbox_kind`
 /// from the players' chosen kinds.
 pub fn set_player_car_kinds(race: &Race) {
     let shared = &race.shared;
-    for n in 0..2 {
+    for n in 0..seats(race) {
         let car = &race.car_blocks().cars[n];
         let to = [&car.car_kind, &car.tyre_kind, &car.gearbox_kind];
         for (to, from) in to.into_iter().zip(player_kinds(shared, n)) {
@@ -264,9 +270,7 @@ fn brake_value(race: &Race, n: usize) -> u32 {
     let course = &race.course;
     // Logic in `rc2k_core::race::cars::held_brake` (the product the x87's).
     rc2k_core::race::cars::held_brake(
-        race.shared.state.settings.cars[n]
-            .steering_sensitivity
-            .get() as i32,
+        race.shared.state.car(n).steering_sensitivity.get() as i32,
         |v| crate::math::x87::int_times_to_int(v, &course.numbers.get().brake_scale) as u32,
     )
 }
@@ -289,10 +293,10 @@ pub fn set_up_mode_0_cars(
         if !all {
             drop_absent_player(race);
             set_player_car_kinds(race);
-            for n in 0..2 {
-                auto_set_up_car(race, &race.car_blocks().cars[n as usize])?;
+            for n in 0..seats(race) {
+                auto_set_up_car(race, &race.car_blocks().cars[n])?;
             }
-            for n in 0..2 {
+            for n in 0..seats(race) {
                 race.car_blocks().cars[n]
                     .steering_sensitivity
                     .set(brake_value(race, n));

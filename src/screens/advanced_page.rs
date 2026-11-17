@@ -62,6 +62,7 @@ pub fn draw_advanced(
             } else {
                 id::OFF
             }),
+            Kind::SplitMany => own(if values.split_many { id::ON } else { id::OFF }),
             Kind::Flag { .. } => own(if values.flags[n] { id::ON } else { id::OFF }),
         });
     }

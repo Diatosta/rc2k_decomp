@@ -112,6 +112,7 @@ fn stopped(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
         quad(&v.button_picture_rect, &v.button_rect_c, 0xFF_FFFF)?;
         quad(&v.button_body_rect, &v.button_rect_b, 0xFF_FFFF)?;
         quad(&v.button_body_rect, &v.button_rect_d, 0xFF_FFFF)?;
+        crate::race::render_row::mark_visible();
         crate::race::draw_viewer_panel::draw_viewer_panel(
             crate::strings::append_string_by_id::StringOwners::of(o),
             race,

@@ -155,7 +155,8 @@ fn run_rounds(o: Owners<'static>, launch: &Launch) -> Result<(), Refused> {
             (Mode::TimeTrial, 1) => rc2k_core::menu::rounds::time_trial_one(&mut launched),
             (Mode::TimeTrial, _) => rc2k_core::menu::rounds::time_trial_split(&mut launched),
             (_, 1) => rc2k_core::menu::rounds::single_rally(&mut launched),
-            _ => rc2k_core::menu::rounds::single_rally_split(&mut launched),
+            (_, 2) => rc2k_core::menu::rounds::single_rally_split(&mut launched),
+            (_, n) => rc2k_core::menu::rounds::single_rally_split_many(&mut launched, n),
         }
     })
 }
@@ -591,7 +592,7 @@ impl GameAnswers<'_> {
         let current = menus.screens.event.current_player.get();
         let record = player(menus, current).ok_or(BadInput("a current player past the four"))?;
         let cars = self.cars_of(handed)?;
-        let seat = (current as usize).min(1);
+        let seat = (current as usize).min(rc2k_core::menu::launch::MOST_PLAYERS as usize - 1);
         let labelled = |cars: &[(u32, Vec<u8>)]| -> Vec<(String, Option<Vec<u8>>)> {
             cars.iter()
                 .map(|(_, name)| (String::new(), Some(name.clone())))

@@ -122,6 +122,26 @@ fn current_side(race: &Race) -> Side<'_> {
     }
 }
 
+/// Player `k`'s side (0 the current player's, 1 player 1's, 2 and 3 the split screen's third and
+/// fourth).
+fn side(race: &Race, k: usize) -> Side<'_> {
+    match k {
+        0 => current_side(race),
+        1 => first_side(race),
+        _ => {
+            let state = &race.shared.state;
+            Side {
+                car: state.car(k),
+                car_kind: state.car_kind(k),
+                service_spent: state.service_spent(k),
+                flags: state.flags(k),
+                hud_bits: state.hud_bits(k),
+                result: state.result(k),
+            }
+        }
+    }
+}
+
 /// Car `car`'s four rally-time words and the word after them.
 #[cfg(test)]
 fn rally_time_words(
@@ -367,8 +387,9 @@ fn single_rally(
     settings.rivals.set(menus.play.champ_view.summary.get());
     switch.set(start);
     settings.run_kind.set(kind);
-    results[0].result.set(0);
-    results[1].result.set(0);
+    for result in results {
+        result.result.set(0);
+    }
     settings.kept.set(0);
     settings.race_mode.set(1);
     step(Call::StopMusic)?;
@@ -408,9 +429,16 @@ fn single_rally(
     take_keys(&first, &first_side.car.controls.keys);
 
     let one_car = matches!(event.event_kind.get(), 5 | 4 | 0xF | 0xA);
+    // The players of the one-car events' split screen: two, or three or four in the single
+    // rally's larger one (mode 5 with that many players).
+    let split_players = if event.event_kind.get() == 5 {
+        event.player_count.get().clamp(2, 4)
+    } else {
+        2
+    };
     if one_car {
         settings.kept.set(menus.screens.flow.kept.get());
-        settings.race_mode.set(2);
+        settings.race_mode.set(split_players);
         if first.entry != TAKES_PART {
             results[1].result.set(u32::MAX);
         }
@@ -418,6 +446,18 @@ fn single_rally(
         take_block(&first, first_side.result);
         first_side.car.view.set(first.second_view);
         current.set(0);
+        // The third and fourth players of a larger split screen, as the first.
+        for k in 2..split_players as usize {
+            let p = player(menus, k as u32)?.get();
+            let extra = side(race, k);
+            if p.entry != TAKES_PART {
+                extra.result.result.set(u32::MAX);
+            }
+            take_player(&p, &extra, true);
+            take_block(&p, extra.result);
+            extra.car.view.set(p.second_view);
+            take_keys(&p, &extra.car.controls.keys);
+        }
     } else if player(menus, current.get())?.get().entry != TAKES_PART {
         // The current player's record is not in use: no race.
         results[0].result.set(u32::MAX);
@@ -431,7 +471,7 @@ fn single_rally(
     }
     take_player(&rec, &current_side, true);
     take_block(&rec, current_side.result);
-    if settings.race_mode.get() == 2 {
+    if settings.race_mode.get() >= 2 {
         settings.cars[0].view.set(rec.second_view);
     }
     take_keys(&rec, &current_side.car.controls.keys);
@@ -440,10 +480,21 @@ fn single_rally(
     // took.
     o.input.race_players[0].store(current.get(), std::sync::atomic::Ordering::Relaxed);
     o.input.race_players[1].store(1, std::sync::atomic::Ordering::Relaxed);
+    for (k, player) in o.input.race_players[..split_players as usize]
+        .iter()
+        .enumerate()
+        .skip(2)
+    {
+        player.store(k as u32, std::sync::atomic::Ordering::Relaxed);
+    }
 
     // The race.
     settings.no_replay.set(0);
     if !one_car && event.player_count.get() != 1 {
+        settings.no_replay.set(1);
+    }
+    // The replay's tape holds two cars: a split screen of more than two keeps none.
+    if split_players > 2 {
         settings.no_replay.set(1);
     }
     step(Call::SetUpRaceSoundObjects)?;
@@ -463,6 +514,13 @@ fn single_rally(
             give_player(p, &first_side);
             give_outcome(p, first_side.result);
         });
+        for k in 2..split_players as usize {
+            let extra = side(race, k);
+            player(menus, k as u32)?.update(|p| {
+                give_player(p, &extra);
+                give_outcome(p, extra.result);
+            });
+        }
         current.set(0);
     }
     player(menus, current.get())?.update(|p| {

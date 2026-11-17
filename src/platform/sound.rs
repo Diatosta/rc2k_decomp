@@ -654,6 +654,10 @@ fn feed(wanted: i32) -> Option<Vec<i16>> {
     if crate::audio::mix_hash::deterministic() {
         return Some(vec![0i16; frames * 2]);
     }
+    // A render to a video takes its sound frame by frame (`video::sound_turn`).
+    if crate::video::sound_taken_by_frames() {
+        return Some(vec![0i16; frames * 2]);
+    }
     // A panic must not unwind into SDL (it would end the program, unreported).
     let mixed = if FEED_PANICKED.load(Relaxed) {
         None

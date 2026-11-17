@@ -117,6 +117,19 @@ and up (with Left Ctrl held, the music's), F5 the shared-view flag, F6 .. F12 th
 option flags (the screenshot key too, with screenshots on), and Left Ctrl itself, which turns
 the view keys to the second player's view. None has a default pad button.
 
+## Three and four players
+
+In a single rally for three or four players on one screen (`--players 3` / `4`, or the advanced
+page's "3 and 4 players together"), each player's car reads the device of that player's
+record: the third and fourth players have devices of their own after the first two (the input
+thread keeps four records, `src/input/store.rs`), set up and read like the others when the race
+starts and given back when it ends. A controller that an earlier player has already chosen is
+dropped to the keyboard for the later one (a pad cannot drive two cars), as the second player's
+is when it is the first's. The keys come from each player's record, so players who have not
+redefined theirs share the first player's defaults: three or four players on the keyboard need
+their keys redefined on the player pages, or a controller each. Force feedback and the co-driver's
+sounds follow the first two players only.
+
 ## Keys in a race
 
 Once per frame, `update_input` (`src/input/keys.rs`) copies the key table and works out which

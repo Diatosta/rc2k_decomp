@@ -54,6 +54,31 @@ pub fn two_car_order(
     }
 }
 
+/// The places (1 the first) of the `players` cars of a split screen of more than two, by the
+/// order the two-car race works out: nobody changes while a car is finished (`None`); else a car is
+/// ahead of another by its checkpoint, then the tie-break, each by the sign of the difference,
+/// and the lower-numbered car on a tie. `figure` is as for `two_car_order`.
+pub fn many_car_order(players: usize, figure: impl Fn(usize, u32) -> u32) -> Option<Vec<u32>> {
+    if (0..players).any(|car| figure(car, FINISHED) != 0) {
+        return None;
+    }
+    let signed = |a: u32, b: u32| a.wrapping_sub(b) as i32;
+    let ahead = |j: usize, i: usize| {
+        let d = signed(figure(j, CHECKPOINT), figure(i, CHECKPOINT));
+        let d = if d == 0 {
+            signed(figure(j, TIE_BREAK), figure(i, TIE_BREAK))
+        } else {
+            d
+        };
+        d > 0 || (d == 0 && j < i)
+    };
+    Some(
+        (0..players)
+            .map(|i| 1 + (0..players).filter(|&j| j != i && ahead(j, i)).count() as u32)
+            .collect(),
+    )
+}
+
 /// The gap ahead or behind: the car's checkpoint against the lead car's (ahead: car - lead,
 /// behind: lead - car), plus one; it replaces `best` when below it (unsigned).
 pub fn note_gap(car: u32, lead: u32, behind: bool, best: &mut u32) -> u32 {
@@ -82,6 +107,25 @@ mod tests {
                 _ => f[2],
             }
         }
+    }
+
+    #[test]
+    fn many_cars_order() {
+        // (finished, checkpoint, tie-break) of four cars: car 2 leads, 0 and 3 tie on the checkpoint
+        // and 3 is ahead by the tie-break, 1 is last.
+        let cars = [[0, 5, 1], [0, 2, 9], [0, 7, 0], [0, 5, 4]];
+        let figure = |car: usize, o: u32| match o {
+            FINISHED => cars[car][0],
+            CHECKPOINT => cars[car][1],
+            _ => cars[car][2],
+        };
+        assert_eq!(many_car_order(4, figure), Some(vec![3, 4, 1, 2]));
+        // Equal cars keep their numbers' order; the first three only.
+        let same = |_: usize, o: u32| u32::from(o == CHECKPOINT);
+        assert_eq!(many_car_order(3, same), Some(vec![1, 2, 3]));
+        // Nobody's place changes once a car has finished.
+        let done = |car: usize, o: u32| u32::from(car == 1 && o == FINISHED);
+        assert_eq!(many_car_order(4, done), None);
     }
 
     #[test]

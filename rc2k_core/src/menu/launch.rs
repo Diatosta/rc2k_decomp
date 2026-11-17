@@ -19,12 +19,15 @@
 //!   Unlock Arcade cheat is on).
 //! - `--stage-set <name or number>`: the stage screen's set (its group switch: the simulation's
 //!   or the arcade's, by the game's name for it or 1 / 2); the first unless given.
-//! - `--car <name>`, `--car2 <name>` (the second player's; the first's unless given):
+//! - `--car <name>`, `--car2 <name>`, `--car3 <name>`, `--car4 <name>` (the second, third and
+//!   fourth players'; the first's unless given):
 //!   a car of the list the car screen shows, by its name as the game shows it or its place in
 //!   that list (1-based); a car by name not in it is taken from every car's list, as the
 //!   "Unlock Cars" cheat shows it. The player's own car unless given.
 //! - `--gearbox <name or number>`: one of the game's three gearbox choices (1-based).
-//! - `--players 1|2`: one player, or two on a split screen (the arcade has one player).
+//! - `--players 1 .. 4`: one player, or two on a split screen, or (the single rally only) three
+//!   or four racing together (the arcade has one player; the time trial and the championships up
+//!   to two).
 //! - `--seed <n>` (decimal or `0x` hex): the random numbers start from it.
 //! - `--replay <slot or file>`: a replay instead of a race, played in the replay viewer as one
 //!   chosen in the replays menu is: a saved replay's slot (0 .. 99, the number at the end of its
@@ -362,6 +365,9 @@ pub enum Then {
     Quit,
 }
 
+/// The most players one race has (the single rally's split screen).
+pub const MOST_PLAYERS: u32 = 4;
+
 /// A launch: what the command line and the launch file asked for.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Launch {
@@ -375,7 +381,7 @@ pub struct Launch {
     /// The stage screen's set (its group).
     pub stage_set: Option<Choice>,
     /// Per player.
-    pub cars: [Option<Choice>; 2],
+    pub cars: [Option<Choice>; MOST_PLAYERS as usize],
     pub gearbox: Option<Choice>,
     pub players: u32,
     pub seed: Option<u32>,
@@ -393,7 +399,7 @@ impl std::fmt::Display for LaunchError {
 }
 
 /// The switches that take a value (the next word, or after `=`).
-pub const VALUED: [&str; 22] = [
+pub const VALUED: [&str; 24] = [
     "join",
     "name",
     "port",
@@ -411,6 +417,8 @@ pub const VALUED: [&str; 22] = [
     "stage-set",
     "car",
     "car2",
+    "car3",
+    "car4",
     "gearbox",
     "players",
     "seed",
@@ -697,7 +705,7 @@ fn net_launch(all: &Given) -> Result<Option<NetLaunch>, LaunchError> {
 }
 
 /// The switches that choose a race's parts: none goes with a replay, which holds its own.
-const RACE_ONLY: [&str; 15] = [
+const RACE_ONLY: [&str; 17] = [
     "mode",
     "level",
     "tyres",
@@ -710,6 +718,8 @@ const RACE_ONLY: [&str; 15] = [
     "stage-set",
     "car",
     "car2",
+    "car3",
+    "car4",
     "gearbox",
     "players",
     "seed",
@@ -811,7 +821,7 @@ impl Launch {
             None => None,
         };
         let players = match all.last("players") {
-            Some(v) => one_of("players", v, 1, 2)?,
+            Some(v) => one_of("players", v, 1, MOST_PLAYERS)?,
             None => 1,
         };
         let level = match all.last("level") {
@@ -819,14 +829,15 @@ impl Launch {
             _ => None,
         };
         let car = all.last("car").map(Choice::read);
-        let car2 = all.last("car2").map(Choice::read).or_else(|| car.clone());
+        let other = |key| all.last(key).map(Choice::read).or_else(|| car.clone());
+        let cars = [car.clone(), other("car2"), other("car3"), other("car4")];
         let launch = Launch {
             mode,
             stage,
             level,
             tune: Tune::read(all)?,
             stage_set: all.last("stage-set").map(Choice::read),
-            cars: [car, car2],
+            cars,
             gearbox: all.last("gearbox").map(Choice::read),
             players,
             seed: all.last("seed").map(|v| number("seed", v)).transpose()?,
@@ -848,6 +859,8 @@ impl Launch {
                 ("stage", own_stages),
                 ("stage-set", own_stages),
                 ("car2", "the arcade has one player"),
+                ("car3", "the arcade has one player"),
+                ("car4", "the arcade has one player"),
             ],
             Mode::Championship | Mode::A8 => &[
                 ("stage", in_order),
@@ -870,9 +883,24 @@ impl Launch {
             }
         }
         if self.mode == Mode::Arcade && self.players != 1 {
-            return Err(LaunchError(
-                "--players 2 does not go with --mode arcade: the arcade has one player".into(),
-            ));
+            return Err(LaunchError(format!(
+                "--players {} does not go with --mode arcade: the arcade has one player",
+                self.players
+            )));
+        }
+        if self.mode != Mode::Single && self.players > 2 {
+            return Err(LaunchError(format!(
+                "--players {} does not go with --mode {name}: only the single rally has a split screen for more than two",
+                self.players
+            )));
+        }
+        // A car for a player that is not racing is a slip, not a thing to ignore.
+        for (key, from) in [("car3", 3), ("car4", 4)] {
+            if all.last(key).is_some() && self.players < from {
+                return Err(LaunchError(format!(
+                    "--{key} needs --players {from} or more"
+                )));
+            }
         }
         Ok(())
     }
@@ -1397,7 +1425,7 @@ mod tests {
         .unwrap();
         assert_eq!(l.stage, Some(Stage::Name("Hamiltons Folly".into())));
         assert_eq!(l.mode, Mode::Single);
-        assert_eq!(l.cars, [Some(Choice::Number(3)), Some(Choice::Number(3))]);
+        assert_eq!(l.cars, [(); 4].map(|()| Some(Choice::Number(3))));
         assert_eq!(
             (l.players, l.seed, l.then, l.stage_set),
             (2, Some(16), Then::Quit, None)
@@ -1416,7 +1444,12 @@ mod tests {
                 Some(Choice::Name("arcade".into()))
             )
         );
-        assert!(read(&["--players", "3", "--stage", "x"]).is_err());
+        assert!(read(&["--players", "5", "--stage", "x"]).is_err());
+        assert!(read(&["--players", "3", "--mode", "time-trial", "--stage", "x"]).is_err());
+        assert!(
+            read(&["--car3", "1", "--stage", "x"]).is_err(),
+            "no third player"
+        );
         assert!(read(&["--car", "1"]).is_err(), "no stage");
         assert!(read(&["--stage"]).is_err(), "no value");
         assert!(read(&["--stage", "x", "--then", "later"]).is_err());

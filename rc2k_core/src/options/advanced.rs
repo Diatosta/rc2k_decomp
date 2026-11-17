@@ -28,6 +28,9 @@ pub enum Kind {
     /// Frames between the simulation's ticks drawn blended (`rc2k.toml`); off, a frame shows the
     /// last tick and the frames are at most a hundred a second.
     SmoothFrames,
+    /// The single rally's three- and four-player items start a split screen of all the players
+    /// racing together (`rc2k.toml`); off, they are the original's, the players in turn.
+    SplitMany,
     /// A `ral.cfg` switch: the key; `inverted` when the key names what is off (`nofmv`), so the
     /// page shows the feature, not its absence.
     Flag { key: &'static str, inverted: bool },
@@ -48,7 +51,7 @@ const fn flag(key: &'static str, inverted: bool, when: When) -> Row {
 }
 
 /// The rows in the order the page shows them.
-pub const ROWS: [Row; 12] = [
+pub const ROWS: [Row; 13] = [
     Row {
         kind: Kind::Threads,
         when: When::Now,
@@ -73,6 +76,10 @@ pub const ROWS: [Row; 12] = [
     },
     Row {
         kind: Kind::SmoothFrames,
+        when: When::Now,
+    },
+    Row {
+        kind: Kind::SplitMany,
         when: When::Now,
     },
 ];
@@ -129,6 +136,8 @@ pub struct Values {
     pub quit_pictures: bool,
     /// Frames drawn between the ticks.
     pub smooth_frames: bool,
+    /// The three- and four-player items on one split screen.
+    pub split_many: bool,
     /// Each `Flag` row's switch as the page shows it (on = the feature on), in `ROWS` order
     /// (the other rows' entries are unused).
     pub flags: [bool; ROWS.len()],
@@ -149,6 +158,7 @@ impl Values {
             Kind::Renderer => self.renderer = self.renderer.other(up, gl),
             Kind::QuitPictures => self.quit_pictures = !self.quit_pictures,
             Kind::SmoothFrames => self.smooth_frames = !self.smooth_frames,
+            Kind::SplitMany => self.split_many = !self.split_many,
             Kind::Flag { .. } => self.flags[row] = !self.flags[row],
         }
     }
@@ -226,11 +236,12 @@ mod tests {
     fn every_row_has_its_place() {
         assert!(matches!(ROWS[0].kind, Kind::Threads));
         assert!(matches!(ROWS[1].kind, Kind::Renderer));
-        for row in &ROWS[2..ROWS.len() - 2] {
+        for row in &ROWS[2..ROWS.len() - 3] {
             assert!(matches!(row.kind, Kind::Flag { .. }));
         }
-        assert!(matches!(ROWS[ROWS.len() - 2].kind, Kind::QuitPictures));
-        assert!(matches!(ROWS[ROWS.len() - 1].kind, Kind::SmoothFrames));
+        assert!(matches!(ROWS[ROWS.len() - 3].kind, Kind::QuitPictures));
+        assert!(matches!(ROWS[ROWS.len() - 2].kind, Kind::SmoothFrames));
+        assert!(matches!(ROWS[ROWS.len() - 1].kind, Kind::SplitMany));
     }
 
     #[test]
@@ -240,6 +251,7 @@ mod tests {
             renderer: Renderer::Gpu,
             quit_pictures: true,
             smooth_frames: true,
+            split_many: false,
             flags: [false; ROWS.len()],
         };
         v.step(0, false, 4, false);
@@ -252,10 +264,12 @@ mod tests {
         assert_eq!(v.renderer, Renderer::Software);
         v.step(2, false, 4, false);
         assert!(v.flags[2]);
-        v.step(ROWS.len() - 2, true, 4, false);
+        v.step(ROWS.len() - 3, true, 4, false);
         assert!(!v.quit_pictures);
-        v.step(ROWS.len() - 1, true, 4, false);
+        v.step(ROWS.len() - 2, true, 4, false);
         assert!(!v.smooth_frames);
+        v.step(ROWS.len() - 1, true, 4, false);
+        assert!(v.split_many);
     }
 
     #[test]

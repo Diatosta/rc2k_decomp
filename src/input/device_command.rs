@@ -35,6 +35,7 @@ pub fn device_command(
             (command >> 8) as u8,
             input.devices.two_devices_one_player.get(),
             sound.one_player.get(),
+            input.devices.race_players.get(),
         )?;
         for step in steps {
             match step {
@@ -54,7 +55,7 @@ pub fn device_command(
                     system,
                     n,
                     device(&input.devices, n)?,
-                    &race.shared.state.settings.cars[n].controls,
+                    &race.shared.state.car(n).controls,
                 )?,
                 Reading(n, on) => device(&input.devices, n)?.reading.set(on as u32),
                 SecondApart => {
@@ -65,6 +66,15 @@ pub fn device_command(
                             .controls
                             .controller
                             .set(0);
+                    }
+                }
+                ApartFrom(n) => {
+                    let state = &race.shared.state;
+                    let controller = state.car(n).controls.controller.get();
+                    if (0..n)
+                        .any(|earlier| state.car(earlier).controls.controller.get() == controller)
+                    {
+                        state.car(n).controls.controller.set(0);
                     }
                 }
                 BeginEffects => crate::input::begin_effects::begin_effects(input, sound, system)?,

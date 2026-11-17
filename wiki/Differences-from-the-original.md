@@ -2,183 +2,284 @@
 
 *Category: [About](About)*
 
-The game is meant to be the same for the player as the 1999 program: the same menus, physics,
-stages, replays and save files. This page lists what was changed on purpose. Mistakes of the
-original that were put right are on [Fixed bugs](Fixed-bugs).
+The game is meant to feel like the 1999 program: the same menus, physics, stages, replays and
+save files. This page lists everything that is different for the player, grouped by what you
+meet, with where to find it and what it is set to at first. Mistakes of the original that were
+put right (a sound that stuck on, a bat that never moved, ...) are on [Fixed bugs](Fixed-bugs)
+and are not repeated here, except where they also changed what you do.
 
-## The platform
+Where a setting is kept, the page [Options files](Options-files) has its key in `var/rc2k.toml`;
+the switches of the command line are on [Running and options](Running-and-options).
+
+## Highlights
+
+- **Wide screens and any resolution**, 32:9 included, with full screen and borderless modes
+  (Alt+Enter): [Graphics and the screen](#graphics-and-the-screen).
+- **The GPU renderer and a 3D resolution up to 200 %**: [Graphics and the screen](#graphics-and-the-screen).
+- **Frame rates above 100** (smooth frames), a frame limit: [Frame rate](#frame-rate).
+- **Full play with a pad**, with the controller's own button pictures, profiles per controller,
+  wheels, an H shifter and rumble: [Controllers and input](#controllers-and-input).
+- **An on-screen keyboard** for typing with a pad: [Controllers and input](#controllers-and-input).
+- **Lobby passwords, ping, un-ready and `/kick`** to put a player out: [Network play](#network-play).
+- **Finding hosts over Tailscale**: [Network play](#network-play).
+- **Playing through Steam** (an optional build, in progress): [Network play](#network-play).
+- **Replays rendered to a video**, from the command line and (arriving) a button in the viewer:
+  [Replays](#replays).
+- **More players in split screen** (three and four; in progress): [In progress](#in-progress).
+- **Straight into a race, a replay or the lobby** from the command line: [Running](#running).
+- **Errors shown on a panel** in the window, and damaged files no longer ending the game:
+  [Saves and files](#saves-and-files).
+- **Linux, macOS and a handheld** as well as Windows: [Platforms](#platforms).
+
+## What is underneath
 
 The original was a 32-bit Windows program on DirectX. Its platform side was not copied:
 
 | Original | Here |
 | --- | --- |
-| DirectDraw and Direct3D | SDL3 for the window; races drawn on the GPU (SDL's GPU device, or OpenGL ES on the handheld) or by a software rasteriser ([Drawing a frame](Drawing-a-frame)). |
+| DirectDraw and Direct3D | SDL3 for the window; races drawn on the GPU (SDL's GPU device, OpenGL, or OpenGL ES on the handheld) or by a software rasteriser ([Drawing a frame](Drawing-a-frame)). |
 | DirectSound | The game's sound code over a small mixer on SDL's sound output ([Sound and music](Sound-and-music)). |
 | DirectInput | SDL's keyboard, gamepad, joystick and haptic support ([Input](Input)). |
 | DirectPlay | A protocol of this project's own ([Network messages](Network-messages)). |
 | The system's film player | The project's own decoders in Rust ([Films](Films)). |
 | Windows, 32 bits | Windows (32 and 64 bits), Linux, macOS, a handheld ([Platforms](Platforms)). |
 
-## Racing
+## Graphics and the screen
 
-- The pause binding (a button on a pad and a key on the keyboard) asks the same
-  "leave?" question as Escape, in place of the original's plain pause that waited for a key.
-  The race still pauses until a key when its window stops being the active one.
+- **Renderer.** The race is drawn on the GPU by default: SDL's GPU device first, then OpenGL 3.3,
+  then the software rasteriser, each if the one before does not start. `--renderer gpu | gl |
+  software` (or `RC2K_RENDERER`) chooses; the options' "advanced" page has a "renderer" row that
+  swaps it at once on the desktop. On the handheld, OpenGL ES.
+- **Mipmapping** (the graphics page's switch, off at first) now works on every renderer: far
+  textures are drawn from smaller pre-reduced copies on the GPU renderers and the software one
+  alike.
+- **3D resolution** (graphics page): the race's 3D is drawn at 50, 75, 100 (the default), 125, 150,
+  175 or 200 % of the screen's size. Below 100 it is enlarged; above 100 it is drawn larger and
+  scaled down, which smooths the edges (supersampling). The dashboard and the texts stay at full
+  size. The handheld no longer draws at half size by itself: set the row to 50 %.
+- **Screen sizes.** The resolution list holds the monitor's own modes, the usual sizes of 4:3,
+  16:10, 16:9, 21:9 and 32:9 that fit the desktop and the game's eight, each with its ratio. Any
+  other size can be set with `custom_width` / `custom_height` in `var/rc2k.toml`. 16-bit screen
+  modes are gone: the screen always has 32 bits a pixel (an old 16-bit choice becomes the same
+  size at 32 bits).
+- **Wide screens.** On a screen wider than 4:3 the 3D keeps its field of view up and down and
+  shows more to the sides; the HUD keeps its 800 x 600 shape with its pieces in the corners and
+  edges. The graphics page's "HUD area" row (the whole screen at first) confines the HUD to a
+  centred 4:3, 16:9 or 21:9 box.
+- **Screen row** (graphics page): window (the default), full screen or borderless. **Alt+Enter**
+  toggles between a window and full screen at any time.
+- **One window size.** The window keeps the race's screen size from start to end; the original
+  switched the display between the menus and a race. The menus are still drawn at 800 x 600 and
+  shown scaled in the window, centred, keeping the 4:3 shape. On a window of another shape the
+  space beside the menu is the menu's own background picture, scaled to cover, blurred and
+  darkened. The menus' 3D models (the main menu's key and signpost, the helmets, the car
+  carousel) are drawn sharp at the window's size on the GPU renderers.
+- **Skid marks.** A tyre mark is no longer laid twice in one place when the frame rate is above
+  the simulation's 100 ticks a second (it showed as dark squares).
+- **Helmets** on the in-race options page are textured.
+- A **loading bar** is shown while a stage loads, and the loading picture is shown once.
+- **Screenshots and snapshots are PNG files**, not PCX ([Screenshots](Screenshots)); the numbering
+  and folders are as before.
+- The rectangle fill the original never drew at 32 bits works, so message boxes have backs and
+  the installer's percentage and the tyre change's texts are cleared before they are redrawn.
+- The 3D resolution and screen options only change how a frame is drawn: the simulation, and so
+  every replay, is the same.
 
-## Controllers
+## Frame rate
 
-- Learning a control on the controller page counts only what moves from where the controller
-  rests when the learning starts, so an axis that rests at the end of its travel (a clutch
-  pedal) is not taken for a direction held.
+- **Frames follow the display's refresh**: one frame for each refresh (60 a second when the rate
+  is not known), where the original slept a fixed 16 ms. The race still moves 100 times a second
+  and its speed does not depend on the frame rate.
+- **Smooth frames** (the advanced page, on at first): on displays faster than 100 Hz the frames
+  between two of the race's ticks are drawn blended between the last two, so motion is smooth at
+  120, 144 or 240 Hz. The picture is up to a tick behind the simulation. Rain and snow on the
+  windscreen appear at most once a tick, so a faster display gets no more of them.
+- **Frame limit** (graphics page, the display's own pace at first): no limit, the display's pace,
+  30 or 60 a second, or the rates that divide the display's refresh (a half, a third, a quarter;
+  with smooth frames the display's own rate and its half, up to 1000 a second).
+- The program starts in under half a second: the pauses the 1999 start-up made are gone.
 
-- The controller page has no axis mode or dead zone items; an axes list opens a page for each axis that edits its dead
-  zone, sensitivity curve, invert and range (and a wheel's rotation), and the buttons page lists
-  the steering, accelerate and brake axes and the buttons, with reset car, on two
-  pages ([Controllers](Controllers)).
+## Menus and settings
 
-## Installing
+- **Advanced** (an item after the original's on the options page, and on the in-race options):
+  rows for the renderer, the number of drawing threads, "smooth frames", "buttons in the quit
+  question", and the switches that lived in `var/ral.cfg` shown as the feature they control:
+  frame counter, films, screenshots, non-linear steering, automatic neutral, rain and snow, music
+  and force feedback (some take effect at the next race or start, and the row says so). "Apply"
+  writes them ([Running and options](Running-and-options), [Settings files](Settings-files)).
+- **Settings are saved when a page is left**, not only when the game ends, so a crash keeps them.
+  Options are kept in a readable text file, `var/rc2k.toml`; the original's `var/ral.dat` is
+  read when the new file does not exist ([Options files](Options-files)).
+- **The menu after a stage opens the options**: audio, display, advanced, and the players'
+  details (names, country, camera, co-driver, units, keys, controller and buttons pages, visual
+  preferences). The original offered fewer. The network lobby has the same page ("settings").
+- **Film volume** (the volume page's last slider, above the music switch) sets the intro and logo
+  films' sound; **sound when not in front** (the sound page, off at first) keeps the sounds going
+  while the window is behind.
+- **Network settings** have "port" and "host password" rows ([Network play](Network-play)).
+- **Typing** (names, saved game, replay and set-up names, network settings, chat) takes any
+  character the Windows-1252 code page has, whatever the keyboard's layout.
+- **Language texts** this game adds to the original's come from one file per language,
+  `files/locale/<language>.rc2k.toml`, with English built in ([Language files](Language-files)).
+- The fixed pauses between screens keep their length, but a key or a pad's button ends them and
+  the window answers meanwhile; closing the window anywhere ends the game properly.
+- The Portuguese build's texts: the tyre change's title is no longer cut at its ends.
 
-- No registry. The installation's record is the file `var/install.cfg` in the game's folder,
-  so an installed folder can be moved or copied ([Install records](Install-records)).
-- The installer takes the game from the folder it is started in, in place of asking for the
-  CD.
-- The installer has no page for the kind of installation (it is always the full one), no
-  DirectX set-up and no registration. It makes ordinary shortcuts.
-- "Uninstall Rally" runs the installed program itself (`rc2k -u`).
+## Controllers and input
 
-More on [The installer](The-installer).
+Everything is on [Controllers](Controllers) and [Input](Input); in short:
+
+- **The whole game works with a pad**: menus, questions, the credits, the replay viewer, the
+  network lobby (the shoulders are Tab), any-key waits (South, East, West or Start). A held
+  button repeats as a held key does.
+- **Controller pictures.** Menus and screens show the buttons of the controller in use as pictures
+  (Xbox, PlayStation or Steam Deck set, chosen from what SDL reports; numbers for plain
+  joysticks). The controller page's "button icons" row switches them; the advanced page's "buttons
+  in the quit question" row does so for the race's leave question and the tyre change's prompt.
+- **On-screen keyboard** for typing with a pad: below or above the field, one tile a key, the
+  typed text in a line at the top (stars for a password), pages of symbols and accented letters.
+  A system with its own screen keyboard shows that one instead.
+- **Profiles.** Each player keeps a profile for every controller used: bindings and per-axis
+  settings. The controller page has "axes" (a live bar for each axis; dead zone, range, response
+  curve, invert, and a wheel's full rotation, 900 degrees at first) in place of the original's axis
+  mode and dead zone items. The buttons page binds steering, accelerate and brake to any axis
+  and the rest to buttons or hat directions, and has a last page of **menu controls** (enter, back,
+  up, down, left, right, the third answer, Tab).
+- **H shifter**: the "H shifter" switch gives gears 1 to 7 and reverse their own bindings; none
+  held is neutral.
+- **Learning a control** measures each axis from where it rested, so a pedal that rests at the
+  end of its travel (a wheel's clutch) is not taken for a direction held.
+- **Wheels** work in the menus: the hat moves, the second button enters, the third goes back.
+- **Hotplug.** A controller plugged in while the game runs can be chosen and driven with at once;
+  one unplugged and plugged back takes its place again. Force feedback effects are set up again.
+- **Rumble.** A pad with only rumble motors rumbles for the engine and knocks, at the strength of
+  the controller page's force feedback row.
+- **Pause** (a key or a button) asks the same "leave?" question as Escape, where the original
+  waited for a key.
+- The developers' debug pages are a window over the game ([The debug window](The-debug-window));
+  not on 32-bit Windows or the handheld.
+
+## Sound
+
+- The sound page's levels have names of their own in the options file (`general_volume`,
+  `menu_music_volume`, ...); a file from an earlier build starts these from their defaults once.
+- The game waits less on the audio thread, so a stage starts and a race ends sooner.
+- The engine sounds play as the original's plain loops, and there is no reverb: both were tried
+  and taken out.
+- The game's CD audio is gone (the music is the game's files). The first logo film, `allogo.avi`,
+  shown only on 16-bit screens in 1999, always plays.
+
+## Racing and the HUD
+
+- The **tyre change's** title and prompt are drawn at the font's own spacing, centred, with the
+  button's picture on a pad; the second player's too in split screen.
+- The **pause binding** (a button on a pad and a key on the keyboard) asks the same "leave?"
+  question as Escape, in place of the original's plain pause that waited for a key. The race still
+  pauses until a key when its window stops being the active one.
+- The race's **leave question** is drawn at the timer's size on a dark plate, with the pictures of
+  the buttons that answer it.
+- The **windscreen Pong** can be played: the bat follows player 1's steering.
+- The **computer drivers are shuffled** at a championship's start as the game meant, and a
+  race's other **hidden slips** were put right ([Fixed bugs](Fixed-bugs)).
+- A race can start straight from the command line ([Running and options](Running-and-options)).
+
+## Replays
+
+- **Replays can be rendered to a video**, with its sound: the viewer's "render to video" button
+  (under its two rows of buttons) renders the whole replay at the screen's size and 60 frames a
+  second into `savedata/videos/`, a bar showing the progress and Escape stopping it (what was
+  written is kept); from the command line, `--render-replay <slot|file> --out <video> [--size WxH]
+  [--fps N]` does it without a window. The video is written through an `ffmpeg` on the path (H.264
+  with AAC sound when it has them); without one, numbered PNG pictures and a WAV file.
+- **`--replay <slot|file>`** starts a saved replay at once, `--then menus` or `--then quit`.
+- The viewer's **car item** works for replays with several cars (network races, computer cars):
+  it goes through each car and both; the camera chosen in the viewer is not changed by the
+  change-view presses the replay recorded.
+- A **network race records a replay** like a single race; the lobby then offers "save replay" and
+  the second car is heard in it. A replay that cannot be saved or read shows a notice instead of
+  ending the game.
+- Old replays are read as they are, and replays saved here play in the same way on every system.
 
 ## Network play
 
-- The protocol is this project's own, so the program plays against other copies of itself,
-  not against the original.
-- TCP/IP is offered, and Steam in builds made with the `steam` feature: no modem, serial or IPX connection.
+Details on [Network play](Network-play). The protocol is this project's own, so the program plays
+against other copies of itself and not against the original; TCP/IP is offered (no modem, serial
+or IPX connection), and Steam in a build made with the `steam` feature.
 
-More on [Network play](Network-play).
+- **Password**: a host can lock its session; the session list marks it "[locked]" and a joiner is
+  asked for the password. It is checked without being sent.
+- **Ping** is shown after each player's name in the lobby. **Un-ready**: the ready button becomes
+  "not ready" and takes the ready back before the start.
+- **Finding hosts**: with no address typed, the search also asks the peers of a Tailscale network
+  and the last host joined, so a host over Tailscale is found with no address.
+- **The host's stage** is shown to everyone, every machine's loading progress is listed while a
+  stage loads, and "NN%" shows a racing player's progress in the lobby; the chat is in one order
+  on every machine. The other cars appear on the progress bar.
+- **`/kick <name>`** in the chat: the host puts a player out.
+- The lobby has a "settings" button and, after a race, "save replay".
+- A port in use is said so; the failure of any start is written to the log.
+- **Command line**: `--host`, `--join`, `--name` and `--port` go straight into the lobby.
+- **Several copies on one machine** (`--allow-another`, or `--instance 1..8` with a folder of its
+  own for each) play each other.
 
-## Files
+## Saves and files
 
-- Options are kept in a text file, `var/rc2k.toml`. The original's `var/ral.dat` is read when
-  the new file does not exist, and written only on request ([Options files](Options-files)).
-- The options are saved when a settings page is left, not only when the game closes. The review menu
-  after a stage opens the options (audio, display, the players' details and controllers), where the
-  original offered fewer.
-- Every other file keeps the original's format: replays, saved games, car set-ups, best times
-  and `var/ral.cfg`. Old replays and saves are read as they are.
-- An error that ends the game is shown on a panel in the game's window (the message, where the
-  details are, "Quit"; Up / Down and Enter, or a pad's buttons) in place of the original's
-  "Guru Meditation" box or a silent exit; the log keeps the line. Troubles that belong to one file
-  no longer end the game: a saved game that is damaged is not loaded, a replay that cannot be
-  read is skipped (a notice, then the menu again), and options in `var/rc2k.toml` that are not
-  valid are reset to their defaults with a notice. `RC2K_NO_ERROR_DIALOG` (any value) turns the
-  panel off for unattended runs, which then end as before.
-- The program writes a log of its own, `rc2k.log`, beside the game's `var/logfile.txt`
-  ([Log files](Log-files)).
+- Every file the original wrote keeps its format: replays, saved games, car set-ups, best times,
+  `var/ral.cfg`.
+- **Errors.** An error that ends the game is shown on a panel in the game's window (the message,
+  where the details are, "Quit"; Up / Down and Enter, or a pad's buttons) in place of the
+  "Guru Meditation" box. Troubles belonging to one file no longer end the game: a damaged saved
+  game is not loaded, a replay that cannot be read is skipped, and options that are not valid are
+  reset to their defaults, each with a notice. `RC2K_NO_ERROR_DIALOG` turns the panel off.
+- The program writes `rc2k.log` beside the game's `var/logfile.txt` ([Log files](Log-files)).
 - On Linux and macOS, file names are matched without regard to case, as Windows does.
+- The web build can export its saved games, best times and settings as a zip and import them back.
 
 ## Running
 
-- The start-up does not wait where the original paused and timed the processor; the game's log
-  no longer has a clock-speed line.
-- A single rally stage can be started straight from the command line
-  ([Running and options](Running-and-options)).
+- `rc2k --help` lists every switch; an unknown `--` switch stops the program with a message.
+- **Straight into a race** (`--stage`, `--car`, `--mode` for time trials, the arcade game and the
+  championships, `--launch <file>`), into a replay or into the network lobby, with no menus and
+  no films.
+- **A folder with no game data** opens a page asking for a folder or a zip (picked or dropped on
+  the window), or takes `--game-data <folder|zip>`.
+- A second copy in the same folder is refused unless `--allow-another` is given.
 - Closing the window ends the game properly, saving the options and the session's records.
-- The fixed pauses between screens (the service area's and the inspection's, the network's
-  "connecting" lines, the installer's messages) keep their length, but a key or a pad's button
-  ends them early, and the window answers during them.
-- Controllers are read from a race's first moment (the original's input thread slept a second
-  at each race's start), and at once after coming back to the window.
-- A loading bar is shown while a stage loads.
-- The volume page has a "film volume" slider (the intro and logo films; the last slider, above the music switch), the sound page a "sound when not in front" row (the original's sounds went quiet while its window was behind), and the network settings page a "port" row ([Options files](Options-files), [Network play](Network-play)).
-- The hidden Pong game on the windscreen can be played: the bat follows player 1's steering ([Fixed bugs](Fixed-bugs)).
-- The loading screen does not hold up the load: the loading picture is shown once (the
-  original showed it once for each page of its screen), and a bar frame is drawn only when
-  the last frame of the loading screen is at least 33 ms old, so the bar's last steps may go
-  unseen.
-- The frames follow the display's refresh: one frame for each refresh (60 a second on a 60 Hz
-  display, also when the display's rate is not known). The race moves 100 times a second; on
-  displays faster than that the frames between two of its ticks are drawn blended between the
-  last two ticks (the advanced page's "smooth frames", on by default, kept as `smooth_frames`
-  in `rc2k.toml`; the picture is up to a tick behind the simulation, the simulation itself and
-  so every replay and held race is unchanged). With "smooth frames" off a frame shows the last
-  tick and the frames are every second or third refresh on displays faster than 100 Hz. The
-  windscreen's drops and flakes appear at most once a tick, so a faster display gets no more
-  of them. The program does this by
-  waiting until each frame is due; with SDL's own switch `SDL_RENDER_VSYNC=1` in the
-  environment the showing itself waits for the display instead, at every refresh. The speed
-  of the race does not depend on it: its steps come from the clock. The graphics page has a
-  "frame limit" row after the original's: no limit (nothing here waits; a display that waits
-  for its refresh still does), the display's own pace (the default), 30 or 60 a second, and the
-  rates that divide the display's refresh evenly (half, a third, a quarter of it; with smooth
-  frames the display's own rate and its half, shown as "(half)", up to 1000 a second). It is kept in
-  `var/rc2k.toml`'s `[display]` table as `frame_limit` (`"off"`, `"display"` or a number a second;
-  left out for the default, `"display"`). A "3D resolution" row below it draws the race's 3D at
-  50, 75, 100, 125, 150, 175 or 200 % of the screen's size: below 100 it is enlarged (nearest
-  pixel) over the screen, above 100 it is drawn larger and scaled down with a smoothing filter
-  (supersampling anti-aliasing; an exact area average in the software rasteriser, the bilinear
-  filter on the GPU renderers, which is the mean of four pixels at 200 %); the
-  menus' pictures, the dashboard and the texts stay at full size, while the menus' 3D models (the
-  main menu's key and signpost, the helmets, the car carousel) are drawn on the GPU renderers at
-  the size the menu's frame has in the window times this share, so they are sharp on a large window
-  (the software rasteriser draws them at the frame's own size). It works on the software rasteriser and
-  on both GPU renderers, and is kept in `[display]` as `render_scale` (50 to 200 in those steps; left out
-  for 100). The handheld's software rasteriser no longer draws races at half size by itself:
-  set the row to 50 % there.
-- The options menu has an "advanced" item after the original's, opening a page of our own (the in-game options menu, opened after a stage or from the network lobby, has the same item after its display one). Its
-  rows: how many parts of a frame may be drawn at once (1 up to the machine's cores, at most 4:
-  the mirror beside its view needs 2, the split-screen players' views and mirrors beside each
-  other 4; read at each frame, so a change shows at the next one); the renderer (GPU, OpenGL or
-  software), swapped in at once on the desktop by Apply: the frame is brought back into the
-  canvas, the running backend and the window's renderer are stopped and the chosen ones
-  started, and the textures and the canvas go up to the new backend as it first draws them. When
-  the chosen one does not start, the one that ran comes back, the choice is kept for the next
-  start, and the page says "next start" beside the renderer that was asked for and did not start. On
-  the handheld the renderer is only the one tried first at the next start (its GL ES context is
-  made once for the program's life), and the page says "next start" beside a value that differs from the running one; and switches of `var/ral.cfg`: frame counter,
-  films, screenshots, non-linear steering, automatic neutral (all at once), rain and snow (the
-  next race) and music, force feedback (the next start; `nojoy` is not on the page, so the handheld cannot switch its controls off, and it still reads from `ral.cfg` by hand). The page shows the feature,
-  not its absence (`nofmv=1` shows as "films: off"). "Apply" sets the live variables, writes
-  the changed keys into `var/ral.cfg` (the key's line is replaced, the others kept; a missing
-  key is added) and keeps the other two rows in `var/rc2k.toml`'s `[display]` table as
-  `renderer` and `draw_threads` (both left out until chosen; the renderer is the weakest of
-  the sources after `--renderer` and `RC2K_RENDERER`, and a fallback never rewrites it).
-- The developers' debug pages, unreachable in the released game, are a window over the game
-  ([The debug window](The-debug-window)). Not in the 32-bit Windows build or on the handheld.
+
+## Platforms
+
+- Windows (32 and 64 bits), Linux, macOS and the Anbernic RG34XXSP handheld; see
+  [Platforms](Platforms). The program carries the project's icon on every system.
+- On macOS the installer makes a self-contained "Rally Championship.app" in Applications.
+- Builds: `./build.sh <target>`, and `build.ps1` on Windows itself ([Building from
+  source](Building-from-source)).
+- The web build is experimental and does not show a picture yet.
+
+## Installing
+
+- No registry: the installation's record is `var/install.cfg`, so an installed folder can be
+  moved or copied ([Install records](Install-records)).
+- The installer takes the game from the folder it is started in, in place of asking for the CD,
+  and copies it in seconds (the original's copy was slow here). It has no page for the kind of
+  installation (always the full one), no DirectX set-up and no registration; it makes ordinary
+  shortcuts. It does not copy the CD's `ral.exe`.
+- "Uninstall Rally" runs the installed program itself (`rc2k -u`). More on [Installing the
+  game](Installing-the-game).
 
 ## Not there
 
 - Playing against the original program over a network.
-- The original's choice between 3D cards; the program picks its renderer itself
-  (`RC2K_RENDERER=software` forces the rasteriser).
-- Wide screens: the race's resolution list holds the monitor's own modes, the usual sizes of 4:3, 16:10,
-  16:9, 21:9 and 32:9 that fit the desktop, and the game's eight, each shown with its ratio ("2560 x 1080
-  (21:9)"); `custom_width` / `custom_height` in `[display]` set any other size. On a screen wider than 4:3 the
-  3D keeps its field of view up and down and shows more to the sides (the usual "Hor+"), and the HUD keeps
-  its 800 x 600 shape instead of stretching: the dials, the map, the timers and the mirror keep to their
-  corners and edges, the progress bar to the middle (two players side by side each keep to their half, one
-  above the other the divider spans the screen). The "HUD area" row confines the HUD to a centred 4:3,
-  16:9 or 21:9 box. The "screen" row shows the window as a window, full screen or borderless. On a screen
-  as wide as 4:3 or narrower everything is as before.
-- The window keeps the size of the race's screen mode from the start to the end. The original's menus
+- The original's choice between 3D cards, and what only served 1999's machines: CD audio, the
+  raised priority (`noprichange`), the PC-98 keyboard layout, the search for 3D cards
+  (`forceno3dcard`, `ignoreprimary`, `ignoresecondary`, `-c`), and the "andrew" computer-name check.
+- The twin code paths chosen by processor features (MMX, SSE, 3DNow!): the game computes one way on
+  every machine, and `ignoremmx`, `ignorekatmai` and `ignoreamdk3d` are read and not used.
 
-  ran at 800 x 600 and switched the display when a race began or ended; here the menus are still drawn
-  at 800 x 600 (their pictures, layouts and fonts are made for it) and shown scaled in the window,
-  keeping the 4:3 shape and centred, with a linear filter (a whole-number factor stays sharp, so
-  1600 x 1200 shows each menu pixel as a 2 x 2 square). On a window of another shape the space around the menu
-  shows the menu's own background picture alone (no 3D models, texts or buttons), scaled to cover the
-  whole window, strongly blurred and darkened; it is made once each time the background or the
-  window's size changes, and follows the menus as they change (black until a menu has drawn a
-  background, as on a film's frames, which keep the last one); a race's own bars are black. The menu mode in
-  the options files is still read but no longer changes the window. The handheld's panel is
-  unchanged.
-- 16-bit screen modes: the screen always has 32 bits a pixel. A saved 16-bit mode is taken as
-  the same size at 32 bits, and a first start picks 800 × 600 at 32 bits. The first logo
-  film, which the original showed only on 16-bit screens, always plays.
-- Twin code paths chosen by the processor's features (MMX, SSE, 3DNow!): the game computes
-  one way on every machine, the way the original took on a processor with MMX and without
-  3DNow!, with its SSE switch off. The settings `ignoremmx`, `ignorekatmai` and
-  `ignoreamdk3d` are read and not used.
-- What only served 1999's machines: CD audio, the process's raised priority (`noprichange`),
-  the PC-98 keyboard layout, the search for 3D cards (`forceno3dcard`, `ignoreprimary`,
-  `ignoresecondary`, the `-c` switch).
-- The web build is experimental and does not show a picture yet.
+## In progress
+
+- Split screen for three and four players (the original had two): the single rally can already be
+  started for three or four players racing together (`--players 3` or `4`, or the advanced page's
+  "3 and 4 players together" switch with the menu's three- and four-player items), each player
+  with the controls of their own record, and the three and four players' results page. Not yet:
+  only players 1 and 2's views are drawn, the race's sound follows those two, no replay is kept.
+- Steam play has not yet been tried against a running Steam client.

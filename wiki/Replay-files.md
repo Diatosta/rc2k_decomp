@@ -20,7 +20,7 @@ Paths are relative to the game's folder (the one that holds `files` and `var`).
 | `savedata/replay/replayNN` | A saved replay, `NN` = slot `00` .. `99`. Made from the last race's replay or from the viewer. |
 | `files/replay/replayNN` | Replays shipped with the game (the viewer knows them as slots 100 and up). The folder may be empty. |
 
-All three have the same format. The files have no extension. The game names them with
+All three have the same format. (A video the viewer renders from a replay goes to `savedata/videos`; see Running-and-options.) The files have no extension. The game names them with
 backslashes and looks names up without regard to case, as Windows does; on Linux and macOS the
 program does that matching itself.
 

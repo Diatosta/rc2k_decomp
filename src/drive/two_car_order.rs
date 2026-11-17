@@ -15,6 +15,16 @@ pub fn two_car_order(race: &Race) -> Result<(), crate::errors::BadInput> {
             _ => block.checkpoint_offset[1].get(), // places::TIE_BREAK
         }
     };
+    let players = race.shared.view.get().players.get();
+    if race.shared.vars.get().run_kind.get() == 0 && players > 2 {
+        // A split screen of three or four: every player's place.
+        if let Some(order) = places::many_car_order(players as usize, figure) {
+            for (car, place) in order.into_iter().enumerate() {
+                race.car_blocks().cars[car].two_car_place.set(place);
+            }
+        }
+        return Ok(());
+    }
     let order = places::two_car_order(
         race.shared.vars.get().run_kind.get(),
         race.shared.view.get().players.get(),

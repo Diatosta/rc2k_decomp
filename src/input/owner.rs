@@ -38,10 +38,10 @@ pub struct Input {
     pub profiles: Mutex<[Vec<rc2k_core::input::profile::Profile>; 4]>,
     /// Whose profile each of the race's two device records reads through: the number of the
     /// player's record, set when the race takes the players' controls.
-    pub race_players: [AtomicU32; 2],
+    pub race_players: [AtomicU32; 4],
     /// The profile each device record reads through in the race, taken when the race sets the
     /// device up (`input::set_up_device`).
-    pub race_profiles: Mutex<[Option<rc2k_core::input::profile::Profile>; 2]>,
+    pub race_profiles: Mutex<[Option<rc2k_core::input::profile::Profile>; 4]>,
     /// A player's profile as it was when the controller's bindings page was entered, for its
     /// "cancel changes" item to put back.
     pub profile_undo: Mutex<Option<(u32, rc2k_core::input::profile::Profile)>>,
@@ -127,8 +127,13 @@ impl Input {
             learn_back_since: std::sync::atomic::AtomicU64::new(0),
             chosen_devices: Mutex::new([const { None }; 4]),
             profiles: Mutex::new([const { Vec::new() }; 4]),
-            race_players: [AtomicU32::new(0), AtomicU32::new(1)],
-            race_profiles: Mutex::new([const { None }; 2]),
+            race_players: [
+                AtomicU32::new(0),
+                AtomicU32::new(1),
+                AtomicU32::new(2),
+                AtomicU32::new(3),
+            ],
+            race_profiles: Mutex::new([const { None }; 4]),
             profile_undo: Mutex::new(None),
             learn_rest: Mutex::new(None),
             devices_listed: std::sync::atomic::AtomicBool::new(false),

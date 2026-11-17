@@ -50,7 +50,7 @@ pub fn draw_viewer_item(
     panel.item_place[3].set(place[3]);
     let colour = item_colour(
         item.first.get(),
-        index == list_state.choice.get(),
+        index == list_state.choice.get() && !crate::race::render_row::selected(),
         || race.viewer_buffers().camera_edit.get() != 0,
         || {
             list_state

@@ -1004,6 +1004,7 @@ pub fn screen_pixels(system: &crate::system::owner::System) -> u64 {
 /// quitting (nothing shown).
 pub fn show_frame_now(o: crate::owners::Owners<'static>) -> bool {
     crate::input::osk_draw::draw(o);
+    crate::race::render_row::draw(o);
     let drawing = &o.gfx.drawing;
     // The 3D drawing noted so far, before the screen is shown, written or changed.
     crate::platform::direct3d::flush();
@@ -1029,6 +1030,15 @@ pub fn show_frame_now(o: crate::owners::Owners<'static>) -> bool {
             #[cfg(feature = "remote")]
             let shot = crate::remote::shot_wanted().then(|| screen.pixels.to_vec());
             let video_frame = video_wanted.then(|| screen.pixels.to_vec());
+            // A render from the viewer shows how far it is on the screen only (not in the video).
+            if crate::video::from_viewer() && screen.bits == 32 {
+                crate::video::progress_bar(
+                    &screen.pixels,
+                    screen.width,
+                    screen.height,
+                    crate::race::render_row::fraction(o.race),
+                );
+            }
             let showing = std::time::Instant::now();
             let shown_ok = show_frame(&o, screen);
             crate::platform::timing::SHOW_MICROS.fetch_add(
@@ -1052,6 +1062,7 @@ pub fn show_frame_now(o: crate::owners::Owners<'static>) -> bool {
             }
             if let Some(pixels) = video_frame {
                 crate::video::frame(&pixels, screen.width as u32, screen.height as u32);
+                crate::video::sound_turn(o.audio);
             }
             crate::platform::timing::note_frame_shown();
             let shown = SHOWN.fetch_add(1, Ordering::SeqCst) + 1;

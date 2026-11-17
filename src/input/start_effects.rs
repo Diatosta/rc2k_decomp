@@ -4,8 +4,8 @@ use crate::errors::Refused;
 use crate::input::owner::Input;
 use crate::input::store::Devices;
 
-/// Both device records.
-pub fn records(devices: &Devices) -> &[crate::input::types::InputDevice; 2] {
+/// The device records.
+pub fn records(devices: &Devices) -> &[crate::input::types::InputDevice; 4] {
     crate::input::devices::records(devices)
 }
 

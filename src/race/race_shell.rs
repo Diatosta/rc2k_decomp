@@ -222,6 +222,12 @@ pub fn store_results_by_mode(race: &Race) {
             shared.state.results.results[1]
                 .word
                 .set(margin(total, race.car_blocks().cars[1].stage_time.get()));
+            // The third and fourth players of a larger split screen.
+            for k in 2..(shared.view.get().players.get() as usize).min(4) {
+                let time = race.car_blocks().cars[k].stage_time.get();
+                shared.state.result(k).time.set(time);
+                shared.state.result(k).word.set(margin(total, time));
+            }
         }
         1 | 3 => {
             shared.state.results.results[0]
@@ -230,6 +236,13 @@ pub fn store_results_by_mode(race: &Race) {
             shared.state.results.results[1]
                 .time
                 .set(race.car_blocks().cars[1].stage_time.get());
+            for k in 2..(shared.view.get().players.get() as usize).min(4) {
+                shared
+                    .state
+                    .result(k)
+                    .time
+                    .set(race.car_blocks().cars[k].stage_time.get());
+            }
         }
         _ => {}
     }

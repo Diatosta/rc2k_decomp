@@ -97,6 +97,7 @@ fn place<'a>(menus: &'a Menus, race: &'a Race, v: Var) -> Place<'a> {
         Var::ServiceDue => Cell(&menus.screens.event.service.due),
         Var::RaceResult => Cell(&race.shared.state.results.results[0].result),
         Var::RaceResult2 => Cell(&race.shared.state.results.results[1].result),
+        Var::RaceResultOf(k) => Cell(&race.shared.state.result(k as usize).result),
         Var::CarListKind => Cell(&menus.screens.flow.car_list_kind),
         Var::Cheats => Cell(&menus.play.cheats.cheats),
         // The eight cleared figures are the four totals before the stage, then the four totals.

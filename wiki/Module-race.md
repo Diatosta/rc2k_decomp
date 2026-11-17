@@ -19,7 +19,7 @@ are in `blocks_store.rs`.
 
 | Item | File | What it does |
 | --- | --- | --- |
-| `single_rally_race` | `src/race/single_rally.rs` | Copies the menu's choices into the race's settings, runs the race, copies the results back. |
+| `single_rally_race` | `src/race/single_rally.rs` | Copies the menu's choices into the race's settings, runs the race, copies the results back (for two players, or three and four on a split screen, each player's side: `state_store::RaceState::car(k)`, `result(k)`, ...). |
 | `race_from_menu`, `run_race` | `src/race/race_end.rs` | One stage's whole life: load, record, play, close, tidy. |
 | `load_stage` | `src/race/stage_loading.rs` | Shows the loading picture and loads the stage. |
 | `loadlevel_init` | `src/race/loadlevel.rs` | The loading steps in order: course, objects, textures, sounds, pace notes. |

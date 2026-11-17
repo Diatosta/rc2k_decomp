@@ -15,8 +15,8 @@ use crate::errors::BadInput;
 use crate::input::store::Devices;
 use crate::input::types::InputDevice;
 
-/// The two records.
-pub fn records(devices: &Devices) -> &[InputDevice; 2] {
+/// The records: the two players' and the third's and fourth's.
+pub fn records(devices: &Devices) -> &[InputDevice; 4] {
     &devices.records
 }
 

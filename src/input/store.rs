@@ -93,13 +93,17 @@ pub struct Devices {
     /// The force-feedback effects' parameter rows (16 bytes each).
     pub effect_rows: [[Dword; 4]; 14],
     /// The two records, by handle (`DEVICE_TAG | n`, never changed; 0 none).
-    pub input_devices: [Dword; 2],
-    pub records: [InputDevice; 2],
+    pub input_devices: [Dword; 4],
+    pub records: [InputDevice; 4],
     pub controller_count: Dword,
     pub controllers: [Controller; 16],
     pub input_command: Dword,
     /// Three GUIDs the effect slots point at.
     pub guids: Bytes<0x30>,
+    /// The race's players as the device commands see them: written by the game's thread before
+    /// it posts the race's "create controls" command, read by the input thread (which does not
+    /// reach the race's view).
+    pub race_players: Dword,
 }
 
 const EFFECTS: usize = 6;
@@ -189,9 +193,15 @@ impl Devices {
             alt_axes_code: Dword::new(u32::MAX),
             ff_gain: Dword::new(u32::MAX),
             effect_rows: effect_rows(),
-            input_devices: [Dword::new(DEVICE_TAG), Dword::new(DEVICE_TAG | 1)],
-            records: [record(0), record(1)],
+            input_devices: [
+                Dword::new(DEVICE_TAG),
+                Dword::new(DEVICE_TAG | 1),
+                Dword::new(DEVICE_TAG | 2),
+                Dword::new(DEVICE_TAG | 3),
+            ],
+            records: [record(0), record(1), record(2), record(3)],
             guids: Bytes::new(INTERFACE_GUIDS),
+            race_players: Dword::new(1),
             ..ZeroCells::ZERO
         }
     }

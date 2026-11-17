@@ -256,6 +256,7 @@ pub mod sort_standings_b_by_points;
 pub mod sort_standings_b_by_score;
 pub mod sort_standings_by_time;
 pub mod sort_standings_by_total;
+pub mod split_players;
 pub mod stage_choice;
 pub mod stage_range_caption;
 pub mod stage_result_loop;

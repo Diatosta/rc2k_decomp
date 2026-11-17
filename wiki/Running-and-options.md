@@ -64,8 +64,9 @@ rc2k --mode a8 --players 2 --car octavia --car2 puma
 | `--stage-set` | The stage screen's set: `simulation` (the default) or `arcade`, or `1` / `2`. The arcade set runs each stage the other way. |
 | `--car` | Player 1's car, by name. Without it, the car the player last chose. |
 | `--car2` | Player 2's car. Without it, the same as `--car`. |
+| `--car3`, `--car4` | Players 3 and 4's cars (with `--players 3` or `4`). Without them, the same as `--car`. |
 | `--gearbox` | `manual`, `semi-automatic` or `automatic`, or `1` .. `3`. |
-| `--players` | `1`, or `2` for a split screen (in a championship too). The arcade has one player. |
+| `--players` | `1`, or `2` for a split screen (in a championship too), or `3` or `4` for the single rally only. The arcade has one player. |
 | `--seed` | A number (decimal, or hexadecimal with `0x`): the race's random numbers start from it, so two runs with the same seed get the same random events. |
 | `--then` | `menus` (the default) or `quit`: with `quit` the program saves and ends when the race is over (the first race of a championship or of the arcade game). |
 | `--launch` | A file holding the same settings. Switches typed on the command line as well win over the file's. |
@@ -103,7 +104,8 @@ game itself runs in. Names are compared without regard to capitals, spaces or pu
 stage choices; the rest is the player's, as in the menus.
 
 - Single rally and time trial: `--stage` is needed. Two players (`--players 2`) share a split
-  screen.
+  screen; the single rally takes `--players 3` and `4` too (for now the screen shows players 1
+  and 2 only).
 - Time trial: the service area is not shown. The car is left as the player's record has it,
   plus the tune the switches below give (the same for both players). No repairs are made.
   The set-up values are put in as the service area's choices end up: brake balance and steering
@@ -123,7 +125,7 @@ stage choices; the rest is the player's, as in the menus.
 
 **Refusals.** If a name fits nothing, or fits more than one, the program does not guess. It
 stops before the race loads, with a message (in a box, and in `rc2k.log`) that lists the names
-to choose from. The same happens for a value that cannot be read, such as `--players 3` or
+to choose from. The same happens for a value that cannot be read, such as `--players 5` or
 `--mode rally`, and for a switch the event has no use for, such as `--stage` with
 `--mode arcade` (the message says why).
 
@@ -206,9 +208,9 @@ name.
 
 ### Rendering a replay to a video
 
-`--render-replay` plays a replay without a window on the screen or any sound, as fast as the
-frames can be drawn, and writes the picture as a video file. The replay runs tick for tick as
-when it is watched; only the clock is the video's own.
+`--render-replay` plays a replay without a window on the screen or a sound device, as fast as
+the frames can be drawn, and writes the picture and the game's sound as a video file. The replay
+runs tick for tick as when it is watched; only the clock is the video's own.
 
 ```
 rc2k --render-replay savedata/replay/replay00 --out run.mp4 --size 1920x1080 --fps 60
@@ -225,9 +227,28 @@ The frames are piped as raw pixels to an `ffmpeg` found on the path: H.264 (`lib
 odd side is cut by one pixel) when it has that encoder, else its own default for the file's
 extension. With no `ffmpeg` the frames are written as numbered PNG files in a folder named
 after the video (`run_frames/frame_000001.png`, ...) and the log says so; `ffmpeg -framerate 60
--i run_frames/frame_%06d.png run.mp4` makes the video from them. There is no sound in the video.
-`--renderer` chooses the renderer as always (the software renderer needs no graphics card).
+-i run_frames/frame_%06d.png run.mp4` makes the video from them; the sound is
+`run_frames/audio.wav` (16-bit stereo, 44100 Hz).
+`--renderer` chooses the renderer as always: the software renderer needs no graphics card, and
+the GPU renderers (`gpu`, `gl`) render at any size too (1920x1080 tried).
 The program uses SDL's offscreen video driver unless `SDL_VIDEODRIVER` is set.
+
+**The sound.** It is what the game's mixer makes, taken in step with the frames, so it matches the
+picture whatever speed the render runs at: after each frame the audio thread takes one turn (every
+sound the race asked for) and the mixer is asked for that frame's stretch of time (44100 samples a
+second, 735 a frame at 60 frames a second). The samples go to a WAV file beside the video
+(`run.sound.wav`) and, when the frames are done, `ffmpeg` joins it to the picture without
+re-encoding the picture (AAC sound, Opus in a `.webm`) and the two parts are removed. If the join
+fails the video is kept without sound and the log says so. A render never changes the replay:
+the sound is only read from the mixer.
+
+**From the replay viewer.** Under the two rows of buttons the stopped viewer has a "render to
+video" row. The down arrow from the lower row reaches it (up or left goes back to the buttons) and
+Enter renders the whole replay from its start, asking nothing: the screen's size, 60 frames a
+second, into `savedata/videos/replay_YYYY-MM-DD_HH-MM-SS.mp4`, with the sound, as above. A green bar
+along the foot of the screen shows how far it has come (it is not in the video). Escape stops the
+render and keeps what was written. The viewer is back where the play ended. The row's text is one
+of the game's own texts (`viewer.render_video` in the language files beside the game's).
 
 ### How the program runs here
 

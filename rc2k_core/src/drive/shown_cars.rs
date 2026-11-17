@@ -47,7 +47,8 @@ impl ShownCars {
             return Err(Invalid("a network car above 7 (past the eight)"));
         }
         self.cars = [0, 0];
-        self.views = s.players;
+        // Only two views are drawn for now: players 3 and 4 race without a view of their own.
+        self.views = s.players.min(2);
         if self.views != 1 {
             self.cars[1] = 1;
         }
@@ -99,6 +100,13 @@ mod tests {
             (c.cars, c.views, c.listed[..3].to_vec()),
             ([0, 1], 2, vec![0, 1, u32::MAX])
         );
+        // Three and four players: two views for now, the third and fourth cars drawn in none.
+        let four = ShownSetup {
+            players: 4,
+            ..Default::default()
+        };
+        c.choose(&four, 0).unwrap();
+        assert_eq!((c.cars, c.views), ([0, 1], 2));
         let laid = ShownSetup {
             players: 2,
             replay_mode: 2,

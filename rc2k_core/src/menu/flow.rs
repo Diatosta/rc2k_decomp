@@ -31,6 +31,8 @@ pub enum Var {
     /// The race's two results (-1 none, -2 left).
     RaceResult,
     RaceResult2,
+    /// Player k's race result, for k 2 and 3 (the split screen's third and fourth players).
+    RaceResultOf(u32),
     /// 1 picks the single rally's first car list.
     CarListKind,
     /// The cheat bits.

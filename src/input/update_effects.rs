@@ -22,7 +22,7 @@ pub struct Vars<'a> {
     pub cars: &'a [crate::memory::session::PlainDword; 2],
     pub one_player: &'a Dword,
     pub count: &'a Dword,
-    pub devices: &'a [Dword; 2],
+    pub devices: &'a [Dword; 4],
     pub views: &'a [crate::memory::session::PlainDword; 2],
     pub objects: &'a [crate::sound::store::SoundObject; 8],
     pub two_devices: &'a Dword,
@@ -60,7 +60,8 @@ pub fn update_effects_with(input: &Input, system: &System, v: &Vars<'_>) -> Resu
             .map(crate::memory::session::PlainDword::get),
         one_player: v.one_player.get() == 1,
         // the devices by handle: the core only asks whether one is none (0)
-        devices: v.devices.each_ref().map(crate::memory::session::Dword::get),
+        // (the force feedback is for the first two players' devices)
+        devices: [v.devices[0].get(), v.devices[1].get()],
         // The view blocks by handle (the core only passes them on).
         views: v
             .views

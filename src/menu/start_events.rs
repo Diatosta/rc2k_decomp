@@ -4,6 +4,8 @@
 //! screen, or two, three, four in turn. The single rally and the time trial run their own
 //! event flows in `rc2k_core::menu::rounds`, one per seats (event modes: single rally 0x18
 //! for one player, 5 split, 8 in turn; time trial 0x14 one, 4 split, 0x15 .. 0x17 in turn);
+//! the single rally's three and four players race together on one split screen instead of in turn
+//! when `menu::split_players::together` is on (event mode 5, `rounds::single_rally_split_many`);
 //! the championships (`Championship::First` and `A8`) share `menu::start_event`'s shape
 //! (`starters::Starter`). Each refuses a missing player before anything, and what its callees
 //! refuse when they are reached.
@@ -27,6 +29,12 @@ pub fn start_event_item(
             Seats::One => Game::new(o).run(rounds::single_rally),
             Seats::Split => Game::new(o).run(rounds::single_rally_split),
             Seats::Two => Game::new(o).run(rounds::single_rally_two),
+            Seats::Three if crate::menu::split_players::together() => {
+                Game::new(o).run(|game| rounds::single_rally_split_many(game, 3))
+            }
+            Seats::Four if crate::menu::split_players::together() => {
+                Game::new(o).run(|game| rounds::single_rally_split_many(game, 4))
+            }
             Seats::Three => Game::new(o).run(rounds::single_rally_three),
             Seats::Four => Game::new(o).run(rounds::single_rally_four),
         },

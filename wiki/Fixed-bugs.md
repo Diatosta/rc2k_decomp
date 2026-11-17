@@ -530,7 +530,7 @@ has the same fixed addresses, but its network mode could not be run here to see 
 
 **What it is:** the game chooses its reverb (the EAX room) from how much of the course is close to the player's car: each nearby face adds a weight, summed again for every view drawn. The sum is made in place in a variable that the sound thread reads whenever it runs. If the sound thread runs while the sum is being made, it takes a partial value, as low as zero.
 
-**In game:** at most a moment of the wrong reverb, then the right one again on the next turn. Not reported; probably not audible.
+**In game:** at most a moment of the wrong reverb, then the right one again on the next turn. Not reported; probably not audible. The port's own reverb has since been taken out, so nothing reads the sum any more (see [Sound and music](Sound-and-music)).
 
 **Seen or read:** read in `race::eax_environment` (0x45C7EE) and the sound thread's voice update; found 2026-11-09 by the conversion's work on what each view hands on.
 

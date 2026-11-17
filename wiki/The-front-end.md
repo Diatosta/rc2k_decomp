@@ -110,7 +110,7 @@ be tested without drawing anything.
 
 | Event | Flow | Notes |
 | --- | --- | --- |
-| Single rally | `rounds::single_rally`, `single_rally_split`, `single_rally_two` .. `single_rally_four` | One function per number of players; `_split` is two players on one screen. |
+| Single rally | `rounds::single_rally`, `single_rally_split`, `single_rally_two` .. `single_rally_four` | One function per number of players; `_split` is two players on one screen; `single_rally_split_many` (3 or 4) is the larger one, which the three- and four-player items start when the advanced page's "3 and 4 players together" is on, and `--players 3` / `4` start. |
 | Time trial | `rounds::time_trial_one`, `time_trial_split`, `time_trial_two` .. `time_trial_four` | Has its own service step before the stage (`menu::time_trial_service`). |
 | Championship | `championship::run`, started through `starters::start` | The game-side driver is `src/menu/run_championship.rs`; it can also continue from a saved game (`saves::load_savegame`). |
 | Arcade | `arcade_event::arcade_event` | Levels of six stages; a failed race retries the level. Game side: `src/menu/arcade_event.rs`, `arcade_steps.rs`. |

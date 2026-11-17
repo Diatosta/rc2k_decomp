@@ -274,6 +274,22 @@ fn log_arcade_positions(race: &Race, fx: &mut impl Effects) {
     );
 }
 
+use crate::race::race_cars::seats;
+
+/// The race's players in order (0 the current player's, 1 player 1's, then 3 and 4's when the split
+/// screen has them): the number, the car block and the settings.
+fn players(
+    race: &Race,
+) -> impl Iterator<
+    Item = (
+        usize,
+        &crate::physics::car_store::Car,
+        &crate::race::state_store::RaceCar,
+    ),
+> {
+    (0..seats(race)).map(|k| (k, &race.car_blocks().cars[k], race.shared.state.car(k)))
+}
+
 /// The front end's settings into the race's (`copy_settings_in`), in the log's order.
 fn copy_in(race: &Race, gfx: &Gfx, fx: &mut impl Effects) -> Result<(), Refused> {
     let shared = &race.shared;
@@ -301,8 +317,17 @@ fn copy_in(race: &Race, gfx: &Gfx, fx: &mut impl Effects) -> Result<(), Refused>
     vars.race_stage.set(vars.race_stage.get().wrapping_sub(1));
     vars.run_kind.set(settings.run_kind.get());
     view.race_cars.set(view.players.get());
-    vars.car_tyres[0].set(settings.cars[0].tyre.get());
-    vars.car_tyres[1].set(settings.cars[1].tyre.get());
+    // Players 3 and 4 (a split screen of more than two): their kinds and tyres.
+    for (k, kind) in vars.race_car_kinds[..seats(race)]
+        .iter()
+        .enumerate()
+        .skip(2)
+    {
+        kind.set(shared.state.car_kind(k).get());
+    }
+    for (k, tyre) in vars.car_tyres[..seats(race)].iter().enumerate() {
+        tyre.set(shared.state.car(k).tyre.get());
+    }
     vars.mip_setting.set(gfx.display.choices.mipmapping.get());
     vars.settings_words[0].set(settings.lens_flare.get());
     vars.settings_words[1].set(settings.reflections.get());
@@ -333,7 +358,7 @@ fn copy_in(race: &Race, gfx: &Gfx, fx: &mut impl Effects) -> Result<(), Refused>
     // The car blocks' settings. The brake-like settings are percentages: below 0 is 0,
     // 100 or more is 0x100 (full), else the setting x 2.56 (the x87's product, rounded).
     let brake_scale = race.course.numbers.get().brake_scale.get();
-    for (c, s) in race.car_blocks().cars.iter().zip(&settings.cars).take(2) {
+    for (c, s) in players(race).map(|(_, c, s)| (c, s)) {
         for (field, setting) in SETTING_BRAKES {
             let held = rc2k_core::race::cars::held_brake(setting(s).get() as i32, |v| {
                 x87::int_times_to_int(v, brake_scale) as u32
@@ -345,13 +370,13 @@ fn copy_in(race: &Race, gfx: &Gfx, fx: &mut impl Effects) -> Result<(), Refused>
     // The first car's brake balance is turned round: 0x100 less itself.
     let balance = &race.car_blocks().cars[0].brake_balance;
     balance.set(0x100u32.wrapping_sub(balance.get()));
-    for car in 0..2 {
-        vars.car_colours[car].set(settings.cars[car].controls.gearing.get());
+    for (car, colour) in vars.car_colours[..seats(race)].iter().enumerate() {
+        colour.set(shared.state.car(car).controls.gearing.get());
     }
-    for (c, s) in race.car_blocks().cars.iter().zip(&settings.cars).take(2) {
+    for (c, s) in players(race).map(|(_, c, s)| (c, s)) {
         c.start_slot_value.set(s.race_number.get());
     }
-    for (c, s) in race.car_blocks().cars.iter().zip(&settings.cars).take(2) {
+    for (c, s) in players(race).map(|(_, c, s)| (c, s)) {
         c.camera_view.set(s.view.get());
         c.camera_blend_view.set(s.view.get());
     }
@@ -361,30 +386,25 @@ fn copy_in(race: &Race, gfx: &Gfx, fx: &mut impl Effects) -> Result<(), Refused>
     logged_int(fx, "[onerace.car2overbits]", hud_bits[1].get());
     // The head-up display's option bits: the results' word, unless it is -1 (all ones);
     // then the bits are made from the player's own on/off settings.
-    for (car, hud) in hud_bits.into_iter().enumerate() {
-        let mut bits = hud.get();
+    for (car, _, player) in players(race) {
+        let mut bits = shared.state.hud_bits(car).get();
         if bits == 0xFFFF_FFFF {
             bits = 0;
             for (setting, bit) in OPTION_BITS {
-                if setting(&settings.cars[car]).get() != 0 {
+                if setting(player).get() != 0 {
                     bits |= bit;
                 }
             }
         }
         race.car_blocks().cars[car].option_bits.set(bits);
-        view.player_options[car].set(bits);
+        if let Some(options) = view.player_options.get(car) {
+            options.set(bits);
+        }
     }
 
     // The gauges: the front end keeps them as whole numbers, the cars as floats (converted exactly
     // as the x87 does, so large numbers round as they always did).
-    for (car, (c, s)) in race
-        .car_blocks()
-        .cars
-        .iter()
-        .zip(&settings.cars)
-        .take(2)
-        .enumerate()
-    {
+    for (car, c, s) in players(race) {
         for (gauge, setting) in GAUGES {
             gauge(c).set(x87::from_int(setting(s).get() as i32));
         }
@@ -393,12 +413,11 @@ fn copy_in(race: &Race, gfx: &Gfx, fx: &mut impl Effects) -> Result<(), Refused>
         }
     }
 
-    race.car_blocks().cars[0]
-        .parts_present
-        .set(results.flags_current.get());
-    race.car_blocks().cars[1]
-        .parts_present
-        .set(results.flags_first.get());
+    for car in 0..seats(race) {
+        race.car_blocks().cars[car]
+            .parts_present
+            .set(shared.state.flags(car).get());
+    }
     shared.tables().start_place.set(results.figure_000.get());
     race.car_blocks().cars[0]
         .mode2_place
@@ -407,8 +426,8 @@ fn copy_in(race: &Race, gfx: &Gfx, fx: &mut impl Effects) -> Result<(), Refused>
     log_cars(race, fx);
 
     fx.clear_player_absences(race);
-    for (c, r) in race.car_blocks().cars.iter().zip(&results.results).take(2) {
-        c.stop_state.set(r.result.get());
+    for (car, c, _) in players(race) {
+        c.stop_state.set(shared.state.result(car).result.get());
     }
     log_arcade_positions(race, fx);
     fx.copy_league_table(race)?;
@@ -421,28 +440,20 @@ fn copy_in(race: &Race, gfx: &Gfx, fx: &mut impl Effects) -> Result<(), Refused>
 /// replay is shown (`hold_car_revs` not 0) nothing is copied.
 fn copy_out(race: &Race, fx: &mut impl Effects) -> Result<(), Refused> {
     let shared = &race.shared;
-    let (settings, results) = (&shared.state.settings, &shared.state.results);
     fx.text(RULE, true);
     fx.text("COPY SHAUN TO GRAHAM", true);
     if shared.replay_file().hold_car_revs.get() != 0 {
         fx.text("SKIPPING - REPLAY!", true);
     } else {
-        results
-            .hud_bits_current
-            .set(race.car_blocks().cars[0].option_bits.get());
-        results
-            .hud_bits_first
-            .set(race.car_blocks().cars[1].option_bits.get());
+        for car in 0..seats(race) {
+            shared
+                .state
+                .hud_bits(car)
+                .set(race.car_blocks().cars[car].option_bits.get());
+        }
         // The gauges back to whole numbers (rounded as the x87's control
         // word says, to the nearest by default), the impact marks' bits as they are.
-        for (car, (c, s)) in race
-            .car_blocks()
-            .cars
-            .iter()
-            .zip(&settings.cars)
-            .take(2)
-            .enumerate()
-        {
+        for (car, c, s) in players(race) {
             for (gauge, setting) in GAUGES {
                 setting(s).set(x87::to_int(gauge(c)) as u32);
             }
@@ -451,18 +462,18 @@ fn copy_out(race: &Race, fx: &mut impl Effects) -> Result<(), Refused> {
             }
         }
         fx.store_results_by_mode(race);
-        for (r, c) in results.results.iter().zip(&race.car_blocks().cars).take(2) {
-            r.result.set(c.stop_state.get());
+        for (car, c, _) in players(race) {
+            shared.state.result(car).result.set(c.stop_state.get());
         }
-        for (r, c) in results.results.iter().zip(&race.car_blocks().cars).take(2) {
-            r.secs.set(x87::loaded(&c.top_speed));
+        for (car, c, _) in players(race) {
+            shared.state.result(car).secs.set(x87::loaded(&c.top_speed));
         }
-        results
-            .flags_current
-            .set(race.car_blocks().cars[0].parts_present.get());
-        results
-            .flags_first
-            .set(race.car_blocks().cars[1].parts_present.get());
+        for car in 0..seats(race) {
+            shared
+                .state
+                .flags(car)
+                .set(race.car_blocks().cars[car].parts_present.get());
+        }
         log_cars(race, fx);
         log_arcade_positions(race, fx);
     }
@@ -473,7 +484,7 @@ fn copy_out(race: &Race, fx: &mut impl Effects) -> Result<(), Refused> {
 
 /// Car `car`'s eight impact marks in the results record (`results[car].impact_marks`).
 fn result_marks(shared: &RaceShared, car: usize) -> &[PlainDword; 8] {
-    &shared.state.results.results[car].impact_marks
+    &shared.state.result(car).impact_marks
 }
 
 /// A float of a car block, picked by field.

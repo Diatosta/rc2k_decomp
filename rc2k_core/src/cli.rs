@@ -101,6 +101,18 @@ pub const SWITCHES: &[Switch] = &[
         Group::Race,
     ),
     switch(
+        "--car3",
+        Some("<name | number>"),
+        "player 3's car (--players 3 or 4); without it, the same as --car",
+        Group::Race,
+    ),
+    switch(
+        "--car4",
+        Some("<name | number>"),
+        "player 4's car (--players 4); without it, the same as --car",
+        Group::Race,
+    ),
+    switch(
         "--gearbox",
         Some("<manual | semi-automatic | automatic>"),
         "the gearbox (or 1 .. 3)",
@@ -108,8 +120,8 @@ pub const SWITCHES: &[Switch] = &[
     ),
     switch(
         "--players",
-        Some("<1 | 2>"),
-        "one player, or two on a split screen",
+        Some("<1 .. 4>"),
+        "one player, or two on a split screen; three or four share one in the single rally",
         Group::Race,
     ),
     switch(

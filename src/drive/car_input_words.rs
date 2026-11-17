@@ -17,7 +17,15 @@ pub fn car_input_words(
     use rc2k_core::drive::inputs::{NO_DEVICE, ReplayWords, check_car, device_words, replay_words};
     let car = race_owner.shared.work.get().current_car.get();
     check_car(car)?;
-    let device = frame.frame_work.get().listed_car_sounds[car as usize].get();
+    let mut device = frame.frame_work.get().listed_car_sounds[car as usize].get();
+    // The third and fourth players of a larger split screen have no sound object or view
+    // to list them by: their devices are their own numbers.
+    if device == NO_DEVICE
+        && !net.race_slot.is_on()
+        && (2..race_owner.shared.view.get().players.get()).contains(&car)
+    {
+        device = car;
+    }
     let readings = if device != NO_DEVICE {
         Some(crate::drive::device_axes::device_axes(device, input)?)
     } else {

@@ -49,7 +49,7 @@ pub fn next_view(
     if (2..=3).contains(&next) {
         let car = car();
         let has = car < CARS_WITH_ENTRY && has_views(car);
-        if !has || players() == 2 {
+        if !has || players() >= 2 {
             next = 4;
         }
     }

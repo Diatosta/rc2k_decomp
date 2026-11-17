@@ -219,7 +219,7 @@ impl SettingsHead {
 pub struct RaceSettings {
     /// The mode, the stage, the direction and the options.
     pub inline: GameThread<SettingsHead>,
-    /// The two players' settings: [0] the current player's (the "second set"), [1] player 1's (the
+    /// The players' settings: [0] the current player's (the "second set"), [1] player 1's (the
     /// "first set").
     pub cars: [RaceCar; 2],
 }
@@ -269,6 +269,18 @@ pub struct RaceResults {
     pub finished: PlainDword,
 }
 
+/// The third and fourth players' of a split screen of more than two: their settings, car kinds,
+/// results and the words the first two players' sides keep in `RaceResults`. Kept apart from the
+/// first two players' so that theirs stay as the game laid them out.
+#[derive(rc2k_derive::Cells)]
+pub struct RaceMore {
+    pub car_kinds: [PlainDword; 2],
+    pub results: [RaceResult; 2],
+    pub service_spent: [PlainDword; 2],
+    pub hud_bits: [PlainDword; 2],
+    pub flags: [PlainDword; 2],
+}
+
 /// The race's settings and results.
 #[derive(rc2k_derive::Cells)]
 pub struct RaceState {
@@ -278,6 +290,139 @@ pub struct RaceState {
     pub results: GameThread<RaceResults>,
     /// Unreferenced bytes.
     pub _gap_75b10c: Bytes<564>,
+    /// Players 3 and 4's.
+    pub more: GameThread<RaceMore>,
+    /// Players 3 and 4's settings, beside the first two's: the input thread reads their controls
+    /// (`input::device_command`), so they are shared cells as theirs are.
+    pub more_cars: [RaceCar; 2],
+}
+
+impl RaceState {
+    /// Player `k`'s settings: 0 the current player's, 1 player 1's, then 3 and 4's (`k` below 4).
+    pub fn car(&self, k: usize) -> &RaceCar {
+        match k {
+            0 | 1 => &self.settings.cars[k],
+            _ => &self.more_cars[k - 2],
+        }
+    }
+
+    /// Player `k`'s record word at +8 (the same order).
+    pub fn car_kind(&self, k: usize) -> &PlainDword {
+        match k {
+            0 => &self.settings.car_kind_current,
+            1 => &self.settings.car_kind_first,
+            _ => &self.more.car_kinds[k - 2],
+        }
+    }
+
+    /// Player `k`'s car's result.
+    pub fn result(&self, k: usize) -> &RaceResult {
+        match k {
+            0 | 1 => &self.results.results[k],
+            _ => &self.more.results[k - 2],
+        }
+    }
+
+    /// Player `k`'s record's service time (+0x288).
+    pub fn service_spent(&self, k: usize) -> &PlainDword {
+        match k {
+            0 => &self.results.service_spent_current,
+            1 => &self.results.service_spent_first,
+            _ => &self.more.service_spent[k - 2],
+        }
+    }
+
+    /// Player `k`'s HUD bits word.
+    pub fn hud_bits(&self, k: usize) -> &PlainDword {
+        match k {
+            0 => &self.results.hud_bits_current,
+            1 => &self.results.hud_bits_first,
+            _ => &self.more.hud_bits[k - 2],
+        }
+    }
+
+    /// Player `k`'s parts-present word.
+    pub fn flags(&self, k: usize) -> &PlainDword {
+        match k {
+            0 => &self.results.flags_current,
+            1 => &self.results.flags_first,
+            _ => &self.more.flags[k - 2],
+        }
+    }
+}
+
+/// The keys of the first player and of the others as the game starts them.
+const FIRST_KEYS: [u8; 12] = [
+    0x2c, 0x2d, 0x66, 0x6b, 0x39, 0x69, 0x68, 0x26, 0x27, 0x2e, 0x19, 0x28,
+];
+const SECOND_KEYS: [u8; 12] = [
+    0x4f, 0x50, 0x4d, 0x51, 0x52, 0x4e, 0x53, 0x4a, 0x48, 0x49, 0x4c, 0x4b,
+];
+
+/// A race car's settings as the game starts them: the player's race number and the keys.
+const fn starting_car(race_number: u32, keys: &[u8; 12]) -> RaceCar {
+    RaceCar {
+        own: GameThread::new(RaceCarOwn {
+            tyre: PlainDword::new(0),
+            brake_balance: PlainDword::new(0x32),
+            ride_height: PlainDword::new(0x32),
+            suspension_stiffness: PlainDword::new(0x32),
+            steering_sensitivity: PlainDword::new(0x32),
+            gear_ratio: PlainDword::new(2),
+            damage: [const { PlainDword::new(0) }; 13],
+            wear: [const { PlainDword::new(0) }; 36],
+            map_area: PlainDword::new(0),
+            rear_mirror: PlainDword::new(0),
+            rev_counter: PlainDword::new(0),
+            metric_units: PlainDword::new(0),
+            message_display: PlainDword::new(0),
+            car_info: PlainDword::new(1),
+            progress_bar: PlainDword::new(1),
+            driver_info: PlainDword::new(1),
+            pace_notes: PlainDword::new(1),
+            race_number: PlainDword::new(race_number),
+            codriver_sex: PlainDword::new(0),
+            view: PlainDword::new(1),
+        }),
+        controls: PlayerControls {
+            controller: Dword::new(0),
+            gearing: Dword::new(0),
+            sensitivity_level: Dword::new(0),
+            axis_codes: Dword::new(0x2011000),
+            controller_mode: Dword::new(0),
+            end_zone_pct: Dword::new(0),
+            centre_dead_zone_pct: Dword::new(0xa),
+            strength: Dword::new(0),
+            _unused_4c: Dword::new(0),
+            bindings: [
+                Dword::new(0x200),
+                Dword::new(0x100),
+                Dword::new(0x400),
+                Dword::new(0x800),
+                Dword::new(0x201),
+                Dword::new(0x101),
+                Dword::new(2),
+                Dword::new(0),
+                Dword::new(0),
+                Dword::new(0),
+                Dword::new(0),
+                Dword::new(0),
+            ],
+            keys: Bytes::new(sparse::<12>(&[(0x0, keys)])),
+        },
+    }
+}
+
+/// A car's result as the game starts it.
+const fn starting_result() -> RaceResult {
+    RaceResult {
+        time: PlainDword::new(0),
+        word: PlainDword::new(0),
+        secs: PlainFloat::new(0.0),
+        result: PlainDword::new(0),
+        data: PlainBytes::new([0xff; 64]),
+        impact_marks: [const { PlainDword::new(0) }; 8],
+    }
 }
 
 impl RaceState {
@@ -308,118 +453,8 @@ impl RaceState {
                     headlights: PlainDword::new(0),
                 }),
                 cars: [
-                    RaceCar {
-                        own: GameThread::new(RaceCarOwn {
-                            tyre: PlainDword::new(0),
-                            brake_balance: PlainDword::new(0x32),
-                            ride_height: PlainDword::new(0x32),
-                            suspension_stiffness: PlainDword::new(0x32),
-                            steering_sensitivity: PlainDword::new(0x32),
-                            gear_ratio: PlainDword::new(2),
-                            damage: [const { PlainDword::new(0) }; 13],
-                            wear: [const { PlainDword::new(0) }; 36],
-                            map_area: PlainDword::new(0),
-                            rear_mirror: PlainDword::new(0),
-                            rev_counter: PlainDword::new(0),
-                            metric_units: PlainDword::new(0),
-                            message_display: PlainDword::new(0),
-                            car_info: PlainDword::new(1),
-                            progress_bar: PlainDword::new(1),
-                            driver_info: PlainDword::new(1),
-                            pace_notes: PlainDword::new(1),
-                            race_number: PlainDword::new(0x61),
-                            codriver_sex: PlainDword::new(0),
-                            view: PlainDword::new(1),
-                        }),
-                        controls: PlayerControls {
-                            controller: Dword::new(0),
-                            gearing: Dword::new(0),
-                            sensitivity_level: Dword::new(0),
-                            axis_codes: Dword::new(0x2011000),
-                            controller_mode: Dword::new(0),
-                            end_zone_pct: Dword::new(0),
-                            centre_dead_zone_pct: Dword::new(0xa),
-                            strength: Dword::new(0),
-                            _unused_4c: Dword::new(0),
-                            bindings: [
-                                Dword::new(0x200),
-                                Dword::new(0x100),
-                                Dword::new(0x400),
-                                Dword::new(0x800),
-                                Dword::new(0x201),
-                                Dword::new(0x101),
-                                Dword::new(2),
-                                Dword::new(0),
-                                Dword::new(0),
-                                Dword::new(0),
-                                Dword::new(0),
-                                Dword::new(0),
-                            ],
-                            keys: Bytes::new(sparse::<12>(&[(
-                                0x0,
-                                &[
-                                    0x2c, 0x2d, 0x66, 0x6b, 0x39, 0x69, 0x68, 0x26, 0x27, 0x2e,
-                                    0x19, 0x28,
-                                ],
-                            )])),
-                        },
-                    },
-                    RaceCar {
-                        own: GameThread::new(RaceCarOwn {
-                            tyre: PlainDword::new(0),
-                            brake_balance: PlainDword::new(0x32),
-                            ride_height: PlainDword::new(0x32),
-                            suspension_stiffness: PlainDword::new(0x32),
-                            steering_sensitivity: PlainDword::new(0x32),
-                            gear_ratio: PlainDword::new(2),
-                            damage: [const { PlainDword::new(0) }; 13],
-                            wear: [const { PlainDword::new(0) }; 36],
-                            map_area: PlainDword::new(0),
-                            rear_mirror: PlainDword::new(0),
-                            rev_counter: PlainDword::new(0),
-                            metric_units: PlainDword::new(0),
-                            message_display: PlainDword::new(0),
-                            car_info: PlainDword::new(1),
-                            progress_bar: PlainDword::new(1),
-                            driver_info: PlainDword::new(1),
-                            pace_notes: PlainDword::new(1),
-                            race_number: PlainDword::new(0x60),
-                            codriver_sex: PlainDword::new(0),
-                            view: PlainDword::new(1),
-                        }),
-                        controls: PlayerControls {
-                            controller: Dword::new(0),
-                            gearing: Dword::new(0),
-                            sensitivity_level: Dword::new(0),
-                            axis_codes: Dword::new(0x2011000),
-                            controller_mode: Dword::new(0),
-                            end_zone_pct: Dword::new(0),
-                            centre_dead_zone_pct: Dword::new(0xa),
-                            strength: Dword::new(0),
-                            _unused_4c: Dword::new(0),
-                            bindings: [
-                                Dword::new(0x200),
-                                Dword::new(0x100),
-                                Dword::new(0x400),
-                                Dword::new(0x800),
-                                Dword::new(0x201),
-                                Dword::new(0x101),
-                                Dword::new(2),
-                                Dword::new(0),
-                                Dword::new(0),
-                                Dword::new(0),
-                                Dword::new(0),
-                                Dword::new(0),
-                            ],
-                            keys: Bytes::new(sparse::<12>(&[(
-                                0x0,
-                                &[
-                                    0x4f, 0x50, 0x4d, 0x51, 0x52, 0x4e, 0x53, 0x4a, 0x48, 0x49,
-                                    0x4c, 0x4b,
-                                ],
-                            )])),
-                        },
-                    },
+                    starting_car(0x61, &FIRST_KEYS),
+                    starting_car(0x60, &SECOND_KEYS),
                 ],
             },
             results: GameThread::new(RaceResults {
@@ -433,24 +468,7 @@ impl RaceState {
                 hud_bits_first: PlainDword::new(0xffffffff),
                 flags_current: PlainDword::new(0),
                 flags_first: PlainDword::new(0),
-                results: [
-                    RaceResult {
-                        time: PlainDword::new(0),
-                        word: PlainDword::new(0),
-                        secs: PlainFloat::new(0.0),
-                        result: PlainDword::new(0),
-                        data: PlainBytes::new([0xff; 64]),
-                        impact_marks: [const { PlainDword::new(0) }; 8],
-                    },
-                    RaceResult {
-                        time: PlainDword::new(0),
-                        word: PlainDword::new(0),
-                        secs: PlainFloat::new(0.0),
-                        result: PlainDword::new(0),
-                        data: PlainBytes::new([0xff; 64]),
-                        impact_marks: [const { PlainDword::new(0) }; 8],
-                    },
-                ],
+                results: [const { starting_result() }; 2],
                 stage_index: PlainDword::new(0),
                 finish_player: PlainDword::new(1),
                 finish_kind: PlainDword::new(0),
@@ -483,6 +501,60 @@ impl RaceState {
                     ],
                 ),
             ])),
+            more: GameThread::new(RaceMore {
+                car_kinds: [const { PlainDword::new(0) }; 2],
+                results: [const { starting_result() }; 2],
+                service_spent: [const { PlainDword::new(0) }; 2],
+                hud_bits: [const { PlainDword::new(0xffffffff) }; 2],
+                flags: [const { PlainDword::new(0) }; 2],
+            }),
+            more_cars: [
+                starting_car(0x5F, &SECOND_KEYS),
+                starting_car(0x5E, &SECOND_KEYS),
+            ],
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Players 0 and 1 are the game's own two sides; 2 and 3 are the ones kept apart, each with a
+    /// side of its own.
+    #[test]
+    fn four_players_have_four_sides() {
+        let state = RaceState::new();
+        assert!(std::ptr::eq(
+            state.car(0),
+            std::ptr::from_ref(&state.settings.cars[0])
+        ));
+        assert!(std::ptr::eq(
+            state.car(1),
+            std::ptr::from_ref(&state.settings.cars[1])
+        ));
+        assert!(std::ptr::eq(
+            state.result(1),
+            std::ptr::from_ref(&state.results.results[1])
+        ));
+        let sides: Vec<*const RaceCar> = (0..4).map(|k| std::ptr::from_ref(state.car(k))).collect();
+        for (a, first) in sides.iter().enumerate() {
+            for second in &sides[a + 1..] {
+                assert!(!std::ptr::eq(*first, *second));
+            }
+        }
+        let kinds: Vec<*const PlainDword> = (0..4)
+            .map(|k| std::ptr::from_ref(state.car_kind(k)))
+            .collect();
+        assert!(
+            kinds
+                .iter()
+                .enumerate()
+                .all(|(a, x)| kinds[..a].iter().all(|y| !std::ptr::eq(x, y)))
+        );
+        // The third and fourth start with their own race numbers.
+        assert_eq!(state.car(2).race_number.get(), 0x5F);
+        assert_eq!(state.car(3).race_number.get(), 0x5E);
+        assert_eq!(state.hud_bits(3).get(), 0xFFFF_FFFF);
     }
 }

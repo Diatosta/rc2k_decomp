@@ -32,7 +32,7 @@ pub fn input_tick(
         crate::input::device_effects::device_effects(&input.devices, record)?;
     }
     if input.devices.two_devices_one_player.is_set() {
-        let [first, second] = records;
+        let (first, second) = (&records[0], &records[1]);
         let read = |record: &InputDevice| -> [u32; 4] {
             let [steering, brake, throttle] = record.readings.each_ref().map(Dword::get);
             [steering, brake, throttle, record.bits.get()]
