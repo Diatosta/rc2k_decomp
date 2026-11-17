@@ -96,6 +96,7 @@ impl rc2k_core::audio::load::Loader for GameLoader<'_> {
         update_voice(state, voice_at, |v| samples::prepare_sample(state, v, mode))?;
         update_voice(state, voice_at, |v| keep_sample::keep_sample(state, v))?;
         make_buffer::make_buffer(state, voice_at, record)?;
+        self.mark_engine_loop(voice_at, at.sound)?;
         fill_buffer::fill_buffer(state, &voice_of(state, voice_at))?;
 
         Ok(())
@@ -107,6 +108,36 @@ impl rc2k_core::audio::load::Loader for GameLoader<'_> {
         self.system.session.flags.quitting.is_set()
     }
 }
+
+impl GameLoader<'_> {
+    /// A looping voice of the engine samples' folder told to play as grains
+    /// (`platform::sound::set_engine_loop`).
+    fn mark_engine_loop(&self, voice_at: u32, sound: u32) -> Result<(), Refused> {
+        let v = voice_of(&self.audio.state, voice_at);
+        if v.kind != 1 || v.buffer == 0 {
+            return Ok(());
+        }
+        let record = self
+            .audio
+            .sample_records
+            .record(sound)
+            .expect("a sound inside the records");
+        let Ok(name) = crate::audio::store::name_in(&self.audio.sample_names, record.data_key)
+        else {
+            return Ok(());
+        };
+        if name
+            .windows(ENGINE_FOLDER.len())
+            .any(|w| w.eq_ignore_ascii_case(ENGINE_FOLDER))
+        {
+            crate::platform::sound::set_engine_loop(v.buffer, voice_at);
+        }
+        Ok(())
+    }
+}
+
+/// The folder of the engine samples in a sample's path.
+const ENGINE_FOLDER: &[u8] = b"\\snd\\engine\\";
 
 /// A list of sounds, read by position up to its -1: a race list may run on through the next fields
 /// of the sets (`SoundSets::list_entry`); a read past the sets is refused.

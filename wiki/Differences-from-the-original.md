@@ -25,6 +25,7 @@ The original was a 32-bit Windows program on DirectX. Its platform side was not 
   "leave?" question as Escape, in place of the original's plain pause that waited for a key.
   The race still pauses until a key when its window stops being the active one.
 - A looping sound whose end does not run on into its start (several engine samples) has the two blended over 10 ms when it is loaded, so the turn of the loop is not heard as a click ([Sound samples](Sound-samples)).
+- A looping engine sample is played as overlapping grains from varying places of the sample, so its loop is not heard as a phrase that repeats ([Sound samples](Sound-samples)).
 
 ## Controllers
 

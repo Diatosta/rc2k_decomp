@@ -103,6 +103,11 @@ struct Buffer {
     pan: i32,
     /// Its place in 3D, once its 3D interface was asked for.
     space: Option<Space>,
+    /// Not 0 for an engine's looping sample: the seed of the places its grains start at
+    /// (`set_engine_loop`).
+    engine: u32,
+    /// The grains an engine's loop plays as, from its first frame after a start.
+    grains: Option<Box<rc2k_core::audio::granular::Granular>>,
 }
 
 /// A buffer's 3D settings (DirectSound 3D's defaults at first; the game sets only the
@@ -344,6 +349,8 @@ pub fn create_sound_buffer(flags: u32, bytes: u32, format: Option<Format>) -> u3
                 volume: 0,
                 pan: 0,
                 space: None,
+                engine: 0,
+                grains: None,
             }),
         );
         if primary {
@@ -374,6 +381,7 @@ pub fn duplicate_sound_buffer(source: u32) -> Result<u32, i32> {
             position: 0.0,
             playing: false,
             looping: false,
+            grains: None,
             ..*b
         };
         Ok(new_object(s, Kind::Buffer(copy)))
@@ -483,6 +491,9 @@ pub fn unlock(_id: u32, _parts: [u32; 4]) -> i32 {
 /// `Play` (`DSBPLAY_LOOPING` in `flags`; a primary buffer always loops).
 pub fn play(id: u32, flags: u32) -> i32 {
     with_buffer(id, |b| {
+        if !b.playing {
+            b.grains = None;
+        }
         b.playing = true;
         b.looping = flags & LOOPING != 0 || b.flags & PRIMARY != 0;
     })
@@ -490,7 +501,20 @@ pub fn play(id: u32, flags: u32) -> i32 {
 
 /// `SetCurrentPosition`.
 pub fn set_current_position(id: u32, at: u32) -> i32 {
-    with_buffer(id, |b| b.position = (at / b.format.block()) as f64)
+    with_buffer(id, |b| {
+        b.position = (at / b.format.block()) as f64;
+        b.grains = None;
+    })
+}
+
+/// Marks a buffer as an engine's looping sample: played looping, it is mixed as overlapping
+/// grains from places that vary (`rc2k_core::audio::granular`), so the loop's length is not
+/// heard as a phrase coming round again. `seed` is not 0.
+pub fn set_engine_loop(id: u32, seed: u32) -> i32 {
+    with_buffer(id, |b| {
+        b.engine = seed | 1;
+        b.grains = None;
+    })
 }
 
 /// `SetFormat` (the primary buffer only): its bytes silence in the new format.
@@ -592,6 +616,31 @@ fn mix_into(b: &mut Buffer, master: f32, rolloff: f32, out: &mut [f32]) {
         }
     };
     let bytes = (f.bits / 8) as usize;
+    if b.engine != 0 && b.looping && frames >= 2 {
+        let read = |n: usize| {
+            let first = n * block;
+            let l = sample(first);
+            let r = if f.channels == 2 {
+                sample(first + bytes)
+            } else {
+                l
+            };
+            (l, r)
+        };
+        let grains = b.grains.get_or_insert_with(|| {
+            Box::new(rc2k_core::audio::granular::Granular::new(
+                b.position, OUT_RATE, b.engine,
+            ))
+        });
+        for frame in out.as_chunks_mut::<2>().0.iter_mut() {
+            let (l, r) = grains.next_frame(frames, step, &read);
+            frame[0] += l * left;
+            frame[1] += r * right;
+        }
+        // Where a plain loop would be, for the buffer's reported position.
+        b.position = (b.position + step * (out.len() / 2) as f64) % frames as f64;
+        return;
+    }
     for frame in out.as_chunks_mut::<2>().0.iter_mut() {
         let mut at = b.position as usize;
         if at >= frames {

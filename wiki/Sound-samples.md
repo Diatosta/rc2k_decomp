@@ -87,6 +87,14 @@ Stereo samples are stored left then right for each moment, as usual.
   loads the sample and ends the sample where the blend begins, so the turn of the loop is
   not heard as a click; the sample is 10 ms shorter then. Several of the engine samples
   needed it.
+- A looping engine sample (a file in `files/d/snd/engine/`) is not played as a plain loop
+  in the sound modes where each sound has a buffer of its own (the Dolby mode's own mixer still loops plainly): at the pitch of high revs a sample about
+  a second long comes round every few tenths of a second and the ear hears the same phrase
+  again. It is played as two overlapping grains of about 0.1 s, a new one starting every
+  0.05 s under a raised-cosine window, each at the voice's pitch. A new grain starts at a
+  random place of the sample, moved a little to where its wave best matches what the grain
+  before goes on to play, so the engine's tone is the same as the plain loop's and only the
+  order its stretches come in varies. This costs about half a percent of one core a voice.
 - The pitch of engine and tyre sounds is changed while they play; the file's rate is only the
   starting point.
 
