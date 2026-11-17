@@ -107,9 +107,14 @@ More on [Network play](Network-play).
 - The options menu has an "advanced" item after the original's, opening a page of our own. Its
   rows: how many parts of a frame may be drawn at once (1 up to the machine's cores, at most 4:
   the mirror beside its view needs 2, the split-screen players' views and mirrors beside each
-  other 4; read at each frame, so a change shows at the next one); the renderer tried first at
-  the next start (GPU or software; the running one is not swapped, and the page says "next
-  start" beside a value that differs from it); and switches of `var/ral.cfg`: frame counter,
+  other 4; read at each frame, so a change shows at the next one); the renderer (GPU, OpenGL or
+  software), swapped in at once on the desktop by Apply: the frame is brought back into the
+  canvas, the running backend and the window's renderer are stopped and the chosen ones
+  started, and the textures and the canvas go up to the new backend as it first draws them. When
+  the chosen one does not start, the one that ran comes back, the choice is kept for the next
+  start, and the page says "next start" beside a value that differs from the running one. On
+  the handheld the renderer is only the one tried first at the next start (its GL ES context is
+  made once for the program's life); and switches of `var/ral.cfg`: frame counter,
   films, screenshots, non-linear steering, automatic neutral (all at once), rain and snow (the
   next race) and music, joysticks, force feedback (the next start). The page shows the feature,
   not its absence (`nofmv=1` shows as "films: off"). "Apply" sets the live variables, writes

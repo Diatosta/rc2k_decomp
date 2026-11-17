@@ -15,6 +15,10 @@ pub mod imgui_sdl {
         false
     }
 
+    /// Nothing to let go.
+    #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // the handheld swaps nothing
+    pub fn renderer_going() {}
+
     /// No event taken.
     pub fn event(_event: &sdl3_sys::everything::SDL_Event) -> bool {
         false

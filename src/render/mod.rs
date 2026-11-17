@@ -576,6 +576,29 @@ pub fn gpu_running() -> bool {
     GPU_STARTED.load(Relaxed)
 }
 
+/// The renderer that draws the 3D now, as a wish names it: OpenGL, the GPU API (on the handheld
+/// its GL ES), or the software rasteriser.
+pub fn running_wish() -> choice::Wish {
+    if gl_running() {
+        choice::Wish::Gl
+    } else if gpu_running() {
+        choice::Wish::GpuFirst
+    } else {
+        choice::Wish::Software
+    }
+}
+
+/// Whether the GPU's frame may be given up: a frame the GPU holds is brought back into the
+/// canvas, and the rasteriser draws from here. For the renderer's swap.
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+pub(crate) fn release_frame(target: Option<&Target>) {
+    if let Some(target) = target {
+        give_frame_back(target);
+    }
+    GPU_HOLDS_FRAME.store(false, Relaxed);
+    GPU_DREW_THIS_FRAME.store(false, Relaxed);
+}
+
 /// Whether the software renderer keeps smaller levels of textures (`software`): only then are
 /// the textures' changes kept for it (they tell it which levels are stale).
 static LEVELS_KEPT: AtomicBool = AtomicBool::new(false);

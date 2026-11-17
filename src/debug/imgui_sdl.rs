@@ -176,6 +176,19 @@ pub fn event(event: &SDL_Event) -> bool {
     .unwrap_or(false)
 }
 
+/// The window's renderer is about to be destroyed (the 3D's renderer is swapped): the UI's
+/// textures are destroyed with it and the UI is made again, on the new one, when it is next
+/// drawn.
+pub fn renderer_going() {
+    GUI.with(|gui| {
+        if let Some(gui) = gui.borrow_mut().take() {
+            for (_, texture) in gui.textures {
+                texture.sdl.destroy();
+            }
+        }
+    });
+}
+
 /// The debug UI drawn on `renderer` (after the game's frame, before the present).
 pub fn draw(owners: &crate::owners::Owners<'static>, renderer: Renderer, window: Window) {
     let open = OPEN.load(Ordering::Relaxed);

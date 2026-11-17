@@ -238,6 +238,8 @@ pub struct Second {
     pub texture: Option<u32>,
     pub linear: bool,
     pub clamp: bool,
+    /// Read from the texture's smaller levels as the face shrinks (the game's mip filter).
+    pub mips: bool,
 }
 
 /// A run of triangles drawn alike.
@@ -251,6 +253,8 @@ pub struct Batch {
     pub texture: Option<u32>,
     pub linear: bool,
     pub clamp: bool,
+    /// Read from the texture's smaller levels as the face shrinks (the game's mip filter).
+    pub mips: bool,
     /// Scissor rectangle for a depth clear: left, top, right, bottom.
     pub scissor: Option<[u32; 4]>,
     pub second: Option<Second>,
@@ -512,6 +516,11 @@ const ALWAYS: u32 = 8;
 // As the rasteriser reads them.
 fn linear_of(states: &[u32; STATES]) -> bool {
     states[0x11] == 2 || matches!(states[0x12], 2 | 5 | 6)
+}
+
+/// The minifying filter is the mipmapping one (the software rasteriser's `mip_chains` asks alike).
+fn mips_of(states: &[u32; STATES]) -> bool {
+    states[0x12] == 6
 }
 
 fn clamp_of(states: &[u32; STATES]) -> bool {
@@ -916,6 +925,7 @@ impl Batches {
             texture: texture.map(|t| self.texture_number(t)),
             linear: linear_of(states),
             clamp: clamp_of(states),
+            mips: mips_of(states),
         };
         // The first fan's triangles leave the last batch, which they end, for a batch of
         // their own with the second pass.
@@ -1018,6 +1028,7 @@ impl Batches {
             texture: number,
             linear: linear_of(states),
             clamp: clamp_of(states),
+            mips: mips_of(states),
             scissor: None,
             second: None,
             discard_free,
@@ -1077,6 +1088,7 @@ impl Batches {
                 texture: None,
                 linear: false,
                 clamp: false,
+                mips: false,
                 scissor: Some([left, top, right, bottom]),
                 second: None,
                 // Nothing a shader decides is drawn; the program in use stays.
@@ -1807,6 +1819,7 @@ mod shader_kind_tests {
             texture: Some(0),
             linear: true,
             clamp: false,
+            mips: false,
             scissor: None,
             second: None,
             discard_free: true,
@@ -1832,6 +1845,7 @@ mod shader_kind_tests {
             texture: Some(1),
             linear: true,
             clamp: false,
+            mips: false,
         });
         let second = PassKind {
             alpha_function: 5,

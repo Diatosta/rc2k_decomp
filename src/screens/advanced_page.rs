@@ -12,12 +12,11 @@ use rc2k_core::strings::own::id;
 
 /// The renderer the program is running with, as the page names it.
 fn running() -> Renderer {
-    if crate::render::gl_running() {
-        Renderer::Gl
-    } else if crate::render::gpu_running() {
-        Renderer::Gpu
-    } else {
-        Renderer::Software
+    use crate::render::choice::Wish;
+    match crate::render::running_wish() {
+        Wish::Gl => Renderer::Gl,
+        Wish::GpuFirst => Renderer::Gpu,
+        Wish::Software => Renderer::Software,
     }
 }
 

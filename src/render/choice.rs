@@ -6,7 +6,8 @@
 //! actually started is asked of `render::gpu_running`, not of this module.
 //!
 //! The choice is read afresh at each call, so a later start of the renderers can ask again,
-//! with a wanted renderer passed to `decide` in place of `None`.
+//! with a wanted renderer passed to `decide` in place of `None`. A renderer the player swapped to
+//! in game (`set_swapped_to`) outranks every source.
 
 /// What is asked for.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -91,8 +92,24 @@ pub fn set_wanted(name: Option<String>) {
     }
 }
 
-/// What the command line, the environment and the options ask for.
+/// The renderer the player swapped to in game: it outranks every other source for as long as the
+/// program runs (the swap is the player's own, later than the command line and the options).
+static SWAPPED_TO: std::sync::Mutex<Option<Wish>> = std::sync::Mutex::new(None);
+
+/// A swap in game asks for `wish` from now on.
+#[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // the handheld swaps nothing
+pub fn set_swapped_to(wish: Wish) {
+    if let Ok(mut w) = SWAPPED_TO.lock() {
+        *w = Some(wish);
+    }
+}
+
+/// What the player's swap, the command line, the environment and the options ask for, in that
+/// order of weight.
 pub fn wish() -> Wish {
+    if let Some(wish) = SWAPPED_TO.lock().ok().and_then(|w| *w) {
+        return wish;
+    }
     let switch = switch_value();
     let env = std::env::var("RC2K_RENDERER").ok();
     let wanted = wanted();

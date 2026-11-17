@@ -39,6 +39,10 @@ macro_rules! handle {
         impl $name {
             /// Not made.
             pub const NONE: $name = $name(null_mut());
+            /// Whether it is not made.
+            pub fn is_none(self) -> bool {
+                self.0.is_null()
+            }
         }
     };
 }
@@ -54,9 +58,6 @@ impl Device {
     }
 }
 impl Texture {
-    pub fn is_none(self) -> bool {
-        self.0.is_null()
-    }
     /// The SDL object, for the platform's own SDL calls.
     pub fn as_raw(self) -> *mut SDL_GPUTexture {
         self.0
@@ -314,6 +315,22 @@ impl Device {
     pub fn release_texture(self, texture: Texture) {
         // SAFETY: the caller's, made by this device and released once.
         unsafe { SDL_ReleaseGPUTexture(self.0, texture.0) };
+    }
+
+    /// Lets go of a shader (a pipeline made from it keeps its own copy).
+    pub fn release_shader(self, shader: Shader) {
+        // SAFETY: as `release_texture`.
+        unsafe { SDL_ReleaseGPUShader(self.0, shader.0) };
+    }
+
+    pub fn release_sampler(self, sampler: Sampler) {
+        // SAFETY: as `release_texture`.
+        unsafe { SDL_ReleaseGPUSampler(self.0, sampler.0) };
+    }
+
+    pub fn release_pipeline(self, pipeline: Pipeline) {
+        // SAFETY: as `release_texture`.
+        unsafe { SDL_ReleaseGPUGraphicsPipeline(self.0, pipeline.0) };
     }
 
     pub fn release_transfer(self, transfer: Transfer) {

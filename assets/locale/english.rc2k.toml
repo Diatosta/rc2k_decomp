@@ -134,7 +134,7 @@ save_replay = "save replay"
 [advanced]
 title = "advanced"
 threads = "drawing threads"
-renderer = "renderer (next start)"
+renderer = "renderer"
 frame_counter = "frame counter"
 films = "films"
 screenshots = "screenshots"

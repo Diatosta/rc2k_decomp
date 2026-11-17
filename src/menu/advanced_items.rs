@@ -2,8 +2,9 @@
 //! stepped), a step of a row, and "apply", which makes the changed rows real: a switch of
 //! `var\ral.cfg` is set in the game's variable when it takes effect at once or in the next race,
 //! and written to the file as the game reads it; the drawing threads and the renderer go to
-//! the options file (saved when the page is left, `ScreenId::changes_settings`). The renderer is
-//! only the one tried first at the next start: the running one is not swapped.
+//! the options file (saved when the page is left, `ScreenId::changes_settings`). A changed renderer
+//! is also swapped in at once on the desktop (`platform::swap_renderer`); the handheld's is only
+//! the one tried first at the next start.
 
 use crate::errors::Refused;
 use crate::owners::Owners;
@@ -100,6 +101,31 @@ pub fn step(o: Owners<'static>, row: u8, up: bool) -> Result<(), Refused> {
     Ok(())
 }
 
+/// The renderer swapped for `renderer` at once where the platform can (the desktop's); the
+/// swap's failure is logged and the page keeps saying "next start" beside the renderer, as the
+/// one that runs is not the one chosen.
+fn swap_renderer(o: &Owners<'static>, renderer: Renderer) {
+    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    {
+        use crate::render::choice::Wish;
+        let wish = match renderer {
+            Renderer::Gpu => Wish::GpuFirst,
+            Renderer::Gl => Wish::Gl,
+            Renderer::Software => Wish::Software,
+        };
+        if let Err(why) = crate::platform::swap_renderer(o, wish) {
+            crate::logfile::program_log::log(&format!(
+                "advanced: the renderer {} was not swapped in: {why}",
+                renderer.name()
+            ));
+        }
+    }
+    // The handheld's GL ES context is made once for the program's life (the panel's EGL
+    // surface): its renderer is tried first at the next start.
+    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    let _ = (o, renderer);
+}
+
 /// Makes the changed rows real.
 pub fn apply(o: Owners<'static>) -> Result<(), Refused> {
     shown(o);
@@ -119,7 +145,10 @@ pub fn apply(o: Owners<'static>) -> Result<(), Refused> {
                 crate::scene::workers::set_threads((new.threads < most).then_some(new.threads));
             }
             Kind::Renderer if new.renderer != old.renderer => {
+                // The setting is kept whatever the swap does: a renderer that did not start
+                // now is tried first at the next start.
                 crate::render::choice::set_wanted(Some(new.renderer.name().to_owned()));
+                swap_renderer(&o, new.renderer);
             }
             Kind::Flag { key, inverted } if new.flags[n] != old.flags[n] => {
                 let number = flag_number(inverted, new.flags[n]);
@@ -142,12 +171,8 @@ pub fn apply(o: Owners<'static>) -> Result<(), Refused> {
         }
     }
     crate::logfile::program_log::log(&format!(
-        "advanced: applied {new:?} (running renderer: {})",
-        if crate::render::gpu_running() {
-            "gpu"
-        } else {
-            "software"
-        }
+        "advanced: applied {new:?} (running renderer: {:?})",
+        crate::render::running_wish()
     ));
     state.applied = new;
     Ok(())

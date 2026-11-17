@@ -226,24 +226,13 @@ fn set_screen_mode(
                 Some(p) if sdl::set_window_icon(window, p.width, p.height, &p.rgb) => {}
                 _ => log("platform: the window's icon was not set"),
             }
-            // The GPU first (`render::choice`): the window's renderer shares the 3D's device.
-            // Each step that fails is logged and the next tried: SDL's own 2D renderer, with
-            // the software rasteriser drawing the 3D. The handheld's GPU starts with its first
-            // frame (`render::show_on_panel`).
+            // The GPU first (`render::choice`), each step that fails logged and the next tried
+            // (`make_window_renderer`). The handheld's GPU starts with its first frame
+            // (`render::show_on_panel`).
             #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-            let gpu_renderer = start_gpu_renderer(window);
+            let renderer = make_window_renderer(window);
             #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-            let gpu_renderer: Option<sdl::Renderer> = None;
-            // Next in the order: OpenGL, which shows its frames read back into the canvas through
-            // SDL's own renderer (`render::gles`).
-            #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-            if gpu_renderer.is_none() {
-                crate::render::gles::start_on_window();
-            }
-            let renderer = match gpu_renderer {
-                Some(renderer) => Some(renderer),
-                None => sdl::create_renderer(window),
-            };
+            let renderer = sdl::create_renderer(window);
             let Some(renderer) = renderer else {
                 return Err("SDL makes no renderer for the window".into());
             };
@@ -272,26 +261,7 @@ fn set_screen_mode(
     renderer.present();
     crate::platform::pacing::set_display(window.display_refresh(), renderer.present_waits());
     #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-    {
-        let mut held = crate::render::gpu::GPU.lock().unwrap();
-        let sized = match held.as_mut() {
-            Some(_) if crate::render::choice::forced_failure("size") => {
-                Err("made to fail".to_string())
-            }
-            Some(gpu) => gpu.set_size(width, height),
-            None => Ok(()),
-        };
-        if let Err(why) = sized {
-            // The frame texture's size does not matter to the window: the 3D goes on the
-            // software rasteriser from here, and the GPU's targets are not kept.
-            log(&format!(
-                "render: the GPU backend cannot make its targets ({why}): the software \
-                 rasteriser draws the 3D"
-            ));
-            *held = None;
-            crate::render::gpu_stopped();
-        }
-    }
+    size_gpu_targets(width, height);
     // What was noted for the old screen is drawn on it before it goes.
     crate::gfx::draw2d::quads::before_canvas_write();
     // Its written rows noted: what the GPU's path uploads of the canvas (`render::gles`). A
@@ -330,6 +300,52 @@ fn set_screen_mode(
     Ok(())
 }
 
+/// The window's renderer and the 3D's backend, started in the order the choice names (the GPU
+/// API's renderer on its device, OpenGL beside SDL's own renderer, SDL's own renderer with the
+/// software rasteriser); `None` when SDL makes no renderer at all. Logs what runs.
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+fn make_window_renderer(window: sdl::Window) -> Option<sdl::Renderer> {
+    let gpu_renderer = start_gpu_renderer(window);
+    // Next in the order: OpenGL, which shows its frames read back into the canvas through
+    // SDL's own renderer (`render::gles`).
+    if gpu_renderer.is_none() {
+        crate::render::gles::start_on_window();
+    }
+    let renderer = gpu_renderer.or_else(|| sdl::create_renderer(window))?;
+    log(&format!(
+        "platform: the window's renderer is SDL's `{}`{}",
+        renderer.name(),
+        if crate::render::gpu_running() {
+            ", the 3D on a GPU backend"
+        } else {
+            ", the 3D on the software rasteriser"
+        }
+    ));
+    Some(renderer)
+}
+
+/// The GPU backend's targets at the screen's size; a backend that cannot make them is given up
+/// (the software rasteriser draws the 3D from here).
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+fn size_gpu_targets(width: u32, height: u32) {
+    let mut held = crate::render::gpu::GPU.lock().unwrap();
+    let sized = match held.as_mut() {
+        Some(_) if crate::render::choice::forced_failure("size") => Err("made to fail".to_string()),
+        Some(gpu) => gpu.set_size(width, height),
+        None => Ok(()),
+    };
+    if let Err(why) = sized {
+        // The frame texture's size does not matter to the window: the 3D goes on the
+        // software rasteriser from here, and the GPU's targets are not kept.
+        log(&format!(
+            "render: the GPU backend cannot make its targets ({why}): the software \
+             rasteriser draws the 3D"
+        ));
+        *held = None;
+        crate::render::gpu_stopped();
+    }
+}
+
 /// The window's renderer on a GPU device, with the GPU backend started on the same device.
 /// `None` (each failure logged) when the GPU is not wanted or a step fails; the device is
 /// then given up and the caller makes SDL's own renderer. A backend that does not start
@@ -360,8 +376,130 @@ fn start_gpu_renderer(window: sdl::Window) -> Option<sdl::Renderer> {
         device.destroy();
         return None;
     };
+    *WINDOW_DEVICE.lock().unwrap() = Some(device);
     crate::render::gpu::start(device);
     Some(renderer)
+}
+
+/// The GPU device the window's renderer runs on, while there is one (destroyed after the
+/// renderer by `swap_renderer`).
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+static WINDOW_DEVICE: Mutex<Option<crate::platform::ffi::sdl_gpu::Device>> = Mutex::new(None);
+
+/// The 3D's renderer swapped for `wish` while the game runs: the frame is brought back into the
+/// canvas, the running backend and the window's renderer are stopped and made again as the
+/// order for `wish` has them (each start that fails falls to the next as at the program's
+/// start), the frame texture and the GPU's targets are made again. The textures and the canvas
+/// go up to the new backend as it first draws them.
+///
+/// `Ok` when what runs is what was asked for. Otherwise the renderer that ran before is made
+/// again, and the error says what the asked one did; if that cannot be made either, whatever
+/// the order gives runs (the software rasteriser at the last).
+///
+/// On the game's thread, outside a frame's showing.
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+pub fn swap_renderer(
+    o: &crate::owners::Owners<'static>,
+    wish: crate::render::choice::Wish,
+) -> Result<(), String> {
+    let before = crate::render::running_wish();
+    if before == wish && crate::render::choice::wish() == wish {
+        return Ok(());
+    }
+    log(&format!(
+        "render: swapping the renderer {before:?} -> {wish:?}"
+    ));
+    // Whatever was noted is drawn first.
+    crate::platform::direct3d::flush();
+    let screen_now = o.system.session.screen.get();
+    let size = (screen_now.width.get(), screen_now.height.get());
+    let target = crate::platform::direct3d::screen(screen_now);
+    rebuild_renderer(wish, target.as_ref(), size)?;
+    let running = crate::render::running_wish();
+    if running == wish {
+        log(&format!("render: swapped, now {running:?}"));
+        return Ok(());
+    }
+    log(&format!(
+        "render: the swap did not give {wish:?}: {running:?} runs"
+    ));
+    if running != before {
+        // The renderer that ran before, again.
+        let target = crate::platform::direct3d::screen(screen_now);
+        match rebuild_renderer(before, target.as_ref(), size) {
+            Ok(()) => log(&format!(
+                "render: the old renderer is back, now {:?}",
+                crate::render::running_wish()
+            )),
+            Err(e) => log(&format!(
+                "render: the old renderer cannot be made again: {e}"
+            )),
+        }
+    }
+    Err(format!("{wish:?} does not start here"))
+}
+
+/// Stops what draws the 3D and shows the frame, and starts the renderers the choice `wish`
+/// names (`make_window_renderer`).
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+fn rebuild_renderer(
+    wish: crate::render::choice::Wish,
+    target: Option<&crate::render::Target>,
+    (width, height): (u32, u32),
+) -> Result<(), String> {
+    // The GPU's frame back into the canvas: the picture the new renderer starts from.
+    crate::render::release_frame(target);
+    let mut guard = SCREEN.lock().map_err(|_| "the screen's lock")?;
+    let Some(old) = guard.take() else {
+        return Err("there is no screen".into());
+    };
+    let Screen {
+        window,
+        renderer,
+        texture,
+        width: screen_width,
+        height: screen_height,
+        bits,
+        pixels,
+    } = old;
+    // Everything made on the window's renderer goes before it does.
+    drop(texture);
+    *GPU_VIEW.lock().unwrap() = (0, None);
+    crate::debug::imgui_sdl::renderer_going();
+    crate::render::gles::stop();
+    crate::render::gpu::stop();
+    sdl::destroy_renderer(renderer);
+    if let Some(device) = WINDOW_DEVICE.lock().unwrap().take() {
+        device.destroy();
+    }
+    crate::render::choice::set_swapped_to(wish);
+    // Some renderer is made whatever the choice gives: the window needs one.
+    let Some(renderer) = make_window_renderer(window) else {
+        crate::fatal::raise::end(
+            "platform::swap_renderer",
+            crate::errors::BadInput("SDL makes no renderer for the window"),
+        );
+    };
+    let Some(texture) = renderer.create_frame_texture(screen_width, screen_height) else {
+        crate::fatal::raise::end(
+            "platform::swap_renderer",
+            crate::errors::BadInput("SDL makes no texture for the frame"),
+        );
+    };
+    renderer.clear_black();
+    renderer.present();
+    crate::platform::pacing::set_display(window.display_refresh(), renderer.present_waits());
+    size_gpu_targets(width, height);
+    *guard = Some(Screen {
+        window,
+        renderer,
+        texture,
+        width: screen_width,
+        height: screen_height,
+        bits,
+        pixels,
+    });
+    Ok(())
 }
 
 /// `gfx::set_screen_mode`: the screen in `mode`; false (and logged) if it cannot be.

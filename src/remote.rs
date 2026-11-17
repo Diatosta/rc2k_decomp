@@ -186,7 +186,8 @@ fn state(o: &Owners<'static>, course: &Course) -> String {
     let ahead = (at + LOOK_AHEAD).min(race.checkpoints().map_x.len() - 1);
     let near = (at + LOOK_NEAR).min(race.checkpoints().map_x.len() - 1);
     format!(
-        "frames={} screen_frames={} race={} menu={:?} item={} focused={} speed={:.0} time={} splits={} finished={} stuck={} checkpoints={} checkpoint={} map={},{} target={},{} near={},{} channels={} mix={} heading={} gear={} box={} driver={} controls={},{},{},{},{},{} matrix={} cars={} shown={}",
+        "renderer={:?} frames={} screen_frames={} race={} menu={:?} item={} focused={} speed={:.0} time={} splits={} finished={} stuck={} checkpoints={} checkpoint={} map={},{} target={},{} near={},{} channels={} mix={} heading={} gear={} box={} driver={} controls={},{},{},{},{},{} matrix={} cars={} shown={}",
+        crate::render::running_wish(),
         o.gfx.drawing.draw_surface.frames.get(),
         screen_frames(o.gfx),
         u32::from(course.numbers.get().in_race.is_set()),
@@ -358,6 +359,20 @@ fn run(o: &Owners<'static>, line: &str) {
             AUTODRIVE.store(*switch == "on", std::sync::atomic::Ordering::Relaxed);
             Some("ok".to_string())
         }
+        // The 3D's renderer swapped in game: `gpu`, `gl` or `software`.
+        ("renderer", [name]) => crate::render::choice::parse(name).map(|wish| {
+            #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+            let done = crate::platform::swap_renderer(o, wish);
+            #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+            let done: Result<(), String> = {
+                let _ = wish;
+                Err("the handheld swaps at its next start".into())
+            };
+            match done {
+                Ok(()) => format!("ok {:?}", crate::render::running_wish()),
+                Err(why) => format!("error: {why}; {:?} runs", crate::render::running_wish()),
+            }
+        }),
         ("quit", []) => {
             sdl_input::push_quit_event();
             Some("ok".to_string())

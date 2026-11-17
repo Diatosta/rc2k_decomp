@@ -14,6 +14,7 @@
 
 mod bench;
 mod layer2d;
+mod mip_levels;
 
 use super::batches::{Batch, Batches, NO_TEXTURE, PassKind, PipelineKey, PixelValues, ShaderKind};
 use super::gl_batching::{Background, Batched, Job, Part, Written};
@@ -128,8 +129,9 @@ in highp float v_fog2;
 #endif
 out vec4 result;
 // The textures are layers of arrays (`TextureArray`), two bound for each pass: the vertex
-// says which and which layer. One level only and the same filter near and far, so the
-// level of detail `texture` would work out changes nothing.
+// says which and which layer. A sampler without smaller levels reads the one level, so the
+// level of detail `texture` works out changes nothing for it; the mipmapping sampler reads the
+// smaller ones.
 precision lowp sampler2DArray;
 uniform sampler2DArray picture_a; uniform sampler2DArray picture_b;
 uniform vec4 fog_colour; uniform float alpha_reference;
@@ -154,7 +156,7 @@ vec4 fetch(sampler2DArray a, sampler2DArray b, int unit, highp vec3 at) {
 #ifdef CUT_TEXHOT
     at = vec3(0.5, 0.5, at.z);
 #endif
-    return unit == 0 ? textureLod(a, at, 0.0) : textureLod(b, at, 0.0);
+    return unit == 0 ? texture(a, at) : texture(b, at);
 }
 bool passes(int function, float reference, float value) {
 #ifdef CUT_ALPHA
@@ -405,6 +407,9 @@ struct TextureArray {
     next: i32,
     /// Layers handed out and given back.
     free: Vec<i32>,
+    /// Whether the smaller levels are allocated (and kept for each uploaded layer): only once a
+    /// batch asks for mipmapping, so a game that never does pays no memory for them.
+    levelled: bool,
 }
 
 /// Which bound array of a pass's two a texture of `size` is read from.
@@ -447,9 +452,11 @@ pub struct Gpu {
     /// For copying an array's layers into a bigger one.
     copy_framebuffer: u32,
     arrays: HashMap<(usize, usize), TextureArray>,
+    /// The arrays hold their smaller levels (from the first batch that asked for them on).
+    mip_levels: bool,
     empty_array: u32,
     scene_array: u32,
-    samplers: [u32; 4],
+    samplers: [u32; 8],
     framebuffer: u32,
     colour: u32,
     depth: u32,
@@ -503,11 +510,11 @@ pub fn wanted() -> bool {
 }
 
 impl Gpu {
-    fn new(open: impl FnOnce() -> Result<Gles, String>) -> Result<Gpu, String> {
-        if super::choice::forced_failure(FAILURE_STEP) {
-            return Err("made to fail".into());
-        }
+    fn new(open: impl FnOnce() -> Result<Gles, Failed>) -> Result<Gpu, Failed> {
         let gl = open()?;
+        if super::choice::forced_failure(FAILURE_STEP) {
+            return Err(("made to fail".into(), gl.close_after_failure()));
+        }
         if let Some(line) = Cuts::start_from_env() {
             log(&line);
         }
@@ -532,9 +539,10 @@ impl Gpu {
             layers: 0,
             copy_framebuffer: 0,
             arrays: HashMap::new(),
+            mip_levels: false,
             empty_array: 0,
             scene_array: 0,
-            samplers: [0; 4],
+            samplers: [0; 8],
             framebuffer: 0,
             small: None,
             colour: 0,
@@ -549,7 +557,9 @@ impl Gpu {
             textures: Default::default(),
             gl,
         };
-        gpu.set_up()?;
+        if let Err(why) = gpu.set_up() {
+            return Err((why, gpu.gl.close_after_failure()));
+        }
         gpu.set_up_done = true;
         Ok(gpu)
     }
@@ -678,13 +688,15 @@ impl Gpu {
     }
 
     /// Every sampler's filter: nearest for the even ones and linear for the odd, unless a cut
-    /// makes all one or the other.
+    /// makes all one or the other; the last four (mipmapping) are linear across the nearest smaller
+    /// level.
     fn set_filters(&self, nearest: bool, linear_cut: bool) {
         for (n, &sampler) in self.samplers.iter().enumerate() {
             let linear = (n & 1 != 0 || linear_cut) && !nearest;
             let filter = if linear { 0x2601 } else { 0x2600 };
+            let far = if linear && n & 4 != 0 { 0x2701 } else { filter };
             let wrap = if n & 2 != 0 { 0x812F } else { 0x2901 };
-            self.gl.sampler_parameter(sampler, 0x2801, filter);
+            self.gl.sampler_parameter(sampler, 0x2801, far);
             self.gl.sampler_parameter(sampler, 0x2800, filter);
             self.gl.sampler_parameter(sampler, 0x2802, wrap);
             self.gl.sampler_parameter(sampler, 0x2803, wrap);
@@ -770,13 +782,54 @@ impl Gpu {
         let name = gl.gen_texture();
         gl.bind_texture(TEXTURE_2D_ARRAY, name);
         gl.tex_image_3d_empty(0x8058, width as i32, height as i32, capacity);
-        // No levels: one the sampler objects' filters read alone.
+        // One level, which the sampler objects' filters read alone, until a batch asks for more.
         gl.tex_parameter(TEXTURE_2D_ARRAY, 0x813D, 0);
-        TextureArray {
+        let mut array = TextureArray {
             name,
             capacity,
             next: 0,
             free: Vec::new(),
+            levelled: false,
+        };
+        if self.mip_levels {
+            self.allocate_levels(&mut array, (width, height));
+        }
+        array
+    }
+
+    /// The smaller levels of the bound array of `size` made room for (the layers' own are
+    /// uploaded with each texture, or made at once by `level_arrays`).
+    fn allocate_levels(&self, array: &mut TextureArray, (width, height): (usize, usize)) {
+        let gl = &self.gl;
+        let count = mip_levels::level_count(width, height);
+        for level in 1..count {
+            gl.tex_image_3d_level_empty(
+                level as i32,
+                0x8058,
+                mip_levels::side_at(width, level) as i32,
+                mip_levels::side_at(height, level) as i32,
+                array.capacity,
+            );
+        }
+        gl.tex_parameter(TEXTURE_2D_ARRAY, 0x813D, count as i32 - 1);
+        array.levelled = true;
+    }
+
+    /// Every array given its smaller levels, made from the layers it holds: the first time a
+    /// batch asks for mipmapping.
+    fn level_arrays(&mut self) {
+        self.mip_levels = true;
+        let sizes: Vec<_> = self.arrays.keys().copied().collect();
+        for size in sizes {
+            let Some(mut array) = self.arrays.remove(&size) else {
+                continue;
+            };
+            self.gl.bind_texture(TEXTURE_2D_ARRAY, array.name);
+            if !array.levelled {
+                self.allocate_levels(&mut array, size);
+                self.gl.generate_mipmap_array();
+            }
+            self.arrays.insert(size, array);
         }
     }
 
@@ -816,6 +869,11 @@ impl Gpu {
             gl.copy_into_layer(layer, size.0 as i32, size.1 as i32);
         }
         gl.bind_framebuffer(READ_FRAMEBUFFER, 0);
+        if bigger.levelled {
+            // Only level 0 was copied.
+            gl.bind_texture(TEXTURE_2D_ARRAY, bigger.name);
+            gl.generate_mipmap_array();
+        }
         gl.delete_texture(old.name);
         (bigger.next, bigger.free) = (old.next, old.free);
         self.arrays.insert(size, bigger);
@@ -1157,6 +1215,14 @@ impl Gpu {
             })
         };
         let mut scissored = false;
+        if !self.mip_levels
+            && batches
+                .batches
+                .iter()
+                .any(|b| b.mips || b.second.is_some_and(|s| s.mips))
+        {
+            self.level_arrays();
+        }
         for batch in &batches.batches {
             if cuts.drops(batch.pipeline.blend.is_some()) {
                 continue;
@@ -1212,7 +1278,8 @@ impl Gpu {
                     self.bind_arrays(2, size);
                     gl.active_texture(TEXTURE0);
                 }
-                let sampler = self.samplers[second.linear as usize + 2 * second.clamp as usize];
+                let sampler = self.samplers
+                    [second.linear as usize + 2 * second.clamp as usize + 4 * second.mips as usize];
                 gl.bind_sampler(2, sampler);
                 gl.bind_sampler(3, sampler);
                 last_second = Some(*second);
@@ -1225,7 +1292,8 @@ impl Gpu {
                 gl.active_texture(TEXTURE0);
                 last_arrays = Some(size);
             }
-            let sampler = self.samplers[batch.linear as usize + 2 * batch.clamp as usize];
+            let sampler = self.samplers
+                [batch.linear as usize + 2 * batch.clamp as usize + 4 * batch.mips as usize];
             if sampler != last_sampler {
                 gl.bind_sampler(0, sampler);
                 gl.bind_sampler(1, sampler);
@@ -1349,6 +1417,16 @@ impl Gpu {
         );
         // `bytes` holds the whole picture (`texture_as_bgra`).
         gl.tex_sub_image_layer(layer, note.width as i32, note.height as i32, bytes);
+        if self.arrays.get(&size).is_some_and(|a| a.levelled) {
+            let whole = note.width * note.height * 4;
+            for (n, (w, h, level)) in
+                mip_levels::lower_levels(&bytes[..whole.min(bytes.len())], note.width, note.height)
+                    .iter()
+                    .enumerate()
+            {
+                gl.tex_sub_image_layer_level(n as i32 + 1, layer, *w as i32, *h as i32, level);
+            }
+        }
         self.textures.insert(
             note.pixels,
             CachedTexture {
@@ -1430,7 +1508,9 @@ impl Gpu {
         }
     }
 
-    fn run(mut self, jobs: Receiver<Job<Batched>>) {
+    /// Draws the jobs until the batching thread's end, then closes the context (on this
+    /// thread, which made it).
+    fn run(mut self, jobs: Receiver<Job<Batched>>) -> Option<Closed> {
         let mut sampler = super::gpu_time::Sampler::from_env();
         for job in jobs {
             let start = std::time::Instant::now();
@@ -1472,12 +1552,37 @@ impl Gpu {
                 std::sync::atomic::Ordering::Relaxed,
             );
         }
+        #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+        return Some(self.gl.close());
+        #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+        None
     }
+}
+
+/// What the GL's thread hands back when it ends: the hidden window its context was on (the
+/// game's thread destroys it, as it made it); the panel's context lives on with the program.
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+type Closed = crate::platform::ffi::gl::GlWindow;
+#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+type Closed = ();
+
+/// Why a start failed, and the window its context was on, to be destroyed by the game's thread.
+type Failed = (String, Option<Closed>);
+
+/// The GL's two threads.
+#[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // only the desktop's swap joins them
+struct Threads {
+    batching: std::thread::JoinHandle<()>,
+    gl: std::thread::JoinHandle<Option<Closed>>,
 }
 
 /// The game's side of the GL's thread, and what it knows the GPU holds.
 pub struct Front {
     jobs: SyncSender<Job<Part>>,
+    /// The batching thread and the GL's, joined by `stop`.
+    #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))]
+    // only the desktop's swap joins them
+    threads: Threads,
     /// The textures up to date on the GPU, with their sizes.
     known: super::TextureMap<(usize, usize)>,
     size: (i32, i32),
@@ -1704,7 +1809,7 @@ const FAILURE_STEP: &str = "gl";
 /// Starts the GL's thread if it is wanted (the handheld: its panel's context).
 #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
 pub fn start_if_wanted() {
-    start_with(|| Gles::open_panel(PANEL.0 as u16, PANEL.1 as u16));
+    start_with(|| Gles::open_panel(PANEL.0 as u16, PANEL.1 as u16).map_err(|why| (why, None)));
 }
 
 /// Starts the GL's thread on a hidden window made for OpenGL, if it is wanted; whether it
@@ -1727,12 +1832,35 @@ pub fn start_on_window() -> bool {
             return false;
         }
     };
-    start_with(move || Gles::open_window(window));
+    start_with(move || Gles::open_window(window).map_err(|(why, window)| (why, Some(window))));
     GPU.lock().unwrap().is_some()
 }
 
+/// The OpenGL backend stopped, if it runs: the jobs' end is waited for, both threads are
+/// joined, the context and its window are destroyed. The next `start_on_window` asks again.
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+pub fn stop() -> bool {
+    let Some(front) = GPU.lock().unwrap().take() else {
+        return false;
+    };
+    super::gpu_stopped();
+    let Front { jobs, threads, .. } = front;
+    // The batching thread ends with the game's side, the GL's with the batching thread.
+    drop(jobs);
+    let batching = threads.batching.join();
+    let closed = threads.gl.join();
+    if batching.is_err() || closed.is_err() {
+        log("render: the OpenGL backend's threads ended in a panic");
+    }
+    if let Ok(Some(window)) = closed {
+        window.destroy();
+    }
+    TRIED.store(false, std::sync::atomic::Ordering::Relaxed);
+    true
+}
+
 /// Starts the GL's thread, which makes its context with `open`.
-fn start_with(open: impl FnOnce() -> Result<Gles, String> + Send + 'static) {
+fn start_with(open: impl FnOnce() -> Result<Gles, Failed> + Send + 'static) {
     let mut held = GPU.lock().unwrap();
     if held.is_some() || TRIED.swap(true, std::sync::atomic::Ordering::Relaxed) {
         return;
@@ -1749,28 +1877,38 @@ fn start_with(open: impl FnOnce() -> Result<Gles, String> + Send + 'static) {
         .spawn(move || match Gpu::new(open) {
             Ok(gpu) => {
                 let _ = answer.send(Ok(()));
-                gpu.run(to_draw);
+                gpu.run(to_draw)
             }
-            Err(why) => {
+            Err((why, window)) => {
                 let _ = answer.send(Err(why));
+                window
             }
         });
     let outcome = match thread {
-        Ok(_) => started
-            .recv()
-            .unwrap_or_else(|_| Err("the GL's thread ended".into())),
+        Ok(handle) => match started.recv() {
+            Ok(Ok(())) => Ok(handle),
+            Ok(Err(why)) => {
+                // The thread has ended; its window is destroyed here.
+                #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+                if let Ok(Some(window)) = handle.join() {
+                    window.destroy();
+                }
+                Err(why)
+            }
+            Err(_) => Err("the GL's thread ended".into()),
+        },
         Err(why) => Err(why.to_string()),
     };
     // The GL's thread, without its batches' sender, ends when this does not start.
-    let outcome = outcome.and_then(|()| {
+    let outcome = outcome.and_then(|gl| {
         std::thread::Builder::new()
             .name("GL batches".into())
             .spawn(move || super::gl_batching::run(to_batch, batched, same_array, bench::enabled()))
-            .map(drop)
+            .map(|batching| Threads { batching, gl })
             .map_err(|why| why.to_string())
     });
     match outcome {
-        Ok(()) => {
+        Ok(threads) => {
             log(if cfg!(all(target_os = "linux", target_arch = "aarch64")) {
                 "render: the GPU backend on libmali's OpenGL ES, on its own thread"
             } else {
@@ -1778,6 +1916,7 @@ fn start_with(open: impl FnOnce() -> Result<Gles, String> + Send + 'static) {
             });
             *held = Some(Front {
                 jobs,
+                threads,
                 known: Default::default(),
                 size: (0, 0),
                 background_held: None,

@@ -19,7 +19,8 @@ pub enum When {
 pub enum Kind {
     /// How many parts of a frame may draw at once.
     Threads,
-    /// The renderer tried first at start.
+    /// The renderer: swapped in at once where the platform can, else tried first at the next
+    /// start.
     Renderer,
     /// A `ral.cfg` switch: the key; `inverted` when the key names what is off (`nofmv`), so the
     /// page shows the feature, not its absence.

@@ -14,6 +14,7 @@
     remote.py shot name                  the next frame to <folder>/shots/name.png
     remote.py time n                     the arcade's countdown set to n
     remote.py state                      frames, race flag, menu, item, speed, time, place, cars
+    remote.py renderer gpu|gl|software   swaps the 3D's renderer in game (desktop); the answer names the one that runs
     remote.py chat                       the lobby chat box's lines, joined by |
     remote.py wait COND.. [secs]         polls state until every COND holds (menu!=Some(MenuId(5)), item=3,
                                          race=1, screen_frames>=20; ops = != >= <= > < ; default 10 s);
@@ -472,7 +473,7 @@ def main():
         sys.exit(0 if press(rest[0], float(rest[1]) if len(rest) > 1 else 5.0) else 1)
     elif command == 'log':
         log(int(rest[0]) if rest else 30)
-    elif command in ('key', 'down', 'up', 'pad', 'joy', 'state', 'time', 'chat'):
+    elif command in ('key', 'down', 'up', 'pad', 'joy', 'state', 'time', 'chat', 'renderer'):
         print(ask(' '.join([command] + rest)))
     else:
         sys.exit(__doc__)

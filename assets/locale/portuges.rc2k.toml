@@ -124,7 +124,7 @@ save_replay = "gravar repetição"
 [advanced]
 title = "avançado"
 threads = "processos de desenho"
-renderer = "renderizador (próximo início)"
+renderer = "renderizador"
 frame_counter = "contador de quadros"
 films = "filmes"
 screenshots = "capturas de ecrã"

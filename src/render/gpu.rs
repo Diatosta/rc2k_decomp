@@ -149,8 +149,9 @@ pub fn make_device() -> Option<Device> {
     device
 }
 
-/// Starts the backend on `device`.
-pub fn start(device: Device) {
+/// Starts the backend on `device`; whether it runs. A backend that does not start has let go
+/// of what it made (the device is the caller's).
+pub fn start(device: Device) -> bool {
     let made = if super::choice::forced_failure("backend") {
         Err("made to fail".to_string())
     } else {
@@ -161,11 +162,25 @@ pub fn start(device: Device) {
             log(&format!("render: the GPU backend on {}", device.driver()));
             *GPU.lock().unwrap() = Some(gpu);
             super::gpu_started();
+            true
         }
-        Err(why) => log(&format!(
-            "render: the GPU backend does not start ({why}): the software rasteriser draws the 3D"
-        )),
+        Err(why) => {
+            log(&format!(
+                "render: the GPU backend does not start ({why}): the software rasteriser draws the 3D"
+            ));
+            false
+        }
     }
+}
+
+/// Stops the backend if it runs: everything it made is let go, and the device is handed back
+/// (the caller destroys it once the window's renderer on it is gone).
+pub fn stop() -> Option<Device> {
+    let gpu = GPU.lock().unwrap().take()?;
+    super::gpu_stopped();
+    let device = gpu.device;
+    gpu.release();
+    Some(device)
 }
 
 impl Gpu {
@@ -203,11 +218,33 @@ impl Gpu {
         if let Some(line) = Cuts::start_from_env() {
             log(&line);
         }
+        if let Err(why) = gpu.make_fixed_parts() {
+            gpu.release();
+            return Err(why);
+        }
+        Ok(gpu)
+    }
+
+    /// The shaders, the overlay's pipeline, the samplers and the white texture every frame
+    /// needs.
+    fn make_fixed_parts(&mut self) -> Result<(), String> {
+        let gpu = self;
         gpu.scene_vert = gpu.shader(SCENE_VERT, SDL_GPU_SHADERSTAGE_VERTEX, 0, 1)?;
         gpu.scene_frag = gpu.shader(SCENE_FRAG, SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 1)?;
         let overlay_vert = gpu.shader(OVERLAY_VERT, SDL_GPU_SHADERSTAGE_VERTEX, 0, 0)?;
-        let overlay_frag = gpu.shader(OVERLAY_FRAG, SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 0)?;
-        gpu.overlay = gpu.make_overlay_pipeline(overlay_vert, overlay_frag)?;
+        let overlay_frag = gpu.shader(OVERLAY_FRAG, SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 0);
+        let overlay_frag = match overlay_frag {
+            Ok(shader) => shader,
+            Err(why) => {
+                gpu.device.release_shader(overlay_vert);
+                return Err(why);
+            }
+        };
+        let overlay = gpu.make_overlay_pipeline(overlay_vert, overlay_frag);
+        // The pipeline keeps what it needs of them.
+        gpu.device.release_shader(overlay_vert);
+        gpu.device.release_shader(overlay_frag);
+        gpu.overlay = overlay?;
         for linear in [false, true] {
             for clamp in [false, true] {
                 gpu.samplers[linear as usize + 2 * clamp as usize] =
@@ -216,8 +253,62 @@ impl Gpu {
         }
         gpu.nearest = gpu.samplers[0];
         gpu.white = gpu.make_texture(1, 1, SDL_GPU_TEXTUREUSAGE_SAMPLER)?;
-        gpu.upload_white()?;
-        Ok(gpu)
+        gpu.upload_white()
+    }
+
+    /// Everything the backend made let go (its device is the caller's): the device must be
+    /// idle of the frame's work, which SDL waits for in each release.
+    fn release(mut self) {
+        let device = self.device;
+        if !self.white.is_none() {
+            device.release_texture(self.white);
+        }
+        if let Some(small) = self.small.take() {
+            device.release_texture(small.colour);
+            device.release_texture(small.depth);
+        }
+        self.release_targets(&Targets {
+            colour: self.colour,
+            depth: self.depth,
+            canvas: self.canvas,
+            canvas_transfer: self.canvas_transfer,
+            background: self.background,
+            background_transfer: self.background_transfer,
+        });
+        if let Some(check) = self.check.take() {
+            for texture in [check.colour, check.depth, check.canvas] {
+                device.release_texture(texture);
+            }
+            device.release_transfer(check.canvas_transfer);
+        }
+        if let Some(quads) = self.quads.take() {
+            quads.release(device);
+        }
+        for (_, pipeline) in self.pipelines.drain() {
+            device.release_pipeline(pipeline);
+        }
+        for (_, cached) in self.textures.drain() {
+            device.release_texture(cached.texture);
+        }
+        for object in [self.scene_vert, self.scene_frag] {
+            if !object.is_none() {
+                device.release_shader(object);
+            }
+        }
+        if !self.overlay.is_none() {
+            device.release_pipeline(self.overlay);
+        }
+        for sampler in self.samplers {
+            if !sampler.is_none() {
+                device.release_sampler(sampler);
+            }
+        }
+        if !self.vertices.is_none() {
+            device.release_buffer(self.vertices);
+        }
+        if !self.transfer.is_none() {
+            device.release_transfer(self.transfer);
+        }
     }
 
     fn shader(

@@ -81,6 +81,7 @@ library! { Table {
     glTexSubImage3D: fn(u32, i32, i32, i32, i32, i32, i32, i32, u32, u32, *const c_void);
     glFramebufferTextureLayer: fn(u32, u32, u32, i32, i32);
     glCopyTexSubImage3D: fn(u32, i32, i32, i32, i32, i32, i32, i32, i32);
+    glGenerateMipmap: fn(u32);
     glGenSamplers: fn(i32, *mut u32);
     glBindSampler: fn(u32, u32);
     glSamplerParameteri: fn(u32, u32, i32);
@@ -128,7 +129,10 @@ enum Surface {
     Panel { egl: Egl, display: P, surface: P },
     /// An SDL window's context (a hidden one: the frames are read back).
     #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-    Window(*mut sdl3_sys::everything::SDL_Window),
+    Window(
+        *mut sdl3_sys::everything::SDL_Window,
+        sdl3_sys::everything::SDL_GLContext,
+    ),
 }
 
 /// The GL's entry points and the surface its context draws to, with the context current on the
@@ -202,34 +206,84 @@ fn pixel_bytes(width: i32, height: i32) -> usize {
 impl Gles {
     /// Makes an OpenGL context on `window` current on this thread and finds the entry points
     /// by SDL.
-    pub fn open_window(window: GlWindow) -> Result<Gles, String> {
+    pub fn open_window(window: GlWindow) -> Result<Gles, (String, GlWindow)> {
         use sdl3_sys::everything::*;
+        let failed = |why: String| (why, GlWindow(window.0));
         let window = window.0;
         // SAFETY: the window is ours alone and made for OpenGL; the context stays current on
         // this thread, which keeps the `Gles`; each name is NUL-ended.
         unsafe {
             let context = SDL_GL_CreateContext(window);
             if context.is_null() {
-                return Err(format!("no OpenGL context: {}", sdl_error()));
+                return Err(failed(format!("no OpenGL context: {}", sdl_error())));
             }
             if !SDL_GL_MakeCurrent(window, context) {
-                return Err(format!(
-                    "the OpenGL context is not made current: {}",
-                    sdl_error()
-                ));
+                let why = format!("the OpenGL context is not made current: {}", sdl_error());
+                SDL_GL_DestroyContext(context);
+                return Err(failed(why));
             }
             SDL_GL_SetSwapInterval(0);
             let table = Table::load(&|name| match SDL_GL_GetProcAddress(name.as_ptr()) {
                 Some(function) => function as P,
                 None => std::ptr::null_mut(),
-            })?;
+            });
+            let table = match table {
+                Ok(table) => table,
+                Err(why) => {
+                    SDL_GL_MakeCurrent(window, std::ptr::null_mut());
+                    SDL_GL_DestroyContext(context);
+                    return Err(failed(why));
+                }
+            };
             Ok(Gles {
                 table,
-                surface: Surface::Window(window),
+                surface: Surface::Window(window, context),
                 desktop: true,
                 _one_thread: std::marker::PhantomData,
             })
         }
+    }
+}
+
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+impl Gles {
+    /// The context destroyed (it is current on the calling thread, the one that made it),
+    /// and its window handed back: it is destroyed on the thread that made it.
+    pub fn close(self) -> GlWindow {
+        use sdl3_sys::everything::*;
+        let Surface::Window(window, context) = self.surface;
+        // SAFETY: the context `open_window` made, current on this thread, which owns the
+        // `Gles`; nothing draws with it after this; the window is the one it was made on.
+        unsafe {
+            SDL_GL_MakeCurrent(window, std::ptr::null_mut());
+            SDL_GL_DestroyContext(context);
+        }
+        GlWindow(window)
+    }
+}
+
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+impl GlWindow {
+    /// The hidden window destroyed, on the thread that made it, once the context on it is gone.
+    pub fn destroy(self) {
+        // SAFETY: a window `new` made, whose context is destroyed; not used again.
+        unsafe { sdl3_sys::everything::SDL_DestroyWindow(self.0) };
+    }
+}
+
+#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+impl Gles {
+    /// The panel's context stays for the program's life: nothing comes back.
+    pub fn close_after_failure(self) -> Option<()> {
+        None
+    }
+}
+
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+impl Gles {
+    /// `close`, for a start that failed after the context was made.
+    pub fn close_after_failure(self) -> Option<GlWindow> {
+        Some(self.close())
     }
 }
 
@@ -314,7 +368,7 @@ impl Gles {
                 unsafe { (egl.eglSwapBuffers)(*display, *surface) };
             }
             #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-            Surface::Window(window) => {
+            Surface::Window(window, _) => {
                 // SAFETY: the window `open_window` made the context on, current on this thread.
                 unsafe { sdl3_sys::everything::SDL_GL_SwapWindow(*window) };
             }
@@ -466,11 +520,24 @@ impl Gles {
     /// `glTexSubImage2D` of level 0 of the bound 2D texture: `width` x `height` pixels at (`x`, `y`) from `pixels`.
     /// A `TEXTURE_2D_ARRAY` of `layers` pictures of `width` x `height`, no pixels given.
     pub fn tex_image_3d_empty(&self, internal_format: i32, width: i32, height: i32, layers: i32) {
+        self.tex_image_3d_level_empty(0, internal_format, width, height, layers);
+    }
+
+    /// Level `level` of the bound `TEXTURE_2D_ARRAY`: `layers` pictures of `width` x `height`,
+    /// no pixels given.
+    pub fn tex_image_3d_level_empty(
+        &self,
+        level: i32,
+        internal_format: i32,
+        width: i32,
+        height: i32,
+        layers: i32,
+    ) {
         // SAFETY: plain numbers; no pixels are read (a null pointer).
         unsafe {
             (self.table.glTexImage3D)(
                 0x8C1A,
-                0,
+                level,
                 internal_format,
                 width,
                 height,
@@ -485,6 +552,18 @@ impl Gles {
 
     /// One layer of the bound `TEXTURE_2D_ARRAY`: `width` x `height` RGBA bytes.
     pub fn tex_sub_image_layer(&self, layer: i32, width: i32, height: i32, pixels: &[u8]) {
+        self.tex_sub_image_layer_level(0, layer, width, height, pixels);
+    }
+
+    /// One layer of level `level` of the bound `TEXTURE_2D_ARRAY`: `width` x `height` RGBA bytes.
+    pub fn tex_sub_image_layer_level(
+        &self,
+        level: i32,
+        layer: i32,
+        width: i32,
+        height: i32,
+        pixels: &[u8],
+    ) {
         assert!(
             pixels.len() >= pixel_bytes(width, height),
             "a short picture"
@@ -493,7 +572,7 @@ impl Gles {
         unsafe {
             (self.table.glTexSubImage3D)(
                 0x8C1A,
-                0,
+                level,
                 0,
                 0,
                 layer,
@@ -505,6 +584,12 @@ impl Gles {
                 pixels.as_ptr().cast(),
             );
         }
+    }
+
+    /// Every smaller level of every layer of the bound `TEXTURE_2D_ARRAY` made from level 0.
+    pub fn generate_mipmap_array(&self) {
+        // SAFETY: plain number.
+        unsafe { (self.table.glGenerateMipmap)(0x8C1A) };
     }
 
     /// Layer `layer` of the texture array `texture` as the bound `target` framebuffer's
@@ -556,10 +641,10 @@ impl Gles {
     }
 
     /// Four new sampler objects.
-    pub fn gen_samplers(&self) -> [u32; 4] {
-        let mut names = [0; 4];
-        // SAFETY: room for the four out-values.
-        unsafe { (self.table.glGenSamplers)(4, names.as_mut_ptr()) };
+    pub fn gen_samplers(&self) -> [u32; 8] {
+        let mut names = [0; 8];
+        // SAFETY: room for the eight out-values.
+        unsafe { (self.table.glGenSamplers)(8, names.as_mut_ptr()) };
         names
     }
 

@@ -349,6 +349,14 @@ pub fn destroy(window: Window, renderer: Renderer) {
     }
 }
 
+/// The window's renderer destroyed, the window kept (the 3D's renderer is swapped). Every
+/// texture made on it must be gone first; it is not used again.
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+pub fn destroy_renderer(renderer: Renderer) {
+    // SAFETY: a renderer SDL made here, which the caller says nothing uses.
+    unsafe { SDL_DestroyRenderer(renderer.0) };
+}
+
 /// The window's own renderer (SDL's choice of driver).
 pub fn create_renderer(window: Window) -> Option<Renderer> {
     // SAFETY: the window SDL made; a null name lets SDL choose.
