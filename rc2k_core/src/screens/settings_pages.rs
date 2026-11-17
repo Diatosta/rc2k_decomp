@@ -121,20 +121,20 @@ pub fn visual_preferences<S: Screen<Font = Font, Work = Work>>(
     Ok(names(s, ids.into_iter().zip((0..).map(|n| 0xC8 + 0x1D * n)))?.too_wide)
 }
 
-/// The volume page: the name `id` at (0x1EA, 0x1B3); nine bar backgrounds (sprite 0x19 at x
-/// 0x222, y 0xDA every 0x1C); the ninth volume (the films') sits in row 9, below the race
-/// music's switch that has row 8; nine bars of the volumes (0 .. 0x40, as percent; a v whose
-/// v x 100 wraps to 0 is fatal error 0x80701010); each row's knob (sprite 0x1B) and its two ends
-/// (strings 0x547, 0x548).
-/// The volume page's rows: eight volumes, the race music's switch's row left out, the films'.
-const VOLUME_ROWS: [i32; 9] = [0, 1, 2, 3, 4, 5, 6, 7, 9];
+/// The volume page: the race music's switch name `id` at (0x1EA, 0x1CF), in the last row (9); nine
+/// bar backgrounds (sprite 0x19 at x 0x222, y 0xDA every 0x1C) for the volumes in rows 0 .. 8, so
+/// the sliders are together and the switch is at the bottom; nine bars of the volumes (0 .. 0x40, as
+/// percent; a v whose v x 100 wraps to 0 is fatal error 0x80701010); each row's knob (sprite
+/// 0x1B) and its two ends (strings 0x547, 0x548).
+/// The volume page's rows: the nine volumes (the last the films').
+const VOLUME_ROWS: [i32; 9] = [0, 1, 2, 3, 4, 5, 6, 7, 8];
 
 pub fn volume<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     id: u32,
     volumes: [u32; 9],
 ) -> Result<(), S::Error> {
-    s.string(Font::Value, id, 0x1EA, 0x1B3)?;
+    s.string(Font::Value, id, 0x1EA, 0x1B3 + 0x1C)?;
     for n in VOLUME_ROWS {
         s.sprite(0x19, 0x222, 0xDA + 0x1C * n)?;
     }
@@ -294,8 +294,9 @@ mod tests {
         assert!(s.0.contains(&"bar 218 100".to_string()));
         assert!(s.0.contains(&"bar 274 50".to_string()));
         assert!(s.0.contains(&"bar 414 1".to_string()));
-        assert!(s.0.contains(&"bar 470 25".to_string()));
-        assert!(!s.0.iter().any(|l| l.starts_with("bar 442")));
+        // The films' volume is the last slider (row 8); the music switch's row 9 has no bar.
+        assert!(s.0.contains(&"bar 442 25".to_string()));
+        assert!(!s.0.iter().any(|l| l.starts_with("bar 470")));
         let mut s = Record::default();
         assert!(volume(&mut s, 0, [0x0290_0000, 0, 0, 0, 0, 0, 0, 0, 0]).is_ok());
         let mut s = Record::default();

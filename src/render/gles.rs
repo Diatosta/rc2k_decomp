@@ -961,25 +961,26 @@ impl Gpu {
         Ok(())
     }
 
-    /// The part's 3D at `percent` of the screen's size: the picture so far made smaller, the
-    /// batches drawn over it, the result enlarged over the target.
+    /// The part's 3D at `percent` of the screen's size: the picture so far made smaller (or
+    /// larger), the batches drawn over it, the result brought back over the target.
     fn draw_batches_small(
         &mut self,
         batches: &Batches,
         (width, height): (i32, i32),
         percent: u32,
     ) -> Result<(), String> {
-        self.ensure_small(width, height)?;
         let part = (
             rc2k_core::gfx::render_scale::scaled(width as usize, percent) as i32,
             rc2k_core::gfx::render_scale::scaled(height as usize, percent) as i32,
         );
+        // The target holds the screen's picture too (a share under 100 draws in the corner).
+        self.ensure_small(part.0.max(width), part.1.max(height))?;
         let gl = &self.gl;
         let small = self.small.as_mut().expect("made above");
         gl.disable(SCISSOR_TEST);
         gl.bind_framebuffer(READ_FRAMEBUFFER, self.framebuffer);
         gl.bind_framebuffer(DRAW_FRAMEBUFFER, small.framebuffer);
-        gl.blit_colour_nearest((width, height), part);
+        gl.blit_colour((width, height), part, false);
         gl.bind_framebuffer(FRAMEBUFFER, small.framebuffer);
         gl.viewport(0, 0, part.0, part.1);
         if std::mem::replace(&mut small.depth_is_new, false) {
@@ -993,7 +994,8 @@ impl Gpu {
         let gl = &self.gl;
         gl.bind_framebuffer(READ_FRAMEBUFFER, small_framebuffer);
         gl.bind_framebuffer(DRAW_FRAMEBUFFER, self.framebuffer);
-        gl.blit_colour_nearest(part, (width, height));
+        // Reduced with the bilinear filter (the mean of four pixels at 200 percent).
+        gl.blit_colour(part, (width, height), percent > 100);
         gl.bind_framebuffer(FRAMEBUFFER, self.framebuffer);
         gl.viewport(0, 0, width, height);
         Ok(())
@@ -1161,7 +1163,7 @@ impl Gpu {
             self.draw_quads(quad_vertices.len(), (width, height));
         }
         if !batches.batches.is_empty() && !self.cuts.scene {
-            if scale < 100 && !self.cuts.half {
+            if scale != 100 && !self.cuts.half {
                 if let Err(why) = self.draw_batches_small(&batches, (width, height), scale) {
                     crate::fatal::raise::end(
                         "render::gles",

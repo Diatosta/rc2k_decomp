@@ -802,3 +802,27 @@ has the same fixed addresses, but its network mode could not be run here to see 
 - **In game**: the joiner stayed in a lobby that no longer worked (a frozen list of players) instead of going back to the join screen.
 - **Seen or read**: seen in a two-copy trial (a joiner put out by the host's `/kick`, which takes the same path as a host that leaves).
 - **Fix**: the lobby ends when the network link has been closed (`net::lobby_loop`); the joiner is back at the join screen.
+
+---
+
+## Filled rectangles drawn nothing on a 32-bit screen
+
+*Original*: `gfx::fill_rect` (0x406869).
+*Fixed*: 2026-11-17.
+
+- **What**: the function that fills a rectangle with one colour skipped the fill for a 32-bit surface (its depth test jumped past it), and on an 8-bit one it filled with the byte and then ran on into a second fill of dwords that started below the rectangle and wrote four times its width.
+- **In game**: with the screen at 32 bits (every saved set of options of today) the back of a message box was never filled, the installer's copying page never cleared the percentage before writing the next (the numbers piled up until the bar's glyphs covered them), and the tyre change's texts were written over the last ones without the area being cleared first.
+- **Seen or read**: seen in the standalone's installer at 32 bits (the percentage), read in the disassembly for the rest.
+- **Fix**: the rectangle is filled, clipped, at every depth the game's surfaces have (8, 16 and 32 bits), with the palette's colour (the byte itself on 8 bits) (`rc2k_core::gfx::raster::fill`, `gfx::rect::fill_rect`). The message box's back, the installer's percentage area and the tyre change's panel are cleared as they were meant to be.
+
+---
+
+## The drivers were never shuffled at a championship's start
+
+*Original*: `menu::shuffle_drivers` (0x470AB9).
+*Fixed*: 2026-11-17.
+
+- **What**: at the start of an event the four driver tables are meant to be shuffled: two entries chosen at random swap places, once for each driver of the class. The original worked out the two entries' offsets but never added them to the tables' bases, so every swap exchanged the first entry with itself.
+- **In game**: the computer drivers' order in the championship was the same at every event; the random numbers were still drawn, so the rest of the event's random numbers were not affected.
+- **Seen or read**: read in the disassembly, not seen.
+- **Fix**: the two chosen entries swap places as meant (`menu::shuffle_drivers`), with the same two random draws per swap as before: the random state after the shuffle is unchanged, but the order of the computer drivers in a championship now differs from event to event.

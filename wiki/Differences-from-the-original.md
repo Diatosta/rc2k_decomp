@@ -82,7 +82,7 @@ More on [Network play](Network-play).
 - Controllers are read from a race's first moment (the original's input thread slept a second
   at each race's start), and at once after coming back to the window.
 - A loading bar is shown while a stage loads.
-- The volume page has a "film volume" slider (the intro and logo films), the sound page a "sound when not in front" row (the original's sounds went quiet while its window was behind) and a "reverb" row (a reverb of the program's own for the race's sounds, from the original's EAX room presets and the weights of the course around each view), and the network settings page a "port" row ([Options files](Options-files), [Network play](Network-play)).
+- The volume page has a "film volume" slider (the intro and logo films; the last slider, above the music switch), the sound page a "sound when not in front" row (the original's sounds went quiet while its window was behind) and a "reverb" row (a reverb of the program's own for the race's sounds, from the original's EAX room presets and the weights of the course around each view), and the network settings page a "port" row ([Options files](Options-files), [Network play](Network-play)).
 - The hidden Pong game on the windscreen can be played: the bat follows player 1's steering ([Fixed bugs](Fixed-bugs)).
 - The loading screen does not hold up the load: the loading picture is shown once (the
   original showed it once for each page of its screen), and a bar frame is drawn only when
@@ -99,9 +99,12 @@ More on [Network play](Network-play).
   rates that divide the display's refresh evenly (half, a third, a quarter of it). It is kept in
   `var/rc2k.toml`'s `[display]` table as `frame_limit` (`"off"`, `"display"` or a number a second;
   left out for the default, `"display"`). A "3D resolution" row below it draws the race's 3D at
-  100, 75 or 50 % of the screen's size and enlarges it (nearest pixel) over the screen; the
+  50, 75, 100, 125, 150, 175 or 200 % of the screen's size: below 100 it is enlarged (nearest
+  pixel) over the screen, above 100 it is drawn larger and scaled down with a smoothing filter
+  (supersampling anti-aliasing; an exact area average in the software rasteriser, the bilinear
+  filter on the GPU renderers, which is the mean of four pixels at 200 %); the
   menus, the dashboard and the texts stay at full size. It works on the software rasteriser and
-  on both GPU renderers, and is kept in `[display]` as `render_scale` (50, 75 or 100; left out
+  on both GPU renderers, and is kept in `[display]` as `render_scale` (50 to 200 in those steps; left out
   for 100). The handheld's software rasteriser no longer draws races at half size by itself:
   set the row to 50 % there.
 - The options menu has an "advanced" item after the original's, opening a page of our own. Its
@@ -112,9 +115,9 @@ More on [Network play](Network-play).
   canvas, the running backend and the window's renderer are stopped and the chosen ones
   started, and the textures and the canvas go up to the new backend as it first draws them. When
   the chosen one does not start, the one that ran comes back, the choice is kept for the next
-  start, and the page says "next start" beside a value that differs from the running one. On
+  start, and the page says "next start" beside the renderer that was asked for and did not start. On
   the handheld the renderer is only the one tried first at the next start (its GL ES context is
-  made once for the program's life); and switches of `var/ral.cfg`: frame counter,
+  made once for the program's life), and the page says "next start" beside a value that differs from the running one; and switches of `var/ral.cfg`: frame counter,
   films, screenshots, non-linear steering, automatic neutral (all at once), rain and snow (the
   next race) and music, joysticks, force feedback (the next start). The page shows the feature,
   not its absence (`nofmv=1` shows as "films: off"). "Apply" sets the live variables, writes

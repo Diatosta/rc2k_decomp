@@ -831,11 +831,22 @@ impl Gles {
     }
 
     /// The colour of the read framebuffer's rectangle (0, 0) to `from` copied to the draw
-    /// framebuffer's (0, 0) to `to`, each pixel the nearest.
-    pub fn blit_colour_nearest(&self, from: (i32, i32), to: (i32, i32)) {
+    /// framebuffer's (0, 0) to `to`, each pixel the nearest, or with `smooth` the bilinear mean.
+    pub fn blit_colour(&self, from: (i32, i32), to: (i32, i32), smooth: bool) {
         // SAFETY: plain numbers; the framebuffers are bound by the caller.
         unsafe {
-            (self.table.glBlitFramebuffer)(0, 0, from.0, from.1, 0, 0, to.0, to.1, 0x4000, 0x2600);
+            (self.table.glBlitFramebuffer)(
+                0,
+                0,
+                from.0,
+                from.1,
+                0,
+                0,
+                to.0,
+                to.1,
+                0x4000,
+                if smooth { 0x2601 } else { 0x2600 },
+            );
         }
     }
 

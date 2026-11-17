@@ -80,7 +80,7 @@ impl Default for Targets {
     }
 }
 
-/// The targets of a 3D drawn smaller than the screen.
+/// The targets of a 3D drawn at another size than the screen's.
 struct Small {
     colour: Texture,
     depth: Texture,
@@ -668,9 +668,16 @@ impl Gpu {
 
     /// Draws the commands over the target: the retained background first if one is noted, then
     /// the canvas's written rows (`rows`, one flag a row; `None` to look at every row).
-    /// The small targets at the screen's size, made or made again.
-    fn ensure_small(&mut self) -> Result<(), String> {
-        let size = (self.width, self.height);
+    /// The small targets (at least the screen's size, or the share's when larger), made or made
+    /// again.
+    fn ensure_small(&mut self, percent: u32) -> Result<(), String> {
+        // Large enough for the screen's picture too (a share under 100 draws in the corner).
+        let size = (
+            (rc2k_core::gfx::render_scale::scaled(self.width as usize, percent) as u32)
+                .max(self.width),
+            (rc2k_core::gfx::render_scale::scaled(self.height as usize, percent) as u32)
+                .max(self.height),
+        );
         if self.small.as_ref().is_some_and(|s| s.size == size) {
             return Ok(());
         }
@@ -741,13 +748,13 @@ impl Gpu {
         // The 3D of a race at a share of the screen's size: drawn into the small targets and
         // enlarged over the screen (the debug cuts and the check draw it whole).
         let percent = super::flush_scale();
-        let smaller = percent < 100
+        let smaller = percent != 100
             && !batches.batches.is_empty()
             && !cuts.scene
             && !cuts.half
             && self.check.is_none();
         if smaller {
-            self.ensure_small()?;
+            self.ensure_small(percent)?;
         }
         if !self.mip_levels && batches.batches.iter().any(|b| b.mips) {
             // The textures made so far have a level; they are made again, with the rest, as
@@ -972,15 +979,17 @@ impl Gpu {
                 rc2k_core::gfx::render_scale::scaled(full.0 as usize, percent) as u32,
                 rc2k_core::gfx::render_scale::scaled(full.1 as usize, percent) as u32,
             );
-            // The picture so far made smaller, the 3D drawn over it, the result enlarged: the
-            // 3D may blend with what the screen held.
-            buffer.blit_nearest(self.colour, full, small.colour, part);
+            // The picture so far made smaller (or larger), the 3D drawn over it, the result
+            // brought back to the screen's size: nearest when enlarging, the bilinear filter when
+            // reducing (exactly the mean of four pixels at 200 percent). The 3D may blend with
+            // what the screen held.
+            buffer.blit(self.colour, full, small.colour, part, false);
             let clear = std::mem::replace(&mut small.depth_is_new, false);
             let pass = buffer.begin_render_pass(small.colour, small.depth, clear);
             pass.set_viewport(part.0 as f32, part.1 as f32);
             draw_batches(&pass, percent);
             pass.end();
-            buffer.blit_nearest(small.colour, part, self.colour, full);
+            buffer.blit(small.colour, part, self.colour, full, percent > 100);
         }
         if let Some((colour, depth, canvas, transfer, clear)) = check_targets {
             // The same frame once more, the way the canvas carried the background.

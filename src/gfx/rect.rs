@@ -155,10 +155,9 @@ pub fn rect_in(bytes: &impl crate::memory::session::ByteBuffer) -> [i32; 4] {
     std::array::from_fn(|n| bytes.get_u32_at(4 * n) as i32)
 }
 
-/// `gfx::fill_rect`: the rectangle (x, y, width, height) filled, clipped: on a 16-bit surface
-/// `palette[colour]`; on a 32-bit one nothing is drawn (a game bug kept). Refuses
-/// (before anything) other depths: on 8 bits the game fills with the byte and then once more with
-/// dwords past the rectangle's rows.
+/// `gfx::fill_rect`: the rectangle (x, y, width, height) filled, clipped, with `palette[colour]`
+/// on a 16- or 32-bit surface and with the byte itself on an 8-bit one. Refuses (before anything)
+/// any other depth.
 pub fn fill_rect(
     rect: [i32; 4],
     colour: u32,

@@ -57,18 +57,14 @@ fn step(bits: u32) -> i32 {
     }
 }
 
-/// Rectangle x, y, width, height filled, clipped, on a 16-bit surface; on a 32-bit
-/// one the work is done and nothing drawn (a slip kept). Refused before
-/// anything at other depths (on 8 bits the fill would run past the rows).
+/// Rectangle x, y, width, height filled, clipped, at the surface's depth.
 pub fn fill(rect: [i32; 4], clip: &Clip, s: &Surface) -> Result<Plan, Invalid> {
-    if s.bits != 16 && s.bits != 32 {
-        return Err(Invalid(
-            "a rectangle on a surface of neither 16 nor 32 bits",
-        ));
+    if !matches!(s.bits, 8 | 16 | 32) {
+        return Err(Invalid("a rectangle on a surface of an unknown depth"));
     }
     let [x, y, w, h] = rect;
     let mut plan = Plan {
-        bits: 16,
+        bits: s.bits,
         ..Plan::default()
     };
     let left_skip = if x.wrapping_sub(clip.left) < 0 {
@@ -103,9 +99,6 @@ pub fn fill(rect: [i32; 4], clip: &Clip, s: &Surface) -> Result<Plan, Invalid> {
         return Ok(plan);
     }
     plan.work.rows = Some(rows);
-    if s.bits == 32 {
-        return Ok(plan);
-    }
     let px = x.wrapping_add(left_skip).wrapping_mul(s.bytes_per_pixel);
     let mut row = y
         .wrapping_add(top_skip)
@@ -113,7 +106,7 @@ pub fn fill(rect: [i32; 4], clip: &Clip, s: &Surface) -> Result<Plan, Invalid> {
         .wrapping_add(px);
     for _ in 0..rows {
         plan.pixels
-            .extend((0..width).map(|k| row.wrapping_add(2 * k)));
+            .extend((0..width).map(|k| row.wrapping_add(step(s.bits) * k)));
         row = row.wrapping_add(s.pitch);
     }
     Ok(plan)
@@ -347,13 +340,21 @@ mod tests {
             bytes_per_pixel: 4,
             pitch: 264,
         };
-        assert!(fill([0, 0, 4, 4], &CLIP, &s32).unwrap().pixels.is_empty());
+        let p = fill([1, 1, 2, 2], &CLIP, &s32).unwrap();
+        assert_eq!((p.bits, p.pixels), (32, vec![268, 272, 532, 536]));
         let s8 = Surface {
             bits: 8,
             bytes_per_pixel: 1,
             pitch: 64,
         };
-        assert!(fill([0, 0, 4, 4], &CLIP, &s8).is_err());
+        let p = fill([1, 1, 2, 2], &CLIP, &s8).unwrap();
+        assert_eq!((p.bits, p.pixels), (8, vec![65, 66, 129, 130]));
+        let odd = Surface {
+            bits: 24,
+            bytes_per_pixel: 3,
+            pitch: 192,
+        };
+        assert!(fill([0, 0, 4, 4], &CLIP, &odd).is_err());
     }
 
     #[test]

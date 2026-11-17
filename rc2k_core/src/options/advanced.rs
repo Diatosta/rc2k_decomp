@@ -47,9 +47,11 @@ pub const ROWS: [Row; 11] = [
         kind: Kind::Threads,
         when: When::Now,
     },
+    // At Apply on the desktop; the handheld's context is made once, so there it is the next
+    // start (the page says so beside the value).
     Row {
         kind: Kind::Renderer,
-        when: When::NextStart,
+        when: When::Now,
     },
     flag("framecounter", false, When::Now),
     flag("nofmv", true, When::Now),

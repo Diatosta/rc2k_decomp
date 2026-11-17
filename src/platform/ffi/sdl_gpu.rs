@@ -479,15 +479,17 @@ impl CommandBuffer {
     }
 
     /// The top-left `from` (width, height) pixels of `source` copied to the top-left `to` pixels
-    /// of `destination`, each destination pixel the nearest source pixel (outside a pass). Both
+    /// of `destination`, each destination pixel the nearest source pixel, or with `smooth` the
+    /// bilinear mean of the four around it (outside a pass). Both
     /// textures are ours, made for blitting (a sampler and a colour target), and the regions are
     /// inside them.
-    pub fn blit_nearest(
+    pub fn blit(
         &self,
         source: Texture,
         from: (u32, u32),
         destination: Texture,
         to: (u32, u32),
+        smooth: bool,
     ) {
         let region = |texture: Texture, (w, h): (u32, u32)| SDL_GPUBlitRegion {
             texture: texture.0,
@@ -499,7 +501,11 @@ impl CommandBuffer {
             source: region(source, from),
             destination: region(destination, to),
             load_op: SDL_GPU_LOADOP_DONT_CARE,
-            filter: SDL_GPU_FILTER_NEAREST,
+            filter: if smooth {
+                SDL_GPU_FILTER_LINEAR
+            } else {
+                SDL_GPU_FILTER_NEAREST
+            },
             ..Default::default()
         };
         // SAFETY: our open command buffer, no pass open; `info` lives through the call.

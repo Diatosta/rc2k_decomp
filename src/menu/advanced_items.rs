@@ -63,6 +63,16 @@ fn current(o: Owners<'static>) -> Values {
     }
 }
 
+/// The renderer the page was opened with or the last Apply asked for.
+pub fn applied_renderer(o: Owners<'static>) -> Renderer {
+    shown(o);
+    STATE
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .as_ref()
+        .map_or(Renderer::Gpu, |state| state.applied.renderer)
+}
+
 /// Drops what was stepped and not applied (the page is opened).
 pub fn forget_changes() {
     if let Ok(mut state) = STATE.lock() {

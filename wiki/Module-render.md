@@ -23,7 +23,7 @@ the GPU holds the frame) and each backend's own state.
 | `Gpu` | `src/render/gles.rs` | The OpenGL ES backend of the handheld, and the OpenGL 3.3 one on the desktop. |
 | `batched`, `run` | `src/render/gl_batching.rs` | Prepares the OpenGL ES backend's batches on a helper thread. |
 | `Software` | `src/render/software.rs` | The software backend: splits the picture into tiles over the processor's cores. |
-| `render_scale`, `flush_scale` | `src/render/mod.rs` | The graphics page's share of the screen's size the race's 3D is drawn at; each backend draws the 3D small and enlarges it (`small_frame.rs` for the software one; the GPU ones blit between the screen's target and a second one). |
+| `render_scale`, `flush_scale` | `src/render/mod.rs` | The graphics page's share of the screen's size the race's 3D is drawn at; each backend draws the 3D into a smaller or larger frame and brings it back to the screen's size, enlarging it below 100 % and averaging it down above (`small_frame.rs` for the software one; the GPU ones blit between the screen's target and a second one). |
 | `draw_fan` | `src/render/rasteriser.rs` | The rasteriser itself: fills a fan's triangles into a tile. |
 | `Batches` | `src/render/batches.rs` | Groups the commands into runs that share a pipeline and texture. |
 | `background.rs` | `src/render/background.rs` | The 2D picture under and over the 3D when the GPU holds the frame. |

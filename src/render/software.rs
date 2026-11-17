@@ -120,7 +120,7 @@ fn draw(into: &Target, noted: &mut CommandList, screen: (usize, usize)) {
     // which takes the screen's picture so far and gives it back enlarged.
     let percent = super::flush_scale();
     let mut small =
-        (into.bits == 32 && percent < 100 && !crate::render::gpu_running()).then(|| {
+        (into.bits == 32 && percent != 100 && !crate::render::gpu_running()).then(|| {
             // SAFETY: not kept: the screen's rows, checked by `slice`, nothing else writes them
             // while the game's code waits here.
             let screen = unsafe { into.bytes() };

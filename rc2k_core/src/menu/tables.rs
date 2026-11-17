@@ -110,7 +110,7 @@ mod tests {
         );
     }
 
-    const FROZEN_MENUS: u64 = 0x2e5d_cd39_e23c_f41f;
+    const FROZEN_MENUS: u64 = 0xdc01_cbc8_0a85_5427;
     const FROZEN_LISTS: u64 = 0xa9db_5fd8_cdce_a49a;
 
     #[test]

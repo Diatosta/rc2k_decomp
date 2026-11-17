@@ -1,6 +1,6 @@
 //! The advanced page's drawing: the rows' names are the menu's items; the values (on / off, a
 //! number, the renderer) are drawn here in the names' column, with "next start" beside a
-//! renderer that is not the one running.
+//! renderer that will only run at the next start.
 
 use crate::errors::Refused;
 use crate::menu::advanced_items;
@@ -40,7 +40,13 @@ pub fn draw_advanced(
                     Renderer::Gl => id::RENDERER_GL,
                     Renderer::Software => id::RENDERER_SOFTWARE,
                 });
-                if values.renderer != running() {
+                // Beside a renderer that is not the one running: on the handheld a change only
+                // counts at the next start; on the desktop the swap is made at Apply, so the
+                // note is only for a renderer that was asked for and did not start.
+                let waits = values.renderer != running()
+                    && (cfg!(all(target_os = "linux", target_arch = "aarch64"))
+                        || advanced_items::applied_renderer(o) == values.renderer);
+                if waits {
                     text.extend(b" - ");
                     text.extend(own(id::NEXT_START));
                 }
