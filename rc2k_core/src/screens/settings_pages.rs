@@ -107,7 +107,7 @@ pub fn advanced<S: Screen<Font = Font, Work = Work>>(
 ) -> Result<Drawn, S::Error> {
     let mut last = Drawn::default();
     for (row, text) in texts.iter().enumerate() {
-        last = s.line(Font::Value, text, 0x1D1, 0xDC + 0x1B * row as i32)?;
+        last = s.line(Font::Value, text, 0x1D1, 0xBE + 0x1B * row as i32)?;
     }
     Ok(last)
 }

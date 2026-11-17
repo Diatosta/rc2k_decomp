@@ -148,6 +148,11 @@ pub fn scaled(cell: &[u8], size: usize) -> Vec<u8> {
     out
 }
 
+/// The alpha of picture `icon` scaled to `size` x `size` (rows one after the other).
+pub fn alpha_of(family: Family, icon: Icon, size: usize) -> Option<Arc<Vec<u8>>> {
+    scaled_picture(family, icon, size)
+}
+
 /// A scaled picture, kept.
 fn scaled_picture(family: Family, icon: Icon, size: usize) -> Option<Arc<Vec<u8>>> {
     type Key = (Family, Icon, usize);

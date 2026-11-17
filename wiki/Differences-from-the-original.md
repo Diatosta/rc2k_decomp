@@ -24,8 +24,6 @@ The original was a 32-bit Windows program on DirectX. Its platform side was not 
 - The pause binding (a button on a pad and a key on the keyboard) asks the same
   "leave?" question as Escape, in place of the original's plain pause that waited for a key.
   The race still pauses until a key when its window stops being the active one.
-- A looping sound whose end does not run on into its start (several engine samples) has the two blended over 10 ms when it is loaded, so the turn of the loop is not heard as a click ([Sound samples](Sound-samples)); the advanced page's "smooth engine loops" switch turns it off.
-- A looping engine sample is played as overlapping grains from varying places of the sample, so its loop is not heard as a phrase that repeats ([Sound samples](Sound-samples)); the same switch turns it off.
 
 ## Controllers
 
@@ -109,7 +107,7 @@ More on [Network play](Network-play).
   on both GPU renderers, and is kept in `[display]` as `render_scale` (50 to 200 in those steps; left out
   for 100). The handheld's software rasteriser no longer draws races at half size by itself:
   set the row to 50 % there.
-- The options menu has an "advanced" item after the original's, opening a page of our own. Its
+- The options menu has an "advanced" item after the original's, opening a page of our own (the in-game options menu, opened after a stage or from the network lobby, has the same item after its display one). Its
   rows: how many parts of a frame may be drawn at once (1 up to the machine's cores, at most 4:
   the mirror beside its view needs 2, the split-screen players' views and mirrors beside each
   other 4; read at each frame, so a change shows at the next one); the renderer (GPU, OpenGL or
@@ -139,8 +137,11 @@ More on [Network play](Network-play).
   ran at 800 x 600 and switched the display when a race began or ended; here the menus are still drawn
   at 800 x 600 (their pictures, layouts and fonts are made for it) and shown scaled in the window,
   keeping the 4:3 shape and centred, with a linear filter (a whole-number factor stays sharp, so
-  1600 x 1200 shows each menu pixel as a 2 x 2 square). On a wider window the space beside the menu
-  continues the colours of the menu's edge, row by row; a race's own bars are black. The menu mode in
+  1600 x 1200 shows each menu pixel as a 2 x 2 square). On a window of another shape the space around the menu
+  shows the menu's own background picture alone (no 3D models, texts or buttons), scaled to cover the
+  whole window, strongly blurred and darkened; it is made once each time the background or the
+  window's size changes, and follows the menus as they change (black until a menu has drawn a
+  background, as on a film's frames, which keep the last one); a race's own bars are black. The menu mode in
   the options files is still read but no longer changes the window. The handheld's panel is
   unchanged.
 - 16-bit screen modes: the screen always has 32 bits a pixel. A saved 16-bit mode is taken as

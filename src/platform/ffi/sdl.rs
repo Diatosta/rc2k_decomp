@@ -115,6 +115,15 @@ impl Window {
         unsafe { SDL_SetWindowSize(self.0, width as i32, height as i32) };
     }
 
+    /// The window's size in its own pixels (what it is drawn on), if SDL knows it.
+    #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // the handheld's panel has no window
+    pub fn pixel_size(self) -> Option<(u32, u32)> {
+        let (mut width, mut height) = (0, 0);
+        // SAFETY: as `restore_if_minimised`; SDL writes the two integers.
+        let known = unsafe { SDL_GetWindowSizeInPixels(self.0, &raw mut width, &raw mut height) };
+        (known && width > 0 && height > 0).then_some((width as u32, height as u32))
+    }
+
     /// The refreshes a second of the display the window is on, if SDL knows them.
     pub fn display_refresh(self) -> Option<f64> {
         // SAFETY: as `restore_if_minimised`; the mode is SDL's own record, read at once and
@@ -204,6 +213,43 @@ impl Renderer {
         unsafe {
             SDL_SetRenderDrawColor(self.0, r, g, b, 255);
             SDL_RenderDebugText(self.0, x, y, text.as_ptr());
+        }
+    }
+
+    /// The pixels the renderer has drawn on its target, BGRA, top row first (a test run's shot of
+    /// the window).
+    #[cfg(feature = "remote")]
+    #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // the handheld's panel is the frame's size: its frames are not on an SDL window
+    pub fn read_window(self) -> Option<(u32, u32, Vec<u8>)> {
+        // SAFETY: the renderer SDL made; the surface it returns is ours, converted into a second
+        // one, and both are destroyed after their rows are copied (rows of `pitch` bytes,
+        // `width` pixels of four in each).
+        unsafe {
+            let read = SDL_RenderReadPixels(self.0, std::ptr::null());
+            if read.is_null() {
+                return None;
+            }
+            let converted = SDL_ConvertSurface(read, SDL_PIXELFORMAT_ARGB8888);
+            SDL_DestroySurface(read);
+            if converted.is_null() {
+                return None;
+            }
+            let surface = &*converted;
+            let (width, height, pitch) = (
+                surface.w as usize,
+                surface.h as usize,
+                surface.pitch as usize,
+            );
+            let mut out = Vec::with_capacity(width * height * 4);
+            for y in 0..height {
+                let row = std::slice::from_raw_parts(
+                    surface.pixels.cast::<u8>().add(y * pitch),
+                    width * 4,
+                );
+                out.extend_from_slice(row);
+            }
+            SDL_DestroySurface(converted);
+            Some((width as u32, height as u32, out))
         }
     }
 

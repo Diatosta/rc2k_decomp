@@ -842,6 +842,15 @@ const BUTTON_BITS: [(Action, u32); 8] = [
     (Action::Reset, 0x80),
 ];
 
+/// The button that ends the roadside tyre change's gauge, as a picture shows it: the tyre change
+/// reads the eight button bits, so any of those actions' bindings ends it; the first bound one in
+/// the actions' order (gear up first) is the one shown.
+pub fn tyre_change_button(bindings: &Bindings) -> Option<Digital> {
+    BUTTON_BITS
+        .iter()
+        .find_map(|&(action, _)| bindings.digital(action))
+}
+
 // ---- the menus ----
 
 /// What a controller's profile binds for the menus (`MenuControl`): a bound control is taken from

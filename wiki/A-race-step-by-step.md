@@ -86,7 +86,7 @@ for every picture drawn:
    gone by since the last time round and calls `drive::race_tick` that many times. A slow
    frame runs more steps; a fast one may run none. The race therefore runs at the same speed
    whatever the frame rate.
-6. **Tyre change.** While a roadside tyre change is under way (after a puncture), the tyre change screen with its timed gauge (`src/drive/tyre_screen.rs`).
+6. **Tyre change.** While a roadside tyre change is under way (after a puncture), the tyre change screen with its timed gauge (`src/drive/tyre_screen.rs`); its prompt shows the controller's button picture ([Controllers](Controllers)).
 7. **Picture.** `drive::race_frame` draws and shows one picture (see
    [Drawing a frame](Drawing-a-frame)) and runs the race's sounds for the frame
    (see [Sound and music](Sound-and-music)).

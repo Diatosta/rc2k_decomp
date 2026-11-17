@@ -87,6 +87,23 @@ pub fn pictures(
     Some((pictures, bindings))
 }
 
+/// The pictures for what the race device `device` reads through, with the bindings it reads by
+/// (none for a keyboard, buttons shown as numbers, or a controller the program does not know).
+pub fn race_pictures(
+    input: &Input,
+    device: usize,
+) -> Option<(
+    rc2k_core::input::icons::Pictures,
+    rc2k_core::input::profile::Bindings,
+)> {
+    let profile = race_profile(input, device)?;
+    let controller = input.devices.device(device)?.controller.get();
+    let (_, info) = identity(input, controller)?;
+    let pictures =
+        rc2k_core::input::icons::Pictures::of(info.kind, profile.button_icons, info.icon_family)?;
+    Some((pictures, profile.bindings))
+}
+
 /// What a device record reads through in the race: set at the race's start.
 pub fn set_race_profile(input: &Input, device: usize, profile: Option<Profile>) {
     let mut held = input

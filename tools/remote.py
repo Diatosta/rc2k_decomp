@@ -12,6 +12,7 @@
     remote.py joy axis n v / button n 0|1   its axes and buttons
     remote.py joy rumble                 its motors as last set (heavy light, 0 .. 65535)
     remote.py shot name                  the next frame to <folder>/shots/name.png
+    remote.py window W H / wshot name    the window's size set / the window's own pixels (side space of the menus) to shots/name.png
     remote.py time n                     the arcade's countdown set to n
     remote.py state                      frames, race flag, menu, item, speed, time, place, cars
     remote.py renderer gpu|gl|software   swaps the 3D's renderer in game (desktop); the answer names the one that runs
@@ -181,8 +182,8 @@ def ask(command, timeout=20):
     sys.exit(f'no answer to "{command}" in {timeout} s: is the game running? (remote.py log)')
 
 
-def png(raw, width, height, out):
-    step = 2 if width > 1000 else 1
+def png(raw, width, height, out, full=False):
+    step = 2 if width > 1000 and not full else 1
     size = len(raw) // (width * height)
     rows = []
     for y in range(0, height, step):
@@ -217,6 +218,21 @@ def shot(name):
     os.makedirs(SHOTS, exist_ok=True)
     out = f'{SHOTS}/{name}.png'
     png(raw, width, height, out)
+    print(out)
+
+
+def window_shot(name):
+    """The window's own pixels (what the player sees, the menus' side space too) in full size."""
+    answer = ask(f'wshot {name}')
+    if answer.startswith('error'):
+        sys.exit(answer)
+    width, height = map(int, answer.split())
+    path = f'{FOLDER}/{name}.raw'
+    raw = open(path, 'rb').read()
+    os.unlink(path)
+    os.makedirs(SHOTS, exist_ok=True)
+    out = f'{SHOTS}/{name}.png'
+    png(raw, width, height, out, full=True)
     print(out)
 
 
@@ -486,6 +502,10 @@ def main():
         stop()
     elif command == 'shot':
         shot(rest[0])
+    elif command == 'wshot':
+        window_shot(rest[0])
+    elif command == 'window':
+        print(ask(f'window {rest[0]} {rest[1]}'))
     elif command == 'pilot':
         pilot(float(rest[0]))
     elif command == 'drive' and rest in (['on'], ['off']):

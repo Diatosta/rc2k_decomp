@@ -164,8 +164,6 @@ pub const KEYS: &[(&str, u32)] = &[
     ("advanced.music", id::ADVANCED_ROWS + 8),
     ("advanced.force_feedback", id::ADVANCED_ROWS + 9),
     ("advanced.quit_pictures", id::ADVANCED_ROWS + 10),
-    // Its own id: the ones after the quit row's belong to the renderer names.
-    ("advanced.smooth_engine", id::ADVANCED_ROWS + 16),
     ("advanced.gpu", id::RENDERER_GPU),
     ("advanced.software", id::RENDERER_SOFTWARE),
     ("advanced.gles", id::RENDERER_GLES),

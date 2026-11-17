@@ -182,24 +182,7 @@ pub fn prepare_sample(state: &AudioOwn, v: &mut Voice, mode: u32) -> Result<(), 
             .get_mut(..v.length as usize)
             .ok_or(crate::errors::BadInput("a sample longer than its memory"))?;
         rc2k_core::audio::samples::prepare(&mut shape, mode, &mut data)
-            .map_err(crate::errors::BadInput::from)?;
-        // A looping sample's end is blended into its start, so the loop's turn is not heard
-        // (the engines' samples end far from where they start, which at a high pitch is a
-        // buzz at the loop's rate). Made at the sample's load, so the switch counts from the
-        // next load.
-        if v.kind == 1 && crate::audio::engine_loops::smooth_on() {
-            let frames = rc2k_core::audio::samples::blend_loop_join(
-                data,
-                shape.format,
-                shape.frames,
-                shape.own_frequency,
-            );
-            if frames != shape.frames {
-                shape.length = shape.length / shape.frames * frames;
-                shape.frames = frames;
-            }
-        }
-        Ok::<(), crate::errors::BadInput>(())
+            .map_err(crate::errors::BadInput::from)
     })??;
     v.length = shape.length;
     v.format = shape.format;

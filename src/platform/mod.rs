@@ -561,6 +561,7 @@ fn rebuild_renderer(
     // Everything made on the window's renderer goes before it does.
     drop(texture);
     *GPU_VIEW.lock().unwrap() = (0, None);
+    *WASH_TEXTURE.lock().unwrap() = None;
     crate::debug::imgui_sdl::renderer_going();
     // Where the player left the OpenGL backend's window, if it was the one shown.
     let left_at = crate::render::gles::window().map(sdl::Window::position);
@@ -799,6 +800,12 @@ fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(),
         drop(view);
         // The debug UI over the frame.
         crate::debug::imgui_sdl::draw(o, renderer, screen.window);
+        #[cfg(feature = "remote")]
+        if crate::remote::window_shot_due()
+            && let Some((width, height, pixels)) = renderer.read_window()
+        {
+            crate::remote::window_taken(width, height, pixels);
+        }
         renderer.present();
         Ok(())
     }
@@ -806,9 +813,8 @@ fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(),
 
 /// The frame's texture drawn on the window: the frame keeps its shape and is centred, magnified
 /// with a linear filter (none for a whole factor, which stays sharp). The window's rest is black
-/// in a race; beside a menu's frame it continues the colours of the frame's edge, each row of a
-/// side the colour of its row's edge pixel (the same for the rows above and below a frame that
-/// is wider than the window's shape).
+/// in a race; beside a menu's frame it shows the menu's background picture, covering the
+/// window, blurred and darkened (`render::wash`), black while no background has been noted.
 #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
 fn show_fitted(renderer: sdl::Renderer, texture: &sdl::Texture, screen: &Screen) {
     let (frame_width, frame_height) = (screen.width as u32, screen.height as u32);
@@ -823,49 +829,39 @@ fn show_fitted(renderer: sdl::Renderer, texture: &sdl::Texture, screen: &Screen)
         return;
     }
     if screen.menu {
-        // One pixel wide (or high) strips of the frame's edges, stretched over the bars; the
-        // strips take no filter, which would draw the next column in.
-        let strips = [
-            (
-                [0, 0, 1, frame_height],
-                [0, fit.y, fit.x, fit.height],
-                fit.x > 0,
-            ),
-            (
-                [frame_width - 1, 0, 1, frame_height],
-                [
-                    fit.x + fit.width,
-                    fit.y,
-                    window.0 - fit.x - fit.width,
-                    fit.height,
-                ],
-                fit.x > 0,
-            ),
-            (
-                [0, 0, frame_width, 1],
-                [fit.x, 0, fit.width, fit.y],
-                fit.y > 0,
-            ),
-            (
-                [0, frame_height - 1, frame_width, 1],
-                [
-                    fit.x,
-                    fit.y + fit.height,
-                    fit.width,
-                    window.1 - fit.y - fit.height,
-                ],
-                fit.y > 0,
-            ),
-        ];
-        texture.set_sharp(true);
-        for (from, to, wanted) in strips {
-            if wanted {
-                renderer.draw_part(texture, Some(from), to);
-            }
-        }
-        texture.set_sharp(fit.sharp);
+        draw_wash(renderer, window);
     }
     renderer.draw_part(texture, None, [fit.x, fit.y, fit.width, fit.height]);
+}
+
+/// The wash texture of the menu's background (its version, the texture), kept while the
+/// background and the window's size stay the same.
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+static WASH_TEXTURE: Mutex<Option<(u64, sdl::Texture)>> = Mutex::new(None);
+
+/// The wash drawn over the whole window, magnified with a linear filter.
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+fn draw_wash(renderer: sdl::Renderer, window: (u32, u32)) {
+    let Some(image) = crate::render::wash::image_for(window) else {
+        return;
+    };
+    let mut kept = WASH_TEXTURE.lock().unwrap();
+    if kept
+        .as_ref()
+        .is_none_or(|(version, _)| *version != image.version)
+    {
+        let wash = &image.wash;
+        let made = renderer
+            .create_frame_texture(wash.width as usize, wash.height as usize)
+            .filter(|texture| texture.upload(&wash.pixels, wash.width as usize * 4));
+        *kept = made.map(|texture| {
+            texture.set_sharp(false);
+            (image.version, texture)
+        });
+    }
+    if let Some((_, texture)) = kept.as_ref() {
+        renderer.draw_whole(texture);
+    }
 }
 
 /// The frames' running counters, for the debug UI's profiler: microseconds in the

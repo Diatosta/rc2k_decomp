@@ -3,6 +3,25 @@
 /// The chat with eight empty lines.
 pub const EMPTY: [u8; 8] = *b"\n\n\n\n\n\n\n\0";
 
+/// How many of the chat's lines the lobby shows (the newest): the rest of the eight are kept but
+/// not drawn, so the chat and its input line end above the buttons.
+pub const SHOWN_LINES: usize = 6;
+
+/// The last `lines` lines of `chat` (eight lines ended by line feeds, the last without one):
+/// what follows the first `8 - lines` line feeds (up to the NUL, which stays at the end).
+pub fn newest_lines(chat: &[u8], lines: usize) -> &[u8] {
+    let skip = 8usize.saturating_sub(lines);
+    let end = chat.iter().position(|&b| b == 0).unwrap_or(chat.len());
+    let mut from = 0;
+    for _ in 0..skip {
+        match chat[from..end].iter().position(|&b| b == b'\n') {
+            Some(at) => from += at + 1,
+            None => return &chat[end..],
+        }
+    }
+    &chat[from..]
+}
+
 /// The settings screen's items edited: 1 the player's name, 2 the most players.
 pub const NAME: u32 = 1;
 pub const MOST_PLAYERS: u32 = 2;
@@ -32,6 +51,20 @@ pub fn most_players(typed: u32, notice_kind: u8) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_newest_lines_are_what_follows_the_skipped_ones() {
+        assert_eq!(
+            newest_lines(b"a\nb\nc\nd\ne\nf\ng\nh", 6),
+            b"c\nd\ne\nf\ng\nh"
+        );
+        assert_eq!(newest_lines(&EMPTY[..7], 6), b"\n\n\n\n\n");
+        assert_eq!(newest_lines(b"a\nb", 6), b"");
+        assert_eq!(
+            newest_lines(b"a\nb\nc\nd\ne\nf\ng\nh", 8),
+            b"a\nb\nc\nd\ne\nf\ng\nh"
+        );
+    }
 
     #[test]
     fn ports() {

@@ -457,93 +457,9 @@ pub fn prepare(v: &mut Shape, mode: u32, data: &mut dyn SampleData) -> Result<()
     Ok(())
 }
 
-/// The longest a looping sample's join is blended over, in milliseconds.
-const JOIN_MS: u32 = 10;
-
-/// A looping sample whose end does not run on into its start (a step across the join larger
-/// than nearly any step inside the sample, which is heard as a click once for every turn of the
-/// loop, and at the pitch of an engine's high revs as a buzz) made to join: the last frames
-/// are blended into the first ones over about `JOIN_MS`, and the sample ends where the blend
-/// begins, so what the loop wraps from and to is a stretch that already ran on in the file.
-/// `data` holds `frames` frames of `format` (mono or stereo, eight or sixteen bits) at
-/// `rate`. Returns the frames left (the sample as it was when its join is fine or it is too
-/// short to blend).
-pub fn blend_loop_join(data: &mut [u8], format: u32, frames: u32, rate: u32) -> u32 {
-    let channels = if format & MONO != 0 { 1 } else { 2 };
-    let width = if format & EIGHT_BITS != 0 { 1 } else { 2 };
-    let value = |data: &[u8], frame: usize, channel: usize| -> i32 {
-        let at = (frame * channels + channel) * width;
-        if width == 1 {
-            i32::from(data[at]) - 0x80
-        } else {
-            i32::from(i16::from_le_bytes([data[at], data[at + 1]]))
-        }
-    };
-    let frames_n = frames as usize;
-    let blend = (rate.clamp(100, 200_000) / 1000 * JOIN_MS) as usize;
-    if blend < 8 || frames_n < blend * 8 || data.len() < frames_n * channels * width {
-        return frames;
-    }
-    // The step across the join against the steps inside (the 95th percentile of the first
-    // channel's).
-    let mut steps: Vec<u32> = (1..frames_n)
-        .map(|n| value(data, n, 0).abs_diff(value(data, n - 1, 0)))
-        .collect();
-    let across = value(data, 0, 0).abs_diff(value(data, frames_n - 1, 0));
-    steps.sort_unstable();
-    if across <= steps[steps.len() * 95 / 100] {
-        return frames;
-    }
-    let kept = frames_n - blend;
-    for n in 0..blend {
-        let weight = (n as i64 + 1) * 0x10000 / (blend as i64 + 1);
-        for channel in 0..channels {
-            let tail = i64::from(value(data, kept + n, channel));
-            let head = i64::from(value(data, n, channel));
-            let mixed = ((tail * (0x10000 - weight) + head * weight) >> 16) as i32;
-            let at = (n * channels + channel) * width;
-            if width == 1 {
-                data[at] = (mixed + 0x80) as u8;
-            } else {
-                data[at..at + 2].copy_from_slice(&(mixed as i16).to_le_bytes());
-            }
-        }
-    }
-    kept as u32
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn a_loop_join_that_jumps_is_blended_and_a_smooth_one_left() {
-        let rate = 1000;
-        let wave = |period: f64| -> Vec<u8> {
-            (0..1000)
-                .map(|n| ((f64::from(n) * std::f64::consts::TAU / period).sin() * 9000.0) as i16)
-                .flat_map(i16::to_le_bytes)
-                .collect()
-        };
-        let at = |d: &[u8], n: usize| i32::from(i16::from_le_bytes([d[n * 2], d[n * 2 + 1]]));
-        // A sine whose last frame is a third of the way up a cycle, where the first is zero.
-        let sine = wave(99.0);
-        assert!((at(&sine, 999) - at(&sine, 0)).abs() > 4000);
-        let mut data = sine.clone();
-        assert_eq!(blend_loop_join(&mut data, MONO, 1000, rate), 990);
-        // The wrap from the last kept frame to the first is about a step like the others.
-        assert!((at(&data, 0) - at(&data, 989)).abs() < 1200);
-        // Frames after the blend are untouched.
-        assert_eq!(data[10 * 2..990 * 2], sine[10 * 2..990 * 2]);
-        // A sample that already joins is left alone.
-        // One that joins: a seam no larger than the steps inside.
-        let whole: Vec<u8> = (0..1000)
-            .flat_map(|n| (n % 2 * 40i16).to_le_bytes())
-            .collect();
-        let mut same = whole.clone();
-        assert_eq!(blend_loop_join(&mut same, MONO, 1000, rate), 1000);
-        assert_eq!(same, whole);
-    }
 
     const BITS: FormatBitTable = [(0x10, 8), (0, 16)];
     const CHANNELS: FormatBitTable = [(0x100, 1), (0, 2)];

@@ -12,6 +12,8 @@
 //!     <id> joy button <n> <0|1>          its button n let go or pressed
 //!     <id> joy detach                    the stick unplugged
 //!     <id> shot <name>                   the next frame to <name>.raw, BGRA; answers its size
+//!     <id> window <w> <h>                the window's size set (its frames are shown scaled in it)
+//!     <id> wshot <name>                  the window's own pixels (what the player sees) to <name>.raw, BGRA
 //!     <id> state                         frames, race flag, menu, highlighted item
 //!     <id> quit                          as closing the window
 //!
@@ -51,6 +53,8 @@ struct Pending {
     /// The keys and buttons to let go, with the game's clock value (`tick_count`) they are due at.
     releases: Vec<(u32, Release)>,
     shot: Option<(String, String)>,
+    /// The window's picture asked for: the command's id and the file's name.
+    window_shot: Option<(String, String)>,
 }
 
 fn pending() -> std::sync::MutexGuard<'static, Pending> {
@@ -352,6 +356,28 @@ fn run(o: &Owners<'static>, line: &str) {
             pending().shot = Some(((*id).to_string(), (*name).to_string()));
             return;
         }
+        ("window", [width, height]) => width
+            .parse::<usize>()
+            .ok()
+            .zip(height.parse::<usize>().ok())
+            .map(|(w, h)| {
+                if let Ok(screen) = crate::platform::SCREEN.lock()
+                    && let Some(screen) = screen.as_ref()
+                {
+                    screen.window.set_size(w, h);
+                }
+                // The handheld's GL draws on its panel, not on a window of its own.
+                #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+                if let Some(gl) = crate::render::gles::window() {
+                    gl.set_size(w, h);
+                }
+                "ok".to_string()
+            }),
+        ("wshot", [name]) => {
+            pending().window_shot = Some(((*id).to_string(), (*name).to_string()));
+            WINDOW_SHOT.store(true, std::sync::atomic::Ordering::Relaxed);
+            return;
+        }
         ("state", []) => Some(state(o, course)),
         // The lobby chat box's lines, top to bottom, joined by `|` (for the network chat check).
         ("chat", []) => Some(chat_lines(o)),
@@ -422,6 +448,7 @@ fn screen_frames(gfx: &Gfx) -> u32 {
 /// At each pump: the releases due, then the commands waiting.
 pub fn poll(o: &Owners<'static>, course: &Course) {
     let Some(folder) = folder() else { return };
+    send_window_shot(folder);
     note_screen(o.menus, o.gfx, course);
     let now = Instant::now();
     note_slow_frame(o.race, o.gfx, course, now);
@@ -616,6 +643,37 @@ pub fn shot_frame_drawn(race: &Race, picture_clock: &crate::system::tick_count::
 /// Whether the next frame is to be saved: the GPU's picture is then wanted in the canvas.
 pub fn shot_wanted() -> bool {
     pending().shot.is_some()
+}
+
+/// A window's picture is wanted (`wshot`): the backend that shows the next frame takes it.
+static WINDOW_SHOT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// The window's picture taken by a backend: its width, height and BGRA pixels, top row first.
+static WINDOW_PIXELS: Mutex<Option<(u32, u32, Vec<u8>)>> = Mutex::new(None);
+
+/// Whether the frame being shown is to leave the window's picture (`window_taken`).
+pub fn window_shot_due() -> bool {
+    WINDOW_SHOT.swap(false, std::sync::atomic::Ordering::Relaxed)
+}
+
+/// The window's picture, taken from the backend that showed the frame.
+pub fn window_taken(width: u32, height: u32, bgra: Vec<u8>) {
+    *WINDOW_PIXELS.lock().unwrap() = Some((width, height, bgra));
+}
+
+/// The window's picture written for the command that asked, once a backend has taken it.
+fn send_window_shot(folder: &std::path::Path) {
+    let Some((width, height, pixels)) = WINDOW_PIXELS.lock().unwrap().take() else {
+        return;
+    };
+    let Some((id, name)) = pending().window_shot.take() else {
+        return;
+    };
+    let answer = match std::fs::write(folder.join(format!("{name}.raw")), pixels) {
+        Ok(()) => format!("{width} {height}"),
+        Err(e) => format!("error: {e}"),
+    };
+    reply(&id, &answer);
 }
 
 /// After a frame is shown: the screenshot asked for.

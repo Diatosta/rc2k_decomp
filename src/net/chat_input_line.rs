@@ -17,6 +17,8 @@ pub fn chat_input_line(
 ) -> Result<u32, Refused> {
     let net = o.net;
     let shown = if item == net.lobby().edit.edited.get() {
+        // The on-screen keyboard keeps off the line being typed.
+        crate::input::typed_text::note_field_y(y as i32);
         let mut built = text.to_vec();
         push_id(o, &mut built, 4)?;
         store_text(o.strings, built)?

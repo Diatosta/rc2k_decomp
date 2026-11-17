@@ -6,7 +6,6 @@ pub mod choose_modes;
 pub mod clear_channels;
 pub mod close_all;
 pub mod describe_wave_format;
-pub mod engine_loops;
 pub mod fill_buffer;
 pub mod fill_voice;
 pub mod free_voices;

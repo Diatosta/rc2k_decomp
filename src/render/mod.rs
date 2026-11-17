@@ -13,6 +13,7 @@ pub mod dump;
 pub mod gl_batching;
 #[cfg(not(target_os = "emscripten"))]
 pub mod gles;
+pub mod wash;
 // Built for tests on every machine; only the handheld's GL thread uses it.
 pub mod gpu_cut;
 #[cfg(any(test, not(target_os = "emscripten")))]
@@ -532,6 +533,14 @@ pub fn show_on_gl_window(
     let Some(gl) = gl.as_mut() else {
         return false;
     };
+    if menu
+        && let Some(window) = gles::window().and_then(crate::platform::ffi::sdl::Window::pixel_size)
+    {
+        // Made and sent only when the background or the window's size has changed.
+        if let Some(image) = wash::image_for(window) {
+            gl.set_wash(&image);
+        }
+    }
     if GPU_HOLDS_FRAME.load(Relaxed) {
         // SAFETY: `Target::bytes`' promise: on the game's thread, which waits for this call, so
         // nothing else reaches the canvas; no other slice of it lives (the frame's showing takes

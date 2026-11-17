@@ -51,14 +51,14 @@ machine).
 
 **Joining.** The program lists the sessions it finds. With no address given it asks the whole
 local network (and this machine itself); with an address it asks that machine only. Choose a
-session to join it. Full or closed sessions are not listed. A session with a password shows a lock mark before its name; choosing it asks for the password there and then (typed as stars, on the on-screen keyboard from a pad). A wrong one asks again; Escape goes back to the list of sessions. A session without a password is joined as before. Nothing about the right password is revealed to a joiner, and the joiner's answer is not kept.
+session to join it. Full or closed sessions are not listed. A session with a password shows a lock mark before its name; choosing it asks for the password there and then (typed as stars, on the on-screen keyboard from a pad; the question and the stars stand high on the screen so the keyboard, below them, covers neither). A wrong one asks again; Escape goes back to the list of sessions. A session without a password is joined as before. Nothing about the right password is revealed to a joiner, and the joiner's answer is not kept.
 
 **The lobby.** Everyone chooses a car; the host chooses the stage, and its name is shown at
-the top left of everybody's lobby. While the stage loads, the loading screen lists every player's progress in percent in its top left corner. There is a chat line; the host puts the lines in order, so everyone sees the same order (a line you type shows when the host sends it back). When every player is ready the host
+the top left of everybody's lobby. While the stage loads, the loading screen lists every player's progress in percent in its top left corner. There is a chat line under the last six chat lines (older ones are kept but not shown, so that no line runs under the buttons; a long message is cut into lines as wide as the screen); the chat starts closed each time the lobby is entered, also on coming back from a race (a key still held from the race's last screen does not open it); the host puts the lines in order, so everyone sees the same order (a line you type shows when the host sends it back). When every player is ready the host
 starts the race.
 
 Above the bottom row of buttons is a second row, with a **settings** button (always shown): it opens the options of the menu
-after a stage (audio, display, the players' details and the cars' specifications; what the race
+after a stage (audio, display, advanced, and the players' details; the cars' specifications are left out, as the lobby has its own car button; what the race
 fixes is not changed there) and returns to the lobby. Up and down change between the two rows,
 left and right move along one.
 

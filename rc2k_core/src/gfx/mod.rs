@@ -17,5 +17,6 @@ pub mod raster;
 pub mod render_scale;
 pub mod screen_fit;
 pub mod screen_modes;
+pub mod screen_wash;
 pub mod screenshot;
 pub mod uploads;

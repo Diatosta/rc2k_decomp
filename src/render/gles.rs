@@ -254,8 +254,10 @@ const FIT_VS: &CStr = c"#version 300 es
 uniform float flip;
 uniform vec4 fit;
 out vec2 v_uv;
+out vec2 v_win;
 void main() {
     vec2 corner = vec2(float((gl_VertexID << 1) & 2), float(gl_VertexID & 2));
+    v_win = corner;
     vec2 uv = (corner - fit.xy) / fit.zw;
     v_uv = vec2(uv.x, flip > 0.5 ? 1.0 - uv.y : uv.y);
     gl_Position = vec4(corner.x * 2.0 - 1.0, 1.0 - corner.y * 2.0, 0.0, 1.0);
@@ -276,23 +278,34 @@ void main() {
 ";
 /// A whole picture of the game's bytes (blue first).
 ///
-/// Beside the picture (`v_uv` outside the texture) the window shows black (`bars`) or the colour
-/// of the picture's edge, row by row.
+/// Beside the picture (`v_uv` outside the texture) the window shows black (`bars`, or no wash
+/// yet) or the menu's wash: its background picture blurred and darkened, over the whole window
+/// (`v_win`).
 const CANVAS_FS: &CStr = c"#version 300 es
 precision mediump float;
-in vec2 v_uv; out vec4 result; uniform sampler2D canvas; uniform float bars;
+in vec2 v_uv; in vec2 v_win; out vec4 result;
+uniform sampler2D canvas; uniform sampler2D wash; uniform float bars; uniform float has_wash;
 void main() {
-    if (bars > 0.5 && v_uv != clamp(v_uv, 0.0, 1.0)) { result = vec4(0.0, 0.0, 0.0, 1.0); return; }
+    if (v_uv != clamp(v_uv, 0.0, 1.0)) {
+        result = (bars > 0.5 || has_wash < 0.5)
+            ? vec4(0.0, 0.0, 0.0, 1.0) : vec4(texture(wash, v_win).bgr, 1.0);
+        return;
+    }
     vec2 half_texel = 0.5 / vec2(textureSize(canvas, 0));
     result = vec4(texture(canvas, clamp(v_uv, half_texel, 1.0 - half_texel)).bgr, 1.0);
 }
 ";
-/// The frame buffer object's picture (red first).
+/// The frame buffer object's picture (red first), beside it as `CANVAS_FS`.
 const TARGET_FS: &CStr = c"#version 300 es
 precision mediump float;
-in vec2 v_uv; out vec4 result; uniform sampler2D canvas; uniform float bars;
+in vec2 v_uv; in vec2 v_win; out vec4 result;
+uniform sampler2D canvas; uniform sampler2D wash; uniform float bars; uniform float has_wash;
 void main() {
-    if (bars > 0.5 && v_uv != clamp(v_uv, 0.0, 1.0)) { result = vec4(0.0, 0.0, 0.0, 1.0); return; }
+    if (v_uv != clamp(v_uv, 0.0, 1.0)) {
+        result = (bars > 0.5 || has_wash < 0.5)
+            ? vec4(0.0, 0.0, 0.0, 1.0) : vec4(texture(wash, v_win).bgr, 1.0);
+        return;
+    }
     vec2 half_texel = 0.5 / vec2(textureSize(canvas, 0));
     result = vec4(texture(canvas, clamp(v_uv, half_texel, 1.0 - half_texel)).rgb, 1.0);
 }
@@ -305,6 +318,9 @@ struct Quad {
     /// black; -1 in a quad that has none.
     fit: i32,
     bars: i32,
+    /// The wash's sampler and whether there is one (`FIT_VS`'s quads); -1 in the others.
+    wash: i32,
+    has_wash: i32,
 }
 
 /// A picture's place in the window it is shown on.
@@ -498,6 +514,8 @@ pub struct Gpu {
     /// The arrays hold their smaller levels (from the first batch that asked for them on).
     mip_levels: bool,
     empty_array: u32,
+    /// The menu's wash texture (its size and number), once one has been sent.
+    wash: Option<(u32, (i32, i32))>,
     scene_array: u32,
     samplers: [u32; 8],
     framebuffer: u32,
@@ -570,18 +588,24 @@ impl Gpu {
                 flip: 0,
                 fit: -1,
                 bars: -1,
+                wash: -1,
+                has_wash: -1,
             },
             canvas_quad: Quad {
                 program: 0,
                 flip: 0,
                 fit: -1,
                 bars: -1,
+                wash: -1,
+                has_wash: -1,
             },
             target_quad: Quad {
                 program: 0,
                 flip: 0,
                 fit: -1,
                 bars: -1,
+                wash: -1,
+                has_wash: -1,
             },
             vertices: 0,
             seconds: 0,
@@ -590,6 +614,7 @@ impl Gpu {
             arrays: HashMap::new(),
             mip_levels: false,
             empty_array: 0,
+            wash: None,
             scene_array: 0,
             samplers: [0; 8],
             framebuffer: 0,
@@ -632,6 +657,8 @@ impl Gpu {
             flip: self.uniform(program, "flip"),
             fit: self.uniform(program, "fit"),
             bars: self.uniform(program, "bars"),
+            wash: self.uniform(program, "wash"),
+            has_wash: self.uniform(program, "has_wash"),
         })
     }
 
@@ -1108,6 +1135,9 @@ impl Gpu {
         if let Some(placed) = placed {
             gl.uniform_4fv(quad.fit, &placed.fit);
             gl.uniform_1f(quad.bars, if placed.bars { 1.0 } else { 0.0 });
+            // The wash is on unit 1 (`bind_wash`).
+            gl.uniform_1i(quad.wash, 1);
+            gl.uniform_1f(quad.has_wash, if self.wash.is_some() { 1.0 } else { 0.0 });
         }
         gl.draw_arrays(TRIANGLES, 0, 3);
     }
@@ -1542,6 +1572,37 @@ impl Gpu {
         placed
     }
 
+    /// The menu's wash (a small picture, 32-bit, blue first) taken as the texture beside the frame.
+    fn set_wash(&mut self, wash: &[u8], size: (i32, i32)) {
+        let gl = &self.gl;
+        let texture = match self.wash {
+            Some((texture, _)) => texture,
+            None => gl.gen_texture(),
+        };
+        gl.active_texture(TEXTURE0 + 1);
+        gl.bind_texture(TEXTURE_2D, texture);
+        gl.bind_sampler(1, 0);
+        // Linear, and the edges held: the small picture is magnified over the whole window.
+        gl.tex_image_2d(0x8058, size.0, size.1, RGBA, UNSIGNED_BYTE, Some(wash));
+        gl.tex_parameter(TEXTURE_2D, 0x2801, 0x2601);
+        gl.tex_parameter(TEXTURE_2D, 0x2800, 0x2601);
+        gl.tex_parameter(TEXTURE_2D, 0x2802, 0x812F);
+        gl.tex_parameter(TEXTURE_2D, 0x2803, 0x812F);
+        gl.active_texture(TEXTURE0);
+        self.wash = Some((texture, size));
+    }
+
+    /// The wash on texture unit 1, where the frame's quads read it.
+    fn bind_wash(&self) {
+        if let Some((texture, _)) = self.wash {
+            let gl = &self.gl;
+            gl.active_texture(TEXTURE0 + 1);
+            gl.bind_texture(TEXTURE_2D, texture);
+            gl.bind_sampler(1, 0);
+            gl.active_texture(TEXTURE0);
+        }
+    }
+
     /// The bound picture magnified with no filter (sharp) or a linear one.
     fn set_filter(&self, sharp: bool) {
         let filter = if sharp { 0x2600 } else { 0x2601 };
@@ -1560,6 +1621,7 @@ impl Gpu {
         gl.bind_sampler(0, 0);
         gl.bind_texture(TEXTURE_2D, self.colour);
         self.set_filter(placed.sharp);
+        self.bind_wash();
         self.draw_quad(&self.target_quad, true, Some(placed));
         self.set_filter(true);
         let waited = wait.then(|| {
@@ -1567,6 +1629,7 @@ impl Gpu {
             gl.finish();
             start.elapsed()
         });
+        self.window_shot();
         gl.swap_buffers();
         waited
     }
@@ -1578,10 +1641,38 @@ impl Gpu {
         self.plain_state();
         let placed = self.panel_viewport(width, height, menu);
         self.set_filter(placed.sharp);
+        self.bind_wash();
         self.draw_quad(&self.canvas_quad, false, Some(placed));
         self.set_filter(true);
+        self.window_shot();
         self.gl.swap_buffers();
     }
+
+    /// A test run's shot of the window as it is drawn (`remote`'s `wshot`).
+    #[cfg(feature = "remote")]
+    fn window_shot(&self) {
+        if !crate::remote::window_shot_due() {
+            return;
+        }
+        let Some((width, height)) = self.gl.drawable_size() else {
+            return;
+        };
+        let mut rgba = vec![0u8; width as usize * height as usize * 4];
+        self.gl
+            .read_pixels(width, height, RGBA, UNSIGNED_BYTE, &mut rgba);
+        // Bottom row first and red first as the GL gives them: top first, blue first.
+        let stride = width as usize * 4;
+        let mut bgra = Vec::with_capacity(rgba.len());
+        for row in rgba.chunks_exact(stride).rev() {
+            for pixel in row.as_chunks::<4>().0 {
+                bgra.extend_from_slice(&[pixel[2], pixel[1], pixel[0], 255]);
+            }
+        }
+        crate::remote::window_taken(width as u32, height as u32, bgra);
+    }
+
+    #[cfg(not(feature = "remote"))]
+    fn window_shot(&self) {}
 
     /// The target's rows as the GL holds them.
     fn read_target(&mut self) -> Vec<u8> {
@@ -1645,6 +1736,11 @@ impl Gpu {
                     height,
                     menu,
                 } => self.show_picture(&frame, width, height, menu),
+                Job::Wash {
+                    pixels,
+                    width,
+                    height,
+                } => self.set_wash(&pixels, (width, height)),
                 Job::ReadTarget(answer) => {
                     let _ = answer.send(self.read_target());
                 }
@@ -1690,6 +1786,10 @@ pub struct Front {
     size: (i32, i32),
     /// What the GL's background texture holds, at the screen's size.
     background_held: Option<background::Held>,
+    /// The version of the wash (`render::wash`) the GL holds.
+    #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))]
+    // the handheld's panel is the frame's size: no side space
+    wash_held: u64,
 }
 
 /// Jobs waiting for the batching thread at most: a frame's part, its end, a little more; then
@@ -1801,6 +1901,21 @@ impl Front {
         self.draw(target, canvas, CommandList::new());
         super::seethru::frame_end();
         self.send(Job::ShowTarget { menu });
+    }
+
+    /// The menu's wash sent to the GL (which shows it beside the frames of the menus), unless the
+    /// GL holds it already.
+    #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // the handheld's panel is the frame's size: no side space
+    pub fn set_wash(&mut self, image: &super::wash::Image) {
+        if self.wash_held == image.version {
+            return;
+        }
+        self.wash_held = image.version;
+        self.send(Job::Wash {
+            pixels: image.wash.pixels.clone(),
+            width: image.wash.width as i32,
+            height: image.wash.height as i32,
+        });
     }
 
     /// A picture of the game's bytes on the panel.
@@ -2039,6 +2154,7 @@ fn start_with(open: impl FnOnce() -> Result<Gles, Failed> + Send + 'static) {
                 known: Default::default(),
                 size: (0, 0),
                 background_held: None,
+                wash_held: 0,
             });
             super::gpu_started();
         }

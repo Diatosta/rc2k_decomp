@@ -23,8 +23,10 @@ pub const TRACK_RGB: u32 = 0x0004_0A2E;
 pub const FILL_RGB: u32 = 0x0020_B4EC;
 pub const MIDDLE_RGB: u32 = 0x00B8_D8FF;
 /// A slider's place (right of a value's short text) and sprites: the track, the fill and its end piece.
+/// The width is the track's scale, 200 pixels from its left edge to the end of its last division
+/// (its middle line is at 100): a full slider has its end piece at the track's right end.
 pub const SLIDER_X: i32 = 556;
-pub const SLIDER_WIDTH: i32 = 190;
+pub const SLIDER_WIDTH: i32 = 200;
 pub const SLIDER_TRACK: u32 = 5;
 pub const SLIDER_FILL: u32 = 3;
 pub const SLIDER_END: u32 = 7;

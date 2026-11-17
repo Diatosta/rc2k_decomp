@@ -215,6 +215,15 @@ mod tests {
     }
 
     #[test]
+    fn a_removed_display_key_is_ignored() {
+        // Files written while the advanced page had an engine-loops row still have its key.
+        let base = sample();
+        let text = "version = 2\n[display]\nrace_mode = 9\nsmooth_engine = false\n";
+        let o = read(text, &base).unwrap().unwrap();
+        assert_eq!(o.display.race_mode, 9);
+    }
+
+    #[test]
     fn unknown_keys_stay_when_the_file_is_written_over() {
         let old = "version = 2\nfuture = 3\n[later]\na = 1\n";
         let text = write(&sample(), Some(old)).unwrap();

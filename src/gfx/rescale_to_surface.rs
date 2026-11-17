@@ -92,6 +92,17 @@ pub fn rescale_to_surface(
             == 0;
     // On the screen the GPU keeps the picture as the frame's background when it can: the canvas
     // is not written.
+    if size == 4
+        && surface.row_gap.get() == 0
+        && surface.pixels.get() == crate::gfx::locked_pixels::SCREEN
+        && gfx
+            .drawing
+            .on_picture
+            .load(std::sync::atomic::Ordering::Relaxed)
+            == 0
+    {
+        crate::render::wash::note_pixels(made.generation, &made.pixels, width, height);
+    }
     let by_background = size == 4
         && surface.row_gap.get() == 0
         && surface.pixels.get() == crate::gfx::locked_pixels::SCREEN

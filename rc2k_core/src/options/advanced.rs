@@ -25,9 +25,6 @@ pub enum Kind {
     /// The race's quit question with the controller's pictures in its text (`rc2k.toml`); off,
     /// the question is the game's own line.
     QuitPictures,
-    /// The engine sounds' smooth loops (`rc2k.toml`): the blended loop join and the grains;
-    /// off, the original's plain loop.
-    SmoothEngine,
     /// A `ral.cfg` switch: the key; `inverted` when the key names what is off (`nofmv`), so the
     /// page shows the feature, not its absence.
     Flag { key: &'static str, inverted: bool },
@@ -48,7 +45,7 @@ const fn flag(key: &'static str, inverted: bool, when: When) -> Row {
 }
 
 /// The rows in the order the page shows them.
-pub const ROWS: [Row; 12] = [
+pub const ROWS: [Row; 11] = [
     Row {
         kind: Kind::Threads,
         when: When::Now,
@@ -69,10 +66,6 @@ pub const ROWS: [Row; 12] = [
     flag("noforcefeedback", true, When::NextStart),
     Row {
         kind: Kind::QuitPictures,
-        when: When::Now,
-    },
-    Row {
-        kind: Kind::SmoothEngine,
         when: When::Now,
     },
 ];
@@ -127,8 +120,6 @@ pub struct Values {
     pub renderer: Renderer,
     /// The quit question's pictures on.
     pub quit_pictures: bool,
-    /// The engine sounds' smooth loops on.
-    pub smooth_engine: bool,
     /// Each `Flag` row's switch as the page shows it (on = the feature on), in `ROWS` order
     /// (the other rows' entries are unused).
     pub flags: [bool; ROWS.len()],
@@ -148,7 +139,6 @@ impl Values {
             }
             Kind::Renderer => self.renderer = self.renderer.other(up, gl),
             Kind::QuitPictures => self.quit_pictures = !self.quit_pictures,
-            Kind::SmoothEngine => self.smooth_engine = !self.smooth_engine,
             Kind::Flag { .. } => self.flags[row] = !self.flags[row],
         }
     }
@@ -226,11 +216,10 @@ mod tests {
     fn every_row_has_its_place() {
         assert!(matches!(ROWS[0].kind, Kind::Threads));
         assert!(matches!(ROWS[1].kind, Kind::Renderer));
-        for row in &ROWS[2..ROWS.len() - 2] {
+        for row in &ROWS[2..ROWS.len() - 1] {
             assert!(matches!(row.kind, Kind::Flag { .. }));
         }
-        assert!(matches!(ROWS[ROWS.len() - 2].kind, Kind::QuitPictures));
-        assert!(matches!(ROWS[ROWS.len() - 1].kind, Kind::SmoothEngine));
+        assert!(matches!(ROWS[ROWS.len() - 1].kind, Kind::QuitPictures));
     }
 
     #[test]
@@ -239,7 +228,6 @@ mod tests {
             threads: 1,
             renderer: Renderer::Gpu,
             quit_pictures: true,
-            smooth_engine: true,
             flags: [false; ROWS.len()],
         };
         v.step(0, false, 4, false);
@@ -252,10 +240,8 @@ mod tests {
         assert_eq!(v.renderer, Renderer::Software);
         v.step(2, false, 4, false);
         assert!(v.flags[2]);
-        v.step(ROWS.len() - 2, true, 4, false);
-        assert!(!v.quit_pictures);
         v.step(ROWS.len() - 1, true, 4, false);
-        assert!(!v.smooth_engine);
+        assert!(!v.quit_pictures);
     }
 
     #[test]

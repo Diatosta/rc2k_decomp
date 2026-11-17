@@ -835,3 +835,13 @@ has the same fixed addresses, but its network mode could not be run here to see 
 - **In game**: a camera chosen in the replay viewer (for example the roadside camera) cut to the bumper, cockpit and chase views at the moments the driver had pressed the key, then came back.
 - **Seen or read**: seen (a replay recorded with view changes, played with a roadside camera).
 - **Fix**: while a replay plays, the recorded change-view bit is ignored (the lights' bit still acts); the camera stays as the viewer set it.
+
+## The tyre change's title cut at both ends
+
+*Original*: `race::draw_tyre_change`.
+*Fixed*: 2026-11-17.
+
+- **What**: the tyre change screen's title is drawn into a strip of its texture 256 pixels wide, centred in a box of 248. The Portuguese title ("MUDANÇA DE PNEUS") is about 276 pixels wide, so its centred drawing began and ended outside the strip.
+- **In game**: the first and last letters of the title were half drawn, cut straight at the strip's edges, at every screen size.
+- **Seen or read**: seen (the roadside tyre change on a stage after a puncture, in Portuguese).
+- **Fix**: a title wider than the box is drawn with its letters closer together by the fewest whole pixels (at most three) that make it fit, so the whole title shows.

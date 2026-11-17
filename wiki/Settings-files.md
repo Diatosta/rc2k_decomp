@@ -36,7 +36,7 @@ next `"` instead and may hold tabs.
 
 ## `var/ral.cfg`
 
-The "advanced" page of the options menu shows eight of these switches (`framecounter`, `nofmv`, `screensnapshot`, `nonlinearsteering`, `noautoneutral`, `noprecipitation`, `nomusic`, `noforcefeedback`; `nojoy` is read but not shown; its other rows, the drawing threads, the renderer, the quit question's pictures and the smooth engine loops, are kept in `rc2k.toml`) and writes a changed one back: its first line is replaced by `key=number` (the line's ending and every other line stay), a key that was not there is added at the end. See [Differences from the original](Differences-from-the-original).
+The "advanced" page of the options menu shows eight of these switches (`framecounter`, `nofmv`, `screensnapshot`, `nonlinearsteering`, `noautoneutral`, `noprecipitation`, `nomusic`, `noforcefeedback`; `nojoy` is read but not shown; its other rows, the drawing threads, the renderer, the quit question's pictures, are kept in `rc2k.toml`) and writes a changed one back: its first line is replaced by `key=number` (the line's ending and every other line stay), a key that was not there is added at the end. See [Differences from the original](Differences-from-the-original).
 
 
 Every value is a number. Most switches are 0 (off, the default) or 1 (on).

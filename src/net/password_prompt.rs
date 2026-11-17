@@ -14,6 +14,11 @@ use rc2k_core::net::{editing, screens};
 /// The item number the entry is kept under (any but "not editing").
 const ENTRY: u32 = 0;
 
+/// Where the question and the typed stars stand: high on the screen, so the on-screen keyboard
+/// (below the field) leaves both in view.
+const QUESTION_Y: u32 = 0x58;
+const FIELD_Y: u32 = 0x96;
+
 /// The question's frame: the background, the question and the stars typed so far with the caret.
 fn frame(o: crate::owners::Owners<'static>, question: u32) -> Result<(), Refused> {
     if !lock_surface(o.gfx, o.system) {
@@ -25,17 +30,23 @@ fn frame(o: crate::owners::Owners<'static>, question: u32) -> Result<(), Refused
         question,
         crate::net::message_frame::FONT_B,
         0x190,
-        0x12C,
+        QUESTION_Y,
         o.gfx,
     )?;
-    crate::input::typed_text::note_field_y(0x16A);
+    crate::input::typed_text::note_field_y(FIELD_Y as i32);
     crate::input::typed_text::note_secret();
     let typed = o.net.settings().most_players_text.read();
     let length = typed.iter().position(|&b| b == 0).unwrap_or(typed.len());
     let mut shown = vec![b'*'; length];
     push_id(o, &mut shown, screens::CARET)?;
     let shown = store_text(o.strings, shown)?;
-    crate::text::draw_text::draw_text_at(FONT, &shown, 0x17C, 0x16A, &mut GameCanvas::new(o.gfx))?;
+    crate::text::draw_text::draw_text_at(
+        FONT,
+        &shown,
+        0x17C,
+        FIELD_Y as i32,
+        &mut GameCanvas::new(o.gfx),
+    )?;
     crate::platform::unlock_surface(o.gfx);
     crate::platform::show_frame_now(o);
     Ok(())

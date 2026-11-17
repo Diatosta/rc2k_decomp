@@ -3,7 +3,6 @@
 pub mod buffers;
 pub mod commands;
 pub mod device;
-pub mod granular;
 pub mod levels;
 pub mod load;
 pub mod mixer;

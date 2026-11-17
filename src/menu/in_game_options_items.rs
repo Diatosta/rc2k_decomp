@@ -39,3 +39,12 @@ pub fn show_in_game_options(menus: &Menus) -> Result<(), crate::errors::BadInput
     }
     Ok(())
 }
+
+/// The items of the cars' specifications hidden, as for any number of players that has none
+/// (the network lobby has its own car button).
+pub fn hide_car_specs(menus: &Menus) -> Result<(), crate::errors::BadInput> {
+    for n in IN_GAME_OPTIONS {
+        set(&menus.tables, n, HIDDEN)?;
+    }
+    Ok(())
+}

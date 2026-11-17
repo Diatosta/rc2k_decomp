@@ -70,6 +70,14 @@ pub enum Job<Draw> {
         height: i32,
         menu: bool,
     },
+    /// The menu's wash, a small picture (32-bit, blue first), shown beside the menus' frames.
+    #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))]
+    // the handheld's panel is the frame's size: no side space
+    Wash {
+        pixels: Vec<u8>,
+        width: i32,
+        height: i32,
+    },
     ReadTarget(Sender<Vec<u8>>),
 }
 
@@ -170,6 +178,15 @@ pub fn batched(
             width,
             height,
             menu,
+        },
+        Job::Wash {
+            pixels,
+            width,
+            height,
+        } => Job::Wash {
+            pixels,
+            width,
+            height,
         },
         Job::ReadTarget(answer) => Job::ReadTarget(answer),
     }

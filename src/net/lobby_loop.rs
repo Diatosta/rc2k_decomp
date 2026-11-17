@@ -107,6 +107,17 @@ fn step_item(
     }
 }
 
+/// Takes the keys that come in the next moments and drops them: a key held down from the screen
+/// before (a race's results) repeats for a while.
+fn settle_keys(input: &crate::input::owner::Input) {
+    let until = std::time::Instant::now() + std::time::Duration::from_millis(400);
+    while std::time::Instant::now() < until {
+        if crate::input::take_key::take_key(input) == 0 {
+            crate::system::sleep::sleep(5);
+        }
+    }
+}
+
 /// 1 when the race is on, -1 (`u32::MAX`) when the lobby was left.
 pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
     let (net, system) = (o.net, o.system);
@@ -120,6 +131,9 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
     list_state.move_clock.set(now);
     list_state.key_clock.set(now);
     net.lobby().edit.edited.set(u32::MAX);
+    // A key still held from the race's last screen (Enter) is not an Enter on the chat item,
+    // which would open the chat before anyone asked for it.
+    settle_keys(o.input);
     list_state.choice.set(3);
     let tick = crate::system::tick_count::tick_count(&system.session.picture_clock);
     net.lobby().listed_at.set(tick);
@@ -210,9 +224,11 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
                         moved = true;
                     }
                     screens::SETTINGS_ITEM => {
-                        // The options of the menu after a stage: audio, display, the players'
-                        // details and the cars' specifications.
+                        // The options of the menu after a stage: audio, display, the advanced
+                        // page and the players' details; the lobby has its own car button, so
+                        // the cars' specifications are left out.
                         crate::menu::in_game_options_items::show_in_game_options(o.menus)?;
+                        crate::menu::in_game_options_items::hide_car_specs(o.menus)?;
                         crate::menu::in_game_options_loop::run(o)?;
                         restore_background(o)?;
                         moved = true;

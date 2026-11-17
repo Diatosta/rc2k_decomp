@@ -81,14 +81,7 @@ impl Io for GameIo {
         let shared = &race.shared;
         self.store(g);
         // The drawing takes the device itself (its x87 turn reads the gauge).
-        crate::race::draw_tyre_change::draw_tyre_change(
-            crate::strings::append_string_by_id::StringOwners::of(self.o),
-            race,
-            shared,
-            self.device,
-            self.o.gfx,
-            self.o.strings,
-        )
+        crate::race::draw_tyre_change::draw_tyre_change(self.o, race, shared, self.device)
     }
     fn press_time(&mut self, s: u32) -> u32 {
         press_time(self.race, s as i32) as u32

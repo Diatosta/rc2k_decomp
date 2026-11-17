@@ -167,6 +167,11 @@ old texts; the keyboard always has its own).
   With numbers or the keyboard the question is the original's. The pictures are as tall as the
   text's capitals and centred on them. The advanced page's "buttons in the quit question" switch
   (`quit_pictures` in `rc2k.toml`) turns them off: the question is then the original's.
+  The same switch covers the roadside tyre change's prompt ("press a button to stop"): with a
+  controller that has pictures, the picture of the button that stops the gauge follows the
+  prompt, as tall as its capitals, the text and picture centred together (any of the eight
+  button actions of the race ends the gauge, so the first one the profile binds, gear up first,
+  is shown); with the keyboard, numbers or the switch off the prompt is the original's text.
 
 The pictures are blended over the screen as white shapes with soft edges (16 and 32 bits, in
 the menus and over a race's frame), scaled down from the atlas's 128 px cells to the size drawn

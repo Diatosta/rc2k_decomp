@@ -5,6 +5,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::net::lobby::{FONT, blit, copy_picture, lock_surface, push_id, store_text};
 use crate::text::draw_text::GameCanvas;
+use rc2k_core::net::chat;
 use rc2k_core::net::players;
 use rc2k_core::net::screens;
 
@@ -156,23 +157,21 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
             y = y.wrapping_add(NAME_FONT.object(&o.gfx.fonts.typefaces).line_height.get());
         }
     }
-    y = 0x158;
+    y = CHAT_Y;
     {
         let _received = net.lock_received();
-        crate::text::draw_text::draw_text_at(
-            CHAT_FONT,
-            &vars.chat.read(),
-            0xA,
-            y as i32,
-            &mut canvas,
-        )?;
+        let chat = vars.chat.read();
+        // Only the newest lines are drawn, from the dividing line down: the oldest of the
+        // eight would run under the buttons.
+        let shown = chat::newest_lines(&chat, chat::SHOWN_LINES);
+        crate::text::draw_text::draw_text_at(CHAT_FONT, shown, 0xA, y as i32, &mut canvas)?;
     }
     y = y.wrapping_add(
         CHAT_FONT
             .object(&o.gfx.fonts.typefaces)
             .line_height
             .get()
-            .wrapping_mul(8),
+            .wrapping_mul(chat::SHOWN_LINES as u32),
     );
     crate::net::chat_input_line::chat_input_line(o, &net.lobby().chat_input.text(), 3, y)?;
     // The two rows of buttons, each drawn right to left: the bottom row, and above it the
@@ -209,7 +208,7 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
             )?;
         }
     }
-    for line_y in [0x156, 0x217] {
+    for line_y in [CHAT_RULE_Y as i32, BUTTONS_RULE_Y as i32] {
         crate::gfx::rect::draw_hline(
             0,
             line_y,
@@ -228,7 +227,15 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
 /// and of the one above it.
 const ROW_RIGHT: u32 = 0x310;
 const BOTTOM_ROW_Y: u32 = 0x223;
-const UPPER_ROW_Y: u32 = 0x1EA;
+const UPPER_ROW_Y: u32 = 0x1F2;
+/// The line between the chat's input and the buttons' rows.
+const BUTTONS_RULE_Y: u32 = 0x1EA;
+
+/// The line between the players' table (eight players end at y 0x144) and the chat, and where
+/// the chat's first line is drawn: the six lines and the input under them end above the upper
+/// row of buttons.
+const CHAT_RULE_Y: u32 = 0x148;
+const CHAT_Y: u32 = 0x14C;
 
 /// Where the chosen stage's name is drawn: left, above the table's headings.
 const STAGE_AT: (i32, i32) = (0x18, 0x4A);
