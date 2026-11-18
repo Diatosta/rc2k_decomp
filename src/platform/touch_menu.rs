@@ -108,6 +108,14 @@ fn act(o: &Owners<'static>, window: sdl::Window, gestures: Vec<Gesture>) {
     }
 }
 
+/// Whether sideways drags give the key on the finger's side (a page that is not a carousel).
+pub fn set_direct_sideways(on: bool) {
+    GESTURES
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .set_direct_sideways(on);
+}
+
 /// Every finger lifted (a race began, the app went to the background).
 pub fn release_all() {
     GESTURES

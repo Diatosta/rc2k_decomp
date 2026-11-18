@@ -129,6 +129,94 @@ impl Layout {
     }
 }
 
+/// What the race is waiting for while the controls are off.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Asked {
+    /// The plain pause: any key goes on, one button does.
+    Resume,
+    /// A question with two answers (retire?).
+    YesNo,
+}
+
+/// The answers' buttons.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Answer {
+    Yes,
+    No,
+}
+
+/// The answers' buttons for one screen: big, side by side in the lower middle of the usable
+/// area, clear of the race's own question text near the top.
+pub fn answer_rects(screen: &Screen, asked: Asked) -> Vec<(Answer, Rect)> {
+    let u = screen.usable();
+    let h = (u.h * 0.3).max(1.0);
+    let y = u.y + u.h * 0.52;
+    let gap = h * 0.4;
+    match asked {
+        Asked::Resume => {
+            let w = (u.w * 0.4).max(1.0);
+            vec![(Answer::Yes, Rect::new(u.x + (u.w - w) / 2.0, y, w, h))]
+        }
+        Asked::YesNo => {
+            let w = ((u.w - gap) * 0.36).max(1.0);
+            let left = u.x + (u.w - 2.0 * w - gap) / 2.0;
+            vec![
+                (Answer::Yes, Rect::new(left, y, w, h)),
+                (Answer::No, Rect::new(left + w + gap, y, w, h)),
+            ]
+        }
+    }
+}
+
+/// The finger that went down on an answer's button: the answer is given when the same finger
+/// lifts on the same button (a tap elsewhere answers nothing).
+#[derive(Debug, Default)]
+pub struct AnswerTaps {
+    down: Option<(u64, Answer)>,
+}
+
+impl AnswerTaps {
+    pub const fn new() -> Self {
+        AnswerTaps { down: None }
+    }
+
+    /// The answer a finger's change gives, if it is one.
+    pub fn finger(
+        &mut self,
+        screen: &Screen,
+        asked: Asked,
+        id: u64,
+        phase: Phase,
+        x: f32,
+        y: f32,
+    ) -> Option<Answer> {
+        let at = answer_rects(screen, asked)
+            .into_iter()
+            .find(|(_, r)| r.contains(x, y))
+            .map(|(a, _)| a);
+        match phase {
+            Phase::Down => {
+                self.down = at.map(|a| (id, a));
+                None
+            }
+            Phase::Move => None,
+            Phase::Up => match self.down.take() {
+                Some((down_id, a)) if down_id == id && at == Some(a) => Some(a),
+                _ => None,
+            },
+        }
+    }
+
+    /// The button pressed now, to be drawn lit.
+    pub fn pressed(&self) -> Option<Answer> {
+        self.down.map(|(_, a)| a)
+    }
+
+    pub fn release_all(&mut self) {
+        self.down = None;
+    }
+}
+
 /// What the game reads: the steering and the buttons held.
 #[derive(Clone, Copy, PartialEq, Debug, Default)]
 pub struct Output {
@@ -451,5 +539,48 @@ mod tests {
         assert!(out.is_held(Button::Brake) && !out.is_held(Button::Throttle));
         controls.finger(1, Phase::Up, brake.0, brake.1, 60);
         assert!(!controls.output(70).is_held(Button::Brake));
+    }
+
+    #[test]
+    fn the_answer_buttons_answer_on_a_tap_and_stay_apart() {
+        let screen = phone();
+        let [(_, yes), (_, no)] = answer_rects(&screen, Asked::YesNo)[..] else {
+            panic!("two buttons");
+        };
+        let u = screen.usable();
+        for r in [yes, no] {
+            assert!(r.x >= u.x && r.right() <= u.right() && r.y >= u.y && r.bottom() <= u.bottom());
+            assert!(r.h >= 0.25 * u.h);
+        }
+        assert!(yes.right() < no.x);
+        let (yc, nc) = (centre(yes), centre(no));
+        let mut taps = AnswerTaps::new();
+        let asked = Asked::YesNo;
+        assert_eq!(
+            taps.finger(&screen, asked, 1, Phase::Down, yc.0, yc.1),
+            None
+        );
+        assert_eq!(taps.pressed(), Some(Answer::Yes));
+        assert_eq!(
+            taps.finger(&screen, asked, 1, Phase::Up, yc.0, yc.1),
+            Some(Answer::Yes)
+        );
+        taps.finger(&screen, asked, 2, Phase::Down, nc.0, nc.1);
+        assert_eq!(
+            taps.finger(&screen, asked, 2, Phase::Up, nc.0, nc.1),
+            Some(Answer::No)
+        );
+        // down on one, up on the other or outside: nothing
+        taps.finger(&screen, asked, 3, Phase::Down, yc.0, yc.1);
+        assert_eq!(taps.finger(&screen, asked, 3, Phase::Up, nc.0, nc.1), None);
+        taps.finger(&screen, asked, 4, Phase::Down, 1.0, 1.0);
+        assert_eq!(taps.finger(&screen, asked, 4, Phase::Up, yc.0, yc.1), None);
+        // the plain pause has the one button, the yes
+        let one = centre(answer_rects(&screen, Asked::Resume)[0].1);
+        taps.finger(&screen, Asked::Resume, 5, Phase::Down, one.0, one.1);
+        assert_eq!(
+            taps.finger(&screen, Asked::Resume, 5, Phase::Up, one.0, one.1),
+            Some(Answer::Yes)
+        );
     }
 }
