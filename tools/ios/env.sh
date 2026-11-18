@@ -5,7 +5,7 @@
 _cross=$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)
 export RC2K_IOS_TOOLS=${RC2K_IOS_TOOLS:-$HOME/.cache/rc2k_ios}
 if [ -z "${SDKROOT:-}" ]; then
-    SDKROOT=$(ls -d "$RC2K_IOS_TOOLS"/iPhoneOS*.sdk "$HOME"/.swiftpm/swift-sdks/darwin.artifactbundle/*/iPhoneOS*.sdk \
+    SDKROOT=$(ls -d "$RC2K_IOS_TOOLS"/iPhoneOS*.sdk "$HOME"/.swiftpm/swift-sdks/darwin.artifactbundle/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS*.sdk \
         2>/dev/null | sort -V | tail -1)
 fi
 if [ -z "$SDKROOT" ] || [ ! -d "$SDKROOT" ]; then

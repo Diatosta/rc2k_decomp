@@ -300,7 +300,7 @@ build_mac_over_ssh() {
 build_ios() {
     need clang "the iOS build crosses with clang, lld and cmake (tools/ios/README.md)"
     need cmake "SDL is built from source: install cmake"
-    need python3 "the placeholder icons are drawn by tools/ios/make_icon.py"
+    need python3 "the .ipa is zipped by a small Python script"
     # shellcheck disable=SC1091
     source tools/ios/env.sh || fail "no iOS SDK (tools/ios/README.md, step 2)"
     CARGO_TARGET_DIR=target/ios cargo build ${CARGO_FLAGS[@]+"${CARGO_FLAGS[@]}"} \
@@ -310,7 +310,7 @@ build_ios() {
     mkdir -p "$app"
     cp "target/ios/aarch64-apple-ios/$PROFILE/rc2k" "$app/rc2k"
     cp tools/ios/Info.plist "$app/Info.plist"
-    python3 tools/ios/make_icon.py "$app"
+    cp tools/ios/icons/AppIcon*@*.png "$app/"
     (cd "$DIST" && rm -rf Payload && mkdir Payload && cp -R "Rally Championship.app" Payload/ \
         && python3 -c 'import os, sys, zipfile
 z = zipfile.ZipFile(sys.argv[1], "w", zipfile.ZIP_DEFLATED)
