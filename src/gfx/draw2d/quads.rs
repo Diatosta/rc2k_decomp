@@ -55,7 +55,7 @@ fn config() -> &'static Config {
         let asked = std::env::var("RC2K_2D_QUADS").map_or(true, |v| v != "0");
         Config {
             // macOS's Metal draws the canvas way until its backend draws quads.
-            quads: cfg!(not(target_os = "macos")) && asked && !set("RC2K_2D_CHECK"),
+            quads: cfg!(not(target_vendor = "apple")) && asked && !set("RC2K_2D_CHECK"),
             #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
             check: set("RC2K_QUAD_CHECK"),
             #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]

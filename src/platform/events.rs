@@ -60,8 +60,11 @@ fn next_event() -> Option<Event> {
             Event::Quit
         } else if kind == SDL_EVENT_WINDOW_FOCUS_GAINED {
             Event::Focus(true)
-        } else if kind == SDL_EVENT_WINDOW_FOCUS_LOST {
+        } else if kind == SDL_EVENT_WINDOW_FOCUS_LOST || kind == SDL_EVENT_WILL_ENTER_BACKGROUND {
+            // A phone's app sent to the background (the system takes the GPU from it).
             Event::Focus(false)
+        } else if kind == SDL_EVENT_DID_ENTER_FOREGROUND {
+            Event::Focus(true)
         } else if kind == SDL_EVENT_JOYSTICK_ADDED {
             crate::platform::input::pad_added(event.joystick_id());
             Event::Other

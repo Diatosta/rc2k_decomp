@@ -18,6 +18,7 @@ All commands are run from the repository's top folder. The repository and the cr
 | Windows, 32 bits | `./build.sh windows` | Linux | `dist/windows/`: the same two files |
 | Windows, 64 or 32 bits | `build.ps1 -Target windows-x64` or `-Target windows` | Windows | the same two folders |
 | macOS | `./build.sh mac` | a Mac, or Linux with a Mac reached over SSH | `dist/mac/Rally Championship.app` |
+| iPhone / iPad (begun, not yet run) | `./build.sh ios` | Linux, with Apple's iOS SDK from Xcode (`tools/ios/README.md`) | `dist/ios/Rally Championship.ipa`, unsigned |
 | Anbernic RG34XXSP | `./build.sh handheld` | Linux, with Docker | `dist/handheld/`: `rc2k`, `Rally.sh` |
 | Web (experimental) | `./build.sh web` | Linux, with Emscripten | `dist/web/`: `rc2k.js`, `rc2k.wasm`, `index.html`, `unzip.js`, `serve.py` |
 
@@ -161,6 +162,15 @@ the bundle is copied into the game's folder: `~/rally`, or the folder named by `
 On Linux the same command builds on a Mac over SSH: it copies the source to the Mac that
 `MAC_HOST` in `deploy.local` names, runs `./build.sh mac` there and brings the bundle back
 into `dist/mac/`. `tools/mac/README.md` describes cross-compiling on Linux by hand.
+
+## iPhone and iPad
+
+`./build.sh ios` crosses from Linux with clang, lld and Apple's iOS SDK (taken out of Xcode's
+`.xip`, which needs an Apple ID to download), and makes an unsigned `.ipa`; `tools/ios/install.sh`
+signs it with a free Apple ID (xtool) and installs it on a phone plugged in by USB, for seven
+days at a time. The game's folder is copied into the app's Documents folder with the Files
+app. `tools/ios/README.md` lists every step. The iOS port is begun: it is checked to compile,
+not yet run, and has no touch controls yet (a game controller works).
 
 ## The Anbernic RG34XXSP handheld
 

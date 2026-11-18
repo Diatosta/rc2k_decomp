@@ -2280,7 +2280,7 @@ pub fn start_on_window(size: (usize, usize)) -> bool {
     // macOS makes an OpenGL context only on the main thread: SDL hands the GL thread's request
     // to it while the game's thread (the main one) waits for the GL thread's answer, and both
     // wait for ever. A Mac without Metal goes on to SDL's renderer and the software rasteriser.
-    if cfg!(target_os = "macos") {
+    if cfg!(target_vendor = "apple") {
         TRIED.store(true, std::sync::atomic::Ordering::Relaxed);
         log("render: the OpenGL backend is not used on macOS");
         return false;

@@ -1107,7 +1107,10 @@ pub fn run_frame_now<T>(o: crate::owners::Owners<'static>, frame: impl FnOnce() 
 }
 
 /// A file of ours next to the log (the current folder can change: the installer).
-#[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // used by the debug UI, and on Windows
+#[cfg_attr(
+    any(all(target_os = "linux", target_arch = "aarch64"), target_os = "ios"),
+    allow(dead_code, reason = "used by the debug UI and the profiler")
+)]
 pub fn beside_log(name: &str) -> std::path::PathBuf {
     match crate::logfile::program_log::LOG_PATH
         .get()

@@ -64,7 +64,7 @@ pub fn memory_stats() -> Option<MemoryStats> {
 }
 
 /// The value of `sysctlbyname(name)`, of type `T`; None when it fails or has another size.
-#[cfg(target_os = "macos")]
+#[cfg(target_vendor = "apple")]
 fn sysctl_value<T: Copy>(name: &CStr) -> Option<T> {
     let mut value = std::mem::MaybeUninit::<T>::uninit();
     let mut size = size_of::<T>();
@@ -85,7 +85,7 @@ fn sysctl_value<T: Copy>(name: &CStr) -> Option<T> {
 /// The memory figures from `sysctl`: the machine's memory (`hw.memsize`), its free pages
 /// (`vm.page_free_count`, Activity Monitor's "free") and the swap files' use
 /// (`vm.swapusage`); None when one cannot be read.
-#[cfg(target_os = "macos")]
+#[cfg(target_vendor = "apple")]
 pub fn memory_stats() -> Option<MemoryStats> {
     let total_ram: u64 = sysctl_value(c"hw.memsize")?;
     let free_pages: u32 = sysctl_value(c"vm.page_free_count")?;
@@ -166,7 +166,7 @@ pub unsafe fn discard_pages(at: *mut u8, len: usize) -> bool {
 ///
 /// # Safety
 /// `at` and `len` are a mapping of `map_pages` (whole pages).
-#[cfg(target_os = "macos")]
+#[cfg(target_vendor = "apple")]
 pub unsafe fn discard_pages(at: *mut u8, len: usize) -> bool {
     // SAFETY: the caller's mapping, replaced in place by one of the same kind.
     let mapped = unsafe {
@@ -187,7 +187,7 @@ pub unsafe fn discard_pages(at: *mut u8, len: usize) -> bool {
 ///
 /// # Safety
 /// `at` and `len` are a mapping of `map_pages` (whole pages).
-#[cfg(not(any(target_os = "linux", target_os = "macos")))]
+#[cfg(not(any(target_os = "linux", target_vendor = "apple")))]
 pub unsafe fn discard_pages(_at: *mut u8, _len: usize) -> bool {
     false
 }
@@ -287,7 +287,7 @@ unsafe fn fault_registers(context: *const libc::ucontext_t) -> (usize, bool, usi
 ///
 /// # Safety
 /// `context` is the signal handler's, live during the call.
-#[cfg(all(target_os = "macos", target_arch = "x86_64"))]
+#[cfg(all(target_vendor = "apple", target_arch = "x86_64"))]
 unsafe fn fault_registers(context: *const libc::ucontext_t) -> (usize, bool, usize) {
     // SAFETY: the caller's context and the machine context it points to.
     let m = unsafe { &*(*context).uc_mcontext };
@@ -304,7 +304,7 @@ unsafe fn fault_registers(context: *const libc::ucontext_t) -> (usize, bool, usi
 ///
 /// # Safety
 /// `context` is the signal handler's, live during the call.
-#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+#[cfg(all(target_vendor = "apple", target_arch = "aarch64"))]
 unsafe fn fault_registers(context: *const libc::ucontext_t) -> (usize, bool, usize) {
     // SAFETY: the caller's context and the machine context it points to.
     let m = unsafe { &*(*context).uc_mcontext };
@@ -347,7 +347,7 @@ pub fn own_stack_word(at: usize) -> Option<usize> {
 /// The word at `at` on this thread's stack, for the fault report (`standalone::stack_returns`):
 /// None outside the thread's stack (`pthread_get_stackaddr_np`, its top, and
 /// `pthread_get_stacksize_np` below it), so a walk up the stack stops at its end.
-#[cfg(target_os = "macos")]
+#[cfg(target_vendor = "apple")]
 pub fn own_stack_word(at: usize) -> Option<usize> {
     // SAFETY: plain reads of the running thread's own record (no lock, no allocation in
     // Apple's libpthread; they are not on POSIX's async-signal-safe list, being Apple's own).

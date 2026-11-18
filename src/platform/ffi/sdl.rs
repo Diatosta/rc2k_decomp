@@ -245,12 +245,26 @@ impl Renderer {
         unsafe { SDL_GetRenderVSync(self.0, &raw mut interval) && interval != 0 }
     }
 
+    #[cfg_attr(
+        target_os = "ios",
+        allow(
+            dead_code,
+            reason = "used by the folder page, which iOS replaces with a message"
+        )
+    )]
     /// Everything drawn from now on magnified `factor` times (the first-run page's text).
     pub fn set_scale(self, factor: f32) {
         // SAFETY: the renderer SDL made.
         unsafe { SDL_SetRenderScale(self.0, factor, factor) };
     }
 
+    #[cfg_attr(
+        target_os = "ios",
+        allow(
+            dead_code,
+            reason = "used by the folder page, which iOS replaces with a message"
+        )
+    )]
     /// The target cleared to a colour.
     pub fn clear(self, [r, g, b]: [u8; 3]) {
         // SAFETY: the renderer SDL made.
@@ -260,6 +274,13 @@ impl Renderer {
         }
     }
 
+    #[cfg_attr(
+        target_os = "ios",
+        allow(
+            dead_code,
+            reason = "used by the folder page, which iOS replaces with a message"
+        )
+    )]
     /// A filled rectangle in a colour (in the scaled units).
     pub fn fill(self, [r, g, b]: [u8; 3], [x, y, w, h]: [f32; 4]) {
         let rect = SDL_FRect { x, y, w, h };
@@ -270,6 +291,13 @@ impl Renderer {
         }
     }
 
+    #[cfg_attr(
+        target_os = "ios",
+        allow(
+            dead_code,
+            reason = "used by the folder page, which iOS replaces with a message"
+        )
+    )]
     /// SDL's built-in 8 by 8 font: `text` with its top left corner at (x, y).
     pub fn text(self, [r, g, b]: [u8; 3], x: f32, y: f32, text: &str) {
         let Ok(text) = std::ffi::CString::new(text.replace('\0', "")) else {
@@ -497,8 +525,25 @@ pub fn use_dummy_audio() {
 
 /// SDL's video started; false when it does not start.
 pub fn init_video() -> bool {
+    #[cfg(target_os = "ios")]
+    // SAFETY: SDL's own hint name and NUL-ended value, read during the call. The game is drawn
+    // for a wide screen.
+    unsafe {
+        SDL_SetHint(
+            SDL_HINT_ORIENTATIONS,
+            c"LandscapeLeft LandscapeRight".as_ptr(),
+        )
+    };
     // SAFETY: SDL's own start-up, on the thread that will own the window.
-    unsafe { SDL_Init(SDL_INIT_VIDEO) }
+    let started = unsafe { SDL_Init(SDL_INIT_VIDEO) };
+    // A phone left alone for a while must not dim in a race (a pad or the screen's own touches
+    // are not counted as use by the system).
+    #[cfg(target_os = "ios")]
+    if started {
+        // SAFETY: no arguments; SDL's video is started.
+        unsafe { SDL_DisableScreenSaver() };
+    }
+    started
 }
 
 /// A display's modes, each (width, height, refresh rate), and its desktop's size.
@@ -541,17 +586,20 @@ pub fn display_modes(window: Option<Window>) -> DisplayModes {
     }
 }
 
+/// What a window is made with: on iOS every window fills the screen; elsewhere nothing special.
+fn window_flags() -> SDL_WindowFlags {
+    if cfg!(target_os = "ios") {
+        SDL_WINDOW_FULLSCREEN
+    } else {
+        SDL_WindowFlags(0)
+    }
+}
+
 /// A window of the given size with a title.
 pub fn create_window(title: &std::ffi::CStr, width: usize, height: usize) -> Option<Window> {
     // SAFETY: a NUL-ended title; plain sizes and no flags.
-    let raw = unsafe {
-        SDL_CreateWindow(
-            title.as_ptr(),
-            width as i32,
-            height as i32,
-            SDL_WindowFlags(0),
-        )
-    };
+    let raw =
+        unsafe { SDL_CreateWindow(title.as_ptr(), width as i32, height as i32, window_flags()) };
     (!raw.is_null()).then_some(Window(raw))
 }
 
@@ -589,6 +637,13 @@ pub fn set_app_identifier(id: &std::ffi::CStr) {
     }
 }
 
+#[cfg_attr(
+    target_os = "ios",
+    allow(
+        dead_code,
+        reason = "used by the folder page, which iOS replaces with a message"
+    )
+)]
 /// A window and its renderer given back (the first-run page's, before the game's own window).
 pub fn destroy(window: Window, renderer: Renderer) {
     // SAFETY: both made by SDL here and not used again by the caller.
@@ -641,6 +696,13 @@ pub fn poll_event() -> Option<PolledEvent> {
 }
 
 impl PolledEvent {
+    #[cfg_attr(
+        target_os = "ios",
+        allow(
+            dead_code,
+            reason = "used by the folder page, which iOS replaces with a message"
+        )
+    )]
     /// A mouse button going down: where, in the window's pixels.
     pub fn click(&self) -> Option<(f32, f32)> {
         if self.kind() != SDL_EVENT_MOUSE_BUTTON_DOWN {
@@ -651,6 +713,13 @@ impl PolledEvent {
         Some((button.x, button.y))
     }
 
+    #[cfg_attr(
+        target_os = "ios",
+        allow(
+            dead_code,
+            reason = "used by the folder page, which iOS replaces with a message"
+        )
+    )]
     /// A file or folder dropped on the window: its path.
     pub fn dropped(&self) -> Option<String> {
         if self.kind() != SDL_EVENT_DROP_FILE {
@@ -745,6 +814,13 @@ impl PolledEvent {
         ))
     }
 
+    #[cfg_attr(
+        target_os = "ios",
+        allow(
+            dead_code,
+            reason = "used by the folder page, which iOS replaces with a message"
+        )
+    )]
     /// The text of a text-input event (UTF-8, as SDL gives it), else `None`.
     pub fn text(&self) -> Option<String> {
         if self.kind() != SDL_EVENT_TEXT_INPUT {
@@ -869,9 +945,23 @@ pub fn show_message_box(
 
 // ---- the dialogs ----
 
+#[cfg_attr(
+    target_os = "ios",
+    allow(
+        dead_code,
+        reason = "used by the folder page, which iOS replaces with a message"
+    )
+)]
 /// What a dialog gave: `None` while it is open, `Some(None)` when it was cancelled or failed.
 static DIALOG: std::sync::Mutex<Option<Option<String>>> = std::sync::Mutex::new(None);
 
+#[cfg_attr(
+    target_os = "ios",
+    allow(
+        dead_code,
+        reason = "used by the folder page, which iOS replaces with a message"
+    )
+)]
 unsafe extern "C" fn dialog_done(
     _user: *mut core::ffi::c_void,
     list: *const *const core::ffi::c_char,
@@ -895,6 +985,13 @@ unsafe extern "C" fn dialog_done(
         .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(first);
 }
 
+#[cfg_attr(
+    target_os = "ios",
+    allow(
+        dead_code,
+        reason = "used by the folder page, which iOS replaces with a message"
+    )
+)]
 /// The system's open dialog for a folder (or for a zip file) shown over `window`; its answer
 /// comes by `dialog_answer`.
 pub fn show_open_dialog(window: Window, folder: bool) {
@@ -930,6 +1027,13 @@ pub fn show_open_dialog(window: Window, folder: bool) {
     }
 }
 
+#[cfg_attr(
+    target_os = "ios",
+    allow(
+        dead_code,
+        reason = "used by the folder page, which iOS replaces with a message"
+    )
+)]
 /// The answer of the dialog shown, once it has one: the path, or none when it was cancelled.
 pub fn dialog_answer() -> Option<Option<String>> {
     DIALOG

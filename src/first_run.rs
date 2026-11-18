@@ -37,6 +37,13 @@ fn kind_of(folder: &Path) -> Kind {
 
 /// Where a zip is unpacked: the user's data folder, in a folder of its own.
 fn staging_folder() -> PathBuf {
+    // iOS: inside the app's Documents folder, which is the only one the Files app shows.
+    #[cfg(target_os = "ios")]
+    if let Some(home) = std::env::var_os("HOME") {
+        return PathBuf::from(home)
+            .join("Documents")
+            .join("rally-championship-source");
+    }
     let base = std::env::var_os("XDG_DATA_HOME")
         .or_else(|| std::env::var_os("LOCALAPPDATA"))
         .map(PathBuf::from)
@@ -151,6 +158,10 @@ pub fn find_game_data(given: Option<&str>) {
         return;
     }
     let mut wish = given.map(str::to_string);
+    #[cfg(target_os = "ios")]
+    if wish.is_none() {
+        wish = Some(ios_wish());
+    }
     let mut message = String::new();
     loop {
         let picked = match wish.take() {
@@ -191,7 +202,46 @@ pub fn find_game_data(given: Option<&str>) {
     }
 }
 
+/// iOS: what to look at first in the Documents folder (the current one): a zip of the game
+/// (the first, by name), else the folder itself and the folders just inside it. There is no
+/// file dialog to pick from: the person copies the game there with the Files app or the
+/// computer's file sharing.
+#[cfg(target_os = "ios")]
+fn ios_wish() -> String {
+    let mut zips: Vec<PathBuf> = std::fs::read_dir(".")
+        .into_iter()
+        .flatten()
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| p.is_file() && p.extension().is_some_and(|e| e.eq_ignore_ascii_case("zip")))
+        .collect();
+    zips.sort();
+    zips.first()
+        .map_or_else(|| ".".to_string(), |z| z.to_string_lossy().into_owned())
+}
+
+/// iOS: says where the game's data goes (a message box: the page's file dialogs do not exist
+/// here), then the program ends.
+#[cfg(target_os = "ios")]
+fn page(message: &str) -> Option<String> {
+    use sdl3_sys::everything::SDL_MESSAGEBOX_ERROR;
+    if crate::platform::ffi::sdl::init_video() {
+        let text = format!(
+            "{message}\n\nCopy the game's folder (installed, or the download / CD files), or a \
+             zip of it, into Rally Championship in the Files app (On My iPhone) or through file \
+             sharing from a computer, then start the app again."
+        );
+        crate::platform::ffi::sdl::show_message_box(
+            SDL_MESSAGEBOX_ERROR,
+            c"Rally Championship",
+            &std::ffi::CString::new(text.replace('\0', "")).unwrap_or_default(),
+        );
+    }
+    None
+}
+
 /// The page: where the game's data is. The path picked, dropped or None when it is closed.
+#[cfg(not(target_os = "ios"))]
 fn page(message: &str) -> Option<String> {
     use crate::platform::ffi::sdl;
     use sdl3_sys::everything::*;

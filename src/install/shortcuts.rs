@@ -7,11 +7,11 @@
 //! copied from the running program's folder into the current one.
 
 use std::path::Path;
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", target_os = "ios")))]
 use std::path::PathBuf;
 
 /// The group's folder name.
-#[cfg(not(target_os = "macos"))] // reason: macOS has no items
+#[cfg(not(any(target_os = "macos", target_os = "ios")))] // reason: macOS has no items
 pub const GROUP: &str = "Rally Championship";
 /// The program's file.
 #[cfg(windows)]
@@ -26,7 +26,7 @@ pub const DLLS: &[&str] = &["SDL3.dll"];
 pub const DLLS: &[&str] = &[];
 
 /// The three items: (name, target in the installed folder, arguments).
-#[cfg(not(target_os = "macos"))] // reason: macOS has no items
+#[cfg(not(any(target_os = "macos", target_os = "ios")))] // reason: macOS has no items
 fn items(installed: &Path) -> [(&'static str, PathBuf, &'static str); 3] {
     [
         ("Rally", installed.join(PROGRAM), ""),
@@ -37,7 +37,7 @@ fn items(installed: &Path) -> [(&'static str, PathBuf, &'static str); 3] {
 
 /// The readme's name as the installed folder holds it: the copy keeps the source's case
 /// (`README.TXT`), which a case-sensitive system needs named exactly; else `readme.txt`.
-#[cfg(not(target_os = "macos"))] // reason: macOS has no items
+#[cfg(not(any(target_os = "macos", target_os = "ios")))] // reason: macOS has no items
 fn readme_name(installed: &Path) -> std::ffi::OsString {
     std::fs::read_dir(installed)
         .ok()
@@ -108,6 +108,17 @@ mod start_menu {
 
 /// macOS has no items of its own: the installed bundle is the application (`install::mac_bundle`),
 /// listed by Launchpad; removing it is moving it to the Bin, or the uninstaller's removal here.
+/// iOS has no items and no installed program: the game runs from its app, and the game's folder
+/// is the app's Documents folder, which the Files app shows.
+#[cfg(target_os = "ios")]
+mod start_menu {
+    use std::path::Path;
+
+    pub fn add(_installed: &Path) {}
+
+    pub fn remove() {}
+}
+
 #[cfg(target_os = "macos")]
 mod start_menu {
     use std::path::Path;
@@ -119,7 +130,7 @@ mod start_menu {
     }
 }
 
-#[cfg(all(unix, not(target_os = "macos")))]
+#[cfg(all(unix, not(any(target_os = "macos", target_os = "ios"))))]
 mod start_menu {
     use super::{GROUP, items};
     use std::path::{Path, PathBuf};

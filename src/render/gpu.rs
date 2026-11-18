@@ -33,7 +33,7 @@ macro_rules! shader_code {
     ($name:literal) => {
         ShaderCode {
             spirv: include_bytes!(concat!("shaders/", $name, ".spv")),
-            #[cfg(target_os = "macos")]
+            #[cfg(target_vendor = "apple")]
             msl: include_bytes!(concat!("shaders/", $name, ".msl")),
         }
     };

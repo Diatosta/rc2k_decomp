@@ -24,6 +24,10 @@ pub enum Permission {
         )
     )]
     Pending,
+    #[cfg_attr(
+        not(any(windows, all(target_os = "linux", not(target_arch = "aarch64")))),
+        allow(dead_code, reason = "only a real camera is ever approved")
+    )]
     Approved,
     Denied,
 }
