@@ -343,7 +343,8 @@ or IPX connection), and Steam when Valve's library is beside the program (it is 
 - On macOS the installer makes a self-contained "Rally Championship.app" in Applications.
 - Builds: `./build.sh <target>`, and `build.ps1` on Windows itself ([Building from
   source](Building-from-source)).
-- The web build is experimental and does not show a picture yet.
+- The web build is experimental: it draws the 3D on WebGL 2 where the browser has it, takes
+  gamepads and plays the sound; it has no network play.
 
 ## Installing
 

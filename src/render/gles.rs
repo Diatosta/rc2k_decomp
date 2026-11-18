@@ -624,6 +624,7 @@ pub fn wanted() -> bool {
 impl Gpu {
     fn new(open: impl FnOnce() -> Result<Gles, Failed>) -> Result<Gpu, Failed> {
         let gl = open()?;
+        log(&format!("render: the GL is {}", gl.version()));
         if super::choice::forced_failure(FAILURE_STEP) {
             return Err(("made to fail".into(), gl.close_after_failure()));
         }
@@ -2270,7 +2271,10 @@ pub fn start_if_wanted() {
 /// Starts the GL's thread on a hidden window made for OpenGL at the screen's `size`, if it is
 /// wanted; whether it runs. The window is made here (on the game's thread) and the context on the GL's.
 #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-pub fn start_on_window(size: (usize, usize)) -> bool {
+pub fn start_on_window(
+    game_window: crate::platform::ffi::sdl::Window,
+    size: (usize, usize),
+) -> bool {
     if GPU.lock().unwrap().is_some() {
         return true;
     }
@@ -2285,7 +2289,18 @@ pub fn start_on_window(size: (usize, usize)) -> bool {
         log("render: the OpenGL backend is not used on macOS");
         return false;
     }
-    let window = match super::super::platform::ffi::gl::GlWindow::new(size) {
+    // The browser has one canvas for the game's window: the GL draws on a second one over it.
+    #[cfg(target_os = "emscripten")]
+    let made = {
+        let _ = size;
+        Ok::<_, String>(super::super::platform::ffi::gl::GlWindow::new(game_window))
+    };
+    #[cfg(not(target_os = "emscripten"))]
+    let made = {
+        let _ = game_window;
+        super::super::platform::ffi::gl::GlWindow::new(size)
+    };
+    let window = match made {
         Ok(window) => window,
         Err(why) => {
             TRIED.store(true, std::sync::atomic::Ordering::Relaxed);
@@ -2392,6 +2407,8 @@ fn start_with(open: impl FnOnce() -> Result<Gles, Failed> + Send + 'static) {
         Ok(threads) => {
             log(if cfg!(all(target_os = "linux", target_arch = "aarch64")) {
                 "render: the GPU backend on libmali's OpenGL ES, on its own thread"
+            } else if cfg!(target_os = "emscripten") {
+                "render: the OpenGL backend (WebGL 2), on its own thread"
             } else {
                 "render: the OpenGL backend (3.3 core), on its own thread"
             });

@@ -63,7 +63,7 @@ bundle. The Metal renderer has been tested less than the Vulkan one.
 screen. The built-in pad works in the menus; MENU + START leaves the game. There is no debug
 window. Measured speed is on [Performance](Performance).
 
-**Web.** Unfinished. The build and its test page are in `tools/web/`. The saves live in the
+**Web.** Unfinished (WebGL 2 picture, gamepads and sound work in headless Chrome; not yet checked on a phone). The build and its test page are in `tools/web/`. The saves live in the
 browser's private storage, which a browser may clear, so the page `saves.html` (linked from the
 start page) exports the `savedata/` folder, `var/hst.dat` and the settings (`var/ral.dat`,
 `var/ral.cfg`, `var/rc2k.toml`) as a zip to download or as text (the zip in base64) to copy, and

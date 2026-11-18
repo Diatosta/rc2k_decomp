@@ -9,17 +9,11 @@ pub mod batches;
 pub mod canvas_rows;
 pub mod choice;
 pub mod dump;
-#[cfg(any(test, not(target_os = "emscripten")))]
 pub mod gl_batching;
-#[cfg(not(target_os = "emscripten"))]
-pub mod gles;
-#[cfg(target_os = "emscripten")]
-#[path = "gles_web.rs"]
 pub mod gles;
 pub mod wash;
 // Built for tests on every machine; only the handheld's GL thread uses it.
 pub mod gpu_cut;
-#[cfg(any(test, not(target_os = "emscripten")))]
 pub mod gpu_time;
 // The handheld has no Vulkan: its GPU is reached through `gles`, by the same name here.
 #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
@@ -153,7 +147,6 @@ impl CommandList {
 
     /// The textures the fans read, each once, in the order they are first read (for the
     /// handheld's GL, which brings them up).
-    #[cfg(any(test, not(target_os = "emscripten")))]
     pub fn textures(&self) -> &[TextureNote] {
         &self.textures
     }
@@ -631,17 +624,11 @@ pub(crate) fn gpu_stopped() {
 /// Whether the desktop's OpenGL backend is the one running (the handheld's GL ES is its GPU
 /// renderer, `gpu_running`).
 pub fn gl_running() -> bool {
-    #[cfg(not(any(
-        all(target_os = "linux", target_arch = "aarch64"),
-        target_os = "emscripten"
-    )))]
+    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
     {
         gles::GPU.lock().unwrap().is_some()
     }
-    #[cfg(any(
-        all(target_os = "linux", target_arch = "aarch64"),
-        target_os = "emscripten"
-    ))]
+    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
     {
         false
     }

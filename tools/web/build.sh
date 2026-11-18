@@ -24,6 +24,10 @@ link=(
   -sEXPORTED_RUNTIME_METHODS=ENV,FS -sFORCE_FILESYSTEM=1
   # SDL's canvas update runs on the page's thread and uses `Browser`.
   -sDEFAULT_LIBRARY_FUNCS_TO_INCLUDE='$Browser'
+  # WebGL 2 for the GL renderer (`src/render/gles.rs`), its context made on the GL thread and
+  # drawn into an off-screen frame buffer that the frame's commit copies onto the page's canvas;
+  # the entry points are found by name.
+  -sMAX_WEBGL_VERSION=2 -sOFFSCREEN_FRAMEBUFFER -sGL_ENABLE_GET_PROC_ADDRESS
 )
 flags="-C target-feature=+atomics,+bulk-memory,+mutable-globals"
 for a in "${link[@]}"; do flags="$flags -C link-arg=$a"; done

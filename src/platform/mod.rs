@@ -41,6 +41,8 @@ pub mod sync;
 pub mod timing;
 #[cfg(target_os = "emscripten")]
 pub mod web;
+#[cfg(target_os = "emscripten")]
+pub mod web_pads;
 pub mod window_mode;
 
 use crate::gfx::describe_format::describe_format;
@@ -418,7 +420,7 @@ fn make_window_renderer(window: sdl::Window, size: (usize, usize)) -> Option<sdl
     // Next in the order: OpenGL, which shows its frames on a window of its own in place of
     // the one SDL's renderer has (`render::gles`).
     if gpu_renderer.is_none() {
-        crate::render::gles::start_on_window(size);
+        crate::render::gles::start_on_window(window, size);
     }
     let renderer = gpu_renderer.or_else(|| sdl::create_renderer(window))?;
     log(&format!(
@@ -480,6 +482,11 @@ fn place_shown_window(window: sdl::Window, width: usize, height: usize, size_cha
         window.show_raised();
         return;
     };
+    // The browser's one window is the GL's too: it is shown as it is.
+    if gl.is_same(window) {
+        window.show_raised();
+        return;
+    }
     match icon::pixels(4) {
         Some(p) if sdl::set_window_icon(gl, p.width, p.height, &p.rgb) => {}
         _ => log("platform: the window's icon was not set"),

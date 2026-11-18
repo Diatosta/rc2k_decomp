@@ -10,6 +10,9 @@
     font: 15px/1.45 system-ui, -apple-system, sans-serif; }
   canvas { display: none; width: 100vw; height: 100vh; object-fit: contain; background: #000; }
   body.playing canvas { display: block; }
+  /* The GL's canvas lies over the game's own, empty (clear) until the GL runs; the mouse reaches
+     the one below. */
+  #glcanvas { position: fixed; inset: 0; background: transparent; pointer-events: none; }
   body.playing #panel { display: none; }
   #panel { max-width: 34rem; margin: 0 auto; padding: 2rem 16px; }
   h1 { font-size: 1.4rem; margin: 0 0 .25rem; }
@@ -26,6 +29,7 @@
 </head>
 <body>
 <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
+<canvas id="glcanvas"></canvas>
 <div id="panel">
   <h1>Rally Championship</h1>
   <p id="lead">Starting…</p>

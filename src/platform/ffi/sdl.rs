@@ -111,6 +111,12 @@ impl Window {
         }
     }
 
+    /// Whether both handles are the one window.
+    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    pub fn is_same(self, other: Window) -> bool {
+        self.0 == other.0
+    }
+
     /// Whether the window is hidden.
     #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
     pub fn is_hidden(self) -> bool {
