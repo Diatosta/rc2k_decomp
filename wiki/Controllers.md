@@ -221,7 +221,7 @@ hat directions do, so changing from a pad to a wheel and back needs no new set-u
 made the first time a player uses a controller:
 
 - a gamepad: the left stick steers, the right trigger accelerates, the left trigger brakes, the
-  D-pad steers too, and the buttons A, B, X, Y are gear up, gear down, handbrake and camera;
+  D-pad steers too, and the buttons A, X, B, Y are gear up, gear down, handbrake and camera;
 - a wheel (SDL's type says so): the first axis steers; the pedals are learnt;
 - any other joystick: the first axis steers, the second accelerates up and brakes down, the
   buttons as above.

@@ -25,7 +25,8 @@ const PICTURE_X: i32 = 0x1B8;
 const TEXT_Y: i32 = 0xD5;
 const ROW_STEP: i32 = 0x1B;
 
-/// The picture `row`'s binding is shown as: a button or a hat direction of a controller whose
+/// The picture `row`'s binding is shown as (a menu control still on its default shows that
+/// default): a button or a hat direction of a controller whose
 /// player has its pictures on, or an axis of a gamepad (a stick pushed one way, along its whole
 /// axis, or a trigger). The axes of other controllers, whose meaning is not known, are told in
 /// words.
@@ -37,12 +38,14 @@ fn binding_picture(
     rc2k_core::input::icons::Family,
     rc2k_core::input::icons::Icon,
 )> {
-    use rc2k_core::input::profile::{Shown, shown};
+    use rc2k_core::input::profile::{Shown, shown_for};
     let current = o.menus.screens.event.current_player.get();
     let controller = player.get().controller;
     let (pictures, _) = crate::input::profiles::pictures(o.input, current, controller)?;
-    let shown =
-        crate::input::profiles::with_profile(o.input, current, controller, |p| shown(p, row))?;
+    let shown = crate::input::profiles::with_profile(o.input, current, controller, |p| {
+        // A menu control the profile leaves unbound shows the default the menus take.
+        shown_for(p, row, pictures.kind)
+    })?;
     let icon = match shown {
         Shown::Button(number) => pictures.digital(rc2k_core::input::profile::Digital::Button {
             button: (number - 1) as u8,

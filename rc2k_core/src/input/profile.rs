@@ -524,9 +524,10 @@ pub fn axis_label(kind: Kind, axis: u8) -> String {
 impl Profile {
     /// The profile a controller gets when a player first picks it.
     /// - gamepad: the left stick's x steers, the right trigger accelerates, the left one
-    ///   brakes, the cross left and right steer too, buttons 0 .. 3 (A, B, X, Y) are gear up,
-    ///   gear down, handbrake and camera;
-    /// - wheel: x steers, the same buttons, no pedals (they are learnt);
+    ///   brakes, the cross left and right steer too, buttons 0, 2, 1 and 3 (A, X, B, Y) are gear
+    ///   up, gear down, handbrake and camera;
+    /// - wheel: x steers, buttons 0 .. 3 are gear up, gear down, handbrake and camera, no pedals
+    ///   (they are learnt);
     /// - other: x steers, y up accelerates and y down brakes, the same buttons.
     pub fn new(device: DeviceId, kind: Kind) -> Profile {
         use pad_axes::*;
@@ -551,6 +552,8 @@ impl Profile {
         match kind {
             Kind::Pad => {
                 let b = &mut profile.bindings;
+                b.gear_down = button(2);
+                b.handbrake = button(1);
                 b.accelerate_axis = Some(AxisUse::Pedal {
                     axis: RIGHT_TRIGGER,
                     rest_high: false,
@@ -1271,6 +1274,18 @@ pub fn shown(profile: &Profile, row: Row) -> Shown {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_pad_gears_down_on_x_and_brakes_by_hand_on_b_while_a_wheel_keeps_its_buttons() {
+        let button = |button| Some(Digital::Button { button });
+        let pad = Profile::new(id(), Kind::Pad).bindings;
+        assert_eq!((pad.gear_up, pad.gear_down), (button(0), button(2)));
+        assert_eq!((pad.handbrake, pad.camera), (button(1), button(3)));
+        for kind in [Kind::Wheel, Kind::Joystick] {
+            let b = Profile::new(id(), kind).bindings;
+            assert_eq!((b.gear_down, b.handbrake), (button(1), button(2)));
+        }
+    }
 
     #[test]
     fn the_h_shifter_leaves_the_sequential_gears_free() {
