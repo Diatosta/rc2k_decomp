@@ -32,6 +32,9 @@ static INSTALLER: AtomicBool = AtomicBool::new(false);
 /// The last tap on the installer's page not yet taken, in the frame's pixels.
 static INSTALLER_TAP: Mutex<Option<(f32, f32)>> = Mutex::new(None);
 
+/// The menu on show when the fingers in progress went down.
+static DOWN_ON: Mutex<Option<crate::menu::menus_store::MenuId>> = Mutex::new(None);
+
 /// A finger has touched the screen since the program started: the overlay is worth showing.
 static TOUCHED: AtomicBool = AtomicBool::new(false);
 
@@ -63,10 +66,26 @@ pub fn finger(
     let Some(screen) = screen_of(window) else {
         return;
     };
-    let gestures = GESTURES
+    let menu = o.menus.screens.loop_flags.menu.get().ok();
+    let mut recogniser = GESTURES
         .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
-        .finger(&screen, id, phase, x * screen.width, y * screen.height, now);
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    // A tap acts once, when the finger lifts, and only on the screen it went down on: a screen
+    // change drops the touches in progress.
+    let mut on_screen = DOWN_ON
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    if recogniser.active() && *on_screen != menu {
+        recogniser.release_all();
+    }
+    if !recogniser.active() {
+        *on_screen = menu;
+        if phase != Phase::Down {
+            return;
+        }
+    }
+    let gestures = recogniser.finger(&screen, id, phase, x * screen.width, y * screen.height, now);
+    drop((recogniser, on_screen));
     for gesture in gestures {
         match gesture {
             Gesture::Up => press(o, MenuAction::Up),
