@@ -6,7 +6,6 @@ use crate::errors::Refused;
 use crate::net::owner::Net;
 use crate::race::owner::Race;
 use rc2k_core::net::{bots, record};
-use std::sync::Mutex;
 use std::sync::atomic::{AtomicU8, Ordering::Relaxed};
 
 /// The host's setting as its record says (0 when no host is listed).
@@ -143,49 +142,6 @@ fn place_like_arcade(
         crate::drive::store_car::store_car(shared)?;
     }
     Ok(())
-}
-
-/// A bot's result of the races so far.
-#[derive(Clone, Copy, Default)]
-struct BotResult {
-    /// The last race's time, 0 before one or when the bot did not finish.
-    time: u32,
-    total: u32,
-}
-
-static RESULTS: Mutex<[BotResult; 8]> = Mutex::new([BotResult { time: 0, total: 0 }; 8]);
-
-/// The bots' results forgotten (a new session).
-pub fn reset_results() {
-    if let Ok(mut r) = RESULTS.lock() {
-        *r = [BotResult { time: 0, total: 0 }; 8];
-    }
-}
-
-/// A race ends: each bot's time (when it has finished) is noted, and added to its total.
-pub fn note_results(race: &Race, net: &Net) {
-    let Ok(mut results) = RESULTS.lock() else {
-        return;
-    };
-    for k in 0..net.race_slot.bots() {
-        let car = &race.car_blocks().cars[(net.race_slot.players() + k) as usize];
-        let r = &mut results[k as usize];
-        if car.finish_flag.get() != 0 {
-            r.time = car.stage_time.get();
-            r.total = r.total.wrapping_add(r.time);
-        } else {
-            r.time = 0;
-        }
-    }
-}
-
-/// The bot `k`'s result (the last race's time, the total).
-pub fn result(k: u32) -> (u32, u32) {
-    RESULTS
-        .lock()
-        .ok()
-        .and_then(|r| r.get(k as usize).map(|r| (r.time, r.total)))
-        .unwrap_or((0, 0))
 }
 
 /// The sequence byte the host's last bot message had.

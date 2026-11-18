@@ -62,6 +62,7 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     }
     y += 0x1D;
     draw_chosen_stage(o, &mut canvas)?;
+    draw_bots_label(o, &mut canvas)?;
     if net.race_slot.players() != 0 {
         let sorted = crate::net::sort_players::sort_players(net)?;
         let gaps = net.lobby().show_gaps.get() == 1;
@@ -168,7 +169,6 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
             show_hours.set(kept_hours);
             y = y.wrapping_add(NAME_FONT.object(&o.gfx.fonts.typefaces).line_height.get());
         }
-        draw_bot_rows(o, &mut canvas, y, gaps, (first_time, first_total))?;
     }
     y = CHAT_Y;
     {
@@ -209,6 +209,7 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
                 replay_kept,
                 crate::net::bots::host_setting(net),
                 crate::net::bots::host_arcade_start(net),
+                net.vars.own.state().is_host(),
             )
             .to_vec(),
         ),
@@ -264,8 +265,11 @@ const BUTTONS_RULE_Y: u32 = 0x1EA;
 const CHAT_RULE_Y: u32 = 0x148;
 const CHAT_Y: u32 = 0x14C;
 
-/// Where the chosen stage's name is drawn: left, above the table's headings.
-const STAGE_AT: (i32, i32) = (0x18, 0x4A);
+/// Where the chosen stage's name is drawn: the middle of the line of the table's headings (the
+/// text is centred on it), in their font.
+const STAGE_AT: (i32, i32) = (0xA8, 0x6F);
+/// Where the bots' label is drawn (centred): on the same line, between the stage's name and the headings.
+const BOTS_AT: (i32, i32) = (0x178, 0x6F);
 
 /// The stage the host has chosen, by its name, over the table (nothing while no host is listed
 /// or the stage is none of the loaded pack's).
@@ -294,75 +298,20 @@ fn draw_chosen_stage(
     let mut text = Vec::new();
     push_id(o, &mut text, track.get(TrackField::Name))?;
     let text = store_text(o.strings, text)?;
-    crate::text::draw_text::draw_text_at(NAME_FONT, &text, STAGE_AT.0, STAGE_AT.1, canvas)?;
+    crate::text::draw_text::draw_text_at(HEADING_FONT, &text, STAGE_AT.0, STAGE_AT.1, canvas)?;
     Ok(())
 }
 
-/// The computer drivers' rows under the players': their name, car and the last race's time and
-/// the total (each machine's own reckoning of the bots' race), from row `y` on.
-fn draw_bot_rows(
+/// The computer drivers the race will have ("bots: 3", "bots: off"), for every player to read:
+/// the players' table lists the players only.
+fn draw_bots_label(
     o: crate::owners::Owners<'static>,
     canvas: &mut GameCanvas,
-    mut y: u32,
-    gaps: bool,
-    (first_time, first_total): (u32, u32),
 ) -> Result<(), Refused> {
-    let (net, strings) = (o.net, o.strings);
-    let count = crate::net::bots::listed_count(net);
-    if count == 0 {
-        return Ok(());
-    }
-    let kinds = crate::net::bots::kinds(o.race, net, count)?;
-    for k in 0..count {
-        let mut x = 0x18 + 0x28;
-        let mut name = Vec::new();
-        push_id(o, &mut name, rc2k_core::strings::own::id::BOT_NAME)?;
-        name.extend(format!(" {}", k + 1).bytes());
-        let name = store_text(strings, name)?;
-        crate::text::draw_text::draw_text_at(NAME_FONT, &name, x as i32, y as i32, canvas)?;
-        x += 0x14A;
-        if let Some(&kind) = kinds.get(k as usize) {
-            blit(screens::car_sprite(kind as u8), x, y + 1, o.gfx, o.menus)?;
-        }
-        x += 0x48;
-        let (time, total) = crate::net::bots::result(k);
-        let show_hours = &strings.text.show_hours;
-        let kept_hours = show_hours.get();
-        show_hours.set(1);
-        if time == players::NO_TIME {
-            let mut none = Vec::new();
-            push_id(o, &mut none, screens::NO_TIME)?;
-            let none = store_text(strings, none)?;
-            crate::text::draw_text::draw_text_at(NAME_FONT, &none, x as i32, y as i32, canvas)?;
-        } else {
-            store_text(strings, time_text(strings, time, gaps, first_time))?;
-            crate::text::draw_time_text::draw_time_text(
-                FONT,
-                &strings.text.buffer.text.read(),
-                x,
-                y,
-                o.gfx,
-            )?;
-        }
-        x += 0xA5;
-        store_text(
-            strings,
-            time_text(
-                strings,
-                total,
-                gaps && time != players::NO_TIME,
-                first_total,
-            ),
-        )?;
-        crate::text::draw_time_text::draw_time_text(
-            FONT,
-            &strings.text.buffer.text.read(),
-            x,
-            y,
-            o.gfx,
-        )?;
-        show_hours.set(kept_hours);
-        y = y.wrapping_add(NAME_FONT.object(&o.gfx.fonts.typefaces).line_height.get());
-    }
+    let count = crate::net::bots::listed_count(o.net).min(rc2k_core::net::bots::MOST_SETTING);
+    let mut text = Vec::new();
+    push_id(o, &mut text, rc2k_core::strings::own::id::BOTS + count)?;
+    let text = store_text(o.strings, text)?;
+    crate::text::draw_text::draw_text_at(HEADING_FONT, &text, BOTS_AT.0, BOTS_AT.1, canvas)?;
     Ok(())
 }

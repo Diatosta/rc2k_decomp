@@ -114,8 +114,7 @@ then sends each bot's position and extra values as the `0x62` message
 (`src/net/send_bot_turn.rs`); the others file it in the bot's inbox
 (`src/net/take_messages.rs`) and apply it as they do a player's, so the bot's copy glides to the
 host's. The host's copy is the one every machine follows. The race ends for a machine when its own
-car has finished, as before. The lobby lists the bots under the players, with each machine's own
-reckoning of their times (`src/net/bots.rs`).
+car has finished, as before. The lobby does not list the bots: a label shows their number to every player.
 
 ## Starting the race
 

@@ -144,7 +144,6 @@ bots_4 = "bots: 4"
 bots_5 = "bots: 5"
 bots_6 = "bots: 6"
 bots_7 = "bots: 7"
-bot_name = "bot"
 bot_start_grid = "partida: grelha"
 bot_start_arcade = "partida: arcade"
 

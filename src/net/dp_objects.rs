@@ -152,8 +152,21 @@ fn with_state<R>(this: u32, f: impl FnOnce(&mut State) -> R) -> R {
     f(&mut s)
 }
 
+/// The object's session, if it has one. An object already released has none: the receiving
+/// thread ends a lost session (the host left) beside the lobby's frames, which then find the
+/// object gone and get the same answer as from an object without a session.
 fn session(this: u32) -> Option<Arc<Session>> {
-    with_state(this, |s| s.session.clone())
+    let found = OBJECTS
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .iter()
+        .find(|(id, _)| *id == this)
+        .map(|(_, o)| Arc::clone(o))?;
+    let state = found
+        .state
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    state.session.clone()
 }
 
 fn make() -> u32 {
@@ -254,8 +267,23 @@ pub fn add_player_to_group(this: u32, group: u32, player: u32) -> u32 {
     session(this).map_or(DPERR_UNINITIALIZED, |s| s.add_to_group(group, player))
 }
 
+/// The object's session taken from it (none when it has none or the object is gone).
+fn take_session(this: u32) -> Option<Arc<Session>> {
+    let found = OBJECTS
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .iter()
+        .find(|(id, _)| *id == this)
+        .map(|(_, o)| Arc::clone(o))?;
+    let mut state = found
+        .state
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    state.session.take()
+}
+
 pub fn close(this: u32) -> u32 {
-    if let Some(s) = with_state(this, |s| s.session.take()) {
+    if let Some(s) = take_session(this) {
         s.close();
     }
     DP_OK

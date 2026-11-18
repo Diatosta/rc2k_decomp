@@ -188,7 +188,12 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
                 }
             } else if !ready && (key == 0x69 || key == 0x68) && choice >= screens::UPPER_ROW_FIRST {
                 // Within the upper row.
-                let to = screens::upper_row_step(choice, key == 0x68, replay_kept);
+                let to = screens::upper_row_step(
+                    choice,
+                    key == 0x68,
+                    replay_kept,
+                    net.vars.own.state().is_host(),
+                );
                 list_state.choice.set(to);
                 moved = true;
             } else if !ready && key == 0x69 {

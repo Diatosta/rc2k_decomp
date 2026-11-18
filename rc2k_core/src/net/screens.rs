@@ -257,15 +257,18 @@ pub const START_ITEM: u32 = 7;
 /// The upper row's buttons right to left: (the string, shown), items 4 to 7: the settings, the
 /// replay's (when it is kept), the bots' count `bots` (0 = off) and the way they start
 /// (`arcade`: spread on the course, else on the grid).
-pub fn upper_buttons(replay_kept: bool, bots: u32, arcade: bool) -> [(u32, bool); 4] {
+///
+/// The two bots' buttons are the host's switches: the other players are shown the setting by
+/// the lobby's label instead, so the buttons are left out for them.
+pub fn upper_buttons(replay_kept: bool, bots: u32, arcade: bool, host: bool) -> [(u32, bool); 4] {
     [
         (crate::strings::own::id::LOBBY_SETTINGS, true),
         (crate::strings::own::id::SAVE_REPLAY, replay_kept),
         (
             crate::strings::own::id::BOTS + bots.min(crate::net::bots::MOST_SETTING),
-            true,
+            host,
         ),
-        (crate::strings::own::id::BOT_START + u32::from(arcade), true),
+        (crate::strings::own::id::BOT_START + u32::from(arcade), host),
     ]
 }
 
@@ -281,9 +284,14 @@ pub fn other_row_item(item: u32, up: bool) -> u32 {
 }
 
 /// An item of the upper row moved one button: `to_next` toward the next item (the left), else
-/// back; held to the shown buttons (the replay's only when it is kept).
-pub fn upper_row_step(item: u32, to_next: bool, replay_kept: bool) -> u32 {
-    let shown = |n: u32| n != SAVE_REPLAY_ITEM || replay_kept;
+/// back; held to the shown buttons (the replay's only when it is kept, the bots' only for the
+/// host).
+pub fn upper_row_step(item: u32, to_next: bool, replay_kept: bool, host: bool) -> u32 {
+    let shown = |n: u32| match n {
+        SAVE_REPLAY_ITEM => replay_kept,
+        BOTS_ITEM | START_ITEM => host,
+        _ => true,
+    };
     let mut to = item;
     loop {
         let next = if to_next {
@@ -432,33 +440,38 @@ mod tests {
         assert_eq!(ping_text(5000), b"999 ms".to_vec());
         assert_eq!(next_button_x(0x310, 0x40), 0x310 - 0x84 - 8);
         assert_eq!(lobby_buttons(1, 0, false)[2], (0x15C, false));
-        assert!(!upper_buttons(false, 0, false)[1].1 && upper_buttons(true, 0, false)[1].1);
-        assert!(upper_buttons(false, 0, false)[0].1);
+        assert!(
+            !upper_buttons(false, 0, false, true)[1].1 && upper_buttons(true, 0, false, true)[1].1
+        );
+        assert!(upper_buttons(false, 0, false, true)[0].1);
         assert_eq!(
-            upper_buttons(false, 3, false)[2],
+            upper_buttons(false, 3, false, true)[2],
             (crate::strings::own::id::BOTS + 3, true)
         );
         assert_eq!(
-            upper_buttons(false, 99, false)[2].0,
+            upper_buttons(false, 99, false, true)[2].0,
             crate::strings::own::id::BOTS + 7
         );
         assert_eq!(
-            upper_buttons(false, 3, true)[3],
+            upper_buttons(false, 3, true, true)[3],
             (crate::strings::own::id::BOT_START + 1, true)
         );
-        assert_eq!(upper_row_step(BOTS_ITEM, true, false), START_ITEM);
-        assert_eq!(upper_row_step(START_ITEM, true, false), START_ITEM);
+        assert_eq!(upper_row_step(BOTS_ITEM, true, false, true), START_ITEM);
+        assert_eq!(upper_row_step(START_ITEM, true, false, true), START_ITEM);
         assert_eq!(other_row_item(3, true), SETTINGS_ITEM);
         assert_eq!(other_row_item(0, false), 0);
         assert_eq!(other_row_item(5, false), 3);
         // The replay's button is passed over when it is not shown.
-        assert_eq!(upper_row_step(4, true, false), BOTS_ITEM);
-        assert_eq!(upper_row_step(4, true, true), 5);
-        assert_eq!(upper_row_step(5, true, true), BOTS_ITEM);
-        assert_eq!(upper_row_step(BOTS_ITEM, true, true), START_ITEM);
-        assert_eq!(upper_row_step(BOTS_ITEM, false, false), 4);
-        assert_eq!(upper_row_step(5, false, true), 4);
-        assert_eq!(upper_row_step(4, false, true), 4);
+        assert_eq!(upper_row_step(4, true, false, true), BOTS_ITEM);
+        assert_eq!(upper_row_step(4, true, true, true), 5);
+        assert_eq!(upper_row_step(5, true, true, true), BOTS_ITEM);
+        assert_eq!(upper_row_step(BOTS_ITEM, true, true, true), START_ITEM);
+        assert_eq!(upper_row_step(BOTS_ITEM, false, false, true), 4);
+        assert_eq!(upper_row_step(5, false, true, true), 4);
+        // The others have no bots' buttons.
+        assert_eq!(upper_row_step(4, true, false, false), 4);
+        assert!(!upper_buttons(false, 3, false, false)[2].1);
+        assert_eq!(upper_row_step(4, false, true, true), 4);
         assert_eq!(
             last_item(0),
             Err(Invalid(

@@ -65,8 +65,6 @@ pub fn lets_rally(o: Owners<'static>) -> Result<bool, Refused> {
             break crate::net::lets_race::lets_race(o)?;
         }
     };
-    // The bots' times, before the race's cars are cleared.
-    crate::net::bots::note_results(race, net);
     crate::race::race_end::tidy_everything(race, o)?;
     crate::sound::stop_music::stop_music(o);
     crate::platform::set_menu_mode_now(o.gfx, o.system);

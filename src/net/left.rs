@@ -83,14 +83,18 @@ pub fn player_destroyed(net: &Net, id: u32) {
     }
 }
 
-/// The session was lost during a race (the receiving thread): the host has gone and with it the
+/// The session was lost during a race or in the lobby (the receiving thread): the host has gone and with it the
 /// session. The race ends here as a player's own leaving ends it, and the player is told once the
 /// menus are back.
 pub fn session_lost(net: &Net) {
-    if !RACING.load(Ordering::SeqCst) || !net.race_slot.is_on() {
+    if !net.race_slot.is_on() {
         return;
     }
-    ENDED.store(true, Ordering::SeqCst);
+    // In the lobby the session's end is the lobby's: it closes at its next frame, and the
+    // player is told the same way.
+    if RACING.load(Ordering::SeqCst) {
+        ENDED.store(true, Ordering::SeqCst);
+    }
     for n in 0..net.race_slot.players().min(PLAYERS as u32) {
         let Ok(block) = net.vars.player_block(n) else {
             continue;

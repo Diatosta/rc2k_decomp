@@ -137,9 +137,8 @@ pub mod id {
     /// The network lobby's button that opens the in-race options.
     pub const LOBBY_SETTINGS: u32 = FIRST + 0xD8;
     /// The network lobby's computer drivers button, with the number of bots: off, then 1 .. 7
-    /// (8 ids), and the name a bot is listed by.
+    /// (8 ids).
     pub const BOTS: u32 = FIRST + 0x78;
-    pub const BOT_NAME: u32 = FIRST + 0x80;
     /// The network lobby's button for the way the bots start: on the grid, then like the
     /// arcade's opponents (2 ids).
     pub const BOT_START: u32 = FIRST + 0xF6;
@@ -237,7 +236,6 @@ pub const KEYS: &[(&str, u32)] = &[
     ("lobby.bots_5", id::BOTS + 5),
     ("lobby.bots_6", id::BOTS + 6),
     ("lobby.bots_7", id::BOTS + 7),
-    ("lobby.bot_name", id::BOT_NAME),
     ("lobby.bot_start_grid", id::BOT_START),
     ("lobby.bot_start_arcade", id::BOT_START + 1),
     ("lobby.not_ready", id::NOT_READY),
