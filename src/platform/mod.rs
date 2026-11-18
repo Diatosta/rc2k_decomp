@@ -40,7 +40,7 @@ pub mod safe_area;
 pub mod sound;
 pub mod sync;
 pub mod timing;
-#[cfg(target_os = "android")]
+#[cfg(any(target_os = "android", target_os = "ios"))]
 pub mod touch;
 #[cfg(touch_screen)]
 pub mod touch_menu;
@@ -939,7 +939,7 @@ fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(),
         // The race's touch controls.
         #[cfg(touch_screen)]
         if events::driving(o.race) {
-            #[cfg(target_os = "android")]
+            #[cfg(any(target_os = "android", target_os = "ios"))]
             crate::platform::touch::draw(
                 renderer,
                 input_window(screen.window),

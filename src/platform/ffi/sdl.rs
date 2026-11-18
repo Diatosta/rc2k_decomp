@@ -348,7 +348,7 @@ impl Renderer {
     }
 
     /// A rectangle blended over what is drawn (red, green, blue, alpha).
-    #[cfg(target_os = "android")]
+    #[cfg(any(target_os = "android", target_os = "ios"))]
     pub fn fill_blended(self, [r, g, b, a]: [u8; 4], [x, y, w, h]: [f32; 4]) {
         let rect = SDL_FRect { x, y, w, h };
         // SAFETY: the renderer SDL made; a rectangle that lives over the call. The blend mode is
@@ -363,7 +363,7 @@ impl Renderer {
 
     /// SDL's built-in font `text` at `scale` times its size (a text of 8 pixels a letter at 1),
     /// with its top left corner at (x, y), in a colour with alpha.
-    #[cfg(target_os = "android")]
+    #[cfg(any(target_os = "android", target_os = "ios"))]
     pub fn text_blended(self, [r, g, b, a]: [u8; 4], x: f32, y: f32, scale: f32, text: &str) {
         let Ok(text) = std::ffi::CString::new(text.replace('\0', "")) else {
             return;

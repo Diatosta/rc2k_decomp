@@ -245,14 +245,14 @@ impl Joystick {
     }
 
     /// A virtual joystick's axis set (the remote driver's stand-in stick).
-    #[cfg(any(feature = "remote", target_os = "android"))]
+    #[cfg(any(feature = "remote", target_os = "android", target_os = "ios"))]
     pub fn set_virtual_axis(self, axis: i32, value: i16) -> bool {
         // SAFETY: an open joystick; SDL refuses one that is not virtual.
         unsafe { SDL_SetJoystickVirtualAxis(self.0, axis, value) }
     }
 
     /// A virtual joystick's button set.
-    #[cfg(any(feature = "remote", target_os = "android"))]
+    #[cfg(any(feature = "remote", target_os = "android", target_os = "ios"))]
     pub fn set_virtual_button(self, button: i32, down: bool) -> bool {
         // SAFETY: an open joystick; SDL refuses one that is not virtual.
         unsafe { SDL_SetJoystickVirtualButton(self.0, button, down) }
@@ -287,7 +287,7 @@ pub fn attach_virtual_stick(
 
 /// A virtual gamepad in SDL's standard layout (all its axes and buttons), attached as if
 /// plugged in: the touch screen's controls (`platform::touch`). Its id, or none.
-#[cfg(target_os = "android")]
+#[cfg(any(target_os = "android", target_os = "ios"))]
 pub fn attach_virtual_gamepad(
     vendor: u16,
     product: u16,
