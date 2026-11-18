@@ -140,6 +140,8 @@ bots_5 = "robôs: 5"
 bots_6 = "robôs: 6"
 bots_7 = "robôs: 7"
 bot_name = "robô"
+bot_start_grid = "partida: grelha"
+bot_start_arcade = "partida: arcade"
 
 # A página avançada: o que cada linha muda, e quando (no nome, ou "próximo início" ao lado do valor).
 [advanced]

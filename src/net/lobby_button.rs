@@ -26,7 +26,7 @@ pub fn lobby_button(
     let mut flags =
         screens::lobby_button_flags(net.vars.own.state(), item, net.lobby().after_race.get());
     // The computer drivers' switch is the host's, and not for changing while ready.
-    if item == screens::BOTS_ITEM
+    if (item == screens::BOTS_ITEM || item == screens::START_ITEM)
         && (!net.vars.own.state().is_host() || net.vars.own.state().is_ready())
     {
         flags |= screens::DIM;

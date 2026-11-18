@@ -205,7 +205,12 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
         (
             UPPER_ROW_Y,
             screens::UPPER_ROW_FIRST,
-            screens::upper_buttons(replay_kept, crate::net::bots::host_setting(net)).to_vec(),
+            screens::upper_buttons(
+                replay_kept,
+                crate::net::bots::host_setting(net),
+                crate::net::bots::host_arcade_start(net),
+            )
+            .to_vec(),
         ),
     ];
     for (y, first_item, buttons) in rows {

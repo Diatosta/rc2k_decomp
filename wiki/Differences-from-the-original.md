@@ -248,7 +248,7 @@ or IPX connection), and Steam when Valve's library is beside the program (it is 
 - **A player who leaves a race** before finishing has their car taken out of it on every other machine and the others are told ("<name> left the race"); a finished player's car and time stay. The map disc shows the other cars. The loading screen's list of progress lies inside the picture, above the loading bar ([Network play](Network-play)).
 - **`/kick <name>`** in the chat: the host puts a player out.
 - The lobby has a "settings" button and, after a race, "save replay".
-- **Computer drivers in network races**: the host's "bots" button in the lobby adds up to seven computer-driven cars to the race, as the arcade has them ([Network play](Network-play)).
+- **Computer drivers in network races**: the host's "bots" button in the lobby adds up to seven computer-driven cars to the race, as the arcade has them, from the grid or, with the "start" button, spread on the course like the arcade's opponents; they keep driving while a machine is paused ([Network play](Network-play)).
 - A port in use is said so; the failure of any start is written to the log.
 - **Steam invitations**: accepting one (or "Join game" in the friends list) joins that lobby from any menu; during a race or replay it waits for the menus, and in a network game it is ignored.
 - **Command line**: `--host`, `--join`, `--name` and `--port` go straight into the lobby.

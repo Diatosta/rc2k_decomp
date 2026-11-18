@@ -239,6 +239,12 @@ fn state(o: &Owners<'static>, course: &Course) -> String {
     )
 }
 
+/// The cars of the race in progress.
+fn race_cars(race: &Race) -> &[crate::physics::car_store::Car] {
+    let n = (race.shared.view.get().race_cars.get() as usize).min(8);
+    &race.car_blocks().cars[..n]
+}
+
 /// The lobby chat box's text as the player sees it: its lines joined by `|`.
 fn chat_lines(o: &Owners<'static>) -> String {
     let _received = o.net.lock_received();
@@ -385,6 +391,22 @@ fn run(o: &Owners<'static>, line: &str) {
             return;
         }
         ("state", []) => Some(state(o, course)),
+        // Each race car's checkpoint and place (x, z), for the network bots' checks.
+        ("cars", []) => Some(
+            race_cars(o.race)
+                .iter()
+                .enumerate()
+                .map(|(n, car)| {
+                    format!(
+                        "{n}:{}@{},{}",
+                        car.checkpoint.get(),
+                        car.position[0].get() as i32,
+                        car.position[2].get() as i32
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join(" "),
+        ),
         // The lobby chat box's lines, top to bottom, joined by `|` (for the network chat check).
         ("chat", []) => Some(chat_lines(o)),
         // The game's own computer driver at the player's car's wheel (`tools/remote.py pilot`).

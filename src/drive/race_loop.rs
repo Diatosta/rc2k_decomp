@@ -69,7 +69,7 @@ impl PauseBinding {
     }
 }
 
-fn net_player_car(
+pub(crate) fn net_player_car(
     net_race: NetRace,
     shared: &RaceShared,
 ) -> Result<&crate::physics::car_store::Car, BadInput> {
@@ -109,6 +109,33 @@ fn put_answer(race: &Race, net: &crate::net::owner::Net, answer: u32) -> Result<
     Ok(())
 }
 
+/// Whether a network race with the host's computer drivers goes on while this machine is
+/// paused (the quit question up, or the window not active): the other machines' cars and the
+/// bots do not stop, so a machine that stopped stepping would see the bots jump when the host's
+/// next message for them arrived (or, on the host, the others would see them run on alone).
+/// Races without bots stop as before.
+pub(crate) fn net_goes_on_paused(o: crate::owners::Owners<'static>) -> bool {
+    o.net.race_slot.is_on() && o.net.race_slot.bots() != 0
+}
+
+/// One step of a race that goes on while paused (`net_goes_on_paused`): the own car is held
+/// still (full brake and handbrake, `drive::car_input_words`) and the race's step runs, which
+/// sends and receives as usual.
+pub(crate) fn step_while_paused(
+    race: &Race,
+    o: crate::owners::Owners<'static>,
+) -> Result<(), Refused> {
+    if let Some(net_race) = o.net.race_slot.get() {
+        net_player_car(net_race, &race.shared)?.input_keys.set(0);
+    }
+    let held = &crate::drive::car_input_words::HELD;
+    held.store(true, std::sync::atomic::Ordering::Relaxed);
+    let stepped = { crate::drive::race_step::race_step(o, race) };
+    held.store(false, std::sync::atomic::Ordering::Relaxed);
+    stepped?;
+    Ok(())
+}
+
 pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (input, system) = (o.input, o.system);
     let devices = &input.devices;
@@ -143,7 +170,19 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
             .race_clock_base
             .set(race.shared.physics_tables.get().scene_clock.get());
         let paused = loop {
-            if system.session.flags.window_active.get() == 0 {
+            let away = system.session.flags.window_active.get() == 0;
+            if away && net_goes_on_paused(o) {
+                // Not active, but the race goes on for the others: step it without the keys
+                // (the frame is not drawn while the window is not active).
+                step_while_paused(race, o)?;
+                race_frame(race, o)?;
+                if crate::net::left::session_ended() {
+                    return Ok(());
+                }
+                std::thread::sleep(std::time::Duration::from_millis(2));
+                continue;
+            }
+            if away {
                 system.window_loop().paused.set(1);
             }
             if system.window_loop().paused.get() != 0 {

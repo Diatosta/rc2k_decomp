@@ -19,6 +19,19 @@ pub fn host_setting(net: &Net) -> u32 {
         })
 }
 
+/// The host's direction byte (0 when no host is listed).
+fn host_direction(net: &Net) -> u8 {
+    (0..net.race_slot.players())
+        .map(|n| net.vars.player_block_or_end(n))
+        .find(|block| block.record.state().is_host())
+        .map_or(0, |block| block.record.head.get(record::DIRECTION))
+}
+
+/// Whether the host has the bots start spread on the course like the arcade's opponents.
+pub fn host_arcade_start(net: &Net) -> bool {
+    bots::arcade_start(host_direction(net))
+}
+
 /// The host's car kind (0 when no host is listed).
 fn host_kind(net: &Net) -> u32 {
     (0..net.race_slot.players())
@@ -43,6 +56,16 @@ pub fn cycle_own_setting(net: &Net) -> Result<(), Refused> {
     crate::net::list_players::list_players_regs(net)
 }
 
+/// The host presses the way-to-start button: grid, then arcade, published with the record.
+pub fn toggle_own_start(net: &Net) -> Result<(), Refused> {
+    let held = net.vars.own.head.get(record::DIRECTION);
+    net.vars.own.head.set(
+        record::DIRECTION,
+        bots::with_arcade_start(held, !bots::arcade_start(held)),
+    );
+    crate::net::list_players::list_players_regs(net)
+}
+
 /// The kinds the bots drive, as every machine works them out from the host's car.
 pub fn kinds(race: &Race, net: &Net, count: u32) -> Result<Vec<u32>, Refused> {
     let first = host_kind(net);
@@ -57,13 +80,68 @@ pub fn number(race: &Race, k: u32) -> u32 {
 
 /// Gives the race's bots their driver: the computer drives them (as it drives the arcade's
 /// cars) with a pace of their own. Called when the race's cars have been set up.
-pub fn make_drivers(race: &Race, net: &Net) {
+pub fn make_drivers(
+    race: &Race,
+    net: &Net,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let (players, count) = (net.race_slot.players(), net.race_slot.bots());
+    if count != 0 && host_arcade_start(net) {
+        place_like_arcade(race, scene, players, count)?;
+    }
     for k in 0..count {
         let car = &race.car_blocks().cars[(players + k) as usize];
         car.driver_kind.set(2);
         car.start_share.set(bots::pace_share(k));
     }
+    Ok(())
+}
+
+/// Puts the bots where `bots::arcade_places` says, on the line of checkpoints, instead of on
+/// the grid. Every machine works from the players' places on the grid, which are the same.
+fn place_like_arcade(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    players: u32,
+    count: u32,
+) -> Result<(), Refused> {
+    let shared = &race.shared;
+    let checkpoints: Vec<u32> = race.car_blocks().cars[..players as usize]
+        .iter()
+        .map(|car| car.checkpoint.get())
+        .collect();
+    let places = bots::arcade_places(
+        &checkpoints,
+        count,
+        shared.vars.get().checkpoint_count.get(),
+    );
+    let c = crate::physics::step_inputs::StepInputs::of(race).reset();
+    let lights = &scene.lights;
+    for (k, place) in places.into_iter().enumerate() {
+        shared.work.get().current_car.set(players + k as u32);
+        crate::drive::load_car::load_car(shared)?;
+        lights.state.get().line_place.set(place);
+        lights.state.get().line_fraction.set(0);
+        crate::race::start_place::place_car_on_line(shared, &race.course, scene)?;
+        let nearest =
+            crate::race::start_place::nearest_checkpoint(c.physics, c.course, shared, scene)?;
+        let car = shared.car();
+        for cell in [&car.checkpoint, &car.reset_checkpoint, &car.last_pace_call] {
+            cell.set(nearest);
+        }
+        let checks = rc2k_core::race::start::start_checks(
+            crate::race::checkpoints_store::check_count(
+                &shared.buffers.reads.get().checkpoints,
+                nearest as usize,
+            )
+            .get(),
+        );
+        car.splits_passed.set(checks);
+        car.splits_recorded.set(checks);
+        crate::race::car_starts::reset_car_motion(&c, scene)?;
+        crate::drive::store_car::store_car(shared)?;
+    }
+    Ok(())
 }
 
 /// A bot's result of the races so far.

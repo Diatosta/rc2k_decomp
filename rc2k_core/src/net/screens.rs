@@ -251,10 +251,13 @@ pub const SETTINGS_ITEM: u32 = 4;
 pub const SAVE_REPLAY_ITEM: u32 = 5;
 /// The upper row's button of the computer drivers (the host's switch; the others see its state).
 pub const BOTS_ITEM: u32 = 6;
+/// The upper row's button of the way the bots start (the host's switch, beside the bots').
+pub const START_ITEM: u32 = 7;
 
-/// The upper row's buttons right to left: (the string, shown), items 4 to 6: the settings, the
-/// replay's (when it is kept) and the bots' count `bots` (0 = off).
-pub fn upper_buttons(replay_kept: bool, bots: u32) -> [(u32, bool); 3] {
+/// The upper row's buttons right to left: (the string, shown), items 4 to 7: the settings, the
+/// replay's (when it is kept), the bots' count `bots` (0 = off) and the way they start
+/// (`arcade`: spread on the course, else on the grid).
+pub fn upper_buttons(replay_kept: bool, bots: u32, arcade: bool) -> [(u32, bool); 4] {
     [
         (crate::strings::own::id::LOBBY_SETTINGS, true),
         (crate::strings::own::id::SAVE_REPLAY, replay_kept),
@@ -262,6 +265,7 @@ pub fn upper_buttons(replay_kept: bool, bots: u32) -> [(u32, bool); 3] {
             crate::strings::own::id::BOTS + bots.min(crate::net::bots::MOST_SETTING),
             true,
         ),
+        (crate::strings::own::id::BOT_START + u32::from(arcade), true),
     ]
 }
 
@@ -283,7 +287,7 @@ pub fn upper_row_step(item: u32, to_next: bool, replay_kept: bool) -> u32 {
     let mut to = item;
     loop {
         let next = if to_next {
-            (to + 1).min(BOTS_ITEM)
+            (to + 1).min(START_ITEM)
         } else {
             to.saturating_sub(1).max(UPPER_ROW_FIRST)
         };
@@ -428,16 +432,22 @@ mod tests {
         assert_eq!(ping_text(5000), b"999 ms".to_vec());
         assert_eq!(next_button_x(0x310, 0x40), 0x310 - 0x84 - 8);
         assert_eq!(lobby_buttons(1, 0, false)[2], (0x15C, false));
-        assert!(!upper_buttons(false, 0)[1].1 && upper_buttons(true, 0)[1].1);
-        assert!(upper_buttons(false, 0)[0].1);
+        assert!(!upper_buttons(false, 0, false)[1].1 && upper_buttons(true, 0, false)[1].1);
+        assert!(upper_buttons(false, 0, false)[0].1);
         assert_eq!(
-            upper_buttons(false, 3)[2],
+            upper_buttons(false, 3, false)[2],
             (crate::strings::own::id::BOTS + 3, true)
         );
         assert_eq!(
-            upper_buttons(false, 99)[2].0,
+            upper_buttons(false, 99, false)[2].0,
             crate::strings::own::id::BOTS + 7
         );
+        assert_eq!(
+            upper_buttons(false, 3, true)[3],
+            (crate::strings::own::id::BOT_START + 1, true)
+        );
+        assert_eq!(upper_row_step(BOTS_ITEM, true, false), START_ITEM);
+        assert_eq!(upper_row_step(START_ITEM, true, false), START_ITEM);
         assert_eq!(other_row_item(3, true), SETTINGS_ITEM);
         assert_eq!(other_row_item(0, false), 0);
         assert_eq!(other_row_item(5, false), 3);
@@ -445,7 +455,7 @@ mod tests {
         assert_eq!(upper_row_step(4, true, false), BOTS_ITEM);
         assert_eq!(upper_row_step(4, true, true), 5);
         assert_eq!(upper_row_step(5, true, true), BOTS_ITEM);
-        assert_eq!(upper_row_step(BOTS_ITEM, true, true), BOTS_ITEM);
+        assert_eq!(upper_row_step(BOTS_ITEM, true, true), START_ITEM);
         assert_eq!(upper_row_step(BOTS_ITEM, false, false), 4);
         assert_eq!(upper_row_step(5, false, true), 4);
         assert_eq!(upper_row_step(4, false, true), 4);

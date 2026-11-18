@@ -521,7 +521,7 @@ def main():
         sys.exit(0 if press(rest[0], float(rest[1]) if len(rest) > 1 else 5.0) else 1)
     elif command == 'log':
         log(int(rest[0]) if rest else 30)
-    elif command in ('key', 'text', 'down', 'up', 'pad', 'joy', 'state', 'time', 'chat', 'renderer', 'invite'):
+    elif command in ('key', 'text', 'down', 'up', 'pad', 'joy', 'state', 'cars', 'time', 'chat', 'renderer', 'invite'):
         print(ask(' '.join([command] + rest)))
     else:
         sys.exit(__doc__)

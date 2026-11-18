@@ -144,6 +144,9 @@ pub mod id {
     /// (8 ids), and the name a bot is listed by.
     pub const BOTS: u32 = FIRST + 0x78;
     pub const BOT_NAME: u32 = FIRST + 0x80;
+    /// The network lobby's button for the way the bots start: on the grid, then like the
+    /// arcade's opponents (2 ids).
+    pub const BOT_START: u32 = FIRST + 0xF6;
     /// The message shown when a replay could not be saved.
     pub const REPLAY_NOT_SAVED: u32 = FIRST + 0xD9;
     /// The network lobby's ready button while the player is ready: it takes the ready back.
@@ -235,6 +238,8 @@ pub const KEYS: &[(&str, u32)] = &[
     ("lobby.bots_6", id::BOTS + 6),
     ("lobby.bots_7", id::BOTS + 7),
     ("lobby.bot_name", id::BOT_NAME),
+    ("lobby.bot_start_grid", id::BOT_START),
+    ("lobby.bot_start_arcade", id::BOT_START + 1),
     ("lobby.not_ready", id::NOT_READY),
     ("dialog.error", id::DIALOG_ERROR),
     ("dialog.notice", id::DIALOG_NOTICE),

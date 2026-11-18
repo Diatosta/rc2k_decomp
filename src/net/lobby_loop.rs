@@ -256,6 +256,10 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
                         crate::net::bots::cycle_own_setting(net)?;
                         moved = true;
                     }
+                    screens::START_ITEM if net.vars.own.state().is_host() => {
+                        crate::net::bots::toggle_own_start(net)?;
+                        moved = true;
+                    }
                     screens::SAVE_REPLAY_ITEM if net.lobby().replay_kept.get() == 1 => {
                         // The last race's replay into a slot chosen (the viewer's screens).
                         let viewed = crate::race::replay_mode::replay_mode(

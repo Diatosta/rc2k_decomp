@@ -65,6 +65,10 @@ pub fn quit_question(race: &Race, o: crate::owners::Owners<'static>) -> Result<u
         ) {
             Some(answer) => break answer,
             None => {
+                // A network race with bots does not stop for the question.
+                if crate::drive::race_loop::net_goes_on_paused(o) {
+                    crate::drive::race_loop::step_while_paused(race, o)?;
+                }
                 eax = crate::drive::race_frame::race_frame_over(race, o, eax, &|| match &inline {
                     Some(inline) => inline.draw(o),
                     None => answer_hint(o),

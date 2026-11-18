@@ -3,6 +3,8 @@
 //!
 //! The setting (0 = off, 1 ..= 7) is kept in bits 1 ..= 3 of the host's record's direction byte
 //! (bit 0 is the stage's direction), so it reaches every machine with the other lobby settings.
+//! Bit 4 holds the way the bots start: on the grid with the players (clear), or spread on the
+//! course ahead of and behind them as the arcade's opponents are (set, `arcade_places`).
 //! The bots take the car places after the players': with `players` players, bot `k` is car
 //! `players + k`. Every machine drives them with the game's own computer driver, from the same
 //! start; the host's position and extra messages for them (`Message::BotRace`) keep the
@@ -15,6 +17,7 @@ pub const MOST_CARS: u32 = 8;
 
 const SHIFT: u32 = 1;
 const MASK: u8 = 0b1110;
+const ARCADE_BIT: u8 = 0b1_0000;
 
 /// The bots' setting held in a record's direction byte.
 pub fn setting(direction: u8) -> u32 {
@@ -29,7 +32,62 @@ pub fn with_setting(direction: u8, setting: u32) -> u8 {
 /// The direction byte with the stage's direction (its bit 0) changed to `direction`'s and the
 /// bots' setting kept.
 pub fn with_direction(held: u8, direction: u8) -> u8 {
-    (held & MASK) | (direction & 1)
+    (held & !1) | (direction & 1)
+}
+
+/// Whether the bots start spread on the course like the arcade's opponents (bit 4 of the
+/// host's direction byte), not on the grid.
+pub fn arcade_start(direction: u8) -> bool {
+    direction & ARCADE_BIT != 0
+}
+
+/// The direction byte `direction` with the way the bots start set to `arcade`.
+pub fn with_arcade_start(direction: u8, arcade: bool) -> u8 {
+    (direction & !ARCADE_BIT) | if arcade { ARCADE_BIT } else { 0 }
+}
+
+/// Players whose checkpoints lie within this many of the group's lowest share their bots.
+pub const NEAR: u32 = 40;
+/// The checkpoints between one bot and the next, ahead of or behind a group of players.
+pub const SPREAD: u32 = 20;
+
+/// Where each of `bots` bots starts in the arcade way, as a checkpoint, given the checkpoint of
+/// each player and the stage's `checkpoint_count`. The players are grouped: sorted by
+/// checkpoint, a player within `NEAR` of the lowest of the group before joins it, else begins a
+/// new group (at the race's start every player is in one group, since the grid is one place).
+/// The bots are dealt to the groups one after another; within a group they stand alternately
+/// ahead of the group's lowest checkpoint and behind it, `SPREAD` apart, and ahead only where
+/// there is no road behind. No bot goes past the stage's last checkpoints.
+pub fn arcade_places(players: &[u32], bots: u32, checkpoint_count: u32) -> Vec<u32> {
+    let mut sorted = players.to_vec();
+    sorted.sort_unstable();
+    let mut bases: Vec<u32> = Vec::new();
+    for c in sorted {
+        if bases.last().is_none_or(|&b| c - b > NEAR) {
+            bases.push(c);
+        }
+    }
+    if bases.is_empty() {
+        bases.push(0);
+    }
+    let last = checkpoint_count.saturating_sub(2);
+    let mut ahead = vec![0u32; bases.len()];
+    let mut behind = vec![0u32; bases.len()];
+    (0..bots as usize)
+        .map(|k| {
+            let g = k % bases.len();
+            let base = bases[g];
+            let turn = k / bases.len();
+            let back = (behind[g] + 1) * SPREAD;
+            if turn % 2 == 1 && base >= back {
+                behind[g] += 1;
+                base - back
+            } else {
+                ahead[g] += 1;
+                (base + ahead[g] * SPREAD).min(last)
+            }
+        })
+        .collect()
 }
 
 /// The setting after `setting` when the host presses the button: one more, then off again.
@@ -85,6 +143,32 @@ mod tests {
         assert_eq!(with_direction(with_setting(0, 4), 1), with_setting(1, 4));
         assert_eq!(with_direction(with_setting(1, 4), 0), with_setting(0, 4));
         assert_eq!(setting(with_direction(with_setting(0, 6), 1)), 6);
+    }
+
+    #[test]
+    fn the_way_to_start_rides_beside_the_setting() {
+        let d = with_arcade_start(with_setting(1, 5), true);
+        assert!(arcade_start(d));
+        assert_eq!((setting(d), d & 1), (5, 1));
+        assert_eq!(with_direction(d, 0) & 1, 0);
+        assert!(arcade_start(with_direction(d, 0)));
+        assert_eq!(setting(with_arcade_start(d, false)), 5);
+        assert!(!arcade_start(with_arcade_start(d, false)));
+        assert!(!arcade_start(with_setting(0xF, 7) & !ARCADE_BIT));
+    }
+
+    #[test]
+    fn the_arcade_places_follow_the_players() {
+        // Players together at the start: one group, no road behind, all ahead.
+        assert_eq!(arcade_places(&[2, 3], 3, 500), vec![22, 42, 62]);
+        // Players apart: the bots are dealt to each group, behind where there is road.
+        assert_eq!(arcade_places(&[2, 300], 2, 500), vec![22, 320]);
+        assert_eq!(arcade_places(&[100], 2, 500), vec![120, 80]);
+        assert_eq!(arcade_places(&[100, 400], 4, 500), vec![120, 420, 80, 380]);
+        // Near players share; the end of the stage holds the bots.
+        assert_eq!(arcade_places(&[100, 130], 1, 500), vec![120]);
+        assert_eq!(arcade_places(&[490], 2, 500), vec![498, 470]);
+        assert!(arcade_places(&[], 0, 500).is_empty());
     }
 
     #[test]

@@ -150,6 +150,8 @@ bots_5 = "bots: 5"
 bots_6 = "bots: 6"
 bots_7 = "bots: 7"
 bot_name = "bot"
+bot_start_grid = "start: grid"
+bot_start_arcade = "start: arcade"
 
 # The advanced page: what the rows change, and when (in the name, or "next start" beside a value).
 [advanced]

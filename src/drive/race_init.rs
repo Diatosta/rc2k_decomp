@@ -58,7 +58,7 @@ pub fn race_init(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), R
     indented(&mut || {
         { crate::race::race_cars::set_up_cars(race, scene, &o.net.race_slot) }.map(drop)?;
         // A network race's computer drivers (the cars were all set up as players').
-        crate::net::bots::make_drivers(race, o.net);
+        crate::net::bots::make_drivers(race, o.net, scene)?;
         Ok(())
     })?;
     crate::race::load_times::mark("messagesystem_init");

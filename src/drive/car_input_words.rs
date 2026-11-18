@@ -7,6 +7,14 @@
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
+/// Set while a paused machine's race goes on for the others (`drive::race_loop::
+/// step_while_paused`): the own car's words are then full brake and the handbrake, so that it
+/// stays where it was paused.
+pub static HELD: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// The words of a held car: no throttle, the handbrake's key bit, no steering, full brake.
+const HELD_WORDS: [u32; 4] = [0, 4, 0, 0x100];
+
 pub fn car_input_words(
     race: &Race,
     input: &crate::input::owner::Input,
@@ -34,6 +42,20 @@ pub fn car_input_words(
     let words = device_words(readings);
     for (k, v) in words.iter().enumerate() {
         race_owner.shared.physics_tables.get().input_words[k].set(*v);
+    }
+    if HELD.load(std::sync::atomic::Ordering::Relaxed)
+        && net.race_slot.get().is_some_and(|n| n.player == car)
+    {
+        for (word, v) in race_owner
+            .shared
+            .physics_tables
+            .get()
+            .input_words
+            .iter()
+            .zip(HELD_WORDS)
+        {
+            word.set(v);
+        }
     }
     if let Some(net_race) = net.race_slot.get() {
         let block = race_owner

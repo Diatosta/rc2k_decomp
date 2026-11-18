@@ -161,7 +161,7 @@ without separate messages.
 | 2 | 1 | The car's colours. |
 | 3 | 1 | Nationality. |
 | 4 | 1 | Stage. |
-| 5 | 1 | Bit 0: the stage's direction. Bits 1 to 3, in the host's record: the number of computer drivers the host asks for (0 = none; see `0x62`). |
+| 5 | 1 | Bit 0: the stage's direction. Bits 1 to 3, in the host's record: the number of computer drivers the host asks for (0 = none; see `0x62`). Bit 4, in the host's record: the bots start spread on the course like the arcade's opponents (clear: on the grid). The record's layout is unchanged, so the protocol's mark is too; older programs read only bit 0 and would put the bots on the grid. |
 | 6 | 1 | Race number. |
 | 7 | 1 | A random byte. |
 | 8 | 4 | u32: this player's time in the race. |
