@@ -12,11 +12,14 @@ use crate::Invalid;
 use crate::audio::commands::{Setting, Start};
 
 pub const BASE_SAMPLES: u32 = 0x1CD;
-/// The engine sounds' records (numbers below this) that the third and fourth players' cars
-/// have copies of, after the base records: the copy of sound `n` is `BASE_SAMPLES + n`.
+/// The engine sounds' records (numbers below this) that the cars after the first two have copies
+/// of, after the base records: a block of copies for each further pair of cars, the copy of sound
+/// `n` in block `b` being `BASE_SAMPLES + b * PLAYER_COPIES + n`.
 pub const PLAYER_COPIES: u32 = 0xD0;
-/// The sample records: the base ones, then the copies for the third and fourth cars.
-pub const SAMPLES: u32 = BASE_SAMPLES + PLAYER_COPIES;
+/// The blocks of copies: for cars 2 and 3, 4 and 5, 6 and 7.
+pub const COPY_BLOCKS: u32 = 3;
+/// The sample records: the base ones, then the copies for the cars after the first two.
+pub const SAMPLES: u32 = BASE_SAMPLES + COPY_BLOCKS * PLAYER_COPIES;
 pub const VOICES: u32 = 0x200;
 /// The mixer channels that are cleared (`audio::clear_channels`).
 pub const CHANNELS_CLEARED: u32 = 0x10;

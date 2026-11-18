@@ -83,12 +83,17 @@ fn steps(race: &Race) -> Result<(), Refused> {
             }
         }
     }
-    race.car_blocks().cars[0]
-        .option_bits
-        .set(shared.view.get().player_options[0].get());
-    race.car_blocks().cars[1]
-        .option_bits
-        .set(shared.view.get().player_options[1].get());
+    // The split-screen layout shows every player's HUD as the race did, the recording's own bits
+    // (the viewer's other layouts show the first two cars' as the viewer's switches say).
+    let split = head_byte(race, 5) == rc2k_core::race::replay_v2::SPLIT_LAYOUT;
+    if !split {
+        race.car_blocks().cars[0]
+            .option_bits
+            .set(shared.view.get().player_options[0].get());
+        race.car_blocks().cars[1]
+            .option_bits
+            .set(shared.view.get().player_options[1].get());
+    }
     // The head's bytes 2 .. 5 into the view switches.
     for (k, to) in [
         &shared.view.get().view_on[0],
@@ -100,6 +105,11 @@ fn steps(race: &Race) -> Result<(), Refused> {
     .enumerate()
     {
         to.set(head_byte(race, 2 + k));
+    }
+    // Every part of the split screen shows its HUD, as in the race.
+    if split {
+        shared.view.get().view_on[0].set(1);
+        shared.view.get().view_on[1].set(1);
     }
     Ok(())
 }

@@ -33,6 +33,8 @@ use crate::race::work_store::RaceWork;
 #[derive(Clone, Copy)]
 pub struct SoundInputs<'a> {
     pub car: &'a Car,
+    /// The car whose camera the sounds are placed against (`race::heard_cars::listener`).
+    pub listener: &'a Car,
     pub numbers: &'a Numbers,
     pub work: &'a RaceWork,
     pub frame_work: &'a FrameWork,
@@ -236,6 +238,7 @@ impl<'a> StepInputs<'a> {
     pub fn sound(&self, owner: &'a crate::sound::owner::Sound) -> SoundInputs<'a> {
         SoundInputs {
             car: self.car,
+            listener: crate::race::heard_cars::listener(self.shared, self.car),
             numbers: self.numbers,
             work: self.work,
             frame_work: self.frame.frame_work.get(),

@@ -41,6 +41,7 @@ pub fn place(
     matrices: &SceneMatrices,
     heard_turn: &crate::race::heard_turn::HeardTurn,
     car: &Car,
+    listener: &Car,
     into: &[PlainFloat; 3],
     offset: Option<[u32; 3]>,
 ) {
@@ -49,7 +50,7 @@ pub fn place(
     // big difference keeps fewer bits at 24.
     let part = |k: usize| {
         let here = car.position[k].get();
-        let listener = car.camera_position[k].get();
+        let listener = listener.camera_position[k].get();
         match offset {
             Some(o) => offset_part(o[k], here, listener),
             None => car_part(here, listener),
@@ -69,13 +70,14 @@ pub fn place_plain(
     matrices: &SceneMatrices,
     heard_turn: &crate::race::heard_turn::HeardTurn,
     car: &Car,
+    listener: &Car,
     into: &[PlainFloat; 3],
     offset: Option<[u32; 3]>,
 ) {
     let whole = |x: &[PlainDword; 3]| [0, 1, 2].map(|k| x[k].get() as i32);
     let p = rc2k_core::physics::sound_places::place(
         whole(&car.position),
-        whole(&car.camera_position),
+        whole(&listener.camera_position),
         offset.map(|o| o.map(|v| v as i32)),
         &std::array::from_fn(|n| heard_turn.turn(matrices)[n].get()),
         numbers.one_over_65536.get(),
@@ -117,6 +119,7 @@ pub fn cue_plain(
         c.matrices,
         c.heard_turn,
         c.car,
+        c.listener,
         place_cells,
         offset,
     );

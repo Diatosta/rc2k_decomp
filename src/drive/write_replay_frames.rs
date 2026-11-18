@@ -1,7 +1,7 @@
 //! While a replay is written to its file (`replay_open`
 //! 1): `index_frame_count` + 100, the frame's head (`block`) 0, its byte +5 held to 2
-//! ..= 3 (signed) unless `header_one_player` is 1 (in a network race it names this machine's car:
-//! `network_view`), `race::write_replay_block` with `frames_in_block` 100
+//! ..= 3 (signed), or the split-screen layout in a race of three or four players, unless
+//! `header_one_player` is 1 (in a network race it names this machine's car: `network_view`), `race::write_replay_block` with `frames_in_block` 100
 //! round it, and `block_used` the frame's address.
 //!
 //! Refuses what `write_replay_block` refuses.
@@ -43,7 +43,12 @@ pub fn write_replay_frames(
     } else if race.replay_work().header_one_player.get() != 1 {
         // the header's byte 5 (the second dword's second byte)
         let cell = &race.viewer_buffers().block[1];
-        let v = written_view((cell.get() >> 8) as u8 as i8);
+        let v = if race.viewer_buffers().v2.is_set() && race.shared.view.get().views.get() > 2 {
+            // A split-screen race opens its replay split as it was raced.
+            rc2k_core::race::replay_v2::SPLIT_LAYOUT_BYTE as i8
+        } else {
+            written_view((cell.get() >> 8) as u8 as i8)
+        };
         cell.set(cell.get() & !0xFF00 | u32::from(v as u8) << 8);
     }
     { crate::race::replay::write_replay_block(race, system, replay) }?;

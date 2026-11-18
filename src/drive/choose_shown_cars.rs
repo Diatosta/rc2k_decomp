@@ -28,6 +28,7 @@ pub fn choose_at(
     v: &[&dyn DwordLike],
     listed: &[PlainDword],
     players: &[usize],
+    heard_cars: u32,
 ) -> Result<(), Refused> {
     let mut player_cars = [0u32; 8];
     for (to, &car) in player_cars.iter_mut().zip(players) {
@@ -41,6 +42,7 @@ pub fn choose_at(
         layout: get(v, 5),
         network: get(v, 7),
         local_car: get(v, 8),
+        heard_cars,
     };
     let split = get(v, 6);
     let mut shown = ShownCars {
@@ -87,20 +89,24 @@ fn game<'a>(race: &'a Race, network: &'a PlainDword) -> Vec<&'a dyn DwordLike> {
 pub fn choose_shown_cars_in(race: &Race, net: &crate::net::owner::Net) -> Result<(), Refused> {
     let network = PlainDword::new(u32::from(net.race_slot.is_on()));
     // A replay of the own format names players in its layouts (`rc2k_core::race::replay_v2`).
-    let players = if race.viewer_buffers().v2.is_set() {
-        race.replay
-            .v2()
-            .lock()
-            .ext
-            .as_ref()
-            .map(rc2k_core::race::replay_v2::Extension::player_cars)
-            .unwrap_or_default()
+    let (players, heard) = if race.viewer_buffers().v2.is_set() {
+        let v2 = race.replay.v2().lock();
+        let ext = v2.ext.as_ref();
+        (
+            ext.map(rc2k_core::race::replay_v2::Extension::player_cars)
+                .unwrap_or_default(),
+            // Only while the sound objects are set up for every car.
+            ext.and_then(rc2k_core::race::replay_v2::Extension::heard_kinds)
+                .filter(|_| crate::race::heard_cars::is_on())
+                .map_or(0, |kinds| kinds.len() as u32),
+        )
     } else {
-        Vec::new()
+        (Vec::new(), 0)
     };
     choose_at(
         &game(race, &network),
         &race.frame.frame_work.get().listed_car_sounds,
         &players,
+        heard,
     )
 }

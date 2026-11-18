@@ -48,6 +48,7 @@ pub mod frame_view;
 pub mod frame_views;
 pub mod game_map;
 pub mod groups_store;
+pub mod heard_cars;
 pub mod heard_turn;
 pub mod init_overlay;
 pub mod init_pace_notes;

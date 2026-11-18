@@ -40,6 +40,17 @@ fn settings(race: &Race) -> [(&dyn DwordLike, &crate::memory::session::PlainDwor
     ]
 }
 
+/// The car models of the viewed replay when it has more than two cars (and so every car is
+/// heard), as `rc2k_core::race::replay_v2::Extension::heard_cars` says.
+pub fn every_car_kinds(race: &Race) -> Option<Vec<u32>> {
+    race.replay
+        .v2()
+        .lock()
+        .ext
+        .as_ref()
+        .and_then(rc2k_core::race::replay_v2::Extension::heard_kinds)
+}
+
 pub fn viewer_load_stage(race: &'static Race, o: Owners<'static>) -> Result<(), Refused> {
     let (gfx, sound, scene) = (o.gfx, o.sound, o.scene);
     let shared = &race.shared;
@@ -80,10 +91,13 @@ pub fn viewer_load_stage(race: &'static Race, o: Owners<'static>) -> Result<(), 
         // objects serve both of the first two cars, as a two-player race's.
         let both_cars = race.replay_work().header_one_player.get() == 1
             && race.replay_work().header_cars.get() >= 2;
+        // A replay of more than two cars (the own format's) is heard with every car.
+        let every_car = every_car_kinds(race);
         sound_tables::set_up_viewer_race_sound_objects(
             o,
             &sound_tables::ObjectVars::of(sound),
             both_cars,
+            every_car.as_deref(),
         )?;
         crate::sound::set_up_race_sounds::set_up_race_sounds(o)?;
         if gfx.fonts.font_block.palettes.get() == 0 {

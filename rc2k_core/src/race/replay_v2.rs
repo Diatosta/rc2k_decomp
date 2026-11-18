@@ -478,13 +478,12 @@ const TAG_CARS: [u8; 4] = *b"CARS";
 const TAG_BLKS: [u8; 4] = *b"BLKS";
 const TAG_NEXT: [u8; 4] = *b"NEXT";
 
-/// What the sound for more than two cars and a split-screen replay will need, in words: kept in
-/// the file as the `NEXT` section so that a reader sees it. Every car's engine, gear and speed
+/// What the sound for more than two cars and the split-screen replay use, in words: kept in the
+/// file as the `NEXT` section so that a reader sees it. Every car's engine, gear and speed
 /// words are in its state (`STATE_AT`) at each step for a car recorded by states, and in the
 /// state at each second's start with its inputs for the others: sound for each is derived the
-/// same way. A split screen needs the viewer's choice of the cars shown (the head byte of a
-/// block, `layout_player`) to name more than one car at a time.
-const NEXT_TEXT: &[u8] = b"sound: every car's gear, engine revs and speeds are in STATE_AT; split screen: more than one player per layout";
+/// same way. The split screen is the layout `SPLIT_LAYOUT` of the head byte of a block.
+const NEXT_TEXT: &[u8] = b"sound: every car's gear, engine revs and speeds are in STATE_AT; split screen: layout 10 shows every local player";
 
 fn put_section(out: &mut Vec<u8>, tag: [u8; 4], body: &[u8]) {
     out.extend(tag);
@@ -573,6 +572,32 @@ impl Extension {
             .collect()
     }
 
+    /// The cars' models when every car of the replay is heard (each with a sound object of its
+    /// own): a replay of more than two cars that the original's format could not hold (three or
+    /// four players, or cars of other machines). A replay the original's format holds sounds as
+    /// the original's does.
+    pub fn heard_kinds(&self) -> Option<Vec<u32>> {
+        (self.cars.len() > 2 && !self.old_format_holds())
+            .then(|| self.cars.iter().map(|c| c.kind).collect())
+    }
+
+    /// How many players a split-screen replay shows at once (each in a part of the screen as in
+    /// the race): the players of a local split-screen race of three or four, else none. Cars
+    /// recorded by their states (another machine's) are not shown together.
+    pub fn split_players(&self) -> u32 {
+        let players = self.player_cars();
+        let local = players
+            .iter()
+            .all(|&n| !self.cars[n].is_recorded_by_states());
+        // The views show the cars of the same numbers, as in the race: the players come first.
+        let first = players.iter().enumerate().all(|(k, &n)| k == n);
+        if (3..=4).contains(&players.len()) && local && first {
+            players.len() as u32
+        } else {
+            0
+        }
+    }
+
     /// Whether the original's format can hold the race: at most two players, none of them
     /// elsewhere, and no car recorded by its states.
     pub fn old_format_holds(&self) -> bool {
@@ -585,14 +610,18 @@ impl Extension {
     }
 
     /// The layout after `old` in the cycle the viewer's car item goes through: each player alone
-    /// (`layout_of_player`) and, from two players on, the first two together (2 side by side,
-    /// 3 one above the other); never a computer car. Wraps to the first.
+    /// (`layout_of_player`), from two players on the first two together (2 side by side, 3 one
+    /// above the other), and after the single players, for a local split-screen race, all the
+    /// players as the race showed them (`SPLIT_LAYOUT`); never a computer car. Wraps to the first.
     pub fn next_layout(&self, old: u8) -> u8 {
         let players = self.player_cars().len() as u32;
+        let split = self.split_players() != 0;
         let valid = |l: u32| {
-            (0..players).any(|k| layout_of_player(k) == l) || (players >= 2 && (l == 2 || l == 3))
+            (0..players).any(|k| layout_of_player(k) == l)
+                || (players >= 2 && (l == 2 || l == 3))
+                || (split && l == SPLIT_LAYOUT)
         };
-        (u32::from(old) + 1..=9)
+        (u32::from(old) + 1..=SPLIT_LAYOUT)
             .chain(0..=u32::from(old))
             .find(|&l| valid(l))
             .map_or(0, |l| l as u8)
@@ -610,6 +639,12 @@ impl Extension {
         self.player_cars().get(player).copied()
     }
 }
+
+/// The head byte (layout) that shows every player of a local split-screen race at once, each in
+/// the part of the screen the race gave it.
+pub const SPLIT_LAYOUT: u32 = 10;
+/// `SPLIT_LAYOUT` as the head byte.
+pub const SPLIT_LAYOUT_BYTE: u8 = SPLIT_LAYOUT as u8;
 
 /// The head byte (layout) that shows player `k` alone: 0 and 1 the first two players, then 4 on
 /// (the same numbers as the extra tape's replays use for the third and fourth car).
@@ -995,6 +1030,38 @@ mod tests {
         );
         assert_eq!(ext.layout_player(2), None);
         assert!(!ext.old_format_holds() || ext.player_cars().len() <= 2);
+    }
+
+    #[test]
+    fn a_local_split_screen_race_has_a_layout_that_shows_every_player() {
+        let local = |players: usize, computers: usize| Extension {
+            cars: (0..players)
+                .map(|n| entry(n as u32, flag::PLAYER | flag::LOCAL, "p"))
+                .chain((0..computers).map(|n| entry(n as u32, flag::COMPUTER | flag::LOCAL, "c")))
+                .collect(),
+        };
+        let four = local(4, 2);
+        assert_eq!(four.split_players(), 4);
+        assert_eq!(local(3, 0).split_players(), 3);
+        // Two players, or players on other machines, have no such layout.
+        assert_eq!(local(2, 3).split_players(), 0);
+        let mut net = local(3, 1);
+        net.cars[1].flags = flag::PLAYER | flag::STATES;
+        assert_eq!(net.split_players(), 0);
+        let mut l = 0u8;
+        let mut seen = vec![l];
+        for _ in 0..8 {
+            l = four.next_layout(l);
+            seen.push(l);
+        }
+        assert_eq!(seen, [0, 1, 2, 3, 4, 5, 10, 0, 1]);
+        assert_eq!(four.next_layout(5), SPLIT_LAYOUT as u8);
+        // Every car of a replay of more than two that the original's format cannot hold is
+        // heard; one it holds sounds as before.
+        assert_eq!(four.heard_kinds().map(|k| k.len()), Some(6));
+        assert_eq!(local(2, 3).heard_kinds(), None);
+        assert!(net.heard_kinds().is_some());
+        assert_eq!(local(2, 0).heard_kinds(), None);
     }
 
     /// A block of `len` bytes with runs and noise in it, as a block's are.

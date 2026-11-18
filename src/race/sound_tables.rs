@@ -182,28 +182,32 @@ pub fn set_up_race_sound_objects(
     o: crate::owners::Owners<'static>,
     v: &ObjectVars<'_>,
 ) -> Result<(), Refused> {
-    set_up_objects(o, v, false)
+    set_up_objects(o, v, false, None)
 }
 
 /// `set_up_race_sound_objects` for the replay viewer: with `both_cars` (a replay with two cars or
 /// more that the header calls a one-player race, as a network race's is) the first two cars have
 /// the sound objects of a two-player race, so the second car can be heard when it is the one
-/// shown.
+/// shown. With `every_car` (the car models of a replay of more than two cars) each car has a
+/// player's sound object, so that every car is heard.
 pub fn set_up_viewer_race_sound_objects(
     o: crate::owners::Owners<'static>,
     v: &ObjectVars<'_>,
     both_cars: bool,
+    every_car: Option<&[u32]>,
 ) -> Result<(), Refused> {
-    set_up_objects(o, v, both_cars)
+    set_up_objects(o, v, both_cars, every_car)
 }
 
 fn set_up_objects(
     o: crate::owners::Owners<'static>,
     v: &ObjectVars<'_>,
     both_cars: bool,
+    every_car: Option<&[u32]>,
 ) -> Result<(), Refused> {
     let (race, sound, system) = (o.race, o.sound, o.system);
     let shared = &race.shared;
+    crate::race::heard_cars::set(every_car.is_some());
     {
         let net_race = o.net.race_slot.get();
         if net_race.is_some_and(|n| n.player > 7) {
@@ -220,12 +224,19 @@ fn set_up_objects(
         };
         sound.threads.shared.one_player.set(players);
         // The split screen's third and fourth cars have objects of their own, as the first two.
-        let heard = if both_cars {
+        let heard = if let Some(kinds) = every_car {
+            kinds.len().clamp(2, v.objects.len()) as u32
+        } else if both_cars {
             2
         } else {
             heard_players(shared.state.settings.race_mode.get())
         };
-        let (count, arcade) = sound_objects(heard, shared.state.settings.run_kind.get());
+        let (count, arcade) = if every_car.is_some() {
+            // Every car has its own object, none shares the computers' two voices.
+            (heard, false)
+        } else {
+            sound_objects(heard, shared.state.settings.run_kind.get())
+        };
         if arcade {
             sound.race.sounds.get().mark_car_voices.set(1);
         }
@@ -268,11 +279,18 @@ fn set_up_objects(
         for k in 2..heard as usize {
             let extra = crate::sound::store::SoundObject::of(sound, k as u32)?;
             extra.sound_offset.set(k as u32);
-            extra.kind.set(shared.state.car_kind(k).get());
-            extra
-                .cue_queue
-                .first
-                .set(shared.state.car(k).codriver_sex.get());
+            if let Some(kinds) = every_car {
+                // The replay's cars past the first two have no settings of their own: their
+                // models are the file's, their co-driver is not heard.
+                extra.kind.set(kinds[k]);
+                extra.cue_queue.first.set(0);
+            } else {
+                extra.kind.set(shared.state.car_kind(k).get());
+                extra
+                    .cue_queue
+                    .first
+                    .set(shared.state.car(k).codriver_sex.get());
+            }
         }
         for o in v.objects {
             set_up_object(o);

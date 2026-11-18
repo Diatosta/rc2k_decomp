@@ -23,6 +23,9 @@ pub struct ShownSetup {
     pub player_cars: [u32; 8],
     /// How many of `player_cars` are set (0: the player is the car).
     pub player_count: u32,
+    /// The cars whose sounds are all heard (each listed by its own number), the first so many: a
+    /// replay of more than two cars; 0 for the original's choice.
+    pub heard_cars: u32,
 }
 
 /// What it sets.
@@ -39,6 +42,8 @@ pub struct ShownCars {
     /// Each car's view (-1: not shown).
     pub listed: [u32; 8],
 }
+
+pub use crate::race::replay_v2::SPLIT_LAYOUT;
 
 /// A car block's size.
 pub const BLOCK: u32 = 0xFE0;
@@ -58,20 +63,23 @@ impl ShownCars {
         if self.views != 1 {
             self.cars[1] = 1;
         }
+        // The car of player `p`.
+        let car = |p: u32| {
+            if s.player_count == 0 {
+                p
+            } else {
+                s.player_cars
+                    .get(p as usize)
+                    .filter(|_| p < s.player_count)
+                    .copied()
+                    .unwrap_or(p)
+            }
+        };
+        let split_replay = s.replay_mode == 2 && s.layout == SPLIT_LAYOUT && s.player_count >= 3;
         if s.replay_mode == 2 {
-            // The car of player `p`.
-            let car = |p: u32| {
-                if s.player_count == 0 {
-                    p
-                } else {
-                    s.player_cars
-                        .get(p as usize)
-                        .filter(|_| p < s.player_count)
-                        .copied()
-                        .unwrap_or(p)
-                }
-            };
             let (views, first, second, split) = match s.layout {
+                // A local split-screen race's players, each in its part: as in the race.
+                SPLIT_LAYOUT if split_replay => (s.player_count.min(4), car(0), Some(car(1)), 0),
                 1 => (1, car(1), None, 0),
                 2 => (2, car(0), Some(car(1)), 1),
                 3 => (2, car(0), Some(car(1)), 2),
@@ -100,10 +108,14 @@ impl ShownCars {
         if self.views != 1 && !network {
             self.listed[self.cars[1] as usize] = 1;
         }
-        if s.replay_mode != 2 && !network {
+        if (s.replay_mode != 2 || split_replay) && !network {
             for view in 2..self.views {
-                self.listed[view as usize] = view;
+                self.listed[car(view) as usize] = view;
             }
+        }
+        // Every car of a replay of more than two is heard: each is its own sound object's.
+        for car in 0..s.heard_cars.min(8) {
+            self.listed[car as usize] = car;
         }
         Ok(if network { s.local_car } else { self.blocks[1] })
     }
@@ -194,6 +206,26 @@ mod tests {
                 assert_eq!(c.cars[1], cars[1]);
             }
         }
+        // A local split-screen race's replay in its layout: a view for each player, each car heard.
+        let split = ShownSetup {
+            players: 4,
+            replay_mode: 2,
+            layout: SPLIT_LAYOUT,
+            player_cars: [0, 1, 2, 3, 0, 0, 0, 0],
+            player_count: 4,
+            heard_cars: 6,
+            ..Default::default()
+        };
+        c.choose(&split, 0).unwrap();
+        assert_eq!((c.cars, c.views, c.split), ([0, 1], 4, 0));
+        assert_eq!(c.listed[..7].to_vec(), vec![0, 1, 2, 3, 4, 5, u32::MAX]);
+        // The layout names nothing with fewer than three players.
+        let two = ShownSetup {
+            player_count: 2,
+            ..split
+        };
+        c.choose(&two, 0).unwrap();
+        assert_eq!(c.views, 1);
         let bad = ShownSetup {
             local_car: 8,
             ..network

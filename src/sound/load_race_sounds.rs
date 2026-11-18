@@ -11,7 +11,8 @@
 //! else the first car's kind set (`SoundSets.kinds[0]`), `first_set_a[0]`, `first_set_b[0]` and
 //! `first_set_c[0]`; unless `RaceSounds.one_player` is 1 the second car's kind set
 //! (`SoundSets.kinds[1]`), `second_set_a[0]` and `second_set_b[0]`; and `last_set[0]` unless
-//! `RaceSounds.one_player` is `RaceSounds.count`. With a split screen of three or four players the
+//! `RaceSounds.one_player` is `RaceSounds.count`. A replay of more than two cars also loads each
+//! car's own engine sounds, as the split screen's further cars have. With a split screen of three or four players the
 //! third and fourth cars' copies of their kinds' revs, throttle and speed sounds follow, each as
 //! a command of its own. The commands also carry the loop's leftover
 //! values in their unused words; they are reproduced because the sound hash of a held race records
@@ -151,6 +152,23 @@ pub fn load_race_sounds(
             let record = sound.race.kinds.get().record(kind as u32)?;
             for set in [&record.revs, &record.throttle, &record.speed] {
                 send(SoundList::One(player_sound(car, set.sound.get())));
+            }
+        }
+    }
+    // A replay of more than two cars is heard with every car: each car's own copies of the engine,
+    // throttle and speed sounds of its model (the replay's set holds none), for the first two
+    // cars the model's own pair.
+    if replay
+        && crate::race::heard_cars::is_on()
+        && let Some(kinds) = crate::race::viewer_load_stage::every_car_kinds(race)
+    {
+        for (car, &model) in kinds.iter().enumerate().take(OBJECTS as usize) {
+            if model >= KINDS {
+                return Err(BadInput("a car's kind past the table of sound sets"));
+            }
+            let record = sound.race.kinds.get().record(model)?;
+            for set in [&record.revs, &record.throttle, &record.speed] {
+                send(SoundList::One(player_sound(car as u32, set.sound.get())));
             }
         }
     }

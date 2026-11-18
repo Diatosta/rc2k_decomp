@@ -107,8 +107,10 @@ Each car has a **sound object** holding its engine state and the sounds it is ma
 player's car uses the full set of sounds for its model; the other cars use a smaller shared
 set.
 The engine sounds come in pairs of sample records, the first player's and the second's; the
-third and fourth players of a three or four player split screen have copies of the records
-(numbers after the game's own) so that each car's engine has a voice of its own.
+cars after the first two (the third and fourth players of a three or four player split screen, and the cars
+of a replay of more than two cars) have copies of the records (numbers after the game's own, a block of copies for
+each further pair of cars) so that each car's engine has a voice of its own. A replay of more than two cars
+that the original's format could not hold is heard with every car, from the followed car in one view.
 
 ### Placing a sound
 

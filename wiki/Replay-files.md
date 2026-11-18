@@ -289,7 +289,8 @@ camera for car 0 and car 1 during this second; bytes 2 .. 5 are view switches. A
 leaves them 0 (byte 5 is 2 or 3 in a two-player race, and in a network race 0 or 1: the car of
 the machine that recorded it); the viewer's camera editing fills them in when a replay is saved.
 Byte 5 is the layout: 0 the first car alone, 1 the second alone, 2 and 3 both cars (side by side, or
-one above the other); in a replay with the extra tape also 4 the third car alone and 5 the fourth.
+one above the other); in a replay with the extra tape also 4 the third car alone and 5 the fourth. In the own
+format the layouts name players (see "The own format"), and 10 shows every player of a local split-screen race at once.
 Bytes 6 and 7 choose the camera of the third and the fourth car, as bytes 0 and 1 do for the first
 two; they are 0 in every other replay. Old files read as before.
 
@@ -409,7 +410,7 @@ sections. The sections of this version:
 | --- | --- | --- |
 | `CARS` | `4 + 0x30` a car | A u32 count (up to 8), then for each car: u32 car model, u32 flags, `0x20` bytes of the driver's name (zero padded), then `0x10` reserved zero bytes. The flags: 1 a human player's car, 2 a computer car, 4 driven on the machine that recorded (its inputs and its driver's state are in the file), 8 not driven there: its motion is recorded at each step, 16 the car of the machine that recorded. |
 | `BLKS` | 24 | u32s: the block's size when unpacked, the cars whose state the original's part of a block holds (4), the steps in a block (100), a mask of the cars recorded by their motion, the room the motion has in a block (`42000`), the blocks the index holds (5400). A reader checks them and refuses a file made for another layout. |
-| `NEXT` | text | A note for later versions (see "What is still to do"). |
+| `NEXT` | text | A note for readers: what the sound and the split-screen layout use (see "Sound and the split screen"). |
 
 **A block** is, in order: the original's block with the extra tape (cars 0 .. 3: state at the second's start,
 the loose parts, the computer driver's state, the inputs of cars 0 .. 3 for the hundred steps); then the tail:
@@ -441,13 +442,21 @@ file and "old" when it has only the original's (a replay copied in by hand); a s
 file. A replay of the original's format that is viewed and saved is saved as it was (in the original's format
 alone).
 
-### What is still to do
+### Sound and the split screen
 
-Sound for more than two cars in a replay and a split-screen replay are not done here. They need: for sound,
-each car's gear, engine revs and speeds, which are in the car's recorded state (the motion above for the cars
-recorded by it; for the others, derived from their physics as it plays); for a split screen, a layout byte that
-names more than one view of different players at a time and the replay's cars drawn through the views the way
-the race's are (today the layouts show one player, or the first two together).
+A replay of the own format that the original's format could not hold, with more than two cars (three or four
+players, or cars of other machines), is heard with **every car**: each has a sound object of its own, with its
+model's engine, throttle and speed sounds in a voice of its own (the sample records for cars 2 to 7 are copies of
+the model's, one block of copies for each pair of cars), its tyres, gear changes and knocks. Each car's gear,
+engine revs and speeds come from its recorded state (the motion above for the cars recorded by it; the others
+derive them from their physics as it plays). Watched in one view, the sounds are placed from the followed car, so
+the cars far from it are quiet; in the split screen each car is heard from its own camera, as in the race. A replay
+of one or two cars, or of the original's format, sounds as it always did.
+
+The head byte `5` of a block also has the layout **10**: every player of a local split-screen race of three or
+four, each in the part of the screen and with the HUD the race gave it. The viewer's car item offers it after the
+single players, for such a replay only; the layouts of two players (2 and 3, side by side or one above the other)
+and of each player alone stay. The cameras of the parts are the ones the replay's camera bytes name for each car.
 
 ## Compatibility
 

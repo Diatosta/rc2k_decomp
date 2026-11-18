@@ -228,6 +228,11 @@ Everything is on [Controllers](Controllers) and [Input](Input); in short:
 - The viewer's **car item** goes through the **players** only (a race's human players, also those on other
   machines), never a computer car; the computer's cars are still drawn and drive in the replay. It also
   works for a network race's replay and for races of more than four players.
+- A replay of **more than two cars** (three or four players on one machine, or a network race with other players
+  and bots) is **heard with every car**: each car's engine, tyres, gear changes and knocks, the nearest loudest
+  (heard from the followed car in one view). One- and two-player replays sound as before.
+- A replay of a **three- or four-player split-screen race** can be watched **split as it was raced**: after the
+  single players the viewer's car item offers "all", each player in the race's part of the screen with its HUD.
 - A **network race records a replay** like a single race; the lobby then offers "save replay". A replay that
   cannot be saved or read shows a notice instead of ending the game.
 - Old replays are read as they are, and replays saved here play in the same way on every system.

@@ -24,10 +24,11 @@ pub fn place_car_sound(
     let so = crate::sound::store::current_object(sound, shared.work.get());
     so.slot_b.start.set(1);
     let d = |a: &PlainDword, b: &PlainDword| ints_diff_80(a.get() as i32, b.get() as i32);
+    let listener = crate::race::heard_cars::listener(shared, shared.car());
     let p = [
-        d(&shared.car().position[0], &shared.car().camera_position[0]),
-        d(&shared.car().position[1], &shared.car().camera_position[1]),
-        d(&shared.car().position[2], &shared.car().camera_position[2]),
+        d(&shared.car().position[0], &listener.camera_position[0]),
+        d(&shared.car().position[1], &listener.camera_position[1]),
+        d(&shared.car().position[2], &listener.camera_position[2]),
     ];
     let out = rotate_point(shared.heard_turn.get().turn(matrices), p);
     let k = numbers.one_over_65536.get();

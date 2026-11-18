@@ -26,6 +26,7 @@ pub fn place_sound_e1(c: &SoundInputs<'_>) -> Result<(), Refused> {
         c.matrices,
         c.heard_turn,
         c.car,
+        c.listener,
         &o.hit_place,
         None,
     );

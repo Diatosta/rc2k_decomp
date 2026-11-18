@@ -199,7 +199,7 @@ impl AudioShared {
     }
 }
 
-use rc2k_core::audio::voices::{BASE_SAMPLES, SAMPLES};
+use rc2k_core::audio::voices::{BASE_SAMPLES, PLAYER_COPIES, SAMPLES};
 
 const BASE_COUNT: usize = BASE_SAMPLES as usize;
 const SAMPLE_COUNT: usize = SAMPLES as usize;
@@ -320,8 +320,12 @@ const fn first_records() -> [SampleRecord; SAMPLE_COUNT] {
     let mut out = [base[0]; SAMPLE_COUNT];
     let mut n = 0;
     while n < SAMPLE_COUNT {
-        // The copies for the third and fourth cars repeat the records of the engine sounds.
-        let mut record = base[if n < BASE_COUNT { n } else { n - BASE_COUNT }];
+        // The copies for the cars after the first two repeat the records of the engine sounds.
+        let mut record = base[if n < BASE_COUNT {
+            n
+        } else {
+            (n - BASE_COUNT) % PLAYER_COPIES as usize
+        }];
         record.number = n as u32;
         out[n] = record;
         n += 1;

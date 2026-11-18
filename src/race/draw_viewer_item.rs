@@ -36,7 +36,13 @@ pub fn draw_viewer_item(
             let n = camera_byte(race, replay, switch_byte(item.count.get()) as usize)?;
             panel.switch_picture(0, n)?
         }
-        ViewerPicture::Switch(1) => panel.switch_picture(1, camera_byte(race, replay, 5)?)?,
+        ViewerPicture::Switch(1) => {
+            let layout = camera_byte(race, replay, 5)?;
+            panel.switch_picture(
+                1,
+                rc2k_core::race::viewer::layout_picture(layout.min(0xFF) as u8),
+            )?
+        }
         ViewerPicture::Switch(_) => panel.switch_picture(2, camera_byte(race, replay, 4)?)?,
     };
     let bytes =
