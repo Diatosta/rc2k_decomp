@@ -7,7 +7,7 @@
 use crate::input::menu_pad::MenuAction;
 use crate::owners::Owners;
 use crate::platform::ffi::sdl;
-use rc2k_core::input::menu_touch::{Gesture, Gestures, Phase, Screen};
+use rc2k_core::input::menu_touch::{Gesture, Gestures, Phase, Screen, frame_point};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
 
@@ -127,23 +127,13 @@ fn tap(o: &Owners<'static>, window: sdl::Window, x: f32, y: f32) {
         press(o, MenuAction::Enter);
         return;
     }
-    // The one mapping from the window to the frame (`platform::safe_area`).
-    let frame = crate::platform::SCREEN.lock().ok().and_then(|screen| {
-        screen
-            .as_ref()
-            .map(|s| ((s.width as u32, s.height as u32), s.menu))
-    });
+    let frame = crate::platform::SCREEN
+        .lock()
+        .ok()
+        .and_then(|screen| screen.as_ref().map(|s| (s.width as u32, s.height as u32)));
     let point = frame
         .zip(window.pixel_size())
-        .and_then(|((frame, menu), size)| {
-            crate::platform::safe_area::window_to_frame(
-                (f64::from(x), f64::from(y)),
-                frame,
-                size,
-                menu,
-            )
-            .map(|(fx, fy)| (fx as f32, fy as f32))
-        });
+        .and_then(|(frame, size)| frame_point((x, y), frame, size));
     if let Some(point) = point {
         *INSTALLER_TAP
             .lock()
