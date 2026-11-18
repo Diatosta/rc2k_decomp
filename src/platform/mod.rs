@@ -25,6 +25,8 @@
 // Not FFI: `PoolBytes::slice` (the frame's pixels, read in place) is a memory primitive.
 #![allow(unsafe_code)]
 
+#[cfg(target_os = "android")]
+pub mod android;
 pub mod arch;
 pub mod direct3d;
 pub mod events;

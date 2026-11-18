@@ -70,7 +70,7 @@ pub fn decide(
 /// The `--renderer` value among the program's words, if any (a missing value is refused at
 /// the start, `standalone::answer_command_line`).
 fn switch_value() -> Option<String> {
-    let args: Vec<String> = std::env::args().skip(1).collect();
+    let args: Vec<String> = crate::platform::os::program_args()[1..].to_vec();
     rc2k_core::system::program_switches::Switches::from_args(&args)
         .ok()?
         .renderer

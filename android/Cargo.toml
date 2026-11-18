@@ -1,0 +1,17 @@
+# The Android build's shared library (`libmain.so`): SDL's activity loads it and calls
+# `SDL_main`. Built by `tools/android/build.sh`; on other systems it is an empty library.
+[package]
+name = "rc2k_android"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lib]
+name = "main"
+crate-type = ["cdylib", "rlib"]
+
+[target.'cfg(target_os = "android")'.dependencies]
+rc2k_decomp = { path = ".." }
+
+[lints]
+workspace = true

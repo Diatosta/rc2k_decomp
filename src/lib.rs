@@ -48,5 +48,7 @@ mod test_support;
 mod text;
 mod threading;
 mod video;
+#[cfg(target_os = "android")]
+pub use platform::android;
 #[cfg(target_os = "emscripten")]
 pub use platform::web;

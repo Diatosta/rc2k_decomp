@@ -32,7 +32,7 @@ pub fn offer(invite: Invite) {
 fn note_launch_argument() {
     static ONCE: std::sync::Once = std::sync::Once::new();
     ONCE.call_once(|| {
-        if let Some(lobby) = crate::net::steam::connect_lobby_argument(std::env::args()) {
+        if let Some(lobby) = crate::net::steam::connect_lobby_argument(crate::platform::os::program_args()) {
             offer(Invite {
                 provider: crate::net::steam::PROVIDER,
                 instance: Some(crate::net::steam::lobby_instance(lobby)),

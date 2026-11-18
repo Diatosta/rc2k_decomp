@@ -57,12 +57,21 @@ pub fn local_time() -> rc2k_core::system::time::LocalTime {
     }
 }
 
+/// The words the program was started with, its own name first. Android passes none the way
+/// other systems do: `platform::android` keeps the ones its launcher reads.
+pub fn program_args() -> Vec<String> {
+    #[cfg(target_os = "android")]
+    return crate::platform::android::args();
+    #[cfg(not(target_os = "android"))]
+    std::env::args().collect()
+}
+
 /// The program's command line as one text (Windows-1252, no NUL): the arguments joined by
 /// spaces, each with a space or a tab in it (or empty) quoted, as a shell's line reads.
 pub fn command_line() -> Vec<u8> {
-    let words: Vec<String> = std::env::args_os()
+    let words: Vec<String> = program_args()
+        .into_iter()
         .map(|a| {
-            let a = a.to_string_lossy().into_owned();
             if a.is_empty() || a.contains([' ', '\t']) {
                 format!("\"{a}\"")
             } else {

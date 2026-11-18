@@ -716,7 +716,7 @@ pub fn run(log_file: &Path, frames: u32) -> ! {
     let bundle_folder = crate::platform::os::enter_bundle_folder();
     // Absolute: the installer changes the current folder (`install::make_folders`).
     let switches = rc2k_core::system::program_switches::Switches::from_args(
-        &std::env::args().skip(1).collect::<Vec<_>>(),
+        &crate::platform::os::program_args()[1..],
     )
     .unwrap_or_default();
     if let Err(why) = crate::video::begin(&switches) {
