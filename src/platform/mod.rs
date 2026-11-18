@@ -900,7 +900,7 @@ fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(),
         drop(view);
         // The race's touch controls.
         #[cfg(touch_screen)]
-        if events::driving(o.race) {
+        if events::touch_controls_live(o.race) {
             #[cfg(target_os = "android")]
             crate::platform::touch::draw(
                 renderer,

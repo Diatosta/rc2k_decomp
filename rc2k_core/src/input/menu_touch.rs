@@ -129,7 +129,7 @@ const TAP_MS: u64 = 450;
 
 /// The second tap of a double tap comes within this after the first lifted, and within
 /// `DOUBLE_REACH` (of the screen's short side) of it. A single tap acts after this wait.
-pub const DOUBLE_MS: u64 = 300;
+pub const DOUBLE_MS: u64 = 200;
 const DOUBLE_REACH: f32 = 0.08;
 
 impl Default for Gestures {

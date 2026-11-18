@@ -52,8 +52,9 @@ unsafe impl Send for Renderer {}
 unsafe impl Send for Texture {}
 
 impl Window {
-    /// The part of the window the system leaves free of notches, rounded corners and bars
-    /// (x, y, width, height, in pixels); the whole window where SDL has none to say.
+    /// The part of the window clear of the screen's notch, rounded corners and home indicator, as
+    /// (x, y, width, height) in the window's pixels (SDL gives it in points, which on a
+    /// high-density screen are fewer than the pixels); None where SDL has none to say.
     #[cfg(touch_screen)]
     pub fn safe_area(self) -> Option<[f32; 4]> {
         let mut rect = SDL_Rect {
@@ -64,11 +65,18 @@ impl Window {
         };
         // SAFETY: the window SDL made; SDL writes the one rectangle.
         let known = unsafe { SDL_GetWindowSafeArea(self.0, &raw mut rect) };
-        (known && rect.w > 0 && rect.h > 0).then_some([
-            rect.x as f32,
-            rect.y as f32,
-            rect.w as f32,
-            rect.h as f32,
+        if !known || rect.w <= 0 || rect.h <= 0 {
+            return None;
+        }
+        let ((pixels_wide, pixels_high), (points_wide, points_high)) =
+            (self.pixel_size()?, self.point_size()?);
+        let across = pixels_wide as f32 / points_wide as f32;
+        let down = pixels_high as f32 / points_high as f32;
+        Some([
+            rect.x as f32 * across,
+            rect.y as f32 * down,
+            rect.w as f32 * across,
+            rect.h as f32 * down,
         ])
     }
 
@@ -173,6 +181,16 @@ impl Window {
         let (mut width, mut height) = (0, 0);
         // SAFETY: as `restore_if_minimised`; SDL writes the two integers.
         let known = unsafe { SDL_GetWindowSizeInPixels(self.0, &raw mut width, &raw mut height) };
+        (known && width > 0 && height > 0).then_some((width as u32, height as u32))
+    }
+
+    /// The window's size in points (its own coordinates; on a high-density screen smaller than
+    /// its pixels), if SDL knows it.
+    #[cfg(touch_screen)]
+    pub fn point_size(self) -> Option<(u32, u32)> {
+        let (mut width, mut height) = (0, 0);
+        // SAFETY: as `restore_if_minimised`; SDL writes the two integers.
+        let known = unsafe { SDL_GetWindowSize(self.0, &raw mut width, &raw mut height) };
         (known && width > 0 && height > 0).then_some((width as u32, height as u32))
     }
 

@@ -133,7 +133,8 @@ pub fn update(driving: bool, now: u64) {
     let Some((_, pad)) = st.pad else {
         return;
     };
-    let level = |held: bool| if held { i16::MAX } else { 0 };
+    // A virtual gamepad's trigger rests at the axis's minimum (0 is half pressed).
+    let level = |held: bool| if held { i16::MAX } else { i16::MIN };
     if out.steer != st.sent.steer {
         pad.set_virtual_axis(
             SDL_GAMEPAD_AXIS_LEFTX.0,
