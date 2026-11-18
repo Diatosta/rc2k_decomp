@@ -1,9 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- The iOS app's property list (`build.sh ios`): `Rally Championship.app`, its program `rc2k`,
-     the game's folder the app's Documents folder, shown in the Files app and to file sharing
-     (`platform::os::enter_documents`). The icons are loose PNGs (`tools/ios/icons/`, the project's `assets/icon.png` scaled, opaque: iOS rounds the corners), the
-     launch screen a plain colour (`UILaunchScreen`). The bundle identifier is replaced by the one
-     the signing tool gives (a free Apple ID needs one of its own). -->
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>

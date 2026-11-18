@@ -29,7 +29,7 @@ blurred background filling the sides.
 A start logs "platform: the window is ... points, ... pixels, its safe area ..." and the renderer
 line (`SDL's gpu` and "3D on a GPU backend" on Metal) in the log in the Documents folder.
 The home-screen name is "Rally Championship" (iOS cuts a long label with an ellipsis; the owner accepts that) and the
-name is also in `tools/ios/en.lproj/InfoPlist.strings`, which iOS prefers for the label, so it keeps its space (the owner saw "RallyChampionship" once; xtool's installer, read on GitHub, rewrites only the bundle identifier). The
+name is also in `tools/ios/en.lproj/InfoPlist.strings`, which iOS prefers for the label, so it keeps its space (the owner saw "RallyChampionship"; xtool's installer, read in its source, rewrites only the bundle identifier and derives no name, and the property list now has no leading comment, whatever a strict parser does with one). The
 icons are `assets/icon.png` scaled into `tools/ios/icons/`.
 
 **Re-install (owner):** `./build.sh ios`, then `tools/ios/install.sh`. The saved game stays (the
@@ -101,7 +101,9 @@ repository's toolchain). Swift 6.3 or newer from swift.org (xtool needs it).
 8. **The game's data**: Files app, On My iPhone, Rally Championship (the app's Documents):
    copy the game's folder (or a zip of it) in; or from Linux
    `idevicepair`/`ifuse --documents io.github.diatosta.rc2k ~/mnt` (package `ifuse`) and
-   copy there. Start the app again.
+   copy there. Start the app again. The Files app lists an app's folder only once it holds
+   something, so the app, when it finds no game, writes `Put the game here.txt` into its Documents
+   folder and shows a message: open the app once, then look in Files (On My iPhone).
 
 ## The free signing's limits
 

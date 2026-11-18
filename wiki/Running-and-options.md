@@ -271,7 +271,7 @@ layout is entered and the installer runs on it; a zip is first unpacked into
 `rally-championship-source` in the user's data folder (`$XDG_DATA_HOME`, `%LOCALAPPDATA%`,
 else `~/.local/share`) and then treated as a folder. The game's folder may be one level inside
 what was picked. Zips over 4 GB (zip64), encrypted ones and a name that would leave the unpacking
-folder are not read. The web build has its own page in the browser.
+folder are not read. On iOS there is no page: the app writes `Put the game here.txt` into its Documents folder (so the Files app lists Rally Championship under On My iPhone) and a message box says to copy the game's folder or a zip there and start again. The web build has its own page in the browser.
 
 **Two copies in one folder.** The first copy holds a lock on `rc2k.lock` in the game's folder
 while it runs (the system lets it go when the program ends, even if it crashes); a copy that

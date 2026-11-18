@@ -159,6 +159,8 @@ pub fn find_game_data(given: Option<&str>) {
     }
     let mut wish = given.map(str::to_string);
     #[cfg(target_os = "ios")]
+    leave_note();
+    #[cfg(target_os = "ios")]
     if wish.is_none() {
         wish = Some(ios_wish());
     }
@@ -221,23 +223,38 @@ fn ios_wish() -> String {
 }
 
 /// iOS: says where the game's data goes (a message box: the page's file dialogs do not exist
-/// here), then the program ends.
+/// here), then the program ends. The technical reason (`_reason`) is only in the log.
 #[cfg(target_os = "ios")]
-fn page(message: &str) -> Option<String> {
+fn page(_reason: &str) -> Option<String> {
     use sdl3_sys::everything::SDL_MESSAGEBOX_ERROR;
     if crate::platform::ffi::sdl::init_video() {
-        let text = format!(
-            "{message}\n\nCopy the game's folder (installed, or the download / CD files), or a \
-             zip of it, into Rally Championship in the Files app (On My iPhone) or through file \
-             sharing from a computer, then start the app again."
-        );
         crate::platform::ffi::sdl::show_message_box(
             SDL_MESSAGEBOX_ERROR,
             c"Rally Championship",
-            &std::ffi::CString::new(text.replace('\0', "")).unwrap_or_default(),
+            c"No game files were found.\n\n\
+              1. Open the Files app, then On My iPhone, then Rally Championship.\n\
+              2. Copy the game's folder, or a zip of it, into that folder.\n\
+              3. Start this app again.\n\n\
+              If the folder is not listed, open this app once more and look again.",
         );
     }
     None
+}
+
+/// iOS: a small note in the Documents folder (the current one), so the Files app lists the
+/// app's folder (it shows only folders that hold something) and says what goes in it. The
+/// game's own files are never touched, and a note already there is left alone.
+#[cfg(target_os = "ios")]
+fn leave_note() {
+    let note = Path::new("Put the game here.txt");
+    if note.exists() {
+        return;
+    }
+    let text = "Copy the game's folder (or a zip of it) into this folder, then start \
+                Rally Championship again.\n";
+    if let Err(e) = std::fs::write(note, text) {
+        eprintln!("rc2k: the note in the Documents folder: {e}");
+    }
 }
 
 /// The page: where the game's data is. The path picked, dropped or None when it is closed.
