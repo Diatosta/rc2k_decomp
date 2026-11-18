@@ -363,29 +363,33 @@ struct LastFan {
     area: Area,
 }
 
-/// The pixels a batch can touch, by column and row, both ends in: a rectangle around them.
+/// Where a batch can touch the target, in the game's coordinates: a rectangle around its
+/// triangles, both ends in. It is kept as the continuous extent, not rounded to whole game
+/// pixels: a target finer than the game's grid (a window larger than the game's screen) has
+/// pixel centres between the game's whole places, so two triangles with no whole place in
+/// common can still share target pixels.
 #[derive(Clone, Copy, PartialEq, Debug)]
 struct Area {
-    left: i32,
-    top: i32,
-    right: i32,
-    bottom: i32,
+    left: f32,
+    top: f32,
+    right: f32,
+    bottom: f32,
 }
 
 impl Area {
     const EVERYWHERE: Area = Area {
-        left: i32::MIN,
-        top: i32::MIN,
-        right: i32::MAX,
-        bottom: i32::MAX,
+        left: f32::NEG_INFINITY,
+        top: f32::NEG_INFINITY,
+        right: f32::INFINITY,
+        bottom: f32::INFINITY,
     };
 
-    /// Around `vertices`. The shaders put a game place `x` at `x + 0.5` on the target, where
-    /// pixel `x`'s centre is: a triangle touches the pixels whose centres it holds, so the
-    /// columns from its least x up to its most (rows the same). The margin covers the GPU's
-    /// rounding to its sub-pixel grid (a sixteenth at the coarsest Vulkan allows).
+    /// Around `vertices`: a triangle touches the target's pixels whose centres it holds, so
+    /// nothing outside its least and most x and y (the margin on each side covers the GPU's
+    /// rounding of the corners to its sub-pixel grid, a sixteenth of a pixel at the coarsest
+    /// Vulkan allows, in pixels of a target smaller than the game's screen too).
     fn around(vertices: &[Vertex]) -> Area {
-        const MARGIN: f32 = 0.125;
+        const MARGIN: f32 = 0.25;
         let (mut left, mut top) = (f32::INFINITY, f32::INFINITY);
         let (mut right, mut bottom) = (f32::NEG_INFINITY, f32::NEG_INFINITY);
         for v in vertices {
@@ -396,12 +400,11 @@ impl Area {
             (left, right) = (left.min(x), right.max(x));
             (top, bottom) = (top.min(y), bottom.max(y));
         }
-        // `as` saturates: a place far off the target stays far off.
         Area {
-            left: (left - MARGIN).ceil() as i32,
-            top: (top - MARGIN).ceil() as i32,
-            right: (right + MARGIN).floor() as i32,
-            bottom: (bottom + MARGIN).floor() as i32,
+            left: left - MARGIN,
+            top: top - MARGIN,
+            right: right + MARGIN,
+            bottom: bottom + MARGIN,
         }
     }
 
@@ -1216,6 +1219,26 @@ mod tests {
         );
         assert_eq!(marks(&b), [vec![1, 3], vec![2]]);
         assert_eq!(b.vertices.len(), 9);
+    }
+
+    #[test]
+    fn triangles_sharing_only_places_between_whole_ones_keep_their_order() {
+        let plain = [0; STATES];
+        let mut blended = plain;
+        blended[0x1B] = 1;
+        // The blended triangle and the last one both cover x from 10.3 to 10.6, where no whole
+        // place lies: a target finer than the game's grid has pixel centres there.
+        let b = Batches::of(
+            &list([
+                triangle(0.0, 10.0, 1, plain),
+                triangle(10.3, 30.0, 2, blended),
+                triangle(9.0, 10.6, 3, plain),
+            ]),
+            640,
+            480,
+            None,
+        );
+        assert_eq!(marks(&b), [vec![1], vec![2], vec![3]]);
     }
 
     #[test]
