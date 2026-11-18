@@ -52,6 +52,26 @@ unsafe impl Send for Renderer {}
 unsafe impl Send for Texture {}
 
 impl Window {
+    /// The part of the window the system leaves free of notches, rounded corners and bars
+    /// (x, y, width, height, in pixels); the whole window where SDL has none to say.
+    #[cfg(touch_screen)]
+    pub fn safe_area(self) -> Option<[f32; 4]> {
+        let mut rect = SDL_Rect {
+            x: 0,
+            y: 0,
+            w: 0,
+            h: 0,
+        };
+        // SAFETY: the window SDL made; SDL writes the one rectangle.
+        let known = unsafe { SDL_GetWindowSafeArea(self.0, &raw mut rect) };
+        (known && rect.w > 0 && rect.h > 0).then_some([
+            rect.x as f32,
+            rect.y as f32,
+            rect.w as f32,
+            rect.h as f32,
+        ])
+    }
+
     /// The window restored when it is minimised.
     pub fn restore_if_minimised(self) {
         // SAFETY: the window SDL made, still alive (the screen holds it).
@@ -324,6 +344,41 @@ impl Renderer {
         unsafe {
             SDL_SetRenderDrawColor(self.0, r, g, b, 255);
             SDL_RenderFillRect(self.0, &raw const rect);
+        }
+    }
+
+    /// A rectangle blended over what is drawn (red, green, blue, alpha).
+    #[cfg(touch_screen)]
+    pub fn fill_blended(self, [r, g, b, a]: [u8; 4], [x, y, w, h]: [f32; 4]) {
+        let rect = SDL_FRect { x, y, w, h };
+        // SAFETY: the renderer SDL made; a rectangle that lives over the call. The blend mode is
+        // put back so that the frame's own drawing after this stays opaque.
+        unsafe {
+            SDL_SetRenderDrawBlendMode(self.0, SDL_BLENDMODE_BLEND);
+            SDL_SetRenderDrawColor(self.0, r, g, b, a);
+            SDL_RenderFillRect(self.0, &raw const rect);
+            SDL_SetRenderDrawBlendMode(self.0, SDL_BLENDMODE_NONE);
+        }
+    }
+
+    /// SDL's built-in font `text` at `scale` times its size (a text of 8 pixels a letter at 1),
+    /// with its top left corner at (x, y), in a colour with alpha.
+    #[cfg(touch_screen)]
+    pub fn text_blended(self, [r, g, b, a]: [u8; 4], x: f32, y: f32, scale: f32, text: &str) {
+        let Ok(text) = std::ffi::CString::new(text.replace('\0', "")) else {
+            return;
+        };
+        // SAFETY: the renderer SDL made; a NUL-ended text read during the call; the scale is
+        // put back to what it was.
+        unsafe {
+            let (mut sx, mut sy) = (1.0, 1.0);
+            SDL_GetRenderScale(self.0, &raw mut sx, &raw mut sy);
+            SDL_SetRenderScale(self.0, scale, scale);
+            SDL_SetRenderDrawBlendMode(self.0, SDL_BLENDMODE_BLEND);
+            SDL_SetRenderDrawColor(self.0, r, g, b, a);
+            SDL_RenderDebugText(self.0, x / scale, y / scale, text.as_ptr());
+            SDL_SetRenderDrawBlendMode(self.0, SDL_BLENDMODE_NONE);
+            SDL_SetRenderScale(self.0, sx, sy);
         }
     }
 
@@ -764,6 +819,22 @@ impl PolledEvent {
         // SAFETY: the type says the `button` record is the one SDL filled.
         let button = unsafe { self.0.button };
         Some((button.x, button.y))
+    }
+
+    /// A finger's change on the touch screen: its id, what it did and where, as a part of the
+    /// window (0 .. 1 across and down).
+    #[cfg(touch_screen)]
+    pub fn finger(&self) -> Option<(u64, rc2k_core::input::menu_touch::Phase, f32, f32)> {
+        use rc2k_core::input::menu_touch::Phase;
+        let phase = match self.kind() {
+            SDL_EVENT_FINGER_DOWN => Phase::Down,
+            SDL_EVENT_FINGER_MOTION => Phase::Move,
+            SDL_EVENT_FINGER_UP | SDL_EVENT_FINGER_CANCELED => Phase::Up,
+            _ => return None,
+        };
+        // SAFETY: the type says the `tfinger` record is the one SDL filled.
+        let finger = unsafe { self.0.tfinger };
+        Some((finger.fingerID.0, phase, finger.x, finger.y))
     }
 
     #[cfg_attr(

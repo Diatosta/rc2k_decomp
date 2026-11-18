@@ -40,6 +40,8 @@ pub mod safe_area;
 pub mod sound;
 pub mod sync;
 pub mod timing;
+#[cfg(touch_screen)]
+pub mod touch_menu;
 #[cfg(target_os = "emscripten")]
 pub mod web;
 pub mod window_mode;
@@ -932,6 +934,11 @@ fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(),
         };
         show_fitted(renderer, texture, shown, screen);
         drop(view);
+        // The Back chip of the menus, for a touch screen.
+        #[cfg(touch_screen)]
+        if !events::driving(o.race) {
+            crate::platform::touch_menu::draw_back_chip(renderer, input_window(screen.window));
+        }
         // The debug UI over the frame.
         crate::debug::imgui_sdl::draw(o, renderer, screen.window);
         #[cfg(feature = "remote")]

@@ -21,6 +21,14 @@ fn main() {
         println!("cargo:rustc-cfg=debug_ui");
     }
     println!("cargo:rerun-if-changed=build.rs");
+    // A touch screen as the player's pointer: the menus take taps and drags (`platform::touch_menu`).
+    // The phones and tablets; `RC2K_TOUCH_BUILD=1` builds it for any other system (a touch
+    // laptop, trying it out).
+    println!("cargo:rustc-check-cfg=cfg(touch_screen)");
+    println!("cargo:rerun-if-env-changed=RC2K_TOUCH_BUILD");
+    if matches!(os.as_str(), "android" | "ios") || std::env::var_os("RC2K_TOUCH_BUILD").is_some() {
+        println!("cargo:rustc-cfg=touch_screen");
+    }
     // Network play through Steam: the desktop systems (not the handheld, which has no Steam, nor
     // the web). Valve's library is not linked; the program loads it while it runs when it is
     // there.
