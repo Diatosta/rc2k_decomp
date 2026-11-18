@@ -11,7 +11,13 @@ use rc2k_core::hud::quads::marker_x;
 const RECT: u32 = 0x5C;
 
 pub fn draw_marker(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
-    hud.block.quad.colour.set(hud.block.marker_colours[0].get());
+    // A part of a split screen: the part's player's own colour.
+    let own =
+        crate::hud::part_scope::icon().map_or(0, |n| n.min(hud.block.marker_colours.len() - 1));
+    hud.block
+        .quad
+        .colour
+        .set(hud.block.marker_colours[own].get());
     {
         let f = f32::from_bits;
         let x = marker_x(
@@ -26,17 +32,31 @@ pub fn draw_marker(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
 }
 
 /// The other cars of a network race on the stage bar, each its own colour (the marker colours
-/// after the first), the own car's marker is drawn after them. Nothing outside a network race.
+/// after the first), the own car's marker is drawn after them; in a split screen of three or four
+/// each part's bar shows the other players, each in their own colour. Nothing in other races.
 pub fn draw_other_markers(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
     let panel = &frame.panel_and_overlay.get().panel;
-    let count = panel.network_cars.get().min(8) as usize;
+    let split = panel.split_players.get().min(4) as usize;
+    let count = if split > 0 {
+        split
+    } else {
+        panel.network_cars.get().min(8) as usize
+    };
     if count == 0 {
         return Ok(());
     }
-    let own = panel.network_own.get() as usize;
+    let own = if split > 0 {
+        crate::hud::part_scope::icon().unwrap_or(0)
+    } else {
+        panel.network_own.get() as usize
+    };
     let f = f32::from_bits;
     for n in (0..count).filter(|&n| n != own) {
-        let colour = 1 + (n % (hud.block.marker_colours.len() - 1));
+        let colour = if split > 0 {
+            n
+        } else {
+            1 + (n % (hud.block.marker_colours.len() - 1))
+        };
         hud.block
             .quad
             .colour

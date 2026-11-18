@@ -74,7 +74,9 @@ pub fn layout_0_on(frame: &Frame, hud: &Hud, pen: Pen, map: u32) -> Result<(), R
     }
     hud.block.texture.set(texture::SPRITES);
     if flags & 0x10 != 0 {
-        draw_map_cars::draw_map_cars(frame, hud, pen)?;
+        // A part of a split screen draws the markers of its own view's disc.
+        let slot = crate::hud::part_scope::icon().map_or(0, |n| n.min(3));
+        draw_map_cars::draw_map_cars(frame, hud, pen, slot, false)?;
         sprite(frame, hud, pen, 0x5F, 0x282, 0x1B8)?;
     }
     if flags & 0x40 != 0 {

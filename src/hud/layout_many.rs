@@ -185,8 +185,8 @@ fn set_lights(l: &crate::race::panel_store::Lights, v: [u32; 4]) {
 }
 
 /// The HUD of `views` players on their layout's parts: each part gets the one-player HUD, laid out
-/// by the part's own shape. The players after the second have no map picture of their own, and
-/// the map of the first goes when the overview map has its picture.
+/// by the part's own shape. Each player's map disc has a texture of its own, and the map of the
+/// first goes when the overview map has its picture.
 pub fn layout_many(frame: &Frame, hud: &Hud, pen: Pen, views: u32) -> Result<(), Refused> {
     let panel = &frame.panel_and_overlay.get().panel;
     let screen = pen.system.session.screen.get();
@@ -228,19 +228,19 @@ pub fn layout_many(frame: &Frame, hud: &Hud, pen: Pen, views: u32) -> Result<(),
         };
         let n = player as usize;
         crate::race::frame_draw::copy_view(&panel.parts[n], &panel.view_a);
-        // The first two players' maps move with their cars, the others have none.
-        let (map, motion) = match n {
-            0 => (texture::DIAL_FIRST, Some(live_motion[0])),
-            1 => (texture::DIAL_SECOND, Some(live_motion[1])),
-            _ => (texture::DIAL_FIRST, None),
-        };
-        for (cell, value) in panel.view_a.motion.iter().zip(motion.unwrap_or_default()) {
-            cell.set(value);
+        // Every player's map moves with the player's car and has a texture of its own.
+        let map = [
+            texture::DIAL_FIRST,
+            texture::DIAL_SECOND,
+            texture::DIAL_THIRD,
+            texture::DIAL_FOURTH,
+        ][n];
+        if n < 2 {
+            for (cell, value) in panel.view_a.motion.iter().zip(live_motion[n]) {
+                cell.set(value);
+            }
         }
         let mut flags = panel.hud_flags[n].get();
-        if motion.is_none() {
-            flags &= !0x10;
-        }
         if n > 1 {
             // The signs come from the first two views' marks.
             flags &= !0x80;

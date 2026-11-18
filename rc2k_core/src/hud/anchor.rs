@@ -255,6 +255,22 @@ pub fn bar_x(x: f32, width: u32, height: u32) -> f32 {
     (from + (x - low) / (high - low) * (to - from)) as f32
 }
 
+/// A layout y on a part narrower than 4:3 `width` x `height`, the layout across the part's width at
+/// one factor (width over 800): a piece whose middle `mid` lies in the layout's top third keeps to
+/// the part's top, one in the bottom third to its bottom, the others to the middle.
+pub fn narrow_y(y: f32, mid: f32, width: u32, height: u32) -> f32 {
+    let s = f64::from(width) / f64::from(VIRTUAL_WIDTH);
+    let (y, mid) = (f64::from(y), f64::from(mid));
+    let third = f64::from(VIRTUAL_HEIGHT) / 3.0;
+    (if mid < third {
+        y * s
+    } else if mid > 2.0 * third {
+        f64::from(height) - (f64::from(VIRTUAL_HEIGHT) - y) * s
+    } else {
+        f64::from(height) / 2.0 + (y - f64::from(VIRTUAL_HEIGHT) / 2.0) * s
+    }) as f32
+}
+
 /// The width of each player's layout when two players are side by side (the 800-wide layout
 /// holds both, the first in its left half).
 pub const PART_WIDTH: f32 = VIRTUAL_WIDTH / 2.0;
@@ -353,6 +369,15 @@ pub fn across(length: u32, width: u32, height: u32) -> Option<u32> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_narrow_part_keeps_the_layouts_shape() {
+        // A 400 x 800 part: one factor of 0.5 down as across.
+        assert_eq!(narrow_y(20.0, 20.0, 400, 800), 10.0);
+        assert_eq!(narrow_y(600.0, 560.0, 400, 800), 800.0);
+        assert_eq!(narrow_y(500.0, 540.0, 400, 800), 800.0 - 50.0);
+        assert_eq!(narrow_y(300.0, 300.0, 400, 800), 400.0);
+    }
 
     #[test]
     fn narrow_screens_stretch_as_before() {

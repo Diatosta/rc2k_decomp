@@ -332,6 +332,8 @@ pub fn pixel_kind(texture: u32) -> u32 {
                 | 0xCA
                 | 0x257
                 | crate::scene::texture_levels::TYRE_TITLE_TEXTURE
+                | 0x3F1
+                | 0x3F2
         );
     if three { 3 } else { 2 }
 }

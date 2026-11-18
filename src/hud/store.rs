@@ -97,6 +97,10 @@ pub mod texture {
     pub const DIAL_FIRST: u32 = 0xC6;
     /// The second player's dial disc.
     pub const DIAL_SECOND: u32 = 0xC7;
+    /// The third player's dial disc (a split screen of three or four).
+    pub const DIAL_THIRD: u32 = rc2k_core::scene::texture_levels::FURTHER_MAP_TEXTURES[0];
+    /// The fourth player's dial disc.
+    pub const DIAL_FOURTH: u32 = rc2k_core::scene::texture_levels::FURTHER_MAP_TEXTURES[1];
     /// The icons.
     pub const ICONS: u32 = 0xDC;
 }

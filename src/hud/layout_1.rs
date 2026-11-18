@@ -65,6 +65,7 @@ pub fn layout_1(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
     }
     hud.block.texture.set(texture::SPRITES);
     if f1 & 0x10 != 0 {
+        dials::map_cars(frame, hud, pen, &dials::DISC_1A, 0)?;
         scaled(frame, hud, pen, 0x5F, 0x116, 0x1DE)?;
     }
     let p = needle_sign(hud, panel.start_values[1].get());
@@ -73,6 +74,7 @@ pub fn layout_1(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
     }
     hud.block.texture.set(texture::SPRITES);
     if f2 & 0x10 != 0 {
+        dials::map_cars(frame, hud, pen, &dials::DISC_1B, 1)?;
         scaled(frame, hud, pen, 0x5F, 0x2A7, 0x1DE)?;
     }
     if f1 & 0x40 != 0 {

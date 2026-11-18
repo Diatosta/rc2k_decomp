@@ -380,6 +380,66 @@ fn network_disc_cars(race: &Race) {
     panel.disc_cars.set(shown);
 }
 
+/// The players a split screen of three or four shows on every part's stage bar.
+fn panel_split_players(race: &Race, players: usize) {
+    let shown = if players > 2 { players.min(4) } else { 0 };
+    race.frame
+        .panel_and_overlay
+        .get()
+        .panel
+        .split_players
+        .set(shown as u32);
+}
+
+/// A split screen's other players as the map discs show them: for each view, the players' cars
+/// other than the view's own with where each lies on the map from the view's car, in map pixels.
+/// Computer cars are not shown. With one player the discs keep what `network_disc_cars` made (the
+/// first) or show nothing (the others).
+fn split_disc_cars(race: &Race) -> Result<(), BadInput> {
+    let panel = &race.frame.panel_and_overlay.get().panel;
+    let view = race.shared.view.get();
+    let players = (view.players.get() as usize).min(4);
+    if players < 2 {
+        for cars in &panel.disc_cars_more {
+            cars.set(0);
+        }
+        return Ok(());
+    }
+    let at = |car: usize| {
+        let car = race.shared.race_car(car).ok()?;
+        crate::race::map_scroll::map_position(race, car).ok()
+    };
+    let enough = race.shared.vars.get().checkpoint_count.get() >= 2;
+    let cars = (0..players)
+        .map(|p| view.view_number(p))
+        .collect::<Result<Vec<_>, _>>()?;
+    for slot in 0..4 {
+        let (shown_cell, offsets) = if slot == 0 {
+            (&panel.disc_cars, &panel.disc_offsets)
+        } else {
+            (
+                &panel.disc_cars_more[slot - 1],
+                &panel.disc_offsets_more[slot - 1],
+            )
+        };
+        let mut shown = 0u32;
+        if let Some(own) = cars.get(slot)
+            && let Some(from) = enough.then(|| at(*own)).flatten()
+        {
+            for &n in cars.iter().filter(|&n| n != own && *n < offsets.len()) {
+                let Some(place) = at(n) else { continue };
+                for k in 0..2 {
+                    let away = place[k].wrapping_sub(from[k]) as i32;
+                    offsets[n][k].set(away as f32 / 65536.0);
+                }
+                shown |= 1 << n;
+            }
+        }
+        shown_cell.set(shown);
+    }
+    Ok(())
+}
+
 /// The first `count` cars' distances shown into `car_distances`.
 fn car_distances(
     race: &Race,
@@ -434,9 +494,11 @@ pub fn panel_values_plain(race: &Race) -> Result<(), BadInput> {
         }
         panel_half(race, race.shared.view.get().view_number(0)?, true)?;
         panel_half(race, race.shared.view.get().view_number(1)?, false)?;
+        split_disc_cars(race)?;
         // A split screen of more than two players shows each player's progress on its own part's
         // bar (`hud::layout_many`), from the same distances the network markers use.
         let players = race.shared.view.get().players.get() as usize;
+        panel_split_players(race, players);
         if players > 2 {
             let (unit, miles) = (
                 race.course.numbers.get().k65536.get(),
@@ -600,6 +662,17 @@ pub fn panel_motion_plain(race: &Race) -> Result<(), BadInput> {
             out[0].set(motion(car.map_picture_place[0].get() as i32, half, small).to_bits());
             out[1].set(motion(car.map_picture_place[1].get() as i32, half, small).to_bits());
             let turn = heading_turn(race.frame.cars.car(b)?.car_heading.get());
+            out[2].set(heading(turn as i32, half, big).to_bits());
+        }
+        // A split screen of three or four: the further players' maps move with their cars too.
+        let panel = &race.frame.panel_and_overlay.get().panel;
+        let players = race.shared.view.get().players.get() as usize;
+        for (n, part) in panel.parts.iter().enumerate().take(players.min(4)).skip(2) {
+            let car = &race.car_blocks().cars[race.shared.view.get().view_number(n)?];
+            let out = &part.motion;
+            out[0].set(motion(car.map_picture_place[0].get() as i32, half, small).to_bits());
+            out[1].set(motion(car.map_picture_place[1].get() as i32, half, small).to_bits());
+            let turn = heading_turn(race.frame.cars.car(n)?.car_heading.get());
             out[2].set(heading(turn as i32, half, big).to_bits());
         }
     }

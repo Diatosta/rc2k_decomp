@@ -98,6 +98,48 @@ pub fn scroll_map(
     gfx: &crate::gfx::owner::Gfx,
     net_race: &rc2k_core::net::net_race::NetRaceSlot,
 ) -> Result<(), Refused> {
+    scroll_map_with(race, car, || {
+        map_tiles(race, car, car_number, scene, gfx, net_race)
+    })
+}
+
+/// Draws the map picture of the further player `n` (2 or 3) into the player's own texture and
+/// makes the texture load again.
+fn further_map_tiles(
+    race: &Race,
+    car: &Car,
+    n: usize,
+    scene: &crate::scene::owner::Scene,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<(), Refused> {
+    use rc2k_core::race::map::first_tile;
+    let kind = rc2k_core::scene::texture_levels::FURTHER_MAP_TEXTURES[n - 2] as usize;
+    let kinds = scene.textures.kinds.get();
+    let texture = kinds.kind_first_textures[kind].get();
+    if texture == u32::MAX {
+        return Err(BadInput("a further player's map texture was not made").into());
+    }
+    crate::race::blit_map_tiles::blit_map_tiles(
+        &race.frame,
+        &race.course.stage.game_map,
+        texture,
+        first_tile(car.map_corner[0].get()),
+        first_tile(car.map_corner[1].get()),
+        gfx,
+    )?;
+    crate::scene::forget_slot_texture::forget_slot_texture(
+        kinds.kind_first_slots[kind].get(),
+        scene,
+    )
+}
+
+/// `scroll_map` with the picture's redraw (`redraw`, run once the corner has moved) left to the
+/// caller.
+pub fn scroll_map_with(
+    race: &Race,
+    car: &Car,
+    redraw: impl FnOnce() -> Result<(), Refused>,
+) -> Result<(), Refused> {
     // Logic in `rc2k_core::race::map::{on_map, pixel, well_inside, centred_corner,
     // picture_place}`.
     use rc2k_core::race::map::{centred_corner, picture_place, pixel, well_inside};
@@ -118,7 +160,7 @@ pub fn scroll_map(
     if !(well_inside(dx) && well_inside(dy)) {
         corner_x.set(centred_corner(x));
         corner_y.set(centred_corner(y));
-        map_tiles(race, car, car_number, scene, gfx, net_race)?;
+        redraw()?;
         car.map_redrawn.set(1);
     }
     car.map_picture_place[0].set(picture_place(corner_x.get(), map_x.get()));
@@ -161,6 +203,14 @@ pub fn scroll_maps(
             .shared
             .race_car_or((n & 7) as usize, "a view car's block")?;
         scroll_map(race, car, n, scene, gfx, net_race)?;
+    }
+    // A split screen of three or four: the further players' maps, each in a texture of its own.
+    if !third_only {
+        let players = race.shared.view.get().players.get().min(4) as usize;
+        for n in 2..players {
+            let car = race.shared.race_car_or(n, "a further player's car block")?;
+            scroll_map_with(race, car, || further_map_tiles(race, car, n, scene, gfx))?;
+        }
     }
     // Three players with the overview map in the free part: every car's place on it.
     if !third_only && crate::race::overview_map::wanted(race) {

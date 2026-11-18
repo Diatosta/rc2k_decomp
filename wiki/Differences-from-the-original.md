@@ -73,7 +73,9 @@ The original was a 32-bit Windows program on DirectX. Its platform side was not 
   the screen's edges and its middle stretches between them. With two players the one progress bar
   (shared at the top, or at the divider when one is above the other) does the same, and side by
   side each player's HUD lies in their own half of the screen as one player's lies on a wide
-  screen (dial at the left corner, map at the right, the box applying inside the half); three
+  screen (dial at the left corner, map at the right, the box applying inside the half); in two,
+  three and four players' split screens each map disc shows the other players' cars as markers in
+  their stage-bar colours (not the computer's), placed for its own player's car; three
   and four players' HUDs are the one-player HUD in each part, laid out by the part's own shape and kept inside the box. The course is not cut at the sides
   by the 4:3 view's cone. The loading screen, the roadside tyre change and the replay viewer keep
   their 4:3 shape in the middle: the loading picture has the menus' blurred wash beside it, the
@@ -315,7 +317,7 @@ or IPX connection), and Steam when Valve's library is beside the program (it is 
   has an entry of its own for three and for four players on one screen, beside the original's
   in-turn ones (shown by the third and fourth players' helmets, as on the players' details page), and `--players 3` or `4` starts the same race. Each
   player has a view in their part of the screen, the controls of their own record, the one-player HUD
-  in their part (stage bar, place, clock, rev dial, gear and speed; the map and the signs for the first two players) laid out by the part's shape, a view that keeps the vertical field of view of a 4:3 one in
+  in their part (stage bar with every player's marker in their colour, place, clock, rev dial, gear and speed, a map disc, each in a picture of its own redrawn as the player's car moves, with the other players' cars as markers; the signs for the first two players) laid out by the part's shape, every piece keeping its shape in a part narrower than 4:3 (one scale factor, the part's width, pieces at the top, bottom or middle of the part), a view that keeps the vertical field of view of a 4:3 one in
   a wide part (the car sits in a part as it sits on a one-player screen of that shape), each part's own car
   picture in the top bar (drawn at half size), the dust, smoke and sparks of every car drawn in the part of the view that
   sees them and cut to it, and a place on the three and four players' results page. The F2 key
@@ -323,7 +325,7 @@ or IPX connection), and Steam when Valve's library is beside the program (it is 
   view above two, three rows, three columns and quarters with the whole course's map in the fourth
   quarter (every car a square in its colour on it); the choice
   is kept in `rc2k.toml` (`split_layout`). Every player's pause binding asks the leave question and each
-  player's pad rumbles with that player's own car. Not yet: mirrors, the third and fourth players' maps and signs, and
+  player's pad rumbles with that player's own car. Not yet: mirrors, the third and fourth players' signs, and
   the co-driver's sounds follow the first two players only (the race's sound is heard
   from the first player's view). A race of three or four players keeps a replay (an extra tape for
   the third and fourth car, see [Replay files](Replay-files)); its viewer's car item also shows the

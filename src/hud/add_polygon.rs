@@ -102,9 +102,21 @@ pub fn add_polygon(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
         };
         // Pieces that are already in screen pixels are left where they are.
         if rule != crate::hud::layout_common::Keep::Pixels as u32 {
+            // A part narrower than 4:3 keeps the layout's shape too: one factor (the part's
+            // width over 800) down as across, a piece keeping to the part's top, bottom or middle
+            // by where its own middle lies in the layout (`anchor::narrow_y`).
+            let narrow_part = part.is_some() && !wide && !beside && (kx, ky) == (800.0, 600.0);
+            let middle_y = {
+                let (low, high) = vertices().fold((f32::MAX, f32::MIN), |(lo, hi), v| {
+                    (lo.min(v.y.get()), hi.max(v.y.get()))
+                });
+                (low + high) / 2.0
+            };
             for v in vertices() {
                 v.x.set(x_of(v.x.get()));
-                v.y.set(if wide || beside {
+                v.y.set(if narrow_part {
+                    anchor::narrow_y(v.y.get(), middle_y, box_width, h)
+                } else if wide || beside {
                     anchor::screen_y(v.y.get(), box_width, h)
                 } else {
                     screen_scaled(v.y.get(), h, ky)

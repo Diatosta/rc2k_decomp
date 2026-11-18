@@ -133,3 +133,16 @@ pub fn needle(frame: &Frame, hud: &Hud, pen: Pen, style: &NeedleStyle) -> Result
     set_up_needle(frame, hud, style);
     crate::hud::draw_needle::draw_needle(frame, hud, pen)
 }
+
+/// The other players' markers on a disc of the two players' layouts: the disc set up again (the
+/// later disc's set-up left its variables) and its view's markers drawn at the sprites' scale.
+pub fn map_cars(
+    frame: &Frame,
+    hud: &Hud,
+    pen: Pen,
+    style: &DiscStyle,
+    slot: usize,
+) -> Result<(), Refused> {
+    set_up_disc(frame, hud, style);
+    crate::hud::draw_map_cars::draw_map_cars(frame, hud, pen, slot, true)
+}

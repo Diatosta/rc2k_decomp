@@ -33,6 +33,11 @@ pub const FIXED_TAG: u32 = 0x63;
 /// names).
 pub const TYRE_TITLE_TEXTURE: u32 = 0x3F0;
 
+/// The textures of the third and fourth players' map pictures in a split screen of three or four:
+/// textures of their own beside the two the first and second players' maps use, the same size
+/// and format (numbers no stage's object names). They are made only for such a race.
+pub const FURTHER_MAP_TEXTURES: [u32; 2] = [0x3F1, 0x3F2];
+
 /// The runs after the kinds' slots.
 pub const AFTER_KINDS: [Run; 16] = [
     run(1, 0x87, 0, 0, FIXED_TAG),
@@ -65,6 +70,10 @@ pub const FRAMED: [Run; 3] = [
     run(1, 0x218, 0, 0, FIXED_TAG),
     run(8, 0x210, 0, 0, FIXED_TAG),
 ];
+/// The runs of the further players' map textures, level 1 as the first two maps are.
+pub fn further_map_runs() -> [Run; 2] {
+    FURTHER_MAP_TEXTURES.map(|texture| run(1, texture, 1, 1, FIXED_TAG))
+}
 /// The most cars.
 pub const MOST_CARS: u32 = 8;
 
@@ -158,6 +167,15 @@ pub struct LevelsSet {
     pub kind_slots_added: u32,
 }
 
+/// Which runs the stage has besides the ones every stage has.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct ExtraRuns {
+    /// The framed layout's runs.
+    pub framed: bool,
+    /// The third and fourth players' map textures.
+    pub further_maps: bool,
+}
+
 /// The cars' runs, the kinds' slots (each block with its prefs entries), the runs after
 /// them, the slots of level one, the last run and with `framed` three more. Refuses a run
 /// past the tables (none of the fixed ones is).
@@ -166,7 +184,7 @@ pub fn set_levels(
     cars: u32,
     second_first: bool,
     kinds: &[(KindSlots, Vec<u32>)],
-    framed: bool,
+    extra: ExtraRuns,
     other: bool,
     own: impl Fn(u32) -> bool,
 ) -> Result<LevelsSet, Invalid> {
@@ -184,9 +202,14 @@ pub fn set_levels(
     t.system[from..from + LEVEL_ONE_SYSTEM as usize].fill(1);
     t.tags[from..from + LEVEL_ONE_SYSTEM as usize].fill(FIXED_TAG);
     t.video[from..from + LEVEL_ONE_VIDEO as usize].fill(1);
+    if extra.further_maps {
+        for r in &further_map_runs() {
+            t.apply(r, other)?;
+        }
+    }
     let mut last = LAST;
     t.apply(&LAST, other)?;
-    if framed {
+    if extra.framed {
         for r in &FRAMED {
             t.apply(r, other)?;
             last = *r;
@@ -260,12 +283,19 @@ mod tests {
             2,
             false,
             &[(kind, vec![0, 5, u32::MAX, 3])],
-            true,
+            ExtraRuns {
+                framed: true,
+                further_maps: true,
+            },
             false,
             |car| car == 0,
         )
         .unwrap();
         assert_eq!(set.kind_slots_added, 2);
+        assert_eq!(
+            (system[0x3F1], video[0x3F2], tags[0x3F2], system[0x3F3]),
+            (1, 1, FIXED_TAG, 9)
+        );
         assert_eq!(set.last, FRAMED[2]);
         assert_eq!(
             (tags[0x41], system[0x41], tags[0x40], system[0x40]),

@@ -78,7 +78,7 @@ pub fn init_texture_levels(race: &Race, o: crate::owners::Owners<'static>) -> Re
     // Logic: `rc2k_core::scene::texture_levels::{held_cars, set_levels}`.
     use crate::logfile::log_int::log_int;
     use crate::scene::textures::with_cells;
-    use rc2k_core::scene::texture_levels::{KindSlots, held_cars, set_levels};
+    use rc2k_core::scene::texture_levels::{ExtraRuns, KindSlots, held_cars, set_levels};
     let cars = held_cars(shared.view.get().race_cars.get());
     shared.view.get().race_cars.set(cars);
     crate::scene::reset_texture_tables::reset_texture_tables(scene);
@@ -121,7 +121,10 @@ pub fn init_texture_levels(race: &Race, o: crate::owners::Owners<'static>) -> Re
                 cars,
                 shared.view.get().players.get() == 1,
                 &kinds,
-                shared.switches.get().editor_mode.get() != 0,
+                ExtraRuns {
+                    framed: shared.switches.get().editor_mode.get() != 0,
+                    further_maps: shared.view.get().players.get() > 2,
+                },
                 other(scene),
                 |car| {
                     let kinds = &shared.vars.get().race_car_kinds;

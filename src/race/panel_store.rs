@@ -139,6 +139,13 @@ pub struct Panel {
     /// car, in map pixels (x right, y down).
     pub disc_cars: PlainDword,
     pub disc_offsets: [[PlainFloat; 2]; 8],
+    /// The same for the second to fourth views' discs: in a split screen the other players' cars,
+    /// each disc placed from its own view's car.
+    pub disc_cars_more: [PlainDword; 3],
+    pub disc_offsets_more: [[[PlainFloat; 2]; 8]; 3],
+    /// The players of a split screen of three or four (0 otherwise): each part's stage bar shows
+    /// all of their markers, from `car_distances`.
+    pub split_players: PlainDword,
 }
 
 impl Panel {
