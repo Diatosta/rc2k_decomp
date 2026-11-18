@@ -898,7 +898,7 @@ fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(),
         };
         show_fitted(renderer, texture, shown, screen);
         drop(view);
-        // The Back chip of the menus, for a touch screen.
+        // The race's touch controls.
         #[cfg(touch_screen)]
         if events::driving(o.race) {
             #[cfg(target_os = "android")]
@@ -907,8 +907,6 @@ fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(),
                 input_window(screen.window),
                 u64::from(crate::platform::os::ticks()),
             );
-        } else {
-            crate::platform::touch_menu::draw_back_chip(renderer, input_window(screen.window));
         }
         // The debug UI over the frame.
         crate::debug::imgui_sdl::draw(o, renderer, screen.window);
