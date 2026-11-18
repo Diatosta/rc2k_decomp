@@ -38,6 +38,10 @@
       <label for="zips">The game folder's zip (one or several parts)</label>
       <input id="zips" type="file" accept=".zip,application/zip" multiple>
     </div>
+    <div class="box">
+      <label for="folder">Or the game folder itself</label>
+      <input id="folder" type="file" webkitdirectory multiple>
+    </div>
   </div>
   <div id="working" hidden><progress id="bar" max="1" value="0"></progress></div>
   <p id="status"></p>
@@ -125,6 +129,18 @@ function unpack(message) {
 }
 
 $("zips").onchange = (e) => e.target.files.length && unpack({ files: [...e.target.files] });
+// A picked folder: each file's path below the picked folder (the browser names it from the
+// folder's own name down), so RAL.EXE lands at the top of the storage's copy as from a zip.
+$("folder").onchange = (e) => {
+  const picked = [...e.target.files];
+  if (!picked.length) return;
+  unpack({
+    folder: picked.map((file) => ({
+      file,
+      path: (file.webkitRelativePath || file.name).split("/").slice(1).join("/") || file.name,
+    })),
+  });
+};
 $("again").onclick = () => location.reload();
 
 (async () => {

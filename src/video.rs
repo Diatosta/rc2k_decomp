@@ -323,13 +323,18 @@ static SPARE: Mutex<Vec<Vec<u8>>> = Mutex::new(Vec::new());
 /// How many spare buffers are kept (the queue's length and the ones in the writer's hands).
 const SPARE_MOST: usize = 8;
 
-/// A copy of the frame's pixels, in a buffer from an earlier frame when there is one.
-pub fn copy_frame(pixels: &[u8]) -> Vec<u8> {
-    let spare = SPARE
+/// A buffer for a frame's pixels: one from an earlier frame when there is one.
+pub fn spare_buffer() -> Vec<u8> {
+    SPARE
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
-        .pop();
-    let mut copy = spare.unwrap_or_default();
+        .pop()
+        .unwrap_or_default()
+}
+
+/// A copy of the frame's pixels, in a buffer from an earlier frame when there is one.
+pub fn copy_frame(pixels: &[u8]) -> Vec<u8> {
+    let mut copy = spare_buffer();
     copy.resize(pixels.len(), 0);
     copy.copy_from_slice(pixels);
     copy
@@ -348,9 +353,10 @@ fn keep_buffer(buffer: Vec<u8>) {
 /// The parts of a frame's work that are timed.
 #[derive(Clone, Copy)]
 pub enum Stage {
-    /// The picture brought back from the graphics card.
+    /// The picture brought back from the graphics card (with the Vulkan backend: the last
+    /// frame's, and the new one's copy started).
     ReadBack,
-    /// The picture copied out of the screen's memory.
+    /// The picture copied out of the screen's memory (on the paths that bring it back whole).
     Copy,
     /// Waiting for room in the queue to the encoder (the encoder is the slower part).
     Queue,
@@ -368,21 +374,32 @@ pub fn note_stage(stage: Stage, time: std::time::Duration) {
     STAGE_MICROS[stage as usize].fetch_add(time.as_micros() as u64, Relaxed);
 }
 
-/// The frame's pixels (32 bits a pixel, blue first) into the video. The first one starts the
-/// file.
-pub fn frame(pixels: Vec<u8>, width: u32, height: u32) {
+/// A frame of the video has been taken (its pixels come with `send`, which may be later): the
+/// frames and the sound that follows them are counted from here. The first one starts the file.
+pub fn frame_taken(width: u32, height: u32) {
     RACE_FRAME.store(false, Relaxed);
     let Some(job) = job() else { return };
     let mut writer = WRITER
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     let writer = writer.get_or_insert_with(|| start_writer(&job, width, height));
+    writer.video_frames += 1;
+}
+
+/// The pixels of the next frame not yet sent (32 bits a pixel, blue first) to the video, in the
+/// order the frames were taken.
+pub fn send(pixels: Vec<u8>) {
+    let writer = WRITER
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let Some(writer) = writer.as_ref() else {
+        return;
+    };
     let began = std::time::Instant::now();
     if writer.frames.send(pixels).is_err() {
         crate::logfile::program_log::log("video: the writer stopped; the frame is dropped");
     }
     note_stage(Stage::Queue, began.elapsed());
-    writer.video_frames += 1;
 }
 
 /// The sound of the frame just taken: the audio thread takes a turn (so every sound the race
@@ -439,6 +456,10 @@ pub const DAMAGED: u32 = 4;
 /// The video's file closed (the program ends): the frames still waiting written first. `Some`: the
 /// exit code the render ends with when it did not make a good video.
 pub fn finish() -> Option<u32> {
+    // The last frame, still on its way back from the card.
+    if let Some(pixels) = crate::render::video_read_last(spare_buffer()) {
+        send(pixels);
+    }
     let writer = WRITER
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)

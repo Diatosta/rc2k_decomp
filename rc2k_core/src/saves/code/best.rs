@@ -709,7 +709,7 @@ mod tests {
             list: 0,
             entry: vec![0; TIME_LEN],
         };
-        check(&[ok.clone()]).unwrap();
+        check(std::slice::from_ref(&ok)).unwrap();
         for bad in [
             Real {
                 table: 6,
@@ -755,8 +755,10 @@ mod tests {
 
     #[test]
     fn scores_and_levels_rank_the_highest_first() {
-        let mut scores = ScoreEntry::default();
-        scores.score = 45;
+        let mut scores = ScoreEntry {
+            score: 45,
+            ..ScoreEntry::default()
+        };
         scores.name[..3].copy_from_slice(b"Ana");
         let mut entry = vec![0; SCORE_LEN];
         scores.write((&mut entry[..]).try_into().unwrap());
@@ -766,11 +768,18 @@ mod tests {
             entry,
         }];
         let mut tables = six(vec![0; 10 * TIME_LEN]);
-        for (n, chunk) in tables[0].chunks_exact_mut(SCORE_LEN).enumerate() {
-            let mut e = ScoreEntry::default();
-            e.score = 50 - (n % 10) as u32;
+        for (n, chunk) in tables[0]
+            .as_chunks_mut::<SCORE_LEN>()
+            .0
+            .iter_mut()
+            .enumerate()
+        {
+            let mut e = ScoreEntry {
+                score: 50 - (n % 10) as u32,
+                ..ScoreEntry::default()
+            };
             e.name[..5].copy_from_slice(b"Colin");
-            e.write(chunk.try_into().unwrap());
+            e.write(chunk);
         }
         merge(&mut tables, &real, &names()).unwrap();
         let list: Vec<u32> = (0..10)

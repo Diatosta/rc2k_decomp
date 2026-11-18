@@ -1,6 +1,7 @@
 // The web build's importer (a worker): the game folder's zip files unpacked into the origin's
 // private storage (OPFS) under `source/`, where the game finds them as `/opfs/source`
-// (`src/platform/web.rs`). Takes {files: [File, ..]}, picked by the player. Posts {progress, text}
+// (`src/platform/web.rs`). Takes {files: [File, ..]} (zips) or {folder: [{file, path}, ..]} (a
+// picked folder's files, `path` below the folder), picked by the player. Posts {progress, text}
 // as it goes, then {done} or {error}. Zips without ZIP64 (under 4 GB, under 65,536 entries),
 // entries stored or deflated; several zips unpack into the one folder.
 
@@ -87,15 +88,45 @@ async function unpack(file, root, done, total, report) {
   }
 }
 
+// One picked folder's file copied into the storage at `path`.
+async function copy(file, path, root) {
+  const parts = path.split("/").filter((s) => s && s !== "." && s !== "..");
+  if (parts.length === 0) return;
+  const folder = await dirFor(root, parts.slice(0, -1));
+  const handle = await folder.getFileHandle(parts[parts.length - 1], { create: true });
+  const out = await handle.createSyncAccessHandle();
+  try {
+    out.truncate(0);
+    let at = 0;
+    for await (const chunk of chunks(file.stream())) {
+      out.write(chunk, { at });
+      at += chunk.byteLength;
+    }
+  } finally {
+    out.flush();
+    out.close();
+  }
+}
+
 onmessage = async (m) => {
   const report = (progress, text) => postMessage({ progress, text });
   try {
     const top = await navigator.storage.getDirectory();
-    const files = m.data.files || [];
     const root = await top.getDirectoryHandle("source", { create: true });
-    const total = files.reduce((n, f) => n + f.size, 0) || 1;
     const done = { files: 0, bytes: 0 };
-    for (const f of files) await unpack(f, root, done, total, report);
+    if (m.data.folder) {
+      const total = m.data.folder.reduce((n, e) => n + e.file.size, 0) || 1;
+      for (const e of m.data.folder) {
+        await copy(e.file, e.path, root);
+        done.files++;
+        done.bytes += e.file.size;
+        if (done.files % 20 === 0) report(done.bytes / total, done.files + " files");
+      }
+    } else {
+      const files = m.data.files || [];
+      const total = files.reduce((n, f) => n + f.size, 0) || 1;
+      for (const f of files) await unpack(f, root, done, total, report);
+    }
     postMessage({ done: done.files });
   } catch (e) {
     postMessage({ error: String(e && e.message ? e.message : e) });

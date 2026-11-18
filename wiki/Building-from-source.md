@@ -198,7 +198,8 @@ output is `target/web/wasm32-unknown-emscripten/release/rc2k.js` and `rc2k.wasm`
 those two with the page (`tools/web/index.html`, `unzip.js`, `serve.py`) and the saves page (`saves.html`, `saves.js`) in `dist/web/`.
 `CARGO_TARGET_DIR` overrides the target folder.
 
-State: the page unpacks the game folder's zip into the browser's storage, the game runs on a
+State: the page copies the game folder (picked as a folder, or as its zip in one or several parts)
+into the browser's storage, the game runs on a
 worker and shows the menus and races on the page's canvases; keys reach the game. Films play. The
 switches of `rc2k --help` go in the address as `?args=--mode%20time-trial%20--stage%20Langton`
 (`--renderer software` forces the software rasteriser).

@@ -241,7 +241,11 @@ encoders are set up the same way but untried) and the software H.264 encoder oth
 used (the RX 9070 XT's one writes damaged pictures at large sizes). At 5120 x 1440 the
 card's AV1 encoder renders about twice as fast as the software one (25 against 12 frames a
 second on a busy machine); the rest of the time goes to the game's own drawing and the read-back
-of the picture from the card. The
+of the picture from the card. On the GPU renderer's Vulkan device each frame's picture is queued
+to come back while the next frame is simulated and drawn, and taken a frame later straight into
+the encoder's buffer, so the read-back and the copy no longer stop the game's thread for the whole
+of the card's work (the pictures and their order are the same; the other renderers bring the
+frame back at once). The
 colours are the same with every encoder (the conversion to 4:2:0 is the same one, made on the
 processor). When the hardware encoder made a picture that does not decode cleanly (checked at the
 end, a few seconds for a minute of video) the render goes again with the software encoder, from

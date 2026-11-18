@@ -14,4 +14,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 Handler.extensions_map[".wasm"] = "application/wasm"
 folder = sys.argv[1] if len(sys.argv) > 1 else "."
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 8000
-http.server.ThreadingHTTPServer(("127.0.0.1", port), functools.partial(Handler, directory=folder)).serve_forever()
+server = http.server.ThreadingHTTPServer(("127.0.0.1", port), functools.partial(Handler, directory=folder))
+print(f"Serving {folder} at http://127.0.0.1:{port}/ (Ctrl+C stops)")
+try:
+    server.serve_forever()
+except KeyboardInterrupt:
+    print("\nStopped.")
+finally:
+    server.server_close()

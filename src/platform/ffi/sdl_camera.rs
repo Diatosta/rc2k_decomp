@@ -24,6 +24,10 @@ pub enum Permission {
         )
     )]
     Pending,
+    #[cfg_attr(
+        all(target_os = "linux", target_arch = "aarch64"),
+        allow(dead_code, reason = "the handheld has no camera to approve")
+    )]
     Approved,
     Denied,
 }
