@@ -1,27 +1,15 @@
 //! The touch screen in the menus (phones, tablets, any touch screen): SDL's finger events into
-//! the gestures of `rc2k_core::input::menu_touch`, which become the keys the menus already take
-//! (a drag is the arrow keys, Back is Escape), and a tap on the menu on show, which highlights
-//! the item under the finger and chooses it as Enter does. Screens that run their own loops
-//! (lists, the car carousel, text fields) keep their own keys: a tap there is Enter. A tap past
-//! the ends of a list goes back. The Back chip is drawn over the frame once a finger has touched
-//! the screen.
+//! the gestures of `rc2k_core::input::menu_touch`, which become the keys the menus already take:
+//! a drag is the arrow keys, a single tap is Enter on what is highlighted (wherever the finger
+//! was; it is sent once the double-tap window has passed, so a double tap never also chooses),
+//! a double tap is Escape. Nothing else acts.
 
 use crate::input::menu_pad::MenuAction;
 use crate::owners::Owners;
 use crate::platform::ffi::sdl;
-use rc2k_core::input::menu_touch::{
-    Gesture, Gestures, Phase, Row, Screen, Tapped, back_chip, tapped,
-};
-use rc2k_core::menu::navigation::CAN_BE_CHOSEN;
+use rc2k_core::input::menu_touch::{Gesture, Gestures, Phase, Screen};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
-
-/// A link to no item.
-const NO_LINK: u32 = 0x6F;
-
-/// How far from an item's row a tap still chooses it, in the menu frame's pixels (the rows are
-/// about 29 apart).
-const REACH: f32 = 16.0;
 
 static GESTURES: Mutex<Gestures> = Mutex::new(Gestures::new());
 
@@ -32,11 +20,8 @@ static INSTALLER: AtomicBool = AtomicBool::new(false);
 /// The last tap on the installer's page not yet taken, in the frame's pixels.
 static INSTALLER_TAP: Mutex<Option<(f32, f32)>> = Mutex::new(None);
 
-/// The menu on show when the fingers in progress went down.
+/// The menu on show when the fingers in progress (or the tap waiting for its window) went down.
 static DOWN_ON: Mutex<Option<crate::menu::menus_store::MenuId>> = Mutex::new(None);
-
-/// A finger has touched the screen since the program started: the overlay is worth showing.
-static TOUCHED: AtomicBool = AtomicBool::new(false);
 
 /// The window's size and safe area as the screen the gestures are sized by.
 pub fn screen_of(window: sdl::Window) -> Option<Screen> {
@@ -62,7 +47,6 @@ pub fn finger(
     y: f32,
     now: u64,
 ) {
-    TOUCHED.store(true, Relaxed);
     let Some(screen) = screen_of(window) else {
         return;
     };
@@ -75,10 +59,10 @@ pub fn finger(
     let mut on_screen = DOWN_ON
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    if recogniser.active() && *on_screen != menu {
+    if (recogniser.active() || recogniser.waiting()) && *on_screen != menu {
         recogniser.release_all();
     }
-    if !recogniser.active() {
+    if !recogniser.active() && !recogniser.waiting() {
         *on_screen = menu;
         if phase != Phase::Down {
             return;
@@ -86,6 +70,32 @@ pub fn finger(
     }
     let gestures = recogniser.finger(&screen, id, phase, x * screen.width, y * screen.height, now);
     drop((recogniser, on_screen));
+    act(o, window, gestures);
+}
+
+/// Called every turn of the event loop: the single tap whose double-tap window is over is chosen.
+pub fn tick(o: &Owners<'static>, window: sdl::Window, now: u64) {
+    let menu = o.menus.screens.loop_flags.menu.get().ok();
+    let mut recogniser = GESTURES
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    if !recogniser.waiting() {
+        return;
+    }
+    // The screen changed while the tap waited: it was meant for the one it went down on.
+    let on_screen = *DOWN_ON
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    if on_screen != menu {
+        recogniser.release_all();
+        return;
+    }
+    let gestures = recogniser.tick(now);
+    drop(recogniser);
+    act(o, window, gestures);
+}
+
+fn act(o: &Owners<'static>, window: sdl::Window, gestures: Vec<Gesture>) {
     for gesture in gestures {
         match gesture {
             Gesture::Up => press(o, MenuAction::Up),
@@ -110,8 +120,13 @@ fn press(o: &Owners<'static>, action: MenuAction) {
     super::events::menu_action(o.input, action);
 }
 
-/// A tap at (`x`, `y`) in the window's pixels.
+/// A single tap at (`x`, `y`) in the window's pixels: Enter, wherever it was. The installer's
+/// page, which keeps pieces of its own, is given where it was in the frame's pixels instead.
 fn tap(o: &Owners<'static>, window: sdl::Window, x: f32, y: f32) {
+    if !INSTALLER.load(Relaxed) {
+        press(o, MenuAction::Enter);
+        return;
+    }
     // The one mapping from the window to the frame (`platform::safe_area`).
     let frame = crate::platform::SCREEN.lock().ok().and_then(|screen| {
         screen
@@ -129,75 +144,11 @@ fn tap(o: &Owners<'static>, window: sdl::Window, x: f32, y: f32) {
             )
             .map(|(fx, fy)| (fx as f32, fy as f32))
         });
-    let Some((fx, fy)) = point else {
-        // Beside the picture: nothing.
-        return;
-    };
-    if INSTALLER.load(Relaxed) {
+    if let Some(point) = point {
         *INSTALLER_TAP
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some((fx, fy));
-        return;
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(point);
     }
-    let menus = o.menus;
-    let rows = menus
-        .screens
-        .loop_flags
-        .menu
-        .get()
-        .ok()
-        .map(|menu| rows_of(o, menu))
-        .unwrap_or_default();
-    match tapped(&rows, fy, REACH) {
-        Tapped::Item(number) => {
-            menus.screens.loop_flags.item.set(number);
-            press(o, MenuAction::Enter);
-        }
-        Tapped::Outside => press(o, MenuAction::Back),
-        Tapped::Enter => press(o, MenuAction::Enter),
-    }
-}
-
-/// The rows of the menu on show that can be chosen. None when the menu's items link only
-/// sideways (the main menu's carousel has one item on show): a tap chooses it.
-fn rows_of(o: &Owners<'static>, menu: crate::menu::menus_store::MenuId) -> Vec<Row> {
-    let items = menu.items(&o.menus.tables.menus);
-    if items
-        .iter()
-        .all(|item| item.fixed().links[..2].iter().all(|&l| l == NO_LINK))
-    {
-        return Vec::new();
-    }
-    items
-        .iter()
-        .enumerate()
-        .filter(|(_, item)| item.skip_mark.get() == CAN_BE_CHOSEN)
-        .map(|(n, item)| Row {
-            number: n as u32 + 1,
-            // The text's top, and half the text's height.
-            y: item.text_y() as i32 as f32 + 8.0,
-        })
-        .collect()
-}
-
-/// The Back chip over the frame, in the menus, once the screen has been touched.
-pub fn draw_back_chip(renderer: sdl::Renderer, window: sdl::Window) {
-    if !TOUCHED.load(Relaxed) {
-        return;
-    }
-    let Some(screen) = screen_of(window) else {
-        return;
-    };
-    let r = back_chip(&screen);
-    renderer.fill_blended([255, 255, 255, 50], [r.x, r.y, r.w, r.h]);
-    let scale = r.h * 0.34 / 8.0;
-    renderer.text_blended(
-        [255, 255, 255, 190],
-        r.x + r.w * 0.1,
-        r.y + r.h * 0.33,
-        scale,
-        "BACK",
-    );
 }
 
 /// While it lives, the installer's page is the one taps are for.

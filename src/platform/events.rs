@@ -284,6 +284,8 @@ pub fn pump(o: crate::owners::Owners<'static>) {
     let now = u64::from(crate::platform::os::ticks());
     #[cfg(target_os = "android")]
     crate::platform::touch::update(driving(o.race), now);
+    #[cfg(touch_screen)]
+    touch_tick(&o, now);
     if let Some(action) = lock_menu_pad().tick(now) {
         menu_action(input, action);
     }
@@ -738,6 +740,24 @@ fn osk_asks(input: &crate::input::owner::Input, asks: crate::input::typed_text::
         crate::input::typed_text::osk_close();
     }
     crate::input::take_key::pending_key(input).store(key, std::sync::atomic::Ordering::SeqCst);
+}
+
+/// A single tap waiting for its double-tap window is let through once the window is over.
+#[cfg(touch_screen)]
+fn touch_tick(o: &crate::owners::Owners<'static>, now: u64) {
+    let window = {
+        let screen = crate::platform::SCREEN.lock();
+        screen
+            .as_ref()
+            .ok()
+            .and_then(|screen| screen.as_ref())
+            .map(|screen| crate::platform::input_window(screen.window))
+    };
+    if let Some(window) = window
+        && !driving(o.race)
+    {
+        crate::platform::touch_menu::tick(o, window, now);
+    }
 }
 
 /// A finger on the touch screen: in the menus a gesture or a tap (`platform::touch_menu`).

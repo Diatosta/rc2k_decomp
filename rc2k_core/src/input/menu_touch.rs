@@ -2,12 +2,12 @@
 //! any machine with a touch screen: no platform, only fingers in and what the menus read out.
 //!
 //! The fingers are gestures (`Gestures`): a tap, a drag up or down (one step of the list for each
-//! stretch of the screen's height), a drag sideways (a value stepped), two fingers tapped together
-//! or the Back chip in the corner (back). A tap is turned into the item under it by `tapped`, from
-//! the rows of the menu on show; a tap past the list's ends goes back.
+//! stretch of the screen's height), a drag sideways (a value stepped) and a double tap (back).
+//! A tap is Enter on what is highlighted, wherever the finger was; it is held for the double-tap
+//! window (`DOUBLE_MS`) so that the first tap of a double tap never acts. Nothing else acts: no
+//! item under the finger is chosen and a tap beside a list does not go back.
 //!
-//! Positions are in the window's pixels (the menus' items' in the frame's: `gfx::screen_fit::window_to_frame`), times in
-//! milliseconds.
+//! Positions are in the window's pixels, times in milliseconds.
 
 /// A rectangle in pixels.
 #[derive(Clone, Copy, PartialEq, Debug, Default)]
@@ -79,19 +79,13 @@ pub enum Phase {
     Up,
 }
 
-/// The Back chip of the menus, in the corner of the usable screen.
-pub fn back_chip(screen: &Screen) -> Rect {
-    let u = screen.usable();
-    let s = (u.h * 0.27).max(1.0);
-    Rect::new(u.x + 0.1 * s, u.y + 0.1 * s, 1.1 * s, 0.6 * s)
-}
-
 // ---- the menus ----
 
 /// What the fingers mean in the menus.
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Gesture {
-    /// A tap at a point (the item there is chosen).
+    /// A single tap, once it is known not to be the first of a double tap: Enter. The point is
+    /// for a page that has items of its own (the installer's).
     Tap {
         x: f32,
         y: f32,
@@ -100,6 +94,7 @@ pub enum Gesture {
     Down,
     Left,
     Right,
+    /// A double tap.
     Back,
 }
 
@@ -119,8 +114,10 @@ struct Touch {
 #[derive(Debug)]
 pub struct Gestures {
     touches: Vec<Touch>,
-    /// Two fingers were down together since all were last up.
+    /// Two fingers were down together since all were last up (they do nothing).
     pair: bool,
+    /// A tap that waits to see whether a second one follows: where, and when it lifted.
+    pending: Option<(f32, f32, u64)>,
     /// Something moved past the slop since all were last up.
     moved: bool,
     first_down_at: u64,
@@ -129,6 +126,11 @@ pub struct Gestures {
 
 /// A tap is shorter than this.
 const TAP_MS: u64 = 450;
+
+/// The second tap of a double tap comes within this after the first lifted, and within
+/// `DOUBLE_REACH` (of the screen's short side) of it. A single tap acts after this wait.
+pub const DOUBLE_MS: u64 = 300;
+const DOUBLE_REACH: f32 = 0.08;
 
 impl Default for Gestures {
     fn default() -> Self {
@@ -141,6 +143,7 @@ impl Gestures {
         Gestures {
             touches: Vec::new(),
             pair: false,
+            pending: None,
             moved: false,
             first_down_at: 0,
             peak: 0,
@@ -228,24 +231,39 @@ impl Gestures {
                 if self.touches.is_empty() && !self.moved {
                     let short = now.saturating_sub(self.first_down_at) < TAP_MS
                         && now.saturating_sub(t.down_at) < TAP_MS;
-                    if short {
-                        if self.pair && self.peak == 2 {
-                            out.push(Gesture::Back);
-                        } else if self.peak == 1 {
-                            if back_chip(screen).contains(t.start.0, t.start.1) {
+                    if short && self.peak == 1 {
+                        let near = DOUBLE_REACH * unit;
+                        match self.pending.take() {
+                            Some((px, py, at))
+                                if t.down_at.saturating_sub(at) < DOUBLE_MS
+                                    && (px - t.start.0).powi(2) + (py - t.start.1).powi(2)
+                                        <= near * near =>
+                            {
                                 out.push(Gesture::Back);
-                            } else {
-                                out.push(Gesture::Tap {
-                                    x: t.start.0,
-                                    y: t.start.1,
-                                });
                             }
+                            _ => self.pending = Some((t.start.0, t.start.1, now)),
                         }
                     }
                 }
             }
         }
         out
+    }
+
+    /// The single tap whose wait is over at `now`, if any.
+    pub fn tick(&mut self, now: u64) -> Vec<Gesture> {
+        match self.pending {
+            Some((x, y, at)) if now.saturating_sub(at) >= DOUBLE_MS => {
+                self.pending = None;
+                vec![Gesture::Tap { x, y }]
+            }
+            _ => Vec::new(),
+        }
+    }
+
+    /// Whether a tap waits for its double-tap window.
+    pub fn waiting(&self) -> bool {
+        self.pending.is_some()
     }
 
     /// Whether any finger is down.
@@ -255,48 +273,7 @@ impl Gestures {
 
     pub fn release_all(&mut self) {
         self.touches.clear();
-    }
-}
-
-/// One item of the menu on show that can be chosen: its number (from 1, as the menu counts) and
-/// the y of the middle of its row, in the frame's pixels.
-#[derive(Clone, Copy, PartialEq, Debug)]
-pub struct Row {
-    pub number: u32,
-    pub y: f32,
-}
-
-/// What a tap on the menu means.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Tapped {
-    /// The item under the finger: highlighted, then chosen.
-    Item(u32),
-    /// Past the ends of the list: back.
-    Outside,
-    /// The menu has no list of rows (the main menu's carousel, a screen with its own loop): the
-    /// highlighted item is chosen.
-    Enter,
-}
-
-/// The row a tap at `y` is on: the nearest row when it is within `reach` of it (a row's height,
-/// about), else past the list's end. Rows that all lie within `reach` of each other are not a
-/// list to be tapped past (a screen whose picture is the thing to tap, with its one row of
-/// arrows below): any tap there chooses.
-pub fn tapped(rows: &[Row], y: f32, reach: f32) -> Tapped {
-    let (low, high) = rows.iter().fold((f32::MAX, f32::MIN), |(low, high), r| {
-        (low.min(r.y), high.max(r.y))
-    });
-    if !rows.is_empty() && high - low <= reach {
-        return Tapped::Enter;
-    }
-    let nearest = rows
-        .iter()
-        .map(|r| ((r.y - y).abs(), r.number))
-        .min_by(|a, b| a.0.total_cmp(&b.0));
-    match nearest {
-        None => Tapped::Enter,
-        Some((distance, number)) if distance <= reach => Tapped::Item(number),
-        Some(_) => Tapped::Outside,
+        self.pending = None;
     }
 }
 
@@ -315,10 +292,6 @@ mod tests {
         }
     }
 
-    fn centre(r: Rect) -> (f32, f32) {
-        (r.x + r.w / 2.0, r.y + r.h / 2.0)
-    }
-
     fn run(g: &mut Gestures, events: &[(u64, Phase, f32, f32, u64)]) -> Vec<Gesture> {
         let screen = phone();
         events
@@ -327,8 +300,12 @@ mod tests {
             .collect()
     }
 
+    fn tick(g: &mut Gestures, now: u64) -> Vec<Gesture> {
+        g.tick(now)
+    }
+
     #[test]
-    fn a_tap_is_a_tap_and_a_corner_tap_is_back() {
+    fn a_single_tap_acts_once_its_wait_is_over_and_a_long_press_is_nothing() {
         let mut g = Gestures::default();
         let got = run(
             &mut g,
@@ -337,23 +314,18 @@ mod tests {
                 (1, Phase::Up, 1201.0, 501.0, 100),
             ],
         );
+        // Held back: it could be the first of a double tap.
+        assert!(got.is_empty());
+        assert!(g.waiting());
+        assert!(tick(&mut g, 100 + DOUBLE_MS - 1).is_empty());
         assert_eq!(
-            got,
+            tick(&mut g, 100 + DOUBLE_MS),
             vec![Gesture::Tap {
                 x: 1200.0,
                 y: 500.0
             }]
         );
-        let back = centre(back_chip(&phone()));
-        let got = run(
-            &mut g,
-            &[
-                (1, Phase::Down, back.0, back.1, 1000),
-                (1, Phase::Up, back.0, back.1, 1050),
-            ],
-        );
-        assert_eq!(got, vec![Gesture::Back]);
-        // A long press is nothing.
+        assert!(tick(&mut g, 5000).is_empty());
         let got = run(
             &mut g,
             &[
@@ -362,6 +334,87 @@ mod tests {
             ],
         );
         assert!(got.is_empty());
+        assert!(tick(&mut g, 9000).is_empty());
+    }
+
+    #[test]
+    fn a_tap_in_a_corner_is_only_a_tap() {
+        let mut g = Gestures::default();
+        run(
+            &mut g,
+            &[
+                (1, Phase::Down, 100.0, 60.0, 0),
+                (1, Phase::Up, 100.0, 60.0, 50),
+            ],
+        );
+        assert_eq!(tick(&mut g, 400), vec![Gesture::Tap { x: 100.0, y: 60.0 }]);
+    }
+
+    #[test]
+    fn a_double_tap_goes_back_and_its_first_tap_never_acts() {
+        let mut g = Gestures::default();
+        let got = run(
+            &mut g,
+            &[
+                (1, Phase::Down, 1200.0, 500.0, 0),
+                (1, Phase::Up, 1200.0, 500.0, 60),
+                (1, Phase::Down, 1210.0, 505.0, 200),
+                (1, Phase::Up, 1210.0, 505.0, 260),
+            ],
+        );
+        assert_eq!(got, vec![Gesture::Back]);
+        assert!(!g.waiting());
+        assert!(tick(&mut g, 5000).is_empty());
+        // A third tap right after is a new first tap.
+        run(
+            &mut g,
+            &[
+                (1, Phase::Down, 1200.0, 500.0, 300),
+                (1, Phase::Up, 1200.0, 500.0, 340),
+            ],
+        );
+        assert!(g.waiting());
+    }
+
+    #[test]
+    fn two_taps_too_late_or_too_far_apart_are_two_single_taps() {
+        let mut g = Gestures::default();
+        run(
+            &mut g,
+            &[
+                (1, Phase::Down, 1200.0, 500.0, 0),
+                (1, Phase::Up, 1200.0, 500.0, 60),
+            ],
+        );
+        // The wait ends before the second tap lands.
+        assert_eq!(tick(&mut g, 400).len(), 1);
+        let got = run(
+            &mut g,
+            &[
+                (1, Phase::Down, 1200.0, 500.0, 450),
+                (1, Phase::Up, 1200.0, 500.0, 500),
+            ],
+        );
+        assert!(got.is_empty());
+        assert_eq!(tick(&mut g, 800).len(), 1);
+        // Far apart (past the reach): the first is dropped for the second, never Back.
+        let got = run(
+            &mut g,
+            &[
+                (1, Phase::Down, 600.0, 500.0, 1000),
+                (1, Phase::Up, 600.0, 500.0, 1050),
+                (1, Phase::Down, 1800.0, 500.0, 1150),
+                (1, Phase::Up, 1800.0, 500.0, 1200),
+            ],
+        );
+        assert!(got.is_empty());
+        assert_eq!(
+            tick(&mut g, 1600),
+            vec![Gesture::Tap {
+                x: 1800.0,
+                y: 500.0
+            }]
+        );
     }
 
     #[test]
@@ -409,10 +462,20 @@ mod tests {
         assert!(!g.active());
         got.extend(run(&mut g, &[(1, Phase::Up, 1200.0, 500.0, 60)]));
         assert!(got.is_empty());
+        // A tap waiting for its window is dropped as well.
+        run(
+            &mut g,
+            &[
+                (1, Phase::Down, 1200.0, 500.0, 100),
+                (1, Phase::Up, 1200.0, 500.0, 150),
+            ],
+        );
+        g.release_all();
+        assert!(tick(&mut g, 1000).is_empty());
     }
 
     #[test]
-    fn two_fingers_tapped_together_go_back() {
+    fn two_fingers_do_nothing() {
         let mut g = Gestures::default();
         let got = run(
             &mut g,
@@ -423,42 +486,7 @@ mod tests {
                 (2, Phase::Up, 1500.0, 500.0, 100),
             ],
         );
-        assert_eq!(got, vec![Gesture::Back]);
-    }
-
-    #[test]
-    fn a_tap_is_the_row_under_it_or_back_past_the_ends() {
-        let rows = [
-            Row {
-                number: 1,
-                y: 100.0,
-            },
-            Row {
-                number: 2,
-                y: 130.0,
-            },
-            Row {
-                number: 3,
-                y: 160.0,
-            },
-        ];
-        assert_eq!(tapped(&rows, 128.0, 16.0), Tapped::Item(2));
-        assert_eq!(tapped(&rows, 150.0, 16.0), Tapped::Item(3));
-        assert_eq!(tapped(&rows, 90.0, 16.0), Tapped::Item(1));
-        assert_eq!(tapped(&rows, 60.0, 16.0), Tapped::Outside);
-        assert_eq!(tapped(&rows, 400.0, 16.0), Tapped::Outside);
-        assert_eq!(tapped(&[], 100.0, 16.0), Tapped::Enter);
-        // One row of arrows under a picture: a tap on the picture chooses.
-        let arrows = [
-            Row {
-                number: 1,
-                y: 559.0,
-            },
-            Row {
-                number: 2,
-                y: 559.0,
-            },
-        ];
-        assert_eq!(tapped(&arrows, 300.0, 16.0), Tapped::Enter);
+        assert!(got.is_empty());
+        assert!(tick(&mut g, 2000).is_empty());
     }
 }
