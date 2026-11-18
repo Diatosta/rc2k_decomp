@@ -18,6 +18,7 @@ the file buffers, and the preview of a saved game shown on the load screen (`pre
 | `load_options`, `save_options` | files of the same names | The options: read at start-up, written on leaving. |
 | `load`, `save`, `load_old`, `save_old` | `src/saves/options_files.rs` | The two options files: this version's own, and the original's. |
 | `capture`, `apply` | `src/saves/options_state.rs` | Copies the options between the game's variables and the saved model. |
+| the save code | `src/save_code/`, `rc2k_core/src/saves/code/` | The state as text and a QR code, and its page on the options menu: [Save code](Save-code). |
 | `load_game_best_times` | `src/saves/load_best_times.rs` | Reads the best times, or fills in the defaults. |
 | `save_best_times.rs` | `src/saves/save_best_times.rs` | Writes them. |
 | `default_*.rs` | `src/saves/default_stage_times.rs` ... | The times and scores a fresh install starts with. |

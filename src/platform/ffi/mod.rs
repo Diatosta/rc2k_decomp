@@ -12,6 +12,8 @@ pub mod linux_handheld;
 #[cfg(rc2k_pgo)]
 pub mod pgo;
 pub mod sdl;
+pub mod sdl_camera;
+pub mod sdl_clipboard;
 #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
 pub mod sdl_gpu;
 pub mod sdl_input;

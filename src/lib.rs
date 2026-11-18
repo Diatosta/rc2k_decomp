@@ -32,6 +32,7 @@ mod records;
 #[cfg(feature = "remote")]
 mod remote;
 mod render;
+mod save_code;
 mod saves;
 mod scene;
 mod screens;

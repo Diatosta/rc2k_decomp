@@ -21,6 +21,14 @@ fn apply(o: Owners<'static>, options: &Options) -> Result<(), Refused> {
     Ok(())
 }
 
+/// Puts imported options into the game and saves them as a change on the options pages is
+/// (the save code's import).
+pub fn apply_and_save(o: Owners<'static>, options: &Options) -> Result<(), Refused> {
+    apply(o, options)?;
+    save(o)?;
+    Ok(())
+}
+
 fn paths(saves: &Saves) -> Result<Paths, Refused> {
     Ok(Paths {
         new: crate::files::host_path(b"var\\rc2k.toml"),

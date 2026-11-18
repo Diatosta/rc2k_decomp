@@ -334,6 +334,9 @@ the cars) is not changed there.
 
 The layouts are on [Options files](Options-files) and [Settings files](Settings-files).
 
+The options menu's **Save code** page shows the player's whole state as text and as a QR code, copies it,
+and takes one in from the clipboard or a camera: [Save code](Save-code).
+
 ## Environment variables
 
 Two are useful to anyone (`RC2K_RENDERER` has a switch of its own, `--renderer`, which wins):

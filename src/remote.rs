@@ -65,6 +65,56 @@ fn pending() -> std::sync::MutexGuard<'static, Pending> {
         .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
+/// The stand-in camera's frame (set by `camframe`).
+fn fake_frame() -> std::sync::MutexGuard<'static, Option<crate::platform::ffi::sdl_camera::Frame>> {
+    static FRAME: Mutex<Option<crate::platform::ffi::sdl_camera::Frame>> = Mutex::new(None);
+    FRAME
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+/// Whether the save code page has a stand-in camera (`RC2K_FAKE_CAMERA` set): a test cannot
+/// have a real one.
+pub fn fake_camera() -> bool {
+    std::env::var_os("RC2K_FAKE_CAMERA").is_some()
+}
+
+/// The stand-in camera's frame.
+pub fn fake_camera_frame() -> Option<crate::platform::ffi::sdl_camera::Frame> {
+    fake_frame()
+        .as_ref()
+        .map(|f| crate::platform::ffi::sdl_camera::Frame {
+            width: f.width,
+            height: f.height,
+            rgba: f.rgba.clone(),
+        })
+}
+
+/// A binary PGM ("P5 w h 255" and the grey bytes) as an RGBA frame.
+fn load_pgm(path: &str) -> Option<crate::platform::ffi::sdl_camera::Frame> {
+    let data = std::fs::read(path).ok()?;
+    let mut at = 0;
+    let mut words = Vec::new();
+    while words.len() < 4 {
+        while data.get(at)?.is_ascii_whitespace() {
+            at += 1;
+        }
+        let start = at;
+        while !data.get(at)?.is_ascii_whitespace() {
+            at += 1;
+        }
+        words.push(std::str::from_utf8(&data[start..at]).ok()?.to_owned());
+    }
+    at += 1;
+    let (w, h): (usize, usize) = (words[1].parse().ok()?, words[2].parse().ok()?);
+    let grey = data.get(at..at + w * h)?;
+    Some(crate::platform::ffi::sdl_camera::Frame {
+        width: w,
+        height: h,
+        rgba: grey.iter().flat_map(|&g| [g, g, g, 255]).collect(),
+    })
+}
+
 fn reply(id: &str, answer: &str) {
     let Some(folder) = folder() else { return };
     if let Ok(mut file) = std::fs::OpenOptions::new()
@@ -364,6 +414,19 @@ fn run(o: &Owners<'static>, line: &str) {
             "ok".to_string()
         }),
         ("joy", words) => stick(words),
+        // The save code page's camera, clipboard: a frame for the stand-in camera (a PGM file),
+        // and the clipboard's text set from, or written to, a file.
+        ("camframe", [path]) => load_pgm(path).map(|frame| {
+            *fake_frame() = Some(frame);
+            "ok".to_string()
+        }),
+        ("clipset", [path]) => std::fs::read_to_string(path)
+            .ok()
+            .filter(|text| crate::platform::ffi::sdl_clipboard::set_text(text))
+            .map(|_| "ok".to_string()),
+        ("clipget", [path]) => crate::platform::ffi::sdl_clipboard::text()
+            .filter(|text| std::fs::write(path, text).is_ok())
+            .map(|text| format!("ok {}", text.len())),
         ("shot", [name]) => {
             pending().shot = Some(((*id).to_string(), (*name).to_string()));
             return;

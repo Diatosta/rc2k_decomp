@@ -208,6 +208,44 @@ pub mod id {
     pub const RENDER_FAILED: u32 = FIRST + 0x105;
     /// The lead-in of the dialog that goes back to the main menu ("{}" the trouble).
     pub const BACK_TO_MENU: u32 = FIRST + 0xFF;
+    /// The save code page (`save_code`): its texts follow each other from the options menu's
+    /// item.
+    pub const SAVE_CODE_ITEM: u32 = FIRST + 0x106;
+    pub const SAVE_CODE_TITLE: u32 = FIRST + 0x107;
+    pub const SAVE_CODE_COPY: u32 = FIRST + 0x108;
+    pub const SAVE_CODE_PASTE: u32 = FIRST + 0x109;
+    pub const SAVE_CODE_CAMERA: u32 = FIRST + 0x10A;
+    pub const SAVE_CODE_BACK: u32 = FIRST + 0x10B;
+    pub const SAVE_CODE_KEYS: u32 = FIRST + 0x10C;
+    pub const SAVE_CODE_QR_WHOLE: u32 = FIRST + 0x10D;
+    pub const SAVE_CODE_QR_NO_GAMES: u32 = FIRST + 0x10E;
+    pub const SAVE_CODE_QR_NO_LINES: u32 = FIRST + 0x10F;
+    pub const SAVE_CODE_QR_NO_RECORDS: u32 = FIRST + 0x110;
+    pub const SAVE_CODE_QR_NO_BEST: u32 = FIRST + 0x111;
+    pub const SAVE_CODE_LENGTH: u32 = FIRST + 0x112;
+    pub const SAVE_CODE_COPIED: u32 = FIRST + 0x113;
+    pub const SAVE_CODE_CLIPBOARD_EMPTY: u32 = FIRST + 0x114;
+    pub const SAVE_CODE_BAD_CODE: u32 = FIRST + 0x115;
+    pub const SAVE_CODE_NO_CAMERA: u32 = FIRST + 0x116;
+    pub const SAVE_CODE_LOOKING: u32 = FIRST + 0x117;
+    pub const SAVE_CODE_CAMERA_DENIED: u32 = FIRST + 0x118;
+    pub const SAVE_CODE_CONFIRM_TITLE: u32 = FIRST + 0x119;
+    pub const SAVE_CODE_IN_CODE: u32 = FIRST + 0x11A;
+    pub const SAVE_CODE_NOW: u32 = FIRST + 0x11B;
+    pub const SAVE_CODE_ROW_MADE: u32 = FIRST + 0x11C;
+    pub const SAVE_CODE_ROW_PROGRAM: u32 = FIRST + 0x11D;
+    pub const SAVE_CODE_ROW_PLAYERS: u32 = FIRST + 0x11E;
+    pub const SAVE_CODE_ROW_RUNS: u32 = FIRST + 0x11F;
+    pub const SAVE_CODE_ROW_BEST: u32 = FIRST + 0x120;
+    pub const SAVE_CODE_ROW_SETUPS: u32 = FIRST + 0x121;
+    pub const SAVE_CODE_ROW_GAMES: u32 = FIRST + 0x122;
+    pub const SAVE_CODE_YES: u32 = FIRST + 0x123;
+    pub const SAVE_CODE_NO: u32 = FIRST + 0x124;
+    pub const SAVE_CODE_DONE: u32 = FIRST + 0x125;
+    pub const SAVE_CODE_FAILED: u32 = FIRST + 0x126;
+    pub const SAVE_CODE_NOT_HELD: u32 = FIRST + 0x127;
+    pub const SAVE_CODE_CONFIRM_KEYS: u32 = FIRST + 0x128;
+    pub const SAVE_CODE_NOTE: u32 = FIRST + 0x129;
 }
 
 /// Each text's file key and id.
@@ -398,6 +436,42 @@ pub const KEYS: &[(&str, u32)] = &[
     ("prompt.steering", id::PROMPT_STEERING),
     ("prompt.axis", id::PROMPT_AXIS),
     ("prompt.button", id::PROMPT_BUTTON),
+    ("save_code.item", id::SAVE_CODE_ITEM),
+    ("save_code.title", id::SAVE_CODE_TITLE),
+    ("save_code.copy", id::SAVE_CODE_COPY),
+    ("save_code.paste", id::SAVE_CODE_PASTE),
+    ("save_code.camera", id::SAVE_CODE_CAMERA),
+    ("save_code.back", id::SAVE_CODE_BACK),
+    ("save_code.keys", id::SAVE_CODE_KEYS),
+    ("save_code.qr_whole", id::SAVE_CODE_QR_WHOLE),
+    ("save_code.qr_no_games", id::SAVE_CODE_QR_NO_GAMES),
+    ("save_code.qr_no_lines", id::SAVE_CODE_QR_NO_LINES),
+    ("save_code.qr_no_records", id::SAVE_CODE_QR_NO_RECORDS),
+    ("save_code.qr_no_best", id::SAVE_CODE_QR_NO_BEST),
+    ("save_code.length", id::SAVE_CODE_LENGTH),
+    ("save_code.copied", id::SAVE_CODE_COPIED),
+    ("save_code.clipboard_empty", id::SAVE_CODE_CLIPBOARD_EMPTY),
+    ("save_code.bad_code", id::SAVE_CODE_BAD_CODE),
+    ("save_code.no_camera", id::SAVE_CODE_NO_CAMERA),
+    ("save_code.looking", id::SAVE_CODE_LOOKING),
+    ("save_code.camera_denied", id::SAVE_CODE_CAMERA_DENIED),
+    ("save_code.confirm_title", id::SAVE_CODE_CONFIRM_TITLE),
+    ("save_code.in_code", id::SAVE_CODE_IN_CODE),
+    ("save_code.now", id::SAVE_CODE_NOW),
+    ("save_code.row_made", id::SAVE_CODE_ROW_MADE),
+    ("save_code.row_program", id::SAVE_CODE_ROW_PROGRAM),
+    ("save_code.row_players", id::SAVE_CODE_ROW_PLAYERS),
+    ("save_code.row_runs", id::SAVE_CODE_ROW_RUNS),
+    ("save_code.row_best", id::SAVE_CODE_ROW_BEST),
+    ("save_code.row_setups", id::SAVE_CODE_ROW_SETUPS),
+    ("save_code.row_games", id::SAVE_CODE_ROW_GAMES),
+    ("save_code.yes", id::SAVE_CODE_YES),
+    ("save_code.no", id::SAVE_CODE_NO),
+    ("save_code.done", id::SAVE_CODE_DONE),
+    ("save_code.failed", id::SAVE_CODE_FAILED),
+    ("save_code.not_held", id::SAVE_CODE_NOT_HELD),
+    ("save_code.confirm_keys", id::SAVE_CODE_CONFIRM_KEYS),
+    ("save_code.note", id::SAVE_CODE_NOTE),
 ];
 
 /// The English file, built in.

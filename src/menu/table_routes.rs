@@ -171,6 +171,7 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn) -> Result<(), Refused> {
         }
         ItemFn::AxesLoop => player_axes_loop::run(o),
         ItemFn::AdvancedLoop => crate::menu::advanced_loop::run(o),
+        ItemFn::SaveCodeLoop => crate::save_code::page::run(o),
         ItemFn::AdvancedStep { row, up } => crate::menu::advanced_items::step(o, row, up),
         ItemFn::ApplyAdvanced => crate::menu::advanced_items::apply(o),
         ItemFn::AdvancedTurnPage => crate::menu::advanced_items::turn_page(),

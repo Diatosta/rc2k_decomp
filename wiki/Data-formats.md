@@ -29,6 +29,7 @@ Words such as "stage", "block" and "step" are defined in the [Glossary](Glossary
 | [Car set-ups](Car-setups) | `savedata/carsetup/carsetNN` | A saved car set-up. |
 | [Screenshots](Screenshots) | `savedata/snapshot/NNN.png`, `NNN.png` in the game's folder | Pictures (PNG) taken in the replay viewer and in a race. |
 | [Options files](Options-files) | `var/rc2k.toml`, `var/ral.dat` | The player's options: this version's file and the original's. |
+| [Save code](Save-code) | (text and a QR code) | The player's state as text, from the options menu. |
 | [Best times](Best-times) | `var/hst.dat` | Best times and scores. |
 | [Settings files](Settings-files) | `var/ral.cfg`, `var/name.cfg` | Switches as `key=value` lines; the computer drivers' names. |
 | [Install records](Install-records) | `var/install.cfg`, `var/ral.zog`, `lang.cfg`, `files/d/gfx/sku` | What was installed and in which language. |

@@ -23,6 +23,7 @@ the switches of the command line are on [Running and options](Running-and-option
 - **Lobby passwords, ping, un-ready and `/kick`** to put a player out: [Network play](#network-play).
 - **Computer drivers (bots) in network races**, switched by the host in the lobby: [Network play](#network-play).
 - **A player who leaves a network race** has their car taken out of it, with a message to the others, and **the other cars on the map disc**: [Network play](#network-play).
+- **A save code**: the player's state (settings, best times, car set-ups, saved games) as text and as a QR code on the options menu's new page, copied, pasted or read with a camera: [Save code](Save-code).
 - **Finding hosts over Tailscale**: [Network play](#network-play).
 - **Playing through Steam** (in progress): [Network play](#network-play).
 - **Replays rendered to a video**, from the viewer's camera button in a third row and from the command line:
@@ -285,6 +286,12 @@ or IPX connection), and Steam when Valve's library is beside the program (it is 
 
 - Every file the original wrote keeps its format: replays, saved games, car set-ups, best times,
   `var/ral.cfg`.
+- **Save code**: the options menu's "save code" page shows the player's state (settings, best times, car
+  set-ups, saved games; not the replays) as a text on the left and a QR code of it on the right, with
+  buttons to copy the text, paste one from the clipboard, and read one from a camera. A code that comes in
+  is checked whole, and the player is asked, with what is in it beside what is here, before anything is
+  replaced. A QR code holds at most about 4,300 letters, so it leaves the saved games (and, for a long list
+  of best times, their split times) out; the text always has everything ([Save code](Save-code)).
 - **Errors.** An error that ends the game is shown on a panel in the game's window (the message,
   where the details are, "Quit"; Up / Down and Enter, or a pad's buttons) in place of the
   "Guru Meditation" box. Troubles belonging to one file no longer end the game: a damaged saved

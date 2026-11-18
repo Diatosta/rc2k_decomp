@@ -188,6 +188,8 @@ pub enum ItemFn {
     AxisOpen(u8),
     /// The options menu's item that opens the advanced page.
     AdvancedLoop,
+    /// The options menu's item that opens the save code page.
+    SaveCodeLoop,
     /// The advanced page's row `row` (index into `options::advanced::ROWS`) one step.
     AdvancedStep {
         row: u8,
@@ -373,6 +375,7 @@ impl ItemFn {
         ItemFn::AxesLoop,
         ItemFn::TurnControlsPage,
         ItemFn::AdvancedLoop,
+        ItemFn::SaveCodeLoop,
         ItemFn::ApplyAdvanced,
         ItemFn::AdvancedTurnPage,
         ItemFn::AdvancedStep { row: 0, up: false },
@@ -8053,7 +8056,7 @@ pub static MENUS: [Menu; 99] = [
                 font: MenuFont::StageTitle,
                 behind: 0xFFFFFFA7,
                 sprites: ItemSprite::List(7),
-                links: [0x6, 0x8, 0x6F, 0x6F],
+                links: [0x6, 0x9, 0x6F, 0x6F],
                 on_key: [
                     ItemFn::Nothing,
                     ItemFn::Nothing,
@@ -8061,6 +8064,30 @@ pub static MENUS: [Menu; 99] = [
                     ItemFn::Nothing,
                 ],
                 action: ItemFn::AdvancedLoop,
+                skip_mark: 0xFFFFFC1B,
+                measuring_font: MenuFont::Measure,
+                highlight_font: MenuFont::StageItemB,
+                action_value: 0x1,
+                spaced: 0x0,
+            },
+            MenuItem {
+                x: 747,
+                y: 322,
+                width_or_text_x: 747,
+                alignment_or_text_y: 320,
+                id: 0x9,
+                string: 0x2106,
+                font: MenuFont::StageTitle,
+                behind: 0xFFFFFFA7,
+                sprites: ItemSprite::List(7),
+                links: [0x7, 0x8, 0x6F, 0x6F],
+                on_key: [
+                    ItemFn::Nothing,
+                    ItemFn::Nothing,
+                    ItemFn::Nothing,
+                    ItemFn::Nothing,
+                ],
+                action: ItemFn::SaveCodeLoop,
                 skip_mark: 0xFFFFFC1B,
                 measuring_font: MenuFont::Measure,
                 highlight_font: MenuFont::StageItemB,
@@ -8077,7 +8104,7 @@ pub static MENUS: [Menu; 99] = [
                 font: MenuFont::StageTitle,
                 behind: 0xFFFFFFA7,
                 sprites: ItemSprite::List(6),
-                links: [0x7, 0x1, 0x6F, 0x6F],
+                links: [0x9, 0x1, 0x6F, 0x6F],
                 on_key: [
                     ItemFn::Nothing,
                     ItemFn::Nothing,
