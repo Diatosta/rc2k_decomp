@@ -17,7 +17,12 @@ pub struct Frame {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Permission {
     #[cfg_attr(
-        not(any(windows, target_os = "ios", target_os = "android", all(target_os = "linux", not(target_arch = "aarch64")))),
+        not(any(
+            windows,
+            target_os = "ios",
+            target_os = "android",
+            all(target_os = "linux", not(target_arch = "aarch64"))
+        )),
         allow(
             dead_code,
             reason = "only a real camera is ever still waiting for an answer"
@@ -32,7 +37,12 @@ pub enum Permission {
     Denied,
 }
 
-#[cfg(any(windows, target_os = "ios", target_os = "android", all(target_os = "linux", not(target_arch = "aarch64"))))]
+#[cfg(any(
+    windows,
+    target_os = "ios",
+    target_os = "android",
+    all(target_os = "linux", not(target_arch = "aarch64"))
+))]
 mod real {
     use super::{Frame, Permission};
     use rc2k_core::gfx::camera_frame::{Layout, frame_len, to_rgba};
@@ -221,7 +231,12 @@ mod real {
     }
 }
 
-#[cfg(not(any(windows, target_os = "ios", target_os = "android", all(target_os = "linux", not(target_arch = "aarch64")))))]
+#[cfg(not(any(
+    windows,
+    target_os = "ios",
+    target_os = "android",
+    all(target_os = "linux", not(target_arch = "aarch64"))
+)))]
 mod real {
     use super::{Frame, Permission};
 
