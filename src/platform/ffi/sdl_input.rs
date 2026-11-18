@@ -353,11 +353,11 @@ impl Gamepad {
 
     /// The left and right triggers' motors at `left` and `right` (0 .. 65535) for `ms`
     /// milliseconds, or until the next call.
-    pub fn rumble_triggers(self, left: u16, right: u16, ms: u32) {
-        // SAFETY: an open gamepad; SDL answers false (ignored) when it cannot.
-        unsafe {
-            SDL_RumbleGamepadTriggers(self.0, left, right, ms);
-        }
+    /// `Err` with SDL's error text when the pad takes none.
+    pub fn rumble_triggers(self, left: u16, right: u16, ms: u32) -> Result<(), String> {
+        // SAFETY: an open gamepad; SDL answers false when it cannot.
+        let done = unsafe { SDL_RumbleGamepadTriggers(self.0, left, right, ms) };
+        if done { Ok(()) } else { Err(last_error()) }
     }
 
     pub fn axis(self, axis: SDL_GamepadAxis) -> i16 {

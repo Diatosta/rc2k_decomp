@@ -292,6 +292,33 @@ them off (`trigger_rumble` in `rc2k.toml`); a pad without trigger motors is not 
 shake goes to the left and right trigger motors whatever the player's profile binds to those
 triggers. A DualSense's adaptive trigger resistance (SDL offers it only as raw effect packets) is not used.
 
+#### When the triggers stay still
+
+The game's log (`rc2k.log`) says why. When a pad is opened it logs whether SDL reports motors
+under its triggers ("is a gamepad with / without trigger rumble"), and the first time levels are
+sent to a pad it logs SDL's answer ("SDL took them", or "SDL refused them" with SDL's error text).
+What SDL's source (3.4) shows for Linux:
+
+- The kernel-driver path (SDL's evdev joystick driver, used when SDL's own HIDAPI drivers do not
+  take the pad) has no trigger rumble at all: the call answers "unsupported". A pad that SDL opens
+  this way has the main motors only.
+- Trigger motors come from SDL's HIDAPI drivers for Xbox One and Series pads (which report them
+  for every Microsoft pad) and for the GIP driver (USB Xbox pads that SDL reaches through libusb).
+  The HIDAPI drivers are on by default on Linux, but they need access to the device itself: a pad
+  over Bluetooth is read through `/dev/hidraw*`, a pad over USB through libusb (`/dev/bus/usb`).
+  Without a permission for those files SDL cannot use its own driver for the pad, and the log says
+  "without trigger rumble".
+- What can be done: give the user access to the pad's hidraw / USB node with a udev rule (a rule
+  that adds `TAG+="uaccess"` for the pad's vendor id `045e`, as Steam's `60-steam-input.rules`
+  does, or installing a distribution package of such rules), then replug or reconnect the pad.
+  Running the game with `SDL_JOYSTICK_HIDAPI=1` (or `SDL_JOYSTICK_HIDAPI_XBOX_ONE=1`) makes sure
+  the drivers are not switched off by the environment; it does not give them access to the pad.
+  A kernel driver that takes the pad over (`xpad` over USB) can keep SDL's HIDAPI driver from
+  seeing it; the log line shows which of the two ran. These are what the source offers; which one
+  applies to a given pad and system is read from the log line.
+- The triggers also stay still when the controller page's force feedback of the player's
+  controller is off (strength 0), as for the main motors.
+
 ### Engine vibration
 
 The original's force feedback has one part that comes from the engine and not from the road: when

@@ -49,6 +49,28 @@ pub fn feed(device: &InputDevice, car: &Car, engine_load: bool, race_on: bool) {
     }
     // The device's strength is a percent; the motors take it in hundredths of a percent.
     let gain = device.strength.get().min(100) * 100;
-    let target: Levels = levels(&feel_of(car, engine_load), gain);
+    let feel = feel_of(car, engine_load);
+    let target: Levels = levels(&feel, gain);
+    #[cfg(feature = "remote")]
+    log_probe(&feel, gain, target);
     di_objects::set_triggers(device.device.get(), target);
+}
+
+/// What the car did and what the triggers were given, one line a quarter of a second while a
+/// pedal is pressed, for the remote driver's trials (a held race's log).
+#[cfg(feature = "remote")]
+fn log_probe(feel: &Feel, gain: u32, target: Levels) {
+    use std::sync::atomic::AtomicU64;
+    static LAST: AtomicU64 = AtomicU64::new(0);
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_millis() as u64);
+    if (feel.throttle == 0 && feel.brake == 0) || now.saturating_sub(LAST.load(Relaxed)) < 250 {
+        return;
+    }
+    LAST.store(now, Relaxed);
+    crate::logfile::program_log::log(&format!(
+        "remote: trigger probe: {feel:?}, gain {gain}, brake {}, throttle {}",
+        target.brake, target.throttle
+    ));
 }

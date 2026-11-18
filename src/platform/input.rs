@@ -113,6 +113,8 @@ struct Device {
     rumble: Option<Rumble>,
     /// What the game wants of the pad's trigger motors, and what has gone to them.
     triggers: rc2k_core::input::triggers::Sender,
+    /// The first trigger levels sent to this pad have been logged with SDL's answer.
+    trigger_send_logged: bool,
 }
 
 /// A rumbled device's effects: each as the game last set it, and since when it runs.
@@ -253,7 +255,25 @@ impl Device {
             return;
         };
         match self.trigger_pad() {
-            Some(pad) => pad.rumble_triggers(levels.brake, levels.throttle, KEEP_MS),
+            Some(pad) => {
+                let sent = pad.rumble_triggers(levels.brake, levels.throttle, KEEP_MS);
+                // Once a pad: what SDL answered to the first levels, so the log says why a pad
+                // that reports motors stays still.
+                if !self.trigger_send_logged && levels != rc2k_core::input::triggers::Levels::STILL
+                {
+                    self.trigger_send_logged = true;
+                    log(&format!(
+                        "platform: trigger rumble on \"{}\": first levels brake {}, throttle {}: {}",
+                        self.info.name,
+                        levels.brake,
+                        levels.throttle,
+                        match sent {
+                            Ok(()) => "SDL took them".to_string(),
+                            Err(why) => format!("SDL refused them ({why})"),
+                        }
+                    ));
+                }
+            }
             None if cfg!(feature = "remote") => log(&format!(
                 "platform: trigger rumble (no motors under the triggers of \"{}\"): brake {}, throttle {}",
                 self.info.name, levels.brake, levels.throttle
@@ -362,6 +382,16 @@ impl SdlBackend {
             return;
         };
         let name = joystick.name();
+        if let Some(pad) = gamepad {
+            log(&format!(
+                "platform: \"{name}\" is a gamepad {} trigger rumble",
+                if pad.has_trigger_rumble() {
+                    "with"
+                } else {
+                    "without (SDL reports no motors under the triggers: its driver has none for it)"
+                }
+            ));
+        }
         let serial = joystick.serial();
         let product = joystick.guid();
         // The same device plugged back in takes the place it left, with its instance: the
@@ -478,6 +508,7 @@ impl SdlBackend {
             stick_moved: [false; 4],
             rumble: rumble.then(Rumble::new),
             triggers: Default::default(),
+            trigger_send_logged: false,
         });
     }
 }

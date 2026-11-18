@@ -347,6 +347,14 @@ fn set_screen_mode(
         // once by `apply_window_mode`).
         if window_before.is_none() && window_mode::get() != window_mode::WindowMode::Window {
             set_window_mode(window, window_size);
+        } else if window_changed
+            && window_mode::get() == window_mode::WindowMode::FullScreen
+            && input_window(window).is_full_screen()
+        {
+            // A new resolution while in full screen: the display is set to the new size, as
+            // leaving full screen and entering it again would (a window's size cannot be
+            // changed in full screen, the display's mode is what has the size).
+            set_window_mode(window, window_size);
         }
     }
     // The OpenGL backend's window, where it shows the frames, never waits for the refresh.
