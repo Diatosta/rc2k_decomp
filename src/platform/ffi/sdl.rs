@@ -156,6 +156,42 @@ impl Window {
         (known && width > 0 && height > 0).then_some((width as u32, height as u32))
     }
 
+    /// The window's size in points (its own coordinates; on a high-density screen smaller than
+    /// its pixels), if SDL knows it.
+    #[cfg(target_os = "ios")]
+    pub fn point_size(self) -> Option<(u32, u32)> {
+        let (mut width, mut height) = (0, 0);
+        // SAFETY: as `restore_if_minimised`; SDL writes the two integers.
+        let known = unsafe { SDL_GetWindowSize(self.0, &raw mut width, &raw mut height) };
+        (known && width > 0 && height > 0).then_some((width as u32, height as u32))
+    }
+
+    /// The part of the window clear of the screen's notch, rounded corners and home indicator, as
+    /// (x, y, width, height) in the window's pixels, if SDL knows it. The window itself where
+    /// nothing intrudes.
+    #[cfg(target_os = "ios")]
+    pub fn safe_area_pixels(self) -> Option<[u32; 4]> {
+        let (pixels, points) = (self.pixel_size()?, self.point_size()?);
+        let mut area = SDL_Rect {
+            x: 0,
+            y: 0,
+            w: 0,
+            h: 0,
+        };
+        // SAFETY: as `restore_if_minimised`; SDL writes the rectangle.
+        if !unsafe { SDL_GetWindowSafeArea(self.0, &raw mut area) } || area.w <= 0 || area.h <= 0 {
+            return None;
+        }
+        let across = f64::from(pixels.0) / f64::from(points.0);
+        let down = f64::from(pixels.1) / f64::from(points.1);
+        let scaled = |value: i32, factor: f64| (f64::from(value.max(0)) * factor).round() as u32;
+        let x = scaled(area.x, across).min(pixels.0 - 1);
+        let y = scaled(area.y, down).min(pixels.1 - 1);
+        let width = scaled(area.w, across).clamp(1, pixels.0 - x);
+        let height = scaled(area.h, down).clamp(1, pixels.1 - y);
+        Some([x, y, width, height])
+    }
+
     /// The window's full-screen state set. False when SDL refuses (the window stays as it was).
     #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // the handheld's panel is always the whole screen
     pub fn set_full_screen(self, how: FullScreen) -> bool {
@@ -546,6 +582,55 @@ pub fn init_video() -> bool {
     started
 }
 
+/// A display mode's size in pixels. SDL lists a high-density screen's modes in points (an
+/// iPhone's 852 x 393 for its 2556 x 1179 pixels) and gives the points' size in pixels as the
+/// mode's pixel density.
+fn in_pixels(mode: &SDL_DisplayMode) -> (u32, u32) {
+    let density = if cfg!(target_os = "ios") && mode.pixel_density >= 1.0 {
+        f64::from(mode.pixel_density)
+    } else {
+        1.0
+    };
+    (
+        (f64::from(mode.w) * density).round() as u32,
+        (f64::from(mode.h) * density).round() as u32,
+    )
+}
+
+/// The size in pixels of the part of the primary display clear of the notch, corners and home
+/// indicator (what a frame can use whole), if SDL knows it.
+#[cfg(target_os = "ios")]
+#[cfg_attr(test, allow(dead_code))] // the unit tests ask no display
+pub fn usable_pixels() -> Option<(u32, u32)> {
+    if !init_video() {
+        return None;
+    }
+    // SAFETY: SDL's video is up; the id is SDL's own; SDL writes the rectangle; the mode is SDL's
+    // record, read at once and only when not null.
+    unsafe {
+        let display = SDL_GetPrimaryDisplay();
+        let mut area = SDL_Rect {
+            x: 0,
+            y: 0,
+            w: 0,
+            h: 0,
+        };
+        if !SDL_GetDisplayUsableBounds(display, &raw mut area) || area.w <= 0 || area.h <= 0 {
+            return None;
+        }
+        let mode = SDL_GetDesktopDisplayMode(display);
+        let density = if mode.is_null() || (*mode).pixel_density < 1.0 {
+            1.0
+        } else {
+            f64::from((*mode).pixel_density)
+        };
+        Some((
+            (f64::from(area.w) * density).round() as u32,
+            (f64::from(area.h) * density).round() as u32,
+        ))
+    }
+}
+
 /// A display's modes, each (width, height, refresh rate), and its desktop's size.
 pub type DisplayModes = (Vec<(u32, u32, f32)>, Option<(u32, u32)>);
 
@@ -574,22 +659,24 @@ pub fn display_modes(window: Option<Window>) -> DisplayModes {
             for n in 0..usize::try_from(count).unwrap_or(0) {
                 let mode = *list.add(n);
                 if !mode.is_null() && (*mode).w > 0 && (*mode).h > 0 {
-                    modes.push(((*mode).w as u32, (*mode).h as u32, (*mode).refresh_rate));
+                    let (w, h) = in_pixels(&*mode);
+                    modes.push((w, h, (*mode).refresh_rate));
                 }
             }
             SDL_free(list.cast());
         }
         let desktop = SDL_GetDesktopDisplayMode(display);
         let desktop = (!desktop.is_null() && (*desktop).w > 0 && (*desktop).h > 0)
-            .then(|| ((*desktop).w as u32, (*desktop).h as u32));
+            .then(|| in_pixels(&*desktop));
         (modes, desktop)
     }
 }
 
-/// What a window is made with: on iOS every window fills the screen; elsewhere nothing special.
+/// What a window is made with: on iOS every window fills the screen and is drawn in the
+/// screen's own pixels (two or three to a point); elsewhere nothing special.
 fn window_flags() -> SDL_WindowFlags {
     if cfg!(target_os = "ios") {
-        SDL_WINDOW_FULLSCREEN
+        SDL_WindowFlags(SDL_WINDOW_FULLSCREEN.0 | SDL_WINDOW_HIGH_PIXEL_DENSITY.0)
     } else {
         SDL_WindowFlags(0)
     }

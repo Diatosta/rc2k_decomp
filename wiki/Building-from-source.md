@@ -170,7 +170,10 @@ into `dist/mac/`. `tools/mac/README.md` describes cross-compiling on Linux by ha
 signs it with a free Apple ID (xtool) and installs it on a phone plugged in by USB, for seven
 days at a time. The game's folder is copied into the app's Documents folder with the Files
 app. `tools/ios/README.md` lists every step. The iOS port is begun: it is checked to compile,
-not yet run, and has no touch controls yet (a game controller works).
+runs on a phone, and has no touch controls yet (a game controller works). The window is drawn in
+the screen's own pixels; the race starts at that size (cut to at most 1920 wide), the graphics page
+lists it with its fractions, and the frame is kept inside the part of the screen clear of the notch
+and the home indicator.
 
 ## The Anbernic RG34XXSP handheld
 
