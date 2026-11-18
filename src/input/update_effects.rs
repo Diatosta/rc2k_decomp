@@ -102,12 +102,6 @@ pub fn update_effects_with(input: &Input, system: &System, v: &Vars<'_>) -> Resu
                 engine,
                 system,
             )?;
-            crate::input::trigger_rumble::feed(
-                device,
-                view,
-                engine,
-                input.force_feedback.race_on.get() == 1,
-            );
         }
     }
     // The third and fourth players' cars, each on its own device if that has effects.

@@ -52,8 +52,6 @@ pub fn capture(o: Owners<'static>) -> Result<Options, Refused> {
     let hud_box = crate::hud::box_ratio::get();
     options.display.hud_box = (hud_box != Default::default()).then(|| hud_box.name().to_owned());
     options.display.smooth_frames = crate::race::blend::smooth_on();
-    options.display.trigger_rumble = crate::input::trigger_rumble::on();
-    options.display.wide_road_drivers = crate::drive::computer_roads::on();
     options.display.split_layout = crate::race::split_layout::index();
     Ok(options)
 }
@@ -110,8 +108,6 @@ pub fn apply(o: Owners<'static>, options: &Options) -> Result<(), Refused> {
     }
     // A video's frames between the ticks need the blend, whatever the options say.
     crate::race::blend::set_smooth(options.display.smooth_frames || crate::video::active());
-    crate::input::trigger_rumble::set_on(options.display.trigger_rumble);
-    crate::drive::computer_roads::set_on(options.display.wide_road_drivers);
     crate::race::split_layout::set_index(options.display.split_layout);
     Ok(())
 }

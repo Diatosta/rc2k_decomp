@@ -136,13 +136,6 @@ pub struct Display {
     /// Off, a frame shows the last tick, at most a hundred a second.
     #[serde(default = "on", skip_serializing_if = "is_on")]
     pub smooth_frames: bool,
-    /// The triggers' own rumble on a pad that has it (only in the new file; on when missing).
-    #[serde(default = "on", skip_serializing_if = "is_on")]
-    pub trigger_rumble: bool,
-    /// The computer's cars drive a wide road as a wide one (only in the new file; off when
-    /// missing, as the original drives every road).
-    #[serde(default, skip_serializing_if = "is_off")]
-    pub wide_road_drivers: bool,
     /// The layout of a split screen of three or four players, by its place in the layouts the
     /// race cycles through (only in the new file; the first when missing).
     #[serde(default, skip_serializing_if = "is_zero")]
@@ -155,10 +148,6 @@ fn on() -> bool {
 
 fn is_on(value: &bool) -> bool {
     *value
-}
-
-fn is_off(value: &bool) -> bool {
-    !*value
 }
 
 fn is_zero(value: &u32) -> bool {
@@ -182,8 +171,6 @@ impl Default for Display {
             draw_threads: None,
             quit_pictures: true,
             smooth_frames: true,
-            trigger_rumble: true,
-            wide_road_drivers: false,
             split_layout: 0,
         }
     }

@@ -48,7 +48,6 @@ pub mod stop_device_effects;
 pub mod stop_effects;
 pub mod store;
 pub mod take_key;
-pub mod trigger_rumble;
 pub mod typed_text;
 pub mod types;
 pub mod update_car_effects;

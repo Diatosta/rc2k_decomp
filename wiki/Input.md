@@ -274,14 +274,6 @@ to full, at the device's gain; conditions (springs, dampers) are left out. In a 
 sets its effects every frame, so a quarter second without a setting (a pause, a question) stills
 the motors.
 
-A pad whose triggers have motors also gets trigger rumble from the car, not from the game's
-effects: each time the race brings its force feedback up to date (every 40 ms,
-`src/input/update_effects.rs`) `input::trigger_rumble` turns the car's pedals, the driven wheels'
-slip and the engine's revs (unless the player's engine vibration switch is off) into the two triggers' levels (`rc2k_core::input::triggers`), which
-`SdlBackend::triggers` sends with `SDL_RumbleGamepadTriggers` when they change and again before
-the pad would end them (a pad keeps a level for a second). A quarter second without a setting
-stills them, as it does the motors.
-
 Effects are started and stopped around a race (`src/input/begin_effects.rs`,
 `end_effects.rs`). The strength is a per-player option.
 

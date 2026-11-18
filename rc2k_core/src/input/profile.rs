@@ -487,8 +487,8 @@ pub struct Profile {
     /// What the controller's buttons are shown as in the menus and questions.
     #[serde(default, skip_serializing_if = "is_automatic")]
     pub button_icons: crate::input::icons::IconStyle,
-    /// The engine's part of the force feedback (the shake of a car nearly still, the engine's
-    /// load in a pad's accelerator trigger): off leaves only what the road does. On for a
+    /// The engine's part of the force feedback (the shake of a car nearly still): off leaves
+    /// only what the road does. On for a
     /// profile made before the switch existed.
     #[serde(default = "default_engine_vibration", skip_serializing_if = "is_true")]
     pub engine_vibration: bool,

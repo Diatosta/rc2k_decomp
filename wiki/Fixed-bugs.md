@@ -976,16 +976,6 @@ has the same fixed addresses, but its network mode could not be run here to see 
 - **Seen or read**: heard (the original, 2026-10-21).
 - **Fix**: the menus' tune starts when the viewer returns to the menus.
 
-## The computer driver never tells a wide road from a narrow one (made optional)
-
-*Original*: `drive::drive_computer_car` (0x4628EF .. 0x462903).
-*Made optional*: 2026-11-18 (advanced page, "computer cars on wide roads"; off by default).
-
-- **What**: the driver tests whether the road at the car's checkpoint is narrow (its face's two width bytes add up to less than 18) and both outcomes then set the same "narrow" flag, so the wide-road settings (the first speed table, the turn of 0x980 at which a bend is noted, the lookahead for the faster cars) are never used.
-- **In game**: the computer's cars drive every road with the narrow road's slower speed table. With the wide way switched on, the cars on wide roads of the stages are about the same speed: in trials a stage's time changed by less than a percent either way, a pack of arcade rivals covered about one percent more of the course in the same time, and no car got stuck more often.
-- **Seen or read**: read in the code; the cars' times compared in trials (2026-11-18).
-- **Fix**: the flag is set only for a narrow road when the switch is on (`drive::computer_roads`); off, the original's way is kept so that races, replays and held tests are unchanged.
-
 ## A replay that filled its index ended the game
 
 *Original*: `race::write_replay_block` and `race::close_replay`.

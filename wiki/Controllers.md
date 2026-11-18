@@ -280,47 +280,6 @@ nothing to shake on a pad and are left out. While the race is paused, or a quest
 screen, the pad is still. To use it, choose the pad as the player's controller and raise its
 force feedback from off.
 
-A gamepad whose triggers have motors of their own (an Xbox One or Series pad, when SDL reports the
-motors; SDL's DualSense driver has none to offer) also rumbles its triggers, through SDL's trigger rumble, while a race runs. The
-right trigger (the accelerator) shakes when the driven wheels spin faster than the car moves,
-and faintly with the engine's load at high revs; the left trigger (the brake) shakes when the
-braking wheels lock (the pedal pressed, the wheels slower than the car). A normal wheelspin start is
-felt at about four fifths of the trigger's strength and a hard stop with locked wheels at two thirds
-or more; the engine's load alone stays a light background (a fifth at most). Each is scaled by how far
-its pedal is pressed; both are still while the car is off the ground and while the game is paused,
-and both take the same strength as the motors (the controller page's force feedback; off, the
-triggers stay still). The advanced page's "trigger rumble" row (on its second part) switches
-them off (`trigger_rumble` in `rc2k.toml`); a pad without trigger motors is not affected. The
-shake goes to the left and right trigger motors whatever the player's profile binds to those
-triggers. A DualSense's adaptive trigger resistance (SDL offers it only as raw effect packets) is not used.
-
-#### When the triggers stay still
-
-The game's log (`rc2k.log`) says why. When a pad is opened it logs whether SDL reports motors
-under its triggers ("is a gamepad with / without trigger rumble"), and the first time levels are
-sent to a pad it logs SDL's answer ("SDL took them", or "SDL refused them" with SDL's error text).
-What SDL's source (3.4) shows for Linux:
-
-- The kernel-driver path (SDL's evdev joystick driver, used when SDL's own HIDAPI drivers do not
-  take the pad) has no trigger rumble at all: the call answers "unsupported". A pad that SDL opens
-  this way has the main motors only.
-- Trigger motors come from SDL's HIDAPI drivers for Xbox One and Series pads (which report them
-  for every Microsoft pad) and for the GIP driver (USB Xbox pads that SDL reaches through libusb).
-  The HIDAPI drivers are on by default on Linux, but they need access to the device itself: a pad
-  over Bluetooth is read through `/dev/hidraw*`, a pad over USB through libusb (`/dev/bus/usb`).
-  Without a permission for those files SDL cannot use its own driver for the pad, and the log says
-  "without trigger rumble".
-- What can be done: give the user access to the pad's hidraw / USB node with a udev rule (a rule
-  that adds `TAG+="uaccess"` for the pad's vendor id `045e`, as Steam's `60-steam-input.rules`
-  does, or installing a distribution package of such rules), then replug or reconnect the pad.
-  Running the game with `SDL_JOYSTICK_HIDAPI=1` (or `SDL_JOYSTICK_HIDAPI_XBOX_ONE=1`) makes sure
-  the drivers are not switched off by the environment; it does not give them access to the pad.
-  A kernel driver that takes the pad over (`xpad` over USB) can keep SDL's HIDAPI driver from
-  seeing it; the log line shows which of the two ran. These are what the source offers; which one
-  applies to a given pad and system is read from the log line.
-- The triggers also stay still when the controller page's force feedback of the player's
-  controller is off (strength 0), as for the main motors.
-
 ### Engine vibration
 
 The original's force feedback has one part that comes from the engine and not from the road: when
@@ -328,11 +287,9 @@ the car is nearly still (the first wheel sum at 5 or less, a car at a standstill
 pushed against a wall) its surface effect, a periodic shake, is not the road's but follows the
 engine revs, their square, so a wheel buzzes while the engine idles and more as it is revved. The
 controller page's "engine vibration" row (on at first: the original's feel; one setting for each
-player and controller, kept in the player's profile) switches that part off. With it off:
-
-- the shake of a car nearly still is not asked for (the game's silent row of the effect, no
-  magnitude), on a wheel and on a pad's rumble motors alike;
-- the accelerator trigger's faint shake with the engine's load (see above) is left out.
+player and controller, kept in the player's profile) switches that part off. With it off, the
+shake of a car nearly still is not asked for (the game's silent row of the effect, no
+magnitude), on a wheel and on a pad's rumble motors alike.
 
 The road's part is as it was with the switch on or off: the surface's shake once the car moves, the
 knocks, the landings, the springs and dampers that steer the wheel and the changes of speed. The

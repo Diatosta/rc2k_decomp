@@ -120,7 +120,7 @@ The original was a 32-bit Windows program on DirectX. Its platform side was not 
   question", and the switches that lived in `var/ral.cfg` shown as the feature they control:
   frame counter, films, screenshots, non-linear steering, automatic neutral, rain and snow, music
   and force feedback, and, on a second part of the page reached by its "more" button ("first page" comes back), "controls from saved games" (whether a loaded championship brings its own
-  keys, controller set-up and gearing, or keeps the players' current ones), "trigger rumble" and "computer cars on wide roads" (some take effect at the next race or start, and the row says so). "Apply"
+  keys, controller set-up and gearing, or keeps the players' current ones) (some take effect at the next race or start, and the row says so). "Apply"
   writes them ([Running and options](Running-and-options), [Settings files](Settings-files)).
 - **Settings are saved when a page is left**, not only when the game ends, so a crash keeps them.
   Options are kept in a readable text file, `var/rc2k.toml`; the original's `var/ral.dat` is
@@ -154,7 +154,7 @@ Everything is on [Controllers](Controllers) and [Input](Input); in short:
   in the quit question" row does so for the race's leave question and the tyre change's prompt.
 - **Engine vibration switch.** The force feedback of a car nearly still follows the engine in the
   original; the controller page's "engine vibration" row (on at first, set for each player and
-  controller) leaves that out, and the accelerator trigger's engine share too, so a wheel feels
+  controller) leaves that out, so a wheel feels
   only the road: [Controllers](Controllers#engine-vibration).
 - **On-screen keyboard** for typing with a pad: below or above the field, one tile a key, the
   typed text in a line at the top (stars for a password), pages of symbols and accented letters.
@@ -173,9 +173,7 @@ Everything is on [Controllers](Controllers) and [Input](Input); in short:
 - **Hotplug.** A controller plugged in while the game runs can be chosen and driven with at once;
   one unplugged and plugged back takes its place again. Force feedback effects are set up again.
 - **Rumble.** A pad with only rumble motors rumbles for the engine and knocks, at the strength of
-  the controller page's force feedback row. A pad with motors under its triggers (an Xbox One or
-  Series pad) also shakes the right trigger under wheelspin and the left one when the braking
-  wheels lock; the advanced page's "trigger rumble" switches it off.
+  the controller page's force feedback row.
 - **Pause** (a key or a button) asks the same "leave?" question as Escape, where the original
   waited for a key.
 - The developers' debug pages are a window over the game ([The debug window](The-debug-window));
@@ -203,11 +201,6 @@ Everything is on [Controllers](Controllers) and [Input](Input); in short:
 - The **windscreen Pong** can be played: the bat follows player 1's steering.
 - The **computer drivers are shuffled** at a championship's start as the game meant, and a
   race's other **hidden slips** were put right ([Fixed bugs](Fixed-bugs)).
-- **Computer cars on wide roads** (the advanced page's second part, off at first): the computer
-  driver is meant to tell a wide road from a narrow one, with its own speed table and a higher
-  turn at which it notes a bend for the wide one; the original's code marks every road narrow,
-  so the wide way is never used. The row switches it on (see [Fixed bugs](Fixed-bugs)). The
-  cars come out about the same: the stages' times differ by a fraction of a percent.
 - A race can start straight from the command line ([Running and options](Running-and-options)).
 
 ## Replays
