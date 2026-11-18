@@ -12,7 +12,6 @@
 //! player without a name, a length outside 0 .. 0x1F, no keyboard layout.
 
 use crate::errors::{BadInput, Refused};
-use crate::input::key_to_char::{has_layout, key_to_char};
 use crate::input::take_key::take_key;
 use crate::menu::clear_text::clear_text;
 use crate::menu::owner::Menus;
@@ -36,9 +35,6 @@ pub fn edit_player_name(
     let len = { screens.loop_flags.text_length.get() } as i32;
     if !(0..TEXT_LEN as i32).contains(&len) {
         return Err(BadInput("an entry length outside 0 .. 0x1F").into());
-    }
-    if !has_layout(input) {
-        return Err(BadInput("no keyboard layout").into());
     }
 
     use rc2k_core::menu::text_entry::{self as entry, Key};
@@ -74,11 +70,8 @@ pub fn edit_player_name(
         }
         Key::Clear => clear_text(menus, name)?,
         Key::Backspace => backspace_name(menus, name)?,
-        Key::Other(key) => {
-            if !typed.text_mode {
-                append(key_to_char(input, key as u32)? as u8)?;
-            }
-        }
+        // Printable keys come as typed text, not as keys.
+        Key::Other(_) => {}
     }
     Ok(())
 }

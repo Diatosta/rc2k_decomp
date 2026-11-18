@@ -17,10 +17,16 @@ use rc2k_core::hud::panels;
 
 /// The HUD of one player.
 pub fn layout_0(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
+    layout_0_on(frame, hud, pen, texture::DIAL_FIRST)
+}
+
+/// The HUD of one player whose map picture is the texture `map`.
+pub fn layout_0_on(frame: &Frame, hud: &Hud, pen: Pen, map: u32) -> Result<(), Refused> {
     use crate::hud::*;
     let panel = &frame.panel_and_overlay.get().panel;
     let flags = panel.hud_flags[0].get();
     begin_dials(hud);
+    hud.block.texture.set(map);
     if flags & 0x10 != 0 {
         dials::disc(frame, hud, pen, &dials::DISC_0)?;
     }

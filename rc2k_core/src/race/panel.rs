@@ -69,10 +69,22 @@ pub const MOST_OVERLAY_PARTS: u32 = 0x40;
 /// The overlay's six list sizes.
 pub const OVERLAY_SIZES: [u32; 6] = [0x40, 0x80, 0x50, 0x40, 0x80, 0x50];
 
-/// The car block dwords the overlay's set-up clears (offsets).
-pub const OVERLAY_CLEARED: [u32; 10] = [
-    0xF78, 0xF7C, 0xF80, 0xF84, 0xF88, 0xF8C, 0xF90, 0xF94, 0xF98, 0xFA0,
-];
+/// The car block dwords the overlay's set-up clears.
+pub const OVERLAY_CLEARED: [super::cars::BlockWord; 10] = {
+    use super::cars::BlockWord::{EventCode, EventCount, EventPosition};
+    [
+        EventCode(0),
+        EventCode(1),
+        EventCode(2),
+        EventCode(3),
+        EventCode(4),
+        EventCode(5),
+        EventCode(6),
+        EventCode(7),
+        EventCount,
+        EventPosition,
+    ]
+};
 
 /// The overlay's parts: with two checkpoint kinds or more (signed) the stretches `found`
 /// (asked only then), else one part of a mile. Refused past the room.

@@ -28,6 +28,8 @@ pub enum Kind {
     /// Frames between the simulation's ticks drawn blended (`rc2k.toml`); off, a frame shows the
     /// last tick and the frames are at most a hundred a second.
     SmoothFrames,
+    /// The triggers' own rumble on a pad that has it (`rc2k.toml`).
+    TriggerRumble,
     /// A `ral.cfg` switch: the key; `inverted` when the key names what is off (`nofmv`), so the
     /// page shows the feature, not its absence.
     Flag { key: &'static str, inverted: bool },
@@ -49,7 +51,7 @@ const fn flag(key: &'static str, inverted: bool, when: When) -> Row {
 
 /// The rows in the order the page shows them: the first part the drawing and the screen, the
 /// second driving, sound and controls.
-pub const ROWS: [Row; 13] = [
+pub const ROWS: [Row; 14] = [
     Row {
         kind: Kind::Threads,
         when: When::Now,
@@ -71,6 +73,10 @@ pub const ROWS: [Row; 13] = [
     flag("nonlinearsteering", false, When::Now),
     flag("noautoneutral", true, When::Now),
     flag("noforcefeedback", true, When::NextStart),
+    Row {
+        kind: Kind::TriggerRumble,
+        when: When::Now,
+    },
     flag("nomusic", true, When::NextStart),
     Row {
         kind: Kind::QuitPictures,
@@ -149,6 +155,8 @@ pub struct Values {
     pub quit_pictures: bool,
     /// Frames drawn between the ticks.
     pub smooth_frames: bool,
+    /// The triggers' rumble on.
+    pub trigger_rumble: bool,
     /// Each `Flag` row's switch as the page shows it (on = the feature on), in `ROWS` order
     /// (the other rows' entries are unused).
     pub flags: [bool; ROWS.len()],
@@ -169,6 +177,7 @@ impl Values {
             Kind::Renderer => self.renderer = self.renderer.other(up, gl),
             Kind::QuitPictures => self.quit_pictures = !self.quit_pictures,
             Kind::SmoothFrames => self.smooth_frames = !self.smooth_frames,
+            Kind::TriggerRumble => self.trigger_rumble = !self.trigger_rumble,
             Kind::Flag { .. } => self.flags[row] = !self.flags[row],
         }
     }
@@ -306,6 +315,7 @@ mod tests {
             renderer: Renderer::Gpu,
             quit_pictures: true,
             smooth_frames: true,
+            trigger_rumble: true,
             flags: [false; ROWS.len()],
         };
         v.step(0, false, 4, false);
@@ -322,6 +332,14 @@ mod tests {
         assert!(!v.quit_pictures);
         v.step(3, true, 4, false);
         assert!(!v.smooth_frames);
+        let at = ROWS
+            .iter()
+            .position(|r| matches!(r.kind, Kind::TriggerRumble))
+            .unwrap();
+        v.step(at, true, 4, false);
+        assert!(!v.trigger_rumble);
+        // On the second part of the page, beside the other controls' rows.
+        assert!(rows_on_page(1).contains(&at));
     }
 
     #[test]

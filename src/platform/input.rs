@@ -111,6 +111,8 @@ struct Device {
     /// With no haptic device of use and SDL able to rumble it: the game's effects for its
     /// motors.
     rumble: Option<Rumble>,
+    /// What the game wants of the pad's trigger motors, and what has gone to them.
+    triggers: rc2k_core::input::triggers::Sender,
 }
 
 /// A rumbled device's effects: each as the game last set it, and since when it runs.
@@ -228,7 +230,38 @@ fn haptic_or_rumble(joystick: Joystick) -> (Option<Haptic>, bool) {
     (haptic, rumble)
 }
 
+/// Milliseconds on a clock that only goes forward, for the triggers' timing.
+fn now_ms() -> u64 {
+    static START: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
+    START
+        .get_or_init(std::time::Instant::now)
+        .elapsed()
+        .as_millis() as u64
+}
+
 impl Device {
+    /// The pad, when its triggers have motors.
+    fn trigger_pad(&self) -> Option<Gamepad> {
+        self.gamepad.filter(|pad| pad.has_trigger_rumble())
+    }
+
+    /// The trigger levels due now go to the pad's motors (or, with no motors under them, to the
+    /// remote driver's log: the stand-in pad has none).
+    fn send_triggers(&mut self, due: Option<rc2k_core::input::triggers::Levels>) {
+        use rc2k_core::input::triggers::KEEP_MS;
+        let Some(levels) = due else {
+            return;
+        };
+        match self.trigger_pad() {
+            Some(pad) => pad.rumble_triggers(levels.brake, levels.throttle, KEEP_MS),
+            None if cfg!(feature = "remote") => log(&format!(
+                "platform: trigger rumble (no motors under the triggers of \"{}\"): brake {}, throttle {}",
+                self.info.name, levels.brake, levels.throttle
+            )),
+            None => {}
+        }
+    }
+
     /// The device's handles closed (it has gone): it reads at rest and plays no effect.
     fn close(&mut self) {
         // The handles `add` opened, each closed once (taken); the joystick of a gamepad is
@@ -242,6 +275,7 @@ impl Device {
             rumble.sent = (0, 0);
             rumble.sent_at = None;
         }
+        self.triggers = Default::default();
         if let Some(gamepad) = self.gamepad.take() {
             gamepad.close();
         } else if let Some(joystick) = self.joystick {
@@ -443,6 +477,7 @@ impl SdlBackend {
             gain: 10_000,
             stick_moved: [false; 4],
             rumble: rumble.then(Rumble::new),
+            triggers: Default::default(),
         });
     }
 }
@@ -692,6 +727,8 @@ impl Backend for SdlBackend {
         if let Some(rumble) = d.rumble.as_mut() {
             rumble.update(joystick);
         }
+        let due = d.triggers.poll(now_ms());
+        d.send_triggers(due);
         if let Some(pad) = d.gamepad {
             return pad_reading(pad, &mut d.stick_moved);
         }
@@ -830,6 +867,14 @@ impl Backend for SdlBackend {
         }
     }
 
+    fn triggers(&mut self, device: usize, levels: rc2k_core::input::triggers::Levels) {
+        if let Some(d) = self.devices.get_mut(device) {
+            d.triggers.set(levels, now_ms());
+            let due = d.triggers.poll(now_ms());
+            d.send_triggers(due);
+        }
+    }
+
     fn acquired(&mut self, device: usize, on: bool) {
         // Given back, a device's effects stop (as DirectInput's exclusive devices do).
         if on {
@@ -838,6 +883,8 @@ impl Backend for SdlBackend {
         let Some(d) = self.devices.get_mut(device) else {
             return;
         };
+        let still = d.triggers.stop();
+        d.send_triggers(still);
         if let Some(rumble) = d.rumble.as_mut() {
             rumble.stop(d.joystick);
         }

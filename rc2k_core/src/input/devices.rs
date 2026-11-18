@@ -21,18 +21,6 @@ pub const FULL: u32 = 0x100;
 
 /// The bits a reading has with the hat centred.
 pub const HAT_CENTRED: u32 = 0xE00;
-/// What `input::clear_device_readings` writes, in order: the state copies (+0x2C .. +0x38) and
-/// the readings (+0x4DC .. +0x4E4) 0, the bits the hat-centred value.
-pub const CLEARED_READINGS: [(usize, u32); 8] = [
-    (0x2C, 0),
-    (0x30, 0),
-    (0x34, 0),
-    (BUTTONS, 0),
-    (READINGS, 0),
-    (READINGS + 4, 0),
-    (READINGS + 8, 0),
-    (BITS, HAT_CENTRED),
-];
 
 pub type Record = [u8; RECORD_LEN];
 /// The key table the bindings' keys index (256 bytes).

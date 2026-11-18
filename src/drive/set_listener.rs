@@ -112,8 +112,8 @@ pub fn set_listener(
     {
         cell.set(place.get().wrapping_neg());
     }
-    for (k, o) in listener::TURN_OFFSETS.into_iter().enumerate() {
-        race.effects_settings().listener_turn[k].set(view.view_turn_matrix[o as usize / 4].get());
+    for (k, figure) in listener::TURN_FIGURES.into_iter().enumerate() {
+        race.effects_settings().listener_turn[k].set(view.view_turn_matrix[figure].get());
     }
     race.effects_settings().listener_figures[0].set(listener::first_figure(
         race.shared.vars.get().settings_words[0].get(),

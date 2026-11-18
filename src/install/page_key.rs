@@ -29,7 +29,6 @@ pub fn page_key(
     let (key, plain_edit) = if edited {
         let outcome = i::edit_key::edit_key(
             crate::strings::append_string_by_id::StringOwners::of(o),
-            o.input,
             install,
             key,
             item,
@@ -87,7 +86,6 @@ pub fn type_into_edit(
     for &c in &queued.chars {
         crate::install::edit_key::edit_key(
             crate::strings::append_string_by_id::StringOwners::of(o),
-            o.input,
             install,
             0x100 | u32::from(c),
             item,

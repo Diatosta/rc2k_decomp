@@ -40,19 +40,6 @@ impl HudQuad {
         }
     }
 
-    /// The record's dword `n` (0 .. 14, the order of the fields).
-    pub fn word(&self, n: usize) -> &PlainDword {
-        match n {
-            0 => &self.alpha,
-            1 => &self.left,
-            2 => &self.top,
-            3 => &self.right,
-            4 => &self.bottom,
-            5 => &self.colour,
-            _ => &self.places[n - 6],
-        }
-    }
-
     /// The corners: left, top, right, bottom.
     pub fn set_rect(&self, [l, t, r, b]: [u32; 4]) {
         self.left.set(l);
@@ -61,8 +48,42 @@ impl HudQuad {
         self.bottom.set(b);
     }
 
+    /// The four corners' texture places, each (u, v).
+    pub fn set_places(&self, corners: [[u32; 2]; 4]) {
+        for (k, [u, v]) in corners.into_iter().enumerate() {
+            self.places[2 * k].set(u);
+            self.places[2 * k + 1].set(v);
+        }
+    }
+
+    /// The record's dwords, in the order of the fields.
     pub fn words(&self) -> [u32; 14] {
-        std::array::from_fn(|n| self.word(n).get())
+        let [alpha, left, top, right, bottom, colour] = [
+            &self.alpha,
+            &self.left,
+            &self.top,
+            &self.right,
+            &self.bottom,
+            &self.colour,
+        ]
+        .map(PlainDword::get);
+        let p = |n: usize| self.places[n].get();
+        [
+            alpha,
+            left,
+            top,
+            right,
+            bottom,
+            colour,
+            p(0),
+            p(1),
+            p(2),
+            p(3),
+            p(4),
+            p(5),
+            p(6),
+            p(7),
+        ]
     }
 }
 

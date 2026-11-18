@@ -586,7 +586,14 @@ pub fn run_view_marks(
     race.effects_settings().other_marks_shown.set(other);
     race.effects_settings().own_marks_shown.set(own);
     let layout_at = layout_index(view, ctx.reads.vars.split.get());
-    let layout = race.frame.frame_work.get().view_layouts[layout_at as usize].get();
+    // The marks' layout number: the two-player layouts' table has none for a larger split's views.
+    let layout = race
+        .frame
+        .frame_work
+        .get()
+        .view_layouts
+        .get(layout_at as usize)
+        .map_or(0, crate::memory::session::PlainDword::get);
     race.effects_settings().marks_layout.set(layout);
     crate::math::cells::copy_cells(
         &ctx.reads.car_blocks.cars[ctx.reads.view.view_number(view as usize)?].whole_matrix,
@@ -609,17 +616,28 @@ pub fn run_view_marks(
         ctx.view.polygon.window.view_centre[0].get(),
         ctx.view.polygon.window.view_centre[1].get(),
     );
-    let n = race.frame.frame_work.get().view_layouts[layout_at as usize].get() as usize;
-    ctx.view.polygon.window.view_centre[0].set(int_over_times(
-        session.screen.get().width.get(),
-        ctx.reads.numbers.k800.get(),
-        race.frame.frame_work.get().view_scale_x[n].get(),
-    ));
-    ctx.view.polygon.window.view_centre[1].set(int_over_times(
-        session.screen.get().height.get(),
-        ctx.reads.numbers.k600.get(),
-        race.frame.frame_work.get().view_scale_y[n].get(),
-    ));
+    if ctx.reads.view.players.get() > 2 {
+        // A part of a larger split screen: the effects are placed about the part's own middle,
+        // in screen pixels (the two-player layouts' table has no entry for the third and fourth
+        // views).
+        let window = &ctx.view.polygon.window;
+        for axis in 0..2 {
+            let middle = window.view_offset[axis].get() + window.view_size[axis].get() / 2;
+            window.view_centre[axis].set(middle as f32);
+        }
+    } else {
+        let n = race.frame.frame_work.get().view_layouts[layout_at as usize].get() as usize;
+        ctx.view.polygon.window.view_centre[0].set(int_over_times(
+            session.screen.get().width.get(),
+            ctx.reads.numbers.k800.get(),
+            race.frame.frame_work.get().view_scale_x[n].get(),
+        ));
+        ctx.view.polygon.window.view_centre[1].set(int_over_times(
+            session.screen.get().height.get(),
+            ctx.reads.numbers.k600.get(),
+            race.frame.frame_work.get().view_scale_y[n].get(),
+        ));
+    }
     // No register is read or left.
     let done = crate::effects::frame_marks::frame_marks(race, scene, effects).and_then(|_| {
         if race.frame.frame_work.get().drawing.get() == 0 {

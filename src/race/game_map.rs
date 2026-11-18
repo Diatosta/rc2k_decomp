@@ -93,7 +93,7 @@ const NOT_8BIT: FatalError = FatalError {
 };
 
 /// Entry 3 of the pixel kinds: (bytes a pixel, the format's handle, the format).
-fn take_format(gfx: &crate::gfx::owner::Gfx) -> Result<(u32, u32, PixelFormat), BadInput> {
+pub fn take_format(gfx: &crate::gfx::owner::Gfx) -> Result<(u32, u32, PixelFormat), BadInput> {
     let card = &gfx.card;
     let kind = card
         .texture_tables

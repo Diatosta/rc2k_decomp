@@ -6,6 +6,7 @@
                                          the GPU renderer is the default (--gpu is kept: the same),
                                          --software forces the rasteriser (RC2K_RENDERER=software)
     remote.py key Return [ms]            a key press (SDL's scancode names)
+    remote.py text Rafael Gonçalves      text typed as SDL's text input gives it (into a field being edited)
     remote.py down W / up W              a key held
     remote.py pad a [ms]                 a gamepad button (menus)
     remote.py joy attach|detach          a plain stand-in stick plugged in or out
@@ -520,7 +521,7 @@ def main():
         sys.exit(0 if press(rest[0], float(rest[1]) if len(rest) > 1 else 5.0) else 1)
     elif command == 'log':
         log(int(rest[0]) if rest else 30)
-    elif command in ('key', 'down', 'up', 'pad', 'joy', 'state', 'time', 'chat', 'renderer', 'invite'):
+    elif command in ('key', 'text', 'down', 'up', 'pad', 'joy', 'state', 'time', 'chat', 'renderer', 'invite'):
         print(ask(' '.join([command] + rest)))
     else:
         sys.exit(__doc__)

@@ -269,6 +269,12 @@ fn sync_text_input() {
     {
         window.set_text_input(on);
     }
+    if let Some(window) = window
+        && crate::input::typed_text::text_mode()
+    {
+        // Fields that do not say where they are sit about the middle of the screen.
+        window.set_text_input_area(crate::input::typed_text::field_y().unwrap_or(300));
+    }
 }
 
 /// Whether a race is being driven: the pad and the wheel are then the player's controls. In the

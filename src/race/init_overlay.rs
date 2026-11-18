@@ -21,6 +21,12 @@ const ONE: u32 = 0x3F80_0000;
 /// Sets up the overlay's stage parts (see the module header).
 pub fn init_overlay(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     crate::hud::layout_common::start_gear_log();
+    race.frame
+        .panel_and_overlay
+        .get()
+        .panel
+        .overview_drawn
+        .set(0);
     {
         // Logic in `rc2k_core::race::panel::{overlay_parts, half_length, OVERLAY_SIZES,
         // OVERLAY_CLEARED}`; the miles the x87's.
@@ -146,8 +152,8 @@ pub fn init_overlay(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
             cell.set(value);
         }
         for car in 0..race.shared.work.get().car_blocks.len() {
-            for off in OVERLAY_CLEARED {
-                crate::race::race_init::state_cell(race.shared.race_car(car)?, off)?.set(0);
+            for word in OVERLAY_CLEARED {
+                crate::race::race_init::block_word(race.shared.race_car(car)?, word)?.set(0);
             }
         }
         for distance in &race.frame.panel_and_overlay.get().panel.distance {

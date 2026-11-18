@@ -160,6 +160,9 @@ pub trait Backend: Send {
     fn centring(&mut self, device: usize, on: bool);
     /// The device acquired (true) or given back.
     fn acquired(&mut self, device: usize, on: bool);
+    /// What the game wants of the device's trigger motors now (set again every 40 ms in a race;
+    /// still when it stops setting them). A device with no such motors does nothing.
+    fn triggers(&mut self, _device: usize, _levels: rc2k_core::input::triggers::Levels) {}
 }
 
 static BACKEND: Mutex<Option<Box<dyn Backend>>> = Mutex::new(None);
@@ -806,6 +809,17 @@ pub fn create_effect(
     let id = id_of(at);
     backend(|b| b.effect(device, id, &e, false, false));
     Ok(at)
+}
+
+/// The trigger motors of the device object at `this` set to `levels`.
+pub fn set_triggers(this: u32, levels: rc2k_core::input::triggers::Levels) {
+    let device = with(|s| match s.entries.get(&id_of(this)).map(|e| &e.what) {
+        Some(Kind2::Device(d)) => Some(d.device),
+        _ => None,
+    });
+    if let Some(device) = device {
+        backend(|b| b.triggers(device, levels));
+    }
 }
 
 /// The effect at `this` changed by `f` (true: it is started, or started again, now), then

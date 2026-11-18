@@ -6,7 +6,7 @@
 //! player B's car on the second device with the second view block. Each only if that device has
 //! effects (+0x28 1). See `input/effects.rs`. Refuses (before anything: the way through is
 //! worked out first) a car number past the eight sound objects and a null device on the way
-//! taken.
+//! taken. The third and fourth players of a larger split screen then get theirs on devices 2 and 3.
 
 use crate::errors::{BadInput, Refused};
 use crate::input::owner::Input;
@@ -26,6 +26,9 @@ pub struct Vars<'a> {
     pub views: &'a [crate::memory::session::PlainDword; 2],
     pub objects: &'a [crate::sound::store::SoundObject; 8],
     pub two_devices: &'a Dword,
+    /// The race's players: the third and fourth (a larger split screen) have their cars' blocks, sound
+    /// objects and devices 2 and 3.
+    pub players: u32,
     /// The car blocks the view blocks name.
     pub car_blocks: &'a crate::race::blocks_store::CarBlocks,
 }
@@ -41,6 +44,7 @@ impl<'a> Vars<'a> {
             views: &race.shared.view.get().view_blocks,
             objects: &sound.race.sounds.get().objects,
             two_devices: &input.devices.two_devices_one_player,
+            players: race.shared.view.get().players.get(),
             car_blocks: race.car_blocks(),
         }
     }
@@ -91,7 +95,32 @@ pub fn update_effects_with(input: &Input, system: &System, v: &Vars<'_>) -> Resu
                 device,
                 system,
             )?;
+            crate::input::trigger_rumble::feed(
+                device,
+                view,
+                input.force_feedback.race_on.get() == 1,
+            );
         }
+    }
+    // The third and fourth players' cars, each on its own device if that has effects.
+    for n in 2..v.players.min(4) as usize {
+        let Some(device) = device_of(&input.devices, v.devices[n].get()) else {
+            continue;
+        };
+        if device.effects_on.get() != 1 {
+            continue;
+        }
+        let object = v
+            .objects
+            .get(n)
+            .ok_or(BadInput("a car past the sound objects' table"))?;
+        crate::input::update_car_effects::update_car_effects(
+            &input.force_feedback,
+            &v.car_blocks.cars[n],
+            object,
+            device,
+            system,
+        )?;
     }
     Ok(())
 }

@@ -7,8 +7,7 @@ use crate::hud::owner::{Hud, Pen};
 use crate::race::owner_frame::Frame;
 
 pub fn add_solid_quad(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
-    for (n, v) in rc2k_core::hud::quads::SOLID_PLACES {
-        hud.block.quad.word(n).set(v);
-    }
+    let texel = rc2k_core::hud::quads::SOLID_TEXEL;
+    hud.block.quad.set_places([texel; 4]);
     crate::hud::add_quad::add_quad(frame, hud, pen)
 }

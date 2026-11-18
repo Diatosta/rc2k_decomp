@@ -11,7 +11,6 @@ use crate::text::draw_text::GameCanvas;
 use crate::text::measure_text::measure_text_at;
 use rc2k_core::net::editing::{self, EditKey};
 pub fn edit_key(
-    input: &crate::input::owner::Input,
     net: &Net,
     edit: &Editing,
     key: u8,
@@ -74,11 +73,8 @@ pub fn edit_key(
                     store_value(text, last, 0u8)?;
                 }
             }
-            EditKey::Other => {
-                if !queued.text_mode {
-                    append(crate::input::key_to_char::key_to_char(input, key as u32)? as u8)?;
-                }
-            }
+            // Printable keys come as typed text, not as keys.
+            EditKey::Other => {}
         }
     }
     Ok(edit.edited.get() == u32::MAX)

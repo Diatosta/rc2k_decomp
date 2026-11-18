@@ -254,19 +254,36 @@ pub fn opponent_distance(place: u32, first: u32) -> (u32, bool) {
 /// The car blocks reset for a race.
 pub const CAR_BLOCKS: u32 = 8;
 
-/// The car block's race-state reset: (offset, value) pairs, in order.
-pub const RACE_STATE: [(u32, u32); 11] = [
-    (0x730, 0),
-    (0x72C, 0x12C),
-    (0x724, 0),
-    (0x71C, 0xCA),
-    (0x720, 0),
-    (0x728, 0),
-    (0xA0C, u32::MAX),
-    (0xA10, u32::MAX),
-    (0xA14, u32::MAX),
-    (0xA18, u32::MAX),
-    (0xA1C, u32::MAX),
+/// A car block dword the race set-up and the overlay's set-up write by name.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BlockWord {
+    NoticeId,
+    NoticeCounter,
+    NoticeLast,
+    NoticeShown,
+    NoticeTime,
+    NoticeTimeB,
+    /// Entry n of the split gaps.
+    SplitGap(usize),
+    /// Entry n of the car event codes.
+    EventCode(usize),
+    EventCount,
+    EventPosition,
+}
+
+/// The car block's race-state reset: (field, value) pairs, in order.
+pub const RACE_STATE: [(BlockWord, u32); 11] = [
+    (BlockWord::NoticeTimeB, 0),
+    (BlockWord::NoticeTime, 0x12C),
+    (BlockWord::NoticeLast, 0),
+    (BlockWord::NoticeId, 0xCA),
+    (BlockWord::NoticeCounter, 0),
+    (BlockWord::NoticeShown, 0),
+    (BlockWord::SplitGap(0), u32::MAX),
+    (BlockWord::SplitGap(1), u32::MAX),
+    (BlockWord::SplitGap(2), u32::MAX),
+    (BlockWord::SplitGap(3), u32::MAX),
+    (BlockWord::SplitGap(4), u32::MAX),
 ];
 /// The race's first four text dwords' reset: four spaces.
 pub const BLANK_TEXT: u32 = 0x2020_2020;

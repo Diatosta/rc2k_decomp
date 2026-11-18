@@ -14,10 +14,10 @@ use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::race::light_records_store::LightRecords;
 use crate::race::owner::Race;
-/// The dword `offset` bytes into the kind's row: the rows start at the sixth group of a record,
-/// and the kind is held to the 23 records the rows are laid in, so the seven offsets asked
-/// (up to 0x28) fall inside that record's groups.
-fn kind_row_word(records: &LightRecords, kind: i32, offset: usize) -> Result<u32, BadInput> {
+/// Group `group` of the kind's row: the rows start at the sixth group of a record, and the kind
+/// is held to the 23 records the rows are laid in, so the groups asked (up to the tenth) fall
+/// inside that record's groups.
+fn kind_row_word(records: &LightRecords, kind: i32, group: usize) -> Result<u32, BadInput> {
     use rc2k_core::effects::race;
     const SIXTH_GROUP: usize = 5;
     let record = records
@@ -26,7 +26,7 @@ fn kind_row_word(records: &LightRecords, kind: i32, offset: usize) -> Result<u32
         .ok_or(BadInput("a kind's row past the light records"))?;
     record
         .groups
-        .get(SIXTH_GROUP + offset / 4)
+        .get(SIXTH_GROUP + group)
         .map(crate::memory::session::PlainDword::get)
         .ok_or(BadInput("a kind's row field past the groups"))
 }
@@ -70,8 +70,8 @@ pub fn init_mark_step(
         for n in 0..count {
             let kind = race.shared.race_car_or_end(n as usize).car_kind.get() as i32;
             let bad = crate::effects::Sticky::default();
-            let fields = race::car_fields(n, |offset| {
-                bad.take(kind_row_word(race.light_records(), kind, offset))
+            let fields = race::car_fields(n, |group| {
+                bad.take(kind_row_word(race.light_records(), kind, group))
             });
             bad.done()?;
             let car = record(n);
@@ -94,7 +94,7 @@ pub fn init_mark_step(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rc2k_core::effects::race::{self, SLOT_KIND_ROWS};
+    use rc2k_core::effects::race::{self, SLOT_KIND_GROUPS};
 
     /// Each field of each kind's row is the dword the byte-offset read gave.
     #[test]
@@ -107,13 +107,10 @@ mod tests {
         }
         for kind in -3..40 {
             let row = (0x6C + race::kind_row(kind)) as u32 as usize;
-            for offset in SLOT_KIND_ROWS {
+            for group in SLOT_KIND_GROUPS {
+                let offset = 4 * group;
                 let old = crate::memory::cells::load_value::<u32>(&records.records, row + offset);
-                assert_eq!(
-                    kind_row_word(&records, kind, offset),
-                    old,
-                    "{kind} {offset}"
-                );
+                assert_eq!(kind_row_word(&records, kind, group), old, "{kind} {offset}");
             }
         }
     }

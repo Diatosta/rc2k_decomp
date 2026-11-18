@@ -17,7 +17,6 @@
 //! taken: a name past the list, a length outside 0 .. 0x1F, no keyboard layout.
 
 use crate::errors::{BadInput, Refused};
-use crate::input::key_to_char::{has_layout, key_to_char};
 use crate::input::take_key::take_key;
 use crate::menu::add_text_length::add_text_length;
 use crate::menu::backspace_savegame_name::backspace_savegame_name;
@@ -90,9 +89,6 @@ pub fn edit_savegame_name(
     if !(0..NAME_LEN as i32).contains(&length(menus)) {
         return Err(BadInput("text length outside the name").into());
     }
-    if !has_layout(input) {
-        return Err(BadInput("no keyboard layout").into());
-    }
 
     use rc2k_core::menu::text_entry::{self as entry, Key};
     let typed = crate::input::typed_text::take();
@@ -140,11 +136,8 @@ pub fn edit_savegame_name(
         }
         Key::Clear => clear_text(menus, name)?,
         Key::Backspace => backspace_savegame_name(menus, saves)?,
-        Key::Other(key) => {
-            if !typed.text_mode {
-                append(key_to_char(input, key as u32)? as u8)?;
-            }
-        }
+        // Printable keys come as typed text, not as keys.
+        Key::Other(_) => {}
     }
     let mut tail = Vec::new();
     if screens.draw_work.cursor_on.is_set() {

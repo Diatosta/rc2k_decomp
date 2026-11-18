@@ -106,8 +106,10 @@ A missing `.loc` file also stops the game with an error.
 
 ## The keyboard layout: `.kim`
 
-Used wherever the player types text: names, chat. It maps keys to characters. Without a
-`.kim` file a built-in layout is used.
+It maps keys to characters, but names and chat no longer use it: they take the characters SDL's
+text input reports ([Input](Input#text-entry)). The layout is still read for the yes/no
+questions' letters and the names of keys on the key pages. Without a `.kim` file a built-in
+layout is used.
 
 The file is read into a block of `0x400` bytes; a shorter file simply ends early.
 

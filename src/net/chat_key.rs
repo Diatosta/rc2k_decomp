@@ -7,13 +7,12 @@ use crate::net::owner::Net;
 /// The key `key` for the chat message being typed; once it ends the
 /// editing, a message typed is sent and the input cleared.
 pub fn chat_key(
-    input: &crate::input::owner::Input,
     strings: &crate::strings::owner::Strings,
     net: &Net,
     key: u8,
     gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
-    if !crate::net::edit_key::edit_key(input, net, &net.lobby().edit, key, gfx)? {
+    if !crate::net::edit_key::edit_key(net, &net.lobby().edit, key, gfx)? {
         return Ok(());
     }
     let typed = net.lobby().chat_input.read();

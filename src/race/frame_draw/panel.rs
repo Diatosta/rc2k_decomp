@@ -367,9 +367,37 @@ fn car_distances(
     Ok(())
 }
 
+/// The first view's values copied to `to`.
+pub fn copy_view(from: &crate::race::panel_store::ViewA, to: &crate::race::panel_store::ViewA) {
+    to.whole.set(from.whole.get());
+    to.speed.set(from.speed.get());
+    to.gear.set(from.gear.get());
+    to.place.set(from.place.get());
+    to.time.set(from.time.get());
+    to.split2.set(from.split2.get());
+    to.back.set(from.back.get());
+    to.negated.set(from.negated.get());
+    to.front.set(from.front.get());
+    for (a, b) in from.motion.iter().zip(&to.motion) {
+        b.set(a.get());
+    }
+}
+
 /// Both view blocks' values into the panel (see `panel_half`).
 pub fn panel_values_plain(race: &Race) -> Result<(), BadInput> {
     {
+        // A split screen of more than two players: each player's values for the HUD of the
+        // player's part, taken the way the first view's are, before the two views' own.
+        let players = race.shared.view.get().players.get() as usize;
+        if players > 2 {
+            let panel = &race.frame.panel_and_overlay.get().panel;
+            for (n, part) in panel.parts.iter().enumerate().take(players.min(4)) {
+                panel_half(race, n, true)?;
+                let place = race.frame.cars.car(n)?.two_car_place.get();
+                copy_view(&panel.view_a, part);
+                part.place.set(place);
+            }
+        }
         panel_half(race, race.shared.view.get().view_number(0)?, true)?;
         panel_half(race, race.shared.view.get().view_number(1)?, false)?;
         // A split screen of more than two players shows each player's progress on its own part's

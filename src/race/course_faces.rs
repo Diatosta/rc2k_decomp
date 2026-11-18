@@ -335,7 +335,7 @@ pub fn face_out_of_view(ctx: &DrawCtx<'_>) -> Result<bool, Refused> {
     let near = ctx.reads.view.near.get();
     // The cone to the sides is as much wider as the view is wider than 4:3.
     let slope =
-        ctx.reads.view.slope.get() / crate::race::frame_draw::side_widening(ctx.reads.screen);
+        ctx.reads.view.slope.get() / crate::race::frame_draw::side_widening(ctx.reads, ctx.view);
     for k in 0..4 {
         let n: u32 = ctx.view.face.corners[k].get();
         if k == 3 && n == u32::MAX {

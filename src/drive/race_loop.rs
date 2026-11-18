@@ -26,6 +26,13 @@ fn pause_down(
     Ok(car.input_keys.get() & 0x40 != 0)
 }
 
+/// Whether the third or fourth player's pause binding is down (a split screen of three or four
+/// players: their cars' blocks; the first two are the views').
+fn more_players_pause_down(race: &Race) -> bool {
+    let players = race.shared.view.get().players.get().min(4) as usize;
+    (2..players).any(|n| race.car_blocks().cars[n].input_keys.get() & 0x40 != 0)
+}
+
 /// A view's pause binding going down asks the quit question once: the binding must be let go
 /// before it asks again, and the steps just after an answer do not count (the answer clears the
 /// cars' keys and the held binding comes back with the next step).
@@ -182,7 +189,8 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
             }
             let binding_down = pause_down(&race.shared, &race.shared.view.get().view_blocks[0])?
                 || (race.shared.view.get().views.get() != 1
-                    && pause_down(&race.shared, &race.shared.view.get().view_blocks[1])?);
+                    && pause_down(&race.shared, &race.shared.view.get().view_blocks[1])?)
+                || more_players_pause_down(race);
             let binding_pressed = pause_binding.pressed(binding_down);
             if devices.keys_pressed.get(1) != 0 || binding_pressed {
                 let answer = { crate::drive::quit_question::quit_question(race, o) }?;

@@ -13,18 +13,14 @@ use rc2k_core::hud::quads;
 pub fn put_places(hud: &Hud, s: RectAt) -> Result<[u32; 4], Refused> {
     Ok({
         let rect = s.read(hud)?;
-        for (n, v) in quads::sprite_places(rect) {
-            hud.block.quad.word(n).set(v);
-        }
+        hud.block.quad.set_places(quads::sprite_places(rect));
         rect
     })
 }
 
 /// The quad record's corners (see `quads::sprite_corners`).
 pub fn put_corners(hud: &Hud, x: u32, y: u32, w: u32, h: u32) {
-    for (n, v) in quads::sprite_corners(x, y, w, h) {
-        hud.block.quad.word(n).set(v);
-    }
+    hud.block.quad.set_rect(quads::sprite_corners(x, y, w, h));
 }
 
 /// The sprite whose rectangle is the place `rect` with its corner at `x`, `y`.

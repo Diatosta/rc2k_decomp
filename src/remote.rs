@@ -340,6 +340,12 @@ fn run(o: &Owners<'static>, line: &str) {
                 .push((due(tail.first()), Release::Key(code)));
             "ok".to_string()
         }),
+        // Text as a keyboard's input method or a screen keyboard gives it: the words joined by
+        // single spaces, taken by the field being edited (accented letters included).
+        ("text", words) if !words.is_empty() => {
+            crate::input::typed_text::typed_by_keyboard(&words.join(" "));
+            Some("ok".to_string())
+        }
         ("down" | "up", [name]) => scancode(name).map(|code| {
             key(code, *command == "down");
             "ok".to_string()

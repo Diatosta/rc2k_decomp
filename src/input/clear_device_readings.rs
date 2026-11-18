@@ -5,8 +5,7 @@ use crate::input::types::InputDevice;
 
 /// See the header.
 pub fn clear_device_readings(record: &InputDevice) {
-    // `rc2k_core::input::devices::CLEARED_READINGS`, in its order: the state copies
-    // (+0x2C .. +0x38) and the readings 0, the bits reading the hat centred.
+    // The state copies and the readings 0, the bits reading the hat centred.
     for axis in &record.axes {
         axis.set(0);
     }
@@ -22,13 +21,24 @@ mod tests {
     use super::*;
     use crate::input::devices::record_bytes;
 
-    /// The fields cleared are the places the core lists, with its values; the rest of the
+    /// The fields cleared are the places the original cleared, with its values; the rest of the
     /// record is as it was.
     #[test]
-    fn clears_what_the_core_lists() {
+    fn clears_the_original_places() {
         let record = InputDevice::from_bytes(&[0xAA; 0x4F8]);
         let mut expected = [0xAA; 0x4F8];
-        for (offset, value) in rc2k_core::input::devices::CLEARED_READINGS {
+        use rc2k_core::input::devices::{BITS, BUTTONS, HAT_CENTRED, READINGS};
+        let cleared = [
+            (0x2C, 0),
+            (0x30, 0),
+            (0x34, 0),
+            (BUTTONS, 0),
+            (READINGS, 0),
+            (READINGS + 4, 0),
+            (READINGS + 8, 0),
+            (BITS, HAT_CENTRED),
+        ];
+        for (offset, value) in cleared {
             expected[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
         }
         clear_device_readings(&record);

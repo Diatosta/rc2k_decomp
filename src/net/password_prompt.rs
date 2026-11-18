@@ -85,7 +85,7 @@ pub fn ask(o: crate::owners::Owners<'static>, wrong: bool) -> Result<Option<Vec<
         let key = list_key(list_state, o.input)?;
         let went_back = editing::EditKey::of(key) == editing::EditKey::Escape
             || system.session.flags.quitting.is_set();
-        let ended = crate::net::edit_key::edit_key(o.input, net, &net.settings().edit, key, o.gfx)?;
+        let ended = crate::net::edit_key::edit_key(net, &net.settings().edit, key, o.gfx)?;
         if went_back {
             break None;
         }

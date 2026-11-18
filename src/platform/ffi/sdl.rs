@@ -75,6 +75,26 @@ impl Window {
         }
     }
 
+    /// Where the field being edited is, for the input method's candidate list and a screen
+    /// keyboard to keep clear of it: a band across the middle of the window at `y` on the
+    /// game's 800x600 screen.
+    pub fn set_text_input_area(self, y: i32) {
+        // SAFETY: as `restore_if_minimised`; the sizes are written to locals.
+        unsafe {
+            let (mut width, mut height) = (0, 0);
+            if !SDL_GetWindowSize(self.0, &raw mut width, &raw mut height) {
+                return;
+            }
+            let area = SDL_Rect {
+                x: width / 8,
+                y: y.clamp(0, 600) * height / 600,
+                w: width * 3 / 4,
+                h: (height / 20).max(1),
+            };
+            SDL_SetTextInputArea(self.0, &raw const area, 0);
+        }
+    }
+
     /// Whether the system has a screen keyboard SDL can show for the window.
     pub fn has_screen_keyboard(self) -> bool {
         // SAFETY: as `restore_if_minimised`.

@@ -4,7 +4,7 @@
 //! texture counter.
 
 use crate::memory::cells::ZeroCells;
-use crate::memory::session::{PlainBytes, PlainDword};
+use crate::memory::session::{PlainBytes, PlainDword, PlainFloat};
 
 /// The first view's values for the panel (0x30 bytes; `panel_values_plain`,
 /// `panel_motion_plain`).
@@ -121,6 +121,19 @@ pub struct Panel {
     /// The texture changes counted this frame (`race::frame_views`,
     /// `race::update_mud_texture`).
     pub texture_changes: PlainDword,
+    /// Each player's values for a split screen of three or four players' HUD, in the first
+    /// view's form (`race::frame_draw::panel_values_plain`; `hud::layout_many`).
+    pub parts: [ViewA; 4],
+    /// 1 while a split screen of three players shows the overview map in the part no player has
+    /// (`race::overview_map`).
+    pub overview_on: PlainDword,
+    /// 1 once the overview picture is drawn (cleared by `race::init_overlay`).
+    pub overview_drawn: PlainDword,
+    /// The overview picture's fit: the map pixel at its top left corner (x, y) and the map pixels a
+    /// picture pixel covers.
+    pub overview_fit: [PlainFloat; 3],
+    /// Each of the first four cars' place on the map, in map pixels (x, y).
+    pub overview_cars: [[PlainFloat; 2]; 4],
 }
 
 impl Panel {

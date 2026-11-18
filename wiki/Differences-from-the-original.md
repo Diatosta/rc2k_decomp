@@ -72,7 +72,7 @@ The original was a 32-bit Windows program on DirectX. Its platform side was not 
   (shared at the top, or at the divider when one is above the other) does the same, and side by
   side each player's HUD lies in their own half of the screen as one player's lies on a wide
   screen (dial at the left corner, map at the right, the box applying inside the half); three
-  and four players' compact HUDs keep to the corners of their parts, inside the box. The course is not cut at the sides
+  and four players' HUDs are the one-player HUD in each part, laid out by the part's own shape and kept inside the box. The course is not cut at the sides
   by the 4:3 view's cone. The loading screen, the roadside tyre change and the replay viewer keep
   their 4:3 shape in the middle: the loading picture has the menus' blurred wash beside it, the
   tyre change's dark backdrop and the replay viewer's bars span the whole width.
@@ -131,7 +131,8 @@ The original was a 32-bit Windows program on DirectX. Its platform side was not 
   while the window is behind.
 - **Network settings** have "port" and "host password" rows ([Network play](Network-play)).
 - **Typing** (names, saved game, replay and set-up names, network settings, chat) takes any
-  character the Windows-1252 code page has, whatever the keyboard's layout.
+  character the Windows-1252 code page has, whatever the keyboard's layout (input methods work too;
+  the game's own keyboard layouts no longer type into fields).
 - **Language texts** this game adds to the original's come from one file per language,
   `files/locale/<language>.rc2k.toml`, with English built in ([Language files](Language-files)).
 - The fixed pauses between screens keep their length, but a key or a pad's button ends them and
@@ -166,7 +167,9 @@ Everything is on [Controllers](Controllers) and [Input](Input); in short:
 - **Hotplug.** A controller plugged in while the game runs can be chosen and driven with at once;
   one unplugged and plugged back takes its place again. Force feedback effects are set up again.
 - **Rumble.** A pad with only rumble motors rumbles for the engine and knocks, at the strength of
-  the controller page's force feedback row.
+  the controller page's force feedback row. A pad with motors under its triggers (an Xbox One or
+  Series pad) also shakes the right trigger under wheelspin and the left one when the braking
+  wheels lock; the advanced page's "trigger rumble" switches it off.
 - **Pause** (a key or a button) asks the same "leave?" question as Escape, where the original
   waited for a key.
 - The developers' debug pages are a window over the game ([The debug window](The-debug-window));
@@ -305,12 +308,15 @@ or IPX connection), and Steam when Valve's library is beside the program (it is 
 - Split screen for three and four players (the original had two): the single rally's players menu
   has an entry of its own for three and for four players on one screen, beside the original's
   in-turn ones (shown by the third and fourth players' helmets, as on the players' details page), and `--players 3` or `4` starts the same race. Each
-  player has a view in their part of the screen, the controls of their own record, a compact HUD
-  (place, stage time, progress bar, gear and speed) and a place on the three and four players' results page. The F2 key
+  player has a view in their part of the screen, the controls of their own record, the one-player HUD
+  in their part (stage bar, place, clock, rev dial, gear and speed; the map and the signs for the first two players) laid out by the part's shape, a view that keeps the vertical field of view of a 4:3 one in
+  a wide part, and a place on the three and four players' results page. The F2 key
   cycles the layouts: with four players quarters, four rows and four columns; with three one wide
-  view above two, three rows, three columns and quarters with the fourth left black; the choice
-  is kept in `rc2k.toml` (`split_layout`). Not yet: mirrors, the HUD's dials, map and signs, force
-  feedback and the co-driver's sounds follow the first two players only (the race's sound is heard
+  view above two, three rows, three columns and quarters with the whole course's map in the fourth
+  quarter (every car a square in its colour on it); the choice
+  is kept in `rc2k.toml` (`split_layout`). Every player's pause binding asks the leave question and each
+  player's pad rumbles with that player's own car. Not yet: mirrors, the third and fourth players' maps and signs, and
+  the co-driver's sounds follow the first two players only (the race's sound is heard
   from the first player's view). A race of three or four players keeps a replay (an extra tape for
   the third and fourth car, see [Replay files](Replay-files)); its viewer's car item also shows the
   third and the fourth car alone.

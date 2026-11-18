@@ -4,7 +4,7 @@
 //! - Enter: the edit ended; a text of nothing but spaces and control bytes is cleared and the
 //!   record's default text put in; the key word gets bit 3;
 //! - 0x6E: the text cleared; Backspace: its last byte cut; the four arrows: nothing;
-//! - any other: the key's character (`input::key_to_char`) added if it is not below a space and
+//! - any other key: nothing (characters come as typed text, bit 8); the character added if it is not below a space and
 //!   there is room, and cut again if the text is then wider than the record's width.
 //!
 //! The key word is the key in its low byte and its bits in the next.
@@ -68,7 +68,6 @@ pub struct EditOutcome {
 /// `key`: the key and its bits (see above).
 pub fn edit_key(
     so: crate::strings::append_string_by_id::StringOwners<'static>,
-    input: &crate::input::owner::Input,
     install: &'static crate::install::owner::Install,
     key: u32,
     item: ListItem,
@@ -132,12 +131,8 @@ pub fn edit_key(
                 return Ok(plain(key));
             }
             EditKey::Arrow => return Ok(plain(key)),
-            // Typed text is on: the characters come on their own.
-            EditKey::Other if crate::input::typed_text::text_mode() => return Ok(plain(key)),
-            EditKey::Other => {
-                let out = crate::input::key_to_char::key_to_char_for_text(input, key);
-                out? as u8
-            }
+            // The characters come as typed text, not as keys.
+            EditKey::Other => return Ok(plain(key)),
         }
     };
     if ch < 0x20 {

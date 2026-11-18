@@ -78,6 +78,7 @@ pub mod norms;
 pub mod numbers_store;
 pub mod objects;
 pub mod overlay_store;
+pub mod overview_map;
 pub mod owner;
 pub mod owner_course;
 pub mod owner_frame;

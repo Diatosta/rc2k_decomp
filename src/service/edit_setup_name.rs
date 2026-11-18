@@ -10,7 +10,6 @@
 //! a slot past 99, a length outside 0 .. 0x1F, no car object, no keyboard layout.
 
 use crate::errors::{BadInput, Refused};
-use crate::input::key_to_char::{has_layout, key_to_char};
 use crate::input::take_key::take_key;
 use crate::menu::add_text_length::add_text_length;
 use crate::menu::clear_text::clear_text;
@@ -68,9 +67,6 @@ pub fn edit_setup_name(
     if current_player(menus).is_none() {
         return Err(BadInput("no current player object").into());
     }
-    if !has_layout(input) {
-        return Err(BadInput("no keyboard layout").into());
-    }
 
     use rc2k_core::menu::text_entry::{self as entry, Key};
     let typed = crate::input::typed_text::take();
@@ -118,11 +114,8 @@ pub fn edit_setup_name(
         }
         Key::Clear => clear_text(menus, name)?,
         Key::Backspace => backspace_setup_name(menus, service)?,
-        Key::Other(key) => {
-            if !typed.text_mode {
-                append(key_to_char(input, key as u32)? as u8)?;
-            }
-        }
+        // Printable keys come as typed text, not as keys.
+        Key::Other(_) => {}
     }
     put_cursor(so, screens, name)?;
     Ok(())

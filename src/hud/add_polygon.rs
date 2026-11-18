@@ -27,10 +27,15 @@ pub fn add_polygon(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
             batch::flushes(vertices, texture, hud.block.batch_texture.get())
         };
         batch::check_polygon(count, vertices, hud.block.index_count.get(), flushes)?;
-        let [w, h]: [u32; 2] = [
-            system.session.screen.get().width.get(),
-            system.session.screen.get().height.get(),
-        ];
+        // A part of the screen is drawn into as a screen of its own (`hud::part_scope`).
+        let part = crate::hud::part_scope::get();
+        let [w, h]: [u32; 2] = match part {
+            Some(part) => [part.width, part.height],
+            None => [
+                system.session.screen.get().width.get(),
+                system.session.screen.get().height.get(),
+            ],
+        };
         let [kx, ky] = [
             hud.block.virtual_screen[0].get(),
             hud.block.virtual_screen[1].get(),
@@ -104,6 +109,12 @@ pub fn add_polygon(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
                 } else {
                     screen_scaled(v.y.get(), h, ky)
                 });
+            }
+        }
+        if let Some(part) = part {
+            for v in vertices() {
+                v.x.set(v.x.get() + part.x as f32);
+                v.y.set(v.y.get() + part.y as f32);
             }
         }
         if flushes {

@@ -20,6 +20,7 @@ fn row_name(row: usize) -> u32 {
         Kind::Renderer => first(1),
         Kind::QuitPictures => first(10),
         Kind::SmoothFrames => id::SMOOTH_FRAMES,
+        Kind::TriggerRumble => id::TRIGGER_RUMBLE,
         Kind::Flag { key, .. } => match key {
             "framecounter" => first(2),
             "nofmv" => first(3),
@@ -110,6 +111,11 @@ pub fn draw_advanced(
                 id::OFF
             }),
             Kind::SmoothFrames => own(if values.smooth_frames {
+                id::ON
+            } else {
+                id::OFF
+            }),
+            Kind::TriggerRumble => own(if values.trigger_rumble {
                 id::ON
             } else {
                 id::OFF

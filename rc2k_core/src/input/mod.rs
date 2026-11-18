@@ -16,3 +16,4 @@ pub mod layouts;
 pub mod osk;
 pub mod profile;
 pub mod rumble;
+pub mod triggers;

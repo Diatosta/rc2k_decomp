@@ -9,14 +9,13 @@ use rc2k_core::net::chat;
 
 /// The key `key` for the setting being edited.
 pub fn setting_key(
-    input: &crate::input::owner::Input,
     strings: &crate::strings::owner::Strings,
     list_state: &crate::menu::list_state::ListState,
     net: &'static Net,
     key: u8,
     gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
-    if !crate::net::edit_key::edit_key(input, net, &net.settings().edit, key, gfx)? {
+    if !crate::net::edit_key::edit_key(net, &net.settings().edit, key, gfx)? {
         return Ok(());
     }
     // The logic is in `rc2k_core::net::chat` (`NAME`, `MOST_PLAYERS`, `most_players`).

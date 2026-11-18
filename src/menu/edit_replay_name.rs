@@ -15,7 +15,6 @@
 //! no keyboard layout.
 
 use crate::errors::{BadInput, Refused};
-use crate::input::key_to_char::{has_layout, key_to_char};
 use crate::input::take_key::take_key;
 use crate::menu::add_text_length::add_text_length;
 use crate::menu::backspace_savegame_name::backspace_name;
@@ -49,9 +48,6 @@ pub fn edit_replay_name(
     let name = replay_name(menus, race)?;
     if !(0..NAME_LEN as i32).contains(&length(menus)) {
         return Err(BadInput("text length outside the name").into());
-    }
-    if !has_layout(input) {
-        return Err(BadInput("no keyboard layout").into());
     }
 
     use rc2k_core::menu::text_entry::{self as entry, Key};
@@ -93,11 +89,8 @@ pub fn edit_replay_name(
         }
         Key::Clear => clear_text(menus, name)?,
         Key::Backspace => backspace_name(menus, name)?,
-        Key::Other(key) => {
-            if !typed.text_mode {
-                append(key_to_char(input, key as u32)? as u8)?;
-            }
-        }
+        // Printable keys come as typed text, not as keys.
+        Key::Other(_) => {}
     }
     let cursor_on = menus.screens.draw_work.cursor_on.is_set();
     let mut tail = Vec::new();

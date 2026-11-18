@@ -17,6 +17,7 @@ pub mod loading;
 pub mod map;
 pub mod mud;
 pub mod music;
+pub mod overview;
 pub mod pace;
 pub mod pace_notes;
 pub mod panel;

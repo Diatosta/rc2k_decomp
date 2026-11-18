@@ -56,8 +56,6 @@ fn state() -> std::sync::MutexGuard<'static, State> {
 
 /// What a field gets when it asks.
 pub struct Typed {
-    /// Text input is on: the printable keys come as `chars`, not as scan codes.
-    pub text_mode: bool,
     /// The characters typed since the last ask, in order (Windows-1252).
     pub chars: Vec<u8>,
 }
@@ -67,7 +65,6 @@ pub fn take() -> Typed {
     let mut st = state();
     st.asked_at = Some(Instant::now());
     Typed {
-        text_mode: st.active,
         chars: st.queue.drain(..).collect(),
     }
 }
@@ -211,7 +208,7 @@ mod tests {
     fn queue_and_keyboard() {
         // One test: the state is the process's.
         let t = take();
-        assert!(!t.text_mode && t.chars.is_empty());
+        assert!(!text_mode() && t.chars.is_empty());
         note_confirm(true);
         assert_eq!(sync(|| false), Some(true));
         assert!(osk().is_some());
@@ -229,7 +226,7 @@ mod tests {
         typed_by_keyboard("a\u{3B1}\u{e7}");
         assert!(osk().is_none());
         let t = take();
-        assert!(t.text_mode);
+        assert!(text_mode());
         assert_eq!(t.chars, [b'2', b'a', 0xE7]);
         assert!(take().chars.is_empty());
         assert_eq!(osk_press(), None);

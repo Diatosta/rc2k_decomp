@@ -123,7 +123,7 @@ pub fn set_view_window_reaching(
 pub fn set_view_window_plain(
     course: crate::race::owner_course::CourseReads<'_>,
     draw: &SceneDraw,
-    screen: &crate::memory::session::Screen,
+    design: (u32, u32),
     window: &ViewWindow,
     vars: &ViewVars<impl CellKind>,
     scale_factor: &crate::memory::session::PlainFloat,
@@ -134,10 +134,7 @@ pub fn set_view_window_plain(
         size: crate::memory::session::read_bits(&window.view_size),
         offsets: crate::memory::session::read_bits(&window.view_offset),
         in_race: course.numbers.in_race.is_set(),
-        screen_width: rc2k_core::scene::view_window::design_width(
-            screen.width.get(),
-            screen.height.get(),
-        ),
+        screen_width: rc2k_core::scene::view_window::design_width(design.0, design.1),
         scale: (
             vars.view_scale.get(),
             window.view_zoom.get(),

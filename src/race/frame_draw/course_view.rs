@@ -48,8 +48,18 @@ pub fn checkpoint_colours(
 
 /// How much wider than 4:3 the screen's view is (1.0 up to 4:3): the tests that cut the course to
 /// the sides of the view widen by it.
-pub fn side_widening(screen: &crate::memory::session::Screen) -> f32 {
-    rc2k_core::scene::view_window::side_widening(screen.width.get(), screen.height.get())
+pub fn side_widening(
+    reads: crate::scene::workers::DrawReads<'_>,
+    view: &crate::race::view_scratch::ViewScratch,
+) -> f32 {
+    // With more than two players the view is a part of the screen, with a shape of its own.
+    let (width, height) = if reads.view.players.get() > 2 {
+        let size = &view.polygon.window.view_size;
+        (size[0].get(), size[1].get())
+    } else {
+        (reads.screen.width.get(), reads.screen.height.get())
+    };
+    rc2k_core::scene::view_window::side_widening(width, height)
 }
 
 /// A scene point's record: the record at `point_records` + (point & 0xFFF) x 0x20, made anew
@@ -125,7 +135,7 @@ pub fn face_hidden(
     Ok(hidden_by_depth(
         depth as u32,
         x as u32,
-        side_widening(ctx.reads.screen),
+        side_widening(ctx.reads, ctx.view),
     ))
 }
 
@@ -438,7 +448,7 @@ pub fn prepare_course_view(
     } else {
         0x10
     };
-    mark_far_cells(reads.numbers, view, limit, side_widening(reads.screen))?;
+    mark_far_cells(reads.numbers, view, limit, side_widening(reads, view))?;
     Ok(())
 }
 

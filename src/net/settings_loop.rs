@@ -26,7 +26,7 @@ pub fn settings_loop(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
         let key = list_key(list_state, o.input)?;
         let mut moved = false;
         if net.settings().edit.edited.get() != u32::MAX {
-            crate::net::setting_key::setting_key(o.input, o.strings, list_state, net, key, o.gfx)?;
+            crate::net::setting_key::setting_key(o.strings, list_state, net, key, o.gfx)?;
         } else {
             match key {
                 0x66 => {

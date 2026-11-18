@@ -8,10 +8,6 @@ use crate::hud::owner::{Hud, Pen};
 use crate::memory::session::PlainDword;
 use crate::race::owner_frame::Frame;
 
-pub fn set(hud: &Hud, n: usize, v: u32) {
-    hud.block.quad.word(n).set(v);
-}
-
 /// The record's corners (left, top, right, bottom) and, with `Some`, its colour; a quad.
 pub fn quad(
     frame: &Frame,
@@ -21,11 +17,9 @@ pub fn quad(
     c: [u32; 4],
 ) -> Result<(), Refused> {
     if let Some(colour) = colour {
-        set(hud, 5, colour);
+        hud.block.quad.colour.set(colour);
     }
-    for (n, v) in c.into_iter().enumerate() {
-        set(hud, 1 + n, v);
-    }
+    hud.block.quad.set_rect(c);
     crate::hud::add_solid_quad::add_solid_quad(frame, hud, pen)
 }
 
@@ -44,7 +38,7 @@ pub fn bars(
     sb::check(count, kinds.len() as u32, |p, n| {
         kinds[p as usize][n as usize].get()
     })?;
-    set(hud, 0, sb::SOLID);
+    hud.block.quad.alpha.set(sb::SOLID);
     for (colour, c) in sb::frame(dy, kinds.len() == 2) {
         quad(frame, hud, pen, Some(colour), c)?;
     }
@@ -89,7 +83,7 @@ pub fn bars(
         hud.block.point[1].set(b);
         for q in sb::part_quads(a, b, &colours, left == 1, dy) {
             if let Some(alpha) = q.alpha {
-                set(hud, 0, alpha);
+                hud.block.quad.alpha.set(alpha);
             }
             quad(frame, hud, pen, q.colour, q.corners)?;
         }

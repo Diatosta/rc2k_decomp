@@ -43,11 +43,16 @@ the network settings and the lobby's chat line, the installer's folder) SDL's te
 Windows-1252 bytes (a character the code page lacks is dropped) and each field takes them from
 it, keeping its own rules: its length, its width in its font, the cheats on the fourth player's
 name. Escape, Enter, Delete and Backspace still come as keys; the scan codes of printable keys
-are not read while text input is on, so no letter comes twice. Any keyboard layout or input
-method SDL knows therefore types; the game's own layout tables (`input::key_to_char`,
-`src/input/layouts.rs`, with the language, see [Language files](Language-files)) serve only when
-text input is off. Text input stays on while a field asked for its characters in the last half
-second and goes off after the editing.
+are not read while text input is on, so no letter comes twice; a printable key that arrives as a
+key alone (before text input has started, a few frames after the field opens) types nothing.
+Any keyboard layout or input method SDL knows therefore types, accented letters included (the
+characters Windows-1252 has: e, c, a with their accents; others are dropped). The game's own
+layout tables (`input::key_to_char`, `src/input/layouts.rs`, with the language, see
+[Language files](Language-files)) no longer type into fields; they serve the yes/no questions
+and the key names. While a field is edited SDL is told where it is (`SDL_SetTextInputArea`: a band
+across the window at the field's height, the middle where the field does not say) so an input
+method's candidate list and a screen keyboard keep clear of it. Text input stays on while a field
+asked for its characters in the last half second and goes off after the editing.
 
 A field entered from a controller shows an on-screen keyboard (see below) unless the system has
 a screen keyboard of its own (`SDL_HasScreenKeyboardSupport`: phones, a Steam Deck under Steam),
@@ -129,8 +134,10 @@ starts and given back when it ends. A controller that an earlier player has alre
 dropped to the keyboard for the later one (a pad cannot drive two cars), as the second player's
 is when it is the first's. The keys come from each player's record, so players who have not
 redefined theirs share the first player's defaults: three or four players on the keyboard need
-their keys redefined on the player pages, or a controller each. Force feedback and the co-driver's
-sounds follow the first two players only.
+their keys redefined on the player pages, or a controller each. Each player's pause binding asks the
+"leave?" question as the first two do (`drive::race_loop`), and the third and fourth players' force
+feedback is fed from their own cars and sent to their own devices after the first two's
+(`input::update_effects`). The co-driver's sounds follow the first two players only.
 
 ## Keys in a race
 
@@ -267,6 +274,14 @@ to full, at the device's gain; conditions (springs, dampers) are left out. In a 
 sets its effects every frame, so a quarter second without a setting (a pause, a question) stills
 the motors.
 
+A pad whose triggers have motors also gets trigger rumble from the car, not from the game's
+effects: each time the race brings its force feedback up to date (every 40 ms,
+`src/input/update_effects.rs`) `input::trigger_rumble` turns the car's pedals, the driven wheels'
+slip and the engine's revs into the two triggers' levels (`rc2k_core::input::triggers`), which
+`SdlBackend::triggers` sends with `SDL_RumbleGamepadTriggers` when they change and again before
+the pad would end them (a pad keeps a level for a second). A quarter second without a setting
+stills them, as it does the motors.
+
 Effects are started and stopped around a race (`src/input/begin_effects.rs`,
 `end_effects.rs`). The strength is a per-player option.
 
@@ -284,7 +299,7 @@ MENU + START leaves the game. Setting the device up is described in
 ## Testing input
 
 A build made with the `remote` feature can be driven by `tools/remote.py`: it sends keys, pad
-buttons and stick positions to the running game and takes screenshots (`src/remote.rs`). The
+buttons and stick positions to the running game, types text (`remote.py text Gonçalves`, as SDL's text input gives it) and takes screenshots (`src/remote.rs`). The
 project's automated races are driven this way; see [Testing](Testing).
 
 ## Where to look

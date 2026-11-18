@@ -279,6 +279,18 @@ nothing to shake on a pad and are left out. While the race is paused, or a quest
 screen, the pad is still. To use it, choose the pad as the player's controller and raise its
 force feedback from off.
 
+A gamepad whose triggers have motors of their own (an Xbox One or Series pad, when SDL reports the
+motors; SDL's DualSense driver has none to offer) also rumbles its triggers, through SDL's trigger rumble, while a race runs. The
+right trigger (the accelerator) shakes when the driven wheels spin faster than the car moves,
+and faintly with the engine's load at high revs; the left trigger (the brake) shakes when the
+braking wheels lock (the pedal pressed, the wheels slower than the car). Each is scaled by how far
+its pedal is pressed; both are still while the car is off the ground and while the game is paused,
+and both take the same strength as the motors (the controller page's force feedback; off, the
+triggers stay still). The advanced page's "trigger rumble" row (on its second part) switches
+them off (`trigger_rumble` in `rc2k.toml`); a pad without trigger motors is not affected. The
+shake goes to the left and right trigger motors whatever the player's profile binds to those
+triggers. A DualSense's adaptive trigger resistance (SDL offers it only as raw effect packets) is not used.
+
 ## The handheld
 
 On the Anbernic RG34XXSP the built-in pad is the only input:

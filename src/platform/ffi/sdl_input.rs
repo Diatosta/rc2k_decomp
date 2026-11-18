@@ -340,6 +340,26 @@ impl Gamepad {
         unsafe { SDL_GamepadConnected(self.0) }
     }
 
+    /// Whether the pad's triggers have motors of their own (an Xbox One or Series pad; a
+    /// DualSense does not report it through SDL's HIDAPI driver on every system).
+    pub fn has_trigger_rumble(self) -> bool {
+        // SAFETY: an open gamepad; its properties' id (0 on failure) is only read here.
+        unsafe {
+            let props = SDL_GetGamepadProperties(self.0);
+            props != 0
+                && SDL_GetBooleanProperty(props, SDL_PROP_GAMEPAD_CAP_TRIGGER_RUMBLE_BOOLEAN, false)
+        }
+    }
+
+    /// The left and right triggers' motors at `left` and `right` (0 .. 65535) for `ms`
+    /// milliseconds, or until the next call.
+    pub fn rumble_triggers(self, left: u16, right: u16, ms: u32) {
+        // SAFETY: an open gamepad; SDL answers false (ignored) when it cannot.
+        unsafe {
+            SDL_RumbleGamepadTriggers(self.0, left, right, ms);
+        }
+    }
+
     pub fn axis(self, axis: SDL_GamepadAxis) -> i16 {
         // SAFETY: an open gamepad.
         unsafe { SDL_GetGamepadAxis(self.0, axis) }

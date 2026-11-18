@@ -173,7 +173,7 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
         let key = list_key(list_state, o.input)?;
         let mut moved = false;
         if net.lobby().edit.edited.get() != u32::MAX {
-            crate::net::chat_key::chat_key(o.input, o.strings, net, key, o.gfx)?;
+            crate::net::chat_key::chat_key(o.strings, net, key, o.gfx)?;
         } else {
             let ready = net.vars.own.state().is_ready();
             let replay_kept = net.lobby().replay_kept.get() == 1;
