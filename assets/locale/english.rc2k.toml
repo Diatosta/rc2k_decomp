@@ -135,6 +135,11 @@ custom = "custom"
 # The replay viewer's row that renders the replay to a video file.
 [viewer]
 
+# The replays list: the tags after a slot's name.
+[replays]
+new = "[new]"
+old = "[old]"
+
 # The network lobby.
 [lobby]
 save_replay = "save replay"

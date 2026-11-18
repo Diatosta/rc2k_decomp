@@ -115,6 +115,10 @@ pub fn pack_runs(from: &[u8]) -> Vec<u8> {
     let mut literal_all = count < 3;
     if !literal_all {
         loop {
+            // A run of 0x80 that ended the data leaves nothing to pack.
+            if left == 0 {
+                break;
+            }
             let byte = src(s);
             if (left as i32) <= 1 {
                 literal_all = true;
@@ -211,6 +215,9 @@ mod tests {
         assert_eq!(pack_runs(&[1, 2, 3, 3, 3]), [0xFE, 1, 2, 2, 3, 0]);
         assert_eq!(pack_runs(&[1, 2, 3]), [0xFD, 1, 2, 3, 0]);
         assert_eq!(pack_runs(&[4, 4, 4, 9]), [2, 4, 0xFF, 9, 0]);
+        // Runs that end the data on a whole 0x80.
+        assert_eq!(pack_runs(&[0u8; 0x100]), [0x7F, 0, 0x7F, 0, 0]);
+        assert_eq!(pack_runs(&[3u8; 0x80]), [0x7F, 3, 0]);
         let long = [8u8; 0x90];
         assert_eq!(pack_runs(&long), [0x7F, 8, 0x0F, 8, 0]);
     }

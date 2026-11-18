@@ -145,6 +145,10 @@ pub mod id {
     pub const BOT_START: u32 = FIRST + 0xF6;
     /// The message shown when a replay could not be saved.
     pub const REPLAY_NOT_SAVED: u32 = FIRST + 0xD9;
+    /// The tags the replays list puts after a slot's name: the slot has a replay of this
+    /// project's own format, or only the original's.
+    pub const REPLAY_NEW: u32 = FIRST + 0xF1;
+    pub const REPLAY_OLD: u32 = FIRST + 0xF4;
     /// The network lobby's ready button while the player is ready: it takes the ready back.
     pub const NOT_READY: u32 = FIRST + 0xDA;
     /// The error dialog's texts: the title of an error and of a notice, the ways on (quit,
@@ -223,6 +227,8 @@ pub const KEYS: &[(&str, u32)] = &[
     ("lobby.save_replay", id::SAVE_REPLAY),
     ("lobby.settings", id::LOBBY_SETTINGS),
     ("lobby.replay_not_saved", id::REPLAY_NOT_SAVED),
+    ("replays.new", id::REPLAY_NEW),
+    ("replays.old", id::REPLAY_OLD),
     ("lobby.bots_0", id::BOTS),
     ("lobby.bots_1", id::BOTS + 1),
     ("lobby.bots_2", id::BOTS + 2),

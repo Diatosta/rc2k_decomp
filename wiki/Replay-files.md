@@ -16,11 +16,14 @@ Paths are relative to the game's folder (the one that holds `files` and `var`).
 
 | File | What it is |
 | --- | --- |
-| `var/tmprpl` | The last race's replay. Written during every race, overwritten by the next. |
-| `savedata/replay/replayNN` | A saved replay, `NN` = slot `00` .. `99`. Made from the last race's replay or from the viewer. |
-| `files/replay/replayNN` | Replays shipped with the game (the viewer knows them as slots 100 and up). The folder may be empty. |
+| `var/tmprpl` | The last race's replay. Written during every race, overwritten by the next. In the own format (see "The own format"). |
+| `savedata/replay/replayNN` | A saved replay in the original's format, `NN` = slot `00` .. `99`. Made from the last race's replay or from the viewer. |
+| `savedata/replay/replayNN.rc2r` | The same slot's replay in the own format, beside the original's. |
+| `files/replay/replayNN` (and `.rc2r`) | Replays shipped with the game (the viewer knows them as slots 100 and up). The folder may be empty. |
 
-All three have the same format. (A video the viewer renders from a replay goes to `savedata/videos`; see Running-and-options.) The files have no extension. The game names them with
+The original's files and the own format's share the layout of the header, the blocks' packing and the index; the
+own format adds what is described under "The own format" below. Everything before that section describes
+the original's format (which this program still reads and, for races it can hold, writes). (A video the viewer renders from a replay goes to `savedata/videos`; see Running-and-options.) The files have no extension. The game names them with
 backslashes and looks names up without regard to case, as Windows does; on Linux and macOS the
 program does that matching itself.
 
@@ -374,13 +377,86 @@ The index is only written when a race ends. If the program is stopped in the mid
 it. Its blocks can still be read: they start at `0x430` and each packed block ends at its end
 byte, rounded up to a multiple of 4.
 
+## The own format
+
+Races of more than two players, races with computer cars beyond the fourth car, and network races hold more
+than the original's file can: its blocks keep four cars' states and the inputs of two cars (four with the extra
+tape), and a network race's other machines' cars could not be recorded at all (they drifted in playback).
+This project's own format (version `0x00020000`, magic `RC2R`) records **every car of the race, up to eight**.
+Every race is recorded in it (`var/tmprpl`), and a replay saved from the viewer is written in it; when the
+original's format can hold the race (one or two players, none of them on another machine, no car recorded by
+its motion) the same replay is also written in the original's format beside it, as before.
+The code is `rc2k_core/src/race/replay_v2.rs` (the format, with its tests) and `src/race/replay_v2_*.rs`,
+`src/drive/replay_v2_step.rs` (recording and playback).
+
+### The file
+
+| Part | Offset | Notes |
+| --- | --- | --- |
+| Header | `0` | The original's `0x430` header with its own magic `RC2R` at `0x000` and version `0x00020000` at `0x008`. Everything else is as described above (name, settings, sealed part, physics switches). The dword at `0x1B0` (zero in the original) is the length of the extension. |
+| Extension | `0x430` | `EXT_LEN` bytes of sections (below). |
+| Blocks | after the extension | One second each, packed as the original's are. Each block is the original's block with the extra tape (`0x2E50` bytes), then the **tail** (`0xCAA4` bytes): `0xF8F4` in all. |
+| Index | the file's last `0xA8D0` (43216) bytes | The original's index with room for 5400 blocks (90 minutes): `RCIB`, the sealed time, the block count, the steps, then 5400 (offset, size) pairs, the unused ones zero. |
+
+Because the blocks and the index are the original's in kind (the index only longer), the viewer's cutting, pasting, camera editing and
+saving work on a replay of either format.
+
+**The extension** is a list of sections, each `tag` (4 letters), `length` (u32, the section's bytes without
+padding) and the bytes, padded to a dword. A reader skips a section it does not know, so later versions can add
+sections. The sections of this version:
+
+| Tag | Bytes | Meaning |
+| --- | --- | --- |
+| `CARS` | `4 + 0x30` a car | A u32 count (up to 8), then for each car: u32 car model, u32 flags, `0x20` bytes of the driver's name (zero padded), then `0x10` reserved zero bytes. The flags: 1 a human player's car, 2 a computer car, 4 driven on the machine that recorded (its inputs and its driver's state are in the file), 8 not driven there: its motion is recorded at each step, 16 the car of the machine that recorded. |
+| `BLKS` | 24 | u32s: the block's size when unpacked, the cars whose state the original's part of a block holds (4), the steps in a block (100), a mask of the cars recorded by their motion, the room the motion has in a block (`42000`), the blocks the index holds (5400). A reader checks them and refuses a file made for another layout. |
+| `NEXT` | text | A note for later versions (see "What is still to do"). |
+
+**A block** is, in order: the original's block with the extra tape (cars 0 .. 3: state at the second's start,
+the loose parts, the computer driver's state, the inputs of cars 0 .. 3 for the hundred steps); then the tail:
+
+| Offset in the tail | Size | Meaning |
+| --- | --- | --- |
+| `0x0000` | 4 x `0x684` | The state of cars 4 .. 7 at the second's start, as a car's state in the original's block. |
+| `0x1A10` | 100 x 4 x 8 | The inputs of cars 4 .. 7, as the original's tape (8 bytes a car and step). |
+| `0x2690` | 4 + up to `42000` | The **motion** of the cars recorded by it: a u32 length, then a count byte (the steps that follow, up to 100) and for each step, each car of the `BLKS` mask in order (car number ascending), 40 numbers each. Each number is the difference (modulo 2^32) of the car's number (the bits of a float, or a position) at this step from the same number one step before (the first step's from the car's state at the second's start), as a zigzag varint (7 bits at a time, low bits first, a set top bit meaning more). The 40 numbers, as the dwords of the car's state in the block (offset / 4): `0x134` (position, 3), `0xB4` (orientation, 16), `0x198` (velocity, 3), `0x1A4` (velocity along the car, 3), `0x1C4` (speed), `0x1D4` (gear), `0x1D8` (engine revs), `0x1E4` (the revs the sound follows), `0x1F8` (the driven wheels' turn, 2), `0x288` (slip and the sound's levels, 4), `0x64C` (steering angle, and as drawn), `0x184` (spin, 3). A second that needs more than the room is cut after the last step that fits; the car then stays where the last step put it until the next second's state. The rest of the tail is zero. |
+
+**Which cars are recorded how.** A local player's car is replayed by the physics from its state at the start of each second and
+its recorded inputs. A computer car on the recording machine (single player, arcade) has its state at the start of each
+second recorded, for all eight cars, and the computer driver drives it between; its driver's outputs are not recorded, since the
+physics' own noise makes a replay drift in the same way for a car with recorded inputs and one without, and each second's state corrects it. A car driven elsewhere (a network race's other players and the
+computer's cars, which each machine saw glided to the host's places) has its motion recorded at each step
+as that machine showed it, and the viewer puts that motion into the car after each step: it is where the
+recording showed it, with no drift. The head byte `5` of a block (see "A block" above) names a layout by
+**player**, never by car: 0 and 1 the first and the second player alone, 2 and 3 the first two together, 4 and up
+the third player and on (4 the third, 5 the fourth, ... 9 the eighth). The `CARS` flags say which cars are players.
+
+**Size.** A one-player race is about 130 KB a minute (the keyframe and the inputs). For eight cars with one
+driven on the recording machine, seven are recorded by their motion: about 1.5 to 2 MB a minute at the most (the
+room of `42000` bytes a second bounds it at 2.5 MB a minute). A race of eight cars on one machine records
+their states once a second, about 0.5 MB a minute. The index holds 5400 blocks (90 minutes), three times the original's, so a long stage is not cut short; a race that fills it is closed there. The original's twin of a replay longer than 1800 blocks is written cut at its first 1800 blocks (30 minutes), as the original's recording would have ended; the own-format file keeps it whole.
+
+**Reading.** The viewer reads both formats: the version at `0x008` tells which (`0x50400` and `0x50401` the
+original's, `0x00020000` this one). The replays list marks each slot with "new" when it has an own-format
+file and "old" when it has only the original's (a replay copied in by hand); a slot with both loads the own-format
+file. A replay of the original's format that is viewed and saved is saved as it was (in the original's format
+alone).
+
+### What is still to do
+
+Sound for more than two cars in a replay and a split-screen replay are not done here. They need: for sound,
+each car's gear, engine revs and speeds, which are in the car's recorded state (the motion above for the cars
+recorded by it; for the others, derived from their physics as it plays); for a split screen, a layout byte that
+names more than one view of different players at a time and the replay's cars drawn through the views the way
+the race's are (today the layouts show one player, or the first two together).
+
 ## Compatibility
 
-The format is the 1999 game's; this project adds one thing to it, the extra tape of races of more
-than two players, under a version number of its own. A replay recorded by the original program
+The format is the 1999 game's; this project adds the extra tape of races of more
+than two players and, for every race, an own format (see "The own format"). A replay recorded by the original program
 plays in this one; one recorded here of one or two players has the same bytes, so the original
-should play it too. There are two version numbers: `0x00050400` (the original's layout) and
-`0x00050401` (the same with the extra tape).
+should play it too. There are three version numbers: `0x00050400` (the original's layout), `0x00050401` (the same with the extra
+tape: written by earlier builds for races of three or four players, still read) and `0x00020000` (the own
+format).
 
 Playback only gives the recorded race if the physics behaves exactly as it did when recording.
 Two things in the file serve that:

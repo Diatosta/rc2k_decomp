@@ -38,7 +38,7 @@ pub fn open_viewed_replay(
         Ok(true)
     };
     let found = replay_path(race, slot)?;
-    let mut path = found.path;
+    let mut path = crate::race::replay_path::file_to_load(slot, found.path);
     if last_race_missing(
         found.last_race,
         || shared.replay_file().replay_closed.get(), /* a replay was recorded */
@@ -84,28 +84,60 @@ pub fn open_viewed_replay(
     race.viewer_buffers().extra_tape.set(
         rc2k_core::race::replay::read_version(shared.replays().header.get_u32(8)) == Some(true),
     );
-    // The index is the file's last 0x3850 bytes.
+    // A replay of the own format has its cars after the header and a tail to each block.
+    let own = shared.replays().header.get_u32(8) == rc2k_core::race::replay_v2::VERSION;
+    race.viewer_buffers().v2.set(own);
+    {
+        let mut v2 = replay.v2().lock();
+        v2.ext = None;
+        v2.tail = rc2k_core::race::replay_v2::Tail::new();
+    }
+    if own {
+        let len = shared
+            .replays()
+            .header
+            .get_u32(rc2k_core::race::replay_v2::EXT_LEN_AT) as usize;
+        let mut bytes = vec![0u8; len.min(0x1_0000)];
+        let (n, ok) = handle::read_slice(shared.replay_file().replay_handle.get(), &mut bytes);
+        let extension = (ok && len <= 0x1_0000 && n as usize == len)
+            .then(|| rc2k_core::race::replay_v2::Extension::parse(&bytes))
+            .flatten();
+        let Some(extension) = extension else {
+            return failed();
+        };
+        replay.v2().lock().ext = Some(extension);
+    }
+    // The index is the file's last bytes: the original's 0x3850, the own format's larger one.
+    let (index_len, most) = if own {
+        (
+            rc2k_core::race::replay_v2::OWN_INDEX_LEN as u32,
+            rc2k_core::race::replay_v2::MOST_BLOCKS,
+        )
+    } else {
+        (INDEX_LEN, rc2k_core::race::replay::MOST_BLOCKS)
+    };
     let at = {
         handle::seek(
             shared.replay_file().replay_handle.get(),
-            INDEX_LEN.wrapping_neg() as i32,
+            index_len.wrapping_neg() as i32,
             2,
         )
     };
+    let places = &shared.replay_file().index.dwords()[..index_len as usize / 4];
+    for cell in shared.replay_file().index.dwords() {
+        cell.set(0);
+    }
     if at.is_none()
         || !good(
-            handle::read_cells(
-                shared.replay_file().replay_handle.get(),
-                shared.replay_file().index.dwords(),
-            ),
-            INDEX_LEN,
+            handle::read_cells(shared.replay_file().replay_handle.get(), places),
+            index_len,
             &|| race.shared.replay_file().index.magic.get(),
             false,
         )
     {
         return failed();
     }
-    match index_blocks(shared.replay_file().index.block_count.get()) {
+    match index_blocks(shared.replay_file().index.block_count.get(), most) {
         Blocks::Bad => return failed(),
         Blocks::Held(n) => shared.replay_file().index.block_count.set(n),
         Blocks::Kept => {}

@@ -24,7 +24,7 @@ pub fn slot_offset(frame: u32) -> u32 {
 }
 
 /// The highest frame read, and the fatal errors past it and past a frame's tenths.
-pub const LAST_FRAME: u32 = 0x708;
+pub const LAST_FRAME: u32 = crate::race::replay_v2::MOST_BLOCKS;
 pub const FRAME_PAST: u32 = 0x80A6_1151;
 pub const TENTH_PAST: u32 = 0x80A6_1152;
 
@@ -278,9 +278,9 @@ mod tests {
     fn frames() {
         assert_eq!(frame_and_tenth(1234), (12, 34));
         assert_eq!(slot_offset(9), SLOT_SIZE);
-        assert_eq!(frame_fault(0x709, 0), Some(FRAME_PAST));
-        assert_eq!(frame_fault(0x708, 101), Some(TENTH_PAST));
-        assert_eq!(frame_fault(0x708, 100), None);
+        assert_eq!(frame_fault(LAST_FRAME + 1, 0), Some(FRAME_PAST));
+        assert_eq!(frame_fault(LAST_FRAME, 101), Some(TENTH_PAST));
+        assert_eq!(frame_fault(LAST_FRAME, 100), None);
         assert!(past_end(5, 5));
         assert_eq!(written_view(-4), 2);
         assert_eq!(written_view(9), 3);

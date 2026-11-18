@@ -24,8 +24,18 @@ fn put(v: &[&dyn DwordLike], k: usize, x: u32) {
 }
 
 /// On the variables at `v` (`game`'s order).
-pub fn choose_at(v: &[&dyn DwordLike], listed: &[PlainDword]) -> Result<(), Refused> {
+pub fn choose_at(
+    v: &[&dyn DwordLike],
+    listed: &[PlainDword],
+    players: &[usize],
+) -> Result<(), Refused> {
+    let mut player_cars = [0u32; 8];
+    for (to, &car) in player_cars.iter_mut().zip(players) {
+        *to = car as u32;
+    }
     let setup = ShownSetup {
+        player_cars,
+        player_count: players.len().min(8) as u32,
         players: get(v, 2),
         replay_mode: get(v, 4),
         layout: get(v, 5),
@@ -76,8 +86,21 @@ fn game<'a>(race: &'a Race, network: &'a PlainDword) -> Vec<&'a dyn DwordLike> {
 /// Chooses the shown cars from the race's players, replay layout and network game.
 pub fn choose_shown_cars_in(race: &Race, net: &crate::net::owner::Net) -> Result<(), Refused> {
     let network = PlainDword::new(u32::from(net.race_slot.is_on()));
+    // A replay of the own format names players in its layouts (`rc2k_core::race::replay_v2`).
+    let players = if race.viewer_buffers().v2.is_set() {
+        race.replay
+            .v2()
+            .lock()
+            .ext
+            .as_ref()
+            .map(rc2k_core::race::replay_v2::Extension::player_cars)
+            .unwrap_or_default()
+    } else {
+        Vec::new()
+    };
     choose_at(
         &game(race, &network),
         &race.frame.frame_work.get().listed_car_sounds,
+        &players,
     )
 }

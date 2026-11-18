@@ -18,6 +18,11 @@ pub struct ShownSetup {
     pub network: u32,
     /// This machine's car in a network game.
     pub local_car: u32,
+    /// A replay of the own format: the players' cars, by player (the layouts name players, not
+    /// cars); with none the player is the car of the same number.
+    pub player_cars: [u32; 8],
+    /// How many of `player_cars` are set (0: the player is the car).
+    pub player_count: u32,
 }
 
 /// What it sets.
@@ -54,14 +59,25 @@ impl ShownCars {
             self.cars[1] = 1;
         }
         if s.replay_mode == 2 {
+            // The car of player `p`.
+            let car = |p: u32| {
+                if s.player_count == 0 {
+                    p
+                } else {
+                    s.player_cars
+                        .get(p as usize)
+                        .filter(|_| p < s.player_count)
+                        .copied()
+                        .unwrap_or(p)
+                }
+            };
             let (views, first, second, split) = match s.layout {
-                1 => (1, 1, None, 0),
-                2 => (2, 0, Some(1), 1),
-                3 => (2, 0, Some(1), 2),
-                // A replay with the extra tape: the third or the fourth car alone.
-                4 => (1, 2, None, 0),
-                5 => (1, 3, None, 0),
-                _ => (1, 0, None, 0),
+                1 => (1, car(1), None, 0),
+                2 => (2, car(0), Some(car(1)), 1),
+                3 => (2, car(0), Some(car(1)), 2),
+                // A replay with the extra tape: the third player's car alone, the fourth's ...
+                l @ 4..=9 => (1, car(l - 2), None, 0),
+                _ => (1, car(0), None, 0),
             };
             self.views = views;
             self.cars[0] = first;
@@ -157,6 +173,27 @@ mod tests {
             (c.cars, c.views, c.listed[1], c.listed[5]),
             ([1, 0], 1, 0, u32::MAX)
         );
+        // A replay of the own format names players: the players are cars 1, 3 and 4, the rest are
+        // the computer's.
+        let own = ShownSetup {
+            players: 1,
+            replay_mode: 2,
+            player_cars: [1, 3, 4, 0, 0, 0, 0, 0],
+            player_count: 3,
+            ..Default::default()
+        };
+        for (layout, cars, views) in [
+            (0, [1, 3], 1),
+            (1, [3, 3], 1),
+            (2, [1, 3], 2),
+            (4, [4, 3], 1),
+        ] {
+            c.choose(&ShownSetup { layout, ..own }, 0).unwrap();
+            assert_eq!((c.cars[0], c.views), (cars[0], views), "layout {layout}");
+            if views == 2 {
+                assert_eq!(c.cars[1], cars[1]);
+            }
+        }
         let bad = ShownSetup {
             local_car: 8,
             ..network

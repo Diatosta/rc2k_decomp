@@ -47,6 +47,7 @@ fn car_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refuse
         .run_ticks
         .set(race.shared.car().run_ticks.get().wrapping_add(1));
     crate::drive::store_car::store_car(&race.shared)?;
+    crate::drive::replay_v2_step::after_step(race)?;
     Ok(())
 }
 

@@ -90,3 +90,41 @@ pub fn replay_path(race: &Race, slot: u32) -> Result<ReplayPath, Refused> {
         last_race: false,
     })
 }
+
+/// The extension of a replay file in the own format (`rc2k_core::race::replay_v2`): the file of
+/// a slot beside the original's, `replay07.rc2r` beside `replay07`.
+pub const OWN_FORMAT_SUFFIX: &[u8] = b".rc2r";
+
+/// The own-format file that goes with a saved or shipped replay's path.
+pub fn own_format(path: &[u8]) -> Vec<u8> {
+    let mut name = path.to_vec();
+    name.extend_from_slice(OWN_FORMAT_SUFFIX);
+    name
+}
+
+/// Whether a file is there.
+pub fn exists(path: &[u8]) -> bool {
+    crate::files::host_path(path).is_file()
+}
+
+/// The file at `path` taken away; whether there was one (a slot saved over has only the files
+/// of the save left).
+pub fn remove(path: &[u8]) -> bool {
+    std::fs::remove_file(crate::files::host_path(path)).is_ok()
+}
+
+/// The file a slot loads from: the own-format one beside the original's when there is one, else
+/// the original's (a replay copied in alone). A file named on the command line is that file.
+pub fn file_to_load(slot: u32, path: Vec<u8>) -> Vec<u8> {
+    use rc2k_core::race::viewer::ReplayFile;
+    if matches!(
+        ReplayFile::of(slot),
+        ReplayFile::Saved(_) | ReplayFile::Own(_)
+    ) {
+        let own = own_format(&path);
+        if exists(&own) {
+            return own;
+        }
+    }
+    path
+}

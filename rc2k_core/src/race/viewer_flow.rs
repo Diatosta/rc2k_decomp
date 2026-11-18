@@ -3,7 +3,7 @@
 
 use crate::Invalid;
 use crate::race::replay::{HEADER_MAGIC, INDEX_MAGIC};
-use crate::race::viewer::{MOST_BLOCKS, OWN_FROM};
+use crate::race::viewer::OWN_FROM;
 
 // ---- opening ----
 
@@ -28,7 +28,13 @@ pub fn copied_first(slot: u32) -> bool {
 /// A header or index read went well: no error, all asked read, the magic word right ("REPL"
 /// for the header, "RCIB" for the index).
 pub fn read_good(carry: bool, read: u32, asked: u32, first_word: u32, header: bool) -> bool {
-    !carry && read == asked && first_word == if header { HEADER_MAGIC } else { INDEX_MAGIC }
+    !carry
+        && read == asked
+        && if header {
+            crate::race::replay_v2::is_replay_magic(first_word)
+        } else {
+            first_word == INDEX_MAGIC
+        }
 }
 
 /// The header's version (+8) is one this program reads.
@@ -48,11 +54,11 @@ pub enum Blocks {
 }
 
 /// Classifies the index's block count.
-pub fn index_blocks(count: u32) -> Blocks {
+pub fn index_blocks(count: u32, most: u32) -> Blocks {
     if (count as i32) <= 0 {
         Blocks::Bad
-    } else if (count as i32) > MOST_BLOCKS as i32 {
-        Blocks::Held(MOST_BLOCKS)
+    } else if (count as i32) > most as i32 {
+        Blocks::Held(most)
     } else {
         Blocks::Kept
     }
@@ -379,10 +385,14 @@ mod tests {
         assert!(version_good(0x50400) && version_good(0x50401) && !version_good(0x50402));
         assert_eq!(saved_header(false)[2], 0x50400);
         assert_eq!(saved_header(true)[2], 0x50401);
-        assert_eq!(index_blocks(0), Blocks::Bad);
-        assert_eq!(index_blocks(0x8000_0000), Blocks::Bad);
-        assert_eq!(index_blocks(0x708), Blocks::Kept);
-        assert_eq!(index_blocks(0x709), Blocks::Held(0x708));
+        assert_eq!(index_blocks(0, 0x708), Blocks::Bad);
+        assert_eq!(index_blocks(0x8000_0000, 0x708), Blocks::Bad);
+        assert_eq!(index_blocks(0x708, 0x708), Blocks::Kept);
+        assert_eq!(index_blocks(0x709, 0x708), Blocks::Held(0x708));
+        assert_eq!(
+            index_blocks(0x709, crate::race::viewer::MOST_BLOCKS),
+            Blocks::Kept
+        );
         assert_eq!(opened_marks(7), (0, 7));
     }
 

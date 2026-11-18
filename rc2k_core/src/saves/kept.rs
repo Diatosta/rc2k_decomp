@@ -103,6 +103,13 @@ pub fn slot_name(file: &[u8], letters: [u8; 4], version: u32) -> Option<[u8; SET
 pub fn replay_name(file: &[u8]) -> Option<[u8; SETUP_NAME_LEN]> {
     slot_name(file, REPLAY, REPLAY_VERSION)
         .or_else(|| slot_name(file, REPLAY, crate::race::replay::HEADER_VERSION_EXTRA_TAPE))
+        .or_else(|| {
+            slot_name(
+                file,
+                crate::race::replay_v2::MAGIC.to_le_bytes(),
+                crate::race::replay_v2::VERSION,
+            )
+        })
 }
 
 /// A slot's head and name, the first 48 bytes of its file.

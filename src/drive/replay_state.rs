@@ -9,6 +9,7 @@ use crate::physics::car_store::Car;
 use crate::race::work_store::{RaceSlot, RaceWork};
 use core::mem::size_of;
 use rc2k_core::drive::replay_frames::{CAR_DWORDS, ReplayFrame, SLOT_DWORDS, START_DWORDS};
+use rc2k_core::race::replay_v2::{CarState, HEAD_CARS, STATE_AT, TAIL_CARS};
 
 const CAR_BYTES: usize = 4 * CAR_DWORDS;
 /// A loose part's bytes in the file.
@@ -362,6 +363,71 @@ pub fn scatter(frame: &ReplayFrame, cars: &[Car], work: &RaceWork) {
             },
         );
     });
+}
+
+/// A car's first `CAR_DWORDS` dwords, field by field at the file's offsets.
+pub fn gather_car(car: &Car) -> [u32; CAR_DWORDS] {
+    let mut bytes = vec![0u8; CAR_BYTES];
+    car_fields(
+        car,
+        &mut Gather {
+            bytes: &mut bytes,
+            base: 0,
+        },
+    );
+    std::array::from_fn(|n| u32::from_le_bytes(bytes[4 * n..4 * n + 4].try_into().expect("4")))
+}
+
+/// A car's fields put from its dwords in the file's layout.
+pub fn scatter_car(words: &[u32; CAR_DWORDS], car: &Car) {
+    let bytes: Vec<u8> = words.iter().flat_map(|w| w.to_le_bytes()).collect();
+    car_fields(
+        car,
+        &mut Scatter {
+            bytes: &bytes,
+            base: 0,
+        },
+    );
+}
+
+/// Writes only the fields that start at a recorded state word (`STATE_AT`).
+struct ScatterState<'a> {
+    bytes: &'a [u8],
+}
+
+impl Move for ScatterState<'_> {
+    fn field<T: ByteView>(&mut self, at: usize, field: &T) {
+        if STATE_AT.contains(&(at / 4)) {
+            store_cells(field, 0, &self.bytes[at..at + size_of::<T>()])
+                .expect("a field inside the file's bytes");
+        }
+    }
+
+    fn unused(&mut self, _at: usize, _len: usize) {}
+}
+
+/// A car's recorded state put into it, the car's other fields left as they are.
+pub fn scatter_state(state: &CarState, car: &Car) {
+    let mut words = [0u32; CAR_DWORDS];
+    state.put(&mut words);
+    let bytes: Vec<u8> = words.iter().flat_map(|w| w.to_le_bytes()).collect();
+    car_fields(car, &mut ScatterState { bytes: &bytes });
+}
+
+/// The state of cars 4 .. 7 (the tail's keyframes); a car past the slice is left zero.
+pub fn gather_tail(cars: &[Car]) -> [[u32; CAR_DWORDS]; TAIL_CARS] {
+    std::array::from_fn(|k| cars.get(HEAD_CARS + k).map_or([0; CAR_DWORDS], gather_car))
+}
+
+/// The tail's keyframes put into cars 4 .. 7, as far as the race has cars (`count` cars).
+pub fn scatter_tail(keys: &[[u32; CAR_DWORDS]; TAIL_CARS], cars: &[Car], count: usize) {
+    for (k, words) in keys.iter().enumerate() {
+        if HEAD_CARS + k < count
+            && let Some(car) = cars.get(HEAD_CARS + k)
+        {
+            scatter_car(words, car);
+        }
+    }
 }
 
 #[cfg(test)]

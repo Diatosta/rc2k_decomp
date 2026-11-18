@@ -25,6 +25,17 @@ pub fn read_replay_slot(slot: u32, race: &'static Race) -> Result<bool, Refused>
     }
     let template = race.shared.replay_templates.saved;
     let path = numbered_path_bytes(&template[..template.len() - 1], slot)?;
+    // A slot with a file of the own format is read from it, else from the original's.
+    let own = crate::race::replay_path::own_format(&path);
+    let (path, kind) = if crate::race::replay_path::exists(&own) {
+        (own, crate::race::replay::SLOT_NEW)
+    } else {
+        (path, crate::race::replay::SLOT_OLD)
+    };
+    race.shared
+        .replays()
+        .kinds
+        .set(slot as usize, crate::race::replay::SLOT_NONE);
     let mut bytes = race.shared.replays().header.read();
     let read = read_file_into(&path[..], &mut bytes[..HEAD_LEN], 0)?;
     race.shared.replays().header.write(&bytes);
@@ -34,6 +45,7 @@ pub fn read_replay_slot(slot: u32, race: &'static Race) -> Result<bool, Refused>
     match name {
         Some(name) if read.ok => {
             slot_name(race, slot).write(&name[..NAME_LEN], "a replay slot's name")?;
+            race.shared.replays().kinds.set(slot as usize, kind);
             Ok(true)
         }
         _ => Ok(false),

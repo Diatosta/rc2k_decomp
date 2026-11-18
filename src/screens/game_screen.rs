@@ -183,6 +183,21 @@ pub fn player_name(name_at: u32) -> Result<HeldText, crate::errors::BadInput> {
         ))
 }
 
+/// A space and the tag of replay slot `slot` ("new": a file of the own format, "old": only the
+/// original's), none for a slot with no replay.
+fn replay_tag(o: &Owners<'static>, slot: u32) -> Vec<u8> {
+    use crate::race::replay::{SLOT_NEW, SLOT_OLD};
+    use rc2k_core::strings::own::id::{REPLAY_NEW, REPLAY_OLD};
+    let id = match o.race.shared.replays().kinds.get(slot as usize) {
+        SLOT_NEW => REPLAY_NEW,
+        SLOT_OLD => REPLAY_OLD,
+        _ => return Vec::new(),
+    };
+    let mut tag = vec![b' '];
+    tag.extend(crate::strings::append_string_by_id::own_text(o.strings, id));
+    tag
+}
+
 /// The texts of a screen whose names are held by value: those, or the game's own buffers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum HeldText {
@@ -205,7 +220,14 @@ impl HeldText {
         match self {
             HeldText::Slot(names, slot) => {
                 let (table, len) = names.table(o);
-                text_in(table, (slot as usize).wrapping_mul(len))
+                let mut text = text_in(table, (slot as usize).wrapping_mul(len));
+                // The replays list tags a slot by the kind of file it holds.
+                if names == SlotNames::Replays && text.last() == Some(&0) {
+                    text.pop();
+                    text.extend(replay_tag(o, slot));
+                    text.push(0);
+                }
+                text
             }
             HeldText::Buffer(buffer) => match buffer_at(o.strings, &o.menus.text_buffers, buffer) {
                 TextBuf::Text(b) => text_in(b, 0),

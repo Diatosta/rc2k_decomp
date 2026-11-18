@@ -66,6 +66,7 @@ pub mod replay_frame_marks;
 pub mod replay_frames_store;
 pub mod replay_state;
 pub mod replay_step;
+pub mod replay_v2_step;
 pub mod reset_request;
 pub mod save_replay_cars;
 pub mod set_camera_view;

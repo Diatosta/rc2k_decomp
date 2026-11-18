@@ -7,6 +7,7 @@ use crate::memory::session::{DrawShared, GameThread, PlainBytes, PlainDword, wit
 use crate::race::groups_store::ViewerAndKinds;
 use crate::race::replay_path::LAST_RACE_LEN;
 use crate::race::replay_staging_store::ReplayStaging;
+use crate::race::replay_v2_store::ReplayV2;
 use crate::race::replay_work_store::ReplayWork;
 use crate::race::seal_store::SealWork;
 use crate::race::viewer_state_store::ReplayViewBlock;
@@ -34,6 +35,7 @@ struct ReplayMain {
     snapshot: PlainBytes<26>,
     seal_key: PlainDword,
     seal_work: SealWork,
+    v2: ReplayV2,
 }
 
 impl Replay {
@@ -51,6 +53,7 @@ impl Replay {
                 snapshot: PlainBytes::new(*b"savedata\\snapshot\\000.png\0"),
                 seal_key: PlainDword::new(0),
                 seal_work: SealWork::new(),
+                v2: ReplayV2::new(),
             }),
         }
     }
@@ -83,5 +86,10 @@ impl Replay {
 
     pub fn seal_work(&self) -> &SealWork {
         &self.main.get().seal_work
+    }
+
+    /// The own-format replay's cars and tail (`race::replay_v2_store`).
+    pub fn v2(&self) -> &ReplayV2 {
+        &self.main.get().v2
     }
 }

@@ -388,13 +388,19 @@ fn replay_name(path: &[u8]) -> Result<Vec<u8>, String> {
     file.read_exact(&mut head)
         .map_err(|_| not_one.to_string())?;
     let name = kept::replay_name(&head).ok_or(not_one)?;
+    // The own format's index is longer than the original's.
+    let index_len = if head[..4] == rc2k_core::race::replay_v2::MAGIC.to_le_bytes() {
+        rc2k_core::race::replay_v2::OWN_INDEX_LEN as u32
+    } else {
+        INDEX_LEN
+    };
     let cut_short = "a replay cut short (no index at its end)";
     let mut magic = [0u8; 4];
     let length = file.metadata().map_err(|e| e.to_string())?.len();
-    if length < u64::from(HEADER_LEN) + u64::from(INDEX_LEN) {
+    if length < u64::from(HEADER_LEN) + u64::from(index_len) {
         return Err(cut_short.into());
     }
-    file.seek(SeekFrom::End(-i64::from(INDEX_LEN)))
+    file.seek(SeekFrom::End(-i64::from(index_len)))
         .and_then(|_| file.read_exact(&mut magic))
         .map_err(|e| e.to_string())?;
     if u32::from_le_bytes(magic) != INDEX_MAGIC {
@@ -409,13 +415,17 @@ fn replay_name(path: &[u8]) -> Result<Vec<u8>, String> {
 /// saved replays listed.
 fn find_replay(o: Owners<'static>, replay: &Replay) -> Result<u32, Refused> {
     let path = match replay {
-        Replay::Slot(slot) => saved_replay(*slot),
+        Replay::Slot(slot) => crate::race::replay_path::file_to_load(*slot, saved_replay(*slot)),
         Replay::File(file) => crate::files::ansi_bytes(file),
     };
     if let Err(why) = replay_name(&path) {
         let saved: Vec<String> = (0..REPLAY_SLOTS)
             .filter_map(|slot| {
-                let name = replay_name(&saved_replay(slot)).ok()?;
+                let name = replay_name(&crate::race::replay_path::file_to_load(
+                    slot,
+                    saved_replay(slot),
+                ))
+                .ok()?;
                 Some(format!("{slot} {}", crate::files::ansi_text(&name)))
             })
             .collect();

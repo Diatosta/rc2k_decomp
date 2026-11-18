@@ -123,19 +123,20 @@ in its chat. The player is told and leaves the lobby as if the host had gone, an
 show it. The stage bar along the top shows every car as a marker, each in its own colour, the
 own car's in white. Afterwards the results come up and the lobby returns for the next stage. A player who finishes goes back to the lobby while the others are still racing; there the table shows, in place of the stage time of each player still racing, how far through the stage that player is, as a percentage that rises while the lobby is shown (nothing is shown until the first figure arrives). A finished player's own time replaces it.
 
-**The replay.** A network race is recorded as a single race is, every car included: the other
-players' cars from the inputs their messages carry, and their whole state at the start of each
-second, as this machine saw it. Each machine records its own view, so the replays of one race
-differ a little between players (a remote car's position corrections are not recorded, only
-its inputs and its state each second). Once the race is over the lobby shows a **save replay**
+**The replay.** A network race is recorded as a single race is, every car included, in this project's own
+replay format ([Replay files](Replay-files), "The own format"): the car of the machine that recorded by its inputs and
+its state at the start of each second, and every other car (the other players' and the computer's, up to eight cars
+in all) by its motion at each step, **as this machine showed it**, so a remote car's position corrections are in
+the recording and the replay shows each car where it was, with no drift. Each machine records its own view, so the
+replays of one race differ a little between players. The replay's cars are listed in its header with their names;
+the viewer's car item goes through the players only (never a computer car), though the computer's cars are drawn
+and drive in the replay. Once the race is over the lobby shows a **save replay**
 button in a second row of buttons above the bottom row (reached with the up key, then the left
 key); it asks for a slot as the single-player results screen does, and the replay can then be
 watched from the replays menu. Backing out of the slot screen leaves the lobby as it was. A
 replay that cannot be saved (its recording cannot be read, or the slot's file cannot be written)
 gives a message and the lobby stays; it never ends the program.
-The file is a replay of the usual format, but it holds only the first two cars' inputs and the
-first four cars' states: a race of more than two players plays back with the other cars
-following their stored states only.
+A network replay is saved only in the own format (`replayNN.rc2r`): the original's format cannot hold it.
 
 ## From the command line
 

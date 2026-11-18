@@ -4,6 +4,7 @@
 //! (offset, size) per block). `#[repr(C)]` with a fixed layout.
 
 use crate::memory::cells::ZeroCells;
+use rc2k_core::race::replay_v2::MOST_BLOCKS;
 
 use crate::memory::session::{PlainDword, PlainFlag};
 
@@ -80,7 +81,7 @@ pub struct ReplayIndex {
     pub frame_count: PlainDword,
     /// (Offset, size) per block, 8 bytes a block, and the rest of the index (`race::replay`,
     /// `drive::read_replay_frame`).
-    pub block_places: [PlainDword; 3600],
+    pub block_places: [PlainDword; 2 * MOST_BLOCKS as usize],
 }
 
 impl ReplayFileBlock {
@@ -108,5 +109,6 @@ impl ReplayIndex {
     }
 }
 
-/// The index's dwords: "RCIB" through the places, 0x3850 bytes.
-pub const INDEX_DWORDS: usize = 4 + 3600;
+/// The index's dwords: "RCIB" through the places of the own format (`OWN_INDEX_LEN` bytes);
+/// the original's index is the first 0x3850 / 4 of them.
+pub const INDEX_DWORDS: usize = 4 + 2 * MOST_BLOCKS as usize;

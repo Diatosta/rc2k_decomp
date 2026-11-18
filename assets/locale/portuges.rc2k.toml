@@ -125,6 +125,11 @@ render_scale = "resolução 3D"
 # The replay viewer's row that renders the replay to a video file.
 [viewer]
 
+# The replays list: the tags after a slot's name.
+[replays]
+new = "[novo]"
+old = "[antigo]"
+
 # The network lobby.
 [lobby]
 save_replay = "gravar repetição"

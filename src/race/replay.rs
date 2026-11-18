@@ -19,8 +19,10 @@ use crate::test_support::own::menus;
 /// saved results depend on the replay it came from, so a time cannot be edited alone. Kept apart
 /// from the sound dwords around it.
 // The index (`crate::test_support::own::race().shared.replay_file().index.dwords()`) is 0x3850 bytes.
-const _: () = assert!(crate::race::replay_file_store::INDEX_DWORDS * 4 == 0x3850);
-pub const MOST_BLOCKS: u32 = rc2k_core::race::replay::MOST_BLOCKS;
+const _: () = assert!(
+    crate::race::replay_file_store::INDEX_DWORDS * 4 == rc2k_core::race::replay_v2::OWN_INDEX_LEN
+);
+pub const MOST_BLOCKS: u32 = rc2k_core::race::replay_v2::MOST_BLOCKS;
 pub const BLOCK_LEN: u32 = 0x2810;
 pub const HEADER_LEN: u32 = 0x430;
 
@@ -36,7 +38,17 @@ pub struct Replays {
     pub header: PlainBytes<{ HEADER_LEN as usize }>,
     /// The saved replays' names, 100 of 0x20 bytes (twenty to a page).
     pub names: PlainBytes<{ SLOTS * NAME_BYTES }>,
+    /// What each slot holds (`SLOT_NONE`, `SLOT_OLD`, `SLOT_NEW`): the replays list tags the
+    /// names by it.
+    pub kinds: PlainBytes<SLOTS>,
 }
+
+/// A replay slot's kind: no file read (empty, or one that is damaged).
+pub const SLOT_NONE: u8 = 0;
+/// Only the original's format's file.
+pub const SLOT_OLD: u8 = 1;
+/// A file of the own format (the original's may be beside it).
+pub const SLOT_NEW: u8 = 2;
 
 impl Replays {
     /// The replays' buffers; the first values are the image's (all zero).
@@ -44,6 +56,7 @@ impl Replays {
         Replays {
             header: PlainBytes::new([0; HEADER_LEN as usize]),
             names: PlainBytes::new([0; SLOTS * NAME_BYTES]),
+            kinds: PlainBytes::new([0; SLOTS]),
         }
     }
 }
@@ -207,19 +220,21 @@ fn write(handle: u32, bytes: &[u8]) -> (u32, bool) {
 /// Writes `count` bytes at `from` to file `handle`; unless `chunks_plain` is 1 they are packed
 /// (`race::pack_runs`, rounded up to a dword) and the packing is written when smaller. Both
 /// callers write the whole replay block (`block`, 0x2810 bytes): here it is that block.
-pub fn write_replay_chunk(
-    race: &Race,
-    system: &System,
-    handle: u32,
-) -> Result<(u32, bool), Refused> {
-    let shared = &race.shared;
+pub fn write_replay_chunk(race: &Race, handle: u32) -> Result<(u32, bool), Refused> {
     let block = race.viewer_buffers().block_bytes();
+    write_chunk_of(race, handle, &block)
+}
+
+/// `write_replay_chunk` of the given block bytes (the original's block is the first of the
+/// own format's bytes).
+pub fn write_chunk_of(race: &Race, handle: u32, block: &[u8]) -> Result<(u32, bool), Refused> {
+    let shared = &race.shared;
     // A replay with the extra tape has its block's own size (the index's plain size).
     let plain_len = block.len() as u32;
     if shared.replay_file().chunks_plain.get() == 1 {
-        return Ok(write(handle, &block));
+        return Ok(write(handle, block));
     }
-    let (packing, packed) = crate::race::save_seal::pack_runs(&block, system)?;
+    let (packing, packed) = crate::race::save_seal::pack_runs(block);
     // Logic in `rc2k_core::race::replay::packed_size`.
     Ok(
         match rc2k_core::race::replay::packed_size(packed, plain_len) {
@@ -232,7 +247,7 @@ pub fn write_replay_chunk(
                     (n.wrapping_neg(), false)
                 }
             }
-            None => write(handle, &block),
+            None => write(handle, block),
         },
     )
 }
@@ -261,12 +276,11 @@ pub fn write_replay_block(race: &Race, system: &System, replay: &Replay) -> Resu
     }
     shared.replay_file().index.block_places[2 * n as usize]
         .set(replay.replay_view().file_offset.get());
-    let (written, failed) =
-        write_replay_chunk(race, system, shared.replay_file().replay_handle.get())?;
+    let (written, failed) = write_replay_chunk(race, shared.replay_file().replay_handle.get())?;
     let failed = failed || {
         shared.replay_file().index.block_places[2 * n as usize + 1].set(written);
         // Logic in `rc2k_core::race::replay::block_written`.
-        let (size, full) = rc2k_core::race::replay::block_written(written, n);
+        let (size, full) = rc2k_core::race::replay::block_written(written, n, MOST_BLOCKS);
         replay
             .replay_view()
             .file_offset
@@ -367,16 +381,20 @@ pub fn open_replay(race: &Race, o: crate::owners::Owners<'static>) -> Result<(),
     let replay = &race.replay;
     // Logic in `rc2k_core::race::replay::{replays_on, room_for_replay}` and the header's and the
     // index's words.
-    use rc2k_core::drive::replay_frames::records_extra_tape;
-    use rc2k_core::race::replay::{
-        HEADER_MAGIC, HEADER_NAME, INDEX_MAGIC, header_version, replays_on, room_for_replay,
-    };
+    use rc2k_core::race::replay::{HEADER_NAME, INDEX_MAGIC, replays_on, room_for_replay};
+    use rc2k_core::race::replay_v2::{EXT_LEN_AT, MAGIC, VERSION};
     shared.replay_file().replay_closed.set(0);
-    // A local race of more than two players keeps the inputs of cars 2 and 3 on an extra tape
-    // (a replay of the version that has it); every other race is written as ever.
-    let extra_tape = records_extra_tape(shared.view.get().players.get(), o.net.race_slot.is_on());
-    race.viewer_buffers().extra_tape.set(extra_tape);
+    // Every race is recorded in the own format (`rc2k_core::race::replay_v2`): the original's
+    // block with the extra tape for cars 2 and 3, and the tail for the other cars.
+    race.viewer_buffers().extra_tape.set(true);
+    race.viewer_buffers().v2.set(true);
     replay.staging().clear_extra_tape();
+    let extension = crate::race::replay_v2_cars::cars_of_race(race, o.net, o.menus);
+    {
+        let mut v2 = replay.v2().lock();
+        v2.tail = rc2k_core::race::replay_v2::Tail::new();
+        v2.ext = Some(extension.clone());
+    }
     if !replays_on(
         shared.replay_file().replays_on.get(),
         shared.replay_file().no_replay_switch.get(),
@@ -391,8 +409,8 @@ pub fn open_replay(race: &Race, o: crate::owners::Owners<'static>) -> Result<(),
     for k in 0..0x10C {
         header.set_u32(4 * k, 0);
     }
-    header.set_u32(0, HEADER_MAGIC);
-    header.set_u32(8, header_version(extra_tape));
+    header.set_u32(0, MAGIC);
+    header.set_u32(8, VERSION);
     header.set_u32(0xC, crate::system::packed_local_time::packed_local_time());
     for (k, &w) in HEADER_NAME.iter().enumerate() {
         header.set_u32(0x10 + 4 * k, w);
@@ -446,6 +464,8 @@ pub fn open_replay(race: &Race, o: crate::owners::Owners<'static>) -> Result<(),
         .replays()
         .header
         .write_at(0x30, &stage, "the replay header's stage")?;
+    let extension_bytes = extension.to_bytes();
+    header.set_u32(EXT_LEN_AT, extension_bytes.len() as u32);
     for cell in shared.replay_file().index.dwords() {
         cell.set(0);
     }
@@ -465,13 +485,11 @@ pub fn open_replay(race: &Race, o: crate::owners::Owners<'static>) -> Result<(),
                     .replay_view()
                     .file_offset
                     .get()
-                    .wrapping_add(HEADER_LEN),
+                    .wrapping_add(HEADER_LEN + extension_bytes.len() as u32),
             );
-            !crate::files::handle::write_slice(
-                shared.replay_file().replay_handle.get(),
-                &shared.replays().header.read(),
-            )
-            .1
+            let mut head = shared.replays().header.read().to_vec();
+            head.extend_from_slice(&extension_bytes);
+            !crate::files::handle::write_slice(shared.replay_file().replay_handle.get(), &head).1
         }
     };
     if failed {

@@ -11,7 +11,9 @@ pub fn record_inputs(race: &Race) -> Result<(), BadInput> {
     let replay = &race.replay;
     let car = shared.work.get().current_car.get();
     let extended = race.viewer_buffers().extra_tape.is_set();
-    if !on_tape(car, extended) {
+    // A replay of the own format also has a tape for cars 4 .. 7 (`race::replay_v2_store`).
+    let tail = race.viewer_buffers().v2.is_set() && (4..8).contains(&car);
+    if !on_tape(car, extended) && !tail {
         return Ok(());
     }
     let (eax, ebx, ecx, edx) = (
@@ -21,11 +23,22 @@ pub fn record_inputs(race: &Race) -> Result<(), BadInput> {
         shared.physics_tables.get().input_words[3].get(),
     );
     let packed = crate::drive::pack_inputs::pack_inputs(eax, ecx, edx);
-    let entry = replay
-        .staging()
-        .entry(replay.replay_frames().tenth.get(), car, extended)?;
-    entry.input.set(ebx);
-    entry.packed.set(packed);
+    if tail {
+        let tenth = replay.replay_frames().tenth.get() as usize;
+        let mut v2 = replay.v2().lock();
+        let entry = v2
+            .tail
+            .tape
+            .get_mut(tenth)
+            .ok_or(BadInput("a tape entry past the frame's tenths"))?;
+        entry[car as usize - 4] = [ebx, packed];
+    } else {
+        let entry = replay
+            .staging()
+            .entry(replay.replay_frames().tenth.get(), car, extended)?;
+        entry.input.set(ebx);
+        entry.packed.set(packed);
+    }
     let [eax, ecx, edx] = crate::drive::unpack_inputs::unpack_inputs(packed);
     for (k, v) in [eax, ebx, ecx, edx].iter().enumerate() {
         shared.physics_tables.get().input_words[k].set(*v);

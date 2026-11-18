@@ -2,28 +2,19 @@
 //! (`race::pack_runs`) and a block sealed by a DES-like cipher (`race::seal_block`, with
 //! `race::permute_bits`).
 
-use crate::errors::BadInput;
 use crate::race::seal_store::SealWork;
 
-/// Packs `source` by runs into the shared scratch: runs of 2 .. 0x80 equal bytes as
-/// (length - 1, byte), other stretches of up to 0x80 as (-length, bytes); fewer than three bytes,
-/// or one left, as one literal; then a dword 0 of which one byte counts. Returns the packing (end
-/// mark included) with the count of bytes written.
-pub fn pack_runs(
-    source: &[u8],
-    system: &crate::system::owner::System,
-) -> Result<(Vec<u8>, u32), BadInput> {
+/// Packs `source` by runs: runs of 2 .. 0x80 equal bytes as (length - 1, byte), other stretches
+/// of up to 0x80 as (-length, bytes); fewer than three bytes, or one left, as one literal; then
+/// a dword 0 of which one byte counts. Returns the packing (end mark included) with the count of
+/// bytes written.
+pub fn pack_runs(source: &[u8]) -> (Vec<u8>, u32) {
     // Logic in `rc2k_core::race::seal::pack_runs`.
     let mut packed = rc2k_core::race::seal::pack_runs(source);
     let len = packed.len() as u32;
     // The end mark is the first byte of a dword 0.
     packed.extend_from_slice(&[0, 0, 0]);
-    system
-        .work()
-        .files
-        .buffer
-        .write_at(0, &packed, "the packed bytes")?;
-    Ok((packed, len))
+    (packed, len)
 }
 
 /// Enciphers the block (`SealWork`'s block) with its key: the key's two halves (PC1), sixteen

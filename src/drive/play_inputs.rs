@@ -11,13 +11,26 @@ pub fn play_inputs(race: &Race) -> Result<(), BadInput> {
     let replay = &race.replay;
     let car = shared.work.get().current_car.get();
     let extended = race.viewer_buffers().extra_tape.is_set();
-    if !on_tape(car, extended) {
+    let tail = race.viewer_buffers().v2.is_set() && (4..8).contains(&car);
+    if !on_tape(car, extended) && !tail {
         return Ok(());
     }
-    let entry = replay
-        .staging()
-        .entry(replay.replay_frames().step_frame.get(), car, extended)?;
-    let (ebx, second) = (entry.input.get(), entry.packed.get());
+    let (ebx, second) = if tail {
+        let step = replay.replay_frames().step_frame.get() as usize;
+        let v2 = replay.v2().lock();
+        let [keys, packed] = v2
+            .tail
+            .tape
+            .get(step)
+            .ok_or(BadInput("a tape entry past the frame's tenths"))?[car as usize - 4];
+        (keys, packed)
+    } else {
+        let entry =
+            replay
+                .staging()
+                .entry(replay.replay_frames().step_frame.get(), car, extended)?;
+        (entry.input.get(), entry.packed.get())
+    };
     let [eax, ecx, edx] = crate::drive::unpack_inputs::unpack_inputs(second);
     for (k, v) in [eax, ebx, ecx, edx].iter().enumerate() {
         shared.physics_tables.get().input_words[k].set(*v);

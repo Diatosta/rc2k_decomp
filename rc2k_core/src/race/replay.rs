@@ -6,7 +6,7 @@
 pub const BLOCK_FRAMES: u32 = 100;
 /// A frame's bytes (smaller pieces are put in without counting).
 pub const FRAME_BYTES: u32 = 0x10;
-/// The blocks the index holds.
+/// The blocks the original's index holds.
 pub const MOST_BLOCKS: u32 = 0x708;
 /// The free room (KB) a replay needs on the disc.
 pub const NEEDED_KB: u32 = 0x7800;
@@ -35,7 +35,7 @@ pub fn header_version(extra_tape: bool) -> u32 {
 pub fn read_version(version: u32) -> Option<bool> {
     match version {
         HEADER_VERSION => Some(false),
-        HEADER_VERSION_EXTRA_TAPE => Some(true),
+        HEADER_VERSION_EXTRA_TAPE | crate::race::replay_v2::VERSION => Some(true),
         _ => None,
     }
 }
@@ -78,13 +78,13 @@ pub fn fits(cursor: u32, dwords: u32, room: u32) -> bool {
 
 /// A block written: the size taken in the file (a packed one's negated) and whether the
 /// index is then full.
-pub fn block_written(written: u32, block: u32) -> (u32, bool) {
+pub fn block_written(written: u32, block: u32, most: u32) -> (u32, bool) {
     let size = if (written as i32) < 0 {
         written.wrapping_neg()
     } else {
         written
     };
-    (size, block + 1 == MOST_BLOCKS)
+    (size, block + 1 == most)
 }
 
 /// The last block's frame count at the close: 100, or for the last block the frames modulo
@@ -197,8 +197,14 @@ mod tests {
         assert_eq!(frame_added(0x10, 99), (100, true));
         assert_eq!(frame_added(8, 99), (99, false));
         assert!(fits(0x2800, 4, 0x2810) && !fits(0x2800, 5, 0x2810) && !fits(0x2814, 0, 0x2810));
-        assert_eq!(block_written((-0x100i32) as u32, 3), (0x100, false));
-        assert_eq!(block_written(0x2810, MOST_BLOCKS - 1), (0x2810, true));
+        assert_eq!(
+            block_written((-0x100i32) as u32, 3, MOST_BLOCKS),
+            (0x100, false)
+        );
+        assert_eq!(
+            block_written(0x2810, MOST_BLOCKS - 1, MOST_BLOCKS),
+            (0x2810, true)
+        );
         assert_eq!(closing_frames(4, 5, 437), (38, 4, Some(37)));
         assert_eq!(closing_frames(2, 5, 437), (100, 3, None));
         assert_eq!(packed_size(0x101, 0x2810), Some(0x104));

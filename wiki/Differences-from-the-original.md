@@ -27,6 +27,8 @@ the switches of the command line are on [Running and options](Running-and-option
 - **Playing through Steam** (in progress): [Network play](#network-play).
 - **Replays rendered to a video**, from the viewer's camera button in a third row and from the command line:
   [Replays](#replays).
+- **A replay format of its own** that records every car of a race, up to eight, the computer's and the other
+  machines' cars of a network race included, so that they replay where they were: [Replays](#replays).
 - **Three and four players on one screen**, a menu entry of their own in the single rally, the
   screen split in layouts the F2 key cycles: [In progress](#in-progress).
 - **Straight into a race, a replay or the lobby** from the command line: [Running](#running).
@@ -214,16 +216,22 @@ Everything is on [Controllers](Controllers) and [Input](Input); in short:
   [--fps N]` does it without a window. The video is written through an `ffmpeg` on the path (H.264
   with AAC sound when it has them); without one, numbered PNG pictures and a WAV file.
 - **`--replay <slot|file>`** starts a saved replay at once, `--then menus` or `--then quit`.
-- The viewer's **car item** works for replays with several cars (network races, computer cars):
-  it goes through each car and both; the camera chosen in the viewer is not changed by the
-  change-view presses the replay recorded.
-- A **network race records a replay** like a single race; the lobby then offers "save replay" and
-  the second car is heard in it. A replay that cannot be saved or read shows a notice instead of
-  ending the game.
+- **Every race is recorded in a replay format of its own** (see [Replay files](Replay-files)): up to eight cars,
+  all of them recorded, the computer's cars and the other machines' cars of a network race too (their motion is
+  recorded as this machine showed it, so a network replay shows each car where it was and no longer drifts).
+  Saving a replay writes it in this format (`replayNN.rc2r` in `savedata/replay`) and, when the original's format
+  can hold the race (one or two players, none on another machine), also in the original's beside it, byte for
+  byte as the original wrote it. The replays list marks each slot "new" or "old" after its name; a slot with both
+  files loads the new one, and a slot with only the original's file (one copied in) loads that as it was. Old
+  files play as they always did. A recording takes about 130 KB a minute for one car and up to about 2 MB a
+  minute for eight cars of which seven are driven elsewhere. A replay of the new format can be 90 minutes long (the original's was cut at 30); its original-format twin is cut at 30 minutes.
+- The viewer's **car item** goes through the **players** only (a race's human players, also those on other
+  machines), never a computer car; the computer's cars are still drawn and drive in the replay. It also
+  works for a network race's replay and for races of more than four players.
+- A **network race records a replay** like a single race; the lobby then offers "save replay". A replay that
+  cannot be saved or read shows a notice instead of ending the game.
 - Old replays are read as they are, and replays saved here play in the same way on every system.
-  One- and two-player replays are written byte for byte as the original wrote them. A race of
-  three or four players writes a replay with its own version number, which builds that do not
-  know it refuse as they refuse any other version.
+  A race of three or four players earlier wrote a replay of version `0x50401`; those are still read.
 
 ## Network play
 

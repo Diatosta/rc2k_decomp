@@ -102,6 +102,23 @@ pub fn load_from_block(race: &crate::race::owner::Race) {
             EXTRA_TAPE_BYTES,
         );
     }
+    if buffers.v2.is_set() {
+        load_tail(race);
+    }
+}
+
+/// The block's tail (a replay of the own format) read into the replay's tail.
+fn load_tail(race: &crate::race::owner::Race) {
+    use rc2k_core::drive::replay_frames::EXTENDED_FRAME_BYTES;
+    use rc2k_core::race::replay_v2::Tail;
+    let bytes = race.viewer_buffers().block_bytes();
+    let head = race.replay.staging().start_frame().cars;
+    let mut v2 = race.replay.v2().lock();
+    let mask = v2.state_mask();
+    v2.tail = Tail::from_bytes(&bytes[EXTENDED_FRAME_BYTES..], &head, mask).unwrap_or_else(|| {
+        crate::logfile::program_log::log("replay: a block's tail is damaged and is not played");
+        Tail::new()
+    });
 }
 
 /// The staging's frame (and with the extra tape, that too) copied into the replay block.
@@ -115,6 +132,25 @@ pub fn store_in_block(race: &crate::race::owner::Race) {
             (&buffers.block_extra, 0),
             EXTRA_TAPE_BYTES,
         );
+    }
+    if buffers.v2.is_set() {
+        store_tail(race);
+    }
+}
+
+/// The replay's tail put in the block's tail.
+fn store_tail(race: &crate::race::owner::Race) {
+    use rc2k_core::drive::replay_frames::EXTENDED_FRAME_BYTES;
+    let head = race.replay.staging().start_frame().cars;
+    let bytes = {
+        let v2 = race.replay.v2().lock();
+        v2.tail.to_bytes(&head, v2.state_mask())
+    };
+    if let Err(why) =
+        race.viewer_buffers()
+            .put_in_block(EXTENDED_FRAME_BYTES, &bytes, "the replay's tail")
+    {
+        crate::logfile::program_log::log(&format!("replay: the tail is not kept: {why:?}"));
     }
 }
 

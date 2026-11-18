@@ -7,6 +7,7 @@ use crate::memory::session::{PlainBytes, PlainDword, PlainFlag};
 #[cfg(test)]
 use crate::test_support::own::race;
 use rc2k_core::drive::replay_frames::{EXTENDED_FRAME_BYTES, EXTRA_TAPE_DWORDS, block_bytes};
+use rc2k_core::race::replay_v2::{BLOCK_BYTES as V2_BLOCK_BYTES, MOST_BLOCKS, TAIL_DWORDS};
 
 #[derive(rc2k_derive::Cells)]
 pub struct ViewerBuffers {
@@ -20,13 +21,13 @@ pub struct ViewerBuffers {
     pub block: [PlainDword; 0xA04],
     /// +0x2C14: 8 bytes a block, 0x708 blocks (`drive::replay_frame_marks`, `race::edit_camera`,
     /// `race::viewer`).
-    pub block_cameras: PlainBytes<0x3840>,
+    pub block_cameras: PlainBytes<{ 8 * MOST_BLOCKS as usize }>,
     /// +0x6454: blocks to undo, 0 = nothing (`race::viewer`).
     pub undo_blocks: PlainDword,
     /// +0x6458: the block places of the undo, 0x3840 bytes (`race::keep_undo`, `race::undo_edit`).
-    pub undo_places: [PlainDword; 0xE10],
+    pub undo_places: [PlainDword; 2 * MOST_BLOCKS as usize],
     /// +0x9C98: the undo's cameras, 0x3840 bytes.
-    pub undo_cameras: [PlainDword; 0xE10],
+    pub undo_cameras: [PlainDword; 2 * MOST_BLOCKS as usize],
     /// +0xD4D8: the first block marked.
     pub mark_in: PlainDword,
     /// +0xD4DC: the last block marked.
@@ -36,9 +37,9 @@ pub struct ViewerBuffers {
     /// +0xD4E4: blocks on the clipboard.
     pub clip_blocks: PlainDword,
     /// +0xD4E8: the clipboard's block places, 0x3840 bytes.
-    pub clip_places: [PlainDword; 0xE10],
+    pub clip_places: [PlainDword; 2 * MOST_BLOCKS as usize],
     /// +0x10D28: the clipboard's cameras, 0x3840 bytes.
-    pub clip_cameras: [PlainDword; 0xE10],
+    pub clip_cameras: [PlainDword; 2 * MOST_BLOCKS as usize],
     /// +0x14568: the race's file, opened to read (`race::save_viewed_replay`).
     pub from_file: PlainDword,
     /// +0x1456c: the slot's file, made (`race::save_viewed_replay`).
@@ -50,6 +51,12 @@ pub struct ViewerBuffers {
     /// The replay in the block has the extra tape: its header's version
     /// (`rc2k_core::race::replay::HEADER_VERSION_EXTRA_TAPE`).
     pub extra_tape: PlainFlag,
+    /// What follows the extra tape in a replay of this project's own format
+    /// (`rc2k_core::race::replay_v2`): the tail, `TAIL_DWORDS` dwords.
+    pub block_tail: [PlainDword; TAIL_DWORDS],
+    /// The replay in the block is of this project's own format (version 2): its block is the
+    /// plain frame, the extra tape and the tail.
+    pub v2: PlainFlag,
 }
 
 /// The buffers as held by `crate::test_support::own::race().shared`.
@@ -78,20 +85,25 @@ impl ViewerBuffers {
 
     /// The bytes the block holds: with the extra tape, the plain frame and the tape.
     pub fn block_len(&self) -> usize {
-        block_bytes(self.extra_tape.is_set())
+        if self.v2.is_set() {
+            V2_BLOCK_BYTES
+        } else {
+            block_bytes(self.extra_tape.is_set())
+        }
     }
 
     /// The replay block's bytes (`block_len`).
     pub fn block_bytes(&self) -> Vec<u8> {
+        let tail = self.v2.is_set().then_some(&self.block_tail);
         self.block
             .iter()
             .chain(
-                self.extra_tape
-                    .is_set()
+                (self.extra_tape.is_set() || self.v2.is_set())
                     .then_some(&self.block_extra)
                     .into_iter()
                     .flatten(),
             )
+            .chain(tail.into_iter().flatten())
             .flat_map(|c| c.get().to_le_bytes())
             .collect()
     }
@@ -112,9 +124,13 @@ impl ViewerBuffers {
         }
         for (i, &b) in data.iter().enumerate() {
             let at = offset + i;
-            let cell = match self.block.get(at / 4) {
+            let word = at / 4;
+            let cell = match self.block.get(word) {
                 Some(cell) => cell,
-                None => &self.block_extra[at / 4 - self.block.len()],
+                None => match self.block_extra.get(word - self.block.len()) {
+                    Some(cell) => cell,
+                    None => &self.block_tail[word - self.block.len() - self.block_extra.len()],
+                },
             };
             let shift = 8 * (at % 4);
             cell.set(cell.get() & !(0xFF << shift) | u32::from(b) << shift);

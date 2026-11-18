@@ -179,6 +179,12 @@ fn read_at(race: &Race, system: &System, block: u32, frame: u32) -> Result<(), R
 
 /// Whether the view (the cars shown) can be changed in this replay.
 pub fn views_choosable(race: &Race) -> bool {
+    // A replay of the own format goes through its players: with two or more there is a choice.
+    if race.viewer_buffers().v2.is_set()
+        && let Some(ext) = race.replay.v2().lock().ext.as_ref()
+    {
+        return ext.layouts_choosable();
+    }
     rc2k_core::race::viewer::views_choosable(
         race.replay_work().header_one_player.get() == 1,
         race.replay_work().header_cars.get(),
@@ -206,7 +212,15 @@ fn cycle_byte(race: &Race, byte: usize) -> Result<(), Refused> {
     } else {
         0
     };
-    let dl = rc2k_core::race::viewer::next_byte(byte as u32, old, whole_cycle, extra_cars);
+    let own_layout = (byte == 5 && race.viewer_buffers().v2.is_set())
+        .then(|| {
+            let v2 = race.replay.v2().lock();
+            v2.ext.as_ref().map(|ext| ext.next_layout(old))
+        })
+        .flatten();
+    let dl = own_layout.unwrap_or_else(|| {
+        rc2k_core::race::viewer::next_byte(byte as u32, old, whole_cycle, extra_cars)
+    });
     at.write(race, dl, "a replay block's camera byte")?;
     crate::race::spread_camera::spread_camera(race, at, old)
 }

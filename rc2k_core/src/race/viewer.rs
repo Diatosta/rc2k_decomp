@@ -5,7 +5,7 @@
 use crate::Invalid;
 
 /// The blocks a replay's table holds.
-pub const MOST_BLOCKS: u32 = 0x708;
+pub const MOST_BLOCKS: u32 = crate::race::replay_v2::MOST_BLOCKS;
 /// The frames of a block.
 pub const BLOCK_FRAMES: u32 = 100;
 /// The slot of the last race's replay.
@@ -734,7 +734,7 @@ mod tests {
         assert_eq!(cut_marks(2, 7, 10), Ok(Some((2, 7))));
         assert!(cut_marks(2, 11, 10).is_err());
         assert_eq!(pastes(0, 5, 9), Ok(false));
-        assert_eq!(pastes(3, 0x706, 9), Ok(false));
+        assert_eq!(pastes(3, MOST_BLOCKS - 2, 9), Ok(false));
         assert_eq!(pastes(3, 10, 10), Ok(true));
         assert!(pastes(3, 10, 11).is_err());
     }
@@ -745,7 +745,7 @@ mod tests {
         assert_eq!(clip(0, u32::MAX), Ok(None));
         assert_eq!(clip(2, 7), Ok(Some((2, 5))));
         assert!(clip(u32::MAX, 3).is_err());
-        assert!(clip(0, 0x709).is_err());
+        assert!(clip(0, MOST_BLOCKS + 1).is_err());
         let table = |n: u32| if n < 4 { 7 } else { 1 };
         assert_eq!(
             spread(10, 7, table),

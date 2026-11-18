@@ -57,6 +57,7 @@ pub fn step_replay_cars(o: crate::owners::Owners<'static>, race: &Race) -> Resul
             }
         }
         store_car::store_car(shared)?;
+        replay_v2_step::after_step(race)?;
         let (next, done) = next_car(
             shared.work.get().current_car.get(),
             shared.view.get().race_cars.get(),

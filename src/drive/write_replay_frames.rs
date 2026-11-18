@@ -34,7 +34,11 @@ pub fn write_replay_frames(
     if net.race_slot.is_on() {
         // A network race's replay opens on this machine's car.
         let cell = &race.viewer_buffers().block[1];
-        let v = network_view(net.race_slot.player());
+        let v = if race.viewer_buffers().v2.is_set() {
+            rc2k_core::race::replay_v2::layout_of_player(net.race_slot.player()) as u8
+        } else {
+            network_view(net.race_slot.player())
+        };
         cell.set(cell.get() & !0xFF00 | u32::from(v) << 8);
     } else if race.replay_work().header_one_player.get() != 1 {
         // the header's byte 5 (the second dword's second byte)
