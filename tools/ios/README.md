@@ -29,6 +29,7 @@ blurred background filling the sides.
 A start logs "platform: the window is ... points, ... pixels, its safe area ..." and the renderer
 line (`SDL's gpu` and "3D on a GPU backend" on Metal) in the log in the Documents folder.
 The home-screen name is "Rally Championship" (iOS cuts a long label with an ellipsis; the owner accepts that) and the
+name is also in `tools/ios/en.lproj/InfoPlist.strings`, which iOS prefers for the label, so it keeps its space (the owner saw "RallyChampionship" once; xtool's installer, read on GitHub, rewrites only the bundle identifier). The
 icons are `assets/icon.png` scaled into `tools/ios/icons/`.
 
 **Re-install (owner):** `./build.sh ios`, then `tools/ios/install.sh`. The saved game stays (the

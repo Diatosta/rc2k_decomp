@@ -11,6 +11,10 @@
     <string>Rally Championship</string>
     <key>CFBundleDisplayName</key>
     <string>Rally Championship</string>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleLocalizations</key>
+    <array><string>en</string></array>
     <key>CFBundleExecutable</key>
     <string>rc2k</string>
     <key>CFBundleIdentifier</key>

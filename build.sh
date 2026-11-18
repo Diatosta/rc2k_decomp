@@ -310,6 +310,9 @@ build_ios() {
     mkdir -p "$app"
     cp "target/ios/aarch64-apple-ios/$PROFILE/rc2k" "$app/rc2k"
     cp tools/ios/Info.plist "$app/Info.plist"
+    # The home-screen name also as a localised string (it keeps its space where a signing
+    # step rewrites the property list).
+    mkdir -p "$app/en.lproj" && cp tools/ios/en.lproj/InfoPlist.strings "$app/en.lproj/"
     cp tools/ios/icons/AppIcon*@*.png "$app/"
     (cd "$DIST" && rm -rf Payload && mkdir Payload && cp -R "Rally Championship.app" Payload/ \
         && python3 -c 'import os, sys, zipfile

@@ -210,8 +210,10 @@ impl Gestures {
                     Some(true) => {
                         let wide = step * 1.5;
                         while (x - t.anchor.0).abs() >= wide {
+                            // The value follows the finger as a phone's carousel does: a drag
+                            // to the left brings the next one (right), to the right the one before.
                             let left = x < t.anchor.0;
-                            out.push(if left { Gesture::Left } else { Gesture::Right });
+                            out.push(if left { Gesture::Right } else { Gesture::Left });
                             t.anchor.0 += if left { -wide } else { wide };
                         }
                     }
@@ -246,6 +248,11 @@ impl Gestures {
         out
     }
 
+    /// Whether any finger is down.
+    pub fn active(&self) -> bool {
+        !self.touches.is_empty()
+    }
+
     pub fn release_all(&mut self) {
         self.touches.clear();
     }
@@ -272,8 +279,16 @@ pub enum Tapped {
 }
 
 /// The row a tap at `y` is on: the nearest row when it is within `reach` of it (a row's height,
-/// about), else past the list's end.
+/// about), else past the list's end. Rows that all lie within `reach` of each other are not a
+/// list to be tapped past (a screen whose picture is the thing to tap, with its one row of
+/// arrows below): any tap there chooses.
 pub fn tapped(rows: &[Row], y: f32, reach: f32) -> Tapped {
+    let (low, high) = rows.iter().fold((f32::MAX, f32::MIN), |(low, high), r| {
+        (low.min(r.y), high.max(r.y))
+    });
+    if !rows.is_empty() && high - low <= reach {
+        return Tapped::Enter;
+    }
     let nearest = rows
         .iter()
         .map(|r| ((r.y - y).abs(), r.number))
@@ -371,7 +386,29 @@ mod tests {
                 (1, Phase::Up, 1400.0, 505.0, 1020),
             ],
         );
+        // A drag to the right brings the one before: the item follows the finger.
+        assert_eq!(got, vec![Gesture::Left, Gesture::Left]);
+        let got = run(
+            &mut g,
+            &[
+                (1, Phase::Down, 1400.0, 500.0, 2000),
+                (1, Phase::Move, 1000.0, 505.0, 2010),
+                (1, Phase::Up, 1000.0, 505.0, 2020),
+            ],
+        );
         assert_eq!(got, vec![Gesture::Right, Gesture::Right]);
+    }
+
+    #[test]
+    fn a_finger_released_by_a_screen_change_taps_nothing() {
+        let mut g = Gestures::default();
+        let mut got = run(&mut g, &[(1, Phase::Down, 1200.0, 500.0, 0)]);
+        assert!(g.active());
+        // The screen changed: what the platform does with the fingers down.
+        g.release_all();
+        assert!(!g.active());
+        got.extend(run(&mut g, &[(1, Phase::Up, 1200.0, 500.0, 60)]));
+        assert!(got.is_empty());
     }
 
     #[test]
@@ -411,5 +448,17 @@ mod tests {
         assert_eq!(tapped(&rows, 60.0, 16.0), Tapped::Outside);
         assert_eq!(tapped(&rows, 400.0, 16.0), Tapped::Outside);
         assert_eq!(tapped(&[], 100.0, 16.0), Tapped::Enter);
+        // One row of arrows under a picture: a tap on the picture chooses.
+        let arrows = [
+            Row {
+                number: 1,
+                y: 559.0,
+            },
+            Row {
+                number: 2,
+                y: 559.0,
+            },
+        ];
+        assert_eq!(tapped(&arrows, 300.0, 16.0), Tapped::Enter);
     }
 }
