@@ -68,7 +68,7 @@ sdl3-sys = { version = "0.7", features = ["build-from-source-static", "no-sdl-ca
 # built elsewhere (`ios-sdl-source` builds it from source, which needs Apple's SDK), so that
 # `cargo check --target aarch64-apple-ios` works without the SDK.
 [target.'cfg(target_os = "ios")'.dependencies]
-sdl3-sys = { version = "0.7", features = ["no-link", "no-sdl-camera"] }
+sdl3-sys = { version = "0.7", features = ["no-sdl-camera"] }
 
 # The handheld has neither X11 nor Wayland: SDL for its audio and joystick, the frames go to
 # the framebuffer (`handheld`).
