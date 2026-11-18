@@ -1028,7 +1028,11 @@ pub fn show_frame_now(o: crate::owners::Owners<'static>) -> bool {
         if (shot_wanted || video_wanted)
             && let Some(target) = crate::platform::direct3d::screen(o.system.session.screen.get())
         {
+            let began = std::time::Instant::now();
             crate::render::bring_back(&target);
+            if video_wanted {
+                crate::video::note_stage(crate::video::Stage::ReadBack, began.elapsed());
+            }
         }
         if let Ok(screen) = SCREEN.lock()
             && let Some(screen) = screen.as_ref()
@@ -1036,7 +1040,12 @@ pub fn show_frame_now(o: crate::owners::Owners<'static>) -> bool {
             // Before it is shown: on the GPU's path showing clears the canvas.
             #[cfg(feature = "remote")]
             let shot = crate::remote::shot_wanted().then(|| screen.pixels.to_vec());
-            let video_frame = video_wanted.then(|| screen.pixels.to_vec());
+            let video_frame = video_wanted.then(|| {
+                let began = std::time::Instant::now();
+                let pixels = with_frame(screen, crate::video::copy_frame);
+                crate::video::note_stage(crate::video::Stage::Copy, began.elapsed());
+                pixels
+            });
             let showing = std::time::Instant::now();
             let shown_ok = show_frame(&o, screen);
             crate::platform::timing::SHOW_MICROS.fetch_add(
@@ -1059,8 +1068,10 @@ pub fn show_frame_now(o: crate::owners::Owners<'static>) -> bool {
                 crate::remote::frame(&pixels, screen.width as u32, screen.height as u32);
             }
             if let Some(pixels) = video_frame {
-                crate::video::frame(&pixels, screen.width as u32, screen.height as u32);
+                crate::video::frame(pixels, screen.width as u32, screen.height as u32);
+                let began = std::time::Instant::now();
                 crate::video::sound_turn(o.audio);
+                crate::video::note_stage(crate::video::Stage::Sound, began.elapsed());
                 crate::video::note_progress(crate::race::render_row::fraction(o.race));
             }
             crate::platform::timing::note_frame_shown();

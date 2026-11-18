@@ -204,6 +204,13 @@ pub mod id {
     pub const RENDER_STARTING: u32 = FIRST + 0x103;
     pub const RENDER_DONE: u32 = FIRST + 0x104;
     pub const RENDER_FAILED: u32 = FIRST + 0x105;
+    /// The speed of the render ("{}" the frames a second) and the time it has left ("{}" as
+    /// minutes and seconds).
+    pub const RENDER_SPEED: u32 = FIRST + 0x170;
+    pub const RENDER_LEFT: u32 = FIRST + 0x171;
+    /// The dialog's encoder row and its two values (automatic, software).
+    pub const RENDER_ENCODER: u32 = FIRST + 0x172;
+    pub const RENDER_ENCODERS: u32 = FIRST + 0x173;
     /// The lead-in of the dialog that goes back to the main menu ("{}" the trouble).
     pub const BACK_TO_MENU: u32 = FIRST + 0xFF;
     /// The save code page (`save_code`): its texts follow each other from the options menu's
@@ -344,6 +351,11 @@ pub const KEYS: &[(&str, u32)] = &[
     ("viewer.render_starting", id::RENDER_STARTING),
     ("viewer.render_done", id::RENDER_DONE),
     ("viewer.render_failed", id::RENDER_FAILED),
+    ("viewer.render_speed", id::RENDER_SPEED),
+    ("viewer.render_left", id::RENDER_LEFT),
+    ("viewer.render_encoder", id::RENDER_ENCODER),
+    ("viewer.render_encoder_automatic", id::RENDER_ENCODERS),
+    ("viewer.render_encoder_software", id::RENDER_ENCODERS + 1),
     ("dialog.error", id::DIALOG_ERROR),
     ("dialog.notice", id::DIALOG_NOTICE),
     ("dialog.quit", id::DIALOG_QUIT),

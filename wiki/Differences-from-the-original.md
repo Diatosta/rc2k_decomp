@@ -231,14 +231,16 @@ Everything is on [Controllers](Controllers) and [Input](Input); in short:
   fit the desktop and a size set by hand), the **frames a second** (the rates of the graphics
   page's frame limit, and 30 and 60 whatever it lists), the **part** (the whole replay, from the
   place shown to the end, or between the viewer's marks when they are set), the **quality** (low,
-  medium, high, best: the encoder's constant rate factor 28, 23, 18, 12) and the **sound**. The
+  medium, high, best: the encoder's constant rate factor 28, 23, 18, 12), the **encoder** (automatic:
+  a graphics card's H.264 encoder when one works, up to 4096 pixels wide, which makes a render about
+  three times faster; or the software one only) and the **sound**. The
   folder and the file's name (`savedata/videos/replay_<date>_<time>.mp4`) are shown; they cannot
   be edited here (`--out` names any file from the command line). "Render" starts, "cancel" or Escape
   leaves the viewer as it was. The size, rate, quality and sound are kept in `var/rc2k.toml`
   (`[display.video]`) for next time; the part is not. The video is **drawn at the size chosen**
   (1440p or 4K are real 1440p and 4K frames, not an enlarged screen): the game starts a second copy
   of itself, with no window and no sound device, on a copy of the replay as it is viewed (edits
-  included) in `savedata/videos/`, and the viewer waits behind a panel with a bar, the frames written
+  included) in `savedata/videos/`, and the viewer waits behind a panel with a bar, the frames written, the speed, the time left
   and a cancel button. Cancelling (button, Escape or a click) ends the copy and removes everything it
   wrote; when it ends well a notice says the video is ready, and the viewer is where it was. The
   copy does not save the options or the best times. Without an `ffmpeg` on the path the frames are

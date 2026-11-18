@@ -157,6 +157,9 @@ pub struct Gpu {
     vertices_room: u32,
     transfer: Transfer,
     transfer_room: u32,
+    /// The buffer the picture is read back through, kept from one read-back to the next (a new
+    /// one of the screen's size every frame costs a render more than the copy does).
+    download: Transfer,
     /// The diagnostic cuts of the flush last drawn (`gpu_cut`), to log their changes.
     cuts: Cuts,
 }
@@ -252,6 +255,7 @@ impl Gpu {
             vertices_room: 0,
             transfer: Transfer::NONE,
             transfer_room: 0,
+            download: Transfer::NONE,
             cuts: Cuts::default(),
         };
         if let Some(line) = Cuts::start_from_env() {
@@ -376,6 +380,9 @@ impl Gpu {
         }
         if !self.transfer.is_none() {
             device.release_transfer(self.transfer);
+        }
+        if !self.download.is_none() {
+            device.release_transfer(self.download);
         }
     }
 
@@ -1276,24 +1283,27 @@ impl Gpu {
         self.compare_check()
     }
 
-    /// The colour target's picture (the GPU's end of the frame is waited for).
-    fn read_colour(&mut self) -> Result<Vec<u8>, String> {
-        self.read_texture(self.colour)
-    }
-
-    /// The picture of a texture of the screen's size (the GPU's end of the frame is waited for).
-    fn read_texture(&mut self, texture: Texture) -> Result<Vec<u8>, String> {
+    /// The picture of a texture of the screen's size (the GPU's end of the frame is waited for)
+    /// into the start of `out`.
+    fn read_texture_into(&mut self, texture: Texture, out: &mut [u8]) -> Result<(), String> {
         let bytes = (self.width * self.height * 4) as usize;
-        let transfer = self.make_transfer(SDL_GPU_TRANSFERBUFFERUSAGE_DOWNLOAD, bytes as u32)?;
+        let picture = out
+            .get_mut(..bytes)
+            .ok_or("the canvas is smaller than the screen")?;
+        if self.download.is_none() || self.download.size() as usize != bytes {
+            if !self.download.is_none() {
+                self.device.release_transfer(self.download);
+            }
+            self.download = Transfer::NONE;
+            self.download =
+                self.make_transfer(SDL_GPU_TRANSFERBUFFERUSAGE_DOWNLOAD, bytes as u32)?;
+        }
         let buffer = self.device.acquire_command_buffer()?;
         let copy = buffer.begin_copy_pass();
-        copy.download_texture(texture, self.width, self.height, transfer);
+        copy.download_texture(texture, self.width, self.height, self.download);
         copy.end();
         buffer.submit_and_wait(self.device)?;
-        let mut picture = vec![0u8; bytes];
-        self.device.read_transfer(transfer, &mut picture)?;
-        self.device.release_transfer(transfer);
-        Ok(picture)
+        self.device.read_transfer(self.download, picture)
     }
 
     /// The target's picture, with the canvas's written pixels, into the canvas.
@@ -1302,9 +1312,19 @@ impl Gpu {
         // The frame comes back as its own picture: the larger 3D of the frame so far is dropped.
         self.frame_high = None;
         self.high_shown = false;
-        let picture = self.read_colour()?;
-        canvas[..picture.len()].copy_from_slice(&picture);
-        Ok(())
+        self.read_texture_into(self.colour, canvas)
+    }
+
+    /// The colour target's picture (the GPU's end of the frame is waited for).
+    fn read_colour(&mut self) -> Result<Vec<u8>, String> {
+        self.read_texture(self.colour)
+    }
+
+    /// The picture of a texture of the screen's size, as a new buffer.
+    fn read_texture(&mut self, texture: Texture) -> Result<Vec<u8>, String> {
+        let mut picture = vec![0u8; (self.width * self.height * 4) as usize];
+        self.read_texture_into(texture, &mut picture)?;
+        Ok(picture)
     }
 }
 

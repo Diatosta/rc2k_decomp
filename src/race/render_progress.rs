@@ -10,12 +10,13 @@ use crate::gfx::typefaces::fonts;
 use crate::input::osk_draw::fill;
 use crate::owners::Owners;
 use crate::text::draw_text::{GameCanvas, draw_text_at};
-use rc2k_core::race::render_dialog::Quality;
+use rc2k_core::race::render_dialog::{Quality, VideoEncoder};
 use rc2k_core::strings::own::id;
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 
 /// What is to be rendered.
+#[derive(Clone)]
 pub struct Render {
     /// The copy of the replay as it is viewed (taken away when the render ends).
     pub replay: PathBuf,
@@ -24,6 +25,7 @@ pub struct Render {
     pub size: (u32, u32),
     pub fps: u32,
     pub quality: Quality,
+    pub encoder: VideoEncoder,
     pub sound: bool,
     /// The part, in hundredths of a second from the replay's start.
     pub from: Option<u32>,
@@ -47,6 +49,9 @@ impl Render {
             "--quality".into(),
             self.quality.name().into(),
         ];
+        if self.encoder != VideoEncoder::default() {
+            args.extend(["--encoder".into(), self.encoder.name().into()]);
+        }
         if !self.sound {
             args.push("--no-sound".into());
         }
@@ -69,14 +74,25 @@ enum Ended {
     Done,
     Stopped,
     Failed(String),
+    /// The hardware encoder made a damaged picture (`video::DAMAGED`).
+    EncoderDamaged,
 }
 
 /// The render going on until it ends or is stopped; a notice says how it ended.
 pub fn run(o: Owners<'static>, render: &Render) {
-    let ended = match start(render) {
-        Ok(child) => watch(o, render, child),
-        Err(why) => Ended::Failed(why),
-    };
+    let mut ended = render_once(o, render);
+    if matches!(ended, Ended::EncoderDamaged) {
+        // The graphics card's encoder cannot be trusted with this render: the software one makes
+        // the video, from the same copy of the replay.
+        crate::logfile::program_log::log(
+            "render: the hardware encoder made a damaged picture; rendering again with the software encoder",
+        );
+        let again = Render {
+            encoder: VideoEncoder::Software,
+            ..render.clone()
+        };
+        ended = render_once(o, &again);
+    }
     for file in [&render.replay, &render.progress_file()] {
         let _ = std::fs::remove_file(file);
     }
@@ -89,6 +105,20 @@ pub fn run(o: Owners<'static>, render: &Render) {
         Ended::Failed(why) => {
             crate::error_dialog::notice(&crate::error_dialog::text_with(id::RENDER_FAILED, &why));
         }
+        Ended::EncoderDamaged => {
+            crate::error_dialog::notice(&crate::error_dialog::text_with(
+                id::RENDER_FAILED,
+                "the encoder made a damaged picture",
+            ));
+        }
+    }
+}
+
+/// One run of the child, with the panel up until it ends.
+fn render_once(o: Owners<'static>, render: &Render) -> Ended {
+    match start(render) {
+        Ok(child) => watch(o, render, child),
+        Err(why) => Ended::Failed(why),
     }
 }
 
@@ -116,14 +146,65 @@ fn start(render: &Render) -> Result<Child, String> {
 }
 
 /// What the child's progress file says: the percent done and the frames written.
-fn read_progress(render: &Render) -> Option<(u32, u64)> {
+fn read_progress(render: &Render) -> Option<(f64, u64)> {
     let text = std::fs::read_to_string(render.progress_file()).ok()?;
     parse_progress(&text)
 }
 
-fn parse_progress(text: &str) -> Option<(u32, u64)> {
+fn parse_progress(text: &str) -> Option<(f64, u64)> {
     let mut words = text.split_whitespace();
-    Some((words.next()?.parse().ok()?, words.next()?.parse().ok()?))
+    let percent: f64 = words.next()?.parse().ok()?;
+    Some((percent, words.next()?.parse().ok()?))
+}
+
+/// How far back the speed is measured, in seconds.
+const PACE_WINDOW: f64 = 10.0;
+
+/// The frames written at the moments the progress was read, for the speed the render has now (the
+/// last few seconds', so a slow start or a quiet stretch of the replay does not hold on).
+#[derive(Default)]
+struct Pace {
+    /// (seconds since the render began, frames written), oldest first.
+    samples: std::collections::VecDeque<(f64, u64)>,
+}
+
+impl Pace {
+    /// `frames` were written by `at` seconds.
+    fn note(&mut self, at: f64, frames: u64) {
+        if self.samples.back().is_some_and(|&(_, f)| f == frames) {
+            return;
+        }
+        self.samples.push_back((at, frames));
+        while self.samples.len() > 2 && at - self.samples[1].0 >= PACE_WINDOW {
+            self.samples.pop_front();
+        }
+    }
+
+    /// Frames a second over the samples kept; none before two readings a moment apart.
+    fn per_second(&self) -> Option<f64> {
+        let (&(t0, f0), &(t1, f1)) = (self.samples.front()?, self.samples.back()?);
+        (t1 - t0 >= 1.0 && f1 > f0).then(|| (f1 - f0) as f64 / (t1 - t0))
+    }
+}
+
+/// The seconds the render has left, when `frames` are `percent` of it and `per_second` frames are
+/// written a second; none before there is a percent to go by.
+fn seconds_left(percent: f64, frames: u64, per_second: f64) -> Option<u64> {
+    if percent < 0.5 || per_second <= 0.0 {
+        return None;
+    }
+    let total = frames as f64 * 100.0 / percent;
+    Some(((total - frames as f64).max(0.0) / per_second).round() as u64)
+}
+
+/// A time as minutes and seconds ("2:05"), with hours before them when there are any.
+fn clock_text(seconds: u64) -> String {
+    let (h, m, s) = (seconds / 3600, seconds / 60 % 60, seconds % 60);
+    if h > 0 {
+        format!("{h}:{m:02}:{s:02}")
+    } else {
+        format!("{m}:{s:02}")
+    }
 }
 
 /// The panel up until the child ends or the render is stopped.
@@ -132,6 +213,8 @@ fn watch(o: Owners<'static>, render: &Render, mut child: Child) -> Ended {
     crate::input::take_key::take_key(o.input);
     crate::input::menu_pad::take_answer(o.input);
     let mut progress = None;
+    let mut pace = Pace::default();
+    let began = std::time::Instant::now();
     let mut was_down = true;
     let stop = |child: &mut Child| {
         let _ = child.kill();
@@ -152,6 +235,12 @@ fn watch(o: Owners<'static>, render: &Render, mut child: Child) -> Ended {
         }
         match child.try_wait() {
             Ok(Some(status)) if status.success() && render.out.is_file() => return Ended::Done,
+            Ok(Some(status))
+                if render.encoder == VideoEncoder::Automatic
+                    && status.code() == i32::try_from(crate::video::DAMAGED).ok() =>
+            {
+                return Ended::EncoderDamaged;
+            }
             Ok(Some(status)) => {
                 return Ended::Failed(format!("the render ended with {status}"));
             }
@@ -159,13 +248,16 @@ fn watch(o: Owners<'static>, render: &Render, mut child: Child) -> Ended {
             Err(e) => return Ended::Failed(e.to_string()),
         }
         progress = read_progress(render).or(progress);
+        if let Some((_, frames)) = progress {
+            pace.note(began.elapsed().as_secs_f64(), frames);
+        }
         if o.gfx.locked.surface.get() == 1 {
             crate::platform::unlock_surface(o.gfx);
         }
         if crate::platform::lock_surface(o.gfx, o.system) < 1 {
             return stop(&mut child);
         }
-        let button = draw(o, render, progress);
+        let button = draw(o, render, progress, &pace);
         crate::platform::unlock_surface(o.gfx);
         if !crate::platform::show_frame_now(o) {
             return stop(&mut child);
@@ -192,7 +284,12 @@ const MARGIN: i32 = 20;
 const TEXT_UP: i32 = 12;
 
 /// One frame of the panel; the cancel button's place (for the mouse).
-fn draw(o: Owners<'static>, render: &Render, progress: Option<(u32, u64)>) -> [i32; 4] {
+fn draw(
+    o: Owners<'static>,
+    render: &Render,
+    progress: Option<(f64, u64)>,
+    pace: &Pace,
+) -> [i32; 4] {
     use crate::gfx::button_hints::width_of;
     let mut canvas = GameCanvas::new(o.gfx);
     let screen = o.system.session.screen.get();
@@ -213,7 +310,7 @@ fn draw(o: Owners<'static>, render: &Render, progress: Option<(u32, u64)>) -> [i
     let (line_h, row_h) = if h < 560 { (26, 32) } else { (30, 38) };
     let panel_w = (w - 40).min(720);
     let inner = panel_w - 2 * MARGIN;
-    let panel_h = MARGIN * 2 + line_h * 2 + line_h * 2 + row_h + line_h + row_h;
+    let panel_h = MARGIN * 2 + line_h * 2 + line_h * 2 + row_h + line_h * 2 + row_h;
     let (left, top) = ((w - panel_w) / 2, (h - panel_h) / 2);
     fill(o, [left, top, panel_w, panel_h], PANEL);
     let put = |text: &str, x: i32, y: i32, canvas: &mut GameCanvas| {
@@ -236,18 +333,23 @@ fn draw(o: Owners<'static>, render: &Render, progress: Option<(u32, u64)>) -> [i
     );
     put(&size, left + MARGIN, y + line_h / 2, &mut canvas);
     y += line_h * 2;
-    let percent = progress.map_or(0, |(p, _)| p.min(100));
+    let percent = progress.map_or(0.0, |(p, _)| p.clamp(0.0, 100.0));
     fill(o, [left + MARGIN, y, inner, row_h - 8], BAR_TRACK);
     fill(
         o,
-        [left + MARGIN, y, inner * percent as i32 / 100, row_h - 8],
+        [
+            left + MARGIN,
+            y,
+            (f64::from(inner) * percent / 100.0) as i32,
+            row_h - 8,
+        ],
         BAR_DONE,
     );
     y += row_h;
     let status = match progress {
         Some((p, frames)) => format!(
             "{}   {}",
-            own(id::RENDER_PERCENT).replace("{}", &p.to_string()),
+            own(id::RENDER_PERCENT).replace("{}", &(p.clamp(0.0, 100.0) as u32).to_string()),
             own(id::RENDER_FRAMES).replace("{}", &frames.to_string())
         ),
         None => own(id::RENDER_STARTING),
@@ -258,6 +360,21 @@ fn draw(o: Owners<'static>, render: &Render, progress: Option<(u32, u64)>) -> [i
         y + line_h / 2,
         &mut canvas,
     );
+    y += line_h;
+    // The speed and the time left, once the render has gone on long enough to tell.
+    if let (Some(rate), Some((p, frames))) = (pace.per_second(), progress) {
+        let mut speed = own(id::RENDER_SPEED).replace("{}", &format!("{rate:.1}"));
+        if let Some(left) = seconds_left(p, frames, rate) {
+            speed.push_str("   ");
+            speed.push_str(&own(id::RENDER_LEFT).replace("{}", &clock_text(left)));
+        }
+        put(
+            &speed,
+            left + (panel_w - measure(&speed)) / 2,
+            y + line_h / 2,
+            &mut canvas,
+        );
+    }
     y += line_h + row_h / 4;
     let button = [left + MARGIN, y, inner, row_h - 6];
     fill(o, button, BUTTON);
@@ -282,6 +399,7 @@ mod tests {
             size: (2560, 1440),
             fps: 60,
             quality: Quality::High,
+            encoder: VideoEncoder::Software,
             sound: false,
             from: Some(1250),
             to: None,
@@ -298,6 +416,7 @@ mod tests {
         assert_eq!(after("--render-replay"), "savedata/videos/r.replay.tmp");
         assert_eq!(after("--size"), "2560x1440");
         assert_eq!(after("--quality"), "high");
+        assert_eq!(after("--encoder"), "software");
         assert_eq!(after("--from"), "12.50");
         assert!(args.contains(&"--no-sound".to_string()));
         assert!(args.contains(&"--allow-another".to_string()));
@@ -309,8 +428,35 @@ mod tests {
     }
 
     #[test]
+    fn the_speed_is_the_recent_one() {
+        let mut pace = Pace::default();
+        assert_eq!(pace.per_second(), None);
+        pace.note(0.5, 0);
+        pace.note(1.0, 10);
+        assert_eq!(pace.per_second(), None);
+        // 20 frames a second from here on; the slow start is forgotten after the window.
+        for s in 2..=30 {
+            pace.note(f64::from(s), 10 + 20 * (s as u64 - 1));
+        }
+        let rate = pace.per_second().unwrap();
+        assert!((rate - 20.0).abs() < 0.01, "{rate}");
+    }
+
+    #[test]
+    fn the_time_left_follows_from_the_percent() {
+        // 25 % done after 300 frames: 900 left, at 30 a second 30 seconds.
+        assert_eq!(seconds_left(25.0, 300, 30.0), Some(30));
+        assert_eq!(seconds_left(0.0, 0, 30.0), None);
+        assert_eq!(seconds_left(100.0, 600, 30.0), Some(0));
+        assert_eq!(clock_text(5), "0:05");
+        assert_eq!(clock_text(125), "2:05");
+        assert_eq!(clock_text(3725), "1:02:05");
+    }
+
+    #[test]
     fn progress_is_two_numbers() {
-        assert_eq!(parse_progress("42 1234\n"), Some((42, 1234)));
+        assert_eq!(parse_progress("42 1234\n"), Some((42.0, 1234)));
+        assert_eq!(parse_progress("42.5 99\n"), Some((42.5, 99)));
         assert_eq!(parse_progress("42"), None);
         assert_eq!(parse_progress(""), None);
     }

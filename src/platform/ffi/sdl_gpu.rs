@@ -93,6 +93,13 @@ sized_handle!(
     Transfer(*mut SDL_GPUTransferBuffer)
 );
 
+impl Transfer {
+    /// The size it was made with, in bytes.
+    pub fn size(self) -> u32 {
+        self.1
+    }
+}
+
 /// A command buffer, until it is submitted.
 pub struct CommandBuffer(*mut SDL_GPUCommandBuffer);
 /// A copy pass, until it is ended.

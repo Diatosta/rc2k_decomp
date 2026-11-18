@@ -221,14 +221,27 @@ rc2k --render-replay savedata/replay/replay00 --out run.mp4 --size 1920x1080 --f
 | `--render-replay` | A replay's slot or file, as `--replay` takes it. The program ends when the replay has played. No race switch and no `--replay` goes with it. |
 | `--out` | The video file. Needed. |
 | `--size` | The size of the video's frames, `WIDTHxHEIGHT` (each side 160 .. 16384): the race screen is made this size for the render, whatever the options hold. Without it, the race size of the options. |
-| `--quality` | `low`, `medium`, `high` (the default) or `best`: how well the encoder keeps the picture (H.264 constant rate factor 28, 23, 18, 12). |
+| `--quality` | `low`, `medium`, `high` (the default) or `best`: how well the encoder keeps the picture (software encoder: constant rate factor 28, 23, 18, 12, with the presets `veryfast`, `veryfast`, `faster`, `fast`; a graphics card's encoder: quantiser 32, 27, 22, 17). |
+| `--encoder` | `automatic` (the default) or `software`: see below. |
 | `--no-sound` | The video has no sound. |
 | `--from`, `--to` | The part of the replay to render, in seconds from its start (`12.5`; two decimals). `--from` is exact to a hundredth of a second; the part ends at the whole second after `--to`. Without them, the whole replay. |
 | `--fps` | The frames a second, 1 .. 480 (60 if not given). The simulation ticks a hundred times a second; a frame between two ticks shows the blend of them (the options' "smooth frames", forced on here), so 60, 120 or 144 are all smooth. |
 
 The frames are piped as raw pixels to an `ffmpeg` found on the path: H.264 (`libx264`, 4:2:0, an
 odd side is cut by one pixel) when it has that encoder, else its own default for the file's
-extension. With no `ffmpeg` the frames are written as numbered PNG files in a folder named
+extension. With `--encoder automatic` a graphics card's H.264 encoder is used when one works: the
+`ffmpeg` is asked to encode three frames of the video's size with each hardware encoder it lists
+(NVENC, AMF, VAAPI, Quick Sync, in that order), and the first that works writes the picture; the
+log's `video:` lines say which one and why the others were passed over. A card's H.264 encoder
+stops at 4096 pixels on a side, so a wider video (5120 x 1440) gets the software encoder. The
+colours are the same with every encoder (the conversion to 4:2:0 is the same one, made on the
+processor). When the hardware encoder made a picture that does not decode cleanly (checked at the
+end, a few seconds for a minute of video) the render goes again with the software encoder, from
+the viewer automatically, from the command line by ending with exit code 4 and removing the
+video. `--encoder software` never uses the card's. On a Radeon RX 9070 XT a 1920 x 1080 render
+at 60 frames a second took about a quarter of the time with the card's encoder (and a fifth of
+the processor time); the log's last `video:` line says where the time of a render went (read-back
+from the card, copy, waiting for the encoder, sound, simulation and drawing). With no `ffmpeg` the frames are written as numbered PNG files in a folder named
 after the video (`run_frames/frame_000001.png`, ...) and the log says so; `ffmpeg -framerate 60
 -i run_frames/frame_%06d.png run.mp4` makes the video from them; the sound is
 `run_frames/audio.wav` (16-bit stereo, 44100 Hz).
@@ -253,10 +266,10 @@ button's name for a second under the render button (and the render button's, whe
 one button, the snapshot button's camera picture. The down arrow from any lower-row button, and from an upper-row button whose way down is greyed (the play button too), reaches it
 (up or left goes back to the button it came from) and
 Enter opens a dialog first (the error dialog's style): the size, the frames a second, the part of
-the replay (all of it, from the place shown to the end, or between the marks), the quality and the
-sound, each changed with Left and Right, then "render" or "cancel" (Escape). The sizes are those of the graphics page's list; the rates go up to the display's refresh (a 240 Hz display offers 240, 120, 80, 60 and 30) whatever the page's smooth frames setting, since a video always blends the frames between ticks; the video's file is `savedata/videos/replay_YYYY-MM-DD_HH-MM-SS.mp4`.
+the replay (all of it, from the place shown to the end, or between the marks), the quality, the
+encoder (automatic, or software only) and the sound, each changed with Left and Right, then "render" or "cancel" (Escape). The sizes are those of the graphics page's list; the rates go up to the display's refresh (a 240 Hz display offers 240, 120, 80, 60 and 30) whatever the page's smooth frames setting, since a video always blends the frames between ticks; the video's file is `savedata/videos/replay_YYYY-MM-DD_HH-MM-SS.mp4`.
 The choices but the part are kept in `var/rc2k.toml` (`[display.video]`: `size`, `fps`, `quality`,
-`sound`, each only when it is not the default).  The video is drawn at the size chosen: the game starts a second copy of itself for it (with `--render-replay` on a copy of the replay as it is viewed, no window and no sound device; it takes the next folder lock, so its log is `rc2k-2.log`), and the viewer shows a panel with the progress and a cancel button until it ends. Cancelling removes what was written. A render started this way (or from the command line) does not save the options or the best times.
+`encoder`, `sound`, each only when it is not the default).  The video is drawn at the size chosen: the game starts a second copy of itself for it (with `--render-replay` on a copy of the replay as it is viewed, no window and no sound device; it takes the next folder lock, so its log is `rc2k-2.log`), and the viewer shows a panel with the progress bar, the frames written, the speed (frames a second over the last ten seconds) and the time left, and a cancel button until it ends. Cancelling removes what was written. A render started this way (or from the command line) does not save the options or the best times.
 
 ### How the program runs here
 
