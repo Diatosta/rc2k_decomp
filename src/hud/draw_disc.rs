@@ -18,6 +18,15 @@ fn negated_times_times_to_int(a: f32, b: f32, c: f32) -> u32 {
     to_int((-ld(a) * ld(b)) * ld(c)) as u32
 }
 
+/// The disc's texture turn the next draw uses, as `draw_disc` works it out (4096 to a turn).
+pub fn texture_turn(hud: &Hud) -> u32 {
+    negated_times_times_to_int(
+        hud.block.disc_turn.get(),
+        hud.block.disc_turn_a.get(),
+        hud.block.disc_turn_b.get(),
+    )
+}
+
 pub fn draw_disc(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
     {
         use rc2k_core::hud::disc::{disc_triangle, ring_angles};

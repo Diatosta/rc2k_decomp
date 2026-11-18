@@ -58,34 +58,51 @@ pub fn listed(net: &Net) -> Result<Vec<(Vec<u8>, u8)>, Refused> {
     Ok(list)
 }
 
-/// A line of the loading screen's list: the name, a gap and the percentage, ended by a NUL.
-pub fn line(name: &[u8], share: u8) -> Vec<u8> {
-    let name = name.split(|&b| b == 0).next().unwrap_or_default();
-    let mut text = name.to_vec();
-    text.extend_from_slice(b"  ");
-    text.extend(crate::strings::format_u32::format_u32(u32::from(share), 0));
-    text.extend_from_slice(b"%\0");
-    text
-}
-
-/// The list drawn in a corner of the screen (the surface locked), one line a player.
+/// The list drawn on the loading picture (the surface locked), one line a player: the names in
+/// a column and their percentages after it, right-aligned. It lies inside the picture's 4:3
+/// middle (a wider screen shows only its sides' wash beside it), at its left, just above the
+/// loading bar.
 pub fn draw(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let net = o.net;
     if !in_game(net) {
         return Ok(());
     }
-    let font = crate::net::lobby::FONT;
-    let height = font.object(&o.gfx.fonts.typefaces).line_height.get();
-    let mut y = 0x20;
-    for (name, share) in listed(net)? {
-        crate::text::draw_text::draw_text_at(
-            font,
-            &line(&name, share),
-            0x20,
-            y,
-            &mut crate::text::draw_text::GameCanvas::new(o.gfx),
-        )?;
-        y += height as i32;
+    let players = listed(net)?;
+    if players.is_empty() {
+        return Ok(());
+    }
+    let font = crate::gfx::typefaces::fonts::LIST;
+    let height = font.object(&o.gfx.fonts.typefaces).line_height.get() as i32;
+    let screen = o.system.session.screen.get();
+    let (width, tall) = (screen.width.get(), screen.height.get());
+    let (left, mut y) =
+        rc2k_core::race::loading::list_origin(width, tall, players.len() as u32, height as u32);
+    let mut canvas = crate::text::draw_text::GameCanvas::new(o.gfx);
+    let named: Vec<(Vec<u8>, Vec<u8>)> = players
+        .iter()
+        .map(|(name, share)| {
+            let name = name.split(|&b| b == 0).next().unwrap_or_default().to_vec();
+            (name, crate::net::progress::text(*share))
+        })
+        .collect();
+    let widest = |texts: &mut dyn Iterator<Item = &Vec<u8>>, canvas: &mut _| {
+        texts
+            .map(|t| crate::gfx::button_hints::width_of(font, t, canvas))
+            .max()
+            .unwrap_or(0)
+    };
+    let names_end = left + widest(&mut named.iter().map(|(n, _)| n), &mut canvas);
+    let shares_wide = widest(&mut named.iter().map(|(_, s)| s), &mut canvas);
+    let shares_end = names_end + height + shares_wide;
+    for (name, share) in &named {
+        let mut name = name.clone();
+        name.push(0);
+        crate::text::draw_text::draw_text_at(font, &name, left, y, &mut canvas)?;
+        let mut share = share.clone();
+        let wide = crate::gfx::button_hints::width_of(font, &share, &mut canvas);
+        share.push(0);
+        crate::text::draw_text::draw_text_at(font, &share, shares_end - wide, y, &mut canvas)?;
+        y += height;
     }
     Ok(())
 }
@@ -93,12 +110,6 @@ pub fn draw(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn a_line_is_a_name_and_its_percentage() {
-        assert_eq!(line(b"Ana\0junk", 7), b"Ana  7%\0".to_vec());
-        assert_eq!(line(b"Rui", 100), b"Rui  100%\0".to_vec());
-    }
 
     #[test]
     fn shares_are_held_to_100_and_a_player_past_the_table_is_passed_over() {

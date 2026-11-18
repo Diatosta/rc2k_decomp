@@ -30,6 +30,9 @@ pub enum Kind {
     SmoothFrames,
     /// The triggers' own rumble on a pad that has it (`rc2k.toml`).
     TriggerRumble,
+    /// The computer's cars driving a wide road as a wide one (`rc2k.toml`); off, every road is
+    /// driven as a narrow one, as the original does.
+    WideRoadDrivers,
     /// A `ral.cfg` switch: the key; `inverted` when the key names what is off (`nofmv`), so the
     /// page shows the feature, not its absence.
     Flag { key: &'static str, inverted: bool },
@@ -51,7 +54,7 @@ const fn flag(key: &'static str, inverted: bool, when: When) -> Row {
 
 /// The rows in the order the page shows them: the first part the drawing and the screen, the
 /// second driving, sound and controls.
-pub const ROWS: [Row; 14] = [
+pub const ROWS: [Row; 15] = [
     Row {
         kind: Kind::Threads,
         when: When::Now,
@@ -84,6 +87,10 @@ pub const ROWS: [Row; 14] = [
     },
     // Read when a saved game is loaded, so a change counts from the next load.
     flag("usesavegamekeys", false, When::Now),
+    Row {
+        kind: Kind::WideRoadDrivers,
+        when: When::Now,
+    },
 ];
 
 /// The page's row items: the menu has this many, each part fills them from the top and hides
@@ -157,6 +164,8 @@ pub struct Values {
     pub smooth_frames: bool,
     /// The triggers' rumble on.
     pub trigger_rumble: bool,
+    /// The computer's cars drive wide roads as wide.
+    pub wide_road_drivers: bool,
     /// Each `Flag` row's switch as the page shows it (on = the feature on), in `ROWS` order
     /// (the other rows' entries are unused).
     pub flags: [bool; ROWS.len()],
@@ -178,6 +187,7 @@ impl Values {
             Kind::QuitPictures => self.quit_pictures = !self.quit_pictures,
             Kind::SmoothFrames => self.smooth_frames = !self.smooth_frames,
             Kind::TriggerRumble => self.trigger_rumble = !self.trigger_rumble,
+            Kind::WideRoadDrivers => self.wide_road_drivers = !self.wide_road_drivers,
             Kind::Flag { .. } => self.flags[row] = !self.flags[row],
         }
     }
@@ -256,7 +266,7 @@ mod tests {
         assert!(matches!(ROWS[0].kind, Kind::Threads));
         assert!(matches!(ROWS[1].kind, Kind::Renderer));
         assert!(matches!(ROWS[3].kind, Kind::SmoothFrames));
-        assert!(matches!(ROWS[ROWS.len() - 2].kind, Kind::QuitPictures));
+        assert!(matches!(ROWS[ROWS.len() - 3].kind, Kind::QuitPictures));
         // Every part fits the menu's row items.
         assert!(rows_on_page(0).len() <= ROW_SLOTS);
         assert!(rows_on_page(1).len() <= ROW_SLOTS);
@@ -286,8 +296,8 @@ mod tests {
                 )
             })
             .unwrap();
-        // The last row, on the second part of the page.
-        assert_eq!(at, ROWS.len() - 1);
+        // The row before the last, on the second part of the page.
+        assert_eq!(at, ROWS.len() - 2);
         assert!(rows_on_page(1).contains(&at));
         // Not inverted: on means the saved game's own controls come back.
         assert!(matches!(
@@ -316,6 +326,7 @@ mod tests {
             quit_pictures: true,
             smooth_frames: true,
             trigger_rumble: true,
+            wide_road_drivers: false,
             flags: [false; ROWS.len()],
         };
         v.step(0, false, 4, false);
@@ -328,7 +339,11 @@ mod tests {
         assert_eq!(v.renderer, Renderer::Software);
         v.step(2, false, 4, false);
         assert!(v.flags[2]);
-        v.step(ROWS.len() - 2, true, 4, false);
+        let quit = ROWS
+            .iter()
+            .position(|r| matches!(r.kind, Kind::QuitPictures))
+            .unwrap();
+        v.step(quit, true, 4, false);
         assert!(!v.quit_pictures);
         v.step(3, true, 4, false);
         assert!(!v.smooth_frames);
@@ -338,6 +353,13 @@ mod tests {
             .unwrap();
         v.step(at, true, 4, false);
         assert!(!v.trigger_rumble);
+        let wide = ROWS
+            .iter()
+            .position(|r| matches!(r.kind, Kind::WideRoadDrivers))
+            .unwrap();
+        v.step(wide, true, 4, false);
+        assert!(v.wide_road_drivers);
+        assert!(rows_on_page(1).contains(&wide));
         // On the second part of the page, beside the other controls' rows.
         assert!(rows_on_page(1).contains(&at));
     }

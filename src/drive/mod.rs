@@ -9,6 +9,7 @@ pub mod car_near_checkpoint;
 pub mod checkpoint_taken;
 pub mod choose_shown_cars;
 pub mod clear_start_state;
+pub mod computer_roads;
 pub mod countdown_beep;
 pub mod countdown_beeps;
 pub mod countdown_cue;

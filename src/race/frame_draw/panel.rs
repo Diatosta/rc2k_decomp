@@ -320,6 +320,7 @@ pub(super) fn panel_half(race: &Race, car: usize, first: bool) -> Result<(), Bad
     distance.set(shown);
     if first {
         network_car_distances(race, unit, miles, from)?;
+        network_disc_cars(race);
     }
     cells[4].set(car.stage_time.get().wrapping_mul(10));
     cells[3].set(car.split_gaps[0].get());
@@ -344,6 +345,39 @@ fn network_car_distances(race: &Race, unit: f32, miles: f32, from: u32) -> Resul
         .network_own
         .set(race.shared.view.get().view_number(0)? as u32);
     car_distances(race, count, unit, miles, from)
+}
+
+/// A network race's other cars that are on the course, as the map disc shows them: where each lies
+/// on the map from the first view's car, in map pixels. A car that is out of the race (a player
+/// who left) or whose place on the map cannot be worked out is left out.
+fn network_disc_cars(race: &Race) {
+    let panel = &race.frame.panel_and_overlay.get().panel;
+    let count = panel.network_cars.get().min(8) as usize;
+    let own = panel.network_own.get() as usize;
+    let mut shown = 0u32;
+    if count > 1 && race.shared.vars.get().checkpoint_count.get() >= 2 {
+        let at = |n: usize| {
+            let car = race.shared.race_car(n).ok()?;
+            crate::race::map_scroll::map_position(race, car).ok()
+        };
+        if let Some(from) = at(own) {
+            for n in (0..count).filter(|&n| n != own) {
+                let in_race = race
+                    .shared
+                    .race_car(n)
+                    .is_ok_and(|car| car.driver_kind.get() != 0);
+                let Some(place) = at(n).filter(|_| in_race) else {
+                    continue;
+                };
+                for k in 0..2 {
+                    let away = place[k].wrapping_sub(from[k]) as i32;
+                    panel.disc_offsets[n][k].set(away as f32 / 65536.0);
+                }
+                shown |= 1 << n;
+            }
+        }
+    }
+    panel.disc_cars.set(shown);
 }
 
 /// The first `count` cars' distances shown into `car_distances`.

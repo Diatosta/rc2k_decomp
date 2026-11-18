@@ -113,6 +113,18 @@ pub fn loading_bar(width: u32, height: u32, share: u32) -> Bar {
     }
 }
 
+/// The top left of the network loading list of `lines` lines `line_height` tall on a `width` x
+/// `height` screen: inside the loading picture's 4:3 middle (a wider screen has only the picture's
+/// wash at its sides), a 32nd of the middle in from its left edge, its last line just above the bar.
+pub fn list_origin(width: u32, height: u32, lines: u32, line_height: u32) -> (i32, i32) {
+    let middle = crate::scene::view_window::design_width(width, height) as i32;
+    let left = (width as i32 - middle) / 2 + middle / 32;
+    let top = loading_bar(width, height, 0).top as i32
+        - line_height as i32 / 2
+        - (lines * line_height) as i32;
+    (left, top)
+}
+
 /// The four corners (x, y) of a rectangle, from the top left; whole numbers made floats.
 pub fn quad_corners(x0: i32, x1: i32, y0: i32, y1: i32) -> [(f32, f32); 4] {
     let (x0, x1, y0, y1) = (x0 as f32, x1 as f32, y0 as f32, y1 as f32);
@@ -135,6 +147,17 @@ pub fn restored(lost_before: u32, lost_after: u32) -> (u32, bool, bool) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_list_lies_inside_the_4_by_3_middle_above_the_bar() {
+        // 4:3: at the left, a 32nd in.
+        assert_eq!(list_origin(800, 600, 2, 20), (25, 0x24D - 10 - 40));
+        // 16:9 (a middle of 1440 from 240) and 32:9 (the same middle from 1200).
+        assert_eq!(list_origin(1920, 1080, 2, 20).0, 240 + 45);
+        let (left, top) = list_origin(3840, 1080, 3, 20);
+        assert_eq!(left, 1200 + 45);
+        assert!(top > 800 && top < 1080 * 0x24D / 600);
+    }
 
     #[test]
     fn frames() {

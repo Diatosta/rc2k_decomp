@@ -77,6 +77,7 @@ fn current(o: Owners<'static>) -> Values {
         quit_pictures: crate::drive::quit_question::pictures_on(),
         smooth_frames: crate::race::blend::smooth_on(),
         trigger_rumble: crate::input::trigger_rumble::on(),
+        wide_road_drivers: crate::drive::computer_roads::on(),
         flags,
     }
 }
@@ -191,6 +192,9 @@ pub fn apply(o: Owners<'static>) -> Result<(), Refused> {
             }
             Kind::TriggerRumble if new.trigger_rumble != old.trigger_rumble => {
                 crate::input::trigger_rumble::set_on(new.trigger_rumble);
+            }
+            Kind::WideRoadDrivers if new.wide_road_drivers != old.wide_road_drivers => {
+                crate::drive::computer_roads::set_on(new.wide_road_drivers);
             }
             Kind::Flag { key, inverted } if new.flags[n] != old.flags[n] => {
                 let number = flag_number(inverted, new.flags[n]);

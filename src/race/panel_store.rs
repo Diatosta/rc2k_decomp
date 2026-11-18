@@ -134,6 +134,11 @@ pub struct Panel {
     pub overview_fit: [PlainFloat; 3],
     /// Each of the first four cars' place on the map, in map pixels (x, y).
     pub overview_cars: [[PlainFloat; 2]; 4],
+    /// The cars of a network race whose markers the map disc shows beside the own car (bit n for
+    /// car n; none outside a network race), and each car's place on the map from the first view's
+    /// car, in map pixels (x right, y down).
+    pub disc_cars: PlainDword,
+    pub disc_offsets: [[PlainFloat; 2]; 8],
 }
 
 impl Panel {

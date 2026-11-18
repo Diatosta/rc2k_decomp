@@ -211,6 +211,15 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
                 break true;
             }
             race_keys(race, o)?;
+            // The host left: the session is over, and this race with it, as if this player had
+            // quit it (the car did not finish).
+            if crate::net::left::session_ended() {
+                race.shared
+                    .race_car(race.shared.view.get().local_car.get() as usize)?
+                    .stop_state
+                    .set(u32::MAX);
+                return Ok(());
+            }
             let begun = crate::debug::timing::start();
             { crate::drive::race_step::race_step(o, race) }?;
             crate::debug::timing::stop(crate::debug::timing::Stage::Physics, begun);

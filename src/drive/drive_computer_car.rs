@@ -142,7 +142,9 @@ pub fn drive_computer_car(race: &Race, scene: &crate::scene::owner::Scene) -> Re
         race.shared.work.get().driver_flag_bc.set(1);
         race.shared.work.get().driver_lookahead.set(1);
     }
-    race.shared.work.get().driver_lookahead.set(1);
+    // Off, a wide road is driven as a narrow one too (the original's way).
+    let slow = driver::narrow(b1, b2) || !crate::drive::computer_roads::on();
+    race.shared.work.get().driver_lookahead.set(u32::from(slow));
     let speed = (float_hypot_to_int(
         race.shared.car().velocity[0].get(),
         race.shared.car().velocity[2].get(),

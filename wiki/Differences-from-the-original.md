@@ -22,6 +22,7 @@ the switches of the command line are on [Running and options](Running-and-option
 - **An on-screen keyboard** for typing with a pad: [Controllers and input](#controllers-and-input).
 - **Lobby passwords, ping, un-ready and `/kick`** to put a player out: [Network play](#network-play).
 - **Computer drivers (bots) in network races**, switched by the host in the lobby: [Network play](#network-play).
+- **A player who leaves a network race** has their car taken out of it, with a message to the others, and **the other cars on the map disc**: [Network play](#network-play).
 - **Finding hosts over Tailscale**: [Network play](#network-play).
 - **Playing through Steam** (in progress): [Network play](#network-play).
 - **Replays rendered to a video**, from the viewer's camera button in a third row and from the command line:
@@ -119,7 +120,7 @@ The original was a 32-bit Windows program on DirectX. Its platform side was not 
   question", and the switches that lived in `var/ral.cfg` shown as the feature they control:
   frame counter, films, screenshots, non-linear steering, automatic neutral, rain and snow, music
   and force feedback, and, on a second part of the page reached by its "more" button ("first page" comes back), "controls from saved games" (whether a loaded championship brings its own
-  keys, controller set-up and gearing, or keeps the players' current ones) (some take effect at the next race or start, and the row says so). "Apply"
+  keys, controller set-up and gearing, or keeps the players' current ones), "trigger rumble" and "computer cars on wide roads" (some take effect at the next race or start, and the row says so). "Apply"
   writes them ([Running and options](Running-and-options), [Settings files](Settings-files)).
 - **Settings are saved when a page is left**, not only when the game ends, so a crash keeps them.
   Options are kept in a readable text file, `var/rc2k.toml`; the original's `var/ral.dat` is
@@ -202,6 +203,11 @@ Everything is on [Controllers](Controllers) and [Input](Input); in short:
 - The **windscreen Pong** can be played: the bat follows player 1's steering.
 - The **computer drivers are shuffled** at a championship's start as the game meant, and a
   race's other **hidden slips** were put right ([Fixed bugs](Fixed-bugs)).
+- **Computer cars on wide roads** (the advanced page's second part, off at first): the computer
+  driver is meant to tell a wide road from a narrow one, with its own speed table and a higher
+  turn at which it notes a bend for the wide one; the original's code marks every road narrow,
+  so the wide way is never used. The row switches it on (see [Fixed bugs](Fixed-bugs)). The
+  cars come out about the same: the stages' times differ by a fraction of a percent.
 - A race can start straight from the command line ([Running and options](Running-and-options)).
 
 ## Replays
@@ -239,6 +245,7 @@ or IPX connection), and Steam when Valve's library is beside the program (it is 
 - **The host's stage** is shown to everyone, every machine's loading progress is listed while a
   stage loads, and "NN%" shows a racing player's progress in the lobby; the chat is in one order
   on every machine. The other cars appear on the progress bar.
+- **A player who leaves a race** before finishing has their car taken out of it on every other machine and the others are told ("<name> left the race"); a finished player's car and time stay. The map disc shows the other cars. The loading screen's list of progress lies inside the picture, above the loading bar ([Network play](Network-play)).
 - **`/kick <name>`** in the chat: the host puts a player out.
 - The lobby has a "settings" button and, after a race, "save replay".
 - **Computer drivers in network races**: the host's "bots" button in the lobby adds up to seven computer-driven cars to the race, as the arcade has them ([Network play](Network-play)).

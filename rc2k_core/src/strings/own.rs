@@ -118,6 +118,8 @@ pub mod id {
     pub const ADVANCED_FIRST: u32 = FIRST + 0xBD;
     /// The advanced page's row for the triggers' own rumble.
     pub const TRIGGER_RUMBLE: u32 = FIRST + 0xBE;
+    /// The advanced page's row for the computer's cars on wide roads.
+    pub const WIDE_ROADS: u32 = FIRST + 0xF4;
     /// The single rally's players menu: the captions of its three- and four-player split screens.
     pub const SPLIT_THREE: u32 = FIRST + 0xF2;
     pub const SPLIT_FOUR: u32 = FIRST + 0xF3;
@@ -166,6 +168,10 @@ pub mod id {
     pub const BAD_PICTURE: u32 = FIRST + 0xFA;
     pub const BAD_SOUND: u32 = FIRST + 0xFB;
     pub const BAD_PEER: u32 = FIRST + 0xFD;
+    /// The race's message that a player left it ("{}" the player), and that the host's leaving
+    /// ended the session ("{}" the host).
+    pub const LEFT_RACE: u32 = FIRST + 0xFC;
+    pub const HOST_LEFT: u32 = FIRST + 0xF5;
     pub const BAD_REPLAY_PLAY: u32 = FIRST + 0xFE;
     /// The lead-in of the dialog that goes back to the main menu ("{}" the trouble).
     pub const BACK_TO_MENU: u32 = FIRST + 0xFF;
@@ -194,6 +200,8 @@ pub const KEYS: &[(&str, u32)] = &[
     ("network.password_prompt", id::PASSWORD_PROMPT),
     ("network.password_wrong", id::PASSWORD_WRONG),
     ("network.port_in_use", id::PORT_IN_USE),
+    ("network.left_race", id::LEFT_RACE),
+    ("network.host_left", id::HOST_LEFT),
     ("button_icons", id::BUTTON_ICONS),
     ("engine_vibration", id::ENGINE_VIBRATION),
     ("graphics.frame_limit", id::FRAME_LIMIT),
@@ -203,6 +211,7 @@ pub const KEYS: &[(&str, u32)] = &[
     ("advanced.smooth_frames", id::SMOOTH_FRAMES),
     ("advanced.saved_game_controls", id::SAVE_CONTROLS),
     ("advanced.trigger_rumble", id::TRIGGER_RUMBLE),
+    ("advanced.wide_roads", id::WIDE_ROADS),
     ("advanced.more", id::ADVANCED_MORE),
     ("advanced.first", id::ADVANCED_FIRST),
     ("split_screen.three", id::SPLIT_THREE),

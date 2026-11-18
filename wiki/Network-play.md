@@ -90,12 +90,23 @@ In the main menu choose the network game, then host or join.
 game: when the host leaves, the session ends for everybody (it is not handed to another
 machine).
 
+**Leaving a race.** A player who leaves a race before finishing (Escape, then quit, or a lost
+connection) has their car taken out of the race on every other machine: it is no longer drawn,
+collides with nothing, makes no sound and no longer shows on the stage bar or the map; the others
+see "<name> left the race" near the top of the screen for a few seconds (the same text in
+Portuguese: "<name> saiu da corrida"). A player who had already finished keeps their car and
+their time. When the host leaves, the session ends for everybody, in a race as in the lobby: each joiner's race ends as if they had quit it, they are back in the menus and told ("The host <name> left: the session has ended"); the view and the controls never move to another car. Computer drivers are not players and stay.
+
+**The map.** In a network race the HUD's map disc shows the other cars as small markers, each in
+the colour of its marker on the stage bar (players first, then the computer drivers), turned with
+the map and left out where they fall outside the disc.
+
 **Joining.** The program lists the sessions it finds. With no address given it asks the whole
 local network (and this machine itself); with an address it asks that machine only. Choose a
 session to join it. Full or closed sessions are not listed. A session with a password shows a lock mark before its name; choosing it asks for the password there and then (typed as stars, on the on-screen keyboard from a pad; the question and the stars stand high on the screen so the keyboard, below them, covers neither). A wrong one asks again; Escape goes back to the list of sessions. A session without a password is joined as before. Nothing about the right password is revealed to a joiner, and the joiner's answer is not kept.
 
 **The lobby.** Everyone chooses a car; the host chooses the stage, and its name is shown at
-the top left of everybody's lobby. While the stage loads, the loading screen lists every player's progress in percent in its top left corner. There is a chat line under the last six chat lines (older ones are kept but not shown, so that no line runs under the buttons; a long message is cut into lines as wide as the screen); the chat starts closed each time the lobby is entered, also on coming back from a race (a key still held from the race's last screen does not open it); the host puts the lines in order, so everyone sees the same order (a line you type shows when the host sends it back). Each joined player's **ping** (the round trip to the host in milliseconds, a moving average of the host's once-a-second measurement) is shown after the name; the host's own row has none. Pressing **ready** again takes the ready back (the button reads "not ready" while you are ready; left and right move between it and the chat). When every player is ready the host
+the top left of everybody's lobby. While the stage loads, the loading screen lists every player's progress in percent (names in a column, the percentages after it) at the left of its picture, just above the loading bar; on a screen wider than 4:3 the list stays inside the picture's 4:3 middle. There is a chat line under the last six chat lines (older ones are kept but not shown, so that no line runs under the buttons; a long message is cut into lines as wide as the screen); the chat starts closed each time the lobby is entered, also on coming back from a race (a key still held from the race's last screen does not open it); the host puts the lines in order, so everyone sees the same order (a line you type shows when the host sends it back). Each joined player's **ping** (the round trip to the host in milliseconds, a moving average of the host's once-a-second measurement) is shown after the name; the host's own row has none. Pressing **ready** again takes the ready back (the button reads "not ready" while you are ready; left and right move between it and the chat). When every player is ready the host
 starts the race; a player who takes the ready back before the start stops it, and a machine that is no longer ready does not answer the host's start call.
 
 Above the bottom row of buttons is a second row. Its rightmost button is **bots** (the host's switch for computer drivers, below), then **settings** (always shown): it opens the options of the menu

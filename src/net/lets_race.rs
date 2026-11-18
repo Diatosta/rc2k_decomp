@@ -19,7 +19,9 @@ pub fn lets_race(o: Owners<'static>) -> Result<(u32, u32), Refused> {
     race.course.numbers.get().replay_mode.set(1);
     crate::race::race_end::record_replay_header(race);
     crate::race::replay::open_replay(race, o)?;
+    crate::net::left::begin_race();
     let played = { crate::drive::play_race::play_race(race, o) };
+    crate::net::left::end_race();
     crate::race::replay::close_replay(race, o.system)?;
     race.course.numbers.get().replay_mode.set(kept_mode);
     played?;

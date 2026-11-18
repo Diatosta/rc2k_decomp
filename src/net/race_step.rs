@@ -8,6 +8,8 @@ use crate::net::owner::Net;
 use crate::net::{apply_received, follow_remote, send_turn};
 use crate::race::owner::Race;
 pub fn race_step(race: &Race, net: &Net) -> Result<(), Refused> {
+    // A player who left takes the car out of the race, even when the session is gone.
+    crate::net::left::apply(race, net);
     if !net.race_slot.is_on() {
         return Ok(());
     }

@@ -122,9 +122,24 @@ fn loading_bar_frame(o: crate::owners::Owners<'static>, share: u32) -> Result<()
         let _timed = crate::race::load_times::scope(crate::race::load_times::Category::BarFrame);
         frame(o, share)
     };
+    #[cfg(feature = "remote")]
+    hold_for_shots();
     FRAMES[0].fetch_add(1, Relaxed);
     FRAMES[1].fetch_add(begun.elapsed().as_micros() as u64, Relaxed);
     result
+}
+
+/// Test builds: while the file `hold` in the remote folder (`RC2K_REMOTE`) exists, every bar frame
+/// lasts as many milliseconds as it holds, so that the loading screen can be photographed.
+#[cfg(feature = "remote")]
+fn hold_for_shots() {
+    let Some(folder) = std::env::var_os("RC2K_REMOTE") else {
+        return;
+    };
+    let held = std::fs::read_to_string(std::path::Path::new(&folder).join("hold"));
+    if let Some(ms) = held.ok().and_then(|v| v.trim().parse::<u64>().ok()) {
+        std::thread::sleep(std::time::Duration::from_millis(ms));
+    }
 }
 
 fn frame(o: crate::owners::Owners<'static>, share: u32) -> Result<(), Refused> {

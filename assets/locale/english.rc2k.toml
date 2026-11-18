@@ -168,6 +168,7 @@ quit_pictures = "buttons in the quit question"
 smooth_frames = "smooth frames"
 saved_game_controls = "controls from saved games"
 trigger_rumble = "trigger rumble"
+wide_roads = "computer cars on wide roads"
 more = "more"
 first = "first page"
 gpu = "GPU"
@@ -196,6 +197,8 @@ lock_mark = "[locked] "
 password_prompt = "Locked session. Password, then Enter (Esc: back)"
 password_wrong = "Wrong password. Again, then Enter (Esc: back)"
 port_in_use = "The port {} is in use by another program."
+left_race = "{} left the race"
+host_left = "The host {} left: the session has ended"
 
 # The error dialog: its titles, the ways on, the pointer to the log and the keys' line.
 [dialog]

@@ -158,6 +158,7 @@ quit_pictures = "botões na pergunta de saída"
 smooth_frames = "quadros suaves"
 saved_game_controls = "controlos dos jogos gravados"
 trigger_rumble = "vibração dos gatilhos"
+wide_roads = "carros do computador em estradas largas"
 more = "mais"
 first = "primeira página"
 gpu = "GPU"
@@ -186,6 +187,8 @@ lock_mark = "[trancada] "
 password_prompt = "Sessão trancada. Palavra-passe e Enter (Esc: volta)"
 password_wrong = "Errada. Outra vez e Enter (Esc: volta)"
 port_in_use = "A porta {} está a ser usada por outro programa."
+left_race = "{} saiu da corrida"
+host_left = "O anfitrião {} saiu: a sessão terminou"
 
 # O diálogo de erro: os títulos, as saídas, a indicação do registo e a linha das teclas.
 [dialog]

@@ -51,11 +51,19 @@ pub fn scroll_refuses(race: &Race) -> Result<(), Refused> {
 /// Puts the car on the map: `map_place` at its last checkpoint's place plus its distance from that
 /// checkpoint's face's point (x as it is, z negated, both on the map's scale).
 pub fn place_on_map(race: &Race, car: &Car) -> Result<(), Refused> {
+    let [x, y] = map_position(race, car)?;
+    car.map_place[0].set(x);
+    car.map_place[1].set(y);
+    Ok(())
+}
+
+/// Where the car is on the map (16.16 map pixels, x then y), as `place_on_map` works it out,
+/// written nowhere.
+pub fn map_position(race: &Race, car: &Car) -> Result<[u32; 2], Refused> {
     use rc2k_core::race::map::on_map;
-    let [map_x, map_y] = &car.map_place;
     let n = car.checkpoint.get();
-    map_x.set(crate::race::checkpoints_store::map_x_run_on(race.checkpoints(), n as usize).get());
-    map_y.set(crate::race::checkpoints_store::map_y_run_on(race.checkpoints(), n as usize).get());
+    let map_x = crate::race::checkpoints_store::map_x_run_on(race.checkpoints(), n as usize).get();
+    let map_y = crate::race::checkpoints_store::map_y_run_on(race.checkpoints(), n as usize).get();
     let face = crate::race::checkpoints_store::face_run_on(race.checkpoints(), n as usize).get();
     let point = crate::race::course_places::face_number(race.course.reads(), face)?.point(0);
     let px = crate::race::scene_points::point_word(
@@ -70,15 +78,10 @@ pub fn place_on_map(race: &Race, car: &Car) -> Result<(), Refused> {
         point,
         2,
     )?;
-    map_x.set(
-        map_x
-            .get()
-            .wrapping_add(on_map(car.position[0].get().wrapping_sub(px)).0),
-    );
+    let x = map_x.wrapping_add(on_map(car.position[0].get().wrapping_sub(px)).0);
     let dz = car.position[2].get().wrapping_sub(pz).wrapping_neg();
     let (y_off, _) = on_map(dz);
-    map_y.set(map_y.get().wrapping_add(y_off));
-    Ok(())
+    Ok([x, map_y.wrapping_add(y_off)])
 }
 
 /// With two checkpoints or more, puts the car on the map (`map_x` / `map_y` at its last

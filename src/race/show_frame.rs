@@ -39,6 +39,7 @@ pub fn show_frame(race: &Race, o: crate::owners::Owners<'static>) -> Result<Show
             o.gfx,
         )
     }?;
+    crate::net::left::draw(o)?;
     // The leftover value after the unlock is 0.
     crate::scene::unlock_frame::unlock_frame(&race.frame, o.gfx);
     if !crate::scene::present_frame::present_frame(o) {

@@ -16,6 +16,7 @@ pub mod disc_vertex;
 pub mod draw_disc;
 pub mod draw_hud;
 pub mod draw_icon;
+pub mod draw_map_cars;
 pub mod draw_marker;
 pub mod draw_markers;
 pub mod draw_needle;
