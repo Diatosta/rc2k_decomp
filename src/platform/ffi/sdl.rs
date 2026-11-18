@@ -873,6 +873,17 @@ impl PolledEvent {
         Some((SDL_GamepadAxis(axis.axis as i32), axis.value))
     }
 
+    /// The joystick a gamepad axis event came from (0 for a stand-in's, which names none), else
+    /// `None`.
+    #[cfg(target_os = "android")]
+    pub fn gamepad_axis_joystick(&self) -> Option<SDL_JoystickID> {
+        if self.kind() != SDL_EVENT_GAMEPAD_AXIS_MOTION {
+            return None;
+        }
+        // SAFETY: the type says the `gaxis` record is the one SDL filled.
+        Some(unsafe { self.0.gaxis.which })
+    }
+
     /// The scancode and the direction of a key event (else `None`).
     pub fn key(&self) -> Option<(i32, bool)> {
         if self.kind() != SDL_EVENT_KEY_DOWN && self.kind() != SDL_EVENT_KEY_UP {

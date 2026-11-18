@@ -2,7 +2,8 @@
 //! end) switches the race off, ends the effects, ticks, gives both devices back; 3 (the race's
 //! start) sets up device 0 from player 1's controls and, unless one player uses one device,
 //! device 1 from player 2's, begins the effects, ticks and switches the race
-//! on; others do nothing. Refuses (before anything) a device past 1 for command 1.
+//! on; 4 (a phone's player 1 changing between the touch pad and a controller in a race) sets
+//! device 0 up again; others do nothing. Refuses (before anything) a device past 1 for command 1.
 
 use crate::errors::Refused;
 use crate::input::owner::Input;
@@ -51,18 +52,17 @@ pub fn device_command(
                 EndEffects => crate::input::end_effects::end_effects(input)?,
                 Tick => crate::input::input_tick::input_tick(input, sound, system, race)?,
                 SetUp(n) => {
-                    // A phone has no keyboard to drive with: the first car on the keyboard is
-                    // given the touch screen's controls.
+                    // A phone has no keyboard to drive with: the first car's keyboard is the
+                    // touch screen's controls, or the controller last used.
                     #[cfg(target_os = "android")]
                     if n == 0 {
                         let controls = &race.shared.state.car(0).controls;
-                        if controls.controller.get() == 0
-                            && let Some(at) = crate::platform::touch::index_in(
+                        controls
+                            .controller
+                            .set(crate::platform::touch::player_one_controller(
                                 &crate::input::device_ids::listed(input),
-                            )
-                        {
-                            controls.controller.set(at as u32 + 1);
-                        }
+                                controls.controller.get(),
+                            ));
                     }
                     crate::input::set_up_device::set_up_device(
                         input,

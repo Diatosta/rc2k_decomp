@@ -32,7 +32,7 @@ A first-run page with a file picker for the game's zip is to come; the page the 
 
 ## Touch controls
 
-In the race (the overlay over the picture; a real gamepad plugged in hides it):
+In the race (the overlay over the picture; a real gamepad being used hides it, a finger brings it back):
 
 | Control | Does |
 | --- | --- |

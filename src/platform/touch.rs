@@ -10,7 +10,9 @@
 
 use crate::platform::ffi::{sdl, sdl_input};
 use rc2k_core::input::menu_touch::Phase;
-use rc2k_core::input::touch::{Answer, AnswerTaps, Asked, Button, Controls, Layout, Output};
+use rc2k_core::input::touch::{
+    Answer, AnswerTaps, Asked, Button, Controls, Layout, Output, Source,
+};
 use sdl3_sys::everything::{
     SDL_GAMEPAD_AXIS_LEFT_TRIGGER, SDL_GAMEPAD_AXIS_LEFTX, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER,
     SDL_GAMEPAD_BUTTON_EAST, SDL_GAMEPAD_BUTTON_NORTH, SDL_GAMEPAD_BUTTON_SOUTH,
@@ -31,6 +33,12 @@ struct State {
     driving: bool,
     /// Real gamepads present.
     real_pads: u32,
+    /// What player 1 drives with (`rc2k_core::input::touch::Source`).
+    source: Source,
+    /// The name of the real gamepad last used, to find it among the controllers listed.
+    used_name: Option<String>,
+    /// Set when `source` changed, until `take_source_change`.
+    source_changed: bool,
     /// The finger on an answer button of the pause or the question.
     answers: AnswerTaps,
 }
@@ -44,6 +52,9 @@ static STATE: Mutex<State> = Mutex::new(State {
     },
     driving: false,
     real_pads: 0,
+    source: Source::Auto,
+    used_name: None,
+    source_changed: false,
     answers: AnswerTaps::new(),
 });
 
@@ -57,8 +68,72 @@ fn state() -> std::sync::MutexGuard<'static, State> {
 const PAD_NAME: &str = "Touch screen";
 
 /// Where the touch screen's pad is among the controllers listed.
-pub fn index_in(list: &[rc2k_core::input::device_id::Listed]) -> Option<usize> {
+fn index_in(list: &[rc2k_core::input::device_id::Listed]) -> Option<usize> {
     list.iter().position(|l| l.name == PAD_NAME)
+}
+
+/// The controller number player 1 drives with (see `rc2k_core::input::touch::
+/// player_one_controller`), given the one the player has and the controllers listed.
+pub fn player_one_controller(list: &[rc2k_core::input::device_id::Listed], current: u32) -> u32 {
+    let st = state();
+    let touch = index_in(list).map(|at| at as u32 + 1);
+    // The real controller: the one last used when it is listed, else the first that is not
+    // the touch screen's.
+    let pad = st
+        .used_name
+        .as_ref()
+        .and_then(|name| {
+            list.iter()
+                .position(|l| &l.name == name && l.name != PAD_NAME)
+        })
+        .or_else(|| list.iter().position(|l| l.name != PAD_NAME))
+        .map(|at| at as u32 + 1);
+    rc2k_core::input::touch::player_one_controller(st.source, current, touch, pad)
+}
+
+/// Whether the player's controller number is the touch screen's pad (a name of it).
+pub fn is_touch_pad(list: &[rc2k_core::input::device_id::Listed], number: u32) -> bool {
+    number
+        .checked_sub(1)
+        .is_some_and(|at| index_in(list) == Some(at as usize))
+}
+
+/// Player 1's source set; the change noted for `take_source_change`.
+fn set_source(st: &mut State, source: Source) {
+    if st.source != source {
+        crate::logfile::program_log::log(&format!(
+            "touch: player 1 drives with {}",
+            match source {
+                Source::Auto => "the touch screen (nothing used yet)",
+                Source::Touch => "the touch screen",
+                Source::Pad => "a controller",
+            }
+        ));
+        st.source = source;
+        st.source_changed = true;
+        // Whatever the other side held is let go.
+        if let Some(controls) = st.controls.as_mut() {
+            controls.release_all();
+        }
+    }
+}
+
+/// Whether player 1's source changed since the last call.
+pub fn take_source_change() -> bool {
+    std::mem::take(&mut state().source_changed)
+}
+
+/// A real gamepad's button or stick was used (`id` 0: a stand-in's event, which has none): it
+/// drives player 1 from now on. The virtual gamepad's own events are not that.
+pub fn pad_used(id: SDL_JoystickID) {
+    let mut st = state();
+    if st.pad.is_some_and(|(ours, _)| ours == id) {
+        return;
+    }
+    if id.0 != 0 {
+        st.used_name = Some(sdl_input::joystick_name_for_id(id, ""));
+    }
+    set_source(&mut st, Source::Pad);
 }
 
 /// The virtual gamepad plugged in, before the game lists its controllers.
@@ -98,6 +173,9 @@ pub fn pad_removed(id: SDL_JoystickID) {
         return;
     }
     st.real_pads = st.real_pads.saturating_sub(1);
+    if st.real_pads == 0 && st.source == Source::Pad {
+        set_source(&mut st, Source::Touch);
+    }
 }
 
 /// A finger's change in a race (`x`, `y`: parts of the window): it drives the controls.
@@ -107,6 +185,7 @@ pub fn finger(window: sdl::Window, id: u64, phase: Phase, x: f32, y: f32, now: u
     };
     let (x, y) = (x * screen.width, y * screen.height);
     let mut st = state();
+    set_source(&mut st, Source::Touch);
     change_mode(&mut st, true);
     let controls = st.controls.get_or_insert_with(|| Controls::new(&screen));
     controls.resize(&screen);
@@ -126,7 +205,7 @@ fn change_mode(st: &mut State, driving: bool) {
 pub fn update(driving: bool, now: u64) {
     let mut st = state();
     change_mode(&mut st, driving);
-    let out = match (&st.controls, driving) {
+    let out = match (&st.controls, driving && st.source != Source::Pad) {
         (Some(controls), true) => controls.output(now),
         _ => Output::default(),
     };
@@ -181,7 +260,7 @@ pub fn update(driving: bool, now: u64) {
 /// The race's controls over the frame.
 pub fn draw(renderer: sdl::Renderer, window: sdl::Window, now: u64) {
     let st = state();
-    if st.real_pads > 0 || st.pad.is_none() {
+    if st.source == Source::Pad || st.pad.is_none() {
         return;
     }
     let Some(screen) = crate::platform::touch_menu::screen_of(window) else {
