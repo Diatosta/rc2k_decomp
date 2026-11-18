@@ -172,8 +172,9 @@ days at a time. The game's folder is copied into the app's Documents folder with
 app. `tools/ios/README.md` lists every step. The iOS port is begun: it is checked to compile,
 runs on a phone, and has no touch controls yet (a game controller works). The window is drawn in
 the screen's own pixels; the race starts at that size (cut to at most 1920 wide), the graphics page
-lists it with its fractions, and the frame is kept inside the part of the screen clear of the notch
-and the home indicator.
+lists it with its fractions, and the race frame covers the whole screen, edge to edge, with the HUD and the mirror kept inside
+the part clear of the notch and the home indicator; a menu's 4:3 page is as tall as the screen and
+centred across that part.
 
 ## The Anbernic RG34XXSP handheld
 

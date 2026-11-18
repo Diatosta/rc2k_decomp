@@ -1758,9 +1758,10 @@ impl Gpu {
         };
         let (view, placed) = match gl.drawable_size() {
             Some((w, h)) => {
-                let fit = rc2k_core::gfx::screen_fit::fit(
+                let fit = crate::platform::safe_area::frame_fit(
                     (width as u32, height as u32),
                     (w as u32, h as u32),
+                    menu,
                 );
                 // The menus' 3D of the next frames is drawn at the size this frame's place has in
                 // the window, times the 3D's share.

@@ -36,6 +36,7 @@ pub mod icon;
 pub mod input;
 pub mod os;
 pub mod pacing;
+pub mod safe_area;
 pub mod sound;
 pub mod sync;
 pub mod timing;
@@ -199,10 +200,14 @@ pub fn monitor_modes() -> sdl::DisplayModes {
             .and_then(|screen| screen.as_ref().map(|s| s.window));
         #[cfg(target_os = "ios")]
         {
-            // A phone's one mode in pixels, and the fractions of the part of it clear of the notch
-            // and home indicator: what a frame is made at.
+            // A phone's one mode in pixels (the whole screen, landscape), and its fractions: what
+            // a frame is made at. The frame covers the screen edge to edge; the HUD keeps to the
+            // part clear of the notch and home indicator (`safe_area`).
             let (_, desktop) = sdl::display_modes(window);
-            let usable = sdl::usable_pixels().or(desktop);
+            let usable = window
+                .and_then(sdl::Window::pixel_size)
+                .or(desktop)
+                .map(|(w, h)| (w.max(h), w.min(h)));
             let modes = usable
                 .map(rc2k_core::gfx::resolutions::native_fractions)
                 .unwrap_or_default()
@@ -431,7 +436,7 @@ fn set_screen_mode(
 }
 
 /// The size the race starts at on an iPhone or iPad that has no choice of its own: the screen's
-/// own pixels, clear of the notch and home indicator, cut down to what the processor-drawn menus
+/// own pixels cut down to what the processor-drawn menus
 /// can keep up with (`rc2k_core::gfx::resolutions::native_default`).
 #[cfg(target_os = "ios")]
 pub fn phone_default_size() -> Option<(u32, u32)> {
@@ -955,19 +960,13 @@ fn show_fitted(
     let window = renderer
         .window_pixels()
         .unwrap_or((screen.window_size.0 as u32, screen.window_size.1 as u32));
-    // A phone's frame is shown inside the part of the screen clear of the notch, the rounded
-    // corners and the home indicator, so nothing of the menus or the HUD is hidden by them.
+    // A phone's race frame covers the whole screen and its menu page is centred across the part
+    // clear of the notch, the rounded corners and the home indicator (`safe_area`).
     #[cfg(target_os = "ios")]
-    let [area_x, area_y, area_width, area_height] = screen
-        .window
-        .safe_area_pixels()
-        .unwrap_or([0, 0, window.0, window.1]);
-    #[cfg(not(target_os = "ios"))]
-    let [area_x, area_y, area_width, area_height] = [0, 0, window.0, window.1];
-    let mut fit =
-        rc2k_core::gfx::screen_fit::fit((frame_width, frame_height), (area_width, area_height));
-    fit.x += area_x;
-    fit.y += area_y;
+    if let Some(safe) = screen.window.safe_area_pixels() {
+        safe_area::set(safe, window);
+    }
+    let fit = safe_area::frame_fit((frame_width, frame_height), window, screen.menu);
     // A frame drawn larger than the frame (a menu's 3D at the window's size) is shown with the
     // filter unless it is the very size it is shown at.
     texture.set_sharp(if shown == (frame_width, frame_height) {

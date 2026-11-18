@@ -8,9 +8,9 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleName</key>
-    <string>Rally</string>
+    <string>Rally Championship</string>
     <key>CFBundleDisplayName</key>
-    <string>Rally</string>
+    <string>Rally Championship</string>
     <key>CFBundleExecutable</key>
     <string>rc2k</string>
     <key>CFBundleIdentifier</key>

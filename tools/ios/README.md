@@ -18,14 +18,17 @@ kept awake. Touch controls: another lane's (leave `platform::input` for it); a g
 
 The window is made high-density: its drawing size is the screen's pixels (2556 x 1179 on an
 iPhone 15, not the 852 x 393 points). The graphics page's resolution list holds the part of the
-screen clear of the notch and home indicator, in pixels (`SDL_GetDisplayUsableBounds`), with its
+whole screen in pixels, landscape, with its
 3/4, 2/3 and 1/2; the race starts at the largest of these no wider than 1920 (the menus' canvas
 is drawn by the processor and uploaded whole each frame, so the full 2556 would cost frames; pick
-the largest in the list for the sharpest image). The frame is shown inside the window's safe area
-(`SDL_GetWindowSafeArea`), so the notch and the home indicator hide nothing of the menus or the HUD.
+the largest in the list for the sharpest image). The race frame covers the whole screen, edge to edge; the HUD's pieces and the mirror keep to the
+window's safe area (`SDL_GetWindowSafeArea`: `platform::safe_area`, laid out as on a screen of that
+size), so the notch and the home indicator hide nothing of them. A menu's 4:3 page is as tall as the
+screen (the home indicator lies over its empty bottom strip) and centred across the safe area, the
+blurred background filling the sides.
 A start logs "platform: the window is ... points, ... pixels, its safe area ..." and the renderer
 line (`SDL's gpu` and "3D on a GPU backend" on Metal) in the log in the Documents folder.
-The home-screen name is "Rally" (short: iOS cuts a longer label to about ten characters) and the
+The home-screen name is "Rally Championship" (iOS cuts a long label with an ellipsis; the owner accepts that) and the
 icons are `assets/icon.png` scaled into `tools/ios/icons/`.
 
 **Re-install (owner):** `./build.sh ios`, then `tools/ios/install.sh`. The saved game stays (the

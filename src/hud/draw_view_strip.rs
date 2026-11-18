@@ -44,13 +44,17 @@ fn sizes(system: &System, strips: &Strips, v: [u32; 4], rule: Rule) {
 
 /// `sizes` in the box `hud_box`.
 fn sizes_in(system: &System, strips: &Strips, v: [u32; 4], rule: Rule, hud_box: BoxRatio) {
-    let (sizes, _) = strips::sizes(
-        v,
-        system.session.screen.get().width.get(),
-        system.session.screen.get().height.get(),
-        rule,
-        hud_box,
+    // The strip keeps to the part of the screen clear of a phone's notch and home indicator.
+    let [ox, oy, width, height] = crate::hud::safe_inset::get(
+        (
+            system.session.screen.get().width.get(),
+            system.session.screen.get().height.get(),
+        ),
+        None,
     );
+    let (mut sizes, _) = strips::sizes(v, width, height, rule, hud_box);
+    sizes[0] += oy;
+    sizes[2] += ox;
     for (n, x) in sizes.into_iter().enumerate() {
         strips.sizes[n].set(x);
     }

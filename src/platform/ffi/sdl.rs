@@ -597,40 +597,6 @@ fn in_pixels(mode: &SDL_DisplayMode) -> (u32, u32) {
     )
 }
 
-/// The size in pixels of the part of the primary display clear of the notch, corners and home
-/// indicator (what a frame can use whole), if SDL knows it.
-#[cfg(target_os = "ios")]
-#[cfg_attr(test, allow(dead_code))] // the unit tests ask no display
-pub fn usable_pixels() -> Option<(u32, u32)> {
-    if !init_video() {
-        return None;
-    }
-    // SAFETY: SDL's video is up; the id is SDL's own; SDL writes the rectangle; the mode is SDL's
-    // record, read at once and only when not null.
-    unsafe {
-        let display = SDL_GetPrimaryDisplay();
-        let mut area = SDL_Rect {
-            x: 0,
-            y: 0,
-            w: 0,
-            h: 0,
-        };
-        if !SDL_GetDisplayUsableBounds(display, &raw mut area) || area.w <= 0 || area.h <= 0 {
-            return None;
-        }
-        let mode = SDL_GetDesktopDisplayMode(display);
-        let density = if mode.is_null() || (*mode).pixel_density < 1.0 {
-            1.0
-        } else {
-            f64::from((*mode).pixel_density)
-        };
-        Some((
-            (f64::from(area.w) * density).round() as u32,
-            (f64::from(area.h) * density).round() as u32,
-        ))
-    }
-}
-
 /// A display's modes, each (width, height, refresh rate), and its desktop's size.
 pub type DisplayModes = (Vec<(u32, u32, f32)>, Option<(u32, u32)>);
 
