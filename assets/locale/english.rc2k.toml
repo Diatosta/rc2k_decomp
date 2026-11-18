@@ -163,7 +163,6 @@ render_keys = "Up and Down choose, Left and Right change, Enter confirms, Esc ca
 
 # The replays list: the tags after a slot's name.
 [replays]
-new = "[new]"
 old = "[old]"
 
 # The network lobby.

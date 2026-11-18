@@ -63,11 +63,11 @@ pub fn apply_patches(p: &mut Patches, hundred: f32) {
     }
     p.applied = 1;
     for (s, (least, most)) in p.settings.iter_mut().zip(RANGES) {
-        // The sign of the difference, whatever the overflow.
-        if (s.wrapping_sub(least) as i32) < 0 {
+        // The settings are signed: a negative figure goes to the bottom of its range.
+        if (*s as i32) < least as i32 {
             *s = least;
         }
-        if (s.wrapping_sub(most) as i32) >= 0 {
+        if (*s as i32) >= most as i32 {
             *s = most;
         }
     }
@@ -132,8 +132,32 @@ mod tests {
         apply_patches(&mut q, 100.0);
         assert_eq!(q.settings[0], 4);
         assert_eq!(q.settings[1], 0);
-        // 0x80000000 less 10 is not below 0 by the sign: held to the top instead.
-        assert_eq!(q.settings[11], 200);
+        // 0x80000000 is the most negative figure: held to the bottom (the difference's sign
+        // alone held it to the top).
+        assert_eq!(q.settings[11], 10);
+        let mut r = Patches {
+            settings: [
+                0x7FFF_FFFF,
+                0x8000_0000,
+                0x8000_0009,
+                0x8000_0000,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0xFFFF_FFFF,
+            ],
+            ..Default::default()
+        };
+        apply_patches(&mut r, 100.0);
+        assert_eq!(r.settings[0], 0x10);
+        assert_eq!(r.settings[1], 0);
+        assert_eq!(r.settings[2], 10);
+        assert_eq!(r.settings[3], 0);
+        assert_eq!(r.settings[11], 10);
         assert_eq!(q.factors, [0; 10]);
         assert_eq!(q.records[3], [PLAIN[0], PLAIN[1], OTHER_THIRD.1]);
         assert_eq!(q.tens, [TEN; 2]);

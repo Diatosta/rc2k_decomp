@@ -984,3 +984,39 @@ has the same fixed addresses, but its network mode could not be run here to see 
 - **In game**: only on a stage that lasts about an hour of race time (a car stuck and never retired): the original wrote past the index; the conversion refused it and the game ended with an error.
 - **Seen or read**: seen 2026-11-18 in a long test run (a computer-driven car stuck for 180,000 ticks).
 - **Fix**: the written block is counted as done before the replay is closed, so the replay ends at its 1800 blocks and the race goes on (`race::replay`).
+
+## A large figure counted as "300 or more" in the value notice
+
+*Original*: `physics::value_notice`. *Fixed*: 2026-11-18.
+
+- **What**: the notice that fires when a car's turn count reaches 300 compared the figure by the sign of `figure - 300`, so the figures 0x80000000 to 0x8000012B (negative as a signed number) counted as at or past 300.
+- **In game**: nothing seen; a count never gets that far.
+- **Seen or read**: read in the code.
+- **Fix**: the figure is compared as a signed number against 300 (`Notice::value_notice`), so a negative figure is below it.
+
+## The camera's pitch jumped when already past its target
+
+*Original*: `physics::ease_pitch_up` and `physics::ease_pitch_down`. *Fixed*: 2026-11-18.
+
+- **What**: the camera's pitch eases half the way to its limit each step; the half was taken as an unsigned number, so a pitch already past its limit gave a step of about 2^31 instead of a small step back.
+- **In game**: nothing seen; the ground-avoiding camera never starts a step past its limit.
+- **Seen or read**: read in the code.
+- **Fix**: the halving is signed (`easing::ease_up`, `easing::ease_down`), so a value past its target eases back.
+
+## A physics setting of 0x80000000 went to the top of its range
+
+*Original*: `physics::apply_patches`. *Fixed*: 2026-11-18.
+
+- **What**: each `patch` setting is held to its range by the sign of the difference with the range's ends only, so the most negative number (0x80000000) passed the lower test and was held to the top of the range instead of the bottom.
+- **In game**: only with a `ral.cfg` value of -2147483648 for a patch setting; nothing else reaches it.
+- **Seen or read**: read in the code.
+- **Fix**: the settings are compared as signed numbers (`patches::apply_patches`).
+
+## The replay's far cameras read unrelated numbers for what they hide
+
+*Original*: `race::face_hidden` (the views' hide table). *Fixed*: 2026-11-18.
+
+- **What**: a camera view has an entry in a table saying whether faces that the ground under the car marks (such as the top of a hedge or a tunnel's roof) are hidden. The table had 34 entries, but the replay viewer's cameras go up to view 0x33, so views 0x22 to 0x33 read the variables after the table (a one, zeros, a float, the number 0x180), and whether faces were hidden for them depended on those.
+- **In game**: a handful of edge pixels (a hedge's top fringe, in replay 1 at the views 0x23 to 0x28 and 0x2C) differ; the replay viewer's camera that follows behind the car (views 0x27 and 0x28) showed the marked faces where the same camera at the other views hid them.
+- **Seen or read**: seen in the replay viewer by forcing each view and comparing with the entry at 0 and 1 (the differences are a few pixels at most); the table's overrun was read in the code.
+- **Fix**: the table has an entry for each of the 52 views: the cameras behind the car (0x23 to 0x29, 0x32, 0x33) like the views 4 to 6 behind the car (hide), the fixed cameras (0x2A to 0x31) like the fixed views 7 to 10 (show), and 0x22, a copy of the views 0x1A to 0x21, as they are (`race::view_vars_store`).

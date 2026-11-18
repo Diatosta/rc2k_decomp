@@ -191,7 +191,8 @@ pub(super) fn car_light_on_point(
 }
 
 /// The cars' headlights on the lit place: in a network game the chosen car or all (when
-/// `settings_words[4]` is 1); else the players' cars (all with `settings_words[4]` 1), only the
+/// `settings_words[4]` is 1), and the same in a replay of a network race, where the chosen car
+/// is the drawn view's; else the players' cars (all with `settings_words[4]` 1), only the
 /// drawn view's car outside one player and modes 0 and 2.
 #[allow(
     clippy::too_many_arguments,
@@ -208,22 +209,23 @@ pub(super) fn car_lights_on_point(
     let (race_work, race_vars, race_view) = (reads.work, reads.vars, reads.view);
     let cars: u32 = race_view.race_cars.get();
     let all = race_vars.settings_words[4].get() == 1;
-    let one = net_race.is_some();
+    let one = net_race.is_some() || race_view.lights_follow_view.get() != 0;
     for n in 0..cars {
         let trap = Trap::new();
+        let view_car = || {
+            race_view.drawn_view_car(drawn_view).unwrap_or_else(|e| {
+                trap.keep(e);
+                0
+            })
+        };
         let lit = rc2k_core::race::lights::headlights_light(
             n,
             one,
-            || net_race.map_or(0, |n| n.player),
+            || net_race.map_or_else(view_car, |n| n.player),
             all,
             || race_view.players.get(),
             || race_vars.run_kind.get(),
-            || {
-                race_view.drawn_view_car(drawn_view).unwrap_or_else(|e| {
-                    trap.keep(e);
-                    0
-                })
-            },
+            view_car,
         );
         trap.finish()?;
         if lit {

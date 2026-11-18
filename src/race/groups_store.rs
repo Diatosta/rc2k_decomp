@@ -65,7 +65,7 @@ pub struct PanelAndOverlay {
 pub struct ViewAndRecords {
     /// +0x0: `race::view_vars_store`.
     pub view_vars: ViewVars,
-    /// +0x294: the 52 view records (named through `ViewerAndKinds` handles).
+    /// The 52 view records, after the view variables (named through `ViewerAndKinds` handles).
     pub records: [ViewRecord; 52],
 }
 

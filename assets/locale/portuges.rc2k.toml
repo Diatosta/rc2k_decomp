@@ -153,7 +153,6 @@ render_keys = "Cima e Baixo escolhem, Esquerda e Direita mudam, Enter confirma, 
 
 # The replays list: the tags after a slot's name.
 [replays]
-new = "[novo]"
 old = "[antigo]"
 
 # The network lobby.

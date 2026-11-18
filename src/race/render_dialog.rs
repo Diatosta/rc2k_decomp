@@ -11,7 +11,7 @@ use crate::gfx::typefaces::fonts;
 use crate::input::osk_draw::fill;
 use crate::owners::Owners;
 use crate::text::draw_text::{GameCanvas, draw_text_at};
-use rc2k_core::race::render_dialog::{Dialog, Key, Outcome, Part, Row, Settings, frame_rates};
+use rc2k_core::race::render_dialog::{Dialog, Key, Outcome, Part, Row, Settings};
 use rc2k_core::strings::own::id;
 use std::sync::Mutex;
 
@@ -75,15 +75,10 @@ pub fn page_sizes(o: Owners<'static>) -> Vec<(u32, u32)> {
     sizes
 }
 
-/// The frame rates the graphics page's frame limit offers, with 30 and 60.
+/// The frame rates a video offers on this display.
 pub fn page_rates() -> Vec<u32> {
     let refresh = crate::platform::pacing::display_refresh();
-    let smooth = crate::race::blend::smooth_on();
-    let limits = rc2k_core::gfx::frame_limit::FrameLimit::choices(refresh, smooth);
-    frame_rates(
-        &limits,
-        rc2k_core::gfx::frame_limit::display_rate(refresh, smooth),
-    )
+    rc2k_core::race::render_dialog::video_rates(refresh)
 }
 
 /// The dialog's colours (0xRRGGBB), as the error dialog's: the plain screen, the panel, a row and

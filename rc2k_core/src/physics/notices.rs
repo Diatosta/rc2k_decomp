@@ -25,10 +25,10 @@ pub const VALUE_NOTICE: u32 = 0xCE;
 const VALUE_THRESHOLD: u32 = 300;
 
 impl Notice {
-    /// Notice 0xCE by a figure against 300 (signed difference): at or past it, with none shown
+    /// Notice 0xCE by a figure (signed) against 300: at or past it, with none shown
     /// and 0xCE not the last, it is set with time 0; below it with 0xCE the last, cleared.
     pub fn value_notice(&mut self, figure: u32) {
-        if (figure.wrapping_sub(VALUE_THRESHOLD) as i32) >= 0 {
+        if (figure as i32) >= VALUE_THRESHOLD as i32 {
             if self.shown == 0 && self.last != VALUE_NOTICE {
                 self.id = VALUE_NOTICE;
                 self.time = 0;
@@ -143,7 +143,14 @@ mod tests {
         assert_eq!((m.shown, m.last), (0, 0));
         let mut big = Notice::default();
         big.value_notice(0x8000_0000);
-        assert_eq!(big.id, VALUE_NOTICE); // the difference's sign wraps
+        // A negative figure is below 300 (the difference's sign counted 0x80000000 ..
+        // 0x8000012B as past it).
+        assert_eq!(big.id, 0);
+        let mut edge = Notice::default();
+        edge.value_notice(0x8000_012B);
+        assert_eq!(edge.id, 0);
+        edge.value_notice(0x7FFF_FFFF);
+        assert_eq!(edge.id, VALUE_NOTICE);
         let mut c = Notice {
             shown: 1,
             time: 2,

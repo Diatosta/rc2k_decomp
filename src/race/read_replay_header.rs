@@ -8,6 +8,7 @@ use crate::memory::session::DwordLike;
 use crate::race::owner::Race;
 use crate::race::race_end::{header_cell, setting_cell};
 use rc2k_core::race::replay::{HEADER_SETTINGS, Setting, read_logged};
+use rc2k_core::race::replay_v2::MAX_CARS;
 
 /// The race's places a header setting goes back to, in order (a kind into its block and into
 /// `race_car_kinds`).
@@ -49,6 +50,14 @@ pub fn read_replay_header(race: &Race) {
     for s in HEADER_SETTINGS {
         for to in targets(race, s) {
             to.set(header_cell(race, s).get());
+        }
+    }
+    // The header names four cars' models; a replay of the own format names every car's in its
+    // extension, and the cars after the fourth are built from those.
+    if let Some(ext) = race.replay.v2().lock().ext.as_ref() {
+        for (n, car) in ext.cars.iter().enumerate().take(MAX_CARS) {
+            race.shared.vars.get().race_car_kinds[n].set(car.kind);
+            race.car_blocks().cars[n].car_kind.set(car.kind);
         }
     }
     for (&text, &s) in NAMES.iter().zip(read_logged()) {

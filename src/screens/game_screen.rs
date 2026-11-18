@@ -183,13 +183,12 @@ pub fn player_name(name_at: u32) -> Result<HeldText, crate::errors::BadInput> {
         ))
 }
 
-/// A space and the tag of replay slot `slot` ("new": a file of the own format, "old": only the
-/// original's), none for a slot with no replay.
+/// A space and the tag of replay slot `slot`: "old" for a slot that holds only the original's
+/// format, none for a slot with a file of the own format or with no replay.
 fn replay_tag(o: &Owners<'static>, slot: u32) -> Vec<u8> {
-    use crate::race::replay::{SLOT_NEW, SLOT_OLD};
-    use rc2k_core::strings::own::id::{REPLAY_NEW, REPLAY_OLD};
+    use crate::race::replay::SLOT_OLD;
+    use rc2k_core::strings::own::id::REPLAY_OLD;
     let id = match o.race.shared.replays().kinds.get(slot as usize) {
-        SLOT_NEW => REPLAY_NEW,
         SLOT_OLD => REPLAY_OLD,
         _ => return Vec::new(),
     };

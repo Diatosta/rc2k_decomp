@@ -8,9 +8,9 @@ use crate::memory::session::{PlainDword, PlainFloat};
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct RaceView {
-    /// +0x0: the reflection coordinates kept (`scene::cached_reflection_coordinates`); now each
-    /// view's (`race::face_work::FaceWork`); unused.
-    pub reflections_kept: PlainDword,
+    /// +0x0: not 0 while a replay of a network race is viewed: the headlights then light the road
+    /// for the drawn view's car (`race::frame_draw::lights`), as a network race's for its own.
+    pub lights_follow_view: PlainDword,
     /// +0x4: unused; it only keeps the layout.
     pub unused_4: [PlainDword; 5],
     /// +0x18: the face's surface kinds (`race::course_faces`, `physics::wheel_surfaces`,

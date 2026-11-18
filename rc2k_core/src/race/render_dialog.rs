@@ -29,6 +29,17 @@ pub fn frame_rates(limits: &[FrameLimit], display_rate: f64) -> Vec<u32> {
     rates
 }
 
+/// The frame rates a video offers on a display of `refresh` Hz: the page's frame limits as with the
+/// smooth frames on (a video always blends the frames between two ticks, so the rates go up to the
+/// display's own whatever the page's smooth setting), and 30 and 60.
+pub fn video_rates(refresh: Option<f64>) -> Vec<u32> {
+    let limits = FrameLimit::choices(refresh, true);
+    frame_rates(
+        &limits,
+        crate::gfx::frame_limit::display_rate(refresh, true),
+    )
+}
+
 /// The rate when none was chosen.
 pub const DEFAULT_FPS: u32 = 60;
 
@@ -419,6 +430,14 @@ mod tests {
         assert!(rates.windows(2).all(|w| w[0] < w[1]));
         let limits = [FrameLimit::Off, FrameLimit::Rate(75)];
         assert_eq!(frame_rates(&limits, 60.0), [30, 60, 75]);
+    }
+
+    #[test]
+    fn a_video_offers_rates_up_to_the_display() {
+        assert_eq!(video_rates(Some(240.0)), [30, 60, 80, 120, 240]);
+        assert_eq!(video_rates(Some(144.0)), [30, 36, 48, 60, 72, 144]);
+        assert_eq!(video_rates(Some(60.0)), [30, 60]);
+        assert_eq!(video_rates(None), [30, 60]);
     }
 
     #[test]

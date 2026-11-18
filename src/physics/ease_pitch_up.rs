@@ -1,4 +1,4 @@
-//! Half the way from `camera_pitch` up to `pitch_ceiling` (unsigned halving), kept in
+//! Half the way from `camera_pitch` up to `pitch_ceiling` (signed halving), kept in
 //! `pitch_step` and added to the pitch. `physics::ease_pitch_down` is its twin towards
 //! `pitch_floor`.
 //!

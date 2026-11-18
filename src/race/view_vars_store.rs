@@ -70,8 +70,9 @@ pub struct ViewVars<K: CellKind = PlainCells> {
     pub view_kind: K::Dword,
     /// +0x188: unused; it only keeps the layout.
     pub unused_188: [K::Dword; 33],
-    /// +0x20c: the table of which views hide what, by camera view (`race::frame_draw`).
-    pub view_hides: [K::Dword; 34],
+    /// +0x20c: the table of which views hide what, by camera view (`race::frame_draw`): 0 for
+    /// the views near the car (the faces its ground marks are hidden), 1 for the others.
+    pub view_hides: [K::Dword; 52],
 }
 
 /// A view record (0x5C bytes; 52 of them, named by `ViewAndRecords.view_vars.view_records[0]`): one
@@ -113,46 +114,6 @@ pub struct ViewRecord {
 }
 
 impl ViewRecord {
-    /// The record's dword `n` (0 .. 23) in its order: what a read running on into the record by
-    /// dword sees (`race::frame_draw::course_view::face_hidden` for camera views past the view
-    /// hides table).
-    pub fn dword(&self, n: usize) -> Option<u32> {
-        let [o, f, a, s, r] = [
-            &self.offset,
-            &self.focus,
-            &self.angles,
-            &self.speeds,
-            &self.turn_rates,
-        ]
-        .map(|t| t.each_ref().map(PlainDword::get));
-        let words: [u32; 23] = [
-            self.kind.get(),
-            o[0],
-            o[1],
-            o[2],
-            f[0],
-            f[1],
-            f[2],
-            a[0],
-            a[1],
-            a[2],
-            s[0],
-            s[1],
-            s[2],
-            self.unknown_34.get(),
-            self.fish.get(),
-            self.change_time.get(),
-            r[0],
-            r[1],
-            r[2],
-            self.halve_tilt.get(),
-            self.fixed_zoom.get(),
-            self.height_bias.get(),
-            self.blend.get(),
-        ];
-        words.get(n).copied()
-    }
-
     /// The offset's three dwords (+0x4 .. +0xC).
     pub fn offset_bits(&self) -> [u32; 3] {
         self.offset.each_ref().map(PlainDword::get)
@@ -321,6 +282,24 @@ macro_rules! first_view_vars {
                 $dword::new(1),
                 $dword::new(1),
                 $dword::new(1),
+                $dword::new(1),
+                $dword::new(0),
+                $dword::new(0),
+                $dword::new(0),
+                $dword::new(0),
+                $dword::new(0),
+                $dword::new(0),
+                $dword::new(0),
+                $dword::new(1),
+                $dword::new(1),
+                $dword::new(1),
+                $dword::new(1),
+                $dword::new(1),
+                $dword::new(1),
+                $dword::new(1),
+                $dword::new(1),
+                $dword::new(0),
+                $dword::new(0),
             ],
         }
     };
@@ -648,20 +627,25 @@ mod tests {
     }
 
     #[test]
-    fn a_record_s_dwords_run_in_its_order() {
+    fn every_camera_view_has_its_own_hide_entry() {
         let places = crate::test_support::own::race()
             .frame
             .view_and_records
             .get();
-        let record = &places.records[0];
-        assert_eq!(record.dword(0), Some(record.kind.get()));
-        assert_eq!(record.dword(1), Some(record.offset[0].get()));
-        assert_eq!(record.dword(14), Some(record.fish.get()));
-        assert_eq!(record.dword(15), Some(record.change_time.get()));
-        assert_eq!(record.dword(22), Some(record.blend.get()));
-        assert_eq!(record.dword(23), None);
-        // The camera views past the view hides table (34 .. 51) all land in the first record.
-        let past = 52 - places.view_vars.view_hides.len();
-        assert!(record.dword(past - 1).is_some());
+        let hides: Vec<u32> = places
+            .view_vars
+            .view_hides
+            .iter()
+            .map(crate::memory::session::PlainDword::get)
+            .collect();
+        assert_eq!(hides.len(), 52);
+        // Near the car (views 0 .. 6) the ground's marks hide faces; the other views show them.
+        assert!(hides[..7].iter().all(|&shows| shows == 0));
+        assert!(hides[7..0x23].iter().all(|&shows| shows == 1));
+        // The replay's views: the cameras behind the car like views 4 .. 6, the fixed
+        // cameras like views 7 .. 10.
+        assert!(hides[0x23..0x2A].iter().all(|&shows| shows == 0));
+        assert!(hides[0x2A..0x32].iter().all(|&shows| shows == 1));
+        assert!(hides[0x32..].iter().all(|&shows| shows == 0));
     }
 }

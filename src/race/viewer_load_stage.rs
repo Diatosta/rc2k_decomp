@@ -108,6 +108,13 @@ pub fn viewer_load_stage(race: &'static Race, o: Owners<'static>) -> Result<(), 
         { stage_loading::load_stage(race, o) }?;
         race_end::reset_race_sounds(&race_end::SoundVars::game(sound), o)?;
         crate::race::viewer_palettes::viewer_palettes(shared, scene, gfx, o.system)?;
+        // A network race's replay lights the road for the car followed, as the race did for
+        // the machine's own car.
+        shared
+            .view
+            .get()
+            .lights_follow_view
+            .set((race.replay.v2().lock().state_mask() != 0) as u32);
         shared.replay_file().viewer_stage_loaded.set(1);
     }
     crate::input::take_key::take_key(o.input);

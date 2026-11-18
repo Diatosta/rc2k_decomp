@@ -246,12 +246,11 @@ fails the video is kept without sound and the log says so. A render never change
 the sound is only read from the mixer.
 
 **From the replay viewer.** Under the two rows of buttons the stopped viewer has a third row with
-one button, the snapshot button's camera picture. The down arrow from the lower row reaches it
-(up or left goes back to the buttons) and
+one button, the snapshot button's camera picture. The down arrow from any lower-row button, and from an upper-row button whose way down is greyed (the play button too), reaches it
+(up or left goes back to the button it came from) and
 Enter opens a dialog first (the error dialog's style): the size, the frames a second, the part of
 the replay (all of it, from the place shown to the end, or between the marks), the quality and the
-sound, each changed with Left and Right, then "render" or "cancel" (Escape). The size and the rates
-are those of the graphics page's lists; the video's file is `savedata/videos/replay_YYYY-MM-DD_HH-MM-SS.mp4`.
+sound, each changed with Left and Right, then "render" or "cancel" (Escape). The sizes are those of the graphics page's list; the rates go up to the display's refresh (a 240 Hz display offers 240, 120, 80, 60 and 30) whatever the page's smooth frames setting, since a video always blends the frames between ticks; the video's file is `savedata/videos/replay_YYYY-MM-DD_HH-MM-SS.mp4`.
 The choices but the part are kept in `var/rc2k.toml` (`[display.video]`: `size`, `fps`, `quality`,
 `sound`, each only when it is not the default).  The video is drawn at the size chosen: the game starts a second copy of itself for it (with `--render-replay` on a copy of the replay as it is viewed, no window and no sound device; it takes the next folder lock, so its log is `rc2k-2.log`), and the viewer shows a panel with the progress and a cancel button until it ends. Cancelling removes what was written. A render started this way (or from the command line) does not save the options or the best times.
 

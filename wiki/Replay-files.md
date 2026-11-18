@@ -437,10 +437,12 @@ room of `42000` bytes a second bounds it at 2.5 MB a minute). A race of eight ca
 their states once a second, about 0.5 MB a minute. The index holds 5400 blocks (90 minutes), three times the original's, so a long stage is not cut short; a race that fills it is closed there. The original's twin of a replay longer than 1800 blocks is written cut at its first 1800 blocks (30 minutes), as the original's recording would have ended; the own-format file keeps it whole.
 
 **Reading.** The viewer reads both formats: the version at `0x008` tells which (`0x50400` and `0x50401` the
-original's, `0x00020000` this one). The replays list marks each slot with "new" when it has an own-format
-file and "old" when it has only the original's (a replay copied in by hand); a slot with both loads the own-format
+original's, `0x00020000` this one). The replays list marks a slot "old" (after its name) when it has only the original's
+file (a replay copied in by hand), and shows an own-format slot's name alone; a slot with both loads the own-format
 file. A replay of the original's format that is viewed and saved is saved as it was (in the original's format
 alone).
+
+**Cars and lights in the viewer.** The header names four cars' models; the viewer takes every car's model from the `CARS` section (up to eight), so cars 4 and on are built, textured and drawn as in the race (before, they were built with a stale model: plain white or in pieces). In a replay of a network race the headlights light the road of the car followed (the drawn view's car), as the race lit the machine's own car's; before, only the first car's did.
 
 ### Sound and the split screen
 

@@ -376,30 +376,23 @@ fn stopped_key(
             _ => Next::Sound,
         });
     }
+    // Down from the lower row, or from an upper-row button whose way down is not open (the table
+    // has none, or the button under it is greyed): the render button, before the list moves the
+    // highlight sideways to some other button.
     if key == KEY_DOWN
-        && LOWER_ROW.contains(&list_state.choice.get())
         && race.shared.replay_file().index.block_count.get() != 0
+        && (LOWER_ROW.contains(&list_state.choice.get())
+            || way_down_closed(race, list, list_state.choice.get())?)
     {
         crate::race::render_row::select(true);
         return Ok(Next::Mark);
     }
-    let before = list_state.choice.get();
     let stepped = crate::menu::list_step::list_step(
         list_state,
         key,
         Some(ReplayViewBlock::key_table(&race.replay)?),
         list,
     )?;
-    // The down arrow from the upper row when the button under it is greyed (the list does not
-    // move): straight to the render button, as through any other lower button.
-    if key == KEY_DOWN
-        && list_state.choice.get() == before
-        && before < *LOWER_ROW.start()
-        && race.shared.replay_file().index.block_count.get() != 0
-    {
-        crate::race::render_row::select(true);
-        return Ok(Next::Mark);
-    }
     if stepped {
         return Ok(Next::Mark);
     }
@@ -427,6 +420,21 @@ fn stopped_key(
         .iter()
         .find(|&&(k, _)| k == key)
         .map_or(Next::Sound, |&(_, action)| Next::Action(action)))
+}
+
+/// Whether the down arrow from the upper-row item `from` leads nowhere: the key table has no
+/// way down from it, or the item it leads to is greyed.
+fn way_down_closed(race: &Race, list: ListMenu, from: u32) -> Result<bool, Refused> {
+    use crate::race::render_row::LOWER_ROW;
+    if from >= *LOWER_ROW.start() {
+        return Ok(false);
+    }
+    let entry = ReplayViewBlock::key_table(&race.replay)?
+        .add(from.wrapping_mul(4) + 1)
+        .read(1, "the viewer's key table")?[0];
+    Ok((entry as i8) < 0
+        || u32::from(entry) >= u32::from(list.count())
+        || rc2k_core::menu::list_menu::unusable(list.item(u32::from(entry)).first()))
 }
 
 /// After a move or an action: the items marked again, the highlight put where
