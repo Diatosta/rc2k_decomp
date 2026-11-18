@@ -9,14 +9,11 @@ pub mod batches;
 pub mod canvas_rows;
 pub mod choice;
 pub mod dump;
-#[cfg(any(test, not(target_os = "emscripten")))]
 pub mod gl_batching;
-#[cfg(not(target_os = "emscripten"))]
 pub mod gles;
 pub mod wash;
 // Built for tests on every machine; only the handheld's GL thread uses it.
 pub mod gpu_cut;
-#[cfg(any(test, not(target_os = "emscripten")))]
 pub mod gpu_time;
 // The handheld has no Vulkan: its GPU is reached through `gles`, by the same name here.
 #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
@@ -150,7 +147,6 @@ impl CommandList {
 
     /// The textures the fans read, each once, in the order they are first read (for the
     /// handheld's GL, which brings them up).
-    #[cfg(any(test, not(target_os = "emscripten")))]
     pub fn textures(&self) -> &[TextureNote] {
         &self.textures
     }
@@ -455,6 +451,80 @@ pub fn bring_back(target: &Target) {
     }
 }
 
+/// The frames of a video being rendered, read back from the GPU one frame behind the game: the
+/// frame just drawn is queued to come back, and the one queued the frame before is collected
+/// (the GPU has had a whole frame of the game's time to finish it).
+pub struct VideoRead {
+    /// The picture queued by the last call (`None` the first time, or after a call that did not
+    /// take the pipelined path).
+    pub previous: Option<Vec<u8>>,
+    /// Whether this frame is queued; if not the caller brings it back as `bring_back` does.
+    pub started: bool,
+}
+
+/// Collects the frame queued by the last call into `spare` (the buffer is kept in `previous`) and
+/// queues the frame now drawn. Only the Vulkan backend queues; any other leaves `started` false.
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+pub fn video_read_next(target: &Target, spare: Vec<u8>) -> VideoRead {
+    let mut read = VideoRead {
+        previous: None,
+        started: false,
+    };
+    let opengl = gles::GPU.lock().unwrap().is_some();
+    let mut gpu = gpu::GPU.lock().unwrap();
+    let Some(gpu) = gpu.as_mut() else {
+        return read;
+    };
+    // Whatever was queued comes first, so that the frames stay in order.
+    let mut buffer = spare;
+    match gpu.collect_video_read(&mut buffer) {
+        Ok(true) => read.previous = Some(buffer),
+        Ok(false) => {}
+        Err(why) => crate::logfile::program_log::log(&format!(
+            "render: the video's last frame did not come back: {why}"
+        )),
+    }
+    if !GPU_HOLDS_FRAME.load(Relaxed) || opengl {
+        return read;
+    }
+    // SAFETY: `Target::bytes`' promise: on the game's thread, which waits for this call, so
+    // nothing else reaches the canvas; no other slice of it lives (the frame's showing takes
+    // its own after this returns, `platform::with_frame`); the screen keeps its pixels.
+    let canvas = unsafe { target.bytes() };
+    let rows = canvas_rows::written_rows(target, canvas);
+    match gpu.start_video_read(Some(rows), canvas) {
+        Ok(()) => read.started = true,
+        Err(why) => crate::logfile::program_log::log(&format!(
+            "render: the video's frame did not start back: {why}"
+        )),
+    }
+    read
+}
+
+/// The handheld's panel has no pipelined read-back: every frame is brought back at once.
+#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+pub fn video_read_next(_target: &Target, _spare: Vec<u8>) -> VideoRead {
+    VideoRead {
+        previous: None,
+        started: false,
+    }
+}
+
+/// The last frame `video_read_next` queued, collected into `spare`; `None` when none is queued.
+/// The GPU is only tried, never waited for, so that a program ending in a fault cannot hang here.
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+pub fn video_read_last(spare: Vec<u8>) -> Option<Vec<u8>> {
+    let mut gpu = gpu::GPU.try_lock().ok()?;
+    let mut buffer = spare;
+    matches!(gpu.as_mut()?.collect_video_read(&mut buffer), Ok(true)).then_some(buffer)
+}
+
+/// The handheld's panel queues no frame (`video_read_next`): nothing is left to collect.
+#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+pub fn video_read_last(_spare: Vec<u8>) -> Option<Vec<u8>> {
+    None
+}
+
 /// Whether the frame ending now stays on the GPU: a race's always, a menu's when it drew 3D or
 /// kept its background on the GPU (`background`). Starts the next frame's count.
 fn frame_stays_on_gpu(course: &Course) -> bool {
@@ -628,17 +698,11 @@ pub(crate) fn gpu_stopped() {
 /// Whether the desktop's OpenGL backend is the one running (the handheld's GL ES is its GPU
 /// renderer, `gpu_running`).
 pub fn gl_running() -> bool {
-    #[cfg(not(any(
-        all(target_os = "linux", target_arch = "aarch64"),
-        target_os = "emscripten"
-    )))]
+    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
     {
         gles::GPU.lock().unwrap().is_some()
     }
-    #[cfg(any(
-        all(target_os = "linux", target_arch = "aarch64"),
-        target_os = "emscripten"
-    ))]
+    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
     {
         false
     }

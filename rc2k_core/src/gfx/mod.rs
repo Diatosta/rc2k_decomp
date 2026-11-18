@@ -3,6 +3,7 @@
 pub mod atlas;
 pub mod bars;
 pub mod blit;
+pub mod camera_frame;
 pub mod frame_limit;
 pub mod glyphs;
 pub mod loading;

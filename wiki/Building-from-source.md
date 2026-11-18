@@ -195,8 +195,37 @@ python3 dist/web/serve.py dist/web [port]
 
 The script runs `tools/web/build.sh` (the cargo step with Emscripten's link switches; its
 output is `target/web/wasm32-unknown-emscripten/release/rc2k.js` and `rc2k.wasm`) and gathers
-those two with the page (`tools/web/index.html`, `unzip.js`, `serve.py`) and the saves page (`saves.html`, `saves.js`) in `dist/web/`. This
-build starts but does not show a picture yet.
+those two with the page (`tools/web/index.html`, `unzip.js`, `serve.py`) and the saves page (`saves.html`, `saves.js`) in `dist/web/`.
+`CARGO_TARGET_DIR` overrides the target folder.
+
+State: the page copies the game folder (picked as a folder, or as its zip in one or several parts)
+into the browser's storage, the game runs on a
+worker and shows the menus and races on the page's canvases; keys reach the game. Films play. The
+switches of `rc2k --help` go in the address as `?args=--mode%20time-trial%20--stage%20Langton`
+(`--renderer software` forces the software rasteriser).
+
+- **Picture.** The GL renderer runs on WebGL 2 by default (the shaders are the handheld's GLES 3
+  ones). Its context is made from the GL thread on a second canvas (`#glcanvas`, over the game's
+  own). An `OffscreenCanvas` handed to a worker shows its frames only when the worker returns
+  to its event loop, which the GL thread (it waits on its queue) never does; so the context is
+  the page thread's and the GL thread's calls are proxied to it (`-sOFFSCREEN_FRAMEBUFFER`: the
+  frame is drawn into an off-screen frame buffer and `emscripten_webgl_commit_frame` copies it
+  onto the canvas at the frame's end). Where no
+  WebGL 2 context can be had, the log says so and the software rasteriser draws the 3D on the
+  game's own canvas (SDL puts each frame on it from the page's thread).
+- **Gamepads.** SDL's Emscripten gamepad driver reads the page's Gamepad API from the thread that
+  started it, which cannot be the worker (it has no `navigator.getGamepads`), so
+  `platform/web_pads.rs` samples the pads on the page's thread and copies each into an SDL
+  virtual joystick: a pad with the browser's standard layout becomes a virtual gamepad (menus,
+  button pictures and the game's controller code treat it as any gamepad), another a joystick of
+  its raw axes and buttons. As the browsers' rule is, a pad shows at its first button press.
+  Rumble is not carried over yet.
+- **Sound.** SDL's Web Audio output (a `ScriptProcessorNode` at the audio context's rate) takes
+  the game's mix; the context starts suspended where autoplay is blocked, the game goes on
+  with silence, and the first key or click resumes it.
+
+The web build has no network play: the main menu has no network item (the moves up and down pass
+over its place), no socket is opened and Steam is not there.
 
 ## Deploying
 

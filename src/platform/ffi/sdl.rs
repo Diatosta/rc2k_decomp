@@ -139,6 +139,12 @@ impl Window {
         }
     }
 
+    /// Whether both handles are the one window.
+    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    pub fn is_same(self, other: Window) -> bool {
+        self.0 == other.0
+    }
+
     /// Whether the window is hidden.
     #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
     pub fn is_hidden(self) -> bool {
@@ -678,10 +684,16 @@ pub fn destroy_renderer(renderer: Renderer) {
     unsafe { SDL_DestroyRenderer(renderer.0) };
 }
 
-/// The window's own renderer (SDL's choice of driver).
+/// The window's own renderer (SDL's choice of driver; the browser's is the software one, whose
+/// frames SDL puts on the page's canvas from the page's thread: a WebGL context cannot be made
+/// on the game's worker).
 pub fn create_renderer(window: Window) -> Option<Renderer> {
-    // SAFETY: the window SDL made; a null name lets SDL choose.
-    let raw = unsafe { SDL_CreateRenderer(window.0, std::ptr::null()) };
+    #[cfg(target_os = "emscripten")]
+    let name = c"software".as_ptr();
+    #[cfg(not(target_os = "emscripten"))]
+    let name = std::ptr::null();
+    // SAFETY: the window SDL made; a null name lets SDL choose, else a constant C text.
+    let raw = unsafe { SDL_CreateRenderer(window.0, name) };
     (!raw.is_null()).then_some(Renderer(raw))
 }
 

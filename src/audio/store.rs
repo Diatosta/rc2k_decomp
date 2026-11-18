@@ -1,6 +1,6 @@
 //! The audio module's variables, typed: each block is a struct of cells, one static a piece:
 //! - `AudioShared`, the part both the game's thread and the audio thread touch: the sound mode
-//!   and volumes, the voices (0x200 records of 0x70 bytes), the two stream players, the quality
+//!   and volumes, the voices (`VOICES` records), the two stream players, the quality
 //!   modes and the audio options the advanced page edits, the facts of the sound device the menus
 //!   show, the settings read from the file, `tune_turn`. The rest (the mixer's channels and
 //!   cursors, sample file and buffers, the device objects and ids, the voice lists) is the audio
@@ -48,7 +48,7 @@ pub struct AudioShared {
     /// The voices made so far.
     pub voice_count: Dword,
     /// The pool of voices (`audio::voices::Voice`).
-    pub voices: [Shared<Voice>; 512],
+    pub voices: [Shared<Voice>; VOICES as usize],
     /// The channels held by voices.
     pub channels_used: Dword,
     /// The work buffer's KB (`wavheapsize`).
@@ -148,7 +148,7 @@ impl AudioShared {
             mix_rate_setting: Dword::new(0xac44),
             master_volume: Dword::new(0x41),
             voice_count: Dword::new(0),
-            voices: [const { Shared::new(VOICE_FREE) }; 512],
+            voices: [const { Shared::new(VOICE_FREE) }; VOICES as usize],
             channels_used: Dword::new(0),
             sample_buffer_kb: Dword::new(0x400),
             sound_stream: Shared::new(AudioStream {
@@ -199,7 +199,9 @@ impl AudioShared {
     }
 }
 
-use rc2k_core::audio::voices::{BASE_SAMPLES, PLAYER_COPIES, SAMPLES};
+use rc2k_core::audio::voices::{
+    BASE_SAMPLES, CODRIVER_COPIES, CODRIVER_FIRST, PLAYER_COPIES, SAMPLES, VOICES,
+};
 
 const BASE_COUNT: usize = BASE_SAMPLES as usize;
 const SAMPLE_COUNT: usize = SAMPLES as usize;
@@ -320,12 +322,16 @@ const fn first_records() -> [SampleRecord; SAMPLE_COUNT] {
     let mut out = [base[0]; SAMPLE_COUNT];
     let mut n = 0;
     while n < SAMPLE_COUNT {
-        // The copies for the cars after the first two repeat the records of the engine sounds.
-        let mut record = base[if n < BASE_COUNT {
+        // The copies for the cars after the first two repeat the records of the engine sounds,
+        // then those of the co-driver's voices.
+        let from = if n < BASE_COUNT {
             n
-        } else {
+        } else if n < CODRIVER_COPIES as usize {
             (n - BASE_COUNT) % PLAYER_COPIES as usize
-        }];
+        } else {
+            n - CODRIVER_COPIES as usize + CODRIVER_FIRST as usize
+        };
+        let mut record = base[from];
         record.number = n as u32;
         out[n] = record;
         n += 1;

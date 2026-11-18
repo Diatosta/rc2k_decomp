@@ -3,7 +3,7 @@
 //! (`--allow-another`), or runs as a numbered instance with its own saved state (`--instance`). The words after the program's own name, as `menu::launch` takes them.
 
 /// The switches that take a value (the next word, or after `=`).
-pub const VALUED: [&str; 10] = [
+pub const VALUED: [&str; 11] = [
     "renderer",
     "instance",
     "game-data",
@@ -12,6 +12,7 @@ pub const VALUED: [&str; 10] = [
     "size",
     "fps",
     "quality",
+    "encoder",
     "from",
     "to",
 ];
@@ -42,6 +43,9 @@ pub struct Switches {
     pub fps: Option<u32>,
     /// `--quality`: how well the encoder keeps the picture.
     pub quality: Option<crate::race::render_dialog::Quality>,
+    /// `--encoder`: whether a hardware encoder may be used (`automatic`) or only the software
+    /// one (`software`).
+    pub encoder: Option<crate::race::render_dialog::VideoEncoder>,
     /// `--no-sound`: the video has no sound.
     pub no_sound: bool,
     /// `--from` and `--to`: the part of the replay to render, in hundredths of a second from its
@@ -156,6 +160,12 @@ impl Switches {
                 } else {
                     found.to_cs = Some(cs);
                 }
+            } else if key == "encoder" {
+                found.encoder = Some(
+                    crate::race::render_dialog::VideoEncoder::of(&value).ok_or_else(|| {
+                        format!("--encoder {value}: automatic or software is wanted")
+                    })?,
+                );
             } else if key == "quality" {
                 found.quality = Some(crate::race::render_dialog::Quality::of(&value).ok_or_else(
                     || format!("--quality {value}: low, medium, high or best is wanted"),
@@ -222,6 +232,12 @@ mod tests {
         assert_eq!(s.quality, Some(crate::race::render_dialog::Quality::Best));
         assert!(s.no_sound && !s.allow_another);
         assert!(Switches::from_args(&["--quality", "loud"]).is_err());
+        let s = Switches::from_args(&["--encoder=Software"]).unwrap();
+        assert_eq!(
+            s.encoder,
+            Some(crate::race::render_dialog::VideoEncoder::Software)
+        );
+        assert!(Switches::from_args(&["--encoder", "gpu"]).is_err());
         let s = Switches::from_args(&["--from", "12.5", "--to=90"]).unwrap();
         assert_eq!((s.from_cs, s.to_cs), (Some(1250), Some(9000)));
         assert!(Switches::from_args(&["--from", "-1"]).is_err());

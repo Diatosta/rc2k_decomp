@@ -9,6 +9,7 @@
     remote.py text Rafael Gonçalves      text typed as SDL's text input gives it (into a field being edited)
     remote.py down W / up W              a key held
     remote.py pad a [ms]                 a gamepad button (menus)
+    remote.py padaxis righty V           the stand-in gamepad's right stick, vertical (-32768 .. 32767; the save code page scrolls)
     remote.py joy attach|detach          a plain stand-in stick plugged in or out
     remote.py joy axis n v / button n 0|1   its axes and buttons
     remote.py joy rumble                 its motors as last set (heavy light, 0 .. 65535)
@@ -522,7 +523,7 @@ def main():
         sys.exit(0 if press(rest[0], float(rest[1]) if len(rest) > 1 else 5.0) else 1)
     elif command == 'log':
         log(int(rest[0]) if rest else 30)
-    elif command in ('key', 'text', 'down', 'up', 'pad', 'joy', 'state', 'cars', 'time', 'chat', 'renderer', 'invite', 'clipset', 'clipget', 'camframe'):
+    elif command in ('key', 'text', 'down', 'up', 'pad', 'padaxis', 'joy', 'state', 'cars', 'time', 'chat', 'renderer', 'invite', 'clipset', 'clipget', 'camframe'):
         print(ask(' '.join([command] + rest)))
     else:
         sys.exit(__doc__)

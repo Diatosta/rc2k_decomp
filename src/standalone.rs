@@ -315,8 +315,11 @@ pub fn finish_saying(why: &str, shown: &str, code: u32) -> ! {
 
 /// The process ended with `code`, the PGO build's counters written first.
 fn end(code: u32) -> ! {
-    // A video's file is closed first.
-    crate::video::finish();
+    // A video's file is closed first; a damaged one makes an end that went well a failed one.
+    let code = match (code, crate::video::finish()) {
+        (0, Some(damaged)) => damaged,
+        (code, _) => code,
+    };
     #[cfg(rc2k_pgo)]
     {
         crate::platform::ffi::pgo::write_profile();
@@ -668,12 +671,13 @@ fn program_switches_refused(args: &[String]) -> Option<String> {
             || switches.size.is_some()
             || switches.fps.is_some()
             || switches.quality.is_some()
+            || switches.encoder.is_some()
             || switches.no_sound
             || switches.from_cs.is_some()
             || switches.to_cs.is_some())
     {
         return Some(
-            "--out, --size, --fps, --quality, --no-sound, --from and --to go with --render-replay"
+            "--out, --size, --fps, --quality, --encoder, --no-sound, --from and --to go with --render-replay"
                 .into(),
         );
     }

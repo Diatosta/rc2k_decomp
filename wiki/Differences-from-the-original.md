@@ -23,11 +23,13 @@ the switches of the command line are on [Running and options](Running-and-option
 - **Lobby passwords, ping, un-ready and `/kick`** to put a player out: [Network play](#network-play).
 - **Computer drivers (bots) in network races**, switched by the host in the lobby: [Network play](#network-play).
 - **A player who leaves a network race** has their car taken out of it, with a message to the others, and **the other cars on the map disc**: [Network play](#network-play).
-- **A save code**: the player's state (settings, best times, car set-ups, saved games) as text and as a QR code on the options menu's new page, copied, pasted or read with a camera: [Save code](Save-code).
+- **A save code**: the player's saved games, car set-ups and best times (not the settings) as text and as QR codes on the options menu's new page, copied, pasted or read with a camera: [Save code](Save-code).
 - **Finding hosts over Tailscale**: [Network play](#network-play).
 - **Playing through Steam** (in progress): [Network play](#network-play).
 - **Replays rendered to a video**, from the viewer's camera button in a third row and from the command line:
   [Replays](#replays).
+- **The replay viewer names the highlighted button**: when the highlight moves, its name shows above the
+  buttons for a second: [Replays](#replays).
 - **A replay format of its own** that records every car of a race, up to eight, the computer's and the other
   machines' cars of a network race included, so that they replay where they were: [Replays](#replays).
 - **Three and four players on one screen**, a menu entry of their own in the single rally, the
@@ -210,6 +212,17 @@ Everything is on [Controllers](Controllers) and [Input](Input); in short:
 
 ## Replays
 
+- **The viewer names the highlighted button.** The original's viewer has only pictures on its buttons. Here,
+  when the highlight moves to another button (the arrows, the pad, and when the viewer opens on its play
+  button), the button's name shows centred just under the render button, so it hides nothing of the panel, in the
+  style of the car's warnings (their font and its dark outline, no box, as large relative to the screen on a
+  5120 x 1440 window as on 800 x 600), for about a second, then fades out over a quarter of a second, on the software
+  renderer too ("play", "back 1 second", "set the first
+  mark here", "next car or layout", "save the replay", "render to video", ...). The names of the three buttons
+  that change something say what pressing them does next: the HUD button of a car ("show car 1's HUD" or "hide
+  car 1's HUD"), and the speed button ("replay speed: half"). While a camera is being edited the label tells
+  the keys of the edit. Nothing shows while a replay plays, and a video rendered from a replay has no label. The
+  texts are our own, in `english.rc2k.toml` and `portuges.rc2k.toml` (`viewer.tip_*`).
 - **Replays can be rendered to a video**, with its sound: the viewer's "render to video" button
   (a third row under its two rows of buttons, showing the snapshot button's camera) opens a dialog
   in the error dialog's style before anything is rendered. Its rows, changed with Left and Right
@@ -218,14 +231,16 @@ Everything is on [Controllers](Controllers) and [Input](Input); in short:
   fit the desktop and a size set by hand), the **frames a second** (the rates of the graphics
   page's frame limit, and 30 and 60 whatever it lists), the **part** (the whole replay, from the
   place shown to the end, or between the viewer's marks when they are set), the **quality** (low,
-  medium, high, best: the encoder's constant rate factor 28, 23, 18, 12) and the **sound**. The
+  medium, high, best: the encoder's constant rate factor 28, 23, 18, 12), the **encoder** (automatic:
+  a graphics card's H.264 encoder when one works (up to 4096 pixels wide), else its AV1 encoder,
+  which makes a render about three times faster; or the software one only) and the **sound**. The
   folder and the file's name (`savedata/videos/replay_<date>_<time>.mp4`) are shown; they cannot
   be edited here (`--out` names any file from the command line). "Render" starts, "cancel" or Escape
   leaves the viewer as it was. The size, rate, quality and sound are kept in `var/rc2k.toml`
   (`[display.video]`) for next time; the part is not. The video is **drawn at the size chosen**
   (1440p or 4K are real 1440p and 4K frames, not an enlarged screen): the game starts a second copy
   of itself, with no window and no sound device, on a copy of the replay as it is viewed (edits
-  included) in `savedata/videos/`, and the viewer waits behind a panel with a bar, the frames written
+  included) in `savedata/videos/`, and the viewer waits behind a panel with a bar, the frames written, the speed, the time left
   and a cancel button. Cancelling (button, Escape or a click) ends the copy and removes everything it
   wrote; when it ends well a notice says the video is ready, and the viewer is where it was. The
   copy does not save the options or the best times. Without an `ffmpeg` on the path the frames are
@@ -271,7 +286,7 @@ or IPX connection), and Steam when Valve's library is beside the program (it is 
 - **The host's stage** is shown to everyone, every machine's loading progress is listed while a
   stage loads, and "NN%" shows a racing player's progress in the lobby; the chat is in one order
   on every machine. The other cars appear on the progress bar.
-- **A player who leaves a race** before finishing has their car taken out of it on every other machine and the others are told ("<name> left the race", in the race's message font, blinking); a finished player's car and time stay. The map disc shows the other players' cars (not the bots'). The loading screen's list of progress is a framed box inside the picture, at the left and half way down ([Network play](Network-play)).
+- **A player who leaves a race** before finishing has their car taken out of it on every other machine and the others are told ("<name> left the race", in the style of the car's warnings: the race's message font with its outline, no box, blinking); a finished player's car and time stay. The map disc shows the other players' cars (not the bots'). The loading screen's list of progress is a framed box inside the picture, at the left and half way down ([Network play](Network-play)).
 - **`/kick <name>`** in the chat: the host puts a player out.
 - The lobby has a "settings" button and, after a race, "save replay".
 - **The lobby's stage name** is on the line of the table's headings, in their font, not over the picture at the top left.
@@ -286,12 +301,13 @@ or IPX connection), and Steam when Valve's library is beside the program (it is 
 
 - Every file the original wrote keeps its format: replays, saved games, car set-ups, best times,
   `var/ral.cfg`.
-- **Save code**: the options menu's "save code" page shows the player's state (settings, best times, car
-  set-ups, saved games; not the replays) as a text on the left and a QR code of it on the right, with
+- **Save code**: the options menu's "save code" page shows the player's saved games, car set-ups and best
+  times (not the settings, not the replays) as a text on the left and a QR code of it on the right, with
   buttons to copy the text, paste one from the clipboard, and read one from a camera. A code that comes in
   is checked whole, and the player is asked, with what is in it beside what is here, before anything is
-  replaced. A QR code holds at most about 4,300 letters, so it leaves the saved games (and, for a long list
-  of best times, their split times) out; the text always has everything ([Save code](Save-code)).
+  replaced. A QR code holds at most about 4,300 letters; a longer code is cut into numbered parts, one QR
+  code each, stepped with Left and Right and read by the camera in any order. A saved game takes about
+  1,900 letters ([Save code](Save-code)).
 - **Errors.** An error that ends the game is shown on a panel in the game's window (the message,
   where the details are, "Quit"; Up / Down and Enter, or a pad's buttons) in place of the
   "Guru Meditation" box. Troubles belonging to one file no longer end the game: a damaged saved
@@ -327,7 +343,8 @@ or IPX connection), and Steam when Valve's library is beside the program (it is 
 - On macOS the installer makes a self-contained "Rally Championship.app" in Applications.
 - Builds: `./build.sh <target>`, and `build.ps1` on Windows itself ([Building from
   source](Building-from-source)).
-- The web build is experimental and does not show a picture yet.
+- The web build is experimental: it draws the 3D on WebGL 2 where the browser has it, takes
+  gamepads and plays the sound; it has no network play.
 
 ## Installing
 
@@ -363,8 +380,10 @@ or IPX connection), and Steam when Valve's library is beside the program (it is 
   view above two, three rows, three columns and quarters with the whole course's map in the fourth
   quarter (every car a square in its colour on it); the choice
   is kept in `rc2k.toml` (`split_layout`). Every player's pause binding asks the leave question and each
-  player's pad rumbles with that player's own car. Not yet: mirrors, the third and fourth players' signs, and
-  the co-driver's sounds follow the first two players only. Every player's car has its
+  player's pad rumbles with that player's own car. Not yet: mirrors. Every player has the co-driver: the pace notes are called
+  along each player's own car's progress, with a voice of its own for each player (the third and fourth players' voices
+  are copies of the voice records, named by their own co-driver voice setting), and each player's pace-note signs
+  show on their own part's HUD. Every player's car has its
   own engine, tyre, gear change and knock sounds, mixed together as the original mixes its two cars (each car
   heard at its own place, none placed by another player's view); the third and fourth cars' engine
   sounds are copies of their kinds' own, with a voice each. A race of three or four players keeps a replay (an extra tape for

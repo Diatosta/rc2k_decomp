@@ -22,6 +22,12 @@ pub struct Input {
     /// The answer a gamepad button gave to a yes / no question, for the question to take
     /// (`input::menu_pad::note_answer`).
     pub menu_answer: AtomicU32,
+    /// Which shoulder button gave the last Tab to the menus (1 left, 2 right): both give the
+    /// key, a page that scrolls tells them apart here (`take_shoulder`).
+    shoulder: std::sync::atomic::AtomicU8,
+    /// The right stick's vertical axis as last seen (-32768 .. 32767, down positive), for a
+    /// page that scrolls with it (`scroll_stick`).
+    scroll_axis: std::sync::atomic::AtomicI32,
     /// How many times the pad's A, B or Start (or a wheel's first two buttons) went down: what a
     /// loop that ends on any key reads for the pad (`pad_pressed_since`).
     pad_presses: AtomicU32,
@@ -71,6 +77,33 @@ pub struct InputMain {
 }
 
 impl Input {
+    /// A shoulder button went down (1 left, 2 right).
+    pub fn note_shoulder(&self, side: u8) {
+        self.shoulder
+            .store(side, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    /// The side of the shoulder button that gave the last Tab (1 left, 2 right; 0 for a
+    /// keyboard's), once.
+    pub fn take_shoulder(&self) -> u8 {
+        self.shoulder.swap(0, std::sync::atomic::Ordering::Relaxed)
+    }
+
+    /// The right stick's vertical axis moved to `value`.
+    pub fn note_scroll_stick(&self, value: i32) {
+        self.scroll_axis
+            .store(value, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    /// Which way the right stick leans: -1 up, 1 down, 0 within its dead zone.
+    pub fn scroll_stick(&self) -> i32 {
+        const LEAN: i32 = 16000;
+        match self.scroll_axis.load(std::sync::atomic::Ordering::Relaxed) {
+            v if v <= -LEAN => -1,
+            v if v >= LEAN => 1,
+            _ => 0,
+        }
+    }
     /// The pad's presses so far: a loop that ends on any key notes this at its start.
     pub fn pad_marker(&self) -> PadMarker {
         PadMarker {
@@ -122,6 +155,8 @@ impl Input {
             guids: InputGuids::new(),
             layouts: Mutex::new(Layouts::new()),
             menu_answer: AtomicU32::new(crate::input::menu_pad::NO_ANSWER),
+            shoulder: std::sync::atomic::AtomicU8::new(0),
+            scroll_axis: std::sync::atomic::AtomicI32::new(0),
             pad_presses: AtomicU32::new(0),
             pad_starts: AtomicU32::new(0),
             learn_back_since: std::sync::atomic::AtomicU64::new(0),

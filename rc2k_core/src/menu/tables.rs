@@ -110,8 +110,39 @@ mod tests {
         );
     }
 
-    const FROZEN_MENUS: u64 = 0x99fb_9122_70ac_77c7;
+    const FROZEN_MENUS: u64 = 0x3ff7_d743_8ad9_7751;
     const FROZEN_LISTS: u64 = 0xa9db_5fd8_cdce_a49a;
+
+    /// The options menu: its items from advanced to back follow in both directions.
+    #[test]
+    fn the_options_menu_runs_advanced_save_code_back() {
+        let menu = MENUS
+            .iter()
+            .find(|m| m.items.iter().any(|i| i.action == ItemFn::SaveCodeLoop))
+            .unwrap();
+        let by = |action| menu.items.iter().find(|i| i.action == action).unwrap();
+        let (advanced, save, back) = (
+            by(ItemFn::AdvancedLoop),
+            by(ItemFn::SaveCodeLoop),
+            by(ItemFn::GoBack),
+        );
+        assert_eq!(advanced.links[..2], [advanced.id - 1, save.id]);
+        assert_eq!(save.links[..2], [advanced.id, back.id]);
+        assert_eq!(back.links[..2], [save.id, 1]);
+        assert_eq!(menu.items[0].links[0], back.id);
+        // Items are named by their place in the menu (item `n` is the nth).
+        assert_eq!([advanced.id, save.id, back.id], [7, 8, 9]);
+        for (n, item) in menu.items.iter().enumerate() {
+            assert_eq!(item.id as usize, n + 1);
+            assert!(item.links[..2].iter().all(|&l| (1..=9).contains(&l)));
+        }
+        // Up from an item is the one above it, down the one below, with the ends joined.
+        for (n, item) in menu.items.iter().enumerate() {
+            let len = menu.items.len();
+            assert_eq!(item.links[0] as usize, (n + len - 1) % len + 1);
+            assert_eq!(item.links[1] as usize, (n + 1) % len + 1);
+        }
+    }
 
     #[test]
     fn the_lists_of_all_are_whole() {

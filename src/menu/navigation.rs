@@ -65,7 +65,7 @@ pub fn move_highlight(o: Owners<'static>, direction: Direction) -> Result<(), Re
                 let it = item_at(menus, n).map_err(|e| rc2k_core::Invalid(e.0))?;
                 Ok((it.fixed().links[way], it.skip_mark.get()))
             })?),
-            Link::To(n) => Some(n),
+            Link::To(n) => passing_hidden(menus, n, way)?,
             _ => None,
         };
         if let Some(t) = turned {
@@ -87,4 +87,33 @@ pub fn move_highlight(o: Owners<'static>, direction: Direction) -> Result<(), Re
         }
     }
     Ok(())
+}
+
+/// The item a sideways move lands on: the one its link names, but the web build's hidden
+/// item is passed by along the same link (`None`: nothing beyond it).
+#[cfg(target_os = "emscripten")]
+fn passing_hidden(
+    menus: &crate::menu::owner::Menus,
+    n: u32,
+    way: usize,
+) -> Result<Option<u32>, Refused> {
+    use rc2k_core::menu::navigation::{Link, link};
+    let it = item_at(menus, n)?;
+    if !crate::menu::web_limits::hidden(it.fixed()) {
+        return Ok(Some(n));
+    }
+    Ok(match link(it.fixed().links[way]) {
+        Link::To(over) => Some(over),
+        _ => None,
+    })
+}
+
+#[cfg(not(target_os = "emscripten"))]
+#[allow(clippy::unnecessary_wraps)] // the web build's version looks the item up and can refuse
+fn passing_hidden(
+    _menus: &crate::menu::owner::Menus,
+    n: u32,
+    _way: usize,
+) -> Result<Option<u32>, Refused> {
+    Ok(Some(n))
 }

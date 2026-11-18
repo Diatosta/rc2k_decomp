@@ -215,6 +215,12 @@ pub const SWITCHES: &[Switch] = &[
         Group::Replay,
     ),
     switch(
+        "--encoder",
+        Some("<automatic | software>"),
+        "which encoder writes the picture of --render-replay: a graphics card's when one works (default), or only the software one",
+        Group::Replay,
+    ),
+    switch(
         "--from",
         Some("<seconds>"),
         "where in the replay the render of --render-replay starts (seconds, like 12.5; default the start)",

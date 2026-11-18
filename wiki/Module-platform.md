@@ -35,7 +35,8 @@ Its own statics, not an owner: the window and the screen's pixels (`Screen` in
 One file per service, as in the table. `os/` holds what differs between Windows and the
 Unix-like systems. `ffi/` holds the bindings to C libraries (`sdl.rs`, `sdl_gpu.rs`,
 `sdl_input.rs`, `gl.rs`, `imgui.rs`, `win32.rs`, `unix.rs`); unsafe code that
-talks to them is kept there and in the files above. `web.rs` is the browser build's part,
+talks to them is kept there and in the files above. `web.rs` and `web_pads.rs` (the browser's gamepads copied into SDL's virtual joysticks) are the
+browser build's part,
 `arch.rs` the few processor-specific pieces.
 
 ## Calls and callers

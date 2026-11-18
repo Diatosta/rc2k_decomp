@@ -28,6 +28,10 @@ pub enum Permission {
         )
     )]
     Pending,
+    #[cfg_attr(
+        all(target_os = "linux", target_arch = "aarch64"),
+        allow(dead_code, reason = "the handheld has no camera to approve")
+    )]
     Approved,
     Denied,
 }
@@ -39,6 +43,7 @@ pub enum Permission {
 ))]
 mod real {
     use super::{Frame, Permission};
+    use rc2k_core::gfx::camera_frame::{Layout, frame_len, to_rgba};
     use sdl3_sys::everything::*;
 
     /// The camera subsystem started (it is left started); false when SDL has none.
@@ -69,10 +74,75 @@ mod real {
     /// An open camera.
     pub struct Camera(*mut SDL_Camera);
 
-    /// Opens camera `id` in the format it prefers.
+    /// How well a camera format suits (lower is better): the layouts `camera_frame` reads
+    /// itself first, the ones SDL converts after, the compressed one last (SDL decodes it, and
+    /// the frames have been seen garbled that way).
+    fn rank(format: SDL_PixelFormat) -> u32 {
+        if layout_of(format).is_some() {
+            0
+        } else if format == SDL_PIXELFORMAT_MJPG {
+            2
+        } else {
+            1
+        }
+    }
+
+    /// The layout of a pixel format `camera_frame` reads.
+    fn layout_of(format: SDL_PixelFormat) -> Option<Layout> {
+        let packed = |r, g, b| Some(Layout::Packed32 { r, g, b });
+        match format {
+            SDL_PIXELFORMAT_RGBA32 | SDL_PIXELFORMAT_RGBX32 => packed(0, 1, 2),
+            SDL_PIXELFORMAT_BGRA32 | SDL_PIXELFORMAT_BGRX32 => packed(2, 1, 0),
+            SDL_PIXELFORMAT_ARGB32 | SDL_PIXELFORMAT_XRGB32 => packed(1, 2, 3),
+            SDL_PIXELFORMAT_ABGR32 | SDL_PIXELFORMAT_XBGR32 => packed(3, 2, 1),
+            SDL_PIXELFORMAT_RGB24 => Some(Layout::Rgb24 { r: 0, g: 1, b: 2 }),
+            SDL_PIXELFORMAT_BGR24 => Some(Layout::Rgb24 { r: 2, g: 1, b: 0 }),
+            SDL_PIXELFORMAT_YUY2 => Some(Layout::Yuy2),
+            SDL_PIXELFORMAT_YVYU => Some(Layout::Yvyu),
+            SDL_PIXELFORMAT_UYVY => Some(Layout::Uyvy),
+            SDL_PIXELFORMAT_NV12 => Some(Layout::Nv12),
+            SDL_PIXELFORMAT_NV21 => Some(Layout::Nv21),
+            SDL_PIXELFORMAT_IYUV => Some(Layout::I420),
+            SDL_PIXELFORMAT_YV12 => Some(Layout::Yv12),
+            _ => None,
+        }
+    }
+
+    /// The format the camera is opened with: of the ones it lists, the best-ranked, and in that
+    /// rank the one nearest 640 x 480 (big enough for a QR code to be read, small enough to
+    /// convert and look at often), with the most frames a second.
+    fn best_spec(id: u32) -> Option<SDL_CameraSpec> {
+        let mut count = 0;
+        // SAFETY: SDL's array of `count` pointers to specs (null checked), each read once and
+        // the array freed here.
+        unsafe {
+            let list = SDL_GetCameraSupportedFormats(SDL_CameraID(id), &raw mut count);
+            if list.is_null() {
+                return None;
+            }
+            let specs: Vec<SDL_CameraSpec> =
+                std::slice::from_raw_parts(list, count.max(0) as usize)
+                    .iter()
+                    .filter(|p| !p.is_null())
+                    .map(|&p| *p)
+                    .collect();
+            SDL_free(list.cast());
+            specs.into_iter().min_by_key(|s| {
+                let area = i64::from(s.width) * i64::from(s.height);
+                let fps =
+                    i64::from(s.framerate_numerator) / i64::from(s.framerate_denominator.max(1));
+                (rank(s.format), (area - 640 * 480).abs(), -fps)
+            })
+        }
+    }
+
+    /// Opens camera `id` in the best format it lists (its own choice when it lists none).
     pub fn open(id: u32) -> Option<Camera> {
-        // SAFETY: an id from `devices`; a null spec asks for the camera's own choice.
-        let raw = unsafe { SDL_OpenCamera(SDL_CameraID(id), std::ptr::null()) };
+        let spec = best_spec(id);
+        let spec_ptr = spec.as_ref().map_or(std::ptr::null(), std::ptr::from_ref);
+        // SAFETY: an id from `devices`; the spec is one the camera listed, or null (its own
+        // choice).
+        let raw = unsafe { SDL_OpenCamera(SDL_CameraID(id), spec_ptr) };
         (!raw.is_null()).then_some(Camera(raw))
     }
 
@@ -86,46 +156,69 @@ mod real {
             }
         }
 
-        /// The newest frame, if the camera has one ready.
+        /// The newest frame as RGBA, if the camera has one ready: converted from the frame's
+        /// own format with its own row pitch, by `camera_frame` where it reads the layout and
+        /// by SDL's pixel conversion otherwise.
         pub fn frame(&mut self) -> Option<Frame> {
             let mut stamp = 0;
             // SAFETY: the handle is open; the frame is SDL's until released below, and is
-            // only read (converted into a surface of ours) in between.
+            // only read (copied out) in between.
             unsafe {
                 let frame = SDL_AcquireCameraFrame(self.0, &raw mut stamp);
                 if frame.is_null() {
                     return None;
                 }
-                let converted = SDL_ConvertSurface(frame, SDL_PIXELFORMAT_RGBA32);
+                let converted = convert(&*frame);
                 SDL_ReleaseCameraFrame(self.0, frame);
-                if converted.is_null() {
-                    return None;
-                }
-                let (w, h, pitch) = (
-                    (*converted).w.max(0) as usize,
-                    (*converted).h.max(0) as usize,
-                    (*converted).pitch.max(0) as usize,
-                );
-                let pixels = (*converted).pixels.cast::<u8>();
-                let mut rgba = Vec::with_capacity(w * h * 4);
-                if !pixels.is_null() && pitch >= w * 4 {
-                    for row in 0..h {
-                        // SAFETY (row): the converted surface holds `h` rows of `pitch` bytes,
-                        // each with `w` pixels of 4 bytes.
-                        rgba.extend_from_slice(std::slice::from_raw_parts(
-                            pixels.add(row * pitch),
-                            w * 4,
-                        ));
-                    }
-                }
-                SDL_DestroySurface(converted);
-                (rgba.len() == w * h * 4 && w > 0).then_some(Frame {
-                    width: w,
-                    height: h,
-                    rgba,
-                })
+                converted
             }
         }
+    }
+
+    /// A camera frame's surface as RGBA.
+    ///
+    /// # Safety
+    /// `surface` is a frame SDL holds for the caller: `pixels` points at a frame of its
+    /// format, `pitch` and height (the planes after the first laid out as SDL lays them).
+    unsafe fn convert(surface: &SDL_Surface) -> Option<Frame> {
+        let (w, h) = (surface.w.max(0) as usize, surface.h.max(0) as usize);
+        let pitch = surface.pitch.max(0) as usize;
+        if surface.pixels.is_null() || w == 0 || h == 0 {
+            return None;
+        }
+        let rgba = if let Some(layout) = layout_of(surface.format) {
+            let len = frame_len(layout, pitch, h)?;
+            // SAFETY: a frame of this format, pitch and height is `len` bytes (the caller's
+            // promise), alive for this call.
+            let data = unsafe { std::slice::from_raw_parts(surface.pixels.cast::<u8>(), len) };
+            to_rgba(layout, w, h, pitch, data)?
+        } else {
+            // SDL's own conversion, told the format and the pitch.
+            let mut out = vec![0u8; w * h * 4];
+            // SAFETY: the source is the frame's pixels as SDL laid them out; the destination
+            // is `w * h * 4` bytes at a pitch of `w * 4`.
+            let done = unsafe {
+                SDL_ConvertPixels(
+                    surface.w,
+                    surface.h,
+                    surface.format,
+                    surface.pixels,
+                    surface.pitch,
+                    SDL_PIXELFORMAT_RGBA32,
+                    out.as_mut_ptr().cast(),
+                    (w * 4) as i32,
+                )
+            };
+            if !done {
+                return None;
+            }
+            out
+        };
+        Some(Frame {
+            width: w,
+            height: h,
+            rgba,
+        })
     }
 
     impl Drop for Camera {

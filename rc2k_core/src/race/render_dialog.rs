@@ -54,6 +54,40 @@ pub enum Part {
     Marked,
 }
 
+/// Which encoder writes the picture.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum VideoEncoder {
+    /// The machine's own encoder when one works (a graphics card's), else the software one.
+    #[default]
+    Automatic,
+    /// Always the software encoder.
+    Software,
+}
+
+impl VideoEncoder {
+    pub const ALL: [VideoEncoder; 2] = [Self::Automatic, Self::Software];
+
+    /// The number of the choice in `ALL`.
+    pub fn index(self) -> usize {
+        Self::ALL.iter().position(|&e| e == self).unwrap_or(0)
+    }
+
+    /// The word `--encoder` uses.
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Automatic => "automatic",
+            Self::Software => "software",
+        }
+    }
+
+    /// The choice a word names.
+    pub fn of(name: &str) -> Option<Self> {
+        Self::ALL
+            .into_iter()
+            .find(|e| e.name().eq_ignore_ascii_case(name.trim()))
+    }
+}
+
 /// How good the picture is kept by the encoder (its constant rate factor: lower is better).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Quality {
@@ -108,6 +142,7 @@ pub struct Settings {
     pub fps: u32,
     pub part: Part,
     pub quality: Quality,
+    pub encoder: VideoEncoder,
     pub sound: bool,
 }
 
@@ -118,6 +153,7 @@ impl Default for Settings {
             fps: DEFAULT_FPS,
             part: Part::Whole,
             quality: Quality::default(),
+            encoder: VideoEncoder::default(),
             sound: true,
         }
     }
@@ -139,6 +175,11 @@ impl Settings {
                 .as_deref()
                 .and_then(Quality::of)
                 .unwrap_or(base.quality),
+            encoder: kept
+                .encoder
+                .as_deref()
+                .and_then(VideoEncoder::of)
+                .unwrap_or(base.encoder),
             sound: kept.sound.unwrap_or(base.sound),
         }
     }
@@ -150,6 +191,7 @@ impl Settings {
             size: self.size.map(|(w, h)| [w, h]),
             fps: (self.fps != base.fps).then_some(self.fps),
             quality: (self.quality != base.quality).then(|| self.quality.name().to_owned()),
+            encoder: (self.encoder != base.encoder).then(|| self.encoder.name().to_owned()),
             sound: (self.sound != base.sound).then_some(self.sound),
         }
     }
@@ -162,16 +204,18 @@ pub enum Row {
     FrameRate,
     Part,
     Quality,
+    Encoder,
     Sound,
     Render,
     Cancel,
 }
 
-pub const ROWS: [Row; 7] = [
+pub const ROWS: [Row; 8] = [
     Row::Size,
     Row::FrameRate,
     Row::Part,
     Row::Quality,
+    Row::Encoder,
     Row::Sound,
     Row::Render,
     Row::Cancel,
@@ -288,6 +332,7 @@ impl Dialog {
             Row::FrameRate => s.fps = step(&self.rates, s.fps, forward),
             Row::Part => s.part = step(parts, s.part, forward),
             Row::Quality => s.quality = step(&Quality::ALL, s.quality, forward),
+            Row::Encoder => s.encoder = step(&VideoEncoder::ALL, s.encoder, forward),
             Row::Sound => s.sound = !s.sound,
             Row::Render | Row::Cancel => {}
         }
@@ -496,6 +541,7 @@ mod tests {
             fps: 30,
             part: Part::FromHere,
             quality: Quality::Low,
+            encoder: VideoEncoder::Software,
             sound: false,
         };
         let kept = s.to_kept();
@@ -503,6 +549,7 @@ mod tests {
         assert_eq!(kept.fps, Some(30));
         assert_eq!(kept.quality.as_deref(), Some("low"));
         assert_eq!(kept.sound, Some(false));
+        assert_eq!(kept.encoder.as_deref(), Some("software"));
         // The part is not kept.
         assert_eq!(
             Settings::from_kept(&kept),
@@ -515,6 +562,7 @@ mod tests {
             size: None,
             fps: Some(0),
             quality: Some("loud".into()),
+            encoder: Some("quantum".into()),
             sound: None,
         };
         assert_eq!(Settings::from_kept(&odd), Settings::default());

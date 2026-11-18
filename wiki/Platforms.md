@@ -66,7 +66,7 @@ window. Measured speed is on [Performance](Performance).
 
 **Android.** Not an installer: an app (`rc2k-<abi>.apk`) with the game's files in its private storage. Touch controls in the race and gestures in the menus; the picture, sound and the game are the others'. [Android](Android) says how it is built, how to put the game's files in and what is not done.
 
-**Web.** Unfinished. The build and its test page are in `tools/web/`. The saves live in the
+**Web.** Unfinished (WebGL 2 picture, gamepads and sound work in headless Chrome; not yet checked on a phone). The build and its test page are in `tools/web/`. The saves live in the
 browser's private storage, which a browser may clear, so the page `saves.html` (linked from the
 start page) exports the `savedata/` folder, `var/hst.dat` and the settings (`var/ral.dat`,
 `var/ral.cfg`, `var/rc2k.toml`) as a zip to download or as text (the zip in base64) to copy, and

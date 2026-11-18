@@ -22,7 +22,6 @@ pub struct PipelineKey {
 }
 
 /// Which of a pipeline's states a key sets differently from the key before it.
-#[cfg(any(test, not(target_os = "emscripten")))]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct PipelineChange {
     pub cull: bool,
@@ -32,7 +31,6 @@ pub struct PipelineChange {
     pub colour: bool,
 }
 
-#[cfg(any(test, not(target_os = "emscripten")))]
 impl PipelineKey {
     /// The face a GL culling mode drops (`GL_FRONT` 0x0404 or `GL_BACK` 0x0405), `None` when
     /// culling is off.
@@ -111,7 +109,6 @@ pub const SECOND: i32 = 8;
 
 /// `source` with `defines` (whole `#define` lines) after its `#version` line, which must stay
 /// the first.
-#[cfg(any(test, not(target_os = "emscripten")))]
 pub fn with_defines(source: &str, defines: &str) -> String {
     match source.split_once('\n') {
         Some((version, rest)) => format!("{version}\n{defines}{rest}"),
@@ -121,7 +118,6 @@ pub fn with_defines(source: &str, defines: &str) -> String {
 
 /// What of one pass's values a pixel shader can be made for, in place of reading them for
 /// every pixel: values that draw the same pixels have the same kind.
-#[cfg(any(test, not(target_os = "emscripten")))]
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct PassKind {
     /// The alpha test's comparison (1 ..= 7); 0 when the test discards nothing.
@@ -135,7 +131,6 @@ pub struct PassKind {
     pub fog: bool,
 }
 
-#[cfg(any(test, not(target_os = "emscripten")))]
 impl PassKind {
     /// The kind of `values`; `discard_free`: the pass's alpha test is known to keep every pixel.
     pub fn of(values: &PixelValues, discard_free: bool) -> PassKind {
@@ -167,14 +162,12 @@ impl PassKind {
 
 /// What of a batch the scene's pixel shader can be made for: its pass's kind and, with a
 /// second pass, that one's.
-#[cfg(any(test, not(target_os = "emscripten")))]
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct ShaderKind {
     pub first: PassKind,
     pub second: Option<PassKind>,
 }
 
-#[cfg(any(test, not(target_os = "emscripten")))]
 impl ShaderKind {
     pub fn of(batch: &Batch) -> ShaderKind {
         ShaderKind {
@@ -295,7 +288,6 @@ pub const NO_TEXTURE: u16 = u16::MAX;
 
 impl Batches {
     /// Everything taken out, the vectors' room kept.
-    #[cfg(any(test, not(target_os = "emscripten")))]
     fn clear(&mut self) {
         let Batches {
             vertices,
@@ -328,22 +320,18 @@ impl Batches {
 
 /// Batches drawn and handed back (`give_back_batches`), their room kept for the next flushes:
 /// the vectors grown to a frame's fans are most of the batching's time.
-#[cfg(any(test, not(target_os = "emscripten")))]
 static SPARE_BATCHES: std::sync::Mutex<Vec<Batches>> = std::sync::Mutex::new(Vec::new());
 
 /// Batches kept at most: the ones in flight between the batching thread and the GL's, and the
 /// one being drawn.
-#[cfg(any(test, not(target_os = "emscripten")))]
 const SPARE_BATCHES_KEPT: usize = 4;
 
 /// Empty batches: drawn ones handed back, else new.
-#[cfg(any(test, not(target_os = "emscripten")))]
 fn spare_batches() -> Batches {
     SPARE_BATCHES.lock().unwrap().pop().unwrap_or_default()
 }
 
 /// Batches drawn: emptied and kept for the next flushes.
-#[cfg(any(test, not(target_os = "emscripten")))]
 pub fn give_back_batches(mut batches: Batches) {
     batches.clear();
     let mut spare = SPARE_BATCHES.lock().unwrap();
@@ -651,7 +639,6 @@ impl Batches {
     /// their textures are drawn as one when `same_array` says each pass's textures can be
     /// read in one draw. The order and the gathering's rule are `of`'s, so the picture is.
     /// With `fast_path`, each fan's batch is told what it can leave out (`fan_fast_path`).
-    #[cfg(any(test, not(target_os = "emscripten")))]
     pub fn of_layered(
         commands: &CommandList,
         width: u32,

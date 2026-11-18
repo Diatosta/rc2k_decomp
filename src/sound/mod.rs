@@ -10,6 +10,7 @@ pub mod car_hit_sound;
 pub mod car_slot_sounds;
 pub mod car_sounds;
 pub mod car_sounds_all;
+pub mod cue_players;
 pub mod drop_cue;
 pub mod exclusive_spot_voices;
 pub mod free_spot_voices;

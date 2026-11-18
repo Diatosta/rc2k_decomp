@@ -204,6 +204,13 @@ pub mod id {
     pub const RENDER_STARTING: u32 = FIRST + 0x103;
     pub const RENDER_DONE: u32 = FIRST + 0x104;
     pub const RENDER_FAILED: u32 = FIRST + 0x105;
+    /// The speed of the render ("{}" the frames a second) and the time it has left ("{}" as
+    /// minutes and seconds).
+    pub const RENDER_SPEED: u32 = FIRST + 0x170;
+    pub const RENDER_LEFT: u32 = FIRST + 0x171;
+    /// The dialog's encoder row and its two values (automatic, software).
+    pub const RENDER_ENCODER: u32 = FIRST + 0x172;
+    pub const RENDER_ENCODERS: u32 = FIRST + 0x173;
     /// The lead-in of the dialog that goes back to the main menu ("{}" the trouble).
     pub const BACK_TO_MENU: u32 = FIRST + 0xFF;
     /// The save code page (`save_code`): its texts follow each other from the options menu's
@@ -216,10 +223,6 @@ pub mod id {
     pub const SAVE_CODE_BACK: u32 = FIRST + 0x10B;
     pub const SAVE_CODE_KEYS: u32 = FIRST + 0x10C;
     pub const SAVE_CODE_QR_WHOLE: u32 = FIRST + 0x10D;
-    pub const SAVE_CODE_QR_NO_GAMES: u32 = FIRST + 0x10E;
-    pub const SAVE_CODE_QR_NO_LINES: u32 = FIRST + 0x10F;
-    pub const SAVE_CODE_QR_NO_RECORDS: u32 = FIRST + 0x110;
-    pub const SAVE_CODE_QR_NO_BEST: u32 = FIRST + 0x111;
     pub const SAVE_CODE_LENGTH: u32 = FIRST + 0x112;
     pub const SAVE_CODE_COPIED: u32 = FIRST + 0x113;
     pub const SAVE_CODE_CLIPBOARD_EMPTY: u32 = FIRST + 0x114;
@@ -232,8 +235,6 @@ pub mod id {
     pub const SAVE_CODE_NOW: u32 = FIRST + 0x11B;
     pub const SAVE_CODE_ROW_MADE: u32 = FIRST + 0x11C;
     pub const SAVE_CODE_ROW_PROGRAM: u32 = FIRST + 0x11D;
-    pub const SAVE_CODE_ROW_PLAYERS: u32 = FIRST + 0x11E;
-    pub const SAVE_CODE_ROW_RUNS: u32 = FIRST + 0x11F;
     pub const SAVE_CODE_ROW_BEST: u32 = FIRST + 0x120;
     pub const SAVE_CODE_ROW_SETUPS: u32 = FIRST + 0x121;
     pub const SAVE_CODE_ROW_GAMES: u32 = FIRST + 0x122;
@@ -244,6 +245,25 @@ pub mod id {
     pub const SAVE_CODE_NOT_HELD: u32 = FIRST + 0x127;
     pub const SAVE_CODE_CONFIRM_KEYS: u32 = FIRST + 0x128;
     pub const SAVE_CODE_NOTE: u32 = FIRST + 0x129;
+    /// The page's notes for a code of several QR codes ("{}" the count), a part's place
+    /// ("{}" its number, "{}" the count), the camera's progress ("{}" read, "{}" of how
+    /// many), the numbers read ("{}"), a part of another code, and a state too long for parts.
+    pub const SAVE_CODE_PARTS_NOTE: u32 = FIRST + 0x160;
+    pub const SAVE_CODE_PART_OF: u32 = FIRST + 0x161;
+    pub const SAVE_CODE_PARTS_READ: u32 = FIRST + 0x162;
+    pub const SAVE_CODE_PARTS_HELD: u32 = FIRST + 0x163;
+    pub const SAVE_CODE_PART_OTHER: u32 = FIRST + 0x164;
+    pub const SAVE_CODE_TOO_LONG: u32 = FIRST + 0x165;
+    /// The replay viewer's names of its buttons, shown when the highlight moves to one: the 26
+    /// buttons of the two rows in order, the render button, the name while a camera is edited
+    /// ("{}" the camera's number), a car's HUD shown or hidden ("{}" the car's number), and the
+    /// three replay speeds.
+    pub const VIEWER_TIPS: u32 = FIRST + 0x12A;
+    pub const VIEWER_TIP_RENDER: u32 = FIRST + 0x144;
+    pub const VIEWER_TIP_EDITING: u32 = FIRST + 0x145;
+    pub const VIEWER_TIP_HUD_SHOW: u32 = FIRST + 0x146;
+    pub const VIEWER_TIP_HUD_HIDE: u32 = FIRST + 0x147;
+    pub const VIEWER_TIP_SPEEDS: u32 = FIRST + 0x148;
 }
 
 /// Each text's file key and id.
@@ -331,6 +351,11 @@ pub const KEYS: &[(&str, u32)] = &[
     ("viewer.render_starting", id::RENDER_STARTING),
     ("viewer.render_done", id::RENDER_DONE),
     ("viewer.render_failed", id::RENDER_FAILED),
+    ("viewer.render_speed", id::RENDER_SPEED),
+    ("viewer.render_left", id::RENDER_LEFT),
+    ("viewer.render_encoder", id::RENDER_ENCODER),
+    ("viewer.render_encoder_automatic", id::RENDER_ENCODERS),
+    ("viewer.render_encoder_software", id::RENDER_ENCODERS + 1),
     ("dialog.error", id::DIALOG_ERROR),
     ("dialog.notice", id::DIALOG_NOTICE),
     ("dialog.quit", id::DIALOG_QUIT),
@@ -441,10 +466,6 @@ pub const KEYS: &[(&str, u32)] = &[
     ("save_code.back", id::SAVE_CODE_BACK),
     ("save_code.keys", id::SAVE_CODE_KEYS),
     ("save_code.qr_whole", id::SAVE_CODE_QR_WHOLE),
-    ("save_code.qr_no_games", id::SAVE_CODE_QR_NO_GAMES),
-    ("save_code.qr_no_lines", id::SAVE_CODE_QR_NO_LINES),
-    ("save_code.qr_no_records", id::SAVE_CODE_QR_NO_RECORDS),
-    ("save_code.qr_no_best", id::SAVE_CODE_QR_NO_BEST),
     ("save_code.length", id::SAVE_CODE_LENGTH),
     ("save_code.copied", id::SAVE_CODE_COPIED),
     ("save_code.clipboard_empty", id::SAVE_CODE_CLIPBOARD_EMPTY),
@@ -457,8 +478,6 @@ pub const KEYS: &[(&str, u32)] = &[
     ("save_code.now", id::SAVE_CODE_NOW),
     ("save_code.row_made", id::SAVE_CODE_ROW_MADE),
     ("save_code.row_program", id::SAVE_CODE_ROW_PROGRAM),
-    ("save_code.row_players", id::SAVE_CODE_ROW_PLAYERS),
-    ("save_code.row_runs", id::SAVE_CODE_ROW_RUNS),
     ("save_code.row_best", id::SAVE_CODE_ROW_BEST),
     ("save_code.row_setups", id::SAVE_CODE_ROW_SETUPS),
     ("save_code.row_games", id::SAVE_CODE_ROW_GAMES),
@@ -469,6 +488,45 @@ pub const KEYS: &[(&str, u32)] = &[
     ("save_code.not_held", id::SAVE_CODE_NOT_HELD),
     ("save_code.confirm_keys", id::SAVE_CODE_CONFIRM_KEYS),
     ("save_code.note", id::SAVE_CODE_NOTE),
+    ("save_code.parts_note", id::SAVE_CODE_PARTS_NOTE),
+    ("save_code.part_of", id::SAVE_CODE_PART_OF),
+    ("save_code.parts_read", id::SAVE_CODE_PARTS_READ),
+    ("save_code.parts_held", id::SAVE_CODE_PARTS_HELD),
+    ("save_code.part_other", id::SAVE_CODE_PART_OTHER),
+    ("save_code.too_long", id::SAVE_CODE_TOO_LONG),
+    ("viewer.tip_render", id::VIEWER_TIP_RENDER),
+    ("viewer.tip_editing", id::VIEWER_TIP_EDITING),
+    ("viewer.tip_hud_show", id::VIEWER_TIP_HUD_SHOW),
+    ("viewer.tip_hud_hide", id::VIEWER_TIP_HUD_HIDE),
+    ("viewer.tip_speed_normal", id::VIEWER_TIP_SPEEDS),
+    ("viewer.tip_speed_half", id::VIEWER_TIP_SPEEDS + 1),
+    ("viewer.tip_speed_quarter", id::VIEWER_TIP_SPEEDS + 2),
+    ("viewer.tip_0", id::VIEWER_TIPS),
+    ("viewer.tip_1", id::VIEWER_TIPS + 1),
+    ("viewer.tip_2", id::VIEWER_TIPS + 2),
+    ("viewer.tip_3", id::VIEWER_TIPS + 3),
+    ("viewer.tip_4", id::VIEWER_TIPS + 4),
+    ("viewer.tip_5", id::VIEWER_TIPS + 5),
+    ("viewer.tip_6", id::VIEWER_TIPS + 6),
+    ("viewer.tip_7", id::VIEWER_TIPS + 7),
+    ("viewer.tip_8", id::VIEWER_TIPS + 8),
+    ("viewer.tip_9", id::VIEWER_TIPS + 9),
+    ("viewer.tip_10", id::VIEWER_TIPS + 10),
+    ("viewer.tip_11", id::VIEWER_TIPS + 11),
+    ("viewer.tip_12", id::VIEWER_TIPS + 12),
+    ("viewer.tip_13", id::VIEWER_TIPS + 13),
+    ("viewer.tip_14", id::VIEWER_TIPS + 14),
+    ("viewer.tip_15", id::VIEWER_TIPS + 15),
+    ("viewer.tip_16", id::VIEWER_TIPS + 16),
+    ("viewer.tip_17", id::VIEWER_TIPS + 17),
+    ("viewer.tip_18", id::VIEWER_TIPS + 18),
+    ("viewer.tip_19", id::VIEWER_TIPS + 19),
+    ("viewer.tip_20", id::VIEWER_TIPS + 20),
+    ("viewer.tip_21", id::VIEWER_TIPS + 21),
+    ("viewer.tip_22", id::VIEWER_TIPS + 22),
+    ("viewer.tip_23", id::VIEWER_TIPS + 23),
+    ("viewer.tip_24", id::VIEWER_TIPS + 24),
+    ("viewer.tip_25", id::VIEWER_TIPS + 25),
 ];
 
 /// The English file, built in.

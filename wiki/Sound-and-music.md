@@ -158,6 +158,15 @@ During the race:
 
 Other spoken cues from the physics go through the same queue (`physics::queue_sound_cue`).
 
+Each of the first two players has a pair of voice records (the first player's co-driver speaks
+with one, the second's with the other, so both can speak at once). In a split screen of three or
+four players the third and fourth players have a pair of their own: copies of the 190 voice
+records after the engine sound copies, named by those players' voice settings and loaded
+with the race's sounds (`SoundList::Range`), so up to four co-drivers speak at the same time,
+each in its own cue queue (`sound::cue_players` says how many); the start's count down is spoken to them too. Their copies take the voice pool past the original's 0x200 voices to 0x240. The pace-note signs of every
+player's part are kept per view (`Panel::marks_of_view`). A split screen in the arcade and a
+replay keep the co-driver for the first two players only.
+
 ## Sound modes
 
 A **sound mode** is one number that says how sound is produced: the quality (sample rate), the

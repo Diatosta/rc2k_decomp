@@ -146,6 +146,19 @@ pub struct Panel {
     /// The players of a split screen of three or four (0 otherwise): each part's stage bar shows
     /// all of their markers, from `car_distances`.
     pub split_players: PlainDword,
+    /// The third and fourth views' marks (a split screen of three or four): the pace-note signs
+    /// their players' co-drivers call.
+    pub marks_more: [Marks; 2],
+}
+
+impl Panel {
+    /// View `view`'s marks (the first four views'; the third and fourth are the split screen's).
+    pub fn marks_of_view(&self, view: usize) -> &Marks {
+        match view {
+            0 | 1 => &self.marks[view],
+            _ => &self.marks_more[(view - 2).min(1)],
+        }
+    }
 }
 
 impl Panel {

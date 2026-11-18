@@ -5,7 +5,6 @@
 
 #[cfg(target_os = "android")]
 pub mod android;
-#[cfg(not(target_os = "emscripten"))]
 pub mod gl;
 #[cfg(debug_ui)]
 pub mod imgui;
