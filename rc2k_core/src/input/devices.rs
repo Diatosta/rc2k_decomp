@@ -94,6 +94,10 @@ pub enum CommandStep {
     BeginEffects,
 }
 
+/// The command that sets player 1's device up again for a race in progress (a phone's touch
+/// pad and a controller changing places).
+pub const SWITCH_COMMAND: u32 = 4;
+
 /// The steps of command `command` (`device` too for 1): 1 gives the device back and acquires it
 /// again; 2 (the race's end) turns the effects off and ends them, waits a tick, gives both devices
 /// back and stops reading them; 3 (the race's start) sets up and reads device 0, device 1 too
@@ -143,6 +147,20 @@ pub fn command_steps(
             v.extend([BeginEffects, Tick, EffectsOn(true)]);
             v
         }
+        // Player 1's device changed during a race: the effects ended, the device given back
+        // and set up for the controls it has now, the effects begun again.
+        4 => vec![
+            EffectsOn(false),
+            EndEffects,
+            Tick,
+            Release(0),
+            Reading(0, false),
+            SetUp(0),
+            Reading(0, true),
+            BeginEffects,
+            Tick,
+            EffectsOn(true),
+        ],
         _ => vec![],
     })
 }
@@ -181,6 +199,7 @@ mod tests {
         // Players 3 and 4: each apart from the earlier ones, set up and read.
         assert_eq!(command_steps(3, 0, 1, 2, 4).unwrap().len(), 8 + 6);
         assert_eq!(command_steps(2, 0, 0, 2, 4).unwrap().len(), 7 + 4);
+        assert_eq!(command_steps(4, 0, 0, 1, 1).unwrap().len(), 10);
         assert!(command_steps(9, 0, 0, 0, 1).unwrap().is_empty());
     }
 

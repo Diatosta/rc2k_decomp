@@ -100,8 +100,19 @@ fn next_event() -> Option<Event> {
         } else if let Some(finger) = finger_event(&event) {
             finger
         } else if let Some((id, button, down)) = event.gamepad_button() {
+            #[cfg(any(target_os = "android", target_os = "ios"))]
+            if down {
+                crate::platform::touch::pad_used(id);
+            }
             Event::Pad { id, button, down }
         } else if let Some((axis, value)) = event.gamepad_axis() {
+            // A stick pushed well off its rest, or a trigger pressed, is the controller used.
+            #[cfg(any(target_os = "android", target_os = "ios"))]
+            if value.unsigned_abs() > 16000
+                && let Some(id) = event.gamepad_axis_joystick()
+            {
+                crate::platform::touch::pad_used(id);
+            }
             use crate::input::menu_pad::StickAxis;
             let axis = match axis {
                 SDL_GAMEPAD_AXIS_LEFTX => StickAxis::X,
@@ -290,7 +301,14 @@ pub fn pump(o: crate::owners::Owners<'static>) {
     }
     let now = u64::from(crate::platform::os::ticks());
     #[cfg(any(target_os = "android", target_os = "ios"))]
-    crate::platform::touch::update(touch_controls_live(o.race), now);
+    {
+        // Player 1's controls changed hands (a controller used, a finger down in a race, a
+        // controller gone): the game's device for the car follows.
+        if crate::platform::touch::take_source_change() {
+            crate::input::device_ids::source_changed(o.menus, input, o.race, driving(o.race));
+        }
+        crate::platform::touch::update(touch_controls_live(o.race), now);
+    }
     #[cfg(touch_screen)]
     touch_tick(&o, now);
     if let Some(action) = lock_menu_pad().tick(now) {

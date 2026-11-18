@@ -388,6 +388,40 @@ fn steering(offset: f32) -> f32 {
     (magnitude - DEAD_ZONE) / (1.0 - DEAD_ZONE) * offset.signum()
 }
 
+/// Which controls player 1 of a phone or tablet drives with.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub enum Source {
+    /// Nothing has been used yet: the touch screen's pad stands in for the keyboard.
+    #[default]
+    Auto,
+    /// A finger touched the screen in a race: the touch screen's pad, whatever else is chosen.
+    Touch,
+    /// A real controller was used (a button, a stick pushed): it drives, with its own profile.
+    Pad,
+}
+
+/// The controller number (the game's own: 0 the keyboard, n the n-th of the controllers
+/// listed) player 1 drives with, given `current` (what the player has) and the numbers of the
+/// touch screen's pad and of the real controller to use (`None` when not listed).
+///
+/// `Auto`: only the keyboard (0) is replaced, by the touch pad. `Touch`: the touch pad. `Pad`:
+/// the keyboard or the touch pad is replaced by the real controller; another real controller
+/// the player chose is left.
+pub fn player_one_controller(
+    source: Source,
+    current: u32,
+    touch: Option<u32>,
+    pad: Option<u32>,
+) -> u32 {
+    match source {
+        Source::Auto if current == 0 => touch.unwrap_or(0),
+        Source::Auto => current,
+        Source::Touch => touch.unwrap_or(current),
+        Source::Pad if current == 0 || Some(current) == touch => pad.or(touch).unwrap_or(current),
+        Source::Pad => current,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -582,5 +616,23 @@ mod tests {
             taps.finger(&screen, Asked::Resume, 5, Phase::Up, one.0, one.1),
             Some(Answer::Yes)
         );
+    }
+
+    #[test]
+    fn player_one_follows_what_was_used() {
+        use Source::*;
+        // The keyboard becomes the touch pad until a controller is used.
+        assert_eq!(player_one_controller(Auto, 0, Some(3), Some(1)), 3);
+        assert_eq!(player_one_controller(Auto, 2, Some(3), Some(1)), 2);
+        // A controller used: it replaces the touch pad and the keyboard, not another chosen.
+        assert_eq!(player_one_controller(Pad, 3, Some(3), Some(1)), 1);
+        assert_eq!(player_one_controller(Pad, 0, Some(3), Some(1)), 1);
+        assert_eq!(player_one_controller(Pad, 2, Some(3), Some(1)), 2);
+        // It went away: the touch pad again.
+        assert_eq!(player_one_controller(Pad, 1, Some(3), None), 1);
+        assert_eq!(player_one_controller(Pad, 0, Some(3), None), 3);
+        // A finger: the touch pad whatever the player had.
+        assert_eq!(player_one_controller(Touch, 1, Some(3), Some(1)), 3);
+        assert_eq!(player_one_controller(Touch, 1, None, Some(1)), 1);
     }
 }
