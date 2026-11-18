@@ -14,8 +14,12 @@ pub const FILE: &str = "var\\install.cfg";
 /// Whether the program runs in the game's download folder (the CD's files, as it is
 /// bundled), not an installation: the game's data (`files\d\gfx\jade.bun`) but neither
 /// `var\ral.zog` nor `var\install.cfg`. The main loop then enters the installer (owner:
-/// the folder in place of a CD).
+/// the folder in place of a CD). Never on a phone or tablet.
 pub fn is_source_folder() -> bool {
+    // A phone plays a copied game folder where it is: there is no installer page to take.
+    if cfg!(any(target_os = "android", target_os = "ios")) {
+        return false;
+    }
     let here = |p: &str| crate::files::host_path(p.as_bytes()).exists();
     here("files\\d\\gfx\\jade.bun") && !here("var\\ral.zog") && !here(FILE)
 }

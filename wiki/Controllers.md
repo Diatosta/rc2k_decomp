@@ -297,7 +297,7 @@ springs and dampers a car nearly still has are the same either way. The row is g
 device without force feedback. It changes only what the device is told: the car does the same
 whichever way it is set.
 
-## The touch screen (Android)
+## The touch screen (Android, iOS)
 
 On a phone or tablet the touch screen is a gamepad of its own, listed as "Touch screen", and the first player drives with it when they have no other controller chosen. In a race the screen shows the controls over the picture: put a finger down anywhere in the left part and move it left or right to steer (past the full lock the middle follows the finger, so letting go of the lock is easy); GO and BRAKE on the right are the pedals, HAND the handbrake, + and - the gears, CAM the camera, II the pause (it asks to leave the stage, as Escape does). Several fingers work together. In the menus a tap chooses the item under the finger, a drag up or down moves along the list, a drag sideways steps a value, and BACK (or two fingers tapped together, or the Android back button) goes back. A real gamepad plugged in hides the overlay. [Android](Android) has the rest.
 

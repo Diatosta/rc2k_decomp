@@ -45,7 +45,7 @@ pub fn hud_inset(frame: (u32, u32)) -> [u32; 4] {
 /// The frame pixel under a window pixel (a touch or the pointer), for a frame of `frame` pixels
 /// shown in a window of `window` pixels as `frame_fit` places it; None outside the frame. The
 /// one mapping every pointing device uses.
-#[allow(dead_code)] // taken up by the touch input; the unit test below keeps it honest
+#[cfg(touch_screen)]
 pub fn window_to_frame(
     point: (f64, f64),
     frame: (u32, u32),
@@ -55,7 +55,7 @@ pub fn window_to_frame(
     screen_fit::window_to_frame(&frame_fit(frame, window, menu), frame, point)
 }
 
-#[cfg(test)]
+#[cfg(all(test, touch_screen))]
 mod tests {
     use super::*;
 
