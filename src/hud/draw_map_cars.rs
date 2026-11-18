@@ -10,7 +10,7 @@ use crate::hud::store::RectAt;
 use crate::race::owner_frame::Frame;
 
 /// The sprite sheet's small round marker (14 by 14).
-const RECT: u32 = 0x5D;
+pub(crate) const RECT: u32 = 0x5D;
 
 /// The markers of the disc of view `slot` (0 to 3), after the disc is set up (its turn and size are
 /// the disc's own). With `scaled` the markers shrink as the two players' layouts' sprites do.

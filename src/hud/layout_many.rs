@@ -9,7 +9,7 @@
 use crate::errors::Refused;
 use crate::hud::layout_common::{Keep, black_divider, keep, start_keep};
 use crate::hud::owner::{Hud, Pen};
-use crate::hud::store::texture;
+use crate::hud::store::{RectAt, texture};
 use crate::race::owner_frame::Frame;
 use rc2k_core::race::view::{PlayerPart, Split};
 
@@ -92,30 +92,27 @@ fn overview(
             from + (v.clamp(0.0, OVERVIEW_SIDE as f32) / OVERVIEW_SIDE as f32 * side) as u32
         };
         let (cx, cy) = (to_screen(x, left), to_screen(y, top));
-        let half = mark / 2;
-        solid(
+        // The map disc's own round marker, in the player's colour, scaled to the map's size.
+        let [_, _, w, h] = RectAt::number(crate::hud::draw_map_cars::RECT).read(hud)?;
+        let scale = f64::from(mark + 2) / f64::from(w.max(h).max(1));
+        let (w, h) = (
+            rc2k_core::hud::quads::scaled_size(w, scale),
+            rc2k_core::hud::quads::scaled_size(h, scale),
+        );
+        hud.block.texture.set(texture::SPRITES);
+        hud.block.quad.alpha.set(0xFF);
+        hud.block
+            .quad
+            .colour
+            .set(hud.block.marker_colours[player].get());
+        crate::hud::add_scaled_sprite::add_scaled_sprite_plain(
             frame,
             hud,
             pen,
-            [
-                cx.saturating_sub(half + 1),
-                cy.saturating_sub(half + 1),
-                cx + half + 1,
-                cy + half + 1,
-            ],
-            0,
-        )?;
-        solid(
-            frame,
-            hud,
-            pen,
-            [
-                cx.saturating_sub(half),
-                cy.saturating_sub(half),
-                cx + half,
-                cy + half,
-            ],
-            hud.block.marker_colours[player].get(),
+            cx.saturating_sub(w / 2),
+            cy.saturating_sub(h / 2),
+            RectAt::number(crate::hud::draw_map_cars::RECT),
+            [scale, scale],
         )?;
     }
     Ok(())
