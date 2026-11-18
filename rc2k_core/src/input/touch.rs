@@ -220,8 +220,16 @@ impl Controls {
                         let steer = steering((x - anchor) / reach);
                         self.fingers[n].role = Role::Wheel { anchor, steer, y };
                     }
-                    Role::Button(_) | Role::Nothing => {
-                        // A finger that slides from one button to the next presses the next.
+                    Role::Button(held) => {
+                        // A finger that slides from one button to the next presses the next; a
+                        // pedal stays held while the finger drifts off it onto nothing.
+                        let role = match self.role_for(x, y, now) {
+                            Role::Nothing if !held.latched() => Role::Button(held),
+                            role => role,
+                        };
+                        self.fingers[n].role = role;
+                    }
+                    Role::Nothing => {
                         let role = self.role_for(x, y, now);
                         self.fingers[n].role = role;
                     }
@@ -419,5 +427,29 @@ mod tests {
         assert!(c.wheel_position().is_some());
         c.resize(&Screen::new(1280.0, 720.0));
         assert!(c.wheel_position().is_none());
+    }
+
+    #[test]
+    fn a_pedal_stays_held_while_the_finger_drifts_off_it() {
+        let screen = phone();
+        let layout = Layout::new(&screen);
+        let mut controls = Controls::new(&screen);
+        let go = centre(layout.rect(Button::Throttle));
+        controls.finger(1, Phase::Down, go.0, go.1, 0);
+        assert!(controls.output(10).is_held(Button::Throttle));
+        // Off the pedal onto nothing: still held.
+        let off = (
+            layout.rect(Button::Throttle).x - 1.0,
+            layout.rect(Button::Throttle).y - 5.0,
+        );
+        controls.finger(1, Phase::Move, off.0, off.1, 20);
+        assert!(controls.output(30).is_held(Button::Throttle));
+        // Onto another button: that one.
+        let brake = centre(layout.rect(Button::Brake));
+        controls.finger(1, Phase::Move, brake.0, brake.1, 40);
+        let out = controls.output(50);
+        assert!(out.is_held(Button::Brake) && !out.is_held(Button::Throttle));
+        controls.finger(1, Phase::Up, brake.0, brake.1, 60);
+        assert!(!controls.output(70).is_held(Button::Brake));
     }
 }

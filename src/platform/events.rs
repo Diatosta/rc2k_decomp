@@ -283,7 +283,7 @@ pub fn pump(o: crate::owners::Owners<'static>) {
     }
     let now = u64::from(crate::platform::os::ticks());
     #[cfg(any(target_os = "android", target_os = "ios"))]
-    crate::platform::touch::update(driving(o.race), now);
+    crate::platform::touch::update(touch_controls_live(o.race), now);
     #[cfg(touch_screen)]
     touch_tick(&o, now);
     if let Some(action) = lock_menu_pad().tick(now) {
@@ -319,6 +319,15 @@ fn sync_text_input() {
 /// replay viewer a race is loaded, but its list is a menu: the pad works it as it works the menus.
 pub(crate) fn driving(race: &crate::race::owner::Race) -> bool {
     race.course.numbers.get().in_race.is_set() && race.shared.replay_file().hold_car_revs.get() == 0
+}
+
+/// Whether the race's own touch controls are live: a race is driven and no pause or question
+/// (`drive::pause_until_key`, `drive::quit_question`, which set `scene_switch`) waits for an
+/// answer. While one does, a finger is the menus' gestures: a tap is Enter (any key, yes), a
+/// double tap Escape (no).
+#[cfg(touch_screen)]
+pub(crate) fn touch_controls_live(race: &crate::race::owner::Race) -> bool {
+    driving(race) && race.shared.vars.get().scene_switch.get() == 0
 }
 
 /// The menus' side of the gamepads.
@@ -754,7 +763,7 @@ fn touch_tick(o: &crate::owners::Owners<'static>, now: u64) {
             .map(|screen| crate::platform::input_window(screen.window))
     };
     if let Some(window) = window
-        && !driving(o.race)
+        && !touch_controls_live(o.race)
     {
         crate::platform::touch_menu::tick(o, window, now);
     }
@@ -781,7 +790,7 @@ fn touch_finger(
     let Some(window) = window else {
         return;
     };
-    if driving(o.race) {
+    if touch_controls_live(o.race) {
         crate::platform::touch_menu::release_all();
         #[cfg(any(target_os = "android", target_os = "ios"))]
         crate::platform::touch::finger(window, id, phase, x, y, now);
