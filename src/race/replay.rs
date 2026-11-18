@@ -275,6 +275,10 @@ pub fn write_replay_block(race: &Race, system: &System, replay: &Replay) -> Resu
         full
     };
     if failed {
+        // The block is done with (written, or lost with the file): closing must not pad it out
+        // again, which would ask for a block past the index's last.
+        race.viewer_buffers().block_used.set(0);
+        replay.replay_view().frames_in_block.set(0);
         close_replay(race, system)?;
     }
     Ok(())

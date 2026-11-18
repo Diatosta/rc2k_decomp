@@ -985,3 +985,12 @@ has the same fixed addresses, but its network mode could not be run here to see 
 - **In game**: the computer's cars drive every road with the narrow road's slower speed table. With the wide way switched on, the cars on wide roads of the stages are about the same speed: in trials a stage's time changed by less than a percent either way, a pack of arcade rivals covered about one percent more of the course in the same time, and no car got stuck more often.
 - **Seen or read**: read in the code; the cars' times compared in trials (2026-11-18).
 - **Fix**: the flag is set only for a narrow road when the switch is on (`drive::computer_roads`); off, the original's way is kept so that races, replays and held tests are unchanged.
+
+## A replay that filled its index ended the game
+
+*Original*: `race::write_replay_block` and `race::close_replay`.
+
+- **What**: a replay's index has room for 1800 blocks of 100 frames. When the last one is written the replay is closed, and closing pads the block in progress out to 100 frames; but the block just written still counted as 100 frames in progress, so the padding filled a block past the index's last and wrote its place beyond the index.
+- **In game**: only on a stage that lasts about an hour of race time (a car stuck and never retired): the original wrote past the index; the conversion refused it and the game ended with an error.
+- **Seen or read**: seen 2026-11-18 in a long test run (a computer-driven car stuck for 180,000 ticks).
+- **Fix**: the written block is counted as done before the replay is closed, so the replay ends at its 1800 blocks and the race goes on (`race::replay`).
