@@ -59,6 +59,8 @@
             <array><string>AppIcon60x60</string><string>AppIcon76x76</string><string>AppIcon83.5x83.5</string></array>
         </dict>
     </dict>
+    <key>NSCameraUsageDescription</key>
+    <string>Scans a save code's QR picture.</string>
     <key>UIFileSharingEnabled</key>
     <true/>
     <key>LSSupportsOpeningDocumentsInPlace</key>

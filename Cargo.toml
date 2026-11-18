@@ -66,9 +66,10 @@ sdl3-sys = { version = "0.7", features = ["build-from-source-static", "no-sdl-ca
 
 # iOS (`tools/ios/README.md`): SDL's UIKit and Metal backends. SDL is linked as a library
 # built elsewhere (`ios-sdl-source` builds it from source, which needs Apple's SDK), so that
-# `cargo check --target aarch64-apple-ios` works without the SDK.
+# `cargo check --target aarch64-apple-ios` works without the SDK. SDL's camera is on (the save
+# code page's QR scan; its CoreMedia driver links AVFoundation, CoreMedia and CoreVideo).
 [target.'cfg(target_os = "ios")'.dependencies]
-sdl3-sys = { version = "0.7", features = ["no-sdl-camera"] }
+sdl3-sys = "0.7"
 
 # The handheld has neither X11 nor Wayland: SDL for its audio and joystick, the frames go to
 # the framebuffer (`handheld`).

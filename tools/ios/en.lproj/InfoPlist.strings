@@ -1,3 +1,6 @@
 /* The name under the icon on the home screen. */
 "CFBundleDisplayName" = "Rally Championship";
 "CFBundleName" = "Rally Championship";
+
+/* Asked by iOS when the save code page opens the camera. */
+"NSCameraUsageDescription" = "Scans a save code's QR picture.";

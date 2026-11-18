@@ -1,5 +1,5 @@
 //! SDL3's camera (`sdl3-sys`), for reading a QR code shown on another screen. Only where the
-//! SDL build has a camera subsystem (Linux on x86-64, Windows); elsewhere there are no cameras.
+//! SDL build has a camera subsystem (Linux on x86-64, Windows, iOS, Android); elsewhere there are no cameras.
 //!
 //! The handle is an opaque newtype made only by `open` and closed once by its `Drop`; it is
 //! used on the thread that opened it.
@@ -17,7 +17,7 @@ pub struct Frame {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Permission {
     #[cfg_attr(
-        not(any(windows, all(target_os = "linux", not(target_arch = "aarch64")))),
+        not(any(windows, target_os = "ios", target_os = "android", all(target_os = "linux", not(target_arch = "aarch64")))),
         allow(
             dead_code,
             reason = "only a real camera is ever still waiting for an answer"
@@ -25,14 +25,14 @@ pub enum Permission {
     )]
     Pending,
     #[cfg_attr(
-        not(any(windows, all(target_os = "linux", not(target_arch = "aarch64")))),
+        not(any(windows, target_os = "ios", target_os = "android", all(target_os = "linux", not(target_arch = "aarch64")))),
         allow(dead_code, reason = "only a real camera is ever approved")
     )]
     Approved,
     Denied,
 }
 
-#[cfg(any(windows, all(target_os = "linux", not(target_arch = "aarch64"))))]
+#[cfg(any(windows, target_os = "ios", target_os = "android", all(target_os = "linux", not(target_arch = "aarch64"))))]
 mod real {
     use super::{Frame, Permission};
     use sdl3_sys::everything::*;
@@ -43,17 +43,21 @@ mod real {
         unsafe { SDL_InitSubSystem(SDL_INIT_CAMERA) }
     }
 
-    /// The ids of the cameras SDL sees now.
+    /// The ids of the cameras SDL sees now, the back-facing ones first.
     pub fn devices() -> Vec<u32> {
         let mut count = 0;
-        // SAFETY: SDL's array of `count` ids (null checked), copied and freed here.
+        // SAFETY: SDL's array of `count` ids (null checked), copied and freed here; the position
+        // query takes an id SDL has just listed.
         unsafe {
             let ids = SDL_GetCameras(&raw mut count);
             if ids.is_null() {
                 return Vec::new();
             }
-            let copied = std::slice::from_raw_parts(ids, count.max(0) as usize).to_vec();
+            let mut copied = std::slice::from_raw_parts(ids, count.max(0) as usize).to_vec();
             SDL_free(ids.cast());
+            // The camera facing away from the person first (a phone's back camera reads a
+            // code on another screen); the sort is stable, so the others keep SDL's order.
+            copied.sort_by_key(|&id| SDL_GetCameraPosition(id) != SDL_CAMERA_POSITION_BACK_FACING);
             copied.into_iter().map(|id| id.0).collect()
         }
     }
@@ -128,7 +132,7 @@ mod real {
     }
 }
 
-#[cfg(not(any(windows, all(target_os = "linux", not(target_arch = "aarch64")))))]
+#[cfg(not(any(windows, target_os = "ios", target_os = "android", all(target_os = "linux", not(target_arch = "aarch64")))))]
 mod real {
     use super::{Frame, Permission};
 
