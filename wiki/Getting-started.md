@@ -13,5 +13,6 @@ For people who want to play the game or try a build. You need your own copy of
 | [Network play](Network-play) | Playing between machines, and what differs from the 1999 game. |
 | [The debug window](The-debug-window) | The developers' pages as a window over the game: how to open it and what each tab shows. |
 | [Platforms](Platforms) | What runs where, what each system needs, and each one's limits. |
+| [Android](Android) | The phone and tablet build: touch controls, building the app, the game's files. |
 
 If you want to build the program yourself, see [Building and running](Building-and-running).

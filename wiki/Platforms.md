@@ -12,6 +12,7 @@ What the program runs on, what each system needs, and what is different or missi
 | Linux, x86-64 | Built and run. One program with SDL linked in. |
 | macOS, Intel and Apple silicon | Builds as `Rally Championship.app`, one bundle for both processors. Tested less than the others. |
 | Anbernic RG34XXSP (handheld, 64-bit ARM Linux) | Built and run on Knulli and on the device's stock system. |
+| Android (phones and tablets, x86-64 and 64-bit ARM) | Begun: it builds as an `.apk`, starts in an emulator, plays a race with touch controls. Not yet run on a phone. See [Android](Android). |
 | Web (WebAssembly) | Experimental: it builds and starts, but does not show a picture yet. |
 
 The game itself is the same everywhere: the same menus, stages, physics, replays and save
@@ -62,6 +63,8 @@ bundle. The Metal renderer has been tested less than the Vulkan one.
 ([Installing the game](Installing-the-game)). The picture goes straight to the device's
 screen. The built-in pad works in the menus; MENU + START leaves the game. There is no debug
 window. Measured speed is on [Performance](Performance).
+
+**Android.** Not an installer: an app (`rc2k-<abi>.apk`) with the game's files in its private storage. Touch controls in the race and gestures in the menus; the picture, sound and the game are the others'. [Android](Android) says how it is built, how to put the game's files in and what is not done.
 
 **Web.** Unfinished. The build and its test page are in `tools/web/`. The saves live in the
 browser's private storage, which a browser may clear, so the page `saves.html` (linked from the

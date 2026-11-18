@@ -32,11 +32,22 @@ fn exists(base: &Path, rel: &str) -> bool {
 }
 
 fn kind_of(folder: &Path) -> Kind {
-    game_data::classify(|rel| exists(folder, rel))
+    let kind = game_data::classify(|rel| exists(folder, rel));
+    // The phone has no installer: the game's files are played where they are, whatever
+    // layout they came in.
+    if cfg!(target_os = "android") && kind == Kind::Source {
+        return Kind::Installed;
+    }
+    kind
 }
 
 /// Where a zip is unpacked: the user's data folder, in a folder of its own.
 fn staging_folder() -> PathBuf {
+    // On Android the game's own folder (the program runs in it): the zip is unpacked there.
+    #[cfg(target_os = "android")]
+    if let Ok(here) = std::env::current_dir() {
+        return here;
+    }
     let base = std::env::var_os("XDG_DATA_HOME")
         .or_else(|| std::env::var_os("LOCALAPPDATA"))
         .map(PathBuf::from)
@@ -110,6 +121,11 @@ fn game_folder(picked: &Path) -> Result<(PathBuf, Kind), String> {
     let folder = if picked.is_file() {
         let into = staging_folder();
         unpack(picked, &into)?;
+        // The copy of a file the Android picker named is not kept: it is as big as the game.
+        #[cfg(target_os = "android")]
+        if picked.file_name().is_some_and(|n| n == "picked.zip") {
+            let _ = std::fs::remove_file(picked);
+        }
         into
     } else {
         picked.to_path_buf()
@@ -139,6 +155,22 @@ fn game_folder(picked: &Path) -> Result<(PathBuf, Kind), String> {
         })
 }
 
+/// What the picker gave as a path: Android's picker names a `content://` address, copied to a
+/// file beside the game's folder first (and the folders it cannot name are refused).
+fn local_copy(picked: &str) -> Result<String, String> {
+    #[cfg(target_os = "android")]
+    if picked.starts_with("content://") {
+        let to = staging_folder().join("picked.zip");
+        let size = crate::platform::ffi::sdl::copy_content(picked, &to)?;
+        eprintln!(
+            "rc2k: the picked file ({size} bytes) is copied to {}",
+            to.display()
+        );
+        return Ok(to.to_string_lossy().into_owned());
+    }
+    Ok(picked.to_string())
+}
+
 /// A folder with no game data in the current folder is replaced by the one picked (the program
 /// goes on there), or the program ends when none is picked.
 pub fn find_game_data(given: Option<&str>) {
@@ -148,6 +180,14 @@ pub fn find_game_data(given: Option<&str>) {
         return;
     }
     if cfg!(target_os = "emscripten") || kind_of(Path::new(".")) != Kind::Nothing {
+        return;
+    }
+    // The app's folder held a zip of the game's folder: the game is the folder just inside.
+    #[cfg(target_os = "android")]
+    if let Ok((folder, _)) = game_folder(Path::new("."))
+        && std::env::set_current_dir(&folder).is_ok()
+    {
+        eprintln!("rc2k: the game's data is in {}", folder.display());
         return;
     }
     let mut wish = given.map(str::to_string);
@@ -162,6 +202,17 @@ pub fn find_game_data(given: Option<&str>) {
                     std::process::exit(1);
                 }
             },
+        };
+        let picked = match local_copy(&picked) {
+            Ok(path) => path,
+            Err(why) => {
+                eprintln!("rc2k: {why}");
+                if given.is_some() {
+                    std::process::exit(1);
+                }
+                message = why;
+                continue;
+            }
         };
         match game_folder(Path::new(&picked)) {
             Ok((folder, kind)) => {
@@ -200,12 +251,17 @@ fn page(message: &str) -> Option<String> {
     }
     let window = sdl::create_window(c"Rally Championship", 960, 540)?;
     let renderer = sdl::create_renderer(window)?;
-    renderer.set_scale(2.0);
-    // The buttons in the page's units (the window is 480 by 270 of them).
+    // The page is 480 by 270 units, as large as the window allows (2 pixels a unit on the
+    // 960 x 540 window of a desktop).
+    let scale = window
+        .pixel_size()
+        .map_or(2.0, |(_, height)| (height as f32 / 270.0).max(1.0));
+    renderer.set_scale(scale);
+    // The buttons in the page's units.
     let folder = [40.0, 150.0, 190.0, 30.0];
     let zip = [250.0, 150.0, 190.0, 30.0];
     let inside = |(x, y): (f32, f32), r: [f32; 4]| {
-        let (x, y) = (x / 2.0, y / 2.0);
+        let (x, y) = (x / scale, y / scale);
         x >= r[0] && x < r[0] + r[2] && y >= r[1] && y < r[1] + r[3]
     };
     let mut shown = message.to_string();
@@ -225,7 +281,11 @@ fn page(message: &str) -> Option<String> {
             }
             if let Some(at) = event.click() {
                 if inside(at, folder) {
-                    sdl::show_open_dialog(window, true);
+                    if cfg!(target_os = "android") {
+                        shown = "Folders cannot be picked here: pick a zip.".to_string();
+                    } else {
+                        sdl::show_open_dialog(window, true);
+                    }
                 } else if inside(at, zip) {
                     sdl::show_open_dialog(window, false);
                 }

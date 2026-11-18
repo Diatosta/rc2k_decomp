@@ -52,6 +52,10 @@ impl WindowMode {
 static MODE: AtomicU8 = AtomicU8::new(0);
 
 pub fn get() -> WindowMode {
+    // A phone's window is always over the whole screen.
+    if cfg!(target_os = "android") {
+        return WindowMode::Borderless;
+    }
     WindowMode::ALL[usize::from(MODE.load(Relaxed)).min(WindowMode::ALL.len() - 1)]
 }
 

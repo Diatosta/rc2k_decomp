@@ -23,6 +23,10 @@ fn waiting() -> std::sync::MutexGuard<'static, Invites<Invite>> {
 }
 
 /// An invitation has arrived.
+#[cfg_attr(
+    not(steam_support),
+    allow(dead_code, reason = "only Steam's lobbies invite")
+)]
 pub fn offer(invite: Invite) {
     waiting().offer(invite);
 }
@@ -32,7 +36,9 @@ pub fn offer(invite: Invite) {
 fn note_launch_argument() {
     static ONCE: std::sync::Once = std::sync::Once::new();
     ONCE.call_once(|| {
-        if let Some(lobby) = crate::net::steam::connect_lobby_argument(crate::platform::os::program_args()) {
+        if let Some(lobby) =
+            crate::net::steam::connect_lobby_argument(crate::platform::os::program_args())
+        {
             offer(Invite {
                 provider: crate::net::steam::PROVIDER,
                 instance: Some(crate::net::steam::lobby_instance(lobby)),

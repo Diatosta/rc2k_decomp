@@ -1,5 +1,5 @@
 //! SDL3's camera (`sdl3-sys`), for reading a QR code shown on another screen. Only where the
-//! SDL build has a camera subsystem (Linux on x86-64, Windows); elsewhere there are no cameras.
+//! SDL build has a camera subsystem (Linux on x86-64, Windows, Android); elsewhere there are no cameras.
 //!
 //! The handle is an opaque newtype made only by `open` and closed once by its `Drop`; it is
 //! used on the thread that opened it.
@@ -17,7 +17,11 @@ pub struct Frame {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Permission {
     #[cfg_attr(
-        not(any(windows, all(target_os = "linux", not(target_arch = "aarch64")))),
+        not(any(
+            windows,
+            target_os = "android",
+            all(target_os = "linux", not(target_arch = "aarch64"))
+        )),
         allow(
             dead_code,
             reason = "only a real camera is ever still waiting for an answer"
@@ -28,7 +32,11 @@ pub enum Permission {
     Denied,
 }
 
-#[cfg(any(windows, all(target_os = "linux", not(target_arch = "aarch64"))))]
+#[cfg(any(
+    windows,
+    target_os = "android",
+    all(target_os = "linux", not(target_arch = "aarch64"))
+))]
 mod real {
     use super::{Frame, Permission};
     use sdl3_sys::everything::*;
@@ -124,7 +132,11 @@ mod real {
     }
 }
 
-#[cfg(not(any(windows, all(target_os = "linux", not(target_arch = "aarch64")))))]
+#[cfg(not(any(
+    windows,
+    target_os = "android",
+    all(target_os = "linux", not(target_arch = "aarch64"))
+)))]
 mod real {
     use super::{Frame, Permission};
 

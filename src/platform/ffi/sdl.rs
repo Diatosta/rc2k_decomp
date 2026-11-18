@@ -598,15 +598,14 @@ pub fn display_modes(window: Option<Window>) -> DisplayModes {
 
 /// A window of the given size with a title.
 pub fn create_window(title: &std::ffi::CStr, width: usize, height: usize) -> Option<Window> {
-    // SAFETY: a NUL-ended title; plain sizes and no flags.
-    let raw = unsafe {
-        SDL_CreateWindow(
-            title.as_ptr(),
-            width as i32,
-            height as i32,
-            SDL_WindowFlags(0),
-        )
+    // A phone's window covers the whole screen, under no system bars.
+    let flags = if cfg!(target_os = "android") {
+        SDL_WINDOW_FULLSCREEN
+    } else {
+        SDL_WindowFlags(0)
     };
+    // SAFETY: a NUL-ended title; plain sizes and SDL's own flags.
+    let raw = unsafe { SDL_CreateWindow(title.as_ptr(), width as i32, height as i32, flags) };
     (!raw.is_null()).then_some(Window(raw))
 }
 
@@ -999,6 +998,36 @@ pub fn show_open_dialog(window: Window, folder: bool) {
             );
         }
     }
+}
+
+/// What a picked `content://` address (Android's file picker) holds, copied to the file `to`
+/// through SDL's own reading of it; the length copied.
+#[cfg(target_os = "android")]
+pub fn copy_content(uri: &str, to: &std::path::Path) -> Result<u64, String> {
+    use std::io::Write;
+    let name = std::ffi::CString::new(uri).map_err(|e| e.to_string())?;
+    // SAFETY: a NUL-ended name that lives over the call; null (failure) checked.
+    let stream = unsafe { SDL_IOFromFile(name.as_ptr(), c"rb".as_ptr()) };
+    if stream.is_null() {
+        return Err(format!("{uri} cannot be opened"));
+    }
+    let mut out = std::fs::File::create(to).map_err(|e| format!("{}: {e}", to.display()))?;
+    let mut buffer = vec![0u8; 1 << 20];
+    let mut total = 0u64;
+    let result = loop {
+        // SAFETY: the stream just opened; SDL writes at most the buffer's length into it.
+        let got = unsafe { SDL_ReadIO(stream, buffer.as_mut_ptr().cast(), buffer.len()) };
+        if got == 0 {
+            break Ok(total);
+        }
+        if let Err(e) = out.write_all(&buffer[..got]) {
+            break Err(format!("{}: {e}", to.display()));
+        }
+        total += got as u64;
+    };
+    // SAFETY: the stream opened above, closed once.
+    unsafe { SDL_CloseIO(stream) };
+    result
 }
 
 /// The answer of the dialog shown, once it has one: the path, or none when it was cancelled.

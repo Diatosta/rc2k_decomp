@@ -35,7 +35,7 @@ the switches of the command line are on [Running and options](Running-and-option
 - **Straight into a race, a replay or the lobby** from the command line: [Running](#running).
 - **Errors shown on a panel** in the window, and damaged files no longer ending the game:
   [Saves and files](#saves-and-files).
-- **Linux, macOS and a handheld** as well as Windows: [Platforms](#platforms).
+- **Linux, macOS, a handheld and (begun) Android** as well as Windows: [Platforms](#platforms). On Android the race has **touch controls** (a steering area, pedals, handbrake, gears, camera, pause) and the menus take taps and drags: [Android](Android).
 
 ## What is underneath
 

@@ -253,7 +253,10 @@ unsafe extern "C" fn on_signal(
 ///
 /// # Safety
 /// `context` is the signal handler's, live during the call.
-#[cfg(all(any(target_os = "linux", target_os = "android"), target_arch = "aarch64"))]
+#[cfg(all(
+    any(target_os = "linux", target_os = "android"),
+    target_arch = "aarch64"
+))]
 unsafe fn fault_registers(context: *const libc::ucontext_t) -> (usize, bool, usize) {
     // SAFETY: the caller's context.
     let c = unsafe { &(*context).uc_mcontext };
@@ -265,7 +268,10 @@ unsafe fn fault_registers(context: *const libc::ucontext_t) -> (usize, bool, usi
 ///
 /// # Safety
 /// `context` is the signal handler's, live during the call.
-#[cfg(all(any(target_os = "linux", target_os = "android"), not(target_arch = "aarch64")))]
+#[cfg(all(
+    any(target_os = "linux", target_os = "android"),
+    not(target_arch = "aarch64")
+))]
 unsafe fn fault_registers(context: *const libc::ucontext_t) -> (usize, bool, usize) {
     // SAFETY: the caller's context.
     let regs = unsafe { &(*context).uc_mcontext.gregs };

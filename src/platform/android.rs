@@ -39,9 +39,11 @@ pub fn main() -> i32 {
     }
     let _ = ARGS.set(words);
     let game = storage.join("game");
-    if let Err(e) = std::fs::create_dir_all(&game).and_then(|()| std::env::set_current_dir(&game))
-    {
-        eprintln!("rc2k: the game's folder {} cannot be entered: {e}", game.display());
+    if let Err(e) = std::fs::create_dir_all(&game).and_then(|()| std::env::set_current_dir(&game)) {
+        eprintln!(
+            "rc2k: the game's folder {} cannot be entered: {e}",
+            game.display()
+        );
         return 1;
     }
     eprintln!("rc2k: the game's folder is {}", game.display());

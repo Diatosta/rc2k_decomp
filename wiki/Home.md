@@ -22,6 +22,7 @@ read and write the game's files.
 - [Network play](Network-play): a game between machines.
 - [The debug window](The-debug-window): the developers' pages as a window over the game.
 - [Platforms](Platforms): what runs where.
+- [Android](Android): the phone and tablet build: the touch controls, building the app, putting the game's files in.
 
 ## Building and running from source
 
