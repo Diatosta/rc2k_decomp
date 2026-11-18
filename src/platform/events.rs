@@ -30,7 +30,27 @@ enum Event {
     },
     /// Typed text (UTF-8).
     Text(String),
+    /// A finger on the touch screen.
+    #[cfg(touch_screen)]
+    Finger {
+        id: u64,
+        phase: rc2k_core::input::menu_touch::Phase,
+        x: f32,
+        y: f32,
+    },
     Other,
+}
+
+/// A finger's change as an event (touch screens only).
+#[cfg(touch_screen)]
+fn finger_event(event: &sdl::PolledEvent) -> Option<Event> {
+    let (id, phase, x, y) = event.finger()?;
+    Some(Event::Finger { id, phase, x, y })
+}
+
+#[cfg(not(touch_screen))]
+fn finger_event(_: &sdl::PolledEvent) -> Option<Event> {
+    None
 }
 
 /// SDL's next event, if there is one.
@@ -68,6 +88,8 @@ fn next_event() -> Option<Event> {
         } else if kind == SDL_EVENT_JOYSTICK_REMOVED {
             crate::platform::input::pad_removed(event.joystick_id());
             Event::Other
+        } else if let Some(finger) = finger_event(&event) {
+            finger
         } else if let Some((id, button, down)) = event.gamepad_button() {
             Event::Pad { id, button, down }
         } else if let Some((axis, value)) = event.gamepad_axis() {
@@ -244,6 +266,11 @@ pub fn pump(o: crate::owners::Owners<'static>) {
                     joystick_in_menus(input, id, what, driving);
                 }
             }
+            #[cfg(touch_screen)]
+            Event::Finger { id, phase, x, y } => {
+                let now = u64::from(crate::platform::os::ticks());
+                touch_finger(&o, id, phase, x, y, now);
+            }
             Event::Other => {}
         }
     }
@@ -279,7 +306,7 @@ fn sync_text_input() {
 
 /// Whether a race is being driven: the pad and the wheel are then the player's controls. In the
 /// replay viewer a race is loaded, but its list is a menu: the pad works it as it works the menus.
-fn driving(race: &crate::race::owner::Race) -> bool {
+pub(crate) fn driving(race: &crate::race::owner::Race) -> bool {
     race.course.numbers.get().in_race.is_set() && race.shared.replay_file().hold_car_revs.get() == 0
 }
 
@@ -543,7 +570,10 @@ fn bound_menu_controls(
 
 /// What a menu takes: the key of the action, as the pending key (not the held-key table: the
 /// race's keyboard controls are not the pad's).
-fn menu_action(input: &crate::input::owner::Input, action: crate::input::menu_pad::MenuAction) {
+pub(crate) fn menu_action(
+    input: &crate::input::owner::Input,
+    action: crate::input::menu_pad::MenuAction,
+) {
     use crate::input::menu_pad::{MenuAction as A, note_answer};
     use crate::input::yes_no_key::{NO, THIRD, YES};
     // The on-screen keyboard takes the moves and the south, east and west buttons.
@@ -631,7 +661,7 @@ fn game_key(scancode: i32) -> u8 {
         30..=38 => (scancode - 30 + 2) as u8,    // 1 .. 9
         39 => 0x0B,                              // 0
         40 => 0x1C,                              // return
-        41 => 0x01,                              // escape
+        41 | 270 => 0x01,                        // escape, and a phone's back button
         42 => 0x0E,                              // backspace
         43 => 0x0F,                              // tab
         44 => 0x39,                              // space
@@ -699,4 +729,32 @@ fn osk_asks(input: &crate::input::owner::Input, asks: crate::input::typed_text::
         crate::input::typed_text::osk_close();
     }
     crate::input::take_key::pending_key(input).store(key, std::sync::atomic::Ordering::SeqCst);
+}
+
+/// A finger on the touch screen: in the menus a gesture or a tap (`platform::touch_menu`).
+#[cfg(touch_screen)]
+fn touch_finger(
+    o: &crate::owners::Owners<'static>,
+    id: u64,
+    phase: rc2k_core::input::menu_touch::Phase,
+    x: f32,
+    y: f32,
+    now: u64,
+) {
+    let window = {
+        let screen = crate::platform::SCREEN.lock();
+        screen
+            .as_ref()
+            .ok()
+            .and_then(|screen| screen.as_ref())
+            .map(|screen| crate::platform::input_window(screen.window))
+    };
+    let Some(window) = window else {
+        return;
+    };
+    if driving(o.race) {
+        crate::platform::touch_menu::release_all();
+        return;
+    }
+    crate::platform::touch_menu::finger(o, window, id, phase, x, y, now);
 }
