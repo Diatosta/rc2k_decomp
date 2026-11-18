@@ -25,6 +25,13 @@ const REACH: f32 = 16.0;
 
 static GESTURES: Mutex<Gestures> = Mutex::new(Gestures::new());
 
+/// Whether one of the installer's pages is running: its items are not the menus' (it keeps its
+/// own pieces and highlight), so a tap is left for the page to take (`take_installer_tap`).
+static INSTALLER: AtomicBool = AtomicBool::new(false);
+
+/// The last tap on the installer's page not yet taken, in the frame's pixels.
+static INSTALLER_TAP: Mutex<Option<(f32, f32)>> = Mutex::new(None);
+
 /// A finger has touched the screen since the program started: the overlay is worth showing.
 static TOUCHED: AtomicBool = AtomicBool::new(false);
 
@@ -93,10 +100,16 @@ fn tap(o: &Owners<'static>, window: sdl::Window, x: f32, y: f32) {
     let point = frame
         .zip(window.pixel_size())
         .and_then(|(frame, size)| frame_point((x, y), frame, size));
-    let Some((_, fy)) = point else {
+    let Some((fx, fy)) = point else {
         // Beside the picture: nothing.
         return;
     };
+    if INSTALLER.load(Relaxed) {
+        *INSTALLER_TAP
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some((fx, fy));
+        return;
+    }
     let menus = o.menus;
     let rows = menus
         .screens
@@ -156,4 +169,31 @@ pub fn draw_back_chip(renderer: sdl::Renderer, window: sdl::Window) {
         scale,
         "BACK",
     );
+}
+
+/// While it lives, the installer's page is the one taps are for.
+pub struct InstallerPage;
+
+impl InstallerPage {
+    pub fn begin() -> Self {
+        INSTALLER.store(true, Relaxed);
+        InstallerPage
+    }
+}
+
+impl Drop for InstallerPage {
+    fn drop(&mut self) {
+        INSTALLER.store(false, Relaxed);
+        *INSTALLER_TAP
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+    }
+}
+
+/// The tap on the installer's page since the last call, if any: where, in the frame's pixels.
+pub fn take_installer_tap() -> Option<(f32, f32)> {
+    INSTALLER_TAP
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .take()
 }
