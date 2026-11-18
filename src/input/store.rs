@@ -400,3 +400,18 @@ impl ForceFeedback {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The row the surface effect falls back to with the engine's vibration off shakes with no
+    /// magnitude at either end of the speed blend and has periods to blend (a period of 0 is a
+    /// division the effect refuses).
+    #[test]
+    fn the_silent_row_has_no_magnitude() {
+        let row = EFFECT_ROWS[rc2k_core::input::feedback::SILENT_KIND as usize];
+        assert_eq!((row[0], row[2]), (0, 0));
+        assert!(row[1] != 0 && row[3] != 0);
+    }
+}

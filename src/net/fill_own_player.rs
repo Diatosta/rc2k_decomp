@@ -84,6 +84,7 @@ pub fn fill_own_player(
         .own
         .head
         .set(record::RANDOM, { race.shared.random.next_random() } as u8);
+    crate::net::bots::reset_results();
     net.vars.own.race_time.set(0);
     net.vars.own.total.set(0);
     for (to, from) in settings(race) {

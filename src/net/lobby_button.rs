@@ -23,8 +23,14 @@ pub fn lobby_button(
     menus: &crate::menu::owner::Menus,
 ) -> Result<u32, Refused> {
     // The logic is in `rc2k_core::net::screens` (`lobby_button_flags`, `next_button_x`).
-    let flags =
+    let mut flags =
         screens::lobby_button_flags(net.vars.own.state(), item, net.lobby().after_race.get());
+    // The computer drivers' switch is the host's, and not for changing while ready.
+    if item == screens::BOTS_ITEM
+        && (!net.vars.own.state().is_host() || net.vars.own.state().is_ready())
+    {
+        flags |= screens::DIM;
+    }
     draw_button(
         so,
         net,

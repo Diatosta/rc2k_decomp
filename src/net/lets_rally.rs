@@ -38,6 +38,8 @@ pub fn lets_rally(o: Owners<'static>) -> Result<bool, Refused> {
         return Ok(true);
     };
     net.lobby().first_host.set(first);
+    // The host's computer drivers, known before the sound objects are made for the cars.
+    net.race_slot.set_bots(crate::net::bots::listed_count(net));
     crate::sound::stop_music::stop_music(o);
     crate::race::race_shell::set_race_screen_mode(o.gfx, o.system);
     crate::menu::show_loading_picture::show_loading_picture_in(o)?;
@@ -63,6 +65,8 @@ pub fn lets_rally(o: Owners<'static>) -> Result<bool, Refused> {
             break crate::net::lets_race::lets_race(o)?;
         }
     };
+    // The bots' times, before the race's cars are cleared.
+    crate::net::bots::note_results(race, net);
     crate::race::race_end::tidy_everything(race, o)?;
     crate::sound::stop_music::stop_music(o);
     crate::platform::set_menu_mode_now(o.gfx, o.system);

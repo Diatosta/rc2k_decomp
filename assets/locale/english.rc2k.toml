@@ -21,6 +21,7 @@ on = "on"
 off = "off"
 h_shifter = "H shifter"
 button_icons = "button icons"
+engine_vibration = "engine vibration"
 
 [joystick_axis]
 x = "axis x"
@@ -140,6 +141,15 @@ save_replay = "save replay"
 settings = "settings"
 replay_not_saved = "The replay could not be saved. Press a key."
 not_ready = "not ready"
+bots_0 = "bots: off"
+bots_1 = "bots: 1"
+bots_2 = "bots: 2"
+bots_3 = "bots: 3"
+bots_4 = "bots: 4"
+bots_5 = "bots: 5"
+bots_6 = "bots: 6"
+bots_7 = "bots: 7"
+bot_name = "bot"
 
 # The advanced page: what the rows change, and when (in the name, or "next start" beside a value).
 [advanced]
@@ -201,7 +211,6 @@ settings_reset = "Settings in var/rc2k.toml that were not valid are back at thei
 main_menu = "Main menu"
 bad_picture = "The picture {} could not be read and is shown as missing."
 bad_sound = "The sound {} could not be read and stays silent."
-bad_film = "The film {} could not be played and was skipped."
 bad_peer = "Player {} sent data that could not be understood and was dropped."
 bad_replay_play = "The replay stopped: its data is damaged from here on."
 back_to_menu = "The game cannot go on with this and goes back to the main menu: {}"

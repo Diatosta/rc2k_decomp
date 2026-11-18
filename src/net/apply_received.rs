@@ -8,7 +8,7 @@ use crate::net::owner::Net;
 use crate::race::owner::Race;
 pub fn apply_received(race: &Race, net: &Net) -> Result<(), Refused> {
     let vars = &net.vars;
-    let count = || net.race_slot.players();
+    let count = || net.race_slot.cars();
     if count() == 0 || count() > MOST_PLAYERS {
         return Err(BadInput("no players, or more than the blocks' 8").into());
     }

@@ -1,5 +1,6 @@
 //! Network play: the players' records and blocks, the messages, the lobby's rules.
 pub mod address;
+pub mod bots;
 pub mod cars;
 pub mod chat;
 pub mod editing;

@@ -123,6 +123,7 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
     let (net, system) = (o.net, o.system);
     let list_state = &o.menus.list;
     net.race_slot.set_players(0);
+    net.race_slot.set_bots(0);
     net.lobby().racing.set(0);
     // The last race's loading figures do not show in the next.
     crate::net::loading::clear();
@@ -248,6 +249,11 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
                         crate::menu::in_game_options_items::hide_car_specs(o.menus)?;
                         crate::menu::in_game_options_loop::run(o)?;
                         restore_background(o)?;
+                        moved = true;
+                    }
+                    // The host's switch for the computer drivers; the others only see it.
+                    screens::BOTS_ITEM if net.vars.own.state().is_host() => {
+                        crate::net::bots::cycle_own_setting(net)?;
                         moved = true;
                     }
                     screens::SAVE_REPLAY_ITEM if net.lobby().replay_kept.get() == 1 => {

@@ -12,6 +12,7 @@ use crate::input::types::InputDevice;
 use crate::math::x87::mul_to_int;
 use crate::math::x87_float::{Loadable, ld, st, to_int};
 use crate::system::owner::System;
+use rc2k_core::input::feedback::surface_effect;
 
 #[derive(Clone, Copy)]
 enum Effect {
@@ -68,6 +69,7 @@ fn update_car_effects_with(
     view: &crate::physics::car_store::Car,
     o: &crate::sound::store::SoundObject,
     device: &InputDevice,
+    engine_vibration: bool,
     scratch: &crate::memory::session::PlainDword,
 ) -> Result<(), Refused> {
     let surface = o.surface.get();
@@ -104,16 +106,14 @@ fn update_car_effects_with(
     for d in &o.knock_in {
         d.set(0.0);
     }
-    // The surface effect: the surface's kind and the speed.
-    let mut kind = effects.surface_effect_kinds[surface as usize].get();
-    let mut speed = (o.sum_a.get() as i32).unsigned_abs();
-    if speed <= 5 {
-        kind = 0;
-        let revs = o.revs.get();
-        speed = revs.wrapping_mul(revs) >> 19;
-    }
-    let speed = speed.min(0x100);
-    out.set(Effect::Surface, kind, speed)?;
+    // The surface effect: the surface's kind and the speed; nearly still, the engine's shake
+    // unless the player has switched it off.
+    let table_kind = effects.surface_effect_kinds[surface as usize].get();
+    let shake = surface_effect(table_kind, o.sum_a.get(), o.revs.get(), engine_vibration);
+    let kind = shake.kind;
+    #[cfg(feature = "remote")]
+    note_shake(&shake, engine_vibration);
+    out.set(Effect::Surface, shake.row, shake.speed)?;
     let strength = || o.effect_request_b.get();
     let mut landed_now = false;
     match kind {
@@ -193,15 +193,41 @@ fn update_car_effects_with(
 }
 
 /// The car's force feedback for the frame (x87 arithmetic; the plain-float version in
-/// `rc2k_core::input::feedback` waits for the float pass).
+/// `rc2k_core::input::feedback` waits for the float pass). `engine_vibration`: the player's
+/// switch for the engine's part of it.
 pub fn update_car_effects(
     effects: &ForceFeedback,
     view: &crate::physics::car_store::Car,
     object: &crate::sound::store::SoundObject,
     device: &InputDevice,
+    engine_vibration: bool,
     system: &System,
 ) -> Result<(), Refused> {
-    update_car_effects_with(effects, view, object, device, &system.machine().scratch)
+    update_car_effects_with(
+        effects,
+        view,
+        object,
+        device,
+        engine_vibration,
+        &system.machine().scratch,
+    )
+}
+
+/// What the remote driver's trials read: the surface effect asked for, once a second of the
+/// race's 40 ms steps (the stand-in stick has no haptics to measure it on).
+#[cfg(feature = "remote")]
+fn note_shake(shake: &rc2k_core::input::feedback::SurfaceEffect, engine_vibration: bool) {
+    use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
+    static CALLS: AtomicU32 = AtomicU32::new(0);
+    if CALLS.fetch_add(1, Relaxed).is_multiple_of(25) {
+        crate::logfile::program_log::log(&format!(
+            "feedback: surface effect row {} at speed {} (steering kind {}), engine vibration {}",
+            shake.row,
+            shake.speed,
+            shake.kind,
+            if engine_vibration { "on" } else { "off" }
+        ));
+    }
 }
 
 #[cfg(test)]

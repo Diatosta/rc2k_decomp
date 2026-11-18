@@ -12,6 +12,7 @@
 //! - 0x61: the sender's progress through its stage in percent, noted by its id for the lobby
 //!   (`net::progress`);
 //! - 0x41 / 0x51 (on the host): the player's synced byte is set;
+//! - 0x62: the host's race message for a computer driver's car, in that car's inbox;
 //! - bit 0x80 (a race message, 1 to 0xFF bytes): the bytes after the first stored with the time
 //!   in the player's inbox under the lock;
 //! - others dropped.
@@ -174,6 +175,25 @@ pub fn take_messages(
                 store_received(
                     sequence,
                     inbox_of(&mut inboxes, player)?,
+                    time,
+                    &payload.encode(),
+                )?;
+            }
+            // The host's message for a computer driver's car: filed in that car's inbox. Only the
+            // host sends them, and only for the race's bot cars.
+            Message::BotRace {
+                car,
+                sequence,
+                payload,
+            } => {
+                if !block.record.state().is_host() || !net.race_slot.is_bot(u32::from(car)) {
+                    continue;
+                }
+                let time = crate::system::tick_count::tick_count(clock);
+                let mut inboxes = net.lock_received();
+                store_received(
+                    sequence,
+                    inbox_of(&mut inboxes, u32::from(car))?,
                     time,
                     &payload.encode(),
                 )?;

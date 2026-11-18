@@ -249,12 +249,19 @@ pub const UPPER_ROW_FIRST: u32 = 4;
 pub const SETTINGS_ITEM: u32 = 4;
 /// The upper row's button that saves the last race's replay.
 pub const SAVE_REPLAY_ITEM: u32 = 5;
+/// The upper row's button of the computer drivers (the host's switch; the others see its state).
+pub const BOTS_ITEM: u32 = 6;
 
-/// The upper row's buttons right to left: (the string, shown), items 4 and 5.
-pub fn upper_buttons(replay_kept: bool) -> [(u32, bool); 2] {
+/// The upper row's buttons right to left: (the string, shown), items 4 to 6: the settings, the
+/// replay's (when it is kept) and the bots' count `bots` (0 = off).
+pub fn upper_buttons(replay_kept: bool, bots: u32) -> [(u32, bool); 3] {
     [
         (crate::strings::own::id::LOBBY_SETTINGS, true),
         (crate::strings::own::id::SAVE_REPLAY, replay_kept),
+        (
+            crate::strings::own::id::BOTS + bots.min(crate::net::bots::MOST_SETTING),
+            true,
+        ),
     ]
 }
 
@@ -270,17 +277,23 @@ pub fn other_row_item(item: u32, up: bool) -> u32 {
 }
 
 /// An item of the upper row moved one button: `to_next` toward the next item (the left), else
-/// back; held to the shown buttons.
+/// back; held to the shown buttons (the replay's only when it is kept).
 pub fn upper_row_step(item: u32, to_next: bool, replay_kept: bool) -> u32 {
-    let last = if replay_kept {
-        SAVE_REPLAY_ITEM
-    } else {
-        SETTINGS_ITEM
-    };
-    if to_next {
-        (item + 1).min(last)
-    } else {
-        item.saturating_sub(1).max(UPPER_ROW_FIRST)
+    let shown = |n: u32| n != SAVE_REPLAY_ITEM || replay_kept;
+    let mut to = item;
+    loop {
+        let next = if to_next {
+            (to + 1).min(BOTS_ITEM)
+        } else {
+            to.saturating_sub(1).max(UPPER_ROW_FIRST)
+        };
+        if next == to {
+            return item;
+        }
+        to = next;
+        if shown(to) {
+            return to;
+        }
     }
 }
 
@@ -415,13 +428,25 @@ mod tests {
         assert_eq!(ping_text(5000), b"999 ms".to_vec());
         assert_eq!(next_button_x(0x310, 0x40), 0x310 - 0x84 - 8);
         assert_eq!(lobby_buttons(1, 0, false)[2], (0x15C, false));
-        assert!(!upper_buttons(false)[1].1 && upper_buttons(true)[1].1);
-        assert!(upper_buttons(false)[0].1);
+        assert!(!upper_buttons(false, 0)[1].1 && upper_buttons(true, 0)[1].1);
+        assert!(upper_buttons(false, 0)[0].1);
+        assert_eq!(
+            upper_buttons(false, 3)[2],
+            (crate::strings::own::id::BOTS + 3, true)
+        );
+        assert_eq!(
+            upper_buttons(false, 99)[2].0,
+            crate::strings::own::id::BOTS + 7
+        );
         assert_eq!(other_row_item(3, true), SETTINGS_ITEM);
         assert_eq!(other_row_item(0, false), 0);
         assert_eq!(other_row_item(5, false), 3);
-        assert_eq!(upper_row_step(4, true, false), 4);
+        // The replay's button is passed over when it is not shown.
+        assert_eq!(upper_row_step(4, true, false), BOTS_ITEM);
         assert_eq!(upper_row_step(4, true, true), 5);
+        assert_eq!(upper_row_step(5, true, true), BOTS_ITEM);
+        assert_eq!(upper_row_step(BOTS_ITEM, true, true), BOTS_ITEM);
+        assert_eq!(upper_row_step(BOTS_ITEM, false, false), 4);
         assert_eq!(upper_row_step(5, false, true), 4);
         assert_eq!(upper_row_step(4, false, true), 4);
         assert_eq!(

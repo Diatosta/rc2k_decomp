@@ -71,6 +71,58 @@ fn fpatan(y: f32, x: f32) -> f64 {
     crate::math::portable::atan2(y as f64, x as f64)
 }
 
+/// The surface effect's row that has no shake at any speed.
+pub const SILENT_KIND: u32 = 8;
+
+/// A car whose wheels move no faster than this (a whole number of the game's wheel-speed
+/// units) is taken as nearly still.
+pub const STILL_SPEED: u32 = 5;
+
+/// What the surface effect is asked for, and the kind the steering effects go by.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SurfaceEffect {
+    /// The kind the other effects (the steering force, the second force) are chosen by.
+    pub kind: u32,
+    /// The row of the surface effect's table the shake is asked from.
+    pub row: u32,
+    /// The speed that row is blended by (0 ..= 0x100).
+    pub speed: u32,
+}
+
+/// The surface effect for a surface of effect kind `table_kind` and a first wheel sum `sum`
+/// (signed): the shake follows the speed over the ground; a car nearly still shakes with the
+/// engine, the revs squared the speed of the shake. With the engine's vibration off the engine's
+/// shake is not asked for: the silent row at no speed, while the steering effects keep the kind
+/// of a car nearly still, so the road's part is as it was.
+pub fn surface_effect(
+    table_kind: u32,
+    sum: u32,
+    revs: u32,
+    engine_vibration: bool,
+) -> SurfaceEffect {
+    let speed = (sum as i32).unsigned_abs();
+    if speed > STILL_SPEED {
+        return SurfaceEffect {
+            kind: table_kind,
+            row: table_kind,
+            speed: speed.min(0x100),
+        };
+    }
+    if engine_vibration {
+        SurfaceEffect {
+            kind: 0,
+            row: 0,
+            speed: (revs.wrapping_mul(revs) >> 19).min(0x100),
+        }
+    } else {
+        SurfaceEffect {
+            kind: 0,
+            row: SILENT_KIND,
+            speed: 0,
+        }
+    }
+}
+
 /// The feedback of one call. Refused (before anything): a surface number past the 16.
 pub fn update_car_effects(feel: &mut Feel, view: &View, k: &Constants) -> Result<Plan, Invalid> {
     if feel.surface >= 16 {
@@ -248,5 +300,22 @@ mod tests {
         assert!(plan.requests.iter().any(|r| r.effect == 3 && r.a == 0x100));
         feel.surface = 16;
         assert!(update_car_effects(&mut feel, &view, &K).is_err());
+    }
+
+    #[test]
+    fn a_moving_car_shakes_with_its_road_and_a_still_one_with_its_engine() {
+        for on in [true, false] {
+            // Moving: the road's shake, either way round, held to 0x100.
+            let e = surface_effect(3, (-50i32) as u32, 9999, on);
+            assert_eq!((e.kind, e.row, e.speed), (3, 3, 50));
+            assert_eq!(surface_effect(3, 0x1000, 0, on).speed, 0x100);
+        }
+        // Nearly still: kind 0 by the revs squared.
+        let e = surface_effect(3, 5, 4096, true);
+        assert_eq!((e.kind, e.row, e.speed), (0, 0, (4096u32 * 4096) >> 19));
+        assert_eq!(surface_effect(3, 0, 100_000, true).speed, 0x100);
+        // Off: the steering effects still go by kind 0, the shake is the silent row at 0.
+        let e = surface_effect(3, 5, 4096, false);
+        assert_eq!((e.kind, e.row, e.speed), (0, SILENT_KIND, 0));
     }
 }

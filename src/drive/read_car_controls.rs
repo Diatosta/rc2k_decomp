@@ -15,7 +15,7 @@ use rc2k_core::drive::controls::{FLIP_BIT, VIEW_BIT, computer_drives, flipped, r
 use rc2k_core::drive::replay_frames::plays_inputs;
 
 /// Does a computer drive this step?
-fn computer(shared: &RaceShared) -> bool {
+fn computer(shared: &RaceShared, net: &crate::net::owner::Net) -> bool {
     // A test's switch (`tools/remote.py pilot`): the computer at a player's wheel.
     #[cfg(feature = "remote")]
     if crate::remote::autodrive()
@@ -23,11 +23,14 @@ fn computer(shared: &RaceShared) -> bool {
     {
         return true;
     }
-    computer_drives(
-        shared.work.get().in_credits.is_set(),
-        || shared.vars.get().run_kind.get(),
-        || shared.car().driver_kind.get(),
-    )
+    // A network race's computer drivers: every machine drives them, the host's messages keep
+    // the copies together.
+    net.race_slot.is_bot(shared.work.get().current_car.get())
+        || computer_drives(
+            shared.work.get().in_credits.is_set(),
+            || shared.vars.get().run_kind.get(),
+            || shared.car().driver_kind.get(),
+        )
 }
 
 pub fn read_car_controls(
@@ -38,7 +41,7 @@ pub fn read_car_controls(
     let race_owner = race;
 
     let course = &race.course;
-    if computer(&race_owner.shared)
+    if computer(&race_owner.shared, net)
         && race_owner.shared.vars.get().checkpoint_count.get() == 0
         && race_owner.shared.car().run_ticks.get() >= 0x320
     {
@@ -146,7 +149,7 @@ pub fn read_car_controls(
             )?;
         }
     }
-    if !computer(&race_owner.shared) {
+    if !computer(&race_owner.shared, net) {
         return Ok(());
     }
     race_owner

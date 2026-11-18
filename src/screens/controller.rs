@@ -224,6 +224,13 @@ pub fn draw_controller_page(
                 |profile| profile.button_icons.place() as u32,
             )
             .unwrap_or(0),
+        engine_vibration: crate::input::profiles::with_profile(
+            input,
+            menus.screens.event.current_player.get(),
+            device,
+            |profile| profile.engine_vibration,
+        )
+        .unwrap_or(true),
     };
     controller_page(&mut screen, Some(&c))
 }

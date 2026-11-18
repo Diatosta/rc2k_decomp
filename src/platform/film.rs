@@ -351,13 +351,10 @@ fn open(path: &str) -> Result<Film, String> {
     Err("neither an AVI nor an MPEG program stream".into())
 }
 
-/// A film that is there and cannot be played is skipped, with one notice.
+/// A film that is there and cannot be played is skipped with a line in the log only: the films
+/// are the start-up ones, and a notice at every start for a copy without them helps no one.
 fn bad_film(name: &str) {
-    let shown = crate::error_dialog::file_name(name.as_bytes());
-    crate::error_dialog::notice_once(
-        &shown,
-        &crate::error_dialog::text_with(rc2k_core::strings::own::id::BAD_FILM, &shown),
-    );
+    log(&format!("gfx::play_film: {name} skipped"));
 }
 
 /// Plays the film at `path` (see the header): true at the film's end, false for a key or a film

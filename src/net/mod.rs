@@ -1,5 +1,5 @@
 //! Network play. The game's side (the lobby screens, set-up at the start, the receiving thread,
-//! the race's messages and the way out) sits on the project's own session layer (`dp_session`),
+//! the race's messages, the host's computer drivers (`net::bots`) and the way out) sits on the project's own session layer (`dp_session`),
 //! which stands where DirectPlay stood: its calls keep DirectPlay's shape (`dp_objects`).
 //!
 //! The network's `NetRaceSlot` (`Net::race_slot`) says whether a link is open, this machine's player (its car's number) and the players' count. Each race step
@@ -23,6 +23,7 @@ pub mod bad_peer;
 pub mod begin_chat;
 pub mod begin_edit;
 pub mod begin_setting_edit;
+pub mod bots;
 pub mod build_address;
 pub mod car_list;
 pub mod chat_input_line;
@@ -102,6 +103,7 @@ pub mod relay_chat;
 pub mod release_dplay;
 pub mod release_lobby;
 pub mod reset_cars;
+pub mod send_bot_turn;
 pub mod send_chat;
 pub mod send_extra;
 pub mod send_inputs;

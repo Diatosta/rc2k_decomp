@@ -88,16 +88,24 @@ pub fn update_effects_with(input: &Input, system: &System, v: &Vars<'_>) -> Resu
                 .car_blocks
                 .of(load.view)
                 .ok_or(BadInput("a load on no view block"))?;
+            // The player's switch is the profile of the race device (the slot the handle is in).
+            let engine = v
+                .devices
+                .iter()
+                .position(|d| d.get() == load.device)
+                .is_none_or(|slot| crate::input::profiles::race_engine_vibration(input, slot));
             crate::input::update_car_effects::update_car_effects(
                 &input.force_feedback,
                 view,
                 object,
                 device,
+                engine,
                 system,
             )?;
             crate::input::trigger_rumble::feed(
                 device,
                 view,
+                engine,
                 input.force_feedback.race_on.get() == 1,
             );
         }
@@ -119,6 +127,7 @@ pub fn update_effects_with(input: &Input, system: &System, v: &Vars<'_>) -> Resu
             &v.car_blocks.cars[n],
             object,
             device,
+            crate::input::profiles::race_engine_vibration(input, n),
             system,
         )?;
     }

@@ -183,7 +183,7 @@ The file is `0x258` (600) bytes long.
 ## The game's own texts: `.rc2k.toml`
 
 The pages this version adds to the original's (the controller axes page, the extra rows of the
-controller buttons page, the H shifter's switch, the button icons' setting and the hints beside the pictures) have texts that the language's `.txt` does not
+controller buttons page, the H shifter's switch, the button icons' and engine vibration settings and the hints beside the pictures) have texts that the language's `.txt` does not
 hold. They are in a file of their own for each language, in the same folder as the language's
 files, named after its `.loc` file with `.rc2k.toml` in place of the ending: `PORTUGES.LOC`
 goes with `portuges.rc2k.toml`, `ENGLISH.LOC` with `english.rc2k.toml`. The repository has them

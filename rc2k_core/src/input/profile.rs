@@ -487,6 +487,19 @@ pub struct Profile {
     /// What the controller's buttons are shown as in the menus and questions.
     #[serde(default, skip_serializing_if = "is_automatic")]
     pub button_icons: crate::input::icons::IconStyle,
+    /// The engine's part of the force feedback (the shake of a car nearly still, the engine's
+    /// load in a pad's accelerator trigger): off leaves only what the road does. On for a
+    /// profile made before the switch existed.
+    #[serde(default = "default_engine_vibration", skip_serializing_if = "is_true")]
+    pub engine_vibration: bool,
+}
+
+fn default_engine_vibration() -> bool {
+    true
+}
+
+fn is_true(on: &bool) -> bool {
+    *on
 }
 
 fn is_automatic(style: &crate::input::icons::IconStyle) -> bool {
@@ -524,6 +537,7 @@ impl Profile {
             full_rotation_degrees: default_rotation(),
             shifter: false,
             button_icons: crate::input::icons::IconStyle::Automatic,
+            engine_vibration: true,
             axes: Vec::new(),
             bindings: Bindings {
                 steering_axis: Some(AxisUse::Centred { axis: 0 }),
@@ -1649,6 +1663,19 @@ mod tests {
         // the page lists the gears only with the switch on
         assert_eq!(Row::listed(false).len(), 14);
         assert_eq!(Row::listed(true).len(), 22);
+    }
+
+    #[test]
+    fn the_engine_vibration_switch_is_saved_only_when_off_and_an_old_file_reads_on() {
+        let mut p = Profile::new(id(), Kind::Wheel);
+        assert!(p.engine_vibration);
+        let on = toml::to_string(&p).unwrap();
+        assert!(!on.contains("engine_vibration"), "{on}");
+        assert!(toml::from_str::<Profile>(&on).unwrap().engine_vibration);
+        p.engine_vibration = false;
+        let off = toml::to_string(&p).unwrap();
+        assert!(off.contains("engine_vibration = false"), "{off}");
+        assert!(!toml::from_str::<Profile>(&off).unwrap().engine_vibration);
     }
 
     #[test]

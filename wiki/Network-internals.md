@@ -40,7 +40,7 @@ program, not with the 1999 game.
   answers `PONG` with the same stamp, and the host folds the round trip into a moving average
   (three parts old, one new) and sends every machine the figures (`PINGS`); the lobby shows
   them after the names (`Session::ping_of`). A frame of a kind a machine does not know is
-  passed over, not an error; the protocol's mark is `RC2KNET5` since these frames came.
+  passed over, not an error; the protocol's mark is `RC2KNET5` since these frames came (and `RC2KNET6` since the bots' messages, below).
 - **Finding a session** is a small UDP question sent to a given address, or broadcast on the
   local network. A host answers with its description (`discovery.rs`). With no address the
   probe also goes to the peers `tailscale status --json` lists (`rc2k_core::net::tailscale`,
@@ -97,6 +97,25 @@ and chat (`chat_key.rs`, `send_chat.rs`). Chat lines are ordinary messages with 
 When two or more players are all ready, the host starts a **sync round**: it sends each player
 a start message with a counter and waits until every one has answered. Then every machine
 leaves the lobby loop and starts the race.
+
+### Computer drivers (bots)
+
+The host's lobby button sets how many computer drivers the race has (off, 1 to 7). The number
+rides in bits 1 to 3 of the host's record's direction byte, so every machine reads it with the
+stage; each machine works out the same number of bots, the players' count and the setting held
+to the eight cars (`rc2k_core::net::bots`). The bots take the cars after the players': with
+three players the bots are cars 3, 4 and so on. Their kinds are drawn the same way on every
+machine, from the cars within five places of the host's car (as the arcade chooses its
+opponents), and their pace differs a little from bot to bot.
+
+Every machine drives a bot's car itself with the game's own computer driver
+(`drive::read_car_controls`; the cars have the driver kind the arcade's opponents have). The host
+then sends each bot's position and extra values as the `0x62` message
+(`src/net/send_bot_turn.rs`); the others file it in the bot's inbox
+(`src/net/take_messages.rs`) and apply it as they do a player's, so the bot's copy glides to the
+host's. The host's copy is the one every machine follows. The race ends for a machine when its own
+car has finished, as before. The lobby lists the bots under the players, with each machine's own
+reckoning of their times (`src/net/bots.rs`).
 
 ## Starting the race
 

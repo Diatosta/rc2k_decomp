@@ -45,6 +45,11 @@ pub fn set_up_race(
 ) -> Result<(), Refused> {
     // The logic is in `rc2k_core::net::record` (`race_players`, `seat`).
     let players = record::race_players(o.net.race_slot.players())?;
+    // The host's computer drivers take cars after the players': the setting comes with the
+    // host's record, so every machine reaches the same count.
+    let bots = rc2k_core::net::bots::count(crate::net::bots::host_setting(o.net), players);
+    o.net.race_slot.set_bots(bots);
+    let cars = players + bots;
     race.shared
         .view
         .get()
@@ -62,8 +67,17 @@ pub fn set_up_race(
             v.direction.set(direction);
         }
     }
+    let kinds = crate::net::bots::kinds(race, o.net, bots)?;
+    let host_kind = race.shared.vars.get().race_car_kinds[0].get();
+    for k in 0..bots {
+        let car = (players + k) as usize;
+        let v = race.shared.vars.get();
+        v.race_car_kinds[car].set(kinds.get(k as usize).copied().unwrap_or(host_kind));
+        v.car_colours[car].set(1);
+        v.start_numbers[car].set(crate::net::bots::number(race, k));
+    }
     race.shared.vars.get().run_kind.set(0);
-    race.shared.view.get().race_cars.set(players);
+    race.shared.view.get().race_cars.set(cars);
     race.shared.view.get().players.set(1);
     race.shared.switches.get().editor_mode.set(0);
     crate::net::reset_cars::reset_cars(race)?;
@@ -101,7 +115,7 @@ pub fn set_up_race(
         .get()
         .panel
         .network_cars
-        .set(players);
+        .set(cars);
     log_bytes(COMPLETE.to_bytes(), true, 1);
     log_bytes(RULE_2.to_bytes(), true, 1);
     Ok(())

@@ -676,7 +676,7 @@ const SETUP_ARCADE_WORD: &std::ffi::CStr = c"SETUPARCADECARS";
 
 /// The kinds a draw (0 .. 0x21) can give that `choose_arcade_opponents` takes: usable
 /// (`kind_unusable` clear) and within 5 places (`index_of_kind`) of the first car's.
-fn opponent_kinds(shared: &RaceShared, first: u32) -> Result<Vec<u32>, BadInput> {
+pub fn opponent_kinds(shared: &RaceShared, first: u32) -> Result<Vec<u32>, BadInput> {
     use crate::race::race_shell::{index_of_kind, kind_unusable};
     {
         let first_place = index_of_kind(shared, first)?;

@@ -226,7 +226,11 @@ fn set_up_objects(
         sound.race.sounds.get().player_cars[1].set(1);
         if let Some(net_race) = net_race {
             sound.race.sounds.get().player_cars[0].set(net_race.player);
-            sound.threads.shared.count.set(net_race.players);
+            sound
+                .threads
+                .shared
+                .count
+                .set(net_race.players + net_race.bots);
         }
         for (n, o) in v.objects.iter().enumerate() {
             o.sound_offset.set(object_mark(n as u32));

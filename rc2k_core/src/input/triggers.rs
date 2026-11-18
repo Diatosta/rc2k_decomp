@@ -35,6 +35,9 @@ pub struct Feel {
     pub revs: f32,
     /// The driven wheels, or any wheel, are off the ground.
     pub airborne: bool,
+    /// The engine's load is felt in the accelerator trigger (the player's engine vibration
+    /// switch); off, the triggers carry only what the road and the tyres do.
+    pub engine_load: bool,
 }
 
 /// The triggers' levels, 0 ..= 65535 as SDL takes them.
@@ -74,7 +77,11 @@ pub fn levels(feel: &Feel, gain: u32) -> Levels {
     // other way. In reverse the signs turn round.
     let along = if feel.forward < 0.0 { -1.0 } else { 1.0 };
     let slip = feel.slip * along;
-    let load = ENGINE_SHARE * feel.revs.clamp(0.0, 1.0).powi(2);
+    let load = if feel.engine_load {
+        ENGINE_SHARE * feel.revs.clamp(0.0, 1.0).powi(2)
+    } else {
+        0.0
+    };
     let throttle = pedal(feel.throttle) * (shake(slip) + load).min(1.0);
     let brake = if feel.forward.abs() >= LOCK_MIN_SPEED {
         pedal(feel.brake) * shake(-slip)
@@ -152,6 +159,7 @@ mod tests {
             forward: 20.0,
             revs: 0.0,
             airborne: false,
+            engine_load: true,
         }
     }
 
@@ -163,6 +171,26 @@ mod tests {
         let l = levels(&loaded, 10_000);
         assert_eq!(l.brake, 0);
         assert_eq!(l.throttle, (0.15f32 * 65535.0).round() as u16);
+    }
+
+    #[test]
+    fn without_the_engine_a_gripping_car_stays_still_at_any_revs() {
+        let mut f = feel();
+        f.revs = 1.0;
+        f.engine_load = false;
+        assert_eq!(levels(&f, 10_000), Levels::STILL);
+        // The road's part is as it was: wheelspin shakes the accelerator, a lock the brake.
+        f.slip = SLIP_DEAD + SLIP_RANGE;
+        assert_eq!(levels(&f, 10_000).throttle, 65535);
+        f.slip = 4.0;
+        let spin = levels(&f, 10_000).throttle;
+        f.engine_load = true;
+        assert!(levels(&f, 10_000).throttle > spin);
+        f.engine_load = false;
+        f.throttle = 0;
+        f.brake = PEDAL_FULL;
+        f.slip = -(SLIP_DEAD + SLIP_RANGE);
+        assert_eq!(levels(&f, 10_000).brake, 65535);
     }
 
     #[test]

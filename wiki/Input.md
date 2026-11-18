@@ -277,7 +277,7 @@ the motors.
 A pad whose triggers have motors also gets trigger rumble from the car, not from the game's
 effects: each time the race brings its force feedback up to date (every 40 ms,
 `src/input/update_effects.rs`) `input::trigger_rumble` turns the car's pedals, the driven wheels'
-slip and the engine's revs into the two triggers' levels (`rc2k_core::input::triggers`), which
+slip and the engine's revs (unless the player's engine vibration switch is off) into the two triggers' levels (`rc2k_core::input::triggers`), which
 `SdlBackend::triggers` sends with `SDL_RumbleGamepadTriggers` when they change and again before
 the pad would end them (a pad keeps a level for a second). A quarter second without a setting
 stills them, as it does the motors.

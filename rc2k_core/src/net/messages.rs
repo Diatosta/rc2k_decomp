@@ -22,6 +22,9 @@ pub const LOADING: u8 = 0x60;
 /// A machine's progress through the stage it is racing: the byte, then the percentage
 /// (0 ..= 100). A copy that does not know the byte drops the message.
 pub const PROGRESS: u8 = 0x61;
+/// A bot's race message, sent by the host for a computer driver's car: the byte, the car's number,
+/// then the sequence byte (top bit set) and the payload as a race message has them.
+pub const BOT_RACE: u8 = 0x62;
 /// A race message's bit.
 pub const RACE_BIT: u8 = 0x80;
 

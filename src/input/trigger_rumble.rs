@@ -22,7 +22,7 @@ pub fn set_on(on: bool) {
 }
 
 /// What the car does, as the triggers read it.
-fn feel_of(car: &Car) -> Feel {
+fn feel_of(car: &Car, engine_load: bool) -> Feel {
     let limit = car.engine_speed_limit.get();
     Feel {
         throttle: car.throttle.get(),
@@ -37,16 +37,18 @@ fn feel_of(car: &Car) -> Feel {
         airborne: car.driven_wheels_off.is_set()
             || car.front_wheels_off.is_set()
             || car.rear_wheels_off.is_set(),
+        engine_load,
     }
 }
 
-/// The device's triggers set from its car, when the race runs and the switch is on.
-pub fn feed(device: &InputDevice, car: &Car, race_on: bool) {
+/// The device's triggers set from its car, when the race runs and the switch is on;
+/// `engine_load`: the player's engine vibration switch.
+pub fn feed(device: &InputDevice, car: &Car, engine_load: bool, race_on: bool) {
     if !on() || !race_on {
         return;
     }
     // The device's strength is a percent; the motors take it in hundredths of a percent.
     let gain = device.strength.get().min(100) * 100;
-    let target: Levels = levels(&feel_of(car), gain);
+    let target: Levels = levels(&feel_of(car, engine_load), gain);
     di_objects::set_triggers(device.device.get(), target);
 }

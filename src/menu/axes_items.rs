@@ -121,6 +121,20 @@ pub fn step_icons(o: crate::owners::Owners<'static>, up: bool) -> Result<(), Ref
     Ok(())
 }
 
+/// The controller page's engine vibration switch turned over, in the profile of the chosen
+/// controller (nothing with no controller chosen).
+pub fn toggle_engine_vibration(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    let menus = o.menus;
+    let current = menus.screens.event.current_player.get();
+    let controller = crate::menu::player_settings::current(menus)?
+        .get()
+        .controller;
+    crate::input::profiles::with_profile(o.input, current, controller, |p| {
+        p.engine_vibration = !p.engine_vibration;
+    });
+    Ok(())
+}
+
 /// How many pages of controls the buttons page has.
 fn pages(shifter: bool) -> usize {
     Row::pages(shifter, ROWS_PER_PAGE)

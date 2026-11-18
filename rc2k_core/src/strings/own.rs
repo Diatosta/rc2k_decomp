@@ -69,6 +69,8 @@ pub mod id {
     /// PlayStation, Steam Deck, numbers).
     pub const BUTTON_ICONS: u32 = FIRST + 0x88;
     pub const ICON_STYLES: u32 = FIRST + 0x90;
+    /// The controller page's switch for the engine's part of the force feedback.
+    pub const ENGINE_VIBRATION: u32 = FIRST + 0x89;
     /// The hints beside the pictures of a question or the on-screen keyboard: yes, no, type,
     /// delete, cancel, done.
     pub const HINTS: u32 = FIRST + 0x98;
@@ -136,6 +138,10 @@ pub mod id {
     pub const SAVE_REPLAY: u32 = FIRST + 0xF8;
     /// The network lobby's button that opens the in-race options.
     pub const LOBBY_SETTINGS: u32 = FIRST + 0xD8;
+    /// The network lobby's computer drivers button, with the number of bots: off, then 1 .. 7
+    /// (8 ids), and the name a bot is listed by.
+    pub const BOTS: u32 = FIRST + 0x78;
+    pub const BOT_NAME: u32 = FIRST + 0x80;
     /// The message shown when a replay could not be saved.
     pub const REPLAY_NOT_SAVED: u32 = FIRST + 0xD9;
     /// The network lobby's ready button while the player is ready: it takes the ready back.
@@ -159,7 +165,6 @@ pub mod id {
     pub const DIALOG_MENU: u32 = FIRST + 0xF9;
     pub const BAD_PICTURE: u32 = FIRST + 0xFA;
     pub const BAD_SOUND: u32 = FIRST + 0xFB;
-    pub const BAD_FILM: u32 = FIRST + 0xFC;
     pub const BAD_PEER: u32 = FIRST + 0xFD;
     pub const BAD_REPLAY_PLAY: u32 = FIRST + 0xFE;
     /// The lead-in of the dialog that goes back to the main menu ("{}" the trouble).
@@ -190,6 +195,7 @@ pub const KEYS: &[(&str, u32)] = &[
     ("network.password_wrong", id::PASSWORD_WRONG),
     ("network.port_in_use", id::PORT_IN_USE),
     ("button_icons", id::BUTTON_ICONS),
+    ("engine_vibration", id::ENGINE_VIBRATION),
     ("graphics.frame_limit", id::FRAME_LIMIT),
     ("graphics.no_limit", id::NO_LIMIT),
     ("graphics.display", id::DISPLAY),
@@ -211,6 +217,15 @@ pub const KEYS: &[(&str, u32)] = &[
     ("lobby.save_replay", id::SAVE_REPLAY),
     ("lobby.settings", id::LOBBY_SETTINGS),
     ("lobby.replay_not_saved", id::REPLAY_NOT_SAVED),
+    ("lobby.bots_0", id::BOTS),
+    ("lobby.bots_1", id::BOTS + 1),
+    ("lobby.bots_2", id::BOTS + 2),
+    ("lobby.bots_3", id::BOTS + 3),
+    ("lobby.bots_4", id::BOTS + 4),
+    ("lobby.bots_5", id::BOTS + 5),
+    ("lobby.bots_6", id::BOTS + 6),
+    ("lobby.bots_7", id::BOTS + 7),
+    ("lobby.bot_name", id::BOT_NAME),
     ("lobby.not_ready", id::NOT_READY),
     ("dialog.error", id::DIALOG_ERROR),
     ("dialog.notice", id::DIALOG_NOTICE),
@@ -224,7 +239,6 @@ pub const KEYS: &[(&str, u32)] = &[
     ("dialog.main_menu", id::DIALOG_MENU),
     ("dialog.bad_picture", id::BAD_PICTURE),
     ("dialog.bad_sound", id::BAD_SOUND),
-    ("dialog.bad_film", id::BAD_FILM),
     ("dialog.bad_peer", id::BAD_PEER),
     ("dialog.bad_replay_play", id::BAD_REPLAY_PLAY),
     ("dialog.back_to_menu", id::BACK_TO_MENU),

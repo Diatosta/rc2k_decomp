@@ -19,9 +19,13 @@ pub fn choose_stage(o: Owners<'static>, vars: &NetShared) -> Result<(), Refused>
         vars.own
             .head
             .set(record::STAGE, race.shared.state.settings.stage.get() as u8);
+        // The direction is bit 0 of the byte; the bots' setting in the others stays.
         vars.own.head.set(
             record::DIRECTION,
-            race.shared.state.settings.direction.get() as u8,
+            rc2k_core::net::bots::with_direction(
+                vars.own.head.get(record::DIRECTION),
+                race.shared.state.settings.direction.get() as u8,
+            ),
         );
     }
     crate::net::show_background::show_background(o)?;

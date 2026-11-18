@@ -86,7 +86,8 @@ In the game's options, each player has a controller page, an axes list with a pa
 
 - **Controller**: step through "none" and the controllers found; the chosen one is taken into
   use at once. The page also has the "H shifter" switch (see below), the force feedback
-  strength and "button icons" (see "Button pictures" below).
+  strength, "button icons" (see "Button pictures" below) and, for a device with force feedback,
+  "engine vibration" (see "Force feedback" below).
 - **Axes** (opened from the controller page): a list with a row for each axis the controller has
   (up to six, a gamepad's as the left stick x and y, the right stick x and y and the two
   triggers), each with a live bar of where the axis is now, as the race takes it (dark track;
@@ -290,6 +291,25 @@ triggers stay still). The advanced page's "trigger rumble" row (on its second pa
 them off (`trigger_rumble` in `rc2k.toml`); a pad without trigger motors is not affected. The
 shake goes to the left and right trigger motors whatever the player's profile binds to those
 triggers. A DualSense's adaptive trigger resistance (SDL offers it only as raw effect packets) is not used.
+
+### Engine vibration
+
+The original's force feedback has one part that comes from the engine and not from the road: when
+the car is nearly still (the first wheel sum at 5 or less, a car at a standstill, or crawling, or
+pushed against a wall) its surface effect, a periodic shake, is not the road's but follows the
+engine revs, their square, so a wheel buzzes while the engine idles and more as it is revved. The
+controller page's "engine vibration" row (on at first: the original's feel; one setting for each
+player and controller, kept in the player's profile) switches that part off. With it off:
+
+- the shake of a car nearly still is not asked for (the game's silent row of the effect, no
+  magnitude), on a wheel and on a pad's rumble motors alike;
+- the accelerator trigger's faint shake with the engine's load (see above) is left out.
+
+The road's part is as it was with the switch on or off: the surface's shake once the car moves, the
+knocks, the landings, the springs and dampers that steer the wheel and the changes of speed. The
+springs and dampers a car nearly still has are the same either way. The row is greyed out for a
+device without force feedback. It changes only what the device is told: the car does the same
+whichever way it is set.
 
 ## The handheld
 

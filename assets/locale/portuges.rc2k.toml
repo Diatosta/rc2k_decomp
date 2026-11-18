@@ -15,6 +15,7 @@ on = "sim"
 off = "não"
 h_shifter = "caixa em H"
 button_icons = "ícones dos botões"
+engine_vibration = "vibração do motor"
 
 [joystick_axis]
 x = "eixo x"
@@ -130,6 +131,15 @@ save_replay = "gravar repetição"
 settings = "definições"
 replay_not_saved = "A repetição não foi gravada. Prima uma tecla."
 not_ready = "não pronto"
+bots_0 = "robôs: não"
+bots_1 = "robôs: 1"
+bots_2 = "robôs: 2"
+bots_3 = "robôs: 3"
+bots_4 = "robôs: 4"
+bots_5 = "robôs: 5"
+bots_6 = "robôs: 6"
+bots_7 = "robôs: 7"
+bot_name = "robô"
 
 # A página avançada: o que cada linha muda, e quando (no nome, ou "próximo início" ao lado do valor).
 [advanced]
@@ -191,7 +201,6 @@ settings_reset = "As definições de var/rc2k.toml que não eram válidas voltar
 main_menu = "Menu principal"
 bad_picture = "A imagem {} não pôde ser lida e aparece em falta."
 bad_sound = "O som {} não pôde ser lido e fica em silêncio."
-bad_film = "O filme {} não pôde ser reproduzido e foi saltado."
 bad_peer = "O jogador {} enviou dados que não foram compreendidos e foi retirado."
 bad_replay_play = "A repetição parou: os seus dados estão danificados a partir daqui."
 back_to_menu = "O jogo não pode continuar com isto e volta ao menu principal: {}"

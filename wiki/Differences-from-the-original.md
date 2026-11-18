@@ -21,6 +21,7 @@ the switches of the command line are on [Running and options](Running-and-option
   wheels, an H shifter and rumble: [Controllers and input](#controllers-and-input).
 - **An on-screen keyboard** for typing with a pad: [Controllers and input](#controllers-and-input).
 - **Lobby passwords, ping, un-ready and `/kick`** to put a player out: [Network play](#network-play).
+- **Computer drivers (bots) in network races**, switched by the host in the lobby: [Network play](#network-play).
 - **Finding hosts over Tailscale**: [Network play](#network-play).
 - **Playing through Steam** (in progress): [Network play](#network-play).
 - **Replays rendered to a video**, from the viewer's camera button in a third row and from the command line:
@@ -150,6 +151,10 @@ Everything is on [Controllers](Controllers) and [Input](Input); in short:
   (Xbox, PlayStation or Steam Deck set, chosen from what SDL reports; numbers for plain
   joysticks). The controller page's "button icons" row switches them; the advanced page's "buttons
   in the quit question" row does so for the race's leave question and the tyre change's prompt.
+- **Engine vibration switch.** The force feedback of a car nearly still follows the engine in the
+  original; the controller page's "engine vibration" row (on at first, set for each player and
+  controller) leaves that out, and the accelerator trigger's engine share too, so a wheel feels
+  only the road: [Controllers](Controllers#engine-vibration).
 - **On-screen keyboard** for typing with a pad: below or above the field, one tile a key, the
   typed text in a line at the top (stars for a password), pages of symbols and accented letters.
   A system with its own screen keyboard shows that one instead.
@@ -236,6 +241,7 @@ or IPX connection), and Steam when Valve's library is beside the program (it is 
   on every machine. The other cars appear on the progress bar.
 - **`/kick <name>`** in the chat: the host puts a player out.
 - The lobby has a "settings" button and, after a race, "save replay".
+- **Computer drivers in network races**: the host's "bots" button in the lobby adds up to seven computer-driven cars to the race, as the arcade has them ([Network play](Network-play)).
 - A port in use is said so; the failure of any start is written to the log.
 - **Steam invitations**: accepting one (or "Join game" in the friends list) joins that lobby from any menu; during a race or replay it waits for the menus, and in a network game it is ignored.
 - **Command line**: `--host`, `--join`, `--name` and `--port` go straight into the lobby.
@@ -251,8 +257,8 @@ or IPX connection), and Steam when Valve's library is beside the program (it is 
   "Guru Meditation" box. Troubles belonging to one file no longer end the game: a damaged saved
   game is not loaded, a replay that cannot be read is skipped, and options that are not valid are
   reset to their defaults, each with a notice. So are a picture that cannot be read (shown as
-  missing), a sound file that holds no sound the game can play (silent; a sound file that is simply not there stays silent with a line in the log only, as the stock game's lists name some it never shipped), a film that cannot be played (skipped) and a
-  replay whose data breaks while it plays (it stops there, or goes back as below); each is told once, in the language in use. A network
+  missing), a sound file that holds no sound the game can play (silent; a sound file that is simply not there stays silent with a line in the log only, as the stock game's lists name some it never shipped), and a
+  replay whose data breaks while it plays (it stops there, or goes back as below); each is told once, in the language in use. A start-up film (the logos, the intro) that is missing or cannot be played is skipped with a line in the log only. A network
   player's message that cannot be understood is dropped, and the notice comes at the next menu
   frame. A stage whose data cannot be read, or another trouble the game can go back from inside
   a menu or a race, shows the panel with "Main menu" and "Quit" (a stage picture that cannot be read is one of them): the race is torn down as when

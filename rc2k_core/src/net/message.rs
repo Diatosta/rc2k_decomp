@@ -4,7 +4,8 @@
 use crate::Invalid;
 use crate::net::inbox::{LONGEST, SEND_ROOM};
 use crate::net::messages::{
-    ALL_DONE, ALL_READY, CHAT, CHAT_RELAYED, DONE_ANSWER, LOADING, PROGRESS, RACE_BIT, READY_ANSWER,
+    ALL_DONE, ALL_READY, BOT_RACE, CHAT, CHAT_RELAYED, DONE_ANSWER, LOADING, PROGRESS, RACE_BIT,
+    READY_ANSWER,
 };
 use crate::net::players::System;
 use crate::net::race::Kind;
@@ -99,6 +100,13 @@ pub enum Message {
     /// A race message: the sequence byte (top bit set) and what follows it, at most
     /// `LONGEST` bytes.
     Race { sequence: u8, payload: Payload },
+    /// The host's race message for the computer driver's car `car`: the sequence byte (top bit
+    /// set) and what follows it, at most `LONGEST` bytes.
+    BotRace {
+        car: u8,
+        sequence: u8,
+        payload: Payload,
+    },
     /// A call, an answer or a race message of the wrong length.
     Malformed(Vec<u8>),
     /// A first byte of none of the kinds, or no bytes at all.
@@ -135,6 +143,18 @@ impl Message {
                     None => Message::Malformed(bytes.to_vec()),
                 },
                 None => Message::Malformed(bytes.to_vec()),
+            },
+            BOT_RACE => match *rest {
+                [car, sequence, ref payload @ ..]
+                    if sequence & RACE_BIT != 0 && payload.len() as u32 <= LONGEST =>
+                {
+                    Message::BotRace {
+                        car,
+                        sequence,
+                        payload: Payload::parse(payload),
+                    }
+                }
+                _ => Message::Malformed(bytes.to_vec()),
             },
             ALL_READY => pair(true, false),
             ALL_DONE => pair(false, false),
@@ -177,6 +197,11 @@ impl Message {
             Message::Loading { share } => vec![LOADING, *share],
             Message::Progress { share } => vec![PROGRESS, *share],
             Message::Race { sequence, payload } => [&[*sequence][..], &payload.encode()].concat(),
+            Message::BotRace {
+                car,
+                sequence,
+                payload,
+            } => [&[BOT_RACE, *car, *sequence][..], &payload.encode()].concat(),
             Message::Malformed(bytes) | Message::Unknown(bytes) => bytes.clone(),
         }
     }
@@ -317,6 +342,23 @@ mod tests {
         assert_eq!(Message::Loading { share: 42 }.encode(), vec![0x60, 42]);
         assert_eq!(Message::parse(&[0x61, 7]), Message::Progress { share: 7 });
         assert_eq!(Message::Progress { share: 7 }.encode(), vec![0x61, 7]);
+        // A bot's race message: its car, then a race message's bytes.
+        let bot = [0x62, 3, 0x85, b'J', b'G', b'S', b'M'];
+        assert_eq!(
+            Message::parse(&bot),
+            Message::BotRace {
+                car: 3,
+                sequence: 0x85,
+                payload: Payload::parse(b"JGSM")
+            }
+        );
+        assert_eq!(Message::parse(&bot).encode(), bot.to_vec());
+        // Without the sequence's top bit, or cut short, it is malformed.
+        assert!(matches!(
+            Message::parse(&[0x62, 3, 0x05]),
+            Message::Malformed(_)
+        ));
+        assert!(matches!(Message::parse(&[0x62, 3]), Message::Malformed(_)));
         assert_eq!(Message::parse(&[0x61]), Message::Malformed(vec![0x61]));
         for bad in [vec![0x60], vec![0x60, 1, 2]] {
             assert_eq!(Message::parse(&bad), Message::Malformed(bad.clone()));

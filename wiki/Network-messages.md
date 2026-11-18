@@ -161,7 +161,7 @@ without separate messages.
 | 2 | 1 | The car's colours. |
 | 3 | 1 | Nationality. |
 | 4 | 1 | Stage. |
-| 5 | 1 | The stage's direction. |
+| 5 | 1 | Bit 0: the stage's direction. Bits 1 to 3, in the host's record: the number of computer drivers the host asks for (0 = none; see `0x62`). |
 | 6 | 1 | Race number. |
 | 7 | 1 | A random byte. |
 | 8 | 4 | u32: this player's time in the race. |
@@ -176,6 +176,7 @@ without separate messages.
 | `0x40` | The host asks: is everyone ready to race? | One byte: the round number. |
 | `0x60` | A machine's stage load's progress. | One byte: the percentage (0 to 100). |
 | `0x61` | How far through the stage a machine's race is: its car's checkpoint over the stage's checkpoints. Sent when the figure changes and again every 128th step of the car; a copy that does not know the byte drops the message. | One byte: the percentage (0 to 100). |
+| `0x62` | A computer driver's race message, host to every other machine: the host's copy of the bot's car (see below). | The car's number (1 byte), then a race message's bytes: its sequence byte (top bit set, counted by the host for all bots together) and the tag and values. Only `PGSM` and `XGSM` are sent this way; a machine takes it only from the host and only for a car that is a bot's in this race. |
 | `0x41` | Answer to `0x40`. | One byte: the same round number. |
 | `0x50` | The host asks: is everyone done with the race? | One byte: the round number. |
 | `0x51` | Answer to `0x50`. | One byte: the round number. |
@@ -226,6 +227,8 @@ remote car with these through its own physics.
 | 30 .. 33 | How far each wheel's spring is pressed. | f32 |
 | 34 .. 38 | Throttle, brake, handbrake, steering, and the steering before smoothing. | i32 |
 | 39 | A word of the car's own state. | u32 |
+
+**Computer drivers.** With bots on (the host's button in the lobby), the race has the players' cars and then the bots' cars after them, up to eight in all. Every machine drives a bot's car with the game's computer driver, from the same start, so no inputs are sent for it; the host sends the `PGSM` and `XGSM` of each bot car as `0x62` messages, and the others glide the car to the position as they do a player's. The protocol's mark is `RC2KNET6` since this message came.
 
 **`XGSM`: the rest.** Nine values: eight impact figures, one for each of the car's eight
 corner regions (f32, 0 to about 1), and whether the lights are on.
