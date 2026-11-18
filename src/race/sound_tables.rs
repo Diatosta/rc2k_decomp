@@ -237,6 +237,16 @@ fn set_up_objects(
         } else {
             sound_objects(heard, shared.state.settings.run_kind.get())
         };
+        // The co-driver speaks to each player of a split screen of three or four (not in the
+        // arcade, whose objects past the second are the computers' cars', nor in a replay, whose
+        // extra cars have no settings of their own to say what they would hear).
+        crate::sound::cue_players::set(
+            if every_car.is_none() && !both_cars && !arcade && heard > 2 {
+                heard
+            } else {
+                2
+            },
+        );
         if arcade {
             sound.race.sounds.get().mark_car_voices.set(1);
         }

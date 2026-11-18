@@ -13,7 +13,7 @@
 //! Then in 3D: with EAX the room is set when the room asked is not the one set, or the
 //! environment is not the one kept; and the 3D settings are committed when marked.
 //!
-//! Refuses, before anything: a list that does not end within 0x200 voices; a playing voice that
+//! Refuses, before anything: a list that does not end within `VOICES` voices; a playing voice that
 //! does not loop without its channel or buffer; a voice to stop without its buffer; a marked
 //! voice's volume or pan past the volume table.
 

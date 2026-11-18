@@ -1,5 +1,5 @@
 //! Command 3: loads a list of sounds. For each sound whose record has a file and a copy count
-//! above 0, that many voices are made (while fewer than 0x200 are in use): found shared voice or
+//! above 0, that many voices are made (while fewer than `VOICES` are in use): found shared voice or
 //! sample read, new voice, `fill_voice`, sample mode, prepare, keep, make and fill buffer; the
 //! voice's flags get `LOADED`. Quitting ends it after any entry. Refuses, before anything is
 //! done: a list without its -1 within 0x1000 entries, and a sound of 0x1CD or more.
@@ -148,6 +148,10 @@ fn list_entries<'a>(
             0 => Some(sound),
             _ => Some(rc2k_core::audio::load::END),
         })),
+        SoundList::Range { first, count } => Ok(Box::new(move |n| match n as u32 {
+            n if n < count => Some(first + n),
+            _ => Some(rc2k_core::audio::load::END),
+        })),
         SoundList::Race { field, entry } => {
             sets.list_entry(field, entry, 0)?;
             Ok(Box::new(move |n| {
@@ -181,7 +185,15 @@ pub fn load_sounds(
         return Err(e.into());
     }
     let mut l = GameLoader { audio, system };
-    rc2k_core::audio::load::load(&mut l, &entries)
+    let loaded = rc2k_core::audio::load::load(&mut l, &entries);
+    #[cfg(feature = "remote")]
+    if std::env::var_os("RC2K_SOUND_LOG").is_some() {
+        crate::logfile::program_log::log(&format!(
+            "sound log: {} voices of {VOICES} after loading {list:?}",
+            audio.state.voice_count.get()
+        ));
+    }
+    loaded
 }
 
 #[cfg(test)]

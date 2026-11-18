@@ -333,7 +333,7 @@ the cars) is not changed there.
 
 The layouts are on [Options files](Options-files) and [Settings files](Settings-files).
 
-The options menu's **Save code** page shows the player's whole state as text and as a QR code, copies it,
+The options menu's **Save code** page shows the player's saved games, car set-ups and best times as text and as QR codes, copies it,
 and takes one in from the clipboard or a camera: [Save code](Save-code).
 
 ## Environment variables

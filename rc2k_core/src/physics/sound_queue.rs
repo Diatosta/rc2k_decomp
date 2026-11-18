@@ -2,6 +2,7 @@
 //! playing sound and moves the others up one.
 
 use crate::Invalid;
+use crate::audio::voices::codriver_copy;
 
 /// The queue's room.
 pub const ROOM: u32 = 16;
@@ -48,15 +49,29 @@ pub fn place(count: u32, first: bool) -> CuePlacement {
     }
 }
 
-/// A cue's sounds: the list read up to a -1 or `MOST_SOUNDS`, each not below 0 offset by
-/// the object's base; returns (the dwords written, their number less the -1).
+/// A cue's sound as the object whose sounds are offset by `base` says it: the list's sound
+/// moved on by the base (0 and 1: the first two players' voices, a pair of records), the split
+/// screen's third and fourth players' (2 and 3) the same pair's copies.
+pub fn cue_sound(sound: u32, base: u32) -> u32 {
+    if matches!(base, 2 | 3) {
+        let pair = sound.wrapping_add(base & 1);
+        if let Some(copy) = codriver_copy(pair) {
+            return copy;
+        }
+    }
+    sound.wrapping_add(base)
+}
+
+/// A cue's sounds: the list read up to a -1 or `MOST_SOUNDS`, each not below 0 given to the
+/// object whose base is `base` (`cue_sound`); returns (the dwords written, their number less the
+/// -1).
 pub fn sounds(list: impl Fn(u32) -> u32, base: u32) -> (Vec<u32>, u32) {
     let mut out = Vec::new();
     let mut n = 0;
     loop {
         let mut s = list(n);
         if (s as i32) >= 0 {
-            s = s.wrapping_add(base);
+            s = cue_sound(s, base);
         }
         out.push(s);
         if s == LIST_END {
@@ -73,6 +88,17 @@ pub fn sounds(list: impl Fn(u32) -> u32, base: u32) -> (Vec<u32>, u32) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn third_and_fourth_voices() {
+        use crate::audio::voices::{CODRIVER_COPIES as copies, CODRIVER_FIRST};
+        assert_eq!(cue_sound(CODRIVER_FIRST + 4, 0), CODRIVER_FIRST + 4);
+        assert_eq!(cue_sound(CODRIVER_FIRST + 4, 1), CODRIVER_FIRST + 5);
+        assert_eq!(cue_sound(CODRIVER_FIRST + 4, 2), copies + 4);
+        assert_eq!(cue_sound(CODRIVER_FIRST + 4, 3), copies + 5);
+        // A sound that is no voice keeps the plain offset.
+        assert_eq!(cue_sound(10, 2), 12);
+    }
 
     #[test]
     fn places() {

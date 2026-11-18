@@ -237,16 +237,12 @@ pub fn layout_many(frame: &Frame, hud: &Hud, pen: Pen, views: u32) -> Result<(),
                 cell.set(value);
             }
         }
-        let mut flags = panel.hud_flags[n].get();
-        if n > 1 {
-            // The signs come from the first two views' marks.
-            flags &= !0x80;
-        }
+        let flags = panel.hud_flags[n].get();
         panel.hud_flags[0].set(flags);
         panel.start_values[0].set(kept_start(panel, n, kept.start));
         panel.distance[0].set(panel.car_distances[n].get());
         set_lights(&panel.lights[0], lights_of(&panel.lights[n.min(1)]));
-        set_marks(&panel.marks[0], marks_of(&panel.marks[n.min(1)]));
+        set_marks(&panel.marks[0], marks_of(panel.marks_of_view(n)));
         crate::hud::tenths::tenths(frame, hud);
         crate::hud::part_scope::set(Some(part));
         crate::hud::part_scope::set_icon(Some(n));

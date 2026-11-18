@@ -10,7 +10,7 @@
 //! place, each marked dirty if it changed; kind 3 marks a restart; and the play bit is set.
 //!
 //! Refuses, before anything is written: a number of 0x1CD or more; no channels left and no voice
-//! playing; a playing list that does not end within 0x200 voices; a playing voice to stop without
+//! playing; a playing list that does not end within `VOICES` voices; a playing voice to stop without
 //! its channel.
 
 use crate::audio::own::AudioThread;

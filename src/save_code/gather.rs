@@ -1,5 +1,6 @@
-//! The player's state as it is now, read out of the game: the options in the stores, the best
-//! times' tables, and the car set-up and saved game files.
+//! The player's state as it is now, read out of the game: the best times' tables (and the rally
+//! times and stage records held with the options), and the car set-up and saved game files. The
+//! settings are not part of it.
 
 use crate::errors::Refused;
 use crate::files::numbered_path::numbered_path_bytes;
@@ -7,7 +8,7 @@ use crate::files::read_file::read_file_into;
 use crate::owners::Owners;
 use rc2k_core::saves::code::best::{self, DriverNames};
 use rc2k_core::saves::code::{
-    BestTimes, GAME_STATE_LEN, Game, NAME_LEN, PlayerState, SETUP_VALUES, SLOTS, Setup, settings,
+    BestTimes, GAME_STATE_LEN, Game, NAME_LEN, PlayerState, SETUP_VALUES, SLOTS, Setup,
 };
 use rc2k_core::saves::kept;
 
@@ -128,13 +129,8 @@ pub fn gather(o: Owners<'static>) -> Result<PlayerState, Refused> {
     Ok(PlayerState {
         made: now(),
         program: env!("CARGO_PKG_VERSION").to_owned(),
-        settings: Some(
-            settings::text_of(&options).map_err(|_| {
-                crate::errors::BadInput("the settings could not be put into a code")
-            })?,
-        ),
-        best,
-        setups: Some(setups(o)?),
         games: Some(games(o)?),
+        setups: Some(setups(o)?),
+        best,
     })
 }

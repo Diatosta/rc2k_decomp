@@ -216,10 +216,6 @@ pub mod id {
     pub const SAVE_CODE_BACK: u32 = FIRST + 0x10B;
     pub const SAVE_CODE_KEYS: u32 = FIRST + 0x10C;
     pub const SAVE_CODE_QR_WHOLE: u32 = FIRST + 0x10D;
-    pub const SAVE_CODE_QR_NO_GAMES: u32 = FIRST + 0x10E;
-    pub const SAVE_CODE_QR_NO_LINES: u32 = FIRST + 0x10F;
-    pub const SAVE_CODE_QR_NO_RECORDS: u32 = FIRST + 0x110;
-    pub const SAVE_CODE_QR_NO_BEST: u32 = FIRST + 0x111;
     pub const SAVE_CODE_LENGTH: u32 = FIRST + 0x112;
     pub const SAVE_CODE_COPIED: u32 = FIRST + 0x113;
     pub const SAVE_CODE_CLIPBOARD_EMPTY: u32 = FIRST + 0x114;
@@ -232,8 +228,6 @@ pub mod id {
     pub const SAVE_CODE_NOW: u32 = FIRST + 0x11B;
     pub const SAVE_CODE_ROW_MADE: u32 = FIRST + 0x11C;
     pub const SAVE_CODE_ROW_PROGRAM: u32 = FIRST + 0x11D;
-    pub const SAVE_CODE_ROW_PLAYERS: u32 = FIRST + 0x11E;
-    pub const SAVE_CODE_ROW_RUNS: u32 = FIRST + 0x11F;
     pub const SAVE_CODE_ROW_BEST: u32 = FIRST + 0x120;
     pub const SAVE_CODE_ROW_SETUPS: u32 = FIRST + 0x121;
     pub const SAVE_CODE_ROW_GAMES: u32 = FIRST + 0x122;
@@ -244,6 +238,15 @@ pub mod id {
     pub const SAVE_CODE_NOT_HELD: u32 = FIRST + 0x127;
     pub const SAVE_CODE_CONFIRM_KEYS: u32 = FIRST + 0x128;
     pub const SAVE_CODE_NOTE: u32 = FIRST + 0x129;
+    /// The page's notes for a code of several QR codes ("{}" the count), a part's place
+    /// ("{}" its number, "{}" the count), the camera's progress ("{}" read, "{}" of how
+    /// many), the numbers read ("{}"), a part of another code, and a state too long for parts.
+    pub const SAVE_CODE_PARTS_NOTE: u32 = FIRST + 0x160;
+    pub const SAVE_CODE_PART_OF: u32 = FIRST + 0x161;
+    pub const SAVE_CODE_PARTS_READ: u32 = FIRST + 0x162;
+    pub const SAVE_CODE_PARTS_HELD: u32 = FIRST + 0x163;
+    pub const SAVE_CODE_PART_OTHER: u32 = FIRST + 0x164;
+    pub const SAVE_CODE_TOO_LONG: u32 = FIRST + 0x165;
 }
 
 /// Each text's file key and id.
@@ -441,10 +444,6 @@ pub const KEYS: &[(&str, u32)] = &[
     ("save_code.back", id::SAVE_CODE_BACK),
     ("save_code.keys", id::SAVE_CODE_KEYS),
     ("save_code.qr_whole", id::SAVE_CODE_QR_WHOLE),
-    ("save_code.qr_no_games", id::SAVE_CODE_QR_NO_GAMES),
-    ("save_code.qr_no_lines", id::SAVE_CODE_QR_NO_LINES),
-    ("save_code.qr_no_records", id::SAVE_CODE_QR_NO_RECORDS),
-    ("save_code.qr_no_best", id::SAVE_CODE_QR_NO_BEST),
     ("save_code.length", id::SAVE_CODE_LENGTH),
     ("save_code.copied", id::SAVE_CODE_COPIED),
     ("save_code.clipboard_empty", id::SAVE_CODE_CLIPBOARD_EMPTY),
@@ -457,8 +456,6 @@ pub const KEYS: &[(&str, u32)] = &[
     ("save_code.now", id::SAVE_CODE_NOW),
     ("save_code.row_made", id::SAVE_CODE_ROW_MADE),
     ("save_code.row_program", id::SAVE_CODE_ROW_PROGRAM),
-    ("save_code.row_players", id::SAVE_CODE_ROW_PLAYERS),
-    ("save_code.row_runs", id::SAVE_CODE_ROW_RUNS),
     ("save_code.row_best", id::SAVE_CODE_ROW_BEST),
     ("save_code.row_setups", id::SAVE_CODE_ROW_SETUPS),
     ("save_code.row_games", id::SAVE_CODE_ROW_GAMES),
@@ -469,6 +466,12 @@ pub const KEYS: &[(&str, u32)] = &[
     ("save_code.not_held", id::SAVE_CODE_NOT_HELD),
     ("save_code.confirm_keys", id::SAVE_CODE_CONFIRM_KEYS),
     ("save_code.note", id::SAVE_CODE_NOTE),
+    ("save_code.parts_note", id::SAVE_CODE_PARTS_NOTE),
+    ("save_code.part_of", id::SAVE_CODE_PART_OF),
+    ("save_code.parts_read", id::SAVE_CODE_PARTS_READ),
+    ("save_code.parts_held", id::SAVE_CODE_PARTS_HELD),
+    ("save_code.part_other", id::SAVE_CODE_PART_OTHER),
+    ("save_code.too_long", id::SAVE_CODE_TOO_LONG),
 ];
 
 /// The English file, built in.

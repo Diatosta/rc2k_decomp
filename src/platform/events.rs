@@ -23,6 +23,8 @@ enum Event {
         axis: crate::input::menu_pad::StickAxis,
         value: i32,
     },
+    /// The right stick's vertical axis (a page that scrolls reads it).
+    ScrollStick(i32),
     /// A joystick that is not a gamepad (a wheel): its hat, buttons and first axis.
     Joystick {
         id: SDL_JoystickID,
@@ -75,6 +77,7 @@ fn next_event() -> Option<Event> {
             let axis = match axis {
                 SDL_GAMEPAD_AXIS_LEFTX => StickAxis::X,
                 SDL_GAMEPAD_AXIS_LEFTY => StickAxis::Y,
+                SDL_GAMEPAD_AXIS_RIGHTY => return Some(Event::ScrollStick(value.into())),
                 _ => return Some(Event::Other),
             };
             Event::Stick {
@@ -218,6 +221,7 @@ pub fn pump(o: crate::owners::Owners<'static>) {
             }
             // In a race the stick steers (the game's own devices): only the menus and the
             // replay viewer take it.
+            Event::ScrollStick(value) => input.note_scroll_stick(value),
             Event::Stick { axis, value } => {
                 if !driving(o.race) {
                     let now = u64::from(crate::platform::os::ticks());
@@ -358,6 +362,13 @@ fn pad_button(
     }
     if down && matches!(button, B::South | B::East | B::Start) {
         input.note_pad_press(button == B::Start);
+    }
+    if down {
+        match button {
+            B::LeftShoulder => input.note_shoulder(1),
+            B::RightShoulder => input.note_shoulder(2),
+            _ => {}
+        }
     }
     let in_race = driving;
     let now = u64::from(crate::platform::os::ticks());

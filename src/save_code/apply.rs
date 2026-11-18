@@ -1,6 +1,7 @@
-//! A state read from a code, written into the game the way the game itself saves: the options
-//! into the stores and `var/rc2k.toml`, the best times into the tables and `var\hst.dat`, the
-//! set-ups and saved games into their files, which the game reads again.
+//! A state read from a code, written into the game the way the game itself saves: the best
+//! times into the tables and `var\hst.dat` (the rally times and stage records, which the game
+//! keeps with its options, ranked in and saved with the options as they are), the set-ups and
+//! saved games into their files, which the game reads again. The settings are never changed.
 //!
 //! `plan` makes everything and writes nothing; the question is asked on what it holds, and
 //! only a yes goes on to `commit`.
@@ -12,7 +13,7 @@ use crate::owners::Owners;
 use crate::save_code::gather;
 use rc2k_core::options::Options;
 use rc2k_core::saves::code::best;
-use rc2k_core::saves::code::{CodeError, PlayerState, Summary, settings};
+use rc2k_core::saves::code::{CodeError, PlayerState, Summary};
 use rc2k_core::saves::kept;
 
 /// What can stop an import before anything is written.
@@ -55,12 +56,8 @@ pub struct Plan {
 
 /// Everything the state would change, worked out and checked; nothing is written.
 pub fn plan(o: Owners<'static>, state: PlayerState) -> Result<Plan, Problem> {
-    let current = crate::saves::options_state::capture(o)?;
-    let now = gather::gather(o)?.summary(&current)?;
-    let mut options = match &state.settings {
-        Some(text) => Some(settings::options_of(text, &current)?),
-        None => None,
-    };
+    let now = gather::gather(o)?.summary();
+    let mut options = None;
     let mut tables = None;
     if let Some(times) = &state.best {
         let names = gather::driver_names(o)?;
@@ -69,7 +66,7 @@ pub fn plan(o: Owners<'static>, state: PlayerState) -> Result<Plan, Problem> {
         };
         best::merge(&mut mine, &times.real, &names)?;
         tables = Some(mine);
-        let mut theirs = options.take().unwrap_or_else(|| current.clone());
+        let mut theirs = crate::saves::options_state::capture(o)?;
         {
             let records = &mut theirs.records;
             let mut rallies: Vec<&mut [u8]> = records
@@ -91,7 +88,9 @@ pub fn plan(o: Owners<'static>, state: PlayerState) -> Result<Plan, Problem> {
         }
         options = Some(theirs);
     }
-    let code = state.summary(&current)?;
+    // The options pass through only to keep the rally times and stage records; the settings in
+    // them are the ones the game has.
+    let code = state.summary();
     Ok(Plan {
         options,
         tables,

@@ -472,6 +472,19 @@ pub fn push_gamepad_button_event(button: SDL_GamepadButton, down: bool) {
     }
 }
 
+/// A gamepad axis moved to `value`, pushed on SDL's event queue.
+#[cfg(feature = "remote")]
+pub fn push_gamepad_axis_event(axis: SDL_GamepadAxis, value: i16) {
+    // SAFETY: as `push_key_event`.
+    unsafe {
+        let mut event: SDL_Event = std::mem::zeroed();
+        event.r#type = SDL_EVENT_GAMEPAD_AXIS_MOTION.0;
+        event.gaxis.axis = axis.0 as u8;
+        event.gaxis.value = value;
+        SDL_PushEvent(&raw mut event);
+    }
+}
+
 /// A quit request pushed on SDL's event queue.
 #[cfg(feature = "remote")]
 pub fn push_quit_event() {

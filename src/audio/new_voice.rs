@@ -1,4 +1,4 @@
-//! The next voice of the pool and the count + 1; with 0x200 in use fatal error.
+//! The next voice of the pool and the count + 1; with `VOICES` in use fatal error.
 
 use crate::audio::own::AudioOwn;
 use crate::errors::{FatalError, Refused};

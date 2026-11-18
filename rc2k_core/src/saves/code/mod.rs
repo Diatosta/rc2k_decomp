@@ -1,31 +1,36 @@
-//! The player's state as a code: text that a QR code carries, made from the settings, the best
-//! times, the car set-ups and the saved games, and read back into them. See the wiki page
-//! "Save code".
+//! The player's state as a code: text that QR codes carry, made from the saved games, the car
+//! set-ups and the best times, and read back into them. See the wiki page "Save code".
 //!
 //! The text is `RC2K:` and base 45 letters of a frame and `:`. The frame is a version byte
-//! (1), a flags byte (0), a CRC-32 of the rest, then the payload, deflated. The payload is
-//! made of sections (settings, best times, set-ups, saved games), each there or not; a
-//! section that is there replaces what the importing game has of its kind (set-ups and saved
-//! games slot by slot). Everything is read into typed values and checked before anything is
+//! (2), a flags byte (0), a CRC-32 of the rest, then the payload, deflated. The payload is
+//! made of sections (saved games, set-ups, best times), each there or not; a section that is
+//! there replaces what the importing game has of its kind (set-ups and saved games slot by
+//! slot). The settings are not in it. A text too long for one QR code is cut into numbered
+//! parts (`parts`). Everything is read into typed values and checked before anything is
 //! written; a code is untrusted input.
 
 pub mod base45;
 pub mod best;
+mod game_pack;
+pub mod parts;
 pub mod qr;
-pub mod settings;
 mod wire;
-
-use crate::options::Options;
 use best::{RallyTime, Real, StageRecord};
 use wire::{Reader, Writer};
 
 /// The code's text begins with this and ends with `END`.
 pub const START: &str = "RC2K:";
 pub const END: &str = ":";
-/// The frame's version this program writes and reads.
-pub const VERSION: u8 = 1;
+/// The frame's version this program writes.
+pub const VERSION: u8 = 2;
+/// The first version this program still reads. Its payload began with the settings (now left
+/// out: read past and ignored) and its saved games were not rearranged.
+const FIRST_VERSION: u8 = 1;
+/// The most the first version's settings text could be.
+const MOST_OLD_SETTINGS: usize = 64 * 1024;
 /// A saved game's state in its file: after the 0x30-byte head, this many bytes.
 pub const GAME_STATE_LEN: usize = 0x725C;
+const _: () = assert!(GAME_STATE_LEN == crate::saves::savegame::LEN);
 /// The car set-ups and saved games have this many slots.
 pub const SLOTS: usize = 100;
 /// A name's room in a slot.
@@ -46,6 +51,8 @@ pub enum CodeError {
     NotACode,
     /// A code of a version this program does not know.
     Version(u8),
+    /// The text is one part of a code cut into parts.
+    OnePart,
     /// The check number does not match: the text was changed or cut.
     Checksum,
     /// The code is not made as a code is.
@@ -59,6 +66,7 @@ impl std::fmt::Display for CodeError {
         match self {
             Self::NotACode => f.write_str("not a save code"),
             Self::Version(v) => write!(f, "a save code of version {v}"),
+            Self::OnePart => f.write_str("one part of a longer code: read all its parts"),
             Self::Checksum => f.write_str("the save code's check number is wrong"),
             Self::Damaged(why) | Self::Range(why) => f.write_str(why),
         }
@@ -99,21 +107,6 @@ impl BestTimes {
     pub fn count(&self) -> usize {
         self.real.len() + self.rallies.len() + self.records.len()
     }
-
-    /// The times without their checkpoint lines (the sixteen split times of a best time, the
-    /// bulk of an entry and numbers that do not compress): a time then has no splits to be
-    /// compared with.
-    pub fn without_lines(&self) -> Self {
-        let cut = |entry: &mut Vec<u8>| {
-            if entry.len() == crate::saves::entries::TIME_LEN {
-                entry[0x5C..].fill(0);
-            }
-        };
-        let mut out = self.clone();
-        out.real.iter_mut().for_each(|r| cut(&mut r.entry));
-        out.rallies.iter_mut().for_each(|r| cut(&mut r.entry));
-        out
-    }
 }
 
 /// The player's state: each section there or not.
@@ -123,11 +116,9 @@ pub struct PlayerState {
     pub made: u32,
     /// The program that made it.
     pub program: String,
-    /// The settings' text (`settings`).
-    pub settings: Option<String>,
-    pub best: Option<BestTimes>,
-    pub setups: Option<Vec<Setup>>,
     pub games: Option<Vec<Game>>,
+    pub setups: Option<Vec<Setup>>,
+    pub best: Option<BestTimes>,
 }
 
 /// CRC-32 (the one of zip and PNG).
@@ -151,18 +142,32 @@ fn check_name(name: &[u8]) -> Result<(), CodeError> {
 }
 
 impl PlayerState {
-    /// The payload's bytes.
+    /// The payload's bytes: the saved games first, then the set-ups, then the best times.
     fn payload(&self) -> Vec<u8> {
         let mut w = Writer::default();
         w.u32(self.made);
         w.bytes(self.program.as_bytes());
-        let flags = u8::from(self.settings.is_some())
-            | u8::from(self.best.is_some()) << 1
+        let flags = u8::from(self.best.is_some()) << 1
             | u8::from(self.setups.is_some()) << 2
             | u8::from(self.games.is_some()) << 3;
         w.u8(flags);
-        if let Some(text) = &self.settings {
-            w.bytes(text.as_bytes());
+        if let Some(games) = &self.games {
+            w.varint(games.len() as u32);
+            for g in games {
+                w.u8(g.slot);
+                w.raw(&g.name);
+                w.raw(&game_pack::pack(&g.state));
+            }
+        }
+        if let Some(setups) = &self.setups {
+            w.varint(setups.len() as u32);
+            for s in setups {
+                w.u8(s.slot);
+                w.raw(&s.name);
+                for v in s.values {
+                    w.varint(v);
+                }
+            }
         }
         if let Some(best) = &self.best {
             w.varint(best.real.len() as u32);
@@ -193,31 +198,17 @@ impl PlayerState {
                 None => w.u8(0),
             }
         }
-        if let Some(setups) = &self.setups {
-            w.varint(setups.len() as u32);
-            for s in setups {
-                w.u8(s.slot);
-                w.raw(&s.name);
-                for v in s.values {
-                    w.varint(v);
-                }
-            }
-        }
-        if let Some(games) = &self.games {
-            w.varint(games.len() as u32);
-            for g in games {
-                w.u8(g.slot);
-                w.raw(&g.name);
-                w.raw(&g.state);
-            }
-        }
         w.0
     }
 
-    /// The code's text.
+    /// The code's text, whole (a QR code holds it, or `parts::split` cuts it).
     pub fn encode(&self) -> String {
-        let deflated = miniz_oxide::deflate::compress_to_vec(&self.payload(), 10);
-        let mut frame = vec![VERSION, 0, 0, 0, 0, 0];
+        Self::frame(VERSION, &self.payload())
+    }
+
+    fn frame(version: u8, payload: &[u8]) -> String {
+        let deflated = miniz_oxide::deflate::compress_to_vec(payload, 10);
+        let mut frame = vec![version, 0, 0, 0, 0, 0];
         frame.extend_from_slice(&deflated);
         let crc = crc32(&[&frame[..2], &frame[6..]].concat());
         frame[2..6].copy_from_slice(&crc.to_le_bytes());
@@ -230,6 +221,9 @@ impl PlayerState {
     pub fn decode(text: &str) -> Result<Self, CodeError> {
         let letters: String = text.chars().filter(|c| !"\r\n\t".contains(*c)).collect();
         let letters = letters.trim();
+        if letters.starts_with(parts::START) {
+            return Err(CodeError::OnePart);
+        }
         let inner = letters
             .strip_prefix(START)
             .and_then(|t| t.strip_suffix(END))
@@ -238,8 +232,9 @@ impl PlayerState {
         if frame.len() < 7 {
             return Err(CodeError::NotACode);
         }
-        if frame[0] != VERSION {
-            return Err(CodeError::Version(frame[0]));
+        let version = frame[0];
+        if !(FIRST_VERSION..=VERSION).contains(&version) {
+            return Err(CodeError::Version(version));
         }
         if frame[2..6] != crc32(&[&frame[..2], &frame[6..]].concat()).to_le_bytes() {
             return Err(CodeError::Checksum);
@@ -249,16 +244,18 @@ impl PlayerState {
         }
         let payload = miniz_oxide::inflate::decompress_to_vec_with_limit(&frame[6..], MOST_PAYLOAD)
             .map_err(|_| CodeError::Damaged("the code does not unpack"))?;
-        Self::from_payload(&payload)
+        Self::from_payload(version, &payload)
     }
 
-    fn from_payload(payload: &[u8]) -> Result<Self, CodeError> {
+    fn from_payload(version: u8, payload: &[u8]) -> Result<Self, CodeError> {
         let mut r = Reader::new(payload);
         let made = r.u32()?;
         let program = String::from_utf8(r.bytes(MOST_PROGRAM)?.to_vec())
             .map_err(|_| CodeError::Range("a program name that is not text"))?;
         let flags = r.u8()?;
-        if flags > 0xF {
+        let old = version == 1;
+        // The first version's flag 1 was the settings, which are read past and ignored.
+        if flags > 0xF || (!old && flags & 1 != 0) {
             return Err(CodeError::Damaged("a section this program does not know"));
         }
         let mut state = Self {
@@ -266,83 +263,97 @@ impl PlayerState {
             program,
             ..Self::default()
         };
-        if flags & 1 != 0 {
-            let text = r.bytes(settings::MOST_TEXT)?;
-            state.settings = Some(
-                String::from_utf8(text.to_vec())
-                    .map_err(|_| CodeError::Range("settings that are not text"))?,
-            );
-        }
-        if flags & 2 != 0 {
-            state.best = Some(Self::read_best(&mut r)?);
-        }
-        if flags & 4 != 0 {
-            let n = r.count(SLOTS, "more set-ups than slots")?;
-            let mut setups = Vec::with_capacity(n);
-            for _ in 0..n {
-                let slot = r.u8()?;
-                let name: [u8; NAME_LEN] = r.raw(NAME_LEN)?.try_into().expect("a name");
-                check_name(&name)?;
-                let mut values = [0; SETUP_VALUES];
-                for v in &mut values {
-                    *v = r.varint()?;
-                    if *v > MOST_SETUP_VALUE {
-                        return Err(CodeError::Range("a set-up value out of its range"));
-                    }
-                }
-                if usize::from(slot) >= SLOTS {
-                    return Err(CodeError::Range("a set-up of a slot there is not"));
-                }
-                setups.push(Setup { slot, name, values });
+        if old {
+            if flags & 1 != 0 {
+                r.bytes(MOST_OLD_SETTINGS)?;
             }
-            state.setups = Some(setups);
-        }
-        if flags & 8 != 0 {
-            let n = r.count(SLOTS, "more saved games than slots")?;
-            let mut games = Vec::with_capacity(n);
-            for _ in 0..n {
-                let slot = r.u8()?;
-                let name: [u8; NAME_LEN] = r.raw(NAME_LEN)?.try_into().expect("a name");
-                check_name(&name)?;
-                let bytes = r.raw(GAME_STATE_LEN)?.to_vec();
-                if usize::from(slot) >= SLOTS {
-                    return Err(CodeError::Range("a saved game of a slot there is not"));
-                }
-                games.push(Game {
-                    slot,
-                    name,
-                    state: bytes,
-                });
+            if flags & 2 != 0 {
+                state.best = Some(Self::read_best(&mut r)?);
             }
-            state.games = Some(games);
+            if flags & 4 != 0 {
+                state.setups = Some(Self::read_setups(&mut r)?);
+            }
+            if flags & 8 != 0 {
+                state.games = Some(Self::read_games(&mut r, false)?);
+            }
+        } else {
+            if flags & 8 != 0 {
+                state.games = Some(Self::read_games(&mut r, true)?);
+            }
+            if flags & 4 != 0 {
+                state.setups = Some(Self::read_setups(&mut r)?);
+            }
+            if flags & 2 != 0 {
+                state.best = Some(Self::read_best(&mut r)?);
+            }
         }
         r.finish()?;
-        for (list, what) in [
-            (
-                state
-                    .setups
-                    .as_ref()
-                    .map(|s| s.iter().map(|x| x.slot).collect::<Vec<_>>()),
-                "set-ups",
-            ),
-            (
-                state
-                    .games
-                    .as_ref()
-                    .map(|s| s.iter().map(|x| x.slot).collect::<Vec<_>>()),
-                "saved games",
-            ),
-        ] {
-            let mut slots = list.unwrap_or_default();
-            slots.sort_unstable();
-            if slots.windows(2).any(|w| w[0] == w[1]) {
-                return Err(CodeError::Range(match what {
-                    "set-ups" => "two set-ups in a slot",
-                    _ => "two saved games in a slot",
-                }));
-            }
-        }
+        Self::check_slots(
+            state.setups.as_ref().map(|s| s.iter().map(|x| x.slot)),
+            "two set-ups in a slot",
+        )?;
+        Self::check_slots(
+            state.games.as_ref().map(|s| s.iter().map(|x| x.slot)),
+            "two saved games in a slot",
+        )?;
         Ok(state)
+    }
+
+    fn check_slots(
+        slots: Option<impl Iterator<Item = u8>>,
+        why: &'static str,
+    ) -> Result<(), CodeError> {
+        let mut slots: Vec<u8> = slots.map(Iterator::collect).unwrap_or_default();
+        slots.sort_unstable();
+        if slots.windows(2).any(|w| w[0] == w[1]) {
+            return Err(CodeError::Range(why));
+        }
+        Ok(())
+    }
+
+    fn read_setups(r: &mut Reader<'_>) -> Result<Vec<Setup>, CodeError> {
+        let n = r.count(SLOTS, "more set-ups than slots")?;
+        let mut setups = Vec::with_capacity(n);
+        for _ in 0..n {
+            let slot = r.u8()?;
+            let name: [u8; NAME_LEN] = r.raw(NAME_LEN)?.try_into().expect("a name");
+            check_name(&name)?;
+            let mut values = [0; SETUP_VALUES];
+            for v in &mut values {
+                *v = r.varint()?;
+                if *v > MOST_SETUP_VALUE {
+                    return Err(CodeError::Range("a set-up value out of its range"));
+                }
+            }
+            if usize::from(slot) >= SLOTS {
+                return Err(CodeError::Range("a set-up of a slot there is not"));
+            }
+            setups.push(Setup { slot, name, values });
+        }
+        Ok(setups)
+    }
+
+    /// The saved games; `packed` when their states were rearranged by `game_pack` (the
+    /// first version's were not).
+    fn read_games(r: &mut Reader<'_>, packed: bool) -> Result<Vec<Game>, CodeError> {
+        let n = r.count(SLOTS, "more saved games than slots")?;
+        let mut games = Vec::with_capacity(n);
+        for _ in 0..n {
+            let slot = r.u8()?;
+            let name: [u8; NAME_LEN] = r.raw(NAME_LEN)?.try_into().expect("a name");
+            check_name(&name)?;
+            let bytes = r.raw(GAME_STATE_LEN)?;
+            if usize::from(slot) >= SLOTS {
+                return Err(CodeError::Range("a saved game of a slot there is not"));
+            }
+            let state = if packed {
+                game_pack::unpack(bytes)
+            } else {
+                bytes.to_vec()
+            };
+            games.push(Game { slot, name, state });
+        }
+        Ok(games)
     }
 
     fn read_best(r: &mut Reader<'_>) -> Result<BestTimes, CodeError> {
@@ -382,77 +393,19 @@ impl PlayerState {
         Ok(best)
     }
 
-    /// The state cut down to `level` of a QR code's room (0 the whole state).
-    pub fn trimmed(&self, level: Trim) -> Self {
-        let mut out = self.clone();
-        if level >= Trim::NoGames {
-            out.games = None;
-        }
-        if level >= Trim::NoLines {
-            out.best = out.best.map(|b| b.without_lines());
-        }
-        if level >= Trim::NoRecords
-            && let Some(b) = &mut out.best
-        {
-            b.rallies.clear();
-            b.records.clear();
-        }
-        if level >= Trim::NoBestTimes {
-            out.best = None;
-        }
-        out
-    }
-
-    /// The code for a QR code: the whole state if it fits, else the state cut down step by
-    /// step (`Trim`) until it does. With the cut that was made.
-    pub fn for_qr(&self) -> (String, Trim) {
-        for level in [Trim::Whole, Trim::NoGames, Trim::NoLines, Trim::NoRecords] {
-            let text = self.trimmed(level).encode();
-            if text.len() <= qr::MOST_LETTERS && qr::encode(&text).is_some() {
-                return (text, level);
-            }
-        }
-        (self.trimmed(Trim::NoBestTimes).encode(), Trim::NoBestTimes)
-    }
-
-    pub fn sections(&self) -> Sections {
-        Sections {
-            settings: self.settings.is_some(),
-            best_times: self.best.is_some(),
-            records: self
-                .best
-                .as_ref()
-                .is_some_and(|b| !b.records.is_empty() || !b.rallies.is_empty()),
-            setups: self.setups.is_some(),
-            games: self.games.is_some(),
-        }
-    }
-
-    /// What the state holds, for the question before it is taken in. `current` gives the
-    /// options the settings are read over (the settings' text may be damaged: refused).
-    pub fn summary(&self, current: &Options) -> Result<Summary, CodeError> {
-        let options = match &self.settings {
-            Some(text) => Some(settings::options_of(text, current)?),
-            None => None,
-        };
-        Ok(Summary {
+    /// What the state holds, for the question before it is taken in.
+    pub fn summary(&self) -> Summary {
+        Summary {
             made: self.made,
             program: self.program.clone(),
-            players: options.as_ref().map(names_of).unwrap_or_default(),
-            runs: options.as_ref().map(|o| o.kept.runs),
             best_times: self.best.as_ref().map(BestTimes::count),
             setups: self.setups.as_ref().map(Vec::len),
             games: self
                 .games
                 .as_ref()
                 .map(|g| g.iter().map(|g| (g.slot, name_text(&g.name))).collect()),
-        })
+        }
     }
-}
-
-/// The four players' names in `options`.
-pub fn names_of(o: &Options) -> Vec<String> {
-    o.players.names.iter().map(|n| name_text(&n.0)).collect()
 }
 
 /// A name's bytes (Windows-1252, to the first NUL) as text.
@@ -461,50 +414,22 @@ pub fn name_text(name: &[u8]) -> String {
     crate::files::ansi::ansi_text(&name[..end])
 }
 
-/// How much of a state a QR code leaves out, each step with the ones before it.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Trim {
-    Whole,
-    /// Without the saved games.
-    NoGames,
-    /// And the best times without their checkpoint lines.
-    NoLines,
-    /// And without the rally times and stage records.
-    NoRecords,
-    /// And without any best times.
-    NoBestTimes,
-}
-
-/// Which sections a code holds.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct Sections {
-    pub settings: bool,
-    pub best_times: bool,
-    /// The rally times and stage records among the best times.
-    pub records: bool,
-    pub setups: bool,
-    pub games: bool,
-}
-
 /// What a state holds, to be shown.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Summary {
     pub made: u32,
     pub program: String,
-    /// The four players' names; none when the state has no settings.
-    pub players: Vec<String>,
-    pub runs: Option<u32>,
     pub best_times: Option<usize>,
     pub setups: Option<usize>,
     /// The saved games by slot and name.
     pub games: Option<Vec<(u8, String)>>,
 }
 
-/// The state of a fresh install's size and a played one's, for the tests and the wiki.
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::saves::entries::{BestTime, TIME_LEN};
+    use crate::saves::savegame::{RECORD_LEN, RECORDS, RECORDS_AT};
 
     fn name(text: &[u8]) -> [u8; NAME_LEN] {
         let mut n = [0; NAME_LEN];
@@ -512,11 +437,19 @@ mod tests {
         n
     }
 
+    /// A state that runs like a saved game: counting first dwords in the records.
+    fn game_state(seed: usize) -> Vec<u8> {
+        let mut s: Vec<u8> = (0..GAME_STATE_LEN)
+            .map(|n| ((n + seed) * 31 % 7) as u8)
+            .collect();
+        for row in 0..RECORDS {
+            let at = RECORDS_AT + row * RECORD_LEN;
+            s[at..at + 4].copy_from_slice(&(row as u32).to_le_bytes());
+        }
+        s
+    }
+
     pub fn sample() -> PlayerState {
-        let mut options = Options::default();
-        options.players.names[0].0[..4].copy_from_slice(b"Ana\0");
-        options.sound.master_volume = 64;
-        options.kept.runs = 12;
         let mut real = BestTime::default();
         real.head.player = 1;
         real.head.name[..3].copy_from_slice(b"Ana");
@@ -526,7 +459,6 @@ mod tests {
         PlayerState {
             made: 1_800_000_000,
             program: "0.1.0".into(),
-            settings: Some(settings::text_of(&options).unwrap()),
             best: Some(BestTimes {
                 real: vec![Real {
                     table: 5,
@@ -544,7 +476,7 @@ mod tests {
             games: Some(vec![Game {
                 slot: 4,
                 name: name(b"Before Wales"),
-                state: (0..GAME_STATE_LEN).map(|n| (n * 31 % 7) as u8).collect(),
+                state: game_state(0),
             }]),
         }
     }
@@ -594,18 +526,13 @@ mod tests {
 
     /// Frames with a good check number but a bad payload.
     fn framed(payload: &[u8]) -> String {
-        let deflated = miniz_oxide::deflate::compress_to_vec(payload, 6);
-        let mut frame = vec![VERSION, 0, 0, 0, 0, 0];
-        frame.extend_from_slice(&deflated);
-        let crc = crc32(&[&frame[..2], &frame[6..]].concat());
-        frame[2..6].copy_from_slice(&crc.to_le_bytes());
-        format!("{START}{}{END}", base45::encode(&frame))
+        PlayerState::frame(VERSION, payload)
     }
 
     #[test]
     fn values_out_of_their_range_are_refused() {
-        let mut s = sample();
         // A set-up value.
+        let mut s = sample();
         s.setups.as_mut().unwrap()[0].values[2] = 99_999;
         assert!(matches!(
             PlayerState::decode(&framed(&s.payload())),
@@ -624,14 +551,10 @@ mod tests {
         let mut s = sample();
         s.setups.as_mut().unwrap()[0].name = [b'x'; NAME_LEN];
         assert!(PlayerState::decode(&framed(&s.payload())).is_err());
-        // A best time with a player 9; settings out of range.
+        // A best time with a player 9.
         let mut s = sample();
         s.best.as_mut().unwrap().real[0].entry[4] = 9;
         assert!(PlayerState::decode(&framed(&s.payload())).is_err());
-        let mut s = sample();
-        s.settings = Some("[sound]\nmaster_volume = 70000\n".into());
-        let back = PlayerState::decode(&framed(&s.payload())).unwrap();
-        assert!(back.summary(&Options::default()).is_err());
         // Bytes left over, and a payload cut short.
         let mut p = sample().payload();
         p.push(0);
@@ -645,18 +568,65 @@ mod tests {
         let text = sample().encode();
         let inner = text.strip_prefix(START).unwrap().strip_suffix(END).unwrap();
         let mut frame = base45::decode(inner).unwrap();
-        frame[0] = 2;
         let again = |frame: &[u8]| format!("{START}{}{END}", base45::encode(frame));
-        assert_eq!(
-            PlayerState::decode(&again(&frame)),
-            Err(CodeError::Version(2))
-        );
-        frame[0] = 1;
+        for version in [0, 3] {
+            frame[0] = version;
+            assert_eq!(
+                PlayerState::decode(&again(&frame)),
+                Err(CodeError::Version(version))
+            );
+        }
+        frame[0] = VERSION;
         frame[10] ^= 1;
         assert_eq!(
             PlayerState::decode(&again(&frame)),
             Err(CodeError::Checksum)
         );
+        // This version has no settings section: its flag is refused.
+        let mut p = sample().payload();
+        let flags_at = 4 + 1 + "0.1.0".len();
+        p[flags_at] |= 1;
+        assert!(PlayerState::decode(&framed(&p)).is_err());
+    }
+
+    /// A first-version payload: the settings first, then the best times, the set-ups and the
+    /// saved games as they were laid out (not rearranged).
+    fn old_payload(s: &PlayerState, settings: &str) -> Vec<u8> {
+        let mut w = Writer::default();
+        w.u32(s.made);
+        w.bytes(s.program.as_bytes());
+        w.u8(0xF);
+        w.bytes(settings.as_bytes());
+        // The best times are written as they are now: the new payload with the games and
+        // set-ups left out holds them after its head.
+        let mut only_best = s.clone();
+        only_best.games = None;
+        only_best.setups = None;
+        let tail = &only_best.payload()[4 + 1 + s.program.len() + 1..];
+        w.raw(tail);
+        w.varint(1);
+        let setup = &s.setups.as_ref().unwrap()[0];
+        w.u8(setup.slot);
+        w.raw(&setup.name);
+        for v in setup.values {
+            w.varint(v);
+        }
+        w.varint(1);
+        let game = &s.games.as_ref().unwrap()[0];
+        w.u8(game.slot);
+        w.raw(&game.name);
+        w.raw(&game.state);
+        w.0
+    }
+
+    #[test]
+    fn a_first_version_code_reads_and_its_settings_are_ignored() {
+        let s = sample();
+        let text = PlayerState::frame(1, &old_payload(&s, "[sound]\nmaster_volume = 70\n"));
+        assert_eq!(PlayerState::decode(&text).unwrap(), s);
+        // Settings that are nothing like settings are read past as well.
+        let text = PlayerState::frame(1, &old_payload(&s, "not toml ["));
+        assert_eq!(PlayerState::decode(&text).unwrap(), s);
     }
 
     #[test]
@@ -667,49 +637,70 @@ mod tests {
 
     #[test]
     fn the_summary_names_what_is_there() {
-        let s = sample();
-        let sum = s.summary(&Options::default()).unwrap();
-        assert_eq!(sum.players[0], "Ana");
-        assert_eq!(sum.runs, Some(12));
+        let sum = sample().summary();
         assert_eq!(sum.best_times, Some(1));
         assert_eq!(sum.setups, Some(1));
         assert_eq!(sum.games, Some(vec![(4, "Before Wales".to_string())]));
     }
 
     #[test]
-    fn the_qr_text_drops_the_saved_games_when_they_do_not_fit() {
+    fn the_saved_games_come_first_then_the_set_ups_then_the_best_times() {
+        let s = sample();
+        let head = 4 + 1 + s.program.len() + 1;
+        let payload = s.payload();
+        // The games: a count of 1, the slot, the name, the state.
+        assert_eq!(payload[head..head + 2], [1, 4]);
+        let setups_at = head + 1 + 1 + NAME_LEN + GAME_STATE_LEN;
+        assert_eq!(payload[setups_at..setups_at + 2], [1, 1]);
+        let mut only_best = s.clone();
+        only_best.games = None;
+        only_best.setups = None;
+        assert_eq!(
+            payload[payload.len() - (only_best.payload().len() - head)..],
+            only_best.payload()[head..]
+        );
+    }
+
+    #[test]
+    fn many_saved_games_become_parts_that_read_back() {
         let mut s = sample();
-        // Saved games that do not compress.
         let mut x = 0x1234_5678u32;
-        let noise = |x: &mut u32| {
-            *x = x.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
-            (*x >> 24) as u8
+        let mut noise = || {
+            x = x.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+            (x >> 24) as u8
         };
-        s.games = Some(vec![Game {
-            slot: 0,
-            name: name(b"big"),
-            state: (0..GAME_STATE_LEN).map(|_| noise(&mut x)).collect(),
-        }]);
-        let (text, trim) = s.for_qr();
-        assert_eq!(trim, Trim::NoGames);
-        assert!(qr::encode(&text).is_some());
-        let (_, trim) = sample().for_qr();
-        assert_eq!(trim, Trim::Whole);
+        s.games = Some(
+            (0..3u8)
+                .map(|slot| Game {
+                    slot,
+                    name: name(b"big"),
+                    state: (0..GAME_STATE_LEN).map(|_| noise()).collect(),
+                })
+                .collect(),
+        );
+        let whole = s.encode();
+        let texts = parts::split(&whole).unwrap();
+        assert!(texts.len() >= 3);
+        let mut assembly = parts::Assembly::default();
+        for t in texts.iter().rev() {
+            assembly.take(parts::Part::read(t).unwrap());
+        }
+        let joined = assembly.whole().unwrap().unwrap();
+        assert_eq!(PlayerState::decode(&joined).unwrap(), s);
+        assert_eq!(PlayerState::decode(&texts[0]), Err(CodeError::OnePart));
+        for t in &texts {
+            let modules = qr::encode(t).unwrap();
+            let (width, pixels) = qr::render(&modules, 3);
+            assert_eq!(qr::read(width, width, &pixels).as_deref(), Some(t.as_str()));
+        }
     }
 
     #[test]
     fn the_qr_round_trip_through_a_picture() {
-        let (text, _) = sample().for_qr();
-        let modules = qr::encode(&text).unwrap();
+        let whole = sample().encode();
+        let modules = qr::encode(&whole).unwrap();
         let (width, pixels) = qr::render(&modules, 4);
         let read = qr::read(width, width, &pixels).unwrap();
-        assert_eq!(
-            PlayerState::decode(&read)
-                .unwrap()
-                .summary(&Options::default())
-                .unwrap()
-                .players[0],
-            "Ana"
-        );
+        assert_eq!(PlayerState::decode(&read).unwrap(), sample());
     }
 }
