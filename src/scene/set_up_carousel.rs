@@ -250,6 +250,14 @@ pub fn set_up_carousel(
                         Op::Fill => write_all(&parts.carousel.textures, [u32::MAX; 8]),
                     }
                 }
+                // The web build's main menu has no network entry in its carousel.
+                #[cfg(target_os = "emscripten")]
+                if menu == 0 {
+                    let kinds = &parts.carousel.kinds;
+                    kinds[2].set(kinds[3].get());
+                    kinds[3].set(kinds[4].get());
+                    parts.carousel.count.set(4u32);
+                }
             }
         }
         Ok(())

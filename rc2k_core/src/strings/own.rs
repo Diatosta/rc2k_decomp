@@ -247,6 +247,16 @@ pub mod id {
     pub const SAVE_CODE_PARTS_HELD: u32 = FIRST + 0x163;
     pub const SAVE_CODE_PART_OTHER: u32 = FIRST + 0x164;
     pub const SAVE_CODE_TOO_LONG: u32 = FIRST + 0x165;
+    /// The replay viewer's names of its buttons, shown when the highlight moves to one: the 26
+    /// buttons of the two rows in order, the render button, the name while a camera is edited
+    /// ("{}" the camera's number), a car's HUD shown or hidden ("{}" the car's number), and the
+    /// three replay speeds.
+    pub const VIEWER_TIPS: u32 = FIRST + 0x12A;
+    pub const VIEWER_TIP_RENDER: u32 = FIRST + 0x144;
+    pub const VIEWER_TIP_EDITING: u32 = FIRST + 0x145;
+    pub const VIEWER_TIP_HUD_SHOW: u32 = FIRST + 0x146;
+    pub const VIEWER_TIP_HUD_HIDE: u32 = FIRST + 0x147;
+    pub const VIEWER_TIP_SPEEDS: u32 = FIRST + 0x148;
 }
 
 /// Each text's file key and id.
@@ -472,6 +482,39 @@ pub const KEYS: &[(&str, u32)] = &[
     ("save_code.parts_held", id::SAVE_CODE_PARTS_HELD),
     ("save_code.part_other", id::SAVE_CODE_PART_OTHER),
     ("save_code.too_long", id::SAVE_CODE_TOO_LONG),
+    ("viewer.tip_render", id::VIEWER_TIP_RENDER),
+    ("viewer.tip_editing", id::VIEWER_TIP_EDITING),
+    ("viewer.tip_hud_show", id::VIEWER_TIP_HUD_SHOW),
+    ("viewer.tip_hud_hide", id::VIEWER_TIP_HUD_HIDE),
+    ("viewer.tip_speed_normal", id::VIEWER_TIP_SPEEDS),
+    ("viewer.tip_speed_half", id::VIEWER_TIP_SPEEDS + 1),
+    ("viewer.tip_speed_quarter", id::VIEWER_TIP_SPEEDS + 2),
+    ("viewer.tip_0", id::VIEWER_TIPS),
+    ("viewer.tip_1", id::VIEWER_TIPS + 1),
+    ("viewer.tip_2", id::VIEWER_TIPS + 2),
+    ("viewer.tip_3", id::VIEWER_TIPS + 3),
+    ("viewer.tip_4", id::VIEWER_TIPS + 4),
+    ("viewer.tip_5", id::VIEWER_TIPS + 5),
+    ("viewer.tip_6", id::VIEWER_TIPS + 6),
+    ("viewer.tip_7", id::VIEWER_TIPS + 7),
+    ("viewer.tip_8", id::VIEWER_TIPS + 8),
+    ("viewer.tip_9", id::VIEWER_TIPS + 9),
+    ("viewer.tip_10", id::VIEWER_TIPS + 10),
+    ("viewer.tip_11", id::VIEWER_TIPS + 11),
+    ("viewer.tip_12", id::VIEWER_TIPS + 12),
+    ("viewer.tip_13", id::VIEWER_TIPS + 13),
+    ("viewer.tip_14", id::VIEWER_TIPS + 14),
+    ("viewer.tip_15", id::VIEWER_TIPS + 15),
+    ("viewer.tip_16", id::VIEWER_TIPS + 16),
+    ("viewer.tip_17", id::VIEWER_TIPS + 17),
+    ("viewer.tip_18", id::VIEWER_TIPS + 18),
+    ("viewer.tip_19", id::VIEWER_TIPS + 19),
+    ("viewer.tip_20", id::VIEWER_TIPS + 20),
+    ("viewer.tip_21", id::VIEWER_TIPS + 21),
+    ("viewer.tip_22", id::VIEWER_TIPS + 22),
+    ("viewer.tip_23", id::VIEWER_TIPS + 23),
+    ("viewer.tip_24", id::VIEWER_TIPS + 24),
+    ("viewer.tip_25", id::VIEWER_TIPS + 25),
 ];
 
 /// The English file, built in.

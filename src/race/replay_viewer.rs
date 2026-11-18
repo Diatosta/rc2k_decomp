@@ -200,6 +200,7 @@ fn view(race: &'static Race, o: Owners<'static>, start: Start) -> Result<Viewed,
         }
     );
     crate::race::render_row::select(false);
+    crate::race::viewer_tip::reset();
     race.shared.replay_file().viewer_mode.set(mode as u32);
     race.shared.replay_file().hold_car_revs.set(1);
     replay.replay_view().viewer_only_shown.set(0);

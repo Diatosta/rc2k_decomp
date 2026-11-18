@@ -13,6 +13,9 @@ pub mod dump;
 pub mod gl_batching;
 #[cfg(not(target_os = "emscripten"))]
 pub mod gles;
+#[cfg(target_os = "emscripten")]
+#[path = "gles_web.rs"]
+pub mod gles;
 pub mod wash;
 // Built for tests on every machine; only the handheld's GL thread uses it.
 pub mod gpu_cut;

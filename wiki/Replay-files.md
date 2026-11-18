@@ -285,7 +285,7 @@ of each, is in `src/drive/replay_state.rs` (`car_fields`), and their meanings in
 | `0x1D8` | f32 | Engine revs. |
 
 The camera bytes are the first 8 bytes of car 0's record. Bytes 0 and 1 choose the replay
-camera for car 0 and car 1 during this second; bytes 2 .. 5 are view switches. A recording
+camera for car 0 and car 1 during this second; bytes 2 .. 5 are view switches (2 and 3: whether the first and the second car's HUD shows; 4: the replay's speed, 0 normal, 1 half, 2 a quarter; 5: the layout, below). A recording
 leaves them 0 (byte 5 is 2 or 3 in a two-player race, and in a network race 0 or 1: the car of
 the machine that recorded it); the viewer's camera editing fills them in when a replay is saved.
 Byte 5 is the layout: 0 the first car alone, 1 the second alone, 2 and 3 both cars (side by side, or
@@ -368,7 +368,7 @@ shipped ones are.
 
 Code: `src/race/replay.rs` (open, write, close), `src/drive/replay_state.rs` (what goes into a
 block), `src/race/open_viewed_replay.rs` and `src/race/save_viewed_replay.rs` (the viewer's
-side), `rc2k_core/src/drive/replay_frames.rs` and `rc2k_core/src/race/replay.rs` (the format's
+side; `src/race/viewer_tip.rs` and `rc2k_core/src/race/viewer_tip.rs` the names it shows for the highlighted button), `rc2k_core/src/drive/replay_frames.rs` and `rc2k_core/src/race/replay.rs` (the format's
 sizes and rules, with tests).
 
 ### Unfinished recordings

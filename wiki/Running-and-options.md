@@ -245,6 +245,10 @@ re-encoding the picture (AAC sound, Opus in a `.webm`) and the two parts are rem
 fails the video is kept without sound and the log says so. A render never changes the replay:
 the sound is only read from the mixer.
 
+**The viewer's labels.** While the replay viewer is stopped, moving the highlight to another button shows that
+button's name for a second under the render button (and the render button's, when it has the highlight); see
+[Differences from the original](Differences-from-the-original#replays).
+
 **From the replay viewer.** Under the two rows of buttons the stopped viewer has a third row with
 one button, the snapshot button's camera picture. The down arrow from any lower-row button, and from an upper-row button whose way down is greyed (the play button too), reaches it
 (up or left goes back to the button it came from) and

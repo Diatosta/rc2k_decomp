@@ -22,8 +22,10 @@ link=(
   -sPTHREAD_POOL_SIZE=8
   -sEXIT_RUNTIME=1
   -sEXPORTED_RUNTIME_METHODS=ENV,FS -sFORCE_FILESYSTEM=1
+  # SDL's canvas update runs on the page's thread and uses `Browser`.
+  -sDEFAULT_LIBRARY_FUNCS_TO_INCLUDE='$Browser'
 )
 flags="-C target-feature=+atomics,+bulk-memory,+mutable-globals"
 for a in "${link[@]}"; do flags="$flags -C link-arg=$a"; done
-RUSTFLAGS="$flags" CARGO_TARGET_DIR=target/web nice cargo +nightly build $profile \
+RUSTFLAGS="$flags" CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-target/web}" nice cargo +nightly build $profile \
   -Zbuild-std=std,panic_abort --target wasm32-unknown-emscripten --bin rc2k "$@"

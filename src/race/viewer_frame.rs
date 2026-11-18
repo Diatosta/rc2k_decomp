@@ -36,10 +36,15 @@ pub fn viewer_frame(o: Owners<'static>) -> Result<bool, Refused> {
         crate::platform::direct3d::end_layer(&o.gfx.d3d);
         crate::race::viewer_snapshot::viewer_snapshot(replay, gfx, o.system)?;
     } else {
-        if race.shared.replay_file().viewer_stopped.is_set() {
+        let stopped_now = race.shared.replay_file().viewer_stopped.is_set();
+        if stopped_now {
             stopped(race, o)?;
         }
         crate::platform::direct3d::end_layer(&o.gfx.d3d);
+        // The highlighted button's name goes over the finished frame; a render has none.
+        if stopped_now && !crate::video::active() {
+            crate::race::viewer_tip::draw(o)?;
+        }
     }
     // Not shown: the frame is lost.
     Ok(!crate::platform::show_frame_now(o))

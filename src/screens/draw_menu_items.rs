@@ -47,21 +47,41 @@ pub fn draw_menu_items(
         .count();
     let list: Vec<Item<MenuFont>> = all[..shown]
         .iter()
-        .map(|i| Item {
-            x: i.fixed().x as u32,
-            y: i.y(),
-            text_x: i.fixed().width_or_text_x as u32,
-            text_y: i.text_y(),
-            kind: i.fixed().id,
-            id: i.string.get(),
-            font: MenuFont::Object(i.font.get()),
-            pulse_font: MenuFont::Object(i.highlight_font.get()),
-            behind: i.behind.get(),
-            sprite: match i.sprites.get() {
-                ItemSprite::Sprite(n) => rc2k_core::screens::menus::ItemSprite::Number(n),
-                ItemSprite::List(n) => rc2k_core::screens::menus::ItemSprite::List(n),
-            },
-            spaced: i.fixed().spaced == 1,
+        .map(|i| {
+            // The web build has no network play: the main menu's network item draws nothing.
+            if crate::menu::web_limits::hidden(i.fixed()) {
+                return Item {
+                    x: i.fixed().x as u32,
+                    y: i.y(),
+                    text_x: i.fixed().width_or_text_x as u32,
+                    text_y: i.text_y(),
+                    kind: i.fixed().id,
+                    id: i.string.get(),
+                    font: MenuFont::Object(i.font.get()),
+                    pulse_font: MenuFont::Object(i.highlight_font.get()),
+                    behind: rc2k_core::screens::menus::NOTHING_EITHER,
+                    sprite: rc2k_core::screens::menus::ItemSprite::Number(
+                        rc2k_core::screens::menus::NOTHING_EITHER,
+                    ),
+                    spaced: true,
+                };
+            }
+            Item {
+                x: i.fixed().x as u32,
+                y: i.y(),
+                text_x: i.fixed().width_or_text_x as u32,
+                text_y: i.text_y(),
+                kind: i.fixed().id,
+                id: i.string.get(),
+                font: MenuFont::Object(i.font.get()),
+                pulse_font: MenuFont::Object(i.highlight_font.get()),
+                behind: i.behind.get(),
+                sprite: match i.sprites.get() {
+                    ItemSprite::Sprite(n) => rc2k_core::screens::menus::ItemSprite::Number(n),
+                    ItemSprite::List(n) => rc2k_core::screens::menus::ItemSprite::List(n),
+                },
+                spaced: i.fixed().spaced == 1,
+            }
         })
         .collect();
     let since_key = if menus.screens.entry.redefining_key.is_set() {

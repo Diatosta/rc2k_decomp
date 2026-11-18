@@ -28,6 +28,8 @@ the switches of the command line are on [Running and options](Running-and-option
 - **Playing through Steam** (in progress): [Network play](#network-play).
 - **Replays rendered to a video**, from the viewer's camera button in a third row and from the command line:
   [Replays](#replays).
+- **The replay viewer names the highlighted button**: when the highlight moves, its name shows above the
+  buttons for a second: [Replays](#replays).
 - **A replay format of its own** that records every car of a race, up to eight, the computer's and the other
   machines' cars of a network race included, so that they replay where they were: [Replays](#replays).
 - **Three and four players on one screen**, a menu entry of their own in the single rally, the
@@ -210,6 +212,17 @@ Everything is on [Controllers](Controllers) and [Input](Input); in short:
 
 ## Replays
 
+- **The viewer names the highlighted button.** The original's viewer has only pictures on its buttons. Here,
+  when the highlight moves to another button (the arrows, the pad, and when the viewer opens on its play
+  button), the button's name shows centred just under the render button, so it hides nothing of the panel, in the font
+  of the viewer's name row on a dark box scaled with the panel (as large relative to the screen on a 5120 x 1440
+  window as on 800 x 600), for about a second, then fades out over a quarter of a second, on the software
+  renderer too ("play", "back 1 second", "set the first
+  mark here", "next car or layout", "save the replay", "render to video", ...). The names of the three buttons
+  that change something say what pressing them does next: the HUD button of a car ("show car 1's HUD" or "hide
+  car 1's HUD"), and the speed button ("replay speed: half"). While a camera is being edited the label tells
+  the keys of the edit. Nothing shows while a replay plays, and a video rendered from a replay has no label. The
+  texts are our own, in `english.rc2k.toml` and `portuges.rc2k.toml` (`viewer.tip_*`).
 - **Replays can be rendered to a video**, with its sound: the viewer's "render to video" button
   (a third row under its two rows of buttons, showing the snapshot button's camera) opens a dialog
   in the error dialog's style before anything is rendered. Its rows, changed with Left and Right

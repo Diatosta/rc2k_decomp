@@ -75,6 +75,8 @@ function start(dir) {
       Module.ENV.HOME = "/opfs/home";
       Module.ENV.RC2K_DIR = dir;
     }],
+    // The game's switches (`rc2k --help`), as `?args=--stage%20Langton%20--mode%20time-trial`.
+    arguments: (new URLSearchParams(location.search).get("args") || "").split(/\s+/).filter(Boolean),
     print: (t) => console.log(t),
     printErr: (t) => console.warn(t),
     // The program ended (the installer when it is done, the game when left): the page again.

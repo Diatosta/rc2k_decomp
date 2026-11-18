@@ -195,8 +195,18 @@ python3 dist/web/serve.py dist/web [port]
 
 The script runs `tools/web/build.sh` (the cargo step with Emscripten's link switches; its
 output is `target/web/wasm32-unknown-emscripten/release/rc2k.js` and `rc2k.wasm`) and gathers
-those two with the page (`tools/web/index.html`, `unzip.js`, `serve.py`) and the saves page (`saves.html`, `saves.js`) in `dist/web/`. This
-build starts but does not show a picture yet.
+those two with the page (`tools/web/index.html`, `unzip.js`, `serve.py`) and the saves page (`saves.html`, `saves.js`) in `dist/web/`.
+`CARGO_TARGET_DIR` overrides the target folder.
+
+State: the page unpacks the game folder's zip into the browser's storage, the game runs on a
+worker and shows the menus and races on the page's canvas (SDL's software renderer: SDL puts each
+frame on the canvas from the page's thread; keys reach the game), with the 3D drawn by the
+software rasteriser. Films play. The switches of `rc2k --help` go in the address as
+`?args=--mode%20time-trial%20--stage%20Langton`. Not done yet: the GPU path (WebGL2), a gamepad, a
+check that the sound is heard.
+
+The web build has no network play: the main menu has no network item (the moves up and down pass
+over its place), no socket is opened and Steam is not there.
 
 ## Deploying
 

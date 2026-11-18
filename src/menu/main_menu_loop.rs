@@ -44,7 +44,11 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     carousel(entry, None)?;
     let item = menus.screens.items.current[slot::MAIN_MENU].get();
     menus.screens.loop_flags.item.set(item);
-    menus.screens.carousel.front.set(item.wrapping_sub(1));
+    menus
+        .screens
+        .carousel
+        .front
+        .set(crate::menu::web_limits::carousel_entry(item));
     Ok(())
 }
 
