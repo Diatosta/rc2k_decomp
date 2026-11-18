@@ -41,6 +41,8 @@ pub fn send_with_eax_in(audio: &Audio, command: Command, first_word: Option<u32>
         registers[0] = word;
     }
     hash_if_asked(audio, number, registers);
+    #[cfg(feature = "remote")]
+    count_sounds_if_asked(audio, number, registers);
     if audio.state.no_audio.is_set() {
         locked(audio).clear();
     } else {
@@ -76,6 +78,40 @@ fn hash_if_asked(audio: &Audio, command: u32, registers: [u32; 7]) {
         *hasher = Default::default();
         *commands = 0;
         *turns += 1;
+    }
+}
+
+/// With `RC2K_SOUND_LOG` (a check): the sounds the race starts (command 1) counted, and every 100
+/// turns logged as "sound log: sound x times" in sound order.
+#[cfg(feature = "remote")]
+fn count_sounds_if_asked(audio: &Audio, command: u32, registers: [u32; 7]) {
+    use std::collections::BTreeMap;
+    use std::sync::OnceLock;
+    static ON: OnceLock<bool> = OnceLock::new();
+    static COUNTS: Mutex<(BTreeMap<u32, u32>, u32)> = Mutex::new((BTreeMap::new(), 0));
+    if !*ON.get_or_init(|| std::env::var_os("RC2K_SOUND_LOG").is_some()) || !audio.racing.is_set() {
+        return;
+    }
+    let Ok(mut counts) = COUNTS.lock() else {
+        return;
+    };
+    if command == 1 {
+        *counts.0.entry(registers[0] & 0xFFFF).or_default() += 1;
+    } else if command == END_OF_TURN.record_words().0 {
+        counts.1 += 1;
+        if counts.1 % 100 == 0 {
+            let text: Vec<String> = counts
+                .0
+                .iter()
+                .map(|(s, n)| format!("{s:#x}x{n}"))
+                .collect();
+            crate::logfile::program_log::log(&format!(
+                "sound log, turn {}: {}",
+                counts.1,
+                text.join(" ")
+            ));
+            counts.0.clear();
+        }
     }
 }
 

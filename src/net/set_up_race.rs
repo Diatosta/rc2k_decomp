@@ -109,13 +109,14 @@ pub fn set_up_race(
         log_int_nl(value, 1);
     }
     { crate::race::stage_loading::load_stage(race, o) }?;
-    // The stage bar shows every player's car (the load cleared this).
+    // The stage bar and the map disc show the players' cars only, not the bots' (the load
+    // cleared this).
     race.frame
         .panel_and_overlay
         .get()
         .panel
         .network_cars
-        .set(cars);
+        .set(players);
     log_bytes(COMPLETE.to_bytes(), true, 1);
     log_bytes(RULE_2.to_bytes(), true, 1);
     Ok(())

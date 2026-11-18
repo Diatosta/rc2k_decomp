@@ -240,10 +240,10 @@ or IPX connection), and Steam when Valve's library is beside the program (it is 
 - **The host's stage** is shown to everyone, every machine's loading progress is listed while a
   stage loads, and "NN%" shows a racing player's progress in the lobby; the chat is in one order
   on every machine. The other cars appear on the progress bar.
-- **A player who leaves a race** before finishing has their car taken out of it on every other machine and the others are told ("<name> left the race"); a finished player's car and time stay. The map disc shows the other cars. The loading screen's list of progress lies inside the picture, above the loading bar ([Network play](Network-play)).
+- **A player who leaves a race** before finishing has their car taken out of it on every other machine and the others are told ("<name> left the race", in the race's message font, blinking); a finished player's car and time stay. The map disc shows the other players' cars (not the bots'). The loading screen's list of progress is a framed box inside the picture, at the left and half way down ([Network play](Network-play)).
 - **`/kick <name>`** in the chat: the host puts a player out.
 - The lobby has a "settings" button and, after a race, "save replay".
-- **Computer drivers in network races**: the host's "bots" button in the lobby adds up to seven computer-driven cars to the race, as the arcade has them, from the grid or, with the "start" button, spread on the course like the arcade's opponents; they keep driving while a machine is paused ([Network play](Network-play)).
+- **Computer drivers in network races**: the host's "bots" button in the lobby adds up to seven computer-driven cars to the race, as the arcade has them, from the grid or, with the "start" button, spread on the course like the arcade's opponents, half a sector apart; they are not on the map disc or the stage bar; they keep driving while a machine is paused ([Network play](Network-play)).
 - A port in use is said so; the failure of any start is written to the log.
 - **Steam invitations**: accepting one (or "Join game" in the friends list) joins that lobby from any menu; during a race or replay it waits for the menus, and in a network game it is ignored.
 - **Command line**: `--host`, `--join`, `--name` and `--port` go straight into the lobby.
@@ -326,8 +326,10 @@ or IPX connection), and Steam when Valve's library is beside the program (it is 
   quarter (every car a square in its colour on it); the choice
   is kept in `rc2k.toml` (`split_layout`). Every player's pause binding asks the leave question and each
   player's pad rumbles with that player's own car. Not yet: mirrors, the third and fourth players' signs, and
-  the co-driver's sounds follow the first two players only (the race's sound is heard
-  from the first player's view). A race of three or four players keeps a replay (an extra tape for
+  the co-driver's sounds follow the first two players only. Every player's car has its
+  own engine, tyre, gear change and knock sounds, mixed together as the original mixes its two cars (each car
+  heard at its own place, none placed by another player's view); the third and fourth cars' engine
+  sounds are copies of their kinds' own, with a voice each. A race of three or four players keeps a replay (an extra tape for
   the third and fourth car, see [Replay files](Replay-files)); its viewer's car item also shows the
   third and the fourth car alone.
 - Steam play has not yet been tried against a running Steam client.

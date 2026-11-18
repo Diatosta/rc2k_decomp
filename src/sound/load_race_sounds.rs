@@ -11,7 +11,9 @@
 //! else the first car's kind set (`SoundSets.kinds[0]`), `first_set_a[0]`, `first_set_b[0]` and
 //! `first_set_c[0]`; unless `RaceSounds.one_player` is 1 the second car's kind set
 //! (`SoundSets.kinds[1]`), `second_set_a[0]` and `second_set_b[0]`; and `last_set[0]` unless
-//! `RaceSounds.one_player` is `RaceSounds.count`. The commands also carry the loop's leftover
+//! `RaceSounds.one_player` is `RaceSounds.count`. With a split screen of three or four players the
+//! third and fourth cars' copies of their kinds' revs, throttle and speed sounds follow, each as
+//! a command of its own. The commands also carry the loop's leftover
 //! values in their unused words; they are reproduced because the sound hash of a held race records
 //! them. What the two counts and "a replay" are is a reading. Refuses a car number of 8 or more, a
 //! missing object, a kind of 0x22 or more and a list of names that does not hold 95 of at most
@@ -23,6 +25,7 @@ use crate::memory::session::PlainDword;
 use crate::race::owner::Race;
 use crate::sound::sets_store::NamedSet;
 use rc2k_core::audio::commands::{Command, SoundList};
+use rc2k_core::sound::engine::player_sound;
 
 // ---- game data ----
 
@@ -139,6 +142,17 @@ pub fn load_race_sounds(
             Set::Second(n) => [NamedSet::SecondA, NamedSet::SecondB][n].list(),
             Set::Last => NamedSet::Last.list(),
         });
+    }
+    // The third and fourth cars of a larger split screen: their own copies of the engine sounds
+    // of their kinds (the first two cars' are in the kinds' sets).
+    if kinds.is_some() && r.mark_car_voices.get() == 0 {
+        for car in 2..other_count.min(4) {
+            let kind = kind(car)?;
+            let record = sound.race.kinds.get().record(kind as u32)?;
+            for set in [&record.revs, &record.throttle, &record.speed] {
+                send(SoundList::One(player_sound(car, set.sound.get())));
+            }
+        }
     }
     Ok(())
 }

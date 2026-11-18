@@ -2,7 +2,8 @@
 //! the session, or every other player when the session is lost); the car's own step then takes
 //! the car out of the race, unless it had finished: the car is made no driver's (as the cars
 //! past the race's count are), so it is not stepped, not drawn, has no collisions and no sound.
-//! The others are told on the race's frame ("<name> left the race") for a few seconds.
+//! The others are told on the race's frame ("<name> left the race"): in the race's notice font
+//! like the game's own messages, blinking for a few seconds, one message after another.
 //!
 //! The flags are cleared when a network race begins and when it ends, so no race that follows
 //! (a single machine's included) ever sees one.
@@ -15,10 +16,12 @@ use std::sync::atomic::{AtomicBool, Ordering};
 /// The players a session has room for.
 const PLAYERS: usize = rc2k_core::net::players::MOST as usize;
 
-/// How long a message stays on the frame.
-const SHOWN: std::time::Duration = std::time::Duration::from_secs(6);
-/// The most messages shown at once (the oldest go first).
-const MOST_SHOWN: usize = 3;
+/// How long a message stays on the frame (messages follow one another).
+const SHOWN: std::time::Duration = std::time::Duration::from_secs(5);
+/// How long the message is lit and how long dark while it blinks.
+const BLINK: std::time::Duration = std::time::Duration::from_millis(400);
+/// The most messages waiting (the oldest go first).
+const MOST_SHOWN: usize = 4;
 
 /// A network race is being played: a player destroyed in the lobby leaves no mark.
 static RACING: AtomicBool = AtomicBool::new(false);
@@ -34,7 +37,8 @@ struct Notice {
     /// The own text's id and the name that goes in it.
     id: u32,
     name: Vec<u8>,
-    until: std::time::Instant,
+    /// When it began to be shown (it waits for the ones before it).
+    since: Option<std::time::Instant>,
 }
 
 static NOTICES: Mutex<Vec<Notice>> = Mutex::new(Vec::new());
@@ -100,8 +104,7 @@ pub fn session_lost(net: &Net) {
                     .next()
                     .unwrap_or_default(),
             );
-            crate::error_dialog::notice_own_later(
-                "net:host_left",
+            crate::error_dialog::notice_own_each_time(
                 rc2k_core::strings::own::id::HOST_LEFT,
                 &name,
             );
@@ -137,7 +140,7 @@ pub fn apply(race: &Race, net: &Net) {
     shown.push(Notice {
         id,
         name,
-        until: std::time::Instant::now() + SHOWN,
+        since: None,
     });
     if shown.len() > MOST_SHOWN {
         shown.remove(0);
@@ -159,44 +162,70 @@ fn text_of(template: &[u8], name: &[u8]) -> Vec<u8> {
     text
 }
 
-/// The messages drawn on the race's frame (the surface locked): one line each, in the middle
-/// of the screen's width near the top.
+/// Whether a message begun at `since` is lit at `now`: it blinks, lit first.
+fn lit(since: std::time::Instant, now: std::time::Instant) -> bool {
+    (now.duration_since(since).as_millis() / BLINK.as_millis()).is_multiple_of(2)
+}
+
+/// The message to show now: the first of the queue, begun now when it was waiting, and the ones
+/// whose time is up taken off. Its text, and whether it is lit.
+fn current(now: std::time::Instant) -> Option<(Vec<u8>, u32, bool)> {
+    let mut shown = notices();
+    while let Some(first) = shown.first_mut() {
+        let since = *first.since.get_or_insert(now);
+        if now.duration_since(since) >= SHOWN {
+            shown.remove(0);
+            continue;
+        }
+        return Some((first.name.clone(), first.id, lit(since, now)));
+    }
+    None
+}
+
+/// The message drawn on the race's frame (the surface locked) as the game's own race messages
+/// look: in the race's notice font, centred under the top, on a plate, enlarged with the screen
+/// as the quit question is, blinking for a few seconds. Several leavers follow one another.
 pub fn draw(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
-    let now = std::time::Instant::now();
-    let lines: Vec<Vec<u8>> = {
-        let mut shown = notices();
-        shown.retain(|n| n.until > now);
-        shown
-            .iter()
-            .map(|n| {
-                text_of(
-                    &crate::strings::append_string_by_id::own_text(o.strings, n.id),
-                    &n.name,
-                )
-            })
-            .collect()
+    let Some((name, id, lit)) = current(std::time::Instant::now()) else {
+        return Ok(());
     };
-    if lines.is_empty() {
+    if !lit {
         return Ok(());
     }
-    let font = crate::gfx::typefaces::fonts::LIST;
-    let screen = o.system.session.screen.get();
-    let (width, height) = (screen.width.get() as i32, screen.height.get() as i32);
-    let line_height = font.object(&o.gfx.fonts.typefaces).line_height.get() as i32;
+    let mut line = text_of(
+        &crate::strings::append_string_by_id::own_text(o.strings, id),
+        &name,
+    );
+    // The race's notice font has capitals, as the game's messages are written.
+    line.make_ascii_uppercase();
+    let mut font = o.gfx.fonts.font_block.game_fonts[2].get();
+    font.mode = rc2k_core::strings::text::MODE_AT_X;
     let mut canvas = crate::text::draw_text::GameCanvas::new(o.gfx);
-    let mut y = height / 10;
-    for line in lines {
-        let text_width =
-            crate::gfx::button_hints::width_of(font, &line[..line.len() - 1], &mut canvas);
-        crate::text::draw_text::draw_text_at(
-            font,
-            &line,
-            (width - text_width) / 2,
-            y,
-            &mut canvas,
-        )?;
-        y += line_height;
-    }
+    let mut measure = font;
+    measure.mode = rc2k_core::strings::text::MODE_MEASURE;
+    let text_width =
+        crate::text::measure_text::measure_text(&mut measure, &line[..], 0, &mut canvas)
+            .map_or(0, |m| m.width as i32);
+    let pad = 6;
+    let (plate_w, plate_h) = (text_width + 2 * pad, font.line_height + 2 * pad);
+    let screen = o.system.session.screen.get();
+    let (w, h) = (screen.width.get() as i32, screen.height.get() as i32);
+    let grow = (h as f32 / 600.0).max(1.0).min(w as f32 / plate_w as f32);
+    let scaled = |v: i32| (v as f32 * grow).round() as i32;
+    let (final_w, final_h) = (scaled(plate_w), scaled(plate_h));
+    let (left, top) = ((w - final_w) / 2, (h * 22 / 100 - scaled(pad)).max(0));
+    crate::input::osk_draw::fill(
+        o,
+        [left, top, plate_w, plate_h],
+        crate::drive::quit_question::PLATE,
+    );
+    crate::text::draw_text::draw_text(&mut font, &line[..], left + pad, top + pad, &mut canvas)?;
+    crate::gfx::scaled_region::enlarge(
+        o.gfx,
+        [left, top, plate_w, plate_h],
+        (left, top),
+        (final_w, final_h),
+    );
     Ok(())
 }
 

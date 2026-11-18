@@ -48,17 +48,25 @@ pub fn with_arcade_start(direction: u8, arcade: bool) -> u8 {
 
 /// Players whose checkpoints lie within this many of the group's lowest share their bots.
 pub const NEAR: u32 = 40;
-/// The checkpoints between one bot and the next, ahead of or behind a group of players.
-pub const SPREAD: u32 = 20;
+
+/// The checkpoints between one bot and the next, ahead of or behind a group of players: half a
+/// sector, a sector being one of the stage bar's `sections` (the stretches between the stage's
+/// splits) of `checkpoint_count` checkpoints. At least one.
+pub fn spread(checkpoint_count: u32, sections: u32) -> u32 {
+    (checkpoint_count / sections.max(1) / 2).max(1)
+}
 
 /// Where each of `bots` bots starts in the arcade way, as a checkpoint, given the checkpoint of
-/// each player and the stage's `checkpoint_count`. The players are grouped: sorted by
-/// checkpoint, a player within `NEAR` of the lowest of the group before joins it, else begins a
-/// new group (at the race's start every player is in one group, since the grid is one place).
-/// The bots are dealt to the groups one after another; within a group they stand alternately
-/// ahead of the group's lowest checkpoint and behind it, `SPREAD` apart, and ahead only where
-/// there is no road behind. No bot goes past the stage's last checkpoints.
-pub fn arcade_places(players: &[u32], bots: u32, checkpoint_count: u32) -> Vec<u32> {
+/// each player, the stage's `checkpoint_count` and the `sections` of its stage bar. The players
+/// are grouped: sorted by checkpoint, a player within `NEAR` of the lowest of the group before
+/// joins it, else begins a new group (at the race's start every player is in one group, since
+/// the grid is one place). The bots are dealt to the groups one after another; within a group
+/// they stand alternately ahead of the group's lowest checkpoint and behind it, `spread` (half a
+/// sector) apart, and ahead only where there is no road behind. No bot goes past the stage's
+/// last checkpoints: when the bots ahead of a group would not all fit, they stand closer
+/// together than half a sector, so that each has a checkpoint of its own where the road allows.
+pub fn arcade_places(players: &[u32], bots: u32, checkpoint_count: u32, sections: u32) -> Vec<u32> {
+    let step = spread(checkpoint_count, sections);
     let mut sorted = players.to_vec();
     sorted.sort_unstable();
     let mut bases: Vec<u32> = Vec::new();
@@ -71,20 +79,33 @@ pub fn arcade_places(players: &[u32], bots: u32, checkpoint_count: u32) -> Vec<u
         bases.push(0);
     }
     let last = checkpoint_count.saturating_sub(2);
+    // Which side of its group each bot stands on, and which one in turn.
     let mut ahead = vec![0u32; bases.len()];
     let mut behind = vec![0u32; bases.len()];
-    (0..bots as usize)
+    let sides: Vec<(usize, bool, u32)> = (0..bots as usize)
         .map(|k| {
             let g = k % bases.len();
-            let base = bases[g];
             let turn = k / bases.len();
-            let back = (behind[g] + 1) * SPREAD;
-            if turn % 2 == 1 && base >= back {
+            let back = (behind[g] + 1) * step;
+            if turn % 2 == 1 && bases[g] >= back {
                 behind[g] += 1;
-                base - back
+                (g, false, behind[g])
             } else {
                 ahead[g] += 1;
-                (base + ahead[g] * SPREAD).min(last)
+                (g, true, ahead[g])
+            }
+        })
+        .collect();
+    sides
+        .into_iter()
+        .map(|(g, is_ahead, n)| {
+            let base = bases[g];
+            if is_ahead {
+                let room = last.saturating_sub(base);
+                let each = step.min((room / ahead[g]).max(1));
+                (base + n * each).min(last)
+            } else {
+                base - n * step
             }
         })
         .collect()
@@ -159,16 +180,26 @@ mod tests {
 
     #[test]
     fn the_arcade_places_follow_the_players() {
+        // 500 checkpoints in 5 sections: half a sector is 50.
+        assert_eq!(spread(500, 5), 50);
+        assert_eq!(spread(500, 0), 250);
+        assert_eq!(spread(3, 5), 1);
         // Players together at the start: one group, no road behind, all ahead.
-        assert_eq!(arcade_places(&[2, 3], 3, 500), vec![22, 42, 62]);
+        assert_eq!(arcade_places(&[2, 3], 3, 500, 5), vec![52, 102, 152]);
         // Players apart: the bots are dealt to each group, behind where there is road.
-        assert_eq!(arcade_places(&[2, 300], 2, 500), vec![22, 320]);
-        assert_eq!(arcade_places(&[100], 2, 500), vec![120, 80]);
-        assert_eq!(arcade_places(&[100, 400], 4, 500), vec![120, 420, 80, 380]);
+        assert_eq!(arcade_places(&[2, 300], 2, 500, 5), vec![52, 350]);
+        assert_eq!(arcade_places(&[100], 2, 500, 5), vec![150, 50]);
+        assert_eq!(
+            arcade_places(&[100, 400], 4, 500, 5),
+            vec![150, 450, 50, 350]
+        );
         // Near players share; the end of the stage holds the bots.
-        assert_eq!(arcade_places(&[100, 130], 1, 500), vec![120]);
-        assert_eq!(arcade_places(&[490], 2, 500), vec![498, 470]);
-        assert!(arcade_places(&[], 0, 500).is_empty());
+        assert_eq!(arcade_places(&[100, 130], 1, 500, 5), vec![150]);
+        assert_eq!(arcade_places(&[490], 2, 500, 5), vec![498, 440]);
+        // Bots that would not all fit ahead stand closer, one checkpoint each where there is room.
+        assert_eq!(arcade_places(&[2], 3, 100, 1), vec![34, 66, 98]);
+        assert_eq!(arcade_places(&[2], 3, 20, 1), vec![7, 12, 17]);
+        assert!(arcade_places(&[], 0, 500, 5).is_empty());
     }
 
     #[test]

@@ -91,7 +91,7 @@ pub fn quit_question(race: &Race, o: crate::owners::Owners<'static>) -> Result<u
 }
 
 /// The plate under the hint line: its colour and the border round the line.
-const PLATE: u32 = 0x0C1238;
+pub const PLATE: u32 = 0x0C1238;
 const PLATE_MARGIN: i32 = 8;
 
 /// The hint under the question: the pictures of the buttons that answer yes and no for the

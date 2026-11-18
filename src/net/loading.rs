@@ -59,10 +59,13 @@ pub fn listed(net: &Net) -> Result<Vec<(Vec<u8>, u8)>, Refused> {
 }
 
 /// The list drawn on the loading picture (the surface locked), one line a player: the names in
-/// a column and their percentages after it, right-aligned. It lies inside the picture's 4:3
-/// middle (a wider screen shows only its sides' wash beside it), at its left, just above the
-/// loading bar.
+/// a column and their percentages after it, right-aligned, in a framed box like the game's
+/// message boxes. The box is filled afresh every frame (so the last frame's figures never show
+/// through) and has the same size every frame (the percentages' column is as wide as "100%").
+/// It lies inside the picture's 4:3 middle, at its left and half way down, clear of the car.
 pub fn draw(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    use crate::gfx::rect::{Palette, fill_rect, frame_rect};
+    use rc2k_core::screens::message_box::{FILL, FRAME};
     let net = o.net;
     if !in_game(net) {
         return Ok(());
@@ -92,8 +95,23 @@ pub fn draw(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
             .unwrap_or(0)
     };
     let names_end = left + widest(&mut named.iter().map(|(n, _)| n), &mut canvas);
-    let shares_wide = widest(&mut named.iter().map(|(_, s)| s), &mut canvas);
+    let full = crate::net::progress::text(100);
+    let shares_wide = widest(
+        &mut named.iter().map(|(_, s)| s).chain([&full]),
+        &mut canvas,
+    );
     let shares_end = names_end + height + shares_wide;
+    // The box: half a line round the text.
+    let pad = height / 2;
+    let rect = [
+        left - pad,
+        y - pad,
+        shares_end - left + 2 * pad,
+        height * named.len() as i32 + 2 * pad,
+    ];
+    let palettes = Palette::Held(o.gfx.fonts.font_block.palettes.get());
+    fill_rect(rect, FILL, palettes, o.gfx)?;
+    frame_rect(rect, 0, 0, FRAME, palettes, o.gfx);
     for (name, share) in &named {
         let mut name = name.clone();
         name.push(0);

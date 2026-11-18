@@ -106,6 +106,9 @@ how hard, a gear change, the surface, a cue for the co-driver), and the sound tu
 Each car has a **sound object** holding its engine state and the sounds it is making. A
 player's car uses the full set of sounds for its model; the other cars use a smaller shared
 set.
+The engine sounds come in pairs of sample records, the first player's and the second's; the
+third and fourth players of a three or four player split screen have copies of the records
+(numbers after the game's own) so that each car's engine has a voice of its own.
 
 ### Placing a sound
 

@@ -115,13 +115,12 @@ pub fn loading_bar(width: u32, height: u32, share: u32) -> Bar {
 
 /// The top left of the network loading list of `lines` lines `line_height` tall on a `width` x
 /// `height` screen: inside the loading picture's 4:3 middle (a wider screen has only the picture's
-/// wash at its sides), a 32nd of the middle in from its left edge, its last line just above the bar.
+/// wash at its sides), a 40th of the middle in from its left edge (clear of the picture's car,
+/// and room for the list's box), the list centred half way down the screen.
 pub fn list_origin(width: u32, height: u32, lines: u32, line_height: u32) -> (i32, i32) {
     let middle = crate::scene::view_window::design_width(width, height) as i32;
-    let left = (width as i32 - middle) / 2 + middle / 32;
-    let top = loading_bar(width, height, 0).top as i32
-        - line_height as i32 / 2
-        - (lines * line_height) as i32;
+    let left = (width as i32 - middle) / 2 + middle / 40;
+    let top = (height as i32 - (lines * line_height) as i32) / 2;
     (left, top)
 }
 
@@ -149,14 +148,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn the_list_lies_inside_the_4_by_3_middle_above_the_bar() {
-        // 4:3: at the left, a 32nd in.
-        assert_eq!(list_origin(800, 600, 2, 20), (25, 0x24D - 10 - 40));
+    fn the_list_lies_inside_the_4_by_3_middle_half_way_down() {
+        // 4:3: at the left, a 40th in, centred.
+        assert_eq!(list_origin(800, 600, 2, 20), (20, 280));
         // 16:9 (a middle of 1440 from 240) and 32:9 (the same middle from 1200).
-        assert_eq!(list_origin(1920, 1080, 2, 20).0, 240 + 45);
+        assert_eq!(list_origin(1920, 1080, 2, 20), (240 + 36, 520));
         let (left, top) = list_origin(3840, 1080, 3, 20);
-        assert_eq!(left, 1200 + 45);
-        assert!(top > 800 && top < 1080 * 0x24D / 600);
+        assert_eq!((left, top), (1200 + 36, 510));
     }
 
     #[test]

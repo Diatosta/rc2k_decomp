@@ -8,7 +8,16 @@ pub fn sound_players(single: u32) -> u32 {
     if single == 1 { 1 } else { 2 }
 }
 
-/// Objects in use: the players', or 4 in mode 2 (arcade), which also sets
+/// The cars with a player's sound object: the split screen's three or four (the menu's player
+/// count), else the one or two `sound_players` says.
+pub fn heard_players(single: u32) -> u32 {
+    match single {
+        3 | 4 => single,
+        other => sound_players(other),
+    }
+}
+
+/// Objects in use: the heard players', or 4 in mode 2 (arcade), which also sets
 /// `RaceSounds.mark_car_voices`. Returns the count and whether that is set.
 pub fn sound_objects(players: u32, mode: u32) -> (u32, bool) {
     if mode == 2 {
@@ -31,6 +40,11 @@ mod tests {
     fn counts() {
         assert_eq!(sound_players(1), 1);
         assert_eq!(sound_players(0), 2);
+        assert_eq!(heard_players(1), 1);
+        assert_eq!(heard_players(2), 2);
+        assert_eq!(heard_players(3), 3);
+        assert_eq!(heard_players(4), 4);
+        assert_eq!(sound_objects(4, 0), (4, false));
         assert_eq!(sound_objects(2, 2), (4, true));
         assert_eq!(sound_objects(1, 0), (1, false));
         assert_eq!(object_mark(0), u32::MAX);

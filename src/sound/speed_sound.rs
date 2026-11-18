@@ -27,7 +27,7 @@ pub fn speed_sound(
         return Ok(());
     }
     let set = &owner.race.kinds.get().record(kind)?.speed;
-    let sound = so.sound_offset.get().wrapping_add(set.sound.get());
+    let sound = rc2k_core::sound::engine::player_sound(so.sound_offset.get(), set.sound.get());
     request.sound.set(sound);
     if speed_stopped(
         so.state.get(),

@@ -144,6 +144,10 @@ fn list_entries<'a>(
 ) -> Result<Box<dyn Fn(usize) -> Option<u32> + 'a>, BadInput> {
     match list {
         SoundList::Menu => Ok(Box::new(|n| menu_sounds.sound(n))),
+        SoundList::One(sound) => Ok(Box::new(move |n| match n {
+            0 => Some(sound),
+            _ => Some(rc2k_core::audio::load::END),
+        })),
         SoundList::Race { field, entry } => {
             sets.list_entry(field, entry, 0)?;
             Ok(Box::new(move |n| {

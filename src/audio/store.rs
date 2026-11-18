@@ -199,7 +199,10 @@ impl AudioShared {
     }
 }
 
-const SAMPLE_COUNT: usize = 0x1CD;
+use rc2k_core::audio::voices::{BASE_SAMPLES, SAMPLES};
+
+const BASE_COUNT: usize = BASE_SAMPLES as usize;
+const SAMPLE_COUNT: usize = SAMPLES as usize;
 
 /// The sample records: sound number -> its record. Of a record's 14 fields only
 /// two change after the start, and these are all that is shared here: `data_key` (the game's thread
@@ -313,11 +316,26 @@ pub fn volume_level(
 /// volume level, minimum distance (bits of an f32), volume, pan and frequency; the number is the
 /// index and the first voice and place are 0.
 const fn first_records() -> [SampleRecord; SAMPLE_COUNT] {
+    let base = base_records();
+    let mut out = [base[0]; SAMPLE_COUNT];
+    let mut n = 0;
+    while n < SAMPLE_COUNT {
+        // The copies for the third and fourth cars repeat the records of the engine sounds.
+        let mut record = base[if n < BASE_COUNT { n } else { n - BASE_COUNT }];
+        record.number = n as u32;
+        out[n] = record;
+        n += 1;
+    }
+    out
+}
+
+/// The game's own records.
+const fn base_records() -> [SampleRecord; BASE_COUNT] {
     const UNIT: u32 = VolumeLevel::Unit as u32;
     const MENU: u32 = VolumeLevel::RaceEffects as u32;
     const A: u32 = VolumeLevel::CodriverVoice as u32;
     const B: u32 = VolumeLevel::Engine as u32;
-    let rows: [[u32; 11]; SAMPLE_COUNT] = [
+    let rows: [[u32; 11]; BASE_COUNT] = [
         [
             0x1, 1433, 0x11, 0x1, 0x1, 0x40, B, 0x40400000, 0x40, 0x0, 0xac44,
         ],
@@ -1717,9 +1735,9 @@ const fn first_records() -> [SampleRecord; SAMPLE_COUNT] {
         pan: 0,
         frequency: 0,
         place: [0; 3],
-    }; SAMPLE_COUNT];
+    }; BASE_COUNT];
     let mut n = 0;
-    while n < SAMPLE_COUNT {
+    while n < BASE_COUNT {
         let r = rows[n];
         out[n] = SampleRecord {
             number: n as u32,

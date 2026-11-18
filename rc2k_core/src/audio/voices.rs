@@ -2,7 +2,7 @@
 //! reached through a `Pool` by handle (the game's addresses), and the playing and stopping lists
 //! linked by `Voice::next`.
 //!
-//! A sound number picks a sample record (0x1CD); a loaded record points at its first voice
+//! A sound number picks a sample record (`SAMPLES`); a loaded record points at its first voice
 //! (a pool of 0x200); a sound that can sound more than once at a time has more voices,
 //! linked by `next_copy`. A voice that sounds is on the playing list and holds a mixer
 //! channel; a voice put out of use goes to the stopping list for the next turn to stop.
@@ -11,7 +11,12 @@
 use crate::Invalid;
 use crate::audio::commands::{Setting, Start};
 
-pub const SAMPLES: u32 = 0x1CD;
+pub const BASE_SAMPLES: u32 = 0x1CD;
+/// The engine sounds' records (numbers below this) that the third and fourth players' cars
+/// have copies of, after the base records: the copy of sound `n` is `BASE_SAMPLES + n`.
+pub const PLAYER_COPIES: u32 = 0xD0;
+/// The sample records: the base ones, then the copies for the third and fourth cars.
+pub const SAMPLES: u32 = BASE_SAMPLES + PLAYER_COPIES;
 pub const VOICES: u32 = 0x200;
 /// The mixer channels that are cleared (`audio::clear_channels`).
 pub const CHANNELS_CLEARED: u32 = 0x10;
@@ -347,7 +352,7 @@ fn plan<P: Pool>(pool: &mut P, lists: &Lists, sound: i32, cmd: &Start) -> Result
         return Ok(Plan::Nothing);
     }
     if sound as u32 >= SAMPLES {
-        return Err(Invalid("a sound of 0x1CD or more"));
+        return Err(Invalid("a sound past the sample records"));
     }
     let first = pool.record(sound as u32).first_voice;
     if first == 0 || pool.voice(first).flags & LOADED == 0 {
@@ -449,7 +454,7 @@ pub fn start_voice<P: Pool>(
     if let Some(at) = target
         && pool.voice(at).sound >= SAMPLES
     {
-        return Err(Invalid("a voice whose sound is 0x1CD or more"));
+        return Err(Invalid("a voice whose sound is past the sample records"));
     }
     if let Plan::Stop { voice, .. } = plan
         && pool.voice(voice).channel == 0
@@ -873,7 +878,7 @@ mod tests {
             (lists.playing, lists.stopping, lists.channels_used),
             (0, v(3), 0)
         );
-        assert!(start_voice(&mut t, &mut lists, 0, 0x1CD, &cmd(5)).is_err());
+        assert!(start_voice(&mut t, &mut lists, 0, SAMPLES as i32, &cmd(5)).is_err());
         // The turn: the stopping list emptied.
         t.voice_mut(v(3)).state = 2;
         t.voice_mut(v(3)).buffer = 9;

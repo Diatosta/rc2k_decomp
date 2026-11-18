@@ -95,7 +95,13 @@ impl RaceField {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SoundList {
     Menu,
-    Race { field: RaceField, entry: u32 },
+    Race {
+        field: RaceField,
+        entry: u32,
+    },
+    /// One sound alone: the third and fourth cars' copies of an engine sound, which no list of
+    /// the race's sets holds.
+    One(u32),
 }
 
 impl SoundList {
@@ -105,6 +111,8 @@ impl SoundList {
     fn word(self) -> u32 {
         match self {
             SoundList::Menu => 1,
+            // Beyond every race list's word.
+            SoundList::One(sound) => 0x4000_0000 | sound,
             SoundList::Race { field, entry } => field
                 .original_offset()
                 .wrapping_add(entry.wrapping_mul(4))
@@ -119,6 +127,7 @@ impl SoundList {
         match word {
             0 => None,
             1 => Some(SoundList::Menu),
+            n if n & 0x4000_0000 != 0 => Some(SoundList::One(n & 0x3FFF_FFFF)),
             n => {
                 let offset = n - 2;
                 RaceField::ALL.into_iter().rev().find_map(|field| {

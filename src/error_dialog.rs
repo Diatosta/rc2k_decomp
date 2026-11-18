@@ -112,6 +112,15 @@ pub fn notice_own_later(key: &str, id: u32, with: &str) {
     }
 }
 
+/// `notice_own_later` for a notice that is wanted every time it happens (not once for the run).
+pub fn notice_own_each_time(id: u32, with: &str) {
+    crate::logfile::program_log::log(&format!("notice: {}", text_with(id, with)));
+    queue_item(Queued::Own {
+        id,
+        with: with.to_string(),
+    });
+}
+
 /// `notice_once` for a thread that is not the game's (the audio thread's): the notice waits for
 /// the game's thread to show it, in the language in use.
 pub fn notice_own_once(key: &str, id: u32, with: &str) {

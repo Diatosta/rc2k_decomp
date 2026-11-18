@@ -23,9 +23,10 @@ pub fn throttle_sound(
         return Ok(());
     }
     let set = &sound.race.kinds.get().record(kind)?.throttle;
-    request
-        .sound
-        .set(so.sound_offset.get().wrapping_add(set.sound.get()));
+    request.sound.set(rc2k_core::sound::engine::player_sound(
+        so.sound_offset.get(),
+        set.sound.get(),
+    ));
     send_engine_sound(
         so,
         set,

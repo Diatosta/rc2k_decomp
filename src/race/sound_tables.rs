@@ -209,7 +209,9 @@ fn set_up_objects(
         if net_race.is_some_and(|n| n.player > 7) {
             return Err(crate::errors::BadInput("a chosen car past the eight").into());
         }
-        use rc2k_core::race::sound_objects::{object_mark, sound_objects, sound_players};
+        use rc2k_core::race::sound_objects::{
+            heard_players, object_mark, sound_objects, sound_players,
+        };
         prepare_sound_tables_plain(&TableVars::of(sound, system))?;
         let players = if both_cars {
             2
@@ -217,7 +219,13 @@ fn set_up_objects(
             sound_players(shared.state.settings.race_mode.get())
         };
         sound.threads.shared.one_player.set(players);
-        let (count, arcade) = sound_objects(players, shared.state.settings.run_kind.get());
+        // The split screen's third and fourth cars have objects of their own, as the first two.
+        let heard = if both_cars {
+            2
+        } else {
+            heard_players(shared.state.settings.race_mode.get())
+        };
+        let (count, arcade) = sound_objects(heard, shared.state.settings.run_kind.get());
         if arcade {
             sound.race.sounds.get().mark_car_voices.set(1);
         }
@@ -256,6 +264,15 @@ fn set_up_objects(
                 .cue_queue
                 .first
                 .set(shared.state.settings.cars[1].codriver_sex.get());
+        }
+        for k in 2..heard as usize {
+            let extra = crate::sound::store::SoundObject::of(sound, k as u32)?;
+            extra.sound_offset.set(k as u32);
+            extra.kind.set(shared.state.car_kind(k).get());
+            extra
+                .cue_queue
+                .first
+                .set(shared.state.car(k).codriver_sex.get());
         }
         for o in v.objects {
             set_up_object(o);

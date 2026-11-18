@@ -3,6 +3,7 @@
 //! choices (`sound::revs_sound`, `throttle_sound`, `speed_sound` and `car_slot_sounds`).
 
 use crate::Invalid;
+use crate::audio::voices::BASE_SAMPLES;
 
 /// A sound object's dwords the engine works on (what goes in and what comes out), with their
 /// offsets in the object; the game crate takes them from the object and puts them back.
@@ -245,16 +246,28 @@ pub fn over_256(float_bits: u32) -> u32 {
     }
 }
 
+/// The engine sound of a player's car whose object's offset is `offset` (the player's number),
+/// from the base sound of the set: the first two players' are the base and the next sample
+/// record, the third and fourth player's the copies of those two (`PLAYER_COPIES`), so that
+/// each car's engine has a voice of its own.
+pub fn player_sound(offset: u32, base: u32) -> u32 {
+    match offset {
+        0 | 1 => base.wrapping_add(offset),
+        _ => BASE_SAMPLES
+            .wrapping_add(base)
+            .wrapping_add(offset.wrapping_sub(2)),
+    }
+}
+
 /// `sound::revs_sound`: the sound of a car whose object's +0 is `object`, from the base
 /// sound of its set: a computer's car (+0 negative) has two (bit 0 of +0), a player's
-/// one each (+0 is the car's).
+/// `player_sound`.
 pub fn revs_sound_number(object: u32, base: u32) -> u32 {
-    let n = if (object as i32) < 0 {
-        object & 1
+    if (object as i32) < 0 {
+        (object & 1).wrapping_add(base)
     } else {
-        object
-    };
-    n.wrapping_add(base)
+        player_sound(object, base)
+    }
 }
 
 /// A computer's car (its object's +0 negative): no throttle or speed sound.
@@ -295,6 +308,16 @@ pub fn placed_slots(own_view: bool) -> Vec<u32> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn players_sounds() {
+        assert_eq!(player_sound(0, 0x10), 0x10);
+        assert_eq!(player_sound(1, 0x10), 0x11);
+        assert_eq!(player_sound(2, 0x10), BASE_SAMPLES + 0x10);
+        assert_eq!(player_sound(3, 0x10), BASE_SAMPLES + 0x11);
+        assert_eq!(revs_sound_number(0xFFFF_FFFF, 0x20), 0x21);
+        assert_eq!(revs_sound_number(3, 0x20), BASE_SAMPLES + 0x21);
+    }
+
     #[test]
     fn revs() {
         let mut o = Engine {
@@ -358,7 +381,7 @@ mod tests {
     #[test]
     fn engine_sounds() {
         assert_eq!(revs_sound_number(0x8000_0003, 10), 11);
-        assert_eq!(revs_sound_number(5, 10), 15);
+        assert_eq!(revs_sound_number(1, 10), 11);
         assert!(computers(0xFFFF_FFFF) && !computers(0));
         assert!(revs_stopped(3) && !revs_stopped(1));
         assert!(speed_stopped(1, || unreachable!(), || 0, || 0));
