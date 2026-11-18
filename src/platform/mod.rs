@@ -953,6 +953,16 @@ fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(),
                 u64::from(crate::platform::os::ticks()),
             );
         }
+        // The pause's and the question's answer buttons.
+        #[cfg(any(target_os = "android", target_os = "ios"))]
+        if let Some(asked) = events::touch_asked(o.race) {
+            crate::platform::touch::draw_answers(
+                renderer,
+                input_window(screen.window),
+                asked,
+                &answer_labels(*o, asked),
+            );
+        }
         // The debug UI over the frame.
         crate::debug::imgui_sdl::draw(o, renderer, screen.window);
         #[cfg(feature = "remote")]
@@ -1212,5 +1222,35 @@ pub fn beside_log(name: &str) -> std::path::PathBuf {
     {
         Some(folder) => folder.join(name),
         None => name.into(),
+    }
+}
+
+/// The words on the answer buttons in the game's language (its own yes and no, "continue" for
+/// the plain pause), in capitals, drawn in the game's notice font as pixel runs; the plain text
+/// where the font cannot draw them.
+#[cfg(any(target_os = "android", target_os = "ios"))]
+fn answer_labels(
+    o: crate::owners::Owners<'static>,
+    asked: rc2k_core::input::touch::Asked,
+) -> Vec<touch::Label> {
+    use rc2k_core::strings::own::id;
+    let word = |id| {
+        // Windows-1252 text: the Latin-1 small letters (but the division sign) have capitals 32 less.
+        let mut bytes = crate::strings::append_string_by_id::own_text(o.strings, id);
+        for b in &mut bytes {
+            *b = match *b {
+                b'a'..=b'z' | 0xE0..=0xF6 | 0xF8..=0xFE => *b - 32,
+                other => other,
+            };
+        }
+        let plain = bytes.iter().map(|&b| char::from(b)).collect::<String>();
+        touch::Label {
+            runs: crate::gfx::notice_text::runs(o, &bytes),
+            plain,
+        }
+    };
+    match asked {
+        rc2k_core::input::touch::Asked::Resume => vec![word(id::DIALOG_CONTINUE)],
+        rc2k_core::input::touch::Asked::YesNo => vec![word(id::HINTS), word(id::HINTS + 1)],
     }
 }

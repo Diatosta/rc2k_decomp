@@ -10,7 +10,7 @@
 
 use crate::platform::ffi::{sdl, sdl_input};
 use rc2k_core::input::menu_touch::Phase;
-use rc2k_core::input::touch::{Button, Controls, Layout, Output};
+use rc2k_core::input::touch::{Answer, AnswerTaps, Asked, Button, Controls, Layout, Output};
 use sdl3_sys::everything::{
     SDL_GAMEPAD_AXIS_LEFT_TRIGGER, SDL_GAMEPAD_AXIS_LEFTX, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER,
     SDL_GAMEPAD_BUTTON_EAST, SDL_GAMEPAD_BUTTON_NORTH, SDL_GAMEPAD_BUTTON_SOUTH,
@@ -31,6 +31,8 @@ struct State {
     driving: bool,
     /// Real gamepads present.
     real_pads: u32,
+    /// The finger on an answer button of the pause or the question.
+    answers: AnswerTaps,
 }
 
 static STATE: Mutex<State> = Mutex::new(State {
@@ -42,6 +44,7 @@ static STATE: Mutex<State> = Mutex::new(State {
     },
     driving: false,
     real_pads: 0,
+    answers: AnswerTaps::new(),
 });
 
 fn state() -> std::sync::MutexGuard<'static, State> {
@@ -235,6 +238,90 @@ pub fn draw(renderer: sdl::Renderer, window: sdl::Window, now: u64) {
                 scale,
                 "<  STEER  >",
             );
+        }
+    }
+}
+
+/// A finger's change while the race waits for an answer: the answer it gives, if it is one.
+pub fn answer_finger(
+    window: sdl::Window,
+    asked: Asked,
+    id: u64,
+    phase: Phase,
+    x: f32,
+    y: f32,
+) -> Option<Answer> {
+    let screen = crate::platform::touch_menu::screen_of(window)?;
+    state().answers.finger(
+        &screen,
+        asked,
+        id,
+        phase,
+        x * screen.width,
+        y * screen.height,
+    )
+}
+
+/// A button's word: the game's letters as pixel runs, and the plain text for a renderer that
+/// has no such picture.
+pub struct Label {
+    pub runs: Option<(Vec<crate::gfx::notice_text::Run>, i32, i32)>,
+    pub plain: String,
+}
+
+/// The answer buttons over the frame, in the controls' style (white, see-through), the words
+/// given by the caller; the one under a finger lit.
+pub fn draw_answers(renderer: sdl::Renderer, window: sdl::Window, asked: Asked, labels: &[Label]) {
+    let Some(screen) = crate::platform::touch_menu::screen_of(window) else {
+        return;
+    };
+    let pressed = state().answers.pressed();
+    for ((answer, r), label) in rc2k_core::input::touch::answer_rects(&screen, asked)
+        .into_iter()
+        .zip(labels)
+    {
+        let held = pressed == Some(answer);
+        renderer.fill_blended([0, 0, 0, 110], [r.x, r.y, r.w, r.h]);
+        renderer.fill_blended(
+            [255, 255, 255, if held { 130 } else { 55 }],
+            [r.x, r.y, r.w, r.h],
+        );
+        match &label.runs {
+            Some((runs, pw, ph)) => {
+                // The game's letters, each pixel as a rectangle of whole screen pixels.
+                let scale = (r.w * 0.85 / *pw as f32).min(r.h * 0.5 / *ph as f32);
+                let (ox, oy) = (
+                    r.x + (r.w - *pw as f32 * scale) / 2.0,
+                    r.y + (r.h - *ph as f32 * scale) / 2.0,
+                );
+                for run in runs {
+                    let (x0, x1) = (
+                        (run.x as f32 * scale).round(),
+                        ((run.x + run.len) as f32 * scale).round(),
+                    );
+                    let (y0, y1) = (
+                        (run.y as f32 * scale).round(),
+                        ((run.y + 1) as f32 * scale).round(),
+                    );
+                    let [red, green, blue] = run.rgb;
+                    renderer.fill_blended(
+                        [red, green, blue, 255],
+                        [ox + x0, oy + y0, x1 - x0, y1 - y0],
+                    );
+                }
+            }
+            None => {
+                let chars = label.plain.chars().count().max(1) as f32;
+                let scale = (r.h * 0.3 / 8.0).min(r.w * 0.85 / (8.0 * chars));
+                let (tw, th) = (8.0 * scale * chars, 8.0 * scale);
+                renderer.text_blended(
+                    [255, 255, 255, 250],
+                    r.x + (r.w - tw) / 2.0,
+                    r.y + (r.h - th) / 2.0,
+                    scale,
+                    &label.plain,
+                );
+            }
         }
     }
 }

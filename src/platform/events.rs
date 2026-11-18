@@ -337,6 +337,24 @@ pub(crate) fn touch_controls_live(race: &crate::race::owner::Race) -> bool {
     driving(race) && race.shared.vars.get().scene_switch.get() == 0
 }
 
+/// What the race waits for while its touch controls are off: the quit question's yes and no, or
+/// the plain pause's key. A finger then presses the answer buttons drawn over the frame (and
+/// nothing else answers: a tap elsewhere does nothing).
+#[cfg(any(target_os = "android", target_os = "ios"))]
+pub(crate) fn touch_asked(
+    race: &crate::race::owner::Race,
+) -> Option<rc2k_core::input::touch::Asked> {
+    use rc2k_core::input::touch::Asked;
+    if !driving(race) || race.shared.vars.get().scene_switch.get() == 0 {
+        return None;
+    }
+    Some(if crate::drive::quit_question::asking() {
+        Asked::YesNo
+    } else {
+        Asked::Resume
+    })
+}
+
 /// The menus' side of the gamepads.
 fn lock_menu_pad() -> std::sync::MutexGuard<'static, crate::input::menu_pad::MenuPad> {
     static PAD: std::sync::OnceLock<std::sync::Mutex<crate::input::menu_pad::MenuPad>> =
@@ -776,6 +794,10 @@ fn touch_tick(o: &crate::owners::Owners<'static>, now: u64) {
             .and_then(|screen| screen.as_ref())
             .map(|screen| crate::platform::input_window(screen.window))
     };
+    #[cfg(any(target_os = "android", target_os = "ios"))]
+    if touch_asked(o.race).is_some() {
+        return;
+    }
     if let Some(window) = window
         && !touch_controls_live(o.race)
     {
@@ -808,6 +830,21 @@ fn touch_finger(
         crate::platform::touch_menu::release_all();
         #[cfg(any(target_os = "android", target_os = "ios"))]
         crate::platform::touch::finger(window, id, phase, x, y, now);
+        return;
+    }
+    #[cfg(any(target_os = "android", target_os = "ios"))]
+    if let Some(asked) = touch_asked(o.race) {
+        crate::platform::touch_menu::release_all();
+        let answer = crate::platform::touch::answer_finger(window, asked, id, phase, x, y);
+        match answer {
+            Some(rc2k_core::input::touch::Answer::Yes) => {
+                menu_action(o.input, crate::input::menu_pad::MenuAction::Enter);
+            }
+            Some(rc2k_core::input::touch::Answer::No) => {
+                menu_action(o.input, crate::input::menu_pad::MenuAction::Back);
+            }
+            None => {}
+        }
         return;
     }
     crate::platform::touch_menu::finger(o, window, id, phase, x, y, now);

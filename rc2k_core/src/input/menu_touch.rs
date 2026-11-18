@@ -122,6 +122,9 @@ pub struct Gestures {
     moved: bool,
     first_down_at: u64,
     peak: usize,
+    /// A sideways drag gives the key on the finger's side (a drag to the right is Right) instead
+    /// of the carousel's way (a drag to the left brings the next one).
+    direct_sideways: bool,
 }
 
 /// A tap is shorter than this.
@@ -147,7 +150,13 @@ impl Gestures {
             moved: false,
             first_down_at: 0,
             peak: 0,
+            direct_sideways: false,
         }
+    }
+
+    /// Sideways drags on a page that is not a carousel: the key follows the finger's side.
+    pub fn set_direct_sideways(&mut self, on: bool) {
+        self.direct_sideways = on;
     }
 
     /// A finger's change; the gestures it completes. `screen` sizes the slop and the steps.
@@ -217,7 +226,11 @@ impl Gestures {
                             // The value follows the finger as a phone's carousel does: a drag
                             // to the left brings the next one (right), to the right the one before.
                             let left = x < t.anchor.0;
-                            out.push(if left { Gesture::Right } else { Gesture::Left });
+                            out.push(if left != self.direct_sideways {
+                                Gesture::Right
+                            } else {
+                                Gesture::Left
+                            });
                             t.anchor.0 += if left { -wide } else { wide };
                         }
                     }
@@ -448,6 +461,21 @@ mod tests {
                 (1, Phase::Down, 1400.0, 500.0, 2000),
                 (1, Phase::Move, 1000.0, 505.0, 2010),
                 (1, Phase::Up, 1000.0, 505.0, 2020),
+            ],
+        );
+        assert_eq!(got, vec![Gesture::Right, Gesture::Right]);
+    }
+
+    #[test]
+    fn a_direct_sideways_drag_gives_the_key_on_the_fingers_side() {
+        let mut g = Gestures::default();
+        g.set_direct_sideways(true);
+        let got = run(
+            &mut g,
+            &[
+                (1, Phase::Down, 1000.0, 500.0, 1000),
+                (1, Phase::Move, 1400.0, 505.0, 1010),
+                (1, Phase::Up, 1400.0, 505.0, 1020),
             ],
         );
         assert_eq!(got, vec![Gesture::Right, Gesture::Right]);

@@ -306,7 +306,27 @@ fn take_key(o: Owners<'static>) -> u8 {
 }
 
 /// The page, until the player goes back.
+/// The page's sideways drags follow the finger (they step through its codes, not a carousel),
+/// until the page ends.
+struct DirectSideways;
+
+impl DirectSideways {
+    fn begin() -> Self {
+        #[cfg(touch_screen)]
+        crate::platform::touch_menu::set_direct_sideways(true);
+        DirectSideways
+    }
+}
+
+impl Drop for DirectSideways {
+    fn drop(&mut self) {
+        #[cfg(touch_screen)]
+        crate::platform::touch_menu::set_direct_sideways(false);
+    }
+}
+
 pub fn run(o: Owners<'static>) -> Result<(), Refused> {
+    let _direct = DirectSideways::begin();
     let mut page = Page::new(o)?;
     crate::input::take_key::take_key(o.input);
     crate::input::menu_pad::take_answer(o.input);
