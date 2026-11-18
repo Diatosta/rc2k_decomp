@@ -3,7 +3,7 @@
 //! linked by `Voice::next`.
 //!
 //! A sound number picks a sample record (`SAMPLES`); a loaded record points at its first voice
-//! (a pool of 0x200); a sound that can sound more than once at a time has more voices,
+//! (a pool of `VOICES`); a sound that can sound more than once at a time has more voices,
 //! linked by `next_copy`. A voice that sounds is on the playing list and holds a mixer
 //! channel; a voice put out of use goes to the stopping list for the next turn to stop.
 //! What a command changes in a voice is marked in its `dirty` bits for the turn.
@@ -18,9 +18,29 @@ pub const BASE_SAMPLES: u32 = 0x1CD;
 pub const PLAYER_COPIES: u32 = 0xD0;
 /// The blocks of copies: for cars 2 and 3, 4 and 5, 6 and 7.
 pub const COPY_BLOCKS: u32 = 3;
-/// The sample records: the base ones, then the copies for the cars after the first two.
-pub const SAMPLES: u32 = BASE_SAMPLES + COPY_BLOCKS * PLAYER_COPIES;
-pub const VOICES: u32 = 0x200;
+/// The co-driver's voice records: pairs from here, the first of a pair the first player's voice
+/// and the second the second player's.
+pub const CODRIVER_FIRST: u32 = 0xED;
+/// How many voice records there are (95 phrases, a pair each).
+pub const CODRIVER_RECORDS: u32 = 190;
+/// Where the copies of the voice records start: after the engine sounds' copies. The third and
+/// fourth players of a split screen speak with them.
+pub const CODRIVER_COPIES: u32 = BASE_SAMPLES + COPY_BLOCKS * PLAYER_COPIES;
+/// The sample records: the base ones, then the copies for the cars after the first two (the
+/// engine sounds', then the voices').
+pub const SAMPLES: u32 = CODRIVER_COPIES + CODRIVER_RECORDS;
+
+/// The third and fourth players' copy of voice record `record`, when it is one.
+pub const fn codriver_copy(record: u32) -> Option<u32> {
+    if record >= CODRIVER_FIRST && record < CODRIVER_FIRST + CODRIVER_RECORDS {
+        Some(CODRIVER_COPIES + record - CODRIVER_FIRST)
+    } else {
+        None
+    }
+}
+/// The voice pool: the original's 0x200, and room for the third and fourth players' co-driver's
+/// copies of the voices (a split screen of three or four players uses every voice of the 0x200 up).
+pub const VOICES: u32 = 0x240;
 /// The mixer channels that are cleared (`audio::clear_channels`).
 pub const CHANNELS_CLEARED: u32 = 0x10;
 
@@ -200,7 +220,7 @@ fn set<P: Pool>(pool: &mut P, lists: &mut Lists, link: Link, value: u32) {
     }
 }
 
-/// The voices of a list from `head`. Refused: no end within 0x200.
+/// The voices of a list from `head`. Refused: no end within `VOICES`.
 pub fn list<P: Pool>(pool: &mut P, head: u32) -> Result<Vec<u32>, Invalid> {
     let mut out = Vec::new();
     let mut at = head;
@@ -902,8 +922,8 @@ mod tests {
             (lists.playing, lists.stopping, t.voice(v(2)).next),
             (0, v(0), v(1))
         );
-        let mut count = 0x1FF;
-        assert_eq!(new_voice(&mut count), Some(0x1FF));
+        let mut count = VOICES - 1;
+        assert_eq!(new_voice(&mut count), Some(VOICES - 1));
         assert_eq!(new_voice(&mut count), None);
     }
 

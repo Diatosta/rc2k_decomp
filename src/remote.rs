@@ -108,11 +108,101 @@ fn load_pgm(path: &str) -> Option<crate::platform::ffi::sdl_camera::Frame> {
     at += 1;
     let (w, h): (usize, usize) = (words[1].parse().ok()?, words[2].parse().ok()?);
     let grey = data.get(at..at + w * h)?;
+    let rgba = match fake_layout() {
+        // The picture as a camera of that format would send it, with padded rows, read back
+        // by the conversion the real camera's frames go through.
+        Some(layout) => {
+            let (bytes, pitch) = encode_grey(layout, w, h, grey);
+            rc2k_core::gfx::camera_frame::to_rgba(layout, w, h, pitch, &bytes)?
+        }
+        None => grey.iter().flat_map(|&g| [g, g, g, 255]).collect(),
+    };
     Some(crate::platform::ffi::sdl_camera::Frame {
         width: w,
         height: h,
-        rgba: grey.iter().flat_map(|&g| [g, g, g, 255]).collect(),
+        rgba,
     })
+}
+
+/// The pixel layout `RC2K_FAKE_CAMERA` names (`rgba`, `bgra`, `rgb24`, `yuy2`, `yvyu`, `uyvy`,
+/// `nv12`, `nv21`, `i420`, `yv12`); none for another value (frames then go in as RGBA).
+fn fake_layout() -> Option<rc2k_core::gfx::camera_frame::Layout> {
+    use rc2k_core::gfx::camera_frame::Layout;
+    let name = std::env::var("RC2K_FAKE_CAMERA").ok()?;
+    Some(match name.to_ascii_lowercase().as_str() {
+        "rgba" => Layout::Packed32 { r: 0, g: 1, b: 2 },
+        "bgra" => Layout::Packed32 { r: 2, g: 1, b: 0 },
+        "rgb24" => Layout::Rgb24 { r: 0, g: 1, b: 2 },
+        "yuy2" => Layout::Yuy2,
+        "yvyu" => Layout::Yvyu,
+        "uyvy" => Layout::Uyvy,
+        "nv12" => Layout::Nv12,
+        "nv21" => Layout::Nv21,
+        "i420" => Layout::I420,
+        "yv12" => Layout::Yv12,
+        _ => return None,
+    })
+}
+
+/// A grey picture in `layout`, rows padded by 8 bytes (as a camera's often are), and the pitch.
+fn encode_grey(
+    layout: rc2k_core::gfx::camera_frame::Layout,
+    w: usize,
+    h: usize,
+    grey: &[u8],
+) -> (Vec<u8>, usize) {
+    use rc2k_core::gfx::camera_frame::Layout;
+    let luma = |g: u8| (16 + u32::from(g) * 219 / 255) as u8;
+    let (even_w, even_h) = (w.div_ceil(2) * 2, h.div_ceil(2) * 2);
+    let at = |x: usize, y: usize| grey[y.min(h - 1) * w + x.min(w - 1)];
+    match layout {
+        Layout::Rgb24 { .. } | Layout::Packed32 { .. } => {
+            let bytes = if matches!(layout, Layout::Rgb24 { .. }) {
+                3
+            } else {
+                4
+            };
+            let pitch = w * bytes + 8;
+            let mut out = vec![0x55; pitch * h];
+            for y in 0..h {
+                for x in 0..w {
+                    out[y * pitch + x * bytes..y * pitch + x * bytes + 3].fill(at(x, y));
+                }
+            }
+            (out, pitch)
+        }
+        Layout::Yuy2 | Layout::Yvyu | Layout::Uyvy => {
+            let pitch = even_w * 2 + 8;
+            let mut out = vec![0x55; pitch * h];
+            for y in 0..h {
+                for x in (0..even_w).step_by(2) {
+                    let (a, b) = (luma(at(x, y)), luma(at(x + 1, y)));
+                    let q = match layout {
+                        Layout::Uyvy => [128, a, 128, b],
+                        _ => [a, 128, b, 128],
+                    };
+                    out[y * pitch + x * 2..y * pitch + x * 2 + 4].copy_from_slice(&q);
+                }
+            }
+            (out, pitch)
+        }
+        _ => {
+            let pitch = even_w + 8;
+            let cp = pitch.div_ceil(2);
+            let chroma_rows = even_h / 2;
+            let total = match layout {
+                Layout::Nv12 | Layout::Nv21 => pitch * h + pitch * chroma_rows,
+                _ => pitch * h + 2 * cp * chroma_rows,
+            };
+            let mut out = vec![128; total];
+            for y in 0..h {
+                for x in 0..w {
+                    out[y * pitch + x] = luma(grey[y * w + x]);
+                }
+            }
+            (out, pitch)
+        }
+    }
 }
 
 fn reply(id: &str, answer: &str) {
@@ -411,6 +501,11 @@ fn run(o: &Owners<'static>, line: &str) {
             pending()
                 .releases
                 .push((due(tail.first()), Release::Pad(code)));
+            "ok".to_string()
+        }),
+        // The right stick's vertical axis of the stand-in gamepad, -32768 .. 32767.
+        ("padaxis", ["righty", value]) => value.parse::<i16>().ok().map(|v| {
+            sdl_input::push_gamepad_axis_event(SDL_GAMEPAD_AXIS_RIGHTY, v);
             "ok".to_string()
         }),
         ("joy", words) => stick(words),

@@ -45,6 +45,7 @@ pub mod load_picture_to_texture;
 pub mod load_picture_with_overlay;
 pub mod locked_pixels;
 pub mod mark_3d_modes;
+pub mod notice_text;
 pub mod owner;
 pub mod palette_pixels_to_dwords;
 pub mod palette_to_dwords;

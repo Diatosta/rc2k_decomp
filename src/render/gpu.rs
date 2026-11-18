@@ -18,7 +18,8 @@ use super::gpu_cut::Cuts;
 use super::{CommandList, Target, TextureNote};
 use crate::logfile::program_log::log;
 use crate::platform::ffi::sdl_gpu::{
-    self, Buffer, Device, Pipeline, PipelineSpec, Sampler, Shader, ShaderCode, Texture, Transfer,
+    self, Buffer, Device, Fence, Pipeline, PipelineSpec, Sampler, Shader, ShaderCode, Texture,
+    Transfer,
 };
 use sdl3_sys::everything::*;
 use std::collections::HashMap;
@@ -157,6 +158,14 @@ pub struct Gpu {
     vertices_room: u32,
     transfer: Transfer,
     transfer_room: u32,
+    /// The buffer the picture is read back through, kept from one read-back to the next (a new
+    /// one of the screen's size every frame costs a render more than the copy does).
+    download: Transfer,
+    /// The video's frame being read back: the buffer it comes through and the fence of its copy
+    /// (`start_video_read`, `collect_video_read`).
+    video_read: Option<(Transfer, Fence)>,
+    /// The buffer the video's frames come through, one at a time.
+    video_transfer: Transfer,
     /// The diagnostic cuts of the flush last drawn (`gpu_cut`), to log their changes.
     cuts: Cuts,
 }
@@ -166,7 +175,8 @@ pub static GPU: Mutex<Option<Gpu>> = Mutex::new(None);
 
 /// Whether a device is to be tried: unless `--renderer software` or `RC2K_RENDERER=software`.
 pub fn wanted() -> bool {
-    super::choice::gpu_wanted()
+    // The browser has no GPU device API; its GPU is the WebGL of `gles`.
+    cfg!(not(target_os = "emscripten")) && super::choice::gpu_wanted()
 }
 
 fn sdl_error() -> String {
@@ -252,6 +262,9 @@ impl Gpu {
             vertices_room: 0,
             transfer: Transfer::NONE,
             transfer_room: 0,
+            download: Transfer::NONE,
+            video_read: None,
+            video_transfer: Transfer::NONE,
             cuts: Cuts::default(),
         };
         if let Some(line) = Cuts::start_from_env() {
@@ -376,6 +389,15 @@ impl Gpu {
         }
         if !self.transfer.is_none() {
             device.release_transfer(self.transfer);
+        }
+        if !self.download.is_none() {
+            device.release_transfer(self.download);
+        }
+        if let Some((_, fence)) = self.video_read.take() {
+            device.wait_fence(fence);
+        }
+        if !self.video_transfer.is_none() {
+            device.release_transfer(self.video_transfer);
         }
     }
 
@@ -1276,24 +1298,27 @@ impl Gpu {
         self.compare_check()
     }
 
-    /// The colour target's picture (the GPU's end of the frame is waited for).
-    fn read_colour(&mut self) -> Result<Vec<u8>, String> {
-        self.read_texture(self.colour)
-    }
-
-    /// The picture of a texture of the screen's size (the GPU's end of the frame is waited for).
-    fn read_texture(&mut self, texture: Texture) -> Result<Vec<u8>, String> {
+    /// The picture of a texture of the screen's size (the GPU's end of the frame is waited for)
+    /// into the start of `out`.
+    fn read_texture_into(&mut self, texture: Texture, out: &mut [u8]) -> Result<(), String> {
         let bytes = (self.width * self.height * 4) as usize;
-        let transfer = self.make_transfer(SDL_GPU_TRANSFERBUFFERUSAGE_DOWNLOAD, bytes as u32)?;
+        let picture = out
+            .get_mut(..bytes)
+            .ok_or("the canvas is smaller than the screen")?;
+        if self.download.is_none() || self.download.size() as usize != bytes {
+            if !self.download.is_none() {
+                self.device.release_transfer(self.download);
+            }
+            self.download = Transfer::NONE;
+            self.download =
+                self.make_transfer(SDL_GPU_TRANSFERBUFFERUSAGE_DOWNLOAD, bytes as u32)?;
+        }
         let buffer = self.device.acquire_command_buffer()?;
         let copy = buffer.begin_copy_pass();
-        copy.download_texture(texture, self.width, self.height, transfer);
+        copy.download_texture(texture, self.width, self.height, self.download);
         copy.end();
         buffer.submit_and_wait(self.device)?;
-        let mut picture = vec![0u8; bytes];
-        self.device.read_transfer(transfer, &mut picture)?;
-        self.device.release_transfer(transfer);
-        Ok(picture)
+        self.device.read_transfer(self.download, picture)
     }
 
     /// The target's picture, with the canvas's written pixels, into the canvas.
@@ -1302,9 +1327,66 @@ impl Gpu {
         // The frame comes back as its own picture: the larger 3D of the frame so far is dropped.
         self.frame_high = None;
         self.high_shown = false;
-        let picture = self.read_colour()?;
-        canvas[..picture.len()].copy_from_slice(&picture);
+        self.read_texture_into(self.colour, canvas)
+    }
+
+    /// The frame's end, and the colour target's picture started on its way to the CPU: the
+    /// copy is queued behind the frame's drawing and not waited for, so the game goes on with
+    /// the next frame; `collect_video_read` takes the picture when it is there.
+    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    pub fn start_video_read(
+        &mut self,
+        rows: Option<Vec<bool>>,
+        canvas: &mut [u8],
+    ) -> Result<(), String> {
+        debug_assert!(
+            self.video_read.is_none(),
+            "the last frame was not collected"
+        );
+        self.finish_frame(rows, canvas)?;
+        // The frame comes as its own picture: the larger 3D of the frame so far is dropped.
+        self.frame_high = None;
+        self.high_shown = false;
+        let bytes = self.width * self.height * 4;
+        if self.video_transfer.is_none() || self.video_transfer.size() != bytes {
+            if !self.video_transfer.is_none() {
+                self.device.release_transfer(self.video_transfer);
+            }
+            self.video_transfer = Transfer::NONE;
+            self.video_transfer =
+                self.make_transfer(SDL_GPU_TRANSFERBUFFERUSAGE_DOWNLOAD, bytes)?;
+        }
+        let buffer = self.device.acquire_command_buffer()?;
+        let copy = buffer.begin_copy_pass();
+        copy.download_texture(self.colour, self.width, self.height, self.video_transfer);
+        copy.end();
+        let fence = buffer.submit_with_fence()?;
+        self.video_read = Some((self.video_transfer, fence));
         Ok(())
+    }
+
+    /// The picture `start_video_read` started, waited for and copied into `out` (resized to
+    /// it); false when none was started.
+    pub fn collect_video_read(&mut self, out: &mut Vec<u8>) -> Result<bool, String> {
+        let Some((transfer, fence)) = self.video_read.take() else {
+            return Ok(false);
+        };
+        self.device.wait_fence(fence);
+        out.resize(transfer.size() as usize, 0);
+        self.device.read_transfer(transfer, out)?;
+        Ok(true)
+    }
+
+    /// The colour target's picture (the GPU's end of the frame is waited for).
+    fn read_colour(&mut self) -> Result<Vec<u8>, String> {
+        self.read_texture(self.colour)
+    }
+
+    /// The picture of a texture of the screen's size, as a new buffer.
+    fn read_texture(&mut self, texture: Texture) -> Result<Vec<u8>, String> {
+        let mut picture = vec![0u8; (self.width * self.height * 4) as usize];
+        self.read_texture_into(texture, &mut picture)?;
+        Ok(picture)
     }
 }
 
@@ -1503,6 +1585,26 @@ mod comparison {
         let mut canvas = vec![0u8; width * height * 4];
         Gpu::draw(&mut gpu, &mut canvas, None, &commands).unwrap();
         gpu.bring_back(None, &mut canvas).unwrap();
+        // The frame queued to come back later is the picture brought back at once.
+        #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+        {
+            let mut beside = canvas.clone();
+            let mut queued = vec![0xAA; 3];
+            assert!(
+                !gpu.collect_video_read(&mut queued).unwrap(),
+                "nothing is queued yet"
+            );
+            gpu.start_video_read(None, &mut beside).unwrap();
+            assert!(gpu.collect_video_read(&mut queued).unwrap());
+            assert!(
+                queued == canvas,
+                "the queued picture differs from the brought-back one"
+            );
+            assert!(
+                !gpu.collect_video_read(&mut queued).unwrap(),
+                "collected twice"
+            );
+        }
 
         let (mut far, mut total) = (0usize, 0u64);
         for (a, b) in soft

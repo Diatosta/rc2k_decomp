@@ -296,6 +296,7 @@ pub mod view_stage_loop;
 pub mod visual_options_loop;
 pub mod visual_preferences_loop;
 pub mod walk_section_records;
+pub mod web_limits;
 pub mod welcome_loop;
 
 pub mod list_clear_marks;

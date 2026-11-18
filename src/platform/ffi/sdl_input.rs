@@ -494,6 +494,19 @@ pub fn push_gamepad_button_event(button: SDL_GamepadButton, down: bool) {
     }
 }
 
+/// A gamepad axis moved to `value`, pushed on SDL's event queue.
+#[cfg(feature = "remote")]
+pub fn push_gamepad_axis_event(axis: SDL_GamepadAxis, value: i16) {
+    // SAFETY: as `push_key_event`.
+    unsafe {
+        let mut event: SDL_Event = std::mem::zeroed();
+        event.r#type = SDL_EVENT_GAMEPAD_AXIS_MOTION.0;
+        event.gaxis.axis = axis.0 as u8;
+        event.gaxis.value = value;
+        SDL_PushEvent(&raw mut event);
+    }
+}
+
 /// A quit request pushed on SDL's event queue.
 #[cfg(feature = "remote")]
 pub fn push_quit_event() {
@@ -502,5 +515,105 @@ pub fn push_quit_event() {
         let mut event: SDL_Event = std::mem::zeroed();
         event.r#type = SDL_EVENT_QUIT.0;
         SDL_PushEvent(&raw mut event);
+    }
+}
+
+/// A virtual joystick standing for a browser gamepad (`platform::web_pads`): the page's Gamepad
+/// API cannot be read from the game's worker, so its pads are copied into SDL's virtual ones,
+/// which the rest of the game meets as ordinary joysticks and gamepads.
+#[cfg(target_os = "emscripten")]
+pub struct VirtualPad {
+    id: SDL_JoystickID,
+    joystick: *mut SDL_Joystick,
+}
+
+// SAFETY: the joystick handle is used by one thread at a time (the bridge's lock); SDL's joystick
+// functions take SDL's own lock.
+#[cfg(target_os = "emscripten")]
+unsafe impl Send for VirtualPad {}
+
+#[cfg(target_os = "emscripten")]
+impl VirtualPad {
+    /// A virtual gamepad of SDL's layout (six axes: the sticks, then the two triggers; the fifteen
+    /// buttons from the south one to the pad's right), attached as if plugged in.
+    pub fn attach_gamepad(name: &CStr, vendor: u16, product: u16) -> Option<VirtualPad> {
+        let mask = (0..15).fold(0u32, |mask, button| mask | 1 << button);
+        let axes = (1 << SDL_GAMEPAD_AXIS_LEFTX.0)
+            | (1 << SDL_GAMEPAD_AXIS_LEFTY.0)
+            | (1 << SDL_GAMEPAD_AXIS_RIGHTX.0)
+            | (1 << SDL_GAMEPAD_AXIS_RIGHTY.0)
+            | (1 << SDL_GAMEPAD_AXIS_LEFT_TRIGGER.0)
+            | (1 << SDL_GAMEPAD_AXIS_RIGHT_TRIGGER.0);
+        let desc = SDL_VirtualJoystickDesc {
+            r#type: SDL_JOYSTICK_TYPE_GAMEPAD.0 as u16,
+            naxes: 6,
+            nbuttons: 15,
+            vendor_id: vendor,
+            product_id: product,
+            button_mask: mask,
+            axis_mask: axes as u32,
+            name: name.as_ptr(),
+            ..SDL_VirtualJoystickDesc::default()
+        };
+        Self::attach(&desc)
+    }
+
+    /// A plain virtual joystick of `axes` and `buttons` (a pad the browser has no standard layout
+    /// for), attached as if plugged in.
+    pub fn attach_stick(
+        name: &CStr,
+        vendor: u16,
+        product: u16,
+        axes: u16,
+        buttons: u16,
+    ) -> Option<VirtualPad> {
+        let desc = SDL_VirtualJoystickDesc {
+            r#type: SDL_JOYSTICK_TYPE_UNKNOWN.0 as u16,
+            naxes: axes,
+            nbuttons: buttons,
+            vendor_id: vendor,
+            product_id: product,
+            name: name.as_ptr(),
+            ..SDL_VirtualJoystickDesc::default()
+        };
+        Self::attach(&desc)
+    }
+
+    fn attach(desc: &SDL_VirtualJoystickDesc) -> Option<VirtualPad> {
+        // SAFETY: a description made by SDL's own initialiser whose name is a C text alive for the
+        // call (SDL copies it); the id it returns is opened at once, null (failure) checked.
+        unsafe {
+            let id = SDL_AttachVirtualJoystick(desc);
+            if id.0 == 0 {
+                return None;
+            }
+            let joystick = SDL_OpenJoystick(id);
+            if joystick.is_null() {
+                SDL_DetachVirtualJoystick(id);
+                return None;
+            }
+            Some(VirtualPad { id, joystick })
+        }
+    }
+
+    /// An axis set (SDL refuses an index the joystick does not have).
+    pub fn set_axis(&self, axis: i32, value: i16) {
+        // SAFETY: the open virtual joystick this value made; SDL checks the index.
+        unsafe { SDL_SetJoystickVirtualAxis(self.joystick, axis, value) };
+    }
+
+    /// A button set.
+    pub fn set_button(&self, button: i32, down: bool) {
+        // SAFETY: the open virtual joystick this value made; SDL checks the index.
+        unsafe { SDL_SetJoystickVirtualButton(self.joystick, button, down) };
+    }
+
+    /// Closed and detached, as if unplugged.
+    pub fn detach(self) {
+        // SAFETY: the joystick opened in `attach`, closed once; the id is the one attached.
+        unsafe {
+            SDL_CloseJoystick(self.joystick);
+            SDL_DetachVirtualJoystick(self.id);
+        }
     }
 }

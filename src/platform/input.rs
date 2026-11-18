@@ -273,6 +273,8 @@ impl SdlBackend {
             log("platform: SDL's joysticks do not start: no joysticks");
             return;
         }
+        #[cfg(target_os = "emscripten")]
+        crate::platform::web_pads::stop_sdl_driver();
         #[cfg(feature = "remote")]
         crate::remote::stick_at_start();
         #[cfg(any(target_os = "android", target_os = "ios"))]

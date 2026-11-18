@@ -46,6 +46,8 @@ pub mod touch;
 pub mod touch_menu;
 #[cfg(target_os = "emscripten")]
 pub mod web;
+#[cfg(target_os = "emscripten")]
+pub mod web_pads;
 pub mod window_mode;
 
 use crate::gfx::describe_format::describe_format;
@@ -458,7 +460,7 @@ fn make_window_renderer(window: sdl::Window, size: (usize, usize)) -> Option<sdl
     // Next in the order: OpenGL, which shows its frames on a window of its own in place of
     // the one SDL's renderer has (`render::gles`).
     if gpu_renderer.is_none() {
-        crate::render::gles::start_on_window(size);
+        crate::render::gles::start_on_window(window, size);
     }
     let renderer = gpu_renderer.or_else(|| sdl::create_renderer(window))?;
     log(&format!(
@@ -524,6 +526,11 @@ fn place_shown_window(window: sdl::Window, width: usize, height: usize, size_cha
         window.show_raised();
         return;
     };
+    // The browser's one window is the GL's too: it is shown as it is.
+    if gl.is_same(window) {
+        window.show_raised();
+        return;
+    }
     match icon::pixels(4) {
         Some(p) if sdl::set_window_icon(gl, p.width, p.height, &p.rgb) => {}
         _ => log("platform: the window's icon was not set"),
@@ -1085,10 +1092,26 @@ pub fn show_frame_now(o: crate::owners::Owners<'static>) -> bool {
         #[cfg(not(feature = "remote"))]
         let shot_wanted = false;
         let video_wanted = crate::video::frame_wanted();
-        if (shot_wanted || video_wanted)
-            && let Some(target) = crate::platform::direct3d::screen(o.system.session.screen.get())
-        {
-            crate::render::bring_back(&target);
+        // The video's frames come back from the GPU a frame late, while the next one is drawn
+        // (a screenshot wants the picture at once, and any other renderer brings it back now).
+        let mut queued = crate::render::VideoRead {
+            previous: None,
+            started: false,
+        };
+        let screen_target = (shot_wanted || video_wanted)
+            .then(|| crate::platform::direct3d::screen(o.system.session.screen.get()))
+            .flatten();
+        if let Some(target) = &screen_target {
+            let began = std::time::Instant::now();
+            if video_wanted && !shot_wanted {
+                queued = crate::render::video_read_next(target, crate::video::spare_buffer());
+            }
+            if !queued.started {
+                crate::render::bring_back(target);
+            }
+            if video_wanted {
+                crate::video::note_stage(crate::video::Stage::ReadBack, began.elapsed());
+            }
         }
         if let Ok(screen) = SCREEN.lock()
             && let Some(screen) = screen.as_ref()
@@ -1096,7 +1119,12 @@ pub fn show_frame_now(o: crate::owners::Owners<'static>) -> bool {
             // Before it is shown: on the GPU's path showing clears the canvas.
             #[cfg(feature = "remote")]
             let shot = crate::remote::shot_wanted().then(|| screen.pixels.to_vec());
-            let video_frame = video_wanted.then(|| screen.pixels.to_vec());
+            let video_frame = (video_wanted && !queued.started).then(|| {
+                let began = std::time::Instant::now();
+                let pixels = with_frame(screen, crate::video::copy_frame);
+                crate::video::note_stage(crate::video::Stage::Copy, began.elapsed());
+                pixels
+            });
             let showing = std::time::Instant::now();
             let shown_ok = show_frame(&o, screen);
             crate::platform::timing::SHOW_MICROS.fetch_add(
@@ -1118,9 +1146,15 @@ pub fn show_frame_now(o: crate::owners::Owners<'static>) -> bool {
             if let Some(pixels) = shot {
                 crate::remote::frame(&pixels, screen.width as u32, screen.height as u32);
             }
-            if let Some(pixels) = video_frame {
-                crate::video::frame(&pixels, screen.width as u32, screen.height as u32);
+            if video_wanted {
+                crate::video::frame_taken(screen.width as u32, screen.height as u32);
+                // In the order the frames were drawn: the one queued before, then this one.
+                for pixels in queued.previous.into_iter().chain(video_frame) {
+                    crate::video::send(pixels);
+                }
+                let began = std::time::Instant::now();
                 crate::video::sound_turn(o.audio);
+                crate::video::note_stage(crate::video::Stage::Sound, began.elapsed());
                 crate::video::note_progress(crate::race::render_row::fraction(o.race));
             }
             crate::platform::timing::note_frame_shown();

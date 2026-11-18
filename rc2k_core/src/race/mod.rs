@@ -41,3 +41,4 @@ pub mod view;
 pub mod view_steps;
 pub mod viewer;
 pub mod viewer_flow;
+pub mod viewer_tip;

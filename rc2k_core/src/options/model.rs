@@ -159,6 +159,9 @@ pub struct VideoChoices {
     /// The encoder's quality (`low`, `medium`, `high`, `best`), when not `high`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub quality: Option<String>,
+    /// Which encoder writes the picture (`software`), when not the automatic choice.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub encoder: Option<String>,
     /// Whether the video has the sound, when it has not.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sound: Option<bool>,

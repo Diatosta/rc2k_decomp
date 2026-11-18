@@ -1,5 +1,5 @@
 //! Command 4: gives back every sound's voices and buffers and the samples' memory, and resets the
-//! channels and lists. Refuses more than 0x200 voices in use.
+//! channels and lists. Refuses more than `VOICES` voices in use.
 
 use crate::audio::own::AudioThread;
 use crate::audio::voices::{SAMPLES, VOICES};
@@ -8,7 +8,7 @@ use crate::errors::{BadInput, Refused};
 pub fn free_voices(audio: &AudioThread) -> Result<(), Refused> {
     let count = audio.state.voice_count.get();
     if count > VOICES {
-        return Err(BadInput("more than 0x200 voices").into());
+        return Err(BadInput("more than `VOICES` voices").into());
     }
     if count != 0 {
         crate::audio::release_eax::release_eax(&audio.state);

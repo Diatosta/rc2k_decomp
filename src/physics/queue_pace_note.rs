@@ -48,6 +48,13 @@ pub fn queue_pace_note(
         return Ok(());
     };
     let mut at = physics_store.pace().group_texts[group as usize].get();
+    #[cfg(feature = "remote")]
+    if std::env::var_os("RC2K_SOUND_LOG").is_some() {
+        crate::logfile::program_log::log(&format!(
+            "pace call: car {} checkpoint {checkpoint} group {group}",
+            work.current_car.get()
+        ));
+    }
     loop {
         let byte = physics_store.pace().text.get(text_place(at)? as usize) as u32;
         match code(byte as u8) {

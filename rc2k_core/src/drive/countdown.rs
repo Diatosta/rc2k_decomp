@@ -1,6 +1,8 @@
 //! The start's count down: a car's second of the count down and when its beep is cued; the beep
 //! played for a listed car; a hold counted down after the start.
 
+use crate::audio::voices::codriver_copy;
+
 /// The count down's length in hundredths (held there) and the seconds it shows.
 pub const LENGTH: u32 = 1500;
 pub const SECONDS: u32 = 6;
@@ -57,11 +59,17 @@ pub struct BeepSound {
 /// The beeps' volume.
 pub const BEEP_VOLUME: u32 = 0xFFFF_FF91;
 
-/// The beep for a listed car's sound slot 0 or 1 (unsigned), played on its channel; none for
-/// other slots.
-pub fn beep_sound(slot: u32, sound: u32) -> Option<BeepSound> {
-    (slot <= 1).then(|| BeepSound {
-        sound: slot.wrapping_add(sound),
+/// The beep for a listed car's sound slot (unsigned), played on its channel: the first two
+/// players' are a pair of records, the split screen's third and fourth (slots 2 and 3, when
+/// `players` says they speak) the pair's copies; none for other slots.
+pub fn beep_sound(slot: u32, sound: u32, players: u32) -> Option<BeepSound> {
+    let sound = match slot {
+        0 | 1 => slot.wrapping_add(sound),
+        2 | 3 if slot < players => codriver_copy(sound.wrapping_add(slot & 1))?,
+        _ => return None,
+    };
+    Some(BeepSound {
+        sound,
         volume: BEEP_VOLUME,
     })
 }
@@ -103,10 +111,21 @@ mod tests {
 
     #[test]
     fn beep_sounds() {
-        assert_eq!(beep_sound(2, 5), None);
-        assert_eq!(beep_sound(u32::MAX, 5), None);
+        use crate::audio::voices::{CODRIVER_COPIES, CODRIVER_FIRST};
+        assert_eq!(beep_sound(2, 5, 2), None);
+        assert_eq!(beep_sound(u32::MAX, 5, 2), None);
+        // The third and fourth players' beeps are the voices' copies.
+        assert_eq!(beep_sound(2, CODRIVER_FIRST + 8, 2), None);
+        assert_eq!(beep_sound(2, 5, 4), None);
         assert_eq!(
-            beep_sound(1, 5),
+            beep_sound(3, CODRIVER_FIRST + 8, 4),
+            Some(BeepSound {
+                sound: CODRIVER_COPIES + 9,
+                volume: BEEP_VOLUME
+            })
+        );
+        assert_eq!(
+            beep_sound(1, 5, 2),
             Some(BeepSound {
                 sound: 6,
                 volume: BEEP_VOLUME

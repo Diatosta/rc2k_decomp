@@ -93,6 +93,19 @@ sized_handle!(
     Transfer(*mut SDL_GPUTransferBuffer)
 );
 
+impl Transfer {
+    /// The size it was made with, in bytes.
+    pub fn size(self) -> u32 {
+        self.1
+    }
+}
+
+/// A submitted command buffer's fence: it is signalled when the GPU has done the buffer.
+#[derive(Debug)]
+pub struct Fence(*mut SDL_GPUFence);
+// SAFETY: SDL's object, used one thread at a time (see the module header).
+unsafe impl Send for Fence {}
+
 /// A command buffer, until it is submitted.
 pub struct CommandBuffer(*mut SDL_GPUCommandBuffer);
 /// A copy pass, until it is ended.
@@ -430,6 +443,15 @@ impl Device {
         Ok(())
     }
 
+    /// Waits until the GPU has done what `fence` is for, then releases the fence.
+    pub fn wait_fence(self, fence: Fence) {
+        // SAFETY: the fence is ours (made by `submit_with_fence`) and is given up here.
+        unsafe {
+            SDL_WaitForGPUFences(self.0, true, &raw const fence.0, 1);
+            SDL_ReleaseGPUFence(self.0, fence.0);
+        }
+    }
+
     pub fn acquire_command_buffer(self) -> Result<CommandBuffer, String> {
         // SAFETY: the device is alive; the buffer is the caller's until submitted.
         let buffer = unsafe { SDL_AcquireGPUCommandBuffer(self.0) };
@@ -532,6 +554,18 @@ impl CommandBuffer {
             Ok(())
         } else {
             Err(error())
+        }
+    }
+
+    /// Submitted, with a fence to wait for later (`Device::wait_fence`).
+    pub fn submit_with_fence(self) -> Result<Fence, String> {
+        // SAFETY: our command buffer, given up here; the fence is handed to the caller, who
+        // gives it back to `Device::wait_fence`.
+        let fence = unsafe { SDL_SubmitGPUCommandBufferAndAcquireFence(self.0) };
+        if fence.is_null() {
+            Err(error())
+        } else {
+            Ok(Fence(fence))
         }
     }
 

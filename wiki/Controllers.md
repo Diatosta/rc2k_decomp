@@ -28,7 +28,7 @@ Any gamepad SDL recognises works in the menus on every system, with nothing to s
 | South button (A on an Xbox pad) | Enter (held, it repeats as a held Enter key does: after about 0.4 s, then every 0.12 s) |
 | East button (B) | Escape / back |
 | West button (X) | the third answer, where a question has three; where a screen waits for any key (the films, a message), it also ends the wait |
-| Left or right shoulder | Tab (repeats when held): the network lobby shows or hides the gaps (in a race they stay the car's controls) |
+| Left or right shoulder | Tab (repeats when held): the network lobby shows or hides the gaps; the save code page pages its text up (left) and down (right), and there the right stick scrolls it by lines. In a race the shoulders stay the car's controls. |
 | Start | Enter in a menu (repeats when held); in a race, the same as Escape (asks whether to leave) |
 
 A wheel or another joystick that SDL does not know as a gamepad works the menus too: its hat
@@ -221,7 +221,7 @@ hat directions do, so changing from a pad to a wheel and back needs no new set-u
 made the first time a player uses a controller:
 
 - a gamepad: the left stick steers, the right trigger accelerates, the left trigger brakes, the
-  D-pad steers too, and the buttons A, B, X, Y are gear up, gear down, handbrake and camera;
+  D-pad steers too, and the buttons A, X, B, Y are gear up, gear down, handbrake and camera;
 - a wheel (SDL's type says so): the first axis steers; the pedals are learnt;
 - any other joystick: the first axis steers, the second accelerates up and brakes down, the
   buttons as above.

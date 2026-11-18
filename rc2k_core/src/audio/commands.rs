@@ -102,6 +102,12 @@ pub enum SoundList {
     /// One sound alone: the third and fourth cars' copies of an engine sound, which no list of
     /// the race's sets holds.
     One(u32),
+    /// Sounds `first` and the `count` (below 0x100) after it: the third and fourth players'
+    /// copies of the co-driver's voices.
+    Range {
+        first: u32,
+        count: u32,
+    },
 }
 
 impl SoundList {
@@ -113,6 +119,7 @@ impl SoundList {
             SoundList::Menu => 1,
             // Beyond every race list's word.
             SoundList::One(sound) => 0x4000_0000 | sound,
+            SoundList::Range { first, count } => 0x2000_0000 | (first << 8) | count,
             SoundList::Race { field, entry } => field
                 .original_offset()
                 .wrapping_add(entry.wrapping_mul(4))
@@ -128,6 +135,10 @@ impl SoundList {
             0 => None,
             1 => Some(SoundList::Menu),
             n if n & 0x4000_0000 != 0 => Some(SoundList::One(n & 0x3FFF_FFFF)),
+            n if n & 0x2000_0000 != 0 => Some(SoundList::Range {
+                first: (n & 0x1FFF_FFFF) >> 8,
+                count: n & 0xFF,
+            }),
             n => {
                 let offset = n - 2;
                 RaceField::ALL.into_iter().rev().find_map(|field| {
@@ -473,6 +484,16 @@ mod tests {
             RaceField::KindSetsFirst.list_place(u32::MAX, usize::MAX),
             ListPlace::StartsPastSets
         );
+    }
+
+    /// The word of a range of sounds names it back.
+    #[test]
+    fn a_range_keeps_its_word() {
+        let list = SoundList::Range {
+            first: 0x4C8,
+            count: 190,
+        };
+        assert_eq!(SoundList::from_word(list.word()), Some(list));
     }
 
     /// A race list's command word is its old offset plus 2, and the word names the list back.

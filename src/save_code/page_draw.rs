@@ -148,8 +148,12 @@ pub fn preview(
     room: i32,
 ) {
     let cells = (room / 2).clamp(40, 120) as usize;
-    let cell = (room / cells as i32).max(1);
     let rows = (cells * frame.height / frame.width).max(1);
+    // The cells' edges at their share of the box, so the picture fills it whatever the size.
+    let edge = |n: usize, of: usize| {
+        (n as i32 * room * frame.height as i32 / frame.width as i32 / of as i32).max(0)
+    };
+    let across = |n: usize| n as i32 * room / cells as i32;
     for cy in 0..rows {
         for cx in 0..cells {
             let (sx, sy) = (cx * frame.width / cells, cy * frame.height / rows);
@@ -157,9 +161,10 @@ pub fn preview(
             let rgb = u32::from(frame.rgba[at]) << 16
                 | u32::from(frame.rgba[at + 1]) << 8
                 | u32::from(frame.rgba[at + 2]);
+            let (x0, y0) = (across(cx), edge(cy, rows));
             fill(
                 o,
-                [x + cx as i32 * cell, y + cy as i32 * cell, cell, cell],
+                [x + x0, y + y0, across(cx + 1) - x0, edge(cy + 1, rows) - y0],
                 rgb,
             );
         }

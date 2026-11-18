@@ -197,7 +197,6 @@ pub fn batched(
 
 /// The batching thread: the game's jobs, in order, batched and handed to the GL's thread. It
 /// ends when the game's side is dropped or the GL's thread has ended.
-#[cfg(not(target_os = "emscripten"))]
 pub fn run(
     jobs: std::sync::mpsc::Receiver<Job<Part>>,
     gl: std::sync::mpsc::SyncSender<Job<Batched>>,

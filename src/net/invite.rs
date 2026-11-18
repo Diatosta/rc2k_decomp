@@ -24,8 +24,14 @@ fn waiting() -> std::sync::MutexGuard<'static, Invites<Invite>> {
 
 /// An invitation has arrived.
 #[cfg_attr(
-    target_os = "ios",
-    allow(dead_code, reason = "only Steam and the remote driver offer one")
+    any(
+        target_os = "ios",
+        all(target_os = "linux", target_arch = "aarch64", not(feature = "remote"))
+    ),
+    allow(
+        dead_code,
+        reason = "only Steam and the remote driver offer one: not the handheld or the iPhone"
+    )
 )]
 pub fn offer(invite: Invite) {
     waiting().offer(invite);

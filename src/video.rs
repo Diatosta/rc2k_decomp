@@ -20,7 +20,10 @@
 //! joins the two (the picture copied, the sound AAC, or Opus in a `.webm`). With no `ffmpeg` the
 //! WAV file stays in the PNG folder.
 
-use rc2k_core::race::render_dialog::Quality;
+mod encoder;
+
+use encoder::Encoder;
+use rc2k_core::race::render_dialog::{Quality, VideoEncoder};
 use rc2k_core::system::program_switches::Switches;
 use std::io::{Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
@@ -39,6 +42,8 @@ struct Job {
     quality: Quality,
     /// Whether the video has the game's sound.
     sound: bool,
+    /// Whether the machine's own encoder may be used.
+    encoder: VideoEncoder,
 }
 
 /// The render the command line asked for (it lasts until the program ends).
@@ -57,6 +62,7 @@ pub fn begin(switches: &Switches) -> Result<(), String> {
             ("--fps", switches.fps.is_some()),
             ("--quality", switches.quality.is_some()),
             ("--no-sound", switches.no_sound),
+            ("--encoder", switches.encoder.is_some()),
             ("--from", switches.from_cs.is_some()),
             ("--to", switches.to_cs.is_some()),
         ] {
@@ -76,6 +82,7 @@ pub fn begin(switches: &Switches) -> Result<(), String> {
         fps: switches.fps.unwrap_or(DEFAULT_FPS),
         quality: switches.quality.unwrap_or_default(),
         sound: !switches.no_sound,
+        encoder: switches.encoder.unwrap_or_default(),
     }));
     RANGE.store(pack_range(switches.from_cs, switches.to_cs), Relaxed);
     ACTIVE.store(true, Relaxed);
@@ -195,7 +202,8 @@ pub fn range() -> Option<(u32, Option<u32>)> {
 static PROGRESS_AT: Mutex<Option<std::time::Instant>> = Mutex::new(None);
 
 /// A render that a parent program watches (`RC2K_RENDER_PROGRESS` names a file) writes how far it
-/// has come, `fraction` of the part, about every half second: a line "percent frames".
+/// has come, `fraction` of the part, about every half second: a line "percent frames" (the
+/// percent with a decimal).
 pub fn note_progress(fraction: f64) {
     let Some(path) = std::env::var_os("RC2K_RENDER_PROGRESS") else {
         return;
@@ -212,10 +220,7 @@ pub fn note_progress(fraction: f64) {
         .unwrap_or_else(std::sync::PoisonError::into_inner)
         .as_ref()
         .map_or(0, |w| w.video_frames);
-    let line = format!(
-        "{} {frames}\n",
-        (fraction.clamp(0.0, 1.0) * 100.0).round() as u32
-    );
+    let line = format!("{:.1} {frames}\n", fraction.clamp(0.0, 1.0) * 100.0);
     // Written to a name of its own and renamed, so that a reader never sees half a line.
     let mut temp = path.clone();
     temp.push(".new");
@@ -248,6 +253,10 @@ struct Writer {
     silent: Option<PathBuf>,
     /// The tools `ffmpeg` has, when there is one.
     tools: Option<Tools>,
+    /// When the first frame came.
+    started: std::time::Instant,
+    /// The picture file to look over at the end: a hardware encoder's.
+    checked: Option<PathBuf>,
 }
 
 /// The sound's output rate (the mixer's).
@@ -307,19 +316,90 @@ fn wav_header(data: u32) -> Vec<u8> {
 
 static WRITER: Mutex<Option<Writer>> = Mutex::new(None);
 
-/// The frame's pixels (32 bits a pixel, blue first) into the video. The first one starts the
-/// file.
-pub fn frame(pixels: &[u8], width: u32, height: u32) {
+/// Frame buffers the writer is done with, kept for the next frames: a new buffer of a whole
+/// picture every frame costs more in fresh memory than the copy into it does.
+static SPARE: Mutex<Vec<Vec<u8>>> = Mutex::new(Vec::new());
+
+/// How many spare buffers are kept (the queue's length and the ones in the writer's hands).
+const SPARE_MOST: usize = 8;
+
+/// A buffer for a frame's pixels: one from an earlier frame when there is one.
+pub fn spare_buffer() -> Vec<u8> {
+    SPARE
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .pop()
+        .unwrap_or_default()
+}
+
+/// A copy of the frame's pixels, in a buffer from an earlier frame when there is one.
+pub fn copy_frame(pixels: &[u8]) -> Vec<u8> {
+    let mut copy = spare_buffer();
+    copy.resize(pixels.len(), 0);
+    copy.copy_from_slice(pixels);
+    copy
+}
+
+/// A frame the writer is done with, kept for `copy_frame`.
+fn keep_buffer(buffer: Vec<u8>) {
+    let mut spare = SPARE
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    if spare.len() < SPARE_MOST {
+        spare.push(buffer);
+    }
+}
+
+/// The parts of a frame's work that are timed.
+#[derive(Clone, Copy)]
+pub enum Stage {
+    /// The picture brought back from the graphics card (with the Vulkan backend: the last
+    /// frame's, and the new one's copy started).
+    ReadBack,
+    /// The picture copied out of the screen's memory (on the paths that bring it back whole).
+    Copy,
+    /// Waiting for room in the queue to the encoder (the encoder is the slower part).
+    Queue,
+    /// The sound's turn.
+    Sound,
+}
+
+const STAGES: usize = 4;
+
+/// The microseconds each stage has taken in all, for the log at the end.
+static STAGE_MICROS: [AtomicU64; STAGES] = [const { AtomicU64::new(0) }; STAGES];
+
+/// A stage of a frame took `time`.
+pub fn note_stage(stage: Stage, time: std::time::Duration) {
+    STAGE_MICROS[stage as usize].fetch_add(time.as_micros() as u64, Relaxed);
+}
+
+/// A frame of the video has been taken (its pixels come with `send`, which may be later): the
+/// frames and the sound that follows them are counted from here. The first one starts the file.
+pub fn frame_taken(width: u32, height: u32) {
     RACE_FRAME.store(false, Relaxed);
     let Some(job) = job() else { return };
     let mut writer = WRITER
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     let writer = writer.get_or_insert_with(|| start_writer(&job, width, height));
-    if writer.frames.send(pixels.to_vec()).is_err() {
+    writer.video_frames += 1;
+}
+
+/// The pixels of the next frame not yet sent (32 bits a pixel, blue first) to the video, in the
+/// order the frames were taken.
+pub fn send(pixels: Vec<u8>) {
+    let writer = WRITER
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let Some(writer) = writer.as_ref() else {
+        return;
+    };
+    let began = std::time::Instant::now();
+    if writer.frames.send(pixels).is_err() {
         crate::logfile::program_log::log("video: the writer stopped; the frame is dropped");
     }
-    writer.video_frames += 1;
+    note_stage(Stage::Queue, began.elapsed());
 }
 
 /// The sound of the frame just taken: the audio thread takes a turn (so every sound the race
@@ -369,8 +449,17 @@ fn sound_frames_due(video_frames: u64, fps: u32) -> u64 {
     video_frames * u64::from(SOUND_RATE) / u64::from(fps)
 }
 
-/// The video's file closed (the program ends): the frames still waiting written first.
-pub fn finish() {
+/// The exit code of a render whose hardware encoder made a damaged picture (the video is
+/// removed): the program that started it renders again with the software encoder.
+pub const DAMAGED: u32 = 4;
+
+/// The video's file closed (the program ends): the frames still waiting written first. `Some`: the
+/// exit code the render ends with when it did not make a good video.
+pub fn finish() -> Option<u32> {
+    // The last frame, still on its way back from the card.
+    if let Some(pixels) = crate::render::video_read_last(spare_buffer()) {
+        send(pixels);
+    }
     let writer = WRITER
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -381,17 +470,38 @@ pub fn finish() {
         sound,
         silent,
         tools,
+        started,
+        checked,
         ..
     }) = writer
     else {
         if active() {
             crate::logfile::program_log::log("video: no frame was drawn; nothing written");
         }
-        return;
+        return None;
     };
+    let looped = started.elapsed();
     drop(frames);
     let count = thread.join().unwrap_or(0);
     crate::logfile::program_log::log(&format!("video: {count} frames written"));
+    log_times(count, looped, started.elapsed());
+    if let Some(picture) = checked
+        && let Err(why) = picture_is_whole(&picture)
+    {
+        log(&format!(
+            "the hardware encoder's picture is damaged ({why}); the video is removed"
+        ));
+        if let Some(job) = job() {
+            for file in leftovers(&job.out) {
+                if file.is_dir() {
+                    let _ = std::fs::remove_dir_all(&file);
+                } else {
+                    let _ = std::fs::remove_file(&file);
+                }
+            }
+        }
+        return Some(DAMAGED);
+    }
     let wav = sound.and_then(|wav| {
         let seconds = wav.frames as f64 / f64::from(SOUND_RATE);
         wav.close()
@@ -401,6 +511,57 @@ pub fn finish() {
     if let (Some(silent), Some(wav), Some(tools), Some(job)) = (silent, wav, tools, job()) {
         join_sound(&silent, &wav, &job.out, tools);
     }
+    None
+}
+
+/// Whether `ffmpeg` decodes the whole picture file without a word of complaint. A decoder that
+/// cannot be run is no proof of damage: the file is let through.
+fn picture_is_whole(picture: &Path) -> Result<(), String> {
+    let began = std::time::Instant::now();
+    let checked = Command::new("ffmpeg")
+        .args(["-hide_banner", "-loglevel", "error", "-i"])
+        .arg(picture)
+        .args(["-f", "null", "-"])
+        .stdin(Stdio::null())
+        .output();
+    let Ok(checked) = checked else {
+        log("the picture could not be checked");
+        return Ok(());
+    };
+    log(&format!(
+        "the picture checked in {} ms",
+        began.elapsed().as_millis()
+    ));
+    let said = String::from_utf8_lossy(&checked.stderr);
+    match said.lines().next() {
+        None if checked.status.success() => Ok(()),
+        None => Err(format!("the check ended with {}", checked.status)),
+        Some(first) => Err(first.trim().to_owned()),
+    }
+}
+
+/// The time the frames took, by stage, in the log: `looped` is the time from the first frame to
+/// the last one handed to the encoder, `total` the time until the encoder had finished.
+fn log_times(frames: u32, looped: std::time::Duration, total: std::time::Duration) {
+    let ms = |stage: Stage| STAGE_MICROS[stage as usize].load(Relaxed) / 1000;
+    let per_second = |time: std::time::Duration| f64::from(frames) / time.as_secs_f64().max(1e-3);
+    let (read_back, copy, queue, sound) = (
+        ms(Stage::ReadBack),
+        ms(Stage::Copy),
+        ms(Stage::Queue),
+        ms(Stage::Sound),
+    );
+    let looped_ms = looped.as_millis() as u64;
+    let rest = looped_ms.saturating_sub(read_back + copy + queue + sound);
+    log(&format!(
+        "{frames} frames: {:.1} a second while drawing ({looped_ms} ms), {:.1} a second to the \
+         end of the encoding ({} ms); of the drawing time {read_back} ms read back from the \
+         card, {copy} ms copied, {queue} ms waiting for the encoder, {sound} ms sound, {rest} ms \
+         simulation and drawing",
+        per_second(looped),
+        per_second(total),
+        total.as_millis()
+    ));
 }
 
 /// The picture and the sound joined into the video file; the two parts removed when it is made.
@@ -458,6 +619,8 @@ struct Tools {
     h264: bool,
     aac: bool,
     opus: bool,
+    /// The hardware encoders it lists that this system can have (`encoder::found_in`).
+    hardware: u8,
 }
 
 /// Whether an `ffmpeg` is on the path (the render's dialog says if it is not).
@@ -482,34 +645,22 @@ fn find_ffmpeg() -> Option<Tools> {
         h264: has("libx264"),
         aac: has("aac"),
         opus: has("libopus"),
+        hardware: encoder::found_in(&text),
     })
 }
 
-/// The arguments that turn raw frames into the file: the size and rate of the input, H.264 at the
-/// job's quality in the usual 4:2:0 (an odd side cut by one pixel) when it is there, else the
-/// file's default.
-fn ffmpeg_args(out: &Path, width: u32, height: u32, job: &Job, h264: bool) -> Vec<String> {
-    let mut args: Vec<String> = [
-        "-hide_banner",
-        "-loglevel",
-        "error",
-        "-y",
-        "-f",
-        "rawvideo",
-        "-pix_fmt",
-        "bgr0",
-        "-s",
-    ]
-    .map(String::from)
-    .to_vec();
+/// The arguments that turn raw frames into the file: the size and rate of the input, then what
+/// the encoder needs (`encoder::encode_args`: H.264 at the job's quality in the usual
+/// 4:2:0, an odd side cut by one pixel, or `ffmpeg`'s own choice for the file's extension).
+fn ffmpeg_args(out: &Path, width: u32, height: u32, job: &Job, encoder: Encoder) -> Vec<String> {
+    let mut args: Vec<String> = ["-hide_banner", "-loglevel", "error", "-y"]
+        .map(String::from)
+        .to_vec();
+    args.extend(encoder::device_args(encoder));
+    args.extend(["-f", "rawvideo", "-pix_fmt", "bgr0", "-s"].map(String::from));
     args.push(format!("{width}x{height}"));
     args.extend(["-r".into(), job.fps.to_string(), "-i".into(), "-".into()]);
-    if h264 {
-        args.extend(["-vf", "crop=trunc(iw/2)*2:trunc(ih/2)*2"].map(String::from));
-        args.extend(["-c:v", "libx264", "-preset", "medium", "-crf"].map(String::from));
-        args.push(job.quality.crf().to_string());
-        args.extend(["-pix_fmt", "yuv420p"].map(String::from));
-    }
+    args.extend(encoder::encode_args(encoder, job.quality));
     args.push(out.to_string_lossy().into_owned());
     args
 }
@@ -549,14 +700,22 @@ fn sound_path(out: &Path) -> PathBuf {
     out.with_extension("sound.wav")
 }
 
-/// The sink, the picture's own file when sound is to be joined to it, and the encoders found.
-fn open_sink(job: &Job, width: u32, height: u32) -> (Sink, Option<PathBuf>, Option<Tools>) {
+/// The sink and what goes with it.
+fn open_sink(job: &Job, width: u32, height: u32) -> Opened {
     match find_ffmpeg() {
         Some(tools) => {
             // With an encoder for the sound the picture goes to a file of its own first.
             let silent = (job.sound && (tools.aac || tools.opus)).then(|| silent_path(&job.out));
             let target = silent.as_deref().unwrap_or(&job.out);
-            let args = ffmpeg_args(target, width, height, job, tools.h264);
+            let encoder = encoder::choose(
+                job.encoder == VideoEncoder::Automatic,
+                tools.h264,
+                tools.hardware,
+                (width, height),
+                job.quality,
+                &log,
+            );
+            let args = ffmpeg_args(target, width, height, job, encoder);
             match Command::new("ffmpeg")
                 .args(&args)
                 .stdin(Stdio::piped())
@@ -565,15 +724,18 @@ fn open_sink(job: &Job, width: u32, height: u32) -> (Sink, Option<PathBuf>, Opti
                 Ok(child) => {
                     log(&format!(
                         "ffmpeg ({}) writes {}: {width} x {height}, {} frames a second",
-                        if tools.h264 {
-                            "H.264"
-                        } else {
-                            "its default codec"
-                        },
+                        encoder.name(),
                         job.out.display(),
                         job.fps
                     ));
-                    return (Sink::Ffmpeg(child), silent, Some(tools));
+                    let checked =
+                        matches!(encoder, Encoder::Hardware(_)).then(|| target.to_owned());
+                    return Opened {
+                        sink: Sink::Ffmpeg(child),
+                        silent,
+                        tools: Some(tools),
+                        checked,
+                    };
                 }
                 Err(e) => log(&format!("ffmpeg did not start ({e})")),
             }
@@ -586,11 +748,32 @@ fn open_sink(job: &Job, width: u32, height: u32) -> (Sink, Option<PathBuf>, Opti
         folder.display(),
         job.fps
     ));
-    (Sink::Pngs(folder), None, None)
+    Opened {
+        sink: Sink::Pngs(folder),
+        silent: None,
+        tools: None,
+        checked: None,
+    }
+}
+
+/// What `open_sink` made.
+struct Opened {
+    sink: Sink,
+    /// The picture's own file, when sound is to be joined to it.
+    silent: Option<PathBuf>,
+    /// The tools `ffmpeg` has.
+    tools: Option<Tools>,
+    /// The picture file to look over at the end (a hardware encoder's).
+    checked: Option<PathBuf>,
 }
 
 fn start_writer(job: &Job, width: u32, height: u32) -> Writer {
-    let (sink, silent, tools) = open_sink(job, width, height);
+    let Opened {
+        sink,
+        silent,
+        tools,
+        checked,
+    } = open_sink(job, width, height);
     let sound_file = match (&sink, &silent) {
         (_, _) if !job.sound => None,
         (Sink::Pngs(folder), _) => {
@@ -618,6 +801,8 @@ fn start_writer(job: &Job, width: u32, height: u32) -> Writer {
         sound_skipped: 0,
         silent,
         tools,
+        started: std::time::Instant::now(),
+        checked,
     }
 }
 
@@ -640,6 +825,7 @@ fn write_frames(
                     log(&format!("ffmpeg stopped taking frames ({e})"));
                     break;
                 }
+                keep_buffer(pixels);
                 count += 1;
             }
             drop(input);
@@ -667,6 +853,7 @@ fn write_frames(
                     log(&format!("{}: {e}", folder.display()));
                     break;
                 }
+                keep_buffer(pixels);
             }
         }
     }
@@ -692,13 +879,13 @@ mod tests {
 
     #[test]
     fn the_encoder_gets_the_frames_size_and_rate() {
-        let args = ffmpeg_args(Path::new("v.mp4"), 1281, 720, &job(60), true);
+        let args = ffmpeg_args(Path::new("v.mp4"), 1281, 720, &job(60), Encoder::Software);
         let at = |flag: &str| args.iter().position(|a| a == flag).unwrap();
         assert_eq!(args[at("-s") + 1], "1281x720");
         assert_eq!(args[at("-r") + 1], "60");
         assert_eq!(args.last().unwrap(), "v.mp4");
         assert!(args.iter().any(|a| a == "libx264"));
-        let plain = ffmpeg_args(Path::new("v.mkv"), 640, 480, &job(30), false);
+        let plain = ffmpeg_args(Path::new("v.mkv"), 640, 480, &job(30), Encoder::Default);
         assert!(!plain.iter().any(|a| a == "libx264"));
         assert!(!plain.iter().any(|a| a == "-vf"));
     }
@@ -710,12 +897,13 @@ mod tests {
             fps,
             quality: Quality::Medium,
             sound: true,
+            encoder: VideoEncoder::Automatic,
         }
     }
 
     #[test]
     fn the_chosen_quality_reaches_the_encoder() {
-        let args = ffmpeg_args(Path::new("v.mp4"), 800, 600, &job(60), true);
+        let args = ffmpeg_args(Path::new("v.mp4"), 800, 600, &job(60), Encoder::Software);
         let at = |flag: &str| args.iter().position(|a| a == flag).unwrap();
         assert_eq!(args[at("-crf") + 1], "23");
     }
@@ -752,6 +940,7 @@ mod tests {
             h264: true,
             aac: true,
             opus: true,
+            hardware: 0,
         };
         let args = join_args(
             Path::new("a.picture.mp4"),

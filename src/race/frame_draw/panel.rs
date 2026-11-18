@@ -679,18 +679,22 @@ pub fn panel_motion_plain(race: &Race) -> Result<(), BadInput> {
     Ok(())
 }
 
-/// Sets the eight mark dwords 0; for each view block,
+/// Sets the mark dwords 0; for each view block (the third and fourth of a split screen too),
 /// `race().frame.panel_and_overlay.panel.marks[0].base` / `marks[1].base` = 400 + (+0xFA0), and its
 /// first +0xF98 (at most 4) values at +0xF78, each + 1.
 pub fn panel_marks(race: &Race) -> Result<(), BadInput> {
     let frame = &race.frame;
     {
-        for view in &frame.panel_and_overlay.get().panel.marks {
+        let panel = &frame.panel_and_overlay.get().panel;
+        for view in panel.marks.iter().chain(&panel.marks_more) {
             for mark in &view.marks {
                 mark.set(0);
             }
         }
-        for (view, shown) in frame.panel_and_overlay.get().panel.marks.iter().enumerate() {
+        // The split screen's third and fourth views have signs of their own, when they are shown.
+        let views = race.shared.view.get().views.get().clamp(2, 4) as usize;
+        for view in 0..views {
+            let shown = panel.marks_of_view(view);
             let b = race.shared.view.get().view_number(view)?;
             let offset = race.frame.cars.car(b)?.car_event_position.get();
             let count = race.frame.cars.car(b)?.car_event_count.get();

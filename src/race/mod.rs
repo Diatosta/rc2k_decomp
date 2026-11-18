@@ -148,6 +148,7 @@ pub mod view_vars_store;
 pub mod viewer_buffers_store;
 pub mod viewer_screen_store;
 pub mod viewer_state_store;
+pub mod viewer_tip;
 pub mod work_store;
 
 pub mod vars_store;

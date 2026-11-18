@@ -3,9 +3,10 @@
 //! one from a camera. A code that comes in is checked whole first; the player is asked, with
 //! what is in it beside what is here, before anything is replaced.
 //!
-//! The text is shown from its first letter and scrolls (Up and Down) when it is longer than
-//! the room: a code can be tens of thousands of letters long (every saved game adds some
-//! thousands), and a small font would not make that readable.
+//! The text is shown from its first letter and scrolls (Page Up and Page Down) when it is
+//! longer than the room: a code can be tens of thousands of letters long, and a small font
+//! would not make that readable. A code longer than one QR code holds is shown as numbered
+//! parts, one QR code at a time, stepped with Left and Right.
 
 use crate::errors::Refused;
 use crate::owners::Owners;
@@ -14,7 +15,7 @@ use crate::save_code::apply::{self, Plan};
 use crate::save_code::page_draw as draw;
 use crate::save_code::{gather, scan};
 use rc2k_core::saves::code::qr::{self, Modules};
-use rc2k_core::saves::code::{PlayerState, Summary, Trim};
+use rc2k_core::saves::code::{PlayerState, Summary, parts};
 use rc2k_core::strings::own::id;
 
 const KEY_ENTER: u8 = 0x1C;
@@ -24,6 +25,13 @@ const KEY_UP: u8 = 0x66;
 const KEY_DOWN: u8 = 0x6B;
 const KEY_LEFT: u8 = 0x68;
 const KEY_RIGHT: u8 = 0x69;
+const KEY_PAGE_UP: u8 = 0x67;
+const KEY_PAGE_DOWN: u8 = 0x6C;
+/// The shoulder buttons of a pad give this key (`Input::take_shoulder` says which).
+const KEY_TAB: u8 = 0x0F;
+/// The right stick scrolls a line, then again after this long, then every `STICK_EVERY`.
+const STICK_AFTER: std::time::Duration = std::time::Duration::from_millis(400);
+const STICK_EVERY: std::time::Duration = std::time::Duration::from_millis(70);
 
 const BUTTONS: [u32; 4] = [
     id::SAVE_CODE_COPY,
@@ -40,9 +48,15 @@ const BACK: usize = 3;
 struct Page {
     /// The text of the whole state.
     text: String,
-    /// What the QR code holds, and how much of the state it had to leave out.
+    /// The texts of the QR codes, in order: the whole text when one holds it, else its parts.
+    /// Empty when the state is too long for the most parts.
+    codes: Vec<String>,
+    /// Which of them the page shows, and its modules.
+    shown: usize,
     modules: Option<Modules>,
-    trim: Trim,
+    /// The side of the first code's modules: the box the codes are drawn in (the parts are
+    /// of nearly one size).
+    box_side: Option<usize>,
     chosen: usize,
     /// The first line of the text shown.
     scroll: usize,
@@ -61,17 +75,36 @@ fn own_with(o: Owners<'static>, n: u32, with: &str) -> String {
 
 impl Page {
     fn new(o: Owners<'static>) -> Result<Self, Refused> {
-        let state = gather::gather(o)?;
-        let (qr_text, trim) = state.for_qr();
-        Ok(Self {
-            text: state.encode(),
-            modules: qr::encode(&qr_text),
-            trim,
+        let text = gather::gather(o)?.encode();
+        let codes = parts::split(&text).unwrap_or_default();
+        let mut page = Self {
+            text,
+            codes,
+            shown: 0,
+            modules: None,
+            box_side: None,
             chosen: BACK,
             scroll: 0,
             can_camera: scan::available(),
             message: String::new(),
-        })
+        };
+        page.show(0);
+        page.box_side = page.modules.as_ref().map(|m| m.side);
+        Ok(page)
+    }
+
+    /// Makes code `n` the one shown.
+    fn show(&mut self, n: usize) {
+        self.shown = n;
+        self.modules = self.codes.get(n).and_then(|t| qr::encode(t));
+    }
+
+    /// Steps the QR code shown by `by`, round the ends.
+    fn step_code(&mut self, by: isize) {
+        let n = self.codes.len() as isize;
+        if n > 1 {
+            self.show((self.shown as isize + by).rem_euclid(n) as usize);
+        }
     }
 
     fn usable(&self, button: usize) -> bool {
@@ -93,13 +126,12 @@ impl Page {
         }
     }
 
-    fn trim_note(&self) -> u32 {
-        match self.trim {
-            Trim::Whole => id::SAVE_CODE_QR_WHOLE,
-            Trim::NoGames => id::SAVE_CODE_QR_NO_GAMES,
-            Trim::NoLines => id::SAVE_CODE_QR_NO_LINES,
-            Trim::NoRecords => id::SAVE_CODE_QR_NO_RECORDS,
-            Trim::NoBestTimes => id::SAVE_CODE_QR_NO_BEST,
+    /// What the line under the text says of the QR codes.
+    fn codes_note(&self, o: Owners<'static>) -> String {
+        match self.codes.len() {
+            0 => own(o, id::SAVE_CODE_TOO_LONG),
+            1 => own(o, id::SAVE_CODE_QR_WHOLE),
+            n => own_with(o, id::SAVE_CODE_PARTS_NOTE, &n.to_string()),
         }
     }
 }
@@ -174,7 +206,7 @@ fn paragraph(o: Owners<'static>, text: &str, rect: [i32; 4]) {
 
 fn draw_page(o: Owners<'static>, page: &Page) {
     let (w, h) = draw::screen_size(o);
-    let l = layout(w, h, page.modules.as_ref().map(|m| m.side));
+    let l = layout(w, h, page.box_side);
     crate::input::osk_draw::fill(o, [0, 0, w, h], draw::SCREEN);
     draw::text(
         o,
@@ -182,6 +214,17 @@ fn draw_page(o: Owners<'static>, page: &Page) {
         draw::MARGIN,
         draw::MARGIN + draw::LINE_H / 2,
     );
+    if page.codes.len() > 1 {
+        let place = own(o, id::SAVE_CODE_PART_OF)
+            .replacen("{}", &(page.shown + 1).to_string(), 1)
+            .replacen("{}", &page.codes.len().to_string(), 1);
+        draw::text(
+            o,
+            &place,
+            w - draw::MARGIN - draw::width(o, &place),
+            draw::MARGIN + draw::LINE_H / 2,
+        );
+    }
     // The text, from its first letter.
     let [x, y, tw, th] = l.text;
     crate::input::osk_draw::fill(o, [x, y, tw, th], draw::PANEL);
@@ -200,6 +243,7 @@ fn draw_page(o: Owners<'static>, page: &Page) {
         );
     }
     if let Some(modules) = &page.modules {
+        // The first code is the largest, so every one fits the box at its scale.
         draw::qr_code(o, modules, l.code[0], l.code[1], l.scale);
     }
     // Under the text: its length and what the QR code holds, or what happened last in their
@@ -207,7 +251,7 @@ fn draw_page(o: Owners<'static>, page: &Page) {
     let [nx, ny, nw, nh] = l.notes;
     if page.message.is_empty() {
         let length = own_with(o, id::SAVE_CODE_LENGTH, &page.text.len().to_string());
-        let first = format!("{length}. {}", own(o, page.trim_note()));
+        let first = format!("{length}. {}", page.codes_note(o));
         paragraph(o, &first, [nx, ny, nw, nh]);
     } else {
         paragraph(o, &page.message, [nx, ny, nw, nh]);
@@ -267,26 +311,56 @@ pub fn run(o: Owners<'static>) -> Result<(), Refused> {
     crate::input::take_key::take_key(o.input);
     crate::input::menu_pad::take_answer(o.input);
     crate::input::typed_text::osk_close();
+    // The way the right stick leans and when it scrolls next.
+    let mut leaning = 0;
+    let mut next_line = std::time::Instant::now();
     loop {
         if !frame(o, || draw_page(o, &page)) {
             return Ok(());
         }
         let (w, h) = draw::screen_size(o);
-        let l = layout(w, h, page.modules.as_ref().map(|m| m.side));
+        let l = layout(w, h, page.box_side);
         let visible = (l.text[3] / draw::LINE_H).max(1) as usize;
         let per_line = draw::letters_per_line(o, l.text[2] - 16);
         let lines = page.text.len().div_ceil(per_line);
         let jump = visible.saturating_sub(1).max(1);
-        let key = take_key(o);
+        let mut key = take_key(o);
+        // The pad's left shoulder pages up and its right one down (a keyboard's Tab, down).
+        if key == KEY_TAB {
+            key = if o.input.take_shoulder() == 1 {
+                KEY_PAGE_UP
+            } else {
+                KEY_PAGE_DOWN
+            };
+        }
+        // The right stick scrolls line by line, repeating while it is held.
+        let lean = o.input.scroll_stick();
+        let now = std::time::Instant::now();
+        if lean == 0 {
+            leaning = 0;
+        } else if lean != leaning || now >= next_line {
+            next_line = now
+                + if lean != leaning {
+                    STICK_AFTER
+                } else {
+                    STICK_EVERY
+                };
+            leaning = lean;
+            page.scroll = (page.scroll as isize + lean as isize)
+                .clamp(0, lines.saturating_sub(visible) as isize)
+                as usize;
+        }
         if key != 0 {
             page.message.clear();
         }
         match key {
             KEY_ESCAPE => return Ok(()),
-            KEY_LEFT => page.step_choice(-1),
-            KEY_RIGHT => page.step_choice(1),
-            KEY_UP => page.scroll = page.scroll.saturating_sub(jump),
-            KEY_DOWN => page.scroll = (page.scroll + jump).min(lines.saturating_sub(visible)),
+            KEY_LEFT if page.codes.len() > 1 => page.step_code(-1),
+            KEY_RIGHT if page.codes.len() > 1 => page.step_code(1),
+            KEY_LEFT | KEY_UP => page.step_choice(-1),
+            KEY_RIGHT | KEY_DOWN => page.step_choice(1),
+            KEY_PAGE_UP => page.scroll = page.scroll.saturating_sub(jump),
+            KEY_PAGE_DOWN => page.scroll = (page.scroll + jump).min(lines.saturating_sub(visible)),
             KEY_ENTER | KEY_PAD_ENTER => match page.chosen {
                 BACK => return Ok(()),
                 COPY => {
@@ -379,7 +453,6 @@ fn rows(o: Owners<'static>, code: &Summary, now: &Summary) -> Vec<(String, Strin
         })
     };
     let count = |n: Option<usize>| n.map(|n| n.to_string());
-    let players = |s: &Summary| (!s.players.is_empty()).then(|| s.players.join(", "));
     let row = |label: u32, a: Option<String>, b: Option<String>| {
         (
             own(o, label),
@@ -398,23 +471,17 @@ fn rows(o: Owners<'static>, code: &Summary, now: &Summary) -> Vec<(String, Strin
             Some(code.program.clone()),
             Some(now.program.clone()),
         ),
-        row(id::SAVE_CODE_ROW_PLAYERS, players(code), players(now)),
+        row(id::SAVE_CODE_ROW_GAMES, games(code), games(now)),
         row(
-            id::SAVE_CODE_ROW_RUNS,
-            count(code.runs.map(|r| r as usize)),
-            count(now.runs.map(|r| r as usize)),
+            id::SAVE_CODE_ROW_SETUPS,
+            count(code.setups),
+            count(now.setups),
         ),
         row(
             id::SAVE_CODE_ROW_BEST,
             count(code.best_times),
             count(now.best_times),
         ),
-        row(
-            id::SAVE_CODE_ROW_SETUPS,
-            count(code.setups),
-            count(now.setups),
-        ),
-        row(id::SAVE_CODE_ROW_GAMES, games(code), games(now)),
     ]
 }
 

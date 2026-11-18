@@ -1,7 +1,7 @@
 //! Command 7: every playing voice to the stopping list: the playing list, if not empty, is put in
 //! front of the stopping list and emptied, and no channel is counted used. The channels keep their
 //! `used` marks: the turn's update frees them as it stops the voices. Refuses a playing list that
-//! does not end within 0x200 voices.
+//! does not end within `VOICES` voices.
 
 use crate::audio::own::AudioThread;
 use crate::audio::voices::{GamePool, lists, store_lists};

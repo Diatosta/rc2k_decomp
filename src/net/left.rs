@@ -2,8 +2,8 @@
 //! the session, or every other player when the session is lost); the car's own step then takes
 //! the car out of the race, unless it had finished: the car is made no driver's (as the cars
 //! past the race's count are), so it is not stepped, not drawn, has no collisions and no sound.
-//! The others are told on the race's frame ("<name> left the race"): in the race's notice font
-//! like the game's own messages, blinking for a few seconds, one message after another.
+//! The others are told on the race's frame ("<name> left the race"): in the race's notice style
+//! like the game's own warnings, blinking for a few seconds, one message after another.
 //!
 //! The flags are cleared when a network race begins and when it ends, so no race that follows
 //! (a single machine's included) ever sees one.
@@ -22,6 +22,10 @@ const SHOWN: std::time::Duration = std::time::Duration::from_secs(5);
 const BLINK: std::time::Duration = std::time::Duration::from_millis(400);
 /// The most messages waiting (the oldest go first).
 const MOST_SHOWN: usize = 4;
+
+/// Where the letters of a message start, in the screen's 800 x 600 layout units: under the place
+/// of the car's warnings (128).
+const TOP: i32 = 160;
 
 /// A network race is being played: a player destroyed in the lobby leaves no mark.
 static RACING: AtomicBool = AtomicBool::new(false);
@@ -186,9 +190,10 @@ fn current(now: std::time::Instant) -> Option<(Vec<u8>, u32, bool)> {
     None
 }
 
-/// The message drawn on the race's frame (the surface locked) as the game's own race messages
-/// look: in the race's notice font, centred under the top, on a plate, enlarged with the screen
-/// as the quit question is, blinking for a few seconds. Several leavers follow one another.
+/// The message drawn on the race's frame (the surface locked) as the game's own race warnings
+/// look (`gfx::notice_text`): in the race's notice font with its outline, no box, centred under
+/// the top (below the warnings' place), enlarged with the screen, blinking for a few seconds.
+/// Several leavers follow one another.
 pub fn draw(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
     let Some((name, id, lit)) = current(std::time::Instant::now()) else {
         return Ok(());
@@ -202,34 +207,8 @@ pub fn draw(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refu
     );
     // The race's notice font has capitals, as the game's messages are written.
     line.make_ascii_uppercase();
-    let mut font = o.gfx.fonts.font_block.game_fonts[2].get();
-    font.mode = rc2k_core::strings::text::MODE_AT_X;
-    let mut canvas = crate::text::draw_text::GameCanvas::new(o.gfx);
-    let mut measure = font;
-    measure.mode = rc2k_core::strings::text::MODE_MEASURE;
-    let text_width =
-        crate::text::measure_text::measure_text(&mut measure, &line[..], 0, &mut canvas)
-            .map_or(0, |m| m.width as i32);
-    let pad = 6;
-    let (plate_w, plate_h) = (text_width + 2 * pad, font.line_height + 2 * pad);
-    let screen = o.system.session.screen.get();
-    let (w, h) = (screen.width.get() as i32, screen.height.get() as i32);
-    let grow = (h as f32 / 600.0).max(1.0).min(w as f32 / plate_w as f32);
-    let scaled = |v: i32| (v as f32 * grow).round() as i32;
-    let (final_w, final_h) = (scaled(plate_w), scaled(plate_h));
-    let (left, top) = ((w - final_w) / 2, (h * 22 / 100 - scaled(pad)).max(0));
-    crate::input::osk_draw::fill(
-        o,
-        [left, top, plate_w, plate_h],
-        crate::drive::quit_question::PLATE,
-    );
-    crate::text::draw_text::draw_text(&mut font, &line[..], left + pad, top + pad, &mut canvas)?;
-    crate::gfx::scaled_region::enlarge(
-        o.gfx,
-        [left, top, plate_w, plate_h],
-        (left, top),
-        (final_w, final_h),
-    );
+    line.pop();
+    crate::gfx::notice_text::draw(o, &line, TOP, 255);
     Ok(())
 }
 

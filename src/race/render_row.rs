@@ -208,6 +208,7 @@ pub fn render(race: &'static Race, o: Owners<'static>) -> Result<(), Refused> {
         size,
         fps: chosen.fps,
         quality: chosen.quality,
+        encoder: chosen.encoder,
         sound: chosen.sound,
         from,
         to,

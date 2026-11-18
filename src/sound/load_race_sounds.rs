@@ -12,11 +12,14 @@
 //! `first_set_c[0]`; unless `RaceSounds.one_player` is 1 the second car's kind set
 //! (`SoundSets.kinds[1]`), `second_set_a[0]` and `second_set_b[0]`; and `last_set[0]` unless
 //! `RaceSounds.one_player` is `RaceSounds.count`. A replay of more than two cars also loads each
-//! car's own engine sounds, as the split screen's further cars have. With a split screen of three or four players the
+//! car's own engine sounds, as the split screen's further cars have. With a split screen of three
+//! or four players the
 //! third and fourth cars' copies of their kinds' revs, throttle and speed sounds follow, each as
 //! a command of its own. The commands also carry the loop's leftover
 //! values in their unused words; they are reproduced because the sound hash of a held race records
-//! them. What the two counts and "a replay" are is a reading. Refuses a car number of 8 or more, a
+//! them. With a split screen of three or four players the third and fourth players' co-driver
+//! voices follow: their copies of the voice records, named by their own voices, loaded as a range.
+//! What the two counts and "a replay" are is a reading. Refuses a car number of 8 or more, a
 //! missing object, a kind of 0x22 or more and a list of names that does not hold 95 of at most
 //! 0x100 bytes.
 
@@ -26,6 +29,7 @@ use crate::memory::session::PlainDword;
 use crate::race::owner::Race;
 use crate::sound::sets_store::NamedSet;
 use rc2k_core::audio::commands::{Command, SoundList};
+use rc2k_core::audio::voices::{CODRIVER_RECORDS, codriver_copy};
 use rc2k_core::sound::engine::player_sound;
 
 // ---- game data ----
@@ -154,6 +158,34 @@ pub fn load_race_sounds(
                 send(SoundList::One(player_sound(car, set.sound.get())));
             }
         }
+    }
+    // The third and fourth players' co-drivers: their copies of each phrase's pair of records,
+    // named by the players' own voices, then loaded.
+    if kinds.is_some() && crate::sound::cue_players::count() > 2 {
+        let voice_of = |car: u32| -> Result<u32, BadInput> {
+            Ok(crate::sound::store::SoundObject::of(sound, car)?
+                .cue_queue
+                .first
+                .get())
+        };
+        let (third, fourth) = voices(voice_of(2)?, voice_of(3).unwrap_or(0));
+        let (mut third_name, mut fourth_name) = (list(third), list(fourth));
+        let (of_third, of_fourth) = (
+            lengths(&audio.sample_names, third_name)?,
+            lengths(&audio.sample_names, fourth_name)?,
+        );
+        let copy = |record: usize| codriver_copy(record as u32).expect("a voice record") as usize;
+        for n in 0..NAMES {
+            let records = &audio.sample_records;
+            records.set_data_key(copy(FIRST_SAMPLE + n * 2), third_name);
+            records.set_data_key(copy(FIRST_SAMPLE + n * 2 + 1), fourth_name);
+            third_name += (of_third[n] as usize + 1) as u32;
+            fourth_name += (of_fourth[n] as usize + 1) as u32;
+        }
+        send(SoundList::Range {
+            first: copy(FIRST_SAMPLE) as u32,
+            count: CODRIVER_RECORDS,
+        });
     }
     // A replay of more than two cars is heard with every car: each car's own copies of the engine,
     // throttle and speed sounds of its model (the replay's set holds none), for the first two

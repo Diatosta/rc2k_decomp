@@ -10,6 +10,9 @@
     font: 15px/1.45 system-ui, -apple-system, sans-serif; }
   canvas { display: none; width: 100vw; height: 100vh; object-fit: contain; background: #000; }
   body.playing canvas { display: block; }
+  /* The GL's canvas lies over the game's own, empty (clear) until the GL runs; the mouse reaches
+     the one below. */
+  #glcanvas { position: fixed; inset: 0; background: transparent; pointer-events: none; }
   body.playing #panel { display: none; }
   #panel { max-width: 34rem; margin: 0 auto; padding: 2rem 16px; }
   h1 { font-size: 1.4rem; margin: 0 0 .25rem; }
@@ -26,6 +29,7 @@
 </head>
 <body>
 <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
+<canvas id="glcanvas"></canvas>
 <div id="panel">
   <h1>Rally Championship</h1>
   <p id="lead">Starting…</p>
@@ -33,6 +37,10 @@
     <div class="box">
       <label for="zips">The game folder's zip (one or several parts)</label>
       <input id="zips" type="file" accept=".zip,application/zip" multiple>
+    </div>
+    <div class="box">
+      <label for="folder">Or the game folder itself</label>
+      <input id="folder" type="file" webkitdirectory multiple>
     </div>
   </div>
   <div id="working" hidden><progress id="bar" max="1" value="0"></progress></div>
@@ -75,6 +83,8 @@ function start(dir) {
       Module.ENV.HOME = "/opfs/home";
       Module.ENV.RC2K_DIR = dir;
     }],
+    // The game's switches (`rc2k --help`), as `?args=--stage%20Langton%20--mode%20time-trial`.
+    arguments: (new URLSearchParams(location.search).get("args") || "").split(/\s+/).filter(Boolean),
     print: (t) => console.log(t),
     printErr: (t) => console.warn(t),
     // The program ended (the installer when it is done, the game when left): the page again.
@@ -119,6 +129,18 @@ function unpack(message) {
 }
 
 $("zips").onchange = (e) => e.target.files.length && unpack({ files: [...e.target.files] });
+// A picked folder: each file's path below the picked folder (the browser names it from the
+// folder's own name down), so RAL.EXE lands at the top of the storage's copy as from a zip.
+$("folder").onchange = (e) => {
+  const picked = [...e.target.files];
+  if (!picked.length) return;
+  unpack({
+    folder: picked.map((file) => ({
+      file,
+      path: (file.webkitRelativePath || file.name).split("/").slice(1).join("/") || file.name,
+    })),
+  });
+};
 $("again").onclick = () => location.reload();
 
 (async () => {

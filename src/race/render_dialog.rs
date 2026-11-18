@@ -216,7 +216,7 @@ fn draw(
     let keys_lines = rc2k_core::fatal::wrap_lines(&keys, panel_w - 20, &measure);
     let panel_h = (MARGIN
         + line_h * 2
-        + row_h * 5
+        + row_h * 6
         + line_h * 2
         + note.len() as i32 * line_h
         + row_h
@@ -240,7 +240,7 @@ fn draw(
     );
     let mut y = top + MARGIN + line_h * 2;
     let size_text = |(sw, sh): (u32, u32)| format!("{sw} x {sh}");
-    let rows: [(Row, u32, String); 5] = [
+    let rows: [(Row, u32, String); 6] = [
         (
             Row::Size,
             id::RENDER_SIZE,
@@ -267,6 +267,11 @@ fn draw(
             Row::Quality,
             id::RENDER_QUALITY,
             own(o, id::RENDER_QUALITIES + s.quality.index() as u32),
+        ),
+        (
+            Row::Encoder,
+            id::RENDER_ENCODER,
+            own(o, id::RENDER_ENCODERS + s.encoder.index() as u32),
         ),
         (
             Row::Sound,

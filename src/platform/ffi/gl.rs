@@ -120,6 +120,7 @@ library! { Table {
     glActiveTexture: fn(u32);
     glDeleteBuffers: fn(i32, *const u32);
     glDeleteVertexArrays: fn(i32, *const u32);
+    glGetString: fn(u32) -> *const c_char;
 } }
 
 /// Where the context's frames go, and what keeps the context alive.
@@ -128,11 +129,18 @@ enum Surface {
     #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
     Panel { egl: Egl, display: P, surface: P },
     /// An SDL window's context (a hidden one: the frames are read back).
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    #[cfg(not(any(
+        all(target_os = "linux", target_arch = "aarch64"),
+        target_os = "emscripten"
+    )))]
     Window(
         *mut sdl3_sys::everything::SDL_Window,
         sdl3_sys::everything::SDL_GLContext,
     ),
+    /// A WebGL 2 context on the page's GL canvas, drawn into an off-screen frame buffer the
+    /// frame's commit copies onto the canvas (`web_gl`).
+    #[cfg(target_os = "emscripten")]
+    Web(web_gl::Context),
 }
 
 /// The GL's entry points and the surface its context draws to, with the context current on the
@@ -147,17 +155,26 @@ pub struct Gles {
     _one_thread: std::marker::PhantomData<*const ()>,
 }
 
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(any(
+    all(target_os = "linux", target_arch = "aarch64"),
+    target_os = "emscripten"
+)))]
 /// An SDL window made for an OpenGL context, hidden until the game shows it in place of its own, handed to the thread that makes the context
 /// current there (`Gles::open_window`).
 pub struct GlWindow(*mut sdl3_sys::everything::SDL_Window);
 
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(any(
+    all(target_os = "linux", target_arch = "aarch64"),
+    target_os = "emscripten"
+)))]
 // SAFETY: the pointer is a window nothing else uses; it moves to the one thread that makes the
 // context on it and keeps it.
 unsafe impl Send for GlWindow {}
 
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(any(
+    all(target_os = "linux", target_arch = "aarch64"),
+    target_os = "emscripten"
+)))]
 impl GlWindow {
     /// A hidden window of `size` with an OpenGL 3.3 core context asked for, made on the calling thread
     /// (the one that made the game's window). `Err` when SDL cannot, with its message.
@@ -185,7 +202,10 @@ impl GlWindow {
     }
 }
 
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(any(
+    all(target_os = "linux", target_arch = "aarch64"),
+    target_os = "emscripten"
+)))]
 impl GlWindow {
     /// The window as the platform's window handle, for the calls that belong to the game's
     /// thread (showing it, its size, its icon, the keyboard). It lives until `destroy`.
@@ -194,7 +214,10 @@ impl GlWindow {
     }
 }
 
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(any(
+    all(target_os = "linux", target_arch = "aarch64"),
+    target_os = "emscripten"
+)))]
 /// SDL's last error message.
 fn sdl_error() -> String {
     // SAFETY: SDL gives a NUL-ended string that stays valid until its next call; copied here.
@@ -211,7 +234,10 @@ fn pixel_bytes(width: i32, height: i32) -> usize {
     width.max(0) as usize * height.max(0) as usize * 4
 }
 
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(any(
+    all(target_os = "linux", target_arch = "aarch64"),
+    target_os = "emscripten"
+)))]
 impl Gles {
     /// Makes an OpenGL context on `window` current on this thread and finds the entry points
     /// by SDL.
@@ -254,7 +280,10 @@ impl Gles {
     }
 }
 
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(any(
+    all(target_os = "linux", target_arch = "aarch64"),
+    target_os = "emscripten"
+)))]
 impl Gles {
     /// The context destroyed (it is current on the calling thread, the one that made it),
     /// and its window handed back: it is destroyed on the thread that made it.
@@ -271,7 +300,10 @@ impl Gles {
     }
 }
 
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(any(
+    all(target_os = "linux", target_arch = "aarch64"),
+    target_os = "emscripten"
+)))]
 impl GlWindow {
     /// The hidden window destroyed, on the thread that made it, once the context on it is gone.
     pub fn destroy(self) {
@@ -367,7 +399,10 @@ impl Gles {
     /// The size in pixels of what the context draws to, when it is a window (the panel's is
     /// fixed). SDL's own record, read from the GL's thread while the game's thread only changes
     /// it between frames.
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    #[cfg(not(any(
+        all(target_os = "linux", target_arch = "aarch64"),
+        target_os = "emscripten"
+    )))]
     pub fn drawable_size(&self) -> Option<(i32, i32)> {
         let Surface::Window(window, _) = &self.surface;
         let (mut width, mut height) = (0, 0);
@@ -388,6 +423,14 @@ impl Gles {
         None
     }
 
+    /// The game's window size in pixels, which the GL canvas takes (the page scales the canvas to
+    /// its place).
+    #[cfg(target_os = "emscripten")]
+    pub fn drawable_size(&self) -> Option<(i32, i32)> {
+        let Surface::Web(context) = &self.surface;
+        context.sized()
+    }
+
     #[inline]
     pub fn swap_buffers(&self) {
         match &self.surface {
@@ -400,11 +443,16 @@ impl Gles {
                 // SAFETY: the display and surface made in `open_panel`, current on this thread.
                 unsafe { (egl.eglSwapBuffers)(*display, *surface) };
             }
-            #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+            #[cfg(not(any(
+                all(target_os = "linux", target_arch = "aarch64"),
+                target_os = "emscripten"
+            )))]
             Surface::Window(window, _) => {
                 // SAFETY: the window `open_window` made the context on, current on this thread.
                 unsafe { sdl3_sys::everything::SDL_GL_SwapWindow(*window) };
             }
+            #[cfg(target_os = "emscripten")]
+            Surface::Web(context) => context.commit_frame(),
         }
     }
 
@@ -442,6 +490,19 @@ impl Gles {
                 return Err(CStr::from_ptr(log.as_ptr()).to_string_lossy().into_owned());
             }
             Ok(shader)
+        }
+    }
+
+    /// The GL's version text (`GL_VERSION`), as the driver words it.
+    pub fn version(&self) -> String {
+        // SAFETY: the GL answers a NUL-ended text that stays valid, or null.
+        unsafe {
+            let text = (self.table.glGetString)(0x1F02);
+            if text.is_null() {
+                String::from("unknown")
+            } else {
+                CStr::from_ptr(text).to_string_lossy().into_owned()
+            }
         }
     }
 
@@ -945,5 +1006,186 @@ impl Gles {
     pub fn finish(&self) {
         // SAFETY: no arguments.
         unsafe { (self.table.glFinish)() };
+    }
+}
+
+#[cfg(target_os = "emscripten")]
+pub use web_gl::GlWindow;
+
+/// The browser's WebGL 2 through Emscripten: its entry points are found by name like the
+/// handheld's, and the context is made on the page's GL canvas (`tools/web/index.html`) from the
+/// GL's own thread, drawing into an off-screen frame buffer that `commit_frame` copies onto the
+/// canvas on the page's thread (`-sOFFSCREEN_FRAMEBUFFER`).
+#[cfg(target_os = "emscripten")]
+mod web_gl {
+    use super::{CStr, Gles, P, Surface, Table, c_char};
+    use std::cell::Cell;
+
+    /// The attributes `emscripten_webgl_create_context` takes (`emscripten/html5_webgl.h`).
+    #[repr(C)]
+    #[derive(Default)]
+    struct Attributes {
+        alpha: bool,
+        depth: bool,
+        stencil: bool,
+        antialias: bool,
+        premultiplied_alpha: bool,
+        preserve_drawing_buffer: bool,
+        power_preference: i32,
+        fail_if_major_performance_caveat: bool,
+        major_version: i32,
+        minor_version: i32,
+        enable_extensions_by_default: bool,
+        explicit_swap_control: bool,
+        proxy_context_to_main_thread: i32,
+        render_via_offscreen_back_buffer: bool,
+        desynchronized: bool,
+    }
+
+    unsafe extern "C" {
+        fn emscripten_webgl_init_context_attributes(attributes: *mut Attributes);
+        fn emscripten_webgl_create_context(
+            target: *const c_char,
+            attributes: *const Attributes,
+        ) -> i32;
+        fn emscripten_webgl_make_context_current(context: i32) -> i32;
+        fn emscripten_webgl_destroy_context(context: i32) -> i32;
+        fn emscripten_webgl_commit_frame() -> i32;
+        fn emscripten_set_canvas_element_size(
+            target: *const c_char,
+            width: i32,
+            height: i32,
+        ) -> i32;
+        fn emscripten_GetProcAddress(name: *const c_char) -> P;
+    }
+
+    /// The page's canvas for the GL (a second one over the game's own).
+    const CANVAS: &CStr = c"#glcanvas";
+
+    /// The context, the game's window whose size the canvas follows, and the canvas size set.
+    pub struct Context {
+        handle: i32,
+        window: *mut sdl3_sys::everything::SDL_Window,
+        size: Cell<(i32, i32)>,
+    }
+
+    impl Context {
+        /// The window's size in pixels, the canvas made that size when it changes.
+        pub fn sized(&self) -> Option<(i32, i32)> {
+            let (mut width, mut height) = (0, 0);
+            // SAFETY: the window the game made, alive while the context is; SDL writes the two
+            // integers.
+            let known = unsafe {
+                sdl3_sys::everything::SDL_GetWindowSizeInPixels(
+                    self.window,
+                    &raw mut width,
+                    &raw mut height,
+                )
+            };
+            if !known || width <= 0 || height <= 0 {
+                return None;
+            }
+            if self.size.get() != (width, height) {
+                // SAFETY: a constant NUL-ended selector and plain numbers.
+                unsafe { emscripten_set_canvas_element_size(CANVAS.as_ptr(), width, height) };
+                self.size.set((width, height));
+            }
+            Some((width, height))
+        }
+
+        /// The frame drawn so far shown on the canvas.
+        pub fn commit_frame(&self) {
+            // SAFETY: the context is current on this thread.
+            unsafe { emscripten_webgl_commit_frame() };
+        }
+    }
+
+    /// The game's own window, whose canvas size the GL canvas takes; nothing of it is made or
+    /// destroyed here.
+    pub struct GlWindow(crate::platform::ffi::sdl::Window);
+
+    // SAFETY: the window's pointer is only read for its size, from the GL's thread, while the
+    // game's thread changes it between frames (as the desktop's window does).
+    unsafe impl Send for GlWindow {}
+
+    impl GlWindow {
+        /// The game's window `window` for the GL.
+        pub fn new(window: crate::platform::ffi::sdl::Window) -> GlWindow {
+            GlWindow(window)
+        }
+
+        /// The window as the platform's handle.
+        pub fn handle(&self) -> crate::platform::ffi::sdl::Window {
+            self.0
+        }
+
+        /// Nothing to destroy: the window is the game's.
+        pub fn destroy(self) {}
+    }
+
+    impl Gles {
+        /// A WebGL 2 context on the page's GL canvas, current on this thread.
+        pub fn open_window(window: GlWindow) -> Result<Gles, (String, GlWindow)> {
+            let mut attributes = Attributes::default();
+            // SAFETY: the attributes are the record the call fills in.
+            unsafe { emscripten_webgl_init_context_attributes(&raw mut attributes) };
+            attributes.alpha = false;
+            attributes.depth = false;
+            attributes.stencil = false;
+            attributes.antialias = false;
+            attributes.major_version = 2;
+            attributes.explicit_swap_control = true;
+            attributes.render_via_offscreen_back_buffer = true;
+            attributes.proxy_context_to_main_thread = 1;
+            // SAFETY: a constant NUL-ended selector and the filled record.
+            let handle =
+                unsafe { emscripten_webgl_create_context(CANVAS.as_ptr(), &raw const attributes) };
+            if handle <= 0 {
+                return Err((
+                    format!("no WebGL 2 context on the page's GL canvas: {handle}"),
+                    window,
+                ));
+            }
+            // SAFETY: the context just made, for this thread.
+            let current = unsafe { emscripten_webgl_make_context_current(handle) };
+            if current != 0 {
+                // SAFETY: the context just made.
+                unsafe { emscripten_webgl_destroy_context(handle) };
+                return Err((
+                    format!("the WebGL context is not made current: {current}"),
+                    window,
+                ));
+            }
+            let table = Table::load(&|name| {
+                // SAFETY: a NUL-ended name; the call answers null for one it does not have.
+                unsafe { emscripten_GetProcAddress(name.as_ptr()) }
+            });
+            let table = match table {
+                Ok(table) => table,
+                Err(why) => {
+                    // SAFETY: the context just made.
+                    unsafe { emscripten_webgl_destroy_context(handle) };
+                    return Err((why, window));
+                }
+            };
+            Ok(Gles {
+                table,
+                surface: Surface::Web(Context {
+                    handle,
+                    window: window.0.0,
+                    size: Cell::new((0, 0)),
+                }),
+                desktop: false,
+                _one_thread: std::marker::PhantomData,
+            })
+        }
+
+        /// The context destroyed, the window handed back.
+        pub fn close(self) -> GlWindow {
+            let Surface::Web(context) = self.surface;
+            // SAFETY: the context `open_window` made, current on this thread.
+            unsafe { emscripten_webgl_destroy_context(context.handle) };
+            GlWindow(crate::platform::ffi::sdl::Window(context.window))
+        }
     }
 }
