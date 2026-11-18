@@ -24,7 +24,7 @@
         android:enableOnBackInvokedCallback="false"
         android:hardwareAccelerated="true">
 
-        <meta-data android:name="SDL_ENV.SDL_ANDROID_TRAP_BACK_BUTTON" android:value="0" />
+        <meta-data android:name="SDL_ENV.SDL_ANDROID_TRAP_BACK_BUTTON" android:value="1" />
 
         <activity
             android:name=".RallyActivity"

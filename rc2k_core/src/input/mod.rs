@@ -17,3 +17,4 @@ pub mod menu_touch;
 pub mod osk;
 pub mod profile;
 pub mod rumble;
+pub mod touch;

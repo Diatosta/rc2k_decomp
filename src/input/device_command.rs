@@ -50,13 +50,28 @@ pub fn device_command(
                 }
                 EndEffects => crate::input::end_effects::end_effects(input)?,
                 Tick => crate::input::input_tick::input_tick(input, sound, system, race)?,
-                SetUp(n) => crate::input::set_up_device::set_up_device(
-                    input,
-                    system,
-                    n,
-                    device(&input.devices, n)?,
-                    &race.shared.state.car(n).controls,
-                )?,
+                SetUp(n) => {
+                    // A phone has no keyboard to drive with: the first car on the keyboard is
+                    // given the touch screen's controls.
+                    #[cfg(target_os = "android")]
+                    if n == 0 {
+                        let controls = &race.shared.state.car(0).controls;
+                        if controls.controller.get() == 0
+                            && let Some(at) = crate::platform::touch::index_in(
+                                &crate::input::device_ids::listed(input),
+                            )
+                        {
+                            controls.controller.set(at as u32 + 1);
+                        }
+                    }
+                    crate::input::set_up_device::set_up_device(
+                        input,
+                        system,
+                        n,
+                        device(&input.devices, n)?,
+                        &race.shared.state.car(n).controls,
+                    )?;
+                }
                 Reading(n, on) => device(&input.devices, n)?.reading.set(on as u32),
                 SecondApart => {
                     if race.shared.state.settings.cars[0].controls.controller.get()

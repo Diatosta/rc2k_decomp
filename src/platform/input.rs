@@ -275,6 +275,8 @@ impl SdlBackend {
         }
         #[cfg(feature = "remote")]
         crate::remote::stick_at_start();
+        #[cfg(target_os = "android")]
+        crate::platform::touch::attach_at_start();
         crate::input::di_objects::set_backend(Box::new(SdlBackend {
             devices: Vec::new(),
             seen: Vec::new(),

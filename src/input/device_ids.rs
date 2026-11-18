@@ -77,6 +77,13 @@ pub fn give_chosen(menus: &Menus, input: &Input) {
                 listed
             }
         };
+        // A phone has no keyboard to drive with: the first player on the keyboard is given
+        // the touch screen's controls.
+        #[cfg(target_os = "android")]
+        let wanted = match (n, wanted) {
+            (0, 0) => crate::platform::touch::index_in(&list).map_or(0, |at| at as u32 + 1),
+            _ => wanted,
+        };
         if wanted != now {
             crate::logfile::program_log::log(&format!(
                 "input: player {}'s controller {now} -> {wanted} ({})",

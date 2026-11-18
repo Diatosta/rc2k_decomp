@@ -41,6 +41,8 @@ pub mod pacing;
 pub mod sound;
 pub mod sync;
 pub mod timing;
+#[cfg(target_os = "android")]
+pub mod touch;
 #[cfg(touch_screen)]
 pub mod touch_menu;
 #[cfg(target_os = "emscripten")]
@@ -898,7 +900,14 @@ fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(),
         drop(view);
         // The Back chip of the menus, for a touch screen.
         #[cfg(touch_screen)]
-        if !events::driving(o.race) {
+        if events::driving(o.race) {
+            #[cfg(target_os = "android")]
+            crate::platform::touch::draw(
+                renderer,
+                input_window(screen.window),
+                u64::from(crate::platform::os::ticks()),
+            );
+        } else {
             crate::platform::touch_menu::draw_back_chip(renderer, input_window(screen.window));
         }
         // The debug UI over the frame.
@@ -1116,7 +1125,10 @@ pub fn run_frame_now<T>(o: crate::owners::Owners<'static>, frame: impl FnOnce() 
 }
 
 /// A file of ours next to the log (the current folder can change: the installer).
-#[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // used by the debug UI, and on Windows
+#[cfg_attr(
+    not(debug_ui),
+    allow(dead_code, reason = "the debug UI is the only user")
+)]
 pub fn beside_log(name: &str) -> std::path::PathBuf {
     match crate::logfile::program_log::LOG_PATH
         .get()

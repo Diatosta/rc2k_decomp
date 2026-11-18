@@ -83,9 +83,13 @@ fn next_event() -> Option<Event> {
         } else if kind == SDL_EVENT_WINDOW_FOCUS_LOST {
             Event::Focus(false)
         } else if kind == SDL_EVENT_JOYSTICK_ADDED {
+            #[cfg(target_os = "android")]
+            crate::platform::touch::pad_added(event.joystick_id());
             crate::platform::input::pad_added(event.joystick_id());
             Event::Other
         } else if kind == SDL_EVENT_JOYSTICK_REMOVED {
+            #[cfg(target_os = "android")]
+            crate::platform::touch::pad_removed(event.joystick_id());
             crate::platform::input::pad_removed(event.joystick_id());
             Event::Other
         } else if let Some(finger) = finger_event(&event) {
@@ -275,6 +279,8 @@ pub fn pump(o: crate::owners::Owners<'static>) {
         }
     }
     let now = u64::from(crate::platform::os::ticks());
+    #[cfg(target_os = "android")]
+    crate::platform::touch::update(driving(o.race), now);
     if let Some(action) = lock_menu_pad().tick(now) {
         menu_action(input, action);
     }
@@ -754,6 +760,8 @@ fn touch_finger(
     };
     if driving(o.race) {
         crate::platform::touch_menu::release_all();
+        #[cfg(target_os = "android")]
+        crate::platform::touch::finger(window, id, phase, x, y, now);
         return;
     }
     crate::platform::touch_menu::finger(o, window, id, phase, x, y, now);
