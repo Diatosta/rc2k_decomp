@@ -16,7 +16,10 @@ of the options menu (below "advanced"; the options of the pause menu in a race h
   (below, "What fits a QR code").
 - **copy** puts the text in the system's clipboard. **paste** reads the clipboard. **camera** opens a
   camera (SDL's camera API) and looks for a QR code shown on another screen, with a small live picture
-  of what the camera sees; Back (Escape) stops. The camera button is dimmed when SDL sees no camera;
+  of what the camera sees; Back (Escape) stops. The camera button is dimmed when SDL sees no camera.
+  On a phone (iOS, Android) the system asks once for the camera's permission when the button is first
+  pressed (the page waits for the answer; a refusal gives the page's "camera not allowed" line, and
+  the permission is changed in the system's settings);
   the copy and paste buttons are dimmed on the handheld, whose console build has no clipboard.
 - A code that comes in (pasted or seen) is **decoded and checked whole before anything else happens**.
   A bad one gives a line under the buttons ("That is not a usable save code: ...") and nothing is

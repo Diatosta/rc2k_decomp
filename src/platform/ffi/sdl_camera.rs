@@ -47,17 +47,21 @@ mod real {
         unsafe { SDL_InitSubSystem(SDL_INIT_CAMERA) }
     }
 
-    /// The ids of the cameras SDL sees now.
+    /// The ids of the cameras SDL sees now, the back-facing ones first.
     pub fn devices() -> Vec<u32> {
         let mut count = 0;
-        // SAFETY: SDL's array of `count` ids (null checked), copied and freed here.
+        // SAFETY: SDL's array of `count` ids (null checked), copied and freed here; the position
+        // query takes an id SDL has just listed.
         unsafe {
             let ids = SDL_GetCameras(&raw mut count);
             if ids.is_null() {
                 return Vec::new();
             }
-            let copied = std::slice::from_raw_parts(ids, count.max(0) as usize).to_vec();
+            let mut copied = std::slice::from_raw_parts(ids, count.max(0) as usize).to_vec();
             SDL_free(ids.cast());
+            // The camera facing away from the person first (a phone's back camera reads a
+            // code on another screen); the sort is stable, so the others keep SDL's order.
+            copied.sort_by_key(|&id| SDL_GetCameraPosition(id) != SDL_CAMERA_POSITION_BACK_FACING);
             copied.into_iter().map(|id| id.0).collect()
         }
     }
