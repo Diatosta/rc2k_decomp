@@ -61,6 +61,137 @@ fn copy_vertex<A: CellKind, B: CellKind>(from: &Vertex<A>, to: &Vertex<B>) {
     to.v.set(from.v.get());
 }
 
+/// Set while a part of a split screen of three or four players draws its effects: the quads are
+/// cut to the part's rectangle on all four sides.
+static CUT_TO_PART: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Sets whether the effects drawn from now on are cut to the front end window's rectangle.
+pub fn cut_to_part(on: bool) {
+    CUT_TO_PART.store(on, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// One vertex's drawn fields, held while the polygon is cut.
+#[derive(Clone, Copy)]
+struct Corner {
+    x: f32,
+    y: f32,
+    z: f32,
+    rhw: f32,
+    u: f32,
+    v: f32,
+    colour: u32,
+    specular: u32,
+}
+
+impl Corner {
+    fn lerp(self, to: Corner, t: f32) -> Corner {
+        let mix = |a: f32, b: f32| a + (b - a) * t;
+        Corner {
+            x: mix(self.x, to.x),
+            y: mix(self.y, to.y),
+            z: mix(self.z, to.z),
+            rhw: mix(self.rhw, to.rhw),
+            u: mix(self.u, to.u),
+            v: mix(self.v, to.v),
+            colour: self.colour,
+            specular: self.specular,
+        }
+    }
+}
+
+/// The polygon cut to the rectangle `[left, top, right, bottom]`, one side after the other.
+fn cut_to_rectangle(polygon: Vec<Corner>, rect: [f32; 4]) -> Vec<Corner> {
+    // (the coordinate cut on, the line, whether the inside is at or above the line)
+    type Side = (fn(&Corner) -> f32, f32, bool);
+    let sides: [Side; 4] = [
+        (|c| c.x, rect[0], true),
+        (|c| c.x, rect[2], false),
+        (|c| c.y, rect[1], true),
+        (|c| c.y, rect[3], false),
+    ];
+    let mut polygon = polygon;
+    for (coord, line, above) in sides {
+        let inside = |c: &Corner| {
+            if above {
+                coord(c) >= line
+            } else {
+                coord(c) <= line
+            }
+        };
+        let mut next = Vec::with_capacity(polygon.len() + 2);
+        for (k, &from) in polygon.iter().enumerate() {
+            let to = polygon[(k + 1) % polygon.len()];
+            let (a, b) = (inside(&from), inside(&to));
+            if a {
+                next.push(from);
+            }
+            if a != b {
+                let t = (line - coord(&from)) / (coord(&to) - coord(&from));
+                next.push(from.lerp(to, t));
+            }
+        }
+        polygon = next;
+        if polygon.is_empty() {
+            break;
+        }
+    }
+    polygon
+}
+
+/// A part of a larger split screen: the quad cut to the part's rectangle (the front end's window
+/// holds it). Whether all of the quad is outside.
+fn clip_to_part(
+    buffer: &crate::d3d::vertices_store::PolygonVertices,
+    scene: &crate::scene::owner::Scene,
+    effects: &crate::effects::owner::Effects,
+) -> bool {
+    let window = &scene.scratch.front_end_polygon().window;
+    let (x, y) = (
+        window.view_offset[0].get() as f32,
+        window.view_offset[1].get() as f32,
+    );
+    let rect = [
+        x,
+        y,
+        x + window.view_size[0].get() as f32,
+        y + window.view_size[1].get() as f32,
+    ];
+    let polygon: Vec<Corner> = buffer.vertices[..4]
+        .iter()
+        .map(|v| Corner {
+            x: v.x.get(),
+            y: v.y.get(),
+            z: v.z.get(),
+            rhw: v.rhw.get(),
+            u: v.u.get(),
+            v: v.v.get(),
+            colour: v.colour.get(),
+            specular: v.specular.get(),
+        })
+        .collect();
+    let cut = cut_to_rectangle(polygon, rect);
+    if cut.len() < 3 {
+        return true;
+    }
+    for (c, v) in cut.iter().zip(buffer.vertices.iter()) {
+        v.x.set(c.x);
+        v.y.set(c.y);
+        v.z.set(c.z);
+        v.rhw.set(c.rhw);
+        v.u.set(c.u);
+        v.v.set(c.v);
+        v.colour.set(c.colour);
+        v.specular.set(c.specular);
+    }
+    scene
+        .scratch
+        .front_end_polygon()
+        .polygon_vertex_count
+        .set(cut.len() as u32);
+    effects.clipping.glow.clip_count.set(cut.len() as u32);
+    false
+}
+
 /// Whether all the quad is outside. The quad is the polygon vertices' first four; vertex
 /// numbers wrap at 4.
 pub fn clip_quad(
@@ -76,6 +207,9 @@ pub fn clip_quad(
         let q = &buffer.vertices;
         let marks = effects.settings()?;
         let mode = marks.marks_layout.get();
+        if CUT_TO_PART.load(std::sync::atomic::Ordering::Relaxed) {
+            return Ok(clip_to_part(buffer, scene, effects));
+        }
         if !(1..=4).contains(&mode) {
             return Ok(false);
         }

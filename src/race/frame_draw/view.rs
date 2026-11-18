@@ -486,14 +486,28 @@ pub fn camera_view(
     view.vars.view_place_f[0].set(from_int(place[0] as i32));
     view.vars.view_place_f[1].set(from_int(place[1] as i32));
     view.vars.view_place_f[2].set(from_int(place[2] as i32));
-    crate::scene::set_view_window::set_view_window(
-        reads.course(),
-        reads.scene_draw,
-        reads.screen,
-        &view.polygon.window,
-        &view.vars,
-        &reads.vars.scale_factor,
-    );
+    if reads.view.players.get() > 2 {
+        // A part of a larger split screen: the projection's scale follows the part's own shape
+        // (as where the part's window is first set, `race::draw_race_scene`), not the screen's.
+        let size = &view.polygon.window.view_size;
+        crate::scene::set_view_window::set_view_window_plain(
+            reads.course(),
+            reads.scene_draw,
+            (size[0].get(), size[1].get()),
+            &view.polygon.window,
+            &view.vars,
+            &reads.vars.scale_factor,
+        );
+    } else {
+        crate::scene::set_view_window::set_view_window(
+            reads.course(),
+            reads.scene_draw,
+            reads.screen,
+            &view.polygon.window,
+            &view.vars,
+            &reads.vars.scale_factor,
+        );
+    }
     view_matrices(reads.matrices, reads.course(), m, view)?;
     Ok(())
 }

@@ -616,15 +616,24 @@ pub fn run_view_marks(
         ctx.view.polygon.window.view_centre[0].get(),
         ctx.view.polygon.window.view_centre[1].get(),
     );
-    if ctx.reads.view.players.get() > 2 {
+    // The effects project through the front end's window (a copy of the view's, made before the
+    // view's overlays), so a part's middle goes there.
+    let effects_window = &scene.scratch.front_end_polygon().window;
+    let effects_centre = (
+        effects_window.view_centre[0].get(),
+        effects_window.view_centre[1].get(),
+    );
+    let part_split = ctx.reads.view.players.get() > 2;
+    if part_split {
         // A part of a larger split screen: the effects are placed about the part's own middle,
-        // in screen pixels (the two-player layouts' table has no entry for the third and fourth
-        // views).
+        // in screen pixels, and cut to the part (the two-player layouts' table has no entry for
+        // the third and fourth views).
         let window = &ctx.view.polygon.window;
         for axis in 0..2 {
             let middle = window.view_offset[axis].get() + window.view_size[axis].get() / 2;
-            window.view_centre[axis].set(middle as f32);
+            effects_window.view_centre[axis].set(middle as f32);
         }
+        crate::effects::clip_quad::cut_to_part(true);
     } else {
         let n = race.frame.frame_work.get().view_layouts[layout_at as usize].get() as usize;
         ctx.view.polygon.window.view_centre[0].set(int_over_times(
@@ -657,6 +666,11 @@ pub fn run_view_marks(
     });
     ctx.view.polygon.window.view_centre[1].set(centre.1);
     ctx.view.polygon.window.view_centre[0].set(centre.0);
+    if part_split {
+        crate::effects::clip_quad::cut_to_part(false);
+        effects_window.view_centre[0].set(effects_centre.0);
+        effects_window.view_centre[1].set(effects_centre.1);
+    }
     done
 }
 

@@ -252,9 +252,11 @@ pub fn layout_many(frame: &Frame, hud: &Hud, pen: Pen, views: u32) -> Result<(),
         set_marks(&panel.marks[0], marks_of(&panel.marks[n.min(1)]));
         crate::hud::tenths::tenths(frame, hud);
         crate::hud::part_scope::set(Some(part));
+        crate::hud::part_scope::set_icon(Some(n));
         start_keep(hud, Keep::Thirds);
         let drawn = crate::hud::layout_0::layout_0_on(frame, hud, pen, map);
         crate::hud::part_scope::set(None);
+        crate::hud::part_scope::set_icon(None);
         if drawn.is_err() {
             result = drawn;
             break;

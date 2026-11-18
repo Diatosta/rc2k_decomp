@@ -13,6 +13,17 @@ pub const ROWS: [u32; 2] = [0x68, 0x94];
 pub const COLUMN: u32 = 0xAD;
 /// The most cars.
 pub const CARS: u32 = 8;
+/// With three or four players every part's car icon is painted at half size (a quarter of the
+/// area), the four sharing the first row's place: an icon's width and height there.
+pub const HALF_SIZE: [u32; 2] = [0x29, 0x15];
+
+/// Where player `n`'s half-size icon lies on the HUD's texture: left and top.
+pub fn half_place(n: usize) -> [u32; 2] {
+    [
+        COLUMN + (n as u32 % 2) * HALF_SIZE[0],
+        ROWS[0] + (n as u32 / 2) * HALF_SIZE[1],
+    ]
+}
 
 /// Refuses an icon number past the tables, before anything is uploaded.
 pub fn check_numbers(numbers: [u32; 2]) -> Result<(), Invalid> {
@@ -38,6 +49,14 @@ pub fn one_car(car: u32) -> Result<usize, Invalid> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn half_icons_fill_the_first_row() {
+        assert_eq!(half_place(0), [0xAD, 0x68]);
+        assert_eq!(half_place(3), [0xAD + 0x29, 0x68 + 0x15]);
+        assert!(half_place(3)[0] + HALF_SIZE[0] <= COLUMN + 0x52);
+        assert!(half_place(3)[1] + HALF_SIZE[1] <= ROWS[0] + 0x2A);
+    }
 
     #[test]
     fn icons() {

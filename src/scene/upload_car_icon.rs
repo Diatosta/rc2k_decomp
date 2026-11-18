@@ -99,6 +99,8 @@ pub struct CarIcon<'a> {
     pub sheet_y: u32,
     pub target_x: u32,
     pub target_y: u32,
+    /// The icon painted at half its size (its piece and place are the full size's).
+    pub half: bool,
 }
 
 /// The upload.
@@ -132,14 +134,19 @@ pub fn upload_car_icon(
             0x80A1_8767,
         ],
     )?;
+    // A half-size icon: the picture is halved once more and the piece taken from it.
+    let across = if icon.half { across + 1 } else { across };
     if !halvable(width, height, across) {
         return Err(BadInput("a picture that halves to nothing").into());
     }
     let (_, height) = halve_texture(&gfx.pictures.buffers, pixels, width, height, across)?;
     let mut stored: IconUpload = upload.get();
     let shift = across & 31;
-    stored.target_x >>= shift;
-    stored.target_y >>= shift;
+    // The place on the texture is in the texture's own pixels: the halvings the picture is from
+    // the texture, not the extra one.
+    let place_shift = if icon.half { shift - 1 } else { shift };
+    stored.target_x >>= place_shift;
+    stored.target_y >>= place_shift;
     stored.piece = stored.piece.map(|value| value >> shift);
     upload.set(stored);
     // The texture locked (making it the surface): if it locked, the icon's piece

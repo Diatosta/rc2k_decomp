@@ -52,6 +52,32 @@ pub fn load_hud_car_icons(
     } else {
         race.car_blocks().cars[0].car_kind.get()
     };
+    let players = shared.view.get().players.get();
+    if players > 2 && net_race.get().is_none() {
+        // Three or four players: each part's own car, at half size, four to the first row's place.
+        for n in 0..players.min(4) as usize {
+            let number = car_icon_number(race, race.car_blocks().cars[n].car_kind.get());
+            car_icons::check_numbers([number, 0])?;
+            let names = car_icons::pictures(number);
+            let [target_x, target_y] = car_icons::half_place(n);
+            upload_car_icon(
+                scene.icon_upload(),
+                &CarIcon {
+                    sheet: scene.file_numbers().text_at(NAMES[names]),
+                    alpha_sheet: scene.file_numbers().text_at(NAMES[names + 1]),
+                    texture,
+                    sheet_x: scene.textures.places.get().car_icon_sheet_x[number as usize].get(),
+                    sheet_y: scene.textures.places.get().car_icon_sheet_y[number as usize].get(),
+                    target_x,
+                    target_y,
+                    half: true,
+                },
+                gfx,
+                system,
+            )?;
+        }
+        return Ok(());
+    }
     let numbers = [
         car_icon_number(race, player),
         car_icon_number(race, race.car_blocks().cars[1].car_kind.get()),
@@ -69,6 +95,7 @@ pub fn load_hud_car_icons(
                 sheet_y: scene.textures.places.get().car_icon_sheet_y[number as usize].get(),
                 target_x: car_icons::COLUMN,
                 target_y,
+                half: false,
             },
             gfx,
             system,

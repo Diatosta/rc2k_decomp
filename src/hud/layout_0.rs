@@ -15,6 +15,22 @@ use crate::hud::store::texture;
 use crate::race::owner_frame::Frame;
 use rc2k_core::hud::panels;
 
+/// The car's icon at the corner: the first full-size one, or with three or four players the
+/// part's player's half-size one drawn as large (its texture rectangle a quarter of the first's).
+fn car_icon(frame: &Frame, hud: &Hud, pen: Pen, y: u32) -> Result<(), Refused> {
+    let Some(player) = crate::hud::part_scope::icon() else {
+        return sprite(frame, hud, pen, 0, 0xE, y);
+    };
+    let [_, _, width, height] = crate::hud::store::RectAt::number(0).read(hud)?;
+    let [left, top] = rc2k_core::scene::car_icons::half_place(player);
+    let [w, h] = rc2k_core::scene::car_icons::HALF_SIZE;
+    hud.block
+        .quad
+        .set_places(rc2k_core::hud::quads::sprite_places([left, top, w, h]));
+    crate::hud::add_sprite::put_corners(hud, 0xE, y, width, height);
+    crate::hud::add_quad::add_quad(frame, hud, pen)
+}
+
 /// The HUD of one player.
 pub fn layout_0(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
     layout_0_on(frame, hud, pen, texture::DIAL_FIRST)
@@ -110,7 +126,7 @@ pub fn layout_0_on(frame: &Frame, hud: &Hud, pen: Pen, map: u32) -> Result<(), R
             sprite(frame, hud, pen, d[4], 0x60, row(frame, 0x36))?;
             sprite(frame, hud, pen, d[5], 0x8C, row(frame, 0x36))?;
         }
-        sprite(frame, hud, pen, 0, 0xE, row(frame, 0x33))?;
+        car_icon(frame, hud, pen, row(frame, 0x33))?;
         sprite(frame, hud, pen, 0x4A, 0xF, row(frame, 0x58))?;
         let t = hud.block.times[2].get();
         let xs = [0x2E, 0x42, 0x56, 0x5E, 0x72, 0x86, 0x8E, 0xA2];

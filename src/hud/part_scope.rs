@@ -26,3 +26,16 @@ pub fn get() -> Option<PlayerPart> {
         height,
     })
 }
+
+/// The player whose half-size car icon the HUD draws (`None`: the first full-size icon).
+static ICON: AtomicU32 = AtomicU32::new(0);
+
+/// The car icon the HUD draws from now on is player `player`'s half-size one.
+pub fn set_icon(player: Option<usize>) {
+    ICON.store(player.map_or(0, |n| n as u32 + 1), Relaxed);
+}
+
+/// The player whose half-size icon is drawn, if one is set.
+pub fn icon() -> Option<usize> {
+    (ICON.load(Relaxed) as usize).checked_sub(1)
+}

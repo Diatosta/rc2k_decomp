@@ -284,7 +284,9 @@ A gamepad whose triggers have motors of their own (an Xbox One or Series pad, wh
 motors; SDL's DualSense driver has none to offer) also rumbles its triggers, through SDL's trigger rumble, while a race runs. The
 right trigger (the accelerator) shakes when the driven wheels spin faster than the car moves,
 and faintly with the engine's load at high revs; the left trigger (the brake) shakes when the
-braking wheels lock (the pedal pressed, the wheels slower than the car). Each is scaled by how far
+braking wheels lock (the pedal pressed, the wheels slower than the car). A normal wheelspin start is
+felt at about four fifths of the trigger's strength and a hard stop with locked wheels at two thirds
+or more; the engine's load alone stays a light background (a fifth at most). Each is scaled by how far
 its pedal is pressed; both are still while the car is off the ground and while the game is paused,
 and both take the same strength as the motors (the controller page's force feedback; off, the
 triggers stay still). The advanced page's "trigger rumble" row (on its second part) switches

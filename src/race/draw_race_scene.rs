@@ -458,6 +458,13 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     // The split screen's further views show their own player's car; each is on.
     let views = race.shared.view.get().views.get();
     crate::race::view_scratch::set_many_views(views > 2);
+    if views > 2 {
+        // A view slot that was a mirror in an earlier race keeps its mirror flag: the players'
+        // views are never mirrors, or the camera looks back from the car.
+        for view in 0..views as usize {
+            o.scene.scratch.main_view(view).polygon.view_mirrored.set(0);
+        }
+    }
     {
         let panel = &race.frame.panel_and_overlay.get().panel;
         for (n, flags) in panel.hud_flags.iter().enumerate().skip(2) {

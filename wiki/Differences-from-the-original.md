@@ -316,7 +316,9 @@ or IPX connection), and Steam when Valve's library is beside the program (it is 
   in-turn ones (shown by the third and fourth players' helmets, as on the players' details page), and `--players 3` or `4` starts the same race. Each
   player has a view in their part of the screen, the controls of their own record, the one-player HUD
   in their part (stage bar, place, clock, rev dial, gear and speed; the map and the signs for the first two players) laid out by the part's shape, a view that keeps the vertical field of view of a 4:3 one in
-  a wide part, and a place on the three and four players' results page. The F2 key
+  a wide part (the car sits in a part as it sits on a one-player screen of that shape), each part's own car
+  picture in the top bar (drawn at half size), the dust, smoke and sparks of every car drawn in the part of the view that
+  sees them and cut to it, and a place on the three and four players' results page. The F2 key
   cycles the layouts: with four players quarters, four rows and four columns; with three one wide
   view above two, three rows, three columns and quarters with the whole course's map in the fourth
   quarter (every car a square in its colour on it); the choice

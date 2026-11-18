@@ -12,8 +12,12 @@ pub const PEDAL_FULL: u32 = 0x100;
 
 /// A slip under this (the game's own wheel margin) is not felt.
 pub const SLIP_DEAD: f32 = 1.5;
-/// How far past the dead zone the slip must go for a trigger at its full shake.
-pub const SLIP_RANGE: f32 = 8.0;
+/// How far past the dead zone the wheelspin must go for the accelerator trigger at its full
+/// shake: a normal wheelspin start (a slip of about 5) is felt at close to nine tenths of it.
+pub const SLIP_RANGE: f32 = 4.0;
+/// The same for the brake trigger and locked wheels, which never slip as far as spinning ones
+/// do (a hard stop locks them at a slip of about 3): a hard stop is felt at two thirds or more.
+pub const LOCK_RANGE: f32 = 1.9;
 /// A car slower than this (forward, either way) does not lock its wheels: a stopped car
 /// braking has nothing to feel.
 pub const LOCK_MIN_SPEED: f32 = 3.0;
@@ -54,9 +58,9 @@ impl Levels {
     };
 }
 
-/// 0 .. 1 for a slip: nothing within the dead zone, then rising to its full over the range.
-fn shake(slip: f32) -> f32 {
-    ((slip - SLIP_DEAD) / SLIP_RANGE).clamp(0.0, 1.0)
+/// 0 .. 1 for a slip: nothing within the dead zone, then rising to its full over `range`.
+fn shake(slip: f32, range: f32) -> f32 {
+    ((slip - SLIP_DEAD) / range).clamp(0.0, 1.0)
 }
 
 fn pedal(value: u32) -> f32 {
@@ -82,9 +86,9 @@ pub fn levels(feel: &Feel, gain: u32) -> Levels {
     } else {
         0.0
     };
-    let throttle = pedal(feel.throttle) * (shake(slip) + load).min(1.0);
+    let throttle = pedal(feel.throttle) * (shake(slip, SLIP_RANGE) + load).min(1.0);
     let brake = if feel.forward.abs() >= LOCK_MIN_SPEED {
-        pedal(feel.brake) * shake(-slip)
+        pedal(feel.brake) * shake(-slip, LOCK_RANGE)
     } else {
         0.0
     };
@@ -189,7 +193,7 @@ mod tests {
         f.engine_load = false;
         f.throttle = 0;
         f.brake = PEDAL_FULL;
-        f.slip = -(SLIP_DEAD + SLIP_RANGE);
+        f.slip = -(SLIP_DEAD + LOCK_RANGE);
         assert_eq!(levels(&f, 10_000).brake, 65535);
     }
 
@@ -214,7 +218,7 @@ mod tests {
         let mut f = feel();
         f.throttle = 0;
         f.brake = PEDAL_FULL;
-        f.slip = -(SLIP_DEAD + SLIP_RANGE);
+        f.slip = -(SLIP_DEAD + LOCK_RANGE);
         let l = levels(&f, 10_000);
         assert_eq!((l.brake, l.throttle), (65535, 0));
         f.forward = 1.0;
@@ -226,6 +230,28 @@ mod tests {
     }
 
     #[test]
+    fn a_normal_start_and_a_hard_stop_are_clearly_felt() {
+        let mut f = feel();
+        f.revs = 0.4;
+        f.forward = 1.0;
+        f.slip = 5.0;
+        let start = levels(&f, 10_000).throttle as f32 / 65535.0;
+        assert!((0.7..=0.9).contains(&start), "{start}");
+        let mut f = feel();
+        f.throttle = 0;
+        f.brake = PEDAL_FULL;
+        f.slip = -2.8;
+        let stop = levels(&f, 10_000).brake as f32 / 65535.0;
+        assert!((0.6..=0.8).contains(&stop), "{stop}");
+        // The engine's load alone stays a light background.
+        let mut f = feel();
+        f.revs = 1.0;
+        f.slip = 1.8;
+        let load = levels(&f, 10_000).throttle as f32 / 65535.0;
+        assert!(load <= 0.25, "{load}");
+    }
+
+    #[test]
     fn reversing_turns_the_signs_round() {
         let mut f = feel();
         f.forward = -20.0;
@@ -233,7 +259,7 @@ mod tests {
         assert_eq!(levels(&f, 10_000).throttle, 65535);
         f.throttle = 0;
         f.brake = PEDAL_FULL;
-        f.slip = SLIP_DEAD + SLIP_RANGE;
+        f.slip = SLIP_DEAD + LOCK_RANGE;
         assert_eq!(levels(&f, 10_000).brake, 65535);
     }
 
