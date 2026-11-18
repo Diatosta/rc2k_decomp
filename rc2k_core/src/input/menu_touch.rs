@@ -203,10 +203,11 @@ impl Gestures {
                 }
                 match t.sideways {
                     Some(false) => {
-                        // The list follows the finger: dragging up goes down the list.
+                        // Dragging up goes up the list (the phone's own feel: a swipe pushes the
+                        // selection the way the finger moves).
                         while (y - t.anchor.1).abs() >= step {
                             let up = y < t.anchor.1;
-                            out.push(if up { Gesture::Down } else { Gesture::Up });
+                            out.push(if up { Gesture::Up } else { Gesture::Down });
                             t.anchor.1 += if up { -step } else { step };
                         }
                     }
@@ -441,8 +442,8 @@ mod tests {
                 (1, Phase::Up, 1200.0, 500.0, 30),
             ],
         );
-        // Up by 300 px with steps of about 119: two steps down the list, no tap.
-        assert_eq!(got, vec![Gesture::Down, Gesture::Down]);
+        // Up by 300 px with steps of about 119: two steps up the list, no tap.
+        assert_eq!(got, vec![Gesture::Up, Gesture::Up]);
         let got = run(
             &mut g,
             &[
