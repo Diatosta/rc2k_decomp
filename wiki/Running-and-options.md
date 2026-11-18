@@ -229,11 +229,19 @@ rc2k --render-replay savedata/replay/replay00 --out run.mp4 --size 1920x1080 --f
 
 The frames are piped as raw pixels to an `ffmpeg` found on the path: H.264 (`libx264`, 4:2:0, an
 odd side is cut by one pixel) when it has that encoder, else its own default for the file's
-extension. With `--encoder automatic` a graphics card's H.264 encoder is used when one works: the
+extension. With `--encoder automatic` a graphics card's encoder is used when one works: the
 `ffmpeg` is asked to encode three frames of the video's size with each hardware encoder it lists
-(NVENC, AMF, VAAPI, Quick Sync, in that order), and the first that works writes the picture; the
-log's `video:` lines say which one and why the others were passed over. A card's H.264 encoder
-stops at 4096 pixels on a side, so a wider video (5120 x 1440) gets the software encoder. The
+(H.264 first, as the most compatible: NVENC, AMF, VAAPI, Quick Sync, in that order; then AV1 in the
+same order), and the first that works writes the picture; the log's `video:` lines say which one
+and why the others were passed over. A card's H.264 encoder stops at 4096 pixels on a side, so a
+wider video (5120 x 1440) gets the card's AV1 encoder when it has one (the Radeon RX 9070 XT's
+writes AV1 up to 8192 pixels wide; tried on that card only, the NVENC, AMF and Quick Sync AV1
+encoders are set up the same way but untried) and the software H.264 encoder otherwise. The
+`.mp4` then holds AV1, which players from about 2019 on play. The card's H.265 encoders are not
+used (the RX 9070 XT's one writes damaged pictures at large sizes). At 5120 x 1440 the
+card's AV1 encoder renders about twice as fast as the software one (25 against 12 frames a
+second on a busy machine); the rest of the time goes to the game's own drawing and the read-back
+of the picture from the card. The
 colours are the same with every encoder (the conversion to 4:2:0 is the same one, made on the
 processor). When the hardware encoder made a picture that does not decode cleanly (checked at the
 end, a few seconds for a minute of video) the render goes again with the software encoder, from

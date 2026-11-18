@@ -1,11 +1,13 @@
 //! How the video's picture is encoded: the software encoder (`libx264`) or one of the machine's
 //! own, found in the `ffmpeg` on the path.
 //!
-//! With the encoder choice on automatic every H.264 hardware encoder `ffmpeg` lists that this
-//! system can have (NVENC, AMF, VAAPI, Quick Sync) is tried, once, on a few frames of the video's
-//! own size; the first that makes a file is used. When none does (a card's H.264 encoder stops at
-//! 4096 pixels on a side, so a wider picture gets the software one), or the choice is
-//! "software", `libx264` encodes. The log says which one was chosen and why the others were not.
+//! With the encoder choice on automatic every hardware encoder `ffmpeg` lists that this system
+//! can have is tried, once, on a few frames of the video's own size, H.264 first (the most
+//! compatible: NVENC, AMF, VAAPI, Quick Sync) and then AV1 (the same four); the first that makes
+//! a file is used. When none does, or the choice is "software", `libx264` encodes. A card's H.264
+//! encoder stops at 4096 pixels on a side, so a wider picture gets the card's AV1 encoder when it
+//! has one (an `.mp4` holds AV1; players older than about 2019 do not play it). The log says
+//! which one was chosen and why the others were not.
 //!
 //! The card's H.265 encoders are left out: on the Radeon RX 9070 XT the one VAAPI offers wrote
 //! pictures that do not decode (a coded block with more bins than the decoder takes) in about
@@ -34,19 +36,26 @@ pub struct Hardware {
     /// The encoder's name in `ffmpeg`.
     codec: &'static str,
     kind: Kind,
+    /// Whether it writes AV1 (else H.264).
+    av1: bool,
 }
 
-/// The hardware encoders worth a try, in the order they are tried.
-const CANDIDATES: [Hardware; 4] = [
-    Hardware::new("h264_nvenc", Kind::Nvenc),
-    Hardware::new("h264_amf", Kind::Amf),
-    Hardware::new("h264_vaapi", Kind::Vaapi),
-    Hardware::new("h264_qsv", Kind::Qsv),
+/// The hardware encoders worth a try, in the order they are tried: H.264 first, as the most
+/// compatible, then AV1.
+const CANDIDATES: [Hardware; 8] = [
+    Hardware::new("h264_nvenc", Kind::Nvenc, false),
+    Hardware::new("h264_amf", Kind::Amf, false),
+    Hardware::new("h264_vaapi", Kind::Vaapi, false),
+    Hardware::new("h264_qsv", Kind::Qsv, false),
+    Hardware::new("av1_nvenc", Kind::Nvenc, true),
+    Hardware::new("av1_amf", Kind::Amf, true),
+    Hardware::new("av1_vaapi", Kind::Vaapi, true),
+    Hardware::new("av1_qsv", Kind::Qsv, true),
 ];
 
 impl Hardware {
-    const fn new(codec: &'static str, kind: Kind) -> Self {
-        Self { codec, kind }
+    const fn new(codec: &'static str, kind: Kind, av1: bool) -> Self {
+        Self { codec, kind, av1 }
     }
 
     /// Whether this kind of encoder can exist on the system the program runs on (VAAPI is a
@@ -113,6 +122,18 @@ fn quantiser(quality: Quality) -> u32 {
     }
 }
 
+/// The AV1 encoders' quantiser at a quality: AV1's scale runs to 255 where H.264's runs to 51, and
+/// the numbers make files smaller than the H.264 ones at about the same PSNR (measured on a
+/// replay's frames with the card's encoders).
+fn quantiser_av1(quality: Quality) -> u32 {
+    match quality {
+        Quality::Low => 165,
+        Quality::Medium => 120,
+        Quality::High => 65,
+        Quality::Best => 30,
+    }
+}
+
 /// The picture cut to an even size on both sides, as 4:2:0 wants.
 const EVEN: &str = "crop=trunc(iw/2)*2:trunc(ih/2)*2";
 
@@ -159,7 +180,6 @@ pub fn device_args(encoder: Encoder) -> Vec<String> {
 
 /// The arguments that go after the input: the filters and the encoder's settings.
 pub fn encode_args(encoder: Encoder, quality: Quality) -> Vec<String> {
-    let q = quantiser(quality).to_string();
     let mut args = Vec::new();
     match encoder {
         Encoder::Default => {}
@@ -172,6 +192,12 @@ pub fn encode_args(encoder: Encoder, quality: Quality) -> Vec<String> {
         }
         Encoder::Hardware(h) => {
             let vaapi = h.kind == Kind::Vaapi;
+            let q = if h.av1 {
+                quantiser_av1(quality)
+            } else {
+                quantiser(quality)
+            }
+            .to_string();
             let filters = if vaapi {
                 format!("{EVEN},format=nv12,hwupload")
             } else {
@@ -179,6 +205,10 @@ pub fn encode_args(encoder: Encoder, quality: Quality) -> Vec<String> {
             };
             args.extend(["-vf".into(), filters, "-c:v".into(), h.codec.into()]);
             match h.kind {
+                Kind::Vaapi if h.av1 => {
+                    args.extend(strings(&["-rc_mode", "CQP", "-global_quality"]));
+                    args.push(q);
+                }
                 Kind::Vaapi => args.extend(["-qp".into(), q]),
                 Kind::Nvenc => {
                     args.extend(strings(&["-preset", "p5", "-tune", "hq", "-rc", "constqp"]));
@@ -188,8 +218,14 @@ pub fn encode_args(encoder: Encoder, quality: Quality) -> Vec<String> {
                 Kind::Amf => {
                     args.extend(strings(&["-usage", "transcoding", "-quality", "quality"]));
                     args.extend(strings(&["-rc", "cqp"]));
-                    for flag in ["-qp_i", "-qp_p", "-qp_b"] {
-                        args.extend([flag.into(), q.clone()]);
+                    // AV1 has no B-frame quantiser here.
+                    let flags: &[&str] = if h.av1 {
+                        &["-qp_i", "-qp_p"]
+                    } else {
+                        &["-qp_i", "-qp_p", "-qp_b"]
+                    };
+                    for flag in flags {
+                        args.extend([(*flag).into(), q.clone()]);
                     }
                     args.extend(strings(&["-pix_fmt", "nv12"]));
                 }
@@ -322,8 +358,7 @@ mod tests {
 
     #[test]
     fn found_encoders_are_read_from_the_listing() {
-        let listed =
-            " V....D h264_vaapi H.264/AVC (VAAPI)\n V....D hevc_nvenc NVENC\n V..... libx264 x\n";
+        let listed = " V....D h264_vaapi H.264/AVC (VAAPI)\n V....D hevc_nvenc NVENC\n V....D av1_vaapi AV1\n V..... libx264 x\n";
         let bits = found_in(listed);
         let names: Vec<_> = CANDIDATES
             .iter()
@@ -331,9 +366,9 @@ mod tests {
             .filter(|(i, _)| bits & (1 << i) != 0)
             .map(|(_, h)| h.codec)
             .collect();
-        // The H.265 encoders are not candidates.
+        // The H.265 encoders are not candidates; H.264 comes before AV1.
         if cfg!(target_os = "linux") {
-            assert_eq!(names, ["h264_vaapi"]);
+            assert_eq!(names, ["h264_vaapi", "av1_vaapi"]);
         }
         assert_eq!(found_in("libx264"), 0);
     }
@@ -354,6 +389,20 @@ mod tests {
         assert_eq!(flag(&nvenc, "-qp"), Some("32"));
         assert_eq!(flag(&nvenc, "-rc"), Some("constqp"));
         assert!(device_args(Encoder::Software).is_empty());
+    }
+
+    #[test]
+    fn av1_encoders_get_their_own_quantiser_and_flags() {
+        let vaapi = encode_args(Encoder::Hardware(CANDIDATES[6]), Quality::Best);
+        assert_eq!(flag(&vaapi, "-c:v"), Some("av1_vaapi"));
+        assert_eq!(flag(&vaapi, "-rc_mode"), Some("CQP"));
+        assert_eq!(flag(&vaapi, "-global_quality"), Some("30"));
+        let amf = encode_args(Encoder::Hardware(CANDIDATES[5]), Quality::Low);
+        assert_eq!(flag(&amf, "-qp_i"), Some("165"));
+        assert_eq!(flag(&amf, "-qp_b"), None);
+        // H.264 keeps the order ahead of AV1 and the AV1 ones all write AV1.
+        assert!(CANDIDATES[..4].iter().all(|h| !h.av1));
+        assert!(CANDIDATES[4..].iter().all(|h| h.av1));
     }
 
     #[test]

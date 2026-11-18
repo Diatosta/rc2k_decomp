@@ -93,7 +93,7 @@ machine).
 **Leaving a race.** A player who leaves a race before finishing (Escape, then quit, or a lost
 connection) has their car taken out of the race on every other machine: it is no longer drawn,
 collides with nothing, makes no sound and no longer shows on the stage bar or the map; the others
-see "<NAME> LEFT THE RACE" in the race's big message font, on a dark plate near the top of the screen, blinking for five seconds like the game's own race messages (several leavers one after another; in Portuguese "<name> saiu da corrida"). A player who had already finished keeps their car and
+see "<NAME> LEFT THE RACE" in the race's big message font with its dark outline and no box, near the top of the screen under the car warnings' place, blinking for five seconds like the game's own race warnings (several leavers one after another; in Portuguese "<name> saiu da corrida"). A player who had already finished keeps their car and
 their time. When the host leaves, the session ends for everybody, in a race as in the lobby (a joiner in the lobby is told the same and is back in the menus, with no error panel; a joiner leaving only takes its own row from the host's lobby): each joiner's race ends as if they had quit it, they are back in the menus and told ("The host <name> left: the session has ended"), every time it happens in a run; the view and the controls never move to another car. Computer drivers are not players and stay.
 
 **The map.** In a network race the HUD's map disc shows the other cars as small markers, each in

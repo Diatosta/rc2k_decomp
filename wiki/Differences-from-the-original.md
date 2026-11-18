@@ -214,9 +214,9 @@ Everything is on [Controllers](Controllers) and [Input](Input); in short:
 
 - **The viewer names the highlighted button.** The original's viewer has only pictures on its buttons. Here,
   when the highlight moves to another button (the arrows, the pad, and when the viewer opens on its play
-  button), the button's name shows centred just under the render button, so it hides nothing of the panel, in the font
-  of the viewer's name row on a dark box scaled with the panel (as large relative to the screen on a 5120 x 1440
-  window as on 800 x 600), for about a second, then fades out over a quarter of a second, on the software
+  button), the button's name shows centred just under the render button, so it hides nothing of the panel, in the
+  style of the car's warnings (their font and its dark outline, no box, as large relative to the screen on a
+  5120 x 1440 window as on 800 x 600), for about a second, then fades out over a quarter of a second, on the software
   renderer too ("play", "back 1 second", "set the first
   mark here", "next car or layout", "save the replay", "render to video", ...). The names of the three buttons
   that change something say what pressing them does next: the HUD button of a car ("show car 1's HUD" or "hide
@@ -232,8 +232,8 @@ Everything is on [Controllers](Controllers) and [Input](Input); in short:
   page's frame limit, and 30 and 60 whatever it lists), the **part** (the whole replay, from the
   place shown to the end, or between the viewer's marks when they are set), the **quality** (low,
   medium, high, best: the encoder's constant rate factor 28, 23, 18, 12), the **encoder** (automatic:
-  a graphics card's H.264 encoder when one works, up to 4096 pixels wide, which makes a render about
-  three times faster; or the software one only) and the **sound**. The
+  a graphics card's H.264 encoder when one works (up to 4096 pixels wide), else its AV1 encoder,
+  which makes a render about three times faster; or the software one only) and the **sound**. The
   folder and the file's name (`savedata/videos/replay_<date>_<time>.mp4`) are shown; they cannot
   be edited here (`--out` names any file from the command line). "Render" starts, "cancel" or Escape
   leaves the viewer as it was. The size, rate, quality and sound are kept in `var/rc2k.toml`
@@ -286,7 +286,7 @@ or IPX connection), and Steam when Valve's library is beside the program (it is 
 - **The host's stage** is shown to everyone, every machine's loading progress is listed while a
   stage loads, and "NN%" shows a racing player's progress in the lobby; the chat is in one order
   on every machine. The other cars appear on the progress bar.
-- **A player who leaves a race** before finishing has their car taken out of it on every other machine and the others are told ("<name> left the race", in the race's message font, blinking); a finished player's car and time stay. The map disc shows the other players' cars (not the bots'). The loading screen's list of progress is a framed box inside the picture, at the left and half way down ([Network play](Network-play)).
+- **A player who leaves a race** before finishing has their car taken out of it on every other machine and the others are told ("<name> left the race", in the style of the car's warnings: the race's message font with its outline, no box, blinking); a finished player's car and time stay. The map disc shows the other players' cars (not the bots'). The loading screen's list of progress is a framed box inside the picture, at the left and half way down ([Network play](Network-play)).
 - **`/kick <name>`** in the chat: the host puts a player out.
 - The lobby has a "settings" button and, after a race, "save replay".
 - **The lobby's stage name** is on the line of the table's headings, in their font, not over the picture at the top left.
