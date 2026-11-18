@@ -253,8 +253,14 @@ fn view(race: &'static Race, o: Owners<'static>, start: Start) -> Result<Viewed,
     #[cfg(not(feature = "remote"))]
     let play_at_once = launched.is_some();
     if play_at_once {
-        let chosen = list.item(list_state.choice.get());
-        action_next(race, o, u32::from(chosen.viewer_action()))?;
+        if crate::video::active() {
+            // A render from the command line plays the part it was given.
+            let (from, to) = crate::video::range().unwrap_or((0, None));
+            crate::race::render_row::play_range(race, from, to, o)?;
+        } else {
+            let chosen = list.item(list_state.choice.get());
+            action_next(race, o, u32::from(chosen.viewer_action()))?;
+        }
         // The play runs to its stop inside the action.
         if leave_when_played {
             return Ok(Viewed::Played);

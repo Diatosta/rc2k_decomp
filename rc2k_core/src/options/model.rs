@@ -140,6 +140,34 @@ pub struct Display {
     /// race cycles through (only in the new file; the first when missing).
     #[serde(default, skip_serializing_if = "is_zero")]
     pub split_layout: u32,
+    /// What the replay viewer's render dialog was last set to (only in the new file; the
+    /// defaults when missing).
+    #[serde(default, skip_serializing_if = "VideoChoices::is_default")]
+    pub video: VideoChoices,
+}
+
+/// The render dialog's choices that are kept between runs, each only when it differs from the
+/// dialog's default (`race::render_dialog`).
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct VideoChoices {
+    /// The video's size when it is not the screen's (`[width, height]`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub size: Option<[u32; 2]>,
+    /// The frames a second, when not 60.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fps: Option<u32>,
+    /// The encoder's quality (`low`, `medium`, `high`, `best`), when not `high`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub quality: Option<String>,
+    /// Whether the video has the sound, when it has not.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sound: Option<bool>,
+}
+
+impl VideoChoices {
+    fn is_default(&self) -> bool {
+        *self == Self::default()
+    }
 }
 
 fn on() -> bool {
@@ -172,6 +200,7 @@ impl Default for Display {
             quit_pictures: true,
             smooth_frames: true,
             split_layout: 0,
+            video: VideoChoices::default(),
         }
     }
 }

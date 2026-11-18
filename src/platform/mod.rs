@@ -1037,15 +1037,6 @@ pub fn show_frame_now(o: crate::owners::Owners<'static>) -> bool {
             #[cfg(feature = "remote")]
             let shot = crate::remote::shot_wanted().then(|| screen.pixels.to_vec());
             let video_frame = video_wanted.then(|| screen.pixels.to_vec());
-            // A render from the viewer shows how far it is on the screen only (not in the video).
-            if crate::video::from_viewer() && screen.bits == 32 {
-                crate::video::progress_bar(
-                    &screen.pixels,
-                    screen.width,
-                    screen.height,
-                    crate::race::render_row::fraction(o.race),
-                );
-            }
             let showing = std::time::Instant::now();
             let shown_ok = show_frame(&o, screen);
             crate::platform::timing::SHOW_MICROS.fetch_add(
@@ -1070,6 +1061,7 @@ pub fn show_frame_now(o: crate::owners::Owners<'static>) -> bool {
             if let Some(pixels) = video_frame {
                 crate::video::frame(&pixels, screen.width as u32, screen.height as u32);
                 crate::video::sound_turn(o.audio);
+                crate::video::note_progress(crate::race::render_row::fraction(o.race));
             }
             crate::platform::timing::note_frame_shown();
             let shown = SHOWN.fetch_add(1, Ordering::SeqCst) + 1;

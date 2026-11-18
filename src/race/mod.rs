@@ -184,6 +184,8 @@ pub mod play_movie;
 pub mod play_movie_loop;
 pub mod play_replay_range;
 pub mod read_replay_header;
+pub mod render_dialog;
+pub mod render_progress;
 pub mod render_row;
 pub mod viewer_load_stage;
 pub mod viewer_snapshot;

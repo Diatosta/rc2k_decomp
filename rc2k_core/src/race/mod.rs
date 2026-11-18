@@ -23,6 +23,7 @@ pub mod pace_notes;
 pub mod panel;
 pub mod plates;
 pub mod quick_sort;
+pub mod render_dialog;
 pub mod replay;
 pub mod replay_v2;
 pub mod results;

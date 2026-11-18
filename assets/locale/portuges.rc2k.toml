@@ -124,6 +124,32 @@ render_scale = "resolução 3D"
 
 # The replay viewer's row that renders the replay to a video file.
 [viewer]
+render_title = "Gravar a repetição em vídeo"
+render_size = "tamanho"
+render_fps = "imagens por segundo"
+render_part = "parte"
+render_quality = "qualidade"
+render_sound = "som"
+render_file = "ficheiro"
+render_folder = "pasta"
+render_go = "gravar"
+render_cancel = "cancelar"
+render_screen = "ecrã ({})"
+render_whole = "a repetição toda"
+render_from_here = "daqui até ao fim"
+render_marked = "entre as marcas"
+render_quality_low = "baixa"
+render_quality_medium = "média"
+render_quality_high = "alta"
+render_quality_best = "máxima"
+render_no_encoder = "Não foi encontrado o ffmpeg: as imagens ficam gravadas numeradas."
+render_progress_title = "A gravar o vídeo"
+render_percent = "{} %"
+render_frames = "{} imagens gravadas"
+render_starting = "a começar a gravação..."
+render_done = "O vídeo está pronto: {}"
+render_failed = "Não foi possível fazer o vídeo: {}"
+render_keys = "Cima e Baixo escolhem, Esquerda e Direita mudam, Enter confirma, Esc cancela"
 
 # The replays list: the tags after a slot's name.
 [replays]

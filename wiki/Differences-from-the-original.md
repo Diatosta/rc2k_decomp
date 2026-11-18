@@ -210,11 +210,28 @@ Everything is on [Controllers](Controllers) and [Input](Input); in short:
 ## Replays
 
 - **Replays can be rendered to a video**, with its sound: the viewer's "render to video" button
-  (a third row under its two rows of buttons, showing the snapshot button's camera) renders the whole replay at the screen's size and 60 frames a
-  second into `savedata/videos/`, a bar showing the progress and Escape stopping it (what was
-  written is kept); from the command line, `--render-replay <slot|file> --out <video> [--size WxH]
-  [--fps N]` does it without a window. The video is written through an `ffmpeg` on the path (H.264
-  with AAC sound when it has them); without one, numbered PNG pictures and a WAV file.
+  (a third row under its two rows of buttons, showing the snapshot button's camera) opens a dialog
+  in the error dialog's style before anything is rendered. Its rows, changed with Left and Right
+  (Enter steps them on; the mouse clicks them): the video's **size** (the screen's own, or any
+  resolution the graphics page lists: the game's sizes, the monitor's modes, the usual sizes that
+  fit the desktop and a size set by hand), the **frames a second** (the rates of the graphics
+  page's frame limit, and 30 and 60 whatever it lists), the **part** (the whole replay, from the
+  place shown to the end, or between the viewer's marks when they are set), the **quality** (low,
+  medium, high, best: the encoder's constant rate factor 28, 23, 18, 12) and the **sound**. The
+  folder and the file's name (`savedata/videos/replay_<date>_<time>.mp4`) are shown; they cannot
+  be edited here (`--out` names any file from the command line). "Render" starts, "cancel" or Escape
+  leaves the viewer as it was. The size, rate, quality and sound are kept in `var/rc2k.toml`
+  (`[display.video]`) for next time; the part is not. The video is **drawn at the size chosen**
+  (1440p or 4K are real 1440p and 4K frames, not an enlarged screen): the game starts a second copy
+  of itself, with no window and no sound device, on a copy of the replay as it is viewed (edits
+  included) in `savedata/videos/`, and the viewer waits behind a panel with a bar, the frames written
+  and a cancel button. Cancelling (button, Escape or a click) ends the copy and removes everything it
+  wrote; when it ends well a notice says the video is ready, and the viewer is where it was. The
+  copy does not save the options or the best times. Without an `ffmpeg` on the path the frames are
+  numbered pictures. From the command line, `--render-replay <slot|file> --out <video> [--size WxH]
+  [--fps N] [--quality low|medium|high|best] [--no-sound] [--from SECONDS] [--to SECONDS]` does it
+  without a window (the part ends at the whole second after `--to`). The video is written through an
+  `ffmpeg` on the path (H.264 with AAC sound when it has them).
 - **`--replay <slot|file>`** starts a saved replay at once, `--then menus` or `--then quit`.
 - **Every race is recorded in a replay format of its own** (see [Replay files](Replay-files)): up to eight cars,
   all of them recorded, the computer's cars and the other machines' cars of a network race too (their motion is

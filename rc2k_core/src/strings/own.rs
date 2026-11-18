@@ -19,7 +19,7 @@ use std::sync::OnceLock;
 /// The first id of an own text.
 pub const FIRST: u32 = 0x2000;
 /// The last id of an own text.
-pub const LAST: u32 = 0x20FF;
+pub const LAST: u32 = 0x21FF;
 
 /// Whether `id` is an own text's.
 pub fn is_own(id: u32) -> bool {
@@ -175,6 +175,37 @@ pub mod id {
     pub const LEFT_RACE: u32 = FIRST + 0xFC;
     pub const HOST_LEFT: u32 = FIRST + 0xF5;
     pub const BAD_REPLAY_PLAY: u32 = FIRST + 0xFE;
+    /// The replay viewer's dialog before a render to video: its title, the rows' labels
+    /// (size, frame rate, part, quality, sound, file, folder), the two buttons, the screen's
+    /// own size ("{}" its width and height), the three parts, the four qualities (4 ids), the
+    /// note when no encoder was found, and the line that says what the keys do.
+    pub const RENDER_TITLE: u32 = FIRST + 0x47;
+    pub const RENDER_SIZE: u32 = FIRST + 0x48;
+    pub const RENDER_FPS: u32 = FIRST + 0x49;
+    pub const RENDER_PART: u32 = FIRST + 0x4A;
+    pub const RENDER_QUALITY: u32 = FIRST + 0x4B;
+    pub const RENDER_SOUND: u32 = FIRST + 0x4C;
+    pub const RENDER_FILE: u32 = FIRST + 0x4D;
+    pub const RENDER_FOLDER: u32 = FIRST + 0x4E;
+    pub const RENDER_GO: u32 = FIRST + 0x4F;
+    pub const RENDER_CANCEL: u32 = FIRST + 0x5B;
+    pub const RENDER_SCREEN: u32 = FIRST + 0x5C;
+    pub const RENDER_WHOLE: u32 = FIRST + 0x5D;
+    pub const RENDER_FROM_HERE: u32 = FIRST + 0x5E;
+    pub const RENDER_MARKED: u32 = FIRST + 0x5F;
+    pub const RENDER_QUALITIES: u32 = FIRST + 0x69;
+    pub const RENDER_NO_ENCODER: u32 = FIRST + 0x6D;
+    pub const RENDER_KEYS: u32 = FIRST + 0x6E;
+    /// The panel shown while a render runs in a program of its own: its title, how far it has come
+    /// ("{}" the percent), the frames written ("{}" their number), the line before it has begun,
+    /// and the notices when the video is ready ("{}" its file) and when it could not be made
+    /// ("{}" why).
+    pub const RENDER_PROGRESS_TITLE: u32 = FIRST + 0x100;
+    pub const RENDER_PERCENT: u32 = FIRST + 0x101;
+    pub const RENDER_FRAMES: u32 = FIRST + 0x102;
+    pub const RENDER_STARTING: u32 = FIRST + 0x103;
+    pub const RENDER_DONE: u32 = FIRST + 0x104;
+    pub const RENDER_FAILED: u32 = FIRST + 0x105;
     /// The lead-in of the dialog that goes back to the main menu ("{}" the trouble).
     pub const BACK_TO_MENU: u32 = FIRST + 0xFF;
 }
@@ -239,6 +270,32 @@ pub const KEYS: &[(&str, u32)] = &[
     ("lobby.bot_start_grid", id::BOT_START),
     ("lobby.bot_start_arcade", id::BOT_START + 1),
     ("lobby.not_ready", id::NOT_READY),
+    ("viewer.render_title", id::RENDER_TITLE),
+    ("viewer.render_size", id::RENDER_SIZE),
+    ("viewer.render_fps", id::RENDER_FPS),
+    ("viewer.render_part", id::RENDER_PART),
+    ("viewer.render_quality", id::RENDER_QUALITY),
+    ("viewer.render_sound", id::RENDER_SOUND),
+    ("viewer.render_file", id::RENDER_FILE),
+    ("viewer.render_folder", id::RENDER_FOLDER),
+    ("viewer.render_go", id::RENDER_GO),
+    ("viewer.render_cancel", id::RENDER_CANCEL),
+    ("viewer.render_screen", id::RENDER_SCREEN),
+    ("viewer.render_whole", id::RENDER_WHOLE),
+    ("viewer.render_from_here", id::RENDER_FROM_HERE),
+    ("viewer.render_marked", id::RENDER_MARKED),
+    ("viewer.render_quality_low", id::RENDER_QUALITIES),
+    ("viewer.render_quality_medium", id::RENDER_QUALITIES + 1),
+    ("viewer.render_quality_high", id::RENDER_QUALITIES + 2),
+    ("viewer.render_quality_best", id::RENDER_QUALITIES + 3),
+    ("viewer.render_no_encoder", id::RENDER_NO_ENCODER),
+    ("viewer.render_keys", id::RENDER_KEYS),
+    ("viewer.render_progress_title", id::RENDER_PROGRESS_TITLE),
+    ("viewer.render_percent", id::RENDER_PERCENT),
+    ("viewer.render_frames", id::RENDER_FRAMES),
+    ("viewer.render_starting", id::RENDER_STARTING),
+    ("viewer.render_done", id::RENDER_DONE),
+    ("viewer.render_failed", id::RENDER_FAILED),
     ("dialog.error", id::DIALOG_ERROR),
     ("dialog.notice", id::DIALOG_NOTICE),
     ("dialog.quit", id::DIALOG_QUIT),

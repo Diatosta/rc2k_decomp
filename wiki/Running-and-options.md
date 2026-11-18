@@ -221,6 +221,9 @@ rc2k --render-replay savedata/replay/replay00 --out run.mp4 --size 1920x1080 --f
 | `--render-replay` | A replay's slot or file, as `--replay` takes it. The program ends when the replay has played. No race switch and no `--replay` goes with it. |
 | `--out` | The video file. Needed. |
 | `--size` | The size of the video's frames, `WIDTHxHEIGHT` (each side 160 .. 16384): the race screen is made this size for the render, whatever the options hold. Without it, the race size of the options. |
+| `--quality` | `low`, `medium`, `high` (the default) or `best`: how well the encoder keeps the picture (H.264 constant rate factor 28, 23, 18, 12). |
+| `--no-sound` | The video has no sound. |
+| `--from`, `--to` | The part of the replay to render, in seconds from its start (`12.5`; two decimals). `--from` is exact to a hundredth of a second; the part ends at the whole second after `--to`. Without them, the whole replay. |
 | `--fps` | The frames a second, 1 .. 480 (60 if not given). The simulation ticks a hundred times a second; a frame between two ticks shows the blend of them (the options' "smooth frames", forced on here), so 60, 120 or 144 are all smooth. |
 
 The frames are piped as raw pixels to an `ffmpeg` found on the path: H.264 (`libx264`, 4:2:0, an
@@ -245,10 +248,12 @@ the sound is only read from the mixer.
 **From the replay viewer.** Under the two rows of buttons the stopped viewer has a third row with
 one button, the snapshot button's camera picture. The down arrow from the lower row reaches it
 (up or left goes back to the buttons) and
-Enter renders the whole replay from its start, asking nothing: the screen's size, 60 frames a
-second, into `savedata/videos/replay_YYYY-MM-DD_HH-MM-SS.mp4`, with the sound, as above. A green bar
-along the foot of the screen shows how far it has come (it is not in the video). Escape stops the
-render and keeps what was written. The viewer is back where the play ended.
+Enter opens a dialog first (the error dialog's style): the size, the frames a second, the part of
+the replay (all of it, from the place shown to the end, or between the marks), the quality and the
+sound, each changed with Left and Right, then "render" or "cancel" (Escape). The size and the rates
+are those of the graphics page's lists; the video's file is `savedata/videos/replay_YYYY-MM-DD_HH-MM-SS.mp4`.
+The choices but the part are kept in `var/rc2k.toml` (`[display.video]`: `size`, `fps`, `quality`,
+`sound`, each only when it is not the default).  The video is drawn at the size chosen: the game starts a second copy of itself for it (with `--render-replay` on a copy of the replay as it is viewed, no window and no sound device; it takes the next folder lock, so its log is `rc2k-2.log`), and the viewer shows a panel with the progress and a cancel button until it ends. Cancelling removes what was written. A render started this way (or from the command line) does not save the options or the best times.
 
 ### How the program runs here
 

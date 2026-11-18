@@ -134,6 +134,32 @@ custom = "custom"
 
 # The replay viewer's row that renders the replay to a video file.
 [viewer]
+render_title = "Render the replay to a video"
+render_size = "size"
+render_fps = "frames a second"
+render_part = "part"
+render_quality = "quality"
+render_sound = "sound"
+render_file = "file"
+render_folder = "folder"
+render_go = "render"
+render_cancel = "cancel"
+render_screen = "screen ({})"
+render_whole = "the whole replay"
+render_from_here = "from here to the end"
+render_marked = "between the marks"
+render_quality_low = "low"
+render_quality_medium = "medium"
+render_quality_high = "high"
+render_quality_best = "best"
+render_no_encoder = "No ffmpeg was found: the frames are saved as numbered pictures."
+render_progress_title = "Rendering the video"
+render_percent = "{} %"
+render_frames = "{} frames written"
+render_starting = "starting the render..."
+render_done = "The video is ready: {}"
+render_failed = "The video could not be made: {}"
+render_keys = "Up and Down choose, Left and Right change, Enter confirms, Esc cancels"
 
 # The replays list: the tags after a slot's name.
 [replays]

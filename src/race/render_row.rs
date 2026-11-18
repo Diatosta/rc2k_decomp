@@ -1,17 +1,20 @@
 //! The replay viewer's "render to video" button, a third row under the two rows of buttons: the
 //! snapshot button's camera picture, centred, which the down arrow reaches from the lower row.
-//! Enter on it plays the whole replay from its start into a video file (`video`), asking nothing: the screen's size, 60 frames a second, a file in
-//! `savedata/videos` named by the date and time. A bar along the screen's foot shows how far the
-//! render has come (it is not in the video); Escape stops the render and keeps what was written.
-//! The viewer is back where the play ended when the render is over.
+//! Enter on it opens the dialog of `race::render_dialog` (size, frame rate, part of the replay,
+//! quality, sound); "render" there has a program of its own render the part chosen into a video
+//! file in `savedata/videos`, named by the date and time (`race::render_progress` shows how far it
+//! has come), and "cancel" leaves the viewer as it was.
 
 use crate::errors::Refused;
 use crate::owners::Owners;
 use crate::race::owner::Race;
-use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
+use rc2k_core::race::render_dialog::Part;
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering::Relaxed};
 
-/// The rate the viewer's renders are made at.
-const FPS: u32 = 60;
+/// The blocks a render started from the command line plays, from the first to the end (for its
+/// progress).
+static FROM_BLOCK: AtomicU32 = AtomicU32::new(0);
+static END_BLOCK: AtomicU32 = AtomicU32::new(0);
 
 /// The row has the highlight (the lower row's button is not lit then).
 static SELECTED: AtomicBool = AtomicBool::new(false);
@@ -101,18 +104,56 @@ pub fn draw_button(
     )
 }
 
-/// How far the replay has been played, 0 ..= 1, for the render's bar.
+/// How far the part being rendered has been played, 0 ..= 1, for the render's bar.
 pub fn fraction(race: &Race) -> f64 {
-    let blocks = race.shared.replay_file().index.block_count.get().max(1);
-    let block = race.replay.replay_view().replay_block.get();
-    (f64::from(block) / f64::from(blocks)).clamp(0.0, 1.0)
+    rc2k_core::race::render_dialog::progress(
+        race.replay.replay_view().replay_block.get(),
+        FROM_BLOCK.load(Relaxed),
+        END_BLOCK.load(Relaxed),
+    )
 }
 
-/// The whole replay played into a video file, from its first block. Whatever was written when
-/// the play stops (the replay's end, Escape or an error) is kept.
+/// Plays the part of the replay from `from` to `to` (hundredths of a second from its start; none:
+/// to its end), as the render of a program started for it does. The part ends at the whole second
+/// after `to`.
+pub fn play_range(
+    race: &'static Race,
+    from: u32,
+    to: Option<u32>,
+    o: Owners<'static>,
+) -> Result<(), Refused> {
+    let blocks = race.shared.replay_file().index.block_count.get();
+    let start = (from / 100).min(blocks.saturating_sub(1));
+    let end = to
+        .map_or(blocks, |t| t.div_ceil(100).min(blocks))
+        .max(start + 1)
+        .min(blocks);
+    FROM_BLOCK.store(start, Relaxed);
+    END_BLOCK.store(end, Relaxed);
+    let view = race.replay.replay_view();
+    view.replay_block.set(start);
+    view.replay_frame
+        .set(if start == from / 100 { from % 100 } else { 0 });
+    crate::race::play_marked::play_tail(
+        race,
+        o,
+        rc2k_core::race::viewer_flow::Play {
+            from: start,
+            frame: view.replay_frame.get(),
+            end,
+        },
+    )
+}
+
+/// The render dialog's answer: the part of the replay chosen is rendered by a program of its own
+/// (this one, started with `--render-replay` on a copy of the replay as it is viewed), which
+/// draws the race at the size chosen. The viewer waits behind the progress panel
+/// (`race::render_progress`) and is as it was when that ends; cancelling it removes what was
+/// written. Cancelling the dialog changes nothing.
 pub fn render(race: &'static Race, o: Owners<'static>) -> Result<(), Refused> {
     let replay = &race.replay;
-    if race.shared.replay_file().index.block_count.get() == 0 {
+    let blocks = race.shared.replay_file().index.block_count.get();
+    if blocks == 0 {
         return Ok(());
     }
     let folder = crate::files::host_path(b"savedata\\videos");
@@ -120,23 +161,58 @@ pub fn render(race: &'static Race, o: Owners<'static>) -> Result<(), Refused> {
         crate::logfile::program_log::log(&format!("viewer: {}: {e}", folder.display()));
         return Ok(());
     }
-    let out = folder.join(file_name(&crate::platform::os::local_time()));
-    let now = crate::system::tick_count::tick_count(&o.system.session.picture_clock);
-    if !crate::video::begin_in_game(out, FPS, now) {
+    let name = file_name(&crate::platform::os::local_time());
+    let out = folder.join(&name);
+    let (mark_in, mark_out) = (
+        race.viewer_buffers().mark_in.get(),
+        race.viewer_buffers().mark_out.get(),
+    );
+    let marks = (mark_in, mark_out) != rc2k_core::race::viewer_flow::opened_marks(blocks);
+    let target = crate::race::render_dialog::Target {
+        folder: "savedata/videos",
+        file: &name,
+    };
+    let Some(chosen) = crate::race::render_dialog::ask(o, marks, &target) else {
         return Ok(());
-    }
-    replay.replay_view().replay_block.set(0);
-    replay.replay_view().replay_frame.set(0);
-    let played = crate::race::play_marked::play_from_here(race, o);
-    crate::video::end_in_game();
-    played?;
-    // The frame the play ended on is read again, as after a saved replay.
-    crate::drive::read_replay_frame::read_replay_frame(
+    };
+    let view = replay.replay_view();
+    let (from, to) = match chosen.part {
+        Part::Whole => (None, None),
+        Part::FromHere => (
+            Some(view.replay_block.get() * 100 + view.replay_frame.get()),
+            None,
+        ),
+        Part::Marked => (Some(mark_in * 100), Some(mark_out * 100)),
+    };
+    let stem = name.trim_end_matches(".mp4");
+    let temp_name = format!("{stem}.replay.tmp");
+    let saved = crate::race::save_viewed_replay::save_to_file(
         race,
         o.system,
-        replay.replay_view().replay_block.get(),
-        replay.replay_view().replay_frame.get(),
+        format!("savedata\\videos\\{temp_name}").as_bytes(),
     )?;
+    if !saved {
+        crate::error_dialog::notice(&crate::error_dialog::text_with(
+            rc2k_core::strings::own::id::RENDER_FAILED,
+            "the replay could not be copied for the render",
+        ));
+        return Ok(());
+    }
+    let screen = o.system.session.screen.get();
+    let size = chosen
+        .size
+        .unwrap_or((screen.width.get(), screen.height.get()));
+    let job = crate::race::render_progress::Render {
+        replay: folder.join(temp_name),
+        out,
+        size,
+        fps: chosen.fps,
+        quality: chosen.quality,
+        sound: chosen.sound,
+        from,
+        to,
+    };
+    crate::race::render_progress::run(o, &job);
     Ok(())
 }
 

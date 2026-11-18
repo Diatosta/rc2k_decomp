@@ -209,6 +209,30 @@ pub const SWITCHES: &[Switch] = &[
         Group::Replay,
     ),
     switch(
+        "--quality",
+        Some("<low | medium | high | best>"),
+        "how well the encoder keeps the picture of --render-replay (default high)",
+        Group::Replay,
+    ),
+    switch(
+        "--from",
+        Some("<seconds>"),
+        "where in the replay the render of --render-replay starts (seconds, like 12.5; default the start)",
+        Group::Replay,
+    ),
+    switch(
+        "--to",
+        Some("<seconds>"),
+        "where the render ends, to the whole second after it (default the replay's end)",
+        Group::Replay,
+    ),
+    switch(
+        "--no-sound",
+        None,
+        "a video of --render-replay without sound",
+        Group::Replay,
+    ),
+    switch(
         "--then",
         Some("<menus | quit>"),
         "after the race, the replay or the lobby: the menus (the default), or the program ends",

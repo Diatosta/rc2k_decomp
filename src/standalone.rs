@@ -274,7 +274,9 @@ fn stack_returns(line: &mut FaultLine, own_module: Option<&[NameUnit]>, esp: usi
 pub fn leave_on_close(o: Owners<'static>) -> ! {
     let saves = o.saves;
     let tables = &saves.best_times;
-    if [tables.allocated.get(), tables.loaded.get()] == [1, 1]
+    // A render made the program's own way of drawing (its size, its clock): it saves nothing.
+    if !crate::video::active()
+        && [tables.allocated.get(), tables.loaded.get()] == [1, 1]
         && let Err(e) = crate::saves::save_game_data::save_in_game(o, saves)
     {
         log(&format!(
@@ -662,9 +664,18 @@ fn program_switches_refused(args: &[String]) -> Option<String> {
         return Some("--render-replay needs --out <video file>".into());
     }
     if switches.render_replay.is_none()
-        && (switches.out.is_some() || switches.size.is_some() || switches.fps.is_some())
+        && (switches.out.is_some()
+            || switches.size.is_some()
+            || switches.fps.is_some()
+            || switches.quality.is_some()
+            || switches.no_sound
+            || switches.from_cs.is_some()
+            || switches.to_cs.is_some())
     {
-        return Some("--out, --size and --fps go with --render-replay".into());
+        return Some(
+            "--out, --size, --fps, --quality, --no-sound, --from and --to go with --render-replay"
+                .into(),
+        );
     }
     let renderer = switches.renderer?;
     match crate::render::choice::parse(&renderer) {

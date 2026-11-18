@@ -3,7 +3,7 @@
 //! (`--allow-another`), or runs as a numbered instance with its own saved state (`--instance`). The words after the program's own name, as `menu::launch` takes them.
 
 /// The switches that take a value (the next word, or after `=`).
-pub const VALUED: [&str; 7] = [
+pub const VALUED: [&str; 10] = [
     "renderer",
     "instance",
     "game-data",
@@ -11,10 +11,13 @@ pub const VALUED: [&str; 7] = [
     "out",
     "size",
     "fps",
+    "quality",
+    "from",
+    "to",
 ];
 
 /// The switches that take none.
-pub const PLAIN: [&str; 1] = ["--allow-another"];
+pub const PLAIN: [&str; 2] = ["--allow-another", "--no-sound"];
 
 /// What the program's words ask for.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -37,6 +40,14 @@ pub struct Switches {
     pub size: Option<(u32, u32)>,
     /// `--fps`: the video's frames a second.
     pub fps: Option<u32>,
+    /// `--quality`: how well the encoder keeps the picture.
+    pub quality: Option<crate::race::render_dialog::Quality>,
+    /// `--no-sound`: the video has no sound.
+    pub no_sound: bool,
+    /// `--from` and `--to`: the part of the replay to render, in hundredths of a second from its
+    /// start (the end of the replay when `--to` is not given).
+    pub from_cs: Option<u32>,
+    pub to_cs: Option<u32>,
 }
 
 /// The video sizes taken: each side from this many pixels up to that many (even sides are
@@ -53,6 +64,14 @@ pub fn parse_size(text: &str) -> Option<(u32, u32)> {
     (SIZE_RANGE.contains(&w) && SIZE_RANGE.contains(&h)).then_some((w, h))
 }
 
+/// A time as `--from` and `--to` give it, in seconds with up to two decimals, as hundredths of a
+/// second; a replay holds at most 90 minutes, so a time is under 600 seconds.
+pub fn parse_seconds(text: &str) -> Option<u32> {
+    let seconds: f64 = text.trim().parse().ok()?;
+    (seconds.is_finite() && (0.0..600.0).contains(&seconds))
+        .then(|| (seconds * 100.0).round() as u32)
+}
+
 /// The most instances `--instance` names.
 pub const MOST_INSTANCES: u32 = 8;
 
@@ -66,7 +85,11 @@ impl Switches {
             let word = args[i].as_ref();
             i += 1;
             if PLAIN.contains(&word) {
-                found.allow_another = true;
+                if word == "--no-sound" {
+                    found.no_sound = true;
+                } else {
+                    found.allow_another = true;
+                }
                 continue;
             }
             let Some(long) = word.strip_prefix("--") else {
@@ -124,6 +147,19 @@ impl Switches {
                             format!("--fps {value}: a number from 1 to 480 is wanted")
                         })?,
                 );
+            } else if key == "from" || key == "to" {
+                let cs = parse_seconds(&value).ok_or_else(|| {
+                    format!("--{key} {value}: a time in seconds, like 90 or 12.5, is wanted")
+                })?;
+                if key == "from" {
+                    found.from_cs = Some(cs);
+                } else {
+                    found.to_cs = Some(cs);
+                }
+            } else if key == "quality" {
+                found.quality = Some(crate::race::render_dialog::Quality::of(&value).ok_or_else(
+                    || format!("--quality {value}: low, medium, high or best is wanted"),
+                )?);
             } else {
                 found.renderer = Some(value);
             }
@@ -182,6 +218,14 @@ mod tests {
         }
         assert!(Switches::from_args(&["--fps", "0"]).is_err());
         assert!(Switches::from_args(&["--fps", "fast"]).is_err());
+        let s = Switches::from_args(&["--quality=Best", "--no-sound"]).unwrap();
+        assert_eq!(s.quality, Some(crate::race::render_dialog::Quality::Best));
+        assert!(s.no_sound && !s.allow_another);
+        assert!(Switches::from_args(&["--quality", "loud"]).is_err());
+        let s = Switches::from_args(&["--from", "12.5", "--to=90"]).unwrap();
+        assert_eq!((s.from_cs, s.to_cs), (Some(1250), Some(9000)));
+        assert!(Switches::from_args(&["--from", "-1"]).is_err());
+        assert!(Switches::from_args(&["--to", "soon"]).is_err());
     }
 
     #[test]

@@ -20,6 +20,7 @@
 //! joins the two (the picture copied, the sound AAC, or Opus in a `.webm`). With no `ffmpeg` the
 //! WAV file stays in the PNG folder.
 
+use rc2k_core::race::render_dialog::Quality;
 use rc2k_core::system::program_switches::Switches;
 use std::io::{Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
@@ -32,15 +33,16 @@ use std::thread::JoinHandle;
 /// What the command line asked to be rendered.
 struct Job {
     out: PathBuf,
+    /// The race screen's size for the render (`--size`).
     size: Option<(u32, u32)>,
     fps: u32,
+    quality: Quality,
+    /// Whether the video has the game's sound.
+    sound: bool,
 }
 
-/// The render going on, if one is: the command line's (for the whole run) or the viewer's.
+/// The render the command line asked for (it lasts until the program ends).
 static JOB: RwLock<Option<Arc<Job>>> = RwLock::new(None);
-
-/// Whether the command line asked for the render (it lasts until the program ends).
-static FROM_COMMAND_LINE: AtomicBool = AtomicBool::new(false);
 
 /// The frame rate when `--fps` is not given.
 pub const DEFAULT_FPS: u32 = 60;
@@ -53,6 +55,10 @@ pub fn begin(switches: &Switches) -> Result<(), String> {
             ("--out", switches.out.is_some()),
             ("--size", switches.size.is_some()),
             ("--fps", switches.fps.is_some()),
+            ("--quality", switches.quality.is_some()),
+            ("--no-sound", switches.no_sound),
+            ("--from", switches.from_cs.is_some()),
+            ("--to", switches.to_cs.is_some()),
         ] {
             if given {
                 return Err(format!("{name} goes with --render-replay"));
@@ -68,8 +74,10 @@ pub fn begin(switches: &Switches) -> Result<(), String> {
         out: PathBuf::from(out),
         size: switches.size,
         fps: switches.fps.unwrap_or(DEFAULT_FPS),
+        quality: switches.quality.unwrap_or_default(),
+        sound: !switches.no_sound,
     }));
-    FROM_COMMAND_LINE.store(true, Relaxed);
+    RANGE.store(pack_range(switches.from_cs, switches.to_cs), Relaxed);
     ACTIVE.store(true, Relaxed);
     CLOCK_BASE.store(CLOCK_START, Relaxed);
     // No window on the screen and no sound for a run that makes a file.
@@ -100,11 +108,6 @@ pub fn active() -> bool {
 
 static ACTIVE: AtomicBool = AtomicBool::new(false);
 
-/// A render begun from the viewer is going on.
-pub fn from_viewer() -> bool {
-    active() && !FROM_COMMAND_LINE.load(Relaxed)
-}
-
 /// The size the video's frames are (the race screen's size), if `--size` gave one.
 pub fn size() -> Option<(u32, u32)> {
     job().and_then(|job| job.size)
@@ -133,15 +136,6 @@ pub fn clock() -> Option<u32> {
 
 /// Where the clock of the render going on starts.
 static CLOCK_BASE: AtomicU32 = AtomicU32::new(CLOCK_START);
-
-/// What the game's clock is ahead of the system's by: a render of the viewer's leaves the clock
-/// where its last frame was, and the clock goes on from there (it never runs back).
-static CLOCK_OFFSET: AtomicU32 = AtomicU32::new(0);
-
-/// The clock's lead over the system's ticks (added to them, wrapping).
-pub fn clock_offset() -> u32 {
-    CLOCK_OFFSET.load(Relaxed)
-}
 
 /// The time of frame `n` of a video of `fps` frames a second, in whole milliseconds.
 fn frames_to_ms(n: u64, fps: u32) -> u64 {
@@ -179,73 +173,54 @@ pub fn frame_wanted() -> bool {
     active() && RACE_FRAME.load(Relaxed)
 }
 
-// ---- a render from the viewer ----
+// ---- the part rendered, and how far it has come ----
 
-/// The smooth frames' setting before a render from the viewer made them so.
-static SMOOTH_BEFORE: AtomicBool = AtomicBool::new(true);
+/// The part of the replay to render, in hundredths of a second from its start, packed:
+/// `from` in the high half and `to` (0: to the end) in the low half, each capped at 65535.
+static RANGE: AtomicU32 = AtomicU32::new(0);
 
-/// A render of the viewer's begins: `out` the video file, `fps` its rate, `now` the game's
-/// clock. The frames are the screen's size. False when a render is already going on.
-pub fn begin_in_game(out: PathBuf, fps: u32, now: u32) -> bool {
-    if active() {
-        return false;
-    }
-    set_job(Some(Job {
-        out,
-        size: None,
-        fps,
-    }));
-    // The clock goes on from where it is, a little ahead.
-    CLOCK_BASE.store(now.wrapping_add(1000), Relaxed);
-    FRAMES.store(0, Relaxed);
-    SMOOTH_BEFORE.store(crate::race::blend::smooth_on(), Relaxed);
-    crate::race::blend::set_smooth(true);
-    ACTIVE.store(true, Relaxed);
-    true
+fn pack_range(from: Option<u32>, to: Option<u32>) -> u32 {
+    (from.unwrap_or(0).min(0xFFFF) << 16) | to.unwrap_or(0).min(0xFFFF)
 }
 
-/// The render of the viewer's is over (it ran its length or was stopped): the file is closed
-/// with the frames written, the clock goes on from its last frame, the smooth frames are as
-/// they were.
-pub fn end_in_game() {
-    if FROM_COMMAND_LINE.load(Relaxed) || !active() {
+/// The part `--from` and `--to` asked for: (from, to) in hundredths of a second, `to` none for
+/// the replay's end; none when the whole replay is to be rendered.
+pub fn range() -> Option<(u32, Option<u32>)> {
+    let packed = RANGE.load(Relaxed);
+    let (from, to) = (packed >> 16, packed & 0xFFFF);
+    (packed != 0).then_some((from, (to != 0).then_some(to)))
+}
+
+/// When the progress was last written.
+static PROGRESS_AT: Mutex<Option<std::time::Instant>> = Mutex::new(None);
+
+/// A render that a parent program watches (`RC2K_RENDER_PROGRESS` names a file) writes how far it
+/// has come, `fraction` of the part, about every half second: a line "percent frames".
+pub fn note_progress(fraction: f64) {
+    let Some(path) = std::env::var_os("RC2K_RENDER_PROGRESS") else {
+        return;
+    };
+    let mut at = PROGRESS_AT
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    if at.is_some_and(|t| t.elapsed() < std::time::Duration::from_millis(500)) {
         return;
     }
-    finish();
-    let last = clock();
-    ACTIVE.store(false, Relaxed);
-    if let Some(last) = last {
-        let real = crate::platform::os::ticks();
-        CLOCK_OFFSET.store(last.wrapping_sub(real), Relaxed);
-    }
-    FRAMES.store(0, Relaxed);
-    RACE_FRAME.store(false, Relaxed);
-    set_job(None);
-    crate::race::blend::set_smooth(SMOOTH_BEFORE.load(Relaxed));
-}
-
-/// How far the render has come, for the bar on the screen (the frames of the race shown, as a
-/// fraction of the replay's blocks, 0 ..= 1): the viewer asks with the block played.
-pub fn progress_bar(
-    pixels: &crate::memory::pool::PoolBytes,
-    width: usize,
-    height: usize,
-    fraction: f64,
-) {
-    // The bar: a strip along the screen's foot, a track and the part done.
-    let rows = (height / 60).clamp(4, 12);
-    let done = ((width as f64) * fraction.clamp(0.0, 1.0)) as usize;
-    let mut row = Vec::with_capacity(width * 4);
-    for x in 0..width {
-        let (b, g, r) = if x < done {
-            (0x30, 0xD0, 0x30)
-        } else {
-            (0x30, 0x30, 0x30)
-        };
-        row.extend_from_slice(&[b, g, r, 0xFF]);
-    }
-    for y in height.saturating_sub(rows)..height {
-        let _ = pixels.write_at((y * width * 4) as u32, &row, "the render's progress bar");
+    *at = Some(std::time::Instant::now());
+    let frames = WRITER
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .as_ref()
+        .map_or(0, |w| w.video_frames);
+    let line = format!(
+        "{} {frames}\n",
+        (fraction.clamp(0.0, 1.0) * 100.0).round() as u32
+    );
+    // Written to a name of its own and renamed, so that a reader never sees half a line.
+    let mut temp = path.clone();
+    temp.push(".new");
+    if std::fs::write(&temp, line).is_ok() {
+        let _ = std::fs::rename(&temp, &path);
     }
 }
 
@@ -267,6 +242,8 @@ struct Writer {
     sound: Option<Wav>,
     /// Frames of the video taken so far (the sound follows them).
     video_frames: u64,
+    /// Frames of sound drawn from the mixer and thrown away (a video without sound).
+    sound_skipped: u64,
     /// Where `ffmpeg` writes the picture alone, to be joined with the sound at the end.
     silent: Option<PathBuf>,
     /// The tools `ffmpeg` has, when there is one.
@@ -360,10 +337,19 @@ pub fn sound_turn(audio: &crate::audio::owner::Audio) {
     let Some(writer) = writer.as_mut() else {
         return;
     };
+    let due = sound_frames_due(writer.video_frames, job.fps);
     let Some(wav) = writer.sound.as_mut() else {
+        if !job.sound {
+            // No sound in the video, but the mixer is still drawn from so that it keeps up with
+            // the frames.
+            let wanted = due.saturating_sub(writer.sound_skipped) as usize;
+            if wanted > 0 {
+                drop(crate::platform::sound::mixed_frames(wanted));
+                writer.sound_skipped = due;
+            }
+        }
         return;
     };
-    let due = sound_frames_due(writer.video_frames, job.fps);
     let wanted = due.saturating_sub(wav.frames) as usize;
     if wanted == 0 {
         return;
@@ -474,6 +460,11 @@ struct Tools {
     opus: bool,
 }
 
+/// Whether an `ffmpeg` is on the path (the render's dialog says if it is not).
+pub fn encoder_found() -> bool {
+    find_ffmpeg().is_some()
+}
+
 /// An `ffmpeg` on the path, and the encoders it has.
 fn find_ffmpeg() -> Option<Tools> {
     let listed = Command::new("ffmpeg")
@@ -494,9 +485,10 @@ fn find_ffmpeg() -> Option<Tools> {
     })
 }
 
-/// The arguments that turn raw frames into the file: the size and rate of the input, H.264
-/// in the usual 4:2:0 (an odd side cut by one pixel) when it is there, else the file's default.
-fn ffmpeg_args(out: &Path, width: u32, height: u32, fps: u32, h264: bool) -> Vec<String> {
+/// The arguments that turn raw frames into the file: the size and rate of the input, H.264 at the
+/// job's quality in the usual 4:2:0 (an odd side cut by one pixel) when it is there, else the
+/// file's default.
+fn ffmpeg_args(out: &Path, width: u32, height: u32, job: &Job, h264: bool) -> Vec<String> {
     let mut args: Vec<String> = [
         "-hide_banner",
         "-loglevel",
@@ -511,23 +503,12 @@ fn ffmpeg_args(out: &Path, width: u32, height: u32, fps: u32, h264: bool) -> Vec
     .map(String::from)
     .to_vec();
     args.push(format!("{width}x{height}"));
-    args.extend(["-r".into(), fps.to_string(), "-i".into(), "-".into()]);
+    args.extend(["-r".into(), job.fps.to_string(), "-i".into(), "-".into()]);
     if h264 {
-        args.extend(
-            [
-                "-vf",
-                "crop=trunc(iw/2)*2:trunc(ih/2)*2",
-                "-c:v",
-                "libx264",
-                "-preset",
-                "medium",
-                "-crf",
-                "18",
-                "-pix_fmt",
-                "yuv420p",
-            ]
-            .map(String::from),
-        );
+        args.extend(["-vf", "crop=trunc(iw/2)*2:trunc(ih/2)*2"].map(String::from));
+        args.extend(["-c:v", "libx264", "-preset", "medium", "-crf"].map(String::from));
+        args.push(job.quality.crf().to_string());
+        args.extend(["-pix_fmt", "yuv420p"].map(String::from));
     }
     args.push(out.to_string_lossy().into_owned());
     args
@@ -539,6 +520,17 @@ fn frames_folder(out: &Path) -> PathBuf {
         .file_stem()
         .map_or_else(|| "video".into(), |s| s.to_string_lossy().into_owned());
     out.with_file_name(format!("{stem}_frames"))
+}
+
+/// Everything a render of `out` leaves in the folder while it runs or after it stopped halfway:
+/// the video, the picture and the sound it is made from, and the folder of numbered pictures.
+pub fn leftovers(out: &Path) -> Vec<PathBuf> {
+    vec![
+        out.to_path_buf(),
+        silent_path(out),
+        sound_path(out),
+        frames_folder(out),
+    ]
 }
 
 /// Where the picture goes alone while the sound is made, beside the video.
@@ -562,9 +554,9 @@ fn open_sink(job: &Job, width: u32, height: u32) -> (Sink, Option<PathBuf>, Opti
     match find_ffmpeg() {
         Some(tools) => {
             // With an encoder for the sound the picture goes to a file of its own first.
-            let silent = (tools.aac || tools.opus).then(|| silent_path(&job.out));
+            let silent = (job.sound && (tools.aac || tools.opus)).then(|| silent_path(&job.out));
             let target = silent.as_deref().unwrap_or(&job.out);
-            let args = ffmpeg_args(target, width, height, job.fps, tools.h264);
+            let args = ffmpeg_args(target, width, height, job, tools.h264);
             match Command::new("ffmpeg")
                 .args(&args)
                 .stdin(Stdio::piped())
@@ -600,6 +592,7 @@ fn open_sink(job: &Job, width: u32, height: u32) -> (Sink, Option<PathBuf>, Opti
 fn start_writer(job: &Job, width: u32, height: u32) -> Writer {
     let (sink, silent, tools) = open_sink(job, width, height);
     let sound_file = match (&sink, &silent) {
+        (_, _) if !job.sound => None,
         (Sink::Pngs(folder), _) => {
             let _ = std::fs::create_dir_all(folder);
             Some(folder.join("audio.wav"))
@@ -622,6 +615,7 @@ fn start_writer(job: &Job, width: u32, height: u32) -> Writer {
         thread,
         sound,
         video_frames: 0,
+        sound_skipped: 0,
         silent,
         tools,
     }
@@ -698,14 +692,40 @@ mod tests {
 
     #[test]
     fn the_encoder_gets_the_frames_size_and_rate() {
-        let args = ffmpeg_args(Path::new("v.mp4"), 1281, 720, 60, true);
+        let args = ffmpeg_args(Path::new("v.mp4"), 1281, 720, &job(60), true);
         let at = |flag: &str| args.iter().position(|a| a == flag).unwrap();
         assert_eq!(args[at("-s") + 1], "1281x720");
         assert_eq!(args[at("-r") + 1], "60");
         assert_eq!(args.last().unwrap(), "v.mp4");
         assert!(args.iter().any(|a| a == "libx264"));
-        let plain = ffmpeg_args(Path::new("v.mkv"), 640, 480, 30, false);
+        let plain = ffmpeg_args(Path::new("v.mkv"), 640, 480, &job(30), false);
         assert!(!plain.iter().any(|a| a == "libx264"));
+        assert!(!plain.iter().any(|a| a == "-vf"));
+    }
+
+    fn job(fps: u32) -> Job {
+        Job {
+            out: "v.mp4".into(),
+            size: None,
+            fps,
+            quality: Quality::Medium,
+            sound: true,
+        }
+    }
+
+    #[test]
+    fn the_chosen_quality_reaches_the_encoder() {
+        let args = ffmpeg_args(Path::new("v.mp4"), 800, 600, &job(60), true);
+        let at = |flag: &str| args.iter().position(|a| a == flag).unwrap();
+        assert_eq!(args[at("-crf") + 1], "23");
+    }
+
+    #[test]
+    fn the_part_is_packed_and_read_back() {
+        assert_eq!(pack_range(None, None), 0);
+        let packed = pack_range(Some(1250), Some(3000));
+        assert_eq!((packed >> 16, packed & 0xFFFF), (1250, 3000));
+        assert_eq!(pack_range(Some(70_000), None) >> 16, 0xFFFF);
     }
 
     #[test]
