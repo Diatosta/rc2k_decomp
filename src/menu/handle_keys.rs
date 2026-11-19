@@ -48,7 +48,14 @@ pub fn handle_keys(o: Owners<'static>, elapsed: u32) -> Result<Pressed, Refused>
     {
         let waiting =
             crate::input::take_key::pending_key(o.input).load(std::sync::atomic::Ordering::SeqCst);
-        if waiting != 0 {
+        let watched = crate::platform::touch_menu::WATCH_LOOKS
+            .fetch_update(
+                std::sync::atomic::Ordering::Relaxed,
+                std::sync::atomic::Ordering::Relaxed,
+                |n| n.checked_sub(1),
+            )
+            .is_ok();
+        if waiting != 0 || watched {
             crate::platform::touch_menu::trace(&format!(
                 "the menus look with key {waiting:#x} waiting, keys off {off}, asking {}, on {:?} ({:?})",
                 menus.screens.flow.asking.is_set(),

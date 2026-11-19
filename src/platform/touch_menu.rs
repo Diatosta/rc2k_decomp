@@ -135,6 +135,13 @@ pub fn finger(
 
 /// Called every turn of the event loop: the single tap whose double-tap window is over is chosen.
 pub fn tick(o: &Owners<'static>, window: sdl::Window, now: u64) {
+    if WATCH_LOOKS.load(Relaxed) > 0 {
+        trace(&format!(
+            "events read, key {:#x} waiting, menu {:?}",
+            crate::input::take_key::pending_key(o.input).load(std::sync::atomic::Ordering::SeqCst),
+            o.menus.screens.loop_flags.menu.get().ok()
+        ));
+    }
     hand_over_queued(o);
     let until = ESCAPE_UNTIL.load(Relaxed);
     if until != 0 && now >= until {
@@ -170,8 +177,15 @@ pub fn tick(o: &Owners<'static>, window: sdl::Window, now: u64) {
 
 /// One diagnostic line about the menus' touch (while touches go missing on a phone).
 pub fn trace(text: &str) {
-    crate::logfile::program_log::log(&format!("touch trace: {text}"));
+    crate::logfile::program_log::log(&format!(
+        "touch trace {}: {text}",
+        crate::platform::os::ticks()
+    ));
 }
+
+/// Diagnostic: the menus' looks for a key are each logged while this many remain (set when a
+/// touch key has to wait).
+pub static WATCH_LOOKS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 
 fn act(o: &Owners<'static>, window: sdl::Window, gestures: Vec<Gesture>, now: u64) {
     for gesture in &gestures {
@@ -249,6 +263,7 @@ fn press(o: &Owners<'static>, action: MenuAction) {
             queued.len(),
             crate::menu::handle_keys::LAST_LOOK_OFF.load(Relaxed)
         ));
+        WATCH_LOOKS.store(40, Relaxed);
         if queued.len() < QUEUE_ROOM {
             queued.push_back((action, o.menus.screens.loop_flags.menu.get().ok()));
         }
