@@ -8,6 +8,7 @@ pub mod frame_limit;
 pub mod glyphs;
 pub mod loading;
 pub mod mode_choices;
+pub mod nv12;
 pub mod pcx;
 pub mod picture;
 pub mod picture_size;

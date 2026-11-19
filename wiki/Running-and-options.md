@@ -227,7 +227,7 @@ rc2k --render-replay savedata/replay/replay00 --out run.mp4 --size 1920x1080 --f
 | `--from`, `--to` | The part of the replay to render, in seconds from its start (`12.5`; two decimals). `--from` is exact to a hundredth of a second; the part ends at the whole second after `--to`. Without them, the whole replay. |
 | `--fps` | The frames a second, 1 .. 480 (60 if not given). The simulation ticks a hundred times a second; a frame between two ticks shows the blend of them (the options' "smooth frames", forced on here), so 60, 120 or 144 are all smooth. |
 
-The frames are piped as raw pixels to an `ffmpeg` found on the path: H.264 (`libx264`, 4:2:0, an
+The frames are piped as raw pixels to an `ffmpeg` found on the path (as NV12, converted on the card, when the GPU renderer runs on Vulkan and an `ffmpeg` is there; 32-bit pixels, converted by the encoder side, otherwise): H.264 (`libx264`, 4:2:0, an
 odd side is cut by one pixel) when it has that encoder, else its own default for the file's
 extension. With `--encoder automatic` a graphics card's encoder is used when one works: the
 `ffmpeg` is asked to encode three frames of the video's size with each hardware encoder it lists
@@ -246,8 +246,7 @@ to come back while the next frame is simulated and drawn, and taken a frame late
 the encoder's buffer, so the read-back and the copy no longer stop the game's thread for the whole
 of the card's work (the pictures and their order are the same; the other renderers bring the
 frame back at once). The
-colours are the same with every encoder (the conversion to 4:2:0 is the same one, made on the
-processor). When the hardware encoder made a picture that does not decode cleanly (checked at the
+conversion to 4:2:0 NV12 (BT.601 studio range, as `ffmpeg`'s own default for RGB) is done by two small passes on the card, so only 1.5 bytes a pixel come back instead of 4 and no encoder converts anything: it works for every encoder (NVENC, AMF, Quick Sync, VAAPI, VideoToolbox on macOS, x264). The colours are the same with every encoder; they differ from the earlier processor conversion by under 1 level on average (rounding and chroma siting). A frame that cannot stay on the card (menus on the other renderers) is converted on the processor with the same numbers. On macOS the card's H.264 encoder is VideoToolbox (constant quality; not run on a Mac yet). At 5120 x 1440 on the Radeon RX 9070 XT this renders about 94 frames a second where 55 were reached before, and the encoder is the limit. When the hardware encoder made a picture that does not decode cleanly (checked at the
 end, a few seconds for a minute of video) the render goes again with the software encoder, from
 the viewer automatically, from the command line by ending with exit code 4 and removing the
 video. `--encoder software` never uses the card's. On a Radeon RX 9070 XT a 1920 x 1080 render

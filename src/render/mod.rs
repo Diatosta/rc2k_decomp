@@ -465,7 +465,7 @@ pub struct VideoRead {
 /// Collects the frame queued by the last call into `spare` (the buffer is kept in `previous`) and
 /// queues the frame now drawn. Only the Vulkan backend queues; any other leaves `started` false.
 #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-pub fn video_read_next(target: &Target, spare: Vec<u8>) -> VideoRead {
+pub fn video_read_next(target: &Target, spare: Vec<u8>, nv12: bool) -> VideoRead {
     let mut read = VideoRead {
         previous: None,
         started: false,
@@ -492,7 +492,7 @@ pub fn video_read_next(target: &Target, spare: Vec<u8>) -> VideoRead {
     // its own after this returns, `platform::with_frame`); the screen keeps its pixels.
     let canvas = unsafe { target.bytes() };
     let rows = canvas_rows::written_rows(target, canvas);
-    match gpu.start_video_read(Some(rows), canvas) {
+    match gpu.start_video_read(Some(rows), canvas, nv12) {
         Ok(()) => read.started = true,
         Err(why) => crate::logfile::program_log::log(&format!(
             "render: the video's frame did not start back: {why}"
@@ -503,11 +503,24 @@ pub fn video_read_next(target: &Target, spare: Vec<u8>) -> VideoRead {
 
 /// The handheld's panel has no pipelined read-back: every frame is brought back at once.
 #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-pub fn video_read_next(_target: &Target, _spare: Vec<u8>) -> VideoRead {
+pub fn video_read_next(_target: &Target, _spare: Vec<u8>, _nv12: bool) -> VideoRead {
     VideoRead {
         previous: None,
         started: false,
     }
+}
+
+/// Whether the video's frames can come from the card as NV12 (`video_read_next`'s `nv12`): the
+/// Vulkan renderer is the one in use and the panel is not the handheld's.
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+pub fn video_nv12_possible() -> bool {
+    gles::GPU.lock().unwrap().is_none() && gpu::GPU.lock().unwrap().is_some()
+}
+
+/// The handheld's panel queues no frame: its frames stay 32 bits a pixel.
+#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+pub fn video_nv12_possible() -> bool {
+    false
 }
 
 /// The last frame `video_read_next` queued, collected into `spare`; `None` when none is queued.

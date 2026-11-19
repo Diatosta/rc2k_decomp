@@ -500,6 +500,22 @@ impl CommandBuffer {
         })
     }
 
+    /// A render pass into `colour` alone, without a depth target; the target's old pixels are
+    /// not kept (every pixel is written).
+    pub fn begin_plain_pass(&self, colour: Texture) -> RenderPass {
+        let colour = SDL_GPUColorTargetInfo {
+            texture: colour.0,
+            load_op: SDL_GPU_LOADOP_DONT_CARE,
+            store_op: SDL_GPU_STOREOP_STORE,
+            ..Default::default()
+        };
+        // SAFETY: our open command buffer; the record lives through the call; no depth target
+        // is a null pointer.
+        RenderPass(unsafe {
+            SDL_BeginGPURenderPass(self.0, &raw const colour, 1, std::ptr::null())
+        })
+    }
+
     /// The top-left `from` (width, height) pixels of `source` copied to the top-left `to` pixels
     /// of `destination`, each destination pixel the nearest source pixel, or with `smooth` the
     /// bilinear mean of the four around it (outside a pass). Both
@@ -719,8 +735,22 @@ impl CopyPass {
 
     /// `texture`'s `width` x `height` pixels into the start of the transfer buffer.
     pub fn download_texture(&self, texture: Texture, width: u32, height: u32, transfer: Transfer) {
+        self.download_texture_at(texture, (width, height), 4, transfer, 0);
+    }
+
+    /// As `download_texture` for a texture of `bytes_per_pixel` bytes a pixel, its picture
+    /// written `offset` bytes into the transfer buffer.
+    pub fn download_texture_at(
+        &self,
+        texture: Texture,
+        (width, height): (u32, u32),
+        bytes_per_pixel: u32,
+        transfer: Transfer,
+        offset: u32,
+    ) {
         assert!(
-            u64::from(width) * u64::from(height) * 4 <= u64::from(transfer.1),
+            u64::from(width) * u64::from(height) * u64::from(bytes_per_pixel) + u64::from(offset)
+                <= u64::from(transfer.1),
             "past the transfer buffer"
         );
         let region = SDL_GPUTextureRegion {
@@ -732,6 +762,7 @@ impl CopyPass {
         };
         let to = SDL_GPUTextureTransferInfo {
             transfer_buffer: transfer.0,
+            offset,
             ..Default::default()
         };
         // SAFETY: our open pass; the records live through the call; the picture fits the

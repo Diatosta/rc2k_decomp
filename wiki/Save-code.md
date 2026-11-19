@@ -26,9 +26,24 @@ of the options menu (below "advanced"; the options of the pause menu in a race h
   The buttons are chosen with Up and Down (and Left and Right when the code is one QR code).
 - **The camera's pictures** are opened in the best uncompressed format the camera lists (RGB, packed
   YUV such as YUY2 and UYVY, planar NV12 or I420; MJPEG only when nothing else is offered, as SDL decodes it
-  itself), nearest 640 x 480, and every frame is turned into RGBA by the game's own conversion
-  (`rc2k_core::gfx::camera_frame`, reading each row at the frame's own pitch), then shown unmirrored in the
-  frame's own proportions. A format the conversion does not read goes through SDL's pixel conversion.
+  itself), at the size nearest 1280 x 720 that gives at least 10 frames a second (a QR code on another
+  screen fills about half the picture's height, and its modules need about four pixels each; a 640 x 480
+  picture reads only a code held close). Every frame is turned into RGBA by the game's own conversion
+  (`rc2k_core::gfx::camera_frame`, reading each row at the frame's own pitch; a format it does not read goes
+  through SDL's pixel conversion) and shown as a real picture, **all of it**, in the frame's own proportions,
+  scaled to the box by averaging (no crop, no mosaic). A camera that faces the user (a front camera, a
+  laptop's webcam) is shown mirrored, as in a mirror.
+- **Looking for the code** happens on a thread of its own, one frame at a time (a large picture takes
+  tenths of a second), so the picture keeps its pace. The frame is read as the camera sent it; when that
+  gives nothing it is read mirrored left to right, then with light and dark swapped, so a code seen in a
+  mirror or on a dark-on-light screen reads too. A code turned (even upside down) or slightly skewed reads.
+  The reader is sensitive to the picture: what does not read in one frame often reads in the next, which
+  differs a little.
+- **Several cameras**: the page names the camera in use ("Camera 1 / 2: name") and, when there are more,
+  says "Left/Right: another camera" (the keyboard's Left and Right, a pad's D-pad, and Tab or a pad's
+  shoulders go to the next one). The back-facing cameras of a phone come first and are the first one
+  opened; user-facing ones last. The next camera is opened with the same choice of format, and the picture
+  and the reading go on at once.
 - **The camera reads parts in any order.** The page says "2 of 3 read" and which ("Read: 1, 3");
   when the last is in, the confirmation follows. A part of another code (its check number differs) is
   not taken and the page says so; a part shown again is ignored. Paste takes the whole text only (a
@@ -104,7 +119,10 @@ text, flag 1) and their saved games were not rearranged. The settings are read p
 
 ### Parts
 
-A text longer than 4,296 letters is cut into 2 to 99 pieces of nearly one length, each its own QR code:
+A text longer than 409 letters is cut into 2 to 99 pieces of nearly one length, each its own QR code
+(small ones, of about 380 letters of the text, 57 to 61 modules a side: a camera at 1280 x 720 reads such
+a code from a screen held at a normal distance, where one of the largest, 177 modules, never reads; only
+a text that would need more than 99 such parts gets fewer, larger parts, up to 4,296 letters each):
 `RC2P:`, the part's number and the count (two digits each, from 01), the check number of the whole text
 (the CRC-32 of its letters, eight hex digits), `:`, the piece, `:`. The pieces joined in order give the
 whole text, whose check number must be the one every part carries: parts of two different codes never mix,
@@ -127,12 +145,12 @@ letters of the whole text, from 25 real saved games of a played championship (no
 
 | Saved games | Letters | QR codes | Of those letters in version 1's layout |
 | --- | --- | --- | --- |
-| 1 | 1,875 | 1 | 3,384 |
-| 2 | 2,139 | 1 | 4,155 |
-| 4 | 4,227 | 1 | 7,859 |
-| 8 | 11,538 | 3 | 19,259 |
-| 25 | 35,223 | 9 | 60,665 |
+| 1 | 1,875 | 5 | 3,384 |
+| 2 | 2,139 | 6 | 4,155 |
+| 4 | 4,227 | 12 | 7,859 |
+| 8 | 11,538 | 31 | 19,259 |
+| 25 | 35,223 | 93 | 60,665 |
 
 A player's best times add about 100 letters each, split times included (a hundred of them about 9,800
-letters, three more QR codes). A code with no saved games and no best times of its own is small (the car
+letters, about 26 more QR codes). A code with no saved games and no best times of its own is small (the car
 set-ups and the tyre record).

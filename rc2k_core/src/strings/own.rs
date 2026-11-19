@@ -208,9 +208,17 @@ pub mod id {
     /// minutes and seconds).
     pub const RENDER_SPEED: u32 = FIRST + 0x170;
     pub const RENDER_LEFT: u32 = FIRST + 0x171;
-    /// The dialog's encoder row and its two values (automatic, software).
+    /// The dialog's encoder row and its two values (automatic, software: 0x173 and 0x174).
     pub const RENDER_ENCODER: u32 = FIRST + 0x172;
     pub const RENDER_ENCODERS: u32 = FIRST + 0x173;
+    /// Notices of what went wrong with a video that was made or tried: no `ffmpeg` ("{}" the
+    /// folder the numbered pictures went to), the encoder stopping ("{}" its first line), the
+    /// card's encoder making a damaged picture (the render was done again in software), and
+    /// the sound that could not be joined.
+    pub const RENDER_NO_FFMPEG: u32 = FIRST + 0x178;
+    pub const RENDER_ENCODER_FAILED: u32 = FIRST + 0x179;
+    pub const RENDER_ENCODER_REDONE: u32 = FIRST + 0x17A;
+    pub const RENDER_SOUND_FAILED: u32 = FIRST + 0x17B;
     /// The lead-in of the dialog that goes back to the main menu ("{}" the trouble).
     pub const BACK_TO_MENU: u32 = FIRST + 0xFF;
     /// The save code page (`save_code`): its texts follow each other from the options menu's
@@ -254,6 +262,10 @@ pub mod id {
     pub const SAVE_CODE_PARTS_HELD: u32 = FIRST + 0x163;
     pub const SAVE_CODE_PART_OTHER: u32 = FIRST + 0x164;
     pub const SAVE_CODE_TOO_LONG: u32 = FIRST + 0x165;
+    /// The scan screen's line naming the camera in use ("{}" its number, "{}" how many, "{}" its
+    /// name) and the keys that choose another.
+    pub const SAVE_CODE_CAMERA_NAME: u32 = FIRST + 0x180;
+    pub const SAVE_CODE_CAMERA_SWITCH: u32 = FIRST + 0x181;
     /// The replay viewer's names of its buttons, shown when the highlight moves to one: the 26
     /// buttons of the two rows in order, the render button, the name while a camera is edited
     /// ("{}" the camera's number), a car's HUD shown or hidden ("{}" the car's number), and the
@@ -356,6 +368,10 @@ pub const KEYS: &[(&str, u32)] = &[
     ("viewer.render_encoder", id::RENDER_ENCODER),
     ("viewer.render_encoder_automatic", id::RENDER_ENCODERS),
     ("viewer.render_encoder_software", id::RENDER_ENCODERS + 1),
+    ("viewer.render_no_ffmpeg", id::RENDER_NO_FFMPEG),
+    ("viewer.render_encoder_failed", id::RENDER_ENCODER_FAILED),
+    ("viewer.render_encoder_redone", id::RENDER_ENCODER_REDONE),
+    ("viewer.render_sound_failed", id::RENDER_SOUND_FAILED),
     ("dialog.error", id::DIALOG_ERROR),
     ("dialog.notice", id::DIALOG_NOTICE),
     ("dialog.quit", id::DIALOG_QUIT),
@@ -494,6 +510,8 @@ pub const KEYS: &[(&str, u32)] = &[
     ("save_code.parts_held", id::SAVE_CODE_PARTS_HELD),
     ("save_code.part_other", id::SAVE_CODE_PART_OTHER),
     ("save_code.too_long", id::SAVE_CODE_TOO_LONG),
+    ("save_code.camera_name", id::SAVE_CODE_CAMERA_NAME),
+    ("save_code.camera_switch", id::SAVE_CODE_CAMERA_SWITCH),
     ("viewer.tip_render", id::VIEWER_TIP_RENDER),
     ("viewer.tip_editing", id::VIEWER_TIP_EDITING),
     ("viewer.tip_hud_show", id::VIEWER_TIP_HUD_SHOW),

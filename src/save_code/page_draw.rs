@@ -138,35 +138,48 @@ pub fn qr_code(o: Owners<'static>, modules: &Modules, x: i32, y: i32, scale: usi
     }
 }
 
-/// The camera's picture as blocks of colour, `cells` across, in the box at (`x`, `y`) of
-/// `room` pixels' width.
+/// The camera's picture, all of it, in a box `room` pixels wide at `at` (the frame's own
+/// proportions), mirrored when the camera faces the user (as a mirror shows). Its pixels are
+/// written into the surface a row at a time.
 pub fn preview(
     o: Owners<'static>,
     frame: &crate::platform::ffi::sdl_camera::Frame,
-    x: i32,
-    y: i32,
+    at: [i32; 2],
     room: i32,
 ) {
-    let cells = (room / 2).clamp(40, 120) as usize;
-    let rows = (cells * frame.height / frame.width).max(1);
-    // The cells' edges at their share of the box, so the picture fills it whatever the size.
-    let edge = |n: usize, of: usize| {
-        (n as i32 * room * frame.height as i32 / frame.width as i32 / of as i32).max(0)
+    let surface = crate::gfx::surface::surface(o.gfx);
+    let Some(target) = crate::gfx::surface::target(o.gfx) else {
+        return;
     };
-    let across = |n: usize| n as i32 * room / cells as i32;
-    for cy in 0..rows {
-        for cx in 0..cells {
-            let (sx, sy) = (cx * frame.width / cells, cy * frame.height / rows);
-            let at = (sy * frame.width + sx) * 4;
-            let rgb = u32::from(frame.rgba[at]) << 16
-                | u32::from(frame.rgba[at + 1]) << 8
-                | u32::from(frame.rgba[at + 2]);
-            let (x0, y0) = (across(cx), edge(cy, rows));
-            fill(
-                o,
-                [x + x0, y + y0, across(cx + 1) - x0, edge(cy + 1, rows) - y0],
-                rgb,
-            );
+    let (screen_w, screen_h) = screen_size(o);
+    let to_width = room.clamp(1, screen_w) as usize;
+    let to_height = (room as i64 * frame.height as i64 / frame.width.max(1) as i64).max(1) as usize;
+    let pixels = rc2k_core::gfx::camera_frame::fit_rgb(
+        &frame.rgba,
+        frame.width,
+        frame.height,
+        to_width,
+        to_height,
+        frame.facing_user,
+    );
+    let bytes = usize::try_from(surface.bytes_per_pixel).unwrap_or(0);
+    if pixels.is_empty() || bytes == 0 || at[0] < 0 || at[0] as usize + to_width > screen_w as usize
+    {
+        return;
+    }
+    let mut row = Vec::with_capacity(to_width * bytes);
+    for (n, line) in pixels.chunks_exact(to_width).enumerate() {
+        let y = at[1] + n as i32;
+        if y < 0 || y >= screen_h {
+            continue;
         }
+        row.clear();
+        for &rgb in line {
+            let value = crate::input::osk_draw::pixel(rgb, surface.bits_per_pixel);
+            row.extend_from_slice(&value.to_le_bytes()[..bytes]);
+        }
+        let offset = y as u32 * surface.pitch as u32 + at[0] as u32 * bytes as u32;
+        // The box was kept inside the surface above; a refusal would only leave a row blank.
+        let _ = crate::gfx::surface::write(target, offset, &row, o.gfx);
     }
 }

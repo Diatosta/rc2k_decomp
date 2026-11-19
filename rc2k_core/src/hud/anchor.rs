@@ -255,6 +255,23 @@ pub fn bar_x(x: f32, width: u32, height: u32) -> f32 {
     (from + (x - low) / (high - low) * (to - from)) as f32
 }
 
+/// Where the top bar's marker sprite puts its right edge on a screen wider than 4:3: the marker
+/// stands at the bar's place for its progress, the same one the bar's parts are laid out at, so
+/// it meets a part's end exactly and reaches the bar's end when the stage is done.
+///
+/// `left` is the sprite's left edge in the layout, which the layout puts at `scale` times the
+/// progress plus `start` (`HudBlock.marker_k`); the progress then goes to the bar's own place
+/// (`stage_bars::BAR_START` .. `BAR_END`) and through `bar_x`.
+pub fn marker_edge_x(left: f32, scale: f32, start: f32, width: u32, height: u32) -> f32 {
+    use crate::hud::stage_bars;
+    let progress = (f64::from(left) - f64::from(start)) / f64::from(scale);
+    let (from, to) = (
+        f64::from(stage_bars::BAR_START),
+        f64::from(stage_bars::BAR_END),
+    );
+    bar_x((from + progress * (to - from)) as f32, width, height)
+}
+
 /// A layout y on a part narrower than 4:3 `width` x `height`, the layout across the part's width at
 /// one factor (width over 800): a piece whose middle `mid` lies in the layout's top third keeps to
 /// the part's top, one in the bottom third to its bottom, the others to the middle.
@@ -429,6 +446,39 @@ mod tests {
         // The middle is stretched between them, continuously.
         let (a, b) = (bar_x(137.0, 3840, 1080), bar_x(687.0, 3840, 1080));
         assert!((bar_x(412.0, 3840, 1080) - (a + b) / 2.0).abs() < 0.01);
+    }
+
+    /// The marker's right edge follows the progress along the same places as the bar's parts, at
+    /// every screen width.
+    #[test]
+    fn the_marker_follows_the_bars_parts() {
+        use crate::hud::stage_bars::{BAR_END, BAR_START, WIDTH, place};
+        // The layout's own numbers: the left edge at 550 times the progress plus 119.
+        let left = |progress: f32| 119.0 + 550.0 * progress;
+        for (w, h) in [(1920u32, 1080u32), (3440, 1440), (3840, 1080), (5120, 1440)] {
+            // The start and the finished stage: the bar's ends.
+            assert!(
+                (marker_edge_x(left(0.0), 550.0, 119.0, w, h) - bar_x(BAR_START as f32, w, h))
+                    .abs()
+                    < 0.01
+            );
+            assert!(
+                (marker_edge_x(left(1.0), 550.0, 119.0, w, h) - bar_x(BAR_END as f32, w, h)).abs()
+                    < 0.01
+            );
+            // At a part's end the marker is within a pixel of the line the part's quads draw (the
+            // line lies between the part's last column and the next part's first).
+            for (miles, total) in [(1.0f32, 4.0f32), (2.5, 4.0), (3.0, 4.0), (7.3, 9.1)] {
+                let line = f64::from(place(WIDTH, miles, total)) + 136.0;
+                let s = f64::from(h) / 600.0;
+                let at = f64::from(marker_edge_x(left(miles / total), 550.0, 119.0, w, h));
+                let want = f64::from(bar_x(line as f32, w, h));
+                assert!(
+                    (at - want).abs() <= 1.0 * (f64::from(w) - 800.0 * s) / 550.0 + s,
+                    "{w} {miles}: {at} {want}"
+                );
+            }
+        }
     }
 
     #[test]

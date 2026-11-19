@@ -85,6 +85,8 @@ pub fn command_line() -> Vec<u8> {
 /// The current folder (Windows-1252), or None if it cannot be had.
 pub fn current_folder() -> Option<Vec<u8>> {
     let folder = std::env::current_dir().ok()?;
+    #[cfg(target_os = "emscripten")]
+    let folder = crate::platform::web::with_mount(&folder);
     Some(crate::files::ansi_bytes(&folder.to_string_lossy()))
 }
 

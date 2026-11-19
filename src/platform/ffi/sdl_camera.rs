@@ -1,5 +1,5 @@
 //! SDL3's camera (`sdl3-sys`), for reading a QR code shown on another screen. Only where the
-//! SDL build has a camera subsystem (Linux on x86-64, Windows, Android); elsewhere there are no cameras.
+//! SDL build has a camera subsystem (Linux on x86-64, Windows, iOS, Android); elsewhere there are no cameras.
 //!
 //! The handle is an opaque newtype made only by `open` and closed once by its `Drop`; it is
 //! used on the thread that opened it.
@@ -11,6 +11,9 @@ pub struct Frame {
     pub width: usize,
     pub height: usize,
     pub rgba: Vec<u8>,
+    /// The camera faces the person using the machine (a phone's front camera, a laptop's
+    /// webcam): people expect its picture mirrored, as in a mirror.
+    pub facing_user: bool,
 }
 
 /// What the person using the machine has said of the camera's use.
@@ -19,6 +22,7 @@ pub enum Permission {
     #[cfg_attr(
         not(any(
             windows,
+            target_os = "ios",
             target_os = "android",
             all(target_os = "linux", not(target_arch = "aarch64"))
         )),
@@ -38,6 +42,7 @@ pub enum Permission {
 
 #[cfg(any(
     windows,
+    target_os = "ios",
     target_os = "android",
     all(target_os = "linux", not(target_arch = "aarch64"))
 ))]
@@ -62,17 +67,51 @@ mod real {
             if ids.is_null() {
                 return Vec::new();
             }
-            let mut copied = std::slice::from_raw_parts(ids, count.max(0) as usize).to_vec();
+            let copied = std::slice::from_raw_parts(ids, count.max(0) as usize).to_vec();
             SDL_free(ids.cast());
-            // The camera facing away from the person first (a phone's back camera reads a
-            // code on another screen); the sort is stable, so the others keep SDL's order.
-            copied.sort_by_key(|&id| SDL_GetCameraPosition(id) != SDL_CAMERA_POSITION_BACK_FACING);
-            copied.into_iter().map(|id| id.0).collect()
+            let mut ids: Vec<u32> = copied.into_iter().map(|id| id.0).collect();
+            // A stable sort: cameras of one position stay in SDL's order.
+            ids.sort_by_key(|&id| offer_rank(id));
+            ids
         }
     }
 
-    /// An open camera.
-    pub struct Camera(*mut SDL_Camera);
+    /// An open camera, and whether it faces the person using the machine.
+    pub struct Camera(*mut SDL_Camera, bool);
+
+    /// The camera's name as the system gives it.
+    pub fn name(id: u32) -> String {
+        // SAFETY: SDL's string for the id (null when it is not a camera), owned by SDL and
+        // copied here at once.
+        unsafe {
+            let name = SDL_GetCameraName(SDL_CameraID(id));
+            if name.is_null() {
+                String::new()
+            } else {
+                std::ffi::CStr::from_ptr(name)
+                    .to_string_lossy()
+                    .into_owned()
+            }
+        }
+    }
+
+    /// Whether camera `id` faces the person using the machine.
+    fn faces_user(id: u32) -> bool {
+        // SAFETY: a plain query of an id from `devices`.
+        unsafe { SDL_GetCameraPosition(SDL_CameraID(id)) == SDL_CAMERA_POSITION_FRONT_FACING }
+    }
+
+    /// Where a camera ranks in the order they are offered: the back-facing ones first (the
+    /// ones that can be held up to a screen), then those of unknown position, the
+    /// user-facing ones last.
+    fn offer_rank(id: u32) -> u32 {
+        // SAFETY: a plain query of an id from `devices`.
+        match unsafe { SDL_GetCameraPosition(SDL_CameraID(id)) } {
+            SDL_CAMERA_POSITION_BACK_FACING => 0,
+            SDL_CAMERA_POSITION_FRONT_FACING => 2,
+            _ => 1,
+        }
+    }
 
     /// How well a camera format suits (lower is better): the layouts `camera_frame` reads
     /// itself first, the ones SDL converts after, the compressed one last (SDL decodes it, and
@@ -108,9 +147,15 @@ mod real {
         }
     }
 
+    /// The size a QR code is read at: a code on another screen fills half the picture's height
+    /// or less, and its modules need about four pixels each.
+    const WANTED_AREA: i64 = 1280 * 720;
+    /// The fewest frames a second a size must give to be chosen over a smaller one.
+    const SLOWEST: i64 = 10;
+
     /// The format the camera is opened with: of the ones it lists, the best-ranked, and in that
-    /// rank the one nearest 640 x 480 (big enough for a QR code to be read, small enough to
-    /// convert and look at often), with the most frames a second.
+    /// rank the one nearest 1280 x 720 among those that give at least `SLOWEST` frames a
+    /// second (all of them when none do), with the most frames a second.
     fn best_spec(id: u32) -> Option<SDL_CameraSpec> {
         let mut count = 0;
         // SAFETY: SDL's array of `count` pointers to specs (null checked), each read once and
@@ -131,7 +176,12 @@ mod real {
                 let area = i64::from(s.width) * i64::from(s.height);
                 let fps =
                     i64::from(s.framerate_numerator) / i64::from(s.framerate_denominator.max(1));
-                (rank(s.format), (area - 640 * 480).abs(), -fps)
+                (
+                    rank(s.format),
+                    fps < SLOWEST,
+                    (area - WANTED_AREA).abs(),
+                    -fps,
+                )
             })
         }
     }
@@ -143,7 +193,7 @@ mod real {
         // SAFETY: an id from `devices`; the spec is one the camera listed, or null (its own
         // choice).
         let raw = unsafe { SDL_OpenCamera(SDL_CameraID(id), spec_ptr) };
-        (!raw.is_null()).then_some(Camera(raw))
+        (!raw.is_null()).then(|| Camera(raw, faces_user(id)))
     }
 
     impl Camera {
@@ -168,7 +218,7 @@ mod real {
                 if frame.is_null() {
                     return None;
                 }
-                let converted = convert(&*frame);
+                let converted = convert(&*frame, self.1);
                 SDL_ReleaseCameraFrame(self.0, frame);
                 converted
             }
@@ -180,7 +230,7 @@ mod real {
     /// # Safety
     /// `surface` is a frame SDL holds for the caller: `pixels` points at a frame of its
     /// format, `pitch` and height (the planes after the first laid out as SDL lays them).
-    unsafe fn convert(surface: &SDL_Surface) -> Option<Frame> {
+    unsafe fn convert(surface: &SDL_Surface, facing_user: bool) -> Option<Frame> {
         let (w, h) = (surface.w.max(0) as usize, surface.h.max(0) as usize);
         let pitch = surface.pitch.max(0) as usize;
         if surface.pixels.is_null() || w == 0 || h == 0 {
@@ -218,6 +268,7 @@ mod real {
             width: w,
             height: h,
             rgba,
+            facing_user,
         })
     }
 
@@ -231,6 +282,7 @@ mod real {
 
 #[cfg(not(any(
     windows,
+    target_os = "ios",
     target_os = "android",
     all(target_os = "linux", not(target_arch = "aarch64"))
 )))]
@@ -247,6 +299,10 @@ mod real {
 
     pub struct Camera;
 
+    pub fn name(_: u32) -> String {
+        String::new()
+    }
+
     pub fn open(_: u32) -> Option<Camera> {
         None
     }
@@ -262,4 +318,4 @@ mod real {
     }
 }
 
-pub use real::{Camera, devices, init, open};
+pub use real::{Camera, devices, init, name, open};
