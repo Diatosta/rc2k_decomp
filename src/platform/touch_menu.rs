@@ -255,6 +255,10 @@ fn press(o: &Owners<'static>, action: MenuAction) {
         return;
     }
     drop(queued);
+    trace(&format!(
+        "{action:?} given at once ({:?})",
+        std::thread::current().id()
+    ));
     super::events::menu_action(o.input, action);
 }
 

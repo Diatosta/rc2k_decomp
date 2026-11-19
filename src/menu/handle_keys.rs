@@ -44,6 +44,19 @@ pub fn handle_keys(o: Owners<'static>, elapsed: u32) -> Result<Pressed, Refused>
         menus.screens.controls.learning.get()
     });
     LAST_LOOK_OFF.store(off, std::sync::atomic::Ordering::Relaxed);
+    #[cfg(touch_screen)]
+    {
+        let waiting =
+            crate::input::take_key::pending_key(o.input).load(std::sync::atomic::Ordering::SeqCst);
+        if waiting != 0 {
+            crate::platform::touch_menu::trace(&format!(
+                "the menus look with key {waiting:#x} waiting, keys off {off}, asking {}, on {:?} ({:?})",
+                menus.screens.flow.asking.is_set(),
+                menus.screens.loop_flags.menu.get().ok(),
+                std::thread::current().id()
+            ));
+        }
+    }
     if keys::keys_off(menus.screens.state.service_ui.box_shown.is_set(), || {
         menus.screens.controls.learning.get()
     }) {
