@@ -71,6 +71,15 @@ pub fn label(width: u32, height: u32, custom: Option<(u32, u32)>, word: &[u8]) -
     }
 }
 
+/// The text the window's own size is shown as: "1234 x 777 (window)" (`word` is the language's
+/// "window", in lower case).
+pub fn window_label(width: u32, height: u32, word: &[u8]) -> Vec<u8> {
+    let mut text = format!("{width} x {height} (").into_bytes();
+    text.extend(word.to_ascii_lowercase());
+    text.push(b')');
+    text
+}
+
 /// The sizes to offer besides the game's own `table`: the monitor's `modes`, the usual sizes that
 /// fit the `desktop` (none when it is not known), and `custom`; none twice, none the table has,
 /// in the list's order.
@@ -199,6 +208,11 @@ mod tests {
         assert_eq!(native_default(native), (1917 & !1, 884));
         assert_eq!(native_default((1280, 720)), (1280, 720));
         assert_eq!(native_default((640, 480)), (640, 480));
+    }
+
+    #[test]
+    fn the_window_label() {
+        assert_eq!(window_label(1234, 777, b"Window"), b"1234 x 777 (window)");
     }
 
     #[test]

@@ -72,12 +72,20 @@ pub fn draw_graphics_settings(
         let place = display.choices.resolution.get();
         let size = |i: usize| display.choices.list.dword(place, i, "a screen mode");
         let own = |n: u32| crate::strings::append_string_by_id::own_text(o.strings, n);
-        let resolution = rc2k_core::gfx::resolutions::label(
-            size(0)?,
-            size(1)?,
-            crate::gfx::monitor_sizes::custom(),
-            &own(rc2k_core::strings::own::id::CUSTOM),
-        );
+        let resolution = if crate::gfx::monitor_sizes::is_window_listed(size(0)?, size(1)?) {
+            rc2k_core::gfx::resolutions::window_label(
+                size(0)?,
+                size(1)?,
+                &own(rc2k_core::strings::own::id::WINDOW),
+            )
+        } else {
+            rc2k_core::gfx::resolutions::label(
+                size(0)?,
+                size(1)?,
+                crate::gfx::monitor_sizes::custom(),
+                &own(rc2k_core::strings::own::id::CUSTOM),
+            )
+        };
         let ids = NAMES.map(|(setting, first, _)| setting(menus, gfx).wrapping_add(first));
         let mut screen = SettingsScreen::new(canvas, o);
         rc2k_core::screens::settings_pages::graphics(&mut screen, ids, &resolution)?;

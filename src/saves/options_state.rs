@@ -103,18 +103,16 @@ pub fn apply(o: Owners<'static>, options: &Options) -> Result<(), Refused> {
             .flatten()
     });
     if let Some((w, h)) = wanted {
-        let modes = &o.gfx.display.modes;
-        let table: Vec<(u32, u32, u32)> = (0..8)
-            .map(|n| {
-                let size = modes.sizes[2 * n + 1].get();
-                (size & 0xFFFF, size >> 16, modes.sizes[2 * n].get())
-            })
-            .collect();
         let race = o.gfx.display.mode.race_mode.get();
-        if let Some(mode) = crate::gfx::monitor_sizes::mode_for(race, &table, w, h) {
+        if let Some(mode) =
+            crate::gfx::monitor_sizes::race_mode_for(&o.gfx.display.modes, race, w, h)
+        {
             o.gfx.display.mode.race_mode.set(mode);
         }
     }
+    // The size the file kept beyond the game's table was the window's: the list offers it when
+    // nothing else does.
+    crate::gfx::monitor_sizes::set_window(d.race_size.map(|[w, h]| (w, h)));
     // A video's frames between the ticks need the blend, whatever the options say.
     crate::race::blend::set_smooth(options.display.smooth_frames || crate::video::active());
     crate::race::split_layout::set_index(options.display.split_layout);

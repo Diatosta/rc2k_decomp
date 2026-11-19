@@ -161,6 +161,12 @@ pub fn screen_mode_choices(
                 && mc::kept(display.choices.mipmapping.get(), d3d.cards.get().mips.get());
             if worked {
                 crate::gfx::keep_race_screen_mode::keep_race_screen_mode(gfx, system, d3d, mode)?;
+                // A size chosen from the list is no longer the window's own.
+                if crate::gfx::monitor_sizes::size_of_mode(mode)
+                    != crate::gfx::monitor_sizes::window()
+                {
+                    crate::gfx::monitor_sizes::set_window(None);
+                }
             }
             crate::platform::set_menu_mode_now(gfx, system);
             if !worked {
@@ -238,13 +244,30 @@ fn rebuild(
                 mode,
             });
         }
+        // The window's own size, when the list has no entry of that size already.
+        let window = crate::gfx::monitor_sizes::window();
+        let window_listed =
+            window.filter(|&(w, h)| !all.iter().any(|l| (l.width, l.height) == (w, h)));
+        crate::gfx::monitor_sizes::set_window_listed(window_listed);
+        if let Some((w, h)) = window_listed
+            && let Some(mode) = crate::gfx::monitor_sizes::mode_for(first.mode, &table, w, h)
+        {
+            all.push(mc::Listed {
+                width: w,
+                height: h,
+                figure: first.figure,
+                mode,
+            });
+        }
         // The game's own table has sizes up to 1920 x 1280 whatever the screen: one larger than
         // the desktop could only be shown shrunk, with bars, so it is left out (the size set by
         // hand stays). A saved race size that is left out is replaced by the largest size listed.
         if let Some((dw, dh)) = desktop {
             let custom = crate::gfx::monitor_sizes::custom();
             let fits = |l: &mc::Listed| {
-                (l.width <= dw && l.height <= dh) || custom == Some((l.width, l.height))
+                (l.width <= dw && l.height <= dh)
+                    || custom == Some((l.width, l.height))
+                    || window_listed == Some((l.width, l.height))
             };
             if all.iter().any(fits) {
                 let race = display.mode.race_mode.get();

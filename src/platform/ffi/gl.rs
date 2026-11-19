@@ -192,10 +192,25 @@ impl GlWindow {
                 c"Rally Championship".as_ptr(),
                 width as i32,
                 height as i32,
-                SDL_WindowFlags(SDL_WINDOW_OPENGL.0 | SDL_WINDOW_HIDDEN.0),
+                SDL_WindowFlags(
+                    SDL_WINDOW_OPENGL.0
+                        | SDL_WINDOW_HIDDEN.0
+                        | if super::sdl::RESIZABLE {
+                            SDL_WINDOW_RESIZABLE.0
+                        } else {
+                            0
+                        },
+                ),
             );
             if window.is_null() {
                 return Err(format!("SDL makes no OpenGL window: {}", sdl_error()));
+            }
+            if super::sdl::RESIZABLE {
+                SDL_SetWindowMinimumSize(
+                    window,
+                    super::sdl::MIN_WINDOW.0 as i32,
+                    super::sdl::MIN_WINDOW.1 as i32,
+                );
             }
             Ok(GlWindow(window))
         }

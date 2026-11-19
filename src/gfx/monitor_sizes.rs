@@ -18,6 +18,12 @@ struct Sizes {
     desktop: Option<(u32, u32)>,
     /// The size set by hand.
     custom: Option<(u32, u32)>,
+    /// The size the player gave the window by resizing it (or the race size the options kept
+    /// beyond the game's table: it was the window's last).
+    window: Option<(u32, u32)>,
+    /// The window's size when the list offers it as an entry of its own (no table, monitor or
+    /// usual size is that one), shown as "(window)".
+    window_listed: Option<(u32, u32)>,
 }
 
 static SIZES: Mutex<Sizes> = Mutex::new(Sizes {
@@ -25,6 +31,8 @@ static SIZES: Mutex<Sizes> = Mutex::new(Sizes {
     monitor: Vec::new(),
     desktop: None,
     custom: None,
+    window: None,
+    window_listed: None,
 });
 
 fn lock() -> std::sync::MutexGuard<'static, Sizes> {
@@ -83,6 +91,43 @@ pub fn set_custom(size: Option<(u32, u32)>) {
 
 pub fn custom() -> Option<(u32, u32)> {
     lock().custom
+}
+
+/// The size the window was given by the player's resizing, to be offered in the list; none to
+/// stop offering one.
+pub fn set_window(size: Option<(u32, u32)>) {
+    lock().window = size.filter(|&(w, h)| (320..=16384).contains(&w) && (240..=16384).contains(&h));
+}
+
+pub fn window() -> Option<(u32, u32)> {
+    lock().window
+}
+
+/// What the list made last offered as the window's own size (see `window_listed`).
+pub fn set_window_listed(size: Option<(u32, u32)>) {
+    lock().window_listed = size;
+}
+
+/// Whether `(width, height)` is the entry the list offers for the window's size.
+pub fn is_window_listed(width: u32, height: u32) -> bool {
+    lock().window_listed == Some((width, height))
+}
+
+/// The race mode for the size `(width, height)`, from the mode `race` and the table's sizes in
+/// `modes` (a size not in the table gets a number); None when the numbers are used up.
+pub fn race_mode_for(
+    modes: &crate::gfx::modes::Modes,
+    race: u32,
+    width: u32,
+    height: u32,
+) -> Option<u32> {
+    let table: Vec<(u32, u32, u32)> = (0..8)
+        .map(|n| {
+            let size = modes.sizes[2 * n + 1].get();
+            (size & 0xFFFF, size >> 16, modes.sizes[2 * n].get())
+        })
+        .collect();
+    mode_for(race, &table, width, height)
 }
 
 /// The monitor's modes (each size once) and desktop size, as last found.
