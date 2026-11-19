@@ -505,12 +505,8 @@ impl Renderer {
 
     /// What was drawn put on the window.
     pub fn present(self) {
-        #[cfg(touch_screen)]
-        crate::platform::stall::step("presenting the frame");
         // SAFETY: as `clear_black`.
         unsafe { SDL_RenderPresent(self.0) };
-        #[cfg(touch_screen)]
-        crate::platform::stall::step("after presenting the frame");
     }
 
     /// The texture drawn over the whole target.
@@ -930,14 +926,6 @@ impl PolledEvent {
         };
         // SAFETY: the type says the `tfinger` record is the one SDL filled.
         let finger = unsafe { self.0.tfinger };
-        // Diagnostic (phones, touches arriving late): how long ago the finger moved, by the
-        // system's own time stamp of the touch.
-        // SAFETY: SDL's clock, readable at any time once SDL is up (an event came from it).
-        let now = unsafe { SDL_GetTicksNS() };
-        FINGER_AGE_MS.store(
-            now.saturating_sub(finger.timestamp) / 1_000_000,
-            std::sync::atomic::Ordering::Relaxed,
-        );
         Some((finger.fingerID.0, phase, finger.x, finger.y))
     }
 
@@ -1365,6 +1353,3 @@ pub enum JoystickInput {
     /// A button (counted from 0) and whether it went down.
     Button(u8, bool),
 }
-
-/// Diagnostic (phones): how old the last finger event read was, in ms, when it was read.
-pub static FINGER_AGE_MS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);

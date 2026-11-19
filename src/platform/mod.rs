@@ -38,8 +38,6 @@ pub mod os;
 pub mod pacing;
 pub mod safe_area;
 pub mod sound;
-#[cfg(touch_screen)]
-pub mod stall;
 pub mod sync;
 pub mod timing;
 #[cfg(any(target_os = "android", target_os = "ios"))]

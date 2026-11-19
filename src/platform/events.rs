@@ -219,8 +219,6 @@ fn end_if_not_left() {
 
 /// SDL's events: the window's closing, and the keys the menus take.
 pub fn pump(o: crate::owners::Owners<'static>) {
-    #[cfg(touch_screen)]
-    crate::platform::stall::beat();
     let (input, system) = (o.input, o.system);
     restore_if_asked();
     // Controllers plugged in or out: the players given the ones they chose.
@@ -377,18 +375,6 @@ pub(crate) fn driving(race: &crate::race::owner::Race) -> bool {
 #[cfg(touch_screen)]
 pub(crate) fn touch_controls_live(race: &crate::race::owner::Race) -> bool {
     driving(race) && race.shared.vars.get().scene_switch.get() == 0
-}
-
-/// Whether the race waits for an answer the touch screen gives (`touch_asked` on the phones).
-#[cfg(touch_screen)]
-fn touch_asked_any(race: &crate::race::owner::Race) -> bool {
-    #[cfg(any(target_os = "android", target_os = "ios"))]
-    return touch_asked(race).is_some();
-    #[cfg(not(any(target_os = "android", target_os = "ios")))]
-    {
-        let _ = race;
-        false
-    }
 }
 
 /// What the race waits for while its touch controls are off: the quit question's yes and no, or
@@ -877,25 +863,6 @@ fn touch_finger(
             .and_then(|screen| screen.as_ref())
             .map(|screen| crate::platform::input_window(screen.window))
     };
-    // Diagnostic trace while touches go missing in the menus: where each finger's down and lift
-    // went.
-    if phase != rc2k_core::input::menu_touch::Phase::Move {
-        let route = if window.is_none() {
-            "no window"
-        } else if touch_controls_live(o.race) {
-            "the race's touch controls"
-        } else if cfg!(any(target_os = "android", target_os = "ios")) && touch_asked_any(o.race) {
-            "the race's question"
-        } else {
-            "the menus"
-        };
-        crate::platform::touch_menu::trace(&format!(
-            "{phase:?} finger {id} at {x:.3}, {y:.3} -> {route} (race flag {}, replay {}), touched {} ms ago",
-            o.race.course.numbers.get().in_race.is_set(),
-            o.race.shared.replay_file().hold_car_revs.get() != 0,
-            crate::platform::ffi::sdl::FINGER_AGE_MS.load(std::sync::atomic::Ordering::Relaxed)
-        ));
-    }
     let Some(window) = window else {
         // No window to size the gestures by: a lifting still takes its finger off the list.
         if phase == rc2k_core::input::menu_touch::Phase::Up {

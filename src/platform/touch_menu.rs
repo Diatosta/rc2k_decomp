@@ -135,13 +135,6 @@ pub fn finger(
 
 /// Called every turn of the event loop: the single tap whose double-tap window is over is chosen.
 pub fn tick(o: &Owners<'static>, window: sdl::Window, now: u64) {
-    if WATCH_LOOKS.load(Relaxed) > 0 {
-        trace(&format!(
-            "events read, key {:#x} waiting, menu {:?}",
-            crate::input::take_key::pending_key(o.input).load(std::sync::atomic::Ordering::SeqCst),
-            o.menus.screens.loop_flags.menu.get().ok()
-        ));
-    }
     hand_over_queued(o);
     let until = ESCAPE_UNTIL.load(Relaxed);
     if until != 0 && now >= until {
@@ -175,27 +168,7 @@ pub fn tick(o: &Owners<'static>, window: sdl::Window, now: u64) {
     act(o, window, gestures, now);
 }
 
-/// One diagnostic line about the menus' touch (while touches go missing on a phone).
-pub fn trace(text: &str) {
-    crate::logfile::program_log::log(&format!(
-        "touch trace {}: {text}",
-        crate::platform::os::ticks()
-    ));
-}
-
-/// Diagnostic: the menus' looks for a key are each logged while this many remain (set when a
-/// touch key has to wait).
-pub static WATCH_LOOKS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
-
 fn act(o: &Owners<'static>, window: sdl::Window, gestures: Vec<Gesture>, now: u64) {
-    for gesture in &gestures {
-        trace(&format!(
-            "{gesture:?} on menu {:?}, item {:?}, page count {}",
-            o.menus.screens.loop_flags.menu.get().ok(),
-            o.menus.screens.loop_flags.item.get(),
-            INSTALLER.load(Relaxed)
-        ));
-    }
     for gesture in gestures {
         match gesture {
             Gesture::Up => press(o, MenuAction::Up),
@@ -256,24 +229,12 @@ fn press(o: &Owners<'static>, action: MenuAction) {
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     if waiting != 0 || !queued.is_empty() {
-        let looked = u64::from(crate::platform::os::ticks())
-            .saturating_sub(crate::menu::handle_keys::LAST_LOOK.load(Relaxed));
-        trace(&format!(
-            "{action:?} queued behind key {waiting:#x} ({} queued); the menus looked {looked} ms ago, keys off {}",
-            queued.len(),
-            crate::menu::handle_keys::LAST_LOOK_OFF.load(Relaxed)
-        ));
-        WATCH_LOOKS.store(40, Relaxed);
         if queued.len() < QUEUE_ROOM {
             queued.push_back((action, o.menus.screens.loop_flags.menu.get().ok()));
         }
         return;
     }
     drop(queued);
-    trace(&format!(
-        "{action:?} given at once ({:?})",
-        std::thread::current().id()
-    ));
     super::events::menu_action(o.input, action);
 }
 
@@ -288,13 +249,8 @@ fn hand_over_queued(o: &Owners<'static>) {
         .pop_front();
     if let Some((action, menu)) = next {
         if menu == o.menus.screens.loop_flags.menu.get().ok() {
-            trace(&format!("queued {action:?} handed over on menu {menu:?}"));
             super::events::menu_action(o.input, action);
         } else {
-            trace(&format!(
-                "queued {action:?} for menu {menu:?} forgotten: now on {:?}",
-                o.menus.screens.loop_flags.menu.get().ok()
-            ));
             forget_queued();
         }
     }

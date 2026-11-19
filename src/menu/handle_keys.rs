@@ -25,45 +25,10 @@ use crate::owners::Owners;
 use rc2k_core::menu::keys::Pressed;
 
 /// `elapsed` is the time since the screen's set-up; its bits 8 .. 15 are read on Enter.
-/// Diagnostic (phones, while touches go missing): when the menus last looked for a key, in the
-/// program's milliseconds, and whether they then had the keys switched off.
-pub static LAST_LOOK: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-pub static LAST_LOOK_OFF: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-
 pub fn handle_keys(o: Owners<'static>, elapsed: u32) -> Result<Pressed, Refused> {
     use rc2k_core::menu::keys::{self, Action, Move};
     let menus = o.menus;
     let nothing = Pressed::Nothing;
-    #[cfg(touch_screen)]
-    crate::platform::stall::step("the menu's keys");
-    LAST_LOOK.store(
-        u64::from(crate::platform::os::ticks()),
-        std::sync::atomic::Ordering::Relaxed,
-    );
-    let off = keys::keys_off(menus.screens.state.service_ui.box_shown.is_set(), || {
-        menus.screens.controls.learning.get()
-    });
-    LAST_LOOK_OFF.store(off, std::sync::atomic::Ordering::Relaxed);
-    #[cfg(touch_screen)]
-    {
-        let waiting =
-            crate::input::take_key::pending_key(o.input).load(std::sync::atomic::Ordering::SeqCst);
-        let watched = crate::platform::touch_menu::WATCH_LOOKS
-            .fetch_update(
-                std::sync::atomic::Ordering::Relaxed,
-                std::sync::atomic::Ordering::Relaxed,
-                |n| n.checked_sub(1),
-            )
-            .is_ok();
-        if waiting != 0 || watched {
-            crate::platform::touch_menu::trace(&format!(
-                "the menus look with key {waiting:#x} waiting, keys off {off}, asking {}, on {:?} ({:?})",
-                menus.screens.flow.asking.is_set(),
-                menus.screens.loop_flags.menu.get().ok(),
-                std::thread::current().id()
-            ));
-        }
-    }
     if keys::keys_off(menus.screens.state.service_ui.box_shown.is_set(), || {
         menus.screens.controls.learning.get()
     }) {
@@ -78,11 +43,6 @@ pub fn handle_keys(o: Owners<'static>, elapsed: u32) -> Result<Pressed, Refused>
     if key == 0 {
         return Ok(nothing);
     }
-    #[cfg(touch_screen)]
-    crate::platform::touch_menu::trace(&format!(
-        "the menu took key {key:#x} on menu {:?}",
-        menus.screens.loop_flags.menu.get().ok()
-    ));
     let key_over_elapsed = elapsed & !0xFF | key as u32;
     handle_yes_no(
         crate::strings::append_string_by_id::StringOwners::of(o),
