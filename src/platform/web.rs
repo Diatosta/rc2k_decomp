@@ -23,10 +23,17 @@ unsafe extern "C" {
     fn rc2k_web_refresh() -> f64;
     fn rc2k_web_set_full_screen(on: i32) -> i32;
     fn rc2k_web_is_full_screen() -> i32;
+    fn rc2k_web_download(
+        name: *const core::ffi::c_char,
+        data: *const u8,
+        len: i32,
+        mime: *const core::ffi::c_char,
+    );
 }
 
 unsafe extern "C" {
     fn emscripten_force_exit(status: i32) -> !;
+    fn emscripten_current_thread_process_queued_calls();
 }
 
 /// Where the storage is mounted.
@@ -124,4 +131,29 @@ pub fn follow_full_screen() {
     if WAS_FULL.swap(now, Relaxed) && !now {
         super::window_mode::set(super::window_mode::WindowMode::Window);
     }
+}
+
+/// `bytes` handed to the browser as a download named `name` (a file's last part: folders are
+/// cut off), of the media type `mime`. A name with a NUL in it, or bytes too many for the page's
+/// call, are not sent.
+pub fn download(name: &str, bytes: &[u8], mime: &str) {
+    let last = name.rsplit(['/', '\\']).next().unwrap_or(name);
+    let (Ok(name), Ok(mime), Ok(len)) = (
+        std::ffi::CString::new(last),
+        std::ffi::CString::new(mime),
+        i32::try_from(bytes.len()),
+    ) else {
+        return;
+    };
+    // SAFETY: the page's function copies `len` bytes from `bytes` and reads the two NUL-ended
+    // texts before it returns; all three outlive the call.
+    unsafe { rc2k_web_download(name.as_ptr(), bytes.as_ptr(), len, mime.as_ptr()) };
+}
+
+/// The calls the page's thread has queued for this thread run now. The browser's events (keys,
+/// the mouse, the window's focus) reach SDL as calls queued for the thread that made its
+/// window; a thread that never waits on a lock or a futex runs them only when asked.
+pub fn run_queued_calls() {
+    // SAFETY: Emscripten's documented call, made on this thread's own queue; it takes nothing.
+    unsafe { emscripten_current_thread_process_queued_calls() };
 }

@@ -43,6 +43,8 @@ pub mod timing;
 pub mod web;
 #[cfg(target_os = "emscripten")]
 pub mod web_pads;
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+pub mod window_follow;
 pub mod window_mode;
 
 use crate::gfx::describe_format::describe_format;

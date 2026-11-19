@@ -20,6 +20,9 @@ in general (textures, fonts) is on [Textures (PCX)](Textures-PCX).
 started, so a new session writes over the last one's files. The viewer's snapshots carry on
 from the highest number already in the folder. Both go back to `000` after `999`.
 
+In the web build every screenshot is also downloaded by the browser, under the file's name
+(`NNN.png`), because the files in the browser's own storage are out of the player's reach.
+
 The picture has the size of the screen mode the game is drawing in at that moment (640 × 480,
 for example).
 
