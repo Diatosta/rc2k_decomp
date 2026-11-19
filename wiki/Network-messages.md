@@ -74,6 +74,11 @@ A host with a session of that application answers the sender with:
 | 4 | u32: the TCP port to connect to. |
 | varies | The session's description. |
 
+With no address typed the searcher also sends it to every session heard by Bonjour (mDNS): a host
+announces a `_rc2k._udp` service at the probe's port while it answers probes (the device's name on
+iOS, `Rally Championship <8 hex digits>` elsewhere; no text record), and the searcher probes the
+IPv4 addresses and port each service resolves to. The answer is the same.
+
 The searcher keeps each answer for 4 seconds and probes again each time the game asks for
 the list, so the sessions screen fills in over a moment and a session that has gone drops
 out.

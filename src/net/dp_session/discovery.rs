@@ -1,6 +1,6 @@
 //! Finding sessions: a UDP probe and the answers heard to it. With no address given the probe goes
-//! to the broadcast, to this machine, to the peers of a Tailscale network and to the last host
-//! joined.
+//! to the broadcast, to this machine, to the peers of a Tailscale network, to the last host
+//! joined and to every session Bonjour has heard of (`net::bonjour`).
 
 use super::*;
 
@@ -181,12 +181,22 @@ pub fn find_sessions(host: &str, port: u16, application: [u8; 16]) -> Vec<(Desc,
         return vec![];
     };
     let probe = W::default().raw(MAGIC).raw(&application).0;
-    let (tailnet, last) = if host.trim().is_empty() {
-        (tailnet_peers(), crate::net::last_host::address())
+    let (tailnet, last, bonjour) = if host.trim().is_empty() {
+        (
+            tailnet_peers(),
+            crate::net::last_host::address(),
+            heard_by_bonjour(),
+        )
     } else {
-        (Vec::new(), None)
+        (Vec::new(), None, Vec::new())
     };
-    for target in probe_targets(host, port, &tailnet, last.as_deref()) {
+    let mut targets = probe_targets(host, port, &tailnet, last.as_deref());
+    for at in bonjour {
+        if !targets.contains(&at) {
+            targets.push(at);
+        }
+    }
+    for target in targets {
         let _ = f.socket.send_to(&probe, target);
     }
     let mut list = f
@@ -198,6 +208,14 @@ pub fn find_sessions(host: &str, port: u16, application: [u8; 16]) -> Vec<(Desc,
         .filter(|x| x.desc.application == application)
         .map(|x| (x.desc.clone(), x.at))
         .collect()
+}
+
+/// The sessions Bonjour has heard of (`net::bonjour`; none in the unit tests).
+fn heard_by_bonjour() -> Vec<SocketAddr> {
+    #[cfg(test)]
+    return Vec::new();
+    #[cfg(not(test))]
+    crate::net::bonjour::heard()
 }
 
 /// Where the session `instance` was heard from (for joining it).

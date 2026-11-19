@@ -530,8 +530,8 @@ mod backend {
                 std::ptr::null_mut(),
                 std::ptr::null_mut(),
                 std::ptr::null_mut(),
-            )
-        };
+            );
+        }
         note(&format!(
             "{} sent to the camera roll",
             path.to_string_lossy()

@@ -63,6 +63,10 @@
     </dict>
     <key>NSCameraUsageDescription</key>
     <string>Scans a save code's QR picture.</string>
+    <key>NSBonjourServices</key>
+    <array>
+        <string>_rc2k._udp</string>
+    </array>
     <key>NSLocalNetworkUsageDescription</key>
     <string>Finds and joins network games on your Wi-Fi.</string>
     <key>NSPhotoLibraryUsageDescription</key>

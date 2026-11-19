@@ -50,6 +50,11 @@ dear-imgui-rs = { version = "0.21", default-features = false }
 dear-imgui-sys = { version = "0.21", default-features = false, features = ["build-from-source"] }
 
 # The system's own facts on Unix (`src/platform/os/unix.rs`): free space, memory, the stack, `_exit`.
+# Bonjour (mDNS) for finding network games where broadcasts do not reach, beside the broadcast
+# probe: a host announces itself, a search hears it. iOS has its own (`net::bonjour`).
+[target.'cfg(not(any(target_os = "ios", target_os = "emscripten")))'.dependencies]
+mdns-sd = { version = "=0.21.7", default-features = false }
+
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
 

@@ -316,6 +316,9 @@ or IPX connection), and Steam when Valve's library is beside the program (it is 
   "not ready" and takes the ready back before the start.
 - **Finding hosts**: with no address typed, the search also asks the peers of a Tailscale network
   and the last host joined, so a host over Tailscale is found with no address.
+- **Bonjour**: hosted games are announced over Bonjour (mDNS) and the search listens for them
+  beside its broadcast, so an iPhone (no broadcasts for apps on iOS) and networks that drop
+  broadcasts find their games with no address typed.
 - **The host's stage** is shown to everyone, every machine's loading progress is listed while a
   stage loads, and "NN%" shows a racing player's progress in the lobby; the chat is in one order
   on every machine. The other cars appear on the progress bar.

@@ -101,7 +101,10 @@ the colour of its marker on the stage bar (players first, then the computer driv
 the map and left out where they fall outside the disc.
 
 **Joining.** The program lists the sessions it finds. With no address given it asks the whole
-local network (and this machine itself); with an address it asks that machine only. Choose a
+local network (and this machine itself), and also every game Bonjour (mDNS) has heard of on
+the local network: a hosted game announces itself that way, so a phone on a network that drops
+broadcasts, and an iPhone (iOS keeps apps from sending or hearing broadcasts), still finds and is
+found. With an address it asks that machine only. Choose a
 session to join it. Full or closed sessions are not listed. A session with a password shows a lock mark before its name; choosing it asks for the password there and then (typed as stars, on the on-screen keyboard from a pad; the question and the stars stand high on the screen so the keyboard, below them, covers neither). A wrong one asks again; Escape goes back to the list of sessions. A session without a password is joined as before. Nothing about the right password is revealed to a joiner, and the joiner's answer is not kept.
 
 **The lobby.** Everyone chooses a car; the host chooses the stage, and its name is shown at

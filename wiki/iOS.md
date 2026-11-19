@@ -34,12 +34,11 @@ The same as on [Android](Android#touch-controls); see also [Controllers](Control
 
 ## Network games
 
-iOS lets an app send or hear a broadcast on the Wi-Fi only with a permission Apple grants on
-request, so an iPhone neither finds lobbies by searching nor is found by one. Type the host's
-address instead: an iPhone hosting is joined by typing its Wi-Fi address (Settings, Wi-Fi, the
-network's (i), IP Address) in the joining machine's host field; an iPhone joining types the
-host's address. The first time, iOS asks whether the game may find devices on the local
-network: it must be allowed.
+iOS lets an app neither send nor hear a broadcast on the Wi-Fi without a permission Apple grants
+on request, so an iPhone finds games, and is found, through Bonjour (mDNS) instead: every build
+of the game announces the games it hosts and listens for the others'. The first time, iOS asks
+whether the game may find devices on the local network: it must be allowed. A host's address can
+still be typed (Settings, Wi-Fi, the network's (i), IP Address) where Bonjour does not reach.
 
 ## Building and installing
 

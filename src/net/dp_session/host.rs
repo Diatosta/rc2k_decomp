@@ -88,6 +88,9 @@ impl Session {
     }
 
     pub(super) fn answer_probes(self: Arc<Self>, udp: UdpSocket) {
+        // Announced for as long as the probes are answered (not by the unit tests' sessions).
+        #[cfg(not(test))]
+        let _announced = crate::net::bonjour::announce(self.port);
         let mut buffer = [0u8; 64];
         while !self.stop.load(Ordering::SeqCst) {
             let Ok((n, from)) = udp.recv_from(&mut buffer) else {

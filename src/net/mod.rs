@@ -23,6 +23,7 @@ pub mod bad_peer;
 pub mod begin_chat;
 pub mod begin_edit;
 pub mod begin_setting_edit;
+pub mod bonjour;
 pub mod bots;
 pub mod build_address;
 pub mod car_list;

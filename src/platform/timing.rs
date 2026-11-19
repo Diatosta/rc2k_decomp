@@ -418,14 +418,18 @@ pub fn report_timing(system: &System) {
 fn phone_line(system: &System, seconds: f64, frames: u64) {
     use crate::debug::timing;
     use std::sync::atomic::Ordering::Relaxed;
-    static WAS: std::sync::Mutex<(
+    /// The counts at the last line: the stages' nanoseconds and runs, the ticks, the waits'
+    /// totals, the flushes and the read-backs.
+    type Counts = (
         [u64; timing::STAGES],
         [u64; timing::STAGES],
         u32,
         [u64; 5],
         u64,
         u64,
-    )> = std::sync::Mutex::new(([0; timing::STAGES], [0; timing::STAGES], 0, [0; 5], 0, 0));
+    );
+    static WAS: std::sync::Mutex<Counts> =
+        std::sync::Mutex::new(([0; timing::STAGES], [0; timing::STAGES], 0, [0; 5], 0, 0));
     let (nanos, runs) = timing::counts();
     let ticks = timing::ticks();
     let totals = [
