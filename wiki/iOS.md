@@ -32,6 +32,15 @@ the largest in the list is the sharpest.
 
 The same as on [Android](Android#touch-controls); see also [Controllers](Controllers).
 
+## Network games
+
+iOS lets an app send or hear a broadcast on the Wi-Fi only with a permission Apple grants on
+request, so an iPhone neither finds lobbies by searching nor is found by one. Type the host's
+address instead: an iPhone hosting is joined by typing its Wi-Fi address (Settings, Wi-Fi, the
+network's (i), IP Address) in the joining machine's host field; an iPhone joining types the
+host's address. The first time, iOS asks whether the game may find devices on the local
+network: it must be allowed.
+
 ## Building and installing
 
 `./build.sh ios` makes `dist/ios/Rally Championship.ipa` (unsigned); `tools/ios/install.sh` signs

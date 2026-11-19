@@ -9,3 +9,6 @@
    access that lets it keep them in an album; the add-only one is the fallback. */
 "NSPhotoLibraryUsageDescription" = "Keeps your screenshots in a Rally Championship album.";
 "NSPhotoLibraryAddUsageDescription" = "Saves your screenshots to your photos.";
+
+/* Asked by iOS the first time a network game reaches the local network. */
+"NSLocalNetworkUsageDescription" = "Finds and joins network games on your Wi-Fi.";

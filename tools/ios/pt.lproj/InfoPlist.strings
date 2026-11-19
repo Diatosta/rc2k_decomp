@@ -9,3 +9,6 @@
    leitura e escrita que permite guardá-las num álbum; o de só adicionar é o recurso. */
 "NSPhotoLibraryUsageDescription" = "Guarda as suas capturas de ecrã num álbum Rally Championship.";
 "NSPhotoLibraryAddUsageDescription" = "Guarda as suas capturas de ecrã nas suas fotografias.";
+
+/* Pedido pelo iOS na primeira vez que um jogo em rede chega à rede local. */
+"NSLocalNetworkUsageDescription" = "Encontra e junta-se a jogos em rede no seu Wi-Fi.";
