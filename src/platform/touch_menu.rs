@@ -155,7 +155,20 @@ pub fn tick(o: &Owners<'static>, window: sdl::Window, now: u64) {
     act(o, window, gestures, now);
 }
 
+/// One diagnostic line about the menus' touch (while touches go missing on a phone).
+pub fn trace(text: &str) {
+    crate::logfile::program_log::log(&format!("touch trace: {text}"));
+}
+
 fn act(o: &Owners<'static>, window: sdl::Window, gestures: Vec<Gesture>, now: u64) {
+    for gesture in &gestures {
+        trace(&format!(
+            "{gesture:?} on menu {:?}, item {:?}, page count {}",
+            o.menus.screens.loop_flags.menu.get().ok(),
+            o.menus.screens.loop_flags.item.get(),
+            INSTALLER.load(Relaxed)
+        ));
+    }
     for gesture in gestures {
         match gesture {
             Gesture::Up => press(o, MenuAction::Up),
@@ -201,6 +214,13 @@ pub fn release_all() {
 }
 
 fn press(o: &Owners<'static>, action: MenuAction) {
+    let waiting =
+        crate::input::take_key::pending_key(o.input).load(std::sync::atomic::Ordering::SeqCst);
+    if waiting != 0 {
+        trace(&format!(
+            "{action:?} given while key {waiting:#x} was not yet taken"
+        ));
+    }
     super::events::menu_action(o.input, action);
 }
 

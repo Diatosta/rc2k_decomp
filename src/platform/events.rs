@@ -377,6 +377,18 @@ pub(crate) fn touch_controls_live(race: &crate::race::owner::Race) -> bool {
     driving(race) && race.shared.vars.get().scene_switch.get() == 0
 }
 
+/// Whether the race waits for an answer the touch screen gives (`touch_asked` on the phones).
+#[cfg(touch_screen)]
+fn touch_asked_any(race: &crate::race::owner::Race) -> bool {
+    #[cfg(any(target_os = "android", target_os = "ios"))]
+    return touch_asked(race).is_some();
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    {
+        let _ = race;
+        false
+    }
+}
+
 /// What the race waits for while its touch controls are off: the quit question's yes and no, or
 /// the plain pause's key. A finger then presses the answer buttons drawn over the frame (and
 /// nothing else answers: a tap elsewhere does nothing).
@@ -863,6 +875,24 @@ fn touch_finger(
             .and_then(|screen| screen.as_ref())
             .map(|screen| crate::platform::input_window(screen.window))
     };
+    // Diagnostic trace while touches go missing in the menus: where each finger's down and lift
+    // went.
+    if phase != rc2k_core::input::menu_touch::Phase::Move {
+        let route = if window.is_none() {
+            "no window"
+        } else if touch_controls_live(o.race) {
+            "the race's touch controls"
+        } else if cfg!(any(target_os = "android", target_os = "ios")) && touch_asked_any(o.race) {
+            "the race's question"
+        } else {
+            "the menus"
+        };
+        crate::platform::touch_menu::trace(&format!(
+            "{phase:?} finger {id} at {x:.3}, {y:.3} -> {route} (race flag {}, replay {})",
+            o.race.course.numbers.get().in_race.is_set(),
+            o.race.shared.replay_file().hold_car_revs.get() != 0
+        ));
+    }
     let Some(window) = window else {
         // No window to size the gestures by: a lifting still takes its finger off the list.
         if phase == rc2k_core::input::menu_touch::Phase::Up {
