@@ -70,6 +70,37 @@ with cargo for each ABI, SDL's Java glue and our activity with `javac` and `d8`,
 signs the `.apk` with the SDK's `aapt2`, `zipalign` and `apksigner` (a debug key; no Gradle). A
 build with `--final` is not debuggable.
 
+### The release key
+
+An app can only be installed over an earlier one signed with the same key; one signed with
+another key has to be uninstalled first, and uninstalling deletes the game's files and saves in
+the app's storage. So the released packages are all signed with one release key, kept as three
+secrets of the GitHub repository; the `android` job of the automatic builds signs with it (and
+with a debug key, with a warning, when the secrets are missing). Locally, `RC2K_ANDROID_KEYSTORE`
+(the keystore file), `RC2K_ANDROID_KEY_PASSWORD` and `RC2K_ANDROID_KEY_ALIAS` (default `rc2k`)
+make `tools/android/build.sh` sign with it too.
+
+Made once, with the JDK's `keytool` (it asks for a password and for the name fields, which may be
+anything):
+
+```
+keytool -genkeypair -keystore rc2k-release.jks -storetype PKCS12 -alias rc2k \
+    -keyalg RSA -keysize 4096 -validity 10000
+```
+
+Then in the repository, Settings, Secrets and variables, Actions, New repository secret (or with
+`gh secret set NAME`):
+
+| Secret | Value |
+| --- | --- |
+| `ANDROID_KEYSTORE_BASE64` | the keystore in base64: `base64 -w0 rc2k-release.jks` |
+| `ANDROID_KEYSTORE_PASSWORD` | the password given to `keytool` |
+| `ANDROID_KEY_ALIAS` | `rc2k` |
+
+Keep the keystore file and its password somewhere safe besides GitHub (a password manager, a
+backup): GitHub never shows a secret again, and a lost key means every player has to uninstall
+the app (losing its saves) to install the next one.
+
 ## The speed, and the log
 
 The log (`rc2k.log`, in the app's `files/game`) has a `phone:` line every five seconds during a

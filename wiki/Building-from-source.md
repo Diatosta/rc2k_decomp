@@ -384,9 +384,11 @@ into a race:
 
 ## The automatic builds
 
-The GitHub workflow `.github/workflows/build.yml` builds Windows (64 bits), Linux, the Steam Deck (`deck`, in the container, as `rc2k-deck.zip`), the Anbernic handheld (`handheld`, in its container, as `rc2k-handheld.zip`), the browser build (`web`, as `rc2k-web.zip`) and macOS
-with the same commands. The Mac build runs only for the main branch and for runs started by
-hand. Every build is kept as a download of the run, and a push also puts the zips into a
+The GitHub workflow `.github/workflows/build.yml` builds Windows (64 bits), Linux, the Steam Deck (`deck`, in the container, as `rc2k-deck.zip`), the Anbernic handheld (`handheld`, in its container, as `rc2k-handheld.zip`), the browser build (`web`, as `rc2k-web.zip`), Android (`android`, both packages as
+`rc2k-android.zip`), iOS (`ios`, the unsigned `.ipa` as `rc2k-ios.zip`) and macOS
+with the same commands. The Mac and iOS builds run only for the main branch and for runs started
+by hand (on a Mac runner, iOS with Xcode's SDK). The Android packages are signed with the release
+key when the repository holds it ([Android](Android#the-release-key)), else with a debug key. Every build is kept as a download of the run, and a push also puts the zips into a
 GitHub release (a stable one from `main`, an experimental one for any other branch).
 
 The web job installs the Emscripten SDK (the version in the job's `EMSDK_VERSION`, cached) and

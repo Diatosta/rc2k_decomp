@@ -47,6 +47,10 @@ it with an Apple ID and installs it over USB through [xtool](https://github.com/
 The steps (Apple's SDK from an Xcode download, the packages, pairing the phone) are in
 `tools/ios/README.md`.
 
+The automatic builds make the same unsigned `.ipa` on a Mac runner, with Xcode's iOS SDK
+(`rc2k-ios.zip` in a release, for the main branch). A player signs it when installing it, with a
+sideloading tool and their own Apple ID.
+
 A free Apple ID's signing lasts 7 days: after that the app no longer opens until it is installed
 again (its Documents folder stays). A paid developer account's lasts a year.
 

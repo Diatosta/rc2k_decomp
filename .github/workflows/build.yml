@@ -1,5 +1,5 @@
 # Builds the game (`rc2k`) for 64-bit Windows, for Linux (also the Steam Deck and the Anbernic
-# handheld) and for macOS, and for the browser (`web`), on every push and pull request, and keeps each build as a download of the run (Actions -> the run -> Artifacts).
+# handheld), for macOS, for Android and iOS, and for the browser (`web`), on every push and pull request, and keeps each build as a download of the run (Actions -> the run -> Artifacts).
 # Every job runs the repository's own entry point, `./build.sh <target>`, and uploads the
 # dist/<target>/ folder it makes. macOS is built on a Mac runner; the others on Linux:
 # Windows with cargo-xwin (clang-cl and the Windows SDK it fetches), SDL's ready-made DLL
@@ -291,9 +291,109 @@ jobs:
           name: rc2k-macos-${{ github.sha }}
           path: dist/mac/
 
+  android:
+    # The Android app (`tools/android/build.sh`): the program as the activity's library, SDL's
+    # shared library and the app's Java, packaged with the SDK's own tools (no Gradle), for arm64
+    # phones and the x86-64 emulator. The runner's Android SDK, with the platform, build tools and
+    # NDK the script names. Signed with the release key when the repository has it (the secrets
+    # ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD and ANDROID_KEY_ALIAS; see the wiki's
+    # Android page), else with a debug key made on the runner: an app signed with one key cannot
+    # be installed over one signed with another.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      RC2K_ANDROID_HOME: ${{ github.workspace }}/../android
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      # The pinned toolchain (rust-toolchain.toml) with the two Android targets it lists.
+      - name: Pinned Rust toolchain
+        run: rustup toolchain install
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: android
+          workspaces: ". -> target/android"
+
+      - name: Android SDK and NDK
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build
+          mkdir -p "$RC2K_ANDROID_HOME"
+          ln -sfn "$ANDROID_SDK_ROOT" "$RC2K_ANDROID_HOME/sdk"
+          source tools/android/env.sh
+          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null
+          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
+            "platforms;android-35" "build-tools;35.0.1" "ndk;$NDK_VERSION" >/dev/null
+
+      - name: Release key
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE" ]; then
+            printf '%s' "$KEYSTORE" | base64 -d > "$RC2K_ANDROID_HOME/release.jks"
+            echo "RC2K_ANDROID_KEYSTORE=$RC2K_ANDROID_HOME/release.jks" >> "$GITHUB_ENV"
+          else
+            echo "::warning::no ANDROID_KEYSTORE_BASE64 secret: the apps are signed with a debug key"
+          fi
+
+      # The game's crates fetched first: SDL's source (built for Android by the script) and its
+      # Java come from the sdl3-src crate.
+      - name: Build
+        env:
+          RC2K_ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          RC2K_ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          cargo fetch
+          tools/android/build.sh arm64 x86_64 --final
+          rm -f dist/android/*.idsig
+
+      - name: Release key removed
+        if: always()
+        run: rm -f "$RC2K_ANDROID_HOME/release.jks"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: rc2k-android-${{ github.sha }}
+          path: dist/android/
+
+  ios:
+    # The iPhone / iPad app (`./build.sh ios`), built on the Mac runner with Xcode's iOS SDK: an
+    # unsigned `Rally Championship.ipa`, which a player signs when installing it (a sideloading
+    # tool with their own Apple ID: tools/ios/README.md). Only for `main` and runs started by hand,
+    # as the Mac build (a private repository's Mac minutes count ten times).
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      # The pinned toolchain (rust-toolchain.toml), and the iOS target it does not list.
+      - name: Pinned Rust toolchain with the iOS target
+        run: |
+          rustup toolchain install
+          rustup target add aarch64-apple-ios
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ios
+          workspaces: ". -> target/ios"
+
+      - name: Build
+        run: ./build.sh ios
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: rc2k-ios-${{ github.sha }}
+          path: dist/ios/*.ipa
+
   release:
-    needs: [windows-x64, linux-x64, deck, handheld, web, macos]
-    # The Mac job skipped (other branches) leaves the release to the others.
+    needs: [windows-x64, linux-x64, deck, handheld, web, macos, android, ios]
+    # The Mac and iOS jobs skipped (other branches) leave the release to the others.
     if: github.event_name == 'push' && !failure() && !cancelled()
     runs-on: ubuntu-24.04
     timeout-minutes: 15

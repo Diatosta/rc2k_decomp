@@ -297,11 +297,17 @@ build_mac_over_ssh() {
 # and the `.ipa` (the app zipped in a Payload folder), unsigned: signing needs the owner's
 # Apple ID (xtool, or zsign), which `tools/ios/install.sh` does.
 build_ios() {
-    need clang "the iOS build crosses with clang, lld and cmake (tools/ios/README.md)"
     need cmake "SDL is built from source: install cmake"
     need python3 "the .ipa is zipped by a small Python script"
-    # shellcheck disable=SC1091
-    source tools/ios/env.sh || fail "no iOS SDK (tools/ios/README.md, step 2)"
+    if [ "$(uname)" = Darwin ]; then
+        # On a Mac (the CI's runner): Xcode's own compiler and iOS SDK, as cargo and cmake find them.
+        SDKROOT="$(xcrun --sdk iphoneos --show-sdk-path)" || fail "no iOS SDK: install Xcode"
+        export SDKROOT IPHONEOS_DEPLOYMENT_TARGET=${IPHONEOS_DEPLOYMENT_TARGET:-13.0}
+    else
+        need clang "the iOS build crosses with clang, lld and cmake (tools/ios/README.md)"
+        # shellcheck disable=SC1091
+        source tools/ios/env.sh || fail "no iOS SDK (tools/ios/README.md, step 2)"
+    fi
     CARGO_TARGET_DIR=target/ios cargo build ${CARGO_FLAGS[@]+"${CARGO_FLAGS[@]}"} \
         --features ios-sdl-source --target aarch64-apple-ios --bin rc2k
     fresh_dist

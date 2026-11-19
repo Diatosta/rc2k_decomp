@@ -3,8 +3,10 @@
 # tools/android/README.md). Usage: tools/android/build.sh [x86_64] [arm64] [--debug]
 # (no ABI: both). The package is debuggable (adb run-as, for pushing the game's files) unless
 # --final. Writes dist/android/rc2k-<abi>.apk, signed with a debug key kept in
-# $RC2K_ANDROID_HOME/debug.keystore. Packaged by hand with the SDK's own tools (javac, d8,
-# aapt2, zipalign, apksigner): no Gradle.
+# $RC2K_ANDROID_HOME/debug.keystore, or with the release key when RC2K_ANDROID_KEYSTORE names its
+# keystore (RC2K_ANDROID_KEY_PASSWORD its password, RC2K_ANDROID_KEY_ALIAS its alias, default
+# rc2k: the CI's release builds). Packaged by hand with the SDK's own tools (javac, d8, aapt2,
+# zipalign, apksigner): no Gradle.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 source tools/android/env.sh
@@ -42,9 +44,16 @@ cp -r tools/android/app/res "$WORK/res"
 python3 tools/android/make_icon.py "$WORK/res"
 "$BT/aapt2" compile --dir "$WORK/res" -o "$WORK/res.zip"
 
-[ -f "$RC2K_ANDROID_HOME/debug.keystore" ] || keytool -genkeypair -keystore "$RC2K_ANDROID_HOME/debug.keystore" \
-    -storepass android -keypass android -alias rc2k -keyalg RSA -keysize 2048 -validity 10000 \
-    -dname "CN=rc2k debug" >/dev/null
+if [ -n "${RC2K_ANDROID_KEYSTORE:-}" ]; then
+    : "${RC2K_ANDROID_KEY_PASSWORD:?the password of the release keystore}"
+    signing=(--ks "$RC2K_ANDROID_KEYSTORE" --ks-key-alias "${RC2K_ANDROID_KEY_ALIAS:-rc2k}"
+        --ks-pass env:RC2K_ANDROID_KEY_PASSWORD --key-pass env:RC2K_ANDROID_KEY_PASSWORD)
+else
+    [ -f "$RC2K_ANDROID_HOME/debug.keystore" ] || keytool -genkeypair -keystore "$RC2K_ANDROID_HOME/debug.keystore" \
+        -storepass android -keypass android -alias rc2k -keyalg RSA -keysize 2048 -validity 10000 \
+        -dname "CN=rc2k debug" >/dev/null
+    signing=(--ks "$RC2K_ANDROID_HOME/debug.keystore" --ks-pass pass:android --key-pass pass:android)
+fi
 
 for abi in "${abis[@]}"; do
     d=$([ "$abi" = arm64 ] && echo arm64-v8a || echo "$abi")
@@ -70,7 +79,6 @@ with zipfile.ZipFile(apk, "a") as z:
             z.write(full, rel, compress_type=zipfile.ZIP_STORED if rel.endswith(".so") else zipfile.ZIP_DEFLATED)
 PY
     "$BT/zipalign" -f -P 16 4 "$WORK/base-$abi.apk" "$WORK/aligned-$abi.apk"
-    "$BT/apksigner" sign --ks "$RC2K_ANDROID_HOME/debug.keystore" --ks-pass pass:android \
-        --key-pass pass:android --out "$OUT/rc2k-$abi.apk" "$WORK/aligned-$abi.apk"
+    "$BT/apksigner" sign "${signing[@]}" --out "$OUT/rc2k-$abi.apk" "$WORK/aligned-$abi.apk"
     ls -l "$OUT/rc2k-$abi.apk"
 done
