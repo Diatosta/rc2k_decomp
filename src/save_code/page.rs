@@ -220,7 +220,7 @@ fn layout(w: i32, h: i32, side: Option<usize>) -> Layout {
     };
     let notes_h = NOTE_LINES * lh;
     let text_h = (body_h - notes_h - m / 2).max(lh);
-    let each = (w - 2 * m - (BUTTONS as i32 - 1) * (m / 2)) / BUTTONS as i32;
+    let each = (w - 2 * m - (BUTTONS as i32 - 1) * draw::BUTTON_GAP) / BUTTONS as i32;
     Layout {
         text: [m, top, left_w, text_h],
         code: [w - m - code_w, top, code_w, code_w],
@@ -228,7 +228,7 @@ fn layout(w: i32, h: i32, side: Option<usize>) -> Layout {
         notes: [m, top + text_h + m / 2, left_w, notes_h],
         buttons: std::array::from_fn(|n| {
             [
-                m + n as i32 * (each + m / 2),
+                m + n as i32 * (each + draw::BUTTON_GAP),
                 buttons_y,
                 each,
                 draw::BUTTON_H,
@@ -376,6 +376,9 @@ impl Drop for DirectSideways {
 
 pub fn run(o: Owners<'static>) -> Result<(), Refused> {
     let _direct = DirectSideways::begin();
+    // A tap on one of the page's buttons presses it (`platform::touch_menu`).
+    #[cfg(touch_screen)]
+    let _taps = crate::platform::touch_menu::InstallerPage::begin();
     let mut page = Page::new(o)?;
     crate::input::take_key::take_key(o.input);
     crate::input::menu_pad::take_answer(o.input);
@@ -394,6 +397,16 @@ pub fn run(o: Owners<'static>) -> Result<(), Refused> {
         let lines = page.text.len().div_ceil(per_line);
         let jump = visible.saturating_sub(1).max(1);
         let mut key = take_key(o);
+        // A tap on a usable button chooses it and presses it; one on a button that cannot be
+        // used, or anywhere else, does nothing.
+        #[cfg(touch_screen)]
+        if let Some((x, y)) = crate::platform::touch_menu::take_installer_tap() {
+            let usable: [bool; BUTTONS] = std::array::from_fn(|n| page.usable(n));
+            if let Some(n) = tapped(&l.buttons, &usable, x, y) {
+                page.chosen = n;
+                key = KEY_ENTER;
+            }
+        }
         // The pad's left shoulder pages up and its right one down (a keyboard's Tab, down).
         if key == KEY_TAB {
             key = if o.input.take_shoulder() == 1 {
@@ -559,6 +572,17 @@ fn rows(o: Owners<'static>, code: &Summary, now: &Summary) -> Vec<(String, Strin
     ]
 }
 
+/// The question's two buttons (Yes, No), one above the other near the bottom of a screen of
+/// `w` x `h`: the rectangles both the drawing and the taps use.
+fn question_ways(w: i32, h: i32) -> [[i32; 4]; 2] {
+    let m = draw::MARGIN;
+    let inner = w - 4 * m;
+    let keys_y = h - 2 * m - draw::LINE_H / 2;
+    let pitch = draw::BUTTON_H - 6 + draw::WAYS_GAP;
+    let ways_y = keys_y - draw::LINE_H / 2 - m / 2 - 2 * pitch;
+    std::array::from_fn(|n| [2 * m, ways_y + n as i32 * pitch, inner, draw::BUTTON_H - 6])
+}
+
 fn draw_question(o: Owners<'static>, rows: &[(String, String, String)], chosen: usize) {
     let (w, h) = draw::screen_size(o);
     let m = draw::MARGIN;
@@ -587,23 +611,12 @@ fn draw_question(o: Owners<'static>, rows: &[(String, String, String)], chosen: 
         [2 * m, y + m / 2, inner, 3 * draw::LINE_H],
     );
     let keys_y = h - 2 * m - draw::LINE_H / 2;
-    let ways_y = keys_y - draw::LINE_H / 2 - m / 2 - 2 * draw::BUTTON_H;
-    for (n, label) in [id::SAVE_CODE_YES, id::SAVE_CODE_NO]
+    for (n, (rect, label)) in question_ways(w, h)
         .into_iter()
+        .zip([id::SAVE_CODE_YES, id::SAVE_CODE_NO])
         .enumerate()
     {
-        draw::button(
-            o,
-            [
-                2 * m,
-                ways_y + n as i32 * draw::BUTTON_H,
-                inner,
-                draw::BUTTON_H - 6,
-            ],
-            &own(o, label),
-            chosen == n,
-            true,
-        );
+        draw::button(o, rect, &own(o, label), chosen == n, true);
     }
     let keys = draw::fit(o, &own(o, id::SAVE_CODE_CONFIRM_KEYS), inner);
     draw::centred(o, &keys, 0, w, keys_y);
@@ -615,9 +628,19 @@ fn ask(o: Owners<'static>, plan: &Plan) -> bool {
     crate::input::take_key::take_key(o.input);
     crate::input::menu_pad::take_answer(o.input);
     let mut chosen = 1;
+    #[cfg(touch_screen)]
+    let _taps = crate::platform::touch_menu::InstallerPage::begin();
     loop {
         if !frame(o, || draw_question(o, &rows, chosen)) {
             return false;
+        }
+        // A tap on a button answers with it.
+        #[cfg(touch_screen)]
+        if let Some((x, y)) = crate::platform::touch_menu::take_installer_tap() {
+            let (w, h) = draw::screen_size(o);
+            if let Some(n) = tapped(&question_ways(w, h), &[true; 2], x, y) {
+                return n == 0;
+            }
         }
         match take_key(o) {
             KEY_UP => chosen = chosen.saturating_sub(1),
@@ -629,9 +652,66 @@ fn ask(o: Owners<'static>, plan: &Plan) -> bool {
     }
 }
 
+/// The button a tap at (`x`, `y`) in the frame's pixels lands on, if it is one that can be used.
+#[cfg(any(touch_screen, test))]
+fn tapped(rects: &[[i32; 4]], usable: &[bool], x: f32, y: f32) -> Option<usize> {
+    rects.iter().zip(usable).position(|(r, &ok)| {
+        ok && x >= r[0] as f32
+            && x < (r[0] + r[2]) as f32
+            && y >= r[1] as f32
+            && y < (r[1] + r[3]) as f32
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::date_text;
+    use super::{BUTTONS, draw, layout, question_ways, tapped};
+
+    /// The buttons keep clear of each other, of the notes above and of the screen's edges, at
+    /// the sizes the page is shown at (800 x 600, a phone's wide screen, a tall one).
+    #[test]
+    fn buttons_fit_and_do_not_touch() {
+        for (w, h) in [(800, 600), (1300, 600), (1000, 600), (640, 480)] {
+            let l = layout(w, h, Some(41));
+            for (n, b) in l.buttons.iter().enumerate() {
+                assert!(b[0] >= 0 && b[0] + b[2] <= w && b[1] >= 0 && b[1] + b[3] <= h);
+                assert!(b[3] == draw::BUTTON_H);
+                if n + 1 < BUTTONS {
+                    let next = l.buttons[n + 1];
+                    assert!(next[0] - (b[0] + b[2]) >= draw::BUTTON_GAP, "{w}x{h}");
+                }
+                // The notes (five lines) end above the buttons.
+                assert!(l.notes[1] + l.notes[3] <= b[1], "{w}x{h}");
+                assert!(l.text[3] >= draw::LINE_H);
+            }
+            let [yes, no] = question_ways(w, h);
+            assert!(
+                no[1] - (yes[1] + yes[3]) >= draw::WAYS_GAP.min(6),
+                "{w}x{h}"
+            );
+            assert!(no[1] + no[3] <= h);
+        }
+    }
+
+    #[cfg(touch_screen)]
+    #[test]
+    fn touch_buttons_are_tall_and_far_apart() {
+        let [yes, no] = question_ways(800, 600);
+        assert!(yes[3] * 2 >= draw::LINE_H * 3);
+        assert!((no[1] - (yes[1] + yes[3])) * 2 >= yes[3]);
+        assert!(layout(800, 600, Some(41)).buttons[0][3] * 2 >= draw::LINE_H * 3);
+    }
+
+    #[test]
+    fn a_tap_lands_on_a_usable_button_only() {
+        let rects = [[10, 10, 50, 20], [70, 10, 50, 20]];
+        assert_eq!(tapped(&rects, &[true, true], 20.0, 15.0), Some(0));
+        assert_eq!(tapped(&rects, &[true, true], 80.0, 15.0), Some(1));
+        assert_eq!(tapped(&rects, &[false, true], 20.0, 15.0), None);
+        assert_eq!(tapped(&rects, &[true, true], 65.0, 15.0), None);
+        assert_eq!(tapped(&rects, &[true, true], 20.0, 35.0), None);
+    }
 
     #[test]
     fn dates_are_civil_dates() {

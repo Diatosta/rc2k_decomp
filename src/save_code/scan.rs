@@ -209,6 +209,10 @@ pub fn run(o: Owners<'static>) -> Result<Option<String>, u32> {
     };
     crate::input::take_key::take_key(o.input);
     crate::input::menu_pad::take_answer(o.input);
+    // The page that opened this one is taking the taps (`platform::touch_menu`): a tap here
+    // leaves, as Enter does.
+    #[cfg(touch_screen)]
+    let _taps = crate::platform::touch_menu::InstallerPage::begin();
     let mut last: Option<Frame> = None;
     let mut looker = Looker::start();
     let mut held = Assembly::default();
@@ -248,6 +252,10 @@ pub fn run(o: Owners<'static>) -> Result<Option<String>, u32> {
             return Ok(None);
         }
         crate::input::menu_pad::take_answer(o.input);
+        #[cfg(touch_screen)]
+        if crate::platform::touch_menu::take_installer_tap().is_some() {
+            return Ok(None);
+        }
         let step = match crate::input::take_key::take_key(o.input) {
             KEY_ESCAPE | KEY_ENTER => return Ok(None),
             KEY_LEFT => count - 1,

@@ -9,13 +9,15 @@ use crate::owners::Owners;
 use crate::platform::ffi::sdl;
 use rc2k_core::input::menu_touch::{Gesture, Gestures, Phase, Screen, frame_point};
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
+use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
 
 static GESTURES: Mutex<Gestures> = Mutex::new(Gestures::new());
 
-/// Whether one of the installer's pages is running: its items are not the menus' (it keeps its
-/// own pieces and highlight), so a tap is left for the page to take (`take_installer_tap`).
-static INSTALLER: AtomicBool = AtomicBool::new(false);
+/// How many pages that take their own taps are running (the installer's pages, the port's own
+/// dialog-style pages: they keep their own pieces and highlight, not the menus' items), so a tap
+/// is left for the innermost page to take (`take_installer_tap`). A page opened by another
+/// (the save code page's scan, a notice over it) counts one more; each leaving counts one less.
+static INSTALLER: AtomicUsize = AtomicUsize::new(0);
 
 /// The last tap on the installer's page not yet taken, in the frame's pixels.
 static INSTALLER_TAP: Mutex<Option<(f32, f32)>> = Mutex::new(None);
@@ -131,7 +133,7 @@ fn press(o: &Owners<'static>, action: MenuAction) {
 /// A single tap at (`x`, `y`) in the window's pixels: Enter, wherever it was. The installer's
 /// page, which keeps pieces of its own, is given where it was in the frame's pixels instead.
 fn tap(o: &Owners<'static>, window: sdl::Window, x: f32, y: f32) {
-    if !INSTALLER.load(Relaxed) {
+    if INSTALLER.load(Relaxed) == 0 {
         press(o, MenuAction::Enter);
         return;
     }
@@ -149,19 +151,23 @@ fn tap(o: &Owners<'static>, window: sdl::Window, x: f32, y: f32) {
     }
 }
 
-/// While it lives, the installer's page is the one taps are for.
+/// While it lives, the page (the installer's, or a dialog-style page of the port's own) is the
+/// one taps are for. Pages may nest.
 pub struct InstallerPage;
 
 impl InstallerPage {
     pub fn begin() -> Self {
-        INSTALLER.store(true, Relaxed);
+        INSTALLER.fetch_add(1, Relaxed);
+        *INSTALLER_TAP
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
         InstallerPage
     }
 }
 
 impl Drop for InstallerPage {
     fn drop(&mut self) {
-        INSTALLER.store(false, Relaxed);
+        INSTALLER.fetch_sub(1, Relaxed);
         *INSTALLER_TAP
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
