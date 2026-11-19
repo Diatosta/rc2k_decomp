@@ -242,6 +242,13 @@ fn press(o: &Owners<'static>, action: MenuAction) {
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     if waiting != 0 || !queued.is_empty() {
+        let looked = u64::from(crate::platform::os::ticks())
+            .saturating_sub(crate::menu::handle_keys::LAST_LOOK.load(Relaxed));
+        trace(&format!(
+            "{action:?} queued behind key {waiting:#x} ({} queued); the menus looked {looked} ms ago, keys off {}",
+            queued.len(),
+            crate::menu::handle_keys::LAST_LOOK_OFF.load(Relaxed)
+        ));
         if queued.len() < QUEUE_ROOM {
             queued.push_back((action, o.menus.screens.loop_flags.menu.get().ok()));
         }
@@ -262,8 +269,13 @@ fn hand_over_queued(o: &Owners<'static>) {
         .pop_front();
     if let Some((action, menu)) = next {
         if menu == o.menus.screens.loop_flags.menu.get().ok() {
+            trace(&format!("queued {action:?} handed over on menu {menu:?}"));
             super::events::menu_action(o.input, action);
         } else {
+            trace(&format!(
+                "queued {action:?} for menu {menu:?} forgotten: now on {:?}",
+                o.menus.screens.loop_flags.menu.get().ok()
+            ));
             forget_queued();
         }
     }

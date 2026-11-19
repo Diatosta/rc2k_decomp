@@ -58,6 +58,11 @@ pub fn handle_keys(o: Owners<'static>, elapsed: u32) -> Result<Pressed, Refused>
     if key == 0 {
         return Ok(nothing);
     }
+    #[cfg(touch_screen)]
+    crate::platform::touch_menu::trace(&format!(
+        "the menu took key {key:#x} on menu {:?}",
+        menus.screens.loop_flags.menu.get().ok()
+    ));
     let key_over_elapsed = elapsed & !0xFF | key as u32;
     handle_yes_no(
         crate::strings::append_string_by_id::StringOwners::of(o),
