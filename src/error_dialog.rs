@@ -262,7 +262,15 @@ const WAY_HELD: u32 = 0x3A3C46;
 
 const MARGIN: i32 = 20;
 const LINE_H: i32 = 30;
-const WAY_H: i32 = 40;
+/// A way's row: its button's height and the row's pitch. On a touch screen the buttons are
+/// taller (1.6 lines) with a gap of half a button between them, so a finger does not hit the
+/// next one.
+const WAY_BUTTON_H: i32 = if cfg!(touch_screen) { 48 } else { 34 };
+const WAY_H: i32 = if cfg!(touch_screen) { 72 } else { 40 };
+const _: () = assert!(
+    !cfg!(touch_screen)
+        || (WAY_BUTTON_H * 2 >= LINE_H * 3 && (WAY_H - WAY_BUTTON_H) * 2 >= WAY_BUTTON_H)
+);
 /// The font's own top offset puts its letters a little below the y they are given.
 const TEXT_UP: i32 = 12;
 
@@ -490,11 +498,11 @@ fn draw(
         } else {
             WAY
         };
-        let rect = [left + MARGIN, y, inner, WAY_H - 6];
+        let rect = [left + MARGIN, y, inner, WAY_BUTTON_H];
         rects.push(rect);
         fill(o, rect, colour);
         let x = left + (panel_w - measure(label)) / 2;
-        put(label, x, y + (WAY_H - 6) / 2, &mut canvas);
+        put(label, x, y + WAY_BUTTON_H / 2, &mut canvas);
         y += WAY_H;
     }
     let x = left + (panel_w - measure(keys_line)) / 2;
