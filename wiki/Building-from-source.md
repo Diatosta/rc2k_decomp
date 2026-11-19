@@ -226,7 +226,10 @@ python3 dist/web/serve.py [folder] [port]   # the folder is the script's own by 
 
 The script runs `tools/web/build.sh` (the cargo step with Emscripten's link switches; its
 output is `target/web/wasm32-unknown-emscripten/release/rc2k.js` and `rc2k.wasm`) and gathers
-those two with the page (`tools/web/index.html`, `unzip.js`, `coi-serviceworker.js`, `serve.py`) and the saves page (`saves.html`, `saves.js`) in `dist/web/`.
+those two with the page (`tools/web/index.html`, `unzip.js`, `coi-serviceworker.js`, `serve.py`) and the saves page (`saves.html`, `saves.js`, `codes_worker.js`) in `dist/web/`.
+The saves page's save code is the game's own code as a small WebAssembly module (`tools/web/codes/`,
+a workspace crate on `rc2k_core`), built by `tools/web/build_codes.sh` for `wasm32-unknown-unknown`
+(the script adds that target with `rustup` when it is missing) into `dist/web/rc2k_web_codes.wasm`.
 `CARGO_TARGET_DIR` overrides the target folder.
 
 State: the page copies the game folder (picked as a folder, or as its zip in one or several parts)
