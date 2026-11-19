@@ -393,7 +393,7 @@ fn run(
                 (text, held)
             })
             .collect();
-        let (text_drawn, drawn_rects) =
+        let (text_drawn, drawn_rects, panel) =
             draw(o, &title, message, &log_line, &keys_line, &labels, chosen);
         crate::platform::unlock_surface(o.gfx);
         if !text_drawn && !drawn {
@@ -407,13 +407,15 @@ fn run(
         let key = crate::input::take_key::take_key(o.input);
         #[cfg(touch_screen)]
         if let Some((x, y)) = crate::platform::touch_menu::take_installer_tap()
-            && let Some(way) = tapped_way(&drawn_rects, &held, ways, x, y)
+            // The tap, like the mouse, where the panel was laid out.
+            && let (x, y) = panel.point(x as i32, y as i32)
+            && let Some(way) = tapped_way(&drawn_rects, &held, ways, x as f32, y as f32)
         {
             crate::platform::touch_menu::tap_used();
             return Some(way);
         }
         #[cfg(not(touch_screen))]
-        drop(drawn_rects);
+        let _ = (drawn_rects, panel);
         let (now, done) = after_key(key, chosen, ways);
         // A way held back is passed over.
         if !held[now] {
@@ -433,13 +435,15 @@ fn draw(
     keys_line: &str,
     labels: &[(String, bool)],
     chosen: usize,
-) -> (bool, Vec<[i32; 4]>) {
+) -> (bool, Vec<[i32; 4]>, crate::gfx::ui_scale::Panel) {
     use crate::gfx::button_hints::width_of;
     use crate::input::osk_draw::fill;
     let mut canvas = GameCanvas::new(o.gfx);
-    let screen = o.system.session.screen.get();
-    let (w, h) = (screen.width.get() as i32, screen.height.get() as i32);
-    fill(o, [0, 0, w, h], SCREEN);
+    // Laid out on the virtual screen, enlarged to the real one at the end.
+    let view = crate::gfx::ui_scale::View::now(o);
+    let (w, h) = (view.width, view.height);
+    // The background at the real size, the panel on the virtual screen.
+    fill(o, [0, 0, view.screen.0, view.screen.1], SCREEN);
     let panel_w = (w - 40).min(720);
     // A canvas is only a handle on the game's fonts: one for each measure.
     let measure = |s: &str| {
@@ -468,7 +472,8 @@ fn draw(
         + LINE_H
         + MARGIN)
         .min(h - 20);
-    let (left, top) = ((w - panel_w) / 2, (h - panel_h) / 2);
+    let panel = view.panel(panel_w, panel_h);
+    let (left, top) = panel.origin();
     fill(o, [left, top, panel_w, panel_h], PANEL);
     let all_drawn = Cell::new(true);
     let put = |text: &str, x: i32, y: i32, canvas: &mut GameCanvas| {
@@ -513,7 +518,8 @@ fn draw(
         top + panel_h - MARGIN - LINE_H / 2,
         &mut canvas,
     );
-    (all_drawn.get(), rects)
+    panel.finish(o, SCREEN);
+    (all_drawn.get(), rects, panel)
 }
 
 /// The way a tap at (`x`, `y`) in the frame's pixels lands on, if it can be chosen: a held way

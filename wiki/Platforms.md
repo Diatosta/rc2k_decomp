@@ -61,6 +61,10 @@ needs renaming.
 allowed in the system's security settings. The program works in the folder that holds the
 bundle. The Metal renderer has been tested less than the Vulkan one.
 
+**Phones, the web build and the Vita.** Rendering a replay to a video is a desktop feature for
+now: it starts a second copy of the program and `ffmpeg`, which these cannot do, so the replay
+viewer shows no "render to video" button there ([Running and options](Running-and-options)).
+
 **Handheld.** There is no installer: the program and the game's data are copied over SSH
 ([Installing the game](Installing-the-game)). The picture goes straight to the device's
 screen. The built-in pad works in the menus; MENU + START leaves the game. There is no debug

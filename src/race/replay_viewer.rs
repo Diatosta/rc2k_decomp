@@ -381,6 +381,7 @@ fn stopped_key(
     // has none, or the button under it is greyed): the render button, before the list moves the
     // highlight sideways to some other button.
     if key == KEY_DOWN
+        && crate::race::render_row::OFFERED
         && race.shared.replay_file().index.block_count.get() != 0
         && (LOWER_ROW.contains(&list_state.choice.get())
             || way_down_closed(race, list, list_state.choice.get())?)
