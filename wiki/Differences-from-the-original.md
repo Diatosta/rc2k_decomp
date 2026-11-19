@@ -24,6 +24,7 @@ the switches of the command line are on [Running and options](Running-and-option
 - **Computer drivers (bots) in network races**, switched by the host in the lobby: [Network play](#network-play).
 - **A player who leaves a network race** has their car taken out of it, with a message to the others, and **the other cars on the map disc**: [Network play](#network-play).
 - **A save code**: the player's saved games, car set-ups and best times (not the settings) as text and as QR codes on the options menu's new page, copied, pasted or read with a camera: [Save code](Save-code).
+- **Delete all saved data**, a row on the advanced page (asked once, with a delay on Yes) for starting fresh where the folders are out of reach: [Menus and settings](#menus-and-settings).
 - **Finding hosts over Tailscale**: [Network play](#network-play).
 - **Playing through Steam** (in progress): [Network play](#network-play).
 - **Replays rendered to a video**, from the viewer's camera button in a third row and from the command line:
@@ -68,9 +69,13 @@ The original was a 32-bit Windows program on DirectX. Its platform side was not 
   scaled down, which smooths the edges (supersampling). The dashboard and the texts stay at full
   size. The handheld no longer draws at half size by itself: set the row to 50 %.
 - **Screen sizes.** The resolution list holds the monitor's own modes, the usual sizes of 4:3,
-  16:10, 16:9, 21:9 and 32:9 that fit the desktop and the game's eight, each with its ratio, listed by width, then height (the
+  16:10, 16:9, 21:9 and 32:9 that fit the desktop and those of the game's eight that fit it, each with its ratio, listed by width, then height (the
   same order on every platform, a phone's or a page's own size included). Any
-  other size can be set with `custom_width` / `custom_height` in `var/rc2k.toml`. 16-bit screen
+  other size can be set with `custom_width` / `custom_height` in `var/rc2k.toml`. No size larger
+  than the desktop is offered: a saved race size that is (the game's 1920 x 1280 on a 1080p
+  screen, say) is replaced at start by the largest size that fits, shown as chosen on the page and
+  kept in `rc2k.toml` from then on (the log says "the saved race size ... is larger than the
+  desktop"); when the desktop's size is not known nothing is changed. 16-bit screen
   modes are gone: the screen always has 32 bits a pixel (an old 16-bit choice becomes the same
   size at 32 bits). On an iPhone or iPad the list holds the screen's own pixel size (the race fills it
   edge to edge, the HUD keeping clear of the notch) and its 3/4, 2/3 and 1/2, and the race starts at the largest no wider than 1920.
@@ -133,6 +138,15 @@ The original was a 32-bit Windows program on DirectX. Its platform side was not 
   and force feedback, and, on a second part of the page reached by its "more" button ("first page" comes back), "controls from saved games" (whether a loaded championship brings its own
   keys, controller set-up and gearing, or keeps the players' current ones) (some take effect at the next race or start, and the row says so). "Apply"
   writes them ([Running and options](Running-and-options), [Settings files](Settings-files)).
+- **Delete all saved data** (the last row on the advanced page's second part): for starting
+  fresh on a phone, in the browser or on a handheld, where the game's folders are not at hand.
+  It asks one question (it says what goes: saved games, replays, best times and settings, and
+  that it cannot be undone) with No chosen to begin with; Escape and closing the window answer
+  No, and Yes is dimmed with a countdown and cannot be chosen for the first 5 seconds. On Yes it
+  deletes everything in `savedata` and everything in `var` except `ral.zog`, `install.cfg` and
+  `logfile.txt`, tells the player in one line, and closes the game; the next start is a first
+  run, with the default settings and no saves. The game's own data (`files`, the language
+  files, the program) is never touched. See [Settings files](Settings-files#deleting-saved-data).
 - **Settings are saved when a page is left**, not only when the game ends, so a crash keeps them.
   Options are kept in a readable text file, `var/rc2k.toml`; the original's `var/ral.dat` is
   read when the new file does not exist ([Options files](Options-files)).

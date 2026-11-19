@@ -28,6 +28,8 @@ pub enum Way {
     Quit,
     Continue,
     MainMenu,
+    Yes,
+    No,
 }
 
 thread_local! {
@@ -93,7 +95,8 @@ pub fn text_with(id: u32, with: &str) -> String {
 /// `show_pending` runs.
 pub fn notice(text: &str) {
     crate::logfile::program_log::log(&format!("notice: {text}"));
-    let shown = ready().is_some_and(|o| show(o, DIALOG_NOTICE, text, &[Way::Continue]).is_some());
+    let shown =
+        ready().is_some_and(|o| show(o, DIALOG_NOTICE, text, &[Way::Continue], 0, 0).is_some());
     if !shown {
         queue(text);
     }
@@ -195,7 +198,7 @@ pub fn show_pending() {
             Queued::Text(text) => text,
             Queued::Own { id, with } => text_with(id, &with),
         };
-        let _ = show(o, DIALOG_NOTICE, &text, &[Way::Continue]);
+        let _ = show(o, DIALOG_NOTICE, &text, &[Way::Continue], 0, 0);
     }
 }
 
@@ -203,7 +206,7 @@ pub fn show_pending() {
 /// the player has answered. The caller ends the program as it did before.
 pub fn fatal(text: &str) {
     if let Some(o) = ready()
-        && show(o, DIALOG_ERROR, text, &[Way::Quit]).is_none()
+        && show(o, DIALOG_ERROR, text, &[Way::Quit], 0, 0).is_none()
         && !text.is_empty()
     {
         // Too early for the game's fonts or the screen: the system's own box says it.
@@ -215,6 +218,26 @@ pub fn fatal(text: &str) {
     }
 }
 
+/// A question with Yes and No, shown with its own title, No chosen to begin with and also
+/// what Escape and a closed window answer. Yes cannot be chosen for `hold_secs` seconds from
+/// the question's appearing: it is shown dimmed with the seconds left, and the keys pass it
+/// over. True only for a Yes. No for a screen that cannot
+/// show the dialog (nothing is asked, so nothing is done).
+pub fn ask_yes(title_id: u32, question_id: u32, hold_secs: u32) -> bool {
+    let Some(o) = ready() else {
+        crate::logfile::program_log::log("error_dialog: a question could not be shown: no");
+        return false;
+    };
+    let text = own(o, question_id);
+    crate::logfile::program_log::log(&format!("question: {text}"));
+    let answer = show(o, title_id, &text, &[Way::Yes, Way::No], 1, hold_secs) == Some(Way::Yes);
+    crate::logfile::program_log::log(&format!(
+        "question: answered {}",
+        if answer { "yes" } else { "no" }
+    ));
+    answer
+}
+
 /// A trouble the game goes back to the main menu from: shown with "Main menu" and "Quit".
 /// True when the player chose to go on at the main menu (also where no dialog can be shown:
 /// an unattended run goes on).
@@ -222,7 +245,7 @@ pub fn ask_back(text: &str) -> bool {
     crate::logfile::program_log::log(&format!("error: {text}"));
     // The trouble's own words are the program's (English); the lead-in is in the language in use.
     let shown = text_with(rc2k_core::strings::own::id::BACK_TO_MENU, text);
-    ready().and_then(|o| show(o, DIALOG_NOTICE, &shown, &[Way::MainMenu, Way::Quit]))
+    ready().and_then(|o| show(o, DIALOG_NOTICE, &shown, &[Way::MainMenu, Way::Quit], 0, 0))
         != Some(Way::Quit)
 }
 
@@ -234,6 +257,8 @@ const SCREEN: u32 = 0x05081A;
 const PANEL: u32 = 0x0C1238;
 const WAY: u32 = 0x27347A;
 const WAY_CHOSEN: u32 = 0xC8202A;
+/// A way that cannot be chosen yet.
+const WAY_HELD: u32 = 0x3A3C46;
 
 const MARGIN: i32 = 20;
 const LINE_H: i32 = 30;
@@ -267,22 +292,39 @@ fn way_text(o: Owners<'static>, way: Way) -> String {
             Way::Quit => id::DIALOG_QUIT,
             Way::Continue => id::DIALOG_CONTINUE,
             Way::MainMenu => id::DIALOG_MENU,
+            Way::Yes => id::DIALOG_YES,
+            Way::No => id::DIALOG_NO,
         },
     )
 }
 
 /// The dialog up until a way is confirmed. `ways` is not empty.
 /// The way chosen; none when there was no screen to draw on yet.
-fn show(o: Owners<'static>, title_id: u32, message: &str, ways: &[Way]) -> Option<Way> {
+fn show(
+    o: Owners<'static>,
+    title_id: u32,
+    message: &str,
+    ways: &[Way],
+    chosen: usize,
+    hold_secs: u32,
+) -> Option<Way> {
     if SHOWING.swap(true, Ordering::SeqCst) {
-        return Some(ways[0]);
+        // Another dialog is up: the way chosen to begin with (never a Yes that nobody gave).
+        return Some(ways[chosen]);
     }
-    let answer = run(o, title_id, message, ways);
+    let answer = run(o, title_id, message, ways, chosen, hold_secs);
     SHOWING.store(false, Ordering::SeqCst);
     answer
 }
 
-fn run(o: Owners<'static>, title_id: u32, message: &str, ways: &[Way]) -> Option<Way> {
+fn run(
+    o: Owners<'static>,
+    title_id: u32,
+    message: &str,
+    ways: &[Way],
+    first: usize,
+    hold_secs: u32,
+) -> Option<Way> {
     let title = own(o, title_id);
     let log_line = if title_id == DIALOG_ERROR {
         own(o, rc2k_core::strings::own::id::DIALOG_LOG)
@@ -290,12 +332,15 @@ fn run(o: Owners<'static>, title_id: u32, message: &str, ways: &[Way]) -> Option
         String::new()
     };
     let keys_line = own(o, rc2k_core::strings::own::id::DIALOG_KEYS);
-    let labels: Vec<String> = ways.iter().map(|&w| way_text(o, w)).collect();
+    let base: Vec<String> = ways.iter().map(|&w| way_text(o, w)).collect();
+    // A Yes held back is open from `hold_secs` seconds after the dialog is first drawn.
+    let started = std::time::Instant::now();
+    let hold = std::time::Duration::from_secs(u64::from(hold_secs));
     // Keys and pad answers from before are not answers.
     crate::input::take_key::take_key(o.input);
     crate::input::menu_pad::take_answer(o.input);
     crate::input::typed_text::osk_close();
-    let mut chosen = 0;
+    let mut chosen = first;
     let mut drawn = false;
     // What the player is given when the window closes or the screen goes: the last way.
     let gone = |drawn: bool| drawn.then(|| ways[ways.len() - 1]);
@@ -310,6 +355,24 @@ fn run(o: Owners<'static>, title_id: u32, message: &str, ways: &[Way]) -> Option
         if crate::platform::lock_surface(o.gfx, o.system) < 1 {
             return gone(drawn);
         }
+        let left = hold.saturating_sub(started.elapsed());
+        let held: Vec<bool> = ways
+            .iter()
+            .map(|&w| w == Way::Yes && !left.is_zero())
+            .collect();
+        // Each way's label and whether it is held back (a held one shows the seconds left).
+        let labels: Vec<(String, bool)> = base
+            .iter()
+            .zip(&held)
+            .map(|(label, &held)| {
+                let text = if held {
+                    format!("{label} ({})", left.as_secs_f32().ceil() as u32)
+                } else {
+                    label.clone()
+                };
+                (text, held)
+            })
+            .collect();
         let text_drawn = draw(o, &title, message, &log_line, &keys_line, &labels, chosen);
         crate::platform::unlock_surface(o.gfx);
         if !text_drawn && !drawn {
@@ -322,7 +385,10 @@ fn run(o: Owners<'static>, title_id: u32, message: &str, ways: &[Way]) -> Option
         crate::input::menu_pad::take_answer(o.input);
         let key = crate::input::take_key::take_key(o.input);
         let (now, done) = after_key(key, chosen, ways);
-        chosen = now;
+        // A way held back is passed over.
+        if !held[now] {
+            chosen = now;
+        }
         if let Some(way) = done {
             return Some(way);
         }
@@ -335,7 +401,7 @@ fn draw(
     message: &str,
     log_line: &str,
     keys_line: &str,
-    labels: &[String],
+    labels: &[(String, bool)],
     chosen: usize,
 ) -> bool {
     use crate::gfx::button_hints::width_of;
@@ -394,8 +460,14 @@ fn draw(
         y += LINE_H;
     }
     let mut y = top + panel_h - MARGIN - LINE_H - labels.len() as i32 * WAY_H;
-    for (n, label) in labels.iter().enumerate() {
-        let colour = if n == chosen { WAY_CHOSEN } else { WAY };
+    for (n, (label, held)) in labels.iter().enumerate() {
+        let colour = if *held {
+            WAY_HELD
+        } else if n == chosen {
+            WAY_CHOSEN
+        } else {
+            WAY
+        };
         fill(o, [left + MARGIN, y, inner, WAY_H - 6], colour);
         let x = left + (panel_w - measure(label)) / 2;
         put(label, x, y + (WAY_H - 6) / 2, &mut canvas);

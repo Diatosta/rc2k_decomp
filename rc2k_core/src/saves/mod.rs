@@ -9,3 +9,4 @@ pub mod rankings;
 pub mod savegame;
 pub mod scores;
 pub mod tables;
+pub mod wipe;

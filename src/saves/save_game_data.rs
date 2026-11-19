@@ -32,6 +32,10 @@ pub fn save_in_game(o: Owners<'static>, saves: &Saves) -> Result<bool, Refused> 
 /// before the game's data is loaded (a save then would write blanks); a failure is logged and
 /// the game goes on, the exit save tries again.
 pub fn save_settings_in_game(o: Owners<'static>) {
+    // After "delete all saved data" nothing is written back.
+    if crate::saves::delete_all::deleted() {
+        return;
+    }
     let tables = &o.saves.best_times;
     if [tables.allocated.get(), tables.loaded.get()] != [1, 1] {
         return;
