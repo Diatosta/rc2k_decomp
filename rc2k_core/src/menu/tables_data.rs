@@ -201,6 +201,8 @@ pub enum ItemFn {
     ApplyAdvanced,
     /// The advanced page's button between its two parts.
     AdvancedTurnPage,
+    /// Enter on the advanced page's last row: the deletion of all saved data (asked first).
+    DeleteSavedData,
     /// The axis page's highlighted row one step: the axis, or one of its settings.
     AxisPageStep {
         up: bool,
@@ -380,6 +382,7 @@ impl ItemFn {
         ItemFn::SaveCodeLoop,
         ItemFn::ApplyAdvanced,
         ItemFn::AdvancedTurnPage,
+        ItemFn::DeleteSavedData,
         ItemFn::AdvancedStep { row: 0, up: false },
         ItemFn::AdvancedStep { row: 0, up: true },
         ItemFn::AdvancedStep { row: 1, up: false },
@@ -16460,7 +16463,7 @@ pub static MENUS: [Menu; 99] = [
                     ItemFn::AdvancedStep { row: 6, up: false },
                     ItemFn::AdvancedStep { row: 6, up: true },
                 ],
-                action: ItemFn::Nothing,
+                action: ItemFn::DeleteSavedData,
                 skip_mark: 0xFFFFFC1B,
                 measuring_font: MenuFont::Measure,
                 highlight_font: MenuFont::StageItemB,

@@ -1,7 +1,8 @@
 //! The advanced page's rows: the `ral.cfg` switches shown and toggled in the game, the number of
 //! parts of a frame drawn at once and the renderer tried first at start. Each row says when a
 //! change takes effect (`When`); `ral.cfg` is written back as the game reads it, the other two
-//! go to `rc2k.toml` (`options::model::Display`).
+//! go to `rc2k.toml` (`options::model::Display`). The last row is an action, not a setting:
+//! it deletes the player's saved data after a question.
 
 /// When a changed row takes effect.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -29,6 +30,9 @@ pub enum Kind {
     /// A `ral.cfg` switch: the key; `inverted` when the key names what is off (`nofmv`), so the
     /// page shows the feature, not its absence.
     Flag { key: &'static str, inverted: bool },
+    /// Not a setting: choosing the row asks, then deletes everything the player has saved
+    /// (`saves::wipe`). It shows no value and has nothing to step.
+    DeleteData,
 }
 
 /// One row.
@@ -47,7 +51,7 @@ const fn flag(key: &'static str, inverted: bool, when: When) -> Row {
 
 /// The rows in the order the page shows them: the first part the drawing and the screen, the
 /// second driving, sound and controls.
-pub const ROWS: [Row; 12] = [
+pub const ROWS: [Row; 13] = [
     Row {
         kind: Kind::Threads,
         when: When::Now,
@@ -75,14 +79,20 @@ pub const ROWS: [Row; 12] = [
     },
     // Read when a saved game is loaded, so a change counts from the next load.
     flag("usesavegamekeys", false, When::Now),
+    // The last row, below the settings of the second part.
+    Row {
+        kind: Kind::DeleteData,
+        when: When::Now,
+    },
 ];
 
 /// The page's row items: the menu has this many, each part fills them from the top and hides
 /// the rest.
 pub const ROW_SLOTS: usize = 12;
 
-/// How many rows the first part of the page shows; the second shows the rest. Kept short so
-/// the page does not run down the screen.
+/// How many rows the first part of the page shows; the second shows the rest (one more than
+/// the first, with the deletion row at its end). Kept short so the page does not run down the
+/// screen.
 pub const PAGE_ROWS: usize = 6;
 
 /// The rows of a part of the page (0 or 1) as a range of `ROWS`.
@@ -167,6 +177,7 @@ impl Values {
             Kind::QuitPictures => self.quit_pictures = !self.quit_pictures,
             Kind::SmoothFrames => self.smooth_frames = !self.smooth_frames,
             Kind::Flag { .. } => self.flags[row] = !self.flags[row],
+            Kind::DeleteData => {}
         }
     }
 }
@@ -244,7 +255,8 @@ mod tests {
         assert!(matches!(ROWS[0].kind, Kind::Threads));
         assert!(matches!(ROWS[1].kind, Kind::Renderer));
         assert!(matches!(ROWS[3].kind, Kind::SmoothFrames));
-        assert!(matches!(ROWS[ROWS.len() - 2].kind, Kind::QuitPictures));
+        assert!(matches!(ROWS[ROWS.len() - 3].kind, Kind::QuitPictures));
+        assert!(matches!(ROWS[ROWS.len() - 1].kind, Kind::DeleteData));
         // Every part fits the menu's row items.
         assert!(rows_on_page(0).len() <= ROW_SLOTS);
         assert!(rows_on_page(1).len() <= ROW_SLOTS);
@@ -274,8 +286,8 @@ mod tests {
                 )
             })
             .unwrap();
-        // The last row, on the second part of the page.
-        assert_eq!(at, ROWS.len() - 1);
+        // The last setting, on the second part of the page, above the deletion row.
+        assert_eq!(at, ROWS.len() - 2);
         assert!(rows_on_page(1).contains(&at));
         // Not inverted: on means the saved game's own controls come back.
         assert!(matches!(
@@ -315,8 +327,12 @@ mod tests {
         assert_eq!(v.renderer, Renderer::Software);
         v.step(2, false, 4, false);
         assert!(v.flags[2]);
-        v.step(ROWS.len() - 2, true, 4, false);
+        v.step(ROWS.len() - 3, true, 4, false);
         assert!(!v.quit_pictures);
+        // The deletion row steps to nothing.
+        let before = v;
+        v.step(ROWS.len() - 1, true, 4, false);
+        assert_eq!(v, before);
         v.step(3, true, 4, false);
         assert!(!v.smooth_frames);
     }

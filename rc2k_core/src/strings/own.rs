@@ -274,6 +274,16 @@ pub mod id {
     /// name) and the keys that choose another.
     pub const SAVE_CODE_CAMERA_NAME: u32 = FIRST + 0x180;
     pub const SAVE_CODE_CAMERA_SWITCH: u32 = FIRST + 0x181;
+    /// The advanced page's row that deletes everything saved, its question, the answers' labels, and what the player is told after
+    /// the deletion (all went, or some could not be removed).
+    pub const DELETE_DATA: u32 = FIRST + 0x1A0;
+    pub const DELETE_ASK: u32 = FIRST + 0x1A1;
+    /// The deletion question's title (the row's name is lower case like every row's).
+    pub const DELETE_TITLE: u32 = FIRST + 0x1A2;
+    pub const DIALOG_YES: u32 = FIRST + 0x1A3;
+    pub const DIALOG_NO: u32 = FIRST + 0x1A4;
+    pub const DELETE_DONE: u32 = FIRST + 0x1A5;
+    pub const DELETE_FAILED: u32 = FIRST + 0x1A6;
     /// The replay viewer's names of its buttons, shown when the highlight moves to one: the 26
     /// buttons of the two rows in order, the render button, the name while a camera is edited
     /// ("{}" the camera's number), a car's HUD shown or hidden ("{}" the car's number), and the
@@ -413,6 +423,13 @@ pub const KEYS: &[(&str, u32)] = &[
     ("advanced.gl", id::RENDERER_GL),
     ("advanced.next_start", id::NEXT_START),
     ("advanced.apply", id::APPLY),
+    ("advanced.delete_data", id::DELETE_DATA),
+    ("dialog.delete", id::DELETE_ASK),
+    ("dialog.delete_title", id::DELETE_TITLE),
+    ("dialog.yes", id::DIALOG_YES),
+    ("dialog.no", id::DIALOG_NO),
+    ("dialog.delete_done", id::DELETE_DONE),
+    ("dialog.delete_failed", id::DELETE_FAILED),
     ("icon_styles.automatic", id::ICON_STYLES),
     ("icon_styles.xbox", id::ICON_STYLES + 1),
     ("icon_styles.playstation", id::ICON_STYLES + 2),
