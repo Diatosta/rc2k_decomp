@@ -155,7 +155,8 @@ mod tests {
 
     /// What reading each of a few parts' views gives, within `FRAMES` frames of each.
     fn parts_seen(view: super::super::qr_frames::View) -> Vec<Option<(String, Seen)>> {
-        let texts = super::super::parts::split(&sample(3000)).unwrap();
+        let texts =
+            super::super::parts::split(&sample(3000), super::super::parts::Density::Small).unwrap();
         assert!(texts.len() >= 5);
         texts
             .iter()
@@ -210,6 +211,49 @@ mod tests {
         assert!(all_read(&parts_seen(view), Seen::Plain));
     }
 
+    /// What reading each of a few dense parts' views gives, within `FRAMES` frames of each.
+    fn dense_parts_seen(view: super::super::qr_frames::View) -> Vec<Option<(String, Seen)>> {
+        use super::super::parts::{Density, split};
+        let texts = split(&sample(7000), Density::Dense).unwrap();
+        assert!(texts.len() >= 3);
+        texts
+            .iter()
+            .map(|t| {
+                let modules = encode(t).unwrap();
+                (0..FRAMES).find_map(|n| {
+                    let view = super::super::qr_frames::View { frame: n, ..view };
+                    let grey = super::super::qr_frames::frame(&modules, view);
+                    let got = read_camera(view.width, view.height, &grey);
+                    assert!(
+                        got.as_ref().is_none_or(|(read, _)| read == t),
+                        "a wrong text"
+                    );
+                    got
+                })
+            })
+            .collect()
+    }
+
+    #[test]
+    fn dense_parts_are_read_from_a_1080p_camera_picture() {
+        use super::super::qr_frames::View;
+        let mut view = View::plain(1920, 1080, 60);
+        view.degrees = 3.0;
+        view.blur = 1;
+        view.noise = 8;
+        assert!(dense_parts_seen(view).iter().all(Option::is_some));
+    }
+
+    #[test]
+    fn dense_parts_are_read_from_a_4k_camera_picture_from_afar() {
+        use super::super::qr_frames::View;
+        let mut view = View::plain(3840, 2160, 35);
+        view.degrees = -4.0;
+        view.blur = 1;
+        view.noise = 8;
+        assert!(dense_parts_seen(view).iter().all(Option::is_some));
+    }
+
     #[test]
     fn a_mirrored_picture_is_read() {
         use super::super::qr_frames::View;
@@ -262,7 +306,11 @@ mod tests {
         let Some(path) = std::env::var_os("RC2K_SAMPLE_PGM") else {
             return;
         };
-        let texts = super::super::parts::split(&format!("RC2K:{}", sample(3000))).unwrap();
+        let texts = super::super::parts::split(
+            &format!("RC2K:{}", sample(3000)),
+            super::super::parts::Density::Small,
+        )
+        .unwrap();
         let modules = encode(&texts[0]).unwrap();
         let mut view = View::plain(1280, 720, 60);
         view.degrees = 3.0;

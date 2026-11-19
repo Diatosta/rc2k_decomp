@@ -345,6 +345,7 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn) -> Result<(), Refused> {
         ItemFn::PreviousButtonIcons => axes_items::step_icons(o, false),
         ItemFn::NextButtonIcons => axes_items::step_icons(o, true),
         ItemFn::ToggleEngineVibration => axes_items::toggle_engine_vibration(o),
+        ItemFn::ToggleRainAndSnow => crate::menu::advanced_items::toggle_rain_and_snow(o),
         ItemFn::ReplayItemC => replay_items::replay_item_c(race, o),
         ItemFn::ReplayItemB => replay_items::replay_item_b(race, o),
         ItemFn::ReplayItemA => replay_items::replay_item_a(race, o),

@@ -1625,7 +1625,10 @@ mod comparison {
         // The frame queued to come back later is the picture brought back at once.
         #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
         {
+            // The game's screen holds no written pixel at a frame's start (`bring_back` filled
+            // `canvas` with the picture, whose alpha bytes would blend over itself).
             let mut beside = canvas.clone();
+            mark_unwritten(&mut beside);
             let mut queued = vec![0xAA; 3];
             assert!(
                 !gpu.collect_video_read(&mut queued).unwrap(),

@@ -13,7 +13,8 @@ use rc2k_core::strings::own::id;
 
 /// The text id of a row's name.
 fn row_name(row: usize) -> u32 {
-    // The names of the first eleven rows follow each other in the own texts.
+    // The names of the rows follow each other in the own texts (the eighth, rain and snow, is
+    // the graphics page's).
     let first = |n: u32| id::ADVANCED_ROWS + n;
     match ROWS[row].kind {
         Kind::Threads => first(0),
@@ -26,7 +27,6 @@ fn row_name(row: usize) -> u32 {
             "screensnapshot" => first(4),
             "nonlinearsteering" => first(5),
             "noautoneutral" => first(6),
-            "noprecipitation" => first(7),
             "nomusic" => first(8),
             "noforcefeedback" => first(9),
             "usesavegamekeys" => id::SAVE_CONTROLS,

@@ -7,6 +7,11 @@
 //! longer than the room: a code can be tens of thousands of letters long, and a small font
 //! would not make that readable. A code longer than one QR code holds is shown as numbered
 //! parts, one QR code at a time, stepped with Left and Right.
+//!
+//! The QR codes are the large ones (few, for a camera of 1080p or better) until the player
+//! chooses the small ones (more, for a camera that cannot read the large); the same button goes
+//! back. A screen too small to draw a large code at three pixels a module starts with the small
+//! ones.
 
 use crate::errors::Refused;
 use crate::owners::Owners;
@@ -14,6 +19,7 @@ use crate::platform::ffi::sdl_clipboard;
 use crate::save_code::apply::{self, Plan};
 use crate::save_code::page_draw as draw;
 use crate::save_code::{gather, scan};
+use rc2k_core::saves::code::parts::Density;
 use rc2k_core::saves::code::qr::{self, Modules};
 use rc2k_core::saves::code::{PlayerState, Summary, parts};
 use rc2k_core::strings::own::id;
@@ -33,24 +39,25 @@ const KEY_TAB: u8 = 0x0F;
 const STICK_AFTER: std::time::Duration = std::time::Duration::from_millis(400);
 const STICK_EVERY: std::time::Duration = std::time::Duration::from_millis(70);
 
-const BUTTONS: [u32; 4] = [
-    id::SAVE_CODE_COPY,
-    id::SAVE_CODE_PASTE,
-    id::SAVE_CODE_CAMERA,
-    id::SAVE_CODE_BACK,
-];
+const BUTTONS: usize = 5;
 const COPY: usize = 0;
 const PASTE: usize = 1;
 const CAMERA: usize = 2;
-const BACK: usize = 3;
+const DENSITY: usize = 3;
+const BACK: usize = 4;
+/// The fewest pixels a module of a large code takes for the page to start with large codes.
+const LEAST_LARGE_SCALE: usize = 3;
 
 /// What the page shows.
 struct Page {
     /// The text of the whole state.
     text: String,
-    /// The texts of the QR codes, in order: the whole text when one holds it, else its parts.
-    /// Empty when the state is too long for the most parts.
+    /// The texts of the QR codes of the density shown, in order: the whole text when one holds
+    /// it, else its parts. Empty when the state is too long for the most parts.
     codes: Vec<String>,
+    density: Density,
+    /// The codes of the other density.
+    other: Vec<String>,
     /// Which of them the page shows, and its modules.
     shown: usize,
     modules: Option<Modules>,
@@ -76,10 +83,21 @@ fn own_with(o: Owners<'static>, n: u32, with: &str) -> String {
 impl Page {
     fn new(o: Owners<'static>) -> Result<Self, Refused> {
         let text = gather::gather(o)?.encode();
-        let codes = parts::split(&text).unwrap_or_default();
+        let large = parts::split(&text, Density::Dense).unwrap_or_default();
+        let small = parts::split(&text, Density::Small).unwrap_or_default();
+        let (w, h) = draw::screen_size(o);
+        let side = large.first().and_then(|t| qr::encode(t)).map(|m| m.side);
+        let fits = layout(w, h, side).scale >= LEAST_LARGE_SCALE;
+        let (codes, other, density) = if fits || small.is_empty() {
+            (large, small, Density::Dense)
+        } else {
+            (small, large, Density::Small)
+        };
         let mut page = Self {
             text,
             codes,
+            density,
+            other,
             shown: 0,
             modules: None,
             box_side: None,
@@ -99,6 +117,14 @@ impl Page {
         self.modules = self.codes.get(n).and_then(|t| qr::encode(t));
     }
 
+    /// Switches between the large and the small codes, starting at the first.
+    fn switch_density(&mut self) {
+        std::mem::swap(&mut self.codes, &mut self.other);
+        self.density = self.density.other();
+        self.show(0);
+        self.box_side = self.modules.as_ref().map(|m| m.side);
+    }
+
     /// Steps the QR code shown by `by`, round the ends.
     fn step_code(&mut self, by: isize) {
         let n = self.codes.len() as isize;
@@ -111,14 +137,16 @@ impl Page {
         match button {
             COPY | PASTE => sdl_clipboard::AVAILABLE,
             CAMERA => self.can_camera,
+            // Another density helps when it makes other codes.
+            DENSITY => !self.other.is_empty() && self.other != self.codes,
             _ => true,
         }
     }
 
     fn step_choice(&mut self, by: isize) {
         let mut at = self.chosen as isize;
-        for _ in 0..BUTTONS.len() {
-            at = (at + by).rem_euclid(BUTTONS.len() as isize);
+        for _ in 0..BUTTONS {
+            at = (at + by).rem_euclid(BUTTONS as isize);
             if self.usable(at as usize) {
                 self.chosen = at as usize;
                 return;
@@ -128,11 +156,30 @@ impl Page {
 
     /// What the line under the text says of the QR codes.
     fn codes_note(&self, o: Owners<'static>) -> String {
-        match self.codes.len() {
-            0 => own(o, id::SAVE_CODE_TOO_LONG),
+        let held = match self.codes.len() {
+            0 => return own(o, id::SAVE_CODE_TOO_LONG),
             1 => own(o, id::SAVE_CODE_QR_WHOLE),
             n => own_with(o, id::SAVE_CODE_PARTS_NOTE, &n.to_string()),
+        };
+        if !self.usable(DENSITY) {
+            return held;
         }
+        let hint = match self.density {
+            Density::Dense => id::SAVE_CODE_LARGE_NOTE,
+            Density::Small => id::SAVE_CODE_SMALL_NOTE,
+        };
+        format!("{held} {}", own(o, hint))
+    }
+
+    /// The label of the density button: what it switches to.
+    fn density_label(&self, o: Owners<'static>) -> String {
+        own(
+            o,
+            match self.density {
+                Density::Dense => id::SAVE_CODE_SMALL_BUTTON,
+                Density::Small => id::SAVE_CODE_LARGE_BUTTON,
+            },
+        )
     }
 }
 
@@ -151,7 +198,7 @@ struct Layout {
     code: [i32; 4],
     scale: usize,
     notes: [i32; 4],
-    buttons: [[i32; 4]; 4],
+    buttons: [[i32; 4]; BUTTONS],
     keys_y: i32,
 }
 
@@ -173,7 +220,7 @@ fn layout(w: i32, h: i32, side: Option<usize>) -> Layout {
     };
     let notes_h = NOTE_LINES * lh;
     let text_h = (body_h - notes_h - m / 2).max(lh);
-    let each = (w - 2 * m - 3 * (m / 2)) / 4;
+    let each = (w - 2 * m - (BUTTONS as i32 - 1) * (m / 2)) / BUTTONS as i32;
     Layout {
         text: [m, top, left_w, text_h],
         code: [w - m - code_w, top, code_w, code_w],
@@ -257,13 +304,15 @@ fn draw_page(o: Owners<'static>, page: &Page) {
         paragraph(o, &page.message, [nx, ny, nw, nh]);
     }
     for (n, rect) in l.buttons.iter().enumerate() {
-        draw::button(
-            o,
-            *rect,
-            &own(o, BUTTONS[n]),
-            page.chosen == n,
-            page.usable(n),
-        );
+        let label = match n {
+            COPY => own(o, id::SAVE_CODE_COPY),
+            PASTE => own(o, id::SAVE_CODE_PASTE),
+            CAMERA => own(o, id::SAVE_CODE_CAMERA),
+            DENSITY => page.density_label(o),
+            _ => own(o, id::SAVE_CODE_BACK),
+        };
+        let label = draw::fit(o, &label, rect[2] - 8);
+        draw::button(o, *rect, &label, page.chosen == n, page.usable(n));
     }
     let keys_top = l.keys_y - draw::LINE_H / 2;
     let measure = |s: &str| draw::width(o, s);
@@ -394,6 +443,11 @@ pub fn run(o: Owners<'static>) -> Result<(), Refused> {
                     Some(text) => take_in(o, &mut page, &text)?,
                     None => page.message = own(o, id::SAVE_CODE_CLIPBOARD_EMPTY),
                 },
+                DENSITY => {
+                    if page.usable(DENSITY) {
+                        page.switch_density();
+                    }
+                }
                 CAMERA => match scan::run(o) {
                     Ok(Some(text)) => take_in(o, &mut page, &text)?,
                     Ok(None) => page.message.clear(),

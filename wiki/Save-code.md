@@ -16,6 +16,16 @@ of the options menu (below "advanced"; the options of the pause menu in a race h
   screen allows), with the four modules' quiet zone. A code that one QR code cannot hold is shown as
   numbered **parts**, one at a time, "2 / 3" at the top right; Left and Right step through them, round
   the ends (the text on the left stays the whole code). Under the text a line says which it is.
+- **Large and small codes.** The codes shown first are large ones: parts of 1,800 letters, 105 to 117
+  modules a side, so a save of a few games is two to four codes (a save of about 5,800 letters is 4 large
+  codes, where small ones take 16). A camera of 1080p or better reads them from a screen held at a normal
+  distance; one at 1280 x 720 often cannot. The fifth button, **small codes**, switches to the small ones
+  (below) and is then **large codes**, which switches back; the note under the text says so ("Camera cannot
+  read them? Choose "small codes"."; in Portuguese the buttons are just **pequenos** and **grandes**, to fit). The button is dimmed when both give the same codes (a short save
+  that one large code holds whole is cut into parts only by the small density). A screen too small to draw
+  a large code at three pixels a module starts with the small ones. The camera page reads either kind and
+  a set of either, as the parts say their own count and check number; a code made by an earlier version
+  (small parts only) reads as before, and an earlier version reads large parts too.
 - **copy** puts the whole text in the system's clipboard. **paste** reads the clipboard. **camera**
   opens a camera (SDL's camera API) and looks for a QR code shown on another screen, with a small live
   picture of what the camera sees; Back (Escape) stops. The camera button is dimmed when SDL sees no
@@ -26,9 +36,9 @@ of the options menu (below "advanced"; the options of the pause menu in a race h
   The buttons are chosen with Up and Down (and Left and Right when the code is one QR code).
 - **The camera's pictures** are opened in the best uncompressed format the camera lists (RGB, packed
   YUV such as YUY2 and UYVY, planar NV12 or I420; MJPEG only when nothing else is offered, as SDL decodes it
-  itself), at the size nearest 1280 x 720 that gives at least 10 frames a second (a QR code on another
-  screen fills about half the picture's height, and its modules need about four pixels each; a 640 x 480
-  picture reads only a code held close). Every frame is turned into RGBA by the game's own conversion
+  itself), at the size nearest 1920 x 1080 that gives at least 10 frames a second (a QR code on another
+  screen fills about half the picture's height, and its modules need about four pixels each, which the
+  large codes only get from a full-HD picture; a 640 x 480 picture reads only a small code held close). Every frame is turned into RGBA by the game's own conversion
   (`rc2k_core::gfx::camera_frame`, reading each row at the frame's own pitch; a format it does not read goes
   through SDL's pixel conversion) and shown as a real picture, **all of it**, in the frame's own proportions,
   scaled to the box by averaging (no crop, no mosaic). A camera that faces the user (a front camera, a
@@ -119,10 +129,14 @@ text, flag 1) and their saved games were not rearranged. The settings are read p
 
 ### Parts
 
-A text longer than 409 letters is cut into 2 to 99 pieces of nearly one length, each its own QR code
-(small ones, of about 380 letters of the text, 57 to 61 modules a side: a camera at 1280 x 720 reads such
-a code from a screen held at a normal distance, where one of the largest, 177 modules, never reads; only
-a text that would need more than 99 such parts gets fewer, larger parts, up to 4,296 letters each):
+A text longer than one QR code's share is cut into 2 to 99 pieces of nearly one length, each its own QR
+code. The share is 1,800 letters of the text for large codes (up to 117 modules a side) and about 380
+for small ones (57 to 61 modules a side). Measured on made-up camera pictures (a turn of 3 degrees, a
+blur, noise): large parts read from a 1080p picture with the code filling 60% of its height and from a
+4K one with it filling 35%, mostly one frame in two or three; at 1280 x 720 they read only now and then,
+and small ones read there with the code at 60% of the height; one of the largest codes, 177 modules,
+never reads. A text that would need more than 99 parts gets fewer, larger parts, up to 4,296 letters
+each, in either density:
 `RC2P:`, the part's number and the count (two digits each, from 01), the check number of the whole text
 (the CRC-32 of its letters, eight hex digits), `:`, the piece, `:`. The pieces joined in order give the
 whole text, whose check number must be the one every part carries: parts of two different codes never mix,
@@ -143,7 +157,7 @@ it holds.
 Nothing is left out any more: what does not fit one QR code goes into more of them. Sizes measured, in
 letters of the whole text, from 25 real saved games of a played championship (nothing else in the code):
 
-| Saved games | Letters | QR codes | Of those letters in version 1's layout |
+| Saved games | Letters | Small QR codes (large: a fifth as many) | Of those letters in version 1's layout |
 | --- | --- | --- | --- |
 | 1 | 1,875 | 5 | 3,384 |
 | 2 | 2,139 | 6 | 4,155 |
