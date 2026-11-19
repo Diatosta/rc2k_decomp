@@ -29,6 +29,10 @@ use crate::gfx::modes::Modes;
 use crate::gfx::owner::{Display, Gfx};
 use rc2k_core::gfx::mode_choices as mc;
 
+/// The widest race a phone offers while its 3D is on the software rasteriser (a phone's 2868 x 1320
+/// ran at 5 to 7 frames a second): the screen's ratio at this width, unless the player sets a size.
+const SOFTWARE_PHONE_WIDTH: u32 = 1280;
+
 /// `system::find_entry` as the game uses it (a run-on past a table's last entry goes on into the
 /// field after it): the dword of `Modes` where the entry whose first dword is `key` starts, or the
 /// place past the table's `count` entries.
@@ -221,6 +225,12 @@ fn rebuild(
     // desktop and the size set by hand, each as the first mode's kind with a size of its own.
     if let Some(first) = all.first().copied() {
         let (modes, desktop) = crate::platform::monitor_modes();
+        // A phone whose 3D is on the software rasteriser cannot carry the screen's full size: the
+        // desktop is taken as the cut size (the size set by hand stays what the player chose).
+        let cap = crate::render::gpu::software_phone()
+            .then(|| rc2k_core::gfx::resolutions::capped_desktop(desktop, SOFTWARE_PHONE_WIDTH))
+            .flatten();
+        let desktop = cap.or(desktop);
         let monitor = rc2k_core::gfx::resolutions::modes_as_sizes(&modes);
         crate::gfx::monitor_sizes::set_monitor(monitor.clone(), desktop);
         let table: Vec<(u32, u32, u32)> = all
@@ -232,7 +242,7 @@ fn rebuild(
             &table_sizes,
             &monitor,
             desktop,
-            crate::gfx::monitor_sizes::custom(),
+            crate::gfx::monitor_sizes::custom().or(cap),
         ) {
             let Some(mode) = crate::gfx::monitor_sizes::mode_for(first.mode, &table, w, h) else {
                 break;

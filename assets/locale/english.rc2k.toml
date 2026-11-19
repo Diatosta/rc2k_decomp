@@ -247,8 +247,10 @@ software = "software"
 gles = "OpenGL ES"
 gl = "OpenGL"
 next_start = "next start"
+no_gpu = "no GPU"
 apply = "apply"
 delete_data = "delete all saved data"
+share_log = "share log"
 
 [split_screen]
 three = "3 players on one screen"
@@ -295,6 +297,7 @@ yes = "Yes"
 no = "No"
 delete_done = "Everything saved was deleted. The game will now close."
 delete_failed = "Some saved files could not be deleted (the log says which). The game will now close."
+keys_touch = "Tap to choose"
 
 [save_code]
 item = "save code"
@@ -339,3 +342,4 @@ large_note = "Camera cannot read them? Choose \"small codes\"."
 small_note = "\"Large codes\": fewer to read."
 camera_name = "Camera {} / {}: {}"
 camera_switch = "Left/Right: another camera"
+camera_switch_touch = "Slide left or right: another camera"

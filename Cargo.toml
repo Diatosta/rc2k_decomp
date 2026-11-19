@@ -1,6 +1,6 @@
 # The game's logic, platform-free (Linux and Windows tests): `rc2k_core/`.
 [workspace]
-members = ["rc2k_core", "rc2k_derive", "tools/web/codes"]
+members = ["rc2k_core", "rc2k_derive", "android", "tools/web/codes"]
 exclude = ["fuzz"]
 
 [workspace.lints.clippy]
@@ -43,7 +43,7 @@ smallvec = { version = "1", features = ["const_generics"] }
 # The debug UI (`src/debug/`): Dear ImGui (docking branch), its C++ built from source;
 # the SDL glue is ours (`debug::imgui_sdl`). Its crate has no 32-bit Windows target: the
 # 32-bit build has no debug UI.
-[target.'cfg(all(target_pointer_width = "64", not(all(target_os = "linux", target_arch = "aarch64"))))'.dependencies]
+[target.'cfg(all(target_pointer_width = "64", not(target_os = "android"), not(all(target_os = "linux", target_arch = "aarch64"))))'.dependencies]
 dear-imgui-rs = { version = "0.21", default-features = false }
 dear-imgui-sys = { version = "0.21", default-features = false, features = ["build-from-source"] }
 
@@ -69,6 +69,11 @@ sdl3-sys = { version = "0.7", features = ["build-from-source-static", "sdl-unix-
 
 # The web build (`tools/web/build.sh`): Emscripten links its own SDL3 port (`-sUSE_SDL=3`).
 [target.'cfg(target_os = "emscripten")'.dependencies]
+sdl3-sys = { version = "0.7", features = ["no-link"] }
+
+# Android: SDL is built by `tools/android/` (its Java glue must match) and linked as a shared
+# library; the program is a shared library its activity loads (`src/android.rs`).
+[target.'cfg(target_os = "android")'.dependencies]
 sdl3-sys = { version = "0.7", features = ["no-link"] }
 
 # Windows' own (`src/platform/os/windows.rs`, the fault handler, the profiler, the shortcuts).

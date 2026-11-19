@@ -26,6 +26,24 @@ In the web build every screenshot is also downloaded by the browser, under the f
 The picture has the size of the screen mode the game is drawing in at that moment (640 × 480,
 for example).
 
+## On a phone
+
+On iOS and Android a screenshot (the key's and the replay viewer's snapshot button; not the
+replay's picture sequence) is also put into the phone's photo library once it is written, into an
+album named "Rally Championship", so the Photos or Gallery app shows them together.
+
+- iOS: the album is made through the Photos framework the first time and every later picture
+  joins it. That needs the read-write photo permission, asked the first time (in English or
+  Portuguese by the phone's language). If it is refused, or the framework fails, the picture goes
+  into the camera roll with the add-only permission, as before.
+- Android (10 and later): the picture is inserted into the media store under Pictures / Rally
+  Championship, a folder the Gallery and Google Photos list as the album of that name. Older
+  versions skip it.
+
+The outcome is a line in the log; a failure never stops the game. Code:
+`src/platform/ffi/photo_library.rs`, `tools/android/app/java/org/rc2k/rally/Photos.java`,
+`tools/ios/*.lproj/InfoPlist.strings`.
+
 ## The file
 
 A PNG file of the screen's size, 8 bits for each of red, green and blue (colour type 2), no

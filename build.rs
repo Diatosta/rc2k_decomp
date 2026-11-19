@@ -17,16 +17,35 @@ fn main() {
     let arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
     let bits = std::env::var("CARGO_CFG_TARGET_POINTER_WIDTH").unwrap_or_default();
     let handheld = os == "linux" && arch == "aarch64";
-    if bits == "64" && !handheld {
+    if bits == "64" && !handheld && os != "android" {
         println!("cargo:rustc-cfg=debug_ui");
     }
     println!("cargo:rerun-if-changed=build.rs");
+    // A touch screen as the player's pointer: the menus take taps and drags (`platform::touch_menu`).
+    // The phones and tablets; `RC2K_TOUCH_BUILD=1` builds it for any other system (a touch
+    // laptop, trying it out).
+    println!("cargo:rustc-check-cfg=cfg(touch_screen)");
+    println!("cargo:rerun-if-env-changed=RC2K_TOUCH_BUILD");
+    if matches!(os.as_str(), "android" | "ios") || std::env::var_os("RC2K_TOUCH_BUILD").is_some() {
+        println!("cargo:rustc-cfg=touch_screen");
+    }
     // Network play through Steam: the desktop systems (not the handheld, which has no Steam, nor
     // the web). Valve's library is not linked; the program loads it while it runs when it is
     // there.
     println!("cargo:rustc-check-cfg=cfg(steam_support)");
     if !handheld && matches!(os.as_str(), "windows" | "linux" | "macos") {
         println!("cargo:rustc-cfg=steam_support");
+    }
+    if os == "android" {
+        // SDL's shared library, built by `tools/android/build.sh` (its Java glue must match it);
+        // the system log's library for `platform::ffi::android`.
+        println!("cargo:rerun-if-env-changed=RC2K_ANDROID_SDL_LIB");
+        if let Ok(dir) = std::env::var("RC2K_ANDROID_SDL_LIB") {
+            println!("cargo:rustc-link-search=native={dir}");
+        }
+        println!("cargo:rustc-link-lib=dylib=SDL3");
+        println!("cargo:rustc-link-lib=dylib=log");
+        return;
     }
     if os == "macos" {
         // SDL's haptics for controllers: on every Mac since 10.15 (SDL looks for it before use),

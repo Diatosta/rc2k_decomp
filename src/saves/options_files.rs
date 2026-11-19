@@ -41,7 +41,7 @@ fn paths(saves: &Saves) -> Result<Paths, Refused> {
 
 /// What the command line asked for.
 fn asked() -> Asked {
-    Asked::from_args(std::env::args())
+    Asked::from_args(crate::platform::os::program_args())
 }
 
 /// A file's trouble as the program ends with it; the detail goes to standard error.

@@ -237,8 +237,10 @@ software = "software"
 gles = "OpenGL ES"
 gl = "OpenGL"
 next_start = "próximo início"
+no_gpu = "sem GPU"
 apply = "aplicar"
 delete_data = "apagar todos os dados"
+share_log = "partilhar o registo"
 
 [split_screen]
 three = "3 jogadores no mesmo ecrã"
@@ -285,6 +287,7 @@ yes = "Sim"
 no = "Não"
 delete_done = "Tudo o que estava gravado foi apagado. O jogo vai fechar."
 delete_failed = "Alguns ficheiros gravados não puderam ser apagados (o registo diz quais). O jogo vai fechar."
+keys_touch = "Toque para escolher"
 
 [save_code]
 item = "código de gravação"
@@ -329,3 +332,4 @@ large_note = "A câmara não os lê? Escolha \"pequenos\"."
 small_note = "\"Grandes\": menos códigos."
 camera_name = "Câmara {} / {}: {}"
 camera_switch = "Esq./Dir.: outra câmara"
+camera_switch_touch = "Deslizar para o lado: outra câmara"

@@ -15,11 +15,37 @@ use crate::errors::Refused;
 use crate::race::owner::Race;
 use rc2k_core::drive::race_ticks;
 
+/// Whether the quit question is up (not the plain pause): the touch screen shows its yes and no
+/// buttons then.
+static ASKING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+#[cfg(any(target_os = "android", target_os = "ios"))]
+pub fn asking() -> bool {
+    ASKING.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+/// `ASKING` while the question runs, however it ends.
+struct Asking;
+
+impl Asking {
+    fn begin() -> Self {
+        ASKING.store(true, std::sync::atomic::Ordering::Relaxed);
+        Asking
+    }
+}
+
+impl Drop for Asking {
+    fn drop(&mut self) {
+        ASKING.store(false, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+
 /// The answer: 0 to race on.
 pub fn quit_question(race: &Race, o: crate::owners::Owners<'static>) -> Result<u32, Refused> {
     let input = o.input;
     let shared = &race.shared;
     let replay = &race.replay;
+    let _asking = Asking::begin();
     stop_race_sounds(o)?;
     // A button from before the question answers nothing.
     crate::input::menu_pad::take_answer(input);

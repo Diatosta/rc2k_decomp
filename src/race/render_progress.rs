@@ -286,6 +286,9 @@ fn watch(o: Owners<'static>, render: &Render, mut child: Child) -> Ended {
     let mut pace = Pace::default();
     let began = std::time::Instant::now();
     let mut was_down = true;
+    // A tap on the cancel button stops the render (`platform::touch_menu`).
+    #[cfg(touch_screen)]
+    let _taps = crate::platform::touch_menu::InstallerPage::begin();
     let stop = |child: &mut Child| {
         let _ = child.kill();
         let _ = child.wait();
@@ -339,7 +342,21 @@ fn watch(o: Owners<'static>, render: &Render, mut child: Child) -> Ended {
         let (x, y) = panel.point(x, y);
         let down = buttons & 1 != 0;
         let [l, t, w, h] = button;
-        let clicked = down && !was_down && x >= l && x < l + w && y >= t && y < t + h;
+        #[cfg_attr(
+            not(touch_screen),
+            allow(unused_mut, reason = "a tap adds to it on touch builds")
+        )]
+        let mut clicked = down && !was_down && x >= l && x < l + w && y >= t && y < t + h;
+        #[cfg(touch_screen)]
+        if let Some((tx, ty)) = crate::platform::touch_menu::take_installer_tap() {
+            // The tap, like the mouse, where the panel was laid out.
+            let (tx, ty) = panel.point(tx as i32, ty as i32);
+            let hit = tx >= l && tx < l + w && ty >= t && ty < t + h;
+            if hit {
+                crate::platform::touch_menu::tap_used();
+            }
+            clicked |= hit;
+        }
         was_down = down;
         if matches!(key, 0x01 | 0x1C | 0x60) || clicked {
             return stop(&mut child);
@@ -384,7 +401,9 @@ fn draw(
     let (line_h, row_h) = if h < 560 { (26, 32) } else { (30, 38) };
     let panel_w = (w - 40).min(720);
     let inner = panel_w - 2 * MARGIN;
-    let panel_h = MARGIN * 2 + line_h * 2 + line_h * 2 + row_h + line_h * 2 + row_h;
+    // The cancel button: taller on a touch screen, for a finger.
+    let cancel_h = if cfg!(touch_screen) { 50 } else { row_h - 6 };
+    let panel_h = MARGIN * 2 + line_h * 2 + line_h * 2 + row_h + line_h * 2 + cancel_h + 6;
     let panel = view.panel(panel_w, panel_h);
     let (left, top) = panel.origin();
     fill(o, [left, top, panel_w, panel_h], PANEL);
@@ -451,13 +470,13 @@ fn draw(
         );
     }
     y += line_h + row_h / 4;
-    let button = [left + MARGIN, y, inner, row_h - 6];
+    let button = [left + MARGIN, y, inner, cancel_h];
     fill(o, button, BUTTON);
     let cancel = own(id::RENDER_CANCEL);
     put(
         &cancel,
         left + (panel_w - measure(&cancel)) / 2,
-        y + (row_h - 6) / 2,
+        y + cancel_h / 2,
         &mut canvas,
     );
     panel.finish(o, SCREEN);

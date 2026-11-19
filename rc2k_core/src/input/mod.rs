@@ -13,6 +13,8 @@ pub mod icons;
 pub mod joystick;
 pub mod keyboard;
 pub mod layouts;
+pub mod menu_touch;
 pub mod osk;
 pub mod profile;
 pub mod rumble;
+pub mod touch;

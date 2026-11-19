@@ -34,7 +34,27 @@ enum Event {
     },
     /// Typed text (UTF-8).
     Text(String),
+    /// A finger on the touch screen.
+    #[cfg(touch_screen)]
+    Finger {
+        id: u64,
+        phase: rc2k_core::input::menu_touch::Phase,
+        x: f32,
+        y: f32,
+    },
     Other,
+}
+
+/// A finger's change as an event (touch screens only).
+#[cfg(touch_screen)]
+fn finger_event(event: &sdl::PolledEvent) -> Option<Event> {
+    let (id, phase, x, y) = event.finger()?;
+    Some(Event::Finger { id, phase, x, y })
+}
+
+#[cfg(not(touch_screen))]
+fn finger_event(_: &sdl::PolledEvent) -> Option<Event> {
+    None
 }
 
 /// SDL's next event, if there is one.
@@ -69,14 +89,31 @@ fn next_event() -> Option<Event> {
         } else if kind == SDL_EVENT_WINDOW_FOCUS_LOST {
             Event::Focus(false)
         } else if kind == SDL_EVENT_JOYSTICK_ADDED {
+            #[cfg(target_os = "android")]
+            crate::platform::touch::pad_added(event.joystick_id());
             crate::platform::input::pad_added(event.joystick_id());
             Event::Other
         } else if kind == SDL_EVENT_JOYSTICK_REMOVED {
+            #[cfg(target_os = "android")]
+            crate::platform::touch::pad_removed(event.joystick_id());
             crate::platform::input::pad_removed(event.joystick_id());
             Event::Other
+        } else if let Some(finger) = finger_event(&event) {
+            finger
         } else if let Some((id, button, down)) = event.gamepad_button() {
+            #[cfg(target_os = "android")]
+            if down {
+                crate::platform::touch::pad_used(id);
+            }
             Event::Pad { id, button, down }
         } else if let Some((axis, value)) = event.gamepad_axis() {
+            // A stick pushed well off its rest, or a trigger pressed, is the controller used.
+            #[cfg(target_os = "android")]
+            if value.unsigned_abs() > 16000
+                && let Some(id) = event.gamepad_axis_joystick()
+            {
+                crate::platform::touch::pad_used(id);
+            }
             use crate::input::menu_pad::StickAxis;
             let axis = match axis {
                 SDL_GAMEPAD_AXIS_LEFTX => StickAxis::X,
@@ -211,7 +248,13 @@ pub fn pump(o: crate::owners::Owners<'static>) {
                     u64::from(crate::platform::os::ticks()),
                 );
             }
-            Event::Focus(focused) => system.session.flags.window_focused.set(focused as u32),
+            Event::Focus(focused) => {
+                system.session.flags.window_focused.set(focused as u32);
+                // Fingers on the screen when the app is sent away or comes back may never
+                // be lifted for it (a system gesture took them).
+                #[cfg(touch_screen)]
+                crate::platform::touch_menu::release_all();
+            }
             Event::Text(text) => crate::input::typed_text::typed_by_keyboard(&text),
             Event::Key { scancode, down } => {
                 if down && matches!(scancode, 40 | 88) {
@@ -265,10 +308,26 @@ pub fn pump(o: crate::owners::Owners<'static>) {
                     joystick_in_menus(input, id, what, driving);
                 }
             }
+            #[cfg(touch_screen)]
+            Event::Finger { id, phase, x, y } => {
+                let now = u64::from(crate::platform::os::ticks());
+                touch_finger(&o, id, phase, x, y, now);
+            }
             Event::Other => {}
         }
     }
     let now = u64::from(crate::platform::os::ticks());
+    #[cfg(target_os = "android")]
+    {
+        // Player 1's controls changed hands (a controller used, a finger down in a race, a
+        // controller gone): the game's device for the car follows.
+        if crate::platform::touch::take_source_change() {
+            crate::input::device_ids::source_changed(o.menus, input, o.race, driving(o.race));
+        }
+        crate::platform::touch::update(touch_controls_live(o.race), now);
+    }
+    #[cfg(touch_screen)]
+    touch_tick(&o, now);
     #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
     crate::platform::window_follow::follow(o, now);
     if let Some(action) = lock_menu_pad().tick(now) {
@@ -302,8 +361,35 @@ fn sync_text_input() {
 
 /// Whether a race is being driven: the pad and the wheel are then the player's controls. In the
 /// replay viewer a race is loaded, but its list is a menu: the pad works it as it works the menus.
-fn driving(race: &crate::race::owner::Race) -> bool {
+pub(crate) fn driving(race: &crate::race::owner::Race) -> bool {
     race.course.numbers.get().in_race.is_set() && race.shared.replay_file().hold_car_revs.get() == 0
+}
+
+/// Whether the race's own touch controls are live: a race is driven and no pause or question
+/// (`drive::pause_until_key`, `drive::quit_question`, which set `scene_switch`) waits for an
+/// answer. While one does, a finger is the menus' gestures: a tap is Enter (any key, yes), a
+/// double tap Escape (no).
+#[cfg(touch_screen)]
+pub(crate) fn touch_controls_live(race: &crate::race::owner::Race) -> bool {
+    driving(race) && race.shared.vars.get().scene_switch.get() == 0
+}
+
+/// What the race waits for while its touch controls are off: the quit question's yes and no, or
+/// the plain pause's key. A finger then presses the answer buttons drawn over the frame (and
+/// nothing else answers: a tap elsewhere does nothing).
+#[cfg(any(target_os = "android", target_os = "ios"))]
+pub(crate) fn touch_asked(
+    race: &crate::race::owner::Race,
+) -> Option<rc2k_core::input::touch::Asked> {
+    use rc2k_core::input::touch::Asked;
+    if !driving(race) || race.shared.vars.get().scene_switch.get() == 0 {
+        return None;
+    }
+    Some(if crate::drive::quit_question::asking() {
+        Asked::YesNo
+    } else {
+        Asked::Resume
+    })
 }
 
 /// The menus' side of the gamepads.
@@ -573,7 +659,10 @@ fn bound_menu_controls(
 
 /// What a menu takes: the key of the action, as the pending key (not the held-key table: the
 /// race's keyboard controls are not the pad's).
-fn menu_action(input: &crate::input::owner::Input, action: crate::input::menu_pad::MenuAction) {
+pub(crate) fn menu_action(
+    input: &crate::input::owner::Input,
+    action: crate::input::menu_pad::MenuAction,
+) {
     use crate::input::menu_pad::{MenuAction as A, note_answer};
     use crate::input::yes_no_key::{NO, THIRD, YES};
     // The on-screen keyboard takes the moves and the south, east and west buttons.
@@ -661,7 +750,7 @@ fn game_key(scancode: i32) -> u8 {
         30..=38 => (scancode - 30 + 2) as u8,    // 1 .. 9
         39 => 0x0B,                              // 0
         40 => 0x1C,                              // return
-        41 => 0x01,                              // escape
+        41 | 270 => 0x01,                        // escape, and a phone's back button
         42 => 0x0E,                              // backspace
         43 => 0x0F,                              // tab
         44 => 0x39,                              // space
@@ -729,4 +818,91 @@ fn osk_asks(input: &crate::input::owner::Input, asks: crate::input::typed_text::
         crate::input::typed_text::osk_close();
     }
     crate::input::take_key::pending_key(input).store(key, std::sync::atomic::Ordering::SeqCst);
+}
+
+/// A single tap waiting for its double-tap window is let through once the window is over.
+#[cfg(touch_screen)]
+fn touch_tick(o: &crate::owners::Owners<'static>, now: u64) {
+    let window = {
+        let screen = crate::platform::SCREEN.lock();
+        screen
+            .as_ref()
+            .ok()
+            .and_then(|screen| screen.as_ref())
+            .map(|screen| crate::platform::input_window(screen.window))
+    };
+    #[cfg(any(target_os = "android", target_os = "ios"))]
+    if touch_asked(o.race).is_some() {
+        return;
+    }
+    if let Some(window) = window
+        && !touch_controls_live(o.race)
+    {
+        crate::platform::touch_menu::tick(o, window, now);
+    }
+}
+
+/// A finger on the touch screen: in the menus a gesture or a tap (`platform::touch_menu`).
+#[cfg(touch_screen)]
+fn touch_finger(
+    o: &crate::owners::Owners<'static>,
+    id: u64,
+    phase: rc2k_core::input::menu_touch::Phase,
+    x: f32,
+    y: f32,
+    now: u64,
+) {
+    let window = {
+        let screen = crate::platform::SCREEN.lock();
+        screen
+            .as_ref()
+            .ok()
+            .and_then(|screen| screen.as_ref())
+            .map(|screen| crate::platform::input_window(screen.window))
+    };
+    let Some(window) = window else {
+        // No window to size the gestures by: a lifting still takes its finger off the list.
+        if phase == rc2k_core::input::menu_touch::Phase::Up {
+            crate::platform::touch_menu::forget(id);
+        }
+        return;
+    };
+    if touch_controls_live(o.race) {
+        crate::platform::touch_menu::release_all();
+        #[cfg(target_os = "android")]
+        crate::platform::touch::finger(window, id, phase, x, y, now);
+        return;
+    }
+    #[cfg(any(target_os = "android", target_os = "ios"))]
+    if let Some(asked) = touch_asked(o.race) {
+        crate::platform::touch_menu::release_all();
+        let answer = crate::platform::touch::answer_finger(window, asked, id, phase, x, y);
+        match answer {
+            Some(rc2k_core::input::touch::Answer::Yes) => {
+                menu_action(o.input, crate::input::menu_pad::MenuAction::Enter);
+            }
+            Some(rc2k_core::input::touch::Answer::No) => {
+                menu_action(o.input, crate::input::menu_pad::MenuAction::Back);
+            }
+            None => {}
+        }
+        return;
+    }
+    set_viewer_sideways(o.race);
+    crate::platform::touch_menu::finger(o, window, id, phase, x, y, now);
+}
+
+/// In the replay viewer (a replay is shown, `driving` is false) a sideways drag gives the key on
+/// the finger's side, so a drag to the right is Right (the replay goes on), as on the save code
+/// page; the menus' carousels keep the finger-follows-content direction. Set only when the
+/// viewer is entered or left, so the page that sets it for itself is left alone.
+#[cfg(touch_screen)]
+fn set_viewer_sideways(race: &crate::race::owner::Race) {
+    use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
+    static IN_VIEWER: AtomicBool = AtomicBool::new(false);
+    let viewing = race.course.numbers.get().in_race.is_set()
+        && race.shared.replay_file().hold_car_revs.get() != 0;
+    if IN_VIEWER.swap(viewing, Relaxed) != viewing {
+        crate::platform::touch_menu::set_direct_sideways(viewing);
+    }
 }

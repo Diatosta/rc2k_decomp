@@ -138,6 +138,9 @@ pub fn ask(o: Owners<'static>, marks: bool, target: &Target) -> Option<Settings>
     crate::input::take_key::take_key(o.input);
     crate::input::menu_pad::take_answer(o.input);
     let mut was_down = true;
+    // A tap on a row or a button is a click there (`platform::touch_menu`).
+    #[cfg(touch_screen)]
+    let _taps = crate::platform::touch_menu::InstallerPage::begin();
     loop {
         crate::platform::pump_messages_now(o);
         if o.system.session.flags.quitting.is_set() {
@@ -173,6 +176,14 @@ pub fn ask(o: Owners<'static>, marks: bool, target: &Target) -> Option<Settings>
             outcome = dialog.key(Key::Enter);
         }
         was_down = down;
+        #[cfg(touch_screen)]
+        if let Some((tx, ty)) = crate::platform::touch_menu::take_installer_tap()
+            && let Some(row) = Dialog::row_at(&places, tx as i32, ty as i32)
+        {
+            crate::platform::touch_menu::tap_used();
+            dialog.select(row);
+            outcome = tapped_outcome(&mut dialog, &places, row, tx);
+        }
         match outcome {
             Outcome::Stay => {}
             Outcome::Render => {
@@ -183,6 +194,23 @@ pub fn ask(o: Owners<'static>, marks: bool, target: &Target) -> Option<Settings>
             Outcome::Cancel => return None,
         }
     }
+}
+
+/// What a tap on `row` at `x` does: a button is pressed; on a setting row a tap on the left
+/// part steps it back and one on the rest steps it on.
+#[cfg(any(touch_screen, test))]
+fn tapped_outcome(dialog: &mut Dialog, places: &[(Row, [i32; 4])], row: Row, x: f32) -> Outcome {
+    let key = match places.iter().find(|(r, _)| *r == row) {
+        Some((_, [l, _, w, _])) if !matches!(row, Row::Render | Row::Cancel) => {
+            if x < (*l + *w / 3) as f32 {
+                Key::Left
+            } else {
+                Key::Right
+            }
+        }
+        _ => Key::Enter,
+    };
+    dialog.key(key)
 }
 
 /// One frame of the dialog; where each row was drawn (for the mouse).
@@ -211,7 +239,20 @@ fn draw(
     let inner = panel_w - 2 * MARGIN;
     // A short screen gets closer rows.
     let compact = h < 560;
-    let (line_h, row_h) = if compact { (26, 32) } else { (30, 38) };
+    let (line_h, row_h) = if compact {
+        (26, 32)
+    } else if cfg!(touch_screen) {
+        // Taller rows for a finger.
+        (30, 46)
+    } else {
+        (30, 38)
+    };
+    // The buttons' height (more than a row's on a touch screen); the space around them.
+    let button_h = if cfg!(touch_screen) && !compact {
+        56
+    } else {
+        row_h - 6
+    };
     let note: Vec<String> = if encoder {
         Vec::new()
     } else {
@@ -224,7 +265,8 @@ fn draw(
         + row_h * 6
         + line_h * 2
         + note.len() as i32 * line_h
-        + row_h
+        + button_h
+        + 6
         + line_h * keys_lines.len() as i32
         + MARGIN)
         .min(h - 10);
@@ -324,8 +366,9 @@ fn draw(
         y += line_h;
     }
     // The buttons share the line under the rows.
-    let by = top + panel_h - MARGIN - line_h * keys_lines.len() as i32 - row_h;
-    let half = (inner - 10) / 2;
+    let by = top + panel_h - MARGIN - line_h * keys_lines.len() as i32 - button_h - 6;
+    let gap = if cfg!(touch_screen) { 24 } else { 10 };
+    let half = (inner - gap) / 2;
     for (n, (row, label)) in [
         (Row::Render, id::RENDER_GO),
         (Row::Cancel, id::RENDER_CANCEL),
@@ -333,10 +376,10 @@ fn draw(
     .into_iter()
     .enumerate()
     {
-        let x = left + MARGIN + n as i32 * (half + 10);
+        let x = left + MARGIN + n as i32 * (half + gap);
         fill(
             o,
-            [x, by, half, row_h - 6],
+            [x, by, half, button_h],
             if dialog.current() == row {
                 ROW_CHOSEN
             } else {
@@ -347,10 +390,10 @@ fn draw(
         put(
             &text,
             x + (half - measure(&text)) / 2,
-            by + (row_h - 6) / 2,
+            by + button_h / 2,
             &mut canvas,
         );
-        places.push((row, [x, by, half, row_h - 6]));
+        places.push((row, [x, by, half, button_h]));
     }
     let mut ky = top + panel_h - MARGIN - line_h * keys_lines.len() as i32 + line_h / 2;
     for line in &keys_lines {
@@ -359,4 +402,52 @@ fn draw(
     }
     panel.finish(o, SCREEN);
     (places, panel)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn dialog() -> Dialog {
+        Dialog::new(
+            Settings::from_kept(&rc2k_core::options::model::VideoChoices::default()),
+            false,
+            vec![(800, 600), (1280, 720)],
+            vec![30, 60],
+        )
+    }
+
+    /// A tap presses a button, and steps a setting row back on its left part, on from the rest.
+    #[test]
+    fn taps_press_buttons_and_step_rows() {
+        let places = [
+            (Row::Size, [0, 0, 300, 40]),
+            (Row::Render, [0, 100, 140, 50]),
+            (Row::Cancel, [160, 100, 140, 50]),
+        ];
+        let mut d = dialog();
+        d.select(Row::Render);
+        assert_eq!(
+            tapped_outcome(&mut d, &places, Row::Render, 10.0),
+            Outcome::Render
+        );
+        d.select(Row::Cancel);
+        assert_eq!(
+            tapped_outcome(&mut d, &places, Row::Cancel, 200.0),
+            Outcome::Cancel
+        );
+        let first = d.settings.size;
+        d.select(Row::Size);
+        assert_eq!(
+            tapped_outcome(&mut d, &places, Row::Size, 250.0),
+            Outcome::Stay
+        );
+        let on = d.settings.size;
+        assert_eq!(
+            tapped_outcome(&mut d, &places, Row::Size, 10.0),
+            Outcome::Stay
+        );
+        assert_eq!(d.settings.size, first);
+        assert_ne!(on, first);
+    }
 }

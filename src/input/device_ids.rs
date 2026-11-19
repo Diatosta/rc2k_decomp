@@ -77,6 +77,19 @@ pub fn give_chosen(menus: &Menus, input: &Input) {
                 listed
             }
         };
+        // A phone has no keyboard to drive with: the first player's keyboard is the touch
+        // screen's controls, or the controller last used (`platform::touch`). The touch pad
+        // is never a choice kept for the player: it is what stands in for none.
+        #[cfg(target_os = "android")]
+        let wanted = if n == 0 {
+            let touch_pad = crate::platform::touch::is_touch_pad(&list, wanted);
+            if touch_pad {
+                *slot = None;
+            }
+            crate::platform::touch::player_one_controller(&list, if touch_pad { 0 } else { wanted })
+        } else {
+            wanted
+        };
         if wanted != now {
             crate::logfile::program_log::log(&format!(
                 "input: player {}'s controller {now} -> {wanted} ({})",
@@ -105,4 +118,38 @@ pub fn kept(input: &Input) -> [Option<DeviceId>; 4] {
 pub fn keep(input: &Input, ids: [Option<DeviceId>; 4]) {
     *chosen(input) = ids;
     input.devices_listed.store(true, Ordering::Release);
+}
+
+/// Player 1's controls changed hands on a phone or tablet (a controller used, a finger down in
+/// a race, a controller gone): the menus' record is worked out again, and in a race the car's
+/// device is set up for the new controls as the race's start does it (effects ended and begun
+/// again, the old device given back), so no pedal stays held.
+#[cfg(target_os = "android")]
+pub fn source_changed(
+    menus: &Menus,
+    input: &Input,
+    race: &crate::race::owner::Race,
+    in_race: bool,
+) {
+    give_chosen(menus, input);
+    if !in_race || input.devices.race_players.get() > 1 {
+        return;
+    }
+    let controls = &race.shared.state.car(0).controls;
+    let now = controls.controller.get();
+    let wanted = crate::platform::touch::player_one_controller(&listed(input), now);
+    if wanted == now {
+        return;
+    }
+    crate::logfile::program_log::log(&format!(
+        "input: the race's player 1 switches from controller {now} to {wanted}"
+    ));
+    controls.controller.set(wanted);
+    // Only when no other command waits for the input thread.
+    let _ = input.devices.input_command.atomic().compare_exchange(
+        0,
+        rc2k_core::input::devices::SWITCH_COMMAND,
+        Ordering::SeqCst,
+        Ordering::SeqCst,
+    );
 }

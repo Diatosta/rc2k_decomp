@@ -36,6 +36,7 @@ impl rc2k_core::gfx::screenshot::Shooting for Shot<'_> {
         crate::gfx::write_screen_pcx::write_screen_pcx(
             &self.gfx.shots,
             None,
+            true,
             self.gfx,
             self.system,
         )?;

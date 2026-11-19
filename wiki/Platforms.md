@@ -13,6 +13,7 @@ What the program runs on, what each system needs, and what is different or missi
 | Steam Deck (SteamOS 3, and any x86-64 Linux with glibc 2.35 or later) | `./build.sh deck`: built in a container of Ubuntu 22.04, tuned for the Deck's Zen 2 processor, with Steam network play; released as `rc2k-deck.zip`. Not yet run on a real Deck. |
 | macOS, Intel and Apple silicon | Builds as `Rally Championship.app`, one bundle for both processors. Tested less than the others. |
 | Anbernic RG34XXSP (handheld, 64-bit ARM Linux) | Built and run on Knulli and on the device's stock system. |
+| Android (phones and tablets, x86-64 and 64-bit ARM) | Begun: it builds as an `.apk`, starts in an emulator, plays a race with touch controls. Not yet run on a phone. See [Android](Android). |
 | Web (WebAssembly) | Experimental: menus and races play in a desktop browser (WebGL 2, gamepads, sound, full screen); not yet checked on a phone. |
 
 The game itself is the same everywhere: the same menus, stages, physics, replays and save
@@ -68,6 +69,8 @@ viewer shows no "render to video" button there ([Running and options](Running-an
 ([Installing the game](Installing-the-game)). The picture goes straight to the device's
 screen. The built-in pad works in the menus; MENU + START leaves the game. There is no debug
 window. Measured speed is on [Performance](Performance).
+
+**Android.** Not an installer: an app (`rc2k-<abi>.apk`) with the game's files in its private storage. Touch controls in the race and gestures in the menus; the picture, sound and the game are the others'. [Android](Android) says how it is built, how to put the game's files in and what is not done.
 
 **Web.** Unfinished (WebGL 2 picture, gamepads and sound work in headless Chrome; not yet checked on a phone). The build and its page are in `tools/web/`. Once the repository is public the page is published on its GitHub Pages (the `pages` job of the workflow; see [Building from source](Building-from-source)); it holds no game data, so every player picks their own game folder or zip, and it has no network play. The start page takes the game folder or its zip: the CD's files run the installer (into the browser's storage), an already installed game folder is played as it is. Full screen takes the whole page; the resolution list offers the browser window's size and the screen's, and the frame rate follows the display's refresh as on the desktop. The saves live in the
 browser's private storage, which a browser may clear, so the page `saves.html` (linked from the

@@ -131,6 +131,8 @@ pub mod id {
     pub const RENDERER_GLES: u32 = FIRST + 0xB6;
     pub const RENDERER_GL: u32 = FIRST + 0xBA;
     pub const NEXT_START: u32 = FIRST + 0xB7;
+    /// The note beside the software renderer when it runs because no GPU device could be made.
+    pub const NO_GPU: u32 = FIRST + 0x1B8;
     /// The advanced page's item that makes its changes real.
     pub const APPLY: u32 = FIRST + 0xB8;
     /// The network lobby's button that saves the last race's replay.
@@ -274,6 +276,8 @@ pub mod id {
     /// name) and the keys that choose another.
     pub const SAVE_CODE_CAMERA_NAME: u32 = FIRST + 0x180;
     pub const SAVE_CODE_CAMERA_SWITCH: u32 = FIRST + 0x181;
+    /// The same line on a touch screen, where a slide sideways chooses another camera.
+    pub const SAVE_CODE_CAMERA_SWITCH_TOUCH: u32 = FIRST + 0x182;
     /// The advanced page's row that deletes everything saved, its question, the answers' labels, and what the player is told after
     /// the deletion (all went, or some could not be removed).
     pub const DELETE_DATA: u32 = FIRST + 0x1A0;
@@ -284,6 +288,10 @@ pub mod id {
     pub const DIALOG_NO: u32 = FIRST + 0x1A4;
     pub const DELETE_DONE: u32 = FIRST + 0x1A5;
     pub const DELETE_FAILED: u32 = FIRST + 0x1A6;
+    /// The advanced page's row (phones) that opens the share sheet with the program's log.
+    pub const SHARE_LOG: u32 = FIRST + 0x1A7;
+    /// The error dialog's last line on a touch screen, where a tap on a way chooses it.
+    pub const DIALOG_KEYS_TOUCH: u32 = FIRST + 0x1B0;
     /// The replay viewer's names of its buttons, shown when the highlight moves to one: the 26
     /// buttons of the two rows in order, the render button, the name while a camera is edited
     /// ("{}" the camera's number), a car's HUD shown or hidden ("{}" the car's number), and the
@@ -422,14 +430,17 @@ pub const KEYS: &[(&str, u32)] = &[
     ("advanced.gles", id::RENDERER_GLES),
     ("advanced.gl", id::RENDERER_GL),
     ("advanced.next_start", id::NEXT_START),
+    ("advanced.no_gpu", id::NO_GPU),
     ("advanced.apply", id::APPLY),
     ("advanced.delete_data", id::DELETE_DATA),
+    ("advanced.share_log", id::SHARE_LOG),
     ("dialog.delete", id::DELETE_ASK),
     ("dialog.delete_title", id::DELETE_TITLE),
     ("dialog.yes", id::DIALOG_YES),
     ("dialog.no", id::DIALOG_NO),
     ("dialog.delete_done", id::DELETE_DONE),
     ("dialog.delete_failed", id::DELETE_FAILED),
+    ("dialog.keys_touch", id::DIALOG_KEYS_TOUCH),
     ("icon_styles.automatic", id::ICON_STYLES),
     ("icon_styles.xbox", id::ICON_STYLES + 1),
     ("icon_styles.playstation", id::ICON_STYLES + 2),
@@ -541,6 +552,10 @@ pub const KEYS: &[(&str, u32)] = &[
     ("save_code.small_note", id::SAVE_CODE_SMALL_NOTE),
     ("save_code.camera_name", id::SAVE_CODE_CAMERA_NAME),
     ("save_code.camera_switch", id::SAVE_CODE_CAMERA_SWITCH),
+    (
+        "save_code.camera_switch_touch",
+        id::SAVE_CODE_CAMERA_SWITCH_TOUCH,
+    ),
     ("viewer.tip_render", id::VIEWER_TIP_RENDER),
     ("viewer.tip_editing", id::VIEWER_TIP_EDITING),
     ("viewer.tip_hud_show", id::VIEWER_TIP_HUD_SHOW),

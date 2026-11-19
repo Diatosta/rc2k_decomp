@@ -3,6 +3,10 @@
 
 #![deny(clippy::undocumented_unsafe_blocks)]
 
+#[cfg(target_os = "android")]
+pub mod android;
+#[cfg(target_os = "android")]
+pub mod android_java;
 pub mod gl;
 #[cfg(debug_ui)]
 pub mod imgui;
@@ -10,6 +14,9 @@ pub mod imgui;
 pub mod linux_handheld;
 #[cfg(rc2k_pgo)]
 pub mod pgo;
+#[cfg(any(target_os = "android", target_os = "ios"))]
+pub mod phone_vibrator;
+pub mod photo_library;
 pub mod sdl;
 pub mod sdl_camera;
 pub mod sdl_clipboard;

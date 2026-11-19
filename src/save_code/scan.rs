@@ -199,7 +199,8 @@ fn take(held: &mut Assembly, text: &str) -> Read {
 
 /// Looks through the camera until a save code is read (its text) or the player goes back
 /// (`None`), the picture and a line saying what is going on drawn meanwhile. Left and Right (a
-/// pad's D-pad, and its shoulder buttons) choose another camera. `Err` is the own text that
+/// pad's D-pad and shoulder buttons, a touch screen's slides sideways, which the page's
+/// `DirectSideways` is still holding) choose another camera. `Err` is the own text that
 /// says why there is no looking.
 pub fn run(o: Owners<'static>) -> Result<Option<String>, u32> {
     let count = camera_count();
@@ -208,6 +209,10 @@ pub fn run(o: Owners<'static>) -> Result<Option<String>, u32> {
     };
     crate::input::take_key::take_key(o.input);
     crate::input::menu_pad::take_answer(o.input);
+    // The page that opened this one is taking the taps (`platform::touch_menu`): a tap here
+    // leaves, as Enter does.
+    #[cfg(touch_screen)]
+    let _taps = crate::platform::touch_menu::InstallerPage::begin();
     let mut last: Option<Frame> = None;
     let mut looker = Looker::start();
     let mut held = Assembly::default();
@@ -247,6 +252,10 @@ pub fn run(o: Owners<'static>) -> Result<Option<String>, u32> {
             return Ok(None);
         }
         crate::input::menu_pad::take_answer(o.input);
+        #[cfg(touch_screen)]
+        if crate::platform::touch_menu::take_installer_tap().is_some() {
+            return Ok(None);
+        }
         let step = match crate::input::take_key::take_key(o.input) {
             KEY_ESCAPE | KEY_ENTER => return Ok(None),
             KEY_LEFT => count - 1,
@@ -344,10 +353,16 @@ fn draw_scan(
         line + draw::LINE_H / 2,
     );
     if count > 1 {
+        // On a touch screen the page's sideways slides give Left and Right (`save_code::page`).
+        let switch_hint = if cfg!(touch_screen) {
+            id::SAVE_CODE_CAMERA_SWITCH_TOUCH
+        } else {
+            id::SAVE_CODE_CAMERA_SWITCH
+        };
         line += draw::LINE_H;
         draw::centred(
             o,
-            &draw::fit(o, &own(id::SAVE_CODE_CAMERA_SWITCH), w - 2 * draw::MARGIN),
+            &draw::fit(o, &own(switch_hint), w - 2 * draw::MARGIN),
             0,
             w,
             line + draw::LINE_H / 2,

@@ -21,7 +21,12 @@ const BLACK: u32 = 0;
 
 pub const MARGIN: i32 = 16;
 pub const LINE_H: i32 = 30;
-pub const BUTTON_H: i32 = 38;
+/// A button's height: on a touch screen 1.9 lines, tall enough for a finger.
+pub const BUTTON_H: i32 = if cfg!(touch_screen) { 56 } else { 38 };
+/// The space between buttons side by side (a touch screen's are further apart).
+pub const BUTTON_GAP: i32 = if cfg!(touch_screen) { 12 } else { MARGIN / 2 };
+/// The space between two buttons one above the other: half a button on a touch screen.
+pub const WAYS_GAP: i32 = if cfg!(touch_screen) { BUTTON_H / 2 } else { 6 };
 /// The font's own top offset puts its letters a little below the y they are given.
 const TEXT_UP: i32 = 12;
 

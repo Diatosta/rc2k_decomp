@@ -107,6 +107,44 @@ pub fn motors<'a>(running: impl IntoIterator<Item = Running<'a>>, device_gain: u
     (scale(heavy), scale(light))
 }
 
+/// How a phone's one motor is told to pulse.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Pulse {
+    /// 0.0 (barely) to 1.0 (as strong as the motor goes).
+    pub strength: f32,
+    /// How long the pulse lasts, in milliseconds.
+    pub ms: u32,
+}
+
+/// The weakest rumble a phone pulses for, as a fraction of the motors' full level: lighter
+/// ones are a buzz that says nothing and only drains the battery.
+const PHONE_WEAKEST: f32 = 0.12;
+/// The shortest and longest pulse (ms). A running rumble is pulsed again by the caller, so it
+/// is a train of pulses: a full one lasts longer than the gap, so that the next starts before
+/// it ends and the motor runs steadily; a light one is shorter than the gap, a rumble that
+/// pulses.
+const PHONE_SHORTEST_MS: u32 = 60;
+const PHONE_LONGEST_MS: u32 = 160;
+/// The least time between two pulses (ms), so that a rumble that changes every frame does not
+/// start a pulse every frame.
+pub const PHONE_PULSE_GAP_MS: u128 = 120;
+
+/// The two motors' levels (0 .. 65535) mixed down to a phone's one motor: the stronger of the
+/// two sets the strength, and the pulse lasts longer the stronger it is. A phone's motor is
+/// felt much less than a pad's, so the strength follows a square-root curve: the game's typical
+/// effects (a fraction of full) are felt, and full strength is still reached at full level.
+/// None when the rumble is too light to be worth a pulse.
+pub fn phone_pulse(heavy: u16, light: u16) -> Option<Pulse> {
+    let level = f32::from(heavy.max(light)) / 65535.0;
+    if level < PHONE_WEAKEST {
+        return None;
+    }
+    let strength = level.sqrt();
+    let ms = PHONE_SHORTEST_MS
+        + ((PHONE_LONGEST_MS - PHONE_SHORTEST_MS) as f32 * strength).round() as u32;
+    Some(Pulse { strength, ms })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -192,5 +230,18 @@ mod tests {
         assert_eq!(motors([e], 10_000).0, 65535);
         e.elapsed_us = 950_000;
         assert_eq!(motors([e], 10_000).0, 32767);
+    }
+
+    #[test]
+    fn a_phone_pulses_for_the_stronger_motor() {
+        assert_eq!(phone_pulse(0, 0), None);
+        assert_eq!(phone_pulse(3000, 2000), None);
+        let light = phone_pulse(0, 20000).unwrap();
+        let both = phone_pulse(20000, 5000).unwrap();
+        assert_eq!(light, both);
+        let full = phone_pulse(65535, 65535).unwrap();
+        assert_eq!(full.strength, 1.0);
+        assert_eq!(full.ms, PHONE_LONGEST_MS);
+        assert!(light.ms >= PHONE_SHORTEST_MS && light.ms < full.ms);
     }
 }

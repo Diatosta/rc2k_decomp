@@ -46,7 +46,7 @@ pub struct MemoryStats {
 }
 
 /// `sysinfo` with its `mem_unit` applied (saturating); None when it fails.
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "android"))]
 pub fn memory_stats() -> Option<MemoryStats> {
     // SAFETY: all zeros is a valid value of this plain C struct.
     let mut info: libc::sysinfo = unsafe { std::mem::zeroed() };
@@ -154,7 +154,7 @@ pub fn map_pages(len: usize) -> Option<*mut u8> {
 ///
 /// # Safety
 /// `at` and `len` are a mapping of `map_pages` (whole pages).
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "android"))]
 pub unsafe fn discard_pages(at: *mut u8, len: usize) -> bool {
     // SAFETY: the caller's mapping; private anonymous pages read zero after this.
     unsafe { libc::madvise(at.cast(), len, libc::MADV_DONTNEED) == 0 }
@@ -187,7 +187,7 @@ pub unsafe fn discard_pages(at: *mut u8, len: usize) -> bool {
 ///
 /// # Safety
 /// `at` and `len` are a mapping of `map_pages` (whole pages).
-#[cfg(not(any(target_os = "linux", target_os = "macos")))]
+#[cfg(not(any(any(target_os = "linux", target_os = "android"), target_os = "macos")))]
 pub unsafe fn discard_pages(_at: *mut u8, _len: usize) -> bool {
     false
 }
@@ -259,7 +259,10 @@ unsafe extern "C" fn on_signal(
 ///
 /// # Safety
 /// `context` is the signal handler's, live during the call.
-#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+#[cfg(all(
+    any(target_os = "linux", target_os = "android"),
+    target_arch = "aarch64"
+))]
 unsafe fn fault_registers(context: *const libc::ucontext_t) -> (usize, bool, usize) {
     // SAFETY: the caller's context.
     let c = unsafe { &(*context).uc_mcontext };
@@ -271,7 +274,10 @@ unsafe fn fault_registers(context: *const libc::ucontext_t) -> (usize, bool, usi
 ///
 /// # Safety
 /// `context` is the signal handler's, live during the call.
-#[cfg(all(target_os = "linux", not(target_arch = "aarch64")))]
+#[cfg(all(
+    any(target_os = "linux", target_os = "android"),
+    not(target_arch = "aarch64")
+))]
 unsafe fn fault_registers(context: *const libc::ucontext_t) -> (usize, bool, usize) {
     // SAFETY: the caller's context.
     let regs = unsafe { &(*context).uc_mcontext.gregs };
@@ -330,7 +336,7 @@ unsafe fn fault_registers(context: *const libc::ucontext_t) -> (usize, bool, usi
 /// thread's stack range cannot be asked there (`pthread_getattr_np` allocates, and for the
 /// main thread reads `/proc/self/maps`), and the threads SDL starts have no start of ours to
 /// note it at; the mapping's end is where the stack's end faulted.
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "android"))]
 pub fn own_stack_word(at: usize) -> Option<usize> {
     let mut word = 0usize;
     let local = libc::iovec {

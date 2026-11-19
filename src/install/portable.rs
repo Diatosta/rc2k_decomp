@@ -16,6 +16,10 @@ pub const FILE: &str = "var\\install.cfg";
 /// `var\ral.zog` nor `var\install.cfg`. The main loop then enters the installer (owner:
 /// the folder in place of a CD).
 pub fn is_source_folder() -> bool {
+    // The phone has no installer: the folder's files are played where they are.
+    if cfg!(target_os = "android") {
+        return false;
+    }
     let here = |p: &str| crate::files::host_path(p.as_bytes()).exists();
     here("files\\d\\gfx\\jade.bun") && !here("var\\ral.zog") && !here(FILE)
 }

@@ -107,6 +107,15 @@ pub fn extra_sizes(
     found
 }
 
+/// The size a `desktop` wider than `max_width` is cut to for a renderer that cannot carry the
+/// whole screen: `max_width` across, the desktop's ratio kept (an even height, at least 240);
+/// none when the desktop is not known or already fits.
+pub fn capped_desktop(desktop: Option<(u32, u32)>, max_width: u32) -> Option<(u32, u32)> {
+    let (w, h) = desktop.filter(|&(w, h)| w > max_width && h > 0)?;
+    let height = (u64::from(h) * u64::from(max_width) / u64::from(w)) as u32;
+    Some((max_width, (height & !1).max(240)))
+}
+
 /// The place of a size in every list of sizes: by width, then height.
 pub fn order(width: u32, height: u32) -> (u32, u32) {
     (width, height)
@@ -133,6 +142,14 @@ pub fn modes_as_sizes(modes: &[(u32, u32, f32)]) -> Vec<(u32, u32)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_wide_desktop_is_cut_to_the_width_with_its_ratio() {
+        assert_eq!(capped_desktop(Some((2868, 1320)), 1280), Some((1280, 588)));
+        assert_eq!(capped_desktop(Some((1280, 720)), 1280), None);
+        assert_eq!(capped_desktop(Some((1920, 1080)), 1280), Some((1280, 720)));
+        assert_eq!(capped_desktop(None, 1280), None);
+    }
 
     #[test]
     fn ratios_are_named() {

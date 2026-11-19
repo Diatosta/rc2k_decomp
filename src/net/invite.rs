@@ -24,8 +24,11 @@ fn waiting() -> std::sync::MutexGuard<'static, Invites<Invite>> {
 
 /// An invitation has arrived.
 #[cfg_attr(
-    all(target_os = "linux", target_arch = "aarch64", not(feature = "remote")),
-    allow(dead_code, reason = "the handheld has no Steam to bring invitations")
+    all(not(steam_support), not(feature = "remote")),
+    allow(
+        dead_code,
+        reason = "only Steam's lobbies and the remote driver offer one"
+    )
 )]
 pub fn offer(invite: Invite) {
     waiting().offer(invite);
@@ -36,7 +39,9 @@ pub fn offer(invite: Invite) {
 fn note_launch_argument() {
     static ONCE: std::sync::Once = std::sync::Once::new();
     ONCE.call_once(|| {
-        if let Some(lobby) = crate::net::steam::connect_lobby_argument(std::env::args()) {
+        if let Some(lobby) =
+            crate::net::steam::connect_lobby_argument(crate::platform::os::program_args())
+        {
             offer(Invite {
                 provider: crate::net::steam::PROVIDER,
                 instance: Some(crate::net::steam::lobby_instance(lobby)),

@@ -129,19 +129,13 @@ impl Picture {
     }
 }
 
-/// Draws `text` (ANSI bytes, no NUL) with its letters' top at `top` (in 800 x 600 layout units),
-/// centred across the screen, at `strength` (0 ..= 255). The surface must be locked.
-pub fn draw(o: Owners<'static>, text: &[u8], top: i32, strength: u8) {
-    use crate::gfx::surface::{Target, surface};
-    let screen = o.system.session.screen.get();
-    let (w, h) = (screen.width.get() as i32, screen.height.get() as i32);
-    let real = surface(o.gfx);
-    let Some(Target::Locked(handle)) = real.target else {
-        return;
-    };
+/// The text drawn into a picture of its own at the font's size; none when the screen is not of
+/// 32 or 16 bits or the text has no width.
+fn capture_picture(o: Owners<'static>, text: &[u8]) -> Option<Picture> {
+    let real = crate::gfx::surface::surface(o.gfx);
     let bpp = real.bytes_per_pixel;
-    if !(bpp == 2 || bpp == 4) || real.pitch <= 0 || strength == 0 {
-        return;
+    if !(bpp == 2 || bpp == 4) {
+        return None;
     }
     let mut bytes = text.to_vec();
     bytes.push(0);
@@ -156,7 +150,7 @@ pub fn draw(o: Owners<'static>, text: &[u8], top: i32, strength: u8) {
             .map_or(0, |m| m.width as i32);
     let (cw, ch) = (text_width + 2 * MARGIN, font.line_height + 2 * MARGIN);
     if text_width <= 0 || font.line_height <= 0 {
-        return;
+        return None;
     }
     let see_through = crate::input::osk_draw::pixel(SEE_THROUGH, real.bits_per_pixel);
     let mut pixels = Vec::with_capacity((cw * ch * bpp) as usize);
@@ -173,15 +167,35 @@ pub fn draw(o: Owners<'static>, text: &[u8], top: i32, strength: u8) {
     if crate::text::draw_text::draw_text(&mut font, &bytes[..], MARGIN, MARGIN, &mut capture)
         .is_err()
     {
-        return;
+        return None;
     }
-    let picture = Picture {
+    Some(Picture {
         pixels: capture.pixels,
         width: cw,
         height: ch,
         bytes: bpp as usize,
         see_through,
+    })
+}
+
+/// Draws `text` (ANSI bytes, no NUL) with its letters' top at `top` (in 800 x 600 layout units),
+/// centred across the screen, at `strength` (0 ..= 255). The surface must be locked.
+pub fn draw(o: Owners<'static>, text: &[u8], top: i32, strength: u8) {
+    use crate::gfx::surface::{Target, surface};
+    let screen = o.system.session.screen.get();
+    let (w, h) = (screen.width.get() as i32, screen.height.get() as i32);
+    let real = surface(o.gfx);
+    let Some(Target::Locked(handle)) = real.target else {
+        return;
     };
+    let bpp = real.bytes_per_pixel;
+    if !(bpp == 2 || bpp == 4) || real.pitch <= 0 || strength == 0 {
+        return;
+    }
+    let Some(picture) = capture_picture(o, text) else {
+        return;
+    };
+    let (cw, ch) = (picture.width, picture.height);
     // To the screen, `scale` times as large (less where the screen is narrower than the text).
     let scale = (f64::from(h) / 600.0).min(f64::from(w) / f64::from(cw)) as f32;
     let (dw, dh) = (
@@ -243,4 +257,45 @@ pub fn draw(o: Owners<'static>, text: &[u8], top: i32, strength: u8) {
         }
         place.must_write_bytes_at(at, &row, "a notice's row");
     }
+}
+
+#[cfg(any(target_os = "android", target_os = "ios"))]
+/// A run of equal pixels in a row of a text picture.
+pub struct Run {
+    pub x: i32,
+    pub y: i32,
+    pub len: i32,
+    pub rgb: [u8; 3],
+}
+
+/// The text in the notice font as runs of pixels (with the picture's width and height), for a
+/// renderer that draws them as rectangles at any scale. None where the screen is not 32 bits.
+#[cfg(any(target_os = "android", target_os = "ios"))]
+pub fn runs(o: Owners<'static>, text: &[u8]) -> Option<(Vec<Run>, i32, i32)> {
+    if crate::gfx::surface::surface(o.gfx).bytes_per_pixel != 4 {
+        return None;
+    }
+    let picture = capture_picture(o, text)?;
+    let mut runs: Vec<Run> = Vec::new();
+    for y in 0..picture.height {
+        let mut x = 0;
+        while x < picture.width {
+            let Some(rgb) = picture.written(x, y) else {
+                x += 1;
+                continue;
+            };
+            let mut end = x + 1;
+            while picture.written(end, y) == Some(rgb) {
+                end += 1;
+            }
+            runs.push(Run {
+                x,
+                y,
+                len: end - x,
+                rgb: [rgb[0] as u8, rgb[1] as u8, rgb[2] as u8],
+            });
+            x = end;
+        }
+    }
+    Some((runs, picture.width, picture.height))
 }

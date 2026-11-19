@@ -30,6 +30,9 @@ of the options menu (below "advanced"; the options of the pause menu in a race h
   opens a camera (SDL's camera API) and looks for a QR code shown on another screen, with a small live
   picture of what the camera sees; Back (Escape) stops. The camera button is dimmed when SDL sees no
   camera; the copy and paste buttons are dimmed on the handheld, whose console build has no clipboard.
+  On a phone (iOS, Android) the system asks once for the camera's permission when the button is first
+  pressed (the page waits for the answer; a refusal gives the page's "camera not allowed" line, and
+  the permission is changed in the system's settings).
   The buttons are chosen with Up and Down (and Left and Right when the code is one QR code).
 - **The camera's pictures** are opened in the best uncompressed format the camera lists (RGB, packed
   YUV such as YUY2 and UYVY, planar NV12 or I420; MJPEG only when nothing else is offered, as SDL decodes it
@@ -39,7 +42,7 @@ of the options menu (below "advanced"; the options of the pause menu in a race h
   (`rc2k_core::gfx::camera_frame`, reading each row at the frame's own pitch; a format it does not read goes
   through SDL's pixel conversion) and shown as a real picture, **all of it**, in the frame's own proportions,
   scaled to the box by averaging (no crop, no mosaic). A camera that faces the user (a front camera, a
-  laptop's webcam) is shown mirrored, as in a mirror.
+  laptop's webcam) is shown mirrored, as in a mirror. A front camera's frames are first turned upright by the rotation SDL reports for the frame (the phone's and the screen's orientation); the back camera's are shown as they come, and reading the code does not depend on how the picture is turned.
 - **Looking for the code** happens on a thread of its own, one frame at a time (a large picture takes
   tenths of a second), so the picture keeps its pace. The frame is read as the camera sent it; when that
   gives nothing it is read mirrored left to right, then with light and dark swapped, so a code seen in a

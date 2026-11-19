@@ -25,6 +25,8 @@
 // Not FFI: `PoolBytes::slice` (the frame's pixels, read in place) is a memory primitive.
 #![allow(unsafe_code)]
 
+#[cfg(target_os = "android")]
+pub mod android;
 pub mod arch;
 pub mod direct3d;
 pub mod events;
@@ -39,6 +41,12 @@ pub mod pacing;
 pub mod sound;
 pub mod sync;
 pub mod timing;
+#[cfg(target_os = "android")]
+pub mod touch;
+#[cfg(touch_screen)]
+pub mod touch_menu;
+#[cfg(any(target_os = "android", target_os = "ios"))]
+pub mod vibrate;
 #[cfg(target_os = "emscripten")]
 pub mod web;
 #[cfg(target_os = "emscripten")]
@@ -133,6 +141,14 @@ pub fn choose_screen_modes(
                     message: "",
                 });
             }
+        }
+    }
+    // A phone finds out now whether it has a GPU device: the race's size depends on it.
+    #[cfg(target_os = "android")]
+    {
+        sdl::set_app_identifier(c"rally-championship-rally");
+        if sdl::init_video() {
+            crate::render::gpu::probe_early();
         }
     }
     // The graphics options' choices made: the list the options page shows its resolution from (not
@@ -888,10 +904,16 @@ fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(),
         }
         let renderer = screen.renderer;
         // A race on the GPU: its picture, the canvas's written pixels over it.
+        let finishing = std::time::Instant::now();
         let gpu_view = crate::platform::direct3d::screen(o.system.session.screen.get())
             .and_then(|target| crate::render::finish_frame(&race.course, &target))
             .map(|colour| make_view(renderer, colour))
             .is_some();
+        crate::platform::timing::note_span(
+            &crate::platform::timing::FINISH_MICROS,
+            &crate::platform::timing::FINISH_MAX,
+            finishing.elapsed().as_micros() as u64,
+        );
         if !gpu_view
             && !with_frame(screen, |frame| {
                 screen.texture.upload(frame, screen.width * 4)
@@ -913,6 +935,26 @@ fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(),
         };
         show_fitted(renderer, texture, shown, screen);
         drop(view);
+        // The race's touch controls.
+        #[cfg(touch_screen)]
+        if events::touch_controls_live(o.race) {
+            #[cfg(target_os = "android")]
+            crate::platform::touch::draw(
+                renderer,
+                input_window(screen.window),
+                u64::from(crate::platform::os::ticks()),
+            );
+        }
+        // The pause's and the question's answer buttons.
+        #[cfg(any(target_os = "android", target_os = "ios"))]
+        if let Some(asked) = events::touch_asked(o.race) {
+            crate::platform::touch::draw_answers(
+                renderer,
+                input_window(screen.window),
+                asked,
+                &answer_labels(*o, asked),
+            );
+        }
         // The debug UI over the frame.
         crate::debug::imgui_sdl::draw(o, renderer, screen.window);
         #[cfg(feature = "remote")]
@@ -921,7 +963,13 @@ fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(),
         {
             crate::remote::window_taken(width, height, pixels);
         }
+        let presenting = std::time::Instant::now();
         renderer.present();
+        crate::platform::timing::note_span(
+            &crate::platform::timing::PRESENT_MICROS,
+            &crate::platform::timing::PRESENT_MAX,
+            presenting.elapsed().as_micros() as u64,
+        );
         Ok(())
     }
 }
@@ -1085,10 +1133,11 @@ pub fn show_frame_now(o: crate::owners::Owners<'static>) -> bool {
             });
             let showing = std::time::Instant::now();
             let shown_ok = show_frame(&o, screen);
-            crate::platform::timing::SHOW_MICROS.fetch_add(
-                showing.elapsed().as_micros() as u64,
-                std::sync::atomic::Ordering::Relaxed,
-            );
+            let shown_micros = showing.elapsed().as_micros() as u64;
+            crate::platform::timing::SHOW_MICROS
+                .fetch_add(shown_micros, std::sync::atomic::Ordering::Relaxed);
+            crate::platform::timing::SHOW_MAX
+                .fetch_max(shown_micros, std::sync::atomic::Ordering::Relaxed);
             if let Err(why) = shown_ok {
                 log(&format!("platform: no frame shown: {why}"));
             }
@@ -1159,7 +1208,10 @@ pub fn run_frame_now<T>(o: crate::owners::Owners<'static>, frame: impl FnOnce() 
 }
 
 /// A file of ours next to the log (the current folder can change: the installer).
-#[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // used by the debug UI, and on Windows
+#[cfg_attr(
+    not(debug_ui),
+    allow(dead_code, reason = "the debug UI is the only user")
+)]
 pub fn beside_log(name: &str) -> std::path::PathBuf {
     match crate::logfile::program_log::LOG_PATH
         .get()
@@ -1168,4 +1220,61 @@ pub fn beside_log(name: &str) -> std::path::PathBuf {
         Some(folder) => folder.join(name),
         None => name.into(),
     }
+}
+
+/// The words on the answer buttons in the game's language (its own yes and no, "continue" for
+/// the plain pause), in capitals, drawn in the game's notice font as pixel runs; the plain text
+/// where the font cannot draw them.
+#[cfg(any(target_os = "android", target_os = "ios"))]
+fn answer_labels(
+    o: crate::owners::Owners<'static>,
+    asked: rc2k_core::input::touch::Asked,
+) -> Vec<touch::Label> {
+    use rc2k_core::strings::own::id;
+    let word = |id| {
+        // Windows-1252 text: the Latin-1 small letters (but the division sign) have capitals 32 less.
+        let mut bytes = crate::strings::append_string_by_id::own_text(o.strings, id);
+        for b in &mut bytes {
+            *b = match *b {
+                b'a'..=b'z' | 0xE0..=0xF6 | 0xF8..=0xFE => *b - 32,
+                other => other,
+            };
+        }
+        let plain = bytes.iter().map(|&b| char::from(b)).collect::<String>();
+        touch::Label {
+            runs: crate::gfx::notice_text::runs(o, &bytes),
+            plain,
+        }
+    };
+    match asked {
+        rc2k_core::input::touch::Asked::Resume => vec![word(id::DIALOG_CONTINUE)],
+        rc2k_core::input::touch::Asked::YesNo => vec![word(id::HINTS), word(id::HINTS + 1)],
+    }
+}
+
+/// Opens Android's share sheet with the program's log (the advanced page's share row). Other
+/// systems have no such row; the call only logs there.
+pub fn share_log() {
+    #[cfg(target_os = "android")]
+    {
+        let Some(path) = crate::logfile::program_log::LOG_PATH.get() else {
+            log("platform: share log: the log has no file");
+            return;
+        };
+        let Some(text) = path.to_str().and_then(|t| std::ffi::CString::new(t).ok()) else {
+            log("platform: share log: the log's path is not usable");
+            return;
+        };
+        match crate::platform::ffi::android_java::call_with_path(
+            c"org.rc2k.rally.Share",
+            c"log",
+            &text,
+        ) {
+            Some(true) => log("platform: share log: the share sheet is open"),
+            Some(false) => log("platform: share log: Android refused the share"),
+            None => log("platform: share log: the Java side could not be called"),
+        }
+    }
+    #[cfg(not(target_os = "android"))]
+    log("platform: share log: only on Android");
 }

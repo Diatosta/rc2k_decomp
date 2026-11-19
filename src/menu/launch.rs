@@ -46,7 +46,7 @@ pub fn asked() -> Option<&'static Asked> {
     static ASKED: OnceLock<Option<Asked>> = OnceLock::new();
     ASKED
         .get_or_init(|| {
-            let args: Vec<String> = std::env::args().skip(1).collect();
+            let args: Vec<String> = crate::platform::os::program_args()[1..].to_vec();
             let mut read = |path: &str| std::fs::read_to_string(path).map_err(|e| e.to_string());
             match Asked::from_args(&args, &mut read) {
                 Ok(launch) => launch,

@@ -23,10 +23,12 @@ fn next_shot_name(shots: &Shots) {
 }
 
 /// Whether it worked. `name` is the file's path without its NUL, or None for the next numbered
-/// screenshot.
+/// screenshot. `to_photos`: a picture written is also added to the phone's photo library
+/// (the screenshots; not the replay's picture sequence).
 pub fn write_screen_pcx(
     shots: &Shots,
     name: Option<&[u8]>,
+    to_photos: bool,
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<bool, Refused> {
@@ -66,6 +68,11 @@ pub fn write_screen_pcx(
         let closed = crate::files::close_stream::close_stream(stream)?;
         ok = ok && closed;
         Ok(ok)
+    })
+    .inspect(|&written| {
+        if written && to_photos {
+            crate::platform::ffi::photo_library::add(&crate::files::host_path(&path));
+        }
     })
 }
 

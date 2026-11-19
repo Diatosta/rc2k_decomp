@@ -52,6 +52,34 @@ unsafe impl Send for Renderer {}
 unsafe impl Send for Texture {}
 
 impl Window {
+    /// The part of the window clear of the screen's notch, rounded corners and home indicator, as
+    /// (x, y, width, height) in the window's pixels (SDL gives it in points, which on a
+    /// high-density screen are fewer than the pixels); None where SDL has none to say.
+    #[cfg(touch_screen)]
+    pub fn safe_area(self) -> Option<[f32; 4]> {
+        let mut rect = SDL_Rect {
+            x: 0,
+            y: 0,
+            w: 0,
+            h: 0,
+        };
+        // SAFETY: the window SDL made; SDL writes the one rectangle.
+        let known = unsafe { SDL_GetWindowSafeArea(self.0, &raw mut rect) };
+        if !known || rect.w <= 0 || rect.h <= 0 {
+            return None;
+        }
+        let ((pixels_wide, pixels_high), (points_wide, points_high)) =
+            (self.pixel_size()?, self.point_size()?);
+        let across = pixels_wide as f32 / points_wide as f32;
+        let down = pixels_high as f32 / points_high as f32;
+        Some([
+            rect.x as f32 * across,
+            rect.y as f32 * down,
+            rect.w as f32 * across,
+            rect.h as f32 * down,
+        ])
+    }
+
     /// The window restored when it is minimised.
     pub fn restore_if_minimised(self) {
         // SAFETY: the window SDL made, still alive (the screen holds it).
@@ -175,6 +203,16 @@ impl Window {
         let (mut width, mut height) = (0, 0);
         // SAFETY: as `restore_if_minimised`; SDL writes the two integers.
         let known = unsafe { SDL_GetWindowSizeInPixels(self.0, &raw mut width, &raw mut height) };
+        (known && width > 0 && height > 0).then_some((width as u32, height as u32))
+    }
+
+    /// The window's size in points (its own coordinates; on a high-density screen smaller than
+    /// its pixels), if SDL knows it.
+    #[cfg(touch_screen)]
+    pub fn point_size(self) -> Option<(u32, u32)> {
+        let (mut width, mut height) = (0, 0);
+        // SAFETY: as `restore_if_minimised`; SDL writes the two integers.
+        let known = unsafe { SDL_GetWindowSize(self.0, &raw mut width, &raw mut height) };
         (known && width > 0 && height > 0).then_some((width as u32, height as u32))
     }
 
@@ -324,6 +362,41 @@ impl Renderer {
         unsafe {
             SDL_SetRenderDrawColor(self.0, r, g, b, 255);
             SDL_RenderFillRect(self.0, &raw const rect);
+        }
+    }
+
+    /// A rectangle blended over what is drawn (red, green, blue, alpha).
+    #[cfg(target_os = "android")]
+    pub fn fill_blended(self, [r, g, b, a]: [u8; 4], [x, y, w, h]: [f32; 4]) {
+        let rect = SDL_FRect { x, y, w, h };
+        // SAFETY: the renderer SDL made; a rectangle that lives over the call. The blend mode is
+        // put back so that the frame's own drawing after this stays opaque.
+        unsafe {
+            SDL_SetRenderDrawBlendMode(self.0, SDL_BLENDMODE_BLEND);
+            SDL_SetRenderDrawColor(self.0, r, g, b, a);
+            SDL_RenderFillRect(self.0, &raw const rect);
+            SDL_SetRenderDrawBlendMode(self.0, SDL_BLENDMODE_NONE);
+        }
+    }
+
+    /// SDL's built-in font `text` at `scale` times its size (a text of 8 pixels a letter at 1),
+    /// with its top left corner at (x, y), in a colour with alpha.
+    #[cfg(target_os = "android")]
+    pub fn text_blended(self, [r, g, b, a]: [u8; 4], x: f32, y: f32, scale: f32, text: &str) {
+        let Ok(text) = std::ffi::CString::new(text.replace('\0', "")) else {
+            return;
+        };
+        // SAFETY: the renderer SDL made; a NUL-ended text read during the call; the scale is
+        // put back to what it was.
+        unsafe {
+            let (mut sx, mut sy) = (1.0, 1.0);
+            SDL_GetRenderScale(self.0, &raw mut sx, &raw mut sy);
+            SDL_SetRenderScale(self.0, scale, scale);
+            SDL_SetRenderDrawBlendMode(self.0, SDL_BLENDMODE_BLEND);
+            SDL_SetRenderDrawColor(self.0, r, g, b, a);
+            SDL_RenderDebugText(self.0, x / scale, y / scale, text.as_ptr());
+            SDL_SetRenderDrawBlendMode(self.0, SDL_BLENDMODE_NONE);
+            SDL_SetRenderScale(self.0, sx, sy);
         }
     }
 
@@ -552,8 +625,51 @@ pub fn use_dummy_audio() {
     unsafe { SDL_SetHint(SDL_HINT_AUDIO_DRIVER, c"dummy".as_ptr()) };
 }
 
+/// SDL's own log lines, at warning level and above for the GPU, video, render and error
+/// categories, written to the program's log (`rc2k.log`), so a phone's log says why SDL refused a
+/// GPU device or a window. SDL calls this from any thread.
+#[cfg(target_os = "android")]
+unsafe extern "C" fn sdl_log_to_program_log(
+    _userdata: *mut std::ffi::c_void,
+    category: std::ffi::c_int,
+    priority: SDL_LogPriority,
+    message: *const std::ffi::c_char,
+) {
+    if message.is_null() {
+        return;
+    }
+    // SAFETY: SDL passes a NUL-ended text valid for the call; copied at once.
+    let text = unsafe { std::ffi::CStr::from_ptr(message) }.to_string_lossy();
+    crate::logfile::program_log::log(&format!(
+        "sdl[category {category}, priority {}]: {text}",
+        priority.0
+    ));
+}
+
+/// Sends SDL's own log to the program's log, with the categories that explain a refused GPU
+/// device or window at warning level (Android; elsewhere SDL's output reaches the terminal).
+#[cfg(target_os = "android")]
+fn route_sdl_log() {
+    // SAFETY: the callback is a function with SDL's signature that uses no user data; the
+    // priorities are plain values.
+    unsafe {
+        SDL_SetLogOutputFunction(Some(sdl_log_to_program_log), std::ptr::null_mut());
+        for category in [
+            SDL_LOG_CATEGORY_GPU,
+            SDL_LOG_CATEGORY_VIDEO,
+            SDL_LOG_CATEGORY_RENDER,
+            SDL_LOG_CATEGORY_ERROR,
+            SDL_LOG_CATEGORY_SYSTEM,
+        ] {
+            SDL_SetLogPriority(category.0, SDL_LOG_PRIORITY_WARN);
+        }
+    }
+}
+
 /// SDL's video started; false when it does not start.
 pub fn init_video() -> bool {
+    #[cfg(target_os = "android")]
+    route_sdl_log();
     // SAFETY: SDL's own start-up, on the thread that will own the window.
     unsafe { SDL_Init(SDL_INIT_VIDEO) }
 }
@@ -612,13 +728,19 @@ pub const MIN_WINDOW: (usize, usize) = (320, 240);
 
 /// A window of the given size with a title.
 pub fn create_window(title: &std::ffi::CStr, width: usize, height: usize) -> Option<Window> {
-    // SAFETY: a NUL-ended title; plain sizes and no flags.
+    // A phone's window covers the whole screen, under no system bars.
+    let flags = if cfg!(target_os = "android") {
+        SDL_WINDOW_FULLSCREEN
+    } else {
+        SDL_WindowFlags(0)
+    };
+    // SAFETY: a NUL-ended title; plain sizes and SDL's own flags.
     let raw = unsafe {
         SDL_CreateWindow(
             title.as_ptr(),
             width as i32,
             height as i32,
-            SDL_WindowFlags(if RESIZABLE { SDL_WINDOW_RESIZABLE.0 } else { 0 }),
+            SDL_WindowFlags(flags.0 | if RESIZABLE { SDL_WINDOW_RESIZABLE.0 } else { 0 }),
         )
     };
     #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
@@ -728,6 +850,22 @@ impl PolledEvent {
         // SAFETY: the type says the `button` record is the one SDL filled.
         let button = unsafe { self.0.button };
         Some((button.x, button.y))
+    }
+
+    /// A finger's change on the touch screen: its id, what it did and where, as a part of the
+    /// window (0 .. 1 across and down).
+    #[cfg(touch_screen)]
+    pub fn finger(&self) -> Option<(u64, rc2k_core::input::menu_touch::Phase, f32, f32)> {
+        use rc2k_core::input::menu_touch::Phase;
+        let phase = match self.kind() {
+            SDL_EVENT_FINGER_DOWN => Phase::Down,
+            SDL_EVENT_FINGER_MOTION => Phase::Move,
+            SDL_EVENT_FINGER_UP | SDL_EVENT_FINGER_CANCELED => Phase::Up,
+            _ => return None,
+        };
+        // SAFETY: the type says the `tfinger` record is the one SDL filled.
+        let finger = unsafe { self.0.tfinger };
+        Some((finger.fingerID.0, phase, finger.x, finger.y))
     }
 
     /// A file or folder dropped on the window: its path.
@@ -850,6 +988,17 @@ impl PolledEvent {
         // SAFETY: the type says the `gaxis` record is the one SDL filled.
         let axis = unsafe { self.0.gaxis };
         Some((SDL_GamepadAxis(axis.axis as i32), axis.value))
+    }
+
+    /// The joystick a gamepad axis event came from (0 for a stand-in's, which names none), else
+    /// `None`.
+    #[cfg(target_os = "android")]
+    pub fn gamepad_axis_joystick(&self) -> Option<SDL_JoystickID> {
+        if self.kind() != SDL_EVENT_GAMEPAD_AXIS_MOTION {
+            return None;
+        }
+        // SAFETY: the type says the `gaxis` record is the one SDL filled.
+        Some(unsafe { self.0.gaxis.which })
     }
 
     /// The scancode and the direction of a key event (else `None`).
@@ -1007,6 +1156,36 @@ pub fn show_open_dialog(window: Window, folder: bool) {
             );
         }
     }
+}
+
+/// What a picked `content://` address (Android's file picker) holds, copied to the file `to`
+/// through SDL's own reading of it; the length copied.
+#[cfg(target_os = "android")]
+pub fn copy_content(uri: &str, to: &std::path::Path) -> Result<u64, String> {
+    use std::io::Write;
+    let name = std::ffi::CString::new(uri).map_err(|e| e.to_string())?;
+    // SAFETY: a NUL-ended name that lives over the call; null (failure) checked.
+    let stream = unsafe { SDL_IOFromFile(name.as_ptr(), c"rb".as_ptr()) };
+    if stream.is_null() {
+        return Err(format!("{uri} cannot be opened"));
+    }
+    let mut out = std::fs::File::create(to).map_err(|e| format!("{}: {e}", to.display()))?;
+    let mut buffer = vec![0u8; 1 << 20];
+    let mut total = 0u64;
+    let result = loop {
+        // SAFETY: the stream just opened; SDL writes at most the buffer's length into it.
+        let got = unsafe { SDL_ReadIO(stream, buffer.as_mut_ptr().cast(), buffer.len()) };
+        if got == 0 {
+            break Ok(total);
+        }
+        if let Err(e) = out.write_all(&buffer[..got]) {
+            break Err(format!("{}: {e}", to.display()));
+        }
+        total += got as u64;
+    };
+    // SAFETY: the stream opened above, closed once.
+    unsafe { SDL_CloseIO(stream) };
+    result
 }
 
 /// The answer of the dialog shown, once it has one: the path, or none when it was cancelled.

@@ -300,6 +300,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "rc2k_android"
+version = "0.1.0"
+dependencies = [
+ "rc2k_decomp",
+]
+
+[[package]]
 name = "rc2k_core"
 version = "0.1.0"
 dependencies = [

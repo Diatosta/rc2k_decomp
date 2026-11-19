@@ -245,14 +245,14 @@ impl Joystick {
     }
 
     /// A virtual joystick's axis set (the remote driver's stand-in stick).
-    #[cfg(feature = "remote")]
+    #[cfg(any(feature = "remote", target_os = "android"))]
     pub fn set_virtual_axis(self, axis: i32, value: i16) -> bool {
         // SAFETY: an open joystick; SDL refuses one that is not virtual.
         unsafe { SDL_SetJoystickVirtualAxis(self.0, axis, value) }
     }
 
     /// A virtual joystick's button set.
-    #[cfg(feature = "remote")]
+    #[cfg(any(feature = "remote", target_os = "android"))]
     pub fn set_virtual_button(self, button: i32, down: bool) -> bool {
         // SAFETY: an open joystick; SDL refuses one that is not virtual.
         unsafe { SDL_SetJoystickVirtualButton(self.0, button, down) }
@@ -283,6 +283,38 @@ pub fn attach_virtual_stick(
     // SAFETY: a description made by SDL's own initialiser; the name is a constant C text.
     let id = unsafe { SDL_AttachVirtualJoystick(&raw const desc) };
     (id.0 != 0).then_some(id)
+}
+
+/// A virtual gamepad in SDL's standard layout (all its axes and buttons), attached as if
+/// plugged in: the touch screen's controls (`platform::touch`). Its id, or none.
+#[cfg(target_os = "android")]
+pub fn attach_virtual_gamepad(
+    vendor: u16,
+    product: u16,
+    name: &'static CStr,
+) -> Option<SDL_JoystickID> {
+    let desc = SDL_VirtualJoystickDesc {
+        r#type: SDL_JOYSTICK_TYPE_GAMEPAD.0 as u16,
+        naxes: SDL_GAMEPAD_AXIS_COUNT.0 as u16,
+        nbuttons: SDL_GAMEPAD_BUTTON_COUNT.0 as u16,
+        vendor_id: vendor,
+        product_id: product,
+        name: name.as_ptr(),
+        // The game's rumble for this pad goes to the phone's motor (`platform::vibrate`).
+        Rumble: Some(phone_rumble),
+        ..SDL_VirtualJoystickDesc::default()
+    };
+    // SAFETY: a description made by SDL's own initialiser; the name is a constant C text.
+    let id = unsafe { SDL_AttachVirtualJoystick(&raw const desc) };
+    (id.0 != 0).then_some(id)
+}
+
+/// SDL's call to rumble the touch screen's virtual gamepad: the phone pulses for it when the
+/// player has switched that on.
+#[cfg(any(target_os = "android", target_os = "ios"))]
+unsafe extern "C" fn phone_rumble(_: *mut std::ffi::c_void, low: u16, high: u16) -> bool {
+    crate::platform::vibrate::rumble(low, high);
+    true
 }
 
 /// The stand-in stick's motors as SDL last set them (heavy in the high half, light in the low).

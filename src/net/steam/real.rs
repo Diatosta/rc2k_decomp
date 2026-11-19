@@ -78,7 +78,9 @@ impl Steam {
             flat,
             wires: Mutex::new(Vec::new()),
             found: Mutex::new(Found::default()),
-            invited: Mutex::new(super::connect_lobby_argument(std::env::args())),
+            invited: Mutex::new(super::connect_lobby_argument(
+                crate::platform::os::program_args(),
+            )),
             listeners: Mutex::new(HashMap::new()),
         };
         std::thread::spawn(pump);

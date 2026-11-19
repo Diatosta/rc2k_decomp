@@ -12,7 +12,16 @@
 
 use sdl3_sys::everything::*;
 use std::ffi::CStr;
-use std::ptr::{null, null_mut};
+use std::ptr::null_mut;
+use std::sync::atomic::{AtomicBool, Ordering};
+
+/// Whether the device made can clamp depth (see `Device::create`).
+static DEPTH_CLAMP: AtomicBool = AtomicBool::new(true);
+
+/// Whether the device made clamps depth; a pipeline that wants the clamp clips when not.
+pub fn depth_clamp() -> bool {
+    DEPTH_CLAMP.load(Ordering::Relaxed)
+}
 
 /// SDL's last error text, copied.
 pub fn error() -> String {
@@ -133,20 +142,63 @@ pub struct ShaderCode {
     pub msl: &'static [u8],
 }
 
-/// The shader formats a device is asked for: SPIR-V, and on macOS Metal's too (SDL takes the
-/// first backend that takes one of them: Metal there, Vulkan elsewhere).
-#[cfg(not(target_os = "macos"))]
-const SHADER_FORMATS: SDL_GPUShaderFormat = SDL_GPU_SHADERFORMAT_SPIRV;
-#[cfg(target_os = "macos")]
-const SHADER_FORMATS: SDL_GPUShaderFormat =
-    SDL_GPUShaderFormat(SDL_GPU_SHADERFORMAT_SPIRV.0 | SDL_GPU_SHADERFORMAT_MSL.0);
-
 impl Device {
     /// A device that takes our shaders (SPIR-V; on macOS SPIR-V or MSL); none (SDL's error is
     /// `error()`) when the system has no such.
+    ///
+    /// SDL's Vulkan driver refuses a device that lacks a feature it was not told to do without, and
+    /// by default asks for three the renderer never uses (shader clip distance, anisotropic
+    /// filtering, indirect draws with a first instance), which some phones' drivers (Mali) do not
+    /// offer. They are switched off here on every system: nothing drawn changes. Depth clamping
+    /// the scene's pipeline does use, so a device is tried with it first and, when the system has
+    /// none that takes it, once more without (`depth_clamp()` then says so, and the pipelines clip
+    /// instead of clamping).
     pub fn create() -> Option<Device> {
-        // SAFETY: no pointers but SDL's error text.
-        let device = unsafe { SDL_CreateGPUDevice(SHADER_FORMATS, false, null()) };
+        for clamp in [true, false] {
+            if let Some(device) = Self::create_with(clamp) {
+                DEPTH_CLAMP.store(clamp, Ordering::Relaxed);
+                return Some(device);
+            }
+        }
+        None
+    }
+
+    fn create_with(depth_clamp: bool) -> Option<Device> {
+        // SAFETY: the properties are made, filled with names that are NUL-ended constants and
+        // plain values, used by one call and destroyed after it.
+        let device = unsafe {
+            let props = SDL_CreateProperties();
+            SDL_SetBooleanProperty(
+                props,
+                SDL_PROP_GPU_DEVICE_CREATE_SHADERS_SPIRV_BOOLEAN,
+                true,
+            );
+            #[cfg(target_os = "macos")]
+            SDL_SetBooleanProperty(props, SDL_PROP_GPU_DEVICE_CREATE_SHADERS_MSL_BOOLEAN, true);
+            SDL_SetBooleanProperty(
+                props,
+                SDL_PROP_GPU_DEVICE_CREATE_FEATURE_CLIP_DISTANCE_BOOLEAN,
+                false,
+            );
+            SDL_SetBooleanProperty(
+                props,
+                SDL_PROP_GPU_DEVICE_CREATE_FEATURE_ANISOTROPY_BOOLEAN,
+                false,
+            );
+            SDL_SetBooleanProperty(
+                props,
+                SDL_PROP_GPU_DEVICE_CREATE_FEATURE_INDIRECT_DRAW_FIRST_INSTANCE_BOOLEAN,
+                false,
+            );
+            SDL_SetBooleanProperty(
+                props,
+                SDL_PROP_GPU_DEVICE_CREATE_FEATURE_DEPTH_CLAMPING_BOOLEAN,
+                depth_clamp,
+            );
+            let device = SDL_CreateGPUDeviceWithProperties(props);
+            SDL_DestroyProperties(props);
+            device
+        };
         (!device.is_null()).then_some(Device(device))
     }
 

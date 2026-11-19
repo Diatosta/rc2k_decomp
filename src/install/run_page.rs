@@ -48,6 +48,41 @@ fn page_own_key(
     page == Page::Folder && crate::install::folder_key::folder_key(list_state, key, list)
 }
 
+/// The Enter key.
+#[cfg(touch_screen)]
+const ENTER: u32 = 0x1C;
+
+/// The item (its number in the list) a tap on the page since the last frame landed on, if it can
+/// be chosen: the piece the tap is in belongs to it.
+#[cfg(touch_screen)]
+fn tapped_item(
+    install: &'static crate::install::owner::Install,
+    list_state: &crate::menu::list_state::ListState,
+    list: ListMenu,
+) -> Option<u32> {
+    use crate::install::page_records::{Piece, piece_count};
+    let (x, y) = crate::platform::touch_menu::take_installer_tap()?;
+    let inside = |n: u32| {
+        let piece = Piece::nth(install, n);
+        let (px, py) = (piece.x() as i32 as f32, piece.y() as i32 as f32);
+        let width = piece.width() as f32;
+        // A piece's place is where its text starts or where it is centred, by how the page lays
+        // it out: both are taken, from half a width before the place to a width after it.
+        x >= px - width / 2.0 && x < px + width && y >= py && y < py + piece.height() as f32
+    };
+    let piece = (0..piece_count(install)).find(|&n| inside(n))?;
+    let item = Piece::nth(install, piece).item(install);
+    let before = list_state.choice.get();
+    let found = (0..u32::from(list.count())).find(|&k| list.item(k) == item)?;
+    list_state.choice.set(found);
+    let usable = !list_item_unusable(list_state, list);
+    list_state.choice.set(before);
+    if usable {
+        crate::platform::touch_menu::tap_used();
+    }
+    usable.then_some(found)
+}
+
 /// `page`, shown as `list`, run until it is left; its answer.
 pub fn run_page(
     install: &'static crate::install::owner::Install,
@@ -73,6 +108,9 @@ pub fn run_page(
         list_clear_marks(install, list);
     }
     tell(install, o, page, list, 0)?;
+    // A tap on the page is for its items (`platform::touch_menu`).
+    #[cfg(touch_screen)]
+    let _taps = crate::platform::touch_menu::InstallerPage::begin();
     'page: {
         i::mark_page::mark_page(install, list_state, list);
         let mut steps = 0;
@@ -118,6 +156,12 @@ pub fn run_page(
             let mut key = list_take_key(list_state, o.input)? as u32;
             if system.session.flags.quitting.is_set() {
                 break 'page;
+            }
+            // A tap on an item highlights it and chooses it, as Enter does.
+            #[cfg(touch_screen)]
+            if let Some(chosen) = tapped_item(install, list_state, list) {
+                list_state.choice.set(chosen);
+                key = ENTER;
             }
             i::page_key::type_into_edit(o, install, list.item(list_state.choice.get()))?;
             if key as u8 != 0 && key & 0x80 == 0 {
