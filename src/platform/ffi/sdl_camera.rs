@@ -137,13 +137,14 @@ mod real {
     }
 
     /// The size a QR code is read at: a code on another screen fills half the picture's height
-    /// or less, and its modules need about four pixels each.
-    const WANTED_AREA: i64 = 1280 * 720;
+    /// or less, and its modules need about four pixels each; the large codes (over a hundred
+    /// modules a side) need a full-HD picture for that.
+    const WANTED_AREA: i64 = 1920 * 1080;
     /// The fewest frames a second a size must give to be chosen over a smaller one.
     const SLOWEST: i64 = 10;
 
     /// The format the camera is opened with: of the ones it lists, the best-ranked, and in that
-    /// rank the one nearest 1280 x 720 among those that give at least `SLOWEST` frames a
+    /// rank the one nearest 1920 x 1080 among those that give at least `SLOWEST` frames a
     /// second (all of them when none do), with the most frames a second.
     fn best_spec(id: u32) -> Option<SDL_CameraSpec> {
         let mut count = 0;

@@ -122,7 +122,8 @@ pub mod id {
     /// The graphics page's 3D resolution row.
     pub const RENDER_SCALE: u32 = FIRST + 0xE8;
     /// The advanced page: its name (also the options menu's item), then the rows' names in
-    /// the order of `options::advanced::ROWS`, then the renderer names and the "next start" note.
+    /// the order of `options::advanced::ROWS` (the eighth text, rain and snow, names the graphics
+    /// page's item), then the renderer names and the "next start" note.
     pub const ADVANCED: u32 = FIRST + 0xA8;
     pub const ADVANCED_ROWS: u32 = FIRST + 0xA9;
     pub const RENDERER_GPU: u32 = FIRST + 0xB4;
@@ -262,6 +263,13 @@ pub mod id {
     pub const SAVE_CODE_PARTS_HELD: u32 = FIRST + 0x163;
     pub const SAVE_CODE_PART_OTHER: u32 = FIRST + 0x164;
     pub const SAVE_CODE_TOO_LONG: u32 = FIRST + 0x165;
+    /// The save code page's density choice: the button's label while the large codes are shown
+    /// (it switches to the small ones) and while the small ones are (it switches back), and the
+    /// notes under the text for each.
+    pub const SAVE_CODE_SMALL_BUTTON: u32 = FIRST + 0x190;
+    pub const SAVE_CODE_LARGE_BUTTON: u32 = FIRST + 0x191;
+    pub const SAVE_CODE_LARGE_NOTE: u32 = FIRST + 0x192;
+    pub const SAVE_CODE_SMALL_NOTE: u32 = FIRST + 0x193;
     /// The scan screen's line naming the camera in use ("{}" its number, "{}" how many, "{}" its
     /// name) and the keys that choose another.
     pub const SAVE_CODE_CAMERA_NAME: u32 = FIRST + 0x180;
@@ -510,6 +518,10 @@ pub const KEYS: &[(&str, u32)] = &[
     ("save_code.parts_held", id::SAVE_CODE_PARTS_HELD),
     ("save_code.part_other", id::SAVE_CODE_PART_OTHER),
     ("save_code.too_long", id::SAVE_CODE_TOO_LONG),
+    ("save_code.small_button", id::SAVE_CODE_SMALL_BUTTON),
+    ("save_code.large_button", id::SAVE_CODE_LARGE_BUTTON),
+    ("save_code.large_note", id::SAVE_CODE_LARGE_NOTE),
+    ("save_code.small_note", id::SAVE_CODE_SMALL_NOTE),
     ("save_code.camera_name", id::SAVE_CODE_CAMERA_NAME),
     ("save_code.camera_switch", id::SAVE_CODE_CAMERA_SWITCH),
     ("viewer.tip_render", id::VIEWER_TIP_RENDER),

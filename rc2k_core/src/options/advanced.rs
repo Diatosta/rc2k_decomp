@@ -8,8 +8,6 @@
 pub enum When {
     /// At once, at Apply.
     Now,
-    /// The next race that is loaded.
-    NextRace,
     /// The next start of the program.
     NextStart,
 }
@@ -49,7 +47,7 @@ const fn flag(key: &'static str, inverted: bool, when: When) -> Row {
 
 /// The rows in the order the page shows them: the first part the drawing and the screen, the
 /// second driving, sound and controls.
-pub const ROWS: [Row; 13] = [
+pub const ROWS: [Row; 12] = [
     Row {
         kind: Kind::Threads,
         when: When::Now,
@@ -67,7 +65,6 @@ pub const ROWS: [Row; 13] = [
     },
     flag("nofmv", true, When::Now),
     flag("screensnapshot", false, When::Now),
-    flag("noprecipitation", true, When::NextRace),
     flag("nonlinearsteering", false, When::Now),
     flag("noautoneutral", true, When::Now),
     flag("noforcefeedback", true, When::NextStart),
@@ -86,7 +83,7 @@ pub const ROW_SLOTS: usize = 12;
 
 /// How many rows the first part of the page shows; the second shows the rest. Kept short so
 /// the page does not run down the screen.
-pub const PAGE_ROWS: usize = 7;
+pub const PAGE_ROWS: usize = 6;
 
 /// The rows of a part of the page (0 or 1) as a range of `ROWS`.
 pub fn rows_on_page(page: usize) -> std::ops::Range<usize> {

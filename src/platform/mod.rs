@@ -338,9 +338,12 @@ fn set_screen_mode(
         }
     };
     // Only a change of the window's size touches the window: the player's own resizing stays
-    // through the menus and the races.
+    // through the menus and the races. The browser's full screen is the page's, not the
+    // window's: the canvases take the new size in it too, or the frame would sit small in the
+    // old size's canvas.
     let window_changed = window_before != Some(window_size);
-    if window_changed && !input_window(window).is_full_screen() {
+    if window_changed && (cfg!(target_os = "emscripten") || !input_window(window).is_full_screen())
+    {
         window.set_size(window_size.0, window_size.1);
     }
     let Some(texture) = renderer.create_frame_texture(width as usize, height as usize) else {

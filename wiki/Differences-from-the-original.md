@@ -61,6 +61,8 @@ The original was a 32-bit Windows program on DirectX. Its platform side was not 
 - **Mipmapping** (the graphics page's switch, off at first) now works on every renderer: far
   textures are drawn from smaller pre-reduced copies on the GPU renderers and the software one
   alike.
+- **Rain and snow** (graphics page, after the headlights; it was on the advanced page): on or off
+  for the next race, kept in `var/ral.cfg` as before.
 - **3D resolution** (graphics page): the race's 3D is drawn at 50, 75, 100 (the default), 125, 150,
   175 or 200 % of the screen's size. Below 100 it is enlarged; above 100 it is drawn larger and
   scaled down, which smooths the edges (supersampling). The dashboard and the texts stay at full
@@ -126,7 +128,7 @@ The original was a 32-bit Windows program on DirectX. Its platform side was not 
 - **Advanced** (an item after the original's on the options page, and on the in-race options):
   rows for the renderer, the number of drawing threads, "smooth frames", "buttons in the quit
   question", and the switches that lived in `var/ral.cfg` shown as the feature they control:
-  frame counter, films, screenshots, non-linear steering, automatic neutral, rain and snow, music
+  frame counter, films, screenshots, non-linear steering, automatic neutral, music
   and force feedback, and, on a second part of the page reached by its "more" button ("first page" comes back), "controls from saved games" (whether a loaded championship brings its own
   keys, controller set-up and gearing, or keeps the players' current ones) (some take effect at the next race or start, and the row says so). "Apply"
   writes them ([Running and options](Running-and-options), [Settings files](Settings-files)).
@@ -308,9 +310,10 @@ or IPX connection), and Steam when Valve's library is beside the program (it is 
   times (not the settings, not the replays) as a text on the left and a QR code of it on the right, with
   buttons to copy the text, paste one from the clipboard, and read one from a camera. A code that comes in
   is checked whole, and the player is asked, with what is in it beside what is here, before anything is
-  replaced. A code longer than about 400 letters is cut into numbered parts, small QR codes a camera reads
-  from a screen held at a normal distance, stepped with Left and Right and read by the camera in any order
-  (a saved game takes about 1,900 letters, five parts). The camera page shows its picture whole and sharp,
+  replaced. A code longer than one QR code holds is cut into numbered parts, large QR codes first (a
+  saved game takes about 1,900 letters, one or two codes) with a "small codes" button for a camera that
+  cannot read them (the same save in five or more), stepped with Left and Right and read by the camera in
+  any order. The camera page shows its picture whole and sharp,
   reads at 1280 x 720 where the camera has it, and with several cameras Left and Right choose another
   ([Save code](Save-code)).
 - **Errors.** An error that ends the game is shown on a panel in the game's window (the message,

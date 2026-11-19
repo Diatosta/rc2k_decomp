@@ -681,7 +681,7 @@ mod tests {
                 .collect(),
         );
         let whole = s.encode();
-        let texts = parts::split(&whole).unwrap();
+        let texts = parts::split(&whole, parts::Density::Small).unwrap();
         assert!(texts.len() >= 3);
         let mut assembly = parts::Assembly::default();
         for t in texts.iter().rev() {
@@ -694,6 +694,68 @@ mod tests {
             let modules = qr::encode(t).unwrap();
             let (width, pixels) = qr::render(&modules, 3);
             assert_eq!(qr::read(width, width, &pixels).as_deref(), Some(t.as_str()));
+        }
+    }
+
+    /// The saved games in a savedata folder (`RC2K_SAVEDATA`, the one that holds `savegame\\`),
+    /// carried in both densities: each part a QR code read back out of a picture of the size
+    /// the page draws it, the parts joined and decoded. Skipped when the folder is not named.
+    #[test]
+    fn real_saved_games_round_trip_at_both_densities() {
+        use parts::Density;
+        let Some(dir) = std::env::var_os("RC2K_SAVEDATA") else {
+            return;
+        };
+        let mut games = Vec::new();
+        for slot in 0..SLOTS as u8 {
+            let path = std::path::Path::new(&dir).join(format!("savegame/svgame{slot:02}"));
+            let Ok(file) = std::fs::read(path) else {
+                continue;
+            };
+            let Some(name) = crate::saves::kept::slot_name(
+                &file,
+                crate::saves::kept::SAVEGAME,
+                crate::saves::kept::SAVEGAME_VERSION,
+            ) else {
+                continue;
+            };
+            games.push(Game {
+                slot,
+                name,
+                state: file[0x30..0x30 + GAME_STATE_LEN].to_vec(),
+            });
+        }
+        let mut s = sample();
+        s.games = Some(games);
+        let whole = s.encode();
+        for density in [Density::Dense, Density::Small] {
+            let texts = parts::split(&whole, density).unwrap();
+            println!(
+                "{density:?}: {} letters in {} codes, largest side {}",
+                whole.len(),
+                texts.len(),
+                texts
+                    .iter()
+                    .map(|t| qr::encode(t).unwrap().side)
+                    .max()
+                    .unwrap()
+            );
+            let mut assembly = parts::Assembly::default();
+            for t in &texts {
+                let modules = qr::encode(t).unwrap();
+                let (width, pixels) = qr::render(&modules, 4);
+                let read = qr::read(width, width, &pixels).unwrap();
+                assert_eq!(&read, t);
+                if texts.len() > 1 {
+                    assembly.take(parts::Part::read(&read).unwrap());
+                }
+            }
+            let joined = if texts.len() > 1 {
+                assembly.whole().unwrap().unwrap()
+            } else {
+                texts[0].clone()
+            };
+            assert_eq!(PlayerState::decode(&joined).unwrap(), s);
         }
     }
 

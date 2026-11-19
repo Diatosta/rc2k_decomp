@@ -253,6 +253,8 @@ switches of `rc2k --help` go in the address as `?args=--mode%20time-trial%20--st
   request would take only the window's canvas and leave the GL's out, a black picture). A full
   screen asked for at the start, with no key or click behind it, is refused by the browser and the
   setting goes back to a window; leaving with Esc or F11 sets it back as well.
+  Both canvases always take the page's whole size and the picture is scaled to fill them, keeping its
+  shape; a resolution picked in full screen resizes the canvases at once (the canvases are the window).
 - **File names.** The browser's storage keeps the names as the zip had them (the CD's upper
   case) while the game asks in lower case, so a file is found by listing its folder; the listing
   of each folder is kept (`files::folder_names`) instead of being read for every file, which

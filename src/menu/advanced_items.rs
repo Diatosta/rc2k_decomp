@@ -158,6 +158,34 @@ fn swap_renderer(o: &Owners<'static>, renderer: Renderer) {
     let _ = (o, renderer);
 }
 
+/// The key of `var\ral.cfg` that turns rain and snow off.
+const NO_PRECIPITATION: &str = "noprecipitation";
+
+/// Whether rain and snow are on for the next race (shown by the graphics page).
+pub fn rain_and_snow_on(o: Owners<'static>) -> bool {
+    let number = crate::settings::read_settings::value_of(o, NO_PRECIPITATION).unwrap_or(0);
+    flag_shown(true, number)
+}
+
+/// The graphics page's rain and snow switch turned over: the game's variable changes (the next
+/// race loaded uses it) and the key in `var\ral.cfg` is written as the game reads it.
+pub fn toggle_rain_and_snow(o: Owners<'static>) -> Result<(), Refused> {
+    let number = flag_number(true, !rain_and_snow_on(o));
+    crate::settings::read_settings::set_value(o, NO_PRECIPITATION, number);
+    let path = cfg_path();
+    let file = set_key(
+        &std::fs::read(&path).unwrap_or_default(),
+        NO_PRECIPITATION,
+        number,
+    );
+    if let Err(e) = std::fs::write(&path, &file) {
+        crate::logfile::program_log::log(&format!(
+            "graphics: var\\ral.cfg could not be written: {e}"
+        ));
+    }
+    Ok(())
+}
+
 /// Makes the changed rows real.
 pub fn apply(o: Owners<'static>) -> Result<(), Refused> {
     shown(o);
