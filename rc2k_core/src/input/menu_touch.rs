@@ -104,6 +104,8 @@ struct Touch {
     start: (f32, f32),
     at: (f32, f32),
     down_at: u64,
+    /// When the finger last went down or moved: a finger silent for `STALE_MS` is gone.
+    last_at: u64,
     /// The point the last step was taken from.
     anchor: (f32, f32),
     /// Which way it is dragging (`Some(true)`: sideways), once it has moved past the slop.
@@ -128,7 +130,14 @@ pub struct Gestures {
     /// A page that acts on a tap itself (the installer's, the port's dialogs): a single tap is
     /// given the moment the finger lifts, not after the double-tap window.
     immediate: bool,
+    /// Fingers dropped by `drop_stale` since `take_stale` last asked.
+    stale: usize,
 }
+
+/// A finger with no event for this long is taken as lifted whose lifting was never seen: the
+/// menus have no use for a finger held still, and one left in the list would turn the next
+/// finger into a pair, which taps nothing.
+pub const STALE_MS: u64 = 1500;
 
 /// A tap is shorter than this.
 const TAP_MS: u64 = 450;
@@ -155,7 +164,28 @@ impl Gestures {
             peak: 0,
             direct_sideways: false,
             immediate: false,
+            stale: 0,
         }
+    }
+
+    /// Drops the fingers silent for `STALE_MS` (their lifting never came); how many.
+    pub fn drop_stale(&mut self, now: u64) -> usize {
+        let before = self.touches.len();
+        self.touches
+            .retain(|t| now.saturating_sub(t.last_at) < STALE_MS);
+        let dropped = before - self.touches.len();
+        self.stale += dropped;
+        dropped
+    }
+
+    /// How many fingers `drop_stale` dropped since the last call.
+    pub fn take_stale(&mut self) -> usize {
+        std::mem::take(&mut self.stale)
+    }
+
+    /// A finger gone without a gesture (its lifting could not be given to `finger`).
+    pub fn forget(&mut self, id: u64) {
+        self.touches.retain(|t| t.id != id);
     }
 
     /// Pages that act on a tap at once (on the finger's lifting). A tap the page did not use
@@ -191,6 +221,7 @@ impl Gestures {
         let step = unit * 0.11;
         match phase {
             Phase::Down => {
+                self.drop_stale(now);
                 if self.touches.is_empty() {
                     self.pair = false;
                     self.moved = false;
@@ -203,6 +234,7 @@ impl Gestures {
                     start: (x, y),
                     at: (x, y),
                     down_at: now,
+                    last_at: now,
                     anchor: (x, y),
                     sideways: None,
                 });
@@ -216,6 +248,7 @@ impl Gestures {
                     return out;
                 };
                 t.at = (x, y);
+                t.last_at = now;
                 let (dx, dy) = (x - t.start.0, y - t.start.1);
                 if t.sideways.is_none() && dx * dx + dy * dy > slop * slop {
                     t.sideways = Some(dx.abs() > dy.abs());
@@ -630,6 +663,55 @@ mod tests {
         );
         g.release_all();
         assert!(tick(&mut g, 1000).is_empty());
+    }
+
+    #[test]
+    fn a_finger_whose_lifting_never_came_does_not_turn_the_next_tap_into_a_pair() {
+        let mut g = Gestures::default();
+        run(&mut g, &[(1, Phase::Down, 900.0, 500.0, 0)]);
+        // Its lifting is lost: a tap long after is still a tap.
+        let got = run(
+            &mut g,
+            &[
+                (2, Phase::Down, 1200.0, 500.0, 5000),
+                (2, Phase::Up, 1200.0, 500.0, 5060),
+            ],
+        );
+        assert!(got.is_empty());
+        assert_eq!(g.take_stale(), 1);
+        assert_eq!(
+            tick(&mut g, 5060 + DOUBLE_MS),
+            vec![Gesture::Tap {
+                x: 1200.0,
+                y: 500.0
+            }]
+        );
+    }
+
+    #[test]
+    fn a_stale_finger_is_dropped_at_the_tick_and_a_moving_one_is_kept() {
+        let mut g = Gestures::default();
+        run(
+            &mut g,
+            &[
+                (1, Phase::Down, 900.0, 500.0, 0),
+                (2, Phase::Down, 1500.0, 500.0, 0),
+                (2, Phase::Move, 1500.0, 520.0, 1400),
+            ],
+        );
+        assert_eq!(g.drop_stale(STALE_MS - 1), 0);
+        assert_eq!(g.drop_stale(STALE_MS), 1);
+        assert!(g.active());
+        assert_eq!(g.drop_stale(1400 + STALE_MS), 1);
+        assert!(!g.active());
+    }
+
+    #[test]
+    fn a_forgotten_finger_leaves_the_list() {
+        let mut g = Gestures::default();
+        run(&mut g, &[(1, Phase::Down, 900.0, 500.0, 0)]);
+        g.forget(1);
+        assert!(!g.active());
     }
 
     #[test]
