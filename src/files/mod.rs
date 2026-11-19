@@ -89,7 +89,7 @@ fn host_path_of(path: &[u8]) -> std::path::PathBuf {
 /// kept as written.
 #[cfg(unix)]
 fn host_path_of(path: &[u8]) -> std::path::PathBuf {
-    use std::path::{Path, PathBuf};
+    use std::path::PathBuf;
     let text = redirect::apply(ansi_text(path).replace('\\', "/"));
     let bytes = text.as_bytes();
     let text = if bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' {
@@ -102,26 +102,24 @@ fn host_path_of(path: &[u8]) -> std::path::PathBuf {
     } else {
         PathBuf::new()
     };
-    let found_in = |folder: &Path, name: &str| -> Option<std::ffi::OsString> {
-        let folder = if folder.as_os_str().is_empty() {
-            Path::new(".")
-        } else {
-            folder
-        };
-        std::fs::read_dir(folder).ok()?.flatten().find_map(|e| {
-            let n = e.file_name();
-            n.to_str()
-                .is_some_and(|n| n.to_lowercase() == name.to_lowercase())
-                .then_some(n)
-        })
-    };
     for name in text.split('/').filter(|n| !n.is_empty()) {
+        if name == "." || name == ".." {
+            at = at.join(name);
+            continue;
+        }
+        // A name the folder's listing already holds is taken from it: one lookup for every
+        // later file of the folder (a listing and a stat each cost far more than the lookup on
+        // the browser's file storage).
+        if let Some(real) = folder_names::known(&at, name) {
+            at = at.join(real);
+            continue;
+        }
         let exact = at.join(name);
-        if name == "." || name == ".." || exact.symlink_metadata().is_ok() {
+        if exact.symlink_metadata().is_ok() {
             at = exact;
             continue;
         }
-        at = match found_in(&at, name) {
+        at = match folder_names::found_in(&at, name) {
             Some(real) => at.join(real),
             None => exact,
         };
@@ -130,6 +128,59 @@ fn host_path_of(path: &[u8]) -> std::path::PathBuf {
         at.push("");
     }
     at
+}
+
+/// The names of the folders the game's paths went through, as they are written on the disk, for
+/// finding a name without regard to its case. A folder is listed when a name is not found as
+/// written, and the names of its listing are found without touching the disk again. A name
+/// made after the listing is not in it: it is found as written, or, in another case, by
+/// listing the folder again.
+#[cfg(unix)]
+mod folder_names {
+    use std::collections::HashMap;
+    use std::ffi::OsString;
+    use std::path::{Path, PathBuf};
+    use std::sync::Mutex;
+
+    /// Each listed folder: its names by their lower-case spelling.
+    static LISTED: Mutex<Option<HashMap<PathBuf, HashMap<String, OsString>>>> = Mutex::new(None);
+
+    fn listed()
+    -> std::sync::MutexGuard<'static, Option<HashMap<PathBuf, HashMap<String, OsString>>>> {
+        LISTED
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    /// The name in `folder` that is `name` in any case, if the folder was listed and holds it.
+    pub fn known(folder: &Path, name: &str) -> Option<OsString> {
+        listed()
+            .as_ref()?
+            .get(folder)?
+            .get(&name.to_lowercase())
+            .cloned()
+    }
+
+    /// The name in `folder` that is `name` in any case, the folder listed again for it.
+    pub fn found_in(folder: &Path, name: &str) -> Option<OsString> {
+        let list = if folder.as_os_str().is_empty() {
+            Path::new(".")
+        } else {
+            folder
+        };
+        let mut names = HashMap::new();
+        for entry in std::fs::read_dir(list).ok()?.flatten() {
+            let n = entry.file_name();
+            if let Some(text) = n.to_str() {
+                names.entry(text.to_lowercase()).or_insert(n);
+            }
+        }
+        let found = names.get(&name.to_lowercase()).cloned();
+        listed()
+            .get_or_insert_default()
+            .insert(folder.to_path_buf(), names);
+        found
+    }
 }
 
 #[cfg(test)]
@@ -148,6 +199,16 @@ mod ansi_tests {
         assert_eq!(
             super::host_path(&game("files\\new.txt")),
             dir.join("Files/new.txt")
+        );
+        // Made after the folder was listed, then asked for in another case.
+        std::fs::write(dir.join("Files/B/Late.PCX"), b"x").unwrap();
+        assert_eq!(
+            super::host_path(&game("files\\b\\late.pcx")),
+            dir.join("Files/B/Late.PCX")
+        );
+        assert_eq!(
+            super::host_path(&game("files\\b\\tx1822.pcx")),
+            dir.join("Files/B/TX1822.PCX")
         );
         assert_eq!(
             super::host_path(b"c:\\tmp"),

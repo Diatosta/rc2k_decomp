@@ -238,7 +238,7 @@ fn rebuild(
                 mode,
             });
         }
-        all.sort_by_key(|l| (u64::from(l.width) * u64::from(l.height), l.width));
+        all.sort_by_key(|l| rc2k_core::gfx::resolutions::order(l.width, l.height));
         all.truncate(mc::ROOM as usize);
     }
     let mut listed = Vec::new();

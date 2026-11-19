@@ -1958,6 +1958,16 @@ impl Gpu {
                         .as_mut()
                         .is_some_and(super::gpu_time::Sampler::frame_ends);
                     let waited = self.show_target(wait, menu);
+                    // The next frame starts with a fresh depth buffer: the game clears the depth
+                    // only where it needs the clear, and what the last frame wrote would fail
+                    // the next one's depth test in patches.
+                    self.depth_is_new = true;
+                    if let Some(small) = self.small.as_mut() {
+                        small.depth_is_new = true;
+                    }
+                    if let Some(high) = self.high.as_mut() {
+                        high.depth_is_new = true;
+                    }
                     if let Some(sampler) = &mut sampler {
                         match waited {
                             Some(waited) => sampler.counted(waited),

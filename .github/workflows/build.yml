@@ -1,5 +1,5 @@
-# Builds the game (`rc2k`) for 64-bit Windows, for Linux and for macOS on every push and pull
-# request, and keeps each build as a download of the run (Actions -> the run -> Artifacts).
+# Builds the game (`rc2k`) for 64-bit Windows, for Linux (also the Steam Deck and the Anbernic
+# handheld) and for macOS, and for the browser (`web`), on every push and pull request, and keeps each build as a download of the run (Actions -> the run -> Artifacts).
 # Every job runs the repository's own entry point, `./build.sh <target>`, and uploads the
 # dist/<target>/ folder it makes. macOS is built on a Mac runner; the others on Linux:
 # Windows with cargo-xwin (clang-cl and the Windows SDK it fetches), SDL's ready-made DLL
@@ -12,7 +12,8 @@
 # A push also publishes the builds as a GitHub release (the `release` job): from `main`
 # a stable one, tagged `stable-<date>-<commit>` and marked the latest; from any other branch
 # an experimental pre-release, `experimental-<branch>`, replaced by each push to that branch.
-# Pull requests only build.
+# Pull requests only build. The web build is also published on GitHub Pages (the `pages` job),
+# once the repository's Pages and its PAGES_ENABLED variable are switched on (see that job).
 name: Build
 
 on:
@@ -105,13 +106,12 @@ jobs:
   deck:
     # The Steam Deck's build (`./build.sh deck`): the same commands as on a developer's machine, in
     # a container of Ubuntu 22.04 (tools/deck/Dockerfile) whose glibc 2.35 every SteamOS 3 system
-    # has; SDL is built inside it, the program is tuned for the Deck's Zen 2 processor, and
-    # Valve's library goes beside it (RC2K_STEAM=1). Rust comes from the runner's own home,
+    # has; SDL is built inside it and the program is tuned for the Deck's Zen 2 processor. Like
+    # the other jobs it ships without Valve's library (no Steamworks SDK on the runner); Steam play
+    # needs `libsteam_api.so` put beside the program. Rust comes from the runner's own home,
     # mounted into the container.
     runs-on: ubuntu-24.04
     timeout-minutes: 75
-    env:
-      RC2K_STEAM: "1"
     steps:
       - uses: actions/checkout@v7
 
@@ -127,7 +127,7 @@ jobs:
         with:
           key: deck
 
-      # The container image, the program (dist/deck/ with libsteam_api.so and rally.sh); it
+      # The container image, the program (dist/deck/ with rally.sh); it
       # prints the glibc the program needs.
       - name: Build
         run: ./build.sh deck
@@ -136,6 +136,132 @@ jobs:
         with:
           name: rc2k-deck-${{ github.sha }}
           path: dist/deck/
+
+  handheld:
+    # The Anbernic RG34XXSP's build (`./build.sh handheld`): the same commands as on a developer's
+    # machine, in a container of Ubuntu 22.04 (tools/anbernic/Dockerfile, glibc 2.35, the
+    # device's own system) with the arm64 cross compiler. Rust comes from the runner's own home,
+    # mounted into the container. The folder (dist/handheld/) holds the program, its launcher
+    # `Rally.sh` and the menu picture.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      # The toolchain the repository pins, with the arm64 target, for the container to use.
+      - name: Pinned Rust toolchain
+        run: |
+          CHANNEL="$(sed -n 's/^channel = "\(.*\)"/\1/p' rust-toolchain.toml)"
+          rustup toolchain install "$CHANNEL" --profile minimal --component clippy --component rustfmt \
+            --target aarch64-unknown-linux-gnu
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: handheld
+          # The container builds into target/a64-linux.
+          workspaces: ". -> target/a64-linux"
+
+      - name: Build
+        run: ./build.sh handheld
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: rc2k-handheld-${{ github.sha }}
+          path: dist/handheld/
+
+  web:
+    # The browser build (`./build.sh web`): WebAssembly through Emscripten, its threads on the
+    # browser's workers. It holds no game data: the player picks their own game folder or zip on
+    # the page. The Emscripten SDK is cloned into ~/emsdk (where the build script looks) at the
+    # version the build was made with, and cached. The folder is kept as a download of the run
+    # and, when Pages is switched on (below), published by the `pages` job.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      EMSDK_VERSION: "7.0.0"
+      # The nightly the web build was made with (std is rebuilt with atomics).
+      NIGHTLY: nightly-2026-10-25
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Nightly Rust with the web target
+        run: |
+          rustup toolchain install "$NIGHTLY" --profile minimal --component rust-src \
+            --target wasm32-unknown-emscripten
+          # The build script runs `cargo +nightly`: that name for the pinned one.
+          rustup toolchain link nightly "$(rustup run "$NIGHTLY" rustc --print sysroot)"
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: web
+          workspaces: ". -> target/web"
+
+      - name: Cached Emscripten SDK
+        id: emsdk
+        uses: actions/cache@v6
+        with:
+          path: ~/emsdk
+          key: emsdk-${{ env.EMSDK_VERSION }}-ubuntu-24.04
+
+      - name: Emscripten SDK
+        if: steps.emsdk.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 https://github.com/emscripten-core/emsdk.git "$HOME/emsdk"
+          "$HOME/emsdk/emsdk" install "$EMSDK_VERSION"
+          "$HOME/emsdk/emsdk" activate "$EMSDK_VERSION"
+
+      # The program and dist/web/ (the page, its worker, the cross-origin isolation helper).
+      - name: Build
+        run: ./build.sh web
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: rc2k-web-${{ github.sha }}
+          path: dist/web/
+
+  pages:
+    # Publishes the web build on this repository's GitHub Pages. Off until switched on: a private
+    # repository (or one without Pages) cannot deploy, and a failing step would turn every run
+    # red. To switch it on: Settings -> Pages -> Source: "GitHub Actions", then Settings ->
+    # Secrets and variables -> Actions -> Variables: PAGES_ENABLED = true. It then runs for
+    # pushes to main and for runs started by hand. GitHub Pages cannot send the headers the page's
+    # threads need: the page's `coi-serviceworker.js` adds them.
+    needs: web
+    if: >-
+      vars.PAGES_ENABLED == 'true' &&
+      (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    # One deploy at a time, the latest one wins.
+    concurrency:
+      group: pages
+      cancel-in-progress: true
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: rc2k-web-${{ github.sha }}
+          path: site
+
+      # Only the page's files: the helper script serve.py is for local use.
+      - run: rm -f site/serve.py
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
 
   macos:
     # Built on the Mac runner as on a Mac (`./build.sh mac`): Intel and Apple
@@ -164,7 +290,7 @@ jobs:
           path: dist/mac/
 
   release:
-    needs: [windows-x64, linux-x64, deck, macos]
+    needs: [windows-x64, linux-x64, deck, handheld, web, macos]
     # The Mac job skipped (other branches) leaves the release to the others.
     if: github.event_name == 'push' && !failure() && !cancelled()
     runs-on: ubuntu-24.04
@@ -174,6 +300,8 @@ jobs:
     steps:
       - uses: actions/download-artifact@v8
         with:
+          # Only the builds: the Pages deploy leaves an artifact of its own in the run.
+          pattern: rc2k-*
           path: builds
 
       - name: Publish
@@ -189,7 +317,7 @@ jobs:
           # The artifacts lose the executable bit: the Linux and Mac programs get it back (the Mac
           # build runs only for main and runs started by hand, so its program may be missing).
           shopt -s nullglob
-          for program in rc2k-linux-x64-*/rc2k rc2k-deck-*/rc2k rc2k-deck-*/rally.sh rc2k-macos-*/*.app/Contents/MacOS/rc2k; do
+          for program in rc2k-linux-x64-*/rc2k rc2k-deck-*/rc2k rc2k-deck-*/rally.sh rc2k-handheld-*/rc2k rc2k-handheld-*/Rally.sh rc2k-macos-*/*.app/Contents/MacOS/rc2k; do
             chmod +x "$program"
           done
           shopt -u nullglob
