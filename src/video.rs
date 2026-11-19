@@ -23,6 +23,7 @@
 mod encoder;
 
 use encoder::Encoder;
+use rc2k_core::gfx::nv12::{even_size, frame_bytes, from_bgra, to_rgb};
 use rc2k_core::race::render_dialog::{Quality, VideoEncoder};
 use rc2k_core::system::program_switches::Switches;
 use std::io::{Seek, SeekFrom, Write};
@@ -257,6 +258,10 @@ struct Writer {
     started: std::time::Instant,
     /// The picture file to look over at the end: a hardware encoder's.
     checked: Option<PathBuf>,
+    /// The size of the screen's frames.
+    size: (u32, u32),
+    /// Whether the frames go to the encoder as NV12 (at the even size) and not as 32-bit pixels.
+    nv12: bool,
 }
 
 /// The sound's output rate (the mixer's).
@@ -386,8 +391,52 @@ pub fn frame_taken(width: u32, height: u32) {
     writer.video_frames += 1;
 }
 
-/// The pixels of the next frame not yet sent (32 bits a pixel, blue first) to the video, in the
-/// order the frames were taken.
+/// A thing that went wrong that the player should be told when the render is over: a line of
+/// `kind`, a tab and `detail` appended to the file beside the progress file, which the program
+/// that started this one reads (`race::render_progress`). Kinds: `no_ffmpeg` (detail: the
+/// folder the numbered pictures go to), `encoder` (its first error line), `sound`.
+fn note_problem(kind: &str, detail: &str) {
+    log(&format!("problem for the player: {kind}: {detail}"));
+    let Some(path) = std::env::var_os("RC2K_RENDER_PROGRESS") else {
+        return;
+    };
+    let line = format!("{kind}\t{}\n", detail.replace(['\n', '\r'], " "));
+    if let Ok(mut file) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(std::path::PathBuf::from(path).with_extension(PROBLEMS_EXTENSION))
+    {
+        let _ = file.write_all(line.as_bytes());
+    }
+}
+
+/// The ending of the file the problems go in, in place of the progress file's.
+pub const PROBLEMS_EXTENSION: &str = "problems";
+
+/// Whether the frames are made as NV12 (`render::video_read_next`): an `ffmpeg` is there to take
+/// them and the card converts them. The writer's own answer once it has started.
+pub fn nv12() -> bool {
+    if let Some(writer) = WRITER
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .as_ref()
+    {
+        return writer.nv12;
+    }
+    nv12_now()
+}
+
+/// `nv12` for a writer not yet started.
+fn nv12_now() -> bool {
+    static FFMPEG_FOUND: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    job().is_some()
+        && *FFMPEG_FOUND.get_or_init(|| find_ffmpeg().is_some())
+        && crate::render::video_nv12_possible()
+}
+
+/// The pixels of the next frame not yet sent to the video, in the order the frames were taken:
+/// NV12 when the card made them, else 32 bits a pixel, blue first (the video's NV12 writer
+/// converts those itself).
 pub fn send(pixels: Vec<u8>) {
     let writer = WRITER
         .lock()
@@ -396,6 +445,15 @@ pub fn send(pixels: Vec<u8>) {
         return;
     };
     let began = std::time::Instant::now();
+    let pixels =
+        if writer.nv12 && pixels.len() != frame_bytes(even_size(writer.size.0, writer.size.1)) {
+            let mut converted = spare_buffer();
+            from_bgra(&pixels, writer.size.0, writer.size.1, &mut converted);
+            keep_buffer(pixels);
+            converted
+        } else {
+            pixels
+        };
     if writer.frames.send(pixels).is_err() {
         crate::logfile::program_log::log("video: the writer stopped; the frame is dropped");
     }
@@ -579,6 +637,7 @@ fn join_sound(silent: &Path, wav: &Path, out: &Path, tools: Tools) {
         log(&format!("{}: picture and sound joined", out.display()));
     } else {
         log("the sound could not be joined; the video has no sound");
+        note_problem("sound", "");
         let _ = std::fs::rename(silent, out);
         let _ = std::fs::remove_file(wav);
     }
@@ -620,7 +679,7 @@ struct Tools {
     aac: bool,
     opus: bool,
     /// The hardware encoders it lists that this system can have (`encoder::found_in`).
-    hardware: u8,
+    hardware: u16,
 }
 
 /// Whether an `ffmpeg` is on the path (the render's dialog says if it is not).
@@ -652,12 +711,23 @@ fn find_ffmpeg() -> Option<Tools> {
 /// The arguments that turn raw frames into the file: the size and rate of the input, then what
 /// the encoder needs (`encoder::encode_args`: H.264 at the job's quality in the usual
 /// 4:2:0, an odd side cut by one pixel, or `ffmpeg`'s own choice for the file's extension).
-fn ffmpeg_args(out: &Path, width: u32, height: u32, job: &Job, encoder: Encoder) -> Vec<String> {
+fn ffmpeg_args(
+    out: &Path,
+    (width, height): (u32, u32),
+    nv12: bool,
+    job: &Job,
+    encoder: Encoder,
+) -> Vec<String> {
     let mut args: Vec<String> = ["-hide_banner", "-loglevel", "error", "-y"]
         .map(String::from)
         .to_vec();
     args.extend(encoder::device_args(encoder));
-    args.extend(["-f", "rawvideo", "-pix_fmt", "bgr0", "-s"].map(String::from));
+    let (format, (width, height)) = if nv12 {
+        ("nv12", even_size(width, height))
+    } else {
+        ("bgr0", (width, height))
+    };
+    args.extend(["-f", "rawvideo", "-pix_fmt", format, "-s"].map(String::from));
     args.push(format!("{width}x{height}"));
     args.extend(["-r".into(), job.fps.to_string(), "-i".into(), "-".into()]);
     args.extend(encoder::encode_args(encoder, job.quality));
@@ -701,7 +771,7 @@ fn sound_path(out: &Path) -> PathBuf {
 }
 
 /// The sink and what goes with it.
-fn open_sink(job: &Job, width: u32, height: u32) -> Opened {
+fn open_sink(job: &Job, width: u32, height: u32, nv12: bool) -> Opened {
     match find_ffmpeg() {
         Some(tools) => {
             // With an encoder for the sound the picture goes to a file of its own first.
@@ -715,10 +785,11 @@ fn open_sink(job: &Job, width: u32, height: u32) -> Opened {
                 job.quality,
                 &log,
             );
-            let args = ffmpeg_args(target, width, height, job, encoder);
+            let args = ffmpeg_args(target, (width, height), nv12, job, encoder);
             match Command::new("ffmpeg")
                 .args(&args)
                 .stdin(Stdio::piped())
+                .stderr(Stdio::piped())
                 .spawn()
             {
                 Ok(child) => {
@@ -737,10 +808,22 @@ fn open_sink(job: &Job, width: u32, height: u32) -> Opened {
                         checked,
                     };
                 }
-                Err(e) => log(&format!("ffmpeg did not start ({e})")),
+                Err(e) => {
+                    log(&format!("ffmpeg did not start ({e})"));
+                    note_problem("encoder", &format!("ffmpeg did not start ({e})"));
+                }
             }
         }
-        None => log("no ffmpeg on the path"),
+        None => {
+            log("no ffmpeg on the path");
+            note_problem(
+                "no_ffmpeg",
+                &frames_folder(&job.out)
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy(),
+            );
+        }
     }
     let folder = frames_folder(&job.out);
     log(&format!(
@@ -768,12 +851,13 @@ struct Opened {
 }
 
 fn start_writer(job: &Job, width: u32, height: u32) -> Writer {
+    let nv12 = nv12_now();
     let Opened {
         sink,
         silent,
         tools,
         checked,
-    } = open_sink(job, width, height);
+    } = open_sink(job, width, height, nv12);
     let sound_file = match (&sink, &silent) {
         (_, _) if !job.sound => None,
         (Sink::Pngs(folder), _) => {
@@ -803,6 +887,8 @@ fn start_writer(job: &Job, width: u32, height: u32) -> Writer {
         tools,
         started: std::time::Instant::now(),
         checked,
+        size: (width, height),
+        nv12,
     }
 }
 
@@ -829,9 +915,28 @@ fn write_frames(
                 count += 1;
             }
             drop(input);
-            match child.wait() {
+            let said = child.stderr.take().map(|mut pipe| {
+                std::thread::spawn(move || {
+                    let mut text = String::new();
+                    let _ = std::io::Read::read_to_string(&mut pipe, &mut text);
+                    text
+                })
+            });
+            let status = child.wait();
+            let said = said
+                .and_then(|reader| reader.join().ok())
+                .unwrap_or_default();
+            let first = said.lines().find(|l| !l.trim().is_empty()).unwrap_or("");
+            if !first.is_empty() {
+                log(&format!("ffmpeg said: {first}"));
+            }
+            match status {
                 Ok(status) if status.success() => {}
-                Ok(status) => log(&format!("ffmpeg ended with {status}")),
+                Ok(status) => {
+                    log(&format!("ffmpeg ended with {status}"));
+                    let ended = status.to_string();
+                    note_problem("encoder", if first.is_empty() { &ended } else { first });
+                }
                 Err(e) => log(&format!("ffmpeg could not be waited for ({e})")),
             }
         }
@@ -841,12 +946,20 @@ fn write_frames(
                 return 0;
             }
             for pixels in queue {
-                let rgb: Vec<u8> = pixels
-                    .as_chunks::<4>()
-                    .0
-                    .iter()
-                    .flat_map(|p| [p[2], p[1], p[0]])
-                    .collect();
+                // A frame the card converted (an encoder was expected) is NV12 at the even size.
+                let (rgb, (width, height)): (Vec<u8>, _) =
+                    if pixels.len() == width as usize * height as usize * 4 {
+                        let rgb = pixels
+                            .as_chunks::<4>()
+                            .0
+                            .iter()
+                            .flat_map(|p| [p[2], p[1], p[0]])
+                            .collect();
+                        (rgb, (width, height))
+                    } else {
+                        let size = even_size(width, height);
+                        (to_rgb(&pixels, size), size)
+                    };
                 let png = rc2k_core::gfx::png_write::encode_rgb(width, height, &rgb);
                 count += 1;
                 if let Err(e) = std::fs::write(folder.join(format!("frame_{count:06}.png")), png) {
@@ -879,13 +992,25 @@ mod tests {
 
     #[test]
     fn the_encoder_gets_the_frames_size_and_rate() {
-        let args = ffmpeg_args(Path::new("v.mp4"), 1281, 720, &job(60), Encoder::Software);
+        let args = ffmpeg_args(
+            Path::new("v.mp4"),
+            (1281, 720),
+            false,
+            &job(60),
+            Encoder::Software,
+        );
         let at = |flag: &str| args.iter().position(|a| a == flag).unwrap();
         assert_eq!(args[at("-s") + 1], "1281x720");
         assert_eq!(args[at("-r") + 1], "60");
         assert_eq!(args.last().unwrap(), "v.mp4");
         assert!(args.iter().any(|a| a == "libx264"));
-        let plain = ffmpeg_args(Path::new("v.mkv"), 640, 480, &job(30), Encoder::Default);
+        let plain = ffmpeg_args(
+            Path::new("v.mkv"),
+            (640, 480),
+            false,
+            &job(30),
+            Encoder::Default,
+        );
         assert!(!plain.iter().any(|a| a == "libx264"));
         assert!(!plain.iter().any(|a| a == "-vf"));
     }
@@ -903,7 +1028,13 @@ mod tests {
 
     #[test]
     fn the_chosen_quality_reaches_the_encoder() {
-        let args = ffmpeg_args(Path::new("v.mp4"), 800, 600, &job(60), Encoder::Software);
+        let args = ffmpeg_args(
+            Path::new("v.mp4"),
+            (800, 600),
+            false,
+            &job(60),
+            Encoder::Software,
+        );
         let at = |flag: &str| args.iter().position(|a| a == flag).unwrap();
         assert_eq!(args[at("-crf") + 1], "23");
     }

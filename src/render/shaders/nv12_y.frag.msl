@@ -1,0 +1,18 @@
+#include <metal_stdlib>
+#include <simd/simd.h>
+
+using namespace metal;
+
+struct main0_out
+{
+    float4 m_53 [[color(0)]];
+};
+
+fragment main0_out main0(texture2d<float> _13 [[texture(0)]], sampler _13Smplr [[sampler(0)]], float4 gl_FragCoord [[position]])
+{
+    main0_out out = {};
+    float4 _26 = _13.read(uint2(int2(gl_FragCoord.xy)), 0);
+    out.m_53 = float4((((16.0 + (65.4810028076171875 * _26.x)) + (128.5529937744140625 * _26.y)) + (24.965999603271484375 * _26.z)) * 0.0039215688593685626983642578125, 0.0, 0.0, 1.0);
+    return out;
+}
+

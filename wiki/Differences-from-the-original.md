@@ -245,7 +245,9 @@ Everything is on [Controllers](Controllers) and [Input](Input); in short:
   and a cancel button. Cancelling (button, Escape or a click) ends the copy and removes everything it
   wrote; when it ends well a notice says the video is ready, and the viewer is where it was. The
   copy does not save the options or the best times. Without an `ffmpeg` on the path the frames are
-  numbered pictures. From the command line, `--render-replay <slot|file> --out <video> [--size WxH]
+  numbered pictures (a notice says so, with the folder's name). A notice also says when the encoder
+  stopped (its first message), when the card's encoder made a damaged picture and the video was
+  rendered again in software, and when the sound could not be joined. From the command line, `--render-replay <slot|file> --out <video> [--size WxH]
   [--fps N] [--quality low|medium|high|best] [--no-sound] [--from SECONDS] [--to SECONDS]` does it
   without a window (the part ends at the whole second after `--to`). The video is written through an
   `ffmpeg` on the path (H.264 with AAC sound when it has them).

@@ -63,6 +63,11 @@ impl Render {
         args
     }
 
+    /// The file the child lists the trouble it had in.
+    fn problems_file(&self) -> PathBuf {
+        self.out.with_extension(crate::video::PROBLEMS_EXTENSION)
+    }
+
     /// The file the child reports its progress in.
     fn progress_file(&self) -> PathBuf {
         self.out.with_extension("progress")
@@ -81,7 +86,9 @@ enum Ended {
 /// The render going on until it ends or is stopped; a notice says how it ended.
 pub fn run(o: Owners<'static>, render: &Render) {
     let mut ended = render_once(o, render);
+    let mut redone = false;
     if matches!(ended, Ended::EncoderDamaged) {
+        redone = true;
         // The graphics card's encoder cannot be trusted with this render: the software one makes
         // the video, from the same copy of the replay.
         crate::logfile::program_log::log(
@@ -93,17 +100,48 @@ pub fn run(o: Owners<'static>, render: &Render) {
         };
         ended = render_once(o, &again);
     }
-    for file in [&render.replay, &render.progress_file()] {
+    let problems = Problems::read(render);
+    for file in [
+        &render.replay,
+        &render.progress_file(),
+        &render.problems_file(),
+    ] {
         let _ = std::fs::remove_file(file);
     }
+    let say = |id: u32, with: &str| {
+        crate::error_dialog::notice(&crate::error_dialog::text_with(id, with));
+    };
     match ended {
-        Ended::Done => {
-            let name = render.out.file_name().unwrap_or_default().to_string_lossy();
-            crate::error_dialog::notice(&crate::error_dialog::text_with(id::RENDER_DONE, &name));
-        }
         Ended::Stopped => {}
+        // No video encoder to write the file: the frames are pictures in a folder.
+        _ if problems.no_ffmpeg.is_some() => {
+            say(
+                id::RENDER_NO_FFMPEG,
+                problems.no_ffmpeg.as_deref().unwrap_or(""),
+            );
+        }
+        Ended::Done => {
+            if let Some(why) = &problems.encoder {
+                say(id::RENDER_ENCODER_FAILED, why);
+            } else {
+                let name = render.out.file_name().unwrap_or_default().to_string_lossy();
+                say(id::RENDER_DONE, &name);
+            }
+            if redone {
+                say(id::RENDER_ENCODER_REDONE, "");
+            }
+            if problems.sound {
+                say(id::RENDER_SOUND_FAILED, "");
+            }
+        }
         Ended::Failed(why) => {
-            crate::error_dialog::notice(&crate::error_dialog::text_with(id::RENDER_FAILED, &why));
+            match &problems.encoder {
+                Some(first) => say(id::RENDER_ENCODER_FAILED, first),
+                None => say(id::RENDER_FAILED, &why),
+            }
+            if redone {
+                say(id::RENDER_ENCODER_REDONE, "");
+            }
         }
         Ended::EncoderDamaged => {
             crate::error_dialog::notice(&crate::error_dialog::text_with(
@@ -111,6 +149,37 @@ pub fn run(o: Owners<'static>, render: &Render) {
                 "the encoder made a damaged picture",
             ));
         }
+    }
+}
+
+/// What the child told of what went wrong (`video::note_problem`).
+#[derive(Default, Debug, PartialEq)]
+struct Problems {
+    /// No `ffmpeg`: the folder the numbered pictures went to.
+    no_ffmpeg: Option<String>,
+    /// The encoder stopped: its first line.
+    encoder: Option<String>,
+    /// The sound could not be joined.
+    sound: bool,
+}
+
+impl Problems {
+    fn read(render: &Render) -> Self {
+        Self::parse(&std::fs::read_to_string(render.problems_file()).unwrap_or_default())
+    }
+
+    fn parse(text: &str) -> Self {
+        let mut problems = Self::default();
+        for line in text.lines() {
+            let (kind, detail) = line.split_once('\t').unwrap_or((line, ""));
+            match kind {
+                "no_ffmpeg" => problems.no_ffmpeg = Some(detail.to_owned()),
+                "encoder" => problems.encoder = Some(detail.to_owned()),
+                "sound" => problems.sound = true,
+                _ => {}
+            }
+        }
+        problems
     }
 }
 
@@ -127,6 +196,7 @@ fn render_once(o: Owners<'static>, render: &Render) -> Ended {
 fn start(render: &Render) -> Result<Child, String> {
     let exe = std::env::current_exe().map_err(|e| format!("the program's file: {e}"))?;
     let _ = std::fs::remove_file(render.progress_file());
+    let _ = std::fs::remove_file(render.problems_file());
     let args = render.arguments();
     crate::logfile::program_log::log(&format!("render: {} {}", exe.display(), args.join(" ")));
     Command::new(exe)
@@ -390,6 +460,16 @@ fn draw(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn the_childs_problems_are_read_by_kind() {
+        let read =
+            Problems::parse("no_ffmpeg\tv_frames\nencoder\tNo such device\nsound\t\nother\tx\n");
+        assert_eq!(read.no_ffmpeg.as_deref(), Some("v_frames"));
+        assert_eq!(read.encoder.as_deref(), Some("No such device"));
+        assert!(read.sound);
+        assert_eq!(Problems::parse(""), Problems::default());
+    }
+
     use super::*;
 
     fn render() -> Render {
