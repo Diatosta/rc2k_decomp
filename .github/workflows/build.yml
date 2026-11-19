@@ -103,6 +103,12 @@ jobs:
           name: rc2k-linux-x64-${{ github.sha }}
           path: dist/linux/
 
+      # The program's symbols and line tables (`rc2k.debug`, beside the program for a named backtrace).
+      - uses: actions/upload-artifact@v7
+        with:
+          name: rc2k-linux-x64-debug-${{ github.sha }}
+          path: dist/linux-debug/
+
   deck:
     # The Steam Deck's build (`./build.sh deck`): the same commands as on a developer's machine, in
     # a container of Ubuntu 22.04 (tools/deck/Dockerfile) whose glibc 2.35 every SteamOS 3 system
@@ -136,6 +142,12 @@ jobs:
         with:
           name: rc2k-deck-${{ github.sha }}
           path: dist/deck/
+
+      # The program's symbols and line tables (`rc2k.debug`, beside the program for a named backtrace).
+      - uses: actions/upload-artifact@v7
+        with:
+          name: rc2k-deck-debug-${{ github.sha }}
+          path: dist/deck-debug/
 
   handheld:
     # The Anbernic RG34XXSP's build (`./build.sh handheld`): the same commands as on a developer's

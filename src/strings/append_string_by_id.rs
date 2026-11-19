@@ -17,8 +17,8 @@ pub const AFTER_VARIABLE_TEXT: u32 = 0x8000_0000;
 #[derive(Clone, Copy)]
 pub struct StringOwners<'a> {
     pub strings: &'a crate::strings::owner::Strings,
-    pub menus: &'a crate::menu::owner::Menus,
-    pub install: &'a crate::install::owner::Install,
+    pub menus: &'a dyn crate::strings::string_table::MadeTextBuffers,
+    pub install: &'a dyn crate::strings::string_table::MadeTextBuffers,
     pub system: &'a crate::system::owner::System,
 }
 
@@ -53,7 +53,7 @@ pub fn append_string_by_id(
     id: u32,
     emit: &mut impl FnMut(&[u8]),
 ) -> Result<u32, BadInput> {
-    let fault = crate::menu::event_flow::Fault::default();
+    let fault = crate::errors::Fault::default();
     let source = Source::of(id, || fault.ok(driver_name_slot(o.strings, id)) != 0);
     fault.check()?;
     let direct = match source {

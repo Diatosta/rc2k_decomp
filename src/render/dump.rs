@@ -94,7 +94,7 @@ pub fn dump_if_asked(list: &CommandList, into: &Target) {
         }
     }
     let written = std::fs::write("rc2k_frame_dump.bin", &out);
-    crate::logfile::program_log::log(&format!(
+    crate::program_log::log(&format!(
         "platform_3d: flush {wanted} of {fans} fans dumped to rc2k_frame_dump.bin ({} bytes, {} textures): {written:?}",
         out.len(),
         textures.len()
@@ -153,7 +153,7 @@ pub fn hash_if_asked(list: &CommandList, in_race: bool) {
         }
     }
     let n = FLUSHES.fetch_add(1, Relaxed);
-    crate::logfile::program_log::log(&format!(
+    crate::program_log::log(&format!(
         "fan hash {n}: {} commands, {:016x}",
         list.len(),
         h.finish()

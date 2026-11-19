@@ -307,7 +307,7 @@ pub fn frame_end() {
 fn report(state: &mut State, elapsed: Duration) {
     let frames = state.frames.max(1) as f64;
     let screen = f64::from(state.size.0.max(1)) * f64::from(state.size.1.max(1));
-    let log = |line: String| crate::logfile::program_log::log(&line);
+    let log = |line: String| crate::program_log::log(&line);
     let row = |what: &str, s: &Sum| {
         format!(
             "seethru: {what}: {:.1} fans, {:.1} triangles, {:.0} pixels = {:.2} screens a frame",
@@ -425,7 +425,7 @@ fn save_texture(folder: &std::path::Path, _report: u32, note: &TextureNote) {
         format!("{name}_a.png"),
         png(note.width as u32, note.height as u32, 0, &alpha),
     );
-    crate::logfile::program_log::log(&format!("seethru: saved texture {name}"));
+    crate::program_log::log(&format!("seethru: saved texture {name}"));
 }
 
 /// A PNG of 8-bit samples: `colour_type` 2 is RGB, 0 grey; rows unfiltered.

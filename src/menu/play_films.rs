@@ -11,9 +11,9 @@
 //!   `scene::set_up_engine`.
 
 use crate::errors::Refused;
-use crate::logfile::program_log::log;
 use crate::menu::owner::Panels;
 use crate::owners::Owners;
+use crate::program_log::log;
 use rc2k_core::menu::films::{self, Film, Step, StepAnswer};
 
 /// The films' file names.

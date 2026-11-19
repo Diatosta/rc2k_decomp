@@ -9,13 +9,13 @@
 
 use crate::logfile::log_float::log_float;
 use crate::math::cell_x87::CellX87;
+use crate::math::matrix3::{rounded, rounded_value};
 use crate::math::x87_float::compare;
 use crate::memory::session::Cell32;
 use crate::physics::car_store::Car;
 use crate::physics::scale_vector::scale_vector;
 use crate::physics::tables_store::PhysicsTables;
 use crate::physics::vector_length::vector_length;
-use crate::scene::matrix3::{rounded, rounded_value};
 use std::cmp::Ordering;
 
 /// The value at `v` held to +-(the limit at `l`): the limit is negated in place for the second

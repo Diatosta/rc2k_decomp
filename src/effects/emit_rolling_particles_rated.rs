@@ -14,10 +14,10 @@ use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
 use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
+use crate::math::matrix3::rounded_value;
 use crate::math::x87;
 use crate::memory::session::{PlainDword, PlainFloat};
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
-use crate::scene::matrix3::rounded_value;
 
 const LOOK: u32 = 0x34;
 const LIFE: u32 = 0x3E8;

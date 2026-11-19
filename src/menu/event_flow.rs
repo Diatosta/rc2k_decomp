@@ -27,28 +27,6 @@ pub fn inc(v: &PlainDword) {
     set(v, get(v).wrapping_add(1));
 }
 
-/// Reads for closures that a core function calls (they cannot return an error): the first
-/// refusal is kept and the reads after it answer 0; the caller runs `check` right after the
-/// core call, before it uses anything the core made.
-#[derive(Default)]
-pub struct Fault(std::cell::Cell<Option<BadInput>>);
-
-impl Fault {
-    /// The value, or the type's default after keeping the refusal.
-    pub fn ok<T: Default>(&self, r: Result<T, BadInput>) -> T {
-        r.unwrap_or_else(|e| {
-            if self.0.get().is_none() {
-                self.0.set(Some(e));
-            }
-            T::default()
-        })
-    }
-
-    pub fn check(&self) -> Result<(), BadInput> {
-        self.0.take().map_or(Ok(()), Err)
-    }
-}
-
 /// A refusal where the caller's signature cannot carry one (a trait of the core's, an
 /// installer helper): the program ends naming it, as a refusal does at the top.
 pub fn refuse_here<T>(r: Result<T, BadInput>, at: &str) -> T {

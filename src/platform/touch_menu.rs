@@ -62,7 +62,7 @@ fn note(reason: &str, now: u64) {
     }
     NOTED_AT.store(now.max(1), Relaxed);
     NOTED.store(0, Relaxed);
-    crate::logfile::program_log::log(&format!(
+    crate::program_log::log(&format!(
         "touch menu: {reason} ({count} such since the last line)"
     ));
 }

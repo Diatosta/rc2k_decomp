@@ -70,13 +70,11 @@ mod start_menu {
 
     pub fn add(installed: &Path) {
         let Some(group) = group_folder() else {
-            crate::logfile::program_log::log(
-                "install: no Start menu Programs folder; no items added",
-            );
+            crate::program_log::log("install: no Start menu Programs folder; no items added");
             return;
         };
         if let Err(e) = std::fs::create_dir_all(&group) {
-            crate::logfile::program_log::log(&format!("install: {}: {e}", group.display()));
+            crate::program_log::log(&format!("install: {}: {e}", group.display()));
             return;
         }
         let items = items(installed);
@@ -84,7 +82,7 @@ mod start_menu {
             for (name, target, arguments) in items {
                 let at = group.join(format!("{name}.lnk"));
                 let done = write_link(&at, &target, arguments, name);
-                crate::logfile::program_log::log(&format!(
+                crate::program_log::log(&format!(
                     "install: Start menu item {} -> {} {arguments}: {}",
                     at.display(),
                     target.display(),
@@ -99,7 +97,7 @@ mod start_menu {
             return;
         };
         let gone = std::fs::remove_dir_all(&group);
-        crate::logfile::program_log::log(&format!(
+        crate::program_log::log(&format!(
             "install: Start menu group {} removed: {gone:?}",
             group.display()
         ));
@@ -164,11 +162,11 @@ mod start_menu {
 
     pub fn add(installed: &Path) {
         let Some(folder) = applications() else {
-            crate::logfile::program_log::log("install: no applications folder; no items added");
+            crate::program_log::log("install: no applications folder; no items added");
             return;
         };
         if let Err(e) = std::fs::create_dir_all(&folder) {
-            crate::logfile::program_log::log(&format!("install: {}: {e}", folder.display()));
+            crate::program_log::log(&format!("install: {}: {e}", folder.display()));
             return;
         }
         let icon = icon_file().is_some_and(|at| {
@@ -176,7 +174,7 @@ mod start_menu {
                 .parent()
                 .is_some_and(|f| std::fs::create_dir_all(f).is_ok())
                 && std::fs::write(&at, crate::platform::icon::PNG).is_ok();
-            crate::logfile::program_log::log(&format!(
+            crate::program_log::log(&format!(
                 "install: icon {}: {}",
                 at.display(),
                 if done { "written" } else { "failed" }
@@ -216,7 +214,7 @@ mod start_menu {
                 installed.display()
             );
             let done = std::fs::write(&at, text);
-            crate::logfile::program_log::log(&format!(
+            crate::program_log::log(&format!(
                 "install: menu item {} -> {exec}: {}",
                 at.display(),
                 if done.is_ok() { "written" } else { "failed" }
@@ -231,17 +229,14 @@ mod start_menu {
         for (name, ..) in items(Path::new("")) {
             let at = entry_file(&folder, name);
             let gone = std::fs::remove_file(&at);
-            crate::logfile::program_log::log(&format!(
+            crate::program_log::log(&format!(
                 "install: menu item {} removed: {gone:?}",
                 at.display()
             ));
         }
         if let Some(at) = icon_file() {
             let gone = std::fs::remove_file(&at);
-            crate::logfile::program_log::log(&format!(
-                "install: icon {} removed: {gone:?}",
-                at.display()
-            ));
+            crate::program_log::log(&format!("install: icon {} removed: {gone:?}", at.display()));
         }
     }
 }
@@ -267,7 +262,7 @@ pub fn copy_program() -> bool {
     let mut all = true;
     for (a, b) in files {
         let done = std::fs::copy(&a, &b);
-        crate::logfile::program_log::log(&format!(
+        crate::program_log::log(&format!(
             "install: {} -> {}: {}",
             a.display(),
             b.display(),
@@ -289,7 +284,7 @@ pub fn run_program(command: &Path) -> bool {
         run.current_dir(folder);
     }
     let started = run.spawn();
-    crate::logfile::program_log::log(&format!(
+    crate::program_log::log(&format!(
         "install: run {}: {}",
         command.display(),
         if started.is_ok() { "started" } else { "failed" }

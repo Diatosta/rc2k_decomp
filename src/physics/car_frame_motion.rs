@@ -3,7 +3,7 @@
 //! `physics::apply_force` on the work car.
 
 use crate::math::cells::Cells;
-use crate::scene::matrix3::{extended, rounded_value};
+use crate::math::matrix3::{extended, rounded_value};
 use crate::scene::rotate_point::rotate_point;
 
 /// The motion `from` turned by the matrix `m` into `to`.

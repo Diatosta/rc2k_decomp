@@ -37,7 +37,7 @@ pub fn note_choice(input: &Input, player: u32, controller: u32) {
     let id = controller
         .checked_sub(1)
         .and_then(|n| id_of(&listed(input), n as usize));
-    crate::logfile::program_log::log(&format!(
+    crate::program_log::log(&format!(
         "input: player {} chose {}",
         player + 1,
         id.as_ref().map_or_else(
@@ -91,7 +91,7 @@ pub fn give_chosen(menus: &Menus, input: &Input) {
             wanted
         };
         if wanted != now {
-            crate::logfile::program_log::log(&format!(
+            crate::program_log::log(&format!(
                 "input: player {}'s controller {now} -> {wanted} ({})",
                 n + 1,
                 slot.as_ref()
@@ -141,7 +141,7 @@ pub fn source_changed(
     if wanted == now {
         return;
     }
-    crate::logfile::program_log::log(&format!(
+    crate::program_log::log(&format!(
         "input: the race's player 1 switches from controller {now} to {wanted}"
     ));
     controls.controller.set(wanted);

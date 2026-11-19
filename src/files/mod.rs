@@ -11,6 +11,7 @@ pub mod drive_type;
 pub mod file_exists;
 pub mod file_size;
 pub mod handle;
+pub mod instance;
 pub mod numbered_path;
 pub mod open_stream;
 pub mod read_file;
@@ -63,9 +64,9 @@ pub fn cstring(
 
 /// A path in the game's bytes (no NUL) as a `PathBuf`: the one place a game path becomes the
 /// system's. A numbered instance (`--instance`) finds its `var` and `savedata` folders under
-/// `instances/<n>/` (`single_copy::instance_path`).
+/// `instances/<n>/` (`instance::path`).
 pub fn host_path(path: &[u8]) -> std::path::PathBuf {
-    match crate::single_copy::instance_path(path) {
+    match instance::path(path) {
         Some(own) => host_path_of(&own),
         None => host_path_of(path),
     }

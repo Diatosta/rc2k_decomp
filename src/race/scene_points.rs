@@ -188,7 +188,7 @@ fn outside(
     caller: &std::panic::Location<'static>,
 ) -> BadInput {
     let held = table(tables).len().ok();
-    crate::logfile::program_log::log(&format!(
+    crate::program_log::log(&format!(
         "scene points: {what} of {len} bytes at {at:#x}; the points at {:#x}, {held:?} bytes; \
          from {}",
         base(),

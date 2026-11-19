@@ -36,7 +36,7 @@ pub fn in_game(saves: &Saves) -> Result<bool, Refused> {
     }
     close(file);
     if !whole {
-        crate::logfile::program_log::log("saves: the best times file was not written whole");
+        crate::program_log::log("saves: the best times file was not written whole");
     }
     Ok(whole)
 }

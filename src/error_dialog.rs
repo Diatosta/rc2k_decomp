@@ -94,7 +94,7 @@ pub fn text_with(id: u32, with: &str) -> String {
 /// A notice for the player: logged now; shown at once when a window is there, else when
 /// `show_pending` runs.
 pub fn notice(text: &str) {
-    crate::logfile::program_log::log(&format!("notice: {text}"));
+    crate::program_log::log(&format!("notice: {text}"));
     let shown =
         ready().is_some_and(|o| show(o, DIALOG_NOTICE, text, &[Way::Continue], 0, 0).is_some());
     if !shown {
@@ -107,7 +107,7 @@ pub fn notice(text: &str) {
 /// use when the notice is shown, not here.
 pub fn notice_own_later(key: &str, id: u32, with: &str) {
     if first_time(key) {
-        crate::logfile::program_log::log(&format!("notice: {}", text_with(id, with)));
+        crate::program_log::log(&format!("notice: {}", text_with(id, with)));
         queue_item(Queued::Own {
             id,
             with: with.to_string(),
@@ -117,7 +117,7 @@ pub fn notice_own_later(key: &str, id: u32, with: &str) {
 
 /// `notice_own_later` for a notice that is wanted every time it happens (not once for the run).
 pub fn notice_own_each_time(id: u32, with: &str) {
-    crate::logfile::program_log::log(&format!("notice: {}", text_with(id, with)));
+    crate::program_log::log(&format!("notice: {}", text_with(id, with)));
     queue_item(Queued::Own {
         id,
         with: with.to_string(),
@@ -225,13 +225,13 @@ pub fn fatal(text: &str) {
 /// show the dialog (nothing is asked, so nothing is done).
 pub fn ask_yes(title_id: u32, question_id: u32, hold_secs: u32) -> bool {
     let Some(o) = ready() else {
-        crate::logfile::program_log::log("error_dialog: a question could not be shown: no");
+        crate::program_log::log("error_dialog: a question could not be shown: no");
         return false;
     };
     let text = own(o, question_id);
-    crate::logfile::program_log::log(&format!("question: {text}"));
+    crate::program_log::log(&format!("question: {text}"));
     let answer = show(o, title_id, &text, &[Way::Yes, Way::No], 1, hold_secs) == Some(Way::Yes);
-    crate::logfile::program_log::log(&format!(
+    crate::program_log::log(&format!(
         "question: answered {}",
         if answer { "yes" } else { "no" }
     ));
@@ -242,7 +242,7 @@ pub fn ask_yes(title_id: u32, question_id: u32, hold_secs: u32) -> bool {
 /// True when the player chose to go on at the main menu (also where no dialog can be shown:
 /// an unattended run goes on).
 pub fn ask_back(text: &str) -> bool {
-    crate::logfile::program_log::log(&format!("error: {text}"));
+    crate::program_log::log(&format!("error: {text}"));
     // The trouble's own words are the program's (English); the lead-in is in the language in use.
     let shown = text_with(rc2k_core::strings::own::id::BACK_TO_MENU, text);
     ready().and_then(|o| show(o, DIALOG_NOTICE, &shown, &[Way::MainMenu, Way::Quit], 0, 0))

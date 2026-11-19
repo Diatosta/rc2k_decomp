@@ -56,7 +56,7 @@ mod backend {
         if !motor.1 {
             motor.0 = open();
             motor.1 = true;
-            crate::logfile::program_log::log(&format!(
+            crate::program_log::log(&format!(
                 "platform: the phone's vibrator {}",
                 if motor.0.is_null() {
                     "was not found"
@@ -319,7 +319,7 @@ mod backend {
                     if state.engine.is_null() {
                         return false;
                     }
-                    crate::logfile::program_log::log("platform: the phone's haptic engine started");
+                    crate::program_log::log("platform: the phone's haptic engine started");
                 }
                 if play(state.engine, strength, ms) {
                     return true;
@@ -353,7 +353,7 @@ mod backend {
                     );
                 }
                 state.generator_looked = true;
-                crate::logfile::program_log::log(&format!(
+                crate::program_log::log(&format!(
                     "platform: the phone's impact feedback {}",
                     if state.generator.is_null() {
                         "was not found"

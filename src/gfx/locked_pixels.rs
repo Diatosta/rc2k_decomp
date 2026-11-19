@@ -9,7 +9,7 @@
 
 use crate::errors::BadInput;
 use crate::memory::cells::Plain;
-use crate::memory::pool::PoolBytes;
+use crate::platform::pool::PoolBytes;
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex, Weak};
 
@@ -120,13 +120,13 @@ impl Place {
     /// The bytes, when `len` from this place lie inside what is reachable.
     fn check(&self, at: u32, len: usize, what: &str) -> Result<&PoolBytes, BadInput> {
         let Some(bytes) = &self.bytes else {
-            crate::logfile::program_log::log(&format!(
+            crate::program_log::log(&format!(
                 "pixels: {what}: {len} bytes of surface pixels that are not there"
             ));
             return Err(BadInput("a locked surface with no pixels"));
         };
         if u64::from(at) + len as u64 > u64::from(self.end) {
-            crate::logfile::program_log::log(&format!(
+            crate::program_log::log(&format!(
                 "pixels: {what}: {len} bytes at offset {:#x}, past the {:#x} reachable",
                 at, self.end
             ));

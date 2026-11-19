@@ -1,8 +1,8 @@
 //! Where the time goes: the frames' counts and timings in the log, and on Windows the main
 //! thread and the rasteriser's sampled (with `RC2K_PROFILE` set).
 
-use crate::logfile::program_log::log;
 use crate::platform::SHOWN;
+use crate::program_log::log;
 use crate::system::owner::System;
 use std::sync::atomic::Ordering;
 

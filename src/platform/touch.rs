@@ -101,7 +101,7 @@ pub fn is_touch_pad(list: &[rc2k_core::input::device_id::Listed], number: u32) -
 /// Player 1's source set; the change noted for `take_source_change`.
 fn set_source(st: &mut State, source: Source) {
     if st.source != source {
-        crate::logfile::program_log::log(&format!(
+        crate::program_log::log(&format!(
             "touch: player 1 drives with {}",
             match source {
                 Source::Auto => "the touch screen (nothing used yet)",
@@ -144,7 +144,7 @@ pub fn attach_at_start() {
     }
     let attached = sdl_input::attach_virtual_gamepad(VENDOR, PRODUCT, c"Touch screen")
         .and_then(|id| sdl_input::Joystick::open(id).map(|joystick| (id, joystick)));
-    crate::logfile::program_log::log(&format!(
+    crate::program_log::log(&format!(
         "touch: the virtual gamepad {}",
         if attached.is_some() {
             "is attached"

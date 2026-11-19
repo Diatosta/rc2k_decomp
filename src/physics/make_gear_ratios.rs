@@ -10,13 +10,13 @@
 //! Refuses (before anything) a gear count above 7 (past `gear_ratios`).
 
 use crate::errors::{BadInput, Refused};
+use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87;
 use crate::math::x87::{ext_add, gear_step_80, lerp_int_over2};
 use crate::physics::car_store::Car;
 use crate::physics::gear_store::GearFigures;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
-use crate::scene::matrix3::{extended, rounded_value};
 
 /// The exact version, for `physics::car_physics_step` and `physics::test_drive`: the gear count.
 pub fn make_gear_ratios(

@@ -5,13 +5,13 @@
 //! stalling when the car is stopped or turned back on itself: the motion's dot product against its
 //! own length.
 
+use crate::math::matrix3::rounded_value;
 use crate::math::x87::{abs_compare, compare_full, ext_div2};
 use crate::physics::car_store::Car;
 use crate::physics::dot_product::dot_product;
 use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::physics::tables_store::PhysicsTables;
 use crate::physics::vector_length::vector_length;
-use crate::scene::matrix3::rounded_value;
 
 pub fn stall_when_still(car: &Car, tables: &PhysicsTables, scene: &crate::scene::owner::Scene) {
     let kept = &tables.kept_motion;

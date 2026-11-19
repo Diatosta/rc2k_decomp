@@ -311,7 +311,7 @@ pub fn gather_spline_points(
 
 /// An angle as `fld dword [x]; fchs` leaves it.
 fn negated(f: u32) -> [u8; 10] {
-    let mut a = crate::scene::matrix3::extended(f);
+    let mut a = crate::math::matrix3::extended(f);
     a[9] ^= 0x80;
     a
 }
@@ -330,7 +330,7 @@ fn multiply_turns(paths: &Paths) {
             &paths.spline_work.turn,
         ),
     ] {
-        crate::scene::matrix3::multiply_matrices3(a, b, out);
+        crate::math::matrix3::multiply_matrices3(a, b, out);
     }
 }
 
@@ -339,7 +339,7 @@ fn multiply_turns(paths: &Paths) {
 /// record's points turned by it in place. Refuses more than 0x80 points or an angle with
 /// no sine and cosine, before writing anything.
 pub fn turn_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
-    use crate::scene::matrix3::{Axis, turn_matrix3, turnable};
+    use crate::math::matrix3::{Axis, turn_matrix3, turnable};
     s.count(paths)?;
     let mut angles = [negated(0); 3];
     for (a, o) in angles.iter_mut().zip([0x20u32, 0x24, 0x28]) {
@@ -361,7 +361,7 @@ pub fn turn_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
     multiply_turns(paths);
     let n = s.count(paths)?;
     let points = s.points(paths, 0, n)?;
-    crate::scene::matrix3::transform_int_points(
+    crate::math::matrix3::transform_int_points(
         &points[..],
         &points[..],
         n,
@@ -405,7 +405,7 @@ pub fn place_shape_points(
 
 /// Whether the record's three angles (at `offsets`, not negated) can be turned by.
 pub fn turnable_record(paths: &Paths, s: Spline, offsets: [u32; 3]) -> Result<(), Refused> {
-    use crate::scene::matrix3::{extended, turnable};
+    use crate::math::matrix3::{extended, turnable};
     for o in offsets {
         turnable(&extended(s.get(paths, o)?))?;
     }
@@ -416,7 +416,7 @@ pub fn turnable_record(paths: &Paths, s: Spline, offsets: [u32; 3]) -> Result<()
 /// turns, X x Y into the XY turn, that x Z into the turn, as
 /// `effects::place_shape_points` and `effects::place_graded_points` do.
 pub fn turn_record(paths: &Paths, s: Spline, offsets: [u32; 3]) -> Result<(), Refused> {
-    use crate::scene::matrix3::{Axis, extended, turn_matrix3};
+    use crate::math::matrix3::{Axis, extended, turn_matrix3};
     for ((axis, to), o) in [
         (Axis::X, &paths.spline_work.turn_x),
         (Axis::Y, &paths.spline_work.turn_y),
@@ -444,7 +444,7 @@ pub fn transform_int_points_from(
         return Err(BadInput("points past the record's 0x80").into());
     }
     let points = s.points(paths, first, count)?;
-    crate::scene::matrix3::transform_int_points(
+    crate::math::matrix3::transform_int_points(
         &points[..],
         &paths.spline_work.ordered_coords,
         count,
@@ -547,7 +547,7 @@ pub fn bound_spline_points(
         s.put(paths, CENTRE + 4 * c as u32, m as u32)?;
     }
     let angle = crate::scene::vector3::angle_between_vectors(up, size_at, work);
-    s.put(paths, 0x20, crate::scene::matrix3::rounded(angle))?;
+    s.put(paths, 0x20, crate::math::matrix3::rounded(angle))?;
     Ok(())
 }
 
@@ -568,7 +568,7 @@ fn spline_checks(
         return Err(BadInput("an object's faces past g_faces").into());
     }
     for item in paths.spline_constants.angles.iter().take(12) {
-        crate::scene::matrix3::turnable(&negated(item.get().to_bits()))?;
+        crate::math::matrix3::turnable(&negated(item.get().to_bits()))?;
     }
     Ok(())
 }

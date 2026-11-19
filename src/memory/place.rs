@@ -140,7 +140,7 @@ impl BytePlace {
         match at.checked_add(len) {
             Some(end) if end <= b.len() => Ok(()),
             _ => {
-                crate::logfile::program_log::log(&format!(
+                crate::program_log::log(&format!(
                     "place: {len} bytes at {at} of a buffer of {}, from {}",
                     b.len(),
                     std::panic::Location::caller()

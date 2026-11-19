@@ -60,7 +60,7 @@ pub fn asked() -> Option<&'static Asked> {
 /// the test builds, which run without a screen to answer it).
 fn refuse(why: &str) -> ! {
     let text = format!("What the command line asked for cannot start:\n{why}");
-    crate::logfile::program_log::log(&format!("menu::launch: {text}"));
+    crate::program_log::log(&format!("menu::launch: {text}"));
     crate::standalone::finish_saying("a launch that cannot start", &text, 1)
 }
 
@@ -123,7 +123,7 @@ static QUIT_AFTER_RACE: std::sync::atomic::AtomicBool = std::sync::atomic::Atomi
 /// after the first race of an arcade game or a championship.
 pub fn race_over(o: Owners<'static>) {
     if QUIT_AFTER_RACE.swap(false, Ordering::Relaxed) {
-        crate::logfile::program_log::log("menu::launch: the race is over; leaving (--then quit)");
+        crate::program_log::log("menu::launch: the race is over; leaving (--then quit)");
         crate::standalone::leave_on_close(o);
     }
 }
@@ -131,7 +131,7 @@ pub fn race_over(o: Owners<'static>) {
 /// The event the launch asks for, with the launch's choices, run from the main menu's set-up;
 /// after it the main menu goes on.
 fn run(o: Owners<'static>, launch: &Launch) -> Result<(), Refused> {
-    crate::logfile::program_log::log(&format!("menu::launch: {launch:?}"));
+    crate::program_log::log(&format!("menu::launch: {launch:?}"));
     match launch.mode {
         Mode::Single | Mode::TimeTrial => run_rounds(o, launch),
         Mode::Arcade => run_arcade(o, launch),
@@ -218,7 +218,7 @@ fn run_net(o: Owners<'static>, launch: &NetLaunch) -> Result<(), Refused> {
 
 #[cfg(not(web))]
 fn run_net_game(o: Owners<'static>, launch: &NetLaunch) -> Result<(), Refused> {
-    crate::logfile::program_log::log(&format!("menu::launch: {launch:?}"));
+    crate::program_log::log(&format!("menu::launch: {launch:?}"));
     let kept = Kept::take(o)?;
     let setup = o.net.setup();
     let mode = match &launch.role {
@@ -247,7 +247,7 @@ fn run_net_game(o: Owners<'static>, launch: &NetLaunch) -> Result<(), Refused> {
     kept.put_back(o);
     result?;
     if launch.then == Then::Quit {
-        crate::logfile::program_log::log("menu::launch: the lobby is left; leaving (--then quit)");
+        crate::program_log::log("menu::launch: the lobby is left; leaving (--then quit)");
         crate::standalone::leave_on_close(o);
     }
     Ok(())
@@ -352,7 +352,7 @@ fn run_championship(o: Owners<'static>, launch: &Launch) -> Result<(), Refused> 
 fn run_replay(o: Owners<'static>, launch: &ReplayLaunch) -> Result<(), Refused> {
     use crate::race::replay_viewer::{Viewed, launched_replay};
     let slot = find_replay(o, &launch.replay)?;
-    crate::logfile::program_log::log(&format!("menu::launch: {launch:?}"));
+    crate::program_log::log(&format!("menu::launch: {launch:?}"));
     let quit = launch.then == Then::Quit;
     let viewed = launched_replay(o.race, o, slot, quit)?;
     if viewed == Viewed::Nothing {
@@ -362,7 +362,7 @@ fn run_replay(o: Owners<'static>, launch: &ReplayLaunch) -> Result<(), Refused> 
         ));
     }
     if quit {
-        crate::logfile::program_log::log("menu::launch: the replay is over; leaving (--then quit)");
+        crate::program_log::log("menu::launch: the replay is over; leaving (--then quit)");
         crate::standalone::leave_on_close(o);
     }
     Ok(())
@@ -641,7 +641,7 @@ impl GameAnswers<'_> {
                     (Pick::None, Choice::Name(_)) => {
                         let all = labelled(&self.cars_of(CarList::Cheat)?);
                         let at = picked(choice, &what, &all) as u32;
-                        crate::logfile::program_log::log(&format!(
+                        crate::program_log::log(&format!(
                             "menu::launch: {what}: not in the list shown; taken from every car's (the Unlock Cars list)"
                         ));
                         (CarList::Cheat, at)
@@ -747,7 +747,7 @@ fn apply_tune(o: Owners<'static>, tune: &rc2k_core::menu::launch::Tune) -> Resul
     }
     let car = player.get();
     let tyre = crate::files::ansi_text(&text(o, 0x4B0 + car.tyre)?).to_string();
-    crate::logfile::program_log::log(&format!(
+    crate::program_log::log(&format!(
         "menu::launch: tune for player {}: tyre {} ({tyre}), gear ratio {}, ride height {}, stiffness {}, brake balance {}, steering {}",
         menus.screens.event.current_player.get() + 1,
         car.tyre,
@@ -797,9 +797,7 @@ impl Answers<Game<'static>> for GameAnswers<'_> {
 
     fn after_race(&mut self, _game: &mut Game<'static>) -> Result<(), Refused> {
         if self.launch.then == Then::Quit {
-            crate::logfile::program_log::log(
-                "menu::launch: the race is over; leaving (--then quit)",
-            );
+            crate::program_log::log("menu::launch: the race is over; leaving (--then quit)");
             crate::standalone::leave_on_close(self.o);
         }
         Ok(())

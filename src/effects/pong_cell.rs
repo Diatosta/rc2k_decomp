@@ -10,7 +10,7 @@
 use crate::effects::pong::Pong;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::Refused;
-use crate::scene::matrix3::extended;
+use crate::math::matrix3::extended;
 use rc2k_core::math::extended::from_f64;
 
 /// `pattern` is the pattern byte, `column` and `row` the cell's place.

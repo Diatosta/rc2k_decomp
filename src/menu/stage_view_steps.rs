@@ -20,9 +20,9 @@
 //! than 256 pages; a speech list entry past 0x40 or null; a section past 0x20 for the speeches
 //! and pictures; what `item_at` refuses.
 
+use crate::errors::Fault;
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::champ_store::ChampView;
-use crate::menu::event_flow::Fault;
 use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
 use crate::owners::Owners;

@@ -1,8 +1,8 @@
 //! SDL's events under the game: closing the window sets the quit switch, and the keys and
 //! buttons the menus know become the game's pending key.
 
-use crate::logfile::program_log::log;
 use crate::platform::ffi::sdl;
+use crate::program_log::log;
 use rc2k_core::input::profile::MenuControl;
 use sdl3_sys::everything::*;
 

@@ -162,6 +162,7 @@ pub mod load_replay_loop;
 pub mod load_slideshow_picture;
 pub mod loop_store;
 pub mod lower_sensitivity;
+pub mod made_texts;
 pub mod main_menu_loop;
 pub mod mark_stage_choice;
 pub mod menus_store;

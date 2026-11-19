@@ -83,16 +83,32 @@ CARGO_FLAGS=()
 
 # An empty dist/<target>/.
 fresh_dist() {
-    rm -rf "$DIST"
+    rm -rf "$DIST" "$DIST-debug"
     mkdir -p "$DIST"
 }
 
+# The program's symbols and line tables moved into a file of their own, dist/<target>-debug/rc2k.debug,
+# and the program stripped, with a link to that file: put beside the program, it lets a fault's
+# backtrace in rc2k.log name functions, files and lines again. Without objcopy the program keeps them.
+split_debug_info() {
+    local program="$1" debug_dir="$DIST-debug"
+    if ! command -v objcopy >/dev/null 2>&1; then
+        echo "no objcopy: $program keeps its symbols"
+        return
+    fi
+    mkdir -p "$debug_dir"
+    objcopy --only-keep-debug "$program" "$debug_dir/rc2k.debug"
+    objcopy --strip-all --add-gnu-debuglink="$debug_dir/rc2k.debug" "$program"
+}
+
 # Copies dist/<target>/ into a folder, replacing what is there by the same names (a program
-# that is running keeps its old file).
+# that is running keeps its old file), with the debug file beside the program when the build
+# made one (`split_debug_info`), so the log's backtraces are named on the developer's machine.
 deploy_to_folder() {
     local dest="$1" item
     mkdir -p "$dest"
-    for item in "$DIST"/*; do
+    for item in "$DIST"/* "$DIST-debug"/*; do
+        [ -e "$item" ] || continue
         rm -rf "$dest/$(basename "$item")"
         cp -R "$item" "$dest/"
     done
@@ -154,10 +170,11 @@ build_windows() {
 build_linux() {
     need cargo "install rustup (https://rustup.rs)"
     need cmake "SDL is built from source: install cmake and your system's video and sound development packages"
-    CARGO_TARGET_DIR=target/linux cargo build ${CARGO_FLAGS[@]+"${CARGO_FLAGS[@]}"} \
-        --target x86_64-unknown-linux-gnu --bin rc2k
+    CARGO_TARGET_DIR=target/linux CARGO_PROFILE_RELEASE_DEBUG=line-tables-only \
+        cargo build ${CARGO_FLAGS[@]+"${CARGO_FLAGS[@]}"} --target x86_64-unknown-linux-gnu --bin rc2k
     fresh_dist
     cp "target/linux/x86_64-unknown-linux-gnu/$PROFILE/rc2k" "$DIST/"
+    split_debug_info "$DIST/rc2k"
     copy_steam_library linux64 libsteam_api.so "$DIST"
     if command -v objdump >/dev/null 2>&1; then
         echo "the Linux program needs glibc $(objdump -T "$DIST/rc2k" | grep -v ' w ' \
@@ -174,10 +191,11 @@ build_deck() {
     need docker "the Steam Deck's build runs in a container (tools/deck/Dockerfile)"
     docker build -q -t rc2k-deck tools/deck >/dev/null
     local target_dir="${CARGO_TARGET_DIR:-target/deck}"
-    tools/deck/run.sh cargo build ${CARGO_FLAGS[@]+"${CARGO_FLAGS[@]}"} \
-        --target x86_64-unknown-linux-gnu --bin rc2k
+    tools/deck/run.sh env CARGO_PROFILE_RELEASE_DEBUG=line-tables-only \
+        cargo build ${CARGO_FLAGS[@]+"${CARGO_FLAGS[@]}"} --target x86_64-unknown-linux-gnu --bin rc2k
     fresh_dist
     cp "$target_dir/x86_64-unknown-linux-gnu/$PROFILE/rc2k" "$DIST/"
+    split_debug_info "$DIST/rc2k"
     cp tools/deck/rally.sh "$DIST/"
     chmod +x "$DIST/rc2k" "$DIST/rally.sh"
     copy_steam_library linux64 libsteam_api.so "$DIST"

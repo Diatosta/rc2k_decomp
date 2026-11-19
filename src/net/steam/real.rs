@@ -51,7 +51,7 @@ struct Found {
 }
 
 fn log(text: &str) {
-    crate::logfile::program_log::log(&format!("net: steam: {text}"));
+    crate::program_log::log(&format!("net: steam: {text}"));
 }
 
 fn state() -> Option<&'static Steam> {

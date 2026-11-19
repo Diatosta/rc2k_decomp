@@ -7,10 +7,10 @@
 //! 0x400 (the table `arcade_car_numbers` holds 90), and what the two calls refuse.
 
 use crate::errors::{BadInput, Refused};
+use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
-use crate::scene::matrix3::{extended, rounded_value};
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::drive::start_places;
 

@@ -17,10 +17,10 @@ use crate::effects::mask_store::Masks;
 use crate::effects::owner::Effects;
 use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
+use crate::math::matrix3::rounded_value;
 use crate::math::x87;
 use crate::memory::session::{PlainDword, PlainFloat};
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
-use crate::scene::matrix3::rounded_value;
 
 /// The motion: per axis (x, y, z) the three (factor, wheel speed) pairs; the scales are
 /// `WheelFadeSet.motion_k[3 * axis + n]`.

@@ -20,7 +20,7 @@ pub fn read_packed(
 ) -> Result<(u32, bool, Option<bool>), Refused> {
     match read(race, system, file, count) {
         Err(Refused::BadInput(why)) => {
-            crate::logfile::program_log::log(&format!(
+            crate::program_log::log(&format!(
                 "replay: a block of {count:#x} bytes cannot be read ({why:?}); the file is damaged"
             ));
             Ok((0, true, None))

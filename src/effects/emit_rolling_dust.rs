@@ -23,10 +23,10 @@ use crate::effects::mask_store::Masks;
 use crate::effects::owner::Effects;
 use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
+use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87;
 use crate::memory::session::{PlainDword, PlainFloat};
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
-use crate::scene::matrix3::{extended, rounded_value};
 
 /// The strength's two factors and its least.
 fn strength_k(effects: &Effects) -> [&PlainFloat; 3] {

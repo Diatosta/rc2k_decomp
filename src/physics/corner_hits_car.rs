@@ -9,13 +9,13 @@
 
 use crate::errors::Refused;
 use crate::math::cell_x87::CellX87;
+use crate::math::matrix3::extended;
 use crate::math::x87::{abs_compare, ext_times};
 use crate::math::x87_float::from_f80;
 use crate::memory::session::Cell32;
 use crate::physics::contact_store::ContactWork;
 use crate::physics::step_families::ContactInputs;
 use crate::race::numbers_store::Numbers;
-use crate::scene::matrix3::extended;
 use crate::scene::rotate_point::rotate_point;
 
 /// Whether the corner is inside (`corner_turned` .. written either way).

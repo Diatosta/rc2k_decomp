@@ -116,7 +116,7 @@ pub fn wish() -> Wish {
         env.as_deref(),
         wanted.as_deref(),
         |source, value| {
-            crate::logfile::program_log::log(&format!(
+            crate::program_log::log(&format!(
                 "render: {source}: renderer `{value}` is not known here ({}): the default order",
                 names()
             ));
@@ -141,7 +141,7 @@ pub fn gl_wanted() -> bool {
 pub fn forced_failure(step: &str) -> bool {
     #[cfg(feature = "remote")]
     if std::env::var("RC2K_FAIL_RENDERER").is_ok_and(|steps| steps.split(',').any(|s| s == step)) {
-        crate::logfile::program_log::log(&format!(
+        crate::program_log::log(&format!(
             "render: step `{step}` is made to fail (RC2K_FAIL_RENDERER)"
         ));
         return true;

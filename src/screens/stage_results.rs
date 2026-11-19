@@ -189,7 +189,7 @@ pub fn draw_stage_results(o: Owners<'static>, canvas: &mut dyn Canvas) -> Result
         car: held.car,
         speed,
     };
-    let seal_fault = crate::menu::event_flow::Fault::default();
+    let seal_fault = crate::errors::Fault::default();
     let mut seal_code = |a: u32, b: u32| {
         let seal_work = o.race.replay.seal_work();
         seal_work.sealed[0].set(a);

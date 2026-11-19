@@ -25,7 +25,7 @@ pub fn text_from_ids(o: StringOwners<'_>, first_id: u32, count: u32) -> Result<V
             "count 0: the original's counter wraps and it never ends",
         ));
     }
-    let fault = crate::menu::event_flow::Fault::default();
+    let fault = crate::errors::Fault::default();
     let text = rc2k_core::strings::table::text_from_ids(first_id, count, TEXT_LEN, |id, out| {
         fault.ok(append_string_by_id(o, id, &mut |bytes| {
             out.extend_from_slice(bytes);

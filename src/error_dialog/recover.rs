@@ -26,7 +26,7 @@ pub fn armed() -> bool {
 /// Leaves everything between here and the nearest `guarded` call; `reason` is what the player
 /// is told. The program ends instead where nothing would catch it.
 pub fn back(reason: &str) -> ! {
-    crate::logfile::program_log::log(&format!("recover: back to the main menu: {reason}"));
+    crate::program_log::log(&format!("recover: back to the main menu: {reason}"));
     if !armed() || cfg!(test) {
         crate::standalone::finish(&format!("an error with nowhere to go back to: {reason}"), 1);
     }

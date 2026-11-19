@@ -7,11 +7,11 @@ use crate::effects::masks::PointList;
 use crate::effects::shape_work::MarkShapes;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
+use crate::math::matrix3::{Axis, extended, turn_matrix3, turnable};
 use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::memory::session::{PlainBytes, PlainDword, PlainFloat, read_bits, write_bits};
 use crate::race::owner_course::Course;
-use crate::scene::matrix3::{Axis, extended, turn_matrix3, turnable};
 
 impl MarkShapes {
     /// List `n`'s (0 A, 1 B) count of points.
@@ -138,7 +138,7 @@ pub fn turn_shape_points(
     a: u32,
     b: u32,
 ) -> Result<(), Refused> {
-    use crate::scene::matrix3::{multiply_matrices3, transform_int_points};
+    use crate::math::matrix3::{multiply_matrices3, transform_int_points};
     turn_shape_checks(drops, a, b)?;
     let set = set(drops);
     let angles = [extended(drops.tilt.tilt.get()), extended(a), extended(b)];
@@ -404,7 +404,7 @@ pub fn make_shape_set(
         let mut angle = extended(steps[6 + n]);
         angle[9] ^= 0x80;
         turn_matrix3(Axis::X, turn_x, angle)?;
-        crate::scene::matrix3::transform_int_points(
+        crate::math::matrix3::transform_int_points(
             turned(drops, n),
             turned(drops, n),
             MOST_POINTS,

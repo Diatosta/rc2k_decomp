@@ -58,7 +58,7 @@ fn hash_if_asked(race: &Race) {
     if std::env::var_os("RC2K_SIM_FIELDS").is_some() && tick < 40 {
         crate::drive::sim_hash::log_fields(race.shared.car_blocks.get(), tick);
     }
-    crate::logfile::program_log::log(&format!(
+    crate::program_log::log(&format!(
         "sim hash {tick}: {:016x}, random {:08x}",
         crate::drive::sim_hash::total(&groups),
         race.shared.random.state.get()
@@ -70,7 +70,7 @@ fn hash_if_asked(race: &Race) {
             .iter()
             .map(|(name, hash)| format!("{name}={:04x}", hash & 0xFFFF))
             .collect();
-        crate::logfile::program_log::log(&format!("sim chunks {tick}: {}", chunks.join(" ")));
+        crate::program_log::log(&format!("sim chunks {tick}: {}", chunks.join(" ")));
     }
 }
 

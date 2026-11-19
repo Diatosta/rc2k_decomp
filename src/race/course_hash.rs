@@ -40,7 +40,7 @@ pub fn log_hashes(
     let data = &race.course.stage.course;
     let stage = race.shared.vars.get().stage_number.get();
     let say = |store: &str, hash: String| {
-        crate::logfile::program_log::log(&format!("course hash {stage} {after} {store}: {hash}"));
+        crate::program_log::log(&format!("course hash {stage} {after} {store}: {hash}"));
     };
     let reads = race.course.reads();
     say("faces", table(&data.faces));
@@ -143,7 +143,7 @@ pub fn log_mask_hashes(
         return;
     }
     let say = |store: &str, hash: u64| {
-        crate::logfile::program_log::log(&format!("course hash masks {store}: {hash:016x}"));
+        crate::program_log::log(&format!("course hash masks {store}: {hash:016x}"));
     };
     say("picks", record_hash(&drops.picks));
     for (name, table) in [
@@ -167,9 +167,7 @@ pub fn log_started_hashes(race: &crate::race::owner::Race) {
     }
     let stage = race.shared.vars.get().stage_number.get();
     let say = |store: &str, hash: u64| {
-        crate::logfile::program_log::log(&format!(
-            "course hash {stage} started {store}: {hash:016x}"
-        ));
+        crate::program_log::log(&format!("course hash {stage} started {store}: {hash:016x}"));
     };
     say("checkpoints", record_hash(race.checkpoints()));
     say("race_vars", record_hash(race.shared.vars.get()));

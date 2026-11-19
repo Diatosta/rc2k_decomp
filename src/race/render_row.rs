@@ -171,7 +171,7 @@ pub fn render(race: &'static Race, o: Owners<'static>) -> Result<(), Refused> {
     }
     let folder = crate::files::host_path(b"savedata\\videos");
     if let Err(e) = std::fs::create_dir_all(&folder) {
-        crate::logfile::program_log::log(&format!("viewer: {}: {e}", folder.display()));
+        crate::program_log::log(&format!("viewer: {}: {e}", folder.display()));
         return Ok(());
     }
     let name = file_name(&crate::platform::os::local_time());

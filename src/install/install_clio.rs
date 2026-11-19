@@ -34,7 +34,6 @@ enum Stop {
 
 fn work(
     install: &'static crate::install::owner::Install,
-    system: &crate::system::owner::System,
     input: &crate::input::owner::Input,
 ) -> Result<Stop, Refused> {
     use crate::install as i;
@@ -85,7 +84,6 @@ fn work(
             // A failed copy stops the install as Escape does.
             if !i::copy_counted::copy_counted(
                 install,
-                system,
                 &install.paths.path_a,
                 &install.paths.path_b,
             )? || take_key(input) == 1
@@ -120,7 +118,7 @@ pub fn install_clio(
         show(o);
         pause(o, 1000);
     }
-    if let Stop::SetBack = work(install, system, input)? {
+    if let Stop::SetBack = work(install, input)? {
         set_cd(&install.paths.installed);
     }
     install.flags.clear_command();

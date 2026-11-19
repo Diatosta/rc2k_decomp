@@ -111,9 +111,7 @@ impl Session {
                 Some(KICKED) => {
                     // Put out by the host: the session is lost for this machine, with a line
                     // for the log saying why.
-                    crate::logfile::program_log::log(
-                        "net: the host put this machine out of the session",
-                    );
+                    crate::program_log::log("net: the host put this machine out of the session");
                     break;
                 }
                 Some(DELIVER) => {

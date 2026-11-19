@@ -13,10 +13,10 @@ use crate::effects::emitters::*;
 use crate::effects::jitter_point::jitter_point;
 use crate::effects::owner::Effects;
 use crate::errors::{BadInput, Refused};
+use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87;
 use crate::memory::session::{PlainDword, PlainFloat};
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
-use crate::scene::matrix3::{extended, rounded_value};
 
 /// One emitter's variables (kind 5's and kind 0xB's code is the same but for these).
 pub struct JitterSet<'a> {

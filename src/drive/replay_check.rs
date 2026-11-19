@@ -86,7 +86,7 @@ pub fn note(race: &Race) -> Result<(), BadInput> {
         let gear = block.gear.get();
         line += &format!(" car {car} {h:08x} speed {speed:.3} gear {gear};");
     }
-    crate::logfile::program_log::log(&line);
+    crate::program_log::log(&line);
     Ok(())
 }
 
@@ -121,7 +121,7 @@ pub fn compare_frame(race: &Race) -> Result<(), BadInput> {
             }
             differing += 1;
             if DETAILED.fetch_add(1, Relaxed) < DETAILS {
-                crate::logfile::program_log::log(&format!(
+                crate::program_log::log(&format!(
                     "replay check: clock {clock}: {} +{:#x}: ours {now:08x} ({}), recorded {kept:08x} ({})",
                     piece_name(piece),
                     4 * k,
@@ -136,7 +136,7 @@ pub fn compare_frame(race: &Race) -> Result<(), BadInput> {
         EQUAL.fetch_add(1, Relaxed);
     }
     if compared.is_multiple_of(SUMMARY_EVERY) || (differing != 0 && compared < SUMMARY_EVERY) {
-        crate::logfile::program_log::log(&format!(
+        crate::program_log::log(&format!(
             "replay check: clock {clock}: {compared} frames compared, {} the same as recorded, {} skipped (not reached by our steps); this one {differing} dwords apart",
             EQUAL.load(Relaxed),
             SKIPPED.load(Relaxed),

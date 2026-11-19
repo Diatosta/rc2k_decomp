@@ -12,10 +12,10 @@
 
 use crate::effects::owner::Effects;
 use crate::errors::{BadInput, Refused};
+use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87;
 use crate::memory::session::{PlainFloat, read_bits};
 use crate::race::owner::Race;
-use crate::scene::matrix3::{extended, rounded_value};
 use crate::scene::rotate_point::rotate_point;
 const CORNERS_FROM: u32 = 0x1C_2000;
 const CORNERS_LEN: u32 = 0x8000;

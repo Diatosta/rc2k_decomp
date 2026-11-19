@@ -3,7 +3,7 @@
 
 use crate::math::cell_x87::CellX87;
 use crate::math::x87;
-use crate::math::x87::compare_full;
+pub use crate::math::x87::{c0, c3};
 use crate::math::x87_float::{compare, ld, stf};
 use crate::memory::session::{Dword, Float, PlainDword, PlainFloat};
 
@@ -85,16 +85,6 @@ pub fn set_whole(x: &impl crate::memory::session::Cell32, v: i32) {
     x.set_bits(v as u32);
 }
 
-/// The x87's C0 after comparing `a` with `b`: `a` below `b` or unordered.
-pub fn c0(a: impl x87::Flt, b: impl x87::Flt) -> bool {
-    compare_full(a.bits(), b.bits()) & 0x100 != 0
-}
-
-/// The x87's C3 after comparing `a` with `b`: `a` equal to `b` or unordered.
-pub fn c3(a: impl x87::Flt, b: impl x87::Flt) -> bool {
-    compare_full(a.bits(), b.bits()) & 0x4000 != 0
-}
-
 /// The float `a` is below `b`, or one of them is not a number (the x87's C0 after
 /// comparing them); `!below_or_unordered(a, b)` is "`a` is at least `b`".
 pub fn below_or_unordered(a: impl x87::Flt, b: impl x87::Flt) -> bool {
@@ -139,7 +129,7 @@ pub fn hold_high(v: &impl FloatView, lim: &impl FloatView) {
 /// `v` negated in place.
 pub fn negate(v: &impl FloatView) {
     v.set_float(crate::math::x87::neg_rounded(
-        crate::scene::matrix3::extended(v.float()),
+        crate::math::matrix3::extended(v.float()),
     ));
 }
 

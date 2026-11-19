@@ -17,7 +17,7 @@ fn buffer(v: &Voice) -> Result<u32, Refused> {
 
 /// A play that failed goes to the program's log: the sound it was for stays silent.
 pub fn log_failed_play(what: &str, result: i32) {
-    crate::logfile::program_log::log(&format!(
+    crate::program_log::log(&format!(
         "audio: playing {what} failed (result {:#x})",
         result as u32
     ));

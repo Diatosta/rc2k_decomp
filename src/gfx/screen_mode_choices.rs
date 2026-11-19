@@ -295,7 +295,7 @@ fn rebuild(
                         .copied(),
                 ) && !fits(&saved)
                 {
-                    crate::logfile::program_log::log(&format!(
+                    crate::program_log::log(&format!(
                         "screen: the saved race size {} x {} is larger than the desktop {dw} x {dh}: {} x {} used",
                         saved.width, saved.height, used.width, used.height
                     ));

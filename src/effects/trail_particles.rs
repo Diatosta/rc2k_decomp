@@ -11,10 +11,10 @@ use crate::effects::jitter_point::jitter_point;
 use crate::effects::ring_store::Ring;
 use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
+use crate::math::matrix3::{extended, rounded};
 use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::race::owner_frame::Frame;
-use crate::scene::matrix3::{extended, rounded};
 
 const FULL: u32 = 0xFFF;
 const COUNT: u32 = 8;

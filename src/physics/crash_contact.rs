@@ -16,6 +16,7 @@
 
 use crate::errors::Refused;
 use crate::math::cell_x87::CellX87;
+use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87::neg_rounded;
 use crate::math::x87::{loaded, mul};
 use crate::memory::session::FloatLike;
@@ -32,7 +33,6 @@ use crate::physics::step_families::ContactInputs;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_course::Course;
-use crate::scene::matrix3::{extended, rounded_value};
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::physics::contacts;
 

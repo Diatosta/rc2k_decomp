@@ -24,7 +24,6 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::input::take_key::take_key;
-use crate::logfile::program_log::log;
 use crate::memory::session::{DwordLike, FlagLike, PlainFloat};
 use crate::menu::handle_keys::handle_keys;
 use crate::menu::lists_store::{CarList, CarListParts};
@@ -36,6 +35,7 @@ use crate::menu::run_list::run_list;
 use crate::menu::screen_id::ScreenId;
 use crate::menu::update_blink::update_blink;
 use crate::owners::Owners;
+use crate::program_log::log;
 use crate::system::owner::System;
 pub use rc2k_core::menu::keys::MenuSound;
 use rc2k_core::menu::keys::Pressed;
@@ -1191,7 +1191,7 @@ impl ScreenHost for MenuHost<'_> {
 
     fn run_item_action(&mut self) -> Result<ActionResult, Refused> {
         if let Some(invite) = self.invited.take() {
-            crate::logfile::program_log::log("menu: an invitation to a network game is followed");
+            crate::program_log::log("menu: an invitation to a network game is followed");
             crate::net::start_link::start_link_invited(self.entry.owners, invite)?;
             return Ok(ActionResult::default());
         }

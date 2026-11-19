@@ -36,7 +36,7 @@ impl Folders for Windows {
             return Room::Unmeasured;
         }
         let letter = folder.first().copied().unwrap_or(0) as u32;
-        match crate::files::drive_free_space_kb::drive_free_space_kb(system, letter) {
+        match crate::files::drive_free_space_kb::drive_free_space_kb(&system.work().files, letter) {
             Some(kb) => Room::Kb(kb),
             None => Room::Unreadable,
         }

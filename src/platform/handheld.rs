@@ -40,7 +40,7 @@ pub fn open_screen() -> Result<(), &'static str> {
                 start_profile();
             }
             Err(e) => {
-                crate::logfile::program_log::log(&format!("handheld: {e}"));
+                crate::program_log::log(&format!("handheld: {e}"));
                 return Err("no framebuffer");
             }
         }
@@ -172,7 +172,7 @@ pub fn start_profile() {
         return;
     }
     linux_handheld::start_profile_timer(on_profile);
-    crate::logfile::program_log::log(&format!(
+    crate::program_log::log(&format!(
         "handheld: profiling; the code's base {:#x}",
         start_profile as *const () as usize
     ));

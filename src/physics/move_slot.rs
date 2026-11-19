@@ -21,6 +21,7 @@
 
 use crate::errors::Refused;
 use crate::math::cell_x87::CellX87;
+use crate::math::matrix3::rounded_value;
 use crate::math::x87;
 use crate::math::x87::{abs_compare, abs_of, mul, mul2_to_int, negated};
 use crate::math::x87_float as bh;
@@ -29,7 +30,6 @@ use crate::physics::axis_turn_matrix::axis_turn_matrix;
 use crate::physics::step_families::SlotInputs;
 use crate::race::work_store::{RaceSlot, RaceWork};
 use crate::scene::matrix::multiply_matrices;
-use crate::scene::matrix3::rounded_value;
 use crate::scene::view_matrix::{square_matrix, unit_vector};
 
 /// A place (three whole numbers) copied.

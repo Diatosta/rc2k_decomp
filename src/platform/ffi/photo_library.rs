@@ -15,7 +15,7 @@ pub fn add(path: &Path) {
 #[cfg(phone)]
 /// Logs one line about the outcome.
 fn note(what: &str) {
-    crate::logfile::program_log::log(&format!("platform: photo library: {what}"));
+    crate::program_log::log(&format!("platform: photo library: {what}"));
 }
 
 #[cfg(not(phone))]

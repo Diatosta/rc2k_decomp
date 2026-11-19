@@ -165,7 +165,7 @@ fn viewing(race: &'static Race, o: Owners<'static>, start: Start) -> Result<View
         Ok(viewed) => viewed,
         Err(reason) => {
             if end(race, o).is_err() {
-                crate::logfile::program_log::log("recover: the viewer could not be closed");
+                crate::program_log::log("recover: the viewer could not be closed");
             }
             crate::error_dialog::recover::back(&reason)
         }

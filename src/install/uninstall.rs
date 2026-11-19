@@ -49,7 +49,7 @@ fn whole_folder(install: &crate::install::owner::Install) -> Option<std::path::P
         || home.is_some_and(|h| h == folder)
         || !crate::files::host_path(&record).is_file();
     if kept {
-        crate::logfile::program_log::log(&format!(
+        crate::program_log::log(&format!(
             "install: \"{}\" is not removed whole (not an installation's folder)",
             folder.display()
         ));
@@ -75,7 +75,7 @@ fn remove_whole(folder: &std::path::Path) {
     } else {
         now
     };
-    crate::logfile::program_log::log(&format!("install: \"{}\": {now}", folder.display()));
+    crate::program_log::log(&format!("install: \"{}\": {now}", folder.display()));
 }
 
 pub fn uninstall(

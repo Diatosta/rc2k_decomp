@@ -94,7 +94,7 @@ impl rc2k_core::audio::streams::Tunes for GamePlayer<'_> {
         Ok(crate::files::file_exists::file_exists(&path)?)
     }
     fn gave_up(&mut self, tune: u32) {
-        crate::logfile::program_log::log(&format!(
+        crate::program_log::log(&format!(
             "audio: tune {tune:#x}: {} plays in a row stopped at their first feed; the music stopped",
             rc2k_core::audio::streams::RETRIES
         ));

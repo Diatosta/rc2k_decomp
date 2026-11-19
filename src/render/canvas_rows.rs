@@ -33,7 +33,7 @@ pub fn written_rows(target: &Target, canvas: &[u8]) -> Vec<bool> {
             .map(|(y, _)| y)
             .collect();
         if !missed.is_empty() && LOGGED.fetch_add(1, std::sync::atomic::Ordering::Relaxed) < 50 {
-            crate::logfile::program_log::log(&format!(
+            crate::program_log::log(&format!(
                 "render: canvas rows written but not noted: {missed:?}"
             ));
         }

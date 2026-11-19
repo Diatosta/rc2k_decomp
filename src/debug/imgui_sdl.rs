@@ -59,13 +59,12 @@ fn with_gui<T>(f: impl FnOnce(&mut Gui) -> T) -> Option<T> {
         if gui.is_none() {
             let mut context = Context::create();
             // In the game's `var` folder, beside its other saved files.
-            let ini = crate::platform::beside_log(
-                &crate::single_copy::instance_path(b"var").map_or_else(
+            let ini =
+                crate::platform::beside_log(&crate::files::instance::path(b"var").map_or_else(
                     || "var".to_string(),
                     |p| String::from_utf8_lossy(&p).replace('\\', "/"),
-                ),
-            )
-            .join("imgui.ini");
+                ))
+                .join("imgui.ini");
             let _ = context.set_ini_filename(Some(ini));
             let io = context.io_mut();
             io.set_config_flags(io.config_flags() | ConfigFlags::DOCKING_ENABLE);
@@ -78,9 +77,7 @@ fn with_gui<T>(f: impl FnOnce(&mut Gui) -> T) -> Option<T> {
             let consumer = match context.create_synchronous_renderer_consumer() {
                 Ok(consumer) => consumer,
                 Err(why) => {
-                    crate::logfile::program_log::log(&format!(
-                        "debug: ImGui has no renderer: {why}"
-                    ));
+                    crate::program_log::log(&format!("debug: ImGui has no renderer: {why}"));
                     return None;
                 }
             };
@@ -228,7 +225,7 @@ pub fn draw(owners: &crate::owners::Owners<'static>, renderer: Renderer, window:
         crate::debug::ui::build(owners, frame.ui());
         let pending = frame.render(&gui.consumer);
         if let Err(why) = render(&mut gui.textures, renderer, pending) {
-            crate::logfile::program_log::log(&format!("debug: the UI not drawn: {why}"));
+            crate::program_log::log(&format!("debug: the UI not drawn: {why}"));
         }
     });
 }

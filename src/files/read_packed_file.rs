@@ -64,7 +64,7 @@ pub fn read_packed_file(path: &[u8], buffer: &mut [u8]) -> Result<Outcome, Refus
     // A stream that does not unpack is a damaged file: a trouble the game can go back from.
     let bytes = match unpack(buffer, got.eax) {
         Err(Refused::BadInput(why)) => {
-            crate::logfile::program_log::log(&format!(
+            crate::program_log::log(&format!(
                 "files: the packed file {} is damaged: {}",
                 String::from_utf8_lossy(path),
                 why.0

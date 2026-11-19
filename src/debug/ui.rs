@@ -780,9 +780,9 @@ fn dump_row(race: &Race, word: DumpWord, columns: usize, row: usize) -> String {
 fn dumps(race: &Race, ui: &Ui) {
     if ui.button("Write the four to the log") {
         for (name, _, word, columns, rows) in DUMPS {
-            crate::logfile::program_log::log(name);
+            crate::program_log::log(name);
             for row in 0..rows {
-                crate::logfile::program_log::log(&dump_row(race, word, columns, row));
+                crate::program_log::log(&dump_row(race, word, columns, row));
             }
         }
     }

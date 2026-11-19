@@ -34,7 +34,7 @@ program's log, `rc2k.log`.
 | `start_log` | `src/logfile/start_log.rs` | Starts the game's log with its heading lines. |
 | `log_text` | `src/logfile/write_line.rs` | Writes a text to the game's log, under its lock and at its level. |
 | `log_int`, `log_float`, `log_hex8` | files of the same names | Numbers into the game's log. |
-| `log` | `src/logfile/program_log.rs` | Writes a line to `rc2k.log`. |
+| `log` | `src/program_log.rs` | Writes a line to `rc2k.log`. |
 
 See [Log files](Log-files).
 

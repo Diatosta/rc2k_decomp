@@ -11,8 +11,8 @@
 
 use crate::effects::clip_quad::{clip_quad, draw_fan};
 use crate::errors::{BadInput, Refused};
+use crate::math::matrix3::rounded_value;
 use crate::math::x87;
-use crate::scene::matrix3::rounded_value;
 
 const ANGLES: u32 = 0x1000;
 

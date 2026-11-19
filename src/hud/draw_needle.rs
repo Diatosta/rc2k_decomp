@@ -6,10 +6,10 @@
 
 use crate::errors::Refused;
 use crate::hud::owner::{Hud, Pen};
+use crate::math::matrix3::extended;
 use crate::math::x87;
 use crate::math::x87_float::{ld, to_int};
 use crate::race::owner_frame::Frame;
-use crate::scene::matrix3::extended;
 
 /// ((v [- less]) / over + plus) x k0 x k1 as a whole number, rounded as the x87 rounds.
 fn turn_of(v: f32, less: Option<f32>, over: f32, plus: f32, k: [f32; 2]) -> u32 {

@@ -453,9 +453,7 @@ fn bring_back_now(target: &Target) {
         {
             let rows = canvas_rows::written_rows(target, canvas);
             if let Err(why) = gpu.bring_back(Some(rows), canvas) {
-                crate::logfile::program_log::log(&format!(
-                    "render: the frame did not come back: {why}"
-                ));
+                crate::program_log::log(&format!("render: the frame did not come back: {why}"));
             }
         }
         READ_BACKS.fetch_add(1, Relaxed);
@@ -512,7 +510,7 @@ pub fn stretched_frame(target: &Target, size: (u32, u32)) -> Option<Vec<u32>> {
             ),
             Ok(None) => None,
             Err(why) => {
-                crate::logfile::program_log::log(&format!(
+                crate::program_log::log(&format!(
                     "render: the stretched frame did not come back: {why}"
                 ));
                 None
@@ -555,7 +553,7 @@ pub fn video_read_next(target: &Target, spare: Vec<u8>, nv12: bool) -> VideoRead
     match gpu.collect_video_read(&mut buffer) {
         Ok(true) => read.previous = Some(buffer),
         Ok(false) => {}
-        Err(why) => crate::logfile::program_log::log(&format!(
+        Err(why) => crate::program_log::log(&format!(
             "render: the video's last frame did not come back: {why}"
         )),
     }
@@ -569,7 +567,7 @@ pub fn video_read_next(target: &Target, spare: Vec<u8>, nv12: bool) -> VideoRead
     let rows = canvas_rows::written_rows(target, canvas);
     match gpu.start_video_read(Some(rows), canvas, nv12) {
         Ok(()) => read.started = true,
-        Err(why) => crate::logfile::program_log::log(&format!(
+        Err(why) => crate::program_log::log(&format!(
             "render: the video's frame did not start back: {why}"
         )),
     }
@@ -656,10 +654,10 @@ pub fn finish_frame(
     let canvas = unsafe { target.bytes() };
     let rows = canvas_rows::written_rows(target, canvas);
     if let Err(why) = gpu.finish_frame(Some(rows), canvas) {
-        crate::logfile::program_log::log(&format!("render: the frame did not finish: {why}"));
+        crate::program_log::log(&format!("render: the frame did not finish: {why}"));
     }
     if let Err(why) = gpu.finish_high() {
-        crate::logfile::program_log::log(&format!(
+        crate::program_log::log(&format!(
             "render: the menu's larger 3D did not finish: {why}"
         ));
     }

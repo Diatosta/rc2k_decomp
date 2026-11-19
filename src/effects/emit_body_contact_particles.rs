@@ -18,10 +18,10 @@ use crate::effects::jitter_point::jitter_point;
 use crate::effects::mask_store::Masks;
 use crate::effects::ring_store::Ring;
 use crate::errors::Refused;
+use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
-use crate::scene::matrix3::{extended, rounded_value};
 
 const LIFE: u32 = 0x12C;
 const ONE: u32 = 0x3F80_0000; // fld1

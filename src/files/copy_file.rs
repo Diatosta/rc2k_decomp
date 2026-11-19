@@ -5,7 +5,6 @@
 //! `open_by_mode` refuses.
 
 use crate::errors::BadInput;
-use crate::system::owner::System;
 
 /// The bytes moved by one read and write: large enough that a big file is a few system calls,
 /// small enough to stay out of the way.
@@ -18,7 +17,7 @@ thread_local! {
 
 /// Whether it was all done.
 /// The paths without their NULs.
-pub fn copy_file(_system: &System, from: &[u8], to: &[u8]) -> Result<bool, BadInput> {
+pub fn copy_file(from: &[u8], to: &[u8]) -> Result<bool, BadInput> {
     BUFFER.with_borrow_mut(|buffer| {
         buffer.resize(CHUNK, 0);
         Ok(rc2k_core::files::io::copy_file(

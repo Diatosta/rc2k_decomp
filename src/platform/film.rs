@@ -25,7 +25,7 @@
 //! over it (nearest). Anything else counts as a film that did not open, and says so in the log.
 
 use crate::gfx::owner::Gfx;
-use crate::logfile::program_log::log;
+use crate::program_log::log;
 use crate::system::owner::System;
 use rc2k_core::film::{indeo4, mpeg_film, mpeg1_video};
 

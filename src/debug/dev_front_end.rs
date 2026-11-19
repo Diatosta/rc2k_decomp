@@ -275,7 +275,7 @@ mod tab {
         if ui.button("Find the courses")
             && let Err(e) = crate::race::find_present_courses::find_present_courses(race, scene)
         {
-            crate::logfile::program_log::log(&format!("debug: find the courses: {e:?}"));
+            crate::program_log::log(&format!("debug: find the courses: {e:?}"));
         }
         ui.same_line();
         ui.text_disabled(if present {

@@ -32,7 +32,7 @@ impl Scratch {
         what: &str,
     ) -> Result<(u32, bool), crate::errors::BadInput> {
         if count as usize > Self::LEN {
-            crate::logfile::program_log::log(&format!("scratch: {what}: {count:#x} bytes"));
+            crate::program_log::log(&format!("scratch: {what}: {count:#x} bytes"));
             return Err(crate::errors::BadInput("a read past the scratch"));
         }
         let mut bytes = vec![0u8; count as usize];

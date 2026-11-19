@@ -4,10 +4,10 @@
 //! `ViewVars.heading`; 2 pi less it when the level part's x (normalised) is not negative. No level
 //! part: the heading left as it was.
 
+use crate::math::matrix3::rounded_value;
 use crate::math::x87;
 use crate::memory::session::write_bits;
 use crate::race::owner_frame::Frame;
-use crate::scene::matrix3::rounded_value;
 use crate::scene::vector3::angle_between_vectors;
 
 pub fn view_heading(frame: &Frame, effects: &crate::effects::owner::Effects) {

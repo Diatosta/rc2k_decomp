@@ -28,6 +28,7 @@ mod net;
 mod owners;
 mod physics;
 mod platform;
+mod program_log;
 mod race;
 mod records;
 #[cfg(feature = "remote")]

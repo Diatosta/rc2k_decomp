@@ -10,9 +10,9 @@
 //!
 //! Refuses a current player past 3 or missing, a car past 0xFF or without its table, before
 //! anything.
+use crate::errors::Fault;
 use crate::errors::{BadInput, Refused};
 use crate::memory::session::write_all;
-use crate::menu::event_flow::Fault;
 use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
 use crate::menu::standings::*;

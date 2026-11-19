@@ -80,7 +80,7 @@ impl rc2k_core::audio::load::Loader for GameLoader<'_> {
                         if !there {
                             // The stock game's lists name sounds it does not ship: silent, said
                             // in the log only.
-                            crate::logfile::program_log::log(&format!(
+                            crate::program_log::log(&format!(
                                 "audio: the sound {shown} is not there"
                             ));
                             return Ok(false);
@@ -90,7 +90,7 @@ impl rc2k_core::audio::load::Loader for GameLoader<'_> {
                     other => return other,
                 };
                 let shown = crate::error_dialog::file_name(&name);
-                crate::logfile::program_log::log(&format!(
+                crate::program_log::log(&format!(
                     "audio: the sound {shown} cannot be used: {problem}"
                 ));
                 crate::error_dialog::notice_own_once(
@@ -188,7 +188,7 @@ pub fn load_sounds(
     let loaded = rc2k_core::audio::load::load(&mut l, &entries);
     #[cfg(feature = "remote")]
     if std::env::var_os("RC2K_SOUND_LOG").is_some() {
-        crate::logfile::program_log::log(&format!(
+        crate::program_log::log(&format!(
             "sound log: {} voices of {VOICES} after loading {list:?}",
             audio.state.voice_count.get()
         ));

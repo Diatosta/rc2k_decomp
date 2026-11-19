@@ -16,7 +16,7 @@ pub fn inspection_verdict(menus: &Menus) -> Result<(), Refused> {
     }
     let p = player(menus, n);
 
-    let fault = crate::menu::event_flow::Fault::default();
+    let fault = crate::errors::Fault::default();
     let v = rc2k_core::menu::inspection::verdict(
         |k| fault.ok(past_limit(&menus.screens, p, k as u32)),
         |k| menus.service.repair_flags[k + 2].get() != 0,

@@ -151,7 +151,7 @@ pub fn load_level(race: &Race) -> Result<(), Refused> {
     let out = read_level_file::read_level_file(&course.level_paths().cdat_src.text(), &mut data)?;
     if out.carry {
         // The path named, for the reports.
-        crate::logfile::program_log::log(&format!(
+        crate::program_log::log(&format!(
             "race::load_level: the course data \"{}\" could not be read",
             String::from_utf8_lossy(&course.level_paths().cdat_src.text())
         ));

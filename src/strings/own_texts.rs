@@ -34,7 +34,7 @@ pub fn load(strings: &crate::strings::owner::Strings) -> Result<(), BadInput> {
             let language = language_name(&name);
             let file = rc2k_core::strings::own::for_language(&language);
             if file.is_none() {
-                crate::logfile::program_log::log(&format!(
+                crate::program_log::log(&format!(
                     "strings::own_texts: no built-in texts for the language {language}; \
                      the texts are in English"
                 ));

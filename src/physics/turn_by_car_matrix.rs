@@ -6,8 +6,8 @@
 //! `race::invert_car_matrix` with `scene::invert_turn`).
 
 use crate::math::cells::Cells;
+use crate::math::matrix3::{extended, rounded_value};
 use crate::physics::car_store::Car;
-use crate::scene::matrix3::{extended, rounded_value};
 use crate::scene::rotate_point::rotate_point;
 
 /// The point `v` turned by the matrix `m`: loaded as z, y, x, turned by `rotate_point` and stored

@@ -131,7 +131,7 @@ pub fn load_language(
     o.input.layouts().use_built_in(o.input);
 
     let mut locale = strings.language.locale.read();
-    let found = read_first_match(o.system, LOCALE_FILES, &mut locale, 0)?;
+    let found = read_first_match(&o.system.work().files, LOCALE_FILES, &mut locale, 0)?;
     strings.language.locale.write(&locale);
     if found.is_none() {
         return Err(fatal(0x80E3_8381, ""));
@@ -150,7 +150,7 @@ pub fn load_language(
 
     // Read over the block the last load left (a shorter file leaves its tail).
     let mut keyboard = o.input.layouts().file_bytes();
-    let found = read_first_match(o.system, KEYBOARD_FILES, &mut keyboard, 0)?;
+    let found = read_first_match(&o.system.work().files, KEYBOARD_FILES, &mut keyboard, 0)?;
     if found.is_some() {
         if &keyboard[..4] != b"KEYB" {
             return Err(fatal(0x80E3_83A2, ""));

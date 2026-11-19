@@ -402,7 +402,7 @@ fn pointer_functions() {
                 .map(|&x| crate::memory::session::Dword::new(x))
                 .collect::<Vec<_>>()
         };
-        p[0] = crate::scene::matrix3::row_times_column_3(&cells(&a)[..], &cells(&m)[..]);
+        p[0] = crate::math::matrix3::row_times_column_3(&cells(&a)[..], &cells(&m)[..]);
         feed("row_times_column_3", &p);
 
         let (x, start) = (g.f(), g.f());
@@ -459,7 +459,7 @@ fn pointer_functions_to_int() {
         };
         let turn = |from: &[crate::memory::session::Dword],
                     to: &[crate::memory::session::Dword]| {
-            crate::scene::matrix3::turn_int_point(from, &cells(&mat)[..], to, 0);
+            crate::math::matrix3::turn_int_point(from, &cells(&mat)[..], to, 0);
         };
         let (from, to) = (cells(&pt.map(|x| x as u32)), cells(&[0x5555_5555; 3]));
         turn(&from, &to);

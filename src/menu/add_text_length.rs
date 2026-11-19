@@ -13,7 +13,7 @@ pub fn add_text_length(
     text: impl Into<crate::memory::place::BytePlace>,
 ) -> Result<(), BadInput> {
     let text = text.into();
-    let fault = crate::menu::event_flow::Fault::default();
+    let fault = crate::errors::Fault::default();
     let len = text_length(|i| {
         fault.ok(text
             .add(i as u32)

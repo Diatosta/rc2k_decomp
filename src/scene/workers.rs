@@ -1155,7 +1155,7 @@ impl Aside<'_> {
         if crate::d3d::run_states::drew_before_texture(&run.noted.commands, &run.states)
             && !crate::d3d::render_cache::same_texture(&now, &self.start.cache)
         {
-            crate::logfile::program_log::log(
+            crate::program_log::log(
                 "workers: a piece drawn aside drew before setting its texture (not as one thread)",
             );
         }

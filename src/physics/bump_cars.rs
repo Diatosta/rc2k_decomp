@@ -19,12 +19,12 @@ use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::physics::step_families::ContactInputs;
 use crate::race::numbers_store::Numbers;
 
+use crate::math::matrix3::{extended, rounded, rounded_value};
 use crate::math::x87::loaded;
 use crate::math::x87_float::int;
 use crate::memory::session::{DwordLike, FloatLike};
 use crate::physics::scale_vector::scale_vector;
 use crate::physics::vector_length::vector_length;
-use crate::scene::matrix3::{extended, rounded, rounded_value};
 use crate::scene::rotate_point::rotate_point;
 
 /// The block's speed turned by its matrix into its car-frame speed.

@@ -71,7 +71,7 @@ fn hash_if_asked(audio: &Audio, command: u32, registers: [u32; 7]) {
     (command, registers).hash(hasher);
     *commands += 1;
     if command == END_OF_TURN.record_words().0 {
-        crate::logfile::program_log::log(&format!(
+        crate::program_log::log(&format!(
             "sound hash {turns}: {commands} commands, {:016x}",
             hasher.finish()
         ));
@@ -105,11 +105,7 @@ fn count_sounds_if_asked(audio: &Audio, command: u32, registers: [u32; 7]) {
                 .iter()
                 .map(|(s, n)| format!("{s:#x}x{n}"))
                 .collect();
-            crate::logfile::program_log::log(&format!(
-                "sound log, turn {}: {}",
-                counts.1,
-                text.join(" ")
-            ));
+            crate::program_log::log(&format!("sound log, turn {}: {}", counts.1, text.join(" ")));
             counts.0.clear();
         }
     }

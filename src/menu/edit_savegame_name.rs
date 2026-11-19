@@ -58,7 +58,7 @@ pub fn save_game(menus: &Menus, saves: &'static Saves, slot: u32) {
     match write_savegame_slot(menus, saves, slot) {
         Ok(true) => {}
         Ok(false) => {
-            crate::logfile::program_log::log(&format!(
+            crate::program_log::log(&format!(
                 "saves: the saved game in slot {slot} was not written"
             ));
             // The slot is below 100 here: `write_savegame_slot` took it.
@@ -68,7 +68,7 @@ pub fn save_game(menus: &Menus, saves: &'static Saves, slot: u32) {
             );
         }
         Err(why) => {
-            crate::logfile::program_log::log(&format!("saves::write_savegame_slot: slot {slot}"));
+            crate::program_log::log(&format!("saves::write_savegame_slot: slot {slot}"));
             crate::fatal::raise::end("saves::write_savegame_slot", why);
         }
     }

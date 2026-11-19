@@ -12,6 +12,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::cell_x87::CellX87;
+use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87::{ext_times, ints_diff_80};
 use crate::math::x87_float::X;
 use crate::memory::session::PlainDword;
@@ -19,7 +20,6 @@ use crate::physics::car_store::Car;
 use crate::race::matrices_store::SceneMatrices;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
-use crate::scene::matrix3::{extended, rounded_value};
 use crate::scene::rotate_point::rotate_point;
 
 /// The shares into the voices; the integer steps between are in Rust.

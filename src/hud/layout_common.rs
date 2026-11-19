@@ -188,7 +188,7 @@ pub fn gear_rect(gear: u32) -> u32 {
     if let Some(line) = line
         && !GEAR_CLAMP_LOGGED.swap(true, std::sync::atomic::Ordering::Relaxed)
     {
-        crate::logfile::program_log::log(&line);
+        crate::program_log::log(&line);
     }
     (shown + 0x41) as u32
 }

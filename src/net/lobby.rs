@@ -141,7 +141,7 @@ pub fn other_key(o: crate::owners::Owners<'static>, key: u8) -> Result<(), Refus
     crate::strings::maybe_compile_lexicon::maybe_compile_lexicon(
         o.input.devices.keys_down.get(0x4E),
         o.strings,
-        o.system,
+        &o.system.work().files,
     )
 }
 

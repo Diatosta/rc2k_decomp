@@ -128,7 +128,7 @@ fn link(o: Owners<'static>, how: How) -> Result<Way, Refused> {
 
 /// Logs why the link ends with a failure message.
 fn why(reason: &str) {
-    crate::logfile::program_log::log(&format!("net: {reason}"));
+    crate::program_log::log(&format!("net: {reason}"));
 }
 
 /// A network game in `mode` (1 host, 2 join), as the menu's items start it.

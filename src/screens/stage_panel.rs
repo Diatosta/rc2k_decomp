@@ -68,11 +68,12 @@ pub fn label(
 /// four panels build it; only `draw_time_trial_stage_info` also draws it (the text it
 /// returns, with its NUL).
 pub fn build_second_heading(
-    so: crate::strings::append_string_by_id::StringOwners<'_>,
+    o: crate::owners::Owners<'_>,
     record: RecordRef,
 ) -> Result<Vec<u8>, Refused> {
+    let so = crate::strings::append_string_by_id::StringOwners::of(o);
     let bytes = heading_text(so, record, SECOND_HEADING_STRING)?;
-    so.menus
+    o.menus
         .text_buffers
         .stage_heading
         .write_at(0, &bytes, "the second stage heading")?;
@@ -122,7 +123,7 @@ pub fn draw_stage_body_in(
         // (`trakpak_entry::Track::get`), and every field here may be reached so.
         let stages = &o.system.records().stage_tables;
         let track = track_of(stages, record)?;
-        let fault = crate::menu::event_flow::Fault::default();
+        let fault = crate::errors::Fault::default();
         let f = |field: TrackField| fault.ok(track.get(stages, field));
         let made = Entry {
             // `MenuLists::durations` (the stage durations) has 37 entries; a duration index past it

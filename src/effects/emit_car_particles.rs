@@ -15,11 +15,11 @@ use crate::effects::emit_wheel_particles::emit_wheel_particles;
 use crate::effects::emitters::*;
 use crate::effects::owner::Effects;
 use crate::errors::Refused;
+use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::memory::session::{read_bits, write_bits};
 use crate::race::effects_settings_store::CarEffects;
-use crate::scene::matrix3::{extended, rounded_value};
 use crate::scene::rotate_point::rotate_point;
 
 /// `o` is the car's object.

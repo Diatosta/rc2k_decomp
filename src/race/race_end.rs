@@ -215,9 +215,7 @@ impl Tidy {
     fn forgive(&self, result: Result<(), Refused>) -> Result<(), Refused> {
         match result {
             Err(why) if self.forgiving => {
-                crate::logfile::program_log::log(&format!(
-                    "recover: a tidying step failed: {why:?}"
-                ));
+                crate::program_log::log(&format!("recover: a tidying step failed: {why:?}"));
                 Ok(())
             }
             other => other,
@@ -423,9 +421,7 @@ fn tear_down_after_trouble(o: crate::owners::Owners<'static>) {
     let race = o.race;
     let tried = |what: &str, r: Result<(), Refused>| {
         if let Err(why) = r {
-            crate::logfile::program_log::log(&format!(
-                "recover: {what} could not be done: {why:?}"
-            ));
+            crate::program_log::log(&format!("recover: {what} could not be done: {why:?}"));
         }
     };
     tried(

@@ -62,7 +62,7 @@ pub fn log_fields(blocks: &CarBlocks, tick: u32) {
         }
         fn leaf(&mut self, bytes: &[u8]) {
             if !is_gap(&self.path) {
-                crate::logfile::program_log::log(&format!(
+                crate::program_log::log(&format!(
                     "sim field {} {} {:016x}",
                     self.tick,
                     self.path,

@@ -116,6 +116,6 @@ pub fn audio_turn_done() {
     let Ok(mut turns) = TURNS.lock() else {
         return;
     };
-    crate::logfile::program_log::log(&format!("mix hash {turns}: {:016x}", hasher.finish()));
+    crate::program_log::log(&format!("mix hash {turns}: {:016x}", hasher.finish()));
     *turns += 1;
 }

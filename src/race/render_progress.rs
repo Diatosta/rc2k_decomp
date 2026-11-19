@@ -91,7 +91,7 @@ pub fn run(o: Owners<'static>, render: &Render) {
         redone = true;
         // The graphics card's encoder cannot be trusted with this render: the software one makes
         // the video, from the same copy of the replay.
-        crate::logfile::program_log::log(
+        crate::program_log::log(
             "render: the hardware encoder made a damaged picture; rendering again with the software encoder",
         );
         let again = Render {
@@ -198,7 +198,7 @@ fn start(render: &Render) -> Result<Child, String> {
     let _ = std::fs::remove_file(render.progress_file());
     let _ = std::fs::remove_file(render.problems_file());
     let args = render.arguments();
-    crate::logfile::program_log::log(&format!("render: {} {}", exe.display(), args.join(" ")));
+    crate::program_log::log(&format!("render: {} {}", exe.display(), args.join(" ")));
     Command::new(exe)
         .args(args)
         .env("SDL_VIDEODRIVER", "offscreen")

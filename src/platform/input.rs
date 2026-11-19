@@ -28,8 +28,8 @@
 //! motors' levels (`rc2k_core::input::rumble`).
 
 use crate::input::di_objects::{Backend, DeviceInfo, Effect, Kind, ProfileKind, Reading};
-use crate::logfile::program_log::log;
 use crate::platform::ffi::sdl_input::{self, Gamepad, Haptic, Joystick};
+use crate::program_log::log;
 use sdl3_sys::everything::*;
 use std::collections::HashMap;
 use std::sync::Mutex;

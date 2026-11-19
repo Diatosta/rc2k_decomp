@@ -17,8 +17,10 @@ pub fn list_drives(
     loop {
         let kind = crate::files::drive_type::drive_type(letter as u8);
         if drives::offered(kind)
-            && let Some(free) =
-                crate::files::drive_free_space_kb::drive_free_space_kb(o.system, letter)
+            && let Some(free) = crate::files::drive_free_space_kb::drive_free_space_kb(
+                &o.system.work().files,
+                letter,
+            )
         {
             // The first letter is 'a' or 'c', the last 'z': inside the 26 pairs.
             let slot = 2 * (letter - b'a' as u32) as usize;

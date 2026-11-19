@@ -220,7 +220,7 @@ fn note_shake(shake: &rc2k_core::input::feedback::SurfaceEffect, engine_vibratio
     use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
     static CALLS: AtomicU32 = AtomicU32::new(0);
     if CALLS.fetch_add(1, Relaxed).is_multiple_of(25) {
-        crate::logfile::program_log::log(&format!(
+        crate::program_log::log(&format!(
             "feedback: surface effect row {} at speed {} (steering kind {}), engine vibration {}",
             shake.row,
             shake.speed,

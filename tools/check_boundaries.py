@@ -24,7 +24,7 @@ from collections import Counter, defaultdict
 # Lower number = lower layer. A module may use its own layer and below.
 LAYERS = {
     # 0: foundation: no game knowledge, no platform calls of its own.
-    "errors": 0, "memory": 0, "math": 0, "strings": 0,
+    "errors": 0, "memory": 0, "math": 0, "strings": 0, "program_log": 0,
     # 1: the platform: the only code that talks to the system and to SDL.
     "platform": 1, "threading": 1, "logfile": 1, "files": 1, "clock": 1,
     # 2: engine services over the platform: drawing, pictures, sound, input, film, wire.

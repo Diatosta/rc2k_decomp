@@ -11,7 +11,7 @@ pub mod imgui_sdl;
 pub mod imgui_sdl {
     /// The key does nothing but say so.
     pub fn toggle() -> bool {
-        crate::logfile::program_log::log("debug: no debug UI in the 32-bit build");
+        crate::program_log::log("debug: no debug UI in the 32-bit build");
         false
     }
 

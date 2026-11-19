@@ -9,10 +9,10 @@
 //! such a refusal comes with the work half done.
 
 use crate::errors::Refused;
-use crate::logfile::program_log::log;
 use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::owners::Owners;
+use crate::program_log::log;
 
 const STARTING: &std::ffi::CStr = c"BEV: Starting GB_Front";
 const FINISHED: &std::ffi::CStr = c"BEV: Finished GB_Front";

@@ -44,7 +44,7 @@ pub fn save_settings_in_game(o: Owners<'static>) {
         .map_err(Refused::from)
         .and_then(|()| crate::saves::options_files::save(o));
     if let Err(e) = done {
-        crate::logfile::program_log::log(&format!(
+        crate::program_log::log(&format!(
             "saves: the settings were not saved on leaving a page: {e:?}"
         ));
     }

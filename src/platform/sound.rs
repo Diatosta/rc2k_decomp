@@ -507,7 +507,7 @@ pub fn set_format(id: u32, f: Format) -> i32 {
             b.format = f;
             b.bytes = primary_bytes(&f);
             b.position = 0.0;
-            crate::logfile::program_log::log(&format!(
+            crate::program_log::log(&format!(
                 "platform_sound: the primary buffer's format: {} Hz, {} bits, {} channels",
                 f.rate, f.bits, f.channels
             ));
@@ -666,7 +666,7 @@ fn feed(wanted: i32) -> Option<Vec<i16>> {
     };
     Some(mixed.unwrap_or_else(|| {
         if !FEED_PANICKED.swap(true, Relaxed) {
-            crate::logfile::program_log::log(
+            crate::program_log::log(
                 "platform_sound: the audio callback panicked: silence from now on",
             );
         }
@@ -738,11 +738,11 @@ pub fn create_device(window_focused: &'static crate::memory::session::Dword) -> 
         match crate::platform::ffi::sdl::start_audio_output(OUT_RATE, feed) {
             Ok(()) => {}
             Err(crate::platform::ffi::sdl::AudioError::Init) => {
-                crate::logfile::program_log::log("platform_sound: SDL audio cannot be started");
+                crate::program_log::log("platform_sound: SDL audio cannot be started");
                 return Err(NO_DRIVER);
             }
             Err(crate::platform::ffi::sdl::AudioError::NoDevice) => {
-                crate::logfile::program_log::log("platform_sound: no SDL audio device");
+                crate::program_log::log("platform_sound: no SDL audio device");
                 return Err(NO_DRIVER);
             }
         }

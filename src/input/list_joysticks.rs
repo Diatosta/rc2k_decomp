@@ -52,7 +52,7 @@ pub fn list_new_joysticks(input: &Input, system: &crate::system::owner::System) 
         .devices_listed
         .store(true, std::sync::atomic::Ordering::Release);
     if after != before {
-        crate::logfile::program_log::log(&format!(
+        crate::program_log::log(&format!(
             "input: {} controller(s) plugged in, {after} listed",
             after - before
         ));

@@ -13,8 +13,8 @@
 //! Refuses (before anything) a probe count of 0 or past 0x40; what its calls refuse.
 
 use crate::errors::Refused;
+use crate::math::matrix3::{extended, rounded};
 use crate::physics::step_families::ClearPlaceInputs;
-use crate::scene::matrix3::{extended, rounded};
 use rc2k_core::physics::clear_place;
 
 /// The log line's text.

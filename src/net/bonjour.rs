@@ -45,7 +45,7 @@ pub fn heard() -> Vec<SocketAddr> {
 }
 
 fn log(text: &str) {
-    crate::logfile::program_log::log(text);
+    crate::program_log::log(text);
 }
 
 #[cfg(target_os = "ios")]

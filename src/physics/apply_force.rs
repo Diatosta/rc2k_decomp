@@ -2,6 +2,7 @@
 //! physics step, turned into the world by the crash matrix and added to the car's motion; the
 //! motion is then turned by the car's inverse matrix into the car-frame speed.
 
+use crate::math::matrix3::{extended, rounded, rounded_value};
 use crate::math::x87;
 use crate::physics::car_store::Car;
 use crate::physics::flow::FloatView;
@@ -9,7 +10,6 @@ use crate::physics::scale_vector::scale_vector;
 use crate::physics::tables_store::ForceRecord;
 use crate::physics::tables_store::PhysicsTables;
 use crate::physics::turn_by_car_matrix::turn_by_car_matrix;
-use crate::scene::matrix3::{extended, rounded, rounded_value};
 use crate::scene::rotate_point::rotate_point;
 
 /// The exact version, for `physics::apply_forces`: `rec` on the car block `car`.

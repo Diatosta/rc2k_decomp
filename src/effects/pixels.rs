@@ -8,9 +8,9 @@ use crate::effects::spans::run_get;
 use crate::effects::turns::{scale_rows3, set_line_turn, turn_pair, turn_pair_with};
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
+use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87;
 use crate::memory::session::{PlainBytes, PlainDword, PlainFloat, read_bits, write_bits};
-use crate::scene::matrix3::{extended, rounded_value};
 
 /// The pixel table `n` (0 or 1, the shape's: `MaskPicks.pixel_table_a`, `_b`).
 fn pixel_table(drops: &WindscreenDrops, n: u32) -> Result<&PlainBytes<0x2_0000>, BadInput> {
@@ -81,7 +81,7 @@ fn turn_copy(masks: &Masks) -> [PlainFloat; 9] {
 fn plan_halves(masks: &Masks, effects: &crate::effects::owner::Effects) -> [HalfPlan; 2] {
     HALVES.each_ref().map(|half| {
         let lines = &masks.vars.lines;
-        crate::scene::matrix3::identity_matrix3(&masks.vars.turn);
+        crate::math::matrix3::identity_matrix3(&masks.vars.turn);
         set_line_turn(masks, line(masks, half.line), false);
         scale_rows3(&masks.vars.turn, effects);
         let forward = turn_copy(masks);

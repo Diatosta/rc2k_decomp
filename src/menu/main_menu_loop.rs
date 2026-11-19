@@ -12,7 +12,6 @@
 //!   (`always_asks`); the quit switch leads to the question too.
 
 use crate::errors::Refused;
-use crate::logfile::program_log::log;
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::owner::Menus;
 use crate::menu::screen_items_store::slot;
@@ -21,6 +20,7 @@ use crate::menu::screen_loop::{
     ScreenFlag, ScreenVar, Step, carousel, prepare_scene,
 };
 use crate::menu::update_blink::update_blink;
+use crate::program_log::log;
 use crate::system::owner::System;
 
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {

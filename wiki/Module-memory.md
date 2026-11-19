@@ -22,7 +22,7 @@ memory use.
 | `GameThread<T>` and the plain cells | `src/memory/session.rs` | Cells and wrappers for data only the game thread reaches. |
 | `Cells`, `ByteView` | `src/memory/cells.rs` | Traits (derived) that let a record of cells be copied, merged and visited field by field, or found by byte offset. |
 | `Owned<T>` | `src/memory/owned.rs` | A typed table that is taken when needed and given back, like a block of heap. |
-| `PoolBytes` | `src/memory/pool.rs` | A block of bytes made at run time (the screen's and the textures' pixels). |
+| `PoolBytes` | `src/platform/pool.rs` | A block of bytes made at run time (the screen's and the textures' pixels). |
 | `PartCell<T>` | `src/memory/part_cell.rs` | State owned by one drawing thread at a time. |
 | `SharedTable` | `src/memory/shared_table.rs` | A table several threads read. |
 | `BytePlace` | `src/memory/place.rs` | A position inside a text or data buffer, passed in place of a pointer. |

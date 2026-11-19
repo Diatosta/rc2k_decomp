@@ -4,10 +4,10 @@
 //! and caption lists; the replays' range caption is here too. Drawing goes through
 //! `game_screen::GameScreen`.
 
+use crate::errors::Fault;
 use crate::errors::{BadInput, Refused};
 use crate::memory::session::DwordLike;
 use crate::memory::session::PlainDword;
-use crate::menu::event_flow::Fault;
 use crate::menu::event_flow::StageTable;
 use crate::menu::owner::Menus;
 use crate::menu::pages_store::MenuPages;

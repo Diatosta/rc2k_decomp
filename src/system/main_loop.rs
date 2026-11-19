@@ -8,8 +8,8 @@
 //! no lobbies (the network protocol is our own), so the "launched from a lobby" flag stays 0.
 
 use crate::errors::Refused;
-use crate::logfile::program_log::log;
 use crate::owners::Owners;
+use crate::program_log::log;
 use crate::threading::thread_slot::SlotOwners;
 
 /// `InstallerPages.script_set_up` when the installer's script is set up.

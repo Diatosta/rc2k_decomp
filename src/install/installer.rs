@@ -188,13 +188,8 @@ pub fn normalise(path: impl Into<BytePlace>, to: impl Into<BytePlace>) -> Result
 }
 
 /// Copies the file `from` to `to`; whether it worked.
-pub fn copy_file(
-    system: &crate::system::owner::System,
-    from: impl Into<BytePlace>,
-    to: impl Into<BytePlace>,
-) -> Result<bool, Refused> {
+pub fn copy_file(from: impl Into<BytePlace>, to: impl Into<BytePlace>) -> Result<bool, Refused> {
     Ok(crate::files::copy_file::copy_file(
-        system,
         &from.into().text("a file to copy")?,
         &to.into().text("a copy's path")?,
     )?)
@@ -386,7 +381,7 @@ pub fn components_to_pixels(
 
 pub fn load_language(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     crate::strings::load_language::load_language(o, &mut || {
-        crate::strings::compile_lexicon::compile_lexicon(o.strings, o.system)
+        crate::strings::compile_lexicon::compile_lexicon(o.strings, &o.system.work().files)
     })
 }
 
@@ -419,7 +414,7 @@ pub fn list_item_unusable(list_state: &crate::menu::list_state::ListState, list:
 
 /// How the install or uninstall ended, logged.
 pub fn logged<T>(what: &str, done: Result<T, Refused>) -> Result<T, Refused> {
-    crate::logfile::program_log::log(&format!(
+    crate::program_log::log(&format!(
         "install: the {what} ended: {:?}",
         done.as_ref().map(|_| ())
     ));

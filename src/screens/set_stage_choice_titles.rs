@@ -31,10 +31,7 @@ pub fn set_stage_choice_titles(
     let Some(item_1) = item_1_place(tables)? else {
         return Err(BadInput("the menu's first dword is no pointer").into());
     };
-    build_second_heading(
-        crate::strings::append_string_by_id::StringOwners::of(o),
-        s.record,
-    )?;
+    build_second_heading(o, s.record)?;
     let group_title = group_title(s.group)?;
     tables.menus.select_stage.id().items(&tables.menus)[0]
         .string

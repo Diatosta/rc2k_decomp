@@ -29,6 +29,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::cell_x87::CellX87;
+use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87;
 use crate::math::x87::less_plus_less_product_80;
 use crate::math::x87_float as bh;
@@ -39,7 +40,6 @@ use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::physics::ground::*;
 use crate::physics::ground_query::GroundQuery;
 use crate::physics::step_families::GroundInputs;
-use crate::scene::matrix3::{extended, rounded_value};
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::physics::ground;
 

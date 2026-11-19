@@ -38,6 +38,7 @@ pub mod icon;
 pub mod input;
 pub mod os;
 pub mod pacing;
+pub mod pool;
 pub mod safe_area;
 pub mod sound;
 pub mod sync;
@@ -58,8 +59,8 @@ pub mod window_mode;
 
 use crate::gfx::describe_format::describe_format;
 use crate::gfx::set_clip::set_clip;
-use crate::logfile::program_log::log;
 use crate::platform::ffi::sdl;
+use crate::program_log::log;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU32, Ordering};
 
@@ -88,7 +89,7 @@ pub(crate) struct Screen {
     menu: bool,
     bits: u32,
     /// The pixels the game draws on, named by `locked_pixels::SCREEN` while the screen lives.
-    pixels: std::sync::Arc<crate::memory::pool::PoolBytes>,
+    pixels: std::sync::Arc<crate::platform::pool::PoolBytes>,
 }
 
 pub(crate) static SCREEN: Mutex<Option<Screen>> = Mutex::new(None);
@@ -429,7 +430,7 @@ fn set_screen_mode(
     // Its written rows noted: what the GPU's path uploads of the canvas (`render::gles`). A
     // write to it first draws the glyphs noted as quads (`gfx::draw2d::quads`).
     let pixels = std::sync::Arc::new(
-        crate::memory::pool::PoolBytes::noting_rows(
+        crate::platform::pool::PoolBytes::noting_rows(
             vec![0u8; (bytes * width * height) as usize],
             (bytes * width) as usize,
         )
@@ -1256,10 +1257,7 @@ pub fn run_frame_now<T>(o: crate::owners::Owners<'static>, frame: impl FnOnce() 
     allow(dead_code, reason = "the debug UI is the only user")
 )]
 pub fn beside_log(name: &str) -> std::path::PathBuf {
-    match crate::logfile::program_log::LOG_PATH
-        .get()
-        .and_then(|p| p.parent())
-    {
+    match crate::program_log::LOG_PATH.get().and_then(|p| p.parent()) {
         Some(folder) => folder.join(name),
         None => name.into(),
     }
@@ -1300,7 +1298,7 @@ fn answer_labels(
 pub fn share_log() {
     #[cfg(target_os = "android")]
     {
-        let Some(path) = crate::logfile::program_log::LOG_PATH.get() else {
+        let Some(path) = crate::program_log::LOG_PATH.get() else {
             log("platform: share log: the log has no file");
             return;
         };

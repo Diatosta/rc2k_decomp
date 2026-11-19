@@ -5,6 +5,7 @@
 pub mod cell_x87;
 pub mod cells;
 pub mod engine_tables;
+pub mod matrix3;
 pub mod nearest_on_segment;
 pub mod next_random;
 pub mod normalise_vector;

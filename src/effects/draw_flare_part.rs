@@ -12,8 +12,8 @@
 
 use crate::effects::clip_quad::{clip_quad, draw_fan};
 use crate::errors::{BadInput, Refused};
+use crate::math::matrix3::rounded_value;
 use crate::math::x87;
-use crate::scene::matrix3::rounded_value;
 
 const CORNERS: u32 = 0x100;
 /// Each vertex's texture place: the corner entry's word offsets (u, v).

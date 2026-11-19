@@ -105,7 +105,7 @@ pub fn edit_setup_name(
             end_name(screens, name)?;
             if !write_setup_slot(menus, service, slot)? {
                 // Not written: the list keeps the name from before.
-                crate::logfile::program_log::log(&format!(
+                crate::program_log::log(&format!(
                     "service: the set-up in slot {slot} was not written"
                 ));
                 restore_text(menus, name)?;

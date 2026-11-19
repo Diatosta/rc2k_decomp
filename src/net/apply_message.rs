@@ -45,7 +45,7 @@ pub fn three(cells: &[PlainDword]) -> [u32; 3] {
 fn note_unbelievable(player: u32) {
     static TOLD: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
     if !TOLD.swap(true, std::sync::atomic::Ordering::Relaxed) {
-        crate::logfile::program_log::log(&format!(
+        crate::program_log::log(&format!(
             "net: player {player}'s message has values no car could hold: not applied"
         ));
     }

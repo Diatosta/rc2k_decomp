@@ -12,6 +12,7 @@
 
 use crate::errors::Refused;
 use crate::math::cell_x87::CellX87;
+use crate::math::matrix3::rounded_value;
 use crate::math::x87_float::X;
 use crate::math::x87_float::int;
 use crate::math::x87_float::to_int;
@@ -21,7 +22,6 @@ use crate::physics::step_families::ContactInputs;
 use crate::physics::turn_by_heading::turn_by_heading;
 use crate::physics::vector_length::vector_length;
 use crate::race::numbers_store::Numbers;
-use crate::scene::matrix3::rounded_value;
 use rc2k_core::physics::contacts;
 
 /// Whether the point `point` (its three whole numbers, read by the caller) of the object of course

@@ -62,7 +62,7 @@ fn lenient(read: Result<bool, BadInput>, path: &[u8]) -> Result<bool, Refused> {
 
 fn damaged(path: &[u8], why: &str) {
     let name = crate::error_dialog::file_name(path);
-    crate::logfile::program_log::log(&format!("gfx: the picture {name} cannot be used: {why}"));
+    crate::program_log::log(&format!("gfx: the picture {name} cannot be used: {why}"));
     crate::error_dialog::notice_once(
         &name,
         &crate::error_dialog::text_with(rc2k_core::strings::own::id::BAD_PICTURE, &name),

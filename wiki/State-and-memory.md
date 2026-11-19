@@ -137,7 +137,7 @@ Larger memory comes in three forms:
 | Need | Type | Notes |
 | --- | --- | --- |
 | A table that used to be a heap block (the best times, for one) | `Owned<T>` (`src/memory/owned.rs`) | A typed value, lent for one step with `.with(...)`. Counted on the game's memory lists so the game's own memory report stays the same. |
-| Pixels: the screen, textures | `PoolBytes` (`src/memory/pool.rs`) | Blocks of bytes reused through a pool; reads and writes are checked against the length. |
+| Pixels: the screen, textures | `PoolBytes` (`src/platform/pool.rs`) | Blocks of bytes reused through a pool; reads and writes are checked against the length. |
 | The course, objects, sample data | `Vec`s and typed structs inside their owner | Loaded at stage load, dropped at its end. |
 
 ## Errors
@@ -168,7 +168,7 @@ The opt-ins are few and of two kinds:
 | --- | --- |
 | `src/platform/ffi/` | Calls into C libraries: SDL, OpenGL ES, Dear ImGui, the operating system. |
 | `src/platform/`, `src/render/` | Handing memory to those libraries; processor-specific instructions in the rasteriser. |
-| `src/memory/` | The building blocks themselves: the `Sync` promises of `GameThread`, `DrawShared` and `PartCell`, the byte views, the page pool, copies through atomics. |
+| `src/memory/` | The building blocks themselves: the `Sync` promises of `GameThread`, `DrawShared` and `PartCell`, the byte views, copies through atomics (the page pool is `src/platform/pool.rs`). |
 | `src/owners.rs` | Building the owners on a large temporary stack. |
 
 Everything else, which is nearly all of the game (menus, race, physics, scene, sound, network,
@@ -201,7 +201,7 @@ The debug window can show many stores live while the game runs; see
 | Copying and byte views of records | `src/memory/cells.rs`, `rc2k_derive/src/lib.rs` |
 | Places in buffers | `src/memory/place.rs` |
 | Owned tables | `src/memory/owned.rs` |
-| Pixel memory | `src/memory/pool.rs` |
+| Pixel memory | `src/platform/pool.rs` |
 | Errors | `src/errors.rs`, `src/fatal/` |
 | A car's fields, as a large worked example of a store | `src/physics/car_store.rs` |
 

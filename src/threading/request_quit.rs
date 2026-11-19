@@ -2,7 +2,7 @@
 //! shutdown thread, which waits for the other threads. It cannot be run twice or undone.
 
 use crate::errors::FatalError;
-use crate::logfile::program_log::log;
+use crate::program_log::log;
 use crate::threading::thread_slot::{SlotOwners, SlotThread};
 use std::sync::atomic::{AtomicU32, Ordering};
 

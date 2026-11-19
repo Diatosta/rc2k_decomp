@@ -71,7 +71,7 @@ pub fn angle_between_vectors(
     let mut step = crate::math::x87::loaded(work.cosine_step.get());
     normalise(b);
     normalise(a);
-    let dot = crate::scene::matrix3::rounded(dot_product3(load(a), load(b)));
+    let dot = crate::math::matrix3::rounded(dot_product3(load(a), load(b)));
     let half: u32 = work.cosine_half.get();
     for _ in 0..16 {
         let status = cosine_against(angle.to_bits(), dot);
@@ -83,7 +83,7 @@ pub fn angle_between_vectors(
         }
         step = crate::math::x87::mul(step, half);
     }
-    crate::scene::matrix3::extended(angle)
+    crate::math::matrix3::extended(angle)
 }
 
 #[cfg(test)]

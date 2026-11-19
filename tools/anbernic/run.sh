@@ -20,7 +20,7 @@ exec docker run "${extra[@]}" --rm --user "$(id -u):$(id -g)" -e HOME="$HOME" \
     -e CXX_aarch64_unknown_linux_gnu=aarch64-linux-gnu-g++ \
     -e AR_aarch64_unknown_linux_gnu=aarch64-linux-gnu-ar \
     -e CMAKE_SYSTEM_NAME=Linux -e CMAKE_SYSTEM_PROCESSOR=aarch64 \
-    -e CARGO_PROFILE_RELEASE_DEBUG=line-tables-only -e CARGO_PROFILE_RELEASE_LTO=fat -e CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1 \
+    -e CARGO_PROFILE_RELEASE_DEBUG=line-tables-only \
     -e CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUSTFLAGS="-C target-cpu=cortex-a53" \
     -e PKG_CONFIG_ALLOW_CROSS=1 -e PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig \
     -e PATH="$HOME/.cargo/bin:/usr/bin:/bin" \

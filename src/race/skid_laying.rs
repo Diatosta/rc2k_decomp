@@ -31,40 +31,51 @@ fn offsets(
 /// point moves on (0x400 points). Refuses (before anything) a point or link outside the ring.
 pub fn add_skid_point(race: &Race, slot: &PlainDword) -> Result<(), Refused> {
     use rc2k_core::race::skids::{Link, POINTS, Point, Ring, add_skid_point, next_point};
+    /// The ring over the race's two tables: an entry is read or written alone.
+    struct Tables<'a>(&'a crate::race::shadow_skids_store::ShadowSkids);
+    impl Ring for Tables<'_> {
+        fn capacity(&self) -> usize {
+            POINTS as usize
+        }
+        fn point(&self, index: usize) -> Point {
+            std::array::from_fn(|i| self.0.skid_points.get_u32(0x18 * index + 4 * i))
+        }
+        fn set_point(&mut self, index: usize, point: Point) {
+            for (i, v) in point.iter().enumerate() {
+                self.0.skid_points.set_u32(0x18 * index + 4 * i, *v);
+            }
+        }
+        fn link(&self, index: usize) -> Link {
+            let half = |at: usize| {
+                u16::from_le_bytes([
+                    self.0.skid_links.get(8 * index + at),
+                    self.0.skid_links.get(8 * index + at + 1),
+                ])
+            };
+            Link {
+                next: half(0),
+                previous: half(2),
+                angle: half(4),
+                car: half(6),
+            }
+        }
+        fn set_link(&mut self, index: usize, link: Link) {
+            for (i, v) in [link.next, link.previous, link.angle, link.car]
+                .iter()
+                .enumerate()
+            {
+                for (j, b) in v.to_le_bytes().into_iter().enumerate() {
+                    self.0.skid_links.set(8 * index + 2 * i + j, b);
+                }
+            }
+        }
+    }
     let skids = race.frame.shadow_skids.get();
     let n = skids.skid_next.get();
     let last = slot.get();
-    // The ring is read out of its tables and what changed is written back after.
-    let word = |b: &[u8], k: usize| u32::from_le_bytes([b[k], b[k + 1], b[k + 2], b[k + 3]]);
-    let half = |b: &[u8], k: usize| u16::from_le_bytes([b[k], b[k + 1]]);
-    let point_bytes = skids.skid_points.read();
-    let link_bytes = skids.skid_links.read();
-    let mut points: Vec<Point> = point_bytes
-        .as_chunks::<0x18>()
-        .0
-        .iter()
-        .take(POINTS as usize)
-        .map(|b| std::array::from_fn(|i| word(b, 4 * i)))
-        .collect();
-    let mut links: Vec<Link> = link_bytes
-        .as_chunks::<8>()
-        .0
-        .iter()
-        .take(POINTS as usize)
-        .map(|b| Link {
-            next: half(b, 0),
-            previous: half(b, 2),
-            angle: half(b, 4),
-            car: half(b, 6),
-        })
-        .collect();
-    let (points_before, links_before) = (points.clone(), links.clone());
     let place = crate::memory::session::read_bits(&skids.skid_place);
     let a = add_skid_point(
-        Ring {
-            points: &mut points,
-            links: &mut links,
-        },
+        Tables(skids),
         n,
         last,
         place,
@@ -72,25 +83,6 @@ pub fn add_skid_point(race: &Race, slot: &PlainDword) -> Result<(), Refused> {
         |first, second| crate::scene::angle_between::angle_of(&race.course, first, second),
         |angle, y| offsets(race.engine_tables(), angle, y),
     )?;
-    for (k, (now, was)) in points.iter().zip(&points_before).enumerate() {
-        if now != was {
-            for (i, v) in now.iter().enumerate() {
-                skids.skid_points.set_u32(0x18 * k + 4 * i, *v);
-            }
-        }
-    }
-    for (k, (now, was)) in links.iter().zip(&links_before).enumerate() {
-        if now != was {
-            for (i, v) in [now.next, now.previous, now.angle, now.car]
-                .iter()
-                .enumerate()
-            {
-                for (j, b) in v.to_le_bytes().into_iter().enumerate() {
-                    skids.skid_links.set(8 * k + 2 * i + j, b);
-                }
-            }
-        }
-    }
     slot.set(n);
     skids.skid_angle.set(a.angle);
     skids.skid_offset_x.set(a.offset.0);

@@ -2,7 +2,7 @@
 //! addresses, their callees, the record the last search found and the car
 //! list handed on to the car choice.
 
-use crate::errors::{BadInput, FatalError, Refused};
+use crate::errors::{BadInput, FatalError, Fault, Refused};
 use crate::memory::session::DwordLike;
 use crate::menu::event_flow::*;
 use crate::menu::lists_store::CarList;

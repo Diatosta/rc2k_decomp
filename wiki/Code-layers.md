@@ -24,7 +24,7 @@ makes a test depend on the machine.
 
 | # | Layer | Modules | What it is | Why it sits here |
 | --- | --- | --- | --- | --- |
-| 0 | foundation | `errors`, `memory`, `math`, `strings` | Typed cells and stores, the x87-exact arithmetic, text building. | Everything stands on these; they must know nothing of the game's objects, or every module depends on every other through them. |
+| 0 | foundation | `errors`, `memory`, `math`, `strings`, `program_log` | Typed cells and stores, the x87-exact arithmetic, text building. | Everything stands on these; they must know nothing of the game's objects, or every module depends on every other through them. |
 | 1 | platform | `platform` (with `platform::ffi`, `platform::os`), `threading`, `logfile`, `files`, `clock` | The only code that talks to the system: SDL, libc, Win32, Android / iOS glue, files, threads, the clock, the log. | A port touches this layer and nothing else. `platform::ffi` is its leaf: wrappers over one foreign API each, using nothing of `platform` above them. |
 | 2 | engine | `render`, `gfx`, `text`, `d3d`, `video`, `audio`, `sound`, `input`, `net` | Services over the platform that a game needs: drawing back ends, pictures and fonts, the mixer and its command queue, devices, the wire protocol. | They serve any screen or race; they must not know which one is running. |
 | 3 | simulation | `physics`, `scene`, `effects`, `hud`, `drive`, `race`, `records`, `saves`, `settings`, `service` | The race: the car, the course, the 3D scene, weather and marks, the replay, saved state. | Held races and replays are decided here; it must run the same whatever front end started it. |

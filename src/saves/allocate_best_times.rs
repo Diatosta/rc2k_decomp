@@ -15,7 +15,7 @@ use rc2k_core::saves::tables::TABLES;
 
 /// Where table `n`'s address is among the variables; its size follows.
 pub fn count_stages(stages: &StageTables, table: RecordTable) -> Result<u32, BadInput> {
-    let fault = crate::menu::event_flow::Fault::default();
+    let fault = crate::errors::Fault::default();
     let answer = rc2k_core::saves::tables::count_stages(|n| {
         fault.ok(table.row(stages, n).map(|r| r.tag(stages)))
     });

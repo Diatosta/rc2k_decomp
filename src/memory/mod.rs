@@ -1,5 +1,5 @@
 //! The game's memory: the allocator's blocks on lists and the figures it keeps about them, and the
-//! typed cells the game's data lives in (`cells`, `session`, `place`, `part_cell`, `pool`,
+//! typed cells the game's data lives in (`cells`, `session`, `place`, `part_cell`,
 //! `list_handle`, `shared_memory`).
 
 pub mod cells;
@@ -9,7 +9,6 @@ pub mod list_handle;
 pub mod owned;
 pub mod part_cell;
 pub mod place;
-pub mod pool;
 pub mod session;
 pub mod shared_memory;
 pub mod shared_table;

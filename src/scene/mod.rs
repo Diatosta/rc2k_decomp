@@ -97,7 +97,6 @@ pub mod log_bad_polygon;
 pub mod look_up_texture;
 pub mod map_texture_places;
 pub mod matrix;
-pub mod matrix3;
 pub mod measure_object;
 pub mod next_noise;
 pub mod object_faces;

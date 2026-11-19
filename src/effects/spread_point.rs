@@ -6,9 +6,9 @@
 //! one, the first for the first.
 
 use crate::effects::paths::Paths;
+use crate::math::matrix3::{extended, rounded};
 use crate::math::x87;
 use crate::memory::session::PlainDword;
-use crate::scene::matrix3::{extended, rounded};
 
 /// The three results.
 pub fn spread_point(

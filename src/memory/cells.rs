@@ -10,7 +10,7 @@
 #![allow(unsafe_code)]
 
 use crate::errors::BadInput;
-use crate::logfile::program_log::log;
+use crate::program_log::log;
 use std::sync::atomic::{AtomicU8, AtomicU16, AtomicU32, Ordering::Relaxed};
 
 /// A type made of atomics and cells only (`session::{Dword, Float, Word, Byte, Bytes<N>}`, their

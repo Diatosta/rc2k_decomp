@@ -89,7 +89,7 @@ pub fn begin(support: &Path) -> Result<bool, String> {
         let _ = std::fs::remove_dir_all(&place);
         match copy_tree(&own, &place) {
             Ok(()) => {
-                crate::logfile::program_log::log(&format!(
+                crate::program_log::log(&format!(
                     "install: the bundle copied to {}",
                     place.display()
                 ));
@@ -104,7 +104,7 @@ pub fn begin(support: &Path) -> Result<bool, String> {
             }
             Err(e) => {
                 why = format!("{}: {e}", place.display());
-                crate::logfile::program_log::log(&format!("install: the bundle not copied: {why}"));
+                crate::program_log::log(&format!("install: the bundle not copied: {why}"));
                 let _ = std::fs::remove_dir_all(&place);
             }
         }
@@ -143,7 +143,7 @@ pub fn finish() -> bool {
         let done = std::process::Command::new(&command[0])
             .args(&command[1..])
             .status();
-        crate::logfile::program_log::log(&format!(
+        crate::program_log::log(&format!(
             "install: {:?}: {}",
             command,
             match &done {
@@ -171,7 +171,7 @@ pub fn remove() {
     let places = own.map_or_else(destinations, |b| vec![b]);
     for place in places.iter().filter(|p| files_in(p).exists()) {
         let gone = std::fs::remove_dir_all(place);
-        crate::logfile::program_log::log(&format!(
+        crate::program_log::log(&format!(
             "install: the application {} removed: {gone:?}",
             place.display()
         ));

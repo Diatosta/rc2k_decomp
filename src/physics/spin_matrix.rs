@@ -6,6 +6,7 @@
 //! into `turned_matrix` (`scene::multiply_matrices`) and copied back (16 dwords). Then the crash
 //! matrix is squared.
 
+use crate::math::matrix3::rounded_value;
 use crate::math::x87;
 use crate::physics::axis_turn_matrix::axis_turn_matrix;
 use crate::physics::car_store::Car;
@@ -14,7 +15,6 @@ use crate::physics::vector_length::vector_length;
 use crate::race::matrices_store::SceneMatrices;
 use crate::race::owner_course::Course;
 use crate::scene::matrix::multiply_matrices;
-use crate::scene::matrix3::rounded_value;
 use crate::scene::view_matrix::{square_matrix, unit_vector};
 
 pub fn spin_matrix(

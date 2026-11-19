@@ -165,7 +165,7 @@ pub fn draw(o: crate::owners::Owners<'static>) {
         echo_y,
         &mut canvas,
     ) {
-        crate::logfile::program_log::log(&format!("osk: echo not drawn: {why:?}"));
+        crate::program_log::log(&format!("osk: echo not drawn: {why:?}"));
     }
     // The keys sit in the middle of the panel, which is wider than they are when the hints are.
     let keys_left = left + (w - keys_width()) / 2;
@@ -190,7 +190,7 @@ pub fn draw(o: crate::owners::Owners<'static>) {
             // The font's own top offset puts its letters a little below the y it is given.
             let ty = y + (CELL_H - GAP) / 2 - 12;
             if let Err(why) = draw_text_at(font, &text[..], tx, ty, &mut canvas) {
-                crate::logfile::program_log::log(&format!("osk: not drawn: {why:?}"));
+                crate::program_log::log(&format!("osk: not drawn: {why:?}"));
                 break 'rows;
             }
         }

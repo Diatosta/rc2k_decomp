@@ -8,6 +8,7 @@
 //! used by `place_sound_e1`'s exact version (its Rust callers).
 
 use crate::errors::{BadInput, Refused};
+use crate::math::matrix3::rounded_value;
 use crate::math::x87::ext_times;
 use crate::math::x87_float::{f80, int};
 use crate::memory::session::{PlainDword, PlainFloat};
@@ -16,7 +17,6 @@ use crate::physics::step_families::SoundInputs;
 use crate::race::frame_store::FrameWork;
 use crate::race::matrices_store::SceneMatrices;
 use crate::race::numbers_store::Numbers;
-use crate::scene::matrix3::rounded_value;
 use crate::scene::rotate_point::rotate_point;
 use crate::sound::store::SoundObject;
 use rc2k_core::physics::sound_places::{FIRST, PLAY, SECOND, Slot};

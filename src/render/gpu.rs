@@ -18,11 +18,11 @@ use super::batches::{Batch, Batches, PipelineKey};
 use super::gles::mip_levels;
 use super::gpu_cut::Cuts;
 use super::{CommandList, Target, TextureNote};
-use crate::logfile::program_log::log;
 use crate::platform::ffi::sdl_gpu::{
     self, Buffer, Device, Fence, Pipeline, PipelineSpec, Sampler, Shader, ShaderCode, Texture,
     Transfer,
 };
+use crate::program_log::log;
 use sdl3_sys::everything::*;
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -1654,7 +1654,7 @@ mod comparison {
         system.session.screen.get().width.set(width as u32);
         system.session.screen.get().height.set(height as u32);
         system.session.screen.get().bits.set(bits);
-        let soft_held = std::sync::Arc::new(crate::memory::pool::PoolBytes::from_vec(vec![
+        let soft_held = std::sync::Arc::new(crate::platform::pool::PoolBytes::from_vec(vec![
             0u8;
             width * height
                 * 4

@@ -39,6 +39,11 @@ needs beside it. Copy the folder's contents into the game's folder (the one that
 and `var`) and the game runs from there. Each build empties its `dist/<target>/` first. Git
 ignores `dist/`.
 
+Releases are linked whole (fat LTO, one codegen unit). The Linux and Steam Deck programs are
+stripped: their symbols and line tables go to `dist/<target>-debug/rc2k.debug` (the automatic builds
+publish it as a download of its own). Put that file beside the program and a crash's fault report in
+`rc2k.log` names the functions, files and lines again; `--deploy` copies it there.
+
 When a tool is missing, the script stops and names it. The sections below say what each
 target needs and what the script does for it, so that the steps can also be run by hand.
 

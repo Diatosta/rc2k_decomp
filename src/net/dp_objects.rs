@@ -465,7 +465,7 @@ pub fn open_with_password(this: u32, d: &Desc, flags: u32, password: &[u8]) -> u
         Session::host_locked(d, port, signal(), password).map_err(|e| {
             // The usual cause is another program (often a second copy of this game) already
             // listening on the port.
-            crate::logfile::program_log::log(&format!(
+            crate::program_log::log(&format!(
                 "net: the session could not be hosted on port {port}: {e} (is another game or program using the port?)"
             ));
             if e.kind() == std::io::ErrorKind::AddrInUse {
@@ -483,9 +483,7 @@ pub fn open_with_password(this: u32, d: &Desc, flags: u32, password: &[u8]) -> u
                 joined
             }
             None => {
-                crate::logfile::program_log::log(
-                    "net: the session to join is not in the list found",
-                );
+                crate::program_log::log("net: the session to join is not in the list found");
                 Err(DPERR_NOSESSIONS)
             }
         }
@@ -511,9 +509,7 @@ fn open_steam(d: &Desc, flags: u32, password: &[u8]) -> Result<Arc<Session>, u32
         };
         let session = Session::host_over(d.clone(), 0, signal(), password);
         crate::net::steam::host(&session, &d, !password.is_empty()).map_err(|e| {
-            crate::logfile::program_log::log(&format!(
-                "net: the Steam session could not be hosted: {e}"
-            ));
+            crate::program_log::log(&format!("net: the Steam session could not be hosted: {e}"));
             session.close();
             DPERR_CANTCREATESESSION
         })?;
@@ -695,9 +691,9 @@ fn initialize(s: &mut State, parts: Vec<(Guid, Vec<u8>)>) -> u32 {
     }
     s.initialized = true;
     if s.steam {
-        crate::logfile::program_log::log("net: Steam connection");
+        crate::program_log::log("net: Steam connection");
     } else {
-        crate::logfile::program_log::log(&format!(
+        crate::program_log::log(&format!(
             "net: TCP/IP connection, host \"{}\", port {}",
             s.host, s.port
         ));

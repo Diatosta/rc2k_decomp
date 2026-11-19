@@ -13,6 +13,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::cell_x87::CellX87;
+use crate::math::matrix3::extended;
 use crate::math::x87;
 use crate::math::x87::{abs_compare, abs_of, neg_rounded};
 use crate::math::x87_float::X;
@@ -29,7 +30,6 @@ use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_course::Course;
 use crate::race::vars_store::RaceVars;
-use crate::scene::matrix3::extended;
 
 /// |a| below |b|, or one of them not a number.
 fn abs_below(x: impl x87::Flt, y: impl x87::Flt) -> bool {

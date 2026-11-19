@@ -17,6 +17,7 @@
 //! Takes: the record the force goes to (`contact_record`, set by each caller just before).
 
 use crate::math::cell_x87::CellX87;
+use crate::math::matrix3::{extended, rounded, rounded_value};
 use crate::math::x87::{compare_80, neg_rounded};
 use crate::math::x87_float::compare;
 use crate::math::x87_float::int;
@@ -34,7 +35,6 @@ use crate::physics::turn_by_car_matrix::turn_by_car_matrix;
 use crate::physics::turn_by_inverse::turn_by_inverse;
 use crate::physics::vector_length::vector_length;
 use crate::race::numbers_store::Numbers;
-use crate::scene::matrix3::{extended, rounded, rounded_value};
 use crate::scene::view_matrix::cross_product;
 
 /// Three floats copied as bits, in order.

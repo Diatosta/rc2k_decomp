@@ -14,7 +14,7 @@
 
 use crate::errors::BadInput;
 use crate::fatal::state::{CAPTION, CODE, REPORTED, TEXT};
-use crate::logfile::program_log::log;
+use crate::program_log::log;
 use crate::threading::request_quit::request_quit_in;
 use crate::threading::thread_slot::SlotThread;
 use std::sync::atomic::Ordering;

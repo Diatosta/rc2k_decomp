@@ -173,7 +173,9 @@ repository's top folder:
 `./build.sh` alone lists the targets. Every target's `dist/<target>/` holds the program
 and all it needs beside it: copy the folder's contents into the game's folder (the one
 with `files` and `var`) and it runs. `--debug` makes an unoptimised build, and `--deploy`
-also copies the folder where `deploy.local` says (below). The script says which tool is
+also copies the folder where `deploy.local` says (below). The Linux and Steam Deck programs
+are stripped, their symbols in `dist/<target>-debug/rc2k.debug` (put beside the program, a crash
+report names functions and lines). The script says which tool is
 missing when one is.
 
 What each target needs:

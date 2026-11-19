@@ -1872,3 +1872,13 @@ pub fn particle_square_floats(place: [f32; 3], k: [f32; 4], size: i32) -> [f32; 
 pub fn clip_lerp3_floats(m: f32, fc: f32, fs: f32, pairs: [[f32; 2]; 3]) -> [f32; 3] {
     clip_lerp3(m, fc, fs, pairs.map(|pair| pair.map(f32::to_bits)))
 }
+
+/// The x87's C0 after comparing `a` with `b`: `a` below `b` or unordered.
+pub fn c0(a: impl Flt, b: impl Flt) -> bool {
+    compare_full(a.bits(), b.bits()) & 0x100 != 0
+}
+
+/// The x87's C3 after comparing `a` with `b`: `a` equal to `b` or unordered.
+pub fn c3(a: impl Flt, b: impl Flt) -> bool {
+    compare_full(a.bits(), b.bits()) & 0x4000 != 0
+}

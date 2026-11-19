@@ -172,7 +172,7 @@ fn release(race: &Race) {
     for (n, (view, car)) in frame.cars.iter().zip(blocks).enumerate() {
         let changed = view.changed(car);
         if !changed.is_empty() {
-            crate::logfile::program_log::log(&format!(
+            crate::program_log::log(&format!(
                 "frame_view: the drawing changed car {n}'s {}",
                 changed.join(", ")
             ));

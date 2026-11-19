@@ -48,7 +48,6 @@ pub fn open_viewed_replay(
     if copied_first(found.number) {
         // A saved replay is copied over the last race's first.
         let copied = crate::files::copy_file::copy_file(
-            system,
             &path,
             &crate::race::replay_path::last_race(replay),
         )?;

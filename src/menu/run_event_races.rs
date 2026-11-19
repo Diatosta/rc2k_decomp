@@ -11,10 +11,10 @@
 //! Refuses fewer than 0xB2 drivers or fewer than four still running among them (the drop-out draw
 //! would never end), a missing player for the mode, and what the steps refuse, before anything.
 
+use crate::errors::Fault;
 use crate::errors::{BadInput, Refused};
 use crate::memory::session::DwordLike;
 use crate::menu::drivers_store::{Driver, IN_EVENT};
-use crate::menu::event_flow::Fault;
 use crate::menu::owner::{Cars, Play, Screens};
 use crate::menu::standings::*;
 use crate::owners::Owners;

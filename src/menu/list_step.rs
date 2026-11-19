@@ -22,7 +22,7 @@ pub fn list_step(
         return Ok(false);
     }
     let choice = list_state.choice.get();
-    let fault = crate::menu::event_flow::Fault::default();
+    let fault = crate::errors::Fault::default();
     // Asked only with a table (`step` is told whether there is one).
     let entry_of = |k: usize| match table {
         Some(table) => fault.ok(table

@@ -77,7 +77,7 @@ pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Res
     crate::race::course_hash::log_hashes(race, o.scene, "load");
     STAGE_LOADING.store(false, std::sync::atomic::Ordering::Relaxed);
     let (shown, micros) = crate::race::loading_bar_frame::shown();
-    crate::logfile::program_log::log(&format!(
+    crate::program_log::log(&format!(
         "race::load_stage: loaded in {} ms, {shown} bar frames in {} ms",
         begun.elapsed().as_millis(),
         micros / 1000

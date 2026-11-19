@@ -9,8 +9,8 @@
 //!
 //! Refuses what they refuse
 //! for any record of the walk, and a walk past 64 records, before anything.
+use crate::errors::Fault;
 use crate::errors::Refused;
-use crate::menu::event_flow::Fault;
 use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 use crate::race::owner::Race;

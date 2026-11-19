@@ -694,7 +694,7 @@ unsafe extern "C" fn sdl_log_to_program_log(
     }
     // SAFETY: SDL passes a NUL-ended text valid for the call; copied at once.
     let text = unsafe { std::ffi::CStr::from_ptr(message) }.to_string_lossy();
-    crate::logfile::program_log::log(&format!(
+    crate::program_log::log(&format!(
         "sdl[category {category}, priority {}]: {text}",
         priority.0
     ));

@@ -20,10 +20,10 @@ use crate::effects::mask_store::Masks;
 use crate::effects::owner::Effects;
 use crate::errors::{BadInput, Refused};
 use crate::math::cell_x87::CellX87;
+use crate::math::matrix3::{Axis, extended, rounded_value, turn_matrix3, turnable};
 use crate::math::x87;
 use crate::memory::session::PlainFloat;
 use crate::scene::cross_product3::cross;
-use crate::scene::matrix3::{Axis, extended, rounded_value, turn_matrix3, turnable};
 use crate::scene::rotate_point::rotate_point;
 use crate::scene::vector3::normalise;
 

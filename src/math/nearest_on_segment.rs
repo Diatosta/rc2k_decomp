@@ -8,10 +8,10 @@
 //! code's calls by place, whose own comparisons stay exact until `sound` is converted);
 //! the same maths in plain `f32` is `rc2k_core::math::geometry::nearest_on_segment`.
 
+use crate::math::x87::c0;
 use crate::math::x87::loaded;
 use crate::math::x87_float::{compare, ld};
 use crate::math::x87_mem::{Base, cells, fld, fld80, fstp, fstp80};
-use crate::physics::flow::c0;
 use std::cell::Cell;
 
 /// The work block's dwords (the function's own variables); the x87 code reaches them by

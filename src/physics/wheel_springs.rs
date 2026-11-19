@@ -14,6 +14,7 @@
 //! records 11 .. 14 and 15 .. 18; the point y of record 10 is 0; minus the `wheel_spin_push`
 //! figures go into the y of records 11 .. 14 and 15 .. 18.
 
+use crate::math::matrix3::extended;
 use crate::math::x87;
 use crate::math::x87::{ext_div2, int_80, mul2, neg_rounded, negated, wheel_int};
 use crate::physics::contact_store::ContactWork;
@@ -21,7 +22,6 @@ use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::race::blocks_store::CarBlocks;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
-use crate::scene::matrix3::extended;
 use std::cmp::Ordering;
 
 /// Whether `x` is below `b`, or unordered.

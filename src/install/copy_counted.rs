@@ -6,7 +6,6 @@ use crate::install::installer::copy_file;
 /// `from` copied to `to`; whether it was all done. The callers see a failed copy.
 pub fn copy_counted(
     install: &crate::install::owner::Install,
-    system: &crate::system::owner::System,
     from: impl Into<crate::memory::place::BytePlace>,
     to: impl Into<crate::memory::place::BytePlace>,
 ) -> Result<bool, Refused> {
@@ -14,5 +13,5 @@ pub fn copy_counted(
         .run
         .files_copied
         .set(install.run.files_copied.get().wrapping_add(1));
-    copy_file(system, from.into(), to.into())
+    copy_file(from.into(), to.into())
 }

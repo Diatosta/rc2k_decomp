@@ -14,10 +14,10 @@ use crate::effects::setup::MarksClock;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::Refused;
 use crate::math::cell_x87::CellX87;
+use crate::math::matrix3::{Axis, extended, turn_matrix3};
 use crate::memory::session::{PlainBytes, PlainFloat};
 use crate::race::effects_settings_store::EffectsSettings;
 use crate::race::owner_frame::Frame;
-use crate::scene::matrix3::{Axis, extended, turn_matrix3};
 
 /// The view's move (the settings' +0x26AC .. less the kept place, times the clock constant),
 /// less the last move, plus the last move times the drift's decay.

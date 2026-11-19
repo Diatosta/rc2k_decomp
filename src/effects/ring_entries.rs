@@ -213,20 +213,33 @@ pub fn set<T>(
 /// end of the walk's order), so the live ones stay together from the cursor on.
 pub fn retire_entry(ring: &Ring, e: u32) -> Result<(), BadInput> {
     ring.work.count.set(ring.work.count.get().wrapping_sub(1));
-    if e == ring.work.cursor.get() {
-        ring.work.cursor.set(entry(ring, e)?.next);
-    } else {
-        let (before, after) = (entry(ring, e)?.prev, entry(ring, e)?.next);
-        set(ring, before, after, |en| &mut en.next)?;
-        set(ring, after, before, |en| &mut en.prev)?;
-        let cursor: u32 = ring.work.cursor.get();
-        let last = entry(ring, cursor)?.prev;
-        set(ring, cursor, e, |en| &mut en.prev)?;
-        set(ring, last, e, |en| &mut en.next)?;
-        set(ring, e, last, |en| &mut en.prev)?;
-        set(ring, e, cursor, |en| &mut en.next)?;
+    let cursor: u32 = ring.work.cursor.get();
+    let moved_on = ring.entries.with(|r| -> Option<Option<u32>> {
+        let len = r.len();
+        let slot = |n: u32| (n as usize).checked_sub(1).filter(|&i| i < len);
+        let e_slot = slot(e)?;
+        if e == cursor {
+            return Some(Some(r[e_slot].next));
+        }
+        let (before, after) = (r[e_slot].prev, r[e_slot].next);
+        r[slot(before)?].next = after;
+        r[slot(after)?].prev = before;
+        let cursor_slot = slot(cursor)?;
+        let last = r[cursor_slot].prev;
+        r[cursor_slot].prev = e;
+        r[slot(last)?].next = e;
+        r[e_slot].prev = last;
+        r[e_slot].next = cursor;
+        Some(None)
+    })?;
+    match moved_on {
+        None => Err(BadInput("a ring entry past the ring")),
+        Some(Some(next)) => {
+            ring.work.cursor.set(next);
+            Ok(())
+        }
+        Some(None) => Ok(()),
     }
-    Ok(())
 }
 
 /// The ring walked once: `visit` is called with each entry, from the cursor along `next`, as
@@ -252,6 +265,39 @@ pub fn walk_ring(
     Ok(())
 }
 
+/// The ring walked as `walk_ring`, with each entry copied out under one lock of the ring, given
+/// to `visit` to work on (the draws it calls reach the ring's other stores, not the entries'
+/// fields it changes) and written back under another, instead of a lock for every field.
+pub fn walk_ring_copies(
+    ring: &Ring,
+    mut visit: impl FnMut(u32, &mut Entry) -> Result<bool, crate::errors::Refused>,
+) -> Result<(), crate::errors::Refused> {
+    let mut e: u32 = ring.work.cursor.get();
+    let mut counter = ring.work.count.get() as i32;
+    loop {
+        counter = counter.wrapping_sub(1);
+        if counter < 0 {
+            break;
+        }
+        let mut en = entry(ring, e)?;
+        let next = en.next;
+        let dies = visit(e, &mut en)?;
+        ring.entries
+            .with(|r| {
+                (e as usize)
+                    .checked_sub(1)
+                    .and_then(|n| r.get_mut(n))
+                    .map(|slot| *slot = en)
+            })?
+            .ok_or(BadInput("a ring entry past the ring"))?;
+        if dies {
+            retire_entry(ring, e)?;
+        }
+        e = next;
+    }
+    Ok(())
+}
+
 /// A field loaded on the x87 stack (a refusal ends the game, as the reads of the game's
 /// memory did).
 pub fn ld<T: bh::Loadable>(ring: &Ring, e: u32, field: impl FnOnce(&Entry) -> T) -> X {
@@ -263,6 +309,29 @@ pub fn st<T: bh::Stored>(ring: &Ring, e: u32, x: X, field: impl FnOnce(&mut Entr
     if let Err(r) = set(ring, e, T::stored(x), field) {
         crate::fatal::raise::end("a ring entry", r)
     }
+}
+
+/// `f` on an entry holding the bytes `lo .. hi` of the test buffer `base` (the differential
+/// tests' operand), the bytes copied back after it.
+#[cfg(test)]
+pub fn with_entry_copy_at<R>(
+    base: crate::effects::asm_test::Operand,
+    lo: u32,
+    hi: u32,
+    f: impl FnOnce(&mut Entry) -> R,
+) -> R {
+    use crate::math::x87_mem::Base;
+    let mut w = [0u32; (ENTRY_LEN / 4) as usize];
+    for o in (lo..hi).step_by(4) {
+        w[o as usize / 4] = base.dword(o as usize);
+    }
+    let mut en = Entry::from_words(w);
+    let out = f(&mut en);
+    let w = en.words();
+    for o in (lo..hi).step_by(4) {
+        base.set_dword(o as usize, w[o as usize / 4]);
+    }
+    out
 }
 
 /// `f` on entry 1 of a test ring holding the bytes `lo .. hi` of the test buffer `base`

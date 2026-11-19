@@ -60,7 +60,7 @@ pub fn draw_itinerary(
                 _ => Err(INVALID_STAGE.into()),
             }
         };
-        let fault = crate::menu::event_flow::Fault::default();
+        let fault = crate::errors::Fault::default();
         let ends_at = |n: u32| fault.ok(record(n).map(|r| r.tag(stages))) == u32::MAX;
         let drawn = rc2k_core::screens::itinerary::itinerary(
             &mut GameScreen::<

@@ -56,10 +56,7 @@ pub fn draw_selected_stage_menu(
     race.shared.state.settings.direction.set(sel.group);
     item_1.set(table_title);
 
-    build_second_heading(
-        crate::strings::append_string_by_id::StringOwners::of(o),
-        sel.record,
-    )?;
+    build_second_heading(o, sel.record)?;
     draw_stage_body(o, gfx, sel.record, true, canvas)?;
     draw_records_for_group(o, system, sel.group, sel.record, canvas)
 }

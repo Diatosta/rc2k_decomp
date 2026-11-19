@@ -12,8 +12,8 @@
 #![allow(unsafe_code)]
 
 use crate::errors::BadInput;
-use crate::logfile::program_log::log;
 use crate::memory::cells::Plain;
+use crate::program_log::log;
 use std::cell::UnsafeCell;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering::Relaxed};

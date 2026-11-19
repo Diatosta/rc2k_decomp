@@ -1,7 +1,7 @@
+use crate::errors::Fault;
 use crate::errors::{BadInput, Refused};
 use crate::memory::session::DwordLike;
 use crate::menu::champ_store::ChampView;
-use crate::menu::event_flow::Fault;
 use crate::menu::event_store::EventState;
 use crate::menu::owner::Menus;
 use crate::owners::Owners;

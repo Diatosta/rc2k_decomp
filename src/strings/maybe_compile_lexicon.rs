@@ -10,11 +10,11 @@ use crate::strings::compile_lexicon::compile_lexicon;
 pub fn maybe_compile_lexicon(
     plus_key: u8,
     strings: &crate::strings::owner::Strings,
-    system: &crate::system::owner::System,
+    scratch: &crate::files::scratch::Scratch,
 ) -> Result<(), Refused> {
     let level = strings.lexicon.recompile_level.get();
     if rc2k_core::strings::lexicon::recompile_wanted(level, plus_key) {
-        compile_lexicon(strings, system)?;
+        compile_lexicon(strings, scratch)?;
     }
     Ok(())
 }

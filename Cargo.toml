@@ -97,6 +97,14 @@ windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_Syste
 [lints]
 workspace = true
 
+# Releases: one unit linked whole (fat LTO, one codegen unit): a smaller program (about 5 % on
+# Linux) and calls inlined across crates, at about a minute more of build. The builds that move
+# the symbols into a file of their own (Linux, the Steam Deck, the handheld: `build.sh`) add line
+# tables for it, so a fault's backtrace names files and lines.
+[profile.release]
+lto = "fat"
+codegen-units = 1
+
 # The tests at opt-level 1: about six times faster than unoptimised. Safe since play makes no NaN
 # and the tests compare NaN results by class, not payload (LLVM folds NaN payloads freely).
 [profile.test]

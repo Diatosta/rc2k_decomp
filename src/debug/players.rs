@@ -107,7 +107,7 @@ fn name(menus: &Menus, player: usize) -> String {
 
 /// Both dumps to the log.
 fn write_log(menus: &Menus, race: &Race) {
-    use crate::logfile::program_log::log;
+    use crate::program_log::log;
     for player in 0..4 {
         log(&format!("DATA DUMP OF PLAYER {}", player + 1));
         for (label, offset) in PLAYER_ROWS {

@@ -94,6 +94,7 @@ pub fn next_replay_range(
 pub fn toggle_caption_choice(
     so: crate::strings::append_string_by_id::StringOwners<'_>,
     screens: &Screens,
+    text_buffers: &crate::screens::text_buffers_store::TextBuffers,
 ) -> Result<(), BadInput> {
     let choice = steps::flip(screens.state.menus.caption_choice.get());
     screens.state.menus.caption_choice.set(choice);
@@ -101,10 +102,7 @@ pub fn toggle_caption_choice(
     let mut text = Vec::new();
     crate::strings::append_string_by_id::push_string(so, &mut text, caption)?;
     text.push(0);
-    so.menus
-        .text_buffers
-        .caption
-        .write_at(0, &text, "the caption")
+    text_buffers.caption.write_at(0, &text, "the caption")
 }
 
 pub fn leave_with_carry(menus: &Menus) {

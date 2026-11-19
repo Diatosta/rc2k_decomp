@@ -11,8 +11,8 @@
 //! first button press (a browser rule), and goes with its disconnection. Rumble is not carried
 //! over.
 
-use crate::logfile::program_log::log;
 use crate::platform::ffi::sdl_input::VirtualPad;
+use crate::program_log::log;
 use std::ffi::{CStr, c_char, c_void};
 use std::sync::Mutex;
 

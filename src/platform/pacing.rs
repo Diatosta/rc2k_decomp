@@ -78,7 +78,7 @@ pub fn set_display(refresh: Option<f64>, showing_waits: bool) {
     let waited = SHOWING_WAITS.swap(showing_waits, Relaxed);
     let changed = before != period.as_nanos() as u64 || waited != showing_waits;
     if !LOGGED.swap(true, Relaxed) || changed {
-        crate::logfile::program_log::log(&format!(
+        crate::program_log::log(&format!(
             "platform: the display refreshes {} times a second: {}",
             refresh.map_or("an unknown number of".to_string(), |rate| format!(
                 "{rate:.2}"
@@ -168,7 +168,7 @@ fn idle(wait: Duration) {
         static SAID: std::sync::Once = std::sync::Once::new();
         let main = crate::platform::ffi::unix::on_main_thread();
         SAID.call_once(|| {
-            crate::logfile::program_log::log(&format!(
+            crate::program_log::log(&format!(
                 "pacing: frames wait in the run loop: {main} (the main thread)"
             ));
         });

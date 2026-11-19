@@ -9,9 +9,9 @@ use crate::d3d::owner::D3d;
 use crate::errors::Refused;
 use crate::gfx::owner::Gfx;
 use crate::install::outside::Game as Outside;
-use crate::logfile::program_log::{LOG_PATH, log};
 use crate::menu::owner::Menus;
 use crate::owners::Owners;
+use crate::program_log::{LOG_PATH, log};
 use crate::system::owner::System;
 use crate::threading::thread_slot::SlotOwners;
 use std::path::Path;
@@ -545,7 +545,8 @@ fn read_command_line_and_install_state(o: Owners<'static>) {
 /// The language's texts (`strings::load_language`) and the game's data files.
 fn load_language_and_game_data(o: Owners<'static>) {
     rust("strings::load_language");
-    let compile = &mut || crate::strings::compile_lexicon::compile_lexicon(o.strings, o.system);
+    let compile =
+        &mut || crate::strings::compile_lexicon::compile_lexicon(o.strings, &o.system.work().files);
     if let Err(e) = crate::strings::load_language::load_language(o, compile) {
         refused("strings::load_language", e);
     }
@@ -756,7 +757,7 @@ pub fn run(log_file: &Path, frames: u32) -> ! {
     }
     let log_file = crate::single_copy::log_for(log_file, copy.number);
     let log_file = &std::path::absolute(&log_file).unwrap_or(log_file);
-    crate::logfile::program_log::start(log_file);
+    crate::program_log::start(log_file);
     if switches.instance.is_some_and(|n| n > 1) {
         log(&format!(
             "standalone: instance {} of this folder: its own var and savedata are in instances/{}/",

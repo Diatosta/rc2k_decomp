@@ -157,7 +157,7 @@ pub fn install_files(
     {
         let support = crate::files::host_path(&install.paths.installed.text());
         if let Err(why) = crate::install::mac_bundle::begin(&support) {
-            crate::logfile::program_log::log(&format!("install: the application: {why}"));
+            crate::program_log::log(&format!("install: the application: {why}"));
             return message(o, &error_messages(install), 0);
         }
     }
@@ -186,7 +186,6 @@ pub fn install_files(
             if !left_out(install, n)?
                 && !i::copy_counted::copy_counted(
                     install,
-                    o.system,
                     &install.paths.path_a,
                     &install.paths.path_b,
                 )?
@@ -242,7 +241,7 @@ pub fn install_files(
             path.push(0);
             store_text(&install.paths.path_a, &path);
             // Not looked at.
-            i::copy_counted::copy_counted(install, o.system, &install.paths.path_a, base)?;
+            i::copy_counted::copy_counted(install, &install.paths.path_a, base)?;
         }
     }
     crate::platform::events::hold_quit(o.system, false);

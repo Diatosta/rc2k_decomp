@@ -128,7 +128,7 @@ impl Folders for Unix {
         let folder = crate::files::host_path(&text);
         let made = std::fs::create_dir_all(&folder);
         if let Err(e) = &made {
-            crate::logfile::program_log::log(&format!("install: {}: {e}", folder.display()));
+            crate::program_log::log(&format!("install: {}: {e}", folder.display()));
         }
         Ok(made.is_ok())
     }

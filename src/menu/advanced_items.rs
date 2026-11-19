@@ -169,7 +169,7 @@ fn swap_renderer(o: &Owners<'static>, renderer: Renderer) {
             Renderer::Software => Wish::Software,
         };
         if let Err(why) = crate::platform::swap_renderer(o, wish) {
-            crate::logfile::program_log::log(&format!(
+            crate::program_log::log(&format!(
                 "advanced: the renderer {} was not swapped in: {why}",
                 renderer.name()
             ));
@@ -202,9 +202,7 @@ pub fn toggle_rain_and_snow(o: Owners<'static>) -> Result<(), Refused> {
         number,
     );
     if let Err(e) = std::fs::write(&path, &file) {
-        crate::logfile::program_log::log(&format!(
-            "graphics: var\\ral.cfg could not be written: {e}"
-        ));
+        crate::program_log::log(&format!("graphics: var\\ral.cfg could not be written: {e}"));
     }
     Ok(())
 }
@@ -254,12 +252,10 @@ pub fn apply(o: Owners<'static>) -> Result<(), Refused> {
     if let Some(file) = text {
         let path = cfg_path();
         if let Err(e) = std::fs::write(&path, &file) {
-            crate::logfile::program_log::log(&format!(
-                "advanced: var\\ral.cfg could not be written: {e}"
-            ));
+            crate::program_log::log(&format!("advanced: var\\ral.cfg could not be written: {e}"));
         }
     }
-    crate::logfile::program_log::log(&format!(
+    crate::program_log::log(&format!(
         "advanced: applied {new:?} (running renderer: {:?})",
         crate::render::running_wish()
     ));

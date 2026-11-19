@@ -6,8 +6,8 @@
 
 use crate::audio::own::AudioOwn;
 use crate::audio::voices::{VOICES, voice_of};
-use crate::logfile::program_log::log;
 use crate::memory::session::PlainDword;
+use crate::program_log::log;
 use std::collections::HashSet;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU32, Ordering};

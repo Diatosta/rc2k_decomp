@@ -10,7 +10,7 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::fatal::state::{CODE, MESSAGE};
-use crate::logfile::program_log::log;
+use crate::program_log::log;
 use rc2k_core::fatal::Context;
 
 /// Reports `error` and ends the game the way the original does: on a thread without a thread slot through the exit path (which shows the report in

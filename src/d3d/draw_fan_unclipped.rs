@@ -15,7 +15,7 @@ pub fn polygon(
     let count = poly.polygon_vertex_count.get() as usize;
     let vertices = &buffer.vertices;
     if count > vertices.len() {
-        crate::logfile::program_log::log(&format!(
+        crate::program_log::log(&format!(
             "d3d::draw_fan_unclipped: a polygon of {count} vertices, the buffer holds {}",
             vertices.len()
         ));

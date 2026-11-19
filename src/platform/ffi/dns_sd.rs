@@ -185,7 +185,7 @@ fn note(name: &str, at: Option<SocketAddr>) {
     match at {
         Some(at) => {
             if heard.insert(name.to_owned(), at) != Some(at) {
-                crate::logfile::program_log::log(&format!("net: Bonjour: {name} heard at {at}"));
+                crate::program_log::log(&format!("net: Bonjour: {name} heard at {at}"));
             }
         }
         None => {
@@ -245,7 +245,7 @@ fn browse(kind: &CStr) {
         }
     };
     if error != 0 {
-        crate::logfile::program_log::log(&format!(
+        crate::program_log::log(&format!(
             "net: Bonjour: no search (error {error}; the app lists its service type?)"
         ));
         return;
@@ -264,9 +264,7 @@ fn browse(kind: &CStr) {
             // SAFETY: the connection, read on this thread only; the replies run inside.
             let error = unsafe { DNSServiceProcessResult(main) };
             if error != 0 {
-                crate::logfile::program_log::log(&format!(
-                    "net: Bonjour: the search ended (error {error})"
-                ));
+                crate::program_log::log(&format!("net: Bonjour: the search ended (error {error})"));
                 return;
             }
         }

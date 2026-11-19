@@ -135,9 +135,7 @@ fn a_received_message_is_put_into_the_senders_car() {
     let r = crate::test_support::own::race();
     let net = crate::test_support::own::net();
     let Ok(car) = r.shared.race_car(2) else {
-        crate::logfile::program_log::log(
-            "SKIPPED a_received_message_is_put_into_the_senders_car: no car 2",
-        );
+        crate::program_log::log("SKIPPED a_received_message_is_put_into_the_senders_car: no car 2");
         return;
     };
     let mut saved = snapshot();

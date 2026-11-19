@@ -456,7 +456,7 @@ pub fn send(pixels: Vec<u8>) {
             pixels
         };
     if writer.frames.send(pixels).is_err() {
-        crate::logfile::program_log::log("video: the writer stopped; the frame is dropped");
+        crate::program_log::log("video: the writer stopped; the frame is dropped");
     }
     note_stage(Stage::Queue, began.elapsed());
 }
@@ -535,14 +535,14 @@ pub fn finish() -> Option<u32> {
     }) = writer
     else {
         if active() {
-            crate::logfile::program_log::log("video: no frame was drawn; nothing written");
+            crate::program_log::log("video: no frame was drawn; nothing written");
         }
         return None;
     };
     let looped = started.elapsed();
     drop(frames);
     let count = thread.join().unwrap_or(0);
-    crate::logfile::program_log::log(&format!("video: {count} frames written"));
+    crate::program_log::log(&format!("video: {count} frames written"));
     log_times(count, looped, started.elapsed());
     if let Some(picture) = checked
         && let Err(why) = picture_is_whole(&picture)
@@ -670,7 +670,7 @@ fn join_args(silent: &Path, wav: &Path, out: &Path, tools: Tools) -> Vec<String>
 }
 
 fn log(text: &str) {
-    crate::logfile::program_log::log(&format!("video: {text}"));
+    crate::program_log::log(&format!("video: {text}"));
 }
 
 /// The encoders an `ffmpeg` has that the render uses.

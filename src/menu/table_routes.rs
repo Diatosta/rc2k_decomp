@@ -202,6 +202,7 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn) -> Result<(), Refused> {
         ItemFn::FlipGearing => Ok(flip_gearing::flip_gearing(
             crate::strings::append_string_by_id::StringOwners::of(o),
             &menus.screens,
+            &menus.text_buffers,
         )?),
         ItemFn::NextGearing => gearing_text::step_gearing(
             crate::strings::append_string_by_id::StringOwners::of(o),
@@ -353,6 +354,7 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn) -> Result<(), Refused> {
         ItemFn::ToggleCaptionChoice => player_actions::toggle_caption_choice(
             crate::strings::append_string_by_id::StringOwners::of(o),
             &menus.screens,
+            &menus.text_buffers,
         )
         .map_err(Into::into),
         ItemFn::ShowIntro => item_actions::show_intro(o),

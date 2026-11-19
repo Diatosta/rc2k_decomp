@@ -21,7 +21,7 @@ pub fn heading_text(
     record: RecordRef,
     label: u32,
 ) -> Result<Vec<u8>, Refused> {
-    let fault = crate::menu::event_flow::Fault::default();
+    let fault = crate::errors::Fault::default();
     let stages = &o.system.records().stage_tables;
     let name = || -> Result<u32, Refused> { Ok(track_of(stages, record)?.name(stages)?) };
     let number = record.record(&o.system.records().stage_tables)?.number();

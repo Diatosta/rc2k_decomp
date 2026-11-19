@@ -74,7 +74,7 @@ fn delete_now() -> Outcome {
         &crate::files::host_path(b"var"),
         &crate::files::host_path(b"savedata"),
     );
-    crate::logfile::program_log::log(&format!(
+    crate::program_log::log(&format!(
         "saves: all saved data deleted ({} files removed, {} could not be)",
         out.removed, out.failed
     ));

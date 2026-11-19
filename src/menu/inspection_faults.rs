@@ -14,7 +14,7 @@ pub fn inspection_faults(menus: &Menus) -> Result<(), Refused> {
         return Err(BadInput("a current player past 3 or missing").into());
     }
     let p = player(menus, n);
-    let fault = crate::menu::event_flow::Fault::default();
+    let fault = crate::errors::Fault::default();
     let flags =
         rc2k_core::menu::inspection::faults(|k| fault.ok(past_limit(&menus.screens, p, k as u32)));
     fault.check()?;

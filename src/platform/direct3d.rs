@@ -27,7 +27,7 @@
 
 use crate::errors::FatalError;
 use crate::gfx::texture_upload::TextureFormat;
-use crate::logfile::program_log::log;
+use crate::program_log::log;
 use crate::render::{CommandList, STATES, Target, TextureId, TextureNote};
 use rc2k_core::fatal::Context;
 use std::sync::Mutex;
@@ -157,7 +157,7 @@ struct Level {
     id: TextureId,
     /// The pixels, named by the surface's handle while the level lives (locked, the game's
     /// code writes them through it: `gfx::locked_pixels`).
-    pixels: std::sync::Arc<crate::memory::pool::PoolBytes>,
+    pixels: std::sync::Arc<crate::platform::pool::PoolBytes>,
     pitch: u32,
 }
 
@@ -165,7 +165,7 @@ impl Level {
     /// The level made at `surface` of `bytes`, `pitch` bytes a row; its pixels named by the
     /// surface's handle (`gfx::locked_pixels`).
     fn new(id: TextureId, surface: usize, pitch: u32, bytes: Vec<u8>) -> Self {
-        let pixels = std::sync::Arc::new(crate::memory::pool::PoolBytes::from_vec(bytes));
+        let pixels = std::sync::Arc::new(crate::platform::pool::PoolBytes::from_vec(bytes));
         crate::gfx::locked_pixels::register(crate::gfx::locked_pixels::level(surface), &pixels);
         Self { id, pixels, pitch }
     }
@@ -318,9 +318,7 @@ fn draw_noted(part: &crate::scene::workers::PartScratch, pending: &mut Pending) 
     if !game_part().is_some_and(|first| std::ptr::eq(part, first)) {
         // The parts' drawing is put together on the game's thread, after the first part's:
         // drawn here, this part's would go ahead of the earlier parts'.
-        crate::logfile::program_log::log(
-            "platform: a drawing part's noted drawing drawn (out of order)",
-        );
+        crate::program_log::log("platform: a drawing part's noted drawing drawn (out of order)");
     }
     crate::render::dump::dump_if_asked(&commands, &target);
     let racing = crate::scene::workers::in_race(part);

@@ -66,7 +66,7 @@ pub fn draw_service_area(
     race.shared.switches.get().service_cleared.set(0);
 
     // The logic is in `rc2k_core::screens::service` (`area_title`, `AREA_STEPS`).
-    let fault = crate::menu::event_flow::Fault::default();
+    let fault = crate::errors::Fault::default();
     let string = |id: u32| {
         let mut bytes = Vec::new();
         fault.ok(push_string(

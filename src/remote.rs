@@ -255,7 +255,7 @@ static STICK: Mutex<Option<(SDL_JoystickID, sdl_input::Joystick)>> = Mutex::new(
 pub fn stick_at_start() {
     if std::env::var_os("RC2K_REMOTE_STICK").is_some() && folder().is_some() {
         let answer = stick(&["attach"]);
-        crate::logfile::program_log::log(&format!(
+        crate::program_log::log(&format!(
             "remote: the stand-in stick plugged in at the start: {}",
             answer.unwrap_or_else(|| "failed".to_string())
         ));
@@ -446,7 +446,7 @@ pub fn autodrive_keys(race: &Race, checkpoint: u32) -> u32 {
     if *held > 0 {
         *held -= 1;
         if *held == 0 {
-            crate::logfile::program_log::log(&format!(
+            crate::program_log::log(&format!(
                 "remote: the reset key let go at checkpoint {checkpoint} (stage time {})",
                 race.shared.car().stage_time.get()
             ));
@@ -454,7 +454,7 @@ pub fn autodrive_keys(race: &Race, checkpoint: u32) -> u32 {
         return rc2k_core::drive::controls::RESET_KEY;
     }
     if *since >= STALLED_STEPS {
-        crate::logfile::program_log::log(&format!(
+        crate::program_log::log(&format!(
             "remote: stalled at checkpoint {checkpoint}: the reset key held"
         ));
         (*since, *held) = (0, RESET_HELD_STEPS);
@@ -701,7 +701,7 @@ fn note_slow_frame(race: &Race, gfx: &Gfx, course: &Course, now: Instant) {
     let ms = now.duration_since(before).as_millis();
     if ms > limit && course.numbers.get().in_race.is_set() {
         let car = driven_car(race, course);
-        crate::logfile::program_log::log(&format!(
+        crate::program_log::log(&format!(
             "remote: slow frame {ms} ms at checkpoint {} (frame {})",
             car.checkpoint.get(),
             gfx.drawing.draw_surface.frames.get()

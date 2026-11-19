@@ -3,8 +3,8 @@
 //! `files::resolve_path` uses for the thread.
 
 use crate::errors::{BadInput, FatalError, Recover, Refused};
-use crate::logfile::program_log::log;
 use crate::memory::session::Bytes;
+use crate::program_log::log;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 
 /// One of the game's own threads.

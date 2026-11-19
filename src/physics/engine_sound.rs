@@ -13,6 +13,7 @@
 
 use crate::errors::Refused;
 use crate::math::cell_x87::CellX87;
+use crate::math::matrix3::extended;
 use crate::math::x87;
 use crate::math::x87::ext_to_int;
 use crate::math::x87_float::stf;
@@ -23,7 +24,6 @@ use crate::physics::gear_change_sound::gear_change_sound;
 use crate::race::matrices_store::SceneMatrices;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
-use crate::scene::matrix3::extended;
 use rc2k_core::physics::engine::ease_revs;
 use rc2k_core::physics::x87::hold_low;
 

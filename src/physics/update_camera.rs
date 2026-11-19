@@ -24,6 +24,7 @@
 
 use crate::errors::Refused;
 use crate::math::cell_x87::CellX87;
+use crate::math::matrix3::rounded_value;
 use crate::math::x87_float::int;
 use crate::math::x87_float::ld;
 use crate::math::x87_float::to_int;
@@ -37,7 +38,6 @@ use crate::race::course_store::CourseWork;
 use crate::race::groups_store::ViewAndRecords;
 use crate::race::numbers_store::Numbers;
 use crate::race::view_vars_store::ViewVars;
-use crate::scene::matrix3::rounded_value;
 
 use crate::memory::session::DwordLike;
 use crate::memory::session::PlainFloat;

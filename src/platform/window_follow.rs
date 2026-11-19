@@ -5,8 +5,8 @@
 //! new size becomes the race's size for the next race. Full screen and borderless are never
 //! followed: their size is the display's.
 
-use crate::logfile::program_log::log;
 use crate::platform::window_mode::{self, WindowMode};
+use crate::program_log::log;
 use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
 
 /// How long the window must have kept its size before it is taken up.

@@ -162,7 +162,7 @@ fn restore(o: Owners<'static>) -> Result<Resume, Refused> {
 
 /// A saved game that cannot be loaded: logged, the player told, back at the menu.
 fn damaged(menus: &crate::menu::owner::Menus, slot: u32, why: &str) -> Result<(), Refused> {
-    crate::logfile::program_log::log(&format!(
+    crate::program_log::log(&format!(
         "saves::load_savegame: slot {slot} is damaged: {why}"
     ));
     crate::error_dialog::notice(&crate::error_dialog::text_with(

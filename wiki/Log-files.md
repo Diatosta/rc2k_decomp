@@ -50,7 +50,7 @@ What to look for:
 | `<function>: raises fatal error <code> <message>` | One of the game's own fatal errors, with its code. |
 | `platform: the last 5.0 s: ...` | Every five seconds, the frames shown a second and where a frame's time goes in broad terms. |
 | `phone: ...` (Android and iOS) | Every five seconds: frames a second, the screen size, the 3D's share, the renderer and the display's refresh rate; then a frame's average time (the worst in brackets) in the game's logic (the ticks), the scene, the sound, showing the frame (its finish on the GPU, the present), the 3D's flushes, and the readbacks of the frame from the GPU (each one stalls until the GPU has done the frame). |
-| a fault report | The program crashed: the kind of fault, the address, and the functions it was in. |
+| a fault report | The program crashed: the kind of fault, the address, and the functions it was in (on Linux and the Steam Deck, named when `rc2k.debug` from the build's debug download is beside the program). |
 
 There is no fixed grammar beyond "one message per line"; do not write tools that depend on the
 exact wording.
@@ -126,6 +126,6 @@ Collapsed=0
 The file can be deleted at any time; the window then opens in its default place. It is made
 only by builds that have the debug window (not the 32-bit Windows build or the handheld's).
 
-Code: `src/logfile/program_log.rs` and `src/standalone.rs` (`rc2k.log`), `src/bin/rc2k.rs`
+Code: `src/program_log.rs` and `src/standalone.rs` (`rc2k.log`), `src/bin/rc2k.rs`
 (its name), `src/logfile/start_log.rs` and `src/logfile/write_line.rs` (`var/logfile.txt`),
 `rc2k_core/src/files/log.rs` (the head's lines), `src/debug/imgui_sdl.rs` (`var/imgui.ini`).
