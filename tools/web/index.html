@@ -10,7 +10,8 @@
   :root { --bg: #0b0d10; --panel: #161a20; --text: #d8dde4; --dim: #8a94a3; --accent: #e0a526; }
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
     font: 15px/1.45 system-ui, -apple-system, sans-serif; }
-  canvas { display: none; width: 100vw; height: 100vh; object-fit: contain; background: #000; }
+  /* !important: SDL sets its own pixel size on the canvas when the window's size changes. */
+  canvas { display: none; width: 100vw !important; height: 100vh !important; object-fit: contain; background: #000; }
   body.playing canvas { display: block; }
   /* The GL's canvas lies over the game's own, empty (clear) until the GL runs; the mouse reaches
      the one below. */

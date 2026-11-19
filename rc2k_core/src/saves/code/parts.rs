@@ -17,25 +17,58 @@ const OVERHEAD: usize = START.len() + 2 + 2 + 8 + 2;
 pub const MOST_PARTS: usize = 99;
 /// The most letters of the whole text one part carries.
 const MOST_PIECE: usize = qr::MOST_LETTERS - OVERHEAD;
-/// The letters of the whole text a part carries when the code has parts to spare: a QR code of
-/// about 60 modules a side, whose modules a camera at 1280 x 720 resolves when the code fills
-/// half the picture's height (larger codes read only from close by or from a bigger picture).
-pub const PREFERRED_PIECE: usize = 380;
+/// How much of the whole text one QR code carries.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Density {
+    /// Large codes (about 117 modules a side, version 25): few codes for a save, read by a
+    /// camera of 1080p or better that sees the code fill about half the picture's height.
+    Dense,
+    /// Small codes (about 60 modules a side, version 12): more of them, but a camera at
+    /// 1280 x 720 resolves their modules when the code fills half the picture's height.
+    Small,
+}
+
+impl Density {
+    /// The letters of the whole text a part carries.
+    pub const fn piece(self) -> usize {
+        match self {
+            Self::Dense => DENSE_PIECE,
+            Self::Small => SMALL_PIECE,
+        }
+    }
+
+    /// The other density.
+    pub const fn other(self) -> Self {
+        match self {
+            Self::Dense => Self::Small,
+            Self::Small => Self::Dense,
+        }
+    }
+}
+
+/// The letters of the whole text a dense part carries.
+const DENSE_PIECE: usize = 1800;
+/// The letters of the whole text a small part carries when the code has parts to spare.
+const SMALL_PIECE: usize = 380;
 
 /// The texts the QR codes of `whole` carry, in order: `whole` itself when it is short enough
-/// for a small QR code, else its parts (pieces of equal length, give or take a letter): as many
-/// as make each a small code, or fewer and larger ones when the most parts would not hold it
-/// so. `None` when even the largest codes in the most parts do not hold it.
-pub fn split(whole: &str) -> Option<Vec<String>> {
-    if whole.len() <= PREFERRED_PIECE + OVERHEAD {
+/// for one code of the density, else its parts (pieces of equal length, give or take a letter):
+/// as many as make each a code of the density, or fewer and larger ones when the most parts
+/// would not hold it so. `None` when even the largest codes in the most parts do not hold it.
+pub fn split(whole: &str, density: Density) -> Option<Vec<String>> {
+    let preferred = density.piece();
+    if whole.len() <= preferred + OVERHEAD {
         return Some(vec![whole.to_owned()]);
     }
-    let count = whole.len().div_ceil(PREFERRED_PIECE).min(MOST_PARTS);
+    let count = whole.len().div_ceil(preferred).min(MOST_PARTS);
     if whole.len().div_ceil(count) > MOST_PIECE {
         return None;
     }
     let id = crc32(whole.as_bytes());
     let piece = whole.len().div_ceil(count);
+    // The pieces of `piece` letters may leave fewer parts than `count`; the count named in each
+    // part is the one made.
+    let count = whole.len().div_ceil(piece);
     Some(
         whole
             .as_bytes()
@@ -181,33 +214,29 @@ mod tests {
 
     #[test]
     fn a_short_text_is_one_qr_code_as_it_is() {
-        let t = text(PREFERRED_PIECE + OVERHEAD);
-        assert_eq!(split(&t), Some(vec![t]));
+        let t = text(SMALL_PIECE + OVERHEAD);
+        assert_eq!(split(&t, Density::Small), Some(vec![t]));
     }
 
     #[test]
     fn parts_are_small_codes_until_there_are_too_many() {
         // Under the most parts at the preferred size: every part small.
         for n in [
-            PREFERRED_PIECE + OVERHEAD + 1,
+            SMALL_PIECE + OVERHEAD + 1,
             2000,
             9000,
-            MOST_PARTS * PREFERRED_PIECE,
+            MOST_PARTS * SMALL_PIECE,
         ] {
-            let parts = split(&text(n)).unwrap();
-            assert_eq!(
-                parts.len(),
-                n.div_ceil(PREFERRED_PIECE).min(MOST_PARTS),
-                "{n}"
-            );
+            let parts = split(&text(n), Density::Small).unwrap();
+            assert_eq!(parts.len(), n.div_ceil(SMALL_PIECE).min(MOST_PARTS), "{n}");
             for p in &parts {
-                assert!(p.len() <= PREFERRED_PIECE + OVERHEAD, "{n}: {}", p.len());
+                assert!(p.len() <= SMALL_PIECE + OVERHEAD, "{n}: {}", p.len());
                 let modules = qr::encode(p).unwrap();
                 assert!(modules.side <= 65, "{n}: {}", modules.side);
             }
         }
         // Past it, the most parts, each as large as it must be.
-        let parts = split(&text(MOST_PARTS * PREFERRED_PIECE + 1000)).unwrap();
+        let parts = split(&text(MOST_PARTS * SMALL_PIECE + 1000), Density::Small).unwrap();
         assert_eq!(parts.len(), MOST_PARTS);
     }
 
@@ -215,7 +244,7 @@ mod tests {
     fn parts_fit_a_qr_code_and_join_in_any_order() {
         for n in [qr::MOST_LETTERS + 1, 9000, 12_000, 40_000, 90_000] {
             let whole = text(n);
-            let parts = split(&whole).unwrap();
+            let parts = split(&whole, Density::Small).unwrap();
             assert!(parts.len() >= 2);
             for p in &parts {
                 assert!(p.len() <= qr::MOST_LETTERS, "{n}: {}", p.len());
@@ -236,9 +265,36 @@ mod tests {
     }
 
     #[test]
+    fn dense_parts_are_fewer_larger_codes_and_never_mix_with_small_ones() {
+        for n in [DENSE_PIECE + OVERHEAD + 1, 6000, 20_000] {
+            let whole = text(n);
+            let dense = split(&whole, Density::Dense).unwrap();
+            let small = split(&whole, Density::Small).unwrap();
+            assert_eq!(dense.len(), n.div_ceil(DENSE_PIECE), "{n}");
+            assert!(dense.len() * 4 <= small.len() + 3, "{n}");
+            for p in &dense {
+                assert!(p.len() <= DENSE_PIECE + OVERHEAD);
+                assert!(qr::encode(p).unwrap().side <= 117, "{n}");
+            }
+            // One set's count is not the other's, so a part of one is another set's to the other.
+            let mut assembly = Assembly::default();
+            assert_eq!(assembly.take(Part::read(&dense[0]).unwrap()), Taken::New);
+            assert_eq!(assembly.take(Part::read(&small[1]).unwrap()), Taken::Other);
+            for p in &dense[1..] {
+                assembly.take(Part::read(p).unwrap());
+            }
+            assert_eq!(assembly.whole(), Some(Ok(whole)));
+        }
+        // A text a dense code holds whole is one code, small or not.
+        let short = text(DENSE_PIECE);
+        assert_eq!(split(&short, Density::Dense), Some(vec![short.clone()]));
+        assert!(split(&short, Density::Small).unwrap().len() > 1);
+    }
+
+    #[test]
     fn parts_of_two_codes_do_not_mix() {
-        let a = split(&text(9000)).unwrap();
-        let b = split(&text(9001)).unwrap();
+        let a = split(&text(9000), Density::Small).unwrap();
+        let b = split(&text(9001), Density::Small).unwrap();
         let mut assembly = Assembly::default();
         assert_eq!(assembly.take(Part::read(&a[0]).unwrap()), Taken::New);
         assert_eq!(assembly.take(Part::read(&b[1]).unwrap()), Taken::Other);
@@ -248,7 +304,7 @@ mod tests {
 
     #[test]
     fn a_wrong_piece_fails_the_check_number() {
-        let parts = split(&text(9000)).unwrap();
+        let parts = split(&text(9000), Density::Small).unwrap();
         let mut assembly = Assembly::default();
         for (n, p) in parts.iter().enumerate() {
             let mut part = Part::read(p).unwrap();
@@ -280,7 +336,7 @@ mod tests {
 
     #[test]
     fn too_long_a_text_has_no_parts() {
-        assert!(split(&text(MOST_PARTS * MOST_PIECE + 1)).is_none());
-        assert!(split(&text(MOST_PARTS * MOST_PIECE)).is_some());
+        assert!(split(&text(MOST_PARTS * MOST_PIECE + 1), Density::Small).is_none());
+        assert!(split(&text(MOST_PARTS * MOST_PIECE), Density::Small).is_some());
     }
 }

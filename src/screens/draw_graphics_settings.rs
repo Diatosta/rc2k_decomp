@@ -102,6 +102,12 @@ pub fn draw_graphics_settings(
         );
         scale.extend(b" %");
         rc2k_core::screens::settings_pages::graphics_render_scale(&mut screen, &scale)?;
+        let rain = own(if crate::menu::advanced_items::rain_and_snow_on(o) {
+            id::ON
+        } else {
+            id::OFF
+        });
+        rc2k_core::screens::settings_pages::graphics_rain_and_snow(&mut screen, &rain)?;
         Ok(())
     }
 }
