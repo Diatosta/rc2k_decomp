@@ -238,6 +238,15 @@ fn rebuild(
                 mode,
             });
         }
+        // The game's own table has sizes up to 1920 x 1280 whatever the screen: one larger than
+        // the desktop could only be shown shrunk, with bars, so it is left out unless it is the
+        // mode in use (a saved choice stays listed and chosen).
+        if let Some((dw, dh)) = desktop {
+            let fits = |l: &mc::Listed| (l.width <= dw && l.height <= dh) || l.mode == current;
+            if all.iter().any(fits) {
+                all.retain(fits);
+            }
+        }
         all.sort_by_key(|l| rc2k_core::gfx::resolutions::order(l.width, l.height));
         all.truncate(mc::ROOM as usize);
     }

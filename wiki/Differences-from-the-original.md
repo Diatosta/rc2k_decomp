@@ -68,7 +68,7 @@ The original was a 32-bit Windows program on DirectX. Its platform side was not 
   scaled down, which smooths the edges (supersampling). The dashboard and the texts stay at full
   size. The handheld no longer draws at half size by itself: set the row to 50 %.
 - **Screen sizes.** The resolution list holds the monitor's own modes, the usual sizes of 4:3,
-  16:10, 16:9, 21:9 and 32:9 that fit the desktop and the game's eight, each with its ratio, listed by width, then height (the
+  16:10, 16:9, 21:9 and 32:9 that fit the desktop and those of the game's eight that fit it (a larger one only while it is the size in use), each with its ratio, listed by width, then height (the
   same order on every platform, a phone's or a page's own size included). Any
   other size can be set with `custom_width` / `custom_height` in `var/rc2k.toml`. 16-bit screen
   modes are gone: the screen always has 32 bits a pixel (an old 16-bit choice becomes the same
