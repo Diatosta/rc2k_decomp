@@ -116,6 +116,43 @@ pub fn capped_desktop(desktop: Option<(u32, u32)>, max_width: u32) -> Option<(u3
     Some((max_width, (height & !1).max(240)))
 }
 
+/// The widest frame a phone's own size is cut down to by default: the menus' canvas is drawn by
+/// the processor and shown whole each frame, which a screen of three million pixels makes slow.
+pub const PHONE_WIDEST: u32 = 1920;
+
+/// The shares (numerator, denominator) of a screen's own size a small screen offers beside it:
+/// fewer pixels to draw where the frame rate needs it.
+const FRACTIONS: [(u32, u32); 4] = [(1, 1), (3, 4), (2, 3), (1, 2)];
+
+/// A size scaled by a fraction, each side down to an even number.
+fn scaled((w, h): (u32, u32), (n, d): (u32, u32)) -> (u32, u32) {
+    let side = |v: u32| (u64::from(v) * u64::from(n) / u64::from(d)) as u32 & !1;
+    (side(w), side(h))
+}
+
+/// The sizes a screen with no mode list of its own (a phone's, which is one size in pixels)
+/// offers: the `native` size and its fractions, none below the smallest size.
+pub fn native_fractions(native: (u32, u32)) -> Vec<(u32, u32)> {
+    let mut sizes: Vec<(u32, u32)> = FRACTIONS
+        .into_iter()
+        .map(|f| scaled(native, f))
+        .filter(|&(w, h)| w >= SMALLEST.0 && h >= SMALLEST.1)
+        .collect();
+    sizes.dedup();
+    sort(&mut sizes);
+    sizes
+}
+
+/// The size a phone's race starts at: the largest of the `native` size's fractions that is no
+/// wider than `PHONE_WIDEST` (the native size itself when none is).
+pub fn native_default(native: (u32, u32)) -> (u32, u32) {
+    native_fractions(native)
+        .into_iter()
+        .rev()
+        .find(|&(w, _)| w <= PHONE_WIDEST)
+        .unwrap_or(native)
+}
+
 /// The place of a size in every list of sizes: by width, then height.
 pub fn order(width: u32, height: u32) -> (u32, u32) {
     (width, height)
@@ -176,6 +213,18 @@ mod tests {
             label(2000, 700, Some((2000, 700)), b"custom"),
             b"custom 2000 x 700"
         );
+    }
+
+    #[test]
+    fn a_phones_own_size_and_its_default() {
+        let native = (2556, 1179);
+        let all = native_fractions(native);
+        assert_eq!(all.last(), Some(&(2556, 1178)));
+        assert!(all.contains(&(1278, 588)) && all.contains(&(1704, 786)));
+        // The widest of the fractions that fits 1920: three quarters.
+        assert_eq!(native_default(native), (1917 & !1, 884));
+        assert_eq!(native_default((1280, 720)), (1280, 720));
+        assert_eq!(native_default((640, 480)), (640, 480));
     }
 
     #[test]

@@ -155,8 +155,30 @@ pub fn frame_shown() {
     let wait = pacer.wait(Instant::now(), period);
     drop(pacer);
     if !wait.is_zero() {
-        std::thread::sleep(wait);
+        idle(wait);
     }
+}
+
+/// The wait between frames. On iOS the game's thread is the app's main thread, which UIKit
+/// hands touches to through its run loop: a plain sleep there left that run loop unrun for
+/// most of each frame, and the system then held touches for seconds at a time.
+fn idle(wait: Duration) {
+    #[cfg(target_os = "ios")]
+    {
+        static SAID: std::sync::Once = std::sync::Once::new();
+        let main = crate::platform::ffi::unix::on_main_thread();
+        SAID.call_once(|| {
+            crate::logfile::program_log::log(&format!(
+                "pacing: frames wait in the run loop: {main} (the main thread)"
+            ));
+        });
+    }
+    #[cfg(target_os = "ios")]
+    if crate::platform::ffi::unix::on_main_thread() {
+        crate::platform::ffi::unix::run_loop_for(wait);
+        return;
+    }
+    std::thread::sleep(wait);
 }
 
 #[cfg(test)]

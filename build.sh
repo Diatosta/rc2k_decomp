@@ -32,6 +32,8 @@ targets:
   linux         Linux, x86-64                                 dist/linux/
   mac           macOS, Intel and Apple silicon in one bundle  dist/mac/
                 (on a Mac; from elsewhere on MAC_HOST over SSH; --arch x64|a64 for one)
+  ios           iPhone / iPad, crossed on Linux (needs Apple's SDK)   dist/ios/
+                (tools/ios/README.md: the SDK, signing and installing from Linux)
   deck          Steam Deck (Linux x86-64 in a Docker container of Ubuntu 22.04, glibc 2.35;
                 tuned for its Zen 2 processor, with Steam)    dist/deck/
   handheld      Anbernic RG34XXSP (in its Docker container)   dist/handheld/
@@ -291,6 +293,42 @@ build_mac_over_ssh() {
     rsync -a -e "$ssh" "$MAC_HOST:$src/dist/mac/" "$DIST/"
 }
 
+# iOS, crossed on Linux (tools/ios/README.md): the arm64 program in `Rally Championship.app`
+# and the `.ipa` (the app zipped in a Payload folder), unsigned: signing needs the owner's
+# Apple ID (xtool, or zsign), which `tools/ios/install.sh` does.
+build_ios() {
+    need clang "the iOS build crosses with clang, lld and cmake (tools/ios/README.md)"
+    need cmake "SDL is built from source: install cmake"
+    need python3 "the .ipa is zipped by a small Python script"
+    # shellcheck disable=SC1091
+    source tools/ios/env.sh || fail "no iOS SDK (tools/ios/README.md, step 2)"
+    CARGO_TARGET_DIR=target/ios cargo build ${CARGO_FLAGS[@]+"${CARGO_FLAGS[@]}"} \
+        --features ios-sdl-source --target aarch64-apple-ios --bin rc2k
+    fresh_dist
+    local app="$DIST/Rally Championship.app"
+    mkdir -p "$app"
+    cp "target/ios/aarch64-apple-ios/$PROFILE/rc2k" "$app/rc2k"
+    cp tools/ios/Info.plist "$app/Info.plist"
+    # The home-screen name also as a localised string (it keeps its space where a signing
+    # step rewrites the property list).
+    # (and the permission questions' texts, in English and Portuguese)
+    for lang in en pt; do
+        mkdir -p "$app/$lang.lproj" && cp "tools/ios/$lang.lproj/InfoPlist.strings" "$app/$lang.lproj/"
+    done
+    cp tools/ios/icons/AppIcon*@*.png "$app/"
+    (cd "$DIST" && rm -rf Payload && mkdir Payload && cp -R "Rally Championship.app" Payload/ \
+        && python3 -c 'import os, sys, zipfile
+z = zipfile.ZipFile(sys.argv[1], "w", zipfile.ZIP_DEFLATED)
+for d, _, fs in os.walk("Payload"):
+    for f in fs:
+        p = os.path.join(d, f)
+        info = zipfile.ZipInfo.from_file(p, p)
+        info.external_attr = (0o755 if f == "rc2k" else 0o644) << 16
+        z.writestr(info, open(p, "rb").read(), zipfile.ZIP_DEFLATED)' "Rally Championship.ipa" \
+        && rm -rf Payload)
+    echo "built $DIST/Rally Championship.ipa (unsigned): install it with tools/ios/install.sh"
+}
+
 build_web() {
     [ -f "$HOME/emsdk/emsdk_env.sh" ] || fail "no Emscripten SDK in ~/emsdk (https://emscripten.org/docs/getting_started/downloads.html)"
     rustup toolchain list | grep -q '^nightly' || fail "no nightly toolchain: rustup toolchain install nightly --target wasm32-unknown-emscripten --component rust-src"
@@ -324,6 +362,9 @@ case "$TARGET" in
         build_linux
         report
         if $DEPLOY; then deploy_to_folder "${DEPLOY_LINUX:-$HOME/.local/share/rally-championship}"; fi
+        ;;
+    ios)
+        build_ios
         ;;
     deck)
         build_deck

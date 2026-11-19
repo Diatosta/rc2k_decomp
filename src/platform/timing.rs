@@ -28,14 +28,63 @@ static LONGEST_TURN_GAP: std::sync::atomic::AtomicU64 = std::sync::atomic::Atomi
 /// swapchain), in the frame's finish and in a readback of the frame (`render::bring_back`),
 /// and in each flush of the 3D (recording and submitting a command buffer); and the longest
 /// show of one frame. Written by the game's thread only.
+#[cfg_attr(
+    all(target_os = "linux", target_arch = "aarch64"),
+    allow(
+        dead_code,
+        reason = "noted by the GPU renderer and the present, not on the handheld"
+    )
+)]
 pub static PRESENT_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+#[cfg_attr(
+    all(target_os = "linux", target_arch = "aarch64"),
+    allow(
+        dead_code,
+        reason = "noted by the GPU renderer and the present, not on the handheld"
+    )
+)]
 pub static PRESENT_MAX: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+#[cfg_attr(
+    all(target_os = "linux", target_arch = "aarch64"),
+    allow(
+        dead_code,
+        reason = "noted by the GPU renderer and the present, not on the handheld"
+    )
+)]
 pub static FINISH_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+#[cfg_attr(
+    all(target_os = "linux", target_arch = "aarch64"),
+    allow(
+        dead_code,
+        reason = "noted by the GPU renderer and the present, not on the handheld"
+    )
+)]
 pub static FINISH_MAX: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 pub static READ_BACK_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 pub static READ_BACK_MAX: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+#[cfg_attr(
+    all(target_os = "linux", target_arch = "aarch64"),
+    allow(
+        dead_code,
+        reason = "noted by the GPU renderer and the present, not on the handheld"
+    )
+)]
 pub static FLUSH_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+#[cfg_attr(
+    all(target_os = "linux", target_arch = "aarch64"),
+    allow(
+        dead_code,
+        reason = "noted by the GPU renderer and the present, not on the handheld"
+    )
+)]
 pub static FLUSH_MAX: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+#[cfg_attr(
+    all(target_os = "linux", target_arch = "aarch64"),
+    allow(
+        dead_code,
+        reason = "noted by the GPU renderer and the present, not on the handheld"
+    )
+)]
 pub static FLUSH_RUNS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 pub static SHOW_MAX: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 

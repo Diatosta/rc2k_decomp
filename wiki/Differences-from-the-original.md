@@ -80,7 +80,8 @@ The original was a 32-bit Windows program on DirectX. Its platform side was not 
   kept in `rc2k.toml` from then on (the log says "the saved race size ... is larger than the
   desktop"); when the desktop's size is not known nothing is changed. 16-bit screen
   modes are gone: the screen always has 32 bits a pixel (an old 16-bit choice becomes the same
-  size at 32 bits).
+  size at 32 bits). On an iPhone or iPad the list holds the screen's own pixel size (the race fills it
+  edge to edge, the HUD keeping clear of the notch) and its 3/4, 2/3 and 1/2, and the race starts at the largest no wider than 1920.
 - **Wide screens.** On a screen wider than 4:3 the 3D keeps its field of view up and down and
   shows more to the sides; the HUD keeps its 800 x 600 shape with its pieces in the corners and
   edges. The graphics page's "HUD area" row (the whole screen at first) confines the HUD to a

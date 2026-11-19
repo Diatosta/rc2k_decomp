@@ -612,6 +612,13 @@ struct CanvasTexture {
 
 pub static GPU: Mutex<Option<Front>> = Mutex::new(None);
 
+/// Whether this is a phone whose 3D goes on the software rasteriser: never where this renderer
+/// stands in for the GPU one (the handheld).
+#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+pub fn software_phone() -> bool {
+    false
+}
+
 /// Whether the GL is to be tried: unless `--renderer software` or `RC2K_RENDERER=software` (on a
 /// PC also not when another renderer is the only one asked for).
 pub fn wanted() -> bool {
@@ -1759,9 +1766,10 @@ impl Gpu {
         };
         let (view, placed) = match gl.drawable_size() {
             Some((w, h)) => {
-                let fit = rc2k_core::gfx::screen_fit::fit(
+                let fit = crate::platform::safe_area::frame_fit(
                     (width as u32, height as u32),
                     (w as u32, h as u32),
+                    menu,
                 );
                 // The menus' 3D of the next frames is drawn at the size this frame's place has in
                 // the window, times the 3D's share.
@@ -2334,7 +2342,7 @@ pub fn start_on_window(
     // macOS makes an OpenGL context only on the main thread: SDL hands the GL thread's request
     // to it while the game's thread (the main one) waits for the GL thread's answer, and both
     // wait for ever. A Mac without Metal goes on to SDL's renderer and the software rasteriser.
-    if cfg!(target_os = "macos") {
+    if cfg!(target_vendor = "apple") {
         TRIED.store(true, std::sync::atomic::Ordering::Relaxed);
         log("render: the OpenGL backend is not used on macOS");
         return false;

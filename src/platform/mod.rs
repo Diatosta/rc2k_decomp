@@ -38,10 +38,11 @@ pub mod icon;
 pub mod input;
 pub mod os;
 pub mod pacing;
+pub mod safe_area;
 pub mod sound;
 pub mod sync;
 pub mod timing;
-#[cfg(target_os = "android")]
+#[cfg(any(target_os = "android", target_os = "ios"))]
 pub mod touch;
 #[cfg(touch_screen)]
 pub mod touch_menu;
@@ -226,6 +227,25 @@ pub fn monitor_modes() -> sdl::DisplayModes {
             .lock()
             .ok()
             .and_then(|screen| screen.as_ref().map(|s| s.window));
+        #[cfg(target_os = "ios")]
+        {
+            // A phone's one mode in pixels (the whole screen, landscape), and its fractions: what
+            // a frame is made at. The frame covers the screen edge to edge; the HUD keeps to the
+            // part clear of the notch and home indicator (`safe_area`).
+            let (_, desktop) = sdl::display_modes(window);
+            let usable = window
+                .and_then(sdl::Window::pixel_size)
+                .or(desktop)
+                .map(|(w, h)| (w.max(h), w.min(h)));
+            let modes = usable
+                .map(rc2k_core::gfx::resolutions::native_fractions)
+                .unwrap_or_default()
+                .into_iter()
+                .map(|(w, h)| (w, h, 60.0))
+                .collect();
+            (modes, usable)
+        }
+        #[cfg(not(target_os = "ios"))]
         sdl::display_modes(window)
     }
 }
@@ -341,6 +361,13 @@ fn set_screen_mode(
             let Some(renderer) = renderer else {
                 return Err("SDL makes no renderer for the window".into());
             };
+            #[cfg(target_os = "ios")]
+            log(&format!(
+                "platform: the window is {:?} points, {:?} pixels, its safe area {:?} (x, y, width, height, pixels)",
+                window.point_size(),
+                window.pixel_size(),
+                window.safe_area_pixels()
+            ));
             log(&format!(
                 "platform: the window's renderer is SDL's `{}`{}",
                 renderer.name(),
@@ -440,6 +467,15 @@ fn set_screen_mode(
     Ok(())
 }
 
+/// The size the race starts at on an iPhone or iPad that has no choice of its own: the screen's
+/// own pixels cut down to what the processor-drawn menus
+/// can keep up with (`rc2k_core::gfx::resolutions::native_default`).
+#[cfg(target_os = "ios")]
+pub fn phone_default_size() -> Option<(u32, u32)> {
+    let (_, usable) = monitor_modes();
+    usable.map(rc2k_core::gfx::resolutions::native_default)
+}
+
 /// The window's renderer and the 3D's backend, started in the order the choice names (the GPU
 /// API's renderer on its device, OpenGL beside SDL's own renderer, SDL's own renderer with the
 /// software rasteriser); `None` when SDL makes no renderer at all. Logs what runs. `size` is the
@@ -468,6 +504,10 @@ fn make_window_renderer(window: sdl::Window, size: (usize, usize)) -> Option<sdl
 /// The shown window put into the kept window mode (`window_mode`); logs what SDL says.
 #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
 fn set_window_mode(window: sdl::Window, size: (usize, usize)) {
+    // A phone's window always fills the screen.
+    if cfg!(target_os = "ios") {
+        return;
+    }
     use sdl::FullScreen;
     use window_mode::WindowMode;
     let shown = input_window(window);
@@ -938,7 +978,7 @@ fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(),
         // The race's touch controls.
         #[cfg(touch_screen)]
         if events::touch_controls_live(o.race) {
-            #[cfg(target_os = "android")]
+            #[cfg(any(target_os = "android", target_os = "ios"))]
             crate::platform::touch::draw(
                 renderer,
                 input_window(screen.window),
@@ -989,7 +1029,13 @@ fn show_fitted(
     let window = renderer
         .window_pixels()
         .unwrap_or((screen.window_size.0 as u32, screen.window_size.1 as u32));
-    let fit = rc2k_core::gfx::screen_fit::fit((frame_width, frame_height), window);
+    // A phone's race frame covers the whole screen and its menu page is centred across the part
+    // clear of the notch, the rounded corners and the home indicator (`safe_area`).
+    #[cfg(target_os = "ios")]
+    if let Some(safe) = screen.window.safe_area_pixels() {
+        safe_area::set(safe, window);
+    }
+    let fit = safe_area::frame_fit((frame_width, frame_height), window, screen.menu);
     // A frame drawn larger than the frame (a menu's 3D at the window's size) is shown with the
     // filter unless it is the very size it is shown at.
     texture.set_sharp(if shown == (frame_width, frame_height) {

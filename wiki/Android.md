@@ -2,9 +2,10 @@
 
 *Category: [Getting started](Getting-started)*
 
-A build for Android phones and tablets (64-bit ARM, and x86-64 for the emulator). It is **begun**:
-it builds, starts, shows the menus, plays a race with touch controls and survives being sent to
-the background and back. It has been run in the Android emulator only, not yet on a phone.
+A build for Android phones and tablets (64-bit ARM, and x86-64 for the emulator). It runs on a
+phone: the menus and races by touch or a pad, vibration, screenshots into an album, replays,
+being sent to the background and back (on a 120 Hz phone the menus run at 120 frames a second).
+Not yet run: Android 9 and older. The [iOS](iOS) build shares its touch controls.
 
 ## What it is
 
@@ -96,8 +97,7 @@ does not fill.
 
 ## Not done yet
 
-- a run on a real phone, and the speed there (the emulator draws on a software Vulkan: about 9
-  frames a second);
+- a run on Android 9 and older (the screenshots' album takes another way there);
 - a first-run picker for the game's zip, and a play-store style signed package;
 - the options pages that make no sense on a phone (window mode, the keyboard's keys);
 - the DualSense/Xbox pad's extras, Steam, and the debug window are left out of this build.

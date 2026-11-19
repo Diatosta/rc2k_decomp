@@ -75,14 +75,17 @@ pub fn mirror_view_window(
             crate::memory::session::PlainDword::get,
         )
     };
+    // The mirror keeps to the part of the screen clear of a phone's notch and home indicator.
+    let [inset_x, inset_y, inset_width, inset_height] =
+        crate::hud::safe_inset::get((reads.screen.width.get(), reads.screen.height.get()), None);
     let Some(MirrorRect {
-        x,
-        y,
+        x: place_x,
+        y: place_y,
         width: sx,
         height: sy,
     }) = mirror_window(
         (at(0), at(1)),
-        (reads.screen.width.get(), reads.screen.height.get()),
+        (inset_width, inset_height),
         // Two players side by side keep each mirror to their own half.
         if reads.vars.split.get() == 1 {
             rc2k_core::hud::anchor::Rule::Halves
@@ -96,6 +99,7 @@ pub fn mirror_view_window(
         return Err(BadInput("a mirror place whose scaling overflows").into());
     };
     trap.finish()?;
+    let (x, y) = ((place_x + inset_x) & !1, place_y + inset_y);
     poly.window.view_offset[0].set(x);
     poly.window.view_offset[1].set(y);
     poly.window.view_size[0].set(sx);

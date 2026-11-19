@@ -17,7 +17,7 @@ fn main() {
     let arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
     let bits = std::env::var("CARGO_CFG_TARGET_POINTER_WIDTH").unwrap_or_default();
     let handheld = os == "linux" && arch == "aarch64";
-    if bits == "64" && !handheld && os != "android" {
+    if bits == "64" && !handheld && os != "android" && os != "ios" {
         println!("cargo:rustc-cfg=debug_ui");
     }
     println!("cargo:rerun-if-changed=build.rs");

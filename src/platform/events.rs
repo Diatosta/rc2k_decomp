@@ -86,29 +86,32 @@ fn next_event() -> Option<Event> {
             Event::Resized
         } else if kind == SDL_EVENT_WINDOW_FOCUS_GAINED {
             Event::Focus(true)
-        } else if kind == SDL_EVENT_WINDOW_FOCUS_LOST {
+        } else if kind == SDL_EVENT_WINDOW_FOCUS_LOST || kind == SDL_EVENT_WILL_ENTER_BACKGROUND {
+            // A phone's app sent to the background (the system takes the GPU from it).
             Event::Focus(false)
+        } else if kind == SDL_EVENT_DID_ENTER_FOREGROUND {
+            Event::Focus(true)
         } else if kind == SDL_EVENT_JOYSTICK_ADDED {
-            #[cfg(target_os = "android")]
+            #[cfg(any(target_os = "android", target_os = "ios"))]
             crate::platform::touch::pad_added(event.joystick_id());
             crate::platform::input::pad_added(event.joystick_id());
             Event::Other
         } else if kind == SDL_EVENT_JOYSTICK_REMOVED {
-            #[cfg(target_os = "android")]
+            #[cfg(any(target_os = "android", target_os = "ios"))]
             crate::platform::touch::pad_removed(event.joystick_id());
             crate::platform::input::pad_removed(event.joystick_id());
             Event::Other
         } else if let Some(finger) = finger_event(&event) {
             finger
         } else if let Some((id, button, down)) = event.gamepad_button() {
-            #[cfg(target_os = "android")]
+            #[cfg(any(target_os = "android", target_os = "ios"))]
             if down {
                 crate::platform::touch::pad_used(id);
             }
             Event::Pad { id, button, down }
         } else if let Some((axis, value)) = event.gamepad_axis() {
             // A stick pushed well off its rest, or a trigger pressed, is the controller used.
-            #[cfg(target_os = "android")]
+            #[cfg(any(target_os = "android", target_os = "ios"))]
             if value.unsigned_abs() > 16000
                 && let Some(id) = event.gamepad_axis_joystick()
             {
@@ -317,7 +320,7 @@ pub fn pump(o: crate::owners::Owners<'static>) {
         }
     }
     let now = u64::from(crate::platform::os::ticks());
-    #[cfg(target_os = "android")]
+    #[cfg(any(target_os = "android", target_os = "ios"))]
     {
         // Player 1's controls changed hands (a controller used, a finger down in a race, a
         // controller gone): the game's device for the car follows.
@@ -869,7 +872,7 @@ fn touch_finger(
     };
     if touch_controls_live(o.race) {
         crate::platform::touch_menu::release_all();
-        #[cfg(target_os = "android")]
+        #[cfg(any(target_os = "android", target_os = "ios"))]
         crate::platform::touch::finger(window, id, phase, x, y, now);
         return;
     }

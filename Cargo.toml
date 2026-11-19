@@ -21,6 +21,8 @@ edition = "2024"
 [features]
 # Remote control for automated test runs (`src/remote.rs`, `tools/remote.py`).
 remote = []
+# iOS: build SDL from its source and link it in (needs Apple's iOS SDK; `./build.sh ios`).
+ios-sdl-source = ["sdl3-sys/build-from-source-static"]
 
 [lib]
 crate-type = ["rlib"]
@@ -43,7 +45,7 @@ smallvec = { version = "1", features = ["const_generics"] }
 # The debug UI (`src/debug/`): Dear ImGui (docking branch), its C++ built from source;
 # the SDL glue is ours (`debug::imgui_sdl`). Its crate has no 32-bit Windows target: the
 # 32-bit build has no debug UI.
-[target.'cfg(all(target_pointer_width = "64", not(target_os = "android"), not(all(target_os = "linux", target_arch = "aarch64"))))'.dependencies]
+[target.'cfg(all(target_pointer_width = "64", not(target_os = "android"), not(target_os = "ios"), not(all(target_os = "linux", target_arch = "aarch64"))))'.dependencies]
 dear-imgui-rs = { version = "0.21", default-features = false }
 dear-imgui-sys = { version = "0.21", default-features = false, features = ["build-from-source"] }
 
@@ -61,6 +63,13 @@ sdl3-sys = { version = "0.7", features = ["build-from-source-static"] }
 # no use for one, and its AVFoundation capture calls are missing from Darling, where it is tested.
 [target.'cfg(target_os = "macos")'.dependencies]
 sdl3-sys = { version = "0.7", features = ["build-from-source-static", "no-sdl-camera"] }
+
+# iOS (`tools/ios/README.md`): SDL's UIKit and Metal backends. SDL is linked as a library
+# built elsewhere (`ios-sdl-source` builds it from source, which needs Apple's SDK), so that
+# `cargo check --target aarch64-apple-ios` works without the SDK. SDL's camera is on (the save
+# code page's QR scan; its CoreMedia driver links AVFoundation, CoreMedia and CoreVideo).
+[target.'cfg(target_os = "ios")'.dependencies]
+sdl3-sys = "0.7"
 
 # The handheld has neither X11 nor Wayland: SDL for its audio and joystick, the frames go to
 # the framebuffer (`handheld`).

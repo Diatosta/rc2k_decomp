@@ -124,6 +124,20 @@ pub fn memory() -> [u32; 4] {
 
 pub use crate::platform::ffi::unix::{discard_pages, map_pages, own_stack_word};
 
+/// On iOS the program's folder is the app's Documents folder (`$HOME/Documents`, made if it is
+/// missing), the one the Files app shows and file sharing reaches: the game's folder is copied
+/// there, and `var` and `savedata` are written there. Made the current folder.
+#[cfg(target_os = "ios")]
+pub fn enter_documents() -> std::io::Result<std::path::PathBuf> {
+    let home = std::env::var_os("HOME")
+        .filter(|h| !h.is_empty())
+        .ok_or_else(|| std::io::Error::other("no HOME folder"))?;
+    let documents = std::path::PathBuf::from(home).join("Documents");
+    std::fs::create_dir_all(&documents)?;
+    std::env::set_current_dir(&documents)?;
+    Ok(documents)
+}
+
 /// On macOS a program started from its `.app` bundle (from Finder, or `open`) runs in `/`.
 /// - An installed bundle (it holds `Contents/Resources/files`) reads the game's files from
 ///   itself and runs in the user's Application Support folder, where `var` and `savedata` are

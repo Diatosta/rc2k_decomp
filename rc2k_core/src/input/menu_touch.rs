@@ -364,18 +364,6 @@ impl Gestures {
     }
 }
 
-/// A point of the window (pixels) as a point of the frame shown in it (pixels), the frame
-/// fitted into the window with its shape kept (`gfx::screen_fit`); none outside the picture.
-pub fn frame_point(point: (f32, f32), frame: (u32, u32), window: (u32, u32)) -> Option<(f32, f32)> {
-    let fit = crate::gfx::screen_fit::fit(frame, window);
-    if fit.width == 0 || fit.height == 0 {
-        return None;
-    }
-    let x = (point.0 - fit.x as f32) * frame.0 as f32 / fit.width as f32;
-    let y = (point.1 - fit.y as f32) * frame.1 as f32 / fit.height as f32;
-    (x >= 0.0 && y >= 0.0 && x < frame.0 as f32 && y < frame.1 as f32).then_some((x, y))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -774,16 +762,5 @@ mod tests {
         );
         assert!(got.is_empty());
         assert!(tick(&mut g, 2000).is_empty());
-    }
-
-    #[test]
-    fn the_window_is_mapped_into_the_frame() {
-        // An 800 x 600 frame in a wide window: centred, the height deciding.
-        let at = |p| frame_point(p, (800, 600), (2400, 1080));
-        assert_eq!(at((1200.0, 540.0)), Some((400.0, 300.0)));
-        assert_eq!(at((480.0, 0.0)), Some((0.0, 0.0)));
-        // The side space is outside the picture.
-        assert_eq!(at((100.0, 540.0)), None);
-        assert_eq!(at((2300.0, 540.0)), None);
     }
 }

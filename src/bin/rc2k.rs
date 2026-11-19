@@ -14,7 +14,43 @@
 
 use std::path::Path;
 
+/// On iOS the program is an application: SDL starts the system's application loop and calls
+/// `game` from its first event, on the main thread.
+#[cfg(target_os = "ios")]
 fn main() {
+    use std::ffi::CString;
+    let mut texts: Vec<CString> = std::env::args()
+        .filter_map(|a| CString::new(a).ok())
+        .collect();
+    let mut pointers: Vec<*mut std::ffi::c_char> =
+        texts.iter_mut().map(|t| t.as_ptr().cast_mut()).collect();
+    pointers.push(std::ptr::null_mut());
+    unsafe extern "C" fn entry(
+        _: std::ffi::c_int,
+        _: *mut *mut std::ffi::c_char,
+    ) -> std::ffi::c_int {
+        game();
+        0
+    }
+    // SAFETY: `pointers` is a null-ended list of the NUL-ended `texts`, both alive for the call
+    // (which does not return until the application ends); `entry` has SDL's function type.
+    let code = unsafe {
+        sdl3_sys::main::SDL_RunApp(
+            (pointers.len() - 1) as std::ffi::c_int,
+            pointers.as_mut_ptr(),
+            Some(entry),
+            std::ptr::null_mut(),
+        )
+    };
+    std::process::exit(code);
+}
+
+#[cfg(not(target_os = "ios"))]
+fn main() {
+    game();
+}
+
+fn game() {
     #[cfg(target_os = "emscripten")]
     rc2k_decomp::web::enter_game_folder();
     let args: Vec<String> = std::env::args().skip(1).collect();

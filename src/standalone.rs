@@ -721,6 +721,12 @@ pub fn run(log_file: &Path, frames: u32) -> ! {
     // Before any path is read: a program in a macOS bundle runs in the bundle's folder.
     #[cfg(target_os = "macos")]
     let bundle_folder = crate::platform::os::enter_bundle_folder();
+    // An iOS app has no folder of its own to start in: its Documents folder is the game's.
+    #[cfg(target_os = "ios")]
+    if let Err(e) = crate::platform::os::enter_documents() {
+        log(&format!("standalone: the Documents folder: {e}"));
+        std::process::exit(1);
+    }
     // Absolute: the installer changes the current folder (`install::make_folders`).
     let switches = rc2k_core::system::program_switches::Switches::from_args(
         &crate::platform::os::program_args()[1..],

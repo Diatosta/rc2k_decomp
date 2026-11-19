@@ -36,6 +36,19 @@ pub fn add_polygon(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
                 system.session.screen.get().height.get(),
             ],
         };
+        // Where a phone's notch and home indicator leave the HUD room (the whole screen or part
+        // elsewhere): the layout is made for that, and put where it is.
+        let [ox, oy, iw, ih] = if hud.block.anchor_rule.get() >= 3 {
+            [0, 0, w, h]
+        } else {
+            crate::hud::safe_inset::get(
+                (
+                    system.session.screen.get().width.get(),
+                    system.session.screen.get().height.get(),
+                ),
+                part,
+            )
+        };
         let [kx, ky] = [
             hud.block.virtual_screen[0].get(),
             hud.block.virtual_screen[1].get(),
@@ -50,14 +63,15 @@ pub fn add_polygon(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
         let (box_left, box_width) = if rule >= 3 {
             (0, w)
         } else {
-            crate::hud::box_ratio::get().area(w, h)
+            let (left, width) = crate::hud::box_ratio::get().area(iw, ih);
+            (ox + left, width)
         };
-        let wide = anchor::is_wide(box_width, h) && (kx, ky) == (800.0, 600.0);
+        let wide = anchor::is_wide(box_width, ih) && (kx, ky) == (800.0, 600.0);
         // Two players side by side on a wide screen: each half is a part of its own.
         let keep = crate::hud::layout_common::Keep::Halves as u32;
         let part_middle = crate::hud::layout_common::Keep::PartMiddle as u32;
         let beside = (rule == keep || rule == part_middle)
-            && anchor::is_wide(w, h)
+            && anchor::is_wide(iw, ih)
             && (kx, ky) == (800.0, 600.0);
         let middle_of = || {
             let (low, high) = vertices().fold((f32::MAX, f32::MIN), |(lo, hi), v| {
@@ -68,17 +82,17 @@ pub fn add_polygon(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
         let x_of: Box<dyn Fn(f32) -> f32> = if beside {
             let map = anchor::Beside::new(
                 middle_of(),
-                w,
-                h,
+                iw,
+                ih,
                 crate::hud::box_ratio::get(),
                 rule == part_middle,
             );
-            Box::new(move |x| map.x(x))
+            Box::new(move |x| ox as f32 + map.x(x))
         } else if wide && rule == crate::hud::layout_common::Keep::Whole as u32 {
             // Stretched over the whole width, as the divider of two players one above the other.
             Box::new(move |x| x * w as f32 / 800.0)
         } else if wide && rule == 4 {
-            Box::new(move |x| anchor::bar_x(x, box_width, h))
+            Box::new(move |x| ox as f32 + anchor::bar_x(x, box_width, ih))
         } else if wide && rule == 5 {
             // The marker keeps its shape and puts its right edge at the bar's place for its
             // progress (`anchor::marker_edge_x`), where the bar's parts end.
@@ -86,14 +100,15 @@ pub fn add_polygon(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
                 (lo.min(v.x.get()), hi.max(v.x.get()))
             });
             let (at, s) = (
-                anchor::marker_edge_x(
-                    low,
-                    hud.block.marker_k[0].get(),
-                    hud.block.marker_k[1].get(),
-                    box_width,
-                    h,
-                ),
-                h as f32 / 600.0,
+                ox as f32
+                    + anchor::marker_edge_x(
+                        low,
+                        hud.block.marker_k[0].get(),
+                        hud.block.marker_k[1].get(),
+                        box_width,
+                        ih,
+                    ),
+                ih as f32 / 600.0,
             );
             Box::new(move |x| at + (x - high) * s)
         } else if !wide {
@@ -108,7 +123,7 @@ pub fn add_polygon(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
                 _ => anchor::Rule::Thirds,
             };
             let at = anchor::anchor_of((low + high) / 2.0, rule);
-            Box::new(move |x| box_left as f32 + anchor::screen_x(x, box_width, h, at))
+            Box::new(move |x| box_left as f32 + anchor::screen_x(x, box_width, ih, at))
         };
         // Pieces that are already in screen pixels are left where they are.
         if rule != crate::hud::layout_common::Keep::Pixels as u32 {
@@ -124,13 +139,16 @@ pub fn add_polygon(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
             };
             for v in vertices() {
                 v.x.set(x_of(v.x.get()));
-                v.y.set(if narrow_part {
-                    anchor::narrow_y(v.y.get(), middle_y, box_width, h)
-                } else if wide || beside {
-                    anchor::screen_y(v.y.get(), box_width, h)
-                } else {
-                    screen_scaled(v.y.get(), h, ky)
-                });
+                v.y.set(
+                    oy as f32
+                        + if narrow_part {
+                            anchor::narrow_y(v.y.get(), middle_y, box_width, ih)
+                        } else if wide || beside {
+                            anchor::screen_y(v.y.get(), box_width, ih)
+                        } else {
+                            screen_scaled(v.y.get(), ih, ky)
+                        },
+                );
             }
         }
         if let Some(part) = part {

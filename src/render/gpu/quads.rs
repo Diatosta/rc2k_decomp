@@ -9,20 +9,20 @@ use crate::platform::ffi::sdl_gpu::{
 };
 use sdl3_sys::everything::*;
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(target_vendor = "apple"))]
 const QUAD_VERT: ShaderCode = ShaderCode {
     spirv: include_bytes!("../shaders/quad.vert.spv"),
 };
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(target_vendor = "apple"))]
 const QUAD_FRAG: ShaderCode = ShaderCode {
     spirv: include_bytes!("../shaders/quad.frag.spv"),
 };
-#[cfg(target_os = "macos")]
+#[cfg(target_vendor = "apple")]
 const QUAD_VERT: ShaderCode = ShaderCode {
     spirv: include_bytes!("../shaders/quad.vert.spv"),
     msl: include_bytes!("../shaders/quad.vert.msl"),
 };
-#[cfg(target_os = "macos")]
+#[cfg(target_vendor = "apple")]
 const QUAD_FRAG: ShaderCode = ShaderCode {
     spirv: include_bytes!("../shaders/quad.frag.spv"),
     msl: include_bytes!("../shaders/quad.frag.msl"),

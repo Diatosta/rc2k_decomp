@@ -133,12 +133,12 @@ pub struct PipelineSpec<'a> {
     pub depth: Option<(SDL_GPUDepthStencilState, SDL_GPUTextureFormat)>,
 }
 
-/// A shader's code in each format a device may take: SPIR-V (Vulkan), and on macOS also
+/// A shader's code in each format a device may take: SPIR-V (Vulkan), and on Apple systems also
 /// Metal's source (MSL, made from the SPIR-V by `tools/compile_shaders.sh`).
 #[derive(Clone, Copy)]
 pub struct ShaderCode {
     pub spirv: &'static [u8],
-    #[cfg(target_os = "macos")]
+    #[cfg(target_vendor = "apple")]
     pub msl: &'static [u8],
 }
 
@@ -173,7 +173,7 @@ impl Device {
                 SDL_PROP_GPU_DEVICE_CREATE_SHADERS_SPIRV_BOOLEAN,
                 true,
             );
-            #[cfg(target_os = "macos")]
+            #[cfg(target_vendor = "apple")]
             SDL_SetBooleanProperty(props, SDL_PROP_GPU_DEVICE_CREATE_SHADERS_MSL_BOOLEAN, true);
             SDL_SetBooleanProperty(
                 props,
@@ -217,7 +217,7 @@ impl Device {
         self,
         code: ShaderCode,
     ) -> (SDL_GPUShaderFormat, &'static [u8], &'static CStr) {
-        #[cfg(target_os = "macos")]
+        #[cfg(target_vendor = "apple")]
         {
             // SAFETY: no pointers.
             let formats = unsafe { SDL_GetGPUShaderFormats(self.0) };

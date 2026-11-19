@@ -23,6 +23,7 @@ read and write the game's files.
 - [The debug window](The-debug-window): the developers' pages as a window over the game.
 - [Platforms](Platforms): what runs where.
 - [Android](Android): the phone and tablet build: the touch controls, building the app, putting the game's files in.
+- [iOS](iOS): the iPhone and iPad build: built and installed from Linux, the game's files through the Files app.
 
 ## Building and running from source
 
