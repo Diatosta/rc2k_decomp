@@ -209,6 +209,9 @@ Everything is on [Controllers](Controllers) and [Input](Input); in short:
   one unplugged and plugged back takes its place again. Force feedback effects are set up again.
 - **Rumble.** A pad with only rumble motors rumbles for the engine and knocks, at the strength of
   the controller page's force feedback row.
+- **No force feedback in replays.** A replay played back shakes no wheel, pad or phone: its
+  effects stop when it begins and start again with the next race (the original's effects went
+  on following the cars).
 - **Pause** (a key or a button) asks the same "leave?" question as Escape, where the original
   waited for a key.
 - The developers' debug pages are a window over the game ([The debug window](The-debug-window));
