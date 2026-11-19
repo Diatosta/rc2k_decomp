@@ -37,6 +37,26 @@ const ESCAPE_HOLD_MS: u64 = 200;
 /// The game's key code of Escape.
 const ESCAPE_KEY: u8 = 0x01;
 
+/// When a dropped or ignored touch was last logged (ms; 0: never) and how many were left out
+/// since: a phone's log shows why the menus stopped answering without one line a touch.
+static NOTED_AT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static NOTED: AtomicUsize = AtomicUsize::new(0);
+
+/// Notes that a touch was dropped or ignored for `reason`, at most one log line every 2 s
+/// (with how many came before it).
+fn note(reason: &str, now: u64) {
+    let count = NOTED.fetch_add(1, Relaxed) + 1;
+    let last = NOTED_AT.load(Relaxed);
+    if last != 0 && now.saturating_sub(last) < 2000 {
+        return;
+    }
+    NOTED_AT.store(now.max(1), Relaxed);
+    NOTED.store(0, Relaxed);
+    crate::logfile::program_log::log(&format!(
+        "touch menu: {reason} ({count} such since the last line)"
+    ));
+}
+
 /// The window's size and safe area as the screen the gestures are sized by.
 pub fn screen_of(window: sdl::Window) -> Option<Screen> {
     let (width, height) = window.pixel_size()?;
@@ -62,6 +82,10 @@ pub fn finger(
     now: u64,
 ) {
     let Some(screen) = screen_of(window) else {
+        if phase == Phase::Up {
+            forget(id);
+        }
+        note("the window's size is unknown, a finger is ignored", now);
         return;
     };
     let menu = o.menus.screens.loop_flags.menu.get().ok();
@@ -75,6 +99,10 @@ pub fn finger(
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     if (recogniser.active() || recogniser.waiting()) && *on_screen != menu {
         recogniser.release_all();
+        note(
+            "the screen changed under a finger, the touches are dropped",
+            now,
+        );
     }
     if !recogniser.active() && !recogniser.waiting() {
         *on_screen = menu;
@@ -82,7 +110,14 @@ pub fn finger(
             return;
         }
     }
+    let was_active = recogniser.active();
     let gestures = recogniser.finger(&screen, id, phase, x * screen.width, y * screen.height, now);
+    let stale = recogniser.take_stale();
+    if stale > 0 {
+        note("a finger's lifting never came, it is dropped", now);
+    } else if was_active && phase == Phase::Down {
+        note("a second finger went down, two fingers do nothing", now);
+    }
     drop((recogniser, on_screen));
     act(o, window, gestures, now);
 }
@@ -98,6 +133,11 @@ pub fn tick(o: &Owners<'static>, window: sdl::Window, now: u64) {
     let mut recogniser = GESTURES
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
+    // A finger whose lifting was never seen would make the next one a pair.
+    if recogniser.drop_stale(now) > 0 {
+        recogniser.take_stale();
+        note("a finger's lifting never came, it is dropped", now);
+    }
     if !recogniser.waiting() {
         return;
     }
@@ -107,6 +147,7 @@ pub fn tick(o: &Owners<'static>, window: sdl::Window, now: u64) {
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     if on_screen != menu {
         recogniser.release_all();
+        note("the screen changed under a waiting tap, it is dropped", now);
         return;
     }
     let gestures = recogniser.tick(now);
@@ -143,6 +184,14 @@ pub fn set_direct_sideways(on: bool) {
         .set_direct_sideways(on);
 }
 
+/// A finger's lifting that could not reach `finger` (no window): the finger leaves the list.
+pub fn forget(id: u64) {
+    GESTURES
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .forget(id);
+}
+
 /// Every finger lifted (a race began, the app went to the background).
 pub fn release_all() {
     GESTURES
@@ -162,6 +211,7 @@ fn tap(o: &Owners<'static>, window: sdl::Window, x: f32, y: f32) {
         press(o, MenuAction::Enter);
         return;
     }
+
     // The one mapping from the window to the frame (`platform::safe_area`).
     let frame = crate::platform::SCREEN.lock().ok().and_then(|screen| {
         screen

@@ -251,7 +251,13 @@ pub fn pump(o: crate::owners::Owners<'static>) {
                     u64::from(crate::platform::os::ticks()),
                 );
             }
-            Event::Focus(focused) => system.session.flags.window_focused.set(focused as u32),
+            Event::Focus(focused) => {
+                system.session.flags.window_focused.set(focused as u32);
+                // Fingers on the screen when the app is sent away or comes back may never
+                // be lifted for it (a system gesture took them).
+                #[cfg(touch_screen)]
+                crate::platform::touch_menu::release_all();
+            }
             Event::Text(text) => crate::input::typed_text::typed_by_keyboard(&text),
             Event::Key { scancode, down } => {
                 if down && matches!(scancode, 40 | 88) {
@@ -858,6 +864,10 @@ fn touch_finger(
             .map(|screen| crate::platform::input_window(screen.window))
     };
     let Some(window) = window else {
+        // No window to size the gestures by: a lifting still takes its finger off the list.
+        if phase == rc2k_core::input::menu_touch::Phase::Up {
+            crate::platform::touch_menu::forget(id);
+        }
         return;
     };
     if touch_controls_live(o.race) {
