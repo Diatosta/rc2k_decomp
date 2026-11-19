@@ -197,6 +197,15 @@ pub fn monitor_modes() -> sdl::DisplayModes {
     if modes.is_some() || desktop.is_some() {
         return (modes.unwrap_or_default(), desktop);
     }
+    // The browser: its window's size (the picture fills it) and its screen's (the full screen).
+    #[cfg(target_os = "emscripten")]
+    if let Some(sizes) = web::sizes() {
+        let modes = vec![
+            (sizes.window.0, sizes.window.1, 60.0),
+            (sizes.screen.0, sizes.screen.1, 60.0),
+        ];
+        return (modes, Some(sizes.screen));
+    }
     #[cfg(any(test, all(target_os = "linux", target_arch = "aarch64")))]
     return (Vec::new(), None);
     #[cfg(not(any(test, all(target_os = "linux", target_arch = "aarch64"))))]

@@ -14,7 +14,7 @@ What the program runs on, what each system needs, and what is different or missi
 | macOS, Intel and Apple silicon | Builds as `Rally Championship.app`, one bundle for both processors. Tested less than the others. |
 | Anbernic RG34XXSP (handheld, 64-bit ARM Linux) | Built and run on Knulli and on the device's stock system. |
 | Android (phones and tablets, x86-64 and 64-bit ARM) | Begun: it builds as an `.apk`, starts in an emulator, plays a race with touch controls. Not yet run on a phone. See [Android](Android). |
-| Web (WebAssembly) | Experimental: it builds and starts, but does not show a picture yet. |
+| Web (WebAssembly) | Experimental: menus and races play in a desktop browser (WebGL 2, gamepads, sound, full screen); not yet checked on a phone. |
 
 The game itself is the same everywhere: the same menus, stages, physics, replays and save
 files. A replay or a saved game made on one system works on the others.
@@ -68,7 +68,7 @@ window. Measured speed is on [Performance](Performance).
 
 **Android.** Not an installer: an app (`rc2k-<abi>.apk`) with the game's files in its private storage. Touch controls in the race and gestures in the menus; the picture, sound and the game are the others'. [Android](Android) says how it is built, how to put the game's files in and what is not done.
 
-**Web.** Unfinished (WebGL 2 picture, gamepads and sound work in headless Chrome; not yet checked on a phone). The build and its test page are in `tools/web/`. The start page takes the game folder or its zip: the CD's files run the installer (into the browser's storage), an already installed game folder is played as it is. The saves live in the
+**Web.** Unfinished (WebGL 2 picture, gamepads and sound work in headless Chrome; not yet checked on a phone). The build and its page are in `tools/web/`. Once the repository is public the page is published on its GitHub Pages (the `pages` job of the workflow; see [Building from source](Building-from-source)); it holds no game data, so every player picks their own game folder or zip, and it has no network play. The start page takes the game folder or its zip: the CD's files run the installer (into the browser's storage), an already installed game folder is played as it is. Full screen takes the whole page; the resolution list offers the browser window's size and the screen's, and the frame rate follows the display's refresh as on the desktop. The saves live in the
 browser's private storage, which a browser may clear, so the page `saves.html` (linked from the
 start page) exports the `savedata/` folder, `var/hst.dat` and the settings (`var/ral.dat`,
 `var/ral.cfg`, `var/rc2k.toml`) as a zip to download or as text (the zip in base64) to copy, and

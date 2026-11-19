@@ -73,7 +73,7 @@ pub fn label(width: u32, height: u32, custom: Option<(u32, u32)>, word: &[u8]) -
 
 /// The sizes to offer besides the game's own `table`: the monitor's `modes`, the usual sizes that
 /// fit the `desktop` (none when it is not known), and `custom`; none twice, none the table has,
-/// smallest first.
+/// in the list's order.
 pub fn extra_sizes(
     table: &[(u32, u32)],
     modes: &[(u32, u32)],
@@ -98,13 +98,18 @@ pub fn extra_sizes(
     found
 }
 
-/// Sizes smallest first (by the pixels, then the width).
+/// The place of a size in every list of sizes: by width, then height.
+pub fn order(width: u32, height: u32) -> (u32, u32) {
+    (width, height)
+}
+
+/// Sizes in the list's order (see `order`).
 pub fn sort(sizes: &mut [(u32, u32)]) {
-    sizes.sort_by_key(|&(w, h)| (u64::from(w) * u64::from(h), w));
+    sizes.sort_by_key(|&(w, h)| order(w, h));
 }
 
 /// The monitor's modes as sizes: each size once (its highest refresh being the mode that would
-/// be set), smallest first. `modes` are (width, height, refresh).
+/// be set), in the list's order. `modes` are (width, height, refresh).
 pub fn modes_as_sizes(modes: &[(u32, u32, f32)]) -> Vec<(u32, u32)> {
     let mut sizes: Vec<(u32, u32)> = Vec::new();
     for &(w, h, _) in modes {
@@ -156,7 +161,7 @@ mod tests {
         assert!(extra.contains(&(2000, 500)) && extra.contains(&(1680, 1050)));
         assert!(!extra.contains(&(2560, 1440)) && !extra.contains(&(1024, 768)));
         assert_eq!(extra.iter().filter(|&&s| s == (1920, 1080)).count(), 1);
-        assert!(extra.windows(2).all(|p| p[0].0 * p[0].1 <= p[1].0 * p[1].1));
+        assert!(extra.windows(2).all(|p| p[0] < p[1]));
         // A desktop that is not known offers the monitor's modes and the custom size only.
         let extra = extra_sizes(&table, &modes, None, None);
         assert_eq!(extra, vec![(1680, 1050), (1920, 1080)]);
@@ -164,5 +169,30 @@ mod tests {
             modes_as_sizes(&[(800, 600, 60.0), (800, 600, 75.0)]),
             vec![(800, 600)]
         );
+    }
+
+    #[test]
+    fn a_phone_and_a_window_list_come_out_in_order_with_the_choice_kept() {
+        let table = [(640, 480), (800, 600), (1024, 768), (1600, 1200)];
+        // A phone: its screen in pixels and its fractions, and the usual sizes that fit.
+        let phone = (2868, 1320);
+        let fractions = [(2868, 1320), (2150, 990), (1912, 880), (1434, 660)];
+        let extra = extra_sizes(&table, &fractions, Some(phone), None);
+        // A page's window: its own size, not one of the usual ones.
+        let web = extra_sizes(&table, &[(1273, 811)], Some((1273, 811)), Some((1400, 700)));
+        for (extra, chosen) in [(extra, (1912, 880)), (web, (1273, 811))] {
+            let mut all: Vec<(u32, u32)> = table.to_vec();
+            all.extend(&extra);
+            sort(&mut all);
+            assert!(all.windows(2).all(|p| p[0] < p[1]), "{all:?}");
+            assert!(all.contains(&chosen));
+            // The choice is found by its size wherever the list puts it.
+            let place = all.iter().position(|&s| s == chosen).unwrap();
+            assert_eq!(all[place], chosen);
+        }
+        // Widths never go back, though the pixel counts of 1280 x 1024 and 1366 x 768 would.
+        let mut mixed = vec![(1366, 768), (1280, 1024), (1600, 900), (1280, 720)];
+        sort(&mut mixed);
+        assert_eq!(mixed, [(1280, 720), (1280, 1024), (1366, 768), (1600, 900)]);
     }
 }

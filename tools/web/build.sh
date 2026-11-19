@@ -27,6 +27,8 @@ link=(
   # WebGL 2 for the GL renderer (`src/render/gles.rs`), its context made on the GL thread and
   # drawn into an off-screen frame buffer that the frame's commit copies onto the page's canvas;
   # the entry points are found by name.
+  # The page's side of the window and display (`library.js`).
+  --js-library="$PWD/tools/web/library.js"
   -sMAX_WEBGL_VERSION=2 -sOFFSCREEN_FRAMEBUFFER -sGL_ENABLE_GET_PROC_ADDRESS
 )
 flags="-C target-feature=+atomics,+bulk-memory,+mutable-globals"

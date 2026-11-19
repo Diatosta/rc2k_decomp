@@ -66,7 +66,8 @@ The original was a 32-bit Windows program on DirectX. Its platform side was not 
   scaled down, which smooths the edges (supersampling). The dashboard and the texts stay at full
   size. The handheld no longer draws at half size by itself: set the row to 50 %.
 - **Screen sizes.** The resolution list holds the monitor's own modes, the usual sizes of 4:3,
-  16:10, 16:9, 21:9 and 32:9 that fit the desktop and the game's eight, each with its ratio. Any
+  16:10, 16:9, 21:9 and 32:9 that fit the desktop and the game's eight, each with its ratio, listed by width, then height (the
+  same order on every platform, a phone's or a page's own size included). Any
   other size can be set with `custom_width` / `custom_height` in `var/rc2k.toml`. 16-bit screen
   modes are gone: the screen always has 32 bits a pixel (an old 16-bit choice becomes the same
   size at 32 bits).
@@ -348,7 +349,7 @@ or IPX connection), and Steam when Valve's library is beside the program (it is 
 - Builds: `./build.sh <target>`, and `build.ps1` on Windows itself ([Building from
   source](Building-from-source)).
 - The web build is experimental: it draws the 3D on WebGL 2 where the browser has it, takes
-  gamepads and plays the sound; it has no network play.
+  gamepads and plays the sound; it has no network play. Its resolution list offers the browser window's size, its full-screen setting takes the whole page, and it loads faster (the folders' file names are listed once).
 
 ## Installing
 

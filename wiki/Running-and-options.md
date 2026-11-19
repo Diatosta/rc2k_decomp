@@ -397,6 +397,8 @@ The rest are diagnostics for people working on the code. They change nothing unl
 | `RC2K_SIM_HASH`, `RC2K_SIM_CHUNKS`, `RC2K_FAN_HASH`, `RC2K_SOUND_HASH`, `RC2K_MIX_HASH`, `RC2K_COURSE_HASH` | Log a running hash of the simulation, the drawing commands, the sound commands, the mixed sound or the loaded course, to compare two runs. |
 | `RC2K_DIR` | Web build only: the folder the game's files are in. |
 
+In the web build the page's address sets them: `?env=NAME=VALUE`, repeated for each one (for example `index.html?env=RC2K_LOAD_TIMES=1`).
+
 Builds made with the `remote` feature (for automated tests, see [Testing](Testing)) read a few
 more: `RC2K_REMOTE`, `RC2K_REMOTE_STICK`, `RC2K_HELD_RACE`, `RC2K_SPEED`, `RC2K_SLOW_FRAMES`,
 `RC2K_SHOT_CLOCKS`, `RC2K_MANGLE`, `RC2K_LOAD_TIMES`, `RC2K_LOSE_FRAMES` and

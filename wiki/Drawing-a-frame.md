@@ -113,7 +113,10 @@ In this program these calls draw nothing. They **note** what was asked
 
 - `Command::Fan`: a span of vertices, the render states in force, the texture, and the fan's
   bounds on the screen.
-- `Command::Clear`: set the depth buffer back in a rectangle (a new view begins).
+- `Command::Clear`: set the depth buffer back in a rectangle (a new view begins). The game does not
+  clear the depth at every frame's start, so the GPU renderers (Vulkan/Metal and OpenGL ES) reset
+  the whole depth buffer when a frame ends; otherwise the last frame's depths would hide patches
+  of the rear-view mirror in the next.
 - `CommandList`: the commands in the order they were noted, with their vertices and the
   textures they use.
 - `Backend`: the trait a renderer implements. It has one job, `draw(target, commands)`.

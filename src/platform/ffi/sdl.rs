@@ -203,6 +203,21 @@ impl Window {
     /// The window's full-screen state set. False when SDL refuses (the window stays as it was).
     #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // the handheld's panel is always the whole screen
     pub fn set_full_screen(self, how: FullScreen) -> bool {
+        // The browser's full screen takes the whole page, both canvases (SDL's own request
+        // would take only the window's canvas, leaving the GL's out: a black picture).
+        #[cfg(target_os = "emscripten")]
+        {
+            crate::platform::web::set_full_screen(how != FullScreen::Off)
+        }
+        #[cfg(not(target_os = "emscripten"))]
+        {
+            self.set_full_screen_sdl(how)
+        }
+    }
+
+    #[cfg(not(target_os = "emscripten"))]
+    #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // the handheld's panel is always the whole screen
+    fn set_full_screen_sdl(self, how: FullScreen) -> bool {
         // SAFETY: as `restore_if_minimised`; the mode is a record of this call's own that SDL
         // fills in (all zero is the "none" it starts from) and reads during the call.
         unsafe {
@@ -230,12 +245,32 @@ impl Window {
 
     /// Whether the window is full screen now.
     pub fn is_full_screen(self) -> bool {
-        // SAFETY: as `restore_if_minimised`.
-        unsafe { SDL_GetWindowFlags(self.0).0 & SDL_WINDOW_FULLSCREEN.0 != 0 }
+        #[cfg(target_os = "emscripten")]
+        {
+            crate::platform::web::is_full_screen()
+        }
+        #[cfg(not(target_os = "emscripten"))]
+        {
+            // SAFETY: as `restore_if_minimised`.
+            unsafe { SDL_GetWindowFlags(self.0).0 & SDL_WINDOW_FULLSCREEN.0 != 0 }
+        }
     }
 
     /// The refreshes a second of the display the window is on, if SDL knows them.
     pub fn display_refresh(self) -> Option<f64> {
+        // The browser's display is not SDL's to know: the page measures its frames.
+        #[cfg(target_os = "emscripten")]
+        {
+            crate::platform::web::display_refresh()
+        }
+        #[cfg(not(target_os = "emscripten"))]
+        {
+            self.display_refresh_sdl()
+        }
+    }
+
+    #[cfg(not(target_os = "emscripten"))]
+    fn display_refresh_sdl(self) -> Option<f64> {
         // SAFETY: as `restore_if_minimised`; the mode is SDL's own record, read at once and
         // only when not null.
         let (rate, numerator, denominator) = unsafe {

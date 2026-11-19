@@ -1305,6 +1305,20 @@ impl Gpu {
     ) -> Result<(), String> {
         self.draw(canvas, rows, &CommandList::new())?;
         super::seethru::frame_end();
+        // The next frame starts with a fresh depth buffer. The game clears the depth only where
+        // it needs the clear, and the GPU keeps the depths between frames: what the last frame
+        // wrote (the rear-view mirror's, a car's) would otherwise fail the depth test of the
+        // next one in patches.
+        self.depth_is_new = true;
+        if let Some(small) = self.small.as_mut() {
+            small.depth_is_new = true;
+        }
+        if let Some(high) = self.menu_high.as_mut() {
+            high.depth_is_new = true;
+        }
+        if let Some(check) = self.check.as_mut() {
+            check.depth_is_new = true;
+        }
         self.compare_check()
     }
 
