@@ -266,6 +266,8 @@ pub mod id {
     /// name) and the keys that choose another.
     pub const SAVE_CODE_CAMERA_NAME: u32 = FIRST + 0x180;
     pub const SAVE_CODE_CAMERA_SWITCH: u32 = FIRST + 0x181;
+    /// The same line on a touch screen, where a slide sideways chooses another camera.
+    pub const SAVE_CODE_CAMERA_SWITCH_TOUCH: u32 = FIRST + 0x182;
     /// The replay viewer's names of its buttons, shown when the highlight moves to one: the 26
     /// buttons of the two rows in order, the render button, the name while a camera is edited
     /// ("{}" the camera's number), a car's HUD shown or hidden ("{}" the car's number), and the
@@ -512,6 +514,10 @@ pub const KEYS: &[(&str, u32)] = &[
     ("save_code.too_long", id::SAVE_CODE_TOO_LONG),
     ("save_code.camera_name", id::SAVE_CODE_CAMERA_NAME),
     ("save_code.camera_switch", id::SAVE_CODE_CAMERA_SWITCH),
+    (
+        "save_code.camera_switch_touch",
+        id::SAVE_CODE_CAMERA_SWITCH_TOUCH,
+    ),
     ("viewer.tip_render", id::VIEWER_TIP_RENDER),
     ("viewer.tip_editing", id::VIEWER_TIP_EDITING),
     ("viewer.tip_hud_show", id::VIEWER_TIP_HUD_SHOW),
