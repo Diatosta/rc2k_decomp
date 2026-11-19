@@ -136,20 +136,11 @@ foreach ($f in $files) { if (-not (Test-Path $f)) { Fail "missing after the buil
 if (Test-Path $Dist) { Remove-Item -Recurse -Force $Dist }
 New-Item -ItemType Directory -Force $Dist | Out-Null
 foreach ($f in $files) { Copy-Item -Force $f $Dist }
-# The own texts of every language: the installer copies the installed language's into files\locale.
-New-Item -ItemType Directory -Force (Join-Path $Dist 'locale') | Out-Null
-Copy-Item -Force (Join-Path $Repo 'assets\locale\*.rc2k.toml') (Join-Path $Dist 'locale')
 Write-Host "built $Dist\:"
 Get-ChildItem $Dist | ForEach-Object { Write-Host ("  {0,10}  {1}" -f $_.Length, $_.Name) }
 
 if ($deployTo) {
     if (-not (Test-Path $deployTo)) { New-Item -ItemType Directory -Force $deployTo | Out-Null }
     Get-ChildItem $Dist | ForEach-Object { Copy-Item -Force -Recurse $_.FullName $deployTo }
-    # The installed language's own texts into its files\locale (named after its .LOC file).
-    $loc = Get-ChildItem (Join-Path $deployTo 'files') -Recurse -Depth 1 -Filter '*.loc' -ErrorAction SilentlyContinue | Select-Object -First 1
-    if ($loc) {
-        $texts = Join-Path $Dist ("locale\" + $loc.BaseName + '.rc2k.toml')
-        if (Test-Path $texts) { Copy-Item -Force $texts $loc.DirectoryName }
-    }
     Write-Host "deployed rc2k.exe and SDL3.dll to $deployTo"
 }

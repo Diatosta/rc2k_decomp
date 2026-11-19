@@ -161,7 +161,7 @@ The original was a 32-bit Windows program on DirectX. Its platform side was not 
   character the Windows-1252 code page has, whatever the keyboard's layout (input methods work too;
   the game's own keyboard layouts no longer type into fields).
 - **Language texts** this game adds to the original's come from one file per language,
-  `files/locale/<language>.rc2k.toml`, with English built in ([Language files](Language-files)).
+  `assets/locale/<language>.rc2k.toml`, built into the program, with English for a language that has none ([Language files](Language-files)).
 - The fixed pauses between screens keep their length, but a key or a pad's button ends them and
   the window answers meanwhile; closing the window anywhere ends the game properly.
 - The Portuguese build's texts: the tyre change's title is no longer cut at its ends.

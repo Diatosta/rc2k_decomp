@@ -6,7 +6,7 @@
 //! - the first `files\%locale\*.loc`, 0x30 bytes: none is fatal error 0x80E38381, one that does
 //!   not start "LOCL" 0x80E38382. Its byte +0xF is the units (the units setting and each car's
 //!   +0x178); its byte +8 is read further down;
-//! - the language's own texts (`strings::own_texts`);
+//! - the language's built-in own texts (`strings::own_texts`);
 //! - the first `files\%locale\*.kim`, up to 0x400 bytes, if there is one: not starting "KEYB" is
 //!   fatal error 0x80E383A2. The ten offsets at its +0x30 become addresses, the layout is the
 //!   block of 0x14 bytes its byte +0xB chooses, and if its byte +8 is 0x0C three entries of that
