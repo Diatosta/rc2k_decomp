@@ -63,6 +63,8 @@
     </dict>
     <key>NSCameraUsageDescription</key>
     <string>Scans a save code's QR picture.</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>Keeps your screenshots in a Rally Championship album.</string>
     <key>NSPhotoLibraryAddUsageDescription</key>
     <string>Saves your screenshots to your photos.</string>
     <key>UIFileSharingEnabled</key>

@@ -29,11 +29,20 @@ for example).
 ## On a phone
 
 On iOS and Android a screenshot (the key's and the replay viewer's snapshot button; not the
-replay's picture sequence) is also put into the phone's photo library once it is written, so the
-Photos or Gallery app shows it. iOS adds it to the camera roll and asks for the add-only photo
-permission the first time. Android (10 and later) puts it in the Gallery under Pictures / Rally
-Championship (older versions skip it). The outcome is a line in the log; a failure never stops
-the game. Code: `src/platform/ffi/photo_library.rs`, `tools/android/app/java/org/rc2k/rally/Photos.java`.
+replay's picture sequence) is also put into the phone's photo library once it is written, into an
+album named "Rally Championship", so the Photos or Gallery app shows them together.
+
+- iOS: the album is made through the Photos framework the first time and every later picture
+  joins it. That needs the read-write photo permission, asked the first time (in English or
+  Portuguese by the phone's language). If it is refused, or the framework fails, the picture goes
+  into the camera roll with the add-only permission, as before.
+- Android (10 and later): the picture is inserted into the media store under Pictures / Rally
+  Championship, a folder the Gallery and Google Photos list as the album of that name. Older
+  versions skip it.
+
+The outcome is a line in the log; a failure never stops the game. Code:
+`src/platform/ffi/photo_library.rs`, `tools/android/app/java/org/rc2k/rally/Photos.java`,
+`tools/ios/*.lproj/InfoPlist.strings`.
 
 ## The file
 

@@ -311,7 +311,10 @@ build_ios() {
     cp tools/ios/Info.plist "$app/Info.plist"
     # The home-screen name also as a localised string (it keeps its space where a signing
     # step rewrites the property list).
-    mkdir -p "$app/en.lproj" && cp tools/ios/en.lproj/InfoPlist.strings "$app/en.lproj/"
+    # (and the permission questions' texts, in English and Portuguese)
+    for lang in en pt; do
+        mkdir -p "$app/$lang.lproj" && cp "tools/ios/$lang.lproj/InfoPlist.strings" "$app/$lang.lproj/"
+    done
     cp tools/ios/icons/AppIcon*@*.png "$app/"
     (cd "$DIST" && rm -rf Payload && mkdir Payload && cp -R "Rally Championship.app" Payload/ \
         && python3 -c 'import os, sys, zipfile

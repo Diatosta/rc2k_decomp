@@ -5,5 +5,7 @@
 /* Asked by iOS when the save code page opens the camera. */
 "NSCameraUsageDescription" = "Scans a save code's QR picture.";
 
-/* Asked by iOS the first time a screenshot is put into the photo library. */
+/* Asked by iOS the first time a screenshot is put into the photo library: the read-write
+   access that lets it keep them in an album; the add-only one is the fallback. */
+"NSPhotoLibraryUsageDescription" = "Keeps your screenshots in a Rally Championship album.";
 "NSPhotoLibraryAddUsageDescription" = "Saves your screenshots to your photos.";
