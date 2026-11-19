@@ -205,7 +205,7 @@ Needs the Emscripten SDK in `~/emsdk` and a nightly Rust toolchain with the
 
 ```sh
 ./build.sh web
-python3 dist/web/serve.py dist/web [port]
+python3 dist/web/serve.py [folder] [port]   # the folder is the script's own by default
 ```
 
 The script runs `tools/web/build.sh` (the cargo step with Emscripten's link switches; its
