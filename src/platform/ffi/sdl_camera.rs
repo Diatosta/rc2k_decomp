@@ -48,7 +48,7 @@ pub enum Permission {
 ))]
 mod real {
     use super::{Frame, Permission};
-    use rc2k_core::gfx::camera_frame::{Layout, frame_len, to_rgba};
+    use rc2k_core::gfx::camera_frame::{Layout, frame_len, rotate_rgba, to_rgba};
     use sdl3_sys::everything::*;
 
     /// The camera subsystem started (it is left started); false when SDL has none.
@@ -236,7 +236,7 @@ mod real {
         if surface.pixels.is_null() || w == 0 || h == 0 {
             return None;
         }
-        let rgba = if let Some(layout) = layout_of(surface.format) {
+        let mut rgba = if let Some(layout) = layout_of(surface.format) {
             let len = frame_len(layout, pitch, h)?;
             // SAFETY: a frame of this format, pitch and height is `len` bytes (the caller's
             // promise), alive for this call.
@@ -264,6 +264,24 @@ mod real {
             }
             out
         };
+        // The camera API says how far the frame is meant to be turned clockwise to stand
+        // upright (it follows the phone's and the screen's orientation). Only a front camera is
+        // turned: its picture was seen upside down while the back camera's was right, so the
+        // back camera's frames are left as they have always been.
+        let (mut w, mut h) = (w, h);
+        if facing_user {
+            // SAFETY: the surface is live; the properties id is SDL's, 0 when it has none.
+            let degrees = unsafe {
+                SDL_GetFloatProperty(
+                    SDL_GetSurfaceProperties(std::ptr::from_ref(surface).cast_mut()),
+                    SDL_PROP_SURFACE_ROTATION_FLOAT,
+                    0.0,
+                )
+            };
+            if degrees != 0.0 {
+                (rgba, w, h) = rotate_rgba(&rgba, w, h, degrees);
+            }
+        }
         Some(Frame {
             width: w,
             height: h,
