@@ -177,6 +177,42 @@ pub fn grey_of(rgba: &[u8]) -> Vec<u8> {
         .collect()
 }
 
+/// An RGBA frame turned clockwise by `degrees` (rounded to a multiple of 90, any sign or
+/// turns over 360), as `(pixels, width, height)`: the camera API's way of saying how a frame
+/// is meant to be turned to stand upright. The frame itself when the turn is none or the
+/// frame is shorter than its size says.
+pub fn rotate_rgba(
+    rgba: &[u8],
+    width: usize,
+    height: usize,
+    degrees: f32,
+) -> (Vec<u8>, usize, usize) {
+    let quarters = ((degrees / 90.0).round() as i64).rem_euclid(4);
+    if quarters == 0 || width == 0 || height == 0 || rgba.len() < width * height * 4 {
+        return (rgba.to_vec(), width, height);
+    }
+    let (out_w, out_h) = if quarters == 2 {
+        (width, height)
+    } else {
+        (height, width)
+    };
+    let mut out = vec![0u8; out_w * out_h * 4];
+    for y in 0..height {
+        for x in 0..width {
+            // Where the source pixel (x, y) lands in the turned picture.
+            let (nx, ny) = match quarters {
+                1 => (height - 1 - y, x),
+                2 => (width - 1 - x, height - 1 - y),
+                _ => (y, width - 1 - x),
+            };
+            let from = (y * width + x) * 4;
+            let to = (ny * out_w + nx) * 4;
+            out[to..to + 4].copy_from_slice(&rgba[from..from + 4]);
+        }
+    }
+    (out, out_w, out_h)
+}
+
 /// An RGBA frame of `width` x `height` shrunk or stretched to `to_width` x `to_height` as
 /// 0xRRGGBB pixels, each the average of up to 3 x 3 of the frame's pixels that it covers (the
 /// whole picture, whatever the size asked: nothing is cropped), turned left to right when
@@ -457,5 +493,22 @@ mod tests {
     #[test]
     fn grey_is_the_weighted_sum() {
         assert_eq!(grey_of(&[255, 255, 255, 255, 0, 0, 0, 255]), [255, 0]);
+    }
+
+    #[test]
+    fn frames_turn_clockwise_by_quarters() {
+        // 2 x 1: A B.
+        let (a, b) = ([1, 0, 0, 255], [2, 0, 0, 255]);
+        let rgba = [a, b].concat();
+        assert_eq!(rotate_rgba(&rgba, 2, 1, 0.0), (rgba.clone(), 2, 1));
+        assert_eq!(rotate_rgba(&rgba, 2, 1, 180.0), ([b, a].concat(), 2, 1));
+        // A quarter turn clockwise puts A on top of B.
+        assert_eq!(rotate_rgba(&rgba, 2, 1, 90.0), ([a, b].concat(), 1, 2));
+        // Three quarters clockwise (270, or -90) puts B on top.
+        assert_eq!(rotate_rgba(&rgba, 2, 1, 270.0), ([b, a].concat(), 1, 2));
+        assert_eq!(rotate_rgba(&rgba, 2, 1, -90.0), ([b, a].concat(), 1, 2));
+        assert_eq!(rotate_rgba(&rgba, 2, 1, 450.0), ([a, b].concat(), 1, 2));
+        // A short buffer is left as it is.
+        assert_eq!(rotate_rgba(&rgba[..4], 2, 1, 90.0).1, 2);
     }
 }
