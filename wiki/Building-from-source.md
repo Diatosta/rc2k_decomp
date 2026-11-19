@@ -21,7 +21,7 @@ All commands are run from the repository's top folder. The repository and the cr
 | iPhone / iPad (begun, not yet run) | `./build.sh ios` | Linux, with Apple's iOS SDK from Xcode (`tools/ios/README.md`) | `dist/ios/Rally Championship.ipa`, unsigned |
 | Steam Deck (and older Linux systems) | `./build.sh deck` | Linux, with Docker | `dist/deck/`: `rc2k`, `rally.sh`, `libsteam_api.so` with `RC2K_STEAM=1` |
 | Anbernic RG34XXSP | `./build.sh handheld` | Linux, with Docker | `dist/handheld/`: `rc2k`, `Rally.sh` |
-| Web (experimental) | `./build.sh web` | Linux, with Emscripten | `dist/web/`: `rc2k.js`, `rc2k.wasm`, `index.html`, `unzip.js`, `serve.py` |
+| Web (experimental) | `./build.sh web` | Linux, with Emscripten | `dist/web/`: `rc2k.js`, `rc2k.wasm`, `index.html`, `unzip.js`, `coi-serviceworker.js`, `serve.py` |
 
 `./build.sh` with no target lists them. The switches:
 
@@ -228,7 +228,7 @@ python3 dist/web/serve.py dist/web [port]
 
 The script runs `tools/web/build.sh` (the cargo step with Emscripten's link switches; its
 output is `target/web/wasm32-unknown-emscripten/release/rc2k.js` and `rc2k.wasm`) and gathers
-those two with the page (`tools/web/index.html`, `unzip.js`, `serve.py`) and the saves page (`saves.html`, `saves.js`) in `dist/web/`.
+those two with the page (`tools/web/index.html`, `unzip.js`, `coi-serviceworker.js`, `serve.py`) and the saves page (`saves.html`, `saves.js`) in `dist/web/`.
 `CARGO_TARGET_DIR` overrides the target folder.
 
 State: the page copies the game folder (picked as a folder, or as its zip in one or several parts)
@@ -261,6 +261,20 @@ switches of `rc2k --help` go in the address as `?args=--mode%20time-trial%20--st
 - **Sound.** SDL's Web Audio output (a `ScriptProcessorNode` at the audio context's rate) takes
   the game's mix; the context starts suspended where autoplay is blocked, the game goes on
   with silence, and the first key or click resumes it.
+- **Window and display.** `tools/web/library.js` (linked with `--js-library`) runs on the page's
+  thread for the game's worker: the graphics page's resolution list offers the browser window's
+  size and the screen's (in device pixels), the display's refresh rate is the page's own
+  measurement (`index.html` times its animation frames), and the window mode "full screen" /
+  "borderless" puts the whole page into the browser's full screen (both canvases; SDL's own
+  request would take only the window's canvas and leave the GL's out, a black picture). A full
+  screen asked for at the start, with no key or click behind it, is refused by the browser and the
+  setting goes back to a window; leaving with Esc or F11 sets it back as well.
+- **File names.** The browser's storage keeps the names as the zip had them (the CD's upper
+  case) while the game asks in lower case, so a file is found by listing its folder; the listing
+  of each folder is kept (`files::folder_names`) instead of being read for every file, which
+  took a menu's start from about 10 seconds to under 3.
+- **Trials.** `?env=NAME=VALUE` in the page's address sets an environment variable of the program
+  (`?env=RC2K_LOAD_TIMES=1` with a `--features remote` build logs the load steps).
 
 The web build has no network play: the main menu has no network item (the moves up and down pass
 over its place), no socket is opened and Steam is not there.
@@ -367,9 +381,27 @@ into a race:
 
 ## The automatic builds
 
-The GitHub workflow `.github/workflows/build.yml` builds Windows (64 bits), Linux, the Steam Deck (`deck`, in the container, as `rc2k-deck.zip`) and macOS
+The GitHub workflow `.github/workflows/build.yml` builds Windows (64 bits), Linux, the Steam Deck (`deck`, in the container, as `rc2k-deck.zip`), the Anbernic handheld (`handheld`, in its container, as `rc2k-handheld.zip`), the browser build (`web`, as `rc2k-web.zip`) and macOS
 with the same commands. The Mac build runs only for the main branch and for runs started by
-hand.
+hand. Every build is kept as a download of the run, and a push also puts the zips into a
+GitHub release (a stable one from `main`, an experimental one for any other branch).
+
+The web job installs the Emscripten SDK (the version in the job's `EMSDK_VERSION`, cached) and
+the nightly Rust named in `NIGHTLY`. It holds no game data: whoever opens the page picks their own
+game folder or zip.
+
+**Publishing the web build on GitHub Pages.** The `pages` job deploys the web build to the
+repository's own GitHub Pages. It stays skipped (the workflow stays green) until it is switched on,
+because a private repository cannot deploy Pages:
+
+1. Settings, Pages, Source: "GitHub Actions".
+2. Settings, Secrets and variables, Actions, Variables: add `PAGES_ENABLED` with the value `true`.
+
+After that every push to `main`, and every run started by hand, publishes the page. Pages cannot send
+the two headers the game's threads need (cross-origin isolation), so the page loads
+`coi-serviceworker.js` (MIT, by Guido Zuidhof; kept in `tools/web/` with its licence), which adds
+them through a service worker and reloads the page once. It needs https and a browser that allows
+service workers (not a private window). Locally `serve.py` sends the headers itself.
 
 ## Next
 

@@ -13,7 +13,7 @@ What the program runs on, what each system needs, and what is different or missi
 | Steam Deck (SteamOS 3, and any x86-64 Linux with glibc 2.35 or later) | `./build.sh deck`: built in a container of Ubuntu 22.04, tuned for the Deck's Zen 2 processor, with Steam network play; released as `rc2k-deck.zip`. Not yet run on a real Deck. |
 | macOS, Intel and Apple silicon | Builds as `Rally Championship.app`, one bundle for both processors. Tested less than the others. |
 | Anbernic RG34XXSP (handheld, 64-bit ARM Linux) | Built and run on Knulli and on the device's stock system. |
-| Web (WebAssembly) | Experimental: it builds and starts, but does not show a picture yet. |
+| Web (WebAssembly) | Experimental: menus and races play in a desktop browser (WebGL 2, gamepads, sound, full screen); not yet checked on a phone. |
 
 The game itself is the same everywhere: the same menus, stages, physics, replays and save
 files. A replay or a saved game made on one system works on the others.
@@ -65,7 +65,7 @@ bundle. The Metal renderer has been tested less than the Vulkan one.
 screen. The built-in pad works in the menus; MENU + START leaves the game. There is no debug
 window. Measured speed is on [Performance](Performance).
 
-**Web.** Unfinished (WebGL 2 picture, gamepads and sound work in headless Chrome; not yet checked on a phone). The build and its test page are in `tools/web/`. The start page takes the game folder or its zip: the CD's files run the installer (into the browser's storage), an already installed game folder is played as it is. The saves live in the
+**Web.** Unfinished (WebGL 2 picture, gamepads and sound work in headless Chrome; not yet checked on a phone). The build and its page are in `tools/web/`. Once the repository is public the page is published on its GitHub Pages (the `pages` job of the workflow; see [Building from source](Building-from-source)); it holds no game data, so every player picks their own game folder or zip, and it has no network play. The start page takes the game folder or its zip: the CD's files run the installer (into the browser's storage), an already installed game folder is played as it is. Full screen takes the whole page; the resolution list offers the browser window's size and the screen's, and the frame rate follows the display's refresh as on the desktop. The saves live in the
 browser's private storage, which a browser may clear, so the page `saves.html` (linked from the
 start page) exports the `savedata/` folder, `var/hst.dat` and the settings (`var/ral.dat`,
 `var/ral.cfg`, `var/rc2k.toml`) as a zip to download or as text (the zip in base64) to copy, and

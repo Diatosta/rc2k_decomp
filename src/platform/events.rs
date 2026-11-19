@@ -223,7 +223,10 @@ pub fn pump(o: crate::owners::Owners<'static>) {
     crate::remote::poll(&o, &o.race.course);
     // The browser's gamepads copied into SDL's virtual ones (the page's API is not on this thread).
     #[cfg(target_os = "emscripten")]
-    crate::platform::web_pads::poll();
+    {
+        crate::platform::web_pads::poll();
+        crate::platform::web::follow_full_screen();
+    }
     while let Some(event) = next_event() {
         match event {
             Event::Quit if HOLD_QUIT.load(std::sync::atomic::Ordering::Relaxed) => {

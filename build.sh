@@ -358,7 +358,7 @@ build_web() {
     tools/web/build.sh ${web_flags[@]+"${web_flags[@]}"}
     fresh_dist
     local out="target/web/wasm32-unknown-emscripten/$PROFILE"
-    cp "$out/rc2k.js" "$out/rc2k.wasm" tools/web/index.html tools/web/unzip.js tools/web/saves.html tools/web/saves.js tools/web/serve.py "$DIST/"
+    cp "$out/rc2k.js" "$out/rc2k.wasm" tools/web/index.html tools/web/unzip.js tools/web/coi-serviceworker.js tools/web/saves.html tools/web/saves.js tools/web/serve.py "$DIST/"
     echo "serve it with: python3 $DIST/serve.py $DIST"
 }
 

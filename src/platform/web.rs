@@ -18,6 +18,14 @@ unsafe extern "C" {
 }
 
 unsafe extern "C" {
+    // The page's thread's side (`tools/web/library.js`): each call waits for the page.
+    fn rc2k_web_sizes(out: *mut i32);
+    fn rc2k_web_refresh() -> f64;
+    fn rc2k_web_set_full_screen(on: i32) -> i32;
+    fn rc2k_web_is_full_screen() -> i32;
+}
+
+unsafe extern "C" {
     fn emscripten_force_exit(status: i32) -> !;
 }
 
@@ -62,4 +70,58 @@ pub fn with_mount(folder: &std::path::Path) -> std::path::PathBuf {
 pub fn end_program(code: u32) -> ! {
     // SAFETY: Emscripten's documented call to end the program; it does not return.
     unsafe { emscripten_force_exit(code as i32) }
+}
+
+/// The browser window's and the screen's sizes in device pixels.
+pub struct Sizes {
+    pub window: (u32, u32),
+    pub screen: (u32, u32),
+}
+
+/// The page's window and screen as they are now, `None` when the page reports no size.
+pub fn sizes() -> Option<Sizes> {
+    let mut numbers = [0i32; 8];
+    // SAFETY: the page's function writes six numbers into the eight there are room for.
+    unsafe { rc2k_web_sizes(numbers.as_mut_ptr()) };
+    let size = |w: i32, h: i32| (w > 0 && h > 0).then_some((w as u32, h as u32));
+    Some(Sizes {
+        window: size(numbers[0], numbers[1])?,
+        screen: size(numbers[2], numbers[3])?,
+    })
+}
+
+/// The display's refreshes a second as the page measured them (`None` before it has).
+pub fn display_refresh() -> Option<f64> {
+    // SAFETY: a call into the page that takes nothing and answers a number.
+    let rate = unsafe { rc2k_web_refresh() };
+    (rate.is_finite() && rate >= 1.0).then_some(rate)
+}
+
+/// The page put into the browser's full screen (`true`) or back; false when the browser did
+/// not take the request (it wants a key or a click behind it).
+pub fn set_full_screen(on: bool) -> bool {
+    // SAFETY: a call into the page that takes a flag and answers 0 or 1.
+    unsafe { rc2k_web_set_full_screen(i32::from(on)) != 0 }
+}
+
+/// Whether the page is in the browser's full screen now.
+pub fn is_full_screen() -> bool {
+    // SAFETY: a call into the page that takes nothing and answers 0 or 1.
+    unsafe { rc2k_web_is_full_screen() != 0 }
+}
+
+/// The window mode kept follows the browser's full screen: when the player leaves it with Esc
+/// or F11 the setting goes back to a window, as the graphics page then shows. Asks the page
+/// once in 30 calls (the events' pump runs for every frame).
+pub fn follow_full_screen() {
+    use std::sync::atomic::{AtomicBool, AtomicU32, Ordering::Relaxed};
+    static CALLS: AtomicU32 = AtomicU32::new(0);
+    static WAS_FULL: AtomicBool = AtomicBool::new(false);
+    if CALLS.fetch_add(1, Relaxed) % 30 != 0 {
+        return;
+    }
+    let now = is_full_screen();
+    if WAS_FULL.swap(now, Relaxed) && !now {
+        super::window_mode::set(super::window_mode::WindowMode::Window);
+    }
 }

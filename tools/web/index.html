@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Rally Championship</title>
+<!-- Cross-origin isolation where the host sends no headers (GitHub Pages): registers a service worker that adds them, then reloads once. -->
+<script src="coi-serviceworker.js"></script>
 <style>
   :root { --bg: #0b0d10; --panel: #161a20; --text: #d8dde4; --dim: #8a94a3; --accent: #e0a526; }
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
@@ -78,6 +80,30 @@ async function hasInstalledGame() {
   return (await has(var_, "install.cfg")) || (await has(var_, "ral.zog"));
 }
 
+// The display's refreshes a second, measured from the page's own animation frames (the browser
+// does not say): the median of the last frames' gaps, kept in `window.rc2kRefresh` for the game
+// (`library.js`). Gaps over 100 ms (a hidden tab, a stall) are left out.
+(() => {
+  const gaps = [];
+  let last = 0;
+  const tick = (now) => {
+    if (last && now - last < 100) {
+      gaps.push(now - last);
+      if (gaps.length > 90) gaps.shift();
+      if (gaps.length >= 20) {
+        const sorted = [...gaps].sort((a, b) => a - b);
+        const rate = 1000 / sorted[sorted.length >> 1];
+        // Whole numbers and the usual 59.94 / 119.88 / 143.86 near a measured value.
+        const whole = Math.round(rate);
+        window.rc2kRefresh = Math.abs(rate - whole) < 0.6 ? whole : rate;
+      }
+    }
+    last = now;
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+})();
+
 function status(text, error) {
   $("status").textContent = text;
   $("status").className = error ? "error" : "";
@@ -90,6 +116,11 @@ function start(dir, installer) {
     preRun: [() => {
       Module.ENV.HOME = "/opfs/home";
       Module.ENV.RC2K_DIR = dir;
+      // Environment variables of the program (`?env=RC2K_LOAD_TIMES=1`, repeatable), for trials.
+      for (const pair of new URLSearchParams(location.search).getAll("env")) {
+        const at = pair.indexOf("=");
+        if (at > 0) Module.ENV[pair.slice(0, at)] = pair.slice(at + 1);
+      }
     }],
     // The game's switches (`rc2k --help`), as `?args=--stage%20Langton%20--mode%20time-trial`.
     arguments: (new URLSearchParams(location.search).get("args") || "").split(/\s+/).filter(Boolean),
@@ -158,7 +189,7 @@ $("again").onclick = () => location.reload();
 
 (async () => {
   if (!self.crossOriginIsolated) {
-    $("lead").textContent = "This page needs to be served with cross-origin isolation (tools/web/serve.py).";
+    $("lead").textContent = "This page needs cross-origin isolation: open it over https (or tools/web/serve.py) in a browser that allows service workers, not a private window.";
     return;
   }
   if (navigator.storage.persist) navigator.storage.persist();
