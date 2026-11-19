@@ -21,13 +21,9 @@ What each system needs to run the program is on [Platforms](Platforms).
 
    | System | Files to put there |
    | --- | --- |
-   | Windows | `rc2k.exe`, `SDL3.dll`, the `locale` folder |
-   | Linux | `rc2k`, the `locale` folder |
-   | macOS | `Rally Championship.app`, the `locale` folder |
-
-   The `locale` folder holds the game's own texts in each language
-   ([Language files](Language-files#the-games-own-texts-rc2ktoml)); the installer copies the
-   chosen language's into the game.
+   | Windows | `rc2k.exe`, `SDL3.dll` |
+   | Linux | `rc2k` |
+   | macOS | `Rally Championship.app` |
 
 2. Start it there. When the program finds itself among the CD's files with no installation, it
    opens the game's own installer.

@@ -35,9 +35,7 @@ All commands are run from the repository's top folder. The repository and the cr
 The layout is the same for every target: `dist/<target>/` holds the program and everything it
 needs beside it. Copy the folder's contents into the game's folder (the one that holds `files`
 and `var`) and the game runs from there. Each build empties its `dist/<target>/` first. Git
-ignores `dist/`. Every target's folder also has `locale/`, the game's own texts of each language
-(`assets/locale/*.rc2k.toml`): the installer copies the chosen language's into the game, and
-`--deploy` copies the installed language's.
+ignores `dist/`.
 
 When a tool is missing, the script stops and names it. The sections below say what each
 target needs and what the script does for it, so that the steps can also be run by hand.

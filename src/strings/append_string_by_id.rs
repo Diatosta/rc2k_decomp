@@ -41,7 +41,7 @@ pub fn own_text(strings: &crate::strings::owner::Strings, id: u32) -> Vec<u8> {
         .own
         .read()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    rc2k_core::strings::own::text(id, file.as_ref())
+    rc2k_core::strings::own::text(id, *file)
         .unwrap_or_default()
         .to_vec()
 }
