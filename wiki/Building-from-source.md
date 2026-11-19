@@ -19,6 +19,7 @@ All commands are run from the repository's top folder. The repository and the cr
 | Windows, 64 or 32 bits | `build.ps1 -Target windows-x64` or `-Target windows` | Windows | the same two folders |
 | macOS | `./build.sh mac` | a Mac, or Linux with a Mac reached over SSH | `dist/mac/Rally Championship.app` |
 | iPhone / iPad (begun, not yet run) | `./build.sh ios` | Linux, with Apple's iOS SDK from Xcode (`tools/ios/README.md`) | `dist/ios/Rally Championship.ipa`, unsigned |
+| Steam Deck (and older Linux systems) | `./build.sh deck` | Linux, with Docker | `dist/deck/`: `rc2k`, `rally.sh`, `libsteam_api.so` with `RC2K_STEAM=1` |
 | Anbernic RG34XXSP | `./build.sh handheld` | Linux, with Docker | `dist/handheld/`: `rc2k`, `Rally.sh` |
 | Web (experimental) | `./build.sh web` | Linux, with Emscripten | `dist/web/`: `rc2k.js`, `rc2k.wasm`, `index.html`, `unzip.js`, `serve.py` |
 
@@ -74,6 +75,22 @@ CARGO_TARGET_DIR=target/linux cargo build --release --target x86_64-unknown-linu
 
 and copies the program to `dist/linux/rc2k`. SDL is linked into it, so it needs
 nothing installed beyond the C library; the script prints the glibc version the build needs.
+
+## Steam Deck
+
+```sh
+RC2K_STEAM=1 ./build.sh deck
+```
+
+The program built on a newer Linux needs that system's glibc, which SteamOS may lack. This target
+builds in a Docker container of Ubuntu 22.04 (`tools/deck/Dockerfile`; `tools/deck/run.sh` runs a
+command in it with this folder, `~/.cargo` and `~/.rustup` mounted), so the program needs glibc 2.35
+at most; the script prints the version found. SDL is built from source inside the container, with
+the X11, Wayland, ALSA, PulseAudio, PipeWire and udev backends. The program is compiled for the
+Deck's processor (`-C target-cpu=znver2`, Zen 2), so it needs AVX2: it will not run on older
+x86-64 processors. `dist/deck/` holds `rc2k`, `rally.sh` (starts the game from its own folder;
+point a "non-Steam game" entry at it) and, with `RC2K_STEAM=1`, `libsteam_api.so`. `CARGO_TARGET_DIR`
+names another build folder (default `target/deck`). The film decoder is Rust: no FFmpeg is built.
 
 ## Windows, built on Linux
 
@@ -215,7 +232,12 @@ those two with the page (`tools/web/index.html`, `unzip.js`, `serve.py`) and the
 `CARGO_TARGET_DIR` overrides the target folder.
 
 State: the page copies the game folder (picked as a folder, or as its zip in one or several parts)
-into the browser's storage, the game runs on a
+into the browser's storage. A folder of the CD's files starts the game's installer, which installs
+into the browser's home folder and starts the installed copy when the page is started again. A
+folder that is already an installed game (it holds `var/install.cfg` or `var/ral.zog`) is put
+straight into the installed place and played with no installer, keeping its saved games, best
+times and settings; its `savedata/videos` (the desktop program's rendered replay videos) and
+`instances` are left out, as the browser's storage is small. The game runs on a
 worker and shows the menus and races on the page's canvases; keys reach the game. Films play. The
 switches of `rc2k --help` go in the address as `?args=--mode%20time-trial%20--stage%20Langton`
 (`--renderer software` forces the software rasteriser).
@@ -249,7 +271,7 @@ over its place), no socket is opened and Steam is not there.
 
 | Target | Copies to |
 | --- | --- |
-| `linux` | the folder `DEPLOY_LINUX` names; without the line, `~/.local/share/rally-championship` |
+| `linux`, `deck` | the folder `DEPLOY_LINUX` names; without the line, `~/.local/share/rally-championship` |
 | `windows` | the folder `DEPLOY_WINDOWS` names |
 | `windows-x64` | the folder `DEPLOY_WINDOWS_X64` names |
 | `web` | the folder `DEPLOY_WEB` names |
@@ -345,7 +367,7 @@ into a race:
 
 ## The automatic builds
 
-The GitHub workflow `.github/workflows/build.yml` builds Windows (64 bits), Linux and macOS
+The GitHub workflow `.github/workflows/build.yml` builds Windows (64 bits), Linux, the Steam Deck (`deck`, in the container, as `rc2k-deck.zip`) and macOS
 with the same commands. The Mac build runs only for the main branch and for runs started by
 hand.
 

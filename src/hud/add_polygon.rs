@@ -94,15 +94,23 @@ pub fn add_polygon(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
         } else if wide && rule == 4 {
             Box::new(move |x| ox as f32 + anchor::bar_x(x, box_width, ih))
         } else if wide && rule == 5 {
+            // The marker keeps its shape and puts its right edge at the bar's place for its
+            // progress (`anchor::marker_edge_x`), where the bar's parts end.
             let (low, high) = vertices().fold((f32::MAX, f32::MIN), |(lo, hi), v| {
                 (lo.min(v.x.get()), hi.max(v.x.get()))
             });
-            let middle = (low + high) / 2.0;
             let (at, s) = (
-                ox as f32 + anchor::bar_x(middle, box_width, ih),
+                ox as f32
+                    + anchor::marker_edge_x(
+                        low,
+                        hud.block.marker_k[0].get(),
+                        hud.block.marker_k[1].get(),
+                        box_width,
+                        ih,
+                    ),
                 ih as f32 / 600.0,
             );
-            Box::new(move |x| at + (x - middle) * s)
+            Box::new(move |x| at + (x - high) * s)
         } else if !wide {
             Box::new(move |x| box_left as f32 + screen_scaled(x, box_width, kx))
         } else {

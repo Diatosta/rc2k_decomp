@@ -168,6 +168,63 @@ fn rows(data: &[u8], used: usize, pitch: usize, count: usize) -> Option<Vec<&[u8
     )
 }
 
+/// The grey levels of an RGBA frame (BT.601 weights), one byte a pixel.
+pub fn grey_of(rgba: &[u8]) -> Vec<u8> {
+    rgba.as_chunks::<4>()
+        .0
+        .iter()
+        .map(|p| ((u32::from(p[0]) * 77 + u32::from(p[1]) * 150 + u32::from(p[2]) * 29) >> 8) as u8)
+        .collect()
+}
+
+/// An RGBA frame of `width` x `height` shrunk or stretched to `to_width` x `to_height` as
+/// 0xRRGGBB pixels, each the average of up to 3 x 3 of the frame's pixels that it covers (the
+/// whole picture, whatever the size asked: nothing is cropped), turned left to right when
+/// `mirrored`. Empty when a size is nothing or the frame is too short.
+pub fn fit_rgb(
+    rgba: &[u8],
+    width: usize,
+    height: usize,
+    to_width: usize,
+    to_height: usize,
+    mirrored: bool,
+) -> Vec<u32> {
+    if width == 0
+        || height == 0
+        || to_width == 0
+        || to_height == 0
+        || rgba.len() < width * height * 4
+    {
+        return Vec::new();
+    }
+    // The source columns and rows each output pixel covers, as a start and a length.
+    let span = |n: usize, of: usize, from: usize| {
+        let start = n * from / of;
+        let end = ((n + 1) * from).div_ceil(of).clamp(start + 1, from);
+        (start, end - start)
+    };
+    let mut out = Vec::with_capacity(to_width * to_height);
+    for y in 0..to_height {
+        let (y0, rows) = span(y, to_height, height);
+        for x in 0..to_width {
+            let (x0, columns) = span(if mirrored { to_width - 1 - x } else { x }, to_width, width);
+            let (mut sum, mut count) = ([0u32; 3], 0);
+            for k in 0..rows.min(3) {
+                let sy = y0 + k * rows / rows.min(3);
+                for j in 0..columns.min(3) {
+                    let at = (sy * width + x0 + j * columns / columns.min(3)) * 4;
+                    sum[0] += u32::from(rgba[at]);
+                    sum[1] += u32::from(rgba[at + 1]);
+                    sum[2] += u32::from(rgba[at + 2]);
+                    count += 1;
+                }
+            }
+            out.push(((sum[0] / count) << 16) | ((sum[1] / count) << 8) | (sum[2] / count));
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -354,5 +411,51 @@ mod tests {
         assert_eq!(black[..3], [0, 0, 0]);
         let white = to_rgba(Layout::Yuy2, 2, 1, 4, &[235, 128, 235, 128]).unwrap();
         assert_eq!(white[..3], [255, 255, 255]);
+    }
+
+    #[test]
+    fn a_picture_fitted_to_a_box_keeps_all_of_it() {
+        // Left half red, right half blue, 8 x 2.
+        let rgba: Vec<u8> = (0..2)
+            .flat_map(|_| {
+                (0..8).flat_map(|x| {
+                    if x < 4 {
+                        [255, 0, 0, 255]
+                    } else {
+                        [0, 0, 255, 255]
+                    }
+                })
+            })
+            .collect();
+        assert_eq!(
+            fit_rgb(&rgba, 8, 2, 4, 1, false),
+            [0xFF0000, 0xFF0000, 0x0000FF, 0x0000FF]
+        );
+        assert_eq!(
+            fit_rgb(&rgba, 8, 2, 4, 1, true),
+            [0x0000FF, 0x0000FF, 0xFF0000, 0xFF0000]
+        );
+        // Stretched: every pixel of the source is some output's.
+        assert_eq!(fit_rgb(&rgba, 8, 2, 16, 4, false).len(), 64);
+        assert!(fit_rgb(&rgba, 8, 2, 0, 4, false).is_empty());
+        assert!(fit_rgb(&rgba[..10], 8, 2, 4, 1, false).is_empty());
+    }
+
+    #[test]
+    fn a_blurry_average_is_taken_where_pixels_are_shared() {
+        // 6 pixels across, black and white alternating, into 2: each covers 3 (0, 255, 0 or
+        // 255, 0, 255).
+        let rgba: Vec<u8> = (0..6)
+            .flat_map(|x| {
+                let v = if x % 2 == 0 { 0 } else { 255 };
+                [v, v, v, 255]
+            })
+            .collect();
+        assert_eq!(fit_rgb(&rgba, 6, 1, 2, 1, false), [0x555555, 0xAAAAAA]);
+    }
+
+    #[test]
+    fn grey_is_the_weighted_sum() {
+        assert_eq!(grey_of(&[255, 255, 255, 255, 0, 0, 0, 255]), [255, 0]);
     }
 }
