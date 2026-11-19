@@ -407,9 +407,11 @@ fn draw(
     use crate::gfx::button_hints::width_of;
     use crate::input::osk_draw::fill;
     let mut canvas = GameCanvas::new(o.gfx);
-    let screen = o.system.session.screen.get();
-    let (w, h) = (screen.width.get() as i32, screen.height.get() as i32);
-    fill(o, [0, 0, w, h], SCREEN);
+    // Laid out on the virtual screen, enlarged to the real one at the end.
+    let view = crate::gfx::ui_scale::View::now(o);
+    let (w, h) = (view.width, view.height);
+    // The background at the real size, the panel on the virtual screen.
+    fill(o, [0, 0, view.screen.0, view.screen.1], SCREEN);
     let panel_w = (w - 40).min(720);
     // A canvas is only a handle on the game's fonts: one for each measure.
     let measure = |s: &str| {
@@ -438,7 +440,8 @@ fn draw(
         + LINE_H
         + MARGIN)
         .min(h - 20);
-    let (left, top) = ((w - panel_w) / 2, (h - panel_h) / 2);
+    let panel = view.panel(panel_w, panel_h);
+    let (left, top) = panel.origin();
     fill(o, [left, top, panel_w, panel_h], PANEL);
     let all_drawn = Cell::new(true);
     let put = |text: &str, x: i32, y: i32, canvas: &mut GameCanvas| {
@@ -480,6 +483,7 @@ fn draw(
         top + panel_h - MARGIN - LINE_H / 2,
         &mut canvas,
     );
+    panel.finish(o, SCREEN);
     all_drawn.get()
 }
 

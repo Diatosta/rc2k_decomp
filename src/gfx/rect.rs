@@ -59,10 +59,24 @@ impl Palette<'_> {
     }
 }
 
-/// The plan's work variables, then its pixels in colour `colour`.
-fn carry_out(plan: &rc2k_core::gfx::raster::Plan, colour: u32, palette: Palette<'_>, gfx: &Gfx) {
-    let recording =
-        crate::gfx::draw2d::enabled() && crate::gfx::draw2d::is_screen(surface(gfx).target);
+/// `row` made `count` pixels of `pixel` (2 or 4 bytes, or the one byte of an 8-bit surface).
+fn repeat_pixel(row: &mut Vec<u8>, pixel: &[u8], count: usize) {
+    row.clear();
+    row.resize(count * pixel.len(), 0);
+    match *pixel {
+        [a, b, c, d] => row.as_chunks_mut::<4>().0.fill([a, b, c, d]),
+        [a, b] => row.as_chunks_mut::<2>().0.fill([a, b]),
+        [a] => row.fill(a),
+        _ => {
+            for chunk in row.chunks_exact_mut(pixel.len().max(1)) {
+                chunk.copy_from_slice(pixel);
+            }
+        }
+    }
+}
+
+/// The plan's work variables, written for the blitter.
+fn set_work(plan: &rc2k_core::gfx::raster::Plan, gfx: &Gfx) {
     let drawing = &gfx.drawing;
     let w = plan.work;
     for (at, value) in [
@@ -75,6 +89,45 @@ fn carry_out(plan: &rc2k_core::gfx::raster::Plan, colour: u32, palette: Palette<
             set(at, v);
         }
     }
+}
+
+/// A solid shape given as runs of pixels: the work variables, then every run written whole in
+/// colour `colour` (on the canvas, and in the 2D record when that is kept). The shape the
+/// quads are noted for goes through `carry_out`.
+fn carry_out_runs(
+    plan: &rc2k_core::gfx::raster::Plan,
+    runs: &[(i32, usize)],
+    colour: u32,
+    palette: Palette<'_>,
+    gfx: &Gfx,
+) {
+    set_work(plan, gfx);
+    let Some(target) = surface(gfx).target else {
+        crate::fatal::raise::end("gfx::rect", crate::errors::BadInput("no surface"))
+    };
+    if runs.is_empty() {
+        return;
+    }
+    let recording =
+        crate::gfx::draw2d::enabled() && crate::gfx::draw2d::is_screen(surface(gfx).target);
+    let bytes = pixel(&gfx.fonts, plan.bits, colour, palette);
+    let mut row = Vec::new();
+    for &(offset, count) in runs {
+        repeat_pixel(&mut row, &bytes, count);
+        if let Err(e) = crate::gfx::surface::write(target, offset as u32, &row, gfx) {
+            crate::fatal::raise::end("gfx::rect", e)
+        }
+        if recording {
+            crate::gfx::draw2d::mirror(offset as u32, &row);
+        }
+    }
+}
+
+/// The plan's work variables, then its pixels in colour `colour`.
+fn carry_out(plan: &rc2k_core::gfx::raster::Plan, colour: u32, palette: Palette<'_>, gfx: &Gfx) {
+    let recording =
+        crate::gfx::draw2d::enabled() && crate::gfx::draw2d::is_screen(surface(gfx).target);
+    set_work(plan, gfx);
     let Some(target) = surface(gfx).target else {
         crate::fatal::raise::end("gfx::rect", crate::errors::BadInput("no surface"))
     };
@@ -95,13 +148,18 @@ fn carry_out(plan: &rc2k_core::gfx::raster::Plan, colour: u32, palette: Palette<
                 )
             })
         };
-    for &offset in plan.pixels.iter().filter(|_| !by_quad || recording) {
+    if (!by_quad || recording) && !plan.pixels.is_empty() {
+        // The pixel's bytes once, written a run of neighbouring pixels at a time.
         let bytes = pixel(&gfx.fonts, plan.bits, colour, palette);
-        if !by_quad && let Err(e) = crate::gfx::surface::write(target, offset as u32, &bytes, gfx) {
-            crate::fatal::raise::end("gfx::rect", e)
-        }
-        if recording {
-            crate::gfx::draw2d::mirror(offset as u32, &bytes);
+        for (offset, count) in rc2k_core::gfx::raster::runs(&plan.pixels, bytes.len() as i32) {
+            let run = bytes.repeat(count);
+            if !by_quad && let Err(e) = crate::gfx::surface::write(target, offset as u32, &run, gfx)
+            {
+                crate::fatal::raise::end("gfx::rect", e)
+            }
+            if recording {
+                crate::gfx::draw2d::mirror(offset as u32, &run);
+            }
         }
     }
 }
@@ -114,15 +172,28 @@ fn note(
     palette: Palette<'_>,
     gfx: &Gfx,
 ) {
+    // The pixel's bytes by the depth of the first plan that sets a pixel.
+    let drawn = plans
+        .iter()
+        .find(|plan| !plan.pixels.is_empty())
+        .map(|plan| plan.bits);
+    note_drawn(shape, drawn, colour, palette, gfx);
+}
+
+/// `note` for a shape whose pixels are drawn at depth `drawn` (none: no pixel is set).
+fn note_drawn(
+    shape: crate::gfx::draw2d::Shape,
+    drawn: Option<u32>,
+    colour: u32,
+    palette: Palette<'_>,
+    gfx: &Gfx,
+) {
     use crate::gfx::draw2d::{Canvas, Command, Rect, push};
     if !crate::gfx::draw2d::enabled() || !crate::gfx::draw2d::is_screen(surface(gfx).target) {
         return;
     }
-    // The pixel's bytes by the depth of the first plan that sets a pixel.
-    let pixel = plans
-        .iter()
-        .find(|plan| !plan.pixels.is_empty())
-        .map(|plan| pixel(&gfx.fonts, plan.bits, colour, palette))
+    let pixel = drawn
+        .map(|bits| pixel(&gfx.fonts, bits, colour, palette))
         .unwrap_or_default();
     push(Command::Rect(Rect {
         shape,
@@ -164,6 +235,20 @@ pub fn fill_rect(
     palette: Palette<'_>,
     gfx: &Gfx,
 ) -> Result<(), Refused> {
+    if !crate::gfx::draw2d::quads::wanted() {
+        let (plan, rows) =
+            rc2k_core::gfx::raster::fill_runs(rect, &core_clip(gfx), &core_surface(gfx))?;
+        carry_out_runs(&plan, &rows, colour, palette, gfx);
+        let drawn = (!rows.is_empty()).then_some(plan.bits);
+        note_drawn(
+            crate::gfx::draw2d::Shape::Fill(rect),
+            drawn,
+            colour,
+            palette,
+            gfx,
+        );
+        return Ok(());
+    }
     let plan = rc2k_core::gfx::raster::fill(rect, &core_clip(gfx), &core_surface(gfx))?;
     carry_out(&plan, colour, palette, gfx);
     note(
@@ -179,6 +264,15 @@ pub fn fill_rect(
 /// `gfx::draw_hline`: `length` pixels from (x, y) rightwards, clipped (the left clip: what is cut
 /// is -x, right only for a left edge of 0).
 pub fn draw_hline(x: i32, y: i32, length: i32, colour: u32, palette: Palette<'_>, gfx: &Gfx) {
+    if !crate::gfx::draw2d::quads::wanted() {
+        let (plan, rows) =
+            rc2k_core::gfx::raster::hline_runs(x, y, length, &core_clip(gfx), &core_surface(gfx));
+        carry_out_runs(&plan, &rows, colour, palette, gfx);
+        let shape = crate::gfx::draw2d::Shape::HLine { x, y, length };
+        let drawn = (!rows.is_empty()).then_some(plan.bits);
+        note_drawn(shape, drawn, colour, palette, gfx);
+        return;
+    }
     let plan = rc2k_core::gfx::raster::hline(x, y, length, &core_clip(gfx), &core_surface(gfx));
     carry_out(&plan, colour, palette, gfx);
     let shape = crate::gfx::draw2d::Shape::HLine { x, y, length };

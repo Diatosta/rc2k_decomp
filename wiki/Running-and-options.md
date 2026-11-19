@@ -208,6 +208,11 @@ name.
 
 ### Rendering a replay to a video
 
+Video rendering is a desktop feature for now: the replay viewer offers it (and `--render-replay`
+works) on Windows, Linux and macOS only, not on phones, the web build or the Vita.
+The render dialog, its progress panel and the notices are laid out for a 600-line screen and
+enlarged on a taller one, so they take the same share of a 1080-line, 1440-line or phone screen.
+
 `--render-replay` plays a replay without a window on the screen or a sound device, as fast as
 the frames can be drawn, and writes the picture and the game's sound as a video file. The replay
 runs tick for tick as when it is watched; only the clock is the video's own.

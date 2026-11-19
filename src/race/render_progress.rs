@@ -327,7 +327,7 @@ fn watch(o: Owners<'static>, render: &Render, mut child: Child) -> Ended {
         if crate::platform::lock_surface(o.gfx, o.system) < 1 {
             return stop(&mut child);
         }
-        let button = draw(o, render, progress, &pace);
+        let (button, panel) = draw(o, render, progress, &pace);
         crate::platform::unlock_surface(o.gfx);
         if !crate::platform::show_frame_now(o) {
             return stop(&mut child);
@@ -335,6 +335,8 @@ fn watch(o: Owners<'static>, render: &Render, mut child: Child) -> Ended {
         crate::input::menu_pad::take_answer(o.input);
         let key = crate::input::take_key::take_key(o.input);
         let (buttons, x, y) = crate::input::keys::unpack_mouse(&o.input.devices);
+        // The button is where the panel was laid out.
+        let (x, y) = panel.point(x, y);
         let down = buttons & 1 != 0;
         let [l, t, w, h] = button;
         let clicked = down && !was_down && x >= l && x < l + w && y >= t && y < t + h;
@@ -359,12 +361,14 @@ fn draw(
     render: &Render,
     progress: Option<(f64, u64)>,
     pace: &Pace,
-) -> [i32; 4] {
+) -> ([i32; 4], crate::gfx::ui_scale::Panel) {
     use crate::gfx::button_hints::width_of;
     let mut canvas = GameCanvas::new(o.gfx);
-    let screen = o.system.session.screen.get();
-    let (w, h) = (screen.width.get() as i32, screen.height.get() as i32);
-    fill(o, [0, 0, w, h], SCREEN);
+    // Laid out on the virtual screen, enlarged to the real one at the end.
+    let view = crate::gfx::ui_scale::View::now(o);
+    let (w, h) = (view.width, view.height);
+    // The background at the real size, the panel on the virtual screen.
+    fill(o, [0, 0, view.screen.0, view.screen.1], SCREEN);
     let own = |n: u32| {
         rc2k_core::files::ansi::ansi_text(&crate::strings::append_string_by_id::own_text(
             o.strings, n,
@@ -381,7 +385,8 @@ fn draw(
     let panel_w = (w - 40).min(720);
     let inner = panel_w - 2 * MARGIN;
     let panel_h = MARGIN * 2 + line_h * 2 + line_h * 2 + row_h + line_h * 2 + row_h;
-    let (left, top) = ((w - panel_w) / 2, (h - panel_h) / 2);
+    let panel = view.panel(panel_w, panel_h);
+    let (left, top) = panel.origin();
     fill(o, [left, top, panel_w, panel_h], PANEL);
     let put = |text: &str, x: i32, y: i32, canvas: &mut GameCanvas| {
         let mut bytes = rc2k_core::files::ansi::ansi_bytes(text);
@@ -455,7 +460,8 @@ fn draw(
         y + (row_h - 6) / 2,
         &mut canvas,
     );
-    button
+    panel.finish(o, SCREEN);
+    (button, panel)
 }
 
 #[cfg(test)]

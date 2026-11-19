@@ -77,6 +77,7 @@ pub mod show_picture_file;
 pub mod surface;
 pub mod texture_pixels;
 pub mod texture_upload;
+pub mod ui_scale;
 pub mod upload_texture_picture;
 
 pub mod keep_race_screen_mode;
