@@ -1,9 +1,9 @@
 //! The texts of the pages this game adds to the original's (the controller axes page, the
 //! controller buttons page's new rows and the H shifter's switch). The original's language file
-//! holds none of them, so they are kept in one file per language, `<name>.rc2k.toml` beside the
-//! language's own files (`files/locale`, named after the language's `.LOC` file), and English is
-//! built into the program (`assets/locale/english.rc2k.toml`): the text of a language file that
-//! lacks a text, or a missing file, is shown in English.
+//! holds none of them, so they are kept in one file per language, `assets/locale/<name>.rc2k.toml`
+//! (`<name>` the language's `.LOC` file name), and every file is built into the program: the
+//! game's folder never supplies them, so they always match the program. A language with no file,
+//! or a file that lacks a text, shows it in English.
 //!
 //! A file is TOML, UTF-8, one `key = "text"` for each text, the key's dots standing for tables
 //! (`axis_page.dead_zone` is `dead_zone` in `[axis_page]`). `KEYS` names every key and the id a
@@ -588,6 +588,16 @@ pub const KEYS: &[(&str, u32)] = &[
 /// The English file, built in.
 pub const ENGLISH: &str = include_str!("../../../assets/locale/english.rc2k.toml");
 
+/// Every language's file, built in: the language's name (the `.LOC` file's, in lower case) and
+/// the file's text.
+pub const LANGUAGES: &[(&str, &str)] = &[
+    ("english", ENGLISH),
+    (
+        "portuges",
+        include_str!("../../../assets/locale/portuges.rc2k.toml"),
+    ),
+];
+
 /// The texts of a language file, as Windows-1252 bytes by id.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct File {
@@ -650,6 +660,23 @@ pub fn english() -> &'static File {
     })
 }
 
+/// The built-in texts of the language named `name` (any case), parsed once; none for a language
+/// with no file, whose texts are English.
+pub fn for_language(name: &str) -> Option<&'static File> {
+    static PARSED: OnceLock<Vec<(&'static str, File)>> = OnceLock::new();
+    let parsed = PARSED.get_or_init(|| {
+        LANGUAGES
+            .iter()
+            // A file that does not parse is kept out; a test keeps every one parsing.
+            .filter_map(|(name, text)| Some((*name, File::parse(text).ok()?)))
+            .collect()
+    });
+    parsed
+        .iter()
+        .find(|(known, _)| known.eq_ignore_ascii_case(name))
+        .map(|(_, file)| file)
+}
+
 /// The text of own id `id`: the language's file's, else English; none for an id that is none's.
 pub fn text(id: u32, language: Option<&File>) -> Option<&[u8]> {
     language
@@ -660,15 +687,6 @@ pub fn text(id: u32, language: Option<&File>) -> Option<&[u8]> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    /// Every language file the repository ships.
-    const SHIPPED: &[(&str, &str)] = &[
-        ("english", ENGLISH),
-        (
-            "portuges",
-            include_str!("../../../assets/locale/portuges.rc2k.toml"),
-        ),
-    ];
 
     #[test]
     fn ids_and_keys_are_unique_and_inside_the_range() {
@@ -690,7 +708,7 @@ mod tests {
 
     #[test]
     fn every_shipped_file_has_known_keys_and_texts() {
-        for (name, text) in SHIPPED {
+        for (name, text) in LANGUAGES {
             let file = File::parse(text).unwrap();
             assert!(file.unknown.is_empty(), "{name}: {:?}", file.unknown);
             for (key, id) in KEYS {
@@ -710,6 +728,14 @@ mod tests {
         assert_eq!(text(id::WHEEL, Some(&portuguese)), Some(&b"wheel"[..]));
         assert_eq!(text(id::WHEEL, None), Some(&b"wheel"[..]));
         assert_eq!(text(FIRST + 0xF0, None), None);
+    }
+
+    #[test]
+    fn a_language_is_found_by_its_name_in_any_case() {
+        assert_eq!(for_language("PORTUGES").unwrap().unknown.len(), 0);
+        assert_eq!(for_language("English"), Some(english()));
+        assert!(for_language("klingon").is_none());
+        assert_ne!(for_language("portuges"), for_language("english"));
     }
 
     #[test]

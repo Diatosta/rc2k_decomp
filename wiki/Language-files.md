@@ -184,40 +184,30 @@ The file is `0x258` (600) bytes long.
 
 The pages this version adds to the original's (the controller axes page, the extra rows of the
 controller buttons page, the H shifter's switch, the button icons' and engine vibration settings and the hints beside the pictures) have texts that the language's `.txt` does not
-hold. They are in a file of their own for each language, in the same folder as the language's
-files, named after its `.loc` file with `.rc2k.toml` in place of the ending: `PORTUGES.LOC`
-goes with `portuges.rc2k.toml`, `ENGLISH.LOC` with `english.rc2k.toml`. The repository has them
-in `assets/locale/`; English is also built into the program.
+hold. They are in a file of their own for each language, named after its `.loc` file with
+`.rc2k.toml` in place of the ending: `PORTUGES.LOC` goes with `portuges.rc2k.toml`, `ENGLISH.LOC`
+with `english.rc2k.toml`. The files are in `assets/locale/` and are built into the program: the
+game's folder is never read for them, so a copy of the game folder made with an older version
+(a phone, the web build) still shows the current texts, and a `.rc2k.toml` left in `files/locale`
+is ignored.
 
-The game reads the file at start, after the language's own files. A missing file, or a text the
-file does not have, is shown in English (a missing file is noted in `rc2k.log`); a key the game
-does not know is noted there and ignored; a file that is not UTF-8 TOML text is passed over as
-a whole, the texts shown in English and the reason (the line and what is wrong) noted in
-`rc2k.log`.
+At start the program takes the name of the first `.loc` file of the language folder and uses the
+built-in file of that name (any case). A language with no built-in file, or a text a file does
+not have, is shown in English (a language without a file is noted in `rc2k.log`).
 
 The file is TOML in UTF-8, a `key = "text"` for each text; a key's dots stand for tables, so
 `axis_page.dead_zone = "dead zone"` may also be written `dead_zone = "dead zone"` under
 `[axis_page]`. The texts are converted to Windows-1252, the code page of the game's own. The
-built-in English file, `assets/locale/english.rc2k.toml`, lists every key with its comment.
-**To add a language**, copy it, translate the texts and name it after the language's `.loc`
-file; no code changes.
-
-Where the files go:
-
-- the builds (`./build.sh`) put every language's file in `dist/<target>/locale/`, beside the
-  program;
-- the installer copies the one of the language chosen from there into the installed
-  `files/locale`, as it copies the language's own files (a download folder that already has the
-  file in its language folder gets it copied with that folder);
-- `./build.sh <target> --deploy` copies the one of the language already installed in the game
-  folder it deploys to.
+English file, `assets/locale/english.rc2k.toml`, lists every key with its comment.
+**To add a language**, copy it, translate the texts, name it after the language's `.loc` file and
+list it in `LANGUAGES` in `rc2k_core/src/strings/own.rs`; a test checks every listed file's keys
+and texts.
 
 ## Code
 
 `src/strings/load_language.rs` (the order of loading, the `.loc` and `.kim` checks),
 `src/strings/compile_lexicon.rs`, `rc2k_core/src/strings/lexicon.rs` (the `.txt` compiler),
 `rc2k_core/src/strings/language.rs` (the `.loc` record), `rc2k_core/src/strings/own.rs` and
-`src/strings/own_texts.rs` (the `.rc2k.toml` files), `src/install/copy_own_texts.rs` (the
-installer's copy),
+`src/strings/own_texts.rs` (the `.rc2k.toml` files),
 `rc2k_core/src/input/layouts.rs` (the `.kim` file), `rc2k_core/src/input/keyboard.rs` (keys
 to characters, dead keys), `rc2k_core/src/strings/table.rs` (reading the compiled table).

@@ -42,8 +42,8 @@ pub struct Language {
     /// 0 = imperial (Fahrenheit, miles) and non-zero = metric (0 at the start). Set by the language
     /// (`load_language`) and player 1's choice (`menu::take_player1_units`, `menu::options_loop`).
     pub units: PlainDword,
-    /// The language's file of own texts (`strings::own_texts`); none: English.
-    pub own: std::sync::RwLock<Option<rc2k_core::strings::own::File>>,
+    /// The built-in own texts of the language (`strings::own_texts`); none: English.
+    pub own: std::sync::RwLock<Option<&'static rc2k_core::strings::own::File>>,
 }
 
 impl Language {

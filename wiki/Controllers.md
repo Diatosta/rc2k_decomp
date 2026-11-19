@@ -125,8 +125,8 @@ In the game's options, each player has a controller page, an axes list with a pa
   when the page was entered.
 
 The texts of the axes pages and of the new rows are not in the language file: the game reads
-them from a file of its own for each language, `files/locale/<language>.rc2k.toml`, with English
-built in ([Language files](Language-files#the-games-own-texts-rc2ktoml)).
+them from a file of its own for each language, `assets/locale/<language>.rc2k.toml`, built into
+the program, with English for a language that has none ([Language files](Language-files#the-games-own-texts-rc2ktoml)).
 
 ### Button pictures
 
