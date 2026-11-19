@@ -34,6 +34,16 @@ static ESCAPE_UNTIL: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64
 /// state at its own pace, as it does a key on a keyboard.
 const ESCAPE_HOLD_MS: u64 = 200;
 
+/// Keys from gestures waiting for the menus to take the one before: the menus hold one key at a
+/// time, and one quick swipe can give several steps at once.
+/// Each with the menu it was given on: a key is not carried to another screen.
+static QUEUED: Mutex<
+    std::collections::VecDeque<(MenuAction, Option<crate::menu::menus_store::MenuId>)>,
+> = Mutex::new(std::collections::VecDeque::new());
+
+/// The most keys kept waiting (a long swipe's steps; more are dropped).
+const QUEUE_ROOM: usize = 8;
+
 /// The game's key code of Escape.
 const ESCAPE_KEY: u8 = 0x01;
 
@@ -99,6 +109,7 @@ pub fn finger(
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     if (recogniser.active() || recogniser.waiting()) && *on_screen != menu {
         recogniser.release_all();
+        forget_queued();
         note(
             "the screen changed under a finger, the touches are dropped",
             now,
@@ -124,6 +135,7 @@ pub fn finger(
 
 /// Called every turn of the event loop: the single tap whose double-tap window is over is chosen.
 pub fn tick(o: &Owners<'static>, window: sdl::Window, now: u64) {
+    hand_over_queued(o);
     let until = ESCAPE_UNTIL.load(Relaxed);
     if until != 0 && now >= until {
         ESCAPE_UNTIL.store(0, Relaxed);
@@ -147,6 +159,7 @@ pub fn tick(o: &Owners<'static>, window: sdl::Window, now: u64) {
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     if on_screen != menu {
         recogniser.release_all();
+        forget_queued();
         note("the screen changed under a waiting tap, it is dropped", now);
         return;
     }
@@ -198,10 +211,49 @@ pub fn release_all() {
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
         .release_all();
+    forget_queued();
+}
+
+/// The keys still queued dropped: they were meant for a screen that has gone.
+fn forget_queued() {
+    QUEUED
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clear();
 }
 
 fn press(o: &Owners<'static>, action: MenuAction) {
+    let waiting =
+        crate::input::take_key::pending_key(o.input).load(std::sync::atomic::Ordering::SeqCst);
+    let mut queued = QUEUED
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    if waiting != 0 || !queued.is_empty() {
+        if queued.len() < QUEUE_ROOM {
+            queued.push_back((action, o.menus.screens.loop_flags.menu.get().ok()));
+        }
+        return;
+    }
+    drop(queued);
     super::events::menu_action(o.input, action);
+}
+
+/// The next queued key handed over once the menus took the one before.
+fn hand_over_queued(o: &Owners<'static>) {
+    if crate::input::take_key::pending_key(o.input).load(std::sync::atomic::Ordering::SeqCst) != 0 {
+        return;
+    }
+    let next = QUEUED
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .pop_front();
+    if let Some((action, menu)) = next {
+        if menu == o.menus.screens.loop_flags.menu.get().ok() {
+            super::events::menu_action(o.input, action);
+        } else {
+            forget_queued();
+        }
+    }
 }
 
 /// A single tap at (`x`, `y`) in the window's pixels: Enter, wherever it was. The installer's
