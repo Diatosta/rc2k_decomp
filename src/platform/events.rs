@@ -868,5 +868,21 @@ fn touch_finger(
         }
         return;
     }
+    set_viewer_sideways(o.race);
     crate::platform::touch_menu::finger(o, window, id, phase, x, y, now);
+}
+
+/// In the replay viewer (a replay is shown, `driving` is false) a sideways drag gives the key on
+/// the finger's side, so a drag to the right is Right (the replay goes on), as on the save code
+/// page; the menus' carousels keep the finger-follows-content direction. Set only when the
+/// viewer is entered or left, so the page that sets it for itself is left alone.
+#[cfg(touch_screen)]
+fn set_viewer_sideways(race: &crate::race::owner::Race) {
+    use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
+    static IN_VIEWER: AtomicBool = AtomicBool::new(false);
+    let viewing = race.course.numbers.get().in_race.is_set()
+        && race.shared.replay_file().hold_car_revs.get() != 0;
+    if IN_VIEWER.swap(viewing, Relaxed) != viewing {
+        crate::platform::touch_menu::set_direct_sideways(viewing);
+    }
 }

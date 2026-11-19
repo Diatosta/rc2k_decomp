@@ -128,13 +128,16 @@ const PHONE_LONGEST_MS: u32 = 120;
 pub const PHONE_PULSE_GAP_MS: u128 = 160;
 
 /// The two motors' levels (0 .. 65535) mixed down to a phone's one motor: the stronger of the
-/// two sets the strength, and the pulse lasts longer the stronger it is. None when the rumble
-/// is too light to be worth a pulse.
+/// two sets the strength, and the pulse lasts longer the stronger it is. A phone's motor is
+/// felt much less than a pad's, so the strength follows a square-root curve: the game's typical
+/// effects (a fraction of full) are felt, and full strength is still reached at full level.
+/// None when the rumble is too light to be worth a pulse.
 pub fn phone_pulse(heavy: u16, light: u16) -> Option<Pulse> {
-    let strength = f32::from(heavy.max(light)) / 65535.0;
-    if strength < PHONE_WEAKEST {
+    let level = f32::from(heavy.max(light)) / 65535.0;
+    if level < PHONE_WEAKEST {
         return None;
     }
+    let strength = level.sqrt();
     let ms = PHONE_SHORTEST_MS
         + ((PHONE_LONGEST_MS - PHONE_SHORTEST_MS) as f32 * strength).round() as u32;
     Some(Pulse { strength, ms })
