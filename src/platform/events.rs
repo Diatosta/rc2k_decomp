@@ -890,9 +890,10 @@ fn touch_finger(
             "the menus"
         };
         crate::platform::touch_menu::trace(&format!(
-            "{phase:?} finger {id} at {x:.3}, {y:.3} -> {route} (race flag {}, replay {})",
+            "{phase:?} finger {id} at {x:.3}, {y:.3} -> {route} (race flag {}, replay {}), touched {} ms ago",
             o.race.course.numbers.get().in_race.is_set(),
-            o.race.shared.replay_file().hold_car_revs.get() != 0
+            o.race.shared.replay_file().hold_car_revs.get() != 0,
+            crate::platform::ffi::sdl::FINGER_AGE_MS.load(std::sync::atomic::Ordering::Relaxed)
         ));
     }
     let Some(window) = window else {
