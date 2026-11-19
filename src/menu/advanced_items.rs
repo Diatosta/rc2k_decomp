@@ -14,6 +14,9 @@ use rc2k_core::options::advanced::{
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+/// Whether the page has the row that shares the log (phones with Android's share sheet).
+pub const PHONE: bool = cfg!(target_os = "android");
+
 /// The part of the page shown: 0 the first `PAGE_ROWS` rows, 1 the rest.
 static PAGE: AtomicUsize = AtomicUsize::new(0);
 
@@ -116,8 +119,13 @@ pub fn shown(o: Owners<'static>) -> Values {
 
 /// The item slot `row` of the part shown, stepped one: the part's rows start at its first.
 pub fn step(o: Owners<'static>, row: u8, up: bool) -> Result<(), Refused> {
-    let row = rc2k_core::options::advanced::rows_on_page(page()).start as u8 + row;
+    let row = rc2k_core::options::advanced::rows_on_page(page(), PHONE).start as u8 + row;
     if usize::from(row) >= ROWS.len() {
+        return Ok(());
+    }
+    if matches!(ROWS[usize::from(row)].kind, Kind::ShareLog) {
+        // An action: either key, or a tap, opens the share sheet.
+        crate::platform::share_log();
         return Ok(());
     }
     shown(o);
@@ -126,8 +134,12 @@ pub fn step(o: Owners<'static>, row: u8, up: bool) -> Result<(), Refused> {
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     if let Some(state) = guard.as_mut() {
         let most = crate::scene::workers::most_threads() as u32;
-        // OpenGL alone is a desktop choice: the handheld's GPU renderer is GL ES already.
-        let gl = cfg!(not(all(target_os = "linux", target_arch = "aarch64")));
+        // OpenGL alone is a desktop choice: the handheld's GPU renderer is GL ES already, and a
+        // phone's one window is the GPU renderer's.
+        let gl = cfg!(not(any(
+            all(target_os = "linux", target_arch = "aarch64"),
+            target_os = "android"
+        )));
         state.shown.step(usize::from(row), up, most, gl);
     }
     Ok(())
@@ -136,7 +148,7 @@ pub fn step(o: Owners<'static>, row: u8, up: bool) -> Result<(), Refused> {
 /// Enter on a row of the part shown: the last row (the deletion of all saved data) asks
 /// and deletes; the settings' rows are stepped with the left and right keys, so nothing here.
 pub fn delete_saved_data(o: Owners<'static>) -> Result<(), Refused> {
-    let row = rc2k_core::options::advanced::rows_on_page(page()).start + DELETE_SLOT;
+    let row = rc2k_core::options::advanced::rows_on_page(page(), PHONE).start + DELETE_SLOT;
     if !matches!(ROWS.get(row).map(|r| r.kind), Some(Kind::DeleteData)) {
         return Ok(());
     }
@@ -145,7 +157,7 @@ pub fn delete_saved_data(o: Owners<'static>) -> Result<(), Refused> {
 
 /// The item slot of the part shown that holds the deletion row (on the second part, the one
 /// after the settings).
-pub const DELETE_SLOT: usize = ROWS.len() - 1 - rc2k_core::options::advanced::PAGE_ROWS;
+pub const DELETE_SLOT: usize = ROWS.len() - 2 - rc2k_core::options::advanced::PAGE_ROWS;
 
 /// The renderer swapped for `renderer` at once where the platform can (the desktop's); the
 /// swap's failure is logged and the page keeps saying "next start" beside the renderer, as the

@@ -896,10 +896,16 @@ fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(),
         }
         let renderer = screen.renderer;
         // A race on the GPU: its picture, the canvas's written pixels over it.
+        let finishing = std::time::Instant::now();
         let gpu_view = crate::platform::direct3d::screen(o.system.session.screen.get())
             .and_then(|target| crate::render::finish_frame(&race.course, &target))
             .map(|colour| make_view(renderer, colour))
             .is_some();
+        crate::platform::timing::note_span(
+            &crate::platform::timing::FINISH_MICROS,
+            &crate::platform::timing::FINISH_MAX,
+            finishing.elapsed().as_micros() as u64,
+        );
         if !gpu_view
             && !with_frame(screen, |frame| {
                 screen.texture.upload(frame, screen.width * 4)
@@ -949,7 +955,13 @@ fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(),
         {
             crate::remote::window_taken(width, height, pixels);
         }
+        let presenting = std::time::Instant::now();
         renderer.present();
+        crate::platform::timing::note_span(
+            &crate::platform::timing::PRESENT_MICROS,
+            &crate::platform::timing::PRESENT_MAX,
+            presenting.elapsed().as_micros() as u64,
+        );
         Ok(())
     }
 }
@@ -1113,10 +1125,11 @@ pub fn show_frame_now(o: crate::owners::Owners<'static>) -> bool {
             });
             let showing = std::time::Instant::now();
             let shown_ok = show_frame(&o, screen);
-            crate::platform::timing::SHOW_MICROS.fetch_add(
-                showing.elapsed().as_micros() as u64,
-                std::sync::atomic::Ordering::Relaxed,
-            );
+            let shown_micros = showing.elapsed().as_micros() as u64;
+            crate::platform::timing::SHOW_MICROS
+                .fetch_add(shown_micros, std::sync::atomic::Ordering::Relaxed);
+            crate::platform::timing::SHOW_MAX
+                .fetch_max(shown_micros, std::sync::atomic::Ordering::Relaxed);
             if let Err(why) = shown_ok {
                 log(&format!("platform: no frame shown: {why}"));
             }
@@ -1229,4 +1242,31 @@ fn answer_labels(
         rc2k_core::input::touch::Asked::Resume => vec![word(id::DIALOG_CONTINUE)],
         rc2k_core::input::touch::Asked::YesNo => vec![word(id::HINTS), word(id::HINTS + 1)],
     }
+}
+
+/// Opens Android's share sheet with the program's log (the advanced page's share row). Other
+/// systems have no such row; the call only logs there.
+pub fn share_log() {
+    #[cfg(target_os = "android")]
+    {
+        let Some(path) = crate::logfile::program_log::LOG_PATH.get() else {
+            log("platform: share log: the log has no file");
+            return;
+        };
+        let Some(text) = path.to_str().and_then(|t| std::ffi::CString::new(t).ok()) else {
+            log("platform: share log: the log's path is not usable");
+            return;
+        };
+        match crate::platform::ffi::android_java::call_with_path(
+            c"org.rc2k.rally.Share",
+            c"log",
+            &text,
+        ) {
+            Some(true) => log("platform: share log: the share sheet is open"),
+            Some(false) => log("platform: share log: Android refused the share"),
+            None => log("platform: share log: the Java side could not be called"),
+        }
+    }
+    #[cfg(not(target_os = "android"))]
+    log("platform: share log: only on Android");
 }

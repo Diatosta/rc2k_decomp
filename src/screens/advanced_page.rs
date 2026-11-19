@@ -27,6 +27,7 @@ fn row_name(row: usize) -> u32 {
         Kind::Renderer => first(1),
         Kind::QuitPictures => first(10),
         Kind::DeleteData => id::DELETE_DATA,
+        Kind::ShareLog => id::SHARE_LOG,
         Kind::SmoothFrames => id::SMOOTH_FRAMES,
         Kind::Flag { key, .. } => match key {
             "framecounter" => first(2),
@@ -61,7 +62,7 @@ pub fn draw_advanced(
     let values = advanced_items::shown(o);
     let mut texts = Vec::new();
     let page = advanced_items::page();
-    let shown_rows = rows_on_page(page);
+    let shown_rows = rows_on_page(page, advanced_items::PHONE);
     // The rows of the part shown take the row items in order; the rest are hidden.
     for slot in 0..ROW_SLOTS {
         let row = shown_rows.start + slot;
@@ -78,7 +79,9 @@ pub fn draw_advanced(
         )?;
         // A setting's row has the left / right arrows; the deletion row is an action, which
         // the buttons' single arrow says (the slots are shared by both parts of the page).
-        let sprite = if row < shown_rows.end && matches!(ROWS[row].kind, Kind::DeleteData) {
+        let sprite = if row < shown_rows.end
+            && matches!(ROWS[row].kind, Kind::DeleteData | Kind::ShareLog)
+        {
             ItemSprite::Sprite(ACTION_SPRITE)
         } else {
             ItemSprite::Sprite(SETTING_SPRITE)
@@ -133,7 +136,7 @@ pub fn draw_advanced(
             }),
             Kind::Flag { .. } => own(if values.flags[n] { id::ON } else { id::OFF }),
             // An action: no value beside the name.
-            Kind::DeleteData => Vec::new(),
+            Kind::DeleteData | Kind::ShareLog => Vec::new(),
         });
     }
     let mut screen = SettingsScreen::new(canvas, o);

@@ -435,6 +435,7 @@ pub fn bring_back(target: &Target) {
         // nothing else reaches the canvas; no other slice of it lives (the frame's showing takes
         // its own after this returns, `platform::with_frame`); the screen keeps its pixels.
         let canvas = unsafe { target.bytes() };
+        let began = std::time::Instant::now();
         #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
         gpu.bring_back(target, canvas);
         #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
@@ -446,6 +447,12 @@ pub fn bring_back(target: &Target) {
                 ));
             }
         }
+        READ_BACKS.fetch_add(1, Relaxed);
+        crate::platform::timing::note_span(
+            &crate::platform::timing::READ_BACK_MICROS,
+            &crate::platform::timing::READ_BACK_MAX,
+            began.elapsed().as_micros() as u64,
+        );
         // The picture written in place, unnoted.
         target.note_all_rows_written();
     }

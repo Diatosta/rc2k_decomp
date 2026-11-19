@@ -2299,6 +2299,15 @@ pub fn start_on_window(
         log("render: the OpenGL backend is not used on macOS");
         return false;
     }
+    // Android has one window, which the window's renderer (or the GPU API) uses: the OpenGL
+    // backend's second window cannot be made. A GL ES context on the game's own window, its
+    // frames shown through the window's renderer, is not built yet (the notes of the droidperf
+    // lane in the wiki's Android page).
+    if cfg!(target_os = "android") {
+        TRIED.store(true, std::sync::atomic::Ordering::Relaxed);
+        log("render: the OpenGL backend is not used on Android");
+        return false;
+    }
     // The browser has one canvas for the game's window: the GL draws on a second one over it.
     #[cfg(target_os = "emscripten")]
     let made = {

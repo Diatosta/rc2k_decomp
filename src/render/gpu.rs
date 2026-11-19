@@ -1485,6 +1485,7 @@ fn compare_op(function: u32) -> SDL_GPUCompareOp {
 
 impl super::Backend for Gpu {
     fn draw(&mut self, target: &Target, commands: CommandList) {
+        let began = std::time::Instant::now();
         let done = target.with_canvas(|canvas| {
             self.set_size(target.width as u32, target.height as u32)
                 .and_then(|()| {
@@ -1492,6 +1493,12 @@ impl super::Backend for Gpu {
                     Gpu::draw(self, canvas, Some(rows), &commands)
                 })
         });
+        crate::platform::timing::FLUSH_RUNS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        crate::platform::timing::note_span(
+            &crate::platform::timing::FLUSH_MICROS,
+            &crate::platform::timing::FLUSH_MAX,
+            began.elapsed().as_micros() as u64,
+        );
         super::give_back(commands);
         if let Err(why) = done {
             crate::fatal::raise::end(

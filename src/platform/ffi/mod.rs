@@ -5,6 +5,8 @@
 
 #[cfg(target_os = "android")]
 pub mod android;
+#[cfg(target_os = "android")]
+pub mod android_java;
 pub mod gl;
 #[cfg(debug_ui)]
 pub mod imgui;

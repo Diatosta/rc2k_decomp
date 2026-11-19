@@ -249,6 +249,7 @@ gl = "OpenGL"
 next_start = "next start"
 apply = "apply"
 delete_data = "delete all saved data"
+share_log = "share log"
 
 [split_screen]
 three = "3 players on one screen"

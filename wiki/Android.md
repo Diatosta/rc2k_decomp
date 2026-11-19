@@ -69,6 +69,15 @@ with cargo for each ABI, SDL's Java glue and our activity with `javac` and `d8`,
 signs the `.apk` with the SDK's `aapt2`, `zipalign` and `apksigner` (a debug key; no Gradle). A
 build with `--final` is not debuggable.
 
+## The speed, and the log
+
+The log (`rc2k.log`, in the app's `files/game`) has a `phone:` line every five seconds during a
+race: frames a second, the screen's size, the 3D's share, the renderer, the display's refresh rate
+and where a frame's time goes ([Log files](Log-files)). The advanced page's last row, "share
+log", sends the log through Android's share sheet. The renderer row offers the GPU (Vulkan) and
+the software rasteriser; the OpenGL backend of the desktop needs a window of its own and a phone
+has one, so it is not offered. A GL ES backend on the game's own window is not built yet.
+
 ## Not done yet
 
 - a run on a real phone, and the speed there (the emulator draws on a software Vulkan: about 9
