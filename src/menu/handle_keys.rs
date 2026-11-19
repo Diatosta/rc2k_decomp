@@ -25,10 +25,23 @@ use crate::owners::Owners;
 use rc2k_core::menu::keys::Pressed;
 
 /// `elapsed` is the time since the screen's set-up; its bits 8 .. 15 are read on Enter.
+/// Diagnostic (phones, while touches go missing): when the menus last looked for a key, in the
+/// program's milliseconds, and whether they then had the keys switched off.
+pub static LAST_LOOK: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+pub static LAST_LOOK_OFF: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
 pub fn handle_keys(o: Owners<'static>, elapsed: u32) -> Result<Pressed, Refused> {
     use rc2k_core::menu::keys::{self, Action, Move};
     let menus = o.menus;
     let nothing = Pressed::Nothing;
+    LAST_LOOK.store(
+        u64::from(crate::platform::os::ticks()),
+        std::sync::atomic::Ordering::Relaxed,
+    );
+    let off = keys::keys_off(menus.screens.state.service_ui.box_shown.is_set(), || {
+        menus.screens.controls.learning.get()
+    });
+    LAST_LOOK_OFF.store(off, std::sync::atomic::Ordering::Relaxed);
     if keys::keys_off(menus.screens.state.service_ui.box_shown.is_set(), || {
         menus.screens.controls.learning.get()
     }) {

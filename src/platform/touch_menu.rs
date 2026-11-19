@@ -217,8 +217,13 @@ fn press(o: &Owners<'static>, action: MenuAction) {
     let waiting =
         crate::input::take_key::pending_key(o.input).load(std::sync::atomic::Ordering::SeqCst);
     if waiting != 0 {
+        let look = crate::menu::handle_keys::LAST_LOOK.load(Relaxed);
+        let now = u64::from(crate::platform::os::ticks());
         trace(&format!(
-            "{action:?} given while key {waiting:#x} was not yet taken"
+            "{action:?} given while key {waiting:#x} was not yet taken; the menus last looked for a key {} ms ago (keys off then: {}), the screen loop's frames {}",
+            now.saturating_sub(look),
+            crate::menu::handle_keys::LAST_LOOK_OFF.load(Relaxed),
+            o.system.clocks().frame.get()
         ));
     }
     super::events::menu_action(o.input, action);
