@@ -21,7 +21,7 @@ of the options menu (below "advanced"; the options of the pause menu in a race h
   codes, where small ones take 16). A camera of 1080p or better reads them from a screen held at a normal
   distance; one at 1280 x 720 often cannot. The fifth button, **small codes**, switches to the small ones
   (below) and is then **large codes**, which switches back; the note under the text says so ("Camera cannot
-  read them? Choose small codes ..."). The button is dimmed when both give the same codes (a short save
+  read them? Choose "small codes"."; in Portuguese the buttons are just **pequenos** and **grandes**, to fit). The button is dimmed when both give the same codes (a short save
   that one large code holds whole is cut into parts only by the small density). A screen too small to draw
   a large code at three pixels a module starts with the small ones. The camera page reads either kind and
   a set of either, as the parts say their own count and check number; a code made by an earlier version
