@@ -34,6 +34,8 @@ pub fn handle_keys(o: Owners<'static>, elapsed: u32) -> Result<Pressed, Refused>
     use rc2k_core::menu::keys::{self, Action, Move};
     let menus = o.menus;
     let nothing = Pressed::Nothing;
+    #[cfg(touch_screen)]
+    crate::platform::stall::step("the menu's keys");
     LAST_LOOK.store(
         u64::from(crate::platform::os::ticks()),
         std::sync::atomic::Ordering::Relaxed,

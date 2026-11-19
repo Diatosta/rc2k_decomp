@@ -219,6 +219,8 @@ fn end_if_not_left() {
 
 /// SDL's events: the window's closing, and the keys the menus take.
 pub fn pump(o: crate::owners::Owners<'static>) {
+    #[cfg(touch_screen)]
+    crate::platform::stall::beat();
     let (input, system) = (o.input, o.system);
     restore_if_asked();
     // Controllers plugged in or out: the players given the ones they chose.

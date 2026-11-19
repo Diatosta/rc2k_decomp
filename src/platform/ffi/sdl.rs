@@ -505,8 +505,12 @@ impl Renderer {
 
     /// What was drawn put on the window.
     pub fn present(self) {
+        #[cfg(touch_screen)]
+        crate::platform::stall::step("presenting the frame");
         // SAFETY: as `clear_black`.
         unsafe { SDL_RenderPresent(self.0) };
+        #[cfg(touch_screen)]
+        crate::platform::stall::step("after presenting the frame");
     }
 
     /// The texture drawn over the whole target.

@@ -1111,6 +1111,8 @@ impl ScreenHost for MenuHost<'_> {
         } else {
             frames.later_callback.unwrap_or(frames.callback)
         };
+        #[cfg(touch_screen)]
+        crate::platform::stall::step("the menu's frame");
         run_frame(self.entry.owners, callback, self.menu)
     }
 
