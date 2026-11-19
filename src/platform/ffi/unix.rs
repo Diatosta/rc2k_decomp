@@ -409,3 +409,34 @@ pub fn memory_stats() -> Option<MemoryStats> {
 /// No signals for a fault: a trap ends the module, and the browser's console shows it.
 #[cfg(target_os = "emscripten")]
 pub fn install_fault_reporter() {}
+
+// ---- iOS: the main thread's run loop ----
+
+#[cfg(target_os = "ios")]
+#[link(name = "CoreFoundation", kind = "framework")]
+unsafe extern "C" {
+    static kCFRunLoopDefaultMode: *const std::ffi::c_void;
+    fn CFRunLoopRunInMode(
+        mode: *const std::ffi::c_void,
+        seconds: f64,
+        return_after_source_handled: u8,
+    ) -> i32;
+}
+
+/// Waits `wait` inside the calling thread's run loop (its default mode), so that the system's
+/// work queued for that thread (touches, display updates) is done while the program waits.
+#[cfg(target_os = "ios")]
+pub fn run_loop_for(wait: std::time::Duration) {
+    // SAFETY: `kCFRunLoopDefaultMode` is a constant string CoreFoundation defines for the
+    // program's lifetime; running the current thread's run loop for a time has no other input.
+    unsafe {
+        CFRunLoopRunInMode(kCFRunLoopDefaultMode, wait.as_secs_f64(), 0);
+    }
+}
+
+/// Whether the calling thread is the process's main thread.
+#[cfg(target_os = "ios")]
+pub fn on_main_thread() -> bool {
+    // SAFETY: `pthread_main_np` takes nothing and only reads the calling thread's identity.
+    unsafe { libc::pthread_main_np() != 0 }
+}
