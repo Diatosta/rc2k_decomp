@@ -143,6 +143,14 @@ pub fn choose_screen_modes(
             }
         }
     }
+    // A phone finds out now whether it has a GPU device: the race's size depends on it.
+    #[cfg(target_os = "android")]
+    {
+        sdl::set_app_identifier(c"rally-championship-rally");
+        if sdl::init_video() {
+            crate::render::gpu::probe_early();
+        }
+    }
     // The graphics options' choices made: the list the options page shows its resolution from (not
     // made yet at the start, so made whatever the caller holds).
     let made = crate::gfx::screen_mode_choices::screen_mode_choices(gfx, d3d, system, false);

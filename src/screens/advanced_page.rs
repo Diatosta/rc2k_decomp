@@ -103,6 +103,19 @@ pub fn draw_advanced(
         let row = &ROWS[n];
         texts.push(match row.kind {
             Kind::Threads => decimal(values.threads, Pad::None),
+            Kind::Renderer
+                if values.renderer != Renderer::Software
+                    && running() == Renderer::Software
+                    && advanced_items::applied_renderer(o) == values.renderer =>
+            {
+                // The renderer in force was asked for and could not start (a phone whose
+                // driver SDL refuses): the page shows what draws, not what was asked.
+                let mut text = own(id::RENDERER_SOFTWARE);
+                text.extend(b" (");
+                text.extend(own(id::NO_GPU));
+                text.push(b')');
+                text
+            }
             Kind::Renderer => {
                 let mut text = own(match values.renderer {
                     Renderer::Gpu if cfg!(all(target_os = "linux", target_arch = "aarch64")) => {

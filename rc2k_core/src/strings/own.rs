@@ -131,6 +131,8 @@ pub mod id {
     pub const RENDERER_GLES: u32 = FIRST + 0xB6;
     pub const RENDERER_GL: u32 = FIRST + 0xBA;
     pub const NEXT_START: u32 = FIRST + 0xB7;
+    /// The note beside the software renderer when it runs because no GPU device could be made.
+    pub const NO_GPU: u32 = FIRST + 0x1B8;
     /// The advanced page's item that makes its changes real.
     pub const APPLY: u32 = FIRST + 0xB8;
     /// The network lobby's button that saves the last race's replay.
@@ -428,6 +430,7 @@ pub const KEYS: &[(&str, u32)] = &[
     ("advanced.gles", id::RENDERER_GLES),
     ("advanced.gl", id::RENDERER_GL),
     ("advanced.next_start", id::NEXT_START),
+    ("advanced.no_gpu", id::NO_GPU),
     ("advanced.apply", id::APPLY),
     ("advanced.delete_data", id::DELETE_DATA),
     ("advanced.share_log", id::SHARE_LOG),

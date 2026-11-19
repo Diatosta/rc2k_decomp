@@ -189,13 +189,61 @@ fn sdl_error() -> String {
     sdl_gpu::error()
 }
 
-/// A device that takes our shaders; `None` (logged) when the system has none.
+/// A device made ahead of the window (`probe_early`), until `make_device` takes it.
+static EARLY: Mutex<Option<Device>> = Mutex::new(None);
+
+/// Whether the early probe found no device.
+static NO_DEVICE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// A device that takes our shaders; `None` (logged) when the system has none. The device the
+/// early probe made is the one handed out first.
 pub fn make_device() -> Option<Device> {
+    if let Some(device) = EARLY
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .take()
+    {
+        return Some(device);
+    }
     let device = Device::create();
     if device.is_none() {
         log(&format!("render: no GPU device: {}", sdl_error()));
     }
     device
+}
+
+/// Phones (Android): whether a GPU device can be made is found out before the screen modes are
+/// chosen, because the race's size is chosen with it (`software_phone`): a phone whose driver
+/// SDL refuses draws the 3D on the software rasteriser, which cannot carry the screen's full size.
+/// The device made is kept for the window's renderer.
+#[cfg(target_os = "android")]
+pub fn probe_early() {
+    if !wanted() {
+        return;
+    }
+    let device = Device::create();
+    match device {
+        Some(device) => {
+            log(&format!(
+                "render: a GPU device is available ({})",
+                device.driver()
+            ));
+            *EARLY
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(device);
+        }
+        None => {
+            log(&format!("render: no GPU device: {}", sdl_error()));
+            NO_DEVICE.store(true, std::sync::atomic::Ordering::Relaxed);
+        }
+    }
+}
+
+/// Whether this is a phone whose 3D goes on the software rasteriser: no GPU device could be made,
+/// or the software rasteriser was asked for.
+pub fn software_phone() -> bool {
+    cfg!(target_os = "android")
+        && (NO_DEVICE.load(std::sync::atomic::Ordering::Relaxed) || !wanted())
 }
 
 /// Starts the backend on `device`; whether it runs. A backend that does not start has let go
@@ -575,7 +623,8 @@ impl Gpu {
                 },
                 // The triangles the game shows are clockwise on the screen.
                 front_face: SDL_GPU_FRONTFACE_CLOCKWISE,
-                enable_depth_clip: false,
+                // Clamped where the device can (see `Device::create`), clipped where it cannot.
+                enable_depth_clip: !sdl_gpu::depth_clamp(),
                 ..Default::default()
             },
             depth: Some((

@@ -625,8 +625,51 @@ pub fn use_dummy_audio() {
     unsafe { SDL_SetHint(SDL_HINT_AUDIO_DRIVER, c"dummy".as_ptr()) };
 }
 
+/// SDL's own log lines, at warning level and above for the GPU, video, render and error
+/// categories, written to the program's log (`rc2k.log`), so a phone's log says why SDL refused a
+/// GPU device or a window. SDL calls this from any thread.
+#[cfg(target_os = "android")]
+unsafe extern "C" fn sdl_log_to_program_log(
+    _userdata: *mut std::ffi::c_void,
+    category: std::ffi::c_int,
+    priority: SDL_LogPriority,
+    message: *const std::ffi::c_char,
+) {
+    if message.is_null() {
+        return;
+    }
+    // SAFETY: SDL passes a NUL-ended text valid for the call; copied at once.
+    let text = unsafe { std::ffi::CStr::from_ptr(message) }.to_string_lossy();
+    crate::logfile::program_log::log(&format!(
+        "sdl[category {category}, priority {}]: {text}",
+        priority.0
+    ));
+}
+
+/// Sends SDL's own log to the program's log, with the categories that explain a refused GPU
+/// device or window at warning level (Android; elsewhere SDL's output reaches the terminal).
+#[cfg(target_os = "android")]
+fn route_sdl_log() {
+    // SAFETY: the callback is a function with SDL's signature that uses no user data; the
+    // priorities are plain values.
+    unsafe {
+        SDL_SetLogOutputFunction(Some(sdl_log_to_program_log), std::ptr::null_mut());
+        for category in [
+            SDL_LOG_CATEGORY_GPU,
+            SDL_LOG_CATEGORY_VIDEO,
+            SDL_LOG_CATEGORY_RENDER,
+            SDL_LOG_CATEGORY_ERROR,
+            SDL_LOG_CATEGORY_SYSTEM,
+        ] {
+            SDL_SetLogPriority(category.0, SDL_LOG_PRIORITY_WARN);
+        }
+    }
+}
+
 /// SDL's video started; false when it does not start.
 pub fn init_video() -> bool {
+    #[cfg(target_os = "android")]
+    route_sdl_log();
     // SAFETY: SDL's own start-up, on the thread that will own the window.
     unsafe { SDL_Init(SDL_INIT_VIDEO) }
 }

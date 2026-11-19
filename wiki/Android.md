@@ -78,6 +78,22 @@ log", sends the log through Android's share sheet. The renderer row offers the G
 the software rasteriser; the OpenGL backend of the desktop needs a window of its own and a phone
 has one, so it is not offered. A GL ES backend on the game's own window is not built yet.
 
+### When the phone's GPU is refused
+
+The GPU device is made at the start, before the race's size is chosen. SDL's Vulkan driver is told
+to do without three features the game never uses (shader clip distance, anisotropic filtering,
+indirect draws with a first instance), which some phones' drivers (Mali) do not offer, so they no
+longer keep a phone out. Depth clamping the scene's pipeline does use: a phone whose driver lacks
+it gets a device without it and the pipelines clip instead. If SDL still finds no device, the log
+says why (SDL's own warnings and errors for the GPU, video and render categories are written to
+`rc2k.log` on Android, as `sdl[category N, priority M]: ...` lines) and the 3D goes on the software
+rasteriser. The race is then at most 1280 pixels wide (the screen's ratio kept) unless a size was
+set by hand in `rc2k.toml`, since the software rasteriser cannot carry a phone's full screen; the
+advanced page's renderer row then reads "software (no GPU)". The rasteriser already uses every
+core of the phone (rayon's pool); the "drawing threads" count in the `phone:` line is the scene's
+parts, at most four (a view, its mirror, split screen's views), which a single player's race
+does not fill.
+
 ## Not done yet
 
 - a run on a real phone, and the speed there (the emulator draws on a software Vulkan: about 9
