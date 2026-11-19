@@ -48,10 +48,15 @@ What to look for:
 | `standalone: ending: ...` | Why the program ended. `start came to its end` is the normal way out. |
 | `<function> refused: <reason>` | The program refused to carry on with data it could not make sense of (a damaged file, a value out of range), and stopped. |
 | `<function>: raises fatal error <code> <message>` | One of the game's own fatal errors, with its code. |
+| `platform: the last 5.0 s: ...` | Every five seconds, the frames shown a second and where a frame's time goes in broad terms. |
+| `phone: ...` (Android and iOS) | Every five seconds: frames a second, the screen size, the 3D's share, the renderer and the display's refresh rate; then a frame's average time (the worst in brackets) in the game's logic (the ticks), the scene, the sound, showing the frame (its finish on the GPU, the present), the 3D's flushes, and the readbacks of the frame from the GPU (each one stalls until the GPU has done the frame). |
 | a fault report | The program crashed: the kind of fault, the address, and the functions it was in. |
 
 There is no fixed grammar beyond "one message per line"; do not write tools that depend on the
 exact wording.
+
+On Android the advanced page's last row, "share log", opens the system's share sheet with the
+log (Android 10 and later copy it to Downloads first, older ones share its last 200 KB as text).
 
 On the handheld and in the web build the log goes to the same file; the web build also shows
 each line in the browser's console.

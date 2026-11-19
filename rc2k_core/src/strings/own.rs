@@ -286,6 +286,8 @@ pub mod id {
     pub const DIALOG_NO: u32 = FIRST + 0x1A4;
     pub const DELETE_DONE: u32 = FIRST + 0x1A5;
     pub const DELETE_FAILED: u32 = FIRST + 0x1A6;
+    /// The advanced page's row (phones) that opens the share sheet with the program's log.
+    pub const SHARE_LOG: u32 = FIRST + 0x1A7;
     /// The error dialog's last line on a touch screen, where a tap on a way chooses it.
     pub const DIALOG_KEYS_TOUCH: u32 = FIRST + 0x1B0;
     /// The replay viewer's names of its buttons, shown when the highlight moves to one: the 26
@@ -428,6 +430,7 @@ pub const KEYS: &[(&str, u32)] = &[
     ("advanced.next_start", id::NEXT_START),
     ("advanced.apply", id::APPLY),
     ("advanced.delete_data", id::DELETE_DATA),
+    ("advanced.share_log", id::SHARE_LOG),
     ("dialog.delete", id::DELETE_ASK),
     ("dialog.delete_title", id::DELETE_TITLE),
     ("dialog.yes", id::DIALOG_YES),

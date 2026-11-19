@@ -56,7 +56,12 @@ pub fn note_tick() {
     TICKS.fetch_add(1, Relaxed);
 }
 
-#[cfg(any(debug_ui, all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(any(
+    debug_ui,
+    all(target_os = "linux", target_arch = "aarch64"),
+    target_os = "android",
+    target_os = "ios"
+))]
 pub fn ticks() -> u32 {
     TICKS.load(Relaxed)
 }
@@ -90,9 +95,17 @@ pub fn ground_searches() -> (u32, u32) {
 /// A stage begins: the clock, only while the UI is open.
 #[inline]
 pub fn start() -> Option<Instant> {
-    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    #[cfg(any(
+        all(target_os = "linux", target_arch = "aarch64"),
+        target_os = "android",
+        target_os = "ios"
+    ))]
     return Some(Instant::now());
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    #[cfg(not(any(
+        all(target_os = "linux", target_arch = "aarch64"),
+        target_os = "android",
+        target_os = "ios"
+    )))]
     crate::debug::imgui_sdl::is_open().then(Instant::now)
 }
 
@@ -106,7 +119,12 @@ pub fn stop(stage: Stage, begun: Option<Instant>) {
 }
 
 /// Each stage's nanoseconds and runs so far.
-#[cfg(any(debug_ui, all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(any(
+    debug_ui,
+    all(target_os = "linux", target_arch = "aarch64"),
+    target_os = "android",
+    target_os = "ios"
+))]
 pub fn counts() -> ([u64; STAGES], [u64; STAGES]) {
     (
         std::array::from_fn(|n| NANOS[n].load(Relaxed)),

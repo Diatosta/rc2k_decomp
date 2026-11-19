@@ -23,6 +23,32 @@ static LONGEST_FRAME: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU6
 static SLOW_FRAMES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 static LONGEST_TURN_GAP: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
+/// The GPU path's waits, in microseconds, for the phones' log line (`phone_line`): the most
+/// and the total of the time in the window renderer's present (where SDL waits for the
+/// swapchain), in the frame's finish and in a readback of the frame (`render::bring_back`),
+/// and in each flush of the 3D (recording and submitting a command buffer); and the longest
+/// show of one frame. Written by the game's thread only.
+pub static PRESENT_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+pub static PRESENT_MAX: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+pub static FINISH_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+pub static FINISH_MAX: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+pub static READ_BACK_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+pub static READ_BACK_MAX: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+pub static FLUSH_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+pub static FLUSH_MAX: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+pub static FLUSH_RUNS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+pub static SHOW_MAX: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// A span of `micros` noted in a total and a most.
+pub fn note_span(
+    total: &std::sync::atomic::AtomicU64,
+    most: &std::sync::atomic::AtomicU64,
+    micros: u64,
+) {
+    total.fetch_add(micros, Ordering::Relaxed);
+    most.fetch_max(micros, Ordering::Relaxed);
+}
+
 /// The microseconds since `last` was noted, `last` now.
 fn since(last: &std::sync::Mutex<Option<std::time::Instant>>) -> Option<u64> {
     let now = std::time::Instant::now();
@@ -266,6 +292,8 @@ pub fn report_timing(system: &System) {
                     quads::ATLAS_CLEARS.load(Relaxed),
                 ));
             }
+            #[cfg(any(target_os = "android", target_os = "ios"))]
+            phone_line(system, seconds, frames - f0);
             // The handheld's: where the time goes, and the samples so far.
             #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
             {
@@ -328,4 +356,79 @@ pub fn report_timing(system: &System) {
         Some(_) => {}
         None => *last = Some((now, frames, fans, micros, flushes, pixels)),
     }
+}
+
+/// The phones' line on where a race's frame goes (the log is what a phone's owner can send):
+/// frames a second, the game's stages (ticks of the logic, the scene's drawing, the sound), the
+/// time showing a frame and, inside it, the finish of the GPU's frame and the present, the 3D's
+/// flushes, and readbacks of the frame; with the race size, the 3D's share, the renderer and the
+/// display's refresh. Times are average and (worst) in milliseconds a frame, except the flushes,
+/// a flush.
+#[cfg(any(target_os = "android", target_os = "ios"))]
+fn phone_line(system: &System, seconds: f64, frames: u64) {
+    use crate::debug::timing;
+    use std::sync::atomic::Ordering::Relaxed;
+    static WAS: std::sync::Mutex<(
+        [u64; timing::STAGES],
+        [u64; timing::STAGES],
+        u32,
+        [u64; 5],
+        u64,
+        u64,
+    )> = std::sync::Mutex::new(([0; timing::STAGES], [0; timing::STAGES], 0, [0; 5], 0, 0));
+    let (nanos, runs) = timing::counts();
+    let ticks = timing::ticks();
+    let totals = [
+        SHOW_MICROS.load(Relaxed),
+        PRESENT_MICROS.load(Relaxed),
+        FINISH_MICROS.load(Relaxed),
+        READ_BACK_MICROS.load(Relaxed),
+        FLUSH_MICROS.load(Relaxed),
+    ];
+    let flushes = FLUSH_RUNS.load(Relaxed);
+    let read_backs = crate::render::READ_BACKS.load(Relaxed);
+    let Ok(mut was) = WAS.lock() else {
+        return;
+    };
+    let frames = frames.max(1) as f64;
+    let ms = |n: usize| (nanos[n] - was.0[n]) as f64 / 1e6;
+    let per_frame = |total: u64, before: u64| (total - before) as f64 / 1000.0 / frames;
+    let screen = system.session.screen.get();
+    let flush_count = (flushes - was.4).max(1) as f64;
+    log(&format!(
+        "phone: {:.1} frames a second at {} x {}, 3D {}%, renderer {}, display {} Hz; a frame: logic {:.1} ms ({} ticks, {:.1} a frame), scene {:.1} (course {:.1}, depth entries {:.1}, mirror {:.1}, effects {:.1}), sound {:.1}; show {:.1} (worst {:.1}) of which finish {:.1} (worst {:.1}), present {:.1} (worst {:.1}); {} flushes, {:.2} ms each (worst {:.1}); {} readbacks of the frame, {:.1} ms each (worst {:.1}); {} drawing threads",
+        frames / seconds,
+        screen.width.get(),
+        screen.height.get(),
+        crate::render::render_scale(),
+        if crate::render::gpu_running() {
+            "GPU"
+        } else {
+            "software"
+        },
+        crate::platform::pacing::display_refresh().map_or("?".to_string(), |r| format!("{r:.0}")),
+        (ms(1) + ms(0)) / frames,
+        ticks - was.2,
+        f64::from(ticks - was.2) / frames,
+        ms(2) / frames,
+        ms(5) / frames,
+        ms(6) / frames,
+        ms(7) / frames,
+        ms(8) / frames,
+        ms(3) / frames,
+        per_frame(totals[0], was.3[0]),
+        SHOW_MAX.swap(0, Relaxed) as f64 / 1000.0,
+        per_frame(totals[2], was.3[2]),
+        FINISH_MAX.swap(0, Relaxed) as f64 / 1000.0,
+        per_frame(totals[1], was.3[1]),
+        PRESENT_MAX.swap(0, Relaxed) as f64 / 1000.0,
+        flushes - was.4,
+        (totals[4] - was.3[4]) as f64 / 1000.0 / flush_count,
+        FLUSH_MAX.swap(0, Relaxed) as f64 / 1000.0,
+        read_backs - was.5,
+        (totals[3] - was.3[3]) as f64 / 1000.0 / (read_backs - was.5).max(1) as f64,
+        READ_BACK_MAX.swap(0, Relaxed) as f64 / 1000.0,
+        crate::scene::workers::threads(),
+    ));
+    *was = (nanos, runs, ticks, totals, flushes, read_backs);
 }

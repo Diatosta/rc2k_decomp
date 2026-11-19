@@ -239,6 +239,7 @@ gl = "OpenGL"
 next_start = "próximo início"
 apply = "aplicar"
 delete_data = "apagar todos os dados"
+share_log = "partilhar o registo"
 
 [split_screen]
 three = "3 jogadores no mesmo ecrã"

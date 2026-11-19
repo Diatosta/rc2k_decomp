@@ -33,6 +33,9 @@ pub enum Kind {
     /// Not a setting: choosing the row asks, then deletes everything the player has saved
     /// (`saves::wipe`). It shows no value and has nothing to step.
     DeleteData,
+    /// Not a setting, and only on phones: choosing the row opens the share sheet with the
+    /// program's log (`rows_on_page`).
+    ShareLog,
 }
 
 /// One row.
@@ -51,7 +54,7 @@ const fn flag(key: &'static str, inverted: bool, when: When) -> Row {
 
 /// The rows in the order the page shows them: the first part the drawing and the screen, the
 /// second driving, sound and controls.
-pub const ROWS: [Row; 13] = [
+pub const ROWS: [Row; 14] = [
     Row {
         kind: Kind::Threads,
         when: When::Now,
@@ -84,6 +87,11 @@ pub const ROWS: [Row; 13] = [
         kind: Kind::DeleteData,
         when: When::Now,
     },
+    // After the deletion row, whose slot is fixed by the menu; shown on phones only.
+    Row {
+        kind: Kind::ShareLog,
+        when: When::Now,
+    },
 ];
 
 /// The page's row items: the menu has this many, each part fills them from the top and hides
@@ -95,12 +103,13 @@ pub const ROW_SLOTS: usize = 12;
 /// screen.
 pub const PAGE_ROWS: usize = 6;
 
-/// The rows of a part of the page (0 or 1) as a range of `ROWS`.
-pub fn rows_on_page(page: usize) -> std::ops::Range<usize> {
+/// The rows of a part of the page (0 or 1) as a range of `ROWS`; the log's share row ends the
+/// second part on a `phone` and is left out elsewhere.
+pub fn rows_on_page(page: usize, phone: bool) -> std::ops::Range<usize> {
     if page == 0 {
         0..PAGE_ROWS
     } else {
-        PAGE_ROWS..ROWS.len()
+        PAGE_ROWS..ROWS.len() - usize::from(!phone)
     }
 }
 
@@ -177,7 +186,7 @@ impl Values {
             Kind::QuitPictures => self.quit_pictures = !self.quit_pictures,
             Kind::SmoothFrames => self.smooth_frames = !self.smooth_frames,
             Kind::Flag { .. } => self.flags[row] = !self.flags[row],
-            Kind::DeleteData => {}
+            Kind::DeleteData | Kind::ShareLog => {}
         }
     }
 }
@@ -255,13 +264,18 @@ mod tests {
         assert!(matches!(ROWS[0].kind, Kind::Threads));
         assert!(matches!(ROWS[1].kind, Kind::Renderer));
         assert!(matches!(ROWS[3].kind, Kind::SmoothFrames));
-        assert!(matches!(ROWS[ROWS.len() - 3].kind, Kind::QuitPictures));
-        assert!(matches!(ROWS[ROWS.len() - 1].kind, Kind::DeleteData));
+        assert!(matches!(ROWS[ROWS.len() - 4].kind, Kind::QuitPictures));
+        assert!(matches!(ROWS[ROWS.len() - 2].kind, Kind::DeleteData));
+        assert!(matches!(ROWS[ROWS.len() - 1].kind, Kind::ShareLog));
         // Every part fits the menu's row items.
-        assert!(rows_on_page(0).len() <= ROW_SLOTS);
-        assert!(rows_on_page(1).len() <= ROW_SLOTS);
-        assert_eq!(rows_on_page(0).end, rows_on_page(1).start);
-        assert_eq!(rows_on_page(1).end, ROWS.len());
+        for phone in [false, true] {
+            assert!(rows_on_page(0, phone).len() <= ROW_SLOTS);
+            assert!(rows_on_page(1, phone).len() <= ROW_SLOTS);
+            assert_eq!(rows_on_page(0, phone).end, rows_on_page(1, phone).start);
+        }
+        // The share row is the phones' alone and the deletion row keeps its slot.
+        assert_eq!(rows_on_page(1, true).end, ROWS.len());
+        assert_eq!(rows_on_page(1, false).end, ROWS.len() - 1);
         // Each flag key once.
         for (n, a) in ROWS.iter().enumerate() {
             for b in &ROWS[n + 1..] {
@@ -287,8 +301,8 @@ mod tests {
             })
             .unwrap();
         // The last setting, on the second part of the page, above the deletion row.
-        assert_eq!(at, ROWS.len() - 2);
-        assert!(rows_on_page(1).contains(&at));
+        assert_eq!(at, ROWS.len() - 3);
+        assert!(rows_on_page(1, false).contains(&at));
         // Not inverted: on means the saved game's own controls come back.
         assert!(matches!(
             ROWS[at].kind,
@@ -327,10 +341,11 @@ mod tests {
         assert_eq!(v.renderer, Renderer::Software);
         v.step(2, false, 4, false);
         assert!(v.flags[2]);
-        v.step(ROWS.len() - 3, true, 4, false);
+        v.step(ROWS.len() - 4, true, 4, false);
         assert!(!v.quit_pictures);
-        // The deletion row steps to nothing.
+        // The deletion row and the share row step to nothing.
         let before = v;
+        v.step(ROWS.len() - 2, true, 4, false);
         v.step(ROWS.len() - 1, true, 4, false);
         assert_eq!(v, before);
         v.step(3, true, 4, false);
