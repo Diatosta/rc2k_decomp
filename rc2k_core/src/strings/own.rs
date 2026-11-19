@@ -286,6 +286,8 @@ pub mod id {
     pub const DIALOG_NO: u32 = FIRST + 0x1A4;
     pub const DELETE_DONE: u32 = FIRST + 0x1A5;
     pub const DELETE_FAILED: u32 = FIRST + 0x1A6;
+    /// The error dialog's last line on a touch screen, where a tap on a way chooses it.
+    pub const DIALOG_KEYS_TOUCH: u32 = FIRST + 0x1B0;
     /// The replay viewer's names of its buttons, shown when the highlight moves to one: the 26
     /// buttons of the two rows in order, the render button, the name while a camera is edited
     /// ("{}" the camera's number), a car's HUD shown or hidden ("{}" the car's number), and the
@@ -432,6 +434,7 @@ pub const KEYS: &[(&str, u32)] = &[
     ("dialog.no", id::DIALOG_NO),
     ("dialog.delete_done", id::DELETE_DONE),
     ("dialog.delete_failed", id::DELETE_FAILED),
+    ("dialog.keys_touch", id::DIALOG_KEYS_TOUCH),
     ("icon_styles.automatic", id::ICON_STYLES),
     ("icon_styles.xbox", id::ICON_STYLES + 1),
     ("icon_styles.playstation", id::ICON_STYLES + 2),
