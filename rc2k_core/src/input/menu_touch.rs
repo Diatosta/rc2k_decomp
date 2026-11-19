@@ -125,6 +125,9 @@ pub struct Gestures {
     /// A sideways drag gives the key on the finger's side (a drag to the right is Right) instead
     /// of the carousel's way (a drag to the left brings the next one).
     direct_sideways: bool,
+    /// A page that acts on a tap itself (the installer's, the port's dialogs): a single tap is
+    /// given the moment the finger lifts, not after the double-tap window.
+    immediate: bool,
 }
 
 /// A tap is shorter than this.
@@ -151,7 +154,20 @@ impl Gestures {
             first_down_at: 0,
             peak: 0,
             direct_sideways: false,
+            immediate: false,
         }
+    }
+
+    /// Pages that act on a tap at once (on the finger's lifting). A tap the page did not use
+    /// (`tap_used`) still starts a double tap, whose second tap is Back.
+    pub fn set_immediate(&mut self, on: bool) {
+        self.immediate = on;
+    }
+
+    /// The page acted on the last tap (it was on a button): it is not the first of a double
+    /// tap, so the next tap is a tap of its own.
+    pub fn tap_used(&mut self) {
+        self.pending = None;
     }
 
     /// Sideways drags on a page that is not a carousel: the key follows the finger's side.
@@ -255,7 +271,15 @@ impl Gestures {
                             {
                                 out.push(Gesture::Back);
                             }
-                            _ => self.pending = Some((t.start.0, t.start.1, now)),
+                            _ => {
+                                self.pending = Some((t.start.0, t.start.1, now));
+                                if self.immediate {
+                                    out.push(Gesture::Tap {
+                                        x: t.start.0,
+                                        y: t.start.1,
+                                    });
+                                }
+                            }
                         }
                     }
                 }
@@ -269,6 +293,10 @@ impl Gestures {
         match self.pending {
             Some((x, y, at)) if now.saturating_sub(at) >= DOUBLE_MS => {
                 self.pending = None;
+                if self.immediate {
+                    // Given when it lifted.
+                    return Vec::new();
+                }
                 vec![Gesture::Tap { x, y }]
             }
             _ => Vec::new(),
@@ -349,6 +377,95 @@ mod tests {
         );
         assert!(got.is_empty());
         assert!(tick(&mut g, 9000).is_empty());
+    }
+
+    /// Milliseconds from the finger's lifting to the tap being given, with the clock ticking
+    /// every 8 ms (a frame's turn of the event loop).
+    fn delay_of_a_tap(immediate: bool) -> u64 {
+        let mut g = Gestures::default();
+        g.set_immediate(immediate);
+        let lift = 100;
+        let got = run(
+            &mut g,
+            &[
+                (1, Phase::Down, 1200.0, 500.0, 0),
+                (1, Phase::Up, 1200.0, 500.0, lift),
+            ],
+        );
+        if !got.is_empty() {
+            return 0;
+        }
+        let mut now = lift;
+        loop {
+            now += 8;
+            if !tick(&mut g, now).is_empty() {
+                return now - lift;
+            }
+            assert!(now < 5000, "the tap never came");
+        }
+    }
+
+    #[test]
+    fn a_tap_on_a_page_that_acts_on_it_comes_at_once_where_the_menus_wait() {
+        // The menus: the tap is felt after the double-tap window (200 ms, 8 ms steps: 200).
+        assert_eq!(delay_of_a_tap(false), 200);
+        // The pages' own buttons: at the lift.
+        assert_eq!(delay_of_a_tap(true), 0);
+    }
+
+    #[test]
+    fn on_an_immediate_page_a_double_tap_off_a_button_is_back_and_on_one_two_taps() {
+        let mut g = Gestures::default();
+        g.set_immediate(true);
+        let first = run(
+            &mut g,
+            &[
+                (1, Phase::Down, 1200.0, 500.0, 0),
+                (1, Phase::Up, 1200.0, 500.0, 60),
+            ],
+        );
+        assert_eq!(
+            first,
+            vec![Gesture::Tap {
+                x: 1200.0,
+                y: 500.0
+            }]
+        );
+        // Not used: the second tap is Back.
+        let second = run(
+            &mut g,
+            &[
+                (1, Phase::Down, 1200.0, 500.0, 150),
+                (1, Phase::Up, 1200.0, 500.0, 190),
+            ],
+        );
+        assert_eq!(second, vec![Gesture::Back]);
+        // Used by a button: the second tap is a tap of its own.
+        let first = run(
+            &mut g,
+            &[
+                (1, Phase::Down, 1200.0, 500.0, 1000),
+                (1, Phase::Up, 1200.0, 500.0, 1040),
+            ],
+        );
+        assert_eq!(first.len(), 1);
+        g.tap_used();
+        let second = run(
+            &mut g,
+            &[
+                (1, Phase::Down, 1200.0, 500.0, 1100),
+                (1, Phase::Up, 1200.0, 500.0, 1140),
+            ],
+        );
+        assert_eq!(
+            second,
+            vec![Gesture::Tap {
+                x: 1200.0,
+                y: 500.0
+            }]
+        );
+        // Left alone, nothing comes later.
+        assert!(tick(&mut g, 5000).is_empty());
     }
 
     #[test]

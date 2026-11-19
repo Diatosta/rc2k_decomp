@@ -77,6 +77,9 @@ fn tapped_item(
     list_state.choice.set(found);
     let usable = !list_item_unusable(list_state, list);
     list_state.choice.set(before);
+    if usable {
+        crate::platform::touch_menu::tap_used();
+    }
     usable.then_some(found)
 }
 
