@@ -9,7 +9,7 @@
 # `ubuntu-latest`: the Linux program needs the glibc it is built against or newer (2.38
 # there; 26.04's 2.43 would leave out most systems in use).
 #
-# A push also publishes the three builds as a GitHub release (the `release` job): from `main`
+# A push also publishes the builds as a GitHub release (the `release` job): from `main`
 # a stable one, tagged `stable-<date>-<commit>` and marked the latest; from any other branch
 # an experimental pre-release, `experimental-<branch>`, replaced by each push to that branch.
 # Pull requests only build.
@@ -102,6 +102,41 @@ jobs:
           name: rc2k-linux-x64-${{ github.sha }}
           path: dist/linux/
 
+  deck:
+    # The Steam Deck's build (`./build.sh deck`): the same commands as on a developer's machine, in
+    # a container of Ubuntu 22.04 (tools/deck/Dockerfile) whose glibc 2.35 every SteamOS 3 system
+    # has; SDL is built inside it, the program is tuned for the Deck's Zen 2 processor, and
+    # Valve's library goes beside it (RC2K_STEAM=1). Rust comes from the runner's own home,
+    # mounted into the container.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    env:
+      RC2K_STEAM: "1"
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      # The toolchain the repository pins, installed on the runner for the container to use.
+      - name: Pinned Rust toolchain
+        run: |
+          CHANNEL="$(sed -n 's/^channel = "\(.*\)"/\1/p' rust-toolchain.toml)"
+          rustup toolchain install "$CHANNEL" --profile minimal --component clippy --component rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: deck
+
+      # The container image, the program (dist/deck/ with libsteam_api.so and rally.sh); it
+      # prints the glibc the program needs.
+      - name: Build
+        run: ./build.sh deck
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: rc2k-deck-${{ github.sha }}
+          path: dist/deck/
+
   macos:
     # Built on the Mac runner as on a Mac (`./build.sh mac`): Intel and Apple
     # silicon joined into one program in `Rally Championship.app`, signed ad hoc. Only for
@@ -129,8 +164,8 @@ jobs:
           path: dist/mac/
 
   release:
-    needs: [windows-x64, linux-x64, macos]
-    # The Mac job skipped (other branches) leaves the release to the other two.
+    needs: [windows-x64, linux-x64, deck, macos]
+    # The Mac job skipped (other branches) leaves the release to the others.
     if: github.event_name == 'push' && !failure() && !cancelled()
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -154,7 +189,7 @@ jobs:
           # The artifacts lose the executable bit: the Linux and Mac programs get it back (the Mac
           # build runs only for main and runs started by hand, so its program may be missing).
           shopt -s nullglob
-          for program in rc2k-linux-x64-*/rc2k rc2k-macos-*/*.app/Contents/MacOS/rc2k; do
+          for program in rc2k-linux-x64-*/rc2k rc2k-deck-*/rc2k rc2k-deck-*/rally.sh rc2k-macos-*/*.app/Contents/MacOS/rc2k; do
             chmod +x "$program"
           done
           shopt -u nullglob

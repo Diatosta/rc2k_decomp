@@ -17,16 +17,21 @@ const OVERHEAD: usize = START.len() + 2 + 2 + 8 + 2;
 pub const MOST_PARTS: usize = 99;
 /// The most letters of the whole text one part carries.
 const MOST_PIECE: usize = qr::MOST_LETTERS - OVERHEAD;
+/// The letters of the whole text a part carries when the code has parts to spare: a QR code of
+/// about 60 modules a side, whose modules a camera at 1280 x 720 resolves when the code fills
+/// half the picture's height (larger codes read only from close by or from a bigger picture).
+pub const PREFERRED_PIECE: usize = 380;
 
-/// The texts the QR codes of `whole` carry, in order: `whole` itself when one QR code holds it,
-/// else its parts (pieces of equal length, give or take a letter). `None` when even the most
-/// parts do not hold it.
+/// The texts the QR codes of `whole` carry, in order: `whole` itself when it is short enough
+/// for a small QR code, else its parts (pieces of equal length, give or take a letter): as many
+/// as make each a small code, or fewer and larger ones when the most parts would not hold it
+/// so. `None` when even the largest codes in the most parts do not hold it.
 pub fn split(whole: &str) -> Option<Vec<String>> {
-    if whole.len() <= qr::MOST_LETTERS {
+    if whole.len() <= PREFERRED_PIECE + OVERHEAD {
         return Some(vec![whole.to_owned()]);
     }
-    let count = whole.len().div_ceil(MOST_PIECE);
-    if count > MOST_PARTS {
+    let count = whole.len().div_ceil(PREFERRED_PIECE).min(MOST_PARTS);
+    if whole.len().div_ceil(count) > MOST_PIECE {
         return None;
     }
     let id = crc32(whole.as_bytes());
@@ -176,13 +181,39 @@ mod tests {
 
     #[test]
     fn a_short_text_is_one_qr_code_as_it_is() {
-        let t = text(qr::MOST_LETTERS);
+        let t = text(PREFERRED_PIECE + OVERHEAD);
         assert_eq!(split(&t), Some(vec![t]));
     }
 
     #[test]
+    fn parts_are_small_codes_until_there_are_too_many() {
+        // Under the most parts at the preferred size: every part small.
+        for n in [
+            PREFERRED_PIECE + OVERHEAD + 1,
+            2000,
+            9000,
+            MOST_PARTS * PREFERRED_PIECE,
+        ] {
+            let parts = split(&text(n)).unwrap();
+            assert_eq!(
+                parts.len(),
+                n.div_ceil(PREFERRED_PIECE).min(MOST_PARTS),
+                "{n}"
+            );
+            for p in &parts {
+                assert!(p.len() <= PREFERRED_PIECE + OVERHEAD, "{n}: {}", p.len());
+                let modules = qr::encode(p).unwrap();
+                assert!(modules.side <= 65, "{n}: {}", modules.side);
+            }
+        }
+        // Past it, the most parts, each as large as it must be.
+        let parts = split(&text(MOST_PARTS * PREFERRED_PIECE + 1000)).unwrap();
+        assert_eq!(parts.len(), MOST_PARTS);
+    }
+
+    #[test]
     fn parts_fit_a_qr_code_and_join_in_any_order() {
-        for n in [qr::MOST_LETTERS + 1, 9000, 12_000, 40_000] {
+        for n in [qr::MOST_LETTERS + 1, 9000, 12_000, 40_000, 90_000] {
             let whole = text(n);
             let parts = split(&whole).unwrap();
             assert!(parts.len() >= 2);

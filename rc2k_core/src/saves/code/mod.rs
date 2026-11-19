@@ -14,6 +14,8 @@ pub mod best;
 mod game_pack;
 pub mod parts;
 pub mod qr;
+#[cfg(test)]
+mod qr_frames;
 mod wire;
 use best::{RallyTime, Real, StageRecord};
 use wire::{Reader, Writer};

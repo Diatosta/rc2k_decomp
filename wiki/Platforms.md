@@ -9,7 +9,8 @@ What the program runs on, what each system needs, and what is different or missi
 | Platform | State |
 | --- | --- |
 | Windows, 64 and 32 bits | Built and run (under Wine and Proton during development). |
-| Linux, x86-64 | Built and run. One program with SDL linked in. |
+| Linux, x86-64 | Built and run. One program with SDL linked in. The `linux` build needs the glibc of the system it was built on; for older systems use the Steam Deck build. |
+| Steam Deck (SteamOS 3, and any x86-64 Linux with glibc 2.35 or later) | `./build.sh deck`: built in a container of Ubuntu 22.04, tuned for the Deck's Zen 2 processor, with Steam network play; released as `rc2k-deck.zip`. Not yet run on a real Deck. |
 | macOS, Intel and Apple silicon | Builds as `Rally Championship.app`, one bundle for both processors. Tested less than the others. |
 | Anbernic RG34XXSP (handheld, 64-bit ARM Linux) | Built and run on Knulli and on the device's stock system. |
 | Web (WebAssembly) | Experimental: it builds and starts, but does not show a picture yet. |
@@ -22,8 +23,9 @@ files. A replay or a saved game made on one system works on the others.
 | Platform | Needs |
 | --- | --- |
 | Windows, 64 or 32 bits | Windows 10 or later. `SDL3.dll` beside `rc2k.exe`. |
-| Linux, x86-64 | Only the C library (glibc). Which version depends on the system the program was built on: the project's automatic builds are made on Ubuntu 24.04. |
+| Linux, x86-64 | Only the C library (glibc). Which version depends on the system the program was built on: the project's automatic `linux` build is made on Ubuntu 24.04 (glibc 2.39). The `deck` build is made on Ubuntu 22.04 (glibc 2.35) and runs on older systems. |
 | macOS | macOS 11.0 (Big Sur) or later. |
+| Steam Deck | SteamOS 3 (glibc 2.35 or later; the Deck's has more). Run it from desktop mode, or add `rally.sh` as a non-Steam game. A processor with Zen 2's instructions (AVX2) is needed; older ones are not supported by this build, use the `linux` build. |
 | Anbernic RG34XXSP | Knulli or the stock system; glibc 2.35 or later. |
 
 ## Drawing
@@ -63,7 +65,7 @@ bundle. The Metal renderer has been tested less than the Vulkan one.
 screen. The built-in pad works in the menus; MENU + START leaves the game. There is no debug
 window. Measured speed is on [Performance](Performance).
 
-**Web.** Unfinished (WebGL 2 picture, gamepads and sound work in headless Chrome; not yet checked on a phone). The build and its test page are in `tools/web/`. The saves live in the
+**Web.** Unfinished (WebGL 2 picture, gamepads and sound work in headless Chrome; not yet checked on a phone). The build and its test page are in `tools/web/`. The start page takes the game folder or its zip: the CD's files run the installer (into the browser's storage), an already installed game folder is played as it is. The saves live in the
 browser's private storage, which a browser may clear, so the page `saves.html` (linked from the
 start page) exports the `savedata/` folder, `var/hst.dat` and the settings (`var/ral.dat`,
 `var/ral.cfg`, `var/rc2k.toml`) as a zip to download or as text (the zip in base64) to copy, and

@@ -194,8 +194,14 @@ pub unsafe fn discard_pages(_at: *mut u8, _len: usize) -> bool {
 
 /// The process ended at once with `code` (no library's leave-taking).
 pub fn exit_now(code: u32) -> ! {
+    // The browser's page is told (its `onExit`): `_exit` would leave it with the last frame.
+    #[cfg(target_os = "emscripten")]
+    crate::platform::web::end_program(code);
+    #[cfg(not(target_os = "emscripten"))]
     // SAFETY: ends the process.
-    unsafe { libc::_exit(code as i32) }
+    unsafe {
+        libc::_exit(code as i32)
+    }
 }
 
 // ---- the fault reporter ----

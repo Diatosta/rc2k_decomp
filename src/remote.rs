@@ -79,6 +79,16 @@ pub fn fake_camera() -> bool {
     std::env::var_os("RC2K_FAKE_CAMERA").is_some()
 }
 
+/// How many stand-in cameras there are (`RC2K_FAKE_CAMERA_COUNT`, at least one): the odd ones
+/// face the user.
+pub fn fake_camera_count() -> usize {
+    std::env::var("RC2K_FAKE_CAMERA_COUNT")
+        .ok()
+        .and_then(|n| n.parse().ok())
+        .unwrap_or(1)
+        .max(1)
+}
+
 /// The stand-in camera's frame.
 pub fn fake_camera_frame() -> Option<crate::platform::ffi::sdl_camera::Frame> {
     fake_frame()
@@ -87,6 +97,7 @@ pub fn fake_camera_frame() -> Option<crate::platform::ffi::sdl_camera::Frame> {
             width: f.width,
             height: f.height,
             rgba: f.rgba.clone(),
+            facing_user: f.facing_user,
         })
 }
 
@@ -121,6 +132,7 @@ fn load_pgm(path: &str) -> Option<crate::platform::ffi::sdl_camera::Frame> {
         width: w,
         height: h,
         rgba,
+        facing_user: std::env::var_os("RC2K_FAKE_CAMERA_FACING_USER").is_some(),
     })
 }
 

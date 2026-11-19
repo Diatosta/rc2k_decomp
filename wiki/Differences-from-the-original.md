@@ -75,7 +75,7 @@ The original was a 32-bit Windows program on DirectX. Its platform side was not 
   edges. The graphics page's "HUD area" row (the whole screen at first) confines the HUD to a
   centred 4:3, 16:9 or 21:9 box. With one player the progress bar along the top runs over the
   whole width whatever the box: its end caps, with the clocks, the car's icon and name, keep to
-  the screen's edges and its middle stretches between them. With two players the one progress bar
+  the screen's edges and its middle stretches between them; the marker stands at the same place as the parts for its progress, so it meets a part's end and reaches the bar's end at the finish on every screen shape. With two players the one progress bar
   (shared at the top, or at the divider when one is above the other) does the same, and side by
   side each player's HUD lies in their own half of the screen as one player's lies on a wide
   screen (dial at the left corner, map at the right, the box applying inside the half); in two,
@@ -305,9 +305,11 @@ or IPX connection), and Steam when Valve's library is beside the program (it is 
   times (not the settings, not the replays) as a text on the left and a QR code of it on the right, with
   buttons to copy the text, paste one from the clipboard, and read one from a camera. A code that comes in
   is checked whole, and the player is asked, with what is in it beside what is here, before anything is
-  replaced. A QR code holds at most about 4,300 letters; a longer code is cut into numbered parts, one QR
-  code each, stepped with Left and Right and read by the camera in any order. A saved game takes about
-  1,900 letters ([Save code](Save-code)).
+  replaced. A code longer than about 400 letters is cut into numbered parts, small QR codes a camera reads
+  from a screen held at a normal distance, stepped with Left and Right and read by the camera in any order
+  (a saved game takes about 1,900 letters, five parts). The camera page shows its picture whole and sharp,
+  reads at 1280 x 720 where the camera has it, and with several cameras Left and Right choose another
+  ([Save code](Save-code)).
 - **Errors.** An error that ends the game is shown on a panel in the game's window (the message,
   where the details are, "Quit"; Up / Down and Enter, or a pad's buttons) in place of the
   "Guru Meditation" box. Troubles belonging to one file no longer end the game: a damaged saved

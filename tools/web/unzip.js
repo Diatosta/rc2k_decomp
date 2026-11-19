@@ -1,6 +1,8 @@
 // The web build's importer (a worker): the game folder's zip files unpacked into the origin's
 // private storage (OPFS) under `source/`, where the game finds them as `/opfs/source`
-// (`src/platform/web.rs`). Takes {files: [File, ..]} (zips) or {folder: [{file, path}, ..]} (a
+// (`src/platform/web.rs`). A folder that is already an installed game (it holds `var/install.cfg`
+// or `var/ral.zog`) goes straight to the installed place instead, `home/.local/share/
+// rally-championship`: it is played there with its saves and settings, with no installer. Takes {files: [File, ..]} (zips) or {folder: [{file, path}, ..]} (a
 // picked folder's files, `path` below the folder), picked by the player. Posts {progress, text}
 // as it goes, then {done} or {error}. Zips without ZIP64 (under 4 GB, under 65,536 entries),
 // entries stored or deflated; several zips unpack into the one folder.
@@ -21,6 +23,21 @@ async function* chunks(stream) {
     if (done) return;
     yield value;
   }
+}
+
+// Where the installer puts the game (`tools/web/index.html`, `src/platform/web.rs`).
+const INSTALLED = ["home", ".local", "share", "rally-championship"];
+
+// Whether the paths (below the game folder) are those of an installed game.
+function isInstalled(paths) {
+  return paths.some((p) => /^var\/(install\.cfg|ral\.zog)$/i.test(p.replace(/\\/g, "/").replace(/^\/+/, "")));
+}
+
+// What an import leaves out: the replay videos the desktop program renders (gigabytes, and
+// the browser's storage is small), and the desktop program's own copies.
+function skipped(parts) {
+  const top = parts[0].toLowerCase();
+  return (parts[1] && top === "savedata" && parts[1].toLowerCase() === "videos") || top === "instances";
 }
 
 function u16(v, at) { return v.getUint16(at, true); }
@@ -59,7 +76,7 @@ async function entries(file) {
 async function unpack(file, root, done, total, report) {
   for (const e of await entries(file)) {
     const parts = e.name.replace(/\\/g, "/").split("/").filter((s) => s && s !== "." && s !== "..");
-    if (parts.length === 0) continue;
+    if (parts.length === 0 || skipped(parts)) continue;
     if (e.name.endsWith("/")) { await dirFor(root, parts); continue; }
     const head = new DataView(await file.slice(e.local, e.local + 30).arrayBuffer());
     if (u32(head, 0) !== 0x04034b50) throw new Error(e.name + ": a broken entry");
@@ -91,7 +108,7 @@ async function unpack(file, root, done, total, report) {
 // One picked folder's file copied into the storage at `path`.
 async function copy(file, path, root) {
   const parts = path.split("/").filter((s) => s && s !== "." && s !== "..");
-  if (parts.length === 0) return;
+  if (parts.length === 0 || skipped(parts)) return false;
   const folder = await dirFor(root, parts.slice(0, -1));
   const handle = await folder.getFileHandle(parts[parts.length - 1], { create: true });
   const out = await handle.createSyncAccessHandle();
@@ -106,28 +123,34 @@ async function copy(file, path, root) {
     out.flush();
     out.close();
   }
+  return true;
 }
 
 onmessage = async (m) => {
   const report = (progress, text) => postMessage({ progress, text });
   try {
     const top = await navigator.storage.getDirectory();
-    const root = await top.getDirectoryHandle("source", { create: true });
     const done = { files: 0, bytes: 0 };
+    let installed;
     if (m.data.folder) {
+      installed = isInstalled(m.data.folder.map((e) => e.path));
+      const root = await dirFor(top, installed ? INSTALLED : ["source"]);
       const total = m.data.folder.reduce((n, e) => n + e.file.size, 0) || 1;
       for (const e of m.data.folder) {
-        await copy(e.file, e.path, root);
-        done.files++;
+        const copied = await copy(e.file, e.path, root);
         done.bytes += e.file.size;
-        if (done.files % 20 === 0) report(done.bytes / total, done.files + " files");
+        if (copied && ++done.files % 20 === 0) report(done.bytes / total, done.files + " files");
       }
     } else {
       const files = m.data.files || [];
+      const names = [];
+      for (const f of files) for (const e of await entries(f)) names.push(e.name);
+      installed = isInstalled(names);
+      const root = await dirFor(top, installed ? INSTALLED : ["source"]);
       const total = files.reduce((n, f) => n + f.size, 0) || 1;
       for (const f of files) await unpack(f, root, done, total, report);
     }
-    postMessage({ done: done.files });
+    postMessage({ done: done.files, installed });
   } catch (e) {
     postMessage({ error: String(e && e.message ? e.message : e) });
   }

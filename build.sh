@@ -12,7 +12,7 @@
 # deploy.local (not in git; shell variables) names where --deploy copies each target:
 #     DEPLOY_WINDOWS=<folder>        windows
 #     DEPLOY_WINDOWS_X64=<folder>    windows-x64
-#     DEPLOY_LINUX=<folder>          linux (default: ~/.local/share/rally-championship)
+#     DEPLOY_LINUX=<folder>          linux and deck (default: ~/.local/share/rally-championship)
 #     DEPLOY_WEB=<folder>            web
 #     ANBERNIC_HOST=root@address     handheld, over SSH (ANBERNIC_KEY, ANBERNIC_GAME)
 #     MAC_HOST=user@address          mac, built on that Mac over SSH when this is not one
@@ -32,6 +32,8 @@ targets:
   linux         Linux, x86-64                                 dist/linux/
   mac           macOS, Intel and Apple silicon in one bundle  dist/mac/
                 (on a Mac; from elsewhere on MAC_HOST over SSH; --arch x64|a64 for one)
+  deck          Steam Deck (Linux x86-64 in a Docker container of Ubuntu 22.04, glibc 2.35;
+                tuned for its Zen 2 processor, with Steam)    dist/deck/
   handheld      Anbernic RG34XXSP (in its Docker container)   dist/handheld/
                 (--pgo: with the profile of tools/anbernic/pgo.sh)
   web           WebAssembly through Emscripten (experimental) dist/web/
@@ -184,6 +186,26 @@ build_linux() {
     fi
 }
 
+# The Steam Deck: built in a container of Ubuntu 22.04 (tools/deck/Dockerfile), whose glibc 2.35 is
+# older than any SteamOS 3 system's, with SDL built from source inside it, for the Deck's Zen 2
+# processor (tools/deck/run.sh), and Valve's library beside the program (RC2K_STEAM=1 asks for it,
+# as for the other desktop builds; the copy is made here, on the host). A CARGO_TARGET_DIR in the
+# environment names the build folder (default target/deck).
+build_deck() {
+    need docker "the Steam Deck's build runs in a container (tools/deck/Dockerfile)"
+    docker build -q -t rc2k-deck tools/deck >/dev/null
+    local target_dir="${CARGO_TARGET_DIR:-target/deck}"
+    tools/deck/run.sh cargo build ${CARGO_FLAGS[@]+"${CARGO_FLAGS[@]}"} \
+        --target x86_64-unknown-linux-gnu --bin rc2k
+    fresh_dist
+    cp "$target_dir/x86_64-unknown-linux-gnu/$PROFILE/rc2k" "$DIST/"
+    cp tools/deck/rally.sh "$DIST/"
+    chmod +x "$DIST/rc2k" "$DIST/rally.sh"
+    copy_steam_library linux64 libsteam_api.so "$DIST"
+    echo "the Steam Deck program needs glibc $(objdump -T "$DIST/rc2k" | grep -v ' w ' \
+        | grep -oE 'GLIBC_[0-9.]+' | sort -uV | tail -1 | cut -d_ -f2) or newer"
+}
+
 # The handheld: built in a container of its stock system, the program stripped (the one with
 # its line tables stays in cargo's folder, for the profiler's addresses).
 build_handheld() {
@@ -320,6 +342,11 @@ case "$TARGET" in
         ;;
     linux)
         build_linux
+        report
+        if $DEPLOY; then deploy_to_folder "${DEPLOY_LINUX:-$HOME/.local/share/rally-championship}"; fi
+        ;;
+    deck)
+        build_deck
         report
         if $DEPLOY; then deploy_to_folder "${DEPLOY_LINUX:-$HOME/.local/share/rally-championship}"; fi
         ;;
