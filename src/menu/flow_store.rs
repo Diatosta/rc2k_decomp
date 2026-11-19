@@ -25,8 +25,6 @@ pub struct ScreenFlow {
     pub asking: PlainFlag,
     /// 1 = left and right do not click (`menu::navigation`).
     pub quiet: PlainDword,
-    /// Enter acts as key 4 (`menu::handle_keys`, `menu::begin_player_name`).
-    pub enter_skips_name_entry: PlainDword,
     /// 1 picks the first list of cars (`menu::event_flow`).
     pub car_list_kind: PlainDword,
     /// 0 on the service area's screen, 1 after it (`draw_background_band`).
@@ -58,7 +56,6 @@ impl ScreenFlow {
             kept: PlainDword::new(0x1),
             asking: PlainFlag::new(false),
             quiet: PlainDword::new(0x0),
-            enter_skips_name_entry: PlainDword::new(0x0),
             car_list_kind: PlainDword::new(0x0),
             left_service: PlainDword::new(0x1),
             menu_sounds_volume: PlainDword::new(0x0),

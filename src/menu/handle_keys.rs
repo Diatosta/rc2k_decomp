@@ -7,8 +7,7 @@
 //! - none or 0x38: `Pressed::Nothing`;
 //! - Escape (1): `loop_flags.leave_screen`, `draw_work.escape_pressed` and
 //!   `captions.left_by_key` set; `Pressed::Escape`;
-//! - Enter (0x1C): the Enter menu sound, the last-key time set to the clock, the
-//!   enter-skips-name-entry flag set when bits 8 .. 15 of the elapsed time are 4, the Enter
+//! - Enter (0x1C): the Enter menu sound, the last-key time set to the clock, the Enter
 //!   click played; `Pressed::Enter`;
 //! - any other: the last-key time set, then the four `move_highlight_*` (0x66, 0x6B, 0x69,
 //!   0x68), a screenshot (0x52), `loop_flags.toggle` flipped (0x20), 60 added to the service
@@ -24,7 +23,8 @@ use crate::menu::navigation::{Direction, move_highlight};
 use crate::owners::Owners;
 use rc2k_core::menu::keys::Pressed;
 
-/// `elapsed` is the time since the screen's set-up; its bits 8 .. 15 are read on Enter.
+/// `elapsed` is the time since the screen's set-up; its low byte is replaced by the key for the
+/// yes / no screen.
 pub fn handle_keys(o: Owners<'static>, elapsed: u32) -> Result<Pressed, Refused> {
     use rc2k_core::menu::keys::{self, Action, Move};
     let menus = o.menus;
@@ -65,11 +65,6 @@ pub fn handle_keys(o: Owners<'static>, elapsed: u32) -> Result<Pressed, Refused>
     if action == Action::Enter {
         menus.screens.entry.set_sound(keys::MenuSound::Enter);
         menus.play.champ_view.key_clock.last_key_time.set(clock);
-        menus
-            .screens
-            .flow
-            .enter_skips_name_entry
-            .set(keys::enter_skips_name_entry(key_over_elapsed));
         crate::sound::play_menu_sound::play_menu_sound_in_game(
             o.sound,
             o.audio,

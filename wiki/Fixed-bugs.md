@@ -1020,3 +1020,39 @@ has the same fixed addresses, but its network mode could not be run here to see 
 - **In game**: a handful of edge pixels (a hedge's top fringe, in replay 1 at the views 0x23 to 0x28 and 0x2C) differ; the replay viewer's camera that follows behind the car (views 0x27 and 0x28) showed the marked faces where the same camera at the other views hid them.
 - **Seen or read**: seen in the replay viewer by forcing each view and comparing with the entry at 0 and 1 (the differences are a few pixels at most); the table's overrun was read in the code.
 - **Fix**: the table has an entry for each of the 52 views: the cameras behind the car (0x23 to 0x29, 0x32, 0x33) like the views 4 to 6 behind the car (hide), the fixed cameras (0x2A to 0x31) like the fixed views 7 to 10 (show), and 0x22, a copy of the views 0x1A to 0x21, as they are (`race::view_vars_store`).
+
+## The music volume's "up" key in a race set a stale number plus four
+
+*Original*: `race::race_keys`. *Fixed*: 2026-11-19.
+
+- **What**: during a race the key that raises the music volume (the second view's volume-up key) took its starting volume from the menu's saved music level instead of the music's current volume, so the volume jumped to that level plus four. The key that lowers it used the current volume.
+- **In game**: after the music's volume had been changed in the race, raising it set it to the saved level plus four, not to the current volume plus four.
+- **Seen or read**: read in the code, not seen in play.
+- **Fix**: both keys step from the music's current volume, held to 0 .. 0x40 as before.
+
+## Enter did nothing on a player's name now and then
+
+*Original*: `menu::handle_keys`, `menu::begin_player_name`. *Fixed*: 2026-11-19.
+
+- **What**: pressing Enter on a player's name item starts typing the name, unless a flag set by Enter says to skip it. The flag was made from a byte of the milliseconds since the screen was set up, so it was set when that byte was 4: Enter pressed 1.024 to 1.28 seconds after the page appeared, and again in the same window of every 65.536 seconds, did nothing.
+- **In game**: Enter on a name item occasionally seemed ignored; pressing it again worked.
+- **Seen or read**: read in the code, not seen in play.
+- **Fix**: the flag is gone; Enter always starts the name entry.
+
+## The course grid's edge and the last course record
+
+*Original*: `race::course_grid`, `race::gather_visible_faces`. *Fixed*: 2026-11-19.
+
+- **What**: the road drawn around the view is found through a 32 x 32 grid of course records. With the largest view reach the grid's span reached one cell past its edge: a record in the far column was stored at the first cell of the next row and one in the far row past the end of the grid. Separately, the last course record's faces were gathered once more after the grid's, so when the grid held it, its faces were drawn twice.
+- **In game**: the picture could show a record's faces at the wrong place at the grid's edge with the largest reach (the usual reach never gets there), and the last record's faces drawn twice (the same pixels again, so nothing to see, a little time lost). The reference replay pictures are the same before and after.
+- **Seen or read**: read in the code, not seen in play.
+- **Fix**: a record outside the 32 columns or rows is left out of the grid, and the last record is gathered only when the grid did not hold it (`grid_cell`, `visible_records`).
+
+## The overall rally results held a large field to the wrong number
+
+*Original*: `menu::show_overall_rally_results`. *Fixed*: 2026-11-19.
+
+- **What**: the page's figure (how many entries it counts) is held to 0xAB, but a figure above that was replaced by 0x51, the limit of another page, so a very large field showed fewer entries than the page can hold.
+- **In game**: with a field of more than 171 entries the page counted 81.
+- **Seen or read**: read in the code, not seen in play.
+- **Fix**: a figure above 0xAB is held to 0xAB, like the pages beside it (`results_pages::held_figure`).

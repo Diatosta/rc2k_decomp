@@ -316,7 +316,7 @@ pub fn gather_record_faces(ctx: &DrawCtx, record: u32) -> Result<(), Refused> {
 }
 
 /// Runs `gather_record_faces` on each record in `course_grid` (numbers below), then on the last
-/// record once more. Refused as `gather_record_faces`.
+/// record unless the grid held it. Refused as `gather_record_faces`.
 pub fn gather_visible_faces(ctx: &DrawCtx) -> Result<(), Refused> {
     let todo = visible_records(ctx.reads.course(), &ctx.view.grid)?;
     for &record in &todo {

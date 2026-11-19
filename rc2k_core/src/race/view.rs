@@ -178,12 +178,11 @@ pub fn record_faces(first: u32, last: u32) -> Option<(u32, u32)> {
 }
 
 /// The records whose faces are gathered: each grid cell's (in order, those with one), then
-/// the last record of the course once more unless there are none (it is not tested for being
-/// gathered already: kept as is).
+/// the last record of the course unless there are none or the grid held it.
 pub fn visible_records(grid: impl IntoIterator<Item = u32>, count: u32) -> Vec<u32> {
     let mut records: Vec<u32> = grid.into_iter().filter(|&n| n < NO_RECORD).collect();
     let last = count.wrapping_sub(1);
-    if last != u32::MAX {
+    if last != u32::MAX && !records.contains(&last) {
         records.push(last);
     }
     records
@@ -520,6 +519,7 @@ mod tests {
         assert_eq!(record_faces(3, 3), Some((3, 3)));
         assert_eq!(visible_records([4, NO_RECORD, 2, u32::MAX], 9), [4, 2, 8]);
         assert_eq!(visible_records([1], 0), [1]);
+        assert_eq!(visible_records([8, 2, 8], 9), [8, 2, 8]);
         assert!(sound_object(0xFF, 0x3F) && !sound_object(0xFE, 0x3F));
         assert!(takes_spot(0x23, 0x15) && !takes_spot(0x24, 1) && !takes_spot(0, 0));
         assert!(!takes_spot(0, 0x16));

@@ -1,6 +1,5 @@
 //! `menu::show_overall_rally_results`: the overall rally results: the first player's entry of
-//! any group in standings table A (`menu::first_player_a`), its figure held to 0x51 when above
-//! 0xAB into `champ_view.rows.count`; `menu::first_page_stage`, `menu::stage_range_caption`; then
+//! any group in standings table A (`menu::first_player_a`), its figure held to 0xAB into `champ_view.rows.count`; `menu::first_page_stage`, `menu::stage_range_caption`; then
 //! the page (`menu::overall_rally_results_loop`).
 //!
 //! Refuses what the steps refuse, before anything; raises the search's fatal error.

@@ -150,11 +150,11 @@ pub fn record_cell(place: u32) -> Option<(u32, u32)> {
 /// The cell a record at (`x`, `z`) goes in, from the corner (& 0x7FF); None outside the span.
 pub fn grid_cell(x: u32, z: u32, corner: (u32, u32), span: u32) -> Option<u32> {
     let column = x.wrapping_sub(corner.0) & 0x7FF;
-    if column > span {
+    if column > span || column >= GRID_SIDE {
         return None;
     }
     let row = z.wrapping_sub(corner.1) & 0x7FF;
-    if row > span {
+    if row > span || row >= GRID_SIDE {
         return None;
     }
     Some(row.wrapping_mul(GRID_SIDE).wrapping_add(column))
@@ -254,6 +254,12 @@ mod tests {
         assert_eq!(grid_cell(5, 7, (4, 4), 4), Some(3 * 32 + 1));
         assert_eq!(grid_cell(9, 7, (4, 4), 4), None);
         assert_eq!(grid_cell(3, 7, (4, 4), 4), None);
+        // A span of 32 reaches the cells 0 ..= 32; the grid ends at 31.
+        assert_eq!(grid_cell(36, 4, (4, 4), 32), None);
+        assert_eq!(grid_cell(4, 36, (4, 4), 32), None);
+        assert_eq!(grid_cell(36, 36, (4, 4), 32), None);
+        assert_eq!(grid_cell(35, 34, (4, 4), 32), Some(30 * 32 + 31));
+        assert_eq!(grid_cell(36, 34, (4, 4), 32), None);
     }
 
     #[test]

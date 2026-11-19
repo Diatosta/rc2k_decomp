@@ -13,7 +13,6 @@ pub const A8_CLASS_MOST: u32 = 0x51;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Page {
     OverallStage,
-    /// Held to 0xAB, but a figure above it becomes 0x51 (a 1999 slip kept as is: bugs.md).
     OverallRally,
     ChampionshipStandings,
     ClassStage,
@@ -26,16 +25,13 @@ pub enum Page {
 
 /// The figure a page holds (`figure` the first player's, signed).
 pub fn held_figure(page: Page, figure: u32) -> u32 {
-    let (most, above) = match page {
-        Page::OverallStage | Page::ChampionshipStandings => (OVERALL_MOST, OVERALL_MOST),
-        Page::OverallRally => (OVERALL_MOST, A8_CLASS_MOST),
-        Page::ClassStage | Page::ClassChampionship | Page::ClassRally { a8: false } => {
-            (CLASS_MOST, CLASS_MOST)
-        }
-        Page::ClassRally { a8: true } => (A8_CLASS_MOST, A8_CLASS_MOST),
+    let most = match page {
+        Page::OverallStage | Page::OverallRally | Page::ChampionshipStandings => OVERALL_MOST,
+        Page::ClassStage | Page::ClassChampionship | Page::ClassRally { a8: false } => CLASS_MOST,
+        Page::ClassRally { a8: true } => A8_CLASS_MOST,
     };
     if figure as i32 > most as i32 {
-        above
+        most
     } else {
         figure
     }
@@ -73,7 +69,7 @@ mod tests {
     fn figures() {
         assert_eq!(held_figure(Page::OverallStage, 0xAC), 0xAB);
         assert_eq!(held_figure(Page::OverallStage, 0xAB), 0xAB);
-        assert_eq!(held_figure(Page::OverallRally, 0xAC), 0x51);
+        assert_eq!(held_figure(Page::OverallRally, 0xAC), 0xAB);
         assert_eq!(held_figure(Page::OverallRally, 0x90), 0x90);
         assert_eq!(held_figure(Page::ClassStage, 0x34), 0x33);
         assert_eq!(held_figure(Page::ClassStage, u32::MAX), u32::MAX);

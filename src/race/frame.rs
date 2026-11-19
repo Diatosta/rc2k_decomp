@@ -157,12 +157,7 @@ pub fn race_keys(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
             let (step, counter) = volume_key(up, second);
             set_both_counters(race, counter);
             if second {
-                // The "up" step reads `MenuOptions.race_music_level`, not the music's volume.
-                let from: u32 = if up {
-                    o.menus.options.snapshot().race_music_level
-                } else {
-                    sound.menu.options.race_music_volume.get()
-                };
+                let from = sound.menu.options.race_music_volume.get();
                 let volume = volume_step(from, step);
                 sound.menu.options.race_music_volume.set(volume);
                 crate::sound::set_music_volume::set_music_volume(volume, o);
