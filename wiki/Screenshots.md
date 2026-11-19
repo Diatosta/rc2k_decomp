@@ -23,6 +23,15 @@ from the highest number already in the folder. Both go back to `000` after `999`
 The picture has the size of the screen mode the game is drawing in at that moment (640 × 480,
 for example).
 
+## On a phone
+
+On iOS and Android a screenshot (the key's and the replay viewer's snapshot button; not the
+replay's picture sequence) is also put into the phone's photo library once it is written, so the
+Photos or Gallery app shows it. iOS adds it to the camera roll and asks for the add-only photo
+permission the first time. Android (10 and later) puts it in the Gallery under Pictures / Rally
+Championship (older versions skip it). The outcome is a line in the log; a failure never stops
+the game. Code: `src/platform/ffi/photo_library.rs`, `tools/android/app/java/org/rc2k/rally/Photos.java`.
+
 ## The file
 
 A PNG file of the screen's size, 8 bits for each of red, green and blue (colour type 2), no

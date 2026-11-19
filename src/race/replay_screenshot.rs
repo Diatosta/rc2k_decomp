@@ -38,7 +38,13 @@ pub fn replay_screenshot(
     // The surface locked (the carry says it was not), the picture written, the surface
     // unlocked.
     if crate::platform::lock_surface(gfx, system) >= 1 {
-        crate::gfx::write_screen_pcx::write_screen_pcx(&gfx.shots, Some(&name), gfx, system)?;
+        crate::gfx::write_screen_pcx::write_screen_pcx(
+            &gfx.shots,
+            Some(&name),
+            false,
+            gfx,
+            system,
+        )?;
         crate::platform::unlock_surface(gfx);
     }
     clock

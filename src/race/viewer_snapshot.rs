@@ -30,6 +30,7 @@ pub fn viewer_snapshot(
         crate::gfx::write_screen_pcx::write_screen_pcx(
             &gfx.shots,
             Some(&replay.snapshot().text()),
+            true,
             gfx,
             system,
         )?;

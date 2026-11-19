@@ -4,3 +4,6 @@
 
 /* Asked by iOS when the save code page opens the camera. */
 "NSCameraUsageDescription" = "Scans a save code's QR picture.";
+
+/* Asked by iOS the first time a screenshot is put into the photo library. */
+"NSPhotoLibraryAddUsageDescription" = "Saves your screenshots to your photos.";

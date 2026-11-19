@@ -12,6 +12,7 @@ pub mod linux_handheld;
 pub mod pgo;
 #[cfg(any(target_os = "android", target_os = "ios"))]
 pub mod phone_vibrator;
+pub mod photo_library;
 pub mod sdl;
 pub mod sdl_camera;
 pub mod sdl_clipboard;
