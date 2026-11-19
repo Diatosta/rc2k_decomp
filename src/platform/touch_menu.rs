@@ -27,6 +27,16 @@ static INSTALLER_TAP: Mutex<Option<(f32, f32)>> = Mutex::new(None);
 /// The menu on show when the fingers in progress (or the tap waiting for its window) went down.
 static DOWN_ON: Mutex<Option<crate::menu::menus_store::MenuId>> = Mutex::new(None);
 
+/// When the Escape key held for a double tap during a replay is let go (0: none held).
+static ESCAPE_UNTIL: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// How long a double tap holds Escape down during a replay: the race's loop reads the key's
+/// state at its own pace, as it does a key on a keyboard.
+const ESCAPE_HOLD_MS: u64 = 200;
+
+/// The game's key code of Escape.
+const ESCAPE_KEY: u8 = 0x01;
+
 /// The window's size and safe area as the screen the gestures are sized by.
 pub fn screen_of(window: sdl::Window) -> Option<Screen> {
     let (width, height) = window.pixel_size()?;
@@ -74,11 +84,16 @@ pub fn finger(
     }
     let gestures = recogniser.finger(&screen, id, phase, x * screen.width, y * screen.height, now);
     drop((recogniser, on_screen));
-    act(o, window, gestures);
+    act(o, window, gestures, now);
 }
 
 /// Called every turn of the event loop: the single tap whose double-tap window is over is chosen.
 pub fn tick(o: &Owners<'static>, window: sdl::Window, now: u64) {
+    let until = ESCAPE_UNTIL.load(Relaxed);
+    if until != 0 && now >= until {
+        ESCAPE_UNTIL.store(0, Relaxed);
+        o.input.devices.set_key_state(ESCAPE_KEY, 0);
+    }
     let menu = o.menus.screens.loop_flags.menu.get().ok();
     let mut recogniser = GESTURES
         .lock()
@@ -96,17 +111,25 @@ pub fn tick(o: &Owners<'static>, window: sdl::Window, now: u64) {
     }
     let gestures = recogniser.tick(now);
     drop(recogniser);
-    act(o, window, gestures);
+    act(o, window, gestures, now);
 }
 
-fn act(o: &Owners<'static>, window: sdl::Window, gestures: Vec<Gesture>) {
+fn act(o: &Owners<'static>, window: sdl::Window, gestures: Vec<Gesture>, now: u64) {
     for gesture in gestures {
         match gesture {
             Gesture::Up => press(o, MenuAction::Up),
             Gesture::Down => press(o, MenuAction::Down),
             Gesture::Left => press(o, MenuAction::Left),
             Gesture::Right => press(o, MenuAction::Right),
-            Gesture::Back => press(o, MenuAction::Back),
+            Gesture::Back => {
+                press(o, MenuAction::Back);
+                // A replay being shown reads Escape's state, not the key taken: the double tap
+                // also holds the key down a moment, as a keyboard's Escape does.
+                if o.race.course.numbers.get().in_race.is_set() {
+                    o.input.devices.set_key_state(ESCAPE_KEY, 0xFF);
+                    ESCAPE_UNTIL.store(now + ESCAPE_HOLD_MS, Relaxed);
+                }
+            }
             Gesture::Tap { x, y } => tap(o, window, x, y),
         }
     }
