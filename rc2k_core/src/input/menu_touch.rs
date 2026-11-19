@@ -122,6 +122,8 @@ pub struct Gestures {
     pending: Option<(f32, f32, u64)>,
     /// Something moved past the slop since all were last up.
     moved: bool,
+    /// A drag gave a step (a move) since all were last up.
+    stepped: bool,
     first_down_at: u64,
     peak: usize,
     /// A sideways drag gives the key on the finger's side (a drag to the right is Right) instead
@@ -146,6 +148,9 @@ const TAP_MS: u64 = 450;
 /// `DOUBLE_REACH` (of the screen's short side) of it. A single tap acts after this wait.
 pub const DOUBLE_MS: u64 = 200;
 const DOUBLE_REACH: f32 = 0.08;
+/// How far a finger may slide during a tap, as a share of the screen's shorter side: a finger
+/// tapping on a phone rolls a little, and a slide this short that made no step is still a tap.
+const TAP_REACH: f32 = 0.06;
 
 impl Default for Gestures {
     fn default() -> Self {
@@ -160,6 +165,7 @@ impl Gestures {
             pair: false,
             pending: None,
             moved: false,
+            stepped: false,
             first_down_at: 0,
             peak: 0,
             direct_sideways: false,
@@ -225,6 +231,7 @@ impl Gestures {
                 if self.touches.is_empty() {
                     self.pair = false;
                     self.moved = false;
+                    self.stepped = false;
                     self.first_down_at = now;
                     self.peak = 0;
                 }
@@ -266,6 +273,7 @@ impl Gestures {
                         while (y - t.anchor.1).abs() >= step {
                             let up = y < t.anchor.1;
                             out.push(if up { Gesture::Up } else { Gesture::Down });
+                            self.stepped = true;
                             t.anchor.1 += if up { -step } else { step };
                         }
                     }
@@ -275,6 +283,7 @@ impl Gestures {
                             // The value follows the finger as a phone's carousel does: a drag
                             // to the left brings the next one (right), to the right the one before.
                             let left = x < t.anchor.0;
+                            self.stepped = true;
                             out.push(if left != self.direct_sideways {
                                 Gesture::Right
                             } else {
@@ -291,7 +300,10 @@ impl Gestures {
                     return out;
                 };
                 let t = self.touches.remove(n);
-                if self.touches.is_empty() && !self.moved {
+                let (dx, dy) = (x - t.start.0, y - t.start.1);
+                let reach = TAP_REACH * unit;
+                let still = !self.moved || (!self.stepped && dx * dx + dy * dy <= reach * reach);
+                if self.touches.is_empty() && still {
                     let short = now.saturating_sub(self.first_down_at) < TAP_MS
                         && now.saturating_sub(t.down_at) < TAP_MS;
                     if short && self.peak == 1 {
@@ -377,6 +389,40 @@ mod tests {
 
     fn tick(g: &mut Gestures, now: u64) -> Vec<Gesture> {
         g.tick(now)
+    }
+
+    #[test]
+    fn a_tap_that_rolls_a_little_is_still_a_tap_but_a_short_drag_is_not() {
+        // The screen's shorter side is 1080: the slop is 32 pixels, a tap may slide 64.
+        let mut g = Gestures::default();
+        let got = run(
+            &mut g,
+            &[
+                (1, Phase::Down, 1200.0, 500.0, 0),
+                (1, Phase::Move, 1240.0, 520.0, 40),
+                (1, Phase::Up, 1245.0, 525.0, 100),
+            ],
+        );
+        assert!(got.is_empty());
+        assert_eq!(
+            tick(&mut g, 100 + DOUBLE_MS),
+            vec![Gesture::Tap {
+                x: 1200.0,
+                y: 500.0
+            }]
+        );
+        let mut g = Gestures::default();
+        let got = run(
+            &mut g,
+            &[
+                (1, Phase::Down, 1200.0, 500.0, 1000),
+                (1, Phase::Move, 1270.0, 500.0, 1040),
+                (1, Phase::Up, 1275.0, 500.0, 1100),
+            ],
+        );
+        assert!(got.is_empty());
+        assert!(!g.waiting());
+        assert!(tick(&mut g, 1100 + DOUBLE_MS).is_empty());
     }
 
     #[test]
