@@ -30,6 +30,11 @@ pub fn write_screen_pcx(
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<bool, Refused> {
+    // A frame the GPU holds (a race, a replay's view, a 3D menu) is not in the canvas yet: the
+    // picture would be the canvas's key colour where the 3D is.
+    if let Some(screen) = crate::platform::direct3d::screen(system.session.screen.get()) {
+        crate::render::bring_back(&screen);
+    }
     let path = match name {
         Some(name) => name.to_vec(),
         None => {

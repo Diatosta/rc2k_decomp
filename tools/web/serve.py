@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Serves the web build's folder with the two headers its threads need (cross-origin isolation:
-SharedArrayBuffer). `python3 tools/web/serve.py [folder] [port]`; on a phone, a-Shell's Python
-runs it the same way, or the folder's `coi-serviceworker.js` adds the headers itself."""
+SharedArrayBuffer). `python3 serve.py [folder] [port]`, the folder being the script's own unless
+given, wherever it is started from; on a phone, a-Shell's Python runs it the same way, or the
+folder's `coi-serviceworker.js` adds the headers itself."""
 import http.server, sys, os, functools
 
 class Handler(http.server.SimpleHTTPRequestHandler):
@@ -12,7 +13,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         super().end_headers()
 
 Handler.extensions_map[".wasm"] = "application/wasm"
-folder = sys.argv[1] if len(sys.argv) > 1 else "."
+folder = sys.argv[1] if len(sys.argv) > 1 else os.path.dirname(os.path.abspath(__file__))
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 8000
 server = http.server.ThreadingHTTPServer(("127.0.0.1", port), functools.partial(Handler, directory=folder))
 print(f"Serving {folder} at http://127.0.0.1:{port}/ (Ctrl+C stops)")
