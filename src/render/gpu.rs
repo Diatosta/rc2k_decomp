@@ -12,6 +12,7 @@
 mod check;
 mod nv12;
 mod quads;
+mod stretch;
 
 use super::batches::{Batch, Batches, PipelineKey};
 use super::gles::mip_levels;
@@ -49,6 +50,8 @@ const MERGE_FRAG: ShaderCode = shader_code!("merge.frag");
 /// The video's conversion to NV12 (`nv12`).
 const Y_FRAG: ShaderCode = shader_code!("nv12_y.frag");
 const UV_FRAG: ShaderCode = shader_code!("nv12_uv.frag");
+/// The frame stretched to a smaller picture (`stretch`).
+const STRETCH_FRAG: ShaderCode = shader_code!("stretch.frag");
 
 const COLOUR_FORMAT: SDL_GPUTextureFormat = SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM;
 const DEPTH_FORMAT: SDL_GPUTextureFormat = SDL_GPU_TEXTUREFORMAT_D32_FLOAT;
@@ -172,6 +175,8 @@ pub struct Gpu {
     video_transfer: Transfer,
     /// The targets of the video's conversion to NV12 (`nv12`), once a frame asked for it.
     planes: Option<nv12::Planes>,
+    /// The target and buffer of the frame's stretched copy (`stretch`), once a frame asked for it.
+    stretched: Option<stretch::Stretched>,
     /// The diagnostic cuts of the flush last drawn (`gpu_cut`), to log their changes.
     cuts: Cuts,
 }
@@ -320,6 +325,7 @@ impl Gpu {
             video_read: None,
             video_transfer: Transfer::NONE,
             planes: None,
+            stretched: None,
             cuts: Cuts::default(),
         };
         if let Some(line) = Cuts::start_from_env() {
@@ -456,6 +462,9 @@ impl Gpu {
         }
         if let Some(planes) = self.planes.take() {
             planes.release(device);
+        }
+        if let Some(stretched) = self.stretched.take() {
+            stretched.release(device);
         }
     }
 

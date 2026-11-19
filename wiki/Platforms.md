@@ -77,7 +77,9 @@ browser's private storage, which a browser may clear, so the page `saves.html` (
 start page) exports the `savedata/` folder, `var/hst.dat` and the settings (`var/ral.dat`,
 `var/ral.cfg`, `var/rc2k.toml`) as a zip to download or as text (the zip in base64) to copy, and
 imports either back, replacing what is there after a confirmation. Only those files are read
-from an imported zip. Close the game's tab first.
+from an imported zip. The same page also shows the game's [save code](Save-code) as QR codes (the
+saved games, car set-ups and best times, not the settings; large or small codes, part by part), which the
+game's own camera reads, and takes one in with the browser's camera (https or localhost only). Close the game's tab first.
 
 ## Network play across platforms
 

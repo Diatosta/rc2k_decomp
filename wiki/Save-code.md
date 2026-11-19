@@ -66,6 +66,28 @@ of the options menu (below "advanced"; the options of the pause menu in a race h
   saves it (the best times into its tables and `var/hst.dat`, the set-up and saved game files, and the
   game's lists of their names read again), so the game goes on with it at once.
 
+## On the web
+
+The web build's saves page (`saves.html`, [Platforms](Platforms)) makes and reads the same code. The
+code is not written twice: `tools/web/codes/` builds `rc2k_core::saves::code` into a small WebAssembly
+module that a worker (`codes_worker.js`) runs, so the QR codes of the page are the game's own and the
+game's camera reads them, and the page reads the codes of the game's page.
+
+- **Export, "Show as QR codes"**: the part shown on a canvas (a module a whole number of pixels, the
+  four modules' quiet zone), **Previous** and **Next**, **small codes** / **large codes** as in the game
+  (large first), and the part's text under it.
+- **Import, "Scan with the camera"**: the browser's camera (the rear one preferred, a chooser when there
+  are several), a live picture, and "3 of 20 parts" as the parts come in, in any order; then the same
+  question as the game's, the saved games and car set-ups written into their slots and the best times
+  merged into `var/hst.dat` and the rally times and stage records into `var/rc2k.toml`, as the game
+  does. The camera needs https or `localhost`; elsewhere the page says so.
+- What is read from the browser's storage: the saved games and car set-ups, `var/hst.dat`,
+  `var/rc2k.toml` (the rally times, stage records and the players' names), `var/name.cfg` when there is
+  one, and the game's language file (the first `.txt` of `files/locale`): the 180 drivers' names in it
+  tell the game's made-up best times, which a code does not carry, from the player's. Without the best
+  times' file or the language file (the game not run yet) the code has no best times, and an import says
+  that its best times were not taken in.
+
 ## What it holds
 
 In this order in the code:

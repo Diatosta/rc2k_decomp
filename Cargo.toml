@@ -1,6 +1,6 @@
 # The game's logic, platform-free (Linux and Windows tests): `rc2k_core/`.
 [workspace]
-members = ["rc2k_core", "rc2k_derive", "android"]
+members = ["rc2k_core", "rc2k_derive", "android", "tools/web/codes"]
 exclude = ["fuzz"]
 
 [workspace.lints.clippy]

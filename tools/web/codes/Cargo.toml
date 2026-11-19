@@ -1,0 +1,17 @@
+[package]
+name = "rc2k_web_codes"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+# The web build's saves page (`tools/web/saves.html`): the game's save code
+# (`rc2k_core::saves::code`) as a small WebAssembly module (`tools/web/build.sh` builds it for
+# `wasm32-unknown-unknown`), so the page makes and reads the same QR codes as the game.
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+rc2k_core = { path = "../../../rc2k_core" }
+
+[lints]
+workspace = true
