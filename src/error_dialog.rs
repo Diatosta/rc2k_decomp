@@ -409,6 +409,7 @@ fn run(
         if let Some((x, y)) = crate::platform::touch_menu::take_installer_tap()
             && let Some(way) = tapped_way(&drawn_rects, &held, ways, x, y)
         {
+            crate::platform::touch_menu::tap_used();
             return Some(way);
         }
         #[cfg(not(touch_screen))]

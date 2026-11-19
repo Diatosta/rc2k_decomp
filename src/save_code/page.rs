@@ -403,6 +403,7 @@ pub fn run(o: Owners<'static>) -> Result<(), Refused> {
         if let Some((x, y)) = crate::platform::touch_menu::take_installer_tap() {
             let usable: [bool; BUTTONS] = std::array::from_fn(|n| page.usable(n));
             if let Some(n) = tapped(&l.buttons, &usable, x, y) {
+                crate::platform::touch_menu::tap_used();
                 page.chosen = n;
                 key = KEY_ENTER;
             }
@@ -639,6 +640,7 @@ fn ask(o: Owners<'static>, plan: &Plan) -> bool {
         if let Some((x, y)) = crate::platform::touch_menu::take_installer_tap() {
             let (w, h) = draw::screen_size(o);
             if let Some(n) = tapped(&question_ways(w, h), &[true; 2], x, y) {
+                crate::platform::touch_menu::tap_used();
                 return n == 0;
             }
         }

@@ -347,8 +347,12 @@ fn watch(o: Owners<'static>, render: &Render, mut child: Child) -> Ended {
         let mut clicked = down && !was_down && x >= l && x < l + w && y >= t && y < t + h;
         #[cfg(touch_screen)]
         if let Some((tx, ty)) = crate::platform::touch_menu::take_installer_tap() {
-            clicked |=
+            let hit =
                 tx >= l as f32 && tx < (l + w) as f32 && ty >= t as f32 && ty < (t + h) as f32;
+            if hit {
+                crate::platform::touch_menu::tap_used();
+            }
+            clicked |= hit;
         }
         was_down = down;
         if matches!(key, 0x01 | 0x1C | 0x60) || clicked {

@@ -178,6 +178,7 @@ pub fn ask(o: Owners<'static>, marks: bool, target: &Target) -> Option<Settings>
         if let Some((tx, ty)) = crate::platform::touch_menu::take_installer_tap()
             && let Some(row) = Dialog::row_at(&places, tx as i32, ty as i32)
         {
+            crate::platform::touch_menu::tap_used();
             dialog.select(row);
             outcome = tapped_outcome(&mut dialog, &places, row, tx);
         }

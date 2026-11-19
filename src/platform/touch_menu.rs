@@ -2,7 +2,9 @@
 //! the gestures of `rc2k_core::input::menu_touch`, which become the keys the menus already take:
 //! a drag is the arrow keys, a single tap is Enter on what is highlighted (wherever the finger
 //! was; it is sent once the double-tap window has passed, so a double tap never also chooses),
-//! a double tap is Escape. Nothing else acts.
+//! a double tap is Escape. Nothing else acts. The pages that take their own taps
+//! (`InstallerPage`) get a tap when the finger lifts; one they act on (`tap_used`) is not the
+//! first of a double tap.
 
 use crate::input::menu_pad::MenuAction;
 use crate::owners::Owners;
@@ -158,6 +160,7 @@ pub struct InstallerPage;
 impl InstallerPage {
     pub fn begin() -> Self {
         INSTALLER.fetch_add(1, Relaxed);
+        set_immediate(true);
         *INSTALLER_TAP
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
@@ -167,11 +170,31 @@ impl InstallerPage {
 
 impl Drop for InstallerPage {
     fn drop(&mut self) {
-        INSTALLER.fetch_sub(1, Relaxed);
+        if INSTALLER.fetch_sub(1, Relaxed) == 1 {
+            set_immediate(false);
+        }
         *INSTALLER_TAP
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
     }
+}
+
+/// Pages that take their own taps get them when the finger lifts, not after the double-tap
+/// window; the game's menus keep the window.
+fn set_immediate(on: bool) {
+    GESTURES
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .set_immediate(on);
+}
+
+/// The page acted on the tap it took (it was on a button): the tap is not the first of a double
+/// tap (a double tap off a button is Back).
+pub fn tap_used() {
+    GESTURES
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .tap_used();
 }
 
 /// The tap on the installer's page since the last call, if any: where, in the frame's pixels.
