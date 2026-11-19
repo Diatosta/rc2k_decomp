@@ -107,6 +107,39 @@ pub fn motors<'a>(running: impl IntoIterator<Item = Running<'a>>, device_gain: u
     (scale(heavy), scale(light))
 }
 
+/// How a phone's one motor is told to pulse.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Pulse {
+    /// 0.0 (barely) to 1.0 (as strong as the motor goes).
+    pub strength: f32,
+    /// How long the pulse lasts, in milliseconds.
+    pub ms: u32,
+}
+
+/// The weakest rumble a phone pulses for, as a fraction of the motors' full level: lighter
+/// ones are a buzz that says nothing and only drains the battery.
+const PHONE_WEAKEST: f32 = 0.12;
+/// The shortest and longest pulse (ms): a light rumble ticks, a full one is a firm thump. A
+/// running rumble is pulsed again by the caller, so a long one is a train of pulses.
+const PHONE_SHORTEST_MS: u32 = 30;
+const PHONE_LONGEST_MS: u32 = 120;
+/// The least time between two pulses (ms), so that a rumble that changes every frame does not
+/// buzz without a break.
+pub const PHONE_PULSE_GAP_MS: u128 = 160;
+
+/// The two motors' levels (0 .. 65535) mixed down to a phone's one motor: the stronger of the
+/// two sets the strength, and the pulse lasts longer the stronger it is. None when the rumble
+/// is too light to be worth a pulse.
+pub fn phone_pulse(heavy: u16, light: u16) -> Option<Pulse> {
+    let strength = f32::from(heavy.max(light)) / 65535.0;
+    if strength < PHONE_WEAKEST {
+        return None;
+    }
+    let ms = PHONE_SHORTEST_MS
+        + ((PHONE_LONGEST_MS - PHONE_SHORTEST_MS) as f32 * strength).round() as u32;
+    Some(Pulse { strength, ms })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -192,5 +225,18 @@ mod tests {
         assert_eq!(motors([e], 10_000).0, 65535);
         e.elapsed_us = 950_000;
         assert_eq!(motors([e], 10_000).0, 32767);
+    }
+
+    #[test]
+    fn a_phone_pulses_for_the_stronger_motor() {
+        assert_eq!(phone_pulse(0, 0), None);
+        assert_eq!(phone_pulse(3000, 2000), None);
+        let light = phone_pulse(0, 20000).unwrap();
+        let both = phone_pulse(20000, 5000).unwrap();
+        assert_eq!(light, both);
+        let full = phone_pulse(65535, 65535).unwrap();
+        assert_eq!(full.strength, 1.0);
+        assert_eq!(full.ms, PHONE_LONGEST_MS);
+        assert!(light.ms >= PHONE_SHORTEST_MS && light.ms < full.ms);
     }
 }

@@ -32,7 +32,7 @@ of the options menu (below "advanced"; the options of the pause menu in a race h
   (`rc2k_core::gfx::camera_frame`, reading each row at the frame's own pitch; a format it does not read goes
   through SDL's pixel conversion) and shown as a real picture, **all of it**, in the frame's own proportions,
   scaled to the box by averaging (no crop, no mosaic). A camera that faces the user (a front camera, a
-  laptop's webcam) is shown mirrored, as in a mirror.
+  laptop's webcam) is shown mirrored, as in a mirror. A front camera's frames are first turned upright by the rotation SDL reports for the frame (the phone's and the screen's orientation); the back camera's are shown as they come, and reading the code does not depend on how the picture is turned.
 - **Looking for the code** happens on a thread of its own, one frame at a time (a large picture takes
   tenths of a second), so the picture keeps its pace. The frame is read as the camera sent it; when that
   gives nothing it is read mirrored left to right, then with light and dark swapped, so a code seen in a

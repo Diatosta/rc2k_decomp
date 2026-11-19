@@ -45,6 +45,8 @@ pub mod timing;
 pub mod touch;
 #[cfg(touch_screen)]
 pub mod touch_menu;
+#[cfg(any(target_os = "android", target_os = "ios"))]
+pub mod vibrate;
 #[cfg(target_os = "emscripten")]
 pub mod web;
 #[cfg(target_os = "emscripten")]

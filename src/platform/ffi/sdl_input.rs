@@ -300,11 +300,21 @@ pub fn attach_virtual_gamepad(
         vendor_id: vendor,
         product_id: product,
         name: name.as_ptr(),
+        // The game's rumble for this pad goes to the phone's motor (`platform::vibrate`).
+        Rumble: Some(phone_rumble),
         ..SDL_VirtualJoystickDesc::default()
     };
     // SAFETY: a description made by SDL's own initialiser; the name is a constant C text.
     let id = unsafe { SDL_AttachVirtualJoystick(&raw const desc) };
     (id.0 != 0).then_some(id)
+}
+
+/// SDL's call to rumble the touch screen's virtual gamepad: the phone pulses for it when the
+/// player has switched that on.
+#[cfg(any(target_os = "android", target_os = "ios"))]
+unsafe extern "C" fn phone_rumble(_: *mut std::ffi::c_void, low: u16, high: u16) -> bool {
+    crate::platform::vibrate::rumble(low, high);
+    true
 }
 
 /// The stand-in stick's motors as SDL last set them (heavy in the high half, light in the low).

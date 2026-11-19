@@ -12,6 +12,8 @@ pub mod imgui;
 pub mod linux_handheld;
 #[cfg(rc2k_pgo)]
 pub mod pgo;
+#[cfg(any(target_os = "android", target_os = "ios"))]
+pub mod phone_vibrator;
 pub mod sdl;
 pub mod sdl_camera;
 pub mod sdl_clipboard;
