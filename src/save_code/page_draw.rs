@@ -113,33 +113,55 @@ pub fn letters_per_line(o: Owners<'static>, room: i32) -> usize {
 }
 
 /// The code at (`x`, `y`), a module `scale` pixels square, black on white with its quiet zone.
+/// Written a pixel row at a time into the surface (a code of the largest size has tens of
+/// thousands of runs, which drawn as filled rectangles cost every frame what the page cannot
+/// spare); a box that does not lie inside the surface is not drawn.
 pub fn qr_code(o: Owners<'static>, modules: &Modules, x: i32, y: i32, scale: usize) {
-    let s = scale as i32;
-    let zone = qr::QUIET as i32 * s;
-    let full = modules.side as i32 * s + 2 * zone;
-    fill(o, [x, y, full, full], WHITE);
-    for row in 0..modules.side {
-        let mut col = 0;
-        while col < modules.side {
-            if !modules.at(col, row) {
-                col += 1;
-                continue;
+    let surface = crate::gfx::surface::surface(o.gfx);
+    let Some(target) = crate::gfx::surface::target(o.gfx) else {
+        return;
+    };
+    let (screen_w, screen_h) = screen_size(o);
+    let bytes = usize::try_from(surface.bytes_per_pixel).unwrap_or(0);
+    let zone = qr::QUIET * scale;
+    let full = (modules.side + 2 * qr::QUIET) * scale;
+    if bytes == 0
+        || x < 0
+        || y < 0
+        || x as usize + full > screen_w as usize
+        || y as usize + full > screen_h as usize
+    {
+        return;
+    }
+    let paint = |rgb: u32| {
+        crate::input::osk_draw::pixel(rgb, surface.bits_per_pixel).to_le_bytes()[..bytes].to_vec()
+    };
+    let (white, black) = (paint(WHITE), paint(BLACK));
+    let blank_row = white.repeat(full);
+    let mut row = Vec::with_capacity(full * bytes);
+    for line in 0..full {
+        // The module row this pixel row belongs to, none in the quiet zone.
+        let module_row = (line / scale)
+            .checked_sub(qr::QUIET)
+            .filter(|r| *r < modules.side);
+        let pixels = match module_row {
+            None => &blank_row,
+            Some(r) => {
+                row.clear();
+                row.extend_from_slice(&white.repeat(zone));
+                for col in 0..modules.side {
+                    let colour = if modules.at(col, r) { &black } else { &white };
+                    for _ in 0..scale {
+                        row.extend_from_slice(colour);
+                    }
+                }
+                row.extend_from_slice(&white.repeat(zone));
+                &row
             }
-            let start = col;
-            while col < modules.side && modules.at(col, row) {
-                col += 1;
-            }
-            fill(
-                o,
-                [
-                    x + zone + start as i32 * s,
-                    y + zone + row as i32 * s,
-                    (col - start) as i32 * s,
-                    s,
-                ],
-                BLACK,
-            );
-        }
+        };
+        let offset = (y as u32 + line as u32) * surface.pitch as u32 + x as u32 * bytes as u32;
+        // The box was kept inside the surface above; a refusal would only leave a row blank.
+        let _ = crate::gfx::surface::write(target, offset, pixels, o.gfx);
     }
 }
 

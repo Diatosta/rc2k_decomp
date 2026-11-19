@@ -47,4 +47,20 @@ mergeInto(LibraryManager.library, {
   rc2k_web_is_full_screen__proxy: 'sync',
   rc2k_web_is_full_screen__sig: 'i',
   rc2k_web_is_full_screen: () => (document.fullscreenElement ? 1 : 0),
+
+  // A file given to the player: the browser downloads `len` bytes at `data` under the name at
+  // `name` (a NUL-ended text), as `mime`. The bytes are copied before the call returns.
+  rc2k_web_download__proxy: 'sync',
+  rc2k_web_download__sig: 'vppip',
+  rc2k_web_download: (name, data, len, mime) => {
+    const bytes = HEAPU8.slice(data, data + len);
+    const blob = new Blob([bytes], { type: UTF8ToString(mime) });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = UTF8ToString(name);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(link.href), 10000);
+  },
 });

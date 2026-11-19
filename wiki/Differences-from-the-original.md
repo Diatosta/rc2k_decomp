@@ -13,8 +13,8 @@ the switches of the command line are on [Running and options](Running-and-option
 
 ## Highlights
 
-- **Wide screens and any resolution**, 32:9 included, with full screen and borderless modes
-  (Alt+Enter): [Graphics and the screen](#graphics-and-the-screen).
+- **Wide screens and any resolution**, 32:9 included, a window you can resize freely, with full
+  screen and borderless modes (Alt+Enter): [Graphics and the screen](#graphics-and-the-screen).
 - **The GPU renderer and a 3D resolution up to 200 %**: [Graphics and the screen](#graphics-and-the-screen).
 - **Frame rates above 100** (smooth frames), a frame limit: [Frame rate](#frame-rate).
 - **Full play with a pad**, with the controller's own button pictures, profiles per controller,
@@ -96,6 +96,13 @@ The original was a 32-bit Windows program on DirectX. Its platform side was not 
   by the 4:3 view's cone. The loading screen, the roadside tyre change and the replay viewer keep
   their 4:3 shape in the middle: the loading picture has the menus' blurred wash beside it, the
   tyre change's dark backdrop and the replay viewer's bars span the whole width.
+- **A window you can resize.** In window mode the window can be dragged to any size (320 x 240 at
+  the least). Once it has stayed still for a moment and a menu is on the screen, the size becomes
+  the race's size: the next race is drawn at it (the 3D on the GPU and on the software renderer
+  alike), the graphics page's "resolution" row shows it as "1234 x 777 (window)", and the options
+  keep it as the race size. Dragged during a race, the picture is scaled in the window as before
+  and the size is taken up when the menus are back. Choosing a listed size on the page still sizes
+  the window. Full screen and borderless are unchanged.
 - **Screen row** (graphics page): window (the default), full screen or borderless. **Alt+Enter**
   toggles between a window and full screen at any time.
 - **One window size.** The window keeps the race's screen size from start to end; the original

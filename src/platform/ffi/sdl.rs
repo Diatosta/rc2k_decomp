@@ -181,6 +181,22 @@ impl Window {
         unsafe { SDL_SetWindowSize(self.0, width as i32, height as i32) };
     }
 
+    /// The window's size in the screen's pixels, as `set_size` takes it.
+    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    pub fn window_size(self) -> Option<(u32, u32)> {
+        let (mut width, mut height) = (0, 0);
+        // SAFETY: as `restore_if_minimised`; SDL writes the two integers.
+        let known = unsafe { SDL_GetWindowSize(self.0, &raw mut width, &raw mut height) };
+        (known && width > 0 && height > 0).then_some((width as u32, height as u32))
+    }
+
+    /// The least size the player can drag the window to.
+    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    pub fn set_minimum_size(self, width: usize, height: usize) {
+        // SAFETY: as `restore_if_minimised`.
+        unsafe { SDL_SetWindowMinimumSize(self.0, width as i32, height as i32) };
+    }
+
     /// The window's size in its own pixels (what it is drawn on), if SDL knows it.
     #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // the handheld's panel has no window
     pub fn pixel_size(self) -> Option<(u32, u32)> {
@@ -655,6 +671,18 @@ pub fn display_modes(window: Option<Window>) -> DisplayModes {
     }
 }
 
+/// Whether the player can drag the window to another size: on the desktop systems (the others'
+/// windows are the screen, or the page's canvas).
+pub const RESIZABLE: bool = cfg!(any(
+    target_os = "windows",
+    target_os = "macos",
+    all(target_os = "linux", not(target_arch = "aarch64"))
+));
+
+/// The least size of a window the player resizes (the least race size the options keep).
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+pub const MIN_WINDOW: (usize, usize) = (320, 240);
+
 /// A window of the given size with a title.
 pub fn create_window(title: &std::ffi::CStr, width: usize, height: usize) -> Option<Window> {
     // A phone's window covers the whole screen, under no system bars.
@@ -664,7 +692,18 @@ pub fn create_window(title: &std::ffi::CStr, width: usize, height: usize) -> Opt
         SDL_WindowFlags(0)
     };
     // SAFETY: a NUL-ended title; plain sizes and SDL's own flags.
-    let raw = unsafe { SDL_CreateWindow(title.as_ptr(), width as i32, height as i32, flags) };
+    let raw = unsafe {
+        SDL_CreateWindow(
+            title.as_ptr(),
+            width as i32,
+            height as i32,
+            SDL_WindowFlags(flags.0 | if RESIZABLE { SDL_WINDOW_RESIZABLE.0 } else { 0 }),
+        )
+    };
+    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    if !raw.is_null() && RESIZABLE {
+        Window(raw).set_minimum_size(MIN_WINDOW.0, MIN_WINDOW.1);
+    }
     (!raw.is_null()).then_some(Window(raw))
 }
 

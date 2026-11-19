@@ -10,6 +10,8 @@ use sdl3_sys::everything::*;
 enum Event {
     Quit,
     Focus(bool),
+    /// A window's size changed.
+    Resized,
     Key {
         scancode: i32,
         down: bool,
@@ -80,6 +82,8 @@ fn next_event() -> Option<Event> {
     Some(
         if kind == SDL_EVENT_QUIT || kind == SDL_EVENT_WINDOW_CLOSE_REQUESTED {
             Event::Quit
+        } else if kind == SDL_EVENT_WINDOW_RESIZED {
+            Event::Resized
         } else if kind == SDL_EVENT_WINDOW_FOCUS_GAINED {
             Event::Focus(true)
         } else if kind == SDL_EVENT_WINDOW_FOCUS_LOST {
@@ -221,6 +225,7 @@ pub fn pump(o: crate::owners::Owners<'static>) {
     // The browser's gamepads copied into SDL's virtual ones (the page's API is not on this thread).
     #[cfg(target_os = "emscripten")]
     {
+        crate::platform::web::run_queued_calls();
         crate::platform::web_pads::poll();
         crate::platform::web::follow_full_screen();
     }
@@ -237,6 +242,12 @@ pub fn pump(o: crate::owners::Owners<'static>) {
             }
             // As the window's procedure on `WM_ACTIVATE`: the input thread reads the devices
             // (and does not sleep a second a tick) while it is 1.
+            Event::Resized => {
+                #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+                crate::platform::window_follow::note_resize(
+                    u64::from(crate::platform::os::ticks()),
+                );
+            }
             Event::Focus(focused) => system.session.flags.window_focused.set(focused as u32),
             Event::Text(text) => crate::input::typed_text::typed_by_keyboard(&text),
             Event::Key { scancode, down } => {
@@ -311,6 +322,8 @@ pub fn pump(o: crate::owners::Owners<'static>) {
     }
     #[cfg(touch_screen)]
     touch_tick(&o, now);
+    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    crate::platform::window_follow::follow(o, now);
     if let Some(action) = lock_menu_pad().tick(now) {
         menu_action(input, action);
     }

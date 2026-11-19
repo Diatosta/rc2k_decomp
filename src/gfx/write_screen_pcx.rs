@@ -49,7 +49,20 @@ pub fn write_screen_pcx(
             return Ok(false);
         }
         let mut ok = match picture(gfx, system)? {
-            Some(png) => write_stream_all(stream, &png)?,
+            Some(png) => {
+                let written = write_stream_all(stream, &png)?;
+                // The browser keeps no file the player can reach: the picture is also handed
+                // over as a download.
+                #[cfg(target_os = "emscripten")]
+                if written {
+                    crate::platform::web::download(
+                        &String::from_utf8_lossy(&path),
+                        &png,
+                        "image/png",
+                    );
+                }
+                written
+            }
             None => false,
         };
         let closed = crate::files::close_stream::close_stream(stream)?;
