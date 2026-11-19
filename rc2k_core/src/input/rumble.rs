@@ -119,13 +119,15 @@ pub struct Pulse {
 /// The weakest rumble a phone pulses for, as a fraction of the motors' full level: lighter
 /// ones are a buzz that says nothing and only drains the battery.
 const PHONE_WEAKEST: f32 = 0.12;
-/// The shortest and longest pulse (ms): a light rumble ticks, a full one is a firm thump. A
-/// running rumble is pulsed again by the caller, so a long one is a train of pulses.
-const PHONE_SHORTEST_MS: u32 = 30;
-const PHONE_LONGEST_MS: u32 = 120;
+/// The shortest and longest pulse (ms). A running rumble is pulsed again by the caller, so it
+/// is a train of pulses: a full one lasts longer than the gap, so that the next starts before
+/// it ends and the motor runs steadily; a light one is shorter than the gap, a rumble that
+/// pulses.
+const PHONE_SHORTEST_MS: u32 = 60;
+const PHONE_LONGEST_MS: u32 = 160;
 /// The least time between two pulses (ms), so that a rumble that changes every frame does not
-/// buzz without a break.
-pub const PHONE_PULSE_GAP_MS: u128 = 160;
+/// start a pulse every frame.
+pub const PHONE_PULSE_GAP_MS: u128 = 120;
 
 /// The two motors' levels (0 .. 65535) mixed down to a phone's one motor: the stronger of the
 /// two sets the strength, and the pulse lasts longer the stronger it is. A phone's motor is
