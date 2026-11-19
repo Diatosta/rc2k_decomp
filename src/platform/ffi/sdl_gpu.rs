@@ -168,6 +168,10 @@ impl Device {
         // plain values, used by one call and destroyed after it.
         let device = unsafe {
             let props = SDL_CreateProperties();
+            // SDL's properties default to its debug mode (validation, which on Metal stops the
+            // program at its first complaint); the plain device, as `SDL_CreateGPUDevice`'s
+            // `debug_mode` false gave.
+            SDL_SetBooleanProperty(props, SDL_PROP_GPU_DEVICE_CREATE_DEBUGMODE_BOOLEAN, false);
             SDL_SetBooleanProperty(
                 props,
                 SDL_PROP_GPU_DEVICE_CREATE_SHADERS_SPIRV_BOOLEAN,
